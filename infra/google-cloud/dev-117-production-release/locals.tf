@@ -10,6 +10,7 @@ locals {
   controller_github_token_secret  = "aipdm-prod-controller-github-read-token"
   incident_topic                  = "aipdm-prod-release-incident"
   candidate_smoke_workflow        = "aipdm-prod-candidate-smoke"
+  candidate_smoke_workflow_v2     = "aipdm-prod-candidate-smoke-v2"
   candidate_smoke_secret          = "aipdm-prod-smoke-firebase-refresh-token"
   candidate_smoke_probe_path      = "/api/health/ready"
   candidate_smoke_negative_path   = "/api/numbering/permissions"

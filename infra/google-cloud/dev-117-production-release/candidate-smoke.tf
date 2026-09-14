@@ -74,7 +74,7 @@ resource "google_workflows_workflow" "candidate_smoke" {
               - firebase_api_key: $${map.get(args, "firebaseApiKey")}
         - validate_owner_and_canonical:
             switch:
-              - condition: $${owner_app != "${local.owner_application_id}" or canonical_origin != "https://ai-pdm-prod-9536592944.asia-east1.run.app"}
+              - condition: $${owner_app != "${local.app}" or canonical_origin != "https://ai-pdm-prod-9536592944.asia-east1.run.app"}
                 next: reject_target
         - validate_candidate_identity:
             switch:

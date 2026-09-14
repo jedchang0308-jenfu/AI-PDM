@@ -83,7 +83,7 @@
     "mePath": "/api/auth/me",
     "logoutPath": "/api/auth/logout",
     "candidateSmokeMode": "WORKFLOWS_INTERNAL_OIDC_V1",
-    "candidateWorkflowName": "aipdm-prod-candidate-smoke",
+    "candidateWorkflowName": "aipdm-prod-candidate-smoke-v2",
     "candidateRefreshTokenSecretId": "aipdm-prod-smoke-firebase-refresh-token",
     "authenticatedProbes": [
       {
