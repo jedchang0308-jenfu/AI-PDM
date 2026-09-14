@@ -27,6 +27,9 @@ test('isolated PostgreSQL proves serializable import, non-deferrable self-FK con
     assert.equal(catalog.foreignKeys.length, 1)
     assert.equal(catalog.foreignKeys[0].deferrable, false)
     const table = catalog.tables[0]
+    assert.deepEqual(table.primaryKey, ['id'])
+    assert.deepEqual(catalog.foreignKeys[0].childColumns, ['parent_id'])
+    assert.deepEqual(catalog.foreignKeys[0].parentColumns, ['id'])
     const rows = [{ id: 'child', parent_id: 'parent', payload: 'B' }, { id: 'parent', parent_id: null, payload: 'A' }]
     await database.query('BEGIN ISOLATION LEVEL SERIALIZABLE')
     const inserted = await insertTableRows(database, { target: { schema } }, table, rows)

@@ -76,8 +76,8 @@ export async function readCatalog(database, schema) {
   `, [schema])).rows
   const primaryKeys = (await database.query(`
     SELECT c.relname AS table_name,
-           ARRAY(SELECT a.attname FROM unnest(con.conkey) WITH ORDINALITY key(attnum,ord)
-                 JOIN pg_catalog.pg_attribute a ON a.attrelid=con.conrelid AND a.attnum=key.attnum ORDER BY key.ord) AS columns
+           ARRAY(SELECT a.attname::text FROM unnest(con.conkey) WITH ORDINALITY key(attnum,ord)
+                 JOIN pg_catalog.pg_attribute a ON a.attrelid=con.conrelid AND a.attnum=key.attnum ORDER BY key.ord)::text[] AS columns
     FROM pg_catalog.pg_constraint con
     JOIN pg_catalog.pg_class c ON c.oid=con.conrelid
     JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
@@ -87,10 +87,10 @@ export async function readCatalog(database, schema) {
   const foreignKeys = (await database.query(`
     SELECT child.relname AS "childTable", parent.relname AS "parentTable", con.conname AS "constraintName",
            con.condeferrable AS deferrable,
-           ARRAY(SELECT a.attname FROM unnest(con.conkey) WITH ORDINALITY key(attnum,ord)
-                 JOIN pg_catalog.pg_attribute a ON a.attrelid=con.conrelid AND a.attnum=key.attnum ORDER BY key.ord) AS "childColumns",
-           ARRAY(SELECT a.attname FROM unnest(con.confkey) WITH ORDINALITY key(attnum,ord)
-                 JOIN pg_catalog.pg_attribute a ON a.attrelid=con.confrelid AND a.attnum=key.attnum ORDER BY key.ord) AS "parentColumns"
+           ARRAY(SELECT a.attname::text FROM unnest(con.conkey) WITH ORDINALITY key(attnum,ord)
+                 JOIN pg_catalog.pg_attribute a ON a.attrelid=con.conrelid AND a.attnum=key.attnum ORDER BY key.ord)::text[] AS "childColumns",
+           ARRAY(SELECT a.attname::text FROM unnest(con.confkey) WITH ORDINALITY key(attnum,ord)
+                 JOIN pg_catalog.pg_attribute a ON a.attrelid=con.confrelid AND a.attnum=key.attnum ORDER BY key.ord)::text[] AS "parentColumns"
     FROM pg_catalog.pg_constraint con
     JOIN pg_catalog.pg_class child ON child.oid=con.conrelid
     JOIN pg_catalog.pg_namespace child_ns ON child_ns.oid=child.relnamespace
