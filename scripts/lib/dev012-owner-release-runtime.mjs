@@ -261,6 +261,26 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return putBytes(uri, Buffer.from(`${canonicalize(value)}\n`, 'utf8'), { ...options, contentType: 'application/json' })
   }
 
+  async function deleteBytes(uri, { bucket, prefix, expectedGeneration }) {
+    const parsed = parseGsUri(uri, bucket, prefix)
+    if (!/^[1-9][0-9]*$/u.test(String(expectedGeneration ?? ''))) fail('GCS_DELETE_GENERATION_INVALID')
+    const endpoint = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(parsed.bucket)}/o/${encodeURIComponent(parsed.object)}`
+    let before
+    try { before = await request(endpoint) } catch (error) {
+      if (error?.code === 'MISSING') return { uri, generation: String(expectedGeneration), deleted: true, alreadyAbsent: true }
+      throw error
+    }
+    if (String(before?.generation ?? '') !== String(expectedGeneration)) fail('GCS_DELETE_GENERATION_MISMATCH')
+    await request(`${endpoint}?ifGenerationMatch=${encodeURIComponent(expectedGeneration)}`, { method: 'DELETE' })
+    try {
+      await request(endpoint)
+      fail('GCS_DELETE_READBACK_FAILED')
+    } catch (error) {
+      if (error?.code !== 'MISSING') throw error
+    }
+    return { uri, generation: String(expectedGeneration), deleted: true, alreadyAbsent: false }
+  }
+
   async function waitBuild(operation, deadlineAt, projectId, region) {
     if (!operation?.name || !Number.isFinite(Date.parse(deadlineAt)) || !/^[a-z][a-z0-9-]{4,62}$/u.test(projectId ?? '') || !/^[a-z]+-[a-z]+[0-9]$/u.test(region ?? '')) fail('BUILD_OPERATION_OR_DEADLINE_INVALID')
     const encoded = operation.name.split('/').at(-1) ?? ''
@@ -891,7 +911,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  return { request, readOwnerRun, readBytes, readJson, putBytes, putJson, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
+  return { request, readOwnerRun, readBytes, readJson, putBytes, putJson, deleteBytes, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {

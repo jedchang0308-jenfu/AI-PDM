@@ -18,6 +18,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dev012-postgres-cutover:
+    name: DEV-012 Isolated PostgreSQL Cutover
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Verify provider and DEV-012 cutover against disposable PostgreSQL
+        env:
+          DEV012_ISOLATED_POSTGRES: "1"
+          PDM_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+        run: |
+          node scripts/qc-db-provider-postgres.mjs
+          node --test scripts/dev012-production-data-cutover-postgres.test.mjs
+
   qc-full:
     name: Production Slice QC
     runs-on: windows-latest

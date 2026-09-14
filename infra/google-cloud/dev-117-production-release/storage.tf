@@ -49,9 +49,10 @@ resource "google_storage_bucket_iam_member" "builder_sbom_object_admin" {
 
 resource "google_storage_bucket_iam_member" "deployer" {
   for_each = {
-    control_user     = { role = "roles/storage.objectUser", prefix = local.control_prefix }
-    receipts_creator = { role = "roles/storage.objectCreator", prefix = local.receipt_prefix }
-    evidence_viewer  = { role = "roles/storage.objectViewer", prefix = "projects/_/buckets/${var.release_bucket_name}/objects/" }
+    control_user         = { role = "roles/storage.objectUser", prefix = local.control_prefix }
+    data_cutover_cleanup = { role = "roles/storage.objectUser", prefix = "projects/_/buckets/${var.release_bucket_name}/objects/source/migration-bundles/data-cutover/" }
+    receipts_creator     = { role = "roles/storage.objectCreator", prefix = local.receipt_prefix }
+    evidence_viewer      = { role = "roles/storage.objectViewer", prefix = "projects/_/buckets/${var.release_bucket_name}/objects/" }
   }
   bucket = google_storage_bucket.release.name
   role   = each.value.role

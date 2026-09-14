@@ -2,6 +2,7 @@ param(
   [int]$Port = 55439,
   [switch]$Dev095Retirement,
   [switch]$Dev106Retirement,
+  [switch]$Dev012Cutover,
   [switch]$CleanupOnly
 )
 
@@ -94,6 +95,13 @@ try {
     Write-Host "Postgres QC: running DEV-106 retirement residue rehearsal"
     & node (Join-Path $projectRoot "scripts\qc-dev-106-postgres-retirement.mjs")
     if ($LASTEXITCODE -ne 0) { throw "DEV-106 Postgres retirement rehearsal failed with exit code $LASTEXITCODE" }
+  }
+  if ($Dev012Cutover) {
+    Write-Host "Postgres QC: running DEV-012 production data cutover rehearsal"
+    $env:DEV012_ISOLATED_POSTGRES = "1"
+    & node --test (Join-Path $projectRoot "scripts\dev012-production-data-cutover-postgres.test.mjs")
+    if ($LASTEXITCODE -ne 0) { throw "DEV-012 data cutover PostgreSQL rehearsal failed with exit code $LASTEXITCODE" }
+    Remove-Item Env:DEV012_ISOLATED_POSTGRES -ErrorAction SilentlyContinue
   }
 }
 finally {

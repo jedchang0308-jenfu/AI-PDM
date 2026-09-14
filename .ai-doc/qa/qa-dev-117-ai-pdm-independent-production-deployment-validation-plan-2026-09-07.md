@@ -295,3 +295,19 @@ Managed build須由AI-PDM builder自行取得SBOM_REFERENCE與0 High／Critical 
 Owner runtime regression須證明`/operations/`永遠不是readback路徑；Service PATCH只能由exact Service settled state、requested entry fields與零template／traffic drift判定完成。Migration在POST前後須完整分頁列出child executions，只能以唯一new＋exact current args匹配選定execution並輪詢其terminal；零筆、多筆、stale latest、args drift、unreadable或deadline均FAIL，且不得繼續candidate／entrypoint／traffic。
 
 Upstream coordinator negative case須在production DB bootstrap receipt缺失、self-hash／Platform source／release ID／target漂移、role／schema／membership／CONNECT／PUBLIC隔離數值不符或task-owned Job未清理時，於AI-PDM dispatch前FAIL。有效bootstrap只解鎖owner執行；AI-PDM既有14-entry migration與DEV-116 R02仍須各自PASS，不能由shared bootstrap替代。
+
+<a id="dev012-r66-data-cutover-qa"></a>
+
+## 18. DEV-012 R66 production data cutover QA
+
+本節補強Platform QA-012-05／07／08／09／10／12／13／16，不新增分母。固定oracle為：151-table exact catalog；target seed subset；legacy access fence零template／traffic漂移；immutable generation export；serializable all-or-nothing import；13欄allowlisted transform；既有管理員exact-one UID remap；逐表count／PK／normalized hash；task IAM／Job teardown；owner prepare與verify雙重重讀；RELEASED後exact-generation raw cleanup；後續ordinary release只讀completion authority且不再連legacy。
+
+| 驗證 | 2026-09-15結果 | 邊界 |
+|---|---:|---|
+| `npm run test:dev-012:data-cutover` | 15／15 PASS | pure contract＋recorded provider；cloud mutation=0 |
+| `npm run test:dev-117:continuous` | 32／32 PASS | owner十階段與data authority join |
+| `npm run qc:dev-012:data-cutover` | PASS | syntax、recovery、cleanup、IAM complete-set、DB boundary source |
+| isolated PostgreSQL | NOT_RUN | 本機磁碟低於資源安全線；不得以mock取代 |
+| production provider／DB／traffic | NOT_RUN | 須由fresh release receipts證明 |
+
+Isolated PostgreSQL恢復條件為磁碟回到resource governor安全線；執行時必須使用task-owned PostgreSQL 17+、loopback-only port，證明non-deferrable self-FK convergence、serializable commit、replay zero-insert及schema／process／port清理。Production則另需fresh Billing、backup／PITR、catalog、import handoff、post-import capacity與normal-entry evidence；local PASS不得升格。
