@@ -210,6 +210,11 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   }
 
   if (stage === 'prepare') {
+    const existing = await optionalNamedJson(transport, paths.prepare, profile)
+    if (existing) {
+      assertStage(existing.value, profile, intent, 'prepare')
+      return existing
+    }
     const names = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const entries = await Promise.all(Object.entries(names).map(async ([name, field]) => [name, (await transport.readJson(intent[field], profile.artifact.releaseBucket, ['receipts'])).value]))
     const values = Object.fromEntries(entries)
@@ -222,6 +227,12 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
 
   if (stage === 'build') {
     const prepare = await readStage(transport, paths, profile, intent, 'prepare')
+    const existing = await optionalNamedJson(transport, paths.deployment, profile)
+    if (existing) {
+      assertDeployment(existing.value, profile, intent, intentRef, capsuleSha256)
+      await readStage(transport, paths, profile, intent, 'build')
+      return existing
+    }
     const sourceIdentityBytes = await createSourceIdentity(intent.sourceRevision)
     if (!Buffer.isBuffer(sourceIdentityBytes) || sha256(sourceIdentityBytes) !== intent.sourceSha256) fail('SOURCE_IDENTITY_HASH_MISMATCH')
     const sourceBytes = await createSourceArchive(intent.sourceRevision)
