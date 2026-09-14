@@ -505,9 +505,13 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   }
 
   function effectiveRevision(service) {
-    const row = service.trafficStatuses?.find((item) => !item.tag && Number(item.percent) === 100)
-    if (!row?.revision || row.latestRevision === true) fail('EFFECTIVE_REVISION_AMBIGUOUS')
-    return row.revision
+    const configured = service.traffic?.filter((item) => Number(item.percent) === 100) ?? []
+    const observed = service.trafficStatuses?.filter((item) => Number(item.percent) === 100) ?? []
+    if (configured.length !== 1 || observed.length !== 1) fail('EFFECTIVE_REVISION_AMBIGUOUS')
+    const target = configured[0]
+    const status = observed[0]
+    if (target.tag || !target.revision || target.latestRevision === true || !status.revision || status.latestRevision === true || status.revision !== target.revision) fail('EFFECTIVE_REVISION_AMBIGUOUS')
+    return status.revision
   }
 
   async function setTraffic({ profile, revision, candidateTag = null, deadlineAt }) {

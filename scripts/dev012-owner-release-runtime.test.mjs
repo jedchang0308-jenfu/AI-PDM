@@ -180,6 +180,21 @@ test('candidate-tag cleanup distinguishes the candidate from the active rollback
   assert.equal(transport.effectiveRevision(readback), 'previous-1')
 })
 
+test('effective revision accepts a provider-coalesced tagged status only when the explicit 100% target agrees', () => {
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json({}) })
+  const coalesced = {
+    traffic: [
+      { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: 'candidate-1', percent: 100 },
+      { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: 'candidate-1', percent: 0, tag: 'candidate-abc' },
+    ],
+    trafficStatuses: [{ type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: 'candidate-1', percent: 100, tag: 'candidate-abc', uri: 'https://candidate.example.invalid' }],
+  }
+  assert.equal(transport.effectiveRevision(coalesced), 'candidate-1')
+  assert.throws(() => transport.effectiveRevision({ ...coalesced, trafficStatuses: [{ revision: 'other-1', percent: 100, tag: 'candidate-abc' }] }), /EFFECTIVE_REVISION_AMBIGUOUS/u)
+  assert.throws(() => transport.effectiveRevision({ ...coalesced, traffic: [{ revision: 'candidate-1', percent: 100, tag: 'candidate-abc' }] }), /EFFECTIVE_REVISION_AMBIGUOUS/u)
+  assert.throws(() => transport.effectiveRevision({ ...coalesced, trafficStatuses: [{ latestRevision: true, percent: 100 }] }), /EFFECTIVE_REVISION_AMBIGUOUS/u)
+})
+
 test('Cloud Run service readback requires a reconciled successful observed generation', () => {
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json({}) })
   const settled = { reconciling: false, generation: '8', observedGeneration: '8', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }
