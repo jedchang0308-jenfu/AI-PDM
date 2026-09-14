@@ -168,7 +168,7 @@ async function readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha25
   return { intent, intentRef, intentReadback: result, paths: releasePaths(profile, intent, capsuleSha256) }
 }
 
-export function assertStaleControlSafeToSupersede({ current, profile, intent, ownerRun, service, activeRevision, now }) {
+export function assertStaleControlSafeToSupersede({ current, profile, intent, ownerRun, service, activeRevision, now, candidate = null, nextState = null }) {
   const expected = ['schemaVersion', 'inputFingerprint', 'ownerApplicationId', 'service', 'controlBucket', 'releaseId', 'sourceRevision', 'sourceLockSha256', 'candidateRevision', 'previousRevision', 'ownerRunRef', 'leaseExpiresAt', 'deadlineAt', 'state', 'result', 'controlSha256'].sort()
   if (!current || JSON.stringify(Object.keys(current).sort()) !== JSON.stringify(expected)) fail('CONTROL_HEAD_INVALID')
   const { controlSha256, ...core } = current
@@ -184,8 +184,13 @@ export function assertStaleControlSafeToSupersede({ current, profile, intent, ow
     || ownerRun?.id !== runId || ownerRun.status !== 'completed' || !ownerRun.conclusion
     || ownerRun.event !== 'workflow_dispatch' || ownerRun.headSha !== current.sourceRevision
     || current.previousRevision !== intent.previousRevision || activeRevision !== intent.previousRevision) fail('CONTROL_HEAD_TAKEOVER_UNSAFE')
-  const traffic = [...(service?.traffic ?? []), ...(service?.trafficStatuses ?? [])]
-  if (traffic.some((row) => row?.tag)) fail('CONTROL_HEAD_TAKEOVER_UNSAFE')
+  const configuredTags = (service?.traffic ?? []).filter((row) => row?.tag)
+  const observedTags = (service?.trafficStatuses ?? []).filter((row) => row?.tag)
+  if (nextState === 'CANDIDATE_CREATED') {
+    const matches = (row) => row.tag === candidate?.tag && row.revision === candidate?.candidateRevision && Number(row.percent ?? 0) === 0
+    if (!candidate?.tag || !candidate?.candidateRevision || configuredTags.length !== 1 || observedTags.length !== 1
+      || !configuredTags.every(matches) || !observedTags.every(matches)) fail('CONTROL_HEAD_TAKEOVER_UNSAFE')
+  } else if (configuredTags.length !== 0 || observedTags.length !== 0) fail('CONTROL_HEAD_TAKEOVER_UNSAFE')
   return true
 }
 
@@ -197,7 +202,7 @@ async function writeControl({ transport, paths, profile, intent, fingerprint, ca
       transport.getService(profile),
     ])
     transport.assertServiceSettled(service, 'CONTROL_HEAD_TAKEOVER_UNSAFE')
-    assertStaleControlSafeToSupersede({ current: current.value, profile, intent, ownerRun, service, activeRevision: transport.effectiveRevision(service), now: transport.now() })
+    assertStaleControlSafeToSupersede({ current: current.value, profile, intent, ownerRun, service, activeRevision: transport.effectiveRevision(service), now: transport.now(), candidate, nextState: state })
   }
   if (current?.value.inputFingerprint === fingerprint) {
     const transitions = {

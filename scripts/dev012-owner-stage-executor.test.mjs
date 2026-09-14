@@ -146,6 +146,13 @@ test('expired control is superseded only after terminal owner-run and settled ba
   const service = { traffic: [{ revision: previousRevision, percent: 100 }], trafficStatuses: [{ revision: previousRevision, percent: 100 }] }
   const input = { current, profile, intent: { previousRevision }, ownerRun, service, activeRevision: previousRevision, now: '2026-09-08T01:00:00.000Z' }
   assert.equal(assertStaleControlSafeToSupersede(input), true)
+  const newCandidate = { tag: 'candidate-newcontrol', candidateRevision: 'jenfu-platform-prod-newcontrol' }
+  const taggedService = {
+    traffic: [...service.traffic, { revision: newCandidate.candidateRevision, percent: 0, tag: newCandidate.tag }],
+    trafficStatuses: [...service.trafficStatuses, { revision: newCandidate.candidateRevision, percent: 0, tag: newCandidate.tag }],
+  }
+  assert.equal(assertStaleControlSafeToSupersede({ ...input, service: taggedService, candidate: newCandidate, nextState: 'CANDIDATE_CREATED' }), true)
+  assert.throws(() => assertStaleControlSafeToSupersede({ ...input, service: taggedService, candidate: { ...newCandidate, tag: 'candidate-wrong' }, nextState: 'CANDIDATE_CREATED' }), /CONTROL_HEAD_TAKEOVER_UNSAFE/u)
   assert.throws(() => assertStaleControlSafeToSupersede({ ...input, ownerRun: { ...ownerRun, status: 'in_progress', conclusion: null } }), /CONTROL_HEAD_TAKEOVER_UNSAFE/u)
   assert.throws(() => assertStaleControlSafeToSupersede({ ...input, service: { ...service, trafficStatuses: [...service.trafficStatuses, { revision: candidateRevision, tag: candidateTag }] } }), /CONTROL_HEAD_TAKEOVER_UNSAFE/u)
   assert.throws(() => assertStaleControlSafeToSupersede({ ...input, activeRevision: candidateRevision }), /CONTROL_HEAD_TAKEOVER_UNSAFE/u)
