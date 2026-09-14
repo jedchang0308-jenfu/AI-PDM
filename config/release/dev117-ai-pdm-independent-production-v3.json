@@ -319,6 +319,22 @@
       }
     ]
   },
+  "dataCutover": {
+    "gateMode": "CUTOVER_OR_LIVE_AUTHORITY",
+    "handoffSchema": "jenfu.dev012.ai-pdm-data-cutover-handoff.v1",
+    "importReceiptSchema": "jenfu.dev012.ai-pdm-data-import-receipt.v1",
+    "fenceReceiptSchema": "jenfu.dev012.ai-pdm-data-fence-receipt.v1",
+    "teardownReceiptSchema": "jenfu.dev012.ai-pdm-data-teardown-receipt.v1",
+    "postLiveCleanupReceiptSchema": "jenfu.dev012.ai-pdm-data-post-live-cleanup-receipt.v1",
+    "completionReceiptSchema": "jenfu.dev012.ai-pdm-data-post-live-cleanup-receipt.v1",
+    "postLiveCleanupRequired": true,
+    "sourceProjectId": "jenfu-ai-pdm-prod",
+    "sourceDatabase": "ai_pdm",
+    "targetProjectId": "jenfu-platform-prod",
+    "targetDatabase": "jenfu_prod",
+    "targetSchema": "ai_pdm_core",
+    "copyTableCount": 151
+  },
   "dependencies": {
     "dev116ReceiptSchema": "jenfu.dev116.r02.production-candidate-receipt.v1",
     "legacyV1Profile": "jenfu.ai-pdm.independent-release-profile.v1"

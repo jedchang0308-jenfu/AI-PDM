@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "jenfu.dev012.ai-pdm-production-data-cutover.v1",
+  "ownerApplicationId": "ai-pdm",
+  "releaseBucket": "jenfu-platform-prod-aipdm-release",
+  "billingAccountName": "billingAccounts/018678-C2F032-7680E4",
+  "source": {
+    "projectId": "jenfu-ai-pdm-prod",
+    "projectNumber": "451715062958",
+    "region": "asia-east1",
+    "instanceConnectionName": "jenfu-ai-pdm-prod:asia-east1:ai-pdm-prod-postgres",
+    "database": "ai_pdm",
+    "schema": "public",
+    "service": "ai-pdm-prod",
+    "migrationJob": "ai-pdm-prod-migration-runner",
+    "serviceAccount": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam.gserviceaccount.com",
+    "databaseLogin": "ai-pdm-prod-migration@jenfu-ai-pdm-prod.iam",
+    "network": "ai-pdm-prod-vpc",
+    "subnet": "ai-pdm-prod-runtime"
+  },
+  "target": {
+    "projectId": "jenfu-platform-prod",
+    "projectNumber": "9536592944",
+    "region": "asia-east1",
+    "instanceConnectionName": "jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg",
+    "database": "jenfu_prod",
+    "schema": "ai_pdm_core",
+    "migrationJob": "ai-pdm-prod-migration-runner",
+    "serviceAccount": "aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com",
+    "databaseLogin": "aipdm-prod-migrator@jenfu-platform-prod.iam",
+    "network": "jenfu-platform-prod-vpc",
+    "subnet": "jenfu-platform-prod-runtime"
+  },
+  "catalog": {
+    "expectedSourceTableCount": 157,
+    "expectedTargetTableCount": 157,
+    "expectedCopyTableCount": 151,
+    "sourceExcludedTables": {
+      "import_batches": "REQUIRE_EMPTY",
+      "import_staging_rows": "REQUIRE_EMPTY",
+      "part_attachment_reuse_origins": "REQUIRE_EMPTY",
+      "part_attachment_reuse_snapshots": "REQUIRE_EMPTY",
+      "part_preview_settings": "REQUIRE_EMPTY",
+      "pdm_schema_migrations": "RETAIN_LEGACY_LEDGER"
+    },
+    "targetOnlyTables": {
+      "active_role_catalog": 0,
+      "contract_manifest": 1,
+      "pdm_local_data_migrations": 0,
+      "role_catalog_entries": 0,
+      "role_catalog_publications": 0,
+      "schema_migrations": 14
+    },
+    "allowedTargetSeedRows": {
+      "numbering_rule_versions": 3,
+      "pdm_workbench_state_authority_control": 1
+    },
+    "typeTransforms": [
+      { "table": "drawing_recognition_adapter_results", "column": "diagnostics_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_recognition_decisions", "column": "before_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_recognition_decisions", "column": "after_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_recognition_formalization_events", "column": "target_fingerprints_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_recognition_formalization_events", "column": "applied_changes_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_recognition_formalization_events", "column": "exclusions_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_recognition_formalization_events", "column": "result_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_recognition_observations", "column": "geometry_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_recognition_sessions", "column": "not_before", "sourceType": "timestamp with time zone", "targetType": "text", "mode": "TIMESTAMPTZ_TO_TEXT" },
+      { "table": "drawing_recognition_sources", "column": "adapter_plan_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "drawing_revisions", "column": "policy_snapshot_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "numbering_candidate_revision_drafts", "column": "policy_snapshot_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" },
+      { "table": "pdm_attribute_definitions", "column": "aliases_json", "sourceType": "jsonb", "targetType": "text", "mode": "JSONB_TO_CANONICAL_TEXT" }
+    ]
+  },
+  "identityRemap": {
+    "email": "jedchang0308@jenfu.com.tw",
+    "pdmUserId": "prod-pdm-admin-001",
+    "companyId": "company-jenfu",
+    "role": "Admin",
+    "accountStatus": "active",
+    "accountLifecycleVersion": 1,
+    "mappingSource": "shared_iam",
+    "mappingStatus": "active"
+  },
+  "acknowledgements": {
+    "export": "DEV-012-AI-PDM-PRODUCTION-DATA-EXPORT-APPROVED",
+    "import": "DEV-012-AI-PDM-PRODUCTION-DATA-IMPORT-APPROVED",
+    "fence": "DEV-012-AI-PDM-LEGACY-ACCESS-FENCE-APPROVED",
+    "restore": "DEV-012-AI-PDM-LEGACY-ACCESS-RESTORE-APPROVED"
+  }
+}

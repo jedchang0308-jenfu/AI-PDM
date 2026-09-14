@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-15 R66 current handoff**：DEV-012首次正式資料切換 source 已在獨立 worktree 完成：151-table plan、source access fence、immutable export、serializable import、exact reconciliation、既有管理員 UID remap、task IAM／Job teardown、owner candidate hard gate與live後raw-bundle cleanup均已落地。Local data-cutover 15／15、continuous owner 32／32、cutover QC PASS；isolated PostgreSQL因磁碟資源安全線 `NOT_RUN`，production provider與traffic `NOT_RUN`，source尚未commit／push。Current authority為[SPEC §29](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md#dev012-r66-ai-pdm-data-cutover)與[QA §18](qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md#dev012-r66-data-cutover-qa)。
+
 > **2026-09-11 R38 current handoff**：R35 AI-PDM production migration replay=`14 replayed`；candidate／entrypoint／traffic未執行。Current owner已修正Cloud Run v2 completion readback與exact Job viewer，且DEV-117 V1歷史adapter 12／12與V3 direct-run 28／28已拆分驗證。測試修正造成source drift，因此R37不得再作release authority且未執行AI-PDM app apply；operator重新授權後以fresh R38繼續。Current serving仍只允許provider `run.app`，不使用custom domain、Hosting、shared LB或TOTP。
 
 > **2026-09-10 R26 current handoff**：upstream app apply前揭露SBOM IAM stage classification缺口，AI-PDM未dispatch。Current owner docs固定三個SBOM binding為`incident_runtime_enabled` APP_INFRA_B additional `[0]` addresses；fresh source／provider only-create readback前Production仍NOT_RUN。

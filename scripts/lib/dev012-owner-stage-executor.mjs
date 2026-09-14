@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
 import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
+import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDataCutoverHandoff, assertDataCutoverImportReceipt, assertDataCutoverTeardownReceipt } from './dev012-production-data-cutover.mjs'
+import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProviderStage } from './dev012-production-data-cutover-provider.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -142,6 +144,73 @@ async function writeStage(transport, paths, profile, intent, stage, previousRece
   return { ...result, value }
 }
 
+function dataCutoverCleanupTransport(transport, profile) {
+  const missing = (error) => {
+    if (error?.code !== 'MISSING') throw error
+    const translated = new Error('MIGRATION_GCS_METADATA_FAILED:404')
+    translated.code = 'MIGRATION_GCS_METADATA_FAILED'
+    throw translated
+  }
+  return {
+    now: transport.now,
+    readJsonByUri: async (uri, _config, prefix) => {
+      try { return await readNamedJson(transport, uri, profile, null, [prefix]) } catch (error) { return missing(error) }
+    },
+    readJson: (reference, _config, prefix) => readNamedJson(transport, reference.uri, profile, reference.sha256, [prefix]),
+    readRawObject: async (uri, _config, prefix) => {
+      try {
+        const result = await transport.readBytes(uri, { prefixes: [prefix] })
+        return { bytes: result.bytes, generation: String(result.metadata.generation) }
+      } catch (error) { return missing(error) }
+    },
+    deleteGcsObject: ({ uri, expectedBucket, expectedPrefix, expectedGeneration }) => transport.deleteBytes(uri, { bucket: expectedBucket, prefix: expectedPrefix, expectedGeneration }),
+    publishJson: async (uri, _config, prefix, value) => {
+      const result = await transport.putJson(uri, value, { bucket: profile.artifact.releaseBucket, prefix })
+      return { ...result, value }
+    },
+  }
+}
+
+function dataCutoverGateEnabled(profile) {
+  return profile.dataCutover?.gateMode === 'CUTOVER_OR_LIVE_AUTHORITY'
+}
+
+export async function readDataCutoverEvidence({ transport, profile, intent, readiness, dataCutoverConfig }) {
+  if (!dataCutoverGateEnabled(profile)) return null
+  if (!dataCutoverConfig) fail('DATA_CUTOVER_CONFIG_REQUIRED')
+  const handoffInput = readiness?.dataCutoverHandoffRef ?? null
+  const completionInput = readiness?.dataCutoverCompletionRef ?? null
+  if (Boolean(handoffInput) === Boolean(completionInput)) fail('DATA_CUTOVER_AUTHORITY_REF_INVALID')
+  if (completionInput) {
+    const completionRef = assertImmutableRef(completionInput, profile.artifact.releaseBucket, ['receipts'])
+    const completionResult = await readNamedJson(transport, completionRef.uri, profile, completionRef.sha256, ['receipts'])
+    const completion = assertPostLiveCleanupReceipt(completionResult.value, dataCutoverConfig)
+    const completedIntent = { releaseId: completion.releaseId, sourceRevision: completion.sourceRevision }
+    const [completedHandoff, terminalResult] = await Promise.all([
+      readDataCutoverEvidence({ transport, profile: { ...profile, dataCutover: { ...profile.dataCutover, gateMode: 'CUTOVER_OR_LIVE_AUTHORITY' } }, intent: completedIntent, readiness: { dataCutoverHandoffRef: completion.handoffReceiptRef }, dataCutoverConfig }),
+      readNamedJson(transport, completion.terminalReceiptRef.uri, profile, completion.terminalReceiptRef.sha256, ['receipts']),
+    ])
+    const terminal = assertOwnerTerminalReceipt(terminalResult.value, completedIntent)
+    if (completion.handoffReceiptSha256 !== completedHandoff.handoffSha256 || completion.terminalReceiptSha256 !== terminal.receiptSha256) fail('DATA_CUTOVER_COMPLETION_JOIN_INVALID')
+    return { completionReceiptRef: completionResult.ref, handoffReceiptRef: completedHandoff.handoffReceiptRef, sourceCatalogSha256: completedHandoff.sourceCatalogSha256, targetReconciliationSha256: completedHandoff.targetReconciliationSha256, tableCount: completedHandoff.tableCount, expectedRowCount: completedHandoff.expectedRowCount, taskResourcesRemoved: true, rawBundleDeleted: true, legacyAccessFenced: true, status: 'NEUTRAL_AUTHORITY_LIVE' }
+  }
+  const handoffRef = assertImmutableRef(handoffInput, profile.artifact.releaseBucket, ['receipts'])
+  const handoffResult = await readNamedJson(transport, handoffRef.uri, profile, handoffRef.sha256, ['receipts'])
+  const handoff = assertDataCutoverHandoff(handoffResult.value, dataCutoverConfig, { releaseId: intent.releaseId, sourceRevision: intent.sourceRevision })
+  const [exportResult, importResult, fenceResult, teardownResult] = await Promise.all([
+    readNamedJson(transport, handoff.exportReceiptRef.uri, profile, handoff.exportReceiptRef.sha256, ['source/migration-bundles']),
+    readNamedJson(transport, handoff.importReceiptRef.uri, profile, handoff.importReceiptRef.sha256, ['receipts']),
+    readNamedJson(transport, handoff.fenceReceiptRef.uri, profile, handoff.fenceReceiptRef.sha256, ['receipts']),
+    readNamedJson(transport, handoff.teardownReceiptRef.uri, profile, handoff.teardownReceiptRef.sha256, ['receipts']),
+  ])
+  const exported = assertDataCutoverExportReceipt(exportResult.value, dataCutoverConfig, { releaseId: intent.releaseId, sourceRevision: intent.sourceRevision })
+  const imported = assertDataCutoverImportReceipt(importResult.value, dataCutoverConfig, { releaseId: intent.releaseId, sourceRevision: intent.sourceRevision })
+  assertDataCutoverFenceReceipt(fenceResult.value, dataCutoverConfig, { releaseId: intent.releaseId, sourceRevision: intent.sourceRevision })
+  const teardown = assertDataCutoverTeardownReceipt(teardownResult.value, dataCutoverConfig, { releaseId: intent.releaseId, sourceRevision: intent.sourceRevision })
+  if (handoff.sourceCatalogSha256 !== exported.sourceCatalogSha256 || handoff.bundleSha256 !== exported.bundleSha256 || exported.bundleSha256 !== imported.bundleSha256 || handoff.sourceCatalogSha256 !== imported.sourceCatalogSha256 || handoff.migrationPlanSha256 !== imported.migrationPlanSha256 || handoff.targetReconciliationSha256 !== sha256(canonicalize(imported.tableReceipts)) || handoff.tableCount !== imported.tableCount || handoff.expectedRowCount !== imported.expectedRowCount || exported.sourceRowCount !== imported.expectedRowCount || handoff.teardownReceiptSha256 !== teardown.receiptSha256) fail('DATA_CUTOVER_HANDOFF_JOIN_INVALID')
+  return { handoffReceiptRef: handoffResult.ref, handoffSha256: handoff.handoffSha256, exportReceiptRef: exportResult.ref, importReceiptRef: importResult.ref, fenceReceiptRef: fenceResult.ref, teardownReceiptRef: teardownResult.ref, sourceCatalogSha256: handoff.sourceCatalogSha256, targetReconciliationSha256: handoff.targetReconciliationSha256, tableCount: handoff.tableCount, expectedRowCount: handoff.expectedRowCount, taskResourcesRemoved: true, legacyAccessFenced: true, status: handoff.status }
+}
+
 function assertDeployment(value, profile, intent, intentRef, intentSha256) {
   if (value?.schemaVersion !== profile.schemas.deploymentCapsule || value.ownerApplicationId !== profile.application.id || value.releaseIntentRef?.uri !== intentRef.uri || value.releaseIntentRef?.sha256 !== intentRef.sha256 || value.releaseIntentSha256 !== intentSha256 || value.sourceRevision !== intent.sourceRevision || value.deadlineAt !== intent.deadlineAt) fail('DEPLOYMENT_CAPSULE_JOIN_INVALID')
   if (!value.artifactDigest?.startsWith(`${profile.artifact.uri}@sha256:`) || !value.migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)) fail('DEPLOYMENT_ARTIFACT_INVALID')
@@ -150,6 +219,11 @@ function assertDeployment(value, profile, intent, intentRef, intentSha256) {
   if (profile.productionData?.required === true) {
     assertImmutableRef(value.productionDataRef, profile.artifact.releaseBucket, [profile.productionData.dataObjectPrefix])
     assertImmutableRef(value.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix])
+  }
+  if (dataCutoverGateEnabled(profile)) {
+    const refs = [value.dataCutoverHandoffRef, value.dataCutoverCompletionRef].filter(Boolean)
+    if (refs.length !== 1) fail('DATA_CUTOVER_DEPLOYMENT_AUTHORITY_INVALID')
+    assertImmutableRef(refs[0], profile.artifact.releaseBucket, ['receipts'])
   }
   return value
 }
@@ -234,7 +308,7 @@ function publicBuildReceipt(build) {
   return { name: build.name, id: build.id, projectId: build.projectId, status: build.status, serviceAccount: build.serviceAccount, createTime: build.createTime, startTime: build.startTime, finishTime: build.finishTime, sourceProvenance: build.sourceProvenance, results: build.results, options: build.options }
 }
 
-export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle }) {
+export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, dataCutoverConfig = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
   const { intent, intentRef, paths } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent })
   const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, releaseIntentSha256: capsuleSha256 }))
@@ -247,16 +321,18 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const existing = await optionalNamedJson(transport, paths.prepare, profile)
     if (existing) {
       assertStage(existing.value, profile, intent, 'prepare')
+      if (dataCutoverGateEnabled(profile) && !['DATA_READY_FOR_CANDIDATE', 'NEUTRAL_AUTHORITY_LIVE'].includes(existing.value.facts?.dataCutover?.status)) fail('DATA_CUTOVER_PREPARE_RECEIPT_INVALID')
       return existing
     }
     const names = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const entries = await Promise.all(Object.entries(names).map(async ([name, field]) => [name, (await transport.readJson(intent[field], profile.artifact.releaseBucket, ['receipts'])).value]))
     const values = Object.fromEntries(entries)
     const derived = assertPreparePrerequisites({ intent, profile, values })
+    const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: values.readiness, dataCutoverConfig })
     const service = await transport.getService(profile)
     transport.assertServiceSettled(service, 'PREPARE_BASELINE_MISMATCH')
     if (transport.effectiveRevision(service) !== intent.previousRevision) fail('PREPARE_BASELINE_MISMATCH')
-    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
+    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 
   if (stage === 'build') {
@@ -285,7 +361,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const sbom = await transport.putJson(paths.sbom, { schemaVersion: 'jenfu.dev012.sbom-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, ...analysis.sbomExport, occurrenceNames: analysis.sbomOccurrenceNames, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const scan = await transport.putJson(paths.scan, { schemaVersion: 'jenfu.dev012.scan-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, buildOccurrenceNames: analysis.buildOccurrenceNames, discoveryOccurrenceNames: analysis.discoveryOccurrenceNames, vulnerabilityCount: analysis.vulnerabilityCount, blockingVulnerabilityCount: analysis.blockingVulnerabilityCount, maximumAllowedSeverity: profile.build.maximumAllowedSeverity, observedAt: analysis.observedAt, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const buildStage = await writeStage(transport, paths, profile, intent, 'build', prepare.ref, { artifactDigest: build.artifactDigest, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, migrationBundleRef: bundle.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref })
-    const deployment = { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: profile.application.id, releaseIntentRef: intentRef, releaseIntentSha256: capsuleSha256, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, migrationBundleRef: bundle.ref, migrationRunnerDigest: prepare.value.facts.migrationRunnerDigest, ...(profile.productionData?.required === true ? { productionDataRef: prepare.value.facts.productionDataRef, firstPrincipalBootstrapRef: prepare.value.facts.firstPrincipalBootstrapRef } : {}), buildReceiptRef: buildStage.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref, deadlineAt: intent.deadlineAt }
+    const cutoverDeploymentAuthority = !dataCutoverGateEnabled(profile) ? {} : prepare.value.facts.dataCutover.status === 'DATA_READY_FOR_CANDIDATE' ? { dataCutoverHandoffRef: prepare.value.facts.dataCutover.handoffReceiptRef } : { dataCutoverCompletionRef: prepare.value.facts.dataCutover.completionReceiptRef }
+    const deployment = { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: profile.application.id, releaseIntentRef: intentRef, releaseIntentSha256: capsuleSha256, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, migrationBundleRef: bundle.ref, migrationRunnerDigest: prepare.value.facts.migrationRunnerDigest, ...(profile.productionData?.required === true ? { productionDataRef: prepare.value.facts.productionDataRef, firstPrincipalBootstrapRef: prepare.value.facts.firstPrincipalBootstrapRef } : {}), ...cutoverDeploymentAuthority, buildReceiptRef: buildStage.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref, deadlineAt: intent.deadlineAt }
     assertDeployment(deployment, profile, intent, intentRef, capsuleSha256)
     return transport.putJson(paths.deployment, deployment, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
@@ -331,8 +408,10 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent ?? 0) !== 0 || !candidateTagUriMatches(service, candidate.value.facts, tag.uri) || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
     transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage)
+    const readiness = await readNamedJson(transport, intent.readinessReceiptRef.uri, profile, intent.readinessReceiptRef.sha256, ['receipts'])
+    const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: readiness.value, dataCutoverConfig })
     const smoke = await transport.runInternalCandidateSmoke({ profile, origin: candidate.value.facts.tagUri, candidateTag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, deadlineAt: intent.deadlineAt, environment })
-    const result = await writeStage(transport, paths, profile, intent, 'verify', entrypoint.ref, { candidateReceiptRef: candidate.ref, entrypointReceiptRef: entrypoint.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, tagUri: candidate.value.facts.tagUri, providerTagUri: tag.uri, smoke, sideEffects: profile.sideEffects })
+    const result = await writeStage(transport, paths, profile, intent, 'verify', entrypoint.ref, { candidateReceiptRef: candidate.ref, entrypointReceiptRef: entrypoint.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, tagUri: candidate.value.facts.tagUri, providerTagUri: tag.uri, ...(dataCutover ? { dataCutover } : {}), smoke, sideEffects: profile.sideEffects })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANDIDATE_VERIFIED', environment })
     return result
   }
@@ -377,6 +456,16 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const finalized = await writeStage(transport, paths, profile, intent, 'finalize', canonical.ref, { canonicalReceiptRef: canonical.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, temporaryCandidateTags: 0, result: 'RELEASED' })
     const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: finalized.ref, facts: { result: 'RELEASED', candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, databaseDisposition: 'FORWARD_APPLIED', remainingHumanAction: 0 }, observedAt: transport.now() })
     const terminalResult = await transport.putJson(paths.terminal, terminal, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+    const prepare = await readStage(transport, paths, profile, intent, 'prepare')
+    if (profile.dataCutover?.postLiveCleanupRequired === true && prepare.value.facts?.dataCutover?.status === 'DATA_READY_FOR_CANDIDATE') {
+      if (!dataCutoverConfig) fail('DATA_CUTOVER_CONFIG_REQUIRED')
+      const cleanup = await executeProviderStage({
+        stage: 'post-live-cleanup', config: dataCutoverConfig, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision,
+        input: { handoffReceiptRef: prepare.value.facts?.dataCutover?.handoffReceiptRef, terminalReceiptRef: terminalResult.ref },
+        transport: dataCutoverCleanupTransport(transport, profile),
+      })
+      assertPostLiveCleanupReceipt(cleanup.value, dataCutoverConfig, { releaseId: intent.releaseId, sourceRevision: intent.sourceRevision })
+    }
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'FINALIZED', result: 'RELEASED', environment })
     return terminalResult
   }

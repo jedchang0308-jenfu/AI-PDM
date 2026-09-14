@@ -11,15 +11,16 @@ import { createGitArchive, createGitSourceIdentity, executeOwnerStage, parseOwne
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
+const dataCutoverConfigPath = 'config/release/dev012-ai-pdm-production-data-cutover.json'
 
 async function main() {
-  const [profileBytes, v1, n1c] = await Promise.all([fs.readFile(path.join(root, profilePath)), ...['config/release/dev117-ai-pdm-independent-production.json', 'config/platform/dev-010-n1c-ai-pdm.json'].map((file) => fs.readFile(path.join(root, file), 'utf8').then(JSON.parse))])
+  const [profileBytes, dataCutoverConfig, v1, n1c] = await Promise.all([fs.readFile(path.join(root, profilePath)), fs.readFile(path.join(root, dataCutoverConfigPath), 'utf8').then(JSON.parse), ...['config/release/dev117-ai-pdm-independent-production.json', 'config/platform/dev-010-n1c-ai-pdm.json'].map((file) => fs.readFile(path.join(root, file), 'utf8').then(JSON.parse))])
   const profile = JSON.parse(profileBytes.toString('utf8'))
   assertDev117V3Profile(profile, v1, n1c)
   const args = parseOwnerStageArgs(process.argv.slice(2), profile.artifact.releaseBucket)
   const transport = createOwnerTransport({ token: process.env.GOOGLE_OAUTH_ACCESS_TOKEN ?? '' })
   const result = await executeOwnerStage({
-    ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent,
+    ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig,
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
     createSourceArchive: async (sourceRevision) => createGitArchive(root, sourceRevision),
     buildMigrationBundle: async (sourceRevision) => buildDev117MigrationBundle(profile, buildAiPdmPackage(n1c), sourceRevision),

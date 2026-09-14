@@ -526,3 +526,27 @@ R25未dispatch AI-PDM，故沒有可沿用的AI-PDM build／migration／candidat
 AI-PDM owner controller不得使用Cloud Run generic operation作completion authority。Service mutation保留operation name作稽核欄位，但只輪詢`ai-pdm-prod` exact Service並驗requested entry fields、fresh generation／etag、settled及template／traffic projection不變。Migration run前後完整分頁列出`ai-pdm-prod-migration-runner` child executions，只接受一個先前不存在且container args與current immutable bundle／output refs完全一致的新execution，再以exact execution GET至terminal；零筆、多筆、舊execution、args drift、不可讀或deadline均FAIL。
 
 Shared production DB roles／schemas不是AI-PDM business migration的owner。Platform S2 bootstrap receipt須綁同一release ID、Platform source與exact production target，證明neutral／app roles、`ai_pdm_core／ai_pdm_contract` schema、IAM login memberships、direct CONNECT、group／PUBLIC denial、`public`無business object及bootstrap Job cleanup；coordinator在其PASS前不得dispatch。本owner收到有效intent後仍只執行自己既有14-entry forward-only migration，不得內建、重跑或修補shared bootstrap。
+
+<a id="dev012-r66-ai-pdm-data-cutover"></a>
+
+## 29. DEV-012 R66 one-time production data cutover（current additive authority）
+
+R63 的 `principal_not_active` 是正式資料權威缺件：legacy `jenfu-ai-pdm-prod / ai_pdm` 有160 tables、3,623 rows，neutral `jenfu-platform-prod / jenfu_prod / ai_pdm_core`僅有DDL／contract seed。R66不得新增第二個管理員、採email fallback、搬入non-production或把14-entry DDL replay當成資料搬移。
+
+### 29.1 Exact source surface
+
+新增 `config/release/dev012-ai-pdm-production-data-cutover.json`、`scripts/lib/dev012-production-data-cutover.mjs`、`scripts/lib/dev012-production-data-cutover-provider.mjs`、兩個CLI、兩份local／recorded-provider test、isolated PostgreSQL test與QC。修改V3 profile／validator、owner CLI／runtime／stage executor、migration-runner image、Terraform storage IAM、plan complete-set、package commands與isolated PostgreSQL runner。產品feature、14份既有migration SQL、DEV-116 producer、legacy Terraform state及sibling repo source均no-touch。
+
+V3 profile的data authority模式固定為 `CUTOVER_OR_LIVE_AUTHORITY`，共同contract SHA-256=`857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5`，profile Git blob SHA-256=`65615262dab40b713759427f9e63069857be3dce46da439b01a51f1f9a81683c`。第一次release只接受同release／source的 `DATA_READY_FOR_CANDIDATE` handoff，完成live cleanup後，後續ordinary release只接受前次owner terminal、handoff與cleanup三者互相hash-join的 `NEUTRAL_AUTHORITY_LIVE` completion receipt。
+
+### 29.2 Provider state machine and safety
+
+唯一可執行入口是app-owned provider CLI；`run`固定依序執行 `prepare → fence → export → import → reconcile → handoff`，失敗時先清task resources，再依保存的etag與baseline恢復legacy access並發布terminal abort。Export只由task-owned Job以repeatable-read／read-only將151張table直接寫入own release bucket immutable generation；Import只由neutral task-owned Job以serializable transaction、advisory lock、cross-table topological order及self-FK convergence寫入 `ai_pdm_core`。Raw row不得落本機、stdout、receipt、Git或non-production。
+
+Temporary IAM只授權legacy migration SA在exact release object prefix建立物件；兩個Job與IAM在handoff前須不存在。Owner `prepare`與`verify`都重讀handoff及export／import／fence／teardown receipts；candidate、smoke與traffic無法繞過。Owner `finalize`發布RELEASED terminal後自動用generation precondition刪除exact raw bundle，再發布completion receipt；cleanup失敗不回滾已live服務，但DEV-012不得Complete，且不得刪legacy DB／service／Secret或解除Billing。
+
+### 29.3 Current verification and release boundary
+
+2026-09-15 local evidence：`npm run test:dev-012:data-cutover` 15／15 PASS、`npm run test:dev-117:continuous` 32／32 PASS、`npm run qc:dev-012:data-cutover` PASS、`git diff --check` PASS。這些證明pure contract、recorded provider recovery、owner integration、future ordinary-release authority與cleanup IAM complete-set。
+
+`npm run qc:dev-012:data-cutover:postgres`因本機磁碟低於resource governor安全線而 `NOT_RUN`；build、Terraform init／validate及production provider execution也未由本段宣稱完成。正式續接前必須補isolated PostgreSQL、DB boundary、typecheck、IaC validate、source commit／push與fresh source freeze，並重新取得Billing五連結／零新增、backup／PITR、catalog、post-import capacity及所有production-bound receipts。任何UNKNOWN、raw-data boundary、catalog、UID、hash、transaction、cleanup或restore失敗均停止，不得dispatch candidate。
