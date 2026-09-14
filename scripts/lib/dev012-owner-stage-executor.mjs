@@ -351,7 +351,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const candidate = await readStage(transport, paths, profile, intent, 'candidate')
     const service = await transport.setTraffic({ profile, revision: candidate.value.facts.candidateRevision, candidateTag: candidate.value.facts.tag, deadlineAt: intent.deadlineAt })
     transport.assertCanonicalEntrypoint(profile, service)
-    const result = await writeStage(transport, paths, profile, intent, 'activate', decision.ref, { decisionReceiptRef: decision.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, effectiveRevision: transport.effectiveRevision(service), serviceEtag: service.etag, canonicalOrigin: profile.target.canonicalOrigin, ingress: service.ingress, defaultUriDisabled: service.defaultUriDisabled, invokerIamDisabled: service.invokerIamDisabled })
+    const result = await writeStage(transport, paths, profile, intent, 'activate', decision.ref, { decisionReceiptRef: decision.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, effectiveRevision: transport.effectiveRevision(service), serviceEtag: service.etag, canonicalOrigin: profile.target.canonicalOrigin, ingress: service.ingress, defaultUriDisabled: service.defaultUriDisabled === true, invokerIamDisabled: service.invokerIamDisabled === true })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'ACTIVE', environment })
     return result
   }
@@ -394,7 +394,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const facts = candidate.value.facts
     let service = await transport.getService(profile)
     if (transport.effectiveRevision(service) === facts.candidateRevision) {
-      service = await transport.setTraffic({ profile, revision: intent.previousRevision, candidateTag: facts.tag, deadlineAt: intent.deadlineAt })
+      service = await transport.setTraffic({ profile, revision: intent.previousRevision, deadlineAt: intent.deadlineAt })
       disposition = 'ROLLED_BACK'
     }
     await transport.removeCandidateTag({ profile, tag: facts.tag, candidateRevision: facts.candidateRevision, expectedActiveRevision: intent.previousRevision, deadlineAt: intent.deadlineAt })
