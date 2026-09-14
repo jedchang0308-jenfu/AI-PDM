@@ -64,6 +64,7 @@ resource "google_storage_bucket_iam_member" "deployer" {
 
 resource "google_storage_bucket_iam_member" "verifier" {
   for_each = {
+    control_user     = { role = "roles/storage.objectUser", prefix = local.control_prefix }
     evidence_viewer  = { role = "roles/storage.objectViewer", prefix = "projects/_/buckets/${var.release_bucket_name}/objects/" }
     receipts_creator = { role = "roles/storage.objectCreator", prefix = local.receipt_prefix }
   }

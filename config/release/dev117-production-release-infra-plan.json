@@ -32,6 +32,7 @@
     "google_storage_bucket_iam_member.deployer[\"control_user\"]",
     "google_storage_bucket_iam_member.deployer[\"evidence_viewer\"]",
     "google_storage_bucket_iam_member.deployer[\"receipts_creator\"]",
+    "google_storage_bucket_iam_member.verifier[\"control_user\"]",
     "google_storage_bucket_iam_member.verifier[\"evidence_viewer\"]",
     "google_storage_bucket_iam_member.verifier[\"receipts_creator\"]",
     "google_service_account.builder",
