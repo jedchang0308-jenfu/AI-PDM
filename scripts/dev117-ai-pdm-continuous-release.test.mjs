@@ -116,6 +116,7 @@ test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   const identity = readText('infra/google-cloud/dev-117-production-release/identity.tf')
   const storage = readText('infra/google-cloud/dev-117-production-release/storage.tf')
   const migration = readText('infra/google-cloud/dev-117-production-release/migration.tf')
+  const locals = readText('infra/google-cloud/dev-117-production-release/locals.tf')
   const candidateSmoke = readText('infra/google-cloud/dev-117-production-release/candidate-smoke.tf')
   const infraPlan = read('config/release/dev117-production-release-infra-plan.json')
   const runtimeFirebaseViewer = identity.match(/resource "google_project_iam_member" "runtime_firebase_auth_viewer"[\s\S]*?\n\}/u)?.[0] ?? ''
@@ -151,4 +152,7 @@ test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   assert.match(invokerV2, /role\s+= "roles\/workflows\.invoker"[\s\S]*google_service_account\.verifier\.email/u)
   assert.doesNotMatch(invokerV2, /condition|builder|deployer|controller|smoke\.email/u)
   assert.ok(infraPlan.stageBAdditional.includes('google_project_iam_member.verifier_candidate_smoke_invoker_v2[0]'))
+  assert.match(locals, /owner_application_id\s+= "ai-pdm"/u)
+  assert.match(candidateSmoke, /owner_app != "\$\{local\.owner_application_id\}"/u)
+  assert.doesNotMatch(candidateSmoke, /owner_app != "\$\{local\.app\}"/u)
 })

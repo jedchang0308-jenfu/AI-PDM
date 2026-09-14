@@ -1,5 +1,6 @@
 locals {
   app                             = "aipdm"
+  owner_application_id            = "ai-pdm"
   github_repository               = "jedchang0308-jenfu/AI-PDM"
   github_workflow_ref             = "jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-independent-production.yml@refs/heads/main"
   pool_resource_name              = "projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${var.workload_identity_pool_id}"
