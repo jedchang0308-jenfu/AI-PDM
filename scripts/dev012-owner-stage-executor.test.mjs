@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { gunzipSync } from 'node:zlib'
 import { buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { candidateTagUriMatches, executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
+import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-platform-release'
@@ -131,6 +131,24 @@ test('candidate tag readback accepts deterministic and provider-derived run.app 
   assert.equal(candidateTagUriMatches(service, candidate, candidateOrigin), true)
   assert.equal(candidateTagUriMatches(service, candidate, `https://${candidateTag}---jenfu-platform-prod-56gnizku7q-de.a.run.app`), true)
   assert.equal(candidateTagUriMatches(service, candidate, `https://${candidateTag}---sibling-56gnizku7q-de.a.run.app`), false)
+})
+
+test('expired control is superseded only after terminal owner-run and settled baseline readback', () => {
+  const profile = { application: { id: 'platform', repository: 'owner/repo' }, target: { serviceName: 'jenfu-platform-prod' }, artifact: { releaseBucket: bucket } }
+  const core = {
+    schemaVersion: 'jenfu.dev012.owner-control-head.v1', inputFingerprint: '1'.repeat(64), ownerApplicationId: 'platform',
+    service: 'jenfu-platform-prod', controlBucket: bucket, releaseId: 'REL-OLD-001', sourceRevision: H40,
+    sourceLockSha256: '2'.repeat(64), candidateRevision, previousRevision, ownerRunRef: 'https://api.github.com/repos/owner/repo/actions/runs/99',
+    leaseExpiresAt: '2026-09-08T00:00:00.000Z', deadlineAt: '2026-09-08T02:00:00.000Z', state: 'GO', result: null,
+  }
+  const current = { ...core, controlSha256: sha256(canonicalize(core)) }
+  const ownerRun = { id: '99', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: H40 }
+  const service = { traffic: [{ revision: previousRevision, percent: 100 }], trafficStatuses: [{ revision: previousRevision, percent: 100 }] }
+  const input = { current, profile, intent: { previousRevision }, ownerRun, service, activeRevision: previousRevision, now: '2026-09-08T01:00:00.000Z' }
+  assert.equal(assertStaleControlSafeToSupersede(input), true)
+  assert.throws(() => assertStaleControlSafeToSupersede({ ...input, ownerRun: { ...ownerRun, status: 'in_progress', conclusion: null } }), /CONTROL_HEAD_TAKEOVER_UNSAFE/u)
+  assert.throws(() => assertStaleControlSafeToSupersede({ ...input, service: { ...service, trafficStatuses: [...service.trafficStatuses, { revision: candidateRevision, tag: candidateTag }] } }), /CONTROL_HEAD_TAKEOVER_UNSAFE/u)
+  assert.throws(() => assertStaleControlSafeToSupersede({ ...input, activeRevision: candidateRevision }), /CONTROL_HEAD_TAKEOVER_UNSAFE/u)
 })
 
 test('rollback reports no database mutation when migrate receipt was never produced', async () => {

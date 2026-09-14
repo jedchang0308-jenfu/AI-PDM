@@ -180,6 +180,25 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return text ? JSON.parse(text) : null
   }
 
+  async function readOwnerRun(profile, ownerRunRef) {
+    const prefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
+    const runId = ownerRunRef?.startsWith(prefix) ? ownerRunRef.slice(prefix.length) : ''
+    if (!/^[1-9][0-9]*$/u.test(runId)) fail('CONTROL_OWNER_RUN_REF_INVALID')
+    let response
+    try {
+      response = await fetchImpl(ownerRunRef, {
+        headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'jenfu-dev012-owner-control' },
+        signal: AbortSignal.timeout(30_000),
+      })
+    } catch (error) {
+      fail('CONTROL_OWNER_RUN_READBACK_FAILED', error?.name ?? 'network')
+    }
+    if (!response.ok) fail('CONTROL_OWNER_RUN_READBACK_FAILED', String(response.status))
+    const value = await response.json()
+    if (String(value?.id ?? '') !== runId) fail('CONTROL_OWNER_RUN_READBACK_FAILED', 'id')
+    return { id: String(value.id), status: value.status, conclusion: value.conclusion, event: value.event, headSha: value.head_sha }
+  }
+
   async function readBytes(uri, { prefixes = ['receipts'], expectedSha256 = null } = {}) {
     const bucket = profileBucket(uri)
     const matchingPrefix = prefixes.find((prefix) => {
@@ -872,7 +891,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  return { request, readBytes, readJson, putBytes, putJson, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
+  return { request, readOwnerRun, readBytes, readJson, putBytes, putJson, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {

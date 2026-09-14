@@ -5,6 +5,7 @@ import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const STAGES = new Set(['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback'])
+const CONTROL_STATES = new Set(['CANDIDATE_CREATED', 'ENTRYPOINT_CONFIGURED', 'CANDIDATE_VERIFIED', 'GO', 'ACTIVE', 'CANONICAL_VERIFIED', 'ABORT_REQUESTED', 'FINALIZED'])
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
@@ -167,9 +168,37 @@ async function readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha25
   return { intent, intentRef, intentReadback: result, paths: releasePaths(profile, intent, capsuleSha256) }
 }
 
+export function assertStaleControlSafeToSupersede({ current, profile, intent, ownerRun, service, activeRevision, now }) {
+  const expected = ['schemaVersion', 'inputFingerprint', 'ownerApplicationId', 'service', 'controlBucket', 'releaseId', 'sourceRevision', 'sourceLockSha256', 'candidateRevision', 'previousRevision', 'ownerRunRef', 'leaseExpiresAt', 'deadlineAt', 'state', 'result', 'controlSha256'].sort()
+  if (!current || JSON.stringify(Object.keys(current).sort()) !== JSON.stringify(expected)) fail('CONTROL_HEAD_INVALID')
+  const { controlSha256, ...core } = current
+  const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
+  const runId = current.ownerRunRef?.startsWith(runPrefix) ? current.ownerRunRef.slice(runPrefix.length) : ''
+  if (controlSha256 !== sha256(canonicalize(core)) || current.schemaVersion !== 'jenfu.dev012.owner-control-head.v1'
+    || current.ownerApplicationId !== profile.application.id || current.service !== profile.target.serviceName
+    || current.controlBucket !== profile.artifact.releaseBucket || !H64.test(current.inputFingerprint ?? '')
+    || !H40.test(current.sourceRevision ?? '') || !H64.test(current.sourceLockSha256 ?? '')
+    || !CONTROL_STATES.has(current.state) || !/^[1-9][0-9]*$/u.test(runId)
+    || !Number.isFinite(Date.parse(current.leaseExpiresAt)) || !Number.isFinite(Date.parse(now))) fail('CONTROL_HEAD_INVALID')
+  if (Date.parse(current.leaseExpiresAt) >= Date.parse(now)
+    || ownerRun?.id !== runId || ownerRun.status !== 'completed' || !ownerRun.conclusion
+    || ownerRun.event !== 'workflow_dispatch' || ownerRun.headSha !== current.sourceRevision
+    || current.previousRevision !== intent.previousRevision || activeRevision !== intent.previousRevision) fail('CONTROL_HEAD_TAKEOVER_UNSAFE')
+  const traffic = [...(service?.traffic ?? []), ...(service?.trafficStatuses ?? [])]
+  if (traffic.some((row) => row?.tag)) fail('CONTROL_HEAD_TAKEOVER_UNSAFE')
+  return true
+}
+
 async function writeControl({ transport, paths, profile, intent, fingerprint, candidate, state, result = null, environment }) {
   const current = await optionalNamedJson(transport, paths.control, profile, ['control'])
-  if (current && current.value.inputFingerprint !== fingerprint && current.value.state !== 'FINALIZED') fail('CONTROL_HEAD_FINGERPRINT_MISMATCH')
+  if (current && current.value.inputFingerprint !== fingerprint && current.value.state !== 'FINALIZED') {
+    const [ownerRun, service] = await Promise.all([
+      transport.readOwnerRun(profile, current.value.ownerRunRef),
+      transport.getService(profile),
+    ])
+    transport.assertServiceSettled(service, 'CONTROL_HEAD_TAKEOVER_UNSAFE')
+    assertStaleControlSafeToSupersede({ current: current.value, profile, intent, ownerRun, service, activeRevision: transport.effectiveRevision(service), now: transport.now() })
+  }
   if (current?.value.inputFingerprint === fingerprint) {
     const transitions = {
       CANDIDATE_CREATED: ['ENTRYPOINT_CONFIGURED', 'FINALIZED'],
