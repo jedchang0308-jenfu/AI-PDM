@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "jenfu.dev117.s1b-owner-report.v2",
+  "runId": "DEV117-S1B-20260915T024724518Z-5C1136C2",
+  "ownerApplicationId": "ai-pdm",
+  "caseId": "S1B-20",
+  "result": "PASS",
+  "sourceFiles": [
+    ".ai-doc/dev_task.md",
+    ".ai-doc/documentation_map.md",
+    ".ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md",
+    ".ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md",
+    ".gitattributes",
+    ".github/workflows/deploy-ai-pdm-independent-production.yml",
+    "AGENTS.md",
+    "config/platform/dev-010-n1c-ai-pdm.json",
+    "config/release/dev012-ai-pdm-production-data-cutover.json",
+    "config/release/dev117-ai-pdm-independent-production-v2.json",
+    "config/release/dev117-ai-pdm-independent-production-v3.json",
+    "config/release/dev117-production-release-infra-plan.json",
+    "db/postgres/064_release_cancelled_drawing_number_claims.sql",
+    "infra/google-cloud/dev-117-production-release/.terraform.lock.hcl",
+    "infra/google-cloud/dev-117-production-release/README.md",
+    "infra/google-cloud/dev-117-production-release/artifact.tf",
+    "infra/google-cloud/dev-117-production-release/backend.production.hcl.example",
+    "infra/google-cloud/dev-117-production-release/candidate-smoke-v2.tf",
+    "infra/google-cloud/dev-117-production-release/candidate-smoke.tf",
+    "infra/google-cloud/dev-117-production-release/controller-secret.tf",
+    "infra/google-cloud/dev-117-production-release/identity.tf",
+    "infra/google-cloud/dev-117-production-release/incident.tf",
+    "infra/google-cloud/dev-117-production-release/locals.tf",
+    "infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile",
+    "infra/google-cloud/dev-117-production-release/migration.tf",
+    "infra/google-cloud/dev-117-production-release/outputs.tf",
+    "infra/google-cloud/dev-117-production-release/service-bindings.tf",
+    "infra/google-cloud/dev-117-production-release/storage.tf",
+    "infra/google-cloud/dev-117-production-release/terraform.tfvars.example",
+    "infra/google-cloud/dev-117-production-release/variables.tf",
+    "infra/google-cloud/dev-117-production-release/versions.tf",
+    "infra/google-cloud/dev-117-production-release/workload-identity.tf",
+    "package.json",
+    "qa/dev-010/n1c/fixtures/ai-pdm-staging-v1.json",
+    "scripts/dev010-n1c-ai-pdm-package.mjs",
+    "scripts/dev010-n1c-ai-pdm-package.test.mjs",
+    "scripts/dev012-owner-release-runtime.test.mjs",
+    "scripts/dev012-owner-stage-executor.test.mjs",
+    "scripts/dev117-ai-pdm-continuous-release.mjs",
+    "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+    "scripts/dev117-production-migration-runner.mjs",
+    "scripts/dev117-production-migration-runner.test.mjs",
+    "scripts/lib/dev012-owner-release-runtime.mjs",
+    "scripts/lib/dev012-owner-stage-executor.mjs",
+    "scripts/lib/dev012-production-data-cutover.mjs",
+    "scripts/lib/dev012-production-migration-runner.mjs",
+    "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+    "scripts/qc-dev-117-continuous-release.mjs",
+    "src/app/globals.css",
+    "src/app/login/page.tsx",
+    "src/lib/firebase-client-auth.ts",
+    "tools/dev-117/abort-controller/Dockerfile",
+    "tools/dev-117/abort-controller/package-lock.json",
+    "tools/dev-117/abort-controller/package.json",
+    "tools/dev-117/abort-controller/server.mjs",
+    "tools/dev-117/abort-controller/server.test.mjs"
+  ],
+  "sourceSnapshotAlgorithm": "sha256(file-null-sha256-bytes)",
+  "sourceSnapshotSha256": "ec473914e8afd40c8fb65c9a7de5374299835e7d564604f5a739ece8211f1dae",
+  "contractSha256": "857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5",
+  "contractVersion": "CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP",
+  "evidenceScope": "LOCAL_CONTRACT",
+  "releaseAuthority": false,
+  "ownerExitCommands": [
+    {
+      "command": "npm run test:dev-117:continuous",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run qc:dev-117:continuous",
+      "result": "SELF"
+    },
+    {
+      "command": "npm run test:dev-117:abort",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run check:db-boundary",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run typecheck:app",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build:isolated",
+      "result": "PASS"
+    }
+  ],
+  "providerMutationSummary": {
+    "cloud": 0,
+    "database": 0,
+    "traffic": 0,
+    "credentials": 0,
+    "sibling": 0
+  },
+  "cleanup": {
+    "runtime": 0,
+    "ports": 0,
+    "containers": 0,
+    "temporaryFiles": 0
+  },
+  "createdAt": "2026-09-15T02:47:24.624Z",
+  "evidenceSha256": "ccd5a47ba3e3744c83006b747e66006b4d41450b2f9d6a20445c9ee171702ed5"
+}

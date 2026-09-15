@@ -20,7 +20,7 @@ export const TARGET = Object.freeze({
   job: 'ai-pdm-prod-migration-runner',
   login: 'aipdm-prod-migrator@jenfu-platform-prod.iam',
   ledger: 'ai_pdm_core.schema_migrations',
-  baselineCount: 14,
+  baselineCount: 15,
   minimumLedgerCount: 0,
   allowFreshLedgerBootstrap: true,
   migratorRole: 'jenfu_ai_pdm_migrator',

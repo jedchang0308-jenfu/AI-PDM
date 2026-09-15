@@ -1,5 +1,7 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
+> **2026-09-15 R71 cancelled drawing number correction（current additive authority）**：R71 provider import以transaction rollback安全停止，legacy service已恢復且task-owned Job／temporary IAM均清除。Safe diagnostics證實`drawings` source=53、target=50，缺少的3筆皆為合法`cancelled`歷史列；根因是folded production baseline `001`仍保留完整`UNIQUE(company_id,drawing_number)`，但current lifecycle authority只允許非cancelled列占用號碼。不得修改已套用的001、手改Cloud SQL或丟棄歷史列；新增forward-only `064_release_cancelled_drawing_number_claims.sql`，先移除obsolete constraint，再保留既有partial unique index `WHERE drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled'`。Current V3 manifest固定15 entries、`schema_migrations=15`；R35的14-entry replay只保留historical provider evidence。Fresh retry須以new source freeze、immutable migration image與APP_INFRA_IMAGE_ROTATION，先由exact fixed migration Job套用／驗證064 receipt，再執行151-table cutover；064未PASS前不得fence、candidate或traffic。
+
 > **2026-09-15 R68 production seed reconciliation correction（current additive authority）**：R68 provider prepare在任何legacy fence／export／import之前證實source與target均為157 tables，且`numbering_rule_versions` 3筆與`pdm_workbench_state_authority_control` 1筆的primary-key集合完全相同，但migration內`now()`令兩環境的non-key內容雜湊必然不同；舊exact-content precheck安全停止並清除兩個task-owned Job與temporary IAM，legacy service保持可用。Current prepare只接受這4筆seed的exact PK set；import必在同一個`SERIALIZABLE` transaction中先驗PK、刪除exact 3+1 baseline、依source bundle重建，再由151-table target summaries與identity mapping完整對帳後才COMMIT。任一row-count、FK、hash或identity差異均ROLLBACK；禁止手改正式DB或用`ON CONFLICT DO NOTHING`保留不同seed內容。修正必以fresh source、fresh immutable migration-runner digest、APP_INFRA_IMAGE_ROTATION與new release執行。
 
 > **2026-09-15 R66 staged-IaC boundary correction（current additive authority）**：production saved-plan gate證實`google_storage_bucket_iam_member.deployer["data_cutover_cleanup"]`是data-cutover runtime新增權限，若列入已完成的APP_INFRA_A會被`APP_INFRA_STAGE_B_MUTATES_STAGE_A`永久拒絕。該地址現歸入APP_INFRA_B additional complete-set；fresh B只允許此own-prefix binding為create，其餘A資源read/no-op，禁止回跑A或手動修改bucket IAM。修正後必重新凍結AI-PDM source，確認Platform foundation既有V3 owner runtime profile hash未變，並由fresh provider plan／apply／readback驗證。
@@ -17,7 +19,7 @@
 > **2026-09-10 R20 architecture amendment**：Cloud Build REST create指定user-specified builder時，提交主體必須可`iam.serviceAccounts.actAs`該service account。AI-PDM固定以own builder對own builder的`roles/iam.serviceAccountUser`完成，Terraform resource=`google_service_account_iam_member.builder_act_as_self`；禁止授予sibling或runtime identity。該地址屬app-owned APP_INFRA_B additional complete-set，stage A不建立build-runtime act-as；必經exact plan/apply/provider readback，缺少、update/delete/replace或member/target漂移均fail closed。R20未dispatch AI-PDM，R21舊分類已作廢，修正後必用fresh source/cohort。
 
 - 文件成熟度：`V3 Owner RD Implementation Ready + 架構定案：已定案 / RD Tech Lead PASS / P0=0 / P1=0；v1／v2保留歷史`
-- 狀態：`V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Paused for Operator Re-auth / Production Migration Replay PASS / Candidate、Entrypoint、Traffic NOT_RUN`
+- 狀態：`V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Provider Execution In Progress / R35 14-entry Replay Historical PASS / 064 NOT_RUN / Candidate、Entrypoint、Traffic NOT_RUN`
 - 風險等級：High
 - 日期：2026-09-11
 - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
@@ -496,14 +498,14 @@ AI-PDM candidate pool固定8，三app current connection denominator為61；本o
 
 ## 26. `CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP` architecture-final owner amendment（current authority）
 
-分類：`Human Confirmed / Intentional replacement / Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Complete / S2 Paused for Operator Re-auth / Production Migration Replay PASS / Candidate、Entrypoint、Traffic NOT_RUN`。本節前向取代§§20～25中custom-domain、shared edge、nine-stage與缺少`entrypoint` stage的current指令；其source-freeze、兩容器runtime、14-entry migration、DEV-116 R02、Billing／quota、Secret與provider provenance契約仍有效。
+分類：`Human Confirmed / Intentional replacement / Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 Implementation Complete / S2 Provider Execution In Progress / R35 14-entry Replay Historical PASS / 064 NOT_RUN / Candidate、Entrypoint、Traffic NOT_RUN`。本節前向取代§§20～25中custom-domain、shared edge、nine-stage與缺少`entrypoint` stage的current指令；其source-freeze、兩容器runtime、current 15-entry migration、DEV-116 R02、Billing／quota、Secret與provider provenance契約仍有效。
 
-- 真正問題是AI-PDM release不應依賴第三方DNS或central edge authority。最小架構固定使用provider readback所得`https://ai-pdm-prod-9536592944.asia-east1.run.app`；V3 owner profile=`config/release/dev117-ai-pdm-independent-production-v3.json`，SHA-256=`c5734b3b6a4011669e1567ab79263974c421b96d857ab52b5662050f0f1134f4`。此profile是AI-PDM endpoint、entry policy及production runtime mode唯一deploy authority；Platform只hash-ref及join receipt。
+- 真正問題是AI-PDM release不應依賴第三方DNS或central edge authority。最小架構固定使用provider readback所得`https://ai-pdm-prod-9536592944.asia-east1.run.app`；V3 owner profile=`config/release/dev117-ai-pdm-independent-production-v3.json`，R71 correction後工作樹SHA-256=`1325298c3c9fe290dfc0766488faca3463849b2aa04199a3a8ff354433f1a08d`（正式authority仍須由clean committed source freeze重算）。此profile是AI-PDM endpoint、entry policy及production runtime mode唯一deploy authority；Platform只hash-ref及join receipt。
 - Workflow固定`prepare→build→migrate→candidate→entrypoint→verify→decision→activate→canonical→finalize`。Candidate只建立inactive exact revision及0% tag，並注入唯一`PDM_RELEASE_CANDIDATE_ORIGIN`；canonical及candidate皆拒絕wildcard、legacy hash-host、wrong project／service／tag／region、port、userinfo與path。
 - `entrypoint`以fresh etag PATCH exact mask `ingress,defaultUriDisabled,invokerIamDisabled`，target為ingress all、default URL enabled、`invokerIamDisabled=true`；before／after template與traffic必須相同。No-op不PATCH，412／timeout／unknown outcome先readback。失敗固定own traffic rollback→tag cleanup→entry baseline restore，中央及sibling不得代改。
 - Public Cloud Run entry只解除infrastructure IAM攔截；AI-PDM既有Firebase identity、host-only Secure HttpOnly session、CSRF、revocation、role／permission、DEV-116 company-smoke isolation及AAL2-only fail-closed契約不變。Identity authorized domains由Platform S2 owner加入exact canonical hosts；Firebase `authDomain`不變，candidate host與TOTP不在scope。
 - Existing Firebase Hosting、custom domain、shared LB／DNS／certificate只作`RETAINED_UNUSED_EDGE`，不在serving或rollback path，本次不刪除、不修改、不解除Billing。Legacy `jenfu-ai-pdm-prod`仍是獨立rollback／retirement資產，不能冒充neutral V3 source或canonical。
-- No-touch仍包含DEV-116 producer、migration SQL、product feature source、legacy production state、sibling repository／schema／service／Secret。實作模型可決定不改契約的局部命名、純函式分解與fixture；不得改endpoint、stage order、entry mask、origin allowlist、14-entry manifest、DEV-116 join、owner權限或candidate順序。命中任一項即停止回送Platform DEV-012規劃authority。
+- No-touch仍包含DEV-116 producer、已套用的001～063 migration SQL、product feature source、legacy production state、sibling repository／schema／service／Secret；R71只授權新增forward-only 064及將current manifest／ledger denominator同步為15。實作模型可決定不改契約的局部命名、純函式分解與fixture；不得改endpoint、stage order、entry mask、origin allowlist、current 15-entry manifest、DEV-116 join、owner權限或candidate順序。命中任一項即停止回送Platform DEV-012規劃authority。
 
 Fresh evidence由Platform `output/dev-012/s1c/2026-09-09T111340-014Z/qc-report.json`提供，SHA-256=`bbd767fffb6364a770586cfe6122269ef1095184244a5ed4b2047d05d48b2b7f`；contract=`d88b9aaa8a5e27082746221fc5b473abd8a78da712409279baf5ecdb0e176f05`。S1A 32／32、S1B 24／24、S1C 8／8，AI-PDM DB boundary、typecheck、isolated build及diff check PASS，V3 Terraform validation PASS，provider／DB／traffic／credential mutation與runtime residue=0。技術主管結論=`PASS / Architecture Finalized / P0=0 / P1=0`，但`releaseAuthority=false`。
 
@@ -529,17 +531,17 @@ R25未dispatch AI-PDM，故沒有可沿用的AI-PDM build／migration／candidat
 
 AI-PDM owner controller不得使用Cloud Run generic operation作completion authority。Service mutation保留operation name作稽核欄位，但只輪詢`ai-pdm-prod` exact Service並驗requested entry fields、fresh generation／etag、settled及template／traffic projection不變。Migration run前後完整分頁列出`ai-pdm-prod-migration-runner` child executions，只接受一個先前不存在且container args與current immutable bundle／output refs完全一致的新execution，再以exact execution GET至terminal；零筆、多筆、舊execution、args drift、不可讀或deadline均FAIL。
 
-Shared production DB roles／schemas不是AI-PDM business migration的owner。Platform S2 bootstrap receipt須綁同一release ID、Platform source與exact production target，證明neutral／app roles、`ai_pdm_core／ai_pdm_contract` schema、IAM login memberships、direct CONNECT、group／PUBLIC denial、`public`無business object及bootstrap Job cleanup；coordinator在其PASS前不得dispatch。本owner收到有效intent後仍只執行自己既有14-entry forward-only migration，不得內建、重跑或修補shared bootstrap。
+Shared production DB roles／schemas不是AI-PDM business migration的owner。Platform S2 bootstrap receipt須綁同一release ID、Platform source與exact production target，證明neutral／app roles、`ai_pdm_core／ai_pdm_contract` schema、IAM login memberships、direct CONNECT、group／PUBLIC denial、`public`無business object及bootstrap Job cleanup；coordinator在其PASS前不得dispatch。本owner收到有效intent後仍只執行自己current 15-entry forward-only migration，不得內建、重跑或修補shared bootstrap。
 
 <a id="dev012-r66-ai-pdm-data-cutover"></a>
 
 ## 29. DEV-012 R66 one-time production data cutover（current additive authority）
 
-R63 的 `principal_not_active` 是正式資料權威缺件：legacy `jenfu-ai-pdm-prod / ai_pdm` 有160 tables、3,623 rows，neutral `jenfu-platform-prod / jenfu_prod / ai_pdm_core`僅有DDL／contract seed。R66不得新增第二個管理員、採email fallback、搬入non-production或把14-entry DDL replay當成資料搬移。
+R63 的 `principal_not_active` 是正式資料權威缺件：legacy `jenfu-ai-pdm-prod / ai_pdm` 有160 tables、3,623 rows，neutral `jenfu-platform-prod / jenfu_prod / ai_pdm_core`僅有DDL／contract seed。R66不得新增第二個管理員、採email fallback、搬入non-production或把DDL replay當成資料搬移。
 
 ### 29.1 Exact source surface
 
-新增 `config/release/dev012-ai-pdm-production-data-cutover.json`、`scripts/lib/dev012-production-data-cutover.mjs`、`scripts/lib/dev012-production-data-cutover-provider.mjs`、兩個CLI、兩份local／recorded-provider test、isolated PostgreSQL test與QC。修改V3 profile／validator、owner CLI／runtime／stage executor、migration-runner image、Terraform storage IAM、plan complete-set、package commands與isolated PostgreSQL runner。產品feature、14份既有migration SQL、DEV-116 producer、legacy Terraform state及sibling repo source均no-touch。
+新增 `config/release/dev012-ai-pdm-production-data-cutover.json`、`scripts/lib/dev012-production-data-cutover.mjs`、`scripts/lib/dev012-production-data-cutover-provider.mjs`、兩個CLI、兩份local／recorded-provider test、isolated PostgreSQL test與QC。修改V3 profile／validator、owner CLI／runtime／stage executor、migration-runner image、Terraform storage IAM、plan complete-set、package commands與isolated PostgreSQL runner。產品feature、已套用的001～063 migration SQL、DEV-116 producer、legacy Terraform state及sibling repo source均no-touch；R71另外只新增forward-only 064並把current denominator升為15。
 
 V3 profile的data authority模式固定為 `CUTOVER_OR_LIVE_AUTHORITY`，共同contract SHA-256=`857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5`，profile Git blob SHA-256=`65615262dab40b713759427f9e63069857be3dce46da439b01a51f1f9a81683c`。第一次release只接受同release／source的 `DATA_READY_FOR_CANDIDATE` handoff，完成live cleanup後，後續ordinary release只接受前次owner terminal、handoff與cleanup三者互相hash-join的 `NEUTRAL_AUTHORITY_LIVE` completion receipt。
 

@@ -36,7 +36,8 @@
       "db/postgres/055_jenfu_role_catalog_publication.sql",
       "db/postgres/056_role_capability_display_snapshot.sql",
       "db/postgres/063_production_smoke_tenant_isolation.sql",
-      "db/postgres/062_dev010_neutral_schema_boundary.sql"
+      "db/postgres/062_dev010_neutral_schema_boundary.sql",
+      "db/postgres/064_release_cancelled_drawing_number_claims.sql"
     ],
     "sourceTraceOnly": "db/postgres/002_supabase_rls_plan.sql",
     "foldedVersions": "004-041,043-046",

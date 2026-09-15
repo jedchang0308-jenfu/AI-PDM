@@ -27,10 +27,18 @@ const files = [
   '.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md',
   '.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md',
   '.ai-doc/dev_task.md', '.ai-doc/documentation_map.md', '.gitattributes', 'AGENTS.md', 'package.json',
-  'config/release/dev117-ai-pdm-independent-production-v2.json', 'config/release/dev117-production-release-infra-plan.json',
+  'config/platform/dev-010-n1c-ai-pdm.json',
+  'config/release/dev012-ai-pdm-production-data-cutover.json',
+  'config/release/dev117-ai-pdm-independent-production-v2.json',
+  'config/release/dev117-ai-pdm-independent-production-v3.json',
+  'config/release/dev117-production-release-infra-plan.json',
+  'db/postgres/064_release_cancelled_drawing_number_claims.sql',
+  'qa/dev-010/n1c/fixtures/ai-pdm-staging-v1.json',
+  'scripts/dev010-n1c-ai-pdm-package.mjs',
+  'scripts/dev010-n1c-ai-pdm-package.test.mjs',
   'scripts/lib/dev117-ai-pdm-continuous-release.mjs', 'scripts/dev117-ai-pdm-continuous-release.mjs',
   'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/qc-dev-117-continuous-release.mjs',
-  'scripts/lib/dev012-owner-release-runtime.mjs', 'scripts/lib/dev012-owner-stage-executor.mjs', 'scripts/lib/dev012-production-migration-runner.mjs',
+  'scripts/lib/dev012-owner-release-runtime.mjs', 'scripts/lib/dev012-owner-stage-executor.mjs', 'scripts/lib/dev012-production-data-cutover.mjs', 'scripts/lib/dev012-production-migration-runner.mjs',
   'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs',
   'scripts/dev117-production-migration-runner.mjs', 'scripts/dev117-production-migration-runner.test.mjs',
   'src/lib/firebase-client-auth.ts', 'src/app/login/page.tsx', 'src/app/globals.css',
@@ -38,5 +46,5 @@ const files = [
   ...['tools/dev-117/abort-controller', 'infra/google-cloud/dev-117-production-release'].flatMap((directory) => fs.readdirSync(path.join(root, directory)).filter((name) => fs.statSync(path.join(root, directory, name)).isFile()).map((name) => `${directory}/${name}`)),
 ].sort()
 const sourceSnapshotSha256 = createHash('sha256').update(files.map((file) => `${file}\0${createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex')}`).join('\n')).digest('hex')
-const report = { schemaVersion: 'jenfu.dev117.s1b-owner-report.v2', runId, ownerApplicationId: 'ai-pdm', caseId: 'S1B-20', result: 'PASS', sourceFiles: files, sourceSnapshotAlgorithm: 'sha256(file-null-sha256-bytes)', sourceSnapshotSha256, contractSha256: v2Hash(), contractVersion: 'CONTINUOUS_NO_DWELL_V2', evidenceScope: 'LOCAL_CONTRACT', releaseAuthority: false, ownerExitCommands: [{ command: 'npm run test:dev-117:continuous', result: 'PASS' }, { command: 'npm run qc:dev-117:continuous', result: 'SELF' }, ...ownerExitCommands], providerMutationSummary: { cloud: 0, database: 0, traffic: 0, credentials: 0, sibling: 0 }, cleanup: { runtime: 0, ports: 0, containers: 0, temporaryFiles: 0 }, createdAt: new Date().toISOString() }; report.evidenceSha256 = createHash('sha256').update(JSON.stringify(report)).digest('hex'); fs.writeFileSync(path.join(dir, 'owner-report.json'), `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' }); process.stdout.write(`DEV-117 continuous QC PASS ${path.relative(root, dir)}\n`)
-function v2Hash() { return 'c395f6cead7d311a28402fb0f8d065305e594363d7be51659e9b41a343c0c615' }
+const report = { schemaVersion: 'jenfu.dev117.s1b-owner-report.v2', runId, ownerApplicationId: 'ai-pdm', caseId: 'S1B-20', result: 'PASS', sourceFiles: files, sourceSnapshotAlgorithm: 'sha256(file-null-sha256-bytes)', sourceSnapshotSha256, contractSha256: currentContractHash(), contractVersion: 'CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP', evidenceScope: 'LOCAL_CONTRACT', releaseAuthority: false, ownerExitCommands: [{ command: 'npm run test:dev-117:continuous', result: 'PASS' }, { command: 'npm run qc:dev-117:continuous', result: 'SELF' }, ...ownerExitCommands], providerMutationSummary: { cloud: 0, database: 0, traffic: 0, credentials: 0, sibling: 0 }, cleanup: { runtime: 0, ports: 0, containers: 0, temporaryFiles: 0 }, createdAt: new Date().toISOString() }; report.evidenceSha256 = createHash('sha256').update(JSON.stringify(report)).digest('hex'); fs.writeFileSync(path.join(dir, 'owner-report.json'), `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' }); process.stdout.write(`DEV-117 continuous QC PASS ${path.relative(root, dir)}\n`)
+function currentContractHash() { return '857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5' }

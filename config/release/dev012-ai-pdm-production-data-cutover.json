@@ -48,7 +48,7 @@
       "pdm_local_data_migrations": 0,
       "role_catalog_entries": 0,
       "role_catalog_publications": 0,
-      "schema_migrations": 14
+      "schema_migrations": 15
     },
     "allowedTargetSeedRows": {
       "numbering_rule_versions": 3,

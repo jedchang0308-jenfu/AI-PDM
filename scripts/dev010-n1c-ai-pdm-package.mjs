@@ -37,7 +37,7 @@ export function loadN1cAiPdmConfig() {
   if (keys !== ['contractVersion', 'devId', 'fixture', 'migration', 'repository', 'runtime', 'safety', 'slice', 'sourceFreeze', 'target'].sort().join(',')) fail('DEV010_N1C_AI_PDM_UNKNOWN_KEY')
   if (value.contractVersion !== 'jenfu.dev010.n1c.ai-pdm.v1' || value.devId !== 'DEV-010' || value.slice !== '010-N1C') fail('DEV010_N1C_AI_PDM_INVALID_CONTRACT')
   if (canonicalize(value.target) !== canonicalize(exactTarget)) fail('DEV010_N1C_AI_PDM_WRONG_TARGET')
-  const expectedVersions = ['001', '003', '042', '047', '048', '049', '050', '051', '052', '053', '055', '056', '063', '062']
+  const expectedVersions = ['001', '003', '042', '047', '048', '049', '050', '051', '052', '053', '055', '056', '063', '062', '064']
   if (!Array.isArray(value.migration.order) || value.migration.order.map((item) => path.basename(item).slice(0, 3)).join(',') !== expectedVersions.join(',')) fail('DEV010_N1C_AI_PDM_INVALID_ORDER')
   if (value.migration.sourceTraceOnly !== 'db/postgres/002_supabase_rls_plan.sql' || value.migration.foldedVersions !== '004-041,043-046' || value.migration.retiredVersions.join(',') !== '054') fail('DEV010_N1C_AI_PDM_INVALID_FRESH_LANE')
   if (value.migration.transformationId !== 'jenfu.dev010.n1c.ai-foundation-scratch-schema.v2' || value.migration.ledger !== 'ai_pdm_core.schema_migrations') fail('DEV010_N1C_AI_PDM_INVALID_TRANSFORMATION')

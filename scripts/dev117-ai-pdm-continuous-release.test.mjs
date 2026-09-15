@@ -74,12 +74,12 @@ test('S1B-20 AI-PDM v3 direct-run profile and strict v1 retention', () => {
   assert.ok(Object.values(LEGACY_STRICT_VALIDATORS).every((fn) => typeof fn === 'function'))
 })
 
-test('S1B-20 AI-PDM current 14-entry migration classification and bytes', () => {
+test('S1B-20 AI-PDM current 15-entry migration classification and bytes', () => {
   const files = new Map(profile.migrations.entries.map((entry) => [entry.path, fs.readFileSync(new URL(`../${entry.path}`, import.meta.url))]))
   assert.equal(verifyDev117MigrationBytes(profile, files), true)
   const bundle = buildDev117MigrationBundle(profile, buildAiPdmPackage(n1c), 'a'.repeat(40))
-  assert.equal(bundle.bundle.entries.length, 14)
-  assert.equal(bundle.bundle.baselineCount, 14)
+  assert.equal(bundle.bundle.entries.length, 15)
+  assert.equal(bundle.bundle.baselineCount, 15)
 })
 
 test('S1B-20 AI-PDM release intent is exact, owner-bound and immutable', () => {

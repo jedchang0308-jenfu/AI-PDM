@@ -240,7 +240,7 @@
     "serviceAccount": "aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com",
     "sourceProfile": "config/platform/dev-010-n1c-ai-pdm.json",
     "ledger": "ai_pdm_core.schema_migrations",
-    "baselineCount": 14,
+    "baselineCount": 15,
     "sourceTraceOnly": "db/postgres/002_supabase_rls_plan.sql",
     "foldedVersions": "004-041,043-046",
     "retiredVersions": [
@@ -316,6 +316,11 @@
         "order": 14,
         "path": "db/postgres/062_dev010_neutral_schema_boundary.sql",
         "sha256": "17987fff7d3a496b29a73bd4a46482722d503371926d708d134c711bd450fe9f"
+      },
+      {
+        "order": 15,
+        "path": "db/postgres/064_release_cancelled_drawing_number_claims.sql",
+        "sha256": "e076970bc7cbe45b6efa2c3789dd8c9bbe6553fd7a3fc635c7d4e292b253633a"
       }
     ]
   },

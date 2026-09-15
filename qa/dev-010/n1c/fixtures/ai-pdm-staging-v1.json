@@ -1,0 +1,16 @@
+{
+  "fixtureVersion": "jenfu.dev010.n1c.ai-pdm-fixture.v1",
+  "tenantId": "company-staging-smoke",
+  "displayName": "STAGING TEST - AI PDM acceptance",
+  "companyCode": "STAGING-SMOKE",
+  "companyKind": "production_smoke",
+  "catalogPrerequisitesOnly": true,
+  "precreatedDrawingCount": 0,
+  "precreatedPartCount": 0,
+  "productionTenantId": "company-jenfu",
+  "productionRows": 0,
+  "credentials": 0,
+  "attachmentsAllowed": false,
+  "externalDeliveries": 0,
+  "cleanupRequiredForPass": false
+}

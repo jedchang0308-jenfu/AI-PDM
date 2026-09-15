@@ -81,7 +81,7 @@ export function assertDataCutoverConfig(value) {
   exactKeys(catalog, ['expectedSourceTableCount', 'expectedTargetTableCount', 'expectedCopyTableCount', 'sourceExcludedTables', 'targetOnlyTables', 'allowedTargetSeedRows', 'typeTransforms'], 'DATA_CUTOVER_CATALOG_CONFIG_INVALID')
   if (catalog.expectedSourceTableCount !== 157 || catalog.expectedTargetTableCount !== 157 || catalog.expectedCopyTableCount !== 151) fail('DATA_CUTOVER_TABLE_DENOMINATOR_INVALID')
   const sourceExcluded = { import_batches: 'REQUIRE_EMPTY', import_staging_rows: 'REQUIRE_EMPTY', part_attachment_reuse_origins: 'REQUIRE_EMPTY', part_attachment_reuse_snapshots: 'REQUIRE_EMPTY', part_preview_settings: 'REQUIRE_EMPTY', pdm_schema_migrations: 'RETAIN_LEGACY_LEDGER' }
-  const targetOnly = { active_role_catalog: 0, contract_manifest: 1, pdm_local_data_migrations: 0, role_catalog_entries: 0, role_catalog_publications: 0, schema_migrations: 14 }
+  const targetOnly = { active_role_catalog: 0, contract_manifest: 1, pdm_local_data_migrations: 0, role_catalog_entries: 0, role_catalog_publications: 0, schema_migrations: 15 }
   if (canonicalize(catalog.sourceExcludedTables) !== canonicalize(sourceExcluded) || canonicalize(catalog.targetOnlyTables) !== canonicalize(targetOnly) || canonicalize(catalog.allowedTargetSeedRows) !== canonicalize({ numbering_rule_versions: 3, pdm_workbench_state_authority_control: 1 })) fail('DATA_CUTOVER_TABLE_EXCEPTION_INVALID')
   if (!Array.isArray(catalog.typeTransforms) || catalog.typeTransforms.length !== 13) fail('DATA_CUTOVER_TRANSFORM_DENOMINATOR_INVALID')
   const transformKeys = new Set()

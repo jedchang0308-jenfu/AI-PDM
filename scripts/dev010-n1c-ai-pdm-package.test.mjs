@@ -26,9 +26,9 @@ test('N1C-AI-01 target guard rejects dev, production, old staging, and runtime l
   assert.throws(() => assertN1cAiPdmTarget({ ...environment, PDM_CLOUD_SQL_USER: config.target.runtimeLogin }), /DEV010_N1C_AI_PDM_WRONG_TARGET/u)
 })
 
-test('N1C-AI-02 package fixes 063 before 062 and excludes retired 054', () => {
+test('N1C-AI-02 package fixes 063 before 062, appends 064, and excludes retired 054', () => {
   const value = buildAiPdmPackage(config)
-  assert.deepEqual(value.entries.map((entry) => path.basename(entry.sourcePath).slice(0, 3)), ['001', '003', '042', '047', '048', '049', '050', '051', '052', '053', '055', '056', '063', '062'])
+  assert.deepEqual(value.entries.map((entry) => path.basename(entry.sourcePath).slice(0, 3)), ['001', '003', '042', '047', '048', '049', '050', '051', '052', '053', '055', '056', '063', '062', '064'])
   assert.ok(value.entries.findIndex((entry) => entry.sourcePath.includes('/063_')) < value.entries.findIndex((entry) => entry.sourcePath.includes('/062_')))
   assert.ok(!value.entries.some((entry) => entry.sourcePath.includes('/054_')))
   assert.equal(value.manifest.sourceTraceOnly.path, 'db/postgres/002_supabase_rls_plan.sql')
@@ -48,10 +48,19 @@ test('N1C-AI-03 every derived output is content-addressed and transaction-owned 
 })
 
 test('N1C-AI-04 062 derived output grants only read access to the OrgMaster migrator role', () => {
-  const boundary = buildAiPdmPackage(config).entries.at(-1)
+  const boundary = buildAiPdmPackage(config).entries.find((entry) => entry.sourcePath.includes('/062_'))
+  assert.ok(boundary)
   assert.match(boundary.sql, /GRANT USAGE ON SCHEMA ai_pdm_contract TO jenfu_orgmaster_migrator/u)
   assert.match(boundary.sql, /GRANT SELECT ON TABLE ai_pdm_contract\.v_application_role_catalog_v1, ai_pdm_contract\.v_contract_manifest_v1 TO jenfu_orgmaster_migrator/u)
   assert.doesNotMatch(boundary.sql, /GRANT (?:ALL|INSERT|UPDATE|DELETE|CREATE)[^;]+jenfu_orgmaster_migrator/u)
+})
+
+test('N1C-AI-08 064 preserves cancelled drawing history without reserving its former number', () => {
+  const correction = buildAiPdmPackage(config).entries.find((entry) => entry.sourcePath.includes('/064_'))
+  assert.ok(correction)
+  assert.match(correction.sql, /DROP CONSTRAINT IF EXISTS drawings_company_id_drawing_number_key/u)
+  assert.match(correction.sql, /CREATE UNIQUE INDEX IF NOT EXISTS uq_drawings_active_company_number/u)
+  assert.match(correction.sql, /lifecycle_state <> 'cancelled'/u)
 })
 
 test('N1C-AI-05 malformed mixed transaction envelope fails closed', () => {
