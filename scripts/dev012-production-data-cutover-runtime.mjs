@@ -356,5 +356,9 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  runMain().then((receipt) => process.stdout.write(`${JSON.stringify({ schemaVersion: receipt.schemaVersion, releaseId: receipt.releaseId, sourceRevision: receipt.sourceRevision, receiptSha256: receipt.receiptSha256, tableCount: receipt.copyTableCount ?? receipt.tableCount, rowCount: receipt.sourceRowCount ?? receipt.expectedRowCount, status: receipt.status })}\n`)).catch((error) => { process.stderr.write(`${error.code ?? error.message}\n`); process.exitCode = 1 })
+  runMain().then((receipt) => process.stdout.write(`${JSON.stringify({ schemaVersion: receipt.schemaVersion, releaseId: receipt.releaseId, sourceRevision: receipt.sourceRevision, receiptSha256: receipt.receiptSha256, tableCount: receipt.copyTableCount ?? receipt.tableCount, rowCount: receipt.sourceRowCount ?? receipt.expectedRowCount, status: receipt.status })}\n`)).catch((error) => {
+    const diagnostic = error instanceof DataCutoverError ? error.message : (error.code ?? 'DATA_CUTOVER_RUNTIME_FAILED')
+    process.stderr.write(`${diagnostic}\n`)
+    process.exitCode = 1
+  })
 }
