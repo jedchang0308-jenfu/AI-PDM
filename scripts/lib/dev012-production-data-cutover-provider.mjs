@@ -150,7 +150,7 @@ function assertInspectionJoin({ config, sourceInspection, targetInspection, iden
     const target = targetInspection.seedSummaries[name]
     if (source.rowCount !== target.rowCount || source.primaryKeySha256 !== target.primaryKeySha256) fail('DATA_CUTOVER_INSPECTION_JOIN_INVALID', name)
   }
-  return deriveDataMigrationPlan(config, sourceInspection.catalog, targetInspection.catalog)
+  return deriveDataMigrationPlan(config, sourceInspection.catalog, targetInspection.catalog, { allowPopulatedTarget: targetInspection.activeUidMappingCount === 1 })
 }
 
 function assertExactRef(value, uri, code) {

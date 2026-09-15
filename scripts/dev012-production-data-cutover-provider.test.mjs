@@ -104,10 +104,15 @@ function ref(uri, value) {
   return { uri, sha256: sha256(Buffer.from(`${canonicalize(value)}\n`)) }
 }
 
-function harness({ failMode = null } = {}) {
+function harness({ failMode = null, populatedTarget = false } = {}) {
   const objects = new Map()
   const rawObjects = new Map()
   const catalogs = catalogFixtures()
+  if (populatedTarget) {
+    const sourceByName = new Map(catalogs.source.tables.map((item) => [item.name, item]))
+    const populatedTables = catalogs.target.tables.map((item) => sourceByName.has(item.name) ? { ...item, rowCount: sourceByName.get(item.name).rowCount } : item)
+    catalogs.target = catalog(config.target.database, config.target.schema, populatedTables, catalogs.target.foreignKeys)
+  }
   const identity = firstPrincipalReceipt()
   const identityReceiptRef = ref('gs://jenfu-platform-prod-orgmaster-release/receipts/releases/DEV012-REL-20260914-R60/first-principal-bootstrap.json', identity)
   const infra = selfHash({ schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'ai-pdm', projectId: config.target.projectId, region: config.target.region, sourceRevision, migrationRunnerDigest, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER', releaseAuthority: true, observedAt: '2026-09-15T00:00:00.000Z' })
@@ -133,7 +138,7 @@ function harness({ failMode = null } = {}) {
     const base = { ownerApplicationId: 'ai-pdm', releaseId, sourceRevision, projectId: target.projectId, database: target.database, schema: target.schema, identityReceiptSha256, executionName, catalog: selected, seedSummaries: seedSummaries(sourceMode ? 'source' : 'target'), totalRowCount: selected.tables.reduce((sum, item) => sum + item.rowCount, 0), rawRowsLogged: false, completedAt: '2026-09-15T01:00:00.000Z', status: 'PASS' }
     return selfHash(sourceMode
       ? { schemaVersion: 'jenfu.dev012.ai-pdm-source-inspection-receipt.v1', ...base, identity: { pdmUserId: config.identityRemap.pdmUserId, companyId: config.identityRemap.companyId, role: config.identityRemap.role, accountStatus: config.identityRemap.accountStatus, accountLifecycleVersion: config.identityRemap.accountLifecycleVersion, priorMappingCount: 1, currentUidCollisionCount: 0 }, sessionSnapshot: { otherSessionCount: 0, hiddenSessionCount: 0, activeTransactionCount: 0, activeNonIdleCount: 0, activeMigrationSessionCount: 0 } }
-      : { schemaVersion: 'jenfu.dev012.ai-pdm-target-inspection-receipt.v1', ...base, activeUidMappingCount: 0 })
+      : { schemaVersion: 'jenfu.dev012.ai-pdm-target-inspection-receipt.v1', ...base, activeUidMappingCount: populatedTarget ? 1 : 0 })
   }
   const exportReceipt = (releaseId, executionName, identityReceiptSha256) => {
     const paths = dataCutoverObjectPaths(config, releaseId)
@@ -143,7 +148,7 @@ function harness({ failMode = null } = {}) {
     return selfHash({ schemaVersion: 'jenfu.dev012.ai-pdm-data-export-receipt.v1', ownerApplicationId: 'ai-pdm', releaseId, sourceRevision, sourceProjectId: config.source.projectId, sourceDatabase: config.source.database, targetProjectId: config.target.projectId, targetDatabase: config.target.database, targetSchema: config.target.schema, identityReceiptSha256, executionName, transactionMode: 'REPEATABLE_READ_READ_ONLY', sourceSessionPreflight: { otherSessionCount: 0, hiddenSessionCount: 0, activeTransactionCount: 0, activeNonIdleCount: 0, activeMigrationSessionCount: 0 }, sourceCatalogSha256: catalogs.source.catalogSha256, copyTableCount: config.catalog.expectedCopyTableCount, sourceRowCount, identity: { pdmUserId: config.identityRemap.pdmUserId }, bundleRef: paths.bundle, bundleGeneration: '1', bundleBytesSha256: sha256(bytes), bundleBytes: bytes.length, bundleSha256: '8'.repeat(64), rawRowsLogged: false, completedAt: '2026-09-15T01:10:00.000Z', status: 'PASS' })
   }
   const importReceipt = (releaseId, executionName, exported) => {
-    const migrationPlan = deriveDataMigrationPlan(config, catalogs.source, catalogs.target)
+    const migrationPlan = deriveDataMigrationPlan(config, catalogs.source, catalogs.target, { allowPopulatedTarget: true })
     const copyTables = catalogs.source.tables.filter((item) => !Object.hasOwn(config.catalog.sourceExcludedTables, item.name)).map((item) => ({ name: item.name, rowCount: item.rowCount, primaryKeySha256: sha256(`${item.name}:pk:target`), contentSha256: sha256(`${item.name}:content:target`) })).sort((left, right) => left.name.localeCompare(right.name))
     return selfHash({ schemaVersion: 'jenfu.dev012.ai-pdm-data-import-receipt.v1', ownerApplicationId: 'ai-pdm', releaseId, sourceRevision, sourceProjectId: config.source.projectId, sourceDatabase: config.source.database, targetProjectId: config.target.projectId, targetDatabase: config.target.database, targetSchema: config.target.schema, identityReceiptSha256: exported.identityReceiptSha256, executionName, sourceCatalogSha256: exported.sourceCatalogSha256, targetPreImportCatalogSha256: catalogs.target.catalogSha256, migrationPlanSha256: migrationPlan.planSha256, bundleRef: exported.bundleRef, bundleGeneration: exported.bundleGeneration, bundleBytesSha256: exported.bundleBytesSha256, bundleSha256: exported.bundleSha256, tableCount: copyTables.length, expectedRowCount: copyTables.reduce((sum, item) => sum + item.rowCount, 0), insertedRows: 13, tableReceipts: copyTables, identity: { pdmUserId: config.identityRemap.pdmUserId, companyId: config.identityRemap.companyId, role: config.identityRemap.role, accountStatus: config.identityRemap.accountStatus, accountLifecycleVersion: config.identityRemap.accountLifecycleVersion, activeUidMappingCount: 1 }, transaction: 'SERIALIZABLE_COMMITTED', sourceProductionWrites: false, siblingSchemaWrites: 0, rawRowsLogged: false, completedAt: '2026-09-15T01:20:00.000Z', status: 'PASS' })
   }
@@ -217,6 +222,18 @@ test('one command runs prepare through handoff, tears down task resources, and r
   assert.equal(replay.ref.sha256, result.ref.sha256)
   assert.equal(h.runModes.length, runCount)
   assert.equal(h.patchCalls, 1)
+})
+
+test('one command safely reconciles an already populated target before issuing a fresh handoff', async () => {
+  const h = harness({ populatedTarget: true })
+  const releaseId = '012-R66-POPULATED-TARGET'
+  const result = await executeProviderRun({ config, releaseId, sourceRevision, input: runInput(h), transport: h.transport })
+  assert.equal(result.value.status, 'DATA_READY_FOR_CANDIDATE')
+  assert.deepEqual([...h.runModes].sort(), ['export', 'import', 'inspect-source', 'inspect-target'])
+  assert.equal(h.service.invokerIamDisabled, false)
+  assert.equal(h.patchCalls, 1)
+  assert.deepEqual([...h.deletedJobs].sort(), ['source', 'target'])
+  assert.equal(h.cleanupCalls, 1)
 })
 
 test('provider fence resumes only while the exact fenced provider state remains active', async () => {
