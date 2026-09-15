@@ -1,5 +1,7 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **Final current result（2026-09-15）**：`DEV012-REL-20260915-R78 / Production Level 4 PASS / owner RELEASED`。最終證據見§19；R72及更早`NOT_RUN`結果保留歷史。
+
 > **2026-09-11 R38 pre-auth amendment（current）**：R35 provider execution `ai-pdm-prod-migration-runner-7gjhv`已證明production migration為`14 replayed`；此項只更新database事實，不授權candidate、entrypoint、traffic或QA-012 PASS。Current oracle以`conditions[type=Completed]`讀取Cloud Run v2 execution，並要求own exact migration Job resource-scoped viewer。V1歷史adapter測試只驗歷史receipt schema，V3 direct-run則獨立驗`entrypoint→verify→decision→activate→canonical`與failure `rollback`；兩組不得再互相套用。R37因source drift作廢且無AI-PDM app-infra apply，恢復後須由fresh R38重建source-bound evidence。
 
 > **2026-09-11 R28 amendment（current）**：R28在OrgMaster migration execution因缺shared DB roles／schemas安全停止，AI-PDM未dispatch。新增owner oracle：不得GET generic operations；Service PATCH須exact Service settled readback，Job run須以run前後child execution差集＋current args唯一匹配取得exact execution並輪詢terminal。Platform production DB bootstrap immutable receipt未通過exact target、source、隔離數值與task-owned Job cleanup前，coordinator不得建立AI-PDM dispatch。R28不計production PASS。
@@ -312,3 +314,13 @@ Upstream coordinator negative case須在production DB bootstrap receipt缺失、
 | production candidate／entrypoint／traffic | NOT_RUN | R72無authority；須由fresh release receipts證明 |
 
 R72 Cloud SQL safe log只保留constraint／trigger code與table metadata，不保存raw row；`canonical_workbench_states`在work table之前插入所觸發的`DEV087_WORK_REFERENCE_MISMATCH`是corrective source的production-bound negative evidence。Fresh release須證明plan中`drawing_revision_works／part_change_works`都先於`canonical_workbench_states`，`drawings／part_numbers`都先於兩張polymorphic consumer，bundle與import dependency set相等，再取得Billing、backup／PITR、catalog、import handoff、post-import capacity與normal-entry evidence；local PASS與R72 abort receipt均不得升格。
+
+## 19. R78 Production Level 4正式結果（2026-09-15）
+
+- Source／artifact：source=`91de3a65df58dc60ddde88aab5263e9470a84565`，source-lock object SHA-256=`82a5327a982824038d229dc8d6db44e6a4b08da6708712a9892e458847dd9f15`，artifact=`asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a79ff49747342dc33c7aec7c189cf220540c3851f5614667d64ec97e18dd844e`。
+- Data／DB：151 tables／3,569 rows serializable import、identity remap、row／hash／FK reconciliation PASS；legacy fenced、migration=`FORWARD_APPLIED`、backup／PITR與rollback evidence成立。
+- Candidate／canonical：authenticated candidate與401／revoked負例PASS；revision=`ai-pdm-prod-29a4a765563c`承接100%，canonical provider readback與smoke PASS。
+- Control／cleanup：run `34952087442`十stage success，terminal=`RELEASED`、`remainingHumanAction=0`；candidate tag、task Job、temporary IAM與raw bundle residue=0，TOTP=false，無human gate／fixed dwell。
+- Boundary：後續ordinary release不需siblings；edge／legacy retirement另案，不是QA缺件。
+
+Final=`PASS / Production Level 4 Complete`。本節authority來自R78 owner terminal、stage receipts與provider readback，不由R72或local evidence升格。

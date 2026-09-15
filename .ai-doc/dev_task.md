@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-15 DEV-117／DEV-012 R78 production completion（final current authority）**：`DEV012-REL-20260915-R78` owner run `34952087442`十stage SUCCESS，terminal=`RELEASED`、`remainingHumanAction=0`。Frozen source=`91de3a65df58dc60ddde88aab5263e9470a84565`，artifact=`asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a79ff49747342dc33c7aec7c189cf220540c3851f5614667d64ec97e18dd844e`，revision=`ai-pdm-prod-29a4a765563c`、100% traffic、canonical=`https://ai-pdm-prod-9536592944.asia-east1.run.app`。151 tables／3,569 rows cutover、identity與row／hash／FK exact reconciliation、authenticated session／DB／deny／revoked smoke、rollback與cleanup皆PASS；legacy fenced並只保留own rollback，TOTP=false。DEV-117 production slice已完成，後續ordinary release只需本repo own resources；下方R72及更早`current／NOT_RUN`文字為歷史，不得覆寫本段。
+
 > **2026-09-15 DEV-012 R72 trigger dependency correction（current）**：R72已完成source freeze、15-entry migration image／APP_INFRA rotation與064 provider migration（1 applied＋14 replayed）。正式cutover的prepare、legacy fence與3,623-row immutable export PASS；target import在同一serializable transaction因`DEV087_WORK_REFERENCE_MISMATCH`安全ROLLBACK，未產生import／handoff／candidate／entrypoint／traffic。Cloud SQL safe log證明`canonical_workbench_states`早於polymorphic `drawing_revision_works／part_change_works`插入；legacy original revision與100% traffic已恢復且HTTP 200，task-owned Jobs／temporary IAM已清除，R72=`RECOVERED_ABORT / releaseAuthority=false`。Current source把六條DEV087 trigger-backed polymorphic依賴納入source/export及target/import immutable plan並作bundle-to-import exact join；production 151-table plan無cycle且work rows必先於canonical state。Local data-cutover 18／18、continuous 32／32、isolated PostgreSQL、DB boundary、typecheck與isolated production build均PASS。須commit／push後以fresh release重建source lock、migration image／APP_INFRA與cutover receipts；目前仍不得標Deployed或Release Ready。
 
 > **2026-09-15 DEV-012 R66 production data cutover implementation（historical implementation baseline）**：R63 的 `principal_not_active` 已確認是 legacy 正式資料尚未搬入 neutral `ai_pdm_core`，不是 Firebase token 或 TOTP 問題。本 repo 已完成 app-owned one-time `prepare → fence → export → import → reconcile → handoff` executor、151-table exact plan、13欄固定轉換、既有管理員 UID exact-one remap、generation-bound raw bundle、task-owned IAM／Job cleanup、owner prepare／verify hard gate，以及 `LIVE_VERIFIED` 後自動刪 raw bundle；後續 ordinary release 改讀已發布的 `NEUTRAL_AUTHORITY_LIVE` completion receipt，不再要求 legacy cutover。Local結果為data-cutover 15／15、continuous owner 32／32、cutover QC PASS；isolated PostgreSQL因本機磁碟低於資源安全線而 `NOT_RUN`，正式Billing／backup／PITR／DB／service／IAM／Job／traffic亦 `NOT_RUN`。Current source尚待commit／push與fresh source freeze，不能標為Release Ready或Deployed。
@@ -124,10 +126,7 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 現行開發：`◐ DEV-117 continuous V3`，成熟度=`Architecture Finalized / RD Tech Lead PASS / V3 Owner Implementation Complete / S1B-20 PASS / DEV-012 S1C 8／8 PASS / S2 Paused for Operator Re-auth / Production Migration Replay PASS`；已依SPEC §26完成V3 profile、provider wrapper、IaC、ten-stage workflow、app-owned entrypoint與abort controller；operator重新授權後只以fresh R38重建source-bound receipts，candidate／entrypoint／traffic仍NOT_RUN。既有`117-S1`維持v1歷史完成：`Local Implementation Complete /
-  QA-QC 12 of 12 PASS / Production Release Gated`。S1A profile／validator、S1B independent workflow／candidate
-  lifecycle及S1C receipt／aggregate已依序完成；provider／credential／DB／Cloud／DNS／traffic mutation固定為0。
-  S1B完成只解鎖DEV-012 S2 fresh Billing／quota／authorization前置；在S2 machine receipts完成前不得建立fresh release或執行production stage。
+- 現行開發：DEV-117 production release已於R78完成，狀態=`Production Level 4 Complete / Owner RELEASED / 100% canonical traffic / remainingHumanAction=0`。本repo ordinary release boundary已獨立；沒有DEV-117續接或S2待辦。後續產品工作依其各自DEV派工。
 
 - DEV-116 release責任已切分：DEV-116只保留`company-smoke` Production Level 4 R01／R02，candidate／
   promotion／rollback／live receipt由DEV-117負責；Platform DEV-010只供應shared foundation evidence。
@@ -1615,7 +1614,7 @@ Owner：Dev PM
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ✓ DEV-117 [交付點] [Architecture Finalized / V3 Owner Implementation Complete / S2 Unlocked / Production Release Gated] [P0] [Provider NOT_RUN] AI_PDM 獨立正式部署 adapter
+- ✓ DEV-117 [交付點] [Production Level 4 Complete / R78 RELEASED] [P0] [Provider PASS／100% canonical traffic] AI_PDM 獨立正式部署 adapter
   - 摘要：建立AI_PDM-owned neutral production release lane，使AI_PDM可獨立build、建立0% candidate、
     完成Level 4、切流與traffic-only rollback；Platform只消費live receipt，不取得AI_PDM deployment authority。
   - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`。

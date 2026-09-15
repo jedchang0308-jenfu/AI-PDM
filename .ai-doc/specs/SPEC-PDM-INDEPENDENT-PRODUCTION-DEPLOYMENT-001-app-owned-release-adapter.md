@@ -1,5 +1,7 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
+> **Final current status（2026-09-15）**：`DEV012-REL-20260915-R78 / Production Level 4 Complete / owner RELEASED / 100% canonical traffic`。最終authority見§30；較早`NOT_RUN／blocked`段落保留provenance。
+
 > **2026-09-15 R71 cancelled drawing number correction（current additive authority）**：R71 provider import以transaction rollback安全停止，legacy service已恢復且task-owned Job／temporary IAM均清除。Safe diagnostics證實`drawings` source=53、target=50，缺少的3筆皆為合法`cancelled`歷史列；根因是folded production baseline `001`仍保留完整`UNIQUE(company_id,drawing_number)`，但current lifecycle authority只允許非cancelled列占用號碼。不得修改已套用的001、手改Cloud SQL或丟棄歷史列；新增forward-only `064_release_cancelled_drawing_number_claims.sql`，先移除obsolete constraint，再保留既有partial unique index `WHERE drawing_number IS NOT NULL AND lifecycle_state <> 'cancelled'`。Current V3 manifest固定15 entries、`schema_migrations=15`；R35的14-entry replay只保留historical provider evidence。Fresh retry須以new source freeze、immutable migration image與APP_INFRA_IMAGE_ROTATION，先由exact fixed migration Job套用／驗證064 receipt，再執行151-table cutover；064未PASS前不得fence、candidate或traffic。
 
 > **2026-09-15 R68 production seed reconciliation correction（current additive authority）**：R68 provider prepare在任何legacy fence／export／import之前證實source與target均為157 tables，且`numbering_rule_versions` 3筆與`pdm_workbench_state_authority_control` 1筆的primary-key集合完全相同，但migration內`now()`令兩環境的non-key內容雜湊必然不同；舊exact-content precheck安全停止並清除兩個task-owned Job與temporary IAM，legacy service保持可用。Current prepare只接受這4筆seed的exact PK set；import必在同一個`SERIALIZABLE` transaction中先驗PK、刪除exact 3+1 baseline、依source bundle重建，再由151-table target summaries與identity mapping完整對帳後才COMMIT。任一row-count、FK、hash或identity差異均ROLLBACK；禁止手改正式DB或用`ON CONFLICT DO NOTHING`保留不同seed內容。修正必以fresh source、fresh immutable migration-runner digest、APP_INFRA_IMAGE_ROTATION與new release執行。
@@ -556,3 +558,11 @@ Temporary IAM只授權legacy migration SA在exact release object prefix建立物
 2026-09-15 current local evidence：`npm run test:dev-012:data-cutover` 18／18 PASS、`npm run test:dev-117:continuous` 32／32 PASS、`npm run qc:dev-012:data-cutover` PASS、`npm run qc:dev-012:data-cutover:postgres` PASS、DB boundary PASS、typecheck PASS、isolated production build PASS、`git diff --check` PASS。Production R72已由provider完成15-entry migration與immutable export，但import因舊FK-only order觸發`DEV087_WORK_REFERENCE_MISMATCH`而serializable ROLLBACK；legacy access與原traffic已恢復、HTTP 200、task Jobs／temporary IAM零殘留，R72 terminal disposition=`RECOVERED_ABORT / releaseAuthority=false`。
 
 Current source修正尚須commit／push與fresh source freeze；新release必須重建migration image／APP_INFRA、Billing／quota／backup／PITR／catalog、cutover handoff、post-import capacity及所有production-bound receipts。R72任何receipt不得升格或重用為release authority。任何UNKNOWN、raw-data boundary、catalog、UID、hash、transaction、trigger dependency、cleanup或restore失敗均停止，不得dispatch candidate。
+
+## 30. R78 production result與ordinary-release boundary（2026-09-15）
+
+`DEV012-REL-20260915-R78`以frozen source `91de3a65df58dc60ddde88aab5263e9470a84565`完成owner十階段；GitHub run `34952087442`全stage成功，terminal=`RELEASED`、`remainingHumanAction=0`。Immutable artifact=`asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a79ff49747342dc33c7aec7c189cf220540c3851f5614667d64ec97e18dd844e`，revision=`ai-pdm-prod-29a4a765563c`、100% traffic、canonical=`https://ai-pdm-prod-9536592944.asia-east1.run.app`。
+
+One-time cutover完成151 tables／3,569 rows，identity remap與row／hash／FK reconciliation exact PASS；legacy fenced，task Job、temporary IAM與raw bundle cleanup成立。Candidate與canonical的auth mode、session create／reload、DB、permission deny、revoked session均PASS；AAL1 workspace password啟用，TOTP=false。
+
+後續ordinary AI-PDM release只凍結本repo並操作own artifact、migration、service、Secret、entrypoint、traffic與rollback；不讀取或重部署Platform／OrgMaster。Shared foundation只以verified receipt hash作input。Legacy及`RETAINED_UNUSED_EDGE` retirement另立exact-resource gate，不是本DEV殘留；本節是post-release governance，不改R78 source provenance。
