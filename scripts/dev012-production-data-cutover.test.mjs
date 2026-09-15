@@ -20,6 +20,7 @@ import {
   deriveDataMigrationPlan,
   parseRuntimeArgs,
   sha256,
+  summarizeRowDifference,
   topologicalTableOrder,
   transformSourceRow,
 } from './lib/dev012-production-data-cutover.mjs'
@@ -210,6 +211,15 @@ test('known target seeds bind exact primary keys while allowing migration-time f
   assert.equal(assertExistingRowsHaveExpectedPrimaryKeys(existing, expected, ['id'], 'fixture'), true)
   expectCode('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', () => assertExistingRowsHaveExpectedPrimaryKeys([{ id: 'one' }, { id: 'rogue' }], expected, ['id'], 'fixture'))
   expectCode('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', () => assertExistingRowsHaveExpectedPrimaryKeys([{ id: 'one' }], expected, ['id'], 'fixture'))
+})
+
+test('row reconciliation diagnostics expose only counts, key parity, and column names', () => {
+  const expected = [{ id: 'one', updated_at: 'source-time', value: 'same' }]
+  const observed = [{ id: 'one', updated_at: 'target-time', value: 'same' }]
+  const diagnostic = summarizeRowDifference(expected, observed, ['id'], ['id', 'updated_at', 'value'])
+  assert.deepEqual(diagnostic, { expectedRowCount: 1, observedRowCount: 1, primaryKeyMatches: true, mismatchedColumns: ['updated_at'] })
+  assert.equal(JSON.stringify(diagnostic).includes('source-time'), false)
+  assert.equal(JSON.stringify(diagnostic).includes('target-time'), false)
 })
 
 test('provider handoff joins exact import reconciliation and access fence', () => {

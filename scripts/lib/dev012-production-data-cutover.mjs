@@ -238,6 +238,20 @@ export function summarizeRows(rows, primaryKey) {
   return { rowCount: ordered.length, primaryKeySha256: sha256(canonicalize(primaryKeys)), contentSha256: sha256(canonicalize(ordered)) }
 }
 
+export function summarizeRowDifference(expectedRows, observedRows, primaryKey, columns) {
+  if (!Array.isArray(expectedRows) || !Array.isArray(observedRows) || !Array.isArray(primaryKey) || primaryKey.length === 0 || !Array.isArray(columns)
+    || [...primaryKey, ...columns].some((column) => !SAFE_NAME.test(column ?? ''))) fail('DATA_CUTOVER_ROW_DIAGNOSTIC_INVALID')
+  const expected = sortRowsByPrimaryKey(expectedRows, primaryKey)
+  const observed = sortRowsByPrimaryKey(observedRows, primaryKey)
+  const summarizeColumn = (rows, column) => sha256(canonicalize(rows.map((row) => ({ key: primaryKey.map((key) => row[key]), value: row[column] }))))
+  return {
+    expectedRowCount: expected.length,
+    observedRowCount: observed.length,
+    primaryKeyMatches: summarizeRows(expected, primaryKey).primaryKeySha256 === summarizeRows(observed, primaryKey).primaryKeySha256,
+    mismatchedColumns: columns.filter((column) => summarizeColumn(expected, column) !== summarizeColumn(observed, column)),
+  }
+}
+
 export function assertExistingRowsAreExpectedSubset(existingRows, expectedRows, tableName) {
   if (!Array.isArray(existingRows) || !Array.isArray(expectedRows)) fail('DATA_CUTOVER_TARGET_SEED_CONTENT_INVALID', tableName)
   const expected = new Set(expectedRows.map(canonicalize))

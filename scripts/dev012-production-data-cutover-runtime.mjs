@@ -22,6 +22,7 @@ import {
   quoteIdentifier,
   sha256,
   sortRowsByPrimaryKey,
+  summarizeRowDifference,
   summarizeRows,
   transformSourceRow,
 } from './lib/dev012-production-data-cutover.mjs'
@@ -331,7 +332,10 @@ async function runImport({ config, args, environment, token }) {
       insertedRows += await insertTableRows(database, config, targetTable, transformed)
       const observedRows = await readTargetRows(database, config, targetTable)
       const summary = summarizeRows(observedRows, targetTable.primaryKey)
-      if (canonicalize(summary) !== canonicalize(bundleTable.targetSummary)) fail('DATA_CUTOVER_TARGET_RECONCILIATION_FAILED', tableName)
+      if (canonicalize(summary) !== canonicalize(bundleTable.targetSummary)) {
+        const difference = summarizeRowDifference(transformed, observedRows, targetTable.primaryKey, targetTable.columns.map((column) => column.name))
+        fail('DATA_CUTOVER_TARGET_RECONCILIATION_FAILED', `${tableName}:expected=${difference.expectedRowCount}:observed=${difference.observedRowCount}:primaryKeyMatches=${difference.primaryKeyMatches}:columns=${difference.mismatchedColumns.join(',') || 'none'}`)
+      }
       tableReceipts.push({ name: tableName, ...summary })
     }
     const identity = await assertTargetIdentity(database, config, bundle.identityUid)
