@@ -96,6 +96,21 @@ const session = await exchangeFirebaseIdTokenForPlatformSession({
 const claims = verifyPlatformSessionV2(session, keyRing, { nowSeconds: 1_752_350_101, currentSessionVersion: 3 });
 record("DEV046-2B-006 exchange issues eight-hour approved Workspace AAL1 pilot session", claims.pdmUserId === "prod-pdm-admin-001" && claims.expiresAt - claims.issuedAt === 8 * 60 * 60 && claims.assuranceLevel === "aal1" && claims.secondFactor === null);
 
+const trustedPasswordFirebase = new FirebaseAdminIdentityProvider({
+  ...adminClient,
+  verifyIdToken: async () => ({ ...decoded, firebase: { sign_in_provider: "password" } })
+});
+const passwordSession = await exchangeFirebaseIdTokenForPlatformSession({
+  idToken: "trusted-password-token",
+  firebase: trustedPasswordFirebase,
+  repository,
+  keyRing,
+  workspaceMfaTrustPolicy: { enabled: false, allowAal1PrivilegedPilot: true, domains: ["jenfu.com.tw"] },
+  nowSeconds: 1_752_350_100
+});
+const passwordClaims = verifyPlatformSessionV2(passwordSession, keyRing, { nowSeconds: 1_752_350_101, currentSessionVersion: 3 });
+record("DEV046-2B-006A exchange allows verified trusted-domain password sign-in without TOTP", passwordClaims.assuranceLevel === "aal1" && passwordClaims.secondFactor === null);
+
 let pilotDisabledDenied = false;
 try {
   await exchangeFirebaseIdTokenForPlatformSession({
@@ -125,7 +140,23 @@ try {
 } catch (error) {
   assuranceDenied = error instanceof Error && error.message === "FIREBASE_PRIVILEGED_ASSURANCE_REQUIRED";
 }
-record("DEV046-2B-008 privileged principal fails closed without trusted Workspace Google provider/domain", assuranceDenied);
+record("DEV046-2B-008 privileged principal fails closed outside the trusted company domain", assuranceDenied);
+
+const unsupportedProviderFirebase = new FirebaseAdminIdentityProvider({ ...adminClient, verifyIdToken: async () => ({ ...decoded, firebase: { sign_in_provider: "custom" } }) });
+let unsupportedProviderDenied = false;
+try {
+  await exchangeFirebaseIdTokenForPlatformSession({
+    idToken: "unsupported-provider-token",
+    firebase: unsupportedProviderFirebase,
+    repository,
+    keyRing,
+    workspaceMfaTrustPolicy: { enabled: false, allowAal1PrivilegedPilot: true, domains: ["jenfu.com.tw"] },
+    nowSeconds: 1_752_350_100
+  });
+} catch (error) {
+  unsupportedProviderDenied = error instanceof Error && error.message === "FIREBASE_PRIVILEGED_ASSURANCE_REQUIRED";
+}
+record("DEV046-2B-008A privileged principal fails closed for an unsupported provider", unsupportedProviderDenied);
 
 assert.throws(
   () => getPlatformSessionKeyRing({ PDM_SESSION_ISSUER: "issuer", PDM_SESSION_AUDIENCE: "audience", PDM_SESSION_CURRENT_KEY_ID: "same", PDM_SESSION_CURRENT_SECRET: "x".repeat(40), PDM_SESSION_PREVIOUS_KEY_ID: "same", PDM_SESSION_PREVIOUS_SECRET: "y".repeat(40) }),

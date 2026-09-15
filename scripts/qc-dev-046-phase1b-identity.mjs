@@ -87,7 +87,7 @@ firebase.identities.set("firebase-token-aal2", {
   emailVerified: true,
   disabled: false,
   authTimeSeconds: now - 10,
-  signInProvider: "google.com",
+  signInProvider: "password",
   secondFactor: null
 });
 repository.principals.set("firebase-user-001", {
@@ -108,7 +108,7 @@ const exchanged = await exchangeFirebaseIdTokenForPlatformSession({
   nowSeconds: now
 });
 const exchangedClaims = verifyPlatformSessionV2(exchanged, keyRing, { nowSeconds: now + 1 });
-record("DEV046-1B-009 BFF exchange allows approved Workspace AAL1 pilot after revoked-token verification", exchangedClaims.assuranceLevel === "aal1" && exchangedClaims.secondFactor === null && firebase.operations.includes("verify:firebase-token-aal2:revoked=true"));
+record("DEV046-1B-009 BFF exchange allows approved trusted-domain password AAL1 pilot after revoked-token verification", exchangedClaims.assuranceLevel === "aal1" && exchangedClaims.secondFactor === null && firebase.operations.includes("verify:firebase-token-aal2:revoked=true"));
 
 const mailer = new FakeInvitationMailProvider();
 const invitation = await provisionFirebasePasswordInvitation({

@@ -308,6 +308,70 @@ async function main() {
     )
   })
 
+  await check('DEV004-S2-EXCHANGE-003', async () => {
+    const baseVerifiedIdentity = {
+      uid: 'fixtureUidCaseSensitive001',
+      identityIssuer: IDENTITY_ISSUER,
+      identityAudience: IDENTITY_AUDIENCE,
+      email: 'admin@jenfu.com.tw',
+      emailVerified: true,
+      disabled: false,
+      authTimeSeconds: NOW_SECONDS - 60,
+      signInProvider: 'password',
+      secondFactor: null,
+    }
+    const common = {
+      idToken: 'redacted-provider-token',
+      localPrincipalRepository: { async resolvePrincipal() {
+        return {
+          firebaseUid: 'fixtureUidCaseSensitive001',
+          pdmUserId: 'pdm-user-fixture-001',
+          companyId: 'company-jenfu',
+          sessionVersion: 3,
+          accountStatus: 'active',
+          requiresPrivilegedAssurance: true,
+        }
+      } },
+      principalAdmissionRepository: { async requireActivePrincipal() {
+        return {
+          contractVersion: CONTRACT_VERSION,
+          directoryContractVersion: 'organization.active-principal.v1',
+          identityIssuer: IDENTITY_ISSUER,
+          identitySubject: 'fixtureUidCaseSensitive001',
+          principalId: 'principal-fixture-001',
+          employeeId: 'employee-fixture-001',
+          mappingVersion: 7,
+          publishedAt: '2026-08-31T00:00:00.000Z',
+        }
+      } },
+      authEpochRepository: { async readPrincipalAuthEpoch() { return 0 } },
+      identityConfig: getJenfuIdentityConfig(identityEnvironment()),
+      keyRing: KEY_RING,
+      workspaceMfaTrustPolicy: { enabled: false, allowAal1PrivilegedPilot: true, domains: ['jenfu.com.tw'] },
+      nowSeconds: NOW_SECONDS,
+    }
+    const token = await exchangeFirebaseIdTokenForJenfuPlatformSession({
+      ...common,
+      firebase: { async verifyIdToken() { return baseVerifiedIdentity } },
+    })
+    const claims = verifyJenfuPlatformSessionV1(token, KEY_RING, { nowSeconds: NOW_SECONDS })
+    assert.equal(claims.assuranceLevel, 'aal1')
+    assert.equal(claims.secondFactor, null)
+
+    for (const deniedIdentity of [
+      { ...baseVerifiedIdentity, email: 'admin@example.com' },
+      { ...baseVerifiedIdentity, signInProvider: 'custom' },
+    ]) {
+      await assert.rejects(
+        exchangeFirebaseIdTokenForJenfuPlatformSession({
+          ...common,
+          firebase: { async verifyIdToken() { return deniedIdentity } },
+        }),
+        (error) => error instanceof JenfuPlatformAuthError && error.code === 'auth_token_invalid',
+      )
+    }
+  })
+
   await check('DEV004-S2-REQUEST-001', async () => {
     let principalReads = 0
     let epochReads = 0

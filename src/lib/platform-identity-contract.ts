@@ -78,9 +78,11 @@ export async function exchangeFirebaseIdTokenForPlatformSession(input: {
   const principal = await input.repository.resolvePrincipal(verified.uid);
   if (!principal || principal.accountStatus !== "active") throw new Error("PLATFORM_PRINCIPAL_NOT_ACTIVE");
   const workspaceMfaTrustPolicy = input.workspaceMfaTrustPolicy ?? getGoogleWorkspaceMfaTrustPolicy();
+  const trustedWorkspaceEmail = isTrustedGoogleWorkspaceEmail(verified.email, workspaceMfaTrustPolicy);
   const trustedGoogleWorkspaceSignIn =
-    verified.signInProvider === "google.com" &&
-    isTrustedGoogleWorkspaceEmail(verified.email, workspaceMfaTrustPolicy);
+    verified.signInProvider === "google.com" && trustedWorkspaceEmail;
+  const trustedPrivilegedAal1Provider =
+    verified.signInProvider === "google.com" || verified.signInProvider === "password";
   const workspaceMfaTrusted = trustedGoogleWorkspaceSignIn && workspaceMfaTrustPolicy.enabled;
   const secondFactor: PlatformSecondFactor = verified.secondFactor ?? (workspaceMfaTrusted ? "google_workspace_mfa" : null);
   const assuranceLevel: PlatformAssuranceLevel = secondFactor ? "aal2" : "aal1";
@@ -90,7 +92,8 @@ export async function exchangeFirebaseIdTokenForPlatformSession(input: {
   const privilegedAal1PilotAllowed =
     privilegedAssuranceRequired &&
     assuranceLevel === "aal1" &&
-    trustedGoogleWorkspaceSignIn &&
+    trustedWorkspaceEmail &&
+    trustedPrivilegedAal1Provider &&
     workspaceMfaTrustPolicy.allowAal1PrivilegedPilot;
   if (privilegedAssuranceRequired && assuranceLevel !== "aal2" && !privilegedAal1PilotAllowed) {
     throw new Error("FIREBASE_PRIVILEGED_ASSURANCE_REQUIRED");
