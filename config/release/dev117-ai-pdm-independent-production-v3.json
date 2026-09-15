@@ -227,7 +227,7 @@
       "PDM_FIREBASE_AUTH_DOMAIN": "jenfu-platform-prod.firebaseapp.com",
       "PDM_FIREBASE_PROJECT_ID": "jenfu-platform-prod",
       "PDM_TRUST_GOOGLE_WORKSPACE_MFA": "false",
-      "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED": "false",
+      "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED": "true",
       "PDM_GOOGLE_WORKSPACE_DOMAINS": "jenfu.com.tw",
       "PDM_SESSION_ISSUER": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
       "PDM_SESSION_AUDIENCE": "ai-pdm-production",

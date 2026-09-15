@@ -254,7 +254,7 @@ export function assertDev117Config(config) {
     PDM_CLOUD_SQL_IDLE_TIMEOUT_MS: '600000', PDM_CLOUD_SQL_STATEMENT_TIMEOUT_MS: '30000', PDM_CLOUD_SQL_QUERY_TIMEOUT_MS: '35000',
     PDM_PUBLIC_BASE_URL: config.target.canonicalOrigin, PDM_CANDIDATE_CLOUD_RUN_SERVICE: config.target.serviceName,
     PDM_CANDIDATE_CLOUD_RUN_TAG: 'candidate', PDM_COOKIE_SECURE: 'true', PDM_TRUST_GOOGLE_WORKSPACE_MFA: 'false',
-    PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED: 'false',
+    PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED: 'true',
   }
   if (canonicalize(fixed) !== canonicalize(expectedFixed)) fail('DEV117_ENVIRONMENT_CONTRACT_INVALID', 'fixedPlainEnvironment')
   for (const key of Object.keys(fixed)) if (!config.environment.requiredPlainEnvironmentNames.includes(key)) fail(code, `requiredPlainEnvironmentNames.${key}`)

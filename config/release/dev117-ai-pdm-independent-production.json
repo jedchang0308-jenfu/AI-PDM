@@ -153,7 +153,7 @@
       "PDM_CANDIDATE_CLOUD_RUN_TAG": "candidate",
       "PDM_COOKIE_SECURE": "true",
       "PDM_TRUST_GOOGLE_WORKSPACE_MFA": "false",
-      "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED": "false"
+      "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED": "true"
     },
     "requiredSecretEnvironmentNames": [
       "PDM_SESSION_CURRENT_SECRET",
