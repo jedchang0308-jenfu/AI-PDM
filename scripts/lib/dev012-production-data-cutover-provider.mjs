@@ -142,7 +142,14 @@ export function assertCutoverJob(value, expectedBody, config, kind) {
 function assertInspectionJoin({ config, sourceInspection, targetInspection, identityReceiptSha256 }) {
   assertSourceInspectionReceipt(sourceInspection, config)
   assertTargetInspectionReceipt(targetInspection, config)
-  if (sourceInspection.identityReceiptSha256 !== identityReceiptSha256 || targetInspection.identityReceiptSha256 !== identityReceiptSha256 || canonicalize(sourceInspection.seedSummaries) !== canonicalize(targetInspection.seedSummaries)) fail('DATA_CUTOVER_INSPECTION_JOIN_INVALID')
+  if (sourceInspection.identityReceiptSha256 !== identityReceiptSha256 || targetInspection.identityReceiptSha256 !== identityReceiptSha256) fail('DATA_CUTOVER_INSPECTION_JOIN_INVALID')
+  const seedNames = Object.keys(config.catalog.allowedTargetSeedRows).sort()
+  if (canonicalize(Object.keys(sourceInspection.seedSummaries).sort()) !== canonicalize(seedNames) || canonicalize(Object.keys(targetInspection.seedSummaries).sort()) !== canonicalize(seedNames)) fail('DATA_CUTOVER_INSPECTION_JOIN_INVALID')
+  for (const name of seedNames) {
+    const source = sourceInspection.seedSummaries[name]
+    const target = targetInspection.seedSummaries[name]
+    if (source.rowCount !== target.rowCount || source.primaryKeySha256 !== target.primaryKeySha256) fail('DATA_CUTOVER_INSPECTION_JOIN_INVALID', name)
+  }
   return deriveDataMigrationPlan(config, sourceInspection.catalog, targetInspection.catalog)
 }
 

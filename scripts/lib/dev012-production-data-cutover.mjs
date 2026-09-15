@@ -245,6 +245,19 @@ export function assertExistingRowsAreExpectedSubset(existingRows, expectedRows, 
   return true
 }
 
+export function assertExistingRowsHaveExpectedPrimaryKeys(existingRows, expectedRows, primaryKey, tableName) {
+  if (!Array.isArray(existingRows) || !Array.isArray(expectedRows) || !Array.isArray(primaryKey) || primaryKey.length === 0 || primaryKey.some((column) => !SAFE_NAME.test(column))) fail('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_INVALID', tableName)
+  const rowKey = (row) => {
+    if (!row || typeof row !== 'object' || Array.isArray(row) || primaryKey.some((column) => row[column] === undefined)) fail('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_INVALID', tableName)
+    return canonicalize(primaryKey.map((column) => row[column]))
+  }
+  const expectedKeys = expectedRows.map(rowKey)
+  const existingKeys = existingRows.map(rowKey)
+  if (new Set(expectedKeys).size !== expectedKeys.length || new Set(existingKeys).size !== existingKeys.length) fail('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_INVALID', tableName)
+  if (canonicalize([...existingKeys].sort()) !== canonicalize([...expectedKeys].sort())) fail('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', tableName)
+  return true
+}
+
 export function createDataBundle({ config: configInput, sourceRevision, releaseId, identityUid, identityReceiptSha256, sourceCatalog, rowsByTable }) {
   const config = assertDataCutoverConfig(configInput)
   if (!H40.test(sourceRevision ?? '') || !RELEASE_ID.test(releaseId ?? '') || !H64.test(identityReceiptSha256 ?? '')) fail('DATA_CUTOVER_BUNDLE_INPUT_INVALID')

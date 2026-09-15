@@ -10,6 +10,7 @@ import {
   assertDataCutoverImportReceipt,
   assertEquivalentCutoverReceipt,
   assertExistingRowsAreExpectedSubset,
+  assertExistingRowsHaveExpectedPrimaryKeys,
   buildInsertSql,
   canonicalize,
   catalogStructureSha256,
@@ -201,6 +202,14 @@ test('existing target content must be an exact subset of transformed source', ()
   const expected = [{ id: 'one', value: 'A' }, { id: 'two', value: 'B' }]
   assert.equal(assertExistingRowsAreExpectedSubset([expected[0]], expected, 'fixture'), true)
   expectCode('DATA_CUTOVER_TARGET_SEED_CONTENT_DRIFT', () => assertExistingRowsAreExpectedSubset([{ id: 'rogue', value: 'X' }], expected, 'fixture'))
+})
+
+test('known target seeds bind exact primary keys while allowing migration-time field replacement', () => {
+  const expected = [{ id: 'one', updated_at: 'source-time' }, { id: 'two', updated_at: 'source-time' }]
+  const existing = [{ id: 'one', updated_at: 'target-time' }, { id: 'two', updated_at: 'target-time' }]
+  assert.equal(assertExistingRowsHaveExpectedPrimaryKeys(existing, expected, ['id'], 'fixture'), true)
+  expectCode('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', () => assertExistingRowsHaveExpectedPrimaryKeys([{ id: 'one' }, { id: 'rogue' }], expected, ['id'], 'fixture'))
+  expectCode('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', () => assertExistingRowsHaveExpectedPrimaryKeys([{ id: 'one' }], expected, ['id'], 'fixture'))
 })
 
 test('provider handoff joins exact import reconciliation and access fence', () => {

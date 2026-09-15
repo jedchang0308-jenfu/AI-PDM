@@ -96,8 +96,8 @@ function catalogFixtures() {
   }
 }
 
-function seedSummaries() {
-  return Object.fromEntries(Object.entries(config.catalog.allowedTargetSeedRows).map(([name, rowCount]) => [name, { rowCount, primaryKeySha256: sha256(`${name}:pk`), contentSha256: sha256(`${name}:content`) }]))
+function seedSummaries(contentVersion) {
+  return Object.fromEntries(Object.entries(config.catalog.allowedTargetSeedRows).map(([name, rowCount]) => [name, { rowCount, primaryKeySha256: sha256(`${name}:pk`), contentSha256: sha256(`${name}:content:${contentVersion}`) }]))
 }
 
 function ref(uri, value) {
@@ -130,7 +130,7 @@ function harness({ failMode = null } = {}) {
     const sourceMode = mode === 'inspect-source'
     const target = sourceMode ? config.source : config.target
     const selected = sourceMode ? catalogs.source : catalogs.target
-    const base = { ownerApplicationId: 'ai-pdm', releaseId, sourceRevision, projectId: target.projectId, database: target.database, schema: target.schema, identityReceiptSha256, executionName, catalog: selected, seedSummaries: seedSummaries(), totalRowCount: selected.tables.reduce((sum, item) => sum + item.rowCount, 0), rawRowsLogged: false, completedAt: '2026-09-15T01:00:00.000Z', status: 'PASS' }
+    const base = { ownerApplicationId: 'ai-pdm', releaseId, sourceRevision, projectId: target.projectId, database: target.database, schema: target.schema, identityReceiptSha256, executionName, catalog: selected, seedSummaries: seedSummaries(sourceMode ? 'source' : 'target'), totalRowCount: selected.tables.reduce((sum, item) => sum + item.rowCount, 0), rawRowsLogged: false, completedAt: '2026-09-15T01:00:00.000Z', status: 'PASS' }
     return selfHash(sourceMode
       ? { schemaVersion: 'jenfu.dev012.ai-pdm-source-inspection-receipt.v1', ...base, identity: { pdmUserId: config.identityRemap.pdmUserId, companyId: config.identityRemap.companyId, role: config.identityRemap.role, accountStatus: config.identityRemap.accountStatus, accountLifecycleVersion: config.identityRemap.accountLifecycleVersion, priorMappingCount: 1, currentUidCollisionCount: 0 }, sessionSnapshot: { otherSessionCount: 0, hiddenSessionCount: 0, activeTransactionCount: 0, activeNonIdleCount: 0, activeMigrationSessionCount: 0 } }
       : { schemaVersion: 'jenfu.dev012.ai-pdm-target-inspection-receipt.v1', ...base, activeUidMappingCount: 0 })

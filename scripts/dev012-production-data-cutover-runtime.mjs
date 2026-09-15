@@ -10,6 +10,7 @@ import {
   assertDataCutoverConfig,
   assertEquivalentCutoverReceipt,
   assertExistingRowsAreExpectedSubset,
+  assertExistingRowsHaveExpectedPrimaryKeys,
   assertSourceInspectionReceipt,
   assertTargetInspectionReceipt,
   buildInsertSql,
@@ -314,7 +315,12 @@ async function runImport({ config, args, environment, token }) {
       const targetTable = targetCatalog.tables.find((table) => table.name === tableName)
       const existing = await readTargetRows(database, config, targetTable)
       const expected = bundleByName.get(tableName).rows.map((row) => transformSourceRow(config, tableName, row, bundle.identityUid))
-      assertExistingRowsAreExpectedSubset(existing, expected, tableName)
+      if (Object.hasOwn(config.catalog.allowedTargetSeedRows, tableName)) assertExistingRowsHaveExpectedPrimaryKeys(existing, expected, targetTable.primaryKey, tableName)
+      else assertExistingRowsAreExpectedSubset(existing, expected, tableName)
+    }
+    for (const tableName of Object.keys(config.catalog.allowedTargetSeedRows).sort()) {
+      const result = await database.query(`DELETE FROM ${quoteIdentifier(config.target.schema)}.${quoteIdentifier(tableName)}`)
+      if (result.rowCount !== config.catalog.allowedTargetSeedRows[tableName]) fail('DATA_CUTOVER_TARGET_SEED_REPLACEMENT_COUNT_MISMATCH', tableName)
     }
     let insertedRows = 0
     const tableReceipts = []
