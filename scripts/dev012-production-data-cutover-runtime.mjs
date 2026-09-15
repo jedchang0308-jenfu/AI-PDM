@@ -21,6 +21,7 @@ import {
   parseRuntimeArgs,
   quoteIdentifier,
   sha256,
+  selectTargetSeedTablesForReplacement,
   sortRowsByPrimaryKey,
   summarizeRowDifference,
   summarizeRows,
@@ -312,14 +313,16 @@ async function runImport({ config, args, environment, token }) {
     const plan = deriveDataMigrationPlan(config, bundle.sourceCatalog, targetCatalog, { allowPopulatedTarget: true })
     if (canonicalize(plan.copyTables) !== canonicalize(bundle.plan.copyTables) || canonicalize(plan.triggerDependencies) !== canonicalize(bundle.plan.triggerDependencies) || canonicalize(plan.transforms) !== canonicalize(bundle.plan.transforms)) fail('DATA_CUTOVER_IMPORT_PLAN_MISMATCH')
     const bundleByName = new Map(bundle.tables.map((table) => [table.name, table]))
+    const tableSnapshots = []
     for (const tableName of plan.copyTables) {
       const targetTable = targetCatalog.tables.find((table) => table.name === tableName)
       const existing = await readTargetRows(database, config, targetTable)
-      const expected = bundleByName.get(tableName).rows.map((row) => transformSourceRow(config, tableName, row, bundle.identityUid))
+      const expected = sortRowsByPrimaryKey(bundleByName.get(tableName).rows.map((row) => transformSourceRow(config, tableName, row, bundle.identityUid)), targetTable.primaryKey)
       if (Object.hasOwn(config.catalog.allowedTargetSeedRows, tableName)) assertExistingRowsHaveExpectedPrimaryKeys(existing, expected, targetTable.primaryKey, tableName)
       else assertExistingRowsAreExpectedSubset(existing, expected, tableName)
+      tableSnapshots.push({ name: tableName, existingRows: existing, expectedRows: expected, primaryKey: targetTable.primaryKey, columns: targetTable.columns.map((column) => column.name) })
     }
-    for (const tableName of Object.keys(config.catalog.allowedTargetSeedRows).sort()) {
+    for (const tableName of selectTargetSeedTablesForReplacement(config, tableSnapshots)) {
       const result = await database.query(`DELETE FROM ${quoteIdentifier(config.target.schema)}.${quoteIdentifier(tableName)}`)
       if (result.rowCount !== config.catalog.allowedTargetSeedRows[tableName]) fail('DATA_CUTOVER_TARGET_SEED_REPLACEMENT_COUNT_MISMATCH', tableName)
     }

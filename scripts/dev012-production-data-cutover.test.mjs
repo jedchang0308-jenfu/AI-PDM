@@ -21,6 +21,7 @@ import {
   parseRuntimeArgs,
   REQUIRED_TRIGGER_DEPENDENCIES,
   sha256,
+  selectTargetSeedTablesForReplacement,
   summarizeRowDifference,
   topologicalTableOrder,
   transformSourceRow,
@@ -213,6 +214,22 @@ test('known target seeds bind exact primary keys while allowing migration-time f
   assert.equal(assertExistingRowsHaveExpectedPrimaryKeys(existing, expected, ['id'], 'fixture'), true)
   expectCode('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', () => assertExistingRowsHaveExpectedPrimaryKeys([{ id: 'one' }, { id: 'rogue' }], expected, ['id'], 'fixture'))
   expectCode('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', () => assertExistingRowsHaveExpectedPrimaryKeys([{ id: 'one' }], expected, ['id'], 'fixture'))
+})
+
+test('seed replacement occurs only on an empty target and populated replay requires exact seed content', () => {
+  const seedSnapshots = Object.keys(config.catalog.allowedTargetSeedRows).sort().map((name) => ({
+    name,
+    existingRows: [{ id: `${name}-seed`, value: 'source' }],
+    expectedRows: [{ id: `${name}-seed`, value: 'source' }],
+    primaryKey: ['id'],
+    columns: ['id', 'value'],
+  }))
+  assert.deepEqual(selectTargetSeedTablesForReplacement(config, seedSnapshots), Object.keys(config.catalog.allowedTargetSeedRows).sort())
+  const populated = [...seedSnapshots, { name: 'users', existingRows: [{ id: 'user-1' }], expectedRows: [{ id: 'user-1' }], primaryKey: ['id'], columns: ['id'] }]
+  assert.deepEqual(selectTargetSeedTablesForReplacement(config, populated), [])
+  const drifted = structuredClone(populated)
+  drifted[0].existingRows[0].value = 'stale'
+  expectCode('DATA_CUTOVER_POPULATED_TARGET_SEED_DRIFT', () => selectTargetSeedTablesForReplacement(config, drifted))
 })
 
 test('trigger-backed polymorphic references are ordered after their concrete work and entity rows', () => {

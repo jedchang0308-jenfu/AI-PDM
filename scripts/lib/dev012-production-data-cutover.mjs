@@ -281,6 +281,33 @@ export function assertExistingRowsHaveExpectedPrimaryKeys(existingRows, expected
   return true
 }
 
+export function selectTargetSeedTablesForReplacement(configInput, tableSnapshots) {
+  const config = assertDataCutoverConfig(configInput)
+  if (!Array.isArray(tableSnapshots)) fail('DATA_CUTOVER_TARGET_SEED_SNAPSHOT_INVALID')
+  const seedNames = Object.keys(config.catalog.allowedTargetSeedRows).sort()
+  const snapshots = new Map()
+  for (const snapshot of tableSnapshots) {
+    if (!snapshot || !SAFE_NAME.test(snapshot.name ?? '') || snapshots.has(snapshot.name)
+      || !Array.isArray(snapshot.existingRows) || !Array.isArray(snapshot.expectedRows)
+      || !Array.isArray(snapshot.primaryKey) || snapshot.primaryKey.length === 0
+      || !Array.isArray(snapshot.columns)) fail('DATA_CUTOVER_TARGET_SEED_SNAPSHOT_INVALID')
+    snapshots.set(snapshot.name, snapshot)
+  }
+  if (seedNames.some((name) => !snapshots.has(name))) fail('DATA_CUTOVER_TARGET_SEED_SNAPSHOT_INVALID')
+  const populatedTarget = tableSnapshots.some((snapshot) => !seedNames.includes(snapshot.name) && snapshot.existingRows.length > 0)
+  if (!populatedTarget) return seedNames
+  for (const name of seedNames) {
+    const snapshot = snapshots.get(name)
+    const expected = sortRowsByPrimaryKey(snapshot.expectedRows, snapshot.primaryKey)
+    const existing = sortRowsByPrimaryKey(snapshot.existingRows, snapshot.primaryKey)
+    if (canonicalize(existing) !== canonicalize(expected)) {
+      const difference = summarizeRowDifference(expected, existing, snapshot.primaryKey, snapshot.columns)
+      fail('DATA_CUTOVER_POPULATED_TARGET_SEED_DRIFT', `${name}:expected=${difference.expectedRowCount}:observed=${difference.observedRowCount}:primaryKeyMatches=${difference.primaryKeyMatches}:columns=${difference.mismatchedColumns.join(',') || 'none'}`)
+    }
+  }
+  return []
+}
+
 export function createDataBundle({ config: configInput, sourceRevision, releaseId, identityUid, identityReceiptSha256, sourceCatalog, rowsByTable }) {
   const config = assertDataCutoverConfig(configInput)
   if (!H40.test(sourceRevision ?? '') || !RELEASE_ID.test(releaseId ?? '') || !H64.test(identityReceiptSha256 ?? '')) fail('DATA_CUTOVER_BUNDLE_INPUT_INVALID')
