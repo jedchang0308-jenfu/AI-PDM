@@ -47,7 +47,8 @@ for (const required of ['GoogleAuth', 'resolveProviderInputPath', "args.stage ==
 for (const required of ['CUTOVER_OR_LIVE_AUTHORITY', 'dataCutoverCompletionRef', "stage: 'post-live-cleanup'", 'deleteBytes']) assert.ok(ownerExecutor.includes(required), `DEV012_DATA_CUTOVER_OWNER_CLEANUP_MISSING:${required}`)
 for (const required of ['scripts/lib/dev012-production-data-cutover.mjs', 'scripts/dev012-production-data-cutover-runtime.mjs', 'config/release/dev012-ai-pdm-production-data-cutover.json']) assert.ok(migrationRunnerDockerfile.includes(required), `DEV012_DATA_CUTOVER_IMAGE_INPUT_MISSING:${required}`)
 assert.ok(storage.includes('data_cutover_cleanup') && storage.includes('objects/source/migration-bundles/data-cutover/'), 'DEV012_DATA_CUTOVER_CLEANUP_IAM_MISSING')
-assert.ok(infraPlan.stageA.includes('google_storage_bucket_iam_member.deployer["data_cutover_cleanup"]'), 'DEV012_DATA_CUTOVER_CLEANUP_PLAN_ADDRESS_MISSING')
+assert.ok(!infraPlan.stageA.includes('google_storage_bucket_iam_member.deployer["data_cutover_cleanup"]'), 'DEV012_DATA_CUTOVER_CLEANUP_MUST_NOT_MUTATE_STAGE_A')
+assert.ok(infraPlan.stageBAdditional.includes('google_storage_bucket_iam_member.deployer["data_cutover_cleanup"]'), 'DEV012_DATA_CUTOVER_CLEANUP_PLAN_ADDRESS_MISSING')
 
 assert.equal(config.catalog.expectedSourceTableCount, 157)
 assert.equal(config.catalog.expectedTargetTableCount, 157)
