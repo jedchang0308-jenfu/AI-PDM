@@ -19,6 +19,7 @@ import {
   dataCutoverObjectPaths,
   deriveDataMigrationPlan,
   parseRuntimeArgs,
+  REQUIRED_TRIGGER_DEPENDENCIES,
   sha256,
   summarizeRowDifference,
   topologicalTableOrder,
@@ -170,6 +171,7 @@ test('151-table plan binds structure and remains stable for exact replay data', 
   assert.equal(baseline.copyTables.length, 151)
   assert.ok(baseline.tableOrder.indexOf('root_record') < baseline.tableOrder.indexOf('child_record'))
   assert.equal(baseline.transforms.length, 13)
+  assert.deepEqual(baseline.triggerDependencies, REQUIRED_TRIGGER_DEPENDENCIES)
   const populated = structuredClone(targetCatalog)
   for (const target of populated.tables) {
     const source = sourceCatalog.tables.find((item) => item.name === target.name)
@@ -211,6 +213,14 @@ test('known target seeds bind exact primary keys while allowing migration-time f
   assert.equal(assertExistingRowsHaveExpectedPrimaryKeys(existing, expected, ['id'], 'fixture'), true)
   expectCode('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', () => assertExistingRowsHaveExpectedPrimaryKeys([{ id: 'one' }, { id: 'rogue' }], expected, ['id'], 'fixture'))
   expectCode('DATA_CUTOVER_TARGET_SEED_PRIMARY_KEY_DRIFT', () => assertExistingRowsHaveExpectedPrimaryKeys([{ id: 'one' }], expected, ['id'], 'fixture'))
+})
+
+test('trigger-backed polymorphic references are ordered after their concrete work and entity rows', () => {
+  const names = ['canonical_workbench_states', 'drawing_revision_works', 'part_change_works', 'drawings', 'part_numbers', 'pdm_work_review_requests']
+  const order = topologicalTableOrder(names, REQUIRED_TRIGGER_DEPENDENCIES)
+  for (const dependency of REQUIRED_TRIGGER_DEPENDENCIES) {
+    assert.ok(order.indexOf(dependency.parentTable) < order.indexOf(dependency.childTable), `${dependency.parentTable} must precede ${dependency.childTable}`)
+  }
 })
 
 test('row reconciliation diagnostics expose only counts, key parity, and column names', () => {

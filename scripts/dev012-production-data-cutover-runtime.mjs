@@ -310,7 +310,7 @@ async function runImport({ config, args, environment, token }) {
     await database.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext(current_database()))", [`dev012-ai-pdm-data-${args.releaseId}`])
     const targetCatalog = await readCatalog(database, config.target.schema)
     const plan = deriveDataMigrationPlan(config, bundle.sourceCatalog, targetCatalog, { allowPopulatedTarget: true })
-    if (canonicalize(plan.copyTables) !== canonicalize(bundle.plan.copyTables) || canonicalize(plan.transforms) !== canonicalize(bundle.plan.transforms)) fail('DATA_CUTOVER_IMPORT_PLAN_MISMATCH')
+    if (canonicalize(plan.copyTables) !== canonicalize(bundle.plan.copyTables) || canonicalize(plan.triggerDependencies) !== canonicalize(bundle.plan.triggerDependencies) || canonicalize(plan.transforms) !== canonicalize(bundle.plan.transforms)) fail('DATA_CUTOVER_IMPORT_PLAN_MISMATCH')
     const bundleByName = new Map(bundle.tables.map((table) => [table.name, table]))
     for (const tableName of plan.copyTables) {
       const targetTable = targetCatalog.tables.find((table) => table.name === tableName)

@@ -20,6 +20,15 @@ const REQUIRED_TRANSFORMS = [
   { table: 'pdm_attribute_definitions', column: 'aliases_json', sourceType: 'jsonb', targetType: 'text', mode: 'JSONB_TO_CANONICAL_TEXT' },
 ]
 
+export const REQUIRED_TRIGGER_DEPENDENCIES = Object.freeze([
+  Object.freeze({ childTable: 'canonical_workbench_states', parentTable: 'drawing_revision_works', guard: 'DEV087_WORK_REFERENCE_MISMATCH' }),
+  Object.freeze({ childTable: 'canonical_workbench_states', parentTable: 'part_change_works', guard: 'DEV087_WORK_REFERENCE_MISMATCH' }),
+  Object.freeze({ childTable: 'canonical_workbench_states', parentTable: 'drawings', guard: 'DEV087_COMPANY_REFERENCE_MISMATCH' }),
+  Object.freeze({ childTable: 'canonical_workbench_states', parentTable: 'part_numbers', guard: 'DEV087_COMPANY_REFERENCE_MISMATCH' }),
+  Object.freeze({ childTable: 'pdm_work_review_requests', parentTable: 'drawings', guard: 'DEV087_REVIEW_REFERENCE_MISMATCH' }),
+  Object.freeze({ childTable: 'pdm_work_review_requests', parentTable: 'part_numbers', guard: 'DEV087_REVIEW_REFERENCE_MISMATCH' }),
+])
+
 export class DataCutoverError extends Error {
   constructor(code, detail = '') {
     super(detail ? `${code}:${detail}` : code)
@@ -198,8 +207,8 @@ export function deriveDataMigrationPlan(configInput, sourceCatalog, targetCatalo
     .map((item) => ({ childTable: item.childTable, parentTable: item.parentTable, deferrable: item.deferrable, childColumns: item.childColumns, parentColumns: item.parentColumns }))
     .sort((left, right) => canonicalize(left).localeCompare(canonicalize(right)))
   if (canonicalize(normalizeForeignKeys(sourceCatalog)) !== canonicalize(normalizeForeignKeys(targetCatalog))) fail('DATA_CUTOVER_FOREIGN_KEY_SET_DRIFT')
-  const tableOrder = topologicalTableOrder(copyTables, targetCatalog.foreignKeys)
-  const core = { schemaVersion: 'jenfu.dev012.ai-pdm-data-migration-plan.v1', sourceCatalogSha256: sourceCatalog.catalogSha256, targetStructureSha256: catalogStructureSha256(targetCatalog), sourceOnly, targetOnly, copyTables, tableOrder, transforms: config.catalog.typeTransforms }
+  const tableOrder = topologicalTableOrder(copyTables, [...targetCatalog.foreignKeys, ...REQUIRED_TRIGGER_DEPENDENCIES])
+  const core = { schemaVersion: 'jenfu.dev012.ai-pdm-data-migration-plan.v1', sourceCatalogSha256: sourceCatalog.catalogSha256, targetStructureSha256: catalogStructureSha256(targetCatalog), sourceOnly, targetOnly, copyTables, tableOrder, triggerDependencies: REQUIRED_TRIGGER_DEPENDENCIES, transforms: config.catalog.typeTransforms }
   return { ...core, planSha256: sha256(canonicalize(core)) }
 }
 
@@ -282,8 +291,8 @@ export function createDataBundle({ config: configInput, sourceRevision, releaseI
   }
   const copyTables = [...source.keys()].filter((name) => !(name in config.catalog.sourceExcludedTables)).sort()
   if (copyTables.length !== config.catalog.expectedCopyTableCount) fail('DATA_CUTOVER_COPY_TABLE_COUNT_DRIFT')
-  const tableOrder = topologicalTableOrder(copyTables, sourceCatalog.foreignKeys)
-  const planCore = { schemaVersion: 'jenfu.dev012.ai-pdm-source-export-plan.v1', sourceCatalogSha256: sourceCatalog.catalogSha256, copyTables, tableOrder, transforms: config.catalog.typeTransforms }
+  const tableOrder = topologicalTableOrder(copyTables, [...sourceCatalog.foreignKeys, ...REQUIRED_TRIGGER_DEPENDENCIES])
+  const planCore = { schemaVersion: 'jenfu.dev012.ai-pdm-source-export-plan.v1', sourceCatalogSha256: sourceCatalog.catalogSha256, copyTables, tableOrder, triggerDependencies: REQUIRED_TRIGGER_DEPENDENCIES, transforms: config.catalog.typeTransforms }
   const plan = { ...planCore, planSha256: sha256(canonicalize(planCore)) }
   const tables = []
   for (const tableName of plan.tableOrder) {

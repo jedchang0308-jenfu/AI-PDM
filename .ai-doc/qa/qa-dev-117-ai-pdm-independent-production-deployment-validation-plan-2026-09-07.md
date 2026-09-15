@@ -300,14 +300,15 @@ Upstream coordinator negative case須在production DB bootstrap receipt缺失、
 
 ## 18. DEV-012 R66 production data cutover QA
 
-本節補強Platform QA-012-05／07／08／09／10／12／13／16，不新增分母。固定oracle為：151-table exact catalog；target seed subset；legacy access fence零template／traffic漂移；immutable generation export；serializable all-or-nothing import；13欄allowlisted transform；既有管理員exact-one UID remap；逐表count／PK／normalized hash；task IAM／Job teardown；owner prepare與verify雙重重讀；RELEASED後exact-generation raw cleanup；後續ordinary release只讀completion authority且不再連legacy。
+本節補強Platform QA-012-05／07／08／09／10／12／13／16，不新增分母。固定oracle為：151-table exact catalog；target seed subset；legacy access fence零template／traffic漂移；immutable generation export；serializable all-or-nothing import；13欄allowlisted transform；FK＋六條DEV087 trigger-backed polymorphic dependency的immutable topological plan；既有管理員exact-one UID remap；逐表count／PK／normalized hash；task IAM／Job teardown；owner prepare與verify雙重重讀；RELEASED後exact-generation raw cleanup；後續ordinary release只讀completion authority且不再連legacy。
 
 | 驗證 | 2026-09-15結果 | 邊界 |
 |---|---:|---|
-| `npm run test:dev-012:data-cutover` | 15／15 PASS | pure contract＋recorded provider；cloud mutation=0 |
+| `npm run test:dev-012:data-cutover` | 18／18 PASS | pure contract＋recorded provider；含trigger dependency order與bundle/import drift denial |
 | `npm run test:dev-117:continuous` | 32／32 PASS | owner十階段與data authority join |
 | `npm run qc:dev-012:data-cutover` | PASS | syntax、recovery、cleanup、IAM complete-set、DB boundary source |
-| isolated PostgreSQL | NOT_RUN | 本機磁碟低於資源安全線；不得以mock取代 |
-| production provider／DB／traffic | NOT_RUN | 須由fresh release receipts證明 |
+| isolated PostgreSQL | PASS | task-owned PostgreSQL 17+；self-FK convergence、serializable commit、replay與cleanup |
+| production R72 provider／DB | RECOVERED_ABORT | migration／export PASS；trigger order fault全交易ROLLBACK；legacy restore＋Jobs/IAM cleanup PASS |
+| production candidate／entrypoint／traffic | NOT_RUN | R72無authority；須由fresh release receipts證明 |
 
-Isolated PostgreSQL恢復條件為磁碟回到resource governor安全線；執行時必須使用task-owned PostgreSQL 17+、loopback-only port，證明non-deferrable self-FK convergence、serializable commit、replay zero-insert及schema／process／port清理。Production則另需fresh Billing、backup／PITR、catalog、import handoff、post-import capacity與normal-entry evidence；local PASS不得升格。
+R72 Cloud SQL safe log只保留constraint／trigger code與table metadata，不保存raw row；`canonical_workbench_states`在work table之前插入所觸發的`DEV087_WORK_REFERENCE_MISMATCH`是corrective source的production-bound negative evidence。Fresh release須證明plan中`drawing_revision_works／part_change_works`都先於`canonical_workbench_states`，`drawings／part_numbers`都先於兩張polymorphic consumer，bundle與import dependency set相等，再取得Billing、backup／PITR、catalog、import handoff、post-import capacity與normal-entry evidence；local PASS與R72 abort receipt均不得升格。
