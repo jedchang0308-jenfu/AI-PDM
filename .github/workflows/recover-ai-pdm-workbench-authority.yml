@@ -1,0 +1,181 @@
+name: Recover AI-PDM workbench authority
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseCapsuleRef:
+        description: Immutable authority-recovery capsule URI with sha256 fragment
+        required: true
+        type: string
+
+concurrency:
+  group: production-release-ai-pdm-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24.11.0"
+  WIF_PROVIDER: ${{ vars.AIPDM_PROD_WIF_PROVIDER }}
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    outputs:
+      capsule_uri: ${{ steps.bind.outputs.capsule_uri }}
+      capsule_sha256: ${{ steps.bind.outputs.capsule_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - run: npm run test:dev-117:authority-recovery
+      - id: bind
+        shell: bash
+        env: { RELEASE_CAPSULE_REF: "${{ inputs.releaseCapsuleRef }}" }
+        run: |
+          set -euo pipefail
+          capsule_uri="${RELEASE_CAPSULE_REF%%#sha256=*}"
+          capsule_sha256="${RELEASE_CAPSULE_REF##*#sha256=}"
+          test "$capsule_uri" != "$RELEASE_CAPSULE_REF"
+          [[ "$capsule_uri" =~ ^gs://jenfu-platform-prod-aipdm-release/receipts/incidents/AIPDM-AUTHORITY-20260916/.+\.json$ ]]
+          [[ "$capsule_sha256" =~ ^[a-f0-9]{64}$ ]]
+          echo "capsule_uri=$capsule_uri" >> "$GITHUB_OUTPUT"
+          echo "capsule_sha256=$capsule_sha256" >> "$GITHUB_OUTPUT"
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Create zero-traffic recovery candidate
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-authority-recovery.mjs --stage candidate --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+
+  verify:
+    needs: candidate
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Verify authority and both workbenches on candidate
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
+          DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
+        run: node scripts/dev117-ai-pdm-authority-recovery.mjs --stage verify --capsule-ref "${{ needs.candidate.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.candidate.outputs.capsule_sha256 }}"
+
+  activate:
+    needs: [candidate, verify]
+    runs-on: ubuntu-latest
+    environment:
+      name: production-activation
+      url: https://ai-pdm-prod-9536592944.asia-east1.run.app
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Activate verified recovery candidate
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-authority-recovery.mjs --stage activate --capsule-ref "${{ needs.candidate.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.candidate.outputs.capsule_sha256 }}"
+
+  canonical:
+    needs: [candidate, activate]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Verify canonical production after activation
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
+          DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
+        run: node scripts/dev117-ai-pdm-authority-recovery.mjs --stage canonical --capsule-ref "${{ needs.candidate.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.candidate.outputs.capsule_sha256 }}"
+
+  finalize:
+    needs: [candidate, canonical]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Remove temporary candidate tag and publish terminal receipt
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-authority-recovery.mjs --stage finalize --capsule-ref "${{ needs.candidate.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.candidate.outputs.capsule_sha256 }}"
+
+  failure:
+    if: ${{ always() && needs.candidate.result == 'success' && contains(needs.*.result, 'failure') }}
+    needs: [candidate, verify, activate, canonical, finalize]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Restore previous traffic and remove the task-owned tag
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-authority-recovery.mjs --stage rollback --capsule-ref "${{ needs.candidate.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.candidate.outputs.capsule_sha256 }}"

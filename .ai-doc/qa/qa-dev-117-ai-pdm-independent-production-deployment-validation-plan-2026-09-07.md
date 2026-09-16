@@ -324,3 +324,19 @@ R72 Cloud SQL safe log只保留constraint／trigger code與table metadata，不�
 - Boundary：後續ordinary release不需siblings；edge／legacy retirement另案，不是QA缺件。
 
 Final=`PASS / Production Level 4 Complete`。本節authority來自R78 owner terminal、stage receipts與provider readback，不由R72或local evidence升格。
+
+## 20. R78 workbench authority incident recovery QA（2026-09-16）
+
+| ID | Fail-seeking case | PASS oracle |
+|---|---|---|
+| AUTH-REC-01 | capsule target／artifact／commit／backup／row count 任一可覆寫 | 只接受固定 incident capsule與單一 `releaseCapsuleRef`；任何 drift 在 provider write 前 FAIL |
+| AUTH-REC-02 | candidate 誤帶新 image、改 Secret／Cloud SQL／IAM 或 general traffic | R78 digest exact；template 除 build commit／candidate origin 外相同；candidate=0%、active 仍為 R78 |
+| AUTH-REC-03 | 用舊 cutover receipt 冒充 live data | immutable import receipt需為151 tables／3,569 rows，且 drawing=50、part=59、aggregate=109、authority singleton=1 |
+| AUTH-REC-04 | 只驗 health／401，未碰到原始 503 | authenticated candidate必實讀 drawing及part workbench=200，並由contract token讀回canonical_only／dev090-v1／R78 commit |
+| AUTH-REC-05 | candidate PASS 後自動切流量 | `activate`停在`production-activation` required-reviewer environment；未有另一個GO時保持pending |
+| AUTH-REC-06 | activation後其中一個workbench仍錯誤或資料為0 | canonical兩workbench、50／59筆與authority token全部PASS；否則traffic-only rollback到`ai-pdm-prod-29a4a765563c` |
+| AUTH-REC-07 | incident修復順便重匯或改authority row | capsule固定`VERIFY_ONLY_NO_DATA_WRITE`，receipt明示DB mutation=false；任何DB write path視為FAIL |
+
+QC evidence須綁 recovery controller commit、capsule bytes SHA、R78 artifact、candidate revision、candidate／canonical
+origin、authenticated actor/company、backup ID、stage receipts與 provider traffic readback。瀏覽器最終 hard reload 若仍顯示
+`系統切換中，請稍後再試`、可見 alert、空白資料或任一 4xx／5xx，判定未通過，不得以 API 或 build PASS 覆蓋。
