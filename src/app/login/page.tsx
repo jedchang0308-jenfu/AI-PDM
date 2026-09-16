@@ -62,27 +62,30 @@ export default function LoginPage() {
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [firebaseConfig, setFirebaseConfig] = useState<FirebaseWebConfig | null>(null);
   const [localQuickLoginEnabled, setLocalQuickLoginEnabled] = useState(false);
+  const [ssoHandoffEnabled, setSsoHandoffEnabled] = useState(false);
   const [quickLoginRole, setQuickLoginRole] = useState<string | null>(null);
 
   function loginReturnTo() {
     const candidate = new URLSearchParams(window.location.search).get("returnTo") ?? "/";
-    return candidate.startsWith("/") && !candidate.startsWith("//") && !candidate.includes("\\") ? candidate : "/";
+    return candidate.startsWith("/") && !candidate.startsWith("//") && !candidate.startsWith("/login") && !candidate.startsWith("/api/auth/") && !candidate.includes("\\") && !/[\u0000-\u001f\u007f]/u.test(candidate) && candidate.length <= 1024 ? candidate : "/";
   }
 
   useEffect(() => {
     fetch("/api/auth/mode")
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: { authMode?: AuthMode; googleOAuth?: { enabled?: boolean }; firebase?: { config?: FirebaseWebConfig | null }; localQuickLogin?: boolean } | null) => {
+      .then((body: { authMode?: AuthMode; googleOAuth?: { enabled?: boolean }; firebase?: { config?: FirebaseWebConfig | null }; localQuickLogin?: boolean; ssoHandoffEnabled?: boolean } | null) => {
         setAuthMode(body?.authMode ?? "managed");
         setGoogleOAuthEnabled(body?.googleOAuth?.enabled === true);
         setFirebaseConfig(body?.firebase?.config ?? null);
         setLocalQuickLoginEnabled(body?.localQuickLogin === true);
+        setSsoHandoffEnabled(body?.ssoHandoffEnabled === true);
       })
       .catch(() => {
         setAuthMode("managed");
         setGoogleOAuthEnabled(false);
         setFirebaseConfig(null);
         setLocalQuickLoginEnabled(false);
+        setSsoHandoffEnabled(false);
       });
   }, []);
 
@@ -295,7 +298,15 @@ export default function LoginPage() {
           </div>
         </div> : null}
 
-        {authMode !== "demo" ? (
+        {ssoHandoffEnabled ? (
+          <div className="google-auth-choice">
+            <button className="primary-button" type="button" disabled={loading} onClick={() => { window.location.assign(`/api/auth/jenfu-sso/start?returnTo=${encodeURIComponent(loginReturnTo())}`) }}>
+              <LogIn size={16} aria-hidden="true" />
+              使用鉦富平台登入
+            </button>
+            <p className="login-provider-note">登入一次即可進入你有權限的 Jenfu 系統。</p>
+          </div>
+        ) : authMode !== "demo" ? (
           <div className="google-auth-choice">
             {googleOAuthEnabled ? (
               authMode === "firebase_bff" ? (
@@ -335,7 +346,7 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        <form onSubmit={submit} className="login-form">
+        {!ssoHandoffEnabled && <form onSubmit={submit} className="login-form">
           <>
             <label>
               {authMode === "firebase_bff" ? "公司電子郵件或工號" : "電子郵件"}
@@ -370,7 +381,7 @@ export default function LoginPage() {
             <LogIn size={16} aria-hidden="true" />
             {loading ? "處理中..." : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}
           </button>
-        </form>
+        </form>}
         <div className="login-help-footer">
           <Link href="/account-recovery/request">忘記密碼</Link>
         </div>

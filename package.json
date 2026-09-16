@@ -111,6 +111,7 @@
     "typecheck": "npm run typecheck:app",
     "typecheck:workspace": "tsc --noEmit --pretty false",
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
+    "test:dev-013": "npx vitest run src/lib/jenfu-sso-handoff.test.ts",
     "db:init": "node scripts/init-db.mjs",
     "db:seed": "node scripts/seed.mjs",
     "db:dev-068:local-schema": "node scripts/apply-dev-068-local-schema.mjs",

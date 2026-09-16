@@ -1,0 +1,9 @@
+{
+  "contractVersion": "jenfu.sso-handoff.v1",
+  "codes": [
+    "sso_request_invalid", "sso_client_invalid", "sso_redirect_invalid", "sso_session_required",
+    "sso_reauthentication_required", "sso_access_denied", "sso_code_invalid", "sso_code_expired",
+    "sso_code_consumed", "sso_pkce_invalid", "sso_service_identity_invalid", "sso_principal_stale",
+    "sso_dependency_unavailable", "sso_account_conflict"
+  ]
+}
