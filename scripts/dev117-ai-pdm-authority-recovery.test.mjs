@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   AUTHORITY_RECOVERY_BASELINE,
   AUTHORITY_RECOVERY_INCIDENT_ID,
+  AUTHORITY_RECOVERY_REPAIR,
   AUTHORITY_RECOVERY_SCHEMA,
   AUTHORITY_RECOVERY_TARGET,
   assertAuthorityRecoveryCapsule,
@@ -39,20 +40,22 @@ function capsule() {
     target: { ...AUTHORITY_RECOVERY_TARGET },
     baseline: { ...AUTHORITY_RECOVERY_BASELINE },
     authority: { mode: 'canonical_only', schemaHash: 'dev090-v1', expectedCommit: AUTHORITY_RECOVERY_BASELINE.runtimeCommit, drawingRows: 50, partRows: 59, aggregateRows: 109 },
+    authorityRepair: structuredClone(AUTHORITY_RECOVERY_REPAIR),
     backup: { projectId: 'jenfu-platform-prod', instance: 'jenfu-platform-prod-pg', backupId: '1789532631908', status: 'SUCCESSFUL', type: 'ON_DEMAND', completedAt: '2026-09-16T04:25:23.173Z' },
     evidence: {
       cutoverImportRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/data-cutover/DEV012-REL-20260915-R78/import-receipt.json', sha256: evidenceSha },
       releaseTerminalRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV012-REL-20260915-R78/hash/terminal.json', sha256: evidenceSha },
     },
     activationPolicy: 'MANUAL_ENVIRONMENT_APPROVAL_REQUIRED',
-    databaseAction: 'VERIFY_ONLY_NO_DATA_WRITE',
+    databaseAction: 'SINGLETON_CAS_COMPLETED_BEFORE_CANDIDATE',
   }
 }
 
-test('recovery capsule pins the exact production target, R78 artifact, backup and no-write boundary', () => {
+test('recovery capsule pins the exact production target, R78 artifact, backup and singleton CAS boundary', () => {
   assert.equal(assertAuthorityRecoveryCapsule(capsule(), profile).baseline.runtimeCommit, AUTHORITY_RECOVERY_BASELINE.runtimeCommit)
   assert.throws(() => assertAuthorityRecoveryCapsule({ ...capsule(), target: { ...AUTHORITY_RECOVERY_TARGET, projectId: 'wrong' } }, profile), /AUTHORITY_RECOVERY_TARGET_INVALID/u)
-  assert.throws(() => assertAuthorityRecoveryCapsule({ ...capsule(), databaseAction: 'CAS_UPDATE' }, profile), /AUTHORITY_RECOVERY_CAPSULE_INVALID/u)
+  assert.throws(() => assertAuthorityRecoveryCapsule({ ...capsule(), databaseAction: 'VERIFY_ONLY_NO_DATA_WRITE' }, profile), /AUTHORITY_RECOVERY_CAPSULE_INVALID/u)
+  assert.throws(() => assertAuthorityRecoveryCapsule({ ...capsule(), authorityRepair: { ...capsule().authorityRepair, toRowVersion: 10 } }, profile), /AUTHORITY_RECOVERY_REPAIR_INVALID/u)
   assert.throws(() => assertAuthorityRecoveryCapsule({ ...capsule(), backup: { ...capsule().backup, status: 'RUNNING' } }, profile), /AUTHORITY_RECOVERY_BACKUP_INVALID/u)
 })
 

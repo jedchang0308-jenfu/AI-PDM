@@ -335,7 +335,7 @@ Final=`PASS / Production Level 4 Complete`。本節authority來自R78 owner term
 | AUTH-REC-04 | 只驗 health／401，未碰到原始 503 | authenticated candidate必實讀 drawing及part workbench=200，並由contract token讀回canonical_only／dev090-v1／R78 commit |
 | AUTH-REC-05 | candidate PASS 後自動切流量 | `activate`停在`production-activation` required-reviewer environment；未有另一個GO時保持pending |
 | AUTH-REC-06 | activation後其中一個workbench仍錯誤或資料為0 | canonical兩workbench、50／59筆與authority token全部PASS；否則traffic-only rollback到`ai-pdm-prod-29a4a765563c` |
-| AUTH-REC-07 | incident修復順便重匯或改authority row | capsule固定`VERIFY_ONLY_NO_DATA_WRITE`，receipt明示DB mutation=false；任何DB write path視為FAIL |
+| AUTH-REC-07 | incident修復順便重匯或擴大DB mutation | 只允許已備份後的singleton serializable CAS（commit舊→R78、row 8→9）；pre/SQL/post SHA exact，其他DB write一律FAIL |
 | AUTH-REC-08 | 猜測tag hostname或candidate建立後失敗留下tag | origin必與provider traffic-status URI exact；任一失敗以active revision／task tag readback確認0% tag已移除 |
 | AUTH-REC-09 | 為incident放寬整個repo的WIF | 只增加exact recovery workflow＋main＋workflow_dispatch＋兩個environment；完成／取消後回復原condition並readback |
 

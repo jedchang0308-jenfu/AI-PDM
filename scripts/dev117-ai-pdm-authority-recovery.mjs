@@ -115,6 +115,11 @@ function assertCandidateFacts(value, capsule, paths) {
     || facts.runtimeCommit !== capsule.baseline.runtimeCommit
     || facts.previousRevision !== capsule.baseline.previousRevision
     || facts.candidateOrigin !== `https://${paths.candidateTag}---${new URL(capsule.target.providerOrigin).hostname}`
+    || facts.incidentDatabaseMutation !== 'SINGLETON_CAS_PREAPPLIED'
+    || facts.evidence?.authorityRepair?.fromCommit !== capsule.authorityRepair.fromCommit
+    || facts.evidence?.authorityRepair?.toCommit !== capsule.authorityRepair.toCommit
+    || facts.evidence?.authorityRepair?.fromRowVersion !== capsule.authorityRepair.fromRowVersion
+    || facts.evidence?.authorityRepair?.toRowVersion !== capsule.authorityRepair.toRowVersion
     || facts.candidatePercent !== 0 || facts.generalTrafficChanged !== false || facts.databaseMutationPerformed !== false) fail('AUTHORITY_RECOVERY_CANDIDATE_RECEIPT_INVALID')
   return facts
 }
@@ -125,9 +130,12 @@ function assertPreviousReceipt(value, expected, code = 'AUTHORITY_RECOVERY_RECEI
 }
 
 async function assertEvidence(transport, capsule, profile) {
-  const [cutover, terminal] = await Promise.all([
+  const [cutover, terminal, authorityBefore, authoritySql, authorityAfter] = await Promise.all([
     transport.readJson(capsule.evidence.cutoverImportRef, profile.artifact.releaseBucket, ['receipts']),
     transport.readJson(capsule.evidence.releaseTerminalRef, profile.artifact.releaseBucket, ['receipts']),
+    transport.readBytes(capsule.authorityRepair.beforeRef.uri, { prefixes: ['receipts'], expectedSha256: capsule.authorityRepair.beforeRef.sha256 }),
+    transport.readBytes(capsule.authorityRepair.sqlRef.uri, { prefixes: ['receipts'], expectedSha256: capsule.authorityRepair.sqlRef.sha256 }),
+    transport.readBytes(capsule.authorityRepair.afterRef.uri, { prefixes: ['receipts'], expectedSha256: capsule.authorityRepair.afterRef.sha256 }),
   ])
   const tables = new Map((cutover.value?.tableReceipts ?? []).map((row) => [row.name, Number(row.rowCount)]))
   if (cutover.value?.schemaVersion !== 'jenfu.dev012.ai-pdm-data-import-receipt.v1'
@@ -147,7 +155,15 @@ async function assertEvidence(transport, capsule, profile) {
     || terminal.value.facts?.candidateRevision !== capsule.baseline.previousRevision
     || terminal.value.facts?.artifactDigest !== capsule.baseline.artifactDigest
     || Number(terminal.value.facts?.remainingHumanAction) !== 0) fail('AUTHORITY_RECOVERY_RELEASE_EVIDENCE_INVALID')
-  return { tableCount: 151, rowCount: 3569, drawingRows: tables.get('drawing_numbers'), partRows: tables.get('part_numbers'), aggregateRows: tables.get('canonical_workbench_states') }
+  const before = authorityBefore.bytes.toString('utf8').trim()
+  const after = authorityAfter.bytes.toString('utf8').trim()
+  if (before !== `1,canonical_only,${capsule.authorityRepair.fromCommit},dev090-v1,${capsule.authorityRepair.fromRowVersion},2026-09-03 07:54:24.582729+00`
+    || after !== `1,canonical_only,${capsule.authorityRepair.toCommit},dev090-v1,${capsule.authorityRepair.toRowVersion},2026-09-16 05:32:29.682816+00`
+    || !authoritySql.bytes.toString('utf8').includes("RAISE EXCEPTION 'AIPDM_AUTHORITY_CAS_MISMATCH'")) fail('AUTHORITY_RECOVERY_REPAIR_EVIDENCE_INVALID')
+  return {
+    tableCount: 151, rowCount: 3569, drawingRows: tables.get('drawing_numbers'), partRows: tables.get('part_numbers'), aggregateRows: tables.get('canonical_workbench_states'),
+    authorityRepair: { fromCommit: capsule.authorityRepair.fromCommit, toCommit: capsule.authorityRepair.toCommit, fromRowVersion: 8, toRowVersion: 9, sqlSha256: capsule.authorityRepair.sqlRef.sha256 },
+  }
 }
 
 async function requestJson(url, options, code) {
@@ -257,7 +273,7 @@ async function executeStage({ stage, capsuleRef, capsuleSha256, profile, transpo
         candidateRevision: paths.candidateRevision, candidateTag: paths.candidateTag, candidateOrigin,
         previousRevision: capsule.baseline.previousRevision, artifactDigest: capsule.baseline.artifactDigest,
         runtimeCommit: capsule.baseline.runtimeCommit, candidatePercent: 0, generalTrafficChanged: canonicalize(trafficSnapshot(before)) !== canonicalize(trafficSnapshot(tagged).filter((row) => !row.tag)),
-        databaseMutationPerformed: false, backupId: capsule.backup.backupId, evidence,
+        databaseMutationPerformed: false, incidentDatabaseMutation: 'SINGLETON_CAS_PREAPPLIED', backupId: capsule.backup.backupId, evidence,
         beforeTemplateSha256: sha256(canonicalize(before.template)), candidateTemplateSha256: sha256(canonicalize(tagged.template)),
       }
       if (facts.generalTrafficChanged) fail('AUTHORITY_RECOVERY_TRAFFIC_CHANGED')
@@ -362,9 +378,9 @@ async function executeStage({ stage, capsuleRef, capsuleSha256, profile, transpo
     const activate = await requiredReceipt(transport, paths.activate, 'activate', context)
     assertPreviousReceipt(canonical.value, activate.ref)
     await transport.removeCandidateTag({ profile, tag: candidateFacts.candidateTag, candidateRevision: candidateFacts.candidateRevision, expectedActiveRevision: candidateFacts.candidateRevision, deadlineAt: capsule.deadlineAt })
-    const receipt = buildRecoveryReceipt({ stage: 'finalize', capsule, capsuleSha256, previousReceiptRef: canonical.ref, facts: { result: 'RECOVERED', activeRevision: candidateFacts.candidateRevision, artifactDigest: candidateFacts.artifactDigest, runtimeCommit: candidateFacts.runtimeCommit, databaseMutationPerformed: false, temporaryCandidateTags: 0 }, observedAt: transport.now() })
+    const receipt = buildRecoveryReceipt({ stage: 'finalize', capsule, capsuleSha256, previousReceiptRef: canonical.ref, facts: { result: 'RECOVERED', activeRevision: candidateFacts.candidateRevision, artifactDigest: candidateFacts.artifactDigest, runtimeCommit: candidateFacts.runtimeCommit, databaseMutationPerformed: false, databaseDisposition: 'SINGLETON_CAS_PREAPPLIED_NO_FURTHER_WRITES', temporaryCandidateTags: 0 }, observedAt: transport.now() })
     const result = await writeReceipt(transport, paths.finalize, { ...receipt, __capsule: capsule }, profile)
-    const terminal = buildRecoveryReceipt({ stage: 'terminal', capsule, capsuleSha256, previousReceiptRef: result.ref, facts: { result: 'RECOVERED', activeRevision: candidateFacts.candidateRevision, artifactDigest: candidateFacts.artifactDigest, runtimeCommit: candidateFacts.runtimeCommit, databaseDisposition: 'VERIFIED_UNCHANGED', remainingHumanAction: 0 }, observedAt: transport.now() })
+    const terminal = buildRecoveryReceipt({ stage: 'terminal', capsule, capsuleSha256, previousReceiptRef: result.ref, facts: { result: 'RECOVERED', activeRevision: candidateFacts.candidateRevision, artifactDigest: candidateFacts.artifactDigest, runtimeCommit: candidateFacts.runtimeCommit, databaseDisposition: 'SINGLETON_CAS_PREAPPLIED_NO_FURTHER_WRITES', remainingHumanAction: 0 }, observedAt: transport.now() })
     await writeReceipt(transport, paths.terminal, { ...terminal, __capsule: capsule }, profile)
     return result
   }
@@ -385,9 +401,9 @@ async function executeStage({ stage, capsuleRef, capsuleSha256, profile, transpo
   await transport.removeCandidateTag({ profile, tag: candidateFacts.candidateTag, candidateRevision: candidateFacts.candidateRevision, expectedActiveRevision: candidateFacts.previousRevision, deadlineAt: capsule.deadlineAt })
   const after = await transport.getService(profile)
   if (transport.effectiveRevision(after) !== candidateFacts.previousRevision) fail('AUTHORITY_RECOVERY_ROLLBACK_FAILED')
-  const receipt = buildRecoveryReceipt({ stage: 'rollback', capsule, capsuleSha256, previousReceiptRef: candidate.ref, facts: { result: 'ROLLED_BACK', candidateRevision: candidateFacts.candidateRevision, restoredRevision: candidateFacts.previousRevision, beforeTraffic: trafficSnapshot(before), afterTraffic: trafficSnapshot(after), databaseDisposition: 'VERIFIED_UNCHANGED' }, observedAt: transport.now() })
+  const receipt = buildRecoveryReceipt({ stage: 'rollback', capsule, capsuleSha256, previousReceiptRef: candidate.ref, facts: { result: 'ROLLED_BACK', candidateRevision: candidateFacts.candidateRevision, restoredRevision: candidateFacts.previousRevision, beforeTraffic: trafficSnapshot(before), afterTraffic: trafficSnapshot(after), databaseDisposition: 'SINGLETON_CAS_PREAPPLIED_NO_FURTHER_WRITES' }, observedAt: transport.now() })
   const result = await writeReceipt(transport, paths.rollback, { ...receipt, __capsule: capsule }, profile)
-  const terminal = buildRecoveryReceipt({ stage: 'terminal', capsule, capsuleSha256, previousReceiptRef: result.ref, facts: { result: 'ROLLED_BACK', activeRevision: candidateFacts.previousRevision, failedCandidateRevision: candidateFacts.candidateRevision, databaseDisposition: 'VERIFIED_UNCHANGED', remainingHumanAction: 1 }, observedAt: transport.now() })
+  const terminal = buildRecoveryReceipt({ stage: 'terminal', capsule, capsuleSha256, previousReceiptRef: result.ref, facts: { result: 'ROLLED_BACK', activeRevision: candidateFacts.previousRevision, failedCandidateRevision: candidateFacts.candidateRevision, databaseDisposition: 'SINGLETON_CAS_PREAPPLIED_NO_FURTHER_WRITES', remainingHumanAction: 1 }, observedAt: transport.now() })
   await writeReceipt(transport, paths.terminal, { ...terminal, __capsule: capsule }, profile)
   return result
 }

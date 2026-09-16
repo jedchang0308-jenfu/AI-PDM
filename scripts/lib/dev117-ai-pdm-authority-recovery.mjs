@@ -4,7 +4,7 @@ import { canonicalize } from './dev012-owner-release-runtime.mjs'
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 
-export const AUTHORITY_RECOVERY_SCHEMA = 'jenfu.dev117.ai-pdm-authority-recovery.v1'
+export const AUTHORITY_RECOVERY_SCHEMA = 'jenfu.dev117.ai-pdm-authority-recovery.v2'
 export const AUTHORITY_RECOVERY_RECEIPT_SCHEMA = 'jenfu.dev117.ai-pdm-authority-recovery-receipt.v1'
 export const AUTHORITY_RECOVERY_INCIDENT_ID = 'AIPDM-AUTHORITY-20260916'
 export const AUTHORITY_RECOVERY_WORKFLOW = '.github/workflows/recover-ai-pdm-workbench-authority.yml'
@@ -21,6 +21,16 @@ export const AUTHORITY_RECOVERY_BASELINE = Object.freeze({
   previousRevision: 'ai-pdm-prod-29a4a765563c',
   runtimeCommit: '91de3a65df58dc60ddde88aab5263e9470a84565',
   artifactDigest: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a79ff49747342dc33c7aec7c189cf220540c3851f5614667d64ec97e18dd844e',
+})
+export const AUTHORITY_RECOVERY_REPAIR = Object.freeze({
+  fromCommit: 'bb30682c0a9671fb66564127643ccf3913fa732b',
+  toCommit: AUTHORITY_RECOVERY_BASELINE.runtimeCommit,
+  fromRowVersion: 8,
+  toRowVersion: 9,
+  appliedAt: '2026-09-16T05:32:29.682816Z',
+  beforeRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/incidents/AIPDM-AUTHORITY-20260916/cloud-sql-cas/live-authority-20260916T0528Z.csv', sha256: '5b26dd138b5579d45fe7dd6d1dd61ea1835e93ba809911299633fb84c65dff91' },
+  sqlRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/incidents/AIPDM-AUTHORITY-20260916/cloud-sql-cas/authority-cas-bb30682c-to-91de3a65-row8.sql', sha256: '4f72c57e73087071cac3746ea42f53e8baf7c952d8576349e27be409a85fc59e' },
+  afterRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/incidents/AIPDM-AUTHORITY-20260916/cloud-sql-cas/post-authority-20260916T0533Z.csv', sha256: 'f58d2e47073a8e52fd3e4df25ba88fe77992162bcb868ea4d914b09b7ce0738e' },
 })
 
 function fail(code, detail = '') {
@@ -46,23 +56,33 @@ function assertImmutableReceiptRef(ref, bucket = 'jenfu-platform-prod-aipdm-rele
   return ref
 }
 
+function assertImmutableRepairRef(ref, extension) {
+  exactKeys(ref, ['uri', 'sha256'], 'AUTHORITY_RECOVERY_REPAIR_REF_INVALID')
+  if (!H64.test(ref.sha256 ?? '')
+    || !new RegExp(`^gs://jenfu-platform-prod-aipdm-release/receipts/incidents/${AUTHORITY_RECOVERY_INCIDENT_ID}/cloud-sql-cas/[A-Za-z0-9._-]+\\.${extension}$`, 'u').test(ref.uri ?? '')
+    || ref.uri.includes('..')) fail('AUTHORITY_RECOVERY_REPAIR_REF_INVALID')
+  return ref
+}
+
 export function assertAuthorityRecoveryCapsule(value, profile, now = Date.now()) {
   exactKeys(value, [
     'schemaVersion', 'incidentId', 'controllerSourceRevision', 'createdAt', 'deadlineAt',
-    'target', 'baseline', 'authority', 'backup', 'evidence', 'activationPolicy', 'databaseAction',
+    'target', 'baseline', 'authority', 'authorityRepair', 'backup', 'evidence', 'activationPolicy', 'databaseAction',
   ], 'AUTHORITY_RECOVERY_CAPSULE_INVALID')
   exactKeys(value.target, Object.keys(AUTHORITY_RECOVERY_TARGET), 'AUTHORITY_RECOVERY_TARGET_INVALID')
   exactKeys(value.baseline, Object.keys(AUTHORITY_RECOVERY_BASELINE), 'AUTHORITY_RECOVERY_BASELINE_INVALID')
   exactKeys(value.authority, ['mode', 'schemaHash', 'expectedCommit', 'drawingRows', 'partRows', 'aggregateRows'], 'AUTHORITY_RECOVERY_AUTHORITY_INVALID')
+  exactKeys(value.authorityRepair, Object.keys(AUTHORITY_RECOVERY_REPAIR), 'AUTHORITY_RECOVERY_REPAIR_INVALID')
   exactKeys(value.backup, ['projectId', 'instance', 'backupId', 'status', 'type', 'completedAt'], 'AUTHORITY_RECOVERY_BACKUP_INVALID')
   exactKeys(value.evidence, ['cutoverImportRef', 'releaseTerminalRef'], 'AUTHORITY_RECOVERY_EVIDENCE_INVALID')
   if (value.schemaVersion !== AUTHORITY_RECOVERY_SCHEMA
     || value.incidentId !== AUTHORITY_RECOVERY_INCIDENT_ID
     || !H40.test(value.controllerSourceRevision ?? '')
     || value.activationPolicy !== 'MANUAL_ENVIRONMENT_APPROVAL_REQUIRED'
-    || value.databaseAction !== 'VERIFY_ONLY_NO_DATA_WRITE') fail('AUTHORITY_RECOVERY_CAPSULE_INVALID')
+    || value.databaseAction !== 'SINGLETON_CAS_COMPLETED_BEFORE_CANDIDATE') fail('AUTHORITY_RECOVERY_CAPSULE_INVALID')
   if (canonicalize(value.target) !== canonicalize(AUTHORITY_RECOVERY_TARGET)) fail('AUTHORITY_RECOVERY_TARGET_INVALID')
   if (canonicalize(value.baseline) !== canonicalize(AUTHORITY_RECOVERY_BASELINE)) fail('AUTHORITY_RECOVERY_BASELINE_INVALID')
+  if (canonicalize(value.authorityRepair) !== canonicalize(AUTHORITY_RECOVERY_REPAIR)) fail('AUTHORITY_RECOVERY_REPAIR_INVALID')
   if (profile?.target?.projectId !== value.target.projectId
     || profile?.target?.region !== value.target.region
     || profile?.target?.serviceName !== value.target.serviceName
@@ -83,6 +103,10 @@ export function assertAuthorityRecoveryCapsule(value, profile, now = Date.now())
     || !Number.isFinite(Date.parse(value.backup.completedAt))) fail('AUTHORITY_RECOVERY_BACKUP_INVALID')
   assertImmutableReceiptRef(value.evidence.cutoverImportRef)
   assertImmutableReceiptRef(value.evidence.releaseTerminalRef)
+  assertImmutableRepairRef(value.authorityRepair.beforeRef, 'csv')
+  assertImmutableRepairRef(value.authorityRepair.sqlRef, 'sql')
+  assertImmutableRepairRef(value.authorityRepair.afterRef, 'csv')
+  if (!Number.isFinite(Date.parse(value.authorityRepair.appliedAt))) fail('AUTHORITY_RECOVERY_REPAIR_INVALID')
   const createdAt = Date.parse(value.createdAt)
   const deadlineAt = Date.parse(value.deadlineAt)
   if (!Number.isFinite(createdAt) || !Number.isFinite(deadlineAt)
