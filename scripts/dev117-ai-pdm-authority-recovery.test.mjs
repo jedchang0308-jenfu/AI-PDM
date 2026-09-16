@@ -11,6 +11,7 @@ import {
   assertAuthorityRecoveryRevision,
   assertRecoveryReceipt,
   assertWorkbenchRecoveryPayload,
+  authorityRecoveryCandidateOrigin,
   buildAuthorityRecoveryCandidateTemplate,
   buildRecoveryReceipt,
   recoveryPaths,
@@ -69,7 +70,10 @@ test('recovery may execute only from the protected main workflow at the capsule 
 
 test('candidate template changes only revision, runtime commit and task-owned candidate origin', () => {
   const paths = recoveryPaths(profile, capsuleSha256)
-  const candidateOrigin = `https://${paths.candidateTag}---ai-pdm-prod-9536592944.asia-east1.run.app`
+  const service = { name: 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod', uri: AUTHORITY_RECOVERY_TARGET.providerOrigin, urls: [AUTHORITY_RECOVERY_TARGET.canonicalOrigin, AUTHORITY_RECOVERY_TARGET.providerOrigin] }
+  const candidateOrigin = authorityRecoveryCandidateOrigin(service, capsule(), paths.candidateTag)
+  assert.equal(candidateOrigin, `https://${paths.candidateTag}---ai-pdm-prod-56gnizku7q-de.a.run.app`)
+  assert.throws(() => authorityRecoveryCandidateOrigin({ ...service, uri: AUTHORITY_RECOVERY_TARGET.canonicalOrigin }, capsule(), paths.candidateTag), /PROVIDER_ORIGIN_INVALID/u)
   const beforeTemplate = {
     serviceAccount: 'aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com',
     containers: [
