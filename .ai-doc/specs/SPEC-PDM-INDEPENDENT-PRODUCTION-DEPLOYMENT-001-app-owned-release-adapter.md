@@ -566,3 +566,34 @@ Current source修正尚須commit／push與fresh source freeze；新release必須
 One-time cutover完成151 tables／3,569 rows，identity remap與row／hash／FK reconciliation exact PASS；legacy fenced，task Job、temporary IAM與raw bundle cleanup成立。Candidate與canonical的auth mode、session create／reload、DB、permission deny、revoked session均PASS；AAL1 workspace password啟用，TOTP=false。
 
 後續ordinary AI-PDM release只凍結本repo並操作own artifact、migration、service、Secret、entrypoint、traffic與rollback；不讀取或重部署Platform／OrgMaster。Shared foundation只以verified receipt hash作input。Legacy及`RETAINED_UNUSED_EDGE` retirement另立exact-resource gate，不是本DEV殘留；本節是post-release governance，不改R78 source provenance。
+
+## 31. 2026-09-16 R78 workbench authority incident recovery（current additive authority）
+
+R78 的 151-table／3,569-row cutover、revision 與 artifact provenance 不變；production incident 的直接失效條件是
+R78 service template 未注入 `PDM_BUILD_COMMIT`，使 runtime fallback=`local-dev` 與
+`pdm_workbench_state_authority_control.expected_commit=91de3a65df58dc60ddde88aab5263e9470a84565`
+不一致，圖號與料號 workbench 因 fail-closed 回傳 503。這是 runtime authority handshake regression，沒有證據支持
+資料遺失或要求 151-table 重匯。
+
+本次只允許固定 incident `AIPDM-AUTHORITY-20260916` 的 app-owned recovery workflow：
+
+- workflow=`.github/workflows/recover-ai-pdm-workbench-authority.yml`，唯一 dispatch input 仍是含 SHA-256 的
+  immutable `releaseCapsuleRef`；target、service、revision、artifact、commit、DB、backup、row count、stage、command、
+  SQL 與 activation 皆不可由 operator 覆寫。
+- recovery controller 必須是 official `main` exact commit，target 固定
+  `jenfu-platform-prod / asia-east1 / ai-pdm-prod`。候選重用 R78 exact artifact digest，只在既有 template 增加
+  `PDM_BUILD_COMMIT=91de...` 與 task-owned candidate origin；其餘 template projection、general traffic、Secret、
+  Cloud SQL、IAM 與 sibling resource 必須不變。
+- 正式 DB 在任何候選 write 前已有 on-demand backup `1789532631908=SUCCESSFUL`，PITR、14-backup retention 與
+  deletion protection 保持啟用。Recovery capsule 固定 `databaseAction=VERIFY_ONLY_NO_DATA_WRITE`；禁止重匯、DDL、
+  migration replay、authority UPDATE 或 command override。
+- Candidate 維持 0% traffic。Authenticated verifier 必須從圖號／料號 response 的 signed contract-token payload
+  讀回 `mode=canonical_only / schemaHash=dev090-v1 / expectedCommit=91de...`，並同時證明圖號 `50`、料號 `59`、
+  aggregate `109`。這是 authority singleton 的 application delivery-path readback；任一 503、count、actor、commit、
+  schema 或 token mismatch 都在 traffic 前停止並清除 task-owned tag。
+- `activate` job 必須停在獨立 `production-activation` protected environment；candidate PASS 不構成 GO。只有本次聊天
+  的另一個明確 activation 決策後，才可核准 traffic-only mutation。Canonical 圖號／料號 smoke 任一失敗即恢復
+  `ai-pdm-prod-29a4a765563c`，不變更 DB。
+
+這是 R78 exact-artifact recovery，不取代 ordinary V3 release。後續 V3 CAPA 必須把 runtime commit binding 與兩個
+authenticated workbench probes納入正常 candidate／canonical gate；在該 forward fix 完成前，不得宣稱同類回歸已永久關閉。
