@@ -1,8 +1,8 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
-- 文件成熟度：`v1 QA Contract Executed；continuous v2 Implementation Complete`
-- 狀態：`v1 Fixed 12 Cases / Local Contract 12 of 12 PASS；continuous v2 S1B-20 Local Owner QC PASS / DEV-012 S2 Gated`
-- 日期：2026-09-08
+- 文件成熟度：`v1／v2 Historical QA Executed；continuous V3 Production Level 4 Complete`
+- 狀態：`DEV012-REL-20260915-R78 / owner RELEASED / production PASS`
+- 日期：2026-09-09
 - 來源 DEV：`DEV-117 / DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
 - 規格 authority：[DEV-117 SPEC](../specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)
 - Machine registry：[dev-117-current-case-registry.json](dev-117-current-case-registry.json)
@@ -246,3 +246,19 @@ git diff --check
 依DEV-012 §25，原continuous owner結果由新契約取代並須重跑。S1B-20固定增加以下oracle：release intent不得預填artifact／candidate／decision；application digest、migration bundle與pinned generic runner必須同source authority並有native readback；workflow exact九階段包含`migrate`；production job只用aipdm migrator與exact 14-entry manifest；ledger／schema／ACL readback先於candidate；inactive exact revision以唯一temporary tag提供DEV-116 R02入口且general traffic不變；machine decision、activation、canonical與tag cleanup皆有immutable receipt。
 
 負例至少包含：build前要求digest、staging／legacy DB或runner、execution done冒migration PASS、deployer actAs migrator、漏migration job、candidate無可達驗證URL、任意tag／LATEST receipt authority、tag取得一般流量、run中真人GO、placeholder throw／echo仍在正式路徑、tag cleanup失敗、舊serving revision不相容。全部只能用local／recorded transport驗證；production evidence維持NOT_RUN。
+
+## 14. `CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP` QA amendment與執行結果
+
+Current owner oracle依DEV-012 §26：V3 profile exact綁`jenfu-platform-prod / 9536592944 / asia-east1 / ai-pdm-prod / https://ai-pdm-prod-9536592944.asia-east1.run.app`；workflow為十stage，`candidate→entrypoint→verify` receipt鏈不可斷。Origin只允許canonical與revision內`PDM_RELEASE_CANDIDATE_ORIGIN`，wrong service／tag／project number／region、legacy hash-host、wildcard、port／userinfo／path全部拒絕；app session、CSRF、revocation與permission不退化。
+
+2026-09-09 owner command `npm run test:dev-117:continuous`與origin QC PASS，owner report=`S1B-20 PASS`；Platform aggregate以contract SHA-256=`d88b9aaa8a5e27082746221fc5b473abd8a78da712409279baf5ecdb0e176f05`取得S1C 8／8與S1A 32／32、S1B 24／24。DB boundary、typecheck、isolated build及diff check PASS；provider／DB／traffic／credential mutation與runtime residue=0。Architecture Gate=`PASS / P0=0 / P1=0`；此結果只把狀態升為`S2 Unlocked`，Production Level 4、managed migration、candidate、entrypoint、traffic與canonical仍NOT_RUN。
+
+## 15. R78 Production Level 4正式結果（2026-09-15）
+
+- Source／artifact：source=`91de3a65df58dc60ddde88aab5263e9470a84565`，source-lock object SHA-256=`82a5327a982824038d229dc8d6db44e6a4b08da6708712a9892e458847dd9f15`，immutable artifact=`asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a79ff49747342dc33c7aec7c189cf220540c3851f5614667d64ec97e18dd844e`。
+- Data／DB：151 tables／3,569 rows serializable import、identity remap、row／hash／FK reconciliation PASS；legacy fenced；migration=`FORWARD_APPLIED`；backup／PITR與own rollback evidence可用。
+- Candidate／canonical：inactive candidate authenticated smoke、401與revoked負例PASS；activation後revision=`ai-pdm-prod-29a4a765563c`承接100%，canonical `https://ai-pdm-prod-9536592944.asia-east1.run.app` provider readback與smoke PASS。
+- Control／cleanup：owner run `34952087442`十stage success，terminal=`RELEASED`、`remainingHumanAction=0`；temporary candidate tag、task Job、臨時IAM與raw cutover bundle residue=0。TOTP=false，無in-run真人驗證或fixed dwell。
+- Boundary：本repo後續ordinary release不需sibling checkout／build／traffic；edge與legacy retirement另案，不是本次QA缺件。
+
+DEV-117 production denominator以既有owner fixed cases與DEV-012正式join計算，最終=`PASS / Production Level 4 Complete`；本節證據來自R78 owner terminal、stage receipts與provider readback，不由2026-09-09 local evidence升格。

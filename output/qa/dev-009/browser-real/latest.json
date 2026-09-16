@@ -1,7 +1,7 @@
 {
   "status": "PASS",
-  "reportPath": "output/qa/dev-009/browser-real/DEV009-S3-2026-09-03T05-24-21-593Z/report.json",
-  "reportSha256": "6ce929639530f1586432ce8b87568847fdcef4d3ae209797ab0aa013564e59cf",
-  "candidateSha256": "daf4871066693783fe8060818a6f8b60073eb0cbf216b728deed7ed9372e6935",
-  "generatedAt": "2026-09-03T05:24:32.878Z"
+  "reportPath": "../OrgMaster/output/dev-010/n2/browser/BROWSER-20260904T124640005Z-13224/ai-pdm-governance/report.json",
+  "reportSha256": "8daa7b0de4e1a5c9a301e497a0441322cba13d638380d6f822e34bbd874e021b",
+  "candidateSha256": "a9932d7dfadf2fb0bae0d86276bfcc541eb3d93db4013757b6ca5ab90b1bd487",
+  "generatedAt": "2026-09-04T12:49:10.694Z"
 }

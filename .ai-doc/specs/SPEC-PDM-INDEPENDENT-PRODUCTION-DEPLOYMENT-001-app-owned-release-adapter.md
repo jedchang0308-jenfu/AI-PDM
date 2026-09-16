@@ -1,15 +1,17 @@
 # DEV-117：AI_PDM 獨立正式部署 adapter
 
-- 文件成熟度：`v1 RD Implementation Complete；continuous v2 RD Implementation Ready`
-- 狀態：`Human Confirmed / v1 Local QA-QC 12 of 12 PASS / continuous v2 RD Not Started / DEV-012 S2 Gated`
+- 文件成熟度：`v1／v2 Historical Implementation Complete；continuous V3 Production Level 4 Complete`
+- 狀態：`DEV012-REL-20260915-R78 / Owner RELEASED / 100% canonical traffic / boundary closed`
 - 風險等級：High
-- 日期：2026-09-08
+- 日期：2026-09-09
 - 來源 ID：`DEV-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001`
 - 決策來源：使用者明確要求「AI_PDM 及 Jenfu-Platform 分開部署」並要求先完成可執行部署前的開發文件
 - 父關卡：`DEV-116` Production Level 4 smoke tenant evidence
 - 外部相容契約：[Platform DEV-011](../../../Jenfu-Platform/ai-doc/specs/DEV-011-independent-platform-production-deployment-contract.md)
   app-independent deployment、[Platform DEV-010](../../../Jenfu-Platform/ai-doc/specs/DEV-010-three-system-database-consolidation-contract.md)
   shared production foundation
+
+> Current forward authority：本文件§23。§§1～22中的`pdm.jenfu.com.tw`、six／nine-stage與V1／V2狀態只保留歷史；V3 canonical production entry固定為`https://ai-pdm-prod-9536592944.asia-east1.run.app`。
 - QA authority：[QA-DEV-117](../qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md)
 
 ## 1. 已確認決策
@@ -458,3 +460,21 @@ Owner exit commands固定為 `npm run test:dev-117:continuous`、`npm run qc:dev
 AI-PDM production transport已對齊官方regional Cloud Build operation、Artifact Analysis `v1beta1 exportSBOM`與`discoveryOccurrenceId`、Cloud Run exact service/revision URI及GCS generation-bound immutable publication。Cloud Run service必須`reconciling=false`、terminal success且`observedGeneration=generation`；candidate revision缺Ready success或image digest不合即FAIL。Owner workflow維持唯一`releaseCapsuleRef`、九階段、Firebase refresh-token smoke、temporary tag cleanup與own-only rollback。
 
 首次cohort只由Platform coordinator按`OrgMaster → AI-PDM → Platform`dispatch本owner exact run；AI-PDM仍只讀寫own bucket、registry、service、job、schemas與receipts。AI-PDM APP_INFRA_A/B、controller及migration-runner digests、numeric Secret versions、WIF／GitHub production environment與S2 provider receipts必須在首次dispatch前完成；之後日常AI-PDM release不讀Platform／OrgMaster state或source。Local owner PASS最多解鎖S2，不能冒充production readiness或LIVE_VERIFIED。
+
+## 23. DEV-012 V3 Direct `run.app` owner amendment與結果（2026-09-09）
+
+本節為current authority，前向取代§§1～22中把`pdm.jenfu.com.tw`視為current canonical、V2九stage與無entrypoint stage的內容。AI-PDM owner profile固定`config/release/dev117-ai-pdm-independent-production-v3.json`，profile SHA-256=`95363cb71d27d38107f1d24aa749658f7cc1016abfccead3cc0c097cd95e29e6`，contract SHA-256=`d88b9aaa8a5e27082746221fc5b473abd8a78da712409279baf5ecdb0e176f05`；V2 profile bytes保持歷史不可修改。
+
+Canonical production entry為provider-derived `https://ai-pdm-prod-9536592944.asia-east1.run.app`。Workflow固定`prepare→build→migrate→candidate→entrypoint→verify→decision→activate→canonical→finalize`；candidate revision只注入一個`PDM_RELEASE_CANDIDATE_ORIGIN` exact full origin。`entrypoint`只以fresh etag patch `ingress,defaultUriDisabled,invokerIamDisabled`，不得改template／traffic；失敗依own traffic rollback→candidate tag cleanup→entry baseline restore。Ordinary AI-PDM release對Hosting／LB／DNS／certificate與sibling repo mutation均為0，existing edge只列`RETAINED_UNUSED_EDGE`。
+
+RD技術主管結論：`PASS / Architecture Finalized / P0=0 / P1=0`。最短因果鏈是custom-domain／shared-edge authority造成release互鎖；由app-owned provider default URL與exact entrypoint mutation解除即可，無需新增gateway、中央endpoint authority、第二份receipt schema或identity service。保留edge是已揭露且隔離的技術債，只能在三app canonical與rollback解除後由另一個exact-resource retirement gate移除；本次不刪除、不改DNS、不解除Billing。產品層session／CSRF／permission仍是public Cloud Run entry後的安全邊界。
+
+Owner test自行產生`jenfu.dev012.s1c-owner-report.v1`，S1B-20、origin正負例、entrypoint no-op／unknown outcome／412、DB boundary、typecheck、isolated build及diff check均PASS。中央S1C aggregate為`S1A 32／32 + S1B 24／24 + S1C 8／8`；architecture-final evidence=`../../../Jenfu-Platform/output/dev-012/s1c/2026-09-09T070233-600Z/qc-report.json`，report SHA-256=`30dc6014c516a024a26556712881f219d1cdac84d4e7acce595eecced181a4ae`。Current=`Architecture Finalized / V3 Implementation Complete / S2 Unlocked / releaseAuthority=false / Production NOT_RUN`；下一步僅為fresh S2 provider prerequisites。
+
+## 24. R78 production result與ordinary-release boundary（2026-09-15）
+
+`DEV012-REL-20260915-R78`以frozen source `91de3a65df58dc60ddde88aab5263e9470a84565`完成owner十階段，GitHub run `34952087442`全stage成功，terminal result=`RELEASED`、`remainingHumanAction=0`。Immutable artifact=`asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a79ff49747342dc33c7aec7c189cf220540c3851f5614667d64ec97e18dd844e`，正式revision=`ai-pdm-prod-29a4a765563c`、100% traffic、canonical=`https://ai-pdm-prod-9536592944.asia-east1.run.app`。
+
+One-time data cutover匯入151 tables／3,569 rows，identity remap與row／hash／FK reconciliation均exact PASS；legacy access已fenced，task Job、臨時IAM與raw bundle cleanup成立。Candidate及canonical均通過auth mode、session create／reload、DB readiness、permission deny與revoked-session；AAL1 workspace password啟用、TOTP=false。
+
+自本結果起，ordinary AI-PDM release只凍結本repo並操作own artifact、migration、service、Secret、entrypoint、traffic與rollback；不讀取或重部署Platform／OrgMaster，也不修改Hosting／LB／DNS。Shared foundation只以provider receipt hash作input。Legacy與`RETAINED_UNUSED_EDGE`保留資產若要退役，須另立exact-resource gate；不構成本DEV未完成項。本文完成紀錄為post-release governance，不改R78 source provenance或要求重新部署。

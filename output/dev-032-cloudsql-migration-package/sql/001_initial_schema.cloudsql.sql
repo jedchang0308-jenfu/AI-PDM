@@ -12,6 +12,8 @@ SET search_path = public;
 CREATE TABLE IF NOT EXISTS companies (
   id TEXT PRIMARY KEY,
   company_code TEXT NOT NULL UNIQUE,
+  company_kind TEXT NOT NULL DEFAULT 'business'
+    CHECK (company_kind IN ('business', 'production_smoke')),
   display_name TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -465,6 +467,24 @@ CREATE TABLE IF NOT EXISTS numbering_rule_versions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (created_by) REFERENCES users(id)
 );
+
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json)
+VALUES (
+  'numbering-rule-v1', 'PDM-NUMBERING-V1', 'PDM numbering rule v1', 'retired', now(),
+  '{"partRootDigits":4,"partSequenceDigits":3,"drawingPrefix":"D","partPrefix":"P","drawingPurposeCodes":["MA","OT"]}'
+) ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, retired_at, rule_json)
+VALUES (
+  'numbering-rule-v2', 'PDM-NUMBERING-V2', 'PDM compact numbering rule v2', 'retired', now(),
+  '{"rootDigits":5,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedSequences":["00"],"formats":{"root":"{root}","part":"{root}-P{seq}","drawing":"{root}-{purpose}{seq}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"]}}'
+) ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO numbering_rule_versions (id, rule_code, title, status, rule_json)
+VALUES (
+  'numbering-rule-v3-alpha-root', 'PDM-NUMBERING-V3', 'PDM alphanumeric root numbering rule v3', 'active',
+  '{"rootFormat":"alpha_numeric_1_letter_4_digits","rootLetters":"ABCDEFGHIJKLMNOPQRSTUVWXYZ","rootSequenceDigits":4,"rootSequenceStart":1,"rootSequenceEnd":9999,"partCode":"P","drawingPurposeCodes":["M","R"],"partSequenceDigits":2,"drawingSequenceDigits":2,"reservedRootSequences":["0000"],"reservedCategorySequences":["00"],"formats":{"root":"{letter}{rootSeq4}","part":"{root}-P{seq2}","drawing":"{root}-{purpose}{seq2}"},"compatibility":{"v1ManufacturingCodes":["MA"],"v1ReferenceCodes":["OT"],"v2RootPattern":"^[0-9]{5}$"}}'
+) ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS review_confirmation_events (
   id TEXT PRIMARY KEY,
@@ -1160,9 +1180,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   actor_id TEXT,
   action TEXT NOT NULL,
   detail_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  company_id TEXT,
+  scope_kind TEXT NOT NULL DEFAULT 'legacy_unscoped'
+    CHECK (
+      (scope_kind = 'tenant' AND company_id IS NOT NULL)
+      OR (scope_kind IN ('global', 'legacy_unscoped') AND company_id IS NULL)
+    ),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL
+  FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT
 );
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_company_scope_created
+  ON audit_logs(company_id, scope_kind, action, created_at);
 
 CREATE TABLE IF NOT EXISTS platform_command_receipts (
   id TEXT PRIMARY KEY,
@@ -3693,4 +3723,4 @@ CREATE TRIGGER trg_pdm_controlled_notes_updated_at
 BEFORE UPDATE ON pdm_controlled_notes
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- CLOUDSQL_REMOVED_TRANSACTION_WRAPPER_SOURCE_LINE:3692
+-- CLOUDSQL_REMOVED_TRANSACTION_WRAPPER_SOURCE_LINE:3722
