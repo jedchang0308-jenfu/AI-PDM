@@ -570,9 +570,9 @@ One-time cutover完成151 tables／3,569 rows，identity remap與row／hash／FK
 ## 31. 2026-09-16 R78 workbench authority incident recovery（current additive authority）
 
 R78 的 151-table／3,569-row cutover、revision 與 artifact provenance 不變；production incident 的直接失效條件是
-R78 service template 未注入 `PDM_BUILD_COMMIT`，使 runtime fallback=`local-dev` 與
-`pdm_workbench_state_authority_control.expected_commit=91de3a65df58dc60ddde88aab5263e9470a84565`
-不一致，圖號與料號 workbench 因 fail-closed 回傳 503。這是 runtime authority handshake regression，沒有證據支持
+R78 service template 未注入 `PDM_BUILD_COMMIT`，而 cutover 又正確保留舊正式 authority commit
+`bb30682c0a9671fb66564127643ccf3913fa732b`，使 runtime fallback=`local-dev` 與 singleton 不一致，圖號與料號
+workbench 因 fail-closed 回傳 503。這是 runtime authority handshake/cutover rebind regression，沒有證據支持
 資料遺失或要求 151-table 重匯。
 
 本次只允許固定 incident `AIPDM-AUTHORITY-20260916` 的 app-owned recovery workflow：
@@ -585,8 +585,9 @@ R78 service template 未注入 `PDM_BUILD_COMMIT`，使 runtime fallback=`local-
   `PDM_BUILD_COMMIT=91de...` 與 task-owned candidate origin；其餘 template projection、general traffic、Secret、
   Cloud SQL、IAM 與 sibling resource 必須不變。
 - 正式 DB 在任何候選 write 前已有 on-demand backup `1789532631908=SUCCESSFUL`，PITR、14-backup retention 與
-  deletion protection 保持啟用。Recovery capsule 固定 `databaseAction=VERIFY_ONLY_NO_DATA_WRITE`；禁止重匯、DDL、
-  migration replay、authority UPDATE 或 command override。
+  deletion protection 保持啟用。Cloud SQL query export先證明singleton=`canonical_only/bb30682c.../dev090-v1/row_version=8`；
+  唯一允許的DB mutation是serializable CAS將expected_commit改為R78、row_version 8→9，pre/SQL/post bytes與SHA須進
+  capsule v2。禁止重匯、DDL、migration replay或任何其他row/table mutation；candidate之後不得再寫DB。
 - Candidate 維持 0% traffic。Authenticated verifier 必須從圖號／料號 response 的 signed contract-token payload
   讀回 `mode=canonical_only / schemaHash=dev090-v1 / expectedCommit=91de...`，並同時證明圖號 `50`、料號 `59`、
   aggregate `109`。這是 authority singleton 的 application delivery-path readback；任一 503、count、actor、commit、
