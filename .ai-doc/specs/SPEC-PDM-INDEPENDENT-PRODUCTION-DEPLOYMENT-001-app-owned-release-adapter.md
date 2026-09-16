@@ -591,9 +591,15 @@ R78 service template 未注入 `PDM_BUILD_COMMIT`，使 runtime fallback=`local-
   讀回 `mode=canonical_only / schemaHash=dev090-v1 / expectedCommit=91de...`，並同時證明圖號 `50`、料號 `59`、
   aggregate `109`。這是 authority singleton 的 application delivery-path readback；任一 503、count、actor、commit、
   schema 或 token mismatch 都在 traffic 前停止並清除 task-owned tag。
+- Candidate origin 必須由 Cloud Run provider readback 的固定 `service.uri` 推導，並與 tagged traffic status URI exact
+  相等；不得從 canonical hostname 猜測。Candidate 任一 post-mutation failure 均須以 active revision 與 tag readback
+  清除 task-owned tag，包含 provider 回覆失敗但 mutation 已生效的 unknown-outcome 情境。
 - `activate` job 必須停在獨立 `production-activation` protected environment；candidate PASS 不構成 GO。只有本次聊天
   的另一個明確 activation 決策後，才可核准 traffic-only mutation。Canonical 圖號／料號 smoke 任一失敗即恢復
   `ai-pdm-prod-29a4a765563c`，不變更 DB。
+- Incident 執行期間，既有 WIF provider 只可暫時增加此 recovery workflow 的 exact `main`／`workflow_dispatch`，
+  且 environment 僅限 `production`、`production-activation`；repo／owner ID 與原 release workflow 條件不可放寬。
+  Terminal 成功、取消或確認不再續跑後，必須回復原始只允許正式 release workflow 的 condition 並 readback。
 
 這是 R78 exact-artifact recovery，不取代 ordinary V3 release。後續 V3 CAPA 必須把 runtime commit binding 與兩個
 authenticated workbench probes納入正常 candidate／canonical gate；在該 forward fix 完成前，不得宣稱同類回歸已永久關閉。

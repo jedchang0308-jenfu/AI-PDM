@@ -12,6 +12,7 @@ import {
   assertAuthorityRecoveryRevision,
   assertRecoveryReceipt,
   assertWorkbenchRecoveryPayload,
+  authorityRecoveryCandidateOrigin,
   buildAuthorityRecoveryCandidateTemplate,
   buildRecoveryReceipt,
   receiptRef,
@@ -101,7 +102,8 @@ function assertInactiveCandidate(transport, service, candidateFacts, capsule) {
   const configured = (service.traffic ?? []).filter((row) => row.tag === candidateFacts.candidateTag)
   const observed = (service.trafficStatuses ?? []).filter((row) => row.tag === candidateFacts.candidateTag)
   const matches = (row) => row.revision === candidateFacts.candidateRevision && Number(row.percent ?? 0) === 0
-  if (configured.length !== 1 || observed.length !== 1 || !configured.every(matches) || !observed.every(matches)) fail('AUTHORITY_RECOVERY_CANDIDATE_NOT_INACTIVE')
+  if (configured.length !== 1 || observed.length !== 1 || !configured.every(matches) || !observed.every(matches)
+    || observed[0].uri !== candidateFacts.candidateOrigin) fail('AUTHORITY_RECOVERY_CANDIDATE_NOT_INACTIVE')
   return true
 }
 
@@ -112,6 +114,7 @@ function assertCandidateFacts(value, capsule, paths) {
     || facts.artifactDigest !== capsule.baseline.artifactDigest
     || facts.runtimeCommit !== capsule.baseline.runtimeCommit
     || facts.previousRevision !== capsule.baseline.previousRevision
+    || facts.candidateOrigin !== `https://${paths.candidateTag}---${new URL(capsule.target.providerOrigin).hostname}`
     || facts.candidatePercent !== 0 || facts.generalTrafficChanged !== false || facts.databaseMutationPerformed !== false) fail('AUTHORITY_RECOVERY_CANDIDATE_RECEIPT_INVALID')
   return facts
 }
@@ -215,7 +218,6 @@ async function executeStage({ stage, capsuleRef, capsuleSha256, profile, transpo
   assertAuthorityRecoveryGitHubContext(capsule, environment)
   const paths = recoveryPaths(profile, capsuleSha256)
   const context = { capsule, capsuleSha256 }
-  const candidateOrigin = transport.candidateOrigin(profile, paths.candidateTag)
 
   if (stage === 'candidate') {
     const existing = await optionalReceipt(transport, paths.candidate, 'candidate', context)
@@ -225,7 +227,7 @@ async function executeStage({ stage, capsuleRef, capsuleSha256, profile, transpo
       assertInactiveCandidate(transport, service, facts, capsule)
       const revision = await transport.getRevision(profile, facts.candidateRevision)
       transport.assertRevisionReady(profile, revision, capsule.baseline.artifactDigest)
-      assertAuthorityRecoveryRevision({ revision, profile, capsule, candidateRevision: facts.candidateRevision, candidateOrigin })
+      assertAuthorityRecoveryRevision({ revision, profile, capsule, candidateRevision: facts.candidateRevision, candidateOrigin: facts.candidateOrigin })
       return existing
     }
     const evidence = await assertEvidence(transport, capsule, profile)
@@ -237,6 +239,7 @@ async function executeStage({ stage, capsuleRef, capsuleSha256, profile, transpo
     transport.assertRevisionReady(profile, previousRevision, capsule.baseline.artifactDigest)
     const beforeApp = applicationContainer(profile, before.template)
     if (beforeApp.image !== capsule.baseline.artifactDigest) fail('AUTHORITY_RECOVERY_ARTIFACT_MISMATCH')
+    const candidateOrigin = authorityRecoveryCandidateOrigin(before, capsule, paths.candidateTag)
     const template = buildAuthorityRecoveryCandidateTemplate({ beforeTemplate: before.template, profile, capsule, candidateRevision: paths.candidateRevision, candidateOrigin })
     let tagged
     try {
@@ -246,29 +249,45 @@ async function executeStage({ stage, capsuleRef, capsuleSha256, profile, transpo
       const traffic = [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: paths.candidateRevision, percent: 0, tag: paths.candidateTag }]
       await transport.patchService(profile, { name: created.name, etag: created.etag, traffic }, 'traffic', capsule.deadlineAt)
       tagged = await transport.getService(profile)
-      assertInactiveCandidate(transport, tagged, { candidateRevision: paths.candidateRevision, candidateTag: paths.candidateTag }, capsule)
+      assertInactiveCandidate(transport, tagged, { candidateRevision: paths.candidateRevision, candidateTag: paths.candidateTag, candidateOrigin }, capsule)
+      const revision = await transport.getRevision(profile, paths.candidateRevision)
+      transport.assertRevisionReady(profile, revision, capsule.baseline.artifactDigest)
+      assertAuthorityRecoveryRevision({ revision, profile, capsule, candidateRevision: paths.candidateRevision, candidateOrigin })
+      const facts = {
+        candidateRevision: paths.candidateRevision, candidateTag: paths.candidateTag, candidateOrigin,
+        previousRevision: capsule.baseline.previousRevision, artifactDigest: capsule.baseline.artifactDigest,
+        runtimeCommit: capsule.baseline.runtimeCommit, candidatePercent: 0, generalTrafficChanged: canonicalize(trafficSnapshot(before)) !== canonicalize(trafficSnapshot(tagged).filter((row) => !row.tag)),
+        databaseMutationPerformed: false, backupId: capsule.backup.backupId, evidence,
+        beforeTemplateSha256: sha256(canonicalize(before.template)), candidateTemplateSha256: sha256(canonicalize(tagged.template)),
+      }
+      if (facts.generalTrafficChanged) fail('AUTHORITY_RECOVERY_TRAFFIC_CHANGED')
+      const receipt = buildRecoveryReceipt({ stage: 'candidate', capsule, capsuleSha256, facts, observedAt: transport.now() })
+      return await writeReceipt(transport, paths.candidate, { ...receipt, __capsule: capsule }, profile)
     } catch (error) {
+      try {
+        const recovered = await optionalReceipt(transport, paths.candidate, 'candidate', context)
+        if (recovered) {
+          const facts = assertCandidateFacts(recovered.value, capsule, paths)
+          const current = await transport.getService(profile)
+          assertInactiveCandidate(transport, current, facts, capsule)
+          return recovered
+        }
+      } catch {}
+      let cleanupConfirmed = false
       try {
         const current = await transport.getService(profile)
         if (transport.effectiveRevision(current) === capsule.baseline.previousRevision) {
-          await transport.removeCandidateTag({ profile, tag: paths.candidateTag, candidateRevision: paths.candidateRevision, expectedActiveRevision: capsule.baseline.previousRevision, deadlineAt: capsule.deadlineAt })
+          try {
+            await transport.removeCandidateTag({ profile, tag: paths.candidateTag, candidateRevision: paths.candidateRevision, expectedActiveRevision: capsule.baseline.previousRevision, deadlineAt: capsule.deadlineAt })
+          } catch {}
+          const cleaned = await transport.getService(profile)
+          cleanupConfirmed = transport.effectiveRevision(cleaned) === capsule.baseline.previousRevision
+            && !(cleaned.traffic ?? []).some((row) => row.tag === paths.candidateTag)
         }
       } catch {}
-      throw error
+      if (cleanupConfirmed) throw error
+      fail('AUTHORITY_RECOVERY_CANDIDATE_CLEANUP_UNCONFIRMED', error?.code ?? error?.message ?? 'failed')
     }
-    const revision = await transport.getRevision(profile, paths.candidateRevision)
-    transport.assertRevisionReady(profile, revision, capsule.baseline.artifactDigest)
-    assertAuthorityRecoveryRevision({ revision, profile, capsule, candidateRevision: paths.candidateRevision, candidateOrigin })
-    const facts = {
-      candidateRevision: paths.candidateRevision, candidateTag: paths.candidateTag, candidateOrigin,
-      previousRevision: capsule.baseline.previousRevision, artifactDigest: capsule.baseline.artifactDigest,
-      runtimeCommit: capsule.baseline.runtimeCommit, candidatePercent: 0, generalTrafficChanged: canonicalize(trafficSnapshot(before)) !== canonicalize(trafficSnapshot(tagged).filter((row) => !row.tag)),
-      databaseMutationPerformed: false, backupId: capsule.backup.backupId, evidence,
-      beforeTemplateSha256: sha256(canonicalize(before.template)), candidateTemplateSha256: sha256(canonicalize(tagged.template)),
-    }
-    if (facts.generalTrafficChanged) fail('AUTHORITY_RECOVERY_TRAFFIC_CHANGED')
-    const receipt = buildRecoveryReceipt({ stage: 'candidate', capsule, capsuleSha256, facts, observedAt: transport.now() })
-    return writeReceipt(transport, paths.candidate, { ...receipt, __capsule: capsule }, profile)
   }
 
   const candidate = await requiredReceipt(transport, paths.candidate, 'candidate', context)
@@ -284,7 +303,7 @@ async function executeStage({ stage, capsuleRef, capsuleSha256, profile, transpo
     assertInactiveCandidate(transport, service, candidateFacts, capsule)
     const revision = await transport.getRevision(profile, candidateFacts.candidateRevision)
     transport.assertRevisionReady(profile, revision, candidateFacts.artifactDigest)
-    assertAuthorityRecoveryRevision({ revision, profile, capsule, candidateRevision: candidateFacts.candidateRevision, candidateOrigin })
+    assertAuthorityRecoveryRevision({ revision, profile, capsule, candidateRevision: candidateFacts.candidateRevision, candidateOrigin: candidateFacts.candidateOrigin })
     const smoke = await runRecoverySmoke({ origin: candidateFacts.candidateOrigin, capsule, environment })
     const receipt = buildRecoveryReceipt({ stage: 'verify', capsule, capsuleSha256, previousReceiptRef: candidate.ref, facts: { ...candidateFacts, smoke, activeRevision: capsule.baseline.previousRevision, activationState: 'PROMOTION_PENDING', databaseMutationPerformed: false }, observedAt: transport.now() })
     return writeReceipt(transport, paths.verify, { ...receipt, __capsule: capsule }, profile)

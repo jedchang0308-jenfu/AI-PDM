@@ -13,6 +13,7 @@ export const AUTHORITY_RECOVERY_TARGET = Object.freeze({
   region: 'asia-east1',
   serviceName: 'ai-pdm-prod',
   canonicalOrigin: 'https://ai-pdm-prod-9536592944.asia-east1.run.app',
+  providerOrigin: 'https://ai-pdm-prod-56gnizku7q-de.a.run.app',
   databaseInstance: 'jenfu-platform-prod-pg',
   database: 'jenfu_prod',
 })
@@ -125,6 +126,23 @@ export function recoveryPaths(profile, capsuleSha256) {
     rollback: `${root}/rollback.json`,
     terminal: `${root}/terminal.json`,
   }
+}
+
+function candidateOriginFor(providerOrigin, tag) {
+  if (!/^candidate-[a-f0-9]{12}$/u.test(tag ?? '')) fail('AUTHORITY_RECOVERY_CANDIDATE_ID_INVALID')
+  let provider
+  try { provider = new URL(providerOrigin) } catch { fail('AUTHORITY_RECOVERY_PROVIDER_ORIGIN_INVALID') }
+  if (provider.protocol !== 'https:' || provider.pathname !== '/' || provider.search || provider.hash
+    || provider.origin !== providerOrigin || !/^ai-pdm-prod-[a-z0-9]+-[a-z]+\.a\.run\.app$/u.test(provider.hostname)) fail('AUTHORITY_RECOVERY_PROVIDER_ORIGIN_INVALID')
+  return `https://${tag}---${provider.hostname}`
+}
+
+export function authorityRecoveryCandidateOrigin(service, capsule, tag) {
+  const expectedName = `projects/${capsule.target.projectId}/locations/${capsule.target.region}/services/${capsule.target.serviceName}`
+  if (service?.name !== expectedName || service?.uri !== capsule.target.providerOrigin
+    || !Array.isArray(service.urls) || !service.urls.includes(capsule.target.canonicalOrigin)
+    || !service.urls.includes(capsule.target.providerOrigin)) fail('AUTHORITY_RECOVERY_PROVIDER_ORIGIN_INVALID')
+  return candidateOriginFor(capsule.target.providerOrigin, tag)
 }
 
 function environmentMap(container) {
