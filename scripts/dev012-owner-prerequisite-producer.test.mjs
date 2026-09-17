@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 
-import { buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath } from './lib/dev012-owner-prerequisite-producer.mjs'
+import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { sha256 } from './lib/dev012-owner-release-runtime.mjs'
 
 const H40 = 'a'.repeat(40)
@@ -45,9 +45,25 @@ test('release intent accepts only owner refs and release-authority prerequisites
   assert.throws(() => buildReleaseIntent({ profile, releaseId: 'REL-001', input: { ...input, foundationReceiptRef: { ...ref('foundation'), uri: 'gs://sibling/receipts/foundation.json' } }, sourceLock, prerequisiteValues: values, validateIntent: () => true }), /PREREQUISITE_REF_INVALID/)
 })
 
-test('CLI has an exact three-stage input surface', () => {
+test('DEV-013 transition authority binds provider baseline, desired runtime and verified predecessor', () => {
+  const transitionProfile = structuredClone(profile)
+  transitionProfile.environment.requiredPlainEnvironmentNames = ['NODE_ENV', 'HANDOFF_MODE']
+  transitionProfile.environment.controlledValues = { HANDOFF_MODE: { defaultValue: 'off', allowedValues: ['off', 'on'] } }
+  const runtime = buildRuntimeConfigReceipt({ profile: transitionProfile, releaseId: 'REL-001', sourceLock, plainEnvironment: { NODE_ENV: 'production', HANDOFF_MODE: 'on' }, secretVersions: { SESSION_SECRET: '7' }, observedAt: NOW })
+  const predecessorRef = { uri: 'gs://platform-sequence/receipts/dev013/root.json', sha256: H64 }
+  const predecessorEvidence = assertDev013PredecessorReceipt({ schemaVersion: 'jenfu.dev013.l4-execution-authorization.v1', projectId: 'project', region: 'region', sourceRevisionByApplication: { platform: H40, orgmaster: 'c'.repeat(40), 'ai-pdm': 'd'.repeat(40) }, status: 'PASS', releaseAuthority: true, remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' }, predecessorRef, transitionProfile, NOW)
+  const result = buildDev013TransitionAuthority({ profile: transitionProfile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, previousRevision: 'service-00001-old', previousControlledEnvironment: { HANDOFF_MODE: 'off' }, transition: { field: 'HANDOFF_MODE', from: 'off', to: 'on', action: 'activate', predecessorReceiptRef: predecessorRef }, predecessorEvidence, observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' })
+  assert.equal(result.authorization.authorizationBasis, 'OPERATOR_INVOKED_DEV013_L4')
+  assert.deepEqual(result.readiness.controlledEnvironment, { HANDOFF_MODE: 'on' })
+  assert.equal(result.readiness.previousRevision, 'service-00001-old')
+  assert.throws(() => buildDev013TransitionAuthority({ profile: transitionProfile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, previousRevision: 'service-00001-old', previousControlledEnvironment: { HANDOFF_MODE: 'on' }, transition: { field: 'HANDOFF_MODE', from: 'on', to: 'on', action: 'activate', predecessorReceiptRef: predecessorRef }, predecessorEvidence, observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' }), /DEV013_TRANSITION_NOOP_DENIED/)
+})
+
+test('CLI exposes the guarded DEV-013 transition authority stage', () => {
   assert.deepEqual(parsePrerequisiteProducerArgs(['--stage', 'source-freeze', '--release-id', 'REL-001']), { stage: 'source-freeze', releaseId: 'REL-001', inputPath: null })
+  assert.deepEqual(parsePrerequisiteProducerArgs(['--stage', 'dev013-transition-authority', '--release-id', 'REL-001', '--input', 'output/dev-013/l4/inputs/transition.json']), { stage: 'dev013-transition-authority', releaseId: 'REL-001', inputPath: 'output/dev-013/l4/inputs/transition.json' })
   assert.throws(() => parsePrerequisiteProducerArgs(['--stage', 'release-intent', '--release-id', 'REL-001']), /INVALID_ARGUMENTS/)
   assert.equal(resolveOwnerInputPath('/owner', 'output/dev-012/inputs/runtime.json').endsWith(['owner', 'output', 'dev-012', 'inputs', 'runtime.json'].join(path.sep)), true)
+  assert.equal(resolveOwnerInputPath('/owner', 'output/dev-013/l4/inputs/transition.json').endsWith(['owner', 'output', 'dev-013', 'l4', 'inputs', 'transition.json'].join(path.sep)), true)
   assert.throws(() => resolveOwnerInputPath('/owner', '../sibling/secret.json'), /INPUT_PATH_OUT_OF_SCOPE/)
 })

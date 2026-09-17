@@ -34,7 +34,7 @@ async function main() {
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
     buildMigrationBundle: async (sourceRevision) => buildDev117MigrationBundle(profile, buildAiPdmPackage(n1c), sourceRevision),
   })
-  process.stdout.write(`${JSON.stringify({ stage: args.stage, releaseId: args.releaseId, ref: result.ref, generation: String(result.metadata.generation), status: 'PASS' })}\n`)
+  process.stdout.write(`${JSON.stringify({ stage: args.stage, releaseId: args.releaseId, ref: result.ref, refs: result.refs ?? null, previousRevision: result.previousRevision ?? null, generation: String(result.metadata.generation), status: 'PASS' })}\n`)
 }
 
 main().catch((error) => { process.stderr.write(`${error.code ?? error.message}\n`); process.exitCode = 1 })
