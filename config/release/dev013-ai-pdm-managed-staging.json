@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "jenfu.dev013.ai-pdm-managed-staging-release.v1",
+  "profileVersion": "OWNER_NATIVE_SHARED_STAGING_V1",
+  "contractSha256": "6a982afe530a1488a45e5ab7ec48bff520e390e11574d251d8c74367c5d215de",
+  "application": {
+    "id": "ai-pdm",
+    "repository": "jedchang0308-jenfu/AI-PDM",
+    "allowedBranches": [
+      "codex/dev-013-ai-pdm",
+      "main"
+    ]
+  },
+  "authorities": {
+    "platformManifestPath": "../Jenfu-Platform/config/dev-013/l3-managed-staging.json",
+    "platformManifestSha256": "7538ab12e02566eb9de107c592d6cbb43045f4a00bc94a969a84eae8a424d96c",
+    "handoffContractLockPath": "contracts/jenfu-sso-handoff/v1/contract-lock.json",
+    "handoffContractSha256": "e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483"
+  },
+  "target": {
+    "environment": "staging",
+    "projectId": "jenfu-platform-nonprod",
+    "region": "asia-east1",
+    "serviceName": "ai-pdm-stg",
+    "database": "jenfu_stg",
+    "connectionName": "jenfu-platform-nonprod:asia-east1:jenfu-platform-nonprod-pg",
+    "runtimeServiceAccount": "dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam.gserviceaccount.com",
+    "runtimeSubjectAuthority": "GOOGLE_IAM_SERVICE_ACCOUNT_UNIQUE_ID_READBACK",
+    "canonicalOriginAuthority": "CLOUD_RUN_V2_PROVIDER_READBACK",
+    "callbackPath": "/api/auth/jenfu-sso/callback",
+    "entryPolicy": {
+      "ingress": "INGRESS_TRAFFIC_ALL",
+      "defaultUriDisabled": false,
+      "invokerIamDisabled": true
+    },
+    "requiredLabels": {
+      "application": "ai-pdm",
+      "dev_id": "dev-013",
+      "environment": "staging",
+      "managed_by": "terraform",
+      "owner": "ai-pdm",
+      "slice": "013-s4-l3"
+    }
+  },
+  "platformBroker": {
+    "serviceName": "jenfu-platform-stg",
+    "canonicalOriginAuthority": "CLOUD_RUN_V2_PROVIDER_READBACK",
+    "issuerPath": "/api/sso",
+    "wildcardsAllowed": false
+  },
+  "artifact": {
+    "repository": "dev013-ai-pdm-staging",
+    "image": "ai-pdm",
+    "uri": "asia-east1-docker.pkg.dev/jenfu-platform-nonprod/dev013-ai-pdm-staging/ai-pdm",
+    "digestRequired": true,
+    "dockerfile": "Dockerfile",
+    "dockerTarget": "runner",
+    "platform": "linux/amd64",
+    "sourceIdentity": "git ls-tree -r -z --full-tree <sourceRevision>"
+  },
+  "state": {
+    "bucket": "tfstate-jenfu-platform-nonprod",
+    "prefix": "dev-013/ai-pdm-staging"
+  },
+  "evidence": {
+    "bucket": "jenfu-platform-nonprod-dev013-aipdm-evidence",
+    "prefix": "receipts/dev-013/l3/ai-pdm",
+    "secretValuesAllowed": false
+  },
+  "runtime": {
+    "applicationContainer": "ai-pdm",
+    "cloudSqlProxyContainer": "cloud-sql-proxy",
+    "cloudSqlProxyImage": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.22.0@sha256:fa4c7308245407157c5e9c4e16f1c0f1113899d6f29dc8f8be3e30efae86467f",
+    "network": "jenfu-platform-nonprod-vpc",
+    "subnetwork": "jenfu-platform-nonprod-qc",
+    "minInstances": 0,
+    "maxInstancesPerRevision": 2,
+    "databasePoolMax": 2,
+    "containerConcurrency": 20,
+    "startupProbePath": "/api/health/ready",
+    "deletionProtection": true,
+    "secretEnvironmentNames": [
+      "PDM_SESSION_CURRENT_SECRET",
+      "PDM_SESSION_PREVIOUS_SECRET",
+      "PDM_WORKBENCH_CONTRACT_SECRET"
+    ],
+    "preservedPlainEnvironmentNames": [
+      "PDM_SESSION_AUDIENCE",
+      "PDM_SESSION_CURRENT_KEY_ID",
+      "PDM_SESSION_PREVIOUS_KEY_ID",
+      "PDM_FIREBASE_API_KEY",
+      "PDM_FIREBASE_AUTH_DOMAIN",
+      "PDM_FIREBASE_PROJECT_ID",
+      "PDM_FIREBASE_APP_ID",
+      "PDM_TRUST_GOOGLE_WORKSPACE_MFA",
+      "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED",
+      "PDM_GOOGLE_WORKSPACE_DOMAINS"
+    ],
+    "requiredDatabaseEnvironment": {
+      "PDM_DB_PROVIDER": "cloud_sql_postgres",
+      "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME": "jenfu-platform-nonprod:asia-east1:jenfu-platform-nonprod-pg",
+      "PDM_CLOUD_SQL_HOST": "127.0.0.1",
+      "PDM_CLOUD_SQL_PORT": "5432",
+      "PDM_CLOUD_SQL_DATABASE": "jenfu_stg",
+      "PDM_CLOUD_SQL_USER": "dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam",
+      "PDM_CLOUD_SQL_POOL_MAX": "2"
+    }
+  },
+  "environment": {
+    "fixed": {
+      "NODE_ENV": "production",
+      "PDM_AUTH_MODE": "firebase_bff",
+      "PDM_JENFU_PLATFORM_AUTH_MODE": "on",
+      "PDM_JENFU_ENTITLEMENT_MODE": "enforce",
+      "PDM_COOKIE_SECURE": "true",
+      "PDM_DEPLOYMENT_ENV": "staging",
+      "GOOGLE_CLOUD_PROJECT": "jenfu-platform-nonprod",
+      "GOOGLE_CLOUD_REGION": "asia-east1"
+    },
+    "providerDerived": {
+      "PDM_JENFU_SSO_BROKER_ORIGIN": "platformBroker.canonicalOrigin",
+      "PDM_PUBLIC_BASE_URL": "target.canonicalOrigin",
+      "PDM_SESSION_ISSUER": "target.canonicalOrigin"
+    },
+    "initialHandoffMode": "off",
+    "enabledHandoffMode": "on"
+  },
+  "rollout": {
+    "initialStage": "PUBLISH_OFF_REVISION",
+    "enabledStage": "PUBLISH_ON_REVISION",
+    "activationStage": "ACTIVATE_ON_REVISION_AFTER_HARD_JOIN",
+    "serviceUpdateMask": "labels,template",
+    "activationUpdateMask": "traffic",
+    "trafficMustBeRevisionPinnedBeforeTemplatePatch": true,
+    "trafficChangesDuringRevisionPublish": 0,
+    "providerEtagRequired": true
+  },
+  "rollback": {
+    "authority": "ai-pdm-owner-only",
+    "updateMask": "traffic",
+    "sameSourceRevisionRequired": true,
+    "sameArtifactDigestRequired": true,
+    "securityFloor": [
+      "auth-state-v2",
+      "assurance",
+      "original-auth-time"
+    ],
+    "preDev013ArtifactAllowed": false,
+    "siblingMutations": 0
+  },
+  "boundaries": {
+    "secretId": "dev010-stg-aipdm-runtime-config",
+    "secretValuesRead": false,
+    "databaseMigrations": 0,
+    "terraformApply": false,
+    "productionMutations": 0,
+    "siblingMutations": 0,
+    "legacyStagingMutations": 0,
+    "serviceAccountKeys": 0,
+    "sharedClientSecrets": 0
+  },
+  "excludedTargets": {
+    "projects": [
+      "jenfu-platform-prod",
+      "jenfu-ai-pdm-stg-361825"
+    ],
+    "services": [
+      "ai-pdm-prod",
+      "dev007-rd-portal"
+    ]
+  }
+}
