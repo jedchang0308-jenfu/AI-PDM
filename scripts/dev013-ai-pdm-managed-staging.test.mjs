@@ -336,7 +336,7 @@ test('off/on publication, exact hard joins, activation and rollback remain owner
   assert.equal(enabledRevision.status, 'ENABLED_REVISION_READY')
 
   const activation = buildActivationPlan({ profile, enabledRevisionReceipt: enabledRevision, currentService: afterOn, observedAt: '2026-09-17T00:05:00.000Z' })
-  assert.deepEqual(activation.mutation.traffic, [{ revision: enabledRevision.revision, percent: 100, tag: null }])
+  assert.deepEqual(activation.mutation.traffic, [{ revision: enabledRevision.revision, percent: 100, tag: null, type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION' }])
   assert.equal(activation.mutation.templateChanges, 0)
   const activeService = { ...structuredClone(afterOn), etag: 'etag-active', traffic: structuredClone(activation.mutation.traffic) }
   const active = hardJoinActivation({ profile, activationPlan: activation, platformService: broker, targetService: activeService, targetIdentity: identity, observedAt: '2026-09-17T00:06:00.000Z' })
