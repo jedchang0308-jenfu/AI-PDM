@@ -130,7 +130,7 @@ Owner：Dev PM
 
 - DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging package v2：provider-read baseline traffic／deletion-protection plan、三組既有 Secret 一對一 numeric pinning migration、bootstrap／owner receipt v2，以及只建立 artifact repository／evidence bucket／exact IAM 的 app-owned Infra A exact plan gate；終態=`READY_FOR_NONPROD_APPLY`。Current exact read-only preflight確認`ai-pdm-stg`與runtime identity存在，deterministic origin=`https://ai-pdm-stg-1055054506544.asia-east1.run.app`、ready revision=`ai-pdm-stg-00004-pvm`、`latest=100%`且deletion protection=false；service labels仍為DEV-010、三組Secret仍指向`latest`，DEV-013 repository／evidence bucket尚未建立。計畫僅允許etag-bound `traffic,deletionProtection`且template／labels／siblings=0；所有雲端 mutation與 L3 browser 均未授權且`NOT_RUN`。
 - DEV-118 / 118-A 已完成 PDM 本地登入入口實作與 focused QA/QC；目前沒有可在 AI-PDM 先行替代 118-B 的工作。
-  118-B 已依使用者兩專案文件授權登錄為 Platform `DEV-014 / 014-LOGIN`，狀態 `RD Contract Ready / Implementation NOT_RUN`。Workspace 與 Cloud Identity Free 共用 Google provider；工號找到核准身分後仍須 Google 驗證，Free 不依賴 Gmail 收信。下一步閉合 mapping／API／首次綁定工程契約，再依實作授權開發；不新增 PDM provider probe 或 release 契約。Authority 為
+  118-B 已登錄 Platform `DEV-014 / 014-LOGIN`，維持 `RD Contract Ready / Implementation NOT_RUN`。Workspace／Free 共用 Google，pending 首次綁定重用 OrgMaster bridge，工號不回傳 pre-auth login_hint。平台唯一契約 §18.5 的 G1～G4 待閉合；PDM 只驗 target，不重做 bridge／provider probe。Authority 為
   `.ai-doc/specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md`。
 - DEV-117 production release已於R78完成，狀態=`Production Level 4 Complete / Owner RELEASED / 100% canonical traffic / remainingHumanAction=0`。DEV-118 對齊 Platform DEV-013 的登入入口，不重開 DEV-117、修改其 smoke 憑證或預先授權 production release。
 
@@ -1634,7 +1634,8 @@ Owner：Dev PM
     Google 管 credential，OrgMaster 管員工／工號／linking，Platform 管登入與中央 admission，PDM 管自己的 user／company／permission。既有 non-Google 相容保留原 gate，不另建應用密碼。
   - 來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`。
   - 父任務／關聯：`DEV-003` 身分／權限、Platform `DEV-013` SSO、Platform `DEV-014 / 014-LOGIN`；沿用 `DEV-046` 與 `DEV-117` 邊界。
-  - 下一步：Platform `014-LOGIN` 依原生 SPEC §18.5 閉合 versioned mapping、Google→Firebase 核准綁定、transaction／API／anti-enumeration 與獨立六案，再依產品實作授權開發；AI-PDM 118-A 無未完成本地項目。
+  - 下一步：Platform `014-LOGIN` 依唯一契約 §18.5 閉合 G1 mapping、G2 既有 bridge 介接、G3 durable intent、G4 browser／provider capability。
+    118-A 無未完成本地項目；PDM C01／C02 保留 Workspace／Free × Google／工號四個整合 cells，與 Platform LOGIN-06 共用合格 evidence。
   - 阻塞／恢復條件：兩專案文件授權及 owner-native 登錄已完成；B 維持 Contract Ready，工程細節與產品實作尚未完成。此輪授權只含文件，不含 OrgMaster 或產品／測試／build／provider mutation；118-C 維持 release gate。B 未完成不阻塞 A，不能宣稱整體已交付。
   - 證據：[DEV-118 唯一契約](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md)、[118-A QC receipt](qc/qc-dev-118-local-implementation-2026-09-17.md)、[118-B Platform 唯讀交接查核](qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)。
     2026-09-17 依 Free 帳號決策及兩專案文件授權同步 §6.1／Platform §18，更正舊 non-Google 分類建議；[Platform 014-LOGIN](../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 已登錄本來源。

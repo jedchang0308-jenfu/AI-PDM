@@ -45,7 +45,7 @@
   先讀 [DEV-118 SPEC](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md) §§1–5；
   2026-09-17 決策：SSO 啟用後 PDM 只提供平台主入口；Google／工號是同一核准身分的兩種起手方式。
   Workspace 與 Cloud Identity Free 共用 Google provider；Free 沒有 Gmail 不等於 non-Google，工號仍須 Google 驗證，canonical principal 保留 Firebase issuer＋UID。管理員開通依 §6.1，不要求在不存在的信箱收 invitation。
-  平台目前仍為 email/password；[Platform 014-LOGIN](../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 已登錄 `AI_PDM / DEV-118 / 118-B`。DEV-014 R2 基線 Architecture Finalized／QA 0／20，新增 LOGIN 工程缺口仍待 §18.5 閉合／QA 0／6，不得當作 DEV-013 已完成能力。
+  平台目前仍為 email/password；[Platform 014-LOGIN](../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 是平台唯一契約，已登錄來源 118-B。複審固定重用 OrgMaster pending bridge、既有 Firebase exchange／SSO，工號不回 pre-auth login_hint。G1 mapping／G2 bridge介接／G3 durable intent／G4 browser capability 尚待閉合；R2基線 QA 0／20、LOGIN 0／6，PDM不再重做同一套 bridge 或 SSO 測試。
   舊版 PDM provider 輪詢、直接 Google release gate／Workflow v2 要求已取消，不照舊規格派工。
 - `DEV-117` R78 已完成；DEV-118 不重開 R78、不修改 smoke 憑證與 release 契約。
   118-C 依既有 DEV-013／各 owner release gate 整合驗收；AI-PDM 不取得 shared identity write authority。

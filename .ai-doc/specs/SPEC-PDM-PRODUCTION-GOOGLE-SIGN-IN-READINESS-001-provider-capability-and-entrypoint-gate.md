@@ -28,7 +28,7 @@
 
 - **沒有 Gmail 信箱不等於沒有 Google 帳號。** 公司 Google Workspace 與 Cloud Identity Free 帳號皆使用同一 Google provider；不新增第三種登入入口，也不以 Workspace 付費授權作登入條件。[Google editions](https://cloud.google.com/identity/docs/editions)
 - 工號只啟動核准帳號的 Google 驗證；平台／PDM 不接收 Google 密碼。Free 帳號名稱即使像 email，也不能要求從不存在的 Gmail 信箱收 invitation／email-link。
-- Platform canonical identity 保留 **verified Firebase issuer＋subject（Firebase UID）**。Google `sub`／provider UID 為上游識別，必須經核准連結對應；不可直接覆蓋 Firebase UID。工號、email、license 或網域尾碼不能替代永久身分。Cloud Identity Free 與本專案使用的 Identity Platform／Firebase Authentication 是不同層。[Firebase token 驗證](https://firebase.google.com/docs/auth/admin/verify-id-tokens)
+- Platform canonical identity 保留 **verified Firebase issuer＋subject（Firebase UID）**。OrgMaster bridge 對應 employeeId、Directory customer＋user.id 與 Firebase pair；Google OIDC sub 僅可作可信 observation，不預設等於 Directory ID，也不取代 Firebase UID。工號、email、license 或網域尾碼不能替代永久身分。Cloud Identity Free 與 Identity Platform／Firebase Authentication 是不同層。[Firebase token 驗證](https://firebase.google.com/docs/auth/admin/verify-id-tokens)
 - Google 帳號有效不等於員工已啟用或獲得 PDM 權限；原有 admission、MFA／assurance、app assignment、local account／company／permission 與撤銷仍須全部通過。
 
 ## 2. 決策來源、現況與替代範圍
@@ -156,28 +156,19 @@ Browser QA 必須操作實際編譯登入頁；fixture 只模擬設定／mode re
 
 Platform DEV-014 的 R2 架構定案只涵蓋既有 S0～S4／QA 基線 20 案；新增 `014-LOGIN` 是 Contract Ready，另列六案驗收。不重算 DEV-013 原有 22 案或基線完成率。
 
-固定產品契約：
+平台的帳號分類、首次 bridge、工號 intent、錯誤與 source contract 以 DEV-014 §18 為唯一 authority；本文件保留三項 target 不變條件：
 
-1. 有效公司 Google Workspace／Cloud Identity Free 身分均可直接選公司帳號驗證；有效工號可找到該員工核准帳號後啟動 Google 驗證。兩者皆通過同一平台 admission，不各建一套帳號，不依賴 Gmail 信箱。
-2. 工號 mapping 由核准的公司／employee／identity authority 管理。Unknown、disabled、retired、ambiguous、cross-company mapping 一律 fail closed，公開回應不得列舉 email／帳號是否存在。
-3. 工號起手的 transaction 必須與最終 verified Firebase issuer／subject／employee 一致、短效、防重放；不能接受 popup 選到另一個有效員工便換人登入。Google 起手也不得靠 email/domain 自動建 principal；Google provider UID 不可替代 Firebase UID。
-4. Provider failure、popup blocked／closed、mapping rejection、權限不足須分開呈現並可恢復；provider unavailable 時不能把工號包裝成可繞過的備援。
-5. 兩種方式均保留 original authenticatedAt、既有 MFA／assurance、revocation 與 global logout；不擴張 privileged identity 權限。
-6. 既有核准 non-Google provider-managed email/password 等相容路徑保留原 gate。Cloud Identity Free 員工不屬此分類，不能因沒有 Gmail 而要求另設 Firebase email/password 或應用自有工號密碼。
+1. Workspace／Free 均由 Google 驗證；工號只在平台 server 找核准身分，不把 email／UID／login_hint 暴露給未驗證瀏覽器。兩入口只能落到同一核准日常 principal，不能以工號或 Gmail 收信能力授權。
+2. PDM 不參與首次 Directory→Firebase binding，不讀 OrgMaster core 或增加 identity writer。pending 首次綁定由來源 owner 完成；未完成者不得透過 SSO 建 PDM session。
+3. PDM 沿用 DEV-013 handoff 與 local admission／permission、original authenticatedAt、assurance／epoch／revocation；不接收 Google credential、不新增密碼入口，不因平台 provider failure 自動切回 legacy。
 
 <a id="managed-google-onboarding"></a>
 
 ### 6.1 管理員開通 Workspace／Cloud Identity Free 員工
 
-| 步驟 | 負責 owner | 必須完成的設定與驗收 |
-|---|---|---|
-| 1. 建立公司 Google 身分 | Google Admin／身分營運管理員 | 在正確 tenant／domain 建立 Free 帳號並核對 license／自動 Workspace 指派；確認受管且可登入，不要求購買 Gmail |
-| 2. 首次登入／MFA／復原 | 身分營運管理員＋員工，於 Google 完成 | 透過核准安全管道交付初始登入資料，依 Google policy 完成設定；不可要求在不存在的 Gmail 信箱收 invitation／email-link，另用通知／復原 email 時必須確認可收信 |
-| 3. 連結員工與工號 | OrgMaster identity owner；Platform 消費 contract | 依公司範圍工號連結核准 Google identity 與 Firebase issuer＋UID；精確 versioned lookup／首次綁定依 `014-LOGIN` 收斂，不以 email 自動合併，不使用 PDM 私有 alias 作平台 directory |
-| 4. 配置應用權限 | Platform 授權管理員＋AI-PDM Admin | 平台檢查 active employee／principal、app assignment；PDM 在 `/settings/accounts` 管自己的 user、company／membership、角色與 permission，不管理 Google password／MFA／recovery |
-| 5. 驗證兩種起手與 SSO | Platform／AI-PDM owner | Workspace 與 Free 各驗 Google 按鈕、工號起手皆落到同一核准日常身分與 PDM user；缺 mapping／assignment／local permission 必須拒絕，依既有 release gate 才可發布 |
+跨專案的唯一開通流程見 [Platform §18.3](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login)：Google Admin 建公司帳號並安全交付首次登入資料 → OrgMaster 人工核准 Directory pending link → 首次 Google 驗證後由既有 bridge 原子綁定 Firebase pair → 各應用依權限放行。pending 時 Firebase UID 可未知，不能要求先登入平台才能完成首次 bridge；Free 不依賴不存在的 Gmail 邀請，Google 密碼不送入 Firebase email/password。
 
-這是目標開通契約，不能據此宣稱目前所有管理 UI 或雙入口已可操作。帳號 license、Google `email_verified` 均不證明 Gmail 收信能力；Google 密碼不等於 Firebase email/password credential。詳細 owner flow 與官方依據見 [Platform §18.3、§18.6](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login)。
+**PDM Admin 的責任只在 `/settings/accounts` 管理 PDM user、company／membership、角色與 permission。** 不代建 Google 帳號、不修改中央工號或 Directory link、不管理 provider 密碼／MFA／復原。平台的 app assignment 與 PDM local admission 必須各自通過；有平台 session 仍可能被 PDM 拒絕。
 
 <a id="non-google-compatibility"></a>
 
@@ -189,7 +180,9 @@ PDM `/settings/accounts` 的 local 工號 alias 保留給原 SSO off／受控相
 
 ### 6.3 工程交接與尚待完成項
 
-以 Platform [§18.5](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 為工程缺口清單：versioned mapping read contract、Google provider 與 Firebase principal 連結／首次綁定、login transaction／API／anti-enumeration／safe returnTo、UI error states 與六案 required cells。尚未閉合前保留 `RD Contract Ready`，不宣稱 `Architecture Finalized`。
+Platform [§18.5](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 固定四個缺口：G1 versioned mapping、G2 既有 OrgMaster bridge 的 pre-session 消費介面、G3 durable intent／原子消耗、G4 Google browser 互動與 provider capability。平台現有 active-principal view 不等於工號／pending lookup，既有 password session endpoint 也不等於已完成 bridge。G1～G4 閉合前維持 `RD Contract Ready`，不宣稱架構定案。
+
+2026-09-17 技術主管優化：刪除兩專案重複的平台規則，改以 owner spec 單一維護；補首次 pending-auth、public hint 禁止、原內嵌瀏覽器與真實 provider evidence。保留 118-A 完成與 118-B／C 未完成狀態；不新增 DEV、文件或產品工作。
 
 修改前核對：AI_PDM `codex/dev-013-ai-pdm` @ `013ae1440acf2735b313b9ac43ee710d2b53927e`；Platform `持續優化1` @ `7e5343e3a5cdbd40a1a5ede38922195964d9bfa4`，兩者 clean。本輪只依授權修改這兩專案文件，未修改 OrgMaster、程式、測試、資料、provider 設定或 production；先前唯讀 QC 留作當時歷史證據，現行 native 登錄以 Platform DEV-014／索引為準。
 
@@ -206,6 +199,8 @@ PDM `/settings/accounts` 的 local 工號 alias 保留給原 SSO off／受控相
 | C05 登出與相容性 | local logout、global logout、必要 reauth／recovery、既有 release smoke | 依 DEV-013／既有 policy 生效；保留必要 Firebase exchange，不移除安全驗證 |
 
 A01–A06 可以先取得 local evidence；C01/C02 依賴 118-B，不得用目前平台 email/password 成功取代雙入口驗收。C03–C05 優先引用 DEV-013 同 source／環境／角色的有效證據，不重做平行 handoff suite；有差異才補測。
+
+C01/C02 的固定整合矩陣為 Workspace／Free × Google-first／工號-first 四個 cells；使用已完成或當次合法完成 bridge 的受控身分。首次綁定的 pending／active 與 CAS 測試由 Platform QA014-LOGIN-01～03 持有，PDM 不再建一套 bridge 測試。Platform QA014-LOGIN-06 直接引用本節同 source／環境／fixture evidence；每筆須標記 provider real／stub，只有真實受控 provider 及正常 target 操作可滿足整合 cell。若仍缺原內嵌瀏覽器結果，保留未充分驗證，不能以外部瀏覽器 PASS 結案。
 
 現行 Firebase refresh-token smoke只證明既有 session 路徑，不能證明平台 Google／工號入口；本案不強制修改其憑證或 observation schema。Provider 啟用／網域讀回由實際登入所在的 Platform owner 負責；PDM SSO 不以自己的直接 Google provider readiness 作 release 前提。
 
