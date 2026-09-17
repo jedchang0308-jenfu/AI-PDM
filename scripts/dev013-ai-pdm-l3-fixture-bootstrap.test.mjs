@@ -19,6 +19,8 @@ test('DEV-013 AI-PDM fixture is deterministic and least-privilege', () => {
   assert.equal(first.fixtureFingerprintSha256, second.fixtureFingerprintSha256)
   assert.equal(first.role, 'Engineer')
   assert.equal(first.companyId, 'company-dev013-l3')
+  assert.equal(first.companyCode, 'DEV013L3')
+  assert.match(first.companyCode, /^[A-Z][A-Z0-9-]{0,31}$/u)
   assert.equal(first.principalId, 'principal-dev013-p-both')
 })
 
