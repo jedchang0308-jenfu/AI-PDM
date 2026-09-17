@@ -4,14 +4,20 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   assertDev013AiPdmStagingProfile,
+  assertInfraTerraformPlan,
   buildActivationPlan,
   buildOwnerReceipt,
   buildRevisionPlan,
   buildRollbackPlan,
+  buildSecretPinningActivationPlan,
+  buildSecretPinningPlan,
   buildTargetBootstrapReceipt,
+  createInfraSourceFreeze,
   createSourceFreeze,
   hardJoinActivation,
   hardJoinRevision,
+  hardJoinSecretPinningActivation,
+  hardJoinSecretPinningRevision,
   sha256,
 } from './lib/dev013-ai-pdm-managed-staging.mjs'
 
@@ -73,8 +79,20 @@ if (command === 'profile-check') {
   emit({ status: 'PASS', profileContractSha256: profile.contractSha256, platformManifestSha256: profile.authorities.platformManifestSha256, handoffContractSha256: profile.authorities.handoffContractSha256, target: profile.target, boundaries: profile.boundaries })
 } else if (command === 'source-freeze') {
   emit(sourceFreeze(profile))
+} else if (command === 'infra-source-freeze') {
+  emit(createInfraSourceFreeze({ profile, sourceFreeze: jsonOption('source-freeze'), foundationReceiptBytes: fs.readFileSync(option('foundation-receipt')) }))
+} else if (command === 'infra-plan-gate') {
+  emit(assertInfraTerraformPlan(jsonOption('terraform-plan'), jsonOption('infra-source-freeze'), profile))
+} else if (command === 'secret-pin-plan') {
+  emit(buildSecretPinningPlan({ profile, targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity'), secretVersionReadbacks: jsonOption('secret-version-readbacks') }))
+} else if (command === 'secret-pin-hard-join') {
+  emit(hardJoinSecretPinningRevision({ profile, plan: jsonOption('secret-pin-plan'), targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
+} else if (command === 'secret-pin-activation-plan') {
+  emit(buildSecretPinningActivationPlan({ profile, secretPinningRevision: jsonOption('secret-pin-receipt'), currentService: jsonOption('target-service') }))
+} else if (command === 'secret-pin-activation-hard-join') {
+  emit(hardJoinSecretPinningActivation({ profile, activationPlan: jsonOption('secret-pin-activation-plan'), targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
 } else if (command === 'bootstrap-receipt') {
-  emit(buildTargetBootstrapReceipt({ profile, targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
+  emit(buildTargetBootstrapReceipt({ profile, targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity'), secretVersionReadbacks: jsonOption('secret-version-readbacks') }))
 } else if (command === 'plan') {
   emit(buildRevisionPlan({
     profile,

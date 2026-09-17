@@ -6,14 +6,21 @@ import test from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   assertDev013AiPdmStagingProfile,
+  assertInfraTerraformPlan,
   buildActivationPlan,
   buildOwnerReceipt,
   buildRevisionPlan,
   buildRollbackPlan,
+  buildSecretPinningActivationPlan,
+  buildSecretPinningPlan,
   buildTargetBootstrapReceipt,
+  createInfraSourceFreeze,
   createSourceFreeze,
   hardJoinActivation,
   hardJoinRevision,
+  hardJoinSecretPinningActivation,
+  hardJoinSecretPinningRevision,
+  sha256,
 } from './lib/dev013-ai-pdm-managed-staging.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -31,18 +38,18 @@ const artifactDigest = `${profile.artifact.uri}@sha256:${'c'.repeat(64)}`
 const targetOrigin = 'https://ai-pdm-stg-123456789012.asia-east1.run.app'
 const brokerOrigin = 'https://jenfu-platform-stg-123456789012.asia-east1.run.app'
 
-function environment() {
+function environment(secretVersion = '1') {
   const entries = [
     ...Object.entries(profile.runtime.requiredDatabaseEnvironment).map(([name, value]) => ({ name, value })),
     ...profile.runtime.preservedPlainEnvironmentNames.map((name) => ({ name, value: `preserved-${name.toLowerCase()}` })),
     { name: 'PDM_JENFU_PLATFORM_AUTH_MODE', value: 'off' },
     { name: 'PDM_JENFU_SSO_HANDOFF_MODE', value: 'off' },
   ]
-  for (const name of profile.runtime.secretEnvironmentNames) entries.push({ name, valueSource: { secretKeyRef: { secret: profile.boundaries.secretId, version: '7' } } })
+  for (const name of profile.runtime.secretEnvironmentNames) entries.push({ name, valueSource: { secretKeyRef: { secret: profile.boundaries.secretReferences[name], version: secretVersion } } })
   return entries
 }
 
-function targetService() {
+function targetService(secretVersion = '1') {
   return {
     name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`,
     uid: 'target-service-uid',
@@ -58,7 +65,7 @@ function targetService() {
       maxInstanceRequestConcurrency: 20,
       vpcAccess: { networkInterfaces: [{ network: profile.runtime.network, subnetwork: profile.runtime.subnetwork }] },
       containers: [
-        { name: profile.runtime.applicationContainer, image: 'asia-east1-docker.pkg.dev/jenfu-platform-nonprod/legacy/ai-pdm@sha256:' + 'd'.repeat(64), env: environment(), startupProbe: { httpGet: { path: profile.runtime.startupProbePath } } },
+        { name: profile.runtime.applicationContainer, image: 'asia-east1-docker.pkg.dev/jenfu-platform-nonprod/legacy/ai-pdm@sha256:' + 'd'.repeat(64), env: environment(secretVersion), startupProbe: { httpGet: { path: profile.runtime.startupProbePath } } },
         { name: profile.runtime.cloudSqlProxyContainer, image: profile.runtime.cloudSqlProxyImage, args: [profile.target.connectionName, '--auto-iam-authn', '--max-connections=2'], resources: { limits: { cpu: '1', memory: '512Mi' } }, startupProbe: { tcpSocket: { port: 5432 } } },
       ],
     },
@@ -66,6 +73,10 @@ function targetService() {
     latestCreatedRevision: 'ai-pdm-stg-existing',
     latestReadyRevision: 'ai-pdm-stg-existing',
   }
+}
+
+function secretVersionReadbacks(version = '1') {
+  return Object.fromEntries(Object.entries(profile.boundaries.secretReferences).map(([name, secretId]) => [name, { name: `projects/${profile.target.projectId}/secrets/${secretId}/versions/${version}`, state: 'ENABLED' }]))
 }
 
 function platformService() {
@@ -84,6 +95,10 @@ function applyRevisionPlan(service, plan, etag) {
   return { ...structuredClone(service), etag, labels: structuredClone(plan.mutation.labels), template: structuredClone(plan.mutation.template), latestCreatedRevision: plan.mutation.template.revision, latestReadyRevision: plan.mutation.template.revision }
 }
 
+function applySecretPinPlan(service, plan, etag) {
+  return applyRevisionPlan(service, plan, etag)
+}
+
 function expectCode(callback, code) {
   assert.throws(callback, (error) => error?.code === code)
 }
@@ -99,8 +114,78 @@ test('source freeze rejects dirty or non-allowlisted input', () => {
   expectCode(() => createSourceFreeze({ profile, branch: 'feature/untrusted', sourceRevision, sourceTree, clean: true, sourceIdentityBytes: Buffer.from('x') }), 'DEV013_AIPDM_SOURCE_NOT_FROZEN')
 })
 
+test('Infra A source freeze and plan gate require the complete eight-address create/read set', () => {
+  const sourceFreeze = freeze()
+  const foundationReceiptBytes = Buffer.from(`${JSON.stringify({ evidenceRef: { uri: 'gs://evidence/foundation.json' }, sha256: '0'.repeat(64) }, null, 2)}\n`)
+  const infraFreeze = createInfraSourceFreeze({ profile, sourceFreeze, foundationReceiptBytes, observedAt: '2026-09-17T00:00:10.000Z' })
+  assert.equal(infraFreeze.foundationReceipt.sha256, sha256(foundationReceiptBytes))
+  assert.notEqual(infraFreeze.foundationReceipt.sha256, '0'.repeat(64))
+  const values = {
+    project_id: profile.target.projectId,
+    region: profile.target.region,
+    source_revision: sourceRevision,
+    source_tree: sourceTree,
+    platform_manifest_sha256: profile.authorities.platformManifestSha256,
+    canonical_contract_sha256: profile.authorities.handoffContractSha256,
+    foundation_manifest_sha256: infraFreeze.foundationReceipt.sha256,
+  }
+  const after = {
+    'data.google_project.target': { project_id: profile.target.projectId },
+    'data.google_service_account.iac': { project: profile.target.projectId, account_id: profile.terraform.iacServiceAccount.split('@')[0], email: profile.terraform.iacServiceAccount },
+    'data.google_service_account.qc': { project: profile.target.projectId, account_id: profile.terraform.qcServiceAccount.split('@')[0], email: profile.terraform.qcServiceAccount },
+    'google_artifact_registry_repository.ai_pdm': { project: profile.target.projectId, location: profile.target.region, repository_id: profile.artifact.repository, format: 'DOCKER', description: 'DEV-013 AI-PDM managed staging immutable runtime images', labels: profile.target.requiredLabels },
+    'google_artifact_registry_repository_iam_member.iac_writer': { project: profile.target.projectId, location: profile.target.region, repository: profile.artifact.repository, role: 'roles/artifactregistry.writer', member: `serviceAccount:${profile.terraform.iacServiceAccount}` },
+    'google_storage_bucket.evidence': { project: profile.target.projectId, name: profile.evidence.bucket, location: profile.target.region, storage_class: 'STANDARD', uniform_bucket_level_access: true, public_access_prevention: 'enforced', force_destroy: false, labels: profile.target.requiredLabels, retention_policy: [{ is_locked: false, retention_period: 2592000 }] },
+    'google_storage_bucket_iam_member.iac_writer': { bucket: profile.evidence.bucket, role: 'roles/storage.objectCreator', member: `serviceAccount:${profile.terraform.iacServiceAccount}` },
+    'google_storage_bucket_iam_member.qc_reader': { bucket: profile.evidence.bucket, role: 'roles/storage.objectViewer', member: `serviceAccount:${profile.terraform.qcServiceAccount}` },
+  }
+  const plan = {
+    variables: Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { value }])),
+    resource_changes: [
+      ...profile.terraform.dataAddresses.map((address) => ({ address, change: { actions: ['read'], after: after[address] } })),
+      ...profile.terraform.resourceAddresses.map((address) => ({ address, change: { actions: ['create'], after: after[address] } })),
+    ],
+  }
+  assert.deepEqual(assertInfraTerraformPlan(plan, infraFreeze, profile), { status: 'PASS', stage: 'OWNER_INFRA_A', sourceRevision, addressCount: 8, releaseAuthority: false })
+  const incomplete = structuredClone(plan)
+  incomplete.resource_changes.pop()
+  expectCode(() => assertInfraTerraformPlan(incomplete, infraFreeze, profile), 'DEV013_AIPDM_INFRA_PLAN_ADDRESS_SET_MISMATCH')
+  const update = structuredClone(plan)
+  update.resource_changes.at(-1).change.actions = ['update']
+  expectCode(() => assertInfraTerraformPlan(update, infraFreeze, profile), 'DEV013_AIPDM_INFRA_PLAN_ACTION_DENIED')
+  const wrongBucket = structuredClone(plan)
+  wrongBucket.resource_changes.find((change) => change.address === 'google_storage_bucket.evidence').change.after.name = 'wrong-bucket'
+  expectCode(() => assertInfraTerraformPlan(wrongBucket, infraFreeze, profile), 'DEV013_AIPDM_INFRA_PLAN_OBJECT_INVALID')
+  const tamperedFoundationBytes = Buffer.concat([foundationReceiptBytes, Buffer.from(' ')])
+  const tamperedFreeze = createInfraSourceFreeze({ profile, sourceFreeze, foundationReceiptBytes: tamperedFoundationBytes })
+  assert.notEqual(tamperedFreeze.foundationReceipt.sha256, infraFreeze.foundationReceipt.sha256)
+  expectCode(() => assertInfraTerraformPlan(plan, tamperedFreeze, profile), 'DEV013_AIPDM_INFRA_PLAN_VARIABLE_MISMATCH')
+  const terraform = ['versions.tf', 'variables.tf', 'locals.tf', 'main.tf', 'outputs.tf'].map((name) => read(`${profile.terraform.root}/${name}`)).join('\n')
+  for (const forbidden of ['google_cloud_run_v2_service', 'google_cloud_run_v2_job', 'google_secret_manager_secret_version', 'ai-pdm-prod', 'jenfu-ai-pdm-stg-361825']) assert.doesNotMatch(terraform, new RegExp(forbidden, 'u'))
+})
+
+test('latest aliases require enabled metadata readback and a numeric-pinned revision before bootstrap', () => {
+  const initial = targetService('latest')
+  const identity = targetIdentity()
+  expectCode(() => buildTargetBootstrapReceipt({ profile, targetService: initial, targetIdentity: identity, secretVersionReadbacks: secretVersionReadbacks() }), 'DEV013_AIPDM_SECRET_VERSION_READBACK_INVALID')
+  expectCode(() => buildRevisionPlan({ profile, sourceFreeze: freeze(), platformService: platformService(), targetService: initial, targetIdentity: identity, artifactDigest, mode: 'off' }), 'DEV013_AIPDM_SECRET_REFERENCE_INVALID')
+  expectCode(() => buildSecretPinningPlan({ profile, targetService: initial, targetIdentity: identity, secretVersionReadbacks: Object.fromEntries(Object.entries(secretVersionReadbacks()).map(([name, value]) => [name, { ...value, state: 'DISABLED' }])) }), 'DEV013_AIPDM_SECRET_VERSION_READBACK_INVALID')
+  const pin = buildSecretPinningPlan({ profile, targetService: initial, targetIdentity: identity, secretVersionReadbacks: secretVersionReadbacks(), observedAt: '2026-09-17T00:00:20.000Z' })
+  const pinnedRefs = Object.fromEntries(pin.mutation.template.containers[0].env.filter((entry) => entry.valueSource).map((entry) => [entry.name, entry.valueSource.secretKeyRef]))
+  for (const [name, ref] of Object.entries(pinnedRefs)) assert.deepEqual(ref, { secret: profile.boundaries.secretReferences[name], version: '1' })
+  const candidateService = applySecretPinPlan(initial, pin, 'etag-pin')
+  const candidate = hardJoinSecretPinningRevision({ profile, plan: pin, targetService: candidateService, targetIdentity: identity })
+  const activation = buildSecretPinningActivationPlan({ profile, secretPinningRevision: candidate, currentService: candidateService })
+  const activeService = { ...structuredClone(candidateService), etag: 'etag-pin-active', traffic: structuredClone(activation.mutation.traffic) }
+  const active = hardJoinSecretPinningActivation({ profile, activationPlan: activation, targetService: activeService, targetIdentity: identity })
+  assert.equal(active.status, 'NUMERIC_SECRET_REVISION_ACTIVE')
+  const bootstrap = buildTargetBootstrapReceipt({ profile, targetService: activeService, targetIdentity: identity, secretVersionReadbacks: secretVersionReadbacks() })
+  assert.equal(bootstrap.schemaVersion, 'jenfu.dev013.l3-target-bootstrap-receipt.v2')
+  assert.deepEqual(bootstrap.boundaries.secretReferences, active.secretReferences)
+})
+
 test('target bootstrap receipt proves only the exact off-mode provider target', async () => {
-  const bootstrap = buildTargetBootstrapReceipt({ profile, targetService: targetService(), targetIdentity: targetIdentity(), observedAt: '2026-09-17T00:00:30.000Z' })
+  const bootstrap = buildTargetBootstrapReceipt({ profile, targetService: targetService(), targetIdentity: targetIdentity(), secretVersionReadbacks: secretVersionReadbacks(), observedAt: '2026-09-17T00:00:30.000Z' })
   assert.equal(bootstrap.status, 'TARGET_BOOTSTRAP_READY')
   assert.equal(bootstrap.runtime.ssoHandoffMode, 'off')
   const validatorPath = path.join(platformRoot, 'scripts/lib/dev013-l3-contract.mjs')
@@ -108,7 +193,7 @@ test('target bootstrap receipt proves only the exact off-mode provider target', 
   assert.equal(assertTargetBootstrapReceipt(bootstrap, 'ai-pdm', platformManifest), bootstrap)
   const enabled = targetService()
   enabled.template.containers[0].env.find((entry) => entry.name === 'PDM_JENFU_SSO_HANDOFF_MODE').value = 'on'
-  assert.throws(() => buildTargetBootstrapReceipt({ profile, targetService: enabled, targetIdentity: targetIdentity() }), /DEV013_AIPDM_TARGET_BOOTSTRAP_INVALID/u)
+  assert.throws(() => buildTargetBootstrapReceipt({ profile, targetService: enabled, targetIdentity: targetIdentity(), secretVersionReadbacks: secretVersionReadbacks() }), /DEV013_AIPDM_TARGET_BOOTSTRAP_INVALID/u)
 })
 
 test('off/on publication, exact hard joins, activation and rollback remain owner-scoped', () => {

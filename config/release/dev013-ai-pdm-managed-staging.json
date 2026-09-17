@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "jenfu.dev013.ai-pdm-managed-staging-release.v1",
-  "profileVersion": "OWNER_NATIVE_SHARED_STAGING_V1",
-  "contractSha256": "6a982afe530a1488a45e5ab7ec48bff520e390e11574d251d8c74367c5d215de",
+  "schemaVersion": "jenfu.dev013.ai-pdm-managed-staging-release.v2",
+  "profileVersion": "OWNER_NATIVE_SHARED_STAGING_V2",
+  "contractSha256": "3de303aaff74658c0af5ab3ee6eaef840e52ae47a0047043066630698f33ac81",
   "application": {
     "id": "ai-pdm",
     "repository": "jedchang0308-jenfu/AI-PDM",
@@ -12,7 +12,7 @@
   },
   "authorities": {
     "platformManifestPath": "../Jenfu-Platform/config/dev-013/l3-managed-staging.json",
-    "platformManifestSha256": "7538ab12e02566eb9de107c592d6cbb43045f4a00bc94a969a84eae8a424d96c",
+    "platformManifestSha256": "8d913f22b5ab15de62969ddbbd3951c9a819bbe0019688bcf8f99faa1ffc5df4",
     "handoffContractLockPath": "contracts/jenfu-sso-handoff/v1/contract-lock.json",
     "handoffContractSha256": "e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483"
   },
@@ -65,6 +65,28 @@
     "bucket": "jenfu-platform-nonprod-dev013-aipdm-evidence",
     "prefix": "receipts/dev-013/l3/ai-pdm",
     "secretValuesAllowed": false
+  },
+  "terraform": {
+    "root": "infra/google-cloud/dev-013-l3-ai-pdm",
+    "iacServiceAccount": "dev010-n1b-iac@jenfu-platform-nonprod.iam.gserviceaccount.com",
+    "qcServiceAccount": "dev010-n1c-qc@jenfu-platform-nonprod.iam.gserviceaccount.com",
+    "allowedActions": [
+      "create",
+      "read",
+      "no-op"
+    ],
+    "dataAddresses": [
+      "data.google_project.target",
+      "data.google_service_account.iac",
+      "data.google_service_account.qc"
+    ],
+    "resourceAddresses": [
+      "google_artifact_registry_repository.ai_pdm",
+      "google_artifact_registry_repository_iam_member.iac_writer",
+      "google_storage_bucket.evidence",
+      "google_storage_bucket_iam_member.iac_writer",
+      "google_storage_bucket_iam_member.qc_reader"
+    ]
   },
   "runtime": {
     "applicationContainer": "ai-pdm",
@@ -148,10 +170,21 @@
     "siblingMutations": 0
   },
   "boundaries": {
-    "secretId": "dev010-stg-aipdm-runtime-config",
+    "secretReferences": {
+      "PDM_SESSION_CURRENT_SECRET": "dev010-n1c-ai-pdm-session-current",
+      "PDM_SESSION_PREVIOUS_SECRET": "dev010-n1c-ai-pdm-session-previous",
+      "PDM_WORKBENCH_CONTRACT_SECRET": "dev010-n1c-ai-pdm-workbench-contract"
+    },
+    "versionBootstrap": {
+      "mode": "EXISTING_ENABLED_NUMERIC_READBACK",
+      "allowedBaselineAliases": [
+        "latest"
+      ]
+    },
     "secretValuesRead": false,
     "databaseMigrations": 0,
-    "terraformApply": false,
+    "infraBootstrapTerraform": true,
+    "serviceTerraformApply": false,
     "productionMutations": 0,
     "siblingMutations": 0,
     "legacyStagingMutations": 0,
