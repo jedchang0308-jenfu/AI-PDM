@@ -620,15 +620,26 @@ export function buildSecretPinningPlan({ profile, targetService, targetIdentity,
   return { ...core, planSha256: sha256(canonicalize(core)) }
 }
 
-export function hardJoinSecretPinningRevision({ profile, plan, targetService, targetIdentity, observedAt = new Date().toISOString() }) {
+function assertRetiredReadyRevision(value, profile, revision) {
+  const expectedName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}/revisions/${revision}`
+  const conditions = Array.isArray(value?.conditions) ? value.conditions : []
+  const ready = conditions.find((item) => item.type === 'Ready')
+  const containerReady = conditions.find((item) => item.type === 'ContainerReady')
+  const active = conditions.find((item) => item.type === 'Active')
+  if (value?.name !== expectedName || typeof value?.etag !== 'string' || value.etag.length < 4 || ready?.state !== 'CONDITION_SUCCEEDED' || containerReady?.state !== 'CONDITION_SUCCEEDED' || active?.state !== 'CONDITION_FAILED' || active?.revisionReason !== 'RETIRED') fail('DEV013_AIPDM_SECRET_PIN_REVISION_READBACK_INVALID')
+  return { name: expectedName, etag: value.etag, readyState: ready.state, containerReadyState: containerReady.state, activeState: active.state, activeReason: active.revisionReason }
+}
+
+export function hardJoinSecretPinningRevision({ profile, plan, targetService, targetIdentity, targetRevision, observedAt = new Date().toISOString() }) {
   if (plan?.schemaVersion !== 'jenfu.dev013.ai-pdm-secret-pinning-plan.v1' || plan.status !== 'READY_FOR_EXPLICIT_NONPROD_SECRET_PINNING' || plan.releaseAuthority !== false || plan.planSha256 !== selfHash(plan, 'planSha256')) fail('DEV013_AIPDM_SECRET_PIN_PLAN_INVALID')
   const target = normalizeServiceReadback(targetService, profile, 'target')
   const identity = normalizeServiceAccountReadback(targetIdentity, profile)
   const boundary = preservedBoundary(target, identity, profile)
   const revision = expectedSecretPinRevision(profile, plan.secretReferences)
+  const revisionReadback = assertRetiredReadyRevision(targetRevision, profile, revision)
   const env = environmentMap(appContainer(target.template, profile))
   const labelsMatch = Object.entries(profile.target.requiredLabels).every(([key, value]) => target.labels[key] === value)
-  if (plan.mutation?.updateMask !== 'labels,template' || plan.mutation?.trafficChanges !== 0 || target.etag === plan.before?.etag || target.origin !== plan.target?.canonicalOrigin || identity.uniqueId !== plan.runtimeServiceAccount?.uniqueId || target.template?.revision !== revision || target.latestCreatedRevision !== revision || target.latestReadyRevision !== revision || appContainer(target.template, profile).image !== plan.applicationImage || (env.PDM_JENFU_SSO_HANDOFF_MODE ?? profile.environment.initialHandoffMode) !== 'off' || boundary.sha256 !== plan.before?.stateSha256 || sha256(canonicalize(target.traffic)) !== plan.before?.trafficSha256 || canonicalize(boundary.secretRefs) !== canonicalize(assertExactSecretReferences(plan.secretReferences, profile)) || !labelsMatch) fail('DEV013_AIPDM_SECRET_PIN_HARD_JOIN_INVALID')
+  if (plan.mutation?.updateMask !== 'labels,template' || plan.mutation?.trafficChanges !== 0 || target.etag === plan.before?.etag || target.origin !== plan.target?.canonicalOrigin || identity.uniqueId !== plan.runtimeServiceAccount?.uniqueId || target.template?.revision !== revision || target.latestCreatedRevision !== revision || target.latestReadyRevision === revision || appContainer(target.template, profile).image !== plan.applicationImage || (env.PDM_JENFU_SSO_HANDOFF_MODE ?? profile.environment.initialHandoffMode) !== 'off' || boundary.sha256 !== plan.before?.stateSha256 || sha256(canonicalize(target.traffic)) !== plan.before?.trafficSha256 || canonicalize(boundary.secretRefs) !== canonicalize(assertExactSecretReferences(plan.secretReferences, profile)) || !labelsMatch) fail('DEV013_AIPDM_SECRET_PIN_HARD_JOIN_INVALID')
   const core = {
     schemaVersion: 'jenfu.dev013.ai-pdm-secret-pinning-revision.v1',
     ownerApplicationId: 'ai-pdm',
@@ -636,6 +647,7 @@ export function hardJoinSecretPinningRevision({ profile, plan, targetService, ta
     providerEtag: target.etag,
     canonicalOrigin: target.origin,
     runtimeServiceAccount: identity,
+    revisionReadback,
     secretReferences: boundary.secretRefs,
     protectedStateSha256: protectedBoundarySha256(boundary),
     trafficSha256: sha256(canonicalize(target.traffic)),
@@ -649,7 +661,7 @@ export function hardJoinSecretPinningRevision({ profile, plan, targetService, ta
 export function buildSecretPinningActivationPlan({ profile, secretPinningRevision, currentService, observedAt = new Date().toISOString() }) {
   const current = normalizeServiceReadback(currentService, profile, 'target')
   if (secretPinningRevision?.schemaVersion !== 'jenfu.dev013.ai-pdm-secret-pinning-revision.v1' || secretPinningRevision.status !== 'SECRET_PINNING_REVISION_READY' || secretPinningRevision.releaseAuthority !== false || secretPinningRevision.receiptSha256 !== selfHash(secretPinningRevision)) fail('DEV013_AIPDM_SECRET_PIN_RECEIPT_INVALID')
-  if (current.etag !== secretPinningRevision.providerEtag || current.latestCreatedRevision !== secretPinningRevision.revision || current.latestReadyRevision !== secretPinningRevision.revision || current.origin !== secretPinningRevision.canonicalOrigin || sha256(canonicalize(current.traffic)) !== secretPinningRevision.trafficSha256) fail('DEV013_AIPDM_SECRET_PIN_ACTIVATION_JOIN_INVALID')
+  if (current.etag !== secretPinningRevision.providerEtag || current.latestCreatedRevision !== secretPinningRevision.revision || current.latestReadyRevision === secretPinningRevision.revision || current.origin !== secretPinningRevision.canonicalOrigin || secretPinningRevision.revisionReadback?.readyState !== 'CONDITION_SUCCEEDED' || secretPinningRevision.revisionReadback?.containerReadyState !== 'CONDITION_SUCCEEDED' || secretPinningRevision.revisionReadback?.activeReason !== 'RETIRED' || sha256(canonicalize(current.traffic)) !== secretPinningRevision.trafficSha256) fail('DEV013_AIPDM_SECRET_PIN_ACTIVATION_JOIN_INVALID')
   const core = {
     schemaVersion: 'jenfu.dev013.ai-pdm-secret-pinning-activation-plan.v1',
     ownerApplicationId: 'ai-pdm',

@@ -121,7 +121,7 @@ if (command === 'profile-check') {
 } else if (command === 'baseline-traffic-pin-hard-join') {
   emit(hardJoinBaselineTrafficPinning({ profile, plan: jsonOption('baseline-traffic-pin-plan'), targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
 } else if (command === 'secret-pin-hard-join') {
-  emit(hardJoinSecretPinningRevision({ profile, plan: jsonOption('secret-pin-plan'), targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
+  emit(hardJoinSecretPinningRevision({ profile, plan: jsonOption('secret-pin-plan'), targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity'), targetRevision: jsonOption('target-revision') }))
 } else if (command === 'secret-pin-activation-plan') {
   emit(buildSecretPinningActivationPlan({ profile, secretPinningRevision: jsonOption('secret-pin-receipt'), currentService: jsonOption('target-service') }))
 } else if (command === 'secret-pin-activation-hard-join') {

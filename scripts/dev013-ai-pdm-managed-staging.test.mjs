@@ -107,7 +107,21 @@ function applyRevisionPlan(service, plan, etag) {
 }
 
 function applySecretPinPlan(service, plan, etag) {
-  return applyRevisionPlan(service, plan, etag)
+  const applied = applyRevisionPlan(service, plan, etag)
+  applied.latestReadyRevision = service.latestReadyRevision
+  return applied
+}
+
+function retiredReadyRevision(revision) {
+  return {
+    name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}/revisions/${revision}`,
+    etag: 'revision-etag',
+    conditions: [
+      { type: 'Ready', state: 'CONDITION_SUCCEEDED', revisionReason: 'RETIRED' },
+      { type: 'ContainerReady', state: 'CONDITION_SUCCEEDED' },
+      { type: 'Active', state: 'CONDITION_FAILED', revisionReason: 'RETIRED' },
+    ],
+  }
 }
 
 function expectCode(callback, code) {
@@ -209,9 +223,9 @@ test('latest aliases require enabled metadata readback and a numeric-pinned revi
   const pinnedRefs = Object.fromEntries(pin.mutation.template.containers[0].env.filter((entry) => entry.valueSource).map((entry) => [entry.name, entry.valueSource.secretKeyRef]))
   for (const [name, ref] of Object.entries(pinnedRefs)) assert.deepEqual(ref, { secret: profile.boundaries.secretReferences[name], version: '1' })
   const candidateService = applySecretPinPlan(initial, pin, 'etag-pin')
-  const candidate = hardJoinSecretPinningRevision({ profile, plan: pin, targetService: candidateService, targetIdentity: identity })
+  const candidate = hardJoinSecretPinningRevision({ profile, plan: pin, targetService: candidateService, targetIdentity: identity, targetRevision: retiredReadyRevision(pin.mutation.template.revision) })
   const activation = buildSecretPinningActivationPlan({ profile, secretPinningRevision: candidate, currentService: candidateService })
-  const activeService = { ...structuredClone(candidateService), etag: 'etag-pin-active', traffic: structuredClone(activation.mutation.traffic) }
+  const activeService = { ...structuredClone(candidateService), etag: 'etag-pin-active', latestReadyRevision: candidate.revision, traffic: structuredClone(activation.mutation.traffic) }
   const active = hardJoinSecretPinningActivation({ profile, activationPlan: activation, targetService: activeService, targetIdentity: identity })
   assert.equal(active.status, 'NUMERIC_SECRET_REVISION_ACTIVE')
   const bootstrap = buildTargetBootstrapReceipt({ profile, targetService: activeService, targetIdentity: identity, secretVersionReadbacks: secretVersionReadbacks() })
@@ -229,7 +243,7 @@ test('secret pinning backfills only the declared fail-closed baseline environmen
   const plannedEnv = Object.fromEntries(plannedApp.env.filter((entry) => Object.hasOwn(entry, 'value')).map((entry) => [entry.name, entry.value]))
   assert.deepEqual(Object.fromEntries(Object.keys(defaults).map((name) => [name, plannedEnv[name]])), defaults)
   const after = applySecretPinPlan(initial, plan, 'etag-pin-defaults')
-  assert.equal(hardJoinSecretPinningRevision({ profile, plan, targetService: after, targetIdentity: targetIdentity() }).status, 'SECRET_PINNING_REVISION_READY')
+  assert.equal(hardJoinSecretPinningRevision({ profile, plan, targetService: after, targetIdentity: targetIdentity(), targetRevision: retiredReadyRevision(plan.mutation.template.revision) }).status, 'SECRET_PINNING_REVISION_READY')
 
   const invalid = targetService('latest')
   const invalidApp = invalid.template.containers.find((item) => item.name === profile.runtime.applicationContainer)
