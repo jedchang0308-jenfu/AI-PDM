@@ -3,7 +3,8 @@ import path from 'node:path'
 import test from 'node:test'
 
 import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath } from './lib/dev012-owner-prerequisite-producer.mjs'
-import { sha256 } from './lib/dev012-owner-release-runtime.mjs'
+import { canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
+import { DEV013_L4_FORWARD_STEPS, dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 
 const H40 = 'a'.repeat(40)
 const H64 = 'b'.repeat(64)
@@ -47,16 +48,28 @@ test('release intent accepts only owner refs and release-authority prerequisites
 
 test('DEV-013 transition authority binds provider baseline, desired runtime and verified predecessor', () => {
   const transitionProfile = structuredClone(profile)
-  transitionProfile.environment.requiredPlainEnvironmentNames = ['NODE_ENV', 'HANDOFF_MODE']
-  transitionProfile.environment.controlledValues = { HANDOFF_MODE: { defaultValue: 'off', allowedValues: ['off', 'on'] } }
-  const runtime = buildRuntimeConfigReceipt({ profile: transitionProfile, releaseId: 'REL-001', sourceLock, plainEnvironment: { NODE_ENV: 'production', HANDOFF_MODE: 'on' }, secretVersions: { SESSION_SECRET: '7' }, observedAt: NOW })
-  const predecessorRef = { uri: 'gs://platform-sequence/receipts/dev013/root.json', sha256: H64 }
-  const predecessorEvidence = assertDev013PredecessorReceipt({ schemaVersion: 'jenfu.dev013.l4-execution-authorization.v1', projectId: 'project', region: 'region', sourceRevisionByApplication: { platform: H40, orgmaster: 'c'.repeat(40), 'ai-pdm': 'd'.repeat(40) }, status: 'PASS', releaseAuthority: true, remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' }, predecessorRef, transitionProfile, NOW)
-  const result = buildDev013TransitionAuthority({ profile: transitionProfile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, previousRevision: 'service-00001-old', previousControlledEnvironment: { HANDOFF_MODE: 'off' }, transition: { field: 'HANDOFF_MODE', from: 'off', to: 'on', action: 'activate', predecessorReceiptRef: predecessorRef }, predecessorEvidence, observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' })
+  transitionProfile.application.id = 'ai-pdm'
+  transitionProfile.target.projectId = 'jenfu-platform-prod'
+  transitionProfile.target.region = 'asia-east1'
+  transitionProfile.environment.requiredPlainEnvironmentNames = ['NODE_ENV', 'PDM_JENFU_SSO_HANDOFF_MODE']
+  transitionProfile.environment.controlledValues = { PDM_JENFU_SSO_HANDOFF_MODE: { defaultValue: 'off', allowedValues: ['off', 'on'] } }
+  const aiSourceLock = buildSourceFreeze({ profile: transitionProfile, releaseId: 'REL-001', observedAt: NOW, git: { clean: true, branch: 'main', sourceRevision: H40, sourceTree: 'c'.repeat(40), remoteRevision: H40 }, sourceIdentityBytes: Buffer.from('tree-manifest'), migrationBundle: { bundle: { manifestSha256: H64 } } })
+  const previousControlledEnvironment = { PDM_JENFU_SSO_HANDOFF_MODE: null }
+  const controlledEnvironment = { PDM_JENFU_SSO_HANDOFF_MODE: 'off' }
+  const predecessorRef = { uri: 'gs://jenfu-platform-prod-orgmaster-release/receipts/dev013/g2.json', sha256: H64 }
+  const transition = { field: 'PDM_JENFU_SSO_HANDOFF_MODE', from: null, to: 'off', action: 'guard', predecessorReceiptRef: predecessorRef }
+  const currentStep = dev013L4SequenceStep('ai-pdm', transition, previousControlledEnvironment, controlledEnvironment)
+  const sequenceRoot = { schemaVersion: 'jenfu.dev013.l4-sequence-root.v1', authorizationId: 'DEV013-L4-AUTH-TEST0001', authorizationStatementSha256: '1'.repeat(64), manifestSha256: '2'.repeat(64), authorizedAt: NOW, expiresAt: '2026-09-08T08:00:00.000Z', receiptRef: { uri: 'gs://jenfu-platform-prod-platform-release/receipts/dev013/root.json', sha256: 'e'.repeat(64) }, sourceRevisionByApplication: { platform: 'b'.repeat(40), orgmaster: 'c'.repeat(40), 'ai-pdm': H40 } }
+  const terminalCore = { schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'orgmaster', releaseId: 'REL-G2', sourceRevision: sequenceRoot.sourceRevisionByApplication.orgmaster, stage: 'terminal', previousReceiptRef: null, facts: { result: 'RELEASED', remainingHumanAction: 0, dev013Transition: { schemaVersion: 'jenfu.dev013.l4-terminal-transition.v1', sequenceRoot, sequenceStep: DEV013_L4_FORWARD_STEPS[1], predecessorReceiptRef: sequenceRoot.receiptRef } }, observedAt: NOW, status: 'PASS' }
+  const terminalReceipt = { ...terminalCore, receiptSha256: sha256(canonicalize(terminalCore)) }
+  const predecessorEvidence = { ...assertDev013PredecessorReceipt(terminalReceipt, predecessorRef, transitionProfile, NOW, H40, currentStep), currentStep }
+  const runtime = buildRuntimeConfigReceipt({ profile: transitionProfile, releaseId: 'REL-001', sourceLock: aiSourceLock, plainEnvironment: { NODE_ENV: 'production', ...controlledEnvironment }, secretVersions: { SESSION_SECRET: '7' }, observedAt: NOW })
+  const result = buildDev013TransitionAuthority({ profile: transitionProfile, releaseId: 'REL-001', sourceLock: aiSourceLock, runtimeConfigReceipt: runtime, previousRevision: 'service-00001-old', previousControlledEnvironment, transition, predecessorEvidence, observedAt: NOW, expiresAt: '2026-09-08T08:00:00.000Z' })
   assert.equal(result.authorization.authorizationBasis, 'OPERATOR_INVOKED_DEV013_L4')
-  assert.deepEqual(result.readiness.controlledEnvironment, { HANDOFF_MODE: 'on' })
+  assert.deepEqual(result.readiness.controlledEnvironment, controlledEnvironment)
+  assert.equal(result.readiness.sequenceStep.stepId, 'G3_AI_PDM_GUARD')
   assert.equal(result.readiness.previousRevision, 'service-00001-old')
-  assert.throws(() => buildDev013TransitionAuthority({ profile: transitionProfile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, previousRevision: 'service-00001-old', previousControlledEnvironment: { HANDOFF_MODE: 'on' }, transition: { field: 'HANDOFF_MODE', from: 'on', to: 'on', action: 'activate', predecessorReceiptRef: predecessorRef }, predecessorEvidence, observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' }), /DEV013_TRANSITION_NOOP_DENIED/)
+  assert.throws(() => buildDev013TransitionAuthority({ profile: transitionProfile, releaseId: 'REL-001', sourceLock: aiSourceLock, runtimeConfigReceipt: runtime, previousRevision: 'service-00001-old', previousControlledEnvironment: controlledEnvironment, transition, predecessorEvidence, observedAt: NOW, expiresAt: '2026-09-08T08:00:00.000Z' }), /DEV013_TRANSITION_NOOP_DENIED/)
 })
 
 test('CLI exposes the guarded DEV-013 transition authority stage', () => {

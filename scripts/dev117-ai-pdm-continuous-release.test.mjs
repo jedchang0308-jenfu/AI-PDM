@@ -7,6 +7,7 @@ import { buildAiPdmPackage } from './dev010-n1c-ai-pdm-package.mjs'
 import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
+import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
@@ -21,12 +22,17 @@ const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex'
 
 function controlledPrerequisites(ownerProfile, runtimeConfig) {
   const intent = { releaseId: 'DEV013-L4-AIPDM-001', sourceRevision: 'b'.repeat(40) }
-  const common = { ownerApplicationId: ownerProfile.application.id, projectId: ownerProfile.target.projectId, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, environment: 'production', expiresAt: '2999-01-01T00:00:00.000Z', remainingHumanAction: 0, status: 'PASS', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND' }
+  const common = { ownerApplicationId: ownerProfile.application.id, projectId: ownerProfile.target.projectId, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, environment: 'production', observedAt: '2999-01-01T00:00:00.000Z', expiresAt: '2999-01-01T08:00:00.000Z', remainingHumanAction: 0, status: 'PASS', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND' }
   const predecessorReceiptRef = { uri: 'gs://jenfu-platform-prod-platform-release/receipts/dev013/platform-accept.json', sha256: '9'.repeat(64) }
+  const previousControlledEnvironment = { PDM_JENFU_SSO_HANDOFF_MODE: 'off' }
+  const controlledEnvironment = { PDM_JENFU_SSO_HANDOFF_MODE: 'on' }
+  const transition = { field: 'PDM_JENFU_SSO_HANDOFF_MODE', from: 'off', to: 'on', action: 'activate', predecessorReceiptRef }
+  const sequenceStep = dev013L4SequenceStep(ownerProfile.application.id, transition, previousControlledEnvironment, controlledEnvironment)
+  const sequenceRoot = { schemaVersion: 'jenfu.dev013.l4-sequence-root.v1', authorizationId: 'DEV013-L4-AUTH-TEST0001', authorizationStatementSha256: '7'.repeat(64), manifestSha256: '8'.repeat(64), authorizedAt: common.observedAt, expiresAt: common.expiresAt, receiptRef: { uri: 'gs://jenfu-platform-prod-platform-release/receipts/dev013/root.json', sha256: '8'.repeat(64) }, sourceRevisionByApplication: { platform: 'a'.repeat(40), orgmaster: 'c'.repeat(40), 'ai-pdm': intent.sourceRevision } }
   return { intent, values: {
     sourceLock: { ...common, clean: true, status: 'SOURCE_FROZEN' },
     authorization: { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-authorization.v1', authorizationBasis: 'OPERATOR_INVOKED_DEV013_L4' },
-    readiness: { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-readiness.v1', devId: 'DEV-013', slice: '013-R1', controlledEnvironment: { PDM_JENFU_SSO_HANDOFF_MODE: 'on' }, transition: { field: 'PDM_JENFU_SSO_HANDOFF_MODE', from: 'off', to: 'on', action: 'activate', predecessorReceiptRef } },
+    readiness: { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-readiness.v1', devId: 'DEV-013', slice: '013-R1', sequenceRoot, sequenceStep, previousControlledEnvironment, controlledEnvironment, transition },
     foundation: { ...common, ownerApplicationId: 'shared-foundation' },
     infra: { ...common, migrationRunnerDigest: `${ownerProfile.artifact.migrationRunnerUri}@sha256:${'c'.repeat(64)}` },
     runtimeConfig: { ...common, status: 'VERIFIED', runtimeConfig },
@@ -112,6 +118,8 @@ test('AI-PDM owner prepare requires sealed DEV-013 authority before handoff on',
   const offRuntime = buildRuntimeConfig(profile, { plainEnvironment: offPlain, secretVersions: runtimeConfig.secretVersions })
   fixture.values.readiness.controlledEnvironment.PDM_JENFU_SSO_HANDOFF_MODE = 'off'
   fixture.values.readiness.transition = { ...fixture.values.readiness.transition, from: 'on', to: 'off', action: 'rollback' }
+  fixture.values.readiness.previousControlledEnvironment = { PDM_JENFU_SSO_HANDOFF_MODE: 'on' }
+  fixture.values.readiness.sequenceStep = dev013L4SequenceStep(profile.application.id, fixture.values.readiness.transition, fixture.values.readiness.previousControlledEnvironment, fixture.values.readiness.controlledEnvironment)
   assert.equal(assertControlledEnvironmentAuthority({ ...fixture, profile, runtime: offRuntime, previousControlledEnvironment: { PDM_JENFU_SSO_HANDOFF_MODE: 'on' } }), undefined)
 })
 
