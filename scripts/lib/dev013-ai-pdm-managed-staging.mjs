@@ -53,7 +53,7 @@ function contractHash(profile) {
 export function assertDev013AiPdmStagingProfile(profile, platformManifest, contractLock) {
   object(profile, 'DEV013_AIPDM_PROFILE_INVALID')
   if (profile.schemaVersion !== 'jenfu.dev013.ai-pdm-managed-staging-release.v2' || profile.profileVersion !== 'OWNER_NATIVE_SHARED_STAGING_V2' || profile.contractSha256 !== contractHash(profile)) fail('DEV013_AIPDM_PROFILE_HASH_INVALID')
-  if (profile.authorities?.platformManifestSha256 !== 'eefcfbd8b5297a37f813401c3bbaf128ad0486ed59e5b53c11730125d6a5292d' || profile.authorities?.handoffContractSha256 !== 'e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483') fail('DEV013_AIPDM_AUTHORITY_HASH_INVALID')
+  if (profile.authorities?.platformManifestSha256 !== 'bc51a29b28a34a6316f41e3a2cfb0bc399c07befc8fc61334014f24627bae30d' || profile.authorities?.handoffContractSha256 !== 'e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483') fail('DEV013_AIPDM_AUTHORITY_HASH_INVALID')
   if (contractLock?.contractVersion !== 'jenfu.sso-handoff.v1' || contractLock?.manifestSha256 !== profile.authorities.handoffContractSha256) fail('DEV013_AIPDM_HANDOFF_LOCK_INVALID')
   const manifestApp = platformManifest?.applications?.['ai-pdm']
   if (platformManifest?.schemaVersion !== 'jenfu.dev013.l3-managed-staging.v2' || platformManifest?.contractStatus !== 'CONTRACT_FROZEN_READY_FOR_OWNER_WORK' || !manifestApp) fail('DEV013_AIPDM_PLATFORM_MANIFEST_INVALID')

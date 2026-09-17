@@ -1,7 +1,7 @@
 {
   "schemaVersion": "jenfu.dev013.ai-pdm-managed-staging-release.v2",
   "profileVersion": "OWNER_NATIVE_SHARED_STAGING_V2",
-  "contractSha256": "991966e7ae92ce703224fef4c6a27843e4c9e49572039716df3cece3c07a1f09",
+  "contractSha256": "2406429644bd8bbf3ff931aef902f14b28d621cb9111edb386de53c724999993",
   "application": {
     "id": "ai-pdm",
     "repository": "jedchang0308-jenfu/AI-PDM",
@@ -12,7 +12,7 @@
   },
   "authorities": {
     "platformManifestPath": "../Jenfu-Platform/config/dev-013/l3-managed-staging.json",
-    "platformManifestSha256": "eefcfbd8b5297a37f813401c3bbaf128ad0486ed59e5b53c11730125d6a5292d",
+    "platformManifestSha256": "bc51a29b28a34a6316f41e3a2cfb0bc399c07befc8fc61334014f24627bae30d",
     "handoffContractLockPath": "contracts/jenfu-sso-handoff/v1/contract-lock.json",
     "handoffContractSha256": "e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483"
   },

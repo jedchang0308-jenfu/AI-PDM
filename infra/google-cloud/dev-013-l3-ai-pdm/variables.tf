@@ -35,7 +35,7 @@ variable "source_tree" {
 variable "platform_manifest_sha256" {
   type = string
   validation {
-    condition     = var.platform_manifest_sha256 == "eefcfbd8b5297a37f813401c3bbaf128ad0486ed59e5b53c11730125d6a5292d"
+    condition     = var.platform_manifest_sha256 == "bc51a29b28a34a6316f41e3a2cfb0bc399c07befc8fc61334014f24627bae30d"
     error_message = "Use the frozen DEV-013 L3 Platform manifest v2 SHA-256."
   }
 }
