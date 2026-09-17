@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isDeepStrictEqual } from 'node:util'
 
 export const DEV013_AI_PDM_FIXTURE_VERSION = 'jenfu.dev013.ai-pdm-l3-p-both-fixture.v1'
 export const DEV013_AI_PDM_FIXTURE_APPROVAL = 'DEV013-L3-P-BOTH-FIXTURE-AUTHORIZED'
@@ -170,7 +171,7 @@ export async function applyDev013AiPdmFixture(client, fixture, rawCatalog = read
     } else {
       const stored = (await client.query(`SELECT display_order,stable_role_id,role_code,display_name,assignable,risk,subject_kind,recommendation_allowed,delegation_allowed,allowed_scope_kinds,assignment_tier,permissions,metadata,role_definition_hash
         FROM ai_pdm_core.role_catalog_entries WHERE catalog_version=$1 ORDER BY display_order`, [catalog.catalogVersion])).rows
-      if (stored.length !== catalog.roles.length || stored.some((row, index) => row.display_order !== index || JSON.stringify(storedRoleFingerprint(row)) !== JSON.stringify(expectedRoleFingerprint(catalog.roles[index])))) throw new Error('DEV013_ROLE_CATALOG_STORED_PAYLOAD_INVALID')
+      if (stored.length !== catalog.roles.length || stored.some((row, index) => row.display_order !== index || !isDeepStrictEqual(storedRoleFingerprint(row), expectedRoleFingerprint(catalog.roles[index])))) throw new Error('DEV013_ROLE_CATALOG_STORED_PAYLOAD_INVALID')
     }
     const activeCatalog = (await client.query(`SELECT catalog_version FROM ai_pdm_core.active_role_catalog WHERE application_id='ai-pdm' FOR UPDATE`)).rows
     if (activeCatalog.length > 1 || activeCatalog.some((row) => row.catalog_version !== catalog.catalogVersion)) throw new Error('DEV013_ACTIVE_ROLE_CATALOG_COLLISION')
