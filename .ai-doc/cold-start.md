@@ -41,7 +41,7 @@
 
 ## Current Dispatch Boundary
 
-- `DEV-118 / 118-A` 已完成 PDM 本地實作與 focused QA/QC；`RD Implementation Ready + 架構定案` 僅限 PDM 本地入口，現在等待 118-B Platform owner 承接。
+- `DEV-118 / 118-A` 已完成 PDM 本地實作與 focused QA/QC；`RD Implementation Ready + 架構定案` 僅限 PDM 本地入口。118-B 現為 `Blocked—Platform Explicit Authorization Required`：須先由人類明確授權 `C:\VIBE CODING\Jenfu-Platform` 的文件、程式、測試與本機驗證範圍，才可由 Platform owner 承接；跨專案派工文字本身不是執行授權。
   先讀 [DEV-118 SPEC](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md) §§1–5；
   2026-09-17 決策：SSO 啟用後 PDM 只提供平台主入口；Google／工號是同一核准身分的兩種起手方式。
   平台目前仍為 email/password，雙入口與 non-Google provider-managed 管理員開通依 §6／§6.1 由 Platform owner 承接；不得當作 DEV-013 已完成能力。

@@ -1,7 +1,7 @@
 # DEV-118：平台登入入口對齊與 Google／工號身分契約
 
-- 文件成熟度：`118-A RD Implementation Ready + 架構定案（PDM 本地入口）`；`118-B RD Contract Ready / Platform Handoff Required`；`118-C Release Gated`。
-- 工作狀態：118-A PDM 本地實作與 QA/QC 已完成；118-B 維持 `RD Contract Ready / Platform Handoff Required`；118-C 維持 `Release Gated`，正式整合尚未驗收。
+- 文件成熟度：`118-A RD Implementation Ready + 架構定案（PDM 本地入口）`；`118-B RD Contract Ready / Blocked—Platform Explicit Authorization Required`；`118-C Release Gated`。
+- 工作狀態：118-A PDM 本地實作與 QA/QC 已完成；118-B 維持 `RD Contract Ready`，但須先取得人類對 `C:\VIBE CODING\Jenfu-Platform` 文件、程式、測試與本機驗證的明確授權；118-C 維持 `Release Gated`，正式整合尚未驗收。
 - 建立：2026-09-16；本次決策修訂：2026-09-17。
 - 來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`，保留原 ID／檔名供追溯。
 - 節點：開發點，支援 AI-PDM `DEV-003` 身分／權限交付與 Platform `DEV-013` SSO；關聯 `DEV-046`、`DEV-117`。
@@ -168,7 +168,7 @@ Platform owner 必須先把本段登錄為 owner-native 任務／現有登入任
 
 進入 Implementation Ready 前，Platform owner 須定案：工號 mapping 的現有 source／versioned read contract、平台新增 UI/API 及 transaction 邊界、provider readiness 與錯誤方式、Google-managed 與 non-Google 分支、完整 test cases。不得跨 app 讀寫 PDM 私有 `*_core` 作平台 login directory，也不得建立第二套 credential store。
 
-本輪只做唯讀 source／authority 比對；Platform code、文件、資料、provider 設定與任務板均未修改。
+本輪只做唯讀 source／authority 比對；Platform code、文件、資料、provider 設定與任務板均未修改。交付給其他專案 agent 的開發指令只定義預期工作，不取代人類對目標專案與動作範圍的明確授權；未取得授權前，不得在 Platform 建立任務、修改文件／程式／測試，或執行測試、build、runtime 與 provider mutation。
 
 ## 7. 118-C：SSO 發布與整合驗收 capsule
 
@@ -190,7 +190,7 @@ Production 功能完成需實際 canonical、exact artifact／revision、受控 
 
 ## 8. 派工、完成與文件治理
 
-- **118-A 已完成本地 coding 與 focused local QA**：平台雙入口仍待 118-B owner-native 任務承接，production 由 118-C gate 進入；目前 AI-PDM 沒有可提前執行的 B/C 本地替代工作。
+- **118-A 已完成本地 coding 與 focused local QA**：平台雙入口仍待人類先明確授權 `C:\VIBE CODING\Jenfu-Platform` 的文件、程式、測試與本機驗證範圍，再由 118-B owner-native 任務承接；production 由 118-C gate 進入。目前 AI-PDM 沒有可提前執行的 B/C 本地替代工作。
 - 本 DEV 從原獨立「直接 Google 修復交付點」收斂為既有身分／SSO 交付的**開發點**，不新增產品交付分母。原 scope 被取代，不記已完成；DEV-013 已有成果不重複計入 DEV-118。
 - `架構定案` 僅適用 §4 的 PDM 入口切片；不宣稱 Platform 雙入口的 mapping／API／provider 實作已定案。B 的缺口不阻塞 A 本地設計，但阻塞 C01/C02 與完整需求交付。
 - A 實作可決定局部 helper 命名、測試組織與樣式；不得改變入口模式、provider／identity／permission authority 或偷加 release 契約。需改 SSO wire schema、DB、shared credential、跨 repo source、平台 alias authority 時，停止受影響切片並回送 owner 規劃。

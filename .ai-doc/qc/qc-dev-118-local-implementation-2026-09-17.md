@@ -32,3 +32,10 @@ Browser manifest：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-17T00-4
 Platform 現有登入 source 仍為 email/password；Google／工號雙入口、non-Google provider-managed 管理員開通與跨 app handoff 仍屬 118-B，需 Platform owner 建立／承接 owner-native 任務並補 mapping／API／provider 分支證據。118-C 仍受既有 SSO／release gate 約束；本 receipt 不授權 provider 設定、production、deploy、traffic 或 DB 變更。
 
 本次 task-owned browser runtime、4501／62707／3000 ports 與 `.tmp` 目錄均已清理；使用者原有 production browser tab 未導覽或關閉。
+
+## 2026-09-17 completion recheck
+
+- Current HEAD：`5d4b5f129`；DEV-118 implementation commit `de4c3c629` 是其 ancestor。
+- `de4c3c629..HEAD` 在 DEV-118 產品程式、contract runner、browser runner與兩份 QC receipt 均無內容漂移；唯一命中的 `package.json` 差異是新增 DEV-013 L3 scripts，既有 DEV-118 scripts 未改。
+- 以 task-owned `PDM_DATA_DIR`／`PDM_REPOSITORY_DIR` 重新執行：`qc:dev-118:contract` 10/10、`test:dev-013` 3/3、`qc:dev-046-login-alias` 21/21、`typecheck:app` PASS。
+- 驗證程序未開 port；task-owned `.tmp/dev118-completion-audit` 已刪除並確認不存在。Browser 及 isolated build 沿用上方 receipt，因其涵蓋的 DEV-118 產品檔沒有漂移。
