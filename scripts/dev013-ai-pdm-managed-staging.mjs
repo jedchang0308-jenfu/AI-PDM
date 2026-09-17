@@ -8,6 +8,7 @@ import {
   buildOwnerReceipt,
   buildRevisionPlan,
   buildRollbackPlan,
+  buildTargetBootstrapReceipt,
   createSourceFreeze,
   hardJoinActivation,
   hardJoinRevision,
@@ -72,6 +73,8 @@ if (command === 'profile-check') {
   emit({ status: 'PASS', profileContractSha256: profile.contractSha256, platformManifestSha256: profile.authorities.platformManifestSha256, handoffContractSha256: profile.authorities.handoffContractSha256, target: profile.target, boundaries: profile.boundaries })
 } else if (command === 'source-freeze') {
   emit(sourceFreeze(profile))
+} else if (command === 'bootstrap-receipt') {
+  emit(buildTargetBootstrapReceipt({ profile, targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
 } else if (command === 'plan') {
   emit(buildRevisionPlan({
     profile,

@@ -227,6 +227,40 @@ function protectedBoundarySha256(boundary) {
   return sha256(canonicalize(core))
 }
 
+export function buildTargetBootstrapReceipt({ profile, targetService, targetIdentity, observedAt = new Date().toISOString() }) {
+  const target = normalizeServiceReadback(targetService, profile, 'target')
+  const identity = normalizeServiceAccountReadback(targetIdentity, profile)
+  const { env } = assertTemplateBoundary(target, identity, profile)
+  const labelsMatch = Object.entries(profile.target.requiredLabels).every(([key, value]) => target.labels[key] === value)
+  const active = target.traffic[0]
+  if (!labelsMatch || env.PDM_JENFU_SSO_HANDOFF_MODE !== 'off' || target.latestReadyRevision !== active.revision || target.latestCreatedRevision !== active.revision) fail('DEV013_AIPDM_TARGET_BOOTSTRAP_INVALID')
+  const core = {
+    schemaVersion: 'jenfu.dev013.l3-target-bootstrap-receipt.v1',
+    ownerApplicationId: 'ai-pdm',
+    platformManifestSha256: profile.authorities.platformManifestSha256,
+    target: {
+      projectId: profile.target.projectId,
+      region: profile.target.region,
+      serviceName: profile.target.serviceName,
+      canonicalOrigin: target.origin,
+      labels: profile.target.requiredLabels,
+      runtimeServiceAccount: { email: identity.email, uniqueId: identity.uniqueId },
+      entryPolicy: profile.target.entryPolicy,
+      deletionProtection: true,
+      minInstances: profile.runtime.minInstances,
+    },
+    runtime: { ssoHandoffMode: 'off' },
+    bootstrap: { providerReadback: true, providerEtag: target.etag, activeRevision: active.revision, trafficPercent: active.percent },
+    boundaries: { stateBucket: profile.state.bucket, statePrefix: profile.state.prefix, artifactRepository: profile.artifact.repository, secretId: profile.boundaries.secretId, evidenceBucket: profile.evidence.bucket, evidencePrefix: profile.evidence.prefix, secretValueRead: false },
+    status: 'TARGET_BOOTSTRAP_READY',
+    releaseAuthority: false,
+    productionMutations: 0,
+    siblingMutations: 0,
+    observedAt,
+  }
+  return { ...core, receiptSha256: sha256(canonicalize(core)) }
+}
+
 function setPlainEnvironment(container, values) {
   const names = new Set(Object.keys(values))
   container.env = environmentEntries(container).filter((entry) => !names.has(entry.name))
@@ -416,8 +450,12 @@ export function buildOwnerReceipt({ profile, enabledReceipt, observedAt = new Da
       deletionProtection: true,
       minInstances: 0,
     },
+    runtime: { ssoHandoffMode: 'on' },
     hardJoin: {
+      providerReadback: true,
       providerEtag: enabledReceipt.providerEtag,
+      activeRevision: enabledReceipt.revision,
+      trafficPercent: 100,
       brokerOrigin: enabledReceipt.brokerOrigin,
       callback: enabledReceipt.callback,
       handoffMode: enabledReceipt.handoffMode,
@@ -435,6 +473,7 @@ export function buildOwnerReceipt({ profile, enabledReceipt, observedAt = new Da
     rollback: { status: 'READY', siblingMutations: 0, securityFloor: enabledReceipt.securityFloor, securityFloorReceiptSha256: enabledReceipt.rollbackFloorReceiptSha256 },
     capacity: { databasePoolMax: profile.runtime.databasePoolMax, maxInstancesPerRevision: profile.runtime.maxInstancesPerRevision },
     status: 'OWNER_READY_FOR_L3_BROWSER',
+    releaseAuthority: false,
     observedAt,
   }
   return { ...core, receiptSha256: sha256(canonicalize(core)) }
@@ -486,7 +525,7 @@ export function hardJoinActivation({ profile, activationPlan, platformService, t
   const app = appContainer(target.template, profile)
   const env = afterEnvironment(target, profile)
   const traffic = target.traffic
-  if (target.etag === activationPlan.mutation.etag || target.latestCreatedRevision !== activationPlan.revision || target.origin !== activationPlan.callback.slice(0, -profile.target.callbackPath.length) || platform.origin !== activationPlan.brokerOrigin || identity.uniqueId !== activationPlan.runtimeServiceAccount.uniqueId || app.image !== activationPlan.artifactDigest || protectedBoundarySha256(boundary) !== activationPlan.protectedStateSha256 || traffic.length !== 1 || traffic[0].revision !== activationPlan.revision || traffic[0].percent !== 100 || traffic[0].tag !== null || traffic[0].latestRevision) fail('DEV013_AIPDM_ACTIVE_HARD_JOIN_INVALID', 'provider-state')
+  if (target.etag === activationPlan.mutation.etag || target.latestCreatedRevision !== activationPlan.revision || target.latestReadyRevision !== activationPlan.revision || target.origin !== activationPlan.callback.slice(0, -profile.target.callbackPath.length) || platform.origin !== activationPlan.brokerOrigin || identity.uniqueId !== activationPlan.runtimeServiceAccount.uniqueId || app.image !== activationPlan.artifactDigest || protectedBoundarySha256(boundary) !== activationPlan.protectedStateSha256 || traffic.length !== 1 || traffic[0].revision !== activationPlan.revision || traffic[0].percent !== 100 || traffic[0].tag !== null || traffic[0].latestRevision) fail('DEV013_AIPDM_ACTIVE_HARD_JOIN_INVALID', 'provider-state')
   if (env.PDM_BUILD_COMMIT !== activationPlan.sourceRevision || env.DEV013_L3_SOURCE_TREE !== activationPlan.sourceTree || env.DEV013_L3_SOURCE_IDENTITY_SHA256 !== activationPlan.sourceIdentitySha256 || env.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on' || env.PDM_JENFU_SSO_HANDOFF_MODE !== 'on' || env.PDM_JENFU_SSO_BROKER_ORIGIN !== activationPlan.brokerOrigin || env.PDM_PUBLIC_BASE_URL !== target.origin || env.PDM_SESSION_ISSUER !== target.origin) fail('DEV013_AIPDM_ACTIVE_HARD_JOIN_INVALID', 'environment')
   const core = {
     schemaVersion: 'jenfu.dev013.ai-pdm-active-hard-join.v1',

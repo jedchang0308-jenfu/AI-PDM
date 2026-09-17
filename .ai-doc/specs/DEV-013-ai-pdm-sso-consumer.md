@@ -37,10 +37,11 @@ The adapter is owner-native and does not make Terraform an authority for an unco
 
 ### Ordered release and hard joins
 
-1. Publish an immutable `off` revision with Cloud Run update mask `labels,template`, the exact provider etag and zero traffic mutation. `PDM_JENFU_PLATFORM_AUTH_MODE=on`; `PDM_JENFU_SSO_HANDOFF_MODE=off`.
+0. Before Platform exists, `bootstrap-receipt` reads only the exact existing `ai-pdm-stg` service and attached IAM identity. It requires current handoff mode `off`, required labels／entry policy／capacity, provider origin, immutable service-account `uniqueId`, etag and 100% revision-pinned traffic, then emits `jenfu.dev013.l3-target-bootstrap-receipt.v1 / TARGET_BOOTSTRAP_READY`. It does not read Platform and cannot satisfy the browser-ready gate.
+1. After Platform exists, publish an immutable `off` revision with Cloud Run update mask `labels,template`, the exact provider etag and zero traffic mutation. `PDM_JENFU_PLATFORM_AUTH_MODE=on`; `PDM_JENFU_SSO_HANDOFF_MODE=off`.
 2. Hard-join the created revision to exact target service, attached service-account email plus `uniqueId`, provider `run.app` target origin, Platform provider-readback broker origin, callback, image digest, source revision／tree／identity, mode and protected existing-state fingerprint. This receipt is the rollback security floor.
 3. Publish the same source and same digest as an immutable `on` revision, again with `labels,template`, fresh etag and zero traffic mutation. It is only `ENABLED_REVISION_READY`, not yet L3 browser ready.
-4. After the second hard join, activate only that exact `on` revision using a separate traffic-only plan and fresh etag. The post-activation hard join must show 100% revision-pinned traffic before an `OWNER_READY_FOR_L3_BROWSER` owner receipt can be produced.
+4. After the second hard join, activate only that exact `on` revision using a separate traffic-only plan and fresh etag. The post-activation hard join must show 100% revision-pinned traffic before an `OWNER_READY_FOR_L3_BROWSER` owner receipt can be produced. The final receipt explicitly records `ssoHandoffMode=on`, active revision, provider etag, traffic percent and rollback-floor hash.
 
 Both `PDM_PUBLIC_BASE_URL` and the callback are derived only from the target Cloud Run provider-readback `run.app` origin. `PDM_JENFU_SSO_BROKER_ORIGIN` is derived only from the Platform Cloud Run provider readback. Wildcards, `latest` traffic targets and actor-supplied origins are rejected.
 
@@ -52,4 +53,4 @@ Rollback is traffic-only to the exact prior `off` security-floor revision. It is
 
 ### Current execution boundary
 
-This slice prepares the owner profile, pure release adapter, hard joins, activation plan, rollback plan and regression evidence. Cloud Run deploy／traffic, Terraform apply, managed database migration and L3 browser execution remain `NOT_RUN`. Local `READY_FOR_NONPROD_APPLY` means only that a separately authorized non-production operator can begin with fresh provider readbacks; it does not claim L3, production or DEV-013 completion.
+This slice prepares the target bootstrap receipt, owner profile, pure release adapter, hard joins, activation plan, rollback plan and regression evidence. Cloud Run deploy／traffic, Terraform apply, managed database migration and L3 browser execution remain `NOT_RUN`. Local `READY_FOR_NONPROD_APPLY` means only that a separately authorized non-production operator can begin with fresh provider readbacks; it does not claim L3, production or DEV-013 completion.

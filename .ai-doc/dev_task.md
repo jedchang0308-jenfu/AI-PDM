@@ -1621,10 +1621,10 @@ Owner：Dev PM
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
 - ✓ DEV-119 [開發點] [013-S4-L3-AIPDM-ENV READY_FOR_NONPROD_APPLY] [P0] [Shared staging only] DEV-013 owner-native staging release adapter
-  - 摘要：沿用 `jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg`，以 clean committed source、immutable digest、Cloud Run provider etag與IAM service-account `uniqueId`建立 `off revision → hard join rollback floor → on revision → hard join → traffic-only activation → post-activation hard join` 的 owner-native release lane。
+  - 摘要：沿用 `jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg`；先以既有exact off-mode provider readback產生`TARGET_BOOTSTRAP_READY`供Platform建立，再以 clean committed source、immutable digest、Cloud Run provider etag與IAM service-account `uniqueId`建立 `off revision → hard join rollback floor → on revision → hard join → traffic-only activation → post-activation hard join` 的 owner-native release lane。
   - 邊界：不由 Terraform 非受控更新 existing service；broker及target origin只接受provider readback；Secret只接受numeric reference且不讀payload。保留entry、network、session、Firebase、DB、proxy、startup與capacity state；rollback只回同source／同digest的DEV-013 off revision，不得回pre-DEV-013 image。
   - Authority：[AI-PDM owner capsule](specs/DEV-013-ai-pdm-sso-consumer.md)、Platform machine manifest `../Jenfu-Platform/config/dev-013/l3-managed-staging.json`、[release profile](../config/release/dev013-ai-pdm-managed-staging.json)。
-  - Current：profile／adapter／Platform receipt validator、DEV-013、DB boundary、typecheck與isolated build皆PASS；exact clean-HEAD source freeze於commit後產生並由handoff回報。Cloud Run deploy／traffic、Terraform apply、managed DB migration、L3 browser、production與legacy staging mutation=`NOT_RUN`。
+  - Current：target bootstrap／profile／adapter／Platform bootstrap與final receipt validators、DEV-013、DB boundary、typecheck與isolated build皆PASS；off runtime不能產生browser-ready receipt。exact clean-HEAD source freeze於commit後產生並由handoff回報。Cloud Run deploy／traffic、Terraform apply、managed DB migration、L3 browser、production與legacy staging mutation=`NOT_RUN`。
   - 證據：[local readiness receipt](qc/qc-dev-119-dev013-staging-release-readiness-2026-09-17.md)。
   - 計入交付：否；本項只提供Platform DEV-013 L3的owner環境前置，不增加產品功能分母，也不得宣稱DEV-013或L3完成。
 

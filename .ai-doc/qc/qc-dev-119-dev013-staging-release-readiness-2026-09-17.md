@@ -20,14 +20,14 @@ The canonical Platform contract sync returned the same handoff hash for both con
 | Gate | Result |
 |---|---:|
 | `node scripts/dev013-ai-pdm-managed-staging.mjs profile-check` | PASS |
-| `node --test scripts/dev013-ai-pdm-managed-staging.test.mjs` | 7／7 PASS |
-| Canonical Platform `assertOwnerReceipt` join | PASS |
+| `node --test scripts/dev013-ai-pdm-managed-staging.test.mjs` | 8／8 PASS |
+| Canonical Platform `assertTargetBootstrapReceipt` and `assertOwnerReceipt` joins | PASS |
 | `npm run test:dev-013` on clean committed HEAD | 2／2 PASS |
 | `npm run check:db-boundary` | PASS |
 | `npm run typecheck:app` | PASS |
 | `npm run build:isolated` | PASS; artifact／primary invariant／cleanup=true |
 
-Focused negative oracles reject dirty or unallowlisted source, legacy／wrong target, non-revision-pinned traffic, wrong attached identity or `uniqueId`, broker／target origin drift, callback drift, source／tree／digest／mode drift, network／protected-state drift, non-numeric Secret references and a pre-DEV-013／different-build rollback floor. Existing direct Firebase login, SSO start／callback, permission enforcement, logout revocation and startup readiness remain covered.
+Focused negative oracles reject dirty or unallowlisted source, legacy／wrong target, non-revision-pinned traffic, wrong attached identity or `uniqueId`, broker／target origin drift, callback drift, source／tree／digest／mode drift, network／protected-state drift, non-numeric Secret references and a pre-DEV-013／different-build rollback floor. The new pre-Platform bootstrap case proves that only exact off-mode provider state can emit `TARGET_BOOTSTRAP_READY`; it never emits a browser-ready owner receipt. Existing direct Firebase login, SSO start／callback, permission enforcement, logout revocation and startup readiness remain covered.
 
 ## Release and rollback evidence model
 

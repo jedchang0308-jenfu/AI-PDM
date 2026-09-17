@@ -10,6 +10,7 @@ import {
   buildOwnerReceipt,
   buildRevisionPlan,
   buildRollbackPlan,
+  buildTargetBootstrapReceipt,
   createSourceFreeze,
   hardJoinActivation,
   hardJoinRevision,
@@ -47,7 +48,7 @@ function targetService() {
     uid: 'target-service-uid',
     uri: targetOrigin,
     etag: 'etag-before',
-    labels: { application: 'ai-pdm', environment: 'staging', managed_by: 'terraform', owner: 'ai-pdm' },
+    labels: { ...profile.target.requiredLabels },
     ...profile.target.entryPolicy,
     deletionProtection: true,
     template: {
@@ -98,6 +99,18 @@ test('source freeze rejects dirty or non-allowlisted input', () => {
   expectCode(() => createSourceFreeze({ profile, branch: 'feature/untrusted', sourceRevision, sourceTree, clean: true, sourceIdentityBytes: Buffer.from('x') }), 'DEV013_AIPDM_SOURCE_NOT_FROZEN')
 })
 
+test('target bootstrap receipt proves only the exact off-mode provider target', async () => {
+  const bootstrap = buildTargetBootstrapReceipt({ profile, targetService: targetService(), targetIdentity: targetIdentity(), observedAt: '2026-09-17T00:00:30.000Z' })
+  assert.equal(bootstrap.status, 'TARGET_BOOTSTRAP_READY')
+  assert.equal(bootstrap.runtime.ssoHandoffMode, 'off')
+  const validatorPath = path.join(platformRoot, 'scripts/lib/dev013-l3-contract.mjs')
+  const { assertTargetBootstrapReceipt } = await import(pathToFileURL(validatorPath))
+  assert.equal(assertTargetBootstrapReceipt(bootstrap, 'ai-pdm', platformManifest), bootstrap)
+  const enabled = targetService()
+  enabled.template.containers[0].env.find((entry) => entry.name === 'PDM_JENFU_SSO_HANDOFF_MODE').value = 'on'
+  assert.throws(() => buildTargetBootstrapReceipt({ profile, targetService: enabled, targetIdentity: targetIdentity() }), /DEV013_AIPDM_TARGET_BOOTSTRAP_INVALID/u)
+})
+
 test('off/on publication, exact hard joins, activation and rollback remain owner-scoped', () => {
   const sourceFreeze = freeze()
   const initial = targetService()
@@ -130,6 +143,8 @@ test('off/on publication, exact hard joins, activation and rollback remain owner
   const activeService = { ...structuredClone(afterOn), etag: 'etag-active', traffic: structuredClone(activation.mutation.traffic) }
   const active = hardJoinActivation({ profile, activationPlan: activation, platformService: broker, targetService: activeService, targetIdentity: identity, observedAt: '2026-09-17T00:06:00.000Z' })
   assert.equal(active.status, 'OWNER_READY_FOR_L3_BROWSER')
+  const notReady = { ...structuredClone(activeService), latestReadyRevision: floor.revision }
+  assert.throws(() => hardJoinActivation({ profile, activationPlan: activation, platformService: broker, targetService: notReady, targetIdentity: identity }), /DEV013_AIPDM_ACTIVE_HARD_JOIN_INVALID/u)
 
   const ownerReceipt = buildOwnerReceipt({ profile, enabledReceipt: active, observedAt: '2026-09-17T00:07:00.000Z' })
   assert.equal(ownerReceipt.target.runtimeServiceAccount.uniqueId, identity.uniqueId)
