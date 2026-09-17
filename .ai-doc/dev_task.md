@@ -130,7 +130,7 @@ Owner：Dev PM
 
 - DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging package v2：provider-read baseline traffic／deletion-protection plan、三組既有 Secret 一對一 numeric pinning migration、bootstrap／owner receipt v2，以及只建立 artifact repository／evidence bucket／exact IAM 的 app-owned Infra A exact plan gate；終態=`READY_FOR_NONPROD_APPLY`。Current exact read-only preflight確認`ai-pdm-stg`與runtime identity存在，deterministic origin=`https://ai-pdm-stg-1055054506544.asia-east1.run.app`、ready revision=`ai-pdm-stg-00004-pvm`、`latest=100%`且deletion protection=false；service labels仍為DEV-010、三組Secret仍指向`latest`，DEV-013 repository／evidence bucket尚未建立。計畫僅允許etag-bound `traffic,deletionProtection`且template／labels／siblings=0；所有雲端 mutation與 L3 browser 均未授權且`NOT_RUN`。
 - DEV-118 / 118-A 已完成 PDM 本地登入入口實作與 focused QA/QC；目前沒有可在 AI-PDM 先行替代 118-B 的工作。
-  118-B 平台 Google／工號選擇及 non-Google provider-managed 管理員開通，須先由人類明確授權 `C:\VIBE CODING\Jenfu-Platform` 的文件、程式、測試與本機驗證範圍，才可交由 Platform agent 建立 owner-native 任務並開發；既有跨專案派工文字本身不是執行授權。不新增 PDM provider probe 或 release 契約。Authority 為
+  118-B 已依使用者兩專案文件授權登錄為 Platform `DEV-014 / 014-LOGIN`，狀態 `RD Contract Ready / Implementation NOT_RUN`。Workspace 與 Cloud Identity Free 共用 Google provider；工號找到核准身分後仍須 Google 驗證，Free 不依賴 Gmail 收信。下一步閉合 mapping／API／首次綁定工程契約，再依實作授權開發；不新增 PDM provider probe 或 release 契約。Authority 為
   `.ai-doc/specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md`。
 - DEV-117 production release已於R78完成，狀態=`Production Level 4 Complete / Owner RELEASED / 100% canonical traffic / remainingHumanAction=0`。DEV-118 對齊 Platform DEV-013 的登入入口，不重開 DEV-117、修改其 smoke 憑證或預先授權 production release。
 
@@ -1628,17 +1628,17 @@ Owner：Dev PM
   - 證據：[local readiness receipt](qc/qc-dev-119-dev013-staging-release-readiness-2026-09-17.md)。
   - 計入交付：否；本項只提供Platform DEV-013 L3的owner環境前置，不增加產品功能分母，也不得宣稱DEV-013或L3完成。
 
-- ! DEV-118 [開發點] [118-A Local RD／QA-QC Complete；118-B Blocked—Platform Explicit Authorization Required；118-C Release Gated] [P0] [僅 PDM 本地] 平台登入入口對齊
+- ! DEV-118 [開發點] [118-A Local RD／QA-QC Complete；118-B Platform DEV-014／014-LOGIN Contract Ready；118-C Release Gated] [P0] [兩專案文件同步／平台實作待完成] 平台登入入口對齊
   - 摘要：Google 是身分驗證方式，工號是同一核准身分的登入別名；SSO 啟用後由平台集中登入，
-    PDM 只提供平台主要入口。非 Google 員工由 provider-managed invitation／密碼／MFA 開通，
-    AI-PDM 只管理 PDM user、公司／角色與 alias，不保存自有密碼。取代原恢復 PDM 直接 Google 主入口、provider 輪詢與 release v2 的要求。
+    PDM 只提供平台主要入口。Workspace 與 Cloud Identity Free 都走 Google，不以 Gmail 信箱分類 provider；
+    Google 管 credential，OrgMaster 管員工／工號／linking，Platform 管登入與中央 admission，PDM 管自己的 user／company／permission。既有 non-Google 相容保留原 gate，不另建應用密碼。
   - 來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`。
-  - 父任務／關聯：`DEV-003` 身分／權限、Platform `DEV-013` SSO；沿用 `DEV-046` 與 `DEV-117` 邊界。
-  - 下一步：由人類以原始訊息明確授權 `C:\VIBE CODING\Jenfu-Platform` 的文件、程式、測試與本機驗證範圍，再由 Platform owner 判定將 118-B 以 `AI_PDM / DEV-118 / 118-B` 來源切片納入既有 Platform DEV-014，或依其索引配置下一個 native DEV ID，補齊 mapping／API／Google 與 non-Google provider 分支；AI-PDM 118-A 已無未完成本地項目。
-  - 阻塞／恢復條件：118-B 平台雙入口目前為 RD Contract Ready；「產生跨專案開發指令」不構成目標專案執行授權。取得上述人類明確授權後，Platform owner 才可登錄任務、定案 mapping／API、修改程式並執行測試／build；118-C 沿用既有 release gate。B 未完成不阻塞 A，但不能宣稱整體已交付。
+  - 父任務／關聯：`DEV-003` 身分／權限、Platform `DEV-013` SSO、Platform `DEV-014 / 014-LOGIN`；沿用 `DEV-046` 與 `DEV-117` 邊界。
+  - 下一步：Platform `014-LOGIN` 依原生 SPEC §18.5 閉合 versioned mapping、Google→Firebase 核准綁定、transaction／API／anti-enumeration 與獨立六案，再依產品實作授權開發；AI-PDM 118-A 無未完成本地項目。
+  - 阻塞／恢復條件：兩專案文件授權及 owner-native 登錄已完成；B 維持 Contract Ready，工程細節與產品實作尚未完成。此輪授權只含文件，不含 OrgMaster 或產品／測試／build／provider mutation；118-C 維持 release gate。B 未完成不阻塞 A，不能宣稱整體已交付。
   - 證據：[DEV-118 唯一契約](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md)、[118-A QC receipt](qc/qc-dev-118-local-implementation-2026-09-17.md)、[118-B Platform 唯讀交接查核](qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)。
-    2026-09-17 依使用者確認修訂並補 §6.1 管理員開通流程；118-A contract 10/10、browser 12/12、DEV-013 handoff 3/3、DEV-046 alias 21/21、typecheck、isolated build PASS。
-    Browser evidence：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-17T00-48-58-748Z/manifest.json`；Platform DEV-014 已由 `OrgMaster / DEV-047 / production activation` 占用且仍為 Brief Ready／Documents Only，尚無平台雙入口產品實作，118-B/C 尚未驗收。
+    2026-09-17 依 Free 帳號決策及兩專案文件授權同步 §6.1／Platform §18，更正舊 non-Google 分類建議；[Platform 014-LOGIN](../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 已登錄本來源。
+    118-A 歷史 contract 10/10、browser 12/12、DEV-013 handoff 3/3、DEV-046 alias 21/21、typecheck、isolated build PASS；Browser evidence：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-17T00-48-58-748Z/manifest.json`。Platform R2 基線為 Architecture Finalized、QA 0／20；新增 LOGIN Contract Ready、QA 0／6；118-B/C 尚未驗收，本輪未重跑產品測試。
   - 計入交付：否；本次收斂為既有身分／SSO 交付的開發點，不增加分母。
     原直接 Google scope 被取代不記 PASS，DEV-013 已有 SSO 成果不重複計入。
 

@@ -1,10 +1,18 @@
 # SPEC-PDM-ACCOUNT-LIFECYCLE-001 - 帳號生命週期與安全管理台
 
-日期：2026-07-13（最近更新：2026-07-14）
+日期：2026-07-13（最近更新：2026-09-17；DEV-118 入口適用範圍補充）
 狀態：Phase 1 + Phase 2 local slice `本機完成 / QC Passed`；Phase 3A 工號登入別名 local slice `Implemented / QC Accepted`；Phase 3B provider/staging/production `Release Gate Required`（DEV-046 `HD-8-1..4` closed）
 DEV：`DEV-PDM-ACCOUNT-LIFECYCLE-001` / `DEV-045`
 父任務：`DEV-003`、`DEV-040`、`DEV-042`、`DEV-043`、`DEV-044`
 相關 QA：`.ai-doc/qa/qa-pdm-account-lifecycle-validation-plan-2026-07-12.md`
+
+## 2026-09-17 登入適用範圍補充（DEV-118）
+
+依 [DEV-118 §6](SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md#platform-login-contract)，SSO on 的一般登入由 Platform 集中處理；公司 Workspace 與 Cloud Identity Free 帳號皆屬 Google-managed。沒有 Gmail 的 Free 員工不可被導向下文 non-Google email-link／password 開通；Google Admin 建立帳號並以核准安全管道交付初始資料，員工在 Google 完成密碼、MFA、復原。若另外指定通知／復原 email，須確認可收信。
+
+下文 invitation／recovery 與 local 工號 alias 的歷史完成證據保留於原相容範圍，不代表 Free 員工必須收 Gmail 邀請。平台工號 authority 由 OrgMaster 的版本化受管身分契約提供，PDM 只管理自己的帳號／company／role／permission。canonical principal 保留 verified Firebase issuer＋UID，不能以 Google sub、email 或 license 直接取代。
+
+Platform `DEV-014 / 014-LOGIN` 已登錄來源 `AI_PDM / DEV-118 / 118-B`，目前 Contract Ready／未實作；既有非 Google provider 與 Wave 0／Wave 1 歷史 gate 不自動擴張。本修訂只固定 Free 的 Google 身分類別與無 Gmail 開通要求，production 是否納入仍由具名 principal、最新驗收與 release allowlist 決定。
 
 ## Human Decision Brief
 

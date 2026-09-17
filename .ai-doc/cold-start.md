@@ -41,11 +41,11 @@
 
 ## Current Dispatch Boundary
 
-- `DEV-118 / 118-A` 已完成 PDM 本地實作與 focused QA/QC；`RD Implementation Ready + 架構定案` 僅限 PDM 本地入口。118-B 現為 `Blocked—Platform Explicit Authorization Required`：須先由人類明確授權 `C:\VIBE CODING\Jenfu-Platform` 的文件、程式、測試與本機驗證範圍，才可由 Platform owner 承接；跨專案派工文字本身不是執行授權。
+- `DEV-118 / 118-A` 已完成 PDM 本地實作與 focused QA/QC；`RD Implementation Ready + 架構定案` 僅限 PDM 本地入口。118-B 已依使用者明確授權完成兩專案文件同步，原生承接為 Platform `DEV-014 / 014-LOGIN`，狀態 `RD Contract Ready / Implementation NOT_RUN`；文件授權不擴及 OrgMaster、產品實作或環境操作。
   先讀 [DEV-118 SPEC](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md) §§1–5；
   2026-09-17 決策：SSO 啟用後 PDM 只提供平台主入口；Google／工號是同一核准身分的兩種起手方式。
-  平台目前仍為 email/password，雙入口與 non-Google provider-managed 管理員開通依 §6／§6.1 由 Platform owner 承接；不得當作 DEV-013 已完成能力。
-  Platform DEV-014 已由 `OrgMaster / DEV-047 / production activation` 占用且仍為 Brief Ready／Documents Only；Platform owner 須決定把 118-B 登錄成該任務的明確來源切片，或依其索引配置下一個 native DEV ID，AI-PDM 不預占編號。
+  Workspace 與 Cloud Identity Free 共用 Google provider；Free 沒有 Gmail 不等於 non-Google，工號仍須 Google 驗證，canonical principal 保留 Firebase issuer＋UID。管理員開通依 §6.1，不要求在不存在的信箱收 invitation。
+  平台目前仍為 email/password；[Platform 014-LOGIN](../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 已登錄 `AI_PDM / DEV-118 / 118-B`。DEV-014 R2 基線 Architecture Finalized／QA 0／20，新增 LOGIN 工程缺口仍待 §18.5 閉合／QA 0／6，不得當作 DEV-013 已完成能力。
   舊版 PDM provider 輪詢、直接 Google release gate／Workflow v2 要求已取消，不照舊規格派工。
 - `DEV-117` R78 已完成；DEV-118 不重開 R78、不修改 smoke 憑證與 release 契約。
   118-C 依既有 DEV-013／各 owner release gate 整合驗收；AI-PDM 不取得 shared identity write authority。
