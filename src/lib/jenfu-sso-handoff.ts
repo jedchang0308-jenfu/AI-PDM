@@ -19,6 +19,19 @@ const MAX_RETURN_TO = 1024;
 const BROKER_TIMEOUT_MS = 10_000;
 
 type Transaction = { state: string; verifier: string; returnTo: string; issuer: string; expiresAt: number };
+type CallbackStage =
+  | "service_identity"
+  | "broker_exchange"
+  | "handoff_parse"
+  | "principal_resolution"
+  | "principal_admission"
+  | "auth_epoch"
+  | "assurance"
+  | "local_user"
+  | "session_issue"
+  | "session_verify"
+  | "session_registry"
+  | "response";
 type Handoff = {
   contractVersion: "jenfu.sso-handoff.v1";
   issuer: string;
@@ -73,6 +86,14 @@ function callbackError(errorValue: unknown) {
   if (code === "STALE_HANDOFF") return error("sso_principal_stale", 403);
   if (code === "HANDOFF_FACTOR_INVALID" || code === "auth_token_invalid") return error("auth_token_invalid", 401);
   return error("sso_dependency_unavailable", 502);
+}
+
+function callbackFailureCode(errorValue: unknown) {
+  const candidate = errorValue as { code?: unknown; message?: unknown } | null;
+  for (const value of [candidate?.code, candidate?.message]) {
+    if (typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_:-]{0,63}$/u.test(value)) return value;
+  }
+  return "UNCLASSIFIED";
 }
 
 const setup = getJenfuSsoHandoffConfig;
@@ -132,28 +153,40 @@ export async function jenfuSsoCallback(request: Request) {
   const tx = decode(readCookie(request));
   const code = params.get("code");
   if (!tx || params.get("state") !== tx.state || params.get("iss") !== tx.issuer || !code || params.getAll("code").length !== 1 || params.getAll("state").length !== 1) return NextResponse.json({ code: "sso_request_invalid" }, { status: 400, headers: { "cache-control": "no-store", "referrer-policy": "no-referrer", "set-cookie": clearCookie() } });
+  let stage: CallbackStage = "service_identity";
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), BROKER_TIMEOUT_MS);
     const service = await token(config.broker);
+    stage = "broker_exchange";
     const brokerResponse = await fetch(`${config.broker}/api/sso/token`, { method: "POST", redirect: "error", signal: controller.signal, headers: { "content-type": "application/x-www-form-urlencoded", "x-jenfu-service-identity": `Bearer ${service}` }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: "ai-pdm", redirect_uri: config.callback, code_verifier: tx.verifier }) }).finally(() => clearTimeout(timeout));
     if (!brokerResponse.ok) throw new Error("BROKER_DENIED");
+    stage = "handoff_parse";
     const handoff = parse(await brokerResponse.json(), config);
     const client = getAsyncDatabaseClient();
+    stage = "principal_resolution";
     const principal = await new FirebasePlatformPrincipalRepository(client).resolvePrincipal(handoff.identity.identitySubject);
     if (!principal || principal.accountStatus !== "active") throw new Error("PRINCIPAL_NOT_ACTIVE");
+    stage = "principal_admission";
     const admitted = await new JenfuPrincipalAdmissionRepository(client).requireActivePrincipal(handoff.identity.identityIssuer, handoff.identity.identitySubject);
+    stage = "auth_epoch";
     const state = await new JenfuAuthEpochRepository(client).readPrincipalAuthState(handoff.identity.identityIssuer, handoff.identity.identitySubject);
     if (admitted.principalId !== handoff.identity.principalId || admitted.employeeId !== handoff.identity.employeeId || admitted.mappingVersion !== handoff.authorization.assignmentVersion || state.authEpoch !== handoff.authState.authEpoch || (state.revokedBefore && Date.parse(handoff.authentication.authenticatedAt) <= Date.parse(state.revokedBefore))) throw new Error("STALE_HANDOFF");
+    stage = "assurance";
     const assurance = resolveJenfuAssurance({ email: handoff.authentication.email, signInProvider: handoff.authentication.signInProvider, secondFactor: handoff.authentication.secondFactor, requirePrivilegedAssurance: principal.requiresPrivilegedAssurance === true, workspaceMfaTrustPolicy: getGoogleWorkspaceMfaTrustPolicy() });
+    stage = "local_user";
     const user = await getUserByIdAsync(principal.pdmUserId);
     if (!user) throw new Error("PRINCIPAL_NOT_ACTIVE");
     const now = Math.floor(Date.now() / 1000);
     const maxExpiry = Math.min(now + 8 * 60 * 60, Math.floor(Date.parse(handoff.sourceSessionExpiresAt) / 1000), Math.floor(Date.parse(handoff.expiresAt) / 1000));
     if (!Number.isSafeInteger(maxExpiry) || maxExpiry <= now) throw new Error("HANDOFF_EXPIRED");
+    stage = "session_issue";
     const sessionToken = issueJenfuPlatformSessionV1({ identityIssuer: handoff.identity.identityIssuer, identityAudience: getJenfuIdentityConfig().identityAudience, identitySubject: handoff.identity.identitySubject, principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId, localPrincipalId: principal.pdmUserId, companyId: principal.companyId, authEpoch: handoff.authState.authEpoch, accountLifecycleVersion: principal.sessionVersion, authTime: Math.floor(Date.parse(handoff.authentication.authenticatedAt) / 1000), assuranceLevel: assurance.assuranceLevel, secondFactor: assurance.secondFactor, maxAgeSeconds: maxExpiry - now }, getPlatformSessionKeyRing(), now);
+    stage = "session_verify";
     const claims = verifyJenfuPlatformSessionV1(sessionToken, getPlatformSessionKeyRing(), { nowSeconds: now });
+    stage = "session_registry";
     await registerJenfuAccountSessionAsync({ request, claims });
+    stage = "response";
     const response = NextResponse.redirect(new URL(tx.returnTo, config.base), 303);
     response.headers.set("cache-control", "no-store");
     response.headers.set("referrer-policy", "no-referrer");
@@ -161,6 +194,7 @@ export async function jenfuSsoCallback(request: Request) {
     setJenfuPlatformSessionResponseCookie(response, sessionToken);
     return response;
   } catch (errorValue) {
+    console.error(JSON.stringify({ event: "jenfu_sso_callback_failed", stage, code: callbackFailureCode(errorValue) }));
     const response = callbackError(errorValue);
     response.headers.set("set-cookie", clearCookie());
     return response;

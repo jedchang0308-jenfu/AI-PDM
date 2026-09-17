@@ -46,7 +46,7 @@ type AccountSessionRow = {
 };
 
 const INSERT_SESSION_SQL = `
-  INSERT INTO public.account_session_records (
+  INSERT INTO ai_pdm_core.account_session_records (
     id, user_id, company_id, session_id_hash, auth_provider, assurance_level,
     device_type, device_label, user_agent_hash, user_agent_hint, ip_hash, ip_summary,
     issued_at, last_seen_at, expires_at, created_at, updated_at
@@ -69,7 +69,7 @@ const INSERT_SESSION_SQL = `
 `;
 
 const TOUCH_SESSION_SQL = `
-  UPDATE public.account_session_records
+  UPDATE ai_pdm_core.account_session_records
   SET last_seen_at = :now,
       updated_at = :now
   WHERE user_id = :userId
@@ -79,7 +79,7 @@ const TOUCH_SESSION_SQL = `
 
 const SELECT_REVOKED_SESSION_SQL = `
   SELECT revoked_at, expires_at
-  FROM public.account_session_records
+  FROM ai_pdm_core.account_session_records
   WHERE user_id = :userId
     AND session_id_hash = :sessionIdHash
   LIMIT 1
@@ -89,7 +89,7 @@ const SELECT_USER_SESSIONS_SQL = `
   SELECT id, user_id, company_id, session_id_hash, auth_provider, assurance_level,
          device_type, device_label, user_agent_hint, ip_summary,
          issued_at, last_seen_at, expires_at, revoked_at, revoked_by, revoke_reason
-  FROM public.account_session_records
+  FROM ai_pdm_core.account_session_records
   WHERE user_id = :userId
   ORDER BY
     CASE WHEN revoked_at IS NULL THEN 0 ELSE 1 END,
@@ -102,14 +102,14 @@ const SELECT_USER_SESSION_BY_ID_SQL = `
   SELECT id, user_id, company_id, session_id_hash, auth_provider, assurance_level,
          device_type, device_label, user_agent_hint, ip_summary,
          issued_at, last_seen_at, expires_at, revoked_at, revoked_by, revoke_reason
-  FROM public.account_session_records
+  FROM ai_pdm_core.account_session_records
   WHERE id = :recordId
     AND user_id = :userId
   LIMIT 1
 `;
 
 const REVOKE_SESSION_BY_ID_SQL = `
-  UPDATE public.account_session_records
+  UPDATE ai_pdm_core.account_session_records
   SET revoked_at = :now,
       revoked_by = :actorId,
       revoke_reason = :reason,
@@ -120,7 +120,7 @@ const REVOKE_SESSION_BY_ID_SQL = `
 `;
 
 const REVOKE_SESSION_BY_HASH_SQL = `
-  UPDATE public.account_session_records
+  UPDATE ai_pdm_core.account_session_records
   SET revoked_at = :now,
       revoked_by = :actorId,
       revoke_reason = :reason,
