@@ -22,7 +22,7 @@ The canonical Platform contract sync returned the same handoff hash for both con
 | `node scripts/dev013-ai-pdm-managed-staging.mjs profile-check` | PASS |
 | `node --test scripts/dev013-ai-pdm-managed-staging.test.mjs` | 7／7 PASS |
 | Canonical Platform `assertOwnerReceipt` join | PASS |
-| `npm run test:dev-013` | 3／3 PASS |
+| `npm run test:dev-013` on clean committed HEAD | 2／2 PASS |
 | `npm run check:db-boundary` | PASS |
 | `npm run typecheck:app` | PASS |
 | `npm run build:isolated` | PASS; artifact／primary invariant／cleanup=true |
