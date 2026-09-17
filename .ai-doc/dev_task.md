@@ -128,7 +128,7 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging release profile、provider hard join 與同版 rollback floor的本機實作及驗證，終態=`READY_FOR_NONPROD_APPLY`。Cloud Run deploy／traffic、Terraform apply、managed DB migration與 L3 browser 均未授權且`NOT_RUN`。
+- DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging release profile、provider hard join 與同版 rollback floor的本機實作及驗證，終態=`READY_FOR_NONPROD_APPLY`。Platform current exact read-only preflight確認`ai-pdm-stg`與runtime identity存在，但service仍為`dev_id=dev-010`且缺DEV-013 `owner／slice` labels；Cloud Run revision／traffic mutation、Terraform apply、managed DB migration與 L3 browser 均未授權且`NOT_RUN`。
 - DEV-118 / 118-A 已完成 PDM 本地登入入口實作與 focused QA/QC；目前沒有可在 AI-PDM 先行替代 118-B 的工作。
   118-B 平台 Google／工號選擇及 non-Google provider-managed 管理員開通尚待 owner-native 任務承接；不新增 PDM provider probe 或 release 契約。Authority 為
   `.ai-doc/specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md`。
@@ -1624,7 +1624,7 @@ Owner：Dev PM
   - 摘要：沿用 `jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg`；先以既有exact off-mode provider readback產生`TARGET_BOOTSTRAP_READY`供Platform建立，再以 clean committed source、immutable digest、Cloud Run provider etag與IAM service-account `uniqueId`建立 `off revision → hard join rollback floor → on revision → hard join → traffic-only activation → post-activation hard join` 的 owner-native release lane。
   - 邊界：不由 Terraform 非受控更新 existing service；broker及target origin只接受provider readback；Secret只接受numeric reference且不讀payload。保留entry、network、session、Firebase、DB、proxy、startup與capacity state；rollback只回同source／同digest的DEV-013 off revision，不得回pre-DEV-013 image。
   - Authority：[AI-PDM owner capsule](specs/DEV-013-ai-pdm-sso-consumer.md)、Platform machine manifest `../Jenfu-Platform/config/dev-013/l3-managed-staging.json`、[release profile](../config/release/dev013-ai-pdm-managed-staging.json)。
-  - Current：target bootstrap／profile／adapter／Platform bootstrap與final receipt validators、DEV-013、DB boundary、typecheck與isolated build皆PASS；off runtime不能產生browser-ready receipt。exact clean-HEAD source freeze於commit後產生並由handoff回報。Cloud Run deploy／traffic、Terraform apply、managed DB migration、L3 browser、production與legacy staging mutation=`NOT_RUN`。
+  - Current：target bootstrap／profile／adapter／Platform bootstrap與final receipt validators、DEV-013、DB boundary、typecheck與isolated build皆PASS；off runtime不能產生browser-ready receipt。Platform current source-bound exact read-only preflight確認`ai-pdm-stg`與attached runtime identity存在、ready revision承擔100% traffic，但service仍為`dev_id=dev-010`且缺`owner=ai-pdm／slice=013-s4-l3`，因此bootstrap receipt fail closed。exact clean-HEAD source freeze於commit後產生並由handoff回報。Cloud Run revision／traffic mutation、Terraform apply、managed DB migration、L3 browser、production與legacy staging mutation=`NOT_RUN`。
   - 證據：[local readiness receipt](qc/qc-dev-119-dev013-staging-release-readiness-2026-09-17.md)。
   - 計入交付：否；本項只提供Platform DEV-013 L3的owner環境前置，不增加產品功能分母，也不得宣稱DEV-013或L3完成。
 

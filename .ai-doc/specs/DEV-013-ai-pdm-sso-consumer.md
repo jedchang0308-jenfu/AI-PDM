@@ -3,7 +3,7 @@
 - Owner: AI-PDM
 - Native task: DEV-013-S3；`013-S4-L3-AIPDM-ENV`
 - Contract lock: `contracts/jenfu-sso-handoff/v1/contract-lock.json`
-- Status: `013-S4-L3-AIPDM-ENV owner adapter complete / READY_FOR_NONPROD_APPLY / provider and L3 NOT_RUN`
+- Status: `013-S4-L3-AIPDM-ENV owner adapter complete / READY_FOR_NONPROD_APPLY / read-only provider preflight label mismatch / L3 NOT_RUN`
 
 ## Boundary
 
@@ -53,4 +53,4 @@ Rollback is traffic-only to the exact prior `off` security-floor revision. It is
 
 ### Current execution boundary
 
-This slice prepares the target bootstrap receipt, owner profile, pure release adapter, hard joins, activation plan, rollback plan and regression evidence. Cloud Run deploy／traffic, Terraform apply, managed database migration and L3 browser execution remain `NOT_RUN`. Local `READY_FOR_NONPROD_APPLY` means only that a separately authorized non-production operator can begin with fresh provider readbacks; it does not claim L3, production or DEV-013 completion.
+This slice prepares the target bootstrap receipt, owner profile, pure release adapter, hard joins, activation plan, rollback plan and regression evidence. Platform current source-bound exact read-only preflight confirms `ai-pdm-stg` and the attached runtime identity exist, but the service still has `dev_id=dev-010` and lacks the required `owner=ai-pdm` and `slice=013-s4-l3` labels, so bootstrap receipt generation remains fail-closed. Cloud Run revision／traffic mutation, Terraform apply, managed database migration and L3 browser execution remain `NOT_RUN`. Local `READY_FOR_NONPROD_APPLY` means only that a separately authorized non-production operator can begin the owner-native correction with fresh provider readbacks; it does not claim L3, production or DEV-013 completion.

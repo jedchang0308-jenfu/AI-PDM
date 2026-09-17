@@ -2,7 +2,7 @@
 
 - Slice: `013-S4-L3-AIPDM-ENV`
 - Local terminal: `READY_FOR_NONPROD_APPLY`
-- Provider execution: `NOT_RUN`
+- Provider execution: `read-only exact preflight complete / mutation NOT_RUN`
 - L3 browser: `NOT_RUN`
 - Production／legacy staging／sibling mutation: `0`
 - Terraform apply／managed database migration／Secret payload read: `0`
@@ -14,6 +14,8 @@
 - AI-PDM release-profile contract SHA-256: `6a982afe530a1488a45e5ab7ec48bff520e390e11574d251d8c74367c5d215de`
 
 The canonical Platform contract sync returned the same handoff hash for both consumers before implementation. The profile is fixed to `jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg` and explicitly excludes `jenfu-ai-pdm-stg-361825` and production.
+
+Platform current source-bound provider preflight `output/dev-013/l3/DEV013-L3-PREFLIGHT-20260917T044050260Z-17270621/report.json` confirms the exact `ai-pdm-stg` service and attached runtime identity exist. It fails closed before bootstrap receipt because observed labels are `application=ai-pdm`, `environment=staging`, `managed_by=terraform`, `dev_id=dev-010`, with `owner` and `slice` absent; required DEV-013 values are `dev_id=dev-013`, `owner=ai-pdm`, `slice=013-s4-l3`. The read performed no Cloud, traffic, database or Secret mutation.
 
 ## Local evidence
 
