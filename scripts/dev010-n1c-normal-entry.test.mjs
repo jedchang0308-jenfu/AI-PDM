@@ -129,6 +129,36 @@ test('N1C-RUNTIME-07 invalid staging identity pairs remain fail closed', async (
   }
 })
 
+test('N1C-RUNTIME-07A controlled business tenant codes are readable without weakening request parsing', async () => {
+  const client = {
+    query: async () => [{
+      company_id: 'company-dev013-l3',
+      company_code: 'dev013l3',
+      company_kind: 'business',
+      display_name: 'DEV-013 Synthetic',
+      is_default: true,
+    }],
+    queryOne: async () => null,
+    execute: async () => undefined,
+  }
+  const access = await new AsyncUserRepository(client).listUserCompanyAccess('user-dev013-p-both')
+  assert.equal(access[0].companyCode, 'DEV013L3')
+  assert.equal(access[0].companyKind, 'business')
+  assert.deepEqual(parsePdmCompanyRequest('DEV013L3'), { state: 'invalid' })
+
+  client.query = async () => [{
+    company_id: 'company-invalid',
+    company_code: '../JENFU',
+    company_kind: 'business',
+    display_name: 'invalid',
+    is_default: true,
+  }]
+  await assert.rejects(
+    new AsyncUserRepository(client).listUserCompanyAccess('user-invalid'),
+    /PDM_COMPANY_CODE_UNSUPPORTED/u,
+  )
+})
+
 test('N1C-RUNTIME-08 staging authority repair is target-locked and preserves the legal transition path', () => {
   const sourceRevision = 'b6ebc35113deca5a6911fe2612193bcd657ec008'
   const environment = {

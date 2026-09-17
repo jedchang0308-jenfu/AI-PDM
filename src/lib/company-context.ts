@@ -7,7 +7,7 @@ import {
 } from "@/lib/repositories/user-async-repository";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 
-export type PdmCompanyCode = "JENFU" | "MAXIMA" | "SMOKE" | "STAGING-SMOKE";
+export type PdmCompanyCode = UserCompanyAccess["companyCode"];
 export type PdmCompanyKind = "business" | "production_smoke";
 
 export type PdmCompanyRequest =
