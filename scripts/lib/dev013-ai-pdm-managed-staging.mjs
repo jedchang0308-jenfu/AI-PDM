@@ -6,6 +6,15 @@ const NUMERIC_VERSION = /^[1-9][0-9]*$/u
 const UNIQUE_ID = /^[0-9]{8,32}$/u
 const RUN_IMAGE = /^asia-east1-docker[.]pkg[.]dev\/jenfu-platform-nonprod\/dev013-ai-pdm-staging\/ai-pdm@sha256:[0-9a-f]{64}$/u
 
+function expectedJenfuIdentityEnvironment(profile) {
+  const projectId = profile.target.projectId
+  return {
+    JENFU_FIREBASE_PROJECT_ID: projectId,
+    JENFU_IDENTITY_ISSUER: `https://securetoken.google.com/${projectId}`,
+    JENFU_IDENTITY_AUDIENCE: projectId,
+  }
+}
+
 export class Dev013AiPdmStagingError extends Error {
   constructor(code, detail = '') {
     super(detail ? `${code}: ${detail}` : code)
@@ -62,6 +71,7 @@ export function assertDev013AiPdmStagingProfile(profile, platformManifest, contr
   if (profile.artifact.repository !== manifestApp.artifact.repository || profile.state.bucket !== manifestApp.state.bucket || profile.state.prefix !== manifestApp.state.prefix || profile.evidence.bucket !== manifestApp.evidence.bucket || profile.evidence.prefix !== manifestApp.evidence.prefix || canonicalize(profile.boundaries.secretReferences) !== canonicalize(manifestApp.secret.references) || canonicalize(profile.boundaries.versionBootstrap) !== canonicalize(manifestApp.secret.versionBootstrap) || manifestApp.secret.numericVersionRequired !== true || manifestApp.secret.payloadMayAppearInEvidence !== false) fail('DEV013_AIPDM_OWNER_BOUNDARY_DRIFT')
   if (profile.target.projectId === 'jenfu-ai-pdm-stg-361825' || !profile.excludedTargets.projects.includes('jenfu-ai-pdm-stg-361825') || !profile.excludedTargets.projects.includes('jenfu-platform-prod')) fail('DEV013_AIPDM_EXCLUDED_TARGET_ACTIVE')
   if (profile.runtime.deletionProtection !== false || profile.runtime.deletionGuardAuthority !== 'OWNER_WORKFLOW_POLICY' || profile.environment.initialHandoffMode !== 'off' || profile.environment.fixed.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on' || profile.rollout.baselineTrafficPinStage !== 'PIN_CURRENT_READY_REVISION_TRAFFIC' || canonicalize(profile.rollout.baselineTrafficPinAllowedUpdateMasks) !== canonicalize(['traffic']) || profile.rollout.providerDeletionProtectionAvailable !== false || profile.rollout.deleteMutationsAllowed !== 0 || profile.rollout.serviceUpdateMask !== 'labels,template' || profile.rollout.activationUpdateMask !== 'traffic' || profile.rollback.updateMask !== 'traffic' || profile.boundaries.infraBootstrapTerraform !== true || profile.boundaries.serviceTerraformApply !== false || profile.boundaries.databaseMigrations !== 0 || profile.boundaries.secretValuesRead !== false) fail('DEV013_AIPDM_RELEASE_BOUNDARY_INVALID')
+  if (Object.entries(expectedJenfuIdentityEnvironment(profile)).some(([name, value]) => profile.environment.fixed[name] !== value)) fail('DEV013_AIPDM_RELEASE_BOUNDARY_INVALID')
   const terraformAddresses = [...(profile.terraform?.dataAddresses ?? []), ...(profile.terraform?.resourceAddresses ?? [])]
   if (profile.terraform?.root !== 'infra/google-cloud/dev-013-l3-ai-pdm' || profile.terraform?.iacServiceAccount !== 'dev010-n1b-iac@jenfu-platform-nonprod.iam.gserviceaccount.com' || profile.terraform?.qcServiceAccount !== 'dev010-n1c-qc@jenfu-platform-nonprod.iam.gserviceaccount.com' || terraformAddresses.length !== 8 || new Set(terraformAddresses).size !== 8 || canonicalize(profile.terraform.allowedActions) !== canonicalize(['create', 'read', 'no-op'])) fail('DEV013_AIPDM_TERRAFORM_BOUNDARY_INVALID')
   if (canonicalize(profile.rollback.securityFloor) !== canonicalize(['auth-state-v2', 'assurance', 'original-auth-time']) || profile.rollback.preDev013ArtifactAllowed !== false) fail('DEV013_AIPDM_ROLLBACK_FLOOR_INVALID')
@@ -789,7 +799,7 @@ export function assertRevisionPlan(plan, profile) {
   const labelsMatch = Object.entries(profile.target.requiredLabels).every(([key, value]) => plan.mutation.labels?.[key] === value)
   const expectedStage = plan.handoffMode === 'off' ? profile.rollout.initialStage : profile.rollout.enabledStage
   if (plan.stage !== expectedStage || plan.callback !== `${targetOrigin}${profile.target.callbackPath}` || plan.mutation.projectId !== profile.target.projectId || plan.mutation.region !== profile.target.region || plan.mutation.serviceName !== profile.target.serviceName || plan.mutation.etag !== plan.before?.etag || !H64.test(plan.before?.stateSha256 ?? '') || !labelsMatch || plan.mutation.template?.revision !== expectedRevision(profile, plan.sourceRevision, plan.handoffMode) || plannedApp.image !== plan.artifactDigest || plan.runtimeServiceAccount?.email !== profile.target.runtimeServiceAccount || !UNIQUE_ID.test(plan.runtimeServiceAccount?.uniqueId ?? '') || plan.mutation.secretReferencesPinned !== true || canonicalize(secretRefs(plannedApp, profile)) !== canonicalize(assertExactSecretReferences(plan.before?.preservedBoundary?.secretRefs, profile))) fail('DEV013_AIPDM_REVISION_PLAN_INVALID')
-  const expectedEnv = { PDM_BUILD_COMMIT: plan.sourceRevision, DEV013_L3_SOURCE_REVISION: plan.sourceRevision, DEV013_L3_SOURCE_TREE: plan.sourceTree, DEV013_L3_SOURCE_IDENTITY_SHA256: plan.sourceIdentitySha256, DEV013_L3_CONTRACT_SHA256: profile.authorities.handoffContractSha256, PDM_JENFU_PLATFORM_AUTH_MODE: 'on', PDM_JENFU_SSO_HANDOFF_MODE: plan.handoffMode, PDM_JENFU_SSO_BROKER_ORIGIN: brokerOrigin, PDM_PUBLIC_BASE_URL: targetOrigin, PDM_SESSION_ISSUER: targetOrigin }
+  const expectedEnv = { ...expectedJenfuIdentityEnvironment(profile), PDM_BUILD_COMMIT: plan.sourceRevision, DEV013_L3_SOURCE_REVISION: plan.sourceRevision, DEV013_L3_SOURCE_TREE: plan.sourceTree, DEV013_L3_SOURCE_IDENTITY_SHA256: plan.sourceIdentitySha256, DEV013_L3_CONTRACT_SHA256: profile.authorities.handoffContractSha256, PDM_JENFU_PLATFORM_AUTH_MODE: 'on', PDM_JENFU_SSO_HANDOFF_MODE: plan.handoffMode, PDM_JENFU_SSO_BROKER_ORIGIN: brokerOrigin, PDM_PUBLIC_BASE_URL: targetOrigin, PDM_SESSION_ISSUER: targetOrigin }
   if (Object.entries(expectedEnv).some(([name, value]) => env[name] !== value)) fail('DEV013_AIPDM_REVISION_PLAN_INVALID')
   return plan
 }
@@ -808,6 +818,7 @@ export function hardJoinRevision({ profile, plan, platformService, targetService
   const labelsMatch = Object.entries(profile.target.requiredLabels).every(([key, value]) => target.labels[key] === value)
   if (target.etag === plan.before.etag || target.origin !== plan.target.canonicalOrigin || platform.origin !== plan.platformBrokerOrigin || identity.uniqueId !== plan.runtimeServiceAccount.uniqueId || target.template?.revision !== revision || target.latestCreatedRevision !== revision || app.image !== plan.artifactDigest || afterBoundary.sha256 !== plan.before.stateSha256 || !labelsMatch) fail('DEV013_AIPDM_PROVIDER_HARD_JOIN_INVALID', 'provider-state')
   const expectedEnv = {
+    ...expectedJenfuIdentityEnvironment(profile),
     PDM_BUILD_COMMIT: plan.sourceRevision,
     DEV013_L3_SOURCE_REVISION: plan.sourceRevision,
     DEV013_L3_SOURCE_TREE: plan.sourceTree,
@@ -982,7 +993,18 @@ export function hardJoinActivation({ profile, activationPlan, platformService, t
   const env = afterEnvironment(target, profile)
   const traffic = target.traffic
   if (target.etag === activationPlan.mutation.etag || target.latestCreatedRevision !== activationPlan.revision || target.latestReadyRevision !== activationPlan.revision || target.origin !== activationPlan.callback.slice(0, -profile.target.callbackPath.length) || platform.origin !== activationPlan.brokerOrigin || identity.uniqueId !== activationPlan.runtimeServiceAccount.uniqueId || app.image !== activationPlan.artifactDigest || protectedBoundarySha256(boundary) !== activationPlan.protectedStateSha256 || canonicalize(boundary.secretRefs) !== canonicalize(assertExactSecretReferences(activationPlan.secretReferences, profile)) || traffic.length !== 1 || traffic[0].revision !== activationPlan.revision || traffic[0].percent !== 100 || traffic[0].tag !== null || traffic[0].latestRevision) fail('DEV013_AIPDM_ACTIVE_HARD_JOIN_INVALID', 'provider-state')
-  if (env.PDM_BUILD_COMMIT !== activationPlan.sourceRevision || env.DEV013_L3_SOURCE_TREE !== activationPlan.sourceTree || env.DEV013_L3_SOURCE_IDENTITY_SHA256 !== activationPlan.sourceIdentitySha256 || env.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on' || env.PDM_JENFU_SSO_HANDOFF_MODE !== 'on' || env.PDM_JENFU_SSO_BROKER_ORIGIN !== activationPlan.brokerOrigin || env.PDM_PUBLIC_BASE_URL !== target.origin || env.PDM_SESSION_ISSUER !== target.origin) fail('DEV013_AIPDM_ACTIVE_HARD_JOIN_INVALID', 'environment')
+  const expectedEnv = {
+    ...expectedJenfuIdentityEnvironment(profile),
+    PDM_BUILD_COMMIT: activationPlan.sourceRevision,
+    DEV013_L3_SOURCE_TREE: activationPlan.sourceTree,
+    DEV013_L3_SOURCE_IDENTITY_SHA256: activationPlan.sourceIdentitySha256,
+    PDM_JENFU_PLATFORM_AUTH_MODE: 'on',
+    PDM_JENFU_SSO_HANDOFF_MODE: 'on',
+    PDM_JENFU_SSO_BROKER_ORIGIN: activationPlan.brokerOrigin,
+    PDM_PUBLIC_BASE_URL: target.origin,
+    PDM_SESSION_ISSUER: target.origin,
+  }
+  if (Object.entries(expectedEnv).some(([name, value]) => env[name] !== value)) fail('DEV013_AIPDM_ACTIVE_HARD_JOIN_INVALID', 'environment')
   const core = {
     schemaVersion: 'jenfu.dev013.ai-pdm-active-hard-join.v1',
     ownerApplicationId: 'ai-pdm',

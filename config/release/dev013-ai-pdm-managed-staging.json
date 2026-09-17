@@ -1,7 +1,7 @@
 {
   "schemaVersion": "jenfu.dev013.ai-pdm-managed-staging-release.v2",
   "profileVersion": "OWNER_NATIVE_SHARED_STAGING_V2",
-  "contractSha256": "69a98764b72941d7d67df4ecff2ca50ddfc0f413db565b700c2f50ab0e443376",
+  "contractSha256": "b8f0585258c3342c646d3ca9bc2720fce006ae6fb9294a78699da006d990ec01",
   "application": {
     "id": "ai-pdm",
     "repository": "jedchang0308-jenfu/AI-PDM",
@@ -140,6 +140,9 @@
       "PDM_AUTH_MODE": "firebase_bff",
       "PDM_JENFU_PLATFORM_AUTH_MODE": "on",
       "PDM_JENFU_ENTITLEMENT_MODE": "enforce",
+      "JENFU_FIREBASE_PROJECT_ID": "jenfu-platform-nonprod",
+      "JENFU_IDENTITY_ISSUER": "https://securetoken.google.com/jenfu-platform-nonprod",
+      "JENFU_IDENTITY_AUDIENCE": "jenfu-platform-nonprod",
       "PDM_COOKIE_SECURE": "true",
       "PDM_DEPLOYMENT_ENV": "staging",
       "GOOGLE_CLOUD_PROJECT": "jenfu-platform-nonprod",

@@ -132,6 +132,25 @@ test('profile is bound to the canonical Platform L3 manifest and excludes legacy
   assert.equal(assertDev013AiPdmStagingProfile(profile, platformManifest, contractLock), profile)
   assert.equal(profile.target.projectId, 'jenfu-platform-nonprod')
   assert.ok(profile.excludedTargets.projects.includes('jenfu-ai-pdm-stg-361825'))
+  assert.deepEqual(
+    {
+      JENFU_FIREBASE_PROJECT_ID: profile.environment.fixed.JENFU_FIREBASE_PROJECT_ID,
+      JENFU_IDENTITY_ISSUER: profile.environment.fixed.JENFU_IDENTITY_ISSUER,
+      JENFU_IDENTITY_AUDIENCE: profile.environment.fixed.JENFU_IDENTITY_AUDIENCE,
+    },
+    {
+      JENFU_FIREBASE_PROJECT_ID: 'jenfu-platform-nonprod',
+      JENFU_IDENTITY_ISSUER: 'https://securetoken.google.com/jenfu-platform-nonprod',
+      JENFU_IDENTITY_AUDIENCE: 'jenfu-platform-nonprod',
+    },
+  )
+
+  const drifted = structuredClone(profile)
+  drifted.environment.fixed.JENFU_IDENTITY_AUDIENCE = 'wrong-project'
+  const driftedCore = structuredClone(drifted)
+  delete driftedCore.contractSha256
+  drifted.contractSha256 = sha256(canonicalize(driftedCore))
+  expectCode(() => assertDev013AiPdmStagingProfile(drifted, platformManifest, contractLock), 'DEV013_AIPDM_RELEASE_BOUNDARY_INVALID')
 })
 
 test('provider read-only command resolves the Windows gcloud shim without shell execution', () => {
@@ -325,6 +344,9 @@ test('off/on publication, exact hard joins, activation and rollback remain owner
   assert.equal(offEnv.PDM_JENFU_PLATFORM_AUTH_MODE, 'on')
   assert.equal(offEnv.PDM_JENFU_SSO_BROKER_ORIGIN, brokerOrigin)
   assert.equal(offEnv.PDM_PUBLIC_BASE_URL, targetOrigin)
+  assert.equal(offEnv.JENFU_FIREBASE_PROJECT_ID, 'jenfu-platform-nonprod')
+  assert.equal(offEnv.JENFU_IDENTITY_ISSUER, 'https://securetoken.google.com/jenfu-platform-nonprod')
+  assert.equal(offEnv.JENFU_IDENTITY_AUDIENCE, 'jenfu-platform-nonprod')
 
   const afterOff = applyRevisionPlan(initial, offPlan, 'etag-off')
   const floor = hardJoinRevision({ profile, plan: offPlan, platformService: broker, targetService: afterOff, targetIdentity: identity, observedAt: '2026-09-17T00:02:00.000Z' })
@@ -370,6 +392,7 @@ test('hard join fails closed on provider identity, origin, callback, digest, sou
     (value) => { value.template.containers[0].image = profile.artifact.uri + '@sha256:' + 'e'.repeat(64) },
     (value) => { value.template.containers[0].env.find((entry) => entry.name === 'DEV013_L3_SOURCE_REVISION').value = 'f'.repeat(40) },
     (value) => { value.template.containers[0].env.find((entry) => entry.name === 'PDM_JENFU_SSO_HANDOFF_MODE').value = 'on' },
+    (value) => { value.template.containers[0].env.find((entry) => entry.name === 'JENFU_IDENTITY_ISSUER').value = 'https://securetoken.google.com/wrong-project' },
     (value) => { value.template.vpcAccess.networkInterfaces[0].subnetwork = 'wrong-subnetwork' },
   ]
   for (const mutate of mutations) {
