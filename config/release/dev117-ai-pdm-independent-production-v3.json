@@ -176,7 +176,9 @@
       "PDM_SESSION_ISSUER",
       "PDM_SESSION_AUDIENCE",
       "PDM_SESSION_CURRENT_KEY_ID",
-      "PDM_SESSION_PREVIOUS_KEY_ID"
+      "PDM_SESSION_PREVIOUS_KEY_ID",
+      "PDM_JENFU_SSO_HANDOFF_MODE",
+      "PDM_JENFU_SSO_BROKER_ORIGIN"
     ],
     "requiredSecretNames": [
       "PDM_SESSION_CURRENT_SECRET",
@@ -232,7 +234,9 @@
       "PDM_SESSION_ISSUER": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
       "PDM_SESSION_AUDIENCE": "ai-pdm-production",
       "PDM_SESSION_CURRENT_KEY_ID": "production-session-v1",
-      "PDM_SESSION_PREVIOUS_KEY_ID": "production-session-v0"
+      "PDM_SESSION_PREVIOUS_KEY_ID": "production-session-v0",
+      "PDM_JENFU_SSO_HANDOFF_MODE": "off",
+      "PDM_JENFU_SSO_BROKER_ORIGIN": "https://jenfu-platform-prod-9536592944.asia-east1.run.app"
     }
   },
   "migrations": {

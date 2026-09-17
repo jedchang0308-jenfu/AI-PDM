@@ -3,7 +3,7 @@
 - Owner: AI-PDM
 - Native task: DEV-119；source slice `Jenfu-Platform / DEV-013 / 013-S4-L3-AIPDM-ENV`
 - Contract lock: `contracts/jenfu-sso-handoff/v1/contract-lock.json`
-- Status: `013-S4-L3-AIPDM-ENV owner adapter complete / READY_FOR_NONPROD_APPLY / read-only provider preflight label mismatch / L3 NOT_RUN`
+- Status: `013-S4-L3-AIPDM-ENV complete / production owner profile guard off / L4 exact authorization gated`
 
 ## Boundary
 
@@ -22,6 +22,12 @@ AI-PDM consumes Platform `jenfu.sso-handoff.v1` for the fixed `ai-pdm` audience.
 ## Verification entrypoints
 
 `npm run test:dev-013:l3`, `npm run test:dev-013`, `npm run check:db-boundary`, `npm run typecheck:app`, `terraform fmt -check -recursive infra/google-cloud/dev-013-l3-ai-pdm`, backend-disabled `terraform validate`, and `npm run build:isolated` are the owner-local checks. Local PASS does not close QA-013 or authorize managed non-production／production release.
+
+## Production L4 owner readiness（2026-09-18）
+
+The ordinary production owner profile `config/release/dev117-ai-pdm-independent-production-v3.json` now requires `PDM_JENFU_SSO_HANDOFF_MODE=off` and the exact Platform broker origin `https://jenfu-platform-prod-9536592944.asia-east1.run.app`. The profile validator rejects a missing, enabled, or alternate-origin value before a release capsule can proceed. Fresh DEV-117 owner tests, abort-controller tests, database-boundary check, application typecheck, and isolated Next.js build pass on the current worktree.
+
+This is a guard-capable production input, not a release receipt. Production Cloud Run template／traffic, IAM, database, Secret, retained edge, Billing, custom-domain, Hosting, and shared-load-balancer mutations remain zero. Activation remains owner-native and must follow Platform `accept` → AI-PDM `on` → Platform `launch`; rollback is the reverse drain to the retained guard-capable `off` revision. The exact production target still requires separate human authorization before L4 execution.
 
 ## 013-S4-L3-AIPDM-ENV owner-native shared-staging release
 
