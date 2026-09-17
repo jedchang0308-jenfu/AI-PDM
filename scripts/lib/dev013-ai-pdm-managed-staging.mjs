@@ -163,6 +163,10 @@ function assertPlanFields(after, expected, address) {
   for (const [name, value] of Object.entries(expected)) {
     const matches = name === 'location'
       ? String(after[name]).toLowerCase() === String(value).toLowerCase()
+      : name === 'repository'
+        ? after[name] === value || after[name] === `projects/${after.project}/locations/${after.location}/repositories/${value}`
+      : name === 'bucket'
+        ? after[name] === value || after[name] === `b/${value}`
       : canonicalize(after[name]) === canonicalize(value)
     if (!matches) fail('DEV013_AIPDM_INFRA_PLAN_OBJECT_INVALID', `${address}:${name}`)
   }

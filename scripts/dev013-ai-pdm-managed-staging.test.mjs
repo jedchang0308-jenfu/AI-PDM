@@ -169,6 +169,11 @@ test('Infra A source freeze and plan gate require the complete eight-address cre
     ],
   }
   assert.deepEqual(assertInfraTerraformPlan(plan, infraFreeze, profile), { status: 'PASS', stage: 'OWNER_INFRA_A', sourceRevision, addressCount: 8, releaseAuthority: false })
+  const providerNoOp = structuredClone(plan)
+  for (const change of providerNoOp.resource_changes) if (!change.address.startsWith('data.')) change.change.actions = ['no-op']
+  providerNoOp.resource_changes.find((change) => change.address === 'google_artifact_registry_repository_iam_member.iac_writer').change.after.repository = `projects/${profile.target.projectId}/locations/${profile.target.region}/repositories/${profile.artifact.repository}`
+  for (const change of providerNoOp.resource_changes.filter((item) => item.address.startsWith('google_storage_bucket_iam_member.'))) change.change.after.bucket = `b/${profile.evidence.bucket}`
+  assert.equal(assertInfraTerraformPlan(providerNoOp, infraFreeze, profile).addressCount, 8)
   const terraformNative = structuredClone(plan)
   const dataChanges = terraformNative.resource_changes.filter((change) => change.address.startsWith('data.'))
   terraformNative.resource_changes = terraformNative.resource_changes.filter((change) => !change.address.startsWith('data.'))
