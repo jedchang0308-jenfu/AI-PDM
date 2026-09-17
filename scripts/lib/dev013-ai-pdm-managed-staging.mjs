@@ -160,7 +160,37 @@ function planAction(change) {
 
 function assertPlanFields(after, expected, address) {
   object(after, 'DEV013_AIPDM_INFRA_PLAN_OBJECT_INVALID', address)
-  for (const [name, value] of Object.entries(expected)) if (canonicalize(after[name]) !== canonicalize(value)) fail('DEV013_AIPDM_INFRA_PLAN_OBJECT_INVALID', `${address}:${name}`)
+  for (const [name, value] of Object.entries(expected)) {
+    const matches = name === 'location'
+      ? String(after[name]).toLowerCase() === String(value).toLowerCase()
+      : canonicalize(after[name]) === canonicalize(value)
+    if (!matches) fail('DEV013_AIPDM_INFRA_PLAN_OBJECT_INVALID', `${address}:${name}`)
+  }
+}
+
+function terraformResources(module, rows = []) {
+  if (!module || typeof module !== 'object') return rows
+  for (const resource of module.resources ?? []) rows.push(resource)
+  for (const child of module.child_modules ?? []) terraformResources(child, rows)
+  return rows
+}
+
+function unindexedAddress(address) {
+  return String(address).replace(/\[[^\]]+\]$/u, '')
+}
+
+function completePlanChanges(plan) {
+  const changes = Array.isArray(plan.resource_changes) ? [...plan.resource_changes] : []
+  const seen = new Set(changes.map((change) => change.address))
+  const configuredData = new Set(terraformResources(plan?.configuration?.root_module).filter((row) => row.mode === 'data').map((row) => row.address))
+  const stateData = terraformResources(plan?.prior_state?.values?.root_module).filter((row) => row.mode === 'data')
+  for (const resource of stateData) {
+    if (!seen.has(resource.address) && configuredData.has(unindexedAddress(resource.address))) {
+      changes.push({ address: resource.address, change: { actions: ['read'], after: resource.values } })
+      seen.add(resource.address)
+    }
+  }
+  return changes
 }
 
 function assertInfraPlanObjects(changes, profile) {
@@ -182,7 +212,7 @@ function assertInfraPlanObjects(changes, profile) {
   assertPlanFields(get('google_artifact_registry_repository_iam_member.iac_writer')?.change?.after, { project, location: region, repository, role: 'roles/artifactregistry.writer', member: `serviceAccount:${iacEmail}` }, 'google_artifact_registry_repository_iam_member.iac_writer')
   const bucketAfter = get('google_storage_bucket.evidence')?.change?.after
   assertPlanFields(bucketAfter, { project, name: bucket, location: region, storage_class: 'STANDARD', uniform_bucket_level_access: true, public_access_prevention: 'enforced', force_destroy: false, labels: expectedLabels }, 'google_storage_bucket.evidence')
-  if (!Array.isArray(bucketAfter.retention_policy) || bucketAfter.retention_policy.length !== 1 || bucketAfter.retention_policy[0]?.is_locked !== false || bucketAfter.retention_policy[0]?.retention_period !== 2592000) fail('DEV013_AIPDM_INFRA_PLAN_OBJECT_INVALID', 'google_storage_bucket.evidence:retention_policy')
+  if (!Array.isArray(bucketAfter.retention_policy) || bucketAfter.retention_policy.length !== 1 || bucketAfter.retention_policy[0]?.is_locked !== false || Number(bucketAfter.retention_policy[0]?.retention_period) !== 2592000) fail('DEV013_AIPDM_INFRA_PLAN_OBJECT_INVALID', 'google_storage_bucket.evidence:retention_policy')
   assertPlanFields(get('google_storage_bucket_iam_member.iac_writer')?.change?.after, { bucket, role: 'roles/storage.objectCreator', member: `serviceAccount:${iacEmail}` }, 'google_storage_bucket_iam_member.iac_writer')
   assertPlanFields(get('google_storage_bucket_iam_member.qc_reader')?.change?.after, { bucket, role: 'roles/storage.objectViewer', member: `serviceAccount:${qcEmail}` }, 'google_storage_bucket_iam_member.qc_reader')
 }
@@ -191,7 +221,7 @@ export function assertInfraTerraformPlan(plan, freeze, profile) {
   assertInfraSourceFreeze(freeze, profile)
   object(plan, 'DEV013_AIPDM_INFRA_PLAN_INVALID', 'plan')
   const expectedAddresses = terraformAddressSet(profile)
-  const changes = Array.isArray(plan.resource_changes) ? plan.resource_changes : []
+  const changes = completePlanChanges(plan)
   const actualAddresses = changes.map((change) => change.address).sort()
   if (canonicalize(actualAddresses) !== canonicalize(expectedAddresses)) fail('DEV013_AIPDM_INFRA_PLAN_ADDRESS_SET_MISMATCH')
   const allowed = new Set(profile.terraform.allowedActions)

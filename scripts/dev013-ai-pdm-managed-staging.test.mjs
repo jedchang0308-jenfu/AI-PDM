@@ -170,6 +170,12 @@ test('Infra A source freeze and plan gate require the complete eight-address cre
     ],
   }
   assert.deepEqual(assertInfraTerraformPlan(plan, infraFreeze, profile), { status: 'PASS', stage: 'OWNER_INFRA_A', sourceRevision, addressCount: 8, releaseAuthority: false })
+  const terraformNative = structuredClone(plan)
+  const dataChanges = terraformNative.resource_changes.filter((change) => change.address.startsWith('data.'))
+  terraformNative.resource_changes = terraformNative.resource_changes.filter((change) => !change.address.startsWith('data.'))
+  terraformNative.configuration = { root_module: { resources: dataChanges.map((change) => ({ address: change.address, mode: 'data' })) } }
+  terraformNative.prior_state = { values: { root_module: { resources: dataChanges.map((change) => ({ address: change.address, mode: 'data', values: change.change.after })) } } }
+  assert.equal(assertInfraTerraformPlan(terraformNative, infraFreeze, profile).addressCount, 8)
   const incomplete = structuredClone(plan)
   incomplete.resource_changes.pop()
   expectCode(() => assertInfraTerraformPlan(incomplete, infraFreeze, profile), 'DEV013_AIPDM_INFRA_PLAN_ADDRESS_SET_MISMATCH')
