@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
@@ -17,8 +18,11 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8')
 const json = (relative) => JSON.parse(read(relative))
+const directPlatformRoot = path.resolve(root, '../Jenfu-Platform')
+const commonGitDir = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: root, encoding: 'utf8' }).trim()
+const platformRoot = fs.existsSync(directPlatformRoot) ? directPlatformRoot : path.resolve(path.dirname(commonGitDir), '../Jenfu-Platform')
 const profile = json('config/release/dev013-ai-pdm-managed-staging.json')
-const platformManifest = json('../Jenfu-Platform/config/dev-013/l3-managed-staging.json')
+const platformManifest = JSON.parse(fs.readFileSync(path.join(platformRoot, 'config/dev-013/l3-managed-staging.json'), 'utf8'))
 const contractLock = json('contracts/jenfu-sso-handoff/v1/contract-lock.json')
 const sourceRevision = 'a'.repeat(40)
 const sourceTree = 'b'.repeat(40)
@@ -190,7 +194,7 @@ test('owner receipt is accepted by the canonical Platform L3 validator', async (
   const activeService = { ...structuredClone(afterOn), etag: 'etag-active', traffic: structuredClone(activation.mutation.traffic) }
   const active = hardJoinActivation({ profile, activationPlan: activation, platformService: broker, targetService: activeService, targetIdentity: identity })
   const ownerReceipt = buildOwnerReceipt({ profile, enabledReceipt: active })
-  const validatorPath = path.join(root, '../Jenfu-Platform/scripts/lib/dev013-l3-contract.mjs')
+  const validatorPath = path.join(platformRoot, 'scripts/lib/dev013-l3-contract.mjs')
   const { assertOwnerReceipt } = await import(pathToFileURL(validatorPath))
   assert.equal(assertOwnerReceipt(ownerReceipt, 'ai-pdm', platformManifest), ownerReceipt)
 })
