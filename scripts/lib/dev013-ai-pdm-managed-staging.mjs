@@ -32,10 +32,11 @@ function selfHash(value, field = 'receiptSha256') {
   return sha256(canonicalize(core))
 }
 
-function assertRunAppOrigin(value, serviceName, region = 'asia-east1') {
+function assertRunAppOrigin(value, serviceName, region = 'asia-east1', projectNumber = null) {
   let url
   try { url = new URL(value) } catch { fail('DEV013_AIPDM_ORIGIN_INVALID', serviceName) }
-  if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash || !url.hostname.startsWith(`${serviceName}-`) || !url.hostname.endsWith(`.${region}.run.app`)) fail('DEV013_AIPDM_ORIGIN_INVALID', `${serviceName}:${value}`)
+  const exactOrigin = projectNumber == null ? null : `https://${serviceName}-${projectNumber}.${region}.run.app`
+  if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash || (exactOrigin ? url.origin !== exactOrigin : !url.hostname.startsWith(`${serviceName}-`) || !url.hostname.endsWith(`.${region}.run.app`))) fail('DEV013_AIPDM_ORIGIN_INVALID', `${serviceName}:${value}`)
   return url.origin
 }
 
@@ -60,7 +61,7 @@ export function assertDev013AiPdmStagingProfile(profile, platformManifest, contr
   if (target.projectId !== platformManifest.target.projectId || target.projectNumber !== platformManifest.target.projectNumber || target.region !== platformManifest.target.region || target.serviceName !== manifestApp.serviceName || target.database !== platformManifest.target.database || target.connectionName !== platformManifest.target.connectionName || target.runtimeServiceAccount !== manifestApp.runtimeServiceAccount || canonicalize(target.requiredLabels) !== canonicalize(manifestApp.requiredLabels) || !exactEntryPolicy(target.entryPolicy, platformManifest.platformRelease.entryPolicy)) fail('DEV013_AIPDM_TARGET_DRIFT')
   if (profile.artifact.repository !== manifestApp.artifact.repository || profile.state.bucket !== manifestApp.state.bucket || profile.state.prefix !== manifestApp.state.prefix || profile.evidence.bucket !== manifestApp.evidence.bucket || profile.evidence.prefix !== manifestApp.evidence.prefix || canonicalize(profile.boundaries.secretReferences) !== canonicalize(manifestApp.secret.references) || canonicalize(profile.boundaries.versionBootstrap) !== canonicalize(manifestApp.secret.versionBootstrap) || manifestApp.secret.numericVersionRequired !== true || manifestApp.secret.payloadMayAppearInEvidence !== false) fail('DEV013_AIPDM_OWNER_BOUNDARY_DRIFT')
   if (profile.target.projectId === 'jenfu-ai-pdm-stg-361825' || !profile.excludedTargets.projects.includes('jenfu-ai-pdm-stg-361825') || !profile.excludedTargets.projects.includes('jenfu-platform-prod')) fail('DEV013_AIPDM_EXCLUDED_TARGET_ACTIVE')
-  if (profile.environment.initialHandoffMode !== 'off' || profile.environment.fixed.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on' || profile.rollout.serviceUpdateMask !== 'labels,template' || profile.rollout.activationUpdateMask !== 'traffic' || profile.rollback.updateMask !== 'traffic' || profile.boundaries.infraBootstrapTerraform !== true || profile.boundaries.serviceTerraformApply !== false || profile.boundaries.databaseMigrations !== 0 || profile.boundaries.secretValuesRead !== false) fail('DEV013_AIPDM_RELEASE_BOUNDARY_INVALID')
+  if (profile.environment.initialHandoffMode !== 'off' || profile.environment.fixed.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on' || profile.rollout.baselineTrafficPinStage !== 'PIN_CURRENT_READY_REVISION_TRAFFIC_AND_ENABLE_DELETION_PROTECTION' || canonicalize(profile.rollout.baselineTrafficPinAllowedUpdateMasks) !== canonicalize(['traffic', 'traffic,deletionProtection']) || profile.rollout.deletionProtectionMustBeEnabledBeforeTemplatePatch !== true || profile.rollout.serviceUpdateMask !== 'labels,template' || profile.rollout.activationUpdateMask !== 'traffic' || profile.rollback.updateMask !== 'traffic' || profile.boundaries.infraBootstrapTerraform !== true || profile.boundaries.serviceTerraformApply !== false || profile.boundaries.databaseMigrations !== 0 || profile.boundaries.secretValuesRead !== false) fail('DEV013_AIPDM_RELEASE_BOUNDARY_INVALID')
   const terraformAddresses = [...(profile.terraform?.dataAddresses ?? []), ...(profile.terraform?.resourceAddresses ?? [])]
   if (profile.terraform?.root !== 'infra/google-cloud/dev-013-l3-ai-pdm' || profile.terraform?.iacServiceAccount !== 'dev010-n1b-iac@jenfu-platform-nonprod.iam.gserviceaccount.com' || profile.terraform?.qcServiceAccount !== 'dev010-n1c-qc@jenfu-platform-nonprod.iam.gserviceaccount.com' || terraformAddresses.length !== 8 || new Set(terraformAddresses).size !== 8 || canonicalize(profile.terraform.allowedActions) !== canonicalize(['create', 'read', 'no-op'])) fail('DEV013_AIPDM_TERRAFORM_BOUNDARY_INVALID')
   if (canonicalize(profile.rollback.securityFloor) !== canonicalize(['auth-state-v2', 'assurance', 'original-auth-time']) || profile.rollback.preDev013ArtifactAllowed !== false) fail('DEV013_AIPDM_ROLLBACK_FLOOR_INVALID')
@@ -208,8 +209,17 @@ export function assertInfraTerraformPlan(plan, freeze, profile) {
 }
 
 function serviceName(value) { return value?.name?.split('/').at(-1) ?? value?.metadata?.name ?? null }
-function serviceOrigin(value) {
-  return value?.uri ?? value?.status?.uri ?? value?.status?.url ?? value?.status?.address?.url ?? value?.urls?.[0] ?? null
+function serviceOrigins(value) {
+  let annotated = []
+  const raw = value?.metadata?.annotations?.['run.googleapis.com/urls'] ?? value?.annotations?.['run.googleapis.com/urls']
+  if (typeof raw === 'string') {
+    try { annotated = JSON.parse(raw) } catch { fail('DEV013_AIPDM_SERVICE_URLS_INVALID') }
+  }
+  return [...new Set([...(value?.urls ?? []), ...annotated, value?.uri, value?.status?.uri, value?.status?.url, value?.status?.address?.url].filter(Boolean))]
+}
+function serviceOrigin(value, serviceName, profile) {
+  const expected = `https://${serviceName}-${profile.target.projectNumber}.${profile.target.region}.run.app`
+  return serviceOrigins(value).find((candidate) => candidate === expected) ?? null
 }
 function serviceAccount(value) { return value?.template?.serviceAccount ?? value?.spec?.template?.spec?.serviceAccountName ?? value?.spec?.template?.serviceAccount ?? null }
 function serviceLabels(value) { return value?.labels ?? value?.metadata?.labels ?? {} }
@@ -291,9 +301,11 @@ function assertExactSecretReferences(value, profile) {
   return value
 }
 
-function normalizedTraffic(value) {
-  const traffic = serviceTraffic(value).map((item) => ({ revision: item.revision ?? item.revisionName ?? null, percent: Number(item.percent ?? 0), tag: item.tag ?? null, latestRevision: item.latestRevision === true || item.type === 'TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST' }))
-  if (!traffic.length || traffic.some((item) => !item.revision || item.latestRevision || !Number.isInteger(item.percent) || item.percent < 0) || traffic.reduce((total, item) => total + item.percent, 0) !== 100) fail('DEV013_AIPDM_TRAFFIC_NOT_REVISION_PINNED')
+function revisionName(value) { return typeof value === 'string' && value.length > 0 ? value.split('/').at(-1) : null }
+function normalizedTraffic(value, { allowLatest = false } = {}) {
+  const traffic = serviceTraffic(value).map((item) => ({ revision: revisionName(item.revision ?? item.revisionName), percent: Number(item.percent ?? 0), tag: item.tag ?? null, latestRevision: item.latestRevision === true || item.type === 'TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST' }))
+  const latestBaseline = allowLatest && traffic.length === 1 && traffic[0].latestRevision && traffic[0].revision == null && traffic[0].percent === 100 && traffic[0].tag === null
+  if (!latestBaseline && (!traffic.length || traffic.some((item) => !item.revision || item.latestRevision || !Number.isInteger(item.percent) || item.percent < 0) || traffic.reduce((total, item) => total + item.percent, 0) !== 100)) fail('DEV013_AIPDM_TRAFFIC_NOT_REVISION_PINNED')
   return traffic
 }
 
@@ -301,11 +313,11 @@ function vpc(value) { return value?.vpcAccess ?? value?.vpc_access ?? value?.spe
 function scaling(value) { return value?.scaling ?? value?.spec?.scaling ?? null }
 function probe(container) { return container?.startupProbe ?? container?.startup_probe ?? null }
 
-export function normalizeServiceReadback(value, profile, role = 'target') {
+export function normalizeServiceReadback(value, profile, role = 'target', options = {}) {
   object(value, 'DEV013_AIPDM_SERVICE_READBACK_INVALID', role)
   const expectedName = role === 'platform' ? profile.platformBroker.serviceName : profile.target.serviceName
   const name = serviceName(value)
-  const origin = assertRunAppOrigin(serviceOrigin(value), expectedName, profile.target.region)
+  const origin = assertRunAppOrigin(serviceOrigin(value, expectedName, profile), expectedName, profile.target.region, profile.target.projectNumber)
   if (name !== expectedName || typeof value.etag !== 'string' || value.etag.trim().length < 4) fail('DEV013_AIPDM_SERVICE_READBACK_INVALID', role)
   return {
     name,
@@ -314,11 +326,11 @@ export function normalizeServiceReadback(value, profile, role = 'target') {
     uid: value.uid ?? value.metadata?.uid ?? null,
     labels: serviceLabels(value),
     entryPolicy: serviceEntryPolicy(value),
-    deletionProtection: value.deletionProtection ?? value.deletion_protection ?? null,
+    deletionProtection: value.deletionProtection ?? value.deletion_protection ?? false,
     template: serviceTemplate(value),
-    traffic: role === 'target' ? normalizedTraffic(value) : serviceTraffic(value),
-    latestCreatedRevision: value.latestCreatedRevision ?? value.latest_created_revision ?? null,
-    latestReadyRevision: value.latestReadyRevision ?? value.latest_ready_revision ?? null,
+    traffic: role === 'target' ? normalizedTraffic(value, options) : serviceTraffic(value),
+    latestCreatedRevision: revisionName(value.latestCreatedRevision ?? value.latest_created_revision),
+    latestReadyRevision: revisionName(value.latestReadyRevision ?? value.latest_ready_revision),
   }
 }
 
@@ -329,17 +341,19 @@ export function normalizeServiceAccountReadback(value, profile) {
   return { email, uniqueId, name: value.name, disabled: false }
 }
 
-function assertTemplateBoundary(readback, identity, profile) {
+function assertTemplateBoundary(readback, identity, profile, { allowDeletionProtectionDisabled = false } = {}) {
   const template = readback.template
   const app = appContainer(template, profile)
   const proxy = proxyContainer(template, profile)
   const env = environmentMap(app)
-  if (!exactEntryPolicy(readback.entryPolicy, profile.target.entryPolicy) || readback.deletionProtection !== true || serviceAccount({ template }) !== profile.target.runtimeServiceAccount || identity.email !== profile.target.runtimeServiceAccount) fail('DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID')
+  if (!exactEntryPolicy(readback.entryPolicy, profile.target.entryPolicy)) fail('DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID', 'entry-policy')
+  if (readback.deletionProtection !== true && (!allowDeletionProtectionDisabled || readback.deletionProtection !== false)) fail('DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID', 'deletion-protection')
+  if (serviceAccount({ template }) !== profile.target.runtimeServiceAccount || identity.email !== profile.target.runtimeServiceAccount) fail('DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID', 'runtime-service-account')
   if (proxy.image !== profile.runtime.cloudSqlProxyImage || !canonicalize(proxy.args ?? []).includes(profile.target.connectionName)) fail('DEV013_AIPDM_PROXY_BOUNDARY_INVALID')
   for (const [name, value] of Object.entries(profile.runtime.requiredDatabaseEnvironment)) if (env[name] !== value) fail('DEV013_AIPDM_DATABASE_BOUNDARY_INVALID', name)
   const templateScaling = scaling(template) ?? {}
   const max = templateScaling.maxInstanceCount ?? templateScaling.max_instance_count
-  const min = templateScaling.minInstanceCount ?? templateScaling.min_instance_count
+  const min = templateScaling.minInstanceCount ?? templateScaling.min_instance_count ?? 0
   if (Number(max) !== profile.runtime.maxInstancesPerRevision || Number(min) !== profile.runtime.minInstances) fail('DEV013_AIPDM_CAPACITY_BOUNDARY_INVALID')
   const concurrency = template?.maxInstanceRequestConcurrency ?? template?.max_instance_request_concurrency
   if (Number(concurrency) !== profile.runtime.containerConcurrency) fail('DEV013_AIPDM_CONCURRENCY_BOUNDARY_INVALID')
@@ -377,6 +391,94 @@ function protectedBoundarySha256(boundary) {
   delete core.sha256
   delete core.traffic
   return sha256(canonicalize(core))
+}
+
+function baselineTrafficProtectedState(target, identity, profile) {
+  assertTemplateBoundary(target, identity, profile, { allowDeletionProtectionDisabled: true })
+  const core = {
+    canonicalOrigin: target.origin,
+    labels: target.labels,
+    entryPolicy: target.entryPolicy,
+    runtimeServiceAccount: identity,
+    template: target.template,
+    latestCreatedRevision: target.latestCreatedRevision,
+    latestReadyRevision: target.latestReadyRevision,
+  }
+  return { ...core, sha256: sha256(canonicalize(core)) }
+}
+
+export function buildBaselineTrafficPinningPlan({ profile, targetService, targetIdentity, observedAt = new Date().toISOString() }) {
+  const target = normalizeServiceReadback(targetService, profile, 'target', { allowLatest: true })
+  const identity = normalizeServiceAccountReadback(targetIdentity, profile)
+  const protectedState = baselineTrafficProtectedState(target, identity, profile)
+  const traffic = target.traffic
+  if (traffic.length !== 1 || !traffic[0].latestRevision || traffic[0].revision !== null || traffic[0].percent !== 100 || traffic[0].tag !== null || !target.latestReadyRevision || target.latestCreatedRevision !== target.latestReadyRevision) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_INPUT_INVALID')
+  const updateMask = target.deletionProtection === true ? 'traffic' : 'traffic,deletionProtection'
+  if (!profile.rollout.baselineTrafficPinAllowedUpdateMasks.includes(updateMask)) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_INPUT_INVALID')
+  const core = {
+    schemaVersion: 'jenfu.dev013.ai-pdm-baseline-traffic-pin-plan.v1',
+    ownerApplicationId: 'ai-pdm',
+    target: { projectId: profile.target.projectId, region: profile.target.region, serviceName: profile.target.serviceName, canonicalOrigin: target.origin },
+    runtimeServiceAccount: identity,
+    before: { etag: target.etag, deletionProtection: target.deletionProtection, protectedStateSha256: protectedState.sha256, trafficSha256: sha256(canonicalize(traffic)) },
+    mutation: {
+      operation: target.deletionProtection === true ? 'PIN_EXISTING_LATEST_TRAFFIC_TO_READY_REVISION' : 'PIN_EXISTING_LATEST_TRAFFIC_AND_ENABLE_DELETION_PROTECTION',
+      updateMask,
+      projectId: profile.target.projectId,
+      region: profile.target.region,
+      serviceName: profile.target.serviceName,
+      etag: target.etag,
+      deletionProtection: true,
+      traffic: [{ revision: target.latestReadyRevision, percent: 100, tag: null }],
+      templateChanges: 0,
+      labelChanges: 0,
+      serviceBoundaryChanges: target.deletionProtection === true ? 0 : 1,
+      siblingMutations: 0,
+    },
+    status: 'READY_FOR_EXPLICIT_NONPROD_BASELINE_TRAFFIC_PIN',
+    releaseAuthority: false,
+    observedAt,
+  }
+  return { ...core, planSha256: sha256(canonicalize(core)) }
+}
+
+export function assertBaselineTrafficPinningPlan(plan, profile) {
+  const expectedUpdateMask = plan?.before?.deletionProtection === true ? 'traffic' : 'traffic,deletionProtection'
+  const expectedOperation = plan?.before?.deletionProtection === true ? 'PIN_EXISTING_LATEST_TRAFFIC_TO_READY_REVISION' : 'PIN_EXISTING_LATEST_TRAFFIC_AND_ENABLE_DELETION_PROTECTION'
+  const expectedBoundaryChanges = plan?.before?.deletionProtection === true ? 0 : 1
+  const expectedOrigin = `https://${profile.target.serviceName}-${profile.target.projectNumber}.${profile.target.region}.run.app`
+  const traffic = plan?.mutation?.traffic
+  if (plan?.schemaVersion !== 'jenfu.dev013.ai-pdm-baseline-traffic-pin-plan.v1' || plan.ownerApplicationId !== 'ai-pdm' || plan.status !== 'READY_FOR_EXPLICIT_NONPROD_BASELINE_TRAFFIC_PIN' || plan.releaseAuthority !== false || plan.planSha256 !== selfHash(plan, 'planSha256')) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  if (plan.target?.projectId !== profile.target.projectId || plan.target?.region !== profile.target.region || plan.target?.serviceName !== profile.target.serviceName || plan.target?.canonicalOrigin !== expectedOrigin || assertRunAppOrigin(plan.target.canonicalOrigin, profile.target.serviceName, profile.target.region, profile.target.projectNumber) !== expectedOrigin) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  if (plan.runtimeServiceAccount?.email !== profile.target.runtimeServiceAccount || plan.runtimeServiceAccount?.name !== `projects/${profile.target.projectId}/serviceAccounts/${profile.target.runtimeServiceAccount}` || !UNIQUE_ID.test(String(plan.runtimeServiceAccount?.uniqueId ?? '')) || plan.runtimeServiceAccount?.disabled !== false) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  if (typeof plan.before?.etag !== 'string' || plan.before.etag.length < 4 || !H64.test(plan.before?.protectedStateSha256 ?? '') || !H64.test(plan.before?.trafficSha256 ?? '') || !profile.rollout.baselineTrafficPinAllowedUpdateMasks.includes(expectedUpdateMask)) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  if (plan.mutation?.operation !== expectedOperation || plan.mutation?.updateMask !== expectedUpdateMask || plan.mutation?.projectId !== profile.target.projectId || plan.mutation?.region !== profile.target.region || plan.mutation?.serviceName !== profile.target.serviceName || plan.mutation?.etag !== plan.before.etag || plan.mutation?.deletionProtection !== true || plan.mutation?.templateChanges !== 0 || plan.mutation?.labelChanges !== 0 || plan.mutation?.serviceBoundaryChanges !== expectedBoundaryChanges || plan.mutation?.siblingMutations !== 0 || !Array.isArray(traffic) || traffic.length !== 1 || !String(traffic[0]?.revision ?? '').startsWith(`${profile.target.serviceName}-`) || traffic[0]?.percent !== 100 || traffic[0]?.tag !== null) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  return plan
+}
+
+export function hardJoinBaselineTrafficPinning({ profile, plan, targetService, targetIdentity, observedAt = new Date().toISOString() }) {
+  assertBaselineTrafficPinningPlan(plan, profile)
+  const target = normalizeServiceReadback(targetService, profile, 'target')
+  const identity = normalizeServiceAccountReadback(targetIdentity, profile)
+  const protectedState = baselineTrafficProtectedState(target, identity, profile)
+  const expectedRevision = plan.mutation?.traffic?.[0]?.revision
+  const traffic = target.traffic
+  const expectedBoundaryChanges = plan.before?.deletionProtection === true ? 0 : 1
+  if (plan.mutation?.serviceBoundaryChanges !== expectedBoundaryChanges || target.deletionProtection !== true || target.etag === plan.before?.etag || target.origin !== plan.target?.canonicalOrigin || identity.uniqueId !== plan.runtimeServiceAccount?.uniqueId || protectedState.sha256 !== plan.before?.protectedStateSha256 || target.latestCreatedRevision !== expectedRevision || target.latestReadyRevision !== expectedRevision || traffic.length !== 1 || traffic[0].revision !== expectedRevision || traffic[0].percent !== 100 || traffic[0].tag !== null || traffic[0].latestRevision) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_HARD_JOIN_INVALID')
+  const core = {
+    schemaVersion: 'jenfu.dev013.ai-pdm-baseline-traffic-pin-receipt.v1',
+    ownerApplicationId: 'ai-pdm',
+    revision: expectedRevision,
+    providerEtag: target.etag,
+    canonicalOrigin: target.origin,
+    runtimeServiceAccount: identity,
+    protectedStateSha256: protectedState.sha256,
+    trafficSha256: sha256(canonicalize(traffic)),
+    status: 'BASELINE_TRAFFIC_PINNED',
+    releaseAuthority: false,
+    observedAt,
+  }
+  return { ...core, receiptSha256: sha256(canonicalize(core)) }
 }
 
 export function buildTargetBootstrapReceipt({ profile, targetService, targetIdentity, secretVersionReadbacks, observedAt = new Date().toISOString() }) {
@@ -607,8 +709,8 @@ export function buildRevisionPlan({ profile, sourceFreeze, platformService, targ
 
 export function assertRevisionPlan(plan, profile) {
   if (plan?.schemaVersion !== 'jenfu.dev013.ai-pdm-revision-plan.v1' || !H40.test(plan.sourceRevision ?? '') || !H40.test(plan.sourceTree ?? '') || !H64.test(plan.sourceIdentitySha256 ?? '') || !RUN_IMAGE.test(plan.artifactDigest ?? '') || !['off', 'on'].includes(plan.handoffMode) || plan.target?.projectId !== profile.target.projectId || plan.target?.region !== profile.target.region || plan.target?.serviceName !== profile.target.serviceName || plan.mutation?.updateMask !== 'labels,template' || plan.mutation?.trafficChanges !== 0 || plan.mutation?.terraformApply !== false || plan.status !== 'READY_FOR_NONPROD_APPLY' || plan.releaseAuthority !== false || plan.planSha256 !== selfHash(plan, 'planSha256')) fail('DEV013_AIPDM_REVISION_PLAN_INVALID')
-  const targetOrigin = assertRunAppOrigin(plan.target.canonicalOrigin, profile.target.serviceName, profile.target.region)
-  const brokerOrigin = assertRunAppOrigin(plan.platformBrokerOrigin, profile.platformBroker.serviceName, profile.target.region)
+  const targetOrigin = assertRunAppOrigin(plan.target.canonicalOrigin, profile.target.serviceName, profile.target.region, profile.target.projectNumber)
+  const brokerOrigin = assertRunAppOrigin(plan.platformBrokerOrigin, profile.platformBroker.serviceName, profile.target.region, profile.target.projectNumber)
   const plannedApp = appContainer(plan.mutation.template, profile)
   const env = environmentMap(plannedApp)
   const labelsMatch = Object.entries(profile.target.requiredLabels).every(([key, value]) => plan.mutation.labels?.[key] === value)

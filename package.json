@@ -113,6 +113,7 @@
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
     "test:dev-013": "npx vitest run src/lib/jenfu-sso-handoff.test.ts",
     "test:dev-013:l3": "node --test scripts/dev013-ai-pdm-managed-staging.test.mjs",
+    "plan:dev-013:l3:baseline-traffic": "node scripts/dev013-ai-pdm-managed-staging.mjs baseline-traffic-pin-provider-plan",
     "freeze:dev-013:l3": "node scripts/dev013-ai-pdm-managed-staging.mjs source-freeze",
     "freeze:dev-013:l3:infra": "node scripts/dev013-ai-pdm-managed-staging.mjs infra-source-freeze",
     "verify:dev-013:l3:infra-plan": "node scripts/dev013-ai-pdm-managed-staging.mjs infra-plan-gate",

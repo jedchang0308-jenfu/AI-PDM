@@ -6,22 +6,27 @@ import test from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   assertDev013AiPdmStagingProfile,
+  assertBaselineTrafficPinningPlan,
   assertInfraTerraformPlan,
   buildActivationPlan,
+  buildBaselineTrafficPinningPlan,
   buildOwnerReceipt,
   buildRevisionPlan,
   buildRollbackPlan,
   buildSecretPinningActivationPlan,
   buildSecretPinningPlan,
   buildTargetBootstrapReceipt,
+  canonicalize,
   createInfraSourceFreeze,
   createSourceFreeze,
   hardJoinActivation,
+  hardJoinBaselineTrafficPinning,
   hardJoinRevision,
   hardJoinSecretPinningActivation,
   hardJoinSecretPinningRevision,
   sha256,
 } from './lib/dev013-ai-pdm-managed-staging.mjs'
+import { resolvePortableInvocation } from './lib/dev013-portable-command.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8')
@@ -35,8 +40,8 @@ const contractLock = json('contracts/jenfu-sso-handoff/v1/contract-lock.json')
 const sourceRevision = 'a'.repeat(40)
 const sourceTree = 'b'.repeat(40)
 const artifactDigest = `${profile.artifact.uri}@sha256:${'c'.repeat(64)}`
-const targetOrigin = 'https://ai-pdm-stg-123456789012.asia-east1.run.app'
-const brokerOrigin = 'https://jenfu-platform-stg-123456789012.asia-east1.run.app'
+const targetOrigin = `https://ai-pdm-stg-${profile.target.projectNumber}.asia-east1.run.app`
+const brokerOrigin = `https://jenfu-platform-stg-${profile.target.projectNumber}.asia-east1.run.app`
 
 function environment(secretVersion = '1') {
   const entries = [
@@ -83,6 +88,13 @@ function platformService() {
   return { name: `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.platformBroker.serviceName}`, uri: brokerOrigin, etag: 'platform-etag' }
 }
 
+function latestTrafficService() {
+  const service = targetService('latest')
+  service.deletionProtection = false
+  service.traffic = [{ type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST', percent: 100 }]
+  return service
+}
+
 function targetIdentity() {
   return { name: `projects/${profile.target.projectId}/serviceAccounts/${profile.target.runtimeServiceAccount}`, email: profile.target.runtimeServiceAccount, uniqueId: '123456789012345678901', disabled: false }
 }
@@ -107,6 +119,16 @@ test('profile is bound to the canonical Platform L3 manifest and excludes legacy
   assert.equal(assertDev013AiPdmStagingProfile(profile, platformManifest, contractLock), profile)
   assert.equal(profile.target.projectId, 'jenfu-platform-nonprod')
   assert.ok(profile.excludedTargets.projects.includes('jenfu-ai-pdm-stg-361825'))
+})
+
+test('provider read-only command resolves the Windows gcloud shim without shell execution', () => {
+  const invocation = resolvePortableInvocation('gcloud', ['auth', 'print-access-token'], {
+    platform: 'win32',
+    searchPath: 'C:\\Tools\\Google Cloud SDK\\bin;C:\\Windows',
+    fileExists: (candidate) => candidate === 'C:\\Tools\\Google Cloud SDK\\bin\\gcloud.ps1',
+  })
+  assert.equal(invocation.command, 'powershell.exe')
+  assert.deepEqual(invocation.args.slice(-2), ['auth', 'print-access-token'])
 })
 
 test('source freeze rejects dirty or non-allowlisted input', () => {
@@ -184,6 +206,47 @@ test('latest aliases require enabled metadata readback and a numeric-pinned revi
   const bootstrap = buildTargetBootstrapReceipt({ profile, targetService: activeService, targetIdentity: identity, secretVersionReadbacks: secretVersionReadbacks() })
   assert.equal(bootstrap.schemaVersion, 'jenfu.dev013.l3-target-bootstrap-receipt.v2')
   assert.deepEqual(bootstrap.boundaries.secretReferences, active.secretReferences)
+})
+
+test('existing latest traffic is pinned to the exact ready revision before any template mutation', () => {
+  const baseline = latestTrafficService()
+  const identity = targetIdentity()
+  expectCode(() => buildSecretPinningPlan({ profile, targetService: baseline, targetIdentity: identity, secretVersionReadbacks: secretVersionReadbacks() }), 'DEV013_AIPDM_TRAFFIC_NOT_REVISION_PINNED')
+  const plan = buildBaselineTrafficPinningPlan({ profile, targetService: baseline, targetIdentity: identity, observedAt: '2026-09-17T00:00:10.000Z' })
+  assert.equal(assertBaselineTrafficPinningPlan(plan, profile), plan)
+  assert.equal(plan.status, 'READY_FOR_EXPLICIT_NONPROD_BASELINE_TRAFFIC_PIN')
+  assert.equal(plan.mutation.updateMask, 'traffic,deletionProtection')
+  assert.equal(plan.mutation.deletionProtection, true)
+  assert.equal(plan.mutation.templateChanges, 0)
+  assert.equal(plan.mutation.labelChanges, 0)
+  assert.equal(plan.mutation.serviceBoundaryChanges, 1)
+  assert.deepEqual(plan.mutation.traffic, [{ revision: 'ai-pdm-stg-existing', percent: 100, tag: null }])
+  const pinned = { ...structuredClone(baseline), etag: 'etag-traffic-pinned', deletionProtection: true, traffic: structuredClone(plan.mutation.traffic) }
+  const receipt = hardJoinBaselineTrafficPinning({ profile, plan, targetService: pinned, targetIdentity: identity, observedAt: '2026-09-17T00:00:11.000Z' })
+  assert.equal(receipt.status, 'BASELINE_TRAFFIC_PINNED')
+  assert.equal(receipt.revision, 'ai-pdm-stg-existing')
+  const drift = structuredClone(pinned)
+  drift.template.scaling.maxInstanceCount = 3
+  expectCode(() => hardJoinBaselineTrafficPinning({ profile, plan, targetService: drift, targetIdentity: identity }), 'DEV013_AIPDM_CAPACITY_BOUNDARY_INVALID')
+
+  const wrongTargetPlan = structuredClone(plan)
+  wrongTargetPlan.mutation.projectId = 'jenfu-platform-prod'
+  delete wrongTargetPlan.planSha256
+  wrongTargetPlan.planSha256 = sha256(canonicalize(wrongTargetPlan))
+  expectCode(() => assertBaselineTrafficPinningPlan(wrongTargetPlan, profile), 'DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+
+  const protectedBaseline = latestTrafficService()
+  protectedBaseline.deletionProtection = true
+  const protectedPlan = buildBaselineTrafficPinningPlan({ profile, targetService: protectedBaseline, targetIdentity: identity })
+  assert.equal(protectedPlan.mutation.updateMask, 'traffic')
+  assert.equal(protectedPlan.mutation.serviceBoundaryChanges, 0)
+
+  const protoDefaultBaseline = latestTrafficService()
+  delete protoDefaultBaseline.deletionProtection
+  delete protoDefaultBaseline.template.scaling.minInstanceCount
+  const protoDefaultPlan = buildBaselineTrafficPinningPlan({ profile, targetService: protoDefaultBaseline, targetIdentity: identity })
+  assert.equal(protoDefaultPlan.before.deletionProtection, false)
+  assert.equal(protoDefaultPlan.mutation.updateMask, 'traffic,deletionProtection')
 })
 
 test('target bootstrap receipt proves only the exact off-mode provider target', async () => {

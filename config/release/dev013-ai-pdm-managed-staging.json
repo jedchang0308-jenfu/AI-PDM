@@ -1,7 +1,7 @@
 {
   "schemaVersion": "jenfu.dev013.ai-pdm-managed-staging-release.v2",
   "profileVersion": "OWNER_NATIVE_SHARED_STAGING_V2",
-  "contractSha256": "995b80708b9e778de23794996f673b8e783fe3d382386203722d3b6b6ee7ebc1",
+  "contractSha256": "991966e7ae92ce703224fef4c6a27843e4c9e49572039716df3cece3c07a1f09",
   "application": {
     "id": "ai-pdm",
     "repository": "jedchang0308-jenfu/AI-PDM",
@@ -148,6 +148,12 @@
     "enabledHandoffMode": "on"
   },
   "rollout": {
+    "baselineTrafficPinStage": "PIN_CURRENT_READY_REVISION_TRAFFIC_AND_ENABLE_DELETION_PROTECTION",
+    "baselineTrafficPinAllowedUpdateMasks": [
+      "traffic",
+      "traffic,deletionProtection"
+    ],
+    "deletionProtectionMustBeEnabledBeforeTemplatePatch": true,
     "initialStage": "PUBLISH_OFF_REVISION",
     "enabledStage": "PUBLISH_ON_REVISION",
     "activationStage": "ACTIVATE_ON_REVISION_AFTER_HARD_JOIN",

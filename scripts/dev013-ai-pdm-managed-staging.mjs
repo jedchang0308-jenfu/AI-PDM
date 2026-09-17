@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import {
   assertDev013AiPdmStagingProfile,
   assertInfraTerraformPlan,
+  buildBaselineTrafficPinningPlan,
   buildActivationPlan,
   buildOwnerReceipt,
   buildRevisionPlan,
@@ -15,11 +16,13 @@ import {
   createInfraSourceFreeze,
   createSourceFreeze,
   hardJoinActivation,
+  hardJoinBaselineTrafficPinning,
   hardJoinRevision,
   hardJoinSecretPinningActivation,
   hardJoinSecretPinningRevision,
   sha256,
 } from './lib/dev013-ai-pdm-managed-staging.mjs'
+import { spawnPortableSync } from './lib/dev013-portable-command.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const profilePath = path.join(root, 'config/release/dev013-ai-pdm-managed-staging.json')
@@ -42,6 +45,32 @@ function scalarOption(name) {
 function git(...args) { return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim() }
 function gitBytes(...args) { return execFileSync('git', args, { cwd: root, encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 }) }
 function emit(value) { process.stdout.write(`${JSON.stringify(value, null, 2)}\n`) }
+
+function gcloudOutput(args) {
+  const result = spawnPortableSync('gcloud', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  if (result.status !== 0) fail(`gcloud read-only command failed: ${String(result.stderr ?? '').trim()}`)
+  return String(result.stdout ?? '').trim()
+}
+
+async function providerBaselineTrafficPlan(profile) {
+  const token = gcloudOutput(['auth', 'print-access-token', '--quiet'])
+  if (token.length < 20) fail('Provider access token unavailable')
+  const serviceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
+  const response = await fetch(`https://run.googleapis.com/v2/${serviceName}`, {
+    method: 'GET',
+    headers: { authorization: `Bearer ${token}`, 'x-goog-user-project': profile.target.projectId },
+    signal: AbortSignal.timeout(30_000),
+  })
+  const targetService = await response.json().catch(() => ({}))
+  if (!response.ok) fail(`Cloud Run v2 readback failed: ${response.status}:${targetService?.error?.status ?? 'UNKNOWN'}`)
+  const targetIdentity = JSON.parse(gcloudOutput([
+    'iam', 'service-accounts', 'describe', profile.target.runtimeServiceAccount,
+    '--project', profile.target.projectId,
+    '--format=json',
+    '--quiet',
+  ]))
+  return buildBaselineTrafficPinningPlan({ profile, targetService, targetIdentity })
+}
 
 function loadAuthority() {
   const profile = readJson(profilePath)
@@ -85,6 +114,12 @@ if (command === 'profile-check') {
   emit(assertInfraTerraformPlan(jsonOption('terraform-plan'), jsonOption('infra-source-freeze'), profile))
 } else if (command === 'secret-pin-plan') {
   emit(buildSecretPinningPlan({ profile, targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity'), secretVersionReadbacks: jsonOption('secret-version-readbacks') }))
+} else if (command === 'baseline-traffic-pin-plan') {
+  emit(buildBaselineTrafficPinningPlan({ profile, targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
+} else if (command === 'baseline-traffic-pin-provider-plan') {
+  emit(await providerBaselineTrafficPlan(profile))
+} else if (command === 'baseline-traffic-pin-hard-join') {
+  emit(hardJoinBaselineTrafficPinning({ profile, plan: jsonOption('baseline-traffic-pin-plan'), targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
 } else if (command === 'secret-pin-hard-join') {
   emit(hardJoinSecretPinningRevision({ profile, plan: jsonOption('secret-pin-plan'), targetService: jsonOption('target-service'), targetIdentity: jsonOption('target-identity') }))
 } else if (command === 'secret-pin-activation-plan') {
