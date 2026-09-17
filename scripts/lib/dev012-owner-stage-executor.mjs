@@ -87,6 +87,33 @@ function acceptedStatus(value, statuses) {
   return value && statuses.includes(value.status) && value.releaseAuthority === true && value.evidenceScope !== 'LOCAL_SYNTHETIC'
 }
 
+export function assertControlledEnvironmentAuthority({ intent, profile, values, runtime, previousControlledEnvironment = null }) {
+  const rules = profile.environment?.controlledValues ?? {}
+  const controlledEnvironment = Object.fromEntries(Object.keys(rules).sort().map((name) => [name, runtime.plainEnvironment?.[name]]))
+  const changedNames = previousControlledEnvironment
+    ? Object.keys(rules).filter((name) => previousControlledEnvironment[name] !== controlledEnvironment[name])
+    : Object.entries(rules).filter(([name, rule]) => controlledEnvironment[name] !== rule.defaultValue).map(([name]) => name)
+  if (changedNames.length === 0) return
+  const transition = values.readiness?.transition
+  const predecessor = transition?.predecessorReceiptRef
+  if (values.authorization?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-authorization.v1' || values.authorization.authorizationBasis !== 'OPERATOR_INVOKED_DEV013_L4'
+    || values.readiness?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-readiness.v1' || values.readiness.devId !== 'DEV-013' || values.readiness.slice !== '013-R1'
+    || values.authorization.ownerApplicationId !== profile.application.id || values.readiness.ownerApplicationId !== profile.application.id
+    || values.authorization.sourceRevision !== intent.sourceRevision || values.readiness.sourceRevision !== intent.sourceRevision || values.authorization.releaseId !== intent.releaseId || values.readiness.releaseId !== intent.releaseId
+    || canonicalize(values.readiness.controlledEnvironment) !== canonicalize(controlledEnvironment)
+    || !Object.hasOwn(rules, transition?.field) || transition.to !== controlledEnvironment[transition.field] || (transition.from !== null && !rules[transition.field].allowedValues.includes(transition.from)) || !rules[transition.field].allowedValues.includes(transition.to) || transition.from === transition.to
+    || !['guard', 'activate', 'advance', 'rollback'].includes(transition.action)
+    || (previousControlledEnvironment && (changedNames.length !== 1 || transition.field !== changedNames[0] || transition.from !== previousControlledEnvironment[transition.field]))
+    || (transition.action === 'guard' && (transition.from !== null || transition.to !== rules[transition.field].defaultValue))
+    || !predecessor || canonicalize(Object.keys(predecessor).sort()) !== canonicalize(['sha256', 'uri']) || typeof predecessor.uri !== 'string' || predecessor.uri.length < 8 || !H64.test(predecessor.sha256 ?? '')) fail('CONTROLLED_ENVIRONMENT_AUTHORITY_INVALID')
+}
+
+function revisionControlledEnvironment(profile, revision) {
+  const app = revision?.containers?.find((row) => row.name === profile.runtime.containerName)
+  const plain = Object.fromEntries((app?.env ?? []).filter((row) => typeof row.value === 'string').map((row) => [row.name, row.value]))
+  return Object.fromEntries(Object.keys(profile.environment?.controlledValues ?? {}).sort().map((name) => [name, plain[name] ?? null]))
+}
+
 export function assertPreparePrerequisites({ intent, profile, values }) {
   const revision = values.sourceLock.sourceRevision ?? values.sourceLock.headRevision ?? values.sourceLock.head
   const clean = values.sourceLock.clean ?? values.sourceLock.workingTree?.isClean
@@ -100,6 +127,7 @@ export function assertPreparePrerequisites({ intent, profile, values }) {
   if ([values.readiness, values.foundation, values.infra, values.runtimeConfig].some((value) => project(value) !== profile.target.projectId)) fail('PREPARE_TARGET_MISMATCH')
   const runtime = values.runtimeConfig.runtimeConfig ?? values.runtimeConfig
   assertRuntimeConfig(profile, runtime)
+  assertControlledEnvironmentAuthority({ intent, profile, values, runtime })
   const migrationRunnerDigest = values.infra.migrationRunnerDigest ?? values.infra.artifacts?.migrationRunnerDigest
   if (!migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)) fail('MIGRATION_RUNNER_PROVENANCE_MISSING')
   let productionData = null
@@ -332,6 +360,10 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const service = await transport.getService(profile)
     transport.assertServiceSettled(service, 'PREPARE_BASELINE_MISMATCH')
     if (transport.effectiveRevision(service) !== intent.previousRevision) fail('PREPARE_BASELINE_MISMATCH')
+    if (Object.keys(profile.environment?.controlledValues ?? {}).length > 0) {
+      const previousRevision = await transport.getRevision(profile, intent.previousRevision)
+      assertControlledEnvironmentAuthority({ intent, profile, values, runtime: derived.runtimeConfig, previousControlledEnvironment: revisionControlledEnvironment(profile, previousRevision) })
+    }
     return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 

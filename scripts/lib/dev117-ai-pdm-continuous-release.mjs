@@ -54,8 +54,8 @@ export function assertDev117V3Profile(profile, v1, n1c) {
     || fixed.JENFU_IDENTITY_ISSUER !== `https://securetoken.google.com/${target.projectId}`
     || fixed.JENFU_IDENTITY_AUDIENCE !== target.projectId
     || fixed.PDM_FIREBASE_PROJECT_ID !== target.projectId
-    || fixed.PDM_JENFU_SSO_HANDOFF_MODE !== 'off'
     || fixed.PDM_JENFU_SSO_BROKER_ORIGIN !== 'https://jenfu-platform-prod-9536592944.asia-east1.run.app') fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM production identity, entitlement, database, SSO guard or direct-origin environment mismatch')
+  if (JSON.stringify(profile.environment.controlledValues) !== JSON.stringify({ PDM_JENFU_SSO_HANDOFF_MODE: { defaultValue: 'off', allowedValues: ['off', 'on'] } })) fail('ENVIRONMENT_VALUE_DRIFT', 'AI-PDM SSO mode transition contract mismatch')
   if (profile.operations?.CONFIGURE_ENTRYPOINT !== 'run.projects.locations.services.patch?updateMask=ingress,defaultUriDisabled,invokerIamDisabled') fail('ENTRYPOINT_OPERATION_MISSING', 'AI-PDM entrypoint mutation is not exact')
   const expectedDataCutover = { gateMode: 'CUTOVER_OR_LIVE_AUTHORITY', handoffSchema: 'jenfu.dev012.ai-pdm-data-cutover-handoff.v1', importReceiptSchema: 'jenfu.dev012.ai-pdm-data-import-receipt.v1', fenceReceiptSchema: 'jenfu.dev012.ai-pdm-data-fence-receipt.v1', teardownReceiptSchema: 'jenfu.dev012.ai-pdm-data-teardown-receipt.v1', postLiveCleanupReceiptSchema: 'jenfu.dev012.ai-pdm-data-post-live-cleanup-receipt.v1', completionReceiptSchema: 'jenfu.dev012.ai-pdm-data-post-live-cleanup-receipt.v1', postLiveCleanupRequired: true, sourceProjectId: 'jenfu-ai-pdm-prod', sourceDatabase: 'ai_pdm', targetProjectId: 'jenfu-platform-prod', targetDatabase: 'jenfu_prod', targetSchema: 'ai_pdm_core', copyTableCount: 151 }
   if (JSON.stringify(profile.dataCutover) !== JSON.stringify(expectedDataCutover)) fail('DATA_CUTOVER_PROFILE_MISMATCH', 'AI-PDM candidate must consume the one-time production data handoff')
