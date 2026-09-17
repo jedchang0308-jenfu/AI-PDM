@@ -1,7 +1,7 @@
 {
   "schemaVersion": "jenfu.dev013.ai-pdm-managed-staging-release.v2",
   "profileVersion": "OWNER_NATIVE_SHARED_STAGING_V2",
-  "contractSha256": "2406429644bd8bbf3ff931aef902f14b28d621cb9111edb386de53c724999993",
+  "contractSha256": "ec1d27efe03b86d6bad49193e3c922e4012a4069ba0d4bd9d1e63d150b8c3864",
   "application": {
     "id": "ai-pdm",
     "repository": "jedchang0308-jenfu/AI-PDM",
@@ -100,7 +100,8 @@
     "databasePoolMax": 2,
     "containerConcurrency": 20,
     "startupProbePath": "/api/health/ready",
-    "deletionProtection": true,
+    "deletionProtection": false,
+    "deletionGuardAuthority": "OWNER_WORKFLOW_POLICY",
     "secretEnvironmentNames": [
       "PDM_SESSION_CURRENT_SECRET",
       "PDM_SESSION_PREVIOUS_SECRET",
@@ -148,12 +149,12 @@
     "enabledHandoffMode": "on"
   },
   "rollout": {
-    "baselineTrafficPinStage": "PIN_CURRENT_READY_REVISION_TRAFFIC_AND_ENABLE_DELETION_PROTECTION",
+    "baselineTrafficPinStage": "PIN_CURRENT_READY_REVISION_TRAFFIC",
     "baselineTrafficPinAllowedUpdateMasks": [
-      "traffic",
-      "traffic,deletionProtection"
+      "traffic"
     ],
-    "deletionProtectionMustBeEnabledBeforeTemplatePatch": true,
+    "providerDeletionProtectionAvailable": false,
+    "deleteMutationsAllowed": 0,
     "initialStage": "PUBLISH_OFF_REVISION",
     "enabledStage": "PUBLISH_ON_REVISION",
     "activationStage": "ACTIVATE_ON_REVISION_AFTER_HARD_JOIN",

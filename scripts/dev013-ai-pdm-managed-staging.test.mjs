@@ -62,7 +62,7 @@ function targetService(secretVersion = '1') {
     etag: 'etag-before',
     labels: { ...profile.target.requiredLabels },
     ...profile.target.entryPolicy,
-    deletionProtection: true,
+    deletionProtection: false,
     template: {
       revision: 'ai-pdm-stg-existing',
       serviceAccount: profile.target.runtimeServiceAccount,
@@ -90,7 +90,6 @@ function platformService() {
 
 function latestTrafficService() {
   const service = targetService('latest')
-  service.deletionProtection = false
   service.traffic = [{ type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST', percent: 100 }]
   return service
 }
@@ -222,15 +221,20 @@ test('existing latest traffic is pinned to the exact ready revision before any t
   const plan = buildBaselineTrafficPinningPlan({ profile, targetService: baseline, targetIdentity: identity, observedAt: '2026-09-17T00:00:10.000Z' })
   assert.equal(assertBaselineTrafficPinningPlan(plan, profile), plan)
   assert.equal(plan.status, 'READY_FOR_EXPLICIT_NONPROD_BASELINE_TRAFFIC_PIN')
-  assert.equal(plan.mutation.updateMask, 'traffic,deletionProtection')
-  assert.equal(plan.mutation.deletionProtection, true)
+  assert.equal(plan.schemaVersion, 'jenfu.dev013.ai-pdm-baseline-traffic-pin-plan.v2')
+  assert.equal(plan.mutation.updateMask, 'traffic')
+  assert.equal(plan.before.providerDeletionProtectionSupported, false)
+  assert.equal(plan.mutation.providerDeletionProtectionChanges, 0)
+  assert.equal(plan.mutation.deleteMutationsAllowed, 0)
   assert.equal(plan.mutation.templateChanges, 0)
   assert.equal(plan.mutation.labelChanges, 0)
-  assert.equal(plan.mutation.serviceBoundaryChanges, 1)
+  assert.equal(plan.mutation.serviceBoundaryChanges, 0)
   assert.deepEqual(plan.mutation.traffic, [{ revision: 'ai-pdm-stg-existing', percent: 100, tag: null }])
-  const pinned = { ...structuredClone(baseline), etag: 'etag-traffic-pinned', deletionProtection: true, traffic: structuredClone(plan.mutation.traffic) }
+  const pinned = { ...structuredClone(baseline), etag: 'etag-traffic-pinned', traffic: structuredClone(plan.mutation.traffic) }
   const receipt = hardJoinBaselineTrafficPinning({ profile, plan, targetService: pinned, targetIdentity: identity, observedAt: '2026-09-17T00:00:11.000Z' })
   assert.equal(receipt.status, 'BASELINE_TRAFFIC_PINNED')
+  assert.equal(receipt.deletionGuardAuthority, 'OWNER_WORKFLOW_POLICY')
+  assert.equal(receipt.providerDeletionProtectionSupported, false)
   assert.equal(receipt.revision, 'ai-pdm-stg-existing')
   const drift = structuredClone(pinned)
   drift.template.scaling.maxInstanceCount = 3
@@ -242,24 +246,24 @@ test('existing latest traffic is pinned to the exact ready revision before any t
   wrongTargetPlan.planSha256 = sha256(canonicalize(wrongTargetPlan))
   expectCode(() => assertBaselineTrafficPinningPlan(wrongTargetPlan, profile), 'DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
 
-  const protectedBaseline = latestTrafficService()
-  protectedBaseline.deletionProtection = true
-  const protectedPlan = buildBaselineTrafficPinningPlan({ profile, targetService: protectedBaseline, targetIdentity: identity })
-  assert.equal(protectedPlan.mutation.updateMask, 'traffic')
-  assert.equal(protectedPlan.mutation.serviceBoundaryChanges, 0)
+  const inventedProviderProtection = latestTrafficService()
+  inventedProviderProtection.deletionProtection = true
+  expectCode(() => buildBaselineTrafficPinningPlan({ profile, targetService: inventedProviderProtection, targetIdentity: identity }), 'DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID')
 
   const protoDefaultBaseline = latestTrafficService()
   delete protoDefaultBaseline.deletionProtection
   delete protoDefaultBaseline.template.scaling.minInstanceCount
   const protoDefaultPlan = buildBaselineTrafficPinningPlan({ profile, targetService: protoDefaultBaseline, targetIdentity: identity })
-  assert.equal(protoDefaultPlan.before.deletionProtection, false)
-  assert.equal(protoDefaultPlan.mutation.updateMask, 'traffic,deletionProtection')
+  assert.equal(protoDefaultPlan.before.providerDeletionProtectionSupported, false)
+  assert.equal(protoDefaultPlan.mutation.updateMask, 'traffic')
 })
 
 test('target bootstrap receipt proves only the exact off-mode provider target', async () => {
   const bootstrap = buildTargetBootstrapReceipt({ profile, targetService: targetService(), targetIdentity: targetIdentity(), secretVersionReadbacks: secretVersionReadbacks(), observedAt: '2026-09-17T00:00:30.000Z' })
   assert.equal(bootstrap.status, 'TARGET_BOOTSTRAP_READY')
   assert.equal(bootstrap.runtime.ssoHandoffMode, 'off')
+  assert.equal(bootstrap.target.deletionProtection, false)
+  assert.equal(bootstrap.target.deletionGuardAuthority, 'OWNER_WORKFLOW_POLICY')
   const validatorPath = path.join(platformRoot, 'scripts/lib/dev013-l3-contract.mjs')
   const { assertTargetBootstrapReceipt } = await import(pathToFileURL(validatorPath))
   assert.equal(assertTargetBootstrapReceipt(bootstrap, 'ai-pdm', platformManifest), bootstrap)

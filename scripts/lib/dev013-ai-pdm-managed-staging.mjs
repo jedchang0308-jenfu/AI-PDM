@@ -61,7 +61,7 @@ export function assertDev013AiPdmStagingProfile(profile, platformManifest, contr
   if (target.projectId !== platformManifest.target.projectId || target.projectNumber !== platformManifest.target.projectNumber || target.region !== platformManifest.target.region || target.serviceName !== manifestApp.serviceName || target.database !== platformManifest.target.database || target.connectionName !== platformManifest.target.connectionName || target.runtimeServiceAccount !== manifestApp.runtimeServiceAccount || canonicalize(target.requiredLabels) !== canonicalize(manifestApp.requiredLabels) || !exactEntryPolicy(target.entryPolicy, platformManifest.platformRelease.entryPolicy)) fail('DEV013_AIPDM_TARGET_DRIFT')
   if (profile.artifact.repository !== manifestApp.artifact.repository || profile.state.bucket !== manifestApp.state.bucket || profile.state.prefix !== manifestApp.state.prefix || profile.evidence.bucket !== manifestApp.evidence.bucket || profile.evidence.prefix !== manifestApp.evidence.prefix || canonicalize(profile.boundaries.secretReferences) !== canonicalize(manifestApp.secret.references) || canonicalize(profile.boundaries.versionBootstrap) !== canonicalize(manifestApp.secret.versionBootstrap) || manifestApp.secret.numericVersionRequired !== true || manifestApp.secret.payloadMayAppearInEvidence !== false) fail('DEV013_AIPDM_OWNER_BOUNDARY_DRIFT')
   if (profile.target.projectId === 'jenfu-ai-pdm-stg-361825' || !profile.excludedTargets.projects.includes('jenfu-ai-pdm-stg-361825') || !profile.excludedTargets.projects.includes('jenfu-platform-prod')) fail('DEV013_AIPDM_EXCLUDED_TARGET_ACTIVE')
-  if (profile.environment.initialHandoffMode !== 'off' || profile.environment.fixed.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on' || profile.rollout.baselineTrafficPinStage !== 'PIN_CURRENT_READY_REVISION_TRAFFIC_AND_ENABLE_DELETION_PROTECTION' || canonicalize(profile.rollout.baselineTrafficPinAllowedUpdateMasks) !== canonicalize(['traffic', 'traffic,deletionProtection']) || profile.rollout.deletionProtectionMustBeEnabledBeforeTemplatePatch !== true || profile.rollout.serviceUpdateMask !== 'labels,template' || profile.rollout.activationUpdateMask !== 'traffic' || profile.rollback.updateMask !== 'traffic' || profile.boundaries.infraBootstrapTerraform !== true || profile.boundaries.serviceTerraformApply !== false || profile.boundaries.databaseMigrations !== 0 || profile.boundaries.secretValuesRead !== false) fail('DEV013_AIPDM_RELEASE_BOUNDARY_INVALID')
+  if (profile.runtime.deletionProtection !== false || profile.runtime.deletionGuardAuthority !== 'OWNER_WORKFLOW_POLICY' || profile.environment.initialHandoffMode !== 'off' || profile.environment.fixed.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on' || profile.rollout.baselineTrafficPinStage !== 'PIN_CURRENT_READY_REVISION_TRAFFIC' || canonicalize(profile.rollout.baselineTrafficPinAllowedUpdateMasks) !== canonicalize(['traffic']) || profile.rollout.providerDeletionProtectionAvailable !== false || profile.rollout.deleteMutationsAllowed !== 0 || profile.rollout.serviceUpdateMask !== 'labels,template' || profile.rollout.activationUpdateMask !== 'traffic' || profile.rollback.updateMask !== 'traffic' || profile.boundaries.infraBootstrapTerraform !== true || profile.boundaries.serviceTerraformApply !== false || profile.boundaries.databaseMigrations !== 0 || profile.boundaries.secretValuesRead !== false) fail('DEV013_AIPDM_RELEASE_BOUNDARY_INVALID')
   const terraformAddresses = [...(profile.terraform?.dataAddresses ?? []), ...(profile.terraform?.resourceAddresses ?? [])]
   if (profile.terraform?.root !== 'infra/google-cloud/dev-013-l3-ai-pdm' || profile.terraform?.iacServiceAccount !== 'dev010-n1b-iac@jenfu-platform-nonprod.iam.gserviceaccount.com' || profile.terraform?.qcServiceAccount !== 'dev010-n1c-qc@jenfu-platform-nonprod.iam.gserviceaccount.com' || terraformAddresses.length !== 8 || new Set(terraformAddresses).size !== 8 || canonicalize(profile.terraform.allowedActions) !== canonicalize(['create', 'read', 'no-op'])) fail('DEV013_AIPDM_TERRAFORM_BOUNDARY_INVALID')
   if (canonicalize(profile.rollback.securityFloor) !== canonicalize(['auth-state-v2', 'assurance', 'original-auth-time']) || profile.rollback.preDev013ArtifactAllowed !== false) fail('DEV013_AIPDM_ROLLBACK_FLOOR_INVALID')
@@ -373,13 +373,13 @@ export function normalizeServiceAccountReadback(value, profile) {
   return { email, uniqueId, name: value.name, disabled: false }
 }
 
-function assertTemplateBoundary(readback, identity, profile, { allowDeletionProtectionDisabled = false } = {}) {
+function assertTemplateBoundary(readback, identity, profile) {
   const template = readback.template
   const app = appContainer(template, profile)
   const proxy = proxyContainer(template, profile)
   const env = environmentMap(app)
   if (!exactEntryPolicy(readback.entryPolicy, profile.target.entryPolicy)) fail('DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID', 'entry-policy')
-  if (readback.deletionProtection !== true && (!allowDeletionProtectionDisabled || readback.deletionProtection !== false)) fail('DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID', 'deletion-protection')
+  if (readback.deletionProtection !== profile.runtime.deletionProtection) fail('DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID', 'deletion-protection')
   if (serviceAccount({ template }) !== profile.target.runtimeServiceAccount || identity.email !== profile.target.runtimeServiceAccount) fail('DEV013_AIPDM_RUNTIME_BOUNDARY_INVALID', 'runtime-service-account')
   if (proxy.image !== profile.runtime.cloudSqlProxyImage || !canonicalize(proxy.args ?? []).includes(profile.target.connectionName)) fail('DEV013_AIPDM_PROXY_BOUNDARY_INVALID')
   for (const [name, value] of Object.entries(profile.runtime.requiredDatabaseEnvironment)) if (env[name] !== value) fail('DEV013_AIPDM_DATABASE_BOUNDARY_INVALID', name)
@@ -426,7 +426,7 @@ function protectedBoundarySha256(boundary) {
 }
 
 function baselineTrafficProtectedState(target, identity, profile) {
-  assertTemplateBoundary(target, identity, profile, { allowDeletionProtectionDisabled: true })
+  assertTemplateBoundary(target, identity, profile)
   const core = {
     canonicalOrigin: target.origin,
     labels: target.labels,
@@ -445,26 +445,27 @@ export function buildBaselineTrafficPinningPlan({ profile, targetService, target
   const protectedState = baselineTrafficProtectedState(target, identity, profile)
   const traffic = target.traffic
   if (traffic.length !== 1 || !traffic[0].latestRevision || traffic[0].revision !== null || traffic[0].percent !== 100 || traffic[0].tag !== null || !target.latestReadyRevision || target.latestCreatedRevision !== target.latestReadyRevision) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_INPUT_INVALID')
-  const updateMask = target.deletionProtection === true ? 'traffic' : 'traffic,deletionProtection'
+  const updateMask = 'traffic'
   if (!profile.rollout.baselineTrafficPinAllowedUpdateMasks.includes(updateMask)) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_INPUT_INVALID')
   const core = {
-    schemaVersion: 'jenfu.dev013.ai-pdm-baseline-traffic-pin-plan.v1',
+    schemaVersion: 'jenfu.dev013.ai-pdm-baseline-traffic-pin-plan.v2',
     ownerApplicationId: 'ai-pdm',
     target: { projectId: profile.target.projectId, region: profile.target.region, serviceName: profile.target.serviceName, canonicalOrigin: target.origin },
     runtimeServiceAccount: identity,
-    before: { etag: target.etag, deletionProtection: target.deletionProtection, protectedStateSha256: protectedState.sha256, trafficSha256: sha256(canonicalize(traffic)) },
+    before: { etag: target.etag, providerDeletionProtectionSupported: false, protectedStateSha256: protectedState.sha256, trafficSha256: sha256(canonicalize(traffic)) },
     mutation: {
-      operation: target.deletionProtection === true ? 'PIN_EXISTING_LATEST_TRAFFIC_TO_READY_REVISION' : 'PIN_EXISTING_LATEST_TRAFFIC_AND_ENABLE_DELETION_PROTECTION',
+      operation: 'PIN_EXISTING_LATEST_TRAFFIC_TO_READY_REVISION',
       updateMask,
       projectId: profile.target.projectId,
       region: profile.target.region,
       serviceName: profile.target.serviceName,
       etag: target.etag,
-      deletionProtection: true,
+      providerDeletionProtectionChanges: 0,
+      deleteMutationsAllowed: 0,
       traffic: [{ revision: target.latestReadyRevision, percent: 100, tag: null }],
       templateChanges: 0,
       labelChanges: 0,
-      serviceBoundaryChanges: target.deletionProtection === true ? 0 : 1,
+      serviceBoundaryChanges: 0,
       siblingMutations: 0,
     },
     status: 'READY_FOR_EXPLICIT_NONPROD_BASELINE_TRAFFIC_PIN',
@@ -475,16 +476,15 @@ export function buildBaselineTrafficPinningPlan({ profile, targetService, target
 }
 
 export function assertBaselineTrafficPinningPlan(plan, profile) {
-  const expectedUpdateMask = plan?.before?.deletionProtection === true ? 'traffic' : 'traffic,deletionProtection'
-  const expectedOperation = plan?.before?.deletionProtection === true ? 'PIN_EXISTING_LATEST_TRAFFIC_TO_READY_REVISION' : 'PIN_EXISTING_LATEST_TRAFFIC_AND_ENABLE_DELETION_PROTECTION'
-  const expectedBoundaryChanges = plan?.before?.deletionProtection === true ? 0 : 1
+  const expectedUpdateMask = 'traffic'
+  const expectedOperation = 'PIN_EXISTING_LATEST_TRAFFIC_TO_READY_REVISION'
   const expectedOrigin = `https://${profile.target.serviceName}-${profile.target.projectNumber}.${profile.target.region}.run.app`
   const traffic = plan?.mutation?.traffic
-  if (plan?.schemaVersion !== 'jenfu.dev013.ai-pdm-baseline-traffic-pin-plan.v1' || plan.ownerApplicationId !== 'ai-pdm' || plan.status !== 'READY_FOR_EXPLICIT_NONPROD_BASELINE_TRAFFIC_PIN' || plan.releaseAuthority !== false || plan.planSha256 !== selfHash(plan, 'planSha256')) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  if (plan?.schemaVersion !== 'jenfu.dev013.ai-pdm-baseline-traffic-pin-plan.v2' || plan.ownerApplicationId !== 'ai-pdm' || plan.status !== 'READY_FOR_EXPLICIT_NONPROD_BASELINE_TRAFFIC_PIN' || plan.releaseAuthority !== false || plan.planSha256 !== selfHash(plan, 'planSha256')) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
   if (plan.target?.projectId !== profile.target.projectId || plan.target?.region !== profile.target.region || plan.target?.serviceName !== profile.target.serviceName || plan.target?.canonicalOrigin !== expectedOrigin || assertRunAppOrigin(plan.target.canonicalOrigin, profile.target.serviceName, profile.target.region, profile.target.projectNumber) !== expectedOrigin) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
   if (plan.runtimeServiceAccount?.email !== profile.target.runtimeServiceAccount || plan.runtimeServiceAccount?.name !== `projects/${profile.target.projectId}/serviceAccounts/${profile.target.runtimeServiceAccount}` || !UNIQUE_ID.test(String(plan.runtimeServiceAccount?.uniqueId ?? '')) || plan.runtimeServiceAccount?.disabled !== false) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
-  if (typeof plan.before?.etag !== 'string' || plan.before.etag.length < 4 || !H64.test(plan.before?.protectedStateSha256 ?? '') || !H64.test(plan.before?.trafficSha256 ?? '') || !profile.rollout.baselineTrafficPinAllowedUpdateMasks.includes(expectedUpdateMask)) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
-  if (plan.mutation?.operation !== expectedOperation || plan.mutation?.updateMask !== expectedUpdateMask || plan.mutation?.projectId !== profile.target.projectId || plan.mutation?.region !== profile.target.region || plan.mutation?.serviceName !== profile.target.serviceName || plan.mutation?.etag !== plan.before.etag || plan.mutation?.deletionProtection !== true || plan.mutation?.templateChanges !== 0 || plan.mutation?.labelChanges !== 0 || plan.mutation?.serviceBoundaryChanges !== expectedBoundaryChanges || plan.mutation?.siblingMutations !== 0 || !Array.isArray(traffic) || traffic.length !== 1 || !String(traffic[0]?.revision ?? '').startsWith(`${profile.target.serviceName}-`) || traffic[0]?.percent !== 100 || traffic[0]?.tag !== null) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  if (typeof plan.before?.etag !== 'string' || plan.before.etag.length < 4 || plan.before?.providerDeletionProtectionSupported !== false || !H64.test(plan.before?.protectedStateSha256 ?? '') || !H64.test(plan.before?.trafficSha256 ?? '') || !profile.rollout.baselineTrafficPinAllowedUpdateMasks.includes(expectedUpdateMask)) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  if (plan.mutation?.operation !== expectedOperation || plan.mutation?.updateMask !== expectedUpdateMask || plan.mutation?.projectId !== profile.target.projectId || plan.mutation?.region !== profile.target.region || plan.mutation?.serviceName !== profile.target.serviceName || plan.mutation?.etag !== plan.before.etag || plan.mutation?.providerDeletionProtectionChanges !== 0 || plan.mutation?.deleteMutationsAllowed !== 0 || plan.mutation?.templateChanges !== 0 || plan.mutation?.labelChanges !== 0 || plan.mutation?.serviceBoundaryChanges !== 0 || plan.mutation?.siblingMutations !== 0 || !Array.isArray(traffic) || traffic.length !== 1 || !String(traffic[0]?.revision ?? '').startsWith(`${profile.target.serviceName}-`) || traffic[0]?.percent !== 100 || traffic[0]?.tag !== null) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
   return plan
 }
 
@@ -495,10 +495,9 @@ export function hardJoinBaselineTrafficPinning({ profile, plan, targetService, t
   const protectedState = baselineTrafficProtectedState(target, identity, profile)
   const expectedRevision = plan.mutation?.traffic?.[0]?.revision
   const traffic = target.traffic
-  const expectedBoundaryChanges = plan.before?.deletionProtection === true ? 0 : 1
-  if (plan.mutation?.serviceBoundaryChanges !== expectedBoundaryChanges || target.deletionProtection !== true || target.etag === plan.before?.etag || target.origin !== plan.target?.canonicalOrigin || identity.uniqueId !== plan.runtimeServiceAccount?.uniqueId || protectedState.sha256 !== plan.before?.protectedStateSha256 || target.latestCreatedRevision !== expectedRevision || target.latestReadyRevision !== expectedRevision || traffic.length !== 1 || traffic[0].revision !== expectedRevision || traffic[0].percent !== 100 || traffic[0].tag !== null || traffic[0].latestRevision) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_HARD_JOIN_INVALID')
+  if (plan.mutation?.serviceBoundaryChanges !== 0 || target.deletionProtection !== false || target.etag === plan.before?.etag || target.origin !== plan.target?.canonicalOrigin || identity.uniqueId !== plan.runtimeServiceAccount?.uniqueId || protectedState.sha256 !== plan.before?.protectedStateSha256 || target.latestCreatedRevision !== expectedRevision || target.latestReadyRevision !== expectedRevision || traffic.length !== 1 || traffic[0].revision !== expectedRevision || traffic[0].percent !== 100 || traffic[0].tag !== null || traffic[0].latestRevision) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_HARD_JOIN_INVALID')
   const core = {
-    schemaVersion: 'jenfu.dev013.ai-pdm-baseline-traffic-pin-receipt.v1',
+    schemaVersion: 'jenfu.dev013.ai-pdm-baseline-traffic-pin-receipt.v2',
     ownerApplicationId: 'ai-pdm',
     revision: expectedRevision,
     providerEtag: target.etag,
@@ -506,6 +505,8 @@ export function hardJoinBaselineTrafficPinning({ profile, plan, targetService, t
     runtimeServiceAccount: identity,
     protectedStateSha256: protectedState.sha256,
     trafficSha256: sha256(canonicalize(traffic)),
+    deletionGuardAuthority: profile.runtime.deletionGuardAuthority,
+    providerDeletionProtectionSupported: false,
     status: 'BASELINE_TRAFFIC_PINNED',
     releaseAuthority: false,
     observedAt,
@@ -534,7 +535,8 @@ export function buildTargetBootstrapReceipt({ profile, targetService, targetIden
       labels: profile.target.requiredLabels,
       runtimeServiceAccount: { email: identity.email, uniqueId: identity.uniqueId },
       entryPolicy: profile.target.entryPolicy,
-      deletionProtection: true,
+      deletionProtection: false,
+      deletionGuardAuthority: profile.runtime.deletionGuardAuthority,
       minInstances: profile.runtime.minInstances,
     },
     runtime: { ssoHandoffMode: 'off' },
@@ -860,7 +862,8 @@ export function buildOwnerReceipt({ profile, enabledReceipt, observedAt = new Da
       labels: profile.target.requiredLabels,
       runtimeServiceAccount: { email: enabledReceipt.runtimeServiceAccount.email, uniqueId: enabledReceipt.runtimeServiceAccount.uniqueId },
       entryPolicy: profile.target.entryPolicy,
-      deletionProtection: true,
+      deletionProtection: false,
+      deletionGuardAuthority: profile.runtime.deletionGuardAuthority,
       minInstances: 0,
     },
     runtime: { ssoHandoffMode: 'on' },
