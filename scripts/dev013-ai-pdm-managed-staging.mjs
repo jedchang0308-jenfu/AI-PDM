@@ -33,7 +33,7 @@ function scalarOption(name) {
   return process.argv[index + 1]
 }
 function git(...args) { return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim() }
-function gitBytes(...args) { return execFileSync('git', args, { cwd: root, encoding: 'buffer' }) }
+function gitBytes(...args) { return execFileSync('git', args, { cwd: root, encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 }) }
 function emit(value) { process.stdout.write(`${JSON.stringify(value, null, 2)}\n`) }
 
 function loadAuthority() {
