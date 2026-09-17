@@ -1634,11 +1634,11 @@ Owner：Dev PM
     AI-PDM 只管理 PDM user、公司／角色與 alias，不保存自有密碼。取代原恢復 PDM 直接 Google 主入口、provider 輪詢與 release v2 的要求。
   - 來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`。
   - 父任務／關聯：`DEV-003` 身分／權限、Platform `DEV-013` SSO；沿用 `DEV-046` 與 `DEV-117` 邊界。
-  - 下一步：由人類以原始訊息明確授權 `C:\VIBE CODING\Jenfu-Platform` 的 DEV-014 文件、程式、測試與本機驗證範圍，再由 Platform owner 依既有派工契約建立 owner-native 任務，補齊 mapping／API／Google 與 non-Google provider 分支；AI-PDM 118-A 已無未完成本地項目。
+  - 下一步：由人類以原始訊息明確授權 `C:\VIBE CODING\Jenfu-Platform` 的文件、程式、測試與本機驗證範圍，再由 Platform owner 判定將 118-B 以 `AI_PDM / DEV-118 / 118-B` 來源切片納入既有 Platform DEV-014，或依其索引配置下一個 native DEV ID，補齊 mapping／API／Google 與 non-Google provider 分支；AI-PDM 118-A 已無未完成本地項目。
   - 阻塞／恢復條件：118-B 平台雙入口目前為 RD Contract Ready；「產生跨專案開發指令」不構成目標專案執行授權。取得上述人類明確授權後，Platform owner 才可登錄任務、定案 mapping／API、修改程式並執行測試／build；118-C 沿用既有 release gate。B 未完成不阻塞 A，但不能宣稱整體已交付。
   - 證據：[DEV-118 唯一契約](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md)、[118-A QC receipt](qc/qc-dev-118-local-implementation-2026-09-17.md)、[118-B Platform 唯讀交接查核](qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)。
     2026-09-17 依使用者確認修訂並補 §6.1 管理員開通流程；118-A contract 10/10、browser 12/12、DEV-013 handoff 3/3、DEV-046 alias 21/21、typecheck、isolated build PASS。
-    Browser evidence：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-17T00-48-58-748Z/manifest.json`；平台現有 source 仍為 email/password，118-B/C 尚未驗收。
+    Browser evidence：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-17T00-48-58-748Z/manifest.json`；Platform DEV-014 已由 `OrgMaster / DEV-047 / production activation` 占用且仍為 Brief Ready／Documents Only，尚無平台雙入口產品實作，118-B/C 尚未驗收。
   - 計入交付：否；本次收斂為既有身分／SSO 交付的開發點，不增加分母。
     原直接 Google scope 被取代不記 PASS，DEV-013 已有 SSO 成果不重複計入。
 

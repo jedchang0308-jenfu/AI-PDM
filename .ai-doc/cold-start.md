@@ -45,6 +45,7 @@
   先讀 [DEV-118 SPEC](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md) §§1–5；
   2026-09-17 決策：SSO 啟用後 PDM 只提供平台主入口；Google／工號是同一核准身分的兩種起手方式。
   平台目前仍為 email/password，雙入口與 non-Google provider-managed 管理員開通依 §6／§6.1 由 Platform owner 承接；不得當作 DEV-013 已完成能力。
+  Platform DEV-014 已由 `OrgMaster / DEV-047 / production activation` 占用且仍為 Brief Ready／Documents Only；Platform owner 須決定把 118-B 登錄成該任務的明確來源切片，或依其索引配置下一個 native DEV ID，AI-PDM 不預占編號。
   舊版 PDM provider 輪詢、直接 Google release gate／Workflow v2 要求已取消，不照舊規格派工。
 - `DEV-117` R78 已完成；DEV-118 不重開 R78、不修改 smoke 憑證與 release 契約。
   118-C 依既有 DEV-013／各 owner release gate 整合驗收；AI-PDM 不取得 shared identity write authority。
