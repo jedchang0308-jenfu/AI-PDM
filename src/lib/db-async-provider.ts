@@ -61,8 +61,12 @@ export type CreateAsyncDatabaseClientInput =
       startupTarget?: CloudSqlStartupTarget;
     };
 
+function normalizeSqliteQuery(sql: string) {
+  return sql.replace(/\bai_pdm_core\./gu, "");
+}
+
 function bindAll<T>(database: SqliteDatabase, sql: string, params: AsyncDatabaseQueryParams | undefined): T[] {
-  const statement = database.prepare(sql);
+  const statement = database.prepare(normalizeSqliteQuery(sql));
   if (!params) {
     return statement.all() as T[];
   }
@@ -73,13 +77,13 @@ function bindAll<T>(database: SqliteDatabase, sql: string, params: AsyncDatabase
 }
 
 function bindGet<T>(database: SqliteDatabase, sql: string, params: AsyncDatabaseQueryParams | undefined): T | null {
-  const statement = database.prepare(sql);
+  const statement = database.prepare(normalizeSqliteQuery(sql));
   const row = !params ? statement.get() : Array.isArray(params) ? statement.get(...params) : statement.get(params);
   return (row ?? null) as T | null;
 }
 
 function bindRun(database: SqliteDatabase, sql: string, params: AsyncDatabaseQueryParams | undefined): void {
-  const statement = database.prepare(sql);
+  const statement = database.prepare(normalizeSqliteQuery(sql));
   if (!params) {
     statement.run();
     return;
