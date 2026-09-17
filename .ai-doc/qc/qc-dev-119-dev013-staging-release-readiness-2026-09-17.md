@@ -9,7 +9,7 @@
 
 ## Frozen contracts
 
-- Platform L3 manifest schema／SHA-256: `jenfu.dev013.l3-managed-staging.v2`／`8d913f22b5ab15de62969ddbbd3951c9a819bbe0019688bcf8f99faa1ffc5df4`
+- Platform L3 manifest schema／SHA-256: `jenfu.dev013.l3-managed-staging.v2`／`eefcfbd8b5297a37f813401c3bbaf128ad0486ed59e5b53c11730125d6a5292d`
 - `jenfu.sso-handoff.v1` SHA-256: `e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483`
 - AI-PDM release-profile contract SHA-256: `3de303aaff74658c0af5ab3ee6eaef840e52ae47a0047043066630698f33ac81`
 

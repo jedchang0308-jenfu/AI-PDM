@@ -27,7 +27,7 @@ AI-PDM consumes Platform `jenfu.sso-handoff.v1` for the fixed `ai-pdm` audience.
 
 ### Fixed authority and target
 
-- Machine authority: Platform `config/dev-013/l3-managed-staging.json` schema `jenfu.dev013.l3-managed-staging.v2`, SHA-256 `8d913f22b5ab15de62969ddbbd3951c9a819bbe0019688bcf8f99faa1ffc5df4`.
+- Machine authority: Platform `config/dev-013/l3-managed-staging.json` schema `jenfu.dev013.l3-managed-staging.v2`, SHA-256 `eefcfbd8b5297a37f813401c3bbaf128ad0486ed59e5b53c11730125d6a5292d`.
 - Handoff contract: `jenfu.sso-handoff.v1`, SHA-256 `e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483`.
 - Owner profile: `config/release/dev013-ai-pdm-managed-staging.json`, contract SHA-256 `3de303aaff74658c0af5ab3ee6eaef840e52ae47a0047043066630698f33ac81`.
 - Exact shared-staging target: `jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg` with attached service account `dev010-stg-aipdm-runtime@jenfu-platform-nonprod.iam.gserviceaccount.com` plus provider-readback `uniqueId`.

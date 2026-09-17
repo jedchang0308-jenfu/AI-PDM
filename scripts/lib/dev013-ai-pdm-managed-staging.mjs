@@ -52,12 +52,12 @@ function contractHash(profile) {
 export function assertDev013AiPdmStagingProfile(profile, platformManifest, contractLock) {
   object(profile, 'DEV013_AIPDM_PROFILE_INVALID')
   if (profile.schemaVersion !== 'jenfu.dev013.ai-pdm-managed-staging-release.v2' || profile.profileVersion !== 'OWNER_NATIVE_SHARED_STAGING_V2' || profile.contractSha256 !== contractHash(profile)) fail('DEV013_AIPDM_PROFILE_HASH_INVALID')
-  if (profile.authorities?.platformManifestSha256 !== '8d913f22b5ab15de62969ddbbd3951c9a819bbe0019688bcf8f99faa1ffc5df4' || profile.authorities?.handoffContractSha256 !== 'e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483') fail('DEV013_AIPDM_AUTHORITY_HASH_INVALID')
+  if (profile.authorities?.platformManifestSha256 !== 'eefcfbd8b5297a37f813401c3bbaf128ad0486ed59e5b53c11730125d6a5292d' || profile.authorities?.handoffContractSha256 !== 'e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483') fail('DEV013_AIPDM_AUTHORITY_HASH_INVALID')
   if (contractLock?.contractVersion !== 'jenfu.sso-handoff.v1' || contractLock?.manifestSha256 !== profile.authorities.handoffContractSha256) fail('DEV013_AIPDM_HANDOFF_LOCK_INVALID')
   const manifestApp = platformManifest?.applications?.['ai-pdm']
   if (platformManifest?.schemaVersion !== 'jenfu.dev013.l3-managed-staging.v2' || platformManifest?.contractStatus !== 'CONTRACT_FROZEN_READY_FOR_OWNER_WORK' || !manifestApp) fail('DEV013_AIPDM_PLATFORM_MANIFEST_INVALID')
   const target = profile.target
-  if (target.projectId !== platformManifest.target.projectId || target.region !== platformManifest.target.region || target.serviceName !== manifestApp.serviceName || target.database !== platformManifest.target.database || target.connectionName !== platformManifest.target.connectionName || target.runtimeServiceAccount !== manifestApp.runtimeServiceAccount || canonicalize(target.requiredLabels) !== canonicalize(manifestApp.requiredLabels) || !exactEntryPolicy(target.entryPolicy, platformManifest.platformRelease.entryPolicy)) fail('DEV013_AIPDM_TARGET_DRIFT')
+  if (target.projectId !== platformManifest.target.projectId || target.projectNumber !== platformManifest.target.projectNumber || target.region !== platformManifest.target.region || target.serviceName !== manifestApp.serviceName || target.database !== platformManifest.target.database || target.connectionName !== platformManifest.target.connectionName || target.runtimeServiceAccount !== manifestApp.runtimeServiceAccount || canonicalize(target.requiredLabels) !== canonicalize(manifestApp.requiredLabels) || !exactEntryPolicy(target.entryPolicy, platformManifest.platformRelease.entryPolicy)) fail('DEV013_AIPDM_TARGET_DRIFT')
   if (profile.artifact.repository !== manifestApp.artifact.repository || profile.state.bucket !== manifestApp.state.bucket || profile.state.prefix !== manifestApp.state.prefix || profile.evidence.bucket !== manifestApp.evidence.bucket || profile.evidence.prefix !== manifestApp.evidence.prefix || canonicalize(profile.boundaries.secretReferences) !== canonicalize(manifestApp.secret.references) || canonicalize(profile.boundaries.versionBootstrap) !== canonicalize(manifestApp.secret.versionBootstrap) || manifestApp.secret.numericVersionRequired !== true || manifestApp.secret.payloadMayAppearInEvidence !== false) fail('DEV013_AIPDM_OWNER_BOUNDARY_DRIFT')
   if (profile.target.projectId === 'jenfu-ai-pdm-stg-361825' || !profile.excludedTargets.projects.includes('jenfu-ai-pdm-stg-361825') || !profile.excludedTargets.projects.includes('jenfu-platform-prod')) fail('DEV013_AIPDM_EXCLUDED_TARGET_ACTIVE')
   if (profile.environment.initialHandoffMode !== 'off' || profile.environment.fixed.PDM_JENFU_PLATFORM_AUTH_MODE !== 'on' || profile.rollout.serviceUpdateMask !== 'labels,template' || profile.rollout.activationUpdateMask !== 'traffic' || profile.rollback.updateMask !== 'traffic' || profile.boundaries.infraBootstrapTerraform !== true || profile.boundaries.serviceTerraformApply !== false || profile.boundaries.databaseMigrations !== 0 || profile.boundaries.secretValuesRead !== false) fail('DEV013_AIPDM_RELEASE_BOUNDARY_INVALID')
@@ -242,10 +242,11 @@ function environmentMap(container) {
   return Object.fromEntries(environmentEntries(container).filter((item) => Object.hasOwn(item, 'value')).map((item) => [item.name, String(item.value)]))
 }
 function secretRef(entry) { return entry?.valueSource?.secretKeyRef ?? entry?.value_source?.secret_key_ref ?? null }
-function readbackSecretIdentity(value) {
-  const match = /^projects\/[^/]+\/secrets\/([^/]+)\/versions\/([1-9][0-9]*)$/u.exec(value?.name ?? '')
+function readbackSecretIdentity(value, projectNumber) {
+  const match = /^projects\/([^/]+)\/secrets\/([^/]+)\/versions\/([1-9][0-9]*)$/u.exec(value?.name ?? '')
   if (!match || value?.state !== 'ENABLED') return null
-  return { secretId: match[1], version: match[2] }
+  if (match[1] !== projectNumber) return null
+  return { secretId: match[2], version: match[3] }
 }
 
 function secretRefs(container, profile, { allowBaselineAliases = false, versionReadbacks = null } = {}) {
@@ -262,7 +263,7 @@ function secretRefs(container, profile, { allowBaselineAliases = false, versionR
       if (!NUMERIC_VERSION.test(observedVersion)) fail('DEV013_AIPDM_SECRET_REFERENCE_INVALID', name)
       return [name, { secretId: expectedSecretId, version: observedVersion }]
     }
-    const resolved = readbackSecretIdentity(versionReadbacks[name])
+    const resolved = readbackSecretIdentity(versionReadbacks[name], profile.target.projectNumber)
     if (!resolved || resolved.secretId !== expectedSecretId) fail('DEV013_AIPDM_SECRET_VERSION_READBACK_INVALID', name)
     const aliasAllowed = allowBaselineAliases && profile.boundaries.versionBootstrap.allowedBaselineAliases.includes(observedVersion)
     if ((!NUMERIC_VERSION.test(observedVersion) && !aliasAllowed) || (NUMERIC_VERSION.test(observedVersion) && observedVersion !== resolved.version)) fail('DEV013_AIPDM_SECRET_VERSION_READBACK_INVALID', name)

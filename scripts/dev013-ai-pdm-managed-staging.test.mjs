@@ -76,7 +76,7 @@ function targetService(secretVersion = '1') {
 }
 
 function secretVersionReadbacks(version = '1') {
-  return Object.fromEntries(Object.entries(profile.boundaries.secretReferences).map(([name, secretId]) => [name, { name: `projects/${profile.target.projectId}/secrets/${secretId}/versions/${version}`, state: 'ENABLED' }]))
+  return Object.fromEntries(Object.entries(profile.boundaries.secretReferences).map(([name, secretId]) => [name, { name: `projects/${profile.target.projectNumber}/secrets/${secretId}/versions/${version}`, state: 'ENABLED' }]))
 }
 
 function platformService() {
@@ -170,6 +170,8 @@ test('latest aliases require enabled metadata readback and a numeric-pinned revi
   expectCode(() => buildTargetBootstrapReceipt({ profile, targetService: initial, targetIdentity: identity, secretVersionReadbacks: secretVersionReadbacks() }), 'DEV013_AIPDM_SECRET_VERSION_READBACK_INVALID')
   expectCode(() => buildRevisionPlan({ profile, sourceFreeze: freeze(), platformService: platformService(), targetService: initial, targetIdentity: identity, artifactDigest, mode: 'off' }), 'DEV013_AIPDM_SECRET_REFERENCE_INVALID')
   expectCode(() => buildSecretPinningPlan({ profile, targetService: initial, targetIdentity: identity, secretVersionReadbacks: Object.fromEntries(Object.entries(secretVersionReadbacks()).map(([name, value]) => [name, { ...value, state: 'DISABLED' }])) }), 'DEV013_AIPDM_SECRET_VERSION_READBACK_INVALID')
+  const wrongProjectReadbacks = Object.fromEntries(Object.entries(secretVersionReadbacks()).map(([name, value]) => [name, { ...value, name: value.name.replace(profile.target.projectNumber, '9999999999999') }]))
+  expectCode(() => buildSecretPinningPlan({ profile, targetService: initial, targetIdentity: identity, secretVersionReadbacks: wrongProjectReadbacks }), 'DEV013_AIPDM_SECRET_VERSION_READBACK_INVALID')
   const pin = buildSecretPinningPlan({ profile, targetService: initial, targetIdentity: identity, secretVersionReadbacks: secretVersionReadbacks(), observedAt: '2026-09-17T00:00:20.000Z' })
   const pinnedRefs = Object.fromEntries(pin.mutation.template.containers[0].env.filter((entry) => entry.valueSource).map((entry) => [entry.name, entry.valueSource.secretKeyRef]))
   for (const [name, ref] of Object.entries(pinnedRefs)) assert.deepEqual(ref, { secret: profile.boundaries.secretReferences[name], version: '1' })
