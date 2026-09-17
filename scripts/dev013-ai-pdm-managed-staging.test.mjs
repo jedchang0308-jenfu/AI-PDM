@@ -234,7 +234,7 @@ test('existing latest traffic is pinned to the exact ready revision before any t
   assert.equal(plan.mutation.templateChanges, 0)
   assert.equal(plan.mutation.labelChanges, 0)
   assert.equal(plan.mutation.serviceBoundaryChanges, 0)
-  assert.deepEqual(plan.mutation.traffic, [{ revision: 'ai-pdm-stg-existing', percent: 100, tag: null }])
+  assert.deepEqual(plan.mutation.traffic, [{ revision: 'ai-pdm-stg-existing', percent: 100, tag: null, type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION' }])
   const pinned = { ...structuredClone(baseline), etag: 'etag-traffic-pinned', traffic: structuredClone(plan.mutation.traffic) }
   const receipt = hardJoinBaselineTrafficPinning({ profile, plan, targetService: pinned, targetIdentity: identity, observedAt: '2026-09-17T00:00:11.000Z' })
   assert.equal(receipt.status, 'BASELINE_TRAFFIC_PINNED')

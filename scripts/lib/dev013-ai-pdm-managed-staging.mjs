@@ -466,7 +466,7 @@ export function buildBaselineTrafficPinningPlan({ profile, targetService, target
       etag: target.etag,
       providerDeletionProtectionChanges: 0,
       deleteMutationsAllowed: 0,
-      traffic: [{ revision: target.latestReadyRevision, percent: 100, tag: null }],
+      traffic: [{ revision: target.latestReadyRevision, percent: 100, tag: null, type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION' }],
       templateChanges: 0,
       labelChanges: 0,
       serviceBoundaryChanges: 0,
@@ -488,7 +488,7 @@ export function assertBaselineTrafficPinningPlan(plan, profile) {
   if (plan.target?.projectId !== profile.target.projectId || plan.target?.region !== profile.target.region || plan.target?.serviceName !== profile.target.serviceName || plan.target?.canonicalOrigin !== expectedOrigin || assertRunAppOrigin(plan.target.canonicalOrigin, profile.target.serviceName, profile.target.region, profile.target.projectNumber) !== expectedOrigin) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
   if (plan.runtimeServiceAccount?.email !== profile.target.runtimeServiceAccount || plan.runtimeServiceAccount?.name !== `projects/${profile.target.projectId}/serviceAccounts/${profile.target.runtimeServiceAccount}` || !UNIQUE_ID.test(String(plan.runtimeServiceAccount?.uniqueId ?? '')) || plan.runtimeServiceAccount?.disabled !== false) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
   if (typeof plan.before?.etag !== 'string' || plan.before.etag.length < 4 || plan.before?.providerDeletionProtectionSupported !== false || !H64.test(plan.before?.protectedStateSha256 ?? '') || !H64.test(plan.before?.trafficSha256 ?? '') || !profile.rollout.baselineTrafficPinAllowedUpdateMasks.includes(expectedUpdateMask)) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
-  if (plan.mutation?.operation !== expectedOperation || plan.mutation?.updateMask !== expectedUpdateMask || plan.mutation?.projectId !== profile.target.projectId || plan.mutation?.region !== profile.target.region || plan.mutation?.serviceName !== profile.target.serviceName || plan.mutation?.etag !== plan.before.etag || plan.mutation?.providerDeletionProtectionChanges !== 0 || plan.mutation?.deleteMutationsAllowed !== 0 || plan.mutation?.templateChanges !== 0 || plan.mutation?.labelChanges !== 0 || plan.mutation?.serviceBoundaryChanges !== 0 || plan.mutation?.siblingMutations !== 0 || !Array.isArray(traffic) || traffic.length !== 1 || !String(traffic[0]?.revision ?? '').startsWith(`${profile.target.serviceName}-`) || traffic[0]?.percent !== 100 || traffic[0]?.tag !== null) fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
+  if (plan.mutation?.operation !== expectedOperation || plan.mutation?.updateMask !== expectedUpdateMask || plan.mutation?.projectId !== profile.target.projectId || plan.mutation?.region !== profile.target.region || plan.mutation?.serviceName !== profile.target.serviceName || plan.mutation?.etag !== plan.before.etag || plan.mutation?.providerDeletionProtectionChanges !== 0 || plan.mutation?.deleteMutationsAllowed !== 0 || plan.mutation?.templateChanges !== 0 || plan.mutation?.labelChanges !== 0 || plan.mutation?.serviceBoundaryChanges !== 0 || plan.mutation?.siblingMutations !== 0 || !Array.isArray(traffic) || traffic.length !== 1 || !String(traffic[0]?.revision ?? '').startsWith(`${profile.target.serviceName}-`) || traffic[0]?.percent !== 100 || traffic[0]?.tag !== null || traffic[0]?.type !== 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION') fail('DEV013_AIPDM_BASELINE_TRAFFIC_PIN_PLAN_INVALID')
   return plan
 }
 
