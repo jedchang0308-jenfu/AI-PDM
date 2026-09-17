@@ -8,12 +8,14 @@ import {
   applyDev013AiPdmFixture,
   assertDev013AiPdmFixtureEnvironment,
   buildDev013AiPdmFixture,
+  readDev013AiPdmRoleCatalog,
   summarizeDev013AiPdmFixture,
 } from './lib/dev013-ai-pdm-l3-fixture-bootstrap.mjs'
 
 export async function run(env = process.env) {
   const { identitySubject } = assertDev013AiPdmFixtureEnvironment(env)
   const fixture = buildDev013AiPdmFixture(identitySubject)
+  const catalog = readDev013AiPdmRoleCatalog()
   const client = new pg.Client({
     host: env.DEV013_DATABASE_HOST ?? '127.0.0.1',
     port: Number.parseInt(env.DEV013_DATABASE_PORT ?? '5432', 10),
@@ -28,7 +30,7 @@ export async function run(env = process.env) {
   })
   await client.connect()
   try {
-    return summarizeDev013AiPdmFixture(fixture, await applyDev013AiPdmFixture(client, fixture))
+    return summarizeDev013AiPdmFixture(fixture, await applyDev013AiPdmFixture(client, fixture, catalog))
   } finally {
     await client.end().catch(() => undefined)
   }

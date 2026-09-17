@@ -6,5 +6,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY scripts/dev013-ai-pdm-l3-fixture-bootstrap.mjs ./scripts/dev013-ai-pdm-l3-fixture-bootstrap.mjs
 COPY scripts/lib/dev013-ai-pdm-l3-fixture-bootstrap.mjs ./scripts/lib/dev013-ai-pdm-l3-fixture-bootstrap.mjs
+COPY config/access-control/jenfu-role-catalog.v1.json ./config/access-control/jenfu-role-catalog.v1.json
 USER node
 CMD ["node", "scripts/dev013-ai-pdm-l3-fixture-bootstrap.mjs"]
