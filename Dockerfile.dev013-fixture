@@ -1,0 +1,10 @@
+ARG NODE_IMAGE=node:24.17.0-bookworm-slim@sha256:862263c612aa437e3037674b85419622a9d93bff80aa1eee5398dfe686375532
+FROM ${NODE_IMAGE}
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY scripts/dev013-ai-pdm-l3-fixture-bootstrap.mjs ./scripts/dev013-ai-pdm-l3-fixture-bootstrap.mjs
+COPY scripts/lib/dev013-ai-pdm-l3-fixture-bootstrap.mjs ./scripts/lib/dev013-ai-pdm-l3-fixture-bootstrap.mjs
+USER node
+CMD ["node", "scripts/dev013-ai-pdm-l3-fixture-bootstrap.mjs"]
