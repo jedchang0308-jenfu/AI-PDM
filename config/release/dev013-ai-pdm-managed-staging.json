@@ -1,7 +1,7 @@
 {
   "schemaVersion": "jenfu.dev013.ai-pdm-managed-staging-release.v2",
   "profileVersion": "OWNER_NATIVE_SHARED_STAGING_V2",
-  "contractSha256": "ec1d27efe03b86d6bad49193e3c922e4012a4069ba0d4bd9d1e63d150b8c3864",
+  "contractSha256": "69a98764b72941d7d67df4ecff2ca50ddfc0f413db565b700c2f50ab0e443376",
   "application": {
     "id": "ai-pdm",
     "repository": "jedchang0308-jenfu/AI-PDM",
@@ -119,6 +119,11 @@
       "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED",
       "PDM_GOOGLE_WORKSPACE_DOMAINS"
     ],
+    "baselinePlainEnvironmentDefaults": {
+      "PDM_TRUST_GOOGLE_WORKSPACE_MFA": "false",
+      "PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED": "false",
+      "PDM_GOOGLE_WORKSPACE_DOMAINS": "jenfu.com.tw"
+    },
     "requiredDatabaseEnvironment": {
       "PDM_DB_PROVIDER": "cloud_sql_postgres",
       "PDM_CLOUD_SQL_INSTANCE_CONNECTION_NAME": "jenfu-platform-nonprod:asia-east1:jenfu-platform-nonprod-pg",

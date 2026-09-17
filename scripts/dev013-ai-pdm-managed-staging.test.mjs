@@ -219,6 +219,24 @@ test('latest aliases require enabled metadata readback and a numeric-pinned revi
   assert.deepEqual(bootstrap.boundaries.secretReferences, active.secretReferences)
 })
 
+test('secret pinning backfills only the declared fail-closed baseline environment defaults', () => {
+  const initial = targetService('latest')
+  const app = initial.template.containers.find((item) => item.name === profile.runtime.applicationContainer)
+  const defaults = profile.runtime.baselinePlainEnvironmentDefaults
+  app.env = app.env.filter((entry) => !Object.hasOwn(defaults, entry.name))
+  const plan = buildSecretPinningPlan({ profile, targetService: initial, targetIdentity: targetIdentity(), secretVersionReadbacks: secretVersionReadbacks() })
+  const plannedApp = plan.mutation.template.containers.find((item) => item.name === profile.runtime.applicationContainer)
+  const plannedEnv = Object.fromEntries(plannedApp.env.filter((entry) => Object.hasOwn(entry, 'value')).map((entry) => [entry.name, entry.value]))
+  assert.deepEqual(Object.fromEntries(Object.keys(defaults).map((name) => [name, plannedEnv[name]])), defaults)
+  const after = applySecretPinPlan(initial, plan, 'etag-pin-defaults')
+  assert.equal(hardJoinSecretPinningRevision({ profile, plan, targetService: after, targetIdentity: targetIdentity() }).status, 'SECRET_PINNING_REVISION_READY')
+
+  const invalid = targetService('latest')
+  const invalidApp = invalid.template.containers.find((item) => item.name === profile.runtime.applicationContainer)
+  invalidApp.env = invalidApp.env.filter((entry) => entry.name !== 'PDM_SESSION_AUDIENCE')
+  expectCode(() => buildSecretPinningPlan({ profile, targetService: invalid, targetIdentity: targetIdentity(), secretVersionReadbacks: secretVersionReadbacks() }), 'DEV013_AIPDM_PRESERVED_ENVIRONMENT_MISSING')
+})
+
 test('existing latest traffic is pinned to the exact ready revision before any template mutation', () => {
   const baseline = latestTrafficService()
   const identity = targetIdentity()

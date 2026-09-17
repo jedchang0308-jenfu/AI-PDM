@@ -287,6 +287,31 @@ function environmentEntries(container) { return container?.env ?? [] }
 function environmentMap(container) {
   return Object.fromEntries(environmentEntries(container).filter((item) => Object.hasOwn(item, 'value')).map((item) => [item.name, String(item.value)]))
 }
+function baselinePlainEnvironment(container, profile) {
+  const defaults = object(profile.runtime.baselinePlainEnvironmentDefaults, 'DEV013_AIPDM_BASELINE_ENVIRONMENT_DEFAULTS_INVALID')
+  const preserved = new Set(profile.runtime.preservedPlainEnvironmentNames)
+  for (const [name, value] of Object.entries(defaults)) {
+    if (!preserved.has(name) || typeof value !== 'string' || value.length === 0) fail('DEV013_AIPDM_BASELINE_ENVIRONMENT_DEFAULTS_INVALID', name)
+  }
+  const env = environmentMap(container)
+  return Object.fromEntries(profile.runtime.preservedPlainEnvironmentNames.map((name) => {
+    const value = env[name] ?? defaults[name]
+    if (typeof value !== 'string' || value.length === 0) fail('DEV013_AIPDM_PRESERVED_ENVIRONMENT_MISSING', name)
+    return [name, value]
+  }))
+}
+function applyBaselinePlainEnvironmentDefaults(container, profile) {
+  const defaults = profile.runtime.baselinePlainEnvironmentDefaults
+  const entries = environmentEntries(container)
+  for (const [name, value] of Object.entries(defaults)) {
+    const existing = entries.find((item) => item.name === name)
+    if (existing) {
+      if (!Object.hasOwn(existing, 'value')) fail('DEV013_AIPDM_BASELINE_ENVIRONMENT_DEFAULT_CONFLICT', name)
+      continue
+    }
+    entries.push({ name, value })
+  }
+}
 function secretRef(entry) { return entry?.valueSource?.secretKeyRef ?? entry?.value_source?.secret_key_ref ?? null }
 function readbackSecretIdentity(value, projectNumber) {
   const match = /^projects\/([^/]+)\/secrets\/([^/]+)\/versions\/([1-9][0-9]*)$/u.exec(value?.name ?? '')
@@ -402,10 +427,7 @@ function assertTemplateBoundary(readback, identity, profile) {
 
 function preservedBoundary(readback, identity, profile, secretOptions = undefined) {
   const { app, proxy, env, template } = assertTemplateBoundary(readback, identity, profile)
-  const plain = Object.fromEntries(profile.runtime.preservedPlainEnvironmentNames.map((name) => {
-    if (typeof env[name] !== 'string' || env[name].length === 0) fail('DEV013_AIPDM_PRESERVED_ENVIRONMENT_MISSING', name)
-    return [name, env[name]]
-  }))
+  const plain = baselinePlainEnvironment(app, profile)
   const core = {
     entryPolicy: readback.entryPolicy,
     deletionProtection: readback.deletionProtection,
@@ -526,7 +548,7 @@ export function buildTargetBootstrapReceipt({ profile, targetService, targetIden
   const resolvedSecretReferences = secretRefs(appContainer(target.template, profile), profile, { versionReadbacks: secretVersionReadbacks })
   const labelsMatch = Object.entries(profile.target.requiredLabels).every(([key, value]) => target.labels[key] === value)
   const active = target.traffic[0]
-  if (!labelsMatch || env.PDM_JENFU_SSO_HANDOFF_MODE !== 'off' || target.latestReadyRevision !== active.revision || target.latestCreatedRevision !== active.revision) fail('DEV013_AIPDM_TARGET_BOOTSTRAP_INVALID')
+  if (!labelsMatch || (env.PDM_JENFU_SSO_HANDOFF_MODE ?? profile.environment.initialHandoffMode) !== 'off' || target.latestReadyRevision !== active.revision || target.latestCreatedRevision !== active.revision) fail('DEV013_AIPDM_TARGET_BOOTSTRAP_INVALID')
   const core = {
     schemaVersion: 'jenfu.dev013.l3-target-bootstrap-receipt.v2',
     ownerApplicationId: 'ai-pdm',
@@ -564,11 +586,12 @@ export function buildSecretPinningPlan({ profile, targetService, targetIdentity,
   const target = normalizeServiceReadback(targetService, profile, 'target')
   const identity = normalizeServiceAccountReadback(targetIdentity, profile)
   const baseline = preservedBoundary(target, identity, profile, { allowBaselineAliases: true, versionReadbacks: secretVersionReadbacks })
-  if (environmentMap(appContainer(target.template, profile)).PDM_JENFU_SSO_HANDOFF_MODE !== 'off') fail('DEV013_AIPDM_SECRET_PIN_BASELINE_MODE_INVALID')
+  if ((environmentMap(appContainer(target.template, profile)).PDM_JENFU_SSO_HANDOFF_MODE ?? profile.environment.initialHandoffMode) !== 'off') fail('DEV013_AIPDM_SECRET_PIN_BASELINE_MODE_INVALID')
   const template = structuredClone(target.template)
   const app = appContainer(template, profile)
   if (typeof app.image !== 'string' || !/@sha256:[0-9a-f]{64}$/u.test(app.image)) fail('DEV013_AIPDM_SECRET_PIN_IMAGE_NOT_IMMUTABLE')
   template.revision = expectedSecretPinRevision(profile, baseline.secretRefs)
+  applyBaselinePlainEnvironmentDefaults(app, profile)
   pinSecretReferences(app, baseline.secretRefs)
   const core = {
     schemaVersion: 'jenfu.dev013.ai-pdm-secret-pinning-plan.v1',
@@ -605,7 +628,7 @@ export function hardJoinSecretPinningRevision({ profile, plan, targetService, ta
   const revision = expectedSecretPinRevision(profile, plan.secretReferences)
   const env = environmentMap(appContainer(target.template, profile))
   const labelsMatch = Object.entries(profile.target.requiredLabels).every(([key, value]) => target.labels[key] === value)
-  if (plan.mutation?.updateMask !== 'labels,template' || plan.mutation?.trafficChanges !== 0 || target.etag === plan.before?.etag || target.origin !== plan.target?.canonicalOrigin || identity.uniqueId !== plan.runtimeServiceAccount?.uniqueId || target.template?.revision !== revision || target.latestCreatedRevision !== revision || target.latestReadyRevision !== revision || appContainer(target.template, profile).image !== plan.applicationImage || env.PDM_JENFU_SSO_HANDOFF_MODE !== 'off' || boundary.sha256 !== plan.before?.stateSha256 || sha256(canonicalize(target.traffic)) !== plan.before?.trafficSha256 || canonicalize(boundary.secretRefs) !== canonicalize(assertExactSecretReferences(plan.secretReferences, profile)) || !labelsMatch) fail('DEV013_AIPDM_SECRET_PIN_HARD_JOIN_INVALID')
+  if (plan.mutation?.updateMask !== 'labels,template' || plan.mutation?.trafficChanges !== 0 || target.etag === plan.before?.etag || target.origin !== plan.target?.canonicalOrigin || identity.uniqueId !== plan.runtimeServiceAccount?.uniqueId || target.template?.revision !== revision || target.latestCreatedRevision !== revision || target.latestReadyRevision !== revision || appContainer(target.template, profile).image !== plan.applicationImage || (env.PDM_JENFU_SSO_HANDOFF_MODE ?? profile.environment.initialHandoffMode) !== 'off' || boundary.sha256 !== plan.before?.stateSha256 || sha256(canonicalize(target.traffic)) !== plan.before?.trafficSha256 || canonicalize(boundary.secretRefs) !== canonicalize(assertExactSecretReferences(plan.secretReferences, profile)) || !labelsMatch) fail('DEV013_AIPDM_SECRET_PIN_HARD_JOIN_INVALID')
   const core = {
     schemaVersion: 'jenfu.dev013.ai-pdm-secret-pinning-revision.v1',
     ownerApplicationId: 'ai-pdm',
