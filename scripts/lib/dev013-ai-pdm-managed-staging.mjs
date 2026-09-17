@@ -108,18 +108,20 @@ function assertEvidenceReference(value, code) {
   return value
 }
 
-export function foundationReceiptReference(bytes) {
+export function foundationReceiptReference(bytes, explicitUri = null) {
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) fail('DEV013_AIPDM_FOUNDATION_RECEIPT_FILE_INVALID')
   let value
   try { value = JSON.parse(bytes.toString('utf8')) } catch { fail('DEV013_AIPDM_FOUNDATION_RECEIPT_FILE_INVALID') }
-  const uri = value?.evidenceRef?.uri ?? value?.uri
+  const embeddedUri = value?.evidenceRef?.uri ?? value?.uri ?? null
+  if (explicitUri && embeddedUri && explicitUri !== embeddedUri) fail('DEV013_AIPDM_FOUNDATION_RECEIPT_REF_INVALID')
+  const uri = explicitUri ?? embeddedUri
   if (!/^gs:\/\//u.test(uri ?? '')) fail('DEV013_AIPDM_FOUNDATION_RECEIPT_REF_INVALID')
   return { uri, sha256: sha256(bytes) }
 }
 
-export function createInfraSourceFreeze({ profile, sourceFreeze, foundationReceiptBytes, observedAt = new Date().toISOString() }) {
+export function createInfraSourceFreeze({ profile, sourceFreeze, foundationReceiptBytes, foundationReceiptUri = null, observedAt = new Date().toISOString() }) {
   assertSourceFreeze(sourceFreeze, profile)
-  const foundationReceipt = foundationReceiptReference(foundationReceiptBytes)
+  const foundationReceipt = foundationReceiptReference(foundationReceiptBytes, foundationReceiptUri)
   const core = {
     schemaVersion: 'jenfu.dev013.ai-pdm-infra-source-freeze.v1',
     ownerApplicationId: 'ai-pdm',

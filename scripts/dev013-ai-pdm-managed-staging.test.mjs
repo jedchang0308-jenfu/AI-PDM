@@ -138,8 +138,9 @@ test('source freeze rejects dirty or non-allowlisted input', () => {
 
 test('Infra A source freeze and plan gate require the complete eight-address create/read set', () => {
   const sourceFreeze = freeze()
-  const foundationReceiptBytes = Buffer.from(`${JSON.stringify({ evidenceRef: { uri: 'gs://evidence/foundation.json' }, sha256: '0'.repeat(64) }, null, 2)}\n`)
-  const infraFreeze = createInfraSourceFreeze({ profile, sourceFreeze, foundationReceiptBytes, observedAt: '2026-09-17T00:00:10.000Z' })
+  const foundationReceiptBytes = Buffer.from(`${JSON.stringify({ schemaVersion: 'provider-foundation.v1', status: 'FOUNDATION_APPLIED_VERIFIED', evidenceSha256: '0'.repeat(64) }, null, 2)}\n`)
+  const foundationReceiptUri = 'gs://jenfu-platform-nonprod-dev013-aipdm-evidence/receipts/dev-010/n1c/foundation-recovery-receipt.json'
+  const infraFreeze = createInfraSourceFreeze({ profile, sourceFreeze, foundationReceiptBytes, foundationReceiptUri, observedAt: '2026-09-17T00:00:10.000Z' })
   assert.equal(infraFreeze.foundationReceipt.sha256, sha256(foundationReceiptBytes))
   assert.notEqual(infraFreeze.foundationReceipt.sha256, '0'.repeat(64))
   const values = {
@@ -179,7 +180,7 @@ test('Infra A source freeze and plan gate require the complete eight-address cre
   wrongBucket.resource_changes.find((change) => change.address === 'google_storage_bucket.evidence').change.after.name = 'wrong-bucket'
   expectCode(() => assertInfraTerraformPlan(wrongBucket, infraFreeze, profile), 'DEV013_AIPDM_INFRA_PLAN_OBJECT_INVALID')
   const tamperedFoundationBytes = Buffer.concat([foundationReceiptBytes, Buffer.from(' ')])
-  const tamperedFreeze = createInfraSourceFreeze({ profile, sourceFreeze, foundationReceiptBytes: tamperedFoundationBytes })
+  const tamperedFreeze = createInfraSourceFreeze({ profile, sourceFreeze, foundationReceiptBytes: tamperedFoundationBytes, foundationReceiptUri })
   assert.notEqual(tamperedFreeze.foundationReceipt.sha256, infraFreeze.foundationReceipt.sha256)
   expectCode(() => assertInfraTerraformPlan(plan, tamperedFreeze, profile), 'DEV013_AIPDM_INFRA_PLAN_VARIABLE_MISMATCH')
   const terraform = ['versions.tf', 'variables.tf', 'locals.tf', 'main.tf', 'outputs.tf'].map((name) => read(`${profile.terraform.root}/${name}`)).join('\n')

@@ -109,7 +109,7 @@ if (command === 'profile-check') {
 } else if (command === 'source-freeze') {
   emit(sourceFreeze(profile))
 } else if (command === 'infra-source-freeze') {
-  emit(createInfraSourceFreeze({ profile, sourceFreeze: jsonOption('source-freeze'), foundationReceiptBytes: fs.readFileSync(option('foundation-receipt')) }))
+  emit(createInfraSourceFreeze({ profile, sourceFreeze: jsonOption('source-freeze'), foundationReceiptBytes: fs.readFileSync(option('foundation-receipt')), foundationReceiptUri: scalarOption('foundation-uri') }))
 } else if (command === 'infra-plan-gate') {
   emit(assertInfraTerraformPlan(jsonOption('terraform-plan'), jsonOption('infra-source-freeze'), profile))
 } else if (command === 'secret-pin-plan') {
