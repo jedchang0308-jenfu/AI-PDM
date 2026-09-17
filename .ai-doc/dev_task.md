@@ -128,7 +128,11 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- 現行開發：DEV-117 production release已於R78完成，狀態=`Production Level 4 Complete / Owner RELEASED / 100% canonical traffic / remainingHumanAction=0`。本repo ordinary release boundary已獨立；沒有DEV-117續接或S2待辦。後續產品工作依其各自DEV派工。
+- DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging release profile、provider hard join 與同版 rollback floor的本機實作及驗證，終態=`READY_FOR_NONPROD_APPLY`。Cloud Run deploy／traffic、Terraform apply、managed DB migration與 L3 browser 均未授權且`NOT_RUN`。
+- DEV-118 / 118-A 已完成 PDM 本地登入入口實作與 focused QA/QC；目前沒有可在 AI-PDM 先行替代 118-B 的工作。
+  118-B 平台 Google／工號選擇及 non-Google provider-managed 管理員開通尚待 owner-native 任務承接；不新增 PDM provider probe 或 release 契約。Authority 為
+  `.ai-doc/specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md`。
+- DEV-117 production release已於R78完成，狀態=`Production Level 4 Complete / Owner RELEASED / 100% canonical traffic / remainingHumanAction=0`。DEV-118 對齊 Platform DEV-013 的登入入口，不重開 DEV-117、修改其 smoke 憑證或預先授權 production release。
 
 - DEV-116 release責任已切分：DEV-116只保留`company-smoke` Production Level 4 R01／R02，candidate／
   promotion／rollback／live receipt由DEV-117負責；Platform DEV-010只供應shared foundation evidence。
@@ -1615,6 +1619,29 @@ Owner：Dev PM
 ### 任務索引
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
+
+- ✓ DEV-119 [開發點] [013-S4-L3-AIPDM-ENV READY_FOR_NONPROD_APPLY] [P0] [Shared staging only] DEV-013 owner-native staging release adapter
+  - 摘要：沿用 `jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg`，以 clean committed source、immutable digest、Cloud Run provider etag與IAM service-account `uniqueId`建立 `off revision → hard join rollback floor → on revision → hard join → traffic-only activation → post-activation hard join` 的 owner-native release lane。
+  - 邊界：不由 Terraform 非受控更新 existing service；broker及target origin只接受provider readback；Secret只接受numeric reference且不讀payload。保留entry、network、session、Firebase、DB、proxy、startup與capacity state；rollback只回同source／同digest的DEV-013 off revision，不得回pre-DEV-013 image。
+  - Authority：[AI-PDM owner capsule](specs/DEV-013-ai-pdm-sso-consumer.md)、Platform machine manifest `../Jenfu-Platform/config/dev-013/l3-managed-staging.json`、[release profile](../config/release/dev013-ai-pdm-managed-staging.json)。
+  - Current：profile／adapter／Platform receipt validator、DEV-013、DB boundary、typecheck與isolated build皆PASS；exact clean-HEAD source freeze於commit後產生並由handoff回報。Cloud Run deploy／traffic、Terraform apply、managed DB migration、L3 browser、production與legacy staging mutation=`NOT_RUN`。
+  - 證據：[local readiness receipt](qc/qc-dev-119-dev013-staging-release-readiness-2026-09-17.md)。
+  - 計入交付：否；本項只提供Platform DEV-013 L3的owner環境前置，不增加產品功能分母，也不得宣稱DEV-013或L3完成。
+
+- ◐ DEV-118 [開發點] [118-A Local RD／QA-QC Complete；118-B Platform Handoff Required；118-C Release Gated] [P0] [僅 PDM 本地] 平台登入入口對齊
+  - 摘要：Google 是身分驗證方式，工號是同一核准身分的登入別名；SSO 啟用後由平台集中登入，
+    PDM 只提供平台主要入口。非 Google 員工由 provider-managed invitation／密碼／MFA 開通，
+    AI-PDM 只管理 PDM user、公司／角色與 alias，不保存自有密碼。取代原恢復 PDM 直接 Google 主入口、provider 輪詢與 release v2 的要求。
+  - 來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`。
+  - 父任務／關聯：`DEV-003` 身分／權限、Platform `DEV-013` SSO；沿用 `DEV-046` 與 `DEV-117` 邊界。
+  - 下一步：等待 Platform owner 承接 118-B，補齊平台 mapping／API／Google 與 non-Google provider 分支；AI-PDM 118-A 已無未完成本地項目。
+  - 阻塞／恢復條件：118-B 平台雙入口目前為 RD Contract Ready，待 Platform owner 登錄任務、
+    定案 mapping／API 並實作；118-C 沿用既有 release gate。B 未完成不阻塞 A，但不能宣稱整體已交付。
+  - 證據：[DEV-118 唯一契約](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md)、[118-A QC receipt](qc/qc-dev-118-local-implementation-2026-09-17.md)、[118-B Platform 唯讀交接查核](qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)。
+    2026-09-17 依使用者確認修訂並補 §6.1 管理員開通流程；118-A contract 10/10、browser 12/12、DEV-013 handoff 3/3、DEV-046 alias 21/21、typecheck、isolated build PASS。
+    Browser evidence：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-17T00-48-58-748Z/manifest.json`；平台現有 source 仍為 email/password，118-B/C 尚未驗收。
+  - 計入交付：否；本次收斂為既有身分／SSO 交付的開發點，不增加分母。
+    原直接 Google scope 被取代不記 PASS，DEV-013 已有 SSO 成果不重複計入。
 
 - ✓ DEV-117 [交付點] [Production Level 4 Complete / R78 RELEASED] [P0] [Provider PASS／100% canonical traffic] AI_PDM 獨立正式部署 adapter
   - 摘要：建立AI_PDM-owned neutral production release lane，使AI_PDM可獨立build、建立0% candidate、

@@ -1,179 +1,198 @@
-# DEV-118：正式 Google 登入可用性與能力放行修復
+# DEV-118：平台登入入口對齊與 Google／工號身分契約
 
-狀態：`RD Contract Ready / P0 / Production Provider Change and Release Gated`
+- 文件成熟度：`118-A RD Implementation Ready + 架構定案（PDM 本地入口）`；`118-B RD Contract Ready / Platform Handoff Required`；`118-C Release Gated`。
+- 工作狀態：118-A PDM 本地實作與 QA/QC 已完成；118-B 維持 `RD Contract Ready / Platform Handoff Required`；118-C 維持 `Release Gated`，正式整合尚未驗收。
+- 建立：2026-09-16；本次決策修訂：2026-09-17。
+- 來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`，保留原 ID／檔名供追溯。
+- 節點：開發點，支援 AI-PDM `DEV-003` 身分／權限交付與 Platform `DEV-013` SSO；關聯 `DEV-046`、`DEV-117`。
 
-來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`
+## 1. 本次已確認的產品決策
 
-建立日期：2026-09-16
+使用者於 2026-09-17 確認理解後要求「依此修改開發文件」。決策是：**符合帳號與權限前提的員工，可選 Google 登入或輸入工號啟動同一身分的驗證；SSO 啟用後，登入方式由鉦富平台集中處理，PDM 只保留平台登入主入口。**
 
-父任務／關聯：`DEV-046` Firebase Auth／Identity Platform 身分邊界、`DEV-117` AI-PDM app-owned release lane、`DEV-003` 使用者身分與權限架構。
+| 名稱 | 本文件的固定意義 |
+|---|---|
+| 公司 email | 帳號屬性；擁有公司 email 不自動取得 Google 身分或 PDM 權限 |
+| 工號／員工編號 | 公司範圍內可變的登入別名，用來找出預先核准的公司管理身分；不是密碼、憑證或永久 canonical ID |
+| Google 憑證登入 | 選擇已核准的公司 Google／Cloud Identity 帳號，由 provider 驗證身分 |
+| 工號登入 | 輸入工號後導向對應身分的 provider 驗證；Google-managed 帳號仍完成 Google 驗證，不能只輸入工號就登入 |
+| 登入授權 | 先取得可信 provider 身分，再檢查 active employee／principal、app assignment、PDM local account／company／permission 與既有 assurance 規則 |
 
-## 1. 問題與使用者價值
+同一員工的兩種起手方式必須落到**同一個預先核准的日常登入身分**；不能因 email 相同、自稱工號或同屬一員工便自動合併帳號。個人專用 privileged identity 與日常身分的權限仍分開，不因工號共用就繼承管理權。
 
-正式登入頁顯示可操作的「使用 Google 帳號登入」，但點擊後只回覆「登入未完成，請稍後再試」。使用者無法分辨是帳號未開通、瀏覽器問題、暫時性故障或系統設定缺漏，也沒有可採取的恢復動作。
+適用前提：公司管理身分已建立、provider 已啟用、工號映射有效（工號路徑）、管理員已開通員工及 PDM 權限。非 Google 帳號沿用已核准的 Firebase provider-managed 路徑；不強迫轉成 Google，不另外建立 AI-PDM 密碼系統。
 
-本任務要恢復公司 Google 帳號的正式登入入口，並讓介面只在 Google provider 真正可用時宣告可用。完成後：
+## 2. 決策來源、現況與替代範圍
 
-- 已開通的公司 Google 使用者可從 canonical production URL 啟動 Google 登入並回到原 `returnTo`。
-- 未開通、停用或身分衝突仍由 PDM BFF fail closed，不因 provider 開通而自行註冊或取得角色。
-- provider 未設定、網域未授權或入口能力未放行時，登入頁提供正確且可行動的狀態，不再要求使用者無效重試。
-- release gate 會驗證 Google 登入的起始路徑，不再用既有 refresh token smoke 代替 provider 可用性。
+| 來源 | 已確立的邊界 |
+|---|---|
+| [DEV-046 2026-07-13 身分決策 3](SPEC-PDM-ERP-GOOGLE-CLOUDSQL-002-five-year-platform-ontology-roadmap.md) | 支援工號別名；credential／MFA／recovery 屬 Cloud Identity／Firebase，最終依 verified UID 映射 PDM user |
+| [DEV-003 §4.1](SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md) | 歷史 PDM 直接登入可接受工號或公司帳號；工號 intent 必須與回來的 UID／company 一致 |
+| [Platform ADR-003 2026-09-01 amendment](../../../Jenfu-Platform/ai-doc/decisions/ADR-003-entitlement-user-migration-role-activation.md) | 每位員工使用公司可管理的個人身分；工號不是 canonical identity／免驗證 credential |
+| [Platform ADR-002 DEV-013 amendment](../../../Jenfu-Platform/ai-doc/decisions/ADR-002-phase1-identity-session-cloudsql-topology.md)及[DEV-013 §§10、16.1](../../../Jenfu-Platform/ai-doc/specs/DEV-013-cross-application-single-sign-on.md) | SSO 啟用後 target 只提供平台主要入口；保留必要 reauth／recovery／smoke／受控回退，不增加平行一般登入路徑 |
+| 本次使用者指令 | 將 Google／工號選擇與平台集中登入原則正式寫入本開發文件 |
 
-## 2. 已確認事實與根因模型
+2026-09-17 coding前 repo review：AI-PDM HEAD=`c06447aa40d3738c2d053d3a5f1e1fa59e766878`。DEV-013 target start／callback、handoff 與平台 CTA 已在本地 source；不能重算為 DEV-118 新實作，也不能推定已正式啟用。當時 `/api/auth/mode` 以 `Boolean(firebaseConfig)` 宣告直接 Google enabled，SSO broker 設定缺漏可能被當作 SSO off，login mode fetch 失敗會 fallback managed；這些入口選擇缺口已由本文件 118-A 實作與 QC 關閉。
 
-### 2.1 2026-09-16 production read-only evidence
+Platform `src/app/login/login-client.tsx` 本輪唯讀查核仍使用 email/password，未發現 Google CTA／工號解析入口。**平台雙入口是本次確認的目標，尚非既有可用功能，也不是 DEV-013 SSO handoff 本身已承諾完成的能力。** 118-B 保存 owner 承接條件；本文件不在 sibling repo 寫檔或建立任務。
 
-- Canonical：`https://ai-pdm-prod-9536592944.asia-east1.run.app/login`。
-- `/api/auth/mode` 回傳 `authMode=firebase_bff`、Firebase web config 完整，並宣告 Google provider enabled。
-- Identity Toolkit project readback顯示 canonical `run.app` host 已在 authorized domains；故本次不是 `auth/unauthorized-domain`。
-- 以 production web config 對 Google provider 建立 authorization URI 時，provider 回覆：
-  `OPERATION_NOT_ALLOWED: The identity provider configuration is not found.`
-- production bundle沒有針對 `auth/operation-not-allowed` 的錯誤映射，因此落入「登入未完成，請稍後再試」。
-- `DEV-117` authenticated smoke使用既有 Firebase refresh token取得 ID token，再測 session create／reload；它沒有執行 Google provider authorization start，所以 release PASS 未覆蓋這個失效機制。
+原使用者截圖與前輪 provider configuration not found 記錄，保留為問題來源；本輪沒有重新探測 production，不能用舊調查記錄當 fresh PASS。
 
-### 2.2 最小充分因果鏈
+### 2.1 Intentional replacement
 
-1. `/api/auth/mode` 只以 Firebase web config 四欄是否存在判定 Google 可用。
-2. web config 存在，但 production Google provider config 不存在。
-3. UI 因錯誤的 capability 宣告顯示可點擊按鈕。
-4. `signInWithPopup` 啟動 provider 時收到 `auth/operation-not-allowed`。
-5. client error mapping將未知設定錯誤壓成可重試訊息。
-6. release smoke繞過 provider start，使設定與 UI 的不一致沒有阻擋 activation。
+本修訂取代本文件 2026-09-16 版本中「恢復 PDM 直接 Google 主入口」的目標，以及由此衍生的下列**未實作要求**：
 
-系統性根因是「Firebase client 可初始化」被誤當成「Google provider 可登入」，且 release evidence 沒有驗證兩者之間的契約。
+- 取消新增 `PDM_FIREBASE_GOOGLE_SIGN_IN_ENABLED` 並在 production 固定 true。
+- 取消 PDM `/api/auth/mode` 的 `accounts:createAuthUri` probe、30／5 秒快取、client 輪詢與八種 provider reason。
+- 取消新增 `verification.googleSignInContract`、七筆 smoke observations、internal-candidate-smoke v2／新 Workflow template 的要求。
+- 取消以「PDM 直接 Google CTA 登入成功」作為唯一正式交付條件；改驗平台選擇登入、SSO 交接、PDM 權限與 returnTo。
 
-## 3. 修復原則
+上述取消不代表測試通過，不刪除已存在的 DEV-013 SSO、Firebase exchange 或歷史證據。若後續確需改善 provider readiness，由 Platform owner 在平台登入契約內規劃；不把 provider 探測塞回每個 target app，也不預先指定輪詢架構。
 
-1. Identity Platform／Firebase provider readback是 Google provider 能力的外部事實；AI-PDM 不以 API key、`authDomain` 或按鈕存在推定 provider ready。
-2. AI-PDM 必須有明確、預設關閉的 Google capability 宣告。只有 provider owner readback與 release gate 同時通過時，production 才可宣告 `googleOAuth.enabled=true`。
-3. Google 只負責驗證身分。stable Firebase UID、active PDM principal、company、account lifecycle、session與角色權限仍由現行 BFF 契約決定。
-4. 錯誤回饋必須指出「誰能處理」與「使用者下一步」，不得把永久設定錯誤包裝成暫時性重試。
-5. provider mutation影響 shared `jenfu-platform-prod` identity project；AI-PDM只消費經核准的 provider readback，不自行取得或擴張 shared IAM authority。
+本文件只對齊已接受的 ADR-002／ADR-003，不另建立平行 ADR。DEV-117 十階段、唯一 `releaseCapsuleRef`、憑證及既有 receipts 維持原 authority，不重開 R78。
 
-## 4. Current Phase Scope
+使用思考習慣：#目的、#限制條件、#變數控制
 
-### 4.1 App capability與登入 UX
+## 3. 正常登入路徑與 owner
 
-- 將 Firebase client config readiness 與 Google provider readiness拆成不同條件。
-- Google capability預設關閉；缺少明確 release-approved capability時，登入頁顯示 disabled「未開放」狀態。
-- provider已放行時維持現有 Google 按鈕為直接入口，不增加教學卡、第二個 Google 入口或額外確認。
-- 明確處理 provider未啟用、網域未授權、popup被阻擋／關閉及 BFF principal拒絕等失敗類別。
-- provider設定錯誤文案靠近 Google 動作；不得顯示在密碼欄位脈絡下，也不得要求使用者持續重試。
+```mermaid
+flowchart LR
+  A["PDM 未登入"] --> B["使用鉦富平台登入"]
+  B --> C{"已有有效平台 session？"}
+  C -- 有 --> H["DEV-013 SSO handoff"]
+  C -- 無 --> D["平台登入選擇：118-B 待實作"]
+  D --> E["選公司 Google 帳號"]
+  D --> F["輸入工號 → 核准的公司帳號"]
+  E --> G["Provider 驗證 → 平台 admission"]
+  F --> G
+  G --> H
+  H --> I["PDM local admission／權限"]
+  I --> J["PDM session → 安全 returnTo"]
+```
 
-### 4.2 Shared provider prerequisite
+- **Platform／shared identity owner**：公司身分、Google provider、工號解析與 mapping authority、平台登入 UI／錯誤、平台 session，以及既有 broker。工號 mapping 的正式儲存／讀取契約須由該 owner 定案，不能直接依賴 PDM 私有 alias table。
+- **AI-PDM owner**：自己的登入入口、SSO consumer、local session／admission／permission、可見錯誤及受控相容入口；不取得 shared provider 管理權、不代建 employee／Google identity。
+- **各 app release owner**：各自發布、設定與回復；Platform 不因集中登入而取得 PDM traffic／DB／release authority。
 
-- 由 shared identity／Platform owner在 exact production project確認或啟用 `google.com` provider。
-- 核對 OAuth brand、support email、OAuth client與 redirect／authorized-domain binding；不把任何 secret寫入 repo、文件或 client response。
-- provider write後必須由獨立 readback證明 `google.com` 可建立 authorization URI，且 canonical origin仍受允許。
-- 若 provider write結果不明，先 readback；不得 blind retry、重建 OAuth client或切換 Firebase project。
+SSO 交接沿用 `jenfu.sso-handoff.v1` 的 state／PKCE／one-time code／service identity 與 original authenticatedAt、auth_epoch、revoked_before；本案不重寫它。Google ID／refresh token、Portal cookie 與密碼不得傳給另一 app。
 
-### 4.3 Release verification
+## 4. 118-A：PDM 本地入口契約（可派工）
 
-- 在 candidate activation前加入 provider-start smoke：以 candidate／canonical預期 origin建立 Google authorization URI，必須取得 `google.com` authorization start，且不得回 `OPERATION_NOT_ALLOWED` 或 unauthorized-domain。
-- `/api/auth/mode` 不只要求 HTTP 200，還要核對 Google capability與 provider evidence一致。
-- 保留既有 refresh-token session create／reload、permission 401與revoked-session smoke；provider-start evidence不能取代 authenticated BFF evidence，反之亦然。
-- canonical post-deploy smoke至少覆蓋 enabled Google按鈕、provider start、無通用「請稍後再試」錯誤及原 `returnTo` 保留。
+本 phase 只完善既有 PDM 入口選擇與錯誤邊界；不重新開發 DEV-013 consumer，不實作 Platform 登入選擇。
 
-## 5. Out of Scope
+### 4.1 設定與 API
 
-- Google email或網域自動建立 PDM 使用者、自動連結既有帳號或自動給角色。
-- 改變 stable PDM User ID、company／role／permission authority、session時限或 revocation規則。
-- 改變 Workspace 2-Step Verification、TOTP、AAL1 privileged pilot或 MFA trust政策。
-- 移除 email/password／工號登入、重做登入頁版型或新增自有密碼／recovery系統。
-- 新增 database schema、migration、production data repair、custom domain、DNS、Hosting或 load balancer。
-- 在本文件預寫 production command、credential、candidate、traffic switch或 rollback操作表。
+沿用 `PDM_JENFU_SSO_HANDOFF_MODE=off|on`、`PDM_JENFU_SSO_BROKER_ORIGIN`、`PDM_PUBLIC_BASE_URL`、`PDM_AUTH_MODE`、`PDM_JENFU_PLATFORM_AUTH_MODE`。不增加另一個登入模式旗標、public endpoint 或 provider health service。
 
-## 6. 行為契約
+| 狀態 | `/api/auth/mode` 行為 | PDM 畫面與操作 |
+|---|---|---|
+| Firebase BFF、handoff mode=on 且既有 SSO 設定有效 | 200；ssoHandoffEnabled=true；googleOAuth.enabled=false、provider=firebase；Cache-Control=no-store | 唯一主要 CTA「使用鉦富平台登入」；隱藏直接 Google／工號／一般密碼表單 |
+| Firebase BFF、handoff mode=on 但 platform mode／broker／base 設定缺漏或無效 | 503；固定 `{code:"sso_dependency_unavailable"}`；no-store | 顯示「登入設定暫時無法使用，請稍後再試或聯絡系統管理員。」；不得降級成直接登入 |
+| Firebase BFF、handoff mode 明確 off（含既有預設 off） | 保留既有相容 response；ssoHandoffEnabled=false | 保留現有直接登入作過渡／受控回退；不是正式 SSO 完成證據 |
+| handoff mode 為非空、非 on/off 的非法值（Firebase BFF） | 同設定失敗，不默認 off | 同上失敗訊息，不新增旁路 |
+| local demo／非 Firebase managed 模式 | 保留各自既有契約 | 不為 production SSO 改變本地／demo authority |
+| mode request 失敗、缺欄位或未知 authMode | client 保持 unavailable，不推定 managed | 不可提交任何登入方式；提供「重試」重新取得 mode |
 
-### 6.1 Capability狀態
+SSO on 的 `googleOAuth.enabled=false` 僅表示 **PDM 不提供直接 Google 入口**，不表示平台 Google provider 停用。`ssoHandoffEnabled` 是設定與入口狀態，不是 broker 即時健康保證；不因外部故障自動改模式。
 
-- `googleOAuth.enabled=true` 的必要條件是：`firebase_bff`、完整 Firebase web config、明確 Google capability開關，以及同一 release scope 的 provider-ready evidence。
-- 任一條件缺少時回傳 disabled。公開 response可提供非敏感 reason code供 UI顯示，但不得洩漏 OAuth client secret、provider credential或內部 IAM資訊。
-- 不允許用「web config存在」或「已有 refresh token」單獨推導 provider ready。
+將既有 SSO 靜態設定解析從 `jenfu-sso-handoff.ts` 的 setup 抽為 `auth-config.ts` 可重用、可注入 env 的純函式；auth-mode 與 setup 共用同一判定。只驗既有 DEV-013 設定／exact origin 契約，不讀 DB、credential 或呼叫 provider；不改 state、PKCE、token exchange、principal、session 或權限邏輯。正式 origins 仍由 reviewed owner 設定提供，不從 request Host／query 推導。
 
-### 6.2 UI狀態
+### 4.2 UI 與操作
 
-- Ready：按鈕文案為「使用 Google 帳號登入」，可啟動 provider flow。
-- Not ready：按鈕 disabled並顯示最短必要狀態，例如「Google 登入尚未開放，請改用公司帳號或聯絡管理員」。
-- Misconfigured at runtime：若 provider-start仍回設定錯誤，顯示「Google 登入目前未完成系統設定，請聯絡系統管理員」，同時解除 loading／popup wait狀態。
-- User／browser recoverable：popup被阻擋或使用者關閉視窗時，保留現行可辨識訊息與再次操作能力。
-- Principal rejected：沿用現有 BFF精確訊息，不把未開通、停用、email未驗證或 assurance不足改成 provider故障。
+- loading／unavailable 時沒有可提交的登入 CTA；不能先閃出直接 Google 或帳密表單。
+- ready SSO CTA 只導向既有 `/api/auth/jenfu-sso/start?returnTo=<safe local path>`；沿用 DEV-013 safe returnTo，不把任意外站 URL 帶給平台。
+- 平台已有 session 時不再要求 Google popup／工號／帳密；平台未登入才在平台選擇方式。PDM 不重複收一次工號。
+- local logout 留在 PDM 登入頁，明確點擊後才交接，不自動 redirect 造成登出循環。
+- mode 載入／重試錯誤放在目前可見的登入面板，以 `role="alert"` 呈現；不要寫入 SSO 模式中被隱藏的 form error。使用單一載入狀態與 request generation／cleanup，防止晚回 response 覆蓋新狀態。
+- handoff 途中及 callback 的 error code、account conflict、source expiry／revocation 仍依 DEV-013 處理；本 phase 不自創 callback protocol。若既有正常錯誤呈現路徑缺漏，列入 DEV-013 owner 缺陷並阻擋對應整合驗收，不能以本地 mode UI PASS 宣稱已修好。
+- 相容模式沿用既有 Google／工號流程：工號建立短效 single-use intent，驗證後 UID／company 必須命中同一目標；工號不是可繞過 provider 的備援。原 direct provider 設定故障仍需 owner 修復，不因保留舊 UI 被視為已解決。
 
-### 6.3 Security與permission
+一般 Google provider 失效，不得推薦同樣依賴 Google 的工號作替代；只有該帳號確實具有已核准、可用的其他 provider 方法時才提供替代登入。平台雙入口完成後的具體文案由 118-B 固定。
 
-- Provider成功只產生可供 BFF驗證的 Firebase ID token；不得直接建立 app session、角色或 company scope。
-- 未知 Google身分不得自動註冊，verified email或公司網域不得作 UID mapping fallback。
-- client persistence仍維持 memory-only，BFF exchange完成後清除 Firebase client session。
-- 所有 auth mode與錯誤 response維持 no-secret、同源與現行 CSRF／origin boundary。
+### 4.3 實作範圍與順序
 
-## 7. RD／QA 分期計畫
+| 順序 | 檔案 | 允許變更 |
+|---|---|---|
+| 1 | `src/lib/auth-config.ts`、`src/lib/jenfu-sso-handoff.ts` | 共用靜態設定解析；handoff 僅委派設定，不重寫 session／exchange |
+| 2 | `src/app/api/auth/mode/route.ts` | SSO on 的直接入口關閉、設定錯誤 fail closed、no-store |
+| 3 | `src/app/login/page.tsx`；`src/app/globals.css` 僅必要時 | mode loading／retry／可見 error、平台唯一入口，最小版面變更 |
+| 4 | `src/lib/jenfu-sso-handoff.test.ts`；新增 `scripts/qc-dev-118-login-entry-contract.mjs`、`scripts/qc-dev-118-login-entry-browser.mjs`；`package.json` | 設定與入口負例、實際登入頁 browser checks、focused commands |
 
-### 118-A：本機 capability與錯誤契約
+No-touch：DB schema／migration、employee／principal／alias 資料、privileged policy、其他 repo、shared provider／OAuth secret、DEV-117 profile／runtime／Workflow／smoke schema。開始 coding 前先讀相關 Next.js bundled guide，重新核對已提交的 DEV-013 實作；不能用舊版本覆蓋最新 code。
 
-- 補 Google capability的 default-off設定與 auth-mode contract。
-- 收斂登入頁 disabled／ready／misconfigured／recoverable error狀態。
-- 補 focused contract、client error mapping、desktop／mobile rendered UI與鍵盤焦點驗證。
-- Exit：本機在 capability off時不得顯示可用按鈕；on fixture可啟動 mocked provider；所有失敗都解除 loading且給正確恢復動作。
+## 5. 118-A 驗收與驗證
 
-### 118-B：shared production provider readiness
+| Case | 操作與前置 | 必須觀察的結果 |
+|---|---|---|
+| A01 | SSO on、設定有效，讀 mode／開登入頁 | sso=true、直接 google=false、no-store；只有平台 CTA；無 provider／DB health probe |
+| A02 | SSO on 缺 broker/base、非法 origin／mode、platform mode off | 設定錯誤回 503；UI 顯示就地 error；不出現直接 Google／工號／密碼 fallback |
+| A03 | mode timeout／非 JSON／未知模式、第一次重試晚回 | unavailable 不走 managed；重試恢復；舊 response 不覆蓋新 state、unmount 無殘留 |
+| A04 | SSO off／demo／managed fixture | 既有模式保留；不把 Google 與工號描述為兩套獨立憑證；既有 alias UID mismatch／replay 拒絕維持 |
+| A05 | 點平台 CTA、safe／惡意 returnTo、local logout | 只進既有 start 路徑；無任意 redirect；logout 後不自動重新登入 |
+| A06 | 1440×900、390×844、使用者原 748×698；loading／ready／error、Tab／重試 | 主動作與錯誤可見，無水平溢位、重疊、截字；錯誤不藏進未渲染 form |
 
-- Shared identity／Platform owner確認 exact project與 Google provider現況、OAuth client與support email。
-- 依受控變更啟用／修復 provider，取得 fresh provider readback與 canonical authorized-domain evidence。
-- Exit：authorization start成功；unknown outcome=0；沒有新增自動註冊、跨app role mapping或過寬 IAM。
+已新增並通過：`npm run qc:dev-118:contract`（10/10）、`npm run qc:dev-118:browser`（12/12）。既有 `npm run test:dev-013`（3/3）、`npm run qc:dev-046-login-alias`（21/21）、`npm run typecheck:app` 與 `npm run build:isolated` 亦通過。不因改文件／登入入口重跑未受影響的全套 DEV-117 release tests；若後續實作需要修改 release source，停止並重定範圍。
 
-### 118-C：release gate與正式驗收
+Browser QA 必須操作實際編譯登入頁；fixture 只模擬設定／mode response／外部依賴，不直接塞入成功 session。收集 source revision／dirty fingerprint、角色、route、viewport、操作、截圖、console／page error 與 visible error sweep；local fixture 不冒充跨 app 或 production PASS。
 
-- 把 provider-start probe與 capability一致性加入 AI-PDM owner release的 pre-activation evidence。
-- 以 exact candidate完成 provider start、既有 authenticated session、permission／revocation負例及 rendered login UI。
-- Activation後執行 canonical feature smoke並保存 release receipt；任何 provider／capability drift必須 fail closed並維持或回復先前 serving revision。
-- Exit：canonical Google登入入口可啟動、已開通測試 principal完成 BFF session與 `returnTo`，負向帳號不會取得 session。
+所有 build／QA runtime 遵守 AGENTS.md：啟動前記 project、purpose、port、PID tree、cleanup condition、PDM_DATA_DIR／PDM_REPOSITORY_DIR；使用 task-owned isolated 資料，seed 前先驗 unmodified snapshot invariants，保留 mutation ledger，build 前後證明 primary identities/schema/residue/FK 不變。結束停止 own processes、釋放 port 並清 own UI／temp paths；不碰使用者現有登入分頁。
 
-## 8. 驗收標準
+## 6. 118-B：平台 Google／工號入口承接契約
 
-1. Provider未設定或 capability未放行時，`/api/auth/mode`不得宣告 Google enabled，登入頁不得提供可點擊的假入口。
-2. `auth/operation-not-allowed`、`auth/unauthorized-domain`、popup blocked／closed與 BFF principal rejection各自呈現可區分、可行動的結果。
-3. Provider ready時，canonical origin可建立 `google.com` authorization URI；authorized-domain readback包含 exact canonical host。
-4. 已開通的 production test principal由 Google provider完成驗證後，BFF只依 immutable UID取得既有 active PDM principal，建立 session並回到安全的原 `returnTo`。
-5. 未連結、停用、未驗證、跨公司或 assurance不足的身分皆不得建立 app session；不得自動建立、合併或授權帳號。
-6. Existing email/password、工號 routing、logout、session reload／revoke與permission負例維持通過。
-7. 1440×900與390×844的 ready／disabled／error畫面無裁切、重疊或焦點遺失；錯誤靠近 Google動作且不落在密碼欄脈絡。
-8. Release gate在 provider缺失、authorized-domain漂移、capability與provider readback不一致或 generic error回歸時阻擋 activation。
+狀態：`RD Contract Ready / Platform Handoff Required`。此處是明確依賴與驗收要求，不表示本 task 已在 Platform 建 DEV、取得執行權或完成能力。
 
-## 9. Evidence Required
+Platform owner 必須先把本段登錄為 owner-native 任務／現有登入任務 amendment，再補齊其實作文件。不能只因 DEV-013 名稱含 SSO，就把新增登入方法灌入原先 22 案的完成率。
 
-- Local：auth-mode與client error focused tests、provider-ready／missing mutants、rendered browser screenshots、console／network error sweep。
-- Provider：exact project、provider ID、authorized domain、readback時間與不可變 evidence reference；不保存 secret值。
-- Candidate：source／artifact／revision identity、provider-start response分類、capability response、authenticated session與負例結果。
-- Canonical：post-deploy Google start、BFF session、safe `returnTo`與 error absence；證據只證明其實際環境與身份。
+固定產品契約：
 
-## 10. Stop Conditions
+1. 有效公司 Google 身分可直接選公司帳號驗證；有效工號可啟動該員工核准身分的 provider routing。兩者皆通過 provider 與同一平台 admission，不是工號登入與 Google 登入各自建立一套帳號。
+2. 工號 mapping 由核准的公司／employee／identity authority 管理。Unknown、disabled、retired、ambiguous、cross-company mapping 一律 fail closed，公開回應不得列舉 email／帳號是否存在。
+3. 工號起手的 transaction 必須與最終 verified issuer／subject／employee 一致、短效、防重放；不能接受 popup 選到另一個有效員工便換人登入。Google 起手也不得靠 email/domain 自動建 principal。
+4. Provider failure、popup blocked／closed、mapping rejection、權限不足須分開呈現並可恢復；provider unavailable 時不能把工號包裝成可繞過的備援。
+5. 兩種方式均保留 original authenticatedAt、既有 MFA／assurance、revocation 與 global logout；不擴張 privileged identity 權限。
+6. 非 Google provider-managed email/password 等已核准路徑保留，不能把此次需求解讀為所有員工必須具備 Google 帳號或另設工號密碼。
 
-- Shared identity／Platform owner與 AI-PDM owner對 provider mutation責任不清。
-- Exact OAuth client、support email、project或 canonical origin無法由 provider readback確認。
-- Provider變更會影響其他 app但沒有 shared compatibility檢查或回復邊界。
-- 實作企圖以 email／domain fallback建立 principal、放寬角色、開啟自動註冊或保存 provider token。
-- 需要變更 MFA／AAL政策、Firebase project、custom domain、DNS、database schema或 production資料。
-- Candidate無法在不切 traffic下取得 provider-start與 authenticated BFF evidence。
+### 6.1 管理員設定受控 non-Google provider 帳號
 
-## 11. Release Impact Note
+非 Google 員工的開通不是在 AI-PDM 直接建立「工號＋密碼」；密碼、MFA 與復原仍由核准的 Firebase／Cloud Identity provider 管理。公司 email 只是聯絡與邀請屬性，不能單獨換成登入授權。
 
-本任務觸及 production identity provider、runtime capability設定、登入 UI與 owner release驗證，風險等級為 High。正式 provider mutation與 production activation必須交既有 release gate；本文件只定義 prerequisite、行為與 evidence，不構成 provider write、deploy或 traffic授權。Database migration=`none`。
+| 步驟 | 負責 owner | 必須完成的設定 | 不得做的事 |
+|---|---|---|---|
+| 1. 建立公司身分 | Platform／shared identity admin | 以公司核准的 non-Google provider 建立或邀請員工身分，完成 email proof，取得 immutable provider UID／issuer 與 provider 狀態 | 不在 PDM 建立 password hash、MFA secret 或 recovery code；不以 email 自動產生 PDM principal |
+| 2. 建立 PDM 帳號 | AI-PDM Admin | 從「帳號與權限」的 `/settings/accounts` 建立或啟用 PDM user，設定 company／membership／角色與 app assignment；provider proof 未完成前維持不可登入 | 不在 PDM 輸入或保存員工密碼；不以工號或 email 直接簽發 session |
+| 3. 綁定工號 alias | AI-PDM Admin／核准 identity authority | 將工號加入同一個已核准 PDM user 的 alias，限定 company scope，填寫原因並產生 audit／optimistic-lock evidence；alias 可停用或退休 | 不把 alias 當 provider UID、canonical ID、密碼或權限來源；不允許重複、跨公司或指向不同 principal |
+| 4. 員工完成 provider 設定 | 員工在 provider | 透過一次性 provider invitation／email-link 完成驗證，再依 provider policy 設定密碼、MFA 與復原方式 | 不把 raw link、密碼或 provider token 回填 PDM；不由 PDM 代發或重設 provider credential |
+| 5. 登入與放行 | Platform／AI-PDM release owner | 員工從平台主入口登入；平台先完成 provider authentication／admission，PDM BFF 再以 verified UID、company 與 PDM mapping 建立 session；production 另須 staging evidence、資安核准與 DEV-032 allowlist／release | 不因 non-Google provider 可用就自動擴大 production allowlist；Wave 0 不提前開放 |
 
-## 12. Spec Impact與ADR判定
+設定結果的最低驗收是：provider proof 尚未完成時帳號不能登入；完成後，工號起手與 provider 直接起手只能落到同一個核准 PDM user；停用、退休、重複或跨公司 mapping 一律 fail closed；PDM 管理介面不出現自有密碼設定、MFA enrollment 或 provider recovery authority。此段是 118-B 的 owner handoff 契約，不代表目前 Platform 或 production 已具備可操作的雙入口。
 
-- 分類：`Compatible amendment`。本任務恢復既有 Google登入承諾並補 capability／release control，不改 `SPEC-PDM-ACCESS-CONTROL-001` 的 stable UID、invite-only linking、PDM authorization與 fail-closed原則。
-- `DEV-046`：補 provider rollout的 readiness與錯誤契約；不重開已完成的本機 Firebase BFF slice。
-- `DEV-117`：補 production-only regression smoke；不改 app-owned artifact、candidate、activation或 rollback ownership。
-- ADR：`Not needed`。provider／BFF／UID authority已由現行 identity ADR與spec決定；本次是缺漏控制與驗證修復，沒有新的長期架構替代方案。
+進入 Implementation Ready 前，Platform owner 須定案：工號 mapping 的現有 source／versioned read contract、平台新增 UI/API 及 transaction 邊界、provider readiness 與錯誤方式、Google-managed 與 non-Google 分支、完整 test cases。不得跨 app 讀寫 PDM 私有 `*_core` 作平台 login directory，也不得建立第二套 credential store。
 
-## 13. RD Readiness與下一步
+本輪只做唯讀 source／authority 比對；Platform code、文件、資料、provider 設定與任務板均未修改。
 
-目前成熟度為 `RD Contract Ready`。產品行為、責任邊界、分期、驗收與 stop conditions已固定；升級到 `RD Implementation Ready` 前仍需：
+## 7. 118-C：SSO 發布與整合驗收 capsule
 
-1. Shared identity／Platform owner確認 production `google.com` provider的 exact mutation owner與回復責任。
-2. 以 fresh readback確認 exact OAuth client／support email／authorized-domain狀態，但不得把 credential寫入文件。
-3. RD固定 repo-level修改清單、capability wire shape、focused test命令與 candidate provider-start evidence schema。
+沿用 DEV-013 per-client `off → accept → target on → launch`、revocation guard 與 rollback security floor，以及各 owner 普通 release gate。PDM canonical 仍為 `https://ai-pdm-prod-9536592944.asia-east1.run.app`。不新增 custom domain、workflow input、manual GO、Secret 輪替或 provider session-sharing 機制。
 
-上述缺口不改變本文件的產品方向，但在正式 provider mutation前皆為必要 gate。
+| Case | 正常 delivery path | 完成條件 |
+|---|---|---|
+| C01 Google 起手 | PDM 平台 CTA → 平台選 Google → provider → 平台 admission → handoff → PDM | 同一核准身分建立 PDM session、回 safe returnTo、reload 可用 |
+| C02 工號起手 | PDM 平台 CTA → 平台輸入工號 → 對應 provider → handoff → PDM | 與 C01 的核准日常身分一致；沒有輸入工號即授權、錯配或新增帳號 |
+| C03 平台已登入 | Portal 有權限 app tile／PDM 平台 CTA → handoff | 不再要求 Google popup、工號或帳密；仍經 PDM local authorization |
+| C04 拒絕與回復 | inactive／無 assignment／工號與 UID 不符／session revoked／broker failure | 不簽發有效 session；可見錯誤、無自動 legacy fallback；不同 principal 不靜默替換 |
+| C05 登出與相容性 | local logout、global logout、必要 reauth／recovery、既有 release smoke | 依 DEV-013／既有 policy 生效；保留必要 Firebase exchange，不移除安全驗證 |
 
-使用思考習慣：#批判、#多層次分析、#可驗證性
+A01–A06 可以先取得 local evidence；C01/C02 依賴 118-B，不得用目前平台 email/password 成功取代雙入口驗收。C03–C05 優先引用 DEV-013 同 source／環境／角色的有效證據，不重做平行 handoff suite；有差異才補測。
+
+現行 Firebase refresh-token smoke只證明既有 session 路徑，不能證明平台 Google／工號入口；本案不強制修改其憑證或 observation schema。Provider 啟用／網域讀回由實際登入所在的 Platform owner 負責；PDM SSO 不以自己的直接 Google provider readiness 作 release 前提。
+
+Production 功能完成需實際 canonical、exact artifact／revision、受控 test principal、操作／畫面及 redacted 結果。使用者原始內嵌瀏覽器問題需保留適用環境結果；其他瀏覽器或 local mock 成功不能冒充。無法安全完成 provider 互動／缺 owner implementation 時保留未充分驗證，不預填 PASS。
+
+## 8. 派工、完成與文件治理
+
+- **118-A 已完成本地 coding 與 focused local QA**：平台雙入口仍待 118-B owner-native 任務承接，production 由 118-C gate 進入；目前 AI-PDM 沒有可提前執行的 B/C 本地替代工作。
+- 本 DEV 從原獨立「直接 Google 修復交付點」收斂為既有身分／SSO 交付的**開發點**，不新增產品交付分母。原 scope 被取代，不記已完成；DEV-013 已有成果不重複計入 DEV-118。
+- `架構定案` 僅適用 §4 的 PDM 入口切片；不宣稱 Platform 雙入口的 mapping／API／provider 實作已定案。B 的缺口不阻塞 A 本地設計，但阻塞 C01/C02 與完整需求交付。
+- A 實作可決定局部 helper 命名、測試組織與樣式；不得改變入口模式、provider／identity／permission authority 或偷加 release 契約。需改 SSO wire schema、DB、shared credential、跨 repo source、平台 alias authority 時，停止受影響切片並回送 owner 規劃。
+- 文件與既有 active SPEC 的一致性：DEV-003 §4.1 增加 SSO 入口適用範圍；`SPEC-PDM-ACCOUNT-LIFECYCLE-001` 保留 `/settings/accounts` 與 provider-managed invitation／recovery authority；任務板、map、cold-start 同步。DEV-046 的歷史支援工號決策保留；Platform ADR／DEV-013、DEV-117 authority 僅引用，不改寫。
+- 118-A 證據：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-17T00-48-58-748Z/manifest.json`；含 source revision／dirty fingerprint、loading／SSO ready／unavailable／managed compatibility、三 viewport、console/page error sweep、port／Next dist／next-env cleanup PASS。此 local fixture 不宣稱 Platform provider、跨 app SSO 或 production 已通過。

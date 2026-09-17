@@ -112,6 +112,8 @@
     "typecheck:workspace": "tsc --noEmit --pretty false",
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
     "test:dev-013": "npx vitest run src/lib/jenfu-sso-handoff.test.ts",
+    "qc:dev-118:contract": "node scripts/qc-dev-118-login-entry-contract.mjs",
+    "qc:dev-118:browser": "node scripts/qc-dev-118-login-entry-browser.mjs",
     "db:init": "node scripts/init-db.mjs",
     "db:seed": "node scripts/seed.mjs",
     "db:dev-068:local-schema": "node scripts/apply-dev-068-local-schema.mjs",

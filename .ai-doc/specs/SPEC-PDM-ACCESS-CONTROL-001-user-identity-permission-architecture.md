@@ -346,6 +346,8 @@ flowchart LR
 
 ### 4.1 Production 工號登入別名契約
 
+**2026-09-17 入口適用範圍修訂（DEV-118）：** Google 登入與工號起手皆須驗證同一個預先核准的公司管理身分；不是工號單獨認證，也不是只要有公司 email 就可登入。SSO 啟用後，PDM 一般登入只保留「使用鉦富平台登入」，Google／工號選擇集中於平台。平台雙入口目前尚待 owner 實作，不能由既有工號 local QC 推定已可用。下列「登入頁接受工號或公司帳號」與 PDM alias intent 契約保留給 SSO off 的過渡／受控相容模式；不要求在 SSO on 的 PDM 再顯示平行入口。非 Google provider-managed 帳號的 owner 分工、邀請、PDM 綁定與 production allowlist 規則詳見 [DEV-118 §6.1](SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md#61-管理員設定受控-non-google-provider-帳號)；身分、授權與既有 alias 資料 authority 不變。
+
 - `工號` 是公司範圍內的登入別名，只用於找出受管理身分的 provider route 與預先核准的 PDM user mapping；它不是密碼、provider UID、角色或權限來源。
 - 登入頁接受「工號或公司帳號」。工號送到同源 BFF 後，BFF 做正規化、rate limit 與泛化回應，建立最長 5 分鐘、single-use、綁定 company/nonce/return-path 的登入 intent，再轉交 Cloud Identity／Firebase provider。未知、停用、重複或跨公司別名不得洩漏帳號是否存在。
 - Provider 驗證成功後，BFF 必須以不可變 Firebase/Google UID 查詢 active platform principal；只有該 principal 的 PDM user/company 與登入 intent 目標一致時才能簽發 `pdm_session`。alias、email、domain、display name 或 user-editable claim 都不能作 fallback。

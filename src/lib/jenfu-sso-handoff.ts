@@ -6,7 +6,7 @@ import { getUserByIdAsync } from "@/lib/auth-async";
 import { serializeAuthUserAsync } from "@/lib/company-context";
 import { registerJenfuAccountSessionAsync } from "@/lib/account-session-registry";
 import { setJenfuPlatformSessionResponseCookie } from "@/lib/auth-response-cookies";
-import { getAuthMode, getGoogleWorkspaceMfaTrustPolicy, getJenfuIdentityConfig, getJenfuPlatformAuthMode } from "@/lib/auth-config";
+import { getGoogleWorkspaceMfaTrustPolicy, getJenfuIdentityConfig, getJenfuSsoHandoffConfig } from "@/lib/auth-config";
 import { FirebasePlatformPrincipalRepository } from "@/lib/firebase-platform-principal-repository";
 import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
@@ -75,16 +75,7 @@ function callbackError(errorValue: unknown) {
   return error("sso_dependency_unavailable", 502);
 }
 
-function setup() {
-  if (getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on" || String(process.env.PDM_JENFU_SSO_HANDOFF_MODE ?? "off").trim().toLowerCase() !== "on") throw new Error("SSO_DISABLED");
-  const broker = String(process.env.PDM_JENFU_SSO_BROKER_ORIGIN ?? "").trim();
-  const base = String(process.env.PDM_PUBLIC_BASE_URL ?? "").trim().replace(/\/+$/u, "");
-  if (!broker || !base) throw new Error("SSO_CONFIG_MISSING");
-  const brokerUrl = new URL(broker);
-  const baseUrl = new URL(base);
-  if (brokerUrl.search || brokerUrl.hash || baseUrl.search || baseUrl.hash || baseUrl.pathname !== "/") throw new Error("SSO_ORIGIN_INVALID");
-  return { broker: brokerUrl.origin, base: baseUrl.origin, issuer: `${brokerUrl.origin}/api/sso`, callback: `${baseUrl.origin}/api/auth/jenfu-sso/callback` };
-}
+const setup = getJenfuSsoHandoffConfig;
 
 async function token(audience: string) {
   const auth = new GoogleAuth();

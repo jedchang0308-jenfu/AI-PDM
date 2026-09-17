@@ -23,6 +23,15 @@ export type GoogleWorkspaceMfaTrustPolicy = {
   domains: string[];
 };
 
+export type JenfuSsoHandoffConfig = {
+  broker: string;
+  base: string;
+  issuer: string;
+  callback: string;
+};
+
+export type JenfuSsoHandoffEntryState = "off" | "on" | "invalid";
+
 function enabled(value: string | undefined) {
   return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
 }
@@ -71,14 +80,41 @@ export function getJenfuIdentityConfig(env: NodeJS.ProcessEnv = process.env): Je
   return { firebaseProjectId, identityIssuer, identityAudience };
 }
 
-export function getFirebaseWebConfig(): FirebaseWebConfig | null {
+export function getFirebaseWebConfig(env: NodeJS.ProcessEnv = process.env): FirebaseWebConfig | null {
   const config = {
-    apiKey: String(process.env.PDM_FIREBASE_API_KEY ?? "").trim(),
-    authDomain: String(process.env.PDM_FIREBASE_AUTH_DOMAIN ?? "").trim(),
-    projectId: String(process.env.PDM_FIREBASE_PROJECT_ID ?? process.env.GOOGLE_CLOUD_PROJECT ?? "").trim(),
-    appId: String(process.env.PDM_FIREBASE_APP_ID ?? "").trim()
+    apiKey: String(env.PDM_FIREBASE_API_KEY ?? "").trim(),
+    authDomain: String(env.PDM_FIREBASE_AUTH_DOMAIN ?? "").trim(),
+    projectId: String(env.PDM_FIREBASE_PROJECT_ID ?? env.GOOGLE_CLOUD_PROJECT ?? "").trim(),
+    appId: String(env.PDM_FIREBASE_APP_ID ?? "").trim()
   };
   return Object.values(config).every(Boolean) ? config : null;
+}
+
+export function getJenfuSsoHandoffConfig(env: NodeJS.ProcessEnv = process.env): JenfuSsoHandoffConfig {
+  if (getAuthMode(env) !== "firebase_bff" || getJenfuPlatformAuthMode(env) !== "on" || String(env.PDM_JENFU_SSO_HANDOFF_MODE ?? "off").trim().toLowerCase() !== "on") {
+    throw new Error("SSO_DISABLED");
+  }
+  const broker = String(env.PDM_JENFU_SSO_BROKER_ORIGIN ?? "").trim();
+  const base = String(env.PDM_PUBLIC_BASE_URL ?? "").trim().replace(/\/+$/u, "");
+  if (!broker || !base) throw new Error("SSO_CONFIG_MISSING");
+  const brokerUrl = new URL(broker);
+  const baseUrl = new URL(base);
+  if (!["http:", "https:"].includes(brokerUrl.protocol) || !["http:", "https:"].includes(baseUrl.protocol) || brokerUrl.search || brokerUrl.hash || brokerUrl.pathname !== "/" || baseUrl.search || baseUrl.hash || baseUrl.pathname !== "/") {
+    throw new Error("SSO_ORIGIN_INVALID");
+  }
+  return { broker: brokerUrl.origin, base: baseUrl.origin, issuer: `${brokerUrl.origin}/api/sso`, callback: `${baseUrl.origin}/api/auth/jenfu-sso/callback` };
+}
+
+export function getJenfuSsoHandoffEntryState(env: NodeJS.ProcessEnv = process.env): JenfuSsoHandoffEntryState {
+  const mode = String(env.PDM_JENFU_SSO_HANDOFF_MODE ?? "off").trim().toLowerCase();
+  if (!mode || mode === "off") return "off";
+  if (mode !== "on") return "invalid";
+  try {
+    getJenfuSsoHandoffConfig(env);
+    return "on";
+  } catch {
+    return "invalid";
+  }
 }
 
 export function getGoogleWorkspaceMfaTrustPolicy(env: NodeJS.ProcessEnv = process.env): GoogleWorkspaceMfaTrustPolicy {
