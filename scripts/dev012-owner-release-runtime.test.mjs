@@ -235,16 +235,18 @@ test('runtime config carries a complete secret-safe two-container template', () 
   assert.throws(() => assertRuntimeConfig(profile, mutable), /RUNTIME_CONFIG_READBACK_MISMATCH/u)
 })
 
-test('candidate replaces a one-container holding template with the reviewed runtime template at zero traffic', async () => {
+test('candidate accepts a provider-derived tag URI while replacing a holding template at zero traffic', async () => {
   const artifact = `${profile.artifact.uri}@sha256:${H64}`
   const candidateRevision = `${profile.target.serviceName}-${H64.slice(0, 12)}`
   const candidateTag = `candidate-${H64.slice(0, 12)}`
   const candidateUri = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
+  const providerUri = 'https://jenfu-platform-prod-56gnizku7q-de.a.run.app'
+  const providerCandidateUri = 'https://' + candidateTag + '---jenfu-platform-prod-56gnizku7q-de.a.run.app'
   const serviceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
   const settled = { name: serviceName, reconciling: false, generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }
   const before = { ...settled, etag: 'e1', template: { serviceAccount: 'holding@example.invalid', containers: [{ name: 'holding', image: 'holding@sha256:' + '0'.repeat(64) }] }, traffic: [{ revision: 'holding-1', percent: 100 }], trafficStatuses: [{ revision: 'holding-1', percent: 100 }] }
-  const created = { ...before, etag: 'e2', latestCreatedRevision: candidateRevision }
-  const tagged = { ...created, etag: 'e3', traffic: [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, percent: 0, tag: candidateTag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, percent: 0, tag: candidateTag, uri: candidateUri }] }
+  const created = { ...before, etag: 'e2', latestCreatedRevision: candidateRevision, uri: providerUri, urls: [profile.target.canonicalOrigin, providerUri] }
+  const tagged = { ...created, etag: 'e3', traffic: [...before.traffic, { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, percent: 0, tag: candidateTag }], trafficStatuses: [...before.trafficStatuses, { revision: candidateRevision, percent: 0, tag: candidateTag, uri: providerCandidateUri }] }
   const reads = [before, created, created, tagged, tagged]
   const patches = []
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
