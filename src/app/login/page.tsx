@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { KeyRound, LockKeyhole, LogIn, X } from "lucide-react";
 import type { AuthMode, FirebaseWebConfig } from "@/lib/auth-config";
@@ -14,6 +14,12 @@ import {
 } from "@/lib/firebase-client-auth";
 
 type FirebaseAuthenticatedResult = Extract<FirebaseSignInResult, { kind: "authenticated" }>;
+
+type LoginModeState = "loading" | "ready" | "unavailable";
+
+function isAuthMode(value: unknown): value is AuthMode {
+  return value === "demo" || value === "managed" || value === "firebase_bff";
+}
 
 const TEST_ACCOUNTS = [
   {
@@ -62,29 +68,49 @@ export default function LoginPage() {
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [firebaseConfig, setFirebaseConfig] = useState<FirebaseWebConfig | null>(null);
   const [localQuickLoginEnabled, setLocalQuickLoginEnabled] = useState(false);
+  const [ssoHandoffEnabled, setSsoHandoffEnabled] = useState(false);
   const [quickLoginRole, setQuickLoginRole] = useState<string | null>(null);
+  const [modeState, setModeState] = useState<LoginModeState>("loading");
+  const modeRequestGeneration = useRef(0);
 
   function loginReturnTo() {
     const candidate = new URLSearchParams(window.location.search).get("returnTo") ?? "/";
-    return candidate.startsWith("/") && !candidate.startsWith("//") && !candidate.includes("\\") ? candidate : "/";
+    return candidate.startsWith("/") && !candidate.startsWith("//") && !candidate.startsWith("/login") && !candidate.startsWith("/api/auth/") && !candidate.includes("\\") && !/[\u0000-\u001f\u007f]/u.test(candidate) && candidate.length <= 1024 ? candidate : "/";
   }
 
-  useEffect(() => {
-    fetch("/api/auth/mode")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: { authMode?: AuthMode; googleOAuth?: { enabled?: boolean }; firebase?: { config?: FirebaseWebConfig | null }; localQuickLogin?: boolean } | null) => {
-        setAuthMode(body?.authMode ?? "managed");
-        setGoogleOAuthEnabled(body?.googleOAuth?.enabled === true);
-        setFirebaseConfig(body?.firebase?.config ?? null);
-        setLocalQuickLoginEnabled(body?.localQuickLogin === true);
-      })
-      .catch(() => {
-        setAuthMode("managed");
-        setGoogleOAuthEnabled(false);
-        setFirebaseConfig(null);
-        setLocalQuickLoginEnabled(false);
-      });
+  const loadAuthMode = useCallback(async () => {
+    const generation = modeRequestGeneration.current + 1;
+    modeRequestGeneration.current = generation;
+    setModeState("loading");
+    setAuthMode(null);
+    setGoogleOAuthEnabled(false);
+    setFirebaseConfig(null);
+    setLocalQuickLoginEnabled(false);
+    setSsoHandoffEnabled(false);
+    try {
+      const response = await fetch("/api/auth/mode", { cache: "no-store" });
+      if (!response.ok) throw new Error("AUTH_MODE_UNAVAILABLE");
+      const body = (await response.json()) as { authMode?: unknown; googleOAuth?: { enabled?: unknown }; firebase?: { config?: FirebaseWebConfig | null }; localQuickLogin?: unknown; ssoHandoffEnabled?: unknown };
+      if (!isAuthMode(body.authMode)) throw new Error("AUTH_MODE_UNKNOWN");
+      if (generation !== modeRequestGeneration.current) return;
+      setAuthMode(body.authMode);
+      setGoogleOAuthEnabled(body.googleOAuth?.enabled === true);
+      setFirebaseConfig(body.firebase?.config ?? null);
+      setLocalQuickLoginEnabled(body.localQuickLogin === true);
+      setSsoHandoffEnabled(body.ssoHandoffEnabled === true);
+      setModeState("ready");
+    } catch {
+      if (generation !== modeRequestGeneration.current) return;
+      setModeState("unavailable");
+    }
   }, []);
+
+  useEffect(() => {
+    void loadAuthMode();
+    return () => {
+      modeRequestGeneration.current += 1;
+    };
+  }, [loadAuthMode]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -256,7 +282,22 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        {authMode === "demo" ? <div className="test-account-card" aria-label="測試帳號">
+        {modeState === "loading" ? (
+          <div className="login-operation-status" role="status" aria-live="polite">
+            <span>正在載入登入設定…</span>
+          </div>
+        ) : null}
+
+        {modeState === "unavailable" ? (
+          <div className="google-auth-choice">
+            <div className="form-error" role="alert">登入設定暫時無法使用，請稍後再試或聯絡系統管理員。</div>
+            <button className="secondary-button google-auth-button" type="button" onClick={() => void loadAuthMode()}>
+              重新取得登入設定
+            </button>
+          </div>
+        ) : null}
+
+        {modeState === "ready" && authMode === "demo" ? <div className="test-account-card" aria-label="測試帳號">
           <div>
             <span>內建測試帳號</span>
             <strong>請選擇要測試的權限角色</strong>
@@ -295,7 +336,15 @@ export default function LoginPage() {
           </div>
         </div> : null}
 
-        {authMode !== "demo" ? (
+        {modeState === "ready" && ssoHandoffEnabled ? (
+          <div className="google-auth-choice">
+            <button className="primary-button" type="button" disabled={loading} onClick={() => { window.location.assign(`/api/auth/jenfu-sso/start?returnTo=${encodeURIComponent(loginReturnTo())}`) }}>
+              <LogIn size={16} aria-hidden="true" />
+              使用鉦富平台登入
+            </button>
+            <p className="login-provider-note">登入一次即可進入你有權限的 Jenfu 系統。</p>
+          </div>
+        ) : modeState === "ready" && authMode !== "demo" ? (
           <div className="google-auth-choice">
             {googleOAuthEnabled ? (
               authMode === "firebase_bff" ? (
@@ -335,7 +384,7 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        <form onSubmit={submit} className="login-form">
+        {modeState === "ready" && !ssoHandoffEnabled && <form onSubmit={submit} className="login-form">
           <>
             <label>
               {authMode === "firebase_bff" ? "公司電子郵件或工號" : "電子郵件"}
@@ -370,10 +419,12 @@ export default function LoginPage() {
             <LogIn size={16} aria-hidden="true" />
             {loading ? "處理中..." : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}
           </button>
-        </form>
-        <div className="login-help-footer">
-          <Link href="/account-recovery/request">忘記密碼</Link>
-        </div>
+        </form>}
+        {modeState === "ready" ? (
+          <div className="login-help-footer">
+            <Link href="/account-recovery/request">忘記密碼</Link>
+          </div>
+        ) : null}
       </section>
     </div>
   );

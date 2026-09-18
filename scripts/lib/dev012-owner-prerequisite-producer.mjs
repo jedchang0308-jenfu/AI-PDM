@@ -2,12 +2,13 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
-import { assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
+import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
+import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
-const STAGES = new Set(['source-freeze', 'runtime-config', 'release-intent'])
+const STAGES = new Set(['source-freeze', 'runtime-config', 'dev013-transition-authority', 'release-intent'])
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
@@ -85,6 +86,37 @@ export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plai
   }
 }
 
+function revisionControlledEnvironment(profile, revision) {
+  const app = revision?.containers?.find((row) => row.name === profile.runtime.containerName)
+  const plain = Object.fromEntries((app?.env ?? []).filter((row) => typeof row.value === 'string').map((row) => [row.name, row.value]))
+  return Object.fromEntries(Object.keys(profile.environment?.controlledValues ?? {}).sort().map((name) => [name, plain[name] ?? null]))
+}
+
+export function assertDev013PredecessorReceipt(value, ref, profile, observedAt, expectedSourceRevision, currentStep) {
+  return assertDev013L4Predecessor({ value, ref, profile, observedAt, expectedSourceRevision, currentStep })
+}
+
+export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock, runtimeConfigReceipt, previousRevision, previousControlledEnvironment, transition, predecessorEvidence, observedAt, expiresAt }) {
+  const rules = profile.environment?.controlledValues ?? {}
+  const ruleNames = Object.keys(rules).sort()
+  const runtime = runtimeConfigReceipt?.runtimeConfig ?? runtimeConfigReceipt
+  if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id || sourceLock?.status !== 'SOURCE_FROZEN' || sourceLock.releaseAuthority !== true || sourceLock.clean !== true || !H40.test(sourceLock.sourceRevision ?? '')
+    || runtimeConfigReceipt?.releaseId !== releaseId || runtimeConfigReceipt?.ownerApplicationId !== profile.application.id || runtimeConfigReceipt?.sourceRevision !== sourceLock.sourceRevision || runtimeConfigReceipt?.projectId !== profile.target.projectId || runtimeConfigReceipt?.status !== 'VERIFIED' || runtimeConfigReceipt?.releaseAuthority !== true
+    || typeof previousRevision !== 'string' || previousRevision.length < 3 || canonicalize(Object.keys(previousControlledEnvironment ?? {}).sort()) !== canonicalize(ruleNames)
+    || !Number.isFinite(Date.parse(observedAt)) || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.parse(observedAt) || Date.parse(expiresAt) > Date.parse(predecessorEvidence?.sequenceRoot?.expiresAt)
+    || !predecessorEvidence?.schemaVersion || predecessorEvidence.sequenceRoot?.sourceRevisionByApplication?.[profile.application.id] !== sourceLock.sourceRevision || ruleNames.length === 0) fail('DEV013_TRANSITION_AUTHORITY_INPUT_INVALID')
+  assertRuntimeConfig(profile, runtime)
+  const controlledEnvironment = Object.fromEntries(ruleNames.map((name) => [name, runtime.plainEnvironment[name]]))
+  if (!ruleNames.some((name) => previousControlledEnvironment[name] !== controlledEnvironment[name])) fail('DEV013_TRANSITION_NOOP_DENIED')
+  const sequenceStep = dev013L4SequenceStep(profile.application.id, transition, previousControlledEnvironment, controlledEnvironment)
+  if (canonicalize(predecessorEvidence.currentStep) !== canonicalize(sequenceStep)) fail('DEV013_TRANSITION_SEQUENCE_MISMATCH')
+  const common = { ownerApplicationId: profile.application.id, projectId: profile.target.projectId, sourceRevision: sourceLock.sourceRevision, releaseId, environment: 'production', previousRevision, expiresAt, observedAt, status: 'PASS', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', remainingHumanAction: 0, predecessorEvidence }
+  const authorization = { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-authorization.v1', authorizationBasis: 'OPERATOR_INVOKED_DEV013_L4' }
+  const readiness = { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-readiness.v1', devId: 'DEV-013', slice: '013-R1', sequenceRoot: predecessorEvidence.sequenceRoot, sequenceStep, previousControlledEnvironment, controlledEnvironment, transition }
+  assertControlledEnvironmentAuthority({ intent: { releaseId, sourceRevision: sourceLock.sourceRevision }, profile, values: { authorization, readiness }, runtime, previousControlledEnvironment })
+  return { authorization, readiness }
+}
+
 export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent }) {
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id) fail('RELEASE_INTENT_INPUT_INVALID')
   const intent = {
@@ -128,7 +160,7 @@ export function parsePrerequisiteProducerArgs(argv) {
 export function resolveOwnerInputPath(root, inputPath) {
   if (typeof inputPath !== 'string' || path.isAbsolute(inputPath)) fail('INPUT_PATH_OUT_OF_SCOPE')
   const normalized = inputPath.replace(/\\\\/gu, '/').replace(/^\.\//u, '')
-  if (!normalized.startsWith('output/dev-012/inputs/') || normalized.includes('/../') || normalized.endsWith('/..')) fail('INPUT_PATH_OUT_OF_SCOPE')
+  if ((!normalized.startsWith('output/dev-012/inputs/') && !normalized.startsWith('output/dev-013/l4/inputs/')) || normalized.includes('/../') || normalized.endsWith('/..')) fail('INPUT_PATH_OUT_OF_SCOPE')
   const resolvedRoot = path.resolve(root)
   const candidate = path.resolve(resolvedRoot, ...normalized.split('/'))
   if (candidate !== resolvedRoot && !candidate.startsWith(resolvedRoot + path.sep)) fail('INPUT_PATH_OUT_OF_SCOPE')
@@ -152,6 +184,30 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const sourceLock = await readRef(transport, input.sourceLockRef, profile)
     const value = buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment: input.plainEnvironment, secretVersions: input.secretVersions, observedAt })
     return transport.putJson(uri('runtime-config'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+  }
+  if (stage === 'dev013-transition-authority') {
+    if (input?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-input.v1') fail('DEV013_TRANSITION_INPUT_INVALID')
+    const [sourceLockResult, runtimeConfigResult] = await Promise.all([
+      transport.readJson(exactRef(input.sourceLockRef, profile), profile.artifact.releaseBucket, ['receipts']),
+      transport.readJson(exactRef(input.runtimeConfigRef, profile), profile.artifact.releaseBucket, ['receipts']),
+    ])
+    const service = await transport.getService(profile)
+    transport.assertServiceSettled(service, 'DEV013_TRANSITION_BASELINE_UNSETTLED')
+    const previousRevision = transport.effectiveRevision(service)
+    if (!previousRevision || input.previousRevision !== previousRevision) fail('DEV013_TRANSITION_BASELINE_MISMATCH')
+    const revision = await transport.getRevision(profile, previousRevision)
+    const previousControlledEnvironment = revisionControlledEnvironment(profile, revision)
+    const predecessorResult = await transport.readBytes(input.transition?.predecessorReceiptRef?.uri, { prefixes: ['receipts'], expectedSha256: input.transition?.predecessorReceiptRef?.sha256 })
+    let predecessorValue
+    try { predecessorValue = JSON.parse(predecessorResult.bytes.toString('utf8')) } catch { fail('DEV013_PREDECESSOR_RECEIPT_INVALID') }
+    const runtime = runtimeConfigResult.value.runtimeConfig ?? runtimeConfigResult.value
+    const controlledEnvironment = Object.fromEntries(Object.keys(profile.environment?.controlledValues ?? {}).sort().map((name) => [name, runtime.plainEnvironment[name]]))
+    const currentStep = dev013L4SequenceStep(profile.application.id, input.transition, previousControlledEnvironment, controlledEnvironment)
+    const predecessorEvidence = { ...assertDev013PredecessorReceipt(predecessorValue, input.transition.predecessorReceiptRef, profile, observedAt, sourceLockResult.value.sourceRevision, currentStep), currentStep }
+    const values = buildDev013TransitionAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, previousRevision, previousControlledEnvironment, transition: input.transition, predecessorEvidence, observedAt, expiresAt: input.expiresAt })
+    const authorization = await transport.putJson(uri('owner-authorization'), values.authorization, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+    const readiness = await transport.putJson(uri('owner-readiness'), values.readiness, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+    return { ...readiness, refs: { authorizationPolicyRef: authorization.ref, readinessReceiptRef: readiness.ref }, previousRevision, previousControlledEnvironment }
   }
   if (stage === 'release-intent') {
     const fields = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }

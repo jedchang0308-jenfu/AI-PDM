@@ -43,6 +43,9 @@ export class FirebaseAdminIdentityProvider implements FirebaseIdentityProvider {
   async verifyIdToken(idToken: string, options: { checkRevoked: true }): Promise<VerifiedFirebaseIdentity> {
     if (!options.checkRevoked) throw new Error("FIREBASE_REVOCATION_CHECK_REQUIRED");
     const decoded = await this.client().verifyIdToken(idToken, true);
+    const secondFactor = String(decoded.firebase?.sign_in_second_factor ?? "").trim();
+    if (secondFactor && secondFactor !== "totp") throw new Error("FIREBASE_SECOND_FACTOR_UNSUPPORTED");
+    if (!Number.isSafeInteger(decoded.auth_time) || decoded.auth_time <= 0) throw new Error("FIREBASE_AUTH_TIME_INVALID");
     return {
       uid: decoded.uid,
       identityIssuer: String(decoded.iss ?? "").trim(),
@@ -52,7 +55,7 @@ export class FirebaseAdminIdentityProvider implements FirebaseIdentityProvider {
       disabled: false,
       authTimeSeconds: decoded.auth_time,
       signInProvider: String(decoded.firebase?.sign_in_provider ?? "").trim().toLowerCase(),
-      secondFactor: decoded.firebase?.sign_in_second_factor === "totp" ? "totp" : null
+      secondFactor: secondFactor === "totp" ? "totp" : null
     };
   }
 

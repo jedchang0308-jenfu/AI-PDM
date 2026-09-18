@@ -3,6 +3,7 @@ import { gzipSync } from 'node:zlib'
 import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
 import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDataCutoverHandoff, assertDataCutoverImportReceipt, assertDataCutoverTeardownReceipt } from './dev012-production-data-cutover.mjs'
 import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProviderStage } from './dev012-production-data-cutover-provider.mjs'
+import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -87,6 +88,38 @@ function acceptedStatus(value, statuses) {
   return value && statuses.includes(value.status) && value.releaseAuthority === true && value.evidenceScope !== 'LOCAL_SYNTHETIC'
 }
 
+export function assertControlledEnvironmentAuthority({ intent, profile, values, runtime, previousControlledEnvironment = null }) {
+  const rules = profile.environment?.controlledValues ?? {}
+  const controlledEnvironment = Object.fromEntries(Object.keys(rules).sort().map((name) => [name, runtime.plainEnvironment?.[name]]))
+  const sequencePreviousEnvironment = previousControlledEnvironment ?? values.readiness?.previousControlledEnvironment ?? null
+  const changedNames = sequencePreviousEnvironment
+    ? Object.keys(rules).filter((name) => sequencePreviousEnvironment[name] !== controlledEnvironment[name])
+    : Object.entries(rules).filter(([name, rule]) => controlledEnvironment[name] !== rule.defaultValue).map(([name]) => name)
+  if (changedNames.length === 0) return
+  const transition = values.readiness?.transition
+  const predecessor = transition?.predecessorReceiptRef
+  let expectedSequenceStep = null
+  try { expectedSequenceStep = dev013L4SequenceStep(profile.application.id, transition, sequencePreviousEnvironment, controlledEnvironment) } catch {}
+  if (values.authorization?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-authorization.v1' || values.authorization.authorizationBasis !== 'OPERATOR_INVOKED_DEV013_L4'
+    || values.readiness?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-readiness.v1' || values.readiness.devId !== 'DEV-013' || values.readiness.slice !== '013-R1'
+    || values.authorization.ownerApplicationId !== profile.application.id || values.readiness.ownerApplicationId !== profile.application.id
+    || values.authorization.sourceRevision !== intent.sourceRevision || values.readiness.sourceRevision !== intent.sourceRevision || values.authorization.releaseId !== intent.releaseId || values.readiness.releaseId !== intent.releaseId
+    || canonicalize(values.readiness.controlledEnvironment) !== canonicalize(controlledEnvironment)
+    || canonicalize(values.readiness.sequenceStep) !== canonicalize(expectedSequenceStep)
+    || values.readiness.sequenceRoot?.schemaVersion !== 'jenfu.dev013.l4-sequence-root.v1'
+    || !Object.hasOwn(rules, transition?.field) || transition.to !== controlledEnvironment[transition.field] || (transition.from !== null && !rules[transition.field].allowedValues.includes(transition.from)) || !rules[transition.field].allowedValues.includes(transition.to) || transition.from === transition.to
+    || !['guard', 'activate', 'advance', 'rollback'].includes(transition.action)
+    || (sequencePreviousEnvironment && (changedNames.length !== 1 || transition.field !== changedNames[0] || transition.from !== sequencePreviousEnvironment[transition.field]))
+    || (transition.action === 'guard' && (transition.from !== null || transition.to !== rules[transition.field].defaultValue))
+    || !predecessor || canonicalize(Object.keys(predecessor).sort()) !== canonicalize(['sha256', 'uri']) || typeof predecessor.uri !== 'string' || predecessor.uri.length < 8 || !H64.test(predecessor.sha256 ?? '')) fail('CONTROLLED_ENVIRONMENT_AUTHORITY_INVALID')
+}
+
+function revisionControlledEnvironment(profile, revision) {
+  const app = revision?.containers?.find((row) => row.name === profile.runtime.containerName)
+  const plain = Object.fromEntries((app?.env ?? []).filter((row) => typeof row.value === 'string').map((row) => [row.name, row.value]))
+  return Object.fromEntries(Object.keys(profile.environment?.controlledValues ?? {}).sort().map((name) => [name, plain[name] ?? null]))
+}
+
 export function assertPreparePrerequisites({ intent, profile, values }) {
   const revision = values.sourceLock.sourceRevision ?? values.sourceLock.headRevision ?? values.sourceLock.head
   const clean = values.sourceLock.clean ?? values.sourceLock.workingTree?.isClean
@@ -100,6 +133,7 @@ export function assertPreparePrerequisites({ intent, profile, values }) {
   if ([values.readiness, values.foundation, values.infra, values.runtimeConfig].some((value) => project(value) !== profile.target.projectId)) fail('PREPARE_TARGET_MISMATCH')
   const runtime = values.runtimeConfig.runtimeConfig ?? values.runtimeConfig
   assertRuntimeConfig(profile, runtime)
+  assertControlledEnvironmentAuthority({ intent, profile, values, runtime })
   const migrationRunnerDigest = values.infra.migrationRunnerDigest ?? values.infra.artifacts?.migrationRunnerDigest
   if (!migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)) fail('MIGRATION_RUNNER_PROVENANCE_MISSING')
   let productionData = null
@@ -332,6 +366,10 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const service = await transport.getService(profile)
     transport.assertServiceSettled(service, 'PREPARE_BASELINE_MISMATCH')
     if (transport.effectiveRevision(service) !== intent.previousRevision) fail('PREPARE_BASELINE_MISMATCH')
+    if (Object.keys(profile.environment?.controlledValues ?? {}).length > 0) {
+      const previousRevision = await transport.getRevision(profile, intent.previousRevision)
+      assertControlledEnvironmentAuthority({ intent, profile, values, runtime: derived.runtimeConfig, previousControlledEnvironment: revisionControlledEnvironment(profile, previousRevision) })
+    }
     return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 
@@ -454,7 +492,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const candidate = await readStage(transport, paths, profile, intent, 'candidate')
     await transport.removeCandidateTag({ profile, tag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, expectedActiveRevision: candidate.value.facts.candidateRevision, deadlineAt: intent.deadlineAt })
     const finalized = await writeStage(transport, paths, profile, intent, 'finalize', canonical.ref, { canonicalReceiptRef: canonical.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, temporaryCandidateTags: 0, result: 'RELEASED' })
-    const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: finalized.ref, facts: { result: 'RELEASED', candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, databaseDisposition: 'FORWARD_APPLIED', remainingHumanAction: 0 }, observedAt: transport.now() })
+    const readiness = await readNamedJson(transport, intent.readinessReceiptRef.uri, profile, intent.readinessReceiptRef.sha256, ['receipts'])
+    const dev013Transition = dev013TerminalTransitionFact(readiness.value, intent)
+    const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: finalized.ref, facts: { result: 'RELEASED', candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, databaseDisposition: 'FORWARD_APPLIED', remainingHumanAction: 0, ...(dev013Transition ? { dev013Transition } : {}) }, observedAt: transport.now() })
     const terminalResult = await transport.putJson(paths.terminal, terminal, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const prepare = await readStage(transport, paths, profile, intent, 'prepare')
     if (profile.dataCutover?.postLiveCleanupRequired === true && prepare.value.facts?.dataCutover?.status === 'DATA_READY_FOR_CANDIDATE') {

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.jenfu.com.tw/jenfu-sso-handoff/v1/handoff.schema.json",
+  "title": "Jenfu SSO handoff v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "issuer", "audience", "identity", "authorization", "authentication", "authState", "sourceSessionExpiresAt", "issuedAt", "expiresAt"],
+  "properties": {
+    "contractVersion": { "const": "jenfu.sso-handoff.v1" },
+    "issuer": { "type": "string", "format": "uri", "pattern": "^https://[^/?#]+/api/sso$" },
+    "audience": { "enum": ["orgmaster", "ai-pdm"] },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["identityIssuer", "identitySubject", "principalId", "employeeId"],
+      "properties": {
+        "identityIssuer": { "type": "string", "format": "uri" },
+        "identitySubject": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "principalId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "employeeId": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    },
+    "authorization": {
+      "type": "object", "additionalProperties": false,
+      "required": ["applicationId", "assignmentVersion"],
+      "properties": { "applicationId": { "enum": ["orgmaster", "ai-pdm"] }, "assignmentVersion": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 } }
+    },
+    "authentication": {
+      "type": "object", "additionalProperties": false,
+      "required": ["authenticatedAt", "email", "emailVerified", "signInProvider", "secondFactor", "assuranceLevel"],
+      "properties": {
+        "authenticatedAt": { "type": "string", "format": "date-time" },
+        "email": { "type": "string", "format": "email", "maxLength": 320 },
+        "emailVerified": { "const": true },
+        "signInProvider": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "secondFactor": { "enum": ["totp", null] },
+        "assuranceLevel": { "enum": ["aal1", "aal2"] }
+      }
+    },
+    "authState": {
+      "type": "object", "additionalProperties": false,
+      "required": ["authEpoch", "revokedBefore"],
+      "properties": { "authEpoch": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }, "revokedBefore": { "type": ["string", "null"], "format": "date-time" } }
+    },
+    "sourceSessionExpiresAt": { "type": "string", "format": "date-time" },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" }
+  }
+}

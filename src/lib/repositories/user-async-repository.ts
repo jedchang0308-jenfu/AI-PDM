@@ -139,7 +139,7 @@ export const SELECT_ASYNC_USER_COMPANY_ACCESS_SQL = `
 
 export type UserCompanyAccess = {
   companyId: string;
-  companyCode: "JENFU" | "MAXIMA" | "SMOKE" | "STAGING-SMOKE";
+  companyCode: string;
   companyKind: "business" | "production_smoke";
   displayName: string;
   is_default: boolean;
@@ -204,7 +204,8 @@ type UserCompanyAuthorityRow = {
 };
 
 function parseStoredCompanyCode(value: string): UserCompanyAccess["companyCode"] {
-  if (value === "JENFU" || value === "MAXIMA" || value === "SMOKE" || value === "STAGING-SMOKE") return value;
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (/^[A-Z][A-Z0-9-]{0,31}$/u.test(normalized)) return normalized;
   throw new Error("PDM_COMPANY_CODE_UNSUPPORTED");
 }
 

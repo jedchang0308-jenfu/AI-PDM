@@ -346,9 +346,11 @@ flowchart LR
 
 ### 4.1 Production 工號登入別名契約
 
+**2026-09-17 入口適用範圍修訂（DEV-118）：** 公司 Workspace 與 Cloud Identity Free 都是 Google-managed 身分，沒有 Gmail 信箱不等於 non-Google。Google 登入與工號起手皆須驗證同一核准身分；工號只啟動 Google 驗證，應用不接收 Google 密碼。SSO 啟用後，PDM 一般登入只保留「使用鉦富平台登入」。平台雙入口已登錄為 Platform `DEV-014 / 014-LOGIN`，仍待實作，不能由既有 local QC 推定已可用。下列 PDM alias intent 契約保留給 SSO off 過渡／受控相容模式，不升格為平台中央工號 directory。無 Gmail 的管理員開通見 [DEV-118 §6.1](SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md#managed-google-onboarding)，既有 non-Google policy 見 [§6.2](SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md#non-google-compatibility)；既有 identity／permission authority 不變。
+
 - `工號` 是公司範圍內的登入別名，只用於找出受管理身分的 provider route 與預先核准的 PDM user mapping；它不是密碼、provider UID、角色或權限來源。
 - 登入頁接受「工號或公司帳號」。工號送到同源 BFF 後，BFF 做正規化、rate limit 與泛化回應，建立最長 5 分鐘、single-use、綁定 company/nonce/return-path 的登入 intent，再轉交 Cloud Identity／Firebase provider。未知、停用、重複或跨公司別名不得洩漏帳號是否存在。
-- Provider 驗證成功後，BFF 必須以不可變 Firebase/Google UID 查詢 active platform principal；只有該 principal 的 PDM user/company 與登入 intent 目標一致時才能簽發 `pdm_session`。alias、email、domain、display name 或 user-editable claim 都不能作 fallback。
+- Provider 驗證成功後，BFF 必須以 verified Firebase issuer＋subject（Firebase UID）查詢 active platform principal；Google provider UID／sub 透過核准連結對應，不直接替換 Firebase UID。只有該 principal 的 PDM user/company 與登入 intent 目標一致時才能簽發 `pdm_session`。alias、email、domain、license、display name 或 user-editable claim 都不能作 fallback。
 - AI_PDM 不保存 password、password hash、MFA secret、recovery code 或 provider refresh token；Cloud Identity 路徑轉至 Google 登入，Firebase email/password 若保留則只透過 Firebase SDK/provider-managed action email，不建立第二套 application credential store。
 - `/settings/accounts` 的帳號詳情與邀請表單增加「工號／登入別名」欄位。新增、退役或更換別名需 Admin、原因、company scope、optimistic lock 與 audit；更換採「退役舊別名＋新增別名」，不得直接改寫歷史 audit actor。
 - Additive data contract 已實作為 `employee_login_aliases`、`employee_login_intents` 與 `employee_login_rate_limits`；`company_id + alias_normalized` 唯一，intent 只保存token hash且最長5分鐘，rate limit使用資料庫共用bucket。原始 retired alias 保存 3 年後移除，歷史行為只保留 stable PDM User ID。

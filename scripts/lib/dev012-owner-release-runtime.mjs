@@ -55,6 +55,7 @@ function runtimeTemplate(profile, plainEnvironment, secretVersions) {
   const code = 'RUNTIME_CONFIG_READBACK_MISMATCH'
   const requiredPlain = profile.environment?.requiredPlainEnvironmentNames ?? profile.environment?.requiredNames ?? []
   const fixedValues = profile.environment?.fixedValues ?? {}
+  const controlledValues = profile.environment?.controlledValues ?? {}
   const allowedSecrets = profile.environment?.allowedSecretIds ?? profile.environment?.secretIds ?? {}
   const requiredSecrets = profile.environment?.requiredSecretNames ?? Object.keys(allowedSecrets)
   if (!plainEnvironment || !secretVersions
@@ -64,6 +65,17 @@ function runtimeTemplate(profile, plainEnvironment, secretVersions) {
     || Object.values(secretVersions).some((value) => !/^[1-9][0-9]*$/u.test(String(value)))) fail(code)
   if (!fixedValues || typeof fixedValues !== 'object' || Array.isArray(fixedValues)
     || Object.entries(fixedValues).some(([name, value]) => !requiredPlain.includes(name) || typeof value !== 'string' || plainEnvironment[name] !== value)) fail(code)
+  if (!controlledValues || typeof controlledValues !== 'object' || Array.isArray(controlledValues)
+    || Object.entries(controlledValues).some(([name, rule]) => !requiredPlain.includes(name)
+      || Object.hasOwn(fixedValues, name)
+      || !rule || typeof rule !== 'object' || Array.isArray(rule)
+      || canonicalize(Object.keys(rule).sort()) !== canonicalize(['allowedValues', 'defaultValue'])
+      || typeof rule.defaultValue !== 'string'
+      || !Array.isArray(rule.allowedValues) || rule.allowedValues.length === 0
+      || new Set(rule.allowedValues).size !== rule.allowedValues.length
+      || rule.allowedValues.some((value) => typeof value !== 'string')
+      || !rule.allowedValues.includes(rule.defaultValue)
+      || !rule.allowedValues.includes(plainEnvironment[name]))) fail(code)
   const port = profile.runtime.port
   const proxyPort = profile.runtime.cloudSqlProxyPort
   const project = profile.target.projectId
@@ -102,6 +114,29 @@ function runtimeTemplate(profile, plainEnvironment, secretVersions) {
       },
     ],
   }
+}
+
+export function resolvePlainEnvironment(profile, previousPlainEnvironment, controlledOverrides = {}) {
+  const code = 'RUNTIME_CONFIG_READBACK_MISMATCH'
+  const requiredPlain = profile.environment?.requiredPlainEnvironmentNames ?? profile.environment?.requiredNames ?? []
+  const fixedValues = profile.environment?.fixedValues ?? {}
+  const controlledValues = profile.environment?.controlledValues ?? {}
+  if (!previousPlainEnvironment || typeof previousPlainEnvironment !== 'object' || Array.isArray(previousPlainEnvironment)
+    || !controlledOverrides || typeof controlledOverrides !== 'object' || Array.isArray(controlledOverrides)
+    || Object.keys(previousPlainEnvironment).some((name) => !requiredPlain.includes(name))
+    || Object.keys(controlledOverrides).some((name) => !Object.hasOwn(controlledValues, name))) fail(code)
+  const result = { ...previousPlainEnvironment }
+  for (const [name, value] of Object.entries(fixedValues)) {
+    if (result[name] !== undefined && result[name] !== value) fail(code)
+    result[name] = value
+  }
+  for (const [name, rule] of Object.entries(controlledValues)) {
+    const value = controlledOverrides[name] ?? result[name] ?? rule?.defaultValue
+    if (!Array.isArray(rule?.allowedValues) || !rule.allowedValues.includes(value)) fail(code)
+    result[name] = value
+  }
+  if (canonicalize(Object.keys(result).sort()) !== canonicalize([...requiredPlain].sort()) || Object.values(result).some((value) => typeof value !== 'string')) fail(code)
+  return result
 }
 
 export function buildRuntimeConfig(profile, { plainEnvironment, secretVersions }) {

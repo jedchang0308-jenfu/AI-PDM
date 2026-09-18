@@ -51,6 +51,7 @@ type PrincipalAdmissionReader = {
 
 type AuthEpochReader = {
   readPrincipalAuthEpoch(identityIssuer: string, identitySubject: string): Promise<number>;
+  readPrincipalAuthState?: (identityIssuer: string, identitySubject: string) => Promise<{ authEpoch: number; revokedBefore: string | null }>;
 };
 
 type LocalUserReader = {
@@ -72,7 +73,7 @@ function translateDependencyError(error: unknown): never {
   throw error;
 }
 
-function resolveAssurance(input: {
+export function resolveJenfuAssurance(input: {
   email: string;
   signInProvider: string;
   secondFactor: PlatformSecondFactor;
@@ -119,6 +120,10 @@ export async function exchangeFirebaseIdTokenForJenfuPlatformSession(input: {
   if (
     verified.disabled ||
     !verified.emailVerified ||
+    !verified.signInProvider ||
+    !Number.isSafeInteger(verified.authTimeSeconds) ||
+    verified.authTimeSeconds <= 0 ||
+    verified.authTimeSeconds > Math.floor(Date.now() / 1000) + 60 ||
     verified.identityIssuer !== input.identityConfig.identityIssuer ||
     verified.identityAudience !== input.identityConfig.identityAudience
   ) {
@@ -137,17 +142,23 @@ export async function exchangeFirebaseIdTokenForJenfuPlatformSession(input: {
 
   let admittedPrincipal: CanonicalJenfuPrincipalV1;
   let authEpoch: number;
+  let revokedBefore: string | null = null;
   try {
     admittedPrincipal = await input.principalAdmissionRepository.requireActivePrincipal(
       verified.identityIssuer,
       verified.uid
     );
-    authEpoch = await input.authEpochRepository.readPrincipalAuthEpoch(verified.identityIssuer, verified.uid);
+    if (input.authEpochRepository.readPrincipalAuthState) {
+      const state = await input.authEpochRepository.readPrincipalAuthState(verified.identityIssuer, verified.uid);
+      authEpoch = state.authEpoch;
+      revokedBefore = state.revokedBefore;
+    } else authEpoch = await input.authEpochRepository.readPrincipalAuthEpoch(verified.identityIssuer, verified.uid);
   } catch (error) {
     translateDependencyError(error);
   }
+  if (revokedBefore && verified.authTimeSeconds * 1000 <= Date.parse(revokedBefore)) throw new JenfuPlatformAuthError("auth_token_invalid", 401);
 
-  const assurance = resolveAssurance({
+  const assurance = resolveJenfuAssurance({
     email: verified.email,
     signInProvider: verified.signInProvider,
     secondFactor: verified.secondFactor,
@@ -235,15 +246,17 @@ export async function verifyJenfuPlatformRequestSession(input: {
 
   let admittedPrincipal: CanonicalJenfuPrincipalV1;
   let currentEpoch: number;
+  let currentRevokedBefore: string | null = null;
   try {
     admittedPrincipal = await input.principalAdmissionRepository.requireActivePrincipal(
       claims.identityIssuer,
       claims.identitySubject
     );
-    currentEpoch = await input.authEpochRepository.readPrincipalAuthEpoch(
-      claims.identityIssuer,
-      claims.identitySubject
-    );
+    if (input.authEpochRepository.readPrincipalAuthState) {
+      const state = await input.authEpochRepository.readPrincipalAuthState(claims.identityIssuer, claims.identitySubject);
+      currentEpoch = state.authEpoch;
+      currentRevokedBefore = state.revokedBefore;
+    } else currentEpoch = await input.authEpochRepository.readPrincipalAuthEpoch(claims.identityIssuer, claims.identitySubject);
   } catch (error) {
     translateDependencyError(error);
   }
@@ -254,6 +267,7 @@ export async function verifyJenfuPlatformRequestSession(input: {
     throw new JenfuPlatformAuthError("auth_session_invalid", 401);
   }
   if (currentEpoch !== claims.authEpoch) throw new JenfuPlatformAuthError("auth_epoch_stale", 401);
+  if (currentRevokedBefore && claims.authTime * 1000 <= Date.parse(currentRevokedBefore)) throw new JenfuPlatformAuthError("auth_epoch_stale", 401);
   return { user, session: toVerifiedJenfuAppSessionV1(claims) };
 }
 

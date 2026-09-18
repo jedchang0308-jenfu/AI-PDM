@@ -1,0 +1,17 @@
+{
+  "contractVersion": "jenfu.sso-handoff.v1",
+  "hashAlgorithm": "sha256",
+  "aggregateAlgorithm": "sha256(relativePath + NUL + fileSha256 + LF), sorted by relativePath",
+  "fileCount": 2,
+  "files": [
+    {
+      "path": "error-codes.json",
+      "sha256": "e8677d131c3e023643adba9e7e98d3470d537d168224fd1dfddc124c9e32e513"
+    },
+    {
+      "path": "handoff.schema.json",
+      "sha256": "69c520842a189633ea140b9d6b057956cc8a131ddd4bfd40b781f1c00009f83a"
+    }
+  ],
+  "sha256": "e6307a6a1ab9ddfc15f918992d640b625fcd70a688c52e8ce712489d9ff86483"
+}
