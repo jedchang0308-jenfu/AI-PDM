@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
-const APP_IDS = ['platform', 'orgmaster', 'ai-pdm']
 const ROOT_BUCKET = 'jenfu-platform-prod-platform-release'
 const AUTHORIZATION_ID = /^DEV013-L4-AUTH-[A-Z0-9-]{8,48}$/u
 const ROOT_ACTIONS = ['owner-native release', 'Platform migration 005', 'runtime config', 'candidate', 'traffic', 'L4 browser', 'global logout', 'rollback', 'observation']
+const ROOT_FORBIDDEN_MUTATIONS = ['retained edge', 'Billing', 'custom domain', 'Firebase Hosting', 'shared load balancer', 'sibling owner state', 'database down migration', 'service deletion']
 const OWNER_BUCKETS = {
   platform: ROOT_BUCKET,
   orgmaster: 'jenfu-platform-prod-orgmaster-release',
@@ -87,33 +87,29 @@ function sealed(value) {
   return H64.test(receiptSha256 ?? '') && receiptSha256 === sha256(canonicalize(core))
 }
 
-function sourceSetValid(value) {
-  return same(Object.keys(value ?? {}).sort(), APP_IDS.slice().sort()) && Object.values(value).every((revision) => H40.test(revision))
-}
-
-function rootValid(value, ref, profile, observedAt, expectedSourceRevision) {
+function rootValid(value, ref, profile, observedAt) {
   const authorizedAt = Date.parse(value?.authorizedAt)
   const expiresAt = Date.parse(value?.expiresAt)
   return refValid(ref, ROOT_BUCKET)
-    && value?.schemaVersion === 'jenfu.dev013.l4-execution-authorization.v1'
+    && value?.schemaVersion === 'jenfu.dev013.l4-execution-authorization.v2'
     && value.devId === 'DEV-013' && value.slice === '013-R1'
     && AUTHORIZATION_ID.test(value.authorizationId ?? '')
-    && value.authorizationBasis === 'HUMAN_EXACT_PRODUCTION_SCOPE'
+    && value.authorizationBasis === 'HUMAN_PRODUCTION_SCOPE'
     && H64.test(value.authorizationStatementSha256 ?? '') && H64.test(value.manifestSha256 ?? '')
     && value.projectId === 'jenfu-platform-prod' && value.projectId === profile.target.projectId
     && value.projectNumber === '9536592944' && value.region === 'asia-east1' && value.region === profile.target.region
     && value.cloudSqlInstance === 'jenfu-platform-prod-pg' && value.database === 'jenfu_prod'
     && same(value.authorizedActions, ROOT_ACTIONS)
+    && same(value.forbiddenMutations, ROOT_FORBIDDEN_MUTATIONS)
     && value.status === 'PASS' && value.releaseAuthority === true && value.remainingHumanAction === 0
     && value.evidenceScope === 'PRODUCTION_BOUND'
+    && value.sourceRevisionByApplication === undefined
     && Number.isFinite(authorizedAt) && Number.isFinite(expiresAt) && authorizedAt <= Date.parse(observedAt) && expiresAt > Date.parse(observedAt)
     && expiresAt > authorizedAt && expiresAt - authorizedAt <= 8 * 60 * 60 * 1000
-    && sourceSetValid(value.sourceRevisionByApplication)
-    && value.sourceRevisionByApplication[profile.application.id] === expectedSourceRevision
     && sealed(value)
 }
 
-function terminalValid(value, ref, expectedStep, expectedSourceRevision, observedAt) {
+function terminalValid(value, ref, expectedStep, observedAt) {
   const fact = value?.facts?.dev013Transition
   const rootAuthorizedAt = Date.parse(fact?.sequenceRoot?.authorizedAt)
   const rootExpiresAt = Date.parse(fact?.sequenceRoot?.expiresAt)
@@ -122,38 +118,34 @@ function terminalValid(value, ref, expectedStep, expectedSourceRevision, observe
     && value.ownerApplicationId === expectedStep.ownerApplicationId
     && value.status === 'PASS' && value.facts?.result === 'RELEASED' && value.facts?.remainingHumanAction === 0
     && H40.test(value.sourceRevision ?? '') && sealed(value)
-    && fact?.schemaVersion === 'jenfu.dev013.l4-terminal-transition.v1'
+    && fact?.schemaVersion === 'jenfu.dev013.l4-terminal-transition.v2'
     && same(fact.sequenceStep, expectedStep)
     && predecessorRefValidForStep(fact.predecessorReceiptRef, expectedStep)
+    && fact.sequenceRoot?.schemaVersion === 'jenfu.dev013.l4-sequence-root.v2'
+    && fact.sequenceRoot.sourceRevisionByApplication === undefined
     && refValid(fact.sequenceRoot?.receiptRef, ROOT_BUCKET)
     && AUTHORIZATION_ID.test(fact.sequenceRoot.authorizationId ?? '')
     && H64.test(fact.sequenceRoot.authorizationStatementSha256 ?? '') && H64.test(fact.sequenceRoot.manifestSha256 ?? '')
     && Number.isFinite(rootAuthorizedAt) && Number.isFinite(rootExpiresAt) && rootAuthorizedAt <= Date.parse(observedAt) && rootExpiresAt > Date.parse(observedAt)
     && rootExpiresAt > rootAuthorizedAt && rootExpiresAt - rootAuthorizedAt <= 8 * 60 * 60 * 1000
-    && sourceSetValid(fact.sequenceRoot.sourceRevisionByApplication)
-    && fact.sequenceRoot.sourceRevisionByApplication[profileApplicationForStep(expectedStep)] === value.sourceRevision
-    && fact.sequenceRoot.sourceRevisionByApplication[expectedSourceRevision.applicationId] === expectedSourceRevision.revision
 }
 
-function profileApplicationForStep(step) { return step.ownerApplicationId }
-
-export function assertDev013L4Predecessor({ value, ref, profile, observedAt, expectedSourceRevision, currentStep }) {
-  if (!currentStep || !H40.test(expectedSourceRevision ?? '')) fail('DEV013_PREDECESSOR_RECEIPT_INVALID')
+export function assertDev013L4Predecessor({ value, ref, profile, observedAt, currentStep }) {
+  if (!currentStep) fail('DEV013_PREDECESSOR_RECEIPT_INVALID')
   const forwardIndex = FORWARD_STEPS.findIndex((step) => step.stepId === currentStep.stepId)
   if (forwardIndex === 0) {
-    if (!rootValid(value, ref, profile, observedAt, expectedSourceRevision)) fail('DEV013_PREDECESSOR_RECEIPT_INVALID')
+    if (!rootValid(value, ref, profile, observedAt)) fail('DEV013_PREDECESSOR_RECEIPT_INVALID')
     return {
       schemaVersion: value.schemaVersion,
       status: value.status,
       sequenceRoot: {
-        schemaVersion: 'jenfu.dev013.l4-sequence-root.v1',
+        schemaVersion: 'jenfu.dev013.l4-sequence-root.v2',
         authorizationId: value.authorizationId,
         authorizationStatementSha256: value.authorizationStatementSha256,
         manifestSha256: value.manifestSha256,
         authorizedAt: value.authorizedAt,
         expiresAt: value.expiresAt,
         receiptRef: ref,
-        sourceRevisionByApplication: value.sourceRevisionByApplication,
       },
       predecessorStep: null,
     }
@@ -162,7 +154,7 @@ export function assertDev013L4Predecessor({ value, ref, profile, observedAt, exp
     ? [FORWARD_STEPS[forwardIndex - 1].stepId]
     : (ROLLBACK_STEPS.find((step) => step.stepId === currentStep.stepId)?.predecessors ?? [])
   const expectedStep = allSteps.find((step) => allowedIds.includes(step.stepId) && same(value?.facts?.dev013Transition?.sequenceStep, publicStep(step)))
-  if (!expectedStep || !terminalValid(value, ref, publicStep(expectedStep), { applicationId: profile.application.id, revision: expectedSourceRevision }, observedAt)) fail('DEV013_PREDECESSOR_RECEIPT_INVALID')
+  if (!expectedStep || !terminalValid(value, ref, publicStep(expectedStep), observedAt)) fail('DEV013_PREDECESSOR_RECEIPT_INVALID')
   return {
     schemaVersion: value.schemaVersion,
     ownerApplicationId: value.ownerApplicationId,
@@ -175,23 +167,22 @@ export function assertDev013L4Predecessor({ value, ref, profile, observedAt, exp
 }
 
 export function dev013TerminalTransitionFact(readiness, intent) {
-  if (readiness?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-readiness.v1') return null
+  if (readiness?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-readiness.v2') return null
   if (readiness.ownerApplicationId !== intent.ownerApplicationId || readiness.releaseId !== intent.releaseId || readiness.sourceRevision !== intent.sourceRevision
     || readiness.devId !== 'DEV-013' || readiness.slice !== '013-R1'
     || readiness.sequenceStep?.ownerApplicationId !== intent.ownerApplicationId
-    || readiness.sequenceRoot?.schemaVersion !== 'jenfu.dev013.l4-sequence-root.v1'
+    || readiness.sequenceRoot?.schemaVersion !== 'jenfu.dev013.l4-sequence-root.v2'
+    || readiness.sequenceRoot.sourceRevisionByApplication !== undefined
     || !refValid(readiness.sequenceRoot.receiptRef, ROOT_BUCKET)
     || !AUTHORIZATION_ID.test(readiness.sequenceRoot.authorizationId ?? '')
     || !H64.test(readiness.sequenceRoot.authorizationStatementSha256 ?? '') || !H64.test(readiness.sequenceRoot.manifestSha256 ?? '')
     || !Number.isFinite(Date.parse(readiness.sequenceRoot.authorizedAt)) || !Number.isFinite(Date.parse(readiness.sequenceRoot.expiresAt))
     || Date.parse(readiness.sequenceRoot.authorizedAt) > Date.parse(readiness.observedAt)
     || Date.parse(readiness.sequenceRoot.expiresAt) <= Date.parse(readiness.observedAt)
-    || Date.parse(readiness.expiresAt) > Date.parse(readiness.sequenceRoot.expiresAt)
-    || !sourceSetValid(readiness.sequenceRoot.sourceRevisionByApplication)
-    || readiness.sequenceRoot.sourceRevisionByApplication[intent.ownerApplicationId] !== intent.sourceRevision) fail('DEV013_TERMINAL_TRANSITION_INVALID')
+    || Date.parse(readiness.expiresAt) > Date.parse(readiness.sequenceRoot.expiresAt)) fail('DEV013_TERMINAL_TRANSITION_INVALID')
   if (!predecessorRefValidForStep(readiness.transition?.predecessorReceiptRef, readiness.sequenceStep)) fail('DEV013_TERMINAL_TRANSITION_INVALID')
   return {
-    schemaVersion: 'jenfu.dev013.l4-terminal-transition.v1',
+    schemaVersion: 'jenfu.dev013.l4-terminal-transition.v2',
     sequenceRoot: readiness.sequenceRoot,
     sequenceStep: readiness.sequenceStep,
     predecessorReceiptRef: readiness.transition.predecessorReceiptRef,

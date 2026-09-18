@@ -28,11 +28,11 @@ function controlledPrerequisites(ownerProfile, runtimeConfig) {
   const controlledEnvironment = { PDM_JENFU_SSO_HANDOFF_MODE: 'on' }
   const transition = { field: 'PDM_JENFU_SSO_HANDOFF_MODE', from: 'off', to: 'on', action: 'activate', predecessorReceiptRef }
   const sequenceStep = dev013L4SequenceStep(ownerProfile.application.id, transition, previousControlledEnvironment, controlledEnvironment)
-  const sequenceRoot = { schemaVersion: 'jenfu.dev013.l4-sequence-root.v1', authorizationId: 'DEV013-L4-AUTH-TEST0001', authorizationStatementSha256: '7'.repeat(64), manifestSha256: '8'.repeat(64), authorizedAt: common.observedAt, expiresAt: common.expiresAt, receiptRef: { uri: 'gs://jenfu-platform-prod-platform-release/receipts/dev013/root.json', sha256: '8'.repeat(64) }, sourceRevisionByApplication: { platform: 'a'.repeat(40), orgmaster: 'c'.repeat(40), 'ai-pdm': intent.sourceRevision } }
+  const sequenceRoot = { schemaVersion: 'jenfu.dev013.l4-sequence-root.v2', authorizationId: 'DEV013-L4-AUTH-TEST0001', authorizationStatementSha256: '7'.repeat(64), manifestSha256: '8'.repeat(64), authorizedAt: common.observedAt, expiresAt: common.expiresAt, receiptRef: { uri: 'gs://jenfu-platform-prod-platform-release/receipts/dev013/root.json', sha256: '8'.repeat(64) } }
   return { intent, values: {
     sourceLock: { ...common, clean: true, status: 'SOURCE_FROZEN' },
     authorization: { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-authorization.v1', authorizationBasis: 'OPERATOR_INVOKED_DEV013_L4' },
-    readiness: { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-readiness.v1', devId: 'DEV-013', slice: '013-R1', sequenceRoot, sequenceStep, previousControlledEnvironment, controlledEnvironment, transition },
+    readiness: { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-readiness.v2', devId: 'DEV-013', slice: '013-R1', sequenceRoot, sequenceStep, previousControlledEnvironment, controlledEnvironment, transition },
     foundation: { ...common, ownerApplicationId: 'shared-foundation' },
     infra: { ...common, migrationRunnerDigest: `${ownerProfile.artifact.migrationRunnerUri}@sha256:${'c'.repeat(64)}` },
     runtimeConfig: { ...common, status: 'VERIFIED', runtimeConfig },
