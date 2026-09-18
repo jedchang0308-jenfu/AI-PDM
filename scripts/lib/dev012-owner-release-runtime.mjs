@@ -5,6 +5,21 @@ const H64 = /^[a-f0-9]{64}$/u
 const APPLICATION_IMAGE_PLACEHOLDER = 'APPLICATION_IMAGE_DIGEST'
 const ENTRYPOINT_UPDATE_MASK = 'ingress,defaultUriDisabled,invokerIamDisabled'
 
+// Cloud Run may report either deterministic or provider-hash hostnames for the
+// same exact service. Project only its provider-readback origins, never a wildcard.
+export function candidateTagUriMatches(service, candidate, observedUri) {
+  if (!/^candidate-[a-f0-9]{12}$/u.test(candidate?.tag ?? '') || typeof candidate?.tagUri !== 'string' || typeof observedUri !== 'string') return false
+  const allowed = new Set([candidate.tagUri])
+  for (const value of [service?.uri, ...(Array.isArray(service?.urls) ? service.urls : [])]) {
+    try {
+      const base = new URL(value)
+      if (base.protocol !== 'https:' || base.port || base.username || base.password || base.pathname !== '/' || base.search || base.hash || base.origin !== value) continue
+      allowed.add('https://' + candidate.tag + '---' + base.hostname)
+    } catch {}
+  }
+  return allowed.has(observedUri)
+}
+
 export class OwnerReleaseError extends Error {
   constructor(code, detail = '') {
     super(detail ? `${code}:${detail}` : code)
@@ -476,7 +491,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const generalBefore = before.traffic.map(({ tag: _tag, ...row }) => row)
     const generalAfter = tagged.traffic?.filter((row) => !row.tag).map(({ tag: _tag, ...row }) => row)
     const tagUriMissing = tagStatus?.uri === undefined || tagStatus?.uri === null
-    const tagUriMatches = tagStatus?.uri === exactCandidateOrigin || (tagUriMissing && tagged.defaultUriDisabled === true)
+    const tagUriMatches = candidateTagUriMatches(tagged, { tag, tagUri: exactCandidateOrigin }, tagStatus?.uri) || (tagUriMissing && tagged.defaultUriDisabled === true)
     if (!tagUriMatches || tagStatus?.revision !== candidateRevision || Number(tagStatus.percent ?? 0) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await getRevision(profile, candidateRevision)
     assertRevisionReady(profile, revision, artifactDigest)
@@ -524,7 +539,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     assertServiceSettled(before, 'ENTRYPOINT_BASELINE_INVALID')
     const tagged = before.trafficStatuses?.find((row) => row.tag === candidate.tag)
     const tagUriMissing = tagged?.uri === undefined || tagged?.uri === null
-    const tagUriMatches = tagged?.uri === candidate.tagUri || (tagUriMissing && before.defaultUriDisabled === true)
+    const tagUriMatches = candidateTagUriMatches(before, candidate, tagged?.uri) || (tagUriMissing && before.defaultUriDisabled === true)
     if (tagged?.revision !== candidate.candidateRevision || Number(tagged.percent ?? 0) !== 0 || !tagUriMatches || effectiveRevision(before) !== previousRevision) fail('ENTRYPOINT_CANDIDATE_JOIN_INVALID')
     const templateSha256Before = sha256(canonicalize(before.template))
     const trafficSha256Before = sha256(canonicalize(before.traffic))

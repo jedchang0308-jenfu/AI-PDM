@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
-import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
+import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
 import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDataCutoverHandoff, assertDataCutoverImportReceipt, assertDataCutoverTeardownReceipt } from './dev012-production-data-cutover.mjs'
 import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProviderStage } from './dev012-production-data-cutover-provider.mjs'
 import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
+
+export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -14,19 +16,6 @@ function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
   error.code = code
   throw error
-}
-
-export function candidateTagUriMatches(service, candidate, observedUri) {
-  if (!/^candidate-[a-f0-9]{12}$/u.test(candidate?.tag ?? '') || typeof candidate?.tagUri !== 'string' || typeof observedUri !== 'string') return false
-  const allowed = new Set([candidate.tagUri])
-  for (const value of [service?.uri, ...(Array.isArray(service?.urls) ? service.urls : [])]) {
-    try {
-      const base = new URL(value)
-      if (base.protocol !== 'https:' || base.port || base.username || base.password || base.pathname !== '/' || base.search || base.hash || base.origin !== value) continue
-      allowed.add(`https://${candidate.tag}---${base.hostname}`)
-    } catch {}
-  }
-  return allowed.has(observedUri)
 }
 
 export function readGitBlob(root, repositoryPath, revision = 'HEAD') {
