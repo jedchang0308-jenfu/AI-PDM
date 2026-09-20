@@ -29,6 +29,15 @@ The ordinary production owner profile `config/release/dev117-ai-pdm-independent-
 
 This is a guard-capable production input, not a release receipt. Production Cloud Run template／traffic, IAM, database, Secret, retained edge, Billing, custom-domain, Hosting, and shared-load-balancer mutations remain zero. Activation remains owner-native and must follow Platform `accept` → AI-PDM `on` → Platform `launch`; rollback is the reverse drain to the retained guard-capable `off` revision. L4 execution still requires a current human authorization for the exact production environment, resources, permitted and forbidden actions, risk scope and validity window. Formal migration, live-data, IAM, traffic activation, rollback, canonical smoke, destructive-operation and target/scope-change gates remain independent and unchanged.
 
+## P_BOTH Production catalog prerequisite correction（2026-09-21）
+
+The one-time DEV-013 role-catalog operator reads its source-bound operation only from
+`source/migration-bundles/dev013/role-catalog/`. This reuses the Production migrator's existing least-privilege
+`objectViewer` boundary and does not add or broaden IAM. The first Production execution using
+`source/production-data/dev013/role-catalog/` failed at GCS metadata read before database connection, produced no
+receipt, and its task-owned Job was deleted. A retry must use a fresh exact source revision and human authorization
+that bind the corrected prefix. Receipt writes remain restricted to `receipts/releases/DEV013-ROLE-CATALOG/`.
+
 ## 013-S4-L3-AIPDM-ENV owner-native shared-staging release
 
 ### Fixed authority and target
