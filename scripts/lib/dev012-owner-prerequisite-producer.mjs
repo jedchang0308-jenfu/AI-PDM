@@ -92,8 +92,8 @@ function revisionControlledEnvironment(profile, revision) {
   return Object.fromEntries(Object.keys(profile.environment?.controlledValues ?? {}).sort().map((name) => [name, plain[name] ?? null]))
 }
 
-export function assertDev013PredecessorReceipt(value, ref, profile, observedAt, expectedSourceRevision, currentStep) {
-  return assertDev013L4Predecessor({ value, ref, profile, observedAt, expectedSourceRevision, currentStep })
+export function assertDev013PredecessorReceipt(value, ref, profile, observedAt, currentStep) {
+  return assertDev013L4Predecessor({ value, ref, profile, observedAt, currentStep })
 }
 
 export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock, runtimeConfigReceipt, previousRevision, previousControlledEnvironment, transition, predecessorEvidence, observedAt, expiresAt }) {
@@ -104,7 +104,7 @@ export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock,
     || runtimeConfigReceipt?.releaseId !== releaseId || runtimeConfigReceipt?.ownerApplicationId !== profile.application.id || runtimeConfigReceipt?.sourceRevision !== sourceLock.sourceRevision || runtimeConfigReceipt?.projectId !== profile.target.projectId || runtimeConfigReceipt?.status !== 'VERIFIED' || runtimeConfigReceipt?.releaseAuthority !== true
     || typeof previousRevision !== 'string' || previousRevision.length < 3 || canonicalize(Object.keys(previousControlledEnvironment ?? {}).sort()) !== canonicalize(ruleNames)
     || !Number.isFinite(Date.parse(observedAt)) || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.parse(observedAt) || Date.parse(expiresAt) > Date.parse(predecessorEvidence?.sequenceRoot?.expiresAt)
-    || !predecessorEvidence?.schemaVersion || predecessorEvidence.sequenceRoot?.sourceRevisionByApplication?.[profile.application.id] !== sourceLock.sourceRevision || ruleNames.length === 0) fail('DEV013_TRANSITION_AUTHORITY_INPUT_INVALID')
+    || !predecessorEvidence?.schemaVersion || predecessorEvidence.sequenceRoot?.schemaVersion !== 'jenfu.dev013.l4-sequence-root.v2' || ruleNames.length === 0) fail('DEV013_TRANSITION_AUTHORITY_INPUT_INVALID')
   assertRuntimeConfig(profile, runtime)
   const controlledEnvironment = Object.fromEntries(ruleNames.map((name) => [name, runtime.plainEnvironment[name]]))
   if (!ruleNames.some((name) => previousControlledEnvironment[name] !== controlledEnvironment[name])) fail('DEV013_TRANSITION_NOOP_DENIED')
@@ -112,7 +112,7 @@ export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock,
   if (canonicalize(predecessorEvidence.currentStep) !== canonicalize(sequenceStep)) fail('DEV013_TRANSITION_SEQUENCE_MISMATCH')
   const common = { ownerApplicationId: profile.application.id, projectId: profile.target.projectId, sourceRevision: sourceLock.sourceRevision, releaseId, environment: 'production', previousRevision, expiresAt, observedAt, status: 'PASS', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', remainingHumanAction: 0, predecessorEvidence }
   const authorization = { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-authorization.v1', authorizationBasis: 'OPERATOR_INVOKED_DEV013_L4' }
-  const readiness = { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-readiness.v1', devId: 'DEV-013', slice: '013-R1', sequenceRoot: predecessorEvidence.sequenceRoot, sequenceStep, previousControlledEnvironment, controlledEnvironment, transition }
+  const readiness = { ...common, schemaVersion: 'jenfu.dev013.l4-owner-transition-readiness.v2', devId: 'DEV-013', slice: '013-R1', sequenceRoot: predecessorEvidence.sequenceRoot, sequenceStep, previousControlledEnvironment, controlledEnvironment, transition }
   assertControlledEnvironmentAuthority({ intent: { releaseId, sourceRevision: sourceLock.sourceRevision }, profile, values: { authorization, readiness }, runtime, previousControlledEnvironment })
   return { authorization, readiness }
 }
@@ -203,7 +203,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const runtime = runtimeConfigResult.value.runtimeConfig ?? runtimeConfigResult.value
     const controlledEnvironment = Object.fromEntries(Object.keys(profile.environment?.controlledValues ?? {}).sort().map((name) => [name, runtime.plainEnvironment[name]]))
     const currentStep = dev013L4SequenceStep(profile.application.id, input.transition, previousControlledEnvironment, controlledEnvironment)
-    const predecessorEvidence = { ...assertDev013PredecessorReceipt(predecessorValue, input.transition.predecessorReceiptRef, profile, observedAt, sourceLockResult.value.sourceRevision, currentStep), currentStep }
+    const predecessorEvidence = { ...assertDev013PredecessorReceipt(predecessorValue, input.transition.predecessorReceiptRef, profile, observedAt, currentStep), currentStep }
     const values = buildDev013TransitionAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, previousRevision, previousControlledEnvironment, transition: input.transition, predecessorEvidence, observedAt, expiresAt: input.expiresAt })
     const authorization = await transport.putJson(uri('owner-authorization'), values.authorization, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const readiness = await transport.putJson(uri('owner-readiness'), values.readiness, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })

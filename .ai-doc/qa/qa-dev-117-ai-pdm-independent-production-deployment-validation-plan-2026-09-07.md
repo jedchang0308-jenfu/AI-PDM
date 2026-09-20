@@ -1,8 +1,10 @@
 # QA-DEV-117：AI_PDM 獨立正式部署 adapter 驗證計畫
 
+> **2026-09-18 DEV-013 L4 authorization validation amendment（current）**：驗證須證明human execution authorization v2及sequence root v2不含source set，且source-bound root輸入fail closed；同時owner readiness、source lock、artifact／migration capsule、candidate／deployed revision及terminal predecessor仍精確綁定同一AI-PDM source。Source SHA變更應使受影響machine evidence失效並重建，不得單獨觸發human reauthorization。Target、scope、risk、expiry、migration、live-data、IAM、traffic、rollback、canonical smoke與destructive-operation gates維持原驗收標準。Local QC見[`qc-dev-117-dev013-production-authorization-policy-2026-09-18.md`](../qc/qc-dev-117-dev013-production-authorization-policy-2026-09-18.md)。
+
 > **Final current result（2026-09-15）**：`DEV012-REL-20260915-R78 / Production Level 4 PASS / owner RELEASED`。最終證據見§19；R72及更早`NOT_RUN`結果保留歷史。
 
-> **2026-09-11 R38 pre-auth amendment（current）**：R35 provider execution `ai-pdm-prod-migration-runner-7gjhv`已證明production migration為`14 replayed`；此項只更新database事實，不授權candidate、entrypoint、traffic或QA-012 PASS。Current oracle以`conditions[type=Completed]`讀取Cloud Run v2 execution，並要求own exact migration Job resource-scoped viewer。V1歷史adapter測試只驗歷史receipt schema，V3 direct-run則獨立驗`entrypoint→verify→decision→activate→canonical`與failure `rollback`；兩組不得再互相套用。R37因source drift作廢且無AI-PDM app-infra apply，恢復後須由fresh R38重建source-bound evidence。
+> **2026-09-11 R38 pre-auth amendment（historical v1 event）**：R35 provider execution `ai-pdm-prod-migration-runner-7gjhv`已證明production migration為`14 replayed`；此項只更新database事實，不授權candidate、entrypoint、traffic或QA-012 PASS。當時oracle以`conditions[type=Completed]`讀取Cloud Run v2 execution，並要求own exact migration Job resource-scoped viewer。V1歷史adapter測試只驗歷史receipt schema，V3 direct-run則獨立驗`entrypoint→verify→decision→activate→canonical`與failure `rollback`；兩組不得再互相套用。R37因source drift作廢且無AI-PDM app-infra apply，當時由fresh R38重建source-bound evidence；現行human authorization規則依上方2026-09-18 amendment。
 
 > **2026-09-11 R28 amendment（current）**：R28在OrgMaster migration execution因缺shared DB roles／schemas安全停止，AI-PDM未dispatch。新增owner oracle：不得GET generic operations；Service PATCH須exact Service settled readback，Job run須以run前後child execution差集＋current args唯一匹配取得exact execution並輪詢terminal。Platform production DB bootstrap immutable receipt未通過exact target、source、隔離數值與task-owned Job cleanup前，coordinator不得建立AI-PDM dispatch。R28不計production PASS。
 
