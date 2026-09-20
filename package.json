@@ -113,6 +113,7 @@
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
     "test:dev-013": "npx vitest run src/lib/jenfu-sso-handoff.test.ts",
     "test:dev-013:l3": "node --test scripts/dev013-ai-pdm-managed-staging.test.mjs scripts/dev013-ai-pdm-l3-fixture-bootstrap.test.mjs",
+    "test:dev-013:catalog-operator": "node --test scripts/dev013-production-role-catalog-publisher.test.mjs",
     "bootstrap:dev-013:l3:fixture": "node scripts/dev013-ai-pdm-l3-fixture-bootstrap.mjs",
     "plan:dev-013:l3:baseline-traffic": "node scripts/dev013-ai-pdm-managed-staging.mjs baseline-traffic-pin-provider-plan",
     "freeze:dev-013:l3": "node scripts/dev013-ai-pdm-managed-staging.mjs source-freeze",

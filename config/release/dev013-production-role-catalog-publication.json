@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "jenfu.dev013.production-role-catalog-job-profile.v1",
+  "sourceTask": "Jenfu-Platform / DEV-013 / P_BOTH",
+  "projectId": "jenfu-platform-prod",
+  "projectNumber": "9536592944",
+  "region": "asia-east1",
+  "instance": "jenfu-platform-prod-pg",
+  "database": "jenfu_prod",
+  "applicationId": "ai-pdm",
+  "catalogVersion": "ai-pdm.role-catalog.2026-09-03.v3",
+  "catalogSha256": "46376639b7aec06798786b9d1a113ba604cf90ca31541a9464ecce7a49d116c8",
+  "jobName": "ai-pdm-prod-dev013-role-catalog-publisher",
+  "serviceAccount": "aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com",
+  "builderServiceAccount": "aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com",
+  "imageUri": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-role-catalog-operator",
+  "dockerfile": "infra/google-cloud/dev-117-production-release/role-catalog-publisher.Dockerfile",
+  "cloudBuildConfig": "infra/google-cloud/dev-117-production-release/role-catalog-publisher-cloudbuild.yaml",
+  "actor": "jedchang0308@jenfu.com.tw",
+  "operationPrefix": "source/production-data/dev013/role-catalog/",
+  "receiptPrefix": "receipts/releases/DEV013-ROLE-CATALOG/",
+  "databaseEffect": "insert exact missing active catalog only; replay is zero mutation",
+  "cleanup": "delete exact task-owned Cloud Run job after observation; retain immutable image digest and receipt",
+  "forbidden": [
+    "schema",
+    "migration",
+    "traffic",
+    "IAM",
+    "Secret",
+    "Cloud Run service",
+    "employee assignment",
+    "other application"
+  ]
+}
