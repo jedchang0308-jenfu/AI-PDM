@@ -34,11 +34,11 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   const args = parseCatalogRunnerArgs(argv)
   assertCatalogRunnerTarget(environment)
   if (environment.SOURCE_REVISION !== args.sourceRevision) throw new Error('DEV013_CATALOG_SOURCE_REVISION_MISMATCH')
-  parseGsUri(args.operationRef, DEV013_CATALOG_TARGET.releaseBucket, 'source/production-data/dev013/role-catalog')
-  parseGsUri(args.outputRef, DEV013_CATALOG_TARGET.releaseBucket, 'receipts/releases/DEV013-ROLE-CATALOG')
+  parseGsUri(args.operationRef, DEV013_CATALOG_TARGET.releaseBucket, DEV013_CATALOG_TARGET.operationPrefix)
+  parseGsUri(args.outputRef, DEV013_CATALOG_TARGET.releaseBucket, DEV013_CATALOG_TARGET.receiptPrefix)
   const token = await metadataAccessToken(fetchImpl)
   const catalog = await readRoleCatalog(catalogPath)
-  const object = await readGcsObject({ uri: args.operationRef, expectedBucket: DEV013_CATALOG_TARGET.releaseBucket, expectedPrefix: 'source/production-data/dev013/role-catalog', token, fetchImpl })
+  const object = await readGcsObject({ uri: args.operationRef, expectedBucket: DEV013_CATALOG_TARGET.releaseBucket, expectedPrefix: DEV013_CATALOG_TARGET.operationPrefix, token, fetchImpl })
   let raw
   try { raw = JSON.parse(object.bytes.toString('utf8')) } catch { throw new Error('DEV013_CATALOG_OPERATION_JSON_INVALID') }
   const operation = assertCatalogOperation(raw, { bytes: object.bytes, operationSha256: args.operationSha256, sourceRevision: args.sourceRevision, catalog, now: new Date(now()) })
@@ -46,7 +46,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   await database.connect()
   try {
     const receipt = await publishProductionRoleCatalog({ database, operation, catalog, now })
-    const published = await publishGcsJson({ uri: args.outputRef, expectedBucket: DEV013_CATALOG_TARGET.releaseBucket, expectedPrefix: 'receipts/releases/DEV013-ROLE-CATALOG', value: receipt, token, fetchImpl })
+    const published = await publishGcsJson({ uri: args.outputRef, expectedBucket: DEV013_CATALOG_TARGET.releaseBucket, expectedPrefix: DEV013_CATALOG_TARGET.receiptPrefix, value: receipt, token, fetchImpl })
     return { ...receipt, outputRef: args.outputRef, outputGeneration: published.generation, outputSha256: published.sha256 }
   } finally {
     await database.end()

@@ -18,6 +18,8 @@ export const DEV013_CATALOG_TARGET = Object.freeze({
   login: 'aipdm-prod-migrator@jenfu-platform-prod.iam',
   migratorRole: 'jenfu_ai_pdm_migrator',
   releaseBucket: 'jenfu-platform-prod-aipdm-release',
+  operationPrefix: 'source/migration-bundles/dev013/role-catalog',
+  receiptPrefix: 'receipts/releases/DEV013-ROLE-CATALOG',
   actor: 'jedchang0308@jenfu.com.tw',
 })
 
