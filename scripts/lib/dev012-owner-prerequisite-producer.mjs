@@ -8,7 +8,7 @@ import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-tra
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
-const STAGES = new Set(['source-freeze', 'runtime-config', 'dev013-transition-authority', 'release-intent'])
+const STAGES = new Set(['source-freeze', 'runtime-config', 'routine-authority', 'dev013-transition-authority', 'release-intent'])
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
@@ -86,6 +86,36 @@ export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plai
   }
 }
 
+export function buildRoutineAuthority({ profile, releaseId, sourceLock, runtimeConfigReceipt, baselineIntentRef, previousRevision, observedAt, expiresAt }) {
+  if (!RELEASE_ID.test(releaseId ?? '')
+    || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id
+    || sourceLock?.status !== 'SOURCE_FROZEN' || sourceLock.releaseAuthority !== true || sourceLock.clean !== true
+    || runtimeConfigReceipt?.releaseId !== releaseId || runtimeConfigReceipt?.ownerApplicationId !== profile.application.id
+    || runtimeConfigReceipt?.sourceRevision !== sourceLock.sourceRevision || runtimeConfigReceipt?.status !== 'VERIFIED'
+    || runtimeConfigReceipt?.releaseAuthority !== true || typeof previousRevision !== 'string' || previousRevision.length < 3
+    || !Number.isFinite(Date.parse(observedAt)) || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.parse(observedAt)) fail('ROUTINE_AUTHORITY_INPUT_INVALID')
+  const exactBaseline = exactRef(baselineIntentRef, profile)
+  const common = {
+    ownerApplicationId: profile.application.id,
+    projectId: profile.target.projectId,
+    sourceRevision: sourceLock.sourceRevision,
+    releaseId,
+    environment: 'production',
+    baselineIntentRef: exactBaseline,
+    previousRevision,
+    expiresAt,
+    observedAt,
+    status: 'PASS',
+    releaseAuthority: true,
+    evidenceScope: 'PRODUCTION_BOUND',
+    remainingHumanAction: 0,
+  }
+  return {
+    authorization: { ...common, schemaVersion: 'jenfu.dev012.routine-owner-authorization.v1', authorizationBasis: 'OPERATOR_INVOKED_DEPLOY_PRODUCTION' },
+    readiness: { ...common, schemaVersion: 'jenfu.dev012.routine-owner-readiness.v1' },
+  }
+}
+
 function revisionControlledEnvironment(profile, revision) {
   const app = revision?.containers?.find((row) => row.name === profile.runtime.containerName)
   const plain = Object.fromEntries((app?.env ?? []).filter((row) => typeof row.value === 'string').map((row) => [row.name, row.value]))
@@ -135,6 +165,7 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     previousRevision: input.previousRevision,
     deadlineAt: input.deadlineAt,
   }
+  if (input.baselineIntentRef) intent.baselineIntentRef = exactRef(input.baselineIntentRef, profile)
   if (!intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INPUT_INVALID')
   for (const [name, value] of Object.entries(prerequisiteValues)) {
     if (name !== 'foundation' && value?.ownerApplicationId && value.ownerApplicationId !== profile.application.id) fail('PREREQUISITE_OWNER_MISMATCH', name)
@@ -184,6 +215,32 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const sourceLock = await readRef(transport, input.sourceLockRef, profile)
     const value = buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment: input.plainEnvironment, secretVersions: input.secretVersions, observedAt })
     return transport.putJson(uri('runtime-config'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+  }
+  if (stage === 'routine-authority') {
+    if (input?.schemaVersion !== 'jenfu.dev012.routine-owner-authority-input.v1') fail('ROUTINE_AUTHORITY_INPUT_INVALID')
+    const [sourceLockResult, runtimeConfigResult, baselineIntentResult] = await Promise.all([
+      transport.readJson(exactRef(input.sourceLockRef, profile), profile.artifact.releaseBucket, ['receipts']),
+      transport.readJson(exactRef(input.runtimeConfigRef, profile), profile.artifact.releaseBucket, ['receipts']),
+      transport.readJson(exactRef(input.baselineIntentRef, profile), profile.artifact.releaseBucket, ['receipts']),
+    ])
+    validateIntent(baselineIntentResult.value, profile)
+    const service = await transport.getService(profile)
+    transport.assertServiceSettled(service, 'ROUTINE_BASELINE_UNSETTLED')
+    const previousRevision = transport.effectiveRevision(service)
+    const controlResult = await transport.readBytes(`gs://${profile.artifact.releaseBucket}/control/active.json`, { prefixes: ['control'] })
+    let control
+    try { control = JSON.parse(controlResult.bytes.toString('utf8')) } catch { fail('ROUTINE_CONTROL_INVALID') }
+    const { controlSha256, ...controlCore } = control ?? {}
+    if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || control.result !== 'RELEASED'
+      || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName
+      || control.releaseId !== baselineIntentResult.value.releaseId || control.sourceRevision !== baselineIntentResult.value.sourceRevision
+      || control.candidateRevision !== previousRevision) fail('ROUTINE_CONTROL_INVALID')
+    const expectedBaselineUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${control.releaseId}/release-intent.json`
+    if (input.baselineIntentRef.uri !== expectedBaselineUri) fail('ROUTINE_CONTROL_INVALID')
+    const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: input.baselineIntentRef, previousRevision, observedAt, expiresAt: input.expiresAt })
+    const authorization = await transport.putJson(uri('owner-authorization'), values.authorization, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+    const readiness = await transport.putJson(uri('owner-readiness'), values.readiness, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+    return { ...readiness, refs: { authorizationPolicyRef: authorization.ref, readinessReceiptRef: readiness.ref }, previousRevision }
   }
   if (stage === 'dev013-transition-authority') {
     if (input?.schemaVersion !== 'jenfu.dev013.l4-owner-transition-input.v1') fail('DEV013_TRANSITION_INPUT_INVALID')
