@@ -86,7 +86,7 @@ export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plai
   }
 }
 
-export function buildRoutineAuthority({ profile, releaseId, sourceLock, runtimeConfigReceipt, baselineIntentRef, previousRevision, observedAt, expiresAt }) {
+export function buildRoutineAuthority({ profile, releaseId, sourceLock, runtimeConfigReceipt, baselineIntentRef, dataCutoverCompletionRef = null, previousRevision, observedAt, expiresAt }) {
   if (!RELEASE_ID.test(releaseId ?? '')
     || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id
     || sourceLock?.status !== 'SOURCE_FROZEN' || sourceLock.releaseAuthority !== true || sourceLock.clean !== true
@@ -110,9 +110,11 @@ export function buildRoutineAuthority({ profile, releaseId, sourceLock, runtimeC
     evidenceScope: 'PRODUCTION_BOUND',
     remainingHumanAction: 0,
   }
+  const readiness = { ...common, schemaVersion: 'jenfu.dev012.routine-owner-readiness.v1' }
+  if (dataCutoverCompletionRef != null) readiness.dataCutoverCompletionRef = exactRef(dataCutoverCompletionRef, profile)
   return {
     authorization: { ...common, schemaVersion: 'jenfu.dev012.routine-owner-authorization.v1', authorizationBasis: 'OPERATOR_INVOKED_DEPLOY_PRODUCTION' },
-    readiness: { ...common, schemaVersion: 'jenfu.dev012.routine-owner-readiness.v1' },
+    readiness,
   }
 }
 
@@ -237,7 +239,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       || control.candidateRevision !== previousRevision) fail('ROUTINE_CONTROL_INVALID')
     const expectedBaselineUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${control.releaseId}/release-intent.json`
     if (input.baselineIntentRef.uri !== expectedBaselineUri) fail('ROUTINE_CONTROL_INVALID')
-    const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: input.baselineIntentRef, previousRevision, observedAt, expiresAt: input.expiresAt })
+    const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: input.baselineIntentRef, dataCutoverCompletionRef: input.dataCutoverCompletionRef ?? null, previousRevision, observedAt, expiresAt: input.expiresAt })
     const authorization = await transport.putJson(uri('owner-authorization'), values.authorization, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const readiness = await transport.putJson(uri('owner-readiness'), values.readiness, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     return { ...readiness, refs: { authorizationPolicyRef: authorization.ref, readinessReceiptRef: readiness.ref }, previousRevision }
