@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Boxes,
@@ -14,6 +14,7 @@ import {
   FlaskConical,
   KeyRound,
   LogIn,
+  LogOut,
   Menu,
   PackageSearch,
   Search,
@@ -53,6 +54,8 @@ type SidebarUser = {
     displayName?: string;
   } | null;
 };
+
+type SidebarLogoutState = "idle" | "processing" | "failed";
 
 const navSections: NavSection[] = [
   {
@@ -110,6 +113,7 @@ function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSlice
 
 export function SidebarNav() {
   const pathname = usePathname() || "/";
+  const router = useRouter();
   const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/");
   const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -118,6 +122,7 @@ export function SidebarNav() {
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number | null>(null);
   const [productionSlice, setProductionSlice] = useState<ProductionSliceClientStatus | null>(null);
   const [currentUser, setCurrentUser] = useState<SidebarUser | null>(null);
+  const [logoutState, setLogoutState] = useState<SidebarLogoutState>("idle");
 
   useEffect(() => {
     setHydrated(true);
@@ -231,6 +236,25 @@ export function SidebarNav() {
     };
   }, [collapsed]);
 
+  async function logout() {
+    if (logoutState === "processing") return;
+    setLogoutState("processing");
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin"
+      });
+      if (!response.ok) {
+        setLogoutState("failed");
+        return;
+      }
+      router.replace("/login?reason=local-logout");
+      router.refresh();
+    } catch {
+      setLogoutState("failed");
+    }
+  }
+
   return (
     <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>
       <div className="brand">
@@ -283,6 +307,7 @@ export function SidebarNav() {
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const signedInEntry = item.href === "/login" && currentUser;
+                  const EntryIcon = signedInEntry ? LogOut : Icon;
                   const label = signedInEntry ? currentUser.display_name : item.label;
                   const active = hydrated && (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`));
                   const badgeCount = item.badge === "approvalPending" ? pendingApprovalCount : null;
@@ -292,7 +317,11 @@ export function SidebarNav() {
                   const itemTitle = unopened
                     ? `${label}，未開放：${productionSlice?.unopenedMessage ?? "此功能未納入本次開放。"}`
                     : signedInEntry
-                      ? `${currentUser.display_name}，已登入`
+                      ? logoutState === "processing"
+                        ? `${currentUser.display_name}，登出中`
+                        : logoutState === "failed"
+                          ? `${currentUser.display_name}，登出未完成，請再試`
+                          : `${currentUser.display_name}，登出 AI PDM`
                     : hasBadge
                       ? `${label}，${badgeCount} 件待審`
                       : label;
@@ -302,15 +331,21 @@ export function SidebarNav() {
                     <Link
                       className={className}
                       href={targetHref}
+                      prefetch={signedInEntry ? false : undefined}
+                      onClick={signedInEntry ? (event) => {
+                        event.preventDefault();
+                        void logout();
+                      } : undefined}
+                      aria-busy={signedInEntry && logoutState === "processing" ? true : undefined}
                       aria-current={active ? "page" : undefined}
                       aria-disabled={unopened ? true : undefined}
                       aria-label={itemTitle}
                       title={itemTitle}
                       key={item.href}
                     >
-                      {item.navGlyph ? <span className="nav-item-glyph" aria-hidden="true">{item.navGlyph}</span> : <Icon size={18} aria-hidden="true" />}
+                      {item.navGlyph ? <span className="nav-item-glyph" aria-hidden="true">{item.navGlyph}</span> : <EntryIcon size={18} aria-hidden="true" />}
                       <span className="nav-link-label">{label}</span>
-                      {signedInEntry ? <span className="nav-account-status">已登入</span> : null}
+                      {signedInEntry ? <span className="nav-account-status nav-account-status--logout">{logoutState === "processing" ? "處理中" : logoutState === "failed" ? "重試" : "登出"}</span> : null}
                       {unopened ? <span className="nav-unopened-badge">未開放</span> : null}
                       {hasBadge ? <span className="nav-badge">{badgeCount > 99 ? "99+" : badgeCount}</span> : null}
                     </Link>
@@ -320,6 +355,7 @@ export function SidebarNav() {
             </div>
           );
         })}
+        {logoutState === "failed" ? <p className="nav-logout-error" role="alert">登出未完成，工作階段仍有效，請再試。</p> : null}
       </nav>
     </aside>
   );

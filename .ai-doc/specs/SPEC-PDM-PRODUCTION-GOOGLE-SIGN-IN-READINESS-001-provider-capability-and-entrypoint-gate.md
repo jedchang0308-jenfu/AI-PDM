@@ -16,6 +16,8 @@
 >
 > 2026-09-22 partial Production browser evidence：Platform source `63395409f8ac1abc7b7fd2a3149c7944e0265d73`發布至`jenfu-platform-prod-a5ca329fffe2`後，受控Workspace帳號從Platform normal entry成功建立session；Portal→AI-PDM launch=307、callback=303，target `/api/auth/me`在reload前後皆200、`/api/admin/accounts`=200，authorization=`orgmaster_authority:6 / role-system-admin / accounts.lifecycle.manage / allowed`。UI顯示`employee-shijie`及系統管理員帳號。此流程可作C03-like target partial evidence，但不是從PDM CTA起手的C01／C02，也未覆蓋Free、deny-path或global logout，故不增加四格PASS數。
 
+> 2026-09-22 local logout correction：上述Production browser檢查另發現已登入側欄帳號入口只連到`/login`，沒有結束AI-PDM本地session；因此從PDM CTA起手的C01／C02會直接沿用既有session。Current source改以明確操作呼叫既有`POST /api/auth/logout`，成功後才進入`/login?reason=local-logout`，失敗保留session並提供可觀察錯誤。Focused contract=`14/14 PASS`、authenticated real-browser=`33/33 PASS`、`typecheck:app=PASS`；run=`DEV118-browser-2026-09-21T22-24-37-833Z`。此更正尚未發布，Production功能狀態不變，LOGIN full、C01／C02、Free、deny-path與global logout仍待驗證。
+
 ## 1. 本次已確認的產品決策
 
 使用者於 2026-09-17 確認理解後要求「依此修改開發文件」。決策是：**符合帳號與權限前提的員工，可選 Google 登入或輸入工號啟動同一身分的驗證；SSO 啟用後，登入方式由鉦富平台集中處理，PDM 只保留平台登入主入口。**
