@@ -65,6 +65,7 @@ export function createGitSourceIdentity(root, sourceRevision) {
 
 function assertIntentBase(intent, profile, intentRef, intentSha256) {
   const exact = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'sourceRevision', 'sourceSha256', 'sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef', 'migrationManifestSha256', 'previousRevision', 'deadlineAt'].sort()
+  if (intent?.baselineIntentRef) { exact.push('baselineIntentRef'); exact.sort(); assertImmutableRef(intent.baselineIntentRef, profile.artifact.releaseBucket, ['receipts']) }
   if (!intent || JSON.stringify(Object.keys(intent).sort()) !== JSON.stringify(exact) || intent.schemaVersion !== profile.schemas.releaseIntent || intent.ownerApplicationId !== profile.application.id || !/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(intent.releaseId ?? '') || !H40.test(intent.sourceRevision ?? '') || !H64.test(intent.sourceSha256 ?? '') || !H64.test(intent.migrationManifestSha256 ?? '') || !intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INVALID')
   if (intentRef.uri.split('/')[2] !== profile.artifact.releaseBucket || intentRef.sha256 !== intentSha256) fail('RELEASE_INTENT_REF_INVALID')
   for (const name of ['sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef']) {
@@ -85,6 +86,20 @@ export function assertControlledEnvironmentAuthority({ intent, profile, values, 
   const changedNames = sequencePreviousEnvironment
     ? Object.keys(rules).filter((name) => sequencePreviousEnvironment[name] !== controlledEnvironment[name])
     : Object.entries(rules).filter(([name, rule]) => controlledEnvironment[name] !== rule.defaultValue).map(([name]) => name)
+  const routine = values.readiness?.schemaVersion === 'jenfu.dev012.routine-owner-readiness.v1'
+  if (routine) {
+    if (!intent.baselineIntentRef
+      || values.authorization?.schemaVersion !== 'jenfu.dev012.routine-owner-authorization.v1'
+      || values.authorization.authorizationBasis !== 'OPERATOR_INVOKED_DEPLOY_PRODUCTION'
+      || values.authorization.ownerApplicationId !== profile.application.id || values.readiness.ownerApplicationId !== profile.application.id
+      || values.authorization.sourceRevision !== intent.sourceRevision || values.readiness.sourceRevision !== intent.sourceRevision
+      || values.authorization.releaseId !== intent.releaseId || values.readiness.releaseId !== intent.releaseId
+      || canonicalize(values.authorization.baselineIntentRef) !== canonicalize(intent.baselineIntentRef)
+      || canonicalize(values.readiness.baselineIntentRef) !== canonicalize(intent.baselineIntentRef)
+      || values.authorization.previousRevision !== intent.previousRevision || values.readiness.previousRevision !== intent.previousRevision
+      || (previousControlledEnvironment && changedNames.length !== 0)) fail('CONTROLLED_ENVIRONMENT_AUTHORITY_INVALID')
+    return
+  }
   if (changedNames.length === 0) return
   const transition = values.readiness?.transition
   const predecessor = transition?.predecessorReceiptRef

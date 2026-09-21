@@ -123,6 +123,22 @@ test('AI-PDM owner prepare requires sealed DEV-013 authority before handoff on',
   assert.equal(assertControlledEnvironmentAuthority({ ...fixture, profile, runtime: offRuntime, previousControlledEnvironment: { PDM_JENFU_SSO_HANDOFF_MODE: 'on' } }), undefined)
 })
 
+test('AI-PDM routine release carries handoff on only from the exact active baseline', () => {
+  const priorPlainEnvironment = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
+    .filter((name) => !Object.hasOwn(profile.environment.fixedValues, name) && !Object.hasOwn(profile.environment.controlledValues, name))
+    .map((name) => [name, 'fixture-public-value']))
+  const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment: resolvePlainEnvironment(profile, priorPlainEnvironment, { PDM_JENFU_SSO_HANDOFF_MODE: 'on' }), secretVersions: Object.fromEntries(profile.environment.requiredSecretNames.map((name) => [name, '1'])) })
+  const fixture = controlledPrerequisites(profile, runtimeConfig)
+  fixture.intent.previousRevision = 'ai-pdm-prod-active'
+  fixture.intent.baselineIntentRef = ref('baseline-intent')
+  const routine = { ownerApplicationId: 'ai-pdm', projectId: profile.target.projectId, releaseId: fixture.intent.releaseId, sourceRevision: fixture.intent.sourceRevision, environment: 'production', baselineIntentRef: fixture.intent.baselineIntentRef, previousRevision: fixture.intent.previousRevision, expiresAt: '2999-01-01T08:00:00.000Z', remainingHumanAction: 0, status: 'PASS', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND' }
+  fixture.values.authorization = { ...routine, schemaVersion: 'jenfu.dev012.routine-owner-authorization.v1', authorizationBasis: 'OPERATOR_INVOKED_DEPLOY_PRODUCTION' }
+  fixture.values.readiness = { ...routine, schemaVersion: 'jenfu.dev012.routine-owner-readiness.v1' }
+  assert.equal(assertPreparePrerequisites({ ...fixture, profile }).runtimeConfig, runtimeConfig)
+  assert.equal(assertControlledEnvironmentAuthority({ ...fixture, profile, runtime: runtimeConfig, previousControlledEnvironment: { PDM_JENFU_SSO_HANDOFF_MODE: 'on' } }), undefined)
+  assert.throws(() => assertControlledEnvironmentAuthority({ ...fixture, profile, runtime: runtimeConfig, previousControlledEnvironment: { PDM_JENFU_SSO_HANDOFF_MODE: 'off' } }), /CONTROLLED_ENVIRONMENT_AUTHORITY_INVALID/u)
+})
+
 test('S1B-20 AI-PDM current 15-entry migration classification and bytes', () => {
   const files = new Map(profile.migrations.entries.map((entry) => [entry.path, fs.readFileSync(new URL(`../${entry.path}`, import.meta.url))]))
   assert.equal(verifyDev117MigrationBytes(profile, files), true)
@@ -134,6 +150,7 @@ test('S1B-20 AI-PDM current 15-entry migration classification and bytes', () => 
 test('S1B-20 AI-PDM release intent is exact, owner-bound and immutable', () => {
   const intent = { schemaVersion: profile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId: 'REL-AIPDM-001', sourceRevision: 'b'.repeat(40), sourceSha256: H, sourceLockRef: ref('source'), authorizationPolicyRef: ref('authorization'), readinessReceiptRef: ref('readiness'), foundationReceiptRef: ref('foundation'), infraReceiptRef: ref('infra'), runtimeConfigRef: ref('runtime'), migrationManifestSha256: H, previousRevision: 'ai-pdm-prod-prev', deadlineAt: '2026-09-08T01:00:00.000Z' }
   assert.equal(assertDev117ReleaseIntent(intent, profile), intent)
+  assert.equal(assertDev117ReleaseIntent({ ...intent, baselineIntentRef: ref('baseline-intent') }, profile).baselineIntentRef.uri, ref('baseline-intent').uri)
   assert.throws(() => assertDev117ReleaseIntent({ ...intent, ownerApplicationId: 'platform' }, profile), /release intent invalid/i)
 })
 
