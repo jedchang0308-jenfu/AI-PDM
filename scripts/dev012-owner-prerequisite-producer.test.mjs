@@ -48,11 +48,14 @@ test('release intent accepts only owner refs and release-authority prerequisites
 
 test('routine authority binds a fresh source to the exact active baseline without inventing a controlled transition', () => {
   const runtime = buildRuntimeConfigReceipt({ profile, releaseId: 'REL-001', sourceLock, plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '7' }, observedAt: NOW })
-  const result = buildRoutineAuthority({ profile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, baselineIntentRef: ref('baseline-intent'), previousRevision: 'ai-pdm-prod-00001-old', observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' })
+  const dataCutoverCompletionRef = ref('data-cutover-completion')
+  const result = buildRoutineAuthority({ profile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, baselineIntentRef: ref('baseline-intent'), dataCutoverCompletionRef, previousRevision: 'ai-pdm-prod-00001-old', observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' })
   assert.equal(result.authorization.schemaVersion, 'jenfu.dev012.routine-owner-authorization.v1')
   assert.equal(result.authorization.authorizationBasis, 'OPERATOR_INVOKED_DEPLOY_PRODUCTION')
   assert.deepEqual(result.readiness.baselineIntentRef, ref('baseline-intent'))
+  assert.deepEqual(result.readiness.dataCutoverCompletionRef, dataCutoverCompletionRef)
   assert.equal(result.readiness.previousRevision, 'ai-pdm-prod-00001-old')
+  assert.throws(() => buildRoutineAuthority({ profile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, baselineIntentRef: ref('baseline-intent'), dataCutoverCompletionRef: { ...dataCutoverCompletionRef, uri: 'gs://sibling/receipts/completion.json' }, previousRevision: 'ai-pdm-prod-00001-old', observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' }), /PREREQUISITE_REF_INVALID/)
 })
 
 test('DEV-013 transition authority binds provider baseline, desired runtime and verified predecessor', () => {
