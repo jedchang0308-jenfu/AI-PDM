@@ -190,6 +190,47 @@ try {
   await recoveryPage.screenshot({ path: path.join(screenshotDir, "retry-recovered-748x698.png"), fullPage: true });
   await recoveryPage.close();
 
+  // C05 prerequisite: an authenticated user can explicitly end the local
+  // AI-PDM session before starting a Google-first or employee-number-first flow.
+  const logoutPage = await context.newPage();
+  await logoutPage.setViewportSize({ width: 1440, height: 900 });
+  monitor(logoutPage);
+  let logoutMethod = null;
+  await logoutPage.route("**/api/auth/me", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ user: { id: "dev118-user", display_name: "DEV-118 Operator", email: "operator@example.invalid" } })
+  }));
+  await logoutPage.route("**/api/account/sessions", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ sessions: [] })
+  }));
+  await logoutPage.route("**/api/production-slice/status", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ configured: false, active: false, openPagePaths: [], unopenedMessage: "" })
+  }));
+  await logoutPage.route("**/api/numbering/permissions", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ pages: {} })
+  }));
+  await logoutPage.route("**/api/auth/logout", (route) => {
+    logoutMethod = route.request().method();
+    return route.fulfill({ status: 204, body: "" });
+  });
+  await logoutPage.goto(`${baseUrl}/account/security`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  const localLogout = logoutPage.locator('a[href="/login"][aria-label="DEV-118 Operator，登出 AI PDM"]');
+  await localLogout.waitFor({ state: "visible", timeout: 30_000 });
+  check("signed-in sidebar logout exposes an explicit accessible action", await localLogout.count() === 1);
+  await localLogout.focus();
+  check("signed-in sidebar logout is keyboard reachable", await localLogout.evaluate((element) => element === document.activeElement));
+  await logoutPage.keyboard.press("Enter");
+  await logoutPage.waitForURL("**/login?reason=local-logout", { timeout: 30_000 });
+  check("signed-in sidebar posts local logout before clean login navigation", logoutMethod === "POST");
+  await logoutPage.close();
+
   // A05/A06: exercise the existing entry button and both return-path cases.
   for (const [viewport, returnTo] of [
     [{ width: 1440, height: 900 }, "/drawings?tab=recent"],

@@ -2893,6 +2893,19 @@ body.sidebar-collapsed .app-shell {
   white-space: nowrap;
 }
 
+.nav-account-status--logout {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.nav-logout-error {
+  margin: 2px 10px 0;
+  color: #b91c1c;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .nav-badge {
   display: inline-flex;
   flex: 0 0 auto;
@@ -3060,6 +3073,10 @@ body.sidebar-collapsed .nav-account-status {
   border: 2px solid #ffffff;
   padding: 0;
   font-size: 0;
+}
+
+body.sidebar-collapsed .nav-logout-error {
+  display: none;
 }
 
 body.sidebar-collapsed .nav a:hover {

@@ -1,7 +1,7 @@
 # DEV-118：平台登入入口對齊與 Google／工號身分契約
 
-- 文件成熟度：`118-A RD Implementation Ready + 架構定案（PDM 本地入口）`；`118-B Local Development Complete / Architecture Finalized LOGIN-R1 / Registered—Platform DEV-014 / 014-LOGIN`；`118-C Protected Release Verification Pending`。
-- 工作狀態：118-A PDM 本地實作及A03補修已驗證，browser最新30/30；118-B Platform `DEV-014 / 014-LOGIN` 與 OrgMaster `DEV-049` local implementation gate已完成（Platform R1～R5 source closure、targeted 62／62、LOGIN PG 5／5、S2 7／7、build／regression；OrgMaster owner receipt、migration 013、CAS／barrier、contract／PG／browser local evidence）。LOGIN full 0／6與C01／C02仍是受保護發布的真實 provider／target 驗證，不再因缺 staging fixture manifest 阻塞開發完成。
+- 文件成熟度：`118-A RD Implementation Complete + 架構定案（PDM 本地入口）`；`118-B Cross-project Implementation Complete / Architecture Finalized LOGIN-R1 / Registered—Platform DEV-014 / 014-LOGIN`；`118-C Production Released / Provider Enabled / Browser Verification Pending`。
+- 工作狀態：118-A本地實作與A03補修已驗證，browser 30／30；118-B跨專案source、Platform 006／007、OrgMaster 016／017、DWD與雙admission均完成；118-C owner run `35592944590`已發布source `68d019d93d267cf284ea8aba637f305558d9048e`至`ai-pdm-prod-face545d349c`（image `sha256:6b803aca8da983b909a05b2a4348f3c14ca47148197c44d71a91762ad81f2ec5`、100% traffic）。Firebase Google provider已讀回`enabled=true`。Platform canonical-first correction發布後，Workspace Platform→AI-PDM免二次登入、reload與管理權限取得partial evidence；LOGIN full、C01／C02、Free、deny-path與global logout仍待受控帳號互動證據。
 - 建立：2026-09-16；本次決策修訂：2026-09-18。
 - 來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`，保留原 ID／檔名供追溯。
 - 節點：開發點，支援 AI-PDM `DEV-003` 身分／權限交付與 Platform `DEV-013` SSO；118-B owner-native slice 為 Platform `DEV-014 / 014-LOGIN`；關聯 `DEV-046`、`DEV-117`。
@@ -12,7 +12,11 @@
 
 > **2026-09-18 風險式發布修訂（current override）**：依最新版 `deployment-release-gate`，本案因變更登入、session與authorization邊界，採 **Protected Release**；保留受影響的允許／拒絕、session／tenant、provider與回復驗證，但不再把 staging、專用fixture manifest、額外Release Capsule或第二次人工批准設為通用前置。既有 staging owner／target readback在source、config與角色假設未漂移時可重用；上述provider runner的`BLOCKED`只表示該選配staging evidence path未執行，不再是118-B開發完成或118-C進入release的阻塞。
 >
-> 118-C 明確收到release指令後，沿用專案既有DEV-117 app-owned protected workflow及其必要`releaseCapsuleRef`，不另建DEV-118專屬發布流程。發布前重用有效local／CI security evidence並驗exact target、artifact、設定與previous revision；build一次。發布後立即在production canonical以受控Workspace／Cloud Identity Free principals執行C01／C02四格及必要拒絕路徑。功能驗證未完成時只可回報「版本已發布／功能驗證待完成」；security、data或核心登入失敗時依既有traffic rollback回previous known-good revision。production未執行，不能預填PASS。
+> 118-C已沿用DEV-117 app-owned protected workflow完成owner release；run=`35592944590`、source=`68d019d93d267cf284ea8aba637f305558d9048e`、revision=`ai-pdm-prod-face545d349c`、traffic=100%，terminal receipt在`DEV014-REL-20260921-AIPDM-R3`。Firebase Google provider亦已啟用。功能驗證未完成時仍只可回報「版本已發布／功能驗證待完成」；接續以受控Workspace／Cloud Identity Free principals執行C01／C02四格及必要拒絕路徑。
+>
+> 2026-09-22 partial Production browser evidence：Platform source `63395409f8ac1abc7b7fd2a3149c7944e0265d73`發布至`jenfu-platform-prod-a5ca329fffe2`後，受控Workspace帳號從Platform normal entry成功建立session；Portal→AI-PDM launch=307、callback=303，target `/api/auth/me`在reload前後皆200、`/api/admin/accounts`=200，authorization=`orgmaster_authority:6 / role-system-admin / accounts.lifecycle.manage / allowed`。UI顯示`employee-shijie`及系統管理員帳號。此流程可作C03-like target partial evidence，但不是從PDM CTA起手的C01／C02，也未覆蓋Free、deny-path或global logout，故不增加四格PASS數。
+
+> 2026-09-22 local logout correction：上述Production browser檢查另發現已登入側欄帳號入口只連到`/login`，沒有結束AI-PDM本地session；因此從PDM CTA起手的C01／C02會直接沿用既有session。Current source改以明確操作呼叫既有`POST /api/auth/logout`，成功後才進入`/login?reason=local-logout`，失敗保留session並提供可觀察錯誤。Focused contract=`14/14 PASS`、authenticated real-browser=`33/33 PASS`、`typecheck:app=PASS`；run=`DEV118-browser-2026-09-21T22-24-37-833Z`。此更正尚未發布，Production功能狀態不變，LOGIN full、C01／C02、Free、deny-path與global logout仍待驗證。
 
 ## 1. 本次已確認的產品決策
 
@@ -229,7 +233,7 @@ Production 功能完成需實際 canonical、exact artifact／revision、受控 
 
 ## 8. 派工、完成與文件治理
 
-- **118-A 已完成本地 coding 與 focused local QA**：118-B 已完成Platform／OrgMaster local implementation gate並定案LOGIN-R1。DEV-118本地開發狀態為`Local Development Complete`；下一步是明確release指令後由118-C protected release執行production provider／target驗證，不再等待staging fixture manifest。
+- **118-A、118-B與118-C owner release均已完成**：DEV-118現為`Production Released / Provider Enabled / Browser Verification Pending`；下一步只執行LOGIN六案與PDM C01／C02受控帳號互動驗證，不重做未漂移的build、migration或admission。
 - 本 DEV 從原獨立「直接 Google 修復交付點」收斂為既有身分／SSO 交付的**開發點**，不新增產品交付分母。原 scope 被取代，不記已完成；DEV-013 已有成果不重複計入 DEV-118。
 - `架構定案` 現涵蓋 §4 的 PDM 入口與 §6 所引用Platform／OrgMaster LOGIN-R1工程契約；不代表已通過production雙入口驗收或provider可用。B local gate已交付，C01／C02是release completion evidence，不再是開發阻塞。
 - A 實作可決定局部 helper 命名、測試組織與樣式；不得改變入口模式、provider／identity／permission authority 或偷加 release 契約。需改 SSO wire schema、DB、shared credential、跨 repo source、平台 alias authority 時，停止受影響切片並回送 owner 規劃。
