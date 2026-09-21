@@ -16,12 +16,12 @@ import {
 import {
   type NumberingRoleScopeKind
 } from "@/lib/repositories/numbering-repository";
-import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireNumberingPageAsync(request, "settings.admin_matrix");
+  const auth = await requireNumberingActionAsync(request, "settings.admin_matrix");
   if (auth.response) return auth.response;
   if (auth.user.role !== "Admin") return forbidden();
 
