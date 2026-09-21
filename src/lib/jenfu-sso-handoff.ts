@@ -17,6 +17,7 @@ import { resolveJenfuAssurance } from "@/lib/jenfu-platform-identity-contract";
 const COOKIE = "__Host-jenfu_sso_tx";
 const MAX_RETURN_TO = 1024;
 const BROKER_TIMEOUT_MS = 10_000;
+const APP_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 
 type Transaction = { state: string; verifier: string; returnTo: string; issuer: string; expiresAt: number };
 type CallbackStage =
@@ -119,6 +120,13 @@ export function safeJenfuSsoReturnTo(value: string | null | undefined) {
   return "/";
 }
 
+export function resolveJenfuTargetSessionExpiry(nowSeconds: number, sourceSessionExpiresAt: string) {
+  const sourceExpirySeconds = Math.floor(Date.parse(sourceSessionExpiresAt) / 1000);
+  const maxExpiry = Math.min(nowSeconds + APP_SESSION_MAX_AGE_SECONDS, sourceExpirySeconds);
+  if (!Number.isSafeInteger(nowSeconds) || !Number.isSafeInteger(sourceExpirySeconds) || !Number.isSafeInteger(maxExpiry) || maxExpiry <= nowSeconds) throw new Error("HANDOFF_EXPIRED");
+  return maxExpiry;
+}
+
 function parse(value: unknown, expected: ReturnType<typeof setup>): Handoff {
   const handoff = value as Handoff;
   if (!exactObject(handoff, ["contractVersion", "issuer", "audience", "identity", "authorization", "authentication", "authState", "sourceSessionExpiresAt", "issuedAt", "expiresAt"]) || !exactObject(handoff.identity, ["identityIssuer", "identitySubject", "principalId", "employeeId"]) || !exactObject(handoff.authorization, ["applicationId", "assignmentVersion"]) || !exactObject(handoff.authentication, ["authenticatedAt", "email", "emailVerified", "signInProvider", "secondFactor", "assuranceLevel"]) || !exactObject(handoff.authState, ["authEpoch", "revokedBefore"]) || handoff.contractVersion !== "jenfu.sso-handoff.v1" || handoff.issuer !== expected.issuer || handoff.audience !== "ai-pdm" || handoff.authorization?.applicationId !== "ai-pdm" || !handoff.identity?.identityIssuer || !handoff.identity.identitySubject || !handoff.identity.principalId || !handoff.identity.employeeId || !handoff.authentication?.authenticatedAt || !handoff.authentication.email || handoff.authentication.emailVerified !== true || !handoff.authentication.signInProvider || !handoff.sourceSessionExpiresAt || !handoff.expiresAt || !Number.isSafeInteger(handoff.authState?.authEpoch) || !Number.isSafeInteger(handoff.authorization.assignmentVersion) || !["aal1", "aal2"].includes(handoff.authentication.assuranceLevel) || (handoff.authentication.secondFactor !== null && handoff.authentication.secondFactor !== "totp")) throw new Error("HANDOFF_INVALID");
@@ -178,8 +186,7 @@ export async function jenfuSsoCallback(request: Request) {
     const user = await getUserByIdAsync(principal.pdmUserId);
     if (!user) throw new Error("PRINCIPAL_NOT_ACTIVE");
     const now = Math.floor(Date.now() / 1000);
-    const maxExpiry = Math.min(now + 8 * 60 * 60, Math.floor(Date.parse(handoff.sourceSessionExpiresAt) / 1000), Math.floor(Date.parse(handoff.expiresAt) / 1000));
-    if (!Number.isSafeInteger(maxExpiry) || maxExpiry <= now) throw new Error("HANDOFF_EXPIRED");
+    const maxExpiry = resolveJenfuTargetSessionExpiry(now, handoff.sourceSessionExpiresAt);
     stage = "session_issue";
     const sessionToken = issueJenfuPlatformSessionV1({ identityIssuer: handoff.identity.identityIssuer, identityAudience: getJenfuIdentityConfig().identityAudience, identitySubject: handoff.identity.identitySubject, principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId, localPrincipalId: principal.pdmUserId, companyId: principal.companyId, authEpoch: handoff.authState.authEpoch, accountLifecycleVersion: principal.sessionVersion, authTime: Math.floor(Date.parse(handoff.authentication.authenticatedAt) / 1000), assuranceLevel: assurance.assuranceLevel, secondFactor: assurance.secondFactor, maxAgeSeconds: maxExpiry - now }, getPlatformSessionKeyRing(), now);
     stage = "session_verify";
