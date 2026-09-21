@@ -221,13 +221,15 @@ C01/C02 的固定整合矩陣為上表四個 cells；每類帳號的 Google／�
 
 現行 Firebase refresh-token smoke只證明既有 session 路徑，不能證明平台 Google／工號入口；本案不強制修改其憑證或 observation schema。Provider 啟用／網域讀回由實際登入所在的 Platform owner 負責；PDM SSO 不以自己的直接 Google provider readiness 作 release 前提。
 
+2026-09-21 owner evidence補強：AI-PDM既有owner workflow在finalize會由canonical smoke結果產生`jenfu.dev014.consumer-conformance.v1`，固定`ai-pdm`、exact merged source revision、canonical image digest、guard contract、fail-seeking canonical receipt、verified time與content hash，並把immutable ref嵌入terminal receipt。OrgMaster／Platform admission runner會在DB mutation前從AI-PDM own release bucket讀回raw bytes，驗object SHA、schema、source、artifact及content hash；不得手寫或沿用不同revision的PASS receipt。完整順序見Platform [DEV-014 Production runbook](../../../Jenfu-Platform/ai-doc/runbooks/DEV-014-production-protected-release.md)。
+
 驗證順序改為風險式最小路徑：release前重用未漂移的source／schema／producer conformance、local transaction／deny-path與provider設定readback；由既有owner workflow對exact artifact build一次並部署。staging real-provider evidence若已存在可重用，但不是必備。正式canonical啟用後立即執行C01／C02四格、無assignment／inactive／revoked等拒絕路徑與reload／logout；缺必要principal或provider互動時標`feature verification pending`，不得把deploy或HTTP 200當功能PASS。已在本次release授權內的驗證與promotion不再要求第二次批准。
 
 Production 功能完成需實際 canonical、exact artifact／revision、受控 test principal、操作／畫面及 redacted 結果。使用者原始內嵌瀏覽器問題需保留適用環境結果；其他瀏覽器或 local mock 成功不能冒充。無法安全完成 provider 互動／缺 owner implementation 時保留未充分驗證，不預填 PASS。
 
 ## 8. 派工、完成與文件治理
 
-- **118-A 已完成本地 coding 與 focused local QA**：118-B 已完成Platform／OrgMaster local implementation gate並定案LOGIN-R1。DEV-118狀態改為`Validation Pending`；下一步是明確release指令後由118-C protected release執行production provider／target驗證，不再等待staging fixture manifest。
+- **118-A 已完成本地 coding 與 focused local QA**：118-B 已完成Platform／OrgMaster local implementation gate並定案LOGIN-R1。DEV-118本地開發狀態為`Local Development Complete`；下一步是明確release指令後由118-C protected release執行production provider／target驗證，不再等待staging fixture manifest。
 - 本 DEV 從原獨立「直接 Google 修復交付點」收斂為既有身分／SSO 交付的**開發點**，不新增產品交付分母。原 scope 被取代，不記已完成；DEV-013 已有成果不重複計入 DEV-118。
 - `架構定案` 現涵蓋 §4 的 PDM 入口與 §6 所引用Platform／OrgMaster LOGIN-R1工程契約；不代表已通過production雙入口驗收或provider可用。B local gate已交付，C01／C02是release completion evidence，不再是開發阻塞。
 - A 實作可決定局部 helper 命名、測試組織與樣式；不得改變入口模式、provider／identity／permission authority 或偷加 release 契約。需改 SSO wire schema、DB、shared credential、跨 repo source、平台 alias authority 時，停止受影響切片並回送 owner 規劃。
