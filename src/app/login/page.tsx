@@ -16,9 +16,30 @@ import {
 type FirebaseAuthenticatedResult = Extract<FirebaseSignInResult, { kind: "authenticated" }>;
 
 type LoginModeState = "loading" | "ready" | "unavailable";
+const AUTH_MODE_TIMEOUT_MS = 10_000;
+
+type LoginModeResponse = {
+  authMode: AuthMode;
+  ssoHandoffEnabled: boolean;
+  googleOAuth: { enabled: boolean };
+  firebase: { config: FirebaseWebConfig | null };
+  localQuickLogin: boolean;
+};
 
 function isAuthMode(value: unknown): value is AuthMode {
   return value === "demo" || value === "managed" || value === "firebase_bff";
+}
+
+function isLoginModeResponse(value: unknown): value is LoginModeResponse {
+  if (!value || typeof value !== "object") return false;
+  const body = value as Partial<LoginModeResponse>;
+  if (!isAuthMode(body.authMode) || typeof body.ssoHandoffEnabled !== "boolean"
+    || typeof body.localQuickLogin !== "boolean" || typeof body.googleOAuth?.enabled !== "boolean"
+    || !body.firebase || typeof body.firebase !== "object") return false;
+  const config = body.firebase.config;
+  if (config !== null && (!config || typeof config !== "object"
+    || ![config.apiKey, config.authDomain, config.projectId, config.appId].every((field) => typeof field === "string" && field.trim().length > 0))) return false;
+  return !body.ssoHandoffEnabled || (body.authMode === "firebase_bff" && !body.googleOAuth.enabled);
 }
 
 const TEST_ACCOUNTS = [
@@ -72,6 +93,7 @@ export default function LoginPage() {
   const [quickLoginRole, setQuickLoginRole] = useState<string | null>(null);
   const [modeState, setModeState] = useState<LoginModeState>("loading");
   const modeRequestGeneration = useRef(0);
+  const modeAbortController = useRef<AbortController | null>(null);
 
   function loginReturnTo() {
     const candidate = new URLSearchParams(window.location.search).get("returnTo") ?? "/";
@@ -81,6 +103,15 @@ export default function LoginPage() {
   const loadAuthMode = useCallback(async () => {
     const generation = modeRequestGeneration.current + 1;
     modeRequestGeneration.current = generation;
+    modeAbortController.current?.abort();
+    const controller = new AbortController();
+    modeAbortController.current = controller;
+    const timeout = window.setTimeout(() => {
+      if (generation !== modeRequestGeneration.current) return;
+      modeRequestGeneration.current += 1;
+      controller.abort();
+      setModeState("unavailable");
+    }, AUTH_MODE_TIMEOUT_MS);
     setModeState("loading");
     setAuthMode(null);
     setGoogleOAuthEnabled(false);
@@ -88,10 +119,10 @@ export default function LoginPage() {
     setLocalQuickLoginEnabled(false);
     setSsoHandoffEnabled(false);
     try {
-      const response = await fetch("/api/auth/mode", { cache: "no-store" });
+      const response = await fetch("/api/auth/mode", { cache: "no-store", signal: controller.signal });
       if (!response.ok) throw new Error("AUTH_MODE_UNAVAILABLE");
-      const body = (await response.json()) as { authMode?: unknown; googleOAuth?: { enabled?: unknown }; firebase?: { config?: FirebaseWebConfig | null }; localQuickLogin?: unknown; ssoHandoffEnabled?: unknown };
-      if (!isAuthMode(body.authMode)) throw new Error("AUTH_MODE_UNKNOWN");
+      const body: unknown = await response.json();
+      if (!isLoginModeResponse(body)) throw new Error("AUTH_MODE_INVALID");
       if (generation !== modeRequestGeneration.current) return;
       setAuthMode(body.authMode);
       setGoogleOAuthEnabled(body.googleOAuth?.enabled === true);
@@ -102,6 +133,9 @@ export default function LoginPage() {
     } catch {
       if (generation !== modeRequestGeneration.current) return;
       setModeState("unavailable");
+    } finally {
+      window.clearTimeout(timeout);
+      if (modeAbortController.current === controller) modeAbortController.current = null;
     }
   }, []);
 
@@ -109,6 +143,7 @@ export default function LoginPage() {
     void loadAuthMode();
     return () => {
       modeRequestGeneration.current += 1;
+      modeAbortController.current?.abort();
     };
   }, [loadAuthMode]);
 

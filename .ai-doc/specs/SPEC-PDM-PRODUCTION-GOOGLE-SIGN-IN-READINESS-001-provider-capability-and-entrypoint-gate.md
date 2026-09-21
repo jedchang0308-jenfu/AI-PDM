@@ -1,10 +1,18 @@
 # DEV-118：平台登入入口對齊與 Google／工號身分契約
 
-- 文件成熟度：`118-A RD Implementation Ready + 架構定案（PDM 本地入口）`；`118-B RD Contract Ready / Registered—Platform DEV-014 / 014-LOGIN`；`118-C Release Gated`。
-- 工作狀態：118-A PDM 本地實作與 QA/QC 已完成；118-B 已取得兩專案文件授權並登錄 Platform `014-LOGIN`，工程契約與實作仍待完成；118-C 維持 `Release Gated`，正式整合尚未驗收。
-- 建立：2026-09-16；本次決策修訂：2026-09-17。
+- 文件成熟度：`118-A RD Implementation Ready + 架構定案（PDM 本地入口）`；`118-B Local Development Complete / Architecture Finalized LOGIN-R1 / Registered—Platform DEV-014 / 014-LOGIN`；`118-C Protected Release Verification Pending`。
+- 工作狀態：118-A PDM 本地實作及A03補修已驗證，browser最新30/30；118-B Platform `DEV-014 / 014-LOGIN` 與 OrgMaster `DEV-049` local implementation gate已完成（Platform R1～R5 source closure、targeted 62／62、LOGIN PG 5／5、S2 7／7、build／regression；OrgMaster owner receipt、migration 013、CAS／barrier、contract／PG／browser local evidence）。LOGIN full 0／6與C01／C02仍是受保護發布的真實 provider／target 驗證，不再因缺 staging fixture manifest 阻塞開發完成。
+- 建立：2026-09-16；本次決策修訂：2026-09-18。
 - 來源 ID：`DEV-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001`，保留原 ID／檔名供追溯。
 - 節點：開發點，支援 AI-PDM `DEV-003` 身分／權限交付與 Platform `DEV-013` SSO；118-B owner-native slice 為 Platform `DEV-014 / 014-LOGIN`；關聯 `DEV-046`、`DEV-117`。
+
+> **2026-09-18 staging execution addendum（current）**：使用者已授權固定 `jenfu-platform-nonprod / asia-east1` non-production owner mutation。DEV-013 staging 的三個 Artifact Registry repository、三個 evidence bucket、Platform migration Job、Platform／OrgMaster first numeric Secret version與三份 owner-native runtime receipt均已完成 provider readback；Platform、OrgMaster、AI-PDM receipts均為 `OWNER_READY_FOR_L3_BROWSER`，`releaseAuthority=false`。本輪沒有 production、shared DB migration、credential read或 provider account provisioning。
+>
+> 最新 `npm run qc:dev-014:login:provider` readiness run=`DEV014-LOGIN-PROVIDER-20260917T160139495Z-5deeb289` 已接受 `staging`、`providerMode=real`、OrgMaster DEV-049 self-hashed owner receipt與AI-PDM hard-join target receipt；唯一阻塞為 `DEV014_LOGIN_FIXTURE_MANIFEST:valid-json-file`。`credentialsRead=false`、`providerMutations=false`、`productionWrites=false`。因此 118-B 的 staging owner／target readiness已完成，LOGIN full 0／6、PDM C01／C02與QA-013/014 real-provider browser cells仍為 `BLOCKED／NOT_RUN`，不得把 rollout或owner receipt升格為登入互動PASS。
+
+> **2026-09-18 風險式發布修訂（current override）**：依最新版 `deployment-release-gate`，本案因變更登入、session與authorization邊界，採 **Protected Release**；保留受影響的允許／拒絕、session／tenant、provider與回復驗證，但不再把 staging、專用fixture manifest、額外Release Capsule或第二次人工批准設為通用前置。既有 staging owner／target readback在source、config與角色假設未漂移時可重用；上述provider runner的`BLOCKED`只表示該選配staging evidence path未執行，不再是118-B開發完成或118-C進入release的阻塞。
+>
+> 118-C 明確收到release指令後，沿用專案既有DEV-117 app-owned protected workflow及其必要`releaseCapsuleRef`，不另建DEV-118專屬發布流程。發布前重用有效local／CI security evidence並驗exact target、artifact、設定與previous revision；build一次。發布後立即在production canonical以受控Workspace／Cloud Identity Free principals執行C01／C02四格及必要拒絕路徑。功能驗證未完成時只可回報「版本已發布／功能驗證待完成」；security、data或核心登入失敗時依既有traffic rollback回previous known-good revision。production未執行，不能預填PASS。
 
 ## 1. 本次已確認的產品決策
 
@@ -28,7 +36,7 @@
 
 - **沒有 Gmail 信箱不等於沒有 Google 帳號。** 公司 Google Workspace 與 Cloud Identity Free 帳號皆使用同一 Google provider；不新增第三種登入入口，也不以 Workspace 付費授權作登入條件。[Google editions](https://cloud.google.com/identity/docs/editions)
 - 工號只啟動核准帳號的 Google 驗證；平台／PDM 不接收 Google 密碼。Free 帳號名稱即使像 email，也不能要求從不存在的 Gmail 信箱收 invitation／email-link。
-- Platform canonical identity 保留 **verified Firebase issuer＋subject（Firebase UID）**。OrgMaster bridge 對應 employeeId、Directory customer＋user.id 與 Firebase pair；Google OIDC sub 僅可作可信 observation，不預設等於 Directory ID，也不取代 Firebase UID。工號、email、license 或網域尾碼不能替代永久身分。Cloud Identity Free 與 Identity Platform／Firebase Authentication 是不同層。[Firebase token 驗證](https://firebase.google.com/docs/auth/admin/verify-id-tokens)
+- Platform canonical identity保留 **verified Firebase issuer＋subject（Firebase UID）**。OrgMaster bridge對應employeeId、Directory customer＋user.id與Firebase pair。LOGIN-R1更正前版僅列Google ID為observation：Google使用者ID對應Directory API ID，Firebase UID則不同；owner必須從verified Firebase provider identities取唯一Google ID並命中live Directory／approved link，不能只靠email或拿Firebase頂層sub代用。工號、email、license、suffix不能替代永久身分。Cloud Identity Free與Firebase Authentication是不同層。[Google ID與Directory ID](https://cloud.google.com/docs/authentication/token-types)、[Firebase provider identities](https://firebase.google.com/docs/reference/security/database#authtoken)
 - Google 帳號有效不等於員工已啟用或獲得 PDM 權限；原有 admission、MFA／assurance、app assignment、local account／company／permission 與撤銷仍須全部通過。
 
 ## 2. 決策來源、現況與替代範圍
@@ -40,11 +48,11 @@
 | [Platform ADR-003 2026-09-01 amendment](../../../Jenfu-Platform/ai-doc/decisions/ADR-003-entitlement-user-migration-role-activation.md) | 每位員工使用公司可管理的個人身分；工號不是 canonical identity／免驗證 credential |
 | [Platform ADR-002 DEV-013 amendment](../../../Jenfu-Platform/ai-doc/decisions/ADR-002-phase1-identity-session-cloudsql-topology.md)及[DEV-013 §§10、16.1](../../../Jenfu-Platform/ai-doc/specs/DEV-013-cross-application-single-sign-on.md) | SSO 啟用後 target 只提供平台主要入口；保留必要 reauth／recovery／smoke／受控回退，不增加平行一般登入路徑 |
 | 本次使用者指令 | 將 Google／工號選擇與平台集中登入原則正式寫入本開發文件 |
-| [Platform DEV-014 / 014-LOGIN](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login)與[ADR-004 §4.6](../../../Jenfu-Platform/ai-doc/decisions/ADR-004-managed-identity-activation-and-global-session-invalidation.md#managed-google-login) | 依 Cloud Identity Free 決策與兩專案文件授權，登錄 `AI_PDM / DEV-118 / 118-B` 來源；Google／工號入口與無 Gmail 開通契約，尚未產品實作 |
+| [Platform DEV-014 / 014-LOGIN](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login)與[ADR-004 §4.6](../../../Jenfu-Platform/ai-doc/decisions/ADR-004-managed-identity-activation-and-global-session-invalidation.md#managed-google-login) | 依 Cloud Identity Free 決策與兩專案文件授權，登錄 `AI_PDM / DEV-118 / 118-B` 來源；Platform R1～R5 source closure與local gate已完成，OrgMaster DEV-049 owner receipt已交付，完整 browser／provider／target驗收待交付 |
 
 2026-09-17 coding前 repo review：AI-PDM HEAD=`c06447aa40d3738c2d053d3a5f1e1fa59e766878`。DEV-013 target start／callback、handoff 與平台 CTA 已在本地 source；不能重算為 DEV-118 新實作，也不能推定已正式啟用。當時 `/api/auth/mode` 以 `Boolean(firebaseConfig)` 宣告直接 Google enabled，SSO broker 設定缺漏可能被當作 SSO off，login mode fetch 失敗會 fallback managed；這些入口選擇缺口已由本文件 118-A 實作與 QC 關閉。
 
-Platform `src/app/login/login-client.tsx` 文件修訂前查核仍使用 email/password，未發現 Google CTA／工號解析入口。**平台雙入口是確認的目標，尚非既有可用功能，也不是 DEV-013 SSO handoff 本身已承諾完成的能力。** 本輪已依人類授權同步兩專案文件，將 118-B 登錄至 Platform DEV-014 的 `014-LOGIN`，不宣稱程式已完成。
+歷史文件修訂前，Platform `src/app/login/login-client.tsx` 仍只有 email/password。2026-09-17 20:00續行已觀察Google／工號UI、route與exchange，owner記錄局部測試；[現行交接審查](../qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)發現五項P1實作落差。**平台雙入口尚未通過完整驗收，也不是DEV-013 SSO handoff本身已交付的能力。** 118-B沿用Platform DEV-014的`014-LOGIN`，不新增任務或改写已定案架構以遷就實作。
 
 原使用者截圖與前輪 provider configuration not found 記錄，保留為問題來源；本輪沒有重新探測 production，不能用舊調查記錄當 fresh PASS。
 
@@ -70,7 +78,7 @@ flowchart LR
   A["PDM 未登入"] --> B["使用鉦富平台登入"]
   B --> C{"已有有效平台 session？"}
   C -- 有 --> H["DEV-013 SSO handoff"]
-  C -- 無 --> D["平台登入選擇：118-B 待實作"]
+  C -- 無 --> D["平台登入選擇：118-B 待修正／驗收"]
   D --> E["選公司 Google 帳號"]
   D --> F["輸入工號 → 核准的公司帳號"]
   E --> G["Provider 驗證 → 平台 admission"]
@@ -81,11 +89,11 @@ flowchart LR
 ```
 
 - **OrgMaster identity owner／Google Admin**：OrgMaster 維護 employee、公司範圍工號與受管身分連結；Google Admin 管理公司 Google 帳號、credential／MFA／recovery。本輪不修改 OrgMaster 文件或產品。
-- **Platform owner**：Google provider 整合、依版本化核准 mapping 解析工號、平台登入 UI／錯誤、admission／session 與既有 broker。工號的精確讀取契約仍須與來源 owner 定案，不能直接讀 sibling core 或以 PDM 私有 alias table 作平台 directory。
+- **Platform owner**：Google provider 整合、依版本化核准 mapping 解析工號、平台登入 UI／錯誤、admission／session 與既有 broker。精確 owner API／caller／CAS 與 intent 契約依 DEV-014 §18.5 LOGIN-R1 定案；OrgMaster `jenfu.managed-login.v1` producer 已由 DEV-049 local owner receipt 交付，不能直接讀 sibling core 或以 PDM 私有 alias table 作平台 directory。
 - **AI-PDM owner**：自己的登入入口、SSO consumer、local session／admission／permission、可見錯誤及受控相容入口；不取得 shared provider 管理權、不代建 employee／Google identity。
 - **各 app release owner**：各自發布、設定與回復；Platform 不因集中登入而取得 PDM traffic／DB／release authority。
 
-SSO 交接沿用 `jenfu.sso-handoff.v1` 的 state／PKCE／one-time code／service identity 與 original authenticatedAt、auth_epoch、revoked_before；本案不重寫它。Google ID／refresh token、Portal cookie 與密碼不得傳給另一 app。
+SSO 交接沿用 `jenfu.sso-handoff.v1` 的 state／PKCE／one-time code／service identity 與 original authenticatedAt、auth_epoch、revoked_before；本案不重寫它。SSO target 不接收 Google／Firebase ID token、refresh token、Portal cookie 或密碼。Platform→OrgMaster 僅有 LOGIN-R1 所定的 server-to-server Firebase ID token 驗證通道，非 app session sharing；PDM 不參與或取得該通道權限。
 
 ## 4. 118-A：PDM 本地入口契約（可派工）
 
@@ -115,6 +123,7 @@ SSO on 的 `googleOAuth.enabled=false` 僅表示 **PDM 不提供直接 Google �
 - 平台已有 session 時不再要求 Google popup／工號／帳密；平台未登入才在平台選擇方式。PDM 不重複收一次工號。
 - local logout 留在 PDM 登入頁，明確點擊後才交接，不自動 redirect 造成登出循環。
 - mode 載入／重試錯誤放在目前可見的登入面板，以 `role="alert"` 呈現；不要寫入 SSO 模式中被隱藏的 form error。使用單一載入狀態與 request generation／cleanup，防止晚回 response 覆蓋新狀態。
+- mode request 的總期限為10秒（包含讀取JSON），到期中止request並使該generation失效，顯示既有重試動作。缺少或格式錯誤的`authMode`、`ssoHandoffEnabled`、`googleOAuth.enabled`、`localQuickLogin`或`firebase.config`均為unavailable；不得把未知SSO值當false。SSO=true只接受Firebase BFF且直接Google入口=false。重試先中止舊request，離頁同樣中止；不新增provider探測或自動輪詢。
 - handoff 途中及 callback 的 error code、account conflict、source expiry／revocation 仍依 DEV-013 處理；本 phase 不自創 callback protocol。若既有正常錯誤呈現路徑缺漏，列入 DEV-013 owner 缺陷並阻擋對應整合驗收，不能以本地 mode UI PASS 宣稱已修好。
 - 相容模式沿用既有 Google／工號流程：工號建立短效 single-use intent，驗證後 UID／company 必須命中同一目標；工號不是可繞過 provider 的備援。原 direct provider 設定故障仍需 owner 修復，不因保留舊 UI 被視為已解決。
 
@@ -142,7 +151,7 @@ No-touch：DB schema／migration、employee／principal／alias 資料、privile
 | A05 | 點平台 CTA、safe／惡意 returnTo、local logout | 只進既有 start 路徑；無任意 redirect；logout 後不自動重新登入 |
 | A06 | 1440×900、390×844、使用者原 748×698；loading／ready／error、Tab／重試 | 主動作與錯誤可見，無水平溢位、重疊、截字；錯誤不藏進未渲染 form |
 
-已新增並通過：`npm run qc:dev-118:contract`（10/10）、`npm run qc:dev-118:browser`（12/12）。既有 `npm run test:dev-013`（3/3）、`npm run qc:dev-046-login-alias`（21/21）、`npm run typecheck:app` 與 `npm run build:isolated` 亦通過。不因改文件／登入入口重跑未受影響的全套 DEV-117 release tests；若後續實作需要修改 release source，停止並重定範圍。
+歷史receipt：contract 10/10、browser 12/12、DEV-013 3/3、DEV-046 21/21、typecheck與isolated build曾通過；2026-09-17目標續行查出原browser未覆蓋A03逾時／缺欄位／重試晚回，且`context.newPage({viewport})`未實際設定各頁尺寸，故舊12/12不能證明完整A03／A06。現行runner已改為逐頁`setViewportSize`並補正常操作驗證；最新結果以[118-A QC receipt](../qc/qc-dev-118-local-implementation-2026-09-17.md)的「A03 completion audit修正」為準。不重跑未受影響的全套DEV-117 release tests；若需修改release source則停止並重定範圍。
 
 Browser QA 必須操作實際編譯登入頁；fixture 只模擬設定／mode response／外部依賴，不直接塞入成功 session。收集 source revision／dirty fingerprint、角色、route、viewport、操作、截圖、console／page error 與 visible error sweep；local fixture 不冒充跨 app 或 production PASS。
 
@@ -152,9 +161,9 @@ Browser QA 必須操作實際編譯登入頁；fixture 只模擬設定／mode re
 
 ## 6. 118-B：平台 Google／工號入口承接契約
 
-狀態：`RD Contract Ready / Registered—Platform DEV-014 / 014-LOGIN / Implementation NOT_RUN`。來源引用為 `AI_PDM / DEV-118 / 118-B`，owner-native contract 為 [DEV-014 §18](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login)。使用者已明確授權兩專案文件修改，文件承接缺口已關閉；工程契約與產品實作仍待完成。
+狀態：`Local Development Complete / Architecture Finalized LOGIN-R1 / Registered—Platform DEV-014 / 014-LOGIN / Protected Release Verification Pending`。來源引用為 `AI_PDM / DEV-118 / 118-B`，owner-native contract 為 [DEV-014 §18](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 與 [OrgMaster DEV-049](../../../OrgMaster/ai-doc/specs/DEV-049-existing-google-primary-account-link.md)。Platform R1～R5 source closure、62／62 targeted、LOGIN PG 5／5、S2 7／7、build／regression及OrgMaster owner receipt／migration 013／CAS／barrier／local QA已交付；完整六案、browser／provider／target證據仍待production protected release交付。
 
-Platform DEV-014 的 R2 架構定案只涵蓋既有 S0～S4／QA 基線 20 案；新增 `014-LOGIN` 是 Contract Ready，另列六案驗收。不重算 DEV-013 原有 22 案或基線完成率。
+Platform DEV-014 的 R2 架構定案涵蓋既有 S0～S4／QA 基線 20 案；`014-LOGIN` 獨立定案為 LOGIN-R1，另列六案驗收，全部 NOT_RUN。OrgMaster DEV-049 local owner receipt 已交付，但不改 LOGIN 六案分母，也不重算 DEV-013 原有 22 案或基線完成率。
 
 平台的帳號分類、首次 bridge、工號 intent、錯誤與 source contract 以 DEV-014 §18 為唯一 authority；本文件保留三項 target 不變條件：
 
@@ -178,39 +187,49 @@ Platform DEV-014 的 R2 架構定案只涵蓋既有 S0～S4／QA 基線 20 案�
 
 PDM `/settings/accounts` 的 local 工號 alias 保留給原 SSO off／受控相容用途；不把它提升成平台 employee-number authority。平台不得讀寫 PDM 私有 `*_core`，PDM 不保存 password hash、MFA secret 或 recovery code。
 
-### 6.3 工程交接與尚待完成項
+### 6.3 LOGIN-R1 工程定案與交接
 
-Platform [§18.5](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 固定四個缺口：G1 versioned mapping、G2 既有 OrgMaster bridge 的 pre-session 消費介面、G3 durable intent／原子消耗、G4 Google browser 互動與 provider capability。平台現有 active-principal view 不等於工號／pending lookup，既有 password session endpoint 也不等於已完成 bridge。G1～G4 閉合前維持 `RD Contract Ready`，不宣稱架構定案。
+Platform [§18.5](../../../Jenfu-Platform/ai-doc/specs/DEV-014-managed-identity-production-activation.md#dev014-login) 為唯一工程 authority：G1／G2 採 `jenfu.managed-login.v1` owner 機器 API，OrgMaster 獨立驗 Firebase／Directory、CAS／reservation、冪等 receipt 與 lifecycle barrier；G3 用 Platform own PostgreSQL intent，與既有 session 同 transaction 完成，unknown 先 readback；G4 固定預備 intent 後由 user click 啟動 Google popup，受限內嵌環境從乾淨 canonical login 重啟。API DTO、ACL、timeouts、TTL、rate budget、state／recovery、migration、檔案與 runner 細節只在 owner spec 維護。
 
-2026-09-17 技術主管優化：刪除兩專案重複的平台規則，改以 owner spec 單一維護；補首次 pending-auth、public hint 禁止、原內嵌瀏覽器與真實 provider evidence。保留 118-A 完成與 118-B／C 未完成狀態；不新增 DEV、文件或產品工作。
+2026-09-17 技術主管複審已在同一 owner 契約修正：可恢復錯誤保留原短效 token 供同一請求重試；取消、提交與未知結果讀回共用 intent row lock，已登入不得假稱取消成功。2026-09-18依風險式發布規則，真實登入可在既有production protected release的canonical驗證完成，不再固定要求先建staging fixture manifest。PDM 不新增重試／取消 API 或 credential state。維持 LOGIN-R1，Spec impact=`Intentional replacement of release evidence ordering`；本輪只修改文件，未執行production。
 
-修改前核對：AI_PDM `codex/dev-013-ai-pdm` @ `013ae1440acf2735b313b9ac43ee710d2b53927e`；Platform `持續優化1` @ `7e5343e3a5cdbd40a1a5ede38922195964d9bfa4`，兩者 clean。本輪只依授權修改這兩專案文件，未修改 OrgMaster、程式、測試、資料、provider 設定或 production；先前唯讀 QC 留作當時歷史證據，現行 native 登錄以 Platform DEV-014／索引為準。
+G1～G4 文件未決 P0／P1=0，升為 `RD Implementation Ready / Architecture Finalized LOGIN-R1`。實作依 L0 contract／stub → L1 intent／exchange → L2 browser → L3 producer／provider／target；Platform與OrgMaster local implementation gate已交付。OrgMaster DEV-049 owner receipt證明producer／CAS／barrier的local isolated conformance，但不能替代真實provider或PDM target evidence；不得在Platform複製writer來繞過依賴。
+
+上述P0／P1=0是架構文件closure，不是production整合驗收完成。固定 staging target profile 為 `jenfu-platform-nonprod`；owner／infra mutation與readback已完成，三份 owner receipt 已達 `OWNER_READY_FOR_L3_BROWSER`，可在輸入未漂移時重用。Platform provider manifest仍記錄缺fixture，但該manifest改列選配staging readiness helper；118-B local development不再等待它。完整六案及PDM C01／C02改由118-C protected release在exact production revision／canonical入口取得，沿原反例與分母，不增加PDM私有fallback。
+
+**PDM 特有的恢復條件：** 原內嵌 browser 若無法完成 Google，平台只能提供由可信既有 SSO client config 得出的 PDM canonical `/login` 乾淨 URL，讓使用者在支援瀏覽器從 PDM 正常入口重啟；不帶 source browser 的 returnTo／SSO state／PKCE／intent／cookie，不宣稱回到原 tab 已有 session。原環境的失敗／恢復 UI 與外部 Google／PDM 成功分別驗收；跨瀏覽器保留深連結或同步 session 不在 LOGIN-R1。
+
+2026-09-17 定案盤點（歷史基線，已由2026-09-18 current override更新）：AI_PDM `bcc27f6e1bf1e5b709254efa1e4d94bd3b5b60c8`、Platform `5d5a5111ab28307d9c6655669e8b4ec891286e9e`，開始時均 clean；OrgMaster `756f6d405c7cf0babe4078b332b0f6714a242914` 只讀。沿用既有 SPEC／ADR／QA／索引，不新增 DEV 或平行文件。當時118-B implementation、Platform QA六案與118-C正式整合仍未完成；現況以頁首及§8為準。
+
+歷史文件同步盤點（非本輪 HEAD）：AI_PDM `codex/dev-013-ai-pdm` @ `013ae1440acf2735b313b9ac43ee710d2b53927e`；Platform `持續優化1` @ `7e5343e3a5cdbd40a1a5ede38922195964d9bfa4`，當時兩者 clean。該輪只依授權修改這兩專案文件，未修改 OrgMaster、程式、測試、資料、provider 設定或 production；先前唯讀 QC 留作當時歷史證據，現行 native 登錄以 Platform DEV-014／索引為準。
 
 ## 7. 118-C：SSO 發布與整合驗收 capsule
 
-沿用 DEV-013 per-client `off → accept → target on → launch`、revocation guard 與 rollback security floor，以及各 owner 普通 release gate。PDM canonical 仍為 `https://ai-pdm-prod-9536592944.asia-east1.run.app`。不新增 custom domain、workflow input、manual GO、Secret 輪替或 provider session-sharing 機制。
+本案屬登入／authorization security boundary，118-C採Protected Release。沿用DEV-013 revocation guard、rollback security floor與DEV-117 app-owned production workflow；PDM canonical仍為`https://ai-pdm-prod-9536592944.asia-east1.run.app`。不新增DEV-118專屬staging gate、local artifact server、重複build、額外人工GO、custom domain、Secret輪替或provider session-sharing機制；既有專案要求的immutable `releaseCapsuleRef`與owner stages仍適用。
 
 | Case | 正常 delivery path | 完成條件 |
 |---|---|---|
-| C01 Google 起手 | Workspace、Cloud Identity Free 各走 PDM 平台 CTA → 平台選 Google → provider → 平台 admission → handoff → PDM | 同一核准身分建立 PDM session、回 safe returnTo、reload 可用；Free 不依賴 Gmail 收信 |
-| C02 工號起手 | Workspace、Cloud Identity Free 各走 PDM 平台 CTA → 平台輸入工號 → Google 驗證 → handoff → PDM | 各與自身 C01 的 Firebase principal／核准日常身分一致；沒有輸入工號即授權、錯配、Google 密碼送 Firebase password 或新增帳號 |
+| C01 Google 起手 | `PDM-W-G`、`PDM-F-G`：Workspace、Cloud Identity Free 各走 PDM 平台 CTA → 平台選 Google → provider → 平台 admission → handoff → PDM | 同一核准身分建立 PDM session、回 safe returnTo、reload 可用；Free 不依賴 Gmail 收信 |
+| C02 工號起手 | `PDM-W-E`、`PDM-F-E`：Workspace、Cloud Identity Free 各走 PDM 平台 CTA → 平台輸入工號 → Google 驗證 → handoff → PDM | 各與自身 C01 的 Firebase principal／核准日常身分一致；沒有輸入工號即授權、錯配、Google 密碼送 Firebase password 或新增帳號 |
 | C03 平台已登入 | Portal 有權限 app tile／PDM 平台 CTA → handoff | 不再要求 Google popup、工號或帳密；仍經 PDM local authorization |
 | C04 拒絕與回復 | inactive／無 assignment／工號與 UID 不符／session revoked／broker failure | 不簽發有效 session；可見錯誤、無自動 legacy fallback；不同 principal 不靜默替換 |
 | C05 登出與相容性 | local logout、global logout、必要 reauth／recovery、既有 release smoke | 依 DEV-013／既有 policy 生效；保留必要 Firebase exchange，不移除安全驗證 |
 
 A01–A06 可以先取得 local evidence；C01/C02 依賴 118-B，不得用目前平台 email/password 成功取代雙入口驗收。C03–C05 優先引用 DEV-013 同 source／環境／角色的有效證據，不重做平行 handoff suite；有差異才補測。
 
-C01/C02 的固定整合矩陣為 Workspace／Free × Google-first／工號-first 四個 cells；使用已完成或當次合法完成 bridge 的受控身分。首次綁定的 pending／active 與 CAS 測試由 Platform QA014-LOGIN-01～03 持有，PDM 不再建一套 bridge 測試。Platform QA014-LOGIN-06 直接引用本節同 source／環境／fixture evidence；每筆須標記 provider real／stub，只有真實受控 provider 及正常 target 操作可滿足整合 cell。若仍缺原內嵌瀏覽器結果，保留未充分驗證，不能以外部瀏覽器 PASS 結案。
+C01/C02 的固定整合矩陣為上表四個 cells；每類帳號的 Google／工號路徑使用同一核准身分，並在每次操作前透過既有登出建立新流程，避免直接沿用 Platform session 而跳過指定起手。首次綁定的 pending／active 與 CAS 測試由 [Platform QA §9](../../../Jenfu-Platform/ai-doc/qa/DEV-014-managed-identity-production-activation-validation-plan.md#dev014-login-qa) 的八個 identity cells 持有，PDM 不再建一套 bridge 測試、不重置永久 binding。Platform QA014-LOGIN-06 直接引用本節同 source／環境／fixture evidence；manifest 按 case＋cell 引用同一證據，不重複計數。每筆須標記 provider real／stub，只有真實受控 provider 及正常 target 操作可滿足整合 cell；identity 成功不等於 target 成功。若仍缺原內嵌瀏覽器結果，保留未充分驗證，不能以外部瀏覽器 PASS 結案。
 
 現行 Firebase refresh-token smoke只證明既有 session 路徑，不能證明平台 Google／工號入口；本案不強制修改其憑證或 observation schema。Provider 啟用／網域讀回由實際登入所在的 Platform owner 負責；PDM SSO 不以自己的直接 Google provider readiness 作 release 前提。
+
+驗證順序改為風險式最小路徑：release前重用未漂移的source／schema／producer conformance、local transaction／deny-path與provider設定readback；由既有owner workflow對exact artifact build一次並部署。staging real-provider evidence若已存在可重用，但不是必備。正式canonical啟用後立即執行C01／C02四格、無assignment／inactive／revoked等拒絕路徑與reload／logout；缺必要principal或provider互動時標`feature verification pending`，不得把deploy或HTTP 200當功能PASS。已在本次release授權內的驗證與promotion不再要求第二次批准。
 
 Production 功能完成需實際 canonical、exact artifact／revision、受控 test principal、操作／畫面及 redacted 結果。使用者原始內嵌瀏覽器問題需保留適用環境結果；其他瀏覽器或 local mock 成功不能冒充。無法安全完成 provider 互動／缺 owner implementation 時保留未充分驗證，不預填 PASS。
 
 ## 8. 派工、完成與文件治理
 
-- **118-A 已完成本地 coding 與 focused local QA**：118-B 已依兩專案文件授權登錄 Platform `DEV-014 / 014-LOGIN`；下一步閉合其工程契約，再依實作授權執行。文件完成不等於產品實作或測試授權；production 仍由 118-C gate 進入。
+- **118-A 已完成本地 coding 與 focused local QA**：118-B 已完成Platform／OrgMaster local implementation gate並定案LOGIN-R1。DEV-118狀態改為`Validation Pending`；下一步是明確release指令後由118-C protected release執行production provider／target驗證，不再等待staging fixture manifest。
 - 本 DEV 從原獨立「直接 Google 修復交付點」收斂為既有身分／SSO 交付的**開發點**，不新增產品交付分母。原 scope 被取代，不記已完成；DEV-013 已有成果不重複計入 DEV-118。
-- `架構定案` 僅適用 §4 的 PDM 入口切片；不宣稱 Platform 雙入口的 mapping／API／provider 實作已定案。B 的缺口不阻塞 A 本地設計，但阻塞 C01/C02 與完整需求交付。
+- `架構定案` 現涵蓋 §4 的 PDM 入口與 §6 所引用Platform／OrgMaster LOGIN-R1工程契約；不代表已通過production雙入口驗收或provider可用。B local gate已交付，C01／C02是release completion evidence，不再是開發阻塞。
 - A 實作可決定局部 helper 命名、測試組織與樣式；不得改變入口模式、provider／identity／permission authority 或偷加 release 契約。需改 SSO wire schema、DB、shared credential、跨 repo source、平台 alias authority 時，停止受影響切片並回送 owner 規劃。
 - 文件與既有 active SPEC 的一致性：DEV-003 §4.1 同步 Free／Google 與 alias authority；`SPEC-PDM-ACCOUNT-LIFECYCLE-001` 保留原 local account 與 provider invitation／recovery 邊界，不把邀請 email 解讀為 Free 登入必要條件；任務板、map、cold-start 同步。Platform DEV-014、ADR-004、QA-014 與索引同步承接。DEV-046 歷史、Platform ADR-002／ADR-003／DEV-013 與 DEV-117 authority 保留，不重寫歷史 QC。
-- 118-A 證據：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-17T00-48-58-748Z/manifest.json`；含 source revision／dirty fingerprint、loading／SSO ready／unavailable／managed compatibility、三 viewport、console/page error sweep、port／Next dist／next-env cleanup PASS。此 local fixture 不宣稱 Platform provider、跨 app SSO 或 production 已通過。
+- 118-A 最新browser證據：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-21T03-13-12-373Z/manifest.json`，綁定HEAD `4de5cdc1f6452ae153d91ddb04bde2c255b8377d`與dirty fingerprint `7defab02835b80a41ccf3e65902400a6f7f5e4533bd2ae18fa760cad13488415`，30/30，含10秒deadline、畸形response、鍵盤retry、late response、三種實際viewport與safe returnTo入口；typecheck、affected lint與isolated build亦PASS。舊`2026-09-17T11-45-14-880Z`與`00-48-58-748Z`保留歷史。只驗正常PDM登入頁、mode外部依賴fixture與SSO start目的地，不宣稱Platform provider、跨app SSO或production已通過。

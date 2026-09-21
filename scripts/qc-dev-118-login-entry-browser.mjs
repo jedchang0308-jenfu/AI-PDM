@@ -10,7 +10,8 @@ const root = process.cwd();
 const runId = `DEV118-browser-${new Date().toISOString().replace(/[:.]/gu, "-")}`;
 const outputDir = path.join(root, "output", "qa", "dev-118-login-entry", runId);
 const screenshotDir = path.join(outputDir, "screenshots");
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-pdm-dev118-browser-"));
+const tempParent = path.resolve(process.env.PDM_QC_TEMP_ROOT || os.tmpdir());
+const tempRoot = fs.mkdtempSync(path.join(tempParent, "ai-pdm-dev118-browser-"));
 const dataDir = path.join(tempRoot, "data");
 const repositoryDir = path.join(dataDir, "repository");
 const nextDistDir = path.join(".tmp", `qc-next-dev118-${runId}`);
@@ -24,6 +25,12 @@ const consoleErrors = [];
 let app = null;
 let browser = null;
 let port = null;
+const runtimeDeclaration = { project: root, purpose: "DEV-118 login entry browser evidence", port: null, owningProcessTree: { runnerPid: process.pid, nextPid: null }, PDM_DATA_DIR: dataDir, PDM_REPOSITORY_DIR: repositoryDir, cleanupCondition: "after browser evidence and port release", mutationScope: [tempRoot, path.resolve(root, nextDistDir)] };
+const primarySnapshot = () => fs.existsSync(path.join(root, "data", "ai-pdm.sqlite"))
+  ? JSON.parse(execFileSync(process.execPath, ["scripts/dev-087-primary-snapshot.mjs"], { cwd: root, encoding: "utf8" }))
+  : { exists: false };
+const primaryBefore = primarySnapshot();
+let primaryAfter = null;
 
 function gitText(args) {
   try {
@@ -69,11 +76,13 @@ function modeBody(overrides = {}) {
   };
 }
 
-async function visitLogin(context, viewport, routeHandler, monitorOptions) {
-  const page = await context.newPage({ viewport });
+async function visitLogin(context, viewport, routeHandler, monitorOptions, configurePage, loginQuery = "") {
+  const page = await context.newPage();
+  await page.setViewportSize(viewport);
   monitor(page, monitorOptions);
+  if (configurePage) await configurePage(page);
   await page.route("**/api/auth/mode", routeHandler);
-  await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.goto(`${baseUrl}/login${loginQuery}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("heading", { name: "AI PDM 登入", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   return page;
 }
@@ -93,7 +102,10 @@ try {
   process.env.PDM_PUBLIC_BASE_URL = baseUrl;
   process.env.PDM_RELEASE_MODE = "local_stub";
   process.env.PDM_NEXT_DIST_DIR = nextDistDir;
+  runtimeDeclaration.port = port;
+  console.log(JSON.stringify({ runtimeDeclaration }));
   app = startNextApp(root, "dev", port);
+  runtimeDeclaration.owningProcessTree.nextPid = app.child.pid;
   await waitForNextAppReady(baseUrl, app.getOutput, 90_000);
 
   browser = await chromium.launch({ headless: true });
@@ -123,6 +135,86 @@ try {
   await unavailablePage.screenshot({ path: path.join(screenshotDir, "sso-unavailable-390x844.png"), fullPage: true });
   await unavailablePage.close();
 
+  // A03: malformed mode responses must never expose a direct-login fallback.
+  const missingSso = modeBody();
+  delete missingSso.ssoHandoffEnabled;
+  for (const [name, body] of [
+    ["missing SSO field", JSON.stringify(missingSso)],
+    ["unknown mode", JSON.stringify(modeBody({ authMode: "unknown" }))],
+    ["invalid SSO field", JSON.stringify(modeBody({ ssoHandoffEnabled: "true" }))],
+    ["incomplete Firebase config", JSON.stringify(modeBody({ firebase: { config: { apiKey: "fixture-only" } } }))],
+    ["non-JSON response", "not-json"],
+    ["null response", "null"]
+  ]) {
+    const invalidPage = await visitLogin(context, { width: 748, height: 698 }, (route) => route.fulfill({ status: 200, contentType: "application/json", body }));
+    await invalidPage.locator('.login-panel [role="alert"]').waitFor({ state: "visible" });
+    check(`${name} fails closed`, await invalidPage.locator(".login-form").count() === 0 && await invalidPage.getByRole("button", { name: "使用鉦富平台登入", exact: true }).count() === 0);
+    await invalidPage.close();
+  }
+
+  // Only the external /mode transport is delayed. The real client deadline,
+  // retry control and generation guard execute in the compiled application.
+  let retryRequests = 0;
+  const recoveryPage = await visitLogin(context, { width: 748, height: 698 }, (route) => {
+    retryRequests += 1;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(modeBody()) });
+  }, {}, async (page) => {
+    await page.addInitScript(() => {
+      const originalFetch = window.fetch.bind(window);
+      const oldModeRequests = [];
+      window.__dev118ReleaseOldMode = () => oldModeRequests.forEach((resolve) => resolve(new Response(JSON.stringify({ authMode: "managed", ssoHandoffEnabled: false, localQuickLogin: false, googleOAuth: { enabled: false }, firebase: { config: null } }), { status: 200 })));
+      window.fetch = (input, init) => {
+        if (input === "/api/auth/mode" && !window.__dev118AllowModeRetry) {
+          window.__dev118ModeSignal = init?.signal;
+          // Simulate a transport/body completion that arrives after abort.
+          return new Promise((resolve) => { oldModeRequests.push(resolve); });
+        }
+        return originalFetch(input, init);
+      };
+    });
+  });
+  await recoveryPage.locator('.login-panel [role="alert"]').waitFor({ state: "visible", timeout: 15_000 });
+  check("mode request times out and aborts transport", await recoveryPage.evaluate(() => window.__dev118ModeSignal?.aborted === true));
+  check("timeout keeps direct login unavailable", await recoveryPage.locator(".login-form").count() === 0);
+  await recoveryPage.evaluate(() => { window.__dev118AllowModeRetry = true; });
+  const retryButton = recoveryPage.getByRole("button", { name: "重新取得登入設定", exact: true });
+  await retryButton.focus();
+  await recoveryPage.keyboard.press("Enter");
+  await recoveryPage.getByRole("button", { name: "使用鉦富平台登入", exact: true }).waitFor({ state: "visible" });
+  check("keyboard retry makes one new request and recovers", retryRequests === 1 && await recoveryPage.locator('.login-panel [role="alert"]').count() === 0);
+  await recoveryPage.evaluate(async () => {
+    window.__dev118ReleaseOldMode();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  check("late response cannot replace recovered SSO state", await recoveryPage.getByRole("button", { name: "使用鉦富平台登入", exact: true }).count() === 1 && await recoveryPage.locator(".login-form").count() === 0);
+  await recoveryPage.screenshot({ path: path.join(screenshotDir, "retry-recovered-748x698.png"), fullPage: true });
+  await recoveryPage.close();
+
+  // A05/A06: exercise the existing entry button and both return-path cases.
+  for (const [viewport, returnTo] of [
+    [{ width: 1440, height: 900 }, "/drawings?tab=recent"],
+    [{ width: 390, height: 844 }, "https://outside.example/"]
+  ]) {
+    const navigationPage = await visitLogin(context, viewport, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(modeBody()) }), {}, undefined, `?returnTo=${encodeURIComponent(returnTo)}`);
+    const entry = navigationPage.getByRole("button", { name: "使用鉦富平台登入", exact: true });
+    await entry.waitFor({ state: "visible" });
+    check(`SSO viewport ${viewport.width} has no overflow`, await navigationPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+    await navigationPage.screenshot({ path: path.join(screenshotDir, `sso-ready-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    let entryUrl = null;
+    await navigationPage.route("**/api/auth/jenfu-sso/start?**", async (route) => {
+      entryUrl = route.request().url();
+      await route.fulfill({ status: 200, contentType: "text/html", body: "<main>SSO entry fixture</main>" });
+    });
+    await entry.focus();
+    await navigationPage.keyboard.press("Tab");
+    await navigationPage.keyboard.press("Shift+Tab");
+    check(`SSO button ${viewport.width} remains keyboard reachable`, await entry.evaluate((element) => element === document.activeElement));
+    await navigationPage.keyboard.press("Enter");
+    await navigationPage.waitForURL("**/api/auth/jenfu-sso/start?**");
+    check(`SSO button ${viewport.width} enters existing start with safe returnTo`, entryUrl !== null && new URL(entryUrl).searchParams.get("returnTo") === (returnTo.startsWith("/") ? returnTo : "/"), JSON.stringify({ entryUrl, actualUrl: navigationPage.url(), requestedReturnTo: returnTo }));
+    await navigationPage.close();
+  }
+
   const retryPage = await visitLogin(context, { width: 390, height: 844 }, async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ...modeBody(), ssoHandoffEnabled: false, authMode: "managed", googleOAuth: { enabled: false, provider: "legacy" } }) });
   });
@@ -146,7 +238,8 @@ try {
     else process.env[key] = originalEnv[key];
   }
   const resolvedTempRoot = path.resolve(tempRoot);
-  if (resolvedTempRoot.startsWith(path.resolve(os.tmpdir()))) fs.rmSync(resolvedTempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  if (resolvedTempRoot.startsWith(`${tempParent}${path.sep}`)) fs.rmSync(resolvedTempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  checks.push({ name: "temporary data root removed", pass: !fs.existsSync(resolvedTempRoot), detail: resolvedTempRoot });
   const resolvedDistDir = path.resolve(root, nextDistDir);
   const resolvedTmp = path.resolve(root, ".tmp");
   const distPathSafe = resolvedDistDir.startsWith(`${resolvedTmp}${path.sep}`);
@@ -160,6 +253,8 @@ try {
   }
   const nextEnvRestored = nextEnvBefore === null ? !fs.existsSync(nextEnvPath) : fs.existsSync(nextEnvPath) && Buffer.compare(fs.readFileSync(nextEnvPath), nextEnvBefore) === 0;
   checks.push({ name: "next-env source file restored", pass: nextEnvRestored, detail: nextEnvPath });
+  primaryAfter = primarySnapshot();
+  checks.push({ name: "primary schema identities residue and foreign keys unchanged", pass: JSON.stringify(primaryBefore) === JSON.stringify(primaryAfter) });
 }
 
 const failedChecks = checks.filter((item) => !item.pass);
@@ -180,8 +275,11 @@ const manifest = {
   failures,
   productionConnected: false,
   productionMutation: false,
-  fixture: "mode response only; no successful session injected",
-  runtimeDeclaration: { project: root, purpose: "DEV-118 login entry browser evidence", port, PDM_DATA_DIR: dataDir, PDM_REPOSITORY_DIR: repositoryDir, cleanupCondition: "after browser evidence and port release", mutationScope: tempRoot }
+  fixture: "mode response/transport and SSO start destination only; no successful session injected",
+  browserVersion: browser?.version(),
+  primaryBefore,
+  primaryAfter,
+  runtimeDeclaration
 };
 fs.mkdirSync(outputDir, { recursive: true });
 fs.writeFileSync(path.join(outputDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
