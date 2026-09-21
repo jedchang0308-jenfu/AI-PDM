@@ -128,6 +128,7 @@ Owner：Dev PM
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
+- DEV-120 / Platform `DEV-013 / 013-R1-P_BOTH-AIPDM-SESSION-TTL` 已完成 AI-PDM target session expiry 修正與本機驗證。Production P_BOTH 首次切換後，Platform→AI-PDM normal entry 可免再次輸入密碼，但 callback 錯把約 5 分鐘的 handoff assertion expiry 當成 target session 上限，稍後受保護 API 回 401；production 已安全回切 `orgmaster_authority:4 → legacy_authority:5`。修正後 target session 僅取 `min(now + 8h, sourceSessionExpiresAt)`，assertion expiry仍只負責 callback freshness。`test:dev-013` 4／4、`test:dev-013:l3` 17／17、typecheck、DB boundary、isolated build均PASS；production deploy、再次 authority switch、完整L4與global logout=`NOT_RUN`，待新exact release revision與授權。
 - DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging package v2：provider-read baseline traffic／deletion-protection plan、三組既有 Secret 一對一 numeric pinning migration、bootstrap／owner receipt v2，以及只建立 artifact repository／evidence bucket／exact IAM 的 app-owned Infra A exact plan gate；終態=`READY_FOR_NONPROD_APPLY`。Current exact read-only preflight確認`ai-pdm-stg`與runtime identity存在，deterministic origin=`https://ai-pdm-stg-1055054506544.asia-east1.run.app`、ready revision=`ai-pdm-stg-00004-pvm`、`latest=100%`且deletion protection=false；service labels仍為DEV-010、三組Secret仍指向`latest`，DEV-013 repository／evidence bucket尚未建立。計畫僅允許etag-bound `traffic,deletionProtection`且template／labels／siblings=0；所有雲端 mutation與 L3 browser 均未授權且`NOT_RUN`。
 - DEV-118 / 118-A 已完成 PDM 本地登入入口實作與 focused QA/QC；目前沒有可在 AI-PDM 先行替代 118-B 的工作。
   118-B 已登錄 Platform `DEV-014 / 014-LOGIN`，維持 `RD Contract Ready / Implementation NOT_RUN`。Workspace／Free 共用 Google，pending 首次綁定重用 OrgMaster bridge，工號不回傳 pre-auth login_hint。平台唯一契約 §18.5 的 G1～G4 待閉合；PDM 只驗 target，不重做 bridge／provider probe。Authority 為
@@ -1619,6 +1620,16 @@ Owner：Dev PM
 ### 任務索引
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
+
+- ◇ DEV-120 [開發點] [Local Fix Complete / Protected Production Release Pending] [P0] [DEV-013 P_BOTH] target session expiry 不得受 handoff assertion TTL 截短
+  - 摘要：Platform `DEV-013` production P_BOTH 切換已證明 AI-PDM normal entry 可在不再輸入密碼下建立本地session，但舊callback將 `handoff.expiresAt` 一併放入session expiry的最小值，使約5分鐘的單次assertion壽命誤成應用session壽命，稍後 `/api/numbering/permissions` 等受保護API回401。依Platform契約，target session expiry固定為 `min(now + appMaxAge, sourceSessionExpiresAt)`；assertion `expiresAt`僅在callback parse時驗證freshness。
+  - 來源 ID：Platform `DEV-013 / 013-R1-P_BOTH-AIPDM-SESSION-TTL`。
+  - 變更：`src/lib/jenfu-sso-handoff.ts`新增集中計算器與8小時app上限，callback不再用assertion expiry截短session；`src/lib/jenfu-sso-handoff.test.ts`鎖定8小時上限、較早source session上限及過期source拒絕。
+  - Production事實：固定catalog `ai-pdm.role-catalog.2026-09-03.v3`已發布；`employee-shijie / ai-pdm`曾由`legacy_authority:3`切至`orgmaster_authority:4`，發現TTL缺陷後已以可驗證receipt回切`legacy_authority:5`。兩個exact Cloud Run Jobs均已刪除；未修改schema、migration、service、traffic、IAM或Secret。
+  - 驗證：`npm run test:dev-013` 4／4 PASS；`npm run test:dev-013:l3` 17／17 PASS；`npm run typecheck:app`、`npm run check:db-boundary`、`npm run build:isolated` PASS，isolated build artifact／primary invariant／cleanup均為true。
+  - 下一步：合併clean exact revision後，依DEV-117 owner-native protected release為`ai-pdm-prod`建立immutable artifact並發布；再以新authority versions重新切換單一employee，完成Platform→AI-PDM持續session、permission surface、global logout與rollback readback。未完成前不得宣稱DEV-013完成。
+  - 證據：[DEV-120 QC receipt](qc/qc-dev-120-dev013-target-session-expiry-2026-09-21.md)。
+  - 計入交付：否；這是DEV-013 production defect correction，完整Production L4通過後由Platform DEV-013計一次。
 
 - ✓ DEV-119 [開發點] [013-S4-L3-AIPDM-ENV READY_FOR_NONPROD_APPLY] [P0] [Shared staging only] DEV-013 owner-native staging release adapter
   - 摘要：沿用 `jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg`；先以 app-owned Infra A exact plan建立repository／evidence boundary，再以Cloud Run v2 readback把既有`latest=100%`固定至exact ready revision並啟用deletion protection，通過provider hard join後才將三組既有Secret的baseline `latest`經enabled metadata readback轉成numeric-pinned候選、traffic-only activation與hard join，產生`TARGET_BOOTSTRAP_READY`供Platform建立；其後以 clean committed source、immutable digest、Cloud Run provider etag與IAM service-account `uniqueId`建立 `off revision → hard join rollback floor → on revision → hard join → traffic-only activation → post-activation hard join` 的 owner-native release lane。
