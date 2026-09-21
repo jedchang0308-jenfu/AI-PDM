@@ -133,7 +133,7 @@ export class JenfuEntitlementRepository {
           AND employee_id = :employeeId
         ORDER BY stable_role_id ASC, assignment_id ASC
         LIMIT 33
-      `, input);
+      `, { ...input, applicationId });
     } catch {
       throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
     }
