@@ -4,6 +4,8 @@
 
 ## Active Repo
 
+> **2026-09-22 DEV-118 current checkpoint**：AI-PDM exact source `68d019d93d267cf284ea8aba637f305558d9048e`已由owner run `35592944590`發布至`ai-pdm-prod-face545d349c`並承接100% traffic；Platform／OrgMaster migrations、DWD與admission完成，Firebase Google provider Admin API readback=`enabled=true`。Platform canonical-first correction發布後，受控Workspace帳號已從Platform normal entry建立session並免二次登入進入AI-PDM；target reload後`/api/auth/me`與`/api/admin/accounts`皆200，`orgmaster_authority:6 / role-system-admin / accounts.lifecycle.manage`判定allowed。此為C03-like Workspace target partial evidence；LOGIN六案、C01／C02四格、Free、deny-path與global logout仍待驗證，未完成前不得標`LIVE_VERIFIED`。
+
 - Active repo：`C:\VIBE CODING\AI_PDM`
 - 文件中心：`.ai-doc`
 - 不要預設讀取整個 `.ai-doc/specs`、`.ai-doc/qa`、`.ai-doc/qc`、`.ai-doc/reports` 或 `.ai-doc/archived`。
@@ -41,7 +43,7 @@
 
 ## Current Dispatch Boundary
 
-- `DEV-118 / 118-A` 已完成PDM本地實作與focused QA/QC；118-B已完成Platform `DEV-014 / 014-LOGIN`與OrgMaster `DEV-049`的local implementation gate（Platform R1～R5 source closure、62 focused tests、LOGIN PG 5／5、S2 7／7；OrgMaster owner receipt、migration 013、CAS／barrier、contract／PG／browser local evidence）。依2026-09-18風險式發布修訂，任務由`Blocked`改為`Validation Pending`；production provider／target尚未驗收，本輪文件指令未啟動release。
+- `DEV-118 / 118-A` 本地實作與focused QA/QC完成；118-B跨專案工程契約、migration、DWD與admission完成；118-C Production owner release與Firebase Google provider啟用完成；Workspace Platform→AI-PDM免二次登入、reload與管理權限已取得partial evidence。現行狀態=`Production Released / Provider Enabled / Workspace Partial Browser Evidence / Full Browser Validation Pending`。
   續行audit已修正A03漏驗的10秒timeout／缺欄位／retry與late response，並修正真正viewport設定；2026-09-21以`4de5cdc1`＋dirty fingerprint `7defab02…`重跑browser 30/30、typecheck、affected lint 0 error及isolated build PASS，見[118-A QC最新修正](qc/qc-dev-118-local-implementation-2026-09-17.md)。Platform owner evidence現已記錄R1～R5 source closure與62／62 targeted gate，OrgMaster DEV-049 owner receipt已交付；[118-B交接複審](qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)將production provider／target與完整六案保留為NOT_RUN，歷史staging helper的BLOCKED不再是開發或release entry阻塞。
   先讀 [DEV-118 SPEC](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md) §§1–5；
   2026-09-17 決策：SSO 啟用後 PDM 只提供平台主入口；Google／工號是同一核准身分的兩種起手方式。
