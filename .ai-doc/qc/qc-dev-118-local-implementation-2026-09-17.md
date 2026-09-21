@@ -60,6 +60,8 @@ Platform／OrgMaster local implementation已由118-B owner evidence交付；本r
 
 最新browser manifest：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-21T03-13-12-373Z/manifest.json`。Chromium `148.0.7778.96`，source HEAD=`4de5cdc1f6452ae153d91ddb04bde2c255b8377d`，dirty fingerprint=`7defab02835b80a41ccf3e65902400a6f7f5e4533bd2ae18fa760cad13488415`；30/30 PASS、typecheck PASS、affected lint 0 error／2既有Next.js navigation warning、isolated build PASS。驗證以相同HEAD的clean release worktree暫時覆蓋八個exact dirty files，先比對binary diff一致，完成後逐位元還原並證明worktree clean；port `63503`、task data、Next dist及temporary runtime project均已清理。`2026-09-17T11-45-14-880Z`保留為前次PASS歷史。
 
+2026-09-21 current-source convergence：上述 manifest 執行時的八個 dirty paths，與目前 HEAD `fc7354867876ca0c2ab33bdd9a7280e803063d9b` 的 commit file set 完全一致；因此 browser 30/30 所覆蓋的產品／runner內容已被該 commit 收斂。現行 canonical worktree 重新執行 `npm run qc:dev-118:contract` 為 10/10 PASS。由於該 worktree 的 `node_modules` 未安裝，未以不完整依賴重算 typecheck／browser；這不改變既有 exact-content browser receipt，也不擴張為 provider、production 或 118-C PASS。
+
 失敗保留：`11-40-29-850Z`因alert locator同時命中Next route announcer而FAIL；`11-43-15-574Z`的導向斷言FAIL。runner分別改為登入panel scoped alert、從含returnTo的正常登入URL起手並記實際目的URL；最新才為PASS，未修改產品導航或刪除失敗receipt。
 
 Cleanup：三次browser的own runner／Next tree已退出，55517／64933／53351無listener；task-owned data／Next dist已刪除，next-env還原。build own copy已刪除，governor runtime與capacity leases已釋放。repo預設`data/ai-pdm.sqlite`在前後皆不存在（`PDM_DATA_DIR=./data`），所以primary evidence只證明沒有建立或寫入該資料庫，不冒充既有正式資料驗證。未存入成功session、未連線production。
