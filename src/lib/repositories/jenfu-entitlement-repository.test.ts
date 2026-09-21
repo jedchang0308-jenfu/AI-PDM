@@ -51,17 +51,24 @@ type FakeClientOptions = {
   assignmentRows?: unknown[];
   failAuthority?: boolean;
   failAssignments?: boolean;
+  requireApplicationIdParam?: boolean;
 };
 
 function fakeClient(options: FakeClientOptions = {}) {
   return {
     kind: "postgres" as const,
-    async query<T>(sql: string): Promise<T[]> {
+    async query<T>(sql: string, params?: unknown): Promise<T[]> {
       if (sql.includes("v_ai_pdm_entitlement_authority_v1")) {
         if (options.failAuthority) throw new Error("authority database unavailable");
         return (options.authorityRows ?? [authorityRow]) as T[];
       }
       if (options.failAssignments) throw new Error("assignment database unavailable");
+      if (options.requireApplicationIdParam) {
+        const named = params && typeof params === "object" && !Array.isArray(params)
+          ? params as Record<string, unknown>
+          : {};
+        if (named.applicationId !== "ai-pdm") throw new Error("POSTGRES_NAMED_PARAMETER_MISSING: applicationId");
+      }
       return (options.assignmentRows ?? [assignment]) as T[];
     },
     async queryOne<T>(): Promise<T | null> { return null; },
@@ -126,6 +133,11 @@ describe("DEV-005 EntitlementRepository", () => {
     }).evaluatePermission({ actor, permissionKind: "page", permissionCode: "numbering.request" });
     expect(result.decisionCode).toBe("legacy_authority");
     expect(result.assignments).toHaveLength(0);
+  });
+
+  it("binds the default application id when reading effective assignments", async () => {
+    await expect(repository({ requireApplicationIdParam: true }).listEffectiveAssignments(actor))
+      .resolves.toHaveLength(1);
   });
 
   it("fails closed when authority is missing, duplicated, or unavailable", async () => {
