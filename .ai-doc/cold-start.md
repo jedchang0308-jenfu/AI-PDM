@@ -4,7 +4,7 @@
 
 ## Active Repo
 
-> **2026-09-22 DEV-118 current checkpoint**：AI-PDM main `6e21bb4c2f39d4b4777320d202a2037bde609b00`已由owner run `35669545522`發布至`ai-pdm-prod-f5ee2af2d7ec`，image=`sha256:fee7d3e6f653e29332a77a87ca53fa897b76aed215dcdee54f16fd585fde10bd`且100% traffic；十個owner stages、15筆migration replay與current conformance均PASS。Workspace Google-first及`JFS0005`工號起手皆完成Platform session、AI-PDM handoff／reload、`/api/admin/accounts`與`accounts.lifecycle.manage`，DEV-118明確local logout入口在current UI可見。Platform global logout回200後，AI-PDM `/api/auth/me`、accounts及permissions均401。這證明`PDM-W-G`、`PDM-W-E`與global invalidation；現有7個有效Google Admin使用者都不是Free-only／無Gmail fixture，negative／rate／race cells亦未齊，C01／C02四格與LOGIN六案不得標full PASS。
+> **2026-09-22 DEV-118 current checkpoint**：AI-PDM main `6e21bb4c2f39d4b4777320d202a2037bde609b00`已由owner run `35669545522`發布至`ai-pdm-prod-f5ee2af2d7ec`，image=`sha256:fee7d3e6f653e29332a77a87ca53fa897b76aed215dcdee54f16fd585fde10bd`且100% traffic；十個owner stages、15筆migration replay與current conformance均PASS。Workspace Google-first及`JFS0005`工號起手皆完成Platform session、AI-PDM handoff／reload、`/api/admin/accounts`與`accounts.lifecycle.manage`，DEV-118明確local logout入口在current UI可見。Platform global logout回200後，AI-PDM `/api/auth/me`、accounts及permissions均401。AI-PDM local logout另以POST=200、protected APIs 401及Platform session免Google重驗重新handoff=200證明target-only session撤銷。這證明`PDM-W-G`、`PDM-W-E`與global invalidation；現有7個有效Google Admin使用者都不是Free-only／無Gmail fixture，negative／rate／race cells亦未齊，C01／C02四格與LOGIN六案不得標full PASS。
 
 - Active repo：`C:\VIBE CODING\AI_PDM`
 - 文件中心：`.ai-doc`
