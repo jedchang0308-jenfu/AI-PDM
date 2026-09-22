@@ -4,7 +4,7 @@
 
 ## Active Repo
 
-> **2026-09-22 DEV-118 current checkpoint**：AI-PDM exact source `68d019d93d267cf284ea8aba637f305558d9048e`已由owner run `35592944590`發布至`ai-pdm-prod-face545d349c`並承接100% traffic；Platform／OrgMaster migrations、DWD與admission完成，Firebase Google provider Admin API readback=`enabled=true`。Platform canonical-first correction發布後，受控Workspace帳號已從Platform normal entry建立session並免二次登入進入AI-PDM；target reload後`/api/auth/me`與`/api/admin/accounts`皆200，`orgmaster_authority:6 / role-system-admin / accounts.lifecycle.manage`判定allowed。此為C03-like Workspace target partial evidence；LOGIN六案、C01／C02四格、Free、deny-path與global logout仍待驗證，未完成前不得標`LIVE_VERIFIED`。
+> **2026-09-22 DEV-118 current checkpoint**：AI-PDM main `6e21bb4c2f39d4b4777320d202a2037bde609b00`已由owner run `35669545522`發布至`ai-pdm-prod-f5ee2af2d7ec`，image=`sha256:fee7d3e6f653e29332a77a87ca53fa897b76aed215dcdee54f16fd585fde10bd`且100% traffic；十個owner stages、15筆migration replay與current conformance均PASS。Workspace由Platform normal entry免二次登入進入AI-PDM，reload、`/api/admin/accounts`與`accounts.lifecycle.manage`通過，DEV-118明確local logout入口在current UI可見。Platform global logout回200後，AI-PDM `/api/auth/me`、accounts及permissions均401。這證明`PDM-W-G`與global invalidation；Workspace工號callback、Cloud Identity Free及negative／race cells仍未齊，C01／C02四格與LOGIN六案不得標full PASS。
 
 - Active repo：`C:\VIBE CODING\AI_PDM`
 - 文件中心：`.ai-doc`

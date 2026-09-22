@@ -16,7 +16,7 @@
 >
 > 2026-09-22 partial Production browser evidence：Platform source `63395409f8ac1abc7b7fd2a3149c7944e0265d73`發布至`jenfu-platform-prod-a5ca329fffe2`後，受控Workspace帳號從Platform normal entry成功建立session；Portal→AI-PDM launch=307、callback=303，target `/api/auth/me`在reload前後皆200、`/api/admin/accounts`=200，authorization=`orgmaster_authority:6 / role-system-admin / accounts.lifecycle.manage / allowed`。UI顯示`employee-shijie`及系統管理員帳號。此流程可作C03-like target partial evidence，但不是從PDM CTA起手的C01／C02，也未覆蓋Free、deny-path或global logout，故不增加四格PASS數。
 
-> 2026-09-22 local logout correction：上述Production browser檢查另發現已登入側欄帳號入口只連到`/login`，沒有結束AI-PDM本地session；因此從PDM CTA起手的C01／C02會直接沿用既有session。Current source改以明確操作呼叫既有`POST /api/auth/logout`，成功後才進入`/login?reason=local-logout`，失敗保留session並提供可觀察錯誤。Focused contract=`14/14 PASS`、authenticated real-browser=`33/33 PASS`、`typecheck:app=PASS`；run=`DEV118-browser-2026-09-21T22-24-37-833Z`。此更正尚未發布，Production功能狀態不變，LOGIN full、C01／C02、Free、deny-path與global logout仍待驗證。
+> 2026-09-22 local logout correction（歷史 pre-release checkpoint；current由§9取代）：上述Production browser檢查發現已登入側欄帳號入口只連到`/login`，沒有結束AI-PDM本地session；因此修正為明確呼叫既有`POST /api/auth/logout`，成功後才進入`/login?reason=local-logout`，失敗保留session並提供可觀察錯誤。Focused contract=`14/14 PASS`、authenticated real-browser=`33/33 PASS`、`typecheck:app=PASS`；run=`DEV118-browser-2026-09-21T22-24-37-833Z`。此修正現已由owner run `35669545522`發布；完整LOGIN、C01／C02四格、Free與拒絕路徑仍待驗證。
 
 ## 1. 本次已確認的產品決策
 
@@ -239,3 +239,7 @@ Production 功能完成需實際 canonical、exact artifact／revision、受控 
 - A 實作可決定局部 helper 命名、測試組織與樣式；不得改變入口模式、provider／identity／permission authority 或偷加 release 契約。需改 SSO wire schema、DB、shared credential、跨 repo source、平台 alias authority 時，停止受影響切片並回送 owner 規劃。
 - 文件與既有 active SPEC 的一致性：DEV-003 §4.1 同步 Free／Google 與 alias authority；`SPEC-PDM-ACCOUNT-LIFECYCLE-001` 保留原 local account 與 provider invitation／recovery 邊界，不把邀請 email 解讀為 Free 登入必要條件；任務板、map、cold-start 同步。Platform DEV-014、ADR-004、QA-014 與索引同步承接。DEV-046 歷史、Platform ADR-002／ADR-003／DEV-013 與 DEV-117 authority 保留，不重寫歷史 QC。
 - 118-A 最新browser證據：`output/qa/dev-118-login-entry/DEV118-browser-2026-09-21T03-13-12-373Z/manifest.json`，綁定HEAD `4de5cdc1f6452ae153d91ddb04bde2c255b8377d`與dirty fingerprint `7defab02835b80a41ccf3e65902400a6f7f5e4533bd2ae18fa760cad13488415`，30/30，含10秒deadline、畸形response、鍵盤retry、late response、三種實際viewport與safe returnTo入口；typecheck、affected lint與isolated build亦PASS。舊`2026-09-17T11-45-14-880Z`與`00-48-58-748Z`保留歷史。只驗正常PDM登入頁、mode外部依賴fixture與SSO start目的地，不宣稱Platform provider、跨app SSO或production已通過。
+
+## 9. 2026-09-22 current owner release與Production L4
+
+AI-PDM main `6e21bb4c2f39d4b4777320d202a2037bde609b00`已由owner run `35669545522`發布至`ai-pdm-prod-f5ee2af2d7ec`，image=`sha256:fee7d3e6f653e29332a77a87ca53fa897b76aed215dcdee54f16fd585fde10bd`、traffic=100%。十個owner stages、15筆既有migration replay、terminal與DEV-014 consumer conformance均PASS；DEV-118明確local logout入口已在current Production UI讀回。Workspace Platform→AI-PDM免二次登入、target reload、accounts與`accounts.lifecycle.manage` PASS；Platform global logout後AI-PDM `/api/auth/me`、`/api/admin/accounts`及`/api/numbering/permissions`均401。這認列`PDM-W-G`與global invalidation的current evidence。`PDM-W-E`尚缺工號callback，`PDM-F-G／PDM-F-E`尚缺已核准Cloud Identity Free fixture；C01／C02四格及Platform LOGIN六案仍未full PASS。完整跨app證據見Platform `ai-doc/qc/qc-dev-014-production-l4-2026-09-22.md`。
