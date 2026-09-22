@@ -9,4 +9,4 @@
 
 Workspace從Platform normal entry進入AI-PDM未要求第二次登入；reload、帳號管理與`accounts.lifecycle.manage`均PASS，explicit local logout入口在current UI可見。Platform global logout回200後，AI-PDM `/api/auth/me`、`/api/admin/accounts`與`/api/numbering/permissions`均401。
 
-結論：`PDM-W-G`與global invalidation具current evidence。`PDM-W-E`尚缺Workspace工號callback；`PDM-F-G／PDM-F-E`尚缺已核准Cloud Identity Free fixture。故C01／C02四格與DEV-118 full browser acceptance尚未完成。跨app權威細節見Platform `ai-doc/qc/qc-dev-014-production-l4-2026-09-22.md`。
+Workspace `JFS0005`工號起手亦已完成Google callback、Platform session、AI-PDM handoff／reload與管理權限。Cloud Run logs在current Platform revision讀回`POST /api/auth/login-intents`=201、`POST /api/auth/firebase/session`=200、`GET /api/auth/me`=200；current AI-PDM revision的`GET /api/auth/me`、`/api/numbering/permissions`及`/api/admin/accounts`均200。`PDM-W-G`、`PDM-W-E`與global invalidation具current evidence。Google Admin唯讀盤點確認現有7個有效使用者都同時具有Workspace Business Standard與Cloud Identity Free，沒有Free-only／無Gmail fixture，因此`PDM-F-G／PDM-F-E`及negative／rate／race cells仍未執行。故C01／C02四格與DEV-118 full browser acceptance尚未完成。跨app權威細節見Platform `ai-doc/qc/qc-dev-014-production-l4-2026-09-22.md`。
