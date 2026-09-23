@@ -284,6 +284,29 @@ function normalizeReviewerFixture() {
   } finally { database.close(); }
 }
 
+function normalizeReviewerPermissionFixture() {
+  const database = new Database(dbPath);
+  try {
+    const role = database.prepare("SELECT id FROM roles WHERE role_code = ? AND enabled = 1").get("rd_manager");
+    if (!role) throw new Error("DEV101_REVIEWER_ROLE_FIXTURE_MISSING");
+    const requiredPermissions = ["approval.inbox.view", "approval.request.decide"];
+    const now = new Date().toISOString();
+    const insert = database.prepare(`INSERT INTO role_permissions
+      (id, role_id, permission_kind, permission_code, allowed, created_at, updated_at)
+      VALUES (?, ?, 'action', ?, 1, ?, ?)`);
+    for (const permissionCode of requiredPermissions) {
+      const existing = database.prepare("SELECT id, allowed FROM role_permissions WHERE role_id = ? AND permission_kind = ? AND permission_code = ?").get(role.id, "action", permissionCode);
+      if (existing) {
+        if (Number(existing.allowed) !== 1) throw new Error(`DEV101_REVIEWER_PERMISSION_FIXTURE_DENIED:${permissionCode}`);
+        continue;
+      }
+      const id = `dev101-fixture-rd-manager-action-${permissionCode.replaceAll(".", "-")}`;
+      insert.run(id, role.id, permissionCode, now, now);
+      mutationLedger.push({ method: "FIXTURE", table: "role_permissions", id, roleCode: "rd_manager", permissionKind: "action", permissionCode, before: null, after: 1, purpose: "task-owned compatibility for the current reviewer route contract" });
+    }
+  } finally { database.close(); }
+}
+
 function selectEligiblePart() {
   const database = new Database(dbPath, { readonly: true, fileMustExist: true });
   try {
@@ -345,6 +368,7 @@ try {
   fs.copyFileSync(sourceDbPath, dbPath);
   if (fs.existsSync(path.join(sourceDataDir, "repository"))) fs.cpSync(path.join(sourceDataDir, "repository"), repositoryDir, { recursive: true });
   normalizeReviewerFixture();
+  normalizeReviewerPermissionFixture();
 
   const { preflight, candidate } = selectEligiblePart();
   fixture = candidate;
