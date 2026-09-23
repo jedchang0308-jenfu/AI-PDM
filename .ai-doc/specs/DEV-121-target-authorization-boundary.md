@@ -1,6 +1,6 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
-- 狀態：`RD Implementation In Progress / 架構定案：已定案 / OrgMaster producer 與 AI-PDM PostgreSQL race locally verified`；255 個 API route files／292 個 method 已分類、直接 role gate 為 0；25 個不在 v3 catalog 的 route 字面代碼已逐項收斂為 `deny_or_retire / deny / 403`，route-policy coverage local gate 已通過；normal-entry browser 與 Production L4 為 `NOT_RUN`
+- 狀態：`RD Implementation In Progress / 架構定案：已定案 / OrgMaster producer 與 AI-PDM PostgreSQL race locally verified`；255 個 API route files／292 個 method 已分類、直接 role gate 為 0；25 個不在 v3 catalog 的 route 字面代碼已逐項收斂為 `deny_or_retire / deny / 403`，route-policy coverage local gate 已通過；consumer repository／change-feed contract 已通過，normal-entry browser 受 current fixture schema drift 阻塞，Production L4 為 `NOT_RUN`
 - 日期：2026-09-23
 - Native owner：`AIPDM/DEV-121#target-authorization`
 - 來源：`JENFU/DEV-015#target-authorization`；producer 依賴 `ORGMASTER/DEV-057#identity-grants`
@@ -38,7 +38,7 @@ OrgMaster v3 的 `v_ai_pdm_effective_role_assignments_v1` 直接發布治理 ass
 
 `P01` 無目標 role 不得因 Portal 可見性而取得業務 API；`P02` mapping／assignment／catalog 各自變版不誤拒；`P03` authority switch 與 legacy ACL 共用單一快照；`P04` 缺值／壞版號／缺 verified actor／雙權威拒絕；`P05` Production 缺 enforce mode fail closed、未知 workspace/project scope 拒絕；`P06` manifest、route、typed discriminator、explicit permissionCode、role priority 一致；`P07` callback TTL、session 延續、global／local logout；`P08` v1/v2 相容與 owner rollback；`P09` 每個實際進入 evaluator 的受保護 route permission 均有 owner 記錄的用途與處置：現有 catalog 能力、核定後新增的能力，或刻意拒絕／退役。應開放者須有明確 catalog allow 與可信 resource scope；拒絕者須有 403／410 負向證據。未分類或 runtime 與處置不一致時阻擋 release。
 
-目前 local 證據：AI-PDM focused Vitest `7 files / 42 tests PASS`；`typecheck:app PASS`；`check:db-boundary PASS`；DEV-005 authorization-boundary `62/76/84 PASS`、contract PASS、runtime-boundary PASS；Platform `npm run typecheck PASS`；D121-PG-01／02 隔離 PostgreSQL race PASS；全 API route classification `255 files / 292 methods` 完成且 `directRoleGateFiles=0`。`config/access-control/jenfu-route-policy-dispositions.v1.json` 已建立 25 筆 owner-owned deny disposition；`npm run qc:dev-121:route-classification` 為 `PASS`，`pendingDispositions=[]`，不把任何靜態差異誤當成新 grant。Production L4 與 normal-entry browser 尚未執行，DEV-118 歷史證據不計入本 DEV。
+- 目前 local 證據：AI-PDM focused Vitest `7 files / 42 tests PASS`；repository consumer `4 files / 32 tests PASS`；change-feed consumer `1 file / 5 tests PASS`；`typecheck:app PASS`；`check:db-boundary PASS`；DEV-005 authorization-boundary `62/76/84 PASS`、contract PASS、runtime-boundary PASS；Platform `npm run typecheck PASS`；D121-PG-01／02 隔離 PostgreSQL race PASS；全 API route classification `255 files / 292 methods` 完成且 `directRoleGateFiles=0`。`config/access-control/jenfu-route-policy-dispositions.v1.json` 已建立 25 筆 owner-owned deny disposition；`npm run qc:dev-121:route-classification` 為 `PASS`，`pendingDispositions=[]`，不把任何靜態差異誤當成新 grant。DEV-101 owner-flow v1／v2 各完成 `5/6`：candidate、isolated runtime、port 與 primary snapshot cleanup PASS，但 login 初始化遇到既有 snapshot 缺目前 schema 的 `company_id` 而 fail closed；沒有把它記為 browser PASS。Production L4 與可重現的 normal-entry browser 尚未完成，DEV-118 歷史證據不計入本 DEV。
 
 ### 靜態掃描發現與 role-policy 處置
 
@@ -58,7 +58,7 @@ AI-PDM owner 以 route＋method＋執行期 permission 為單位記錄：用途�
 
 ## Architecture Closure Review 與精確 RD 修改面
 
-審查基線 HEAD `986b12d6c60835073f2662965643b0fa09a95886`；本工作樹原已有 DEV-118／DEV-095 文件修改，本輪沒有清理或覆寫。DEV-121 source changes 尚未提交，不能作 release source lock。前述 handoff 版號、authority／grant 快照、批次 actor／workspace、manifest drift、API route 分類與直接 role gate 已檢查；隔離 PostgreSQL D121-PG-01／02 已通過。25 個字面代碼已完成 deny disposition 與 route-policy QC；仍不可宣告 Production readiness，因 normal-entry browser／consumer conformance／Production L4 尚未完成。
+- 審查基線 HEAD `986b12d6c60835073f2662965643b0fa09a95886`；DEV-121 route-policy source correction 已由 AI-PDM PR #56 merge commit `6ba3963ce5ea035319c7a06c8073c6741412a3ae` 合併；本工作樹仍保留 DEV-095 文件修改，沒有清理或覆寫。前述 handoff 版號、authority／grant 快照、批次 actor／workspace、manifest drift、API route 分類與直接 role gate 已檢查；隔離 PostgreSQL D121-PG-01／02、consumer repository／change-feed tests 已通過。25 個字面代碼已完成 deny disposition 與 route-policy QC；仍不可宣告 Production readiness，因 current fixture schema drift 使 normal-entry browser v1／v2 login cell 各為 5/6，Production L4 尚未完成。
 
 | 實作入口（repo-relative） | 固定契約與終態 |
 | --- | --- |
