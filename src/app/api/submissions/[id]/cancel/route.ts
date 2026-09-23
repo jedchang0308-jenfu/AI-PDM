@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { forbidden, requireAuthAsync } from "@/lib/auth-async";
 import { markDrawingRevisionPackageCancelledForSubmissionAsync } from "@/lib/drawing-revision-packages-async";
-import { canReadSubmissionAsync } from "@/lib/permissions";
+import { canAccessSubmissionCompanyAsync } from "@/lib/permissions";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { cancelPendingSubmissionAsync } from "@/lib/submission-status-async";
 import { getSubmissionAsync } from "@/lib/submissions-async";
 import { resolveLegacyDrawingLifecycleNavigation } from "@/lib/approval-workbench-legacy-redirect";
@@ -38,8 +39,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "submission_not_found", message: "找不到送審資料。" }, { status: 404 });
   }
   const sameCompany = !submission.company_id || submission.company_id === auth.user.company_id;
-  if (!(await canReadSubmissionAsync(auth.user, submission))) {
-    if (sameCompany && auth.user.role === "Engineer") {
+  const [companyAccess, viewPermission, reviewPermission] = await Promise.all([
+    canAccessSubmissionCompanyAsync(auth.user, submission),
+    requireNumberingActionAsync(request, "submission.view"),
+    requireNumberingActionAsync(request, "submission.review")
+  ]);
+  if (!companyAccess || (!viewPermission.permission?.allowed && !reviewPermission.permission?.allowed && submission.submitted_by !== auth.user.id)) {
+    if (sameCompany) {
       return NextResponse.json(
         { error: "cancel_not_allowed", message: "你目前不能取消這筆送審，請由送審建立者、主管或 Admin 處理。" },
         { status: 403 }
@@ -47,7 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     return forbidden();
   }
-  const canCancel = submission.submitted_by === auth.user.id || auth.user.role === "R&D Manager" || auth.user.role === "Admin";
+  const canCancel = submission.submitted_by === auth.user.id || Boolean(reviewPermission.permission?.allowed);
   if (!canCancel) {
     return NextResponse.json(
       { error: "cancel_not_allowed", message: "你目前不能取消這筆送審，請由送審建立者、主管或 Admin 處理。" },

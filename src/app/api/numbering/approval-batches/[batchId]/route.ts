@@ -6,7 +6,7 @@ import {
   getNumberingApprovalBatchAsync,
   resubmitRejectedNumberingApprovalBatchItemsAsync
 } from "@/lib/numbering-async";
-import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { canUserUseNumberingActionAsync, requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
@@ -17,7 +17,7 @@ function reviewerRoleCode(role: string) {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ batchId: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.approvals");
+  const auth = await requireNumberingActionAsync(request, "approval.inbox.view");
   if (auth.response) return auth.response;
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
   if (companyResult.response) return companyResult.response;
@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ batc
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ batchId: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.approvals");
+  const auth = await requireNumberingActionAsync(request, "approval.inbox.view");
   if (auth.response) return auth.response;
 
   const { batchId } = await params;
@@ -57,7 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ba
 
   try {
     if (action === "resubmit_rejected") {
-      const permission = await canUserUseNumberingActionAsync(auth.user, "numbering.approval.batch.resubmit", {
+      const permission = await canUserUseNumberingActionAsync(auth.user, "approval.request.apply", {
         projectCode: batch.projectCode,
         actionCode: batch.actionCode
       });
@@ -76,7 +76,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ba
     if (decision !== "approved" && decision !== "rejected" && decision !== "needs_info") {
       return NextResponse.json({ error: "decision must be approved, rejected, or needs_info" }, { status: 400 });
     }
-    const permission = await canUserUseNumberingActionAsync(auth.user, "numbering.approval.batch.decide", {
+    const permission = await canUserUseNumberingActionAsync(auth.user, "approval.request.decide", {
       projectCode: batch.projectCode,
       actionCode: batch.actionCode
     });

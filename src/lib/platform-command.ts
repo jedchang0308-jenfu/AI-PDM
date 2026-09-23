@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { JenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
 
 export type PlatformAuthProvider = "current_pdm_session" | "local_password" | "google_oauth" | "future_shared_iam";
 
@@ -12,6 +13,10 @@ export type PlatformActorContext = {
   authProvider: PlatformAuthProvider;
   correlationId: string;
   requestId: string;
+  /** In-process verified identity; never serialize this into command/outbox payloads. */
+  authorizationActor?: JenfuVerifiedAuthorizationActor;
+  /** Local legacy role used only while the selected authority is legacy. */
+  legacyRole?: string;
 };
 
 export type PdmCommand<TPayload> = {
@@ -49,6 +54,8 @@ export function createPlatformActorContext(input: {
   requestId?: string;
   principalId?: string;
   platformOrganizationId?: string;
+  authorizationActor?: JenfuVerifiedAuthorizationActor;
+  legacyRole?: string;
 }): PlatformActorContext {
   const pdmUserId = requiredId(input.pdmUserId, "PLATFORM_PDM_USER_ID_REQUIRED");
   const organizationId = requiredId(input.organizationId, "PLATFORM_ORGANIZATION_ID_REQUIRED");
@@ -57,7 +64,7 @@ export function createPlatformActorContext(input: {
     ? requiredId(input.correlationId, "PLATFORM_CORRELATION_ID_INVALID")
     : requestId;
 
-  return {
+  const actor: PlatformActorContext = {
     principalId: requiredId(input.principalId ?? `pdm:${pdmUserId}`, "PLATFORM_PRINCIPAL_ID_INVALID"),
     pdmUserId,
     organizationId,
@@ -71,6 +78,13 @@ export function createPlatformActorContext(input: {
     correlationId,
     requestId
   };
+  if (input.authorizationActor
+    && input.authorizationActor.localPrincipalId === pdmUserId
+    && input.authorizationActor.companyId === organizationId) {
+    Object.defineProperty(actor, "authorizationActor", { value: input.authorizationActor, enumerable: false });
+  }
+  if (input.legacyRole?.trim()) Object.defineProperty(actor, "legacyRole", { value: input.legacyRole.trim(), enumerable: false });
+  return actor;
 }
 
 export function createPdmCommand<TPayload>(input: {

@@ -1,3 +1,5 @@
+import type { JenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
+
 export class NumberStateFlowError extends Error {
   constructor(
     public readonly code: string,
@@ -16,4 +18,5 @@ export type NumberStateActor = {
   companyId: string;
   role: string;
   roles?: string[];
+  authorizationActor?: JenfuVerifiedAuthorizationActor;
 };

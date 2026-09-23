@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { createNumberingApprovalBatchAsync, listNumberingApprovalBatchesAsync } from "@/lib/numbering-async";
-import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import type { ListNumberingApprovalBatchesInput, NumberingApprovalActionCode } from "@/lib/repositories/numbering-repository";
 
 export const runtime = "nodejs";
@@ -18,7 +18,7 @@ const controlledApprovalActionCodes = new Set<NumberingApprovalActionCode>([
 const validBatchStatuses = new Set(["active", "all", "pending", "partially_approved", "approved", "rejected", "needs_info", "cancelled"]);
 
 export async function GET(request: Request) {
-  const auth = await requireNumberingPageAsync(request, "numbering.approvals");
+  const auth = await requireNumberingActionAsync(request, "approval.inbox.view");
   if (auth.response) return auth.response;
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
   if (companyResult.response) return companyResult.response;

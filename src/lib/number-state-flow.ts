@@ -3,7 +3,7 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { ACTIVE_DRAWING_PURPOSE_CODES, NUMBERING_RULE_V3_ID } from "@/lib/numbering-identity";
 import { createPdmCommand, type PdmCommandMetadata, type PlatformActorContext } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
-import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
+import { checkNumberingPermissionsAsync } from "@/lib/numbering-permission-async";
 import { DatabasePublicationEvidencePort } from "@/lib/publication-evidence";
 import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow-contract";
 import { canEditPdmOwnedResourceInCompany, hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
@@ -320,15 +320,23 @@ type NumberStateActionPermissions = {
 };
 
 async function resolveNumberStateActionPermissions(actor: NumberStateActor | PlatformActorContext): Promise<NumberStateActionPermissions> {
-  const user = "userId" in actor
-    ? { id: actor.userId, role: actor.role }
-    : { id: actor.pdmUserId, role: actor.roles[0] ?? "" };
-  const [submitReview, withdrawReview, publish] = await Promise.all([
-    checkNumberingPermissionAsync({ user, permissionKind: "action", permissionCode: "numbering.candidate.review.submit" }),
-    checkNumberingPermissionAsync({ user, permissionKind: "action", permissionCode: "numbering.candidate.review.withdraw" }),
-    checkNumberingPermissionAsync({ user, permissionKind: "action", permissionCode: "numbering.publish" })
+  const isNumberStateActor = "userId" in actor;
+  const user = {
+    id: isNumberStateActor ? actor.userId : actor.pdmUserId,
+    role: isNumberStateActor ? actor.role : actor.legacyRole ?? "",
+    company_id: isNumberStateActor ? actor.companyId : actor.organizationId,
+    authorizationActor: actor.authorizationActor
+  };
+  const results = await checkNumberingPermissionsAsync([
+    { user, permissionKind: "action", permissionCode: "numbering.candidate.review.submit" },
+    { user, permissionKind: "action", permissionCode: "numbering.candidate.review.withdraw" },
+    { user, permissionKind: "action", permissionCode: "numbering.publish" }
   ]);
-  return { submitReview: submitReview.allowed, withdrawReview: withdrawReview.allowed, publish: publish.allowed };
+  return {
+    submitReview: results[0]?.allowed ?? false,
+    withdrawReview: results[1]?.allowed ?? false,
+    publish: results[2]?.allowed ?? false
+  };
 }
 
 async function applyActorCapabilities(

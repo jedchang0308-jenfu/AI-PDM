@@ -8,7 +8,9 @@ const actor = {
   identityIssuer: "https://securetoken.google.com/jenfu-test",
   identitySubject: "uid-001",
   principalId: "principal-001",
-  employeeId: "employee-001"
+  employeeId: "employee-001",
+  localPrincipalId: "local-user-001",
+  companyId: "company-jenfu"
 };
 
 const authorityRow = {
@@ -39,7 +41,7 @@ const assignment = {
   role_code: "rd",
   catalog_version: "stale-provenance-is-allowed",
   scope_kind: "workspace" as const,
-  scope_key: "workspace-1",
+  scope_key: "current",
   valid_from: "2026-01-01T00:00:00.000Z",
   valid_until: null,
   published_at: "2026-01-01T00:00:00.000Z",
@@ -85,13 +87,22 @@ function repository(options: FakeClientOptions = {}, activeCatalog?: JenfuEntitl
 describe("DEV-005 EntitlementRepository", () => {
   it("allows an explicit active workspace permission even when catalogVersion is provenance-only", async () => {
     const result = await repository().evaluatePermission({
+      rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],
       actor,
       permissionKind: "page",
       permissionCode: "numbering.request",
-      workspaceCode: "workspace-1"
+      workspaceCode: "company-jenfu"
     });
     expect(result.decisionCode).toBe("allowed");
     if (result.decisionCode === "allowed") expect(result.assignment.assignmentId).toBe("assignment-1");
+  });
+
+  it("returns independent decisions for each permission in one evaluation batch", async () => {
+    const results = await repository().evaluatePermissions([
+      { rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], actor, permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu" },
+      { rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], actor, permissionKind: "page", permissionCode: "unknown.permission", workspaceCode: "company-jenfu" }
+    ]);
+    expect(results.map((result) => result.decisionCode)).toEqual(["allowed", "permission_not_granted"]);
   });
 
   it("allows an external specialist only for the assigned project", async () => {
@@ -105,24 +116,27 @@ describe("DEV-005 EntitlementRepository", () => {
     };
     const scopedRepository = repository({ assignmentRows: [projectAssignment] });
     await expect(scopedRepository.evaluatePermission({
+      rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],
       actor,
       permissionKind: "page",
       permissionCode: "numbering.search",
-      workspaceCode: "workspace-1",
+      workspaceCode: "company-jenfu",
       projectCode: "PROJECT-001"
     })).resolves.toMatchObject({ decisionCode: "allowed" });
     await expect(scopedRepository.evaluatePermission({
+      rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],
       actor,
       permissionKind: "page",
       permissionCode: "numbering.search",
-      workspaceCode: "workspace-1",
+      workspaceCode: "company-jenfu",
       projectCode: "PROJECT-002"
     })).rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
     await expect(scopedRepository.evaluatePermission({
+      rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],
       actor,
       permissionKind: "page",
       permissionCode: "numbering.search",
-      workspaceCode: "workspace-1"
+      workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
   });
 
@@ -130,7 +144,7 @@ describe("DEV-005 EntitlementRepository", () => {
     const result = await repository({
       authorityRows: [{ ...authorityRow, authority_source: "legacy_authority" }],
       failAssignments: true
-    }).evaluatePermission({ actor, permissionKind: "page", permissionCode: "numbering.request" });
+    }).evaluatePermission({ actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request" });
     expect(result.decisionCode).toBe("legacy_authority");
     expect(result.assignments).toHaveLength(0);
   });
@@ -151,34 +165,41 @@ describe("DEV-005 EntitlementRepository", () => {
 
   it("fails closed when the assignment projection is unavailable", async () => {
     await expect(repository({ failAssignments: true }).evaluatePermission({
+      rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],
       actor,
       permissionKind: "page",
       permissionCode: "numbering.request",
-      workspaceCode: "workspace-1"
+      workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "entitlement_authority_unavailable" });
   });
 
   it("rejects workspace scope mismatch", async () => {
     await expect(repository().evaluatePermission({
+      rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],
       actor,
       permissionKind: "page",
       permissionCode: "numbering.request",
-      workspaceCode: "workspace-2"
+      workspaceCode: "company-other"
+    })).rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
+    await expect(repository({ assignmentRows: [{ ...assignment, scope_key: "unrecognized" }] }).evaluatePermission({
+      actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],
+      permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
   });
 
   it("rejects inactive roles, catalog mismatches, expired assignments, and missing permissions", async () => {
     await expect(repository({ assignmentRows: [{ ...assignment, stable_role_id: "role-retired" }] }).evaluatePermission({
-      actor, permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "workspace-1"
+      actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "entitlement_role_inactive" });
     await expect(repository({ assignmentRows: [{ ...assignment, role_code: "qa" }] }).evaluatePermission({
-      actor, permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "workspace-1"
+      actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
     await expect(repository({ assignmentRows: [{ ...assignment, valid_until: "2026-02-01T00:00:00.000Z" }] }).evaluatePermission({
-      actor, permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "workspace-1"
+      actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
     await expect(repository().evaluatePermission({
-      actor, permissionKind: "page", permissionCode: "unknown.permission", workspaceCode: "workspace-1"
+      rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],
+      actor, permissionKind: "page", permissionCode: "unknown.permission", workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "permission_not_granted" });
   });
 
@@ -200,8 +221,41 @@ describe("DEV-005 EntitlementRepository", () => {
       }]
     };
     await expect(repository({}, denyCatalog).evaluatePermission({
-      actor, permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "workspace-1"
+      actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "permission_explicit_deny" });
+  });
+
+  it("applies the configured role priority before resolving conflicting explicit grants", async () => {
+    const qaAssignment = { ...assignment, assignment_id: "assignment-qa", stable_role_id: "role-qa", role_code: "qa" };
+    const twoRoleCatalog: JenfuEntitlementRoleCatalog = {
+      roles: [
+        {
+          stableRoleId: "role-rd", roleCode: "rd", displayName: "研發", assignable: true,
+          risk: "normal", subjectKind: "employee", recommendationAllowed: true,
+          delegationAllowed: true, allowedScopeKinds: ["workspace"], assignmentTier: "app_admin",
+          permissions: [{ code: "numbering.search", kind: "page", allowed: true }], roleDefinitionHash: "rd-test"
+        },
+        {
+          stableRoleId: "role-qa", roleCode: "qa", displayName: "品保", assignable: true,
+          risk: "normal", subjectKind: "employee", recommendationAllowed: true,
+          delegationAllowed: true, allowedScopeKinds: ["workspace"], assignmentTier: "app_admin",
+          permissions: [{ code: "numbering.search", kind: "page", allowed: false }], roleDefinitionHash: "qa-test"
+        }
+      ]
+    };
+    await expect(repository({ assignmentRows: [assignment, qaAssignment] }, twoRoleCatalog).evaluatePermission({
+      actor, rolePriority: ["qa", "rd"], permissionKind: "page", permissionCode: "numbering.search", workspaceCode: "company-jenfu"
+    })).rejects.toMatchObject({ code: "permission_explicit_deny" });
+    await expect(repository({ assignmentRows: [assignment, qaAssignment] }, twoRoleCatalog).evaluatePermission({
+      actor, rolePriority: ["rd", "qa"], permissionKind: "page", permissionCode: "numbering.search", workspaceCode: "company-jenfu"
+    })).resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
+  });
+
+  it("fails closed if an active assignment role is absent from the priority contract", async () => {
+    await expect(repository().evaluatePermission({
+      actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager"],
+      permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu"
+    })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
   });
 
   it("rejects duplicate rows and the 32-row safety bound", async () => {

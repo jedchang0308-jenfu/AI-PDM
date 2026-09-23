@@ -3,9 +3,9 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuEntitlementRepository } from "@/lib/repositories/jenfu-entitlement-repository";
 
 const identityIssuer = "https://securetoken.google.com/jenfu-dev009";
-const dailyActor = { identityIssuer, identitySubject: "uid-daily", principalId: "principal-daily", employeeId: "employee-001" };
-const privilegedActor = { identityIssuer, identitySubject: "uid-privileged", principalId: "principal-privileged", employeeId: "employee-001" };
-const permissionInput = { permissionKind: "action" as const, permissionCode: "settings.admin_matrix" };
+const dailyActor = { identityIssuer, identitySubject: "uid-daily", principalId: "principal-daily", employeeId: "employee-001", localPrincipalId: "local-user-001", companyId: "company-jenfu" };
+const privilegedActor = { identityIssuer, identitySubject: "uid-privileged", principalId: "principal-privileged", employeeId: "employee-001", localPrincipalId: "local-user-001", companyId: "company-jenfu" };
+const permissionInput = { permissionKind: "action" as const, permissionCode: "settings.admin_matrix", rolePriority: ["system_admin", "pdm_admin", "rd_manager", "rd"] };
 
 function privilegedAssignment(actor = privilegedActor) {
   return {

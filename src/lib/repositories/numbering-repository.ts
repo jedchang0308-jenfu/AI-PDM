@@ -1118,12 +1118,8 @@ export type NumberingNotificationRecord = {
 export type NumberingUserScope = {
   id: string;
   role: string;
-  authorizationActor?: {
-    identityIssuer: string;
-    identitySubject: string;
-    principalId: string;
-    employeeId: string;
-  };
+  company_id?: string;
+  authorizationActor?: import("@/lib/jenfu-entitlement-contract").JenfuVerifiedAuthorizationActor;
 };
 
 export type NumberingPermissionKind = "page" | "action";

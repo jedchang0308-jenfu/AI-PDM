@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { decideApprovalPlatformLegacyNumberingAsync } from "@/lib/approval-platform";
-import { forbidden } from "@/lib/auth-async";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const auth = await requireNumberingActionAsync(request, "numbering.approval.batch.decide");
+  const auth = await requireNumberingActionAsync(request, "approval.request.decide");
   if (auth.response) return auth.response;
-  if (auth.user.role !== "R&D Manager" && auth.user.role !== "Admin") return forbidden();
 
   const body = await request.json().catch(() => ({}));
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));

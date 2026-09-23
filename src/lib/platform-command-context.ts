@@ -70,10 +70,11 @@ export async function requireNumberingPlatformCommandAsync(
   request: Request,
   input: {
     action: string;
+    permissionCode?: string;
     body?: Record<string, unknown>;
   }
 ): Promise<NumberingPlatformCommandAccess> {
-  const auth = await requireNumberingActionAsync(request, input.action);
+  const auth = await requireNumberingActionAsync(request, input.permissionCode ?? input.action);
   if (auth.response || !auth.user) {
     return {
       auth,
@@ -141,6 +142,8 @@ export async function requireNumberingPlatformCommandAsync(
     roles: roleCodes,
     scopes: [input.action],
     authProvider: "current_pdm_session",
+    authorizationActor: auth.user.authorizationActor,
+    legacyRole: auth.user.role,
     requestId,
     correlationId
   });

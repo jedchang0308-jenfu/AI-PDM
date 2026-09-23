@@ -13,6 +13,7 @@ import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "
 import { resolveDev087RouteActor } from "@/lib/pdm-dev087-route";
 import { parseReviewPackageSnapshot, reviewPackageTargetKey } from "@/lib/pdm-review-package-contract";
 import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import { resolveJenfuRouteAuthorization, type JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 
 export const runtime = "nodejs";
 
@@ -47,8 +48,14 @@ async function resolveAccess(
   context: PdmFileReadContext,
   reviewRequestId: string | null
 ): Promise<FileReadAccess> {
+  const discriminator = fileReadDiscriminator(context, reviewRequestId);
+  const policy = resolveJenfuRouteAuthorization("src/app/api/pdm/file-assets/[fileAssetId]/route.ts", "GET", discriminator);
+  if (!policy) return { actorId: null, companyId: null, canEditNonOwned: false, canDecide: false, response: jsonError("READ_ACCESS_REQUIRED", "沒有讀取權限。", 403) };
   if (context === "approval_evidence") {
-    const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.decide" });
+    const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], {
+      permissionCode: "approval.request.decide",
+      discriminator
+    });
     if (auth.response) return { actorId: null, companyId: null, canEditNonOwned: false, canDecide: false, response: auth.response };
     return { actorId: auth.user.id, companyId: auth.user.company_id, canEditNonOwned: false, canDecide: true, response: null };
   }
@@ -99,6 +106,14 @@ async function resolveAccess(
     };
   }
   return { actorId: auth.user.id, companyId: company.company.companyId, canEditNonOwned: false, canDecide: false, response: null };
+}
+
+function fileReadDiscriminator(context: PdmFileReadContext, reviewRequestId: string | null): JenfuRouteDiscriminator {
+  if (context === "approval_evidence") return "file_read:approval_evidence";
+  if (context === "drawing_revision_work") return "file_read:drawing_revision_work";
+  if (reviewRequestId) return "file_read:review_request";
+  if (context === "part_attachment") return "file_read:part_attachment";
+  return "file_read:drawing_read";
 }
 
 async function resolveSource(input: {

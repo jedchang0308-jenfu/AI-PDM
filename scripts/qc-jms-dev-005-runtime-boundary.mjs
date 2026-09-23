@@ -66,8 +66,10 @@ function handlerGraph(path, method, source) {
 
 function discriminatorActionCodes(discriminator) {
   if (!discriminator) return []
-  const match = discriminator.match(/\{([^}]+)\}/u)
-  return match ? match[1].split(',').map((value) => value.trim()).filter(Boolean) : []
+  if (discriminator === 'approval_apply:retired_candidate' || discriminator === 'approval_decision:retired_candidate') {
+    return ['numbering.candidate_bundle_review', 'numbering.candidate_publication_review']
+  }
+  return []
 }
 
 function boundaryFailures(entries, sources) {
@@ -124,7 +126,7 @@ function mutateHandlerGuard(path, method, source) {
 }
 
 function main() {
-  assert.deepEqual(routeMap.denominator, { uniqueFiles: 56, uniqueMethods: 70, policyEntries: 78 })
+  assert.deepEqual(routeMap.denominator, { uniqueFiles: 62, uniqueMethods: 76, policyEntries: 84 })
   const catalogPermissionCodes = new Set(catalog.roles.flatMap((role) => role.permissions.map((permission) => permission.code)))
   const permissionEntries = routeMap.entries.filter((entry) => entry.authorizationMode === 'permission')
   for (const entry of permissionEntries) assert.ok(catalogPermissionCodes.has(entry.permissionCode), `route permission missing from catalog: ${entry.permissionCode}`)

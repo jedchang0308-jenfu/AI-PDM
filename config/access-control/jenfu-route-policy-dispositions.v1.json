@@ -1,0 +1,515 @@
+{
+  "contractVersion": "jenfu.platform-entitlement.v1",
+  "applicationId": "ai-pdm",
+  "dispositionVersion": "ai-pdm.route-policy-disposition.2026-09-23.v2",
+  "owner": "AIPDM/DEV-121#target-authorization",
+  "source": "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md",
+  "allowedDispositions": [
+    "reuse_existing",
+    "add_catalog_grant",
+    "deny_or_retire",
+    "pending_owner_decision"
+  ],
+  "entries": [
+    {
+      "code": "numbering.approval.batch.create",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.approval.request",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.attachments.manage",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.audit_report.generate",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.create",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.draft.admin_confirm",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.draft.obsolete",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.draft.update",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.duplicate_check",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.export.create",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.link_variant",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.notification.update",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.recognition.formalize",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.recognition.review",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.recognition.run",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.reports",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "numbering.task.update",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "obsolete_part_root",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "post_release_change",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "transfer.package.create",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "transfer.package.publish",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "transfer.package.review.submit",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "transfer.package.review.withdraw",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "transfer.package.update",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    },
+    {
+      "code": "transfer.package.view",
+      "disposition": "deny_or_retire",
+      "reason": "No equivalent permission exists in the published AI-PDM v3 role catalog; keep OrgMaster authority fail-closed until a separately approved catalog capability is published.",
+      "evidenceRequired": [
+        "route_method",
+        "runtime_permission_kind",
+        "trusted_scope_source",
+        "allow_or_deny_case"
+      ],
+      "resolution": {
+        "evidenceRefs": [
+          "AIPDM/.ai-doc/specs/DEV-121-target-authorization-boundary.md#current-owner-disposition",
+          "AIPDM/config/access-control/jenfu-role-catalog.v1.json"
+        ],
+        "allowOrDenyCase": "deny",
+        "outcome": "deny",
+        "expectedStatus": 403
+      }
+    }
+  ]
+}

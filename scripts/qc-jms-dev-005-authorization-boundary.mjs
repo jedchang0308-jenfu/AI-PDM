@@ -5,11 +5,12 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const CONTRACT_VERSION = 'jenfu.platform-entitlement.v1'
-const EXPECTED = { uniqueFiles: 56, uniqueMethods: 70, policyEntries: 78 }
+const EXPECTED = { uniqueFiles: 62, uniqueMethods: 76, policyEntries: 84 }
 const scriptRoot = dirname(fileURLToPath(import.meta.url))
 const appRoot = resolve(scriptRoot, '..')
 const platformCandidates = [
   process.env.JENFU_MANAGEMENT_SYSTEM_ROOT?.trim(),
+  resolve(appRoot, '..', 'Jenfu-Platform'),
   resolve(appRoot, '..', 'Jenfu-Management-system'),
   resolve(appRoot, '..', '..', '..', 'Jenfu-Management-system'),
   resolve(appRoot, '..', '..', '..', '..', 'Jenfu-Management-system'),

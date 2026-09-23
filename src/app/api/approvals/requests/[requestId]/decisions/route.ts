@@ -56,6 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     if (invalid) return invalid;
     const access = await requireNumberingPlatformCommandAsync(request, {
       action: "transfer.package.review.decide",
+      permissionCode: "approval.request.decide",
       body: body as Record<string, unknown>
     });
     if (access.response || !access.metadata || !access.actor) return access.response;
@@ -85,7 +86,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   }
 
   if (detail.actionCode === "numbering.drawing_revision_lifecycle_review") {
-    const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.decide" });
+    const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], {
+      permissionCode: "approval.request.decide",
+      discriminator: "approval_decision:drawing_lifecycle"
+    });
     if (auth.response) return auth.response;
     const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key") ?? "";
     try {
@@ -125,7 +129,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     }
   }
 
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.decide" });
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], {
+    permissionCode: "approval.request.decide",
+    discriminator: "approval_decision:registered"
+  });
   if (auth.response) return auth.response;
 
   try {
