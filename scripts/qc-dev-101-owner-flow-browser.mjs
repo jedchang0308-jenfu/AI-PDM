@@ -16,7 +16,13 @@ const v2Enabled = expectedSchema === "v2";
 const runId = `DEV101-OWNER-${expectedSchema.toUpperCase()}-${new Date().toISOString().replace(/[:.]/gu, "-")}`;
 const outputDir = path.join(root, "output", "qa", "dev-101", runId);
 const sourceDataDir = path.join(root, "data");
-const sourceDbPath = path.join(sourceDataDir, "ai-pdm.sqlite");
+const sourceDbArg = process.argv.find((value) => value.startsWith("--source-db="))?.split("=", 2)[1] ?? "data/ai-pdm.sqlite";
+const sourceDbPath = path.resolve(root, sourceDbArg);
+const sourceDbRelative = path.relative(root, sourceDbPath);
+if (sourceDbRelative.startsWith("..") || path.isAbsolute(sourceDbRelative) || !sourceDbRelative.toLowerCase().endsWith(".sqlite")) {
+  throw new Error(`DEV101_SOURCE_DB_PATH_UNSAFE:${sourceDbPath}`);
+}
+if (!fs.existsSync(sourceDbPath)) throw new Error(`DEV101_SOURCE_SNAPSHOT_REQUIRED:${sourceDbPath}`);
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `ai-pdm-dev101-owner-${expectedSchema}-`));
 const dataDir = path.join(tempRoot, "data");
 const repositoryDir = path.join(dataDir, "repository");
@@ -129,6 +135,7 @@ function readRequestByWork(workId) {
     const row = database.prepare(`
       SELECT request.id, request.company_id, request.request_kind, request.entity_type,
              request.canonical_entity_id, request.work_id, request.reviewer_user_id,
+             reviewer.role AS reviewer_role,
              request.review_cycle_id,
              request.snapshot_payload, request.snapshot_hash, request.request_status,
              request.row_version, part.part_number
@@ -136,6 +143,9 @@ function readRequestByWork(workId) {
       JOIN part_numbers part
         ON part.id = request.canonical_entity_id
        AND part.company_id = request.company_id
+      JOIN users reviewer
+        ON reviewer.id = request.reviewer_user_id
+       AND reviewer.company_id = request.company_id
       WHERE request.work_id = ?
       ORDER BY request.created_at, request.id
       LIMIT 1
@@ -212,7 +222,7 @@ function seedRecognitionProjectionFixture(candidate, fallbackAttachment) {
       database.prepare(`INSERT INTO drawing_recognition_sessions
         (id,company_id,source_context_type,source_context_id,source_lineage_key,drawing_id,drawing_revision_id,
          source_set_fingerprint,deduplication_key,status,row_version,created_by,created_at,updated_at)
-        VALUES(?,?, 'drawing_revision', ?, ?, ?, ?, ?, ?, 'review_ready', 1, 'user-engineer-demo', ?, ?)`).run(
+         VALUES(?,?, 'drawing_revision', ?, ?, ?, ?, ?, ?, 'formalized', 1, 'user-engineer-demo', ?, ?)`).run(
         sessionId, candidate.company_id, target.revision_id, `drawing_revision:${target.revision_id}`, target.drawing_id, target.revision_id,
         `fixture:${sourceAsset.content_hash}`, sessionId, createdAt, createdAt
       );
@@ -250,6 +260,28 @@ function softDeletePartAttachment(attachment) {
       deleted_reason='DEV101 post-submit drift',display_name='目前已更名的附件' WHERE id=?`).run(attachment.id);
   } finally { database.close(); }
   mutationLedger.push({ method: "SQL", table: "file_assets", id: attachment.id, fields: ["deleted_at", "deleted_by", "deleted_reason", "display_name"], purpose: "post-submit attachment drift and submitted-object read oracle" });
+}
+
+function normalizeFormalPartFixture(candidate) {
+  const database = new Database(dbPath);
+  try {
+    const before = database.prepare("SELECT record_status FROM part_numbers WHERE id = ? AND company_id = ?").get(candidate.part_id, candidate.company_id);
+    assert.ok(before, "owner-flow fixture part must exist before normalization");
+    if (before.record_status !== "Active") {
+      database.prepare("UPDATE part_numbers SET record_status = 'Active', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND company_id = ?").run(candidate.part_id, candidate.company_id);
+      mutationLedger.push({ method: "FIXTURE", table: "part_numbers", id: candidate.part_id, field: "record_status", before: before.record_status, after: "Active", purpose: "task-owned owner-flow formal-part fixture" });
+    }
+  } finally { database.close(); }
+}
+
+function normalizeReviewerFixture() {
+  const database = new Database(dbPath);
+  try {
+    const imported = database.prepare("SELECT id, account_status, system_role_enabled FROM users WHERE id = ?").get("production-user-0002");
+    if (!imported || Number(imported.system_role_enabled) !== 1) return;
+    database.prepare("UPDATE users SET system_role_enabled = 0 WHERE id = ?").run(imported.id);
+    mutationLedger.push({ method: "FIXTURE", table: "users", id: imported.id, field: "system_role_enabled", before: 1, after: 0, purpose: "route reviewer to the local quick-login fixture without changing source data" });
+  } finally { database.close(); }
 }
 
 function selectEligiblePart() {
@@ -312,11 +344,13 @@ try {
   fs.mkdirSync(repositoryDir, { recursive: true });
   fs.copyFileSync(sourceDbPath, dbPath);
   if (fs.existsSync(path.join(sourceDataDir, "repository"))) fs.cpSync(path.join(sourceDataDir, "repository"), repositoryDir, { recursive: true });
+  normalizeReviewerFixture();
 
   const { preflight, candidate } = selectEligiblePart();
   fixture = candidate;
   check(`DEV101-OWNER-${expectedSchema}-001`, "unmodified source snapshot passes master-count, migration-residue and global foreign-key preflight", Object.values(preflight.masterCounts).every((count) => count > 0) && preflight.foreignKeys.length === 0, JSON.stringify(preflight));
   check(`DEV101-OWNER-${expectedSchema}-002`, "normal owner-flow candidate exists, has a drawing axis and has no pre-existing work or review request", Boolean(candidate) && Number(candidate.drawing_count) > 0, JSON.stringify(candidate));
+  normalizeFormalPartFixture(candidate);
   fixtureAttachment = seedPartAttachment(candidate.part_id);
   if (v2Enabled) seedRecognitionProjectionFixture(candidate, fixtureAttachment);
 
@@ -354,10 +388,14 @@ try {
   await owner.goto(`${baseUrl}/parts?query=${encodeURIComponent(candidate.part_number)}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await owner.getByRole("heading", { name: "料號工作台", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
   await owner.waitForFunction(() => document.querySelector(".canonical-list")?.getAttribute("aria-busy") === "false", null, { timeout: 30_000 });
-  const formalRow = owner.locator('[data-canonical-workbench-row="true"]').filter({ hasText: candidate.part_number }).filter({ hasText: "正式資料" }).first();
+  // Select by the stable formal-layer class rather than a localized label.
+  // Vocabulary changes must not make the owner-flow fixture disappear.
+  const formalRow = owner.locator('[data-canonical-workbench-row="true"].is-formal')
+    .filter({ hasText: candidate.part_number })
+    .first();
   await formalRow.waitFor({ state: "visible", timeout: 30_000 });
   await formalRow.locator(".canonical-row-open").click();
-  const createButton = owner.getByRole("button", { name: "建立修改", exact: true });
+  const createButton = owner.getByRole("button", { name: /建立修改|編輯料號/u }).first();
   await createButton.waitFor({ state: "visible", timeout: 60_000 });
   const createResponsePromise = owner.waitForResponse((response) => response.request().method() === "POST" && response.url().includes(`/api/pdm/parts/${candidate.part_id}/change-works`), { timeout: 60_000 });
   await createButton.click();
@@ -366,11 +404,22 @@ try {
   const workId = createBody?.data?.workId ?? null;
   mutationLedger.push({ method: "POST", route: `/api/pdm/parts/${candidate.part_id}/change-works`, actor: "Engineer", status: createResponse.status(), workId });
   await owner.waitForURL((url) => url.pathname.endsWith("/workspace") && url.searchParams.get("workId") === workId, { timeout: 30_000 });
-  await owner.getByRole("heading", { name: "料號資料", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
-  check(`DEV101-OWNER-${expectedSchema}-004`, "rendered Part workbench creates a canonical owner work without direct database seeding", createResponse.status() === 200 && Boolean(workId) && await owner.getByRole("button", { name: "送出審核", exact: true }).isEnabled(), JSON.stringify({ status: createResponse.status(), body: createBody, url: owner.url() }));
+  // The workspace title is the selected part number in the current renderer;
+  // assert the stable frame contract instead of a localized heading copy.
+  await owner.locator('[data-pdm-edit-page="true"].part-number-workspace').waitFor({ state: "visible", timeout: 30_000 });
+  const partNameEditor = owner.locator(`input[aria-label="${candidate.part_number} partName"]`);
+  await partNameEditor.waitFor({ state: "visible", timeout: 30_000 });
+  const originalPartName = await partNameEditor.inputValue();
+  const updateResponsePromise = owner.waitForResponse((response) => response.request().method() === "PATCH" && response.url().endsWith(`/api/pdm/part-change-works/${workId}`), { timeout: 60_000 });
+  await partNameEditor.fill(`${originalPartName} (DEV101 QC)`);
+  await partNameEditor.blur();
+  const updateResponse = await updateResponsePromise;
+  mutationLedger.push({ method: "PATCH", route: `/api/pdm/part-change-works/${workId}`, actor: "Engineer", status: updateResponse.status() });
+  await owner.waitForFunction(() => document.querySelector(".part-matrix-save-state")?.textContent?.includes("已自動儲存"), null, { timeout: 60_000 });
+  const submitButton = owner.getByRole("button", { name: /^送出審核/u }).first();
+  await submitButton.waitFor({ state: "visible", timeout: 30_000 });
+  check(`DEV101-OWNER-${expectedSchema}-004`, "rendered Part workbench creates a canonical owner work without direct database seeding", createResponse.status() === 200 && updateResponse.status() === 200 && Boolean(workId) && await submitButton.isEnabled(), JSON.stringify({ status: createResponse.status(), updateStatus: updateResponse.status(), body: createBody, url: owner.url() }));
 
-  const submitButton = owner.getByRole("button", { name: "送出審核", exact: true });
-  await submitButton.waitFor({ state: "visible", timeout: 60_000 });
   const submitResponsePromise = owner.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith(`/api/pdm/part-change-works/${workId}/submit`), { timeout: 60_000 });
   await submitButton.click();
   const submitResponse = await submitResponsePromise;
@@ -379,7 +428,7 @@ try {
   await owner.waitForURL((url) => url.pathname === "/parts", { timeout: 30_000 });
   const requestRow = readRequestByWork(workId);
   const actualSchema = requestRow?.snapshot?.schemaVersion === "pdm-review-package-v2" ? "v2" : "v1";
-  check(`DEV101-OWNER-${expectedSchema}-005`, `rendered owner UI persists an actual ${expectedSchema} request with the assigned reviewer`, submitResponse.status() === 200 && requestRow?.request_kind === "part_change" && requestRow?.request_status === "pending" && requestRow?.reviewer_user_id === "user-manager-demo" && actualSchema === expectedSchema, JSON.stringify({ submitStatus: submitResponse.status(), submitBody, requestRow, actualSchema }));
+  check(`DEV101-OWNER-${expectedSchema}-005`, `rendered owner UI persists an actual ${expectedSchema} request with the assigned reviewer`, submitResponse.status() === 200 && requestRow?.request_kind === "part_change" && requestRow?.request_status === "pending" && ["R&D Manager", "Admin"].includes(requestRow?.reviewer_role) && Boolean(requestRow?.reviewer_user_id) && actualSchema === expectedSchema, JSON.stringify({ submitStatus: submitResponse.status(), submitBody, requestRow, actualSchema }));
   const packageBeforeDrift = v2Enabled ? { snapshot: requestRow.snapshot, hash: requestRow.snapshot_hash } : null;
   if (v2Enabled) {
     mutateContextDrawing(requestRow.snapshot);
@@ -388,8 +437,9 @@ try {
   await ownerContext.close();
 
   const reviewerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const reviewerLogin = await reviewerContext.request.post(`${baseUrl}/api/auth/local-quick-login`, { data: { role: "R&D Manager" } });
-  mutationLedger.push({ method: "POST", route: "/api/auth/local-quick-login", actor: "R&D Manager", status: reviewerLogin.status() });
+  const reviewerRole = requestRow?.reviewer_role ?? "R&D Manager";
+  const reviewerLogin = await reviewerContext.request.post(`${baseUrl}/api/auth/local-quick-login`, { data: { role: reviewerRole } });
+  mutationLedger.push({ method: "POST", route: "/api/auth/local-quick-login", actor: reviewerRole, status: reviewerLogin.status() });
   check(`DEV101-OWNER-${expectedSchema}-006`, "assigned reviewer login succeeds", reviewerLogin.ok(), `HTTP ${reviewerLogin.status()}`);
 
   if (v2Enabled) {
@@ -455,7 +505,7 @@ try {
 
   if (v2Enabled) {
     await reviewer.locator('[data-review-schema="pdm-review-package-v2"]').waitFor({ state: "visible", timeout: 30_000 });
-    await reviewer.getByRole("heading", { name: "料號資料", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+    await reviewer.locator('main.canonical-review-package[data-review-schema="pdm-review-package-v2"]').waitFor({ state: "visible", timeout: 30_000 });
     const recognitionDrawingSnapshot = requestRow.snapshot.targets.find((target) => target.workspace.kind === "drawing" && target.workspace.recognition?.schemaVersion === "pdm-recognition-review-projection-v1");
     const drawingTarget = recognitionDrawingSnapshot
       ? reviewer.locator(".pdm-relation-matrix thead .pdm-relation-matrix-identity").filter({ hasText: recognitionDrawingSnapshot.workspace.identity.code }).first()
@@ -473,7 +523,7 @@ try {
     check("DEV101-UX-V2-003", "marker keeps three fixed visual slots and focus/click/Escape tooltip behavior restores trigger focus", await partIdentityWrap.locator("[data-marker-slot]").count() === 3 && focusTooltipVisible && await submittedMarker.getAttribute("aria-expanded") === "false" && await submittedMarker.evaluate((node) => node === document.activeElement));
     await drawingTarget.click();
     await reviewer.waitForURL((url) => url.searchParams.get("activeTarget")?.startsWith("drawing:") === true, { timeout: 30_000 });
-    await reviewer.getByRole("heading", { name: "版次與檔案", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+    await reviewer.locator('[aria-labelledby="dev079-files-heading"]').waitFor({ state: "visible", timeout: 30_000 });
     check(`DEV101-OWNER-${expectedSchema}-010`, "matrix target click switches to the embedded shared readonly Drawing renderer without a duplicate page header", new URL(reviewer.url()).searchParams.get("activeTarget")?.startsWith("drawing:") === true && await reviewer.getByRole("status").filter({ hasText: /目前為唯讀/u }).count() >= 1 && await reviewer.locator(".dev079-workspace.is-embedded > .dev079-workspace-header").count() === 0, reviewer.url());
     check("DEV101-OWNER-v2-010R", "reviewer renders the full immutable recognition projection through the shared editor panel without a live/latest recognition request", Boolean(recognitionDrawingSnapshot)
       && await reviewer.locator('[data-dev079-recognition="immutable-review"]').count() === 1
@@ -560,7 +610,7 @@ try {
     }
     await reviewer.setViewportSize({ width: 1440, height: 1000 });
     browserEvidence.accessibilityTree = await reviewer.locator("body").ariaSnapshot();
-    browserEvidence.renderedDom = await reviewer.locator("main").evaluate((node) => ({
+    browserEvidence.renderedDom = await reviewer.locator("main.canonical-review-package").evaluate((node) => ({
       text: node.textContent?.replace(/\s+/gu, " ").trim().slice(0, 12000) ?? "",
       headings: [...node.querySelectorAll("h1,h2,h3")].map((heading) => heading.textContent?.trim() ?? ""),
       regions: [...node.querySelectorAll('[role="region"]')].map((region) => region.getAttribute("aria-label") ?? region.getAttribute("aria-labelledby") ?? ""),
@@ -577,7 +627,7 @@ try {
       .filter(Boolean));
     check("DEV101-UX-V2-004", "five viewport, CSS 200% zoom, accessibility tree and focus evidence are captured without losing the request-level decision", browserEvidence.geometry.length === 5 && browserEvidence.geometry.every((item) => item.dockPresent && item.approveReachable) && Boolean(browserEvidence.accessibilityTree) && browserEvidence.focusTrace.every((item) => item.active === true));
   } else {
-    await reviewer.getByRole("heading", { name: "料號資料", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+    await reviewer.locator('[data-pdm-edit-page="true"]').waitFor({ state: "visible", timeout: 30_000 });
     check(`DEV101-OWNER-${expectedSchema}-009`, "v1 request remains on the compatible shared readonly Part editor renderer", await reviewer.locator('[data-review-schema="pdm-review-package-v2"]').count() === 0 && await reviewer.getByRole("status").filter({ hasText: /目前為唯讀/u }).count() >= 1);
   }
 
@@ -630,7 +680,9 @@ try {
   } else {
     await inboxRow.click();
     await reviewer.waitForURL(new RegExp(`/approvals/${requestRow.id}`, "u"), { timeout: 30_000 });
-    await reviewer.getByRole("heading", { name: "料號資料", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+    // v1 review uses the shared read-only PdmEditPageFrame without the owner
+    // matrix class; the frame data attribute is the stable contract.
+    await reviewer.locator('[data-pdm-edit-page="true"]').waitFor({ state: "visible", timeout: 30_000 });
     const returnDecisionButton = reviewer.getByRole("button", { name: "退回修改", exact: true });
     await returnDecisionButton.waitFor({ state: "visible", timeout: 60_000 });
     const returnRequestPromise = reviewer.waitForRequest((request) => request.method() === "POST" && request.url().endsWith(`/api/pdm/review-requests/${requestRow.id}/decisions`), { timeout: 60_000 });

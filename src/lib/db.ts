@@ -861,6 +861,22 @@ function ensurePreSchemaCompatibility(database: SqliteDatabase) {
     ensureColumn(database, "numbering_draft_workspaces", "source_part_number_id", "TEXT");
     ensureColumn(database, "numbering_draft_workspaces", "source_link_type", "TEXT");
   }
+
+  const auditLogsTable = database
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'audit_logs'")
+    .get() as { name?: string } | undefined;
+  if (auditLogsTable) {
+    // The schema pass creates company/scope indexes before the later tenant
+    // compatibility stage. Legacy snapshots must receive these columns first,
+    // otherwise opening a read-only fixture fails with `no such column`.
+    ensureColumn(database, "audit_logs", "company_id", "TEXT REFERENCES companies(id) ON DELETE RESTRICT");
+    ensureColumn(
+      database,
+      "audit_logs",
+      "scope_kind",
+      "TEXT NOT NULL DEFAULT 'legacy_unscoped' CHECK (scope_kind IN ('tenant', 'global', 'legacy_unscoped'))"
+    );
+  }
 }
 
 function ensureSubmissionLifecycleRequestSchema(database: SqliteDatabase) {
