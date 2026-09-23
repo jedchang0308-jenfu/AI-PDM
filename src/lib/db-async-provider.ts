@@ -9,6 +9,8 @@ type RuntimeAsyncDatabaseProviderKind = AsyncDatabaseProviderKind | "cloud_sql_p
 export type AsyncDatabaseQueryParams = readonly unknown[] | Record<string, unknown>;
 export type AsyncDatabaseTransactionOptions = {
   serializable?: boolean;
+  isolationLevel?: "repeatable_read" | "serializable";
+  readOnly?: boolean;
 };
 
 function isRetryablePostgresTransactionError(error: unknown) {
@@ -341,18 +343,21 @@ export class PostgresAsyncDatabaseClient implements AsyncDatabaseClient {
   ): Promise<T> {
     await this.assertStartupReady();
     const client = await this.pool.connect();
-    const maxAttempts = options?.serializable ? 3 : 1;
+    const isolationLevel = options?.serializable ? "SERIALIZABLE" : options?.isolationLevel === "repeatable_read" ? "REPEATABLE READ" : options?.isolationLevel === "serializable" ? "SERIALIZABLE" : null;
+    const retrySerializable = isolationLevel === "SERIALIZABLE" && !options?.readOnly;
+    const maxAttempts = retrySerializable ? 3 : 1;
     try {
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
-          await client.query(options?.serializable ? "BEGIN ISOLATION LEVEL SERIALIZABLE" : "BEGIN");
+          const begin = isolationLevel ? `BEGIN ISOLATION LEVEL ${isolationLevel}` : "BEGIN";
+          await client.query(options?.readOnly ? `${begin} READ ONLY` : begin);
           const transactionClient = new PostgresTransactionClient(client);
           const result = await fn(transactionClient);
           await client.query("COMMIT");
           return result;
         } catch (error) {
           await client.query("ROLLBACK").catch(() => undefined);
-          if (attempt < maxAttempts && options?.serializable && isRetryablePostgresTransactionError(error)) continue;
+          if (attempt < maxAttempts && retrySerializable && isRetryablePostgresTransactionError(error)) continue;
           throw error;
         }
       }

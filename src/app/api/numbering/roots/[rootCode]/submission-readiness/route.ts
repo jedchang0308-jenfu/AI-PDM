@@ -6,7 +6,7 @@ import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ rootCode: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.search.view");
+  const auth = await requireNumberingPageAsync(request, "numbering.search");
   if (auth.response) return auth.response;
 
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));

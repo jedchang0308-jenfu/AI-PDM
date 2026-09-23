@@ -2,20 +2,23 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { canonicalErrorEnvelope } from "@/lib/pdm-canonical-workbench-contract";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { canUserUseNumberingActionAsync, requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
 export async function resolveDev087RouteActor(request: Request, page: "numbering.drawings.view" | "numbering.search" | "numbering.approvals") {
-  const auth = await requireNumberingPageAsync(request, page);
+  const auth = page === "numbering.approvals"
+    ? await requireNumberingActionAsync(request, "approval.inbox.view")
+    : await requireNumberingPageAsync(request, page);
   if (auth.response) return { response: auth.response, actor: null };
   const company = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
   if (company.response) return { response: company.response, actor: null };
+  const decidePermission = page === "numbering.approvals" ? "approval.request.decide" : "numbering.candidate.review.decide";
   const [create, update, submit, cancel, decide, obsoleteDraft, obsoletePart, obsoleteDrawingFormal, draftUpdate, manageAttachments] = await Promise.all([
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.create"),
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.update"),
     canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.submit"),
     canUserUseNumberingActionAsync(auth.user, "numbering.workspace.cancel"),
-    canUserUseNumberingActionAsync(auth.user, "numbering.candidate.review.decide"),
+    canUserUseNumberingActionAsync(auth.user, decidePermission),
     canUserUseNumberingActionAsync(auth.user, "numbering.draft.obsolete"),
     canUserUseNumberingActionAsync(auth.user, "obsolete_part_number", { actionCode: "obsolete_part_number" }),
     canUserUseNumberingActionAsync(auth.user, "obsolete_ma_drawing", { actionCode: "obsolete_ma_drawing" }),

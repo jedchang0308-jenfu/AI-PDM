@@ -47,7 +47,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
     return NextResponse.json({ error: "WORKBENCH_COMMAND_CONTRACT_RETIRED", message: "舊候選發布正式化命令已退役。" }, { status: 410 });
   }
 
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], { permissionCode: "approval.request.apply" });
+  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], {
+    permissionCode: "approval.request.apply",
+    discriminator: "approval_apply:registered"
+  });
   if (auth.response) return auth.response;
   try {
     const result = await applyApprovalPlatformRequestAsync({

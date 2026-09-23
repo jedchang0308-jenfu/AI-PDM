@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuthAsync } from "@/lib/auth-async";
 import { listNotificationsAsync, summarizeNotifications } from "@/lib/notifications-async";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { getStorageEvidenceDashboard } from "@/lib/storage-evidence-dashboard";
 import type { NotificationItem } from "@/lib/types";
 
@@ -11,7 +12,8 @@ export async function GET(request: Request) {
   if (auth.response) return auth.response;
 
   const notifications = await listNotificationsAsync(auth.user);
-  if (auth.user.role === "Admin" || auth.user.role === "R&D Manager") {
+  const storageEvidenceAccess = await requireNumberingActionAsync(request, "settings.storage_evidence.view");
+  if (storageEvidenceAccess.permission?.allowed) {
     notifications.push(await buildStorageEvidenceNotification());
     notifications.sort((left, right) => {
       const severityOrder = { critical: 0, warning: 1, info: 2 } as const;

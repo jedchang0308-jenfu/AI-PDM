@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { forbidden } from "@/lib/auth-async";
 import {
   applyNumberingRuleTemplateAsync,
   listNumberingAdminMatrixAsync,
@@ -23,7 +22,6 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const auth = await requireNumberingActionAsync(request, "settings.admin_matrix");
   if (auth.response) return auth.response;
-  if (auth.user.role !== "Admin") return forbidden();
 
   return NextResponse.json(await listNumberingAdminMatrixAsync());
 }
@@ -31,7 +29,6 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const auth = await requireNumberingActionAsync(request, "settings.admin_matrix");
   if (auth.response) return auth.response;
-  if (auth.user.role !== "Admin") return forbidden();
 
   const body = await request.json().catch(() => ({}));
   try {
@@ -156,7 +153,6 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   const auth = await requireNumberingActionAsync(request, "settings.admin_matrix");
   if (auth.response) return auth.response;
-  if (auth.user.role !== "Admin") return forbidden();
 
   const body = await request.json().catch(() => ({}));
   const templateCode = String(body.templateCode ?? body.template_code ?? "").trim();

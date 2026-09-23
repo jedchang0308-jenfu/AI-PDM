@@ -3,6 +3,7 @@ param(
   [switch]$Dev095Retirement,
   [switch]$Dev106Retirement,
   [switch]$Dev012Cutover,
+  [switch]$Dev121Authorization,
   [switch]$CleanupOnly
 )
 
@@ -65,7 +66,13 @@ try {
   $ready = $false
   for ($attempt = 0; $attempt -lt 60; $attempt += 1) {
     Start-Sleep -Milliseconds 500
-    & (Join-Path $postgresBin "psql.exe") -w -h 127.0.0.1 -p $Port -U postgres -d postgres -Atqc "SELECT 1" 2>$null | Out-Null
+    try {
+      & (Join-Path $postgresBin "psql.exe") -w -h 127.0.0.1 -p $Port -U postgres -d postgres -Atqc "SELECT 1" 2>$null | Out-Null
+    }
+    catch {
+      # PostgreSQL can briefly reject connections while startup is still completing.
+      # Treat that transient native-command failure as a readiness miss, not as a runner failure.
+    }
     if ($LASTEXITCODE -eq 0) { $ready = $true; break }
     if ($pgCtlLauncher.HasExited -and $pgCtlLauncher.ExitCode -ne 0) { break }
   }
@@ -102,6 +109,12 @@ try {
     & node --test (Join-Path $projectRoot "scripts\dev012-production-data-cutover-postgres.test.mjs")
     if ($LASTEXITCODE -ne 0) { throw "DEV-012 data cutover PostgreSQL rehearsal failed with exit code $LASTEXITCODE" }
     Remove-Item Env:DEV012_ISOLATED_POSTGRES -ErrorAction SilentlyContinue
+  }
+  if ($Dev121Authorization) {
+    Write-Host "Postgres QC: running DEV-121 authorization snapshot and authority-switch race"
+    $tsPathLoaderUrl = [System.Uri]::new((Join-Path $projectRoot "scripts\qc-ts-path-loader.mjs")).AbsoluteUri
+    & node --experimental-transform-types "--experimental-loader=$tsPathLoaderUrl" (Join-Path $projectRoot "scripts\qc-dev-121-postgres.mjs")
+    if ($LASTEXITCODE -ne 0) { throw "DEV-121 PostgreSQL authorization rehearsal failed with exit code $LASTEXITCODE" }
   }
 }
 finally {

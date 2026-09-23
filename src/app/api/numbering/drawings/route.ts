@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { listDrawingModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import { ACTIVE_DRAWING_PURPOSE_CODES } from "@/lib/numbering-identity";
-import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import type { DrawingPurposeCode, NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 import { parseNumberSortDirection } from "@/lib/number-sort";
 
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
   const seriesCode = url.searchParams.get("seriesCode")?.trim() || undefined;
 
-  const [drawings, productSeriesOptions, seriesCodeOptions] = await Promise.all([
+  const [drawings, productSeriesOptions, seriesCodeOptions, approvalPermission] = await Promise.all([
     listDrawingModuleRecordsAsync({
       companyId: companyResult.company.companyId,
       query: url.searchParams.get("query") ?? "",
@@ -47,7 +47,8 @@ export async function GET(request: Request) {
       limit: Number(url.searchParams.get("limit") ?? 50)
     }),
     listProductSeriesOptionsAsync(companyResult.company.companyId),
-    listSeriesCodeOptionsAsync(companyResult.company.companyId)
+    listSeriesCodeOptionsAsync(companyResult.company.companyId),
+    canUserUseNumberingActionAsync(auth.user, "approval.request.decide")
   ]);
 
   return NextResponse.json({
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
     seriesCodeOptions,
     pdmCompany: companyResult.company,
     approvalProjection: {
-      canReview: auth.user.role === "R&D Manager" || auth.user.role === "Admin"
+      canReview: approvalPermission.allowed
     }
   });
 }

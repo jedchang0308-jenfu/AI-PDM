@@ -20,6 +20,20 @@ export type JenfuEntitlementAuthoritySource = "legacy_authority" | "orgmaster_au
 export type JenfuEntitlementScopeKind = "workspace" | "project" | "global";
 export type JenfuEntitlementSubjectKind = "employee" | "principal";
 
+export type JenfuVerifiedAuthorizationActor = {
+  identityIssuer: string;
+  identitySubject: string;
+  principalId: string;
+  employeeId: string;
+  localPrincipalId: string;
+  companyId: string;
+};
+
+export function createJenfuVerifiedAuthorizationActor(input: JenfuVerifiedAuthorizationActor): JenfuVerifiedAuthorizationActor | null {
+  if (Object.values(input).some((value) => typeof value !== "string" || value.trim().length === 0)) return null;
+  return { ...input };
+}
+
 export type JenfuRolePermission = {
   code: string;
   kind: "page" | "action";
@@ -91,6 +105,12 @@ export type JenfuEntitlementResourceScope = {
   projectKey?: string | null;
 };
 
+export function resolveJenfuWorkspaceScopeKey(companyId: string, sourceScopeKey: string, resourceCompanyId: string) {
+  if (companyId !== "company-jenfu" || resourceCompanyId !== companyId) return null;
+  if (sourceScopeKey === "current" || sourceScopeKey === "company-jenfu") return companyId;
+  return null;
+}
+
 export type JenfuEntitlementValidationIssue = {
   code: "ENTITLEMENT_CONTRACT_INVALID" | "ENTITLEMENT_SCOPE_INVALID" | "ENTITLEMENT_IDENTITY_MISMATCH";
   path: string;
@@ -112,7 +132,7 @@ export function sha256Canonical(value: unknown) {
 export function validateEffectiveRoleAssignment(
   assignment: JenfuEffectiveRoleAssignment,
   session: Pick<JenfuEffectiveRoleAssignment, "identityIssuer" | "identitySubject" | "principalId" | "employeeId">,
-  now = new Date()
+  now: Date = new Date()
 ): JenfuEntitlementValidationIssue[] {
   const issues: JenfuEntitlementValidationIssue[] = [];
   const add = (code: JenfuEntitlementValidationIssue["code"], path: string, message: string) => issues.push({ code, path, message });
@@ -122,7 +142,7 @@ export function validateEffectiveRoleAssignment(
   for (const field of ["assignmentVersionId", "assignmentId", "identityIssuer", "identitySubject", "principalId", "employeeId", "stableRoleId", "roleCode", "catalogVersion"] as const) {
     if (!nonBlank(assignment[field])) add("ENTITLEMENT_CONTRACT_INVALID", field, "value must be non-blank");
   }
-  if (assignment.assignmentVersion < 1 || assignment.authorityVersion < 1) add("ENTITLEMENT_CONTRACT_INVALID", "assignmentVersion", "versions must be positive integers");
+  if (!Number.isSafeInteger(assignment.assignmentVersion) || assignment.assignmentVersion < 1 || !Number.isSafeInteger(assignment.authorityVersion) || assignment.authorityVersion < 1) add("ENTITLEMENT_CONTRACT_INVALID", "assignmentVersion", "versions must be positive safe integers");
   if (!isDateTime(assignment.validFrom) || !isDateTime(assignment.publishedAt)) add("ENTITLEMENT_CONTRACT_INVALID", "validFrom", "timestamps must be ISO date-times");
   if (assignment.validUntil !== null && !isDateTime(assignment.validUntil)) add("ENTITLEMENT_CONTRACT_INVALID", "validUntil", "validUntil must be an ISO date-time or null");
   if (assignment.validUntil && Date.parse(assignment.validUntil) <= Date.parse(assignment.validFrom)) add("ENTITLEMENT_CONTRACT_INVALID", "validUntil", "validUntil must be after validFrom");

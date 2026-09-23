@@ -84,15 +84,19 @@ export async function requireNumberStateReadAccessAsync(
   if (companyResult.response || !companyResult.company) {
     return { user: null, company: null, actor: null, response: accessError(companyResult.response?.status ?? 403) };
   }
+  const actor: NumberStateActor = {
+    userId: auth.user.id,
+    companyId: companyResult.company.companyId,
+    role: auth.user.role,
+    roles: [auth.user.role, auth.permission?.roleCode ?? "", ...(auth.permission?.evaluatedRoles ?? [])].filter(Boolean)
+  };
+  if (auth.user.authorizationActor) {
+    Object.defineProperty(actor, "authorizationActor", { value: auth.user.authorizationActor, enumerable: false });
+  }
   return {
     user: auth.user,
     company: companyResult.company,
-    actor: {
-      userId: auth.user.id,
-      companyId: companyResult.company.companyId,
-      role: auth.user.role,
-      roles: [auth.user.role, auth.permission?.roleCode ?? "", ...(auth.permission?.evaluatedRoles ?? [])].filter(Boolean)
-    },
+    actor,
     response: null
   };
 }

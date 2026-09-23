@@ -5,7 +5,8 @@ import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { DbUser } from "@/lib/db";
 import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
 import { getJenfuEntitlementMode } from "@/lib/entitlement-config";
-import { resolveJenfuRouteAuthorization } from "@/lib/jenfu-route-permission-map";
+import { resolveJenfuRoutePolicy, type JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
+import { createJenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
 import {
@@ -204,6 +205,7 @@ export async function requireAuthAsync(request: Request): Promise<AsyncAuthResul
 
 export type PdmRouteAuthorizationOptions = {
   permissionCode?: string;
+  discriminator?: JenfuRouteDiscriminator | null;
   projectCode?: string | null;
   workspaceCode?: string | null;
 };
@@ -213,23 +215,11 @@ function requestRoutePath(request: Request) {
   return `src/app${pathname}/route.ts`;
 }
 
-function requestProjectCode(request: Request) {
-  const params = new URL(request.url).searchParams;
-  for (const key of ["projectCode", "project", "projectId"]) {
-    const value = params.get(key)?.trim();
-    if (value) return value;
-  }
-  return null;
-}
-
-function privilegedRoleCapabilityRoute(request: Request) {
-  return new URL(request.url).pathname.startsWith("/api/settings/access/role-capabilities");
-}
-
 function routeAuthorization(request: Request, options: PdmRouteAuthorizationOptions) {
-  if (options.permissionCode) return { authorizationMode: "permission" as const, permissionCode: options.permissionCode };
-  if (privilegedRoleCapabilityRoute(request)) return { authorizationMode: "permission" as const, permissionCode: "settings.admin_matrix" };
-  const entry = resolveJenfuRouteAuthorization(requestRoutePath(request), request.method);
+  const entry = resolveJenfuRoutePolicy(requestRoutePath(request), request.method, {
+    discriminator: options.discriminator,
+    expectedPermissionCode: options.permissionCode
+  });
   return entry ? { authorizationMode: entry.authorizationMode, permissionCode: entry.permissionCode } : null;
 }
 
@@ -259,20 +249,24 @@ export async function requirePdmRouteAuthorizationAsync(
   if (policy.authorizationMode !== "permission" || !policy.permissionCode) {
     return { user: auth.user, response: null };
   }
+  const permissionUser = { ...auth.user };
+  const authorizationActor = createJenfuVerifiedAuthorizationActor({
+    identityIssuer: auth.session.identityIssuer,
+    identitySubject: auth.session.identitySubject,
+    principalId: auth.session.principalId,
+    employeeId: auth.session.employeeId,
+    localPrincipalId: auth.user.id,
+    companyId: auth.user.company_id
+  });
+  if (authorizationActor) {
+    Object.defineProperty(permissionUser, "authorizationActor", { value: authorizationActor, enumerable: false });
+  }
   const permission = await checkNumberingPermissionAsync({
-    user: {
-      ...auth.user,
-      authorizationActor: {
-        identityIssuer: auth.session.identityIssuer,
-        identitySubject: auth.session.identitySubject,
-        principalId: auth.session.principalId,
-        employeeId: auth.session.employeeId
-      }
-    },
+    user: permissionUser,
     permissionKind: "action",
     permissionCode: policy.permissionCode,
     workspaceCode: options.workspaceCode ?? auth.user.company_id,
-    projectCode: options.projectCode ?? requestProjectCode(request)
+    projectCode: options.projectCode ?? null
   });
   if (!permission.allowed) return { user: auth.user, response: jenfuEntitlementFailureResponse(permission.decisionCode) };
   return { user: auth.user, response: null, authorizationRoleCode: permission.roleCode };

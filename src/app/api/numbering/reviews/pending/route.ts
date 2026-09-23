@@ -6,7 +6,7 @@ import { listPendingDrawingRevisionReviews } from "@/lib/pdm-change-control";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireNumberingActionAsync(request, "numbering.approval.batch.decide");
+  const auth = await requireNumberingActionAsync(request, "approval.inbox.view");
   if (auth.response) return auth.response;
 
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));

@@ -20,7 +20,7 @@ export async function canReadSubmissionAsync(user: DbUser, submission: Submissio
   return canReadSubmission(user, submission);
 }
 
-async function canAccessSubmissionCompanyAsync(user: DbUser, submission: SubmissionSummary) {
+export async function canAccessSubmissionCompanyAsync(user: DbUser, submission: SubmissionSummary) {
   if (!submission.company_id) return true;
   const companies = await getUserCompanyAccessAsync(user.id);
   if (companies.some((company) => company.companyId === submission.company_id)) return true;

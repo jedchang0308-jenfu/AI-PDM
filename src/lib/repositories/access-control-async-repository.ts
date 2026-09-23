@@ -154,6 +154,13 @@ export const SELECT_ACCESS_CONTROL_ACTIVE_ROLE_PRIORITY_SQL = `
   LIMIT 1
 `;
 
+export const SELECT_ACCESS_CONTROL_ACTIVE_ROLE_PRIORITIES_SQL = `
+  SELECT priority_json
+  FROM role_priority_versions
+  WHERE status = 'active'
+  LIMIT 2
+`;
+
 export const SELECT_ACCESS_CONTROL_ACTIVE_DELEGATIONS_SQL = `
   SELECT d.delegated_from, d.project_code, d.action_code, u.role AS delegated_from_role
   FROM approval_delegations d
@@ -323,10 +330,28 @@ export class AsyncAccessControlRepository {
     return parseRolePriorityJson(row?.priority_json);
   }
 
-  async checkPermission(input: AccessControlPermissionCheckInput): Promise<AccessControlPermissionCheckResult> {
+  async getEnforcedRolePriority(requiredRoleCodes: string[]): Promise<string[]> {
+    const rows = await this.client.query<AccessControlRolePriorityRow>(SELECT_ACCESS_CONTROL_ACTIVE_ROLE_PRIORITIES_SQL);
+    if (rows.length !== 1) throw new Error("ACCESS_CONTROL_ROLE_PRIORITY_CARDINALITY_INVALID");
+    let parsed: unknown;
+    try { parsed = JSON.parse(rows[0].priority_json ?? "") } catch { throw new Error("ACCESS_CONTROL_ROLE_PRIORITY_INVALID") }
+    if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every((item) => typeof item === "string" && item.trim().length > 0 && item === item.trim())) {
+      throw new Error("ACCESS_CONTROL_ROLE_PRIORITY_INVALID");
+    }
+    return this.requireRolePriorityCoverage(requiredRoleCodes, parsed as string[]);
+  }
+
+  requireRolePriorityCoverage(requiredRoleCodes: string[], priority: readonly string[]) {
+    if (new Set(priority).size !== priority.length || requiredRoleCodes.some((roleCode) => !priority.includes(roleCode))) {
+      throw new Error("ACCESS_CONTROL_ROLE_PRIORITY_INCOMPLETE");
+    }
+    return [...priority];
+  }
+
+  async checkPermission(input: AccessControlPermissionCheckInput, options: { enforceRolePriority?: boolean; rolePriority?: readonly string[]; decisionAt?: string } = {}): Promise<AccessControlPermissionCheckResult> {
     const permissionCode = input.permissionCode.trim();
     const baseRoles = await this.listUserRoleCodes(input.user);
-    const now = this.clock();
+    const now = options.decisionAt ?? this.clock();
     const delegationRows = await this.client.query<AccessControlDelegationRow>(SELECT_ACCESS_CONTROL_ACTIVE_DELEGATIONS_SQL, {
       userId: input.user.id,
       now
@@ -338,7 +363,11 @@ export class AsyncAccessControlRepository {
           .map((delegation) => this.listUserRoleCodes({ id: delegation.delegated_from, role: delegation.delegated_from_role }))
       )
     ).flat();
-    const candidateRoles = sortRoleCodesByPriority([...baseRoles, ...delegatedRoles], await this.getActiveRolePriority());
+    const allCandidateRoles = uniqueStrings([...baseRoles, ...delegatedRoles]);
+    const priority = options.enforceRolePriority
+      ? options.rolePriority ? this.requireRolePriorityCoverage(allCandidateRoles, options.rolePriority) : await this.getEnforcedRolePriority(allCandidateRoles)
+      : await this.getActiveRolePriority();
+    const candidateRoles = sortRoleCodesByPriority(allCandidateRoles, priority);
 
     if (!permissionCode || candidateRoles.length === 0) {
       return {

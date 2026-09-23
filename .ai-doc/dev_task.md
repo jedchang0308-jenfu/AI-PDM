@@ -1,5 +1,9 @@
 # AI PDM dev_task PM Control Board
 
+> 跨專案引用代碼：`AIPDM`（2026-09-23 使用者確認；既有歷史 ID 不改名）。
+
+> **2026-09-23 DEV-121 route-policy disposition closure（現行）**：已完成 255 個 API route files／292 個 method 的 owner inventory；25 個未出現在 `ai-pdm.role-catalog.2026-09-03.v3` 的字面 permission code 不再停留在模糊的 `pending_owner_decision`。依 fail-closed 邊界逐項標記 `deny_or_retire / deny / 403`，保留 `legacy_authority` 的既有本地 ACL 讀取，不新增猜測式 catalog grant、不發布 Production catalog、不改 schema／資料。`npm run qc:dev-121:route-classification` 現在應為 local PASS；normal-entry browser、Production L4 與任何新 catalog allow 仍是後續獨立 gate。
+
 > **2026-09-22 DEV-118 Production current checkpoint（現行）**：local logout correction已由main `6e21bb4c2f39d4b4777320d202a2037bde609b00`透過owner run `35669545522`發布至`ai-pdm-prod-f5ee2af2d7ec`，image=`sha256:fee7d3e6f653e29332a77a87ca53fa897b76aed215dcdee54f16fd585fde10bd`且100% traffic。Workspace Google-first及`JFS0005`工號起手皆已完成Platform session、AI-PDM handoff／reload、accounts與permission，`PDM-W-G`及`PDM-W-E`具current evidence；global logout後AI-PDM protected APIs均401。AI-PDM local logout另以POST=200、三個protected APIs=401及Platform session免Google重驗重新handoff=200證明target-only session撤銷。Google Admin現有7個有效使用者都同時具有Workspace Business Standard與Cloud Identity Free，沒有Free-only／無Gmail fixture；negative／rate／race cells亦缺，故C01／C02四格與LOGIN六案未full PASS。
 
 > **2026-09-22 DEV-118 zero-paid-seat completion override（現行）**：來源為 `Jenfu-Platform / DEV-014 / AI_PDM DEV-118 / 118-B`。不得購買、回收或重新指派付費 Workspace 席次；既有 `employee-shijie`／`jedchang0308@jenfu.com.tw` 只可重用既成 `PDM-W-G`、`PDM-W-E` 證據，禁止修改其帳號、Employee、binding、assignment 或 permission。剩餘直接身分分母只建立 `dev014-fp-google@jenfu.com.tw` 與 `dev014-fp-number@jenfu.com.tw` 兩個 Cloud Identity Free-only／無 Gmail disposable principals，並限於其必要 OrgMaster marked fixture Employees、AI-PDM assignments、negative fixtures 與 cleanup。`W-P-G-EQV`／`W-P-E-EQV` 以同一 Workspace principal 既成 Google／工號證據作等價性 proof，不另建立 Workspace fixture。結案 authority 改用 `jenfu.dev014.login-production-completion.v2`：PDM 四格、LOGIN 六案、identity equivalence、deny／rate／race／logout、exact release／admission 與完整 cleanup 均 PASS 後，DEV-118 才可升為 Production Complete。
@@ -131,6 +135,8 @@ Owner：Dev PM
 ### 目前派工任務清單
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
+
+- DEV-121 / `JENFU/DEV-015#target-authorization`：架構已定案、RD implementation in progress。已修正跨域 handoff 版號誤比；authority／grant／legacy ACL／priority 於同一 read-only repeatable-read snapshot 評估，transaction timestamp 固定批次決策時間；verified actor 不序列化地通過 permissions endpoint 與 number-state command；workspace 取自 verified session company；route manifest 與 typed discriminator 已同步。AI-PDM focused tests `7 files / 42 tests PASS`、typecheck、DB boundary、DEV-005 authorization／contract／runtime QC、D121-PG-01／02 PostgreSQL race PASS；Platform typecheck PASS。producer依賴ORGMASTER/DEV-057 migration 021與隔離PostgreSQL D57-01～06亦已PASS，含view相容與OrgMaster session隔離。全 API 255 files／292 methods已分類、直接 role gate=0；25筆字面代碼已逐項採 `deny_or_retire / deny / 403`，route-policy QC PASS，不新增猜測式 grant。另修正 DEV-005 catalog source discovery，canonical `Jenfu-Platform` 查核與contract QC均PASS。Production L4不在本地證據內。
 
 - DEV-120 / Platform `DEV-013 / 013-R1-P_BOTH-AIPDM-SESSION-TTL` 已完成 AI-PDM target session expiry 修正與本機驗證。Production P_BOTH 首次切換後，Platform→AI-PDM normal entry 可免再次輸入密碼，但 callback 錯把約 5 分鐘的 handoff assertion expiry 當成 target session 上限，稍後受保護 API 回 401；production 已安全回切 `orgmaster_authority:4 → legacy_authority:5`。修正後 target session 僅取 `min(now + 8h, sourceSessionExpiresAt)`，assertion expiry仍只負責 callback freshness。`test:dev-013` 4／4、`test:dev-013:l3` 17／17、typecheck、DB boundary、isolated build均PASS；production deploy、再次 authority switch、完整L4與global logout=`NOT_RUN`，待新exact release revision與授權。
 - DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging package v2：provider-read baseline traffic／deletion-protection plan、三組既有 Secret 一對一 numeric pinning migration、bootstrap／owner receipt v2，以及只建立 artifact repository／evidence bucket／exact IAM 的 app-owned Infra A exact plan gate；終態=`READY_FOR_NONPROD_APPLY`。Current exact read-only preflight確認`ai-pdm-stg`與runtime identity存在，deterministic origin=`https://ai-pdm-stg-1055054506544.asia-east1.run.app`、ready revision=`ai-pdm-stg-00004-pvm`、`latest=100%`且deletion protection=false；service labels仍為DEV-010、三組Secret仍指向`latest`，DEV-013 repository／evidence bucket尚未建立。計畫僅允許etag-bound `traffic,deletionProtection`且template／labels／siblings=0；所有雲端 mutation與 L3 browser 均未授權且`NOT_RUN`。
@@ -1033,20 +1039,21 @@ Owner：Dev PM
   - 執行邊界：未新增schema／migration，未修改正式資料、未stage／commit／merge／PR／deploy／release；正式使用仍隨DEV-087 production cutover/release gate。
   - 計入交付：是；本機功能與focused QA/QC完成，production交付未完成。
 
-- ◐ DEV-095 [退役點] [BOM Hard Retirement Integrated / Focused QC PASS / Isolated Build Pending] [P0] [Production Execution Authorized and Release-Gated] BOM 模組硬刪除（建立日期：2026-08-24）
-  - **Current authority amendment 2026-08-28**：本項已由「只退役舊組合件入口」擴大為全BOM模組硬刪除；下列舊範圍、manual BOM保留與舊驗收文字只作歷史，不得恢復runtime或驗證項目。現行唯一權威為`ADR-PDM-BOM-RETIREMENT-001`、新QA/QC與PostgreSQL 047。
+- ✓ DEV-095 [退役點] [Closed / Local Hard Retirement Complete / Focused QC PASS / Typecheck PASS / Isolated Build PASS / Production Retirement Out of Scope] [P0] [結案／正式環境退役不在範圍] BOM 模組硬刪除（建立日期：2026-08-24）
+  - **Current authority amendment 2026-08-28**：本項已由「只退役舊組合件入口」擴大為全BOM模組硬刪除；下列舊範圍、manual BOM保留與舊驗收文字只作歷史，不得恢復runtime或驗證項目。現行本機權威為`ADR-PDM-BOM-RETIREMENT-001`與新QA/QC；PostgreSQL 047只保留為歷史正式環境方案。
+  - **Current scope closure 2026-09-22**：使用者確認正式環境沒有需要移除的 BOM 資料／功能交付；Production retirement、Cloud SQL backup/PITR、047 migration、candidate、promotion與post-release smoke移出本 DEV，不再作為待完成條件。原正式刪除決策保留為歷史追溯。
   - 摘要：拆除DEV-060獨立`/bom/new`、已偵測組合件、CAD／XLS來源、`from-assembly`與assembly reference自動產生BOM，讓組立件回到既有Drawing／Part identity；本輪不建立替代入口或新組立流程。
   - 來源 ID：`DEV-PDM-ASSEMBLY-LEGACY-WORKFLOW-RETIREMENT-001`
   - 父任務／關聯：Intentional-replace `DEV-060`；保留`DEV-061`檔案authority、`DEV-087/093` canonical workbench/identity、generic BOM review/release與`DEV-041`技轉包。
-  - 直接 authority：SPEC `.ai-doc/specs/SPEC-PDM-ASSEMBLY-LEGACY-WORKFLOW-RETIREMENT-001-canonical-workbench-boundary.md`；ADR `.ai-doc/decisions/ADR-PDM-ASSEMBLY-MASTER-ENTRY-001-canonical-workbenches-only.md`；QA `.ai-doc/qa/qa-dev-095-assembly-legacy-workflow-retirement-validation-plan-2026-08-24.md`；QC `.ai-doc/qc/qc-dev-095-assembly-retirement-2026-08-24.md`。
+  - 直接 authority：ADR `.ai-doc/decisions/ADR-PDM-BOM-RETIREMENT-001-hard-delete-and-rebuild-boundary.md`；QA `.ai-doc/qa/qa-dev-095-bom-retirement-validation-plan-2026-08-24.md`；QC `.ai-doc/qc/qc-dev-095-bom-retirement-2026-08-24.md`；原 assembly retirement SPEC／ADR 僅供歷史追溯。
   - Spec Impact：`Intentional replacement`。使用者明確否決組合件走不同入口，故DEV-060三路徑不再是現行authority；技術移轉package不是組立件主檔入口，不在本輪退役。
   - RD範圍：刪除`/bom/new`與navigation/empty CTA、create-context/from-assembly/import-xls routes、assembly/CAD/XLS domain writers與auto-materialize；canonical create只允許manual。fresh schema與forward migration移除import tables、BOM source package欄位、assembly reference與舊source值；shared read tables若仍有非assembly consumer則保留但停止writer。
   - UX：採刪除優先，不建立施工中頁、redirect或平行入口；BOM workbench只保留既有BOM清單與續作，`.SLDASM`仍是Drawing revision合法`cad_3d`。
   - 驗收結果：舊route/caller/writer scan=0；頁面／context 404，舊POST writer path 405且zero-write，source-bound generic payload 422且zero-write；manual create/idempotent replay/edit/review/release snapshot通過；fresh/isolated migration clean、manual draft保留且rerun no-op；SLDASM通用契約不變；primary SQLite schema/identity/count/residue/FK前後完全相同。
   - 停止條件：需刪SLDASM通用能力、canonical Drawing／Part或generic BOM review/release；發現需保留的正式舊組合件資料；migration碰到非舊source／physical bytes／canonical roots；需要開始新組立流程時停止並另立DEV。
-  - 證據：checkpoint=`codex/checkpoint-pre-assembly-retirement-20260824-142931`／`d4a7c84e50d0f47d3c9167404753d03690204f66`；`npm run qc:dev-095`、`typecheck:app`、122-page isolated build與三viewport browser全部PASS。primary schema hash=`b44df078de88ecbeef8afa67a8968a4fda283235bda66a354d54a0d6ba21b322`、identity hash=`89d366ecd9f01a9ccbd40aee471f150b10d7b327d2263283c17c04131c6f7562`、FK=0前後一致；task-owned port 3195與temp roots已清理。
-  - 執行邊界：只在task-owned isolated data/repository執行mutation。主要SQLite、正式Cloud SQL、stage／commit／merge／PR、deploy與release均未執行；existing port 3000 runtime未被停止或重啟。
-  - 計入交付：是（舊authority本機退役與QA/QC完成）；否（新組立流程與production migration/release）。
+  - 證據：checkpoint=`codex/checkpoint-pre-assembly-retirement-20260824-142931`／`d4a7c84e50d0f47d3c9167404753d03690204f66`；既有`npm run qc:dev-095`、`typecheck:app`、122-page isolated build與三viewport browser全部PASS。2026-09-22 current HEAD=`ba618f093`重跑`npm.cmd run qc:dev-095`=`20/20 PASS`＋`typecheck:app` PASS，`npm.cmd run build:isolated`產生artifact、120/120 static pages、`primary=database-absent before/after`、`cleanup=true`，並以`git diff --check`驗證無格式錯誤；本次工作樹無primary SQLite檔，故沿用既有primary schema／identity／counts／residue／FK receipt，不宣稱新一輪schema hash。既有primary schema hash=`b44df078de88ecbeef8afa67a8968a4fda283235bda66a354d54a0d6ba21b322`、identity hash=`89d366ecd9f01a9ccbd40aee471f150b10d7b327d2263283c17c04131c6f7562`、FK=0前後一致；task-owned port與temp roots已清理。
+  - 執行邊界：只在task-owned isolated data/repository執行mutation。主要SQLite、正式Cloud SQL、stage／commit／merge／PR、deploy與release均未執行；existing port 3000 runtime未被停止或重啟。Production retirement已依2026-09-22人類決策移出範圍。
+  - 計入交付：是；本機 BOM hard retirement、focused QC、typecheck與isolated build完成後結案。Production migration/release不屬本 DEV current scope。
 
 - × DEV-096 [交付點] [Historical / Superseded by DEV-095 BOM Hard Retirement] [P1] [Do Not Restore] 組立件情境式共用 BOM 重建
   - **Retirement amendment 2026-08-28**：產品、schema/migration、flag與專用驗證均已移除；以下內容只保留歷史追溯，不是current implementation或release authority。
@@ -1625,6 +1632,15 @@ Owner：Dev PM
 ### 任務索引
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
+
+- ◐ DEV-121 [開發中] [架構定案／RD Implementation In Progress；OrgMaster producer dependency PASS] [P0] [Production L4 NOT_RUN] 目標端授權邊界重構
+  - 摘要：修正 handoff 跨域版號誤比、authority／grants 分次讀取、verified actor 缺失、現行 v3 `workspace:company-jenfu` 與舊 v2 `current` 混用及未驗 company／resource scope、client project scope、版本校驗、priority fallback 及 route discriminator／inventory 漂移，維持目標自行授權及 owner release。
+  - 來源 ID：`JENFU/DEV-015#target-authorization`；本地 owner `AIPDM/DEV-121`；producer 依賴 `ORGMASTER/DEV-057#identity-grants`。
+  - 進度：handoff 版號比較、transactional batch permission、固定 transaction decision time、verified actor／workspace 傳遞、number-state 同快照 batch、role priority 與 typed route manifest 已有程式修正。AI-PDM focused Vitest `7 files / 42 tests PASS`、`typecheck:app`、`check:db-boundary`、DEV-005 authorization／contract／runtime QC及D121-PG-01／02隔離PostgreSQL race PASS；Platform `npm run typecheck PASS`。全 API 255 files／292 methods已分類，direct role gate=0；25筆代碼全部唯一並採 `deny_or_retire / deny / 403`，route-policy QC PASS並保留 fail closed。
+  - 下一步：由 AI-PDM owner 先核對每個字面代碼是否真正進入 evaluator，按 route／method／用途記錄沿用現有能力、核定新增正向能力，或刻意拒絕／退役；保留對應正負向測試及可信 resource scope。只有核定新增 grant 時才走 DEV-005 owner-native immutable catalog publication／OrgMaster readback；同步修正 QC 對刻意拒絕與 helper／動態權限的辨識，不能僅靠 25 項都入目錄取綠燈。不得猜測 alias、複製舊 ACL matrix 或以 local role bypass。之後完成 local normal-entry／consumer conformance、v1/v2 rollback與browser evidence。OrgMaster producer migration 021及D57-01～06已在來源專案通過，證據位於 `C:\VIBE CODING\Jenfu-Platform\.task-dev014\orgmaster\dev057-postgres-qc-r2.json`。不得把mock/unit test計為PostgreSQL或Production L4。
+  - 驗收：target owner contract／route matrix、競態拒絕、v1/v2 相容、local／global logout 及跨系統正常入口分層證明；歷史 DEV-118 evidence 不當作本 DEV PASS。
+  - 證據：[DEV-121 contract](specs/DEV-121-target-authorization-boundary.md)。
+  - 計入交付：否；此為既有登入與權限交付的後續開發點。
 
 - ◇ DEV-120 [開發點] [Local Fix Complete / Protected Production Release Pending] [P0] [DEV-013 P_BOTH] target session expiry 不得受 handoff assertion TTL 截短
   - 摘要：Platform `DEV-013` production P_BOTH 切換已證明 AI-PDM normal entry 可在不再輸入密碼下建立本地session，但舊callback將 `handoff.expiresAt` 一併放入session expiry的最小值，使約5分鐘的單次assertion壽命誤成應用session壽命，稍後 `/api/numbering/permissions` 等受保護API回401。依Platform契約，target session expiry固定為 `min(now + appMaxAge, sourceSessionExpiresAt)`；assertion `expiresAt`僅在callback parse時驗證freshness。

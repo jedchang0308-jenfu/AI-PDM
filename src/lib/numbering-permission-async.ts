@@ -5,6 +5,7 @@ import { createAuthorizationDecisionLog } from "@/lib/authorization-decision-log
 import { assertJenfuEnforcePrerequisites, getJenfuEntitlementMode } from "@/lib/entitlement-config";
 import type { CheckNumberingPermissionInput, NumberingPermissionCheckResult } from "@/lib/db";
 import { JENFU_ENTITLEMENT_CONTRACT_VERSION } from "@/lib/jenfu-entitlement-contract";
+import { JenfuPrincipalAdmissionError, JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
 import { AsyncAccessControlRepository } from "@/lib/repositories/access-control-async-repository";
 import { JenfuEntitlementRepository, JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 
@@ -42,61 +43,112 @@ function decisionResult(input: CheckNumberingPermissionInput, decisionCode: stri
   };
 }
 
-export async function checkNumberingPermissionAsync(input: CheckNumberingPermissionInput): Promise<NumberingPermissionCheckResult> {
+export async function checkNumberingPermissionsAsync(inputs: readonly CheckNumberingPermissionInput[]): Promise<NumberingPermissionCheckResult[]> {
+  if (inputs.length === 0) return [];
   const client = getAsyncDatabaseClient();
-  if (getJenfuEntitlementMode() === "enforce") {
-    const actor = input.user.authorizationActor;
-    if (!actor) return decisionResult(input, "entitlement_session_invalid");
-    try {
-      assertJenfuEnforcePrerequisites({
-        platformAuthMode: getJenfuPlatformAuthMode(),
-        databaseKind: client.kind,
-        contractLockMatches: JENFU_ENTITLEMENT_CONTRACT_VERSION === "jenfu.platform-entitlement.v1"
-      });
-      const repository = new JenfuEntitlementRepository(client);
-      const evaluated = await repository.evaluatePermission({
+  if (getJenfuEntitlementMode() !== "enforce") {
+    const repository = new AsyncAccessControlRepository(client);
+    return Promise.all(inputs.map((input) => repository.checkPermission(input)));
+  }
+
+  const actor = inputs[0].user.authorizationActor;
+  if (!actor) return inputs.map((input) => decisionResult(input, "entitlement_session_invalid"));
+  const validActor = actor.localPrincipalId === inputs[0].user.id
+    && Boolean(inputs[0].user.company_id)
+    && actor.companyId === inputs[0].user.company_id
+    && inputs.every((input) => {
+      const candidate = input.user.authorizationActor;
+      return input.user.id === actor.localPrincipalId
+        && input.user.company_id === actor.companyId
+        && candidate?.identityIssuer === actor.identityIssuer
+        && candidate.identitySubject === actor.identitySubject
+        && candidate.principalId === actor.principalId
+        && candidate.employeeId === actor.employeeId
+        && candidate.localPrincipalId === actor.localPrincipalId
+        && candidate.companyId === actor.companyId;
+    });
+  if (!validActor) return inputs.map((input) => decisionResult(input, "entitlement_session_invalid"));
+
+  try {
+    assertJenfuEnforcePrerequisites({
+      platformAuthMode: getJenfuPlatformAuthMode(),
+      databaseKind: client.kind,
+      contractLockMatches: JENFU_ENTITLEMENT_CONTRACT_VERSION === "jenfu.platform-entitlement.v1"
+    });
+    const results = await client.transaction(async (snapshot) => {
+      const admitted = await new JenfuPrincipalAdmissionRepository(snapshot).requireActivePrincipal(actor.identityIssuer, actor.identitySubject);
+      if (admitted.principalId !== actor.principalId || admitted.employeeId !== actor.employeeId) {
+        throw new JenfuPrincipalAdmissionError("auth_contract_mismatch", 409);
+      }
+      const timeRows = await snapshot.query<{ decision_at: string }>("SELECT transaction_timestamp()::text AS decision_at");
+      const decisionAt = timeRows.length === 1 ? new Date(timeRows[0].decision_at) : new Date(Number.NaN);
+      if (!Number.isFinite(decisionAt.getTime())) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      const accessControl = new AsyncAccessControlRepository(snapshot);
+      const rolePriority = await accessControl.getEnforcedRolePriority([]);
+      const evaluated = await new JenfuEntitlementRepository(snapshot).evaluatePermissions(inputs.map((input) => ({
         actor,
         permissionKind: input.permissionKind,
         permissionCode: input.permissionCode.trim(),
         workspaceCode: input.workspaceCode,
-        projectCode: input.projectCode
+        projectCode: input.projectCode,
+        rolePriority
+      })), decisionAt);
+      if (evaluated[0]?.decisionCode === "legacy_authority") {
+        const legacyResults: NumberingPermissionCheckResult[] = [];
+        for (const input of inputs) {
+          const legacy = await accessControl.checkPermission(input, { enforceRolePriority: true, rolePriority, decisionAt: decisionAt.toISOString() });
+          legacyResults.push({
+            ...legacy,
+            decisionCode: legacy.allowed ? "allowed" : legacy.reason === "explicit" ? "permission_explicit_deny" : "permission_not_granted"
+          });
+        }
+        return inputs.map((input, index) => ({ permission: legacyResults[index], evaluated: null }));
+      }
+      return evaluated.map((result, index) => {
+        if (result.decisionCode !== "allowed") {
+          return { permission: decisionResult(inputs[index], result.decisionCode), evaluated: null };
+        }
+        return {
+          permission: {
+            allowed: true,
+            permissionKind: inputs[index].permissionKind,
+            permissionCode: inputs[index].permissionCode.trim(),
+            roleCode: result.assignment.roleCode,
+            evaluatedRoles: result.evaluatedRoles,
+            reason: "explicit",
+            decisionCode: "allowed"
+          } satisfies NumberingPermissionCheckResult,
+          evaluated: result
+        };
       });
-      if (evaluated.decisionCode === "legacy_authority") {
-        const legacy = await new AsyncAccessControlRepository(client).checkPermission(input);
-        return {
-          ...legacy,
-          decisionCode: legacy.allowed ? "allowed" : legacy.reason === "explicit" ? "permission_explicit_deny" : "permission_not_granted"
-        };
-      }
-      if (evaluated.decisionCode === "allowed") {
-        const log = createAuthorizationDecisionLog({
-          correlationId: crypto.randomUUID(),
-          authority: evaluated.authority,
-          permissionCode: input.permissionCode.trim(),
-          scopeKind: evaluated.assignment.scopeKind,
-          matchedStableRoleId: evaluated.assignment.stableRoleId,
-          decisionCode: "allowed",
-          principalId: actor.principalId,
-          employeeId: actor.employeeId,
-          assignmentId: evaluated.assignment.assignmentId
-        });
-        console.info(`[jenfu-authorization] ${JSON.stringify(log)}`);
-        return {
-          allowed: true,
-          permissionKind: input.permissionKind,
-          permissionCode: input.permissionCode.trim(),
-          roleCode: evaluated.assignment.roleCode,
-          evaluatedRoles: evaluated.evaluatedRoles,
-          reason: "explicit",
-          decisionCode: "allowed"
-        };
-      }
-      return decisionResult(input, "permission_not_granted");
-    } catch (error) {
-      const decisionCode = error instanceof JenfuEntitlementRepositoryError ? error.code : "entitlement_authority_unavailable";
-      return decisionResult(input, decisionCode);
+    }, { isolationLevel: "repeatable_read", readOnly: true });
+
+    for (const [index, result] of results.entries()) {
+      if (result.evaluated?.decisionCode !== "allowed") continue;
+      const log = createAuthorizationDecisionLog({
+        correlationId: crypto.randomUUID(),
+        authority: result.evaluated.authority,
+        permissionCode: inputs[index].permissionCode.trim(),
+        scopeKind: result.evaluated.assignment.scopeKind,
+        matchedStableRoleId: result.evaluated.assignment.stableRoleId,
+        decisionCode: "allowed",
+        principalId: actor.principalId,
+        employeeId: actor.employeeId,
+        assignmentId: result.evaluated.assignment.assignmentId
+      });
+      console.info(`[jenfu-authorization] ${JSON.stringify(log)}`);
     }
+    return results.map((result) => result.permission);
+  } catch (error) {
+    const decisionCode = error instanceof JenfuEntitlementRepositoryError
+      ? error.code
+      : error instanceof JenfuPrincipalAdmissionError
+        ? error.code === "principal_directory_unavailable" ? "entitlement_authority_unavailable" : "entitlement_session_invalid"
+        : "entitlement_authority_unavailable";
+    return inputs.map((input) => decisionResult(input, decisionCode));
   }
-  const repository = new AsyncAccessControlRepository(client);
-  return repository.checkPermission(input);
+}
+
+export async function checkNumberingPermissionAsync(input: CheckNumberingPermissionInput): Promise<NumberingPermissionCheckResult> {
+  return (await checkNumberingPermissionsAsync([input]))[0];
 }

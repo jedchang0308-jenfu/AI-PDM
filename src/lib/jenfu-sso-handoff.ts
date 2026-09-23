@@ -179,7 +179,7 @@ export async function jenfuSsoCallback(request: Request) {
     const admitted = await new JenfuPrincipalAdmissionRepository(client).requireActivePrincipal(handoff.identity.identityIssuer, handoff.identity.identitySubject);
     stage = "auth_epoch";
     const state = await new JenfuAuthEpochRepository(client).readPrincipalAuthState(handoff.identity.identityIssuer, handoff.identity.identitySubject);
-    if (admitted.principalId !== handoff.identity.principalId || admitted.employeeId !== handoff.identity.employeeId || admitted.mappingVersion !== handoff.authorization.assignmentVersion || state.authEpoch !== handoff.authState.authEpoch || (state.revokedBefore && Date.parse(handoff.authentication.authenticatedAt) <= Date.parse(state.revokedBefore))) throw new Error("STALE_HANDOFF");
+    if (admitted.principalId !== handoff.identity.principalId || admitted.employeeId !== handoff.identity.employeeId || state.authEpoch !== handoff.authState.authEpoch || (state.revokedBefore && Date.parse(handoff.authentication.authenticatedAt) <= Date.parse(state.revokedBefore))) throw new Error("STALE_HANDOFF");
     stage = "assurance";
     const assurance = resolveJenfuAssurance({ email: handoff.authentication.email, signInProvider: handoff.authentication.signInProvider, secondFactor: handoff.authentication.secondFactor, requirePrivilegedAssurance: principal.requiresPrivilegedAssurance === true, workspaceMfaTrustPolicy: getGoogleWorkspaceMfaTrustPolicy() });
     stage = "local_user";

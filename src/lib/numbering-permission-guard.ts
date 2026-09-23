@@ -3,6 +3,8 @@ import { requireAuthAsync } from "@/lib/auth-async";
 import { checkNumberingPermission, type NumberingPermissionCheckResult, type NumberingPermissionKind, type NumberingUserScope } from "@/lib/db";
 import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
+import { createJenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
+import type { VerifiedJenfuAppSessionV1 } from "@/lib/jenfu-platform-session-v1";
 
 export type NumberingPermissionResourceScope = {
   workspaceCode: string | null;
@@ -10,25 +12,13 @@ export type NumberingPermissionResourceScope = {
 };
 
 export function resolveNumberingPermissionResourceScope(
-  request: Request,
+  _request: Request,
   options: { workspaceCode?: string | null; projectCode?: string | null } = {},
   workspaceFallback: string | null = null
 ): NumberingPermissionResourceScope {
-  const params = new URL(request.url).searchParams;
-  let projectCode = options.projectCode;
-  if (projectCode === undefined) {
-    projectCode = null;
-    for (const key of ["projectCode", "project", "projectId"]) {
-      const value = params.get(key)?.trim();
-      if (value) {
-        projectCode = value;
-        break;
-      }
-    }
-  }
   return {
     workspaceCode: options.workspaceCode === undefined ? workspaceFallback : options.workspaceCode,
-    projectCode
+    projectCode: options.projectCode ?? null
   };
 }
 
@@ -37,6 +27,28 @@ export type NumberingGuardResult = {
   response: Response | null;
   permission: NumberingPermissionCheckResult | null;
 };
+
+/** Carries verified identity only in process; keep principal identifiers out of serialized API responses. */
+export function numberingUserScopeWithVerifiedActor(user: NumberingGuardResult["user"], actor: NumberingGuardResult["user"]["authorizationActor"]) {
+  const scoped = { ...user };
+  if (actor) Object.defineProperty(scoped, "authorizationActor", { value: actor, enumerable: false });
+  return scoped;
+}
+
+export function numberingUserScopeFromVerifiedSession(
+  user: NumberingGuardResult["user"],
+  session?: VerifiedJenfuAppSessionV1
+) {
+  const actor = session && user.company_id ? createJenfuVerifiedAuthorizationActor({
+    identityIssuer: session.identityIssuer,
+    identitySubject: session.identitySubject,
+    principalId: session.principalId,
+    employeeId: session.employeeId,
+    localPrincipalId: user.id,
+    companyId: user.company_id
+  }) : null;
+  return numberingUserScopeWithVerifiedActor(user, actor ?? undefined);
+}
 
 export function requireNumberingPermission(
   request: Request,
@@ -69,25 +81,18 @@ export async function requireNumberingPermissionAsync(
   const auth = await requireAuthAsync(request);
   if (!auth.user) return { user: { id: "", role: "" }, response: auth.response, permission: null };
   const scope = resolveNumberingPermissionResourceScope(request, options, auth.user.company_id);
+  const permissionUser = numberingUserScopeFromVerifiedSession(auth.user, auth.session);
 
   const permission = await checkNumberingPermissionAsync({
-    user: {
-      ...auth.user,
-      authorizationActor: auth.session ? {
-        identityIssuer: auth.session.identityIssuer,
-        identitySubject: auth.session.identitySubject,
-        principalId: auth.session.principalId,
-        employeeId: auth.session.employeeId
-      } : undefined
-    },
+    user: permissionUser,
     permissionKind,
     permissionCode,
     workspaceCode: scope.workspaceCode,
     projectCode: scope.projectCode,
     actionCode: options.actionCode
   });
-  if (!permission.allowed) return { user: auth.user, response: jenfuEntitlementFailureResponse(permission.decisionCode), permission };
-  return { user: auth.user, response: null, permission };
+  if (!permission.allowed) return { user: permissionUser, response: jenfuEntitlementFailureResponse(permission.decisionCode), permission };
+  return { user: permissionUser, response: null, permission };
 }
 
 export function requireNumberingPage(

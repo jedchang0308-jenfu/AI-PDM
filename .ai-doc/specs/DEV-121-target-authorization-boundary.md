@@ -1,0 +1,90 @@
+# DEV-121：AI-PDM 目標端授權邊界
+
+- 狀態：`RD Implementation In Progress / 架構定案：已定案 / OrgMaster producer 與 AI-PDM PostgreSQL race locally verified`；255 個 API route files／292 個 method 已分類、直接 role gate 為 0；25 個不在 v3 catalog 的 route 字面代碼已逐項收斂為 `deny_or_retire / deny / 403`，route-policy coverage local gate 已通過；normal-entry browser 與 Production L4 為 `NOT_RUN`
+- 日期：2026-09-23
+- Native owner：`AIPDM/DEV-121#target-authorization`
+- 來源：`JENFU/DEV-015#target-authorization`；producer 依賴 `ORGMASTER/DEV-057#identity-grants`
+- 決策：`JENFU/DEV-015` 的 ADR-005。既有 DEV-118 Production 登入驗收、DEV-120 歷史 session TTL 修正及 DEV-005／046 角色契約保持獨立。
+- Spec Impact：對 [DEV-013 AI-PDM SSO consumer](DEV-013-ai-pdm-sso-consumer.md)、[現行 access control](SPEC-PDM-ACCESS-CONTROL-001-user-identity-permission-architecture.md) 及 [DEV-118 登入入口](SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md) 為 `Compatible exception`；v2 wire 啟用及明確 legacy mode 變更時，須同步 active spec 與驗收，不能回寫既有 Production evidence。
+
+## 目標與責任
+
+Platform 的 handoff 證明「誰已在來源登入」，不能賦予 AI-PDM 業務權限。AI-PDM 必須以自己的 local session、OrgMaster 已發布的有效 authority／grants、AI-PDM 自有 role catalog 與 route policy 作最終判定；不把 route policy 搬進 Platform 或 OrgMaster。`ai_pdm_core` 仍由本 repo 擁有，跨專案只讀版本化 `*_contract`。
+
+## 現況與需修復項
+
+- `jenfu-sso-handoff.ts` 曾將 active principal `mappingVersion` 與 handoff `assignmentVersion` 比較；二者來源不同。現已移除跨域版號相等判斷，仍保留 handoff 自身正整數格式驗證；本 DEV 尚未變更 handoff wire contract，也未啟用 v2 emitter。
+- `jenfu-entitlement-repository.ts` 與本地 ACL 曾分開讀取，可能跨過 authority switch。現已新增 `AsyncDatabaseClient.transaction(fn, { isolationLevel: "repeatable_read", readOnly: true })`，在同一 transaction-bound client 讀 active principal、唯一 authority、OrgMaster grants **或** local ACL、唯一 priority；`transaction_timestamp()` 固定此批次的 decision time。現有預設交易與 `serializable` 寫入語意保持不變；enforce 模式在非 PostgreSQL 仍 fail closed。隔離 PostgreSQL D121-PG-01／02 已通過：同一請求使用切換前完整快照，切換提交後的新請求拒絕舊 grant。此證據只涵蓋 task-owned fixture，不代表 Production concurrency。
+- `jenfu-entitlement-contract.ts` 現要求正的 safe integer、exact contract/application 與合法 scope。Production／Platform auth `on` 仍須固定 `PDM_JENFU_ENTITLEMENT_MODE=enforce`；缺失／無效 mode fail closed。全域 `legacy` 僅限 owner 明列的 local／isolated environment；OrgMaster per-employee `legacy_authority` 是 enforce 模式內經同一快照選出的正式 authority，不是故障 fallback。
+- 受控 manifest、執行期 matcher 與分母同步至 62 files／76 methods／84 policy entries；新增 role-capability route files 與 typed discriminator 已列入。route matcher 對 `permissionCode` 不一致、discriminator 缺失／不明、重複政策 fail closed。另以 DEV-121 audit 分類全部 255 個 API route files／292 個 method（含只驗登入／resource-owner 的 handler）；直接 `user.role` gate 為 0。靜態掃描另找到 25 個 v3 catalog 未列的字面代碼，已逐項採 `deny_or_retire / deny / 403`，不把掃描數量直接當成新增角色能力的數量。
+
+### RD 技術主管補正：actor、scope 與批次判斷
+
+`GET /api/numbering/permissions` 曾未附 verified actor，且批次輸入也漏帶 workspace；`number-state-flow` 則由 local user ID／role 重組授權輸入。現已使用 target session 建立僅程序內可見的 `authorizationActor`，由單一 `checkNumberingPermissionsAsync` 批次入口檢查所有頁面／動作；每個 permission 保持獨立結果，principal、authority、grants／ACL、priority 與 decision time 共用同一唯讀交易。workspace 來自 session 綁定的 `company_id`；缺少 actor 或 scope 即拒絕。Platform command 的角色清單仍用於既有業務流程與稽核，但不得作 OrgMaster grant 的來源。批次回應只是當下能力提示；後續 mutation 仍須重新授權。
+
+OrgMaster v3 的 `v_ai_pdm_effective_role_assignments_v1` 直接發布治理 assignment 的 `scope.value`。現行資料契約至少有兩個已使用的 workspace source key：手動指派的 `current`（DEV-037 UI 定義為目前工作區）與 position-adoption source 條件使用的 `company-jenfu`（migration 020）。不能把其中一個說成所有 assignment 的唯一 key。AI-PDM 現有 `auth-async.ts` 與 `numbering-permission-guard.ts` 把 `company_id` 當 `workspaceCode`，但即使字串碰巧相同，也不能以 client 輸入或未驗的 local company 當授權證明。定案由 AI-PDM **單一 scope adapter**先驗 target session 所綁的 exact `company_id`、本地可信 membership 與資源 `company_id` 相同，再使用明列的 owner mapping：`(company-jenfu, current) → company-jenfu` 與 `(company-jenfu, company-jenfu) → company-jenfu`；mapping key 同時包含 trusted company，其他 company／scope key fail closed。owner 實作時讀回有效投影並確認 key 受此 mapping 覆蓋；未覆蓋值回報 contract/data drift，不加猜測式 fallback。只擁有另一家公司 membership 不足以通過，client 也不能用 query 改寫 session company。DB-backed membership／resource／priority policy 讀取與授權共用 transaction-bound client；若 mutation 另有資源狀態變動，保留該命令自己的提交前 guard。project grant 只接受由 server 讀取的資源所屬 project；URL 的 `projectCode`／`project`／`projectId` 只能作候選輸入，必須與可信資源核對，缺少可信映射時 project-scoped allow 拒絕。不得把 company ID、project query 或 workspace key 彼此直接比較。
+
+`auth-async.ts` 目前的 `options.permissionCode` 與 role-capabilities prefix 可先於 manifest 命中；這是第二個政策來源。定案是 manifest 決定每個 route＋method＋server-resolved discriminator 的授權模式與 permission；handler 的明確 permissionCode 僅可作與 manifest 一致的斷言，不能覆蓋或繞過。已退休路徑及原有更窄的 resource／command guard 照常保留；未知、重疊或不一致的政策拒絕。修補上述入口比另外建立跨 repo policy engine 更直接。
+
+## 契約與相容順序
+
+1. 沿用 OrgMaster 現有 `v_active_principal_mappings_v1`、`v_ai_pdm_entitlement_authority_v1`、`v_ai_pdm_effective_role_assignments_v1`；consumer 只讀版本化 contract，不自行查 `orgmaster_core`。Protected request 先驗 local session、active principal、current epoch；授權交易內再讀 active principal 與 authority，與已驗證 actor 核對，然後只走所選 authority 的授權路徑。兩筆上限足以識別 principal／authority 歧義，不能用 `DISTINCT`／任選第一筆。授權決策線性化於交易第一次讀取的快照；switch／logout commit 後才開始的請求不得用舊權限，commit 前已開始的請求可按舊快照完成。epoch 撤銷讀取是其自身檢查點，不能聲稱中途已開始的請求會被立即取消。
+2. 目標先支援新舊 handoff assertion、用固定 vector 證明共同接受條件，然後 Platform 才開始發 v2。接受 v1 不表示繼續跨域版號誤比；移除 v1 需要相容視窗與 owner release 證據。
+3. Target session expiry 為 `min(now + app max age, sourceSessionExpiresAt)`；assertion expiry 只限 callback。每個 protected request 仍核對 current epoch 與本地 session，global logout 後拒絕；local logout 只撤本地 session。
+4. Assignment `catalogVersion` 只是核准時 provenance，active AI-PDM catalog 才是 request-time policy；不得以兩字串不等拒絕。核對 stable role ID／code、subject、scope、有效期及明確 permission。多角色依 AI-PDM **唯一 active `role_priority_versions` row** 評估，不依 SQL 排序或 stable ID 字典序；reader 取至多兩筆，零筆／多筆／無效 JSON／重複 role／未覆蓋參與決策的 active role 都 fail closed，不在 enforce mode 用 `DEFAULT_ACCESS_CONTROL_ROLE_PRIORITY` 或 `created_at DESC LIMIT 1` 隱藏缺口。最高優先**適用且有明確該 permission 決策**的角色之 allow／deny 決定結果，無適用 allow 則拒絕；不為 priority 新增跨專案契約。
+5. DB view、schema、mode deployment 或 Production 資源仍由各 owner 的 DEV／migration／release gate 管理。當前工作只做已授權的 source 與 local／isolated validation，沒有執行 Production mutation。若未來採用 v2，回退順序先把 Platform emitter 回到 v1，再回退 target；可能回退至 v1-only target 時不得移除雙版 parser。
+
+## 固定驗收語意與目前證據
+
+`P01` 無目標 role 不得因 Portal 可見性而取得業務 API；`P02` mapping／assignment／catalog 各自變版不誤拒；`P03` authority switch 與 legacy ACL 共用單一快照；`P04` 缺值／壞版號／缺 verified actor／雙權威拒絕；`P05` Production 缺 enforce mode fail closed、未知 workspace/project scope 拒絕；`P06` manifest、route、typed discriminator、explicit permissionCode、role priority 一致；`P07` callback TTL、session 延續、global／local logout；`P08` v1/v2 相容與 owner rollback；`P09` 每個實際進入 evaluator 的受保護 route permission 均有 owner 記錄的用途與處置：現有 catalog 能力、核定後新增的能力，或刻意拒絕／退役。應開放者須有明確 catalog allow 與可信 resource scope；拒絕者須有 403／410 負向證據。未分類或 runtime 與處置不一致時阻擋 release。
+
+目前 local 證據：AI-PDM focused Vitest `7 files / 42 tests PASS`；`typecheck:app PASS`；`check:db-boundary PASS`；DEV-005 authorization-boundary `62/76/84 PASS`、contract PASS、runtime-boundary PASS；Platform `npm run typecheck PASS`；D121-PG-01／02 隔離 PostgreSQL race PASS；全 API route classification `255 files / 292 methods` 完成且 `directRoleGateFiles=0`。`config/access-control/jenfu-route-policy-dispositions.v1.json` 已建立 25 筆 owner-owned deny disposition；`npm run qc:dev-121:route-classification` 為 `PASS`，`pendingDispositions=[]`，不把任何靜態差異誤當成新 grant。Production L4 與 normal-entry browser 尚未執行，DEV-118 歷史證據不計入本 DEV。
+
+### 靜態掃描發現與 role-policy 處置
+
+#### Current owner disposition（2026-09-23）
+
+本輪已完成逐項處置：已發布的 `ai-pdm.role-catalog.2026-09-03.v3` 沒有這 25 個代碼的等價 capability，因此全部採 `deny_or_retire / outcome=deny / expectedStatus=403`。這保留 `orgmaster_authority` 的 fail-closed 行為，不猜測 alias、不新增角色 grant；`legacy_authority` 仍依同一授權快照讀取既有本地 ACL，既有 legacy 行為不變。處置證據綁定本節、`config/access-control/jenfu-role-catalog.v1.json` 與 route inventory，並寫入 `config/access-control/jenfu-route-policy-dispositions.v1.json` 的 v2 disposition。
+
+這不是 Production catalog publication，也不表示 Production L4 已完成。若未來業務需要其中任一能力，必須另開 catalog 版本，核定 allow 角色與可信 scope，完成 OrgMaster readback、positive／negative evidence 及獨立 release gate；在此之前所有新 authority request 均固定拒絕。
+
+route.ts AST 掃描找到以下 25 個字面代碼未列於 `ai-pdm.role-catalog.2026-09-03.v3`：`numbering.approval.batch.create`、`numbering.approval.request`、`numbering.attachments.manage`、`numbering.audit_report.generate`、`numbering.create`、`numbering.draft.admin_confirm`、`numbering.draft.obsolete`、`numbering.draft.update`、`numbering.duplicate_check`、`numbering.export.create`、`numbering.link_variant`、`numbering.notification.update`、`numbering.recognition.formalize`、`numbering.recognition.review`、`numbering.recognition.run`、`numbering.reports`、`numbering.task.update`、`obsolete_part_root`、`post_release_change`、`transfer.package.create`、`transfer.package.publish`、`transfer.package.review.submit`、`transfer.package.review.withdraw`、`transfer.package.update`、`transfer.package.view`。對真正進入 `JenfuEntitlementRepository` 的上述 code，`orgmaster_authority` 目前找不到正向 grant 並 fail closed；`legacy_authority` 仍在同一授權快照讀本地 ACL。這是實際行為差異，但其中哪些路徑本來應讓 OrgMaster 指派者使用，尚未由此掃描證明。
+
+這 25 個分為 17 個 `numbering.*` 代碼、2 個條件式動作（`obsolete_part_root`、`post_release_change`）與 6 個 transfer-package 代碼。掃描只讀 `route.ts` 中的字面值，對 helper／動態參數不保證完整；`requireNumberingPlatformCommandAsync` 目前在沒有 `permissionCode` 時，實際也把業務 `action` 傳給 `requireNumberingActionAsync` 當 permission；這不是純靜態誤報，但未來若要開放，owner 須另以明確 `permissionCode` 核定兩者語意。DEV-005 的 62 files／76 methods／84 entries 是直接 role-gate 退場清單，不是全部 255 個 API 的能力目錄。故 25 是**已處置的 deny 差異**，不是已核定的新 grant。
+
+AI-PDM owner 以 route＋method＋執行期 permission 為單位記錄：用途與是否仍提供、預期可用角色、既有等價能力的證據或新增能力理由、可信 company／resource／project scope 的來源、原有更窄 guard，以及 allow／deny 負向案例。處置只有三種：①完全同語意時沿用現有 catalog capability 並在唯一 route policy／handler 對齊；②確需開放且無等價能力時，在 DEV-005 role catalog owner 流程核定**正向 allow 的角色集合**、其餘預設拒絕，發布新 immutable catalog 並完成 OrgMaster readback；③刻意不提供或退役時保留 403／410，不為通過靜態檢查而新增 grant。現行 catalog 的 `allowedScopeKinds` 是**角色指派**層級，permission entry 沒有獨立 scope 欄位；scope 必須由 verified actor、assignment 和 server-side resource guard 共同驗證。不可把 25×9 的 allow／deny 表、逐能力 scope 或必定升版寫成既定需求，亦不可猜測 alias、複製舊 `role_permissions` 或回退 local role。
+
+現行 QC 腳本讀取 `config/access-control/jenfu-route-policy-dispositions.v1.json`，檢查每個未列於 catalog 的字面代碼都有唯一處置與 evidence checklist；輸出也固定列出每個呼叫點的 source／line／guard。`reuse_existing` 必須提供 catalog 內的 `canonicalPermissionCode`、`allowOrDenyCase=allow` 與非空 `evidenceRefs`；`add_catalog_grant` 必須以自身 code 綁定已發布的 catalog code、`targetCatalogVersion`、`allowOrDenyCase=allow` 與 evidence；`deny_or_retire` 必須提供 `outcome=deny|retire`、`expectedStatus=403|410`、`allowOrDenyCase=deny` 與 evidence。缺少 resolution record 或欄位不合契約時，以 `resolutionIssues` 與 `BLOCKED_ROUTE_POLICY_DISPOSITION` fail closed；本輪 25 筆均已提供 deny resolution，QC PASS。AI-PDM 擁有能力語意及 catalog；OrgMaster 只發布受控目錄／指派，Platform 不接受目標角色權限。這項處置不改寫 DEV-005 已發布的 v3 證據。
+
+## Architecture Closure Review 與精確 RD 修改面
+
+審查基線 HEAD `986b12d6c60835073f2662965643b0fa09a95886`；本工作樹原已有 DEV-118／DEV-095 文件修改，本輪沒有清理或覆寫。DEV-121 source changes 尚未提交，不能作 release source lock。前述 handoff 版號、authority／grant 快照、批次 actor／workspace、manifest drift、API route 分類與直接 role gate 已檢查；隔離 PostgreSQL D121-PG-01／02 已通過。25 個字面代碼已完成 deny disposition 與 route-policy QC；仍不可宣告 Production readiness，因 normal-entry browser／consumer conformance／Production L4 尚未完成。
+
+| 實作入口（repo-relative） | 固定契約與終態 |
+| --- | --- |
+| `src/lib/jenfu-sso-handoff.ts`／tests、`contracts/jenfu-sso-handoff/v2/` | 依版本精確 parse v1／v2，v1 assignmentVersion 僅作格式／來源紀錄，不與 active mapping 比；v2 無 authorization。成功回調仍需 active principal、current epoch、exact issuer／audience、有效時間，target session 上限只取 app max age 與 source expiry。 |
+| `src/lib/db-async-provider.ts`／tests、`src/lib/repositories/jenfu-entitlement-repository.ts`／tests、`src/lib/numbering-permission-async.ts` | 已新增明確 `repeatable_read + readOnly` 選項；PostgreSQL 同一 transaction-bound client 讀 active principal、authority、selected grant／legacy ACL、priority 與 transaction decision time。現有 `serializable` 寫入和預設 transaction 語意不變；非 PostgreSQL enforce request fail closed。D121-PG-01／02 隔離 writer race PASS。 |
+| `src/lib/auth-async.ts`、`src/lib/numbering-permission-guard.ts`、`src/app/api/numbering/permissions/route.ts`、`src/lib/number-state-flow.ts` 及各 tests | 已以 verified target session 傳遞不序列化 actor；單項與 batch 共用授權入口，batch 為每項 permission 獨立計算並帶 verified workspace。缺 session／actor／scope fail closed；後續 mutation 仍獨立授權。 |
+| `src/lib/jenfu-entitlement-contract.ts`、`src/lib/jenfu-route-permission-map.ts`、`config/access-control/jenfu-route-permission-map.v1.json`、`src/lib/repositories/access-control-async-repository.ts`、`src/lib/jenfu-entitlement-http.ts`／tests | 正 safe integer／exact contract 驗證；單一 scope adapter；manifest 同時驅動 route matcher、inventory、驗證分母；handler permissionCode 僅作一致性斷言。active role catalog 與 owner priority policy 判斷明確 deny／allow，禁止字典順序決定。 |
+
+授權交易的資料流固定為 `verified local session → current epoch／active principal → BEGIN REPEATABLE READ READ ONLY → 再確認同一 actor 的 active principal → 唯一 authority → 該來源 grants 或 local ACL → server-side resource／membership／priority → 所有 permission 結果 → COMMIT`。已驗證 session 的 `localPrincipalId` 必須等於 local user ID、`companyId` 等於 user `company_id`，且 local account／session registry／lifecycle version 均有效；transaction 內再讀的 active principal 必須與 session 的 issuer、subject、principal、employee 完全一致。HTTP、batch、內部命令一律從這個 verified context 取得 actor，不能由 `user.role` 或 client 欄位合成。
+
+第一個 DB read 建立 PostgreSQL `REPEATABLE READ` 快照，交易內 `transaction_timestamp()` 固定單一 `decisionAt`；grant half-open 有效期 `[validFrom, validUntil)` 與 legacy ACL 有效期共用此時間，batch 不逐項重新讀 `Date.now()`。Priority 為同交易唯一 active row；其缺失／重複／格式錯誤一律拒絕。短交易不得包含外部 HTTP、檔案傳輸或 response streaming。switch／logout commit 後才開始的 request 必須看到新狀態；已在 commit 前取得快照者可按舊快照完成。任何 producer／DB 逾時、零筆／雙筆、混版、scope 不明、priority 缺失或顯式 deny 皆拒絕；`legacy_authority` 僅是同快照選定的合法來源，不是錯誤 fallback。不得逐 permission 再開交易。隔離 PostgreSQL D121-PG-01／02 已證明前後請求分別使用完整舊快照與新權威狀態。
+
+workspace adapter 以 verified actor 的 exact `companyId`、assignment source key 與已解析 workspace candidate 作 pair check，僅允許 `(company-jenfu, current)`、`(company-jenfu, company-jenfu)` 映射至 local workspace `company-jenfu`；其他公司或未知 key fail closed。Permission guard 不再從 URL query 自動取 project scope；現行 callsites 中由資料庫讀出的 batch project 可作可信 resource scope。任何新增 project-scoped allow 都須先證明 project 由 server resource／company membership 解析，不能直接把 body/query 當成 authority。完整 callsite inventory 尚待補齊。global grant 仍受 actor、role、有效期及 protected route 的其他 guard 約束。
+
+route manifest 對其管轄的每一實際 protected `path + method + server-derived discriminator token` 恰有一筆；現行 DEV-005 machine denominator 為 62 files／76 methods／84 policy entries，`npm run qc:jms-dev-005:authorization-boundary` 由 source 產生並驗證，禁止手填。另行 inventory 已分類全 API 255 files／292 methods；重疊／未知／未列 route fail closed，`options.permissionCode` 若與 manifest 不符即拒絕。全 API 的其他既有 guard 不因分類而自動轉入此 manifest；要對其做能力完備性結論，須把 helper／動態呼叫及條件分支納入 owner 審查。現行 QC 對未列 catalog 的字面代碼一律阻擋，是待收斂的保守檢查，不是「每個 code 必須入 catalog」的最終契約。`catalogVersion` provenance 不與 active policy 字串硬比。
+
+| manifest mode | handler 必須保留的最終 gate |
+| --- | --- |
+| `permission` | 同快照 AI-PDM permission＋原有更窄的 resource／command guard；handler 給的 permissionCode 只能斷言相等。 |
+| `existing_command` | 受控 manifest 指向的具名命令 guard（如 `requireNumberingPlatformCommandAsync`）仍執行；不可把 mode 當成已 allow。 |
+| `existing_path` | 既有具名 path permission／resource binding guard 仍執行；不可降為「只驗登入」。 |
+| `authenticated_domain` | 已驗 target session，加 handler 原有 company／owner／reviewer／resource projection；只限 manifest 明列的資料路徑。 |
+| `retired` | 回既有 410，禁止落入其他 permission 或通用處理分支。 |
+
+目前 approvals decision 與 file-asset GET 的 manifest `discriminator` 是敘述句，不是 machine key。定案由 server 先讀受 company 約束的 request／asset **metadata** 並核對 client 候選，不讀出檔案內容或執行 mutation，再產生封閉 token：decision 用 `retired_review`（兩個舊 candidate action）、`drawing_lifecycle`、`transfer_package`、`registered_other`；file GET 用 `approval_evidence`、`drawing_revision_work`、`review_request`、`part_attachment`、`drawing_generic`。`review_request` 僅在有效 reviewRequestId 且不屬前兩個專用 context 時成立；其餘 context／binding／company 不符直接拒絕，不能落到較寬的 `authenticated_domain`。這些 token 與 manifest entry 必須一一對應，由同一 typed resolver 供 runtime 與 inventory/test 使用；人讀描述只作註解，不進 matcher。
+
+AI-PDM 自身無新 schema 或資料 migration，沿用 OrgMaster **經 `ORGMASTER/DEV-057` role-neutral 身分及 authority-independent Portal visibility 修正後**的 v1 views、AI-PDM 自有 ACL／priority table 和 Platform handoff code；v2 為新增 wire contract，不原地改 v1。唯一 active priority row 缺失時須經 AI-PDM owner 既有受控 policy publish 補齊並 readback，不能由 request-time fallback 代填。若缺少能在同一 PostgreSQL transaction 中取得的可信 membership／resource 或需要新增 persistent state，先回送 `JENFU/DEV-015` 與本 DEV 作 spec drift，不讓 route handler 偷讀另一個資料源補洞。mode 變更屬 runtime/release impact：Platform auth 啟用的 Production 必須明確 `enforce`，但本文件不產生 deploy artifact。
+
+P01～P09 的 task-owned fixture 覆蓋 mapping／Portal assignment／authority／catalog 版號、legacy↔OrgMaster switch race、DB fault、雙 principal／authority、兩家公司與偽造 project query、相反 priority role、v1/v2 callback、過期 source session、global/local logout及 route-policy 處置。D121-PG-01／02 與 255 files／292 methods route classification 已完成；25 個靜態差異已逐項採 deny disposition，不把缺少 code 自動當作應新增 grant，也不把現有拒絕當作合格業務流程。下一步執行對應 local browser／consumer conformance，再進 owner release／Production L4 gate；只有需要新 grant 時才走 DEV-005 catalog 版更／OrgMaster readback。每案記 source revision、fixture／DB fingerprint、entry、role、route、method、期待／實際與 cleanup；mock 不冒充 PostgreSQL 或 Production L4。若需要 sibling core／新 schema／IAM，回送架構 owner，不在 consumer 偷補資料源。

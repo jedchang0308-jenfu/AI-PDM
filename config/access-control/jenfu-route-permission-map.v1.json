@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "Jenfu-Management-system/ai-doc/specs/DEV-005-ai-pdm-authorization-route-inventory.md",
-  "sourceSha256": "478f8c2fdd056c6b8bc38bcf3a132473a579b21f5971c50b676a39263fe56668",
+  "sourceSha256": "f7f39de778c9df6dacdfac2965965d9cba0f64be4e290d3cd152466dac8ce059",
   "denominator": {
-    "uniqueFiles": 56,
-    "uniqueMethods": 70,
-    "policyEntries": 78
+    "uniqueFiles": 62,
+    "uniqueMethods": 76,
+    "policyEntries": 84
   },
   "entries": [
     {
@@ -132,22 +132,22 @@
     {
       "path": "src/app/api/approvals/requests/[requestId]/apply/route.ts",
       "method": "POST",
-      "discriminator": "actionCode in {numbering.candidate_bundle_review, numbering.candidate_publication_review}",
-      "authorizationMode": "retired",
-      "permissionCode": null,
-      "authorizationTarget": "retired → 410",
-      "scopeResolver": "exact legacy candidates；不得落入apply path",
-      "preservedGuards": "exact legacy candidates；不得落入apply path"
-    },
-    {
-      "path": "src/app/api/approvals/requests/[requestId]/apply/route.ts",
-      "method": "POST",
-      "discriminator": "all other registered action codes",
+      "discriminator": "approval_apply:registered",
       "authorizationMode": "permission",
       "permissionCode": "approval.request.apply",
       "authorizationTarget": "approval.request.apply",
       "scopeResolver": "company",
       "preservedGuards": "company＋production-slice／registered-action／request-state／idempotency gates"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/apply/route.ts",
+      "method": "POST",
+      "discriminator": "approval_apply:retired_candidate",
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "retired → 410",
+      "scopeResolver": "exact legacy candidates；不得落入apply path",
+      "preservedGuards": "exact legacy candidates；不得落入apply path"
     },
     {
       "path": "src/app/api/approvals/requests/[requestId]/cleanup/route.ts",
@@ -162,17 +162,7 @@
     {
       "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
       "method": "POST",
-      "discriminator": "actionCode in {numbering.candidate_bundle_review, numbering.candidate_publication_review}",
-      "authorizationMode": "retired",
-      "permissionCode": null,
-      "authorizationTarget": "retired → 410",
-      "scopeResolver": "exact legacy candidates；不得落入decision path",
-      "preservedGuards": "exact legacy candidates；不得落入decision path"
-    },
-    {
-      "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
-      "method": "POST",
-      "discriminator": "actionCode=numbering.drawing_revision_lifecycle_review",
+      "discriminator": "approval_decision:drawing_lifecycle",
       "authorizationMode": "permission",
       "permissionCode": "approval.request.decide",
       "authorizationTarget": "approval.request.decide",
@@ -182,7 +172,7 @@
     {
       "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
       "method": "POST",
-      "discriminator": "all other enabled registered action codes",
+      "discriminator": "approval_decision:registered",
       "authorizationMode": "permission",
       "permissionCode": "approval.request.decide",
       "authorizationTarget": "approval.request.decide",
@@ -192,7 +182,17 @@
     {
       "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
       "method": "POST",
-      "discriminator": "transfer.package_review",
+      "discriminator": "approval_decision:retired_candidate",
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "retired → 410",
+      "scopeResolver": "exact legacy candidates；不得落入decision path",
+      "preservedGuards": "exact legacy candidates；不得落入decision path"
+    },
+    {
+      "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+      "method": "POST",
+      "discriminator": "approval_decision:transfer_package",
       "authorizationMode": "existing_command",
       "permissionCode": null,
       "authorizationTarget": "existing_command: requireNumberingPlatformCommandAsync",
@@ -342,17 +342,7 @@
     {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
       "method": "GET",
-      "discriminator": "context in {candidate_revision, drawing_revision, drawing_revision_package, review_package, drawing_attachment} and no reviewRequestId",
-      "authorizationMode": "existing_path",
-      "permissionCode": null,
-      "authorizationTarget": "existing numbering.drawings.view path",
-      "scopeResolver": "asset company",
-      "preservedGuards": "asset company＋exact context／binding／asset identity；invalid context先400"
-    },
-    {
-      "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
-      "method": "GET",
-      "discriminator": "context=approval_evidence",
+      "discriminator": "file_read:approval_evidence",
       "authorizationMode": "permission",
       "permissionCode": "approval.request.decide",
       "authorizationTarget": "approval.request.decide",
@@ -362,7 +352,17 @@
     {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
       "method": "GET",
-      "discriminator": "context=drawing_revision_work",
+      "discriminator": "file_read:drawing_read",
+      "authorizationMode": "existing_path",
+      "permissionCode": null,
+      "authorizationTarget": "existing numbering.drawings.view path",
+      "scopeResolver": "asset company",
+      "preservedGuards": "asset company＋exact context／binding／asset identity；invalid context先400"
+    },
+    {
+      "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+      "method": "GET",
+      "discriminator": "file_read:drawing_revision_work",
       "authorizationMode": "existing_path",
       "permissionCode": null,
       "authorizationTarget": "existing numbering.drawings.view path",
@@ -372,7 +372,7 @@
     {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
       "method": "GET",
-      "discriminator": "context=part_attachment and no reviewRequestId",
+      "discriminator": "file_read:part_attachment",
       "authorizationMode": "existing_path",
       "permissionCode": null,
       "authorizationTarget": "existing numbering.search path",
@@ -382,7 +382,7 @@
     {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
       "method": "GET",
-      "discriminator": "reviewRequestId present and context not above",
+      "discriminator": "file_read:review_request",
       "authorizationMode": "authenticated_domain",
       "permissionCode": null,
       "authorizationTarget": "authenticated_domain",
@@ -408,6 +408,66 @@
       "authorizationTarget": "settings.admin_matrix",
       "scopeResolver": "workspace",
       "preservedGuards": "workspace＋matrix validation／audit"
+    },
+    {
+      "path": "src/app/api/settings/access/role-capabilities/change-feed/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋bounded audit projection"
+    },
+    {
+      "path": "src/app/api/settings/access/role-capabilities/commands/[commandId]/resolve-unknown/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋command／resolution state"
+    },
+    {
+      "path": "src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋exact command projection"
+    },
+    {
+      "path": "src/app/api/settings/access/role-capabilities/preview/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋catalog validation／preview"
+    },
+    {
+      "path": "src/app/api/settings/access/role-capabilities/publish/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋publish eligibility／audit"
+    },
+    {
+      "path": "src/app/api/settings/access/role-capabilities/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋role catalog projection"
     },
     {
       "path": "src/app/api/settings/gdrive/folders/route.ts",
