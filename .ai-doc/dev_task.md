@@ -2,6 +2,10 @@
 
 > 跨專案引用代碼：`AIPDM`（2026-09-23 使用者確認；既有歷史 ID 不改名）。
 
+> **2026-09-24 DEV-121／DEV-014 local verification refresh（現行證據）**：重跑 `qc:dev-121:route-classification` 與 `typecheck:app` 均 PASS；inventory 為 255 route files／292 methods，25 個不在 v3 catalog 的 permission code 均已有明確 `deny_or_retire`、`deny` 或 `403` disposition，`productionWrites=false`。本輪僅為本地／read-only evidence，不發布新 catalog、不改 schema／資料／IAM／Secret／service。Free-only first-login bridge 仍等待 Google 密碼／裝置核准，故 DEV-014 authority switch、完整 LOGIN／L4 與 DEV-121 Production conformance 維持原狀。
+
+> **2026-09-24 DEV-015／DEV-118 consumer browser refresh（現行證據）**：DEV-118 contract `14/14 PASS`、compiled login-entry browser `33/33 PASS`，runner 證明 `productionConnected=false`、`productionMutation=false`、console errors `0`、port／temporary data／Next dist 均已清理；DEV-121 route classification 維持 `255/292`、25 deny dispositions、pending `0`。本地 browser evidence 不升格為 Production L4，Free-only first-login bridge仍待 Google互動。
+
 > **2026-09-24 DEV-014 existing-account normal-entry observation（現行證據）**：沿用已登入的 `jedchang0308@jenfu.com.tw` Platform session 從 Platform 入口開啟 AI-PDM production `run.app` URL；AI-PDM 未要求第二次 Google 登入，頁面顯示 `employee-shijie` 且受保護工作台／帳號入口可用。此為既有帳號的 redacted normal-entry／single-session observation，不宣稱 Free-only bridge、authority switch、assertion-TTL、permission API、global logout、rate／race 或完整 Production L4 denominator 已 PASS。
 
 > **2026-09-23 DEV-121 route-policy disposition closure（現行）**：已完成 255 個 API route files／292 個 method 的 owner inventory；25 個未出現在 `ai-pdm.role-catalog.2026-09-03.v3` 的字面 permission code 不再停留在模糊的 `pending_owner_decision`。依 fail-closed 邊界逐項標記 `deny_or_retire / deny / 403`，保留 `legacy_authority` 的既有本地 ACL 讀取，不新增猜測式 catalog grant、不發布 Production catalog、不改 schema／資料。`npm run qc:dev-121:route-classification` PASS；repository consumer `32/32`、change-feed consumer `5/5`、typecheck PASS。DEV-101 以 runner `2455bd927` 與 read-only snapshot `output/qa/production-snapshot-postgres/2026-08-25T13-20-33-537Z/canonical-target.sqlite` 完成 v1 `16/16`、v2 `29/29`；permission compatibility 只寫入 task-owned copy，source hash 不變且所有暫存資源已清理。Production L4 與任何新 catalog allow 仍是後續獨立 gate。
