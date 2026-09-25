@@ -42,6 +42,7 @@ function assuranceLabel(level: AccountSession["assuranceLevel"]) {
 
 export default function AccountSecurityPage() {
   const [sessions, setSessions] = useState<AccountSession[]>([]);
+  const [sessionsAsOfMs, setSessionsAsOfMs] = useState(0);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -49,7 +50,7 @@ export default function AccountSecurityPage() {
   const [sessionToRevoke, setSessionToRevoke] = useState<AccountSession | null>(null);
 
   const activeSessions = useMemo(() => sessions.filter((session) =>
-    !session.revokedAt && Date.parse(session.expiresAt) > Date.now()), [sessions]);
+    !session.revokedAt && Date.parse(session.expiresAt) > sessionsAsOfMs), [sessions, sessionsAsOfMs]);
   const currentSession = useMemo(() => sessions.find((session) => session.current) ?? null, [sessions]);
 
   const load = useCallback(async () => {
@@ -67,6 +68,7 @@ export default function AccountSecurityPage() {
       return;
     }
     setSessions(Array.isArray(sessionBody.sessions) ? sessionBody.sessions : []);
+    setSessionsAsOfMs(Date.now());
     if (meResponse.ok) setUser(meBody.user ?? null);
   }, []);
 

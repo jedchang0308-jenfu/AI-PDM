@@ -57,7 +57,7 @@ function prepareRuntimeProject() {
     const source = path.join(root, file);
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(resolvedRuntimeRoot, file));
   }
-  for (const directory of ["src", "public", "db", "config"]) {
+  for (const directory of ["src", "public", "db", "config", "contracts"]) {
     const source = path.join(root, directory);
     if (fs.existsSync(source)) fs.cpSync(source, path.join(resolvedRuntimeRoot, directory), { recursive: true, force: true });
   }

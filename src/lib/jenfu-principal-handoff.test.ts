@@ -22,9 +22,11 @@ describe("DEV-121 principal handoff v2", () => {
     expect(proof).not.toHaveProperty("authorization");
   });
 
-  it.each(vectors.negativeMutations)("rejects source contract mutation $id", ({ path, value }) => {
-    expect(() => parseJenfuPrincipalHandoff(mutated(path, value), issuer, clock)).toThrow();
-  });
+  for (const { id, path, value } of vectors.negativeMutations) {
+    it(`rejects source contract mutation ${id}`, () => {
+      expect(() => parseJenfuPrincipalHandoff(mutated(path, value), issuer, clock)).toThrow();
+    });
+  }
 
   it("rejects wrong issuer, unbounded proof lifetime and invalid dates", () => {
     expect(() => parseJenfuPrincipalHandoff(vectors.valid, "https://other.example.test/api/sso", clock)).toThrow("HANDOFF_INVALID");
