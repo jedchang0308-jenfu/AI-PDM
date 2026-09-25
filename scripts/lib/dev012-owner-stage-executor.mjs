@@ -347,13 +347,13 @@ function publicBuildReceipt(build) {
   return { name: build.name, id: build.id, projectId: build.projectId, status: build.status, serviceAccount: build.serviceAccount, createTime: build.createTime, startTime: build.startTime, finishTime: build.finishTime, sourceProvenance: build.sourceProvenance, results: build.results, options: build.options }
 }
 
-export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, dataCutoverConfig = null }) {
+export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
   const { intent, intentRef, paths } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent })
   const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, releaseIntentSha256: capsuleSha256 }))
 
   if (stage !== 'rollback') {
-    assertProtectedGitHubContext(profile, intent, environment)
+    assertProtectedGitHubContext(profile, intent, environment, { stage, migrationOnlyWorkflowPath })
   }
 
   if (stage === 'prepare') {

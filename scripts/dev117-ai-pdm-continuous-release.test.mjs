@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, assertDev121MigrationOnlyWorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117MigrationPackage, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
-import { buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
+import { assertProtectedGitHubContext, buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 
@@ -174,6 +174,27 @@ test('S1B-20 principal migration workflow stops before candidate and uses exact 
   assert.equal(assertDev121MigrationOnlyWorkflowSource(source, wif), true)
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source, wif.replace("assertion.ref == 'refs/heads/main'", "assertion.ref == 'refs/heads/feature'")), { code: 'MIGRATION_ONLY_WIF_DRIFT' })
+})
+
+test('S1B-20 migration-only GitHub source authority is limited to prepare/build/migrate', () => {
+  const intent = { sourceRevision: 'a'.repeat(40) }
+  const environment = {
+    GITHUB_ACTIONS: 'true', ACTIONS_ID_TOKEN_REQUEST_URL: 'https://token.actions.example', GOOGLE_OAUTH_ACCESS_TOKEN: 'x'.repeat(32),
+    GITHUB_REPOSITORY: profile.application.repository, GITHUB_SHA: intent.sourceRevision, GITHUB_WORKFLOW_SHA: intent.sourceRevision,
+    GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch',
+    GITHUB_REPOSITORY_ID: '1260972060', GITHUB_REPOSITORY_OWNER_ID: '257207597', GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '1',
+    GITHUB_WORKFLOW_REF: `${profile.application.repository}/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main`,
+  }
+  const migrationOnlyWorkflowPath = '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml'
+  for (const stage of ['prepare', 'build', 'migrate']) {
+    assert.equal(assertProtectedGitHubContext(profile, intent, environment, { stage, migrationOnlyWorkflowPath }), true)
+  }
+  for (const stage of ['candidate', 'activate', 'finalize']) {
+    assert.throws(() => assertProtectedGitHubContext(profile, intent, environment, { stage, migrationOnlyWorkflowPath }), { code: 'GITHUB_SOURCE_AUTHORITY_MISMATCH' })
+  }
+  assert.throws(() => assertProtectedGitHubContext(profile, intent, { ...environment, GITHUB_SHA: 'b'.repeat(40) }, { stage: 'prepare', migrationOnlyWorkflowPath }), { code: 'GITHUB_SOURCE_AUTHORITY_MISMATCH' })
+  const mainWorkflow = { ...environment, GITHUB_WORKFLOW_REF: `${profile.application.repository}/${profile.workflow.path}@refs/heads/main` }
+  assert.equal(assertProtectedGitHubContext(profile, intent, mainWorkflow, { stage: 'candidate', migrationOnlyWorkflowPath }), true)
 })
 
 test('S1B-20 AI-PDM DEV-116 exact candidate join', () => {

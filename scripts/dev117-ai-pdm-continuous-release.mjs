@@ -19,7 +19,7 @@ async function main() {
   const args = parseOwnerStageArgs(process.argv.slice(2), profile.artifact.releaseBucket)
   const transport = createOwnerTransport({ token: process.env.GOOGLE_OAUTH_ACCESS_TOKEN ?? '' })
   const result = await executeOwnerStage({
-    ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig,
+    ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig, migrationOnlyWorkflowPath: '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml',
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
     createSourceArchive: async (sourceRevision) => createGitArchive(root, sourceRevision),
     buildMigrationBundle: async (sourceRevision) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision),
