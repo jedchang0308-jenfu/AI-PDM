@@ -162,6 +162,7 @@ export class RelationFormalAuthorityRepository {
       matrix: CanonicalRelationMatrixProjection;
     }>(this.client as AsyncDatabaseClient, {
       companyId: input.companyId,
+      actorId: input.actorId,
       command: "pdm.relation_matrix.update.v1",
       idempotencyKey: input.idempotencyKey,
       request,

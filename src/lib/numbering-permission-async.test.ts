@@ -19,15 +19,13 @@ const actor = {
 };
 
 const assignmentRow = {
-  contract_version: "jenfu.platform-entitlement.v1",
+  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v2",
   assignment_version_id: "assignment-version-1",
   assignment_version: 1,
   assignment_id: "assignment-1",
   grant_kind: "direct",
   delegation_id: null,
   application_id: "ai-pdm",
-  identity_issuer: actor.identityIssuer,
-  identity_subject: actor.identitySubject,
   principal_id: actor.principalId,
   employee_id: actor.employeeId,
   subject_kind: "employee",
@@ -60,6 +58,14 @@ function makeClient(input: { authoritySource?: "legacy_authority" | "orgmaster_a
         mapping_version: 4,
         published_at: "2026-01-01T00:00:00.000Z"
       }] as T[];
+      if (sql.includes("v_active_principal_accounts_v1")) return [{
+        contract_version: "organization.active-principal.v1",
+        principal_issuer: actor.identityIssuer,
+        principal_subject: actor.identitySubject,
+        principal_id: input.principalId ?? actor.principalId,
+        employee_id: actor.employeeId,
+        employee_status: "active"
+      }] as T[];
       if (sql.includes("transaction_timestamp()")) return [{ decision_at: "2026-09-23T00:00:00.000Z" }] as T[];
       if (sql.includes("FROM role_priority_versions")) return (input.activePriority === false ? [] : [{
         priority_json: JSON.stringify(["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"])
@@ -73,7 +79,7 @@ function makeClient(input: { authoritySource?: "legacy_authority" | "orgmaster_a
         updated_at: "2026-09-23T00:00:00.000Z",
         operation_id: null
       }] as T[];
-      if (sql.includes("v_ai_pdm_effective_role_assignments_v1")) return [assignmentRow] as T[];
+      if (sql.includes("v_ai_pdm_principal_effective_grants_v2")) return [assignmentRow] as T[];
       if (sql.includes("FROM user_role_assignments")) return [{ role_code: "rd" }] as T[];
       if (sql.includes("FROM approval_delegations")) return [] as T[];
       if (sql.includes("FROM roles") && sql.includes("WHERE enabled = 1")) return [{
@@ -123,6 +129,19 @@ describe("DEV-121 authorization snapshot", () => {
     vi.clearAllMocks();
   });
 
+  it("never sends a v2 principal actor through the legacy role evaluator", async () => {
+    const client = makeClient({ authoritySource: "legacy_authority" });
+    mocks.getAsyncDatabaseClient.mockReturnValue(client);
+    const input = requestInput();
+    input.user.authorizationActor = { ...actor, sessionSchemaVersion: 2 };
+
+    const result = await checkNumberingPermissionAsync(input);
+
+    expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_scope_mismatch" });
+    expect(mocks.getAsyncDatabaseClient).not.toHaveBeenCalled();
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   it("rechecks active identity and evaluates entitlement in one read-only repeatable-read transaction", async () => {
     const client = makeClient();
     mocks.getAsyncDatabaseClient.mockReturnValue(client);
@@ -135,7 +154,7 @@ describe("DEV-121 authorization snapshot", () => {
     expect(client.transactionOptions).toEqual({ isolationLevel: "repeatable_read", readOnly: true });
     expect(client.queries.some((sql) => sql.includes("v_active_principal_mappings_v1"))).toBe(true);
     expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(true);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_effective_role_assignments_v1"))).toBe(true);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(true);
     expect(client.execute).not.toHaveBeenCalled();
     log.mockRestore();
   });
@@ -154,7 +173,7 @@ describe("DEV-121 authorization snapshot", () => {
     expect(denied).toMatchObject({ allowed: false, decisionCode: "permission_not_granted" });
     expect(client.transaction).toHaveBeenCalledTimes(1);
     expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toHaveLength(1);
-    expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_effective_role_assignments_v1"))).toHaveLength(1);
+    expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toHaveLength(1);
     log.mockRestore();
   });
 
@@ -166,7 +185,7 @@ describe("DEV-121 authorization snapshot", () => {
 
     expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_session_invalid" });
     expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(false);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_effective_role_assignments_v1"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(false);
   });
 
   it("evaluates legacy ACL from the same snapshot when legacy authority is selected", async () => {
@@ -180,7 +199,7 @@ describe("DEV-121 authorization snapshot", () => {
     expect(client.transactionOptions).toEqual({ isolationLevel: "repeatable_read", readOnly: true });
     expect(client.queries.some((sql) => sql.includes("FROM user_role_assignments"))).toBe(true);
     expect(client.queries.some((sql) => sql.includes("FROM role_permissions p"))).toBe(true);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_effective_role_assignments_v1"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(false);
   });
 
   it("does not fall back when the active priority contract is missing", async () => {
@@ -190,6 +209,6 @@ describe("DEV-121 authorization snapshot", () => {
     const result = await checkNumberingPermissionAsync(requestInput());
 
     expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_authority_unavailable" });
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_effective_role_assignments_v1"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(false);
   });
 });

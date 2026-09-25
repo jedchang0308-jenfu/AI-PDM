@@ -1,0 +1,77 @@
+name: Apply AI-PDM principal migrations without traffic
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseCapsuleRef:
+        description: Immutable AI-PDM release-intent URI with sha256 fragment
+        required: true
+        type: string
+
+concurrency:
+  group: production-release-ai-pdm-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  WIF_PROVIDER: ${{ vars.AIPDM_PROD_WIF_PROVIDER }}
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - run: npm run test:dev-117:continuous
+      - id: bind
+        shell: bash
+        env: { RELEASE_CAPSULE_REF: "${{ inputs.releaseCapsuleRef }}" }
+        run: |
+          set -euo pipefail
+          capsule_uri="${RELEASE_CAPSULE_REF%%#sha256=*}"
+          capsule_sha256="${RELEASE_CAPSULE_REF##*#sha256=}"
+          test "$capsule_uri" != "$RELEASE_CAPSULE_REF"
+          [[ "$capsule_uri" =~ ^gs://jenfu-platform-prod-aipdm-release/receipts/.+\.json$ ]]
+          [[ "$capsule_sha256" =~ ^[a-f0-9]{64}$ ]]
+          echo "capsule_uri=$capsule_uri" >> "$GITHUB_OUTPUT"
+          echo "capsule_sha256=$capsule_sha256" >> "$GITHUB_OUTPUT"
+      - id: verifier_auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute prepare
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+      - id: builder_auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute build
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+      - id: deployer_auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute migrate
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+        run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage migrate --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"

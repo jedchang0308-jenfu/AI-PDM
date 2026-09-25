@@ -101,6 +101,7 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
   if (!companyId) throw new Error("PDM_COMPANY_ID_REQUIRED");
   const client = getAsyncDatabaseClient();
   const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    databaseKind: client.kind,
     pdmUserId: input.createdBy,
     organizationId: companyId,
     commandName: "pdm.numbering.create_official_record",
@@ -124,6 +125,8 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).createNumberingRecord(input),
     event: (result) => ({
       aggregateType: "part_root",
@@ -150,10 +153,12 @@ export async function updateDraftNumberingRecordAsync(
 }
 
 export async function obsoleteDraftNumberingRecordAsync(
-  input: ObsoleteDraftNumberingRecordInput
+  input: ObsoleteDraftNumberingRecordInput,
+  metadata?: PdmCommandMetadata
 ): Promise<NumberingRootBundleRecord | null> {
   const client = getAsyncDatabaseClient();
-  const commandMetadata = createFallbackCommandMetadata({
+  const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    databaseKind: client.kind,
     pdmUserId: input.obsoletedBy ?? "system",
     organizationId: input.companyId,
     commandName: "pdm.numbering.obsolete_official_draft_bundle",
@@ -168,6 +173,8 @@ export async function obsoleteDraftNumberingRecordAsync(
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     serializable: true,
     idempotencyPayload: { rootCode: input.rootCode, reason: input.reason.trim(), companyId: input.companyId ?? null },
     execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).obsoleteDraftNumberingRecord(input),
@@ -199,9 +206,10 @@ export async function requestNumberingApprovalAsync(input: RequestNumberingAppro
   return repository.requestNumberingApproval(input);
 }
 
-export async function requestNumberingObsoleteApprovalAsync(input: RequestNumberingObsoleteApprovalInput): Promise<NumberingObsoleteApprovalResult> {
+export async function requestNumberingObsoleteApprovalAsync(input: RequestNumberingObsoleteApprovalInput, metadata?: PdmCommandMetadata): Promise<NumberingObsoleteApprovalResult> {
   const client = getAsyncDatabaseClient();
-  const commandMetadata = createFallbackCommandMetadata({
+  const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    databaseKind: client.kind,
     pdmUserId: input.requestedBy,
     organizationId: input.companyId,
     commandName: "pdm.numbering.request_record_obsolete",
@@ -216,6 +224,8 @@ export async function requestNumberingObsoleteApprovalAsync(input: RequestNumber
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     serializable: true,
     idempotencyPayload: {
       entityType: input.entityType,
@@ -241,6 +251,7 @@ export async function addDrawingNumberToRootAsync(
 ): Promise<AddDrawingNumberToRootResult> {
   const client = getAsyncDatabaseClient();
   const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    databaseKind: client.kind,
     pdmUserId: input.createdBy,
     organizationId: input.companyId,
     commandName: "pdm.numbering.append_drawing",
@@ -255,6 +266,8 @@ export async function addDrawingNumberToRootAsync(
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     execute: (transactionClient) =>
       new AsyncNumberingRepository(transactionClient).addDrawingNumberToRoot({
         ...input,
@@ -281,6 +294,7 @@ export async function addPartNumberToRootAsync(
 ): Promise<AddPartNumberToRootResult> {
   const client = getAsyncDatabaseClient();
   const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    databaseKind: client.kind,
     pdmUserId: input.createdBy,
     organizationId: input.companyId,
     commandName: "pdm.numbering.append_part",
@@ -295,6 +309,8 @@ export async function addPartNumberToRootAsync(
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     execute: (transactionClient) =>
       new AsyncNumberingRepository(transactionClient).addPartNumberToRoot({
         ...input,
@@ -323,6 +339,7 @@ export async function addDrawingAndPartToRootAsync(
 ): Promise<AddDrawingAndPartToRootResult> {
   const client = getAsyncDatabaseClient();
   const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    databaseKind: client.kind,
     pdmUserId: input.createdBy,
     organizationId: input.companyId,
     commandName: "pdm.numbering.append_drawing_part",
@@ -337,6 +354,8 @@ export async function addDrawingAndPartToRootAsync(
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     execute: (transactionClient) =>
       new AsyncNumberingRepository(transactionClient).addDrawingAndPartToRoot({
         ...input,
@@ -365,9 +384,10 @@ export async function getRootObsoleteImpactAsync(input: { companyId?: string; ro
   return repository.getRootObsoleteImpact(input);
 }
 
-export async function requestRootObsoleteApprovalAsync(input: RequestRootObsoleteApprovalInput): Promise<RootObsoleteApprovalResult> {
+export async function requestRootObsoleteApprovalAsync(input: RequestRootObsoleteApprovalInput, metadata?: PdmCommandMetadata): Promise<RootObsoleteApprovalResult> {
   const client = getAsyncDatabaseClient();
-  const commandMetadata = createFallbackCommandMetadata({
+  const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    databaseKind: client.kind,
     pdmUserId: input.requestedBy,
     organizationId: input.companyId,
     commandName: "pdm.numbering.request_root_obsolete",
@@ -382,6 +402,8 @@ export async function requestRootObsoleteApprovalAsync(input: RequestRootObsolet
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     serializable: true,
     idempotencyPayload: { rootCode: input.rootCode ?? null, rootId: input.rootId ?? null, reason: input.reason.trim(), companyId: input.companyId ?? null },
     execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).requestRootObsoleteApproval(input),

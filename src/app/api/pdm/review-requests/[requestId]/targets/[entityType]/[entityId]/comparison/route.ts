@@ -5,9 +5,30 @@ import { parseReviewPackageSnapshot, reviewPackageTargetKey } from "@/lib/pdm-re
 import { compareReviewTarget, readCurrentReviewTarget, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
+import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { withPrincipalDev087Route } from "@/lib/pdm-principal-dev087-route";
+import { readPrincipalReviewTarget } from "@/lib/pdm-principal-review-target";
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ requestId: string; entityType: string; entityId: string }> }) {
+  const token = principalSessionTokenFromRequest(request);
+  if (token) {
+    return withPrincipalDev087Route(request, token, {
+      path: "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts",
+      method: "GET", permissionCode: "approval.inbox.view", readOnly: true
+    }, async (tx, verified) => {
+      const { requestId, entityType, entityId } = await params;
+      const { item, target, current } = await readPrincipalReviewTarget(tx,
+        verified, { requestId, entityType, entityId });
+      const comparison = compareReviewTarget(target, current);
+      return Response.json({ data: {
+        requestId: item.id, entityType, entityId,
+        packageHash: item.snapshotHash, snapshot: target.workspace,
+        current: comparison.changed ? current : null, comparison
+      }, meta: { correlationId: crypto.randomUUID() } },
+      { headers: { "cache-control": "private, no-store" } });
+    });
+  }
   const access = await resolveDev087RouteActor(request, "numbering.approvals");
   if (access.response || !access.actor) return access.response;
   try {

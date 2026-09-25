@@ -2,6 +2,10 @@ import crypto from "node:crypto";
 
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { DrawingRevisionActor } from "@/lib/drawing-revision-work";
+import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { principalRequestInput } from "@/lib/jenfu-principal-http";
+import { withVerifiedJenfuPrincipalRequest, type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { runPrincipalDev087Command } from "@/lib/pdm-principal-dev087-command";
 import { buildStorageKey, createFileStorageService } from "@/lib/file-storage";
 import { drawingUploadRoleForExtension } from "@/lib/pdm-file-ownership";
 import { runDev087IdempotentCommand } from "@/lib/pdm-canonical-command";
@@ -18,6 +22,45 @@ type CommandContext = {
   expectedRowVersion: number;
   correlationId?: string;
 };
+type DrawingFileActor = Pick<DrawingRevisionActor, "id" | "companyId" | "canEditNonOwned"> & {
+  permissions: Pick<DrawingRevisionActor["permissions"], "update">;
+};
+
+async function requirePrincipalFileUpdate(client: AsyncDatabaseClient,
+  verified: VerifiedPrincipalRequest, workId: string, contractToken: string) {
+  const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
+    verified, [{ permissionKind: "action", permissionCode: "numbering.workspace.update" }]);
+  if (!decision?.allowed) throw new CanonicalWorkbenchError(
+    "WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
+  const actor: DrawingFileActor = {
+    id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
+    canEditNonOwned: false, permissions: { update: true }
+  };
+  await verifyCanonicalWorkbenchCommandContract(client,
+    { companyId: actor.companyId, actorId: actor.id, token: contractToken });
+  const work = await new DrawingRevisionWorkAsyncRepository(client)
+    .readWork(client, actor.companyId, workId);
+  if (!work) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST",
+    "圖面工作資料不存在", 404);
+  if (work.owner_user_id !== actor.id) throw new CanonicalWorkbenchError(
+    "WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
+  return actor;
+}
+
+/** Check before staging bytes; the write snapshot repeats every security check. */
+export async function uploadDrawingRevisionWorkFilePrincipal(input: {
+  client: AsyncDatabaseClient; token: string; workId: string; file: unknown;
+  displayName?: unknown; description?: unknown; context: CommandContext;
+}) {
+  const actor = await withVerifiedJenfuPrincipalRequest(
+    { ...principalRequestInput(input.token), database: input.client },
+    (tx, verified) => requirePrincipalFileUpdate(tx, verified,
+      input.workId, input.context.contractToken),
+    { readOnly: true, isolationLevel: "repeatable_read" });
+  return executeDrawingRevisionWorkFileUpload({
+    ...input, actor, principalToken: input.token
+  });
+}
 
 export type DrawingRevisionWorkFileUploadCheckpoint =
   | "before_upload_stage"
@@ -46,16 +89,24 @@ function canonicalRole(fileName: string) {
   return role === "dwg" ? "dwg_dxf" : role;
 }
 
-export async function uploadDrawingRevisionWorkFile(input: {
+type DrawingFileUploadInput = {
   client: AsyncDatabaseClient;
   workId: string;
   file: unknown;
   displayName?: unknown;
   description?: unknown;
-  actor: DrawingRevisionActor;
+  actor: DrawingFileActor;
   context: CommandContext;
   /** Dependency-injection seam used only by isolated transaction fault tests. */
   checkpoint?: (point: DrawingRevisionWorkFileUploadCheckpoint) => void | Promise<void>;
+};
+
+export function uploadDrawingRevisionWorkFile(input: DrawingFileUploadInput) {
+  return executeDrawingRevisionWorkFileUpload(input);
+}
+
+async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInput & {
+  principalToken?: string;
 }) {
   if (!input.actor.permissions.update) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
@@ -134,7 +185,7 @@ export async function uploadDrawingRevisionWorkFile(input: {
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "檔案已收到，但完整性驗證未通過，請重新上傳。", 503, commandCorrelation);
       }
     }
-    const result = await runDev087IdempotentCommand(input.client, {
+    const commandInput = {
       companyId: input.actor.companyId,
       actorId: input.actor.id,
       command: "drawing.file.upload",
@@ -151,7 +202,8 @@ export async function uploadDrawingRevisionWorkFile(input: {
       },
       effectKey: `drawing-work:${input.workId}:file:${role}`,
       correlationId: commandCorrelation
-    }, async (tx) => {
+    };
+    const execute = async (tx: AsyncDatabaseClient) => {
       const rootScope = await tx.queryOne<{ part_root_id: string }>(
         `SELECT drawing.part_root_id
            FROM drawing_revision_works work
@@ -165,6 +217,9 @@ export async function uploadDrawingRevisionWorkFile(input: {
       const locked = await repository.readWork(tx, input.actor.companyId, input.workId, true);
       if (!locked || Number(locked.row_version) !== input.context.expectedRowVersion || locked.handling !== "owner") {
         throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409, commandCorrelation);
+      }
+      if (locked.owner_user_id !== input.actor.id && !input.actor.canEditNonOwned) {
+        throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403, commandCorrelation);
       }
       await repository.assertWorkMutationBasis(tx, locked);
 
@@ -359,7 +414,27 @@ export async function uploadDrawingRevisionWorkFile(input: {
         reused: false,
         file: { id: fileBindingId, sourceFileAssetId: fileAssetId, role, displayName }
       };
-    });
+    };
+    const result = input.principalToken
+      ? await withVerifiedJenfuPrincipalRequest(
+        { ...principalRequestInput(input.principalToken), database: input.client },
+        async (tx, verified) => {
+          const currentActor = await requirePrincipalFileUpdate(tx, verified,
+            input.workId, input.context.contractToken);
+          if (currentActor.id !== input.actor.id ||
+              currentActor.companyId !== input.actor.companyId) {
+            throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST",
+              "無權限執行此操作", 403, commandCorrelation);
+          }
+          return runPrincipalDev087Command(tx, verified, {
+            command: commandInput.command,
+            idempotencyKey: commandInput.idempotencyKey,
+            request: commandInput.request,
+            effectKey: commandInput.effectKey,
+            correlationId: commandInput.correlationId
+          }, execute);
+        }, { readOnly: false, isolationLevel: "serializable" })
+      : await runDev087IdempotentCommand(input.client, commandInput, execute);
     if (result.reused && cleanupTarget) {
       try { await storage.deleteObject(cleanupTarget.key); } catch { /* best-effort orphan cleanup */ }
     }

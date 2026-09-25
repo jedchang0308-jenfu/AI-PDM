@@ -103,7 +103,7 @@ function isVisibleItem(
 ) {
   if (productionSlice?.configured) return true;
   const requiredPermission = NUMBERING_NAV_PERMISSION_BY_PATH[item.href];
-  return !requiredPermission || !pagePermissions || pagePermissions[requiredPermission];
+  return !requiredPermission || pagePermissions?.[requiredPermission] === true;
 }
 
 function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSliceClientStatus | null) {

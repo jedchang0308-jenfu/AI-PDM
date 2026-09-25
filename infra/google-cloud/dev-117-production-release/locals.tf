@@ -3,6 +3,7 @@ locals {
   owner_application_id            = "ai-pdm"
   github_repository               = "jedchang0308-jenfu/AI-PDM"
   github_workflow_ref             = "jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-independent-production.yml@refs/heads/main"
+  github_principal_migration_ref  = "jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main"
   pool_resource_name              = "projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${var.workload_identity_pool_id}"
   github_principal_set            = "principalSet://iam.googleapis.com/${local.pool_resource_name}/attribute.repository_id/${var.github_repository_id}"
   controller_service              = "aipdm-prod-abort-controller"

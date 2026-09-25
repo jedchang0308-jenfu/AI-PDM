@@ -6,6 +6,8 @@ import {
   type UserCompanyAuthority
 } from "@/lib/repositories/user-async-repository";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { JenfuPrincipalRequestError, type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 
 export type PdmCompanyCode = UserCompanyAccess["companyCode"];
 export type PdmCompanyKind = "business" | "production_smoke";
@@ -25,6 +27,38 @@ export type PdmCompanyContext = {
 export type PdmCompanyResolveResult =
   | { company: PdmCompanyContext; response: null }
   | { company: null; response: Response };
+
+/** Principal accounts own one workspace; historical memberships cannot expand it. */
+export async function resolvePrincipalCompanyContextInSnapshot(
+  snapshot: AsyncDatabaseClient,
+  verified: VerifiedPrincipalRequest,
+  requestedCompany: PdmCompanyRequest
+): Promise<PdmCompanyResolveResult> {
+  if (requestedCompany.state === "invalid") {
+    return { company: null, response: Response.json({ code: "pdm_company_code_invalid" },
+      { status: 400, headers: { "cache-control": "no-store" } }) };
+  }
+  if (verified.profile.companyId !== "company-jenfu" ||
+      (requestedCompany.state === "valid" && requestedCompany.companyCode !== "JENFU")) {
+    return { company: null, response: Response.json({ code: "entitlement_scope_mismatch" },
+      { status: 403, headers: { "cache-control": "no-store" } }) };
+  }
+  const rows = await snapshot.query<{
+    id: string; company_code: string; company_kind: string; display_name: string;
+  }>(`
+    SELECT id,company_code,company_kind,display_name
+    FROM ai_pdm_core.companies WHERE id=:companyId LIMIT 2
+  `, { companyId: verified.profile.companyId });
+  if (rows.length !== 1 || rows[0].id !== verified.profile.companyId ||
+      rows[0].company_code !== "JENFU" || rows[0].company_kind !== "business" ||
+      !rows[0].display_name?.trim()) {
+    throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
+  }
+  return { company: {
+    companyId: rows[0].id, companyCode: "JENFU", companyKind: "business",
+    displayName: rows[0].display_name
+  }, response: null };
+}
 
 const companyCodeAliases: Record<string, PdmCompanyCode> = {
   JENFU: "JENFU",

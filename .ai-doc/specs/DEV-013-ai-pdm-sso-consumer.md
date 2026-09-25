@@ -1,5 +1,9 @@
 # DEV-013 AI-PDM consumer capsule
 
+> **2026-09-24 ownership／command 修訂引用**：verified principal貫穿factory／command／receipt／outbox／replay；新帳號直接provision為principal_active，target assurance與來源facts分開，高權限不沿用舊AAL1 pilot。 以 [現行native契約](DEV-121-target-authorization-boundary.md#principal-owner-command-amendment)為B目標；本文件下方保留歷史行為、驗收分母與evidence，不代表B已上線。
+
+> 2026-09-24 DEV-121 目標契約：本 capsule 保留原 v1 實作／release 證據；principal-first 的 wire／local session 版本、v1 proof 相容 admission 與 `principal_active` 回復限制，以 [DEV-121](DEV-121-target-authorization-boundary.md#principal-implementation-contract)為準。新的 principal-keyed epoch 不原地改寫既有 v1 session 或 pair API；本註記不代表已啟用新版。
+
 - Owner: AI-PDM
 - Native task: DEV-119；source slice `Jenfu-Platform / DEV-013 / 013-S4-L3-AIPDM-ENV`
 - Contract lock: `contracts/jenfu-sso-handoff/v1/contract-lock.json`

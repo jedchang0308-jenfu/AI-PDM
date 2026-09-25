@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { isManufacturingDrawingPurpose } from "@/lib/numbering-identity";
 import {
   AsyncShared3dBaselineRepository,
@@ -375,8 +376,11 @@ export async function ensureApprovedDrawingPackageSharedModelBasisAsync(input: {
   return { configured: true, reason: "shared_model" as const, modelId: reusable.id };
 }
 
-export async function resolveRequiredMaForBaselineAsync(input: { ownerScope: SharedModelOwnerScope; ownerCode: string }): Promise<RequiredMaResolverResult> {
-  const repository = new AsyncShared3dBaselineRepository(getAsyncDatabaseClient());
+export async function resolveRequiredMaForBaselineAsync(
+  input: { ownerScope: SharedModelOwnerScope; ownerCode: string },
+  client: AsyncDatabaseClient = getAsyncDatabaseClient()
+): Promise<RequiredMaResolverResult> {
+  const repository = new AsyncShared3dBaselineRepository(client);
   const owner = await resolveOwner(input, repository);
   const requiredDrawings = await repository.listRequiredMaDrawings(owner);
   const releasedPackages = await repository.listReleasedPackagesForDrawings(owner.companyId, requiredDrawings.map((drawing) => drawing.id));

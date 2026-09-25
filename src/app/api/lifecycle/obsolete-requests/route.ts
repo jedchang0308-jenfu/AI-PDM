@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestNumberingObsoleteApprovalAsync, requestRootObsoleteApprovalAsync } from "@/lib/numbering-async";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import { buildNumberingFormalRecordLifecyclePolicy } from "@/lib/pdm-lifecycle-policy";
 import { isProductionNumberingLifecycleGateOpen, productionSliceDeniedPayload, isProductionSliceEnforced } from "@/lib/production-slice";
 import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
@@ -69,22 +68,20 @@ export async function POST(request: Request) {
   }
 
   const actionCode = obsoleteActionCode(entityType);
-  const auth = await requireNumberingActionAsync(request, actionCode, { actionCode });
-  if (auth.response) return auth.response;
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
-  if (companyResult.response) return companyResult.response;
+  const access = await requireNumberingPlatformCommandAsync(request, { action: actionCode, body });
+  if (access.response) return access.response;
 
   try {
     if (entityType === "part_root") {
       const result = await requestRootObsoleteApprovalAsync({
-        companyId: companyResult.company.companyId,
+        companyId: access.company.companyId,
         rootId: String(body.entityId ?? body.entity_id ?? "").trim() || undefined,
         rootCode: String(body.entityCode ?? body.entity_code ?? body.rootCode ?? body.root_code ?? "").trim() || undefined,
         reason,
-        requestedBy: auth.user.id,
+        requestedBy: access.actor.pdmUserId,
         projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined,
         idempotencyKey: idempotencyKey?.trim()
-      });
+      }, access.metadata);
       return NextResponse.json(
         {
           approvalRequest: result.approvalRequest,
@@ -97,7 +94,7 @@ export async function POST(request: Request) {
             requiresApproval: true,
             pendingObsoleteRequest: true
           },
-          pdmCompany: companyResult.company
+          pdmCompany: access.company
         },
         { status: 201 }
       );
@@ -106,7 +103,7 @@ export async function POST(request: Request) {
     const requestedImpactFingerprint = String(body.impactFingerprint ?? body.impact_fingerprint ?? "").trim();
     if (!requestedImpactFingerprint) throw new Error("LIFE_OBSOLETE_FINGERPRINT_REQUIRED");
     const impact = await getFormalObsoleteImpactAsync({
-      companyId: companyResult.company.companyId,
+      companyId: access.company.companyId,
       entityType,
       entityId: String(body.entityId ?? body.entity_id ?? "").trim() || null,
       entityCode: String(body.entityCode ?? body.entity_code ?? body.partNumber ?? body.part_number ?? body.drawingNumber ?? body.drawing_number ?? "").trim() || null
@@ -114,17 +111,17 @@ export async function POST(request: Request) {
     if (impact.fingerprint !== requestedImpactFingerprint) throw new Error("LIFE_OBSOLETE_SNAPSHOT_STALE");
 
     const result = await requestNumberingObsoleteApprovalAsync({
-      companyId: companyResult.company.companyId,
+      companyId: access.company.companyId,
       entityType,
       entityId: String(body.entityId ?? body.entity_id ?? "").trim() || undefined,
       entityCode: String(body.entityCode ?? body.entity_code ?? body.partNumber ?? body.part_number ?? body.drawingNumber ?? body.drawing_number ?? "").trim() || undefined,
       reason,
-      requestedBy: auth.user.id,
+      requestedBy: access.actor.pdmUserId,
       projectCode: String(body.projectCode ?? body.project_code ?? "").trim() || undefined,
       idempotencyKey: idempotencyKey?.trim(),
       impactFingerprint: impact.fingerprint,
       impactDependencies: impact.dependencies
-    });
+    }, access.metadata);
     const policy = buildNumberingFormalRecordLifecyclePolicy({
       entityType: result.entity.entityType === "part_number" ? "numbering_part_number" : "numbering_drawing_number",
       entityId: result.entity.entityId,
@@ -139,7 +136,7 @@ export async function POST(request: Request) {
         approvalBatch: result.approvalBatch,
         entity: result.entity,
         policy,
-        pdmCompany: companyResult.company
+        pdmCompany: access.company
       },
       { status: 201 }
     );

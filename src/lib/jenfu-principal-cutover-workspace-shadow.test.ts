@@ -1,0 +1,82 @@
+import { describe, expect, it } from "vitest";
+import { planPrincipalAclMigration, type PrincipalAclMigrationInput } from
+  "@/lib/jenfu-principal-acl-migration-plan";
+import { assessPrincipalCutoverWorkspaceShadow } from
+  "@/lib/jenfu-principal-cutover-workspace-shadow";
+
+const cutoverAt = "2026-09-25T04:00:00.000Z";
+function source(): PrincipalAclMigrationInput {
+  return {
+    profiles: [{ pdmUserId: "pdm-one", principalId: "principal-one",
+      legacyRole: "Engineer", accountType: "human_personal", systemRoleEnabled: true }],
+    externalActiveAccounts: [],
+    roles: [{ id: "role-rd", roleCode: "rd", enabled: true },
+      { id: "role-qa", roleCode: "qa", enabled: true }],
+    rolePriority: ["qa", "rd"], assignments: [], delegations: [], cutoverAt
+  };
+}
+function assess(input = source(), options: {
+  rolePermissions?: Array<{ role_id: string; permission_kind: string;
+    permission_code: string; allowed: number }>;
+  roleScopeRules?: Array<{ role_id: string }>;
+} = {}) {
+  return assessPrincipalCutoverWorkspaceShadow({
+    source: input, plan: planPrincipalAclMigration(input),
+    accounts: [{ pdmUserId: "pdm-one", accountStatus: "active", systemRoleEnabled: true }],
+    rolePermissions: options.rolePermissions ?? [{ role_id: "role-rd",
+      permission_kind: "action", permission_code: "drawing.read", allowed: 1 }],
+    roleScopeRules: options.roleScopeRules ?? []
+  });
+}
+
+describe("DEV-121 workspace behavior shadow", () => {
+  it("proves a simple principal base role preserves explicit allow and deny", () => {
+    const result = assess();
+    expect(result.status).toBe("pass");
+    expect(result.decisionCount).toBeGreaterThan(1);
+    expect(result.gaps).toEqual([]);
+    expect(result.mismatches).toEqual([]);
+    expect(result.shadowHash).toMatch(/^[0-9a-f]{64}$/u);
+    const denied = assess(source(), { rolePermissions: [{ role_id: "role-rd",
+      permission_kind: "action", permission_code: "drawing.read", allowed: 0 }] });
+    expect(denied.status).toBe("pass");
+    expect(denied.shadowHash).not.toBe(result.shadowHash);
+  });
+
+  it("exposes a scoped legacy assignment as an adapter gap, not parity", () => {
+    const input = source();
+    input.assignments = [{ id: "assignment-qa", userId: "pdm-one", roleId: "role-qa",
+      reason: "review", scopeTemplate: "own_department", namedScope: "",
+      sponsorUserId: null, startsAt: null, reviewDueAt: null, hardEndsAt: null,
+      assignedBy: "pdm-one", assignedAt: "2026-09-24 12:00:00+00",
+      revokedAt: null, revokedBy: null }];
+    const result = assess(input, { rolePermissions: [{ role_id: "role-qa",
+      permission_kind: "action", permission_code: "drawing.read", allowed: 1 }] });
+    expect(result.status).toBe("requires_resource_adapter");
+    expect(result.gaps).toContainEqual({ pdmUserId: "pdm-one",
+      reason: "resource_scoped_assignment", sourceId: "assignment-qa" });
+    expect(result.mismatches).toContainEqual({ pdmUserId: "pdm-one",
+      permission: "action\0drawing.read", legacy: "qa:allow", principal: "none:deny" });
+  });
+
+  it("exposes active delegation and role scope rules", () => {
+    const input = source();
+    input.externalActiveAccounts = [{ pdmUserId: "pdm-two", principalId: "principal-two" }];
+    input.delegations = [{ id: "delegation-one", delegatedFrom: "pdm-one",
+      delegatedTo: "pdm-two", projectCode: "project-one", actionCode: null,
+      startsAt: null, endsAt: null, reason: "cover", createdBy: "pdm-one",
+      createdAt: cutoverAt, revokedAt: null, revokedBy: null }];
+    const result = assess(input, { roleScopeRules: [{ role_id: "role-rd" }] });
+    expect(result.status).toBe("requires_resource_adapter");
+    expect(result.gaps.map((row) => row.reason)).toEqual([
+      "role_scope_rule", "active_delegation"
+    ]);
+  });
+
+  it("rejects duplicate policy facts rather than selecting one", () => {
+    const permission = { role_id: "role-rd", permission_kind: "action",
+      permission_code: "drawing.read", allowed: 1 };
+    expect(() => assess(source(), { rolePermissions: [permission, permission] }))
+      .toThrow("PRINCIPAL_WORKSPACE_SHADOW_INVALID");
+  });
+});

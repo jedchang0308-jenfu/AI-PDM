@@ -1,5 +1,9 @@
 # SPEC-PDM-ACCESS-CONTROL-001 使用者身分、組織範圍與權限架構
 
+> **2026-09-24 ownership／command 修訂引用**：verified principal貫穿factory／command／receipt／outbox／replay；新帳號直接provision為principal_active，target assurance與來源facts分開，高權限不沿用舊AAL1 pilot。 以 [現行native契約](DEV-121-target-authorization-boundary.md#principal-owner-command-amendment)為B目標；本文件下方保留歷史行為、驗收分母與evidence，不代表B已上線。
+
+> 2026-09-24 `DEV-121` principal-first amendment（目標契約，未發布）：使用者已選 `JENFU/DEV-015` 方案 B；本文件下方 stable PDM User ID／Firebase UID 的 security identity 敘述只保留為原 v1 相容基線。新的安全主體、principal account／ACL／session、domain profile link、遷移與回復以 [DEV-121 子任務](DEV-121-target-authorization-boundary.md#principal-implementation-contract)為準。`pdm_user_id` 保留歷史 FK；舊 role 不得繞過 principal policy，wire 回退不復活 UID 授權。既有 evidence 與未改動的 role／scope 政策保留。
+
 狀態: 本地上線切片、帳號邀請、Google provider-neutral identity 與 `DEV-045` 帳號生命週期 Phase 1 已完成並通過驗證；完整權限切換與正式環境仍分別受後續 gate 管理。
 日期: 2026-07-07
 負責: Dev PM

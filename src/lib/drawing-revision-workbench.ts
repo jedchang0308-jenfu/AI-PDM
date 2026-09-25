@@ -7,7 +7,7 @@ import {
   normalizeRevisionWorkflowIntent,
   type RevisionWorkflowIntent
 } from "@/lib/revision-policy-engine";
-import { listSubmissionRevisionsByDrawingAsync } from "@/lib/submissions-async";
+import { AsyncSubmissionWriteRepository } from "@/lib/repositories/submission-write-async-repository";
 
 export type DrawingRevisionResolveStatus =
   | "no_input"
@@ -81,8 +81,10 @@ type ResolveInput = {
   limit?: number;
 };
 
-export async function resolveDrawingRevisionContext(input: ResolveInput): Promise<DrawingRevisionResolvedContext> {
-  const client = getAsyncDatabaseClient();
+export async function resolveDrawingRevisionContext(
+  input: ResolveInput,
+  client: AsyncDatabaseClient = getAsyncDatabaseClient()
+): Promise<DrawingRevisionResolvedContext> {
   const drawingNumberId = normalizeText(input.drawingNumberId);
   const drawingNumber = normalizeText(input.drawingNumber);
   const partNumber = normalizeText(input.partNumber);
@@ -136,7 +138,9 @@ async function buildResolvedContext(
 ) {
   const primaryParts = (await findPrimaryParts(client, companyId, drawing.id)).map(mapPart);
   const attachmentRevisions = await listDrawingAttachmentRevisions(client, drawing.id);
-  const revisions = await listSubmissionRevisionsByDrawingAsync({ companyId, drawingNumber: drawing.drawingNumber });
+  const revisions = await new AsyncSubmissionWriteRepository(client).listSubmissionRevisionsByDrawing({
+    companyId, drawingNumber: drawing.drawingNumber
+  });
   const controlledRevisions = await listControlledDrawingRevisionHistoryAsync(client, companyId, drawing.drawingNumber);
   const governedRevisions = [...revisions, ...controlledRevisions];
   const legacyAttachmentFallback = governedRevisions.length === 0

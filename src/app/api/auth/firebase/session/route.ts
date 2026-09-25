@@ -18,6 +18,7 @@ import {
   normalizeJenfuPlatformAuthError
 } from "@/lib/jenfu-platform-identity-contract";
 import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
+import { JenfuLegacyCutoverRepository } from "@/lib/jenfu-legacy-cutover-repository";
 import { toVerifiedJenfuAppSessionV1, verifyJenfuPlatformSessionV1 } from "@/lib/jenfu-platform-session-v1";
 import { exchangeFirebaseIdTokenForPlatformSession } from "@/lib/platform-identity-contract";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
@@ -119,6 +120,7 @@ export async function POST(request: Request) {
         firebase: new FirebaseAdminIdentityProvider(),
         localPrincipalRepository: new FirebasePlatformPrincipalRepository(client),
         principalAdmissionRepository: new JenfuPrincipalAdmissionRepository(client),
+        legacyCutoverRepository: new JenfuLegacyCutoverRepository(client),
         authEpochRepository: new JenfuAuthEpochRepository(client),
         identityConfig: getJenfuIdentityConfig(),
         keyRing

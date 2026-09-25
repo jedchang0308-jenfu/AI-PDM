@@ -14,6 +14,10 @@ export type CanonicalJenfuPrincipalV1 = {
   publishedAt: string;
 };
 
+export type TypedJenfuPrincipal = CanonicalJenfuPrincipalV1 & {
+  accountType: "human_personal" | "human_privileged";
+};
+
 type ActivePrincipalRow = {
   contract_version: string;
   principal_issuer: string;
@@ -23,12 +27,23 @@ type ActivePrincipalRow = {
   employee_status: string;
   mapping_version: number | string;
   published_at: string | Date;
+  account_type?: string;
 };
 
 const SELECT_ACTIVE_PRINCIPAL_SQL = `
   SELECT contract_version, principal_issuer, principal_subject, principal_id,
          employee_id, employee_status, mapping_version, published_at
   FROM orgmaster_contract.v_active_principal_mappings_v1
+  WHERE principal_issuer = :identityIssuer
+    AND principal_subject = :identitySubject
+  ORDER BY principal_id, employee_id
+  FETCH FIRST 2 ROWS ONLY
+`;
+
+const SELECT_ACTIVE_TYPED_PRINCIPAL_SQL = `
+  SELECT contract_version, principal_issuer, principal_subject, principal_id,
+         employee_id, employee_status, mapping_version, published_at, account_type
+  FROM orgmaster_contract.v_active_principal_accounts_v1
   WHERE principal_issuer = :identityIssuer
     AND principal_subject = :identitySubject
   ORDER BY principal_id, employee_id
@@ -52,8 +67,8 @@ export class JenfuPrincipalAdmissionError extends Error {
 }
 
 function requiredText(value: unknown) {
-  const normalized = String(value ?? "").trim();
-  return normalized.length >= 1 && normalized.length <= 255 ? normalized : null;
+  return typeof value === "string" && value.length >= 1 && value.length <= 255 &&
+    value.trim() === value && /\S/u.test(value) ? value : null;
 }
 
 function mapPrincipal(row: ActivePrincipalRow, identityIssuer: string, identitySubject: string): CanonicalJenfuPrincipalV1 {
@@ -106,5 +121,26 @@ export class JenfuPrincipalAdmissionRepository {
     if (rows.length === 0) throw new JenfuPrincipalAdmissionError("principal_not_active", 403);
     if (rows.length !== 1) throw new JenfuPrincipalAdmissionError("principal_ambiguous", 403);
     return mapPrincipal(rows[0], identityIssuer, identitySubject);
+  }
+
+  async requireActiveTypedPrincipal(identityIssuer: string, identitySubject: string): Promise<TypedJenfuPrincipal> {
+    if (this.client.kind !== "postgres") {
+      throw new JenfuPrincipalAdmissionError("principal_directory_unavailable", 503);
+    }
+    let rows: ActivePrincipalRow[];
+    try {
+      rows = await this.client.query<ActivePrincipalRow>(SELECT_ACTIVE_TYPED_PRINCIPAL_SQL, {
+        identityIssuer, identitySubject
+      });
+    } catch {
+      throw new JenfuPrincipalAdmissionError("principal_directory_unavailable", 503);
+    }
+    if (rows.length === 0) throw new JenfuPrincipalAdmissionError("principal_not_active", 403);
+    if (rows.length !== 1) throw new JenfuPrincipalAdmissionError("principal_ambiguous", 403);
+    const principal = mapPrincipal(rows[0], identityIssuer, identitySubject);
+    if (rows[0].account_type !== "human_personal" && rows[0].account_type !== "human_privileged") {
+      throw new JenfuPrincipalAdmissionError("auth_contract_mismatch", 409);
+    }
+    return { ...principal, accountType: rows[0].account_type };
   }
 }

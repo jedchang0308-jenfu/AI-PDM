@@ -10,12 +10,6 @@ import { canUserUseNumberingActionAsync, requireNumberingActionAsync } from "@/l
 
 export const runtime = "nodejs";
 
-function reviewerRoleCode(role: string) {
-  if (role === "Admin") return "pdm_admin";
-  if (role === "R&D Manager") return "rd_manager";
-  return role.toLowerCase().replaceAll(" ", "_");
-}
-
 export async function GET(request: Request, { params }: { params: Promise<{ batchId: string }> }) {
   const auth = await requireNumberingActionAsync(request, "approval.inbox.view");
   if (auth.response) return auth.response;
@@ -80,7 +74,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ba
       projectCode: batch.projectCode,
       actionCode: batch.actionCode
     });
-    if (!permission.allowed) return forbidden();
+    if (!permission.allowed || !permission.roleCode) return forbidden();
 
     const result = await decideApprovalPlatformLegacyNumberingBatchAsync({
       companyId: companyResult.company.companyId,
@@ -90,7 +84,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ba
       comment: String(body.comment ?? "").trim() || undefined,
       itemComments,
       actor: auth.user,
-      approverRole: String(body.approverRole ?? body.approver_role ?? "").trim() || permission.roleCode || reviewerRoleCode(auth.user.role)
+      approverRole: permission.roleCode
     });
     return NextResponse.json(result);
   } catch (error) {

@@ -42,6 +42,10 @@ await assert.rejects(() => partService.update(created.workId, changedPayload, ow
 const reviewList = await workbench.list(new URL("http://local"), "part", reviewerView);
 const decision = await partService.decide(submitted.requestId, "approve", reviewer, { idempotencyKey: "part-approve", contractToken: reviewList.meta.contractToken, expectedRowVersion: submitted.rowVersion });
 assert.deepEqual(decision, { acknowledged: true });
+assert.deepEqual(db.prepare(`SELECT actor_id,principal_id FROM platform_command_receipts
+  WHERE company_id = ? AND command_name = 'dev087:review.decision' AND idempotency_key = ?`)
+  .get(ids.company, "part-approve"), { actor_id: ids.reviewer, principal_id: null },
+  "terminal review receipt retains the reviewer, without claiming a canonical principal");
 assert.equal(db.prepare(`SELECT part_name FROM part_numbers WHERE id = ?`).get(ids.part).part_name, changedPayload.partName);
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM part_change_works`).get().n, 0);
 assert.equal(db.prepare(`SELECT COUNT(*) n FROM part_approved_change_snapshots`).get().n, 1);

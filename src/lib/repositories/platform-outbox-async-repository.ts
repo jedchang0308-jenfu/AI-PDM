@@ -5,8 +5,14 @@ import type { PdmCommand } from "@/lib/platform-command";
 
 type CommandReceiptRow = {
   id: string;
+  command_name: string;
+  schema_version: number;
   command_status: "processing" | "completed";
   response_json: string | Record<string, unknown>;
+  actor_id: string | null;
+  principal_id: string | null;
+  platform_principal_id: string | null;
+  platform_organization_id: string | null;
 };
 
 export type PlatformOutboxEvent = {
@@ -18,8 +24,9 @@ export type PlatformOutboxEvent = {
   schemaVersion: number;
   payload: Record<string, unknown>;
   actorId: string | null;
+  principalId: string | null;
   platformPrincipalId: string | null;
-  platformOrganizationId: string;
+  platformOrganizationId: string | null;
   correlationId: string;
   idempotencyKey: string;
   deliveryStatus: "pending" | "publishing" | "published" | "failed";
@@ -36,8 +43,9 @@ type OutboxRow = {
   schema_version: number;
   payload_json: string | Record<string, unknown>;
   actor_id: string | null;
+  principal_id: string | null;
   platform_principal_id: string | null;
-  platform_organization_id: string;
+  platform_organization_id: string | null;
   correlation_id: string;
   idempotency_key: string;
   delivery_status: PlatformOutboxEvent["deliveryStatus"];
@@ -52,11 +60,43 @@ function parseJson<T>(value: string | T): T {
 type CommandReceiptEnvelope<TResult = unknown> = {
   __platformCommandReceiptVersion: 2;
   payloadHash?: string;
+  actorBinding?: {
+    version: 2;
+    actorKind: "human";
+    principalId: string;
+    companyId: string;
+  };
   result?: TResult;
 };
 
 function idempotencyPayloadHash(payload: unknown) {
   return crypto.createHash("sha256").update(canonicalJsonStringify(payload)).digest("hex");
+}
+
+function commandPayloadHash(command: PdmCommand<unknown>, idempotencyPayload: unknown) {
+  return idempotencyPayloadHash({ commandPayload: command.payload, idempotencyPayload });
+}
+
+function verifiedActorBinding(command: PdmCommand<unknown>): CommandReceiptEnvelope["actorBinding"] {
+  if (!command.actor.authorizationActor) return undefined;
+  return {
+    version: 2,
+    actorKind: "human",
+    principalId: command.actor.principalId,
+    companyId: command.actor.organizationId
+  };
+}
+
+function commandPrincipalColumns(command: PdmCommand<unknown>) {
+  const actorId = command.actor.pdmUserId === "system" ? null : command.actor.pdmUserId;
+  const canonical = command.actor.authorizationActor?.sessionSchemaVersion === 2;
+  if (canonical && !actorId) throw new Error("PLATFORM_COMMAND_ACTOR_MISMATCH");
+  return {
+    actorId,
+    principalId: canonical ? command.actor.principalId : null,
+    platformPrincipalId: !canonical && actorId ? command.actor.principalId : null,
+    platformOrganizationId: canonical ? null : command.actor.platformOrganizationId
+  };
 }
 
 function receiptEnvelope<TResult>(value: unknown): CommandReceiptEnvelope<TResult> | null {
@@ -77,6 +117,7 @@ function mapOutbox(row: OutboxRow): PlatformOutboxEvent {
     schemaVersion: Number(row.schema_version),
     payload: parseJson<Record<string, unknown>>(row.payload_json),
     actorId: row.actor_id,
+    principalId: row.principal_id,
     platformPrincipalId: row.platform_principal_id,
     platformOrganizationId: row.platform_organization_id,
     correlationId: row.correlation_id,
@@ -94,10 +135,13 @@ export class PlatformOutboxAsyncRepository {
     private readonly idFactory: () => string = () => crypto.randomUUID()
   ) {}
 
-  async findCompletedCommand<TResult>(command: PdmCommand<unknown>, idempotencyPayload?: unknown): Promise<TResult | null> {
+  async findCompletedCommand<TResult>(command: PdmCommand<unknown>, idempotencyPayload?: unknown): Promise<
+    { completed: false } | { completed: true; result: TResult }
+  > {
     const row = await this.client.queryOne<CommandReceiptRow>(
       `
-      SELECT id, command_status, response_json
+      SELECT id, command_name, schema_version, command_status, response_json, actor_id,
+             principal_id, platform_principal_id, platform_organization_id
       FROM platform_command_receipts
       WHERE company_id = :companyId
         AND command_name = :commandName
@@ -109,18 +153,41 @@ export class PlatformOutboxAsyncRepository {
         idempotencyKey: command.idempotencyKey
       }
     );
-    if (!row) return null;
+    if (!row) return { completed: false };
+    if (row.command_name !== command.commandName || Number(row.schema_version) !== command.schemaVersion) {
+      throw new Error("PLATFORM_COMMAND_SCHEMA_MISMATCH");
+    }
+    const expected = commandPrincipalColumns(command);
+    if (row.actor_id !== expected.actorId
+      || row.principal_id !== expected.principalId
+      || row.platform_principal_id !== expected.platformPrincipalId
+      || row.platform_organization_id !== expected.platformOrganizationId) {
+      throw new Error("PLATFORM_COMMAND_ACTOR_MISMATCH");
+    }
     const parsed = parseJson<unknown>(row.response_json as string | unknown);
     const envelope = receiptEnvelope<TResult>(parsed);
+    const verifiedBinding = verifiedActorBinding(command);
+    if (verifiedBinding && (
+      !envelope?.actorBinding
+      || envelope.actorBinding.version !== verifiedBinding.version
+      || envelope.actorBinding.actorKind !== verifiedBinding.actorKind
+      || envelope.actorBinding.principalId !== verifiedBinding.principalId
+      || envelope.actorBinding.companyId !== verifiedBinding.companyId
+      || envelope.payloadHash !== commandPayloadHash(command, idempotencyPayload)
+    )) throw new Error("PLATFORM_COMMAND_ACTOR_MISMATCH");
     if (
+      !verifiedBinding &&
       idempotencyPayload !== undefined &&
       envelope?.payloadHash &&
       envelope.payloadHash !== idempotencyPayloadHash(idempotencyPayload)
     ) {
       throw new Error("PLATFORM_COMMAND_IDEMPOTENCY_PAYLOAD_MISMATCH");
     }
-    if (row.command_status !== "completed") return null;
-    return envelope ? envelope.result as TResult : parsed as TResult;
+    if (row.command_status !== "completed") return { completed: false };
+    if (envelope && !Object.prototype.hasOwnProperty.call(envelope, "result")) {
+      throw new Error("PLATFORM_COMMAND_RECEIPT_INVALID");
+    }
+    return { completed: true, result: envelope ? envelope.result as TResult : parsed as TResult };
   }
 
   async claimCommand(command: PdmCommand<unknown>, idempotencyPayload?: unknown): Promise<boolean> {
@@ -128,11 +195,11 @@ export class PlatformOutboxAsyncRepository {
       `
       INSERT INTO platform_command_receipts (
         id, company_id, command_name, schema_version, idempotency_key,
-        actor_id, platform_principal_id, platform_organization_id,
+        actor_id, principal_id, platform_principal_id, platform_organization_id,
         correlation_id, command_status, response_json, created_at
       ) VALUES (
         :id, :companyId, :commandName, :schemaVersion, :idempotencyKey,
-        :actorId, :platformPrincipalId, :platformOrganizationId,
+        :actorId, :principalId, :platformPrincipalId, :platformOrganizationId,
         :correlationId, 'processing', :responseJson, :createdAt
       )
       ON CONFLICT(company_id, command_name, idempotency_key) DO NOTHING
@@ -144,13 +211,13 @@ export class PlatformOutboxAsyncRepository {
         commandName: command.commandName,
         schemaVersion: command.schemaVersion,
         idempotencyKey: command.idempotencyKey,
-        actorId: command.actor.pdmUserId === "system" ? null : command.actor.pdmUserId,
-        platformPrincipalId: command.actor.pdmUserId === "system" ? null : command.actor.principalId,
-        platformOrganizationId: command.actor.platformOrganizationId,
+        ...commandPrincipalColumns(command),
         correlationId: command.actor.correlationId,
         responseJson: JSON.stringify({
           __platformCommandReceiptVersion: 2,
-          ...(idempotencyPayload === undefined ? {} : { payloadHash: idempotencyPayloadHash(idempotencyPayload) })
+          ...(verifiedActorBinding(command)
+            ? { payloadHash: commandPayloadHash(command, idempotencyPayload), actorBinding: verifiedActorBinding(command) }
+            : idempotencyPayload === undefined ? {} : { payloadHash: idempotencyPayloadHash(idempotencyPayload) })
         } satisfies CommandReceiptEnvelope),
         createdAt: this.clock()
       }
@@ -159,7 +226,8 @@ export class PlatformOutboxAsyncRepository {
   }
 
   async completeCommand<TResult>(command: PdmCommand<unknown>, result: TResult, idempotencyPayload?: unknown): Promise<void> {
-    await this.client.execute(
+    if (result === undefined) throw new Error("PLATFORM_COMMAND_RESULT_REQUIRED");
+    const completed = await this.client.queryOne<{ id: string }>(
       `
       UPDATE platform_command_receipts
       SET command_status = 'completed', response_json = :responseJson, completed_at = :completedAt
@@ -167,19 +235,28 @@ export class PlatformOutboxAsyncRepository {
         AND command_name = :commandName
         AND idempotency_key = :idempotencyKey
         AND command_status = 'processing'
+        AND actor_id IS NOT DISTINCT FROM :actorId
+        AND principal_id IS NOT DISTINCT FROM :principalId
+        AND platform_principal_id IS NOT DISTINCT FROM :platformPrincipalId
+        AND platform_organization_id IS NOT DISTINCT FROM :platformOrganizationId
+      RETURNING id
       `,
       {
         companyId: command.actor.organizationId,
         commandName: command.commandName,
         idempotencyKey: command.idempotencyKey,
+        ...commandPrincipalColumns(command),
         responseJson: JSON.stringify({
           __platformCommandReceiptVersion: 2,
-          ...(idempotencyPayload === undefined ? {} : { payloadHash: idempotencyPayloadHash(idempotencyPayload) }),
+          ...(verifiedActorBinding(command)
+            ? { payloadHash: commandPayloadHash(command, idempotencyPayload), actorBinding: verifiedActorBinding(command) }
+            : idempotencyPayload === undefined ? {} : { payloadHash: idempotencyPayloadHash(idempotencyPayload) }),
           result
         } satisfies CommandReceiptEnvelope<TResult>),
         completedAt: this.clock()
       }
     );
+    if (!completed) throw new Error("PLATFORM_COMMAND_RECEIPT_NOT_CLAIMED");
   }
 
   async enqueue(input: {
@@ -193,20 +270,21 @@ export class PlatformOutboxAsyncRepository {
     const eventIdempotencyKey = input.idempotencyKeySuffix
       ? `${input.command.idempotencyKey}:${input.idempotencyKeySuffix}`
       : input.command.idempotencyKey;
-    await this.client.execute(
+    const inserted = await this.client.queryOne<{ id: string }>(
       `
       INSERT INTO platform_outbox_events (
         id, company_id, aggregate_type, aggregate_id, event_type, schema_version,
-        payload_json, actor_id, platform_principal_id, platform_organization_id,
+        payload_json, actor_id, principal_id, platform_principal_id, platform_organization_id,
         correlation_id, idempotency_key, delivery_status,
         attempt_count, occurred_at, updated_at
       ) VALUES (
         :id, :companyId, :aggregateType, :aggregateId, :eventType, :schemaVersion,
-        :payloadJson, :actorId, :platformPrincipalId, :platformOrganizationId,
+        :payloadJson, :actorId, :principalId, :platformPrincipalId, :platformOrganizationId,
         :correlationId, :idempotencyKey, 'pending',
         0, :occurredAt, :occurredAt
       )
       ON CONFLICT(company_id, event_type, idempotency_key) DO NOTHING
+      RETURNING id
       `,
       {
         id: this.idFactory(),
@@ -216,22 +294,20 @@ export class PlatformOutboxAsyncRepository {
         eventType: input.eventType,
         schemaVersion: input.command.schemaVersion,
         payloadJson: JSON.stringify(input.payload),
-        actorId: input.command.actor.pdmUserId === "system" ? null : input.command.actor.pdmUserId,
-        platformPrincipalId:
-          input.command.actor.pdmUserId === "system" ? null : input.command.actor.principalId,
-        platformOrganizationId: input.command.actor.platformOrganizationId,
+        ...commandPrincipalColumns(input.command),
         correlationId: input.command.actor.correlationId,
         idempotencyKey: eventIdempotencyKey,
         occurredAt: this.clock()
       }
     );
+    if (!inserted) throw new Error("PLATFORM_OUTBOX_IDEMPOTENCY_CONFLICT");
   }
 
   async listPending(limit = 50): Promise<PlatformOutboxEvent[]> {
     const rows = await this.client.query<OutboxRow>(
       `
       SELECT id, company_id, aggregate_type, aggregate_id, event_type, schema_version,
-             payload_json, actor_id, platform_principal_id, platform_organization_id,
+             payload_json, actor_id, principal_id, platform_principal_id, platform_organization_id,
              correlation_id, idempotency_key, delivery_status,
              attempt_count, occurred_at
       FROM platform_outbox_events

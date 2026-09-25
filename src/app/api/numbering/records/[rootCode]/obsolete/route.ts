@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { obsoleteDraftNumberingRecordAsync } from "@/lib/numbering-async";
-import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import { isProductionNumberingLifecycleGateOpen, productionSliceDeniedPayload, isProductionSliceEnforced } from "@/lib/production-slice";
 import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 
@@ -14,13 +13,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
   if (isProductionSliceEnforced() && !isProductionNumberingLifecycleGateOpen("draft-obsolete")) {
     return NextResponse.json(productionSliceDeniedPayload("numbering.records.obsolete"), { status: 403 });
   }
-  const auth = await requireNumberingActionAsync(request, "numbering.draft.obsolete");
-  if (auth.response) return auth.response;
-
   const { rootCode } = await params;
   const body = await request.json().catch(() => ({}));
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request, body));
-  if (companyResult.response) return companyResult.response;
+  const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.draft.obsolete", body });
+  if (access.response) return access.response;
 
   const reason = String(body.reason ?? "").trim();
   if (!reason) {
@@ -32,13 +28,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
 
   try {
     const result = await obsoleteDraftNumberingRecordAsync({
-      companyId: companyResult.company.companyId,
+      companyId: access.company.companyId,
       rootCode: decodeURIComponent(rootCode),
       reason,
-      obsoletedBy: auth.user.id,
+      obsoletedBy: access.actor.pdmUserId,
       idempotencyKey: idempotencyKey?.trim()
-    });
-    return NextResponse.json({ result, pdmCompany: companyResult.company, idempotencyKey: idempotencyKey?.trim() });
+    }, access.metadata);
+    return NextResponse.json({ result, pdmCompany: access.company, idempotencyKey: idempotencyKey?.trim() });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to obsolete draft numbering record";
     const status = message.includes("NOT_FOUND") ? 404 : message.includes("NOT_DRAFT") || message.includes("CONTROLLED") || message.includes("ALREADY") || message.startsWith("LIFE_") ? 409 : 400;

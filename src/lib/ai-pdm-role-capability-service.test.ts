@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import roleCatalog from '../../config/access-control/jenfu-role-catalog.v1.json' with { type: 'json' }
+import roleCatalog from '../../config/access-control/jenfu-role-catalog.v4.json' with { type: 'json' }
 import type { RoleCapabilityCatalog, RoleCapabilityWorkspaceV2 } from '@/lib/ai-pdm-role-capability-contract'
 import type { PrivilegedAssignmentWorkspaceSource } from '@/lib/repositories/ai-pdm-role-capability-repository'
 import { buildManagementSurface, buildPrivilegedRoleCapabilityWorkspace } from '@/lib/ai-pdm-role-capability-service'

@@ -1,6 +1,7 @@
 import type { JenfuIdentityConfig, GoogleWorkspaceMfaTrustPolicy } from "@/lib/auth-config";
 import { getGoogleWorkspaceMfaTrustPolicy, isTrustedGoogleWorkspaceEmail } from "@/lib/auth-config";
 import type { DbUser } from "@/lib/db";
+import { JenfuLegacyCutoverError, type LegacyCutoverReader } from "@/lib/jenfu-legacy-cutover-repository";
 import { JenfuAuthEpochError } from "@/lib/jenfu-auth-epoch-repository";
 import {
   JenfuPrincipalAdmissionError,
@@ -62,6 +63,17 @@ type AccountSessionReader = {
   isActive(input: { userId: string; sessionId: string; nowMs?: number }): Promise<boolean>;
 };
 
+async function requireLegacyCutover(reader: LegacyCutoverReader, pdmUserId: string, principalId: string) {
+  try {
+    await reader.requireLegacyCompatible(pdmUserId, principalId);
+  } catch (error) {
+    if (error instanceof JenfuLegacyCutoverError && error.code === "legacy_session_retired") {
+      throw new JenfuPlatformAuthError("auth_session_invalid", 401);
+    }
+    throw new JenfuPlatformAuthError("auth_server_not_configured", 503);
+  }
+}
+
 function translateDependencyError(error: unknown): never {
   if (error instanceof JenfuPlatformAuthError) throw error;
   if (error instanceof JenfuPrincipalAdmissionError) {
@@ -104,6 +116,7 @@ export async function exchangeFirebaseIdTokenForJenfuPlatformSession(input: {
   firebase: FirebaseIdentityProvider;
   localPrincipalRepository: Pick<PlatformIdentityRepository, "resolvePrincipal">;
   principalAdmissionRepository: PrincipalAdmissionReader;
+  legacyCutoverRepository: LegacyCutoverReader;
   authEpochRepository: AuthEpochReader;
   identityConfig: JenfuIdentityConfig;
   keyRing: PlatformSessionKeyRing;
@@ -157,6 +170,7 @@ export async function exchangeFirebaseIdTokenForJenfuPlatformSession(input: {
     translateDependencyError(error);
   }
   if (revokedBefore && verified.authTimeSeconds * 1000 <= Date.parse(revokedBefore)) throw new JenfuPlatformAuthError("auth_token_invalid", 401);
+  await requireLegacyCutover(input.legacyCutoverRepository, localPrincipal.pdmUserId, admittedPrincipal.principalId);
 
   const assurance = resolveJenfuAssurance({
     email: verified.email,
@@ -214,6 +228,7 @@ export async function verifyJenfuPlatformRequestSession(input: {
   localUserRepository: LocalUserReader;
   accountSessionRegistry: AccountSessionReader;
   principalAdmissionRepository: PrincipalAdmissionReader;
+  legacyCutoverRepository: LegacyCutoverReader;
   authEpochRepository: AuthEpochReader;
   nowSeconds?: number;
 }): Promise<{ user: DbUser; session: VerifiedJenfuAppSessionV1 }> {
@@ -268,6 +283,7 @@ export async function verifyJenfuPlatformRequestSession(input: {
   }
   if (currentEpoch !== claims.authEpoch) throw new JenfuPlatformAuthError("auth_epoch_stale", 401);
   if (currentRevokedBefore && claims.authTime * 1000 <= Date.parse(currentRevokedBefore)) throw new JenfuPlatformAuthError("auth_epoch_stale", 401);
+  await requireLegacyCutover(input.legacyCutoverRepository, claims.localPrincipalId, claims.principalId);
   return { user, session: toVerifiedJenfuAppSessionV1(claims) };
 }
 

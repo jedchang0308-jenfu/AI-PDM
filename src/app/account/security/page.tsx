@@ -6,7 +6,7 @@ import { ReasonActionDialog } from "@/components/reason-action-dialog";
 
 type AccountSession = {
   id: string;
-  authProvider: "legacy_managed" | "firebase_bff";
+  authProvider: "legacy_managed" | "firebase_bff" | "principal";
   assuranceLevel: "aal1" | "aal2";
   deviceType: "desktop" | "mobile" | "tablet" | "unknown";
   deviceLabel: string;
@@ -33,7 +33,7 @@ function formatDateTime(value: string | null) {
 }
 
 function providerLabel(provider: AccountSession["authProvider"]) {
-  return provider === "firebase_bff" ? "公司身分服務" : "本機管理登入";
+  return provider === "principal" || provider === "firebase_bff" ? "公司身分服務" : "本機管理登入";
 }
 
 function assuranceLabel(level: AccountSession["assuranceLevel"]) {
@@ -42,13 +42,15 @@ function assuranceLabel(level: AccountSession["assuranceLevel"]) {
 
 export default function AccountSecurityPage() {
   const [sessions, setSessions] = useState<AccountSession[]>([]);
+  const [sessionsAsOfMs, setSessionsAsOfMs] = useState(0);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [sessionToRevoke, setSessionToRevoke] = useState<AccountSession | null>(null);
 
-  const activeSessions = useMemo(() => sessions.filter((session) => !session.revokedAt), [sessions]);
+  const activeSessions = useMemo(() => sessions.filter((session) =>
+    !session.revokedAt && Date.parse(session.expiresAt) > sessionsAsOfMs), [sessions, sessionsAsOfMs]);
   const currentSession = useMemo(() => sessions.find((session) => session.current) ?? null, [sessions]);
 
   const load = useCallback(async () => {
@@ -66,6 +68,7 @@ export default function AccountSecurityPage() {
       return;
     }
     setSessions(Array.isArray(sessionBody.sessions) ? sessionBody.sessions : []);
+    setSessionsAsOfMs(Date.now());
     if (meResponse.ok) setUser(meBody.user ?? null);
   }, []);
 

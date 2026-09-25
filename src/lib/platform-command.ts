@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { JenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
+import type { PrincipalRequestInput } from "@/lib/jenfu-principal-request-guard";
 
 export type PlatformAuthProvider = "current_pdm_session" | "local_password" | "google_oauth" | "future_shared_iam";
 
@@ -7,7 +8,7 @@ export type PlatformActorContext = {
   principalId: string;
   pdmUserId: string;
   organizationId: string;
-  platformOrganizationId: string;
+  platformOrganizationId: string | null;
   roles: string[];
   scopes: string[];
   authProvider: PlatformAuthProvider;
@@ -30,6 +31,14 @@ export type PdmCommand<TPayload> = {
 export type PdmCommandMetadata = {
   actor: PlatformActorContext;
   idempotencyKey: string;
+  /** Kept in process for command-time verification; never copied into the persisted command. */
+  principalRequest?: PrincipalRequestInput;
+  principalAuthorization?: {
+    request: Request;
+    routePath: string;
+    method: string;
+    permissionCode: string;
+  };
 };
 
 const SAFE_CONTEXT_ID = /^[A-Za-z0-9._:/-]{1,200}$/u;
@@ -38,6 +47,11 @@ function requiredId(value: string, code: string) {
   const normalized = value.trim();
   if (!SAFE_CONTEXT_ID.test(normalized)) throw new Error(code);
   return normalized;
+}
+
+function requiredOpaquePrincipalId(value: string, code: string) {
+  if (value.length < 1 || value.length > 255 || !/\S/u.test(value) || /[\u0000-\u001f\u007f]/u.test(value)) throw new Error(code);
+  return value;
 }
 
 function unique(values: string[]) {
@@ -63,12 +77,29 @@ export function createPlatformActorContext(input: {
   const correlationId = input.correlationId
     ? requiredId(input.correlationId, "PLATFORM_CORRELATION_ID_INVALID")
     : requestId;
+  const verifiedPrincipalId = input.authorizationActor?.principalId;
+  if (verifiedPrincipalId?.startsWith("pdm:")) throw new Error("PLATFORM_ACTOR_PRINCIPAL_MISMATCH");
+  if (input.authorizationActor && (
+    input.authorizationActor.localPrincipalId !== pdmUserId
+    || input.authorizationActor.companyId !== organizationId
+  )) throw new Error("PLATFORM_ACTOR_PRINCIPAL_MISMATCH");
+  if (verifiedPrincipalId && input.principalId && input.principalId !== verifiedPrincipalId) {
+    throw new Error("PLATFORM_ACTOR_PRINCIPAL_MISMATCH");
+  }
+  const principalSession = input.authorizationActor?.sessionSchemaVersion === 2;
+  if (principalSession && input.platformOrganizationId != null) {
+    throw new Error("PLATFORM_ACTOR_LEGACY_ORGANIZATION_FORBIDDEN");
+  }
 
   const actor: PlatformActorContext = {
-    principalId: requiredId(input.principalId ?? `pdm:${pdmUserId}`, "PLATFORM_PRINCIPAL_ID_INVALID"),
+    principalId: input.authorizationActor
+      ? requiredOpaquePrincipalId(input.authorizationActor.principalId, "PLATFORM_PRINCIPAL_ID_INVALID")
+      : input.principalId !== undefined
+        ? requiredOpaquePrincipalId(input.principalId, "PLATFORM_PRINCIPAL_ID_INVALID")
+        : requiredId(`pdm:${pdmUserId}`, "PLATFORM_PRINCIPAL_ID_INVALID"),
     pdmUserId,
     organizationId,
-    platformOrganizationId: requiredId(
+    platformOrganizationId: principalSession ? null : requiredId(
       input.platformOrganizationId ?? `pdm-company:${organizationId}`,
       "PLATFORM_ORGANIZATION_ID_INVALID"
     ),
@@ -78,9 +109,7 @@ export function createPlatformActorContext(input: {
     correlationId,
     requestId
   };
-  if (input.authorizationActor
-    && input.authorizationActor.localPrincipalId === pdmUserId
-    && input.authorizationActor.companyId === organizationId) {
+  if (input.authorizationActor) {
     Object.defineProperty(actor, "authorizationActor", { value: input.authorizationActor, enumerable: false });
   }
   if (input.legacyRole?.trim()) Object.defineProperty(actor, "legacyRole", { value: input.legacyRole.trim(), enumerable: false });
@@ -104,11 +133,16 @@ export function createPdmCommand<TPayload>(input: {
 }
 
 export function createFallbackCommandMetadata(input: {
+  databaseKind: "sqlite" | "postgres";
   pdmUserId: string | null | undefined;
   organizationId: string | null | undefined;
   commandName: string;
   idempotencyKey?: string | null;
 }): PdmCommandMetadata {
+  // Only isolated local SQLite fixtures may synthesize a command actor.
+  // PostgreSQL commands require an explicitly verified request actor, even
+  // when the caller labels the local profile as "system".
+  if (input.databaseKind !== "sqlite") throw new Error("PLATFORM_COMMAND_METADATA_REQUIRED");
   const requestId = crypto.randomUUID();
   const actor = createPlatformActorContext({
     pdmUserId: input.pdmUserId ?? "system",

@@ -20,6 +20,8 @@ function isRetryablePostgresTransactionError(error: unknown) {
 
 export interface AsyncDatabaseClient {
   readonly kind: AsyncDatabaseProviderKind;
+  /** Present only on a pinned PostgreSQL transaction client. */
+  readonly transactionScope?: "postgres";
   query<T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T[]>;
   queryOne<T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T | null>;
   execute(sql: string, params?: AsyncDatabaseQueryParams): Promise<void>;
@@ -220,6 +222,7 @@ export class SQLiteAsyncDatabaseClient implements AsyncDatabaseClient {
 
 class PostgresTransactionClient implements AsyncDatabaseClient {
   readonly kind = "postgres";
+  readonly transactionScope = "postgres";
 
   constructor(private readonly client: PoolClient) {}
 

@@ -136,7 +136,14 @@ test('recorded provider transport executes the ten immutable owner stages withou
   const intent = { schemaVersion: 'owner.intent.v2', ownerApplicationId: 'platform', releaseId: 'REL-RECORDED-001', sourceRevision: H40, sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef, authorizationPolicyRef, readinessReceiptRef, foundationReceiptRef, infraReceiptRef, runtimeConfigRef, migrationManifestSha256: h.migrationManifestSha256, previousRevision, deadlineAt: '2999-01-01T00:00:00.000Z' }
   const intentResult = await h.transport.putJson(`gs://${bucket}/receipts/intents/release.json`, intent, { bucket, prefix: 'receipts' })
   const input = { capsuleRef: intentResult.ref.uri, capsuleSha256: intentResult.ref.sha256, profile: h.profile, transport: h.transport, environment: h.environment, validateIntent: (value) => value, createSourceIdentity: async () => h.sourceIdentityBytes, createSourceArchive: async () => h.sourceArchiveBytes, buildMigrationBundle: async () => ({ bundle: { manifestSha256: h.migrationManifestSha256 }, bytes: h.migrationBytes, bundleSha256: sha256(h.migrationBytes) }) }
-  for (const stage of ['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) await executeOwnerStage({ ...input, stage })
+  for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...input, stage })
+  const migrationOnlyService = structuredClone(h.service())
+  const migrationOnlyObjectCount = h.objects.size
+  assert.equal(h.transport.effectiveRevision(h.service()), previousRevision)
+  for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...input, stage })
+  assert.deepEqual(h.service(), migrationOnlyService)
+  assert.equal(h.objects.size, migrationOnlyObjectCount)
+  for (const stage of ['candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) await executeOwnerStage({ ...input, stage })
   const activation = [...h.objects.entries()].find(([uri]) => uri.endsWith('/activate.json'))
   assert.ok(activation)
   assert.equal(JSON.parse(activation[1].bytes.toString()).facts.defaultUriDisabled, false)

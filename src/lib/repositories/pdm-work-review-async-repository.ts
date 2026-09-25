@@ -42,6 +42,13 @@ export class PdmWorkReviewAsyncRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
 
   async selectReviewer(tx: AsyncDatabaseClient, input: { companyId: string; ownerUserId: string }) {
+    // This selector is still used by the v1 workbench. Once a profile has
+    // principal authority, its historical role must not nominate a reviewer.
+    const legacyOnly = tx.kind === "postgres" ? `
+         AND NOT EXISTS (
+           SELECT 1 FROM ai_pdm_core.principal_identity_cutovers cutover
+           WHERE cutover.pdm_user_id = u.id AND cutover.status = 'principal_active'
+         )` : "";
     const rows = await tx.query<{ id: string; priority: number }>(
       `SELECT u.id,
           MIN(CASE WHEN r.role_code = 'rd_manager' THEN 0 WHEN r.role_code = 'pdm_admin' THEN 1
@@ -53,7 +60,7 @@ export class PdmWorkReviewAsyncRepository {
        LEFT JOIN roles r ON r.id = assignment.role_id AND r.enabled = 1
        WHERE u.account_status = 'active' AND u.system_role_enabled = 1
          AND (u.company_id = :companyId OR membership.company_id = :companyId)
-         AND (u.role IN ('R&D Manager', 'Admin') OR r.role_code IN ('rd_manager', 'pdm_admin'))
+         AND (u.role IN ('R&D Manager', 'Admin') OR r.role_code IN ('rd_manager', 'pdm_admin'))${legacyOnly}
        GROUP BY u.id
        ORDER BY priority, owner_priority, u.id`,
       input

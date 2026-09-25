@@ -8,13 +8,10 @@ import {
   verifyPlatformSessionV2
 } from "../src/lib/platform-session-v2.ts";
 import {
-  exchangeFirebaseIdTokenForPlatformSession,
-  offboardIdentityDenyFirst,
-  provisionFirebasePasswordInvitation
+  exchangeFirebaseIdTokenForPlatformSession
 } from "../src/lib/platform-identity-contract.ts";
 import {
   FakeFirebaseIdentityProvider,
-  FakeInvitationMailProvider,
   FakePlatformIdentityRepository
 } from "../src/lib/platform-identity-fakes.ts";
 import {
@@ -110,42 +107,9 @@ const exchanged = await exchangeFirebaseIdTokenForPlatformSession({
 const exchangedClaims = verifyPlatformSessionV2(exchanged, keyRing, { nowSeconds: now + 1 });
 record("DEV046-1B-009 BFF exchange allows approved trusted-domain password AAL1 pilot after revoked-token verification", exchangedClaims.assuranceLevel === "aal1" && exchangedClaims.secondFactor === null && firebase.operations.includes("verify:firebase-token-aal2:revoked=true"));
 
-const mailer = new FakeInvitationMailProvider();
-const invitation = await provisionFirebasePasswordInvitation({
-  invitationId: "invitation-success",
-  targetUid: "firebase-invited-001",
-  email: "external@example.com",
-  displayName: "External User",
-  continueUrl: "https://erp.jenfu.example/account-recovery",
-  firebase,
-  repository,
-  mailer
-});
-record("DEV046-1B-010 password-link invitation reaches explicit setup state", invitation.setupState === "password_setup_link_sent" && repository.invitationStates.get("invitation-success")?.join(",") === "requested,identity_created,password_setup_link_sent" && mailer.deliveries.length === 1);
-
-firebase.failPasswordLink = true;
-await rejects(() => provisionFirebasePasswordInvitation({
-  invitationId: "invitation-failure",
-  targetUid: "firebase-orphan-001",
-  email: "orphan@example.com",
-  displayName: "Orphan Candidate",
-  continueUrl: "https://erp.jenfu.example/account-recovery",
-  firebase,
-  repository,
-  mailer
-}), "FAKE_PASSWORD_LINK_FAILED");
-record("DEV046-1B-011 invitation failure compensates orphan identity", !firebase.identities.has("firebase-orphan-001") && repository.invitationStates.get("invitation-failure")?.at(-1) === "compensated" && firebase.operations.includes("disable:firebase-orphan-001") && firebase.operations.includes("delete:firebase-orphan-001"));
-
-repository.failOffboard = true;
-const offboard = await offboardIdentityDenyFirst({
-  firebaseUid: "firebase-user-001",
-  pdmUserId: "prod-pdm-user-001",
-  reasonCode: "employment-ended",
-  actorId: "prod-pdm-user-admin-001",
-  firebase,
-  repository
-});
-record("DEV046-1B-012 offboarding denies provider first and remains denied on DB failure", offboard.status === "reconciliation_pending" && offboard.providerAccessDenied === true && firebase.identities.get("firebase-token-aal2")?.disabled === true && firebase.operations.indexOf("disable:firebase-user-001") < firebase.operations.indexOf("revoke:firebase-user-001"));
+// Historical provider mutation cases 010-012 were retired: shared Firebase
+// identity lifecycle is Platform-owned. This current QC keeps the v1 read-only
+// token checks until the principal-only consumer replaces the v1 entrypoint.
 
 const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), "config/platform/account-reprovision.template.json"), "utf8"));
 const manifestResult = validateAccountReprovisionManifest(manifest);

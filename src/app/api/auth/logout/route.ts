@@ -10,7 +10,10 @@ import {
 } from "@/lib/auth";
 import { getSessionUserAsync, getUserByIdAsync } from "@/lib/auth-async";
 import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
+import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { verifyJenfuPlatformSessionV1 } from "@/lib/jenfu-platform-session-v1";
+import { verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
+import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { verifyPlatformSessionV2 } from "@/lib/platform-session-v2";
 import { isAllowedRequestOrigin } from "@/lib/request-origin";
@@ -37,6 +40,31 @@ export async function POST(request: Request) {
     }
     const token = getSessionCookieToken(request);
     if (token) {
+      let principalClaims: ReturnType<typeof verifyJenfuPrincipalSession> | null = null;
+      try {
+        principalClaims = verifyJenfuPrincipalSession(token, getPlatformSessionKeyRing());
+      } catch {
+        principalClaims = null;
+      }
+      if (principalClaims) {
+        try {
+          await new JenfuPrincipalSessionRegistry(getAsyncDatabaseClient()).revoke(principalClaims, "logout");
+        } catch {
+          return NextResponse.json(
+            { error: "登出服務暫時無法使用。", code: "auth_server_not_configured" },
+            { status: 503, headers: { "cache-control": "no-store" } }
+          );
+        }
+        await createAuditLogAsync({
+          action: "Logout",
+          detail: { securityActor: { principalId: principalClaims.principalId,
+            profileVersion: principalClaims.profileVersion, actorKind: "human", reason: "local_logout" } }
+        }).catch(() => undefined);
+        const response = NextResponse.json({ status: "completed" }, { headers: { "cache-control": "no-store" } });
+        response.headers.append("set-cookie", createFirebaseHostingLogoutCookie());
+        response.headers.append("set-cookie", createLogoutCookie());
+        return response;
+      }
       let claims: ReturnType<typeof verifyJenfuPlatformSessionV1> | null = null;
       try {
         claims = verifyJenfuPlatformSessionV1(token, getPlatformSessionKeyRing());

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-payload";
 import { issueCanonicalWorkbenchContract } from "@/lib/pdm-workbench-authority-control";
 import { dev087RouteError, resolveDev087RouteActor } from "@/lib/pdm-dev087-route";
@@ -9,17 +9,69 @@ import { hydrateDrawingChangeImpactForWork, type DrawingPartRelationProjection }
 import { parseReviewPackageSnapshot, splitReviewPackageTargetKey } from "@/lib/pdm-review-package-contract";
 import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
+import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
+import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 export const runtime = "nodejs";
 export async function GET(request: Request, { params }: { params: Promise<{ requestId: string }> }) {
+  const principalToken = principalSessionTokenFromRequest(request);
+  if (principalToken) {
+    try {
+      const policy = resolveJenfuRoutePolicy(
+        "src/app/api/pdm/review-requests/[requestId]/route.ts", "GET",
+        { expectedPermissionCode: "approval.inbox.view" });
+      if (policy?.authorizationMode !== "permission" || policy.scopeResolver !== "workspace") {
+        return Response.json({ code: "principal_route_policy_unavailable" },
+          { status: 503, headers: { "cache-control": "no-store" } });
+      }
+      const { requestId } = await params;
+      return await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken), async (tx, verified) => {
+        if (verified.session.assuranceLevel !== "aal2") {
+          return Response.json({ code: "assurance_insufficient" },
+            { status: 403, headers: { "cache-control": "no-store" } });
+        }
+        const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified, [
+          { permissionKind: "action", permissionCode: "approval.inbox.view" },
+          { permissionKind: "action", permissionCode: "approval.request.decide" }
+        ]);
+        if (decisions.length !== 2 || decisions.some((decision) => !decision.allowed)) {
+          return jenfuEntitlementFailureResponse(
+            decisions.find((decision) => !decision.allowed)?.decisionCode ?? "permission_not_granted");
+        }
+        return readAssignedReview(tx, requestId, {
+          id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
+          permissions: { decide: true }
+        }, true);
+      });
+    } catch (error) {
+      return error instanceof JenfuPrincipalRequestError
+        ? principalRequestFailure(error) : dev087RouteError(error);
+    }
+  }
   const access = await resolveDev087RouteActor(request, "numbering.approvals"); if (access.response || !access.actor) return access.response;
+  const { requestId } = await params;
+  return readAssignedReview(getAsyncDatabaseClient(), requestId, access.actor);
+}
+
+async function readAssignedReview(client: AsyncDatabaseClient, requestId: string,
+  actor: { id: string; companyId: string; permissions: { decide: boolean } }, principalOnly = false) {
   try {
-    const { requestId } = await params; const client = getAsyncDatabaseClient(); const item = await new PdmWorkReviewAsyncRepository(client).get(client, { companyId: access.actor.companyId, requestId });
-    if (!item || item.reviewerUserId !== access.actor.id || !access.actor.permissions.decide || item.requestStatus !== "pending") return Response.json({ error: { code: "NOT_FOUND", message: "審核項目不存在", correlationId: crypto.randomUUID() } }, { status: 404 });
+    const item = await new PdmWorkReviewAsyncRepository(client).get(client, { companyId: actor.companyId, requestId });
+    if (!item || item.reviewerUserId !== actor.id || !actor.permissions.decide || item.requestStatus !== "pending") return Response.json({ error: { code: "NOT_FOUND", message: "審核項目不存在", correlationId: crypto.randomUUID() } }, { status: 404 });
+    if (principalOnly && !["part_change", "drawing_revision"].includes(item.requestKind)) {
+      return Response.json({ code: "principal_review_kind_not_migrated" },
+        { status: 503, headers: { "cache-control": "no-store" } });
+    }
     const parsedSnapshot = parseReviewPackageSnapshot(item.snapshotPayload);
     if (parsedSnapshot.kind === "invalid") throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
+    if (principalOnly && parsedSnapshot.kind !== "v2") {
+      throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
+    }
     if (parsedSnapshot.kind === "v2") {
       const packageValue = verifyReviewPackageIntegrity(item.snapshotPayload, item.snapshotHash);
-      const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: access.actor.companyId, actorId: access.actor.id });
+      const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: actor.companyId, actorId: actor.id });
       const targetSummaries = packageValue.targets.map((target) => ({
         targetKey: target.targetKey,
         ...splitReviewPackageTargetKey(target.targetKey),
@@ -32,6 +84,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
         fileCount: target.workspace.files.length,
         attachmentCount: target.workspace.attachments.length
       }));
+      let reviewBasisState: "current" | "stale" | "preproduction" = "current";
+      if (item.requestKind === "drawing_revision") {
+        if (!item.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+          "資料已改變，請退回修改後重新送審", 409);
+        const repository = new DrawingRevisionWorkAsyncRepository(client);
+        const work = await repository.readWork(client, actor.companyId, item.workId);
+        if (!work) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+          "資料已改變，請退回修改後重新送審", 409);
+        const basis = await repository.resolveWorkBasis(client, work);
+        reviewBasisState = basis.basisState;
+      }
       return Response.json({ data: {
         schemaVersion: packageValue.schemaVersion,
         requestId: item.id,
@@ -41,7 +104,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
         workId: item.workId,
         rowVersion: item.rowVersion,
         readonly: true,
-        interaction: { mode: "review_decide", basisState: "current", canMutateContent: false, canSubmit: false, canCancel: false, canApprove: true, canReturn: true, reasonCode: null },
+        interaction: { mode: reviewBasisState === "stale" ? "review_stale_cleanup" : "review_decide",
+          basisState: reviewBasisState, canMutateContent: false, canSubmit: false,
+          canCancel: false, canApprove: reviewBasisState !== "stale", canReturn: true,
+          reasonCode: reviewBasisState === "stale" ? "DRAWING_PRODUCTION_BASE_STALE" : null },
         primaryTargetKey: packageValue.primaryTargetKey,
         root: packageValue.root,
         matrix: packageValue.matrix,
@@ -61,17 +127,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
         ? { revision: (item.snapshotPayload as { revision?: unknown })?.revision ?? "" }
         : item.snapshotPayload;
     if (item.entityType === "drawing") {
-      identity = await client.queryOne(`SELECT drawing_number AS code, purpose_code, purpose_description FROM drawings WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: access.actor.companyId });
+      identity = await client.queryOne(`SELECT drawing_number AS code, purpose_code, purpose_description FROM drawings WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: actor.companyId });
       revisionId = typeof (item.snapshotPayload as { revisionId?: unknown })?.revisionId === "string" ? String((item.snapshotPayload as { revisionId: string }).revisionId) : undefined;
       if (item.requestKind === "drawing_revision" && item.workId) {
         const repository = new DrawingRevisionWorkAsyncRepository(client);
-        const work = await repository.readWork(client, access.actor.companyId, item.workId);
+        const work = await repository.readWork(client, actor.companyId, item.workId);
         if (work) {
           const basis = await repository.resolveWorkBasis(client, work);
           const stale = basis.basisState === "stale";
           interaction = { mode: stale ? "review_stale_cleanup" : "review_decide", basisState: basis.basisState, canMutateContent: false, canSubmit: false, canCancel: false, canApprove: !stale, canReturn: true, reasonCode: stale ? "DRAWING_PRODUCTION_BASE_STALE" : null };
           const impactProjection = await hydrateDrawingChangeImpactForWork(client, {
-            companyId: access.actor.companyId,
+            companyId: actor.companyId,
             drawingId: item.canonicalEntityId,
             revisionId: work.revision_id,
             predecessorRevisionId: work.predecessor_revision_id,
@@ -96,19 +162,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
       files = item.workId
         ? await client.query(`SELECT binding.file_binding_id AS id, file.source_file_asset_id, file.display_name, file.role, file.is_primary, 1 AS current_revision_upload, asset.file_name, asset.mime_type, asset.file_size FROM drawing_revision_work_files binding JOIN drawing_revision_files file ON file.id = binding.file_binding_id JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE binding.work_id = :workId ORDER BY binding.ordinal, binding.file_binding_id`, { workId: item.workId })
         : revisionId
-          ? await client.query(`SELECT file.id, file.source_file_asset_id, file.display_name, file.role, file.is_primary, 0 AS current_revision_upload, asset.file_name, asset.mime_type, asset.file_size FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE file.company_id = :companyId AND file.drawing_revision_id = :revisionId AND file.removed_at IS NULL ORDER BY file.sort_order, file.id`, { companyId: access.actor.companyId, revisionId })
+          ? await client.query(`SELECT file.id, file.source_file_asset_id, file.display_name, file.role, file.is_primary, 0 AS current_revision_upload, asset.file_name, asset.mime_type, asset.file_size FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE file.company_id = :companyId AND file.drawing_revision_id = :revisionId AND file.removed_at IS NULL ORDER BY file.sort_order, file.id`, { companyId: actor.companyId, revisionId })
           : [];
     } else if (item.entityType === "part") {
-      identity = await client.queryOne(`SELECT part_number AS code, part_name AS name FROM part_numbers WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: access.actor.companyId });
+      identity = await client.queryOne(`SELECT part_number AS code, part_name AS name FROM part_numbers WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: actor.companyId });
       attachments = await client.query(`SELECT asset.id, asset.file_name, asset.display_name, asset.document_category, asset.mime_type, asset.file_size FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id = :entityId AND asset.deleted_at IS NULL ORDER BY asset.created_at DESC, asset.id DESC`, { entityId: item.canonicalEntityId });
     } else {
-      identity = await client.queryOne(`SELECT root_code AS code, core_name AS name FROM part_roots WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: access.actor.companyId });
+      identity = await client.queryOne(`SELECT root_code AS code, core_name AS name FROM part_roots WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: actor.companyId });
       const [drawings, parts] = await Promise.all([
-        client.query(`SELECT id, drawing_number AS code FROM drawing_numbers WHERE company_id = :companyId AND part_root_id = :rootId ORDER BY drawing_number`, { companyId: access.actor.companyId, rootId: item.canonicalEntityId }),
-        client.query(`SELECT id, part_number AS code, part_name AS name FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId ORDER BY part_number`, { companyId: access.actor.companyId, rootId: item.canonicalEntityId })
+        client.query(`SELECT id, drawing_number AS code FROM drawing_numbers WHERE company_id = :companyId AND part_root_id = :rootId ORDER BY drawing_number`, { companyId: actor.companyId, rootId: item.canonicalEntityId }),
+        client.query(`SELECT id, part_number AS code, part_name AS name FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId ORDER BY part_number`, { companyId: actor.companyId, rootId: item.canonicalEntityId })
       ]); options = { drawings, parts };
     }
-    const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: access.actor.companyId, actorId: access.actor.id });
+    const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: actor.companyId, actorId: actor.id });
     const reviewActions = interaction && typeof interaction === "object" && (interaction as { canApprove?: boolean }).canApprove === false
       ? [{ key: "return_for_correction", label: "退回修改" }]
       : [{ key: "approve", label: "核准" }, { key: "return_for_correction", label: "退回修改" }];

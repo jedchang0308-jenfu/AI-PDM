@@ -15,6 +15,7 @@ import {
   verifyJenfuPlatformRequestSession
 } from "@/lib/jenfu-platform-identity-contract";
 import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
+import { JenfuLegacyCutoverRepository } from "@/lib/jenfu-legacy-cutover-repository";
 import type { VerifiedJenfuAppSessionV1 } from "@/lib/jenfu-platform-session-v1";
 import { hashPassword } from "@/lib/password";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
@@ -60,6 +61,7 @@ async function requireJenfuSessionContext(request: Request) {
     localUserRepository: new AsyncUserRepository(client),
     accountSessionRegistry: { isActive: isAccountSessionActiveAsync },
     principalAdmissionRepository: new JenfuPrincipalAdmissionRepository(client),
+    legacyCutoverRepository: new JenfuLegacyCutoverRepository(client),
     authEpochRepository: new JenfuAuthEpochRepository(client)
   });
 }

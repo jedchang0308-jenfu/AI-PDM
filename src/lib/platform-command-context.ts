@@ -100,9 +100,29 @@ export async function requireNumberingPlatformCommandAsync(
     };
   }
 
+  const verifiedActor = auth.user.authorizationActor;
+  if (getAsyncDatabaseClient().kind === "postgres" && !verifiedActor) {
+    return {
+      auth, company: null, actor: null, metadata: null,
+      response: Response.json({ error: "platform_actor_verification_required" }, { status: 401 })
+    };
+  }
+  if (verifiedActor && (
+    verifiedActor.localPrincipalId !== auth.user.id ||
+    verifiedActor.companyId !== companyResult.company.companyId
+  )) {
+    return {
+      auth, company: null, actor: null, metadata: null,
+      response: Response.json({ error: "platform_actor_company_mismatch" }, { status: 403 })
+    };
+  }
+
   const requestId = safeHeaderId(request, "x-request-id") || crypto.randomUUID();
   const correlationId = safeHeaderId(request, "x-correlation-id") || requestId;
-  const roleCodes = [auth.user.role, auth.permission?.roleCode ?? "", ...(auth.permission?.evaluatedRoles ?? [])];
+  const principalSession = verifiedActor?.sessionSchemaVersion === 2;
+  const roleCodes = principalSession
+    ? [auth.permission?.roleCode ?? ""]
+    : [auth.user.role, auth.permission?.roleCode ?? "", ...(auth.permission?.evaluatedRoles ?? [])];
   const smokeAuthority = companyResult.company.companyKind === "production_smoke"
     ? await getUserCompanyAuthorityAsync(auth.user.id, companyResult.company.companyId)
     : null;
@@ -142,8 +162,8 @@ export async function requireNumberingPlatformCommandAsync(
     roles: roleCodes,
     scopes: [input.action],
     authProvider: "current_pdm_session",
-    authorizationActor: auth.user.authorizationActor,
-    legacyRole: auth.user.role,
+    authorizationActor: verifiedActor,
+    legacyRole: principalSession ? undefined : auth.user.role,
     requestId,
     correlationId
   });
