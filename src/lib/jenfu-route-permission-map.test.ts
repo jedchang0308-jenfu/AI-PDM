@@ -36,6 +36,27 @@ describe("DEV-121 route authorization manifest", () => {
     expect(resolveJenfuRouteAuthorization(path, "POST", "unknown-context" as unknown as JenfuRouteDiscriminator)).toBeNull();
   });
 
+  it("keeps the existing account list policy while selecting the new candidate view exactly", () => {
+    const path = "src/app/api/admin/accounts/route.ts";
+    expect(resolveJenfuRouteAuthorization(path, "GET")).toMatchObject({
+      discriminator: null, permissionCode: "accounts.lifecycle.manage"
+    });
+    expect(resolveJenfuRouteAuthorization(path, "GET", "view:principal-candidate")).toMatchObject({
+      discriminator: "view:principal-candidate", permissionCode: "accounts.invitation.manage"
+    });
+    expect(resolveJenfuRouteAuthorization(path, "GET", "approval_apply:registered")).toBeNull();
+  });
+
+  it("rejects an unreviewed null fallback added to another contextual route", () => {
+    const entries = JENFU_ROUTE_PERMISSION_MAP.entries.map((entry) =>
+      entry.path === "src/app/api/approvals/requests/[requestId]/decisions/route.ts" &&
+      entry.discriminator === "approval_decision:registered"
+        ? { ...entry, discriminator: null }
+        : entry);
+    expect(() => validateJenfuRoutePermissionMap({ ...JENFU_ROUTE_PERMISSION_MAP, entries }))
+      .toThrow("ROUTE_PERMISSION_MAP_MIXED_POLICY_UNREVIEWED");
+  });
+
   it("treats route-supplied permission codes as assertions against the manifest", () => {
     const path = "src/app/api/approvals/requests/request-1/apply/route.ts";
     expect(resolveJenfuRoutePolicy(path, "POST", {

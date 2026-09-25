@@ -13,6 +13,10 @@ const READ_AUTH_STATE_SQL = `
     :identitySubject
   )
 `;
+const READ_CANONICAL_PRINCIPAL_STATE_SQL = `
+  SELECT principal_id, auth_epoch, revoked_before
+  FROM platform_contract.read_principal_auth_state_v3(:principalId)
+`;
 
 export class JenfuAuthEpochError extends Error {
   readonly code = "auth_epoch_unavailable";
@@ -47,9 +51,27 @@ export class JenfuAuthEpochRepository {
     if (this.client.kind !== "postgres") throw new JenfuAuthEpochError();
     try {
       const row = await this.client.queryOne<{ auth_epoch: number | string; revoked_before: string | null }>(READ_AUTH_STATE_SQL, { identityIssuer, identitySubject });
-      const authEpoch = Number(row?.auth_epoch ?? 0);
+      const authEpoch = Number(row?.auth_epoch);
       if (!Number.isSafeInteger(authEpoch) || authEpoch < 0) throw new JenfuAuthEpochError();
       const revokedBefore = row?.revoked_before == null ? null : new Date(row.revoked_before).toISOString();
+      return { authEpoch, revokedBefore };
+    } catch (error) {
+      if (error instanceof JenfuAuthEpochError) throw error;
+      throw new JenfuAuthEpochError();
+    }
+  }
+
+  async readCanonicalPrincipalState(principalId: string): Promise<{ authEpoch: number; revokedBefore: string | null }> {
+    if (this.client.kind !== "postgres" || !principalId.trim()) throw new JenfuAuthEpochError();
+    try {
+      const row = await this.client.queryOne<{
+        principal_id: string;
+        auth_epoch: number | string;
+        revoked_before: string | null;
+      }>(READ_CANONICAL_PRINCIPAL_STATE_SQL, { principalId });
+      const authEpoch = Number(row?.auth_epoch);
+      if (row?.principal_id !== principalId || !Number.isSafeInteger(authEpoch) || authEpoch < 0) throw new JenfuAuthEpochError();
+      const revokedBefore = row.revoked_before == null ? null : new Date(row.revoked_before).toISOString();
       return { authEpoch, revokedBefore };
     } catch (error) {
       if (error instanceof JenfuAuthEpochError) throw error;

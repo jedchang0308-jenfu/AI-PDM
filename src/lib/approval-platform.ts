@@ -436,7 +436,7 @@ export async function decideApprovalPlatformLegacyNumberingBatchAsync(input: {
   itemComments?: Record<string, string>;
   actor: ApprovalPlatformActor;
   companyId?: string;
-  approverRole?: string;
+  approverRole: string;
 }) {
   return decideNumberingApprovalBatchAsync({
     companyId: input.companyId,
@@ -445,7 +445,7 @@ export async function decideApprovalPlatformLegacyNumberingBatchAsync(input: {
     decision: input.decision,
     comment: input.comment ?? undefined,
     itemComments: input.itemComments,
-    approverRole: input.approverRole ?? input.actor.role,
+    approverRole: input.approverRole,
     approverId: input.actor.id
   });
 }

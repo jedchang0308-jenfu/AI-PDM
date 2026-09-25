@@ -24,15 +24,13 @@ const authorityRow = {
 };
 
 const assignment = {
-  contract_version: "jenfu.platform-entitlement.v1",
+  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v2",
   assignment_version_id: "assignment-version-1",
   assignment_version: 1,
   assignment_id: "assignment-1",
   grant_kind: "direct" as const,
   delegation_id: null,
   application_id: "ai-pdm",
-  identity_issuer: actor.identityIssuer,
-  identity_subject: actor.identitySubject,
   principal_id: actor.principalId,
   employee_id: actor.employeeId,
   subject_kind: "employee" as const,
@@ -48,8 +46,18 @@ const assignment = {
   authority_version: 2
 };
 
+const activeAccount = {
+  contract_version: "organization.active-principal.v1",
+  principal_issuer: actor.identityIssuer,
+  principal_subject: actor.identitySubject,
+  principal_id: actor.principalId,
+  employee_id: actor.employeeId,
+  employee_status: "active"
+};
+
 type FakeClientOptions = {
   authorityRows?: unknown[];
+  activeAccountRows?: unknown[];
   assignmentRows?: unknown[];
   failAuthority?: boolean;
   failAssignments?: boolean;
@@ -65,6 +73,9 @@ function fakeClient(options: FakeClientOptions = {}) {
         return (options.authorityRows ?? [authorityRow]) as T[];
       }
       if (options.failAssignments) throw new Error("assignment database unavailable");
+      if (sql.includes("v_active_principal_accounts_v1")) {
+        return (options.activeAccountRows ?? [activeAccount]) as T[];
+      }
       if (options.requireApplicationIdParam) {
         const named = params && typeof params === "object" && !Array.isArray(params)
           ? params as Record<string, unknown>
@@ -268,5 +279,44 @@ describe("DEV-005 EntitlementRepository", () => {
     }));
     await expect(repository({ assignmentRows: tooManyRows }).listEffectiveAssignments(actor))
       .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+
+  it("reads one principal grant set for either verified provider alias", async () => {
+    const other = { ...activeAccount, principal_issuer: "https://accounts.google.com", principal_subject: "google-001" };
+    const source = repository({ activeAccountRows: [activeAccount, other], assignmentRows: [assignment] });
+    const first = await source.listEffectiveAssignments(actor);
+    const second = await source.listEffectiveAssignments({
+      ...actor, identityIssuer: other.principal_issuer, identitySubject: other.principal_subject
+    });
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(1);
+    expect(first[0].assignmentId).toBe(second[0].assignmentId);
+  });
+
+  it("rejects conflicting typed aliases, wrong grant subjects, and duplicate principal grants", async () => {
+    const other = { ...activeAccount, principal_issuer: "https://accounts.google.com", principal_subject: "google-001" };
+    const base = { activeAccountRows: [activeAccount, other] };
+    await expect(repository({ ...base, activeAccountRows: [activeAccount,
+      { ...other, employee_id: "different-employee" }] }).listEffectiveAssignments(actor))
+      .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+    await expect(repository({ ...base, assignmentRows: [{ ...assignment,
+      principal_id: "different-principal" }] }).listEffectiveAssignments(actor))
+      .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+    await expect(repository({ ...base, assignmentRows: [assignment,
+      { ...assignment, assignment_id: "duplicate" }] }).listEffectiveAssignments(actor))
+      .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+    await expect(repository({ ...base, assignmentRows: [{ ...assignment,
+      contract_version: "jenfu.platform-entitlement.v1" }] }).listEffectiveAssignments(actor))
+      .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+
+  it("rejects stale authority versions and an unverified login alias", async () => {
+    await expect(repository({ assignmentRows: [{ ...assignment, authority_version: 1 }] }).evaluatePermission({
+      actor, rolePriority: ["rd"], permissionKind: "page", permissionCode: "numbering.request",
+      workspaceCode: "company-jenfu"
+    })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+    await expect(repository().listEffectiveAssignments({
+      ...actor, identitySubject: "not-published"
+    })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
   });
 });

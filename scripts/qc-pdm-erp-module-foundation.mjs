@@ -55,8 +55,9 @@ record(
   "platform-command-context.ts"
 );
 record(
-  "ERP-FND-SRC-003 command service owns transaction mapping outbox receipt",
-  includesAll(commandService, ["client.transaction", "ensureCurrentPrincipal", "ensureCurrentOrganization", "claimCommand", "enqueue", "completeCommand"])
+  "ERP-FND-SRC-003 command service preserves verified principal through transaction outbox receipt",
+  includesAll(commandService, ["client.transaction", "PLATFORM_ACTOR_VERIFICATION_REQUIRED", "PLATFORM_ACTOR_PRINCIPAL_MISMATCH", "ensureCurrentOrganization", "claimCommand", "enqueue", "completeCommand"]) &&
+    !commandService.includes("ensureCurrentPrincipal")
 );
 record(
   "ERP-FND-SRC-004 outbox implements idempotent insert and bounded delivery state",

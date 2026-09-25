@@ -95,6 +95,8 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           npm run qc:source-boundary
           npm run qc:dev-046-phase2b
+          npm exec vitest run src/lib/platform-command-service.test.ts src/lib/repositories/pdm-work-review-async-repository.test.ts
+          npm exec vitest run src/app/api/admin/account-invitations/principal-enrollment-boundary.test.ts src/lib/platform-principal-command-snapshot.test.ts src/lib/jenfu-principal-acl-migration-plan.test.ts src/lib/jenfu-principal-cutover-local-source.test.ts src/lib/jenfu-principal-cutover-locks.test.ts src/lib/jenfu-principal-cutover-graph-check.test.ts src/lib/jenfu-principal-cutover-workspace-shadow.test.ts src/lib/jenfu-principal-cutover-source-seal.test.ts src/lib/repositories/principal-local-acl-repository.test.ts src/lib/jenfu-principal-permission-service.test.ts src/lib/numbering-permission-guard.principal.test.ts src/lib/numbering-company-context.principal.test.ts src/lib/numbering-company-permission.test.ts src/lib/numbering-permission-async.test.ts src/lib/permissions.principal.test.ts 'src/app/api/numbering/approval-batches/[batchId]/principal-role-boundary.test.ts' src/app/api/numbering/search/principal-scope.test.ts src/app/api/numbering/drawings/resolve/principal-scope.test.ts src/app/api/numbering/drawings/submission-principal-scope.test.ts src/app/api/numbering/reports-principal-scope.test.ts
           npm run qc:pdm-account-invitations
           npm run qc:pdm-production-slice-numbering-draft
           npm run qc:dev-032-production-iac-package

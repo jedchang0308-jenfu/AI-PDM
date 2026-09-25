@@ -4,6 +4,7 @@ param(
   [switch]$Dev106Retirement,
   [switch]$Dev012Cutover,
   [switch]$Dev121Authorization,
+  [switch]$Dev121FileRead,
   [switch]$CleanupOnly
 )
 
@@ -115,6 +116,17 @@ try {
     $tsPathLoaderUrl = [System.Uri]::new((Join-Path $projectRoot "scripts\qc-ts-path-loader.mjs")).AbsoluteUri
     & node --experimental-transform-types "--experimental-loader=$tsPathLoaderUrl" (Join-Path $projectRoot "scripts\qc-dev-121-postgres.mjs")
     if ($LASTEXITCODE -ne 0) { throw "DEV-121 PostgreSQL authorization rehearsal failed with exit code $LASTEXITCODE" }
+  }
+  if ($Dev121FileRead) {
+    Write-Host "Postgres QC: running DEV-121 file source company proof"
+    $env:PDM_DEV121_FILE_SOURCE_DISPOSABLE = "1"
+    $tsPathLoaderUrl = [System.Uri]::new((Join-Path $projectRoot "scripts\qc-ts-path-loader.mjs")).AbsoluteUri
+    try {
+      & node --experimental-transform-types "--experimental-loader=$tsPathLoaderUrl" (Join-Path $projectRoot "scripts\qc-dev-121-file-source-postgres.mjs")
+      if ($LASTEXITCODE -ne 0) { throw "DEV-121 file source PostgreSQL rehearsal failed with exit code $LASTEXITCODE" }
+    } finally {
+      Remove-Item Env:PDM_DEV121_FILE_SOURCE_DISPOSABLE -ErrorAction SilentlyContinue
+    }
   }
 }
 finally {

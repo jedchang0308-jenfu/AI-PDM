@@ -2,7 +2,12 @@
 
 This directory is the authoritative PostgreSQL migration source for AI_PDM. The approved production database is Google Cloud SQL for PostgreSQL; Supabase is retired and is not a staging, migration, rollback, or release target.
 
-Use the current production Cloud SQL migration lane:
+The current production path is the AI-PDM owner-native release profile at
+`config/release/dev117-ai-pdm-independent-production-v3.json`. It binds source
+hashes and the migration bundle to one clean protected revision; the owner
+workflow can stop after `prepare -> build -> migrate` without candidate or
+traffic mutation, then resume the same capsule after OrgMaster consumes v4.
+The older standalone package commands are historical/local diagnostic tools:
 
 ```powershell
 npm.cmd run dev-032:cloudsql-migration-package
@@ -61,6 +66,9 @@ Implementation notes:
 - DEV-008 last-known-good role capability display snapshot is migration `056_role_capability_display_snapshot.sql`; it is read-only fallback state and never authorizes a request.
 - DEV-010 local N2 consolidation uses `062_dev010_neutral_schema_boundary.sql` only after the frozen fresh or existing-history lane has been classified. It moves AI-PDM authority objects to `ai_pdm_core`, retains only the versioned role-catalog projection in `ai_pdm_contract`, imports the historical ledger without rewriting it, and requires `public` to contain zero application-owned objects. This local evidence does not authorize a managed or production apply.
 - DEV-116 production-smoke tenant isolation uses `063_production_smoke_tenant_isolation.sql`. The forward migration first proves that all required relations are wholly in exactly one of the pre-062 `public` or post-062 `ai_pdm_core` layouts, alters them in place, preserves audit payload/time/action bytes, and fails closed on ambiguous topology or non-canonical sequence ownership. This repository change is local/disposable-target evidence only; production apply and smoke principal provisioning remain release-gated.
+- DEV-121 principal-first security subject is forward migration `065_dev121_principal_security_subject.sql`. It adds the unique canonical principal-to-historical-profile link, principal-keyed ACL and session tables, one-way cutover and append-only operation state, and a persistent fence against old security writers for `principal_active` profiles. `node scripts/qc-dev-121-principal-schema-postgres.mjs` runs its disposable PostgreSQL schema, ACL, and old-writer race checks. Migration 065 is owner-profile entry 16, after the immutable 15-entry DEV-010 historical baseline.
+- DEV-121 principal role catalog v4 is forward-only publication `066_dev121_principal_role_catalog_v4.sql`, owner-profile entry 17 after 065. It keeps v3 publication and entries as history, adds an exact nine-role v4 snapshot, and advances the active pointer atomically; unexpected v3 state or tampered v4 replay fails closed. The fixed v4 artifact is generated from the v3 catalog and applied 012/016 role matrix; `node scripts/qc-dev-121-role-catalog-postgres.mjs` validates isolated PostgreSQL activation, replay and rollback. Production publication remains pending owner migration receipt and provider readback; profile inclusion alone does not publish it.
+- DEV-121 principal grant correction is forward-only `067_dev121_principal_account_manager_grants_v2.sql`, owner-profile entry 18 after 066 and after OrgMaster 025 publishes its v2 contract. It replaces only the AI-PDM account-manager assertion function: the current provider pair remains a login/session proof, while permission lookup uses the canonical `principal_id` and exact employee/authority version. Migration 065 remains immutable; the isolated principal ACL PostgreSQL suite applies 065 then 067 and drops the old v1 grant fixture to prove the command no longer requires it. Production apply remains pending the owner release and provider readback.
 
 ## DEV-010 shared-database boundary
 

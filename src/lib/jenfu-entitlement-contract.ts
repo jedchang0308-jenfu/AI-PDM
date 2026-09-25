@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 export const JENFU_ENTITLEMENT_CONTRACT_VERSION = "jenfu.platform-entitlement.v1" as const;
+export const JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION = "jenfu.orgmaster.ai-pdm-principal-grants.v2" as const;
 export const JENFU_AI_PDM_APPLICATION_ID = "ai-pdm" as const;
 export const JENFU_ROLE_CATALOG_VERSION = "ai-pdm.role-catalog.2026-09-03.v3" as const;
 
@@ -27,10 +28,14 @@ export type JenfuVerifiedAuthorizationActor = {
   employeeId: string;
   localPrincipalId: string;
   companyId: string;
+  /** Present only after a principal-keyed target session was verified. */
+  sessionSchemaVersion?: 2;
 };
 
 export function createJenfuVerifiedAuthorizationActor(input: JenfuVerifiedAuthorizationActor): JenfuVerifiedAuthorizationActor | null {
-  if (Object.values(input).some((value) => typeof value !== "string" || value.trim().length === 0)) return null;
+  const { sessionSchemaVersion, ...identity } = input;
+  if (Object.values(identity).some((value) => typeof value !== "string" || value.trim().length === 0) ||
+    (sessionSchemaVersion !== undefined && sessionSchemaVersion !== 2)) return null;
   return { ...input };
 }
 
@@ -66,15 +71,13 @@ export type JenfuApplicationRoleCatalog = {
 };
 
 export type JenfuEffectiveRoleAssignment = {
-  contractVersion: typeof JENFU_ENTITLEMENT_CONTRACT_VERSION;
+  contractVersion: typeof JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION;
   assignmentVersionId: string;
   assignmentVersion: number;
   assignmentId: string;
   grantKind: "direct" | "delegated";
   delegationId: string | null;
   applicationId: typeof JENFU_AI_PDM_APPLICATION_ID;
-  identityIssuer: string;
-  identitySubject: string;
   principalId: string;
   employeeId: string;
   subjectKind: JenfuEntitlementSubjectKind;
@@ -131,15 +134,15 @@ export function sha256Canonical(value: unknown) {
 
 export function validateEffectiveRoleAssignment(
   assignment: JenfuEffectiveRoleAssignment,
-  session: Pick<JenfuEffectiveRoleAssignment, "identityIssuer" | "identitySubject" | "principalId" | "employeeId">,
+  session: Pick<JenfuEffectiveRoleAssignment, "principalId" | "employeeId">,
   now: Date = new Date()
 ): JenfuEntitlementValidationIssue[] {
   const issues: JenfuEntitlementValidationIssue[] = [];
   const add = (code: JenfuEntitlementValidationIssue["code"], path: string, message: string) => issues.push({ code, path, message });
-  if (assignment.contractVersion !== JENFU_ENTITLEMENT_CONTRACT_VERSION || assignment.applicationId !== JENFU_AI_PDM_APPLICATION_ID) {
+  if (assignment.contractVersion !== JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION || assignment.applicationId !== JENFU_AI_PDM_APPLICATION_ID) {
     add("ENTITLEMENT_CONTRACT_INVALID", "contractVersion", "entitlement contract or application is not supported");
   }
-  for (const field of ["assignmentVersionId", "assignmentId", "identityIssuer", "identitySubject", "principalId", "employeeId", "stableRoleId", "roleCode", "catalogVersion"] as const) {
+  for (const field of ["assignmentVersionId", "assignmentId", "principalId", "employeeId", "stableRoleId", "roleCode", "catalogVersion"] as const) {
     if (!nonBlank(assignment[field])) add("ENTITLEMENT_CONTRACT_INVALID", field, "value must be non-blank");
   }
   if (!Number.isSafeInteger(assignment.assignmentVersion) || assignment.assignmentVersion < 1 || !Number.isSafeInteger(assignment.authorityVersion) || assignment.authorityVersion < 1) add("ENTITLEMENT_CONTRACT_INVALID", "assignmentVersion", "versions must be positive safe integers");
@@ -152,7 +155,7 @@ export function validateEffectiveRoleAssignment(
   if (assignment.subjectKind === "principal" && !nonBlank(assignment.targetPrincipalId)) add("ENTITLEMENT_CONTRACT_INVALID", "targetPrincipalId", "principal assignment requires target principal");
   if (assignment.scopeKind === "global" && assignment.scopeKey !== null) add("ENTITLEMENT_SCOPE_INVALID", "scopeKey", "global scope key must be null");
   if (assignment.scopeKind !== "global" && !nonBlank(assignment.scopeKey)) add("ENTITLEMENT_SCOPE_INVALID", "scopeKey", "workspace/project scope key must be non-blank");
-  if (assignment.identityIssuer !== session.identityIssuer || assignment.identitySubject !== session.identitySubject || assignment.principalId !== session.principalId || assignment.employeeId !== session.employeeId) {
+  if (assignment.principalId !== session.principalId || assignment.employeeId !== session.employeeId) {
     add("ENTITLEMENT_IDENTITY_MISMATCH", "identity", "assignment identity must exactly match the verified session");
   }
   const at = now.getTime();

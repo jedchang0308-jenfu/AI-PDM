@@ -14,6 +14,7 @@ const check = (id, passed, detail) => ({ id, passed: Boolean(passed), detail });
 export function buildPhase2BPreflight() {
   const phase2a = buildPhase2APreflight();
   const packageJson = json("package.json");
+  const packageLock = json("package-lock.json");
   const authConfig = read("src/lib/auth-config.ts");
   const adminAdapter = read("src/lib/firebase-admin-identity-provider.ts");
   const principalRepository = read("src/lib/firebase-platform-principal-repository.ts");
@@ -41,18 +42,20 @@ export function buildPhase2BPreflight() {
   ].map(read).join("\n");
 
   const checks = [
-    check("P2B-APP-001", packageJson.dependencies.firebase === "^12.16.0" && packageJson.dependencies["firebase-admin"] === "^14.1.0", "Firebase Web/Admin SDK versions are pinned in package-lock"),
+    check("P2B-APP-001", ["firebase", "firebase-admin"].every((name) =>
+      packageJson.dependencies[name] === packageLock.packages[""].dependencies[name] &&
+      typeof packageLock.packages[`node_modules/${name}`]?.integrity === "string"), "Firebase Web/Admin SDK versions are resolved in package-lock"),
     check("P2B-APP-002", authConfig.includes('"firebase_bff"') && authConfig.includes("getFirebaseWebConfig"), "firebase_bff mode and runtime web config exist"),
     check("P2B-APP-003", adminAdapter.includes("verifyIdToken(idToken, true)") && adminAdapter.includes("sign_in_second_factor") && !/(?:firestore|storage|functions)/iu.test(adminAdapter), "Admin adapter verifies revocation and TOTP without Firebase data products"),
     check("P2B-APP-004", principalRepository.includes("mapping.external_subject = :firebaseUid") && !principalRepository.includes("users.email ="), "principal mapping is UID allowlist-only with no same-email fallback"),
-    check("P2B-APP-005", sessionRoute.includes("sameOrigin(request)") && sessionRoute.includes("contentLength > 32 * 1024") && sessionRoute.includes("setFirebaseBffSessionResponseCookie") && sessionRoute.includes("exchangeFirebaseIdTokenForPlatformSession"), "same-origin size-bounded HTTP BFF session exchange exists"),
+    check("P2B-APP-005", sessionRoute.includes("isAllowedRequestOrigin(request)") && sessionRoute.includes("contentLength > 32 * 1024") && sessionRoute.includes("setFirebaseBffSessionResponseCookie") && sessionRoute.includes("exchangeFirebaseIdTokenForPlatformSession"), "origin-checked size-bounded HTTP BFF session exchange exists"),
     check("P2B-APP-006", sessionRuntime.includes("verifyPlatformSessionV2") && sessionRuntime.includes("currentSessionVersion") && sessionRuntime.includes("user.company_id !== initialClaims.companyId"), "every BFF request rechecks signature, lifecycle version and company"),
     check("P2B-APP-007", sessionKeys.includes("PDM_SESSION_CURRENT_SECRET") && sessionKeys.includes("PDM_SESSION_PREVIOUS_SECRET") && sessionKeys.includes("SESSION_V2_KEY_IDS_MUST_DIFFER"), "current/previous signing-key rotation contract is fail closed"),
     check("P2B-APP-008", clientAuth.includes("inMemoryPersistence") && clientAuth.includes("signOut(auth)") && clientAuth.includes("/api/auth/firebase/session"), "browser Firebase credential is memory-only and exchanged through BFF"),
     check("P2B-APP-009", clientAuth.includes("signInWithEmailAndPassword") && !clientAuth.includes("TotpMultiFactorGenerator") && !clientAuth.includes("getMultiFactorResolver") && !loginPage.includes("completeFirebaseTotp") && !loginPage.includes("totpChallenge"), "Email/password sign-in has no application TOTP challenge path"),
     check("P2B-APP-010", legacyRoutes.match(/getAuthMode\(\) === "firebase_bff"/gu)?.length === 6, "legacy password, token, OAuth, invite and recovery routes fail closed"),
     check("P2B-APP-011", actionEmail.includes('requestType: "EMAIL_SIGNIN"') && invitationPage.includes("completeFirebaseEmailLinkInvitation") && clientAuth.includes("updatePassword"), "managed email link proves email before password linking"),
-    check("P2B-APP-012", invitationService.includes("createFirebaseManagedInvitation") && invitationService.includes("disableIdentity") && invitationService.includes("revokeRefreshTokens") && invitationService.includes("compensate"), "Firebase invitation provisioning has deny-first compensation"),
+    check("P2B-APP-012", !invitationService.includes("createFirebaseManagedInvitation") && invitationService.includes("revokeFirebaseManagedInvitation") && invitationService.includes("repository.compensate") && !/deps\.firebase|new FirebaseAdminIdentityProvider/u.test(invitationService), "Historical invitation revocation is local-only; AI-PDM cannot revoke the shared provider identity"),
     check("P2B-DB-001", sqliteSchema.includes("CREATE TABLE IF NOT EXISTS firebase_identity_invitations") && postgresInvitationMigration.includes("CREATE TABLE IF NOT EXISTS public.firebase_identity_invitations") && postgresInvitationMigration.includes("COMMIT;"), "canonical SQLite schema and additive PostgreSQL migration contain the invitation state machine"),
     check("P2B-BUILD-001", ["gcp-metadata", "gaxios", "google-logging-utils", "json-bigint", "bignumber.js"].every((name) => nextConfig.includes(`"./node_modules/${name}/**/*"`)), "Next standalone tracing includes the Firebase Admin metadata dependency chain"),
     check("P2B-IAC-001", localsTf.includes('"roles/firebaseauth.admin"'), "runtime Firebase IAM supports reviewed user provisioning and revocation"),

@@ -7,6 +7,7 @@ import { SearchHighlight } from "@/components/search-highlight";
 import { StatusScopeHelp } from "@/components/status-help-popover";
 import { getStatusDisplay } from "@/lib/status-display";
 import AccountInvitationsPage from "../account-invitations/page";
+import { PrincipalAccountsPanel } from "./principal-accounts-panel";
 import { ApprovalMatrixSettings } from "@/components/settings-screen";
 
 type AccountStatus = "active" | "suspended" | "expired" | "offboarded";
@@ -120,6 +121,22 @@ function formatDateTime(value: string | null) {
 
 export default function AccountsSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("accounts");
+  const [principalMode, setPrincipalMode] = useState<boolean | null>(null);
+  const [modeError, setModeError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/auth/me", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) throw new Error("account_session_unavailable");
+      const body = await response.json();
+      if (active) setPrincipalMode(body.session?.contractVersion === "jenfu.ai-pdm-session.v2");
+    }).catch(() => { if (active) setModeError(true); });
+    return () => { active = false; };
+  }, []);
+
+  if (modeError) return <div className="panel" role="alert">無法確認目前登入狀態，請重新登入後再試。</div>;
+  if (principalMode === null) return <div className="panel" role="status">正在確認帳號管理模式...</div>;
+  if (principalMode) return <PrincipalAccountsPanel />;
 
   return (
     <div className="account-console-page">

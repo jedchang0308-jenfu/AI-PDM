@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { getJenfuIdentityConfig, getJenfuPlatformAuthMode } from '../src/lib/auth-config.ts'
 import { getSessionCookieToken } from '../src/lib/auth.ts'
 import { JenfuAuthEpochRepository } from '../src/lib/jenfu-auth-epoch-repository.ts'
+import { JenfuLegacyCutoverError } from '../src/lib/jenfu-legacy-cutover-repository.ts'
 import {
   exchangeFirebaseIdTokenForJenfuPlatformSession,
   JenfuPlatformAuthError,
@@ -29,6 +30,10 @@ const KEY_RING = {
   currentKeyId: 'current',
   keys: { current: 'fixture-session-secret-at-least-32-bytes-long' },
 }
+const legacyCutoverRepository = { async requireLegacyCompatible(pdmUserId, principalId) {
+  assert.equal(pdmUserId, 'pdm-user-fixture-001')
+  assert.equal(principalId, 'principal-fixture-001')
+} }
 const cases = []
 
 async function check(id, operation) {
@@ -259,6 +264,7 @@ async function main() {
         }
       } },
       authEpochRepository: { async readPrincipalAuthEpoch() { return 0 } },
+      legacyCutoverRepository,
       identityConfig: getJenfuIdentityConfig(identityEnvironment()),
       keyRing: KEY_RING,
       workspaceMfaTrustPolicy: { enabled: false, allowAal1PrivilegedPilot: false, domains: ['jenfu.com.tw'] },
@@ -276,6 +282,7 @@ async function main() {
       localPrincipalRepository: { async resolvePrincipal() { throw new Error('must not be called') } },
       principalAdmissionRepository: { async requireActivePrincipal() { throw new Error('must not be called') } },
       authEpochRepository: { async readPrincipalAuthEpoch() { throw new Error('must not be called') } },
+      legacyCutoverRepository,
       identityConfig: getJenfuIdentityConfig(identityEnvironment()),
       keyRing: KEY_RING,
       nowSeconds: NOW_SECONDS,
@@ -345,6 +352,7 @@ async function main() {
         }
       } },
       authEpochRepository: { async readPrincipalAuthEpoch() { return 0 } },
+      legacyCutoverRepository,
       identityConfig: getJenfuIdentityConfig(identityEnvironment()),
       keyRing: KEY_RING,
       workspaceMfaTrustPolicy: { enabled: false, allowAal1PrivilegedPilot: true, domains: ['jenfu.com.tw'] },
@@ -399,17 +407,26 @@ async function main() {
         epochReads += 1
         return currentEpoch
       } },
+      legacyCutoverRepository,
       nowSeconds: NOW_SECONDS,
     }
     assert.equal((await verifyJenfuPlatformRequestSession(input)).session.employeeId, 'employee-fixture-001')
     assert.equal((await verifyJenfuPlatformRequestSession(input)).user.id, 'pdm-user-fixture-001')
+    await assert.rejects(
+      verifyJenfuPlatformRequestSession({ ...input,
+        legacyCutoverRepository: { async requireLegacyCompatible() {
+          throw new JenfuLegacyCutoverError('legacy_session_retired')
+        } },
+      }),
+      (error) => error instanceof JenfuPlatformAuthError && error.code === 'auth_session_invalid',
+    )
     currentEpoch = 1
     await assert.rejects(
       verifyJenfuPlatformRequestSession(input),
       (error) => error instanceof JenfuPlatformAuthError && error.code === 'auth_epoch_stale',
     )
-    assert.equal(principalReads, 3)
-    assert.equal(epochReads, 3)
+    assert.equal(principalReads, 4)
+    assert.equal(epochReads, 4)
   })
 
   await check('DEV004-S2-REQUEST-002', async () => {
@@ -422,6 +439,7 @@ async function main() {
         accountSessionRegistry: { async isActive() { return false } },
         principalAdmissionRepository: { async requireActivePrincipal() { throw new Error('must not be called') } },
         authEpochRepository: { async readPrincipalAuthEpoch() { throw new Error('must not be called') } },
+        legacyCutoverRepository,
         nowSeconds: NOW_SECONDS,
       }),
       (error) => error instanceof JenfuPlatformAuthError && error.code === 'auth_session_invalid',

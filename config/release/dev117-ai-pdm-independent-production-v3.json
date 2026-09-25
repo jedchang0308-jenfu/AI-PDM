@@ -330,6 +330,21 @@
         "order": 15,
         "path": "db/postgres/064_release_cancelled_drawing_number_claims.sql",
         "sha256": "e076970bc7cbe45b6efa2c3789dd8c9bbe6553fd7a3fc635c7d4e292b253633a"
+      },
+      {
+        "order": 16,
+        "path": "db/postgres/065_dev121_principal_security_subject.sql",
+        "sha256": "35e4f4bc67cc776b4fed64958b720b3376407f57c2f2fca15eaaa8b6a7819537"
+      },
+      {
+        "order": 17,
+        "path": "db/postgres/066_dev121_principal_role_catalog_v4.sql",
+        "sha256": "ae33547a48dc4627f055a5122c90638cb5d06f4e231ad5e9d0eb65d84975ac06"
+      },
+      {
+        "order": 18,
+        "path": "db/postgres/067_dev121_principal_account_manager_grants_v2.sql",
+        "sha256": "7bfd88e239026a39313ac2c3ca5b7d78c7c74e2a2b1ff32a0a9b0555a9605e98"
       }
     ]
   },

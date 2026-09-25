@@ -12,7 +12,8 @@ export type JenfuRouteDiscriminator =
   | "file_read:drawing_revision_work"
   | "file_read:review_request"
   | "file_read:part_attachment"
-  | "file_read:drawing_read";
+  | "file_read:drawing_read"
+  | "view:principal-candidate";
 export type JenfuRoutePermissionEntry = {
   path: string;
   method: string;
@@ -38,7 +39,8 @@ const allowedDiscriminators = new Set<JenfuRouteDiscriminator>([
   "approval_decision:transfer_package", "approval_decision:retired_candidate",
   "approval_decision:drawing_lifecycle", "approval_decision:registered",
   "file_read:approval_evidence", "file_read:drawing_revision_work",
-  "file_read:review_request", "file_read:part_attachment", "file_read:drawing_read"
+  "file_read:review_request", "file_read:part_attachment", "file_read:drawing_read",
+  "view:principal-candidate"
 ]);
 
 export function validateJenfuRoutePermissionMap(value = JENFU_ROUTE_PERMISSION_MAP) {
@@ -56,14 +58,30 @@ export function validateJenfuRoutePermissionMap(value = JENFU_ROUTE_PERMISSION_M
     if (seen.has(key)) throw new Error("ROUTE_PERMISSION_MAP_DUPLICATE_POLICY");
     seen.add(key);
   }
+  const byMethod = new Map<string, JenfuRoutePermissionEntry[]>();
+  for (const entry of value.entries) {
+    const key = `${entry.path}\0${entry.method}`;
+    byMethod.set(key, [...(byMethod.get(key) ?? []), entry]);
+  }
+  for (const [key, entries] of byMethod) {
+    if (entries.some((entry) => entry.discriminator === null) &&
+      entries.some((entry) => entry.discriminator !== null) &&
+      key !== "src/app/api/admin/accounts/route.ts\0GET") {
+      throw new Error("ROUTE_PERMISSION_MAP_MIXED_POLICY_UNREVIEWED");
+    }
+  }
   return { uniqueFiles, uniqueMethods, policyEntries: value.entries.length };
 }
 
 export function resolveJenfuRouteAuthorization(path: string, method: string, discriminator?: JenfuRouteDiscriminator | null) {
   const routeEntries = JENFU_ROUTE_PERMISSION_MAP.entries.filter((entry) => routePathMatches(entry.path, path) && entry.method === method);
   const contextualEntries = routeEntries.filter((entry) => entry.discriminator !== null);
-  if (contextualEntries.length > 0 && !discriminator) return null;
-  const matches = contextualEntries.length > 0
+  // The existing account list already has a null policy. Its one new view has
+  // a stricter, explicit discriminator; all other contextual routes still
+  // require theirs and remain closed when none is supplied.
+  const accountList = path === "src/app/api/admin/accounts/route.ts" && method === "GET";
+  if (contextualEntries.length > 0 && !discriminator && !accountList) return null;
+  const matches = discriminator
     ? contextualEntries.filter((entry) => entry.discriminator === discriminator)
     : routeEntries.filter((entry) => entry.discriminator === null);
   if (matches.length !== 1) return null;

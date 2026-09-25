@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const CONTRACT_VERSION = 'jenfu.platform-entitlement.v1'
-const EXPECTED = { uniqueFiles: 62, uniqueMethods: 76, policyEntries: 84 }
+const EXPECTED = { uniqueFiles: 77, uniqueMethods: 94, policyEntries: 103 }
 const scriptRoot = dirname(fileURLToPath(import.meta.url))
 const appRoot = resolve(scriptRoot, '..')
 const platformCandidates = [

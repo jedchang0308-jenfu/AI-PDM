@@ -9,15 +9,13 @@ const permissionInput = { permissionKind: "action" as const, permissionCode: "se
 
 function privilegedAssignment(actor = privilegedActor) {
   return {
-    contract_version: "jenfu.platform-entitlement.v1",
+    contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v2",
     assignment_version_id: "assignment-version-privileged-1",
     assignment_version: 1,
     assignment_id: "assignment-system-admin-1",
     grant_kind: "direct" as const,
     delegation_id: null,
     application_id: "ai-pdm",
-    identity_issuer: actor.identityIssuer,
-    identity_subject: actor.identitySubject,
     principal_id: actor.principalId,
     employee_id: actor.employeeId,
     subject_kind: "principal" as const,
@@ -50,6 +48,15 @@ function fakeClient(input: { assignmentsByPrincipal?: Record<string, unknown[]>;
         operation_id: null
       }] as T[];
       const values = params && typeof params === "object" && !Array.isArray(params) ? params as Record<string, unknown> : {};
+      if (sql.includes("v_active_principal_accounts_v1")) return [{
+        contract_version: "organization.active-principal.v1",
+        principal_issuer: identityIssuer,
+        principal_subject: String(values.principalId) === privilegedActor.principalId
+          ? privilegedActor.identitySubject : `uid-${String(values.principalId)}`,
+        principal_id: values.principalId,
+        employee_id: privilegedActor.employeeId,
+        employee_status: "active"
+      }] as T[];
       return (assignmentsByPrincipal[String(values.principalId ?? "")] ?? []) as T[];
     },
     async queryOne<T>(): Promise<T | null> { return null; },

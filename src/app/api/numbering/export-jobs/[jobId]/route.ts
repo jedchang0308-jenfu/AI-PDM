@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { getNumberingExportJobAsync } from "@/lib/numbering-async";
-import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.reports");
+  const auth = await requireNumberingCompanyPermissionAsync(request, "page", "numbering.reports");
   if (auth.response) return auth.response;
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
-  if (companyResult.response) return companyResult.response;
 
   const { jobId } = await params;
-  const job = await getNumberingExportJobAsync(jobId, companyResult.company.companyId);
+  const job = await getNumberingExportJobAsync(jobId, auth.company.companyId);
   if (!job) {
     return NextResponse.json({ error: "Export job not found" }, { status: 404 });
   }

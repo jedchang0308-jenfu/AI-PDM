@@ -45,6 +45,11 @@ function decisionResult(input: CheckNumberingPermissionInput, decisionCode: stri
 
 export async function checkNumberingPermissionsAsync(inputs: readonly CheckNumberingPermissionInput[]): Promise<NumberingPermissionCheckResult[]> {
   if (inputs.length === 0) return [];
+  // A v2 principal session must use the verified principal evaluator. This
+  // request-free helper cannot revalidate that session or prove a resource.
+  if (inputs.some((input) => input.user.authorizationActor?.sessionSchemaVersion === 2)) {
+    return inputs.map((input) => decisionResult(input, "entitlement_scope_mismatch"));
+  }
   const client = getAsyncDatabaseClient();
   if (getJenfuEntitlementMode() !== "enforce") {
     const repository = new AsyncAccessControlRepository(client);

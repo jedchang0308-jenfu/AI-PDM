@@ -3,6 +3,7 @@ import roleCatalog from "../../../config/access-control/jenfu-role-catalog.v1.js
 import {
   JENFU_AI_PDM_APPLICATION_ID,
   JENFU_ENTITLEMENT_CONTRACT_VERSION,
+  JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
   type JenfuApplicationRole,
   type JenfuEffectiveRoleAssignment,
   type JenfuEntitlementAuthority,
@@ -31,6 +32,7 @@ type AuthorityRow = {
 };
 
 type AssignmentRow = {
+  application_id: string;
   assignment_version_id: string;
   assignment_id: string;
   stable_role_id: string;
@@ -44,8 +46,6 @@ type AssignmentRow = {
   assignment_version: number;
   grant_kind: "direct" | "delegated";
   delegation_id: string | null;
-  identity_issuer: string;
-  identity_subject: string;
   principal_id: string;
   employee_id: string;
   subject_kind: "employee" | "principal";
@@ -61,6 +61,15 @@ export type JenfuEnforcedPermissionInput = {
   workspaceCode?: string | null;
   projectCode?: string | null;
   rolePriority: readonly string[];
+};
+
+type ActiveAccountRow = {
+  contract_version: string;
+  principal_issuer: string;
+  principal_subject: string;
+  principal_id: string;
+  employee_id: string;
+  employee_status: string;
 };
 
 export type JenfuEntitlementRoleCatalog = { roles: JenfuApplicationRole[] };
@@ -113,56 +122,89 @@ export class JenfuEntitlementRepository {
   }): Promise<JenfuEffectiveRoleAssignment[]> {
     if (this.client.kind !== "postgres") throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
     const applicationId = input.applicationId ?? JENFU_AI_PDM_APPLICATION_ID;
+    if (applicationId !== JENFU_AI_PDM_APPLICATION_ID || !input.principalId || !input.employeeId ||
+      !input.identityIssuer || !input.identitySubject) {
+      throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+    }
+    let accounts: ActiveAccountRow[];
     let rows: AssignmentRow[];
     try {
+      accounts = await this.client.query<ActiveAccountRow>(`
+        SELECT contract_version, principal_issuer, principal_subject, principal_id,
+               employee_id, employee_status
+        FROM orgmaster_contract.v_active_principal_accounts_v1
+        WHERE principal_id = :principalId
+        ORDER BY principal_issuer, principal_subject
+        LIMIT 3
+      `, { principalId: input.principalId });
       rows = await this.client.query<AssignmentRow>(`
         SELECT contract_version, assignment_version_id, assignment_version, assignment_id,
-               grant_kind, delegation_id, application_id, identity_issuer, identity_subject,
+               grant_kind, delegation_id, application_id,
                principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,
                role_code, catalog_version, scope_kind, scope_key, valid_from::text,
                valid_until::text, published_at::text, authority_version
-        FROM orgmaster_contract.v_ai_pdm_effective_role_assignments_v1
+        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
         WHERE application_id = :applicationId
-          AND identity_issuer = :identityIssuer
-          AND identity_subject = :identitySubject
           AND principal_id = :principalId
           AND employee_id = :employeeId
-        ORDER BY stable_role_id ASC, assignment_id ASC
+        ORDER BY stable_role_id, assignment_id
         LIMIT 33
       `, { ...input, applicationId });
     } catch {
       throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
     }
-    if (rows.length > 32) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
-    const assignments = rows.map((row) => ({
-      contractVersion: row.contract_version as typeof JENFU_ENTITLEMENT_CONTRACT_VERSION,
-      assignmentVersionId: row.assignment_version_id,
-      assignmentVersion: Number(row.assignment_version),
-      assignmentId: row.assignment_id,
-      grantKind: row.grant_kind,
-      delegationId: row.delegation_id,
-      applicationId: JENFU_AI_PDM_APPLICATION_ID,
-      identityIssuer: row.identity_issuer,
-      identitySubject: row.identity_subject,
-      principalId: row.principal_id,
-      employeeId: row.employee_id,
-      subjectKind: row.subject_kind,
-      targetPrincipalId: row.target_principal_id,
-      stableRoleId: row.stable_role_id,
-      roleCode: row.role_code,
-      catalogVersion: row.catalog_version,
-      scopeKind: row.scope_kind,
-      scopeKey: row.scope_key,
-      validFrom: row.valid_from,
-      validUntil: row.valid_until,
-      publishedAt: row.published_at,
-      authorityVersion: Number(row.authority_version)
-    }));
-    const keys = new Set<string>();
-    for (const assignment of assignments) {
-      const key = `${assignment.stableRoleId}|${assignment.roleCode}|${assignment.scopeKind}|${assignment.scopeKey ?? ""}`;
-      if (keys.has(key)) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
-      keys.add(key);
+    if (accounts.length < 1 || accounts.length > 2 || rows.length > 32) {
+      throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+    }
+    const aliases = new Set<string>();
+    for (const account of accounts) {
+      if (account.contract_version !== "organization.active-principal.v1" ||
+        account.principal_id !== input.principalId || account.employee_id !== input.employeeId ||
+        account.employee_status !== "active" || !account.principal_issuer || !account.principal_subject) {
+        throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      }
+      const alias = JSON.stringify([account.principal_issuer, account.principal_subject]);
+      if (aliases.has(alias)) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      aliases.add(alias);
+    }
+    const currentAlias = JSON.stringify([input.identityIssuer, input.identitySubject]);
+    if (!aliases.has(currentAlias)) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+    const assignments: JenfuEffectiveRoleAssignment[] = [];
+    const grantKeys = new Set<string>();
+    for (const row of rows) {
+      if (row.contract_version !== JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION ||
+        row.application_id !== applicationId || row.principal_id !== input.principalId ||
+        row.employee_id !== input.employeeId) {
+        throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      }
+      const grantKey = JSON.stringify([row.stable_role_id, row.role_code,
+        row.scope_kind, row.scope_key]);
+      if (grantKeys.has(grantKey)) {
+        throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      }
+      grantKeys.add(grantKey);
+      assignments.push({
+        contractVersion: JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
+        assignmentVersionId: row.assignment_version_id,
+        assignmentVersion: Number(row.assignment_version),
+        assignmentId: row.assignment_id,
+        grantKind: row.grant_kind,
+        delegationId: row.delegation_id,
+        applicationId: JENFU_AI_PDM_APPLICATION_ID,
+        principalId: row.principal_id,
+        employeeId: row.employee_id,
+        subjectKind: row.subject_kind,
+        targetPrincipalId: row.target_principal_id,
+        stableRoleId: row.stable_role_id,
+        roleCode: row.role_code,
+        catalogVersion: row.catalog_version,
+        scopeKind: row.scope_kind,
+        scopeKey: row.scope_key,
+        validFrom: row.valid_from,
+        validUntil: row.valid_until,
+        publishedAt: row.published_at,
+        authorityVersion: Number(row.authority_version)
+      });
     }
     return assignments;
   }
@@ -185,6 +227,9 @@ export class JenfuEntitlementRepository {
     if (authority.authoritySource !== "orgmaster_authority") throw new JenfuEntitlementRepositoryError("entitlement_dual_authority_detected");
     const assignments = await this.listEffectiveAssignments(input.actor);
     if (assignments.length === 0) throw new JenfuEntitlementRepositoryError("entitlement_assignment_not_found");
+    if (assignments.some((assignment) => assignment.authorityVersion !== authority.authorityVersion)) {
+      throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+    }
     const priorityRank = new Map(input.rolePriority.map((roleCode, index) => [roleCode, index]));
     if (priorityRank.size !== input.rolePriority.length || inputs.some((candidate) => candidate.rolePriority.join("\0") !== input.rolePriority.join("\0"))) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");

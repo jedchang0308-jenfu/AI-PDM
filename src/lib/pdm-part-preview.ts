@@ -387,6 +387,7 @@ export class PartPreviewService {
       const request = { partId: part.id, expectedRowVersion: input.expectedRowVersion, normalizedSha256: normalized.sha256 };
       const replay = await replayCanonicalTerminalReceipt<PartPreviewMutationResult>(this.client, {
         companyId: input.companyId,
+        actorId: input.actorId,
         command: "dev065:part-preview.set-custom",
         idempotencyKey: input.idempotencyKey,
         request,
@@ -508,6 +509,7 @@ export class PartPreviewService {
       const request = { partId: part.id, expectedRowVersion: input.expectedRowVersion };
       const replay = await replayCanonicalTerminalReceipt<PartPreviewMutationResult>(this.client, {
         companyId: input.companyId,
+        actorId: input.actorId,
         command: "dev065:part-preview.reset-auto",
         idempotencyKey: input.idempotencyKey,
         request,

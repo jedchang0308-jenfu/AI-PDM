@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { EXPLICIT_ONLY_PERMISSION_CODES } from "@/lib/access-control-policy";
 
 export type AccessControlRole = {
   id: string;
@@ -83,17 +84,6 @@ type AccessControlDelegationRow = {
   action_code: string | null;
   delegated_from_role: string;
 };
-
-const EXPLICIT_ONLY_PERMISSION_CODES = new Set([
-  "numbering.candidate.review.submit",
-  "numbering.candidate.review.withdraw",
-  "numbering.candidate.review.decide",
-  "numbering.publish",
-  "transfer.package.review.submit",
-  "transfer.package.review.withdraw",
-  "transfer.package.review.decide",
-  "transfer.package.publish"
-]);
 
 export const SELECT_ACCESS_CONTROL_ROLES_SQL = `
   SELECT id, role_code, title, system_defined, enabled

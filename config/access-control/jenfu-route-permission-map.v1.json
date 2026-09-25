@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "Jenfu-Management-system/ai-doc/specs/DEV-005-ai-pdm-authorization-route-inventory.md",
-  "sourceSha256": "f7f39de778c9df6dacdfac2965965d9cba0f64be4e290d3cd152466dac8ce059",
+  "sourceSha256": "de10e1d60212da3a1ba64135b9b0f3c8219018386c2d3bc98edcfe5e8ab7fe97",
   "denominator": {
-    "uniqueFiles": 62,
-    "uniqueMethods": 76,
-    "policyEntries": 84
+    "uniqueFiles": 77,
+    "uniqueMethods": 94,
+    "policyEntries": 103
   },
   "entries": [
     {
@@ -112,12 +112,32 @@
     {
       "path": "src/app/api/admin/accounts/route.ts",
       "method": "GET",
+      "discriminator": "view:principal-candidate",
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.invitation.manage",
+      "authorizationTarget": "accounts.invitation.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal＋exact OrgMaster typed source"
+    },
+    {
+      "path": "src/app/api/admin/accounts/route.ts",
+      "method": "GET",
       "discriminator": null,
       "authorizationMode": "permission",
       "permissionCode": "accounts.lifecycle.manage",
       "authorizationTarget": "accounts.lifecycle.manage",
       "scopeResolver": "workspace",
       "preservedGuards": "workspace＋bounded account projection"
+    },
+    {
+      "path": "src/app/api/admin/accounts/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "accounts.invitation.manage",
+      "authorizationTarget": "accounts.invitation.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋same-origin＋verified principal＋published source＋owner DB mutation fence"
     },
     {
       "path": "src/app/api/approvals/inbox/route.ts",
@@ -340,14 +360,94 @@
       "preservedGuards": "Part company＋owner／content validation"
     },
     {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/cancel/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.cancel",
+      "authorizationTarget": "numbering.workspace.cancel",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／current owner＋row version＋canonical receipt"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/files/[fileBindingId]/route.ts",
+      "method": "DELETE",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／locked owner＋current revision binding＋DB tombstone before object cleanup"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/files/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／prestage owner check＋write-snapshot recheck＋canonical file receipt"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.view",
+      "authorizationTarget": "numbering.workspace.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／current owner＋capability-limited interaction"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／current owner＋row version＋canonical receipt"
+    },
+    {
+      "path": "src/app/api/pdm/drawing-revision-works/[workId]/submit/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.candidate.review.submit",
+      "authorizationTarget": "numbering.candidate.review.submit",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／AAL2＋current owner＋principal reviewer＋v2 review package＋canonical receipt"
+    },
+    {
+      "path": "src/app/api/pdm/drawings/[drawingId]/revision-targets/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.create",
+      "authorizationTarget": "numbering.workspace.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／server-read source row＋target token"
+    },
+    {
+      "path": "src/app/api/pdm/drawings/[drawingId]/revision-works/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.create",
+      "authorizationTarget": "numbering.workspace.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／target token或manual rule＋row version＋canonical receipt"
+    },
+    {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
       "method": "GET",
       "discriminator": "file_read:approval_evidence",
       "authorizationMode": "permission",
       "permissionCode": "approval.request.decide",
       "authorizationTarget": "approval.request.decide",
-      "scopeResolver": "asset company",
-      "preservedGuards": "asset company＋exact approval request／snapshot evidence membership"
+      "scopeResolver": "exact approval request／snapshot evidence membership",
+      "preservedGuards": "exact approval request／snapshot evidence membership＋候選圖面、圖面 package／revision 或提交檔案的 company 關聯；principal v2 在同一唯讀快照驗能力與案件公司，舊審批資料只供 domain read，不作 UID 權限來源"
     },
     {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
@@ -357,7 +457,7 @@
       "permissionCode": null,
       "authorizationTarget": "existing numbering.drawings.view path",
       "scopeResolver": "asset company",
-      "preservedGuards": "asset company＋exact context／binding／asset identity；invalid context先400"
+      "preservedGuards": "asset company＋exact context／binding／asset identity；invalid context先400；principal v2 的候選、圖面 revision／package 與直接圖面附件讀取驗 `numbering.drawings.view`，不讀舊 UID／role"
     },
     {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
@@ -367,7 +467,7 @@
       "permissionCode": null,
       "authorizationTarget": "existing numbering.drawings.view path",
       "scopeResolver": "asset company",
-      "preservedGuards": "asset company＋work owner／`canEditNonOwned`；有`reviewRequestId`時另需`canDecide`＋exact review assignment"
+      "preservedGuards": "asset company＋work owner／`canEditNonOwned`；有`reviewRequestId`時另需`canDecide`＋exact review assignment；principal v2 僅無reviewRequestId的本人work，額外核對numbering.workspace.view、work/company/binding，檔案I/O於授權快照後"
     },
     {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
@@ -377,7 +477,7 @@
       "permissionCode": null,
       "authorizationTarget": "existing numbering.search path",
       "scopeResolver": "asset company",
-      "preservedGuards": "asset company＋exact Part／binding／asset identity"
+      "preservedGuards": "asset company＋exact Part／binding／asset identity；principal v2 以同一快照驗 `numbering.search`，不讀舊 UID／role"
     },
     {
       "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
@@ -387,7 +487,97 @@
       "permissionCode": null,
       "authorizationTarget": "authenticated_domain",
       "scopeResolver": "asset company",
-      "preservedGuards": "asset company＋exact pending/applying assigned-review scope／snapshot integrity"
+      "preservedGuards": "asset company＋exact pending/applying assigned-review scope／snapshot integrity；principal v2 限 review_package、AAL2、approval.inbox.view＋approval.request.decide、pending＋v2 package，物件 I/O 於授權快照後"
+    },
+    {
+      "path": "src/app/api/pdm/part-change-works/[workId]/cancel/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.cancel",
+      "authorizationTarget": "numbering.workspace.cancel",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／current owner＋row version＋canonical receipt"
+    },
+    {
+      "path": "src/app/api/pdm/part-change-works/[workId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.view",
+      "authorizationTarget": "numbering.workspace.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／current owner"
+    },
+    {
+      "path": "src/app/api/pdm/part-change-works/[workId]/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／current owner＋row version＋canonical receipt"
+    },
+    {
+      "path": "src/app/api/pdm/part-change-works/[workId]/submit/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.candidate.review.submit",
+      "authorizationTarget": "numbering.candidate.review.submit",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／AAL2／current owner＋v2 review package＋canonical receipt"
+    },
+    {
+      "path": "src/app/api/pdm/parts/[partId]/change-works/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.create",
+      "authorizationTarget": "numbering.workspace.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／formal row version＋canonical receipt"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/decisions/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.request.decide",
+      "authorizationTarget": "approval.request.decide",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／AAL2／assigned reviewer＋request state；unmigrated review kinds fail closed"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.inbox.view",
+      "authorizationTarget": "approval.inbox.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／AAL2／approval.request.decide＋assigned reviewer＋request state；unmigrated review kinds fail closed"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.inbox.view",
+      "authorizationTarget": "approval.inbox.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／AAL2／approval.request.decide＋assigned reviewer＋v2 package target；unmigrated review kinds fail closed"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "approval.inbox.view",
+      "authorizationTarget": "approval.inbox.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／AAL2／approval.request.decide＋assigned reviewer＋v2 package target；unmigrated review kinds fail closed"
     },
     {
       "path": "src/app/api/policy/management/route.ts",

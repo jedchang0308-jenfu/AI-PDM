@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import roleCatalog from '../../config/access-control/jenfu-role-catalog.v1.json' with { type: 'json' }
+import roleCatalog from '../../config/access-control/jenfu-role-catalog.v4.json' with { type: 'json' }
 import type { RoleCapabilityCatalog, RoleCapabilityPrivilegedCatalogRole, RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
 import { getPrivilegedAssignmentWorkspace, getRoleCapabilityWorkspace, AiPdmRoleCapabilityRepositoryError, type PrivilegedAssignmentWorkspaceSource } from '@/lib/repositories/ai-pdm-role-capability-repository'
 import { getRoleCapabilityDisplaySnapshot, saveRoleCapabilityDisplaySnapshot } from '@/lib/repositories/role-capability-display-snapshot-repository'

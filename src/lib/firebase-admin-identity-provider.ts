@@ -2,20 +2,11 @@ import "gcp-metadata";
 import { getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth, type DecodedIdToken } from "firebase-admin/auth";
 import type {
-  FirebaseCreatedIdentity,
   FirebaseIdentityProvider,
   VerifiedFirebaseIdentity
 } from "@/lib/platform-identity-contract";
 
-type FirebaseAdminAuthClient = Pick<
-  Auth,
-  | "verifyIdToken"
-  | "createUser"
-  | "generatePasswordResetLink"
-  | "updateUser"
-  | "revokeRefreshTokens"
-  | "deleteUser"
->;
+type FirebaseAdminAuthClient = Pick<Auth, "verifyIdToken">;
 
 function firebaseProjectId() {
   const projectId = String(process.env.PDM_FIREBASE_PROJECT_ID ?? process.env.GOOGLE_CLOUD_PROJECT ?? "").trim();
@@ -59,36 +50,4 @@ export class FirebaseAdminIdentityProvider implements FirebaseIdentityProvider {
     };
   }
 
-  async createEmailPasswordIdentity(input: {
-    uid: string;
-    email: string;
-    displayName: string;
-    disabled: boolean;
-  }): Promise<FirebaseCreatedIdentity> {
-    const created = await this.client().createUser({
-      uid: input.uid,
-      email: input.email.trim().toLowerCase(),
-      displayName: input.displayName.trim(),
-      emailVerified: false,
-      disabled: input.disabled
-    });
-    if (!created.email) throw new Error("FIREBASE_CREATED_EMAIL_MISSING");
-    return { uid: created.uid, email: created.email };
-  }
-
-  generatePasswordSetupLink(email: string, continueUrl: string): Promise<string> {
-    return this.client().generatePasswordResetLink(email.trim().toLowerCase(), { url: continueUrl, handleCodeInApp: false });
-  }
-
-  async disableIdentity(uid: string): Promise<void> {
-    await this.client().updateUser(uid, { disabled: true });
-  }
-
-  revokeRefreshTokens(uid: string): Promise<void> {
-    return this.client().revokeRefreshTokens(uid);
-  }
-
-  deleteIdentity(uid: string): Promise<void> {
-    return this.client().deleteUser(uid);
-  }
 }

@@ -3,8 +3,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { buildAiPdmPackage } from './dev010-n1c-ai-pdm-package.mjs'
-import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
+import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117MigrationPackage, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
@@ -139,12 +138,19 @@ test('AI-PDM routine release carries handoff on only from the exact active basel
   assert.throws(() => assertControlledEnvironmentAuthority({ ...fixture, profile, runtime: runtimeConfig, previousControlledEnvironment: { PDM_JENFU_SSO_HANDOFF_MODE: 'off' } }), /CONTROLLED_ENVIRONMENT_AUTHORITY_INVALID/u)
 })
 
-test('S1B-20 AI-PDM current 15-entry migration classification and bytes', () => {
+test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions', () => {
   const files = new Map(profile.migrations.entries.map((entry) => [entry.path, fs.readFileSync(new URL(`../${entry.path}`, import.meta.url))]))
   assert.equal(verifyDev117MigrationBytes(profile, files), true)
-  const bundle = buildDev117MigrationBundle(profile, buildAiPdmPackage(n1c), 'a'.repeat(40))
-  assert.equal(bundle.bundle.entries.length, 15)
+  const bundle = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), 'a'.repeat(40))
+  assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
+  assert.equal(bundle.bundle.entries.at(-3).version, 'ai-pdm-065')
+  assert.equal(bundle.bundle.entries.at(-2).version, 'ai-pdm-066')
+  assert.equal(bundle.bundle.entries.at(-1).version, 'ai-pdm-067')
+  assert.throws(() => verifyDev117MigrationBytes(profile, new Map([...files].slice(0, -1))), /Migration file set/u)
+  const reordered = structuredClone(profile)
+  reordered.migrations.entries[15].path = reordered.migrations.entries[14].path
+  assert.throws(() => assertDev117V3Profile(reordered, v1, n1c), /forward-only/u)
 })
 
 test('S1B-20 AI-PDM release intent is exact, owner-bound and immutable', () => {

@@ -1,22 +1,21 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { generateMonthlyNumberingAuditReportAsync, listMonthlyNumberingAuditReportsAsync } from "@/lib/numbering-async";
-import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
+import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireNumberingPageAsync(request, "numbering.reports");
+  const auth = await requireNumberingCompanyPermissionAsync(request, "page", "numbering.reports");
   if (auth.response) return auth.response;
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
-  if (companyResult.response) return companyResult.response;
 
   const url = new URL(request.url);
   const reportMonth = url.searchParams.get("reportMonth") ?? url.searchParams.get("report_month") ?? undefined;
   const limit = Number(url.searchParams.get("limit") ?? 20);
   return NextResponse.json({
-    reports: await listMonthlyNumberingAuditReportsAsync({ companyId: companyResult.company.companyId, reportMonth, limit }),
-    pdmCompany: companyResult.company
+    reports: await listMonthlyNumberingAuditReportsAsync({ companyId: auth.company.companyId, reportMonth, limit }),
+    pdmCompany: auth.company
   });
 }
 

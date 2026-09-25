@@ -1,21 +1,17 @@
 import { NextResponse } from "next/server";
 import { resolveDrawingSubmissionContext, DrawingSubmissionWorkbenchError } from "@/lib/drawing-submission-workbench";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
+  const auth = await requireNumberingCompanyPermissionAsync(request, "page", "numbering.drawings.view");
   if (auth.response) return auth.response;
-
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
-  if (companyResult.response) return companyResult.response;
 
   const { drawingNumber } = await params;
   try {
     const context = await resolveDrawingSubmissionContext({
-      company: companyResult.company,
+      company: auth.company,
       drawingNumber: decodeURIComponent(drawingNumber)
     });
     return NextResponse.json(context);

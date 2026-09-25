@@ -1,0 +1,8 @@
+{
+  "lockVersion": 1,
+  "contractVersion": "jenfu.sso-handoff.v2",
+  "sourceRepository": "Jenfu-Platform",
+  "sourcePath": "contracts/jenfu-sso-handoff/v2",
+  "manifestSha256": "816cf07ac0b29d6f340289fc5e38ff765f40d323a62c6fd4d1b3f7402227cf6e",
+  "consumerBoundary": "AI-PDM validates handoff shape and keeps Jenfu session plus account registry authority."
+}

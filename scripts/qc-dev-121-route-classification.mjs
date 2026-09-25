@@ -105,7 +105,7 @@ const explicitPermissionCalls = new Map([
   ["GET /api/numbering/drawings", ["approval.request.decide"]],
   ["POST /api/submissions/[id]/cancel", ["submission.view", "submission.review"]]
 ]);
-const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|requireTransferPackageAccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
+const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|requireTransferPackageAccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
 const sessionGuard = /\brequireAuthAsync\s*\(/u;
 const workerCapabilityGuard = /\b(?:requireWorkerServiceToken|requirePreviewWorkerToken|requireRecognitionWorker)\s*\(/u;
 
@@ -172,6 +172,7 @@ function permissionReferences(sourceFile) {
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
       const name = node.expression.text;
       if (["requireNumberingPermissionAsync", "requireNumberingPageAsync", "requireNumberingActionAsync", "canUserUseNumberingActionAsync", "requireNumberStateReadAccessAsync", "requireNumberStateCommandAccessAsync"].includes(name)) literalAt(node, 1, name);
+      if (name === "requireNumberingCompanyPermissionAsync") literalAt(node, 2, name);
       if (name === "requireTransferPackageAccessAsync") literalAt(node, 2, name);
       if (name === "requireNumberingPlatformCommandAsync" && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
         let actionCode = "";
@@ -277,6 +278,7 @@ function main() {
   const guardedSource = (path) => readFileSync(join(appRoot, ...path.split("/")), "utf8");
   containsAll(guardedSource("src/lib/numbering-permission-async.ts"), ["assertJenfuEnforcePrerequisites", "JenfuPrincipalAdmissionRepository", "JenfuEntitlementRepository", "readOnly: true"], "central authorization evaluator");
   containsAll(guardedSource("src/lib/numbering-permission-guard.ts"), ["checkNumberingPermissionAsync"], "numbering permission helpers");
+  containsAll(guardedSource("src/lib/numbering-company-permission.ts"), ["requirePrincipalNumberingPermissionAsync", "resolveNumberingCompanyContextAsync", "authorizationActor.companyId"], "numbering company permission helper");
   containsAll(guardedSource("src/lib/number-state-flow-api.ts"), ["requireNumberingActionAsync", "requireNumberingPlatformCommandAsync"], "number-state helpers");
   containsAll(guardedSource("src/lib/platform-command-context.ts"), ["requireNumberingActionAsync"], "Platform command helper");
   containsAll(guardedSource("src/lib/transfer-package-api.ts"), ["requireNumberStateReadAccessAsync", "requireNumberStateCommandAccessAsync"], "transfer package helpers");

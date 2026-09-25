@@ -9,15 +9,19 @@ import { setJenfuPlatformSessionResponseCookie } from "@/lib/auth-response-cooki
 import { getGoogleWorkspaceMfaTrustPolicy, getJenfuIdentityConfig, getJenfuSsoHandoffConfig } from "@/lib/auth-config";
 import { FirebasePlatformPrincipalRepository } from "@/lib/firebase-platform-principal-repository";
 import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
+import { JenfuLegacyCutoverError, JenfuLegacyCutoverRepository } from "@/lib/jenfu-legacy-cutover-repository";
+import { parseJenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
+import { issueSessionForPrincipalHandoff } from "@/lib/jenfu-principal-handoff-session-service";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { issueJenfuPlatformSessionV1, verifyJenfuPlatformSessionV1 } from "@/lib/jenfu-platform-session-v1";
 import { resolveJenfuAssurance } from "@/lib/jenfu-platform-identity-contract";
+import { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
+export { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
 
 const COOKIE = "__Host-jenfu_sso_tx";
 const MAX_RETURN_TO = 1024;
 const BROKER_TIMEOUT_MS = 10_000;
-const APP_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 
 type Transaction = { state: string; verifier: string; returnTo: string; issuer: string; expiresAt: number };
 type CallbackStage =
@@ -81,10 +85,11 @@ function exactObject(value: unknown, keys: readonly string[]) {
 }
 
 function callbackError(errorValue: unknown) {
+  if (errorValue instanceof JenfuLegacyCutoverError && errorValue.code === "legacy_session_retired") return error("principal_login_required", 403);
   const code = errorValue instanceof Error ? errorValue.message : "";
   if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED" || code === "BROKER_DENIED") return error("sso_code_invalid", 400);
   if (code === "PRINCIPAL_NOT_ACTIVE") return error("principal_not_active", 403);
-  if (code === "STALE_HANDOFF") return error("sso_principal_stale", 403);
+  if (code === "STALE_HANDOFF" || code === "PRINCIPAL_PROFILE_INVALID") return error("sso_principal_stale", 403);
   if (code === "HANDOFF_FACTOR_INVALID" || code === "auth_token_invalid") return error("auth_token_invalid", 401);
   return error("sso_dependency_unavailable", 502);
 }
@@ -120,13 +125,6 @@ export function safeJenfuSsoReturnTo(value: string | null | undefined) {
   return "/";
 }
 
-export function resolveJenfuTargetSessionExpiry(nowSeconds: number, sourceSessionExpiresAt: string) {
-  const sourceExpirySeconds = Math.floor(Date.parse(sourceSessionExpiresAt) / 1000);
-  const maxExpiry = Math.min(nowSeconds + APP_SESSION_MAX_AGE_SECONDS, sourceExpirySeconds);
-  if (!Number.isSafeInteger(nowSeconds) || !Number.isSafeInteger(sourceExpirySeconds) || !Number.isSafeInteger(maxExpiry) || maxExpiry <= nowSeconds) throw new Error("HANDOFF_EXPIRED");
-  return maxExpiry;
-}
-
 function parse(value: unknown, expected: ReturnType<typeof setup>): Handoff {
   const handoff = value as Handoff;
   if (!exactObject(handoff, ["contractVersion", "issuer", "audience", "identity", "authorization", "authentication", "authState", "sourceSessionExpiresAt", "issuedAt", "expiresAt"]) || !exactObject(handoff.identity, ["identityIssuer", "identitySubject", "principalId", "employeeId"]) || !exactObject(handoff.authorization, ["applicationId", "assignmentVersion"]) || !exactObject(handoff.authentication, ["authenticatedAt", "email", "emailVerified", "signInProvider", "secondFactor", "assuranceLevel"]) || !exactObject(handoff.authState, ["authEpoch", "revokedBefore"]) || handoff.contractVersion !== "jenfu.sso-handoff.v1" || handoff.issuer !== expected.issuer || handoff.audience !== "ai-pdm" || handoff.authorization?.applicationId !== "ai-pdm" || !handoff.identity?.identityIssuer || !handoff.identity.identitySubject || !handoff.identity.principalId || !handoff.identity.employeeId || !handoff.authentication?.authenticatedAt || !handoff.authentication.email || handoff.authentication.emailVerified !== true || !handoff.authentication.signInProvider || !handoff.sourceSessionExpiresAt || !handoff.expiresAt || !Number.isSafeInteger(handoff.authState?.authEpoch) || !Number.isSafeInteger(handoff.authorization.assignmentVersion) || !["aal1", "aal2"].includes(handoff.authentication.assuranceLevel) || (handoff.authentication.secondFactor !== null && handoff.authentication.secondFactor !== "totp")) throw new Error("HANDOFF_INVALID");
@@ -135,6 +133,15 @@ function parse(value: unknown, expected: ReturnType<typeof setup>): Handoff {
   const expiresAt = Date.parse(handoff.expiresAt);
   if (![authenticatedAt, sourceExpiresAt, expiresAt].every(Number.isFinite) || authenticatedAt > Date.now() + 60_000 || expiresAt <= Date.now() || sourceExpiresAt <= Date.now()) throw new Error("HANDOFF_EXPIRED");
   return handoff;
+}
+
+function callbackSuccess(config: ReturnType<typeof setup>, tx: Transaction, sessionToken: string) {
+  const response = NextResponse.redirect(new URL(tx.returnTo, config.base), 303);
+  response.headers.set("cache-control", "no-store");
+  response.headers.set("referrer-policy", "no-referrer");
+  response.cookies.set(COOKIE, "", { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 0 });
+  setJenfuPlatformSessionResponseCookie(response, sessionToken);
+  return response;
 }
 
 export async function jenfuSsoStart(request: Request) {
@@ -170,7 +177,21 @@ export async function jenfuSsoCallback(request: Request) {
     const brokerResponse = await fetch(`${config.broker}/api/sso/token`, { method: "POST", redirect: "error", signal: controller.signal, headers: { "content-type": "application/x-www-form-urlencoded", "x-jenfu-service-identity": `Bearer ${service}` }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: "ai-pdm", redirect_uri: config.callback, code_verifier: tx.verifier }) }).finally(() => clearTimeout(timeout));
     if (!brokerResponse.ok) throw new Error("BROKER_DENIED");
     stage = "handoff_parse";
-    const handoff = parse(await brokerResponse.json(), config);
+    const proof: unknown = await brokerResponse.json();
+    if (proof && typeof proof === "object" && !Array.isArray(proof) &&
+      (proof as { contractVersion?: unknown }).contractVersion === "jenfu.sso-handoff.v2") {
+      const handoff = parseJenfuPrincipalHandoff(proof, config.issuer);
+      stage = "session_issue";
+      const issued = await issueSessionForPrincipalHandoff({
+        handoff, database: getAsyncDatabaseClient(),
+        expectedIdentityIssuer: getJenfuIdentityConfig().identityIssuer,
+        keyRing: getPlatformSessionKeyRing(),
+        trustPolicy: getGoogleWorkspaceMfaTrustPolicy()
+      });
+      stage = "response";
+      return callbackSuccess(config, tx, issued.token);
+    }
+    const handoff = parse(proof, config);
     const client = getAsyncDatabaseClient();
     stage = "principal_resolution";
     const principal = await new FirebasePlatformPrincipalRepository(client).resolvePrincipal(handoff.identity.identitySubject);
@@ -180,6 +201,7 @@ export async function jenfuSsoCallback(request: Request) {
     stage = "auth_epoch";
     const state = await new JenfuAuthEpochRepository(client).readPrincipalAuthState(handoff.identity.identityIssuer, handoff.identity.identitySubject);
     if (admitted.principalId !== handoff.identity.principalId || admitted.employeeId !== handoff.identity.employeeId || state.authEpoch !== handoff.authState.authEpoch || (state.revokedBefore && Date.parse(handoff.authentication.authenticatedAt) <= Date.parse(state.revokedBefore))) throw new Error("STALE_HANDOFF");
+    await new JenfuLegacyCutoverRepository(client).requireLegacyCompatible(principal.pdmUserId, admitted.principalId);
     stage = "assurance";
     const assurance = resolveJenfuAssurance({ email: handoff.authentication.email, signInProvider: handoff.authentication.signInProvider, secondFactor: handoff.authentication.secondFactor, requirePrivilegedAssurance: principal.requiresPrivilegedAssurance === true, workspaceMfaTrustPolicy: getGoogleWorkspaceMfaTrustPolicy() });
     stage = "local_user";
@@ -194,12 +216,7 @@ export async function jenfuSsoCallback(request: Request) {
     stage = "session_registry";
     await registerJenfuAccountSessionAsync({ request, claims });
     stage = "response";
-    const response = NextResponse.redirect(new URL(tx.returnTo, config.base), 303);
-    response.headers.set("cache-control", "no-store");
-    response.headers.set("referrer-policy", "no-referrer");
-    response.cookies.set(COOKIE, "", { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 0 });
-    setJenfuPlatformSessionResponseCookie(response, sessionToken);
-    return response;
+    return callbackSuccess(config, tx, sessionToken);
   } catch (errorValue) {
     console.error(JSON.stringify({ event: "jenfu_sso_callback_failed", stage, code: callbackFailureCode(errorValue) }));
     const response = callbackError(errorValue);

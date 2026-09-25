@@ -83,6 +83,70 @@ function boundaryFailures(entries, sources) {
       continue
     }
     if (entry.authorizationMode === 'permission') {
+      if (entry.path === 'src/app/api/admin/account-invitations/route.ts' &&
+          entry.method === 'POST') {
+        for (const required of [
+          /principalSessionTokenFromRequest\s*\(/u,
+          /withVerifiedJenfuPrincipalRequest\s*\(/u,
+          /principal_enrollment_required/u,
+          /requirePdmRouteAuthorizationAsync\s*\(/u
+        ]) {
+          if (!required.test(graph)) failures.push(`${label}: principal enrollment retirement missing: ${required}`)
+        }
+        continue
+      }
+      if (entry.method === 'GET' && !entry.discriminator &&
+          ['src/app/api/admin/accounts/route.ts',
+            'src/app/api/admin/accounts/[userId]/route.ts'].includes(entry.path)) {
+        for (const required of [
+          /requirePdmRouteAuthorizationAsync\s*\(/u,
+          /withVerifiedJenfuPrincipalRequest\s*\(/u,
+          /evaluatePrincipalWorkspacePermissionsInSnapshot\s*\(/u,
+          /JenfuPrincipalAdminAccountRepository\s*\(/u
+        ]) {
+          if (!required.test(graph)) failures.push(`${label}: principal account reader guard missing: ${required}`)
+        }
+        if (!graph.includes(entry.permissionCode)) failures.push(`${label}: permission code missing`)
+        continue
+      }
+      if (entry.path === 'src/app/api/admin/accounts/route.ts' &&
+          entry.discriminator === 'view:principal-candidate') {
+        for (const required of [
+          /resolveJenfuRoutePolicy\s*\(/u,
+          /withVerifiedJenfuPrincipalRequest\s*\(/u,
+          /evaluatePrincipalWorkspacePermissionsInSnapshot\s*\(/u,
+          /JenfuPrincipalCandidateRepository\s*\(/u
+        ]) {
+          if (!required.test(graph)) failures.push(`${label}: principal candidate guard missing: ${required}`)
+        }
+        if (!graph.includes(entry.permissionCode)) failures.push(`${label}: permission code missing`)
+        continue
+      }
+      if (entry.path === 'src/app/api/admin/accounts/route.ts' && entry.method === 'POST') {
+        for (const required of [
+          /isAllowedRequestOrigin\s*\(/u,
+          /resolveJenfuRoutePolicy\s*\(/u,
+          /principalSessionTokenFromRequest\s*\(/u,
+          /provisionPrincipalAccount\s*\(/u
+        ]) {
+          if (!required.test(graph)) failures.push(`${label}: principal provisioning guard missing: ${required}`)
+        }
+        if (!graph.includes(entry.permissionCode)) failures.push(`${label}: permission code missing`)
+        continue
+      }
+      if (entry.path === 'src/app/api/admin/accounts/[userId]/lifecycle/route.ts' &&
+          entry.method === 'POST') {
+        for (const required of [
+          /isAllowedRequestOrigin\s*\(/u,
+          /resolveJenfuRoutePolicy\s*\(/u,
+          /principalSessionTokenFromRequest\s*\(/u,
+          /updatePrincipalAccountLifecycle\s*\(/u
+        ]) {
+          if (!required.test(graph)) failures.push(`${label}: principal lifecycle guard missing: ${required}`)
+        }
+        if (!graph.includes(entry.permissionCode)) failures.push(`${label}: permission code missing`)
+        continue
+      }
       if (!/requirePdmRouteAuthorizationAsync\s*\(/u.test(graph)) failures.push(`${label}: PDM entitlement guard missing from handler graph`)
       if (entry.discriminator && entry.permissionCode && !graph.includes(entry.permissionCode)) failures.push(`${label}: explicit discriminator permission ${entry.permissionCode} missing`)
       continue
@@ -126,7 +190,7 @@ function mutateHandlerGuard(path, method, source) {
 }
 
 function main() {
-  assert.deepEqual(routeMap.denominator, { uniqueFiles: 62, uniqueMethods: 76, policyEntries: 84 })
+assert.deepEqual(routeMap.denominator, { uniqueFiles: 62, uniqueMethods: 77, policyEntries: 86 })
   const catalogPermissionCodes = new Set(catalog.roles.flatMap((role) => role.permissions.map((permission) => permission.code)))
   const permissionEntries = routeMap.entries.filter((entry) => entry.authorizationMode === 'permission')
   for (const entry of permissionEntries) assert.ok(catalogPermissionCodes.has(entry.permissionCode), `route permission missing from catalog: ${entry.permissionCode}`)
@@ -159,6 +223,34 @@ function main() {
   mutantSources.set(mutantPath, mutateHandlerGuard(mutantPath, 'GET', sourceByPath.get(mutantPath)))
   const mutantFailures = boundaryFailures(routeMap.entries.filter((entry) => entry.path === mutantPath && entry.method === 'GET'), mutantSources)
   assert.ok(mutantFailures.length > 0, 'method-level guard mutant was not detected')
+
+  const accountsPath = 'src/app/api/admin/accounts/route.ts'
+  const accountsSource = sourceByPath.get(accountsPath)
+  const principalMutant = accountsSource.replace(/provisionPrincipalAccount\s*\(/u, 'removedPrincipalProvision(')
+  assert.notEqual(principalMutant, accountsSource, 'principal provision mutant could not remove command')
+  const principalFailures = boundaryFailures(routeMap.entries.filter((entry) =>
+    entry.path === accountsPath && entry.method === 'POST'), new Map([[accountsPath, principalMutant]]))
+  assert.ok(principalFailures.length > 0, 'principal provision guard mutant was not detected')
+
+  const lifecyclePath = 'src/app/api/admin/accounts/[userId]/lifecycle/route.ts'
+  const lifecycleSource = sourceByPath.get(lifecyclePath)
+  const lifecycleMutant = lifecycleSource.replace(/updatePrincipalAccountLifecycle\s*\(/u,
+    'removedPrincipalLifecycle(')
+  assert.notEqual(lifecycleMutant, lifecycleSource, 'principal lifecycle mutant could not remove command')
+  const lifecycleFailures = boundaryFailures(routeMap.entries.filter((entry) =>
+    entry.path === lifecyclePath && entry.method === 'POST'),
+    new Map([[lifecyclePath, lifecycleMutant]]))
+  assert.ok(lifecycleFailures.length > 0, 'principal lifecycle guard mutant was not detected')
+
+  const invitationPath = 'src/app/api/admin/account-invitations/route.ts'
+  const invitationSource = sourceByPath.get(invitationPath)
+  const invitationMutant = invitationSource.replace(/withVerifiedJenfuPrincipalRequest\s*\(/u,
+    'removedPrincipalSessionVerification(')
+  assert.notEqual(invitationMutant, invitationSource, 'principal invitation mutant could not remove session check')
+  const invitationFailures = boundaryFailures(routeMap.entries.filter((entry) =>
+    entry.path === invitationPath && entry.method === 'POST'),
+    new Map([[invitationPath, invitationMutant]]))
+  assert.ok(invitationFailures.length > 0, 'principal invitation guard mutant was not detected')
 
   const roleCapabilityFiles = [
     'src/app/api/settings/access/role-capabilities/route.ts',

@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   assertDev117ArtifactReceipt,
   assertDev117CandidateReceipt,
@@ -7,10 +10,12 @@ import {
 } from './dev117-ai-pdm-independent-release.mjs'
 import { assertDev116R02Receipt } from './dev116-r02-receipt.mjs'
 import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
+import { buildAiPdmPackage, deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 
 const H40 = /^[a-f0-9]{40}$/
 const H64 = /^[a-f0-9]{64}$/
 const V3_CONTRACT_SHA256 = '857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5'
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const LEGACY_STRICT_VALIDATORS = Object.freeze({ assertDev117ArtifactReceipt, assertDev117CandidateReceipt, assertDev117Level4Join, assertDev117AppReleaseReceipt, assertDev116R02Receipt })
 function fail(code, message) { const error = new Error(message); error.code = code; throw error }
 export function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex') }
@@ -64,16 +69,42 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   if (JSON.stringify(profile.dataCutover) !== JSON.stringify(expectedDataCutover)) fail('DATA_CUTOVER_PROFILE_MISMATCH', 'AI-PDM candidate must consume the one-time production data handoff')
   if (JSON.stringify(profile.edge) !== JSON.stringify({ servingDependency: false, rollbackDependency: false, ordinaryReleaseMutations: 0, disposition: 'RETAINED_UNUSED_EDGE' })) fail('EDGE_BOUNDARY_DRIFT', 'AI-PDM ordinary release must not depend on edge resources')
   const order = profile.migrations?.entries?.map((entry) => entry.path)
-  if (JSON.stringify(order) !== JSON.stringify(n1c.migration.order) || order.length !== 15 || profile.migrations.sourceTraceOnly !== n1c.migration.sourceTraceOnly || profile.migrations.foldedVersions !== n1c.migration.foldedVersions || JSON.stringify(profile.migrations.retiredVersions) !== JSON.stringify(n1c.migration.retiredVersions) || profile.migrations.ledger !== n1c.migration.ledger) fail('MIGRATION_MANIFEST_DRIFT', 'AI-PDM migration classifications drifted from N1C')
+  const baselineOrder = n1c.migration.order
+  const additions = order?.slice(baselineOrder.length)
+  if (!Array.isArray(order) || order.length < baselineOrder.length || JSON.stringify(order.slice(0, baselineOrder.length)) !== JSON.stringify(baselineOrder) || profile.migrations.baselineCount !== baselineOrder.length || profile.migrations.sourceTraceOnly !== n1c.migration.sourceTraceOnly || profile.migrations.foldedVersions !== n1c.migration.foldedVersions || JSON.stringify(profile.migrations.retiredVersions) !== JSON.stringify(n1c.migration.retiredVersions) || profile.migrations.ledger !== n1c.migration.ledger) fail('MIGRATION_MANIFEST_DRIFT', 'AI-PDM historical migration prefix drifted from N1C')
+  let lastVersion = Number(path.basename(baselineOrder.at(-1)).slice(0, 3))
+  for (const addition of additions) {
+    const version = Number(/^db\/postgres\/(\d{3})_[a-z0-9_]+\.sql$/u.exec(addition)?.[1])
+    if (!Number.isInteger(version) || version <= lastVersion) fail('MIGRATION_MANIFEST_DRIFT', 'AI-PDM owner migration suffix must be forward-only')
+    lastVersion = version
+  }
   if (profile.migrations.entries.some((entry, index) => entry.order !== index + 1 || !H64.test(entry.sha256))) fail('MIGRATION_MANIFEST_DRIFT', 'AI-PDM migration order/checksum invalid')
   if (Object.values(profile.sideEffects).some((value) => value !== 'DISABLED')) fail('SIDE_EFFECT_ENABLED', 'Side effects must remain disabled before authorization')
   return profile
 }
 
 export function verifyDev117MigrationBytes(profile, files) {
-  if (files.size !== 15) fail('MIGRATION_SET_DRIFT', 'Exactly 15 migration files are required')
+  if (files.size !== profile.migrations.entries.length) fail('MIGRATION_SET_DRIFT', 'Migration file set must match the owner profile')
   for (const entry of profile.migrations.entries) if (!files.has(entry.path) || sha256(files.get(entry.path)) !== entry.sha256) fail('MIGRATION_CHECKSUM_MISMATCH', entry.path)
   return true
+}
+
+export function buildDev117MigrationPackage(profile, n1c) {
+  const baseline = buildAiPdmPackage(n1c)
+  const additions = profile.migrations.entries.slice(baseline.entries.length).map((entry) => {
+    const source = fs.readFileSync(path.join(root, ...entry.path.split('/')))
+    const derived = deriveAiPdmMigration(entry.path, source, n1c)
+    if (sha256(source) !== entry.sha256 || derived.output.includes('ai_pdm_legacy_stage')) fail('MIGRATION_PACKAGE_INVALID', entry.path)
+    return {
+      version: `ai-pdm-${path.basename(entry.path).slice(0, 3)}`,
+      name: path.basename(entry.path, '.sql').slice(4),
+      sourcePath: entry.path,
+      sourceSha256: entry.sha256,
+      outputSha256: sha256(derived.output),
+      sql: derived.output,
+    }
+  })
+  return { entries: [...baseline.entries, ...additions] }
 }
 
 export function buildDev117MigrationBundle(profile, packageValue, sourceRevision) {

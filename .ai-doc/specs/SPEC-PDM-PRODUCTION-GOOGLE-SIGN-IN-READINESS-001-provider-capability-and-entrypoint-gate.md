@@ -1,5 +1,9 @@
 # DEV-118：平台登入入口對齊與 Google／工號身分契約
 
+> **2026-09-24 ownership／command 修訂引用**：verified principal貫穿factory／command／receipt／outbox／replay；新帳號直接provision為principal_active，target assurance與來源facts分開，高權限不沿用舊AAL1 pilot。 以 [現行native契約](DEV-121-target-authorization-boundary.md#principal-owner-command-amendment)為B目標；本文件下方保留歷史行為、驗收分母與evidence，不代表B已上線。
+
+> **2026-09-24 B 實作定案對齊（Documents Only）**：既有Google／工號UX與DEV-118驗收分母保留；B的principal security session／profile／ACL與UID reader退場由DEV-121承接；Firebase→pdm_user_id只作有界相容基線。目前架構與精確實作依 [principal-first契約](DEV-121-target-authorization-boundary.md#principal-implementation-contract)，成熟度 `Architecture Finalized / RD Implementation Ready`；下方evidence原樣保留，不表示已發布B。
+
 - 文件成熟度：`118-A RD Implementation Complete + 架構定案（PDM 本地入口）`；`118-B Cross-project Implementation Complete / Architecture Finalized LOGIN-R1 / Registered—Platform DEV-014 / 014-LOGIN`；`118-C Production Released / Provider Enabled / Browser Verification Pending`。
 - 工作狀態：118-A本地實作與A03補修已驗證，browser 30／30；118-B跨專案source、Platform 006／007、OrgMaster 016／017、DWD與雙admission均完成；118-C owner run `35592944590`已發布source `68d019d93d267cf284ea8aba637f305558d9048e`至`ai-pdm-prod-face545d349c`（image `sha256:6b803aca8da983b909a05b2a4348f3c14ca47148197c44d71a91762ad81f2ec5`、100% traffic）。Firebase Google provider已讀回`enabled=true`。Platform canonical-first correction發布後，Workspace Platform→AI-PDM免二次登入、reload與管理權限取得partial evidence；LOGIN full、C01／C02、Free、deny-path與global logout仍待受控帳號互動證據。
 - 建立：2026-09-16；本次決策修訂：2026-09-18。

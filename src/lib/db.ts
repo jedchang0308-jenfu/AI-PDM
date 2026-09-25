@@ -2094,6 +2094,8 @@ export function ensureDev087CanonicalWorkbenchSchema(database: SqliteDatabase) {
   database.exec(schema.slice(start, end + endMarker.length));
   ensureColumn(database, "platform_command_receipts", "request_hash", "TEXT");
   ensureColumn(database, "platform_command_receipts", "effect_key", "TEXT");
+  ensureColumn(database, "platform_command_receipts", "principal_id", "TEXT");
+  ensureColumn(database, "platform_outbox_events", "principal_id", "TEXT");
 }
 
 /** DEV-107: keep recognition sessions append-only by purpose and evidence lineage. */

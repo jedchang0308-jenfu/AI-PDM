@@ -46,7 +46,7 @@ assert.equal(detail.data.presentation.relationMatrix.parts[0]?.detailHref, `/par
 const partList = await service.list(new URL("http://local/api"), "part", actor);
 const partRow = partList.data.groups[0].rows[0];
 assert.equal(partRow.revision, null);
-assert.equal(partRow.layerLabel, "正式資料");
+assert.equal(partRow.layerLabel, "主檔 · 已發布");
 const partDetail = await service.detail(partRow.rowKey, "part", actor);
 assert.equal(partDetail.data.presentation.kind, "part");
 assert.equal(partDetail.data.presentation.relationMatrix.drawings[0]?.detailHref, `/numbering/drawings?detail=${encodeURIComponent(`cw_${ids.stateProduction}`)}`);

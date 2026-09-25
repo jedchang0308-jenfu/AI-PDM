@@ -57,6 +57,11 @@ async function main() {
       SELECT contract_version, principal_issuer, principal_subject, principal_id, employee_id,
         employee_status, mapping_version, orgmaster_contract.qc_dev121_delay(published_at) AS published_at
       FROM orgmaster_contract.qc_dev121_principals;
+    CREATE VIEW orgmaster_contract.v_active_principal_accounts_v1 AS
+      SELECT contract_version, principal_issuer, principal_subject, principal_id,
+        employee_id, employee_status, 'human_personal'::text AS account_type,
+        mapping_version, published_at
+      FROM orgmaster_contract.qc_dev121_principals;
 
     CREATE TABLE orgmaster_contract.qc_dev121_authority (
       singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton), contract_version text NOT NULL,
@@ -70,12 +75,12 @@ async function main() {
     CREATE TABLE orgmaster_contract.qc_dev121_grants (
       contract_version text NOT NULL, assignment_version_id text NOT NULL, assignment_version bigint NOT NULL,
       assignment_id text NOT NULL, grant_kind text NOT NULL, delegation_id text, application_id text NOT NULL,
-      identity_issuer text NOT NULL, identity_subject text NOT NULL, principal_id text NOT NULL, employee_id text NOT NULL,
+      principal_id text NOT NULL, employee_id text NOT NULL,
       subject_kind text NOT NULL, target_principal_id text, stable_role_id text NOT NULL, role_code text NOT NULL,
       catalog_version text NOT NULL, scope_kind text NOT NULL, scope_key text, valid_from timestamptz NOT NULL,
       valid_until timestamptz, published_at timestamptz NOT NULL, authority_version bigint NOT NULL
     );
-    CREATE VIEW orgmaster_contract.v_ai_pdm_effective_role_assignments_v1 AS
+    CREATE VIEW orgmaster_contract.v_ai_pdm_principal_effective_grants_v2 AS
       SELECT * FROM orgmaster_contract.qc_dev121_grants;
 
     CREATE TABLE public.role_priority_versions (status text NOT NULL, created_at timestamptz NOT NULL, priority_json text NOT NULL);
@@ -95,8 +100,8 @@ async function main() {
     INSERT INTO orgmaster_contract.qc_dev121_authority VALUES
       (true,'jenfu.platform-entitlement.v1','ai-pdm','orgmaster_authority',2,'employee-dev121',now(),'before-switch');
     INSERT INTO orgmaster_contract.qc_dev121_grants VALUES
-      ('jenfu.platform-entitlement.v1','assignment-version-2',2,'assignment-dev121','direct',NULL,'ai-pdm',
-        'issuer-dev121','subject-dev121','principal-dev121','employee-dev121','employee',NULL,'role-rd','rd',
+      ('jenfu.orgmaster.ai-pdm-principal-grants.v2','assignment-version-2',2,'assignment-dev121','direct',NULL,'ai-pdm',
+        'principal-dev121','employee-dev121','employee',NULL,'role-rd','rd',
         'ai-pdm.role-catalog.2026-09-03.v3','workspace','current',now()-interval '1 day',NULL,now()-interval '1 day',2);
   `);
 

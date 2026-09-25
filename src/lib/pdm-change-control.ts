@@ -49,6 +49,7 @@ function service() {
 export async function reservePartNumberDraft(input: ReservePartNumberDraftInput, metadata?: PdmCommandMetadata) {
   const client = getAsyncDatabaseClient();
   const commandMetadata = metadata ?? createFallbackCommandMetadata({
+    databaseKind: client.kind,
     pdmUserId: input.actor.userId,
     organizationId: input.actor.companyId,
     commandName: "pdm.part_draft.reserve"

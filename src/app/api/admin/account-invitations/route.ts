@@ -7,7 +7,9 @@ import {
 } from "@/lib/account-invitations";
 import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { getAuthMode, type UserRole } from "@/lib/auth-config";
-import { createFirebaseManagedInvitation, revokeFirebaseManagedInvitation } from "@/lib/firebase-managed-invitations";
+import { revokeFirebaseManagedInvitation } from "@/lib/firebase-managed-invitations";
+import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 
 export const runtime = "nodejs";
 
@@ -50,24 +52,25 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const principalToken = principalSessionTokenFromRequest(request);
+  if (principalToken) {
+    try {
+      await withVerifiedJenfuPrincipalRequest(principalRequestInput(principalToken), async () => true);
+      return NextResponse.json({ error: "principal_enrollment_required" },
+        { status: 409, headers: { "cache-control": "no-store" } });
+    } catch (error) { return principalRequestFailure(error); }
+  }
   const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
   if (auth.response || !auth.user) return auth.response;
 
+  // A new human identity must be created from a verified principal. This
+  // former Firebase flow minted a UID and a local PDM security mapping.
+  if (getAuthMode() === "firebase_bff") {
+    return NextResponse.json({ error: "principal_enrollment_required" },
+      { status: 409, headers: { "cache-control": "no-store" } });
+  }
   const body = await request.json().catch(() => ({}));
   try {
-    if (getAuthMode() === "firebase_bff") {
-      const created = await createFirebaseManagedInvitation({
-        email: String(body.email ?? ""),
-        displayName: String(body.displayName ?? body.display_name ?? ""),
-        role: String(body.role ?? "") as UserRole,
-        expiresInDays: body.expiresInDays === undefined ? undefined : Number(body.expiresInDays),
-        reissueInvitationId: typeof body.reissueInvitationId === "string" && body.reissueInvitationId.trim()
-          ? body.reissueInvitationId.trim()
-          : undefined,
-        invitedBy: auth.user.id
-      });
-      return NextResponse.json(created, { status: 201 });
-    }
     const created = await createAccountInvitationAsync({
       email: String(body.email ?? ""),
       displayName: String(body.displayName ?? body.display_name ?? ""),

@@ -4,8 +4,7 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
-import { buildAiPdmPackage } from './dev010-n1c-ai-pdm-package.mjs'
-import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
+import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { createGitArchive, createGitSourceIdentity, executeOwnerStage, parseOwnerStageArgs, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 
@@ -23,7 +22,7 @@ async function main() {
     ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig,
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
     createSourceArchive: async (sourceRevision) => createGitArchive(root, sourceRevision),
-    buildMigrationBundle: async (sourceRevision) => buildDev117MigrationBundle(profile, buildAiPdmPackage(n1c), sourceRevision),
+    buildMigrationBundle: async (sourceRevision) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision),
   })
   process.stdout.write(`${JSON.stringify({ stage: args.stage, ref: result.ref, generation: String(result.metadata.generation), status: 'PASS' })}\n`)
 }

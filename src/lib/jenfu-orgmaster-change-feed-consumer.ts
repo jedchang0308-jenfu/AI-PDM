@@ -1,4 +1,4 @@
-import roleCatalog from '../../config/access-control/jenfu-role-catalog.v1.json' with { type: 'json' }
+import roleCatalog from '../../config/access-control/jenfu-role-catalog.v4.json' with { type: 'json' }
 import {
   getRoleCapabilityChangeFeed,
   getRoleCapabilityWorkspace,
