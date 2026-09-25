@@ -34,7 +34,7 @@ const environment = {
   POSTGRES_DATABASE: 'jenfu_prod',
   POSTGRES_IAM_LOGIN: 'aipdm-prod-migrator@jenfu-platform-prod.iam',
   POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg',
-  CLOUD_RUN_JOB: 'ai-pdm-prod-migration-runner', PDM_SOURCE_REVISION: revision,
+  CLOUD_RUN_JOB: 'ai-pdm-prod-dev121-principal-inventory', PDM_SOURCE_REVISION: revision,
 }
 const inputRef = 'gs://jenfu-platform-prod-aipdm-release/source/production-data/dev121/principal-inventory/one.json'
 const outputRef = 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-INVENTORY/one.json'

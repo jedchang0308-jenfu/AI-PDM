@@ -1,0 +1,19 @@
+steps:
+  - name: gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c
+    args:
+      - build
+      - --pull=false
+      - --no-cache
+      - --file
+      - infra/google-cloud/dev-117-production-release/principal-inventory.Dockerfile
+      - --build-arg
+      - SOURCE_REVISION=${_SOURCE_REVISION}
+      - --tag
+      - ${_IMAGE_URI}:dev121-inventory-${_SOURCE_REVISION}
+      - .
+images:
+  - ${_IMAGE_URI}:dev121-inventory-${_SOURCE_REVISION}
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+timeout: 1200s
