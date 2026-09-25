@@ -457,8 +457,7 @@ export async function resolveDrawingSubmissionContext(input: {
 export async function resolveRootSubmissionReadiness(input: {
   company: PdmCompany;
   rootCode: string;
-}): Promise<DrawingSubmissionContext | { pdmCompany: PdmCompany; root: DrawingSubmissionContext["root"] | null; blockers: DrawingSubmissionContext["blockers"] }> {
-  const client = getAsyncDatabaseClient();
+}, client: AsyncDatabaseClient = getAsyncDatabaseClient()): Promise<DrawingSubmissionContext | { pdmCompany: PdmCompany; root: DrawingSubmissionContext["root"] | null; blockers: DrawingSubmissionContext["blockers"] }> {
   const rootCode = normalizeText(input.rootCode);
   if (!rootCode) throw new DrawingSubmissionWorkbenchError("ROOT_CODE_REQUIRED", "圖料根號為必填。", 400);
   const root = await findRoot(client, input.company.companyId, rootCode);
@@ -502,7 +501,7 @@ export async function resolveRootSubmissionReadiness(input: {
       ]
     };
   }
-  return resolveDrawingSubmissionContext({ company: input.company, drawingNumber: primaryDrawings[0].drawing_number });
+  return resolveDrawingSubmissionContext({ company: input.company, drawingNumber: primaryDrawings[0].drawing_number }, client);
 }
 
 export async function createDrawingSourceSubmission(input: {
