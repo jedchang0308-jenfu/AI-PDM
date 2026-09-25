@@ -15,6 +15,8 @@ import {
 
 const OPERATION_PREFIX = 'source/production-data/dev121/principal-inventory'
 const RECEIPT_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-INVENTORY'
+export const OPERATOR_TARGET = Object.freeze({ ...TARGET,
+  job: 'ai-pdm-prod-dev121-principal-inventory' })
 
 export async function runMain({ argv = process.argv.slice(2), environment = process.env,
   fetchImpl = fetch, Client = pg.Client,
@@ -22,7 +24,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   loadCoverage = () => import('../src/lib/jenfu-principal-inventory-coverage.ts'),
 } = {}) {
   const args = parseInventoryArgs(argv)
-  assertRunnerTarget(environment, TARGET)
+  assertRunnerTarget(environment, OPERATOR_TARGET)
   if (environment.PDM_SOURCE_REVISION !== args.sourceRevision) {
     throw new Error('DEV121_IMAGE_SOURCE_REVISION_MISMATCH')
   }
@@ -83,6 +85,18 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  runMain().then((value) => process.stdout.write(`${JSON.stringify(value)}\n`))
+  // The restricted receipt holds profile identifiers; shared Job logs carry
+  // only the receipt reference and aggregate coverage counts.
+  runMain().then((value) => process.stdout.write(`${JSON.stringify({
+    schemaVersion: value.schemaVersion, operationId: value.operationId,
+    mode: value.mode, sourceRevision: value.sourceRevision,
+    outputRef: value.outputRef, outputGeneration: value.outputGeneration,
+    outputSha256: value.outputSha256,
+    ...(value.mode === 'coverage' ? {
+      totalProfiles: value.outcome.totalProfiles,
+      activeProfiles: value.outcome.activeProfiles,
+      activeUnresolvedProfiles: value.outcome.activeUnresolvedProfiles,
+    } : {}),
+  })}\n`))
     .catch((error) => { process.stderr.write(`${error.code || error.message}\n`); process.exitCode = 1 })
 }
