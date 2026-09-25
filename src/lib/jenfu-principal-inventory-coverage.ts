@@ -14,6 +14,23 @@ type CoverageRow = {
   principal_account_status: string | null;
 };
 
+type SourceRow = {
+  pdm_user_id: string;
+  company_id: string;
+  source_kind: "firebase_mapping" | "google_oauth";
+  identity_issuer: string;
+  identity_subject: string | null;
+  local_status: string;
+  local_eligible: boolean;
+  contract_version: string | null;
+  principal_id: string | null;
+  employee_id: string | null;
+  employee_status: string | null;
+  account_type: string | null;
+  mapping_version: number | string | null;
+  published_at: Date | string | null;
+};
+
 export type PrincipalInventoryCoverageProfile = {
   pdmUserId: string;
   companyId: string;
@@ -43,13 +60,16 @@ function count(value: number | string) {
 }
 
 /** Read every local profile; never treat an absent marker as implicit legacy permission. */
-export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseClient) {
-  if (database.kind !== "postgres") {
+export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseClient,
+  firebaseProjectId = "jenfu-platform-prod") {
+  if (database.kind !== "postgres" ||
+    !/^[a-z][a-z0-9-]{0,62}$/u.test(firebaseProjectId)) {
     throw new PrincipalInventoryCoverageError("principal_inventory_coverage_invalid");
   }
   return database.transaction(async (client) => {
     await client.execute("SET LOCAL ROLE jenfu_ai_pdm_migrator");
     let rows: CoverageRow[];
+    let sourceRows: SourceRow[];
     try {
       rows = await client.query<CoverageRow>(`
         SELECT users.id AS pdm_user_id, users.company_id, users.account_status,
@@ -78,6 +98,38 @@ export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseC
           ON account.pdm_user_id=users.id AND account.principal_id=marker.principal_id
         ORDER BY users.id
       `);
+      sourceRows = await client.query<SourceRow>(`
+        WITH local_source AS (
+          SELECT users.id AS pdm_user_id, users.company_id,
+                 'firebase_mapping' AS source_kind,
+                 :firebaseIssuer AS identity_issuer,
+                 mapping.external_subject AS identity_subject,
+                 mapping.mapping_status AS local_status,
+                 mapping.mapping_status='active' AND
+                   mapping.external_subject IS NOT NULL AS local_eligible
+          FROM ai_pdm_core.users users
+          JOIN ai_pdm_core.platform_principal_mappings mapping
+            ON mapping.pdm_user_id=users.id AND mapping.mapping_source='shared_iam'
+          UNION ALL
+          SELECT users.id, users.company_id, 'google_oauth',
+                 'https://accounts.google.com', identity.provider_subject,
+                 identity.status,
+                 identity.status='active' AND identity.verified_at IS NOT NULL AND
+                   identity.provider_subject IS NOT NULL
+          FROM ai_pdm_core.users users
+          JOIN ai_pdm_core.auth_identities identity
+            ON identity.user_id=users.id AND identity.provider='google_oauth'
+        )
+        SELECT source.*, typed.contract_version, typed.principal_id,
+               typed.employee_id, typed.employee_status, typed.account_type,
+               typed.mapping_version, typed.published_at
+        FROM local_source source
+        LEFT JOIN orgmaster_contract.v_active_principal_accounts_v1 typed
+          ON typed.principal_issuer=source.identity_issuer
+         AND typed.principal_subject=source.identity_subject
+        ORDER BY source.pdm_user_id, source.source_kind,
+                 source.identity_subject, typed.principal_id
+      `, { firebaseIssuer: `https://securetoken.google.com/${firebaseProjectId}` });
     } catch {
       throw new PrincipalInventoryCoverageError("principal_inventory_coverage_unavailable");
     }
@@ -122,9 +174,31 @@ export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseC
       };
     });
     const activeProfiles = profiles.filter((profile) => profile.accountStatus === "active");
+    // This private receipt is discovery evidence, not authorization. Duplicate
+    // producer rows remain visible so the later exact-set preview rejects them.
+    const sources = sourceRows.map((row) => {
+      const mappingVersion = row.mapping_version === null ? null : count(row.mapping_version);
+      const publishedAt = row.published_at === null ? null :
+        new Date(row.published_at).toISOString();
+      if (!seen.has(row.pdm_user_id) || !row.company_id ||
+        !["firebase_mapping", "google_oauth"].includes(row.source_kind) ||
+        !row.identity_issuer || typeof row.local_eligible !== "boolean" ||
+        (mappingVersion !== null && mappingVersion < 1)) {
+        throw new PrincipalInventoryCoverageError("principal_inventory_coverage_invalid");
+      }
+      return {
+        pdmUserId: row.pdm_user_id, companyId: row.company_id,
+        sourceKind: row.source_kind, identityIssuer: row.identity_issuer,
+        identitySubject: row.identity_subject, localStatus: row.local_status,
+        localEligible: row.local_eligible, contractVersion: row.contract_version,
+        principalId: row.principal_id, employeeId: row.employee_id,
+        employeeStatus: row.employee_status, accountType: row.account_type,
+        mappingVersion, publishedAt
+      };
+    });
     return {
       schemaVersion: "ai-pdm.principal-inventory-coverage.v1" as const,
-      profiles,
+      profiles, sources,
       totalProfiles: profiles.length,
       activeProfiles: activeProfiles.length,
       activePrincipalProfiles: activeProfiles.filter((profile) =>

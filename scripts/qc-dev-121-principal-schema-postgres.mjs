@@ -940,9 +940,18 @@ try {
       assert.equal(marker.rows[0].source_hash, changed.sourceHash)
       const { previewPrincipalInventoryCoverage } = await import(pathToFileURL(
         path.join(root, 'src/lib/jenfu-principal-inventory-coverage.ts')).href)
-      const coverage = await previewPrincipalInventoryCoverage(database)
+      const coverage = await previewPrincipalInventoryCoverage(database, 'test-project')
       assert.equal(coverage.totalProfiles, coverage.profiles.length)
       assert.ok(coverage.activeUnresolvedProfiles > 0)
+      const discovered = coverage.sources.find((candidate) =>
+        candidate.pdmUserId === 'pdm-user-register' &&
+        candidate.sourceKind === 'firebase_mapping')
+      assert.equal(discovered?.identityIssuer,
+        'https://securetoken.google.com/test-project')
+      assert.equal(discovered?.principalId, 'principal-register')
+      assert.equal(discovered?.employeeId, 'employee-register')
+      assert.equal(discovered?.localEligible, true)
+      assert.ok(!Object.hasOwn(discovered, 'email'))
       const activeWithoutLegacyProvider = coverage.profiles.find(
         (profile) => profile.pdmUserId === 'pdm-user-four')
       assert.equal(activeWithoutLegacyProvider?.markerStatus, 'principal_active')
