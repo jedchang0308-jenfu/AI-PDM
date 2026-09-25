@@ -2,6 +2,8 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 
 type CoverageRow = {
   pdm_user_id: string;
+  display_name: string;
+  email: string | null;
   company_id: string;
   account_status: string;
   firebase_source_count: number | string;
@@ -39,6 +41,9 @@ type SourceRow = {
 
 export type PrincipalInventoryCoverageProfile = {
   pdmUserId: string;
+  /** Private owner receipt only. These labels are never identity evidence. */
+  displayName: string;
+  contactEmail: string | null;
   companyId: string;
   accountStatus: "active" | "suspended" | "expired" | "offboarded";
   firebaseSourceCount: number;
@@ -78,7 +83,8 @@ export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseC
     let sourceRows: SourceRow[];
     try {
       rows = await client.query<CoverageRow>(`
-        SELECT users.id AS pdm_user_id, users.company_id, users.account_status,
+        SELECT users.id AS pdm_user_id, users.display_name, users.email,
+               users.company_id, users.account_status,
                (SELECT count(*) FROM ai_pdm_core.platform_principal_mappings mapping
                  WHERE mapping.pdm_user_id=users.id AND mapping.mapping_source='shared_iam')
                  AS firebase_source_count,
@@ -159,6 +165,8 @@ export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseC
       const accountStatus = row.marker_status === "principal_active"
         ? row.principal_account_status : row.account_status;
       if (!row.pdm_user_id || seen.has(row.pdm_user_id) || !row.company_id ||
+        typeof row.display_name !== "string" ||
+        (row.email !== null && typeof row.email !== "string") ||
         !["active", "suspended", "expired", "offboarded"].includes(accountStatus ?? "") ||
         ![null, "legacy_compatible", "principal_active"].includes(row.marker_status) ||
         (row.marker_status === null && (row.marker_principal_id !== null || markerRowVersion !== 0)) ||
@@ -182,7 +190,8 @@ export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseC
         }
       }
       return {
-        pdmUserId: row.pdm_user_id, companyId: row.company_id,
+        pdmUserId: row.pdm_user_id, displayName: row.display_name,
+        contactEmail: row.email, companyId: row.company_id,
         accountStatus: accountStatus as PrincipalInventoryCoverageProfile["accountStatus"],
         firebaseSourceCount, firebaseActiveCount, googleSourceCount, googleVerifiedCount,
         markerStatus: (row.marker_status ?? "missing") as PrincipalInventoryCoverageProfile["markerStatus"],
