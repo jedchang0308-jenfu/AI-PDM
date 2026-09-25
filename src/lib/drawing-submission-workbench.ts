@@ -330,8 +330,7 @@ export async function resolveDrawingSubmissionContext(input: {
   workflowIntent?: RevisionWorkflowIntent | string | null;
   currentPartNumberId?: string | null;
   partNumberIds?: string[];
-}): Promise<DrawingSubmissionContext> {
-  const client = getAsyncDatabaseClient();
+}, client: AsyncDatabaseClient = getAsyncDatabaseClient()): Promise<DrawingSubmissionContext> {
   const drawingNumber = normalizeText(input.drawingNumber);
   const targetRevision = normalizeText(input.targetRevision);
   const workflowIntent = normalizeRevisionWorkflowIntent(String(input.workflowIntent ?? "rd_workspace"), "rd_workspace");
@@ -361,7 +360,7 @@ export async function resolveDrawingSubmissionContext(input: {
   const attachments = (
     await enrichAttachmentsWithReleaseConflicts(client, attachmentRows.map(mapAttachment), primaryPart)
   ).sort(compareSubmissionAttachments);
-  const revisions = await listSubmissionRevisionsByDrawingAsync({
+  const revisions = await new AsyncSubmissionWriteRepository(client).listSubmissionRevisionsByDrawing({
     companyId: input.company.companyId,
     drawingNumber: drawing.drawing_number
   });
