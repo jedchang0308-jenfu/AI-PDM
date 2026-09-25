@@ -8,7 +8,7 @@ import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-tra
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
-const STAGES = new Set(['source-freeze', 'runtime-config', 'routine-authority', 'dev013-transition-authority', 'release-intent'])
+const STAGES = new Set(['source-freeze', 'runtime-config', 'infra-reuse', 'routine-authority', 'dev013-transition-authority', 'release-intent'])
 
 function fail(code, detail = '') {
   const error = new Error(detail ? `${code}:${detail}` : code)
@@ -102,6 +102,33 @@ export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plai
   }
 }
 
+export function buildInfraReuseReceipt({ profile, releaseId, sourceLock, foundation, existingInfra, existingInfraRef, observedAt }) {
+  exactRef(existingInfraRef, profile)
+  const core = existingInfra && { ...existingInfra }
+  if (core) delete core.receiptSha256
+  const ownerPrefix = `${profile.artifact.migrationRunnerUri}@sha256:`
+  const controllerPrefix = `${profile.artifact.uri.slice(0, profile.artifact.uri.lastIndexOf('/'))}/`
+  const migrationWorkflowRef = `${profile.application.repository}/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/${profile.application.branch}`
+  if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id || sourceLock?.status !== 'SOURCE_FROZEN' || sourceLock.releaseAuthority !== true || !H40.test(sourceLock.sourceRevision ?? '')
+    || existingInfra?.schemaVersion !== 'jenfu.dev012.app-infra-receipt.v1' || existingInfra.ownerApplicationId !== profile.application.id || existingInfra.projectId !== profile.target.projectId || existingInfra.region !== profile.target.region
+    || existingInfra.status !== 'APPLIED' || existingInfra.releaseAuthority !== true || existingInfra.evidenceScope !== 'PRODUCTION_PROVIDER' || existingInfra.receiptSha256 !== sha256(canonicalize(core))
+    || existingInfra.sourceRevision === sourceLock.sourceRevision || !H40.test(existingInfra.sourceRevision ?? '')
+    || existingInfra.foundationManifestSha256 !== foundation?.foundationManifestSha256
+    || !existingInfra.migrationRunnerDigest?.startsWith(ownerPrefix) || !existingInfra.controllerImageDigest?.startsWith(controllerPrefix) || !existingInfra.controllerImageDigest?.includes('@sha256:')
+    || (profile.application.id === 'ai-pdm' && existingInfra.mutationProfile === 'APP_INFRA_AIPDM_PRINCIPAL_MIGRATION_WIF' && !existingInfra.allowedWorkflowRefs?.includes(migrationWorkflowRef))
+    || !Number.isFinite(Date.parse(observedAt))) fail('INFRA_REUSE_INPUT_INVALID')
+  const value = {
+    schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v1', ownerApplicationId: profile.application.id,
+    projectId: profile.target.projectId, region: profile.target.region, releaseId,
+    sourceRevision: sourceLock.sourceRevision, foundationManifestSha256: foundation.foundationManifestSha256,
+    reusedInfraReceiptRef: existingInfraRef, reusedSourceRevision: existingInfra.sourceRevision,
+    migrationRunnerDigest: existingInfra.migrationRunnerDigest, controllerImageDigest: existingInfra.controllerImageDigest,
+    mutationProfile: 'APP_INFRA_REUSE', reuseBasis: 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
+    status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER_REUSE', observedAt,
+  }
+  return { ...value, receiptSha256: sha256(canonicalize(value)) }
+}
+
 export function buildRoutineAuthority({ profile, releaseId, sourceLock, runtimeConfigReceipt, baselineIntentRef, dataCutoverCompletionRef = null, previousRevision, observedAt, expiresAt }) {
   if (!RELEASE_ID.test(releaseId ?? '')
     || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id
@@ -187,7 +214,7 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
   if (!intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INPUT_INVALID')
   for (const [name, value] of Object.entries(prerequisiteValues)) {
     if (name !== 'foundation' && value?.ownerApplicationId && value.ownerApplicationId !== profile.application.id) fail('PREREQUISITE_OWNER_MISMATCH', name)
-    if (name !== 'foundation' && value?.sourceRevision && value.sourceRevision !== sourceLock.sourceRevision) fail('PREREQUISITE_SOURCE_MISMATCH', name)
+    if (name !== 'foundation' && !(name === 'infra' && value?.schemaVersion === 'jenfu.dev012.app-infra-reuse-receipt.v1') && value?.sourceRevision && value.sourceRevision !== sourceLock.sourceRevision) fail('PREREQUISITE_SOURCE_MISMATCH', name)
   }
   assertPreparePrerequisites({ intent, profile, values: prerequisiteValues })
   validateIntent(intent, profile)
@@ -233,6 +260,16 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const sourceLock = await readRef(transport, input.sourceLockRef, profile)
     const value = buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment: input.plainEnvironment, secretVersions: input.secretVersions, observedAt })
     return transport.putJson(uri('runtime-config'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+  }
+  if (stage === 'infra-reuse') {
+    if (input?.schemaVersion !== 'jenfu.dev012.app-infra-reuse-input.v1') fail('INFRA_REUSE_INPUT_INVALID')
+    const [sourceLockResult, foundationResult, existingInfraResult] = await Promise.all([
+      transport.readJson(exactRef(input.sourceLockRef, profile), profile.artifact.releaseBucket, ['receipts']),
+      transport.readJson(exactRef(input.foundationReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
+      transport.readJson(exactRef(input.existingInfraReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
+    ])
+    const value = buildInfraReuseReceipt({ profile, releaseId, sourceLock: sourceLockResult.value, foundation: foundationResult.value, existingInfra: existingInfraResult.value, existingInfraRef: input.existingInfraReceiptRef, observedAt })
+    return transport.putJson(uri('app-infra-reuse'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   if (stage === 'routine-authority') {
     if (input?.schemaVersion !== 'jenfu.dev012.routine-owner-authority-input.v1') fail('ROUTINE_AUTHORITY_INPUT_INVALID')
