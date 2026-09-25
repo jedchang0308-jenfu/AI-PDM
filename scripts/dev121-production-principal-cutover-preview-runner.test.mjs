@@ -50,6 +50,8 @@ test('preview operation binds exact owner target and rejects alias or source amb
     { ...operation(), sourceSets: [[source, source]] },
     { ...operation(), sourceSets: [[{ ...source, principalId: 'pdm:one' }]] },
     { ...operation(), sourceSets: [[{ ...source, identityIssuer: 'https://accounts.google.com' }]] },
+    { ...operation(), sourceSets: [[{ ...source, sourceKind: 'google_oauth',
+      identityIssuer: 'https://accounts.google.com' }]] },
     { ...operation(), sourceSets: [[{ ...source, mappingVersion: 0 }]] },
   ]) {
     assert.throws(() => assertCutoverPreviewOperation(changed, context),

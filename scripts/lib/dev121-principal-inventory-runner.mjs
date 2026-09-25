@@ -2,7 +2,9 @@ import { sha256, canonicalize } from './dev012-production-migration-runner.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
-const SOURCE_KINDS = new Set(['firebase_mapping', 'google_oauth'])
+// The Production operator runs against firebase_bff. A local historical
+// google_oauth row is not a reachable login source for this owner operation.
+const SOURCE_KINDS = new Set(['firebase_mapping'])
 
 function fail(code) { throw new Error(`DEV121_${code}`) }
 function exactKeys(value, keys) {
@@ -57,8 +59,7 @@ export function assertInventoryOperation(value, { bytes, operationSha256, source
       source.companyId !== value.sources[0].companyId ||
       source.principalId !== value.sources[0].principalId ||
       source.employeeId !== value.sources[0].employeeId ||
-      source.identityIssuer !== (source.sourceKind === 'firebase_mapping'
-        ? `https://securetoken.google.com/${value.firebaseProjectId}` : 'https://accounts.google.com') ||
+      source.identityIssuer !== `https://securetoken.google.com/${value.firebaseProjectId}` ||
       !Number.isSafeInteger(source.mappingVersion) || source.mappingVersion < 1 ||
       source.principalId.startsWith('pdm:') ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(source.publishedAt ?? '') ||

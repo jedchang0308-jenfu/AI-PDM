@@ -3,7 +3,8 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   JenfuPrincipalInventoryRepository,
   type PrincipalInventoryCandidate,
-  type PrincipalInventoryInput
+  type PrincipalInventoryInput,
+  type PrincipalInventorySourcePolicy
 } from "@/lib/jenfu-principal-inventory-repository";
 
 export type PrincipalInventoryRegistrationInput = {
@@ -73,20 +74,21 @@ function assertInput(input: PrincipalInventoryRegistrationInput) {
 }
 
 async function readSources(client: AsyncDatabaseClient, firebaseProjectId: string,
-  sources: PrincipalInventoryInput[]) {
-  return new JenfuPrincipalInventoryRepository(client, firebaseProjectId)
+  sources: PrincipalInventoryInput[], sourcePolicy: PrincipalInventorySourcePolicy) {
+  return new JenfuPrincipalInventoryRepository(client, firebaseProjectId, "snapshot", sourcePolicy)
     .requireExactCandidateSet(sources);
 }
 
 /** Owner-only preview; the registration transaction always repeats this readback. */
 export async function previewPrincipalInventory(database: AsyncDatabaseClient,
-  firebaseProjectId: string, sources: PrincipalInventoryInput[]) {
+  firebaseProjectId: string, sources: PrincipalInventoryInput[],
+  sourcePolicy: PrincipalInventorySourcePolicy = "firebase_bff") {
   if (database.kind !== "postgres") {
     throw new PrincipalInventoryRegistrationError("principal_inventory_registration_invalid");
   }
   return database.transaction(async (client) => {
     await client.execute("SET LOCAL ROLE jenfu_ai_pdm_migrator");
-    const candidates = await readSources(client, firebaseProjectId, sources);
+    const candidates = await readSources(client, firebaseProjectId, sources, sourcePolicy);
     const marker = await client.queryOne<Marker>(`
       SELECT pdm_user_id,principal_id,status,source_hash,row_version
       FROM ai_pdm_core.principal_identity_cutovers
@@ -110,7 +112,8 @@ export async function previewPrincipalInventory(database: AsyncDatabaseClient,
 
 /** No ACL, session or principal account mutation is permitted at inventory registration. */
 export async function registerPrincipalInventory(database: AsyncDatabaseClient,
-  firebaseProjectId: string, input: PrincipalInventoryRegistrationInput
+  firebaseProjectId: string, input: PrincipalInventoryRegistrationInput,
+  sourcePolicy: PrincipalInventorySourcePolicy = "firebase_bff"
 ): Promise<PrincipalInventoryRegistrationReceipt> {
   assertInput(input);
   if (database.kind !== "postgres") {
@@ -139,7 +142,7 @@ export async function registerPrincipalInventory(database: AsyncDatabaseClient,
       (marker.principal_id !== null && marker.principal_id !== principalId))) {
       throw new PrincipalInventoryRegistrationError("principal_inventory_registration_conflict");
     }
-    const candidates = await readSources(client, firebaseProjectId, input.sources);
+    const candidates = await readSources(client, firebaseProjectId, input.sources, sourcePolicy);
     const sourceHash = hashPrincipalInventory(candidates);
     if (sourceHash !== input.expectedSourceHash) {
       throw new PrincipalInventoryRegistrationError("principal_inventory_registration_source_drift");

@@ -60,8 +60,11 @@ export async function readPrincipalAclMigrationSource(
 ) {
   if (snapshot.kind !== "postgres" || !Array.isArray(input.sourceSets) ||
     input.sourceSets.length < 1 || input.sourceSets.length > 32 ||
-    input.sourceSets.some((set) => !Array.isArray(set) || set.length < 1 || set.length > 2)) invalid();
-    const inventory = new JenfuPrincipalInventoryRepository(snapshot, input.firebaseProjectId, mode);
+    input.sourceSets.some((set) => !Array.isArray(set) || set.length !== 1)) invalid();
+    // Current Production entry is firebase_bff. A historical Google OAuth row
+    // cannot force a second principal or alter the owner cutover source seal.
+    const inventory = new JenfuPrincipalInventoryRepository(
+      snapshot, input.firebaseProjectId, mode, "firebase_bff");
     const candidateSets = [];
     const seenUsers = new Set<string>();
     const seenPrincipals = new Set<string>();
