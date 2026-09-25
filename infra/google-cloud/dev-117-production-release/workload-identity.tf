@@ -12,7 +12,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.ref"                 = "assertion.ref"
     "attribute.event_name"          = "assertion.event_name"
   }
-  attribute_condition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && assertion.workflow_ref == '${local.github_workflow_ref}' && assertion.environment == 'production' && assertion.ref == 'refs/heads/main' && assertion.event_name == 'workflow_dispatch'"
+  attribute_condition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && (assertion.workflow_ref == '${local.github_workflow_ref}' || assertion.workflow_ref == '${local.github_principal_migration_ref}') && assertion.environment == 'production' && assertion.ref == 'refs/heads/main' && assertion.event_name == 'workflow_dispatch'"
   oidc { issuer_uri = "https://token.actions.githubusercontent.com" }
 }
 

@@ -131,6 +131,31 @@ export function assertDev117WorkflowSource(source) {
   return true
 }
 
+export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentitySource) {
+  const inputBlock = source.match(/workflow_dispatch:[^\S\r\n]*\r?\n\s*inputs:[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\s*concurrency:/)?.[1] || ''
+  const inputs = [...inputBlock.matchAll(/^\s{6}([A-Za-z0-9_-]+):/gm)].map((match) => match[1])
+  const jobs = [...source.matchAll(/^  ([a-z][a-z-]+):\s*$/gm)].map((match) => match[1])
+  const stages = [...source.matchAll(/scripts\/dev117-ai-pdm-continuous-release\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.bind\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.bind\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
+  if (JSON.stringify(inputs) !== JSON.stringify(['releaseCapsuleRef']) ||
+      JSON.stringify(jobs) !== JSON.stringify(['migrate']) ||
+      JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate']) ||
+      (source.match(/^        run:/gm) ?? []).length !== 4 ||
+      (source.match(/^      - run:/gm) ?? []).length !== 2 ||
+      (source.match(/^    environment: production$/gm) ?? []).length !== 1 ||
+      !source.includes('group: production-release-ai-pdm-prod') ||
+      !source.includes('cancel-in-progress: false') ||
+      source.includes('continue-on-error:') ||
+      /\b(?:gcloud|terraform|psql|curl)\b/iu.test(source)) fail('MIGRATION_ONLY_WORKFLOW_DRIFT', 'Migration-only workflow must stop after migrate')
+  for (const [step, identity] of [['verifier_auth', 'verifier'], ['builder_auth', 'builder'], ['deployer_auth', 'deployer']]) {
+    if (!source.includes(`- id: ${step}`) || !source.includes(`service_account: aipdm-prod-${identity}@jenfu-platform-prod.iam.gserviceaccount.com`) ||
+        !source.includes(`GOOGLE_OAUTH_ACCESS_TOKEN: "\${{ steps.${step}.outputs.access_token }}"`)) fail('MIGRATION_ONLY_IDENTITY_DRIFT', step)
+  }
+  const expectedCondition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && (assertion.workflow_ref == '${local.github_workflow_ref}' || assertion.workflow_ref == '${local.github_principal_migration_ref}') && assertion.environment == 'production' && assertion.ref == 'refs/heads/main' && assertion.event_name == 'workflow_dispatch'"
+  const observedCondition = workloadIdentitySource.match(/^  attribute_condition = "([^"]+)"$/m)?.[1]
+  if (observedCondition !== expectedCondition) fail('MIGRATION_ONLY_WIF_DRIFT', 'Migration-only workflow WIF binding drifted')
+  return true
+}
+
 export function buildDev117Mutation({ operation, service, updateMask, revision, trafficPercent, etag }) {
   if (service !== 'ai-pdm-prod' || !etag || revision === 'latest') fail('TARGET_MISMATCH', 'AI-PDM mutation target invalid')
   if (operation === 'CREATE_CANDIDATE' && (updateMask !== 'template' || trafficPercent !== 0)) fail('MIXED_MUTATION_MASK', 'Candidate must be template-only and zero traffic')

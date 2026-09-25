@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117MigrationPackage, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
+import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, assertDev121MigrationOnlyWorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117MigrationPackage, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
@@ -166,6 +166,14 @@ test('S1B-20 AI-PDM single-capsule workflow and mutation masks', () => {
   assert.equal(buildDev117Mutation({ operation: 'CONFIGURE_ENTRYPOINT', service: 'ai-pdm-prod', updateMask: 'ingress,defaultUriDisabled,invokerIamDisabled', revision: null, trafficPercent: null, etag: 'e' }).updateMask, 'ingress,defaultUriDisabled,invokerIamDisabled')
   assert.equal(buildDev117CandidateTag({ service: 'ai-pdm-prod', revision: 'ai-pdm-prod-candidate-1', tag: `candidate-${'a'.repeat(12)}`, beforeTraffic: [{ revision: 'ai-pdm-prod-prev', percent: 100 }], etag: 'e' }).traffic.at(-1).percent, 0)
   assert.throws(() => buildDev117Mutation({ operation: 'ACTIVATE', service: 'ai-pdm-prod', updateMask: 'template,traffic', revision: 'latest', trafficPercent: 100, etag: 'e' }), /target invalid|traffic-only/)
+})
+
+test('S1B-20 principal migration workflow stops before candidate and uses exact owner identities', () => {
+  const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-principal-migrations-production.yml', import.meta.url), 'utf8')
+  const wif = fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/workload-identity.tf', import.meta.url), 'utf8')
+  assert.equal(assertDev121MigrationOnlyWorkflowSource(source, wif), true)
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source, wif.replace("assertion.ref == 'refs/heads/main'", "assertion.ref == 'refs/heads/feature'")), { code: 'MIGRATION_ONLY_WIF_DRIFT' })
 })
 
 test('S1B-20 AI-PDM DEV-116 exact candidate join', () => {
