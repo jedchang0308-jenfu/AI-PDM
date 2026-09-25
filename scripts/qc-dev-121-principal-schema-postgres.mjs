@@ -114,6 +114,11 @@ try {
       employee_id text, account_type text, contract_version text, employee_status text,
       mapping_version bigint, published_at timestamptz
     );
+    CREATE TABLE orgmaster_contract.v_active_principal_mappings_v1 (
+      principal_issuer text, principal_subject text, principal_id text,
+      employee_id text, contract_version text, employee_status text,
+      mapping_version bigint, published_at timestamptz
+    );
     CREATE TABLE orgmaster_contract.v_ai_pdm_entitlement_authority_v1 (
       employee_id text, authority_version bigint, contract_version text,
       application_id text, authority_source text
@@ -564,6 +569,12 @@ try {
         VALUES ('https://securetoken.google.com/test-project','firebase-register',
                 'principal-register','employee-register','human_personal',
                 'organization.active-principal.v1','active',5,$1)`, [publishedAt])
+      await client.query(`INSERT INTO orgmaster_contract.v_active_principal_mappings_v1
+        (principal_issuer,principal_subject,principal_id,employee_id,
+         contract_version,employee_status,mapping_version,published_at)
+        VALUES ('https://securetoken.google.com/test-project','firebase-register',
+                'principal-register','employee-register',
+                'organization.active-principal.v1','active',5,$1)`, [publishedAt])
       const source = [{ pdmUserId: 'pdm-user-register', companyId: 'company-jenfu',
         principalId: 'principal-register', employeeId: 'employee-register',
         identityIssuer: 'https://securetoken.google.com/test-project',
@@ -938,6 +949,18 @@ try {
       assert.equal(marker.rows[0].status, 'principal_active')
       assert.equal(Number(marker.rows[0].row_version), 3)
       assert.equal(marker.rows[0].source_hash, changed.sourceHash)
+      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.users
+        (id,company_id) VALUES ('pdm-user-untyped','company-jenfu')`)
+      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.platform_principal_mappings
+        (platform_principal_id,pdm_user_id,mapping_source,mapping_status,external_subject)
+        VALUES ('legacy-principal-untyped','pdm-user-untyped','shared_iam',
+                'active','firebase-untyped')`)
+      await client.query(`INSERT INTO orgmaster_contract.v_active_principal_mappings_v1
+        (principal_issuer,principal_subject,principal_id,employee_id,
+         contract_version,employee_status,mapping_version,published_at)
+        VALUES ('https://securetoken.google.com/test-project','firebase-untyped',
+                'principal-untyped','employee-untyped',
+                'organization.active-principal.v1','active',7,$1)`, [publishedAt])
       const { previewPrincipalInventoryCoverage } = await import(pathToFileURL(
         path.join(root, 'src/lib/jenfu-principal-inventory-coverage.ts')).href)
       const coverage = await previewPrincipalInventoryCoverage(database, 'test-project')
@@ -950,8 +973,14 @@ try {
         'https://securetoken.google.com/test-project')
       assert.equal(discovered?.principalId, 'principal-register')
       assert.equal(discovered?.employeeId, 'employee-register')
+      assert.equal(discovered?.publishedMapping.principalId, 'principal-register')
+      assert.equal(discovered?.publishedMapping.employeeId, 'employee-register')
       assert.equal(discovered?.localEligible, true)
       assert.ok(!Object.hasOwn(discovered, 'email'))
+      const missingTyped = coverage.sources.find((candidate) =>
+        candidate.pdmUserId === 'pdm-user-untyped')
+      assert.equal(missingTyped?.publishedMapping.principalId, 'principal-untyped')
+      assert.equal(missingTyped?.principalId, null)
       const activeWithoutLegacyProvider = coverage.profiles.find(
         (profile) => profile.pdmUserId === 'pdm-user-four')
       assert.equal(activeWithoutLegacyProvider?.markerStatus, 'principal_active')

@@ -15,7 +15,8 @@ import {
   assertCutoverPreviewOperation, summarizeCutoverPreview,
 } from './lib/dev121-principal-cutover-preview-runner.mjs'
 
-const OPERATION_PREFIX = 'source/production-data/dev121/principal-cutover-preview'
+// The existing migrator grant can read migration-bundles, not production-data.
+const OPERATION_PREFIX = 'source/migration-bundles/dev121/principal-cutover-preview'
 const RECEIPT_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-CUTOVER-PREVIEW'
 export const OPERATOR_TARGET = Object.freeze({ ...TARGET,
   job: 'ai-pdm-prod-dev121-principal-cutover-preview' })
