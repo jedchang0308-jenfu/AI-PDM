@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 
-import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildReleaseIntent, buildRoutineAuthority, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath } from './lib/dev012-owner-prerequisite-producer.mjs'
+import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildReleaseIntent, buildRoutineAuthority, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath, resolveProtectedReleaseRef } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { DEV013_L4_FORWARD_STEPS, dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 
@@ -19,6 +19,17 @@ const profile = {
 }
 const ref = (name) => ({ uri: `gs://owner-bucket/receipts/releases/REL-001/${name}.json`, sha256: H64 })
 const sourceLock = buildSourceFreeze({ profile, releaseId: 'REL-001', observedAt: NOW, git: { clean: true, branch: 'main', sourceRevision: H40, sourceTree: 'c'.repeat(40), remoteRevision: H40 }, sourceIdentityBytes: Buffer.from('tree-manifest'), migrationBundle: { bundle: { manifestSha256: H64 } } })
+
+test('source freeze accepts a clean detached checkout only at the exact protected remote ref', () => {
+  const input = { localBranch: 'main', protectedBranch: 'main', sourceRevision: H40, remoteRevision: H40 }
+  assert.equal(resolveProtectedReleaseRef(input), 'main')
+  assert.equal(resolveProtectedReleaseRef({ ...input, localBranch: '' }), 'main')
+  for (const changed of [
+    { localBranch: 'feature/unreviewed' },
+    { remoteRevision: 'c'.repeat(40) },
+    { sourceRevision: 'invalid' },
+  ]) assert.throws(() => resolveProtectedReleaseRef({ ...input, ...changed }), /SOURCE_NOT_FROZEN_AT_OFFICIAL_REMOTE/u)
+})
 
 test('source freeze binds clean official remote revision, canonical tree identity and migration manifest', () => {
   assert.equal(sourceLock.status, 'SOURCE_FROZEN')
