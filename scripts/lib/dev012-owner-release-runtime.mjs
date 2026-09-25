@@ -57,11 +57,15 @@ export function assertImmutableRef(value, bucket, prefixes = ['receipts']) {
   return value
 }
 
-export function assertProtectedGitHubContext(profile, intent, environment) {
+export function assertProtectedGitHubContext(profile, intent, environment, { stage = null, migrationOnlyWorkflowPath = null } = {}) {
   const expectedRef = `refs/heads/${profile.application.branch}`
   const expectedWorkflowRef = `${profile.application.repository}/${profile.workflow.path}@${expectedRef}`
+  const migrationOnlyRef = migrationOnlyWorkflowPath && ['prepare', 'build', 'migrate'].includes(stage)
+    ? `${profile.application.repository}/${migrationOnlyWorkflowPath}@${expectedRef}` : null
+  const workflowAllowed = environment.GITHUB_WORKFLOW_REF === expectedWorkflowRef ||
+    (migrationOnlyRef !== null && environment.GITHUB_WORKFLOW_REF === migrationOnlyRef)
   if (environment.GITHUB_ACTIONS !== 'true' || !environment.ACTIONS_ID_TOKEN_REQUEST_URL || !environment.GOOGLE_OAUTH_ACCESS_TOKEN) fail('PROTECTED_WORKFLOW_REQUIRED')
-  if (environment.GITHUB_REPOSITORY !== profile.application.repository || environment.GITHUB_SHA !== intent.sourceRevision || environment.GITHUB_WORKFLOW_SHA !== intent.sourceRevision || environment.GITHUB_WORKFLOW_REF !== expectedWorkflowRef || environment.GITHUB_REF !== expectedRef || environment.GITHUB_EVENT_NAME !== 'workflow_dispatch') fail('GITHUB_SOURCE_AUTHORITY_MISMATCH')
+  if (environment.GITHUB_REPOSITORY !== profile.application.repository || environment.GITHUB_SHA !== intent.sourceRevision || environment.GITHUB_WORKFLOW_SHA !== intent.sourceRevision || !workflowAllowed || environment.GITHUB_REF !== expectedRef || environment.GITHUB_EVENT_NAME !== 'workflow_dispatch') fail('GITHUB_SOURCE_AUTHORITY_MISMATCH')
   if (!H40.test(environment.GITHUB_SHA ?? '') || !/^[0-9]+$/u.test(environment.GITHUB_REPOSITORY_ID ?? '') || !/^[0-9]+$/u.test(environment.GITHUB_REPOSITORY_OWNER_ID ?? '') || !/^[0-9]+$/u.test(environment.GITHUB_RUN_ID ?? '') || !/^[0-9]+$/u.test(environment.GITHUB_RUN_ATTEMPT ?? '')) fail('GITHUB_PUBLISHER_IDENTITY_MISSING')
   return true
 }

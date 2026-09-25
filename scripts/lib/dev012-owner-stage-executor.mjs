@@ -79,6 +79,24 @@ function acceptedStatus(value, statuses) {
   return value && statuses.includes(value.status) && value.releaseAuthority === true && value.evidenceScope !== 'LOCAL_SYNTHETIC'
 }
 
+function assertInfraEvidence(value, profile, sourceRevision, foundation) {
+  if (value?.schemaVersion === 'jenfu.dev012.app-infra-reuse-receipt.v1') {
+    const core = { ...value }
+    delete core.receiptSha256
+    if (value.ownerApplicationId !== profile.application.id || value.projectId !== profile.target.projectId || value.region !== profile.target.region
+      || value.sourceRevision !== sourceRevision || value.status !== 'APPLIED' || value.releaseAuthority !== true || value.evidenceScope !== 'PRODUCTION_PROVIDER_REUSE'
+      || value.mutationProfile !== 'APP_INFRA_REUSE' || value.reuseBasis !== 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE'
+      || value.foundationManifestSha256 !== foundation?.foundationManifestSha256
+      || !H40.test(value.reusedSourceRevision ?? '') || value.reusedSourceRevision === sourceRevision
+      || value.receiptSha256 !== sha256(canonicalize(core))
+      || !value.reusedInfraReceiptRef?.uri?.startsWith(`gs://${profile.artifact.releaseBucket}/receipts/`)
+      || !H64.test(value.reusedInfraReceiptRef.sha256 ?? '')
+      || !value.migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)
+      || !value.controllerImageDigest?.includes('@sha256:')) fail('APP_INFRA_REUSE_RECEIPT_INVALID')
+  } else if (value?.sourceRevision && value.sourceRevision !== sourceRevision) fail('PREREQUISITE_SOURCE_MISMATCH', 'infra')
+  return value
+}
+
 export function assertControlledEnvironmentAuthority({ intent, profile, values, runtime, previousControlledEnvironment = null }) {
   const rules = profile.environment?.controlledValues ?? {}
   const controlledEnvironment = Object.fromEntries(Object.keys(rules).sort().map((name) => [name, runtime.plainEnvironment?.[name]]))
@@ -136,6 +154,7 @@ export function assertPreparePrerequisites({ intent, profile, values }) {
   for (const name of ['foundation', 'infra', 'runtimeConfig']) if (!acceptedStatus(values[name], ['PASS', 'APPLIED', 'VERIFIED'])) fail('PREPARE_PREREQUISITE_INVALID', name)
   const project = (value) => value.projectId ?? value.targetProjectId
   if ([values.readiness, values.foundation, values.infra, values.runtimeConfig].some((value) => project(value) !== profile.target.projectId)) fail('PREPARE_TARGET_MISMATCH')
+  assertInfraEvidence(values.infra, profile, intent.sourceRevision, values.foundation)
   const runtime = values.runtimeConfig.runtimeConfig ?? values.runtimeConfig
   assertRuntimeConfig(profile, runtime)
   assertControlledEnvironmentAuthority({ intent, profile, values, runtime })
@@ -347,13 +366,13 @@ function publicBuildReceipt(build) {
   return { name: build.name, id: build.id, projectId: build.projectId, status: build.status, serviceAccount: build.serviceAccount, createTime: build.createTime, startTime: build.startTime, finishTime: build.finishTime, sourceProvenance: build.sourceProvenance, results: build.results, options: build.options }
 }
 
-export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, dataCutoverConfig = null }) {
+export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
   const { intent, intentRef, paths } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent })
   const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, releaseIntentSha256: capsuleSha256 }))
 
   if (stage !== 'rollback') {
-    assertProtectedGitHubContext(profile, intent, environment)
+    assertProtectedGitHubContext(profile, intent, environment, { stage, migrationOnlyWorkflowPath })
   }
 
   if (stage === 'prepare') {
