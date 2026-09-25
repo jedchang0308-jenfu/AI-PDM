@@ -34,15 +34,31 @@ function repositorySlug(remote) {
   return match?.[1] ?? null
 }
 
+export function resolveProtectedReleaseRef({ localBranch, protectedBranch, sourceRevision, remoteRevision }) {
+  if ((localBranch !== '' && localBranch !== protectedBranch) ||
+      remoteRevision !== sourceRevision || !H40.test(sourceRevision ?? '')) {
+    fail('SOURCE_NOT_FROZEN_AT_OFFICIAL_REMOTE')
+  }
+  return protectedBranch
+}
+
 export function readGitAuthority(root, profile) {
   const sourceRevision = String(runGit(root, ['rev-parse', 'HEAD'])).trim()
   const sourceTree = String(runGit(root, ['rev-parse', 'HEAD^{tree}'])).trim()
-  const branch = String(runGit(root, ['branch', '--show-current'])).trim()
+  const localBranch = String(runGit(root, ['branch', '--show-current'])).trim()
   const status = String(runGit(root, ['status', '--porcelain=v1', '--untracked-files=all'])).trim()
   const remote = String(runGit(root, ['remote', 'get-url', 'origin'])).trim()
   const remoteRows = String(runGit(root, ['ls-remote', '--heads', 'origin', `refs/heads/${profile.application.branch}`])).trim().split(/\s+/u)
   const remoteRevision = remoteRows[0] ?? ''
-  if (!H40.test(sourceRevision) || !H40.test(sourceTree) || branch !== profile.application.branch || status !== '' || repositorySlug(remote)?.toLowerCase() !== profile.application.repository.toLowerCase() || remoteRevision !== sourceRevision) fail('SOURCE_NOT_FROZEN_AT_OFFICIAL_REMOTE')
+  // A detached clean checkout of the exact protected remote commit is as
+  // reviewable as a local branch named after that ref. Other named branches
+  // remain ineligible even when they happen to point at the same commit.
+  if (!H40.test(sourceTree) || status !== '' ||
+      repositorySlug(remote)?.toLowerCase() !== profile.application.repository.toLowerCase()) {
+    fail('SOURCE_NOT_FROZEN_AT_OFFICIAL_REMOTE')
+  }
+  const branch = resolveProtectedReleaseRef({ localBranch,
+    protectedBranch: profile.application.branch, sourceRevision, remoteRevision })
   return { sourceRevision, sourceTree, branch, remoteRevision, clean: true }
 }
 
