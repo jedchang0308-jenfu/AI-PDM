@@ -43,7 +43,8 @@ describe("principal numbering read snapshot", () => {
     mocks.verified.mockImplementation(async (_input, evaluate) => evaluate(snapshot, verified));
     mocks.requestedCompany.mockReturnValue({ state: "valid", companyCode: "JENFU" });
     mocks.company.mockResolvedValue({ company, response: null });
-    mocks.permission.mockResolvedValue([{ allowed: true, principalId: "principal-1" }]);
+    mocks.permission.mockResolvedValue([{ allowed: true, principalId: "principal-1",
+      permissionCode: "numbering.search" }]);
     mocks.deny.mockReturnValue(Response.json({ error: "permission_not_granted" }, { status: 403 }));
     mocks.failure.mockReturnValue(Response.json({ code: "principal_dependency_unavailable" }, { status: 503 }));
   });
@@ -61,6 +62,7 @@ describe("principal numbering read snapshot", () => {
 
   it("does not reach the resource when the principal is denied", async () => {
     mocks.permission.mockResolvedValue([{ allowed: false, principalId: "principal-1",
+      permissionCode: "numbering.search",
       decisionCode: "permission_not_granted" }]);
     const read = vi.fn();
     const response = await withPrincipalNumberingCompanyRead(request, "numbering.search", read);
@@ -69,7 +71,49 @@ describe("principal numbering read snapshot", () => {
   });
 
   it("fails closed if the evaluator returns another principal", async () => {
-    mocks.permission.mockResolvedValue([{ allowed: true, principalId: "principal-2" }]);
+    mocks.permission.mockResolvedValue([{ allowed: true, principalId: "principal-2",
+      permissionCode: "numbering.search" }]);
+    const read = vi.fn();
+    const response = await withPrincipalNumberingCompanyRead(request, "numbering.search", read);
+    expect(response?.status).toBe(503);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("accepts one of the route's explicit permissions without using a legacy role", async () => {
+    const permissions = [
+      { permissionKind: "page" as const, permissionCode: "numbering.search" },
+      { permissionKind: "action" as const, permissionCode: "numbering.create" }
+    ];
+    mocks.permission.mockResolvedValue([
+      { allowed: false, principalId: "principal-1", permissionCode: "numbering.search",
+        decisionCode: "permission_not_granted" },
+      { allowed: true, principalId: "principal-1", permissionCode: "numbering.create",
+        decisionCode: "allowed" }
+    ]);
+    const read = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    const response = await withPrincipalNumberingCompanyRead(request, permissions, read);
+    expect(response?.status).toBe(200);
+    expect(mocks.permission).toHaveBeenCalledWith(snapshot, verified, permissions);
+    expect(read).toHaveBeenCalledWith(snapshot, company, verified);
+  });
+
+  it("fails closed if one alternative belongs to a different principal", async () => {
+    mocks.permission.mockResolvedValue([
+      { allowed: true, principalId: "principal-1", permissionCode: "numbering.search" },
+      { allowed: false, principalId: "principal-2", permissionCode: "numbering.drawings.view" }
+    ]);
+    const read = vi.fn();
+    const response = await withPrincipalNumberingCompanyRead(request, [
+      { permissionKind: "page", permissionCode: "numbering.search" },
+      { permissionKind: "page", permissionCode: "numbering.drawings.view" }
+    ], read);
+    expect(response?.status).toBe(503);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("fails closed if a decision is returned for another permission", async () => {
+    mocks.permission.mockResolvedValue([{ allowed: true, principalId: "principal-1",
+      permissionCode: "numbering.reports" }]);
     const read = vi.fn();
     const response = await withPrincipalNumberingCompanyRead(request, "numbering.search", read);
     expect(response?.status).toBe(503);
