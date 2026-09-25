@@ -22,6 +22,12 @@ type SourceRow = {
   identity_subject: string | null;
   local_status: string;
   local_eligible: boolean;
+  mapping_contract_version: string | null;
+  mapping_principal_id: string | null;
+  mapping_employee_id: string | null;
+  mapping_employee_status: string | null;
+  mapping_mapping_version: number | string | null;
+  mapping_published_at: Date | string | null;
   contract_version: string | null;
   principal_id: string | null;
   employee_id: string | null;
@@ -120,10 +126,20 @@ export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseC
           JOIN ai_pdm_core.auth_identities identity
             ON identity.user_id=users.id AND identity.provider='google_oauth'
         )
-        SELECT source.*, typed.contract_version, typed.principal_id,
+        SELECT source.*,
+               mapping.contract_version AS mapping_contract_version,
+               mapping.principal_id AS mapping_principal_id,
+               mapping.employee_id AS mapping_employee_id,
+               mapping.employee_status AS mapping_employee_status,
+               mapping.mapping_version AS mapping_mapping_version,
+               mapping.published_at AS mapping_published_at,
+               typed.contract_version, typed.principal_id,
                typed.employee_id, typed.employee_status, typed.account_type,
                typed.mapping_version, typed.published_at
         FROM local_source source
+        LEFT JOIN orgmaster_contract.v_active_principal_mappings_v1 mapping
+          ON mapping.principal_issuer=source.identity_issuer
+         AND mapping.principal_subject=source.identity_subject
         LEFT JOIN orgmaster_contract.v_active_principal_accounts_v1 typed
           ON typed.principal_issuer=source.identity_issuer
          AND typed.principal_subject=source.identity_subject
@@ -177,12 +193,17 @@ export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseC
     // This private receipt is discovery evidence, not authorization. Duplicate
     // producer rows remain visible so the later exact-set preview rejects them.
     const sources = sourceRows.map((row) => {
+      const publishedMappingVersion = row.mapping_mapping_version === null ? null :
+        count(row.mapping_mapping_version);
+      const publishedMappingAt = row.mapping_published_at === null ? null :
+        new Date(row.mapping_published_at).toISOString();
       const mappingVersion = row.mapping_version === null ? null : count(row.mapping_version);
       const publishedAt = row.published_at === null ? null :
         new Date(row.published_at).toISOString();
       if (!seen.has(row.pdm_user_id) || !row.company_id ||
         !["firebase_mapping", "google_oauth"].includes(row.source_kind) ||
         !row.identity_issuer || typeof row.local_eligible !== "boolean" ||
+        (publishedMappingVersion !== null && publishedMappingVersion < 1) ||
         (mappingVersion !== null && mappingVersion < 1)) {
         throw new PrincipalInventoryCoverageError("principal_inventory_coverage_invalid");
       }
@@ -190,7 +211,16 @@ export async function previewPrincipalInventoryCoverage(database: AsyncDatabaseC
         pdmUserId: row.pdm_user_id, companyId: row.company_id,
         sourceKind: row.source_kind, identityIssuer: row.identity_issuer,
         identitySubject: row.identity_subject, localStatus: row.local_status,
-        localEligible: row.local_eligible, contractVersion: row.contract_version,
+        localEligible: row.local_eligible,
+        publishedMapping: {
+          contractVersion: row.mapping_contract_version,
+          principalId: row.mapping_principal_id,
+          employeeId: row.mapping_employee_id,
+          employeeStatus: row.mapping_employee_status,
+          mappingVersion: publishedMappingVersion,
+          publishedAt: publishedMappingAt
+        },
+        contractVersion: row.contract_version,
         principalId: row.principal_id, employeeId: row.employee_id,
         employeeStatus: row.employee_status, accountType: row.account_type,
         mappingVersion, publishedAt

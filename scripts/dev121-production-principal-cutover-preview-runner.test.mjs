@@ -35,10 +35,10 @@ const environment = {
   POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg',
   CLOUD_RUN_JOB: 'ai-pdm-prod-dev121-principal-cutover-preview', PDM_SOURCE_REVISION: revision,
 }
-const inputRef = 'gs://jenfu-platform-prod-aipdm-release/source/production-data/dev121/principal-cutover-preview/one.json'
+const inputRef = 'gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/dev121/principal-cutover-preview/one.json'
 const outputRef = 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-CUTOVER-PREVIEW/one.json'
 
-test('preview operation binds exact owner target and rejects alias or source ambiguity', () => {
+test('preview operation binds exact owner target and rejects alias or source ambiguity', async () => {
   const bytes = Buffer.from(JSON.stringify(operation()))
   const context = { bytes, operationSha256: digest(bytes), sourceRevision: revision }
   assert.deepEqual(assertCutoverPreviewOperation(operation(), context), operation())
@@ -58,6 +58,11 @@ test('preview operation binds exact owner target and rejects alias or source amb
   assert.throws(() => assertCutoverPreviewOperation(operation(), {
     ...context, operationSha256: '0'.repeat(64),
   }), /HASH_MISMATCH/)
+  await assert.rejects(runMain({ argv: [
+    '--operation-ref',
+    'gs://jenfu-platform-prod-aipdm-release/source/production-data/dev121/principal-cutover-preview/one.json',
+    '--operation-sha256', digest(bytes), '--source-revision', revision,
+    '--output-ref', outputRef], environment }), /MIGRATION_GCS_/u)
 })
 
 test('summary cannot claim apply authority and requires complete source hashes', () => {
