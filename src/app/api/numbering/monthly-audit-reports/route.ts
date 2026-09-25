@@ -3,16 +3,25 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { generateMonthlyNumberingAuditReportAsync, listMonthlyNumberingAuditReportsAsync } from "@/lib/numbering-async";
 import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
+import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireNumberingCompanyPermissionAsync(request, "page", "numbering.reports");
-  if (auth.response) return auth.response;
-
   const url = new URL(request.url);
   const reportMonth = url.searchParams.get("reportMonth") ?? url.searchParams.get("report_month") ?? undefined;
   const limit = Number(url.searchParams.get("limit") ?? 20);
+  const principalResponse = await withPrincipalNumberingCompanyRead(request, "numbering.reports",
+    async (snapshot, company) => NextResponse.json({
+      reports: await new AsyncNumberingRepository(snapshot).listMonthlyNumberingAuditReports({
+        companyId: company.companyId, reportMonth, limit
+      }), pdmCompany: company
+    }));
+  if (principalResponse) return principalResponse;
+
+  const auth = await requireNumberingCompanyPermissionAsync(request, "page", "numbering.reports");
+  if (auth.response) return auth.response;
   return NextResponse.json({
     reports: await listMonthlyNumberingAuditReportsAsync({ companyId: auth.company.companyId, reportMonth, limit }),
     pdmCompany: auth.company
