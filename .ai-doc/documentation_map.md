@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-26 DEV-121 目前缺列證據**：[DEV-121 雙 owner Production readback](specs/DEV-121-target-authorization-boundary.md)保留 AI-PDM R4／OrgMaster 精確 pair hash receipt、五組 producer 來源缺列與後續停止條件；private profile label 僅供查明 owner，不作 email mapping。沿用 DEV-121 子任務，不新增主任務。
+
 > **架構定案：已定案／RD Implementation Ready（Documents Only）**：[AIPDM/DEV-121 單一交接入口](specs/DEV-121-target-authorization-boundary.md#architecture-final)固定目前 owner 契約、來源／雜湊與失敗／恢復；與 JENFU/DEV-015 同名節對齊。沿用原子任務，先依相依順序實作；consumer conformance／recovery／Production L4 尚未完成。下方歷史紀錄不覆蓋此入口。 本輪再審核補 session／epoch 同快照、cutover 鎖後完整來源捕捉及 provision replay 分支；相關案例未執行。
 
 > **2026-09-24 ownership／command 現行修訂（Documents Only）**：verified principal貫穿factory／command／receipt／outbox／replay；新帳號直接provision為principal_active，target assurance與來源facts分開，高權限不沿用舊AAL1 pilot。 [目前交接契約](specs/DEV-121-target-authorization-boundary.md#principal-owner-command-amendment)承接原子任務；歷史證據保留，文件RD Implementation Ready不等於產品PASS。SQLite／release工具整併留後續，不新增主任務或分母。

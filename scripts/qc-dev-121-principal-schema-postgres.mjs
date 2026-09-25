@@ -988,6 +988,8 @@ try {
       const missing = coverage.profiles.find((profile) => profile.pdmUserId === 'pdm-user-one')
       assert.equal(missing?.markerStatus, 'missing')
       assert.ok(missing?.issues.includes('inventory_missing'))
+      assert.equal(typeof missing?.displayName, 'string')
+      assert.equal(missing?.contactEmail, null)
       // Commit, deferred-FK readback and unknown-outcome replay use a separate
       // synthetic subject so the earlier registration drift vectors remain intact.
       await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.users
