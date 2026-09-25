@@ -1,5 +1,5 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import type { PdmCommand } from "@/lib/platform-command";
+import type { PdmCommand, PdmCommandMetadata } from "@/lib/platform-command";
 import { createJenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
 import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
@@ -32,7 +32,7 @@ type CommandInput<TPayload, TResult> = {
   idempotencyPayload?: unknown;
   serializable?: boolean;
   principalRequest?: PrincipalRequestInput;
-  principalAuthorization?: { request: Request; routePath: string; method: string; permissionCode: string };
+  principalAuthorization?: PdmCommandMetadata["principalAuthorization"];
   faultInjector?: (point: "before_outbox_enqueue" | "before_command_complete" | "after_command_complete") => void;
 };
 

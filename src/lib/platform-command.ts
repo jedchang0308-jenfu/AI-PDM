@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { JenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
+import type { PrincipalRequestInput } from "@/lib/jenfu-principal-request-guard";
 
 export type PlatformAuthProvider = "current_pdm_session" | "local_password" | "google_oauth" | "future_shared_iam";
 
@@ -30,6 +31,14 @@ export type PdmCommand<TPayload> = {
 export type PdmCommandMetadata = {
   actor: PlatformActorContext;
   idempotencyKey: string;
+  /** Kept in process for command-time verification; never copied into the persisted command. */
+  principalRequest?: PrincipalRequestInput;
+  principalAuthorization?: {
+    request: Request;
+    routePath: string;
+    method: string;
+    permissionCode: string;
+  };
 };
 
 const SAFE_CONTEXT_ID = /^[A-Za-z0-9._:/-]{1,200}$/u;

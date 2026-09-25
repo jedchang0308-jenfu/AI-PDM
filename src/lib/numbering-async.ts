@@ -125,6 +125,8 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).createNumberingRecord(input),
     event: (result) => ({
       aggregateType: "part_root",
@@ -171,6 +173,8 @@ export async function obsoleteDraftNumberingRecordAsync(
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     serializable: true,
     idempotencyPayload: { rootCode: input.rootCode, reason: input.reason.trim(), companyId: input.companyId ?? null },
     execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).obsoleteDraftNumberingRecord(input),
@@ -220,6 +224,8 @@ export async function requestNumberingObsoleteApprovalAsync(input: RequestNumber
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     serializable: true,
     idempotencyPayload: {
       entityType: input.entityType,
@@ -260,6 +266,8 @@ export async function addDrawingNumberToRootAsync(
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     execute: (transactionClient) =>
       new AsyncNumberingRepository(transactionClient).addDrawingNumberToRoot({
         ...input,
@@ -301,6 +309,8 @@ export async function addPartNumberToRootAsync(
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     execute: (transactionClient) =>
       new AsyncNumberingRepository(transactionClient).addPartNumberToRoot({
         ...input,
@@ -344,6 +354,8 @@ export async function addDrawingAndPartToRootAsync(
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     execute: (transactionClient) =>
       new AsyncNumberingRepository(transactionClient).addDrawingAndPartToRoot({
         ...input,
@@ -390,6 +402,8 @@ export async function requestRootObsoleteApprovalAsync(input: RequestRootObsolet
   const executed = await executePdmCommandWithOutbox({
     client,
     command,
+    principalRequest: commandMetadata.principalRequest,
+    principalAuthorization: commandMetadata.principalAuthorization,
     serializable: true,
     idempotencyPayload: { rootCode: input.rootCode ?? null, rootId: input.rootId ?? null, reason: input.reason.trim(), companyId: input.companyId ?? null },
     execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).requestRootObsoleteApproval(input),
