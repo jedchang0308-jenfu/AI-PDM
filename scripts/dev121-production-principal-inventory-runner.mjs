@@ -13,7 +13,9 @@ import {
   inventoryDatabaseAdapter, parseInventoryArgs,
 } from './lib/dev121-principal-inventory-runner.mjs'
 
-const OPERATION_PREFIX = 'source/production-data/dev121/principal-inventory'
+// The owner migrator already has a conditional read grant for migration-bundles.
+// Keep this operator's source envelope inside that exact existing IAM boundary.
+const OPERATION_PREFIX = 'source/migration-bundles/dev121/principal-inventory'
 const RECEIPT_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-INVENTORY'
 export const OPERATOR_TARGET = Object.freeze({ ...TARGET,
   job: 'ai-pdm-prod-dev121-principal-inventory' })

@@ -36,10 +36,10 @@ const environment = {
   POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg',
   CLOUD_RUN_JOB: 'ai-pdm-prod-dev121-principal-inventory', PDM_SOURCE_REVISION: revision,
 }
-const inputRef = 'gs://jenfu-platform-prod-aipdm-release/source/production-data/dev121/principal-inventory/one.json'
+const inputRef = 'gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/dev121/principal-inventory/one.json'
 const outputRef = 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-INVENTORY/one.json'
 
-test('operation is source-frozen, exact-target, principal-only and has no email fallback', () => {
+test('operation is source-frozen, exact-target, principal-only and has no email fallback', async () => {
   const bytes = Buffer.from(JSON.stringify(operation()))
   const context = { bytes, operationSha256: hash(bytes), sourceRevision: revision }
   assert.deepEqual(assertInventoryOperation(operation(), context), operation())
@@ -61,6 +61,10 @@ test('operation is source-frozen, exact-target, principal-only and has no email 
   assert.throws(() => assertInventoryOperation(operation(),
     { ...context, operationSha256: 'c'.repeat(64) }), /HASH_MISMATCH/)
   assert.throws(() => parseInventoryArgs(['--operation-ref', inputRef]), /ARGUMENT_INVALID/)
+  await assert.rejects(runMain({ argv: ['--operation-ref',
+    'gs://jenfu-platform-prod-aipdm-release/source/production-data/dev121/principal-inventory/one.json',
+    '--operation-sha256', hash(coverageBytes), '--source-revision', revision,
+    '--output-ref', outputRef], environment }), /MIGRATION_GCS_/u)
 })
 
 test('adapter keeps named SQL and all repository reads within one RR transaction', async () => {
