@@ -18,6 +18,17 @@ export type PreparedPrincipalCutoverSource = PrincipalAclMigrationSourceInput &
     };
 
 const verifiedGates = new WeakMap<object, AsyncDatabaseClient>();
+const OWNER_KEYS = ["platform", "orgmaster", "aiPdm"] as const;
+const REVISION = /^[a-f0-9]{40}$/u;
+const SHA256 = /^[a-f0-9]{64}$/u;
+function exactOwnerBindings(value: unknown, pattern: RegExp): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const bindings = value as Record<string, unknown>;
+  return Object.keys(bindings).sort().join("\0") ===
+    [...OWNER_KEYS].sort().join("\0") &&
+    OWNER_KEYS.every((owner) => typeof bindings[owner] === "string" &&
+      pattern.test(bindings[owner]));
+}
 // This is an in-process prerequisite for the owner apply, not proof that the
 // named human actually approved a claim. The owner runner must fetch the
 // restricted receipt object and verify its provenance before calling it.
@@ -91,13 +102,17 @@ export async function requireCurrentPrincipalCutoverSource(
   prepared: PreparedPrincipalCutoverSource
 ) {
   if (client.kind !== "postgres" || !prepared ||
-    !Array.isArray(prepared.sourceSets) ||
+    !Array.isArray(prepared.sourceSets) || prepared.sourceSets.length < 1 ||
+    prepared.sourceSets.length > 32 ||
     prepared.sourceSets.some((set) => !Array.isArray(set) || set.length !== 1 ||
       set.some((row) => !row?.pdmUserId ||
         row.pdmUserId !== set[0]?.pdmUserId)) ||
-    !/^[0-9a-f]{64}$/u.test(prepared.cohortHash) ||
-    !/^[0-9a-f]{64}$/u.test(prepared.sourceHash) ||
-    !/^[0-9a-f]{64}$/u.test(prepared.inputHash)) {
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{7,95}$/u.test(prepared.operationId) ||
+    !exactOwnerBindings(prepared.sourceRevisions, REVISION) ||
+    !exactOwnerBindings(prepared.contractManifestHashes, SHA256) ||
+    !SHA256.test(prepared.cohortHash) ||
+    !SHA256.test(prepared.sourceHash) ||
+    !SHA256.test(prepared.inputHash)) {
     throw new Error("PRINCIPAL_CUTOVER_PREPARED_SOURCE_INVALID");
   }
   // Text casts in owner contract views include timestamps. Match the preview's
