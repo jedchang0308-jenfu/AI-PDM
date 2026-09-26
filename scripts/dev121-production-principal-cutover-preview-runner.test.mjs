@@ -91,6 +91,10 @@ test('v2 preview binds a one-time profile claim and rejects ambiguous transfer',
     { ...v2, sourceSets: [[transfer], [{ ...source,
       pdmUserId: 'pdm-two', principalId: 'principal-two',
       identitySubject: source.identitySubject }]] },
+    { ...v2, sourceSets: [[transfer], [{ ...transfer,
+      pdmUserId: 'pdm-two', principalId: 'principal-two',
+      employeeId: 'employee-two', identitySubject: 'new-uid-two',
+      legacyIdentitySubject: 'old-uid-two' }]] },
     { ...v2, sourceSets: [[source]] },
   ]) assert.throws(() => validate(changed), /DEV121_CUTOVER_PREVIEW_/)
 })
@@ -155,6 +159,94 @@ test('profile claim confirmation binds the reviewed pair and runner reads its ex
     environment, fetchImpl, Client: StopBeforeDatabase,
   }), /CONFIRMATION_READBACK_PASSED/)
   assert.equal(confirmationReads, 2)
+})
+
+test('v2 receipt seals confirmation generation and CRC32C on publish and replay', async () => {
+  const transfer = { ...source, claimKind: 'profile_transfer',
+    identitySubject: 'new-uid-one', legacyIdentityIssuer: source.identityIssuer,
+    legacyIdentitySubject: source.identitySubject,
+    expectedLegacyRole: 'Engineer' }
+  const confirmation = { schemaVersion: 'ai-pdm.profile-claim-confirmation.v1',
+    pdmUserId: transfer.pdmUserId, companyId: transfer.companyId,
+    principalId: transfer.principalId, employeeId: transfer.employeeId,
+    identityIssuer: transfer.identityIssuer, identitySubject: transfer.identitySubject,
+    legacyIdentityIssuer: transfer.legacyIdentityIssuer,
+    legacyIdentitySubject: transfer.legacyIdentitySubject,
+    expectedLegacyRole: transfer.expectedLegacyRole,
+    confirmedBy: 'principal-reviewer', confirmedAt: '2026-09-26T00:00:00.000Z',
+    humanSourceRef: 'reviewed-message-one' }
+  const confirmationBytes = Buffer.from(JSON.stringify(confirmation))
+  transfer.confirmationReceiptHash = digest(confirmationBytes)
+  const body = Buffer.from(JSON.stringify({ ...operation(),
+    schemaVersion: 'ai-pdm.principal-cutover-preview-operation.v2',
+    sourceSets: [[transfer]] }))
+  let receiptBytes
+  let confirmationGeneration = '3'
+  const fetchImpl = async (url, options = {}) => {
+    if (url.startsWith('http://metadata.google.internal/')) {
+      return new Response(JSON.stringify({ access_token: 'x'.repeat(25), expires_in: 3600 }))
+    }
+    const receipt = url.includes('DEV121-PRINCIPAL-CUTOVER-PREVIEW')
+    if (receipt && !receiptBytes && options.method !== 'POST') {
+      return new Response('', { status: 404 })
+    }
+    if (url.startsWith('https://storage.googleapis.com/upload/')) {
+      receiptBytes = Buffer.from(options.body)
+      return new Response(JSON.stringify({ generation: '4' }))
+    }
+    const bytes = receipt ? receiptBytes : url.includes('confirmations')
+      ? confirmationBytes : body
+    if (url.includes('?alt=media')) return new Response(bytes)
+    return new Response(JSON.stringify({ generation: receipt ? '4' :
+      url.includes('confirmations') ? confirmationGeneration : '1',
+      crc32c: crc32cBase64(bytes) }))
+  }
+  let transactions = 0
+  class Client {
+    async connect() {}
+    async query(query) {
+      if (typeof query === 'string' && query.includes('current_database()')) {
+        return { rows: [{ database: 'jenfu_prod', login: environment.POSTGRES_IAM_LOGIN,
+          major: 17, migrator_member: true, schema_ready: true }] }
+      }
+      if (query === 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY') transactions += 1
+      if (typeof query === 'object' && query.text.includes('transaction_timestamp()')) {
+        return { rows: [{ cutover_at: '2026-09-25T04:00:00.000Z' }] }
+      }
+      return { rows: [] }
+    }
+    async end() {}
+  }
+  const loadPreview = async () => ({ previewPrincipalCutoverSourceEnvelopeInSnapshot:
+    async (_snapshot, input) => ({
+      cutoverAt: input.cutoverAt,
+      cohort: [{ pdmUserId: transfer.pdmUserId,
+        principalId: transfer.principalId, sourceCount: 1 }],
+      cohortHash: 'a'.repeat(64), sourceHash: 'b'.repeat(64),
+      inputHash: 'c'.repeat(64), localSourceHash: 'd'.repeat(64),
+      producerSourceHash: 'e'.repeat(64),
+      graphCheck: { graphHash: 'f'.repeat(64) },
+      workspaceShadow: { shadowHash: '1'.repeat(64), status: 'pass' },
+      plan: { planHash: '2'.repeat(64) },
+    }) })
+  const args = { argv: ['--operation-ref', inputRef, '--operation-sha256', digest(body),
+    '--source-revision', revision, '--output-ref', outputRef],
+  environment, fetchImpl, Client, loadPreview }
+  const result = await runMain(args)
+  assert.equal(result.schemaVersion, 'ai-pdm.principal-cutover-preview-receipt.v2')
+  assert.deepEqual(JSON.parse(receiptBytes).confirmationObjects, [{
+    ref: `gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/dev121/principal-cutover-preview/confirmations/${transfer.confirmationReceiptHash}.json`,
+    sha256: transfer.confirmationReceiptHash, generation: '3',
+    crc32c: crc32cBase64(confirmationBytes),
+  }])
+  assert.equal(JSON.stringify(publicCutoverPreviewLog(result)).includes(
+    transfer.confirmationReceiptHash), false)
+  const replay = await runMain(args)
+  assert.equal(replay.reused, true)
+  assert.equal(transactions, 1)
+  confirmationGeneration = '5'
+  await assert.rejects(runMain(args), /DEV121_CUTOVER_PREVIEW_RECEIPT_CONFLICT/)
+  assert.equal(transactions, 1)
 })
 
 test('summary cannot claim apply authority and requires complete source hashes', () => {
