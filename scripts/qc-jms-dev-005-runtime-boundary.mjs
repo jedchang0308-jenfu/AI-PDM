@@ -7,7 +7,7 @@ import ts from 'typescript'
 const scriptRoot = resolve(fileURLToPath(new URL('.', import.meta.url)))
 const appRoot = resolve(scriptRoot, '..')
 const mapPath = join(appRoot, 'config', 'access-control', 'jenfu-route-permission-map.v1.json')
-const catalogPath = join(appRoot, 'config', 'access-control', 'jenfu-role-catalog.v1.json')
+const catalogPath = join(appRoot, 'config', 'access-control', 'jenfu-role-catalog.v4.json')
 const routeMap = JSON.parse(readFileSync(mapPath, 'utf8'))
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'))
 
@@ -147,7 +147,18 @@ function boundaryFailures(entries, sources) {
         if (!graph.includes(entry.permissionCode)) failures.push(`${label}: permission code missing`)
         continue
       }
-      if (!/requirePdmRouteAuthorizationAsync\s*\(/u.test(graph)) failures.push(`${label}: PDM entitlement guard missing from handler graph`)
+      if (!/(?:requirePdmRouteAuthorizationAsync|resolveDev087RouteActor)\s*\(/u.test(graph)) failures.push(`${label}: PDM entitlement guard missing from handler graph`)
+      if (entry.path.startsWith('src/app/api/pdm/')) {
+        if (!/principalSessionTokenFromRequest\s*\(/u.test(graph) ||
+            !/(?:withPrincipalDev087Route|withVerifiedJenfuPrincipalRequest|(?:uploadFilePrincipal|removeFilePrincipal))\s*\(/u.test(graph)) {
+          failures.push(`${label}: principal session boundary missing from handler graph`)
+        }
+        if (/(?:uploadFilePrincipal|removeFilePrincipal)\s*\(/u.test(graph) &&
+            !/principalDev087RoutePolicyAvailable\s*\(/u.test(graph)) {
+          failures.push(`${label}: principal file command policy missing`)
+        }
+        if (!graph.includes(entry.permissionCode)) failures.push(`${label}: principal permission code missing`)
+      }
       if (entry.discriminator && entry.permissionCode && !graph.includes(entry.permissionCode)) failures.push(`${label}: explicit discriminator permission ${entry.permissionCode} missing`)
       continue
     }
@@ -190,7 +201,7 @@ function mutateHandlerGuard(path, method, source) {
 }
 
 function main() {
-assert.deepEqual(routeMap.denominator, { uniqueFiles: 62, uniqueMethods: 77, policyEntries: 86 })
+  assert.deepEqual(routeMap.denominator, { uniqueFiles: 77, uniqueMethods: 94, policyEntries: 103 })
   const catalogPermissionCodes = new Set(catalog.roles.flatMap((role) => role.permissions.map((permission) => permission.code)))
   const permissionEntries = routeMap.entries.filter((entry) => entry.authorizationMode === 'permission')
   for (const entry of permissionEntries) assert.ok(catalogPermissionCodes.has(entry.permissionCode), `route permission missing from catalog: ${entry.permissionCode}`)
@@ -223,6 +234,17 @@ assert.deepEqual(routeMap.denominator, { uniqueFiles: 62, uniqueMethods: 77, pol
   mutantSources.set(mutantPath, mutateHandlerGuard(mutantPath, 'GET', sourceByPath.get(mutantPath)))
   const mutantFailures = boundaryFailures(routeMap.entries.filter((entry) => entry.path === mutantPath && entry.method === 'GET'), mutantSources)
   assert.ok(mutantFailures.length > 0, 'method-level guard mutant was not detected')
+
+  const principalWorkPath = 'src/app/api/pdm/drawing-revision-works/[workId]/cancel/route.ts'
+  const principalWorkSource = sourceByPath.get(principalWorkPath)
+  const principalWorkMutant = principalWorkSource.replace(/withPrincipalDev087Route\s*\(/u,
+    'removedPrincipalDev087Route(')
+  assert.notEqual(principalWorkMutant, principalWorkSource,
+    'principal work mutant could not remove the guard')
+  const principalWorkFailures = boundaryFailures(routeMap.entries.filter((entry) =>
+    entry.path === principalWorkPath && entry.method === 'POST'),
+    new Map([[principalWorkPath, principalWorkMutant]]))
+  assert.ok(principalWorkFailures.length > 0, 'principal work guard mutant was not detected')
 
   const accountsPath = 'src/app/api/admin/accounts/route.ts'
   const accountsSource = sourceByPath.get(accountsPath)
