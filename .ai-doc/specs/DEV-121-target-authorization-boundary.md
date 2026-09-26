@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-26 preview 封裝補強（本機）。** 完整 source-envelope preview 現在自行在同一個 `REPEATABLE READ READ ONLY` snapshot 核對三 owner 正式 manifest；直接呼叫函式也不能略過核對步驟。正式 runner 移除重複查詢，receipt 仍固定 `sourceBindingsAttested=false`／`applyAllowed=false`，因 provider source／image attestation 尚未完成。聚焦 preview 2／2、runner 5／5 與 app typecheck PASS；Production 未執行切換。
+
 > **2026-09-26 owner apply 契約核對防線（本機）。** 新的 cutover apply 在取得 operation／本地來源鎖後，會以同一 owner 連線重新讀取 Platform、OrgMaster、AI-PDM 的四筆 versioned manifest，逐 owner 比對操作檔預期 hash；不一致時在讀取 cutover source 與任何 materialization 前拒絕。已提交且 input／cohort hash 相同的 operation 仍只由不可變 receipt 重播，不要求歷史 manifest 保持不變。聚焦 source-gate 6／6 與 app typecheck PASS。這不替代三 owner 受保護 source revision／image provider attestation、resource／delegation shadow、正式 apply runner 或 recovery；Production 尚未執行切換。
 
 > **2026-09-26 三 owner manifest 唯讀核對（本機）。** Preview operator 現在於原有 `REPEATABLE READ READ ONLY` transaction，以 AI-PDM migrator 從 Platform、OrgMaster、AI-PDM 各自的 versioned `v_contract_manifest_v1` 讀固定四列；逐列核對 owner、contract ID、版本、簽章與 payload，再按固定 canonical tuple 重算三個 hash，與 operation 預期值不同時在發 receipt 前拒絕。缺列、重複、漂移與錯誤 owner 均拒絕；操作檔不能自證來源。此項只完成資料庫 manifest readback，三 owner provider source revision／image provenance 尚未獨立核實，因此既有 `sourceBindingsAttested=false`、`applyAllowed=false` 不變；正式 migration 與 Production replay 尚未執行。

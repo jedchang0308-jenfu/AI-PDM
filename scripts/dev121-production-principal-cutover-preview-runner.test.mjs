@@ -221,12 +221,6 @@ test('owner job previews in one read-only RR transaction and publishes non-apply
     async end() {}
   }
   let calls = 0
-  let manifestCalls = 0
-  const loadManifest = async () => ({ assertPrincipalOwnerContractManifestHashes:
-    async (_snapshot, expected) => {
-      manifestCalls += 1
-      assert.deepEqual(expected, operation().contractManifestHashes)
-    } })
   const loadPreview = async () => ({ previewPrincipalCutoverSourceEnvelopeInSnapshot:
     async (_snapshot, input) => {
       calls += 1
@@ -245,10 +239,9 @@ test('owner job previews in one read-only RR transaction and publishes non-apply
   const result = await runMain({
     argv: ['--operation-ref', inputRef, '--operation-sha256', digest(body),
       '--source-revision', revision, '--output-ref', outputRef],
-    environment, fetchImpl, Client, loadPreview, loadManifest,
+    environment, fetchImpl, Client, loadPreview,
   })
   assert.equal(calls, 1)
-  assert.equal(manifestCalls, 1)
   assert.equal(result.status, 'READ_ONLY_PREVIEW')
   assert.equal(result.outcome.applyAllowed, false)
   assert.equal(result.reused, false)
@@ -267,19 +260,18 @@ test('owner job previews in one read-only RR transaction and publishes non-apply
   const replay = await runMain({
     argv: ['--operation-ref', inputRef, '--operation-sha256', digest(body),
       '--source-revision', revision, '--output-ref', outputRef],
-    environment, fetchImpl, Client, loadPreview, loadManifest,
+    environment, fetchImpl, Client, loadPreview,
   })
   assert.equal(replay.reused, true)
   assert.equal(replay.outputSha256, result.outputSha256)
   assert.equal(calls, 1)
-  assert.equal(manifestCalls, 1)
   assert.equal(queries.filter((query) => query === 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY').length, 1)
   receiptBytes = Buffer.from(JSON.stringify({ ...JSON.parse(receiptBytes),
     operationId: 'DEV121-CUTOVER-PREVIEW-OTHER' }))
   await assert.rejects(runMain({
     argv: ['--operation-ref', inputRef, '--operation-sha256', digest(body),
       '--source-revision', revision, '--output-ref', outputRef],
-    environment, fetchImpl, Client, loadPreview, loadManifest,
+    environment, fetchImpl, Client, loadPreview,
   }), /DEV121_CUTOVER_PREVIEW_RECEIPT_CONFLICT/)
   assert.equal(calls, 1)
 })
