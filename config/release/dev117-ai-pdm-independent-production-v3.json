@@ -345,6 +345,11 @@
         "order": 18,
         "path": "db/postgres/067_dev121_principal_account_manager_grants_v2.sql",
         "sha256": "7bfd88e239026a39313ac2c3ca5b7d78c7c74e2a2b1ff32a0a9b0555a9605e98"
+      },
+      {
+        "order": 19,
+        "path": "db/postgres/068_dev121_principal_admin_session_revoke.sql",
+        "sha256": "71bf1f48d9cd643c2525b5096ef012a256e1ae271dbfb21e178696204952da75"
       }
     ]
   },
