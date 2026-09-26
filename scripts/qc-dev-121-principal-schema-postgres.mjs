@@ -1135,6 +1135,20 @@ try {
       }), /principal_inventory_mismatch/)
       await client.query(`DELETE FROM orgmaster_contract.v_active_principal_accounts_v1
         WHERE principal_subject='old-firebase-transfer'`)
+      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.users
+        (id,company_id) VALUES ('pdm-user-transfer-collision','company-jenfu')`)
+      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.platform_principal_mappings
+        (platform_principal_id,pdm_user_id,mapping_source,mapping_status,external_subject)
+        VALUES ('legacy-principal-transfer-collision','pdm-user-transfer-collision',
+                'shared_iam','active','new-firebase-transfer')`)
+      await assert.rejects(previewPrincipalAclMigration({
+        database,firebaseProjectId:'test-project',sourceSets:[transfer],
+        cutoverAt:'2026-09-25T04:00:00Z'
+      }), /principal_inventory_mismatch/)
+      await asRole('jenfu_ai_pdm_migrator', `DELETE FROM ai_pdm_core.platform_principal_mappings
+        WHERE platform_principal_id='legacy-principal-transfer-collision'`)
+      await asRole('jenfu_ai_pdm_migrator', `DELETE FROM ai_pdm_core.users
+        WHERE id='pdm-user-transfer-collision'`)
       const preparedTransfer = await previewPrincipalCutoverSourceEnvelope({
         database,firebaseProjectId:'test-project',sourceSets:[transfer],
         cutoverAt:'2026-09-25T04:00:00Z',operationId:'operation-transfer-commit',

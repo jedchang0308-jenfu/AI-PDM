@@ -43,6 +43,7 @@ type InventoryRow = {
   session_invalid_before: Date | string | null;
   source_count: number | string;
   source_user_id: string | null;
+  canonical_local_count: number | string;
   profile_source_count: number | string;
   profile_blocker_count: number | string;
   isolation_level: string;
@@ -169,6 +170,11 @@ export class JenfuPrincipalInventoryRepository {
         ), source_status AS (
           SELECT count(*) AS source_count, min(user_id) AS source_user_id
           FROM local_source
+        ), canonical_local AS (
+          SELECT count(*) AS source_count
+          FROM ai_pdm_core.platform_principal_mappings mapping
+          WHERE mapping.mapping_source = 'shared_iam'
+            AND mapping.external_subject = :identitySubject
         ), profile_status AS (
           SELECT count(*) FILTER (WHERE eligible) AS profile_source_count,
                  count(*) FILTER (WHERE NOT eligible) AS profile_blocker_count
@@ -202,6 +208,7 @@ export class JenfuPrincipalInventoryRepository {
                profile.account_lifecycle_version, profile.system_role_enabled,
                profile.session_invalid_before,
                source_status.source_count, source_status.source_user_id,
+               canonical_local.source_count AS canonical_local_count,
                profile_status.profile_source_count, profile_status.profile_blocker_count,
                current_setting('transaction_isolation') AS isolation_level,
                typed.contract_version, typed.principal_issuer, typed.principal_subject,
@@ -211,6 +218,7 @@ export class JenfuPrincipalInventoryRepository {
                (SELECT min(principal_id) FROM legacy_typed) AS legacy_typed_principal_id
         FROM ai_pdm_core.users profile
         CROSS JOIN source_status
+        CROSS JOIN canonical_local
         CROSS JOIN profile_status
         LEFT JOIN typed ON true
         WHERE profile.id = :pdmUserId
@@ -251,6 +259,7 @@ export class JenfuPrincipalInventoryRepository {
       !Number.isSafeInteger(lifecycleVersion) || lifecycleVersion < 1 ||
       (invalidBefore !== null && !Number.isFinite(invalidBefore)) ||
       Number(row.source_count) !== 1 || row.source_user_id !== input.pdmUserId ||
+      (transfer && Number(row.canonical_local_count) !== 0) ||
       Number(row.profile_source_count) !== expectedSourceCount ||
       Number(row.profile_blocker_count) !== 0 ||
       row.contract_version !== JENFU_ACTIVE_PRINCIPAL_CONTRACT_VERSION ||
