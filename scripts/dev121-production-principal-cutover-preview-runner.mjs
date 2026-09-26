@@ -88,6 +88,7 @@ function verifiedExistingReceipt(existing, operation, args, generation) {
 export async function runMain({ argv = process.argv.slice(2), environment = process.env,
   fetchImpl = fetch, Client = pg.Client,
   loadPreview = () => import('../src/lib/jenfu-principal-acl-migration-preview.ts'),
+  loadManifest = () => import('../src/lib/jenfu-principal-owner-contract-manifest.ts'),
 } = {}) {
   const args = parseInventoryArgs(argv)
   assertRunnerTarget(environment, OPERATOR_TARGET)
@@ -129,6 +130,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     const target = await assertInventoryDatabaseTarget(database, TARGET.login)
     const adapter = inventoryDatabaseAdapter(database)
     const service = await loadPreview()
+    const manifests = await loadManifest()
     const outcome = await adapter.transaction(async (snapshot) => {
       await snapshot.execute('SET LOCAL ROLE jenfu_ai_pdm_migrator')
       await snapshot.execute("SET LOCAL TIME ZONE 'UTC'")
@@ -137,6 +139,8 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       if (times.length !== 1 || !Number.isFinite(Date.parse(times[0].cutover_at))) {
         throw new Error('DEV121_CUTOVER_PREVIEW_TIME_INVALID')
       }
+      await manifests.assertPrincipalOwnerContractManifestHashes(
+        snapshot, operation.contractManifestHashes)
       const envelope = await service.previewPrincipalCutoverSourceEnvelopeInSnapshot(snapshot, {
         firebaseProjectId: operation.firebaseProjectId,
         sourceSets: operation.sourceSets,

@@ -26,6 +26,7 @@ COPY src/lib/jenfu-principal-cutover-source-seal.ts src/lib/jenfu-principal-cuto
 COPY src/lib/jenfu-principal-cutover-workspace-shadow.ts src/lib/jenfu-principal-cutover-workspace-shadow.ts
 COPY src/lib/jenfu-principal-inventory-registration.ts src/lib/jenfu-principal-inventory-registration.ts
 COPY src/lib/jenfu-principal-inventory-repository.ts src/lib/jenfu-principal-inventory-repository.ts
+COPY src/lib/jenfu-principal-owner-contract-manifest.ts src/lib/jenfu-principal-owner-contract-manifest.ts
 COPY src/lib/jenfu-principal-profile-claim-confirmation.mjs src/lib/jenfu-principal-profile-claim-confirmation.mjs
 COPY src/lib/jenfu-principal-source-canonical.ts src/lib/jenfu-principal-source-canonical.ts
 
