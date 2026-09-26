@@ -77,7 +77,7 @@ async function check(name, action) {
 try {
   port = await freePort()
   process.stdout.write(`${JSON.stringify({ runtimeDeclaration: {
-    project: root, purpose: 'DEV-121 isolated PostgreSQL migration 065 schema and ACL QC', port,
+    project: root, purpose: 'DEV-121 isolated PostgreSQL schema, ACL and session-revoke QC', port,
     owningProcessTree: 'qc-dev-121-principal-schema-postgres.mjs -> task-owned PostgreSQL cluster',
     cleanupCondition: 'client closed, cluster stopped, port released, temporary root removed',
     mutationScope: taskRoot, PDM_DATA_DIR: process.env.PDM_DATA_DIR,
@@ -296,6 +296,9 @@ try {
   const principalGrantsMigration = fs.readFileSync(path.join(root,
     'db/postgres/067_dev121_principal_account_manager_grants_v2.sql'), 'utf8')
   await client.query(principalGrantsMigration)
+  const adminSessionRevokeMigration = fs.readFileSync(path.join(root,
+    'db/postgres/068_dev121_principal_admin_session_revoke.sql'), 'utf8')
+  await client.query(adminSessionRevokeMigration)
   await client.query('DROP TABLE orgmaster_contract.v_ai_pdm_effective_role_assignments_v1')
 
   await check('one canonical principal owns one historical PDM profile', async () => {
@@ -1496,6 +1499,65 @@ try {
       JOIN ai_pdm_core.users profile ON profile.id=account.pdm_user_id
       WHERE account.principal_id='principal-target'`)
     assert.deepEqual(row.rows[0], { account_status: 'active', legacy_status: 'suspended' })
+  })
+
+  await check('principal admin session revoke uses its own grant, atomic barrier and immutable replay', async () => {
+    await client.query(`UPDATE ai_pdm_contract.v_application_role_catalog_v1 SET permissions=
+      '[{"kind":"action","code":"accounts.lifecycle.manage","allowed":false},
+        {"kind":"action","code":"accounts.session.revoke","allowed":true}]'::jsonb`)
+    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_session_records
+      (principal_id,session_id_hash,principal_auth_epoch,lifecycle_version,profile_version,
+       authenticated_at,issued_at,expires_at,assurance_level,assurance_policy_hash)
+      VALUES ('principal-target',$1,0,2,1,clock_timestamp(),clock_timestamp(),
+        clock_timestamp()+interval '1 hour','aal1',$2)`, ['e'.repeat(64), 'b'.repeat(64)])
+    const targetId = (await client.query(`SELECT pdm_user_id FROM ai_pdm_core.principal_accounts
+      WHERE principal_id='principal-target'`)).rows[0].pdm_user_id
+    const revoke = async (operationId, reason, pdmUserId = targetId) => {
+      await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE')
+      try {
+        await client.query('SET LOCAL ROLE jenfu_ai_pdm_runtime')
+        const result = await client.query(`SELECT ai_pdm_core.revoke_principal_account_sessions_v1(
+          $1,$2,$3,'company-jenfu','principal-admin','issuer-admin','subject-admin',$4) AS receipt`,
+        [operationId,pdmUserId,reason,'a'.repeat(64)])
+        await client.query('COMMIT')
+        return result.rows[0].receipt
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => undefined)
+        throw error
+      }
+    }
+    const first = await revoke('revoke-target-one','security review')
+    assert.equal(first.accountStatus, 'active')
+    assert.equal(first.lifecycleVersion, 3)
+    assert.equal(first.replayed, false)
+    const after = await client.query(`SELECT account.account_status,
+      account.lifecycle_version,account.session_invalid_before,
+      profile.account_status AS legacy_status,
+      session.revoked_at,session.revoke_reason
+      FROM ai_pdm_core.principal_accounts account
+      JOIN ai_pdm_core.users profile ON profile.id=account.pdm_user_id
+      JOIN ai_pdm_core.principal_session_records session ON session.principal_id=account.principal_id
+      WHERE account.principal_id='principal-target' AND session.session_id_hash=$1`,
+    ['e'.repeat(64)])
+    assert.equal(after.rows[0].account_status, 'active')
+    assert.equal(Number(after.rows[0].lifecycle_version), 3)
+    assert.equal(after.rows[0].legacy_status, 'suspended')
+    assert.ok(after.rows[0].session_invalid_before)
+    assert.ok(after.rows[0].revoked_at)
+    assert.equal(after.rows[0].revoke_reason, 'admin_session_revoke')
+    assert.equal((await revoke('revoke-target-one','security review')).replayed, true)
+    assert.equal((await client.query(`SELECT lifecycle_version FROM ai_pdm_core.principal_accounts
+      WHERE principal_id='principal-target'`)).rows[0].lifecycle_version, '3')
+    await denied(() => revoke('revoke-target-one','changed reason'),
+      /AIPDM_SESSION_REVOKE_OPERATION_CONFLICT/)
+    await denied(() => revoke('revoke-self','not allowed','pdm-user-admin'),
+      /AIPDM_SESSION_REVOKE_SELF_CHANGE_DENIED/)
+    await client.query(`UPDATE ai_pdm_contract.v_application_role_catalog_v1 SET permissions=
+      '[{"kind":"action","code":"accounts.session.revoke","allowed":false}]'::jsonb`)
+    await denied(() => revoke('revoke-target-two','not allowed'),
+      /AIPDM_PROVISION_PERMISSION_DENIED/)
+    assert.equal((await client.query(`SELECT lifecycle_version FROM ai_pdm_core.principal_accounts
+      WHERE principal_id='principal-target'`)).rows[0].lifecycle_version, '3')
   })
 
   await check('principal-active profile rejects old security writers but permits contact edits', async () => {
