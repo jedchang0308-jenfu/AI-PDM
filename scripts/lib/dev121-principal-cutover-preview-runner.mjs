@@ -1,5 +1,6 @@
 import { canonicalize, sha256 } from './dev012-production-migration-runner.mjs'
 import { validateProfileClaimConfirmationBytes } from '../../src/lib/jenfu-principal-profile-claim-confirmation.mjs'
+import { assertOwnerReleaseRefSet } from './dev121-owner-release-proof.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -26,11 +27,13 @@ function exactTime(value) {
 export function assertCutoverPreviewOperation(value, { bytes, operationSha256, sourceRevision }) {
   if (!Buffer.isBuffer(bytes) || sha256(bytes) !== operationSha256) fail('HASH_MISMATCH')
   const v2 = value?.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2'
+  const v3 = value?.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v3'
+  const transferVersion = v2 || v3
   const keys = ['schemaVersion', 'operationId', 'sourceRevision', 'projectId',
     'region', 'database', 'applicationId', 'firebaseProjectId', 'sourceSets',
-    'sourceRevisions', 'contractManifestHashes']
+    'sourceRevisions', 'contractManifestHashes', ...(v3 ? ['ownerReleaseRefs'] : [])]
   if (!exactKeys(value, keys) ||
-      (!v2 && value.schemaVersion !== 'ai-pdm.principal-cutover-preview-operation.v1') ||
+      (!transferVersion && value.schemaVersion !== 'ai-pdm.principal-cutover-preview-operation.v1') ||
       value.projectId !== 'jenfu-platform-prod' || value.region !== 'asia-east1' ||
       value.database !== 'jenfu_prod' || value.applicationId !== 'ai-pdm' ||
       value.sourceRevision !== sourceRevision || !H40.test(sourceRevision ?? '') ||
@@ -43,6 +46,14 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
       value.sourceRevisions.aiPdm !== sourceRevision ||
       !Array.isArray(value.sourceSets) || value.sourceSets.length < 1 ||
       value.sourceSets.length > 32) fail('OPERATION_INVALID')
+  if (v3) {
+    if (!exactKeys(value.ownerReleaseRefs, OWNERS)) fail('OPERATION_INVALID')
+    try {
+      assertOwnerReleaseRefSet('platform', value.ownerReleaseRefs.platform)
+      assertOwnerReleaseRefSet('orgmaster', value.ownerReleaseRefs.orgmaster)
+      assertOwnerReleaseRefSet('ai-pdm', value.ownerReleaseRefs.aiPdm)
+    } catch { fail('OPERATION_INVALID') }
+  }
 
   const sourceKeys = ['pdmUserId', 'companyId', 'principalId', 'employeeId',
     'sourceKind', 'identityIssuer', 'identitySubject', 'mappingVersion', 'publishedAt']
@@ -60,7 +71,7 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
     principals.add(first.principalId)
     const kinds = new Set()
     for (const source of set) {
-      const transfer = v2 && source.claimKind === 'profile_transfer'
+      const transfer = transferVersion && source.claimKind === 'profile_transfer'
       const keysForSource = transfer ? [...sourceKeys, 'claimKind',
         'legacyIdentityIssuer', 'legacyIdentitySubject',
         'confirmationReceiptHash', 'expectedLegacyRole'] : sourceKeys
@@ -98,7 +109,7 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
       kinds.add(source.sourceKind)
     }
   }
-  if (v2 && transferCount === 0) fail('SOURCE_INVALID')
+  if (transferVersion && transferCount === 0) fail('SOURCE_INVALID')
   return value
 }
 
