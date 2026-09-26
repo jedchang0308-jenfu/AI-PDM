@@ -21,6 +21,12 @@ export type PrincipalInventoryCandidate = {
   accountStatus: "active" | "suspended" | "expired" | "offboarded";
   systemRoleEnabled: boolean;
   sessionInvalidBefore: string | null;
+  /** One-time claim fields; absent for the existing exact-pair contract. */
+  claimKind?: "profile_transfer";
+  legacyIdentityIssuer?: string;
+  legacyIdentitySubject?: string;
+  confirmationReceiptHash?: string;
+  expectedLegacyRole?: string;
 };
 
 export type PrincipalInventoryInput = Omit<PrincipalInventoryCandidate,
@@ -29,6 +35,7 @@ export type PrincipalInventoryInput = Omit<PrincipalInventoryCandidate,
 
 type InventoryRow = {
   id: string;
+  role: string;
   company_id: string;
   account_status: string;
   account_lifecycle_version: number | string;
@@ -48,6 +55,8 @@ type InventoryRow = {
   account_type: string | null;
   mapping_version: number | string | null;
   published_at: Date | string | null;
+  legacy_typed_count: number | string;
+  legacy_typed_principal_id: string | null;
 };
 
 export class PrincipalInventoryError extends Error {
@@ -110,12 +119,27 @@ export class JenfuPrincipalInventoryRepository {
       this.locksVerified = true;
     }
     const publishedAt = Date.parse(input.publishedAt);
+    const transfer = input.claimKind === "profile_transfer";
+    const legacyIssuer = transfer ? input.legacyIdentityIssuer : input.identityIssuer;
+    const legacySubject = transfer ? input.legacyIdentitySubject : input.identitySubject;
+    const transferFieldsValid = transfer
+      ? exactText(legacyIssuer) && exactText(legacySubject) &&
+        legacyIssuer === `https://securetoken.google.com/${this.firebaseProjectId}` &&
+        JSON.stringify([legacyIssuer, legacySubject]) !==
+          JSON.stringify([input.identityIssuer, input.identitySubject]) &&
+        typeof input.confirmationReceiptHash === "string" &&
+        /^[0-9a-f]{64}$/u.test(input.confirmationReceiptHash) &&
+        exactText(input.expectedLegacyRole)
+      : input.claimKind === undefined && input.legacyIdentityIssuer === undefined &&
+        input.legacyIdentitySubject === undefined &&
+        input.confirmationReceiptHash === undefined && input.expectedLegacyRole === undefined;
     if (this.client.kind !== "postgres" || !exactText(input.pdmUserId) ||
       !exactText(input.companyId) || !opaquePrincipal(input.principalId) ||
       !exactText(input.employeeId) || !exactText(input.identityIssuer) ||
-      !exactText(input.identitySubject) ||
+      !exactText(input.identitySubject) || !transferFieldsValid ||
       !/^[a-z][a-z0-9-]{0,62}$/u.test(this.firebaseProjectId) ||
       !["firebase_mapping", "google_oauth"].includes(input.sourceKind) ||
+      (transfer && input.sourceKind !== "firebase_mapping") ||
       (this.sourcePolicy === "firebase_bff" && input.sourceKind !== "firebase_mapping") ||
       input.identityIssuer !== (input.sourceKind === "firebase_mapping"
         ? `https://securetoken.google.com/${this.firebaseProjectId}`
@@ -133,7 +157,7 @@ export class JenfuPrincipalInventoryRepository {
           WHERE :sourceKind = 'firebase_mapping'
             AND mapping.mapping_source = 'shared_iam'
             AND mapping.mapping_status = 'active'
-            AND mapping.external_subject = :identitySubject
+            AND mapping.external_subject = :legacySubject
           UNION ALL
           SELECT identity.user_id
           FROM ai_pdm_core.auth_identities identity
@@ -141,7 +165,7 @@ export class JenfuPrincipalInventoryRepository {
             AND identity.provider = 'google_oauth'
             AND identity.status = 'active'
             AND identity.verified_at IS NOT NULL
-            AND identity.provider_subject = :identitySubject
+            AND identity.provider_subject = :legacySubject
         ), source_status AS (
           SELECT count(*) AS source_count, min(user_id) AS source_user_id
           FROM local_source
@@ -162,6 +186,11 @@ export class JenfuPrincipalInventoryRepository {
               AND identity.provider = 'google_oauth'
               AND :sourcePolicy = 'all'
           ) eligible_sources
+        ), legacy_typed AS (
+          SELECT principal_id
+          FROM orgmaster_contract.v_active_principal_accounts_v1
+          WHERE principal_issuer = :legacyIssuer AND principal_subject = :legacySubject
+          FETCH FIRST 3 ROWS ONLY
         ), typed AS (
           SELECT contract_version, principal_issuer, principal_subject, principal_id,
                  employee_id, employee_status, account_type, mapping_version, published_at
@@ -169,7 +198,7 @@ export class JenfuPrincipalInventoryRepository {
           WHERE principal_issuer = :identityIssuer AND principal_subject = :identitySubject
           FETCH FIRST 3 ROWS ONLY
         )
-        SELECT profile.id, profile.company_id, profile.account_status,
+        SELECT profile.id, profile.role, profile.company_id, profile.account_status,
                profile.account_lifecycle_version, profile.system_role_enabled,
                profile.session_invalid_before,
                source_status.source_count, source_status.source_user_id,
@@ -177,7 +206,9 @@ export class JenfuPrincipalInventoryRepository {
                current_setting('transaction_isolation') AS isolation_level,
                typed.contract_version, typed.principal_issuer, typed.principal_subject,
                typed.principal_id, typed.employee_id, typed.employee_status,
-               typed.account_type, typed.mapping_version, typed.published_at
+               typed.account_type, typed.mapping_version, typed.published_at,
+               (SELECT count(*) FROM legacy_typed) AS legacy_typed_count,
+               (SELECT min(principal_id) FROM legacy_typed) AS legacy_typed_principal_id
         FROM ai_pdm_core.users profile
         CROSS JOIN source_status
         CROSS JOIN profile_status
@@ -187,6 +218,8 @@ export class JenfuPrincipalInventoryRepository {
       `, {
         sourceKind: input.sourceKind,
         identitySubject: input.identitySubject,
+        legacyIssuer,
+        legacySubject,
         pdmUserId: input.pdmUserId,
         identityIssuer: input.identityIssuer,
         sourcePolicy: this.sourcePolicy
@@ -199,6 +232,7 @@ export class JenfuPrincipalInventoryRepository {
     const lifecycleVersion = Number(row.account_lifecycle_version);
     const systemRoleEnabled = Number(row.system_role_enabled);
     const mappingVersion = Number(row.mapping_version);
+    const legacyTypedCount = Number(row.legacy_typed_count);
     const producerPublishedAt = row.published_at instanceof Date
       ? row.published_at.getTime() : Date.parse(String(row.published_at ?? ""));
     const invalidBefore = row.session_invalid_before === null ? null :
@@ -207,6 +241,11 @@ export class JenfuPrincipalInventoryRepository {
     if (!(this.mode === "locked_owner_apply" ? row.isolation_level === "read committed" :
       ["repeatable read", "serializable"].includes(row.isolation_level)) ||
       row.id !== input.pdmUserId || row.company_id !== input.companyId ||
+      (transfer && row.role !== input.expectedLegacyRole) ||
+      !Number.isSafeInteger(legacyTypedCount) || legacyTypedCount < 0 ||
+      legacyTypedCount > 1 ||
+      (legacyTypedCount === 1 &&
+        row.legacy_typed_principal_id !== input.principalId) ||
       !["active", "suspended", "expired", "offboarded"].includes(row.account_status) ||
       ![0, 1].includes(systemRoleEnabled) ||
       !Number.isSafeInteger(lifecycleVersion) || lifecycleVersion < 1 ||

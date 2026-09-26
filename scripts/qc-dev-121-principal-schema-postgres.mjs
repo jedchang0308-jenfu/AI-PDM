@@ -1083,6 +1083,85 @@ try {
       } finally {
         await client.query('ROLLBACK')
       }
+      // A transferred profile has no safe v1 marker: the local Firebase UID
+      // identifies the old PDM profile, while the new pair proves principal.
+      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.users
+        (id,company_id) VALUES ('pdm-user-transfer','company-jenfu')`)
+      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.platform_principal_mappings
+        (platform_principal_id,pdm_user_id,mapping_source,mapping_status,external_subject)
+        VALUES ('legacy-principal-transfer','pdm-user-transfer','shared_iam',
+                'active','old-firebase-transfer')`)
+      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.account_session_records
+        (id,user_id) VALUES ('old-session-transfer','pdm-user-transfer')`)
+      await client.query(`INSERT INTO orgmaster_contract.v_active_principal_accounts_v1
+        (principal_issuer,principal_subject,principal_id,employee_id,account_type,
+         contract_version,employee_status,mapping_version,published_at)
+        VALUES ('https://securetoken.google.com/test-project','new-firebase-transfer',
+                'principal-transfer','employee-transfer','human_personal',
+                'organization.active-principal.v1','active',1,$1)`, [publishedAt])
+      await client.query(`INSERT INTO platform_contract.principal_state_fixture
+        VALUES ('principal-transfer',1,NULL,1)`)
+      await client.query(`INSERT INTO orgmaster_contract.v_ai_pdm_entitlement_authority_v1
+        VALUES ('employee-transfer',1,'jenfu.platform-entitlement.v1',
+                'ai-pdm','legacy_authority')`)
+      const transfer = [{ pdmUserId:'pdm-user-transfer',companyId:'company-jenfu',
+        principalId:'principal-transfer',employeeId:'employee-transfer',
+        identityIssuer:'https://securetoken.google.com/test-project',
+        identitySubject:'new-firebase-transfer',sourceKind:'firebase_mapping',
+        mappingVersion:1,publishedAt,claimKind:'profile_transfer',
+        legacyIdentityIssuer:'https://securetoken.google.com/test-project',
+        legacyIdentitySubject:'old-firebase-transfer',
+        confirmationReceiptHash:'9'.repeat(64),expectedLegacyRole:'Engineer' }]
+      await assert.rejects(previewPrincipalInventory(database,'test-project',transfer),
+        /principal_inventory_registration_invalid/)
+      await assert.rejects(previewPrincipalAclMigration({
+        database,firebaseProjectId:'test-project',sourceSets:[[{
+          ...transfer[0],confirmationReceiptHash:undefined }]],
+        cutoverAt:'2026-09-25T04:00:00Z'
+      }), /principal_inventory_invalid/)
+      await assert.rejects(previewPrincipalAclMigration({
+        database,firebaseProjectId:'test-project',sourceSets:[[{ ...transfer[0],
+          expectedLegacyRole:'Admin' }]],cutoverAt:'2026-09-25T04:00:00Z'
+      }), /principal_inventory_mismatch/)
+      await client.query(`INSERT INTO orgmaster_contract.v_active_principal_accounts_v1
+        (principal_issuer,principal_subject,principal_id,employee_id,account_type,
+         contract_version,employee_status,mapping_version,published_at)
+        VALUES ('https://securetoken.google.com/test-project','old-firebase-transfer',
+                'principal-other-transfer','employee-other-transfer','human_personal',
+                'organization.active-principal.v1','active',1,$1)`, [publishedAt])
+      await assert.rejects(previewPrincipalAclMigration({
+        database,firebaseProjectId:'test-project',sourceSets:[transfer],
+        cutoverAt:'2026-09-25T04:00:00Z'
+      }), /principal_inventory_mismatch/)
+      await client.query(`DELETE FROM orgmaster_contract.v_active_principal_accounts_v1
+        WHERE principal_subject='old-firebase-transfer'`)
+      const preparedTransfer = await previewPrincipalCutoverSourceEnvelope({
+        database,firebaseProjectId:'test-project',sourceSets:[transfer],
+        cutoverAt:'2026-09-25T04:00:00Z',operationId:'operation-transfer-commit',
+        sourceRevisions:{platform:'a'.repeat(40),orgmaster:'b'.repeat(40),aiPdm:'c'.repeat(40)},
+        contractManifestHashes:{platform:'d'.repeat(64),orgmaster:'e'.repeat(64),aiPdm:'f'.repeat(64)}
+      })
+      assert.equal(preparedTransfer.accounts[0].markerRowVersion,0)
+      await client.query('BEGIN ISOLATION LEVEL READ COMMITTED')
+      try {
+        await client.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
+        const current = await requireCurrentPrincipalCutoverSource(adapter,preparedTransfer)
+        assert.equal(current.status,'current')
+        await materializePrincipalCutoverInOwnerTransaction(adapter,current)
+        await client.query('COMMIT')
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => undefined)
+        throw error
+      }
+      const transferred = await client.query(`SELECT marker.status,marker.principal_id,
+        marker.row_version,old_session.revoked_at
+        FROM ai_pdm_core.principal_identity_cutovers marker
+        JOIN ai_pdm_core.account_session_records old_session
+          ON old_session.user_id=marker.pdm_user_id
+        WHERE marker.pdm_user_id='pdm-user-transfer'`)
+      assert.deepEqual(transferred.rows.map((row) => [row.status,row.principal_id,
+        Number(row.row_version),Boolean(row.revoked_at)]),
+      [['principal_active','principal-transfer',1,true]])
     })
     await check('runtime principal ACL uses the installed 065 schema and exact principal', async () => {
       const { PrincipalLocalAclRepository } = await import(pathToFileURL(

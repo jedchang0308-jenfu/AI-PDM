@@ -67,6 +67,33 @@ test('preview operation binds exact owner target and rejects alias or source amb
     '--output-ref', outputRef], environment }), /MIGRATION_GCS_/u)
 })
 
+test('v2 preview binds a one-time profile claim and rejects ambiguous transfer', () => {
+  const transfer = { ...source, claimKind: 'profile_transfer',
+    identitySubject: 'new-uid-one',
+    legacyIdentityIssuer: source.identityIssuer,
+    legacyIdentitySubject: source.identitySubject,
+    confirmationReceiptHash: '1'.repeat(64), expectedLegacyRole: 'Engineer' }
+  const v2 = { ...operation(),
+    schemaVersion: 'ai-pdm.principal-cutover-preview-operation.v2',
+    sourceSets: [[transfer]] }
+  const validate = (value) => {
+    const bytes = Buffer.from(JSON.stringify(value))
+    return assertCutoverPreviewOperation(value, {
+      bytes, operationSha256: digest(bytes), sourceRevision: revision })
+  }
+  assert.deepEqual(validate(v2), v2)
+  for (const changed of [
+    { ...v2, sourceSets: [[{ ...transfer, confirmationReceiptHash: undefined }]] },
+    { ...v2, sourceSets: [[{ ...transfer, legacyIdentitySubject: 'new-uid-one' }]] },
+    { ...v2, sourceSets: [[{ ...transfer, expectedLegacyRole: '' }]] },
+    { ...v2, sourceSets: [[{ ...transfer, email: 'guess@example.com' }]] },
+    { ...v2, sourceSets: [[transfer], [{ ...source,
+      pdmUserId: 'pdm-two', principalId: 'principal-two',
+      identitySubject: source.identitySubject }]] },
+    { ...v2, sourceSets: [[source]] },
+  ]) assert.throws(() => validate(changed), /DEV121_CUTOVER_PREVIEW_/)
+})
+
 test('summary cannot claim apply authority and requires complete source hashes', () => {
   const envelope = {
     cutoverAt: '2026-09-25T04:00:00.000Z', cohort: [{ pdmUserId: 'pdm-one',

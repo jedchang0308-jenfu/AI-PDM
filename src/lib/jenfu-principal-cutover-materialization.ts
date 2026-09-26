@@ -148,7 +148,13 @@ export async function materializePrincipalCutoverInOwnerTransaction(
     cohortHash: input.seal.cohortHash, resultJson: JSON.stringify(result), activatedAt });
   if (receipt.length !== 1 || receipt[0].operation_id !== input.operationId) invalid();
   for (const account of input.source.accounts) {
-    const marker = await client.query<{ pdm_user_id: string }>(`
+    const markerSql = account.markerRowVersion === 0 ? `
+      INSERT INTO ai_pdm_core.principal_identity_cutovers
+        (pdm_user_id,principal_id,status,source_hash,operation_id,activated_at)
+      VALUES (:pdmUserId,:principalId,'principal_active',:sourceHash,
+              :operationId,:activatedAt)
+      RETURNING pdm_user_id
+    ` : `
       UPDATE ai_pdm_core.principal_identity_cutovers
       SET status='principal_active',source_hash=:sourceHash,
           operation_id=:operationId,activated_at=:activatedAt,
@@ -156,7 +162,9 @@ export async function materializePrincipalCutoverInOwnerTransaction(
       WHERE pdm_user_id=:pdmUserId AND principal_id=:principalId
         AND status='legacy_compatible' AND row_version=:markerRowVersion
       RETURNING pdm_user_id
-    `, { pdmUserId: account.pdmUserId, principalId: account.principalId,
+    `;
+    const marker = await client.query<{ pdm_user_id: string }>(markerSql,
+      { pdmUserId: account.pdmUserId, principalId: account.principalId,
       markerRowVersion: account.markerRowVersion, sourceHash: input.seal.sourceHash,
       operationId: input.operationId, activatedAt });
     if (marker.length !== 1 || marker[0].pdm_user_id !== account.pdmUserId) invalid();
