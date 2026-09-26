@@ -7,6 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import pg from 'pg'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -1104,6 +1105,19 @@ try {
       await client.query(`INSERT INTO orgmaster_contract.v_ai_pdm_entitlement_authority_v1
         VALUES ('employee-transfer',1,'jenfu.platform-entitlement.v1',
                 'ai-pdm','legacy_authority')`)
+      const confirmation = {
+        schemaVersion:'ai-pdm.profile-claim-confirmation.v1',
+        pdmUserId:'pdm-user-transfer',companyId:'company-jenfu',
+        principalId:'principal-transfer',employeeId:'employee-transfer',
+        identityIssuer:'https://securetoken.google.com/test-project',
+        identitySubject:'new-firebase-transfer',
+        legacyIdentityIssuer:'https://securetoken.google.com/test-project',
+        legacyIdentitySubject:'old-firebase-transfer',expectedLegacyRole:'Engineer',
+        confirmedBy:'human-reviewer',confirmedAt:'2026-09-25T04:00:00.000Z',
+        humanSourceRef:'human-decision-reference'
+      }
+      const confirmationBytes = Buffer.from(JSON.stringify(confirmation))
+      const confirmationHash = createHash('sha256').update(confirmationBytes).digest('hex')
       const transfer = [{ pdmUserId:'pdm-user-transfer',companyId:'company-jenfu',
         principalId:'principal-transfer',employeeId:'employee-transfer',
         identityIssuer:'https://securetoken.google.com/test-project',
@@ -1111,7 +1125,7 @@ try {
         mappingVersion:1,publishedAt,claimKind:'profile_transfer',
         legacyIdentityIssuer:'https://securetoken.google.com/test-project',
         legacyIdentitySubject:'old-firebase-transfer',
-        confirmationReceiptHash:'9'.repeat(64),expectedLegacyRole:'Engineer' }]
+        confirmationReceiptHash:confirmationHash,expectedLegacyRole:'Engineer' }]
       await assert.rejects(previewPrincipalInventory(database,'test-project',transfer),
         /principal_inventory_registration_invalid/)
       await assert.rejects(previewPrincipalAclMigration({
@@ -1156,6 +1170,39 @@ try {
         contractManifestHashes:{platform:'d'.repeat(64),orgmaster:'e'.repeat(64),aiPdm:'f'.repeat(64)}
       })
       assert.equal(preparedTransfer.accounts[0].markerRowVersion,0)
+      const { bindPrincipalTransferConfirmations } = await import(pathToFileURL(
+        path.join(root, 'src/lib/jenfu-principal-cutover-source-gate.ts')).href)
+      await client.query('BEGIN ISOLATION LEVEL READ COMMITTED')
+      try {
+        await client.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
+        await assert.rejects(requireCurrentPrincipalCutoverSource(adapter,preparedTransfer),
+          /PRINCIPAL_TRANSFER_CONFIRMATION_REQUIRED/)
+      } finally {
+        await client.query('ROLLBACK')
+      }
+      assert.throws(() => bindPrincipalTransferConfirmations(preparedTransfer,
+        new Map([[confirmationHash,Buffer.from('{}')]])),
+      /PRINCIPAL_TRANSFER_CONFIRMATION_INVALID/)
+      const mismatched = Buffer.from(JSON.stringify({ ...confirmation,
+        employeeId:'employee-other' }))
+      const mismatchedHash = createHash('sha256').update(mismatched).digest('hex')
+      const mismatchedSource = { ...preparedTransfer, sourceSets:[[{ ...transfer[0],
+        confirmationReceiptHash:mismatchedHash }]] }
+      assert.throws(() => bindPrincipalTransferConfirmations(mismatchedSource,
+        new Map([[mismatchedHash,mismatched]])),
+      /PRINCIPAL_TRANSFER_CONFIRMATION_INVALID/)
+      bindPrincipalTransferConfirmations(preparedTransfer,
+        new Map([[confirmationHash,confirmationBytes]]))
+      preparedTransfer.sourceSets[0][0].expectedLegacyRole = 'Admin'
+      await client.query('BEGIN ISOLATION LEVEL READ COMMITTED')
+      try {
+        await client.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
+        await assert.rejects(requireCurrentPrincipalCutoverSource(adapter,preparedTransfer),
+          /PRINCIPAL_TRANSFER_CONFIRMATION_REQUIRED/)
+      } finally {
+        await client.query('ROLLBACK')
+      }
+      preparedTransfer.sourceSets[0][0].expectedLegacyRole = 'Engineer'
       await client.query('BEGIN ISOLATION LEVEL READ COMMITTED')
       try {
         await client.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')

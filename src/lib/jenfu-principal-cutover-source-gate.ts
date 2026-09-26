@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
   readPrincipalAclMigrationSource, type PrincipalAclMigrationSourceInput
@@ -16,6 +17,80 @@ export type PreparedPrincipalCutoverSource = PrincipalAclMigrationSourceInput &
     };
 
 const verifiedGates = new WeakMap<object, AsyncDatabaseClient>();
+// This is an in-process prerequisite for the owner apply, not proof that the
+// named human actually approved a claim. The owner runner must fetch the
+// restricted receipt object and verify its provenance before calling it.
+const transferConfirmations = new WeakMap<object, string>();
+const confirmationFields = [
+  "schemaVersion", "pdmUserId", "companyId", "principalId", "employeeId",
+  "identityIssuer", "identitySubject", "legacyIdentityIssuer",
+  "legacyIdentitySubject", "expectedLegacyRole", "confirmedBy",
+  "confirmedAt", "humanSourceRef"
+] as const;
+const claimFields = [
+  "pdmUserId", "companyId", "principalId", "employeeId",
+  "identityIssuer", "identitySubject", "legacyIdentityIssuer",
+  "legacyIdentitySubject", "expectedLegacyRole"
+] as const;
+
+function exactText(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 255 &&
+    value.trim() === value && !/[\u0000-\u001f\u007f]/u.test(value);
+}
+
+function exactTime(value: unknown): value is string {
+  return typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(value) &&
+    Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+}
+
+function transferFingerprint(prepared: PreparedPrincipalCutoverSource): string {
+  return createHash("sha256").update(JSON.stringify({
+    inputHash: prepared.inputHash, sourceSets: prepared.sourceSets
+  })).digest("hex");
+}
+
+/** Bind exact confirmation bytes to this prepared source before owner apply. */
+export function bindPrincipalTransferConfirmations(
+  prepared: PreparedPrincipalCutoverSource,
+  receipts: ReadonlyMap<string, Buffer>
+): void {
+  if (!prepared || !Array.isArray(prepared.sourceSets) || !(receipts instanceof Map)) {
+    throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
+  }
+  const transfers = prepared.sourceSets.flat().filter((source) =>
+    source?.claimKind === "profile_transfer");
+  if (transfers.length !== receipts.size || transfers.length === 0) {
+    throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
+  }
+  const used = new Set<string>();
+  for (const source of transfers) {
+    const hash = source.confirmationReceiptHash;
+    const bytes = hash && receipts.get(hash);
+    if (!hash || !/^[a-f0-9]{64}$/u.test(hash) || used.has(hash) ||
+        !Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > 16384 ||
+        createHash("sha256").update(bytes).digest("hex") !== hash) {
+      throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
+    }
+    let parsed: unknown;
+    try { parsed = JSON.parse(bytes.toString("utf8")); }
+    catch { throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID"); }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
+    }
+    const value = parsed as Record<string, unknown>;
+    if (JSON.stringify(Object.keys(value).sort()) !==
+          JSON.stringify([...confirmationFields].sort()) ||
+        value.schemaVersion !== "ai-pdm.profile-claim-confirmation.v1" ||
+        claimFields.some((field) => value[field] !== source[field]) ||
+        !exactText(value.confirmedBy) || !exactTime(value.confirmedAt) ||
+        !exactText(value.humanSourceRef)) {
+      throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
+    }
+    used.add(hash);
+  }
+  transferConfirmations.set(prepared, transferFingerprint(prepared));
+}
 
 function freezeFacts(value: unknown): void {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return;
@@ -71,6 +146,11 @@ export async function requireCurrentPrincipalCutoverSource(
     client, prepared.operationId, ids, prepared.inputHash, prepared.cohortHash
   );
   if (locked.status === "replayed") return locked;
+  if (prepared.sourceSets.some((set) =>
+      set[0].claimKind === "profile_transfer") &&
+      transferConfirmations.get(prepared) !== transferFingerprint(prepared)) {
+    throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_REQUIRED");
+  }
   const current = await readPrincipalAclMigrationSource(client, prepared, "locked_owner_apply");
   if (current.workspaceShadow.status !== "pass") {
     throw new Error("PRINCIPAL_CUTOVER_WORKSPACE_SHADOW_INCOMPLETE");
