@@ -53,8 +53,8 @@ export async function requireCurrentPrincipalCutoverSource(
 ) {
   if (client.kind !== "postgres" || !prepared ||
     !Array.isArray(prepared.sourceSets) ||
-    prepared.sourceSets.some((set) => !Array.isArray(set) || set.length < 1 ||
-      set.length > 2 || set.some((row) => !row?.pdmUserId ||
+    prepared.sourceSets.some((set) => !Array.isArray(set) || set.length !== 1 ||
+      set.some((row) => !row?.pdmUserId ||
         row.pdmUserId !== set[0]?.pdmUserId)) ||
     !/^[0-9a-f]{64}$/u.test(prepared.cohortHash) ||
     !/^[0-9a-f]{64}$/u.test(prepared.sourceHash) ||

@@ -55,12 +55,13 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     } else {
       const service = await loadInventory()
       outcome = operation.mode === 'preview'
-        ? await service.previewPrincipalInventory(adapter, operation.firebaseProjectId, operation.sources)
+        ? await service.previewPrincipalInventory(adapter, operation.firebaseProjectId,
+          operation.sources, 'firebase_bff')
         : await service.registerPrincipalInventory(adapter, operation.firebaseProjectId, {
           sources: operation.sources,
           expectedSourceHash: operation.expectedSourceHash,
           expectedRowVersion: operation.expectedRowVersion,
-        })
+        }, 'firebase_bff')
     }
     // A retry after DB commit but before GCS publication must produce identical bytes.
     const publishedOutcome = { ...outcome }

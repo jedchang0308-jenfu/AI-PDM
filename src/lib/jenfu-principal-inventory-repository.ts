@@ -3,6 +3,8 @@ import { JENFU_ACTIVE_PRINCIPAL_CONTRACT_VERSION } from "@/lib/jenfu-principal-a
 import { requirePrincipalCutoverSourceLocks } from "@/lib/jenfu-principal-cutover-locks";
 
 export type PrincipalInventorySource = "firebase_mapping" | "google_oauth";
+/** Production accepts firebase_bff; all is an explicit historical-fixture mode. */
+export type PrincipalInventorySourcePolicy = "all" | "firebase_bff";
 
 export type PrincipalInventoryCandidate = {
   pdmUserId: string;
@@ -70,7 +72,8 @@ export class JenfuPrincipalInventoryRepository {
   constructor(
     private readonly client: Pick<AsyncDatabaseClient, "kind" | "query" | "queryOne">,
     private readonly firebaseProjectId: string,
-    private readonly mode: "snapshot" | "locked_owner_apply" = "snapshot"
+    private readonly mode: "snapshot" | "locked_owner_apply" = "snapshot",
+    private readonly sourcePolicy: PrincipalInventorySourcePolicy = "firebase_bff"
   ) {}
 
   async requireExactCandidate(input: PrincipalInventoryInput): Promise<PrincipalInventoryCandidate> {
@@ -80,6 +83,8 @@ export class JenfuPrincipalInventoryRepository {
   async requireExactCandidateSet(inputs: PrincipalInventoryInput[]): Promise<PrincipalInventoryCandidate[]> {
     if (!Array.isArray(inputs) || inputs.length < 1 || inputs.length > 2 ||
       new Set(inputs.map((input) => input?.sourceKind)).size !== inputs.length ||
+      (this.sourcePolicy === "firebase_bff" &&
+        (inputs.length !== 1 || inputs[0]?.sourceKind !== "firebase_mapping")) ||
       inputs.some((input) => !input || input.pdmUserId !== inputs[0].pdmUserId ||
         input.companyId !== inputs[0].companyId ||
         input.principalId !== inputs[0].principalId ||
@@ -111,6 +116,7 @@ export class JenfuPrincipalInventoryRepository {
       !exactText(input.identitySubject) ||
       !/^[a-z][a-z0-9-]{0,62}$/u.test(this.firebaseProjectId) ||
       !["firebase_mapping", "google_oauth"].includes(input.sourceKind) ||
+      (this.sourcePolicy === "firebase_bff" && input.sourceKind !== "firebase_mapping") ||
       input.identityIssuer !== (input.sourceKind === "firebase_mapping"
         ? `https://securetoken.google.com/${this.firebaseProjectId}`
         : "https://accounts.google.com") ||
@@ -154,6 +160,7 @@ export class JenfuPrincipalInventoryRepository {
             FROM ai_pdm_core.auth_identities identity
             WHERE identity.user_id = :pdmUserId
               AND identity.provider = 'google_oauth'
+              AND :sourcePolicy = 'all'
           ) eligible_sources
         ), typed AS (
           SELECT contract_version, principal_issuer, principal_subject, principal_id,
@@ -177,7 +184,7 @@ export class JenfuPrincipalInventoryRepository {
         LEFT JOIN typed ON true
         WHERE profile.id = :pdmUserId
         FETCH FIRST 3 ROWS ONLY
-      `, input);
+      `, { ...input, sourcePolicy: this.sourcePolicy });
     } catch {
       throw new PrincipalInventoryError("principal_inventory_unavailable");
     }

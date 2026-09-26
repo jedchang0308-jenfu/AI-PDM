@@ -3,7 +3,9 @@ import { canonicalize, sha256 } from './dev012-production-migration-runner.mjs'
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const OWNERS = ['platform', 'orgmaster', 'aiPdm']
-const SOURCE_KINDS = new Set(['firebase_mapping', 'google_oauth'])
+// The source-bound Production preview uses the current firebase_bff entry.
+// Historical local Google OAuth rows are retained for audit, not re-admitted.
+const SOURCE_KINDS = new Set(['firebase_mapping'])
 
 function fail(code) { throw new Error(`DEV121_CUTOVER_PREVIEW_${code}`) }
 function exactKeys(value, keys) {
@@ -46,7 +48,7 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
   const principals = new Set()
   const aliases = new Set()
   for (const set of value.sourceSets) {
-    if (!Array.isArray(set) || set.length < 1 || set.length > 2) fail('SOURCE_INVALID')
+    if (!Array.isArray(set) || set.length !== 1) fail('SOURCE_INVALID')
     const first = set[0]
     if (profiles.has(first?.pdmUserId) || principals.has(first?.principalId)) fail('SOURCE_INVALID')
     profiles.add(first.pdmUserId)
@@ -60,9 +62,7 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
         !exactText(source.pdmUserId) || !exactText(source.companyId) ||
         !exactText(source.principalId) || source.principalId.startsWith('pdm:') ||
         !exactText(source.employeeId) || !exactText(source.identitySubject) ||
-        source.identityIssuer !== (source.sourceKind === 'firebase_mapping'
-          ? `https://securetoken.google.com/${value.firebaseProjectId}`
-          : 'https://accounts.google.com') ||
+        source.identityIssuer !== `https://securetoken.google.com/${value.firebaseProjectId}` ||
         !Number.isSafeInteger(source.mappingVersion) || source.mappingVersion < 1 ||
         !exactTime(source.publishedAt)) fail('SOURCE_INVALID')
       const alias = JSON.stringify([source.identityIssuer, source.identitySubject])

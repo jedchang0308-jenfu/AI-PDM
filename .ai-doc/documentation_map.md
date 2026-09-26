@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-26 DEV-121 R5 現行診斷／來源 policy**：[同一 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄 R5 私有 profile label、三個未映射 Firebase pair、共用信箱承接與正式 `firebase_bff` 來源集合；歷史 Google OAuth 列不作當前登入證據。局部修正尚未發布，權限切換與 L4 仍停用。
+
 > **2026-09-26 DEV-121 目前缺列證據**：[DEV-121 雙 owner Production readback](specs/DEV-121-target-authorization-boundary.md)保留 AI-PDM R4／OrgMaster 精確 pair hash receipt、五組 producer 來源缺列與後續停止條件；private profile label 僅供查明 owner，不作 email mapping。沿用 DEV-121 子任務，不新增主任務。
 
 > **架構定案：已定案／RD Implementation Ready（Documents Only）**：[AIPDM/DEV-121 單一交接入口](specs/DEV-121-target-authorization-boundary.md#architecture-final)固定目前 owner 契約、來源／雜湊與失敗／恢復；與 JENFU/DEV-015 同名節對齊。沿用原子任務，先依相依順序實作；consumer conformance／recovery／Production L4 尚未完成。下方歷史紀錄不覆蓋此入口。 本輪再審核補 session／epoch 同快照、cutover 鎖後完整來源捕捉及 provision replay 分支；相關案例未執行。

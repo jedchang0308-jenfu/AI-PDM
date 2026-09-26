@@ -51,6 +51,8 @@ test('operation is source-frozen, exact-target, principal-only and has no email 
     { ...operation(), email: 'guess@example.com' },
     { ...operation(), projectId: 'other-project' },
     { ...operation(), sources: [{ ...source, identityIssuer: 'https://accounts.google.com' }] },
+    { ...operation(), sources: [{ ...source, sourceKind: 'google_oauth',
+      identityIssuer: 'https://accounts.google.com' }] },
     { ...operation(), sources: [source, source] },
     { ...operation(), sources: [{ ...source, mappingVersion: 0 }] },
     { ...operation(), sources: [{ ...source, principalId: 'pdm:pdm-one' }] },
@@ -125,11 +127,15 @@ test('register receipt is byte-identical after an unknown-outcome retry', async 
     async end() {}
   }
   let calls = 0
-  const loadInventory = async () => ({ registerPrincipalInventory: async () => ({
+  const loadInventory = async () => ({ registerPrincipalInventory: async (
+    _database, _firebaseProjectId, _input, sourcePolicy) => {
+    assert.equal(sourcePolicy, 'firebase_bff')
+    return {
     pdmUserId: source.pdmUserId, principalId: source.principalId,
     status: 'legacy_compatible', sourceHash: 'b'.repeat(64),
     rowVersion: 1, replayed: calls++ > 0,
-  }) })
+    }
+  } })
   const argv = ['--operation-ref', inputRef, '--operation-sha256', hash(body),
     '--source-revision', revision, '--output-ref', outputRef]
   const first = await runMain({ argv, environment, fetchImpl, Client, loadInventory })

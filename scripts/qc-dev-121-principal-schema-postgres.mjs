@@ -396,7 +396,7 @@ try {
                 'human_personal','organization.active-principal.v1','active',2,$1),
                ('https://accounts.google.com','google-subject','principal-google','employee-google',
                 'human_personal','organization.active-principal.v1','active',3,$1)`, [publishedAt])
-      const read = async (candidate, isolation = 'REPEATABLE READ') => {
+      const read = async (candidate, isolation = 'REPEATABLE READ', sourcePolicy = 'firebase_bff') => {
         await client.query(`BEGIN TRANSACTION ISOLATION LEVEL ${isolation} READ ONLY`)
         try {
           await client.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
@@ -409,7 +409,8 @@ try {
             })
             return (await client.query(bound, names.map((name) => params[name]))).rows
           } }
-          const repository = new JenfuPrincipalInventoryRepository(adapter, 'test-project')
+          const repository = new JenfuPrincipalInventoryRepository(
+            adapter, 'test-project', 'snapshot', sourcePolicy)
           const result = Array.isArray(candidate)
             ? await repository.requireExactCandidateSet(candidate)
             : await repository.requireExactCandidate(candidate)
@@ -429,7 +430,7 @@ try {
         employeeId: 'employee-google', identityIssuer: 'https://accounts.google.com',
         identitySubject: 'google-subject', sourceKind: 'google_oauth', mappingVersion: 3 }
       assert.equal((await read(firebase)).principalId, 'principal-inventory')
-      assert.equal((await read(google)).principalId, 'principal-google')
+      assert.equal((await read(google, 'REPEATABLE READ', 'all')).principalId, 'principal-google')
       const { lockPrincipalCutoverOwnerSources } = await import(pathToFileURL(
         path.join(root, 'src/lib/jenfu-principal-cutover-locks.ts')).href)
       await client.query('BEGIN ISOLATION LEVEL READ COMMITTED')
@@ -464,7 +465,7 @@ try {
         SET account_status='suspended',system_role_enabled=0,
             account_lifecycle_version=4,session_invalid_before=$1
         WHERE id='pdm-user-google'`, [barrier])
-      const suspended = await read(google)
+      const suspended = await read(google, 'REPEATABLE READ', 'all')
       assert.equal(suspended.accountStatus, 'suspended')
       assert.equal(suspended.systemRoleEnabled, false)
       assert.equal(suspended.lifecycleVersion, 4)
@@ -502,32 +503,45 @@ try {
         (id,user_id,provider,provider_subject,status,verified_at)
         VALUES ('disabled-inventory','pdm-user-inventory','google_oauth',
                 'old-google-subject','disabled',NULL)`)
-      await assert.rejects(read(firebase), /principal_inventory_mismatch/)
+      await assert.rejects(read(firebase, 'REPEATABLE READ', 'all'), /principal_inventory_mismatch/)
+      assert.equal((await read(firebase)).principalId,
+        'principal-inventory')
+      await assert.rejects(read(google, 'REPEATABLE READ', 'firebase_bff'),
+        /principal_inventory_invalid/)
       await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.platform_principal_mappings
         (platform_principal_id,pdm_user_id,mapping_source,mapping_status,external_subject)
         VALUES ('legacy-principal-google','pdm-user-google','shared_iam','active','other-firebase-subject')`)
-      await assert.rejects(read(google), /principal_inventory_mismatch/)
+      await assert.rejects(read(google, 'REPEATABLE READ', 'all'),
+        /principal_inventory_mismatch/)
       const firebaseAlias = { ...google, sourceKind: 'firebase_mapping',
         identityIssuer: 'https://securetoken.google.com/test-project',
         identitySubject: 'other-firebase-subject', mappingVersion: 4 }
-      await assert.rejects(read([google, firebaseAlias]), /principal_inventory_mismatch/)
+      await assert.rejects(read([google, firebaseAlias], 'REPEATABLE READ', 'all'),
+        /principal_inventory_mismatch/)
       await client.query(`INSERT INTO orgmaster_contract.v_active_principal_accounts_v1
         (principal_issuer,principal_subject,principal_id,employee_id,account_type,
          contract_version,employee_status,mapping_version,published_at)
         VALUES ('https://securetoken.google.com/test-project','other-firebase-subject',
                 'principal-google','employee-google','human_personal',
                 'organization.active-principal.v1','active',4,$1)`, [publishedAt])
-      const complete = await read([google, firebaseAlias])
+      const complete = await read([google, firebaseAlias], 'REPEATABLE READ', 'all')
       assert.equal(complete.length, 2)
       assert.ok(complete.every((entry) => entry.principalId === 'principal-google' &&
         entry.accountStatus === 'suspended'))
-      await assert.rejects(read([google, { ...firebaseAlias, principalId: 'principal-other' }]),
+      assert.equal((await read(firebaseAlias, 'REPEATABLE READ', 'firebase_bff')).principalId,
+        'principal-google')
+      await assert.rejects(read([google, firebaseAlias], 'REPEATABLE READ', 'firebase_bff'),
         /principal_inventory_invalid/)
-      await assert.rejects(read([google, google]), /principal_inventory_invalid/)
+      await assert.rejects(read([google, { ...firebaseAlias, principalId: 'principal-other' }],
+        'REPEATABLE READ', 'all'),
+        /principal_inventory_invalid/)
+      await assert.rejects(read([google, google], 'REPEATABLE READ', 'all'),
+        /principal_inventory_invalid/)
       await client.query(`UPDATE orgmaster_contract.v_active_principal_accounts_v1
         SET account_type='human_privileged'
         WHERE principal_subject='other-firebase-subject'`)
-      await assert.rejects(read([google, firebaseAlias]), /principal_inventory_mismatch/)
+      await assert.rejects(read([google, firebaseAlias], 'REPEATABLE READ', 'all'),
+        /principal_inventory_mismatch/)
     })
     await check('owner inventory and cutover source gate commit, rollback and replay', async () => {
       const { previewPrincipalInventory, registerPrincipalInventory } = await import(pathToFileURL(
