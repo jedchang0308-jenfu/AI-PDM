@@ -105,4 +105,36 @@ describe("DEV-121 workspace behavior shadow", () => {
     expect(() => assess(source(), { rolePermissions: [permission, permission] }))
       .toThrow("PRINCIPAL_WORKSPACE_SHADOW_INVALID");
   });
+
+  it("keeps the sealed shadow independent of host locale collation", () => {
+    const input = source();
+    input.profiles.push({ pdmUserId: "pdm-Z", principalId: "principal-Z",
+      legacyRole: "Engineer", accountType: "human_personal", systemRoleEnabled: true });
+    input.assignments.push({ id: "assignment-Z", userId: "pdm-Z", roleId: "role-qa",
+      reason: "review", scopeTemplate: "own_department", namedScope: "",
+      sponsorUserId: null, startsAt: null, reviewDueAt: null, hardEndsAt: null,
+      assignedBy: "pdm-one", assignedAt: "2026-09-24 12:00:00+00",
+      revokedAt: null, revokedBy: null });
+    input.delegations.push({ id: "delegation-Z", delegatedFrom: "pdm-one",
+      delegatedTo: "pdm-Z", projectCode: "project-one", actionCode: null,
+      startsAt: null, endsAt: null, reason: "cover", createdBy: "pdm-one",
+      createdAt: cutoverAt, revokedAt: null, revokedBy: null });
+    const args = { source: input, plan: planPrincipalAclMigration(input),
+      accounts: input.profiles.map((profile) => ({ pdmUserId: profile.pdmUserId,
+        accountStatus: "active", systemRoleEnabled: true })),
+      rolePermissions: [{ role_id: "role-qa", permission_kind: "action",
+        permission_code: "drawing.read", allowed: 1 }],
+      roleScopeRules: [{ role_id: "role-rd" }] };
+    const baseline = assessPrincipalCutoverWorkspaceShadow(args);
+    const original = String.prototype.localeCompare;
+    let independent;
+    try {
+      String.prototype.localeCompare = () => { throw new Error("HOST_LOCALE_USED"); };
+      independent = assessPrincipalCutoverWorkspaceShadow(args);
+    } finally {
+      String.prototype.localeCompare = original;
+    }
+    expect(independent).toEqual(baseline);
+    expect(independent.status).toBe("requires_resource_adapter");
+  });
 });
