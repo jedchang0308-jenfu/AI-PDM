@@ -5,6 +5,8 @@ import {
   readPrincipalAclMigrationSource, type PrincipalAclMigrationSourceInput
 } from "@/lib/jenfu-principal-acl-migration-preview";
 import { lockPrincipalCutoverOwnerSources } from "@/lib/jenfu-principal-cutover-locks";
+import { assertPrincipalOwnerContractManifestHashes } from
+  "@/lib/jenfu-principal-owner-contract-manifest";
 import {
   sealPrincipalCutoverSource, type PrincipalCutoverSourceSealInput
 } from "@/lib/jenfu-principal-cutover-source-seal";
@@ -125,6 +127,11 @@ export async function requireCurrentPrincipalCutoverSource(
     client, prepared.operationId, ids, prepared.inputHash, prepared.cohortHash
   );
   if (locked.status === "replayed") return locked;
+  // The operation file supplies expected hashes, never evidence that the
+  // three owner contracts are currently published. Re-read their manifests
+  // on the same owner connection before any materialization can begin.
+  await assertPrincipalOwnerContractManifestHashes(
+    client, prepared.contractManifestHashes);
   if (prepared.sourceSets.some((set) =>
       set[0].claimKind === "profile_transfer") &&
       transferConfirmations.get(prepared) !== transferFingerprint(prepared)) {
