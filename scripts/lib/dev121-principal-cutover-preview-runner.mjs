@@ -98,6 +98,21 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
   return value
 }
 
+/** The restricted owner receipt records the human decision; email is never a join key. */
+export function assertProfileClaimConfirmation(value, source, { bytes, expectedSha256 }) {
+  if (!Buffer.isBuffer(bytes) || sha256(bytes) !== expectedSha256 ||
+      !source || source.claimKind !== 'profile_transfer') fail('CONFIRMATION_HASH_MISMATCH')
+  const keys = ['schemaVersion', 'pdmUserId', 'companyId', 'principalId', 'employeeId',
+    'identityIssuer', 'identitySubject', 'legacyIdentityIssuer', 'legacyIdentitySubject',
+    'expectedLegacyRole', 'confirmedBy', 'confirmedAt', 'humanSourceRef']
+  if (!exactKeys(value, keys) ||
+      value.schemaVersion !== 'ai-pdm.profile-claim-confirmation.v1' ||
+      keys.slice(1, 10).some((key) => value[key] !== source[key]) ||
+      !exactText(value.confirmedBy) || !exactTime(value.confirmedAt) ||
+      !exactText(value.humanSourceRef)) fail('CONFIRMATION_INVALID')
+  return value
+}
+
 export function summarizeCutoverPreview(envelope) {
   if (!envelope || !H64.test(envelope.sourceHash ?? '') ||
       !H64.test(envelope.cohortHash ?? '') || !H64.test(envelope.inputHash ?? '') ||

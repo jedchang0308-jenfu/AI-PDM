@@ -12,11 +12,13 @@ import {
   assertInventoryDatabaseTarget, inventoryDatabaseAdapter, parseInventoryArgs,
 } from './lib/dev121-principal-inventory-runner.mjs'
 import {
-  assertCutoverPreviewOperation, summarizeCutoverPreview,
+  assertCutoverPreviewOperation, assertProfileClaimConfirmation,
+  summarizeCutoverPreview,
 } from './lib/dev121-principal-cutover-preview-runner.mjs'
 
 // The existing migrator grant can read migration-bundles, not production-data.
 const OPERATION_PREFIX = 'source/migration-bundles/dev121/principal-cutover-preview'
+const CONFIRMATION_PREFIX = `${OPERATION_PREFIX}/confirmations`
 const RECEIPT_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-CUTOVER-PREVIEW'
 export const OPERATOR_TARGET = Object.freeze({ ...TARGET,
   job: 'ai-pdm-prod-dev121-principal-cutover-preview' })
@@ -105,6 +107,19 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     bytes: object.bytes, operationSha256: args.operationSha256,
     sourceRevision: args.sourceRevision,
   })
+  for (const source of operation.sourceSets.flat()) {
+    if (source.claimKind !== 'profile_transfer') continue
+    const confirmationRef = `gs://${TARGET.releaseBucket}/${CONFIRMATION_PREFIX}/${source.confirmationReceiptHash}.json`
+    const confirmation = await readGcsObject({ uri: confirmationRef,
+      expectedBucket: TARGET.releaseBucket, expectedPrefix: CONFIRMATION_PREFIX,
+      token, fetchImpl })
+    let confirmationValue
+    try { confirmationValue = JSON.parse(confirmation.bytes.toString('utf8')) }
+    catch { throw new Error('DEV121_CUTOVER_PREVIEW_CONFIRMATION_JSON_INVALID') }
+    assertProfileClaimConfirmation(confirmationValue, source, {
+      bytes: confirmation.bytes, expectedSha256: source.confirmationReceiptHash,
+    })
+  }
   const existing = await readExistingReceipt({ uri: args.outputRef, token, fetchImpl })
   if (existing) return verifiedExistingReceipt(existing, operation, args, object.generation)
   const database = new Client({ ...databaseOptions(environment, token),
