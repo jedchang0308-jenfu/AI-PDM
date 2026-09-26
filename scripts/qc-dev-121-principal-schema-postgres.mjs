@@ -93,6 +93,17 @@ try {
     CREATE ROLE jenfu_ai_pdm_runtime NOLOGIN;
     CREATE SCHEMA ai_pdm_core AUTHORIZATION jenfu_ai_pdm_migrator;
     CREATE SCHEMA ai_pdm_contract AUTHORIZATION jenfu_ai_pdm_migrator;
+    CREATE TABLE ai_pdm_core.contract_manifest (
+      contract_id text PRIMARY KEY, contract_version text NOT NULL,
+      signature_sha256 char(64) NOT NULL, payload_sha256 char(64),
+      published_at timestamptz NOT NULL DEFAULT clock_timestamp()
+    );
+    ALTER TABLE ai_pdm_core.contract_manifest OWNER TO jenfu_ai_pdm_migrator;
+    CREATE VIEW ai_pdm_contract.v_contract_manifest_v1
+      WITH (security_barrier = true) AS
+      SELECT contract_id, contract_version, signature_sha256::text,
+        payload_sha256::text FROM ai_pdm_core.contract_manifest;
+    ALTER VIEW ai_pdm_contract.v_contract_manifest_v1 OWNER TO jenfu_ai_pdm_migrator;
     CREATE SCHEMA orgmaster_contract;
     CREATE SCHEMA platform_contract;
     CREATE TABLE platform_contract.principal_state_fixture (
@@ -299,7 +310,35 @@ try {
   const adminSessionRevokeMigration = fs.readFileSync(path.join(root,
     'db/postgres/068_dev121_principal_admin_session_revoke.sql'), 'utf8')
   await client.query(adminSessionRevokeMigration)
+  const principalManifestMigration = fs.readFileSync(path.join(root,
+    'db/postgres/069_dev121_principal_security_contract_manifest.sql'), 'utf8')
+  await client.query(principalManifestMigration)
   await client.query('DROP TABLE orgmaster_contract.v_ai_pdm_effective_role_assignments_v1')
+
+  await check('owner manifest is exact, visible through contract and replay is idempotent', async () => {
+    const manifest = async () => (await asRole('jenfu_ai_pdm_migrator',
+      `SELECT contract_version, signature_sha256, payload_sha256
+         FROM ai_pdm_contract.v_contract_manifest_v1
+        WHERE contract_id='ai-pdm.principal-security-owner-command'`)).rows
+    const before = await manifest()
+    assert.deepEqual(before, [{
+      contract_version: 'jenfu.ai-pdm.principal-security-owner-command.v1',
+      signature_sha256: 'a5bf9b3744cd2a0805dbf23045946ce99c986317bba7d85738687828aed74b62',
+      payload_sha256: null,
+    }])
+    await client.query(principalManifestMigration)
+    assert.deepEqual(await manifest(), before)
+    await asRole('jenfu_ai_pdm_migrator', `UPDATE ai_pdm_core.contract_manifest
+      SET signature_sha256=$1 WHERE contract_id='ai-pdm.principal-security-owner-command'`,
+    ['0'.repeat(64)])
+    await denied(() => client.query(principalManifestMigration),
+      /DEV121_PRINCIPAL_SECURITY_MANIFEST_DRIFT/)
+    await client.query('ROLLBACK')
+    assert.equal((await manifest())[0].signature_sha256, '0'.repeat(64))
+    await asRole('jenfu_ai_pdm_migrator', `UPDATE ai_pdm_core.contract_manifest
+      SET signature_sha256=$1 WHERE contract_id='ai-pdm.principal-security-owner-command'`,
+    [before[0].signature_sha256])
+  })
 
   await check('one canonical principal owns one historical PDM profile', async () => {
     await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_accounts

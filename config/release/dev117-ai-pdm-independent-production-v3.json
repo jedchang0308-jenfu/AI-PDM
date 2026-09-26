@@ -350,6 +350,11 @@
         "order": 19,
         "path": "db/postgres/068_dev121_principal_admin_session_revoke.sql",
         "sha256": "71bf1f48d9cd643c2525b5096ef012a256e1ae271dbfb21e178696204952da75"
+      },
+      {
+        "order": 20,
+        "path": "db/postgres/069_dev121_principal_security_contract_manifest.sql",
+        "sha256": "e7e8d3ee6a186743c8315d86b16196020141910b1efd680f48f57b2694cc47e1"
       }
     ]
   },
