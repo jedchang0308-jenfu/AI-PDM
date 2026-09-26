@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { validateProfileClaimConfirmationBytes } from "./jenfu-principal-profile-claim-confirmation.mjs";
 import {
   readPrincipalAclMigrationSource, type PrincipalAclMigrationSourceInput
 } from "@/lib/jenfu-principal-acl-migration-preview";
@@ -21,28 +22,6 @@ const verifiedGates = new WeakMap<object, AsyncDatabaseClient>();
 // named human actually approved a claim. The owner runner must fetch the
 // restricted receipt object and verify its provenance before calling it.
 const transferConfirmations = new WeakMap<object, string>();
-const confirmationFields = [
-  "schemaVersion", "pdmUserId", "companyId", "principalId", "employeeId",
-  "identityIssuer", "identitySubject", "legacyIdentityIssuer",
-  "legacyIdentitySubject", "expectedLegacyRole", "confirmedBy",
-  "confirmedAt", "humanSourceRef"
-] as const;
-const claimFields = [
-  "pdmUserId", "companyId", "principalId", "employeeId",
-  "identityIssuer", "identitySubject", "legacyIdentityIssuer",
-  "legacyIdentitySubject", "expectedLegacyRole"
-] as const;
-
-function exactText(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= 255 &&
-    value.trim() === value && !/[\u0000-\u001f\u007f]/u.test(value);
-}
-
-function exactTime(value: unknown): value is string {
-  return typeof value === "string" &&
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(value) &&
-    Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
-}
 
 function transferFingerprint(prepared: PreparedPrincipalCutoverSource): string {
   return createHash("sha256").update(JSON.stringify({
@@ -68,25 +47,10 @@ export function bindPrincipalTransferConfirmations(
     const hash = source.confirmationReceiptHash;
     const bytes = hash && receipts.get(hash);
     if (!hash || !/^[a-f0-9]{64}$/u.test(hash) || used.has(hash) ||
-        !Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > 16384 ||
-        createHash("sha256").update(bytes).digest("hex") !== hash) {
+        !Buffer.isBuffer(bytes)) {
       throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
     }
-    let parsed: unknown;
-    try { parsed = JSON.parse(bytes.toString("utf8")); }
-    catch { throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID"); }
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
-    }
-    const value = parsed as Record<string, unknown>;
-    if (JSON.stringify(Object.keys(value).sort()) !==
-          JSON.stringify([...confirmationFields].sort()) ||
-        value.schemaVersion !== "ai-pdm.profile-claim-confirmation.v1" ||
-        claimFields.some((field) => value[field] !== source[field]) ||
-        !exactText(value.confirmedBy) || !exactTime(value.confirmedAt) ||
-        !exactText(value.humanSourceRef)) {
-      throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
-    }
+    validateProfileClaimConfirmationBytes(bytes, source, hash);
     used.add(hash);
   }
   transferConfirmations.set(prepared, transferFingerprint(prepared));

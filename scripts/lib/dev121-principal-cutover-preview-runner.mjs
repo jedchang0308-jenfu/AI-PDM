@@ -1,4 +1,5 @@
 import { canonicalize, sha256 } from './dev012-production-migration-runner.mjs'
+import { validateProfileClaimConfirmationBytes } from '../../src/lib/jenfu-principal-profile-claim-confirmation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -102,15 +103,11 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
 export function assertProfileClaimConfirmation(value, source, { bytes, expectedSha256 }) {
   if (!Buffer.isBuffer(bytes) || sha256(bytes) !== expectedSha256 ||
       !source || source.claimKind !== 'profile_transfer') fail('CONFIRMATION_HASH_MISMATCH')
-  const keys = ['schemaVersion', 'pdmUserId', 'companyId', 'principalId', 'employeeId',
-    'identityIssuer', 'identitySubject', 'legacyIdentityIssuer', 'legacyIdentitySubject',
-    'expectedLegacyRole', 'confirmedBy', 'confirmedAt', 'humanSourceRef']
-  if (!exactKeys(value, keys) ||
-      value.schemaVersion !== 'ai-pdm.profile-claim-confirmation.v1' ||
-      keys.slice(1, 10).some((key) => value[key] !== source[key]) ||
-      !exactText(value.confirmedBy) || !exactTime(value.confirmedAt) ||
-      !exactText(value.humanSourceRef)) fail('CONFIRMATION_INVALID')
-  return value
+  let parsed
+  try { parsed = validateProfileClaimConfirmationBytes(bytes, source, expectedSha256) }
+  catch { fail('CONFIRMATION_INVALID') }
+  if (canonicalize(value) !== canonicalize(parsed)) fail('CONFIRMATION_INVALID')
+  return parsed
 }
 
 export function summarizeCutoverPreview(envelope) {
