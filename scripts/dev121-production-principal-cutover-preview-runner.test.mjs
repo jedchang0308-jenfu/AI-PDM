@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
-import { runMain } from './dev121-production-principal-cutover-preview-runner.mjs'
+import { publicCutoverPreviewLog, runMain } from './dev121-production-principal-cutover-preview-runner.mjs'
 import {
   assertCutoverPreviewOperation, summarizeCutoverPreview,
 } from './lib/dev121-principal-cutover-preview-runner.mjs'
@@ -156,6 +156,13 @@ test('owner job previews in one read-only RR transaction and publishes non-apply
   assert.equal(result.outcome.applyAllowed, false)
   assert.equal(result.reused, false)
   assert.equal(JSON.parse(receiptBytes).outcome.sourceBindingsAttested, false)
+  const sharedLog = JSON.stringify(publicCutoverPreviewLog(result))
+  assert.equal(JSON.parse(sharedLog).cohortCount, 1)
+  assert.equal(JSON.parse(sharedLog).applyAllowed, false)
+  for (const privateFact of ['pdm-one', 'principal-one', 'uid-one', 'employee-one',
+    result.outcome.localSourceHash, result.outcome.producerSourceHash]) {
+    assert.ok(!sharedLog.includes(privateFact), 'shared Job log exposed private source data')
+  }
   assert.equal(queries.filter((query) => query === 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY').length, 1)
   assert.ok(queries.includes('COMMIT'))
   assert.ok(!queries.some((query) => /\b(?:INSERT|UPDATE|DELETE|ALTER|CREATE|DROP)\b/iu.test(
