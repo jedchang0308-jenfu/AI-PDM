@@ -23,6 +23,25 @@ export const OPERATOR_TARGET = Object.freeze({ ...TARGET,
 const RECEIPT_KEYS = ['schemaVersion', 'operationId', 'sourceRevision',
   'operationRef', 'operationSha256', 'operationGeneration', 'target', 'status', 'outcome']
 
+/** Shared Job logs are not the restricted receipt store. */
+export function publicCutoverPreviewLog(value) {
+  return {
+    schemaVersion: value.schemaVersion,
+    operationId: value.operationId,
+    sourceRevision: value.sourceRevision,
+    status: value.status,
+    outputRef: value.outputRef,
+    outputGeneration: value.outputGeneration,
+    outputSha256: value.outputSha256,
+    reused: value.reused,
+    cohortCount: value.outcome.cohort.length,
+    workspaceStatus: value.outcome.workspaceShadow.status,
+    gapCount: value.outcome.workspaceShadow.gapCount,
+    mismatchCount: value.outcome.workspaceShadow.mismatchCount,
+    applyAllowed: false,
+  }
+}
+
 async function readExistingReceipt({ uri, token, fetchImpl }) {
   const ref = parseGsUri(uri, TARGET.releaseBucket, RECEIPT_PREFIX)
   const metadataUrl = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(ref.bucket)}/o/${encodeURIComponent(ref.object)}`
@@ -144,6 +163,6 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  runMain().then((value) => process.stdout.write(`${JSON.stringify(value)}\n`))
+  runMain().then((value) => process.stdout.write(`${JSON.stringify(publicCutoverPreviewLog(value))}\n`))
     .catch((error) => { process.stderr.write(`${error.code || error.message}\n`); process.exitCode = 1 })
 }

@@ -400,15 +400,9 @@ try {
         await client.query(`BEGIN TRANSACTION ISOLATION LEVEL ${isolation} READ ONLY`)
         try {
           await client.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
-          const adapter = { kind: 'postgres', query: async (sql, params = {}) => {
-            const names = []
-            const bound = sql.replace(/(?<!:):([A-Za-z][A-Za-z0-9_]*)/g, (_match, name) => {
-              let index = names.indexOf(name)
-              if (index < 0) { names.push(name); index = names.length - 1 }
-              return `$${index + 1}`
-            })
-            return (await client.query(bound, names.map((name) => params[name]))).rows
-          } }
+          const { inventoryDatabaseAdapter } = await import(
+            './lib/dev121-principal-inventory-runner.mjs')
+          const adapter = inventoryDatabaseAdapter(client)
           const repository = new JenfuPrincipalInventoryRepository(
             adapter, 'test-project', 'snapshot', sourcePolicy)
           const result = Array.isArray(candidate)

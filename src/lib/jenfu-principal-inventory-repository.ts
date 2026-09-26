@@ -184,7 +184,13 @@ export class JenfuPrincipalInventoryRepository {
         LEFT JOIN typed ON true
         WHERE profile.id = :pdmUserId
         FETCH FIRST 3 ROWS ONLY
-      `, { ...input, sourcePolicy: this.sourcePolicy });
+      `, {
+        sourceKind: input.sourceKind,
+        identitySubject: input.identitySubject,
+        pdmUserId: input.pdmUserId,
+        identityIssuer: input.identityIssuer,
+        sourcePolicy: this.sourcePolicy
+      });
     } catch {
       throw new PrincipalInventoryError("principal_inventory_unavailable");
     }
