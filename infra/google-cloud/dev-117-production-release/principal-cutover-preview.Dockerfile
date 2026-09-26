@@ -11,6 +11,7 @@ RUN npm ci --omit=dev --ignore-scripts \
 COPY scripts/lib/dev012-production-migration-runner.mjs scripts/lib/dev012-production-migration-runner.mjs
 COPY scripts/lib/dev121-principal-inventory-runner.mjs scripts/lib/dev121-principal-inventory-runner.mjs
 COPY scripts/lib/dev121-principal-cutover-preview-runner.mjs scripts/lib/dev121-principal-cutover-preview-runner.mjs
+COPY scripts/lib/dev121-owner-release-proof.mjs scripts/lib/dev121-owner-release-proof.mjs
 COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-migration-runner.mjs
 COPY scripts/dev121-production-principal-cutover-preview-runner.mjs scripts/dev121-production-principal-cutover-preview-runner.mjs
 COPY scripts/qc-ts-path-loader.mjs scripts/qc-ts-path-loader.mjs

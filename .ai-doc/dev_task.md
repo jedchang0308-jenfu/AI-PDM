@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-26 DEV-121 三 owner release 證據唯讀封存（本機）**：preview operation v3 從固定 release bucket 讀取 Platform／OrgMaster／AI-PDM 的 prepare、受保護 source lock、migrate 及可選成功 terminal，核對精確來源與 GCS SHA-256／generation／CRC32C；v3 receipt 封存結果並拒絕重播漂移，v1／v2 不變。operator Docker import closure、runner 聚焦 13／13、app typecheck、scoped ESLint PASS。這仍非完整 provider source／image attestation，沒有人工 profile 承接、resource／delegation shadow 或 recovery 證據；`sourceBindingsAttested=false`、`applyAllowed=false`，未執行 Production mutation。JFS9014／JFS9015 僅作一般員工登入及授權驗證。
+
 > **2026-09-26 DEV-121 principal ACL 同優先序穩定性（本機）**：同角色優先序的 assignment tie-break 使用固定 code-unit ID 排序，消除 host locale 對 `assignmentId` 稽核來源的影響；allow／deny 未變。聚焦 10／10、app typecheck、scoped ESLint PASS，Production 尚未發布或驗證。
 
 > **2026-09-26 DEV-121 v2 preview receipt 來源封存（本機）**：唯讀 preview receipt v2 綁定逐人 profile-transfer 確認物件的 GCS ref、SHA-256、generation 與 CRC32C，重播重新讀取精確來源並拒絕漂移；operation 拒絕重複確認 hash。既有 v1 receipt 不變；runner 6／6、app typecheck PASS。這不證明人類確認者或正式 source／image provenance，`sourceBindingsAttested=false`、`applyAllowed=false`，Production 無 mutation。JFS9014／JFS9015 可供一般員工授權 L4，但不可代替朱宇鴻／張祐豪既有 PDM profile 的逐人歸屬確認。

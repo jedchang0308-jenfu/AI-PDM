@@ -249,6 +249,127 @@ test('v2 receipt seals confirmation generation and CRC32C on publish and replay'
   assert.equal(transactions, 1)
 })
 
+test('v3 preview seals three owner readbacks and rejects proof drift on replay', async () => {
+  const transfer = { ...source, claimKind: 'profile_transfer',
+    identitySubject: 'new-uid-one', legacyIdentityIssuer: source.identityIssuer,
+    legacyIdentitySubject: source.identitySubject, expectedLegacyRole: 'Engineer' }
+  const confirmation = {
+    schemaVersion: 'ai-pdm.profile-claim-confirmation.v1',
+    pdmUserId: transfer.pdmUserId, companyId: transfer.companyId,
+    principalId: transfer.principalId, employeeId: transfer.employeeId,
+    identityIssuer: transfer.identityIssuer, identitySubject: transfer.identitySubject,
+    legacyIdentityIssuer: transfer.legacyIdentityIssuer,
+    legacyIdentitySubject: transfer.legacyIdentitySubject,
+    expectedLegacyRole: transfer.expectedLegacyRole,
+    confirmedBy: 'principal-reviewer', confirmedAt: '2026-09-26T00:00:00.000Z',
+    humanSourceRef: 'reviewed-message-one',
+  }
+  const confirmationBytes = Buffer.from(JSON.stringify(confirmation))
+  transfer.confirmationReceiptHash = digest(confirmationBytes)
+  const refSet = (bucket) => {
+    const root = `gs://${bucket}/receipts/releases/DEV121-OWNER-001/${'f'.repeat(64)}`
+    return {
+      prepare: { uri: `${root}/prepare.json`, sha256: '1'.repeat(64) },
+      migrate: { uri: `${root}/migrate.json`, sha256: '2'.repeat(64) },
+      terminal: null,
+    }
+  }
+  const v3 = { ...operation(),
+    schemaVersion: 'ai-pdm.principal-cutover-preview-operation.v3',
+    sourceSets: [[transfer]],
+    ownerReleaseRefs: {
+      platform: refSet('jenfu-platform-prod-platform-release'),
+      orgmaster: refSet('jenfu-platform-prod-orgmaster-release'),
+      aiPdm: refSet('jenfu-platform-prod-aipdm-release'),
+    },
+  }
+  const body = Buffer.from(JSON.stringify(v3))
+  assert.deepEqual(assertCutoverPreviewOperation(v3, {
+    bytes: body, operationSha256: digest(body), sourceRevision: revision,
+  }), v3)
+  for (const changed of [
+    { ...v3, ownerReleaseRefs: { ...v3.ownerReleaseRefs,
+      platform: v3.ownerReleaseRefs.orgmaster } },
+    { ...v3, ownerReleaseRefs: { ...v3.ownerReleaseRefs,
+      aiPdm: { ...v3.ownerReleaseRefs.aiPdm, terminal: {
+        uri: 'gs://unrelated/terminal.json', sha256: '3'.repeat(64) } } } },
+  ]) {
+    const changedBytes = Buffer.from(JSON.stringify(changed))
+    assert.throws(() => assertCutoverPreviewOperation(changed, {
+      bytes: changedBytes, operationSha256: digest(changedBytes), sourceRevision: revision,
+    }), /DEV121_CUTOVER_PREVIEW_OPERATION_INVALID/u)
+  }
+  let receiptBytes
+  const fetchImpl = async (url, options = {}) => {
+    if (url.startsWith('http://metadata.google.internal/')) {
+      return new Response(JSON.stringify({ access_token: 'x'.repeat(25), expires_in: 3600 }))
+    }
+    const receipt = url.includes('DEV121-PRINCIPAL-CUTOVER-PREVIEW')
+    if (receipt && !receiptBytes && options.method !== 'POST') {
+      return new Response('', { status: 404 })
+    }
+    if (url.startsWith('https://storage.googleapis.com/upload/')) {
+      receiptBytes = Buffer.from(options.body)
+      return new Response(JSON.stringify({ generation: '4' }))
+    }
+    const bytes = receipt ? receiptBytes : url.includes('confirmations')
+      ? confirmationBytes : body
+    if (url.includes('?alt=media')) return new Response(bytes)
+    return new Response(JSON.stringify({ generation: receipt ? '4' : '1',
+      crc32c: crc32cBase64(bytes) }))
+  }
+  let transactions = 0
+  class Client {
+    async connect() {}
+    async query(query) {
+      if (typeof query === 'string' && query.includes('current_database()')) {
+        return { rows: [{ database: 'jenfu_prod', login: environment.POSTGRES_IAM_LOGIN,
+          major: 17, migrator_member: true, schema_ready: true }] }
+      }
+      if (query === 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY') transactions += 1
+      if (typeof query === 'object' && query.text.includes('transaction_timestamp()')) {
+        return { rows: [{ cutover_at: '2026-09-25T04:00:00.000Z' }] }
+      }
+      return { rows: [] }
+    }
+    async end() {}
+  }
+  const loadPreview = async () => ({ previewPrincipalCutoverSourceEnvelopeInSnapshot:
+    async (_snapshot, input) => ({
+      cutoverAt: input.cutoverAt,
+      cohort: [{ pdmUserId: transfer.pdmUserId,
+        principalId: transfer.principalId, sourceCount: 1 }],
+      cohortHash: 'a'.repeat(64), sourceHash: 'b'.repeat(64),
+      inputHash: 'c'.repeat(64), localSourceHash: 'd'.repeat(64),
+      producerSourceHash: 'e'.repeat(64),
+      graphCheck: { graphHash: 'f'.repeat(64) },
+      workspaceShadow: { shadowHash: '1'.repeat(64), status: 'pass' },
+      plan: { planHash: '2'.repeat(64) },
+    }) })
+  let proofVersion = 'first'
+  const seen = []
+  const readOwnerProof = async ({ owner, sourceRevision, refs }) => {
+    seen.push(owner)
+    assert.deepEqual(refs, v3.ownerReleaseRefs[owner === 'ai-pdm' ? 'aiPdm' : owner])
+    return { owner, sourceRevision, disposition: 'migration_only', proofVersion }
+  }
+  const args = { argv: ['--operation-ref', inputRef, '--operation-sha256', digest(body),
+    '--source-revision', revision, '--output-ref', outputRef],
+  environment, fetchImpl, Client, loadPreview, readOwnerProof }
+  const result = await runMain(args)
+  assert.equal(result.schemaVersion, 'ai-pdm.principal-cutover-preview-receipt.v3')
+  assert.deepEqual(seen, ['platform', 'orgmaster', 'ai-pdm'])
+  assert.equal(result.outcome.sourceBindingsAttested, false)
+  assert.equal(result.outcome.applyAllowed, false)
+  assert.equal(JSON.parse(receiptBytes).ownerReleaseProofs.aiPdm.proofVersion, 'first')
+  const replay = await runMain(args)
+  assert.equal(replay.reused, true)
+  assert.equal(transactions, 1)
+  proofVersion = 'replaced'
+  await assert.rejects(runMain(args), /DEV121_CUTOVER_PREVIEW_RECEIPT_CONFLICT/u)
+  assert.equal(transactions, 1)
+})
+
 test('summary cannot claim apply authority and requires complete source hashes', () => {
   const envelope = {
     cutoverAt: '2026-09-25T04:00:00.000Z', cohort: [{ pdmUserId: 'pdm-one',

@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-26 三 owner release 證據唯讀封存（本機）。** Cutover preview operation v3 可明列 Platform、OrgMaster、AI-PDM 各自固定 release bucket 的 prepare／migrate 與可選 terminal receipt ref；runner 從 GCS 讀取精確 bytes，核對 SHA-256、generation、CRC32C、受保護 branch／clean source lock、source revision、migration manifest／ledger／target及跨資料庫拒絕。terminal 只有 `RELEASED` 才列為已發布；缺 terminal 只列 `migration_only`。v3 preview receipt 封存三 owner readback，重播重新核對並拒絕漂移；v1／v2 operation 與 receipt 保持原樣。operator image 的 import closure 已補入此唯讀模組，聚焦測試 13／13、app typecheck、scoped ESLint PASS。此項**沒有**讀取完整 GitHub protected-run attestation、Artifact Registry image readback 或 terminal 全鏈，也不證明人工 profile 歸屬、resource／delegation behavior shadow、v1／v2 recovery；`sourceBindingsAttested=false`／`applyAllowed=false` 保持不變，沒有 Production mutation。
+
 > **2026-09-26 principal ACL 決策穩定性（本機）。** 相同角色優先序的多筆有效 workspace 指派改以 assignment ID 的固定 code-unit 順序選取，避免不同執行主機的 locale 影響回傳的 `assignmentId` 與稽核追溯；allow／deny 與角色優先序規則不變。聚焦 repository 10／10、app typecheck、scoped ESLint PASS；尚未發布或執行 Production L4。
 
 > **2026-09-26 v2 preview confirmation 來源封存（本機）。** 唯讀 preview receipt v2 現記錄每筆逐人確認物件的固定 GCS ref、SHA-256、generation 與 CRC32C，重播時重新讀取精確 generation 的位元組並比對全部欄位；來源替換或 generation 漂移會拒絕重播。重複確認 hash 也在 operation 入口被拒絕。舊 v1 receipt 維持原格式；聚焦 runner 6／6、app typecheck PASS。此封存只證明物件一致性，不證明 `confirmedBy` 的人類授權或三 owner 的正式來源，`sourceBindingsAttested=false`／`applyAllowed=false` 不變；Production 無資料、service 或 traffic 變更。

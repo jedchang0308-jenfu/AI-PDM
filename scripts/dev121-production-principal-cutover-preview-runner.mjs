@@ -15,6 +15,7 @@ import {
   assertCutoverPreviewOperation, assertProfileClaimConfirmation,
   summarizeCutoverPreview,
 } from './lib/dev121-principal-cutover-preview-runner.mjs'
+import { readOwnerReleaseProof } from './lib/dev121-owner-release-proof.mjs'
 
 // The existing migrator grant can read migration-bundles, not production-data.
 const OPERATION_PREFIX = 'source/migration-bundles/dev121/principal-cutover-preview'
@@ -25,6 +26,12 @@ export const OPERATOR_TARGET = Object.freeze({ ...TARGET,
 const RECEIPT_KEYS_V1 = ['schemaVersion', 'operationId', 'sourceRevision',
   'operationRef', 'operationSha256', 'operationGeneration', 'target', 'status', 'outcome']
 const RECEIPT_KEYS_V2 = [...RECEIPT_KEYS_V1, 'confirmationObjects']
+const RECEIPT_KEYS_V3 = [...RECEIPT_KEYS_V2, 'ownerReleaseProofs']
+
+function receiptVersion(operation) {
+  return operation.schemaVersion.endsWith('.v3') ? 'v3' :
+    operation.schemaVersion.endsWith('.v2') ? 'v2' : 'v1'
+}
 
 function confirmationRef(hash) {
   return `gs://${TARGET.releaseBucket}/${CONFIRMATION_PREFIX}/${hash}.json`
@@ -80,15 +87,19 @@ async function readExistingReceipt({ uri, token, fetchImpl }) {
     expectedPrefix: RECEIPT_PREFIX, token, fetchImpl })
 }
 
-function verifiedExistingReceipt(existing, operation, args, generation, confirmationObjects) {
+function verifiedExistingReceipt(existing, operation, args, generation,
+  confirmationObjects, ownerReleaseProofs) {
   let value
   try { value = JSON.parse(existing.bytes.toString('utf8')) }
   catch { throw new Error('DEV121_CUTOVER_PREVIEW_RECEIPT_CONFLICT') }
   const target = { database: 'jenfu_prod', login: TARGET.login, major: 17 }
-  const transfer = operation.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2'
+  const version = receiptVersion(operation)
+  const transfer = version !== 'v1'
+  const keys = version === 'v3' ? RECEIPT_KEYS_V3 :
+    transfer ? RECEIPT_KEYS_V2 : RECEIPT_KEYS_V1
   if (!value || canonicalize(Object.keys(value).sort()) !==
-      canonicalize((transfer ? RECEIPT_KEYS_V2 : RECEIPT_KEYS_V1).slice().sort()) ||
-      value.schemaVersion !== `ai-pdm.principal-cutover-preview-receipt.${transfer ? 'v2' : 'v1'}` ||
+      canonicalize(keys.slice().sort()) ||
+      value.schemaVersion !== `ai-pdm.principal-cutover-preview-receipt.${version}` ||
       value.operationId !== operation.operationId ||
       value.sourceRevision !== args.sourceRevision ||
       value.operationRef !== args.operationRef ||
@@ -99,7 +110,9 @@ function verifiedExistingReceipt(existing, operation, args, generation, confirma
       value.outcome?.sourceBindingsAttested !== false ||
       value.outcome?.applyAllowed !== false ||
       (transfer && (!validConfirmationObjects(value.confirmationObjects, operation) ||
-        canonicalize(value.confirmationObjects) !== canonicalize(confirmationObjects)))) {
+        canonicalize(value.confirmationObjects) !== canonicalize(confirmationObjects))) ||
+      (version === 'v3' && canonicalize(value.ownerReleaseProofs) !==
+        canonicalize(ownerReleaseProofs))) {
     throw new Error('DEV121_CUTOVER_PREVIEW_RECEIPT_CONFLICT')
   }
   const outcome = summarizeCutoverPreview({ ...value.outcome,
@@ -115,6 +128,7 @@ function verifiedExistingReceipt(existing, operation, args, generation, confirma
 export async function runMain({ argv = process.argv.slice(2), environment = process.env,
   fetchImpl = fetch, Client = pg.Client,
   loadPreview = () => import('../src/lib/jenfu-principal-acl-migration-preview.ts'),
+  readOwnerProof = readOwnerReleaseProof,
 } = {}) {
   const args = parseInventoryArgs(argv)
   assertRunnerTarget(environment, OPERATOR_TARGET)
@@ -152,13 +166,27 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   }
   confirmationObjects.sort((left, right) => left.sha256 < right.sha256 ? -1 :
     left.sha256 > right.sha256 ? 1 : 0)
-  if (operation.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2' &&
+  if (receiptVersion(operation) !== 'v1' &&
       !validConfirmationObjects(confirmationObjects, operation)) {
     throw new Error('DEV121_CUTOVER_PREVIEW_CONFIRMATION_READBACK_INVALID')
   }
+  let ownerReleaseProofs = null
+  if (receiptVersion(operation) === 'v3') {
+    ownerReleaseProofs = {}
+    for (const [key, owner] of [['platform', 'platform'],
+      ['orgmaster', 'orgmaster'], ['aiPdm', 'ai-pdm']]) {
+      ownerReleaseProofs[key] = await readOwnerProof({ owner,
+        sourceRevision: operation.sourceRevisions[key],
+        refs: operation.ownerReleaseRefs[key], token, fetchImpl })
+      if (ownerReleaseProofs[key]?.owner !== owner ||
+          ownerReleaseProofs[key]?.sourceRevision !== operation.sourceRevisions[key]) {
+        throw new Error('DEV121_CUTOVER_PREVIEW_OWNER_PROOF_INVALID')
+      }
+    }
+  }
   const existing = await readExistingReceipt({ uri: args.outputRef, token, fetchImpl })
   if (existing) return verifiedExistingReceipt(existing, operation, args,
-    object.generation, confirmationObjects)
+    object.generation, confirmationObjects, ownerReleaseProofs)
   const database = new Client({ ...databaseOptions(environment, token),
     application_name: 'dev121-ai-pdm-principal-cutover-preview' })
   await database.connect()
@@ -185,9 +213,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       return summarizeCutoverPreview(envelope)
     }, { isolationLevel: 'repeatable_read', readOnly: true })
     const receipt = {
-      schemaVersion: operation.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2'
-        ? 'ai-pdm.principal-cutover-preview-receipt.v2'
-        : 'ai-pdm.principal-cutover-preview-receipt.v1',
+      schemaVersion: `ai-pdm.principal-cutover-preview-receipt.${receiptVersion(operation)}`,
       operationId: operation.operationId,
       sourceRevision: args.sourceRevision,
       operationRef: args.operationRef,
@@ -196,8 +222,9 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       target,
       status: 'READ_ONLY_PREVIEW',
       outcome,
-      ...(operation.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2'
+      ...(receiptVersion(operation) !== 'v1'
         ? { confirmationObjects } : {}),
+      ...(ownerReleaseProofs ? { ownerReleaseProofs } : {}),
     }
     let published
     try {
@@ -209,7 +236,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       const concurrent = await readExistingReceipt({ uri: args.outputRef, token, fetchImpl })
       if (!concurrent) throw error
       return verifiedExistingReceipt(concurrent, operation, args,
-        object.generation, confirmationObjects)
+        object.generation, confirmationObjects, ownerReleaseProofs)
     }
     return { ...receipt, outputRef: args.outputRef,
       outputGeneration: published.generation, outputSha256: published.sha256,
