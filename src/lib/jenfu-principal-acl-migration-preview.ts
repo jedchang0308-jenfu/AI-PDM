@@ -5,6 +5,7 @@ import {
 } from "@/lib/jenfu-principal-inventory-repository";
 import { hashPrincipalInventory } from "@/lib/jenfu-principal-inventory-registration";
 import { hashPrincipalCutoverLocalSource } from "@/lib/jenfu-principal-cutover-local-source";
+import { assertPrincipalOwnerContractManifestHashes } from "@/lib/jenfu-principal-owner-contract-manifest";
 import { capturePrincipalCutoverProducerSource } from "@/lib/jenfu-principal-cutover-producer-source";
 import { assertPrincipalAclGraphPreserved } from "@/lib/jenfu-principal-cutover-graph-check";
 import { assessPrincipalCutoverWorkspaceShadow } from "@/lib/jenfu-principal-cutover-workspace-shadow";
@@ -291,14 +292,19 @@ export async function previewPrincipalAclMigration(input: PrincipalAclMigrationS
   }, { isolationLevel: "repeatable_read", readOnly: true });
 }
 
-/** Owner preview of a source envelope. Caller must independently attest owner bindings. */
+/** Owner preview of a source envelope with live contract readback in one snapshot. */
 export async function previewPrincipalCutoverSourceEnvelope(
   input: PrincipalAclMigrationSourceInput & { database: AsyncDatabaseClient } &
     Pick<PrincipalCutoverSourceSealInput,
       "operationId" | "sourceRevisions" | "contractManifestHashes">
 ) {
-  const source = await previewPrincipalAclMigration(input);
-  return sealPreviewEnvelope(input, source);
+  if (input.database.kind !== "postgres") invalid();
+  return input.database.transaction(async (snapshot) => {
+    await snapshot.execute("SET LOCAL ROLE jenfu_ai_pdm_migrator");
+    await snapshot.execute("SET LOCAL statement_timeout = '5s'");
+    await snapshot.execute("SET LOCAL TIME ZONE 'UTC'");
+    return previewPrincipalCutoverSourceEnvelopeInSnapshot(snapshot, input);
+  }, { isolationLevel: "repeatable_read", readOnly: true });
 }
 
 /** The owner runner already holds one read-only RR transaction and DB decision time. */
@@ -308,6 +314,8 @@ export async function previewPrincipalCutoverSourceEnvelopeInSnapshot(
     Pick<PrincipalCutoverSourceSealInput,
       "operationId" | "sourceRevisions" | "contractManifestHashes">
 ) {
+  await assertPrincipalOwnerContractManifestHashes(
+    snapshot, input.contractManifestHashes);
   const source = await readPrincipalAclMigrationSource(snapshot, input);
   return sealPreviewEnvelope(input, source);
 }
