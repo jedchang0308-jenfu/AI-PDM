@@ -22,8 +22,32 @@ const CONFIRMATION_PREFIX = `${OPERATION_PREFIX}/confirmations`
 const RECEIPT_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-CUTOVER-PREVIEW'
 export const OPERATOR_TARGET = Object.freeze({ ...TARGET,
   job: 'ai-pdm-prod-dev121-principal-cutover-preview' })
-const RECEIPT_KEYS = ['schemaVersion', 'operationId', 'sourceRevision',
+const RECEIPT_KEYS_V1 = ['schemaVersion', 'operationId', 'sourceRevision',
   'operationRef', 'operationSha256', 'operationGeneration', 'target', 'status', 'outcome']
+const RECEIPT_KEYS_V2 = [...RECEIPT_KEYS_V1, 'confirmationObjects']
+
+function confirmationRef(hash) {
+  return `gs://${TARGET.releaseBucket}/${CONFIRMATION_PREFIX}/${hash}.json`
+}
+
+function expectedConfirmationHashes(operation) {
+  return operation.sourceSets.flat()
+    .filter((source) => source.claimKind === 'profile_transfer')
+    .map((source) => source.confirmationReceiptHash).sort()
+}
+
+function validConfirmationObjects(value, operation) {
+  const expected = expectedConfirmationHashes(operation)
+  return Array.isArray(value) && value.length === expected.length &&
+    value.every((row, index) => row &&
+      canonicalize(Object.keys(row).sort()) ===
+        canonicalize(['ref', 'sha256', 'generation', 'crc32c'].sort()) &&
+      row.sha256 === expected[index] && row.ref === confirmationRef(expected[index]) &&
+      /^[1-9][0-9]*$/u.test(String(row.generation ?? '')) &&
+      typeof row.crc32c === 'string' &&
+      Buffer.from(row.crc32c, 'base64').length === 4 &&
+      Buffer.from(row.crc32c, 'base64').toString('base64') === row.crc32c)
+}
 
 /** Shared Job logs are not the restricted receipt store. */
 export function publicCutoverPreviewLog(value) {
@@ -56,14 +80,15 @@ async function readExistingReceipt({ uri, token, fetchImpl }) {
     expectedPrefix: RECEIPT_PREFIX, token, fetchImpl })
 }
 
-function verifiedExistingReceipt(existing, operation, args, generation) {
+function verifiedExistingReceipt(existing, operation, args, generation, confirmationObjects) {
   let value
   try { value = JSON.parse(existing.bytes.toString('utf8')) }
   catch { throw new Error('DEV121_CUTOVER_PREVIEW_RECEIPT_CONFLICT') }
   const target = { database: 'jenfu_prod', login: TARGET.login, major: 17 }
+  const transfer = operation.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2'
   if (!value || canonicalize(Object.keys(value).sort()) !==
-      canonicalize(RECEIPT_KEYS.sort()) ||
-      value.schemaVersion !== 'ai-pdm.principal-cutover-preview-receipt.v1' ||
+      canonicalize((transfer ? RECEIPT_KEYS_V2 : RECEIPT_KEYS_V1).slice().sort()) ||
+      value.schemaVersion !== `ai-pdm.principal-cutover-preview-receipt.${transfer ? 'v2' : 'v1'}` ||
       value.operationId !== operation.operationId ||
       value.sourceRevision !== args.sourceRevision ||
       value.operationRef !== args.operationRef ||
@@ -72,7 +97,9 @@ function verifiedExistingReceipt(existing, operation, args, generation) {
       canonicalize(value.target) !== canonicalize(target) ||
       value.status !== 'READ_ONLY_PREVIEW' ||
       value.outcome?.sourceBindingsAttested !== false ||
-      value.outcome?.applyAllowed !== false) {
+      value.outcome?.applyAllowed !== false ||
+      (transfer && (!validConfirmationObjects(value.confirmationObjects, operation) ||
+        canonicalize(value.confirmationObjects) !== canonicalize(confirmationObjects)))) {
     throw new Error('DEV121_CUTOVER_PREVIEW_RECEIPT_CONFLICT')
   }
   const outcome = summarizeCutoverPreview({ ...value.outcome,
@@ -107,10 +134,11 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     bytes: object.bytes, operationSha256: args.operationSha256,
     sourceRevision: args.sourceRevision,
   })
+  const confirmationObjects = []
   for (const source of operation.sourceSets.flat()) {
     if (source.claimKind !== 'profile_transfer') continue
-    const confirmationRef = `gs://${TARGET.releaseBucket}/${CONFIRMATION_PREFIX}/${source.confirmationReceiptHash}.json`
-    const confirmation = await readGcsObject({ uri: confirmationRef,
+    const ref = confirmationRef(source.confirmationReceiptHash)
+    const confirmation = await readGcsObject({ uri: ref,
       expectedBucket: TARGET.releaseBucket, expectedPrefix: CONFIRMATION_PREFIX,
       token, fetchImpl })
     let confirmationValue
@@ -119,9 +147,18 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     assertProfileClaimConfirmation(confirmationValue, source, {
       bytes: confirmation.bytes, expectedSha256: source.confirmationReceiptHash,
     })
+    confirmationObjects.push({ ref, sha256: source.confirmationReceiptHash,
+      generation: confirmation.generation, crc32c: confirmation.crc32c })
+  }
+  confirmationObjects.sort((left, right) => left.sha256 < right.sha256 ? -1 :
+    left.sha256 > right.sha256 ? 1 : 0)
+  if (operation.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2' &&
+      !validConfirmationObjects(confirmationObjects, operation)) {
+    throw new Error('DEV121_CUTOVER_PREVIEW_CONFIRMATION_READBACK_INVALID')
   }
   const existing = await readExistingReceipt({ uri: args.outputRef, token, fetchImpl })
-  if (existing) return verifiedExistingReceipt(existing, operation, args, object.generation)
+  if (existing) return verifiedExistingReceipt(existing, operation, args,
+    object.generation, confirmationObjects)
   const database = new Client({ ...databaseOptions(environment, token),
     application_name: 'dev121-ai-pdm-principal-cutover-preview' })
   await database.connect()
@@ -148,7 +185,9 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       return summarizeCutoverPreview(envelope)
     }, { isolationLevel: 'repeatable_read', readOnly: true })
     const receipt = {
-      schemaVersion: 'ai-pdm.principal-cutover-preview-receipt.v1',
+      schemaVersion: operation.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2'
+        ? 'ai-pdm.principal-cutover-preview-receipt.v2'
+        : 'ai-pdm.principal-cutover-preview-receipt.v1',
       operationId: operation.operationId,
       sourceRevision: args.sourceRevision,
       operationRef: args.operationRef,
@@ -157,6 +196,8 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       target,
       status: 'READ_ONLY_PREVIEW',
       outcome,
+      ...(operation.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2'
+        ? { confirmationObjects } : {}),
     }
     let published
     try {
@@ -167,7 +208,8 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       if (error?.code !== 'MIGRATION_GCS_IMMUTABILITY_CONFLICT') throw error
       const concurrent = await readExistingReceipt({ uri: args.outputRef, token, fetchImpl })
       if (!concurrent) throw error
-      return verifiedExistingReceipt(concurrent, operation, args, object.generation)
+      return verifiedExistingReceipt(concurrent, operation, args,
+        object.generation, confirmationObjects)
     }
     return { ...receipt, outputRef: args.outputRef,
       outputGeneration: published.generation, outputSha256: published.sha256,

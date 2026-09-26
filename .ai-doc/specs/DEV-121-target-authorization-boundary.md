@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-26 v2 preview confirmation 來源封存（本機）。** 唯讀 preview receipt v2 現記錄每筆逐人確認物件的固定 GCS ref、SHA-256、generation 與 CRC32C，重播時重新讀取精確 generation 的位元組並比對全部欄位；來源替換或 generation 漂移會拒絕重播。重複確認 hash 也在 operation 入口被拒絕。舊 v1 receipt 維持原格式；聚焦 runner 6／6、app typecheck PASS。此封存只證明物件一致性，不證明 `confirmedBy` 的人類授權或三 owner 的正式來源，`sourceBindingsAttested=false`／`applyAllowed=false` 不變；Production 無資料、service 或 traffic 變更。
+
 > **2026-09-26 preview 封裝補強（本機）。** 完整 source-envelope preview 現在自行在同一個 `REPEATABLE READ READ ONLY` snapshot 核對三 owner 正式 manifest；直接呼叫函式也不能略過核對步驟。正式 runner 移除重複查詢，receipt 仍固定 `sourceBindingsAttested=false`／`applyAllowed=false`，因 provider source／image attestation 尚未完成。聚焦 preview 2／2、runner 5／5 與 app typecheck PASS；Production 未執行切換。
 
 > **2026-09-26 owner apply 契約核對防線（本機）。** 新的 cutover apply 在取得 operation／本地來源鎖後，會以同一 owner 連線重新讀取 Platform、OrgMaster、AI-PDM 的四筆 versioned manifest，逐 owner 比對操作檔預期 hash；不一致時在讀取 cutover source 與任何 materialization 前拒絕。已提交且 input／cohort hash 相同的 operation 仍只由不可變 receipt 重播，不要求歷史 manifest 保持不變。聚焦 source-gate 6／6 與 app typecheck PASS。這不替代三 owner 受保護 source revision／image provider attestation、resource／delegation shadow、正式 apply runner 或 recovery；Production 尚未執行切換。

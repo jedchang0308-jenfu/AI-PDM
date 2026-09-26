@@ -49,6 +49,7 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
   const profiles = new Set()
   const principals = new Set()
   const aliases = new Set()
+  const confirmationHashes = new Set()
   let transferCount = 0
   const ownerByPair = new Map()
   for (const set of value.sourceSets) {
@@ -81,7 +82,9 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
             !exactText(source.legacyIdentitySubject) ||
             !exactText(source.expectedLegacyRole) ||
             !H64.test(source.confirmationReceiptHash) ||
-            source.legacyIdentitySubject === source.identitySubject) fail('SOURCE_INVALID')
+            source.legacyIdentitySubject === source.identitySubject ||
+            confirmationHashes.has(source.confirmationReceiptHash)) fail('SOURCE_INVALID')
+        confirmationHashes.add(source.confirmationReceiptHash)
       }
       const alias = JSON.stringify([source.identityIssuer, source.identitySubject])
       if (aliases.has(alias)) fail('SOURCE_INVALID')
