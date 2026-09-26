@@ -40,6 +40,9 @@ function text(value: unknown): string {
   if (typeof value !== "string" || !value) invalid();
   return value;
 }
+function compareCodeUnits(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
 
 /**
  * Compares the old and proposed workspace decisions without writing ACL rows.
@@ -89,7 +92,7 @@ export function assessPrincipalCutoverWorkspaceShadow(input: {
   const decide = (codes: readonly string[], kind: string, code: string) => {
     const sorted = [...new Set(codes)].sort((left, right) =>
       (priority.get(left) ?? Infinity) - (priority.get(right) ?? Infinity) ||
-      left.localeCompare(right));
+      compareCodeUnits(left, right));
     for (const roleCode of sorted) {
       const role = roleByCode.get(roleCode);
       if (!role || !role.enabled || !priority.has(roleCode)) continue;
@@ -102,7 +105,7 @@ export function assessPrincipalCutoverWorkspaceShadow(input: {
     return "none:deny";
   };
   for (const profile of [...source.profiles].sort((a, b) =>
-    a.pdmUserId.localeCompare(b.pdmUserId))) {
+    compareCodeUnits(a.pdmUserId, b.pdmUserId))) {
     const account = accountByUser.get(profile.pdmUserId);
     const baseCodes = BASE_ROLES[profile.legacyRole];
     if (!account || !baseCodes || account.systemRoleEnabled !== profile.systemRoleEnabled) invalid();
@@ -169,10 +172,10 @@ export function assessPrincipalCutoverWorkspaceShadow(input: {
         reason: "active_delegation", sourceId: delegation.id });
     }
   }
-  gaps.sort((a, b) => a.pdmUserId.localeCompare(b.pdmUserId) ||
-    a.reason.localeCompare(b.reason) || a.sourceId.localeCompare(b.sourceId));
-  mismatches.sort((a, b) => a.pdmUserId.localeCompare(b.pdmUserId) ||
-    a.permission.localeCompare(b.permission));
+  gaps.sort((a, b) => compareCodeUnits(a.pdmUserId, b.pdmUserId) ||
+    compareCodeUnits(a.reason, b.reason) || compareCodeUnits(a.sourceId, b.sourceId));
+  mismatches.sort((a, b) => compareCodeUnits(a.pdmUserId, b.pdmUserId) ||
+    compareCodeUnits(a.permission, b.permission));
   const gapCount = gaps.length;
   const status = gapCount ? "requires_resource_adapter" :
     mismatchCount ? "mismatch" : "pass";
