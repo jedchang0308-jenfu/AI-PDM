@@ -144,9 +144,8 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   const bundle = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), 'a'.repeat(40))
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
-  assert.equal(bundle.bundle.entries.at(-3).version, 'ai-pdm-065')
-  assert.equal(bundle.bundle.entries.at(-2).version, 'ai-pdm-066')
-  assert.equal(bundle.bundle.entries.at(-1).version, 'ai-pdm-067')
+  assert.deepEqual(bundle.bundle.entries.slice(-4).map((entry) => entry.version),
+    ['ai-pdm-065', 'ai-pdm-066', 'ai-pdm-067', 'ai-pdm-068'])
   assert.throws(() => verifyDev117MigrationBytes(profile, new Map([...files].slice(0, -1))), /Migration file set/u)
   const reordered = structuredClone(profile)
   reordered.migrations.entries[15].path = reordered.migrations.entries[14].path

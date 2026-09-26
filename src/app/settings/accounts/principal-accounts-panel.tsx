@@ -35,7 +35,7 @@ type ProvisionReceipt = {
 type PendingProvision = { operationId: string; principalRef: PrincipalCandidate;
   displayName: string; contactEmail: string; accountEnabled: boolean };
 
-type LifecycleAction = "suspend" | "reactivate" | "offboard" | "return_to_work";
+type LifecycleAction = "suspend" | "reactivate" | "offboard" | "return_to_work" | "revoke_sessions";
 type LifecycleIntent = { account: Pick<Account, "id">; action: LifecycleAction; title: string;
   operationId: string | null; reason: string | null };
 type PendingLifecycle = { pdmUserId: string; action: LifecycleAction; operationId: string; reason: string };
@@ -43,7 +43,8 @@ type PendingLifecycle = { pdmUserId: string; action: LifecycleAction; operationI
 const pendingLifecycleKey = "aipdm:principal-lifecycle-pending.v1";
 const pendingProvisionKey = "aipdm:principal-provision-pending.v1";
 const lifecycleTitles: Record<LifecycleAction, string> = {
-  suspend: "暫停帳號", reactivate: "恢復帳號", offboard: "辦理離職", return_to_work: "復職帳號"
+  suspend: "暫停帳號", reactivate: "恢復帳號", offboard: "辦理離職",
+  return_to_work: "復職帳號", revoke_sessions: "撤銷既有登入"
 };
 
 const statusText: Record<Account["accountStatus"], string> = {
@@ -233,9 +234,11 @@ export function PrincipalAccountsPanel() {
     setBusy(true);
     setLifecycleMessage("");
     try {
-      const response = await fetch(`/api/admin/accounts/${encodeURIComponent(lifecycleIntent.account.id)}/lifecycle`, {
+      const endpoint = lifecycleIntent.action === "revoke_sessions" ? "sessions/revoke" : "lifecycle";
+      const response = await fetch(`/api/admin/accounts/${encodeURIComponent(lifecycleIntent.account.id)}/${endpoint}`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ operationId, action: lifecycleIntent.action, reason })
+        body: JSON.stringify(lifecycleIntent.action === "revoke_sessions"
+          ? { operationId, reason } : { operationId, action: lifecycleIntent.action, reason })
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || body.subjectMode !== "principal" ||
@@ -243,7 +246,9 @@ export function PrincipalAccountsPanel() {
           body.account?.pdmUserId !== lifecycleIntent.account.id) {
         throw new Error(responseError(body, "帳號異動未取得可核對的結果；請以同一操作重試"));
       }
-      setLifecycleMessage(body.account.replayed ? "已核對原操作結果。" : "帳號狀態已更新，既有登入已失效。");
+      setLifecycleMessage(body.account.replayed ? "已核對原操作結果。" :
+        lifecycleIntent.action === "revoke_sessions" ? "既有登入已撤銷；帳號狀態未變。" :
+          "帳號狀態已更新，既有登入已失效。");
       setLifecycleIntent(null);
       setPendingLifecycle(null);
       try { sessionStorage.removeItem(pendingLifecycleKey); } catch { /* No persisted operation. */ }
@@ -314,6 +319,9 @@ export function PrincipalAccountsPanel() {
                 {account.accountStatus !== "offboarded" ? <button type="button"
                   className="danger-button" disabled={busy}
                   onClick={() => beginLifecycle(account, "offboard", "辦理離職")}>離職</button> : null}
+                {account.accountStatus !== "offboarded" ? <button type="button"
+                  className="secondary-button" disabled={busy}
+                  onClick={() => beginLifecycle(account, "revoke_sessions", "撤銷既有登入")}>撤銷登入</button> : null}
               </td>
             </tr>)}</tbody>
           </table></div>}
@@ -356,7 +364,8 @@ export function PrincipalAccountsPanel() {
     <ReasonActionDialog open={Boolean(lifecycleIntent)} title={lifecycleIntent?.title ?? "帳號狀態異動"}
       description="此操作會使該帳號既有登入失效；原因會寫入不可變操作紀錄。"
       defaultReason={lifecycleIntent?.reason ?? ""}
-      confirmLabel={lifecycleIntent?.title ?? "確認"} tone={lifecycleIntent?.action === "offboard" ? "danger" : "default"}
+      confirmLabel={lifecycleIntent?.title ?? "確認"}
+      tone={lifecycleIntent?.action === "offboard" || lifecycleIntent?.action === "revoke_sessions" ? "danger" : "default"}
       busy={busy} onCancel={() => { setLifecycleIntent(null); if (!pendingLifecycle) setLifecycleMessage(""); }}
       onConfirm={async (reason) => { await updateLifecycle(reason); }} />
   </div>;
