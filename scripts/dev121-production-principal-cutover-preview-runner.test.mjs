@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto'
 import test from 'node:test'
 import { publicCutoverPreviewLog, runMain } from './dev121-production-principal-cutover-preview-runner.mjs'
 import {
-  assertCutoverPreviewOperation, summarizeCutoverPreview,
+  assertCutoverPreviewOperation, assertProfileClaimConfirmation,
+  summarizeCutoverPreview,
 } from './lib/dev121-principal-cutover-preview-runner.mjs'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 
@@ -65,6 +66,95 @@ test('preview operation binds exact owner target and rejects alias or source amb
     'gs://jenfu-platform-prod-aipdm-release/source/production-data/dev121/principal-cutover-preview/one.json',
     '--operation-sha256', digest(bytes), '--source-revision', revision,
     '--output-ref', outputRef], environment }), /MIGRATION_GCS_/u)
+})
+
+test('v2 preview binds a one-time profile claim and rejects ambiguous transfer', () => {
+  const transfer = { ...source, claimKind: 'profile_transfer',
+    identitySubject: 'new-uid-one',
+    legacyIdentityIssuer: source.identityIssuer,
+    legacyIdentitySubject: source.identitySubject,
+    confirmationReceiptHash: '1'.repeat(64), expectedLegacyRole: 'Engineer' }
+  const v2 = { ...operation(),
+    schemaVersion: 'ai-pdm.principal-cutover-preview-operation.v2',
+    sourceSets: [[transfer]] }
+  const validate = (value) => {
+    const bytes = Buffer.from(JSON.stringify(value))
+    return assertCutoverPreviewOperation(value, {
+      bytes, operationSha256: digest(bytes), sourceRevision: revision })
+  }
+  assert.deepEqual(validate(v2), v2)
+  for (const changed of [
+    { ...v2, sourceSets: [[{ ...transfer, confirmationReceiptHash: undefined }]] },
+    { ...v2, sourceSets: [[{ ...transfer, legacyIdentitySubject: 'new-uid-one' }]] },
+    { ...v2, sourceSets: [[{ ...transfer, expectedLegacyRole: '' }]] },
+    { ...v2, sourceSets: [[{ ...transfer, email: 'guess@example.com' }]] },
+    { ...v2, sourceSets: [[transfer], [{ ...source,
+      pdmUserId: 'pdm-two', principalId: 'principal-two',
+      identitySubject: source.identitySubject }]] },
+    { ...v2, sourceSets: [[source]] },
+  ]) assert.throws(() => validate(changed), /DEV121_CUTOVER_PREVIEW_/)
+})
+
+test('profile claim confirmation binds the reviewed pair and runner reads its exact object', async () => {
+  const transfer = { ...source, claimKind: 'profile_transfer',
+    identitySubject: 'new-uid-one', legacyIdentityIssuer: source.identityIssuer,
+    legacyIdentitySubject: source.identitySubject,
+    expectedLegacyRole: 'Engineer' }
+  const confirmation = {
+    schemaVersion: 'ai-pdm.profile-claim-confirmation.v1',
+    pdmUserId: transfer.pdmUserId, companyId: transfer.companyId,
+    principalId: transfer.principalId, employeeId: transfer.employeeId,
+    identityIssuer: transfer.identityIssuer, identitySubject: transfer.identitySubject,
+    legacyIdentityIssuer: transfer.legacyIdentityIssuer,
+    legacyIdentitySubject: transfer.legacyIdentitySubject,
+    expectedLegacyRole: transfer.expectedLegacyRole,
+    confirmedBy: 'principal-reviewer', confirmedAt: '2026-09-26T00:00:00.000Z',
+    humanSourceRef: 'reviewed-message-one',
+  }
+  const confirmationBytes = Buffer.from(JSON.stringify(confirmation))
+  transfer.confirmationReceiptHash = digest(confirmationBytes)
+  assert.deepEqual(assertProfileClaimConfirmation(confirmation, transfer, {
+    bytes: confirmationBytes, expectedSha256: transfer.confirmationReceiptHash,
+  }), confirmation)
+  assert.throws(() => assertProfileClaimConfirmation(confirmation, transfer, {
+    bytes: confirmationBytes, expectedSha256: '0'.repeat(64),
+  }), /DEV121_CUTOVER_PREVIEW_CONFIRMATION_HASH_MISMATCH/)
+  for (const changed of [
+    { ...confirmation, identitySubject: 'another-uid' },
+    { ...confirmation, expectedLegacyRole: 'Admin' },
+    { ...confirmation, email: 'guess@example.com' },
+    { ...confirmation, humanSourceRef: '' },
+  ]) assert.throws(() => assertProfileClaimConfirmation(changed, transfer, {
+    bytes: Buffer.from(JSON.stringify(changed)),
+    expectedSha256: digest(Buffer.from(JSON.stringify(changed))),
+  }), /DEV121_CUTOVER_PREVIEW_CONFIRMATION_INVALID/)
+  const v2 = { ...operation(),
+    schemaVersion: 'ai-pdm.principal-cutover-preview-operation.v2',
+    sourceSets: [[transfer]] }
+  const body = Buffer.from(JSON.stringify(v2))
+  let confirmationReads = 0
+  const fetchImpl = async (url) => {
+    if (url.startsWith('http://metadata.google.internal/')) {
+      return new Response(JSON.stringify({ access_token: 'x'.repeat(25), expires_in: 3600 }))
+    }
+    if (url.includes('DEV121-PRINCIPAL-CUTOVER-PREVIEW')) {
+      return new Response('', { status: 404 })
+    }
+    const claim = url.includes('confirmations')
+    if (claim) confirmationReads += 1
+    const data = claim ? confirmationBytes : body
+    if (url.includes('?alt=media')) return new Response(data)
+    return new Response(JSON.stringify({ generation: '1', crc32c: crc32cBase64(data) }))
+  }
+  class StopBeforeDatabase {
+    async connect() { throw new Error('CONFIRMATION_READBACK_PASSED') }
+  }
+  await assert.rejects(runMain({
+    argv: ['--operation-ref', inputRef, '--operation-sha256', digest(body),
+      '--source-revision', revision, '--output-ref', outputRef],
+    environment, fetchImpl, Client: StopBeforeDatabase,
+  }), /CONFIRMATION_READBACK_PASSED/)
+  assert.equal(confirmationReads, 2)
 })
 
 test('summary cannot claim apply authority and requires complete source hashes', () => {

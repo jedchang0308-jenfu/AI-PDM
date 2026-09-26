@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { validateProfileClaimConfirmationBytes } from "./jenfu-principal-profile-claim-confirmation.mjs";
 import {
   readPrincipalAclMigrationSource, type PrincipalAclMigrationSourceInput
 } from "@/lib/jenfu-principal-acl-migration-preview";
@@ -16,6 +18,43 @@ export type PreparedPrincipalCutoverSource = PrincipalAclMigrationSourceInput &
     };
 
 const verifiedGates = new WeakMap<object, AsyncDatabaseClient>();
+// This is an in-process prerequisite for the owner apply, not proof that the
+// named human actually approved a claim. The owner runner must fetch the
+// restricted receipt object and verify its provenance before calling it.
+const transferConfirmations = new WeakMap<object, string>();
+
+function transferFingerprint(prepared: PreparedPrincipalCutoverSource): string {
+  return createHash("sha256").update(JSON.stringify({
+    inputHash: prepared.inputHash, sourceSets: prepared.sourceSets
+  })).digest("hex");
+}
+
+/** Bind exact confirmation bytes to this prepared source before owner apply. */
+export function bindPrincipalTransferConfirmations(
+  prepared: PreparedPrincipalCutoverSource,
+  receipts: ReadonlyMap<string, Buffer>
+): void {
+  if (!prepared || !Array.isArray(prepared.sourceSets) || !(receipts instanceof Map)) {
+    throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
+  }
+  const transfers = prepared.sourceSets.flat().filter((source) =>
+    source?.claimKind === "profile_transfer");
+  if (transfers.length !== receipts.size || transfers.length === 0) {
+    throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
+  }
+  const used = new Set<string>();
+  for (const source of transfers) {
+    const hash = source.confirmationReceiptHash;
+    const bytes = hash && receipts.get(hash);
+    if (!hash || !/^[a-f0-9]{64}$/u.test(hash) || used.has(hash) ||
+        !Buffer.isBuffer(bytes)) {
+      throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_INVALID");
+    }
+    validateProfileClaimConfirmationBytes(bytes, source, hash);
+    used.add(hash);
+  }
+  transferConfirmations.set(prepared, transferFingerprint(prepared));
+}
 
 function freezeFacts(value: unknown): void {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return;
@@ -71,6 +110,11 @@ export async function requireCurrentPrincipalCutoverSource(
     client, prepared.operationId, ids, prepared.inputHash, prepared.cohortHash
   );
   if (locked.status === "replayed") return locked;
+  if (prepared.sourceSets.some((set) =>
+      set[0].claimKind === "profile_transfer") &&
+      transferConfirmations.get(prepared) !== transferFingerprint(prepared)) {
+    throw new Error("PRINCIPAL_TRANSFER_CONFIRMATION_REQUIRED");
+  }
   const current = await readPrincipalAclMigrationSource(client, prepared, "locked_owner_apply");
   if (current.workspaceShadow.status !== "pass") {
     throw new Error("PRINCIPAL_CUTOVER_WORKSPACE_SHADOW_INCOMPLETE");

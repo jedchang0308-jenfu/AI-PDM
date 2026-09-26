@@ -57,15 +57,25 @@ export function hashPrincipalInventory(candidates: PrincipalInventoryCandidate[]
     accountStatus: candidate.accountStatus,
     lifecycleVersion: candidate.lifecycleVersion,
     systemRoleEnabled: candidate.systemRoleEnabled,
-    sessionInvalidBefore: candidate.sessionInvalidBefore
+    sessionInvalidBefore: candidate.sessionInvalidBefore,
+    ...(candidate.claimKind === "profile_transfer" ? {
+      claimKind: candidate.claimKind,
+      legacyIdentityIssuer: candidate.legacyIdentityIssuer,
+      legacyIdentitySubject: candidate.legacyIdentitySubject,
+      confirmationReceiptHash: candidate.confirmationReceiptHash,
+      expectedLegacyRole: candidate.expectedLegacyRole
+    } : {})
   }));
   return crypto.createHash("sha256").update(JSON.stringify({
-    contractVersion: "ai-pdm.principal-inventory-source.v1", sources: canonical
+    contractVersion: ordered.some((row) => row.claimKind === "profile_transfer")
+      ? "ai-pdm.principal-inventory-source.v2" : "ai-pdm.principal-inventory-source.v1",
+    sources: canonical
   })).digest("hex");
 }
 
 function assertInput(input: PrincipalInventoryRegistrationInput) {
   if (!input || !Array.isArray(input.sources) || input.sources.length < 1 ||
+    input.sources.some((source) => source.claimKind === "profile_transfer") ||
     !/^[0-9a-f]{64}$/u.test(input.expectedSourceHash) ||
     !Number.isSafeInteger(input.expectedRowVersion) || input.expectedRowVersion < 0 ||
     input.expectedRowVersion >= Number.MAX_SAFE_INTEGER) {
@@ -83,7 +93,10 @@ async function readSources(client: AsyncDatabaseClient, firebaseProjectId: strin
 export async function previewPrincipalInventory(database: AsyncDatabaseClient,
   firebaseProjectId: string, sources: PrincipalInventoryInput[],
   sourcePolicy: PrincipalInventorySourcePolicy = "firebase_bff") {
-  if (database.kind !== "postgres") {
+  // A transferred profile must enter principal_active atomically with the ACL
+  // cutover. A legacy_compatible marker for a different UID would strand v1.
+  if (database.kind !== "postgres" ||
+    sources.some((source) => source.claimKind === "profile_transfer")) {
     throw new PrincipalInventoryRegistrationError("principal_inventory_registration_invalid");
   }
   return database.transaction(async (client) => {

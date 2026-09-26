@@ -1,4 +1,5 @@
 import { canonicalize, sha256 } from './dev012-production-migration-runner.mjs'
+import { validateProfileClaimConfirmationBytes } from '../../src/lib/jenfu-principal-profile-claim-confirmation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -24,11 +25,12 @@ function exactTime(value) {
 
 export function assertCutoverPreviewOperation(value, { bytes, operationSha256, sourceRevision }) {
   if (!Buffer.isBuffer(bytes) || sha256(bytes) !== operationSha256) fail('HASH_MISMATCH')
+  const v2 = value?.schemaVersion === 'ai-pdm.principal-cutover-preview-operation.v2'
   const keys = ['schemaVersion', 'operationId', 'sourceRevision', 'projectId',
     'region', 'database', 'applicationId', 'firebaseProjectId', 'sourceSets',
     'sourceRevisions', 'contractManifestHashes']
   if (!exactKeys(value, keys) ||
-      value.schemaVersion !== 'ai-pdm.principal-cutover-preview-operation.v1' ||
+      (!v2 && value.schemaVersion !== 'ai-pdm.principal-cutover-preview-operation.v1') ||
       value.projectId !== 'jenfu-platform-prod' || value.region !== 'asia-east1' ||
       value.database !== 'jenfu_prod' || value.applicationId !== 'ai-pdm' ||
       value.sourceRevision !== sourceRevision || !H40.test(sourceRevision ?? '') ||
@@ -47,6 +49,8 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
   const profiles = new Set()
   const principals = new Set()
   const aliases = new Set()
+  let transferCount = 0
+  const ownerByPair = new Map()
   for (const set of value.sourceSets) {
     if (!Array.isArray(set) || set.length !== 1) fail('SOURCE_INVALID')
     const first = set[0]
@@ -55,7 +59,11 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
     principals.add(first.principalId)
     const kinds = new Set()
     for (const source of set) {
-      if (!exactKeys(source, sourceKeys) || !SOURCE_KINDS.has(source.sourceKind) ||
+      const transfer = v2 && source.claimKind === 'profile_transfer'
+      const keysForSource = transfer ? [...sourceKeys, 'claimKind',
+        'legacyIdentityIssuer', 'legacyIdentitySubject',
+        'confirmationReceiptHash', 'expectedLegacyRole'] : sourceKeys
+      if (!exactKeys(source, keysForSource) || !SOURCE_KINDS.has(source.sourceKind) ||
         kinds.has(source.sourceKind) || source.pdmUserId !== first.pdmUserId ||
         source.companyId !== first.companyId || source.principalId !== first.principalId ||
         source.employeeId !== first.employeeId ||
@@ -65,13 +73,41 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
         source.identityIssuer !== `https://securetoken.google.com/${value.firebaseProjectId}` ||
         !Number.isSafeInteger(source.mappingVersion) || source.mappingVersion < 1 ||
         !exactTime(source.publishedAt)) fail('SOURCE_INVALID')
+      if (transfer) {
+        transferCount += 1
+        if (source.sourceKind !== 'firebase_mapping' ||
+            source.legacyIdentityIssuer !==
+              `https://securetoken.google.com/${value.firebaseProjectId}` ||
+            !exactText(source.legacyIdentitySubject) ||
+            !exactText(source.expectedLegacyRole) ||
+            !H64.test(source.confirmationReceiptHash) ||
+            source.legacyIdentitySubject === source.identitySubject) fail('SOURCE_INVALID')
+      }
       const alias = JSON.stringify([source.identityIssuer, source.identitySubject])
       if (aliases.has(alias)) fail('SOURCE_INVALID')
       aliases.add(alias)
+      for (const pair of [alias, transfer ? JSON.stringify([
+        source.legacyIdentityIssuer, source.legacyIdentitySubject]) : alias]) {
+        const owner = ownerByPair.get(pair)
+        if (owner && owner !== source.pdmUserId) fail('SOURCE_INVALID')
+        ownerByPair.set(pair, source.pdmUserId)
+      }
       kinds.add(source.sourceKind)
     }
   }
+  if (v2 && transferCount === 0) fail('SOURCE_INVALID')
   return value
+}
+
+/** The restricted owner receipt records the human decision; email is never a join key. */
+export function assertProfileClaimConfirmation(value, source, { bytes, expectedSha256 }) {
+  if (!Buffer.isBuffer(bytes) || sha256(bytes) !== expectedSha256 ||
+      !source || source.claimKind !== 'profile_transfer') fail('CONFIRMATION_HASH_MISMATCH')
+  let parsed
+  try { parsed = validateProfileClaimConfirmationBytes(bytes, source, expectedSha256) }
+  catch { fail('CONFIRMATION_INVALID') }
+  if (canonicalize(value) !== canonicalize(parsed)) fail('CONFIRMATION_INVALID')
+  return parsed
 }
 
 export function summarizeCutoverPreview(envelope) {

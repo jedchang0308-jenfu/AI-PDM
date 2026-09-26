@@ -108,14 +108,21 @@ export async function readPrincipalAclMigrationSource(
       const candidate = candidates[0];
       const profile = profileById.get(candidate.pdmUserId);
       const markerRowVersion = Number(profile?.marker_row_version);
+      const transferred = candidate.claimKind === "profile_transfer";
+      const markerReady = transferred
+        ? profile?.marker_status === null && profile?.marker_principal_id === null &&
+          profile?.marker_source_hash === null && profile?.marker_row_version === null
+        : profile?.marker_status === "legacy_compatible" &&
+          profile?.marker_principal_id === candidate.principalId &&
+          profile?.marker_source_hash === hashPrincipalInventory(candidates) &&
+          Number.isSafeInteger(markerRowVersion) && markerRowVersion >= 1;
       if (!profile || profile.company_id !== candidate.companyId ||
         profile.account_status !== candidate.accountStatus ||
         (profile.system_role_enabled === 1) !== candidate.systemRoleEnabled ||
-        profile.marker_status !== "legacy_compatible" ||
-        profile.marker_principal_id !== candidate.principalId ||
-        profile.marker_source_hash !== hashPrincipalInventory(candidates) ||
+        !markerReady ||
         profile.existing_account_principal_id !== null ||
-        !Number.isSafeInteger(markerRowVersion) || markerRowVersion < 1) invalid();
+        !Number.isSafeInteger(markerRowVersion) ||
+        (transferred ? markerRowVersion !== 0 : markerRowVersion < 1)) invalid();
       plannedProfiles.push({ pdmUserId: candidate.pdmUserId,
         principalId: candidate.principalId,
         legacyRole: profile.role as PrincipalAclMigrationInput["profiles"][number]["legacyRole"],
