@@ -100,6 +100,22 @@ describe("DEV-121 principal local ACL", () => {
     expect(query.mock.calls[0][0]).toContain("a.revoked_at IS NULL");
   });
 
+  it("selects same-priority assignment deterministically across host locales", async () => {
+    const { repository, input } = setup([
+      { ...assignment, id: "grant-a" },
+      { ...assignment, id: "grant-Z" }
+    ], [{ role_id: "role-rd", allowed: 1 }]);
+    const localeCompare = String.prototype.localeCompare;
+    try {
+      String.prototype.localeCompare = () => { throw new Error("HOST_LOCALE_USED"); };
+      await expect(repository.evaluateWorkspace(input)).resolves.toEqual([
+        { allowed: true, decisionCode: "allowed", roleCode: "rd", assignmentId: "grant-Z" }
+      ]);
+    } finally {
+      String.prototype.localeCompare = localeCompare;
+    }
+  });
+
   it("fails closed on unknown scope or incomplete priority", async () => {
     const unknown = setup([{ ...assignment, scope_template: "unknown" }], []);
     await expect(unknown.repository.evaluateWorkspace(unknown.input)).rejects.toThrow("PRINCIPAL_LOCAL_ACL_CONTRACT_INVALID");

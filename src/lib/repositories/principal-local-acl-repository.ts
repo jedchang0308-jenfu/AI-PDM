@@ -9,6 +9,10 @@ type AssignmentRow = {
 };
 type PolicyRow = { role_id: string; allowed: number | boolean };
 
+function compareCodeUnits(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 export type PrincipalLocalAclDecision = {
   allowed: boolean;
   decisionCode: string;
@@ -80,7 +84,8 @@ export class PrincipalLocalAclRepository {
       const selected = eligible
         .filter((row) => policyByRole.has(row.role_id) ||
           (row.role_code === "system_admin" && !EXPLICIT_ONLY_PERMISSION_CODES.has(permission.permissionCode)))
-        .sort((a, b) => (rank.get(a.role_code) ?? Infinity) - (rank.get(b.role_code) ?? Infinity) || a.id.localeCompare(b.id))[0];
+        .sort((a, b) => (rank.get(a.role_code) ?? Infinity) - (rank.get(b.role_code) ?? Infinity) ||
+          compareCodeUnits(a.id, b.id))[0];
       if (!selected) {
         decisions.push({ allowed: false, decisionCode: "permission_not_granted", roleCode: null, assignmentId: null });
       } else if (policyByRole.has(selected.role_id) && policyByRole.get(selected.role_id) !== true) {

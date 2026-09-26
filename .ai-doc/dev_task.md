@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-26 DEV-121 principal ACL 同優先序穩定性（本機）**：同角色優先序的 assignment tie-break 使用固定 code-unit ID 排序，消除 host locale 對 `assignmentId` 稽核來源的影響；allow／deny 未變。聚焦 10／10、app typecheck、scoped ESLint PASS，Production 尚未發布或驗證。
+
 > **2026-09-26 DEV-121 v2 preview receipt 來源封存（本機）**：唯讀 preview receipt v2 綁定逐人 profile-transfer 確認物件的 GCS ref、SHA-256、generation 與 CRC32C，重播重新讀取精確來源並拒絕漂移；operation 拒絕重複確認 hash。既有 v1 receipt 不變；runner 6／6、app typecheck PASS。這不證明人類確認者或正式 source／image provenance，`sourceBindingsAttested=false`、`applyAllowed=false`，Production 無 mutation。JFS9014／JFS9015 可供一般員工授權 L4，但不可代替朱宇鴻／張祐豪既有 PDM profile 的逐人歸屬確認。
 
 > **2026-09-26 DEV-121 principal 管理員撤銷登入與 owner apply 邊界（現行）**：管理員撤銷登入的 source 已由 [PR #80](https://github.com/jedchang0308-jenfu/AI-PDM/pull/80) 合併至受保護 main `79ff6ae470cf44128d6b2f4cb31c2939dae326c3`；forward-only 068 owner command 與 API／UI 的本機、隔離 PostgreSQL 證據保留，Production migration／service release／L4 未因此完成。後續 owner apply 的 prepared source 已補齊三 owner exact revision／manifest hash 形狀、operation ID 與 cohort 大小的入庫前拒絕；聚焦 8／8、TypeScript、scoped ESLint、DB boundary、隔離 PostgreSQL 22／22 PASS，task-owned cluster／埠／暫存均已清理。這只是結構防漏檢，**不把操作檔自填的值當成 provider attestation**；完整 source provenance、resource／delegation shadow、recovery、全體 cutover 與舊 UID／v1 正常 runtime 退役仍未完成。Cloud Console 2026-09-26 唯讀顯示 `ai-pdm-prod-f5ee2af2d7ec` 仍承接 100% traffic，本輪未改 Production。
