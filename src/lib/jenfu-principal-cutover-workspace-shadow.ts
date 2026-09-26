@@ -150,7 +150,9 @@ export function assessPrincipalCutoverWorkspaceShadow(input: {
       decisionCount += 1;
       matrix.update(JSON.stringify({ pdmUserId: profile.pdmUserId,
         permission, legacy, principal }));
-      if (legacy !== principal) {
+      // The role that produced a decision is provenance, not the decision.
+      // Preserve both role traces in the hash, but compare effective access.
+      if (legacy.endsWith(":allow") !== principal.endsWith(":allow")) {
         mismatchCount += 1;
         if (mismatches.length < 128) mismatches.push({ pdmUserId: profile.pdmUserId,
           permission, legacy, principal });

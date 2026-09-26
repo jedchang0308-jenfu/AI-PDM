@@ -59,6 +59,32 @@ describe("DEV-121 workspace behavior shadow", () => {
       permission: "action\0drawing.read", legacy: "qa:allow", principal: "none:deny" });
   });
 
+  it("compares effective access when different roles produce the same decision", () => {
+    const input = source();
+    const plan = planPrincipalAclMigration(input);
+    plan.principalAssignments[0].roleId = "role-qa";
+    const policies = ["role-rd", "role-qa"].map((role_id) => ({
+      role_id, permission_kind: "action", permission_code: "drawing.read", allowed: 1
+    }));
+    const result = assessPrincipalCutoverWorkspaceShadow({
+      source: input, plan,
+      accounts: [{ pdmUserId: "pdm-one", accountStatus: "active", systemRoleEnabled: true }],
+      rolePermissions: policies, roleScopeRules: []
+    });
+    expect(result.status).toBe("pass");
+    expect(result.mismatches).toEqual([]);
+
+    policies[1].allowed = 0;
+    const denied = assessPrincipalCutoverWorkspaceShadow({
+      source: input, plan,
+      accounts: [{ pdmUserId: "pdm-one", accountStatus: "active", systemRoleEnabled: true }],
+      rolePermissions: policies, roleScopeRules: []
+    });
+    expect(denied.status).toBe("mismatch");
+    expect(denied.mismatches).toContainEqual({ pdmUserId: "pdm-one",
+      permission: "action\0drawing.read", legacy: "rd:allow", principal: "qa:deny" });
+  });
+
   it("exposes active delegation and role scope rules", () => {
     const input = source();
     input.externalActiveAccounts = [{ pdmUserId: "pdm-two", principalId: "principal-two" }];
