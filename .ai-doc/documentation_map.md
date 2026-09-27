@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-28 DEV-121 正式來源決策**：[ADR-PDM-RELEASE-SOURCE-001](decisions/ADR-PDM-RELEASE-SOURCE-001-small-team-official-source.md)固定 PR／Codex QC／required CI／provider branch protection 的真實證據，不要求第二位人工審查者；GitHub 設定尚待讀回，不能把文件當成 release PASS。
+
 > **2026-09-26 DEV-121 R5 現行診斷／來源 policy**：[同一 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄 R5 私有 profile label、三個未映射 Firebase pair、共用信箱承接與正式 `firebase_bff` 來源集合；歷史 Google OAuth 列不作當前登入證據。局部修正尚未發布，權限切換與 L4 仍停用。
 
 > **2026-09-26 DEV-121 目前缺列證據**：[DEV-121 雙 owner Production readback](specs/DEV-121-target-authorization-boundary.md)保留 AI-PDM R4／OrgMaster 精確 pair hash receipt、五組 producer 來源缺列與後續停止條件；private profile label 僅供查明 owner，不作 email mapping。沿用 DEV-121 子任務，不新增主任務。

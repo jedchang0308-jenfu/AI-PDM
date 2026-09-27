@@ -6,7 +6,7 @@ function fail(code) { throw new Error(`DEV012_OFFICIAL_SOURCE_REVIEW_${code}`) }
 
 /** Provider readback for the owner workflow's exact official merge commit. */
 export async function verifyOfficialMergedSource({ repository, branch, revision,
-  sourceTree, token, fetchImpl = fetch }) {
+  sourceTree, token, rulesetId = null, fetchImpl = fetch }) {
   if (!REPOSITORY.test(repository ?? '') || !BRANCH.test(branch ?? '') ||
       !REVISION.test(revision ?? '') || !REVISION.test(sourceTree ?? '') ||
       typeof token !== 'string' || token.length < 20) fail('INPUT_INVALID')
@@ -32,6 +32,27 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
       commit?.sha !== revision || commit?.tree?.sha !== sourceTree) {
     fail('OFFICIAL_REF_MISMATCH')
   }
+  if (official.protected !== true) fail('BRANCH_UNPROTECTED')
+  const requiredChecks = ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC']
+  const expectedRulesetId = rulesetId
+  const rules = await read(`rules/branches/${encodedBranch}?per_page=100`)
+  if (!Array.isArray(rules)) fail('SMALL_TEAM_PROTECTION_INVALID')
+  const sameRuleset = rules.filter((rule) => rule?.ruleset_id === expectedRulesetId)
+  const byType = new Map(sameRuleset.map((rule) => [rule.type, rule]))
+  const pr = byType.get('pull_request')?.parameters
+  const checks = byType.get('required_status_checks')?.parameters?.required_status_checks
+  if (!Number.isInteger(expectedRulesetId) ||
+      !byType.has('deletion') || !byType.has('non_fast_forward') ||
+      pr?.required_approving_review_count !== 0 ||
+      pr?.require_code_owner_review !== false ||
+      pr?.require_last_push_approval !== false ||
+      pr?.require_extra_approval_for_unattributed_changes !== false ||
+      !pr?.allowed_merge_methods?.includes('merge') ||
+      !Array.isArray(checks) ||
+      requiredChecks.some((name) => !checks.some((check) =>
+        check.context === name && check.integration_id === 15368))) {
+    fail('SMALL_TEAM_PROTECTION_INVALID')
+  }
   if (!Array.isArray(pulls)) fail('PULLS_INVALID')
   const matches = pulls.filter((pull) => pull?.state === 'closed' &&
     pull?.base?.repo?.full_name === repository && pull?.base?.ref === branch &&
@@ -41,7 +62,10 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
   if (matches.length !== 1) fail('MERGED_PR_NOT_UNIQUE')
   return { schemaVersion: 'jenfu.dev012.official-merged-source.v1',
     repository, branch, sourceRevision: revision, sourceTree,
-    branchProtected: official.protected === true,
+    branchProtected: true,
+    reviewMode: 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED',
+    rulesetId: expectedRulesetId,
+    requiredChecks,
     pullRequestNumber: matches[0].number,
     pullRequestUrl: matches[0].html_url,
     mergedAt: matches[0].merged_at,
