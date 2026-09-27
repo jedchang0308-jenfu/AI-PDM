@@ -6,13 +6,19 @@ const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
 const OWNERS = Object.freeze({
   platform: Object.freeze({ bucket: 'jenfu-platform-prod-platform-release',
     repository: 'jedchang0308-jenfu/Jenfu-Platform', branch: 'main',
-    ledger: 'platform_core.schema_migrations' }),
+    ledger: 'platform_core.schema_migrations',
+    artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform',
+    builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
   orgmaster: Object.freeze({ bucket: 'jenfu-platform-prod-orgmaster-release',
     repository: 'jedchang0308-jenfu/OrgMaster', branch: 'master',
-    ledger: 'orgmaster_core.schema_migrations' }),
+    ledger: 'orgmaster_core.schema_migrations',
+    artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/orgmaster-release/orgmaster',
+    builder: 'orgmaster-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
   'ai-pdm': Object.freeze({ bucket: 'jenfu-platform-prod-aipdm-release',
     repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main',
-    ledger: 'ai_pdm_core.schema_migrations' }),
+    ledger: 'ai_pdm_core.schema_migrations',
+    artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm',
+    builder: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
 })
 
 function fail(code) { throw new Error(`DEV121_OWNER_RELEASE_PROOF_${code}`) }
@@ -145,7 +151,40 @@ async function readReleasedStageChain({ owner, config, revision, releaseId, root
   if (canonicalize(build.value.previousReceiptRef) !==
       canonicalize(prepare.ref) ||
       build.value.facts?.artifactDigest !== artifactDigest) fail('STAGE_CHAIN_INVALID')
-  return { ...stages, deployment, build }
+  const provenanceRef = assertRef(build.value.facts.provenanceReceiptRef,
+    config.bucket, `${root}/provenance.json`)
+  const provenance = await readRef(provenanceRef, config.bucket, token, fetchImpl)
+  const sourceObject = build.value.facts.sourceObject
+  const sourcePath = root.split('/').at(-1)
+  const expectedSourceUri = `gs://${config.bucket}/source/releases/${releaseId}/${sourcePath}/source.tar.gz`
+  const buildRecord = provenance.value?.cloudBuild
+  const storageSource = buildRecord?.sourceProvenance?.resolvedStorageSource
+  const imageTag = `${config.artifactUri}:release-${revision}`
+  if (provenance.value?.schemaVersion !== 'jenfu.dev012.build-provenance-receipt.v1' ||
+      provenance.value.ownerApplicationId !== owner ||
+      provenance.value.sourceRevision !== revision ||
+      provenance.value.status !== 'PASS' ||
+      provenance.value.artifactDigest !== artifactDigest ||
+      canonicalize(provenance.value.sourceObject) !== canonicalize(sourceObject) ||
+      !exactKeys(sourceObject, ['uri', 'sha256', 'generation', 'crc32c']) ||
+      sourceObject.uri !== expectedSourceUri || !H64.test(sourceObject.sha256) ||
+      !/^[1-9][0-9]*$/u.test(sourceObject.generation) ||
+      typeof sourceObject.crc32c !== 'string' ||
+      buildRecord?.status !== 'SUCCESS' ||
+      buildRecord.projectId !== 'jenfu-platform-prod' ||
+      buildRecord.serviceAccount !==
+        `projects/jenfu-platform-prod/serviceAccounts/${config.builder}` ||
+      buildRecord.options?.requestedVerifyOption !== 'VERIFIED' ||
+      storageSource?.bucket !== config.bucket ||
+      storageSource?.object !== sourceObject.uri.slice(`gs://${config.bucket}/`.length) ||
+      String(storageSource?.generation) !== sourceObject.generation ||
+      !buildRecord.results?.images?.some((image) =>
+        image.name === imageTag &&
+        `${config.artifactUri}@${image.digest}` === artifactDigest) ||
+      provenance.value.artifactRegistry?.uri !== artifactDigest) {
+    fail('PROVENANCE_INVALID')
+  }
+  return { ...stages, deployment, build, provenance }
 }
 
 /** Read-only, bucket-pinned owner source evidence; it does not authorize cutover. */
