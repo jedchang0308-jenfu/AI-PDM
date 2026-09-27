@@ -46,6 +46,9 @@ const SCOPES = new Set(["workspace_all", "own_department", "workspace_quality",
 
 export class PrincipalAclMigrationPlanError extends Error {
   constructor(readonly code: "principal_acl_plan_invalid" |
+    "principal_acl_plan_role_count_invalid" |
+    "principal_acl_plan_role_flag_invalid" |
+    "principal_acl_plan_priority_cardinality_invalid" |
     "principal_acl_plan_role_missing" | "principal_acl_plan_reference_unresolved" |
     "principal_acl_plan_priority_incomplete") { super(code); }
 }

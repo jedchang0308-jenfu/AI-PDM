@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
+  assertPrincipalAclPreviewCatalogShape,
   previewPrincipalCutoverSourceEnvelope,
   previewPrincipalCutoverSourceEnvelopeInSnapshot
 } from "@/lib/jenfu-principal-acl-migration-preview";
@@ -51,5 +52,21 @@ describe("principal cutover preview owner manifest boundary", () => {
     expect(execute).toHaveBeenCalledWith("SET LOCAL ROLE jenfu_ai_pdm_migrator");
     expect(manifest).toHaveBeenCalledWith(snapshot, input.contractManifestHashes);
     expect(query).not.toHaveBeenCalled();
+  });
+});
+
+describe("DEV-121 Production ACL preview source classification", () => {
+  it("distinguishes priority cardinality from role count and flag drift", () => {
+    expect(() => assertPrincipalAclPreviewCatalogShape([{ enabled: 1 }], [{ id: "active" }]))
+      .not.toThrow();
+    expect(() => assertPrincipalAclPreviewCatalogShape([{ enabled: 1 }], []))
+      .toThrow("principal_acl_plan_priority_cardinality_invalid");
+    expect(() => assertPrincipalAclPreviewCatalogShape([{ enabled: 1 }], [{}, {}]))
+      .toThrow("principal_acl_plan_priority_cardinality_invalid");
+    expect(() => assertPrincipalAclPreviewCatalogShape([{ enabled: 2 }], [{}]))
+      .toThrow("principal_acl_plan_role_flag_invalid");
+    expect(() => assertPrincipalAclPreviewCatalogShape(
+      Array.from({ length: 129 }, () => ({ enabled: 1 })), [{}]
+    )).toThrow("principal_acl_plan_role_count_invalid");
   });
 });
