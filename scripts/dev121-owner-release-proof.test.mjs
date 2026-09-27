@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { canonicalize, crc32cBase64, sha256 } from
   './lib/dev012-production-migration-runner.mjs'
-import { readOwnerReleaseProof, verifyOwnerProviderReadback } from './lib/dev121-owner-release-proof.mjs'
+import { assertMigration, readOwnerReleaseProof,
+  verifyOwnerProviderReadback } from './lib/dev121-owner-release-proof.mjs'
 
 const revision = 'a'.repeat(40)
 const manifest = 'b'.repeat(64)
@@ -134,6 +135,30 @@ test('reads immutable protected source lock and migration receipt without granti
   assert.deepEqual(Object.keys(proof.buildChain).sort(),
     ['build', 'deployment', 'provenance'])
   assert.equal(proof.providerClaim.buildId, buildId)
+})
+
+test('accepts the OrgMaster owner migration schema without bootstrap, without weakening count checks', () => {
+  const input = fixture()
+  const platform = JSON.parse(input.objects.get(input.refs.migrate.uri).toString('utf8'))
+  const { ledgerBootstrap } = platform
+  const core = { ...platform }
+  delete core.ledgerBootstrap
+  delete core.receiptSha256
+  const orgmaster = sealed({ ...core, ownerApplicationId: 'orgmaster',
+    ledger: 'orgmaster_core.schema_migrations' })
+  const orgConfig = { ledger: 'orgmaster_core.schema_migrations',
+    migrationBootstrap: false }
+  assert.doesNotThrow(() => assertMigration(orgmaster, 'orgmaster', orgConfig,
+    revision, manifest))
+  assert.throws(() => assertMigration(sealed({ ...orgmaster,
+    replayed: orgmaster.replayed - 1 }), 'orgmaster', orgConfig,
+  revision, manifest), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  assert.throws(() => assertMigration(sealed({ ...orgmaster,
+    ledgerBootstrap }), 'orgmaster', orgConfig,
+  revision, manifest), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  assert.throws(() => assertMigration(orgmaster, 'platform', {
+    ledger: 'orgmaster_core.schema_migrations', migrationBootstrap: true,
+  }, revision, manifest), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
 })
 
 test('migration-only build proof fails if its build chain is missing or altered', async () => {

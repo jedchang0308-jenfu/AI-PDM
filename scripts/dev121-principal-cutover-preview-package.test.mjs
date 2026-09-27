@@ -84,6 +84,7 @@ test('read-only operator build binds the immutable image to its source revision'
   const build = fs.readFileSync(path.join(root,
     'infra/google-cloud/dev-117-production-release/principal-cutover-preview-cloudbuild.yaml'), 'utf8')
   assert.match(build, /gcr\.io\/cloud-builders\/docker@sha256:[a-f0-9]{64}/u)
+  assert.match(build, /\n\s*dir: source\s*\n\s*args:/u)
   assert.match(build, /principal-cutover-preview\.Dockerfile/u)
   assert.match(build, /SOURCE_REVISION=\$\{_SOURCE_REVISION\}/u)
   assert.match(build, /images:\s*\n\s*- \$\{_IMAGE_URI\}:dev121-cutover-preview-\$\{_SOURCE_REVISION\}/u)
