@@ -43,7 +43,8 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
     schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'platform',
     sourceRevision: revision, database: 'jenfu_prod',
     ledger: 'platform_core.schema_migrations', manifestSha256: manifest,
-    baselineCount: 1, minimumLedgerCount: 1, ledgerBootstrap: false,
+    baselineCount: 1, minimumLedgerCount: 1,
+    ledgerBootstrap: { enabled: false, created: false },
     ledgerCount: 10, applied: 1, replayed: 9,
     crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true },
       { database: 'jenfu_stg', denied: true }],
@@ -137,6 +138,10 @@ test('rejects sibling bucket, wrong protected branch, manifest drift and rollbac
     /DEV121_OWNER_RELEASE_PROOF_SOURCE_LOCK_INVALID/u)
   await assert.rejects(verify(fixture({ migrationChange: {
     manifestSha256: '0'.repeat(64) } })), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  await assert.rejects(verify(fixture({ migrationChange: {
+    minimumLedgerCount: 11 } })), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  await assert.rejects(verify(fixture({ migrationChange: {
+    replayed: 8 } })), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
   await assert.rejects(verify(fixture({ includeTerminal: true,
     terminalChange: { result: 'ROLLED_BACK' } })),
     /DEV121_OWNER_RELEASE_PROOF_TERMINAL_INVALID/u)
