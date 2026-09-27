@@ -352,8 +352,9 @@ test('v3 preview seals three owner readbacks and rejects proof drift on replay',
     seen.push(owner)
     assert.deepEqual(refs, v3.ownerReleaseRefs[owner === 'ai-pdm' ? 'aiPdm' : owner])
     return { owner, sourceRevision,
-      disposition: owner === 'platform' ? 'released' : 'migration_only',
-      ...(owner === 'platform' ? { artifactDigest: 'platform-image@sha256:one' } : {}),
+      disposition: owner === 'orgmaster' ? 'migration_only' : 'released',
+      ...(owner === 'orgmaster' ? {} : {
+        artifactDigest: `${owner}-image@sha256:one` }),
       proofVersion }
   }
   const providerCalls = []
@@ -369,17 +370,17 @@ test('v3 preview seals three owner readbacks and rejects proof drift on replay',
   const result = await runMain(args)
   assert.equal(result.schemaVersion, 'ai-pdm.principal-cutover-preview-receipt.v3')
   assert.deepEqual(seen, ['platform', 'orgmaster', 'ai-pdm'])
-  assert.deepEqual(providerCalls, ['platform'])
+  assert.deepEqual(providerCalls, ['ai-pdm'])
   assert.equal(result.outcome.sourceBindingsAttested, false)
   assert.equal(result.outcome.applyAllowed, false)
-  assert.equal(result.ownerReleaseProofs.platform.providerReadback.status,
+  assert.equal(result.ownerReleaseProofs.aiPdm.providerReadback.status,
     'BUILD_IMAGE_VERIFIED')
-  assert.equal(result.ownerReleaseProofs.aiPdm.providerReadback, null)
+  assert.equal(result.ownerReleaseProofs.platform.providerReadback, null)
   assert.equal(JSON.parse(receiptBytes).ownerReleaseProofs.aiPdm.proofVersion, 'first')
   const replay = await runMain(args)
   assert.equal(replay.reused, true)
   assert.equal(transactions, 1)
-  assert.deepEqual(providerCalls, ['platform', 'platform'])
+  assert.deepEqual(providerCalls, ['ai-pdm', 'ai-pdm'])
   providerStatus = 'UNVERIFIED'
   await assert.rejects(runMain(args), /DEV121_CUTOVER_PREVIEW_PROVIDER_READBACK_INVALID/u)
   assert.equal(transactions, 1)

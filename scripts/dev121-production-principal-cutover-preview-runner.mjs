@@ -187,7 +187,10 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
         throw new Error('DEV121_CUTOVER_PREVIEW_OWNER_PROOF_INVALID')
       }
       let providerReadback = null
-      if (proof.disposition === 'released') {
+      // Each sibling owner attests its own source and image in its release
+      // receipts. The AI-PDM operator may read those receipts, not sibling
+      // source archives or registry images.
+      if (owner === 'ai-pdm' && proof.disposition === 'released') {
         providerReadback = await verifyProviderReadback({ proof, token, fetchImpl })
         if (providerReadback?.owner !== owner ||
             providerReadback?.sourceRevision !== proof.sourceRevision ||
