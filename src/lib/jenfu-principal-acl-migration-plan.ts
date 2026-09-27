@@ -48,7 +48,8 @@ export class PrincipalAclMigrationPlanError extends Error {
   constructor(readonly code: "principal_acl_plan_invalid" |
     "principal_acl_plan_role_count_invalid" |
     "principal_acl_plan_role_flag_invalid" |
-    "principal_acl_plan_priority_cardinality_invalid" |
+    "principal_acl_plan_priority_missing" |
+    "principal_acl_plan_priority_multiple_active" |
     "principal_acl_plan_role_missing" | "principal_acl_plan_reference_unresolved" |
     "principal_acl_plan_priority_incomplete") { super(code); }
 }
