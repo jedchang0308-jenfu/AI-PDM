@@ -78,9 +78,23 @@ function assertMigration(value, owner, config, revision, manifestSha256) {
     value.database !== 'jenfu_prod' || value.ledger !== config.ledger ||
     value.manifestSha256 !== manifestSha256 || value.status !== 'PASS' ||
     value.boundaryStatus !== 'PASS' || value.receiptSha256 !== receiptHash(value) ||
-    !Number.isInteger(value.ledgerCount) || value.ledgerCount < 1 ||
+    !Number.isInteger(value.baselineCount) || value.baselineCount < 0 ||
+    !Number.isInteger(value.minimumLedgerCount) ||
+    value.minimumLedgerCount < 0 ||
+    value.minimumLedgerCount > value.baselineCount ||
+    !Number.isInteger(value.ledgerCount) ||
+    value.ledgerCount < value.baselineCount ||
+    value.ledgerCount < value.minimumLedgerCount ||
     !Number.isInteger(value.applied) || value.applied < 0 ||
     !Number.isInteger(value.replayed) || value.replayed < 0 ||
+    value.applied + value.replayed !== value.ledgerCount ||
+    !exactKeys(value.ledgerBootstrap, ['enabled', 'created']) ||
+    typeof value.ledgerBootstrap.enabled !== 'boolean' ||
+    typeof value.ledgerBootstrap.created !== 'boolean' ||
+    (value.ledgerBootstrap.created && !value.ledgerBootstrap.enabled) ||
+    !Number.isFinite(Date.parse(value.startedAt)) ||
+    !Number.isFinite(Date.parse(value.completedAt)) ||
+    Date.parse(value.completedAt) < Date.parse(value.startedAt) ||
     canonicalize(value.crossDatabaseDenials) !== canonicalize([
       { database: 'jenfu_dev', denied: true },
       { database: 'jenfu_stg', denied: true },
