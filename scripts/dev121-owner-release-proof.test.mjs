@@ -2,13 +2,15 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { canonicalize, crc32cBase64, sha256 } from
   './lib/dev012-production-migration-runner.mjs'
-import { readOwnerReleaseProof } from './lib/dev121-owner-release-proof.mjs'
+import { readOwnerReleaseProof, verifyOwnerProviderReadback } from './lib/dev121-owner-release-proof.mjs'
 
 const revision = 'a'.repeat(40)
 const manifest = 'b'.repeat(64)
 const releaseId = 'DEV121-OWNER-001'
 const bucket = 'jenfu-platform-prod-platform-release'
 const root = `gs://${bucket}/receipts/releases/${releaseId}/${'c'.repeat(64)}`
+const buildId = '11111111-2222-3333-4444-555555555555'
+const archivedSource = Buffer.from('frozen owner source archive')
 
 function sealed(value) {
   return { ...value, receiptSha256: sha256(canonicalize(value)) }
@@ -65,13 +67,15 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
     }))
     const common = { candidateRevision, artifactDigest }
     const sourceObject = { uri: `gs://${bucket}/source/releases/${releaseId}/${'c'.repeat(64)}/source.tar.gz`,
-      sha256: '2'.repeat(64), generation: '7', crc32c: 'AAAAAA==' }
+      sha256: sha256(archivedSource), generation: '7',
+      crc32c: crc32cBase64(archivedSource) }
     const imageUri = artifactDigest.split('@')[0]
     const provenance = put(`${root}/provenance.json`, {
       schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1',
       ownerApplicationId: 'platform', sourceRevision: revision,
       sourceObject, artifactDigest, status: 'PASS',
-      cloudBuild: { status: 'SUCCESS', projectId: 'jenfu-platform-prod',
+      cloudBuild: { name: `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,
+        id: buildId, status: 'SUCCESS', projectId: 'jenfu-platform-prod',
         serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
         options: { requestedVerifyOption: 'VERIFIED' },
         sourceProvenance: { resolvedStorageSource: {
@@ -154,6 +158,87 @@ test('build provenance must bind the source object, builder and registry digest'
   await assert.rejects(verify(fixture({ includeTerminal: true,
     provenanceChange: { cloudBuild: { status: 'SUCCESS' } } })),
   /DEV121_OWNER_RELEASE_PROOF_PROVENANCE_INVALID/u)
+})
+
+function providerFetch(proof, { buildChange = {}, imageChange = {}, imageStatus = 200,
+  sourceBytes = archivedSource } = {}) {
+  const source = proof.providerClaim.sourceObject
+  const digest = proof.artifactDigest.split('@')[1]
+  const build = {
+    name: `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,
+    id: buildId, projectId: 'jenfu-platform-prod', status: 'SUCCESS',
+    serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
+    options: { requestedVerifyOption: 'VERIFIED' },
+    sourceProvenance: { resolvedStorageSource: { bucket,
+      object: source.uri.slice(`gs://${bucket}/`.length),
+      generation: source.generation } },
+    results: { images: [{ name: `asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform:release-${revision}`,
+      digest }] }, ...buildChange,
+  }
+  const image = { name: `projects/jenfu-platform-prod/locations/asia-east1/repositories/platform-release/dockerImages/platform@${digest}`,
+    uri: proof.artifactDigest, ...imageChange }
+  return async (url, options) => {
+    assert.equal(options.headers.authorization, 'Bearer provider-readback-token')
+    if (url.startsWith('https://storage.googleapis.com/storage/v1/')) {
+      if (url.includes('alt=media')) return new Response(sourceBytes)
+      return new Response(JSON.stringify({ generation: source.generation,
+        crc32c: crc32cBase64(sourceBytes) }))
+    }
+    assert.equal(options.method, 'GET')
+    if (url === `https://cloudbuild.googleapis.com/v1/${build.name}`) {
+      return new Response(JSON.stringify(build))
+    }
+    if (url.startsWith('https://artifactregistry.googleapis.com/v1/')) {
+      return new Response(JSON.stringify(image), { status: imageStatus })
+    }
+    throw new Error('UNEXPECTED_PROVIDER_URL')
+  }
+}
+
+test('independent provider readback matches the live build and exact registry digest', async () => {
+  const proof = await verify(fixture({ includeTerminal: true }))
+  const result = await verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: providerFetch(proof) })
+  assert.equal(result.status, 'BUILD_IMAGE_VERIFIED')
+  assert.equal(result.artifactDigest, proof.artifactDigest)
+  assert.equal(result.sourceGeneration, proof.providerClaim.sourceObject.generation)
+})
+
+test('provider readback rejects build or image drift and missing provider access', async () => {
+  const proof = await verify(fixture({ includeTerminal: true }))
+  await assert.rejects(verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: providerFetch(proof, {
+      buildChange: { results: { images: [] } } }) }),
+  /DEV121_OWNER_RELEASE_PROOF_PROVIDER_BUILD_MISMATCH/u)
+  await assert.rejects(verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: providerFetch(proof, {
+      imageChange: { uri: 'wrong' } }) }),
+  /DEV121_OWNER_RELEASE_PROOF_PROVIDER_IMAGE_MISMATCH/u)
+  await assert.rejects(verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: providerFetch(proof, {
+      imageStatus: 403 }) }),
+  /DEV121_OWNER_RELEASE_PROOF_PROVIDER_READBACK_FAILED/u)
+  await assert.rejects(verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: providerFetch(proof, {
+      sourceBytes: Buffer.from('tampered owner source archive') }) }),
+  /DEV121_OWNER_RELEASE_PROOF_PROVIDER_SOURCE_MISMATCH/u)
+})
+
+test('provider readback rejects malformed claims before any provider request', async () => {
+  const proof = await verify(fixture({ includeTerminal: true }))
+  let requests = 0
+  const fetchImpl = async () => { requests += 1; throw new Error('UNEXPECTED_REQUEST') }
+  for (const change of [
+    { artifactDigest: null },
+    { providerClaim: { ...proof.providerClaim, buildId: 'invalid' } },
+    { providerClaim: { ...proof.providerClaim,
+      sourceObject: { ...proof.providerClaim.sourceObject, uri: null } } },
+  ]) {
+    await assert.rejects(verifyOwnerProviderReadback({ proof: { ...proof, ...change },
+      token: 'provider-readback-token', fetchImpl }),
+    /DEV121_OWNER_RELEASE_PROOF_PROVIDER_INPUT_INVALID/u)
+  }
+  assert.equal(requests, 0)
 })
 
 test('rejects sibling bucket, wrong protected branch, manifest drift and rollback', async () => {

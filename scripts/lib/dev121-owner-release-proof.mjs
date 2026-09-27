@@ -2,21 +2,25 @@ import { canonicalize, readGcsObject, sha256 } from './dev012-production-migrati
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
+const BUILD_ID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
 const OWNERS = Object.freeze({
   platform: Object.freeze({ bucket: 'jenfu-platform-prod-platform-release',
     repository: 'jedchang0308-jenfu/Jenfu-Platform', branch: 'main',
     ledger: 'platform_core.schema_migrations',
+    artifactRepository: 'platform-release', artifactName: 'platform',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform',
     builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
   orgmaster: Object.freeze({ bucket: 'jenfu-platform-prod-orgmaster-release',
     repository: 'jedchang0308-jenfu/OrgMaster', branch: 'master',
     ledger: 'orgmaster_core.schema_migrations',
+    artifactRepository: 'orgmaster-release', artifactName: 'orgmaster',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/orgmaster-release/orgmaster',
     builder: 'orgmaster-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
   'ai-pdm': Object.freeze({ bucket: 'jenfu-platform-prod-aipdm-release',
     repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main',
     ledger: 'ai_pdm_core.schema_migrations',
+    artifactRepository: 'aipdm-release', artifactName: 'ai-pdm',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm',
     builder: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
 })
@@ -170,6 +174,9 @@ async function readReleasedStageChain({ owner, config, revision, releaseId, root
       sourceObject.uri !== expectedSourceUri || !H64.test(sourceObject.sha256) ||
       !/^[1-9][0-9]*$/u.test(sourceObject.generation) ||
       typeof sourceObject.crc32c !== 'string' ||
+      !BUILD_ID.test(buildRecord?.id ?? '') ||
+      buildRecord.name !==
+        `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildRecord.id}` ||
       buildRecord?.status !== 'SUCCESS' ||
       buildRecord.projectId !== 'jenfu-platform-prod' ||
       buildRecord.serviceAccount !==
@@ -238,8 +245,69 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
     migrate: object(migrate), ...(terminal ? { terminal: object(terminal),
       candidateRevision: terminal.value.facts.candidateRevision,
       artifactDigest: terminal.value.facts.artifactDigest,
+      providerClaim: {
+        buildId: releaseChain.provenance.value.cloudBuild.id,
+        sourceObject: releaseChain.provenance.value.sourceObject,
+      },
       releaseChain: Object.fromEntries(Object.entries(releaseChain)
         .map(([stage, receipt]) => [stage, object(receipt)])) } : {}) }
+}
+
+/** Independent, read-only Cloud Build and Artifact Registry readback. */
+export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fetch }) {
+  const config = OWNERS[proof?.owner]
+  const claim = proof?.providerClaim
+  const source = claim?.sourceObject
+  if (!config || proof.disposition !== 'released' || !H40.test(proof.sourceRevision ?? '') ||
+      !RELEASE_ID.test(proof.releaseId ?? '') ||
+      typeof proof.artifactDigest !== 'string' ||
+      !proof.artifactDigest.startsWith(`${config.artifactUri}@sha256:`) ||
+      !H64.test(proof.artifactDigest.slice(`${config.artifactUri}@sha256:`.length)) ||
+      !BUILD_ID.test(claim?.buildId ?? '') ||
+      !exactKeys(source, ['uri', 'sha256', 'generation', 'crc32c']) ||
+      typeof source.uri !== 'string' ||
+      !new RegExp(`^gs://${config.bucket}/source/releases/${proof.releaseId}/[a-f0-9]{64}/source\\.tar\\.gz$`, 'u').test(source.uri) ||
+      !H64.test(source.sha256) || !/^[1-9][0-9]*$/u.test(source.generation) ||
+      typeof token !== 'string' || token.length < 20) fail('PROVIDER_INPUT_INVALID')
+  let sourceReadback
+  try {
+    sourceReadback = await readGcsObject({ uri: source.uri,
+      expectedBucket: config.bucket, expectedPrefix: 'source/releases',
+      token, fetchImpl })
+  } catch { fail('PROVIDER_SOURCE_READBACK_FAILED') }
+  if (sourceReadback.generation !== source.generation ||
+      sourceReadback.crc32c !== source.crc32c ||
+      sha256(sourceReadback.bytes) !== source.sha256) fail('PROVIDER_SOURCE_MISMATCH')
+  const request = async (url) => {
+    const response = await fetchImpl(url, { method: 'GET', redirect: 'error',
+      headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) })
+    if (!response.ok) fail('PROVIDER_READBACK_FAILED')
+    try { return await response.json() } catch { fail('PROVIDER_READBACK_INVALID') }
+  }
+  const buildName = `projects/jenfu-platform-prod/locations/asia-east1/builds/${claim.buildId}`
+  const build = await request(`https://cloudbuild.googleapis.com/v1/${buildName}`)
+  const imageTag = `${config.artifactUri}:release-${proof.sourceRevision}`
+  const digest = proof.artifactDigest.slice(config.artifactUri.length + 1)
+  const storageSource = build?.sourceProvenance?.resolvedStorageSource
+  if (build?.name !== buildName || build?.id !== claim.buildId ||
+      build?.projectId !== 'jenfu-platform-prod' || build?.status !== 'SUCCESS' ||
+      build?.serviceAccount !==
+        `projects/jenfu-platform-prod/serviceAccounts/${config.builder}` ||
+      build.options?.requestedVerifyOption !== 'VERIFIED' ||
+      storageSource?.bucket !== config.bucket ||
+      storageSource?.object !== source.uri.slice(`gs://${config.bucket}/`.length) ||
+      String(storageSource?.generation) !== source.generation ||
+      !build.results?.images?.some((image) =>
+        image.name === imageTag && image.digest === digest)) fail('PROVIDER_BUILD_MISMATCH')
+  const imageName = `projects/jenfu-platform-prod/locations/asia-east1/repositories/${config.artifactRepository}/dockerImages/${config.artifactName}@${digest}`
+  const imageUrl = `https://artifactregistry.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/repositories/${config.artifactRepository}/dockerImages/${encodeURIComponent(`${config.artifactName}@${digest}`)}`
+  const image = await request(imageUrl)
+  if (image?.name !== imageName || image?.uri !== proof.artifactDigest) {
+    fail('PROVIDER_IMAGE_MISMATCH')
+  }
+  return { owner: proof.owner, sourceRevision: proof.sourceRevision,
+    buildName, sourceGeneration: source.generation,
+    artifactDigest: proof.artifactDigest, imageName, status: 'BUILD_IMAGE_VERIFIED' }
 }
 
 export function assertOwnerReleaseRefSet(owner, refs) {
