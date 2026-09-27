@@ -190,7 +190,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       // Each sibling owner attests its own source and image in its release
       // receipts. The AI-PDM operator may read those receipts, not sibling
       // source archives or registry images.
-      if (owner === 'ai-pdm' && proof.disposition === 'released') {
+      if (owner === 'ai-pdm') {
         providerReadback = await verifyProviderReadback({ proof, token, fetchImpl })
         if (providerReadback?.owner !== owner ||
             providerReadback?.sourceRevision !== proof.sourceRevision ||

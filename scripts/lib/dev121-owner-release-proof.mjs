@@ -52,6 +52,15 @@ async function readRef(ref, bucket, token, fetchImpl) {
   catch { fail('JSON_INVALID') }
   return { value, ref, generation: object.generation, crc32c: object.crc32c }
 }
+async function readFixedJson(uri, bucket, token, fetchImpl) {
+  const object = await readGcsObject({ uri, expectedBucket: bucket,
+    expectedPrefix: 'receipts', token, fetchImpl })
+  let value
+  try { value = JSON.parse(object.bytes.toString('utf8')) }
+  catch { fail('JSON_INVALID') }
+  return { value, ref: { uri, sha256: sha256(object.bytes) },
+    generation: object.generation, crc32c: object.crc32c }
+}
 function assertStage(value, owner, revision, releaseId, stage) {
   if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'releaseId',
     'sourceRevision', 'stage', 'previousReceiptRef', 'facts', 'observedAt',
@@ -111,42 +120,13 @@ function assertMigration(value, owner, config, revision, manifestSha256) {
     ])) fail('MIGRATION_INVALID')
 }
 
-async function readReleasedStageChain({ owner, config, revision, releaseId, root,
-  terminal, prepare, migrate, token, fetchImpl }) {
-  const stages = {}
-  let successor = terminal
-  const artifactDigest = terminal.value.facts.artifactDigest
-  const candidateRevision = terminal.value.facts.candidateRevision
-  for (const stage of ['finalize', 'canonical', 'activate', 'decision',
-    'verify', 'entrypoint', 'candidate']) {
-    const ref = assertRef(successor.value.previousReceiptRef, config.bucket,
-      `${root}/${stage}.json`)
-    const current = await readRef(ref, config.bucket, token, fetchImpl)
-    assertStage(current.value, owner, revision, releaseId, stage)
-    if (['finalize', 'canonical', 'activate', 'decision', 'verify',
-      'candidate'].includes(stage) &&
-      (current.value.facts?.candidateRevision !== candidateRevision ||
-        current.value.facts?.artifactDigest !== artifactDigest)) fail('STAGE_CHAIN_INVALID')
-    if ((stage === 'finalize' &&
-        (current.value.facts?.result !== 'RELEASED' ||
-          current.value.facts?.temporaryCandidateTags !== 0)) ||
-        (stage === 'decision' && current.value.facts?.decision !== 'GO') ||
-        (stage === 'activate' &&
-          current.value.facts?.effectiveRevision !== candidateRevision) ||
-        (['verify', 'canonical'].includes(stage) &&
-          current.value.facts?.smoke?.status !== 'PASS')) fail('STAGE_CHAIN_INVALID')
-    stages[stage] = current
-    successor = current
-  }
-  const candidate = stages.candidate
-  if (canonicalize(candidate.value.previousReceiptRef) !==
-      canonicalize(migrate.ref) ||
-      canonicalize(candidate.value.facts.migrationReceiptRef) !==
-      canonicalize(migrate.ref)) fail('STAGE_CHAIN_INVALID')
-  const deploymentRef = assertRef(candidate.value.facts.deploymentCapsuleRef,
-    config.bucket, `${root}/deployment-capsule.json`)
-  const deployment = await readRef(deploymentRef, config.bucket, token, fetchImpl)
-  if (deployment.value?.sourceRevision !== revision ||
+async function readBuildEvidence({ owner, config, revision, releaseId, root,
+  prepare, deployment, artifactDigest, token, fetchImpl }) {
+  const imagePrefix = `${config.artifactUri}@sha256:`
+  if (typeof artifactDigest !== 'string' ||
+      !artifactDigest.startsWith(imagePrefix) ||
+      !H64.test(artifactDigest.slice(imagePrefix.length)) ||
+      deployment.value?.sourceRevision !== revision ||
       deployment.value?.artifactDigest !== artifactDigest) fail('STAGE_CHAIN_INVALID')
   const buildRef = assertRef(deployment.value.buildReceiptRef, config.bucket,
     `${root}/build.json`)
@@ -191,7 +171,46 @@ async function readReleasedStageChain({ owner, config, revision, releaseId, root
       provenance.value.artifactRegistry?.uri !== artifactDigest) {
     fail('PROVENANCE_INVALID')
   }
-  return { ...stages, deployment, build, provenance }
+  return { deployment, build, provenance }
+}
+
+async function readReleasedStageChain({ owner, config, revision, releaseId, root,
+  terminal, prepare, migrate, token, fetchImpl }) {
+  const stages = {}
+  let successor = terminal
+  const artifactDigest = terminal.value.facts.artifactDigest
+  const candidateRevision = terminal.value.facts.candidateRevision
+  for (const stage of ['finalize', 'canonical', 'activate', 'decision',
+    'verify', 'entrypoint', 'candidate']) {
+    const ref = assertRef(successor.value.previousReceiptRef, config.bucket,
+      `${root}/${stage}.json`)
+    const current = await readRef(ref, config.bucket, token, fetchImpl)
+    assertStage(current.value, owner, revision, releaseId, stage)
+    if (['finalize', 'canonical', 'activate', 'decision', 'verify',
+      'candidate'].includes(stage) &&
+      (current.value.facts?.candidateRevision !== candidateRevision ||
+        current.value.facts?.artifactDigest !== artifactDigest)) fail('STAGE_CHAIN_INVALID')
+    if ((stage === 'finalize' &&
+        (current.value.facts?.result !== 'RELEASED' ||
+          current.value.facts?.temporaryCandidateTags !== 0)) ||
+        (stage === 'decision' && current.value.facts?.decision !== 'GO') ||
+        (stage === 'activate' &&
+          current.value.facts?.effectiveRevision !== candidateRevision) ||
+        (['verify', 'canonical'].includes(stage) &&
+          current.value.facts?.smoke?.status !== 'PASS')) fail('STAGE_CHAIN_INVALID')
+    stages[stage] = current
+    successor = current
+  }
+  const candidate = stages.candidate
+  if (canonicalize(candidate.value.previousReceiptRef) !==
+      canonicalize(migrate.ref) ||
+      canonicalize(candidate.value.facts.migrationReceiptRef) !==
+      canonicalize(migrate.ref)) fail('STAGE_CHAIN_INVALID')
+  const deploymentRef = assertRef(candidate.value.facts.deploymentCapsuleRef,
+    config.bucket, `${root}/deployment-capsule.json`)
+  const deployment = await readRef(deploymentRef, config.bucket, token, fetchImpl)
+  return { ...stages, ...await readBuildEvidence({ owner, config, revision,
+    releaseId, root, prepare, deployment, artifactDigest, token, fetchImpl }) }
 }
 
 /** Read-only, bucket-pinned owner source evidence; it does not authorize cutover. */
@@ -219,6 +238,7 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
     sourceLock.value.migrationManifestSha256)
   let terminal = null
   let releaseChain = null
+  let buildEvidence = null
   if (refs.terminal) {
     terminal = await readRef(refs.terminal, config.bucket, token, fetchImpl)
     assertStage(terminal.value, owner, sourceRevision, releaseId, 'terminal')
@@ -234,6 +254,16 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
     releaseChain = await readReleasedStageChain({ owner, config,
       revision: sourceRevision, releaseId, root, terminal, prepare, migrate,
       token, fetchImpl })
+    buildEvidence = releaseChain
+  } else {
+    // Migration-only is a pre-traffic build, not a released application. It
+    // still has the immutable owner build/deployment receipts needed to attest
+    // the exact image before principal materialization.
+    const deployment = await readFixedJson(`${root}/deployment-capsule.json`,
+      config.bucket, token, fetchImpl)
+    buildEvidence = await readBuildEvidence({ owner, config,
+      revision: sourceRevision, releaseId, root, prepare, deployment,
+      artifactDigest: deployment.value?.artifactDigest, token, fetchImpl })
   }
   const object = (readback) => ({ ref: readback.ref.uri,
     sha256: readback.ref.sha256, generation: readback.generation,
@@ -242,15 +272,18 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
     disposition: terminal ? 'released' : 'migration_only',
     migrationManifestSha256: sourceLock.value.migrationManifestSha256,
     prepare: object(prepare), sourceLock: object(sourceLock),
-    migrate: object(migrate), ...(terminal ? { terminal: object(terminal),
+    migrate: object(migrate),
+    artifactDigest: buildEvidence.deployment.value.artifactDigest,
+    providerClaim: {
+      buildId: buildEvidence.provenance.value.cloudBuild.id,
+      sourceObject: buildEvidence.provenance.value.sourceObject,
+    },
+    ...(terminal ? { terminal: object(terminal),
       candidateRevision: terminal.value.facts.candidateRevision,
-      artifactDigest: terminal.value.facts.artifactDigest,
-      providerClaim: {
-        buildId: releaseChain.provenance.value.cloudBuild.id,
-        sourceObject: releaseChain.provenance.value.sourceObject,
-      },
       releaseChain: Object.fromEntries(Object.entries(releaseChain)
-        .map(([stage, receipt]) => [stage, object(receipt)])) } : {}) }
+        .map(([stage, receipt]) => [stage, object(receipt)])) } : {
+      buildChain: Object.fromEntries(Object.entries(buildEvidence)
+        .map(([stage, receipt]) => [stage, object(receipt)])) }) }
 }
 
 /** Independent, read-only Cloud Build and Artifact Registry readback. */
@@ -258,7 +291,8 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
   const config = OWNERS[proof?.owner]
   const claim = proof?.providerClaim
   const source = claim?.sourceObject
-  if (!config || proof.disposition !== 'released' || !H40.test(proof.sourceRevision ?? '') ||
+  if (!config || !['released', 'migration_only'].includes(proof.disposition) ||
+      !H40.test(proof.sourceRevision ?? '') ||
       !RELEASE_ID.test(proof.releaseId ?? '') ||
       typeof proof.artifactDigest !== 'string' ||
       !proof.artifactDigest.startsWith(`${config.artifactUri}@sha256:`) ||
