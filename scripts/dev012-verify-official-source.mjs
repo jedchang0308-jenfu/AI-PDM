@@ -24,7 +24,7 @@ async function main(environment = process.env) {
     throw new Error('DEV012_OFFICIAL_SOURCE_REVIEW_CHECKOUT_MISMATCH')
   }
   const result = await verifyOfficialMergedSource({ repository, branch,
-    revision, sourceTree, token: environment.GITHUB_TOKEN })
+    revision, sourceTree, token: environment.GITHUB_TOKEN, rulesetId: 24077878 })
   process.stdout.write(`${JSON.stringify(result)}\n`)
 }
 
