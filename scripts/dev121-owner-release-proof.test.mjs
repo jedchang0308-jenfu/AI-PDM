@@ -14,7 +14,7 @@ function sealed(value) {
   return { ...value, receiptSha256: sha256(canonicalize(value)) }
 }
 function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange = {},
-  chainChange = {}, includeTerminal = false } = {}) {
+  chainChange = {}, provenanceChange = {}, includeTerminal = false } = {}) {
   const objects = new Map()
   function put(uri, value) {
     const bytes = Buffer.from(`${canonicalize(value)}\n`)
@@ -56,7 +56,7 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
   let terminal = null
   if (includeTerminal) {
     const candidateRevision = 'platform-revision-one'
-    const artifactDigest = `asia-east1-docker.pkg.dev/project/repo/image@sha256:${'1'.repeat(64)}`
+    const artifactDigest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform@sha256:${'1'.repeat(64)}`
     const stage = (name, previousReceiptRef, facts) => put(`${root}/${name}.json`, sealed({
       schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'platform',
       releaseId, sourceRevision: revision, stage: name, previousReceiptRef,
@@ -64,7 +64,25 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
       observedAt: '2026-09-26T00:04:00.000Z', status: 'PASS',
     }))
     const common = { candidateRevision, artifactDigest }
-    const build = stage('build', prepare, { artifactDigest })
+    const sourceObject = { uri: `gs://${bucket}/source/releases/${releaseId}/${'c'.repeat(64)}/source.tar.gz`,
+      sha256: '2'.repeat(64), generation: '7', crc32c: 'AAAAAA==' }
+    const imageUri = artifactDigest.split('@')[0]
+    const provenance = put(`${root}/provenance.json`, {
+      schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1',
+      ownerApplicationId: 'platform', sourceRevision: revision,
+      sourceObject, artifactDigest, status: 'PASS',
+      cloudBuild: { status: 'SUCCESS', projectId: 'jenfu-platform-prod',
+        serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
+        options: { requestedVerifyOption: 'VERIFIED' },
+        sourceProvenance: { resolvedStorageSource: {
+          bucket, object: sourceObject.uri.slice(`gs://${bucket}/`.length),
+          generation: sourceObject.generation } },
+        results: { images: [{ name: `${imageUri}:release-${revision}`,
+          digest: artifactDigest.split('@')[1] }] } },
+      artifactRegistry: { uri: artifactDigest }, ...provenanceChange,
+    })
+    const build = stage('build', prepare, { artifactDigest,
+      sourceObject, provenanceReceiptRef: provenance })
     const deployment = put(`${root}/deployment-capsule.json`, {
       sourceRevision: revision, artifactDigest, buildReceiptRef: build,
     })
@@ -114,7 +132,7 @@ test('distinguishes a released terminal receipt from migration-only evidence', a
   assert.equal(proof.disposition, 'released')
   assert.equal(proof.candidateRevision, 'platform-revision-one')
   assert.match(proof.artifactDigest, /@sha256:[a-f0-9]{64}$/u)
-  assert.equal(Object.keys(proof.releaseChain).length, 9)
+  assert.equal(Object.keys(proof.releaseChain).length, 10)
 })
 
 test('released status requires the complete hash-linked stage chain', async () => {
@@ -127,6 +145,15 @@ test('released status requires the complete hash-linked stage chain', async () =
   const missing = fixture({ includeTerminal: true })
   missing.objects.delete(`${root}/canonical.json`)
   await assert.rejects(verify(missing), /MIGRATION_GCS_METADATA_FAILED/u)
+})
+
+test('build provenance must bind the source object, builder and registry digest', async () => {
+  await assert.rejects(verify(fixture({ includeTerminal: true,
+    provenanceChange: { artifactRegistry: { uri: 'wrong' } } })),
+  /DEV121_OWNER_RELEASE_PROOF_PROVENANCE_INVALID/u)
+  await assert.rejects(verify(fixture({ includeTerminal: true,
+    provenanceChange: { cloudBuild: { status: 'SUCCESS' } } })),
+  /DEV121_OWNER_RELEASE_PROOF_PROVENANCE_INVALID/u)
 })
 
 test('rejects sibling bucket, wrong protected branch, manifest drift and rollback', async () => {
