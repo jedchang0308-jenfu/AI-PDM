@@ -1,6 +1,8 @@
 # AI_PDM Documentation Map
 
-> **2026-09-28 DEV-121 正式來源決策**：[ADR-PDM-RELEASE-SOURCE-001](decisions/ADR-PDM-RELEASE-SOURCE-001-small-team-official-source.md)固定 PR／Codex QC／required CI／provider branch protection 的真實證據，不要求第二位人工審查者；GitHub 設定尚待讀回，不能把文件當成 release PASS。
+> **2026-09-28 DEV-121 Production 單人預覽證據**：[DEV-121 任務紀錄](dev_task.md)保留 Jed 唯讀 operation、operator source／digest、唯一啟用排序的 owner UI readback 與受限 receipt 指紋。這只證明單人 workspace shadow 無缺口，`applyAllowed=false`；全 cohort 歸屬、完整 resource／delegation 等價、recovery、service 切流與 Production L4 尚未完成。
+
+> **2026-09-28 DEV-121 正式來源決策**：[ADR-PDM-RELEASE-SOURCE-001](decisions/ADR-PDM-RELEASE-SOURCE-001-small-team-official-source.md)固定 PR／Codex QC／required CI／provider branch protection 的真實證據，不要求第二位人工審查者；active ruleset 與 classic protection 已讀回，但文件本身不能當成 owner release PASS。
 
 > **2026-09-26 DEV-121 R5 現行診斷／來源 policy**：[同一 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄 R5 私有 profile label、三個未映射 Firebase pair、共用信箱承接與正式 `firebase_bff` 來源集合；歷史 Google OAuth 列不作當前登入證據。局部修正尚未發布，權限切換與 L4 仍停用。
 
