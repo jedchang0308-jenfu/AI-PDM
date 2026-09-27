@@ -268,7 +268,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
 export function publicCutoverPreviewErrorOrigin(error) {
   const frames = typeof error?.stack === 'string' ? error.stack.split('\n') : []
   return frames.flatMap((frame) => {
-    const match = /\/app\/((?:src\/lib|scripts(?:\/lib)?)\/[a-z0-9./_-]+\.(?:mjs|ts)):(\d+):\d+/u.exec(frame)
+    const match = /\/app\/((?:src\/lib|scripts(?:\/lib)?)\/[a-z0-9_-]+(?:\/[a-z0-9_-]+)*\.(?:mjs|ts)):(\d+):\d+/u.exec(frame)
     return match ? [`${match[1]}:${match[2]}`] : []
   }).slice(0, 4)
 }

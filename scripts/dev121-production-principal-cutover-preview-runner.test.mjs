@@ -47,6 +47,7 @@ test('diagnostic error origin exposes only owner source locations', () => {
     '    at invalid (file:///app/src/lib/jenfu-principal-acl-migration-preview.ts:47:9)',
     '    at readPrincipalAclMigrationSource (file:///app/src/lib/jenfu-principal-acl-migration-preview.ts:132:18)',
     '    at token (/secrets/customer-name.js:99:1)',
+    '    at forged (file:///app/src/lib/../../private/customer.ts:44:2)',
   ].join('\n') }
   assert.deepEqual(publicCutoverPreviewErrorOrigin(error), [
     'src/lib/jenfu-principal-acl-migration-preview.ts:47',
