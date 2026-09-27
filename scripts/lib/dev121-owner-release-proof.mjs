@@ -289,9 +289,9 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
   const imageTag = `${config.artifactUri}:release-${proof.sourceRevision}`
   const digest = proof.artifactDigest.slice(config.artifactUri.length + 1)
   const storageSource = build?.sourceProvenance?.resolvedStorageSource
-  if (build.name !== buildName || build.id !== claim.buildId ||
-      build.projectId !== 'jenfu-platform-prod' || build.status !== 'SUCCESS' ||
-      build.serviceAccount !==
+  if (build?.name !== buildName || build?.id !== claim.buildId ||
+      build?.projectId !== 'jenfu-platform-prod' || build?.status !== 'SUCCESS' ||
+      build?.serviceAccount !==
         `projects/jenfu-platform-prod/serviceAccounts/${config.builder}` ||
       build.options?.requestedVerifyOption !== 'VERIFIED' ||
       storageSource?.bucket !== config.bucket ||
@@ -302,7 +302,7 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
   const imageName = `projects/jenfu-platform-prod/locations/asia-east1/repositories/${config.artifactRepository}/dockerImages/${config.artifactName}@${digest}`
   const imageUrl = `https://artifactregistry.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/repositories/${config.artifactRepository}/dockerImages/${encodeURIComponent(`${config.artifactName}@${digest}`)}`
   const image = await request(imageUrl)
-  if (image.name !== imageName || image.uri !== proof.artifactDigest) {
+  if (image?.name !== imageName || image?.uri !== proof.artifactDigest) {
     fail('PROVIDER_IMAGE_MISMATCH')
   }
   return { owner: proof.owner, sourceRevision: proof.sourceRevision,
