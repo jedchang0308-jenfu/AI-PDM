@@ -1,6 +1,8 @@
 # AI PDM dev_task PM Control Board
 
-> **2026-09-28 AIPDM/DEV-121#official-source**：單人維護正式來源採唯一 merged PR、Codex QC 紀錄、既有兩個 required CI、provider branch protection（PR 必經、零人工核准、管理者同受約束、無 force push／刪除）；見 ADR-PDM-RELEASE-SOURCE-001。Provider 已讀回 classic protection 與零 bypass active ruleset `24077878`；PR #98 CI／merge 及正式 workflow 尚待完成，本機 verifier 修改不等於 Production source PASS。
+> **2026-09-27 DEV-121 自有 provider 讀回接線（本機，未發布）**：v3 唯讀 preview 在資料庫快照與 receipt replay 前，僅對 AI-PDM 自己的 `released` proof 執行 Cloud Build／GCS／Artifact Registry 即時讀回並封存結果；Platform／OrgMaster 僅讀各自 owner 發布的受限收據，不擴張 sibling source／image 讀權。`migration_only` 不冒稱 image 已驗。provider 漂移在交易前拒絕；proof／preview／package 聚焦 18／18、scoped ESLint 與 diff check PASS。正式自有 provider 權限與 readback、三 owner protected source、operator image、resource／delegation shadow、回復與 Production L4 仍缺，故 `sourceBindingsAttested=false`、`applyAllowed=false` 不變。詳見 [DEV-121](specs/DEV-121-target-authorization-boundary.md)。
+
+> **2026-09-28 AIPDM/DEV-121#official-source**：單人維護正式來源採唯一 merged PR、Codex QC 紀錄、既有兩個 required CI、provider branch protection（PR 必經、零人工核准、管理者同受約束、無 force push／刪除）；見 ADR-PDM-RELEASE-SOURCE-001。Provider 已讀回 classic protection 與零 bypass active ruleset `24077878`；PR #98 CI／merge 已完成，正式 workflow 尚待完成，本機 verifier 修改不等於 Production source PASS。
 
 > **2026-09-27 DEV-121 protected-source 執行修正（本機，未發布）**：GitHub provider 重新讀回本 repo 為 public、唯一 collaborator 為 `jedchang0308-jenfu`，官方 `main` 仍 `protected:false`。已合併 PR／WIF 限定及綠燈 CI 不等於受保護 ref 與適用的 review 證據。owner verifier 現將未受保護 branch 明確拒絕，同時保留 exact HEAD／tree／唯一 merged PR 查核；聚焦測試 4／4 PASS。此修正不改寫歷史 release 收據，未設定 provider protection，新的 principal-first Production source gate 仍未通過；`sourceBindingsAttested=false`、`applyAllowed=false`，未操作 Production。
 
