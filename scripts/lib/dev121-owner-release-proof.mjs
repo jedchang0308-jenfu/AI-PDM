@@ -78,13 +78,74 @@ function assertMigration(value, owner, config, revision, manifestSha256) {
     value.database !== 'jenfu_prod' || value.ledger !== config.ledger ||
     value.manifestSha256 !== manifestSha256 || value.status !== 'PASS' ||
     value.boundaryStatus !== 'PASS' || value.receiptSha256 !== receiptHash(value) ||
-    !Number.isInteger(value.ledgerCount) || value.ledgerCount < 1 ||
+    !Number.isInteger(value.baselineCount) || value.baselineCount < 0 ||
+    !Number.isInteger(value.minimumLedgerCount) ||
+    value.minimumLedgerCount < 0 ||
+    value.minimumLedgerCount > value.baselineCount ||
+    !Number.isInteger(value.ledgerCount) ||
+    value.ledgerCount < value.baselineCount ||
+    value.ledgerCount < value.minimumLedgerCount ||
     !Number.isInteger(value.applied) || value.applied < 0 ||
     !Number.isInteger(value.replayed) || value.replayed < 0 ||
+    value.applied + value.replayed !== value.ledgerCount ||
+    !exactKeys(value.ledgerBootstrap, ['enabled', 'created']) ||
+    typeof value.ledgerBootstrap.enabled !== 'boolean' ||
+    typeof value.ledgerBootstrap.created !== 'boolean' ||
+    (value.ledgerBootstrap.created && !value.ledgerBootstrap.enabled) ||
+    !Number.isFinite(Date.parse(value.startedAt)) ||
+    !Number.isFinite(Date.parse(value.completedAt)) ||
+    Date.parse(value.completedAt) < Date.parse(value.startedAt) ||
     canonicalize(value.crossDatabaseDenials) !== canonicalize([
       { database: 'jenfu_dev', denied: true },
       { database: 'jenfu_stg', denied: true },
     ])) fail('MIGRATION_INVALID')
+}
+
+async function readReleasedStageChain({ owner, config, revision, releaseId, root,
+  terminal, prepare, migrate, token, fetchImpl }) {
+  const stages = {}
+  let successor = terminal
+  const artifactDigest = terminal.value.facts.artifactDigest
+  const candidateRevision = terminal.value.facts.candidateRevision
+  for (const stage of ['finalize', 'canonical', 'activate', 'decision',
+    'verify', 'entrypoint', 'candidate']) {
+    const ref = assertRef(successor.value.previousReceiptRef, config.bucket,
+      `${root}/${stage}.json`)
+    const current = await readRef(ref, config.bucket, token, fetchImpl)
+    assertStage(current.value, owner, revision, releaseId, stage)
+    if (['finalize', 'canonical', 'activate', 'decision', 'verify',
+      'candidate'].includes(stage) &&
+      (current.value.facts?.candidateRevision !== candidateRevision ||
+        current.value.facts?.artifactDigest !== artifactDigest)) fail('STAGE_CHAIN_INVALID')
+    if ((stage === 'finalize' &&
+        (current.value.facts?.result !== 'RELEASED' ||
+          current.value.facts?.temporaryCandidateTags !== 0)) ||
+        (stage === 'decision' && current.value.facts?.decision !== 'GO') ||
+        (stage === 'activate' &&
+          current.value.facts?.effectiveRevision !== candidateRevision) ||
+        (['verify', 'canonical'].includes(stage) &&
+          current.value.facts?.smoke?.status !== 'PASS')) fail('STAGE_CHAIN_INVALID')
+    stages[stage] = current
+    successor = current
+  }
+  const candidate = stages.candidate
+  if (canonicalize(candidate.value.previousReceiptRef) !==
+      canonicalize(migrate.ref) ||
+      canonicalize(candidate.value.facts.migrationReceiptRef) !==
+      canonicalize(migrate.ref)) fail('STAGE_CHAIN_INVALID')
+  const deploymentRef = assertRef(candidate.value.facts.deploymentCapsuleRef,
+    config.bucket, `${root}/deployment-capsule.json`)
+  const deployment = await readRef(deploymentRef, config.bucket, token, fetchImpl)
+  if (deployment.value?.sourceRevision !== revision ||
+      deployment.value?.artifactDigest !== artifactDigest) fail('STAGE_CHAIN_INVALID')
+  const buildRef = assertRef(deployment.value.buildReceiptRef, config.bucket,
+    `${root}/build.json`)
+  const build = await readRef(buildRef, config.bucket, token, fetchImpl)
+  assertStage(build.value, owner, revision, releaseId, 'build')
+  if (canonicalize(build.value.previousReceiptRef) !==
+      canonicalize(prepare.ref) ||
+      build.value.facts?.artifactDigest !== artifactDigest) fail('STAGE_CHAIN_INVALID')
+  return { ...stages, deployment, build }
 }
 
 /** Read-only, bucket-pinned owner source evidence; it does not authorize cutover. */
@@ -111,6 +172,7 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
   assertMigration(migrate.value, owner, config, sourceRevision,
     sourceLock.value.migrationManifestSha256)
   let terminal = null
+  let releaseChain = null
   if (refs.terminal) {
     terminal = await readRef(refs.terminal, config.bucket, token, fetchImpl)
     assertStage(terminal.value, owner, sourceRevision, releaseId, 'terminal')
@@ -123,6 +185,9 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
         terminal.value.previousReceiptRef.uri !== `${root}/finalize.json`) {
       fail('TERMINAL_INVALID')
     }
+    releaseChain = await readReleasedStageChain({ owner, config,
+      revision: sourceRevision, releaseId, root, terminal, prepare, migrate,
+      token, fetchImpl })
   }
   const object = (readback) => ({ ref: readback.ref.uri,
     sha256: readback.ref.sha256, generation: readback.generation,
@@ -133,7 +198,9 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
     prepare: object(prepare), sourceLock: object(sourceLock),
     migrate: object(migrate), ...(terminal ? { terminal: object(terminal),
       candidateRevision: terminal.value.facts.candidateRevision,
-      artifactDigest: terminal.value.facts.artifactDigest } : {}) }
+      artifactDigest: terminal.value.facts.artifactDigest,
+      releaseChain: Object.fromEntries(Object.entries(releaseChain)
+        .map(([stage, receipt]) => [stage, object(receipt)])) } : {}) }
 }
 
 export function assertOwnerReleaseRefSet(owner, refs) {

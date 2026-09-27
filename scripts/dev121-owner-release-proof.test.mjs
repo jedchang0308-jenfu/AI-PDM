@@ -14,7 +14,7 @@ function sealed(value) {
   return { ...value, receiptSha256: sha256(canonicalize(value)) }
 }
 function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange = {},
-  includeTerminal = false } = {}) {
+  chainChange = {}, includeTerminal = false } = {}) {
   const objects = new Map()
   function put(uri, value) {
     const bytes = Buffer.from(`${canonicalize(value)}\n`)
@@ -43,7 +43,8 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
     schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'platform',
     sourceRevision: revision, database: 'jenfu_prod',
     ledger: 'platform_core.schema_migrations', manifestSha256: manifest,
-    baselineCount: 1, minimumLedgerCount: 1, ledgerBootstrap: false,
+    baselineCount: 1, minimumLedgerCount: 1,
+    ledgerBootstrap: { enabled: false, created: false },
     ledgerCount: 10, applied: 1, replayed: 9,
     crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true },
       { database: 'jenfu_stg', denied: true }],
@@ -52,15 +53,37 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
     completedAt: '2026-09-26T00:03:00.000Z', status: 'PASS',
     ...migrationChange,
   }))
-  const terminal = includeTerminal ? put(`${root}/terminal.json`, sealed({
-    schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'platform',
-    releaseId, sourceRevision: revision, stage: 'terminal',
-    previousReceiptRef: { uri: `${root}/finalize.json`, sha256: 'f'.repeat(64) },
-    facts: { result: 'RELEASED', databaseDisposition: 'FORWARD_APPLIED',
-      remainingHumanAction: 0, candidateRevision: 'platform-revision-one',
-      artifactDigest: `asia-east1-docker.pkg.dev/project/repo/image@sha256:${'1'.repeat(64)}`,
-      ...terminalChange }, observedAt: '2026-09-26T00:04:00.000Z', status: 'PASS',
-  })) : null
+  let terminal = null
+  if (includeTerminal) {
+    const candidateRevision = 'platform-revision-one'
+    const artifactDigest = `asia-east1-docker.pkg.dev/project/repo/image@sha256:${'1'.repeat(64)}`
+    const stage = (name, previousReceiptRef, facts) => put(`${root}/${name}.json`, sealed({
+      schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'platform',
+      releaseId, sourceRevision: revision, stage: name, previousReceiptRef,
+      facts: { ...facts, ...(chainChange[name] ?? {}) },
+      observedAt: '2026-09-26T00:04:00.000Z', status: 'PASS',
+    }))
+    const common = { candidateRevision, artifactDigest }
+    const build = stage('build', prepare, { artifactDigest })
+    const deployment = put(`${root}/deployment-capsule.json`, {
+      sourceRevision: revision, artifactDigest, buildReceiptRef: build,
+    })
+    const candidate = stage('candidate', migrate, { ...common,
+      migrationReceiptRef: migrate, deploymentCapsuleRef: deployment })
+    const entrypoint = stage('entrypoint', candidate, {})
+    const verifyStage = stage('verify', entrypoint, { ...common,
+      smoke: { status: 'PASS' } })
+    const decision = stage('decision', verifyStage, { ...common, decision: 'GO' })
+    const activate = stage('activate', decision, { ...common,
+      effectiveRevision: candidateRevision })
+    const canonical = stage('canonical', activate, { ...common,
+      smoke: { status: 'PASS' } })
+    const finalize = stage('finalize', canonical, { ...common,
+      result: 'RELEASED', temporaryCandidateTags: 0 })
+    terminal = stage('terminal', finalize, { ...common,
+      result: 'RELEASED', databaseDisposition: 'FORWARD_APPLIED',
+      remainingHumanAction: 0, ...terminalChange })
+  }
   const fetchImpl = async (url) => {
     const match = /\/b\/([^/]+)\/o\/([^?]+)/u.exec(url)
     const uri = match && `gs://${decodeURIComponent(match[1])}/${decodeURIComponent(match[2])}`
@@ -91,6 +114,19 @@ test('distinguishes a released terminal receipt from migration-only evidence', a
   assert.equal(proof.disposition, 'released')
   assert.equal(proof.candidateRevision, 'platform-revision-one')
   assert.match(proof.artifactDigest, /@sha256:[a-f0-9]{64}$/u)
+  assert.equal(Object.keys(proof.releaseChain).length, 9)
+})
+
+test('released status requires the complete hash-linked stage chain', async () => {
+  await assert.rejects(verify(fixture({ includeTerminal: true,
+    chainChange: { decision: { decision: 'NO_GO' } } })),
+  /DEV121_OWNER_RELEASE_PROOF_STAGE_CHAIN_INVALID/u)
+  await assert.rejects(verify(fixture({ includeTerminal: true,
+    chainChange: { activate: { effectiveRevision: 'other-revision' } } })),
+  /DEV121_OWNER_RELEASE_PROOF_STAGE_CHAIN_INVALID/u)
+  const missing = fixture({ includeTerminal: true })
+  missing.objects.delete(`${root}/canonical.json`)
+  await assert.rejects(verify(missing), /MIGRATION_GCS_METADATA_FAILED/u)
 })
 
 test('rejects sibling bucket, wrong protected branch, manifest drift and rollback', async () => {
@@ -102,6 +138,10 @@ test('rejects sibling bucket, wrong protected branch, manifest drift and rollbac
     /DEV121_OWNER_RELEASE_PROOF_SOURCE_LOCK_INVALID/u)
   await assert.rejects(verify(fixture({ migrationChange: {
     manifestSha256: '0'.repeat(64) } })), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  await assert.rejects(verify(fixture({ migrationChange: {
+    minimumLedgerCount: 11 } })), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  await assert.rejects(verify(fixture({ migrationChange: {
+    replayed: 8 } })), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
   await assert.rejects(verify(fixture({ includeTerminal: true,
     terminalChange: { result: 'ROLLED_BACK' } })),
     /DEV121_OWNER_RELEASE_PROOF_TERMINAL_INVALID/u)
