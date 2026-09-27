@@ -4,6 +4,15 @@ const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const BUILD_ID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
+const PROJECT_ID = 'jenfu-platform-prod'
+const PROJECT_NUMBER = '9536592944'
+function expectedBuildName(buildId, project = PROJECT_ID) {
+  return `projects/${project}/locations/asia-east1/builds/${buildId}`
+}
+function isTargetBuildName(name, buildId) {
+  return name === expectedBuildName(buildId) ||
+    name === expectedBuildName(buildId, PROJECT_NUMBER)
+}
 const OWNERS = Object.freeze({
   platform: Object.freeze({ bucket: 'jenfu-platform-prod-platform-release',
     repository: 'jedchang0308-jenfu/Jenfu-Platform', branch: 'main',
@@ -155,8 +164,7 @@ async function readBuildEvidence({ owner, config, revision, releaseId, root,
       !/^[1-9][0-9]*$/u.test(sourceObject.generation) ||
       typeof sourceObject.crc32c !== 'string' ||
       !BUILD_ID.test(buildRecord?.id ?? '') ||
-      buildRecord.name !==
-        `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildRecord.id}` ||
+      !isTargetBuildName(buildRecord.name, buildRecord.id) ||
       buildRecord?.status !== 'SUCCESS' ||
       buildRecord.projectId !== 'jenfu-platform-prod' ||
       buildRecord.serviceAccount !==
@@ -318,12 +326,13 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
     if (!response.ok) fail('PROVIDER_READBACK_FAILED')
     try { return await response.json() } catch { fail('PROVIDER_READBACK_INVALID') }
   }
-  const buildName = `projects/jenfu-platform-prod/locations/asia-east1/builds/${claim.buildId}`
+  const buildName = expectedBuildName(claim.buildId)
   const build = await request(`https://cloudbuild.googleapis.com/v1/${buildName}`)
   const imageTag = `${config.artifactUri}:release-${proof.sourceRevision}`
   const digest = proof.artifactDigest.slice(config.artifactUri.length + 1)
   const storageSource = build?.sourceProvenance?.resolvedStorageSource
-  if (build?.name !== buildName || build?.id !== claim.buildId ||
+  if (!isTargetBuildName(build?.name, claim.buildId) ||
+      build?.id !== claim.buildId ||
       build?.projectId !== 'jenfu-platform-prod' || build?.status !== 'SUCCESS' ||
       build?.serviceAccount !==
         `projects/jenfu-platform-prod/serviceAccounts/${config.builder}` ||

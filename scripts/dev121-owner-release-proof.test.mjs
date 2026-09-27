@@ -16,7 +16,8 @@ function sealed(value) {
   return { ...value, receiptSha256: sha256(canonicalize(value)) }
 }
 function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange = {},
-  chainChange = {}, provenanceChange = {}, includeTerminal = false } = {}) {
+  chainChange = {}, provenanceChange = {}, includeTerminal = false,
+  buildProject = 'jenfu-platform-prod' } = {}) {
   const objects = new Map()
   function put(uri, value) {
     const bytes = Buffer.from(`${canonicalize(value)}\n`)
@@ -72,7 +73,7 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
     schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1',
     ownerApplicationId: 'platform', sourceRevision: revision,
     sourceObject, artifactDigest, status: 'PASS',
-    cloudBuild: { name: `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,
+    cloudBuild: { name: `projects/${buildProject}/locations/asia-east1/builds/${buildId}`,
       id: buildId, status: 'SUCCESS', projectId: 'jenfu-platform-prod',
       serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
       options: { requestedVerifyOption: 'VERIFIED' },
@@ -177,11 +178,11 @@ test('build provenance must bind the source object, builder and registry digest'
 })
 
 function providerFetch(proof, { buildChange = {}, imageChange = {}, imageStatus = 200,
-  sourceBytes = archivedSource } = {}) {
+  sourceBytes = archivedSource, buildProject = 'jenfu-platform-prod' } = {}) {
   const source = proof.providerClaim.sourceObject
   const digest = proof.artifactDigest.split('@')[1]
   const build = {
-    name: `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,
+    name: `projects/${buildProject}/locations/asia-east1/builds/${buildId}`,
     id: buildId, projectId: 'jenfu-platform-prod', status: 'SUCCESS',
     serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
     options: { requestedVerifyOption: 'VERIFIED' },
@@ -201,7 +202,7 @@ function providerFetch(proof, { buildChange = {}, imageChange = {}, imageStatus 
         crc32c: crc32cBase64(sourceBytes) }))
     }
     assert.equal(options.method, 'GET')
-    if (url === `https://cloudbuild.googleapis.com/v1/${build.name}`) {
+    if (url === `https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`) {
       return new Response(JSON.stringify(build))
     }
     if (url.startsWith('https://artifactregistry.googleapis.com/v1/')) {
@@ -227,6 +228,20 @@ test('migration-only image gets provider readback without becoming released', as
   assert.equal(proof.disposition, 'migration_only')
   assert.equal(result.status, 'BUILD_IMAGE_VERIFIED')
   assert.equal(result.artifactDigest, proof.artifactDigest)
+})
+
+test('accepts the provider-normalized numeric name only for the exact project', async () => {
+  const proof = await verify(fixture({ buildProject: '9536592944' }))
+  const result = await verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token',
+    fetchImpl: providerFetch(proof, { buildProject: '9536592944' }) })
+  assert.equal(result.status, 'BUILD_IMAGE_VERIFIED')
+  await assert.rejects(verify(fixture({ buildProject: '9536592945' })),
+    /DEV121_OWNER_RELEASE_PROOF_PROVENANCE_INVALID/u)
+  await assert.rejects(verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token',
+    fetchImpl: providerFetch(proof, { buildProject: '9536592945' }) }),
+  /DEV121_OWNER_RELEASE_PROOF_PROVIDER_BUILD_MISMATCH/u)
 })
 
 test('provider readback rejects build or image drift and missing provider access', async () => {
