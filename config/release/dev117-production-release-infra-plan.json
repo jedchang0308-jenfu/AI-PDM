@@ -59,6 +59,10 @@
     "google_service_account_iam_member.deployer_act_as_runtime"
   ],
   "stageBAdditional": [
+    "google_project_iam_custom_role.migrator_build_get[0]",
+    "google_project_iam_member.migrator_build_get[0]",
+    "google_artifact_registry_repository_iam_member.migrator_proof_image_reader[0]",
+    "google_storage_bucket_iam_member.migrator_release_source_viewer[0]",
     "google_project_iam_member.builder_sbom_bucket_viewer[0]",
     "google_project_iam_member.builder_sbom_note_attacher[0]",
     "google_project_iam_member.runtime_firebase_auth_viewer[0]",

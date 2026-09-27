@@ -53,6 +53,24 @@ resource "google_project_iam_member" "builder_artifact_analysis" {
   member  = "serviceAccount:${google_service_account.builder.email}"
 }
 
+# DEV-121 operator verifies its own immutable Cloud Build record by ID.
+# No build listing, submission, update, or sibling resource mutation is needed.
+resource "google_project_iam_custom_role" "migrator_build_get" {
+  count       = var.incident_runtime_enabled ? 1 : 0
+  project     = var.project_id
+  role_id     = "aipdmDev121BuildGet"
+  title       = "AI-PDM DEV-121 build readback"
+  description = "Read one referenced Cloud Build record for AI-PDM cutover proof"
+  permissions = ["cloudbuild.builds.get", "serviceusage.services.use"]
+}
+
+resource "google_project_iam_member" "migrator_build_get" {
+  count   = var.incident_runtime_enabled ? 1 : 0
+  project = var.project_id
+  role    = google_project_iam_custom_role.migrator_build_get[0].name
+  member  = "serviceAccount:${data.google_service_account.migrator.email}"
+}
+
 # Artifact Analysis exportSBOM enumerates the project's default SBOM bucket.
 # This role exposes bucket metadata only; object writes remain prefix-scoped below.
 resource "google_project_iam_member" "builder_sbom_bucket_viewer" {

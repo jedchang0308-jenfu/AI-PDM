@@ -41,3 +41,13 @@ resource "google_artifact_registry_repository_iam_member" "deployer_reader" {
   role       = "roles/artifactregistry.reader"
   member     = "serviceAccount:${google_service_account.deployer.email}"
 }
+
+# DEV-121 compares the exact AI-PDM immutable image with the owner receipt.
+resource "google_artifact_registry_repository_iam_member" "migrator_proof_image_reader" {
+  count      = var.incident_runtime_enabled ? 1 : 0
+  project    = var.project_id
+  location   = google_artifact_registry_repository.release.location
+  repository = google_artifact_registry_repository.release.name
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${data.google_service_account.migrator.email}"
+}
