@@ -74,8 +74,6 @@ function decode(value: string | undefined): Transaction | null {
   } catch { return null; }
 }
 
-function cookie(value: string, maxAge: number) { return `${COOKIE}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; HttpOnly; SameSite=Lax${process.env.PDM_PUBLIC_BASE_URL?.trim().startsWith("https://") ? "; Secure" : ""}`; }
-function clearCookie() { return cookie("", 0); }
 function error(code: string, status: number) { return NextResponse.json({ code }, { status, headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } }); }
 
 function exactObject(value: unknown, keys: readonly string[]) {
@@ -100,7 +98,7 @@ function callbackFailure(config: ReturnType<typeof setup>, code: string) {
   const response = NextResponse.redirect(target, 303);
   response.headers.set("cache-control", "no-store");
   response.headers.set("referrer-policy", "no-referrer");
-  response.headers.set("set-cookie", clearCookie());
+  response.cookies.set(COOKIE, "", { httpOnly: true, sameSite: "lax", secure: config.base.startsWith("https://"), path: "/", maxAge: 0 });
   return response;
 }
 
