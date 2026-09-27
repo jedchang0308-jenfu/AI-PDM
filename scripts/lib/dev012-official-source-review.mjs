@@ -6,7 +6,7 @@ function fail(code) { throw new Error(`DEV012_OFFICIAL_SOURCE_REVIEW_${code}`) }
 
 /** Provider readback for the owner workflow's exact official merge commit. */
 export async function verifyOfficialMergedSource({ repository, branch, revision,
-  sourceTree, token, fetchImpl = fetch }) {
+  sourceTree, token, rulesetId = null, fetchImpl = fetch }) {
   if (!REPOSITORY.test(repository ?? '') || !BRANCH.test(branch ?? '') ||
       !REVISION.test(revision ?? '') || !REVISION.test(sourceTree ?? '') ||
       typeof token !== 'string' || token.length < 20) fail('INPUT_INVALID')
@@ -33,15 +33,24 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
     fail('OFFICIAL_REF_MISMATCH')
   }
   if (official.protected !== true) fail('BRANCH_UNPROTECTED')
-  const protection = await read(`branches/${encodedBranch}/protection`)
   const requiredChecks = ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC']
-  const observedChecks = protection?.required_status_checks?.contexts
-  if (protection?.enforce_admins?.enabled !== true ||
-      protection?.allow_force_pushes?.enabled === true ||
-      protection?.allow_deletions?.enabled === true ||
-      protection?.required_pull_request_reviews?.required_approving_review_count !== 0 ||
-      !Array.isArray(observedChecks) ||
-      requiredChecks.some((check) => !observedChecks.includes(check))) {
+  const expectedRulesetId = rulesetId
+  const rules = await read(`rules/branches/${encodedBranch}?per_page=100`)
+  if (!Array.isArray(rules)) fail('SMALL_TEAM_PROTECTION_INVALID')
+  const sameRuleset = rules.filter((rule) => rule?.ruleset_id === expectedRulesetId)
+  const byType = new Map(sameRuleset.map((rule) => [rule.type, rule]))
+  const pr = byType.get('pull_request')?.parameters
+  const checks = byType.get('required_status_checks')?.parameters?.required_status_checks
+  if (!Number.isInteger(expectedRulesetId) ||
+      !byType.has('deletion') || !byType.has('non_fast_forward') ||
+      pr?.required_approving_review_count !== 0 ||
+      pr?.require_code_owner_review !== false ||
+      pr?.require_last_push_approval !== false ||
+      pr?.require_extra_approval_for_unattributed_changes !== false ||
+      !pr?.allowed_merge_methods?.includes('merge') ||
+      !Array.isArray(checks) ||
+      requiredChecks.some((name) => !checks.some((check) =>
+        check.context === name && check.integration_id === 15368))) {
     fail('SMALL_TEAM_PROTECTION_INVALID')
   }
   if (!Array.isArray(pulls)) fail('PULLS_INVALID')
@@ -55,6 +64,7 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
     repository, branch, sourceRevision: revision, sourceTree,
     branchProtected: true,
     reviewMode: 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED',
+    rulesetId: expectedRulesetId,
     requiredChecks,
     pullRequestNumber: matches[0].number,
     pullRequestUrl: matches[0].html_url,

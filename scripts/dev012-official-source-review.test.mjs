@@ -6,9 +6,10 @@ const repository = 'jedchang0308-jenfu/AI-PDM'
 const branch = 'main'
 const revision = 'a'.repeat(40)
 const sourceTree = 'b'.repeat(40)
-const input = { repository, branch, revision, sourceTree, token: 'x'.repeat(25) }
+const input = { repository, branch, revision, sourceTree, token: 'x'.repeat(25),
+  rulesetId: 24077878 }
 
-function provider({ officialChange = {}, protectionChange = {}, commitChange = {}, pullsChange = null,
+function provider({ officialChange = {}, rulesChange = null, commitChange = {}, pullsChange = null,
   status = 200 } = {}) {
   let requests = 0
   const fetchImpl = async (url, options) => {
@@ -18,14 +19,22 @@ function provider({ officialChange = {}, protectionChange = {}, commitChange = {
     if (url.endsWith('/branches/main')) return new Response(JSON.stringify({
       name: branch, protected: true, commit: { sha: revision }, ...officialChange,
     }))
-    if (url.endsWith(`/branches/${branch}/protection`)) return new Response(JSON.stringify({
-      enforce_admins: { enabled: true },
-      allow_force_pushes: { enabled: false },
-      allow_deletions: { enabled: false },
-      required_pull_request_reviews: { required_approving_review_count: 0 },
-      required_status_checks: { contexts: ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC'] },
-      ...protectionChange,
-    }))
+    if (url.includes(`/rules/branches/${branch}?`)) return new Response(JSON.stringify(
+      rulesChange ?? [
+        { ruleset_id: 24077878, type: 'deletion' },
+        { ruleset_id: 24077878, type: 'non_fast_forward' },
+        { ruleset_id: 24077878, type: 'pull_request', parameters: {
+          required_approving_review_count: 0,
+          require_code_owner_review: false, require_last_push_approval: false,
+          require_extra_approval_for_unattributed_changes: false,
+          allowed_merge_methods: ['merge'],
+        } },
+        { ruleset_id: 24077878, type: 'required_status_checks', parameters: {
+          required_status_checks: ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC'].map((context) => ({
+            context, integration_id: 15368,
+          })),
+        } },
+      ]))
     if (url.endsWith(`/git/commits/${revision}`)) return new Response(JSON.stringify({
       sha: revision, tree: { sha: sourceTree }, ...commitChange,
     }))
@@ -49,16 +58,12 @@ test('accepts an exact merged PR on the protected official branch', async () => 
   assert.equal(fake.requests(), 4)
 })
 
-test('rejects missing PR, checks, admin enforcement or a second-human requirement', async () => {
-  for (const protectionChange of [
-    { required_pull_request_reviews: null },
-    { required_pull_request_reviews: { required_approving_review_count: 1 } },
-    { required_status_checks: { contexts: [] } },
-    { enforce_admins: { enabled: false } },
-    { allow_force_pushes: { enabled: true } },
-    { allow_deletions: { enabled: true } },
-  ]) await assert.rejects(verifyOfficialMergedSource({ ...input,
-    fetchImpl: provider({ protectionChange }).fetchImpl }), /SMALL_TEAM_PROTECTION_INVALID/u)
+test('rejects incomplete or wrong ruleset', async () => {
+  for (const rulesChange of [[], [{ ruleset_id: 24077878, type: 'pull_request',
+    parameters: { required_approving_review_count: 1 } }]]) {
+    await assert.rejects(verifyOfficialMergedSource({ ...input,
+      fetchImpl: provider({ rulesChange }).fetchImpl }), /SMALL_TEAM_PROTECTION_INVALID/u)
+  }
 })
 
 test('rejects an unprotected official branch before release', async () => {
