@@ -32,6 +32,7 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
       commit?.sha !== revision || commit?.tree?.sha !== sourceTree) {
     fail('OFFICIAL_REF_MISMATCH')
   }
+  if (official.protected !== true) fail('BRANCH_UNPROTECTED')
   if (!Array.isArray(pulls)) fail('PULLS_INVALID')
   const matches = pulls.filter((pull) => pull?.state === 'closed' &&
     pull?.base?.repo?.full_name === repository && pull?.base?.ref === branch &&
@@ -41,7 +42,7 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
   if (matches.length !== 1) fail('MERGED_PR_NOT_UNIQUE')
   return { schemaVersion: 'jenfu.dev012.official-merged-source.v1',
     repository, branch, sourceRevision: revision, sourceTree,
-    branchProtected: official.protected === true,
+    branchProtected: true,
     pullRequestNumber: matches[0].number,
     pullRequestUrl: matches[0].html_url,
     mergedAt: matches[0].merged_at,
