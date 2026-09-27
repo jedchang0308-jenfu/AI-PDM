@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-27 DEV-121 正式來源核實修正（本機，未發布）**：GitHub branch API 對 AI-PDM `main` 回 `protected:false`，不可把 clean HEAD／WIF 條件稱為 protected ref。完整 owner 與 principal migration-only 兩條 Production workflow 現均在 WIF 前核對官方 HEAD／tree／唯一 exact merged PR；拒絕直接 push、漂移與 provider 失敗。聚焦 3／3、DEV-117 owner suite 49／49 PASS。PR #94 與 merge-main CI 有 PASS，但新驗證未合併／正式執行，`sourceBindingsAttested=false`、`applyAllowed=false` 不變；不以 JFS9014／JFS9015 取代既有 PDM profile 逐人確認。
+
 > **2026-09-27 DEV-121 provider build／image 唯讀核對程式（本機）**：新增區域 Cloud Build、GCS 來源封存 bytes 與 Artifact Registry 精確 build／digest 的 provider API 讀回及拒絕漂移測試；聚焦 9／9、連同 preview runner 16／16、scoped ESLint、diff check PASS。正式 provider 尚未執行，GitHub protected-run 尚未核對，`sourceBindingsAttested=false`、`applyAllowed=false`，無 Production mutation。JFS9014／JFS9015 僅用於一般員工驗證，不替代朱宇鴻／張祐豪既有 PDM profile 歸屬確認。
 
 > **2026-09-27 DEV-121 JFS9014 browser 診斷與 callback 修正（待發布）**：任務專用 Chrome 分頁從 Platform 正式入口辨識到計畫固定的 JFS9014 Employee；Portal 顯示 PDM 可開啟，實際 AI-PDM SSO callback 卻回 `principal_not_active`，故 target login／allow 不可列 PASS。僅讀取頁面，未改帳號、權限或 Production。AI-PDM 本機已將 callback 失敗改為清除交易 cookie 並 303 導向無授權碼的登入頁，SSO 模式顯示可理解錯誤；聚焦 3／3、app typecheck、scoped ESLint（零 error）PASS。此修正尚待 PR／owner release；JFS9014 的目標 principal materialization、JFS9015 獨立登入及 Production L4 均未完成。

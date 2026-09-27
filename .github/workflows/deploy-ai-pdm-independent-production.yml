@@ -23,7 +23,7 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     environment: production
-    permissions: { contents: read, id-token: write }
+    permissions: { contents: read, pull-requests: read, id-token: write }
     outputs:
       capsule_uri: ${{ steps.bind.outputs.capsule_uri }}
       capsule_sha256: ${{ steps.bind.outputs.capsule_sha256 }}
@@ -34,6 +34,9 @@ jobs:
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
       - run: npm run test:dev-117:continuous
+      - name: Verify official merged source
+        env: { GITHUB_TOKEN: "${{ github.token }}" }
+        run: node scripts/dev012-verify-official-source.mjs
       - id: bind
         shell: bash
         env: { RELEASE_CAPSULE_REF: "${{ inputs.releaseCapsuleRef }}" }

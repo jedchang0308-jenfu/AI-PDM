@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-27 owner source authority 更正。** GitHub provider 對 AI-PDM `main` 回 `protected:false`，rules `[]`；過去「protected-main」只能視為當時 source-lock 命名，不能當 GitHub branch protection 的事實。完整 owner 與 migration-only workflow 現本機加入 exact official HEAD／tree／merged PR provider 核對，再進既有 WIF 與 source lock；聚焦 3／3、owner suite 49／49 PASS。它不證明 PR 有 reviewer，也不代替 Cloud Build／Artifact Registry 及 Production contract readback；正式 workflow 尚未執行，`sourceBindingsAttested=false`、`applyAllowed=false` 不變。
+
 > **2026-09-27 Cloud Build／Artifact Registry 獨立讀回程式（本機）。** 三個 owner 的已發布 release proof 現綁定區域 Cloud Build build ID；新增唯讀核對函式，以 provider API 重讀精確 build、GCS 來源封存 bytes 與 Docker image digest，核對 owner builder、來源 SHA-256／generation／CRC32C、成功狀態及 immutable image URI。模擬 provider 的相符、漂移、403 與畸形輸入測試 9／9 PASS；連同 preview runner 為 16／16 PASS，scoped ESLint 與 diff check PASS。函式尚未以正式 provider 執行，也未核對 GitHub protected-run，因此不能將 `sourceBindingsAttested` 或 `applyAllowed` 改為 true；Production 未操作。JFS9014／JFS9015 可供一般員工流程驗證，不能代替既有 PDM profile 的逐人承接確認。
 
 > **2026-09-27 JFS9014 正式入口唯讀診斷與錯誤呈現修正（本機）。** Platform 目前對 JFS9014 顯示 PDM 可開啟，但同次 AI-PDM SSO callback 回 `principal_not_active`；入口可見性不等於目標 principal 已啟用，也不能算 Production L4 allow PASS。AI-PDM callback 失敗現清除一次性交易 cookie，303 導向不含授權碼的 `/login?auth_error=...`；SSO 模式在登入畫面顯示對應訊息。聚焦測試含未啟用 principal 與無效 transaction 的 URL 清除案例 3／3 PASS，app typecheck、scoped ESLint 無 error。改動尚未發布；正式轉換前繼續 fail closed，不能靠放寬目標端 admission 修正入口差異。

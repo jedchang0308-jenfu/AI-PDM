@@ -139,8 +139,10 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
   if (JSON.stringify(inputs) !== JSON.stringify(['releaseCapsuleRef']) ||
       JSON.stringify(jobs) !== JSON.stringify(['migrate']) ||
       JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate']) ||
-      (source.match(/^        run:/gm) ?? []).length !== 4 ||
+      (source.match(/^        run:/gm) ?? []).length !== 5 ||
       (source.match(/^      - run:/gm) ?? []).length !== 2 ||
+      !source.includes('permissions: { contents: read, pull-requests: read, id-token: write }') ||
+      !source.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       (source.match(/^    environment: production$/gm) ?? []).length !== 1 ||
       !source.includes('group: production-release-ai-pdm-prod') ||
       !source.includes('cancel-in-progress: false') ||
