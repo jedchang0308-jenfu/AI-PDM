@@ -84,14 +84,24 @@ function exactObject(value: unknown, keys: readonly string[]) {
   return Object.keys(object).length === keys.length && keys.every((key) => Object.prototype.hasOwnProperty.call(object, key));
 }
 
-function callbackError(errorValue: unknown) {
-  if (errorValue instanceof JenfuLegacyCutoverError && errorValue.code === "legacy_session_retired") return error("principal_login_required", 403);
+function callbackErrorCode(errorValue: unknown) {
+  if (errorValue instanceof JenfuLegacyCutoverError && errorValue.code === "legacy_session_retired") return "principal_login_required";
   const code = errorValue instanceof Error ? errorValue.message : "";
-  if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED" || code === "BROKER_DENIED") return error("sso_code_invalid", 400);
-  if (code === "PRINCIPAL_NOT_ACTIVE") return error("principal_not_active", 403);
-  if (code === "STALE_HANDOFF" || code === "PRINCIPAL_PROFILE_INVALID") return error("sso_principal_stale", 403);
-  if (code === "HANDOFF_FACTOR_INVALID" || code === "auth_token_invalid") return error("auth_token_invalid", 401);
-  return error("sso_dependency_unavailable", 502);
+  if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED" || code === "BROKER_DENIED") return "sso_code_invalid";
+  if (code === "PRINCIPAL_NOT_ACTIVE") return "principal_not_active";
+  if (code === "STALE_HANDOFF" || code === "PRINCIPAL_PROFILE_INVALID") return "sso_principal_stale";
+  if (code === "HANDOFF_FACTOR_INVALID" || code === "auth_token_invalid") return "auth_token_invalid";
+  return "sso_dependency_unavailable";
+}
+
+function callbackFailure(config: ReturnType<typeof setup>, code: string) {
+  const target = new URL("/login", config.base);
+  target.searchParams.set("auth_error", code);
+  const response = NextResponse.redirect(target, 303);
+  response.headers.set("cache-control", "no-store");
+  response.headers.set("referrer-policy", "no-referrer");
+  response.headers.set("set-cookie", clearCookie());
+  return response;
 }
 
 function callbackFailureCode(errorValue: unknown) {
@@ -167,7 +177,7 @@ export async function jenfuSsoCallback(request: Request) {
   const params = new URL(request.url).searchParams;
   const tx = decode(readCookie(request));
   const code = params.get("code");
-  if (!tx || params.get("state") !== tx.state || params.get("iss") !== tx.issuer || !code || params.getAll("code").length !== 1 || params.getAll("state").length !== 1) return NextResponse.json({ code: "sso_request_invalid" }, { status: 400, headers: { "cache-control": "no-store", "referrer-policy": "no-referrer", "set-cookie": clearCookie() } });
+  if (!tx || params.get("state") !== tx.state || params.get("iss") !== tx.issuer || !code || params.getAll("code").length !== 1 || params.getAll("state").length !== 1) return callbackFailure(config, "sso_request_invalid");
   let stage: CallbackStage = "service_identity";
   try {
     const controller = new AbortController();
@@ -219,8 +229,6 @@ export async function jenfuSsoCallback(request: Request) {
     return callbackSuccess(config, tx, sessionToken);
   } catch (errorValue) {
     console.error(JSON.stringify({ event: "jenfu_sso_callback_failed", stage, code: callbackFailureCode(errorValue) }));
-    const response = callbackError(errorValue);
-    response.headers.set("set-cookie", clearCookie());
-    return response;
+    return callbackFailure(config, callbackErrorCode(errorValue));
   }
 }
