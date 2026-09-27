@@ -266,6 +266,93 @@ test('v2 receipt seals confirmation generation and CRC32C on publish and replay'
   assert.equal(transactions, 1)
 })
 
+test('v3 exact-pair preview carries owner proofs without a transfer confirmation', async () => {
+  const refSet = (bucket) => {
+    const root = `gs://${bucket}/receipts/releases/DEV121-OWNER-001/${'f'.repeat(64)}`
+    return {
+      prepare: { uri: `${root}/prepare.json`, sha256: '1'.repeat(64) },
+      migrate: { uri: `${root}/migrate.json`, sha256: '2'.repeat(64) },
+      terminal: null,
+    }
+  }
+  const exactPair = { ...operation(),
+    schemaVersion: 'ai-pdm.principal-cutover-preview-operation.v3',
+    ownerReleaseRefs: {
+      platform: refSet('jenfu-platform-prod-platform-release'),
+      orgmaster: refSet('jenfu-platform-prod-orgmaster-release'),
+      aiPdm: refSet('jenfu-platform-prod-aipdm-release'),
+    },
+  }
+  const body = Buffer.from(JSON.stringify(exactPair))
+  assert.deepEqual(assertCutoverPreviewOperation(exactPair, {
+    bytes: body, operationSha256: digest(body), sourceRevision: revision,
+  }), exactPair)
+  let receiptBytes
+  let confirmationReads = 0
+  const fetchImpl = async (url, options = {}) => {
+    if (url.startsWith('http://metadata.google.internal/')) {
+      return new Response(JSON.stringify({ access_token: 'x'.repeat(25), expires_in: 3600 }))
+    }
+    if (url.includes('confirmations/')) confirmationReads += 1
+    const receipt = url.includes('DEV121-PRINCIPAL-CUTOVER-PREVIEW')
+    if (receipt && !receiptBytes && options.method !== 'POST') {
+      return new Response('', { status: 404 })
+    }
+    if (url.startsWith('https://storage.googleapis.com/upload/')) {
+      receiptBytes = Buffer.from(options.body)
+      return new Response(JSON.stringify({ generation: '4' }))
+    }
+    const bytes = receipt ? receiptBytes : body
+    if (url.includes('?alt=media')) return new Response(bytes)
+    return new Response(JSON.stringify({ generation: receipt ? '4' : '1',
+      crc32c: crc32cBase64(bytes) }))
+  }
+  class Client {
+    async connect() {}
+    async query(query) {
+      if (typeof query === 'string' && query.includes('current_database()')) {
+        return { rows: [{ database: 'jenfu_prod', login: environment.POSTGRES_IAM_LOGIN,
+          major: 17, migrator_member: true, schema_ready: true }] }
+      }
+      if (typeof query === 'object' && query.text.includes('transaction_timestamp()')) {
+        return { rows: [{ cutover_at: '2026-09-25T04:00:00.000Z' }] }
+      }
+      return { rows: [] }
+    }
+    async end() {}
+  }
+  const readOwnerProof = async ({ owner, sourceRevision }) => ({
+    owner, sourceRevision, disposition: owner === 'ai-pdm' ? 'released' : 'migration_only',
+    ...(owner === 'ai-pdm' ? { artifactDigest: 'ai-pdm-image@sha256:one' } : {}),
+  })
+  const verifyProviderReadback = async ({ proof }) => ({
+    owner: proof.owner, sourceRevision: proof.sourceRevision,
+    artifactDigest: proof.artifactDigest, status: 'BUILD_IMAGE_VERIFIED',
+  })
+  const loadPreview = async () => ({ previewPrincipalCutoverSourceEnvelopeInSnapshot:
+    async (_snapshot, input) => ({
+      cutoverAt: input.cutoverAt,
+      cohort: [{ pdmUserId: source.pdmUserId,
+        principalId: source.principalId, sourceCount: 1 }],
+      cohortHash: 'a'.repeat(64), sourceHash: 'b'.repeat(64),
+      inputHash: 'c'.repeat(64), localSourceHash: 'd'.repeat(64),
+      producerSourceHash: 'e'.repeat(64),
+      graphCheck: { graphHash: 'f'.repeat(64) },
+      workspaceShadow: { shadowHash: '1'.repeat(64), status: 'pass' },
+      plan: { planHash: '2'.repeat(64) },
+    }) })
+  const result = await runMain({ argv: ['--operation-ref', inputRef,
+    '--operation-sha256', digest(body), '--source-revision', revision,
+    '--output-ref', outputRef], environment, fetchImpl, Client, loadPreview,
+    readOwnerProof, verifyProviderReadback })
+  assert.equal(result.schemaVersion, 'ai-pdm.principal-cutover-preview-receipt.v3')
+  assert.deepEqual(result.confirmationObjects, [])
+  assert.equal(result.ownerReleaseProofs.aiPdm.providerReadback.status,
+    'BUILD_IMAGE_VERIFIED')
+  assert.equal(result.outcome.applyAllowed, false)
+  assert.equal(confirmationReads, 0)
+})
+
 test('v3 preview seals three owner readbacks and rejects proof drift on replay', async () => {
   const transfer = { ...source, claimKind: 'profile_transfer',
     identitySubject: 'new-uid-one', legacyIdentityIssuer: source.identityIssuer,

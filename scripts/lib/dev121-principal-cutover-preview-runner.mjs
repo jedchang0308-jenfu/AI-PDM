@@ -109,7 +109,9 @@ export function assertCutoverPreviewOperation(value, { bytes, operationSha256, s
       kinds.add(source.sourceKind)
     }
   }
-  if (transferVersion && transferCount === 0) fail('SOURCE_INVALID')
+  // v2 introduced profile transfers and requires at least one. v3 adds owner
+  // release proofs independently, so an exact-pair-only cohort is valid there.
+  if (v2 && transferCount === 0) fail('SOURCE_INVALID')
   return value
 }
 
