@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-27 DEV-121 owner terminal 鏈結補強（本機）**：v3 preview 現逐段核對 terminal 至 candidate 的固定 immutable stage ref、deployment capsule 與 build，綁定 release、source、candidate revision、image digest、GO、smoke PASS 及 tag cleanup；缺段或 hash／鏈結不符即拒絕列為 `released`。migration-only 與 v1／v2 保持原語意。聚焦 owner proof／preview 12／12、operator package 2／2、app typecheck PASS；GitHub protected-run／Artifact Registry 獨立 attestation、profile 承接、resource／delegation shadow、recovery 與 Production L4 仍待完成，`sourceBindingsAttested=false`、`applyAllowed=false`，未執行 Production mutation。
+
 > **2026-09-26 DEV-121 三 owner release 證據唯讀封存（本機）**：preview operation v3 從固定 release bucket 讀取 Platform／OrgMaster／AI-PDM 的 prepare、受保護 source lock、migrate 及可選成功 terminal，核對精確來源與 GCS SHA-256／generation／CRC32C；v3 receipt 封存結果並拒絕重播漂移，v1／v2 不變。operator Docker import closure、runner 聚焦 13／13、app typecheck、scoped ESLint PASS。這仍非完整 provider source／image attestation，沒有人工 profile 承接、resource／delegation shadow 或 recovery 證據；`sourceBindingsAttested=false`、`applyAllowed=false`，未執行 Production mutation。JFS9014／JFS9015 僅作一般員工登入及授權驗證。
 
 > **2026-09-26 DEV-121 principal ACL 同優先序穩定性（本機）**：同角色優先序的 assignment tie-break 使用固定 code-unit ID 排序，消除 host locale 對 `assignmentId` 稽核來源的影響；allow／deny 未變。聚焦 10／10、app typecheck、scoped ESLint PASS，Production 尚未發布或驗證。
