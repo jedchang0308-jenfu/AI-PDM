@@ -75,7 +75,14 @@ const googleErrorMessages: Record<string, string> = {
   google_identity_conflict: "此 Google 身分已有其他連結，請聯絡系統管理員處理。",
   google_invalid_state: "Google 登入狀態已失效，請重新開始。",
   google_unavailable: "Google 登入尚未完成系統設定。",
-  google_failed: "Google 登入未完成，請稍後再試。"
+  google_failed: "Google 登入未完成，請稍後再試。",
+  sso_request_invalid: "登入驗證已失效，請重新從鉦富平台進入。",
+  sso_code_invalid: "登入驗證已失效，請重新從鉦富平台進入。",
+  principal_not_active: "此帳號尚未開通 PDM，請聯絡系統管理員。",
+  sso_principal_stale: "帳號或權限已更新，請重新登入。",
+  principal_login_required: "請重新從鉦富平台登入。",
+  auth_token_invalid: "登入驗證未通過，請重新登入。",
+  sso_dependency_unavailable: "目前無法完成登入，請稍後再試。"
 };
 
 export default function LoginPage() {
@@ -371,6 +378,7 @@ export default function LoginPage() {
           </div>
         </div> : null}
 
+        {error ? <div className="form-error" role="alert">{error}</div> : null}
         {modeState === "ready" && ssoHandoffEnabled ? (
           <div className="google-auth-choice">
             <button className="primary-button" type="button" disabled={loading} onClick={() => { window.location.assign(`/api/auth/jenfu-sso/start?returnTo=${encodeURIComponent(loginReturnTo())}`) }}>
@@ -449,7 +457,6 @@ export default function LoginPage() {
             )}
           </>
           {notice ? <div className="form-success" role="status">{notice}</div> : null}
-          {error ? <div className="form-error">{error}</div> : null}
           <button className="primary-button" disabled={loading} type="submit">
             <LogIn size={16} aria-hidden="true" />
             {loading ? "處理中..." : employeeAliasLogin ? "繼續公司帳號驗證" : "登入"}

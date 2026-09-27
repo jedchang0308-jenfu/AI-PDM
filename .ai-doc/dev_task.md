@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-27 DEV-121 JFS9014 browser 診斷與 callback 修正（待發布）**：任務專用 Chrome 分頁從 Platform 正式入口辨識到計畫固定的 JFS9014 Employee；Portal 顯示 PDM 可開啟，實際 AI-PDM SSO callback 卻回 `principal_not_active`，故 target login／allow 不可列 PASS。僅讀取頁面，未改帳號、權限或 Production。AI-PDM 本機已將 callback 失敗改為清除交易 cookie 並 303 導向無授權碼的登入頁，SSO 模式顯示可理解錯誤；聚焦 3／3、app typecheck、scoped ESLint（零 error）PASS。此修正尚待 PR／owner release；JFS9014 的目標 principal materialization、JFS9015 獨立登入及 Production L4 均未完成。
+
 > **2026-09-27 DEV-121 build provenance 收據核對（本機）**：三 owner 的 `released` 鏈結再讀固定 build provenance，逐欄比對來源封存 generation、owner builder、Cloud Build SUCCESS／VERIFIED、image digest 與 registry receipt URI；聚焦 proof／preview 13／13 PASS。這尚非 Cloud Build／Artifact Registry 即時 provider readback，不解除 profile、resource shadow、recovery 或 Production L4 的未完成狀態；`sourceBindingsAttested=false`、`applyAllowed=false`，Production 未操作。
 
 > **2026-09-27 DEV-121 owner terminal 鏈結補強（本機）**：v3 preview 現逐段核對 terminal 至 candidate 的固定 immutable stage ref、deployment capsule 與 build，綁定 release、source、candidate revision、image digest、GO、smoke PASS 及 tag cleanup；migration receipt 也核對 ledger 數量及執行時間。缺段或 hash／鏈結不符即拒絕列為 `released`。migration-only 與 v1／v2 保持原語意。聚焦 owner proof／preview 12／12、operator package 2／2、app typecheck PASS；GitHub protected-run／Artifact Registry 獨立 attestation、profile 承接、resource／delegation shadow、recovery 與 Production L4 仍待完成，`sourceBindingsAttested=false`、`applyAllowed=false`，未執行 Production mutation。
