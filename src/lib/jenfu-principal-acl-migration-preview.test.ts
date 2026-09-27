@@ -60,9 +60,9 @@ describe("DEV-121 Production ACL preview source classification", () => {
     expect(() => assertPrincipalAclPreviewCatalogShape([{ enabled: 1 }], [{ id: "active" }]))
       .not.toThrow();
     expect(() => assertPrincipalAclPreviewCatalogShape([{ enabled: 1 }], []))
-      .toThrow("principal_acl_plan_priority_cardinality_invalid");
+      .toThrow("principal_acl_plan_priority_missing");
     expect(() => assertPrincipalAclPreviewCatalogShape([{ enabled: 1 }], [{}, {}]))
-      .toThrow("principal_acl_plan_priority_cardinality_invalid");
+      .toThrow("principal_acl_plan_priority_multiple_active");
     expect(() => assertPrincipalAclPreviewCatalogShape([{ enabled: 2 }], [{}]))
       .toThrow("principal_acl_plan_role_flag_invalid");
     expect(() => assertPrincipalAclPreviewCatalogShape(

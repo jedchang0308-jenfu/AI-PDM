@@ -54,8 +54,11 @@ export function assertPrincipalAclPreviewCatalogShape(
   if (roles.length > 128) {
     throw new PrincipalAclMigrationPlanError("principal_acl_plan_role_count_invalid");
   }
-  if (priorities.length !== 1) {
-    throw new PrincipalAclMigrationPlanError("principal_acl_plan_priority_cardinality_invalid");
+  if (priorities.length === 0) {
+    throw new PrincipalAclMigrationPlanError("principal_acl_plan_priority_missing");
+  }
+  if (priorities.length > 1) {
+    throw new PrincipalAclMigrationPlanError("principal_acl_plan_priority_multiple_active");
   }
   if (roles.some((role) => role.enabled !== 0 && role.enabled !== 1)) {
     throw new PrincipalAclMigrationPlanError("principal_acl_plan_role_flag_invalid");
