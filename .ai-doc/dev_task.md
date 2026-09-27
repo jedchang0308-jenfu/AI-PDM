@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-27 DEV-121 released owner provider 讀回接線（本機，未發布）**：v3 唯讀 preview 在接受三 owner 的 `released` proof 後、任何資料庫快照或既有 receipt replay 前，現呼叫獨立 Cloud Build／GCS／Artifact Registry 讀回；逐 owner 核對來源 revision 與 image digest，將結果封存於受限 preview receipt。`migration_only` 不冒稱已發布 image。provider 漂移在交易前拒絕；proof／preview／package 聚焦 18／18、scoped ESLint 與 diff check PASS。正式 provider 權限與 readback 尚未取得，GitHub branch protection、operator image、resource／delegation shadow、回復與 Production L4 亦未完成，故 `sourceBindingsAttested=false`、`applyAllowed=false` 不變。詳見 [DEV-121](specs/DEV-121-target-authorization-boundary.md)。
+
 > **2026-09-27 DEV-121 正式來源核實修正（本機，未發布）**：GitHub branch API 對 AI-PDM `main` 回 `protected:false`，不可把 clean HEAD／WIF 條件稱為 protected ref。完整 owner 與 principal migration-only 兩條 Production workflow 現均在 WIF 前核對官方 HEAD／tree／唯一 exact merged PR；拒絕直接 push、漂移與 provider 失敗。聚焦 3／3、DEV-117 owner suite 49／49 PASS。PR #94 與 merge-main CI 有 PASS，但新驗證未合併／正式執行，`sourceBindingsAttested=false`、`applyAllowed=false` 不變；不以 JFS9014／JFS9015 取代既有 PDM profile 逐人確認。
 
 > **2026-09-27 DEV-121 provider build／image 唯讀核對程式（本機）**：新增區域 Cloud Build、GCS 來源封存 bytes 與 Artifact Registry 精確 build／digest 的 provider API 讀回及拒絕漂移測試；聚焦 9／9、連同 preview runner 16／16、scoped ESLint、diff check PASS。正式 provider 尚未執行，GitHub protected-run 尚未核對，`sourceBindingsAttested=false`、`applyAllowed=false`，無 Production mutation。JFS9014／JFS9015 僅用於一般員工驗證，不替代朱宇鴻／張祐豪既有 PDM profile 歸屬確認。

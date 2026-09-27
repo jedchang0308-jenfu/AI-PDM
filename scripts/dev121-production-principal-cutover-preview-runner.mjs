@@ -15,7 +15,9 @@ import {
   assertCutoverPreviewOperation, assertProfileClaimConfirmation,
   summarizeCutoverPreview,
 } from './lib/dev121-principal-cutover-preview-runner.mjs'
-import { readOwnerReleaseProof } from './lib/dev121-owner-release-proof.mjs'
+import {
+  readOwnerReleaseProof, verifyOwnerProviderReadback,
+} from './lib/dev121-owner-release-proof.mjs'
 
 // The existing migrator grant can read migration-bundles, not production-data.
 const OPERATION_PREFIX = 'source/migration-bundles/dev121/principal-cutover-preview'
@@ -129,6 +131,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   fetchImpl = fetch, Client = pg.Client,
   loadPreview = () => import('../src/lib/jenfu-principal-acl-migration-preview.ts'),
   readOwnerProof = readOwnerReleaseProof,
+  verifyProviderReadback = verifyOwnerProviderReadback,
 } = {}) {
   const args = parseInventoryArgs(argv)
   assertRunnerTarget(environment, OPERATOR_TARGET)
@@ -175,13 +178,25 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     ownerReleaseProofs = {}
     for (const [key, owner] of [['platform', 'platform'],
       ['orgmaster', 'orgmaster'], ['aiPdm', 'ai-pdm']]) {
-      ownerReleaseProofs[key] = await readOwnerProof({ owner,
+      const proof = await readOwnerProof({ owner,
         sourceRevision: operation.sourceRevisions[key],
         refs: operation.ownerReleaseRefs[key], token, fetchImpl })
-      if (ownerReleaseProofs[key]?.owner !== owner ||
-          ownerReleaseProofs[key]?.sourceRevision !== operation.sourceRevisions[key]) {
+      if (proof?.owner !== owner ||
+          proof?.sourceRevision !== operation.sourceRevisions[key] ||
+          !['released', 'migration_only'].includes(proof.disposition)) {
         throw new Error('DEV121_CUTOVER_PREVIEW_OWNER_PROOF_INVALID')
       }
+      let providerReadback = null
+      if (proof.disposition === 'released') {
+        providerReadback = await verifyProviderReadback({ proof, token, fetchImpl })
+        if (providerReadback?.owner !== owner ||
+            providerReadback?.sourceRevision !== proof.sourceRevision ||
+            providerReadback?.artifactDigest !== proof.artifactDigest ||
+            providerReadback?.status !== 'BUILD_IMAGE_VERIFIED') {
+          throw new Error('DEV121_CUTOVER_PREVIEW_PROVIDER_READBACK_INVALID')
+        }
+      }
+      ownerReleaseProofs[key] = { ...proof, providerReadback }
     }
   }
   const existing = await readExistingReceipt({ uri: args.outputRef, token, fetchImpl })
