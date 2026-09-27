@@ -33,6 +33,17 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
     fail('OFFICIAL_REF_MISMATCH')
   }
   if (official.protected !== true) fail('BRANCH_UNPROTECTED')
+  const protection = await read(`branches/${encodedBranch}/protection`)
+  const requiredChecks = ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC']
+  const observedChecks = protection?.required_status_checks?.contexts
+  if (protection?.enforce_admins?.enabled !== true ||
+      protection?.allow_force_pushes?.enabled === true ||
+      protection?.allow_deletions?.enabled === true ||
+      protection?.required_pull_request_reviews?.required_approving_review_count !== 0 ||
+      !Array.isArray(observedChecks) ||
+      requiredChecks.some((check) => !observedChecks.includes(check))) {
+    fail('SMALL_TEAM_PROTECTION_INVALID')
+  }
   if (!Array.isArray(pulls)) fail('PULLS_INVALID')
   const matches = pulls.filter((pull) => pull?.state === 'closed' &&
     pull?.base?.repo?.full_name === repository && pull?.base?.ref === branch &&
@@ -43,6 +54,8 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
   return { schemaVersion: 'jenfu.dev012.official-merged-source.v1',
     repository, branch, sourceRevision: revision, sourceTree,
     branchProtected: true,
+    reviewMode: 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED',
+    requiredChecks,
     pullRequestNumber: matches[0].number,
     pullRequestUrl: matches[0].html_url,
     mergedAt: matches[0].merged_at,

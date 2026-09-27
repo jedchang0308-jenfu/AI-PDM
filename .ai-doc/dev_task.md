@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 AIPDM/DEV-121#official-source**：單人維護正式來源採唯一 merged PR、Codex QC 紀錄、既有兩個 required CI、provider branch protection（PR 必經、零人工核准、管理者同受約束、無 force push／刪除）；見 ADR-PDM-RELEASE-SOURCE-001。GitHub 設定尚待讀回，本機 verifier 修改不等於 Production source PASS。
+
 > **2026-09-27 DEV-121 protected-source 執行修正（本機，未發布）**：GitHub provider 重新讀回本 repo 為 public、唯一 collaborator 為 `jedchang0308-jenfu`，官方 `main` 仍 `protected:false`。已合併 PR／WIF 限定及綠燈 CI 不等於受保護 ref 與適用的 review 證據。owner verifier 現將未受保護 branch 明確拒絕，同時保留 exact HEAD／tree／唯一 merged PR 查核；聚焦測試 4／4 PASS。此修正不改寫歷史 release 收據，未設定 provider protection，新的 principal-first Production source gate 仍未通過；`sourceBindingsAttested=false`、`applyAllowed=false`，未操作 Production。
 
 > **2026-09-27 DEV-121 正式來源核實修正（本機，未發布）**：GitHub branch API 對 AI-PDM `main` 回 `protected:false`，不可把 clean HEAD／WIF 條件稱為 protected ref。完整 owner 與 principal migration-only 兩條 Production workflow 現均在 WIF 前核對官方 HEAD／tree／唯一 exact merged PR；拒絕直接 push、漂移與 provider 失敗。聚焦 3／3、DEV-117 owner suite 49／49 PASS。PR #94 與 merge-main CI 有 PASS，但新驗證未合併／正式執行，`sourceBindingsAttested=false`、`applyAllowed=false` 不變；不以 JFS9014／JFS9015 取代既有 PDM profile 逐人確認。

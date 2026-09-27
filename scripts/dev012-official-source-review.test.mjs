@@ -8,7 +8,7 @@ const revision = 'a'.repeat(40)
 const sourceTree = 'b'.repeat(40)
 const input = { repository, branch, revision, sourceTree, token: 'x'.repeat(25) }
 
-function provider({ officialChange = {}, commitChange = {}, pullsChange = null,
+function provider({ officialChange = {}, protectionChange = {}, commitChange = {}, pullsChange = null,
   status = 200 } = {}) {
   let requests = 0
   const fetchImpl = async (url, options) => {
@@ -17,6 +17,14 @@ function provider({ officialChange = {}, commitChange = {}, pullsChange = null,
     if (status !== 200) return new Response('', { status })
     if (url.endsWith('/branches/main')) return new Response(JSON.stringify({
       name: branch, protected: true, commit: { sha: revision }, ...officialChange,
+    }))
+    if (url.endsWith(`/branches/${branch}/protection`)) return new Response(JSON.stringify({
+      enforce_admins: { enabled: true },
+      allow_force_pushes: { enabled: false },
+      allow_deletions: { enabled: false },
+      required_pull_request_reviews: { required_approving_review_count: 0 },
+      required_status_checks: { contexts: ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC'] },
+      ...protectionChange,
     }))
     if (url.endsWith(`/git/commits/${revision}`)) return new Response(JSON.stringify({
       sha: revision, tree: { sha: sourceTree }, ...commitChange,
@@ -37,7 +45,20 @@ test('accepts an exact merged PR on the protected official branch', async () => 
   assert.equal(result.status, 'OFFICIAL_MERGED_PR_VERIFIED')
   assert.equal(result.branchProtected, true)
   assert.equal(result.pullRequestNumber, 94)
-  assert.equal(fake.requests(), 3)
+  assert.equal(result.reviewMode, 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED')
+  assert.equal(fake.requests(), 4)
+})
+
+test('rejects missing PR, checks, admin enforcement or a second-human requirement', async () => {
+  for (const protectionChange of [
+    { required_pull_request_reviews: null },
+    { required_pull_request_reviews: { required_approving_review_count: 1 } },
+    { required_status_checks: { contexts: [] } },
+    { enforce_admins: { enabled: false } },
+    { allow_force_pushes: { enabled: true } },
+    { allow_deletions: { enabled: true } },
+  ]) await assert.rejects(verifyOfficialMergedSource({ ...input,
+    fetchImpl: provider({ protectionChange }).fetchImpl }), /SMALL_TEAM_PROTECTION_INVALID/u)
 })
 
 test('rejects an unprotected official branch before release', async () => {
