@@ -47,6 +47,21 @@ function invalid(): never {
   throw new PrincipalAclMigrationPlanError("principal_acl_plan_invalid");
 }
 
+/** Aggregate-only diagnostics for the published role/priority source. */
+export function assertPrincipalAclPreviewCatalogShape(
+  roles: readonly { enabled: number }[], priorities: readonly unknown[]
+) {
+  if (roles.length > 128) {
+    throw new PrincipalAclMigrationPlanError("principal_acl_plan_role_count_invalid");
+  }
+  if (priorities.length !== 1) {
+    throw new PrincipalAclMigrationPlanError("principal_acl_plan_priority_cardinality_invalid");
+  }
+  if (roles.some((role) => role.enabled !== 0 && role.enabled !== 1)) {
+    throw new PrincipalAclMigrationPlanError("principal_acl_plan_role_flag_invalid");
+  }
+}
+
 export type PrincipalAclMigrationSourceInput = {
   firebaseProjectId: string;
   sourceSets: PrincipalInventoryInput[][];
@@ -148,8 +163,7 @@ export async function readPrincipalAclMigrationSource(
       FROM ai_pdm_contract.v_application_role_catalog_v1 catalog
       ORDER BY catalog.stable_role_id LIMIT 129
     `);
-    if (roles.length > 128 || priorities.length !== 1 ||
-      roles.some((role) => role.enabled !== 0 && role.enabled !== 1)) invalid();
+    assertPrincipalAclPreviewCatalogShape(roles, priorities);
     const activeCatalog = activeCatalogRows.map((row) => row.fact);
     const catalogVersion = activeCatalog[0]?.catalog_version;
     const catalogSha256 = activeCatalog[0]?.catalog_sha256;
