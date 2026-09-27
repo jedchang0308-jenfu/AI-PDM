@@ -322,7 +322,7 @@ test('v3 exact-pair preview carries owner proofs without a transfer confirmation
     async end() {}
   }
   const readOwnerProof = async ({ owner, sourceRevision }) => ({
-    owner, sourceRevision, disposition: owner === 'ai-pdm' ? 'released' : 'migration_only',
+    owner, sourceRevision, disposition: 'migration_only',
     ...(owner === 'ai-pdm' ? { artifactDigest: 'ai-pdm-image@sha256:one' } : {}),
   })
   const verifyProviderReadback = async ({ proof }) => ({

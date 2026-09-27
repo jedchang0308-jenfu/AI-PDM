@@ -55,41 +55,41 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
     completedAt: '2026-09-26T00:03:00.000Z', status: 'PASS',
     ...migrationChange,
   }))
+  const candidateRevision = 'platform-revision-one'
+  const artifactDigest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform@sha256:${'1'.repeat(64)}`
+  const stage = (name, previousReceiptRef, facts) => put(`${root}/${name}.json`, sealed({
+    schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'platform',
+    releaseId, sourceRevision: revision, stage: name, previousReceiptRef,
+    facts: { ...facts, ...(chainChange[name] ?? {}) },
+    observedAt: '2026-09-26T00:04:00.000Z', status: 'PASS',
+  }))
+  const common = { candidateRevision, artifactDigest }
+  const sourceObject = { uri: `gs://${bucket}/source/releases/${releaseId}/${'c'.repeat(64)}/source.tar.gz`,
+    sha256: sha256(archivedSource), generation: '7',
+    crc32c: crc32cBase64(archivedSource) }
+  const imageUri = artifactDigest.split('@')[0]
+  const provenance = put(`${root}/provenance.json`, {
+    schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1',
+    ownerApplicationId: 'platform', sourceRevision: revision,
+    sourceObject, artifactDigest, status: 'PASS',
+    cloudBuild: { name: `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,
+      id: buildId, status: 'SUCCESS', projectId: 'jenfu-platform-prod',
+      serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
+      options: { requestedVerifyOption: 'VERIFIED' },
+      sourceProvenance: { resolvedStorageSource: {
+        bucket, object: sourceObject.uri.slice(`gs://${bucket}/`.length),
+        generation: sourceObject.generation } },
+      results: { images: [{ name: `${imageUri}:release-${revision}`,
+        digest: artifactDigest.split('@')[1] }] } },
+    artifactRegistry: { uri: artifactDigest }, ...provenanceChange,
+  })
+  const build = stage('build', prepare, { artifactDigest,
+    sourceObject, provenanceReceiptRef: provenance })
+  const deployment = put(`${root}/deployment-capsule.json`, {
+    sourceRevision: revision, artifactDigest, buildReceiptRef: build,
+  })
   let terminal = null
   if (includeTerminal) {
-    const candidateRevision = 'platform-revision-one'
-    const artifactDigest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform@sha256:${'1'.repeat(64)}`
-    const stage = (name, previousReceiptRef, facts) => put(`${root}/${name}.json`, sealed({
-      schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'platform',
-      releaseId, sourceRevision: revision, stage: name, previousReceiptRef,
-      facts: { ...facts, ...(chainChange[name] ?? {}) },
-      observedAt: '2026-09-26T00:04:00.000Z', status: 'PASS',
-    }))
-    const common = { candidateRevision, artifactDigest }
-    const sourceObject = { uri: `gs://${bucket}/source/releases/${releaseId}/${'c'.repeat(64)}/source.tar.gz`,
-      sha256: sha256(archivedSource), generation: '7',
-      crc32c: crc32cBase64(archivedSource) }
-    const imageUri = artifactDigest.split('@')[0]
-    const provenance = put(`${root}/provenance.json`, {
-      schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1',
-      ownerApplicationId: 'platform', sourceRevision: revision,
-      sourceObject, artifactDigest, status: 'PASS',
-      cloudBuild: { name: `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,
-        id: buildId, status: 'SUCCESS', projectId: 'jenfu-platform-prod',
-        serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
-        options: { requestedVerifyOption: 'VERIFIED' },
-        sourceProvenance: { resolvedStorageSource: {
-          bucket, object: sourceObject.uri.slice(`gs://${bucket}/`.length),
-          generation: sourceObject.generation } },
-        results: { images: [{ name: `${imageUri}:release-${revision}`,
-          digest: artifactDigest.split('@')[1] }] } },
-      artifactRegistry: { uri: artifactDigest }, ...provenanceChange,
-    })
-    const build = stage('build', prepare, { artifactDigest,
-      sourceObject, provenanceReceiptRef: provenance })
-    const deployment = put(`${root}/deployment-capsule.json`, {
-      sourceRevision: revision, artifactDigest, buildReceiptRef: build,
-    })
     const candidate = stage('candidate', migrate, { ...common,
       migrationReceiptRef: migrate, deploymentCapsuleRef: deployment })
     const entrypoint = stage('entrypoint', candidate, {})
@@ -129,6 +129,22 @@ test('reads immutable protected source lock and migration receipt without granti
   assert.equal(proof.sourceLock.generation, '7')
   assert.equal(proof.migrate.crc32c.length > 0, true)
   assert.equal(Object.hasOwn(proof, 'terminal'), false)
+  assert.match(proof.artifactDigest, /@sha256:[a-f0-9]{64}$/u)
+  assert.deepEqual(Object.keys(proof.buildChain).sort(),
+    ['build', 'deployment', 'provenance'])
+  assert.equal(proof.providerClaim.buildId, buildId)
+})
+
+test('migration-only build proof fails if its build chain is missing or altered', async () => {
+  const missing = fixture()
+  missing.objects.delete(`${root}/deployment-capsule.json`)
+  await assert.rejects(verify(missing), /MIGRATION_GCS_METADATA_FAILED/u)
+  await assert.rejects(verify(fixture({ chainChange: {
+    build: { artifactDigest: 'unrelated-image' } } })),
+  /DEV121_OWNER_RELEASE_PROOF_STAGE_CHAIN_INVALID/u)
+  await assert.rejects(verify(fixture({ provenanceChange: {
+    artifactRegistry: { uri: 'unrelated-image' } } })),
+  /DEV121_OWNER_RELEASE_PROOF_PROVENANCE_INVALID/u)
 })
 
 test('distinguishes a released terminal receipt from migration-only evidence', async () => {
@@ -202,6 +218,15 @@ test('independent provider readback matches the live build and exact registry di
   assert.equal(result.status, 'BUILD_IMAGE_VERIFIED')
   assert.equal(result.artifactDigest, proof.artifactDigest)
   assert.equal(result.sourceGeneration, proof.providerClaim.sourceObject.generation)
+})
+
+test('migration-only image gets provider readback without becoming released', async () => {
+  const proof = await verify()
+  const result = await verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: providerFetch(proof) })
+  assert.equal(proof.disposition, 'migration_only')
+  assert.equal(result.status, 'BUILD_IMAGE_VERIFIED')
+  assert.equal(result.artifactDigest, proof.artifactDigest)
 })
 
 test('provider readback rejects build or image drift and missing provider access', async () => {
