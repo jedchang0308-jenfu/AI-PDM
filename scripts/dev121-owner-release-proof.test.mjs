@@ -10,6 +10,7 @@ const releaseId = 'DEV121-OWNER-001'
 const bucket = 'jenfu-platform-prod-platform-release'
 const root = `gs://${bucket}/receipts/releases/${releaseId}/${'c'.repeat(64)}`
 const buildId = '11111111-2222-3333-4444-555555555555'
+const archivedSource = Buffer.from('frozen owner source archive')
 
 function sealed(value) {
   return { ...value, receiptSha256: sha256(canonicalize(value)) }
@@ -66,7 +67,8 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
     }))
     const common = { candidateRevision, artifactDigest }
     const sourceObject = { uri: `gs://${bucket}/source/releases/${releaseId}/${'c'.repeat(64)}/source.tar.gz`,
-      sha256: '2'.repeat(64), generation: '7', crc32c: 'AAAAAA==' }
+      sha256: sha256(archivedSource), generation: '7',
+      crc32c: crc32cBase64(archivedSource) }
     const imageUri = artifactDigest.split('@')[0]
     const provenance = put(`${root}/provenance.json`, {
       schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1',
@@ -158,7 +160,8 @@ test('build provenance must bind the source object, builder and registry digest'
   /DEV121_OWNER_RELEASE_PROOF_PROVENANCE_INVALID/u)
 })
 
-function providerFetch(proof, { buildChange = {}, imageChange = {}, imageStatus = 200 } = {}) {
+function providerFetch(proof, { buildChange = {}, imageChange = {}, imageStatus = 200,
+  sourceBytes = archivedSource } = {}) {
   const source = proof.providerClaim.sourceObject
   const digest = proof.artifactDigest.split('@')[1]
   const build = {
@@ -175,8 +178,13 @@ function providerFetch(proof, { buildChange = {}, imageChange = {}, imageStatus 
   const image = { name: `projects/jenfu-platform-prod/locations/asia-east1/repositories/platform-release/dockerImages/platform@${digest}`,
     uri: proof.artifactDigest, ...imageChange }
   return async (url, options) => {
-    assert.equal(options.method, 'GET')
     assert.equal(options.headers.authorization, 'Bearer provider-readback-token')
+    if (url.startsWith('https://storage.googleapis.com/storage/v1/')) {
+      if (url.includes('alt=media')) return new Response(sourceBytes)
+      return new Response(JSON.stringify({ generation: source.generation,
+        crc32c: crc32cBase64(sourceBytes) }))
+    }
+    assert.equal(options.method, 'GET')
     if (url === `https://cloudbuild.googleapis.com/v1/${build.name}`) {
       return new Response(JSON.stringify(build))
     }
@@ -210,6 +218,10 @@ test('provider readback rejects build or image drift and missing provider access
     token: 'provider-readback-token', fetchImpl: providerFetch(proof, {
       imageStatus: 403 }) }),
   /DEV121_OWNER_RELEASE_PROOF_PROVIDER_READBACK_FAILED/u)
+  await assert.rejects(verifyOwnerProviderReadback({ proof,
+    token: 'provider-readback-token', fetchImpl: providerFetch(proof, {
+      sourceBytes: Buffer.from('tampered owner source archive') }) }),
+  /DEV121_OWNER_RELEASE_PROOF_PROVIDER_SOURCE_MISMATCH/u)
 })
 
 test('provider readback rejects malformed claims before any provider request', async () => {

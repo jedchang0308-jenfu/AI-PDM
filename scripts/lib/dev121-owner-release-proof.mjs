@@ -269,6 +269,15 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
       !new RegExp(`^gs://${config.bucket}/source/releases/${proof.releaseId}/[a-f0-9]{64}/source\\.tar\\.gz$`, 'u').test(source.uri) ||
       !H64.test(source.sha256) || !/^[1-9][0-9]*$/u.test(source.generation) ||
       typeof token !== 'string' || token.length < 20) fail('PROVIDER_INPUT_INVALID')
+  let sourceReadback
+  try {
+    sourceReadback = await readGcsObject({ uri: source.uri,
+      expectedBucket: config.bucket, expectedPrefix: 'source/releases',
+      token, fetchImpl })
+  } catch { fail('PROVIDER_SOURCE_READBACK_FAILED') }
+  if (sourceReadback.generation !== source.generation ||
+      sourceReadback.crc32c !== source.crc32c ||
+      sha256(sourceReadback.bytes) !== source.sha256) fail('PROVIDER_SOURCE_MISMATCH')
   const request = async (url) => {
     const response = await fetchImpl(url, { method: 'GET', redirect: 'error',
       headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) })
