@@ -16,7 +16,7 @@ function provider({ officialChange = {}, commitChange = {}, pullsChange = null,
     assert.equal(options.headers.authorization, `Bearer ${input.token}`)
     if (status !== 200) return new Response('', { status })
     if (url.endsWith('/branches/main')) return new Response(JSON.stringify({
-      name: branch, protected: false, commit: { sha: revision }, ...officialChange,
+      name: branch, protected: true, commit: { sha: revision }, ...officialChange,
     }))
     if (url.endsWith(`/git/commits/${revision}`)) return new Response(JSON.stringify({
       sha: revision, tree: { sha: sourceTree }, ...commitChange,
@@ -31,13 +31,19 @@ function provider({ officialChange = {}, commitChange = {}, pullsChange = null,
   return { fetchImpl, requests: () => requests }
 }
 
-test('accepts exact merged PR even when GitHub reports branch unprotected', async () => {
+test('accepts an exact merged PR on the protected official branch', async () => {
   const fake = provider()
   const result = await verifyOfficialMergedSource({ ...input, fetchImpl: fake.fetchImpl })
   assert.equal(result.status, 'OFFICIAL_MERGED_PR_VERIFIED')
-  assert.equal(result.branchProtected, false)
+  assert.equal(result.branchProtected, true)
   assert.equal(result.pullRequestNumber, 94)
   assert.equal(fake.requests(), 3)
+})
+
+test('rejects an unprotected official branch before release', async () => {
+  await assert.rejects(verifyOfficialMergedSource({ ...input,
+    fetchImpl: provider({ officialChange: { protected: false } }).fetchImpl }),
+  /BRANCH_UNPROTECTED/u)
 })
 
 test('rejects direct push, wrong base, ambiguous PR and source drift', async () => {
