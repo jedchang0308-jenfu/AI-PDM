@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-28 v3 exact-pair 預覽契約修正（本機）。** v3 的三 owner 發布證據與 `profile_transfer` 是獨立維度：已由當前 provider pair 精確對上的帳號可用 v3 封存 owner readback，`confirmationObjects` 為空；有轉移的帳號仍須逐筆確認 receipt。v2 沿用原本至少一筆轉移的格式約束。聚焦 operator 測試 9／9 PASS；預覽仍固定 `sourceBindingsAttested=false`、`applyAllowed=false`，不代表正式切換可執行。
+
 > **2026-09-27 自有 released provider readback 接線（本機）。** Cutover preview operation v3 在任何 PostgreSQL transaction 或 immutable receipt replay 前，只對 AI-PDM 自己的 `released` proof 使用 `verifyOwnerProviderReadback`，從 Cloud Build、精確自有 GCS source object 與自有 Artifact Registry 重新讀取並封存核對結果。Platform／OrgMaster 仍由各自 owner 的受限發布收據負責來源與 image 證明；AI-PDM operator 不讀 sibling source tar 或 registry。其他 owner 與 `migration_only` 的 `providerReadback` 明列 `null`，不冒稱已即時驗證。重播重新讀回 AI-PDM provider 並拒絕漂移；既有 v3 receipt 若缺新增欄位會衝突，須用新 operation／receipt ref，不改寫 immutable object。聚焦 18／18、scoped ESLint、diff check PASS。正式 AI-PDM provider 權限與 readback、owner protected source、operator image、完整 behavior shadow、recovery 與 Production L4 尚缺，`sourceBindingsAttested=false`、`applyAllowed=false` 維持。
 
 > **2026-09-27 owner source authority 更正。** GitHub provider 對 AI-PDM `main` 回 `protected:false`，rules `[]`；過去「protected-main」只能視為當時 source-lock 命名，不能當 GitHub branch protection 的事實。完整 owner 與 migration-only workflow 現本機加入 exact official HEAD／tree／merged PR provider 核對，再進既有 WIF 與 source lock；聚焦 3／3、owner suite 49／49 PASS。它不證明 PR 有 reviewer，也不代替 Cloud Build／Artifact Registry 及 Production contract readback；正式 workflow 尚未執行，`sourceBindingsAttested=false`、`applyAllowed=false` 不變。
