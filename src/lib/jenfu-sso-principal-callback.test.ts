@@ -100,6 +100,8 @@ describe("principal-first SSO callback routing", () => {
     expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=principal_not_active");
     expect(callback.headers.get("location")).not.toContain("one-time-code");
     expect(callback.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(callback.headers.get("set-cookie")).toContain("Secure");
+    expect(callback.headers.get("set-cookie")).toContain("HttpOnly");
     expect(callback.headers.get("referrer-policy")).toBe("no-referrer");
     expect(callback.headers.get("cache-control")).toBe("no-store");
     expect(mocks.legacyResolver).not.toHaveBeenCalled();
@@ -113,5 +115,6 @@ describe("principal-first SSO callback routing", () => {
     expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=sso_request_invalid");
     expect(callback.headers.get("location")).not.toContain("one-time-code");
     expect(callback.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(callback.headers.get("set-cookie")).toContain("Secure");
   });
 });
