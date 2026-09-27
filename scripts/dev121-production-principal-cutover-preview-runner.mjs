@@ -264,7 +264,24 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   }
 }
 
+/** Diagnostic-only source locations; never emit exception text or query values. */
+export function publicCutoverPreviewErrorOrigin(error) {
+  const frames = typeof error?.stack === 'string' ? error.stack.split('\n') : []
+  return frames.flatMap((frame) => {
+    const match = /\/app\/((?:src\/lib|scripts(?:\/lib)?)\/[a-z0-9./_-]+\.(?:mjs|ts)):(\d+):\d+/u.exec(frame)
+    return match ? [`${match[1]}:${match[2]}`] : []
+  }).slice(0, 4)
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runMain().then((value) => process.stdout.write(`${JSON.stringify(publicCutoverPreviewLog(value))}\n`))
-    .catch((error) => { process.stderr.write(`${error.code || error.message}\n`); process.exitCode = 1 })
+    .catch((error) => {
+      process.stderr.write(`${error.code || error.message}\n`)
+      if (process.env.DEV121_DIAGNOSTIC_ERROR_ORIGIN === '1') {
+        process.stderr.write(`${JSON.stringify({
+          errorOrigin: publicCutoverPreviewErrorOrigin(error),
+        })}\n`)
+      }
+      process.exitCode = 1
+    })
 }

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
-import { publicCutoverPreviewLog, runMain } from './dev121-production-principal-cutover-preview-runner.mjs'
+import {
+  publicCutoverPreviewErrorOrigin, publicCutoverPreviewLog, runMain,
+} from './dev121-production-principal-cutover-preview-runner.mjs'
 import {
   assertCutoverPreviewOperation, assertProfileClaimConfirmation,
   summarizeCutoverPreview,
@@ -38,6 +40,20 @@ const environment = {
 }
 const inputRef = 'gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/dev121/principal-cutover-preview/one.json'
 const outputRef = 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-CUTOVER-PREVIEW/one.json'
+
+test('diagnostic error origin exposes only owner source locations', () => {
+  const error = { stack: [
+    'Error: private-employee@example.com',
+    '    at invalid (file:///app/src/lib/jenfu-principal-acl-migration-preview.ts:47:9)',
+    '    at readPrincipalAclMigrationSource (file:///app/src/lib/jenfu-principal-acl-migration-preview.ts:132:18)',
+    '    at token (/secrets/customer-name.js:99:1)',
+  ].join('\n') }
+  assert.deepEqual(publicCutoverPreviewErrorOrigin(error), [
+    'src/lib/jenfu-principal-acl-migration-preview.ts:47',
+    'src/lib/jenfu-principal-acl-migration-preview.ts:132',
+  ])
+  assert.deepEqual(publicCutoverPreviewErrorOrigin({}), [])
+})
 
 test('preview operation binds exact owner target and rejects alias or source ambiguity', async () => {
   const bytes = Buffer.from(JSON.stringify(operation()))
