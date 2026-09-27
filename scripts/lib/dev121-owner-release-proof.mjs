@@ -16,19 +16,19 @@ function isTargetBuildName(name, buildId) {
 const OWNERS = Object.freeze({
   platform: Object.freeze({ bucket: 'jenfu-platform-prod-platform-release',
     repository: 'jedchang0308-jenfu/Jenfu-Platform', branch: 'main',
-    ledger: 'platform_core.schema_migrations',
+    ledger: 'platform_core.schema_migrations', migrationBootstrap: true,
     artifactRepository: 'platform-release', artifactName: 'platform',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform',
     builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
   orgmaster: Object.freeze({ bucket: 'jenfu-platform-prod-orgmaster-release',
     repository: 'jedchang0308-jenfu/OrgMaster', branch: 'master',
-    ledger: 'orgmaster_core.schema_migrations',
+    ledger: 'orgmaster_core.schema_migrations', migrationBootstrap: false,
     artifactRepository: 'orgmaster-release', artifactName: 'orgmaster',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/orgmaster-release/orgmaster',
     builder: 'orgmaster-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
   'ai-pdm': Object.freeze({ bucket: 'jenfu-platform-prod-aipdm-release',
     repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main',
-    ledger: 'ai_pdm_core.schema_migrations',
+    ledger: 'ai_pdm_core.schema_migrations', migrationBootstrap: true,
     artifactRepository: 'aipdm-release', artifactName: 'ai-pdm',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm',
     builder: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
@@ -95,10 +95,12 @@ function assertSourceLock(value, owner, config, revision, releaseId) {
     value.evidenceScope !== 'PRODUCTION_BOUND' ||
     !Number.isFinite(Date.parse(value.observedAt))) fail('SOURCE_LOCK_INVALID')
 }
-function assertMigration(value, owner, config, revision, manifestSha256) {
+export function assertMigration(value, owner, config, revision, manifestSha256) {
+  if (typeof config.migrationBootstrap !== 'boolean') fail('MIGRATION_INVALID')
   if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'sourceRevision',
     'database', 'ledger', 'manifestSha256', 'baselineCount', 'minimumLedgerCount',
-    'ledgerBootstrap', 'ledgerCount', 'applied', 'replayed', 'crossDatabaseDenials',
+    ...(config.migrationBootstrap ? ['ledgerBootstrap'] : []),
+    'ledgerCount', 'applied', 'replayed', 'crossDatabaseDenials',
     'boundaryStatus', 'executionName', 'startedAt', 'completedAt', 'status',
     'receiptSha256']) ||
     value.schemaVersion !== 'jenfu.dev012.migration-receipt.v1' ||
@@ -116,10 +118,11 @@ function assertMigration(value, owner, config, revision, manifestSha256) {
     !Number.isInteger(value.applied) || value.applied < 0 ||
     !Number.isInteger(value.replayed) || value.replayed < 0 ||
     value.applied + value.replayed !== value.ledgerCount ||
-    !exactKeys(value.ledgerBootstrap, ['enabled', 'created']) ||
-    typeof value.ledgerBootstrap.enabled !== 'boolean' ||
-    typeof value.ledgerBootstrap.created !== 'boolean' ||
-    (value.ledgerBootstrap.created && !value.ledgerBootstrap.enabled) ||
+    (config.migrationBootstrap &&
+      (!exactKeys(value.ledgerBootstrap, ['enabled', 'created']) ||
+        typeof value.ledgerBootstrap.enabled !== 'boolean' ||
+        typeof value.ledgerBootstrap.created !== 'boolean' ||
+        (value.ledgerBootstrap.created && !value.ledgerBootstrap.enabled))) ||
     !Number.isFinite(Date.parse(value.startedAt)) ||
     !Number.isFinite(Date.parse(value.completedAt)) ||
     Date.parse(value.completedAt) < Date.parse(value.startedAt) ||
