@@ -13,6 +13,19 @@ resource "google_storage_bucket_iam_member" "migrator_bundle_viewer" {
   }
 }
 
+# The DEV-121 provider proof hashes the exact owner source archive. Keep this
+# read grant on this application's release-source prefix only.
+resource "google_storage_bucket_iam_member" "migrator_release_source_viewer" {
+  count  = var.incident_runtime_enabled ? 1 : 0
+  bucket = google_storage_bucket.release.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${data.google_service_account.migrator.email}"
+  condition {
+    title      = "aipdm-migrator-release-source-viewer"
+    expression = "resource.name.startsWith('projects/_/buckets/${var.release_bucket_name}/objects/source/releases/')"
+  }
+}
+
 resource "google_storage_bucket_iam_member" "migrator_receipts_creator" {
   count  = var.incident_runtime_enabled ? 1 : 0
   bucket = google_storage_bucket.release.name

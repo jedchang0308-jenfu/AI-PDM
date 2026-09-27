@@ -19,6 +19,38 @@ const ref = (name) => ({ uri: `gs://${profile.artifact.releaseBucket}/receipts/$
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex')
 
+test('DEV-121 operator provider proof has additive, app-owned read grants only', () => {
+  const identity = readText('infra/google-cloud/dev-117-production-release/identity.tf')
+  const artifact = readText('infra/google-cloud/dev-117-production-release/artifact.tf')
+  const migration = readText('infra/google-cloud/dev-117-production-release/migration.tf')
+  const infraPlan = read('config/release/dev117-production-release-infra-plan.json')
+  const block = (source, type, name) => source.match(
+    new RegExp(`resource "${type}" "${name}" \\{[\\s\\S]*?\\n\\}`, 'u'))?.[0] ?? ''
+  const role = block(identity, 'google_project_iam_custom_role', 'migrator_build_get')
+  const buildGrant = block(identity, 'google_project_iam_member', 'migrator_build_get')
+  const imageGrant = block(artifact, 'google_artifact_registry_repository_iam_member', 'migrator_proof_image_reader')
+  const sourceGrant = block(migration, 'google_storage_bucket_iam_member', 'migrator_release_source_viewer')
+  assert.match(role, /count\s+= var\.incident_runtime_enabled \? 1 : 0/u)
+  assert.match(role, /permissions\s+= \["cloudbuild\.builds\.get", "serviceusage\.services\.use"\]/u)
+  assert.doesNotMatch(role, /builds\.(?:create|list|update)|\bdelete\b/u)
+  assert.match(buildGrant, /role\s+= google_project_iam_custom_role\.migrator_build_get\[0\]\.name/u)
+  assert.match(buildGrant, /member\s+= "serviceAccount:\$\{data\.google_service_account\.migrator\.email\}"/u)
+  assert.match(imageGrant, /repository\s+= google_artifact_registry_repository\.release\.name[\s\S]*role\s+= "roles\/artifactregistry\.reader"[\s\S]*data\.google_service_account\.migrator\.email/u)
+  assert.match(sourceGrant, /role\s+= "roles\/storage\.objectViewer"[\s\S]*data\.google_service_account\.migrator\.email/u)
+  assert.match(sourceGrant, /objects\/source\/releases\//u)
+  assert.doesNotMatch(sourceGrant, /orgmaster-release|platform-release|objectAdmin/u)
+  const addresses = [
+    'google_project_iam_custom_role.migrator_build_get[0]',
+    'google_project_iam_member.migrator_build_get[0]',
+    'google_artifact_registry_repository_iam_member.migrator_proof_image_reader[0]',
+    'google_storage_bucket_iam_member.migrator_release_source_viewer[0]',
+  ]
+  for (const address of addresses) {
+    assert.equal(infraPlan.stageBAdditional.filter((item) => item === address).length, 1)
+    assert.ok(!infraPlan.stageA.includes(address))
+  }
+})
+
 function controlledPrerequisites(ownerProfile, runtimeConfig) {
   const intent = { releaseId: 'DEV013-L4-AIPDM-001', sourceRevision: 'b'.repeat(40) }
   const common = { ownerApplicationId: ownerProfile.application.id, projectId: ownerProfile.target.projectId, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, environment: 'production', observedAt: '2999-01-01T00:00:00.000Z', expiresAt: '2999-01-01T08:00:00.000Z', remainingHumanAction: 0, status: 'PASS', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND' }
