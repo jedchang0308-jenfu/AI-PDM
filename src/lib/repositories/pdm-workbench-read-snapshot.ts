@@ -4,10 +4,14 @@ export async function withPdmWorkbenchReadSnapshot<T>(
   client: AsyncDatabaseClient,
   read: (snapshot: AsyncDatabaseClient) => Promise<T>
 ) {
-  return client.transaction(async (snapshot) => {
-    if (snapshot.kind === "postgres") {
-      await snapshot.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+  if (client.transactionScope === "postgres") {
+    const state = await client.queryOne<{ isolation_level: string; read_only: string }>(
+      "SELECT current_setting('transaction_isolation') AS isolation_level, current_setting('transaction_read_only') AS read_only"
+    );
+    if (!state || !["repeatable read", "serializable"].includes(state.isolation_level) || state.read_only !== "on") {
+      throw new Error("PDM_WORKBENCH_READ_SNAPSHOT_REQUIRED");
     }
-    return read(snapshot);
-  });
+    return read(client);
+  }
+  return client.transaction(read, { isolationLevel: "repeatable_read", readOnly: true });
 }
