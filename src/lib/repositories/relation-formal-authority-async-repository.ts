@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { canonicalRowKey, CanonicalWorkbenchError, type CanonicalRelationMatrixCell, type CanonicalRelationMatrixProjection } from "@/lib/pdm-canonical-workbench-contract";
 import { replayCanonicalTerminalReceipt, runCanonicalIdempotentCommand } from "@/lib/pdm-canonical-command";
+import { runPrincipalDev087Command } from "@/lib/pdm-principal-dev087-command";
+import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { reconcileSldasmAssemblyEvidenceForDrawing } from "@/lib/sldasm-assembly-evidence";
 
 type RelationAuthorityClient = Pick<AsyncDatabaseClient, "kind" | "query" | "queryOne" | "execute"> & {
@@ -189,7 +191,36 @@ export class RelationFormalAuthorityRepository {
       request,
       effectKey: `pdm.relation_matrix.update.v1:${input.rootId}:${expectedEtag}`,
       correlationId: crypto.randomUUID()
-    }, async (tx) => {
+    }, (tx) => this.applyMatrixLocked(tx, input, changes, expectedEtag));
+  }
+
+  async applyMatrixPrincipal(input: {
+    companyId: string;
+    rootId: string;
+    changes: RelationMatrixChange[];
+    ifMatch: string | null | undefined;
+    idempotencyKey: string;
+  }, verified: VerifiedPrincipalRequest) {
+    if (input.companyId !== verified.profile.companyId) {
+      throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖料根號不屬於目前公司", 403);
+    }
+    const changes = validateChanges(input.changes);
+    const expectedEtag = normalizeIfMatch(input.ifMatch);
+    if (!expectedEtag) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "缺少有效的關聯矩陣版本", 400);
+    if (changes.length > 2500) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "單次最多修改 2500 個關聯格", 413);
+    return runPrincipalDev087Command(this.client as AsyncDatabaseClient, verified, {
+      command: "pdm.relation_matrix.update.v2",
+      idempotencyKey: input.idempotencyKey,
+      request: { rootId: input.rootId, changes, ifMatch: expectedEtag },
+      effectKey: `pdm.relation_matrix.update.v2:${input.rootId}:${expectedEtag}`,
+      correlationId: crypto.randomUUID()
+    }, (tx) => this.applyMatrixLocked(tx,
+      { ...input, actorId: verified.profile.pdmUserId }, changes, expectedEtag));
+  }
+
+  private async applyMatrixLocked(tx: AsyncDatabaseClient,
+    input: { companyId: string; rootId: string; actorId: string },
+    changes: RelationMatrixChange[], expectedEtag: string) {
       // PostgreSQL takes a row lock; SQLite's BEGIN IMMEDIATE gives the same
       // root-first serialization guarantee for the single local connection.
       const root = await tx.queryOne<{ id: string; root_code: string }>(`SELECT id, root_code FROM part_roots WHERE company_id = :companyId AND id = :rootId${tx.kind === "postgres" ? " FOR UPDATE" : ""}`, { companyId: input.companyId, rootId: input.rootId });
@@ -202,6 +233,13 @@ export class RelationFormalAuthorityRepository {
         if (!drawingIds.has(change.drawingNumberId) || !partIds.has(change.partNumberId)) {
           throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "關聯格不屬於目前圖料根號", 422);
         }
+      }
+      const currentByPair = new Map(current.cells.map((cell) =>
+        [`${cell.drawingNumberId}:${cell.partNumberId}`, cell.relationType]));
+      if (changes.every((change) =>
+        (currentByPair.get(`${change.drawingNumberId}:${change.partNumberId}`) ?? null) === change.relationType)) {
+        return { rootId: input.rootId, changedCount: 0,
+          matrixEtag: current.matrixEtag, matrix: current };
       }
       assertFinalPrimaryUniqueness(current.cells, changes);
       const changesJson = JSON.stringify(changes);
@@ -235,7 +273,6 @@ export class RelationFormalAuthorityRepository {
       }
       const next = await this.readMatrix(tx, input);
       return { rootId: input.rootId, changedCount: changes.length, matrixEtag: next.matrixEtag, matrix: next };
-    });
   }
 
   private async readMatrix(client: RelationAuthorityClient, input: { companyId: string; rootId: string }): Promise<CanonicalRelationMatrixProjection> {

@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "cb7c36d3aeeb9b38bbd2386c36965c8f1649d03f81b46d879489e19d51dd7c57",
+  "sourceSha256": "a9c6fbd3ea30c0a8dbb9109badcec47c06a924dee8ea1efe72d9bce0229c3668",
   "denominator": {
-    "uniqueFiles": 97,
-    "uniqueMethods": 115,
-    "policyEntries": 124
+    "uniqueFiles": 98,
+    "uniqueMethods": 117,
+    "policyEntries": 126
   },
   "entries": [
     {
@@ -608,6 +608,26 @@
       "authorizationTarget": "numbering.workspace.create",
       "scopeResolver": "workspace",
       "preservedGuards": "workspace＋verified principal／formal row version＋canonical receipt"
+    },
+    {
+      "path": "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.search",
+      "authorizationTarget": "numbering.search",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋published page grant＋company／root scope＋read-only snapshot"
+    },
+    {
+      "path": "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.workspace.update",
+      "authorizationTarget": "numbering.workspace.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋published action grant＋company／root scope＋ETag／idempotent principal receipt"
     },
     {
       "path": "src/app/api/pdm/review-requests/[requestId]/decisions/route.ts",
