@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 圖面歷史 Principal-only 讀取（候選來源）**：`GET /api/numbering/drawings/[drawingNumber]/history/[revisionId]` 已移除舊 actor caller；v2 map 加入精確 `numbering.drawings.view` page policy，verified Principal／workspace grant、圖面公司、版次生命週期與檔案綁定均在同一 read-only snapshot 讀取，拒絕時不讀資料。完整 119 筆路由條目重新以 SHA-256 鎖定；聚焦 3／3、route-map 7／7、source-lock 2／2、route classification 293／293、DEV-005 103／103、typecheck、scoped ESLint PASS。DEV-087 共用 actor helper 的未遷移 route 檔由 7 降至 6，關聯矩陣另待處理；Production 未變。
+
 > **2026-09-28 DEV-121 DEV-087 舊 actor fallback 封鎖（候選來源）**：Platform 登入模式呼叫 `resolveDev087RouteActor`／`resolveRelationMatrixActor` 時，在任何舊角色／profile／公司查詢前拒絕；缺 v2 session 為 401，有 v2 session 卻未接 Principal route 為 503，均不快取。隔離 demo 路徑僅供本機 fixture。盤點 23 個使用前者的 route 檔，16 個已有 Principal 分支、7 個仍待轉換；關聯矩陣另待轉換。聚焦 17／17、typecheck、route classification 255 files／293 methods／0 缺碼 PASS。歷史 DEV-005 runtime QC 已依固定 v2 policy 辨識 Principal external-read／settings write 與退役路由，加入移除 guard／410 的負向突變，現 103／103 PASS。這是拒絕保護，不是工作台完成；切流前須把這些必要操作轉成可用的 Principal route 並驗資源範圍。
 
 > **2026-09-28 DEV-121 Principal 讀取入口拒絕舊 session（候選來源）**：`withPrincipalCompanyRead` 在 Platform 登入模式下，缺少 v2 Principal session 直接回無快取 401，不再回 `null` 讓使用它的 route 落入舊 UID／profile reader；隔離 demo 模式仍可使用原本的本機測試讀取。聚焦 16／16、typecheck、scoped ESLint PASS。此修正涵蓋共用 company／numbering read helper 的 caller，尚未退役未使用該 helper 的其他舊 route，也不是 Production L4 或切流證據。
