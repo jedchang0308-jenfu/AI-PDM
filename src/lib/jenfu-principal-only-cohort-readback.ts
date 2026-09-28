@@ -4,6 +4,7 @@ type ProfileRow = {
   pdm_user_id: string;
   company_id: string;
   historical_status: string;
+  historical_status_reason: string | null;
   principal_id: string | null;
   employee_id: string | null;
   account_type: string | null;
@@ -12,6 +13,7 @@ type ProfileRow = {
   marker_status: string | null;
   marker_principal_id: string | null;
   operation_id: string | null;
+  operation_kind: string | null;
 };
 type PublishedRow = {
   pdm_user_id: string;
@@ -62,15 +64,19 @@ export async function readPrincipalOnlyCohort(
       profiles = await snapshot.query<ProfileRow>(`
         SELECT profile.id AS pdm_user_id,profile.company_id,
                profile.account_status AS historical_status,
+               profile.account_status_reason AS historical_status_reason,
                account.principal_id,account.employee_id,account.account_type,
                account.account_status AS principal_status,account.system_role_enabled,
                marker.status AS marker_status,
-               marker.principal_id AS marker_principal_id,marker.operation_id
+               marker.principal_id AS marker_principal_id,marker.operation_id,
+               operation.operation_kind
         FROM ai_pdm_core.users profile
         LEFT JOIN ai_pdm_core.principal_accounts account
           ON account.pdm_user_id=profile.id AND account.company_id=profile.company_id
         LEFT JOIN ai_pdm_core.principal_identity_cutovers marker
           ON marker.pdm_user_id=profile.id
+        LEFT JOIN ai_pdm_core.principal_identity_operations operation
+          ON operation.operation_id=marker.operation_id
         ORDER BY profile.id
       `);
       published = await snapshot.query<PublishedRow>(`
@@ -137,10 +143,16 @@ export async function readPrincipalOnlyCohort(
       const accountActive = active(profile.principal_status ?? "") && profile.system_role_enabled === true;
       if (historicalActive && !profile.principal_id) issues.push("principal_account_missing");
       if (profile.principal_id && historicalActive && !accountActive) issues.push("principal_account_disabled");
-      if (!historicalActive && accountActive) issues.push("historically_disabled_reactivated");
+      const principalOnlyProvision = profile.historical_status === "suspended" &&
+        profile.historical_status_reason === "principal_only_provision" &&
+        profile.operation_kind === "provision";
+      if (!historicalActive && accountActive && !principalOnlyProvision) {
+        issues.push("historically_disabled_reactivated");
+      }
       if (profile.principal_id && accountActive &&
         (profile.marker_status !== "principal_active" ||
-          profile.marker_principal_id !== profile.principal_id || !profile.operation_id)) {
+          profile.marker_principal_id !== profile.principal_id || !profile.operation_id ||
+          !["cutover", "provision"].includes(profile.operation_kind ?? ""))) {
         issues.push("activation_unconfirmed");
       }
       const producer = publishedByProfile.get(profile.pdm_user_id) ?? [];

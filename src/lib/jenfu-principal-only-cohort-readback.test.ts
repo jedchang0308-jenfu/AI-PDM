@@ -3,10 +3,12 @@ import { readPrincipalOnlyCohort } from "@/lib/jenfu-principal-only-cohort-readb
 
 const profile = {
   pdm_user_id: "profile-one", company_id: "company-one", historical_status: "active",
+  historical_status_reason: null,
   principal_id: "principal-one", employee_id: "employee-one",
   account_type: "human_personal", principal_status: "active",
   system_role_enabled: true, marker_status: "principal_active",
   marker_principal_id: "principal-one", operation_id: "operation-one",
+  operation_kind: "cutover",
 };
 const published = {
   pdm_user_id: "profile-one", principal_id: "principal-one",
@@ -67,6 +69,18 @@ describe("principal-only cohort discovery", () => {
     expect(result.profiles[0].issues).toContain("principal_account_missing");
     expect(result.profiles[1].issues).toContain("historically_disabled_reactivated");
     expect(result.profiles[2].issues).toContain("activation_unconfirmed");
+  });
+
+  it("recognizes only an operation-backed new Principal account over a suspended domain profile", async () => {
+    const provisioned = { ...profile, historical_status: "suspended",
+      historical_status_reason: "principal_only_provision", operation_kind: "provision" };
+    const valid = await readPrincipalOnlyCohort(snapshot({ profiles: [provisioned] }).database);
+    expect(valid.profiles[0].issues).toEqual([]);
+    const unproven = await readPrincipalOnlyCohort(snapshot({
+      profiles: [{ ...provisioned, operation_kind: null }],
+    }).database);
+    expect(unproven.profiles[0].issues).toContain("historically_disabled_reactivated");
+    expect(unproven.profiles[0].issues).toContain("activation_unconfirmed");
   });
 
   it("flags producer mismatch and ambiguous provider ownership instead of guessing", async () => {

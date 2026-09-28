@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-> **2026-09-28 DEV-121 Principal-only 全 cohort readback（本機）**：既有 source-bound inventory owner operator 新增唯讀 `principal_only_coverage` v2 模式，封存全部 PDM profile／principal account／OrgMaster typed principal／provider pair 的歧義與啟用狀態，沒有資料寫入或權限切換。聚焦測試 12／12、typecheck、ESLint、DB boundary PASS；正式 Job 與全 cohort 身分確認仍未執行，舊 `principal_active` runtime guard 保留，`applyAllowed=false`。下一步須以受限 Production receipt 核對已核實帳號與停用帳號，建立等效 Principal-only 啟用條件後才可退役 marker guard。
+> **2026-09-28 DEV-121 Principal-only 全 cohort readback（本機）**：既有 source-bound inventory owner operator 新增唯讀 `principal_only_coverage` v2 模式，封存全部 PDM profile／principal account／OrgMaster typed principal／provider pair 的歧義與啟用狀態，沒有資料寫入或權限切換；正常 Principal provision 的歷史停用 profile 以提交 operation 核對，不誤判成重啟舊帳號。聚焦測試 13／13、typecheck、ESLint、DB boundary PASS；正式 Job 與全 cohort 身分確認仍未執行，舊 `principal_active` runtime guard 保留，`applyAllowed=false`。下一步須以受限 Production receipt 核對已核實帳號與停用帳號，建立等效 Principal-only 啟用條件後才可退役 marker guard。
 
 > **2026-09-28 DEV-121 owner ledger 前置補強（本機）**：三 owner 正式 receipt／Cloud Run readback 確認 Platform 010、OrgMaster 027 已發布；AI-PDM owner proof 增加 Platform≥10、OrgMaster≥27、AI-PDM≥20 的 migration ledger floor，拒絕來源與收據自洽但仍缺 principal 契約的舊版本。聚焦測試 14／14 PASS。這不開啟 cutover apply；逐人 profile 歸屬、resource／delegation shadow、回復與完整 Production L4 仍未完成。
 
