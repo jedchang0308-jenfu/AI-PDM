@@ -64,6 +64,12 @@ function accessError(status: number) {
   if (status === 401) {
     return numberStateFlowJson(errorEnvelope("authentication_required", "Authentication is required.", false), { status });
   }
+  if (status >= 500) {
+    return numberStateFlowJson(errorEnvelope("numbering_authority_unavailable", "Authorization could not be verified.", true), { status: 503 });
+  }
+  if (status === 400) {
+    return numberStateFlowJson(errorEnvelope("numbering_company_invalid", "Invalid company scope.", false), { status });
+  }
   return numberStateFlowJson(errorEnvelope("numbering_permission_denied", "Permission or company scope was denied.", false), {
     status: status === 404 ? 404 : 403
   });
