@@ -2,16 +2,28 @@ import { NextResponse } from "next/server";
 import { DrawingSubmissionWorkbenchError, resolveDrawingSubmissionContext } from "@/lib/drawing-submission-workbench";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { PdmCompanyContext } from "@/lib/company-context";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
+  const principalResponse = await withPrincipalNumberingCompanyRead(request, "numbering.drawings.view",
+    (snapshot, company) => readContext(request, params, company, snapshot));
+  if (principalResponse) return principalResponse;
+
   const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
   if (auth.response) return auth.response;
 
   const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
   if (companyResult.response) return companyResult.response;
 
+  return readContext(request, params, companyResult.company);
+}
+
+async function readContext(request: Request, params: Promise<{ drawingNumber: string }>,
+  company: PdmCompanyContext, snapshot?: AsyncDatabaseClient) {
   const { drawingNumber } = await params;
   const url = new URL(request.url);
   const targetRevision = url.searchParams.get("revision");
@@ -30,14 +42,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
     url.searchParams.get("lifecycleStage");
   try {
     const context = await resolveDrawingSubmissionContext({
-      company: companyResult.company,
+      company,
       drawingNumber: decodeURIComponent(drawingNumber),
       targetRevision,
       currentPartNumberId,
       partNumberIds,
       workflowIntent
-    });
-    return NextResponse.json(context);
+    }, snapshot);
+    return NextResponse.json(context, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     if (error instanceof DrawingSubmissionWorkbenchError) {
       return NextResponse.json({ error: error.code, message: error.message, details: error.details }, { status: error.status });
