@@ -360,6 +360,11 @@
         "order": 21,
         "path": "db/postgres/070_dev121_principal_role_catalog_v5.sql",
         "sha256": "9b882ba60fd3a2e2b4bd13ca054f83e2de91b3513bbde11fe0698aa019179013"
+      },
+      {
+        "order": 22,
+        "path": "db/postgres/071_dev121_principal_account_owner_no_cutover.sql",
+        "sha256": "6471b8d6567e9d2c4a1d1cad09c9797502972fb1e367c8daed35788ca5617193"
       }
     ]
   },

@@ -333,7 +333,23 @@ try {
   const principalManifestMigration = fs.readFileSync(path.join(root,
     'db/postgres/069_dev121_principal_security_contract_manifest.sql'), 'utf8')
   await client.query(principalManifestMigration)
+  const principalOwnerCorrection = fs.readFileSync(path.join(root,
+    'db/postgres/071_dev121_principal_account_owner_no_cutover.sql'), 'utf8')
+  await client.query(principalOwnerCorrection)
   await client.query('DROP TABLE orgmaster_contract.v_ai_pdm_effective_role_assignments_v1')
+
+  await check('principal account owner commands no longer depend on cutover markers', async () => {
+    const signatures = [
+      'assert_principal_account_manager_v1(text,text,text,text,text,text)',
+      'update_principal_account_lifecycle_v1(text,text,text,text,text,text,text,text,text)',
+      'revoke_principal_account_sessions_v1(text,text,text,text,text,text,text,text)'
+    ]
+    for (const signature of signatures) {
+      const result = await client.query(`SELECT pg_get_functiondef(
+        'ai_pdm_core.${signature}'::regprocedure) AS body`)
+      assert.doesNotMatch(result.rows[0].body, /principal_identity_cutovers/)
+    }
+  })
 
   await check('owner manifest is exact, visible through contract and replay is idempotent', async () => {
     const manifest = async () => (await asRole('jenfu_ai_pdm_migrator',

@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 SQL owner 命令去逐人 marker（候選來源）**：新增 forward-only 071，先拒絕既有 `principal_accounts`／歷史 active marker 漂移，再以原簽章重定義管理員能力核對、帳戶 lifecycle、session revoke 三個 owner-private function；正常命令只讀 canonical account、OrgMaster typed principal／已發布 grant 與當次 session，不再以逐人 marker 決定授權。舊 marker／operation 收據保留稽核。owner profile 新增第 22 筆並更新隔離 PostgreSQL QC 契約；DB boundary、release 單元 52／52、隔離 PostgreSQL 24／24 PASS，測試 cluster／port／temp 已清理。全 cohort Production readback、protected merge、發布及 L4 仍待完成，不得切流。
+
 > **2026-09-28 DEV-121 canonical account 讀取（候選來源）**：登入／每次請求、管理員帳號列表與 Principal 審核者候選，不再 JOIN 逐人 `principal_identity_cutovers`；以 `principal_accounts` 的唯一 Principal→profile 連結和 account lifecycle 為本地權威，登入另核對 OrgMaster typed provider pair／Employee、epoch、session，審核者另核對 OrgMaster active typed principal 與已發布 grant。停用與不符合 assurance 的帳號仍拒絕。帳號／管理／審核者／handoff／request guard 聚焦 31／31、typecheck、scoped ESLint PASS；正式 whole-cohort readback、舊 SQL owner function 的 marker 依賴與 Production L4 尚未完成，不得切流。
 
 > **2026-09-28 DEV-121 Principal 工作台共用守衛（候選來源）**：已核實的 DEV-087 action decision 必須精確對應當前 `principal_id`、permission code 與 allow／deny 語義；任何決策錯配回 503 且不執行命令。寫入 callback 若回非成功狀態，交易須 rollback，不能提交先前的部分變更。聚焦 7／7、typecheck、scoped ESLint PASS；正式環境未變。
