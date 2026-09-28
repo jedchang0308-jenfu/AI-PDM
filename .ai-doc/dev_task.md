@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 隔離 PostgreSQL 權限競態重驗**：修正舊測例把 `legacy_authority` 誤當「缺 permission」的預期。現以 OrgMaster authority version 2→3、同交易撤銷 assignment 驗證舊快照允許而新快照拒絕 `entitlement_assignment_not_found`，再以 legacy authority version 4 驗證 `entitlement_authority_unknown`；`qc:dev-121:postgres` 2／2 與 provider 9／9 PASS。本機暫存 cluster、55439 埠均已清理，未讀寫 Production；不代表全員 readback 或 L4 完成。
+
 > **2026-09-28 DEV-121 歷史送審明細唯讀契約待審**：直接書籤的 `GET /api/submissions/[id]` 尚未 Principal 化。提案以已發布 `submission.view` 的本次 role decision＋同公司資源、本人／主管界線作唯一授權，頁面只讀；檔案下載另驗。source-lock 更新因缺新條目獨立審查證據遭自動審查拒絕，未完成候選已撤回，現行 map／產品 route 未變。詳見同 DEV 規格首段；本項不阻止其他已授權切片繼續。
 
 > **2026-09-28 DEV-121 舊圖面送審入口收斂（候選來源）**：`/upload` 的帶圖號相容轉址及兩個舊圖面送審頁改導向現行圖號工作台，保留圖號搜尋，停止把正常導航送進舊提交頁。路由 QC 10／10、typecheck、scoped ESLint PASS；前版送審 QC 已調整為歷史資料／導航相容檢查 14／14 PASS，不作 Principal 明細或 Production L4 證據。歷史送審明細與檔案的 Principal 唯讀權限、直接書籤處置、必要業務 L4 仍待完成。正式流量未變。
