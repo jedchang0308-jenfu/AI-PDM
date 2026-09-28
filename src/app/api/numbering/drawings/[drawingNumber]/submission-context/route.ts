@@ -1,40 +1,12 @@
 import { NextResponse } from "next/server";
-import { resolveDrawingSubmissionContext, DrawingSubmissionWorkbenchError } from "@/lib/drawing-submission-workbench";
-import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
-import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
-import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import type { PdmCompanyContext } from "@/lib/company-context";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const { drawingNumber } = await params;
-  const principalResponse = await withPrincipalNumberingCompanyRead(request, "numbering.drawings.view",
-    (snapshot, company) => readContext(company, drawingNumber, snapshot));
-  if (principalResponse) return principalResponse;
-
-  const auth = await requireNumberingCompanyPermissionAsync(request, "page", "numbering.drawings.view");
-  if (auth.response) return auth.response;
-  return readContext(auth.company, drawingNumber);
-}
-
-async function readContext(company: PdmCompanyContext, drawingNumber: string, snapshot?: AsyncDatabaseClient) {
-  try {
-    const context = await resolveDrawingSubmissionContext({
-      company,
-      drawingNumber: decodeURIComponent(drawingNumber)
-    }, snapshot);
-    return NextResponse.json(context);
-  } catch (error) {
-    if (error instanceof DrawingSubmissionWorkbenchError) {
-      return NextResponse.json({ error: error.code, message: error.message, details: error.details }, { status: error.status });
-    }
-    return NextResponse.json(
-      {
-        error: "drawing_submission_context_failed",
-        message: "圖面送審資料讀取失敗，請重新整理或通知管理員。"
-      },
-      { status: 500 }
-    );
-  }
+export async function GET() {
+  return NextResponse.json({
+    error: "DRAWING_SOURCE_SUBMISSION_RETIRED",
+    code: "DRAWING_SOURCE_SUBMISSION_RETIRED",
+    message: "舊圖面送審入口已退役，請從圖號工作台建立進版工作並送審。",
+    recoveryHref: "/numbering/drawings"
+  }, { status: 410, headers: { "cache-control": "no-store" } });
 }

@@ -44,6 +44,8 @@ function assertNotIncludes(id, source, needles, message) {
 
 const drawingPage = read("src/app/numbering/drawings/page.tsx");
 const uploadPage = read("src/app/upload/page.tsx");
+const canonicalDrawingWorkspace = read("src/components/canonical-drawing-change-workspace.tsx");
+const principalSubmitRoute = read("src/app/api/pdm/drawing-revision-works/[workId]/submit/route.ts");
 const controlledDrawingSubmissionPage = read("src/app/numbering/submissions/drawings/[drawingNumber]/page.tsx");
 const directDrawingSubmissionPage = read("src/app/drawings/[drawingNumber]/submission-workbench/page.tsx");
 const uploadLayout = read("src/app/upload/layout.tsx");
@@ -67,14 +69,14 @@ assertNotIncludes(
 assertIncludes(
   "DRS-QC-003",
   uploadPage + uploadLayout,
-  ["DrawingSourceSubmissionWorkbench", 'routeState.source === "drawing"', "GenericUploadPage", "void children"],
-  "historical upload source remains available for fixtures but the live layout does not mount it"
+  ["void children", "NumberStateLegacyRoute", "destination"],
+  "legacy upload layout renders only the canonical object-entry redirect"
 );
 assertIncludes(
   "DRS-QC-004",
-  uploadPage,
-  ["送審來源：", "主資料只讀", "送審備註", "selectedAttachmentIds"],
-  "drawing-source UI exposes source banner, read-only context, attachment selection, and note"
+  canonicalDrawingWorkspace + principalSubmitRoute,
+  ["送出審核", "drawing-revision-works", "withPrincipalDev087Route", "submitPrincipal"],
+  "current drawing work uses the Principal submit command"
 );
 record("DRS-QC-004B",
   [controlledDrawingSubmissionPage, directDrawingSubmissionPage].every((source) =>
@@ -122,14 +124,14 @@ assertIncludes(
 assertIncludes(
   "DRS-QC-008",
   contextRoute,
-  ["withPrincipalNumberingCompanyRead", "numbering.drawings.view", "resolveDrawingSubmissionContext"],
-  "historical context read has a Principal drawing-view guard and company scope"
+  ["DRAWING_SOURCE_SUBMISSION_RETIRED", "status: 410", "/numbering/drawings"],
+  "historical context read is retired with a canonical recovery target"
 );
 assertIncludes(
   "DRS-QC-009",
   createRoute,
-  ["requirePdmRouteAuthorizationAsync", "selectedAttachmentIds", "note", "createDrawingSourceSubmission"],
-  "historical create route still enters the legacy guard; Platform-mode rejection is verified separately"
+  ["DRAWING_SOURCE_SUBMISSION_RETIRED", "status: 410", "/numbering/drawings"],
+  "historical create route cannot enter a legacy authorization or writer path"
 );
 record("DRS-QC-010",
   !/\bbody\.(?:drawing_number|part_number|part_name|revision|material|surface_finish|document_type)\b/u.test(createRoute) &&
@@ -149,9 +151,9 @@ assertIncludes(
 );
 assertIncludes(
   "DRS-QC-013",
-  uploadPage,
-  ["RetiredGenericUploadPage", "上傳送審已退役"],
-  "generic upload page is retired for formal submission creation"
+  uploadPage + uploadLayout,
+  ["return null", "上傳送審已改由物件進入"],
+  "legacy upload page cannot mount a submit UI"
 );
 
 for (const check of checks) {
