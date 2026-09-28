@@ -70,7 +70,8 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(result.claims).not.toHaveProperty("pdmUserId");
     expect(mocks.register).toHaveBeenCalledWith(result.claims);
     expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "repeatable_read" });
-    expect(snapshot.queryOne.mock.calls[0][0]).toContain("principal_identity_cutovers");
+    expect(mocks.account).toHaveBeenCalledWith(handoff.identity.principalId);
+    expect(snapshot.queryOne.mock.calls[0][0]).not.toContain("principal_identity_cutovers");
     expect(snapshot.queryOne.mock.calls[0][0]).toContain("owner.company_id=profile.company_id");
     expect(mocks.assignments).toHaveBeenCalledWith(expect.objectContaining({ principalId: "principal-one" }));
   });
@@ -80,6 +81,13 @@ describe("DEV-121 principal handoff session issuance", () => {
     await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("STALE_HANDOFF");
     mocks.state.mockResolvedValueOnce({ authEpoch: 1, revokedBefore: null });
     await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("STALE_HANDOFF");
+    expect(mocks.register).not.toHaveBeenCalled();
+  });
+
+  it("does not read a profile or register a session when the account activation check denies", async () => {
+    mocks.account.mockRejectedValueOnce(new Error("principal_account_unavailable"));
+    await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("principal_account_unavailable");
+    expect(snapshot.queryOne).not.toHaveBeenCalled();
     expect(mocks.register).not.toHaveBeenCalled();
   });
 

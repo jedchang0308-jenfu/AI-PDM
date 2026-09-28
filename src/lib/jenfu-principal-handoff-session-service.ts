@@ -55,9 +55,6 @@ export async function issueSessionForPrincipalHandoff(input: {
       JOIN ai_pdm_core.principal_accounts owner
         ON owner.pdm_user_id=profile.id AND owner.company_id=profile.company_id
        AND owner.principal_id=:principalId
-      JOIN ai_pdm_core.principal_identity_cutovers cutover
-        ON cutover.pdm_user_id=profile.id AND cutover.principal_id=owner.principal_id
-       AND cutover.status='principal_active'
       WHERE profile.id=:pdmUserId AND profile.company_id=:companyId
     `, { pdmUserId: account.pdmUserId, companyId: account.companyId,
       principalId: account.principalId });
