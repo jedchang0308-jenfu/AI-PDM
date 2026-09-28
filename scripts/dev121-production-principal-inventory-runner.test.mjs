@@ -18,13 +18,15 @@ const source = {
   publishedAt: '2026-09-25T00:00:00.000Z',
 }
 const operation = (mode = 'preview') => ({
-  schemaVersion: ['principal_only_coverage', 'principal_only_source'].includes(mode)
+  schemaVersion: ['principal_only_coverage', 'principal_only_source',
+    'principal_only_writer_readback'].includes(mode)
     ? 'ai-pdm.principal-inventory-operation.v2'
     : 'ai-pdm.principal-inventory-operation.v1',
   operationId: 'DEV121-INV-ONE', mode, sourceRevision: revision,
   projectId: 'jenfu-platform-prod', region: 'asia-east1', database: 'jenfu_prod',
   applicationId: 'ai-pdm', firebaseProjectId: mode === 'coverage' ? null : 'jenfu-platform-prod',
-  sources: ['coverage', 'principal_only_coverage'].includes(mode) ? [] : [source],
+  sources: ['coverage', 'principal_only_coverage',
+    'principal_only_writer_readback'].includes(mode) ? [] : [source],
   expectedSourceHash: mode === 'register' ? 'b'.repeat(64) : null,
   expectedRowVersion: mode === 'register' ? 0 : null,
 })
@@ -58,12 +60,17 @@ test('operation is source-frozen, exact-target, principal-only and has no email 
     bytes: principalSourceBytes, operationSha256: hash(principalSourceBytes),
     sourceRevision: revision,
   }).mode, 'principal_only_source')
+  const writerBytes = Buffer.from(JSON.stringify(operation('principal_only_writer_readback')))
+  assert.equal(assertInventoryOperation(operation('principal_only_writer_readback'), {
+    bytes: writerBytes, operationSha256: hash(writerBytes), sourceRevision: revision,
+  }).mode, 'principal_only_writer_readback')
   for (const changed of [
     { ...operation('principal_only_coverage'), schemaVersion: 'ai-pdm.principal-inventory-operation.v1' },
     { ...operation('principal_only_coverage'), firebaseProjectId: 'other-project' },
     { ...operation('principal_only_coverage'), sources: [source] },
     { ...operation('principal_only_source'), sources: [] },
     { ...operation('principal_only_source'), schemaVersion: 'ai-pdm.principal-inventory-operation.v1' },
+    { ...operation('principal_only_writer_readback'), sources: [source] },
   ]) {
     const changedBytes = Buffer.from(JSON.stringify(changed))
     assert.throws(() => assertInventoryOperation(changed, {
@@ -341,4 +348,46 @@ test('principal-only cohort source mode binds one exact provider pair and never 
   assert.equal(result.mode, 'principal_only_source')
   assert.equal(JSON.parse(receiptBytes).outcome.withheld.length, 1)
   assert.equal(result.outcome.cohortHash, 'a'.repeat(64))
+})
+
+test('principal-only writer readback publishes counts without invoking a registration writer', async () => {
+  const body = Buffer.from(JSON.stringify(operation('principal_only_writer_readback')))
+  let receiptBytes
+  const fetchImpl = async (url, options = {}) => {
+    if (url.startsWith('http://metadata.google.internal/')) {
+      return new Response(JSON.stringify({ access_token: 'x'.repeat(25), expires_in: 3600 }))
+    }
+    if (url.startsWith('https://storage.googleapis.com/upload/')) {
+      receiptBytes = Buffer.from(options.body)
+      return new Response(JSON.stringify({ generation: '2' }))
+    }
+    const isReceipt = url.includes('DEV121-PRINCIPAL-INVENTORY')
+    const bytes = isReceipt ? receiptBytes : body
+    if (url.includes('?alt=media')) return new Response(bytes)
+    return new Response(JSON.stringify({ generation: isReceipt ? '2' : '1',
+      crc32c: crc32cBase64(bytes) }))
+  }
+  class Client {
+    async connect() {}
+    async query() { return { rows: [{ database: 'jenfu_prod',
+      login: environment.POSTGRES_IAM_LOGIN, major: 17,
+      migrator_member: true, schema_ready: true }] } }
+    async end() {}
+  }
+  const result = await runMain({
+    argv: ['--operation-ref', inputRef, '--operation-sha256', hash(body),
+      '--source-revision', revision, '--output-ref', outputRef],
+    environment, fetchImpl, Client,
+    loadInventory: () => { throw new Error('registration must not run') },
+    loadPrincipalOnlyWriterReadback: async () => ({
+      readPrincipalOnlyWriterSessions: async () => ({
+        schemaVersion: 'ai-pdm.principal-only-writer-readback.v1',
+        runtimeSessions: 1, migratorSessions: 0, hiddenSessions: 0,
+        activeTransactions: 0, nonIdleSessions: 0, ownerLoginSessionsAbsent: false
+      })
+    })
+  })
+  assert.equal(result.mode, 'principal_only_writer_readback')
+  assert.equal(JSON.parse(receiptBytes).outcome.ownerLoginSessionsAbsent, false)
+  assert.equal(JSON.parse(receiptBytes).outcome.runtimeSessions, 1)
 })
