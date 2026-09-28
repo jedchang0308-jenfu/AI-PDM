@@ -49,9 +49,16 @@ try {
     ordered(legacyFileBranch, "getStoredSubmissionFile(id, mode.fileId, auth.user)", "await auditStorageAccess"));
   record("STORAGE-ROLE-ACCESS-009 submission file route keeps preview PDF-only guard", includesAll(submissionFileRoute, ['mode.disposition === "inline"', "Only PDF files can be previewed", "{ status: 415 }"]));
 
-  record("STORAGE-ROLE-ACCESS-010 release package route uses async canReadSubmission guard", includesAll(releasePackageRoute, ["canReadSubmissionAsync(auth.user, submission)", "return forbidden()"]));
+  const principalPackageBranch = releasePackageRoute.slice(
+    releasePackageRoute.indexOf("if (token ||"), releasePackageRoute.indexOf("const auth = await requireAuthAsync(request)"));
+  const legacyPackageBranch = releasePackageRoute.slice(releasePackageRoute.indexOf("const auth = await requireAuthAsync(request)"));
+  record("STORAGE-ROLE-ACCESS-010 release package route authorizes both request modes before package read",
+    ordered(principalPackageBranch, "authorizePrincipalSubmissionReadInSnapshot", "release_packages WHERE submission_id=:id") &&
+    includesAll(legacyPackageBranch, ["canReadSubmissionAsync(auth.user, submission)", "return forbidden()"]));
   record("STORAGE-ROLE-ACCESS-011 release package route requires released package state", includesAll(releasePackageRoute, ['submission.status !== "Released" && submission.status !== "Obsolete"', "{ status: 409 }", "submission.release_package"]));
-  record("STORAGE-ROLE-ACCESS-012 release package route audits after storage-backed read", ordered(releasePackageRoute, "const bytes = await readReleasePackage", "await auditStorageAccess"));
+  record("STORAGE-ROLE-ACCESS-012 release package route audits after storage-backed read",
+    ordered(principalPackageBranch, "const bytes = await readReleasePackage", "await auditStorageAccess") &&
+    ordered(legacyPackageBranch, "const bytes = await readReleasePackage", "await auditStorageAccess"));
 
   record("STORAGE-ROLE-ACCESS-013 public share package route is token scoped", includesAll(publicSharePackageRoute, ["getPublicShareAsync(token)", "publicShare.share.id", "recordPublicShareAccessAsync"]));
   record("STORAGE-ROLE-ACCESS-014 public share package route never accepts actor cookies for scope", !publicSharePackageRoute.includes("requireAuth") && publicSharePackageRoute.includes("actorId: null"));
