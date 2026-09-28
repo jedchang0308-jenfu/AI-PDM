@@ -55,7 +55,7 @@ try {
   record("FILE-STORAGE-030 provider registry retains historical Supabase pointer identity", storage.includes('"supabase_storage"'));
   record("FILE-STORAGE-031 historical Supabase adapter is permanently retired", storage.includes("export class RetiredSupabaseStorageAdapter implements FileStorageService"));
   record("FILE-STORAGE-032 configured factory exists", storage.includes("createConfiguredFileStorageService"));
-  record("FILE-STORAGE-033 default factory delegates configured provider", storage.includes("export function createFileStorageService(): FileStorageService {\n  return createConfiguredFileStorageService();\n}"));
+  record("FILE-STORAGE-033 default factory delegates configured provider", storage.replaceAll("\r\n", "\n").includes("export function createFileStorageService(): FileStorageService {\n  return createConfiguredFileStorageService();\n}"));
   record("FILE-STORAGE-034 provider resolver defaults to local", storage.includes('env.PDM_STORAGE_PROVIDER?.trim() || "local_repository"'));
   record("FILE-STORAGE-035 Supabase credential configuration is absent", !storage.includes("PDM_SUPABASE") && !storage.includes("serviceRoleKey"));
   record("FILE-STORAGE-036 configured Supabase provider fails closed toward GCS", storage.includes("SUPABASE_STORAGE_RETIRED_USE_GCS:configured_provider"));

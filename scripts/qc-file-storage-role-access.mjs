@@ -40,7 +40,13 @@ try {
   record("STORAGE-ROLE-ACCESS-004 Engineers remain scoped to own submissions", permissions.includes('return user.role !== "Engineer" || submission.submitted_by === user.id;'));
   record("STORAGE-ROLE-ACCESS-006 submission file lookup uses async canReadSubmission guard", includesAll(fileResponse, ["getSubmissionAsync(submissionId)", "canReadSubmissionAsync(user, submission)", 'NextResponse.json({ error: "Forbidden" }, { status: 403 })']));
   record("STORAGE-ROLE-ACCESS-007 submission file route authenticates before file lookup", ordered(submissionFileRoute, "requireAuthAsync(request)", "getStoredSubmissionFile(id, mode.fileId, auth.user)"));
-  record("STORAGE-ROLE-ACCESS-008 submission file route audits only after authorization and file read", ordered(submissionFileRoute, "getStoredSubmissionFile(id, mode.fileId, auth.user)", "await auditStorageAccess"));
+  const principalFileBranch = submissionFileRoute.slice(
+    submissionFileRoute.indexOf("if (token ||"), submissionFileRoute.indexOf("const auth = await requireAuthAsync(request)"));
+  const legacyFileBranch = submissionFileRoute.slice(submissionFileRoute.indexOf("const auth = await requireAuthAsync(request)"));
+  record("STORAGE-ROLE-ACCESS-008 submission file route audits only after authorization and file read",
+    ordered(principalFileBranch, "authorizePrincipalSubmissionReadInSnapshot", "getSubmissionFile({") &&
+    ordered(principalFileBranch, "readObject(authorized.pointer.key)", "await auditStorageAccess") &&
+    ordered(legacyFileBranch, "getStoredSubmissionFile(id, mode.fileId, auth.user)", "await auditStorageAccess"));
   record("STORAGE-ROLE-ACCESS-009 submission file route keeps preview PDF-only guard", includesAll(submissionFileRoute, ['mode.disposition === "inline"', "Only PDF files can be previewed", "{ status: 415 }"]));
 
   record("STORAGE-ROLE-ACCESS-010 release package route uses async canReadSubmission guard", includesAll(releasePackageRoute, ["canReadSubmissionAsync(auth.user, submission)", "return forbidden()"]));

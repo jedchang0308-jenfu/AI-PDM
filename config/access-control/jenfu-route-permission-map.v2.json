@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "96149b37f9117f00bd710a6c3e4084b8f608536e7b84bb326f1d6d945370855d",
+  "sourceSha256": "75e3e7b92e0df9011668492dc02b95320c9420856a11822afb8de86ffe665fae",
   "denominator": {
-    "uniqueFiles": 101,
-    "uniqueMethods": 120,
-    "policyEntries": 129
+    "uniqueFiles": 102,
+    "uniqueMethods": 121,
+    "policyEntries": 130
   },
   "entries": [
     {
@@ -1298,6 +1298,16 @@
       "authorizationTarget": "submission.view",
       "scopeResolver": "submission company",
       "preservedGuards": "published role／AAL2 for manager／same company／verified profile owner for rd／historical read-only"
+    },
+    {
+      "path": "src/app/api/submissions/[id]/files/[...filePath]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.view",
+      "authorizationTarget": "submission.view",
+      "scopeResolver": "submission company",
+      "preservedGuards": "published role／same company／verified profile owner／file binding／checksum／principal audit before response"
     }
   ]
 }

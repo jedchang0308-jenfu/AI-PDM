@@ -52,7 +52,11 @@ try {
 
   record("LOCAL-STORAGE-REGRESSION-012 file route supports download URL shape", includesAll(submissionFileRoute, ["filePath.length === 1", 'disposition: "attachment"']));
   record("LOCAL-STORAGE-REGRESSION-013 file route supports PDF preview URL shape", includesAll(submissionFileRoute, ['filePath[0] === "preview"', 'disposition: "inline"', "Only PDF files can be previewed"]));
-  record("LOCAL-STORAGE-REGRESSION-014 file route creates audited access contract before response", ordered(submissionFileRoute, "createFileStorageServiceForPointer(result.storagePointer).createDownloadUrl", "await auditStorageAccess"));
+  const legacyFileRoute = submissionFileRoute.slice(submissionFileRoute.indexOf("const auth = await requireAuthAsync(request)"));
+  record("LOCAL-STORAGE-REGRESSION-014 file route creates audited access contract before response",
+    ordered(legacyFileRoute, "createFileStorageServiceForPointer(result.storagePointer).createDownloadUrl", "await auditStorageAccess") &&
+    ordered(submissionFileRoute, "const access = await storage.createDownloadUrl", "await auditStorageAccess") &&
+    ordered(submissionFileRoute, "await auditStorageAccess", "return buildFileResponse"));
   record("LOCAL-STORAGE-REGRESSION-015 file route separates preview and download audit kinds", includesAll(submissionFileRoute, ['"submission_file_preview"', '"submission_file"', 'route: "/api/submissions/[id]/files/[...filePath]"']));
 
   record("LOCAL-STORAGE-REGRESSION-016 release package file is root-bound and storage-backed", includesAll(releasePackageFile, ["getReleasePackageRoot", "RELEASE_PACKAGE_PATH_OUTSIDE_ROOT", "createReleasePackageStorageServiceForRecord"]));
