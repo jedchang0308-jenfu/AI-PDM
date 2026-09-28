@@ -137,12 +137,15 @@ record("SUG-012 no independent revision policy decision table is introduced", !s
 const drawingSubmissionRoute = read("src/app/api/numbering/drawing-revisions/submissions/route.ts");
 const drawingWorkbenchRoute = read("src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts");
 record(
-  "SUG-013 retired drawing revision create route stays closed; active route accepts suggestion metadata",
+  "SUG-013 both historical drawing submission routes stay closed; canonical work uses server-issued revision targets",
   drawingSubmissionRoute.includes("DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED") &&
     drawingSubmissionRoute.includes("status: 410") &&
     !drawingSubmissionRoute.includes("revisionPolicySuggestionFromBody") &&
-    drawingWorkbenchRoute.includes("revisionPolicySuggestionFromBody") &&
-    drawingWorkbenchRoute.includes("revisionOverrideReason"),
+    drawingWorkbenchRoute.includes("DRAWING_SOURCE_SUBMISSION_RETIRED") &&
+    drawingWorkbenchRoute.includes("status: 410") &&
+    !drawingWorkbenchRoute.includes("revisionPolicySuggestionFromBody") &&
+    read("src/components/canonical-pdm-workbench.tsx").includes("candidateToken") &&
+    read("src/app/api/pdm/drawings/[drawingId]/revision-works/route.ts").includes("withPrincipalDev087Route"),
   {}
 );
 

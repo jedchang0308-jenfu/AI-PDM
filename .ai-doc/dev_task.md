@@ -1,6 +1,8 @@
 # AI PDM dev_task PM Control Board
 
-> **2026-09-29 DEV-121 舊通用上傳清理（候選來源）**：不可達的 `GenericUploadPage` 已移除，GET／POST 版次建議殘留端點改為固定 410，v2 map 標明 retired；Production 最近 30 天精確路徑 request log 為 0 筆，但不能保證未知外部用戶不存在。聚焦 2／2、map source-lock 2／2、293-method 分類、版次政策 14／14、DEV-005 runtime QC 與 typecheck PASS；現行圖面工作台保留，正式 service／traffic／資料未變，完整送審流程及 L4 尚未完成。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
+> **2026-09-29 DEV-121 舊圖面送審入口退役（現行候選）**：PR #134 已合併 main `0a11d0f0695a7eb68c3d96d3e6c47caa6b1af571`。`/upload` 舊表單不再渲染，四條無正常呼叫者的舊圖面送審 API 固定 410，不進入舊授權／writer；現行圖號工作台維持 Principal 建立進版工作與送審入口。正式近 30 天 `/upload` 與四條舊 API 請求各為 0 筆（上限 1,000）。v2 map 110／130／140；退役 4／4、source-lock 2／2、全 API 分類、source-boundary 213／213、版次政策 14／14、圖面送審 QC 14／14、typecheck／lint PASS。此候選未合併或發布，完整業務流程、正式切流與 L4 仍未完成，詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
+
+> **2026-09-29 DEV-121 舊通用上傳清理（PR #134 當時來源）**：不可達的 `GenericUploadPage` 已移除，GET／POST 版次建議殘留端點改為固定 410，v2 map 標明 retired；Production 最近 30 天精確路徑 request log 為 0 筆，但不能保證未知外部用戶不存在。聚焦 2／2、map source-lock 2／2、293-method 分類、版次政策 14／14、DEV-005 runtime QC 與 typecheck PASS；現行圖面工作台保留，正式 service／traffic／資料未變，完整送審流程及 L4 尚未完成。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
 
 > **2026-09-29 DEV-121 Production v2 停寫連線唯讀快照**：PR #132 merge `b11ace693d0d88c1423ef74435b6585606e28b90` 經 protected CI 與 exact-head QC PASS；immutable image `sha256:f357080a77b57d6a571bcfca8b7596b46125b7db0fe961a8e6f0dc22eba1efdf` 的一次性 Job execution `ai-pdm-prod-dev121-principal-inventory-kqv26` 成功。receipt generation `1790627404554660`、SHA-256 `1754ba8f84e79157b77112d950cde4fc6d7d6eec0f92387f1e78340fdaab080b` 顯示當下 owner-role 連線與活躍交易均為 0；精確路徑與限制見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。Job 已刪除；這不證明未來寫入已阻止，正式 service／traffic／資料未變，one-shot apply 與 L4 尚未執行。
 

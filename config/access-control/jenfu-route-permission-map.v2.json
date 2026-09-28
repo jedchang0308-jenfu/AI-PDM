@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "a3748a0424ca46aaa1873dbc403fd8986cc49cbd523382db0bade78a8dce2892",
+  "sourceSha256": "53daaf00e76e16e506cd4d8bc8d1b0b53e778049a8fd47790832b4b90a5d335e",
   "denominator": {
-    "uniqueFiles": 107,
-    "uniqueMethods": 127,
-    "policyEntries": 137
+    "uniqueFiles": 110,
+    "uniqueMethods": 130,
+    "policyEntries": 140
   },
   "entries": [
     {
@@ -340,14 +340,44 @@
       "preservedGuards": "verified principal＋drawing company＋exact revision／readable lifecycle＋bound files"
     },
     {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/submission-context/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "drawing_revision_work",
+      "scopeResolver": "none",
+      "preservedGuards": "410; historical drawing-source route cannot execute"
+    },
+    {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/submission-readiness/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "drawing_revision_work",
+      "scopeResolver": "none",
+      "preservedGuards": "410; historical drawing-source route cannot execute"
+    },
+    {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/submission-workbench/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "drawing_revision_work",
+      "scopeResolver": "none",
+      "preservedGuards": "410; historical drawing-source route cannot execute"
+    },
+    {
       "path": "src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts",
       "method": "POST",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "submission.create",
-      "authorizationTarget": "submission.create",
-      "scopeResolver": "drawing company",
-      "preservedGuards": "drawing company＋drawing／submission lifecycle"
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "drawing_revision_work",
+      "scopeResolver": "none",
+      "preservedGuards": "410; historical drawing-source route cannot execute"
     },
     {
       "path": "src/app/api/numbering/drawings/workbench/[rowKey]/route.ts",
