@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 停寫讀回契約（本機，未改 Production）**：AI-PDM PR #121 以 exact head `07fedab15c89405d955ff2f667439774dc37accf` 通過兩項 required CI 與 Codex QC，合併到受保護 main `7b820eb8a463b9a3abbfd2d017ea00479e244806`。新增 Cloud Run 服務縮至 0 的雙讀回驗證：固定 service UID／project、舊 default revision、無任何 traffic tag、template 不變、generation 已被 provider 觀察，且更新完成後至少等待 request timeout 加 30 秒。聚焦 4／4 與 scoped lint 待本次檢查；此 guard 仍不能替代背景 writer／Job 盤點、正式 source apply 或 Principal-only 回復證據。
+
 > **2026-09-29 DEV-121 來源 receipt 校驗**：修正前一份 Production 唯讀 receipt SHA-256 的兩字元抄錄錯誤；新增來源封套驗證器，以實際受限 receipt 核對 SHA-256、generation、target、全 cohort／withheld 與重算 source hash。合成負例及實際只讀 receipt PASS，Node 2／2、scoped ESLint PASS；未建正式寫入 Job，Production 資料與 traffic 未變。
 
 > **2026-09-28 DEV-121 Production 全 cohort source readback**：受保護 `main` `25f570ad5ebd1b916a1547a9ee4e0d8612f4b2e3` 的 immutable inventory image 已在正式環境執行唯讀 Job；4 筆歷史啟用 profile 中只有 1 筆與已發布身分精確核實，3 筆 withheld，來源及 cohort hash、operation／receipt generation、image digest、execution 見 [DEV-121 現行契約](specs/DEV-121-target-authorization-boundary.md)。Job 已清理，正式資料與 traffic 未改。下一步先證明舊 writer 停止，封裝受控 one-shot apply，備妥 Principal-only 候選及回復並完成必要業務路徑；此 readback 不解除 Production 切流條件。
