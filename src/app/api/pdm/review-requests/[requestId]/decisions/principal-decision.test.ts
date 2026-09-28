@@ -66,6 +66,18 @@ beforeEach(() => {
 });
 
 describe("principal DEV-087 decision route", () => {
+  it("rejects missing Principal session before parsing a decision or calling a writer", async () => {
+    const response = await POST(new Request(request().url, {
+      method: "POST", headers: { "content-type": "application/json" }, body: "invalid-json"
+    }), params);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+    expect(mocks.withVerified).not.toHaveBeenCalled();
+    expect(mocks.decidePart).not.toHaveBeenCalled();
+    expect(mocks.decideDrawing).not.toHaveBeenCalled();
+    expect(mocks.legacyActor).not.toHaveBeenCalled();
+  });
+
   it("rechecks published capability, assigned reviewer and command in one serializable snapshot", async () => {
     const response = await POST(request(), params);
     expect(response.status).toBe(200);

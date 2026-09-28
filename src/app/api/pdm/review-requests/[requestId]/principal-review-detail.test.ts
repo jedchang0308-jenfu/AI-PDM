@@ -89,13 +89,23 @@ beforeEach(() => {
 });
 
 describe("principal DEV-087 review detail", () => {
+  it("rejects missing Principal session before reading an assigned request", async () => {
+    const response = await GET(new Request(request().url), params);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+    expect(mocks.withVerified).not.toHaveBeenCalled();
+    expect(mocks.getReview).not.toHaveBeenCalled();
+    expect(mocks.legacyActor).not.toHaveBeenCalled();
+  });
+
   it("reads the assigned part request and contract from the verified principal snapshot", async () => {
     const response = await GET(request(), params);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.meta.contractToken).toBe("contract-one");
     expect(body.data.requestId).toBe("review-one");
-    expect(mocks.withVerified).toHaveBeenCalledWith({ token: expect.any(String) }, expect.any(Function));
+    expect(mocks.withVerified).toHaveBeenCalledWith({ token: expect.any(String) },
+      expect.any(Function), { readOnly: true, isolationLevel: "repeatable_read" });
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified, [
       { permissionKind: "action", permissionCode: "approval.inbox.view" },
       { permissionKind: "action", permissionCode: "approval.request.decide" }

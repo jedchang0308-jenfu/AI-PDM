@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 審核入口 Principal-only 候選**：審核明細、決策、對象及比較四個 method 的無 Principal session 分支改為立即 401，並移除正常流量不可達的 v1 審核明細呈現；歷史審核資料及 v2 指派者／AAL2／grant／審核包核對保留。聚焦 20／20、typecheck、293-method 分類、DEV-005 runtime QC 與 scoped lint PASS，測試已納入 required CI。尚未合併、發布或完成 Production L4；檔案讀取與其他舊授權呼叫仍待處理。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
+
 > **2026-09-29 DEV-121 料件變更與圖面作廢 Principal-only route 候選**：料件工作建立、讀取、更新、送審、取消，料件矩陣讀取及圖面 RD 作廢請求共七個 method 移除舊 route actor 分支；缺少 v2 Principal session 時先回 401，不解析 body 或執行舊命令。沿用已審 route policy、grant、公司／資源與 command 檢查。聚焦三檔 15／15、typecheck PASS；尚未合併或發布，其他審核及檔案路徑、全 cohort、回復與 Production L4 仍待處理。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
 
 > **2026-09-29 DEV-121 圖面進版工作 Principal-only route 候選**：現行目標、建立、讀取、更新、取消、送審、附件上傳／移除八個 method 移除舊 route actor 分支，沒有 v2 Principal session 時立即 401。聚焦 16／16、typecheck、293-method 分類、DEV-005 runtime QC、DEV-079 contract、DEV-098 contract 5／5 與 scoped lint PASS。尚未合併或發布；其他業務 route、cohort、回復及 Production L4 仍須驗證。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。

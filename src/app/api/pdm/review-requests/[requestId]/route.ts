@@ -1,11 +1,9 @@
 import crypto from "node:crypto";
-import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-payload";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { issueCanonicalWorkbenchContract } from "@/lib/pdm-workbench-authority-control";
-import { dev087RouteError, resolveDev087RouteActor } from "@/lib/pdm-dev087-route";
+import { dev087RouteError } from "@/lib/pdm-dev087-route";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
-import { hydrateDrawingChangeImpactForWork, type DrawingPartRelationProjection } from "@/lib/drawing-change-impact";
 import { parseReviewPackageSnapshot, splitReviewPackageTargetKey } from "@/lib/pdm-review-package-contract";
 import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
@@ -44,183 +42,117 @@ export async function GET(request: Request, { params }: { params: Promise<{ requ
         return readAssignedReview(tx, requestId, {
           id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
           permissions: { decide: true }
-        }, true);
-      });
+        });
+      }, { readOnly: true, isolationLevel: "repeatable_read" });
     } catch (error) {
       return error instanceof JenfuPrincipalRequestError
         ? principalRequestFailure(error) : dev087RouteError(error);
     }
   }
-  const access = await resolveDev087RouteActor(request, "numbering.approvals"); if (access.response || !access.actor) return access.response;
-  const { requestId } = await params;
-  return readAssignedReview(getAsyncDatabaseClient(), requestId, access.actor);
+  return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
 }
 
 async function readAssignedReview(client: AsyncDatabaseClient, requestId: string,
-  actor: { id: string; companyId: string; permissions: { decide: boolean } }, principalOnly = false) {
+  actor: { id: string; companyId: string; permissions: { decide: boolean } }) {
   try {
     const item = await new PdmWorkReviewAsyncRepository(client).get(client, { companyId: actor.companyId, requestId });
     if (!item || item.reviewerUserId !== actor.id || !actor.permissions.decide || item.requestStatus !== "pending") return Response.json({ error: { code: "NOT_FOUND", message: "審核項目不存在", correlationId: crypto.randomUUID() } }, { status: 404 });
-    if (principalOnly && !["part_change", "drawing_revision", "drawing_rd_void"].includes(item.requestKind)) {
+    if (!["part_change", "drawing_revision", "drawing_rd_void"].includes(item.requestKind)) {
       return Response.json({ code: "principal_review_kind_not_migrated" },
         { status: 503, headers: { "cache-control": "no-store" } });
     }
     const parsedSnapshot = parseReviewPackageSnapshot(item.snapshotPayload);
     if (parsedSnapshot.kind === "invalid") throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
-    if (principalOnly && parsedSnapshot.kind !== "v2") {
+    if (parsedSnapshot.kind !== "v2") {
       throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409);
     }
-    if (parsedSnapshot.kind === "v2") {
-      const packageValue = verifyReviewPackageIntegrity(item.snapshotPayload, item.snapshotHash);
-      if (principalOnly && (packageValue.requestKind !== item.requestKind ||
-          packageValue.primaryTargetKey !==
-            `${item.entityType}:${item.canonicalEntityId}`)) {
+    const packageValue = verifyReviewPackageIntegrity(item.snapshotPayload, item.snapshotHash);
+    if (packageValue.requestKind !== item.requestKind ||
+        packageValue.primaryTargetKey !==
+          `${item.entityType}:${item.canonicalEntityId}`) {
+      throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID",
+        "審核包格式無效", 409);
+    }
+    const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: actor.companyId, actorId: actor.id });
+    const targetSummaries = packageValue.targets.map((target) => ({
+      targetKey: target.targetKey,
+      ...splitReviewPackageTargetKey(target.targetKey),
+      number: target.workspace.identity.code,
+      identity: target.workspace.identity,
+      revision: target.workspace.identity.revision,
+      scope: target.scope,
+      markers: target.markers,
+      evidenceHash: target.evidenceHash,
+      fileCount: target.workspace.files.length,
+      attachmentCount: target.workspace.attachments.length
+    }));
+    let reviewBasisState: "current" | "stale" | "preproduction" = "current";
+    if (item.requestKind === "drawing_revision") {
+      if (!item.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+        "資料已改變，請退回修改後重新送審", 409);
+      const repository = new DrawingRevisionWorkAsyncRepository(client);
+      const work = await repository.readWork(client, actor.companyId, item.workId);
+      if (!work) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+        "資料已改變，請退回修改後重新送審", 409);
+      const basis = await repository.resolveWorkBasis(client, work);
+      reviewBasisState = basis.basisState;
+    } else if (item.requestKind === "drawing_rd_void") {
+      if (!item.branchId || item.workId !== null ||
+          packageValue.decisionBasis.kind !== "drawing_rd_void") {
         throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID",
           "審核包格式無效", 409);
       }
-      const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: actor.companyId, actorId: actor.id });
-      const targetSummaries = packageValue.targets.map((target) => ({
-        targetKey: target.targetKey,
-        ...splitReviewPackageTargetKey(target.targetKey),
-        number: target.workspace.identity.code,
-        identity: target.workspace.identity,
-        revision: target.workspace.identity.revision,
-        scope: target.scope,
-        markers: target.markers,
-        evidenceHash: target.evidenceHash,
-        fileCount: target.workspace.files.length,
-        attachmentCount: target.workspace.attachments.length
-      }));
-      let reviewBasisState: "current" | "stale" | "preproduction" = "current";
-      if (item.requestKind === "drawing_revision") {
-        if (!item.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
-          "資料已改變，請退回修改後重新送審", 409);
-        const repository = new DrawingRevisionWorkAsyncRepository(client);
-        const work = await repository.readWork(client, actor.companyId, item.workId);
-        if (!work) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
-          "資料已改變，請退回修改後重新送審", 409);
-        const basis = await repository.resolveWorkBasis(client, work);
-        reviewBasisState = basis.basisState;
-      } else if (item.requestKind === "drawing_rd_void") {
-        if (!item.branchId || item.workId !== null ||
-            packageValue.decisionBasis.kind !== "drawing_rd_void") {
-          throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID",
-            "審核包格式無效", 409);
-        }
-        const current = await client.queryOne<{
-          drawing_id: string; branch_id: string; revision_id: string;
-          revision: string; branch_status: string;
-          latest_approved_revision_id: string | null;
-        }>(`SELECT state.canonical_entity_id AS drawing_id,
-                  state.branch_id, state.revision_id, revision.revision,
-                  branch.status AS branch_status,
-                  branch.latest_approved_revision_id
-             FROM canonical_workbench_states state
-             JOIN drawing_rd_branches branch
-               ON branch.id = state.branch_id AND branch.company_id = state.company_id
-             JOIN drawing_revisions revision
-               ON revision.id = state.revision_id AND revision.company_id = state.company_id
-            WHERE state.company_id = :companyId AND state.branch_id = :branchId
-              AND state.canonical_entity_id = :drawingId
-              AND state.entity_type = 'drawing'
-              AND state.data_layer = 'drawing_rd'
-              AND state.handling = 'review_owner' AND state.work_id IS NULL`,
-          { companyId: actor.companyId, branchId: item.branchId,
-            drawingId: item.canonicalEntityId });
-        const basis = current ? { drawingId: current.drawing_id,
-          branchId: current.branch_id, revisionId: current.revision_id,
-          revision: current.revision } : null;
-        reviewBasisState = current && current.branch_status === "open" &&
-          current.latest_approved_revision_id === current.revision_id &&
-          dev087RequestHash(basis) === packageValue.decisionBasis.hash
-          ? "current" : "stale";
-      }
-      return Response.json({ data: {
-        schemaVersion: packageValue.schemaVersion,
-        requestId: item.id,
-        requestKind: item.requestKind,
-        entityType: item.entityType,
-        entityId: item.canonicalEntityId,
-        workId: item.workId,
-        rowVersion: item.rowVersion,
-        readonly: true,
-        interaction: { mode: reviewBasisState === "stale" ? "review_stale_cleanup" : "review_decide",
-          basisState: reviewBasisState, canMutateContent: false, canSubmit: false,
-          canCancel: false, canApprove: reviewBasisState !== "stale", canReturn: true,
-          reasonCode: reviewBasisState === "stale" ? "DRAWING_PRODUCTION_BASE_STALE" : null },
-        primaryTargetKey: packageValue.primaryTargetKey,
-        root: packageValue.root,
-        matrix: packageValue.matrix,
-        packageHash: packageValue.packageHash,
-        submittedAt: packageValue.submittedAt,
-        targets: targetSummaries,
-        actions: reviewBasisState === "stale"
-          ? [{ key: "return_for_correction", label: "退回修改" }]
-          : [{ key: "approve", label: "核准" },
-            { key: "return_for_correction", label: "退回修改" }]
-      }, meta: { contractToken, correlationId: crypto.randomUUID() } }, { headers: { "cache-control": "private, no-store" } });
+      const current = await client.queryOne<{
+        drawing_id: string; branch_id: string; revision_id: string;
+        revision: string; branch_status: string;
+        latest_approved_revision_id: string | null;
+      }>(`SELECT state.canonical_entity_id AS drawing_id,
+                state.branch_id, state.revision_id, revision.revision,
+                branch.status AS branch_status,
+                branch.latest_approved_revision_id
+           FROM canonical_workbench_states state
+           JOIN drawing_rd_branches branch
+             ON branch.id = state.branch_id AND branch.company_id = state.company_id
+           JOIN drawing_revisions revision
+             ON revision.id = state.revision_id AND revision.company_id = state.company_id
+          WHERE state.company_id = :companyId AND state.branch_id = :branchId
+            AND state.canonical_entity_id = :drawingId
+            AND state.entity_type = 'drawing'
+            AND state.data_layer = 'drawing_rd'
+            AND state.handling = 'review_owner' AND state.work_id IS NULL`,
+        { companyId: actor.companyId, branchId: item.branchId,
+          drawingId: item.canonicalEntityId });
+      const basis = current ? { drawingId: current.drawing_id,
+        branchId: current.branch_id, revisionId: current.revision_id,
+        revision: current.revision } : null;
+      reviewBasisState = current && current.branch_status === "open" &&
+        current.latest_approved_revision_id === current.revision_id &&
+        dev087RequestHash(basis) === packageValue.decisionBasis.hash
+        ? "current" : "stale";
     }
-    let identity: unknown = null; let options: unknown = undefined; let files: unknown[] | undefined; let attachments: unknown[] | undefined; let revisionId: string | undefined; let interaction: unknown = undefined;
-    let changeImpactRequired: boolean | undefined;
-    let relatedParts: DrawingPartRelationProjection[] | undefined;
-    let affectedParts: DrawingPartRelationProjection[] | undefined;
-    const reviewPayload = item.requestKind === "drawing_revision"
-      ? sanitizeDrawingRevisionWorkPayload((item.snapshotPayload as { payload?: unknown })?.payload)
-      : item.requestKind === "drawing_rd_void"
-        ? { revision: (item.snapshotPayload as { revision?: unknown })?.revision ?? "" }
-        : item.snapshotPayload;
-    if (item.entityType === "drawing") {
-      identity = await client.queryOne(`SELECT drawing_number AS code, purpose_code, purpose_description FROM drawings WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: actor.companyId });
-      revisionId = typeof (item.snapshotPayload as { revisionId?: unknown })?.revisionId === "string" ? String((item.snapshotPayload as { revisionId: string }).revisionId) : undefined;
-      if (item.requestKind === "drawing_revision" && item.workId) {
-        const repository = new DrawingRevisionWorkAsyncRepository(client);
-        const work = await repository.readWork(client, actor.companyId, item.workId);
-        if (work) {
-          const basis = await repository.resolveWorkBasis(client, work);
-          const stale = basis.basisState === "stale";
-          interaction = { mode: stale ? "review_stale_cleanup" : "review_decide", basisState: basis.basisState, canMutateContent: false, canSubmit: false, canCancel: false, canApprove: !stale, canReturn: true, reasonCode: stale ? "DRAWING_PRODUCTION_BASE_STALE" : null };
-          const impactProjection = await hydrateDrawingChangeImpactForWork(client, {
-            companyId: actor.companyId,
-            drawingId: item.canonicalEntityId,
-            revisionId: work.revision_id,
-            predecessorRevisionId: work.predecessor_revision_id,
-            impact: (reviewPayload as Record<string, unknown>).changeImpact
-          });
-          changeImpactRequired = impactProjection.changeImpactRequired;
-          relatedParts = impactProjection.relatedParts;
-          affectedParts = impactProjection.affectedParts;
-          if (impactProjection.changeImpactRequired && impactProjection.changeImpact) {
-            (reviewPayload as Record<string, unknown>).changeImpact = impactProjection.changeImpact;
-          } else {
-            delete (reviewPayload as Record<string, unknown>).changeImpact;
-          }
-        }
-      } else if (item.requestKind === "drawing_rd_void") {
-        // A branch-void review has no drawing revision work from which to
-        // derive interaction state.  It is nevertheless a live reviewer
-        // decision and must expose both terminal actions explicitly; falling
-        // back from readonly=true would otherwise hide Approve forever.
-        interaction = { mode: "review_decide", basisState: "current", canMutateContent: false, canSubmit: false, canCancel: false, canApprove: true, canReturn: true, reasonCode: null };
-      }
-      files = item.workId
-        ? await client.query(`SELECT binding.file_binding_id AS id, file.source_file_asset_id, file.display_name, file.role, file.is_primary, 1 AS current_revision_upload, asset.file_name, asset.mime_type, asset.file_size FROM drawing_revision_work_files binding JOIN drawing_revision_files file ON file.id = binding.file_binding_id JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE binding.work_id = :workId ORDER BY binding.ordinal, binding.file_binding_id`, { workId: item.workId })
-        : revisionId
-          ? await client.query(`SELECT file.id, file.source_file_asset_id, file.display_name, file.role, file.is_primary, 0 AS current_revision_upload, asset.file_name, asset.mime_type, asset.file_size FROM drawing_revision_files file JOIN file_assets asset ON asset.id = file.source_file_asset_id WHERE file.company_id = :companyId AND file.drawing_revision_id = :revisionId AND file.removed_at IS NULL ORDER BY file.sort_order, file.id`, { companyId: actor.companyId, revisionId })
-          : [];
-    } else if (item.entityType === "part") {
-      identity = await client.queryOne(`SELECT part_number AS code, part_name AS name FROM part_numbers WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: actor.companyId });
-      attachments = await client.query(`SELECT asset.id, asset.file_name, asset.display_name, asset.document_category, asset.mime_type, asset.file_size FROM file_assets asset WHERE asset.linked_entity_type = 'part_number' AND asset.linked_entity_id = :entityId AND asset.deleted_at IS NULL ORDER BY asset.created_at DESC, asset.id DESC`, { entityId: item.canonicalEntityId });
-    } else {
-      identity = await client.queryOne(`SELECT root_code AS code, core_name AS name FROM part_roots WHERE id = :entityId AND company_id = :companyId`, { entityId: item.canonicalEntityId, companyId: actor.companyId });
-      const [drawings, parts] = await Promise.all([
-        client.query(`SELECT id, drawing_number AS code FROM drawing_numbers WHERE company_id = :companyId AND part_root_id = :rootId ORDER BY drawing_number`, { companyId: actor.companyId, rootId: item.canonicalEntityId }),
-        client.query(`SELECT id, part_number AS code, part_name AS name FROM part_numbers WHERE company_id = :companyId AND part_root_id = :rootId ORDER BY part_number`, { companyId: actor.companyId, rootId: item.canonicalEntityId })
-      ]); options = { drawings, parts };
-    }
-    const contractToken = await issueCanonicalWorkbenchContract(client, { companyId: actor.companyId, actorId: actor.id });
-    const reviewActions = interaction && typeof interaction === "object" && (interaction as { canApprove?: boolean }).canApprove === false
-      ? [{ key: "return_for_correction", label: "退回修改" }]
-      : [{ key: "approve", label: "核准" }, { key: "return_for_correction", label: "退回修改" }];
-    return Response.json({ data: { requestId: item.id, requestKind: item.requestKind, entityType: item.entityType, entityId: item.canonicalEntityId, workId: item.workId, revisionId, payload: reviewPayload, rowVersion: item.rowVersion, readonly: true, interaction, identity, options, files, attachments, changeImpactRequired, relatedParts, affectedParts, reviewScope: item.requestKind === "part_change" ? "excluded_live" : "included", actions: reviewActions }, meta: { contractToken, correlationId: crypto.randomUUID() } }, { headers: { "cache-control": "private, no-store" } });
+    return Response.json({ data: {
+      schemaVersion: packageValue.schemaVersion,
+      requestId: item.id,
+      requestKind: item.requestKind,
+      entityType: item.entityType,
+      entityId: item.canonicalEntityId,
+      workId: item.workId,
+      rowVersion: item.rowVersion,
+      readonly: true,
+      interaction: { mode: reviewBasisState === "stale" ? "review_stale_cleanup" : "review_decide",
+        basisState: reviewBasisState, canMutateContent: false, canSubmit: false,
+        canCancel: false, canApprove: reviewBasisState !== "stale", canReturn: true,
+        reasonCode: reviewBasisState === "stale" ? "DRAWING_PRODUCTION_BASE_STALE" : null },
+      primaryTargetKey: packageValue.primaryTargetKey,
+      root: packageValue.root,
+      matrix: packageValue.matrix,
+      packageHash: packageValue.packageHash,
+      submittedAt: packageValue.submittedAt,
+      targets: targetSummaries,
+      actions: reviewBasisState === "stale"
+        ? [{ key: "return_for_correction", label: "退回修改" }]
+        : [{ key: "approve", label: "核准" },
+          { key: "return_for_correction", label: "退回修改" }]
+    }, meta: { contractToken, correlationId: crypto.randomUUID() } }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) { return dev087RouteError(error); }
 }
