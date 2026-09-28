@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import roleCatalog from '../../config/access-control/jenfu-role-catalog.v4.json' with { type: 'json' }
+import roleCatalog from '../../config/access-control/jenfu-role-catalog.v5.json' with { type: 'json' }
 import type { RoleCapabilityCatalog, RoleCapabilityPrivilegedCatalogRole, RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
 import { getPrivilegedAssignmentWorkspace, getRoleCapabilityWorkspace, AiPdmRoleCapabilityRepositoryError, type PrivilegedAssignmentWorkspaceSource } from '@/lib/repositories/ai-pdm-role-capability-repository'
 import { getRoleCapabilityDisplaySnapshot, saveRoleCapabilityDisplaySnapshot } from '@/lib/repositories/role-capability-display-snapshot-repository'
@@ -177,7 +177,7 @@ export async function readRoleCapabilityWorkspace(): Promise<RoleCapabilityWorks
   const correlationId = randomUUID()
   try {
     const source = validateWorkspace(await getRoleCapabilityWorkspace())
-    const current: RoleCapabilityWorkspaceV2 = { ...source, contractVersion: 'ai-pdm.role-capability-workspace.v2', dataState: 'current', mutationAllowed: true, sourceDataAt: source.sourceDataAt, snapshotStoredAt: null, catalogPayloadHash: source.catalogPayloadHash, dependency: { status: 'available', decisionCode: 'CURRENT_SOURCE', correlationId } }
+    const current: RoleCapabilityWorkspaceV2 = { ...source, contractVersion: 'ai-pdm.role-capability-workspace.v2', dataState: 'current', mutationAllowed: false, sourceDataAt: source.sourceDataAt, snapshotStoredAt: null, catalogPayloadHash: source.catalogPayloadHash, dependency: { status: 'available', decisionCode: 'CURRENT_SOURCE', correlationId }, managementSurface: managementSurface() }
     let stored: ReturnType<typeof saveRoleCapabilityDisplaySnapshot> = null
     try { stored = saveRoleCapabilityDisplaySnapshot(current) } catch {
       const previous = getRoleCapabilityDisplaySnapshot()

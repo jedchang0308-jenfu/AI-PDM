@@ -633,11 +633,11 @@
       "path": "src/app/api/settings/access/role-capabilities/commands/[commandId]/resolve-unknown/route.ts",
       "method": "POST",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "settings.admin_matrix",
-      "authorizationTarget": "settings.admin_matrix",
-      "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋command／resolution state"
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "orgmaster.role_assignment",
+      "scopeResolver": "none",
+      "preservedGuards": "410；legacy cross-owner mutation cannot execute"
     },
     {
       "path": "src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts",
@@ -653,21 +653,21 @@
       "path": "src/app/api/settings/access/role-capabilities/preview/route.ts",
       "method": "POST",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "settings.admin_matrix",
-      "authorizationTarget": "settings.admin_matrix",
-      "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋catalog validation／preview"
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "orgmaster.role_assignment",
+      "scopeResolver": "none",
+      "preservedGuards": "410；legacy cross-owner preview cannot execute"
     },
     {
       "path": "src/app/api/settings/access/role-capabilities/publish/route.ts",
       "method": "POST",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "settings.admin_matrix",
-      "authorizationTarget": "settings.admin_matrix",
-      "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋publish eligibility／audit"
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "orgmaster.role_assignment",
+      "scopeResolver": "none",
+      "preservedGuards": "410；legacy cross-owner publish cannot execute"
     },
     {
       "path": "src/app/api/settings/access/role-capabilities/route.ts",

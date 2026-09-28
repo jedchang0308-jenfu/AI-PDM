@@ -72,6 +72,7 @@ export type RoleCapabilityWorkspaceV2 = Omit<RoleCapabilityView, 'contractVersio
   snapshotStoredAt: string | null
   catalogPayloadHash: string
   dependency: { status: 'available' | 'unavailable'; decisionCode: string; correlationId: string }
+  managementSurface?: RoleCapabilityManagementSurface
 }
 
 export type RoleCapabilityPrivilegedAssignment = {

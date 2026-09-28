@@ -38,6 +38,8 @@
 
 > **2026-09-28 技轉 readiness 讀取（本機，非 Production PASS）。** `GET /api/transfer-packages/[id]/readiness-summary` 以精確 v2 route policy 的 `transfer.package.view` 授權，在同一個 Principal read-only snapshot 讀取已驗公司內的技轉包、項目與阻擋原因；拒絕或 URL 不符時不讀業務資料，回應禁止快取。v2 map 現為 91 files／109 methods／118 entries；聚焦讀取 5／5、app typecheck、scoped ESLint 及 route classification PASS。此項不解鎖仍待核定的審核決策，也不作正式切流證據。
 
+> **2026-09-28 舊角色管理 proxy 退役（本機，非 Production PASS）。** AI-PDM 的角色能力畫面保留唯讀已發布結果並指向 OrgMaster 角色指派；一般角色的 `mutationAllowed` 固定為 false，畫面不再恢復舊 pending command 的操作按鈕。原 `preview`、`publish` 與 unknown-result resolution 三個跨 owner POST 入口均回 410，不再載入舊 `Admin` 授權 helper 或呼叫 OrgMaster JSON workspace 寫入 proxy。v2 route map 將這三條明列 `retired`，既有 GET 投影仍受 `settings.admin_matrix` Principal grant 限制。畫面元件保留以避免治理檢視中斷；其舊按鈕因唯讀狀態不可到達，後續可在完整 UI/契約驗證後縮減。角色投影與 change-feed consumer 的候選 catalog 已對齊 v5；正式 v4 仍在舊 revision，須依 owner 順序發布 v5 並讀回，不能單靠本地 import 宣稱生效。聚焦退役及 consumer 13／13、typecheck、route classification PASS。
+
 > **2026-09-28 legacy mode fail-closed 切片（本機）。** `requirePdmRouteAuthorizationAsync` 在非 `enforce` mode 不再使用傳入的 `legacyRoles` 或 `DbUser.role` 授權，改回 503；`checkNumberingPermissionsAsync` 亦不再呼叫本地 `checkPermission`，改拒絕。兩個聚焦測試檔 8/8、app typecheck、scoped ESLint PASS。這防止候選版配置錯誤時回落本地角色，但不表示 55 個未明示 principal 分支的路由已可使用；它們仍須依上段完成遷移或明確退役，才能進入單次切流驗收。
 
 > **2026-09-28 外部讀取邊界切片（本機）。** `/api/settings/secrets` 與 `/api/settings/gdrive/folders` GET 已停止呼叫舊角色 helper：新共用函式先在 principal／OrgMaster grant 的短快照內核對 exact route policy、工作區及各自的 `settings.secret.manage`／`settings.integration.manage`，交易結束後才呼叫外部 Secret／Drive provider；拒絕、缺 token 或 policy drift 時 provider 不被呼叫。回應設 `no-store`。聚焦 3 檔 7/7、app typecheck、scoped ESLint、route classification PASS；靜態讀回仍有 60 個 API route 檔呼叫舊 helper，不能把這一片當全站完成。正式流量未變。
