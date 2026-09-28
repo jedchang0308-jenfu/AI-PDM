@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 DEV-087 舊 actor fallback 封鎖（候選來源）**：Platform 登入模式呼叫 `resolveDev087RouteActor`／`resolveRelationMatrixActor` 時，在任何舊角色／profile／公司查詢前拒絕；缺 v2 session 為 401，有 v2 session 卻未接 Principal route 為 503，均不快取。隔離 demo 路徑僅供本機 fixture。盤點 23 個使用前者的 route 檔，16 個已有 Principal 分支、7 個仍待轉換；關聯矩陣另待轉換。聚焦 17／17、typecheck、route classification 255 files／293 methods／0 缺碼 PASS。歷史 DEV-005 runtime QC 已依固定 v2 policy 辨識 Principal external-read／settings write 與退役路由，加入移除 guard／410 的負向突變，現 103／103 PASS。這是拒絕保護，不是工作台完成；切流前須把這些必要操作轉成可用的 Principal route 並驗資源範圍。
+
 > **2026-09-28 DEV-121 Principal 讀取入口拒絕舊 session（候選來源）**：`withPrincipalCompanyRead` 在 Platform 登入模式下，缺少 v2 Principal session 直接回無快取 401，不再回 `null` 讓使用它的 route 落入舊 UID／profile reader；隔離 demo 模式仍可使用原本的本機測試讀取。聚焦 16／16、typecheck、scoped ESLint PASS。此修正涵蓋共用 company／numbering read helper 的 caller，尚未退役未使用該 helper 的其他舊 route，也不是 Production L4 或切流證據。
 
 > **2026-09-28 DEV-121 generic submission POST 退役（本機）**：已固定 410 的 `POST /api/submissions` 不再先執行舊 session／授權 helper，移除同檔無 caller 的上傳與解析程式，v2 route map 明確標為 retired 並重新鎖定完整 source hash。聚焦 1／1、來源鎖 2／2、route classification 293／293、typecheck 與 scoped ESLint PASS；CI 已納入來源鎖與分類。GET 清單仍待 Principal grant／資源讀取改造，這不是整個 submissions 工作流程完成證據。

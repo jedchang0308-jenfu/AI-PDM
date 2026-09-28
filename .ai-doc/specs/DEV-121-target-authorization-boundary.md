@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-28 DEV-087 入口 fallback 封鎖（候選來源，非 Production PASS）。** Platform 登入模式下，`resolveDev087RouteActor` 與關聯矩陣舊 helper 不再執行舊 session／profile role／公司授權查詢：缺 v2 Principal session 回 401，v2 session 到尚未遷移 caller 回 503，兩者均不快取。23 個使用前者的 route 檔中，16 個有 Principal 分支；其餘 7 個為 parts／drawings workbench 清單與詳情、drawing history、part matrix workspace、drawing void request，另有 relation matrix 仍須轉換。聚焦 17／17、typecheck、route classification 255 files／293 methods／0 缺碼 PASS。DEV-005 歷史 QC 現以固定 v2 policy 核對 Principal external-read／settings write 與退役入口，對移除 guard／410 的突變會失敗，103／103 PASS。阻斷舊 fallback 是安全邊界，未轉換業務目前仍會拒絕；各 route 必須補同快照 capability 與資源／委派決策，再用真實流程驗證，不能把此切片當作正式切流證據。
+
 > **2026-09-28 共用 Principal read 入口收斂（候選來源，非 Production PASS）。** 在 `firebase_bff`／Platform 登入模式，`withPrincipalCompanyRead` 缺少 v2 Principal session 時直接拒絕且不快取，不再以 `null` 讓共用 company／numbering 讀取路由走舊 UID／profile fallback；隔離 demo 模式保留測試讀取。聚焦 16／16、typecheck、scoped ESLint PASS。這只封住使用此 helper 的路由，不能推論其他 API、背景工作或業務命令均已 Principal-only，正式流量未變。
 
 > **2026-09-28 v2 route-policy 來源鎖修正（候選來源，非 Production PASS）。** 原 `dev121-build-principal-route-map-v2.mjs --write` 只保留 v1 與最早兩筆 Principal 命令，會覆寫後續已審查的 transfer policy 與三條退役跨 owner 寫入。現以完整 118 筆 v2 條目的固定 SHA-256 鎖定受控目錄，產生器僅更新從 v1 source 與完整 v2 entries 導出的 `sourceSha256`／分母，不得產生或改變未審查的 grant；新增、恢復退役或刪除條目的負向測試均拒絕。包含下述 generic submission POST 退役的目前 `sourceSha256` 為 `d7e458655890fb4125676cb6afe2d34ea73fd80ad224a063bd3366641be187cf`，CI 執行 `qc:dev-121:route-policy-source`。此修正只處理來源完整性，不代表所有 293 個 API method 已走 Principal runtime。
