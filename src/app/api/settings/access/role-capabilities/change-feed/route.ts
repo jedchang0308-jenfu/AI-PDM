@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { getRoleCapabilityChangeFeed } from '@/lib/repositories/ai-pdm-role-capability-repository'
-import { requirePdmRouteAuthorizationAsync } from '@/lib/auth-async'
+import { authorizePrincipalWorkspaceExternalRead } from '@/lib/principal-company-read'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ['Admin'])
-  if (auth.response || !auth.user) return auth.response
+  const authorization = await authorizePrincipalWorkspaceExternalRead(request,
+    'src/app/api/settings/access/role-capabilities/change-feed/route.ts',
+    'settings.admin_matrix')
+  if (authorization instanceof Response) return authorization
   const url = new URL(request.url)
   const after = Number(url.searchParams.get('after') ?? 0)
   const limit = Number(url.searchParams.get('limit') ?? 100)

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
 import { readPrivilegedRoleCapabilityWorkspace, readRoleCapabilityWorkspace } from '@/lib/ai-pdm-role-capability-service'
-import { requirePdmRouteAuthorizationAsync } from '@/lib/auth-async'
+import { authorizePrincipalWorkspaceExternalRead } from '@/lib/principal-company-read'
 
 export const runtime = 'nodejs'
 
@@ -20,8 +20,9 @@ function errorResponse(error: unknown) {
 }
 
 export async function GET(request: Request) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ['Admin'])
-  if (auth.response || !auth.user) return auth.response
+  const authorization = await authorizePrincipalWorkspaceExternalRead(request,
+    'src/app/api/settings/access/role-capabilities/route.ts', 'settings.admin_matrix')
+  if (authorization instanceof Response) return authorization
   try {
     const view = await readView(request) as RoleCapabilityWorkspaceV2 | RoleCapabilityWorkspaceV3 | null
     if (!view) return NextResponse.json({ error: 'ROLE_NOT_FOUND' }, { status: 404 })

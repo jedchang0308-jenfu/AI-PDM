@@ -65,6 +65,19 @@ describe("principal authorization before external reads", () => {
       [{ permissionKind: "action", permissionCode: "settings.secret.manage" }]);
   });
 
+  it("uses the published admin-matrix grant for the role change feed", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true, principalId: "principal-one",
+      permissionCode: "settings.admin_matrix" }]);
+    const result = await authorizePrincipalWorkspaceExternalRead(
+      new Request("https://ai-pdm.test/api/settings/access/role-capabilities/change-feed"),
+      "src/app/api/settings/access/role-capabilities/change-feed/route.ts",
+      "settings.admin_matrix");
+
+    expect(result).toEqual({ principalId: "principal-one", profileId: "profile-one", company });
+    expect(mocks.evaluate).toHaveBeenCalledWith(snapshot, verified,
+      [{ permissionKind: "action", permissionCode: "settings.admin_matrix" }]);
+  });
+
   it("rejects denied, missing-token and wrong-policy requests before provider access", async () => {
     mocks.evaluate.mockResolvedValueOnce([{ allowed: false, principalId: "principal-one",
       permissionCode: "settings.secret.manage", decisionCode: "permission_not_granted" }]);
