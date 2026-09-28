@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 審核清單舊 caller 退役（候選來源）**：`/approvals` 改由 Principal 收件匣元件呈現，僅導向已驗的 `pdm_work_review` v2 審核包；移除頁面內對舊 native detail／decision／cleanup／apply API 的呼叫及其角色決策抽屜。原清單、搜尋、分頁、返回位置與鍵盤操作保留，選取鍵改用穩定 row key。未轉換的其他審核來源仍不可操作，必須在切流前依必要業務範圍補足 Principal contract。Typecheck、scoped ESLint、DEV-079 contract、DEV-101 contract 23／23、package 15／15、QA integrity 16／16 PASS；PR CI 與 Production L4 尚待執行，正式流量未變。
+
 > **2026-09-28 DEV-121 審核工作區舊 API fallback 退役（候選來源）**：由收件匣進入 `/approvals/[requestId]` 時只讀已驗 Principal 的 `/api/pdm/review-requests/[requestId]` v2 package；404 或非 v2 不再改查舊 `/api/approvals/requests/*`，也不提供舊角色決策／重試 UI。既有非 PDM 審核須另以 Principal 契約遷移後才能在新入口使用。DEV-101 contract 23／23、typecheck、scoped ESLint PASS；正式流量未變。
 
 > **2026-09-28 DEV-121 審核收件匣 Principal 入口（候選來源）**：`GET /api/approvals/inbox` 只接受 Platform Principal 模式；在讀清單前驗 v2 session、精確 route policy、AAL2、已發布 `approval.inbox.view` 與 principal 一致性；同一快照僅讀指派給已核實 profile 的 `part_change`／`drawing_revision` 審核，不查舊 native／legacy approval 來源，也不把 profile ID 當授權主體。off-mode、缺 token／grant／assurance 均 fail closed，舊角色授權 caller 已自此路由移除。聚焦 5／5、typecheck、scoped ESLint、v2 route source／classification PASS。其他審核來源與行動仍須逐一遷移，正式環境未切流。

@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-28 審核清單 Principal-only UI（候選來源，非 Production PASS）。** `/approvals` 只消費 `/api/approvals/inbox` 的已驗 Principal 工作審核，僅可導向 `pdm_work_review` 的 canonical v2 package；舊 native detail、decision、cleanup、apply caller 與本機角色決策抽屜已從頁面移除。未知來源、非 pending 或無 same-origin owner URL 明確拒絕；歷史 `requestId` 返回位置只轉成清單 row key，不作授權。其他審核來源需有 Principal 路由及業務驗證後才重新列入收件匣，不能以舊 UI 讓它們通過切流。Typecheck、scoped ESLint、DEV-079／DEV-101 contract、package 與 QA integrity PASS；正式流量尚未切換。
+
 > **2026-09-28 審核工作區 Principal-only 入口（候選來源，非 Production PASS）。** `/approvals/[requestId]` 只接受已驗 Principal 審核 API 回傳的 v2 immutable package，將該 request 的 contract token 交給共用審核工作區；canonical 404、舊 v1 package 或 relation 審核不會 fallback 到舊 native／legacy approval API 與角色決策。歷史資料仍保留，未轉換的 native 審核需另建 Principal contract 後才可再次列入可操作流程。DEV-101 contract 23／23、typecheck、scoped ESLint PASS。
 
 > **2026-09-28 審核收件匣讀取（候選來源，非 Production PASS）。** 此路由僅以已驗 Principal session 的 AAL2／`approval.inbox.view` 決策進入 company-scoped 收件匣；off-mode 直接 503，沒有舊角色授權 fallback。歷史 profile ID 只作既有 `reviewer_user_id` 外鍵篩選。repository 僅讀同一快照內已轉換的 pending `part_change`／`drawing_revision`，不查舊 native／legacy approval 來源或顯示尚不能以 Principal 處理的 `drawing_rd_void`。路由與 repository 聚焦 5／5、typecheck、scoped ESLint 及 v2 route policy 檢查 PASS。未轉換的審核來源與操作仍是切流缺口。
