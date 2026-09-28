@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 v1 session caller 退役（候選來源）**：`auth-async` 在 Platform 模式不再讀舊 v1 cookie、舊逐人 cutover repository 或把 PDM profile 當授權主體；未遷移 route 回 503，直接查舊 session user 回 `null`，且不觸及 DB。離線 Firebase／demo 路徑暫留既有測試與 release profile 相容，不能作正式 Principal-only 完成證據。聚焦 2／2、route classification 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS；正式環境未變。
+
 > **2026-09-28 DEV-121 舊登入死路徑清理（候選來源）**：`/api/auth/firebase/session` 在 Platform SSO 模式已先回 410；移除其後不可達的 Jenfu v1 session 交換、逐人 cutover repository 與舊登入 audit 分支，錯誤設定仍在讀取 token 前回 503。離線 Firebase 模式的舊路徑尚為 release/profile 相容保留，不能當作 Principal-only 正式完成。聚焦測試 2／2、DEV-046 21／21、route classification 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS；正式流量未變。
 
 > **2026-09-28 DEV-121 PostgreSQL 舊命令退役（候選來源）**：`runCanonicalIdempotentCommand` 與 `replayCanonicalTerminalReceipt` 在 PostgreSQL 入口立即回 410，完全不再讀逐人 `legacy_compatible`／`principal_active` marker、舊收據或組織 mapping，亦不開始交易；SQLite 僅保留隔離歷史 fixture。這會使尚未遷移的舊業務命令在 Principal-only 候選版明確不可用，必須完成其 v2 路徑後才可切流。聚焦 31／31、typecheck、scoped ESLint PASS；目前正式流量未變。

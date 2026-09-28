@@ -1,6 +1,6 @@
-import { forbidden, getLegacySessionPayload, getSessionCookieToken, getSessionToken, unauthorized } from "@/lib/auth";
-import { isAccountSessionActiveAsync, isAccountSessionRevokedAsync } from "@/lib/account-session-registry";
-import { getAuthMode, getJenfuIdentityConfig, getJenfuPlatformAuthMode } from "@/lib/auth-config";
+import { forbidden, getLegacySessionPayload, getSessionToken, unauthorized } from "@/lib/auth";
+import { isAccountSessionRevokedAsync } from "@/lib/account-session-registry";
+import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { DbUser } from "@/lib/db";
 import { checkNumberingPermissionAsync } from "@/lib/numbering-permission-async";
@@ -8,14 +8,6 @@ import { getJenfuEntitlementMode } from "@/lib/entitlement-config";
 import { resolveJenfuRoutePolicy, type JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 import { createJenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
-import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
-import {
-  JenfuPlatformAuthError,
-  normalizeJenfuPlatformAuthError,
-  verifyJenfuPlatformRequestSession
-} from "@/lib/jenfu-platform-identity-contract";
-import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
-import { JenfuLegacyCutoverRepository } from "@/lib/jenfu-legacy-cutover-repository";
 import type { VerifiedJenfuAppSessionV1 } from "@/lib/jenfu-platform-session-v1";
 import { hashPassword } from "@/lib/password";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
@@ -50,44 +42,10 @@ function isSessionUserAllowed(user: DbUser | null, tokenCreatedAt: number) {
   return true;
 }
 
-async function requireJenfuSessionContext(request: Request) {
-  const token = getSessionCookieToken(request);
-  if (!token) throw new JenfuPlatformAuthError("auth_session_invalid", 401);
-  const client = getAsyncDatabaseClient();
-  return verifyJenfuPlatformRequestSession({
-    token,
-    keyRing: getPlatformSessionKeyRing(),
-    identityConfig: getJenfuIdentityConfig(),
-    localUserRepository: new AsyncUserRepository(client),
-    accountSessionRegistry: { isActive: isAccountSessionActiveAsync },
-    principalAdmissionRepository: new JenfuPrincipalAdmissionRepository(client),
-    legacyCutoverRepository: new JenfuLegacyCutoverRepository(client),
-    authEpochRepository: new JenfuAuthEpochRepository(client)
-  });
-}
-
-function jenfuAuthFailureResponse(error: unknown) {
-  const normalized = normalizeJenfuPlatformAuthError(error);
-  const messages: Partial<Record<typeof normalized.code, string>> = {
-    auth_session_invalid: "登入工作階段無效或已失效。",
-    auth_epoch_stale: "登入工作階段已由全域登出撤銷。",
-    principal_not_active: "此帳號目前未啟用。",
-    principal_ambiguous: "此帳號的員工對應需要管理員處理。",
-    principal_directory_unavailable: "員工身分服務暫時無法使用。",
-    auth_epoch_unavailable: "登入撤銷服務暫時無法使用。",
-    auth_contract_mismatch: "登入契約版本不相容。",
-    auth_server_not_configured: "平台登入尚未完成伺服器設定。"
-  };
-  return Response.json(
-    { error: messages[normalized.code] ?? "登入驗證失敗。", code: normalized.code },
-    { status: normalized.httpStatus, headers: { "cache-control": "no-store" } }
-  );
-}
-
 export async function getSessionUserAsync(request: Request): Promise<DbUser | null> {
   if (getAuthMode() === "firebase_bff") {
     try {
-      if (getJenfuPlatformAuthMode() === "on") return (await requireJenfuSessionContext(request)).user;
+      if (getJenfuPlatformAuthMode() === "on") return null;
     } catch {
       return null;
     }
@@ -193,11 +151,12 @@ export async function requireAuthAsync(request: Request): Promise<AsyncAuthResul
   if (getAuthMode() === "firebase_bff") {
     try {
       if (getJenfuPlatformAuthMode() === "on") {
-        const auth = await requireJenfuSessionContext(request);
-        return { user: auth.user, session: auth.session, response: null };
+        return { user: null, response: Response.json({ code: "principal_route_not_migrated" },
+          { status: 503, headers: { "cache-control": "no-store" } }) };
       }
-    } catch (error) {
-      return { user: null, response: jenfuAuthFailureResponse(error) };
+    } catch {
+      return { user: null, response: Response.json({ code: "auth_server_not_configured" },
+        { status: 503, headers: { "cache-control": "no-store" } }) };
     }
   }
   const user = await getSessionUserAsync(request);
