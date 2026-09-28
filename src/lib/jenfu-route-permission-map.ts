@@ -13,7 +13,9 @@ export type JenfuRouteDiscriminator =
   | "file_read:review_request"
   | "file_read:part_attachment"
   | "file_read:drawing_read"
-  | "view:principal-candidate";
+  | "view:principal-candidate"
+  | "search:part"
+  | "search:submission";
 export type JenfuRoutePermissionEntry = {
   path: string;
   method: string;
@@ -40,7 +42,7 @@ const allowedDiscriminators = new Set<JenfuRouteDiscriminator>([
   "approval_decision:drawing_lifecycle", "approval_decision:registered",
   "file_read:approval_evidence", "file_read:drawing_revision_work",
   "file_read:review_request", "file_read:part_attachment", "file_read:drawing_read",
-  "view:principal-candidate"
+  "view:principal-candidate", "search:part", "search:submission"
 ]);
 
 export function validateJenfuRoutePermissionMap(value = JENFU_ROUTE_PERMISSION_MAP) {
