@@ -42,7 +42,8 @@ export type PrincipalOnlyCohortIssue =
   | "historically_disabled_reactivated" | "activation_unconfirmed"
   | "published_principal_missing" | "published_principal_mismatch"
   | "published_login_pair_missing" | "published_pair_ambiguous" | "provider_pair_missing"
-  | "provider_pair_unverified" | "provider_pair_ambiguous";
+  | "provider_pair_unverified" | "provider_pair_ambiguous"
+  | "cohort_withheld_drift";
 
 export class PrincipalOnlyCohortReadbackError extends Error {
   constructor() { super("principal_only_cohort_readback_unavailable"); }
@@ -259,6 +260,22 @@ export async function readPrincipalOnlyCohort(
         issues
       };
     });
+    const profilesById = new Map(profiles.map((profile) => [profile.pdm_user_id, profile]));
+    for (const [index, profile] of profiles.entries()) {
+      const receipt = profile.operation_result;
+      if (profile.operation_kind !== "cutover" || !receipt ||
+        typeof receipt !== "object" || Array.isArray(receipt) ||
+        (receipt as Record<string, unknown>).contractVersion !==
+          "ai-pdm.principal-only-cohort-result.v1") continue;
+      const withheld = (receipt as Record<string, unknown>).withheldPdmUserIds;
+      if (!Array.isArray(withheld) || withheld.some((id) => {
+        if (typeof id !== "string") return true;
+        const row = profilesById.get(id);
+        return !row || row.historical_status !== "suspended" ||
+          row.historical_status_reason !== "principal_only_unverified" ||
+          row.principal_id !== null;
+      })) result[index].issues.push("cohort_withheld_drift");
+    }
     if (published.some((row) => !seen.has(row.pdm_user_id)) ||
       providers.some((row) => !seen.has(row.pdm_user_id))) {
       throw new PrincipalOnlyCohortReadbackError();
