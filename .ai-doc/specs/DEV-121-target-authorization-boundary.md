@@ -2,7 +2,21 @@
 
 > **2026-09-28 Principal-only 單次啟用修訂（取代下方逐人雙軌執行順序，保留歷史紀錄）。** 正常登入、API、業務命令、背景作業與稽核事件的安全主體只取已驗 `principal_id`；AI-PDM 判斷應用 capability 及資源範圍，OrgMaster grant 是人類角色／指派來源。`pdm_user_id`、Firebase UID、email、`legacy_compatible`、`legacy_authority` 及 principal-keyed 本機 ACL 不得作新版本授權 fallback。歷史 profile／外鍵／receipt 可供受控核對，不能決定 actor；技術 worker 使用 workload 身分，既有已提交事件可保留可證 initiator 的 principal 供追溯，但不能把事件內容當新授權。已套用 migration 不改寫，必要資料轉換與舊 caller 退役用 owner forward-only 變更。
 >
-> **啟用及回復條件。** 先讀回全體啟用／停用 profile、provider pair、principal、Employee、授權、資源與委派及現行 session／背景寫入；未核實的人員歸屬與原停用帳號保持停用，不猜測綁定。阻止舊 binary 新寫入並排空舊 session/code 後，完成已核實 cohort 的一次性轉換與 readback；候選版需證明所有必要工作流程的 allow／deny、scope、命令／outbox、登入／登出、背景工作與 Principal-only rollback。25 個既有 route code 的 deny disposition 不能自動算作業務流程完成，須逐條證明該操作已退役或有 v4 正式 capability 可執行，禁止猜測 grant。任一缺口則保持現行 traffic，正式切流後不得回復到 UID 授權版本。既有 preview `applyAllowed=false`，直到完整 source／cohort／resource／delegation 證據與可驗回復成立前不得執行 Production apply。
+> **啟用及回復條件。** 先讀回全體啟用／停用 profile、provider pair、principal、Employee、授權、資源與委派及現行 session／背景寫入；未核實的人員歸屬與原停用帳號保持停用，不猜測綁定。阻止舊 binary 新寫入並排空舊 session/code 後，完成已核實 cohort 的一次性轉換與 readback；候選版需證明所有必要工作流程的 allow／deny、scope、命令／outbox、登入／登出、背景工作與 Principal-only rollback。25 個既有 route code 的 deny disposition 不能自動算作業務流程完成，須逐條證明該操作已退役或在新版正式 catalog 有 capability 可執行，禁止猜測 grant。任一缺口則保持現行 traffic，正式切流後不得回復到 UID 授權版本。既有 preview `applyAllowed=false`，直到完整 source／cohort／resource／delegation 證據與可驗回復成立前不得執行 Production apply。
+
+> **2026-09-28 缺漏能力處置基準。** 這 25 個 code 均仍在當前 API／工作台使用，不能整批視為退役。以下是依 `db/schema.sql` 的既有 default role permissions、`db/postgres/017_number_state_flow_phase1d.sql` 的 transfer grants、`db/postgres/033_drawing_recognition.sql` 的 recognition grants 整理的**正向候選矩陣**；它只用來建立新版 immutable catalog，不能直接讀舊 `role_permissions` 作正式授權。`document_admin` 不在現行九角色 catalog，故不能將它的歷史 grants 猜測轉給其他角色；`production_planning` 也不因職務名稱相近而自動取得這 25 項。所有候選 grant 須經 catalog hash、OrgMaster consumer、目前已發布指派與 scope readback，並在實際操作的 allow／deny／資源／委派測試通過後才啟用。當前 v4 沒有這些 grant，仍 fail closed。
+
+| 歷史授權角色（候選，不含未核實身分） | code 與操作 | 種類／額外資源條件 |
+| --- | --- | --- |
+| `system_admin`, `pdm_admin`, `rd_manager`, `rd` | `numbering.approval.batch.create`, `numbering.approval.request`, `numbering.attachments.manage`, `numbering.create`, `numbering.draft.obsolete`, `numbering.draft.update`, `numbering.duplicate_check`, `numbering.link_variant` | action；保留各 route 的公司、草稿 owner、附件或審核目標條件 |
+| `system_admin`, `pdm_admin`, `rd_manager`, `rd` | `numbering.recognition.run`, `numbering.recognition.review`, `numbering.recognition.formalize` | action；保留辨識 session／圖面 owner 與提交版本條件 |
+| `system_admin`, `pdm_admin`, `rd_manager`, `rd` | `transfer.package.view`, `transfer.package.create`, `transfer.package.update`, `transfer.package.review.submit`, `transfer.package.review.withdraw` | action；保留移交包 owner、狀態、reviewer 與資源邊界 |
+| `system_admin`, `pdm_admin` | `numbering.audit_report.generate`, `numbering.draft.admin_confirm`, `obsolete_part_root` | action；高影響操作仍需原審核與目標條件 |
+| `system_admin`, `pdm_admin`, `rd_manager` | `numbering.export.create`, `post_release_change`, `transfer.package.publish` | action；發布／匯出保留審核與不可重複副作用防護 |
+| `system_admin`, `pdm_admin`, `rd_manager`, `qa`, `manufacturing`, `procurement` | `numbering.reports` | page；只能讀取已驗公司與允許資源 |
+| `system_admin`, `pdm_admin`, `rd_manager`, `rd`, `qa` | `numbering.task.update`, `numbering.notification.update` | action；不可由 client 指定另一 principal 或 scope |
+
+> 新 catalog 與 route-policy 需對上表 25 個 code 逐項給出同一 role／kind／scope 的 allow 與不在矩陣角色的 deny；對已停用與未核實 principal 一律拒絕。上表只證明舊預設政策的來源，不證明 Production 目前資料中的自訂 grant、個人歸屬或 reviewer 委派等價；這些必須在切流前由各 owner 唯讀讀回並核對。`numbering.reports` 是 page，其餘 24 個是 action，不得因名稱相似重用另一 capability。
 
 > **2026-09-28 跨 owner 治理操作與授權來源修正（source audit；非 Production PASS）。** `ai-pdm-role-capability-repository.ts` 的正式 server-side 呼叫沒有 OrgMaster session／可驗人類代理證明，不能以本應用 `settings.admin_matrix` grant 代替 OrgMaster 操作者。進一步核對確認它寫入的是 OrgMaster 獨立 JSON role-capability 工作區；正式有效 grant 由 OrgMaster 已發布治理文件與 `orgmaster_contract` 投影產生。Principal-only 終態不修補這條跨 owner proxy、不複製舊職位設定狀態：AI-PDM 只定義能力目錄並消費版本化 grant contract，管理入口導向 OrgMaster canonical 角色指派與已驗 principal 命令；proxy 寫入、unknown-result 與 JSON 工作區退出正常流量。已發布有效 position-adoption 指派先由 owner 盤點並以 canonical 契約維持，不因移除舊 UI 自動更動 grant。下方歷史 proxy 實作與 local PASS 不作正式可用證據。
 
