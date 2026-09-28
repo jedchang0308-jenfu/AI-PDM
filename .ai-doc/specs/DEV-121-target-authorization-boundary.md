@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-28 正式服務驗證模式防誤設（候選來源，非 Production PASS）。** `ai-pdm-prod` Cloud Run runtime 必須明確使用 `firebase_bff` 及 Platform auth `on`；環境值缺漏、拼錯或回到 demo／managed／off 時直接拒絕，不得因設定預設值進入舊登入分支。本機與其他隔離 fixture 不受此正式服務限定。聚焦測試 6／6、app typecheck、scoped ESLint PASS；尚未以候選版及 Production L4 驗證，不能算 Principal-only 切流完成。
+
 > **2026-09-28 Principal assurance 依賴收斂（候選來源，非 Production PASS）。** 新 Principal SSO handoff 的驗證強度計算只讀 provider 驗證事實、第二因子及已發布 account 的最低強度要求；程式已從舊 UID／v1 session identity 契約抽出共用純函式，使新 runtime 不再因 assurance 匯入舊 bridge。舊 v1 契約僅以薄轉接維持歷史錯誤型別，不作新授權來源。聚焦 15／15、typecheck、scoped ESLint PASS；全 cohort account 轉換、Principal-only owner candidate、正式業務流程及 L4 仍待完成。
 
 > **2026-09-28 Production 來源配對重驗（現行，只讀）。** 同一受保護來源與不可變 operator image 以 `coverage` 模式執行 `ai-pdm-prod-dev121-principal-inventory-kdljg`，受限 receipt `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-INVENTORY/DEV121-PRINCIPAL-SOURCE-20260928T140858Z.json`（SHA-256 `42d38bae2d8ee647730d528472df3ac44cbaeca4d003f4352180c8972e551f99`）。四筆歷史啟用 profile 各有一組可用 Firebase pair；只有一組與 OrgMaster 已發布 canonical mapping 及 active typed principal 精確一致，其餘三組未有一致來源。另有兩列歷史 Google OAuth 來源，不能替代目前 `firebase_bff` 登入配對。這是當前資料快照，不是本人歸屬確認或授權；不得用 email、舊 profile ID 或 Google 歷史列自動補綁。第二個臨時 Job 已刪除，正式 service／traffic／資料仍未變。上一段 Principal account 全缺的結果與本段相互獨立；目前最多只有一筆具備下一步逐人來源核對基礎，仍無 Production apply 資格。
