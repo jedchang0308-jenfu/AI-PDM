@@ -8,10 +8,16 @@ const profile = {
   account_type: "human_personal", principal_status: "active",
   system_role_enabled: true, marker_status: "principal_active",
   marker_principal_id: "principal-one", operation_id: "operation-one",
-  operation_kind: "cutover",
+  operation_kind: "cutover", marker_source_hash: "a".repeat(64),
+  operation_input_hash: "c".repeat(64), operation_cohort_hash: "b".repeat(64),
+  operation_result: { contractVersion: "ai-pdm.principal-cutover-result.v1",
+    operationId: "operation-one",
+    principals: ["principal-one"], accountCount: 1,
+    sourceHash: "a".repeat(64), cohortHash: "b".repeat(64) },
 };
 const published = {
   pdm_user_id: "profile-one", principal_id: "principal-one",
+  contract_version: "organization.active-principal.v1",
   employee_id: "employee-one", account_type: "human_personal",
   employee_status: "active", identity_issuer: "https://securetoken.google.com/jenfu-platform-prod",
   identity_subject: "firebase-one", mapping_version: "2",
@@ -73,7 +79,10 @@ describe("principal-only cohort discovery", () => {
 
   it("recognizes only an operation-backed new Principal account over a suspended domain profile", async () => {
     const provisioned = { ...profile, historical_status: "suspended",
-      historical_status_reason: "principal_only_provision", operation_kind: "provision" };
+      historical_status_reason: "principal_only_provision", operation_kind: "provision",
+      marker_source_hash: "c".repeat(64),
+      operation_result: { operationId: "operation-one", principalId: "principal-one",
+        pdmUserId: "profile-one" } };
     const valid = await readPrincipalOnlyCohort(snapshot({ profiles: [provisioned] }).database);
     expect(valid.profiles[0].issues).toEqual([]);
     const unproven = await readPrincipalOnlyCohort(snapshot({
@@ -86,7 +95,9 @@ describe("principal-only cohort discovery", () => {
   it("flags producer mismatch and ambiguous provider ownership instead of guessing", async () => {
     const source = snapshot({
       profiles: [profile, { ...profile, pdm_user_id: "profile-two", principal_id: "principal-two",
-        employee_id: "employee-two", marker_principal_id: "principal-two" }],
+        employee_id: "employee-two", marker_principal_id: "principal-two",
+        operation_result: { ...profile.operation_result,
+          principals: ["principal-two"] } }],
       published: [published, { ...published, pdm_user_id: "profile-two",
         principal_id: "principal-two", employee_id: "employee-two" }],
       providers: [provider, { ...provider, pdm_user_id: "profile-two" }],
@@ -101,6 +112,22 @@ describe("principal-only cohort discovery", () => {
       published: [{ ...published, employee_id: "different-employee" }],
     }).database);
     expect(mismatch.profiles[0].issues).toContain("published_principal_mismatch");
+  });
+
+  it("requires the current Platform login pair and an exact committed operation", async () => {
+    const wrongIssuer = await readPrincipalOnlyCohort(snapshot({
+      published: [{ ...published, identity_issuer: "https://accounts.google.com" }],
+    }).database);
+    expect(wrongIssuer.profiles[0].issues).toContain("published_login_pair_missing");
+    const wrongOperation = await readPrincipalOnlyCohort(snapshot({
+      profiles: [{ ...profile, operation_result: { ...profile.operation_result,
+        principals: ["principal-other"] } }],
+    }).database);
+    expect(wrongOperation.profiles[0].issues).toContain("activation_unconfirmed");
+    const wrongContract = await readPrincipalOnlyCohort(snapshot({
+      published: [{ ...published, contract_version: "unknown" }],
+    }).database);
+    expect(wrongContract.profiles[0].issues).toContain("published_principal_mismatch");
   });
 
   it("fails closed on an unavailable contract or an orphan account", async () => {

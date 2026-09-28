@@ -12,12 +12,17 @@ type ProfileRow = {
   system_role_enabled: boolean | null;
   marker_status: string | null;
   marker_principal_id: string | null;
+  marker_source_hash: string | null;
   operation_id: string | null;
   operation_kind: string | null;
+  operation_input_hash: string | null;
+  operation_cohort_hash: string | null;
+  operation_result: unknown;
 };
 type PublishedRow = {
   pdm_user_id: string;
   principal_id: string;
+  contract_version: string | null;
   employee_id: string | null;
   account_type: string | null;
   employee_status: string | null;
@@ -36,7 +41,7 @@ export type PrincipalOnlyCohortIssue =
   | "principal_account_missing" | "principal_account_disabled"
   | "historically_disabled_reactivated" | "activation_unconfirmed"
   | "published_principal_missing" | "published_principal_mismatch"
-  | "published_pair_ambiguous" | "provider_pair_missing"
+  | "published_login_pair_missing" | "published_pair_ambiguous" | "provider_pair_missing"
   | "provider_pair_unverified" | "provider_pair_ambiguous";
 
 export class PrincipalOnlyCohortReadbackError extends Error {
@@ -45,6 +50,34 @@ export class PrincipalOnlyCohortReadbackError extends Error {
 
 function active(value: string) {
   return value === "active";
+}
+
+function isHash(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
+}
+
+function operationMatchesProfile(profile: ProfileRow): boolean {
+  if (!profile.principal_id || !profile.operation_id ||
+    !isHash(profile.marker_source_hash) || !isHash(profile.operation_input_hash) ||
+    !isHash(profile.operation_cohort_hash) || !profile.operation_result ||
+    typeof profile.operation_result !== "object" ||
+    Array.isArray(profile.operation_result)) return false;
+  const result = profile.operation_result as Record<string, unknown>;
+  if (result.operationId !== profile.operation_id) return false;
+  if (profile.operation_kind === "provision") {
+    return result.principalId === profile.principal_id &&
+      result.pdmUserId === profile.pdm_user_id &&
+      profile.marker_source_hash === profile.operation_input_hash;
+  }
+  if (profile.operation_kind !== "cutover" ||
+    result.contractVersion !== "ai-pdm.principal-cutover-result.v1" ||
+    result.sourceHash !== profile.marker_source_hash ||
+    result.cohortHash !== profile.operation_cohort_hash ||
+    !Array.isArray(result.principals) ||
+    !result.principals.every((item) => typeof item === "string" && item.length > 0) ||
+    new Set(result.principals).size !== result.principals.length ||
+    result.accountCount !== result.principals.length) return false;
+  return result.principals.includes(profile.principal_id);
 }
 
 /** Discovery only: no row in this receipt can create an identity or a grant. */
@@ -68,8 +101,11 @@ export async function readPrincipalOnlyCohort(
                account.principal_id,account.employee_id,account.account_type,
                account.account_status AS principal_status,account.system_role_enabled,
                marker.status AS marker_status,
-               marker.principal_id AS marker_principal_id,marker.operation_id,
-               operation.operation_kind
+               marker.principal_id AS marker_principal_id,
+               marker.source_hash AS marker_source_hash,marker.operation_id,
+               operation.operation_kind,operation.input_hash AS operation_input_hash,
+               operation.cohort_hash AS operation_cohort_hash,
+               operation.result_json AS operation_result
         FROM ai_pdm_core.users profile
         LEFT JOIN ai_pdm_core.principal_accounts account
           ON account.pdm_user_id=profile.id AND account.company_id=profile.company_id
@@ -80,7 +116,7 @@ export async function readPrincipalOnlyCohort(
         ORDER BY profile.id
       `);
       published = await snapshot.query<PublishedRow>(`
-        SELECT account.pdm_user_id,account.principal_id,
+        SELECT account.pdm_user_id,account.principal_id,typed.contract_version,
                typed.employee_id,typed.account_type,typed.employee_status,
                typed.principal_issuer AS identity_issuer,
                typed.principal_subject AS identity_subject,typed.mapping_version
@@ -141,29 +177,36 @@ export async function readPrincipalOnlyCohort(
       const issues: PrincipalOnlyCohortIssue[] = [];
       const historicalActive = active(profile.historical_status);
       const accountActive = active(profile.principal_status ?? "") && profile.system_role_enabled === true;
+      const activationProven = operationMatchesProfile(profile);
       if (historicalActive && !profile.principal_id) issues.push("principal_account_missing");
       if (profile.principal_id && historicalActive && !accountActive) issues.push("principal_account_disabled");
       const principalOnlyProvision = profile.historical_status === "suspended" &&
         profile.historical_status_reason === "principal_only_provision" &&
-        profile.operation_kind === "provision";
+        profile.operation_kind === "provision" && activationProven;
       if (!historicalActive && accountActive && !principalOnlyProvision) {
         issues.push("historically_disabled_reactivated");
       }
       if (profile.principal_id && accountActive &&
         (profile.marker_status !== "principal_active" ||
-          profile.marker_principal_id !== profile.principal_id || !profile.operation_id ||
-          !["cutover", "provision"].includes(profile.operation_kind ?? ""))) {
+          profile.marker_principal_id !== profile.principal_id || !activationProven)) {
         issues.push("activation_unconfirmed");
       }
       const producer = publishedByProfile.get(profile.pdm_user_id) ?? [];
       if (profile.principal_id && accountActive) {
+        const loginPairs = producer.filter((row) =>
+          row.identity_issuer === `https://securetoken.google.com/${firebaseProjectId}` &&
+          row.identity_subject);
         if (!producer.some((row) => row.identity_issuer && row.identity_subject)) {
           issues.push("published_principal_missing");
-        } else if (producer.some((row) => row.principal_id !== profile.principal_id ||
+        } else if (producer.some((row) => row.contract_version !== "organization.active-principal.v1" ||
+          row.principal_id !== profile.principal_id ||
           row.employee_id !== profile.employee_id || row.account_type !== profile.account_type ||
           row.employee_status !== "active" || !row.identity_issuer || !row.identity_subject ||
           !Number.isSafeInteger(Number(row.mapping_version)) || Number(row.mapping_version) < 1)) {
           issues.push("published_principal_mismatch");
+        }
+        if (loginPairs.length < 1 || loginPairs.length > 2) {
+          issues.push("published_login_pair_missing");
         }
         const producerPairs = producer.filter((row) => row.identity_issuer && row.identity_subject)
           .map((row) => JSON.stringify([row.identity_issuer, row.identity_subject]));

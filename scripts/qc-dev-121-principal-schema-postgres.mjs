@@ -106,6 +106,25 @@ try {
     ALTER VIEW ai_pdm_contract.v_contract_manifest_v1 OWNER TO jenfu_ai_pdm_migrator;
     CREATE SCHEMA orgmaster_contract;
     CREATE SCHEMA platform_contract;
+    CREATE TABLE platform_contract.v_contract_manifest_v1 (
+      contract_id text PRIMARY KEY, contract_version text NOT NULL,
+      signature_sha256 text NOT NULL, payload_sha256 text
+    );
+    INSERT INTO platform_contract.v_contract_manifest_v1 VALUES
+      ('platform.principal-auth-state',
+       'jenfu.platform-contract.principal-auth-state.v3',
+       '2e56c51ca3d2ad4889d818013cc503fc2727c6817d1d9d71663538901d3de385',NULL);
+    CREATE TABLE orgmaster_contract.v_contract_manifest_v1 (
+      contract_id text PRIMARY KEY, contract_version text NOT NULL,
+      signature_sha256 text NOT NULL, payload_sha256 text
+    );
+    INSERT INTO orgmaster_contract.v_contract_manifest_v1 VALUES
+      ('orgmaster.principal-cutover-source',
+       'jenfu.orgmaster.principal-cutover-source.v1',
+       'ff36f90ac9b42d740d44cd049f45e27e5d08db0226dc9510041bd5bad9b51531',NULL),
+      ('orgmaster.ai-pdm-principal-effective-grants',
+       'jenfu.orgmaster.ai-pdm-principal-grants.v2',
+       '74a9890b416b547cd013673487a78322a49da44b415b903015d55768504bbe71',NULL);
     CREATE TABLE platform_contract.principal_state_fixture (
       principal_id text PRIMARY KEY,auth_epoch bigint NOT NULL,
       revoked_before timestamptz NULL,version bigint NOT NULL
@@ -117,6 +136,7 @@ try {
         FROM platform_contract.principal_state_fixture state
         WHERE state.principal_id=p_principal_id';
     GRANT USAGE ON SCHEMA platform_contract TO jenfu_ai_pdm_migrator;
+    GRANT SELECT ON platform_contract.v_contract_manifest_v1 TO jenfu_ai_pdm_migrator;
     GRANT EXECUTE ON FUNCTION platform_contract.read_principal_auth_state_v3(text)
       TO jenfu_ai_pdm_migrator;
     GRANT USAGE ON SCHEMA ai_pdm_core TO jenfu_ai_pdm_runtime;
@@ -607,6 +627,9 @@ try {
           throw error
         }
       } }
+      const { readPrincipalOwnerContractManifestHashes } = await import(pathToFileURL(
+        path.join(root, 'src/lib/jenfu-principal-owner-contract-manifest.ts')).href)
+      const contractManifestHashes = await readPrincipalOwnerContractManifestHashes(adapter)
       const publishedAt = '2026-09-25T03:00:00.000Z'
       await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.users
         (id,company_id) VALUES ('pdm-user-register','company-jenfu')`)
@@ -707,7 +730,7 @@ try {
         database,firebaseProjectId:'test-project',sourceSets:[source],
         cutoverAt:'2026-09-25T04:00:00Z',operationId:'operation-shadow-blocked',
         sourceRevisions:{platform:'a'.repeat(40),orgmaster:'b'.repeat(40),aiPdm:'c'.repeat(40)},
-        contractManifestHashes:{platform:'d'.repeat(64),orgmaster:'e'.repeat(64),aiPdm:'f'.repeat(64)}
+        contractManifestHashes
       })
       assert.equal(blockedShadow.workspaceShadow.status,'requires_resource_adapter')
       assert.equal(blockedShadow.workspaceShadow.gaps[0].reason,'role_scope_rule')
@@ -746,7 +769,7 @@ try {
         database,firebaseProjectId:'test-project',sourceSets:[source],
         cutoverAt:'2026-09-25T04:00:00Z',operationId:'operation-source-envelope',
         sourceRevisions:{platform:'a'.repeat(40),orgmaster:'b'.repeat(40),aiPdm:'c'.repeat(40)},
-        contractManifestHashes:{platform:'d'.repeat(64),orgmaster:'e'.repeat(64),aiPdm:'f'.repeat(64)}
+        contractManifestHashes
       })
       assert.equal(sourceEnvelope.localSourceHash,aclPreview.localSourceHash)
       assert.equal(sourceEnvelope.producerSourceHash,aclPreview.producerSourceHash)
@@ -761,7 +784,7 @@ try {
           firebaseProjectId:'test-project',sourceSets:[source],
           cutoverAt:'2026-09-25T04:00:00Z',operationId:'operation-source-envelope',
           sourceRevisions:{platform:'a'.repeat(40),orgmaster:'b'.repeat(40),aiPdm:'c'.repeat(40)},
-          contractManifestHashes:{platform:'d'.repeat(64),orgmaster:'e'.repeat(64),aiPdm:'f'.repeat(64)}
+          contractManifestHashes
         })
       }, { readOnly:true, isolationLevel:'repeatable_read' })
       assert.equal(runnerEnvelope.sourceHash,sourceEnvelope.sourceHash)
@@ -1076,7 +1099,7 @@ try {
         database,firebaseProjectId:'test-project',sourceSets:[commitSource],
         cutoverAt:'2026-09-25T04:00:00Z',operationId:'operation-materialize-commit',
         sourceRevisions:{platform:'a'.repeat(40),orgmaster:'b'.repeat(40),aiPdm:'c'.repeat(40)},
-        contractManifestHashes:{platform:'d'.repeat(64),orgmaster:'e'.repeat(64),aiPdm:'f'.repeat(64)}
+        contractManifestHashes
       })
       await client.query('BEGIN ISOLATION LEVEL READ COMMITTED')
       try {
@@ -1113,6 +1136,16 @@ try {
       assert.equal(committedReceipt.rows[0].input_hash,preparedCommit.inputHash)
       assert.equal(committedReceipt.rows[0].cohort_hash,preparedCommit.cohortHash)
       assert.equal(committedReceipt.rows[0].result_json.accountCount,1)
+      const { readPrincipalOnlyCohort } = await import(pathToFileURL(
+        path.join(root, 'src/lib/jenfu-principal-only-cohort-readback.ts')).href)
+      const principalOnlyCohort = await readPrincipalOnlyCohort(database,'test-project')
+      const committedProfile = principalOnlyCohort.profiles.find((profile) =>
+        profile.pdmUserId === 'pdm-user-materialize')
+      assert.deepEqual(committedProfile?.issues,[])
+      const unprovenActive = principalOnlyCohort.profiles.find((profile) =>
+        profile.pdmUserId === 'pdm-user-four')
+      assert.ok(unprovenActive?.issues.includes('activation_unconfirmed'))
+      assert.ok(unprovenActive?.issues.includes('provider_pair_missing'))
       await assert.rejects(asRole('jenfu_ai_pdm_migrator',
         `INSERT INTO ai_pdm_core.account_session_records (id,user_id)
          VALUES ('uid-after-materialize','pdm-user-materialize')`),
@@ -1209,7 +1242,7 @@ try {
         database,firebaseProjectId:'test-project',sourceSets:[transfer],
         cutoverAt:'2026-09-25T04:00:00Z',operationId:'operation-transfer-commit',
         sourceRevisions:{platform:'a'.repeat(40),orgmaster:'b'.repeat(40),aiPdm:'c'.repeat(40)},
-        contractManifestHashes:{platform:'d'.repeat(64),orgmaster:'e'.repeat(64),aiPdm:'f'.repeat(64)}
+        contractManifestHashes
       })
       assert.equal(preparedTransfer.accounts[0].markerRowVersion,0)
       const { bindPrincipalTransferConfirmations } = await import(pathToFileURL(
@@ -1767,13 +1800,13 @@ try {
   })
 
   if (process.argv.includes('--AclReadback')) {
-    await check('principal reviewer selector uses current PostgreSQL contracts and principal ACL', async () => {
+    await check('principal reviewer selector refuses a non-Jenfu workspace even with a published grant', async () => {
       const { selectPrincipalReviewerInSnapshot } = await import(pathToFileURL(
         path.join(root, 'src/lib/repositories/pdm-principal-reviewer-selector.ts')).href)
       const publishedCatalog = JSON.parse(fs.readFileSync(path.join(root,
-        'config/access-control/jenfu-role-catalog.v4.json'), 'utf8'))
+        'config/access-control/jenfu-role-catalog.v5.json'), 'utf8'))
       // Earlier SQL checks use a deliberately small legacy catalog fixture.
-      // The principal consumer requires exact v4 readback from its own contract.
+      // The principal consumer requires exact v5 readback from its own contract.
       await client.query(`ALTER TABLE ai_pdm_contract.v_application_role_catalog_v1
         ADD COLUMN display_order integer`)
       await client.query(`DELETE FROM ai_pdm_contract.v_application_role_catalog_v1`)
@@ -1800,7 +1833,8 @@ try {
       await client.query(`GRANT USAGE ON SCHEMA orgmaster_contract TO jenfu_ai_pdm_runtime`)
       await client.query(`GRANT SELECT ON
         orgmaster_contract.v_active_principal_accounts_v1,
-        orgmaster_contract.v_ai_pdm_entitlement_authority_v1
+        orgmaster_contract.v_ai_pdm_entitlement_authority_v1,
+        orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
         TO jenfu_ai_pdm_runtime`)
       // Migration 062 already grants runtime SELECT on existing app-owned
       // policy tables; this focused fixture otherwise models only the rows
@@ -1814,7 +1848,17 @@ try {
                 'human_personal','organization.active-principal.v1','active',1,clock_timestamp())`)
       await client.query(`INSERT INTO orgmaster_contract.v_ai_pdm_entitlement_authority_v1
         (employee_id,authority_version,contract_version,application_id,authority_source)
-        VALUES ('employee-one',1,'jenfu.platform-entitlement.v1','ai-pdm','legacy_authority')`)
+        VALUES ('employee-one',1,'jenfu.platform-entitlement.v1','ai-pdm','orgmaster_authority')`)
+      await client.query(`INSERT INTO orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+        (authority_version,contract_version,application_id,principal_id,employee_id,
+         stable_role_id,role_code,valid_from,valid_until,scope_kind,scope_key,
+         subject_kind,target_principal_id,grant_kind,delegation_id,
+         assignment_version_id,assignment_version,assignment_id,catalog_version,published_at)
+        VALUES (1,'jenfu.orgmaster.ai-pdm-principal-grants.v2','ai-pdm',
+                'principal-one','employee-one','role-rd-manager','rd_manager',
+                clock_timestamp()-interval '1 minute',NULL,'workspace','current',
+                'employee',NULL,'direct',NULL,'reviewer-published-v1',1,
+                'reviewer-rd-grant','ai-pdm.role-catalog.2026-09-28.v5',clock_timestamp())`)
       await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.roles
         (id,role_code,enabled) VALUES ('role-review-manager','rd_manager',1)`)
       await asRole('jenfu_ai_pdm_migrator', `UPDATE ai_pdm_core.role_priority_versions
@@ -1852,7 +1896,7 @@ try {
           throw error
         }
       }
-      assert.equal(await read(), 'pdm-user-one')
+      await assert.rejects(read(), (error) => error?.status === 409)
       await client.query(`UPDATE orgmaster_contract.v_active_principal_accounts_v1
         SET employee_status='suspended' WHERE principal_issuer='issuer-reviewer'`)
       await assert.rejects(read(), (error) => error?.status === 409)
@@ -1864,7 +1908,7 @@ try {
       await client.query(`UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
         SET assignment_version_id='reviewer-published-v1', assignment_version=1,
             assignment_id='reviewer-admin-grant',
-            catalog_version='ai-pdm.role-catalog.2026-09-25.v4',
+            catalog_version='ai-pdm.role-catalog.2026-09-28.v5',
             published_at=clock_timestamp()
         WHERE principal_id='principal-admin'`)
       await client.query(`GRANT SELECT ON
