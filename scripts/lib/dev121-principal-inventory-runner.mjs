@@ -39,7 +39,8 @@ export function assertInventoryOperation(value, { bytes, operationSha256, source
     'region', 'database', 'applicationId', 'firebaseProjectId', 'sources',
     'expectedSourceHash', 'expectedRowVersion']
   if (!exactKeys(value, keys) ||
-      value.schemaVersion !== (['principal_only_coverage', 'principal_only_source'].includes(value.mode)
+      value.schemaVersion !== (['principal_only_coverage', 'principal_only_source',
+        'principal_only_writer_readback'].includes(value.mode)
         ? 'ai-pdm.principal-inventory-operation.v2'
         : 'ai-pdm.principal-inventory-operation.v1') ||
       value.sourceRevision !== sourceRevision || value.projectId !== 'jenfu-platform-prod' ||
@@ -47,8 +48,8 @@ export function assertInventoryOperation(value, { bytes, operationSha256, source
       value.applicationId !== 'ai-pdm' ||
       !/^[A-Za-z0-9][A-Za-z0-9._-]{7,95}$/u.test(value.operationId ?? '') ||
       !['preview', 'register', 'coverage', 'principal_only_coverage',
-        'principal_only_source'].includes(value.mode) ||
-      (['coverage', 'principal_only_coverage'].includes(value.mode)
+        'principal_only_source', 'principal_only_writer_readback'].includes(value.mode) ||
+      (['coverage', 'principal_only_coverage', 'principal_only_writer_readback'].includes(value.mode)
         ? value.firebaseProjectId !== (value.mode === 'coverage' ? null : 'jenfu-platform-prod') ||
           !Array.isArray(value.sources) || value.sources.length !== 0
         : !/^[a-z][a-z0-9-]{0,62}$/u.test(value.firebaseProjectId ?? '') ||

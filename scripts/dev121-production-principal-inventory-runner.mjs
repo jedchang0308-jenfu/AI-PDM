@@ -26,6 +26,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   loadCoverage = () => import('../src/lib/jenfu-principal-inventory-coverage.ts'),
   loadPrincipalOnlyCoverage = () => import('../src/lib/jenfu-principal-only-cohort-readback.ts'),
   loadPrincipalOnlySource = () => import('../src/lib/jenfu-principal-only-cohort-source.ts'),
+  loadPrincipalOnlyWriterReadback = () => import('../src/lib/jenfu-principal-only-writer-readback.ts'),
 } = {}) {
   const args = parseInventoryArgs(argv)
   assertRunnerTarget(environment, OPERATOR_TARGET)
@@ -60,6 +61,8 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     } else if (operation.mode === 'principal_only_source') {
       outcome = await (await loadPrincipalOnlySource()).previewPrincipalOnlyCohortSource(
         adapter, operation.sources[0], operation.firebaseProjectId)
+    } else if (operation.mode === 'principal_only_writer_readback') {
+      outcome = await (await loadPrincipalOnlyWriterReadback()).readPrincipalOnlyWriterSessions(adapter)
     } else {
       const service = await loadInventory()
       outcome = operation.mode === 'preview'
@@ -115,6 +118,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } : value.mode === 'principal_only_source' ? {
       activeProfiles: value.outcome.activeProfiles.length,
       withheldProfiles: value.outcome.withheld.length,
+    } : value.mode === 'principal_only_writer_readback' ? {
+      ownerLoginSessionsAbsent: value.outcome.ownerLoginSessionsAbsent,
+      runtimeSessions: value.outcome.runtimeSessions,
+      migratorSessions: value.outcome.migratorSessions,
+      hiddenSessions: value.outcome.hiddenSessions,
+      activeTransactions: value.outcome.activeTransactions,
+      nonIdleSessions: value.outcome.nonIdleSessions,
     } : {}),
   })}\n`))
     .catch((error) => { process.stderr.write(`${error.code || error.message}\n`); process.exitCode = 1 })
