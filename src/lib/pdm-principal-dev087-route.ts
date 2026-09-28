@@ -14,6 +14,10 @@ type PrincipalRouteInput = {
   readOnly: boolean;
 };
 
+class PrincipalRouteWriteRejected extends Error {
+  constructor(readonly response: Response) { super("principal_route_write_rejected"); }
+}
+
 export function principalDev087RoutePolicyAvailable(request: Request,
   input: PrincipalRouteInput): boolean {
   const actualPath = `src/app${new URL(request.url).pathname}/route.ts`;
@@ -35,15 +39,25 @@ export async function withPrincipalDev087Route(request: Request, token: string,
     }
     return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
       async (tx, verified) => {
-        const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
+        const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
           verified, [{ permissionKind: "action", permissionCode: input.permissionCode }]);
-        if (!decision?.allowed) {
-          return jenfuEntitlementFailureResponse(decision?.decisionCode ?? "permission_not_granted");
+        const [decision] = decisions;
+        if (decisions.length !== 1 || !decision ||
+            decision.principalId !== verified.session.principalId ||
+            decision.permissionCode !== input.permissionCode ||
+            decision.allowed !== (decision.decisionCode === "allowed")) {
+          throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
         }
-        return execute(tx, verified);
+        if (!decision.allowed) {
+          return jenfuEntitlementFailureResponse(decision.decisionCode);
+        }
+        const response = await execute(tx, verified);
+        if (!input.readOnly && !response.ok) throw new PrincipalRouteWriteRejected(response);
+        return response;
       }, { readOnly: input.readOnly,
         isolationLevel: input.readOnly ? "repeatable_read" : "serializable" });
   } catch (error) {
+    if (error instanceof PrincipalRouteWriteRejected) return error.response;
     return error instanceof JenfuPrincipalRequestError
       ? principalRequestFailure(error) : dev087RouteError(error);
   }

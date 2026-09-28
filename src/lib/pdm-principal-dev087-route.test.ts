@@ -30,7 +30,8 @@ const input = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate(tx, verified));
-  mocks.evaluate.mockResolvedValue([{ allowed: true, decisionCode: "allowed" }]);
+  mocks.evaluate.mockResolvedValue([{ allowed: true, decisionCode: "allowed",
+    principalId: "principal-one", permissionCode: "numbering.workspace.update" }]);
 });
 
 describe("principal DEV-087 route boundary", () => {
@@ -47,12 +48,42 @@ describe("principal DEV-087 route boundary", () => {
 
   it("does not execute a command when authority denies the exact capability", async () => {
     mocks.evaluate.mockResolvedValueOnce([{
-      allowed: false, decisionCode: "permission_not_granted"
+      allowed: false, decisionCode: "permission_not_granted",
+      principalId: "principal-one", permissionCode: "numbering.workspace.update"
     }]);
     const execute = vi.fn();
     const response = await withPrincipalDev087Route(request, "v2-token", input, execute);
     expect(response.status).toBe(403);
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a grant belongs to another principal or capability", async () => {
+    const execute = vi.fn();
+    for (const mismatch of [
+      { principalId: "principal-other", permissionCode: input.permissionCode },
+      { principalId: "principal-one", permissionCode: "numbering.workspace.create" }
+    ]) {
+      mocks.evaluate.mockResolvedValueOnce([{ allowed: true,
+        decisionCode: "allowed", ...mismatch }]);
+      const response = await withPrincipalDev087Route(request, "v2-token", input, execute);
+      expect(response.status).toBe(503);
+    }
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("rolls back a write callback that returns an error after a mutation", async () => {
+    let committed = false;
+    mocks.withVerified.mockImplementationOnce(async (_input, evaluate) => {
+      const result = await evaluate(tx, verified);
+      committed = true;
+      return result;
+    });
+    const execute = vi.fn().mockResolvedValue(Response.json({ code: "invalid_command" },
+      { status: 422 }));
+    const response = await withPrincipalDev087Route(request, "v2-token", input, execute);
+    expect(response.status).toBe(422);
+    expect(execute).toHaveBeenCalledOnce();
+    expect(committed).toBe(false);
   });
 
   it("fails closed when the route does not have the asserted permission policy", async () => {

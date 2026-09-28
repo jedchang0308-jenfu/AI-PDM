@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 Principal 工作台共用守衛（候選來源）**：已核實的 DEV-087 action decision 必須精確對應當前 `principal_id`、permission code 與 allow／deny 語義；任何決策錯配回 503 且不執行命令。寫入 callback 若回非成功狀態，交易須 rollback，不能提交先前的部分變更。聚焦 7／7、typecheck、scoped ESLint PASS；正式環境未變。
+
 > **2026-09-28 DEV-121 料號矩陣讀取（候選來源）**：`GET /api/pdm/parts/[partId]/matrix-workspace` 在 Principal session 下使用單一 read-only snapshot 驗證 `numbering.search`、公司與已發布 create／update／submit 能力；矩陣 repository 再核對來源工作與料號根號。歷史 PDM profile ID 僅供工作資料 owner 比對；即使是本人，缺少 update grant 也不顯示工作草稿或編輯能力，非本人編輯預設拒絕。受控 v2 route map 擴為 93 files／111 methods／120 entries；聚焦 2／2、route map 7／7、source lock 2／2、分類 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS。PATCH 關聯矩陣與其他工作台操作仍待 Principal 實作，正式環境未變。
 
 > **2026-09-28 DEV-121 同步舊 cookie 守衛（候選來源）**：`auth.ts` 的同步 `getSessionUser`／`requireAuth` 在 Platform 模式拒絕有效的歷史 PDM cookie，且拒絕發生在 profile／DB 讀取前；非同步守衛亦已在上一切片拒絕 v1。這只消除舊授權入口，未遷移的必要 route 仍需 Principal 實作後才能上線。聚焦同步／非同步／編號 guard 9／9、typecheck、scoped ESLint PASS；正式流量未變。
