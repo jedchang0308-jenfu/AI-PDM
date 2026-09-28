@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-28 DEV-121 來源重驗**：[DEV-121 現行契約](specs/DEV-121-target-authorization-boundary.md)另封存第二次 Production 唯讀 receipt：4 組 Firebase pair 中只有 1 組與 OrgMaster 已發布 canonical／typed 身分一致，3 組仍無可用綁定；不能依 email 或歷史 Google 列補授權。正式資料與 traffic 未變。
+
 > **2026-09-28 DEV-121 全 cohort 正式基線**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄 AI-PDM Production 唯讀盤點的受限 receipt：4 筆歷史啟用 profile 全缺 Principal account，0 筆達可切流條件；Job 已清理，未改 traffic／資料。這取代下方「尚未執行全員讀回」的舊狀態，並不表示已核實個人歸屬或完成轉換。
 
 > **2026-09-28 DEV-121 owner ledger floor**：[DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)與 [任務板](dev_task.md)記錄三 owner 正式 migration 前置已發布，AI-PDM 唯讀 owner proof 現拒絕早於 Platform 010／OrgMaster 027／AI-PDM 020 的收據；不等於 cutover apply 或 L4。
