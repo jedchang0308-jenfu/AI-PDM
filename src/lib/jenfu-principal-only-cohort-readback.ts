@@ -42,7 +42,8 @@ export type PrincipalOnlyCohortIssue =
   | "historically_disabled_reactivated" | "activation_unconfirmed"
   | "published_principal_missing" | "published_principal_mismatch"
   | "published_login_pair_missing" | "published_pair_ambiguous" | "provider_pair_missing"
-  | "provider_pair_unverified" | "provider_pair_ambiguous";
+  | "provider_pair_unverified" | "provider_pair_ambiguous"
+  | "cohort_withheld_drift";
 
 export class PrincipalOnlyCohortReadbackError extends Error {
   constructor() { super("principal_only_cohort_readback_unavailable"); }
@@ -68,6 +69,26 @@ function operationMatchesProfile(profile: ProfileRow): boolean {
     return result.principalId === profile.principal_id &&
       result.pdmUserId === profile.pdm_user_id &&
       profile.marker_source_hash === profile.operation_input_hash;
+  }
+  if (profile.operation_kind === "cutover" &&
+    result.contractVersion === "ai-pdm.principal-only-cohort-result.v1") {
+    return result.inputHash === profile.operation_input_hash &&
+      result.sourceHash === profile.marker_source_hash &&
+      result.cohortHash === profile.operation_cohort_hash &&
+      result.principalId === profile.principal_id &&
+      result.pdmUserId === profile.pdm_user_id &&
+      typeof result.activatedAt === "string" &&
+      Number.isFinite(Date.parse(result.activatedAt)) &&
+      typeof result.activeBeforeCount === "number" &&
+      Number.isSafeInteger(result.activeBeforeCount) &&
+      result.activeBeforeCount >= 1 && result.activeBeforeCount <= 32 &&
+      result.activatedCount === 1 &&
+      Array.isArray(result.withheldPdmUserIds) &&
+      result.withheldPdmUserIds.every((id) =>
+        typeof id === "string" && id.length > 0 && id !== profile.pdm_user_id) &&
+      new Set(result.withheldPdmUserIds).size === result.withheldPdmUserIds.length &&
+      result.withheldCount === result.withheldPdmUserIds.length &&
+      result.activeBeforeCount === result.withheldCount + 1;
   }
   if (profile.operation_kind !== "cutover" ||
     result.contractVersion !== "ai-pdm.principal-cutover-result.v1" ||
@@ -239,6 +260,22 @@ export async function readPrincipalOnlyCohort(
         issues
       };
     });
+    const profilesById = new Map(profiles.map((profile) => [profile.pdm_user_id, profile]));
+    for (const [index, profile] of profiles.entries()) {
+      const receipt = profile.operation_result;
+      if (profile.operation_kind !== "cutover" || !receipt ||
+        typeof receipt !== "object" || Array.isArray(receipt) ||
+        (receipt as Record<string, unknown>).contractVersion !==
+          "ai-pdm.principal-only-cohort-result.v1") continue;
+      const withheld = (receipt as Record<string, unknown>).withheldPdmUserIds;
+      if (!Array.isArray(withheld) || withheld.some((id) => {
+        if (typeof id !== "string") return true;
+        const row = profilesById.get(id);
+        return !row || row.historical_status !== "suspended" ||
+          row.historical_status_reason !== "principal_only_unverified" ||
+          row.principal_id !== null;
+      })) result[index].issues.push("cohort_withheld_drift");
+    }
     if (published.some((row) => !seen.has(row.pdm_user_id)) ||
       providers.some((row) => !seen.has(row.pdm_user_id))) {
       throw new PrincipalOnlyCohortReadbackError();

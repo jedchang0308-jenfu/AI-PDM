@@ -25,6 +25,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   loadInventory = () => import('../src/lib/jenfu-principal-inventory-registration.ts'),
   loadCoverage = () => import('../src/lib/jenfu-principal-inventory-coverage.ts'),
   loadPrincipalOnlyCoverage = () => import('../src/lib/jenfu-principal-only-cohort-readback.ts'),
+  loadPrincipalOnlySource = () => import('../src/lib/jenfu-principal-only-cohort-source.ts'),
 } = {}) {
   const args = parseInventoryArgs(argv)
   assertRunnerTarget(environment, OPERATOR_TARGET)
@@ -56,6 +57,9 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     } else if (operation.mode === 'principal_only_coverage') {
       outcome = await (await loadPrincipalOnlyCoverage()).readPrincipalOnlyCohort(
         adapter, operation.firebaseProjectId)
+    } else if (operation.mode === 'principal_only_source') {
+      outcome = await (await loadPrincipalOnlySource()).previewPrincipalOnlyCohortSource(
+        adapter, operation.sources[0], operation.firebaseProjectId)
     } else {
       const service = await loadInventory()
       outcome = operation.mode === 'preview'
@@ -108,6 +112,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       activeHistoricalProfiles: value.outcome.activeHistoricalProfiles,
       activePrincipalProfiles: value.outcome.activePrincipalProfiles,
       unresolvedProfiles: value.outcome.unresolvedProfiles,
+    } : value.mode === 'principal_only_source' ? {
+      activeProfiles: value.outcome.activeProfiles.length,
+      withheldProfiles: value.outcome.withheld.length,
     } : {}),
   })}\n`))
     .catch((error) => { process.stderr.write(`${error.code || error.message}\n`); process.exitCode = 1 })
