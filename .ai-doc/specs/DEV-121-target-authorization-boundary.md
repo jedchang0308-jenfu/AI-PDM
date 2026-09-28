@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-28 料號矩陣讀取（候選來源，非 Production PASS）。** Principal GET 路徑以精確 v2 policy `numbering.search` 進入 read-only snapshot，同時核對帳號、OrgMaster typed principal、workspace、公司與 create／update／submit grant；repository 使用同一 snapshot 檢查 part／work／root，即使是工作 owner，缺少 update grant 也不得看到草稿或取得編輯能力。`pdm_user_id` 僅表示既有工作 owner，不能建立授權。v2 map 目前 93 files／111 methods／120 entries，條目 hash=`953c4a17e4ddd2eb4af5c3c80111019ff879ac05bd88fc0055323ccdba1f7129`，來源 hash=`035d5a0f19b15cb4a70b329d27f72472521631ebcb8cc5da27fa2fb97c03065b`。聚焦 2／2、map 7／7、source lock 2／2、分類 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS；關聯矩陣 PATCH 與其餘工作台 route 尚待轉換，不得切流。
+
 > **2026-09-28 同步舊 session 守衛（候選來源，非 Production PASS）。** Platform 模式下 `auth.ts` 的同步 `getSessionUser`／`requireAuth` 也在查資料前拒絕歷史 PDM cookie；這補上非同步守衛之外的另一個舊入口。必要路由仍須改成驗證 `principal_id`、同一快照下的 grant／resource 判定；舊路徑拒絕本身不是業務功能通過。聚焦 9／9、typecheck、scoped ESLint PASS。
 
 > **2026-09-28 v1 session caller 退役（候選來源，非 Production PASS）。** Platform 模式的 `auth-async` 不再驗舊 v1 cookie、讀逐人 cutover 或交出 profile actor；未遷移 route 明確 503，舊 session user 查詢回 `null`。應由各 route 改用 verified Principal、同一 snapshot 的 grant／resource 決策；在補齊必要業務路由前不得發布。聚焦 2／2、分類 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS。

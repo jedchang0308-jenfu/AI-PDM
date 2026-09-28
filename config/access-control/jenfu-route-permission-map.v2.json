@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "4dd193229c19f3f7434f2f476fc2443bce6394121130498a3a0939be04f5108c",
+  "sourceSha256": "035d5a0f19b15cb4a70b329d27f72472521631ebcb8cc5da27fa2fb97c03065b",
   "denominator": {
-    "uniqueFiles": 92,
-    "uniqueMethods": 110,
-    "policyEntries": 119
+    "uniqueFiles": 93,
+    "uniqueMethods": 111,
+    "policyEntries": 120
   },
   "entries": [
     {
@@ -1198,6 +1198,16 @@
       "authorizationTarget": "transfer.package.create",
       "scopeResolver": "workspace",
       "preservedGuards": "workspace＋source validation／command receipt／outbox"
+    },
+    {
+      "path": "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.search",
+      "authorizationTarget": "numbering.search",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified Principal／source work company／owner-only edit projection"
     }
   ]
 }

@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 料號矩陣讀取（候選來源）**：`GET /api/pdm/parts/[partId]/matrix-workspace` 在 Principal session 下使用單一 read-only snapshot 驗證 `numbering.search`、公司與已發布 create／update／submit 能力；矩陣 repository 再核對來源工作與料號根號。歷史 PDM profile ID 僅供工作資料 owner 比對；即使是本人，缺少 update grant 也不顯示工作草稿或編輯能力，非本人編輯預設拒絕。受控 v2 route map 擴為 93 files／111 methods／120 entries；聚焦 2／2、route map 7／7、source lock 2／2、分類 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS。PATCH 關聯矩陣與其他工作台操作仍待 Principal 實作，正式環境未變。
+
 > **2026-09-28 DEV-121 同步舊 cookie 守衛（候選來源）**：`auth.ts` 的同步 `getSessionUser`／`requireAuth` 在 Platform 模式拒絕有效的歷史 PDM cookie，且拒絕發生在 profile／DB 讀取前；非同步守衛亦已在上一切片拒絕 v1。這只消除舊授權入口，未遷移的必要 route 仍需 Principal 實作後才能上線。聚焦同步／非同步／編號 guard 9／9、typecheck、scoped ESLint PASS；正式流量未變。
 
 > **2026-09-28 DEV-121 v1 session caller 退役（候選來源）**：`auth-async` 在 Platform 模式不再讀舊 v1 cookie、舊逐人 cutover repository 或把 PDM profile 當授權主體；未遷移 route 回 503，直接查舊 session user 回 `null`，且不觸及 DB。離線 Firebase／demo 路徑暫留既有測試與 release profile 相容，不能作正式 Principal-only 完成證據。聚焦 2／2、route classification 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS；正式環境未變。
