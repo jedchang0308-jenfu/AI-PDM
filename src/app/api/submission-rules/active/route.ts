@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAuthAsync } from "@/lib/auth-async";
+import { authorizePrincipalWorkspaceExternalRead } from "@/lib/principal-company-read";
 import { getActiveSubmissionRuleSet } from "@/lib/submission-gate";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireAuthAsync(request);
-  if (auth.response) return auth.response;
+  const authorization = await authorizePrincipalWorkspaceExternalRead(request,
+    "src/app/api/submission-rules/active/route.ts", "submission.view");
+  if (authorization instanceof Response) return authorization;
 
   const searchParams = new URL(request.url).searchParams;
   const ruleSet = getActiveSubmissionRuleSet({
@@ -14,5 +15,6 @@ export async function GET(request: Request) {
     phase: searchParams.get("phase"),
     caseType: searchParams.get("caseType")
   });
-  return NextResponse.json(ruleSet);
+  return NextResponse.json(ruleSet,
+    { headers: { "cache-control": "private, no-store" } });
 }

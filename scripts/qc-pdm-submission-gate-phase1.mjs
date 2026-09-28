@@ -41,8 +41,8 @@ record("GATE-004 technical transfer requires package context", gate.includes("te
 record("GATE-005 direct technical transfer submit is fail-closed before mutation", appearsBefore(drawingSubmissionRoute, 'submissionMode === "technical_transfer"', "const result = await createDrawingSourceSubmission"));
 record("GATE-006 direct technical transfer response carries recovery href and blocker payload", drawingSubmissionRoute.includes("recoveryHref") && drawingSubmissionRoute.includes("readiness.blockers") && drawingSubmissionRoute.includes("status: 409"));
 record("GATE-007 blocker payload includes field/owner/code/route", ["field:", "ownerRole:", "blockerCode:", "remediationRoute:"].every((token) => gate.includes(token)));
-record("GATE-010 active rule API uses the shared rule resolver", activeRulesRoute.includes("getActiveSubmissionRuleSet") && activeRulesRoute.includes("requireAuthAsync"));
-record("GATE-011 readiness API uses the shared readiness resolver", readinessRoute.includes("resolveSubmissionReadiness") && readinessRoute.includes("requireAuthAsync"));
+record("GATE-010 active rule API uses the shared rule resolver after Principal authorization", activeRulesRoute.includes("getActiveSubmissionRuleSet") && activeRulesRoute.includes("authorizePrincipalWorkspaceExternalRead") && !activeRulesRoute.includes("requireAuthAsync"));
+record("GATE-011 readiness API uses the shared readiness resolver after Principal authorization", readinessRoute.includes("resolveSubmissionReadiness") && readinessRoute.includes("authorizePrincipalWorkspaceExternalRead") && !readinessRoute.includes("requireAuthAsync"));
 record("GATE-012 workbench exposes mode selector and package CTA", uploadPage.includes('data-submission-mode-selector="true"') && uploadPage.includes("setSubmissionMode(\"technical_transfer\")") && uploadPage.includes("buildTransferPackageHref") && uploadPage.includes("transferPackageHref"));
 record("GATE-013 workbench does not allow technical transfer through direct submit", uploadPage.includes("isTechnicalTransferMode") && uploadPage.includes("不能從單一圖號直接建立正式送審"));
 record(
