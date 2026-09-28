@@ -115,6 +115,29 @@ export function inventoryDatabaseAdapter(database) {
   return client
 }
 
+/**
+ * The principal cutover source gate must lock and reread in one READ COMMITTED
+ * write transaction. Keep this owner-only entry separate from the inventory
+ * adapter so a preview cannot silently change its isolation mode.
+ */
+export async function inPrincipalCutoverWriteTransaction(database, fn) {
+  if (!database || typeof database.query !== 'function' || typeof fn !== 'function') {
+    fail('CUTOVER_TRANSACTION_INVALID')
+  }
+  const client = { ...inventoryDatabaseAdapter(database),
+    async transaction() { fail('CUTOVER_NESTED_TRANSACTION_INVALID') } }
+  await database.query('BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE')
+  try {
+    await database.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
+    const result = await fn(client)
+    await database.query('COMMIT')
+    return result
+  } catch (error) {
+    await database.query('ROLLBACK').catch(() => undefined)
+    throw error
+  }
+}
+
 export async function assertInventoryDatabaseTarget(database, login) {
   const { rows } = await database.query(`SELECT current_database() AS database,
     current_user AS login, current_setting('server_version_num')::integer / 10000 AS major,
