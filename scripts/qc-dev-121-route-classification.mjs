@@ -88,6 +88,7 @@ const identityProtocolRoutes = new Map([
   ["POST /api/auth/token", "generateToken"]
 ]);
 const principalSessionRoutes = new Map([
+  ["GET /api/numbering/permissions", ["principalSessionTokenFromRequest", "evaluatePrincipalWorkspacePermissions"]],
   ["GET /api/auth/me", ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest"]],
   ["GET /api/account/sessions", ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest"]],
   ["POST /api/account/sessions/[sessionId]/revoke",

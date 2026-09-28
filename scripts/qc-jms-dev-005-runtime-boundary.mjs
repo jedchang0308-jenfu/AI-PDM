@@ -269,7 +269,20 @@ function boundaryFailures(entries, sources) {
       continue
     }
     if (entry.authorizationMode === 'authenticated_domain') {
-      if (!/(?:requirePdmRouteAuthorizationAsync|requireAuthAsync)\s*\(/u.test(graph)) failures.push(`${label}: authenticated-domain guard missing`)
+      if (entry.path === 'src/app/api/submissions/route.ts' && entry.method === 'GET') {
+        const principalPolicy = currentPolicy(entry)
+        if (principalPolicy.authorizationMode !== 'permission' ||
+            principalPolicy.permissionCode !== 'submission.view' ||
+            !/principalSessionTokenFromRequest\s*\(/u.test(graph) ||
+            !/withVerifiedJenfuPrincipalRequest\s*\(/u.test(graph) ||
+            !/authorizePrincipalSubmissionListInSnapshot\s*\(/u.test(graph) ||
+            !/AsyncSubmissionListRepository\s*\(/u.test(graph) ||
+            /(?:requireAuthAsync|requirePdmRouteAuthorizationAsync)\s*\(/u.test(graph)) {
+          failures.push(label + ': Principal submission list guard missing or old authorization restored')
+        }
+        continue
+      }
+      if (!/(?:requirePdmRouteAuthorizationAsync|requireAuthAsync)\s*\(/u.test(graph)) failures.push(label + ': authenticated-domain guard missing')
       continue
     }
     if (entry.authorizationMode === 'existing_command') {
