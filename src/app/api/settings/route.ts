@@ -4,6 +4,10 @@ import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { isGoogleDriveServiceConfigured } from "@/lib/gdrive";
 import { llmConfig } from "@/lib/llm-config";
 import { getAllSystemSettingsAsync, setSystemSettingAsync } from "@/lib/system-settings-async";
+import { requestedPdmCompanyCodeFromRequest } from "@/lib/company-context";
+import { withPrincipalCompanyRead } from "@/lib/principal-company-read";
+import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 
 export const runtime = "nodejs";
 
@@ -26,11 +30,22 @@ const folderIdKeys = new Set(["gdrive_pending_folder_id", "gdrive_released_folde
 const folderSnapshotKeys = [...ALLOWED_SETTINGS];
 
 export async function GET(request: Request) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
-  if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const routePath = "src/app/api/settings/route.ts";
+  const policy = resolveJenfuRoutePolicy(routePath, "GET", { expectedPermissionCode: "settings.manage" });
+  if (policy?.path !== routePath || policy.authorizationMode !== "permission" ||
+      policy.scopeResolver !== "workspace") {
+    return NextResponse.json({ code: "principal_route_policy_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
+  }
+  return await withPrincipalCompanyRead(request, requestedPdmCompanyCodeFromRequest(request),
+    [{ permissionKind: "action", permissionCode: "settings.manage" }],
+    async (snapshot) => settingsResponse(snapshot))
+    ?? NextResponse.json({ code: "auth_session_invalid" },
+      { status: 401, headers: { "cache-control": "no-store" } });
+}
 
-  const dbSettings = await getAllSystemSettingsAsync();
-
+async function settingsResponse(snapshot: AsyncDatabaseClient) {
+  const dbSettings = await getAllSystemSettingsAsync(snapshot);
   return NextResponse.json({
     settings: {
       // DB-managed (user-configurable) settings
@@ -57,7 +72,7 @@ export async function GET(request: Request) {
       serviceAccountConfigured: isGoogleDriveServiceConfigured(),
       secretManagementAvailable: process.env.PDM_DISABLE_SECRET_MANAGEMENT !== "true"
     }
-  });
+  }, { headers: { "cache-control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {
