@@ -62,6 +62,17 @@ describe("principal-keyed numbering permission projection", () => {
     expect(mocks.legacyAuth).not.toHaveBeenCalled();
   });
 
+  it("rejects absent and retired sessions before evaluating permissions", async () => {
+    const absent = new Request("https://pdm.example/api/numbering/permissions");
+    const retired = new Request("https://pdm.example/api/numbering/permissions", {
+      headers: { cookie: "__session=retired-cookie" }
+    });
+    expect((await GET(absent)).status).toBe(401);
+    expect((await GET(retired)).status).toBe(401);
+    expect(mocks.evaluate).not.toHaveBeenCalled();
+    expect(mocks.legacyAuth).not.toHaveBeenCalled();
+  });
+
   it("fails closed on a partial principal projection instead of falling back to the legacy user", async () => {
     mocks.evaluate.mockResolvedValue([]);
     const response = await GET(request());
