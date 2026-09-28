@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 圖面作廢影響 Principal 讀取（候選來源）**：修正現行圖面工作台的 `GET /api/lifecycle/obsolete-impact` 在 Principal session 下落到舊 PDM 使用者授權的缺口。新分支以 reviewed `numbering.search`、verified Principal／company 與同一唯讀快照取得影響；deny 與 policy drift 不讀資源，非正式資料仍回 409。v2 map 分母更新為 100／119／128，聚焦測試納入既有 required Production Slice QC。這是必要業務讀取修正，正式流量尚未變；舊分支仍須在切流前退役。
+
 > **2026-09-29 DEV-121 停寫讀回契約（本機，未改 Production）**：AI-PDM PR #121 以 exact head `07fedab15c89405d955ff2f667439774dc37accf` 通過兩項 required CI 與 Codex QC，合併到受保護 main `7b820eb8a463b9a3abbfd2d017ea00479e244806`。新增 Cloud Run 服務縮至 0 的雙讀回驗證：固定 service UID／project、舊 default revision、無任何 traffic tag、template 不變、generation 已被 provider 觀察，且更新完成後至少等待 request timeout 加 30 秒。聚焦 4／4 與 scoped lint 待本次檢查；此 guard 仍不能替代背景 writer／Job 盤點、正式 source apply 或 Principal-only 回復證據。
 
 > **2026-09-29 DEV-121 來源 receipt 校驗**：修正前一份 Production 唯讀 receipt SHA-256 的兩字元抄錄錯誤；新增來源封套驗證器，以實際受限 receipt 核對 SHA-256、generation、target、全 cohort／withheld 與重算 source hash。合成負例及實際只讀 receipt PASS，Node 2／2、scoped ESLint PASS；未建正式寫入 Job，Production 資料與 traffic 未變。

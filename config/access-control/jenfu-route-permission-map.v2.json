@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "3c9eb85dd8ab21e3427beef33c47e428a17b663cb70ee6dbd2802d6890fec49d",
+  "sourceSha256": "c1056c6f1557282bc5b9f1700b8584816dc902ecbd79dfc6e186bb44e83f54f8",
   "denominator": {
-    "uniqueFiles": 99,
-    "uniqueMethods": 118,
-    "policyEntries": 127
+    "uniqueFiles": 100,
+    "uniqueMethods": 119,
+    "policyEntries": 128
   },
   "entries": [
     {
@@ -1278,6 +1278,16 @@
       "authorizationTarget": "numbering.search",
       "scopeResolver": "workspace",
       "preservedGuards": "workspace＋verified Principal／source work company／owner-only edit projection"
+    },
+    {
+      "path": "src/app/api/lifecycle/obsolete-impact/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.search",
+      "authorizationTarget": "numbering.search",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified Principal／formal entity company／read-only impact snapshot"
     }
   ]
 }
