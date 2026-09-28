@@ -45,12 +45,20 @@ function splitDomains(value: string | undefined) {
 
 export function getAuthMode(env: NodeJS.ProcessEnv = process.env): AuthMode {
   const configured = String(env.PDM_AUTH_MODE ?? "").trim().toLowerCase();
+  // The production Cloud Run service has one security lane. A missing or
+  // misspelled setting must never turn its normal entry into demo/legacy auth.
+  if (env.K_SERVICE === "ai-pdm-prod" && configured !== "firebase_bff") {
+    throw new Error("PDM_PRODUCTION_AUTH_MODE_INVALID");
+  }
   if (configured === "managed" || configured === "firebase_bff") return configured;
   return "demo";
 }
 
 export function getJenfuPlatformAuthMode(env: NodeJS.ProcessEnv = process.env): JenfuPlatformAuthMode {
   const configured = String(env.PDM_JENFU_PLATFORM_AUTH_MODE ?? "off").trim().toLowerCase();
+  if (env.K_SERVICE === "ai-pdm-prod" && configured !== "on") {
+    throw new Error("PDM_PRODUCTION_PLATFORM_AUTH_MODE_INVALID");
+  }
   if (configured === "off" || configured === "on") return configured;
   throw new Error("JENFU_PLATFORM_AUTH_MODE_INVALID");
 }
