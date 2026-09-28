@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-28 DEV-121 全 cohort 正式基線**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄 AI-PDM Production 唯讀盤點的受限 receipt：4 筆歷史啟用 profile 全缺 Principal account，0 筆達可切流條件；Job 已清理，未改 traffic／資料。這取代下方「尚未執行全員讀回」的舊狀態，並不表示已核實個人歸屬或完成轉換。
+
 > **2026-09-28 DEV-121 owner ledger floor**：[DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)與 [任務板](dev_task.md)記錄三 owner 正式 migration 前置已發布，AI-PDM 唯讀 owner proof 現拒絕早於 Platform 010／OrgMaster 027／AI-PDM 020 的收據；不等於 cutover apply 或 L4。
 
 > **2026-09-28 DEV-121 Production 單人預覽證據**：[DEV-121 任務紀錄](dev_task.md)保留 Jed 唯讀 operation、operator source／digest、唯一啟用排序的 owner UI readback 與受限 receipt 指紋。這只證明單人 workspace shadow 無缺口，`applyAllowed=false`；全 cohort 歸屬、完整 resource／delegation 等價、recovery、service 切流與 Production L4 尚未完成。
