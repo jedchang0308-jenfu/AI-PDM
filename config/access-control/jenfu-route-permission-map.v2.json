@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "c4a4464855073bc0623f9c8b7d0929da179416eaef54926134a69e8757293f1a",
+  "sourceSha256": "5388cb1fdf6da8094a64682f8484be59a18dabd58c699ed359dc444c05cee3a5",
   "denominator": {
-    "uniqueFiles": 103,
-    "uniqueMethods": 122,
-    "policyEntries": 131
+    "uniqueFiles": 104,
+    "uniqueMethods": 123,
+    "policyEntries": 133
   },
   "entries": [
     {
@@ -700,6 +700,26 @@
       "preservedGuards": "workspace＋matrix validation／audit"
     },
     {
+      "path": "src/app/api/search/route.ts",
+      "method": "GET",
+      "discriminator": "search:part",
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.search",
+      "authorizationTarget": "numbering.search",
+      "scopeResolver": "principal company",
+      "preservedGuards": "published page grant／verified principal／same company／part number metadata"
+    },
+    {
+      "path": "src/app/api/search/route.ts",
+      "method": "GET",
+      "discriminator": "search:submission",
+      "authorizationMode": "permission",
+      "permissionCode": "submission.view",
+      "authorizationTarget": "submission.view",
+      "scopeResolver": "submission company",
+      "preservedGuards": "published role／AAL2 for manager／same company／verified profile owner for rd／historical read-only search"
+    },
+    {
       "path": "src/app/api/settings/access/role-capabilities/change-feed/route.ts",
       "method": "GET",
       "discriminator": null,
@@ -1123,11 +1143,11 @@
       "path": "src/app/api/submissions/route.ts",
       "method": "GET",
       "discriminator": null,
-      "authorizationMode": "authenticated_domain",
-      "permissionCode": null,
-      "authorizationTarget": "authenticated_domain",
-      "scopeResolver": "verified session",
-      "preservedGuards": "verified session＋existing owner/reviewer/company projection"
+      "authorizationMode": "permission",
+      "permissionCode": "submission.view",
+      "authorizationTarget": "submission.view",
+      "scopeResolver": "submission company",
+      "preservedGuards": "published role／AAL2 for manager／same company／verified profile owner for rd／historical read-only list"
     },
     {
       "path": "src/app/api/submissions/route.ts",

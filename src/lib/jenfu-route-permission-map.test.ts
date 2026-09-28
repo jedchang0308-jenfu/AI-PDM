@@ -85,4 +85,18 @@ describe("DEV-121 route authorization manifest", () => {
       path: "src/app/api/numbering/records/[rootCode]/obsolete/route.ts", scopeResolver: "workspace"
     });
   });
+  it("keeps dashboard part and submission search policies disjoint", () => {
+    const path = "src/app/api/search/route.ts";
+    expect(resolveJenfuRouteAuthorization(path, "GET")).toBeNull();
+    expect(resolveJenfuRoutePolicy(path, "GET", {
+      discriminator: "search:part", expectedPermissionCode: "numbering.search"
+    })).toMatchObject({ scopeResolver: "principal company" });
+    expect(resolveJenfuRoutePolicy(path, "GET", {
+      discriminator: "search:submission", expectedPermissionCode: "submission.view"
+    })).toMatchObject({ scopeResolver: "submission company" });
+    expect(resolveJenfuRoutePolicy(path, "GET", {
+      discriminator: "search:part", expectedPermissionCode: "submission.view"
+    })).toBeNull();
+  });
+
 });
