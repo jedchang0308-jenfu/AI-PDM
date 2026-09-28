@@ -4,6 +4,8 @@
 >
 > **啟用及回復條件。** 先讀回全體啟用／停用 profile、provider pair、principal、Employee、授權、資源與委派及現行 session／背景寫入；未核實的人員歸屬與原停用帳號保持停用，不猜測綁定。阻止舊 binary 新寫入並排空舊 session/code 後，完成已核實 cohort 的一次性轉換與 readback；候選版需證明所有必要工作流程的 allow／deny、scope、命令／outbox、登入／登出、背景工作與 Principal-only rollback。25 個既有 route code 的 deny disposition 不能自動算作業務流程完成，須逐條證明該操作已退役或在新版正式 catalog 有 capability 可執行，禁止猜測 grant。任一缺口則保持現行 traffic，正式切流後不得回復到 UID 授權版本。既有 preview `applyAllowed=false`，直到完整 source／cohort／resource／delegation 證據與可驗回復成立前不得執行 Production apply。
 
+> **2026-09-28 v2 callback 退役切片（候選來源，非 Production PASS）。** AI-PDM 正常 SSO callback 已移除 `jenfu.sso-handoff.v1` 的 UID resolver、`legacy_compatible` marker 與 v1 target session 分支；broker proof 現只接受 v2，格式不符即清除 transaction cookie 並回登入頁。這僅關閉一個舊入口；`auth-async.ts` 等 v1 session caller、v2 runtime 對逐人 marker 的讀取、全量 cohort／舊 writer fence、背景工作和業務路由仍待收斂，不能由 callback 測試通過推論可切流。
+
 > **2026-09-28 缺漏能力處置基準。** 這 25 個 code 均仍在當前 API／工作台使用，不能整批視為退役。以下是依 `db/schema.sql` 的既有 default role permissions、`db/postgres/017_number_state_flow_phase1d.sql` 的 transfer grants、`db/postgres/033_drawing_recognition.sql` 的 recognition grants 整理的**正向候選矩陣**；它只用來建立新版 immutable catalog，不能直接讀舊 `role_permissions` 作正式授權。`document_admin` 不在現行九角色 catalog，故不能將它的歷史 grants 猜測轉給其他角色；`production_planning` 也不因職務名稱相近而自動取得這 25 項。所有候選 grant 須經 catalog hash、OrgMaster consumer、目前已發布指派與 scope readback，並在實際操作的 allow／deny／資源／委派測試通過後才啟用。當前 v4 沒有這些 grant，仍 fail closed。
 
 | 歷史授權角色（候選，不含未核實身分） | code 與操作 | 種類／額外資源條件 |
