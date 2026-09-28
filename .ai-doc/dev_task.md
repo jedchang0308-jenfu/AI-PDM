@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 停寫證據修正（候選來源）**：隔離 PostgreSQL 證明 migrator 可能看不到其他 session 的 `backend_type`，原過濾使實際存在的連線被誤報為零；此前 Production R1 零連線 receipt 只能留作有缺陷的歷史讀回，不是停寫證明。新的 v2 唯讀查詢不再依該欄位過濾，並計算繼承 AI-PDM 寫入角色的額外連線。隔離 PostgreSQL 26／26、operator 15／15、app typecheck、scoped ESLint 與 DB boundary PASS，測試資源已清理；仍須受保護合併、immutable operator 重新建置與正式唯讀重跑，再結合 service／Job／排程／外部 writer 與 owner 鎖定交易證據。正式資料、service、traffic 未變。
+
 > **2026-09-29 DEV-121 歷史發布包 Principal 讀取候選**：沿用已驗 Principal `submission.view`、同公司／歷史提交者檢查；只在 Released／Obsolete 且 package 精確綁定時，讀固定 storage pointer、核對大小與 SHA-256、寫 `principal_id` tenant 稽核後回應 ZIP。歷史明細頁顯示發布包下載。v2 route map 103／122／131；此為候選來源，仍待 protected CI／QC、合併、正式 owner release／L4，不能計入切流完成。
 
 > **2026-09-29 DEV-121 歷史送審附件 Principal 讀取候選**：明細與附件共用同一受控 Principal 送審資源核對；附件另在快照內驗檔案綁定，快照外對固定 storage key 讀 bytes 並核對大小／SHA-256，先寫以 `principal_id` 為 actor 的 tenant 稽核再回應。舊業務按鈕仍退役，歷史附件連結可在新獨立授權路徑下載。v2 route map 102／121／130；來源與 Production 仍待 protected CI／QC、合併、owner release 及 L4，不能計入已切流。
