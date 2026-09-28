@@ -142,6 +142,17 @@ describe("DEV-121 authorization snapshot", () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it("does not authorize from local roles when entitlement enforcement is disabled", async () => {
+    vi.stubEnv("PDM_JENFU_ENTITLEMENT_MODE", "legacy");
+    const client = makeClient();
+    mocks.getAsyncDatabaseClient.mockReturnValue(client);
+
+    const result = await checkNumberingPermissionAsync(requestInput());
+
+    expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_authority_unavailable" });
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   it("rechecks active identity and evaluates entitlement in one read-only repeatable-read transaction", async () => {
     const client = makeClient();
     mocks.getAsyncDatabaseClient.mockReturnValue(client);

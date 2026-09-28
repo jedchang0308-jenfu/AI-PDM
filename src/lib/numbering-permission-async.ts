@@ -52,8 +52,7 @@ export async function checkNumberingPermissionsAsync(inputs: readonly CheckNumbe
   }
   const client = getAsyncDatabaseClient();
   if (getJenfuEntitlementMode() !== "enforce") {
-    const repository = new AsyncAccessControlRepository(client);
-    return Promise.all(inputs.map((input) => repository.checkPermission(input)));
+    return inputs.map((input) => decisionResult(input, "entitlement_authority_unavailable"));
   }
 
   const actor = inputs[0].user.authorizationActor;

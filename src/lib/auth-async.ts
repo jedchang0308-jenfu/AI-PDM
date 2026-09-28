@@ -227,7 +227,7 @@ function routeAuthorization(request: Request, options: PdmRouteAuthorizationOpti
 
 export async function requirePdmRouteAuthorizationAsync(
   request: Request,
-  legacyRoles: DbUser["role"][] = [],
+  _legacyRoles: DbUser["role"][] = [],
   options: PdmRouteAuthorizationOptions = {}
 ): Promise<AsyncRoleResult> {
   const auth = await requireAuthAsync(request);
@@ -239,8 +239,8 @@ export async function requirePdmRouteAuthorizationAsync(
     return { user: auth.user, response: Response.json({ error: "ENTITLEMENT_MODE_INVALID" }, { status: 503 }) };
   }
   if (entitlementMode !== "enforce") {
-    if (!legacyRoles.includes(auth.user.role)) return { user: auth.user, response: forbidden() };
-    return { user: auth.user, response: null, authorizationRoleCode: auth.user.role === "Admin" ? "pdm_admin" : null };
+    return { user: auth.user, response: Response.json({ code: "principal_authorization_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } }) };
   }
   if (!auth.session) return { user: auth.user, response: forbidden() };
   const policy = routeAuthorization(request, options);
