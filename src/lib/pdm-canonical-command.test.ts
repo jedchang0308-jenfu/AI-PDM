@@ -18,7 +18,7 @@ function completedRow(actorId: string | null, principalId: string | null = null)
 describe("canonical command receipt actor binding", () => {
   it("replays only to the same actor, rejecting unbound and principal receipts", async () => {
     let row = completedRow("reviewer-one");
-    const client = { queryOne: vi.fn(async () => row) } as unknown as AsyncDatabaseClient;
+    const client = { kind: "sqlite", queryOne: vi.fn(async () => row) } as unknown as AsyncDatabaseClient;
     await expect(replayCanonicalTerminalReceipt(client, replayInput))
       .resolves.toEqual({ acknowledged: true });
     await expect(replayCanonicalTerminalReceipt(client, { ...replayInput, actorId: "reviewer-two" }))
@@ -63,57 +63,26 @@ describe("canonical command receipt actor binding", () => {
     expect(complete?.params?.actorId).toBeUndefined();
   });
 
-  it("retire-fences the legacy command after principal cutover", async () => {
+  it("retire-fences every legacy PostgreSQL command before reading a per-person marker", async () => {
     const client = { kind: "postgres",
-      transaction: async (run: (tx: AsyncDatabaseClient) => Promise<unknown>) =>
-        run(client as AsyncDatabaseClient),
-      queryOne: vi.fn(async (sql: string) => sql.includes("read_principal_cutover_for_command_v1")
-        ? { status: "principal_active" } : null),
+      transaction: vi.fn(), queryOne: vi.fn(),
       execute: vi.fn() } as unknown as AsyncDatabaseClient;
     const mutate = vi.fn();
     await expect(runCanonicalIdempotentCommand(client, {
       ...replayInput, effectKey: "review-one"
     }, mutate)).rejects.toMatchObject({ code: "WORKBENCH_COMMAND_CONTRACT_RETIRED", status: 410 });
     expect(mutate).not.toHaveBeenCalled();
+    expect(client.transaction).not.toHaveBeenCalled();
+    expect(client.queryOne).not.toHaveBeenCalled();
     expect(client.execute).not.toHaveBeenCalled();
   });
 
-  it("does not treat a missing or unknown marker as legacy authorization", async () => {
-    const mutate = vi.fn();
-    let marker: { status: string } | null = null;
+  it("does not replay a historical profile receipt on PostgreSQL", async () => {
     const client = { kind: "postgres",
-      transaction: async (run: (tx: AsyncDatabaseClient) => Promise<unknown>) =>
-        run(client as AsyncDatabaseClient),
-      queryOne: vi.fn(async () => marker),
-      execute: vi.fn()
+      queryOne: vi.fn(async () => completedRow("reviewer-one"))
     } as unknown as AsyncDatabaseClient;
-    for (marker of [null, { status: "unexpected" }]) {
-      await expect(runCanonicalIdempotentCommand(client, {
-        ...replayInput, effectKey: "review-one"
-      }, mutate)).rejects.toMatchObject({
-        code: "WORKBENCH_PRINCIPAL_MARKER_REQUIRED", status: 503
-      });
-    }
-    expect(mutate).not.toHaveBeenCalled();
-    expect(client.execute).not.toHaveBeenCalled();
-  });
-
-  it("does not create an organization mapping for a PostgreSQL legacy command", async () => {
-    const client = { kind: "postgres",
-      transaction: async (run: (tx: AsyncDatabaseClient) => Promise<unknown>) =>
-        run(client as AsyncDatabaseClient),
-      queryOne: vi.fn(async (sql: string) => {
-        if (sql.includes("read_principal_cutover_for_command_v1")) return { status: "legacy_compatible" };
-        if (sql.includes("FROM platform_organization_mappings")) return {
-          platform_organization_id: "existing-organization"
-        };
-        return null;
-      }),
-      execute: vi.fn() } as unknown as AsyncDatabaseClient;
-    await runCanonicalIdempotentCommand(client, {
-      ...replayInput, effectKey: "review-one"
-    }, async () => ({ acknowledged: true }));
-    expect(client.execute).not.toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO platform_organization_mappings"), expect.anything());
+    await expect(replayCanonicalTerminalReceipt(client, replayInput))
+      .rejects.toMatchObject({ code: "WORKBENCH_COMMAND_CONTRACT_RETIRED", status: 410 });
+    expect(client.queryOne).not.toHaveBeenCalled();
   });
 });

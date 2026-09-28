@@ -42,6 +42,10 @@ export async function replayCanonicalTerminalReceipt<T>(client: AsyncDatabaseCli
   request: unknown;
   correlationId: string;
 }): Promise<T | null> {
+  if (client.kind === "postgres") {
+    throw new CanonicalWorkbenchError("WORKBENCH_COMMAND_CONTRACT_RETIRED",
+      "請從正式入口重新登入後操作", 410, input.correlationId);
+  }
   if (!input.idempotencyKey.trim() || input.idempotencyKey.length > 200) return null;
   const canonicalName = commandName(input.command, "canonical");
   const row = await client.queryOne<ReceiptRow>(
@@ -81,29 +85,19 @@ export async function runCanonicalIdempotentCommand<T>(client: AsyncDatabaseClie
   correlationId: string;
   terminalReview?: boolean;
 }, execute: (tx: AsyncDatabaseClient) => Promise<T>): Promise<T> {
+  if (client.kind === "postgres") {
+    throw new CanonicalWorkbenchError("WORKBENCH_COMMAND_CONTRACT_RETIRED",
+      "請從正式入口重新登入後操作", 410, input.correlationId);
+  }
   if (!input.idempotencyKey.trim() || input.idempotencyKey.length > 200) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "缺少有效的 Idempotency-Key", 400, input.correlationId);
   }
   const persistedCommandName = commandName(input.command, "canonical");
   const requestHash = dev087RequestHash(input.request);
   return client.transaction(async (tx) => {
-    if (tx.kind === "postgres") {
-      const cutover = await tx.queryOne<{ status: string }>(`
-        SELECT status FROM ai_pdm_core.read_principal_cutover_for_command_v1(:pdmUserId)
-      `, { pdmUserId: input.actorId });
-      if (cutover?.status === "principal_active") {
-        throw new CanonicalWorkbenchError("WORKBENCH_COMMAND_CONTRACT_RETIRED",
-          "請從正式入口重新登入後操作", 410, input.correlationId);
-      }
-      if (cutover?.status !== "legacy_compatible") {
-        throw new CanonicalWorkbenchError("WORKBENCH_PRINCIPAL_MARKER_REQUIRED",
-          "目前無法確認帳號的權限來源，請稍後再試", 503, input.correlationId);
-      }
-    }
-    const lock = tx.kind === "postgres" ? " FOR UPDATE" : "";
     const existing = await tx.queryOne<ReceiptRow>(
       `SELECT command_status, response_json, request_hash, actor_id, principal_id FROM platform_command_receipts
-        WHERE company_id = :companyId AND command_name = :commandName AND idempotency_key = :idempotencyKey${lock}`,
+        WHERE company_id = :companyId AND command_name = :commandName AND idempotency_key = :idempotencyKey`,
       { companyId: input.companyId, commandName: persistedCommandName, idempotencyKey: input.idempotencyKey }
     );
     if (existing) {

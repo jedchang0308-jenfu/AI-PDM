@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 PostgreSQL 舊命令退役（候選來源）**：`runCanonicalIdempotentCommand` 與 `replayCanonicalTerminalReceipt` 在 PostgreSQL 入口立即回 410，完全不再讀逐人 `legacy_compatible`／`principal_active` marker、舊收據或組織 mapping，亦不開始交易；SQLite 僅保留隔離歷史 fixture。這會使尚未遷移的舊業務命令在 Principal-only 候選版明確不可用，必須完成其 v2 路徑後才可切流。聚焦 31／31、typecheck、scoped ESLint PASS；目前正式流量未變。
+
 > **2026-09-28 DEV-121 Principal 命令重複 marker 查詢收斂（候選來源）**：`executePdmCommandWithOutbox` 的 PostgreSQL 分支已由 verified v2 request 與同一交易中的 `JenfuPrincipalAccountRepository.requireActive` 核對啟用帳號、principal／profile／company；移除第二次 `read_principal_cutover_for_command_v1` 查詢。停用／未啟用仍由 account repository fail closed，未知 session 與舊命令仍先拒絕。聚焦 26／26、typecheck、scoped ESLint PASS。這未移除 account repository 對舊 marker 的最後依賴，也不是 Production 切流證據。
 
 > **2026-09-28 DEV-121 圖面歷史 Principal-only 讀取（候選來源）**：`GET /api/numbering/drawings/[drawingNumber]/history/[revisionId]` 已移除舊 actor caller；v2 map 加入精確 `numbering.drawings.view` page policy，verified Principal／workspace grant、圖面公司、版次生命週期與檔案綁定均在同一 read-only snapshot 讀取，拒絕時不讀資料。完整 119 筆路由條目重新以 SHA-256 鎖定；聚焦 3／3、route-map 7／7、source-lock 2／2、route classification 293／293、DEV-005 103／103、typecheck、scoped ESLint PASS。DEV-087 共用 actor helper 的未遷移 route 檔由 7 降至 6，關聯矩陣另待處理；Production 未變。
