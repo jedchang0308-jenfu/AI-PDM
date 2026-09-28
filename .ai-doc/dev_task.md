@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 版次建議 Principal 候選**：上傳頁的 GET 與同路由 POST 改用已驗 Principal、`submission.create`、公司與版次歷史同一唯讀快照，移除舊登入 helper；拒絕或異公司不讀資料。v2 route map 107／127／137，聚焦 4／4、source-lock 2／2、293-method 分類、typecheck、scoped ESLint、版次政策 14／14 與 DEV-005 runtime QC PASS；正式 service／traffic／資料未變，完整送審流程及 L4 尚未完成。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
+
 > **2026-09-29 DEV-121 Production v2 停寫連線唯讀快照**：PR #132 merge `b11ace693d0d88c1423ef74435b6585606e28b90` 經 protected CI 與 exact-head QC PASS；immutable image `sha256:f357080a77b57d6a571bcfca8b7596b46125b7db0fe961a8e6f0dc22eba1efdf` 的一次性 Job execution `ai-pdm-prod-dev121-principal-inventory-kqv26` 成功。receipt generation `1790627404554660`、SHA-256 `1754ba8f84e79157b77112d950cde4fc6d7d6eec0f92387f1e78340fdaab080b` 顯示當下 owner-role 連線與活躍交易均為 0；精確路徑與限制見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。Job 已刪除；這不證明未來寫入已阻止，正式 service／traffic／資料未變，one-shot apply 與 L4 尚未執行。
 
 > **2026-09-29 DEV-121 停寫證據修正（候選來源）**：隔離 PostgreSQL 證明 migrator 可能看不到其他 session 的 `backend_type`，原過濾使實際存在的連線被誤報為零；此前 Production R1 零連線 receipt 只能留作有缺陷的歷史讀回，不是停寫證明。新的 v2 唯讀查詢不再依該欄位過濾，並計算繼承 AI-PDM 寫入角色的額外連線。隔離 PostgreSQL 26／26、operator 15／15、app typecheck、scoped ESLint 與 DB boundary PASS，測試資源已清理；仍須受保護合併、immutable operator 重新建置與正式唯讀重跑，再結合 service／Job／排程／外部 writer 與 owner 鎖定交易證據。正式資料、service、traffic 未變。
