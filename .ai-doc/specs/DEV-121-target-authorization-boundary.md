@@ -6,6 +6,8 @@
 
 > **2026-09-28 v2 callback 退役切片（候選來源，非 Production PASS）。** AI-PDM 正常 SSO callback 已移除 `jenfu.sso-handoff.v1` 的 UID resolver、`legacy_compatible` marker 與 v1 target session 分支；broker proof 現只接受 v2，格式不符即清除 transaction cookie 並回登入頁。這僅關閉一個舊入口；`auth-async.ts` 等 v1 session caller、v2 runtime 對逐人 marker 的讀取、全量 cohort／舊 writer fence、背景工作和業務路由仍待收斂，不能由 callback 測試通過推論可切流。
 
+> **2026-09-28 直接 Firebase 交換入口（候選來源，非 Production PASS）。** `PDM_AUTH_MODE=firebase_bff` 且 `PDM_JENFU_PLATFORM_AUTH_MODE=on` 時，`/api/auth/firebase/session` 在讀取 token/body 前回 410；既有邀請頁與本機舊入口不得被視為正式登入替代路徑。受控候選版仍須核對部署設定使 SSO handoff 為唯一正常入口，並驗證從 Platform 進入 AI-PDM 的完整工作流程。
+
 > **2026-09-28 缺漏能力處置基準。** 這 25 個 code 均仍在當前 API／工作台使用，不能整批視為退役。以下是依 `db/schema.sql` 的既有 default role permissions、`db/postgres/017_number_state_flow_phase1d.sql` 的 transfer grants、`db/postgres/033_drawing_recognition.sql` 的 recognition grants 整理的**正向候選矩陣**；它只用來建立新版 immutable catalog，不能直接讀舊 `role_permissions` 作正式授權。`document_admin` 不在現行九角色 catalog，故不能將它的歷史 grants 猜測轉給其他角色；`production_planning` 也不因職務名稱相近而自動取得這 25 項。所有候選 grant 須經 catalog hash、OrgMaster consumer、目前已發布指派與 scope readback，並在實際操作的 allow／deny／資源／委派測試通過後才啟用。當前 v4 沒有這些 grant，仍 fail closed。
 
 | 歷史授權角色（候選，不含未核實身分） | code 與操作 | 種類／額外資源條件 |

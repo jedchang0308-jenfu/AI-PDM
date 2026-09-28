@@ -80,6 +80,10 @@ export async function POST(request: Request) {
   } catch (error) {
     return jenfuExchangeFailure(error);
   }
+  if (jenfuAuthEnabled) {
+    return NextResponse.json({ code: "principal_login_required" },
+      { status: 410, headers: { "cache-control": "no-store" } });
+  }
   if (!isAllowedRequestOrigin(request)) {
     return jenfuAuthEnabled
       ? NextResponse.json({ error: "登入要求來源無效。", code: "auth_origin_invalid" }, { status: 403 })
