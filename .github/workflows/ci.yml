@@ -96,6 +96,7 @@ jobs:
           npm run qc:source-boundary
           npm run qc:dev-121:route-policy-source
           npm run qc:dev-121:route-classification
+          npm run qc:dev-121:inventory-runner
           node --test scripts/dev121-principal-candidate-smoke.test.mjs
           npm run qc:dev-046-phase2b
           npm exec vitest run src/lib/platform-command-service.test.ts src/lib/repositories/pdm-work-review-async-repository.test.ts
