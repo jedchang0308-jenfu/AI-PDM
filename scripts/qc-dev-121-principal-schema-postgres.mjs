@@ -338,6 +338,79 @@ try {
   await client.query(principalOwnerCorrection)
   await client.query('DROP TABLE orgmaster_contract.v_ai_pdm_effective_role_assignments_v1')
 
+  await check('one-shot Principal-only owner transaction withholds unresolved profiles without local ACL', async () => {
+    const publishedAt = '2026-09-28T00:00:00.000Z'
+    const issuer = 'https://securetoken.google.com/jenfu-platform-prod'
+    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.platform_principal_mappings
+      (platform_principal_id,pdm_user_id,mapping_source,mapping_status,external_subject)
+      VALUES ('one-shot-source','pdm-user-one','shared_iam','active','one-shot-uid')`)
+    await client.query(`INSERT INTO orgmaster_contract.v_active_principal_accounts_v1
+      (principal_issuer,principal_subject,principal_id,employee_id,account_type,
+       contract_version,employee_status,mapping_version,published_at)
+      VALUES ($1,'one-shot-uid','one-shot-principal','one-shot-employee',
+              'human_personal','organization.active-principal.v1','active',2,$2)`,
+    [issuer, publishedAt])
+    const { inventoryDatabaseAdapter } = await import(
+      './lib/dev121-principal-inventory-runner.mjs')
+    const { previewPrincipalOnlyCohortSource } = await import(pathToFileURL(
+      path.join(root, 'src/lib/jenfu-principal-only-cohort-source.ts')).href)
+    const { applyPrincipalOnlyCohortInOwnerTransaction } = await import(pathToFileURL(
+      path.join(root, 'src/lib/jenfu-principal-only-cohort-apply.ts')).href)
+    const adapter = inventoryDatabaseAdapter(client)
+    const verified = {
+      pdmUserId: 'pdm-user-one',companyId: 'company-one',
+      principalId: 'one-shot-principal',employeeId: 'one-shot-employee',
+      identityIssuer: issuer,identitySubject: 'one-shot-uid',
+      sourceKind: 'firebase_mapping',mappingVersion: 2,publishedAt
+    }
+    try {
+      const preview = await previewPrincipalOnlyCohortSource(adapter, verified)
+      assert.deepEqual(preview.activeProfiles.map((row) => row.pdmUserId),
+        ['pdm-user-one','pdm-user-two'])
+      assert.deepEqual(preview.withheld.map((row) => row.pdmUserId),
+        ['pdm-user-two'])
+      await client.query('BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE')
+      try {
+        await client.query('SET LOCAL ROLE jenfu_ai_pdm_migrator')
+        const applied = await applyPrincipalOnlyCohortInOwnerTransaction(adapter, {
+          operationId: 'one-shot-isolated-rehearsal',inputHash: 'e'.repeat(64),
+          cohortHash: preview.cohortHash,sourceHash: preview.sourceHash,
+          firebaseProjectId: 'jenfu-platform-prod',
+          verified: preview.verified,activeProfiles: preview.activeProfiles
+        })
+        assert.equal(applied.replayed, false)
+        assert.equal(applied.result.activatedCount, 1)
+        assert.deepEqual(applied.result.withheldPdmUserIds, ['pdm-user-two'])
+        const state = await client.query(`SELECT profile.id,profile.account_status,
+          account.principal_id,marker.status AS marker_status
+          FROM ai_pdm_core.users profile
+          LEFT JOIN ai_pdm_core.principal_accounts account
+            ON account.pdm_user_id=profile.id
+          LEFT JOIN ai_pdm_core.principal_identity_cutovers marker
+            ON marker.pdm_user_id=profile.id
+          ORDER BY profile.id`)
+        assert.deepEqual(state.rows.map((row) =>
+          [row.id,row.account_status,row.principal_id,row.marker_status]), [
+          ['pdm-user-one','active','one-shot-principal','principal_active'],
+          ['pdm-user-two','suspended',null,null]
+        ])
+        assert.equal((await client.query(`SELECT count(*)::integer AS n
+          FROM ai_pdm_core.principal_role_assignments`)).rows[0].n, 0)
+      } finally {
+        await client.query('ROLLBACK').catch(() => undefined)
+      }
+      const after = await client.query(`SELECT count(*)::integer AS n
+        FROM ai_pdm_core.principal_accounts`)
+      assert.equal(after.rows[0].n, 0)
+    } finally {
+      await asRole('jenfu_ai_pdm_migrator', `DELETE FROM
+        ai_pdm_core.platform_principal_mappings
+        WHERE platform_principal_id='one-shot-source'`)
+      await client.query(`DELETE FROM orgmaster_contract.v_active_principal_accounts_v1
+        WHERE principal_id='one-shot-principal'`)
+    }
+  })
+
   await check('principal account owner commands no longer depend on cutover markers', async () => {
     const signatures = [
       'assert_principal_account_manager_v1(text,text,text,text,text,text)',

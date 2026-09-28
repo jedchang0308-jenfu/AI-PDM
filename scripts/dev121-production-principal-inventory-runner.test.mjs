@@ -18,7 +18,7 @@ const source = {
   publishedAt: '2026-09-25T00:00:00.000Z',
 }
 const operation = (mode = 'preview') => ({
-  schemaVersion: mode === 'principal_only_coverage'
+  schemaVersion: ['principal_only_coverage', 'principal_only_source'].includes(mode)
     ? 'ai-pdm.principal-inventory-operation.v2'
     : 'ai-pdm.principal-inventory-operation.v1',
   operationId: 'DEV121-INV-ONE', mode, sourceRevision: revision,
@@ -53,10 +53,17 @@ test('operation is source-frozen, exact-target, principal-only and has no email 
   assert.equal(assertInventoryOperation(operation('principal_only_coverage'), {
     bytes: principalOnlyBytes, operationSha256: hash(principalOnlyBytes), sourceRevision: revision,
   }).mode, 'principal_only_coverage')
+  const principalSourceBytes = Buffer.from(JSON.stringify(operation('principal_only_source')))
+  assert.equal(assertInventoryOperation(operation('principal_only_source'), {
+    bytes: principalSourceBytes, operationSha256: hash(principalSourceBytes),
+    sourceRevision: revision,
+  }).mode, 'principal_only_source')
   for (const changed of [
     { ...operation('principal_only_coverage'), schemaVersion: 'ai-pdm.principal-inventory-operation.v1' },
     { ...operation('principal_only_coverage'), firebaseProjectId: 'other-project' },
     { ...operation('principal_only_coverage'), sources: [source] },
+    { ...operation('principal_only_source'), sources: [] },
+    { ...operation('principal_only_source'), schemaVersion: 'ai-pdm.principal-inventory-operation.v1' },
   ]) {
     const changedBytes = Buffer.from(JSON.stringify(changed))
     assert.throws(() => assertInventoryOperation(changed, {
@@ -284,4 +291,54 @@ test('principal-only coverage produces a private read-only receipt without invok
   assert.equal(result.mode, 'principal_only_coverage')
   assert.equal(JSON.parse(receiptBytes).outcome.unresolvedProfiles, 1)
   assert.equal(result.outcome.profiles[0].pdmUserId, 'private-profile')
+})
+
+test('principal-only cohort source mode binds one exact provider pair and never invokes registration', async () => {
+  const body = Buffer.from(JSON.stringify(operation('principal_only_source')))
+  let receiptBytes
+  const fetchImpl = async (url, options = {}) => {
+    if (url.startsWith('http://metadata.google.internal/')) {
+      return new Response(JSON.stringify({ access_token: 'x'.repeat(25), expires_in: 3600 }))
+    }
+    if (url.startsWith('https://storage.googleapis.com/upload/')) {
+      receiptBytes = Buffer.from(options.body)
+      return new Response(JSON.stringify({ generation: '2' }))
+    }
+    const isReceipt = url.includes('DEV121-PRINCIPAL-INVENTORY')
+    const bytes = isReceipt ? receiptBytes : body
+    if (url.includes('?alt=media')) return new Response(bytes)
+    return new Response(JSON.stringify({ generation: isReceipt ? '2' : '1',
+      crc32c: crc32cBase64(bytes) }))
+  }
+  class Client {
+    async connect() {}
+    async query() { return { rows: [{ database: 'jenfu_prod',
+      login: environment.POSTGRES_IAM_LOGIN, major: 17,
+      migrator_member: true, schema_ready: true }] } }
+    async end() {}
+  }
+  let called = 0
+  const argv = ['--operation-ref', inputRef, '--operation-sha256', hash(body),
+    '--source-revision', revision, '--output-ref', outputRef]
+  const result = await runMain({ argv, environment, fetchImpl, Client,
+    loadInventory: () => { throw new Error('unexpected registration path') },
+    loadCoverage: () => { throw new Error('unexpected coverage path') },
+    loadPrincipalOnlyCoverage: () => { throw new Error('unexpected coverage path') },
+    loadPrincipalOnlySource: async () => ({ previewPrincipalOnlyCohortSource: async (
+      _db, selected, project) => {
+      called += 1
+      assert.deepEqual(selected, source)
+      assert.equal(project, 'jenfu-platform-prod')
+      return { contractVersion: 'ai-pdm.principal-only-cohort-source.v1',
+        cohortHash: 'a'.repeat(64), sourceHash: 'b'.repeat(64),
+        verified: { pdmUserId: 'private-profile' },
+        activeProfiles: [{ pdmUserId: 'private-profile' },
+          { pdmUserId: 'private-withheld' }],
+        withheld: [{ pdmUserId: 'private-withheld' }] }
+    } }),
+  })
+  assert.equal(called, 1)
+  assert.equal(result.mode, 'principal_only_source')
+  assert.equal(JSON.parse(receiptBytes).outcome.withheld.length, 1)
+  assert.equal(result.outcome.cohortHash, 'a'.repeat(64))
 })
