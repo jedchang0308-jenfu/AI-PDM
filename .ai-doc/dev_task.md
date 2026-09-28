@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 Principal owner smoke 候選來源**：DEV-117 的 verify 與 canonical 改由既有 GitHub production refresh-token secret 取得測試帳號 ID token，走 Platform session → SSO authorize → AI-PDM callback → Principal `/api/auth/me`、受保護 probe、未登入拒絕、目標端 logout／撤銷；Platform smoke session 在 finally 本地登出。Platform 只登記 canonical callback；候選 verify 的 owner runner 將一次性 code 與 transaction cookie 受控送到精確候選 tag，以驗證候選 API，此 HTTP probe 不代表瀏覽器會把 canonical cookie 傳到候選網域。redirect origin／callback、cookie、版本與結果均 fail closed，收據只含狀態碼，不含 token／cookie／principal；既有 Cloud Workflow 不再是此 profile 的登入驗證來源且未修改雲端資源。聚焦模擬 3／3、DEV-117 owner tests 55／55、release adapter 12／12 PASS；後者因工作樹尚未 freeze 預期記錄 `sourceLockStatus=INVALIDATED`。尚須 source freeze、required CI、真實 provider smoke、Production 瀏覽器 L4；不得把模擬或候選 HTTP probe 當作切流後瀏覽器證據。
+
 > **2026-09-28 DEV-121 隔離 PostgreSQL 權限競態重驗**：修正舊測例把 `legacy_authority` 誤當「缺 permission」的預期。現以 OrgMaster authority version 2→3、同交易撤銷 assignment 驗證舊快照允許而新快照拒絕 `entitlement_assignment_not_found`，再以 legacy authority version 4 驗證 `entitlement_authority_unknown`；`qc:dev-121:postgres` 2／2 與 provider 9／9 PASS。本機暫存 cluster、55439 埠均已清理，未讀寫 Production；不代表全員 readback 或 L4 完成。
 
 > **2026-09-28 DEV-121 歷史送審明細唯讀契約待審**：直接書籤的 `GET /api/submissions/[id]` 尚未 Principal 化。提案以已發布 `submission.view` 的本次 role decision＋同公司資源、本人／主管界線作唯一授權，頁面只讀；檔案下載另驗。source-lock 更新因缺新條目獨立審查證據遭自動審查拒絕，未完成候選已撤回，現行 map／產品 route 未變。詳見同 DEV 規格首段；本項不阻止其他已授權切片繼續。
