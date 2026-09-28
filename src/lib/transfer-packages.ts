@@ -1,6 +1,7 @@
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
+import type { PrincipalWorkspaceDecision } from "@/lib/jenfu-principal-permission-service";
 import {
   AsyncTransferPackageRepository,
   TransferPackageError,
@@ -117,6 +118,13 @@ function validateVersion(value: unknown) {
     throw new TransferPackageError("TRANSFER_PACKAGE_VERSION_REQUIRED", "請重新整理技轉包後再操作。", 400);
   }
   return version;
+}
+
+function requirePrincipalTransferActor(metadata: PdmCommandMetadata, actor: TransferPackageActor) {
+  if (actor.userId !== metadata.actor.pdmUserId || actor.companyId !== metadata.actor.organizationId ||
+      actor.principalId !== metadata.actor.principalId) {
+    throw new TransferPackageError("TRANSFER_PACKAGE_ACTOR_MISMATCH", "技轉包操作者驗證失敗。", 403);
+  }
 }
 
 async function resolveEntity(input: {
@@ -241,11 +249,7 @@ export async function updateTransferPackageHeader(input: {
   sourceReference?: unknown;
   sourceReferenceReason?: unknown;
 }) {
-  if (input.actor.userId !== input.metadata.actor.pdmUserId ||
-      input.actor.companyId !== input.metadata.actor.organizationId ||
-      input.actor.principalId !== input.metadata.actor.principalId) {
-    throw new TransferPackageError("TRANSFER_PACKAGE_ACTOR_MISMATCH", "技轉包操作者驗證失敗。", 403);
-  }
+  requirePrincipalTransferActor(input.metadata, input.actor);
   const reference = normalizeReference(input);
   const packageId = requiredText(input.packageId, "技轉包 ID", 1, 200);
   const expectedRowVersion = validateVersion(input.expectedRowVersion);
@@ -277,56 +281,98 @@ export async function updateTransferPackageHeader(input: {
 }
 
 export async function addTransferPackageScopeItem(input: {
+  metadata: PdmCommandMetadata;
   packageId: string;
   actor: TransferPackageActor;
   expectedRowVersion: unknown;
   entityType: unknown;
   entityIdOrCode: unknown;
 }) {
-  const entity = await resolveEntity({
-    companyId: input.actor.companyId,
-    entityType: input.entityType,
-    entityIdOrCode: input.entityIdOrCode,
-    required: true
+  const packageId = requiredText(input.packageId, "技轉包 ID", 1, 200);
+  const expectedRowVersion = validateVersion(input.expectedRowVersion);
+  const entityType = normalizeTransferPackageEntityType(input.entityType);
+  const entityIdOrCode = text(input.entityIdOrCode, 200);
+  if (!entityType || !entityIdOrCode) {
+    throw new TransferPackageError("TRANSFER_PACKAGE_SOURCE_INVALID", "請選擇有效的圖號或料號。", 400);
+  }
+  return executeTransferMutation({
+    metadata: input.metadata, actor: input.actor, commandName: "pdm.transfer.add_scope_item",
+    eventType: "pdm.transfer.package_scope_added.v1",
+    payload: { packageId, expectedRowVersion, entityType, entityIdOrCode },
+    execute: async (client, actor) => {
+      const entity = await resolveEntity({ companyId: actor.companyId, entityType,
+        entityIdOrCode, required: true }, client);
+      if (!entity) throw new TransferPackageError("TRANSFER_PACKAGE_SOURCE_NOT_FOUND", "找不到指定的圖號或料號。", 404);
+      return new AsyncTransferPackageRepository(client).addScopeItem({ packageId, actor,
+        expectedRowVersion, entity });
+    }
   });
-  if (!entity) throw new TransferPackageError("TRANSFER_PACKAGE_SOURCE_NOT_FOUND", "找不到指定的圖號或料號。", 404);
-  const record = await repository().addScopeItem({
-    packageId: requiredText(input.packageId, "技轉包 ID", 1, 200),
-    actor: input.actor,
-    expectedRowVersion: validateVersion(input.expectedRowVersion),
-    entity
-  });
-  return buildWorkbench(record);
 }
 
 export async function removeTransferPackageScopeItem(input: {
+  metadata: PdmCommandMetadata;
   packageId: string;
   itemId: string;
   actor: TransferPackageActor;
   expectedRowVersion: unknown;
 }) {
-  const record = await repository().removeScopeItem({
-    packageId: requiredText(input.packageId, "技轉包 ID", 1, 200),
-    itemId: requiredText(input.itemId, "範圍項目 ID", 1, 200),
-    actor: input.actor,
-    expectedRowVersion: validateVersion(input.expectedRowVersion)
+  const packageId = requiredText(input.packageId, "技轉包 ID", 1, 200);
+  const itemId = requiredText(input.itemId, "範圍項目 ID", 1, 200);
+  const expectedRowVersion = validateVersion(input.expectedRowVersion);
+  return executeTransferMutation({
+    metadata: input.metadata, actor: input.actor, commandName: "pdm.transfer.remove_scope_item",
+    eventType: "pdm.transfer.package_scope_removed.v1",
+    payload: { packageId, itemId, expectedRowVersion },
+    execute: (client, actor) => new AsyncTransferPackageRepository(client).removeScopeItem({
+      packageId, itemId, actor, expectedRowVersion
+    })
   });
-  return buildWorkbench(record);
 }
 
 export async function cancelTransferPackage(input: {
+  metadata: PdmCommandMetadata;
   packageId: string;
   actor: TransferPackageActor;
   expectedRowVersion: unknown;
   reason: unknown;
 }) {
-  const record = await repository().cancel({
-    packageId: requiredText(input.packageId, "技轉包 ID", 1, 200),
-    actor: input.actor,
-    expectedRowVersion: validateVersion(input.expectedRowVersion),
-    reason: requiredText(input.reason, "取消原因", 3, 500)
+  const packageId = requiredText(input.packageId, "技轉包 ID", 1, 200);
+  const expectedRowVersion = validateVersion(input.expectedRowVersion);
+  const reason = requiredText(input.reason, "取消原因", 3, 500);
+  return executeTransferMutation({
+    metadata: input.metadata, actor: input.actor, commandName: "pdm.transfer.cancel_package",
+    eventType: "pdm.transfer.package_cancelled.v1",
+    payload: { packageId, expectedRowVersion, reason },
+    execute: (client, actor) => new AsyncTransferPackageRepository(client).cancel({
+      packageId, actor, expectedRowVersion, reason
+    })
   });
-  return buildWorkbench(record);
+}
+
+async function executeTransferMutation(input: {
+  metadata: PdmCommandMetadata;
+  actor: TransferPackageActor;
+  commandName: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+  execute: (client: AsyncDatabaseClient, actor: TransferPackageActor) => Promise<TransferPackageRecord>;
+}) {
+  requirePrincipalTransferActor(input.metadata, input.actor);
+  const command = createPdmCommand({ commandName: input.commandName,
+    idempotencyKey: input.metadata.idempotencyKey, actor: input.metadata.actor, payload: input.payload });
+  const execution = await executePdmCommandWithOutbox({
+    client: getAsyncDatabaseClient(), command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: (client, principalDecision: PrincipalWorkspaceDecision | null) => input.execute(client, {
+      userId: input.metadata.actor.pdmUserId, companyId: input.metadata.actor.organizationId,
+      principalId: input.metadata.actor.principalId, role: "Principal", principalDecision
+    }),
+    event: (record) => ({ aggregateType: "transfer_package", aggregateId: record.id,
+      eventType: input.eventType,
+      payload: { companyId: record.companyId, packageId: record.id, rowVersion: record.rowVersion } })
+  });
+  return buildWorkbench(execution.result);
 }
 
 export function buildTransferPackageReadinessSummary(workbench: TransferPackageWorkbench) {

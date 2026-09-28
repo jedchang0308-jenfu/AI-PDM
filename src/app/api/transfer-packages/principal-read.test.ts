@@ -2,14 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   principalRead: vi.fn(),
-  legacyAccess: vi.fn(),
   workbench: vi.fn(),
   context: vi.fn()
 }));
 
 vi.mock("@/lib/principal-company-read", () => ({ withPrincipalCompanyRead: mocks.principalRead }));
 vi.mock("@/lib/transfer-package-api", () => ({
-  requireTransferPackageAccessAsync: mocks.legacyAccess,
   transferPackageErrorResponse: () => Response.json({ code: "transfer_error" }, { status: 500 })
 }));
 vi.mock("@/lib/transfer-packages", () => ({
@@ -43,7 +41,6 @@ describe("principal-only transfer workbench reads", () => {
       { state: "absent" }, [{ permissionKind: "action", permissionCode: "transfer.package.view" }],
       expect.any(Function));
     expect(mocks.workbench).toHaveBeenCalledWith("package-one", "company-jenfu", snapshot);
-    expect(mocks.legacyAccess).not.toHaveBeenCalled();
   });
 
   it("keeps source lookup in the authorized create snapshot", async () => {
@@ -61,7 +58,6 @@ describe("principal-only transfer workbench reads", () => {
     expect(mocks.context).toHaveBeenCalledWith(expect.objectContaining({
       companyId: "company-jenfu", client: snapshot, sourceType: "drawing", sourceId: "DR-1"
     }));
-    expect(mocks.legacyAccess).not.toHaveBeenCalled();
   });
 
   it("does not touch package data after a denied grant or mismatched URL", async () => {
@@ -74,6 +70,5 @@ describe("principal-only transfer workbench reads", () => {
     expect(mismatch.status).toBe(503);
     expect(mocks.workbench).not.toHaveBeenCalled();
     expect(mocks.context).not.toHaveBeenCalled();
-    expect(mocks.legacyAccess).not.toHaveBeenCalled();
   });
 });

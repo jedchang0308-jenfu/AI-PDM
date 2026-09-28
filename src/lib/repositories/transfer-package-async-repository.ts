@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { PrincipalWorkspaceDecision } from "@/lib/jenfu-principal-permission-service";
+import { principalCanManageTransferPackageInSnapshot } from "@/lib/transfer-package-principal-resource";
 
 export type TransferPackageCaseType = "development_case" | "design_change_case";
 export type TransferPackageStatus =
@@ -215,18 +216,11 @@ function mapDraftItem(row: DraftItemRow): TransferPackageDraftItem {
 }
 
 async function canManagePackage(client: AsyncDatabaseClient, row: PackageRow, actor: TransferPackageActor) {
-  const decision = actor.principalDecision;
-  if (!actor.principalId || !decision?.allowed || decision.principalId !== actor.principalId ||
-      decision.permissionCode !== "transfer.package.update" || row.company_id !== actor.companyId) return false;
-  if (["rd_manager", "pdm_admin", "system_admin"].includes(decision.roleCode ?? "")) return true;
-  const owner = await client.query<{ principal_id: string }>(
-    `SELECT account.principal_id FROM ai_pdm_core.principal_accounts account
-     WHERE account.pdm_user_id = :ownerId AND account.company_id = :companyId
-       AND account.account_status = 'active' AND account.system_role_enabled
-     LIMIT 2`,
-    { ownerId: row.owner_id, companyId: row.company_id }
-  );
-  return owner.length === 1 && owner[0].principal_id === actor.principalId;
+  return row.company_id === actor.companyId && principalCanManageTransferPackageInSnapshot({
+    client, companyId: row.company_id, ownerProfileId: row.owner_id,
+    actorPrincipalId: actor.principalId ?? "", decision: actor.principalDecision,
+    permissionCode: "transfer.package.update"
+  });
 }
 
 async function assertEditable(client: AsyncDatabaseClient, row: PackageRow, actor: TransferPackageActor) {

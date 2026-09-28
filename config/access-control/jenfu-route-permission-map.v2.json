@@ -4,9 +4,9 @@
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
   "sourceSha256": "70b3065f97fde358a57b8b8a59534a6c7738b0be01f531bc0d47bcc4449a27c7",
   "denominator": {
-    "uniqueFiles": 84,
-    "uniqueMethods": 102,
-    "policyEntries": 111
+    "uniqueFiles": 90,
+    "uniqueMethods": 108,
+    "policyEntries": 117
   },
   "entries": [
     {
@@ -1098,6 +1098,66 @@
       "authorizationTarget": "transfer.package.update",
       "scopeResolver": "workspace",
       "preservedGuards": "workspace＋Principal package owner／draft scope／command receipt／outbox"
+    },
+    {
+      "path": "src/app/api/transfer-packages/[id]/items/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.update",
+      "authorizationTarget": "transfer.package.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋Principal package owner／entity scope／command receipt／outbox"
+    },
+    {
+      "path": "src/app/api/transfer-packages/[id]/items/[itemId]/route.ts",
+      "method": "DELETE",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.update",
+      "authorizationTarget": "transfer.package.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋Principal package owner／entity scope／command receipt／outbox"
+    },
+    {
+      "path": "src/app/api/transfer-packages/[id]/cancel/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.update",
+      "authorizationTarget": "transfer.package.update",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋Principal package owner／version／command receipt／outbox"
+    },
+    {
+      "path": "src/app/api/transfer-packages/[id]/submit-review/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.review.submit",
+      "authorizationTarget": "transfer.package.review.submit",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋Principal package owner／readiness／command receipt／outbox"
+    },
+    {
+      "path": "src/app/api/transfer-packages/[id]/withdraw-review/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.review.withdraw",
+      "authorizationTarget": "transfer.package.review.withdraw",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋Principal package owner／pending review／command receipt／outbox"
+    },
+    {
+      "path": "src/app/api/transfer-packages/[id]/publish/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.publish",
+      "authorizationTarget": "transfer.package.publish",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋approved snapshot／publication evidence／command receipt／outbox"
     },
     {
       "path": "src/app/api/transfer-packages/workbench-context/route.ts",

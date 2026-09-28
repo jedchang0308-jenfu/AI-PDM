@@ -204,8 +204,8 @@ export function TransferPackageWorkbenchShell(props: Props) {
     setBusy(action);
     setError("");
     setMessage("");
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+    const headers: Record<string, string> = { "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey ?? crypto.randomUUID() };
     const response = await fetch(url, {
       method,
       headers,

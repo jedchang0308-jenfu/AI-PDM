@@ -107,7 +107,7 @@ const explicitPermissionCalls = new Map([
   ["GET /api/numbering/drawings", ["approval.request.decide"]],
   ["POST /api/submissions/[id]/cancel", ["submission.view", "submission.review"]]
 ]);
-const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|requireTransferPackageAccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
+const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
 const sessionGuard = /\brequireAuthAsync\s*\(/u;
 const workerCapabilityGuard = /\b(?:requireWorkerServiceToken|requirePreviewWorkerToken|requireRecognitionWorker)\s*\(/u;
 
@@ -175,7 +175,6 @@ function permissionReferences(sourceFile) {
       const name = node.expression.text;
       if (["requireNumberingPermissionAsync", "requireNumberingPageAsync", "requireNumberingActionAsync", "canUserUseNumberingActionAsync", "requireNumberStateReadAccessAsync", "requireNumberStateCommandAccessAsync"].includes(name)) literalAt(node, 1, name);
       if (name === "requireNumberingCompanyPermissionAsync") literalAt(node, 2, name);
-      if (name === "requireTransferPackageAccessAsync") literalAt(node, 2, name);
       if (name === "requireNumberingPlatformCommandAsync" && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
         let actionCode = "";
         let permissionCode = "";
@@ -283,7 +282,16 @@ function main() {
   containsAll(guardedSource("src/lib/numbering-company-permission.ts"), ["requirePrincipalNumberingPermissionAsync", "authorizationActor.companyId"], "numbering company permission helper");
   containsAll(guardedSource("src/lib/number-state-flow-api.ts"), ["requireNumberingCompanyPermissionAsync", "requireNumberingPlatformCommandAsync"], "number-state helpers");
   containsAll(guardedSource("src/lib/platform-command-context.ts"), ["requirePrincipalNumberingPermissionAsync", "resolveJenfuRoutePolicyFromRequest"], "Platform command helper");
-  containsAll(guardedSource("src/lib/transfer-package-api.ts"), ["requireNumberStateReadAccessAsync", "requireNumberStateCommandAccessAsync"], "transfer package helpers");
+  for (const path of ["src/app/api/transfer-packages/[id]/route.ts",
+    "src/app/api/transfer-packages/[id]/items/route.ts",
+    "src/app/api/transfer-packages/[id]/items/[itemId]/route.ts",
+    "src/app/api/transfer-packages/[id]/cancel/route.ts"]) {
+    containsAll(guardedSource(path), ["requireNumberStateCommandAccessAsync", "access.metadata"], `Principal transfer route ${path}`);
+  }
+  containsAll(guardedSource("src/lib/repositories/transfer-package-async-repository.ts"),
+    ["principalDecision", "principalCanManageTransferPackageInSnapshot"], "transfer package owner guard");
+  containsAll(guardedSource("src/lib/transfer-package-principal-resource.ts"),
+    ["principal_accounts", "decision.principalId !== input.actorPrincipalId"], "Principal transfer resource guard");
   containsAll(guardedSource("src/lib/pdm-dev087-route.ts"), ["requireNumberingPageAsync", "resolveDev087RouteActor"], "DEV-087 route helpers");
   containsAll(guardedSource("src/app/api/numbering/reviews/_review-action-handler.ts"), ["DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED", "status: 410"], "retired review actions");
   containsAll(guardedSource("src/lib/platform-command-context.ts"), ["input.permissionCode ?? input.action", "scopes: [input.action]", "principalAuthorization"], "business action and permission separation");

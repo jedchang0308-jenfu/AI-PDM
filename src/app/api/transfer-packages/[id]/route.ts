@@ -30,7 +30,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body) return numberStateFlowJson({ error: "invalid_json", message: "請提供有效的 JSON。" }, { status: 400 });
-  const invalid = validateNumberStateMutationRequest({ request });
+  const invalid = validateNumberStateMutationRequest({ request,
+    idempotencyKey: request.headers.get("idempotency-key"), requireIdempotency: true });
   if (invalid) return invalid;
   const access = await requireNumberStateCommandAccessAsync(request, "transfer.package.update", body);
   if (access.response) return access.response;

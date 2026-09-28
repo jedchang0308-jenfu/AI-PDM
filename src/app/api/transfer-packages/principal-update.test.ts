@@ -1,12 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ access: vi.fn(), update: vi.fn(), legacyAccess: vi.fn() }));
+const mocks = vi.hoisted(() => ({ access: vi.fn(), update: vi.fn() }));
 
 vi.mock("@/lib/number-state-flow-api", async (importOriginal) => ({
   ...(await importOriginal<object>()), requireNumberStateCommandAccessAsync: mocks.access
-}));
-vi.mock("@/lib/transfer-package-api", async (importOriginal) => ({
-  ...(await importOriginal<object>()), requireTransferPackageAccessAsync: mocks.legacyAccess
 }));
 vi.mock("@/lib/transfer-packages", async (importOriginal) => ({
   ...(await importOriginal<object>()), updateTransferPackageHeader: mocks.update
@@ -43,7 +40,6 @@ describe("Principal transfer package header mutation", () => {
       actor: { userId: "profile-one", companyId: "company-one", role: "Principal",
         principalId: "principal-one" }
     }));
-    expect(mocks.legacyAccess).not.toHaveBeenCalled();
   });
 
   it("does not invoke the mutation after denial or failed same-origin validation", async () => {
