@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-28 同步舊 session 守衛（候選來源，非 Production PASS）。** Platform 模式下 `auth.ts` 的同步 `getSessionUser`／`requireAuth` 也在查資料前拒絕歷史 PDM cookie；這補上非同步守衛之外的另一個舊入口。必要路由仍須改成驗證 `principal_id`、同一快照下的 grant／resource 判定；舊路徑拒絕本身不是業務功能通過。聚焦 9／9、typecheck、scoped ESLint PASS。
+
 > **2026-09-28 v1 session caller 退役（候選來源，非 Production PASS）。** Platform 模式的 `auth-async` 不再驗舊 v1 cookie、讀逐人 cutover 或交出 profile actor；未遷移 route 明確 503，舊 session user 查詢回 `null`。應由各 route 改用 verified Principal、同一 snapshot 的 grant／resource 決策；在補齊必要業務路由前不得發布。聚焦 2／2、分類 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS。
 
 > **2026-09-28 登入路由清理（候選來源，非 Production PASS）。** Platform SSO 模式的舊 Firebase session endpoint 保持讀取 credential 前 410，已移除其後不可達的 v1 exchange／cutover caller；設定不合法時 503 fail closed。`PDM_JENFU_PLATFORM_AUTH_MODE=off` 的舊 Firebase 分支仍由舊 release/profile 與離線模式引用，須與 owner 驗證契約一起退役；此變更不是完整單一路徑切流。聚焦 2／2、DEV-046 21／21、分類 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS。

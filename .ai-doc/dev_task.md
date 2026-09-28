@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 同步舊 cookie 守衛（候選來源）**：`auth.ts` 的同步 `getSessionUser`／`requireAuth` 在 Platform 模式拒絕有效的歷史 PDM cookie，且拒絕發生在 profile／DB 讀取前；非同步守衛亦已在上一切片拒絕 v1。這只消除舊授權入口，未遷移的必要 route 仍需 Principal 實作後才能上線。聚焦同步／非同步／編號 guard 9／9、typecheck、scoped ESLint PASS；正式流量未變。
+
 > **2026-09-28 DEV-121 v1 session caller 退役（候選來源）**：`auth-async` 在 Platform 模式不再讀舊 v1 cookie、舊逐人 cutover repository 或把 PDM profile 當授權主體；未遷移 route 回 503，直接查舊 session user 回 `null`，且不觸及 DB。離線 Firebase／demo 路徑暫留既有測試與 release profile 相容，不能作正式 Principal-only 完成證據。聚焦 2／2、route classification 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS；正式環境未變。
 
 > **2026-09-28 DEV-121 舊登入死路徑清理（候選來源）**：`/api/auth/firebase/session` 在 Platform SSO 模式已先回 410；移除其後不可達的 Jenfu v1 session 交換、逐人 cutover repository 與舊登入 audit 分支，錯誤設定仍在讀取 token 前回 503。離線 Firebase 模式的舊路徑尚為 release/profile 相容保留，不能當作 Principal-only 正式完成。聚焦測試 2／2、DEV-046 21／21、route classification 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS；正式流量未變。

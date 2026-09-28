@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
 import { getDb, getUserById, type DbUser } from "@/lib/db";
 
 export const SESSION_COOKIE_NAME = "pdm_session";
@@ -164,6 +165,10 @@ function isLegacySessionRevoked(userId: string, sessionId: string | null) {
 }
 
 export function getSessionUser(request: Request): DbUser | null {
+  if (getAuthMode() === "firebase_bff") {
+    try { if (getJenfuPlatformAuthMode() === "on") return null; }
+    catch { return null; }
+  }
   const decoded = getLegacySessionPayload(request);
   if (!decoded) return null;
   if (isLegacySessionRevoked(decoded.userId, decoded.sessionId)) return null;
