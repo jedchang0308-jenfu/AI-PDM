@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-28 DEV-121 owner ledger floor**：[DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)與 [任務板](dev_task.md)記錄三 owner 正式 migration 前置已發布，AI-PDM 唯讀 owner proof 現拒絕早於 Platform 010／OrgMaster 027／AI-PDM 020 的收據；不等於 cutover apply 或 L4。
+
 > **2026-09-28 DEV-121 Production 單人預覽證據**：[DEV-121 任務紀錄](dev_task.md)保留 Jed 唯讀 operation、operator source／digest、唯一啟用排序的 owner UI readback 與受限 receipt 指紋。這只證明單人 workspace shadow 無缺口，`applyAllowed=false`；全 cohort 歸屬、完整 resource／delegation 等價、recovery、service 切流與 Production L4 尚未完成。
 
 > **2026-09-28 DEV-121 正式來源決策**：[ADR-PDM-RELEASE-SOURCE-001](decisions/ADR-PDM-RELEASE-SOURCE-001-small-team-official-source.md)固定 PR／Codex QC／required CI／provider branch protection 的真實證據，不要求第二位人工審查者；active ruleset 與 classic protection 已讀回，但文件本身不能當成 owner release PASS。

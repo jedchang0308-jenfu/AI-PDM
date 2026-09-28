@@ -17,18 +17,21 @@ const OWNERS = Object.freeze({
   platform: Object.freeze({ bucket: 'jenfu-platform-prod-platform-release',
     repository: 'jedchang0308-jenfu/Jenfu-Platform', branch: 'main',
     ledger: 'platform_core.schema_migrations', migrationBootstrap: true,
+    principalContractLedgerFloor: 10,
     artifactRepository: 'platform-release', artifactName: 'platform',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform',
     builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
   orgmaster: Object.freeze({ bucket: 'jenfu-platform-prod-orgmaster-release',
     repository: 'jedchang0308-jenfu/OrgMaster', branch: 'master',
     ledger: 'orgmaster_core.schema_migrations', migrationBootstrap: false,
+    principalContractLedgerFloor: 27,
     artifactRepository: 'orgmaster-release', artifactName: 'orgmaster',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/orgmaster-release/orgmaster',
     builder: 'orgmaster-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
   'ai-pdm': Object.freeze({ bucket: 'jenfu-platform-prod-aipdm-release',
     repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main',
     ledger: 'ai_pdm_core.schema_migrations', migrationBootstrap: true,
+    principalContractLedgerFloor: 20,
     artifactRepository: 'aipdm-release', artifactName: 'ai-pdm',
     artifactUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm',
     builder: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
@@ -96,7 +99,9 @@ function assertSourceLock(value, owner, config, revision, releaseId) {
     !Number.isFinite(Date.parse(value.observedAt))) fail('SOURCE_LOCK_INVALID')
 }
 export function assertMigration(value, owner, config, revision, manifestSha256) {
-  if (typeof config.migrationBootstrap !== 'boolean') fail('MIGRATION_INVALID')
+  if (typeof config.migrationBootstrap !== 'boolean' ||
+      !Number.isInteger(config.principalContractLedgerFloor) ||
+      config.principalContractLedgerFloor < 1) fail('MIGRATION_INVALID')
   if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'sourceRevision',
     'database', 'ledger', 'manifestSha256', 'baselineCount', 'minimumLedgerCount',
     ...(config.migrationBootstrap ? ['ledgerBootstrap'] : []),
@@ -115,6 +120,7 @@ export function assertMigration(value, owner, config, revision, manifestSha256) 
     !Number.isInteger(value.ledgerCount) ||
     value.ledgerCount < value.baselineCount ||
     value.ledgerCount < value.minimumLedgerCount ||
+    value.ledgerCount < config.principalContractLedgerFloor ||
     !Number.isInteger(value.applied) || value.applied < 0 ||
     !Number.isInteger(value.replayed) || value.replayed < 0 ||
     value.applied + value.replayed !== value.ledgerCount ||
