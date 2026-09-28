@@ -20,7 +20,7 @@ type PageState =
   | { status: "not_found" }
   | { status: "error"; message: string }
   | { status: "restricted"; summary: RestrictedSubmissionSummary; message: string }
-  | { status: "ready"; submission: SubmissionDetail };
+  | { status: "ready"; submission: SubmissionDetail; historicalReadOnly: boolean };
 
 type RestrictedSubmissionSummary = {
   id: string;
@@ -66,6 +66,10 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           return;
         }
         if (response.status === 403) {
+          if (response.headers.get("x-jenfu-principal-historical") === "1") {
+            setState({ status: "error", message: "你沒有權限查看這筆歷史送審資料。" });
+            return;
+          }
           const summaryResponse = await fetch(`/api/submissions/${encodeURIComponent(submissionId)}/recovery-summary`);
           const summaryBody = await summaryResponse.json().catch(() => ({}));
           if (summaryResponse.status === 401) {
@@ -97,7 +101,8 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           setState({ status: "not_found" });
           return;
         }
-        setState({ status: "ready", submission: body.submission });
+        setState({ status: "ready", submission: body.submission,
+          historicalReadOnly: body.historicalReadOnly === true });
       })
       .catch((error) => setState({ status: "error", message: humanSubmissionLoadError(error instanceof Error ? error.message : error) }));
   }, [submissionId]);
@@ -186,7 +191,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
 
       {state.status === "restricted" ? <RestrictedSubmissionView summary={state.summary} message={state.message} /> : null}
 
-      {state.status === "ready" ? <SubmissionDetailView submission={state.submission} currentUser={currentUser} onReload={load} /> : null}
+      {state.status === "ready" ? <SubmissionDetailView submission={state.submission} currentUser={currentUser} onReload={load} historicalReadOnly={state.historicalReadOnly} /> : null}
     </>
   );
 }
@@ -253,19 +258,21 @@ function RestrictedSubmissionView({ summary, message }: { summary: RestrictedSub
 function SubmissionDetailView({
   submission,
   currentUser,
-  onReload
+  onReload,
+  historicalReadOnly
 }: {
   submission: SubmissionDetail;
   currentUser: CurrentUser | null;
   onReload: () => void;
+  historicalReadOnly: boolean;
 }) {
   const [busyAction, setBusyAction] = useState<"approve" | "cancel" | "retry" | "return" | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string; href?: string; label?: string } | null>(null);
   const canManageRelease = currentUser?.role === "R&D Manager" || currentUser?.role === "Admin";
   const packageReviewApproved = submission.revision_package?.effective_status === "ReviewApproved";
   const terminalLifecycleReadOnly = submission.release_actionability?.code.startsWith("SUBMISSION_RELEASE_TERMINAL_") ?? false;
-  const canApprove = submission.status === "Pending" && !packageReviewApproved && !terminalLifecycleReadOnly && canManageRelease;
-  const canCancel = submission.status === "Pending" && !packageReviewApproved && !terminalLifecycleReadOnly && (canManageRelease || currentUser?.id === submission.submitted_by);
+  const canApprove = !historicalReadOnly && submission.status === "Pending" && !packageReviewApproved && !terminalLifecycleReadOnly && canManageRelease;
+  const canCancel = !historicalReadOnly && submission.status === "Pending" && !packageReviewApproved && !terminalLifecycleReadOnly && (canManageRelease || currentUser?.id === submission.submitted_by);
   const isUnresolvedReleaseIncomplete =
     submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id && !submission.resolved_at;
   const workbenchHref = `/drawings/${encodeURIComponent(submission.drawing_number)}/submission-workbench`;
@@ -313,6 +320,7 @@ function SubmissionDetailView({
           </h2>
           <span className="metadata-badge">送審 ID {submission.id}</span>
         </div>
+        {historicalReadOnly ? <p>這是歷史送審紀錄，僅供檢視。請在現行工作台執行後續操作。</p> : null}
 
         <div className="handoff-grid">
           <Info label="圖號" value={submission.drawing_number} />
@@ -391,7 +399,7 @@ function SubmissionDetailView({
               {busyAction === "cancel" ? "撤回中..." : "撤回送審"}
             </button>
           ) : null}
-          {isUnresolvedReleaseIncomplete && canManageRelease ? (
+          {isUnresolvedReleaseIncomplete && canManageRelease && !historicalReadOnly ? (
             <>
               <button
                 className="primary-button"
@@ -480,10 +488,10 @@ function SubmissionDetailView({
                   </span>
                 </div>
                 <div className="file-actions">
-                  <a className="secondary-button" href={`/api/submissions/${submission.id}/files/${file.id}`}>
+                  {historicalReadOnly ? <span>附件下載尚未開放</span> : <a className="secondary-button" href={`/api/submissions/${submission.id}/files/${file.id}`}>
                     <Download size={14} aria-hidden="true" />
                     下載
-                  </a>
+                  </a>}
                 </div>
               </div>
             ))}
