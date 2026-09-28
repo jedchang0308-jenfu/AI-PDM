@@ -53,6 +53,8 @@ test('rejects wrong service, unchanged generation, drifting template and early r
   const mutations = [
     (value) => { value.after.metadata.namespace = 'other-project' },
     (value) => { value.after.metadata.uid = 'replacement' },
+    (value) => { value.before.metadata.generation = null;
+      value.before.status.observedGeneration = null },
     (value) => { value.after.metadata.generation = 64;
       value.after.status.observedGeneration = 64 },
     (value) => { value.after.metadata.annotations['run.googleapis.com/manualInstanceCount'] = '1' },

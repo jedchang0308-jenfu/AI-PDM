@@ -2,6 +2,8 @@ const TARGET = Object.freeze({ name: 'ai-pdm-prod', namespace: '9536592944' })
 
 function fail() { throw new Error('DEV121_AIPDM_QUIESCENCE_READBACK_INVALID') }
 function integer(value) {
+  if (typeof value !== 'number' &&
+    !(typeof value === 'string' && /^[0-9]+$/u.test(value))) return null
   const parsed = Number(value)
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
 }
