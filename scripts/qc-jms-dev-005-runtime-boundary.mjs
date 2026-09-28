@@ -91,6 +91,33 @@ function boundaryFailures(entries, sources) {
       failures.push(`${label}: exported handler missing`)
       continue
     }
+    if (entry.path === 'src/app/api/pdm/file-assets/[fileAssetId]/route.ts' &&
+        entry.method === 'GET') {
+      const policy = currentPolicy(entry)
+      const expectedCodes = {
+        'file_read:approval_evidence': ['approval.request.decide'],
+        'file_read:drawing_read': ['numbering.drawings.view'],
+        'file_read:drawing_revision_work': ['numbering.workspace.view'],
+        'file_read:part_attachment': ['numbering.search'],
+        'file_read:review_request': ['approval.inbox.view', 'approval.request.decide']
+      }[entry.discriminator]
+      const required = [
+        /principalSessionTokenFromRequest\s*\(/u,
+        /if\s*\(!token\)\s*return\s+principalRequestFailure\s*\(/u,
+        /principalFileRead\s*\(/u,
+        /resolveJenfuRouteAuthorization\s*\(/u,
+        /withVerifiedJenfuPrincipalRequest\s*\(/u,
+        /evaluatePrincipalWorkspacePermissionsInSnapshot\s*\(/u,
+        /resolveSource\s*\(/u
+      ]
+      if (!expectedCodes || policy.authorizationMode !== entry.authorizationMode ||
+          required.some((guard) => !guard.test(graph)) ||
+          expectedCodes.some((code) => !graph.includes(code)) ||
+          /(?:requirePdmRouteAuthorizationAsync|requireAuthAsync|requireNumberingPageAsync|resolveDev087RouteActor)\s*\(/u.test(graph)) {
+        failures.push(label + ': Principal file-read guard missing or old authorization restored')
+      }
+      continue
+    }
     if (entry.authorizationMode === 'permission') {
       if (entry.discriminator === null && currentPolicy(entry).authorizationMode === 'retired') {
         if (!/status\s*:\s*410/u.test(graph) ||
@@ -324,6 +351,17 @@ function main() {
     entry.path === principalWorkPath && entry.method === 'POST'),
     new Map([[principalWorkPath, principalWorkMutant]]))
   assert.ok(principalWorkFailures.length > 0, 'principal work guard mutant was not detected')
+
+  const principalFilePath = 'src/app/api/pdm/file-assets/[fileAssetId]/route.ts'
+  const principalFileSource = sourceByPath.get(principalFilePath)
+  const principalFileMutant = principalFileSource.replace(/withVerifiedJenfuPrincipalRequest\s*\(/u,
+    'removedPrincipalFileVerification(')
+  assert.notEqual(principalFileMutant, principalFileSource,
+    'principal file-read mutant could not remove verification')
+  const principalFileFailures = boundaryFailures(routeMap.entries.filter((entry) =>
+    entry.path === principalFilePath && entry.method === 'GET'),
+    new Map([[principalFilePath, principalFileMutant]]))
+  assert.ok(principalFileFailures.length > 0, 'principal file-read guard mutant was not detected')
 
   const principalInboxPath = 'src/app/api/approvals/inbox/route.ts'
   const principalInboxSource = sourceByPath.get(principalInboxPath)

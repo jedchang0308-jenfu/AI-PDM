@@ -92,6 +92,22 @@ beforeEach(() => {
 });
 
 describe("principal review package file read", () => {
+  it("rejects missing or legacy sessions before reading any file context", async () => {
+    const noSession = new Request(request().url);
+    const missing = await GET(noSession, params);
+    expect(missing.status).toBe(401);
+    expect(await missing.json()).toEqual({ code: "auth_session_invalid" });
+
+    const legacySession = new Request(request().url, {
+      headers: { cookie: "__session=legacy-firebase-session" }
+    });
+    expect((await GET(legacySession, params)).status).toBe(401);
+    expect(mocks.withVerified).not.toHaveBeenCalled();
+    expect(mocks.queryOne).not.toHaveBeenCalled();
+    expect(mocks.readObject).not.toHaveBeenCalled();
+    expect(mocks.legacyAuthorization).not.toHaveBeenCalled();
+  });
+
   it("reads only an assigned v2 package file after the verified snapshot closes", async () => {
     let snapshotOpen = false;
     mocks.withVerified.mockImplementationOnce(async (_input, evaluate) => {
