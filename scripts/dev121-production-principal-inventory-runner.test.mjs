@@ -4,7 +4,7 @@ import test from 'node:test'
 import { runMain } from './dev121-production-principal-inventory-runner.mjs'
 import {
   assertInventoryDatabaseTarget, assertInventoryOperation,
-  inventoryDatabaseAdapter, parseInventoryArgs,
+  inPrincipalCutoverWriteTransaction, inventoryDatabaseAdapter, parseInventoryArgs,
 } from './lib/dev121-principal-inventory-runner.mjs'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 
@@ -88,6 +88,44 @@ test('adapter keeps named SQL and all repository reads within one RR transaction
     { isolationLevel: 'repeatable_read', readOnly: false }), /drift/)
   assert.equal(calls.at(-1), 'ROLLBACK')
   await assert.rejects(adapter.query('SELECT :missing'), /SQL_PARAMETER_MISSING/)
+})
+
+test('cutover uses one owner-only READ COMMITTED write transaction and rolls back failure', async () => {
+  const calls = []
+  const database = { query: async (input) => {
+    calls.push(input)
+    return { rows: [{ value: 'source' }] }
+  } }
+  const value = await inPrincipalCutoverWriteTransaction(database,
+    (client) => client.queryOne('SELECT :id::text AS value', { id: 'profile-one' }))
+  assert.deepEqual(value, { value: 'source' })
+  assert.deepEqual(calls, [
+    'BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE',
+    'SET LOCAL ROLE jenfu_ai_pdm_migrator',
+    { text: 'SELECT $1::text AS value', values: ['profile-one'] },
+    'COMMIT',
+  ])
+  calls.length = 0
+  await assert.rejects(inPrincipalCutoverWriteTransaction(database,
+    async () => { throw new Error('source drift') }), /source drift/)
+  assert.deepEqual(calls, [
+    'BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE',
+    'SET LOCAL ROLE jenfu_ai_pdm_migrator',
+    'ROLLBACK',
+  ])
+  calls.length = 0
+  await assert.rejects(inPrincipalCutoverWriteTransaction(database,
+    (client) => client.transaction(async () => undefined)),
+  /CUTOVER_NESTED_TRANSACTION_INVALID/)
+  assert.deepEqual(calls, [
+    'BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE',
+    'SET LOCAL ROLE jenfu_ai_pdm_migrator',
+    'ROLLBACK',
+  ])
+  calls.length = 0
+  await assert.rejects(inPrincipalCutoverWriteTransaction(database, null),
+    /CUTOVER_TRANSACTION_INVALID/)
+  assert.deepEqual(calls, [])
 })
 
 test('database readback rejects wrong login before owner mutation', async () => {
