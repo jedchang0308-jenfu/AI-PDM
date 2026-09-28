@@ -37,7 +37,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ roo
     return NextResponse.json({ result, pdmCompany: access.company, idempotencyKey: idempotencyKey?.trim() });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to obsolete draft numbering record";
-    const status = message.includes("NOT_FOUND") ? 404 : message.includes("NOT_DRAFT") || message.includes("CONTROLLED") || message.includes("ALREADY") || message.startsWith("LIFE_") ? 409 : 400;
+    const status = message === "PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED" ? 403
+      : message.startsWith("PLATFORM_PRINCIPAL_") ? 503
+        : message.includes("NOT_FOUND") ? 404
+          : message.includes("NOT_DRAFT") || message.includes("CONTROLLED") ||
+            message.includes("ALREADY") || message.startsWith("LIFE_") ? 409 : 400;
     return NextResponse.json({ error: message, message: humanizeObsoleteError(message) }, { status });
   }
 }

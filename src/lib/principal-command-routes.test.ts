@@ -80,6 +80,15 @@ describe("DEV-121 human command route actor propagation", () => {
     );
   });
 
+  it("returns 403 if draft-obsolete grant is revoked before its write snapshot", async () => {
+    mocks.obsoleteDraft.mockRejectedValue(new Error("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED"));
+    const response = await obsoleteDraft(new Request("https://ai-pdm.test/api/numbering/records/R-1/obsolete", {
+      method: "POST", headers: { "content-type": "application/json", "idempotency-key": "operation-one" },
+      body: JSON.stringify({ reason: "obsolete", confirmObsolete: true })
+    }), { params: Promise.resolve({ rootCode: "R-1" }) });
+    expect(response.status).toBe(403);
+  });
+
   it("returns a permission denial for a grant revoked in the write snapshot", async () => {
     mocks.createRecord.mockRejectedValue(new Error("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED"));
     const response = await createRecord(new Request("https://ai-pdm.test/api/numbering/records", {

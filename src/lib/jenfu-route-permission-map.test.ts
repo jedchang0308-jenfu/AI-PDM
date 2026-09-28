@@ -80,5 +80,9 @@ describe("DEV-121 route authorization manifest", () => {
     });
     expect(resolveJenfuRoutePolicyFromRequest(request, "numbering.link_variant")).toBeNull();
     expect(resolveJenfuRoutePolicyFromRequest(new Request(request.url), "numbering.create")).toBeNull();
+    const obsolete = new Request("https://ai-pdm.test/api/numbering/records/R-1/obsolete", { method: "POST" });
+    expect(resolveJenfuRoutePolicyFromRequest(obsolete, "numbering.draft.obsolete")).toMatchObject({
+      path: "src/app/api/numbering/records/[rootCode]/obsolete/route.ts", scopeResolver: "workspace"
+    });
   });
 });

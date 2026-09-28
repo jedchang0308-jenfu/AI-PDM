@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "919ceece44adf0c6c49f9d0f04cec3313c01a41f0515c1c5a0311586c5750fbb",
+  "sourceSha256": "70b3065f97fde358a57b8b8a59534a6c7738b0be01f531bc0d47bcc4449a27c7",
   "denominator": {
-    "uniqueFiles": 78,
-    "uniqueMethods": 95,
-    "policyEntries": 104
+    "uniqueFiles": 79,
+    "uniqueMethods": 96,
+    "policyEntries": 105
   },
   "entries": [
     {
@@ -338,6 +338,16 @@
       "authorizationTarget": "submission.create",
       "scopeResolver": "drawing company",
       "preservedGuards": "drawing company＋drawing／submission lifecycle"
+    },
+    {
+      "path": "src/app/api/numbering/records/[rootCode]/obsolete/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.draft.obsolete",
+      "authorizationTarget": "numbering.draft.obsolete",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋company＋draft lifecycle／root ownership＋confirmation／idempotency"
     },
     {
       "path": "src/app/api/numbering/records/route.ts",
