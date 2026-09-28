@@ -94,6 +94,8 @@ const publicStatusRoutes = new Map([
 ]);
 const retiredRoutes = new Map([
   ["POST /api/submissions", "GENERIC_SUBMISSION_RETIRED"],
+  ["GET /api/submissions/revision-suggestion", "GENERIC_SUBMISSION_RETIRED"],
+  ["POST /api/submissions/revision-suggestion", "GENERIC_SUBMISSION_RETIRED"],
   ["POST /api/settings/access/role-capabilities/commands/[commandId]/resolve-unknown", "ROLE_CAPABILITY_MUTATION_RETIRED"],
   ["POST /api/settings/access/role-capabilities/preview", "ROLE_CAPABILITY_MUTATION_RETIRED"],
   ["POST /api/settings/access/role-capabilities/publish", "ROLE_CAPABILITY_MUTATION_RETIRED"],

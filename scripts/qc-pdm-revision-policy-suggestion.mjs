@@ -110,12 +110,16 @@ record(
 );
 
 const suggestionRoute = read("src/app/api/submissions/revision-suggestion/route.ts");
+const uploadPage = read("src/app/upload/page.tsx");
 record(
-  "SUG-010 suggestion API supports server policy response and compatibility field",
-  suggestionRoute.includes("POST(request: Request)") &&
-    suggestionRoute.includes("suggestedRevisionCode") &&
-    suggestionRoute.includes("revisionPolicySuggestion") &&
-    suggestionRoute.includes("basisHash"),
+  "SUG-010 unused generic suggestion API is retired without identity fallback",
+  suggestionRoute.includes("GENERIC_SUBMISSION_RETIRED") &&
+    suggestionRoute.includes("status: 410") &&
+    !suggestionRoute.includes("requireAuthAsync") &&
+    !suggestionRoute.includes("AsyncSubmissionWriteRepository") &&
+    !suggestionRoute.includes("revisionPolicySuggestion") &&
+    !uploadPage.includes("function GenericUploadPage") &&
+    !uploadPage.includes("/api/submissions/revision-suggestion"),
   {}
 );
 
@@ -133,10 +137,11 @@ record("SUG-012 no independent revision policy decision table is introduced", !s
 const drawingSubmissionRoute = read("src/app/api/numbering/drawing-revisions/submissions/route.ts");
 const drawingWorkbenchRoute = read("src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts");
 record(
-  "SUG-013 both controlled package create routes accept suggestion metadata",
-  drawingSubmissionRoute.includes("revisionPolicySuggestionFromBody") &&
+  "SUG-013 retired drawing revision create route stays closed; active route accepts suggestion metadata",
+  drawingSubmissionRoute.includes("DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED") &&
+    drawingSubmissionRoute.includes("status: 410") &&
+    !drawingSubmissionRoute.includes("revisionPolicySuggestionFromBody") &&
     drawingWorkbenchRoute.includes("revisionPolicySuggestionFromBody") &&
-    drawingSubmissionRoute.includes("revisionOverrideReason") &&
     drawingWorkbenchRoute.includes("revisionOverrideReason"),
   {}
 );

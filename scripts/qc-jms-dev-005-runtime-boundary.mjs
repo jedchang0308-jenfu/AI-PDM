@@ -210,6 +210,19 @@ function boundaryFailures(entries, sources) {
         if (!graph.includes(entry.permissionCode)) failures.push(`${label}: principal inbox permission missing`)
         continue
       }
+      if (entry.path === 'src/app/api/submissions/preflight-lock/route.ts' &&
+          entry.method === 'POST') {
+        const principalPolicy = currentPolicy(entry)
+        if (principalPolicy.authorizationMode !== 'permission' ||
+            principalPolicy.permissionCode !== entry.permissionCode ||
+            !/resolveJenfuRoutePolicy\s*\(/u.test(graph) ||
+            !/withPrincipalCompanyRead\s*\(/u.test(graph) ||
+            !/findActiveItemLockForSubmissionIdentifiers\s*\(/u.test(graph) ||
+            /(?:requirePdmRouteAuthorizationAsync|requireAuthAsync)\s*\(/u.test(graph)) {
+          failures.push(`${label}: principal lock preflight guard missing or old authorization restored`)
+        }
+        continue
+      }
       if (!/(?:requirePdmRouteAuthorizationAsync|resolveDev087RouteActor)\s*\(/u.test(graph)) failures.push(`${label}: PDM entitlement guard missing from handler graph`)
       if (entry.path.startsWith('src/app/api/pdm/')) {
         if (!/principalSessionTokenFromRequest\s*\(/u.test(graph) ||
