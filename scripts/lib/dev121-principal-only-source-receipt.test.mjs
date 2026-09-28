@@ -73,6 +73,7 @@ test('rejects receipt metadata, source and cohort drift before constructing an o
     (value) => { value.outcome.activeProfiles[1].pdmUserId = 'other-profile' },
     (value) => { value.outcome.verified.identitySubject = 'other-subject' },
     (value) => { value.outcome.verified.principalId = 'pdm:legacy' },
+    (value) => { value.outcome.verified.accountType = 'service_account' },
     (value) => { value.target.database = 'jenfu_stg' },
     (value) => { value.extra = 'unreviewed' },
   ]
@@ -85,4 +86,15 @@ test('rejects receipt metadata, source and cohort drift before constructing an o
     /DEV121_COHORT_SOURCE_RECEIPT_INVALID/u)
   assert.throws(() => validate(fixture(), { operationGeneration: '41' }),
     /DEV121_COHORT_SOURCE_RECEIPT_INVALID/u)
+})
+
+test('rejects a parsed value that differs from the immutable receipt bytes', () => {
+  const original = fixture()
+  const bytes = Buffer.from(JSON.stringify(original))
+  const substituted = fixture()
+  substituted.operationId = 'DEV121-COHORT-SOURCE-OTHER'
+  assert.throws(() => assertPrincipalOnlySourceReceipt(substituted, {
+    bytes, receiptSha256: hashBytes(bytes), receiptGeneration: '43',
+    sourceRevision, operationRef, operationSha256, operationGeneration: '42'
+  }), /DEV121_COHORT_SOURCE_RECEIPT_INVALID/u)
 })
