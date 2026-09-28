@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { GoogleWorkspaceMfaTrustPolicy } from "@/lib/auth-config";
-import { resolveJenfuAssurance } from "@/lib/jenfu-platform-identity-contract";
+import { resolveJenfuAssuranceFacts } from "@/lib/jenfu-auth-assurance";
 import type { JenfuPrincipalAccount } from "@/lib/jenfu-principal-account-repository";
 import type { JenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 
@@ -29,7 +29,7 @@ export function resolvePrincipalHandoffAssurance(input: {
     input.account.minimumAssurance === "aal2" || input.requiresPrivilegedRole === true;
   // The transitional AAL1 pilot is not a principal-account policy. Source
   // assurance is not copied over; target assurance is recomputed from facts.
-  const assurance = resolveJenfuAssurance({
+  const assurance = resolveJenfuAssuranceFacts({
     email: input.authentication.email,
     signInProvider: input.authentication.signInProvider,
     secondFactor: input.authentication.secondFactor,

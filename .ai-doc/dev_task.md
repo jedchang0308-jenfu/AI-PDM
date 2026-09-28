@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 Principal assurance 依賴收斂（候選來源）**：Principal SSO handoff 的驗證強度計算已從舊 UID／v1 session 契約抽成純 provider-facts 模組；新 session 路徑不再載入舊 identity bridge，舊函式只保留歷史呼叫的錯誤型別轉接。三組聚焦測試 15／15、app typecheck、scoped ESLint PASS。此變更不建立 Principal account、不證明全 cohort 歸屬，也不構成正式切流證據。
+
 > **2026-09-28 DEV-121 Production 來源重驗**：第二次受限唯讀 receipt 顯示 4 筆歷史啟用 profile 各有可用 Firebase pair，僅 1 組在 OrgMaster 有一致的已發布 canonical mapping 與 active typed principal，另 3 組缺此證據；兩列歷史 Google OAuth 不作目前登入來源。精確 execution、receipt 與 SHA-256 見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。臨時 Job 已清理，未改正式資料或 traffic。下一步只能對已核實來源準備單次 Principal account 轉換；其他 profile 不自動啟用。
 
 > **2026-09-28 DEV-121 Production 全 cohort 基線**：受保護 `main` merge `768ab6f49cedd02a4798a7124c8ad58136cc3a05` 的專用唯讀 operator 已於 `jenfu-platform-prod / asia-east1 / jenfu_prod` 完成一次全 profile 盤點。4 筆歷史啟用、0 筆合格 Principal、4 筆 `principal_account_missing`；受限 receipt 與 image／execution 證據見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。臨時 Job 已清理，service／traffic／資料未變。下一步先核實四筆的 provider pair、Employee、profile 與停用意圖，再準備單次 owner 轉換及 Principal-only 候選；未核實者不啟用，不能把單人 preview 或 migration-only 當切流 PASS。
