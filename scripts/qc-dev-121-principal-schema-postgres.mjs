@@ -1491,6 +1491,32 @@ try {
     const count = await client.query(`SELECT count(*)::integer AS n FROM ai_pdm_core.principal_accounts
       WHERE principal_id='principal-target'`)
     assert.equal(count.rows[0].n, 1)
+    await client.query(`INSERT INTO orgmaster_contract.v_active_principal_accounts_v1
+      (principal_issuer,principal_subject,principal_id,employee_id,account_type,
+       contract_version,employee_status,mapping_version,published_at)
+      VALUES ('https://securetoken.google.com/test-project','subject-active-provision',
+              'principal-active-provision','employee-active-provision',
+              'human_personal','organization.active-principal.v1','active',1,$1)`, [publishedAt])
+    const activeRequest = { ...request, operationId: 'provision-active',
+      principalRef: { ...request.principalRef, principalId: 'principal-active-provision',
+        identityIssuer: 'https://securetoken.google.com/test-project',
+        identitySubject: 'subject-active-provision', employeeId: 'employee-active-provision',
+        mappingVersion: 1 },
+      contactEmail: 'active-principal@jenfu.com.tw', accountEnabled: true }
+    const activeReceipt = await provision(activeRequest)
+    assert.equal(activeReceipt.current.accountStatus, 'active')
+    const legacyMappingCount = await client.query(`SELECT count(*)::integer AS n
+      FROM ai_pdm_core.platform_principal_mappings WHERE pdm_user_id=$1`,
+    [activeReceipt.pdmUserId])
+    assert.equal(legacyMappingCount.rows[0].n, 0)
+    const { readPrincipalOnlyCohort } = await import(pathToFileURL(
+      path.join(root, 'src/lib/jenfu-principal-only-cohort-readback.ts')).href)
+    const { inventoryDatabaseAdapter } = await import(pathToFileURL(
+      path.join(root, 'scripts/lib/dev121-principal-inventory-runner.mjs')).href)
+    const readback = await readPrincipalOnlyCohort(inventoryDatabaseAdapter(client), 'test-project')
+    const activeProfile = readback.profiles.find((profile) =>
+      profile.pdmUserId === activeReceipt.pdmUserId)
+    assert.deepEqual(activeProfile?.issues, [])
   })
 
   await check('runtime principal account list and detail read the new account without legacy membership', async () => {

@@ -1,6 +1,8 @@
 # AI PDM dev_task PM Control Board
 
-> **2026-09-28 DEV-121 全 cohort readback 啟用證據補強（本機）**：只讀盤點新增 OrgMaster current Platform login pair、typed contract version 及 AI-PDM 精確 committed operation／marker hash 核對；不一致者維持 unresolved。本地 provider pair 缺失、未驗證或歧義依舊阻擋，`principal_active` runtime gate 未拆。聚焦 6／6、隔離 PostgreSQL 23／23 PASS，叢集及暫存資源均已清理；Production 全員 readback、等價 canonical eligibility 與正式切流仍待完成，`applyAllowed=false`。
+> **2026-09-28 DEV-121 新帳號讀回契約修正（本機）**：Principal-only provision 的 owner transaction 已核對 OrgMaster typed provider pair，且設計上不寫舊 Firebase mapping；全 cohort readback 現只對 operation／hash／result 與固定 suspended profile 皆吻合的新 provision 豁免舊 mapping 缺漏，仍核對現行 Platform login pair、Employee、account type、停用狀態與歧義。既有 cutover profile 照舊 fail closed。聚焦 6／6、隔離 PostgreSQL 23／23 PASS（含無舊 mapping 的 active provision）；叢集已清理、容量租約已釋放。runtime marker guard 未變，Production 全員 readback／切流未執行，`applyAllowed=false`。
+
+> **2026-09-28 DEV-121 全 cohort readback 啟用證據補強（本機）**：只讀盤點新增 OrgMaster current Platform login pair、typed contract version 及 AI-PDM 精確 committed operation／marker hash 核對；不一致者維持 unresolved。既有 cutover profile 的本地 provider pair 缺失、未驗證或歧義依舊阻擋，`principal_active` runtime gate 未拆。聚焦 6／6、隔離 PostgreSQL 23／23 PASS，叢集及暫存資源均已清理；Production 全員 readback、等價 canonical eligibility 與正式切流仍待完成，`applyAllowed=false`。
 
 > **2026-09-28 DEV-121 CI 驗證分母修正（候選來源）**：舊 managed/UID 帳號邀請 browser QC 預設仍可建立 legacy invitation，已與新 Principal-only fail-closed 入口衝突並使 PR #113 的 Production Slice QC 失敗。CI／owner workflow 改跑六組 Principal enrollment、account、lifecycle、session-revoke 受控測例（23／23 PASS）；舊無 caller 的 QC runner 移除。deployment pipeline 契約 25／25 PASS。這是測試分母跟隨新架構，沒有放寬正式登入或授權；PR required CI 仍需在新 source 重跑通過。
 

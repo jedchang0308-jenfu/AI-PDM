@@ -215,7 +215,9 @@ export async function readPrincipalOnlyCohort(
           issues.push("published_pair_ambiguous");
         }
         const local = providersByProfile.get(profile.pdm_user_id) ?? [];
-        if (local.length === 0) issues.push("provider_pair_missing");
+        // New Principal accounts are provisioned against the published provider pair
+        // in the owner transaction. They intentionally have no legacy UID mapping.
+        if (local.length === 0 && !principalOnlyProvision) issues.push("provider_pair_missing");
         else if (local.some((row) => !row.eligible || !row.identity_subject ||
           !producer.some((item) => item.identity_issuer === row.identity_issuer &&
             item.identity_subject === row.identity_subject &&

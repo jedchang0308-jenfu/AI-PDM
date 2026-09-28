@@ -83,13 +83,24 @@ describe("principal-only cohort discovery", () => {
       marker_source_hash: "c".repeat(64),
       operation_result: { operationId: "operation-one", principalId: "principal-one",
         pdmUserId: "profile-one" } };
-    const valid = await readPrincipalOnlyCohort(snapshot({ profiles: [provisioned] }).database);
+    const valid = await readPrincipalOnlyCohort(snapshot({ profiles: [provisioned], providers: [] }).database);
     expect(valid.profiles[0].issues).toEqual([]);
     const unproven = await readPrincipalOnlyCohort(snapshot({
-      profiles: [{ ...provisioned, operation_kind: null }],
+      profiles: [{ ...provisioned, operation_kind: null }], providers: [],
     }).database);
     expect(unproven.profiles[0].issues).toContain("historically_disabled_reactivated");
     expect(unproven.profiles[0].issues).toContain("activation_unconfirmed");
+    expect(unproven.profiles[0].issues).toContain("provider_pair_missing");
+    const wrongProducer = await readPrincipalOnlyCohort(snapshot({
+      profiles: [provisioned], published: [{ ...published, employee_id: "different-employee" }],
+      providers: [],
+    }).database);
+    expect(wrongProducer.profiles[0].issues).toContain("published_principal_mismatch");
+    const noPlatformPair = await readPrincipalOnlyCohort(snapshot({
+      profiles: [provisioned], published: [{ ...published,
+        identity_issuer: "https://accounts.google.com" }], providers: [],
+    }).database);
+    expect(noPlatformPair.profiles[0].issues).toContain("published_login_pair_missing");
   });
 
   it("flags producer mismatch and ambiguous provider ownership instead of guessing", async () => {
