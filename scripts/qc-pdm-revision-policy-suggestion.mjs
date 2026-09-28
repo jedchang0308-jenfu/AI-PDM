@@ -110,15 +110,16 @@ record(
 );
 
 const suggestionRoute = read("src/app/api/submissions/revision-suggestion/route.ts");
+const uploadPage = read("src/app/upload/page.tsx");
 record(
-  "SUG-010 suggestion API uses Principal create permission and preserves policy response",
-  suggestionRoute.includes("POST(request: Request)") &&
-    suggestionRoute.includes("withPrincipalCompanyRead") &&
-    suggestionRoute.includes('expectedPermissionCode: "submission.create"') &&
+  "SUG-010 unused generic suggestion API is retired without identity fallback",
+  suggestionRoute.includes("GENERIC_SUBMISSION_RETIRED") &&
+    suggestionRoute.includes("status: 410") &&
     !suggestionRoute.includes("requireAuthAsync") &&
-    suggestionRoute.includes("suggestedRevisionCode") &&
-    suggestionRoute.includes("revisionPolicySuggestion") &&
-    suggestionRoute.includes("basisHash"),
+    !suggestionRoute.includes("AsyncSubmissionWriteRepository") &&
+    !suggestionRoute.includes("revisionPolicySuggestion") &&
+    !uploadPage.includes("function GenericUploadPage") &&
+    !uploadPage.includes("/api/submissions/revision-suggestion"),
   {}
 );
 

@@ -2,7 +2,7 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "18c3247462752ec256533d8c3f2fb90992b2508e22c7b6828b74acb7998ac236",
+  "sourceSha256": "a3748a0424ca46aaa1873dbc403fd8986cc49cbd523382db0bade78a8dce2892",
   "denominator": {
     "uniqueFiles": 107,
     "uniqueMethods": 127,
@@ -1163,21 +1163,21 @@
       "path": "src/app/api/submissions/revision-suggestion/route.ts",
       "method": "GET",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "submission.create",
-      "authorizationTarget": "submission.create",
-      "scopeResolver": "submission company",
-      "preservedGuards": "verified principal＋published create grant＋same company／read-only revision history"
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "generic_submission_retired",
+      "scopeResolver": "none",
+      "preservedGuards": "410；generic upload revision suggestion cannot execute"
     },
     {
       "path": "src/app/api/submissions/revision-suggestion/route.ts",
       "method": "POST",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "submission.create",
-      "authorizationTarget": "submission.create",
-      "scopeResolver": "submission company",
-      "preservedGuards": "verified principal＋published create grant＋same company／read-only revision history"
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "generic_submission_retired",
+      "scopeResolver": "none",
+      "preservedGuards": "410；generic upload revision suggestion cannot execute"
     },
     {
       "path": "src/app/api/submissions/route.ts",
