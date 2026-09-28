@@ -11,6 +11,7 @@ const service = read("src/lib/pdm-review-package.ts");
 const route = read("src/app/api/pdm/review-requests/[requestId]/route.ts");
 const targetRoute = read("src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/route.ts");
 const comparisonRoute = read("src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts");
+const principalReviewTarget = read("src/lib/pdm-principal-review-target.ts");
 const fileRoute = read("src/app/api/pdm/file-assets/[fileAssetId]/route.ts");
 const reviewShell = read("src/components/canonical-review-package-workspace.tsx");
 const reviewTargetAdapter = read("src/components/canonical-review-target-workspace.tsx");
@@ -36,7 +37,15 @@ check("DEV101-CONTRACT-003", "package hash is stable SHA-256 over canonical JSON
 check("DEV101-CONTRACT-004", "writer is feature-flagged and old v1 path remains", drawingService.includes("reviewPackageV2WriteEnabled") && partService.includes("reviewPackageV2WriteEnabled") && route.includes("parseReviewPackageSnapshot"));
 check("DEV101-CONTRACT-005", "decision verifies package integrity and uses immutable decision basis hash", drawingService.includes("verifyReviewPackageIntegrity") && partService.includes("verifyReviewPackageIntegrity") && drawingService.includes("verifiedPackage?.decisionBasis.hash") && partService.includes("verifiedPackage?.decisionBasis.hash"));
 check("DEV101-CONTRACT-006", "shell endpoint returns matrix and target summaries without live identity queries", route.includes("targetSummaries") && route.includes("packageValue.matrix"));
-check("DEV101-CONTRACT-007", "target and comparison endpoints are present and reviewer-scoped", targetRoute.includes("reviewerUserId") && comparisonRoute.includes("compareReviewTarget"));
+check("DEV101-CONTRACT-007", "target and comparison endpoints are present and reviewer-scoped",
+  targetRoute.includes("withPrincipalDev087Route") &&
+  comparisonRoute.includes("withPrincipalDev087Route") &&
+  targetRoute.includes("readPrincipalReviewTarget") &&
+  comparisonRoute.includes("readPrincipalReviewTarget") &&
+  principalReviewTarget.includes('assuranceLevel !== "aal2"') &&
+  principalReviewTarget.includes('permissionCode: "approval.request.decide"') &&
+  principalReviewTarget.includes("item.reviewerUserId !== verified.profile.pdmUserId") &&
+  comparisonRoute.includes("compareReviewTarget"));
 check("DEV101-CONTRACT-008", "review_package file context checks package membership and content hash", fileRoute.includes('"review_package"') && fileRoute.includes("contentHash") && fileRoute.includes("verifyReviewScope"));
 check("DEV101-CONTRACT-009", "shared renderer is used through a domain-free immutable review adapter", reviewShell.includes("CanonicalReviewTargetWorkspace") && !reviewShell.includes("CanonicalDrawingChangeWorkspace") && !reviewShell.includes("CanonicalChangeWorkspace") && reviewTargetAdapter.includes("CanonicalDrawingChangeWorkspace") && reviewTargetAdapter.includes("CanonicalChangeWorkspace") && drawing.includes("snapshotMode") && part.includes("initialData"));
 check("DEV101-CONTRACT-010", "matrix axes switch targets and cells use visual markers", reviewShell.includes("onSelectDrawing") && reviewShell.includes("onSelectPart") && reviewShell.includes("showVisualMarkers") && matrix.includes("pdm-relation-matrix-marker"));
