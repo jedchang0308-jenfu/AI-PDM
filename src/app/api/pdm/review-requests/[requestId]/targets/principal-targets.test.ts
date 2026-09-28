@@ -67,7 +67,11 @@ function request(comparison = false) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate(tx, verified));
-  mocks.evaluate.mockResolvedValue([{ allowed: true, decisionCode: "allowed" }]);
+  mocks.evaluate.mockImplementation(async (_tx, _verified,
+    permissions: Array<{ permissionCode: string }>) => permissions.map((permission) => ({
+    principalId: "principal-one", permissionCode: permission.permissionCode,
+    allowed: true, decisionCode: "allowed"
+  })));
   mocks.getReview.mockResolvedValue({ id: "review-one", requestKind: "drawing_revision",
     requestStatus: "pending", reviewerUserId: "profile-one", companyId: "company-one",
     workId: "work-one", rowVersion: 4, snapshotPayload: {}, snapshotHash: "package-hash" });
@@ -83,6 +87,19 @@ beforeEach(() => {
 });
 
 describe("principal review target and comparison", () => {
+  it.each([
+    ["target", targetGET, false],
+    ["comparison", comparisonGET, true]
+  ] as const)("rejects %s without a Principal session before loading a review",
+    async (_name, route, comparison) => {
+      const response = await route(new Request(request(comparison).url), params);
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+      expect(mocks.withVerified).not.toHaveBeenCalled();
+      expect(mocks.getReview).not.toHaveBeenCalled();
+      expect(mocks.legacyActor).not.toHaveBeenCalled();
+    });
+
   it("reads both views with principal reviewer authority in read-only snapshots", async () => {
     const target = await targetGET(request(), params);
     const comparison = await comparisonGET(request(true), params);
@@ -103,8 +120,10 @@ describe("principal review target and comparison", () => {
   });
 
   it("denies missing decide permission before loading a review", async () => {
-    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }])
-      .mockResolvedValueOnce([{ allowed: false }]);
+    mocks.evaluate.mockResolvedValueOnce([{
+      principalId: "principal-one", permissionCode: "approval.inbox.view",
+      allowed: true, decisionCode: "allowed"
+    }]).mockResolvedValueOnce([{ allowed: false, decisionCode: "permission_not_granted" }]);
     expect((await targetGET(request(), params)).status).toBe(403);
     expect(mocks.getReview).not.toHaveBeenCalled();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
