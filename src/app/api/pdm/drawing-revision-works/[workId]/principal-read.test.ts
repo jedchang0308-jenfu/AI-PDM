@@ -123,4 +123,36 @@ describe("principal drawing-work HTTP dispatch", () => {
       expect.objectContaining({ expectedRowVersion: 2, idempotencyKey: "remove-one" }));
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
+  it.each([
+    ["read", "GET", "/api/pdm/drawing-revision-works/work-one",
+      (request: Request) => GET(request, { params: Promise.resolve({ workId: "work-one" }) })],
+    ["update", "PATCH", "/api/pdm/drawing-revision-works/work-one",
+      (request: Request) => PATCH(request, { params: Promise.resolve({ workId: "work-one" }) })],
+    ["cancel", "POST", "/api/pdm/drawing-revision-works/work-one/cancel",
+      (request: Request) => cancelWork(request, { params: Promise.resolve({ workId: "work-one" }) })],
+    ["submit", "POST", "/api/pdm/drawing-revision-works/work-one/submit",
+      (request: Request) => submitWork(request, { params: Promise.resolve({ workId: "work-one" }) })],
+    ["targets", "GET", "/api/pdm/drawings/drawing-one/revision-targets",
+      (request: Request) => getTargets(request, { params: Promise.resolve({ drawingId: "drawing-one" }) })],
+    ["create", "POST", "/api/pdm/drawings/drawing-one/revision-works",
+      (request: Request) => createWork(request, { params: Promise.resolve({ drawingId: "drawing-one" }) })],
+    ["upload", "POST", "/api/pdm/drawing-revision-works/work-one/files",
+      (request: Request) => uploadWorkFile(request, { params: Promise.resolve({ workId: "work-one" }) })],
+    ["remove file", "DELETE", "/api/pdm/drawing-revision-works/work-one/files/binding-one",
+      (request: Request) => removeWorkFile(request, { params: Promise.resolve({
+        workId: "work-one", fileBindingId: "binding-one"
+      }) })]
+  ] as const)("rejects %s before reaching either command path without a Principal session",
+    async (_name, method, path, invoke) => {
+      vi.clearAllMocks();
+      mocks.token.mockReturnValue(null);
+      const response = await invoke(new Request("https://pdm.example" + path, { method }));
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+      expect(mocks.principalRoute).not.toHaveBeenCalled();
+      expect(mocks.legacyActor).not.toHaveBeenCalled();
+      expect(mocks.uploadFile).not.toHaveBeenCalled();
+      expect(mocks.removeFile).not.toHaveBeenCalled();
+    });
+
 });
