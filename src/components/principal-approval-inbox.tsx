@@ -91,7 +91,8 @@ export function PrincipalApprovalInbox() {
     }
     setError("");
     const ownerUrl = new URL(item.ownerHref, window.location.origin);
-    if (ownerUrl.origin !== window.location.origin || !ownerUrl.pathname.startsWith("/approvals/")) {
+    if (ownerUrl.origin !== window.location.origin ||
+        ownerUrl.pathname !== `/approvals/${encodeURIComponent(item.id)}`) {
       setError("審核目的地無效，請重新整理清單。");
       return;
     }
