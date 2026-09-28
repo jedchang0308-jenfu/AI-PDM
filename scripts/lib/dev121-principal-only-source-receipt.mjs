@@ -57,7 +57,7 @@ function exactVerified(value, selected, firebaseProjectId) {
     (selected.markerStatus === 'legacy_compatible' &&
       selected.markerPrincipalId !== value.principalId) ||
     value.principalId.startsWith('pdm:') ||
-    !id(value.accountType) ||
+    !['human_personal', 'human_privileged'].includes(value.accountType) ||
     typeof value.publishedAt !== 'string' ||
     !Number.isFinite(Date.parse(value.publishedAt)) ||
     value.sessionInvalidBefore !== null &&
@@ -72,7 +72,12 @@ export function assertPrincipalOnlySourceReceipt(value, {
   operationRef, operationSha256, operationGeneration,
   firebaseProjectId = 'jenfu-platform-prod',
 } = {}) {
-  if (!Buffer.isBuffer(bytes) || !H64.test(receiptSha256 ?? '') ||
+  let parsedBytes
+  try { parsedBytes = JSON.parse(bytes.toString('utf8')) }
+  catch { fail() }
+  if (!Buffer.isBuffer(bytes) ||
+    JSON.stringify(parsedBytes) !== JSON.stringify(value) ||
+    !H64.test(receiptSha256 ?? '') ||
     sha256(bytes) !== receiptSha256 ||
     !GENERATION.test(receiptGeneration ?? '') ||
     !H40.test(sourceRevision ?? '') || !H64.test(operationSha256 ?? '') ||
