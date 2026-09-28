@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJenfuPlatformAuthMode } from "@/lib/auth-config";
-import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
-import { listApprovalPlatformInboxAsync } from "@/lib/approval-platform";
 import { AsyncApprovalPlatformRepository, type ApprovalPlatformInboxCursor,
-  type ApprovalPlatformInboxPage, type ApprovalPlatformStatus } from "@/lib/repositories/approval-platform-async-repository";
+  type ApprovalPlatformStatus } from "@/lib/repositories/approval-platform-async-repository";
 import { principalRequestFailure, principalRequestInput,
   principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
@@ -13,10 +11,8 @@ import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { isSafePdmApprovalReturnTo } from "@/lib/pdm-review-navigation";
 import { buildPdmApprovalOwnerHref } from "@/lib/pdm-approval-owner-route";
 import { decodePdmWorkbenchCursor, encodePdmWorkbenchCursor, pdmWorkbenchFilterHash, PdmWorkbenchCursorError } from "@/lib/pdm-workbench-cursor";
-import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
 
 export const runtime = "nodejs";
-const reviewerRoles = ["R&D Manager", "Admin"] as const;
 
 const allowedStatuses = new Set<string>([
   "active",
@@ -35,59 +31,45 @@ export async function GET(request: Request) {
   try { platformMode = getJenfuPlatformAuthMode(); }
   catch { return NextResponse.json({ code: "principal_dependency_unavailable" },
     { status: 503, headers: { "cache-control": "no-store" } }); }
-  if (platformMode === "on") {
-    const token = principalSessionTokenFromRequest(request);
-    if (!token) return NextResponse.json({ code: "auth_session_invalid" },
-      { status: 401, headers: { "cache-control": "no-store" } });
-    try {
-      const policy = resolveJenfuRoutePolicy("src/app/api/approvals/inbox/route.ts", "GET",
-        { expectedPermissionCode: "approval.inbox.view" });
-      if (policy?.authorizationMode !== "permission" || policy.scopeResolver !== "company") {
-        return NextResponse.json({ code: "principal_route_policy_unavailable" },
+  if (platformMode !== "on") return NextResponse.json({ code: "principal_mode_required" },
+    { status: 503, headers: { "cache-control": "no-store" } });
+  const token = principalSessionTokenFromRequest(request);
+  if (!token) return NextResponse.json({ code: "auth_session_invalid" },
+    { status: 401, headers: { "cache-control": "no-store" } });
+  try {
+    const policy = resolveJenfuRoutePolicy("src/app/api/approvals/inbox/route.ts", "GET",
+      { expectedPermissionCode: "approval.inbox.view" });
+    if (policy?.authorizationMode !== "permission" || policy.scopeResolver !== "company") {
+      return NextResponse.json({ code: "principal_route_policy_unavailable" },
+        { status: 503, headers: { "cache-control": "no-store" } });
+    }
+    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+      if (verified.session.assuranceLevel !== "aal2") {
+        return NextResponse.json({ code: "assurance_insufficient" },
+          { status: 403, headers: { "cache-control": "no-store" } });
+      }
+      const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
+        [{ permissionKind: "action", permissionCode: "approval.inbox.view" }]);
+      const decision = decisions[0];
+      if (decisions.length !== 1 || !decision || decision.permissionCode !== "approval.inbox.view" ||
+        decision.principalId !== verified.session.principalId) {
+        return NextResponse.json({ code: "principal_dependency_unavailable" },
           { status: 503, headers: { "cache-control": "no-store" } });
       }
-      return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
-        if (verified.session.assuranceLevel !== "aal2") {
-          return NextResponse.json({ code: "assurance_insufficient" },
-            { status: 403, headers: { "cache-control": "no-store" } });
-        }
-        const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
-          [{ permissionKind: "action", permissionCode: "approval.inbox.view" }]);
-        const decision = decisions[0];
-        if (decisions.length !== 1 || !decision || decision.permissionCode !== "approval.inbox.view" ||
-          decision.principalId !== verified.session.principalId) {
-          return NextResponse.json({ code: "principal_dependency_unavailable" },
-            { status: 503, headers: { "cache-control": "no-store" } });
-        }
-        if (!decision.allowed) return jenfuEntitlementFailureResponse(decision.decisionCode);
-        const repository = new AsyncApprovalPlatformRepository(snapshot);
-        return renderInbox(request, verified.profile.companyId, verified.session.principalId,
-          verified.profile.pdmUserId,
-          (filter) => repository.listPrincipalWorkReviewInbox({ ...filter,
-            companyId: verified.profile.companyId, actorId: verified.profile.pdmUserId }), false);
-      });
-    } catch (error) {
-      return error instanceof JenfuPrincipalRequestError
-        ? principalRequestFailure(error)
-        : NextResponse.json({ code: "principal_dependency_unavailable" },
-          { status: 503, headers: { "cache-control": "no-store" } });
-    }
+      if (!decision.allowed) return jenfuEntitlementFailureResponse(decision.decisionCode);
+      return renderInbox(request, verified.profile.companyId, verified.session.principalId,
+        verified.profile.pdmUserId, new AsyncApprovalPlatformRepository(snapshot));
+    });
+  } catch (error) {
+    return error instanceof JenfuPrincipalRequestError
+      ? principalRequestFailure(error)
+      : NextResponse.json({ code: "principal_dependency_unavailable" },
+        { status: 503, headers: { "cache-control": "no-store" } });
   }
-  const auth = await requirePdmRouteAuthorizationAsync(request, [...reviewerRoles]);
-  if (auth.response) return auth.response;
-  return renderInbox(request, auth.user.company_id || undefined, auth.user.id, auth.user.id,
-    listApprovalPlatformInboxAsync, isProductionSliceEnforced());
 }
 
-type InboxFilter = NonNullable<Parameters<typeof listApprovalPlatformInboxAsync>[0]>;
-
-async function renderInbox(request: Request, companyId: string | undefined, cursorActorId: string,
-  reviewerProfileId: string, read: (filter: InboxFilter) => Promise<ApprovalPlatformInboxPage>,
-  productionApprovalScope: boolean) {
-  if (productionApprovalScope && !isProductionNumberingLifecycleGateOpen("formal-obsolete")) {
-    return NextResponse.json(productionSliceDeniedPayload("approvals.inbox"), { status: 403 });
-  }
-
+async function renderInbox(request: Request, companyId: string, principalId: string,
+  reviewerProfileId: string, repository: AsyncApprovalPlatformRepository) {
   const url = new URL(request.url);
   const statusParam = url.searchParams.get("status") ?? "active";
   const status = (allowedStatuses.has(statusParam) ? statusParam : "active") as
@@ -100,10 +82,10 @@ async function renderInbox(request: Request, companyId: string | undefined, curs
   const actionCode = url.searchParams.get("action")?.trim() || undefined;
   const query = normalizeApprovalQuery(url.searchParams.get("query"));
   const filterHash = pdmWorkbenchFilterHash({
-    namespace: "approval-inbox-v1",
+    namespace: "approval-inbox-principal-v2",
     filters: { status, domain: domainCode ?? "all", action: actionCode ?? "all", query, limit },
-    companyId: companyId ?? "",
-    actorId: cursorActorId
+    companyId,
+    actorId: principalId
   });
   const cursorValue = url.searchParams.get("cursor")?.trim() || null;
   let cursor: ApprovalPlatformInboxCursor | null = null;
@@ -118,14 +100,13 @@ async function renderInbox(request: Request, companyId: string | undefined, curs
       return NextResponse.json({ error: { code: "workbench_invalid_cursor", message, retryable: true } }, { status: 400 });
     }
   }
-  const page = await read({
+  const page = await repository.listPrincipalWorkReviewInbox({
     companyId,
     actorId: reviewerProfileId,
     status,
     limit,
     domainCode,
-    actionCode: productionApprovalScope && actionCode && !isProductionNumberingLifecycleApprovalAction(actionCode) ? "__blocked_action__" : actionCode,
-    allowedActionCodes: productionApprovalScope ? ["numbering.obsolete_part_root", "numbering.obsolete_part_number", "numbering.obsolete_ma_drawing"] : undefined,
+    actionCode,
     query,
     cursor
   });

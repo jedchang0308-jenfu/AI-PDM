@@ -29,7 +29,8 @@ function signCursor(encoded: string, env: EnvLike = process.env) {
 }
 
 export function pdmWorkbenchFilterHash(input: {
-  namespace: "drawing-v1" | "drawing-v2" | "part-v1" | "relation-v1" | "approval-inbox-v1";
+  namespace: "drawing-v1" | "drawing-v2" | "part-v1" | "relation-v1" |
+    "approval-inbox-v1" | "approval-inbox-principal-v2";
   filters: Record<string, string | number | boolean | null | readonly string[]>;
   companyId: string;
   actorId: string;

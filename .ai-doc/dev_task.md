@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-> **2026-09-28 DEV-121 審核收件匣 Principal 入口（候選來源）**：Platform 模式的 `GET /api/approvals/inbox` 在讀清單前驗 v2 session、精確 route policy、AAL2、已發布 `approval.inbox.view` 與 principal 一致性；同一快照僅讀指派給已核實 profile 的 `part_change`／`drawing_revision` 審核，不查舊 native／legacy approval 來源，也不把 profile ID 當授權主體。缺 token／grant／assurance fail closed；舊 off-mode 保留隔離歷史測試用途。聚焦 4／4、typecheck、scoped ESLint、v2 route source／classification PASS。其他審核來源與行動仍須逐一遷移，正式環境未切流。
+> **2026-09-28 DEV-121 審核收件匣 Principal 入口（候選來源）**：`GET /api/approvals/inbox` 只接受 Platform Principal 模式；在讀清單前驗 v2 session、精確 route policy、AAL2、已發布 `approval.inbox.view` 與 principal 一致性；同一快照僅讀指派給已核實 profile 的 `part_change`／`drawing_revision` 審核，不查舊 native／legacy approval 來源，也不把 profile ID 當授權主體。off-mode、缺 token／grant／assurance 均 fail closed，舊角色授權 caller 已自此路由移除。聚焦 5／5、typecheck、scoped ESLint、v2 route source／classification PASS。其他審核來源與行動仍須逐一遷移，正式環境未切流。
 
 > **2026-09-28 DEV-121 SQL owner 命令去逐人 marker（候選來源）**：新增 forward-only 071，先拒絕既有 `principal_accounts`／歷史 active marker 漂移，再以原簽章重定義管理員能力核對、帳戶 lifecycle、session revoke 三個 owner-private function；正常命令只讀 canonical account、OrgMaster typed principal／已發布 grant 與當次 session，不再以逐人 marker 決定授權。舊 marker／operation 收據保留稽核。owner profile 新增第 22 筆並更新隔離 PostgreSQL QC 契約；DB boundary、release 單元 52／52、隔離 PostgreSQL 24／24 PASS，測試 cluster／port／temp 已清理。全 cohort Production readback、protected merge、發布及 L4 仍待完成，不得切流。
 

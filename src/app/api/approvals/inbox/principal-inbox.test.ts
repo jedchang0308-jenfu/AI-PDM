@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  withVerified: vi.fn(), evaluate: vi.fn(), listPrincipal: vi.fn(), legacyAuth: vi.fn(),
-  legacyInbox: vi.fn()
+  mode: "on", withVerified: vi.fn(), evaluate: vi.fn(), listPrincipal: vi.fn()
 }));
 vi.mock("@/lib/auth-config", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth-config")>(),
-  getJenfuPlatformAuthMode: () => "on"
+  getJenfuPlatformAuthMode: () => mocks.mode
 }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/jenfu-principal-http")>(),
@@ -23,15 +22,6 @@ vi.mock("@/lib/repositories/approval-platform-async-repository", async (importOr
   ...await importOriginal<typeof import("@/lib/repositories/approval-platform-async-repository")>(),
   AsyncApprovalPlatformRepository: class { listPrincipalWorkReviewInbox = mocks.listPrincipal; }
 }));
-vi.mock("@/lib/auth-async", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@/lib/auth-async")>(),
-  requirePdmRouteAuthorizationAsync: mocks.legacyAuth
-}));
-vi.mock("@/lib/approval-platform", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@/lib/approval-platform")>(),
-  listApprovalPlatformInboxAsync: mocks.legacyInbox
-}));
-
 import { GET } from "@/app/api/approvals/inbox/route";
 
 const verified = {
@@ -49,6 +39,7 @@ function request(token = true) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.mode = "on";
   mocks.withVerified.mockImplementation(async (_input, action) => action(snapshot, verified));
   mocks.evaluate.mockResolvedValue([{
     allowed: true, permissionCode: "approval.inbox.view", principalId: "principal-one",
@@ -65,8 +56,6 @@ describe("Principal approval inbox", () => {
     expect(mocks.listPrincipal).toHaveBeenCalledWith(expect.objectContaining({
       companyId: "company-jenfu", actorId: "profile-one", status: "active"
     }));
-    expect(mocks.legacyAuth).not.toHaveBeenCalled();
-    expect(mocks.legacyInbox).not.toHaveBeenCalled();
   });
 
   it("rejects missing or denied Principal access before reading an inbox", async () => {
@@ -77,7 +66,13 @@ describe("Principal approval inbox", () => {
     }]);
     expect((await GET(request())).status).toBe(403);
     expect(mocks.listPrincipal).not.toHaveBeenCalled();
-    expect(mocks.legacyAuth).not.toHaveBeenCalled();
+  });
+
+  it("rejects off-mode instead of entering historical role authorization", async () => {
+    mocks.mode = "off";
+    expect((await GET(request())).status).toBe(503);
+    expect(mocks.withVerified).not.toHaveBeenCalled();
+    expect(mocks.listPrincipal).not.toHaveBeenCalled();
   });
 
   it("fails closed on a grant for another principal or insufficient assurance", async () => {
