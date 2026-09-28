@@ -28,6 +28,6 @@ describe("Principal approval inbox source boundary", () => {
     expect(params).toMatchObject({ companyId: "company-jenfu", actorId: "profile-one" });
     expect(Object.values(params)).toContain("part_change");
     expect(Object.values(params)).toContain("drawing_revision");
-    expect(Object.values(params)).not.toContain("drawing_rd_void");
+    expect(Object.values(params)).toContain("drawing_rd_void");
   });
 });

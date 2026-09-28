@@ -43,6 +43,7 @@ vi.mock("@/lib/pdm-review-package", async (importOriginal) => ({
 }));
 
 import { GET } from "@/app/api/pdm/review-requests/[requestId]/route";
+import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 
 const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-jenfu" },
@@ -76,7 +77,8 @@ beforeEach(() => {
   mocks.issueContract.mockResolvedValue("contract-one");
   mocks.parsePackage.mockReturnValue({ kind: "v2" });
   mocks.verifyPackage.mockReturnValue({
-    schemaVersion: "pdm-review-package-v2", primaryTargetKey: "part:part-one",
+    schemaVersion: "pdm-review-package-v2", requestKind: "part_change",
+    primaryTargetKey: "part:part-one",
     packageHash: "package-hash", submittedAt: "2026-09-25T00:00:00Z",
     root: { id: "root-one", code: "R-001" }, matrix: {}, targets: []
   });
@@ -125,11 +127,70 @@ describe("principal DEV-087 review detail", () => {
     });
     expect((await GET(request(), params)).status).toBe(404);
     mocks.getReview.mockResolvedValueOnce({
-      requestKind: "drawing_rd_void", requestStatus: "pending", reviewerUserId: "profile-one"
+      requestKind: "relation_change", requestStatus: "pending", reviewerUserId: "profile-one"
     });
     expect((await GET(request(), params)).status).toBe(503);
     expect(mocks.issueContract).not.toHaveBeenCalled();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
+  });
+
+  it("exposes an assigned v2 RD-void package and its decision actions", async () => {
+    mocks.getReview.mockResolvedValueOnce({
+      id: "review-one", requestKind: "drawing_rd_void", requestStatus: "pending",
+      reviewerUserId: "profile-one", entityType: "drawing",
+      canonicalEntityId: "drawing-one", branchId: "branch-one",
+      workId: null, rowVersion: 2, snapshotPayload: {}, snapshotHash: "package-hash"
+    });
+    mocks.verifyPackage.mockReturnValueOnce({
+      schemaVersion: "pdm-review-package-v2", requestKind: "drawing_rd_void",
+      primaryTargetKey: "drawing:drawing-one", packageHash: "package-hash",
+      decisionBasis: { kind: "drawing_rd_void",
+        hash: dev087RequestHash({ drawingId: "drawing-one", branchId: "branch-one",
+          revisionId: "revision-one", revision: "1.1" }) },
+      submittedAt: "2026-09-25T00:00:00Z",
+      root: { id: "root-one", code: "R-001" }, matrix: {}, targets: []
+    });
+    tx.queryOne.mockResolvedValueOnce({
+      drawing_id: "drawing-one", branch_id: "branch-one",
+      revision_id: "revision-one", revision: "1.1",
+      branch_status: "open", latest_approved_revision_id: "revision-one"
+    });
+    const response = await GET(request(), params);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toMatchObject({ requestKind: "drawing_rd_void",
+      interaction: { canApprove: true, canReturn: true } });
+    expect(body.data.actions.map((action: { key: string }) => action.key))
+      .toEqual(["approve", "return_for_correction"]);
+    expect(mocks.readWork).not.toHaveBeenCalled();
+    expect(mocks.legacyActor).not.toHaveBeenCalled();
+  });
+
+  it("does not advertise approval when the RD branch is no longer current", async () => {
+    mocks.getReview.mockResolvedValueOnce({
+      id: "review-one", requestKind: "drawing_rd_void", requestStatus: "pending",
+      reviewerUserId: "profile-one", entityType: "drawing",
+      canonicalEntityId: "drawing-one", branchId: "branch-one",
+      workId: null, rowVersion: 2, snapshotPayload: {}, snapshotHash: "package-hash"
+    });
+    mocks.verifyPackage.mockReturnValueOnce({
+      schemaVersion: "pdm-review-package-v2", requestKind: "drawing_rd_void",
+      primaryTargetKey: "drawing:drawing-one", packageHash: "package-hash",
+      decisionBasis: { kind: "drawing_rd_void", hash: "old-basis" },
+      submittedAt: "2026-09-25T00:00:00Z",
+      root: { id: "root-one", code: "R-001" }, matrix: {}, targets: []
+    });
+    tx.queryOne.mockResolvedValueOnce({
+      drawing_id: "drawing-one", branch_id: "branch-one",
+      revision_id: "revision-two", revision: "1.2",
+      branch_status: "open", latest_approved_revision_id: "revision-two"
+    });
+    const response = await GET(request(), params);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.interaction).toMatchObject({ canApprove: false, canReturn: true });
+    expect(body.data.actions.map((action: { key: string }) => action.key))
+      .toEqual(["return_for_correction"]);
   });
 
   it("reads a principal drawing review and prevents stale-basis approval", async () => {
@@ -137,6 +198,12 @@ describe("principal DEV-087 review detail", () => {
       id: "review-one", requestKind: "drawing_revision", requestStatus: "pending",
       reviewerUserId: "profile-one", entityType: "drawing", canonicalEntityId: "drawing-one",
       workId: "work-one", snapshotPayload: {}, rowVersion: 3
+    });
+    mocks.verifyPackage.mockReturnValue({
+      schemaVersion: "pdm-review-package-v2", requestKind: "drawing_revision",
+      primaryTargetKey: "drawing:drawing-one",
+      packageHash: "package-hash", submittedAt: "2026-09-25T00:00:00Z",
+      root: { id: "root-one", code: "R-001" }, matrix: {}, targets: []
     });
     const current = await GET(request(), params);
     expect(current.status).toBe(200);

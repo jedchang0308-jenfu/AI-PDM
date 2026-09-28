@@ -13,7 +13,8 @@ import { dev087RouteError } from "@/lib/pdm-dev087-route";
 const actionCodes = [
   "numbering.workspace.create", "numbering.workspace.update",
   "numbering.candidate.review.submit", "numbering.workspace.cancel",
-  "approval.request.decide", "numbering.draft.update"
+  "approval.request.decide", "numbering.draft.update",
+  "numbering.draft.obsolete"
 ] as const;
 
 async function actorInSnapshot(snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest,
@@ -39,9 +40,9 @@ async function actorInSnapshot(snapshot: AsyncDatabaseClient, verified: Verified
       submitWork: can("numbering.candidate.review.submit"),
       cancelWork: can("numbering.workspace.cancel"),
       decideReview: can("approval.request.decide"),
-      // The void and formal obsolete commands still reject Principal sessions;
-      // do not advertise those links before their exact resource guards migrate.
-      obsoleteDrawing: false,
+      obsoleteDrawing: can("numbering.draft.obsolete") &&
+        verified.session.assuranceLevel === "aal2",
+      // Formal obsolete commands still reject Principal sessions.
       obsoleteFormalPart: false,
       obsoleteFormalDrawing: false,
       manageAttachments: false

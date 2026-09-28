@@ -110,4 +110,16 @@ describe("principal DEV-087 decision route", () => {
     expect(mocks.decidePart).not.toHaveBeenCalled();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
+
+  it("dispatches an assigned RD-void review to the principal drawing decision", async () => {
+    mocks.getReview.mockResolvedValueOnce({
+      requestKind: "drawing_rd_void", reviewerUserId: "profile-one"
+    });
+    expect((await POST(request(), params)).status).toBe(200);
+    expect(mocks.decideDrawing).toHaveBeenCalledWith(
+      "review-one", "approve", verified,
+      expect.objectContaining({ expectedRowVersion: 1, idempotencyKey: "decision-one" }));
+    expect(mocks.decidePart).not.toHaveBeenCalled();
+    expect(mocks.legacyActor).not.toHaveBeenCalled();
+  });
 });

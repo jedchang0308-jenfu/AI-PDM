@@ -799,7 +799,8 @@ export class AsyncApprovalPlatformRepository {
     Promise<ApprovalPlatformInboxPage> {
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
     const reviews = await this.listPdmWorkReviewInbox({
-      ...input, limit: 500, supportedRequestKinds: ["drawing_revision", "part_change"]
+      ...input, limit: 500, supportedRequestKinds:
+        ["drawing_revision", "drawing_rd_void", "part_change"]
     });
     return paginateInboxItems(reviews, input, limit);
   }

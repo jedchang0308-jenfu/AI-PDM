@@ -13,7 +13,7 @@ import { CanonicalWorkbenchError, parseCanonicalRowKey } from "@/lib/pdm-canonic
 import { issueCanonicalWorkbenchContract, verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
 import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev087WorkForCorrection, type Dev087ReviewDecision } from "@/lib/pdm-work-review";
 import { DrawingRevisionWorkAsyncRepository, parseCanonicalRevision, type RevisionTuple } from "@/lib/repositories/drawing-revision-work-async-repository";
-import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
+import { PdmWorkReviewAsyncRepository, type PdmWorkReviewRequestRecord } from "@/lib/repositories/pdm-work-review-async-repository";
 import { selectPrincipalReviewerInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
 import { hydrateDrawingChangeImpactForWork, validateDrawingChangeImpactForWork } from "@/lib/drawing-change-impact";
 import { createFileStorageService } from "@/lib/file-storage";
@@ -58,6 +58,68 @@ function validateDrawingPayload(value: unknown) {
   const text = JSON.stringify(record); if (Buffer.byteLength(text, "utf8") > 2_000_000) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖面工作資料過大", 422);
   if (["branchId", "predecessorRevisionId", "sourceRevisionId", "companyId", "ownerUserId", "reviewerUserId", "changeImpactRequired", "relatedParts", "affectedParts"].some((key) => key in record)) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "圖面工作資料包含不可修改的系統欄位", 422);
   return record;
+}
+
+async function returnDrawingRdVoidReview(tx: AsyncDatabaseClient,
+  review: PdmWorkReviewRequestRecord, reviews: PdmWorkReviewAsyncRepository) {
+  await reviews.appendTrace(tx, review);
+  await tx.execute(`UPDATE canonical_workbench_states SET handling = 'none',
+    row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+    WHERE company_id = :companyId AND branch_id = :branchId
+      AND handling = 'review_owner'`, review);
+  await reviews.recordTerminalReceipt(tx, review);
+  await tx.execute(`DELETE FROM pdm_work_review_requests
+    WHERE id = :id AND company_id = :companyId`, review);
+  return { acknowledged: true as const };
+}
+
+async function approveDrawingRdVoidReview(tx: AsyncDatabaseClient,
+  review: PdmWorkReviewRequestRecord, reviews: PdmWorkReviewAsyncRepository,
+  expectedBasisHash: string) {
+  const current = await tx.queryOne<{
+    drawing_id: string; branch_id: string; revision_id: string; revision: string;
+    branch_status: string; latest_approved_revision_id: string | null;
+  }>(`SELECT state.canonical_entity_id AS drawing_id, state.branch_id,
+            state.revision_id, revision.revision, branch.status AS branch_status,
+            branch.latest_approved_revision_id
+       FROM canonical_workbench_states state
+       JOIN drawing_rd_branches branch
+         ON branch.id = state.branch_id AND branch.company_id = state.company_id
+       JOIN drawing_revisions revision
+         ON revision.id = state.revision_id AND revision.company_id = state.company_id
+      WHERE state.company_id = :companyId AND state.branch_id = :branchId
+        AND state.canonical_entity_id = :canonicalEntityId
+        AND state.entity_type = 'drawing' AND state.data_layer = 'drawing_rd'
+        AND state.handling = 'system' AND state.work_id IS NULL`, review);
+  const currentBasis = current ? { drawingId: current.drawing_id,
+    branchId: current.branch_id, revisionId: current.revision_id,
+    revision: current.revision } : null;
+  if (!current || current.branch_status !== "open" ||
+      current.latest_approved_revision_id !== current.revision_id ||
+      dev087RequestHash(currentBasis) !== expectedBasisHash) {
+    throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+      "資料已改變，請退回修改後重新送審", 409);
+  }
+  await tx.execute(`UPDATE drawing_rd_branches SET status = 'historical',
+    closed_reason = 'latest_rd_voided', closed_at = CURRENT_TIMESTAMP,
+    row_version = row_version + 1
+    WHERE id = :branchId AND company_id = :companyId AND status = 'open'`, review);
+  await tx.execute(`UPDATE drawing_revisions SET lifecycle_state = 'superseded',
+    superseded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+    WHERE id = (SELECT latest_approved_revision_id FROM drawing_rd_branches
+      WHERE id = :branchId AND company_id = :companyId)
+      AND company_id = :companyId`, review);
+  await tx.execute(`DELETE FROM canonical_workbench_states
+    WHERE company_id = :companyId AND branch_id = :branchId`, review);
+  await tx.execute(`UPDATE pdm_workbench_aggregates
+    SET open_branch_count = open_branch_count - 1,
+      row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+    WHERE company_id = :companyId AND entity_type = 'drawing'
+      AND canonical_entity_id = :canonicalEntityId AND open_branch_count > 0`, review);
+  await reviews.recordTerminalReceipt(tx, review);
+  await tx.execute(`DELETE FROM pdm_work_review_requests
+    WHERE id = :id AND company_id = :companyId`, review);
+  return { acknowledged: true as const };
 }
 
 export class DrawingRevisionWorkService {
@@ -510,6 +572,67 @@ export class DrawingRevisionWorkService {
     });
   }
 
+  async requestVoidPrincipal(branchId: string, rowKey: string,
+    verified: VerifiedPrincipalRequest, context: CommandContext) {
+    const profile = await this.requirePrincipalCapability(verified,
+      "numbering.draft.obsolete", true);
+    await verifyCanonicalWorkbenchCommandContract(this.client,
+      { companyId: profile.companyId, actorId: profile.profileId,
+        token: context.contractToken });
+    const rowId = parseCanonicalRowKey(rowKey);
+    return runPrincipalDev087Command(this.client, verified, {
+      command: "drawing.void", idempotencyKey: context.idempotencyKey,
+      request: { branchId, rowId, expectedRowVersion: context.expectedRowVersion },
+      effectKey: `drawing-branch:${branchId}:void`,
+      correlationId: correlation(context.correlationId)
+    }, async (tx) => {
+      const repository = new DrawingRevisionWorkAsyncRepository(tx);
+      const locked = await repository.readSourceState(tx, profile.companyId, rowId, true);
+      if (!locked || locked.row_version !== context.expectedRowVersion ||
+          locked.branch_id !== branchId || locked.data_layer !== "drawing_rd" ||
+          locked.handling !== "none" || locked.work_id ||
+          locked.branch_status !== "open" ||
+          locked.latest_approved_revision_id !== locked.revision_id) {
+        throw new CanonicalWorkbenchError("DRAWING_RD_VOID_NOT_ALLOWED",
+          "目前無法申請作廢這個研發版", 409);
+      }
+      const reviews = new PdmWorkReviewAsyncRepository(tx);
+      const reviewerUserId = await selectPrincipalReviewerInSnapshot(tx,
+        { companyId: profile.companyId, ownerUserId: profile.profileId });
+      const snapshot = { drawingId: locked.drawing_id, branchId,
+        revisionId: locked.revision_id, revision: locked.revision };
+      const basisHash = dev087RequestHash(snapshot);
+      const reviewPackage = await buildReviewPackage(tx, {
+        companyId: profile.companyId, requestKind: "drawing_rd_void",
+        entityType: "drawing", canonicalEntityId: locked.drawing_id,
+        workId: null, branchId,
+        decisionBasis: { hash: basisHash, payload: snapshot,
+          revisionId: locked.revision_id, claimId: null }
+      });
+      let review;
+      try {
+        review = await reviews.create(tx, {
+          companyId: profile.companyId, requestKind: "drawing_rd_void",
+          entityType: "drawing", canonicalEntityId: locked.drawing_id,
+          branchId, reviewerUserId, snapshotPayload: reviewPackage,
+          snapshotHash: reviewPackage.packageHash
+        });
+      } catch (error) {
+        if (String(error).toLowerCase().includes("unique")) {
+          throw new CanonicalWorkbenchError("DRAWING_RD_VOID_ALREADY_PENDING",
+            "這個研發版已有作廢申請", 409);
+        }
+        throw error;
+      }
+      await tx.execute(`UPDATE canonical_workbench_states SET handling = 'review_owner',
+        row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = :rowId AND company_id = :companyId AND handling = 'none'`,
+        { rowId, companyId: profile.companyId });
+      return { requestId: review.id, reviewCycleId: review.reviewCycleId,
+        rowVersion: review.rowVersion };
+    });
+  }
+
   async decide(requestId: string, decision: Dev087ReviewDecision, actor: DrawingRevisionActor, context: CommandContext) {
     allow(actor.permissions.decide); await this.verify(actor, context.contractToken); const correlationId = correlation(context.correlationId); const commandRequest = { requestId, decision, expectedRowVersion: context.expectedRowVersion };
     const replay = await replayDev087TerminalReceipt<{ acknowledged: true }>(this.client, { companyId: actor.companyId, actorId: actor.id, command: "review.decision", idempotencyKey: context.idempotencyKey, request: commandRequest, correlationId }); if (replay) return replay;
@@ -524,7 +647,9 @@ export class DrawingRevisionWorkService {
       const locked = await reviews.get(tx, { companyId: actor.companyId, requestId }, true); if (!locked || locked.reviewerUserId !== actor.id || locked.requestStatus !== "pending" || locked.rowVersion !== context.expectedRowVersion) throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_REQUEST_STALE", "重新開啟目前審核項目", 409);
       const parsedPackage = parseReviewPackageSnapshot(locked.snapshotPayload); if (parsedPackage.kind === "invalid") throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包格式無效", 409); const verifiedPackage = parsedPackage.kind === "v2" ? verifyReviewPackageIntegrity(locked.snapshotPayload, locked.snapshotHash) : null;
       if (decision === "return_for_correction") {
-        if (locked.requestKind === "drawing_rd_void") { await reviews.appendTrace(tx, locked); await tx.execute(`UPDATE canonical_workbench_states SET handling = 'none', row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND branch_id = :branchId AND handling = 'review_owner'`, locked); await reviews.recordTerminalReceipt(tx, locked); await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked); return { acknowledged: true }; }
+        if (locked.requestKind === "drawing_rd_void") {
+          return returnDrawingRdVoidReview(tx, locked, reviews);
+        }
         if (locked.workId) { const repository = new DrawingRevisionWorkAsyncRepository(tx); const work = await repository.readWork(tx, actor.companyId, locked.workId, true); if (work) await tx.execute(`UPDATE drawing_revisions SET lifecycle_state = 'correction_required', updated_at = CURRENT_TIMESTAMP WHERE id = :revisionId AND company_id = :companyId`, { companyId: actor.companyId, revisionId: work.revision_id }); }
         return returnDev087WorkForCorrection(tx, locked);
       }
@@ -538,27 +663,8 @@ export class DrawingRevisionWorkService {
       }
       await beginDev087Approval(tx, locked);
       if (locked.requestKind === "drawing_rd_void") {
-        const current = await tx.queryOne<{ drawing_id: string; branch_id: string; revision_id: string; revision: string; branch_status: string; latest_approved_revision_id: string | null }>(
-          `SELECT state.canonical_entity_id AS drawing_id, state.branch_id, state.revision_id, revision.revision,
-                  branch.status AS branch_status, branch.latest_approved_revision_id
-             FROM canonical_workbench_states state
-             JOIN drawing_rd_branches branch ON branch.id = state.branch_id AND branch.company_id = state.company_id
-             JOIN drawing_revisions revision ON revision.id = state.revision_id AND revision.company_id = state.company_id
-            WHERE state.company_id = :companyId AND state.branch_id = :branchId
-              AND state.canonical_entity_id = :canonicalEntityId AND state.entity_type = 'drawing'
-              AND state.data_layer = 'drawing_rd' AND state.handling = 'system' AND state.work_id IS NULL`,
-          locked
-        );
         const expectedHash = verifiedPackage?.decisionBasis.hash ?? locked.snapshotHash;
-        const currentBasis = current ? { drawingId: current.drawing_id, branchId: current.branch_id, revisionId: current.revision_id, revision: current.revision } : null;
-        if (!current || current.branch_status !== "open" || current.latest_approved_revision_id !== current.revision_id || dev087RequestHash(currentBasis) !== expectedHash) {
-          throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
-        }
-        await tx.execute(`UPDATE drawing_rd_branches SET status = 'historical', closed_reason = 'latest_rd_voided', closed_at = CURRENT_TIMESTAMP, row_version = row_version + 1 WHERE id = :branchId AND company_id = :companyId AND status = 'open'`, locked);
-        await tx.execute(`UPDATE drawing_revisions SET lifecycle_state = 'superseded', superseded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = (SELECT latest_approved_revision_id FROM drawing_rd_branches WHERE id = :branchId AND company_id = :companyId)`, locked);
-        await tx.execute(`DELETE FROM canonical_workbench_states WHERE company_id = :companyId AND branch_id = :branchId`, locked);
-        await tx.execute(`UPDATE pdm_workbench_aggregates SET open_branch_count = open_branch_count - 1, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND entity_type = 'drawing' AND canonical_entity_id = :canonicalEntityId AND open_branch_count > 0`, locked);
-        await reviews.recordTerminalReceipt(tx, locked); await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked); return { acknowledged: true };
+        return approveDrawingRdVoidReview(tx, locked, reviews, expectedHash);
       }
       const faultHandling = dev087FaultHandling();
       if (faultHandling) {
@@ -582,9 +688,12 @@ export class DrawingRevisionWorkService {
     }, async (tx) => {
       const reviews = new PdmWorkReviewAsyncRepository(tx);
       const locked = await reviews.get(tx, { companyId: profile.companyId, requestId }, true);
-      if (!locked || locked.requestKind !== "drawing_revision" ||
+      if (!locked || !["drawing_revision", "drawing_rd_void"].includes(locked.requestKind) ||
           locked.reviewerUserId !== profile.profileId || locked.requestStatus !== "pending" ||
-          locked.rowVersion !== context.expectedRowVersion || !locked.workId) {
+          locked.rowVersion !== context.expectedRowVersion ||
+          (locked.requestKind === "drawing_revision" && !locked.workId) ||
+          (locked.requestKind === "drawing_rd_void" &&
+            (locked.workId !== null || !locked.branchId))) {
         throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_REQUEST_STALE",
           "重新開啟目前審核項目", 409);
       }
@@ -593,8 +702,28 @@ export class DrawingRevisionWorkService {
       }
       const verifiedPackage = verifyReviewPackageIntegrity(
         locked.snapshotPayload, locked.snapshotHash);
+      if (verifiedPackage.requestKind !== locked.requestKind ||
+          verifiedPackage.primaryTargetKey !==
+            `drawing:${locked.canonicalEntityId}` ||
+          (locked.requestKind === "drawing_rd_void" &&
+            (verifiedPackage.decisionBasis.kind !== "drawing_rd_void" ||
+              verifiedPackage.decisionBasis.revisionId === null))) {
+        throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID",
+          "審核包格式無效", 409);
+      }
+      if (locked.requestKind === "drawing_rd_void") {
+        if (decision === "return_for_correction") {
+          return returnDrawingRdVoidReview(tx, locked, reviews);
+        }
+        assertReviewPackageRecognitionReady(verifiedPackage);
+        await beginDev087Approval(tx, locked);
+        const faultHandling = dev087FaultHandling();
+        if (faultHandling) return recordDev087Fault(tx, locked, faultHandling);
+        return approveDrawingRdVoidReview(tx, locked, reviews,
+          verifiedPackage.decisionBasis.hash);
+      }
       const repository = new DrawingRevisionWorkAsyncRepository(tx);
-      const work = await repository.readWork(tx, profile.companyId, locked.workId, true);
+      const work = await repository.readWork(tx, profile.companyId, locked.workId!, true);
       if (decision === "return_for_correction") {
         if (work) await tx.execute(`UPDATE drawing_revisions SET lifecycle_state = 'correction_required', updated_at = CURRENT_TIMESTAMP WHERE id = :revisionId AND company_id = :companyId`,
           { companyId: profile.companyId, revisionId: work.revision_id });
