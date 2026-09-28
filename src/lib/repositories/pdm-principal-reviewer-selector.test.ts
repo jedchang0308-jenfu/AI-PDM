@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 
 const mocks = vi.hoisted(() => ({
-  priority: vi.fn(), entitlement: vi.fn(), localAcl: vi.fn(), catalog: vi.fn()
+  priority: vi.fn(), entitlement: vi.fn(), catalog: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-role-catalog", () => ({
   requirePublishedPrincipalCatalog: mocks.catalog
@@ -15,9 +15,6 @@ vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
   JenfuEntitlementRepositoryError: class extends Error {
     constructor(readonly code: string) { super(code); }
   }
-}));
-vi.mock("@/lib/repositories/principal-local-acl-repository", () => ({
-  PrincipalLocalAclRepository: class { evaluateWorkspace = mocks.localAcl; }
 }));
 
 import { selectPrincipalReviewerInSnapshot } from
@@ -47,7 +44,6 @@ describe("principal reviewer selection", () => {
       decisionCode: "allowed", role: { roleCode:
         request.actor.principalId === "principal-manager" ? "rd_manager" : "pdm_admin" }
     }]);
-    mocks.localAcl.mockResolvedValue([{ allowed: true, roleCode: "rd_manager" }]);
   });
 
   it("uses current principal account, cutover and typed producer candidates in the caller snapshot", async () => {
@@ -68,15 +64,11 @@ describe("principal reviewer selection", () => {
     expect(sql).not.toContain("users.role");
   });
 
-  it("uses principal-keyed local ACL only for selected legacy authority", async () => {
-    mocks.entitlement.mockResolvedValue([{ decisionCode: "legacy_authority" }]);
+  it("does not nominate a candidate without published OrgMaster authority", async () => {
+    mocks.entitlement.mockRejectedValue(new JenfuEntitlementRepositoryError("entitlement_authority_unknown"));
     await expect(selectPrincipalReviewerInSnapshot(client([
       candidate("principal-manager", "profile-manager")
-    ]), input)).resolves.toBe("profile-manager");
-    expect(mocks.localAcl).toHaveBeenCalledWith(expect.objectContaining({
-      principalId: "principal-manager", assuranceLevel: "aal2",
-      permissions: [{ permissionKind: "action", permissionCode: "approval.request.decide" }]
-    }));
+    ]), input)).rejects.toMatchObject({ status: 409 });
   });
 
   it("does not choose a reviewer when the published v4 catalog is unavailable", async () => {
@@ -85,7 +77,6 @@ describe("principal reviewer selection", () => {
       candidate("principal-manager", "profile-manager")
     ]), input)).rejects.toThrow("principal_dependency_unavailable");
     expect(mocks.entitlement).not.toHaveBeenCalled();
-    expect(mocks.localAcl).not.toHaveBeenCalled();
   });
 
   it("prefers a different eligible reviewer when role priority is equal", async () => {

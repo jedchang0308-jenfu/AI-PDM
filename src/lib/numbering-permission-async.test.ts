@@ -188,17 +188,17 @@ describe("DEV-121 authorization snapshot", () => {
     expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(false);
   });
 
-  it("evaluates legacy ACL from the same snapshot when legacy authority is selected", async () => {
+  it("rejects legacy authority without consulting local roles", async () => {
     const client = makeClient({ authoritySource: "legacy_authority" });
     mocks.getAsyncDatabaseClient.mockReturnValue(client);
 
     const result = await checkNumberingPermissionAsync(requestInput());
 
-    expect(result).toMatchObject({ allowed: true, decisionCode: "allowed", roleCode: "rd" });
+    expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_authority_unknown" });
     expect(client.transaction).toHaveBeenCalledTimes(1);
     expect(client.transactionOptions).toEqual({ isolationLevel: "repeatable_read", readOnly: true });
-    expect(client.queries.some((sql) => sql.includes("FROM user_role_assignments"))).toBe(true);
-    expect(client.queries.some((sql) => sql.includes("FROM role_permissions p"))).toBe(true);
+    expect(client.queries.some((sql) => sql.includes("FROM user_role_assignments"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("FROM role_permissions p"))).toBe(false);
     expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(false);
   });
 

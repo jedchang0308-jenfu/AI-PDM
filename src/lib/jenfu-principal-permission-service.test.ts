@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(),
   evaluate: vi.fn(),
   priority: vi.fn(),
-  localAcl: vi.fn(), catalogInput: vi.fn()
+  catalogInput: vi.fn()
 }));
 
 vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
@@ -20,11 +20,6 @@ vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
   JenfuEntitlementRepository: class {
     constructor(_client: unknown, catalog: unknown) { mocks.catalogInput(catalog); }
     evaluatePermissions = mocks.evaluate;
-  }
-}));
-vi.mock("@/lib/repositories/principal-local-acl-repository", () => ({
-  PrincipalLocalAclRepository: class {
-    evaluateWorkspace = mocks.localAcl;
   }
 }));
 
@@ -85,15 +80,11 @@ describe("DEV-121 principal workspace permission decision", () => {
     expect(mocks.catalogInput).toHaveBeenCalledWith(principalRoleCatalog);
   });
 
-  it("reads only principal-local ACL for a selected legacy authority", async () => {
-    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "legacy_authority" }]);
-    mocks.localAcl.mockResolvedValue([{ allowed: true, decisionCode: "allowed", roleCode: "rd", assignmentId: "principal-grant" }]);
+  it("does not authorize an unknown authority decision", async () => {
+    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "entitlement_authority_unknown" }]);
     await expect(evaluatePrincipalWorkspacePermissions(input)).resolves.toMatchObject([
-      { allowed: true, decisionCode: "allowed", roleCode: "rd", assignmentId: "principal-grant" }
+      { allowed: false, decisionCode: "entitlement_authority_unknown", roleCode: null }
     ]);
-    expect(mocks.localAcl).toHaveBeenCalledWith(expect.objectContaining({
-      principalId: "principal-one", decisionAt: new Date("2026-09-24T12:00:00Z")
-    }));
   });
 
   it("keeps explicit deny and privileged AAL1 requests closed", async () => {

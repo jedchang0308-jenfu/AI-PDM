@@ -98,17 +98,6 @@ export async function checkNumberingPermissionsAsync(inputs: readonly CheckNumbe
         projectCode: input.projectCode,
         rolePriority
       })), decisionAt);
-      if (evaluated[0]?.decisionCode === "legacy_authority") {
-        const legacyResults: NumberingPermissionCheckResult[] = [];
-        for (const input of inputs) {
-          const legacy = await accessControl.checkPermission(input, { enforceRolePriority: true, rolePriority, decisionAt: decisionAt.toISOString() });
-          legacyResults.push({
-            ...legacy,
-            decisionCode: legacy.allowed ? "allowed" : legacy.reason === "explicit" ? "permission_explicit_deny" : "permission_not_granted"
-          });
-        }
-        return inputs.map((input, index) => ({ permission: legacyResults[index], evaluated: null }));
-      }
       return evaluated.map((result, index) => {
         if (result.decisionCode !== "allowed") {
           return { permission: decisionResult(inputs[index], result.decisionCode), evaluated: null };
