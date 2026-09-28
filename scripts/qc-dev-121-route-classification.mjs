@@ -7,8 +7,10 @@ import ts from "typescript";
 
 const appRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const routeRoot = join(appRoot, "src", "app", "api");
-const routeMap = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-route-permission-map.v1.json"), "utf8"));
-const roleCatalog = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-role-catalog.v1.json"), "utf8"));
+const routeMap = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-route-permission-map.v2.json"), "utf8"));
+// Evaluate the candidate Principal-only catalog; v1/v3 dispositions remain
+// historical evidence and must not be mistaken for the new runtime decision.
+const roleCatalog = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-role-catalog.v5.json"), "utf8"));
 const routePolicyDispositions = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-route-policy-dispositions.v1.json"), "utf8"));
 const methods = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 
@@ -278,13 +280,13 @@ function main() {
   const guardedSource = (path) => readFileSync(join(appRoot, ...path.split("/")), "utf8");
   containsAll(guardedSource("src/lib/numbering-permission-async.ts"), ["assertJenfuEnforcePrerequisites", "JenfuPrincipalAdmissionRepository", "JenfuEntitlementRepository", "readOnly: true"], "central authorization evaluator");
   containsAll(guardedSource("src/lib/numbering-permission-guard.ts"), ["checkNumberingPermissionAsync"], "numbering permission helpers");
-  containsAll(guardedSource("src/lib/numbering-company-permission.ts"), ["requirePrincipalNumberingPermissionAsync", "resolveNumberingCompanyContextAsync", "authorizationActor.companyId"], "numbering company permission helper");
-  containsAll(guardedSource("src/lib/number-state-flow-api.ts"), ["requireNumberingActionAsync", "requireNumberingPlatformCommandAsync"], "number-state helpers");
-  containsAll(guardedSource("src/lib/platform-command-context.ts"), ["requireNumberingActionAsync"], "Platform command helper");
+  containsAll(guardedSource("src/lib/numbering-company-permission.ts"), ["requirePrincipalNumberingPermissionAsync", "authorizationActor.companyId"], "numbering company permission helper");
+  containsAll(guardedSource("src/lib/number-state-flow-api.ts"), ["requireNumberingCompanyPermissionAsync", "requireNumberingPlatformCommandAsync"], "number-state helpers");
+  containsAll(guardedSource("src/lib/platform-command-context.ts"), ["requirePrincipalNumberingPermissionAsync", "resolveJenfuRoutePolicyFromRequest"], "Platform command helper");
   containsAll(guardedSource("src/lib/transfer-package-api.ts"), ["requireNumberStateReadAccessAsync", "requireNumberStateCommandAccessAsync"], "transfer package helpers");
   containsAll(guardedSource("src/lib/pdm-dev087-route.ts"), ["requireNumberingPageAsync", "resolveDev087RouteActor"], "DEV-087 route helpers");
   containsAll(guardedSource("src/app/api/numbering/reviews/_review-action-handler.ts"), ["DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED", "status: 410"], "retired review actions");
-  containsAll(guardedSource("src/lib/platform-command-context.ts"), ["input.permissionCode ?? input.action", "scopes: [input.action]"], "business action and permission separation");
+  containsAll(guardedSource("src/lib/platform-command-context.ts"), ["input.permissionCode ?? input.action", "scopes: [input.action]", "principalAuthorization"], "business action and permission separation");
   const catalogPermissionCodes = new Set(roleCatalog.roles.flatMap((role) => role.permissions.map((permission) => permission.code)));
   for (const codes of explicitPermissionCalls.values()) {
     for (const code of codes) if (!catalogPermissionCodes.has(code)) throw new Error(`Canonical permission is missing from the application role catalog: ${code}`);
@@ -310,7 +312,7 @@ function main() {
   const status = missingDispositions.length || pendingDispositions.length || unresolvedDispositions.length
     ? "BLOCKED_ROUTE_POLICY_DISPOSITION"
     : "PASS";
-  process.stdout.write(`${JSON.stringify({ status, apiRouteFiles: sourceCache.size, apiMethods: observedMethods.size, permissionManifestMethods: counts.permission_manifest ?? 0, authorizationClasses: counts, directRoleGateFiles: directRoleGates.length, explicitPermissionAssertions: explicitPermissionCalls.size, unsupportedPermissionCodeCount: unsupportedPermissionCodes.length, unsupportedPermissionCodes, missingDispositions, pendingDispositions, unresolvedDispositions, allMethodsClassified: true, productionWrites: false })}\n`);
+  process.stdout.write(`${JSON.stringify({ status, catalogVersion: roleCatalog.catalogVersion, apiRouteFiles: sourceCache.size, apiMethods: observedMethods.size, permissionManifestMethods: counts.permission_manifest ?? 0, authorizationClasses: counts, directRoleGateFiles: directRoleGates.length, explicitPermissionAssertions: explicitPermissionCalls.size, unsupportedPermissionCodeCount: unsupportedPermissionCodes.length, unsupportedPermissionCodes, missingDispositions, pendingDispositions, unresolvedDispositions, allMethodsClassified: true, productionWrites: false })}\n`);
   if (status !== "PASS") process.exitCode = 1;
 }
 

@@ -98,7 +98,8 @@ describe("principal command and mutation use one verified snapshot", () => {
       expect(options).toEqual({ readOnly: false, isolationLevel: "repeatable_read" });
       return run(_input.database, verified);
     });
-    mocks.evaluate.mockResolvedValue([{ allowed: true }]);
+    mocks.evaluate.mockResolvedValue([{ allowed: true, principalId,
+      permissionCode: route.permissionCode }]);
     mocks.requireActive.mockResolvedValue({ principalId, pdmUserId, companyId });
     mocks.findOrganization.mockResolvedValue({ mappingStatus: "active",
       platformOrganizationId: "organization-one" });
@@ -122,6 +123,42 @@ describe("principal command and mutation use one verified snapshot", () => {
     expect(mocks.complete).toHaveBeenCalledOnce();
     expect(mocks.findOrganization).not.toHaveBeenCalled();
     expect(mocks.claim.mock.calls[0][0].actor.platformOrganizationId).toBeNull();
+  });
+
+  it("rechecks drawing creation's second capability in the same write snapshot", async () => {
+    const database = client();
+    const drawingRoute = {
+      request: new Request("https://ai-pdm.test/api/numbering/records", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/numbering/records/route.ts", method: "POST",
+      permissionCode: "numbering.create", additionalPermissionCodes: ["numbering.link_variant"]
+    };
+    const drawingCommand = createPdmCommand({
+      commandName: "pdm.numbering.create_official_record", idempotencyKey: "drawing-one",
+      actor: command().actor,
+      payload: { drawingPurposeCode: "M" }
+    });
+    const mutate = vi.fn(async () => ({ ok: true }));
+    const request = { ...input(database, mutate), command: drawingCommand,
+      principalAuthorization: drawingRoute };
+    mocks.evaluate.mockImplementation(async (_client, _verified, permissions) => permissions.map(
+      (permission: { permissionCode: string }) => ({ allowed: true, principalId,
+        permissionCode: permission.permissionCode })));
+    await expect(executePdmCommandWithOutbox(request)).resolves.toMatchObject({
+      result: { ok: true }
+    });
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified, [
+      { permissionKind: "action", permissionCode: "numbering.create" },
+      { permissionKind: "action", permissionCode: "numbering.link_variant" }
+    ]);
+    expect(mutate).toHaveBeenCalledOnce();
+
+    mutate.mockClear();
+    await expect(executePdmCommandWithOutbox({ ...request,
+      principalAuthorization: { ...drawingRoute, additionalPermissionCodes: [] } }))
+      .rejects.toThrow("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID");
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it("never sends a v2 principal command through a legacy-compatible mapping", async () => {

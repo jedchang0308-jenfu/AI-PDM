@@ -16,7 +16,9 @@ const log = path.join(taskRoot, 'postgres.log')
 const bin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || 'C:\\Program Files\\PostgreSQL\\18\\bin')
 const v3 = JSON.parse(fs.readFileSync(path.join(root, 'config/access-control/jenfu-role-catalog.v1.json'), 'utf8'))
 const v4 = JSON.parse(fs.readFileSync(path.join(root, 'config/access-control/jenfu-role-catalog.v4.json'), 'utf8'))
-const sql = fs.readFileSync(path.join(root, 'db/postgres/066_dev121_principal_role_catalog_v4.sql'), 'utf8')
+const v5 = JSON.parse(fs.readFileSync(path.join(root, 'config/access-control/jenfu-role-catalog.v5.json'), 'utf8'))
+const sqlV4 = fs.readFileSync(path.join(root, 'db/postgres/066_dev121_principal_role_catalog_v4.sql'), 'utf8')
+const sqlV5 = fs.readFileSync(path.join(root, 'db/postgres/070_dev121_principal_role_catalog_v5.sql'), 'utf8')
 let client
 let port
 let started = false
@@ -59,7 +61,7 @@ async function check(name, action) {
 try {
   port = await freePort()
   process.stdout.write(`${JSON.stringify({ runtimeDeclaration: {
-    project: root, purpose: 'DEV-121 isolated PostgreSQL catalog v4 publication QC',
+    project: root, purpose: 'DEV-121 isolated PostgreSQL catalog v3 to v4 to v5 publication QC',
     port, owningProcessTree: 'qc-dev-121-role-catalog-postgres.mjs -> task-owned PostgreSQL cluster',
     cleanupCondition: 'client closed, cluster stopped, port released, task temp removed',
     mutationScope: taskRoot, productionWrites: false
@@ -131,7 +133,7 @@ try {
   await check('corrupt v3 baseline rolls back with no v4 rows', async () => {
     await client.query(`UPDATE ai_pdm_core.role_catalog_publications
       SET catalog_sha256=repeat('0',64) WHERE catalog_version=$1`, [v3.catalogVersion])
-    await assert.rejects(client.query(sql), /DEV121_CATALOG_V3_BASELINE_MISMATCH/u)
+    await assert.rejects(client.query(sqlV4), /DEV121_CATALOG_V3_BASELINE_MISMATCH/u)
     await client.query('ROLLBACK')
     const state = await client.query(`SELECT count(*)::integer AS count
       FROM ai_pdm_core.role_catalog_publications WHERE catalog_version=$1`, [v4.catalogVersion])
@@ -140,7 +142,7 @@ try {
       SET catalog_sha256=$1 WHERE catalog_version=$2`, [v3.catalogSha256, v3.catalogVersion])
   })
   await check('v4 activation retains immutable v3 entries and exact grants', async () => {
-    await client.query(sql)
+    await client.query(sqlV4)
     const state = await client.query(`SELECT publication.catalog_version,publication.catalog_sha256,
       publication.status,active.catalog_version AS active_version
       FROM ai_pdm_core.role_catalog_publications publication
@@ -160,14 +162,57 @@ try {
   })
   await check('exact replay creates no new publication or entries', async () => {
     const before = await client.query(`SELECT count(*)::integer AS count FROM ai_pdm_core.role_catalog_entries`)
-    await client.query(sql)
+    await client.query(sqlV4)
     const after = await client.query(`SELECT count(*)::integer AS count FROM ai_pdm_core.role_catalog_entries`)
     assert.equal(after.rows[0].count, before.rows[0].count)
   })
   await check('tampered v4 entry fails closed on replay', async () => {
     await client.query(`UPDATE ai_pdm_core.role_catalog_entries SET permissions='[]'::jsonb
       WHERE catalog_version=$1 AND stable_role_id='role-rd'`, [v4.catalogVersion])
-    await assert.rejects(client.query(sql), /DEV121_CATALOG_V4_READBACK_FAILED/u)
+    await assert.rejects(client.query(sqlV4), /DEV121_CATALOG_V4_READBACK_FAILED/u)
+    await client.query('ROLLBACK')
+  })
+  await check('corrupt v4 baseline rolls back with no v5 rows', async () => {
+    await client.query(`UPDATE ai_pdm_core.role_catalog_publications
+      SET catalog_sha256=repeat('0',64) WHERE catalog_version=$1`, [v4.catalogVersion])
+    await assert.rejects(client.query(sqlV5), /DEV121_CATALOG_V4_BASELINE_MISMATCH/u)
+    await client.query('ROLLBACK')
+    const state = await client.query(`SELECT count(*)::integer AS count
+      FROM ai_pdm_core.role_catalog_publications WHERE catalog_version=$1`, [v5.catalogVersion])
+    assert.equal(state.rows[0].count, 0)
+    await client.query(`UPDATE ai_pdm_core.role_catalog_publications
+      SET catalog_sha256=$1 WHERE catalog_version=$2`, [v4.catalogSha256, v4.catalogVersion])
+  })
+  await check('v5 activation retains v3/v4 history and exact grants', async () => {
+    await client.query(sqlV5)
+    const state = await client.query(`SELECT publication.catalog_version,publication.catalog_sha256,
+      publication.status,active.catalog_version AS active_version
+      FROM ai_pdm_core.role_catalog_publications publication
+      CROSS JOIN ai_pdm_core.active_role_catalog active ORDER BY publication.catalog_version`)
+    assert.equal(state.rows.length, 3)
+    assert.deepEqual(state.rows.map((row) => row.status), ['retired', 'retired', 'active'])
+    assert.ok(state.rows.every((row) => row.active_version === v5.catalogVersion))
+    assert.equal(state.rows[2].catalog_sha256, v5.catalogSha256)
+    const entries = await client.query(`SELECT catalog_version,stable_role_id,permissions,role_definition_hash
+      FROM ai_pdm_core.role_catalog_entries ORDER BY catalog_version,stable_role_id`)
+    assert.equal(entries.rows.length, 27)
+    for (const role of v5.roles) {
+      const observed = entries.rows.find((row) => row.catalog_version === v5.catalogVersion
+        && row.stable_role_id === role.stableRoleId)
+      assert.deepEqual(observed.permissions, role.permissions)
+      assert.equal(observed.role_definition_hash, role.roleDefinitionHash)
+    }
+  })
+  await check('v5 exact replay creates no new publication or entries', async () => {
+    const before = await client.query(`SELECT count(*)::integer AS count FROM ai_pdm_core.role_catalog_entries`)
+    await client.query(sqlV5)
+    const after = await client.query(`SELECT count(*)::integer AS count FROM ai_pdm_core.role_catalog_entries`)
+    assert.equal(after.rows[0].count, before.rows[0].count)
+  })
+  await check('tampered v5 entry fails closed on replay', async () => {
+    await client.query(`UPDATE ai_pdm_core.role_catalog_entries SET permissions='[]'::jsonb
+      WHERE catalog_version=$1 AND stable_role_id='role-rd'`, [v5.catalogVersion])
+    await assert.rejects(client.query(sqlV5), /DEV121_CATALOG_V5_READBACK_FAILED/u)
     await client.query('ROLLBACK')
   })
 } catch (error) {
@@ -180,7 +225,7 @@ try {
       stopped = true } catch (error) { process.stderr.write(`${error.message}\n`); process.exitCode = 1 }
   }
   if (port) portReleased = await isPortReleased(port)
-  if (stopped && portReleased) {
+  if ((!started || stopped) && portReleased) {
     const resolvedTaskRoot = fs.realpathSync(taskRoot)
     if (!resolvedTaskRoot.startsWith(`${tempRoot}${path.sep}`)) throw new Error('unsafe task temp path')
     fs.rmSync(resolvedTaskRoot, { recursive: true, force: true })

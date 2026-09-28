@@ -83,6 +83,25 @@ function boundaryFailures(entries, sources) {
       continue
     }
     if (entry.authorizationMode === 'permission') {
+      if (entry.method === 'GET' &&
+          ['src/app/api/settings/access/role-capabilities/route.ts',
+            'src/app/api/settings/access/role-capabilities/change-feed/route.ts',
+            'src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts',
+            'src/app/api/settings/gdrive/folders/route.ts',
+            'src/app/api/settings/secrets/route.ts'].includes(entry.path)) {
+        if (!/authorizePrincipalWorkspaceExternalRead\s*\(/u.test(graph) ||
+            !graph.includes(entry.permissionCode)) {
+          failures.push(`${label}: principal external-read guard missing`)
+        }
+        continue
+      }
+      if (entry.path === 'src/app/api/settings/route.ts' && entry.method === 'GET') {
+        if (!/withPrincipalCompanyRead\s*\(/u.test(graph) ||
+            !graph.includes(entry.permissionCode)) {
+          failures.push(`${label}: principal settings read guard missing`)
+        }
+        continue
+      }
       if (entry.path === 'src/app/api/admin/account-invitations/route.ts' &&
           entry.method === 'POST') {
         for (const required of [
@@ -282,11 +301,15 @@ function main() {
     'src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts',
     'src/app/api/settings/access/role-capabilities/commands/[commandId]/resolve-unknown/route.ts',
   ]
+  const legacyRoleCapabilityCommands = []
   for (const path of roleCapabilityFiles) {
     const source = readFileSync(join(appRoot, ...path.split('/')), 'utf8')
-    assert.match(source, /requirePdmRouteAuthorizationAsync\s*\(/u, `role capability route is not behind the PDM entitlement boundary: ${path}`)
+    if (/authorizePrincipalWorkspaceExternalRead\s*\(/u.test(source)) continue
+    assert.match(source, /requirePdmRouteAuthorizationAsync\s*\(/u,
+      `role capability route has no entitlement guard: ${path}`)
+    legacyRoleCapabilityCommands.push(path)
   }
-  process.stdout.write(`${JSON.stringify({ status: 'PASS', uniqueFiles: routeMap.denominator.uniqueFiles, uniqueMethods: routeMap.denominator.uniqueMethods, policyEntries: routeMap.denominator.policyEntries, catalogPermissionCodes: catalogPermissionCodes.size, legacyRoleBypassFiles: 0, directRoleGateFiles: 0, methodGuardEntries: routeMap.entries.length, methodGuardMutant: 'detected', roleCapabilityFiles: roleCapabilityFiles.length })}\n`)
+  process.stdout.write(`${JSON.stringify({ status: 'PASS', uniqueFiles: routeMap.denominator.uniqueFiles, uniqueMethods: routeMap.denominator.uniqueMethods, policyEntries: routeMap.denominator.policyEntries, catalogPermissionCodes: catalogPermissionCodes.size, legacyRoleBypassFiles: 0, directRoleGateFiles: 0, methodGuardEntries: routeMap.entries.length, methodGuardMutant: 'detected', roleCapabilityFiles: roleCapabilityFiles.length, legacyRoleCapabilityCommands })}\n`)
 }
 
 try {

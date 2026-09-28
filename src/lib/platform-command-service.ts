@@ -82,9 +82,21 @@ async function executeWithinClient<TPayload, TResult>(
       if (!mode || !["repeatable read", "serializable"].includes(mode.isolation_level)) {
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_SNAPSHOT_REQUIRED");
       }
-      const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified,
-        [{ permissionKind: "action", permissionCode: route.permissionCode }]);
-      if (decisions.length !== 1 || !decisions[0].allowed) {
+      const additional = route.additionalPermissionCodes ?? [];
+      const recordWithDrawing = input.command.commandName === "pdm.numbering.create_official_record" &&
+        Boolean((input.command.payload as { drawingPurposeCode?: unknown }).drawingPurposeCode);
+      const expectedAdditional = recordWithDrawing ? ["numbering.link_variant"] : [];
+      if (additional.length !== expectedAdditional.length ||
+          additional.some((code, index) => code !== expectedAdditional[index]) ||
+          (recordWithDrawing && route.permissionCode !== "numbering.create")) {
+        throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID");
+      }
+      const permissions = [route.permissionCode, ...additional].map((permissionCode) =>
+        ({ permissionKind: "action" as const, permissionCode }));
+      const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified, permissions);
+      if (decisions.length !== permissions.length || decisions.some((decision, index) =>
+        !decision.allowed || decision.principalId !== verified.session.principalId ||
+        decision.permissionCode !== permissions[index].permissionCode)) {
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED");
       }
     }

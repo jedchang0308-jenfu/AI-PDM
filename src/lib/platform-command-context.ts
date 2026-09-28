@@ -1,10 +1,7 @@
 import crypto from "node:crypto";
+import { requestedNumberingCompanyCodeFromRequest } from "@/lib/numbering-company-context";
 import {
-  requestedNumberingCompanyCodeFromRequest,
-  resolveNumberingCompanyContextAsync
-} from "@/lib/numbering-company-context";
-import {
-  requireNumberingActionAsync,
+  requirePrincipalNumberingPermissionAsync,
   type NumberingGuardResult
 } from "@/lib/numbering-permission-guard";
 import {
@@ -12,10 +9,9 @@ import {
   type PdmCommandMetadata,
   type PlatformActorContext
 } from "@/lib/platform-command";
-import { getUserCompanyAuthorityAsync, type PdmCompanyContext } from "@/lib/company-context";
-import type { DbUser } from "@/lib/repositories/user-repository";
-import { AsyncUserRepository, type UserCompanyAuthority } from "@/lib/repositories/user-async-repository";
-import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { PdmCompanyContext } from "@/lib/company-context";
+import { principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { resolveJenfuRoutePolicyFromRequest } from "@/lib/jenfu-route-permission-map";
 import { assertProductionSmokeRuntimeIsolation } from "@/lib/production-smoke-runtime";
 
 export type NumberingPlatformCommandAccess =
@@ -46,26 +42,6 @@ function requestedIdempotencyKey(request: Request, body: Record<string, unknown>
   return supplied || `request:${requestId}`;
 }
 
-export function isValidSmokeCommandAuthority(
-  user: Pick<DbUser, "id" | "role" | "company_id"> | null,
-  authority: UserCompanyAuthority | null
-) {
-  return Boolean(
-    user
-    && authority
-    && user.role === "Engineer"
-    && user.company_id === authority.companyId
-    && (authority.companyCode === "SMOKE" || authority.companyCode === "STAGING-SMOKE")
-    && authority.companyKind === "production_smoke"
-    && authority.membershipCount === 1
-    && authority.isDefault
-    && authority.principalMappingStatus === "active"
-    && authority.platformPrincipalId
-    && authority.organizationMappingStatus === "active"
-    && authority.platformOrganizationId
-  );
-}
-
 export async function requireNumberingPlatformCommandAsync(
   request: Request,
   input: {
@@ -74,43 +50,28 @@ export async function requireNumberingPlatformCommandAsync(
     body?: Record<string, unknown>;
   }
 ): Promise<NumberingPlatformCommandAccess> {
-  const auth = await requireNumberingActionAsync(request, input.permissionCode ?? input.action);
-  if (auth.response || !auth.user) {
+  const permissionCode = input.permissionCode ?? input.action;
+  const route = resolveJenfuRoutePolicyFromRequest(request, permissionCode);
+  if (!route || route.scopeResolver !== "workspace") {
     return {
-      auth,
-      company: null,
-      actor: null,
-      metadata: null,
-      response: auth.response ?? Response.json({ error: "platform_actor_required" }, { status: 401 })
+      auth: { user: { id: "", role: "" }, permission: null, response: null },
+      company: null, actor: null, metadata: null,
+      response: Response.json({ code: "principal_route_not_migrated" },
+        { status: 503, headers: { "cache-control": "no-store" } })
     };
   }
-
   const body = input.body ?? {};
-  const companyResult = await resolveNumberingCompanyContextAsync(
-    auth.user.id,
-    requestedNumberingCompanyCodeFromRequest(request, body)
-  );
-  if (companyResult.response || !companyResult.company) {
-    return {
-      auth,
-      company: null,
-      actor: null,
-      metadata: null,
-      response: companyResult.response
-    };
-  }
-
-  const verifiedActor = auth.user.authorizationActor;
-  if (getAsyncDatabaseClient().kind === "postgres" && !verifiedActor) {
+  const auth = await requirePrincipalNumberingPermissionAsync(request, "action", permissionCode,
+    requestedNumberingCompanyCodeFromRequest(request, body));
+  if (auth.response || !auth.company || !auth.user.authorizationActor) {
     return {
       auth, company: null, actor: null, metadata: null,
-      response: Response.json({ error: "platform_actor_verification_required" }, { status: 401 })
+      response: auth.response ?? Response.json({ code: "platform_actor_verification_required" }, { status: 401 })
     };
   }
-  if (verifiedActor && (
-    verifiedActor.localPrincipalId !== auth.user.id ||
-    verifiedActor.companyId !== companyResult.company.companyId
-  )) {
+  const verifiedActor = auth.user.authorizationActor;
+  if (verifiedActor.localPrincipalId !== auth.user.id ||
+      verifiedActor.companyId !== auth.company.companyId) {
     return {
       auth, company: null, actor: null, metadata: null,
       response: Response.json({ error: "platform_actor_company_mismatch" }, { status: 403 })
@@ -119,31 +80,9 @@ export async function requireNumberingPlatformCommandAsync(
 
   const requestId = safeHeaderId(request, "x-request-id") || crypto.randomUUID();
   const correlationId = safeHeaderId(request, "x-correlation-id") || requestId;
-  const principalSession = verifiedActor?.sessionSchemaVersion === 2;
-  const roleCodes = principalSession
-    ? [auth.permission?.roleCode ?? ""]
-    : [auth.user.role, auth.permission?.roleCode ?? "", ...(auth.permission?.evaluatedRoles ?? [])];
-  const smokeAuthority = companyResult.company.companyKind === "production_smoke"
-    ? await getUserCompanyAuthorityAsync(auth.user.id, companyResult.company.companyId)
-    : null;
-  const smokeUser = companyResult.company.companyKind === "production_smoke"
-    ? await new AsyncUserRepository(getAsyncDatabaseClient()).getUserById(auth.user.id)
-    : null;
-  if (companyResult.company.companyKind === "production_smoke" && (
-    auth.user.role !== "Engineer"
-    || !isValidSmokeCommandAuthority(smokeUser, smokeAuthority)
-  )) {
-    return {
-      auth,
-      company: null,
-      actor: null,
-      metadata: null,
-      response: Response.json({ error: "pdm_smoke_authority_invalid" }, { status: 403 })
-    };
-  }
-  if (companyResult.company.companyKind === "production_smoke") {
+  if (auth.company.companyKind === "production_smoke") {
     try {
-      assertProductionSmokeRuntimeIsolation(companyResult.company);
+      assertProductionSmokeRuntimeIsolation(auth.company);
     } catch {
       return {
         auth,
@@ -156,24 +95,33 @@ export async function requireNumberingPlatformCommandAsync(
   }
   const actor = createPlatformActorContext({
     pdmUserId: auth.user.id,
-    organizationId: companyResult.company.companyId,
-    principalId: smokeAuthority?.platformPrincipalId ?? undefined,
-    platformOrganizationId: smokeAuthority?.platformOrganizationId ?? undefined,
-    roles: roleCodes,
+    organizationId: auth.company.companyId,
+    roles: auth.permission?.roleCode ? [auth.permission.roleCode] : [],
     scopes: [input.action],
     authProvider: "current_pdm_session",
     authorizationActor: verifiedActor,
-    legacyRole: principalSession ? undefined : auth.user.role,
     requestId,
     correlationId
   });
+  const token = principalSessionTokenFromRequest(request);
+  if (!token) {
+    return { auth, company: null, actor: null, metadata: null,
+      response: Response.json({ code: "auth_session_invalid" }, { status: 401 }) };
+  }
   return {
     auth,
-    company: companyResult.company,
+    company: auth.company,
     actor,
     metadata: {
       actor,
-      idempotencyKey: requestedIdempotencyKey(request, body, requestId)
+      idempotencyKey: requestedIdempotencyKey(request, body, requestId),
+      principalRequest: principalRequestInput(token),
+      principalAuthorization: {
+        request, routePath: route.path, method: request.method, permissionCode,
+        additionalPermissionCodes: input.action === "numbering.create" &&
+          Boolean(body.drawingRequested ?? body.drawing_requested)
+          ? ["numbering.link_variant"] : []
+      }
     },
     response: null
   };

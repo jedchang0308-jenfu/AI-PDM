@@ -1,12 +1,12 @@
 {
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
-  "source": "Jenfu-Management-system/ai-doc/specs/DEV-005-ai-pdm-authorization-route-inventory.md",
-  "sourceSha256": "699df04d770ee27f71adc87b2996a3e4f972da9c011d7ac1ae16ea6643ce60c7",
+  "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
+  "sourceSha256": "919ceece44adf0c6c49f9d0f04cec3313c01a41f0515c1c5a0311586c5750fbb",
   "denominator": {
-    "uniqueFiles": 77,
-    "uniqueMethods": 94,
-    "policyEntries": 103
+    "uniqueFiles": 78,
+    "uniqueMethods": 95,
+    "policyEntries": 104
   },
   "entries": [
     {
@@ -338,6 +338,16 @@
       "authorizationTarget": "submission.create",
       "scopeResolver": "drawing company",
       "preservedGuards": "drawing company＋drawing／submission lifecycle"
+    },
+    {
+      "path": "src/app/api/numbering/records/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.create",
+      "authorizationTarget": "numbering.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋company＋link_variant when drawing requested＋numbering validation／idempotency"
     },
     {
       "path": "src/app/api/parts/[partNumber]/shared-models/route.ts",

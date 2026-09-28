@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireCommand: vi.fn(),
+  createRecord: vi.fn(),
   obsoleteDraft: vi.fn(),
   requestRootObsolete: vi.fn(),
   requestNumberObsolete: vi.fn()
@@ -11,6 +12,7 @@ vi.mock("@/lib/platform-command-context", () => ({
   requireNumberingPlatformCommandAsync: mocks.requireCommand
 }));
 vi.mock("@/lib/numbering-async", () => ({
+  createNumberingRecordAsync: mocks.createRecord,
   obsoleteDraftNumberingRecordAsync: mocks.obsoleteDraft,
   requestRootObsoleteApprovalAsync: mocks.requestRootObsolete,
   requestNumberingObsoleteApprovalAsync: mocks.requestNumberObsolete
@@ -32,6 +34,7 @@ vi.mock("@/lib/numbering-obsolete-impact", () => ({
 
 import { POST as requestObsolete } from "@/app/api/lifecycle/obsolete-requests/route";
 import { POST as obsoleteDraft } from "@/app/api/numbering/records/[rootCode]/obsolete/route";
+import { POST as createRecord } from "@/app/api/numbering/records/route";
 
 const actor = { pdmUserId: "profile-one", organizationId: "company-one", principalId: "principal-one" };
 const metadata = { actor, idempotencyKey: "operation-one" };
@@ -75,5 +78,17 @@ describe("DEV-121 human command route actor propagation", () => {
     expect(mocks.obsoleteDraft).toHaveBeenCalledWith(
       expect.objectContaining({ obsoletedBy: actor.pdmUserId, companyId: actor.organizationId }), metadata
     );
+  });
+
+  it("returns a permission denial for a grant revoked in the write snapshot", async () => {
+    mocks.createRecord.mockRejectedValue(new Error("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED"));
+    const response = await createRecord(new Request("https://ai-pdm.test/api/numbering/records", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ coreName: "example", itemKind: "purchased" })
+    }));
+    expect(response.status).toBe(403);
+    expect(mocks.createRecord).toHaveBeenCalledWith(expect.objectContaining({
+      createdBy: actor.pdmUserId, companyId: actor.organizationId
+    }), metadata);
   });
 });

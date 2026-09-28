@@ -1,4 +1,4 @@
-import routeMap from "../../config/access-control/jenfu-route-permission-map.v1.json" with { type: "json" };
+import routeMap from "../../config/access-control/jenfu-route-permission-map.v2.json" with { type: "json" };
 
 export type JenfuRouteAuthorizationMode = "permission" | "authenticated_domain" | "existing_command" | "existing_path" | "retired";
 export type JenfuRouteDiscriminator =
@@ -96,6 +96,18 @@ export function resolveJenfuRoutePolicy(
   const entry = resolveJenfuRouteAuthorization(path, method, input.discriminator);
   if (input.expectedPermissionCode !== undefined && entry?.permissionCode !== input.expectedPermissionCode) return null;
   return entry;
+}
+
+/** Resolve only a unique reviewed policy for the actual HTTP method and URL. */
+export function resolveJenfuRoutePolicyFromRequest(request: Request, expectedPermissionCode: string) {
+  let actualPath: string;
+  try { actualPath = new URL(request.url).pathname; }
+  catch { return null; }
+  const matches = JENFU_ROUTE_PERMISSION_MAP.entries.filter((entry) =>
+    entry.method === request.method && entry.discriminator === null &&
+    entry.authorizationMode === "permission" && entry.permissionCode === expectedPermissionCode &&
+    routePathMatches(entry.path.replace(/^src\/app/u, "").replace(/\/route\.ts$/u, ""), actualPath));
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function routePathMatches(template: string, actual: string) {

@@ -1,7 +1,7 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuPrincipalRequestError } from "@/lib/jenfu-principal-request-guard";
 import type { JenfuEntitlementRoleCatalog } from "@/lib/repositories/jenfu-entitlement-repository";
-import principalRoleCatalog from "../../config/access-control/jenfu-role-catalog.v4.json" with { type: "json" };
+import principalRoleCatalog from "../../config/access-control/jenfu-role-catalog.v5.json" with { type: "json" };
 
 export const principalCatalog = principalRoleCatalog as JenfuEntitlementRoleCatalog & {
   contractVersion: string; applicationId: string; catalogVersion: string; catalogSha256: string;
