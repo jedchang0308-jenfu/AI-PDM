@@ -521,6 +521,11 @@ export async function addTransferDraftWorkspace(input: {
   requiredness: "required" | "optional";
   inclusionReason: string;
 }) {
+  if (input.actor.userId !== input.metadata.actor.pdmUserId ||
+      input.actor.companyId !== input.metadata.actor.organizationId ||
+      input.actor.principalId !== input.metadata.actor.principalId) {
+    throw new TransferPackageError("TRANSFER_PACKAGE_ACTOR_MISMATCH", "技轉包操作者驗證失敗。", 403);
+  }
   if (!/^[A-Za-z0-9._:/-]{1,200}$/u.test(input.workspaceId)) {
     throw new TransferPackageError("TRANSFER_WORKSPACE_ID_INVALID", "請提供有效的草稿工作區 ID。", 400);
   }
@@ -540,7 +545,11 @@ export async function addTransferDraftWorkspace(input: {
     command,
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
-    execute: (client) => new AsyncTransferPackageRepository(client).addDraftWorkspace(input),
+    execute: (client, principalDecision) => new AsyncTransferPackageRepository(client).addDraftWorkspace({
+      ...input, actor: { userId: input.metadata.actor.pdmUserId,
+        companyId: input.metadata.actor.organizationId, role: "Principal",
+        principalId: input.metadata.actor.principalId, principalDecision }
+    }),
     event: (workbench) => ({
       aggregateType: "transfer_package",
       aggregateId: input.packageId,
@@ -564,6 +573,11 @@ export async function removeTransferDraftWorkspace(input: {
   expectedRowVersion: number;
   reason: string;
 }) {
+  if (input.actor.userId !== input.metadata.actor.pdmUserId ||
+      input.actor.companyId !== input.metadata.actor.organizationId ||
+      input.actor.principalId !== input.metadata.actor.principalId) {
+    throw new TransferPackageError("TRANSFER_PACKAGE_ACTOR_MISMATCH", "技轉包操作者驗證失敗。", 403);
+  }
   const command = createPdmCommand({
     commandName: "pdm.transfer.remove_draft_workspace",
     idempotencyKey: input.metadata.idempotencyKey,
@@ -579,7 +593,11 @@ export async function removeTransferDraftWorkspace(input: {
     command,
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
-    execute: (client) => new AsyncTransferPackageRepository(client).removeDraftWorkspace(input),
+    execute: (client, principalDecision) => new AsyncTransferPackageRepository(client).removeDraftWorkspace({
+      ...input, actor: { userId: input.metadata.actor.pdmUserId,
+        companyId: input.metadata.actor.organizationId, role: "Principal",
+        principalId: input.metadata.actor.principalId, principalDecision }
+    }),
     event: (workbench) => ({
       aggregateType: "transfer_package",
       aggregateId: input.packageId,

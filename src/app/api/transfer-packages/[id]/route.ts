@@ -1,8 +1,9 @@
 import { numberStateFlowJson, validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
-import { requireTransferPackageAccessAsync, transferPackageErrorResponse } from "@/lib/transfer-package-api";
+import { transferPackageErrorResponse } from "@/lib/transfer-package-api";
 import { getTransferPackageWorkbench, updateTransferPackageHeader } from "@/lib/transfer-packages";
 import { requestedPdmCompanyCodeFromRequest } from "@/lib/company-context";
 import { withPrincipalCompanyRead } from "@/lib/principal-company-read";
+import { requireNumberStateCommandAccessAsync } from "@/lib/number-state-flow-api";
 import { resolveJenfuRoutePolicyFromRequest } from "@/lib/jenfu-route-permission-map";
 
 export const runtime = "nodejs";
@@ -31,13 +32,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!body) return numberStateFlowJson({ error: "invalid_json", message: "請提供有效的 JSON。" }, { status: 400 });
   const invalid = validateNumberStateMutationRequest({ request });
   if (invalid) return invalid;
-  const access = await requireTransferPackageAccessAsync(request, body, "transfer.package.update");
+  const access = await requireNumberStateCommandAccessAsync(request, "transfer.package.update", body);
   if (access.response) return access.response;
   const { id } = await params;
   try {
     const workbench = await updateTransferPackageHeader({
       packageId: id,
-      actor: access.actor,
+      metadata: access.metadata,
+      actor: { userId: access.actor.pdmUserId, companyId: access.company.companyId,
+        role: "Principal", principalId: access.actor.principalId },
       expectedRowVersion: body.expectedRowVersion ?? body.expected_row_version,
       title: body.title,
       caseType: body.caseType ?? body.case_type,

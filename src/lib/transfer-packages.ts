@@ -230,6 +230,7 @@ export async function getTransferPackageWorkbench(
 }
 
 export async function updateTransferPackageHeader(input: {
+  metadata: PdmCommandMetadata;
   packageId: string;
   actor: TransferPackageActor;
   expectedRowVersion: unknown;
@@ -240,17 +241,39 @@ export async function updateTransferPackageHeader(input: {
   sourceReference?: unknown;
   sourceReferenceReason?: unknown;
 }) {
+  if (input.actor.userId !== input.metadata.actor.pdmUserId ||
+      input.actor.companyId !== input.metadata.actor.organizationId ||
+      input.actor.principalId !== input.metadata.actor.principalId) {
+    throw new TransferPackageError("TRANSFER_PACKAGE_ACTOR_MISMATCH", "技轉包操作者驗證失敗。", 403);
+  }
   const reference = normalizeReference(input);
-  const record = await repository().updateHeader({
-    packageId: requiredText(input.packageId, "技轉包 ID", 1, 200),
-    actor: input.actor,
-    expectedRowVersion: validateVersion(input.expectedRowVersion),
-    title: requiredText(input.title, "技轉包名稱", 2, 120),
-    caseType: normalizeCaseType(input.caseType),
-    caseReason: requiredText(input.caseReason, "案件或變更原因", 3, 2000),
-    ...reference
+  const packageId = requiredText(input.packageId, "技轉包 ID", 1, 200);
+  const expectedRowVersion = validateVersion(input.expectedRowVersion);
+  const title = requiredText(input.title, "技轉包名稱", 2, 120);
+  const caseType = normalizeCaseType(input.caseType);
+  const caseReason = requiredText(input.caseReason, "案件或變更原因", 3, 2000);
+  const command = createPdmCommand({
+    commandName: "pdm.transfer.update_header", idempotencyKey: input.metadata.idempotencyKey,
+    actor: input.metadata.actor,
+    payload: { packageId, expectedRowVersion, title, caseType, caseReason, ...reference }
   });
-  return buildWorkbench(record);
+  const execution = await executePdmCommandWithOutbox({
+    client: getAsyncDatabaseClient(), command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: (client, principalDecision) => new AsyncTransferPackageRepository(client).updateHeader({
+      packageId,
+      actor: { userId: input.metadata.actor.pdmUserId,
+        companyId: input.metadata.actor.organizationId, role: "Principal",
+        principalId: input.metadata.actor.principalId, principalDecision }, expectedRowVersion,
+      title, caseType, caseReason,
+      ...reference
+    }),
+    event: (record) => ({ aggregateType: "transfer_package", aggregateId: record.id,
+      eventType: "pdm.transfer.package_header_updated.v1",
+      payload: { companyId: record.companyId, packageId: record.id, rowVersion: record.rowVersion } })
+  });
+  return buildWorkbench(execution.result);
 }
 
 export async function addTransferPackageScopeItem(input: {

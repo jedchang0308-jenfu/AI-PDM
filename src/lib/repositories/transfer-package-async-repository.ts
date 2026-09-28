@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { PrincipalWorkspaceDecision } from "@/lib/jenfu-principal-permission-service";
 
 export type TransferPackageCaseType = "development_case" | "design_change_case";
 export type TransferPackageStatus =
@@ -19,6 +20,8 @@ export type TransferPackageActor = {
   companyId: string;
   role: string;
   principalId?: string;
+  /** In-process decision rechecked inside the current command transaction. */
+  principalDecision?: PrincipalWorkspaceDecision | null;
 };
 
 export type ResolvedTransferPackageEntity = {
@@ -211,12 +214,23 @@ function mapDraftItem(row: DraftItemRow): TransferPackageDraftItem {
   };
 }
 
-function canManagePackage(row: PackageRow, actor: TransferPackageActor) {
-  return actor.role === "R&D Manager" || actor.role === "Admin" || row.owner_id === actor.userId;
+async function canManagePackage(client: AsyncDatabaseClient, row: PackageRow, actor: TransferPackageActor) {
+  const decision = actor.principalDecision;
+  if (!actor.principalId || !decision?.allowed || decision.principalId !== actor.principalId ||
+      decision.permissionCode !== "transfer.package.update" || row.company_id !== actor.companyId) return false;
+  if (["rd_manager", "pdm_admin", "system_admin"].includes(decision.roleCode ?? "")) return true;
+  const owner = await client.query<{ principal_id: string }>(
+    `SELECT account.principal_id FROM ai_pdm_core.principal_accounts account
+     WHERE account.pdm_user_id = :ownerId AND account.company_id = :companyId
+       AND account.account_status = 'active' AND account.system_role_enabled
+     LIMIT 2`,
+    { ownerId: row.owner_id, companyId: row.company_id }
+  );
+  return owner.length === 1 && owner[0].principal_id === actor.principalId;
 }
 
-function assertEditable(row: PackageRow, actor: TransferPackageActor) {
-  if (!canManagePackage(row, actor)) {
+async function assertEditable(client: AsyncDatabaseClient, row: PackageRow, actor: TransferPackageActor) {
+  if (!(await canManagePackage(client, row, actor))) {
     throw new TransferPackageError("TRANSFER_PACKAGE_FORBIDDEN", "只有技轉包負責人或管理角色可以修改。", 403);
   }
   if (!(["Draft", "NeedsInfo", "ReleaseFailed"] as TransferPackageStatus[]).includes(row.package_status)) {
@@ -634,7 +648,7 @@ export class AsyncTransferPackageRepository {
     await this.client.transaction(async (client) => {
       const row = await this.getRow(input.packageId, input.actor.companyId, client);
       if (!row) throw new TransferPackageError("TRANSFER_PACKAGE_NOT_FOUND", "找不到技轉包。", 404);
-      if (!canManagePackage(row, input.actor)) {
+      if (!(await canManagePackage(client, row, input.actor))) {
         throw new TransferPackageError("TRANSFER_PACKAGE_FORBIDDEN", "只有技轉包負責人或管理角色可以取消。", 403);
       }
       if (row.package_status === "Cancelled") return;
@@ -892,7 +906,7 @@ export class AsyncTransferPackageRepository {
   private async requireEditableRow(client: AsyncDatabaseClient, packageId: string, actor: TransferPackageActor) {
     const row = await this.getRow(packageId, actor.companyId, client);
     if (!row) throw new TransferPackageError("TRANSFER_PACKAGE_NOT_FOUND", "找不到技轉包。", 404);
-    assertEditable(row, actor);
+    await assertEditable(client, row, actor);
     return row;
   }
 
