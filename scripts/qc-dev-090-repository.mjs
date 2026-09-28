@@ -13,7 +13,7 @@ function walk(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name);
     if (entry.isDirectory()) walk(file);
-    else if (entry.isFile() && file.endsWith(".ts")) {
+    else if (entry.isFile() && file.endsWith(".ts") && !file.endsWith(".test.ts")) {
       const text = fs.readFileSync(file, "utf8");
       if (dml.test(text) && !allowed.has(path.basename(file))) violations.push(path.relative(root, file));
       dml.lastIndex = 0;

@@ -2,21 +2,11 @@ import crypto from "node:crypto";
 import { GoogleAuth } from "google-auth-library";
 import { NextResponse } from "next/server";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { getUserByIdAsync } from "@/lib/auth-async";
-import { serializeAuthUserAsync } from "@/lib/company-context";
-import { registerJenfuAccountSessionAsync } from "@/lib/account-session-registry";
 import { setJenfuPlatformSessionResponseCookie } from "@/lib/auth-response-cookies";
 import { getGoogleWorkspaceMfaTrustPolicy, getJenfuIdentityConfig, getJenfuSsoHandoffConfig } from "@/lib/auth-config";
-import { FirebasePlatformPrincipalRepository } from "@/lib/firebase-platform-principal-repository";
-import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
-import { JenfuLegacyCutoverError, JenfuLegacyCutoverRepository } from "@/lib/jenfu-legacy-cutover-repository";
 import { parseJenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 import { issueSessionForPrincipalHandoff } from "@/lib/jenfu-principal-handoff-session-service";
-import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
-import { issueJenfuPlatformSessionV1, verifyJenfuPlatformSessionV1 } from "@/lib/jenfu-platform-session-v1";
-import { resolveJenfuAssurance } from "@/lib/jenfu-platform-identity-contract";
-import { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
 export { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
 
 const COOKIE = "__Host-jenfu_sso_tx";
@@ -28,27 +18,8 @@ type CallbackStage =
   | "service_identity"
   | "broker_exchange"
   | "handoff_parse"
-  | "principal_resolution"
-  | "principal_admission"
-  | "auth_epoch"
-  | "assurance"
-  | "local_user"
   | "session_issue"
-  | "session_verify"
-  | "session_registry"
   | "response";
-type Handoff = {
-  contractVersion: "jenfu.sso-handoff.v1";
-  issuer: string;
-  audience: string;
-  identity: { identityIssuer: string; identitySubject: string; principalId: string; employeeId: string };
-  authorization: { applicationId: "ai-pdm"; assignmentVersion: number };
-  authentication: { authenticatedAt: string; email: string; emailVerified: true; signInProvider: string; secondFactor: "totp" | null; assuranceLevel: "aal1" | "aal2" };
-  authState: { authEpoch: number; revokedBefore: string | null };
-  sourceSessionExpiresAt: string;
-  issuedAt: string;
-  expiresAt: string;
-};
 
 function secret() {
   const ring = getPlatformSessionKeyRing();
@@ -76,14 +47,7 @@ function decode(value: string | undefined): Transaction | null {
 
 function error(code: string, status: number) { return NextResponse.json({ code }, { status, headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } }); }
 
-function exactObject(value: unknown, keys: readonly string[]) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const object = value as Record<string, unknown>;
-  return Object.keys(object).length === keys.length && keys.every((key) => Object.prototype.hasOwnProperty.call(object, key));
-}
-
 function callbackErrorCode(errorValue: unknown) {
-  if (errorValue instanceof JenfuLegacyCutoverError && errorValue.code === "legacy_session_retired") return "principal_login_required";
   const code = errorValue instanceof Error ? errorValue.message : "";
   if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED" || code === "BROKER_DENIED") return "sso_code_invalid";
   if (code === "PRINCIPAL_NOT_ACTIVE") return "principal_not_active";
@@ -133,16 +97,6 @@ export function safeJenfuSsoReturnTo(value: string | null | undefined) {
   return "/";
 }
 
-function parse(value: unknown, expected: ReturnType<typeof setup>): Handoff {
-  const handoff = value as Handoff;
-  if (!exactObject(handoff, ["contractVersion", "issuer", "audience", "identity", "authorization", "authentication", "authState", "sourceSessionExpiresAt", "issuedAt", "expiresAt"]) || !exactObject(handoff.identity, ["identityIssuer", "identitySubject", "principalId", "employeeId"]) || !exactObject(handoff.authorization, ["applicationId", "assignmentVersion"]) || !exactObject(handoff.authentication, ["authenticatedAt", "email", "emailVerified", "signInProvider", "secondFactor", "assuranceLevel"]) || !exactObject(handoff.authState, ["authEpoch", "revokedBefore"]) || handoff.contractVersion !== "jenfu.sso-handoff.v1" || handoff.issuer !== expected.issuer || handoff.audience !== "ai-pdm" || handoff.authorization?.applicationId !== "ai-pdm" || !handoff.identity?.identityIssuer || !handoff.identity.identitySubject || !handoff.identity.principalId || !handoff.identity.employeeId || !handoff.authentication?.authenticatedAt || !handoff.authentication.email || handoff.authentication.emailVerified !== true || !handoff.authentication.signInProvider || !handoff.sourceSessionExpiresAt || !handoff.expiresAt || !Number.isSafeInteger(handoff.authState?.authEpoch) || !Number.isSafeInteger(handoff.authorization.assignmentVersion) || !["aal1", "aal2"].includes(handoff.authentication.assuranceLevel) || (handoff.authentication.secondFactor !== null && handoff.authentication.secondFactor !== "totp")) throw new Error("HANDOFF_INVALID");
-  const authenticatedAt = Date.parse(handoff.authentication.authenticatedAt);
-  const sourceExpiresAt = Date.parse(handoff.sourceSessionExpiresAt);
-  const expiresAt = Date.parse(handoff.expiresAt);
-  if (![authenticatedAt, sourceExpiresAt, expiresAt].every(Number.isFinite) || authenticatedAt > Date.now() + 60_000 || expiresAt <= Date.now() || sourceExpiresAt <= Date.now()) throw new Error("HANDOFF_EXPIRED");
-  return handoff;
-}
-
 function callbackSuccess(config: ReturnType<typeof setup>, tx: Transaction, sessionToken: string) {
   const response = NextResponse.redirect(new URL(tx.returnTo, config.base), 303);
   response.headers.set("cache-control", "no-store");
@@ -186,45 +140,16 @@ export async function jenfuSsoCallback(request: Request) {
     if (!brokerResponse.ok) throw new Error("BROKER_DENIED");
     stage = "handoff_parse";
     const proof: unknown = await brokerResponse.json();
-    if (proof && typeof proof === "object" && !Array.isArray(proof) &&
-      (proof as { contractVersion?: unknown }).contractVersion === "jenfu.sso-handoff.v2") {
-      const handoff = parseJenfuPrincipalHandoff(proof, config.issuer);
-      stage = "session_issue";
-      const issued = await issueSessionForPrincipalHandoff({
-        handoff, database: getAsyncDatabaseClient(),
-        expectedIdentityIssuer: getJenfuIdentityConfig().identityIssuer,
-        keyRing: getPlatformSessionKeyRing(),
-        trustPolicy: getGoogleWorkspaceMfaTrustPolicy()
-      });
-      stage = "response";
-      return callbackSuccess(config, tx, issued.token);
-    }
-    const handoff = parse(proof, config);
-    const client = getAsyncDatabaseClient();
-    stage = "principal_resolution";
-    const principal = await new FirebasePlatformPrincipalRepository(client).resolvePrincipal(handoff.identity.identitySubject);
-    if (!principal || principal.accountStatus !== "active") throw new Error("PRINCIPAL_NOT_ACTIVE");
-    stage = "principal_admission";
-    const admitted = await new JenfuPrincipalAdmissionRepository(client).requireActivePrincipal(handoff.identity.identityIssuer, handoff.identity.identitySubject);
-    stage = "auth_epoch";
-    const state = await new JenfuAuthEpochRepository(client).readPrincipalAuthState(handoff.identity.identityIssuer, handoff.identity.identitySubject);
-    if (admitted.principalId !== handoff.identity.principalId || admitted.employeeId !== handoff.identity.employeeId || state.authEpoch !== handoff.authState.authEpoch || (state.revokedBefore && Date.parse(handoff.authentication.authenticatedAt) <= Date.parse(state.revokedBefore))) throw new Error("STALE_HANDOFF");
-    await new JenfuLegacyCutoverRepository(client).requireLegacyCompatible(principal.pdmUserId, admitted.principalId);
-    stage = "assurance";
-    const assurance = resolveJenfuAssurance({ email: handoff.authentication.email, signInProvider: handoff.authentication.signInProvider, secondFactor: handoff.authentication.secondFactor, requirePrivilegedAssurance: principal.requiresPrivilegedAssurance === true, workspaceMfaTrustPolicy: getGoogleWorkspaceMfaTrustPolicy() });
-    stage = "local_user";
-    const user = await getUserByIdAsync(principal.pdmUserId);
-    if (!user) throw new Error("PRINCIPAL_NOT_ACTIVE");
-    const now = Math.floor(Date.now() / 1000);
-    const maxExpiry = resolveJenfuTargetSessionExpiry(now, handoff.sourceSessionExpiresAt);
+    const handoff = parseJenfuPrincipalHandoff(proof, config.issuer);
     stage = "session_issue";
-    const sessionToken = issueJenfuPlatformSessionV1({ identityIssuer: handoff.identity.identityIssuer, identityAudience: getJenfuIdentityConfig().identityAudience, identitySubject: handoff.identity.identitySubject, principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId, localPrincipalId: principal.pdmUserId, companyId: principal.companyId, authEpoch: handoff.authState.authEpoch, accountLifecycleVersion: principal.sessionVersion, authTime: Math.floor(Date.parse(handoff.authentication.authenticatedAt) / 1000), assuranceLevel: assurance.assuranceLevel, secondFactor: assurance.secondFactor, maxAgeSeconds: maxExpiry - now }, getPlatformSessionKeyRing(), now);
-    stage = "session_verify";
-    const claims = verifyJenfuPlatformSessionV1(sessionToken, getPlatformSessionKeyRing(), { nowSeconds: now });
-    stage = "session_registry";
-    await registerJenfuAccountSessionAsync({ request, claims });
+    const issued = await issueSessionForPrincipalHandoff({
+      handoff, database: getAsyncDatabaseClient(),
+      expectedIdentityIssuer: getJenfuIdentityConfig().identityIssuer,
+      keyRing: getPlatformSessionKeyRing(),
+      trustPolicy: getGoogleWorkspaceMfaTrustPolicy()
+    });
     stage = "response";
-    return callbackSuccess(config, tx, sessionToken);
+    return callbackSuccess(config, tx, issued.token);
   } catch (errorValue) {
     console.error(JSON.stringify({ event: "jenfu_sso_callback_failed", stage, code: callbackFailureCode(errorValue) }));
     return callbackFailure(config, callbackErrorCode(errorValue));

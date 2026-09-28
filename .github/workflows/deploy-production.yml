@@ -128,7 +128,7 @@ jobs:
           npm exec vitest run src/app/api/admin/account-invitations/principal-enrollment-boundary.test.ts src/lib/platform-principal-command-snapshot.test.ts src/lib/platform-command-service.test.ts src/lib/repositories/pdm-work-review-async-repository.test.ts
           npm run qc:request-origin
           npm run qc:dev-070-privacy-removal
-          npm run qc:pdm-account-invitations
+          npm run qc:pdm-principal-account-boundary
           npm run qc:dev-032-production-iac-package
           npm run qc:dev-079:contract
           npm run qc:dev-079:owner-invariant

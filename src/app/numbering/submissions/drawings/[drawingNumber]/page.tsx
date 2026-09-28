@@ -1,6 +1,6 @@
-import { DrawingSourceSubmissionWorkbench } from "@/app/upload/page";
+import { redirect } from "next/navigation";
 
 export default async function DrawingNumberSubmissionPage({ params }: { params: Promise<{ drawingNumber: string }> }) {
   const { drawingNumber } = await params;
-  return <DrawingSourceSubmissionWorkbench drawingNumber={decodeURIComponent(drawingNumber)} />;
+  redirect(`/numbering/drawings?query=${encodeURIComponent(drawingNumber)}&legacyIntent=submission`);
 }

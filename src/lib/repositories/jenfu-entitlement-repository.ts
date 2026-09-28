@@ -221,10 +221,11 @@ export class JenfuEntitlementRepository {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
     const authority = await this.resolveAuthority({ employeeId: input.actor.employeeId });
-    if (authority.authoritySource === "legacy_authority") {
-      return inputs.map(() => ({ authority, assignments: [] as JenfuEffectiveRoleAssignment[], decisionCode: "legacy_authority" as const }));
+    // A principal session has one published grant authority. The legacy
+    // source remains readable for inventory, but cannot authorize a request.
+    if (authority.authoritySource !== "orgmaster_authority") {
+      throw new JenfuEntitlementRepositoryError("entitlement_authority_unknown");
     }
-    if (authority.authoritySource !== "orgmaster_authority") throw new JenfuEntitlementRepositoryError("entitlement_dual_authority_detected");
     const assignments = await this.listEffectiveAssignments(input.actor);
     if (assignments.length === 0) throw new JenfuEntitlementRepositoryError("entitlement_assignment_not_found");
     if (assignments.some((assignment) => assignment.authorityVersion !== authority.authorityVersion)) {
@@ -292,7 +293,7 @@ export class JenfuEntitlementRepository {
 
   async evaluatePermission(input: JenfuEnforcedPermissionInput, decisionAt = new Date()) {
     const [result] = await this.evaluatePermissions([input], decisionAt);
-    if (result.decisionCode === "allowed" || result.decisionCode === "legacy_authority") return result;
+    if (result.decisionCode === "allowed") return result;
     throw new JenfuEntitlementRepositoryError(result.decisionCode);
   }
 }

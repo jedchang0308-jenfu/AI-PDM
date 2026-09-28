@@ -1,18 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  requireAction: vi.fn(),
-  resolveCompany: vi.fn()
+  requirePrincipal: vi.fn(),
+  resolvePolicy: vi.fn(),
+  token: vi.fn(),
+  principalInput: vi.fn()
 }));
 
-vi.mock("@/lib/db-async-provider", () => ({ getAsyncDatabaseClient: () => ({ kind: "postgres" }) }));
-vi.mock("@/lib/numbering-permission-guard", () => ({ requireNumberingActionAsync: mocks.requireAction }));
+vi.mock("@/lib/numbering-permission-guard", () => ({ requirePrincipalNumberingPermissionAsync: mocks.requirePrincipal }));
 vi.mock("@/lib/numbering-company-context", () => ({
-  requestedNumberingCompanyCodeFromRequest: () => null,
-  resolveNumberingCompanyContextAsync: mocks.resolveCompany
+  requestedNumberingCompanyCodeFromRequest: () => null
 }));
-vi.mock("@/lib/company-context", () => ({ getUserCompanyAuthorityAsync: vi.fn() }));
-vi.mock("@/lib/repositories/user-async-repository", () => ({ AsyncUserRepository: vi.fn() }));
+vi.mock("@/lib/jenfu-route-permission-map", () => ({ resolveJenfuRoutePolicyFromRequest: mocks.resolvePolicy }));
+vi.mock("@/lib/jenfu-principal-http", () => ({
+  principalSessionTokenFromRequest: mocks.token,
+  principalRequestInput: mocks.principalInput
+}));
 vi.mock("@/lib/production-smoke-runtime", () => ({ assertProductionSmokeRuntimeIsolation: vi.fn() }));
 
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
@@ -27,14 +30,16 @@ const verified = {
 describe("DEV-121 command ingress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.resolveCompany.mockResolvedValue({
-      company: { companyId: "company-one", companyCode: "JENFU", companyKind: "business" }, response: null
-    });
+    mocks.resolvePolicy.mockReturnValue({ path: "src/app/api/numbering/records/route.ts", method: "POST",
+      permissionCode: "numbering.create", authorizationMode: "permission", scopeResolver: "workspace" });
+    mocks.token.mockReturnValue("verified-session-token");
+    mocks.principalInput.mockReturnValue({ token: "verified-session-token" });
   });
 
   async function ingress(authorizationActor?: typeof verified, localRole = "Engineer") {
-    mocks.requireAction.mockResolvedValue({
+    mocks.requirePrincipal.mockResolvedValue({
       user: { id: "profile-one", role: localRole, company_id: "company-one", authorizationActor },
+      company: { companyId: "company-one", companyCode: "JENFU", companyKind: "business" },
       permission: { allowed: true, roleCode: "rd", evaluatedRoles: ["rd"] }, response: null
     });
     return requireNumberingPlatformCommandAsync(new Request("https://ai-pdm.test/api/numbering/records", {
@@ -47,6 +52,13 @@ describe("DEV-121 command ingress", () => {
     expect(result.response?.status).toBe(401);
     expect(result.actor).toBeNull();
     expect(result.metadata).toBeNull();
+  });
+
+  it("keeps a command without an exact route policy closed before authorization", async () => {
+    mocks.resolvePolicy.mockReturnValue(null);
+    const result = await ingress(verified);
+    expect(result.response?.status).toBe(503);
+    expect(mocks.requirePrincipal).not.toHaveBeenCalled();
   });
 
   it("does not use a verified principal for another company", async () => {
@@ -64,5 +76,9 @@ describe("DEV-121 command ingress", () => {
     expect(result.actor.legacyRole).toBeUndefined();
     expect(result.metadata.actor.authorizationActor).toEqual(verified);
     expect(result.metadata.idempotencyKey).toBe("operation-one");
+    expect(result.metadata.principalRequest).toEqual({ token: "verified-session-token" });
+    expect(result.metadata.principalAuthorization).toMatchObject({
+      routePath: "src/app/api/numbering/records/route.ts", method: "POST", permissionCode: "numbering.create"
+    });
   });
 });

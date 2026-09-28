@@ -7,8 +7,10 @@ import ts from "typescript";
 
 const appRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const routeRoot = join(appRoot, "src", "app", "api");
-const routeMap = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-route-permission-map.v1.json"), "utf8"));
-const roleCatalog = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-role-catalog.v1.json"), "utf8"));
+const routeMap = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-route-permission-map.v2.json"), "utf8"));
+// Evaluate the candidate Principal-only catalog; v1/v3 dispositions remain
+// historical evidence and must not be mistaken for the new runtime decision.
+const roleCatalog = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-role-catalog.v5.json"), "utf8"));
 const routePolicyDispositions = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-route-policy-dispositions.v1.json"), "utf8"));
 const methods = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 
@@ -91,6 +93,10 @@ const publicStatusRoutes = new Map([
   ["GET /api/numbering/state-flow/status", "numberStateFlowV1ClientStatus"]
 ]);
 const retiredRoutes = new Map([
+  ["POST /api/submissions", "GENERIC_SUBMISSION_RETIRED"],
+  ["POST /api/settings/access/role-capabilities/commands/[commandId]/resolve-unknown", "ROLE_CAPABILITY_MUTATION_RETIRED"],
+  ["POST /api/settings/access/role-capabilities/preview", "ROLE_CAPABILITY_MUTATION_RETIRED"],
+  ["POST /api/settings/access/role-capabilities/publish", "ROLE_CAPABILITY_MUTATION_RETIRED"],
   ["POST /api/numbering/drawings/[drawingNumber]/attachments", "DRAWING_REFERENCE_UPLOAD_RETIRED"],
   ["POST /api/numbering/reviews/[reviewId]/approve-confirmed-impact-release", "handleDrawingRevisionReviewAction"],
   ["POST /api/numbering/reviews/[reviewId]/confirm-original-part-reuse", "handleDrawingRevisionReviewAction"],
@@ -105,7 +111,7 @@ const explicitPermissionCalls = new Map([
   ["GET /api/numbering/drawings", ["approval.request.decide"]],
   ["POST /api/submissions/[id]/cancel", ["submission.view", "submission.review"]]
 ]);
-const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|requireTransferPackageAccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
+const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
 const sessionGuard = /\brequireAuthAsync\s*\(/u;
 const workerCapabilityGuard = /\b(?:requireWorkerServiceToken|requirePreviewWorkerToken|requireRecognitionWorker)\s*\(/u;
 
@@ -173,7 +179,6 @@ function permissionReferences(sourceFile) {
       const name = node.expression.text;
       if (["requireNumberingPermissionAsync", "requireNumberingPageAsync", "requireNumberingActionAsync", "canUserUseNumberingActionAsync", "requireNumberStateReadAccessAsync", "requireNumberStateCommandAccessAsync"].includes(name)) literalAt(node, 1, name);
       if (name === "requireNumberingCompanyPermissionAsync") literalAt(node, 2, name);
-      if (name === "requireTransferPackageAccessAsync") literalAt(node, 2, name);
       if (name === "requireNumberingPlatformCommandAsync" && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
         let actionCode = "";
         let permissionCode = "";
@@ -218,8 +223,21 @@ function main() {
     for (const handler of exportedHandlers(sourceFile)) {
       const key = `${handler.method} ${routePath}`;
       observedMethods.set(key, { relativeFile, sourceFile });
-      const mapped = routeMap.entries.some((entry) => entry.path === relativeFile && entry.method === handler.method);
-      if (mapped) { assign(key, "permission_manifest"); continue; }
+      const mapped = routeMap.entries.filter((entry) => entry.path === relativeFile && entry.method === handler.method);
+      if (mapped.length > 0) {
+        if (mapped.every((entry) => entry.authorizationMode === "retired" && entry.discriminator === null)) {
+          const graph = functionGraph(sourceFile, handler.method);
+          const marker = retiredRoutes.get(key);
+          if (!marker || !graph.includes(marker) || !/status:\s*410/u.test(graph) ||
+            centralPermissionGuard.test(graph) || sessionGuard.test(graph)) {
+            throw new Error(`${key}: retired manifest route still enters an authorization caller`);
+          }
+          assign(key, "retired_route");
+        } else {
+          assign(key, "permission_manifest");
+        }
+        continue;
+      }
       const graph = functionGraph(sourceFile, handler.method);
       if (centralPermissionGuard.test(graph)) {
         for (const permissionCode of explicitPermissionCalls.get(key) ?? []) {
@@ -278,13 +296,22 @@ function main() {
   const guardedSource = (path) => readFileSync(join(appRoot, ...path.split("/")), "utf8");
   containsAll(guardedSource("src/lib/numbering-permission-async.ts"), ["assertJenfuEnforcePrerequisites", "JenfuPrincipalAdmissionRepository", "JenfuEntitlementRepository", "readOnly: true"], "central authorization evaluator");
   containsAll(guardedSource("src/lib/numbering-permission-guard.ts"), ["checkNumberingPermissionAsync"], "numbering permission helpers");
-  containsAll(guardedSource("src/lib/numbering-company-permission.ts"), ["requirePrincipalNumberingPermissionAsync", "resolveNumberingCompanyContextAsync", "authorizationActor.companyId"], "numbering company permission helper");
-  containsAll(guardedSource("src/lib/number-state-flow-api.ts"), ["requireNumberingActionAsync", "requireNumberingPlatformCommandAsync"], "number-state helpers");
-  containsAll(guardedSource("src/lib/platform-command-context.ts"), ["requireNumberingActionAsync"], "Platform command helper");
-  containsAll(guardedSource("src/lib/transfer-package-api.ts"), ["requireNumberStateReadAccessAsync", "requireNumberStateCommandAccessAsync"], "transfer package helpers");
+  containsAll(guardedSource("src/lib/numbering-company-permission.ts"), ["requirePrincipalNumberingPermissionAsync", "authorizationActor.companyId"], "numbering company permission helper");
+  containsAll(guardedSource("src/lib/number-state-flow-api.ts"), ["requireNumberingCompanyPermissionAsync", "requireNumberingPlatformCommandAsync"], "number-state helpers");
+  containsAll(guardedSource("src/lib/platform-command-context.ts"), ["requirePrincipalNumberingPermissionAsync", "resolveJenfuRoutePolicyFromRequest"], "Platform command helper");
+  for (const path of ["src/app/api/transfer-packages/[id]/route.ts",
+    "src/app/api/transfer-packages/[id]/items/route.ts",
+    "src/app/api/transfer-packages/[id]/items/[itemId]/route.ts",
+    "src/app/api/transfer-packages/[id]/cancel/route.ts"]) {
+    containsAll(guardedSource(path), ["requireNumberStateCommandAccessAsync", "access.metadata"], `Principal transfer route ${path}`);
+  }
+  containsAll(guardedSource("src/lib/repositories/transfer-package-async-repository.ts"),
+    ["principalDecision", "principalCanManageTransferPackageInSnapshot"], "transfer package owner guard");
+  containsAll(guardedSource("src/lib/transfer-package-principal-resource.ts"),
+    ["principal_accounts", "decision.principalId !== input.actorPrincipalId"], "Principal transfer resource guard");
   containsAll(guardedSource("src/lib/pdm-dev087-route.ts"), ["requireNumberingPageAsync", "resolveDev087RouteActor"], "DEV-087 route helpers");
   containsAll(guardedSource("src/app/api/numbering/reviews/_review-action-handler.ts"), ["DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED", "status: 410"], "retired review actions");
-  containsAll(guardedSource("src/lib/platform-command-context.ts"), ["input.permissionCode ?? input.action", "scopes: [input.action]"], "business action and permission separation");
+  containsAll(guardedSource("src/lib/platform-command-context.ts"), ["input.permissionCode ?? input.action", "scopes: [input.action]", "principalAuthorization"], "business action and permission separation");
   const catalogPermissionCodes = new Set(roleCatalog.roles.flatMap((role) => role.permissions.map((permission) => permission.code)));
   for (const codes of explicitPermissionCalls.values()) {
     for (const code of codes) if (!catalogPermissionCodes.has(code)) throw new Error(`Canonical permission is missing from the application role catalog: ${code}`);
@@ -310,7 +337,7 @@ function main() {
   const status = missingDispositions.length || pendingDispositions.length || unresolvedDispositions.length
     ? "BLOCKED_ROUTE_POLICY_DISPOSITION"
     : "PASS";
-  process.stdout.write(`${JSON.stringify({ status, apiRouteFiles: sourceCache.size, apiMethods: observedMethods.size, permissionManifestMethods: counts.permission_manifest ?? 0, authorizationClasses: counts, directRoleGateFiles: directRoleGates.length, explicitPermissionAssertions: explicitPermissionCalls.size, unsupportedPermissionCodeCount: unsupportedPermissionCodes.length, unsupportedPermissionCodes, missingDispositions, pendingDispositions, unresolvedDispositions, allMethodsClassified: true, productionWrites: false })}\n`);
+  process.stdout.write(`${JSON.stringify({ status, catalogVersion: roleCatalog.catalogVersion, apiRouteFiles: sourceCache.size, apiMethods: observedMethods.size, permissionManifestMethods: counts.permission_manifest ?? 0, authorizationClasses: counts, directRoleGateFiles: directRoleGates.length, explicitPermissionAssertions: explicitPermissionCalls.size, unsupportedPermissionCodeCount: unsupportedPermissionCodes.length, unsupportedPermissionCodes, missingDispositions, pendingDispositions, unresolvedDispositions, allMethodsClassified: true, productionWrites: false })}\n`);
   if (status !== "PASS") process.exitCode = 1;
 }
 

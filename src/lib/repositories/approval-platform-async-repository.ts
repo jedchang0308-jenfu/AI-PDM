@@ -365,6 +365,36 @@ function isBeforeInboxCursor(item: ApprovalPlatformInboxItem, cursor: ApprovalPl
   return item.requestedAt > cursor.sortValue || (item.requestedAt === cursor.sortValue && item.rowKey < cursor.rowKey);
 }
 
+function paginateInboxItems(items: ApprovalPlatformInboxItem[], input: ApprovalPlatformInboxFilter,
+  limit: number): ApprovalPlatformInboxPage {
+  const sorted = items.filter((item) => matchesInboxFilter(item, input)).sort(compareInboxItems);
+  const cursor = input.cursor ?? null;
+  const direction = cursor?.direction ?? "after";
+  const eligible = cursor
+    ? sorted.filter((item) => direction === "before" ? isBeforeInboxCursor(item, cursor) : isAfterInboxCursor(item, cursor))
+    : sorted;
+  const pageItems = direction === "before" ? eligible.slice(Math.max(0, eligible.length - limit)) : eligible.slice(0, limit);
+  const first = pageItems[0];
+  const last = pageItems.at(-1);
+  const firstIndex = first ? sorted.findIndex((item) => item.rowKey === first.rowKey) : -1;
+  const lastIndex = last ? sorted.findIndex((item) => item.rowKey === last.rowKey) : -1;
+  return {
+    items: pageItems,
+    nextCursor: last && lastIndex >= 0 && lastIndex < sorted.length - 1
+      ? { sortValue: last.requestedAt, rowKey: last.rowKey, direction: "after" }
+      : null,
+    previousCursor: first && firstIndex > 0
+      ? { sortValue: first.requestedAt, rowKey: first.rowKey, direction: "before" }
+      : null,
+    summary: {
+      total: sorted.length,
+      pending: sorted.filter((item) => item.status === "pending").length,
+      needsInfo: sorted.filter((item) => item.status === "needs_info").length,
+      applyFailed: sorted.filter((item) => item.status === "apply_failed").length
+    }
+  };
+}
+
 export function encodeLegacyApprovalId(source: LegacyApprovalPlatformSource, legacyId: string) {
   return `legacy:${source}:${legacyId}`;
 }
@@ -760,34 +790,19 @@ export class AsyncApprovalPlatformRepository {
       this.listLegacyDrawingPackageInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit }),
       this.listLegacyDrawingRevisionReviewInbox({ companyId, status: input.status, query: input.query, limit: sourceLimit })
     ]);
-    const sorted = [...nativeItems, ...pdmWorkReviews, ...numbering, ...submission, ...supplement, ...drawingRevisionReviews]
-      .filter((item) => matchesInboxFilter(item, input))
-      .sort(compareInboxItems);
-    const cursor = input.cursor ?? null;
-    const direction = cursor?.direction ?? "after";
-    const eligible = cursor
-      ? sorted.filter((item) => direction === "before" ? isBeforeInboxCursor(item, cursor) : isAfterInboxCursor(item, cursor))
-      : sorted;
-    const items = direction === "before" ? eligible.slice(Math.max(0, eligible.length - limit)) : eligible.slice(0, limit);
-    const first = items[0];
-    const last = items.at(-1);
-    const firstIndex = first ? sorted.findIndex((item) => item.rowKey === first.rowKey) : -1;
-    const lastIndex = last ? sorted.findIndex((item) => item.rowKey === last.rowKey) : -1;
-    return {
-      items,
-      nextCursor: last && lastIndex >= 0 && lastIndex < sorted.length - 1
-        ? { sortValue: last.requestedAt, rowKey: last.rowKey, direction: "after" }
-        : null,
-      previousCursor: first && firstIndex > 0
-        ? { sortValue: first.requestedAt, rowKey: first.rowKey, direction: "before" }
-        : null,
-      summary: {
-        total: sorted.length,
-        pending: sorted.filter((item) => item.status === "pending").length,
-        needsInfo: sorted.filter((item) => item.status === "needs_info").length,
-        applyFailed: sorted.filter((item) => item.status === "apply_failed").length
-      }
-    };
+    return paginateInboxItems(
+      [...nativeItems, ...pdmWorkReviews, ...numbering, ...submission, ...supplement, ...drawingRevisionReviews],
+      input, limit);
+  }
+
+  async listPrincipalWorkReviewInbox(input: ApprovalPlatformInboxFilter & { companyId: string; actorId: string }):
+    Promise<ApprovalPlatformInboxPage> {
+    const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
+    const reviews = await this.listPdmWorkReviewInbox({
+      ...input, limit: 500, supportedRequestKinds:
+        ["drawing_revision", "drawing_rd_void", "part_change"]
+    });
+    return paginateInboxItems(reviews, input, limit);
   }
 
   async getRequestDetail(id: string, companyId = DEFAULT_COMPANY_ID): Promise<ApprovalPlatformRequestDetail | null> {
@@ -1083,6 +1098,7 @@ export class AsyncApprovalPlatformRepository {
     allowedActionCodes?: string[];
     query?: string;
     cursor?: ApprovalPlatformInboxCursor | null;
+    supportedRequestKinds?: readonly PdmWorkReviewRequestKind[];
     limit: number;
   }): Promise<ApprovalPlatformInboxItem[]> {
     if (!input.actorId) return [];
@@ -1095,6 +1111,7 @@ export class AsyncApprovalPlatformRepository {
       PdmWorkReviewRequestKind,
       (typeof PDM_WORK_REVIEW_ACTIONS)[PdmWorkReviewRequestKind]
     ]>)
+      .filter(([kind]) => !input.supportedRequestKinds || input.supportedRequestKinds.includes(kind))
       .filter(([, action]) => !requestedAction || action.actionCode === requestedAction)
       .filter(([, action]) => !allowedActions?.length || allowedActions.some((value) => value === action.actionCode || value.replace(/^numbering\./u, "") === action.actionCode.replace(/^numbering\./u, "")))
       .map(([kind]) => kind);

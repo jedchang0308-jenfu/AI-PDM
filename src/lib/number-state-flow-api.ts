@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NumberingUserScope } from "@/lib/db";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow";
-import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow-contract";
+import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
 import { requireNumberingPlatformCommandAsync, type NumberingPlatformCommandAccess } from "@/lib/platform-command-context";
 import type { PdmCompanyContext } from "@/lib/company-context";
 
@@ -64,6 +63,12 @@ function accessError(status: number) {
   if (status === 401) {
     return numberStateFlowJson(errorEnvelope("authentication_required", "Authentication is required.", false), { status });
   }
+  if (status >= 500) {
+    return numberStateFlowJson(errorEnvelope("numbering_authority_unavailable", "Authorization could not be verified.", true), { status: 503 });
+  }
+  if (status === 400) {
+    return numberStateFlowJson(errorEnvelope("numbering_company_invalid", "Invalid company scope.", false), { status });
+  }
   return numberStateFlowJson(errorEnvelope("numbering_permission_denied", "Permission or company scope was denied.", false), {
     status: status === 404 ? 404 : 403
   });
@@ -73,29 +78,22 @@ export async function requireNumberStateReadAccessAsync(
   request: Request,
   action: string
 ): Promise<NumberStateReadAccess> {
-  const auth = await requireNumberingActionAsync(request, action);
-  if (auth.response || !auth.user) {
+  const auth = await requireNumberingCompanyPermissionAsync(request, "action", action);
+  if (auth.response) {
     return { user: null, company: null, actor: null, response: accessError(auth.response?.status ?? 401) };
-  }
-  const companyResult = await resolveNumberingCompanyContextAsync(
-    auth.user.id,
-    requestedNumberingCompanyCodeFromRequest(request)
-  );
-  if (companyResult.response || !companyResult.company) {
-    return { user: null, company: null, actor: null, response: accessError(companyResult.response?.status ?? 403) };
   }
   const actor: NumberStateActor = {
     userId: auth.user.id,
-    companyId: companyResult.company.companyId,
-    role: auth.user.role,
-    roles: [auth.user.role, auth.permission?.roleCode ?? "", ...(auth.permission?.evaluatedRoles ?? [])].filter(Boolean)
+    companyId: auth.company.companyId,
+    role: "Principal",
+    roles: auth.permission?.roleCode ? [auth.permission.roleCode] : []
   };
   if (auth.user.authorizationActor) {
     Object.defineProperty(actor, "authorizationActor", { value: auth.user.authorizationActor, enumerable: false });
   }
   return {
     user: auth.user,
-    company: companyResult.company,
+    company: auth.company,
     actor,
     response: null
   };

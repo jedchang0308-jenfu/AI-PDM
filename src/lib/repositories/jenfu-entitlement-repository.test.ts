@@ -151,13 +151,12 @@ describe("DEV-005 EntitlementRepository", () => {
     })).rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
   });
 
-  it("does not read effective assignments after selecting legacy authority", async () => {
-    const result = await repository({
+  it("rejects legacy authority before reading effective assignments", async () => {
+    await expect(repository({
       authorityRows: [{ ...authorityRow, authority_source: "legacy_authority" }],
       failAssignments: true
-    }).evaluatePermission({ actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request" });
-    expect(result.decisionCode).toBe("legacy_authority");
-    expect(result.assignments).toHaveLength(0);
+    }).evaluatePermission({ actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request" }))
+      .rejects.toMatchObject({ code: "entitlement_authority_unknown" });
   });
 
   it("binds the default application id when reading effective assignments", async () => {

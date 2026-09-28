@@ -2,7 +2,10 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { PdmCommand, PdmCommandMetadata } from "@/lib/platform-command";
 import { createJenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
 import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
-import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import {
+  evaluatePrincipalWorkspacePermissionsInSnapshot,
+  type PrincipalWorkspaceDecision
+} from "@/lib/jenfu-principal-permission-service";
 import {
   withVerifiedJenfuPrincipalRequest, type PrincipalRequestInput,
   type VerifiedPrincipalRequest
@@ -15,7 +18,7 @@ import { PlatformOutboxAsyncRepository } from "@/lib/repositories/platform-outbo
 type CommandInput<TPayload, TResult> = {
   client: AsyncDatabaseClient;
   command: PdmCommand<TPayload>;
-  execute: (client: AsyncDatabaseClient) => Promise<TResult>;
+  execute: (client: AsyncDatabaseClient, primaryDecision: PrincipalWorkspaceDecision | null) => Promise<TResult>;
   event: (result: TResult) => {
     aggregateType: string;
     aggregateId: string;
@@ -52,6 +55,7 @@ async function executeWithinClient<TPayload, TResult>(
   input: CommandInput<TPayload, TResult>, client: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest | null
 ): Promise<{ result: TResult; reusedFromCommandReceipt: boolean }> {
+    let primaryDecision: PrincipalWorkspaceDecision | null = null;
     const verifiedActor = verified
       ? createJenfuVerifiedAuthorizationActor({
         identityIssuer: verified.session.identityIssuer,
@@ -82,11 +86,24 @@ async function executeWithinClient<TPayload, TResult>(
       if (!mode || !["repeatable read", "serializable"].includes(mode.isolation_level)) {
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_SNAPSHOT_REQUIRED");
       }
-      const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified,
-        [{ permissionKind: "action", permissionCode: route.permissionCode }]);
-      if (decisions.length !== 1 || !decisions[0].allowed) {
+      const additional = route.additionalPermissionCodes ?? [];
+      const recordWithDrawing = input.command.commandName === "pdm.numbering.create_official_record" &&
+        Boolean((input.command.payload as { drawingPurposeCode?: unknown }).drawingPurposeCode);
+      const expectedAdditional = recordWithDrawing ? ["numbering.link_variant"] : [];
+      if (additional.length !== expectedAdditional.length ||
+          additional.some((code, index) => code !== expectedAdditional[index]) ||
+          (recordWithDrawing && route.permissionCode !== "numbering.create")) {
+        throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID");
+      }
+      const permissions = [route.permissionCode, ...additional].map((permissionCode) =>
+        ({ permissionKind: "action" as const, permissionCode }));
+      const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(client, verified, permissions);
+      if (decisions.length !== permissions.length || decisions.some((decision, index) =>
+        !decision.allowed || decision.principalId !== verified.session.principalId ||
+        decision.permissionCode !== permissions[index].permissionCode)) {
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED");
       }
+      primaryDecision = decisions[0];
     }
     const platformPrincipalId = input.command.actor.principalId;
     // "system" is a SQLite fixture sentinel, not a production security subject.
@@ -110,14 +127,9 @@ async function executeWithinClient<TPayload, TResult>(
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_REQUIRED");
       }
       if (client.kind === "postgres") {
-        const cutover = await client.queryOne<{ status: string; principal_id: string | null }>(`
-          SELECT status,principal_id
-          FROM ai_pdm_core.read_principal_cutover_for_command_v1(:pdmUserId)
-        `, { pdmUserId: input.command.actor.pdmUserId });
-        if (cutover?.status !== "principal_active" ||
-            cutover.principal_id !== platformPrincipalId) {
-          throw new Error("PLATFORM_PRINCIPAL_NOT_ACTIVE");
-        }
+        // The verified request and this command share a transaction. Reuse the
+        // account repository's fail-closed activation check; the command must
+        // not consult the per-profile cutover reader a second time.
         const account = await new JenfuPrincipalAccountRepository(client).requireActive(platformPrincipalId);
         if (account.pdmUserId !== verifiedActor!.localPrincipalId ||
           account.companyId !== verifiedActor!.companyId) {
@@ -175,7 +187,7 @@ async function executeWithinClient<TPayload, TResult>(
       throw new Error("PLATFORM_COMMAND_IN_PROGRESS");
     }
 
-    const result = await input.execute(client);
+    const result = await input.execute(client, primaryDecision);
     const events = input.event(result);
     input.faultInjector?.("before_outbox_enqueue");
     for (const event of Array.isArray(events) ? events : [events]) {

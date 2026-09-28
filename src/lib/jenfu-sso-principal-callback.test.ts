@@ -84,6 +84,25 @@ describe("principal-first SSO callback routing", () => {
     expect(mocks.legacyResolver).not.toHaveBeenCalled();
   });
 
+  it("rejects a v1 handoff instead of reopening the UID and cutover path", async () => {
+    const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
+    const state = new URL(started.headers.get("location")!).searchParams.get("state");
+    const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      ...principalProof(), contractVersion: "jenfu.sso-handoff.v1"
+    }), { status: 200 })));
+
+    const callback = await jenfuSsoCallback(new Request(
+      `https://pdm.example/api/auth/jenfu-sso/callback?code=one-time-code&state=${state}&iss=${encodeURIComponent("https://platform.example/api/sso")}`,
+      { headers: { cookie: transactionCookie } }
+    ));
+
+    expect(callback.status).toBe(303);
+    expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=sso_code_invalid");
+    expect(mocks.issuePrincipal).not.toHaveBeenCalled();
+    expect(mocks.legacyResolver).not.toHaveBeenCalled();
+  });
+
   it("returns a clean login URL when the principal is not active", async () => {
     const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
     const state = new URL(started.headers.get("location")!).searchParams.get("state");

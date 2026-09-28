@@ -19,7 +19,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       actor: {
         userId: access.actor.pdmUserId,
         companyId: access.actor.organizationId,
-        role: access.auth.user.role
+        role: "Principal",
+        principalId: access.actor.principalId
       },
       packageId: id,
       expectedRowVersion: requiredTransferVersion(body.expectedRowVersion ?? body.expected_row_version),

@@ -44,8 +44,7 @@ function assignment(roleCode: string) { return {
 }; }
 const snapshot = { kind: "postgres", execute: vi.fn(async () => undefined),
   query: vi.fn(async () => [{ decision_at: vectors.clock }]),
-  queryOne: vi.fn(async (sql: string) => sql.includes("principal_role_assignments")
-    ? { privileged: false } : { id: "pdm-user-one", company_id: "company-one" }) };
+  queryOne: vi.fn(async (_sql: string) => ({ id: "pdm-user-one", company_id: "company-one" })) };
 const transaction = vi.fn(async (fn: (client: typeof snapshot) => Promise<unknown>) => fn(snapshot));
 const database = { kind: "postgres", transaction } as never;
 const base = { handoff, database, expectedIdentityIssuer: handoff.identity.identityIssuer,
@@ -61,8 +60,7 @@ describe("DEV-121 principal handoff session issuance", () => {
       lifecycleVersion: 3, profileVersion: 2, minimumAssurance: "aal1", sessionInvalidBefore: null });
     mocks.authority.mockResolvedValue({ authoritySource: "orgmaster_authority", authorityVersion: 1 });
     mocks.assignments.mockResolvedValue([assignment("rd")]);
-    snapshot.queryOne.mockImplementation(async (sql: string) => sql.includes("principal_role_assignments")
-      ? { privileged: false } : { id: "pdm-user-one", company_id: "company-one" });
+    snapshot.queryOne.mockResolvedValue({ id: "pdm-user-one", company_id: "company-one" });
   });
 
   it("commits one principal-only session after exact producer and profile readback", async () => {
@@ -72,7 +70,8 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(result.claims).not.toHaveProperty("pdmUserId");
     expect(mocks.register).toHaveBeenCalledWith(result.claims);
     expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "repeatable_read" });
-    expect(snapshot.queryOne.mock.calls[0][0]).toContain("principal_identity_cutovers");
+    expect(mocks.account).toHaveBeenCalledWith(handoff.identity.principalId);
+    expect(snapshot.queryOne.mock.calls[0][0]).not.toContain("principal_identity_cutovers");
     expect(snapshot.queryOne.mock.calls[0][0]).toContain("owner.company_id=profile.company_id");
     expect(mocks.assignments).toHaveBeenCalledWith(expect.objectContaining({ principalId: "principal-one" }));
   });
@@ -82,6 +81,13 @@ describe("DEV-121 principal handoff session issuance", () => {
     await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("STALE_HANDOFF");
     mocks.state.mockResolvedValueOnce({ authEpoch: 1, revokedBefore: null });
     await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("STALE_HANDOFF");
+    expect(mocks.register).not.toHaveBeenCalled();
+  });
+
+  it("does not read a profile or register a session when the account activation check denies", async () => {
+    mocks.account.mockRejectedValueOnce(new Error("principal_account_unavailable"));
+    await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("principal_account_unavailable");
+    expect(snapshot.queryOne).not.toHaveBeenCalled();
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
@@ -107,16 +113,12 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
-  it("reads principal-local roles for legacy authority and respects the local barrier", async () => {
+  it("rejects legacy authority before issuing a session", async () => {
     mocks.authority.mockResolvedValue({ authoritySource: "legacy_authority" });
-    mocks.account.mockResolvedValue({ principalId: "principal-one", pdmUserId: "pdm-user-one",
-      employeeId: "employee-one", accountType: "human_personal", companyId: "company-one",
-      lifecycleVersion: 3, profileVersion: 2, minimumAssurance: "aal1",
-      sessionInvalidBefore: new Date(nowMs - 200).toISOString() });
-    const result = await issueSessionForPrincipalHandoff(base);
-    expect(result.claims.issuedAt * 1000).toBeGreaterThan(nowMs - 200);
-    expect(snapshot.queryOne.mock.calls[1][0]).toContain("principal_role_assignments");
+    await expect(issueSessionForPrincipalHandoff(base))
+      .rejects.toThrow("PRINCIPAL_ASSURANCE_SOURCE_INVALID");
     expect(mocks.assignments).not.toHaveBeenCalled();
+    expect(mocks.register).not.toHaveBeenCalled();
   });
 
   it("does not use a historical profile from another company", async () => {
@@ -125,12 +127,4 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
-  it("requires AAL2 for a principal-local privileged role", async () => {
-    mocks.authority.mockResolvedValue({ authoritySource: "legacy_authority" });
-    snapshot.queryOne.mockImplementation(async (sql: string) => sql.includes("principal_role_assignments")
-      ? { privileged: true } : { id: "pdm-user-one", company_id: "company-one" });
-    const result = await issueSessionForPrincipalHandoff(base);
-    expect(result.claims.assuranceLevel).toBe("aal2");
-    expect(mocks.assignments).not.toHaveBeenCalled();
-  });
 });

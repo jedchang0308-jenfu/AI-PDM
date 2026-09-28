@@ -1,4 +1,4 @@
-import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncSystemSettingsRepository } from "@/lib/repositories/system-settings-async-repository";
 
 export async function getSystemSettingAsync(key: string): Promise<string | null> {
@@ -7,14 +7,15 @@ export async function getSystemSettingAsync(key: string): Promise<string | null>
   return repository.getSetting(key);
 }
 
-export async function getAllSystemSettingsAsync(): Promise<Record<string, string>> {
-  const client = getAsyncDatabaseClient();
+export async function getAllSystemSettingsAsync(client: AsyncDatabaseClient = getAsyncDatabaseClient()): Promise<Record<string, string>> {
   const repository = new AsyncSystemSettingsRepository(client);
   return repository.getAllSettings();
 }
 
-export async function setSystemSettingAsync(key: string, value: string, updatedBy: string): Promise<void> {
-  const client = getAsyncDatabaseClient();
+export async function setSystemSettingAsync(
+  key: string, value: string, updatedBy: string,
+  client: AsyncDatabaseClient = getAsyncDatabaseClient()
+): Promise<void> {
   const repository = new AsyncSystemSettingsRepository(client);
   await repository.setSetting(key, value, updatedBy);
 }

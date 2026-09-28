@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { createAuditLogAsync } from "@/lib/audit-async";
-import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { isGoogleDriveServiceConfigured } from "@/lib/gdrive";
 import { llmConfig } from "@/lib/llm-config";
 import { getAllSystemSettingsAsync, setSystemSettingAsync } from "@/lib/system-settings-async";
+import { requestedPdmCompanyCodeFromRequest } from "@/lib/company-context";
+import { withPrincipalCompanyRead, withPrincipalCompanyWrite } from "@/lib/principal-company-read";
+import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
 
 export const runtime = "nodejs";
 
@@ -26,11 +30,22 @@ const folderIdKeys = new Set(["gdrive_pending_folder_id", "gdrive_released_folde
 const folderSnapshotKeys = [...ALLOWED_SETTINGS];
 
 export async function GET(request: Request) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
-  if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const routePath = "src/app/api/settings/route.ts";
+  const policy = resolveJenfuRoutePolicy(routePath, "GET", { expectedPermissionCode: "settings.manage" });
+  if (policy?.path !== routePath || policy.authorizationMode !== "permission" ||
+      policy.scopeResolver !== "workspace") {
+    return NextResponse.json({ code: "principal_route_policy_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
+  }
+  return await withPrincipalCompanyRead(request, requestedPdmCompanyCodeFromRequest(request),
+    [{ permissionKind: "action", permissionCode: "settings.manage" }],
+    async (snapshot) => settingsResponse(snapshot))
+    ?? NextResponse.json({ code: "auth_session_invalid" },
+      { status: 401, headers: { "cache-control": "no-store" } });
+}
 
-  const dbSettings = await getAllSystemSettingsAsync();
-
+async function settingsResponse(snapshot: AsyncDatabaseClient) {
+  const dbSettings = await getAllSystemSettingsAsync(snapshot);
   return NextResponse.json({
     settings: {
       // DB-managed (user-configurable) settings
@@ -57,15 +72,27 @@ export async function GET(request: Request) {
       serviceAccountConfigured: isGoogleDriveServiceConfigured(),
       secretManagementAvailable: process.env.PDM_DISABLE_SECRET_MANAGEMENT !== "true"
     }
-  });
+  }, { headers: { "cache-control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
-  if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const invalid = validateNumberStateMutationRequest({ request });
+  if (invalid) return invalid;
+  const parsed: unknown = await request.json().catch(() => null);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return NextResponse.json({ error: "invalid_json" },
+      { status: 400, headers: { "cache-control": "private, no-store" } });
+  }
+  return withPrincipalCompanyWrite(request, "src/app/api/settings/route.ts", "settings.manage",
+    (snapshot, company, verified) => updateSettings(snapshot, parsed as Record<string, unknown>,
+      verified.session.principalId, verified.profile.pdmUserId, company.companyId));
+}
 
-  const body = await request.json().catch(() => ({}));
-  const currentSettings = await getAllSystemSettingsAsync();
+async function updateSettings(
+  snapshot: AsyncDatabaseClient, body: Record<string, unknown>,
+  principalId: string, profileId: string, companyId: string
+) {
+  const currentSettings = await getAllSystemSettingsAsync(snapshot);
   const updates: Record<string, string> = {};
   const errors: string[] = [];
 
@@ -109,17 +136,20 @@ export async function POST(request: Request) {
 
   const before = pickSettingsSnapshot(currentSettings);
   for (const [key, value] of Object.entries(updates)) {
-    await setSystemSettingAsync(key, value, auth.user.id);
+    // This FK is a domain profile link, not the security subject of this write.
+    await setSystemSettingAsync(key, value, profileId, snapshot);
   }
   const after = pickSettingsSnapshot({ ...currentSettings, ...updates });
 
   await createAuditLogAsync({
-    actorId: auth.user.id,
+    actorId: principalId,
     action: "SettingsUpdate",
-    detail: { before, after, updates: pickSettingsSnapshot(updates) }
-  });
+    scopeKind: "global",
+    detail: { before, after, updates: pickSettingsSnapshot(updates), companyId, profileId }
+  }, snapshot);
 
-  return NextResponse.json({ success: true, updated: Object.keys(updates) });
+  return NextResponse.json({ success: true, updated: Object.keys(updates) },
+    { headers: { "cache-control": "private, no-store" } });
 }
 
 function pickSettingsSnapshot(settings: Record<string, string>) {

@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(),
   evaluate: vi.fn(),
   priority: vi.fn(),
-  localAcl: vi.fn(), catalogInput: vi.fn()
+  catalogInput: vi.fn()
 }));
 
 vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
@@ -22,14 +22,9 @@ vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
     evaluatePermissions = mocks.evaluate;
   }
 }));
-vi.mock("@/lib/repositories/principal-local-acl-repository", () => ({
-  PrincipalLocalAclRepository: class {
-    evaluateWorkspace = mocks.localAcl;
-  }
-}));
 
 import { evaluatePrincipalWorkspacePermissions } from "@/lib/jenfu-principal-permission-service";
-import principalRoleCatalog from "../../config/access-control/jenfu-role-catalog.v4.json" with { type: "json" };
+import principalRoleCatalog from "../../config/access-control/jenfu-role-catalog.v5.json" with { type: "json" };
 
 const snapshot = { query: vi.fn(async (_sql: string): Promise<Array<Record<string, string | number>>> =>
   [{ decision_at: "2026-09-24T12:00:00Z" }]) };
@@ -85,15 +80,11 @@ describe("DEV-121 principal workspace permission decision", () => {
     expect(mocks.catalogInput).toHaveBeenCalledWith(principalRoleCatalog);
   });
 
-  it("reads only principal-local ACL for a selected legacy authority", async () => {
-    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "legacy_authority" }]);
-    mocks.localAcl.mockResolvedValue([{ allowed: true, decisionCode: "allowed", roleCode: "rd", assignmentId: "principal-grant" }]);
+  it("does not authorize an unknown authority decision", async () => {
+    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "entitlement_authority_unknown" }]);
     await expect(evaluatePrincipalWorkspacePermissions(input)).resolves.toMatchObject([
-      { allowed: true, decisionCode: "allowed", roleCode: "rd", assignmentId: "principal-grant" }
+      { allowed: false, decisionCode: "entitlement_authority_unknown", roleCode: null }
     ]);
-    expect(mocks.localAcl).toHaveBeenCalledWith(expect.objectContaining({
-      principalId: "principal-one", decisionAt: new Date("2026-09-24T12:00:00Z")
-    }));
   });
 
   it("keeps explicit deny and privileged AAL1 requests closed", async () => {
@@ -117,7 +108,7 @@ describe("DEV-121 principal workspace permission decision", () => {
     expect(mocks.withVerified).toHaveBeenCalledTimes(1);
   });
 
-  it("uses v4 for every principal capability only after active catalog readback in the same snapshot", async () => {
+  it("uses v5 for every principal capability only after active catalog readback in the same snapshot", async () => {
     mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "allowed",
       role: { risk: "normal", roleCode: "rd" }, assignment: { assignmentId: "grant-one" } }]);
     const permission = { ...input, permissions: [{ permissionKind: "action" as const,

@@ -48,10 +48,24 @@ function database(overrides: Record<string, unknown> = {}) {
       }] : overrides.typed;
       if (sql.includes("v_ai_pdm_entitlement_authority_v1")) return [{
         contract_version: "jenfu.platform-entitlement.v1", application_id: "ai-pdm",
-        authority_source: "legacy_authority", authority_version: 1,
+        authority_source: "orgmaster_authority", authority_version: 1,
         employee_id: claims.employeeId, updated_at: "2026-09-24T12:00:00.000Z",
         operation_id: null
       }];
+      if (sql.includes("transaction_timestamp()")) return [{
+        decision_at: new Date(now * 1000).toISOString()
+      }];
+      if (sql.includes("v_ai_pdm_principal_effective_grants_v2")) return overrides.privileged ? [{
+        contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v2",
+        assignment_version_id: "version-one", assignment_version: 1,
+        assignment_id: "assignment-one", grant_kind: "direct", delegation_id: null,
+        application_id: "ai-pdm", principal_id: claims.principalId,
+        employee_id: claims.employeeId, subject_kind: "employee", target_principal_id: null,
+        stable_role_id: "role-rd-manager", role_code: "rd_manager",
+        catalog_version: "catalog-one", scope_kind: "workspace", scope_key: "company-one",
+        valid_from: "2026-09-24T00:00:00.000Z", valid_until: null,
+        published_at: "2026-09-24T00:00:00.000Z", authority_version: 1
+      }] : [];
       throw new Error("unexpected query");
     },
     queryOne: async (sql: string, params?: Record<string, unknown>) => {
@@ -105,6 +119,8 @@ describe("DEV-121 principal request verification", () => {
     expect(observed.queries.join("\n")).not.toContain("user_role_assignments");
     expect(observed.queries.join("\n")).not.toContain("profile.role");
     expect(observed.queries.join("\n")).toContain("owner.company_id=profile.company_id");
+    expect(observed.queries.join("\n")).toContain("FROM ai_pdm_core.principal_accounts account");
+    expect(observed.queries.join("\n")).not.toContain("principal_identity_cutovers");
     expect(observed.queries.join("\n")).not.toContain("user_company_memberships");
   });
 

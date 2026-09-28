@@ -3,6 +3,7 @@ import {
   JENFU_ROUTE_PERMISSION_MAP,
   resolveJenfuRouteAuthorization,
   resolveJenfuRoutePolicy,
+  resolveJenfuRoutePolicyFromRequest,
   validateJenfuRoutePermissionMap
 } from "@/lib/jenfu-route-permission-map";
 import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
@@ -70,5 +71,18 @@ describe("DEV-121 route authorization manifest", () => {
     expect(resolveJenfuRoutePolicy("src/app/api/unknown/route.ts", "POST", {
       expectedPermissionCode: "settings.admin_matrix"
     })).toBeNull();
+  });
+
+  it("binds a Principal command to the actual method, URL and reviewed capability", () => {
+    const request = new Request("https://ai-pdm.test/api/numbering/records", { method: "POST" });
+    expect(resolveJenfuRoutePolicyFromRequest(request, "numbering.create")).toMatchObject({
+      path: "src/app/api/numbering/records/route.ts", scopeResolver: "workspace"
+    });
+    expect(resolveJenfuRoutePolicyFromRequest(request, "numbering.link_variant")).toBeNull();
+    expect(resolveJenfuRoutePolicyFromRequest(new Request(request.url), "numbering.create")).toBeNull();
+    const obsolete = new Request("https://ai-pdm.test/api/numbering/records/R-1/obsolete", { method: "POST" });
+    expect(resolveJenfuRoutePolicyFromRequest(obsolete, "numbering.draft.obsolete")).toMatchObject({
+      path: "src/app/api/numbering/records/[rootCode]/obsolete/route.ts", scopeResolver: "workspace"
+    });
   });
 });

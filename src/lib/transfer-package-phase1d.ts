@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
+import { principalCanManageTransferPackageInSnapshot } from "@/lib/transfer-package-principal-resource";
 import { DatabasePublicationEvidencePort } from "@/lib/publication-evidence";
 import {
   AsyncNumberStateFlowRepository,
@@ -521,6 +522,11 @@ export async function addTransferDraftWorkspace(input: {
   requiredness: "required" | "optional";
   inclusionReason: string;
 }) {
+  if (input.actor.userId !== input.metadata.actor.pdmUserId ||
+      input.actor.companyId !== input.metadata.actor.organizationId ||
+      input.actor.principalId !== input.metadata.actor.principalId) {
+    throw new TransferPackageError("TRANSFER_PACKAGE_ACTOR_MISMATCH", "技轉包操作者驗證失敗。", 403);
+  }
   if (!/^[A-Za-z0-9._:/-]{1,200}$/u.test(input.workspaceId)) {
     throw new TransferPackageError("TRANSFER_WORKSPACE_ID_INVALID", "請提供有效的草稿工作區 ID。", 400);
   }
@@ -538,7 +544,13 @@ export async function addTransferDraftWorkspace(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
-    execute: (client) => new AsyncTransferPackageRepository(client).addDraftWorkspace(input),
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: (client, principalDecision) => new AsyncTransferPackageRepository(client).addDraftWorkspace({
+      ...input, actor: { userId: input.metadata.actor.pdmUserId,
+        companyId: input.metadata.actor.organizationId, role: "Principal",
+        principalId: input.metadata.actor.principalId, principalDecision }
+    }),
     event: (workbench) => ({
       aggregateType: "transfer_package",
       aggregateId: input.packageId,
@@ -562,6 +574,11 @@ export async function removeTransferDraftWorkspace(input: {
   expectedRowVersion: number;
   reason: string;
 }) {
+  if (input.actor.userId !== input.metadata.actor.pdmUserId ||
+      input.actor.companyId !== input.metadata.actor.organizationId ||
+      input.actor.principalId !== input.metadata.actor.principalId) {
+    throw new TransferPackageError("TRANSFER_PACKAGE_ACTOR_MISMATCH", "技轉包操作者驗證失敗。", 403);
+  }
   const command = createPdmCommand({
     commandName: "pdm.transfer.remove_draft_workspace",
     idempotencyKey: input.metadata.idempotencyKey,
@@ -575,7 +592,13 @@ export async function removeTransferDraftWorkspace(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
-    execute: (client) => new AsyncTransferPackageRepository(client).removeDraftWorkspace(input),
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: (client, principalDecision) => new AsyncTransferPackageRepository(client).removeDraftWorkspace({
+      ...input, actor: { userId: input.metadata.actor.pdmUserId,
+        companyId: input.metadata.actor.organizationId, role: "Principal",
+        principalId: input.metadata.actor.principalId, principalDecision }
+    }),
     event: (workbench) => ({
       aggregateType: "transfer_package",
       aggregateId: input.packageId,
@@ -593,19 +616,22 @@ export async function removeTransferDraftWorkspace(input: {
 
 async function insertTransferEvent(
   client: AsyncDatabaseClient,
-  input: { companyId: string; packageId: string; eventType: string; actorId: string; detail: Record<string, unknown>; now: string }
+  input: { companyId: string; packageId: string; eventType: string; actorId: string;
+    principalId: string; detail: Record<string, unknown>; now: string }
 ) {
   await client.execute(
     `INSERT INTO transfer_package_events
      (id, company_id, package_id, event_type, actor_id, detail_json, created_at)
      VALUES (:id, :companyId, :packageId, :eventType, :actorId, :detailJson, :createdAt)`,
-    { id: id("transfer-event"), ...input, detailJson: JSON.stringify(input.detail), createdAt: input.now }
+    { id: id("transfer-event"), ...input,
+      detailJson: JSON.stringify({ ...input.detail, principalId: input.principalId }), createdAt: input.now }
   );
 }
 
 async function unlockFailedTransferReviewReservations(
   client: AsyncDatabaseClient,
-  input: { companyId: string; packageId: string; requestId: string; actorId: string; now: string; reason: string }
+  input: { companyId: string; packageId: string; requestId: string; actorId: string;
+    principalId: string; now: string; reason: string }
 ) {
   const reservations = await client.query<{ id: string; workspace_id: string }>(
     `SELECT r.id, r.workspace_id
@@ -646,7 +672,8 @@ async function unlockFailedTransferReviewReservations(
         reservationId: reservation.id,
         actorId: input.actorId,
         occurredAt: input.now,
-        detailJson: JSON.stringify({ requestId: input.requestId, reason: input.reason })
+        detailJson: JSON.stringify({ requestId: input.requestId, reason: input.reason,
+          principalId: input.principalId })
       }
     );
   }
@@ -655,6 +682,7 @@ async function unlockFailedTransferReviewReservations(
     packageId: input.packageId,
     eventType: "SnapshotInvalidated",
     actorId: input.actorId,
+    principalId: input.principalId,
     detail: {
       requestId: input.requestId,
       reason: input.reason,
@@ -679,16 +707,23 @@ export async function submitTransferPackageReview(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
-    execute: async (client) => {
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: async (client, principalDecision) => {
       const companyId = input.metadata.actor.organizationId;
-      const row = await client.queryOne<{ package_status: string; row_version: number; review_request_id: string | null }>(
-        `SELECT package_status, row_version, review_request_id
+      const row = await client.queryOne<{ package_status: string; row_version: number; review_request_id: string | null; owner_id: string }>(
+        `SELECT package_status, row_version, review_request_id, owner_id
          FROM transfer_packages
          WHERE id = :packageId AND company_id = :companyId
          ${client.kind === "postgres" ? "FOR UPDATE" : ""}`,
         { packageId: input.packageId, companyId }
       );
       if (!row) throw new TransferPackageError("TRANSFER_PACKAGE_NOT_FOUND", "找不到技轉包。", 404);
+      if (!await principalCanManageTransferPackageInSnapshot({
+        client, companyId, ownerProfileId: row.owner_id,
+        actorPrincipalId: input.metadata.actor.principalId, decision: principalDecision,
+        permissionCode: "transfer.package.review.submit"
+      })) throw new TransferPackageError("TRANSFER_PACKAGE_FORBIDDEN", "只有負責人或管理角色可以送審。", 403);
       if (Number(row.row_version) !== input.expectedRowVersion) {
         throw new TransferPackageError("TRANSFER_PACKAGE_STALE", "技轉包已更新，請重新整理。", 409);
       }
@@ -710,6 +745,7 @@ export async function submitTransferPackageReview(input: {
           packageId: input.packageId,
           requestId: row.review_request_id,
           actorId: input.metadata.actor.pdmUserId,
+          principalId: input.metadata.actor.principalId,
           now: new Date().toISOString(),
           reason: rebuildingStaleApproval ? "approved_snapshot_stale_resubmit" : "release_failed_resubmit"
         });
@@ -825,6 +861,7 @@ export async function submitTransferPackageReview(input: {
         packageId: input.packageId,
         eventType: "ReviewSubmitted",
         actorId: input.metadata.actor.pdmUserId,
+        principalId: input.metadata.actor.principalId,
         detail: { requestId, snapshotHash: readiness.snapshotHash },
         now
       });
@@ -854,7 +891,9 @@ export async function withdrawTransferPackageReview(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
-    execute: async (client) => {
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: async (client, principalDecision) => {
       const row = await client.queryOne<{ review_request_id: string; owner_id: string }>(
         `SELECT review_request_id, owner_id FROM transfer_packages
          WHERE id = :packageId AND company_id = :companyId
@@ -863,7 +902,11 @@ export async function withdrawTransferPackageReview(input: {
         { packageId: input.packageId, companyId: input.metadata.actor.organizationId, expectedRowVersion: input.expectedRowVersion }
       );
       if (!row) throw new TransferPackageError("TRANSFER_WITHDRAW_STATE_INVALID", "只有待審核技轉包可以撤回。", 409);
-      if (row.owner_id !== input.metadata.actor.pdmUserId && !input.metadata.actor.roles.some((role) => ["Admin", "R&D Manager", "system_admin", "pdm_admin", "rd_manager"].includes(role))) {
+      if (!await principalCanManageTransferPackageInSnapshot({
+        client, companyId: input.metadata.actor.organizationId, ownerProfileId: row.owner_id,
+        actorPrincipalId: input.metadata.actor.principalId, decision: principalDecision,
+        permissionCode: "transfer.package.review.withdraw"
+      })) {
         throw new TransferPackageError("TRANSFER_PACKAGE_FORBIDDEN", "只有負責人或管理角色可以撤回。", 403);
       }
       const request = await client.queryOne<{ request_status: string }>(
@@ -899,6 +942,7 @@ export async function withdrawTransferPackageReview(input: {
       await insertTransferEvent(client, {
         companyId: input.metadata.actor.organizationId, packageId: input.packageId,
         eventType: "ReviewWithdrawn", actorId: input.metadata.actor.pdmUserId,
+        principalId: input.metadata.actor.principalId,
         detail: { requestId: row.review_request_id }, now
       });
       return { packageId: input.packageId, requestId: row.review_request_id };
@@ -927,7 +971,9 @@ export async function decideTransferPackageReview(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
-    execute: async (client) => {
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: async (client, principalDecision) => {
       const request = await client.queryOne<{ id: string; request_status: string }>(
         `SELECT id, request_status FROM approval_platform_requests
          WHERE id = :requestId AND company_id = :companyId AND action_code = 'transfer.package_review'
@@ -950,7 +996,7 @@ export async function decideTransferPackageReview(input: {
          VALUES (:id, :requestId, :approverRole, :approverId, :decision, :comment, :decidedAt)`,
         {
           id: id("approval-decision"), requestId: input.requestId,
-          approverRole: input.metadata.actor.roles[0] ?? "reviewer",
+          approverRole: principalDecision?.roleCode ?? "reviewer",
           approverId: input.metadata.actor.pdmUserId, decision: input.decision,
           comment: input.comment, decidedAt: now
         }
@@ -998,6 +1044,7 @@ export async function decideTransferPackageReview(input: {
       await insertTransferEvent(client, {
         companyId: input.metadata.actor.organizationId, packageId: pkg.id,
         eventType: "ReviewDecided", actorId: input.metadata.actor.pdmUserId,
+        principalId: input.metadata.actor.principalId,
         detail: { requestId: input.requestId, decision: input.decision }, now
       });
       return { packageId: pkg.id, requestId: input.requestId, decision: input.decision };
@@ -1032,6 +1079,8 @@ async function recordPublishFailure(input: {
   return executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
     execute: async (client) => {
       const now = new Date().toISOString();
       const updated = await client.queryOne<{ id: string }>(
@@ -1050,6 +1099,7 @@ async function recordPublishFailure(input: {
         await insertTransferEvent(client, {
           companyId: input.metadata.actor.organizationId, packageId: input.packageId,
           eventType: "ReleaseFailed", actorId: input.metadata.actor.pdmUserId,
+          principalId: input.metadata.actor.principalId,
           detail: { correlationId: input.correlationId }, now
         });
       }
@@ -1080,6 +1130,8 @@ export async function publishTransferPackage(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       execute: async (client) => {
         const pkg = await client.queryOne<{
           id: string;
@@ -1175,6 +1227,7 @@ export async function publishTransferPackage(input: {
         await insertTransferEvent(client, {
           companyId: input.metadata.actor.organizationId, packageId: input.packageId,
           eventType: "PackagePublished", actorId: input.metadata.actor.pdmUserId,
+          principalId: input.metadata.actor.principalId,
           detail: {
             requestId: pkg.review_request_id,
             snapshotHash: frozenRow.snapshot_hash,

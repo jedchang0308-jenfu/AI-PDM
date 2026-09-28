@@ -35,7 +35,9 @@ export function resolveNumberStateLegacyRedirect(
   } else if (pathname === "/upload") {
     const drawingNumber = nextSearchParams.get("drawingNumber") ?? nextSearchParams.get("drawing_number");
     if (!drawingNumber) return null;
-    destinationPathname = `/drawings/${encodeURIComponent(drawingNumber)}/submission-workbench`;
+    destinationPathname = "/numbering/drawings";
+    nextSearchParams.set("query", drawingNumber);
+    nextSearchParams.set("legacyIntent", "upload");
   } else if (pathname === "/handoff") {
     destinationPathname = "/technical-transfer";
     nextSearchParams.set("tab", "published");

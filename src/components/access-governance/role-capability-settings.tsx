@@ -20,17 +20,6 @@ function randomCommandId() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `role-capability-${Date.now()}`
 }
 
-async function resolveRoleCapabilityCommandUnknown(commandId: string, requestHash: string) {
-  const response = await fetch(`/api/settings/access/role-capabilities/commands/${encodeURIComponent(commandId)}/resolve-unknown`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ requestHash })
-  })
-  const body = await response.json().catch(() => ({})) as { error?: string; decisionCode?: string; receiptStatus?: string }
-  if (!response.ok) throw new Error(body.error ?? '命令結果仍未確認')
-  return body
-}
-
 function displayDate(value: string | null) {
   if (!value) return '無期限'
   const date = new Date(value)
@@ -68,7 +57,6 @@ export function RoleCapabilitySettings() {
   const [reviewDraft, setReviewDraft] = useState<ReviewDraft | null>(null)
   const [sourceDraft, setSourceDraft] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
-  const [pendingCommand, setPendingCommand] = useState<{ commandId: string; requestHash: string } | null>(null)
 
   async function load(roleId?: string) {
     setLoading(true)
@@ -97,13 +85,6 @@ export function RoleCapabilitySettings() {
   }
 
   useEffect(() => {
-    try {
-      const raw = window.sessionStorage.getItem('ai-pdm-role-capability-pending-command')
-      if (raw) {
-        const parsed = JSON.parse(raw) as { commandId?: unknown; requestHash?: unknown }
-        if (typeof parsed.commandId === 'string' && typeof parsed.requestHash === 'string') setPendingCommand({ commandId: parsed.commandId, requestHash: parsed.requestHash })
-      }
-    } catch { /* unavailable storage must not block the page */ }
     void load()
   }, [])
 
@@ -170,11 +151,6 @@ export function RoleCapabilitySettings() {
       const publishResponse = await fetch('/api/settings/access/role-capabilities/publish', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...base, commandId, requestHash }) })
       const published = await publishResponse.json().catch(() => ({})) as RoleCapabilityMutationResponse & { error?: string }
       if (!publishResponse.ok) {
-        if (published.error === 'ORGMASTER_OUTCOME_UNKNOWN' || published.error === 'ORGMASTER_GOVERNANCE_OUTCOME_UNKNOWN') {
-          const pending = { commandId, requestHash }
-          setPendingCommand(pending)
-          try { window.sessionStorage.setItem('ai-pdm-role-capability-pending-command', JSON.stringify(pending)) } catch { /* best effort */ }
-        }
         throw new Error(published.error ?? '角色變更發布失敗')
       }
       setReviewDraft(null)
@@ -238,6 +214,8 @@ export function RoleCapabilitySettings() {
             {canSetPositions ? <button className="primary-button" type="button" onClick={openPositionSettings}><Settings2 size={16} />職位設定</button> : null}
           </header>
 
+          {!privileged ? <div className="access-feedback" role="status">角色指派由 OrgMaster 管理；此處僅顯示已發布結果。{view.managementSurface?.href ? <a href={view.managementSurface.href}>前往 OrgMaster 角色指派</a> : null}</div> : null}
+
           {feedback ? <div className={`access-feedback is-${feedback.type}`} role="status">{feedback.text}</div> : null}
           {privileged ? <PrivilegedRoleCapabilityContent view={view} /> : <>
             {view.dataState === 'stale_snapshot' ? <div className="access-feedback is-error" role="status">OrgMaster 暫時離線；目前顯示最後成功快照（資料時間：{view.sourceDataAt ?? '未知'}、快照時間：{view.snapshotStoredAt ?? '未知'}）。目前為唯讀，請恢復連線後重新載入。</div> : null}
@@ -251,7 +229,6 @@ export function RoleCapabilitySettings() {
             {sourceChanges.length > 0 ? <div className="access-action-bar"><span>{sourceChanges.length} 項人員來源變更</span><button className="primary-button" type="button" disabled={!view.mutationAllowed} onClick={() => setReviewDraft({ type: 'sources', changes: sourceChanges })}>儲存人員來源<Save size={16} /></button></div> : null}
           </>}
           <div className="access-sync-meta">OrgMaster projection cursor {view.projectionCursor}・組織版本 {view.organizationVersionId}・資料時間 {view.sourceDataAt ?? '未知'}</div>
-          {!privileged && pendingCommand ? <div className="access-feedback is-error" role="alert">發布結果尚未確認（commandId {pendingCommand.commandId}）。<button className="secondary-button" type="button" onClick={async () => { try { const receipt = await resolveRoleCapabilityCommandUnknown(pendingCommand.commandId, pendingCommand.requestHash); setPendingCommand(null); try { window.sessionStorage.removeItem('ai-pdm-role-capability-pending-command') } catch { /* best effort */ } setFeedback({ type: 'success', text: `已確認命令結果：${String((receipt as { decisionCode?: string }).decisionCode ?? (receipt as { receiptStatus?: string }).receiptStatus)}` }) } catch (error) { setFeedback({ type: 'error', text: error instanceof Error ? error.message : '命令結果仍未確認' }) } }}>確認結果</button></div> : null}
         </section>
       </div>
 

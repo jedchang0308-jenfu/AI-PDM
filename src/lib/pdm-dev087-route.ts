@@ -1,11 +1,23 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
+import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { canonicalErrorEnvelope } from "@/lib/pdm-canonical-workbench-contract";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { canUserUseNumberingActionAsync, requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 
+function rejectLegacyRouteActorInPlatformMode(request: Request): Response | null {
+  if (getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on") return null;
+  const hasPrincipalSession = Boolean(principalSessionTokenFromRequest(request));
+  return Response.json({ code: hasPrincipalSession
+    ? "principal_route_not_migrated" : "auth_session_invalid" },
+  { status: hasPrincipalSession ? 503 : 401, headers: { "cache-control": "no-store" } });
+}
+
 export async function resolveDev087RouteActor(request: Request, page: "numbering.drawings.view" | "numbering.search" | "numbering.approvals") {
+  const rejected = rejectLegacyRouteActorInPlatformMode(request);
+  if (rejected) return { response: rejected, actor: null };
   const auth = page === "numbering.approvals"
     ? await requireNumberingActionAsync(request, "approval.inbox.view")
     : await requireNumberingPageAsync(request, page);
@@ -50,6 +62,8 @@ export async function resolveDev087RouteActor(request: Request, page: "numbering
  * Drawing and Part drawers, so neither workbench page may become the hidden
  * authority for access. */
 export async function resolveRelationMatrixActor(request: Request) {
+  const rejected = rejectLegacyRouteActorInPlatformMode(request);
+  if (rejected) return { response: rejected, actor: null };
   let auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
   if (auth.response?.status === 403) auth = await requireNumberingPageAsync(request, "numbering.search");
   if (auth.response) return { response: auth.response, actor: null };

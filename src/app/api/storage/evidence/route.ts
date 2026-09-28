@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
+import { authorizePrincipalWorkspaceExternalRead } from "@/lib/principal-company-read";
 import { getStorageEvidenceDashboard } from "@/lib/storage-evidence-dashboard";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin", "R&D Manager"]);
-  if (auth.response || !auth.user) return auth.response ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authorization = await authorizePrincipalWorkspaceExternalRead(request,
+    "src/app/api/storage/evidence/route.ts", "settings.storage_evidence.view");
+  if (authorization instanceof Response) return authorization;
 
   const dashboard = await getStorageEvidenceDashboard();
-  return NextResponse.json(dashboard);
+  return NextResponse.json(dashboard, { headers: { "cache-control": "private, no-store" } });
 }

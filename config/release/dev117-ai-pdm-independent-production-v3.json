@@ -79,12 +79,11 @@
     "refreshTokenEnvironmentName": "DEV012_AIPDM_FIREBASE_REFRESH_TOKEN",
     "firebaseApiKeyEnvironmentName": "DEV012_AIPDM_FIREBASE_API_KEY",
     "authModePath": "/api/auth/mode",
-    "sessionPath": "/api/auth/firebase/session",
+    "sessionPath": "/api/auth/jenfu-sso/start",
     "mePath": "/api/auth/me",
     "logoutPath": "/api/auth/logout",
-    "candidateSmokeMode": "WORKFLOWS_INTERNAL_OIDC_V1",
-    "candidateWorkflowName": "aipdm-prod-candidate-smoke-v2",
-    "candidateRefreshTokenSecretId": "aipdm-prod-smoke-firebase-refresh-token",
+    "candidateSmokeMode": "GITHUB_PRINCIPAL_SSO_V1",
+    "brokerOrigin": "https://jenfu-platform-prod-9536592944.asia-east1.run.app",
     "authenticatedProbes": [
       {
         "id": "database-readiness",
@@ -355,6 +354,16 @@
         "order": 20,
         "path": "db/postgres/069_dev121_principal_security_contract_manifest.sql",
         "sha256": "e7e8d3ee6a186743c8315d86b16196020141910b1efd680f48f57b2694cc47e1"
+      },
+      {
+        "order": 21,
+        "path": "db/postgres/070_dev121_principal_role_catalog_v5.sql",
+        "sha256": "9b882ba60fd3a2e2b4bd13ca054f83e2de91b3513bbde11fe0698aa019179013"
+      },
+      {
+        "order": 22,
+        "path": "db/postgres/071_dev121_principal_account_owner_no_cutover.sql",
+        "sha256": "6471b8d6567e9d2c4a1d1cad09c9797502972fb1e367c8daed35788ca5617193"
       }
     ]
   },

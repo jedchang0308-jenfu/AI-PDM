@@ -197,7 +197,8 @@ export class PartNumberMatrixAsyncRepository {
         const formal = formalPayload(row);
         const workPayload = parseWorkPayload(row.work_payload, formal);
         const handling = row.handling ?? (row.work_id ? "owner" : "none");
-        const canEdit = !handlingReason(row.handling, row.work_owner_user_id, input.actor)
+        const canEdit = input.actor.permissions.update &&
+          !handlingReason(row.handling, row.work_owner_user_id, input.actor)
           ? row.work_id ? (row.work_owner_user_id === input.actor.id || input.actor.canEditNonOwned) : input.actor.permissions.create && input.actor.permissions.update
           : false;
         const effective = workPayload && canEdit ? workPayload : formal;

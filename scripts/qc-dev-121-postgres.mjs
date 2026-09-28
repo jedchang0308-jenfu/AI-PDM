@@ -135,7 +135,7 @@ async function main() {
     await admin.query("BEGIN");
     try {
       await admin.query(`UPDATE orgmaster_contract.qc_dev121_authority
-        SET authority_source='legacy_authority', authority_version=3, updated_at=now(), operation_id='after-snapshot'
+        SET authority_source='orgmaster_authority', authority_version=3, updated_at=now(), operation_id='after-snapshot'
         WHERE singleton=true`);
       await admin.query("DELETE FROM orgmaster_contract.qc_dev121_grants WHERE employee_id='employee-dev121'");
       await admin.query("COMMIT");
@@ -149,8 +149,14 @@ async function main() {
 
     const [afterCommit] = await checkNumberingPermissionsAsync([input]);
     assert.equal(afterCommit.allowed, false, "a request started after the authority commit must not reuse the old grant");
-    assert.equal(afterCommit.decisionCode, "permission_not_granted");
-    return { switchCommittedWhilePrincipalReadWasActive: true, inFlight: inFlight.decisionCode, nextRequest: afterCommit.decisionCode, observedBackendPid: activeRead.pid };
+    assert.equal(afterCommit.decisionCode, "entitlement_assignment_not_found");
+    await admin.query(`UPDATE orgmaster_contract.qc_dev121_authority
+      SET authority_source='legacy_authority', authority_version=4, updated_at=now(), operation_id='legacy-rejected'
+      WHERE singleton=true`);
+    const [legacyAuthority] = await checkNumberingPermissionsAsync([input]);
+    assert.equal(legacyAuthority.allowed, false, "a legacy authority cannot grant a Principal-only request");
+    assert.equal(legacyAuthority.decisionCode, "entitlement_authority_unknown");
+    return { switchCommittedWhilePrincipalReadWasActive: true, inFlight: inFlight.decisionCode, nextRequest: afterCommit.decisionCode, legacyAuthority: legacyAuthority.decisionCode, observedBackendPid: activeRead.pid };
   });
 }
 

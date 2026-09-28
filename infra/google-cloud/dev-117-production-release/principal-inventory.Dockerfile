@@ -14,6 +14,7 @@ COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-mi
 COPY scripts/dev121-production-principal-inventory-runner.mjs scripts/dev121-production-principal-inventory-runner.mjs
 COPY scripts/qc-ts-path-loader.mjs scripts/qc-ts-path-loader.mjs
 COPY src/lib/jenfu-principal-inventory-coverage.ts src/lib/jenfu-principal-inventory-coverage.ts
+COPY src/lib/jenfu-principal-only-cohort-readback.ts src/lib/jenfu-principal-only-cohort-readback.ts
 COPY src/lib/jenfu-principal-inventory-registration.ts src/lib/jenfu-principal-inventory-registration.ts
 COPY src/lib/jenfu-principal-inventory-repository.ts src/lib/jenfu-principal-inventory-repository.ts
 COPY src/lib/jenfu-principal-admission-repository.ts src/lib/jenfu-principal-admission-repository.ts

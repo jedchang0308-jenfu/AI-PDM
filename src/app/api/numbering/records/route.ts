@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createNumberingRecordAsync } from "@/lib/numbering-async";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
-import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { requirePrincipalNumberingPermissionAsync } from "@/lib/numbering-permission-guard";
+import { requestedNumberingCompanyCodeFromRequest } from "@/lib/numbering-company-context";
 import type { DrawingPurposeCode, NumberingItemKind } from "@/lib/repositories/numbering-repository";
 import { parseCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
 import { parseNumberingStructureType } from "@/lib/numbering-structure-type";
@@ -16,8 +17,12 @@ export async function POST(request: Request) {
   const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.create", body });
   if (access.response) return access.response;
   if (drawingRequested) {
-    const linkAuth = await requireNumberingActionAsync(request, "numbering.link_variant");
+    const linkAuth = await requirePrincipalNumberingPermissionAsync(request, "action", "numbering.link_variant",
+      requestedNumberingCompanyCodeFromRequest(request, body));
     if (linkAuth.response) return linkAuth.response;
+    if (linkAuth.company?.companyId !== access.company.companyId) {
+      return NextResponse.json({ code: "entitlement_scope_mismatch" }, { status: 403 });
+    }
   }
 
   const coreName = String(body.coreName ?? body.core_name ?? "").trim();
@@ -64,7 +69,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...result, pdmCompany: access.company }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create numbering record";
-    const status = message.includes("REQUIRED") ? 400 : message.includes("UNIQUE") ? 409 : 400;
+    const status = message === "PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED" ? 403
+      : message.startsWith("PLATFORM_PRINCIPAL_") ? 503
+        : message.includes("REQUIRED") ? 400 : message.includes("UNIQUE") ? 409 : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }

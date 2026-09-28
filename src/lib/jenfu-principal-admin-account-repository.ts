@@ -31,10 +31,6 @@ const SELECT = `
          account.system_role_enabled,account.lifecycle_version,account.profile_version,
          account.session_invalid_before
   FROM ai_pdm_core.principal_accounts account
-  JOIN ai_pdm_core.principal_identity_cutovers cutover
-    ON cutover.pdm_user_id=account.pdm_user_id
-   AND cutover.principal_id=account.principal_id
-   AND cutover.status='principal_active'
   JOIN ai_pdm_core.users profile
     ON profile.id=account.pdm_user_id AND profile.company_id=account.company_id
   JOIN ai_pdm_core.companies company ON company.id=account.company_id

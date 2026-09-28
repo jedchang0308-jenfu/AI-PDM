@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   runPrincipal: vi.fn(), recognition: vi.fn(), requiredFiles: vi.fn(),
   selectPrincipalReviewer: vi.fn(), selectLegacyReviewer: vi.fn(),
   buildReviewPackage: vi.fn(), reviewCreate: vi.fn(), reviewGet: vi.fn(),
-  recordTerminalReceipt: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
+  recordTerminalReceipt: vi.fn(), appendTrace: vi.fn(),
+  parsePackage: vi.fn(), verifyPackage: vi.fn(),
   assertPackageRecognition: vi.fn(), assertFormalizationAllowed: vi.fn(),
   formalize: vi.fn(), beginApproval: vi.fn(),
   withVerified: vi.fn(), deleteObject: vi.fn(), assertWorkFileSnapshot: vi.fn()
@@ -85,6 +86,7 @@ vi.mock("@/lib/repositories/pdm-work-review-async-repository", async (importOrig
     selectReviewer = mocks.selectLegacyReviewer;
     create = mocks.reviewCreate;
     get = mocks.reviewGet;
+    appendTrace = mocks.appendTrace;
     recordTerminalReceipt = mocks.recordTerminalReceipt;
   }
 }));
@@ -137,10 +139,13 @@ beforeEach(() => {
     rowVersion: 1 });
   mocks.reviewGet.mockResolvedValue({ id: "request-one", requestKind: "drawing_revision",
     reviewerUserId: "profile-one", requestStatus: "pending", rowVersion: 1,
+    companyId: "company-one", canonicalEntityId: "drawing-one",
     workId: "work-one", snapshotPayload: {}, snapshotHash: "package-hash" });
   mocks.parsePackage.mockReturnValue({ kind: "v2" });
-  mocks.verifyPackage.mockReturnValue({ decisionBasis: {
-    hash: "irrelevant-for-return" } });
+  mocks.verifyPackage.mockReturnValue({
+    requestKind: "drawing_revision", primaryTargetKey: "drawing:drawing-one",
+    decisionBasis: { kind: "drawing_revision_work", hash: "irrelevant-for-return" }
+  });
   mocks.runPrincipal.mockImplementation(async (_tx, _verified, _input, execute) => execute(client));
   mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate(client, verified));
 });
@@ -283,6 +288,64 @@ describe("principal drawing revision work read", () => {
         snapshotHash: "review-package-hash" }));
   });
 
+  it("submits an exact RD-branch void through a principal reviewer and v2 package", async () => {
+    const rowKey = "cw_11111111-1111-4111-8111-111111111111";
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
+    mocks.readSourceState.mockResolvedValueOnce({
+      drawing_id: "drawing-one", branch_id: "branch-one",
+      data_layer: "drawing_rd", handling: "none", work_id: null,
+      branch_status: "open", latest_approved_revision_id: "revision-one",
+      revision_id: "revision-one", revision: "1.1", row_version: 2
+    });
+    const result = await new DrawingRevisionWorkService(client).requestVoidPrincipal(
+      "branch-one", rowKey, verified, { contractToken: "contract-one",
+        expectedRowVersion: 2, idempotencyKey: "void-one" });
+    expect(result).toEqual({ requestId: "request-one", reviewCycleId: "cycle-one",
+      rowVersion: 1 });
+    expect(mocks.readSourceState).toHaveBeenCalledWith(client, "company-one",
+      "11111111-1111-4111-8111-111111111111", true);
+    expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client,
+      { companyId: "company-one", ownerUserId: "profile-one" });
+    expect(mocks.selectLegacyReviewer).not.toHaveBeenCalled();
+    expect(mocks.buildReviewPackage).toHaveBeenCalledWith(client,
+      expect.objectContaining({ companyId: "company-one",
+        requestKind: "drawing_rd_void", branchId: "branch-one", workId: null }));
+    expect(mocks.reviewCreate).toHaveBeenCalledWith(client,
+      expect.objectContaining({ reviewerUserId: "reviewer-principal-profile",
+        snapshotHash: "review-package-hash" }));
+    expect(mocks.runPrincipal).toHaveBeenCalledWith(client, verified,
+      expect.objectContaining({ command: "drawing.void",
+        effectKey: "drawing-branch:branch-one:void" }), expect.any(Function));
+  });
+
+  it("rejects an stale or cross-branch void before reviewer selection or writes", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
+    mocks.readSourceState.mockResolvedValueOnce({
+      drawing_id: "drawing-one", branch_id: "branch-other",
+      data_layer: "drawing_rd", handling: "none", work_id: null,
+      branch_status: "open", latest_approved_revision_id: "revision-one",
+      revision_id: "revision-one", row_version: 2
+    });
+    await expect(new DrawingRevisionWorkService(client).requestVoidPrincipal(
+      "branch-one", "cw_11111111-1111-4111-8111-111111111111", verified,
+      { contractToken: "contract-one", expectedRowVersion: 2,
+        idempotencyKey: "void-one" })).rejects.toMatchObject({ status: 409 });
+    expect(mocks.selectPrincipalReviewer).not.toHaveBeenCalled();
+    expect(mocks.reviewCreate).not.toHaveBeenCalled();
+    expect(client.execute).not.toHaveBeenCalled();
+  });
+
+  it("requires AAL2 before looking up an RD-void branch", async () => {
+    const lowAssurance = { ...verified, session: { ...verified.session,
+      assuranceLevel: "aal1" } } as VerifiedPrincipalRequest;
+    await expect(new DrawingRevisionWorkService(client).requestVoidPrincipal(
+      "branch-one", "cw_11111111-1111-4111-8111-111111111111",
+      lowAssurance, { contractToken: "contract-one", expectedRowVersion: 2,
+        idempotencyKey: "void-one" })).rejects.toMatchObject({ status: 403 });
+    expect(mocks.evaluate).not.toHaveBeenCalled();
+    expect(mocks.readSourceState).not.toHaveBeenCalled();
+  });
+
   it("rejects a review assigned to another profile before principal drawing effects", async () => {
     mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
     mocks.reviewGet.mockResolvedValueOnce({
@@ -310,9 +373,11 @@ describe("principal drawing revision work read", () => {
 
   it("approves a verified principal drawing review with the exact snapshot", async () => {
     mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
-    mocks.verifyPackage.mockReturnValueOnce({ decisionBasis: {
-      hash: dev087RequestHash({ payload: {}, revisionId: "revision-one", claimId: null })
-    } });
+    mocks.verifyPackage.mockReturnValueOnce({
+      requestKind: "drawing_revision", primaryTargetKey: "drawing:drawing-one",
+      decisionBasis: { kind: "drawing_revision_work",
+        hash: dev087RequestHash({ payload: {}, revisionId: "revision-one", claimId: null }) }
+    });
     const result = await new DrawingRevisionWorkService(client).decidePrincipal(
       "request-one", "approve", verified, { contractToken: "contract-one",
         expectedRowVersion: 1, idempotencyKey: "decision-one" });
@@ -324,6 +389,97 @@ describe("principal drawing revision work read", () => {
       expect.objectContaining({ companyId: "company-one" }));
     expect(mocks.recordTerminalReceipt).toHaveBeenCalled();
     expect(mocks.selectLegacyReviewer).not.toHaveBeenCalled();
+  });
+
+  it("approves an assigned v2 RD-void review only against the locked branch basis", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
+    mocks.reviewGet.mockResolvedValueOnce({
+      id: "request-one", companyId: "company-one",
+      requestKind: "drawing_rd_void", reviewerUserId: "profile-one",
+      requestStatus: "pending", rowVersion: 1, workId: null,
+      branchId: "branch-one", canonicalEntityId: "drawing-one",
+      snapshotPayload: {}, snapshotHash: "package-hash"
+    });
+    const basis = { drawingId: "drawing-one", branchId: "branch-one",
+      revisionId: "revision-one", revision: "1.1" };
+    mocks.verifyPackage.mockReturnValueOnce({
+      requestKind: "drawing_rd_void", primaryTargetKey: "drawing:drawing-one",
+      decisionBasis: { kind: "drawing_rd_void", revisionId: "revision-one",
+        hash: dev087RequestHash(basis) }
+    });
+    vi.mocked(client.queryOne).mockResolvedValueOnce({
+      drawing_id: "drawing-one", branch_id: "branch-one",
+      revision_id: "revision-one", revision: "1.1",
+      branch_status: "open", latest_approved_revision_id: "revision-one"
+    });
+    const result = await new DrawingRevisionWorkService(client).decidePrincipal(
+      "request-one", "approve", verified, { contractToken: "contract-one",
+        expectedRowVersion: 1, idempotencyKey: "decision-void" });
+    expect(result).toEqual({ acknowledged: true });
+    expect(mocks.beginApproval).toHaveBeenCalled();
+    expect(mocks.assertPackageRecognition).toHaveBeenCalled();
+    expect(vi.mocked(client.execute).mock.calls.map(([sql]) => sql)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("UPDATE drawing_rd_branches"),
+        expect.stringContaining("DELETE FROM canonical_workbench_states")
+      ]));
+    expect(mocks.recordTerminalReceipt).toHaveBeenCalled();
+    expect(mocks.formalize).not.toHaveBeenCalled();
+  });
+
+  it("rejects an RD-void approval when the branch basis has changed", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
+    mocks.reviewGet.mockResolvedValueOnce({
+      id: "request-one", companyId: "company-one",
+      requestKind: "drawing_rd_void", reviewerUserId: "profile-one",
+      requestStatus: "pending", rowVersion: 1, workId: null,
+      branchId: "branch-one", canonicalEntityId: "drawing-one",
+      snapshotPayload: {}, snapshotHash: "package-hash"
+    });
+    mocks.verifyPackage.mockReturnValueOnce({
+      requestKind: "drawing_rd_void", primaryTargetKey: "drawing:drawing-one",
+      decisionBasis: { kind: "drawing_rd_void", revisionId: "revision-one",
+        hash: dev087RequestHash({ drawingId: "drawing-one",
+          branchId: "branch-one", revisionId: "revision-one", revision: "1.1" }) }
+    });
+    vi.mocked(client.queryOne).mockResolvedValueOnce({
+      drawing_id: "drawing-one", branch_id: "branch-one",
+      revision_id: "revision-two", revision: "1.2",
+      branch_status: "open", latest_approved_revision_id: "revision-two"
+    });
+    await expect(new DrawingRevisionWorkService(client).decidePrincipal(
+      "request-one", "approve", verified, { contractToken: "contract-one",
+        expectedRowVersion: 1, idempotencyKey: "decision-void" }))
+      .rejects.toMatchObject({ status: 409 });
+    expect(vi.mocked(client.execute).mock.calls.some(([sql]) =>
+      sql.includes("UPDATE drawing_rd_branches"))).toBe(false);
+  });
+
+  it("returns an RD-void review without changing the historical branch", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
+    mocks.reviewGet.mockResolvedValueOnce({
+      id: "request-one", companyId: "company-one",
+      requestKind: "drawing_rd_void", reviewerUserId: "profile-one",
+      requestStatus: "pending", rowVersion: 1, workId: null,
+      branchId: "branch-one", canonicalEntityId: "drawing-one",
+      snapshotPayload: {}, snapshotHash: "package-hash"
+    });
+    mocks.verifyPackage.mockReturnValueOnce({
+      requestKind: "drawing_rd_void", primaryTargetKey: "drawing:drawing-one",
+      decisionBasis: { kind: "drawing_rd_void", revisionId: "revision-one",
+        hash: "basis-hash" }
+    });
+    const result = await new DrawingRevisionWorkService(client).decidePrincipal(
+      "request-one", "return_for_correction", verified,
+      { contractToken: "contract-one", expectedRowVersion: 1,
+        idempotencyKey: "decision-void-return" });
+    expect(result).toEqual({ acknowledged: true });
+    expect(mocks.appendTrace).toHaveBeenCalled();
+    expect(mocks.recordTerminalReceipt).toHaveBeenCalled();
+    expect(vi.mocked(client.execute).mock.calls.map(([sql]) => sql)).toEqual(
+      expect.arrayContaining([expect.stringContaining("handling = 'none'")]));
+    expect(vi.mocked(client.execute).mock.calls.some(([sql]) =>
+      sql.includes("UPDATE drawing_rd_branches"))).toBe(false);
   });
 
   it("commits a principal file tombstone before deleting owned storage bytes", async () => {

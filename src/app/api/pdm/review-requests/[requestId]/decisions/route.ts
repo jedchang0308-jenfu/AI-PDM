@@ -57,14 +57,15 @@ async function principalDecision(request: Request, params: Promise<{ requestId: 
         }, async () => { throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核項目不存在", 404); });
         return dev087Success(replay);
       }
-      if (!["part_change", "drawing_revision"].includes(item.requestKind)) {
+      if (!["part_change", "drawing_revision", "drawing_rd_void"].includes(item.requestKind)) {
         return Response.json({ code: "principal_review_kind_not_migrated" },
           { status: 503, headers: { "cache-control": "no-store" } });
       }
       if (item.reviewerUserId !== verified.profile.pdmUserId) {
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核項目不存在", 404);
       }
-      const result = item.requestKind === "drawing_revision"
+      const result = item.requestKind === "drawing_revision" ||
+        item.requestKind === "drawing_rd_void"
         ? await new DrawingRevisionWorkService(tx)
           .decidePrincipal(requestId, decision, verified, context)
         : await new PartChangeWorkService(tx)

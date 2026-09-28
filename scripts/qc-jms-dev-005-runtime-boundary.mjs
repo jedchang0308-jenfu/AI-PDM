@@ -7,8 +7,10 @@ import ts from 'typescript'
 const scriptRoot = resolve(fileURLToPath(new URL('.', import.meta.url)))
 const appRoot = resolve(scriptRoot, '..')
 const mapPath = join(appRoot, 'config', 'access-control', 'jenfu-route-permission-map.v1.json')
+const currentMapPath = join(appRoot, 'config', 'access-control', 'jenfu-route-permission-map.v2.json')
 const catalogPath = join(appRoot, 'config', 'access-control', 'jenfu-role-catalog.v4.json')
 const routeMap = JSON.parse(readFileSync(mapPath, 'utf8'))
+const currentRouteMap = JSON.parse(readFileSync(currentMapPath, 'utf8'))
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'))
 
 function routePathMatches(template, actual) {
@@ -23,6 +25,13 @@ function samplePath(template) {
 
 function resolveEntries(path, method) {
   return routeMap.entries.filter((entry) => routePathMatches(entry.path, path) && entry.method === method && entry.discriminator === null)
+}
+
+function currentPolicy(entry) {
+  const matches = currentRouteMap.entries.filter((candidate) => candidate.path === entry.path &&
+    candidate.method === entry.method && candidate.discriminator === entry.discriminator)
+  assert.equal(matches.length, 1, `current route policy is ambiguous: ${entry.method} ${entry.path}`)
+  return matches[0]
 }
 
 function parseFunctions(path, source) {
@@ -83,6 +92,47 @@ function boundaryFailures(entries, sources) {
       continue
     }
     if (entry.authorizationMode === 'permission') {
+      if (entry.discriminator === null && currentPolicy(entry).authorizationMode === 'retired') {
+        if (!/status\s*:\s*410/u.test(graph) ||
+            /(?:requirePdmRouteAuthorizationAsync|resolveDev087RouteActor|requireAuthAsync)\s*\(/u.test(graph)) {
+          failures.push(`${label}: current retired route still calls old authorization or lacks 410`)
+        }
+        continue
+      }
+      if ((entry.path === 'src/app/api/file-metadata/detect/route.ts' && entry.method === 'POST') ||
+          (entry.path === 'src/app/api/storage/evidence/route.ts' && entry.method === 'GET')) {
+        if (!/authorizePrincipalWorkspaceExternalRead\s*\(/u.test(graph) ||
+            !graph.includes(entry.permissionCode)) {
+          failures.push(`${label}: principal external-read guard missing`)
+        }
+        continue
+      }
+      if (entry.path === 'src/app/api/settings/route.ts' && entry.method === 'POST') {
+        if (!/withPrincipalCompanyWrite\s*\(/u.test(graph) ||
+            !graph.includes(entry.permissionCode)) {
+          failures.push(`${label}: principal settings write guard missing`)
+        }
+        continue
+      }
+      if (entry.method === 'GET' &&
+          ['src/app/api/settings/access/role-capabilities/route.ts',
+            'src/app/api/settings/access/role-capabilities/change-feed/route.ts',
+            'src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts',
+            'src/app/api/settings/gdrive/folders/route.ts',
+            'src/app/api/settings/secrets/route.ts'].includes(entry.path)) {
+        if (!/authorizePrincipalWorkspaceExternalRead\s*\(/u.test(graph) ||
+            !graph.includes(entry.permissionCode)) {
+          failures.push(`${label}: principal external-read guard missing`)
+        }
+        continue
+      }
+      if (entry.path === 'src/app/api/settings/route.ts' && entry.method === 'GET') {
+        if (!/withPrincipalCompanyRead\s*\(/u.test(graph) ||
+            !graph.includes(entry.permissionCode)) {
+          failures.push(`${label}: principal settings read guard missing`)
+        }
+        continue
+      }
       if (entry.path === 'src/app/api/admin/account-invitations/route.ts' &&
           entry.method === 'POST') {
         for (const required of [
@@ -145,6 +195,19 @@ function boundaryFailures(entries, sources) {
           if (!required.test(graph)) failures.push(`${label}: principal lifecycle guard missing: ${required}`)
         }
         if (!graph.includes(entry.permissionCode)) failures.push(`${label}: permission code missing`)
+        continue
+      }
+      if (entry.path === 'src/app/api/approvals/inbox/route.ts' && entry.method === 'GET') {
+        for (const required of [
+          /principalSessionTokenFromRequest\s*\(/u,
+          /resolveJenfuRoutePolicy\s*\(/u,
+          /withVerifiedJenfuPrincipalRequest\s*\(/u,
+          /evaluatePrincipalWorkspacePermissionsInSnapshot\s*\(/u,
+          /listPrincipalWorkReviewInbox\s*\(/u
+        ]) {
+          if (!required.test(graph)) failures.push(`${label}: principal inbox guard missing: ${required}`)
+        }
+        if (!graph.includes(entry.permissionCode)) failures.push(`${label}: principal inbox permission missing`)
         continue
       }
       if (!/(?:requirePdmRouteAuthorizationAsync|resolveDev087RouteActor)\s*\(/u.test(graph)) failures.push(`${label}: PDM entitlement guard missing from handler graph`)
@@ -246,6 +309,34 @@ function main() {
     new Map([[principalWorkPath, principalWorkMutant]]))
   assert.ok(principalWorkFailures.length > 0, 'principal work guard mutant was not detected')
 
+  const principalInboxPath = 'src/app/api/approvals/inbox/route.ts'
+  const principalInboxSource = sourceByPath.get(principalInboxPath)
+  const principalInboxMutant = principalInboxSource.replace(/withVerifiedJenfuPrincipalRequest\s*\(/u,
+    'removedPrincipalSessionVerification(')
+  assert.notEqual(principalInboxMutant, principalInboxSource,
+    'principal inbox mutant could not remove the guard')
+  const principalInboxFailures = boundaryFailures(routeMap.entries.filter((entry) =>
+    entry.path === principalInboxPath && entry.method === 'GET'),
+    new Map([[principalInboxPath, principalInboxMutant]]))
+  assert.ok(principalInboxFailures.length > 0, 'principal inbox guard mutant was not detected')
+
+  const externalPath = 'src/app/api/file-metadata/detect/route.ts'
+  const externalSource = sourceByPath.get(externalPath)
+  const externalMutant = externalSource.replace(/authorizePrincipalWorkspaceExternalRead\s*\(/u,
+    'removedPrincipalExternalRead(')
+  assert.notEqual(externalMutant, externalSource, 'principal external-read mutant could not remove the guard')
+  assert.ok(boundaryFailures(routeMap.entries.filter((entry) => entry.path === externalPath &&
+    entry.method === 'POST'), new Map([[externalPath, externalMutant]])).length > 0,
+  'principal external-read guard mutant was not detected')
+
+  const retiredPath = 'src/app/api/settings/access/role-capabilities/preview/route.ts'
+  const retiredSource = sourceByPath.get(retiredPath)
+  const retiredMutant = retiredSource.replace(/status\s*:\s*410/u, 'status: 200')
+  assert.notEqual(retiredMutant, retiredSource, 'retired route mutant could not remove 410')
+  assert.ok(boundaryFailures(routeMap.entries.filter((entry) => entry.path === retiredPath &&
+    entry.method === 'POST'), new Map([[retiredPath, retiredMutant]])).length > 0,
+  'retired route mutant was not detected')
+
   const accountsPath = 'src/app/api/admin/accounts/route.ts'
   const accountsSource = sourceByPath.get(accountsPath)
   const principalMutant = accountsSource.replace(/provisionPrincipalAccount\s*\(/u, 'removedPrincipalProvision(')
@@ -282,11 +373,24 @@ function main() {
     'src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts',
     'src/app/api/settings/access/role-capabilities/commands/[commandId]/resolve-unknown/route.ts',
   ]
+  const legacyRoleCapabilityCommands = []
+  const retiredRoleCapabilityCommands = []
   for (const path of roleCapabilityFiles) {
     const source = readFileSync(join(appRoot, ...path.split('/')), 'utf8')
-    assert.match(source, /requirePdmRouteAuthorizationAsync\s*\(/u, `role capability route is not behind the PDM entitlement boundary: ${path}`)
+    if (/authorizePrincipalWorkspaceExternalRead\s*\(/u.test(source)) continue
+    const current = currentRouteMap.entries.filter((entry) => entry.path === path)
+    if (current.length === 1 && current[0].authorizationMode === 'retired') {
+      assert.match(source, /status\s*:\s*410/u, `retired role command lost 410: ${path}`)
+      assert.doesNotMatch(source, /requirePdmRouteAuthorizationAsync\s*\(/u,
+        `retired role command still invokes old authorization: ${path}`)
+      retiredRoleCapabilityCommands.push(path)
+      continue
+    }
+    assert.match(source, /requirePdmRouteAuthorizationAsync\s*\(/u,
+      `role capability route has no entitlement guard: ${path}`)
+    legacyRoleCapabilityCommands.push(path)
   }
-  process.stdout.write(`${JSON.stringify({ status: 'PASS', uniqueFiles: routeMap.denominator.uniqueFiles, uniqueMethods: routeMap.denominator.uniqueMethods, policyEntries: routeMap.denominator.policyEntries, catalogPermissionCodes: catalogPermissionCodes.size, legacyRoleBypassFiles: 0, directRoleGateFiles: 0, methodGuardEntries: routeMap.entries.length, methodGuardMutant: 'detected', roleCapabilityFiles: roleCapabilityFiles.length })}\n`)
+  process.stdout.write(`${JSON.stringify({ status: 'PASS', uniqueFiles: routeMap.denominator.uniqueFiles, uniqueMethods: routeMap.denominator.uniqueMethods, policyEntries: routeMap.denominator.policyEntries, catalogPermissionCodes: catalogPermissionCodes.size, legacyRoleBypassFiles: 0, directRoleGateFiles: 0, methodGuardEntries: routeMap.entries.length, methodGuardMutant: 'detected', roleCapabilityFiles: roleCapabilityFiles.length, legacyRoleCapabilityCommands, retiredRoleCapabilityCommands })}\n`)
 }
 
 try {

@@ -143,7 +143,7 @@ record(
   legacyRoute.includes("source.searchParams.forEach") &&
     legacyRoute.includes("legacyFrom") &&
     legacyRoute.includes("drawingNumber") &&
-    legacyRoute.includes("submission-workbench") &&
+    legacyRoute.includes("/numbering/drawings?query=") &&
     legacyRoute.includes("window.location.replace") &&
     !legacyRoute.includes("useMemo") &&
     middleware.includes("numberStateLegacyRedirect") &&
@@ -151,8 +151,8 @@ record(
     legacyMapping.includes("nextSearchParams.set(\"legacyFrom\", pathname)") &&
     legacyMapping.includes("/numbering/part-drafts") &&
     legacyMapping.includes("/numbering/request") &&
-    legacyMapping.includes("submission-workbench"),
-  "server compatibility routing must preserve query/returnTo and contextual upload; the fallback must avoid hydration-time window reads"
+    legacyMapping.includes('nextSearchParams.set("query", drawingNumber)'),
+  "server compatibility routing must preserve query/returnTo and route contextual upload to the canonical drawing workspace"
 );
 
 const requestRedirect = resolveNumberStateLegacyRedirect(
@@ -176,11 +176,30 @@ record(
     requestRedirect.searchParams.get("tab") === "reserved" &&
     requestRedirect.searchParams.get("create") === "new_bundle" &&
     requestRedirect.searchParams.get("legacyFrom") === "/numbering/request" &&
-    uploadRedirect?.pathname === "/drawings/A0001-M01/submission-workbench" &&
+    uploadRedirect?.pathname === "/numbering/drawings" &&
+    uploadRedirect.searchParams.get("query") === "A0001-M01" &&
+    uploadRedirect.searchParams.get("legacyIntent") === "upload" &&
     uploadRedirect.searchParams.get("returnTo") === "/parts" &&
     uploadGuidance === null &&
     resolveNumberStateLegacyRedirect("/numbering/request", new URLSearchParams())?.pathname === "/numbering/search",
   "middleware mapping must preserve request intent, redirect contextual upload, leave context-free upload on guidance, and never revive retired mutation pages"
+);
+
+const directDrawingSubmissionPages = [
+  "src/app/drawings/[drawingNumber]/submission-workbench/page.tsx",
+  "src/app/numbering/submissions/drawings/[drawingNumber]/page.tsx"
+];
+record(
+  "routes",
+  "NSF-UI-ROUTE-direct-submission-retirement",
+  directDrawingSubmissionPages.every((relativePath) => {
+    const source = read(relativePath);
+    return source.includes("redirect(") &&
+      source.includes("/numbering/drawings?query=") &&
+      source.includes("encodeURIComponent(drawingNumber)") &&
+      !source.includes("DrawingSourceSubmissionWorkbench");
+  }),
+  "direct legacy drawing-submission URLs must preserve the drawing search key without mounting the retired mutation workbench"
 );
 
 const workspace = read("src/components/number-state-workspace.tsx");

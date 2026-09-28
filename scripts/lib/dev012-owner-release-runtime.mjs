@@ -1,4 +1,5 @@
 import { canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-production-migration-runner.mjs'
+import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -841,6 +842,11 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
   }
 
   async function runAuthenticatedSmoke({ profile, origin, environment = process.env }) {
+    if (profile.verification?.candidateSmokeMode === 'GITHUB_PRINCIPAL_SSO_V1') {
+      const result = await runPrincipalEntrySmoke({ profile, origin, environment, fetchImpl })
+      return { origin, tokenSource: result.tokenSource, tokenExpiresInSeconds: result.tokenExpiresInSeconds,
+        observations: result.observations, status: result.status, observedAt: now() }
+    }
     const definition = profile.verification
     const base = new URL(origin)
     const sessionOrigin = new URL(profile.target?.canonicalOrigin ?? base.origin).origin
@@ -908,9 +914,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const base = new URL(origin)
     const firebaseApiKey = environment[definition?.firebaseApiKeyEnvironmentName]
     if (
-      definition?.candidateSmokeMode !== 'WORKFLOWS_INTERNAL_OIDC_V1' ||
-      !/^[a-z][a-z0-9-]{2,62}$/u.test(definition?.candidateWorkflowName ?? '') ||
-      !/^[a-z][a-z0-9-]{2,254}$/u.test(definition?.candidateRefreshTokenSecretId ?? '') ||
+      !['WORKFLOWS_INTERNAL_OIDC_V1', 'GITHUB_PRINCIPAL_SSO_V1'].includes(definition?.candidateSmokeMode) ||
       base.protocol !== 'https:' || base.pathname !== '/' || base.search || base.hash ||
       !/^candidate-[a-f0-9]{12}$/u.test(candidateTag ?? '') ||
       candidateRevision !== `${profile.target.serviceName}-${candidateTag.slice('candidate-'.length)}` ||
@@ -922,6 +926,26 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const legacyServiceOrigin = exactOrigin(service?.uri, 'INTERNAL_CANDIDATE_SMOKE_SERVICE_URI_INVALID')
     if (!legacyServiceOrigin.hostname.startsWith(`${profile.target.serviceName}-`) || !legacyServiceOrigin.hostname.endsWith('.a.run.app')) fail('INTERNAL_CANDIDATE_SMOKE_SERVICE_URI_INVALID')
     const workflowCandidateOrigin = `https://${candidateTag}---${legacyServiceOrigin.hostname}`
+    if (definition.candidateSmokeMode === 'GITHUB_PRINCIPAL_SSO_V1') {
+      if (Date.now() >= Date.parse(deadlineAt)) fail('INTERNAL_CANDIDATE_SMOKE_TIMEOUT')
+      const result = await runPrincipalEntrySmoke({ profile, origin: workflowCandidateOrigin,
+        candidateTag, candidateRevision, artifactDigest, environment, fetchImpl })
+      const expected = [['auth-mode', 200], ['platform-session', 200], ['sso-start', 303],
+        ['sso-authorize', 303], ['sso-callback', 303], ['target-session', 200],
+        ['authenticated-probe', 200], ['unauthenticated-probe', 401], ['session-revoked', 401]]
+      if (result?.schemaVersion !== 'jenfu.dev121.principal-candidate-smoke.v1' ||
+          result.ownerApplicationId !== profile.application.id || result.candidateRevision !== candidateRevision ||
+          result.artifactDigest !== artifactDigest || result.tokenSource !== 'GITHUB_PRODUCTION_SECRET' ||
+          result.status !== 'PASS' || JSON.stringify(result.observations?.map((row) => [row.id, row.status])) !== JSON.stringify(expected) ||
+          /refreshToken|idToken|sessionCookie|firebaseApiKey|principalId/iu.test(JSON.stringify(result))) {
+        fail('INTERNAL_CANDIDATE_SMOKE_RESULT_INVALID')
+      }
+      return { ...result, origin: base.origin, observedAt: now() }
+    }
+    if (!/^[a-z][a-z0-9-]{2,62}$/u.test(definition?.candidateWorkflowName ?? '') ||
+        !/^[a-z][a-z0-9-]{2,254}$/u.test(definition?.candidateRefreshTokenSecretId ?? '')) {
+      fail('INTERNAL_CANDIDATE_SMOKE_PROFILE_INVALID')
+    }
     const workflow = `projects/${profile.target.projectId}/locations/${profile.target.region}/workflows/${definition.candidateWorkflowName}`
     let execution = await request(`https://workflowexecutions.googleapis.com/v1/${workflow}/executions`, {
       method: 'POST',

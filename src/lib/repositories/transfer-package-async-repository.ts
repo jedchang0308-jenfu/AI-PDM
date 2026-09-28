@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { PrincipalWorkspaceDecision } from "@/lib/jenfu-principal-permission-service";
+import { principalCanManageTransferPackageInSnapshot } from "@/lib/transfer-package-principal-resource";
 
 export type TransferPackageCaseType = "development_case" | "design_change_case";
 export type TransferPackageStatus =
@@ -18,6 +20,9 @@ export type TransferPackageActor = {
   userId: string;
   companyId: string;
   role: string;
+  principalId?: string;
+  /** In-process decision rechecked inside the current command transaction. */
+  principalDecision?: PrincipalWorkspaceDecision | null;
 };
 
 export type ResolvedTransferPackageEntity = {
@@ -210,12 +215,16 @@ function mapDraftItem(row: DraftItemRow): TransferPackageDraftItem {
   };
 }
 
-function canManagePackage(row: PackageRow, actor: TransferPackageActor) {
-  return actor.role === "R&D Manager" || actor.role === "Admin" || row.owner_id === actor.userId;
+async function canManagePackage(client: AsyncDatabaseClient, row: PackageRow, actor: TransferPackageActor) {
+  return row.company_id === actor.companyId && principalCanManageTransferPackageInSnapshot({
+    client, companyId: row.company_id, ownerProfileId: row.owner_id,
+    actorPrincipalId: actor.principalId ?? "", decision: actor.principalDecision,
+    permissionCode: "transfer.package.update"
+  });
 }
 
-function assertEditable(row: PackageRow, actor: TransferPackageActor) {
-  if (!canManagePackage(row, actor)) {
+async function assertEditable(client: AsyncDatabaseClient, row: PackageRow, actor: TransferPackageActor) {
+  if (!(await canManagePackage(client, row, actor))) {
     throw new TransferPackageError("TRANSFER_PACKAGE_FORBIDDEN", "只有技轉包負責人或管理角色可以修改。", 403);
   }
   if (!(["Draft", "NeedsInfo", "ReleaseFailed"] as TransferPackageStatus[]).includes(row.package_status)) {
@@ -322,7 +331,10 @@ export class AsyncTransferPackageRepository {
     sourceItem?: ResolvedTransferPackageEntity | null;
   }): Promise<TransferPackageRecord> {
     const existing = await this.findByIdempotency(input.actor.companyId, input.actor.userId, input.idempotencyKey);
-    if (existing) return existing;
+    // Principal replay is authoritative only through the command receipt.
+    // An older direct write using the same key is not proof of that receipt.
+    if (existing) throw new TransferPackageError("TRANSFER_PACKAGE_COMMAND_RECEIPT_REQUIRED",
+      "既有技轉包缺少可驗證的命令收據。", 409);
 
     let packageId = "";
     try {
@@ -387,7 +399,8 @@ export class AsyncTransferPackageRepository {
       });
     } catch (error) {
       const raced = await this.findByIdempotency(input.actor.companyId, input.actor.userId, input.idempotencyKey);
-      if (raced) return raced;
+      if (raced) throw new TransferPackageError("TRANSFER_PACKAGE_COMMAND_RECEIPT_REQUIRED",
+        "既有技轉包缺少可驗證的命令收據。", 409);
       throw error;
     }
     return this.getById(packageId, input.actor.companyId);
@@ -629,7 +642,7 @@ export class AsyncTransferPackageRepository {
     await this.client.transaction(async (client) => {
       const row = await this.getRow(input.packageId, input.actor.companyId, client);
       if (!row) throw new TransferPackageError("TRANSFER_PACKAGE_NOT_FOUND", "找不到技轉包。", 404);
-      if (!canManagePackage(row, input.actor)) {
+      if (!(await canManagePackage(client, row, input.actor))) {
         throw new TransferPackageError("TRANSFER_PACKAGE_FORBIDDEN", "只有技轉包負責人或管理角色可以取消。", 403);
       }
       if (row.package_status === "Cancelled") return;
@@ -887,7 +900,7 @@ export class AsyncTransferPackageRepository {
   private async requireEditableRow(client: AsyncDatabaseClient, packageId: string, actor: TransferPackageActor) {
     const row = await this.getRow(packageId, actor.companyId, client);
     if (!row) throw new TransferPackageError("TRANSFER_PACKAGE_NOT_FOUND", "找不到技轉包。", 404);
-    assertEditable(row, actor);
+    await assertEditable(client, row, actor);
     return row;
   }
 
@@ -944,7 +957,7 @@ export class AsyncTransferPackageRepository {
         packageId,
         eventType,
         actorId: actor.userId,
-        detailJson: JSON.stringify(detail),
+        detailJson: JSON.stringify({ ...detail, principalId: actor.principalId ?? null }),
         createdAt
       }
     );

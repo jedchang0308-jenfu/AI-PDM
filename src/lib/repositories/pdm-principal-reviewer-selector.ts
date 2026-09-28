@@ -3,7 +3,6 @@ import { createJenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-c
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { AsyncAccessControlRepository } from "@/lib/repositories/access-control-async-repository";
 import { JenfuEntitlementRepository, JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
-import { PrincipalLocalAclRepository } from "@/lib/repositories/principal-local-acl-repository";
 import { requirePublishedPrincipalCatalog } from "@/lib/jenfu-principal-role-catalog";
 
 type ReviewerCandidate = {
@@ -40,10 +39,6 @@ export async function selectPrincipalReviewerInSnapshot(
            typed.principal_issuer AS identity_issuer,
            typed.principal_subject AS identity_subject
     FROM ai_pdm_core.principal_accounts account
-    JOIN ai_pdm_core.principal_identity_cutovers cutover
-      ON cutover.pdm_user_id = account.pdm_user_id
-     AND cutover.principal_id = account.principal_id
-     AND cutover.status = 'principal_active'
     JOIN orgmaster_contract.v_active_principal_accounts_v1 typed
       ON typed.principal_id = account.principal_id
      AND typed.employee_id = account.employee_id
@@ -60,7 +55,6 @@ export async function selectPrincipalReviewerInSnapshot(
   const rolePriority = await new AsyncAccessControlRepository(tx)
     .getEnforcedRolePriority([...reviewerRoles]);
   const entitlement = new JenfuEntitlementRepository(tx, await requirePublishedPrincipalCatalog(tx));
-  const localAcl = new PrincipalLocalAclRepository(tx);
   const groups = new Map<string, ReviewerCandidate[]>();
   for (const row of rows) {
     if (!row.principal_id || !row.pdm_user_id || !row.employee_id ||
@@ -92,17 +86,7 @@ export async function selectPrincipalReviewerInSnapshot(
         actor, ...reviewerPermission, workspaceCode: input.companyId,
         projectCode: null, rolePriority
       }], decisionAt);
-      if (result.decisionCode === "legacy_authority") {
-        // Eligibility assumes the candidate can satisfy AAL2 when they later
-        // act; it never impersonates their present session or grants access.
-        const [local] = await localAcl.evaluateWorkspace({
-          principalId, permissions: [reviewerPermission], rolePriority,
-          decisionAt, assuranceLevel: "aal2"
-        });
-        role = local.allowed ? local.roleCode : null;
-      } else {
-        role = result.decisionCode === "allowed" ? result.role.roleCode : null;
-      }
+      role = result.decisionCode === "allowed" ? result.role.roleCode : null;
     } catch (error) {
       if (!(error instanceof JenfuEntitlementRepositoryError) ||
           !["entitlement_assignment_not_found", "entitlement_authority_unknown"].includes(error.code)) {

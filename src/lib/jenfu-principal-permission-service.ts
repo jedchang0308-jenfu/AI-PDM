@@ -8,7 +8,6 @@ import {
 } from "@/lib/jenfu-principal-request-guard";
 import { AsyncAccessControlRepository } from "@/lib/repositories/access-control-async-repository";
 import { JenfuEntitlementRepository } from "@/lib/repositories/jenfu-entitlement-repository";
-import { PrincipalLocalAclRepository } from "@/lib/repositories/principal-local-acl-repository";
 import { requirePublishedPrincipalCatalog } from "@/lib/jenfu-principal-role-catalog";
 
 export type PrincipalWorkspacePermission = {
@@ -69,21 +68,8 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
         rolePriority
       })), decisionAt
     );
-    const localDecisions = evaluated[0]?.decisionCode === "legacy_authority"
-      ? await new PrincipalLocalAclRepository(snapshot).evaluateWorkspace({
-        principalId: actor.principalId, permissions,
-        rolePriority, decisionAt, assuranceLevel: verified.session.assuranceLevel
-      })
-      : null;
     return evaluated.map((result, index) => {
       const permissionCode = permissions[index].permissionCode;
-      if (result.decisionCode === "legacy_authority") {
-        const local = localDecisions?.[index];
-        if (!local) throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
-        return { allowed: local.allowed, permissionCode, decisionCode: local.decisionCode,
-          roleCode: local.roleCode, assignmentId: local.assignmentId, principalId: actor.principalId,
-          authorityVersion: result.authority.authorityVersion };
-      }
       if (result.decisionCode !== "allowed") {
         return { allowed: false, permissionCode, decisionCode: result.decisionCode,
           roleCode: null, assignmentId: null, principalId: actor.principalId,

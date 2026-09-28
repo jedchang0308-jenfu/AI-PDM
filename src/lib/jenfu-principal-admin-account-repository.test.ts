@@ -18,7 +18,8 @@ describe("principal admin account projection", () => {
         lifecycleVersion: 4, profileVersion: 3 }]);
     const [sql, params] = query.mock.calls[0];
     expect(sql).toContain("account.company_id=:companyId");
-    expect(sql).toContain("cutover.status='principal_active'");
+    expect(sql).toContain("FROM ai_pdm_core.principal_accounts account");
+    expect(sql).not.toContain("principal_identity_cutovers");
     expect(sql).not.toContain("user_company_memberships");
     expect(sql).not.toContain("profile.role");
     expect(params.query).toBe("%_");

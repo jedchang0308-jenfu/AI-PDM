@@ -16,7 +16,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   try {
     const result = await removeTransferDraftWorkspace({
       metadata: access.metadata,
-      actor: { userId: access.actor.pdmUserId, companyId: access.actor.organizationId, role: access.auth.user.role },
+      actor: { userId: access.actor.pdmUserId, companyId: access.actor.organizationId,
+        role: "Principal", principalId: access.actor.principalId },
       packageId: id,
       itemId,
       expectedRowVersion: requiredTransferVersion(body.expectedRowVersion ?? body.expected_row_version),

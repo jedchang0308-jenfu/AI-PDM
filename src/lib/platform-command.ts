@@ -38,6 +38,7 @@ export type PdmCommandMetadata = {
     routePath: string;
     method: string;
     permissionCode: string;
+    additionalPermissionCodes?: string[];
   };
 };
 
