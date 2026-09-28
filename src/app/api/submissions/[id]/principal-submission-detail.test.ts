@@ -120,6 +120,12 @@ describe("Principal historical submission detail", () => {
     expect(mocks.resource).not.toHaveBeenCalled();
   });
 
+  it("fails closed when the published permission decision cardinality drifts", async () => {
+    mocks.decisions.mockResolvedValue([decision(), decision()]);
+    expect((await GET(request(), context)).status).toBe(503);
+    expect(mocks.resource).not.toHaveBeenCalled();
+  });
+
   it("refuses an unreviewed role or insufficient assurance for cross-owner read", async () => {
     mocks.decisions.mockResolvedValueOnce([decision("qa")]);
     expect((await GET(request(), context)).status).toBe(503);

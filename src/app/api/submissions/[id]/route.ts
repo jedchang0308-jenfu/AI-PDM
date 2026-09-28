@@ -41,9 +41,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     try {
       const { id } = await params;
       return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
-        const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
+        const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
           [{ permissionKind: "action", permissionCode: "submission.view" }]);
-        if (!decision || decision.permissionCode !== "submission.view" ||
+        const decision = decisions[0];
+        if (decisions.length !== 1 || !decision || decision.permissionCode !== "submission.view" ||
             decision.principalId !== verified.session.principalId) {
           return NextResponse.json({ code: "principal_dependency_unavailable" },
             { status: 503, headers: { "cache-control": "no-store" } });
