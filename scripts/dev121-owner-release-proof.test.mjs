@@ -145,9 +145,10 @@ test('accepts the OrgMaster owner migration schema without bootstrap, without we
   delete core.ledgerBootstrap
   delete core.receiptSha256
   const orgmaster = sealed({ ...core, ownerApplicationId: 'orgmaster',
-    ledger: 'orgmaster_core.schema_migrations' })
+    ledger: 'orgmaster_core.schema_migrations', ledgerCount: 27,
+    applied: 1, replayed: 26 })
   const orgConfig = { ledger: 'orgmaster_core.schema_migrations',
-    migrationBootstrap: false }
+    migrationBootstrap: false, principalContractLedgerFloor: 27 }
   assert.doesNotThrow(() => assertMigration(orgmaster, 'orgmaster', orgConfig,
     revision, manifest))
   assert.throws(() => assertMigration(sealed({ ...orgmaster,
@@ -158,7 +159,37 @@ test('accepts the OrgMaster owner migration schema without bootstrap, without we
   revision, manifest), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
   assert.throws(() => assertMigration(orgmaster, 'platform', {
     ledger: 'orgmaster_core.schema_migrations', migrationBootstrap: true,
+    principalContractLedgerFloor: 10,
   }, revision, manifest), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+})
+
+test('refuses older ledgers even when a source-bound migration receipt is otherwise valid', async () => {
+  await assert.rejects(verify(fixture({ migrationChange: {
+    ledgerCount: 9, applied: 0, replayed: 9,
+  } })), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  const input = fixture()
+  const platform = JSON.parse(input.objects.get(input.refs.migrate.uri).toString('utf8'))
+  const { ledgerBootstrap, receiptSha256: _receiptSha256, ...core } = platform
+  assert.deepEqual(ledgerBootstrap, { enabled: false, created: false })
+  const oldOrg = sealed({ ...core, ownerApplicationId: 'orgmaster',
+    ledger: 'orgmaster_core.schema_migrations', ledgerCount: 26,
+    applied: 0, replayed: 26 })
+  assert.throws(() => assertMigration(oldOrg, 'orgmaster', {
+    ledger: 'orgmaster_core.schema_migrations', migrationBootstrap: false,
+    principalContractLedgerFloor: 27,
+  }, revision, manifest), /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  const aiConfig = { ledger: 'ai_pdm_core.schema_migrations',
+    migrationBootstrap: true, principalContractLedgerFloor: 20 }
+  const aiCurrent = sealed({ ...core, ledgerBootstrap,
+    ownerApplicationId: 'ai-pdm', ledger: aiConfig.ledger,
+    ledgerCount: 20, applied: 0, replayed: 20 })
+  assert.doesNotThrow(() => assertMigration(aiCurrent, 'ai-pdm', aiConfig,
+    revision, manifest))
+  assert.throws(() => assertMigration(sealed({ ...core, ledgerBootstrap,
+    ownerApplicationId: 'ai-pdm', ledger: aiConfig.ledger,
+    ledgerCount: 19, applied: 0, replayed: 19 }),
+  'ai-pdm', aiConfig, revision, manifest),
+  /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
 })
 
 test('migration-only build proof fails if its build chain is missing or altered', async () => {
