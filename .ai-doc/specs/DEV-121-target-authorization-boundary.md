@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-28 登入路由清理（候選來源，非 Production PASS）。** Platform SSO 模式的舊 Firebase session endpoint 保持讀取 credential 前 410，已移除其後不可達的 v1 exchange／cutover caller；設定不合法時 503 fail closed。`PDM_JENFU_PLATFORM_AUTH_MODE=off` 的舊 Firebase 分支仍由舊 release/profile 與離線模式引用，須與 owner 驗證契約一起退役；此變更不是完整單一路徑切流。聚焦 2／2、DEV-046 21／21、分類 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS。
+
 > **2026-09-28 舊 PostgreSQL canonical command 停用（候選來源，非 Production PASS）。** 所有舊 `runCanonicalIdempotentCommand`／`replayCanonicalTerminalReceipt` caller 在 PostgreSQL 直接拒絕 410，拒絕發生在逐人 marker、舊 receipt、組織 mapping 或業務交易之前；新 v2 命令使用獨立 `runPrincipalDev087Command` 並由 verified principal session、發布 grant 與資源範圍授權。SQLite 舊流程只留隔離測試資料。尚未接通 v2 的工作台、關聯矩陣與作廢等操作會維持拒絕，需先轉換並完成業務驗證，不能把安全性封鎖誤算成功能完成。聚焦 31／31、typecheck、scoped ESLint PASS。
 
 > **2026-09-28 v2 命令啟用查詢收斂（候選來源，非 Production PASS）。** Principal 命令在 verified request 的同一 transaction 中，改以 `JenfuPrincipalAccountRepository.requireActive` 作唯一 account 啟用核對，保留 exact principal／profile／company 比對，移除第二次逐人 cutover function 讀取；未啟用 account 仍在任何業務寫入與 receipt claim 前拒絕。聚焦 26／26、typecheck、scoped ESLint PASS。account repository 目前仍讀 marker；應先以正式全 cohort readback 證明 operation／帳號歸屬，再用 forward-only 權威啟用契約取代該最後依賴，不可直接刪除拒絕條件。
