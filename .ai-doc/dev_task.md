@@ -2,6 +2,8 @@
 
 > **2026-09-28 DEV-121 全 cohort readback 啟用證據補強（本機）**：只讀盤點新增 OrgMaster current Platform login pair、typed contract version 及 AI-PDM 精確 committed operation／marker hash 核對；不一致者維持 unresolved。本地 provider pair 缺失、未驗證或歧義依舊阻擋，`principal_active` runtime gate 未拆。聚焦 6／6、隔離 PostgreSQL 23／23 PASS，叢集及暫存資源均已清理；Production 全員 readback、等價 canonical eligibility 與正式切流仍待完成，`applyAllowed=false`。
 
+> **2026-09-28 DEV-121 CI 驗證分母修正（候選來源）**：舊 managed/UID 帳號邀請 browser QC 預設仍可建立 legacy invitation，已與新 Principal-only fail-closed 入口衝突並使 PR #113 的 Production Slice QC 失敗。CI／owner workflow 改跑六組 Principal enrollment、account、lifecycle、session-revoke 受控測例（23／23 PASS）；舊無 caller 的 QC runner 移除。deployment pipeline 契約 25／25 PASS。這是測試分母跟隨新架構，沒有放寬正式登入或授權；PR required CI 仍需在新 source 重跑通過。
+
 > **2026-09-28 DEV-121 Principal-only 全 cohort readback（本機）**：既有 source-bound inventory owner operator 新增唯讀 `principal_only_coverage` v2 模式，封存全部 PDM profile／principal account／OrgMaster typed principal／provider pair 的歧義與啟用狀態，沒有資料寫入或權限切換；正常 Principal provision 的歷史停用 profile 以提交 operation 核對，不誤判成重啟舊帳號。聚焦測試 13／13、typecheck、ESLint、DB boundary PASS；正式 Job 與全 cohort 身分確認仍未執行，舊 `principal_active` runtime guard 保留，`applyAllowed=false`。下一步須以受限 Production receipt 核對已核實帳號與停用帳號，建立等效 Principal-only 啟用條件後才可退役 marker guard。
 
 > **2026-09-28 DEV-121 runtime guard 單點收斂（本機）**：handoff／request 的 profile 查詢移除重複 marker JOIN，帳戶 repository 的啟用檢查仍在同一交易中先執行；不通過時不讀 profile 或簽發 session。聚焦 19／19、typecheck、ESLint PASS。這不是 marker 完全退役或正式切流證據。
