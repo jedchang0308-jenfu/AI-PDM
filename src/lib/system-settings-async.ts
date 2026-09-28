@@ -12,8 +12,10 @@ export async function getAllSystemSettingsAsync(client: AsyncDatabaseClient = ge
   return repository.getAllSettings();
 }
 
-export async function setSystemSettingAsync(key: string, value: string, updatedBy: string): Promise<void> {
-  const client = getAsyncDatabaseClient();
+export async function setSystemSettingAsync(
+  key: string, value: string, updatedBy: string,
+  client: AsyncDatabaseClient = getAsyncDatabaseClient()
+): Promise<void> {
   const repository = new AsyncSystemSettingsRepository(client);
   await repository.setSetting(key, value, updatedBy);
 }

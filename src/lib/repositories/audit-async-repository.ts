@@ -6,11 +6,13 @@ export type AsyncAuditLogInput = {
   actorId?: string | null;
   action: string;
   detail?: Record<string, unknown>;
+  companyId?: string | null;
+  scopeKind?: "tenant" | "global" | "legacy_unscoped";
 };
 
 export const INSERT_ASYNC_AUDIT_LOG_SQL = `
-  INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, created_at)
-  VALUES (:id, :submissionId, :actorId, :action, :detailJson, :createdAt)
+  INSERT INTO audit_logs (id, submission_id, actor_id, action, detail_json, company_id, scope_kind, created_at)
+  VALUES (:id, :submissionId, :actorId, :action, :detailJson, :companyId, :scopeKind, :createdAt)
 `;
 
 export class AsyncAuditRepository {
@@ -27,6 +29,8 @@ export class AsyncAuditRepository {
       actorId: input.actorId ?? null,
       action: input.action,
       detailJson: JSON.stringify(input.detail ?? {}),
+      companyId: input.companyId ?? null,
+      scopeKind: input.scopeKind ?? "legacy_unscoped",
       createdAt: this.clock()
     });
   }

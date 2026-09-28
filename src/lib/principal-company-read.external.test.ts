@@ -34,7 +34,7 @@ vi.mock("@/lib/jenfu-principal-permission-service", async (importOriginal) => ({
   evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.evaluate
 }));
 
-import { authorizePrincipalWorkspaceExternalRead } from "@/lib/principal-company-read";
+import { authorizePrincipalWorkspaceExternalRead, withPrincipalCompanyWrite } from "@/lib/principal-company-read";
 
 const snapshot = { kind: "postgres" };
 const verified = {
@@ -110,5 +110,70 @@ describe("principal authorization before external reads", () => {
       "settings.manage");
     expect((wrongPolicy as Response).status).toBe(503);
     expect(mocks.verifiedRequest).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("principal workspace write boundary", () => {
+  const settingsPath = "src/app/api/settings/route.ts";
+  const settingsRequest = () => new Request("https://ai-pdm.test/api/settings", { method: "POST" });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.token.mockReturnValue("signed-token");
+    mocks.company.mockResolvedValue({ company, response: null });
+    mocks.evaluate.mockResolvedValue([{ allowed: true, principalId: "principal-one",
+      permissionCode: "settings.manage" }]);
+    mocks.verifiedRequest.mockImplementation(async (_input, useSnapshot) =>
+      useSnapshot(snapshot, verified));
+  });
+
+  it("binds the exact POST grant and executes a write in the verified serializable snapshot", async () => {
+    const write = vi.fn(async () => Response.json({ saved: true }));
+    const result = await withPrincipalCompanyWrite(settingsRequest(), settingsPath,
+      "settings.manage", write);
+    expect(result.status).toBe(200);
+    expect(mocks.verifiedRequest).toHaveBeenCalledWith({ token: "verified-token" },
+      expect.any(Function), { readOnly: false, isolationLevel: "serializable" });
+    expect(mocks.evaluate).toHaveBeenCalledWith(snapshot, verified,
+      [{ permissionKind: "action", permissionCode: "settings.manage" }]);
+    expect(write).toHaveBeenCalledWith(snapshot, company, verified);
+  });
+
+  it("never invokes the write after deny or company mismatch", async () => {
+    const write = vi.fn(async () => Response.json({ saved: true }));
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: false, principalId: "principal-one",
+      permissionCode: "settings.manage", decisionCode: "permission_not_granted" }]);
+    expect((await withPrincipalCompanyWrite(settingsRequest(), settingsPath,
+      "settings.manage", write)).status).toBe(403);
+    mocks.company.mockResolvedValueOnce({ company: null,
+      response: Response.json({ code: "entitlement_scope_mismatch" }, { status: 403 }) });
+    expect((await withPrincipalCompanyWrite(settingsRequest(), settingsPath,
+      "settings.manage", write)).status).toBe(403);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("throws a rejected write out of the transaction while preserving its response", async () => {
+    let transactionFailure: unknown;
+    mocks.verifiedRequest.mockImplementationOnce(async (_input, useSnapshot) => {
+      try { return await useSnapshot(snapshot, verified); }
+      catch (error) { transactionFailure = error; throw error; }
+    });
+    const result = await withPrincipalCompanyWrite(settingsRequest(), settingsPath,
+      "settings.manage", async () => Response.json({ code: "invalid_settings" }, { status: 400 }));
+    expect(result.status).toBe(400);
+    expect(transactionFailure).toBeInstanceOf(Error);
+    expect((transactionFailure as Error).message).toBe("principal_write_rejected");
+  });
+
+  it("rejects a mismatched route, method, or policy before starting a transaction", async () => {
+    const write = vi.fn(async () => Response.json({ saved: true }));
+    expect((await withPrincipalCompanyWrite(request(), settingsPath,
+      "settings.manage", write)).status).toBe(503);
+    expect((await withPrincipalCompanyWrite(settingsRequest(), routePath,
+      "settings.manage", write)).status).toBe(503);
+    expect((await withPrincipalCompanyWrite(settingsRequest(), settingsPath,
+      "settings.secret.manage", write)).status).toBe(503);
+    expect(mocks.verifiedRequest).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
   });
 });

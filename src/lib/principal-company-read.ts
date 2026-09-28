@@ -10,7 +10,7 @@ import { evaluatePrincipalWorkspacePermissionsInSnapshot,
   type PrincipalWorkspacePermission } from "@/lib/jenfu-principal-permission-service";
 import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest,
   type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
-import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
+import { resolveJenfuRoutePolicy, resolveJenfuRoutePolicyFromRequest } from "@/lib/jenfu-route-permission-map";
 
 async function authorizeInSnapshot(
   snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest,
@@ -58,6 +58,48 @@ export async function withPrincipalCompanyRead(
       return read(snapshot, authorization.company, verified);
     });
   } catch (error) {
+    return principalRequestFailure(error);
+  }
+}
+
+class PrincipalWriteRejected extends Error {
+  constructor(readonly response: Response) { super("principal_write_rejected"); }
+}
+
+/** Keep a workspace write, its principal decision, and its audit in one transaction. */
+export async function withPrincipalCompanyWrite(
+  request: Request, routePath: string, permissionCode: string,
+  write: (snapshot: AsyncDatabaseClient, company: PdmCompanyContext,
+    verified: VerifiedPrincipalRequest) => Promise<Response>
+): Promise<Response> {
+  const policy = resolveJenfuRoutePolicyFromRequest(request, permissionCode);
+  if (request.method !== "POST" || policy?.path !== routePath ||
+      policy.authorizationMode !== "permission" || policy.scopeResolver !== "workspace") {
+    return Response.json({ code: "principal_route_policy_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
+  }
+  const token = principalSessionTokenFromRequest(request);
+  if (!token) return Response.json({ code: "auth_session_invalid" },
+    { status: 401, headers: { "cache-control": "no-store" } });
+  if (getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on" ||
+      getJenfuEntitlementMode() !== "enforce") {
+    return Response.json({ code: "principal_authorization_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
+  }
+  try {
+    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+      const authorization = await authorizeInSnapshot(snapshot, verified,
+        requestedPdmCompanyCodeFromRequest(request),
+        [{ permissionKind: "action", permissionCode }]);
+      if (authorization.response) return authorization.response;
+      const response = await write(snapshot, authorization.company, verified);
+      // A caller returning a validation error after an earlier mutation must
+      // not accidentally commit that partial write.
+      if (!response.ok) throw new PrincipalWriteRejected(response);
+      return response;
+    }, { readOnly: false, isolationLevel: "serializable" });
+  } catch (error) {
+    if (error instanceof PrincipalWriteRejected) return error.response;
     return principalRequestFailure(error);
   }
 }
