@@ -83,9 +83,15 @@ const identityProtocolRoutes = new Map([
   ["POST /api/auth/local-quick-login", "findLocalQuickLoginAccount"],
   ["GET /api/auth/login", "ensureDemoUserAsync"],
   ["POST /api/auth/login", "verifyPassword"],
-  ["POST /api/auth/logout", "verifyJenfuPlatformSessionV1"],
+  ["POST /api/auth/logout", "verifyJenfuPrincipalSession"],
   ["GET /api/auth/mode", "getFirebaseWebConfig"],
   ["POST /api/auth/token", "generateToken"]
+]);
+const principalSessionRoutes = new Map([
+  ["GET /api/auth/me", ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest"]],
+  ["GET /api/account/sessions", ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest"]],
+  ["POST /api/account/sessions/[sessionId]/revoke",
+    ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest", "isAllowedRequestOrigin"]]
 ]);
 const publicStatusRoutes = new Map([
   ["GET /api/health/ready", "verifyAsyncDatabaseReadiness"],
@@ -245,6 +251,17 @@ function main() {
         continue;
       }
       const graph = functionGraph(sourceFile, handler.method);
+      const principalSessionMarkers = principalSessionRoutes.get(key);
+      if (principalSessionMarkers) {
+        if (principalSessionMarkers.some((name) => !graph.includes(name + "(")) ||
+            !/if\s*\(!principalToken\)\s*return\s+principalRequestFailure\s*\(/u.test(graph) ||
+            centralPermissionGuard.test(graph) || sessionGuard.test(graph) ||
+            /(?:verifyJenfuPlatformSessionV1|verifyPlatformSessionV2|getLegacySessionPayload)\s*\(/u.test(graph)) {
+          throw new Error(key + ": Principal session boundary missing or old authorization restored");
+        }
+        assign(key, "authenticated_domain");
+        continue;
+      }
       if (centralPermissionGuard.test(graph)) {
         for (const permissionCode of explicitPermissionCalls.get(key) ?? []) {
           if (!graph.includes(permissionCode)) throw new Error(`${key}: canonical permission ${permissionCode} missing`);
@@ -257,6 +274,10 @@ function main() {
       const identityMarker = identityProtocolRoutes.get(key);
       if (identityMarker) {
         if (!graph.includes(identityMarker)) throw new Error(`${key}: identity protocol handler lost ${identityMarker}`);
+        if (key === "POST /api/auth/logout" &&
+            /(?:verifyJenfuPlatformSessionV1|verifyPlatformSessionV2|getLegacySessionPayload|getSessionUserAsync)\s*\(/u.test(graph)) {
+          throw new Error("POST /api/auth/logout: retired session authorization restored");
+        }
         assign(key, "identity_protocol");
         continue;
       }
@@ -286,7 +307,7 @@ function main() {
     const key = `${routeMapEntry.method} ${routePath}`;
     if (!observedMethods.has(key)) throw new Error(`DEV-121 permission manifest points to a missing API handler: ${key}`);
   }
-  for (const expected of [identityProtocolRoutes, publicStatusRoutes, retiredRoutes]) {
+  for (const expected of [identityProtocolRoutes, principalSessionRoutes, publicStatusRoutes, retiredRoutes]) {
     for (const key of expected.keys()) if (!observedMethods.has(key)) throw new Error(`DEV-121 public/retired route allowlist is stale: ${key}`);
   }
   for (const key of explicitPermissionCalls.keys()) if (!observedMethods.has(key)) throw new Error(`DEV-121 permission route assertion is stale: ${key}`);

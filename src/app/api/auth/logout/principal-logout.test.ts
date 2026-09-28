@@ -40,6 +40,15 @@ function request() {
 afterEach(() => vi.clearAllMocks());
 
 describe("principal-keyed local logout", () => {
+  it("clears a retired session cookie without invoking old revocation or audit", async () => {
+    const response = await POST(new Request("https://pdm.example/api/auth/logout",
+      { method: "POST", headers: { cookie: "__session=legacy-session" } }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(mocks.audit).not.toHaveBeenCalled();
+  });
+
   it("revokes the principal session before clearing browser cookies", async () => {
     mocks.execute.mockResolvedValue(undefined);
     mocks.audit.mockResolvedValue(undefined);
