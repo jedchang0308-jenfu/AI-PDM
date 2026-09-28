@@ -93,6 +93,10 @@ const publicStatusRoutes = new Map([
   ["GET /api/numbering/state-flow/status", "numberStateFlowV1ClientStatus"]
 ]);
 const retiredRoutes = new Map([
+  ["POST /api/submissions", "GENERIC_SUBMISSION_RETIRED"],
+  ["POST /api/settings/access/role-capabilities/commands/[commandId]/resolve-unknown", "ROLE_CAPABILITY_MUTATION_RETIRED"],
+  ["POST /api/settings/access/role-capabilities/preview", "ROLE_CAPABILITY_MUTATION_RETIRED"],
+  ["POST /api/settings/access/role-capabilities/publish", "ROLE_CAPABILITY_MUTATION_RETIRED"],
   ["POST /api/numbering/drawings/[drawingNumber]/attachments", "DRAWING_REFERENCE_UPLOAD_RETIRED"],
   ["POST /api/numbering/reviews/[reviewId]/approve-confirmed-impact-release", "handleDrawingRevisionReviewAction"],
   ["POST /api/numbering/reviews/[reviewId]/confirm-original-part-reuse", "handleDrawingRevisionReviewAction"],
@@ -219,8 +223,21 @@ function main() {
     for (const handler of exportedHandlers(sourceFile)) {
       const key = `${handler.method} ${routePath}`;
       observedMethods.set(key, { relativeFile, sourceFile });
-      const mapped = routeMap.entries.some((entry) => entry.path === relativeFile && entry.method === handler.method);
-      if (mapped) { assign(key, "permission_manifest"); continue; }
+      const mapped = routeMap.entries.filter((entry) => entry.path === relativeFile && entry.method === handler.method);
+      if (mapped.length > 0) {
+        if (mapped.every((entry) => entry.authorizationMode === "retired" && entry.discriminator === null)) {
+          const graph = functionGraph(sourceFile, handler.method);
+          const marker = retiredRoutes.get(key);
+          if (!marker || !graph.includes(marker) || !/status:\s*410/u.test(graph) ||
+            centralPermissionGuard.test(graph) || sessionGuard.test(graph)) {
+            throw new Error(`${key}: retired manifest route still enters an authorization caller`);
+          }
+          assign(key, "retired_route");
+        } else {
+          assign(key, "permission_manifest");
+        }
+        continue;
+      }
       const graph = functionGraph(sourceFile, handler.method);
       if (centralPermissionGuard.test(graph)) {
         for (const permissionCode of explicitPermissionCalls.get(key) ?? []) {

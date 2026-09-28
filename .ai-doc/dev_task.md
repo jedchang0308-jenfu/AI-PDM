@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 generic submission POST 退役（本機）**：已固定 410 的 `POST /api/submissions` 不再先執行舊 session／授權 helper，移除同檔無 caller 的上傳與解析程式，v2 route map 明確標為 retired 並重新鎖定完整 source hash。聚焦 1／1、來源鎖 2／2、route classification 293／293、typecheck 與 scoped ESLint PASS；CI 已納入來源鎖與分類。GET 清單仍待 Principal grant／資源讀取改造，這不是整個 submissions 工作流程完成證據。
+
 > **2026-09-28 DEV-121 route-policy 來源鎖修正（本機）**：舊 v2 產生器只知道兩筆新增路由，`--write` 會覆寫後續 13 筆與三條退役跨 owner 寫入。現鎖定完整 118 筆 v2 條目 SHA-256，source hash 綁定 v1 與整份 reviewed entries，CI 增加正向與篡改拒絕測試；route classification 255 files／293 methods／0 catalog missing code PASS。這僅修復產生器與證據漂移，正式授權 caller、Production L4 與切流仍未完成。
 
 > **2026-09-28 DEV-121 新帳號讀回契約修正（本機）**：Principal-only provision 的 owner transaction 已核對 OrgMaster typed provider pair，且設計上不寫舊 Firebase mapping；全 cohort readback 現只對 operation／hash／result 與固定 suspended profile 皆吻合的新 provision 豁免舊 mapping 缺漏，仍核對現行 Platform login pair、Employee、account type、停用狀態與歧義。既有 cutover profile 照舊 fail closed。聚焦 6／6、隔離 PostgreSQL 23／23 PASS（含無舊 mapping 的 active provision）；叢集已清理、容量租約已釋放。runtime marker guard 未變，Production 全員 readback／切流未執行，`applyAllowed=false`。

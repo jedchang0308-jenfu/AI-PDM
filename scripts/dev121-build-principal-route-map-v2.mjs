@@ -10,7 +10,7 @@ const targetPath = join(root, 'config/access-control/jenfu-route-permission-map.
 const sha256 = (value) => createHash('sha256').update(value).digest('hex')
 // Full reviewed v2 entries, including all 15 additions and three retired
 // cross-owner mutations. An unreviewed route or permission change must fail.
-const approvedV2EntriesSha256 = 'cab76e6c9002a1c5fc1774628ba693830ec188413ee9095f5dacb1a813cd5487'
+const approvedV2EntriesSha256 = '9a84bff3f49d27bd1b2418a96ac3d7e9ced82dcea4c1f39b8f868b6692f0b49a'
 
 export function buildPrincipalRouteMapV2(source, reviewedV2) {
   assert.deepEqual(source.denominator, { uniqueFiles: 77, uniqueMethods: 94, policyEntries: 103 })

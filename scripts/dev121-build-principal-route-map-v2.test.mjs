@@ -32,4 +32,10 @@ test('new grants, restored old mutations, and deleted policies all fail the sour
   deletedPolicy.entries.pop()
   assert.throws(() => buildPrincipalRouteMapV2(source, deletedPolicy),
     /unreviewed v2 route policy change/)
+
+  const restoredSubmission = structuredClone(reviewed)
+  restoredSubmission.entries.find((entry) => entry.path ===
+    'src/app/api/submissions/route.ts' && entry.method === 'POST').authorizationMode = 'permission'
+  assert.throws(() => buildPrincipalRouteMapV2(source, restoredSubmission),
+    /unreviewed v2 route policy change/)
 })

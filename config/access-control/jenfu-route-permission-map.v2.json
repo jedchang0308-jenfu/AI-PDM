@@ -2,7 +2,7 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "a2112268836e35246cad51907712be54ebb4c617f65444717fe0e2e72dfab542",
+  "sourceSha256": "d7e458655890fb4125676cb6afe2d34ea73fd80ad224a063bd3366641be187cf",
   "denominator": {
     "uniqueFiles": 91,
     "uniqueMethods": 109,
@@ -1053,11 +1053,11 @@
       "path": "src/app/api/submissions/route.ts",
       "method": "POST",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "submission.create",
-      "authorizationTarget": "submission.create",
-      "scopeResolver": "company",
-      "preservedGuards": "company＋submission validation／idempotency"
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "generic_submission_retired",
+      "scopeResolver": "none",
+      "preservedGuards": "410；generic submission upload cannot execute"
     },
     {
       "path": "src/app/api/transfer-packages/[id]/route.ts",
