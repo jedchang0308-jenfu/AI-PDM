@@ -18,11 +18,13 @@ const source = {
   publishedAt: '2026-09-25T00:00:00.000Z',
 }
 const operation = (mode = 'preview') => ({
-  schemaVersion: 'ai-pdm.principal-inventory-operation.v1',
+  schemaVersion: mode === 'principal_only_coverage'
+    ? 'ai-pdm.principal-inventory-operation.v2'
+    : 'ai-pdm.principal-inventory-operation.v1',
   operationId: 'DEV121-INV-ONE', mode, sourceRevision: revision,
   projectId: 'jenfu-platform-prod', region: 'asia-east1', database: 'jenfu_prod',
   applicationId: 'ai-pdm', firebaseProjectId: mode === 'coverage' ? null : 'jenfu-platform-prod',
-  sources: mode === 'coverage' ? [] : [source],
+  sources: ['coverage', 'principal_only_coverage'].includes(mode) ? [] : [source],
   expectedSourceHash: mode === 'register' ? 'b'.repeat(64) : null,
   expectedRowVersion: mode === 'register' ? 0 : null,
 })
@@ -47,6 +49,20 @@ test('operation is source-frozen, exact-target, principal-only and has no email 
   assert.equal(assertInventoryOperation(operation('coverage'), {
     bytes: coverageBytes, operationSha256: hash(coverageBytes), sourceRevision: revision,
   }).mode, 'coverage')
+  const principalOnlyBytes = Buffer.from(JSON.stringify(operation('principal_only_coverage')))
+  assert.equal(assertInventoryOperation(operation('principal_only_coverage'), {
+    bytes: principalOnlyBytes, operationSha256: hash(principalOnlyBytes), sourceRevision: revision,
+  }).mode, 'principal_only_coverage')
+  for (const changed of [
+    { ...operation('principal_only_coverage'), schemaVersion: 'ai-pdm.principal-inventory-operation.v1' },
+    { ...operation('principal_only_coverage'), firebaseProjectId: 'other-project' },
+    { ...operation('principal_only_coverage'), sources: [source] },
+  ]) {
+    const changedBytes = Buffer.from(JSON.stringify(changed))
+    assert.throws(() => assertInventoryOperation(changed, {
+      bytes: changedBytes, operationSha256: hash(changedBytes), sourceRevision: revision,
+    }), /DEV121_OPERATION_INVALID/u)
+  }
   for (const changed of [
     { ...operation(), email: 'guess@example.com' },
     { ...operation(), projectId: 'other-project' },
@@ -223,4 +239,49 @@ test('coverage mode reads every profile without invoking a registration writer',
   assert.equal(called, 1)
   assert.equal(result.mode, 'coverage')
   assert.equal(JSON.parse(receiptBytes).outcome.activeUnresolvedProfiles, 0)
+})
+
+test('principal-only coverage produces a private read-only receipt without invoking a writer', async () => {
+  const body = Buffer.from(JSON.stringify(operation('principal_only_coverage')))
+  let receiptBytes
+  const fetchImpl = async (url, options = {}) => {
+    if (url.startsWith('http://metadata.google.internal/')) {
+      return new Response(JSON.stringify({ access_token: 'x'.repeat(25), expires_in: 3600 }))
+    }
+    if (url.startsWith('https://storage.googleapis.com/upload/')) {
+      receiptBytes = Buffer.from(options.body)
+      return new Response(JSON.stringify({ generation: '2' }))
+    }
+    const isReceipt = url.includes('DEV121-PRINCIPAL-INVENTORY')
+    const bytes = isReceipt ? receiptBytes : body
+    if (url.includes('?alt=media')) return new Response(bytes)
+    return new Response(JSON.stringify({ generation: isReceipt ? '2' : '1',
+      crc32c: crc32cBase64(bytes) }))
+  }
+  class Client {
+    async connect() {}
+    async query() { return { rows: [{ database: 'jenfu_prod',
+      login: environment.POSTGRES_IAM_LOGIN, major: 17,
+      migrator_member: true, schema_ready: true }] } }
+    async end() {}
+  }
+  let called = 0
+  const argv = ['--operation-ref', inputRef, '--operation-sha256', hash(body),
+    '--source-revision', revision, '--output-ref', outputRef]
+  const result = await runMain({ argv, environment, fetchImpl, Client,
+    loadInventory: () => { throw new Error('unexpected registration path') },
+    loadCoverage: () => { throw new Error('unexpected old coverage path') },
+    loadPrincipalOnlyCoverage: async () => ({ readPrincipalOnlyCohort: async (_db, project) => {
+      called += 1
+      assert.equal(project, 'jenfu-platform-prod')
+      return { schemaVersion: 'ai-pdm.principal-only-cohort-readback.v1',
+        profiles: [{ pdmUserId: 'private-profile', issues: ['activation_unconfirmed'] }],
+        totalProfiles: 1, activeHistoricalProfiles: 1,
+        activePrincipalProfiles: 0, unresolvedProfiles: 1 }
+    } }),
+  })
+  assert.equal(called, 1)
+  assert.equal(result.mode, 'principal_only_coverage')
+  assert.equal(JSON.parse(receiptBytes).outcome.unresolvedProfiles, 1)
+  assert.equal(result.outcome.profiles[0].pdmUserId, 'private-profile')
 })

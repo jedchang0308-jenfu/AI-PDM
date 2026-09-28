@@ -77,5 +77,6 @@ test('principal inventory image binds source and includes every runtime import',
     }
   }
   assert.ok(seen.has('src/lib/jenfu-principal-inventory-coverage.ts'))
+  assert.ok(seen.has('src/lib/jenfu-principal-only-cohort-readback.ts'))
   assert.ok(seen.has('src/lib/jenfu-principal-inventory-registration.ts'))
 })
