@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "5388cb1fdf6da8094a64682f8484be59a18dabd58c699ed359dc444c05cee3a5",
+  "sourceSha256": "11f6cf4dd084b7371a9472fcdc071dfb655dc56eefd8e8a972428c272dab1967",
   "denominator": {
-    "uniqueFiles": 104,
-    "uniqueMethods": 123,
-    "policyEntries": 133
+    "uniqueFiles": 106,
+    "uniqueMethods": 125,
+    "policyEntries": 135
   },
   "entries": [
     {
@@ -1128,6 +1128,26 @@
       "authorizationTarget": "submission.review",
       "scopeResolver": "submission company",
       "preservedGuards": "submission company＋manager/reviewer restriction"
+    },
+    {
+      "path": "src/app/api/submission-readiness/resolve/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.create",
+      "authorizationTarget": "submission.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋published workspace grant；pure readiness calculation after authorization"
+    },
+    {
+      "path": "src/app/api/submission-rules/active/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "submission.view",
+      "authorizationTarget": "submission.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋published workspace grant；versioned rules after authorization"
     },
     {
       "path": "src/app/api/submissions/preflight-lock/route.ts",
