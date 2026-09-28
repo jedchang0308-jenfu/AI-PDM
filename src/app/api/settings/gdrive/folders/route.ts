@@ -1,26 +1,28 @@
 import { NextResponse } from "next/server";
-import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import { listDriveFolders } from "@/lib/gdrive";
+import { authorizePrincipalWorkspaceExternalRead } from "@/lib/principal-company-read";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["Admin"]);
-  if (auth.response) return auth.response;
+  const authorization = await authorizePrincipalWorkspaceExternalRead(request,
+    "src/app/api/settings/gdrive/folders/route.ts", "settings.integration.manage");
+  if (authorization instanceof Response) return authorization;
 
   const url = new URL(request.url);
   const parentId = url.searchParams.get("parentId")?.trim() || "root";
 
   try {
     const folders = await listDriveFolders(parentId);
-    return NextResponse.json({ parentId, folders });
+    return NextResponse.json({ parentId, folders },
+      { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     return NextResponse.json(
       {
         error: "GDRIVE_FOLDER_LIST_FAILED",
         message: safeDriveErrorMessage(error)
       },
-      { status: 503 }
+      { status: 503, headers: { "cache-control": "no-store" } }
     );
   }
 }
