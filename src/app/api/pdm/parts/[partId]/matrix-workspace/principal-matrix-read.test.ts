@@ -4,7 +4,10 @@ const mocks = vi.hoisted(() => ({
   token: vi.fn(), principalRead: vi.fn(), evaluate: vi.fn(),
   matrix: vi.fn(), legacyActor: vi.fn()
 }));
-vi.mock("@/lib/jenfu-principal-http", () => ({ principalSessionTokenFromRequest: mocks.token }));
+vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/jenfu-principal-http")>(),
+  principalSessionTokenFromRequest: mocks.token
+}));
 vi.mock("@/lib/principal-numbering-read", () => ({ withPrincipalNumberingCompanyRead: mocks.principalRead }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
   evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.evaluate
@@ -45,5 +48,16 @@ it("reads the company-scoped matrix under a verified principal and published cap
       canEditNonOwned: false, permissions: { create: true, update: false,
         submit: true, cancel: false, decide: false } }
   }));
+  expect(mocks.legacyActor).not.toHaveBeenCalled();
+});
+
+it("rejects missing Principal session before matrix or old actor access", async () => {
+  mocks.token.mockReturnValue(null);
+  const request = new Request("https://ai-pdm.test/api/pdm/parts/part-one/matrix-workspace?workId=work-one");
+  const response = await GET(request, { params: Promise.resolve({ partId: "part-one" }) });
+  expect(response.status).toBe(401);
+  expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+  expect(mocks.principalRead).not.toHaveBeenCalled();
+  expect(mocks.matrix).not.toHaveBeenCalled();
   expect(mocks.legacyActor).not.toHaveBeenCalled();
 });

@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 料件變更與圖面作廢 Principal-only route 候選**：料件工作建立、讀取、更新、送審、取消，料件矩陣讀取及圖面 RD 作廢請求共七個 method 移除舊 route actor 分支；缺少 v2 Principal session 時先回 401，不解析 body 或執行舊命令。沿用已審 route policy、grant、公司／資源與 command 檢查。聚焦三檔 15／15、typecheck PASS；尚未合併或發布，其他審核及檔案路徑、全 cohort、回復與 Production L4 仍待處理。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
+
 > **2026-09-29 DEV-121 圖面進版工作 Principal-only route 候選**：現行目標、建立、讀取、更新、取消、送審、附件上傳／移除八個 method 移除舊 route actor 分支，沒有 v2 Principal session 時立即 401。聚焦 16／16、typecheck、293-method 分類、DEV-005 runtime QC、DEV-079 contract、DEV-098 contract 5／5 與 scoped lint PASS。尚未合併或發布；其他業務 route、cohort、回復及 Production L4 仍須驗證。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
 
 > **2026-09-29 DEV-121 舊圖面送審入口退役（現行候選）**：PR #134 已合併 main `0a11d0f0695a7eb68c3d96d3e6c47caa6b1af571`。`/upload` 舊表單不再渲染，四條無正常呼叫者的舊圖面送審 API 固定 410，不進入舊授權／writer；現行圖號工作台維持 Principal 建立進版工作與送審入口。正式近 30 天 `/upload` 與四條舊 API 請求各為 0 筆（上限 1,000）。v2 map 110／130／140；退役 4／4、source-lock 2／2、全 API 分類、source-boundary 213／213、版次政策 14／14、圖面送審 QC 14／14、typecheck／lint PASS。該來源已由 PR #135 合併 main `5ea83bbce4bd3ca174a3635ee564114115a4b405`，正式未發布；完整業務流程、正式切流與 L4 仍未完成，詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
