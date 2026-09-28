@@ -46,6 +46,18 @@ function request() {
 afterEach(() => vi.clearAllMocks());
 
 describe("principal-owned session revocation", () => {
+  it("rejects missing and legacy sessions before parsing or revoking", async () => {
+    for (const cookie of [null, "__session=legacy-session"]) {
+      const response = await POST(new Request("https://pdm.example/api/account/sessions/other/revoke",
+        { method: "POST", headers: cookie ? { cookie } : undefined }),
+        { params: Promise.resolve({ sessionId: otherRecordId }) });
+      expect(response.status).toBe(401);
+    }
+    expect(mocks.withVerified).not.toHaveBeenCalled();
+    expect(mocks.queryOne).not.toHaveBeenCalled();
+    expect(mocks.legacyAuth).not.toHaveBeenCalled();
+  });
+
   it("revokes only another record of the verified principal in a read-write snapshot", async () => {
     mocks.withVerified.mockImplementation(async (_input, evaluate, options) => {
       expect(options).toEqual({ readOnly: false });

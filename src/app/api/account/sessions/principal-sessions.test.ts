@@ -40,6 +40,17 @@ function request() {
 afterEach(() => vi.clearAllMocks());
 
 describe("principal-keyed session list", () => {
+  it("rejects missing and legacy sessions without listing records", async () => {
+    for (const cookie of [null, "__session=legacy-session"]) {
+      const response = await GET(new Request("https://pdm.example/api/account/sessions",
+        cookie ? { headers: { cookie } } : undefined));
+      expect(response.status).toBe(401);
+    }
+    expect(mocks.withVerified).not.toHaveBeenCalled();
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.legacyAuth).not.toHaveBeenCalled();
+  });
+
   it("reads only the verified principal's session records without a UID lookup", async () => {
     const currentHash = hashJenfuPrincipalSessionId("session-0123456789abcdef");
     mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate({ kind: "postgres", query: mocks.query }, {

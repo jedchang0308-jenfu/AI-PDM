@@ -1,117 +1,54 @@
 import { NextResponse } from "next/server";
-import { revokeAccountSessionBySessionIdAsync } from "@/lib/account-session-registry";
 import { createAuditLogAsync } from "@/lib/audit-async";
-import {
-  createFirebaseHostingLogoutCookie,
-  createLogoutCookie,
-  getLegacySessionPayload,
-  getSessionCookieToken,
-  getSessionToken
-} from "@/lib/auth";
-import { getSessionUserAsync, getUserByIdAsync } from "@/lib/auth-async";
+import { createFirebaseHostingLogoutCookie, createLogoutCookie, getSessionCookieToken } from "@/lib/auth";
 import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { verifyJenfuPlatformSessionV1 } from "@/lib/jenfu-platform-session-v1";
 import { verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
-import { verifyPlatformSessionV2 } from "@/lib/platform-session-v2";
 import { isAllowedRequestOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
 
-function currentSessionId(request: Request) {
-  if (getAuthMode() === "firebase_bff") {
-    const token = getSessionToken(request);
-    if (!token) return null;
-    try {
-      return verifyPlatformSessionV2(token, getPlatformSessionKeyRing()).sessionId;
-    } catch {
-      return null;
-    }
-  }
-  return getLegacySessionPayload(request)?.sessionId ?? null;
-}
-
 export async function POST(request: Request) {
-  if (getAuthMode() === "firebase_bff" && getJenfuPlatformAuthMode() === "on") {
-    if (!isAllowedRequestOrigin(request)) {
-      return NextResponse.json({ error: "登出要求來源無效。", code: "auth_origin_invalid" }, { status: 403 });
+  try {
+    if (getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on") {
+      return NextResponse.json({ code: "principal_authorization_unavailable" },
+        { status: 503, headers: { "cache-control": "no-store" } });
     }
-    const token = getSessionCookieToken(request);
-    if (token) {
-      let principalClaims: ReturnType<typeof verifyJenfuPrincipalSession> | null = null;
-      try {
-        principalClaims = verifyJenfuPrincipalSession(token, getPlatformSessionKeyRing());
-      } catch {
-        principalClaims = null;
-      }
-      if (principalClaims) {
-        try {
-          await new JenfuPrincipalSessionRegistry(getAsyncDatabaseClient()).revoke(principalClaims, "logout");
-        } catch {
-          return NextResponse.json(
-            { error: "登出服務暫時無法使用。", code: "auth_server_not_configured" },
-            { status: 503, headers: { "cache-control": "no-store" } }
-          );
-        }
-        await createAuditLogAsync({
-          action: "Logout",
-          detail: { securityActor: { principalId: principalClaims.principalId,
-            profileVersion: principalClaims.profileVersion, actorKind: "human", reason: "local_logout" } }
-        }).catch(() => undefined);
-        const response = NextResponse.json({ status: "completed" }, { headers: { "cache-control": "no-store" } });
-        response.headers.append("set-cookie", createFirebaseHostingLogoutCookie());
-        response.headers.append("set-cookie", createLogoutCookie());
-        return response;
-      }
-      let claims: ReturnType<typeof verifyJenfuPlatformSessionV1> | null = null;
-      try {
-        claims = verifyJenfuPlatformSessionV1(token, getPlatformSessionKeyRing());
-      } catch {
-        claims = null;
-      }
-      if (claims) {
-        try {
-          await revokeAccountSessionBySessionIdAsync({
-            actorId: claims.localPrincipalId,
-            userId: claims.localPrincipalId,
-            sessionId: claims.sessionId,
-            reason: "logout"
-          });
-        } catch {
-          return NextResponse.json(
-            { error: "登出服務暫時無法使用。", code: "auth_server_not_configured" },
-            { status: 503, headers: { "cache-control": "no-store" } }
-          );
-        }
-        const user = await getUserByIdAsync(claims.localPrincipalId).catch(() => null);
-        if (user) {
-          await createAuditLogAsync({ actorId: user.id, action: "Logout", detail: { email: user.email } }).catch(() => undefined);
-        }
-      }
-    }
-    const response = NextResponse.json({ status: "completed" }, { headers: { "cache-control": "no-store" } });
-    response.headers.append("set-cookie", createFirebaseHostingLogoutCookie());
-    response.headers.append("set-cookie", createLogoutCookie());
-    return response;
+  } catch {
+    return NextResponse.json({ code: "principal_authorization_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
+  }
+  if (!isAllowedRequestOrigin(request)) {
+    return NextResponse.json({ error: "登出要求來源無效。", code: "auth_origin_invalid" }, { status: 403 });
   }
 
-  const user = await getSessionUserAsync(request);
-  if (user) {
-    const sessionId = currentSessionId(request);
-    if (sessionId) {
-      await revokeAccountSessionBySessionIdAsync({
-        actorId: user.id,
-        userId: user.id,
-        sessionId,
-        reason: "logout"
-      });
+  const token = getSessionCookieToken(request);
+  if (token) {
+    let principalClaims: ReturnType<typeof verifyJenfuPrincipalSession> | null = null;
+    try {
+      principalClaims = verifyJenfuPrincipalSession(token, getPlatformSessionKeyRing());
+    } catch {
+      principalClaims = null;
     }
-    await createAuditLogAsync({ actorId: user.id, action: "Logout", detail: { email: user.email } });
+    if (principalClaims) {
+      try {
+        await new JenfuPrincipalSessionRegistry(getAsyncDatabaseClient()).revoke(principalClaims, "logout");
+      } catch {
+        return NextResponse.json(
+          { error: "登出服務暫時無法使用。", code: "auth_server_not_configured" },
+          { status: 503, headers: { "cache-control": "no-store" } }
+        );
+      }
+      await createAuditLogAsync({
+        action: "Logout",
+        detail: { securityActor: { principalId: principalClaims.principalId,
+          profileVersion: principalClaims.profileVersion, actorKind: "human", reason: "local_logout" } }
+      }).catch(() => undefined);
+    }
   }
-
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({ status: "completed" }, { headers: { "cache-control": "no-store" } });
   response.headers.append("set-cookie", createFirebaseHostingLogoutCookie());
   response.headers.append("set-cookie", createLogoutCookie());
   return response;

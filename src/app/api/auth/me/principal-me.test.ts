@@ -47,6 +47,17 @@ function request() {
 afterEach(() => vi.clearAllMocks());
 
 describe("principal-keyed current account summary", () => {
+  it("rejects missing and legacy sessions before loading a profile", async () => {
+    for (const cookie of [null, "__session=legacy-session"]) {
+      const response = await GET(new Request("https://pdm.example/api/auth/me",
+        cookie ? { headers: { cookie } } : undefined));
+      expect(response.status).toBe(401);
+    }
+    expect(mocks.withVerified).not.toHaveBeenCalled();
+    expect(mocks.getUserById).not.toHaveBeenCalled();
+    expect(mocks.legacyAuth).not.toHaveBeenCalled();
+  });
+
   it("returns domain display data without treating the old Admin role as security authority", async () => {
     mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate({ query: mocks.getCompany }, {
       profile: { pdmUserId: "pdm-one", companyId: "company-jenfu" },
