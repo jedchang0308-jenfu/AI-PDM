@@ -1,6 +1,7 @@
 import { numberStateFlowJson, validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
-import { requireTransferPackageAccessAsync, transferPackageErrorResponse } from "@/lib/transfer-package-api";
+import { transferPackageErrorResponse } from "@/lib/transfer-package-api";
 import { createTransferPackageDraft } from "@/lib/transfer-packages";
+import { requireNumberStateCommandAccessAsync } from "@/lib/number-state-flow-api";
 
 export const runtime = "nodejs";
 
@@ -9,11 +10,13 @@ export async function POST(request: Request) {
   if (!body) return numberStateFlowJson({ error: "invalid_json", message: "請提供有效的 JSON。" }, { status: 400 });
   const invalid = validateNumberStateMutationRequest({ request, idempotencyKey: request.headers.get("Idempotency-Key"), requireIdempotency: true });
   if (invalid) return invalid;
-  const access = await requireTransferPackageAccessAsync(request, body, "transfer.package.create");
+  const access = await requireNumberStateCommandAccessAsync(request, "transfer.package.create", body);
   if (access.response) return access.response;
   try {
     const workbench = await createTransferPackageDraft({
-      actor: access.actor,
+      metadata: access.metadata,
+      actor: { userId: access.actor.pdmUserId, companyId: access.company.companyId,
+        role: "Principal", principalId: access.actor.principalId },
       idempotencyKey: request.headers.get("Idempotency-Key"),
       title: body.title,
       caseType: body.caseType ?? body.case_type,

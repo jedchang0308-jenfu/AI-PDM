@@ -4,9 +4,9 @@
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
   "sourceSha256": "70b3065f97fde358a57b8b8a59534a6c7738b0be01f531bc0d47bcc4449a27c7",
   "denominator": {
-    "uniqueFiles": 79,
-    "uniqueMethods": 96,
-    "policyEntries": 105
+    "uniqueFiles": 82,
+    "uniqueMethods": 99,
+    "policyEntries": 108
   },
   "entries": [
     {
@@ -1058,6 +1058,36 @@
       "authorizationTarget": "submission.create",
       "scopeResolver": "company",
       "preservedGuards": "company＋submission validation／idempotency"
+    },
+    {
+      "path": "src/app/api/transfer-packages/[id]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.view",
+      "authorizationTarget": "transfer.package.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋package company／read-only snapshot"
+    },
+    {
+      "path": "src/app/api/transfer-packages/workbench-context/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.create",
+      "authorizationTarget": "transfer.package.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋source company／read-only snapshot"
+    },
+    {
+      "path": "src/app/api/transfer-packages/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.create",
+      "authorizationTarget": "transfer.package.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋source validation／command receipt／outbox"
     }
   ]
 }

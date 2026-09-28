@@ -18,6 +18,7 @@ export type TransferPackageActor = {
   userId: string;
   companyId: string;
   role: string;
+  principalId?: string;
 };
 
 export type ResolvedTransferPackageEntity = {
@@ -322,7 +323,10 @@ export class AsyncTransferPackageRepository {
     sourceItem?: ResolvedTransferPackageEntity | null;
   }): Promise<TransferPackageRecord> {
     const existing = await this.findByIdempotency(input.actor.companyId, input.actor.userId, input.idempotencyKey);
-    if (existing) return existing;
+    // Principal replay is authoritative only through the command receipt.
+    // An older direct write using the same key is not proof of that receipt.
+    if (existing) throw new TransferPackageError("TRANSFER_PACKAGE_COMMAND_RECEIPT_REQUIRED",
+      "既有技轉包缺少可驗證的命令收據。", 409);
 
     let packageId = "";
     try {
@@ -387,7 +391,8 @@ export class AsyncTransferPackageRepository {
       });
     } catch (error) {
       const raced = await this.findByIdempotency(input.actor.companyId, input.actor.userId, input.idempotencyKey);
-      if (raced) return raced;
+      if (raced) throw new TransferPackageError("TRANSFER_PACKAGE_COMMAND_RECEIPT_REQUIRED",
+        "既有技轉包缺少可驗證的命令收據。", 409);
       throw error;
     }
     return this.getById(packageId, input.actor.companyId);
@@ -944,7 +949,7 @@ export class AsyncTransferPackageRepository {
         packageId,
         eventType,
         actorId: actor.userId,
-        detailJson: JSON.stringify(detail),
+        detailJson: JSON.stringify({ ...detail, principalId: actor.principalId ?? null }),
         createdAt
       }
     );

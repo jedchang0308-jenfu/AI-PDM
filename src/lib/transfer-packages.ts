@@ -1,4 +1,6 @@
-import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
+import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
+import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import {
   AsyncTransferPackageRepository,
   TransferPackageError,
@@ -48,8 +50,8 @@ export type TransferPackageWorkbench = TransferPackageRecord & {
 const caseTypes = new Set<TransferPackageCaseType>(["development_case", "design_change_case"]);
 const referenceStatuses = new Set<TransferPackageSourceReferenceStatus>(["provided", "not_available"]);
 
-function repository() {
-  return new AsyncTransferPackageRepository(getAsyncDatabaseClient());
+function repository(client: AsyncDatabaseClient = getAsyncDatabaseClient()) {
+  return new AsyncTransferPackageRepository(client);
 }
 
 function text(value: unknown, maximum = 2000) {
@@ -122,14 +124,14 @@ async function resolveEntity(input: {
   entityType: unknown;
   entityIdOrCode: unknown;
   required?: boolean;
-}) {
+}, client: AsyncDatabaseClient = getAsyncDatabaseClient()) {
   const entityType = normalizeTransferPackageEntityType(input.entityType);
   const entityIdOrCode = text(input.entityIdOrCode, 200);
   if (!entityType || !entityIdOrCode) {
     if (input.required) throw new TransferPackageError("TRANSFER_PACKAGE_SOURCE_INVALID", "請選擇有效的圖號或料號。", 400);
     return null;
   }
-  const entity = await repository().resolveScopeEntity(input.companyId, entityType, entityIdOrCode);
+  const entity = await repository(client).resolveScopeEntity(input.companyId, entityType, entityIdOrCode);
   if (!entity) throw new TransferPackageError("TRANSFER_PACKAGE_SOURCE_NOT_FOUND", "找不到指定的圖號或料號。", 404);
   return entity;
 }
@@ -139,11 +141,12 @@ export async function getTransferPackageWorkbenchContext(input: {
   sourceType?: unknown;
   sourceId?: unknown;
   caseType?: unknown;
+  client?: AsyncDatabaseClient;
 }) {
   const sourceType = normalizeTransferPackageEntityType(input.sourceType);
   const sourceId = text(input.sourceId, 200);
   const sourceItem = sourceType && sourceId
-    ? await repository().resolveScopeEntity(input.companyId, sourceType, sourceId)
+    ? await repository(input.client).resolveScopeEntity(input.companyId, sourceType, sourceId)
     : null;
   return {
     mode: "unsaved" as const,
@@ -165,6 +168,7 @@ export async function getTransferPackageWorkbenchContext(input: {
 }
 
 export async function createTransferPackageDraft(input: {
+  metadata: PdmCommandMetadata;
   actor: TransferPackageActor;
   idempotencyKey: unknown;
   title: unknown;
@@ -176,27 +180,53 @@ export async function createTransferPackageDraft(input: {
   sourceType?: unknown;
   sourceId?: unknown;
 }) {
-  const sourceItem = await resolveEntity({
-    companyId: input.actor.companyId,
-    entityType: input.sourceType,
-    entityIdOrCode: input.sourceId,
-    required: Boolean(text(input.sourceType, 40) || text(input.sourceId, 200))
-  });
+  const idempotencyKey = validateIdempotencyKey(input.idempotencyKey);
+  if (idempotencyKey !== input.metadata.idempotencyKey ||
+      input.actor.userId !== input.metadata.actor.pdmUserId ||
+      input.actor.companyId !== input.metadata.actor.organizationId ||
+      input.actor.principalId !== input.metadata.actor.principalId) {
+    throw new TransferPackageError("TRANSFER_PACKAGE_ACTOR_MISMATCH", "技轉包操作者驗證失敗。", 403);
+  }
   const reference = normalizeReference(input);
-  const record = await repository().createDraft({
-    actor: input.actor,
-    idempotencyKey: validateIdempotencyKey(input.idempotencyKey),
-    title: requiredText(input.title, "技轉包名稱", 2, 120),
-    caseType: normalizeCaseType(input.caseType),
-    caseReason: requiredText(input.caseReason, "案件或變更原因", 3, 2000),
-    ...reference,
-    sourceItem
+  const title = requiredText(input.title, "技轉包名稱", 2, 120);
+  const caseType = normalizeCaseType(input.caseType);
+  const caseReason = requiredText(input.caseReason, "案件或變更原因", 3, 2000);
+  const sourceType = text(input.sourceType, 40);
+  const sourceId = text(input.sourceId, 200);
+  const command = createPdmCommand({
+    commandName: "pdm.transfer.create_draft",
+    idempotencyKey,
+    actor: input.metadata.actor,
+    payload: { title, caseType, caseReason, ...reference, sourceType, sourceId }
   });
-  return buildWorkbench(record);
+  const execution = await executePdmCommandWithOutbox({
+    client: getAsyncDatabaseClient(), command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: async (client) => {
+      const sourceItem = await resolveEntity({
+        companyId: input.actor.companyId, entityType: sourceType,
+        entityIdOrCode: sourceId, required: Boolean(sourceType || sourceId)
+      }, client);
+      return new AsyncTransferPackageRepository(client).createDraft({
+        actor: input.actor, idempotencyKey, title, caseType, caseReason,
+        ...reference, sourceItem
+      });
+    },
+    event: (record) => ({
+      aggregateType: "transfer_package", aggregateId: record.id,
+      eventType: "pdm.transfer.package_draft_created.v1",
+      payload: { companyId: record.companyId, packageId: record.id,
+        packageCode: record.packageCode, rowVersion: record.rowVersion }
+    })
+  });
+  return buildWorkbench(execution.result);
 }
 
-export async function getTransferPackageWorkbench(packageId: string, companyId: string) {
-  return buildWorkbench(await repository().getById(requiredText(packageId, "技轉包 ID", 1, 200), companyId));
+export async function getTransferPackageWorkbench(
+  packageId: string, companyId: string, client: AsyncDatabaseClient = getAsyncDatabaseClient()
+) {
+  return buildWorkbench(await repository(client).getById(requiredText(packageId, "技轉包 ID", 1, 200), companyId));
 }
 
 export async function updateTransferPackageHeader(input: {
