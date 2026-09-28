@@ -63,7 +63,7 @@ export async function GET(request: Request) {
         const repository = new AsyncApprovalPlatformRepository(snapshot);
         return renderInbox(request, verified.profile.companyId, verified.session.principalId,
           verified.profile.pdmUserId,
-          (filter) => repository.listPrincipalInbox({ ...filter,
+          (filter) => repository.listPrincipalWorkReviewInbox({ ...filter,
             companyId: verified.profile.companyId, actorId: verified.profile.pdmUserId }), false);
       });
     } catch (error) {

@@ -795,7 +795,7 @@ export class AsyncApprovalPlatformRepository {
       input, limit);
   }
 
-  async listPrincipalInbox(input: ApprovalPlatformInboxFilter & { companyId: string; actorId: string }):
+  async listPrincipalWorkReviewInbox(input: ApprovalPlatformInboxFilter & { companyId: string; actorId: string }):
     Promise<ApprovalPlatformInboxPage> {
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
     const reviews = await this.listPdmWorkReviewInbox({

@@ -21,7 +21,7 @@ vi.mock("@/lib/jenfu-principal-permission-service", () => ({
 }));
 vi.mock("@/lib/repositories/approval-platform-async-repository", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/repositories/approval-platform-async-repository")>(),
-  AsyncApprovalPlatformRepository: class { listPrincipalInbox = mocks.listPrincipal; }
+  AsyncApprovalPlatformRepository: class { listPrincipalWorkReviewInbox = mocks.listPrincipal; }
 }));
 vi.mock("@/lib/auth-async", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth-async")>(),

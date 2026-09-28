@@ -13,7 +13,7 @@ describe("Principal approval inbox source boundary", () => {
       revision: null
     }]);
     const client = { kind: "postgres", query } as unknown as AsyncDatabaseClient;
-    const page = await new AsyncApprovalPlatformRepository(client).listPrincipalInbox({
+    const page = await new AsyncApprovalPlatformRepository(client).listPrincipalWorkReviewInbox({
       companyId: "company-jenfu", actorId: "profile-one", status: "active", limit: 10
     });
     expect(page.items).toHaveLength(1);
