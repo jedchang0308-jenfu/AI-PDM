@@ -45,4 +45,24 @@ describe("principal part-work HTTP dispatch", () => {
         expect.objectContaining({ method, permissionCode, readOnly }), expect.any(Function));
       expect(mocks.legacyActor).not.toHaveBeenCalled();
     });
+
+  it.each([
+    ["create", createWork, "POST"],
+    ["read", readWork, "GET"],
+    ["update", updateWork, "PATCH"],
+    ["submit", submitWork, "POST"],
+    ["cancel", cancelWork, "POST"]
+  ] as const)("rejects %s without a Principal session before either command path",
+    async (_name, route, method) => {
+      vi.clearAllMocks();
+      mocks.token.mockReturnValue(null);
+      const response = await route(new Request(
+        "https://pdm.example/api/pdm/part-change-works/work-one", { method }), {
+        params: Promise.resolve({ workId: "work-one", partId: "part-one" })
+      });
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+      expect(mocks.principalRoute).not.toHaveBeenCalled();
+      expect(mocks.legacyActor).not.toHaveBeenCalled();
+    });
 });

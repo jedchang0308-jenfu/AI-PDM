@@ -61,4 +61,17 @@ describe("Principal RD-void request route", () => {
     expect(mocks.requestVoid).not.toHaveBeenCalled();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
+
+  it("rejects missing Principal session before parsing or creating a review", async () => {
+    const noSession = new Request("https://pdm.example/api/pdm/drawing-rd-branches/branch-one/void-requests", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rowKey: "row-one" })
+    });
+    const response = await POST(noSession, params);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+    expect(mocks.principalRoute).not.toHaveBeenCalled();
+    expect(mocks.requestVoid).not.toHaveBeenCalled();
+    expect(mocks.legacyActor).not.toHaveBeenCalled();
+  });
 });
