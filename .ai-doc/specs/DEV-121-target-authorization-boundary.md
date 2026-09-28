@@ -36,6 +36,8 @@
 
 > **審核決策待定邊界。** `approval_decision:transfer_package` 保持既有 `existing_command`／fail-closed；`approval_platform_requests` 沒有明確指定 reviewer 的欄位，現行技轉決策函式亦未驗證指定 reviewer。路由文件的「assigned reviewer」不能當已實作證據。直接把此 contextual route 改成一般 `approval.request.decide` grant 可能擴大可核准者，自動核准審查已拒絕，故本切片未套用。需先確定由哪個 Principal／委派契約指定審查者，並在同一命令交易核對該資源規則，才可啟用決策路由；不可用歷史 `pdm_user_id` 或角色字串補位。此缺口阻止整套技轉流程及正式切流驗收。
 
+> **2026-09-28 技轉 readiness 讀取（本機，非 Production PASS）。** `GET /api/transfer-packages/[id]/readiness-summary` 以精確 v2 route policy 的 `transfer.package.view` 授權，在同一個 Principal read-only snapshot 讀取已驗公司內的技轉包、項目與阻擋原因；拒絕或 URL 不符時不讀業務資料，回應禁止快取。v2 map 現為 91 files／109 methods／118 entries；聚焦讀取 5／5、app typecheck、scoped ESLint 及 route classification PASS。此項不解鎖仍待核定的審核決策，也不作正式切流證據。
+
 > **2026-09-28 legacy mode fail-closed 切片（本機）。** `requirePdmRouteAuthorizationAsync` 在非 `enforce` mode 不再使用傳入的 `legacyRoles` 或 `DbUser.role` 授權，改回 503；`checkNumberingPermissionsAsync` 亦不再呼叫本地 `checkPermission`，改拒絕。兩個聚焦測試檔 8/8、app typecheck、scoped ESLint PASS。這防止候選版配置錯誤時回落本地角色，但不表示 55 個未明示 principal 分支的路由已可使用；它們仍須依上段完成遷移或明確退役，才能進入單次切流驗收。
 
 > **2026-09-28 外部讀取邊界切片（本機）。** `/api/settings/secrets` 與 `/api/settings/gdrive/folders` GET 已停止呼叫舊角色 helper：新共用函式先在 principal／OrgMaster grant 的短快照內核對 exact route policy、工作區及各自的 `settings.secret.manage`／`settings.integration.manage`，交易結束後才呼叫外部 Secret／Drive provider；拒絕、缺 token 或 policy drift 時 provider 不被呼叫。回應設 `no-store`。聚焦 3 檔 7/7、app typecheck、scoped ESLint、route classification PASS；靜態讀回仍有 60 個 API route 檔呼叫舊 helper，不能把這一片當全站完成。正式流量未變。

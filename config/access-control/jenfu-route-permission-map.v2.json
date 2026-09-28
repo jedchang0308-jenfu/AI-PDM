@@ -4,9 +4,9 @@
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
   "sourceSha256": "70b3065f97fde358a57b8b8a59534a6c7738b0be01f531bc0d47bcc4449a27c7",
   "denominator": {
-    "uniqueFiles": 90,
-    "uniqueMethods": 108,
-    "policyEntries": 117
+    "uniqueFiles": 91,
+    "uniqueMethods": 109,
+    "policyEntries": 118
   },
   "entries": [
     {
@@ -1158,6 +1158,16 @@
       "authorizationTarget": "transfer.package.publish",
       "scopeResolver": "workspace",
       "preservedGuards": "workspace＋approved snapshot／publication evidence／command receipt／outbox"
+    },
+    {
+      "path": "src/app/api/transfer-packages/[id]/readiness-summary/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "transfer.package.view",
+      "authorizationTarget": "transfer.package.view",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋read-only readiness snapshot／package company"
     },
     {
       "path": "src/app/api/transfer-packages/workbench-context/route.ts",
