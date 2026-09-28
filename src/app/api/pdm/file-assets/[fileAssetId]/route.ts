@@ -1,17 +1,12 @@
-import { requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
-import { getApprovalPlatformRequestDetailForCompanyAsync } from "@/lib/approval-platform";
 import { readApprovalEvidenceFileSource } from "@/lib/pdm-approval-evidence-file-source";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreviewSource } from "@/lib/drawing-preview-asset";
 import { contentDispositionHeader } from "@/lib/file-response";
 import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { isPdmFileReadContext, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
 import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
-import { PdmReviewScopeError, resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
+import { resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
 import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
-import { resolveDev087RouteActor } from "@/lib/pdm-dev087-route";
 import { parseReviewPackageSnapshot, reviewPackageTargetKey } from "@/lib/pdm-review-package-contract";
 import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { resolveJenfuRouteAuthorization, type JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
@@ -39,80 +34,11 @@ type CanonicalFileSource = DrawingPreviewSource & {
   work_id: string | null;
 };
 
-type FileReadAccess =
-  | { actorId: string; companyId: string; canEditNonOwned: boolean; canDecide: boolean; response: null }
-  | { actorId: null; companyId: null; canEditNonOwned: false; canDecide: false; response: Response };
-
 function jsonError(code: string, message: string, status: number) {
   return Response.json(
     { error: { code, message, retryable: false } },
     { status, headers: { "cache-control": "private, no-store" } }
   );
-}
-
-async function resolveAccess(
-  request: Request,
-  context: PdmFileReadContext,
-  reviewRequestId: string | null
-): Promise<FileReadAccess> {
-  const discriminator = fileReadDiscriminator(context, reviewRequestId);
-  const policy = resolveJenfuRouteAuthorization("src/app/api/pdm/file-assets/[fileAssetId]/route.ts", "GET", discriminator);
-  if (!policy) return { actorId: null, companyId: null, canEditNonOwned: false, canDecide: false, response: jsonError("READ_ACCESS_REQUIRED", "沒有讀取權限。", 403) };
-  if (context === "approval_evidence") {
-    const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"], {
-      permissionCode: "approval.request.decide",
-      discriminator
-    });
-    if (auth.response) return { actorId: null, companyId: null, canEditNonOwned: false, canDecide: false, response: auth.response };
-    return { actorId: auth.user.id, companyId: auth.user.company_id, canEditNonOwned: false, canDecide: true, response: null };
-  }
-  if (context === "drawing_revision_work") {
-    const access = await resolveDev087RouteActor(request, "numbering.drawings.view");
-    if (access.response || !access.actor) return { actorId: null, companyId: null, canEditNonOwned: false, canDecide: false, response: access.response ?? jsonError("READ_ACCESS_REQUIRED", "沒有讀取權限。", 403) };
-    return { actorId: access.actor.id, companyId: access.actor.companyId, canEditNonOwned: access.actor.canEditNonOwned, canDecide: access.actor.permissions.decide, response: null };
-  }
-  if (reviewRequestId) {
-    const auth = await requireAuthAsync(request);
-    if (auth.response || !auth.user) {
-      return {
-        actorId: null,
-        companyId: null,
-        canEditNonOwned: false, canDecide: false, response: auth.response ?? jsonError("AUTH_REQUIRED", "請先登入。", 401)
-      };
-    }
-    const company = await resolveNumberingCompanyContextAsync(
-      auth.user.id,
-      requestedNumberingCompanyCodeFromRequest(request)
-    );
-    if (company.response || !company.company) {
-      return {
-        actorId: null,
-        companyId: null,
-        canEditNonOwned: false, canDecide: false, response: company.response ?? jsonError("COMPANY_CONTEXT_REQUIRED", "無法確認公司範圍。", 403)
-      };
-    }
-    return { actorId: auth.user.id, companyId: company.company.companyId, canEditNonOwned: false, canDecide: false, response: null };
-  }
-  const auth = await requireNumberingPageAsync(request, context === "part_attachment" ? "numbering.search" : "numbering.drawings.view");
-  if (auth.response || !auth.user) {
-    return {
-      actorId: null,
-      companyId: null,
-      canEditNonOwned: false, canDecide: false, response: auth.response ?? jsonError("AUTH_REQUIRED", "請先登入。", 401)
-    };
-  }
-  const company = await resolveNumberingCompanyContextAsync(
-    auth.user.id,
-    requestedNumberingCompanyCodeFromRequest(request)
-  );
-  if (company.response || !company.company) {
-    return {
-      actorId: null,
-      companyId: null,
-      canEditNonOwned: false, canDecide: false, response: company.response ?? jsonError("COMPANY_CONTEXT_REQUIRED", "無法確認公司範圍。", 403)
-    };
-  }
-  return { actorId: auth.user.id, companyId: company.company.companyId, canEditNonOwned: false, canDecide: false, response: null };
 }
 
 function fileReadDiscriminator(context: PdmFileReadContext, reviewRequestId: string | null): JenfuRouteDiscriminator {
@@ -538,6 +464,9 @@ async function principalFileRead(request: Request, token: string, input: {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ fileAssetId: string }> }) {
+  const token = principalSessionTokenFromRequest(request);
+  if (!token) return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
+
   const url = new URL(request.url);
   const context = url.searchParams.get("context");
   const contextId = url.searchParams.get("contextId")?.trim() ?? "";
@@ -546,94 +475,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ file
   if (!isPdmFileReadContext(context) || !contextId || !bindingId) {
     return jsonError("PDM_FILE_CONTEXT_INVALID", "檔案讀取上下文不完整。", 400);
   }
-
-  const token = principalSessionTokenFromRequest(request);
-  if (token) {
-    if ((context === "review_package" && !reviewRequestId) ||
-        (context !== "review_package" && reviewRequestId)) {
-      return jsonError("READ_ACCESS_REQUIRED", "此檔案讀取路徑尚未切換。", 503);
-    }
-    const { fileAssetId: rawFileAssetId } = await params;
-    return principalFileRead(request, token, {
-      fileAssetId: decodeURIComponent(rawFileAssetId), context, contextId, bindingId,
-      reviewRequestId, wantsPreview: url.searchParams.get("preview") === "1" ||
-        Boolean(url.searchParams.get("previewDerivative")),
-      derivativeId: url.searchParams.get("previewDerivative")
-    });
-  }
-
-  const access = await resolveAccess(request, context, reviewRequestId);
-  if (access.response) return access.response;
-  if (!access.actorId || !access.companyId) {
-    return jsonError("READ_ACCESS_REQUIRED", "沒有讀取權限。", 403);
+  if ((context === "review_package" && !reviewRequestId) ||
+      (context !== "review_package" && reviewRequestId)) {
+    return jsonError("READ_ACCESS_REQUIRED", "此檔案讀取路徑尚未切換。", 503);
   }
   const { fileAssetId: rawFileAssetId } = await params;
-  const fileAssetId = decodeURIComponent(rawFileAssetId);
-  const client = getAsyncDatabaseClient();
-  if (context === "approval_evidence") {
-    const detail = await getApprovalPlatformRequestDetailForCompanyAsync(contextId, access.companyId);
-    if (!detail || !evidenceBelongsToRequest(detail, fileAssetId)) {
-      return jsonError("PDM_FILE_NOT_FOUND", "這個檔案不屬於目前審核案件。", 404);
-    }
-  }
-  const source = await resolveSource({
-    client,
-    context,
-    contextId,
-    bindingId,
-    fileAssetId,
-    companyId: access.companyId
+  return principalFileRead(request, token, {
+    fileAssetId: decodeURIComponent(rawFileAssetId), context, contextId, bindingId,
+    reviewRequestId, wantsPreview: url.searchParams.get("preview") === "1" ||
+      Boolean(url.searchParams.get("previewDerivative")),
+    derivativeId: url.searchParams.get("previewDerivative")
   });
-  const derivativeId = url.searchParams.get("previewDerivative");
-  const wantsPreview = url.searchParams.get("preview") === "1" || Boolean(derivativeId);
-  if (!source) {
-    if (context === "drawing_revision_work" && wantsPreview) {
-      const terminal = await client.queryOne<{ handling: string }>(
-        `SELECT handling FROM canonical_workbench_states
-          WHERE company_id = :companyId AND work_id = :workId
-            AND handling IN ('owner', 'system_admin', 'blocked') LIMIT 1`,
-        { companyId: access.companyId, workId: contextId }
-      );
-      if (terminal) return new Response(null, { status: 204, headers: { "cache-control": "private, no-store", "x-pdm-preview-state": terminal.handling } });
-      const cancelled = await client.queryOne<{ id: string }>(
-        `SELECT id FROM platform_command_receipts
-          WHERE company_id = :companyId AND command_name = 'dev087:drawing.cancel'
-            AND effect_key = :effectKey AND command_status = 'completed' LIMIT 1`,
-        { companyId: access.companyId, effectKey: `drawing-work:${contextId}:cancel` }
-      );
-      if (cancelled) return new Response(null, { status: 204, headers: { "cache-control": "private, no-store", "x-pdm-preview-state": "cancelled" } });
-    }
-    return jsonError("PDM_FILE_NOT_FOUND", "找不到圖面的檔案。", 404);
-  }
-
-  if (context === "drawing_revision_work") {
-    if (reviewRequestId) {
-      if (!access.canDecide) return jsonError("PDM_FILE_NOT_FOUND", "找不到圖面的檔案。", 404);
-    } else if (source.owner_user_id !== access.actorId && !access.canEditNonOwned) {
-      return jsonError("PDM_FILE_NOT_FOUND", "找不到圖面的檔案。", 404);
-    }
-  }
-
-  if (reviewRequestId) {
-    try {
-      const scope = await verifyReviewScope({
-        client,
-        source,
-        context,
-        contextId,
-        bindingId,
-        reviewRequestId,
-        companyId: access.companyId,
-        actorId: access.actorId
-      });
-      if (!scope) return jsonError("PDM_REVIEW_SCOPE_NOT_FOUND", "找不到這筆審核範圍。", 404);
-    } catch (error) {
-      if (error instanceof PdmReviewScopeError) {
-        return jsonError(error.code, error.message, error.code === "PDM_REVIEW_NOT_ASSIGNED" ? 403 : 409);
-      }
-      throw error;
-    }
-  }
-
-  return serveFileSource(client, source, { wantsPreview, derivativeId, actorId: access.actorId });
 }
