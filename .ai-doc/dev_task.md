@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 Production 全 cohort source readback**：受保護 `main` `25f570ad5ebd1b916a1547a9ee4e0d8612f4b2e3` 的 immutable inventory image 已在正式環境執行唯讀 Job；4 筆歷史啟用 profile 中只有 1 筆與已發布身分精確核實，3 筆 withheld，來源及 cohort hash、operation／receipt generation、image digest、execution 見 [DEV-121 現行契約](specs/DEV-121-target-authorization-boundary.md)。Job 已清理，正式資料與 traffic 未改。下一步先證明舊 writer 停止，封裝受控 one-shot apply，備妥 Principal-only 候選及回復並完成必要業務路徑；此 readback 不解除 Production 切流條件。
+
 > **2026-09-28 DEV-121 one-shot receipt／readback 修正**：新 owner 交易的結果與既有正式 readback 原本不相容，會把已轉換的 Principal 誤判為啟用未確認。現以 operation input／source／cohort hash 與唯一 principal／profile、withheld 數量封閉驗證；聚焦 13／13、app typecheck、隔離 PostgreSQL 25／25 PASS，測試資料庫已清理。尚未改 Production。
 
 > **2026-09-28 DEV-121 唯讀全 cohort 來源證據入口**：principal-inventory operator 新增 `principal_only_source` v2 mode，綁定受保護 source、精確 Firebase provider pair 與 operation SHA-256；只讀 snapshot 的私有 receipt 載明 cohort/source hash、唯一核實候選與 withheld 全名單，共用日誌只報數量。operator／封裝 9／9、owner primitive 6／6、app typecheck、scoped ESLint PASS。尚未 build 或執行 Production Job；此入口不能修改資料或取代全系統切流驗證。
