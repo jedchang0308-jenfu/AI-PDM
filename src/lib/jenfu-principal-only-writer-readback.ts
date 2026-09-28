@@ -3,6 +3,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 type SessionRow = {
   runtime_sessions: number | string;
   migrator_sessions: number | string;
+  other_owner_sessions: number | string;
   hidden_sessions: number | string;
   active_transactions: number | string;
   non_idle_sessions: number | string;
@@ -27,6 +28,8 @@ function count(value: unknown): number {
  * Read-only DB connection census for the owner cutover window. This cannot
  * prove that a stopped service cannot restart or that an external writer is
  * absent; the provider service/Job/scheduler readbacks are separate inputs.
+ * Count every connection inheriting either AI-PDM write role, not just the
+ * two expected IAM logins, so an unexpected owner writer cannot disappear.
  */
 export async function readPrincipalOnlyWriterSessions(database: AsyncDatabaseClient) {
   if (database.kind !== "postgres") {
@@ -38,31 +41,39 @@ export async function readPrincipalOnlyWriterSessions(database: AsyncDatabaseCli
       SELECT
         count(*) FILTER (WHERE usename=:runtime)::integer AS runtime_sessions,
         count(*) FILTER (WHERE usename=:migrator)::integer AS migrator_sessions,
+        count(*) FILTER (WHERE usename<>:runtime AND usename<>:migrator)::integer
+          AS other_owner_sessions,
         count(*) FILTER (WHERE state IS NULL)::integer AS hidden_sessions,
         count(*) FILTER (WHERE xact_start IS NOT NULL)::integer AS active_transactions,
         count(*) FILTER (WHERE state IS DISTINCT FROM 'idle')::integer AS non_idle_sessions
       FROM pg_catalog.pg_stat_activity
-      WHERE datname=current_database() AND backend_type='client backend'
-        AND pid<>pg_backend_pid() AND usename IN (:runtime,:migrator)
+      WHERE datname=current_database() AND pid<>pg_backend_pid() AND (
+          usename IN (:runtime,:migrator)
+          OR pg_catalog.pg_has_role(usename,'jenfu_ai_pdm_runtime','MEMBER')
+          OR pg_catalog.pg_has_role(usename,'jenfu_ai_pdm_migrator','MEMBER')
+        )
     `, { runtime: RUNTIME, migrator: MIGRATOR });
     if (rows.length !== 1) throw new Error("principal_only_writer_readback_invalid");
     const row = rows[0];
     const runtimeSessions = count(row.runtime_sessions);
     const migratorSessions = count(row.migrator_sessions);
+    const otherOwnerSessions = count(row.other_owner_sessions);
     const hiddenSessions = count(row.hidden_sessions);
     const activeTransactions = count(row.active_transactions);
     const nonIdleSessions = count(row.non_idle_sessions);
-    if (hiddenSessions > runtimeSessions + migratorSessions ||
-      activeTransactions > runtimeSessions + migratorSessions ||
-      nonIdleSessions > runtimeSessions + migratorSessions) {
+    const ownerSessions = runtimeSessions + migratorSessions + otherOwnerSessions;
+    if (hiddenSessions > ownerSessions ||
+      activeTransactions > ownerSessions ||
+      nonIdleSessions > ownerSessions) {
       throw new Error("principal_only_writer_readback_invalid");
     }
     return {
-      schemaVersion: "ai-pdm.principal-only-writer-readback.v1" as const,
-      runtimeSessions, migratorSessions, hiddenSessions,
+      schemaVersion: "ai-pdm.principal-only-writer-readback.v2" as const,
+      runtimeSessions, migratorSessions, otherOwnerSessions, hiddenSessions,
       activeTransactions, nonIdleSessions,
-      ownerLoginSessionsAbsent: runtimeSessions === 0 && migratorSessions === 0 &&
-        hiddenSessions === 0 && activeTransactions === 0 && nonIdleSessions === 0
+      ownerWriterSessionsAbsent: runtimeSessions === 0 && migratorSessions === 0 &&
+        otherOwnerSessions === 0 && hiddenSessions === 0 &&
+        activeTransactions === 0 && nonIdleSessions === 0
     };
   }, { isolationLevel: "repeatable_read", readOnly: true });
 }
