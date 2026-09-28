@@ -1,6 +1,6 @@
 # AI PDM dev_task PM Control Board
 
-> **2026-09-28 DEV-121 舊圖面送審入口收斂（候選來源）**：`/upload` 的帶圖號相容轉址及兩個舊圖面送審頁改導向現行圖號工作台，保留圖號搜尋，停止把正常導航送進舊提交頁。路由 QC 10／10、typecheck、scoped ESLint PASS。歷史送審明細與檔案的 Principal 唯讀權限、直接書籤處置、必要業務 L4 仍待完成；舊版 `qc:pdm-drawing-submission-review-only` 現行不適用且有 5 項失敗，不能當作通過證據。正式流量未變。
+> **2026-09-28 DEV-121 舊圖面送審入口收斂（候選來源）**：`/upload` 的帶圖號相容轉址及兩個舊圖面送審頁改導向現行圖號工作台，保留圖號搜尋，停止把正常導航送進舊提交頁。路由 QC 10／10、typecheck、scoped ESLint PASS；前版送審 QC 已調整為歷史資料／導航相容檢查 14／14 PASS，不作 Principal 明細或 Production L4 證據。歷史送審明細與檔案的 Principal 唯讀權限、直接書籤處置、必要業務 L4 仍待完成。正式流量未變。
 
 > **2026-09-28 DEV-121 圖面研發版作廢 Principal 閉環（候選來源）**：作廢申請路由、v2 review package、Principal 審核者選擇、收件匣／詳情／決策與過期基準拒絕已接通。申請核對 `numbering.draft.obsolete`、AAL2、公司／branch／row version；核准在鎖定 transaction 再驗 package／當前 branch，並以 `principal_id` 記錄命令收據。退回不把 branch 標為歷史；domain effect 與舊式已提交審核共用，未擴張舊授權來源。路由圖譜 99 files／118 methods／127 entries、source hash `3c9eb85dd8ab21e3427beef33c47e428a17b663cb70ee6dbd2802d6890fec49d`；聚焦 36／36、DEV-087 fixture commands 61 checks、DEV-101 contract 23／23、route source lock 2／2、classification 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS。隔離 PostgreSQL 競態、全員核對與 Production L4 仍未完成，正式 traffic／data 不變；下方較早「作廢未顯示」為歷史切片。
 

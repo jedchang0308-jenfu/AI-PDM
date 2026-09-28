@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
+// Historical drawing-source data/compatibility check. Principal-only release
+// evidence comes from DEV-121 route policy, resource and Production L4 checks.
+
 const root = process.cwd();
 const checks = [];
 
@@ -14,6 +17,11 @@ function pass(id, message) {
 
 function fail(id, message) {
   checks.push({ id, ok: false, message });
+}
+
+function record(id, ok, message) {
+  if (ok) pass(id, message);
+  else fail(id, message);
 }
 
 function assertIncludes(id, source, needles, message) {
@@ -37,6 +45,8 @@ function assertNotIncludes(id, source, needles, message) {
 const drawingPage = read("src/app/numbering/drawings/page.tsx");
 const uploadPage = read("src/app/upload/page.tsx");
 const controlledDrawingSubmissionPage = read("src/app/numbering/submissions/drawings/[drawingNumber]/page.tsx");
+const directDrawingSubmissionPage = read("src/app/drawings/[drawingNumber]/submission-workbench/page.tsx");
+const uploadLayout = read("src/app/upload/layout.tsx");
 const workbench = read("src/lib/drawing-submission-workbench.ts");
 const contextRoute = read("src/app/api/numbering/drawings/[drawingNumber]/submission-context/route.ts");
 const createRoute = read("src/app/api/numbering/drawings/[drawingNumber]/submissions/route.ts");
@@ -44,12 +54,10 @@ const asyncWriter = read("src/lib/repositories/submission-write-async-repository
 const schema = read("db/schema.sql");
 const db = read("src/lib/db.ts");
 
-assertIncludes(
-  "DRS-QC-001",
-  drawingPage,
-  ["/drawings/", "encodeURIComponent(drawing.drawingNumber)", "/submission-workbench"],
-  "drawing detail send-review CTA routes to canonical drawing submission workbench"
-);
+record("DRS-QC-001",
+  drawingPage.includes('CanonicalPdmWorkbench entityType="drawing"') &&
+    !drawingPage.includes("/submission-workbench"),
+  "current drawing entry uses the canonical Principal workbench, not the old submission CTA");
 assertNotIncludes(
   "DRS-QC-002",
   drawingPage,
@@ -58,9 +66,9 @@ assertNotIncludes(
 );
 assertIncludes(
   "DRS-QC-003",
-  uploadPage,
-  ["DrawingSourceSubmissionWorkbench", 'routeState.source === "drawing"', "GenericUploadPage"],
-  "upload page branches drawing-source mode away from generic upload"
+  uploadPage + uploadLayout,
+  ["DrawingSourceSubmissionWorkbench", 'routeState.source === "drawing"', "GenericUploadPage", "void children"],
+  "historical upload source remains available for fixtures but the live layout does not mount it"
 );
 assertIncludes(
   "DRS-QC-004",
@@ -68,12 +76,11 @@ assertIncludes(
   ["送審來源：", "主資料只讀", "送審備註", "selectedAttachmentIds"],
   "drawing-source UI exposes source banner, read-only context, attachment selection, and note"
 );
-assertIncludes(
-  "DRS-QC-004B",
-  controlledDrawingSubmissionPage,
-  ["DrawingSourceSubmissionWorkbench", "decodeURIComponent(drawingNumber)"],
-  "controlled numbering submission page reuses drawing-source workbench"
-);
+record("DRS-QC-004B",
+  [controlledDrawingSubmissionPage, directDrawingSubmissionPage].every((source) =>
+    source.includes("/numbering/drawings?query=") && source.includes("redirect(") &&
+    !source.includes("DrawingSourceSubmissionWorkbench")),
+  "both direct historical submission pages route to the canonical drawing search");
 assertNotIncludes(
   "DRS-QC-005",
   uploadPage,
@@ -115,32 +122,19 @@ assertIncludes(
 assertIncludes(
   "DRS-QC-008",
   contextRoute,
-  ["requireNumberingPageAsync", "numbering.drawings.view", "resolveDrawingSubmissionContext"],
-  "submission context API is protected by drawing view permission"
+  ["withPrincipalNumberingCompanyRead", "numbering.drawings.view", "resolveDrawingSubmissionContext"],
+  "historical context read has a Principal drawing-view guard and company scope"
 );
 assertIncludes(
   "DRS-QC-009",
   createRoute,
-  ["requireRoleAsync", "selectedAttachmentIds", "note", "createDrawingSourceSubmission"],
-  "submission create API accepts only review-package fields"
+  ["requirePdmRouteAuthorizationAsync", "selectedAttachmentIds", "note", "createDrawingSourceSubmission"],
+  "historical create route still enters the legacy guard; Platform-mode rejection is verified separately"
 );
-assertNotIncludes(
-  "DRS-QC-010",
-  createRoute,
-  [
-    "body.drawing_number",
-    "body.part_number",
-    "body.part_name",
-    "body.revision",
-    "body.material",
-    "body.surface_finish",
-    "body.document_type",
-    'body["drawing_number"]',
-    'body["part_number"]',
-    'body["part_name"]'
-  ],
-  "submission create API does not parse client-supplied PDM master-data fields"
-);
+record("DRS-QC-010",
+  !/\bbody\.(?:drawing_number|part_number|part_name|revision|material|surface_finish|document_type)\b/u.test(createRoute) &&
+    !/\bbody\[(?:"|')(?:drawing_number|part_number|part_name|revision|material|surface_finish|document_type)(?:"|')\]/u.test(createRoute),
+  "historical create route does not parse client-supplied PDM master-data fields");
 assertIncludes(
   "DRS-QC-011",
   asyncWriter,
