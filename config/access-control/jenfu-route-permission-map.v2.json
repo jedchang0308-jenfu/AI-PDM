@@ -2,7 +2,7 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "70b3065f97fde358a57b8b8a59534a6c7738b0be01f531bc0d47bcc4449a27c7",
+  "sourceSha256": "a2112268836e35246cad51907712be54ebb4c617f65444717fe0e2e72dfab542",
   "denominator": {
     "uniqueFiles": 91,
     "uniqueMethods": 109,

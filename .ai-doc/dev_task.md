@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 route-policy 來源鎖修正（本機）**：舊 v2 產生器只知道兩筆新增路由，`--write` 會覆寫後續 13 筆與三條退役跨 owner 寫入。現鎖定完整 118 筆 v2 條目 SHA-256，source hash 綁定 v1 與整份 reviewed entries，CI 增加正向與篡改拒絕測試；route classification 255 files／293 methods／0 catalog missing code PASS。這僅修復產生器與證據漂移，正式授權 caller、Production L4 與切流仍未完成。
+
 > **2026-09-28 DEV-121 新帳號讀回契約修正（本機）**：Principal-only provision 的 owner transaction 已核對 OrgMaster typed provider pair，且設計上不寫舊 Firebase mapping；全 cohort readback 現只對 operation／hash／result 與固定 suspended profile 皆吻合的新 provision 豁免舊 mapping 缺漏，仍核對現行 Platform login pair、Employee、account type、停用狀態與歧義。既有 cutover profile 照舊 fail closed。聚焦 6／6、隔離 PostgreSQL 23／23 PASS（含無舊 mapping 的 active provision）；叢集已清理、容量租約已釋放。runtime marker guard 未變，Production 全員 readback／切流未執行，`applyAllowed=false`。
 
 > **2026-09-28 DEV-121 全 cohort readback 啟用證據補強（本機）**：只讀盤點新增 OrgMaster current Platform login pair、typed contract version 及 AI-PDM 精確 committed operation／marker hash 核對；不一致者維持 unresolved。既有 cutover profile 的本地 provider pair 缺失、未驗證或歧義依舊阻擋，`principal_active` runtime gate 未拆。聚焦 6／6、隔離 PostgreSQL 23／23 PASS，叢集及暫存資源均已清理；Production 全員 readback、等價 canonical eligibility 與正式切流仍待完成，`applyAllowed=false`。

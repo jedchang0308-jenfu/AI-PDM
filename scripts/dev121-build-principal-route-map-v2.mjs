@@ -7,39 +7,31 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const sourcePath = join(root, 'config/access-control/jenfu-route-permission-map.v1.json')
 const targetPath = join(root, 'config/access-control/jenfu-route-permission-map.v2.json')
-const principalCommandEntries = [{
-  path: 'src/app/api/numbering/records/route.ts',
-  method: 'POST', discriminator: null, authorizationMode: 'permission',
-  permissionCode: 'numbering.create', authorizationTarget: 'numbering.create',
-  scopeResolver: 'workspace',
-  preservedGuards: 'verified principal＋company＋link_variant when drawing requested＋numbering validation／idempotency'
-}, {
-  path: 'src/app/api/numbering/records/[rootCode]/obsolete/route.ts',
-  method: 'POST', discriminator: null, authorizationMode: 'permission',
-  permissionCode: 'numbering.draft.obsolete', authorizationTarget: 'numbering.draft.obsolete',
-  scopeResolver: 'workspace',
-  preservedGuards: 'verified principal＋company＋draft lifecycle／root ownership＋confirmation／idempotency'
-}]
 const sha256 = (value) => createHash('sha256').update(value).digest('hex')
+// Full reviewed v2 entries, including all 15 additions and three retired
+// cross-owner mutations. An unreviewed route or permission change must fail.
+const approvedV2EntriesSha256 = 'cab76e6c9002a1c5fc1774628ba693830ec188413ee9095f5dacb1a813cd5487'
 
-export function buildPrincipalRouteMapV2(source) {
+export function buildPrincipalRouteMapV2(source, reviewedV2) {
   assert.deepEqual(source.denominator, { uniqueFiles: 77, uniqueMethods: 94, policyEntries: 103 })
   assert.equal(source.sourceSha256, '699df04d770ee27f71adc87b2996a3e4f972da9c011d7ac1ae16ea6643ce60c7')
-  assert.ok(principalCommandEntries.every((addition) => !source.entries.some((entry) =>
-    entry.path === addition.path && entry.method === addition.method)))
-  const entries = [...source.entries, ...principalCommandEntries]
-    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+  assert.equal(reviewedV2.contractVersion, source.contractVersion)
+  assert.equal(reviewedV2.applicationId, source.applicationId)
+  assert.ok(Array.isArray(reviewedV2.entries))
+  assert.equal(sha256(JSON.stringify(reviewedV2.entries)), approvedV2EntriesSha256,
+    'unreviewed v2 route policy change')
+  const entries = reviewedV2.entries
   const denominator = {
     uniqueFiles: new Set(entries.map((entry) => entry.path)).size,
     uniqueMethods: new Set(entries.map((entry) => `${entry.path}\0${entry.method}`)).size,
     policyEntries: entries.length
   }
-  assert.deepEqual(denominator, { uniqueFiles: 79, uniqueMethods: 96, policyEntries: 105 })
+  assert.deepEqual(denominator, { uniqueFiles: 91, uniqueMethods: 109, policyEntries: 118 })
   return {
     contractVersion: source.contractVersion,
     applicationId: source.applicationId,
     source: 'AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved',
-    sourceSha256: sha256(JSON.stringify({ base: source.sourceSha256, additions: principalCommandEntries })),
+    sourceSha256: sha256(JSON.stringify({ base: source.sourceSha256, entries })),
     denominator, entries
   }
 }
@@ -47,10 +39,12 @@ export function buildPrincipalRouteMapV2(source) {
 function main() {
   const mode = process.argv[2]
   assert.ok(mode === '--write' || mode === '--check', 'choose --write or --check')
-  const value = buildPrincipalRouteMapV2(JSON.parse(readFileSync(sourcePath, 'utf8')))
+  const value = buildPrincipalRouteMapV2(
+    JSON.parse(readFileSync(sourcePath, 'utf8')),
+    JSON.parse(readFileSync(targetPath, 'utf8')))
   if (mode === '--write') writeFileSync(targetPath, `${JSON.stringify(value, null, 2)}\n`)
   assert.deepEqual(JSON.parse(readFileSync(targetPath, 'utf8')), value)
-  process.stdout.write(`${JSON.stringify({ status: 'PASS', source: 'DEV-005 v1 + DEV-121 v2',
+  process.stdout.write(`${JSON.stringify({ status: 'PASS', source: 'DEV-005 v1 + exact reviewed DEV-121 v2',
     denominator: value.denominator, sourceSha256: value.sourceSha256 })}\n`)
 }
 
