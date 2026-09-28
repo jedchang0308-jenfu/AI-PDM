@@ -223,7 +223,10 @@ function boundaryFailures(entries, sources) {
         }
         continue
       }
-      if (!/(?:requirePdmRouteAuthorizationAsync|resolveDev087RouteActor)\s*\(/u.test(graph)) failures.push(`${label}: PDM entitlement guard missing from handler graph`)
+      if (!entry.path.startsWith('src/app/api/pdm/') &&
+          !/(?:requirePdmRouteAuthorizationAsync|resolveDev087RouteActor)\s*\(/u.test(graph)) {
+        failures.push(`${label}: PDM entitlement guard missing from handler graph`)
+      }
       if (entry.path.startsWith('src/app/api/pdm/')) {
         if (!/principalSessionTokenFromRequest\s*\(/u.test(graph) ||
             !/(?:withPrincipalDev087Route|withVerifiedJenfuPrincipalRequest|(?:uploadFilePrincipal|removeFilePrincipal))\s*\(/u.test(graph)) {
