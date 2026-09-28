@@ -33,7 +33,7 @@ function uploadDestination(fallback: string) {
   const source = new URL(window.location.href);
   const drawingNumber = source.searchParams.get("drawingNumber") ?? source.searchParams.get("drawing_number");
   if (!drawingNumber) return destinationWithSource(fallback);
-  return destinationWithSource(`/drawings/${encodeURIComponent(drawingNumber)}/submission-workbench`);
+  return destinationWithSource(`/numbering/drawings?query=${encodeURIComponent(drawingNumber)}&legacyIntent=upload`);
 }
 
 export function NumberStateLegacyRoute({
@@ -49,7 +49,7 @@ export function NumberStateLegacyRoute({
 
   useEffect(() => {
     const nextTarget = strategy === "upload" ? uploadDestination(destination) : destinationWithSource(destination);
-    const uploadHasContext = strategy !== "upload" || nextTarget.startsWith("/drawings/");
+    const uploadHasContext = strategy !== "upload" || nextTarget.startsWith("/numbering/drawings?query=");
     const redirect = strategy === "redirect" || (strategy === "upload" && uploadHasContext);
     setTarget(nextTarget);
     setShouldRedirect(redirect);
