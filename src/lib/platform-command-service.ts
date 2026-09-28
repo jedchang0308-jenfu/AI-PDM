@@ -127,14 +127,9 @@ async function executeWithinClient<TPayload, TResult>(
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_REQUIRED");
       }
       if (client.kind === "postgres") {
-        const cutover = await client.queryOne<{ status: string; principal_id: string | null }>(`
-          SELECT status,principal_id
-          FROM ai_pdm_core.read_principal_cutover_for_command_v1(:pdmUserId)
-        `, { pdmUserId: input.command.actor.pdmUserId });
-        if (cutover?.status !== "principal_active" ||
-            cutover.principal_id !== platformPrincipalId) {
-          throw new Error("PLATFORM_PRINCIPAL_NOT_ACTIVE");
-        }
+        // The verified request and this command share a transaction. Reuse the
+        // account repository's fail-closed activation check; the command must
+        // not consult the per-profile cutover reader a second time.
         const account = await new JenfuPrincipalAccountRepository(client).requireActive(platformPrincipalId);
         if (account.pdmUserId !== verifiedActor!.localPrincipalId ||
           account.companyId !== verifiedActor!.companyId) {

@@ -75,9 +75,6 @@ function command(overridePrincipalId = principalId) {
 function client(isolation = "repeatable read") {
   return { kind: "postgres", queryOne: vi.fn(async (sql: string) => {
     if (sql.includes("current_setting('transaction_isolation')")) return { isolation_level: isolation };
-    if (sql.includes("read_principal_cutover_for_command_v1")) return {
-      status: "principal_active", principal_id: principalId
-    };
     return null;
   }), execute: vi.fn(), query: vi.fn() } as unknown as AsyncDatabaseClient;
 }
@@ -107,7 +104,7 @@ describe("principal command and mutation use one verified snapshot", () => {
     mocks.claim.mockResolvedValue(true);
   });
 
-  it("rechecks route permission, cutover and actor in the write snapshot before the command", async () => {
+  it("rechecks route permission, active account and actor in the write snapshot before the command", async () => {
     const database = client();
     const mutate = vi.fn(async (snapshot: AsyncDatabaseClient) => {
       expect(snapshot).toBe(database);
@@ -122,6 +119,8 @@ describe("principal command and mutation use one verified snapshot", () => {
     expect(mutate).toHaveBeenCalledOnce();
     expect(mocks.complete).toHaveBeenCalledOnce();
     expect(mocks.findOrganization).not.toHaveBeenCalled();
+    expect(vi.mocked(database.queryOne).mock.calls.some(([sql]) =>
+      String(sql).includes("read_principal_cutover_for_command_v1"))).toBe(false);
     expect(mocks.claim.mock.calls[0][0].actor.platformOrganizationId).toBeNull();
   });
 
@@ -161,18 +160,12 @@ describe("principal command and mutation use one verified snapshot", () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it("never sends a v2 principal command through a legacy-compatible mapping", async () => {
+  it("never sends a v2 principal command when the active account check fails", async () => {
     const database = client();
-    vi.mocked(database.queryOne).mockImplementation(async (sql: string) => {
-      if (sql.includes("current_setting('transaction_isolation')")) return { isolation_level: "repeatable read" };
-      if (sql.includes("read_principal_cutover_for_command_v1")) return {
-        status: "legacy_compatible", principal_id: null
-      };
-      return null;
-    });
+    mocks.requireActive.mockRejectedValueOnce(new Error("principal_account_unavailable"));
     const mutate = vi.fn(async () => ({ ok: true }));
     await expect(executePdmCommandWithOutbox(input(database, mutate)))
-      .rejects.toThrow("PLATFORM_PRINCIPAL_NOT_ACTIVE");
+      .rejects.toThrow("principal_account_unavailable");
     expect(mutate).not.toHaveBeenCalled();
     expect(mocks.claim).not.toHaveBeenCalled();
     expect(mocks.findOrganization).not.toHaveBeenCalled();

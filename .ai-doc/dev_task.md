@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 Principal 命令重複 marker 查詢收斂（候選來源）**：`executePdmCommandWithOutbox` 的 PostgreSQL 分支已由 verified v2 request 與同一交易中的 `JenfuPrincipalAccountRepository.requireActive` 核對啟用帳號、principal／profile／company；移除第二次 `read_principal_cutover_for_command_v1` 查詢。停用／未啟用仍由 account repository fail closed，未知 session 與舊命令仍先拒絕。聚焦 26／26、typecheck、scoped ESLint PASS。這未移除 account repository 對舊 marker 的最後依賴，也不是 Production 切流證據。
+
 > **2026-09-28 DEV-121 圖面歷史 Principal-only 讀取（候選來源）**：`GET /api/numbering/drawings/[drawingNumber]/history/[revisionId]` 已移除舊 actor caller；v2 map 加入精確 `numbering.drawings.view` page policy，verified Principal／workspace grant、圖面公司、版次生命週期與檔案綁定均在同一 read-only snapshot 讀取，拒絕時不讀資料。完整 119 筆路由條目重新以 SHA-256 鎖定；聚焦 3／3、route-map 7／7、source-lock 2／2、route classification 293／293、DEV-005 103／103、typecheck、scoped ESLint PASS。DEV-087 共用 actor helper 的未遷移 route 檔由 7 降至 6，關聯矩陣另待處理；Production 未變。
 
 > **2026-09-28 DEV-121 DEV-087 舊 actor fallback 封鎖（候選來源）**：Platform 登入模式呼叫 `resolveDev087RouteActor`／`resolveRelationMatrixActor` 時，在任何舊角色／profile／公司查詢前拒絕；缺 v2 session 為 401，有 v2 session 卻未接 Principal route 為 503，均不快取。隔離 demo 路徑僅供本機 fixture。盤點 23 個使用前者的 route 檔，16 個已有 Principal 分支、7 個仍待轉換；關聯矩陣另待轉換。聚焦 17／17、typecheck、route classification 255 files／293 methods／0 缺碼 PASS。歷史 DEV-005 runtime QC 已依固定 v2 policy 辨識 Principal external-read／settings write 與退役路由，加入移除 guard／410 的負向突變，現 103／103 PASS。這是拒絕保護，不是工作台完成；切流前須把這些必要操作轉成可用的 Principal route 並驗資源範圍。
