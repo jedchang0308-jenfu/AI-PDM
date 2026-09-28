@@ -41,8 +41,14 @@ export async function withPrincipalCompanyRead(
     verified: VerifiedPrincipalRequest) => Promise<Response>
 ): Promise<Response | null> {
   const token = principalSessionTokenFromRequest(request);
-  if (!token) return null;
-  if (getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on" ||
+  const platformSessionRequired = getAuthMode() === "firebase_bff" && getJenfuPlatformAuthMode() === "on";
+  if (!token) {
+    return platformSessionRequired
+      ? Response.json({ code: "auth_session_invalid" },
+        { status: 401, headers: { "cache-control": "no-store" } })
+      : null;
+  }
+  if (!platformSessionRequired ||
       getJenfuEntitlementMode() !== "enforce") {
     return Response.json({ code: "principal_authorization_unavailable" },
       { status: 503, headers: { "cache-control": "no-store" } });

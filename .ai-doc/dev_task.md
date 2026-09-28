@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 Principal 讀取入口拒絕舊 session（候選來源）**：`withPrincipalCompanyRead` 在 Platform 登入模式下，缺少 v2 Principal session 直接回無快取 401，不再回 `null` 讓使用它的 route 落入舊 UID／profile reader；隔離 demo 模式仍可使用原本的本機測試讀取。聚焦 16／16、typecheck、scoped ESLint PASS。此修正涵蓋共用 company／numbering read helper 的 caller，尚未退役未使用該 helper 的其他舊 route，也不是 Production L4 或切流證據。
+
 > **2026-09-28 DEV-121 generic submission POST 退役（本機）**：已固定 410 的 `POST /api/submissions` 不再先執行舊 session／授權 helper，移除同檔無 caller 的上傳與解析程式，v2 route map 明確標為 retired 並重新鎖定完整 source hash。聚焦 1／1、來源鎖 2／2、route classification 293／293、typecheck 與 scoped ESLint PASS；CI 已納入來源鎖與分類。GET 清單仍待 Principal grant／資源讀取改造，這不是整個 submissions 工作流程完成證據。
 
 > **2026-09-28 DEV-121 route-policy 來源鎖修正（本機）**：舊 v2 產生器只知道兩筆新增路由，`--write` 會覆寫後續 13 筆與三條退役跨 owner 寫入。現鎖定完整 118 筆 v2 條目 SHA-256，source hash 綁定 v1 與整份 reviewed entries，CI 增加正向與篡改拒絕測試；route classification 255 files／293 methods／0 catalog missing code PASS。這僅修復產生器與證據漂移，正式授權 caller、Production L4 與切流仍未完成。

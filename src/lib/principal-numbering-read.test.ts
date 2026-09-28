@@ -119,4 +119,23 @@ describe("principal numbering read snapshot", () => {
     expect(response?.status).toBe(503);
     expect(read).not.toHaveBeenCalled();
   });
+
+  it("does not fall through to a legacy reader without a principal session in Platform mode", async () => {
+    mocks.token.mockReturnValue(null);
+    const read = vi.fn();
+    const response = await withPrincipalNumberingCompanyRead(request, "numbering.search", read);
+    expect(response?.status).toBe(401);
+    expect(response?.headers.get("cache-control")).toBe("no-store");
+    expect(mocks.verified).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("keeps the isolated local demo reader available outside Platform mode", async () => {
+    mocks.token.mockReturnValue(null);
+    mocks.authMode.mockReturnValue("demo");
+    const read = vi.fn();
+    expect(await withPrincipalNumberingCompanyRead(request, "numbering.search", read)).toBeNull();
+    expect(mocks.verified).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+  });
 });
