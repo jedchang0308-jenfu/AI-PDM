@@ -46,10 +46,6 @@ export class JenfuPrincipalAccountRepository {
         FROM ai_pdm_core.principal_accounts account
         JOIN ai_pdm_core.users profile ON profile.id = account.pdm_user_id
           AND profile.company_id = account.company_id
-        JOIN ai_pdm_core.principal_identity_cutovers cutover
-          ON cutover.pdm_user_id = account.pdm_user_id
-         AND cutover.principal_id = account.principal_id
-         AND cutover.status = 'principal_active'
         WHERE account.principal_id = :principalId
       `, { principalId });
       const lifecycleVersion = Number(row?.lifecycle_version);

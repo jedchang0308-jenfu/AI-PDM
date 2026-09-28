@@ -39,10 +39,6 @@ export async function selectPrincipalReviewerInSnapshot(
            typed.principal_issuer AS identity_issuer,
            typed.principal_subject AS identity_subject
     FROM ai_pdm_core.principal_accounts account
-    JOIN ai_pdm_core.principal_identity_cutovers cutover
-      ON cutover.pdm_user_id = account.pdm_user_id
-     AND cutover.principal_id = account.principal_id
-     AND cutover.status = 'principal_active'
     JOIN orgmaster_contract.v_active_principal_accounts_v1 typed
       ON typed.principal_id = account.principal_id
      AND typed.employee_id = account.employee_id

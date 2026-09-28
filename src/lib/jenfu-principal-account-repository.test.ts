@@ -10,10 +10,12 @@ const row = {
 
 describe("AI-PDM principal account readback", () => {
   it("reads only the active principal-to-profile link", async () => {
-    const queryOne = vi.fn(async () => row);
+    const queryOne = vi.fn(async (_sql: string, _params: { principalId: string }) => row);
     const account = await new JenfuPrincipalAccountRepository({ kind: "postgres", queryOne } as never).requireActive("principal-one");
     expect(account).toMatchObject({ principalId: "principal-one", pdmUserId: "pdm-user-one", lifecycleVersion: 3, profileVersion: 2 });
-    expect(queryOne).toHaveBeenCalledWith(expect.stringContaining("cutover.status = 'principal_active'"), { principalId: "principal-one" });
+    expect(queryOne).toHaveBeenCalledWith(expect.stringContaining("FROM ai_pdm_core.principal_accounts account"),
+      { principalId: "principal-one" });
+    expect(queryOne.mock.calls[0][0]).not.toContain("principal_identity_cutovers");
   });
 
   it("rejects missing, disabled, wrong-principal, or under-assured privileged accounts", async () => {

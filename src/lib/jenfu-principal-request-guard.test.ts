@@ -119,7 +119,8 @@ describe("DEV-121 principal request verification", () => {
     expect(observed.queries.join("\n")).not.toContain("user_role_assignments");
     expect(observed.queries.join("\n")).not.toContain("profile.role");
     expect(observed.queries.join("\n")).toContain("owner.company_id=profile.company_id");
-    expect(observed.queries.filter((sql) => sql.includes("principal_identity_cutovers"))).toHaveLength(1);
+    expect(observed.queries.join("\n")).toContain("FROM ai_pdm_core.principal_accounts account");
+    expect(observed.queries.join("\n")).not.toContain("principal_identity_cutovers");
     expect(observed.queries.join("\n")).not.toContain("user_company_memberships");
   });
 

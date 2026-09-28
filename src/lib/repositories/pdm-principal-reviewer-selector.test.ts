@@ -46,7 +46,7 @@ describe("principal reviewer selection", () => {
     }]);
   });
 
-  it("uses current principal account, cutover and typed producer candidates in the caller snapshot", async () => {
+  it("uses current principal account and typed producer candidates in the caller snapshot", async () => {
     const snapshot = client([
       candidate("principal-admin", "profile-admin"),
       candidate("principal-manager", "profile-manager")
@@ -59,7 +59,7 @@ describe("principal reviewer selection", () => {
       "JOIN orgmaster_contract.v_active_principal_accounts_v1 typed"),
     { companyId: input.companyId });
     const sql = vi.mocked(snapshot.query).mock.calls[0][0];
-    expect(sql).toContain("cutover.status = 'principal_active'");
+    expect(sql).not.toContain("principal_identity_cutovers");
     expect(sql).toContain("account.account_status = 'active'");
     expect(sql).not.toContain("users.role");
   });
