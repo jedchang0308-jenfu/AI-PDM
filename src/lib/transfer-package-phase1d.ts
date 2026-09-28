@@ -538,6 +538,8 @@ export async function addTransferDraftWorkspace(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
     execute: (client) => new AsyncTransferPackageRepository(client).addDraftWorkspace(input),
     event: (workbench) => ({
       aggregateType: "transfer_package",
@@ -575,6 +577,8 @@ export async function removeTransferDraftWorkspace(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
     execute: (client) => new AsyncTransferPackageRepository(client).removeDraftWorkspace(input),
     event: (workbench) => ({
       aggregateType: "transfer_package",
@@ -679,6 +683,8 @@ export async function submitTransferPackageReview(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
     execute: async (client) => {
       const companyId = input.metadata.actor.organizationId;
       const row = await client.queryOne<{ package_status: string; row_version: number; review_request_id: string | null }>(
@@ -854,6 +860,8 @@ export async function withdrawTransferPackageReview(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
     execute: async (client) => {
       const row = await client.queryOne<{ review_request_id: string; owner_id: string }>(
         `SELECT review_request_id, owner_id FROM transfer_packages
@@ -927,6 +935,8 @@ export async function decideTransferPackageReview(input: {
   const execution = await executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
     execute: async (client) => {
       const request = await client.queryOne<{ id: string; request_status: string }>(
         `SELECT id, request_status FROM approval_platform_requests
@@ -1032,6 +1042,8 @@ async function recordPublishFailure(input: {
   return executePdmCommandWithOutbox({
     client: getAsyncDatabaseClient(),
     command,
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
     execute: async (client) => {
       const now = new Date().toISOString();
       const updated = await client.queryOne<{ id: string }>(
@@ -1080,6 +1092,8 @@ export async function publishTransferPackage(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       execute: async (client) => {
         const pkg = await client.queryOne<{
           id: string;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NumberingUserScope } from "@/lib/db";
-import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow";
+import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-flow-contract";
 import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
 import { requireNumberingPlatformCommandAsync, type NumberingPlatformCommandAccess } from "@/lib/platform-command-context";
 import type { PdmCompanyContext } from "@/lib/company-context";

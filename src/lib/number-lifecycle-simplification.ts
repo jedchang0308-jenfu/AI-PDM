@@ -447,6 +447,8 @@ export async function createNumberingCandidateRevision(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: (client) => new Repository(client).createCandidateRevision({
         workspaceId,
@@ -499,6 +501,8 @@ export async function updateNumberingCandidateRevision(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: (client) => new Repository(client).updateCandidateRevision({
         workspaceId,
@@ -586,6 +590,8 @@ export async function addNumberingCandidateRevisionFile(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: async (client) => {
         const repository = new Repository(client);
@@ -765,6 +771,8 @@ export async function verifyExistingNumberingCandidateRevisionFile(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: async (client) => {
         const repository = new Repository(client);
@@ -900,6 +908,8 @@ export async function removeNumberingCandidateRevisionFile(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: (client) => new Repository(client).removeCandidateFile({
         workspaceId,
@@ -950,6 +960,8 @@ export async function submitNumberingCandidateBundleReview(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: (client) => new Repository(client).submitBundleReview({
         workspaceId,
@@ -995,6 +1007,8 @@ export async function withdrawNumberingCandidateBundleReview(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: (client) => new Repository(client).withdrawBundleReview({
         workspaceId,
@@ -1044,6 +1058,8 @@ export async function decideNumberingCandidateBundleReview(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: (client) => new Repository(client).decideBundleReview({
         requestId,
@@ -1105,6 +1121,8 @@ export async function retryNumberingCandidateBundleApply(input: {
     const execution = await executePdmCommandWithOutbox({
       client: getAsyncDatabaseClient(),
       command,
+      principalRequest: input.metadata.principalRequest,
+      principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
       execute: (client) => new Repository(client).retryBundleApply({
         requestId,
