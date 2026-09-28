@@ -128,7 +128,8 @@ export function PrincipalApprovalInbox() {
       </button>
     </header>
     {legacyRedirectMessage ? <div className="approval-message info">{legacyRedirectMessage}</div> : null}
-    {error && state === "ready" ? <div className="approval-message error" role="alert">{error}</div> : null}
+    {(error || controllerError) && state === "ready" ?
+      <div className="approval-message error" role="alert">{error || controllerError}</div> : null}
     <section className="approval-filter-bar pdm-workbench-filter-bar" aria-label="審核篩選">
       <label className="approval-filter-field approval-filter-search">
         <span>搜尋</span>
@@ -160,7 +161,7 @@ export function PrincipalApprovalInbox() {
     </section>
     {state === "unauthorized" ? <div className="panel approval-empty">請先登入。</div> : null}
     {state === "error" ? <div className="panel approval-error">{error || controllerError}</div> : null}
-    <div className="approval-platform-layout">
+    {(state === "loading" || (state === "ready" && !controllerError)) ? <div className="approval-platform-layout">
       <section className="panel approval-inbox-panel" aria-label="審核清單">
         <div className="panel-header">
           <h2>審核清單</h2>
@@ -189,7 +190,7 @@ export function PrincipalApprovalInbox() {
         <PdmWorkbenchPagination pageIndex={pageIndex} hasPreviousPage={Boolean(previousCursor)}
           hasNextPage={Boolean(nextCursor)} loading={loading} onPrevious={goPrevious} onNext={goNext} />
       </section>
-    </div>
+    </div> : null}
   </div>;
 }
 
