@@ -104,7 +104,8 @@ describe("Principal-only owner cohort transaction", () => {
   it("replays an exact committed receipt without rereading or writing sources", async () => {
     const result = {
       contractVersion: "ai-pdm.principal-only-cohort-result.v1",
-      operationId: operation.operationId, cohortHash: operation.cohortHash,
+      operationId: operation.operationId, inputHash: operation.inputHash,
+      cohortHash: operation.cohortHash,
       sourceHash: operation.sourceHash, activatedAt: "2026-09-28T00:05:00.000Z",
       principalId: "principal-one", pdmUserId: "pdm-one",
       withheldPdmUserIds: ["pdm-two"], activeBeforeCount: 2,

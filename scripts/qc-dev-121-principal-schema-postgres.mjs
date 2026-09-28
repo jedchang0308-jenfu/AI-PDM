@@ -356,6 +356,8 @@ try {
       path.join(root, 'src/lib/jenfu-principal-only-cohort-source.ts')).href)
     const { applyPrincipalOnlyCohortInOwnerTransaction } = await import(pathToFileURL(
       path.join(root, 'src/lib/jenfu-principal-only-cohort-apply.ts')).href)
+    const { readPrincipalOnlyCohort } = await import(pathToFileURL(
+      path.join(root, 'src/lib/jenfu-principal-only-cohort-readback.ts')).href)
     const adapter = inventoryDatabaseAdapter(client)
     const verified = {
       pdmUserId: 'pdm-user-one',companyId: 'company-one',
@@ -380,7 +382,20 @@ try {
         })
         assert.equal(applied.replayed, false)
         assert.equal(applied.result.activatedCount, 1)
+        assert.equal(applied.result.inputHash, 'e'.repeat(64))
         assert.deepEqual(applied.result.withheldPdmUserIds, ['pdm-user-two'])
+        const readback = await readPrincipalOnlyCohort({
+          kind: 'postgres',
+          transaction: async (fn, options) => {
+            assert.deepEqual(options, { isolationLevel: 'repeatable_read', readOnly: true })
+            return fn(adapter)
+          }
+        })
+        assert.equal(readback.activePrincipalProfiles, 1)
+        assert.equal(readback.activeHistoricalProfiles, 1)
+        assert.equal(readback.unresolvedProfiles, 0)
+        assert.deepEqual(readback.profiles.find((profile) =>
+          profile.pdmUserId === 'pdm-user-one')?.issues, [])
         const state = await client.query(`SELECT profile.id,profile.account_status,
           account.principal_id,marker.status AS marker_status
           FROM ai_pdm_core.users profile

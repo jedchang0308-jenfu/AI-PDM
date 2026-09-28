@@ -103,6 +103,31 @@ describe("principal-only cohort discovery", () => {
     expect(noPlatformPair.profiles[0].issues).toContain("published_login_pair_missing");
   });
 
+  it("recognizes the one-shot cohort receipt only when its hashes and subject match", async () => {
+    const oneShot = { ...profile, operation_result: {
+      contractVersion: "ai-pdm.principal-only-cohort-result.v1",
+      operationId: "operation-one", inputHash: "c".repeat(64),
+      sourceHash: "a".repeat(64), cohortHash: "b".repeat(64),
+      activatedAt: "2026-09-28T00:05:00.000Z",
+      principalId: "principal-one", pdmUserId: "profile-one",
+      activeBeforeCount: 2, activatedCount: 1,
+      withheldPdmUserIds: ["profile-two"], withheldCount: 1
+    } };
+    const valid = await readPrincipalOnlyCohort(snapshot({ profiles: [oneShot] }).database);
+    expect(valid.profiles[0].issues).toEqual([]);
+    for (const invalidResult of [
+      { ...oneShot.operation_result, inputHash: "d".repeat(64) },
+      { ...oneShot.operation_result, pdmUserId: "profile-two" },
+      { ...oneShot.operation_result, withheldPdmUserIds: ["profile-one"] },
+      { ...oneShot.operation_result, activeBeforeCount: 3 },
+    ]) {
+      const invalid = await readPrincipalOnlyCohort(snapshot({
+        profiles: [{ ...oneShot, operation_result: invalidResult }]
+      }).database);
+      expect(invalid.profiles[0].issues).toContain("activation_unconfirmed");
+    }
+  });
+
   it("flags producer mismatch and ambiguous provider ownership instead of guessing", async () => {
     const source = snapshot({
       profiles: [profile, { ...profile, pdm_user_id: "profile-two", principal_id: "principal-two",

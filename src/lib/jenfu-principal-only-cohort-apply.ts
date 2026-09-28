@@ -19,6 +19,7 @@ export type PrincipalOnlyCohortOperation = {
 export type PrincipalOnlyCohortResult = {
   contractVersion: "ai-pdm.principal-only-cohort-result.v1";
   operationId: string;
+  inputHash: string;
   cohortHash: string;
   sourceHash: string;
   activatedAt: string;
@@ -50,6 +51,7 @@ function assertReplay(
     .map((profile) => profile.pdmUserId);
   if (value.contractVersion !== "ai-pdm.principal-only-cohort-result.v1" ||
     value.operationId !== operation.operationId ||
+    value.inputHash !== operation.inputHash ||
     value.cohortHash !== operation.cohortHash ||
     value.sourceHash !== operation.sourceHash ||
     value.principalId !== operation.verified.principalId ||
@@ -148,7 +150,8 @@ export async function applyPrincipalOnlyCohortInOwnerTransaction(
 
   const result: PrincipalOnlyCohortResult = {
     contractVersion: "ai-pdm.principal-only-cohort-result.v1",
-    operationId: operation.operationId, cohortHash: source.cohortHash,
+    operationId: operation.operationId, inputHash: operation.inputHash,
+    cohortHash: source.cohortHash,
     sourceHash: source.sourceHash, activatedAt,
     principalId: verified.principalId, pdmUserId: verified.pdmUserId,
     withheldPdmUserIds: source.withheld.map((profile) => profile.pdmUserId),

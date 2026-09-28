@@ -69,6 +69,26 @@ function operationMatchesProfile(profile: ProfileRow): boolean {
       result.pdmUserId === profile.pdm_user_id &&
       profile.marker_source_hash === profile.operation_input_hash;
   }
+  if (profile.operation_kind === "cutover" &&
+    result.contractVersion === "ai-pdm.principal-only-cohort-result.v1") {
+    return result.inputHash === profile.operation_input_hash &&
+      result.sourceHash === profile.marker_source_hash &&
+      result.cohortHash === profile.operation_cohort_hash &&
+      result.principalId === profile.principal_id &&
+      result.pdmUserId === profile.pdm_user_id &&
+      typeof result.activatedAt === "string" &&
+      Number.isFinite(Date.parse(result.activatedAt)) &&
+      typeof result.activeBeforeCount === "number" &&
+      Number.isSafeInteger(result.activeBeforeCount) &&
+      result.activeBeforeCount >= 1 && result.activeBeforeCount <= 32 &&
+      result.activatedCount === 1 &&
+      Array.isArray(result.withheldPdmUserIds) &&
+      result.withheldPdmUserIds.every((id) =>
+        typeof id === "string" && id.length > 0 && id !== profile.pdm_user_id) &&
+      new Set(result.withheldPdmUserIds).size === result.withheldPdmUserIds.length &&
+      result.withheldCount === result.withheldPdmUserIds.length &&
+      result.activeBeforeCount === result.withheldCount + 1;
+  }
   if (profile.operation_kind !== "cutover" ||
     result.contractVersion !== "ai-pdm.principal-cutover-result.v1" ||
     result.sourceHash !== profile.marker_source_hash ||

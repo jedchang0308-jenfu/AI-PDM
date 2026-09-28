@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 one-shot receipt／readback 修正**：新 owner 交易的結果與既有正式 readback 原本不相容，會把已轉換的 Principal 誤判為啟用未確認。現以 operation input／source／cohort hash 與唯一 principal／profile、withheld 數量封閉驗證；聚焦 13／13、app typecheck、隔離 PostgreSQL 25／25 PASS，測試資料庫已清理。尚未改 Production。
+
 > **2026-09-28 DEV-121 唯讀全 cohort 來源證據入口**：principal-inventory operator 新增 `principal_only_source` v2 mode，綁定受保護 source、精確 Firebase provider pair 與 operation SHA-256；只讀 snapshot 的私有 receipt 載明 cohort/source hash、唯一核實候選與 withheld 全名單，共用日誌只報數量。operator／封裝 9／9、owner primitive 6／6、app typecheck、scoped ESLint PASS。尚未 build 或執行 Production Job；此入口不能修改資料或取代全系統切流驗證。
 
 > **2026-09-28 DEV-121 單次全 cohort 轉換候選**：owner 內部來源讀取與受鎖交易已完成本機及 disposable PostgreSQL 驗證，可只建立精確已核實的 Principal account、停用其他 active 未核實 profile、撤銷舊 session，且不複製舊 ACL。真實 PostgreSQL schema／交易／rollback 25／25 PASS，測試資源已清理。這不是 Production apply：下一步封裝 protected operator 與不可變來源，先證明舊 service／排程／背景 writer 停止並備妥 Principal-only 候選及回復，再執行 whole-cohort 前後 readback；正式 traffic 與資料未變。跨多表不可逆 global trigger 提案遭自動審查拒絕，未建立 migration，改用現有精確 profile fence 加受控停用與舊 writer quiescence。
