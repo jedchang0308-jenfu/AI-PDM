@@ -758,8 +758,8 @@ const ownerPreflightLockResponse = await fetch(`${baseUrl}/api/submissions/prefl
   body: JSON.stringify({ part_number: duplicateSeed.data.part_number, drawing_number: duplicateSeed.data.drawing_number })
 });
 const ownerPreflightLockBody = await ownerPreflightLockResponse.json().catch(() => ({}));
-results.push(await expectStatus("CHECKOUT-011 owner lock preflight returns 200", ownerPreflightLockResponse.status, 200));
-results.push(await expectStatus("CHECKOUT-012 owner lock preflight allows own lock", ownerPreflightLockBody.lockedByCurrentUser, true));
+results.push(await expectStatus("CHECKOUT-011 demo owner cannot enter Principal-only preflight", ownerPreflightLockResponse.status, 401));
+results.push(await expectStatus("CHECKOUT-012 demo owner receives no lock data", ownerPreflightLockBody.code, "auth_session_invalid"));
 
 const managerLockNotifications = await getNotifications(managerCookie);
 results.push(
@@ -798,10 +798,10 @@ const otherPreflightLockResponse = await fetch(`${baseUrl}/api/submissions/prefl
   body: JSON.stringify({ part_number: duplicateSeed.data.part_number })
 });
 const otherPreflightLockBody = await otherPreflightLockResponse.json().catch(() => ({}));
-results.push(await expectStatus("CHECKOUT-013 other engineer lock preflight returns 200", otherPreflightLockResponse.status, 200));
-results.push(await expectStatus("CHECKOUT-014 other engineer lock preflight exposes active lock", otherPreflightLockBody.locked, true));
-results.push(await expectStatus("CHECKOUT-015 other engineer lock preflight marks lock as not owned", otherPreflightLockBody.lockedByCurrentUser, false));
-results.push(await expectStatus("CHECKOUT-016 other engineer lock preflight exposes owner", otherPreflightLockBody.lock?.locked_by, "user-engineer-demo"));
+results.push(await expectStatus("CHECKOUT-013 second demo user cannot enter Principal-only preflight", otherPreflightLockResponse.status, 401));
+results.push(await expectStatus("CHECKOUT-014 second demo user receives no lock state", otherPreflightLockBody.locked, undefined));
+results.push(await expectStatus("CHECKOUT-015 second demo user receives no ownership decision", otherPreflightLockBody.lockedByCurrentUser, undefined));
+results.push(await expectStatus("CHECKOUT-016 second demo user receives no owner identifier", otherPreflightLockBody.lock?.locked_by, undefined));
 
 const engineerCheckoutReleaseResponse = await fetch(`${baseUrl}/api/submissions/${duplicateSeed.body.submissionId}/checkout`, {
   method: "DELETE",

@@ -115,15 +115,13 @@ record(results, "SW-SRC API client preflights file size and existence", apiClien
 record(results, "SW-SRC API client checks checkout lock before upload", apiClient.includes("CheckItemLock") && apiClient.includes("/api/submissions/preflight-lock") && apiClient.indexOf("CheckItemLock") < apiClient.indexOf("ValidateFilesBeforeUpload"));
 record(results, "SW-SRC API client blocks locks owned by another user", apiClient.includes("result.Locked && !result.LockedByCurrentUser") && apiClient.includes("Ask the owner to release checkout before submitting"));
 record(results, "SW-SRC lock preflight response DTO is defined", submissionResult.includes("LockPreflightResponse") && submissionResult.includes("lockedByCurrentUser") && submissionResult.includes("ItemLockDto"));
-const preflightRouteHasAuth =
-  preflightLockRoute.includes("requireRole(request, [\"Engineer\", \"Admin\"]") ||
-  preflightLockRoute.includes("requireRoleAsync(request, [\"Engineer\", \"Admin\"]");
 record(
   results,
-  "SW-SRC backend exposes authenticated preflight lock route",
-  preflightRouteHasAuth &&
-    preflightLockRoute.includes("resolvePdmCompanyContextAsync") &&
-    preflightLockRoute.includes("findActiveItemLockForSubmissionIdentifiers")
+  "SW-SRC backend exposes Principal-authenticated preflight lock route",
+  preflightLockRoute.includes("withPrincipalCompanyRead") &&
+    preflightLockRoute.includes("submission.update") &&
+    preflightLockRoute.includes("AsyncItemLockRepository(snapshot)") &&
+    !preflightLockRoute.includes("requirePdmRouteAuthorizationAsync")
 );
 
 record(results, "SW-SRC submission UI validates change description length", submissionWindow.includes("len < 5") && submissionWindow.includes("len > 100"));

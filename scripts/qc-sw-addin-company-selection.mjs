@@ -37,9 +37,11 @@ assert.match(submissionWindow, /GetSelectedPdmCompanyCode/, "Add-in submission w
 assert.match(apiClient, /PdmCompanyCode = GetMetadata\(metadata, "pdm_company_code"\)/, "Add-in lock preflight must send company code");
 assert.match(apiClient, /foreach \(var pair in metadata\)/, "Add-in multipart submission must include metadata fields");
 
-assert.match(preflightRoute, /parsePdmCompanyCode/, "Preflight route must parse requested PDM company code");
-assert.match(preflightRoute, /resolvePdmCompanyContextAsync/, "Preflight route must validate company membership");
-assert.match(preflightRoute, /companyId: companyResult\.company\.companyId/, "Preflight route must pass companyId to lock lookup");
+assert.match(preflightRoute, /parsePdmCompanyRequest/, "Preflight route must parse requested PDM company code");
+assert.match(preflightRoute, /requestedPdmCompanyCodeFromRequest/, "Preflight route must validate header/query company selection");
+assert.match(preflightRoute, /withPrincipalCompanyRead/, "Preflight route must validate the Principal's company and grant");
+assert.doesNotMatch(preflightRoute, /requirePdmRouteAuthorizationAsync/, "Preflight route must not fall back to legacy user authorization");
+assert.match(preflightRoute, /companyId: company\.companyId/, "Preflight route must pass verified companyId to lock lookup");
 assert.match(itemLockRepository, /i\.company_id = :companyId/, "Lock lookup must filter items by company");
 assert.match(itemLockRepository, /s_match\.company_id = :companyId/, "Lock lookup must filter drawing matches by company");
 
