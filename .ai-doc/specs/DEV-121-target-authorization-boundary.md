@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-28 審核工作區 Principal-only 入口（候選來源，非 Production PASS）。** `/approvals/[requestId]` 只接受已驗 Principal 審核 API 回傳的 v2 immutable package，將該 request 的 contract token 交給共用審核工作區；canonical 404、舊 v1 package 或 relation 審核不會 fallback 到舊 native／legacy approval API 與角色決策。歷史資料仍保留，未轉換的 native 審核需另建 Principal contract 後才可再次列入可操作流程。DEV-101 contract 23／23、typecheck、scoped ESLint PASS。
+
 > **2026-09-28 審核收件匣讀取（候選來源，非 Production PASS）。** 此路由僅以已驗 Principal session 的 AAL2／`approval.inbox.view` 決策進入 company-scoped 收件匣；off-mode 直接 503，沒有舊角色授權 fallback。歷史 profile ID 只作既有 `reviewer_user_id` 外鍵篩選。repository 僅讀同一快照內已轉換的 pending `part_change`／`drawing_revision`，不查舊 native／legacy approval 來源或顯示尚不能以 Principal 處理的 `drawing_rd_void`。路由與 repository 聚焦 5／5、typecheck、scoped ESLint 及 v2 route policy 檢查 PASS。未轉換的審核來源與操作仍是切流缺口。
 
 > **2026-09-28 owner SQL 候選修正（非 Production PASS）。** Forward-only 071 先在 migration 交易內拒絕既有 canonical account 缺少歷史 active marker 的漂移，然後移除三個 owner-private 管理命令的逐人 marker JOIN；其餘 typed provider pair、published grant、當次 session、account lifecycle 檢查與函式權限不變。marker 與 operation receipt 保留歷史查證，不能再成為正常命令的授權來源。DB boundary、owner release 單元 52／52、隔離 PostgreSQL 24／24 PASS，測試 cluster／port／temp 已清理；Production 全 cohort readback、候選版與 L4 尚未完成。下方早期記載的「SQL owner function marker 仍待處理」為當時狀態。
