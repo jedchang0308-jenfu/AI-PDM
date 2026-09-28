@@ -78,6 +78,21 @@ describe("principal authorization before external reads", () => {
       [{ permissionKind: "action", permissionCode: "settings.admin_matrix" }]);
   });
 
+  it("binds an external computation to its exact POST policy", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true, principalId: "principal-one",
+      permissionCode: "pdm.file_metadata.detect" }]);
+    const post = new Request("https://ai-pdm.test/api/file-metadata/detect", { method: "POST" });
+    const result = await authorizePrincipalWorkspaceExternalRead(post,
+      "src/app/api/file-metadata/detect/route.ts", "pdm.file_metadata.detect", "POST");
+    expect(result).toEqual({ principalId: "principal-one", profileId: "profile-one", company });
+    expect(mocks.evaluate).toHaveBeenCalledWith(snapshot, verified,
+      [{ permissionKind: "action", permissionCode: "pdm.file_metadata.detect" }]);
+    const wrongMethod = await authorizePrincipalWorkspaceExternalRead(request(),
+      "src/app/api/file-metadata/detect/route.ts", "pdm.file_metadata.detect", "POST");
+    expect((wrongMethod as Response).status).toBe(503);
+    expect(mocks.verifiedRequest).toHaveBeenCalledOnce();
+  });
+
   it("rejects denied, missing-token and wrong-policy requests before provider access", async () => {
     mocks.evaluate.mockResolvedValueOnce([{ allowed: false, principalId: "principal-one",
       permissionCode: "settings.secret.manage", decisionCode: "permission_not_granted" }]);

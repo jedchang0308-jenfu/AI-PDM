@@ -64,10 +64,11 @@ export async function withPrincipalCompanyRead(
 
 /** Authorize within one snapshot, then close it before an external provider read. */
 export async function authorizePrincipalWorkspaceExternalRead(
-  request: Request, routePath: string, permissionCode: string
+  request: Request, routePath: string, permissionCode: string,
+  method: "GET" | "POST" = "GET"
 ): Promise<Response | { principalId: string; profileId: string; company: PdmCompanyContext }> {
-  const policy = resolveJenfuRoutePolicy(routePath, "GET", { expectedPermissionCode: permissionCode });
-  if (policy?.path !== routePath || policy.authorizationMode !== "permission" ||
+  const policy = resolveJenfuRoutePolicy(routePath, method, { expectedPermissionCode: permissionCode });
+  if (request.method !== method || policy?.path !== routePath || policy.authorizationMode !== "permission" ||
       policy.scopeResolver !== "workspace") {
     return Response.json({ code: "principal_route_policy_unavailable" },
       { status: 503, headers: { "cache-control": "no-store" } });
