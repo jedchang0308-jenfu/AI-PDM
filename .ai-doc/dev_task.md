@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-28 DEV-121 canonical 工作台讀取（候選來源）**：料號與圖面工作台的清單／詳情四個 GET 已用精確 v2 route policy 進入 verified Principal read-only snapshot。頁面 grant 決定可否讀取，公司與 row identity 由同一 snapshot 核對；呈現的 create／update／submit／cancel／review 能力逐項讀已發布 grant，歷史 profile ID 僅比對既有 work owner，不能補授權，非本人編輯預設拒絕。未遷移的作廢命令不顯示，Principal 讀取不在快照中排入預覽寫入 Job。受控路由圖譜現為 97 files／115 methods／124 entries，source hash `cb7c36d3aeeb9b38bbd2386c36965c8f1649d03f81b46d879489e19d51dd7c57`；聚焦 13／13、source lock 2／2、route classification 293／293、DEV-005 runtime QC 103／103、typecheck、scoped ESLint PASS。其他未轉換工作台命令與 Production L4 仍待完成，正式流量未變。
+
 > **2026-09-28 DEV-121 審核清單舊 caller 退役（候選來源）**：`/approvals` 改由 Principal 收件匣元件呈現，僅導向已驗的 `pdm_work_review` v2 審核包；移除頁面內對舊 native detail／decision／cleanup／apply API 的呼叫及其角色決策抽屜。原清單、搜尋、分頁、返回位置與鍵盤操作保留，選取鍵改用穩定 row key。未轉換的其他審核來源仍不可操作，必須在切流前依必要業務範圍補足 Principal contract。Typecheck、scoped ESLint、DEV-079 contract、DEV-101 contract 23／23、package 15／15、QA integrity 16／16 PASS；PR CI 與 Production L4 尚待執行，正式流量未變。
 
 > **2026-09-28 DEV-121 審核工作區舊 API fallback 退役（候選來源）**：由收件匣進入 `/approvals/[requestId]` 時只讀已驗 Principal 的 `/api/pdm/review-requests/[requestId]` v2 package；404 或非 v2 不再改查舊 `/api/approvals/requests/*`，也不提供舊角色決策／重試 UI。既有非 PDM 審核須另以 Principal 契約遷移後才能在新入口使用。DEV-101 contract 23／23、typecheck、scoped ESLint PASS；正式流量未變。

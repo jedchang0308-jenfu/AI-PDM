@@ -197,6 +197,19 @@ function boundaryFailures(entries, sources) {
         if (!graph.includes(entry.permissionCode)) failures.push(`${label}: permission code missing`)
         continue
       }
+      if (entry.path === 'src/app/api/approvals/inbox/route.ts' && entry.method === 'GET') {
+        for (const required of [
+          /principalSessionTokenFromRequest\s*\(/u,
+          /resolveJenfuRoutePolicy\s*\(/u,
+          /withVerifiedJenfuPrincipalRequest\s*\(/u,
+          /evaluatePrincipalWorkspacePermissionsInSnapshot\s*\(/u,
+          /listPrincipalWorkReviewInbox\s*\(/u
+        ]) {
+          if (!required.test(graph)) failures.push(`${label}: principal inbox guard missing: ${required}`)
+        }
+        if (!graph.includes(entry.permissionCode)) failures.push(`${label}: principal inbox permission missing`)
+        continue
+      }
       if (!/(?:requirePdmRouteAuthorizationAsync|resolveDev087RouteActor)\s*\(/u.test(graph)) failures.push(`${label}: PDM entitlement guard missing from handler graph`)
       if (entry.path.startsWith('src/app/api/pdm/')) {
         if (!/principalSessionTokenFromRequest\s*\(/u.test(graph) ||
@@ -295,6 +308,17 @@ function main() {
     entry.path === principalWorkPath && entry.method === 'POST'),
     new Map([[principalWorkPath, principalWorkMutant]]))
   assert.ok(principalWorkFailures.length > 0, 'principal work guard mutant was not detected')
+
+  const principalInboxPath = 'src/app/api/approvals/inbox/route.ts'
+  const principalInboxSource = sourceByPath.get(principalInboxPath)
+  const principalInboxMutant = principalInboxSource.replace(/withVerifiedJenfuPrincipalRequest\s*\(/u,
+    'removedPrincipalSessionVerification(')
+  assert.notEqual(principalInboxMutant, principalInboxSource,
+    'principal inbox mutant could not remove the guard')
+  const principalInboxFailures = boundaryFailures(routeMap.entries.filter((entry) =>
+    entry.path === principalInboxPath && entry.method === 'GET'),
+    new Map([[principalInboxPath, principalInboxMutant]]))
+  assert.ok(principalInboxFailures.length > 0, 'principal inbox guard mutant was not detected')
 
   const externalPath = 'src/app/api/file-metadata/detect/route.ts'
   const externalSource = sourceByPath.get(externalPath)
