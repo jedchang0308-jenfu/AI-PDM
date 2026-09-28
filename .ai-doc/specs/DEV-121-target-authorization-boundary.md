@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-29 停寫讀回可見性修正（候選來源，未執行 Production）。** 隔離 PostgreSQL 18 的實際第二連線證明：以 owner migrator 權限讀 `pg_stat_activity` 時，其他連線的 `backend_type` 可為 NULL；舊查詢用 `backend_type='client backend'` 過濾會把該連線整筆排除。因此下方 R1 的零連線 receipt 不能作為停寫證據。新版 `ai-pdm.principal-only-writer-readback.v2` 不以不可見的 `backend_type` 排除連線，除兩個固定 IAM login 外也計算繼承 AI-PDM runtime／migrator 角色的其他 session，並以 `ownerWriterSessionsAbsent` 明示總體結果；不列出帳號或個人資料。受限 receipt 與共用 Job 日誌仍只含彙總數。隔離 PostgreSQL 26／26（含額外角色連線存在／斷線讀回）、inventory runner 15／15 PASS，暫時叢集、port、目錄已清理。這仍無法證明未來不會重啟 writer，也不取代 service manual/0、tag／Job／排程／外部 writer 核對與短 owner 鎖定交易；正式服務、traffic、資料未變。
+
 > **2026-09-29 送審鎖定預查 Principal 候選（未發布 Production）。** `POST /api/submissions/preflight-lock` 已移除舊 `requirePdmRouteAuthorizationAsync`：先核對受控 route 的 `submission.update`、已驗 Principal、唯一公司及已發布 grant；只在該唯讀快照內解析 body 並查同公司的 item lock。歷史 `pdm_user_id` 僅比對鎖定記錄的 owner 關聯，不能授權；異公司或缺識別符在查詢前拒絕。隔離 demo 舊 cookie 不再進入此正式候選端點，既有 demo QC 改驗拒絕且不輸出 lock 資料，Principal allow／deny／scope 的聚焦測試納入必需 Production Slice QC。聚焦 route test 4／4、連同 route-policy 12／12、app typecheck、scoped ESLint、293-method route classification 及兩項 Add-in source QC 均 PASS；後者不證明桌面流程可用。正式服務與 traffic 未變，仍需實際 provider、全業務流程及 L4 證據。
 
 > **SolidWorks Add-in 實際可用性缺口。** 現有 `sw-addin/Services/AuthService.cs` 仍用 email/password 呼叫 `/api/auth/token`，`ApiClient.cs` 仍用該 Bearer 呼叫鎖定預查並送到已退役的泛用 `/api/submissions`。目前的 Add-in source QC 僅驗證來源形狀，不能證明該桌面流程在正式 Principal-only 服務能登入或送審；此缺口須明確決定 Principal-based 桌面登入與送審契約，或把舊流程正式退役，且不得藉此恢復 UID／email 授權 fallback。

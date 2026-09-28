@@ -18,11 +18,13 @@ function database(row) {
   }
 }
 
-test('writer readback uses a read-only owner snapshot and names only AI-PDM logins', async () => {
+test('writer readback uses a read-only owner snapshot and includes unexpected AI-PDM role members', async () => {
   const input = database({ runtime_sessions: 0, migrator_sessions: 0,
-    hidden_sessions: 0, active_transactions: 0, non_idle_sessions: 0 })
+    other_owner_sessions: 0, hidden_sessions: 0, active_transactions: 0,
+    non_idle_sessions: 0 })
   const result = await readPrincipalOnlyWriterSessions(input)
-  assert.equal(result.ownerLoginSessionsAbsent, true)
+  assert.equal(result.ownerWriterSessionsAbsent, true)
+  assert.equal(result.schemaVersion, 'ai-pdm.principal-only-writer-readback.v2')
   assert.deepEqual(input.calls[0], { isolationLevel: 'repeatable_read', readOnly: true })
   assert.equal(input.calls[1], 'SET LOCAL ROLE jenfu_ai_pdm_migrator')
   assert.deepEqual(input.calls[2].params, {
@@ -30,25 +32,34 @@ test('writer readback uses a read-only owner snapshot and names only AI-PDM logi
     migrator: 'aipdm-prod-migrator@jenfu-platform-prod.iam'
   })
   assert.match(input.calls[2].sql, /pg_catalog\.pg_stat_activity/u)
+  assert.doesNotMatch(input.calls[2].sql, /backend_type/u)
+  assert.match(input.calls[2].sql, /pg_catalog\.pg_has_role\(usename,'jenfu_ai_pdm_runtime','MEMBER'\)/u)
+  assert.match(input.calls[2].sql, /pg_catalog\.pg_has_role\(usename,'jenfu_ai_pdm_migrator','MEMBER'\)/u)
   assert.match(input.calls[2].sql, /pid<>pg_backend_pid\(\)/u)
 })
 
 test('writer readback never calls present sessions absent or hides unknown state', async () => {
   for (const row of [
     { runtime_sessions: 1, migrator_sessions: 0, hidden_sessions: 0,
-      active_transactions: 0, non_idle_sessions: 0 },
+      other_owner_sessions: 0, active_transactions: 0, non_idle_sessions: 0 },
     { runtime_sessions: 0, migrator_sessions: 1, hidden_sessions: 1,
-      active_transactions: 0, non_idle_sessions: 1 },
+      other_owner_sessions: 0, active_transactions: 0, non_idle_sessions: 1 },
+    { runtime_sessions: 0, migrator_sessions: 0, other_owner_sessions: 1,
+      hidden_sessions: 0, active_transactions: 0, non_idle_sessions: 0 },
   ]) {
-    assert.equal((await readPrincipalOnlyWriterSessions(database(row))).ownerLoginSessionsAbsent, false)
+    assert.equal((await readPrincipalOnlyWriterSessions(database(row))).ownerWriterSessionsAbsent, false)
   }
   await assert.rejects(readPrincipalOnlyWriterSessions(database({
     runtime_sessions: 0, migrator_sessions: 0, hidden_sessions: 1,
-    active_transactions: 0, non_idle_sessions: 0
+    other_owner_sessions: 0, active_transactions: 0, non_idle_sessions: 0
   })), /principal_only_writer_readback_invalid/u)
   await assert.rejects(readPrincipalOnlyWriterSessions(database({
     runtime_sessions: null, migrator_sessions: 0, hidden_sessions: 0,
-    active_transactions: 0, non_idle_sessions: 0
+    other_owner_sessions: 0, active_transactions: 0, non_idle_sessions: 0
+  })), /principal_only_writer_readback_invalid/u)
+  await assert.rejects(readPrincipalOnlyWriterSessions(database({
+    runtime_sessions: 0, migrator_sessions: 0, other_owner_sessions: null,
+    hidden_sessions: 0, active_transactions: 0, non_idle_sessions: 0
   })), /principal_only_writer_readback_invalid/u)
   await assert.rejects(readPrincipalOnlyWriterSessions({ kind: 'sqlite' }),
     /principal_only_writer_readback_invalid/u)

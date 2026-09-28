@@ -338,6 +338,38 @@ try {
   await client.query(principalOwnerCorrection)
   await client.query('DROP TABLE orgmaster_contract.v_ai_pdm_effective_role_assignments_v1')
 
+  await check('owner writer readback sees an unexpected AI-PDM role member', async () => {
+    const { inventoryDatabaseAdapter } = await import(
+      './lib/dev121-principal-inventory-runner.mjs')
+    const { readPrincipalOnlyWriterSessions } = await import(pathToFileURL(
+      path.join(root, 'src/lib/jenfu-principal-only-writer-readback.ts')).href)
+    await client.query('CREATE ROLE "aipdm-extra-writer" LOGIN')
+    await client.query('GRANT jenfu_ai_pdm_runtime TO "aipdm-extra-writer"')
+    const extra = new pg.Client({ host: '127.0.0.1', port,
+      user: 'aipdm-extra-writer', database: 'postgres' })
+    try {
+      await extra.connect()
+      await extra.query('SELECT 1')
+      const roleMembership = await client.query(`SELECT
+        pg_has_role('aipdm-extra-writer','jenfu_ai_pdm_runtime','MEMBER')
+          AS member`)
+      assert.equal(roleMembership.rows[0].member, true)
+      const present = await readPrincipalOnlyWriterSessions(
+        inventoryDatabaseAdapter(client))
+      assert.equal(present.schemaVersion,
+        'ai-pdm.principal-only-writer-readback.v2')
+      assert.equal(present.otherOwnerSessions, 1)
+      assert.equal(present.ownerWriterSessionsAbsent, false)
+    } finally {
+      await extra.end().catch(() => undefined)
+      await client.query('DROP ROLE "aipdm-extra-writer"')
+    }
+    const absent = await readPrincipalOnlyWriterSessions(
+      inventoryDatabaseAdapter(client))
+    assert.equal(absent.otherOwnerSessions, 0)
+    assert.equal(absent.ownerWriterSessionsAbsent, true)
+  })
+
   await check('one-shot Principal-only owner transaction withholds unresolved profiles without local ACL', async () => {
     const publishedAt = '2026-09-28T00:00:00.000Z'
     const issuer = 'https://securetoken.google.com/jenfu-platform-prod'

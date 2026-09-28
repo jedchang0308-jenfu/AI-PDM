@@ -381,13 +381,14 @@ test('principal-only writer readback publishes counts without invoking a registr
     loadInventory: () => { throw new Error('registration must not run') },
     loadPrincipalOnlyWriterReadback: async () => ({
       readPrincipalOnlyWriterSessions: async () => ({
-        schemaVersion: 'ai-pdm.principal-only-writer-readback.v1',
-        runtimeSessions: 1, migratorSessions: 0, hiddenSessions: 0,
-        activeTransactions: 0, nonIdleSessions: 0, ownerLoginSessionsAbsent: false
+        schemaVersion: 'ai-pdm.principal-only-writer-readback.v2',
+        runtimeSessions: 1, migratorSessions: 0, otherOwnerSessions: 1, hiddenSessions: 0,
+        activeTransactions: 0, nonIdleSessions: 0, ownerWriterSessionsAbsent: false
       })
     })
   })
   assert.equal(result.mode, 'principal_only_writer_readback')
-  assert.equal(JSON.parse(receiptBytes).outcome.ownerLoginSessionsAbsent, false)
+  assert.equal(JSON.parse(receiptBytes).outcome.ownerWriterSessionsAbsent, false)
   assert.equal(JSON.parse(receiptBytes).outcome.runtimeSessions, 1)
+  assert.equal(JSON.parse(receiptBytes).outcome.otherOwnerSessions, 1)
 })

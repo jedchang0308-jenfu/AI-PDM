@@ -119,9 +119,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       activeProfiles: value.outcome.activeProfiles.length,
       withheldProfiles: value.outcome.withheld.length,
     } : value.mode === 'principal_only_writer_readback' ? {
-      ownerLoginSessionsAbsent: value.outcome.ownerLoginSessionsAbsent,
+      ownerWriterSessionsAbsent: value.outcome.ownerWriterSessionsAbsent,
       runtimeSessions: value.outcome.runtimeSessions,
       migratorSessions: value.outcome.migratorSessions,
+      otherOwnerSessions: value.outcome.otherOwnerSessions,
       hiddenSessions: value.outcome.hiddenSessions,
       activeTransactions: value.outcome.activeTransactions,
       nonIdleSessions: value.outcome.nonIdleSessions,
