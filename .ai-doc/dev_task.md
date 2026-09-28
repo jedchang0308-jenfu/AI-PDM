@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 歷史送審附件 Principal 讀取候選**：明細與附件共用同一受控 Principal 送審資源核對；附件另在快照內驗檔案綁定，快照外對固定 storage key 讀 bytes 並核對大小／SHA-256，先寫以 `principal_id` 為 actor 的 tenant 稽核再回應。舊業務按鈕仍退役，歷史附件連結可在新獨立授權路徑下載。v2 route map 102／121／130；來源與 Production 仍待 protected CI／QC、合併、owner release 及 L4，不能計入已切流。
+
 > **2026-09-29 DEV-121 歷史送審明細 Principal 唯讀候選**：直接書籤以受控 `submission.view`、已驗 Principal、同公司與提交者歷史 profile 關聯，在同一唯讀快照先授權再讀明細；`rd` 本人與 AAL2 管理角色跨人分開驗證。頁面對 Principal 回應只顯示歷史資料，不提供舊核准／撤回／重試或附件下載；檔案下載另待獨立授權契約。v2 route map 101／120／129，聚焦 9／9、app typecheck、route source-lock 2／2 與 method classification 293／293 PASS；正式環境未變，仍須 protected CI／QC、合併及 Production L4。
 
 > **2026-09-29 DEV-121 圖面作廢影響 Principal 讀取（候選來源）**：修正現行圖面工作台的 `GET /api/lifecycle/obsolete-impact` 在 Principal session 下落到舊 PDM 使用者授權的缺口。新分支以 reviewed `numbering.search`、verified Principal／company 與同一唯讀快照取得影響；deny 與 policy drift 不讀資源，非正式資料仍回 409。v2 map 分母更新為 100／119／128，聚焦測試納入既有 required Production Slice QC。這是必要業務讀取修正，正式流量尚未變；舊分支仍須在切流前退役。

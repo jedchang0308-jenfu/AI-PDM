@@ -488,10 +488,10 @@ function SubmissionDetailView({
                   </span>
                 </div>
                 <div className="file-actions">
-                  {historicalReadOnly ? <span>附件下載尚未開放</span> : <a className="secondary-button" href={`/api/submissions/${submission.id}/files/${file.id}`}>
+                  <a className="secondary-button" href={`/api/submissions/${submission.id}/files/${file.id}`}>
                     <Download size={14} aria-hidden="true" />
                     下載
-                  </a>}
+                  </a>
                 </div>
               </div>
             ))}
