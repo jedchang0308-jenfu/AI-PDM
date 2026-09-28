@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 歷史發布包 Principal 讀取候選**：沿用已驗 Principal `submission.view`、同公司／歷史提交者檢查；只在 Released／Obsolete 且 package 精確綁定時，讀固定 storage pointer、核對大小與 SHA-256、寫 `principal_id` tenant 稽核後回應 ZIP。歷史明細頁顯示發布包下載。v2 route map 103／122／131；此為候選來源，仍待 protected CI／QC、合併、正式 owner release／L4，不能計入切流完成。
+
 > **2026-09-29 DEV-121 歷史送審附件 Principal 讀取候選**：明細與附件共用同一受控 Principal 送審資源核對；附件另在快照內驗檔案綁定，快照外對固定 storage key 讀 bytes 並核對大小／SHA-256，先寫以 `principal_id` 為 actor 的 tenant 稽核再回應。舊業務按鈕仍退役，歷史附件連結可在新獨立授權路徑下載。v2 route map 102／121／130；來源與 Production 仍待 protected CI／QC、合併、owner release 及 L4，不能計入已切流。
 
 > **2026-09-29 DEV-121 歷史送審明細 Principal 唯讀候選**：直接書籤以受控 `submission.view`、已驗 Principal、同公司與提交者歷史 profile 關聯，在同一唯讀快照先授權再讀明細；`rd` 本人與 AAL2 管理角色跨人分開驗證。頁面對 Principal 回應只顯示歷史資料，不提供舊核准／撤回／重試或附件下載；檔案下載另待獨立授權契約。v2 route map 101／120／129，聚焦 9／9、app typecheck、route source-lock 2／2 與 method classification 293／293 PASS；正式環境未變，仍須 protected CI／QC、合併及 Production L4。

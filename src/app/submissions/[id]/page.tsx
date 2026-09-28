@@ -371,6 +371,11 @@ function SubmissionDetailView({
           <Link className="secondary-button" href={workbenchHref}>
             返回送審工作台
           </Link>
+          {(submission.status === "Released" || submission.status === "Obsolete") && submission.release_package ? (
+            <a className="secondary-button" href={`/api/submissions/${encodeURIComponent(submission.id)}/release-package`}>
+              下載發布包
+            </a>
+          ) : null}
           {canApprove ? (
             <button
               className="primary-button"
