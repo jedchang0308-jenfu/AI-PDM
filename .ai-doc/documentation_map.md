@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-29 DEV-121 來源 receipt 校驗及指紋更正**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)已依 GCS bytes 修正 SHA-256 抄錄，並新增 fail-closed source／cohort receipt 驗證器；實際唯讀 receipt 與合成負例 PASS。正式資料及 traffic 未改，切流條件仍未滿足。
+
 > **2026-09-28 DEV-121 全 cohort 正式 source readback**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄受保護來源、immutable operator、唯讀 Job 與受限 receipt：4 筆歷史啟用 profile 中 1 筆精確已核實、3 筆 withheld。一次性 Job 已清理，正式資料／traffic 未改；此證據不代表 one-shot apply、候選切流或 Production L4。
 
 > **2026-09-28 DEV-121 來源重驗**：[DEV-121 現行契約](specs/DEV-121-target-authorization-boundary.md)另封存第二次 Production 唯讀 receipt：4 組 Firebase pair 中只有 1 組與 OrgMaster 已發布 canonical／typed 身分一致，3 組仍無可用綁定；不能依 email 或歷史 Google 列補授權。正式資料與 traffic 未變。

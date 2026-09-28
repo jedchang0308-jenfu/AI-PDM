@@ -1,5 +1,7 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-29 DEV-121 來源 receipt 校驗**：修正前一份 Production 唯讀 receipt SHA-256 的兩字元抄錄錯誤；新增來源封套驗證器，以實際受限 receipt 核對 SHA-256、generation、target、全 cohort／withheld 與重算 source hash。合成負例及實際只讀 receipt PASS，Node 2／2、scoped ESLint PASS；未建正式寫入 Job，Production 資料與 traffic 未變。
+
 > **2026-09-28 DEV-121 Production 全 cohort source readback**：受保護 `main` `25f570ad5ebd1b916a1547a9ee4e0d8612f4b2e3` 的 immutable inventory image 已在正式環境執行唯讀 Job；4 筆歷史啟用 profile 中只有 1 筆與已發布身分精確核實，3 筆 withheld，來源及 cohort hash、operation／receipt generation、image digest、execution 見 [DEV-121 現行契約](specs/DEV-121-target-authorization-boundary.md)。Job 已清理，正式資料與 traffic 未改。下一步先證明舊 writer 停止，封裝受控 one-shot apply，備妥 Principal-only 候選及回復並完成必要業務路徑；此 readback 不解除 Production 切流條件。
 
 > **2026-09-28 DEV-121 one-shot receipt／readback 修正**：新 owner 交易的結果與既有正式 readback 原本不相容，會把已轉換的 Principal 誤判為啟用未確認。現以 operation input／source／cohort hash 與唯一 principal／profile、withheld 數量封閉驗證；聚焦 13／13、app typecheck、隔離 PostgreSQL 25／25 PASS，測試資料庫已清理。尚未改 Production。
