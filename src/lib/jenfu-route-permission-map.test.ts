@@ -85,6 +85,18 @@ describe("DEV-121 route authorization manifest", () => {
       path: "src/app/api/numbering/records/[rootCode]/obsolete/route.ts", scopeResolver: "workspace"
     });
   });
+  it("binds duplicate-check audit to its exact Principal POST policy", () => {
+    const request = new Request("https://ai-pdm.test/api/numbering/duplicate-check",
+      { method: "POST" });
+    expect(resolveJenfuRoutePolicyFromRequest(request, "numbering.duplicate_check")).toMatchObject({
+      path: "src/app/api/numbering/duplicate-check/route.ts",
+      permissionCode: "numbering.duplicate_check", scopeResolver: "workspace"
+    });
+    expect(resolveJenfuRoutePolicyFromRequest(request, "numbering.create")).toBeNull();
+    expect(resolveJenfuRoutePolicyFromRequest(new Request(request.url),
+      "numbering.duplicate_check")).toBeNull();
+  });
+
   it("keeps dashboard part and submission search policies disjoint", () => {
     const path = "src/app/api/search/route.ts";
     expect(resolveJenfuRouteAuthorization(path, "GET")).toBeNull();

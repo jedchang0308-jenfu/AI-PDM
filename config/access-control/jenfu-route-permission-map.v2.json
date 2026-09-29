@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "53daaf00e76e16e506cd4d8bc8d1b0b53e778049a8fd47790832b4b90a5d335e",
+  "sourceSha256": "d058be85dd39ad0340be3af5b1221f1a092e71a1a0ecddfc9f5bd6344a8a4d82",
   "denominator": {
-    "uniqueFiles": 110,
-    "uniqueMethods": 130,
-    "policyEntries": 140
+    "uniqueFiles": 111,
+    "uniqueMethods": 131,
+    "policyEntries": 141
   },
   "entries": [
     {
@@ -398,6 +398,16 @@
       "authorizationTarget": "numbering.drawings.view",
       "scopeResolver": "workspace",
       "preservedGuards": "verified principal＋published action grants＋company／stable read snapshot"
+    },
+    {
+      "path": "src/app/api/numbering/duplicate-check/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.duplicate_check",
+      "authorizationTarget": "numbering.duplicate_check",
+      "scopeResolver": "workspace",
+      "preservedGuards": "workspace＋verified principal／profile FK／same-transaction duplicate audit"
     },
     {
       "path": "src/app/api/numbering/records/[rootCode]/obsolete/route.ts",
