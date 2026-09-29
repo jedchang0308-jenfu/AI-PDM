@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { searchNumberingRecordsAsync } from "@/lib/numbering-async";
 import type { NumberingRecordStatus, NumberingSearchEntityType } from "@/lib/repositories/numbering-repository";
-import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
+import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 import { parseNumberSortDirection } from "@/lib/number-sort";
@@ -23,6 +22,8 @@ const recordStatuses = new Set([
 ]);
 
 export async function GET(request: Request) {
+  if (!principalSessionTokenFromRequest(request)) return NextResponse.json({ code: "auth_session_invalid" },
+    { status: 401, headers: { "cache-control": "no-store" } });
   const url = new URL(request.url);
   const entityType = normalizeEnum(url.searchParams.get("entityType"), entityTypes) as NumberingSearchEntityType | undefined;
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
@@ -39,15 +40,11 @@ export async function GET(request: Request) {
       const results = await new AsyncNumberingRepository(snapshot).searchNumberingRecords({
         ...search, companyId: company.companyId
       });
-      return NextResponse.json({ results, pdmCompany: company });
+      return NextResponse.json({ results, pdmCompany: company },
+        { headers: { "cache-control": "private, no-store" } });
     });
-  if (principalResponse) return principalResponse;
-
-  const auth = await requireNumberingCompanyPermissionAsync(request, "page", "numbering.search");
-  if (auth.response) return auth.response;
-  const results = await searchNumberingRecordsAsync({ ...search, companyId: auth.company.companyId });
-
-  return NextResponse.json({ results, pdmCompany: auth.company });
+  return principalResponse ?? NextResponse.json({ code: "principal_authorization_unavailable" },
+    { status: 503, headers: { "cache-control": "no-store" } });
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {

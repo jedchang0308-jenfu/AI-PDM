@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-29 搜尋與圖面讀取 Principal-only 候選（本機驗證，尚未發布 Production）。** 編號搜尋、圖面解析、圖面清單三支 GET 移除舊公司／profile 權限 fallback；缺 Principal session 在資料讀取前回 401。既有已發布 page grant、公司解析、圖面決策與查詢維持同一唯讀快照，回應 private/no-store。route classification 將三支列為 principal_company_read 並拒絕舊 guard 復活；現為 255 files／293 methods，其中 7 個 Principal 公司唯讀路由。聚焦 11／11、workspace typecheck、scoped ESLint 與分類 QC PASS。正式切流、完整業務流程及 Production L4 仍未完成。
+
 > **2026-09-29 canonical 工作台讀取 Principal-only 候選（本機驗證，尚未發布 Production）。** 零件／圖面工作台清單與明細共四支 GET 已移除 resolveDev087RouteActor 舊 route fallback；缺 Principal session 在任何 policy／資料讀取前回 401。既有已發布 page grant、公司、owner 與工作台能力仍於同一 read-only snapshot 驗證；歷史 profile ID 只作工作歸屬關聯。新 helper 負向測試納入 CI 與 owner release。此切片不代表其餘舊 route、完整 cohort、回復或 Production L4 完成。
 
 > **2026-09-29 編號追加 Principal-only 候選（本機驗證，尚未發布 Production）。** /api/numbering/roots/[rootCode]/{parts,drawings,drawing-part} 三支 POST 已納入精確 v2 route policy：主能力 numbering.create；實際建立圖號／料號關聯時另需 numbering.link_variant。principal_id 由已驗 session 傳到命令，附加能力依命令 payload 在同一 PostgreSQL 寫入快照重驗；缺能力或 grant 中途撤銷時拒絕且不寫入。無關聯的單件追加不額外要求連結能力。既有 pdm_user_id 仍僅作 created_by 業務外鍵。三路由不再呼叫舊 requireNumberingActionAsync。v2 map 114 files／134 methods／144 entries，來源鎖 5725b6924306f56960148b0407e04dd1e8e1589d5a53f2cf7f0149528de192c7；聚焦測試 21／21、workspace typecheck、來源鎖與 293-method 分類 PASS。這是 source 候選，正式切流、完整業務流程與 Production L4 仍未完成。

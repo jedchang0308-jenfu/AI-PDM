@@ -95,6 +95,18 @@ const principalSessionRoutes = new Map([
     ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest", "isAllowedRequestOrigin"]]
 ]);
 const principalCompanyReadRoutes = new Map([
+  ["GET /api/numbering/search", {
+    helper: "withPrincipalNumberingCompanyRead",
+    permissions: ["numbering.search"]
+  }],
+  ["GET /api/numbering/drawings/resolve", {
+    helper: "withPrincipalNumberingCompanyRead",
+    permissions: ["numbering.drawings.view"]
+  }],
+  ["GET /api/numbering/drawings", {
+    helper: "withPrincipalNumberingCompanyRead",
+    permissions: ["numbering.drawings.view", "approval.request.decide"]
+  }],
   ["GET /api/numbering/series-codes", {
     helper: "withPrincipalNumberingCompanyRead",
     permissions: ["numbering.search", "numbering.drawings.view", "numbering.create"]

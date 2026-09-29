@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { listDrawingModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
 import { ACTIVE_DRAWING_PURPOSE_CODES } from "@/lib/numbering-identity";
-import { canUserUseNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { JenfuPrincipalRequestError } from "@/lib/jenfu-principal-request-guard";
@@ -27,6 +25,8 @@ const recordStatuses = new Set([
 const purposeCodes = new Set<string>(ACTIVE_DRAWING_PURPOSE_CODES);
 
 export async function GET(request: Request) {
+  if (!principalSessionTokenFromRequest(request)) return NextResponse.json({ code: "auth_session_invalid" },
+    { status: 401, headers: { "cache-control": "no-store" } });
   const url = new URL(request.url);
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const purposeCode = normalizeEnum(url.searchParams.get("purposeCode"), purposeCodes) as DrawingPurposeCode | undefined;
@@ -53,34 +53,11 @@ export async function GET(request: Request) {
         throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
       }
       return NextResponse.json({ drawings, productSeriesOptions, seriesCodeOptions,
-        pdmCompany: company, approvalProjection: { canReview: decisions[0].allowed } });
+        pdmCompany: company, approvalProjection: { canReview: decisions[0].allowed } },
+        { headers: { "cache-control": "private, no-store" } });
     });
-  if (principalResponse) return principalResponse;
-
-  const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
-  if (auth.response) return auth.response;
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id,
-    requestedNumberingCompanyCodeFromRequest(request));
-  if (companyResult.response) return companyResult.response;
-  const [drawings, productSeriesOptions, seriesCodeOptions, approvalPermission] = await Promise.all([
-    listDrawingModuleRecordsAsync({
-      companyId: companyResult.company.companyId,
-      ...listInput
-    }),
-    listProductSeriesOptionsAsync(companyResult.company.companyId),
-    listSeriesCodeOptionsAsync(companyResult.company.companyId),
-    canUserUseNumberingActionAsync(auth.user, "approval.request.decide")
-  ]);
-
-  return NextResponse.json({
-    drawings,
-    productSeriesOptions,
-    seriesCodeOptions,
-    pdmCompany: companyResult.company,
-    approvalProjection: {
-      canReview: approvalPermission.allowed
-    }
-  });
+  return principalResponse ?? NextResponse.json({ code: "principal_authorization_unavailable" },
+    { status: 503, headers: { "cache-control": "no-store" } });
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {
