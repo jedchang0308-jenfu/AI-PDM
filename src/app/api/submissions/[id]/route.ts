@@ -1,12 +1,8 @@
 ﻿import { NextResponse } from "next/server";
-import { forbidden, requireAuthAsync } from "@/lib/auth-async";
-import { canReadSubmissionAsync } from "@/lib/permissions";
-import { getSubmissionAsync } from "@/lib/submissions-async";
-import { resolveLegacyDrawingLifecycleNavigation } from "@/lib/approval-workbench-legacy-redirect";
 import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
 import { getJenfuEntitlementMode } from "@/lib/entitlement-config";
 import { principalRequestFailure, principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
-import { withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { JenfuPrincipalRequestError, withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { authorizePrincipalSubmissionReadInSnapshot } from "@/lib/principal-submission-access";
 import { AsyncSubmissionListRepository } from "@/lib/repositories/submission-list-async-repository";
@@ -16,66 +12,36 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const token = principalSessionTokenFromRequest(request);
-  if (token || (getAuthMode() === "firebase_bff" && getJenfuPlatformAuthMode() === "on")) {
-    const path = "src/app/api/submissions/[id]/route.ts";
-    const policy = resolveJenfuRoutePolicy(path, "GET", { expectedPermissionCode: "submission.view" });
-    if (policy?.path !== path || policy.authorizationMode !== "permission" ||
-        policy.scopeResolver !== "submission company") {
-      return NextResponse.json({ code: "principal_route_policy_unavailable" },
-        { status: 503, headers: { "cache-control": "no-store" } });
-    }
-    if (!token) return NextResponse.json({ code: "auth_session_invalid" },
-      { status: 401, headers: { "cache-control": "no-store" } });
-    if (getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on" ||
-        getJenfuEntitlementMode() !== "enforce") {
-      return NextResponse.json({ code: "principal_authorization_unavailable" },
-        { status: 503, headers: { "cache-control": "no-store" } });
-    }
-    try {
-      const { id } = await params;
-      return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
-        const resource = await authorizePrincipalSubmissionReadInSnapshot(snapshot, verified, id);
-        if (resource instanceof Response) return resource;
-        const submission = await new AsyncSubmissionListRepository(snapshot).getSubmission(id);
-        if (!submission || submission.company_id !== resource.company_id ||
-            submission.submitted_by !== resource.submitted_by) {
-          return NextResponse.json({ code: "principal_dependency_unavailable" },
-            { status: 503, headers: { "cache-control": "no-store" } });
-        }
-        return NextResponse.json({ submission: {
-          ...submission,
-          release_actionability: await new AsyncSubmissionStatusRepository(snapshot)
-            .getSubmissionReleaseActionability({ id })
-        }, historicalReadOnly: true }, { headers: { "cache-control": "private, no-store" } });
-      });
-    } catch (error) { return principalRequestFailure(error); }
+  if (!token) return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
+  const path = "src/app/api/submissions/[id]/route.ts";
+  const policy = resolveJenfuRoutePolicy(path, "GET", { expectedPermissionCode: "submission.view" });
+  if (policy?.path !== path || policy.authorizationMode !== "permission" ||
+      policy.scopeResolver !== "submission company") {
+    return NextResponse.json({ code: "principal_route_policy_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
   }
-  const auth = await requireAuthAsync(request);
-  if (auth.response) return auth.response;
-
-  const { id } = await params;
-  const lifecycle = await resolveLegacyDrawingLifecycleNavigation({
-    submissionId: id,
-    actorId: auth.user.id,
-    companyId: auth.user.company_id
-  });
-  if (lifecycle) {
-    return NextResponse.json(
-      {
-        error: "DRAWING_LIFECYCLE_LEGACY_VIEW_DISABLED",
-        code: "DRAWING_LIFECYCLE_LEGACY_VIEW_DISABLED",
-        canonicalHref: lifecycle.canonicalHref
-      },
-      { status: 410 }
-    );
+  if (getAuthMode() !== "firebase_bff" || getJenfuPlatformAuthMode() !== "on" ||
+      getJenfuEntitlementMode() !== "enforce") {
+    return NextResponse.json({ code: "principal_authorization_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
   }
-  const submission = await getSubmissionAsync(id);
-  if (!submission) {
-    return NextResponse.json({ error: "submission_not_found", message: "找不到送審資料。" }, { status: 404 });
-  }
-  if (!(await canReadSubmissionAsync(auth.user, submission))) {
-    return forbidden();
-  }
-  return NextResponse.json({ submission });
+  try {
+    const { id } = await params;
+    return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
+      const resource = await authorizePrincipalSubmissionReadInSnapshot(snapshot, verified, id);
+      if (resource instanceof Response) return resource;
+      const submission = await new AsyncSubmissionListRepository(snapshot).getSubmission(id);
+      if (!submission || submission.company_id !== resource.company_id ||
+          submission.submitted_by !== resource.submitted_by) {
+        return NextResponse.json({ code: "principal_dependency_unavailable" },
+          { status: 503, headers: { "cache-control": "no-store" } });
+      }
+      return NextResponse.json({ submission: {
+        ...submission,
+        release_actionability: await new AsyncSubmissionStatusRepository(snapshot)
+          .getSubmissionReleaseActionability({ id })
+      }, historicalReadOnly: true }, { headers: { "cache-control": "private, no-store" } });
+    });
+  } catch (error) { return principalRequestFailure(error); }
 }
 

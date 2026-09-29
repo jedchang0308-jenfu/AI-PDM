@@ -14,9 +14,14 @@ vi.mock("@/lib/entitlement-config", () => ({ getJenfuEntitlementMode: mocks.enti
 vi.mock("@/lib/jenfu-principal-http", () => ({
   principalSessionTokenFromRequest: mocks.token,
   principalRequestInput: () => ({ token: "principal-session" }),
-  principalRequestFailure: () => Response.json({ code: "principal_dependency_unavailable" }, { status: 503 })
+  principalRequestFailure: (error: { code?: string }) => Response.json({
+    code: error.code === "auth_session_invalid" ? "auth_session_invalid" : "principal_dependency_unavailable"
+  }, { status: error.code === "auth_session_invalid" ? 401 : 503 })
 }));
-vi.mock("@/lib/jenfu-principal-request-guard", () => ({ withVerifiedJenfuPrincipalRequest: mocks.verifiedRead }));
+vi.mock("@/lib/jenfu-principal-request-guard", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/jenfu-principal-request-guard")>(),
+  withVerifiedJenfuPrincipalRequest: mocks.verifiedRead
+}));
 vi.mock("@/lib/jenfu-route-permission-map", () => ({ resolveJenfuRoutePolicy: mocks.policy }));
 vi.mock("@/lib/principal-submission-access", () => ({ authorizePrincipalSubmissionReadInSnapshot: mocks.authorize }));
 vi.mock("@/lib/repositories/submission-file-async-repository", () => ({
