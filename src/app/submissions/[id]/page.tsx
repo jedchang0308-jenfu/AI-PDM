@@ -9,32 +9,13 @@ import { revisionPackageRoleLabel } from "@/lib/revision-package";
 import { formatStatusErrorForUser, formatStatusForUser } from "@/lib/status-display";
 import type { SubmissionDetail } from "@/lib/types";
 
-type CurrentUser = {
-  id: string;
-  role: string;
-};
-
 type PageState =
   | { status: "loading" }
   | { status: "unauthorized" }
   | { status: "not_found" }
   | { status: "error"; message: string }
-  | { status: "restricted"; summary: RestrictedSubmissionSummary; message: string }
-  | { status: "ready"; submission: SubmissionDetail; historicalReadOnly: boolean };
+  | { status: "ready"; submission: SubmissionDetail };
 
-type RestrictedSubmissionSummary = {
-  id: string;
-  drawing_number: string;
-  part_number: string;
-  part_name: string;
-  revision: string;
-  status: string;
-  submitted_by_name: string;
-  created_at: string;
-  updated_at: string;
-  file_count: number;
-  file_roles: string[];
-};
 
 const submissionDetailStatusLabels: Record<string, string> = {
   ReviewApproved: "研發受控（已核准）",
@@ -44,7 +25,6 @@ const submissionDetailStatusLabels: Record<string, string> = {
 
 export default function SubmissionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [state, setState] = useState<PageState>({ status: "loading" });
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const { id } = use(params);
   const submissionId = decodeURIComponent(id);
 
@@ -61,36 +41,8 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           setState({ status: "not_found" });
           return;
         }
-        if (response.status === 410 && typeof body.canonicalHref === "string") {
-          window.location.replace(body.canonicalHref);
-          return;
-        }
         if (response.status === 403) {
-          if (response.headers.get("x-jenfu-principal-historical") === "1") {
-            setState({ status: "error", message: "你沒有權限查看這筆歷史送審資料。" });
-            return;
-          }
-          const summaryResponse = await fetch(`/api/submissions/${encodeURIComponent(submissionId)}/recovery-summary`);
-          const summaryBody = await summaryResponse.json().catch(() => ({}));
-          if (summaryResponse.status === 401) {
-            setState({ status: "unauthorized" });
-            return;
-          }
-          if (summaryResponse.status === 404) {
-            setState({ status: "not_found" });
-            return;
-          }
-          if (summaryResponse.ok && summaryBody.summary) {
-            setState({
-              status: "restricted",
-              summary: summaryBody.summary,
-              message:
-                summaryBody.message ??
-                "你可以查看同公司既有送審摘要；完整附件與審核內容需由送審建立者、主管或管理員查看。"
-            });
-            return;
-          }
-          setState({ status: "error", message: "你沒有權限查看這筆送審資料，請改由送審建立者、主管或管理員處理。" });
+          setState({ status: "error", message: "你沒有權限查看這筆歷史送審資料。" });
           return;
         }
         if (!response.ok) {
@@ -101,8 +53,11 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           setState({ status: "not_found" });
           return;
         }
-        setState({ status: "ready", submission: body.submission,
-          historicalReadOnly: body.historicalReadOnly === true });
+        if (body.historicalReadOnly !== true) {
+          setState({ status: "error", message: "歷史資料讀取契約無法驗證。" });
+          return;
+        }
+        setState({ status: "ready", submission: body.submission });
       })
       .catch((error) => setState({ status: "error", message: humanSubmissionLoadError(error instanceof Error ? error.message : error) }));
   }, [submissionId]);
@@ -111,16 +66,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
     load();
   }, [load]);
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok || !body.user) return null;
-        return body.user as CurrentUser;
-      })
-      .then(setCurrentUser)
-      .catch(() => setCurrentUser(null));
-  }, []);
+
 
   return (
     <>
@@ -189,126 +135,16 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
         </section>
       ) : null}
 
-      {state.status === "restricted" ? <RestrictedSubmissionView summary={state.summary} message={state.message} /> : null}
-
-      {state.status === "ready" ? <SubmissionDetailView submission={state.submission} currentUser={currentUser} onReload={load} historicalReadOnly={state.historicalReadOnly} /> : null}
+      {state.status === "ready" ? <SubmissionDetailView submission={state.submission} /> : null}
     </>
   );
 }
 
-function RestrictedSubmissionView({ summary, message }: { summary: RestrictedSubmissionSummary; message: string }) {
-  return (
-    <>
-      <section className="panel">
-        <div className="panel-header">
-          <h2>
-            {summary.drawing_number}
-            <StatusBadge status={summary.status} context="submission" />
-          </h2>
-          <span className="metadata-badge">送審 ID {summary.id}</span>
-        </div>
-
-        <div className="upload-message error" style={{ alignItems: "flex-start" }}>
-          <ShieldAlert size={16} aria-hidden="true" />
-          <div>
-            <p>只能查看受限摘要</p>
-            <p>{message} 現在請由送審建立者、主管或 Admin 處理完整明細。</p>
-          </div>
-        </div>
-
-        <div className="handoff-grid">
-          <Info label="圖號" value={summary.drawing_number} />
-          <Info label="主料號" value={summary.part_number || "未填"} />
-          <Info label="品名" value={summary.part_name || "未填"} />
-          <Info label="版次" value={summary.revision} />
-          <Info label="建立者" value={summary.submitted_by_name || "未記錄"} />
-          <Info label="建立時間" value={new Date(summary.created_at).toLocaleString()} />
-        </div>
-      </section>
-
-      <section className="panel">
-        <NextStepState
-          compact
-          eyebrow="權限受限"
-          title="你目前不用在這裡處理完整送審"
-          body="若你只是確認來源，這份摘要已足夠。若要審核、重新發行或取消送審，請交由送審建立者、R&D Manager 或 Admin 開啟完整明細。"
-          actions={[
-            { href: "/numbering/search", label: "回編號搜尋", variant: "primary" },
-            { href: "/", label: "回工作台" }
-          ]}
-        />
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <h2>附件摘要</h2>
-          <span className="metadata-badge">{summary.file_count} 個檔案</span>
-        </div>
-        <div className="metadata-list">
-          <span className="metadata-pair">
-            <span className="metadata-label">檔案角色</span>
-            <span className="metadata-value">{summary.file_roles.length ? summary.file_roles.join(", ") : "未記錄"}</span>
-          </span>
-        </div>
-      </section>
-    </>
-  );
-}
-
-function SubmissionDetailView({
-  submission,
-  currentUser,
-  onReload,
-  historicalReadOnly
-}: {
-  submission: SubmissionDetail;
-  currentUser: CurrentUser | null;
-  onReload: () => void;
-  historicalReadOnly: boolean;
-}) {
-  const [busyAction, setBusyAction] = useState<"approve" | "cancel" | "retry" | "return" | null>(null);
-  const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string; href?: string; label?: string } | null>(null);
-  const canManageRelease = currentUser?.role === "R&D Manager" || currentUser?.role === "Admin";
+function SubmissionDetailView({ submission }: { submission: SubmissionDetail }) {
   const packageReviewApproved = submission.revision_package?.effective_status === "ReviewApproved";
   const terminalLifecycleReadOnly = submission.release_actionability?.code.startsWith("SUBMISSION_RELEASE_TERMINAL_") ?? false;
-  const canApprove = !historicalReadOnly && submission.status === "Pending" && !packageReviewApproved && !terminalLifecycleReadOnly && canManageRelease;
-  const canCancel = !historicalReadOnly && submission.status === "Pending" && !packageReviewApproved && !terminalLifecycleReadOnly && (canManageRelease || currentUser?.id === submission.submitted_by);
-  const isUnresolvedReleaseIncomplete =
-    submission.status === "ReleaseFailed" && !submission.resolved_by_submission_id && !submission.resolved_at;
-  const workbenchHref = `/drawings/${encodeURIComponent(submission.drawing_number)}/submission-workbench`;
+  const workbenchHref = "/numbering/drawings?query=" + encodeURIComponent(submission.drawing_number);
   const revisionPackageWarnings = submission.revision_package?.warnings ?? [];
-
-  async function runSubmissionAction(
-    action: "approve" | "cancel" | "retry" | "return",
-    endpoint: string,
-    body?: Record<string, unknown>
-  ) {
-    setBusyAction(action);
-    setActionMessage(null);
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: body ? JSON.stringify(body) : undefined
-    });
-    const payload = await response.json().catch(() => ({}));
-    setBusyAction(null);
-    if (!response.ok) {
-      setActionMessage({ type: "error", text: humanSubmissionActionError(payload.message ?? payload.error) });
-      return;
-    }
-    if (action === "return" && payload.submissionId) {
-      setActionMessage({
-        type: "success",
-        text: payload.message ?? "已建立退回修正送審。",
-        href: `/submissions/${encodeURIComponent(payload.submissionId)}`,
-        label: "查看新送審"
-      });
-      onReload();
-      return;
-    }
-    setActionMessage({ type: "success", text: payload.message ?? (action === "approve" ? "已核准並發布。" : "操作完成。") });
-    onReload();
-  }
 
   return (
     <>
@@ -320,7 +156,7 @@ function SubmissionDetailView({
           </h2>
           <span className="metadata-badge">送審 ID {submission.id}</span>
         </div>
-        {historicalReadOnly ? <p>這是歷史送審紀錄，僅供檢視。請在現行工作台執行後續操作。</p> : null}
+        <p>這是歷史送審紀錄，僅供檢視。請在現行工作台執行後續操作。</p>
 
         <div className="handoff-grid">
           <Info label="圖號" value={submission.drawing_number} />
@@ -359,7 +195,7 @@ function SubmissionDetailView({
           <div className="upload-message error">
             <ShieldAlert size={16} aria-hidden="true" />
             <p>{submission.release_actionability?.message}</p>
-            <Link href={submission.release_actionability?.recovery_href ?? "/numbering/search"}>
+            <Link href={workbenchHref}>
               {submission.release_actionability?.code === "SUBMISSION_RELEASE_TERMINAL_SANDBOX" ? "返回來源圖面" : "返回圖料歷史"}
             </Link>
           </div>
@@ -369,88 +205,15 @@ function SubmissionDetailView({
 
         <div className="next-step-inline-actions">
           <Link className="secondary-button" href={workbenchHref}>
-            返回送審工作台
+            回圖號工作台
           </Link>
           {(submission.status === "Released" || submission.status === "Obsolete") && submission.release_package ? (
             <a className="secondary-button" href={`/api/submissions/${encodeURIComponent(submission.id)}/release-package`}>
               下載發布包
             </a>
           ) : null}
-          {canApprove ? (
-            <button
-              className="primary-button"
-              type="button"
-              disabled={busyAction !== null}
-              onClick={() =>
-                runSubmissionAction("approve", `/api/submissions/${encodeURIComponent(submission.id)}/approve`, {
-                  comment: "由送審明細核准發布。"
-                })
-              }
-            >
-              {busyAction === "approve" ? "核准中..." : "核准發布"}
-            </button>
-          ) : null}
-          {canCancel ? (
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={busyAction !== null}
-              onClick={() =>
-                runSubmissionAction("cancel", `/api/submissions/${encodeURIComponent(submission.id)}/cancel`, {
-                  reason: "由送審明細撤回審核中送審。"
-                })
-              }
-            >
-              {busyAction === "cancel" ? "撤回中..." : "撤回送審"}
-            </button>
-          ) : null}
-          {isUnresolvedReleaseIncomplete && canManageRelease && !historicalReadOnly ? (
-            <>
-              <button
-                className="primary-button"
-                type="button"
-                disabled={busyAction !== null}
-                onClick={() => runSubmissionAction("retry", `/api/submissions/${encodeURIComponent(submission.id)}/retry-release`)}
-              >
-                {busyAction === "retry" ? "重新發行中..." : "重新發行"}
-              </button>
-              <Link className="secondary-button" href={workbenchHref}>
-                到工作台修正附件
-              </Link>
-            </>
-          ) : null}
+
         </div>
-
-        {submission.status === "Pending" && !packageReviewApproved && !canCancel ? (
-          <div className="upload-message error">
-            <ShieldAlert size={16} aria-hidden="true" />
-            <p>這筆送審仍在審核中；若需要取消，請由送審建立者、主管或 Admin 處理。</p>
-          </div>
-        ) : null}
-
-        {isUnresolvedReleaseIncomplete ? (
-          <div className="upload-message error">
-            <ShieldAlert size={16} aria-hidden="true" />
-            <p>
-              {canManageRelease
-                ? "此圖號版次已通過審核，但尚未完成發行。若是暫時性發布失敗可重新發行；若是附件或檔名問題，請到工作台修正附件後建立新的送審。"
-                : "此圖號版次已通過審核，但尚未完成發行，需要主管或 Admin 處理。"}
-            </p>
-          </div>
-        ) : null}
-
-        {submission.status === "ReleaseFailed" && (submission.resolved_by_submission_id || submission.resolved_at) ? (
-          <div className="upload-message success">
-            <p>這筆發行未完成已由後續送審處理完成，不會再阻擋同版次工作。</p>
-          </div>
-        ) : null}
-
-        {actionMessage ? (
-          <div className={actionMessage.type === "success" ? "upload-message success" : "upload-message error"}>
-            <p>{actionMessage.text}</p>
-            {actionMessage.href ? <Link href={actionMessage.href}>{actionMessage.label ?? "查看"}</Link> : null}
-          </div>
-        ) : null}
 
         <div className="handoff-note">
           <span className="section-label">送審備註 / 變更原因</span>
@@ -513,8 +276,7 @@ function RevisionPackageReviewWarnings({ warnings }: { warnings: NonNullable<Sub
     <div className="upload-message warning" style={{ alignItems: "flex-start" }}>
       <AlertTriangle size={16} aria-hidden="true" />
       <div>
-        <p>審核前請先確認版次檔案包。</p>
-        <p>這些提醒不會阻擋核准；若檔案不足以審核，請駁回並請送審者補件。</p>
+        <p>以下是這筆歷史送審留存的版次檔案提醒。</p>
         <ul>
           {warnings.map((warning) => (
             <li key={`${warning.code}-${warning.affectedFileIds?.join(",") ?? ""}`}>{warning.messageForReviewer}</li>
@@ -559,17 +321,5 @@ function humanSubmissionLoadError(value: unknown) {
   if (!text) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回編號搜尋重新開啟或請 Admin 協助確認。";
   if (text === "Insufficient role permission" || text === "FORBIDDEN") return "你沒有權限查看這筆送審資料。";
   if (text.includes("Internal Server Error")) return "送審明細暫時無法讀取。請重新整理；若仍失敗，請回編號搜尋重新開啟或請 Admin 協助確認。";
-  return formatStatusErrorForUser(text, "submission");
-}
-
-function humanSubmissionActionError(value: unknown) {
-  const text = String(value ?? "").trim();
-  if (!text) return "操作未完成。請重新整理後再試；若仍失敗，請主管或 Admin 協助確認。";
-  if (text === "FORBIDDEN" || text === "Insufficient role permission") return "你目前不能執行這個動作，請由主管或 Admin 處理。";
-  if (text.includes("DUPLICATE_RELEASE_FILENAME")) return "重新發行失敗：附件檔名已被其他正式紀錄使用。請到送審工作台移除錯誤附件或更換正確檔案後，再建立修正送審。";
-  if (text.includes("RELEASE_NOT_CONFIGURED")) return "重新發行失敗：系統尚未完成正式發行設定。請通知 Admin 檢查發行設定後再處理。";
-  if (text.includes("LOCAL_GDRIVE_RELEASE_FAILED")) return "重新發行失敗：檔案移到正式資料夾時失敗。請通知主管或 Admin 檢查發行資料夾與檔案權限。";
-  if (text.includes("主資料狀態同步失敗")) return "發行已嘗試完成，但主資料狀態同步未完成。請主管或 Admin 檢查主資料同步後再交接。";
-  if (text.includes("Internal Server Error")) return "操作未完成。請重新整理後再試；若仍失敗，請主管或 Admin 協助確認。";
   return formatStatusErrorForUser(text, "submission");
 }
