@@ -53,8 +53,11 @@ async function actorInSnapshot(snapshot: AsyncDatabaseClient, verified: Verified
 export async function principalCanonicalWorkbenchResponse(
   request: Request, routePath: string, entityType: WorkbenchEntityType,
   read: (service: PdmCanonicalWorkbenchService, actor: CanonicalWorkbenchActor) => Promise<unknown>
-): Promise<Response | null> {
-  if (!principalSessionTokenFromRequest(request)) return null;
+): Promise<Response> {
+  if (!principalSessionTokenFromRequest(request)) {
+    return Response.json({ code: "auth_session_invalid" },
+      { status: 401, headers: { "cache-control": "no-store" } });
+  }
   const pagePermission = entityType === "drawing" ? "numbering.drawings.view" : "numbering.search";
   const policy = resolveJenfuRoutePolicyFromRequest(request, pagePermission);
   if (policy?.path !== routePath || policy.authorizationMode !== "permission" ||

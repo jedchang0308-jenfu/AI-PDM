@@ -55,6 +55,18 @@ describe("Principal canonical workbench read", () => {
     mocks.list.mockResolvedValue({ data: { groups: [] } });
   });
 
+  it("rejects a missing Principal session before any workbench or policy read", async () => {
+    mocks.token.mockReturnValueOnce(null);
+    const response = await principalCanonicalWorkbenchResponse(
+      new Request("https://example.test/api/parts/workbench"), partRoute, "part",
+      () => mocks.list());
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ code: "auth_session_invalid" });
+    expect(mocks.policy).not.toHaveBeenCalled();
+    expect(mocks.principalRead).not.toHaveBeenCalled();
+    expect(mocks.list).not.toHaveBeenCalled();
+  });
+
   it("uses the verified principal grants and one snapshot for Part rows", async () => {
     allowCodes("numbering.workspace.create", "numbering.workspace.update");
     const request = new Request("https://example.test/api/parts/workbench");
