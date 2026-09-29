@@ -4652,8 +4652,10 @@ export class AsyncNumberingRepository {
     return this.client.transaction(run);
   }
 
-  async checkNumberingDuplicates(input: DuplicateCheckInput): Promise<DuplicateCheckResult> {
-    const run = async (client: AsyncDatabaseClient) => this.checkNumberingDuplicatesInClient(client, input);
+  async checkNumberingDuplicates(input: DuplicateCheckInput,
+    securityActor?: { principalId: string; profileVersion: number }): Promise<DuplicateCheckResult> {
+    const run = async (client: AsyncDatabaseClient) =>
+      this.checkNumberingDuplicatesInClient(client, input, securityActor);
     if (this.client.kind === "postgres") return this.client.transaction(run);
     return run(this.client);
   }
@@ -6665,7 +6667,13 @@ export class AsyncNumberingRepository {
       .slice(0, 50);
   }
 
-  private async checkNumberingDuplicatesInClient(client: AsyncDatabaseClient, input: DuplicateCheckInput): Promise<DuplicateCheckResult> {
+  private async checkNumberingDuplicatesInClient(client: AsyncDatabaseClient, input: DuplicateCheckInput,
+    securityActor?: { principalId: string; profileVersion: number }): Promise<DuplicateCheckResult> {
+    if (client.kind === "postgres" &&
+        (!securityActor?.principalId || !Number.isInteger(securityActor.profileVersion) ||
+         securityActor.profileVersion < 1 || !input.createdBy || !input.companyId)) {
+      throw new Error("NUMBERING_DUPLICATE_CHECK_PRINCIPAL_REQUIRED");
+    }
     const matches = new Map<string, DuplicateCheckMatch>();
     const addMatch = (match: DuplicateCheckMatch) => {
       const key = `${match.entityType}:${match.entityId}:${match.reason}`;
@@ -6800,16 +6808,25 @@ export class AsyncNumberingRepository {
       createdAt: this.clock()
     });
 
-    await client.execute(INSERT_ASYNC_NUMBERING_AUDIT_SQL, {
+    await client.execute(securityActor
+      ? INSERT_ASYNC_SCOPED_NUMBERING_AUDIT_SQL : INSERT_ASYNC_NUMBERING_AUDIT_SQL, {
       id: this.idFactory(),
       actorId: input.createdBy ?? null,
+      companyId: securityActor ? input.companyId : undefined,
+      scopeKind: securityActor ? "tenant" : undefined,
       action: "numbering.duplicate_check",
       detailJson: JSON.stringify(
         normalizeAuditDetail({
           query: input,
           blocked,
           warningEventId,
-          matchCount: sortedMatches.length
+          matchCount: sortedMatches.length,
+          securityActor: securityActor ? {
+            principalId: securityActor.principalId,
+            profileVersion: securityActor.profileVersion,
+            actorKind: "human",
+            reason: "numbering_duplicate_check"
+          } : undefined
         })
       ),
       createdAt: this.clock()
