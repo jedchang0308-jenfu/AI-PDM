@@ -18,6 +18,9 @@ const DOMAIN_ERROR_CODES = [
 
 export function canonicalNumberingCreateApiError(error: unknown): CanonicalNumberingCreateApiError {
   const message = error instanceof Error ? error.message : String(error ?? "");
+  if (message === "PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED") {
+    return { error: "permission_denied", status: 403 };
+  }
   if (/UNIQUE|SQLITE_CONSTRAINT|duplicate key|constraint failed/iu.test(message)) {
     return { error: "NUMBERING_ALLOCATION_CONFLICT", status: 409 };
   }

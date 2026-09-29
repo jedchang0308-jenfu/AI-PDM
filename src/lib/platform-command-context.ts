@@ -48,6 +48,7 @@ export async function requireNumberingPlatformCommandAsync(
     action: string;
     permissionCode?: string;
     body?: Record<string, unknown>;
+    additionalPermissionCodes?: string[];
   }
 ): Promise<NumberingPlatformCommandAccess> {
   const permissionCode = input.permissionCode ?? input.action;
@@ -118,9 +119,10 @@ export async function requireNumberingPlatformCommandAsync(
       principalRequest: principalRequestInput(token),
       principalAuthorization: {
         request, routePath: route.path, method: request.method, permissionCode,
-        additionalPermissionCodes: input.action === "numbering.create" &&
-          Boolean(body.drawingRequested ?? body.drawing_requested)
-          ? ["numbering.link_variant"] : []
+        additionalPermissionCodes: input.additionalPermissionCodes ??
+          (input.action === "numbering.create" &&
+            Boolean(body.drawingRequested ?? body.drawing_requested)
+            ? ["numbering.link_variant"] : [])
       }
     },
     response: null

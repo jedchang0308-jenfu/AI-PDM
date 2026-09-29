@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "d058be85dd39ad0340be3af5b1221f1a092e71a1a0ecddfc9f5bd6344a8a4d82",
+  "sourceSha256": "5725b6924306f56960148b0407e04dd1e8e1589d5a53f2cf7f0149528de192c7",
   "denominator": {
-    "uniqueFiles": 111,
-    "uniqueMethods": 131,
-    "policyEntries": 141
+    "uniqueFiles": 114,
+    "uniqueMethods": 134,
+    "policyEntries": 144
   },
   "entries": [
     {
@@ -428,6 +428,36 @@
       "authorizationTarget": "numbering.create",
       "scopeResolver": "workspace",
       "preservedGuards": "verified principal＋company＋link_variant when drawing requested＋numbering validation／idempotency"
+    },
+    {
+      "path": "src/app/api/numbering/roots/[rootCode]/drawing-part/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.create",
+      "authorizationTarget": "numbering.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋company＋link_variant when relation created＋append validation／idempotency"
+    },
+    {
+      "path": "src/app/api/numbering/roots/[rootCode]/drawings/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.create",
+      "authorizationTarget": "numbering.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋company＋link_variant when relation created＋append validation／idempotency"
+    },
+    {
+      "path": "src/app/api/numbering/roots/[rootCode]/parts/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.create",
+      "authorizationTarget": "numbering.create",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified principal＋company＋link_variant when relation created＋append validation／idempotency"
     },
     {
       "path": "src/app/api/parts/[partNumber]/shared-models/route.ts",

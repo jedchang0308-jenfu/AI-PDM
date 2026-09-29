@@ -39,6 +39,12 @@ test('new grants, restored old mutations, and deleted policies all fail the sour
   assert.throws(() => buildPrincipalRouteMapV2(source, changedDuplicateAudit),
     /unreviewed v2 route policy change/)
 
+  const changedAppend = structuredClone(reviewed)
+  changedAppend.entries.find((entry) => entry.path ===
+    'src/app/api/numbering/roots/[rootCode]/drawing-part/route.ts').permissionCode = 'numbering.link_variant'
+  assert.throws(() => buildPrincipalRouteMapV2(source, changedAppend),
+    /unreviewed v2 route policy change/)
+
   const restoredSubmission = structuredClone(reviewed)
   restoredSubmission.entries.find((entry) => entry.path ===
     'src/app/api/submissions/route.ts' && entry.method === 'POST').authorizationMode = 'permission'

@@ -160,6 +160,83 @@ describe("principal command and mutation use one verified snapshot", () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["append_drawing", "drawings", { linkPartNumber: "P-1", linkRelationType: "auto" }],
+    ["append_part", "parts", { linkDrawingNumber: "D-1", linkRelationType: "reference" }],
+    ["append_drawing_part", "drawing-part", { linkRelationType: "auto" }]
+  ] as const)("requires and rechecks link_variant for %s in the write snapshot", async (
+    commandSuffix, pathSuffix, payload
+  ) => {
+    const database = client();
+    const appendRoute = {
+      request: new Request("https://ai-pdm.test/api/numbering/roots/R-1/" + pathSuffix, {
+        method: "POST", headers: { cookie: "pdm_session=" + token }
+      }),
+      routePath: "src/app/api/numbering/roots/[rootCode]/" + pathSuffix + "/route.ts",
+      method: "POST", permissionCode: "numbering.create",
+      additionalPermissionCodes: ["numbering.link_variant"]
+    };
+    const appendCommand = createPdmCommand({
+      commandName: "pdm.numbering." + commandSuffix,
+      idempotencyKey: "append-" + commandSuffix,
+      actor: command().actor, payload
+    });
+    const mutate = vi.fn(async () => ({ ok: true }));
+    mocks.evaluate.mockImplementation(async (_client, _verified, permissions) => permissions.map(
+      (permission: { permissionCode: string }) => ({
+        allowed: true, principalId, permissionCode: permission.permissionCode
+      })));
+    const request = { ...input(database, mutate), command: appendCommand,
+      principalAuthorization: appendRoute };
+    await expect(executePdmCommandWithOutbox(request)).resolves.toMatchObject({
+      result: { ok: true }
+    });
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified, [
+      { permissionKind: "action", permissionCode: "numbering.create" },
+      { permissionKind: "action", permissionCode: "numbering.link_variant" }
+    ]);
+    expect(mutate).toHaveBeenCalledOnce();
+
+    mutate.mockClear();
+    await expect(executePdmCommandWithOutbox({ ...request,
+      principalAuthorization: { ...appendRoute, additionalPermissionCodes: [] } }))
+      .rejects.toThrow("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID");
+    expect(mutate).not.toHaveBeenCalled();
+
+    mocks.evaluate.mockImplementation(async (_client, _verified, permissions) => permissions.map(
+      (permission: { permissionCode: string }) => ({
+        allowed: permission.permissionCode !== "numbering.link_variant",
+        principalId, permissionCode: permission.permissionCode
+      })));
+    await expect(executePdmCommandWithOutbox(request))
+      .rejects.toThrow("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED");
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it("does not require link_variant for an append without a relation", async () => {
+    const database = client();
+    const noLinkRoute = {
+      request: new Request("https://ai-pdm.test/api/numbering/roots/R-1/parts", {
+        method: "POST", headers: { cookie: "pdm_session=" + token }
+      }),
+      routePath: "src/app/api/numbering/roots/[rootCode]/parts/route.ts",
+      method: "POST", permissionCode: "numbering.create", additionalPermissionCodes: []
+    };
+    const noLinkCommand = createPdmCommand({
+      commandName: "pdm.numbering.append_part", idempotencyKey: "append-no-link",
+      actor: command().actor, payload: { linkDrawingNumber: "D-1", linkRelationType: "none" }
+    });
+    const mutate = vi.fn(async () => ({ ok: true }));
+    mocks.evaluate.mockResolvedValue([{ allowed: true, principalId,
+      permissionCode: "numbering.create" }]);
+    await expect(executePdmCommandWithOutbox({ ...input(database, mutate),
+      command: noLinkCommand, principalAuthorization: noLinkRoute }))
+      .resolves.toMatchObject({ result: { ok: true } });
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified, [
+      { permissionKind: "action", permissionCode: "numbering.create" }
+    ]);
+  });
+
   it("never sends a v2 principal command when the active account check fails", async () => {
     const database = client();
     mocks.requireActive.mockRejectedValueOnce(new Error("principal_account_unavailable"));

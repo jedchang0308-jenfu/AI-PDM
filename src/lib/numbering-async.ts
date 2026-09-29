@@ -261,7 +261,11 @@ export async function addDrawingNumberToRootAsync(
     commandName: "pdm.numbering.append_drawing",
     idempotencyKey: commandMetadata.idempotencyKey,
     actor: commandMetadata.actor,
-    payload: { rootCode: input.rootCode, purposeCode: input.purposeCode }
+    payload: {
+      rootCode: input.rootCode, purposeCode: input.purposeCode,
+      linkPartNumber: input.linkPartNumber?.trim() || null,
+      linkRelationType: input.linkRelationType ?? "auto"
+    }
   });
   const executed = await executePdmCommandWithOutbox({
     client,
@@ -304,7 +308,12 @@ export async function addPartNumberToRootAsync(
     commandName: "pdm.numbering.append_part",
     idempotencyKey: commandMetadata.idempotencyKey,
     actor: commandMetadata.actor,
-    payload: { rootCode: input.rootCode, itemKind: input.itemKind ?? null, structureType: input.structureType ?? null, seriesCode: input.seriesCode?.trim() || null }
+    payload: {
+      rootCode: input.rootCode, itemKind: input.itemKind ?? null,
+      structureType: input.structureType ?? null, seriesCode: input.seriesCode?.trim() || null,
+      linkDrawingNumber: input.linkDrawingNumber?.trim() || null,
+      linkRelationType: input.linkRelationType ?? "auto"
+    }
   });
   const executed = await executePdmCommandWithOutbox({
     client,
@@ -349,7 +358,12 @@ export async function addDrawingAndPartToRootAsync(
     commandName: "pdm.numbering.append_drawing_part",
     idempotencyKey: commandMetadata.idempotencyKey,
     actor: commandMetadata.actor,
-    payload: { rootCode: input.rootCode, purposeCode: input.purposeCode, itemKind: input.itemKind ?? null, structureType: input.structureType ?? null, seriesCode: input.seriesCode?.trim() || null }
+    payload: {
+      rootCode: input.rootCode, purposeCode: input.purposeCode,
+      itemKind: input.itemKind ?? null, structureType: input.structureType ?? null,
+      seriesCode: input.seriesCode?.trim() || null,
+      linkRelationType: input.linkRelationType ?? "auto"
+    }
   });
   const executed = await executePdmCommandWithOutbox({
     client,
