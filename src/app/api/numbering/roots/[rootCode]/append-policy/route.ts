@@ -1,27 +1,21 @@
 import { NextResponse } from "next/server";
-import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { previewAppendNumbersAsync } from "@/lib/numbering-preview";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
 import { consensusStoredPartStructureType } from "@/lib/numbering-structure-type";
 import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
+import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 import type { PdmCompanyContext } from "@/lib/company-context";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ rootCode: string }> }) {
-  const principalResponse = await withPrincipalNumberingCompanyRead(request, "numbering.search",
-    (snapshot, company) => appendPolicyResponse(params, snapshot, company));
-  if (principalResponse) return principalResponse;
-
-  const auth = await requireNumberingPageAsync(request, "numbering.search");
-  if (auth.response) return auth.response;
-
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
-  if (companyResult.response) return companyResult.response;
-
-  return appendPolicyResponse(params, getAsyncDatabaseClient(), companyResult.company);
+  if (!principalSessionTokenFromRequest(request)) return NextResponse.json({ code: "auth_session_invalid" },
+    { status: 401, headers: { "cache-control": "no-store" } });
+  return (await withPrincipalNumberingCompanyRead(request, "numbering.search",
+    (snapshot, company) => appendPolicyResponse(params, snapshot, company))) ??
+    NextResponse.json({ code: "principal_authorization_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
 }
 
 async function appendPolicyResponse(params: Promise<{ rootCode: string }>, client: AsyncDatabaseClient,

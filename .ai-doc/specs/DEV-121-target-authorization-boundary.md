@@ -1,6 +1,8 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
-> **2026-09-29 工作台讀取 Principal-only 候選（尚未合併或發布 Production）。** GET /api/numbering/series-codes 與 GET /api/lifecycle/obsolete-impact 現只接受 v2 Principal session，缺失先回 401；已發布權限、公司與資料讀取仍在同一 Principal 快照內核對。Principal 讀取契約不可用時回 503，不再回退 Firebase／profile 權限或公司解析。正反向聚焦 9／9 與 app typecheck PASS；required CI 及 owner release 檢查納入兩個路由測試。這只涵蓋兩個讀取端點；舊寫入端點、全 cohort、回復與 Production L4 尚未驗收。
+> **2026-09-29 建立流程三個讀取 API Principal-only 候選（尚未合併或發布 Production）。** GET /api/numbering/roots/[rootCode]、其 append-policy 與 GET /api/numbering/records/preview 移除舊 Firebase／profile 權限及公司 fallback，只由 v2 Principal session、已發布 grant、已驗公司與同一 read-only snapshot 取得資料；無 session 401、Principal 合約不可用 503。聚焦 12／12、app typecheck、293-method route classification PASS；CI 與 owner release 既有檢查納入三個測試。根號明細的責任操作只依已發布 Principal 能力投影；舊主圖恢復代碼不在 v5 目錄，顯示為不可操作，不猜測轉授。duplicate-check 雖由建立表單當預查呼叫，現行 repository 會寫查重稽核，須另以 Principal 命令交易收斂，不得套用唯讀 helper；正式建立命令、全 cohort、回復與 Production L4 亦尚未驗收。
+
+> **2026-09-29 工作台讀取 Principal-only 來源（PR #144 已合併 main，尚未發布 Production）。** GET /api/numbering/series-codes 與 GET /api/lifecycle/obsolete-impact 現只接受 v2 Principal session，缺失先回 401；已發布權限、公司與資料讀取仍在同一 Principal 快照內核對。Principal 讀取契約不可用時回 503，不再回退 Firebase／profile 權限或公司解析。正反向聚焦 9／9 與 app typecheck PASS；required CI 及 owner release 檢查納入兩個路由測試。這只涵蓋兩個讀取端點；舊寫入端點、全 cohort、回復與 Production L4 尚未驗收。
 
 > **2026-09-29 歷史送審直接頁面唯讀來源（PR #143 已合併 main，尚未發布 Production）。** /submissions/[id] 僅在 GET 明細回傳 historicalReadOnly=true 後顯示內容；403 不再查舊 recovery-summary。頁面已移除依 profile role／pdm_user_id 顯示的核准、撤回、重發、退回等舊命令 caller、受限摘要 fallback 與舊工作台導向，保留已驗權的歷史附件／發布包下載，並導向 canonical 圖號工作台。App typecheck、scoped ESLint、歷史送審導航 QC 14／14 PASS；正式 L4 尚未驗證。
 
