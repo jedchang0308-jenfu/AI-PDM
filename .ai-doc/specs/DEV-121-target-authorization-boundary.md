@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-29 提交準備度／報表讀取 Principal-only 候選（本機驗證，尚未發布 Production）。** 根目錄提交準備度與匯出作業／月度稽核報表之清單、明細共五支 GET 不再回落舊 company/profile guard；缺 Principal session 在資料讀取前回 401，Principal 公司與 page grant 在同一唯讀快照核對，無法取得 Principal read 時 fail closed。兩支報表 POST 仍是另待處理的 legacy command，不在本切片完成範圍；不可因 GET 通過宣稱整個報表功能已完成。五支 GET 聚焦 8／8、workspace typecheck、scoped ESLint、293-method route classification（Principal 公司唯讀 12）、source/runtime boundary 與 diff check PASS。
+
 > **2026-09-29 搜尋與圖面讀取 Principal-only 候選（本機驗證，尚未發布 Production）。** 編號搜尋、圖面解析、圖面清單三支 GET 移除舊公司／profile 權限 fallback；缺 Principal session 在資料讀取前回 401。既有已發布 page grant、公司解析、圖面決策與查詢維持同一唯讀快照，回應 private/no-store。route classification 將三支列為 principal_company_read 並拒絕舊 guard 復活；現為 255 files／293 methods，其中 7 個 Principal 公司唯讀路由。聚焦 11／11、workspace typecheck、scoped ESLint 與分類 QC PASS。正式切流、完整業務流程及 Production L4 仍未完成。
 
 > **2026-09-29 canonical 工作台讀取 Principal-only 候選（本機驗證，尚未發布 Production）。** 零件／圖面工作台清單與明細共四支 GET 已移除 resolveDev087RouteActor 舊 route fallback；缺 Principal session 在任何 policy／資料讀取前回 401。既有已發布 page grant、公司、owner 與工作台能力仍於同一 read-only snapshot 驗證；歷史 profile ID 只作工作歸屬關聯。新 helper 負向測試納入 CI 與 owner release。此切片不代表其餘舊 route、完整 cohort、回復或 Production L4 完成。
