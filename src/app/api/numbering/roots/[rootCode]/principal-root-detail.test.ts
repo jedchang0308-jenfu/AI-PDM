@@ -62,7 +62,7 @@ describe("Principal-only root detail read", () => {
       drawingNumbers: [], partNumbers: [], links: [], summary: {}
     });
     mocks.decisions.mockImplementation(async (_snapshot, _verified, permissions) =>
-      permissions.map(({ permissionCode }, index) => ({
+      (permissions as Array<{ permissionCode: string }>).map(({ permissionCode }, index: number) => ({
         permissionCode, principalId: "principal-1", allowed: index < 4
       })));
     mocks.statusPair.mockReturnValue({ responsibilityActions: [] });
