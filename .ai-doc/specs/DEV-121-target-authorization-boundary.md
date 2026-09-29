@@ -1,5 +1,7 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
+> **2026-09-29 舊圖面進版 API 退役候選（本機驗證，尚未發布 Production）。** drawing-revisions/submissions 與 fff-assessments 已無正式 UI caller，且原本已固定回 410，故移除先行的舊 requireNumberingActionAsync；不讀資料、不寫資料，仍回非快取的退役訊息。route classification 固定為 retired_route，禁止再次接回舊授權。聚焦 1／1、workspace typecheck、scoped ESLint、293-method 分類與 diff check PASS；此切片不代表其他 legacy command 已退役。
+
 > **2026-09-29 提交準備度／報表讀取 Principal-only 候選（本機驗證，尚未發布 Production）。** 根目錄提交準備度與匯出作業／月度稽核報表之清單、明細共五支 GET 不再回落舊 company/profile guard；缺 Principal session 在資料讀取前回 401，Principal 公司與 page grant 在同一唯讀快照核對，無法取得 Principal read 時 fail closed。兩支報表 POST 仍是另待處理的 legacy command，不在本切片完成範圍；不可因 GET 通過宣稱整個報表功能已完成。五支 GET 聚焦 8／8、workspace typecheck、scoped ESLint、293-method route classification（Principal 公司唯讀 12）、source/runtime boundary 與 diff check PASS。
 
 > **2026-09-29 搜尋與圖面讀取 Principal-only 候選（本機驗證，尚未發布 Production）。** 編號搜尋、圖面解析、圖面清單三支 GET 移除舊公司／profile 權限 fallback；缺 Principal session 在資料讀取前回 401。既有已發布 page grant、公司解析、圖面決策與查詢維持同一唯讀快照，回應 private/no-store。route classification 將三支列為 principal_company_read 並拒絕舊 guard 復活；現為 255 files／293 methods，其中 7 個 Principal 公司唯讀路由。聚焦 11／11、workspace typecheck、scoped ESLint 與分類 QC PASS。正式切流、完整業務流程及 Production L4 仍未完成。
