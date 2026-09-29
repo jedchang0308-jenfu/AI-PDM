@@ -1,6 +1,8 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
-> **2026-09-29 歷史送審直接頁面唯讀候選（尚未合併或發布 Production）。** /submissions/[id] 僅在 GET 明細回傳 historicalReadOnly=true 後顯示內容；403 不再查舊 recovery-summary。頁面已移除依 profile role／pdm_user_id 顯示的核准、撤回、重發、退回等舊命令 caller、受限摘要 fallback 與舊工作台導向，保留已驗權的歷史附件／發布包下載，並導向 canonical 圖號工作台。App typecheck、scoped ESLint、歷史送審導航 QC 14／14 PASS；正式 L4 尚未驗證。
+> **2026-09-29 工作台讀取 Principal-only 候選（尚未合併或發布 Production）。** GET /api/numbering/series-codes 與 GET /api/lifecycle/obsolete-impact 現只接受 v2 Principal session，缺失先回 401；已發布權限、公司與資料讀取仍在同一 Principal 快照內核對。Principal 讀取契約不可用時回 503，不再回退 Firebase／profile 權限或公司解析。正反向聚焦 9／9 與 app typecheck PASS；required CI 及 owner release 檢查納入兩個路由測試。這只涵蓋兩個讀取端點；舊寫入端點、全 cohort、回復與 Production L4 尚未驗收。
+
+> **2026-09-29 歷史送審直接頁面唯讀來源（PR #143 已合併 main，尚未發布 Production）。** /submissions/[id] 僅在 GET 明細回傳 historicalReadOnly=true 後顯示內容；403 不再查舊 recovery-summary。頁面已移除依 profile role／pdm_user_id 顯示的核准、撤回、重發、退回等舊命令 caller、受限摘要 fallback 與舊工作台導向，保留已驗權的歷史附件／發布包下載，並導向 canonical 圖號工作台。App typecheck、scoped ESLint、歷史送審導航 QC 14／14 PASS；正式 L4 尚未驗證。
 
 > **2026-09-29 歷史送審明細與檔案 Principal-only 來源（PR #142 已合併 main，尚未發布 Production）。** GET /api/submissions/[id]、附件／預覽與發布包只接受 v2 Principal session，先驗已發布 submission.view、公司與歷史 owner 關聯，再讀完整明細或檔案；檔案與發布包保留雜湊／大小核對、Principal 稽核與 no-store。缺少或舊 session 在任何資料讀取前 401；三處舊 requireAuthAsync、canReadSubmissionAsync、profile/UID 授權分支已移除。聚焦 21／21、typecheck、route classification、DEV-005 runtime QC PASS；其他舊 dashboard 互動、背景工作、全 cohort、回復與 Production L4 仍未驗收。
 

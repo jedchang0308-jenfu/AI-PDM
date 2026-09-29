@@ -56,6 +56,23 @@ describe("Principal-only formal obsolete impact read", () => {
     expect(mocks.legacyPage).not.toHaveBeenCalled();
   });
 
+  it("requires a Principal session without consulting legacy permissions", async () => {
+    mocks.token.mockReturnValue(null);
+    const response = await GET(request());
+    expect(response.status).toBe(401);
+    expect(mocks.policy).not.toHaveBeenCalled();
+    expect(mocks.principalRead).not.toHaveBeenCalled();
+    expect(mocks.legacyPage).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the Principal read contract is unavailable", async () => {
+    mocks.principalRead.mockResolvedValue(null);
+    const response = await GET(request());
+    expect(response.status).toBe(503);
+    expect(mocks.impact).not.toHaveBeenCalled();
+    expect(mocks.legacyCompany).not.toHaveBeenCalled();
+  });
+
   it("does not read a resource after denial or route-policy drift", async () => {
     mocks.principalRead.mockResolvedValueOnce(Response.json({ code: "permission_not_granted" },
       { status: 403 }));

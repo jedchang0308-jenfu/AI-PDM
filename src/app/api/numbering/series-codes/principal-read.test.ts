@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  principalRead: vi.fn(), list: vi.fn(), legacyPage: vi.fn(),
+  principalRead: vi.fn(), token: vi.fn(), list: vi.fn(), legacyPage: vi.fn(),
   legacyAction: vi.fn(), legacyList: vi.fn(), legacyCompany: vi.fn()
 }));
 
 vi.mock("@/lib/principal-numbering-read", () => ({
   withPrincipalNumberingCompanyRead: mocks.principalRead
 }));
+vi.mock("@/lib/jenfu-principal-http", () => ({ principalSessionTokenFromRequest: mocks.token }));
 vi.mock("@/lib/repositories/numbering-async-repository", () => ({
   AsyncNumberingRepository: class {
     constructor(readonly snapshot: unknown) {}
@@ -33,6 +34,7 @@ const company = { companyId: "company-jenfu", companyCode: "JENFU", companyKind:
 describe("principal series-code read", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.token.mockReturnValue("principal-session");
     mocks.list.mockResolvedValue(["A1"]);
     mocks.principalRead.mockImplementation(async (_request, _permissions, read) => read(snapshot, company));
   });
@@ -48,6 +50,23 @@ describe("principal series-code read", () => {
     ], expect.any(Function));
     expect(mocks.list).toHaveBeenCalledWith(snapshot, "company-jenfu");
     expect(mocks.legacyPage).not.toHaveBeenCalled();
+    expect(mocks.legacyList).not.toHaveBeenCalled();
+  });
+
+  it("requires a Principal session without consulting legacy permissions", async () => {
+    mocks.token.mockReturnValue(null);
+    const response = await GET(request);
+    expect(response.status).toBe(401);
+    expect(mocks.principalRead).not.toHaveBeenCalled();
+    expect(mocks.legacyPage).not.toHaveBeenCalled();
+    expect(mocks.legacyAction).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the Principal read contract is unavailable", async () => {
+    mocks.principalRead.mockResolvedValue(null);
+    const response = await GET(request);
+    expect(response.status).toBe(503);
+    expect(mocks.list).not.toHaveBeenCalled();
     expect(mocks.legacyList).not.toHaveBeenCalled();
   });
 
