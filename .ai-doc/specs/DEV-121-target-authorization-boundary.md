@@ -1,6 +1,8 @@
 # DEV-121：AI-PDM 目標端授權邊界
 
-> **2026-09-29 歷史送審明細與檔案 Principal-only 候選（尚未合併或發布 Production）。** GET /api/submissions/[id]、附件／預覽與發布包只接受 v2 Principal session，先驗已發布 submission.view、公司與歷史 owner 關聯，再讀完整明細或檔案；檔案與發布包保留雜湊／大小核對、Principal 稽核與 no-store。缺少或舊 session 在任何資料讀取前 401；三處舊 requireAuthAsync、canReadSubmissionAsync、profile/UID 授權分支已移除。聚焦 21／21、typecheck、route classification、DEV-005 runtime QC PASS；其他舊 dashboard 互動、背景工作、全 cohort、回復與 Production L4 仍未驗收。
+> **2026-09-29 歷史送審直接頁面唯讀候選（尚未合併或發布 Production）。** /submissions/[id] 僅在 GET 明細回傳 historicalReadOnly=true 後顯示內容；403 不再查舊 recovery-summary。頁面已移除依 profile role／pdm_user_id 顯示的核准、撤回、重發、退回等舊命令 caller、受限摘要 fallback 與舊工作台導向，保留已驗權的歷史附件／發布包下載，並導向 canonical 圖號工作台。App typecheck、scoped ESLint、歷史送審導航 QC 14／14 PASS；正式 L4 尚未驗證。
+
+> **2026-09-29 歷史送審明細與檔案 Principal-only 來源（PR #142 已合併 main，尚未發布 Production）。** GET /api/submissions/[id]、附件／預覽與發布包只接受 v2 Principal session，先驗已發布 submission.view、公司與歷史 owner 關聯，再讀完整明細或檔案；檔案與發布包保留雜湊／大小核對、Principal 稽核與 no-store。缺少或舊 session 在任何資料讀取前 401；三處舊 requireAuthAsync、canReadSubmissionAsync、profile/UID 授權分支已移除。聚焦 21／21、typecheck、route classification、DEV-005 runtime QC PASS；其他舊 dashboard 互動、背景工作、全 cohort、回復與 Production L4 仍未驗收。
 
 > **2026-09-29 常用讀取入口 Principal-only 來源（PR #141 已合併 main，尚未發布 Production）。** 編號權限、搜尋與歷史送審清單三個 GET 只接受 v2 Principal session；缺少或舊 cookie 在讀取資料前 401。搜尋及清單沿既有精確 route policy、已發布 grant、公司／歷史 owner 關聯與同一 read-only snapshot，編號權限沿已驗 principal 的頁面／動作決策；三處舊 requireAuthAsync 與本機角色 fallback 已移除。舊編號權限測試隨死路徑退役，聚焦 Principal 測試納入 required CI 與發布檢查。聚焦 11／11、typecheck、route classification、DEV-005 runtime QC、scoped lint PASS。本段只代表 source 候選，其他必要 API、背景工作、完整 cohort 與 Production L4 仍待驗證。
 
