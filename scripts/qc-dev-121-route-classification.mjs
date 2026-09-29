@@ -98,6 +98,20 @@ const principalCompanyReadRoutes = new Map([
   ["GET /api/numbering/series-codes", {
     helper: "withPrincipalNumberingCompanyRead",
     permissions: ["numbering.search", "numbering.drawings.view", "numbering.create"]
+  }],
+  ["GET /api/numbering/roots/[rootCode]/append-policy", {
+    helper: "withPrincipalNumberingCompanyRead",
+    permissions: ["numbering.search"]
+  }],
+  ["GET /api/numbering/roots/[rootCode]", {
+    helper: "withPrincipalNumberingCompanyRead",
+    permissions: ["numbering.search", "numbering.draft.update",
+      "numbering.link_variant", "approval.request.decide", "numbering.publish",
+      "numbering.candidate.review.submit"]
+  }],
+  ["GET /api/numbering/records/preview", {
+    helper: "withPrincipalNumberingCompanyRead",
+    permissions: ["numbering.create"]
   }]
 ]);
 const publicStatusRoutes = new Map([

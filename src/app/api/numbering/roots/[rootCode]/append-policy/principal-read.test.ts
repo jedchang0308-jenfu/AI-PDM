@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  principalRead: vi.fn(), repositoryClient: vi.fn(), rootDetail: vi.fn(), preview: vi.fn(),
+  principalRead: vi.fn(), token: vi.fn(), repositoryClient: vi.fn(), rootDetail: vi.fn(), preview: vi.fn(),
   legacyPage: vi.fn(), legacyCompany: vi.fn(), database: vi.fn()
 }));
 
 vi.mock("@/lib/principal-numbering-read", () => ({
   withPrincipalNumberingCompanyRead: mocks.principalRead
 }));
+vi.mock("@/lib/jenfu-principal-http", () => ({ principalSessionTokenFromRequest: mocks.token }));
 vi.mock("@/lib/repositories/numbering-async-repository", () => ({
   AsyncNumberingRepository: class {
     constructor(client: unknown) { mocks.repositoryClient(client); }
@@ -33,6 +34,7 @@ const company = { companyId: "company-jenfu", companyCode: "JENFU", companyKind:
 describe("principal append-policy read", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.token.mockReturnValue("principal-session");
     mocks.rootDetail.mockResolvedValue({
       root: { rootCode: "A0001", recordStatus: "Active", itemKind: "manufactured" },
       partNumbers: [], drawingNumbers: [], summary: { partCount: 0, drawingCount: 0 }
@@ -57,6 +59,23 @@ describe("principal append-policy read", () => {
       ]);
     expect(mocks.legacyPage).not.toHaveBeenCalled();
     expect(mocks.database).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing Principal session before any business read", async () => {
+    mocks.token.mockReturnValue(null);
+    const response = await GET(request, params);
+    expect(response.status).toBe(401);
+    expect(mocks.principalRead).not.toHaveBeenCalled();
+    expect(mocks.rootDetail).not.toHaveBeenCalled();
+    expect(mocks.legacyPage).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the Principal read contract is unavailable", async () => {
+    mocks.principalRead.mockResolvedValue(null);
+    const response = await GET(request, params);
+    expect(response.status).toBe(503);
+    expect(mocks.rootDetail).not.toHaveBeenCalled();
+    expect(mocks.legacyPage).not.toHaveBeenCalled();
   });
 
   it("does not fall back to legacy identity after principal denial", async () => {

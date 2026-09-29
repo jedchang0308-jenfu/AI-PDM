@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  principalRead: vi.fn(), preview: vi.fn(), legacyAction: vi.fn(),
+  principalRead: vi.fn(), token: vi.fn(), preview: vi.fn(), legacyAction: vi.fn(),
   legacyCompany: vi.fn(), database: vi.fn()
 }));
 
 vi.mock("@/lib/principal-numbering-read", () => ({
   withPrincipalNumberingCompanyRead: mocks.principalRead
 }));
+vi.mock("@/lib/jenfu-principal-http", () => ({ principalSessionTokenFromRequest: mocks.token }));
 vi.mock("@/lib/numbering-preview", () => ({ previewNewBundleNumbersAsync: mocks.preview }));
 vi.mock("@/lib/numbering-permission-guard", () => ({ requireNumberingActionAsync: mocks.legacyAction }));
 vi.mock("@/lib/numbering-company-context", () => ({
@@ -25,6 +26,7 @@ const company = { companyId: "company-jenfu", companyCode: "JENFU", companyKind:
 describe("principal numbering preview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.token.mockReturnValue("principal-session");
     mocks.preview.mockResolvedValue({ root: "A0001", part: "A0001-P01", drawing: "A0001-R01" });
     mocks.principalRead.mockImplementation(async (_request, _permissions, read) => read(snapshot, company));
   });
@@ -39,6 +41,23 @@ describe("principal numbering preview", () => {
     expect(mocks.preview).toHaveBeenCalledWith(snapshot, "company-jenfu", "R");
     expect(mocks.legacyAction).not.toHaveBeenCalled();
     expect(mocks.database).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing Principal session before any business read", async () => {
+    mocks.token.mockReturnValue(null);
+    const response = await GET(request);
+    expect(response.status).toBe(401);
+    expect(mocks.principalRead).not.toHaveBeenCalled();
+    expect(mocks.preview).not.toHaveBeenCalled();
+    expect(mocks.legacyAction).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the Principal read contract is unavailable", async () => {
+    mocks.principalRead.mockResolvedValue(null);
+    const response = await GET(request);
+    expect(response.status).toBe(503);
+    expect(mocks.preview).not.toHaveBeenCalled();
+    expect(mocks.legacyAction).not.toHaveBeenCalled();
   });
 
   it("does not fall back to a legacy role after principal denial", async () => {

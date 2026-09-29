@@ -1,26 +1,22 @@
 import { NextResponse } from "next/server";
-import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { PdmCompanyContext } from "@/lib/company-context";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { previewNewBundleNumbersAsync } from "@/lib/numbering-preview";
 import type { NumberPreviewPurposeCode } from "@/lib/numbering-preview";
 import { parseNumberingStructureType } from "@/lib/numbering-structure-type";
 import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
+import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const principalResponse = await withPrincipalNumberingCompanyRead(request,
+  if (!principalSessionTokenFromRequest(request)) return NextResponse.json({ code: "auth_session_invalid" },
+    { status: 401, headers: { "cache-control": "no-store" } });
+  return (await withPrincipalNumberingCompanyRead(request,
     [{ permissionKind: "action", permissionCode: "numbering.create" }],
-    async (snapshot, company) => previewResponse(request, snapshot, company));
-  if (principalResponse) return principalResponse;
-
-  const auth = await requireNumberingActionAsync(request, "numbering.create");
-  if (auth.response) return auth.response;
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
-  if (companyResult.response) return companyResult.response;
-  return previewResponse(request, getAsyncDatabaseClient(), companyResult.company);
+    async (snapshot, company) => previewResponse(request, snapshot, company))) ??
+    NextResponse.json({ code: "principal_authorization_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
 }
 
 async function previewResponse(request: Request, client: AsyncDatabaseClient, company: PdmCompanyContext) {
