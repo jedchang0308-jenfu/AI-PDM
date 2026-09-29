@@ -94,6 +94,12 @@ const principalSessionRoutes = new Map([
   ["POST /api/account/sessions/[sessionId]/revoke",
     ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest", "isAllowedRequestOrigin"]]
 ]);
+const principalCompanyReadRoutes = new Map([
+  ["GET /api/numbering/series-codes", {
+    helper: "withPrincipalNumberingCompanyRead",
+    permissions: ["numbering.search", "numbering.drawings.view", "numbering.create"]
+  }]
+]);
 const publicStatusRoutes = new Map([
   ["GET /api/health/ready", "verifyAsyncDatabaseReadiness"],
   ["GET /api/production-slice/status", "productionSliceClientStatus"],
@@ -263,6 +269,20 @@ function main() {
         assign(key, "authenticated_domain");
         continue;
       }
+      const principalCompanyRead = principalCompanyReadRoutes.get(key);
+      if (principalCompanyRead) {
+        if (!graph.includes(principalCompanyRead.helper + "(") ||
+            !graph.includes("principalSessionTokenFromRequest(request)") ||
+            !graph.includes("auth_session_invalid") || !/status:\s*401/u.test(graph) ||
+            !graph.includes("principal_authorization_unavailable") ||
+            !/status:\s*503/u.test(graph) ||
+            principalCompanyRead.permissions.some((permission) => !graph.includes(permission)) ||
+            centralPermissionGuard.test(graph) || sessionGuard.test(graph)) {
+          throw new Error(key + ": Principal company read boundary missing or old authorization restored");
+        }
+        assign(key, "principal_company_read");
+        continue;
+      }
       if (centralPermissionGuard.test(graph)) {
         for (const permissionCode of explicitPermissionCalls.get(key) ?? []) {
           if (!graph.includes(permissionCode)) throw new Error(`${key}: canonical permission ${permissionCode} missing`);
@@ -308,7 +328,7 @@ function main() {
     const key = `${routeMapEntry.method} ${routePath}`;
     if (!observedMethods.has(key)) throw new Error(`DEV-121 permission manifest points to a missing API handler: ${key}`);
   }
-  for (const expected of [identityProtocolRoutes, principalSessionRoutes, publicStatusRoutes, retiredRoutes]) {
+  for (const expected of [identityProtocolRoutes, principalSessionRoutes, principalCompanyReadRoutes, publicStatusRoutes, retiredRoutes]) {
     for (const key of expected.keys()) if (!observedMethods.has(key)) throw new Error(`DEV-121 public/retired route allowlist is stale: ${key}`);
   }
   for (const key of explicitPermissionCalls.keys()) if (!observedMethods.has(key)) throw new Error(`DEV-121 permission route assertion is stale: ${key}`);
