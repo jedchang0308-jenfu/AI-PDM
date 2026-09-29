@@ -87,12 +87,24 @@ async function executeWithinClient<TPayload, TResult>(
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_SNAPSHOT_REQUIRED");
       }
       const additional = route.additionalPermissionCodes ?? [];
-      const recordWithDrawing = input.command.commandName === "pdm.numbering.create_official_record" &&
-        Boolean((input.command.payload as { drawingPurposeCode?: unknown }).drawingPurposeCode);
-      const expectedAdditional = recordWithDrawing ? ["numbering.link_variant"] : [];
+      const payload = input.command.payload as {
+        drawingPurposeCode?: unknown;
+        linkDrawingNumber?: unknown;
+        linkPartNumber?: unknown;
+        linkRelationType?: unknown;
+      };
+      const needsLinkVariant =
+        (input.command.commandName === "pdm.numbering.create_official_record" &&
+          Boolean(payload.drawingPurposeCode)) ||
+        (input.command.commandName === "pdm.numbering.append_drawing" &&
+          Boolean(payload.linkPartNumber) && payload.linkRelationType !== "none") ||
+        (input.command.commandName === "pdm.numbering.append_part" &&
+          Boolean(payload.linkDrawingNumber) && payload.linkRelationType !== "none") ||
+        input.command.commandName === "pdm.numbering.append_drawing_part";
+      const expectedAdditional = needsLinkVariant ? ["numbering.link_variant"] : [];
       if (additional.length !== expectedAdditional.length ||
           additional.some((code, index) => code !== expectedAdditional[index]) ||
-          (recordWithDrawing && route.permissionCode !== "numbering.create")) {
+          (needsLinkVariant && route.permissionCode !== "numbering.create")) {
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID");
       }
       const permissions = [route.permissionCode, ...additional].map((permissionCode) =>

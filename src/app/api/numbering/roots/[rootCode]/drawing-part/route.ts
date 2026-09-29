@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { addDrawingAndPartToRootAsync } from "@/lib/numbering-async";
-import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import type { DrawingPurposeCode, NumberingItemKind } from "@/lib/repositories/numbering-repository";
 import { parseCanonicalNumberingItemKind } from "@/lib/numbering-item-kind";
@@ -14,10 +13,11 @@ const linkTypes = new Set(["auto", "primary_manufacturing", "reference"]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ rootCode: string }> }) {
   const body = await request.json().catch(() => ({}));
-  const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.create", body });
+  const access = await requireNumberingPlatformCommandAsync(request, {
+    action: "numbering.create", body,
+    additionalPermissionCodes: ["numbering.link_variant"]
+  });
   if (access.response) return access.response;
-  const linkAuth = await requireNumberingActionAsync(request, "numbering.link_variant");
-  if (linkAuth.response) return linkAuth.response;
 
   const { rootCode } = await params;
 
