@@ -118,6 +118,29 @@ function boundaryFailures(entries, sources) {
       }
       continue
     }
+    if (entry.method === 'GET' && [
+      'src/app/api/submissions/[id]/route.ts',
+      'src/app/api/submissions/[id]/files/[...filePath]/route.ts',
+      'src/app/api/submissions/[id]/release-package/route.ts'
+    ].includes(entry.path)) {
+      const principalPolicy = currentPolicy(entry)
+      const required = [
+        /principalSessionTokenFromRequest\s*\(/u,
+        /if\s*\(!token\)\s*return\s+principalRequestFailure\s*\(/u,
+        /resolveJenfuRoutePolicy\s*\(/u,
+        /withVerifiedJenfuPrincipalRequest\s*\(/u,
+        /authorizePrincipalSubmissionReadInSnapshot\s*\(/u
+      ]
+      const externalFile = entry.path.includes('/files/') || entry.path.includes('/release-package/')
+      if (principalPolicy.authorizationMode !== 'permission' ||
+          principalPolicy.permissionCode !== 'submission.view' ||
+          required.some((guard) => !guard.test(graph)) ||
+          (externalFile && !/auditStorageAccess\s*\(/u.test(graph)) ||
+          /(?:requireAuthAsync|requirePdmRouteAuthorizationAsync|canReadSubmissionAsync)\s*\(/u.test(graph)) {
+        failures.push(label + ': Principal historical-read guard missing or old authorization restored')
+      }
+      continue
+    }
     if (entry.authorizationMode === 'permission') {
       if (entry.discriminator === null && currentPolicy(entry).authorizationMode === 'retired') {
         if (!/status\s*:\s*410/u.test(graph) ||
