@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { generateMonthlyNumberingAuditReportAsync, listMonthlyNumberingAuditReportsAsync } from "@/lib/numbering-async";
-import { requireNumberingCompanyPermissionAsync } from "@/lib/numbering-company-permission";
+import { generateMonthlyNumberingAuditReportAsync } from "@/lib/numbering-async";
+import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
@@ -9,6 +9,9 @@ import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-rep
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  if (!principalSessionTokenFromRequest(request)) {
+    return NextResponse.json({ code: "auth_session_invalid" }, { status: 401, headers: { "cache-control": "no-store" } });
+  }
   const url = new URL(request.url);
   const reportMonth = url.searchParams.get("reportMonth") ?? url.searchParams.get("report_month") ?? undefined;
   const limit = Number(url.searchParams.get("limit") ?? 20);
@@ -17,15 +20,9 @@ export async function GET(request: Request) {
       reports: await new AsyncNumberingRepository(snapshot).listMonthlyNumberingAuditReports({
         companyId: company.companyId, reportMonth, limit
       }), pdmCompany: company
-    }));
-  if (principalResponse) return principalResponse;
-
-  const auth = await requireNumberingCompanyPermissionAsync(request, "page", "numbering.reports");
-  if (auth.response) return auth.response;
-  return NextResponse.json({
-    reports: await listMonthlyNumberingAuditReportsAsync({ companyId: auth.company.companyId, reportMonth, limit }),
-    pdmCompany: auth.company
-  });
+    }, { headers: { "cache-control": "private, no-store" } }));
+  return principalResponse ?? NextResponse.json({ code: "principal_authorization_unavailable" },
+    { status: 503, headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {
