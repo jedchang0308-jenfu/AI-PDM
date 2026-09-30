@@ -1,4 +1,5 @@
 const TARGET = Object.freeze({ name: 'ai-pdm-prod', namespace: '9536592944' })
+const V2_NAME = 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
 
 function fail() { throw new Error('DEV121_AIPDM_QUIESCENCE_READBACK_INVALID') }
 function integer(value) {
@@ -59,5 +60,46 @@ export function assertAiPdmQuiescenceReadbacks({ before, after,
   return Object.freeze({ service: TARGET.name, uid: current.uid,
     oldRevision, beforeGeneration: baseline.generation,
     quiescentGeneration: current.generation,
+    requestTimeoutSeconds: timeout, drainSeconds: timeout + 30 })
+}
+
+/**
+ * Verify the live Cloud Run Admin v2 readback immediately before owner work.
+ * A zero-instance service is the writer fence; a zero-session DB snapshot alone
+ * cannot establish that the legacy revision will not start another request.
+ */
+export function assertAiPdmQuiescentV2Service({ service, oldRevision,
+  expectedUid, beforeGeneration, disabledCompletedAt, observedAt,
+  requestTimeoutSeconds }) {
+  if (service?.name !== V2_NAME || typeof service.uid !== 'string' ||
+    !service.uid || service.uid !== expectedUid ||
+    integer(beforeGeneration) === null ||
+    integer(service.generation) <= integer(beforeGeneration) ||
+    service.reconciling === true ||
+    service.terminalCondition?.state !== 'CONDITION_SUCCEEDED' ||
+    integer(service.generation) === null ||
+    integer(service.observedGeneration) !== integer(service.generation) ||
+    service.scaling?.scalingMode !== 'MANUAL' ||
+    integer(service.scaling?.manualInstanceCount) !== 0 ||
+    typeof oldRevision !== 'string' ||
+    !/^ai-pdm-prod-[a-z0-9]+$/u.test(oldRevision) ||
+    !Array.isArray(service.traffic) || service.traffic.length !== 1 ||
+    service.traffic[0]?.revision !== oldRevision ||
+    Number(service.traffic[0]?.percent) !== 100 ||
+    service.traffic[0]?.tag !== undefined ||
+    service.traffic[0]?.latestRevision === true ||
+    !Array.isArray(service.trafficStatuses) ||
+    service.trafficStatuses.length !== 1 ||
+    service.trafficStatuses[0]?.revision !== oldRevision ||
+    Number(service.trafficStatuses[0]?.percent) !== 100 ||
+    service.trafficStatuses[0]?.tag !== undefined) fail()
+  const timeout = integer(requestTimeoutSeconds)
+  const stopped = Date.parse(disabledCompletedAt)
+  const observed = Date.parse(observedAt)
+  if (!timeout || timeout > 60 || !Number.isFinite(stopped) ||
+    !Number.isFinite(observed) || observed - stopped < (timeout + 30) * 1000) fail()
+  return Object.freeze({ service: TARGET.name, uid: service.uid,
+    oldRevision, beforeGeneration: integer(beforeGeneration),
+    generation: integer(service.generation),
     requestTimeoutSeconds: timeout, drainSeconds: timeout + 30 })
 }
