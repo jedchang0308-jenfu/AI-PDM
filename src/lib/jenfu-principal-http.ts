@@ -3,6 +3,8 @@ import { getGoogleWorkspaceMfaTrustPolicy, getJenfuIdentityConfig } from "@/lib/
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuPrincipalRequestError, type PrincipalRequestInput } from "@/lib/jenfu-principal-request-guard";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
+import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
 
 /** Envelope inspection only; withVerifiedJenfuPrincipalRequest authenticates the token. */
 export function principalSessionTokenFromRequest(request: Request): string | null {
@@ -29,6 +31,12 @@ export function principalRequestInput(token: string): PrincipalRequestInput {
 }
 
 export function principalRequestFailure(error: unknown): Response {
+  // The verified request guard preserves evaluator errors. Published denial
+  // must retain the entitlement taxonomy instead of being called an outage.
+  // Only this typed producer/consumer error is eligible, never a raw code field.
+  if (error instanceof JenfuEntitlementRepositoryError) {
+    return jenfuEntitlementFailureResponse(error.code);
+  }
   const dependency = !(error instanceof JenfuPrincipalRequestError) ||
     error.code === "principal_dependency_unavailable";
   return Response.json({ code: dependency ? "principal_dependency_unavailable" : "auth_session_invalid" },
