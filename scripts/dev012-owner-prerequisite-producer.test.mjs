@@ -1,3 +1,4 @@
+import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
@@ -158,4 +159,37 @@ test('CLI exposes the guarded DEV-013 transition authority stage', () => {
   assert.equal(resolveOwnerInputPath('/owner', 'output/dev-012/inputs/runtime.json').endsWith(['owner', 'output', 'dev-012', 'inputs', 'runtime.json'].join(path.sep)), true)
   assert.equal(resolveOwnerInputPath('/owner', 'output/dev-013/l4/inputs/transition.json').endsWith(['owner', 'output', 'dev-013', 'l4', 'inputs', 'transition.json'].join(path.sep)), true)
   assert.throws(() => resolveOwnerInputPath('/owner', '../sibling/secret.json'), /INPUT_PATH_OUT_OF_SCOPE/)
+})
+
+test('AI-PDM intent producer preserves the migration fence and maintenance recovery for its real consumer', () => {
+  const p = { ...profile, application: { ...profile.application, id: 'ai-pdm' },
+    schemas: { releaseIntent: 'jenfu.dev117.ai-pdm-release-intent.v2' } }
+  const lock = { ...sourceLock, ownerApplicationId: 'ai-pdm' }
+  const input = { sourceLockRef: ref('source-lock'), authorizationPolicyRef: ref('authorization'),
+    readinessReceiptRef: ref('readiness'), foundationReceiptRef: ref('foundation'), infraReceiptRef: ref('infra'),
+    runtimeConfigRef: ref('runtime'), previousRevision: 'ai-pdm-prod-old', deadlineAt: '2999-01-01T00:00:00.000Z',
+    principalOnlyFenceRef: { uri: 'gs://owner-bucket/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/fence.json', sha256: H64 },
+    principalOnlyRecovery: { revision: 'ai-pdm-prod-recovery', serviceUid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5',
+      imageDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${H64}`,
+      receiptRef: { uri: 'gs://owner-bucket/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/proof.json', sha256: H64 } },
+  }
+  const common = { releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', status: 'PASS', projectId: 'project' }
+  const authority = { ...common, environment: 'production', remainingHumanAction: 0, expiresAt: input.deadlineAt }
+  const values = { sourceLock: lock, authorization: authority, readiness: authority,
+    foundation: { ...common, ownerApplicationId: 'shared-foundation', sourceRevision: 'f'.repeat(40) },
+    infra: { ...common, migrationRunnerDigest: p.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64) },
+    runtimeConfig: buildRuntimeConfigReceipt({ profile: p, releaseId: 'REL-001', sourceLock: lock,
+      plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '7' }, observedAt: NOW }) }
+  const produce = (changed = {}) => buildReleaseIntent({ profile: p, releaseId: 'REL-001',
+    input: { ...input, ...changed }, sourceLock: lock, prerequisiteValues: values, validateIntent: assertDev117ReleaseIntent })
+  const intent = produce()
+  assert.deepEqual(intent.principalOnlyFenceRef, input.principalOnlyFenceRef)
+  assert.deepEqual(intent.principalOnlyRecovery, input.principalOnlyRecovery)
+  assert.notEqual(intent.principalOnlyRecovery, input.principalOnlyRecovery)
+  for (const changed of [
+    { principalOnlyFenceRef: undefined }, { principalOnlyRecovery: undefined },
+    { principalOnlyFenceRef: ref('unrelated') },
+    { principalOnlyRecovery: { ...input.principalOnlyRecovery, revision: input.previousRevision } },
+    { principalOnlyRecovery: { ...input.principalOnlyRecovery, receiptRef: { ...input.principalOnlyRecovery.receiptRef, uri: 'gs://sibling/receipts/proof.json' } } },
+  ]) assert.throws(() => produce(changed))
 })
