@@ -14,6 +14,30 @@ export function requiresPrincipalOnlyMigrationFence(entry) {
   return entry?.path === PRINCIPAL_ONLY_MIGRATION_PATH
 }
 
+/** Read the owner writer census on the same connection immediately before SQL. */
+export async function assertPrincipalOnlyMigrationWritersAbsent(database) {
+  if (!database || typeof database.query !== 'function') fail()
+  let result
+  try {
+    result = await database.query(`
+      SELECT count(*)::integer AS "ownerSessions"
+      FROM pg_catalog.pg_stat_activity
+      WHERE datname=current_database() AND pid<>pg_backend_pid() AND (
+        usename IN ($1,$2)
+        OR pg_catalog.pg_has_role(usename,'jenfu_ai_pdm_runtime','MEMBER')
+        OR pg_catalog.pg_has_role(usename,'jenfu_ai_pdm_migrator','MEMBER')
+      )
+    `, ['aipdm-prod-runtime@jenfu-platform-prod.iam',
+      'aipdm-prod-migrator@jenfu-platform-prod.iam'])
+  } catch { fail() }
+  const value = result?.rows?.[0]?.ownerSessions
+  if (result?.rows?.length !== 1 ||
+    !((typeof value === 'number' && Number.isSafeInteger(value)) ||
+      (typeof value === 'string' && /^[0-9]+$/u.test(value))) ||
+    Number(value) !== 0) fail()
+  return Object.freeze({ ownerWriterSessions: 0 })
+}
+
 export function assertPrincipalOnlyMigrationFence({ proof, bytes, expectedSha256,
   sourceRevision, service, observedAt }) {
   const keys = ['schemaVersion', 'sourceRevision', 'projectId', 'region',
