@@ -58,8 +58,9 @@ CMD ["node", "scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]
 FROM ${RUNTIME_NODE_IMAGE} AS runtime-base
 
 FROM ${NODE_IMAGE} AS runtime-security-packages
+COPY --from=runtime-base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN printf '%s\n' 'deb https://security.debian.org/debian-security trixie-security main' > /tmp/runtime-security.list \
-    && apt-get -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- update \
+    && apt-get -o APT::Update::Error-Mode=any -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- update \
     && cd /tmp \
     && apt-get -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- download libssl3t64=3.5.7-1~deb13u3 \
     && printf '%s\n' 'ff16bc048bcd7d1b256094450b79c77947d8e76fe2a24bd99b91021d591fa074  /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb' | sha256sum -c - \
