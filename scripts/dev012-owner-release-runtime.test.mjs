@@ -237,6 +237,56 @@ test('effective revision accepts a provider-coalesced tagged status only when th
   assert.throws(() => transport.effectiveRevision({ ...coalesced, trafficStatuses: [{ latestRevision: true, percent: 100 }] }), /EFFECTIVE_REVISION_AMBIGUOUS/u)
 })
 
+test('Principal-only activation uses one scaling-and-traffic mutation and never exposes the old revision', async () => {
+  const target = {
+    target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'ai-pdm-prod' },
+    runtime: { containerName: 'ai-pdm' },
+  }
+  const serviceName = 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
+  const old = 'ai-pdm-prod-legacy'
+  const candidate = 'ai-pdm-prod-abcdef123456'
+  const recovery = 'ai-pdm-prod-recovery'
+  const tag = 'candidate-abcdef123456'
+  const image = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'a'.repeat(64)}`
+  const oldTraffic = { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: old, percent: 100 }
+  const tagTraffic = { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidate, percent: 0, tag }
+  const before = {
+    name: serviceName, uid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5', etag: 'etag-one', generation: '41', observedGeneration: '41',
+    reconciling: false, terminalCondition: { state: 'CONDITION_SUCCEEDED' },
+    scaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 },
+    template: { containers: [{ name: 'ai-pdm', image: 'candidate-image' }] },
+    traffic: [oldTraffic, tagTraffic], trafficStatuses: [oldTraffic, tagTraffic],
+  }
+  let patched = null
+  let serviceReads = 0
+  const fetchImpl = async (url, options = {}) => {
+    if (String(url).endsWith(`/revisions/${recovery}`)) return json({
+      name: `${serviceName}/revisions/${recovery}`, service: serviceName,
+      conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }],
+      containers: [{ name: 'ai-pdm', image }],
+    })
+    if (options.method === 'PATCH') {
+      assert.match(String(url), /updateMask=scaling%2Ctraffic/u)
+      patched = JSON.parse(options.body)
+      return json({ name: 'projects/jenfu-platform-prod/locations/asia-east1/operations/op-one' })
+    }
+    serviceReads += 1
+    return json(serviceReads === 1 ? before : {
+      ...before, etag: 'etag-two', generation: '42', observedGeneration: '42',
+      scaling: { scalingMode: 'AUTOMATIC' }, traffic: patched.traffic,
+      trafficStatuses: [{ revision: candidate, percent: 100, tag }],
+    })
+  }
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl, sleep: async () => undefined })
+  const after = await transport.activatePrincipalOnly({ profile: target, oldRevision: old,
+    recovery: { revision: recovery, imageDigest: image, serviceUid: before.uid }, candidateRevision: candidate,
+    candidateTag: tag, deadlineAt: '2999-01-01T00:00:00.000Z' })
+  assert.deepEqual(Object.keys(patched).sort(), ['etag', 'name', 'scaling', 'traffic'])
+  assert.deepEqual(patched.scaling, { scalingMode: 'AUTOMATIC', manualInstanceCount: null })
+  assert.equal(patched.traffic.some((row) => row.revision === old), false)
+  assert.equal(transport.effectiveRevision(after), candidate)
+})
+
 test('Cloud Run service readback requires a reconciled successful observed generation', () => {
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json({}) })
   const settled = { reconciling: false, generation: '8', observedGeneration: '8', terminalCondition: { state: 'CONDITION_SUCCEEDED' } }

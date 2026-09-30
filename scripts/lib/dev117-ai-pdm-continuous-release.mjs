@@ -10,6 +10,7 @@ import {
 } from './dev117-ai-pdm-independent-release.mjs'
 import { assertDev116R02Receipt } from './dev116-r02-receipt.mjs'
 import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
+import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
 import { buildAiPdmPackage, deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 
 const H40 = /^[a-f0-9]{40}$/
@@ -24,11 +25,13 @@ export function assertDev117ReleaseIntent(value, profile) {
   const expected = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'sourceRevision', 'sourceSha256', 'sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef', 'migrationManifestSha256', 'previousRevision', 'deadlineAt'].sort()
   if (value?.baselineIntentRef) expected.push('baselineIntentRef')
   if (value?.principalOnlyFenceRef) expected.push('principalOnlyFenceRef')
+  if (value?.principalOnlyRecovery) expected.push('principalOnlyRecovery')
   expected.sort()
   if (!value || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(expected) || value.schemaVersion !== profile.schemas.releaseIntent || value.ownerApplicationId !== 'ai-pdm' || !/^[A-Z0-9][A-Z0-9-]{5,63}$/.test(value.releaseId ?? '') || !H40.test(value.sourceRevision ?? '') || !H64.test(value.sourceSha256 ?? '') || !H64.test(value.migrationManifestSha256 ?? '') || !value.previousRevision || value.previousRevision === 'latest' || !Number.isFinite(Date.parse(value.deadlineAt))) fail('RELEASE_INTENT_INVALID', 'AI-PDM release intent invalid')
   for (const name of ['sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef']) if (!new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/[A-Za-z0-9._/-]+\\.json$`).test(value[name]?.uri ?? '') || !H64.test(value[name]?.sha256 ?? '') || JSON.stringify(Object.keys(value[name] ?? {}).sort()) !== JSON.stringify(['sha256', 'uri'])) fail('RELEASE_INTENT_REF_INVALID', name)
   if (value.baselineIntentRef && (!new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/[A-Za-z0-9._/-]+\\.json$`).test(value.baselineIntentRef.uri ?? '') || !H64.test(value.baselineIntentRef.sha256 ?? '') || JSON.stringify(Object.keys(value.baselineIntentRef).sort()) !== JSON.stringify(['sha256', 'uri']))) fail('RELEASE_INTENT_REF_INVALID', 'baselineIntentRef')
   if (value.principalOnlyFenceRef && (!new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/[A-Za-z0-9._/-]+\\.json$`).test(value.principalOnlyFenceRef.uri ?? '') || !H64.test(value.principalOnlyFenceRef.sha256 ?? '') || JSON.stringify(Object.keys(value.principalOnlyFenceRef).sort()) !== JSON.stringify(['sha256', 'uri']))) fail('RELEASE_INTENT_REF_INVALID', 'principalOnlyFenceRef')
+  assertPrincipalOnlyRecoveryBinding(value, profile.artifact.releaseBucket)
   return value
 }
 

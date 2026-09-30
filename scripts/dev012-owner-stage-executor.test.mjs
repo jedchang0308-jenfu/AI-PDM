@@ -157,7 +157,7 @@ test('recorded provider transport executes the ten immutable owner stages withou
   assert.equal(h.transport.effectiveRevision(h.service()), candidateRevision)
 })
 
-test('principal-only migration stage passes the source-bound fence ref to the owner job', async () => {
+test('principal-only migration intent refuses a fence without a safe recovery revision', async () => {
   const h = recordedHarness()
   const { intentResult, input } = await authorizedRecordedInput(h, 'REL-PRINCIPAL-FENCE')
   const original = await h.transport.readJson(intentResult.ref)
@@ -170,13 +170,8 @@ test('principal-only migration stage passes the source-bound fence ref to the ow
     intent, { bucket, prefix: 'receipts' })
   const fencedInput = { ...input, capsuleRef: capsule.ref.uri,
     capsuleSha256: capsule.ref.sha256 }
-  const originalRun = h.transport.runMigrationJob
-  h.transport.runMigrationJob = async (args) => {
-    assert.deepEqual(args.principalOnlyFenceRef, principalOnlyFenceRef)
-    return originalRun(args)
-  }
-  for (const stage of ['prepare', 'build', 'migrate'])
-    await executeOwnerStage({ ...fencedInput, stage })
+  await assert.rejects(executeOwnerStage({ ...fencedInput, stage: 'prepare' }),
+    /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
 test('candidate tag readback accepts deterministic and provider-derived run.app URLs only', () => {
