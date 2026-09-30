@@ -165,6 +165,48 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
   drifted.template.template.containers[0].env.find((row) => row.name === 'POSTGRES_DATABASE').value = 'jenfu_stg'
   const denied = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json(drifted) })
   await assert.rejects(() => denied.runMigrationJob({ profile, deployment, outputUri: `gs://${bucket}/receipts/migrate.json`, deadlineAt: '2999-01-01T00:00:00.000Z' }), /MIGRATION_JOB_READBACK_MISMATCH/u)
+
+  const principalOnlyFenceRef = {
+    uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/fence.json`,
+    sha256: H64,
+  }
+  const fenceEnvironment = {
+    DEV121_MIGRATION_FENCE_REF: principalOnlyFenceRef.uri,
+    DEV121_MIGRATION_FENCE_SHA256: principalOnlyFenceRef.sha256,
+  }
+  const fencedExecution = structuredClone(execution)
+  fencedExecution.template.containers[0].env = Object.entries({ ...environment, ...fenceEnvironment })
+    .map(([name, value]) => ({ name, value }))
+  let fencedListCalls = 0
+  let fencedRunBody = null
+  const fencedTransport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+    if (options.method === 'POST') {
+      fencedRunBody = JSON.parse(options.body)
+      return json({ name: 'projects/p/locations/r/operations/run-fenced' })
+    }
+    if (String(url).endsWith('/executions?pageSize=100'))
+      return json({ executions: fencedListCalls++ === 0 ? [] : [fencedExecution] })
+    if (String(url).endsWith('/executions/e1')) return json(fencedExecution)
+    return json(job)
+  } })
+  await fencedTransport.runMigrationJob({ profile, deployment, principalOnlyFenceRef,
+    outputUri: `gs://${bucket}/receipts/migrate.json`, deadlineAt: '2999-01-01T00:00:00.000Z' })
+  assert.deepEqual(fencedRunBody.overrides.containerOverrides[0].env,
+    Object.entries(fenceEnvironment).map(([name, value]) => ({ name, value })))
+
+  const wrongExecution = structuredClone(fencedExecution)
+  wrongExecution.template.containers[0].env.find((row) =>
+    row.name === 'DEV121_MIGRATION_FENCE_SHA256').value = '0'.repeat(64)
+  let wrongListCalls = 0
+  const wrongTransport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+    if (options.method === 'POST') return json({ name: 'projects/p/locations/r/operations/run-wrong' })
+    if (String(url).endsWith('/executions?pageSize=100'))
+      return json({ executions: wrongListCalls++ === 0 ? [] : [wrongExecution] })
+    return json(job)
+  } })
+  await assert.rejects(() => wrongTransport.runMigrationJob({ profile, deployment,
+    principalOnlyFenceRef, outputUri: `gs://${bucket}/receipts/migrate.json`,
+    deadlineAt: '2999-01-01T00:00:00.000Z' }), /MIGRATION_EXECUTION_READBACK_MISMATCH/u)
 })
 
 test('candidate-tag cleanup distinguishes the candidate from the active rollback target', async () => {

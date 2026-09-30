@@ -156,6 +156,29 @@ test('recorded provider transport executes the ten immutable owner stages withou
   assert.equal(h.service().trafficStatuses.some((row) => row.tag), false)
   assert.equal(h.transport.effectiveRevision(h.service()), candidateRevision)
 })
+
+test('principal-only migration stage passes the source-bound fence ref to the owner job', async () => {
+  const h = recordedHarness()
+  const { intentResult, input } = await authorizedRecordedInput(h, 'REL-PRINCIPAL-FENCE')
+  const original = await h.transport.readJson(intentResult.ref)
+  const principalOnlyFenceRef = {
+    uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/fence.json`,
+    sha256: 'f'.repeat(64),
+  }
+  const intent = { ...original.value, principalOnlyFenceRef }
+  const capsule = await h.transport.putJson(`gs://${bucket}/receipts/intents/principal-fence.json`,
+    intent, { bucket, prefix: 'receipts' })
+  const fencedInput = { ...input, capsuleRef: capsule.ref.uri,
+    capsuleSha256: capsule.ref.sha256 }
+  const originalRun = h.transport.runMigrationJob
+  h.transport.runMigrationJob = async (args) => {
+    assert.deepEqual(args.principalOnlyFenceRef, principalOnlyFenceRef)
+    return originalRun(args)
+  }
+  for (const stage of ['prepare', 'build', 'migrate'])
+    await executeOwnerStage({ ...fencedInput, stage })
+})
+
 test('candidate tag readback accepts deterministic and provider-derived run.app URLs only', () => {
   const candidate = { tag: candidateTag, tagUri: candidateOrigin }
   const service = { uri: 'https://jenfu-platform-prod-56gnizku7q-de.a.run.app', urls: [canonicalOrigin, 'https://jenfu-platform-prod-56gnizku7q-de.a.run.app'] }

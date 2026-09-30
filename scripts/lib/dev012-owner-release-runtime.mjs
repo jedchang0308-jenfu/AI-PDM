@@ -637,7 +637,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return after
   }
 
-  async function runMigrationJob({ profile, deployment, outputUri, deadlineAt }) {
+  async function runMigrationJob({ profile, deployment, principalOnlyFenceRef = null, outputUri, deadlineAt }) {
     const jobName = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
     const job = await request(`https://run.googleapis.com/v2/${jobName}`)
     const container = job.template?.template?.containers?.find((item) => item.name === 'migration')
@@ -657,6 +657,14 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const mount = container?.volumeMounts?.find((item) => item.name === 'cloudsql')
     if (job.name !== jobName || job.template?.template?.serviceAccount !== profile.migrations.serviceAccount || container?.image !== deployment.migrationRunnerDigest || canonicalize(environment) !== canonicalize(expectedEnvironment) || canonicalize(volume?.cloudSqlInstance?.instances) !== canonicalize([connectionName]) || mount?.mountPath !== '/cloudsql' || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || job.template?.template?.maxRetries !== 0 || job.template?.template?.timeout !== '1800s') fail('MIGRATION_JOB_READBACK_MISMATCH')
     const args = ['--bundle-ref', deployment.migrationBundleRef.uri, '--bundle-sha256', deployment.migrationBundleRef.sha256, '--source-revision', deployment.sourceRevision, '--output-ref', outputUri]
+    const fenceEnvironment = principalOnlyFenceRef === null ? null : {
+      DEV121_MIGRATION_FENCE_REF: assertImmutableRef(principalOnlyFenceRef,
+        profile.artifact.releaseBucket,
+        ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE']).uri,
+      DEV121_MIGRATION_FENCE_SHA256: principalOnlyFenceRef.sha256,
+    }
+    const fenceOverride = fenceEnvironment === null ? [] :
+      Object.entries(fenceEnvironment).map(([name, value]) => ({ name, value }))
     if (profile.productionData?.required === true) {
       assertImmutableRef(deployment.productionDataRef, profile.artifact.releaseBucket, [profile.productionData.dataObjectPrefix])
       assertImmutableRef(deployment.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix])
@@ -681,12 +689,21 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     }
     const executionArgsMatch = (execution) => {
       const executionContainer = execution?.template?.containers?.find((item) => item.name === 'migration')
-      return canonicalize(executionContainer?.args) === canonicalize(args)
+      if (canonicalize(executionContainer?.args) !== canonicalize(args)) return false
+      if (fenceEnvironment === null) return true
+      const executionEnv = executionContainer?.env
+      if (!Array.isArray(executionEnv) || executionEnv.length !==
+        Object.keys(expectedEnvironment).length + fenceOverride.length ||
+        new Set(executionEnv.map((item) => item?.name)).size !== executionEnv.length) return false
+      return canonicalize(Object.fromEntries(executionEnv.map((item) =>
+        [item.name, item.value]))) === canonicalize({ ...expectedEnvironment, ...fenceEnvironment })
     }
     const beforeNames = new Set((await listExecutions()).map((execution) => execution.name))
     let operationRef = null
     try {
-      const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: { containerOverrides: [{ name: 'migration', args }] } }) })
+      const containerOverride = { name: 'migration', args,
+        ...(fenceEnvironment === null ? {} : { env: fenceOverride }) }
+      const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: { containerOverrides: [containerOverride] } }) })
       if (!operation?.name) fail('PROVIDER_OPERATION_REF_MISSING')
       operationRef = operation.name
     } catch (error) {
@@ -696,9 +713,11 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     let executionName = null
     while (!executionName) {
       if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
-      const matches = (await listExecutions()).filter((execution) => !beforeNames.has(execution.name) && executionArgsMatch(execution))
-      if (matches.length > 1) fail('MIGRATION_EXECUTION_CARDINALITY_INVALID')
-      executionName = matches[0]?.name ?? null
+      const fresh = (await listExecutions()).filter((execution) => !beforeNames.has(execution.name))
+      if (fresh.length > 1) fail('MIGRATION_EXECUTION_CARDINALITY_INVALID')
+      if (fresh.length === 1 && !executionArgsMatch(fresh[0]))
+        fail('MIGRATION_EXECUTION_READBACK_MISMATCH')
+      executionName = fresh[0]?.name ?? null
       if (!executionName) await sleep(1000)
     }
     while (true) {

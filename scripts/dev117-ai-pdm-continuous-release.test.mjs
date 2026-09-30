@@ -188,6 +188,9 @@ test('S1B-20 AI-PDM release intent is exact, owner-bound and immutable', () => {
   const intent = { schemaVersion: profile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId: 'REL-AIPDM-001', sourceRevision: 'b'.repeat(40), sourceSha256: H, sourceLockRef: ref('source'), authorizationPolicyRef: ref('authorization'), readinessReceiptRef: ref('readiness'), foundationReceiptRef: ref('foundation'), infraReceiptRef: ref('infra'), runtimeConfigRef: ref('runtime'), migrationManifestSha256: H, previousRevision: 'ai-pdm-prod-prev', deadlineAt: '2026-09-08T01:00:00.000Z' }
   assert.equal(assertDev117ReleaseIntent(intent, profile), intent)
   assert.equal(assertDev117ReleaseIntent({ ...intent, baselineIntentRef: ref('baseline-intent') }, profile).baselineIntentRef.uri, ref('baseline-intent').uri)
+  const fenceRef = { uri: `gs://${profile.artifact.releaseBucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/fence.json`, sha256: H }
+  assert.equal(assertDev117ReleaseIntent({ ...intent, principalOnlyFenceRef: fenceRef }, profile).principalOnlyFenceRef, fenceRef)
+  assert.throws(() => assertDev117ReleaseIntent({ ...intent, principalOnlyFenceRef: ref('unrelated') }, profile), /principalOnlyFenceRef/u)
   assert.throws(() => assertDev117ReleaseIntent({ ...intent, ownerApplicationId: 'platform' }, profile), /release intent invalid/i)
 })
 
