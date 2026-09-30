@@ -66,7 +66,8 @@ export function assertRecoveryBaseline({ profile, service, oldRevision, sourceRe
     String(service.observedGeneration) !== String(service.generation) ||
     !/^ai-pdm-prod-[a-z0-9-]+$/u.test(oldRevision ?? '') ||
     !trafficIsOldOnly(service, oldRevision) ||
-    service.scaling?.scalingMode === 'MANUAL' ||
+    (service.scaling?.scalingMode === 'MANUAL' &&
+      ![0, '0'].includes(service.scaling.manualInstanceCount)) ||
     !profile?.target?.runtimeServiceAccount || !profile?.runtime?.containerName) fail('REVISION_INPUT_INVALID')
   return service
 }
