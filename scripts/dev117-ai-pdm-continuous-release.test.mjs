@@ -293,3 +293,17 @@ test('AI-PDM custom Cloud Build service account can act only as itself', () => {
   assert.match(candidateSmokeV2, /local\.owner_application_id/u)
   assert.ok(infraPlan.stageBAdditional.includes('google_workflows_workflow.candidate_smoke_v2[0]'))
 })
+
+test('DEV-121 migrator can read only the owned Cloud Run service for migration 073', () => {
+  const bindings = readText('infra/google-cloud/dev-117-production-release/service-bindings.tf')
+  const profile = read('config/release/dev117-production-release-infra-plan.json')
+  const block = bindings.match(/resource "google_cloud_run_v2_service_iam_member" "application_migrator_readback"[\s\S]*?\n\}/u)?.[0] ?? ''
+  assert.match(block, /count\s+= var\.incident_runtime_enabled \? 1 : 0/u)
+  assert.match(block, /name\s+= data\.google_cloud_run_v2_service\.application\.name/u)
+  assert.match(block, /role\s+= "roles\/run\.viewer"/u)
+  assert.match(block, /member\s+= "serviceAccount:\$\{data\.google_service_account\.migrator\.email\}"/u)
+  assert.doesNotMatch(block, /google_project_iam_member|roles\/run\.developer|orgmaster|platform-prod/u)
+  const address = 'google_cloud_run_v2_service_iam_member.application_migrator_readback[0]'
+  assert.ok(profile.stageBAdditional.includes(address))
+  assert.ok(!profile.stageA.includes(address))
+})
