@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { assertPrincipalOnlyMigrationFence,
+import { assertPrincipalOnlyMigrationFence, assertPrincipalOnlyMigrationWritersAbsent,
   requiresPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { sha256 } from './dev012-production-migration-runner.mjs'
 
@@ -57,4 +57,28 @@ test('accepts source-bound proof only after live service generation and drain ag
     assert.throws(() => assertPrincipalOnlyMigrationFence(changed),
       /DEV121_MIGRATION_073_FENCE_INVALID/u)
   }
+})
+
+test('migration fence reads all AI-PDM owner-role sessions before pending SQL', async () => {
+  let inspected = false
+  const database = { async query(sql, values) {
+    inspected = true
+    assert.match(sql, /pg_catalog\.pg_stat_activity/u)
+    assert.match(sql, /pg_catalog\.pg_has_role\(usename,'jenfu_ai_pdm_runtime','MEMBER'\)/u)
+    assert.match(sql, /pg_catalog\.pg_has_role\(usename,'jenfu_ai_pdm_migrator','MEMBER'\)/u)
+    assert.deepEqual(values, ['aipdm-prod-runtime@jenfu-platform-prod.iam',
+      'aipdm-prod-migrator@jenfu-platform-prod.iam'])
+    return { rows: [{ ownerSessions: 0 }] }
+  } }
+  assert.deepEqual(await assertPrincipalOnlyMigrationWritersAbsent(database),
+    { ownerWriterSessions: 0 })
+  assert.equal(inspected, true)
+  for (const value of [1, '2', null, -1]) {
+    await assert.rejects(assertPrincipalOnlyMigrationWritersAbsent({
+      query: async () => ({ rows: [{ ownerSessions: value }] }),
+    }), /DEV121_MIGRATION_073_FENCE_INVALID/u)
+  }
+  await assert.rejects(assertPrincipalOnlyMigrationWritersAbsent({
+    query: async () => { throw new Error('provider denied') },
+  }), /DEV121_MIGRATION_073_FENCE_INVALID/u)
 })

@@ -17,6 +17,7 @@ import {
 } from './lib/dev012-production-migration-runner.mjs'
 import {
   assertPrincipalOnlyMigrationFence,
+  assertPrincipalOnlyMigrationWritersAbsent,
   readPrincipalOnlyServiceV2,
   requiresPrincipalOnlyMigrationFence,
 } from './lib/dev121-migration-fence.mjs'
@@ -92,8 +93,9 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
           expectedSha256: environment.DEV121_MIGRATION_FENCE_SHA256,
           sourceRevision: args.sourceRevision, service,
           observedAt: new Date().toISOString() })
+        const writers = await assertPrincipalOnlyMigrationWritersAbsent(database)
         principalOnlyFence = { ref: fenceRef, sha256: sha256(fenceObject.bytes),
-          generation: fenceObject.generation, ...state }
+          generation: fenceObject.generation, ...state, ...writers }
       },
       denyDatabaseConnect: async (databaseName) => {
         const denied = new Client(databaseOptions(environment, token, databaseName))
