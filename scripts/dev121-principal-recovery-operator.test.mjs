@@ -21,13 +21,13 @@ const sourceProof = { schemaVersion: 'jenfu.dev012.official-merged-source.v1',
   status: 'OFFICIAL_MERGED_PR_VERIFIED' }
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex')
 
-function harness() {
+function harness(scaling = { scalingMode: 'AUTOMATIC' }) {
   const oldTraffic = { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: oldRevision, percent: 100 }
   let service = { name: 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod',
     uid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5', etag: 'etag-one',
     generation: '10', observedGeneration: '10', reconciling: false,
     terminalCondition: { state: 'CONDITION_SUCCEEDED' },
-    scaling: { scalingMode: 'AUTOMATIC' },
+    scaling: structuredClone(scaling),
     ingress: 'INGRESS_TRAFFIC_ALL', invokerIamDisabled: true,
     defaultUriDisabled: false, traffic: [oldTraffic], trafficStatuses: [oldTraffic] }
   const calls = []
@@ -113,4 +113,52 @@ test('owner recovery operator refuses a non-official source before a provider mu
     archive: Buffer.from('source'), sourceProof: { ...sourceProof, branchProtected: false },
     transport: h.transport }), /DEV121_RECOVERY_OPERATOR_SOURCE_INVALID/u)
   assert.deepEqual(h.calls, [])
+})
+
+test('stopped owner recovery creates an untagged revision without reopening traffic or scaling', async () => {
+  const h = harness({ scalingMode: 'MANUAL', manualInstanceCount: 0 })
+  const patch = h.transport.patchService
+  h.transport.patchService = async (ownerProfile, request, mask) => {
+    assert.deepEqual(Object.keys(request).sort(), ['etag', 'name', 'template'])
+    return patch(ownerProfile, request, mask)
+  }
+  const result = await executeRecoveryOperation({ profile, sourceRevision,
+    archive: Buffer.from('official-source-archive'), sourceProof, transport: h.transport })
+  assert.equal(result.status, 'PASS')
+  assert.deepEqual(h.service().scaling, { scalingMode: 'MANUAL', manualInstanceCount: 0 })
+  assert.equal(h.service().traffic[0].revision, oldRevision)
+  assert.equal(h.service().trafficStatuses.some(row => row.tag), false)
+  assert.deepEqual(h.calls, ['source', 'build', 'artifact', 'scan', 'revision', 'receipt'])
+})
+
+test('nonzero or unspecified manual capacity cannot enter recovery mutation', async () => {
+  for (const manualInstanceCount of [1, '1', -1, null, undefined, NaN]) {
+    const h = harness({ scalingMode: 'MANUAL', manualInstanceCount })
+    await assert.rejects(executeRecoveryOperation({ profile, sourceRevision,
+      archive: Buffer.from('source'), sourceProof, transport: h.transport }),
+      /DEV121_RECOVERY_OPERATOR_REVISION_INPUT_INVALID/u)
+    assert.deepEqual(h.calls, [])
+  }
+})
+
+test('stopped recovery still rejects failed artifact policy before creating a revision', async () => {
+  const h = harness({ scalingMode: 'MANUAL', manualInstanceCount: 0 })
+  h.transport.waitArtifactEvidence = async () => { h.calls.push('scan'); throw new Error('ARTIFACT_POLICY_FAILED') }
+  await assert.rejects(executeRecoveryOperation({ profile, sourceRevision,
+    archive: Buffer.from('source'), sourceProof, transport: h.transport }), /ARTIFACT_POLICY_FAILED/u)
+  assert.deepEqual(h.calls, ['source', 'build', 'artifact', 'scan'])
+})
+
+test('recovery readback rejects changed stopped capacity and publishes no proof', async () => {
+  const h = harness({ scalingMode: 'MANUAL', manualInstanceCount: 0 })
+  const patch = h.transport.patchService
+  h.transport.patchService = async (...args) => {
+    const result = await patch(...args)
+    h.service().scaling.manualInstanceCount = 1
+    return result
+  }
+  await assert.rejects(executeRecoveryOperation({ profile, sourceRevision,
+    archive: Buffer.from('source'), sourceProof, transport: h.transport }),
+    /DEV121_RECOVERY_OPERATOR_REVISION_READBACK_INVALID/u)
+  assert.equal(h.calls.includes('receipt'), false)
 })
