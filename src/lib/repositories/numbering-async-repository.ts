@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { consensusStoredPartStructureType, type NumberingStructureType, type StoredPartStructureType } from "@/lib/numbering-structure-type";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { assertPdmReviewScopeWritableAsync, lockPdmEntityScopeAsync } from "@/lib/pdm-review-lock";
 import { buildApprovalRuleSummary, withPredictedApprovalControls } from "@/lib/approval-rule-summary";
 import {
@@ -3812,7 +3813,8 @@ export class AsyncNumberingRepository {
     private readonly transactionCheckpoint?: (
       point: "before_sequence" | "after_root" | "after_part" | "after_drawing" | "after_relation",
       context: Readonly<Record<string, unknown>>
-    ) => void | Promise<void>
+    ) => void | Promise<void>,
+    private readonly verifiedPrincipal?: VerifiedPrincipalRequest | null
   ) {}
 
   private async checkpoint(
@@ -8597,12 +8599,29 @@ export class AsyncNumberingRepository {
     client: AsyncDatabaseClient,
     input: { actorId?: string | null; action: string; companyId?: string | null; detail: Record<string, unknown> }
   ): Promise<void> {
-    const scope = resolveAuditWriteScope({ action: input.action, companyId: input.companyId, allowLegacy: true });
+    const verified = this.verifiedPrincipal;
+    if (client.kind === "postgres" &&
+        (!verified?.session.principalId || !Number.isSafeInteger(verified.session.profileVersion) ||
+         verified.session.profileVersion < 1 || !verified.profile.companyId ||
+         input.actorId !== verified.profile.pdmUserId ||
+         (input.companyId && input.companyId !== verified.profile.companyId))) {
+      throw new Error("NUMBERING_PRINCIPAL_AUDIT_REQUIRED");
+    }
+    const scope = client.kind === "postgres" &&
+        !CURRENT_GLOBAL_AUDIT_ACTIONS.some(action => action === input.action)
+      ? { companyId: verified!.profile.companyId, scopeKind: "tenant" }
+      : resolveAuditWriteScope({ action: input.action, companyId: input.companyId, allowLegacy: true });
+    const detail: Record<string, unknown> = normalizeAuditDetail(input.detail);
+    if (client.kind === "postgres") {
+      // The verified command actor stamps security identity; profile IDs retain their domain meaning.
+      detail.securityActor = { principalId: verified!.session.principalId,
+        profileVersion: verified!.session.profileVersion, actorKind: "human", reason: input.action };
+    }
     await client.execute(INSERT_ASYNC_SCOPED_NUMBERING_AUDIT_SQL, {
       id: this.idFactory(),
       actorId: input.actorId ?? null,
       action: input.action,
-      detailJson: JSON.stringify(normalizeAuditDetail(input.detail)),
+      detailJson: JSON.stringify(detail),
       companyId: scope.companyId,
       scopeKind: scope.scopeKind,
       createdAt: this.clock()

@@ -1,0 +1,186 @@
+{
+  "contract": "JENFU/DEV-015#F05 and ORGMASTER/DEV-057#Principal-grant-v3 to AIPDM/DEV-121",
+  "generatedAt": "2026-09-30T15:45:36.654Z",
+  "status": "LOCAL_REAL_POSTGRES_PASS_NOT_PRODUCTION",
+  "aiPdmBaseRevision": "5fd4d31bb059d7499e0ece64d7c0f77e2f95dcda",
+  "sourceState": "BASE_REVISION_PLUS_VALIDATED_WORKING_TREE_BYTE_HASHES",
+  "sourceHashes": {
+    "src/lib/numbering-async.ts": "9b61d46dc62b7a88a3af2e4eae633b38f36b36ccc03db71a4238db070d17ab5d",
+    "src/lib/repositories/numbering-async-repository.ts": "eaebff469f1d824e105ea923e41adb71de9d91d58427fcc1400af79e41bfc028",
+    "src/lib/principal-numbering-owner-grant.postgres-contract.test.ts": "bc45299719244453b750d1d4def60639e7e7aed68477c7e348e2aa0b9d7793d0",
+    "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs": "08c2b5eb5278fa27caf0e92b05555cf238c43257e3e1e6a8179f64f173bf4067",
+    "src/lib/platform-command-service.ts": "69860b100ec399bebbfdf7d7c753fdfeba05ccddf7bc2c9ec68f3f8e64d55d97",
+    "config/release/dev117-ai-pdm-independent-production-v3.json": "cb949d7f0da64feff4aed81b4f94498364114e16043e9b364214e8deb267af74",
+    "config/access-control/jenfu-role-catalog.v5.json": "f4b00ca994ee53236cd33c484397c2ca97cb3ea2b63326e3943d268ed8b25981"
+  },
+  "orgmaster": {
+    "baseRevision": "791bb786334442f09a238c11fdee0e32b38d0845",
+    "runnerPath": "scripts/qc-dev-047-postgres.mjs",
+    "runnerSha256": "479b61c18b18a44b1577198386a091b19b34a42190efb1c7bff8bebfb34b7f94"
+  },
+  "rootCause": "The verified actor already reached the command receipt and outbox but was discarded by all seven numbering repository command callers before the shared audit writer.",
+  "change": "Pass the existing verified command context into the shared audit writer; stamp canonical Principal/profileVersion/human/reason, retain trusted profile domain ID, preserve classified global actions and reject missing or mixed PostgreSQL actors.",
+  "covered": [
+    "actual OrgMaster publication -> grant v3 -> restricted AI-PDM runtime on PostgreSQL 18.4",
+    "existing exact native AI-PDM owner migrations, source checksums and approved v3/v4/v5 catalog chain",
+    "POST records -> root/part -> same-transaction Principal receipt/outbox/audit -> replay and GET reload/search",
+    "POST root parts/drawings/drawing-part -> actual HTTP and domain writers -> Principal audit -> replay/reload",
+    "assigned/revoked/out-of-scope/restored: eight business/atomicity checks each; denied phases leave no business writes",
+    "missing or mixed trusted Principal audit context rolls back root/part/audit writes",
+    "other-company requests create no receipt/outbox/audit",
+    "existing package/raw-file download and transfer approval chains plus management HTTP grant publication retained"
+  ],
+  "verification": {
+    "actualPostgres": "PASS",
+    "focusedExistingRegression": {
+      "tests": 24,
+      "status": "PASS"
+    },
+    "typecheck": "PASS",
+    "scopedLint": "PASS",
+    "databaseBoundary": "PASS",
+    "review": "RD self-review and reproducible verification; no independent human or independent-agent QC is claimed"
+  },
+  "sharedGrantBoundaryFailureCount": 11,
+  "numberingProductAuditFailures": 1,
+  "attempts": [
+    {
+      "attempt": 1,
+      "classification": "FIXTURE_PGCRYPTO_MISSING",
+      "sha256": "8839b9de7f82b0aa1987dc412fd598c5eb559a6e95d12ec2f19f6e8bb0e979ad",
+      "status": "FAIL",
+      "executedCaseCount": 21,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    {
+      "attempt": 2,
+      "classification": "PRODUCER_ONLY_CONSUMER_NOT_ENABLED",
+      "sha256": "3aae83b7fef71d3c5af53c49bf82979184c7761d3255dae879aee66be655ac3b",
+      "status": "PASS",
+      "executedCaseCount": 20,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    {
+      "attempt": 3,
+      "classification": "FIXTURE_OWNER_TRIGGER_SCHEMA_MISSING",
+      "sha256": "b3e79d3ce6ac033338d85954e6816c490570828924c78e26a918ef238e847109",
+      "status": "FAIL",
+      "executedCaseCount": 21,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    {
+      "attempt": 4,
+      "classification": "FIXTURE_APPROVED_V3_BASELINE_MISSING",
+      "sha256": "6a4624b46ec448d4ddcbbd52fab5ae657d6323ab995b0c24982c786434ed15d6",
+      "status": "FAIL",
+      "executedCaseCount": 21,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    {
+      "attempt": 5,
+      "classification": "PRODUCT_NUMBERING_SECURITY_AUDIT_MISSING",
+      "sha256": "c2d3516d3d83d9e29567bfc7b4792560a530f786e80551f433be7661e8fcc798",
+      "status": "FAIL",
+      "executedCaseCount": 21,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    {
+      "attempt": 6,
+      "classification": "LOCAL_CREATE_REPLAY_QUERY_PASS",
+      "sha256": "dd7e31cf0a85edc17b4bc753cdd02d47c373a032d506bc9df8ca298b6680c9b4",
+      "status": "PASS",
+      "executedCaseCount": 22,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    {
+      "attempt": 7,
+      "classification": "LOCAL_AUDIT_ROLLBACK_PASS",
+      "sha256": "36fce1d56d6915f6622b5f0d29c137f1b2b4c5cad4945ded6cdcd523b7001a8d",
+      "status": "PASS",
+      "executedCaseCount": 22,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    {
+      "attempt": 8,
+      "classification": "LOCAL_APPEND_REPLAY_QUERY_PASS",
+      "sha256": "168a4a4854bd3a5adf93235f98f46eba69d39a5e28225881001684935e4adbe4",
+      "status": "PASS",
+      "executedCaseCount": 22,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    {
+      "attempt": 9,
+      "classification": "FINAL_VALIDATED_SOURCE_PASS",
+      "sha256": "f5e08a1f50a4f6dadfe547c1d5dd5626e3f0cfad9cd5154a4157ebaeb8472f97",
+      "status": "PASS",
+      "executedCaseCount": 22,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    }
+  ],
+  "limitations": [
+    "verified session input remains synthetic; not real-provider conformance",
+    "disposable loopback PostgreSQL only; no Production database or traffic change",
+    "no complete UI/provider/Production L4 flow is upgraded by this evidence",
+    "three other numbered lifecycle callers share the fix but their complete business workflows are not claimed here",
+    "older prepared AI-PDM source-bound application artifacts must be refreshed after the merged fix"
+  ],
+  "producerEvidence": {
+    "project": "JENFU",
+    "path": "ai-doc/qa/DEV-015-numbering-owner-grant-postgres-2026-09-30.json",
+    "sha256": "cf55bb25fce22f5c41a688ca171a05d6eaeea1a84d308cb8de928a05f56bec59"
+  }
+}
