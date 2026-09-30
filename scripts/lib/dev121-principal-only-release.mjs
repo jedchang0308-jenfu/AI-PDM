@@ -1,4 +1,5 @@
 const SERVICE = 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
+const PRODUCTION_MAX_INSTANCES = 1
 const IMAGE = /^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-recovery@sha256:[a-f0-9]{64}$/u
 const REVISION = /^ai-pdm-prod-[a-z0-9-]+$/u
 const H40 = /^[a-f0-9]{40}$/u
@@ -14,6 +15,12 @@ function exactTraffic(rows, revision, tag = null, percent = 100) {
     rows[0]?.revision === revision && Number(rows[0]?.percent) === percent &&
     rows[0]?.latestRevision !== true &&
     (tag === null ? rows[0]?.tag === undefined : rows[0]?.tag === tag)
+}
+function exactZeroTag(rows, revision, tag) {
+  return Array.isArray(rows) && rows.length === 1 &&
+    rows[0]?.revision === revision && rows[0]?.tag === tag &&
+    rows[0]?.latestRevision !== true &&
+    (rows[0]?.percent == null || Number(rows[0].percent) === 0)
 }
 function zeroInstances(value) {
   return value === 0 || value === '0'
@@ -90,11 +97,12 @@ export function principalOnlyActivationRequest({ service, oldRevision, candidate
   for (const rows of [service.traffic, service.trafficStatuses]) {
     if (!Array.isArray(rows) || rows.length !== 2 ||
       !exactTraffic([rows[0]], oldRevision) ||
-      !exactTraffic([rows[1]], candidateRevision, candidateTag, 0)) fail()
+      !exactZeroTag([rows[1]], candidateRevision, candidateTag)) fail()
   }
   return {
     name: service.name, etag: service.etag,
-    scaling: { scalingMode: 'AUTOMATIC', manualInstanceCount: null },
+    scaling: { scalingMode: 'AUTOMATIC', manualInstanceCount: null,
+      maxInstanceCount: PRODUCTION_MAX_INSTANCES },
     traffic: [
       { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, percent: 100 },
       { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidateRevision, percent: 0, tag: candidateTag },
@@ -110,14 +118,16 @@ export function assertPrincipalOnlyActivationReadback({ before, after,
     Number(after.generation) <= Number(before.generation) ||
     after.scaling?.scalingMode !== 'AUTOMATIC' ||
     (after.scaling.manualInstanceCount != null && Number(after.scaling.manualInstanceCount) !== 0) ||
+    Number(after.scaling.maxInstanceCount) !== PRODUCTION_MAX_INSTANCES ||
     !REVISION.test(recoveryRevision ?? '') ||
     !Array.isArray(after.traffic) || !Array.isArray(after.trafficStatuses) ||
     after.traffic.length !== 2 || after.trafficStatuses.length < 1 ||
     after.trafficStatuses.length > 2 ||
     !exactTraffic([after.traffic[0]], candidateRevision) ||
-    !exactTraffic([after.traffic[1]], candidateRevision, candidateTag, 0) ||
+    !exactZeroTag([after.traffic[1]], candidateRevision, candidateTag) ||
     after.trafficStatuses.some((row) => row.revision !== candidateRevision ||
-      ![undefined, candidateTag].includes(row.tag) || ![0, 100].includes(Number(row.percent))) ||
+      ![undefined, candidateTag].includes(row.tag) ||
+      !((row.percent == null && row.tag === candidateTag) || [0, 100].includes(Number(row.percent)))) ||
     after.trafficStatuses.filter((row) => Number(row.percent) === 100).length !== 1 ||
     after.traffic.some((row) => row.revision === recoveryRevision)) fail()
   return after
