@@ -135,7 +135,7 @@ record("PROD-PIPE-007 workflow builds immutable provenance and forbids source de
 });
 
 record("PROD-PIPE-007B hardened distroless nonroot runner excludes unused OS zlib and includes app assets", () => {
-  assert.match(dockerfile, /^ARG RUNTIME_NODE_IMAGE=gcr\.io\/distroless\/nodejs24-debian13:nonroot@sha256:[a-f0-9]{64}$/mu);
+  assert.match(dockerfile, /^ARG RUNTIME_NODE_IMAGE=gcr\.io\/distroless\/nodejs24-debian13:nonroot-amd64@sha256:7924c53f56526359d0f491c22517306d8d92f1b285656a6094398e2c55bbaeca$/mu);
   assert.match(dockerfile, /^ARG RUNTIME_SANITIZER_IMAGE=alpine:3\.22@sha256:[a-f0-9]{64}$/mu);
   assert.match(dockerfile, /^FROM \$\{RUNTIME_NODE_IMAGE\} AS runtime-base$/mu);
   assert.match(dockerfile, /^FROM \$\{RUNTIME_SANITIZER_IMAGE\} AS runtime-sanitizer$/mu);
