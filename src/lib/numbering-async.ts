@@ -127,7 +127,7 @@ export async function createNumberingRecordAsync(input: CreateNumberingRecordInp
     command,
     principalRequest: commandMetadata.principalRequest,
     principalAuthorization: commandMetadata.principalAuthorization,
-    execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).createNumberingRecord(input),
+    execute: (transactionClient, _decision, verified) => new AsyncNumberingRepository(transactionClient, undefined, undefined, undefined, verified).createNumberingRecord(input),
     event: (result) => ({
       aggregateType: "part_root",
       aggregateId: result.root.id,
@@ -177,7 +177,7 @@ export async function obsoleteDraftNumberingRecordAsync(
     principalAuthorization: commandMetadata.principalAuthorization,
     serializable: true,
     idempotencyPayload: { rootCode: input.rootCode, reason: input.reason.trim(), companyId: input.companyId ?? null },
-    execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).obsoleteDraftNumberingRecord(input),
+    execute: (transactionClient, _decision, verified) => new AsyncNumberingRepository(transactionClient, undefined, undefined, undefined, verified).obsoleteDraftNumberingRecord(input),
     event: (result) => ({
       aggregateType: "part_root",
       aggregateId: result?.root.id ?? input.rootCode,
@@ -234,7 +234,7 @@ export async function requestNumberingObsoleteApprovalAsync(input: RequestNumber
       reason: input.reason.trim(),
       companyId: input.companyId ?? null
     },
-    execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).requestNumberingObsoleteApproval(input),
+    execute: (transactionClient, _decision, verified) => new AsyncNumberingRepository(transactionClient, undefined, undefined, undefined, verified).requestNumberingObsoleteApproval(input),
     event: (result) => ({
       aggregateType: input.entityType,
       aggregateId: result.entity.entityId,
@@ -272,8 +272,8 @@ export async function addDrawingNumberToRootAsync(
     command,
     principalRequest: commandMetadata.principalRequest,
     principalAuthorization: commandMetadata.principalAuthorization,
-    execute: (transactionClient) =>
-      new AsyncNumberingRepository(transactionClient).addDrawingNumberToRoot({
+    execute: (transactionClient, _decision, verified) =>
+      new AsyncNumberingRepository(transactionClient, undefined, undefined, undefined, verified).addDrawingNumberToRoot({
         ...input,
         idempotencyKey: commandMetadata.idempotencyKey
       }),
@@ -320,8 +320,8 @@ export async function addPartNumberToRootAsync(
     command,
     principalRequest: commandMetadata.principalRequest,
     principalAuthorization: commandMetadata.principalAuthorization,
-    execute: (transactionClient) =>
-      new AsyncNumberingRepository(transactionClient).addPartNumberToRoot({
+    execute: (transactionClient, _decision, verified) =>
+      new AsyncNumberingRepository(transactionClient, undefined, undefined, undefined, verified).addPartNumberToRoot({
         ...input,
         idempotencyKey: commandMetadata.idempotencyKey
       }),
@@ -370,8 +370,8 @@ export async function addDrawingAndPartToRootAsync(
     command,
     principalRequest: commandMetadata.principalRequest,
     principalAuthorization: commandMetadata.principalAuthorization,
-    execute: (transactionClient) =>
-      new AsyncNumberingRepository(transactionClient).addDrawingAndPartToRoot({
+    execute: (transactionClient, _decision, verified) =>
+      new AsyncNumberingRepository(transactionClient, undefined, undefined, undefined, verified).addDrawingAndPartToRoot({
         ...input,
         idempotencyKey: commandMetadata.idempotencyKey
       }),
@@ -420,7 +420,7 @@ export async function requestRootObsoleteApprovalAsync(input: RequestRootObsolet
     principalAuthorization: commandMetadata.principalAuthorization,
     serializable: true,
     idempotencyPayload: { rootCode: input.rootCode ?? null, rootId: input.rootId ?? null, reason: input.reason.trim(), companyId: input.companyId ?? null },
-    execute: (transactionClient) => new AsyncNumberingRepository(transactionClient).requestRootObsoleteApproval(input),
+    execute: (transactionClient, _decision, verified) => new AsyncNumberingRepository(transactionClient, undefined, undefined, undefined, verified).requestRootObsoleteApproval(input),
     event: (result) => ({
       aggregateType: "part_root",
       aggregateId: result.impact.root.id,
