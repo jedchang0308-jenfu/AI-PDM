@@ -189,8 +189,12 @@ test('S1B-20 AI-PDM release intent is exact, owner-bound and immutable', () => {
   assert.equal(assertDev117ReleaseIntent(intent, profile), intent)
   assert.equal(assertDev117ReleaseIntent({ ...intent, baselineIntentRef: ref('baseline-intent') }, profile).baselineIntentRef.uri, ref('baseline-intent').uri)
   const fenceRef = { uri: `gs://${profile.artifact.releaseBucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/fence.json`, sha256: H }
-  assert.equal(assertDev117ReleaseIntent({ ...intent, principalOnlyFenceRef: fenceRef }, profile).principalOnlyFenceRef, fenceRef)
-  assert.throws(() => assertDev117ReleaseIntent({ ...intent, principalOnlyFenceRef: ref('unrelated') }, profile), /principalOnlyFenceRef/u)
+  const principalOnlyRecovery = { revision: 'ai-pdm-prod-recovery', serviceUid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5',
+    imageDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${H}`,
+    receiptRef: { uri: `gs://${profile.artifact.releaseBucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/recovery.json`, sha256: H } }
+  assert.equal(assertDev117ReleaseIntent({ ...intent, principalOnlyFenceRef: fenceRef, principalOnlyRecovery }, profile).principalOnlyFenceRef, fenceRef)
+  assert.throws(() => assertDev117ReleaseIntent({ ...intent, principalOnlyFenceRef: fenceRef }, profile), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+  assert.throws(() => assertDev117ReleaseIntent({ ...intent, principalOnlyFenceRef: ref('unrelated'), principalOnlyRecovery }, profile), /principalOnlyFenceRef/u)
   assert.throws(() => assertDev117ReleaseIntent({ ...intent, ownerApplicationId: 'platform' }, profile), /release intent invalid/i)
 })
 

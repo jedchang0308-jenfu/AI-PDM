@@ -1,5 +1,6 @@
 import { canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-production-migration-runner.mjs'
 import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
+import { assertPrincipalOnlyActivationReadback, principalOnlyActivationRequest } from './dev121-principal-only-release.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -376,14 +377,17 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       return typeof revision === 'string'
         && (service?.latestCreatedRevision === revision || String(service?.latestCreatedRevision ?? '').endsWith(`/revisions/${revision}`))
     }
-    if (updateMask === 'traffic') {
+    if (updateMask === 'traffic' || updateMask === 'scaling,traffic') {
       const expected = requested?.traffic
       const actual = service?.traffic
       if (!Array.isArray(expected) || !Array.isArray(actual) || expected.length !== actual.length) return false
-      return expected.every((row, index) => ['type', 'revision', 'percent', 'tag', 'latestRevision']
+      const trafficMatches = expected.every((row, index) => ['type', 'revision', 'percent', 'tag', 'latestRevision']
         .every((key) => row[key] === undefined || (key === 'percent'
           ? Number(actual[index]?.percent ?? 0) === Number(row.percent)
           : actual[index]?.[key] === row[key])))
+      return trafficMatches && (updateMask === 'traffic' ||
+        (service?.scaling?.scalingMode === 'AUTOMATIC' &&
+          (service.scaling.manualInstanceCount == null || [0, '0'].includes(service.scaling.manualInstanceCount))))
     }
     return false
   }
@@ -441,6 +445,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const expectedKeys = {
       template: ['etag', 'name', 'template'],
       traffic: ['etag', 'name', 'traffic'],
+      'scaling,traffic': ['etag', 'name', 'scaling', 'traffic'],
       [ENTRYPOINT_UPDATE_MASK]: ['defaultUriDisabled', 'etag', 'ingress', 'invokerIamDisabled', 'name'],
     }[updateMask]
     if (!expectedKeys || Object.keys(service ?? {}).sort().join(',') !== expectedKeys.join(',') || service?.name !== `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}` || !service.etag) fail('RUN_MUTATION_INVALID')
@@ -470,10 +475,11 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     container.env = [...retained, { name, value }]
   }
 
-  async function createCandidate({ profile, artifactDigest, runtimeConfig, fingerprint, deadlineAt }) {
+  async function createCandidate({ profile, artifactDigest, runtimeConfig, fingerprint, deadlineAt, principalOnly = false }) {
     if (!artifactDigest.startsWith(`${profile.artifact.uri}@sha256:`) || !H64.test(fingerprint)) fail('CANDIDATE_INPUT_INVALID')
     const before = await getService(profile)
     assertServiceSettled(before, 'CANDIDATE_BASELINE_INVALID')
+    if (principalOnly && (before.scaling?.scalingMode !== 'MANUAL' || ![0, '0'].includes(before.scaling?.manualInstanceCount))) fail('PRINCIPAL_ONLY_QUIESCENCE_LOST')
     if (before.reconciling === true || !before.etag || !Array.isArray(before.traffic) || before.traffic.some((row) => row.latestRevision === true || row.tag)) fail('CANDIDATE_BASELINE_INVALID')
     const candidateRevision = `${profile.target.serviceName}-${fingerprint.slice(0, 12)}`
     const tag = `candidate-${fingerprint.slice(0, 12)}`
@@ -617,6 +623,25 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const after = await getService(profile)
     assertServiceSettled(after, 'TRAFFIC_READBACK_MISMATCH')
     if (effectiveRevision(after) !== revision) fail('TRAFFIC_READBACK_MISMATCH')
+    return after
+  }
+
+  async function activatePrincipalOnly({ profile, oldRevision, recovery,
+    candidateRevision, candidateTag, deadlineAt }) {
+    const before = await getService(profile)
+    assertServiceSettled(before, 'PRINCIPAL_ONLY_ACTIVATION_BASELINE_INVALID')
+    if (before.uid !== recovery.serviceUid) fail('PRINCIPAL_ONLY_SERVICE_IDENTITY_DRIFT')
+    const recoveryRevision = await getRevision(profile, recovery.revision)
+    if (recoveryRevision.conditions?.find((row) => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED' ||
+      recoveryRevision.containers?.find((row) => row.name === profile.runtime.containerName)?.image !== recovery.imageDigest) fail('PRINCIPAL_ONLY_RECOVERY_REVISION_INVALID')
+    const requestBody = principalOnlyActivationRequest({ service: before, oldRevision,
+      candidateRevision, candidateTag, recoveryRevision: recovery.revision })
+    const templateBefore = sha256(canonicalize(before.template))
+    const result = await patchService(profile, requestBody, 'scaling,traffic', deadlineAt)
+    const after = result.response
+    assertPrincipalOnlyActivationReadback({ before, after, candidateRevision, candidateTag,
+      recoveryRevision: recovery.revision })
+    if (sha256(canonicalize(after.template)) !== templateBefore) fail('PRINCIPAL_ONLY_ACTIVATION_TEMPLATE_DRIFT')
     return after
   }
 
@@ -1008,7 +1033,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  return { request, readOwnerRun, readBytes, readJson, putBytes, putJson, deleteBytes, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
+  return { request, readOwnerRun, readBytes, readJson, putBytes, putJson, deleteBytes, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, activatePrincipalOnly, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {
