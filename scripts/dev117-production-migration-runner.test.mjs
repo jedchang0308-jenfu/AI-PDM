@@ -96,3 +96,32 @@ test('S1B-20 AI-PDM runner bootstraps only its private ledger and applies a fres
   assert.ok(statements.some((sql) => sql === `SET LOCAL ROLE ${TARGET.migratorRole}`))
   assert.ok(statements.some((sql) => sql === `REVOKE ALL ON TABLE ${TARGET.ledger} FROM PUBLIC`))
 })
+
+test('owner migration preflight rejects before any pending SQL begins', async () => {
+  const input = fixture(2)
+  const ledger = input.bundle.entries.slice(0, TARGET.baselineCount).map((entry) => ({
+    version: entry.version, name: entry.name,
+    checksum_sha256: entry.appliedSha256, source_revision: 'prior',
+  }))
+  let began = false
+  const database = { async query(sql) {
+    if (sql.startsWith('SELECT current_database')) return { rows: [{
+      database: 'jenfu_prod', user: TARGET.login, postgresMajor: 17,
+      migratorMember: true, runtimeCanCreateCore: false }] }
+    if (sql.includes('unnest(')) return { rows: TARGET.siblingCoreSchemas.map(
+      (schema_name) => ({ schema_name, can_use: false })) }
+    if (sql.includes('FROM pg_catalog.pg_class')) return { rows: [{ exists: true }] }
+    if (sql.includes('ORDER BY applied_at')) return { rows: ledger }
+    if (sql === 'BEGIN') began = true
+    return { rows: [] }
+  } }
+  await assert.rejects(executeProductionMigration({ bundle: input.bundle,
+    database, target: TARGET, sourceRevision: H40,
+    denyDatabaseConnect: async () => true,
+    beforePending: async (pending) => {
+      assert.equal(pending.length, 2)
+      throw new Error('QUIESCENCE_REQUIRED')
+    },
+  }), /QUIESCENCE_REQUIRED/u)
+  assert.equal(began, false)
+})

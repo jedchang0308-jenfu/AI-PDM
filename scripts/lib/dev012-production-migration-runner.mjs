@@ -243,7 +243,7 @@ async function readDatabaseBoundary(database, target) {
   return { ...identity, siblingCore: sibling }
 }
 
-export async function executeProductionMigration({ bundle, database, target, sourceRevision, denyDatabaseConnect, now = () => new Date().toISOString() }) {
+export async function executeProductionMigration({ bundle, database, target, sourceRevision, denyDatabaseConnect, beforePending = async () => undefined, now = () => new Date().toISOString() }) {
   const startedAt = now()
   await readDatabaseBoundary(database, target)
   await database.query("SELECT pg_advisory_lock(hashtext($1), hashtext(current_database()))", [`dev012-${target.ownerApplicationId}`])
@@ -256,6 +256,7 @@ export async function executeProductionMigration({ bundle, database, target, sou
     ledgerBootstrap = await ensureMigrationLedger(database, target)
     ledger = await readLedger(database, target.ledger)
     pending = planMigration(bundle, ledger, { minimumLedgerCount })
+    await beforePending(pending)
     for (const entry of pending) {
       await database.query('BEGIN')
       try {

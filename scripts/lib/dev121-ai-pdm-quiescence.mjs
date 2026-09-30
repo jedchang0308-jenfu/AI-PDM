@@ -69,12 +69,14 @@ export function assertAiPdmQuiescenceReadbacks({ before, after,
  * cannot establish that the legacy revision will not start another request.
  */
 export function assertAiPdmQuiescentV2Service({ service, oldRevision,
-  expectedUid, beforeGeneration, disabledCompletedAt, observedAt,
+  expectedUid, beforeGeneration, expectedQuiescentGeneration, observedAt,
   requestTimeoutSeconds }) {
   if (service?.name !== V2_NAME || typeof service.uid !== 'string' ||
     !service.uid || service.uid !== expectedUid ||
     integer(beforeGeneration) === null ||
     integer(service.generation) <= integer(beforeGeneration) ||
+    integer(expectedQuiescentGeneration) === null ||
+    integer(service.generation) !== integer(expectedQuiescentGeneration) ||
     service.reconciling === true ||
     service.terminalCondition?.state !== 'CONDITION_SUCCEEDED' ||
     integer(service.generation) === null ||
@@ -94,7 +96,10 @@ export function assertAiPdmQuiescentV2Service({ service, oldRevision,
     Number(service.trafficStatuses[0]?.percent) !== 100 ||
     service.trafficStatuses[0]?.tag !== undefined) fail()
   const timeout = integer(requestTimeoutSeconds)
-  const stopped = Date.parse(disabledCompletedAt)
+  if (service.template?.timeout !== `${timeout}s`) fail()
+  // The provider's last service update is a conservative drain start. Caller
+  // timestamps cannot shorten the wait after a resume-and-disable cycle.
+  const stopped = Date.parse(service.updateTime)
   const observed = Date.parse(observedAt)
   if (!timeout || timeout > 60 || !Number.isFinite(stopped) ||
     !Number.isFinite(observed) || observed - stopped < (timeout + 30) * 1000) fail()
