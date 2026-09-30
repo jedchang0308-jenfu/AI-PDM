@@ -30,7 +30,7 @@
     "qc:dev-121:transfer-postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-121-transfer-inbox-postgres.mjs",
     "qc:dev-121:preview-worker-postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-121-preview-worker-postgres.mjs",
     "qc:dev-121:recognition-principal-postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-121-recognition-initiator-postgres.mjs",
-    "qc:dev-121:inventory-runner": "node --test scripts/dev121-production-principal-inventory-runner.test.mjs scripts/dev121-principal-inventory-package.test.mjs scripts/dev121-principal-writer-readback.test.mjs scripts/lib/dev121-principal-only-source-receipt.test.mjs",
+    "qc:dev-121:inventory-runner": "node --test scripts/dev121-production-principal-inventory-runner.test.mjs scripts/dev121-principal-only-apply-runner.test.mjs scripts/dev121-principal-inventory-package.test.mjs scripts/dev121-principal-writer-readback.test.mjs scripts/lib/dev121-principal-only-source-receipt.test.mjs",
     "dev-121:recovery:operator": "node scripts/dev121-principal-recovery-operator.mjs",
     "qc:jms-dev-005:migration": "node scripts/qc-jms-dev-005-migration.mjs",
     "qc:jms-dev-005:postgres": "node scripts/qc-jms-dev-005-postgres.mjs",

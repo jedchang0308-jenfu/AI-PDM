@@ -1,0 +1,81 @@
+{
+  "contract": "AIPDM/DEV-121 one-shot Principal-only inventory operator local integration",
+  "observedAtUtc": "2026-09-30T21:09:40.858633+08:00",
+  "status": "LOCAL_INTEGRATION_PASS_NOT_RELEASED",
+  "sourceBase": "76884a5dde0c3bf9e226a33c4d881ee7d8e0021e",
+  "sourceState": "uncommitted candidate; exact committed source and protected PR recorded later",
+  "sourceFiles": {
+    "infra/google-cloud/dev-117-production-release/principal-inventory.Dockerfile": "f0c317c99c3b6c9e22c7907f72ff73cd2fefde9d127b2878788b8a8c57c17ea4",
+    "scripts/dev121-production-principal-inventory-runner.mjs": "ba74a2e4e19d1bfa4a1baf719d1991b82f08c44acef8142e8cf5f5481d7b9491",
+    "scripts/lib/dev121-principal-inventory-runner.mjs": "a24cf5b41ffb86211e24436db506a38aac486a161c3ae4bc8cdb6633d967eb31",
+    "scripts/lib/dev121-principal-only-apply.mjs": "390f377a63e72c1f7068409525cdae1a7b5812e8d146f8c18bbd1353e74eb8de",
+    "src/lib/jenfu-principal-only-cohort-apply.ts": "0bb4ce695913aa0f785a0921a50eea2a8efc8ce730b0469a0c955ff6e3986f00",
+    "scripts/dev121-principal-only-apply-runner.test.mjs": "fe6215dc73e953f8de0ad0de5fdfef1de6ac8c2fc424c48539cef08e23707dd7",
+    "scripts/lib/dev121-principal-only-apply-fixture.mjs": "fd9eb92b5be1da9a3c49e896658078fb981957483f0cfc80572352322f97387b",
+    "scripts/qc-dev-121-principal-schema-postgres.mjs": "906b64734414da69754ebf43d9a3dd214db68bf8d403109bc9e4256620cc0cdd",
+    "src/lib/jenfu-principal-only-cohort-apply.test.ts": "5c1fa22d1cb48bd0828450eaf2e58351b2513232ac838802b1d34f100f1b1506"
+  },
+  "caller": "scripts/dev121-production-principal-inventory-runner.mjs / principal_only_apply v3",
+  "owner": "AIPDM/DEV-121#principal-consumer-impact",
+  "coordinator": "JENFU/DEV-015#F10",
+  "operationContract": {
+    "schema": "ai-pdm.principal-inventory-operation.v3",
+    "target": "jenfu-platform-prod / asia-east1 / jenfu_prod / ai-pdm",
+    "subjectInput": "only immutable principal_only_source receipt; no email or extra source mappings",
+    "guards": "source bytes/hash/generation + original source operation; live exact manual-zero fence; Ready immutable maintenance recovery; owner writer census after owner locks",
+    "transaction": "READ COMMITTED READ WRITE / SET LOCAL ROLE jenfu_ai_pdm_migrator",
+    "result": "verified principal account + suspend unresolved active profiles + revoke historical sessions + immutable operation receipt; no local ACL copy",
+    "replay": "same operation input returns original committed result before new source/live fence; GCS receipt bytes identical after unknown publication outcome"
+  },
+  "verification": [
+    {
+      "command": "npm run qc:dev-121:inventory-runner",
+      "passed": 20,
+      "failed": 0,
+      "kind": "recorded transport, immutable source, denial, transaction and publication replay"
+    },
+    {
+      "command": "npx vitest run src/lib/jenfu-principal-only-cohort-apply.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "kind": "lock/guard order, exact replay, no write on source/fence drift"
+    },
+    {
+      "command": "npm run typecheck:app",
+      "status": "PASS"
+    },
+    {
+      "command": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-121-principal-schema-postgres.mjs",
+      "passed": 20,
+      "failed": 0,
+      "kind": "real disposable PostgreSQL; operator writer denial, atomic failure rollback, durable commit, replay after traffic resume, changed-input conflict, zero local ACL",
+      "runtimePort": 57671,
+      "cleanup": {
+        "stopped": true,
+        "released": true,
+        "tempRemoved": true
+      },
+      "providerReadback": "synthetic transport only; no Production attestation"
+    }
+  ],
+  "productionWrites": false,
+  "productionL4": false,
+  "remaining": [
+    "protected merge",
+    "immutable source-bound inventory image and recovery proof",
+    "fresh Production source/session/writer/fence readback",
+    "owner release and one-shot apply",
+    "three-app necessary workflows and Production L4"
+  ],
+  "commonGrantBoundaryFailureCount": 10,
+  "commonBoundaryThreshold": 8,
+  "limits": [
+    "RD verification is not independent QC",
+    "operator integration is not business-flow completion",
+    "existing read-only v2 modes retain their read-only transaction adapter"
+  ],
+  "additionalVerification": [
+    "scoped TypeScript eslint PASS",
+    "DEV010_DB_RULESET_V1 PASS"
+  ]
+}

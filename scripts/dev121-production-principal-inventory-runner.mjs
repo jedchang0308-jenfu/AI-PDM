@@ -4,6 +4,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import { TARGET, databaseOptions } from './dev117-production-migration-runner.mjs'
+import { applyPrincipalOnlyInventoryOperation } from './lib/dev121-principal-only-apply.mjs'
 import {
   assertRunnerTarget, metadataAccessToken, parseGsUri, publishGcsJson,
   readGcsObject,
@@ -27,6 +28,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   loadPrincipalOnlyCoverage = () => import('../src/lib/jenfu-principal-only-cohort-readback.ts'),
   loadPrincipalOnlySource = () => import('../src/lib/jenfu-principal-only-cohort-source.ts'),
   loadPrincipalOnlyWriterReadback = () => import('../src/lib/jenfu-principal-only-writer-readback.ts'),
+  loadPrincipalOnlyApply = () => import('../src/lib/jenfu-principal-only-cohort-apply.ts'),
 } = {}) {
   const args = parseInventoryArgs(argv)
   assertRunnerTarget(environment, OPERATOR_TARGET)
@@ -53,7 +55,13 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     const target = await assertInventoryDatabaseTarget(database, TARGET.login)
     const adapter = inventoryDatabaseAdapter(database)
     let outcome
-    if (operation.mode === 'coverage') {
+    if (operation.mode === 'principal_only_apply') {
+      const applied = await applyPrincipalOnlyInventoryOperation({
+        operation, inputHash: args.operationSha256, database, token, fetchImpl,
+        loadPrincipalOnlyApply,
+      })
+      outcome = applied.result
+    } else if (operation.mode === 'coverage') {
       outcome = await (await loadCoverage()).previewPrincipalInventoryCoverage(adapter)
     } else if (operation.mode === 'principal_only_coverage') {
       outcome = await (await loadPrincipalOnlyCoverage()).readPrincipalOnlyCohort(
@@ -115,6 +123,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       activeHistoricalProfiles: value.outcome.activeHistoricalProfiles,
       activePrincipalProfiles: value.outcome.activePrincipalProfiles,
       unresolvedProfiles: value.outcome.unresolvedProfiles,
+    } : value.mode === 'principal_only_apply' ? {
+      activeBeforeCount: value.outcome.activeBeforeCount,
+      activatedCount: value.outcome.activatedCount,
+      withheldCount: value.outcome.withheldCount,
     } : value.mode === 'principal_only_source' ? {
       activeProfiles: value.outcome.activeProfiles.length,
       withheldProfiles: value.outcome.withheld.length,
