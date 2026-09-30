@@ -21,13 +21,17 @@ function zeroInstances(value) {
 
 export function assertPrincipalOnlyRecoveryBinding(intent, bucket) {
   if (!intent?.principalOnlyFenceRef && !intent?.principalOnlyRecovery) return null
-  const binding = intent.principalOnlyRecovery
-  if (!intent.principalOnlyFenceRef || !exactKeys(binding,
+  if (!intent.principalOnlyFenceRef) fail()
+  return assertRecoveryBindingShape(intent.principalOnlyRecovery, bucket, intent.previousRevision)
+}
+
+function assertRecoveryBindingShape(binding, bucket, oldRevision) {
+  if (!exactKeys(binding,
     ['revision', 'imageDigest', 'serviceUid', 'receiptRef']) ||
-    !/^[a-f0-9-]{36}$/u.test(binding.serviceUid ?? '') ||
-    !REVISION.test(intent.previousRevision ?? '') ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(binding.serviceUid ?? '') ||
+    !REVISION.test(oldRevision ?? '') ||
     !REVISION.test(binding.revision ?? '') ||
-    binding.revision === intent.previousRevision ||
+    binding.revision === oldRevision ||
     !IMAGE.test(binding.imageDigest ?? '') ||
     !exactKeys(binding.receiptRef, ['uri', 'sha256']) ||
     !binding.receiptRef.uri.startsWith(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/`) ||
@@ -42,22 +46,30 @@ export function principalOnlyRollbackRevision(intent) {
 
 export function assertPrincipalOnlyRecoveryReadback({ intent, profile, proof, service, revision }) {
   const binding = assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
-  if (!binding || !exactKeys(proof, ['schemaVersion', 'sourceRevision',
+  if (!binding) fail()
+  return assertRecoveryProofReadback({ sourceRevision: intent.sourceRevision,
+    oldRevision: intent.previousRevision, binding, profile, proof, service, revision })
+}
+
+export function assertRecoveryProofReadback({ sourceRevision, oldRevision, binding,
+  profile, proof, service, revision }) {
+  assertRecoveryBindingShape(binding, profile.artifact.releaseBucket, oldRevision)
+  if (!exactKeys(proof, ['schemaVersion', 'sourceRevision',
     'projectId', 'region', 'service', 'serviceUid', 'oldRevision',
     'recoveryRevision', 'imageDigest', 'status']) ||
     proof.schemaVersion !== 'ai-pdm.principal-only-recovery.v1' ||
-    !H40.test(intent.sourceRevision ?? '') || proof.sourceRevision !== intent.sourceRevision ||
+    !H40.test(sourceRevision ?? '') || proof.sourceRevision !== sourceRevision ||
     proof.projectId !== profile.target.projectId || proof.region !== profile.target.region ||
     proof.service !== profile.target.serviceName || proof.serviceUid !== binding.serviceUid ||
     proof.serviceUid !== service?.uid ||
-    proof.oldRevision !== intent.previousRevision ||
+    proof.oldRevision !== oldRevision ||
     proof.recoveryRevision !== binding.revision ||
     proof.imageDigest !== binding.imageDigest || proof.status !== 'PASS' ||
     service?.name !== SERVICE || service?.reconciling === true ||
     service?.terminalCondition?.state !== 'CONDITION_SUCCEEDED' ||
     String(service?.observedGeneration) !== String(service?.generation) ||
-    !exactTraffic(service.traffic, intent.previousRevision) ||
-    !exactTraffic(service.trafficStatuses, intent.previousRevision) ||
+    !exactTraffic(service.traffic, oldRevision) ||
+    !exactTraffic(service.trafficStatuses, oldRevision) ||
     revision?.name !== `${SERVICE}/revisions/${binding.revision}` ||
     revision?.conditions?.find((row) => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED' ||
     revision?.containers?.find((row) => row.name === profile.runtime.containerName)?.image !== binding.imageDigest) fail()
