@@ -249,7 +249,7 @@ test('Principal-only activation uses one scaling-and-traffic mutation and never 
   const tag = 'candidate-abcdef123456'
   const image = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'a'.repeat(64)}`
   const oldTraffic = { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: old, percent: 100 }
-  const tagTraffic = { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidate, percent: 0, tag }
+  const tagTraffic = { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidate, tag }
   const before = {
     name: serviceName, uid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5', etag: 'etag-one', generation: '41', observedGeneration: '41',
     reconciling: false, terminalCondition: { state: 'CONDITION_SUCCEEDED' },
@@ -273,7 +273,11 @@ test('Principal-only activation uses one scaling-and-traffic mutation and never 
     serviceReads += 1
     return json(serviceReads === 1 ? before : {
       ...before, etag: 'etag-two', generation: '42', observedGeneration: '42',
-      scaling: { scalingMode: 'AUTOMATIC' }, traffic: patched.traffic,
+      scaling: { scalingMode: 'AUTOMATIC', maxInstanceCount: 1 },
+      traffic: [
+        { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidate, percent: 100 },
+        { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: candidate, tag },
+      ],
       trafficStatuses: [{ revision: candidate, percent: 100, tag }],
     })
   }
@@ -282,7 +286,8 @@ test('Principal-only activation uses one scaling-and-traffic mutation and never 
     recovery: { revision: recovery, imageDigest: image, serviceUid: before.uid }, candidateRevision: candidate,
     candidateTag: tag, deadlineAt: '2999-01-01T00:00:00.000Z' })
   assert.deepEqual(Object.keys(patched).sort(), ['etag', 'name', 'scaling', 'traffic'])
-  assert.deepEqual(patched.scaling, { scalingMode: 'AUTOMATIC', manualInstanceCount: null })
+  assert.deepEqual(patched.scaling, { scalingMode: 'AUTOMATIC', manualInstanceCount: null,
+    maxInstanceCount: 1 })
   assert.equal(patched.traffic.some((row) => row.revision === old), false)
   assert.equal(transport.effectiveRevision(after), candidate)
 })

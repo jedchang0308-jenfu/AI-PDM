@@ -81,7 +81,8 @@ test('activation request atomically replaces old default traffic while leaving t
   const request = principalOnlyActivationRequest({ service: base, oldRevision: old,
     candidateRevision: candidate, candidateTag: tag, recoveryRevision: recovery })
   assert.deepEqual(Object.keys(request).sort(), ['etag', 'name', 'scaling', 'traffic'])
-  assert.deepEqual(request.scaling, { scalingMode: 'AUTOMATIC', manualInstanceCount: null })
+  assert.deepEqual(request.scaling, { scalingMode: 'AUTOMATIC', manualInstanceCount: null,
+    maxInstanceCount: 1 })
   assert.deepEqual(request.traffic.map((row) => [row.revision, row.percent]), [[candidate, 100], [candidate, 0]])
   assert.equal(request.traffic.some((row) => row.revision === old || row.revision === recovery), false)
   for (const changed of [
@@ -94,16 +95,43 @@ test('activation request atomically replaces old default traffic while leaving t
     recoveryRevision: recovery }), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
+test('activation accepts Cloud Run zero-percent tags omitted from configured and observed traffic', () => {
+  const providerZeroTag = { type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION',
+    revision: candidate, tag, uri: 'https://candidate.example.invalid' }
+  const providerBefore = { ...base,
+    traffic: [oldTraffic, { revision: candidate, tag }],
+    trafficStatuses: [oldTraffic, providerZeroTag] }
+  const request = principalOnlyActivationRequest({ service: providerBefore,
+    oldRevision: old, candidateRevision: candidate, candidateTag: tag,
+    recoveryRevision: recovery })
+  assert.equal(request.traffic[0].revision, candidate)
+  const providerAfter = { ...providerBefore, etag: 'etag-two', generation: '92',
+    observedGeneration: '92', scaling: { scalingMode: 'AUTOMATIC', maxInstanceCount: 1 },
+    traffic: [{ revision: candidate, percent: 100 }, { revision: candidate, tag }],
+    trafficStatuses: [{ revision: candidate, percent: 100, tag,
+      uri: 'https://candidate.example.invalid' }] }
+  assert.equal(assertPrincipalOnlyActivationReadback({ before: providerBefore,
+    after: providerAfter, candidateRevision: candidate, candidateTag: tag,
+    recoveryRevision: recovery }), providerAfter)
+  for (const traffic of [
+    [oldTraffic, providerZeroTag],
+    [{ revision: candidate, percent: 100 }, { revision: candidate, tag, percent: 50 }],
+  ]) assert.throws(() => assertPrincipalOnlyActivationReadback({ before: providerBefore,
+    after: { ...providerAfter, traffic }, candidateRevision: candidate,
+    candidateTag: tag, recoveryRevision: recovery }), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+})
+
 test('activation readback rejects any legacy traffic and any incomplete resume', () => {
   const request = principalOnlyActivationRequest({ service: base, oldRevision: old,
     candidateRevision: candidate, candidateTag: tag, recoveryRevision: recovery })
   const after = { ...base, etag: 'etag-two', generation: '92', observedGeneration: '92',
-    scaling: { scalingMode: 'AUTOMATIC' }, traffic: request.traffic,
+    scaling: { scalingMode: 'AUTOMATIC', maxInstanceCount: 1 }, traffic: request.traffic,
     trafficStatuses: request.traffic }
   assert.equal(assertPrincipalOnlyActivationReadback({ before: base, after,
     candidateRevision: candidate, candidateTag: tag, recoveryRevision: recovery }), after)
   for (const changed of [
     { scaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 } },
+    { scaling: { scalingMode: 'AUTOMATIC', maxInstanceCount: 100 } },
     { traffic: [oldTraffic, candidateTraffic] },
     { trafficStatuses: [oldTraffic, candidateTraffic] },
     { uid: 'replacement-service' },
