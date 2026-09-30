@@ -74,6 +74,8 @@ function v2Service() {
   return { name: 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod',
     uid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5', generation: '65',
     observedGeneration: '65', reconciling: false,
+    updateTime: '2026-09-30T00:00:00.000Z',
+    template: { timeout: '60s' },
     terminalCondition: { state: 'CONDITION_SUCCEEDED' },
     scaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 },
     traffic: [{ revision, percent: 100 }],
@@ -82,7 +84,7 @@ function v2Service() {
 function v2Input() {
   return { service: v2Service(), oldRevision: revision,
     expectedUid: v2Service().uid, beforeGeneration: '64',
-    disabledCompletedAt: '2026-09-30T00:00:00.000Z',
+    expectedQuiescentGeneration: '65',
     observedAt: '2026-09-30T00:01:30.000Z',
     requestTimeoutSeconds: 60 }
 }
@@ -102,6 +104,9 @@ test('live v2 readback requires zero instances and the full request drain', () =
     (value) => { value.service.generation = '64';
       value.service.observedGeneration = '64' },
     (value) => { value.service.uid = '' },
+    (value) => { value.expectedQuiescentGeneration = '66' },
+    (value) => { value.service.updateTime = '2026-09-30T00:00:01.000Z' },
+    (value) => { value.service.template.timeout = '120s' },
     (value) => { value.observedAt = '2026-09-30T00:01:29.999Z' },
   ]) {
     const value = v2Input()

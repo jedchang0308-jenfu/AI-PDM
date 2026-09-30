@@ -6,13 +6,22 @@ import pg from 'pg'
 import {
   assertMigrationBundle,
   assertRunnerTarget,
+  canonicalize,
   executeProductionMigration,
   metadataAccessToken,
   parseGsUri,
   parseRunnerArgs,
   publishGcsJson,
   readGcsObject,
+  sha256,
 } from './lib/dev012-production-migration-runner.mjs'
+import {
+  assertPrincipalOnlyMigrationFence,
+  readPrincipalOnlyServiceV2,
+  requiresPrincipalOnlyMigrationFence,
+} from './lib/dev121-migration-fence.mjs'
+
+const FENCE_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'
 
 export const TARGET = Object.freeze({
   ownerApplicationId: 'ai-pdm',
@@ -56,11 +65,36 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   const database = new Client(databaseOptions(environment, token))
   await database.connect()
   try {
+    let principalOnlyFence = null
     const receipt = await executeProductionMigration({
       bundle,
       database,
       target: TARGET,
       sourceRevision: args.sourceRevision,
+      beforePending: async (pending) => {
+        const entry = pending.find(requiresPrincipalOnlyMigrationFence)
+        if (!entry) return
+        if (entry.order !== 24 || !environment.DEV121_MIGRATION_FENCE_REF ||
+          !/^[a-f0-9]{64}$/u.test(environment.DEV121_MIGRATION_FENCE_SHA256 ?? '')) {
+          throw new Error('DEV121_MIGRATION_073_FENCE_REQUIRED')
+        }
+        const fenceRef = environment.DEV121_MIGRATION_FENCE_REF
+        parseGsUri(fenceRef, TARGET.releaseBucket, FENCE_PREFIX)
+        const fenceObject = await readGcsObject({ uri: fenceRef,
+          expectedBucket: TARGET.releaseBucket, expectedPrefix: FENCE_PREFIX,
+          token, fetchImpl })
+        let proof
+        try { proof = JSON.parse(fenceObject.bytes.toString('utf8')) }
+        catch { throw new Error('DEV121_MIGRATION_073_FENCE_INVALID') }
+        const service = await readPrincipalOnlyServiceV2(token, fetchImpl)
+        const state = assertPrincipalOnlyMigrationFence({ proof,
+          bytes: fenceObject.bytes,
+          expectedSha256: environment.DEV121_MIGRATION_FENCE_SHA256,
+          sourceRevision: args.sourceRevision, service,
+          observedAt: new Date().toISOString() })
+        principalOnlyFence = { ref: fenceRef, sha256: sha256(fenceObject.bytes),
+          generation: fenceObject.generation, ...state }
+      },
       denyDatabaseConnect: async (databaseName) => {
         const denied = new Client(databaseOptions(environment, token, databaseName))
         try {
@@ -73,8 +107,13 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
         }
       },
     })
-    const publication = await publishGcsJson({ uri: args.outputRef, expectedBucket: TARGET.releaseBucket, expectedPrefix: 'receipts', value: receipt, token, fetchImpl })
-    return { ...receipt, outputRef: args.outputRef, outputGeneration: publication.generation, outputSha256: publication.sha256 }
+    const receiptCore = { ...receipt }
+    delete receiptCore.receiptSha256
+    if (principalOnlyFence) receiptCore.principalOnlyFence = principalOnlyFence
+    const publishedReceipt = { ...receiptCore,
+      receiptSha256: sha256(canonicalize(receiptCore)) }
+    const publication = await publishGcsJson({ uri: args.outputRef, expectedBucket: TARGET.releaseBucket, expectedPrefix: 'receipts', value: publishedReceipt, token, fetchImpl })
+    return { ...publishedReceipt, outputRef: args.outputRef, outputGeneration: publication.generation, outputSha256: publication.sha256 }
   } finally {
     await database.end()
   }
