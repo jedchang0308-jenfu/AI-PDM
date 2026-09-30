@@ -8,7 +8,6 @@ export type StorageAccessKind =
   | "public_share_package";
 
 export type StorageAccessAuditInput = {
-  actorId?: string | null;
   principalId?: string | null;
   historicalProfileId?: string | null;
   companyId?: string | null;
@@ -53,7 +52,7 @@ export async function auditStorageAccess(input: StorageAccessAuditInput): Promis
   const provenance = input.provenance ?? { source: "runtime" as const, qcRunId: null };
   await createAuditLogAsync({
     submissionId: input.submissionId,
-    actorId: input.principalId ?? input.actorId,
+    actorId: input.principalId ?? null,
     companyId: input.companyId ?? null,
     scopeKind: input.companyId ? "tenant" : "legacy_unscoped",
     action: "StorageAccessed",

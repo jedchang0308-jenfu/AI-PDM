@@ -41,6 +41,17 @@ const recycleRoute = readRequired("src/app/api/numbering/part-number-drafts/[dra
 const changeControlDomain = readRequired("src/lib/pdm-change-control-domain.ts");
 
 const allowedSection = helper.split("const sliceAllowedApiMutationMatchers")[1]?.split("];")[0] ?? "";
+const allowedMutationLines = allowedSection.split(/\r?\n/u).map((line) => line.trim())
+  .filter((line) => line.startsWith('{ method:'));
+const reviewedPrincipalTransferLines = new Set([
+  String.raw`{ method: "POST", pattern: /^\/api\/transfer-packages$/ },`,
+  String.raw`{ method: "PATCH", pattern: /^\/api\/transfer-packages\/[^/]+$/ },`,
+  String.raw`{ method: "POST", pattern: /^\/api\/transfer-packages\/[^/]+\/(?:cancel|submit-review|withdraw-review|publish|items|draft-items)$/ },`,
+  String.raw`{ method: "DELETE", pattern: /^\/api\/transfer-packages\/[^/]+\/(?:items|draft-items)\/[^/]+$/ },`
+]);
+const reviewedPrincipalTransferOnly = [...reviewedPrincipalTransferLines].every((line) => allowedMutationLines.includes(line))
+  && allowedMutationLines.filter((line) => line.includes('transfer-packages'))
+    .every((line) => reviewedPrincipalTransferLines.has(line));
 
 record("SLICE-001 helper defines official numbering/draft mode", helper.includes('OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft"'));
 record("SLICE-002 helper uses stable unopened machine code", helper.includes("feature_not_open_in_production_slice"));
@@ -51,8 +62,10 @@ record("SLICE-004B official create page is open when its mutation contract is op
 record("SLICE-005 allowed mutation list opens existing-root append", /roots\\\/\[\^\/\]\+\\\/drawings/.test(allowedSection) && /roots\\\/\[\^\/\]\+\\\/parts/.test(allowedSection) && /drawing-part/.test(allowedSection));
 record("SLICE-006 allowed mutation list opens provisional draft create/edit/void/recycle", /part-number-drafts/.test(allowedSection) && /void/.test(allowedSection) && /recycle/.test(allowedSection) && /method:\s*"PATCH"/.test(allowedSection));
 record(
-  "SLICE-007 allowed mutation list does not open formal workflows",
-  !/(approval|submissions|obsolete|drawing-revisions|release|submit-review|reconfirm|restore)/.test(allowedSection),
+  "SLICE-007 allows only reviewed Principal transfer workflows alongside the draft slice",
+  reviewedPrincipalTransferOnly && allowedMutationLines
+    .filter((line) => !reviewedPrincipalTransferLines.has(line))
+    .every((line) => !/(approval|submissions|obsolete|drawing-revisions|release|submit-review|reconfirm|restore)/.test(line)),
   allowedSection
 );
 record("SLICE-008 middleware blocks unopened API mutations", middleware.includes("NextResponse.json") && middleware.includes("isProductionSliceAllowedApiMutation"));
@@ -68,7 +81,10 @@ record("SLICE-021 restore route gates before domain mutation", restoreRoute.incl
 record("SLICE-022 void route continues to use change-control service", voidRoute.includes("voidPartNumberDraft"));
 record("SLICE-023 recycle route continues to use change-control service", recycleRoute.includes("recyclePartNumberDraft"));
 record("SLICE-024 void/recycle domain uses existing controlled-boundary predicate", changeControlDomain.includes("async assertPartNumberDraftIsRecyclable") && changeControlDomain.includes("const boundary = await this.assertPartNumberDraftIsRecyclable(input.draftId, input.actor);"));
-record("SLICE-025 official numbering delete is not allowlisted", !/DELETE/.test(allowedSection) && !/records\\\/\[\^\/\]\+\\\/draft/.test(allowedSection), allowedSection);
+record("SLICE-025 only reviewed transfer-item deletion is allowlisted", allowedMutationLines
+  .filter((line) => line.includes('method: "DELETE"'))
+  .every((line) => reviewedPrincipalTransferLines.has(line))
+  && !/records\\\/\[\^\/\]\+\\\/draft/.test(allowedSection), allowedSection);
 record("SLICE-026 env example documents slice mode without public prefix", envExample.includes("PDM_PRODUCTION_SLICE_MODE=") && !envExample.includes("NEXT_PUBLIC_PDM_PRODUCTION_SLICE_MODE"));
 record("SLICE-026A local full-function validation is explicit and development-only", helper.includes('env.NODE_ENV') && helper.includes('PDM_LOCAL_FULL_FUNCTION_VALIDATION') && envExample.includes("PDM_LOCAL_FULL_FUNCTION_VALIDATION=false"));
 record("SLICE-027 CSS styles unopened nav and detail controls", globalCss.includes(".nav-unopened-badge") && globalCss.includes(".icon-button.production-slice-unopened"));

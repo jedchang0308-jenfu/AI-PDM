@@ -13,7 +13,7 @@ export async function POST(request: Request, context: { params: Promise<{ sessio
     const expectedRowVersion = Number(body.expectedRowVersion ?? body.expected_row_version);
     if (!Number.isInteger(expectedRowVersion) || expectedRowVersion < 1) throw new DrawingRecognitionError("RECOGNITION_ROW_VERSION_REQUIRED", "缺少目前內容版本。", 400);
     const { sessionId } = await context.params;
-    const impact = await calculateDrawingRecognitionImpact({ sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"), companyId: access.company.companyId, actorId: access.actor.pdmUserId, roles: recognitionRoles(access), expectedRowVersion });
+    const impact = await calculateDrawingRecognitionImpact({ sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"), companyId: access.company.companyId, actorId: access.actor.pdmUserId, principalId: access.actor.principalId, roles: recognitionRoles(access), expectedRowVersion });
     return NextResponse.json({ impact }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     return recognitionErrorResponse(error, "recognition-sessions.write-impact");

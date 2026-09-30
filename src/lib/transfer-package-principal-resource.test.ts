@@ -4,7 +4,7 @@ import { principalCanManageTransferPackageInSnapshot } from "@/lib/transfer-pack
 
 const decision = (permissionCode: string, roleCode: string, principalId = "principal-one") => ({
   allowed: true, permissionCode, roleCode, principalId, decisionCode: "allowed",
-  assignmentId: "assignment-one", authorityVersion: 1
+  assignmentId: "assignment-one", publishedAssignmentVersion: 1
 });
 
 function fixture(ownerPrincipalId: string | null) {

@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 const mocks = vi.hoisted(() => ({
   issuePrincipal: vi.fn(),
-  legacyResolver: vi.fn()
+  legacyResolver: vi.fn(),
+  producerConfig: null as null | { broker: string; base: string; issuer: string; callback: string },
+  producerIdentityIssuer: null as string | null
 }));
 
 vi.mock("google-auth-library", () => ({
@@ -14,12 +17,12 @@ vi.mock("google-auth-library", () => ({
 }));
 vi.mock("@/lib/auth-config", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth-config")>(),
-  getJenfuSsoHandoffConfig: () => ({
+  getJenfuSsoHandoffConfig: () => mocks.producerConfig ?? ({
     broker: "https://platform.example", base: "https://pdm.example",
     issuer: "https://platform.example/api/sso",
     callback: "https://pdm.example/api/auth/jenfu-sso/callback"
   }),
-  getJenfuIdentityConfig: () => ({ identityIssuer: "https://identity.example", identityAudience: "identity-app" }),
+  getJenfuIdentityConfig: () => ({ identityIssuer: mocks.producerIdentityIssuer ?? "https://identity.example", identityAudience: "identity-app" }),
   getGoogleWorkspaceMfaTrustPolicy: () => ({ enabled: false, domains: ["example.com"], allowAal1PrivilegedPilot: false })
 }));
 vi.mock("@/lib/platform-session-key-ring", () => ({
@@ -57,6 +60,8 @@ function principalProof(now = Date.now()) {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  mocks.producerConfig = null;
+  mocks.producerIdentityIssuer = null;
 });
 
 describe("principal-first SSO callback routing", () => {
@@ -137,3 +142,38 @@ describe("principal-first SSO callback routing", () => {
     expect(callback.headers.get("set-cookie")).toContain("Secure");
   });
 });
+
+const producerProofPath = process.env.DEV015_HANDOFF_PROOF_INPUT;
+if (producerProofPath) {
+  it("accepts the Platform producer proof through the AI-PDM callback without a UID resolver", async () => {
+    const proof = (JSON.parse(readFileSync(producerProofPath, "utf8")) as { "ai-pdm": ReturnType<typeof principalProof> })["ai-pdm"];
+    const broker = new URL(proof.issuer).origin;
+    mocks.producerConfig = { broker, base: "https://ai-pdm.example.test", issuer: proof.issuer,
+      callback: "https://ai-pdm.example.test/api/auth/jenfu-sso/callback" };
+    mocks.producerIdentityIssuer = proof.identity.identityIssuer;
+    const started = await jenfuSsoStart(new Request("https://ai-pdm.example.test/api/auth/jenfu-sso/start?returnTo=%2Fdrawings"));
+    expect(started.status).toBe(303);
+    const authorize = new URL(started.headers.get("location")!);
+    expect(authorize.searchParams.get("redirect_uri")).toBe(mocks.producerConfig.callback);
+    const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
+    const exchange = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify(proof), { status: 200 }));
+    vi.stubGlobal("fetch", exchange);
+    mocks.issuePrincipal.mockResolvedValue({ token: "principal.session.token" });
+    const callback = new URL(mocks.producerConfig.callback);
+    callback.searchParams.set("code", "producer-issued-code");
+    callback.searchParams.set("state", authorize.searchParams.get("state")!);
+    callback.searchParams.set("iss", proof.issuer);
+    const accepted = await jenfuSsoCallback(new Request(callback, { headers: { cookie: transactionCookie } }));
+    expect(accepted.status).toBe(303);
+    expect(accepted.headers.get("set-cookie")).toContain("principal.session.token");
+    expect(mocks.issuePrincipal).toHaveBeenCalledWith(expect.objectContaining({
+      handoff: expect.objectContaining({ contractVersion: "jenfu.sso-handoff.v2", audience: "ai-pdm",
+        identity: expect.objectContaining({ principalId: proof.identity.principalId }) }),
+      expectedIdentityIssuer: proof.identity.identityIssuer
+    }));
+    expect(mocks.legacyResolver).not.toHaveBeenCalled();
+    const body = new URLSearchParams(exchange.mock.calls[0][1]?.body as string);
+    expect(body.get("redirect_uri")).toBe(mocks.producerConfig.callback);
+  });
+}

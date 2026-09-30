@@ -21,7 +21,8 @@ const statusFilters = [
 const actionFilters = [
   { value: "all", label: "全部" },
   { value: "numbering.pdm_drawing_revision_review", label: "圖面研發版審核" },
-  { value: "numbering.pdm_part_change_review", label: "料號變更審核" }
+  { value: "numbering.pdm_part_change_review", label: "料號變更審核" },
+  { value: "transfer.package_review", label: "技轉包審核" }
 ] as const;
 type StatusFilter = (typeof statusFilters)[number]["value"];
 type ActionFilter = (typeof actionFilters)[number]["value"];
@@ -84,7 +85,8 @@ export function PrincipalApprovalInbox() {
 
   const showAction = useMemo(() => new Set(rows.map((item) => item.actionCode)).size > 1, [rows]);
   const openApprovalRow = useCallback((item: ApprovalWorkbenchRow) => {
-    if (item.source !== "pdm_work_review" || !isPdmOwnerApprovalAction(item.actionCode) ||
+    const transferReview = item.source === "platform" && item.actionCode === "transfer.package_review";
+    if (!(transferReview || (item.source === "pdm_work_review" && isPdmOwnerApprovalAction(item.actionCode))) ||
         item.status !== "pending" || !item.ownerHref) {
       setError("此審核尚無可操作的工作區，請重新整理清單。");
       return;
@@ -204,7 +206,7 @@ function readLocation(): PdmWorkbenchLocationState<ApprovalWorkbenchQuery> {
   const page = Number(params.get("page"));
   return {
     query: { ...initialQuery, status, action, query: normalizeQuery(params.get("query")) },
-    detailKey: requestId ? `approval:pdm_work_review:${requestId}` : null,
+    detailKey: requestId ? `approval:${requestId.startsWith("APR-TRF-") ? "platform" : "pdm_work_review"}:${requestId}` : null,
     legacyDetail: null,
     cursor: params.get("cursor"),
     pageIndex: Number.isFinite(page) ? Math.max(0, Math.floor(page)) : 0
@@ -220,7 +222,8 @@ function writeLocation(state: PdmWorkbenchLocationState<ApprovalWorkbenchQuery>,
   if (state.query.action !== "all") params.set("action", state.query.action);
   else params.delete("action");
   params.delete("domain");
-  const prefix = "approval:pdm_work_review:";
+  const prefix = state.detailKey?.startsWith("approval:platform:")
+    ? "approval:platform:" : "approval:pdm_work_review:";
   if (state.detailKey?.startsWith(prefix)) params.set("requestId", state.detailKey.slice(prefix.length));
   else params.delete("requestId");
   if (state.cursor) {
@@ -238,7 +241,7 @@ function writeLocation(state: PdmWorkbenchLocationState<ApprovalWorkbenchQuery>,
 }
 
 function buildListUrl(query: ApprovalWorkbenchQuery, cursor: string | null) {
-  const params = new URLSearchParams({ status: query.status, limit: String(query.limit), domain: "numbering" });
+  const params = new URLSearchParams({ status: query.status, limit: String(query.limit), domain: "all" });
   if (query.query) params.set("query", normalizeQuery(query.query));
   if (query.action !== "all") params.set("action", query.action);
   if (cursor) params.set("cursor", cursor);

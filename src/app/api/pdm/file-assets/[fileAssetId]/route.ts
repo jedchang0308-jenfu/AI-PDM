@@ -325,7 +325,7 @@ function snapshotFileMatches(file: unknown, sourceFileAssetId: string) {
 }
 
 async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFileSource,
-  input: { wantsPreview: boolean; derivativeId: string | null; actorId: string }) {
+  input: { wantsPreview: boolean; derivativeId: string | null; actorId: string; initiatorPrincipalId: string }) {
   try {
     const resolved = input.wantsPreview
       ? await resolveDrawingPreviewAsync(client, source, {
@@ -347,6 +347,7 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
             linked_entity_id: source.linked_entity_id
           },
           actorUserId: input.actorId,
+          initiatorPrincipalId: input.initiatorPrincipalId,
           requestedKind: requestedPreviewKindForSource(source.file_ext),
           generatorProfile:
             process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
@@ -410,7 +411,7 @@ async function principalFileRead(request: Request, token: string, input: {
           const found = await resolveSource({ client: tx, context: "approval_evidence",
             contextId: input.contextId, bindingId: input.bindingId,
             fileAssetId: input.fileAssetId, companyId });
-          return found ? { source: found, actorId: verified.profile.pdmUserId } : null;
+          return found ? { source: found, actorId: verified.profile.pdmUserId, initiatorPrincipalId: verified.session.principalId } : null;
         }
         if (!reviewPackage) {
           const permissionCode = input.context === "part_attachment"
@@ -424,7 +425,7 @@ async function principalFileRead(request: Request, token: string, input: {
             fileAssetId: input.fileAssetId, companyId: verified.profile.companyId });
           if (!found || (workFile && (found.work_id !== input.contextId ||
               found.owner_user_id !== verified.profile.pdmUserId))) return null;
-          return { source: found, actorId: verified.profile.pdmUserId };
+          return { source: found, actorId: verified.profile.pdmUserId, initiatorPrincipalId: verified.session.principalId };
         }
         if (!input.reviewRequestId) return null;
         if (verified.session.assuranceLevel !== "aal2") return null;
@@ -449,12 +450,13 @@ async function principalFileRead(request: Request, token: string, input: {
           context: "review_package", contextId: input.contextId,
           bindingId: input.bindingId, reviewRequestId: input.reviewRequestId,
           companyId, actorId });
-        return scope ? { source: found, actorId } : null;
+        return scope ? { source: found, actorId, initiatorPrincipalId: verified.session.principalId } : null;
       }, { readOnly: true, isolationLevel: "repeatable_read" });
     if (!source) return jsonError("PDM_FILE_NOT_FOUND", "找不到這筆審核檔案。", 404);
     // Storage and preview I/O occur after the short authorization transaction.
     return serveFileSource(getAsyncDatabaseClient(), source.source, {
-      actorId: source.actorId, wantsPreview: input.wantsPreview,
+      actorId: source.actorId, initiatorPrincipalId: source.initiatorPrincipalId,
+      wantsPreview: input.wantsPreview,
       derivativeId: input.derivativeId
     });
   } catch (error) {

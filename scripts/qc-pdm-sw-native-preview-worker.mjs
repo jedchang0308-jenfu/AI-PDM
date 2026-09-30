@@ -119,7 +119,7 @@ assert(heartbeatRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && heartbeatRoute.inc
 assert(
   canonicalFileAssetRoute.includes("previewDerivative")
     && canonicalFileAssetRoute.includes("resolveDrawingPreviewAsync")
-    && canonicalFileAssetRoute.includes('contentDispositionHeader(wantsPreview ? "inline" : "attachment"'),
+    && canonicalFileAssetRoute.includes('contentDispositionHeader(input.wantsPreview ? "inline" : "attachment"'),
   "Canonical authorized file-asset route streams preview derivatives inline"
 );
 assert(windowsShellWorker.includes("/api/preview-jobs/claim") && windowsShellWorker.includes("/api/preview-jobs/") && windowsShellWorker.includes("/complete"), "Windows Shell worker uses claim/complete API contract");

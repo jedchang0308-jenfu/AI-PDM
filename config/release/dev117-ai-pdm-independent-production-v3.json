@@ -364,6 +364,16 @@
         "order": 22,
         "path": "db/postgres/071_dev121_principal_account_owner_no_cutover.sql",
         "sha256": "6471b8d6567e9d2c4a1d1cad09c9797502972fb1e367c8daed35788ca5617193"
+      },
+      {
+        "order": 23,
+        "path": "db/postgres/072_dev121_principal_account_manager_grants_v3.sql",
+        "sha256": "1a661a4ca2319d77e9e13466efee713e55f8222f2f865f0f154b2a867abc1800"
+      },
+      {
+        "order": 24,
+        "path": "db/postgres/073_dev121_drawing_recognition_initiator_principal.sql",
+        "sha256": "07be90b7e9d8dd261a573fd1a32249492a1e5168cba66ba89c5c1ce49bb57a9f"
       }
     ]
   },

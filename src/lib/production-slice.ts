@@ -1,4 +1,6 @@
 
+import { isPrincipalTransferReviewRequestId } from "@/lib/transfer-review-request-id";
+
 export const OFFICIAL_NUMBERING_DRAFT_SLICE = "official-numbering-draft";
 export const PRODUCTION_SLICE_UNOPENED_CODE = "feature_not_open_in_production_slice";
 export const PRODUCTION_SLICE_UNOPENED_MESSAGE = "此功能未納入本次編號建立 production slice。";
@@ -54,6 +56,12 @@ const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp 
 ];
 
 const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
+  // These routes enforce a verified Principal and published capability inside
+  // the owner command. The old slice gate must not make the workflow unreachable.
+  { method: "POST", pattern: /^\/api\/transfer-packages$/ },
+  { method: "PATCH", pattern: /^\/api\/transfer-packages\/[^/]+$/ },
+  { method: "POST", pattern: /^\/api\/transfer-packages\/[^/]+\/(?:cancel|submit-review|withdraw-review|publish|items|draft-items)$/ },
+  { method: "DELETE", pattern: /^\/api\/transfer-packages\/[^/]+\/(?:items|draft-items)\/[^/]+$/ },
   { method: "POST", pattern: /^\/api\/numbering\/duplicate-check$/ },
   { method: "POST", pattern: /^\/api\/numbering\/records$/ },
   { method: "PATCH", pattern: /^\/api\/numbering\/records\/[^/]+$/ },
@@ -163,6 +171,10 @@ export function isProductionSliceAllowedApiMutation(method: string, pathname: st
   const normalizedPath = normalizePathname(pathname);
   if (alwaysAllowedApiMutationMatchers.some((item) => item.method === normalizedMethod && item.pattern.test(normalizedPath))) return true;
   if (!getProductionSliceState(env).active) return false;
+  const transferDecision = normalizedMethod === "POST" &&
+    /^\/api\/approvals\/requests\/[^/]+\/decisions$/u.test(normalizedPath)
+    ? normalizedPath.split("/")[4] : null;
+  if (transferDecision && isPrincipalTransferReviewRequestId(transferDecision)) return true;
   const lifecycleMatcher = numberingLifecycleApiMutationMatchers.find(
     (item) => item.method === normalizedMethod && item.pattern.test(normalizedPath)
   );
@@ -172,6 +184,11 @@ export function isProductionSliceAllowedApiMutation(method: string, pathname: st
 
 export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = process.env) {
   const normalizedPath = normalizePathname(pathname);
+  if (getProductionSliceState(env).active &&
+    (normalizedPath === "/technical-transfer" || normalizedPath === "/approvals" ||
+     /^\/transfer-packages\/(?:new|[^/]+)$/u.test(normalizedPath) ||
+     (normalizedPath.startsWith("/approvals/") &&
+       isPrincipalTransferReviewRequestId(normalizedPath.slice("/approvals/".length))))) return true;
   const approvalWorkbenchOpen = normalizedPath === "/approvals" && isProductionNumberingLifecycleGateOpen("formal-obsolete", env);
   return openPagePaths.includes(normalizedPath) || approvalWorkbenchOpen ||
     normalizedPath.startsWith("/login/") ||

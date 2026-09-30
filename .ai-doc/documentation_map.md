@@ -1,5 +1,11 @@
 # AI_PDM Documentation Map
 
+> **2026-09-30 DEV-121 F08 獨立 worker 進程**：[現行授權契約](specs/DEV-121-target-authorization-boundary.md)與 `JENFU/ai-doc/qa/DEV-015-aipdm-recognition-worker-process-postgres-2026-09-30.json` 記錄實際 worker process→claim／heartbeat／holder-only source-content／complete HTTP handlers→受限 PostgreSQL；來源大小／雜湊、發起 Principal 與 adapter 結果讀回通過，18／18，臨時資源已清理。正式 CAD 解析、outbox delivery、provider／Production L4 仍待驗證。
+
+> **2026-09-30 DEV-121／DEV-057 跨 owner 送審整鏈**：[現行 consumer 契約](specs/DEV-121-target-authorization-boundary.md)與 `JENFU/ai-doc/qa/DEV-015-orgmaster-aipdm-grant-v3-submit-review-postgres-2026-09-30.json` 記錄 OrgMaster 發布 grant v3 後的 Draft 送審、精確 reviewer 待辦、審批及 Principal outbox；撤權／異 scope 不寫入。全套 21／21，仍屬本機同庫證據；真實 provider、候選 runtime、Production L4 未完成。
+
+> **2026-09-29 AIPDM/DEV-121 全鏈盤點（進行中）**：[293 method 受控清單](specs/DEV-121-authorization-caller-inventory.v1.json)與 [本 owner 契約](specs/DEV-121-target-authorization-boundary.md)逐項保留 route policy、caller 線索、守衛、處置與證據缺口；標記只作待追線索，不能替代語義／Production 驗證。與 `JENFU/DEV-015`、`ORGMASTER/DEV-057` 合併根因後集中重構。
+
 > **2026-09-29 DEV-121 來源 receipt 校驗及指紋更正**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)已依 GCS bytes 修正 SHA-256 抄錄，並新增 fail-closed source／cohort receipt 驗證器；實際唯讀 receipt 與合成負例 PASS。正式資料及 traffic 未改，切流條件仍未滿足。
 
 > **2026-09-28 DEV-121 全 cohort 正式 source readback**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄受保護來源、immutable operator、唯讀 Job 與受限 receipt：4 筆歷史啟用 profile 中 1 筆精確已核實、3 筆 withheld。一次性 Job 已清理，正式資料／traffic 未改；此證據不代表 one-shot apply、候選切流或 Production L4。

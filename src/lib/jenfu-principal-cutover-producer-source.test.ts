@@ -29,14 +29,11 @@ function producerRows(grantsByAlias: readonly (readonly string[])[]) {
       principal_id: alias.principalId, employee_id: alias.employeeId,
       employee_status: "active", account_type: "human_personal",
       mapping_version: "3", published_at: publishedAt }],
-    authorities: [{ contract_version: "jenfu.platform-entitlement.v1",
-      application_id: "ai-pdm", employee_id: alias.employeeId,
-      authority_source: "orgmaster_authority", authority_version: "4",
-      updated_at: publishedAt }],
     grants: grantsByAlias[ordinal].map((assignmentId) => ({
-      contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v2", application_id: "ai-pdm",
+      contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3", application_id: "ai-pdm",
       principal_id: alias.principalId, employee_id: alias.employeeId,
-      authority_version: "4", assignment_id: assignmentId,
+      assignment_version_id: "published-version-one", assignment_version: "4",
+      published_at: publishedAt, assignment_id: assignmentId,
       stable_role_id: "role-rd", role_code: "rd", scope_kind: "workspace",
       scope_key: "company-one", valid_from: publishedAt, valid_until: null
     }))
@@ -47,7 +44,8 @@ function snapshot(rows: ReturnType<typeof producerRows>) {
   let reads = 0;
   const database = { kind: "postgres", query: async (sql: string) => {
     reads += 1;
-    expect(sql).toContain("orgmaster_contract.v_ai_pdm_principal_effective_grants_v2");
+    expect(sql).toContain("orgmaster_contract.v_ai_pdm_principal_effective_grants_v3");
+    expect(sql).not.toContain("v_ai_pdm_entitlement_authority_v1");
     expect(sql).not.toContain("orgmaster_contract.v_ai_pdm_effective_role_assignments_v1");
     return rows;
   } };

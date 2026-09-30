@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 export const JENFU_ENTITLEMENT_CONTRACT_VERSION = "jenfu.platform-entitlement.v1" as const;
-export const JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION = "jenfu.orgmaster.ai-pdm-principal-grants.v2" as const;
+export const JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION = "jenfu.orgmaster.ai-pdm-principal-grants.v3" as const;
 export const JENFU_AI_PDM_APPLICATION_ID = "ai-pdm" as const;
 export const JENFU_ROLE_CATALOG_VERSION = "ai-pdm.role-catalog.2026-09-03.v3" as const;
 
@@ -90,7 +90,6 @@ export type JenfuEffectiveRoleAssignment = {
   validFrom: string;
   validUntil: string | null;
   publishedAt: string;
-  authorityVersion: number;
 };
 
 export type JenfuEntitlementAuthority = {
@@ -145,7 +144,7 @@ export function validateEffectiveRoleAssignment(
   for (const field of ["assignmentVersionId", "assignmentId", "principalId", "employeeId", "stableRoleId", "roleCode", "catalogVersion"] as const) {
     if (!nonBlank(assignment[field])) add("ENTITLEMENT_CONTRACT_INVALID", field, "value must be non-blank");
   }
-  if (!Number.isSafeInteger(assignment.assignmentVersion) || assignment.assignmentVersion < 1 || !Number.isSafeInteger(assignment.authorityVersion) || assignment.authorityVersion < 1) add("ENTITLEMENT_CONTRACT_INVALID", "assignmentVersion", "versions must be positive safe integers");
+  if (!Number.isSafeInteger(assignment.assignmentVersion) || assignment.assignmentVersion < 1) add("ENTITLEMENT_CONTRACT_INVALID", "assignmentVersion", "version must be a positive safe integer");
   if (!isDateTime(assignment.validFrom) || !isDateTime(assignment.publishedAt)) add("ENTITLEMENT_CONTRACT_INVALID", "validFrom", "timestamps must be ISO date-times");
   if (assignment.validUntil !== null && !isDateTime(assignment.validUntil)) add("ENTITLEMENT_CONTRACT_INVALID", "validUntil", "validUntil must be an ISO date-time or null");
   if (assignment.validUntil && Date.parse(assignment.validUntil) <= Date.parse(assignment.validFrom)) add("ENTITLEMENT_CONTRACT_INVALID", "validUntil", "validUntil must be after validFrom");

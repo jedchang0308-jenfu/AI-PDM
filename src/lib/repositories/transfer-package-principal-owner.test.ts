@@ -5,7 +5,7 @@ import { AsyncTransferPackageRepository } from "@/lib/repositories/transfer-pack
 
 const decision = (roleCode: string | null, principalId = "principal-actor"): PrincipalWorkspaceDecision => ({
   allowed: true, permissionCode: "transfer.package.update", decisionCode: "allowed",
-  roleCode, assignmentId: "assignment-one", principalId, authorityVersion: 2
+  roleCode, assignmentId: "assignment-one", principalId, publishedAssignmentVersion: 2
 });
 
 function fixture(ownerPrincipalId: string | null) {

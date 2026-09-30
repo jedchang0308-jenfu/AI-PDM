@@ -78,7 +78,8 @@ async function renderInbox(request: Request, companyId: string, principalId: str
     | ApprovalPlatformStatus;
   const limitParam = Number(url.searchParams.get("limit") ?? 100);
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 100) : 100;
-  const domainCode = url.searchParams.get("domain")?.trim() || undefined;
+  const requestedDomain = url.searchParams.get("domain")?.trim();
+  const domainCode = requestedDomain && requestedDomain !== "all" ? requestedDomain : undefined;
   const actionCode = url.searchParams.get("action")?.trim() || undefined;
   const query = normalizeApprovalQuery(url.searchParams.get("query"));
   const filterHash = pdmWorkbenchFilterHash({
@@ -103,6 +104,7 @@ async function renderInbox(request: Request, companyId: string, principalId: str
   const page = await repository.listPrincipalWorkReviewInbox({
     companyId,
     actorId: reviewerProfileId,
+    principalId,
     status,
     limit,
     domainCode,
@@ -114,7 +116,9 @@ async function renderInbox(request: Request, companyId: string, principalId: str
   const returnTo = isSafePdmApprovalReturnTo(requestedReturnTo) ? requestedReturnTo : buildApprovalReturnTo(url);
   const ownerItems = page.items.map((item) => ({
     ...item,
-    ownerHref: buildPdmApprovalOwnerHref(item, returnTo) ?? undefined
+    ownerHref: item.source === "platform" && item.actionCode === "transfer.package_review"
+      ? `/approvals/${encodeURIComponent(item.id)}?returnTo=${encodeURIComponent(returnTo)}`
+      : buildPdmApprovalOwnerHref(item, returnTo) ?? undefined
   }));
   const pageIndex = cursorPageIndex ?? normalizePageIndex(url.searchParams.get("page"));
 

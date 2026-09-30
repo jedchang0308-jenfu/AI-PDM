@@ -28,7 +28,7 @@ async function waitForPrincipalRead() {
   while (Date.now() < deadline) {
     const result = await admin.query(`SELECT pid, query FROM pg_stat_activity
       WHERE application_name='ai-pdm-postgres-runtime' AND state='active'
-        AND query ILIKE '%v_active_principal_mappings_v1%'`);
+        AND query ILIKE '%v_active_principal_accounts_v1%'`);
     if (result.rowCount === 1) return result.rows[0];
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
@@ -57,8 +57,11 @@ async function main() {
       SELECT contract_version, principal_issuer, principal_subject, principal_id, employee_id,
         employee_status, mapping_version, orgmaster_contract.qc_dev121_delay(published_at) AS published_at
       FROM orgmaster_contract.qc_dev121_principals;
+    CREATE FUNCTION orgmaster_contract.qc_dev121_delay_subject(value text) RETURNS text
+      LANGUAGE plpgsql VOLATILE AS $$ BEGIN PERFORM pg_sleep(1.5); RETURN value; END $$;
     CREATE VIEW orgmaster_contract.v_active_principal_accounts_v1 AS
-      SELECT contract_version, principal_issuer, principal_subject, principal_id,
+      SELECT contract_version, principal_issuer,
+        orgmaster_contract.qc_dev121_delay_subject(principal_subject) AS principal_subject, principal_id,
         employee_id, employee_status, 'human_personal'::text AS account_type,
         mapping_version, published_at
       FROM orgmaster_contract.qc_dev121_principals;
@@ -78,9 +81,9 @@ async function main() {
       principal_id text NOT NULL, employee_id text NOT NULL,
       subject_kind text NOT NULL, target_principal_id text, stable_role_id text NOT NULL, role_code text NOT NULL,
       catalog_version text NOT NULL, scope_kind text NOT NULL, scope_key text, valid_from timestamptz NOT NULL,
-      valid_until timestamptz, published_at timestamptz NOT NULL, authority_version bigint NOT NULL
+      valid_until timestamptz, published_at timestamptz NOT NULL
     );
-    CREATE VIEW orgmaster_contract.v_ai_pdm_principal_effective_grants_v2 AS
+    CREATE VIEW orgmaster_contract.v_ai_pdm_principal_effective_grants_v3 AS
       SELECT * FROM orgmaster_contract.qc_dev121_grants;
 
     CREATE TABLE public.role_priority_versions (status text NOT NULL, created_at timestamptz NOT NULL, priority_json text NOT NULL);
@@ -100,13 +103,13 @@ async function main() {
     INSERT INTO orgmaster_contract.qc_dev121_authority VALUES
       (true,'jenfu.platform-entitlement.v1','ai-pdm','orgmaster_authority',2,'employee-dev121',now(),'before-switch');
     INSERT INTO orgmaster_contract.qc_dev121_grants VALUES
-      ('jenfu.orgmaster.ai-pdm-principal-grants.v2','assignment-version-2',2,'assignment-dev121','direct',NULL,'ai-pdm',
+      ('jenfu.orgmaster.ai-pdm-principal-grants.v3','assignment-version-2',2,'assignment-dev121','direct',NULL,'ai-pdm',
         'principal-dev121','employee-dev121','employee',NULL,'role-rd','rd',
-        'ai-pdm.role-catalog.2026-09-03.v3','workspace','current',now()-interval '1 day',NULL,now()-interval '1 day',2);
+        'ai-pdm.role-catalog.2026-09-03.v3','workspace','current',now()-interval '1 day',NULL,now()-interval '1 day');
   `);
 
-  const [{ checkNumberingPermissionsAsync }, { getAsyncDatabaseClient, closeAsyncDatabaseClient }] = await Promise.all([
-    import("../src/lib/numbering-permission-async.ts"),
+  const [{ JenfuEntitlementRepository }, { getAsyncDatabaseClient, closeAsyncDatabaseClient }] = await Promise.all([
+    import("../src/lib/repositories/jenfu-entitlement-repository.ts"),
     import("../src/lib/db-async-provider.ts"),
   ]);
   runtimeDatabase = getAsyncDatabaseClient();
@@ -124,13 +127,15 @@ async function main() {
     identityIssuer: "issuer-dev121", identitySubject: "subject-dev121", principalId: "principal-dev121",
     employeeId: "employee-dev121", localPrincipalId: "local-user-dev121", companyId: "company-jenfu",
   };
-  const input = {
-    user: { id: actor.localPrincipalId, role: "Engineer", company_id: actor.companyId, authorizationActor: actor },
-    permissionKind: "action", permissionCode: "submission.create", workspaceCode: "company-jenfu", projectCode: null,
-  };
+  const input = { actor, permissionKind: "page", permissionCode: "numbering.request",
+    workspaceCode: "company-jenfu",
+    rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"] };
+  const evaluate = () => runtimeDatabase.transaction((snapshot) =>
+    new JenfuEntitlementRepository(snapshot).evaluatePermission(input),
+    { isolationLevel: "repeatable_read", readOnly: true });
 
-  await check("D121-PG-02", "concurrent authority and grant switch cannot mix a request snapshot", async () => {
-    const request = checkNumberingPermissionsAsync([input]);
+  await check("D121-PG-02", "concurrent Principal grant revoke cannot mix a request snapshot", async () => {
+    const request = evaluate();
     const activeRead = await waitForPrincipalRead();
     await admin.query("BEGIN");
     try {
@@ -143,20 +148,23 @@ async function main() {
       await admin.query("ROLLBACK").catch(() => undefined);
       throw error;
     }
-    const [inFlight] = await request;
-    assert.equal(inFlight.allowed, true, "the in-flight request must consistently use its already-open OrgMaster snapshot");
+    const inFlight = await request;
     assert.equal(inFlight.decisionCode, "allowed");
 
-    const [afterCommit] = await checkNumberingPermissionsAsync([input]);
-    assert.equal(afterCommit.allowed, false, "a request started after the authority commit must not reuse the old grant");
-    assert.equal(afterCommit.decisionCode, "entitlement_assignment_not_found");
+    await assert.rejects(evaluate(), (error) => error?.code === "entitlement_assignment_not_found");
+    await admin.query(`INSERT INTO orgmaster_contract.qc_dev121_grants VALUES
+      ('jenfu.orgmaster.ai-pdm-principal-grants.v3','assignment-version-3',3,'assignment-restored','direct',NULL,'ai-pdm',
+        'principal-dev121','employee-dev121','employee',NULL,'role-rd','rd',
+        'ai-pdm.role-catalog.2026-09-03.v3','workspace','current',now()-interval '1 day',NULL,now()-interval '1 day')`);
     await admin.query(`UPDATE orgmaster_contract.qc_dev121_authority
       SET authority_source='legacy_authority', authority_version=4, updated_at=now(), operation_id='legacy-rejected'
       WHERE singleton=true`);
-    const [legacyAuthority] = await checkNumberingPermissionsAsync([input]);
-    assert.equal(legacyAuthority.allowed, false, "a legacy authority cannot grant a Principal-only request");
-    assert.equal(legacyAuthority.decisionCode, "entitlement_authority_unknown");
-    return { switchCommittedWhilePrincipalReadWasActive: true, inFlight: inFlight.decisionCode, nextRequest: afterCommit.decisionCode, legacyAuthority: legacyAuthority.decisionCode, observedBackendPid: activeRead.pid };
+    const independent = await evaluate();
+    assert.equal(independent.decisionCode, "allowed", "the old authority switch must not decide a published Principal grant");
+    assert.equal(independent.publication.assignmentVersion, 3);
+    return { grantRevokedWhilePrincipalReadWasActive: true, inFlight: inFlight.decisionCode,
+      newRequestAfterRevoke: "entitlement_assignment_not_found", oldSwitchIgnored: true,
+      observedBackendPid: activeRead.pid };
   });
 }
 

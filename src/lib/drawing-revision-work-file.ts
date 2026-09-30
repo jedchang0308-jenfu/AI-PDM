@@ -23,6 +23,7 @@ type CommandContext = {
   correlationId?: string;
 };
 type DrawingFileActor = Pick<DrawingRevisionActor, "id" | "companyId" | "canEditNonOwned"> & {
+  principalId?: string;
   permissions: Pick<DrawingRevisionActor["permissions"], "update">;
 };
 
@@ -34,6 +35,7 @@ async function requirePrincipalFileUpdate(client: AsyncDatabaseClient,
     "WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
   const actor: DrawingFileActor = {
     id: verified.profile.pdmUserId, companyId: verified.profile.companyId,
+    principalId: verified.session.principalId,
     canEditNonOwned: false, permissions: { update: true }
   };
   await verifyCanonicalWorkbenchCommandContract(client,
@@ -256,6 +258,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
             companyId: input.actor.companyId,
             sourceFileAssetIds: [exact.source_file_asset_id],
             actorUserId: input.actor.id,
+            initiatorPrincipalId: input.actor.principalId,
             requireQueued: true,
             runFakeWorker: false
           });
@@ -381,6 +384,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
           companyId: input.actor.companyId,
           sourceFileAssetIds: [fileAssetId],
           actorUserId: input.actor.id,
+          initiatorPrincipalId: input.actor.principalId,
           requireQueued: true,
           runFakeWorker: false
         });
@@ -422,7 +426,8 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
           const currentActor = await requirePrincipalFileUpdate(tx, verified,
             input.workId, input.context.contractToken);
           if (currentActor.id !== input.actor.id ||
-              currentActor.companyId !== input.actor.companyId) {
+              currentActor.companyId !== input.actor.companyId ||
+              currentActor.principalId !== input.actor.principalId) {
             throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST",
               "無權限執行此操作", 403, commandCorrelation);
           }
@@ -444,6 +449,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
         companyId: input.actor.companyId,
         sourceFileAssetIds: [result.file.sourceFileAssetId],
         actorUserId: input.actor.id,
+        initiatorPrincipalId: input.actor.principalId,
         runFakeWorker: true
       });
     }

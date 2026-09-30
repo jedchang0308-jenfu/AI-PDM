@@ -8,6 +8,9 @@ import { PartChangeWorkAsyncRepository, validatePartChangePayload, type PartChan
 import { DrawingRecognitionPartWorkHandoffAsyncRepository, type HandoffScopePart } from "@/lib/repositories/drawing-recognition-part-work-handoff-async-repository";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
+import { evaluatePrincipalWorkspacePermissionsInSnapshot, type PrincipalWorkspaceDecision } from "@/lib/jenfu-principal-permission-service";
+import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { sha256Canonical } from "@/lib/drawing-recognition-hash";
 import {
@@ -24,7 +27,7 @@ import {
   type HandoffIntent,
   type HandoffOverride
 } from "@/lib/drawing-recognition-part-work-handoff-contract";
-import { resolveDrawingRecognitionPartWorkAccess, type DrawingRecognitionPartWorkAccess } from "@/lib/drawing-recognition-part-work-access";
+import type { DrawingRecognitionPartWorkAccess } from "@/lib/drawing-recognition-part-work-access";
 
 type HandoffInput = {
   sessionId: string;
@@ -82,6 +85,35 @@ function error(code: string, message: string, status = 409) {
   ]);
   const normalized = allowed.has(code) ? code : "WORKBENCH_BAD_REQUEST";
   return new CanonicalWorkbenchError(normalized as ConstructorParameters<typeof CanonicalWorkbenchError>[0], message, status as 400 | 403 | 404 | 409 | 422 | 503);
+}
+
+async function requirePrincipalHandoffAccess(input: {
+  tx: AsyncDatabaseClient;
+  verified: VerifiedPrincipalRequest;
+  primaryDecision: PrincipalWorkspaceDecision | null;
+  actorId: string;
+  companyId: string;
+}): Promise<DrawingRecognitionPartWorkAccess> {
+  if (input.verified.profile.pdmUserId !== input.actorId ||
+      input.verified.profile.companyId !== input.companyId ||
+      !input.primaryDecision?.allowed ||
+      input.primaryDecision.principalId !== input.verified.session.principalId ||
+      input.primaryDecision.permissionCode !== "numbering.recognition.formalize") {
+    throw error("RECOGNITION_HANDOFF_PERMISSION_DENIED", "目前帳號沒有移交辨識資料的權限。", 403);
+  }
+  const permissions = ["numbering.workspace.create", "numbering.workspace.update"] as const;
+  const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(input.tx,
+    input.verified, permissions.map((permissionCode) =>
+      ({ permissionKind: "action" as const, permissionCode })));
+  if (decisions.length !== permissions.length || decisions.some((decision, index) =>
+    !decision.allowed || decision.principalId !== input.verified.session.principalId ||
+    decision.permissionCode !== permissions[index])) {
+    throw error("RECOGNITION_HANDOFF_PERMISSION_DENIED", "目前帳號沒有建立或修改料號工作資料的權限。", 403);
+  }
+  return { canCreate: true, canUpdate: true,
+    canEditNonOwned: hasPdmNonOwnerEditScope({ roles: [
+      input.primaryDecision.roleCode, ...decisions.map((decision) => decision.roleCode)
+    ].filter((role): role is string => Boolean(role)) }) };
 }
 
 function ensureFieldPlan(map: Map<string, PlannedField>, entry: PlannedField) {
@@ -167,8 +199,6 @@ export async function handoffDrawingRecognitionToPartWorks(input: HandoffInput) 
   const client = input.client ?? getAsyncDatabaseClient();
   const draft = parseHandoffDraft(input.draft);
   const draftHash = handoffDraftHash(draft);
-  const access = input.access ?? { canCreate: true, canUpdate: true, canEditNonOwned: true };
-  if (!access.canCreate || !access.canUpdate) throw error("RECOGNITION_HANDOFF_PERMISSION_DENIED", "目前帳號沒有建立或修改料號工作資料的權限。", 403);
   const command = createPdmCommand({
     commandName: DRAWING_RECOGNITION_HANDOFF_COMMAND,
     schemaVersion: 2,
@@ -181,7 +211,14 @@ export async function handoffDrawingRecognitionToPartWorks(input: HandoffInput) 
     command,
     serializable: true,
     idempotencyPayload: command.payload,
-    execute: async (tx) => {
+    principalRequest: input.metadata.principalRequest,
+    principalAuthorization: input.metadata.principalAuthorization,
+    execute: async (tx, primaryDecision, verified) => {
+      const access = verified
+        ? await requirePrincipalHandoffAccess({ tx, verified, primaryDecision,
+          actorId: input.actorId, companyId: input.companyId })
+        : input.access ?? { canCreate: true, canUpdate: true, canEditNonOwned: true };
+      if (!access.canCreate || !access.canUpdate) throw error("RECOGNITION_HANDOFF_PERMISSION_DENIED", "目前帳號沒有建立或修改料號工作資料的權限。", 403);
       const scopeRepo = new DrawingRecognitionPartWorkHandoffAsyncRepository(tx);
       const scope = await scopeRepo.readScope({ companyId: input.companyId, sessionId: input.sessionId, lock: true });
       if (!scope.session) throw error("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
@@ -295,9 +332,6 @@ export async function handoffDrawingRecognitionToPartWorks(input: HandoffInput) 
   return { ...execution.result, reusedFromCommandReceipt: execution.reusedFromCommandReceipt };
 }
 
-export async function resolveHandoffAccessForUser(user: Parameters<typeof resolveDrawingRecognitionPartWorkAccess>[0]) {
-  return resolveDrawingRecognitionPartWorkAccess(user);
-}
 
 export async function getDrawingRecognitionPartWorkHandoffProjection(input: { sessionId: string; companyId: string; client?: AsyncDatabaseClient }) {
   const client = input.client ?? getAsyncDatabaseClient();

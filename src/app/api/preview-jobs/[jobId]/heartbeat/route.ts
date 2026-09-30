@@ -10,8 +10,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
 
   const { jobId } = await params;
   const workerId = String((await request.json().catch(() => ({}))).workerId ?? "").trim() || "preview-worker";
-  await heartbeatPreviewJobAsync(getAsyncDatabaseClient(), { jobId, workerId });
-  return NextResponse.json({ ok: true });
+  const accepted = await heartbeatPreviewJobAsync(getAsyncDatabaseClient(), { jobId, workerId });
+  return accepted
+    ? NextResponse.json({ ok: true })
+    : NextResponse.json({ code: "PREVIEW_JOB_CLAIM_LOST" }, { status: 409 });
 }
 
 function requirePreviewWorkerToken(request: Request) {

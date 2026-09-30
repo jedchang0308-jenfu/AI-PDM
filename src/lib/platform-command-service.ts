@@ -2,6 +2,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { PdmCommand, PdmCommandMetadata } from "@/lib/platform-command";
 import { createJenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
 import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { principalCommandRouteMatches } from "@/lib/principal-command-route-proof";
 import {
   evaluatePrincipalWorkspacePermissionsInSnapshot,
   type PrincipalWorkspaceDecision
@@ -18,7 +19,8 @@ import { PlatformOutboxAsyncRepository } from "@/lib/repositories/platform-outbo
 type CommandInput<TPayload, TResult> = {
   client: AsyncDatabaseClient;
   command: PdmCommand<TPayload>;
-  execute: (client: AsyncDatabaseClient, primaryDecision: PrincipalWorkspaceDecision | null) => Promise<TResult>;
+  execute: (client: AsyncDatabaseClient, primaryDecision: PrincipalWorkspaceDecision | null,
+    verified: VerifiedPrincipalRequest | null) => Promise<TResult>;
   event: (result: TResult) => {
     aggregateType: string;
     aggregateId: string;
@@ -39,18 +41,6 @@ type CommandInput<TPayload, TResult> = {
   faultInjector?: (point: "before_outbox_enqueue" | "before_command_complete" | "after_command_complete") => void;
 };
 
-function principalCommandRouteMatches(request: Request, routePath: string, method: string): boolean {
-  if (request.method !== method || !routePath.startsWith("src/app/api/") ||
-      !routePath.endsWith("/route.ts")) return false;
-  let actual: string;
-  try { actual = new URL(request.url).pathname; }
-  catch { return false; }
-  const template = routePath.slice("src/app".length, -"/route.ts".length).split("/");
-  const segments = actual.split("/");
-  return template.length === segments.length && template.every((segment, index) =>
-    /^\[[^\]]+\]$/u.test(segment) ? segments[index].length > 0 : segment === segments[index]);
-}
-
 async function executeWithinClient<TPayload, TResult>(
   input: CommandInput<TPayload, TResult>, client: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest | null
@@ -70,7 +60,7 @@ async function executeWithinClient<TPayload, TResult>(
     if (verified) {
       const route = input.principalAuthorization;
       const policy = route && resolveJenfuRoutePolicy(route.routePath, route.method,
-        { expectedPermissionCode: route.permissionCode });
+        { discriminator: route.discriminator, expectedPermissionCode: route.permissionCode });
       if (!verifiedActor || !policy || !["POST", "PUT", "PATCH", "DELETE"].includes(route.method) ||
           !principalCommandRouteMatches(route.request, route.routePath, route.method) ||
           principalSessionTokenFromRequest(route.request) !== input.principalRequest?.token ||
@@ -199,7 +189,7 @@ async function executeWithinClient<TPayload, TResult>(
       throw new Error("PLATFORM_COMMAND_IN_PROGRESS");
     }
 
-    const result = await input.execute(client, primaryDecision);
+    const result = await input.execute(client, primaryDecision, verified);
     const events = input.event(result);
     input.faultInjector?.("before_outbox_enqueue");
     for (const event of Array.isArray(events) ? events : [events]) {

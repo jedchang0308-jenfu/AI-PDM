@@ -19,6 +19,7 @@ export async function GET(request: Request, context: { params: Promise<{ session
       sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"),
       companyId: access.company.companyId,
       actorId: access.actor.pdmUserId,
+      principalId: access.actor.principalId,
       roles: recognitionRoles(access)
     });
     const reviewCandidates = session.candidates.map((candidate) => ({

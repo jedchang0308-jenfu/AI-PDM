@@ -32,7 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
             errorSummary: String(body.errorSummary ?? "預覽 worker 未完成，請確認 worker 狀態後重試。")
           } satisfies PreviewWorkerCompletionInput);
     const result = await completePreviewJobAsync(getAsyncDatabaseClient(), completion);
-    return NextResponse.json(result);
+    return NextResponse.json(result, { status: result.accepted ? 200 : 409 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "PREVIEW_JOB_COMPLETE_FAILED";
     return NextResponse.json({ error: message }, { status: masterAttachmentStatusFromError(message) });

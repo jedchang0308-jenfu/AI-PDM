@@ -691,6 +691,7 @@ export async function addNumberingCandidateRevisionFile(input: {
           companyId: input.metadata.actor.organizationId,
           candidateRevisionId,
           actorId: input.metadata.actor.pdmUserId,
+          initiatorPrincipalId: input.metadata.actor.authorizationActor?.principalId,
           expectedRowVersion,
           storage
         });

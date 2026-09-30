@@ -24,7 +24,7 @@ const authorityRow = {
 };
 
 const assignment = {
-  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v2",
+  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3",
   assignment_version_id: "assignment-version-1",
   assignment_version: 1,
   assignment_id: "assignment-1",
@@ -42,8 +42,7 @@ const assignment = {
   scope_key: "current",
   valid_from: "2026-01-01T00:00:00.000Z",
   valid_until: null,
-  published_at: "2026-01-01T00:00:00.000Z",
-  authority_version: 2
+  published_at: "2026-01-01T00:00:00.000Z"
 };
 
 const activeAccount = {
@@ -151,26 +150,17 @@ describe("DEV-005 EntitlementRepository", () => {
     })).rejects.toMatchObject({ code: "entitlement_scope_mismatch" });
   });
 
-  it("rejects legacy authority before reading effective assignments", async () => {
+  it("does not consult the old per-employee authority selector for a published Principal grant", async () => {
     await expect(repository({
       authorityRows: [{ ...authorityRow, authority_source: "legacy_authority" }],
-      failAssignments: true
-    }).evaluatePermission({ actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request" }))
-      .rejects.toMatchObject({ code: "entitlement_authority_unknown" });
+      failAuthority: true
+    }).evaluatePermission({ actor, rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"], permissionKind: "page", permissionCode: "numbering.request", workspaceCode: "company-jenfu" }))
+      .resolves.toMatchObject({ decisionCode: "allowed" });
   });
 
   it("binds the default application id when reading effective assignments", async () => {
     await expect(repository({ requireApplicationIdParam: true }).listEffectiveAssignments(actor))
       .resolves.toHaveLength(1);
-  });
-
-  it("fails closed when authority is missing, duplicated, or unavailable", async () => {
-    await expect(repository({ authorityRows: [] }).resolveAuthority({ employeeId: actor.employeeId }))
-      .rejects.toMatchObject({ code: "entitlement_authority_unknown" });
-    await expect(repository({ authorityRows: [authorityRow, { ...authorityRow, authority_source: "legacy_authority" }] }).resolveAuthority({ employeeId: actor.employeeId }))
-      .rejects.toMatchObject({ code: "entitlement_dual_authority_detected" });
-    await expect(repository({ failAuthority: true }).resolveAuthority({ employeeId: actor.employeeId }))
-      .rejects.toMatchObject({ code: "entitlement_authority_unavailable" });
   });
 
   it("fails closed when the assignment projection is unavailable", async () => {
@@ -309,8 +299,8 @@ describe("DEV-005 EntitlementRepository", () => {
       .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
   });
 
-  it("rejects stale authority versions and an unverified login alias", async () => {
-    await expect(repository({ assignmentRows: [{ ...assignment, authority_version: 1 }] }).evaluatePermission({
+  it("rejects mixed published assignment versions and an unverified login alias", async () => {
+    await expect(repository({ assignmentRows: [assignment, { ...assignment, assignment_id: "assignment-2", assignment_version: 2 }] }).evaluatePermission({
       actor, rolePriority: ["rd"], permissionKind: "page", permissionCode: "numbering.request",
       workspaceCode: "company-jenfu"
     })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });

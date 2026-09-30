@@ -31,8 +31,9 @@ describe("DEV-121 route authorization manifest", () => {
     const path = "src/app/api/approvals/requests/request-1/decisions/route.ts";
     expect(resolveJenfuRouteAuthorization(path, "POST")).toBeNull();
     expect(resolveJenfuRouteAuthorization(path, "POST", "approval_decision:transfer_package")).toMatchObject({
-      authorizationMode: "existing_command",
-      permissionCode: null
+      authorizationMode: "permission",
+      permissionCode: "approval.request.decide",
+      scopeResolver: "workspace"
     });
     expect(resolveJenfuRouteAuthorization(path, "POST", "unknown-context" as unknown as JenfuRouteDiscriminator)).toBeNull();
   });
@@ -84,6 +85,17 @@ describe("DEV-121 route authorization manifest", () => {
     expect(resolveJenfuRoutePolicyFromRequest(obsolete, "numbering.draft.obsolete")).toMatchObject({
       path: "src/app/api/numbering/records/[rootCode]/obsolete/route.ts", scopeResolver: "workspace"
     });
+  });
+  it("requires the exact transfer-review discriminator for its Principal command", () => {
+    const request = new Request("https://ai-pdm.test/api/approvals/requests/APR-TRF-1/decisions",
+      { method: "POST" });
+    expect(resolveJenfuRoutePolicyFromRequest(request, "approval.request.decide")).toBeNull();
+    expect(resolveJenfuRoutePolicyFromRequest(request, "approval.request.decide",
+      "approval_decision:transfer_package")).toMatchObject({
+      discriminator: "approval_decision:transfer_package", scopeResolver: "workspace"
+    });
+    expect(resolveJenfuRoutePolicyFromRequest(request, "approval.request.decide",
+      "approval_decision:registered")).toMatchObject({ scopeResolver: "company" });
   });
   it("binds duplicate-check audit to its exact Principal POST policy", () => {
     const request = new Request("https://ai-pdm.test/api/numbering/duplicate-check",

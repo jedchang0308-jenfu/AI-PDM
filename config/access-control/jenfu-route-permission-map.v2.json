@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "5725b6924306f56960148b0407e04dd1e8e1589d5a53f2cf7f0149528de192c7",
+  "sourceSha256": "7b1756c8fb6af2ccf3d41d4596f7d61d62fddb1e6ac2f7583fa900083fe14600",
   "denominator": {
-    "uniqueFiles": 114,
-    "uniqueMethods": 134,
-    "policyEntries": 144
+    "uniqueFiles": 131,
+    "uniqueMethods": 151,
+    "policyEntries": 161
   },
   "entries": [
     {
@@ -213,10 +213,10 @@
       "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
       "method": "POST",
       "discriminator": "approval_decision:transfer_package",
-      "authorizationMode": "existing_command",
-      "permissionCode": null,
-      "authorizationTarget": "existing_command: requireNumberingPlatformCommandAsync",
-      "scopeResolver": "company",
+      "authorizationMode": "permission",
+      "permissionCode": "approval.request.decide",
+      "authorizationTarget": "approval.request.decide",
+      "scopeResolver": "workspace",
       "preservedGuards": "company＋assigned reviewer＋state；不得疊加或取代command guard"
     },
     {
@@ -757,17 +757,17 @@
       "permissionCode": null,
       "authorizationTarget": "authenticated_domain",
       "scopeResolver": "verified session",
-      "preservedGuards": "verified session＋既有policy projection；不得回完整secret"
+      "preservedGuards": "verified Principal session＋immutable bundled business policy；no secret or role disclosure"
     },
     {
       "path": "src/app/api/policy/management/route.ts",
       "method": "PUT",
       "discriminator": null,
-      "authorizationMode": "permission",
-      "permissionCode": "settings.admin_matrix",
-      "authorizationTarget": "settings.admin_matrix",
-      "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋matrix validation／audit"
+      "authorizationMode": "retired",
+      "permissionCode": null,
+      "authorizationTarget": "retired",
+      "scopeResolver": "no business write",
+      "preservedGuards": "fixed 410; old container-local document writer removed"
     },
     {
       "path": "src/app/api/search/route.ts",
@@ -1448,6 +1448,176 @@
       "authorizationTarget": "submission.view",
       "scopeResolver": "submission company",
       "preservedGuards": "published role／same company／verified profile owner／released or obsolete／package binding／checksum／principal audit before response"
+    },
+    {
+      "path": "src/app/api/handoff/[id]/release-package/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "handoff.published.view",
+      "authorizationTarget": "handoff.published.view",
+      "scopeResolver": "published handoff company",
+      "preservedGuards": "verified Principal／published capability／same company／current Released version／package binding／checksum／principal audit before response"
+    },
+    {
+      "path": "src/app/api/integrations/procurement/releases/[id]/package/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "integration.procurement.view",
+      "authorizationTarget": "integration.procurement.view",
+      "scopeResolver": "published procurement company",
+      "preservedGuards": "verified Principal／integration capability／same company／current Released version／package binding／checksum／principal audit before response"
+    },
+    {
+      "path": "src/app/api/numbering/drawings/[drawingNumber]/recognition-session/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.review",
+      "authorizationTarget": "numbering.recognition.review",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company drawing and scoped recognition session"
+    },
+    {
+      "path": "src/app/api/numbering/parts/[partId]/recognition-session/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.review",
+      "authorizationTarget": "numbering.recognition.review",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company part and scoped recognition session"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.run",
+      "authorizationTarget": "numbering.recognition.run",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company source context and bounded source assets"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.review",
+      "authorizationTarget": "numbering.recognition.review",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session and actor or published reviewer scope"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/amendments/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.review",
+      "authorizationTarget": "numbering.recognition.review",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, current version and command receipt"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/cancel-amendment/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.review",
+      "authorizationTarget": "numbering.recognition.review",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, current version and command receipt"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/client-adapter-results/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.run",
+      "authorizationTarget": "numbering.recognition.run",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, source binding and adapter validation"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/commit/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.formalize",
+      "authorizationTarget": "numbering.recognition.formalize",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, current version, business write and command receipt"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/decisions/route.ts",
+      "method": "PATCH",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.review",
+      "authorizationTarget": "numbering.recognition.review",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, actor scope and current version"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/formalize/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.formalize",
+      "authorizationTarget": "numbering.recognition.formalize",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, signed impact, conditional post-release grant and command receipt"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/handoff/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.formalize",
+      "authorizationTarget": "numbering.recognition.formalize",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, canonical work contract and handoff scope"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/observations/[observationId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.review",
+      "authorizationTarget": "numbering.recognition.review",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, actor scope and observation binding"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.run",
+      "authorizationTarget": "numbering.recognition.run",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, actor scope and source set"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/sources/[sourceId]/content/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.review",
+      "authorizationTarget": "numbering.recognition.review",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, actor scope and source binding"
+    },
+    {
+      "path": "src/app/api/numbering/recognition-sessions/[sessionId]/write-impact/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.recognition.formalize",
+      "authorizationTarget": "numbering.recognition.formalize",
+      "scopeResolver": "workspace",
+      "preservedGuards": "same-company session, current version and signed impact preview"
     }
   ]
 }

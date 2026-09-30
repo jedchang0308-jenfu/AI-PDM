@@ -119,12 +119,12 @@ try {
       signature_sha256 text NOT NULL, payload_sha256 text
     );
     INSERT INTO orgmaster_contract.v_contract_manifest_v1 VALUES
-      ('orgmaster.principal-cutover-source',
-       'jenfu.orgmaster.principal-cutover-source.v1',
-       'ff36f90ac9b42d740d44cd049f45e27e5d08db0226dc9510041bd5bad9b51531',NULL),
-      ('orgmaster.ai-pdm-principal-effective-grants',
-       'jenfu.orgmaster.ai-pdm-principal-grants.v2',
-       '74a9890b416b547cd013673487a78322a49da44b415b903015d55768504bbe71',NULL);
+      ('orgmaster.principal-cutover-source-v2',
+       'jenfu.orgmaster.principal-cutover-source.v2',
+       '6e3da9bf2ce73df35ba00c31c2cb0173e8637f178499c6839d5ac4798d647175',NULL),
+      ('orgmaster.ai-pdm-principal-effective-grants-v3',
+       'jenfu.orgmaster.ai-pdm-principal-grants.v3',
+       '87780eba5c737d88c6cfe1e0a5c019f7ff46c46cab6b0f0c4c6a14a3683d8b59',NULL);
     CREATE TABLE platform_contract.principal_state_fixture (
       principal_id text PRIMARY KEY,auth_epoch bigint NOT NULL,
       revoked_before timestamptz NULL,version bigint NOT NULL
@@ -172,6 +172,15 @@ try {
       assignment_version bigint, assignment_id text, catalog_version text,
       published_at timestamptz
     );
+    -- Historical v2 rows remain writable fixtures. The v3 projection has the
+    -- production column shape and cannot expose the old authority switch.
+    CREATE VIEW orgmaster_contract.v_ai_pdm_principal_effective_grants_v3 AS
+      SELECT 'jenfu.orgmaster.ai-pdm-principal-grants.v3'::text AS contract_version,
+        assignment_version_id,assignment_version,assignment_id,grant_kind,delegation_id,
+        application_id,principal_id,employee_id,subject_kind,target_principal_id,
+        stable_role_id,role_code,catalog_version,scope_kind,scope_key,
+        valid_from,valid_until,published_at
+      FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v2;
     GRANT SELECT ON ALL TABLES IN SCHEMA orgmaster_contract TO jenfu_ai_pdm_migrator;
     CREATE TABLE ai_pdm_contract.v_application_role_catalog_v1 (
       stable_role_id text, role_code text, contract_version text, application_id text,
@@ -336,6 +345,9 @@ try {
   const principalOwnerCorrection = fs.readFileSync(path.join(root,
     'db/postgres/071_dev121_principal_account_owner_no_cutover.sql'), 'utf8')
   await client.query(principalOwnerCorrection)
+  const principalManagerGrantCorrection = fs.readFileSync(path.join(root,
+    'db/postgres/072_dev121_principal_account_manager_grants_v3.sql'), 'utf8')
+  await client.query(principalManagerGrantCorrection)
   await client.query('DROP TABLE orgmaster_contract.v_ai_pdm_effective_role_assignments_v1')
 
   await check('owner writer readback sees an unexpected AI-PDM role member', async () => {
@@ -1015,8 +1027,8 @@ try {
           producerQueries += 1
           assert.match(sql, /platform_contract\.read_principal_auth_state_v3/)
           assert.match(sql, /orgmaster_contract\.v_active_principal_accounts_v1/)
-          assert.match(sql, /orgmaster_contract\.v_ai_pdm_entitlement_authority_v1/)
-          assert.match(sql, /orgmaster_contract\.v_ai_pdm_principal_effective_grants_v2/)
+          assert.doesNotMatch(sql, /orgmaster_contract\.v_ai_pdm_entitlement_authority_v1/)
+          assert.match(sql, /orgmaster_contract\.v_ai_pdm_principal_effective_grants_v3/)
           return snapshot.query(sql, params)
         } }
         const captured = await capturePrincipalCutoverProducerSource(
@@ -1060,10 +1072,12 @@ try {
       await client.query(`INSERT INTO orgmaster_contract.v_ai_pdm_entitlement_authority_v1
         VALUES ('employee-register',99,'jenfu.platform-entitlement.v1',
                 'ai-pdm','legacy_authority')`)
-      await assert.rejects(previewPrincipalAclMigration({
+      const duplicateLegacyAuthority = await previewPrincipalAclMigration({
         database,firebaseProjectId:'test-project',sourceSets:[source],
         cutoverAt:'2026-09-25T04:00:00Z'
-      }), /PRINCIPAL_PRODUCER_SOURCE_INVALID/)
+      })
+      assert.equal(duplicateLegacyAuthority.producerSourceHash,aclPreview.producerSourceHash,
+        'legacy authority rows cannot change the Principal-only source')
       await client.query(`DELETE FROM orgmaster_contract.v_ai_pdm_entitlement_authority_v1
         WHERE employee_id='employee-register' AND authority_version=99`)
       await client.query(`UPDATE platform_contract.principal_state_fixture
@@ -1082,7 +1096,8 @@ try {
         database,firebaseProjectId:'test-project',sourceSets:[source],
         cutoverAt:'2026-09-25T04:00:00Z'
       })
-      assert.notEqual(changedAuthorityPreview.producerSourceHash,aclPreview.producerSourceHash)
+      assert.equal(changedAuthorityPreview.producerSourceHash,aclPreview.producerSourceHash,
+        'the old authority version is not part of Principal-only producer evidence')
       assert.equal(changedAuthorityPreview.localSourceHash,aclPreview.localSourceHash)
       await client.query(`UPDATE orgmaster_contract.v_ai_pdm_entitlement_authority_v1
         SET authority_version=3 WHERE employee_id='employee-register'`)
@@ -1097,8 +1112,11 @@ try {
         database,firebaseProjectId:'test-project',sourceSets:[source],
         cutoverAt:'2026-09-25T04:00:00Z'
       }), /PRINCIPAL_PRODUCER_SOURCE_INVALID/)
-      await client.query(`UPDATE orgmaster_contract.v_ai_pdm_entitlement_authority_v1
-        SET authority_source='orgmaster_authority' WHERE employee_id='employee-register'`)
+      await client.query(`UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+        SET assignment_version_id='published-register-v3',assignment_version=3,
+            assignment_id='register-qa-grant',catalog_version='ai-pdm.role-catalog.fixture.v3',
+            published_at=clock_timestamp()
+        WHERE principal_id='principal-register'`)
       const grantPreview = await previewPrincipalAclMigration({
         database,firebaseProjectId:'test-project',sourceSets:[source],
         cutoverAt:'2026-09-25T04:00:00Z'
@@ -1109,6 +1127,11 @@ try {
         WHERE principal_id='principal-register'`)
       await client.query(`UPDATE orgmaster_contract.v_ai_pdm_entitlement_authority_v1
         SET authority_source='legacy_authority' WHERE employee_id='employee-register'`)
+      const oldSwitchPreview = await previewPrincipalAclMigration({
+        database,firebaseProjectId:'test-project',sourceSets:[source],
+        cutoverAt:'2026-09-25T04:00:00Z'
+      })
+      assert.equal(oldSwitchPreview.producerSourceHash,aclPreview.producerSourceHash)
       await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.role_permissions
         (id,role_id,permission_kind,permission_code,allowed)
         VALUES ('policy-preview','role-rd','action','drawing.read',0)`)
@@ -1544,10 +1567,13 @@ try {
       (authority_version,contract_version,application_id,principal_id,employee_id,
        stable_role_id,role_code,valid_from,
        valid_until,scope_kind,scope_key,subject_kind,target_principal_id,
-       grant_kind,delegation_id)
+       grant_kind,delegation_id,assignment_version_id,assignment_version,
+       assignment_id,catalog_version,published_at)
       VALUES (7,'jenfu.orgmaster.ai-pdm-principal-grants.v2','ai-pdm','principal-admin',
               'employee-admin','role-pdm-admin','pdm_admin',clock_timestamp()-interval '1 minute',
-              NULL,'workspace','current','employee',NULL,'direct',NULL)`)
+              NULL,'workspace','current','employee',NULL,'direct',NULL,
+              'published-admin-v3',3,'admin-direct','ai-pdm.role-catalog.fixture.v3',
+              clock_timestamp())`)
     await client.query(`INSERT INTO ai_pdm_contract.v_application_role_catalog_v1
       (stable_role_id,role_code,contract_version,application_id,assignable,
        subject_kind,allowed_scope_kinds,permissions)
@@ -1566,11 +1592,22 @@ try {
     await denied(() => asRole('jenfu_ai_pdm_migrator', call, args), /AIPDM_PROVISION_PERMISSION_DENIED/)
     await client.query(`UPDATE orgmaster_contract.v_ai_pdm_entitlement_authority_v1
       SET authority_source='legacy_authority'`)
-    await denied(() => asRole('jenfu_ai_pdm_migrator', call, args), /AIPDM_PROVISION_PERMISSION_DENIED/)
-    await client.query(`UPDATE orgmaster_contract.v_ai_pdm_entitlement_authority_v1
-      SET authority_source='orgmaster_authority'`)
     await client.query(`UPDATE ai_pdm_contract.v_application_role_catalog_v1
       SET permissions='[{"kind":"action","code":"accounts.invitation.manage","allowed":true}]'::jsonb`)
+    await asRole('jenfu_ai_pdm_migrator', call, args)
+    await client.query(`UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+      SET scope_key='company-other' WHERE principal_id='principal-admin'`)
+    await denied(() => asRole('jenfu_ai_pdm_migrator', call, args), /AIPDM_PROVISION_PERMISSION_DENIED/)
+    await client.query(`UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+      SET scope_key='current' WHERE principal_id='principal-admin'`)
+    await asRole('jenfu_ai_pdm_migrator', call, args)
+    await client.query(`UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+      SET valid_until=clock_timestamp()-interval '1 second'
+      WHERE principal_id='principal-admin'`)
+    await denied(() => asRole('jenfu_ai_pdm_migrator', call, args), /AIPDM_PROVISION_PERMISSION_DENIED/)
+    await client.query(`UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+      SET valid_until=NULL WHERE principal_id='principal-admin'`)
+    await asRole('jenfu_ai_pdm_migrator', call, args)
   })
 
   await check('principal-only provision commits atomically, replays once and leaves old membership empty', async () => {
@@ -1995,8 +2032,7 @@ try {
       await client.query(`GRANT USAGE ON SCHEMA orgmaster_contract TO jenfu_ai_pdm_runtime`)
       await client.query(`GRANT SELECT ON
         orgmaster_contract.v_active_principal_accounts_v1,
-        orgmaster_contract.v_ai_pdm_entitlement_authority_v1,
-        orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+        orgmaster_contract.v_ai_pdm_principal_effective_grants_v3
         TO jenfu_ai_pdm_runtime`)
       // Migration 062 already grants runtime SELECT on existing app-owned
       // policy tables; this focused fixture otherwise models only the rows
@@ -2065,7 +2101,7 @@ try {
     })
 
     await check('principal reviewer selector honors published OrgMaster authority without UID roles', async () => {
-      const { selectPrincipalReviewerInSnapshot } = await import(pathToFileURL(
+      const { selectPrincipalReviewerIdentityInSnapshot, selectPrincipalReviewerInSnapshot } = await import(pathToFileURL(
         path.join(root, 'src/lib/repositories/pdm-principal-reviewer-selector.ts')).href)
       await client.query(`UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
         SET assignment_version_id='reviewer-published-v1', assignment_version=1,
@@ -2094,6 +2130,9 @@ try {
         assert.equal(await selectPrincipalReviewerInSnapshot(tx,
           { companyId: 'company-jenfu', ownerUserId: 'pdm-user-materialize' }),
         'pdm-user-admin')
+        assert.deepEqual(await selectPrincipalReviewerIdentityInSnapshot(tx,
+          { companyId: 'company-jenfu', ownerUserId: 'pdm-user-materialize' }),
+        { principalId: 'principal-admin', profileId: 'pdm-user-admin' })
         await client.query('COMMIT')
       } catch (error) {
         await client.query('ROLLBACK').catch(() => undefined)

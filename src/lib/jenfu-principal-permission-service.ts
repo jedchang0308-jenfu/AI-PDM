@@ -22,7 +22,7 @@ export type PrincipalWorkspaceDecision = {
   roleCode: string | null;
   assignmentId: string | null;
   principalId: string;
-  authorityVersion: number;
+  publishedAssignmentVersion: number;
 };
 
 /** Workspace-only entrypoint. Project/resource grants require a server-owned resource adapter. */
@@ -73,7 +73,7 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
       if (result.decisionCode !== "allowed") {
         return { allowed: false, permissionCode, decisionCode: result.decisionCode,
           roleCode: null, assignmentId: null, principalId: actor.principalId,
-          authorityVersion: result.authority.authorityVersion };
+          publishedAssignmentVersion: result.publication.assignmentVersion };
       }
       const privileged = result.role.risk !== "normal" ||
         ["system_admin", "pdm_admin", "rd_manager"].includes(result.role.roleCode);
@@ -85,7 +85,7 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
         roleCode: assured ? result.role.roleCode : null,
         assignmentId: assured ? result.assignment.assignmentId : null,
         principalId: actor.principalId,
-        authorityVersion: result.authority.authorityVersion
+        publishedAssignmentVersion: result.publication.assignmentVersion
       };
     });
 }

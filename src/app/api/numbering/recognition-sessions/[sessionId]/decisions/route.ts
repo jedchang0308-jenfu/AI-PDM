@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { saveDrawingRecognitionDecisions } from "@/lib/drawing-recognition";
-import { recognitionErrorResponse, recognitionJsonBody, recognitionRoles } from "@/lib/drawing-recognition-api";
+import { recognitionErrorResponse, recognitionJsonBody } from "@/lib/drawing-recognition-api";
+import { withPrincipalDrawingRecognitionMutation } from "@/lib/drawing-recognition-principal-mutation";
 import { DRAWING_RECOGNITION_CATEGORIES, DrawingRecognitionError, requireSafeRecognitionId, type DrawingRecognitionDecisionAction, type DrawingRecognitionDecisionInput } from "@/lib/drawing-recognition-contract";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 
@@ -38,9 +39,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ sessi
     const { sessionId } = await context.params;
     const expectedRowVersion = Number(body.expectedRowVersion ?? body.expected_row_version);
     if (!Number.isInteger(expectedRowVersion) || expectedRowVersion < 1) throw new DrawingRecognitionError("RECOGNITION_ROW_VERSION_REQUIRED", "缺少目前內容版本。", 400);
-    const session = await saveDrawingRecognitionDecisions({
-      sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"), companyId: access.company.companyId,
-      actorId: access.actor.pdmUserId, roles: recognitionRoles(access), expectedRowVersion, decisions: parseDecisions(body.decisions)
+    const decisions = parseDecisions(body.decisions);
+    const session = await withPrincipalDrawingRecognitionMutation({
+      metadata: access.metadata, permissionCode: "numbering.recognition.review",
+      companyId: access.company.companyId, actorId: access.actor.pdmUserId,
+      execute: (snapshot, decision, verified) => saveDrawingRecognitionDecisions({
+        sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"), companyId: access.company.companyId,
+        actorId: access.actor.pdmUserId, principalId: verified.session.principalId,
+        roles: decision.roleCode ? [decision.roleCode] : [],
+        expectedRowVersion, decisions, client: snapshot
+      })
     });
     return NextResponse.json({ session }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {

@@ -27,7 +27,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       purpose: "supplier_share"
     });
     await auditStorageAccess({
-      actorId: null,
       submissionId: publicShare.submission.id,
       accessKind: "public_share_package",
       fileId: publicShare.submission.release_package.id,

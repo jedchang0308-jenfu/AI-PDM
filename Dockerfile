@@ -93,6 +93,7 @@ LABEL org.opencontainers.image.title="AI PDM" \
 COPY --from=builder --chown=65532:65532 /app/.next/standalone ./
 COPY --from=builder --chown=65532:65532 /app/.next/static ./.next/static
 COPY --from=builder --chown=65532:65532 /app/public ./public
+COPY --from=builder --chown=65532:65532 /app/.ai-doc/reference/pdm-management-policy-draft.md ./.ai-doc/reference/pdm-management-policy-draft.md
 USER 65532:65532
 EXPOSE 8080
 ENTRYPOINT ["/nodejs/bin/node"]
