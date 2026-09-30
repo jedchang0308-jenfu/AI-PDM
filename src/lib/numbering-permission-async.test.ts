@@ -19,7 +19,7 @@ const actor = {
 };
 
 const assignmentRow = {
-  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v2",
+  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3",
   assignment_version_id: "assignment-version-1",
   assignment_version: 1,
   assignment_id: "assignment-1",
@@ -37,8 +37,7 @@ const assignmentRow = {
   scope_key: "current",
   valid_from: "2026-01-01T00:00:00.000Z",
   valid_until: null,
-  published_at: "2026-01-01T00:00:00.000Z",
-  authority_version: 2
+  published_at: "2026-01-01T00:00:00.000Z"
 };
 
 function makeClient(input: { authoritySource?: "legacy_authority" | "orgmaster_authority"; principalId?: string; activePriority?: boolean } = {}) {
@@ -79,7 +78,7 @@ function makeClient(input: { authoritySource?: "legacy_authority" | "orgmaster_a
         updated_at: "2026-09-23T00:00:00.000Z",
         operation_id: null
       }] as T[];
-      if (sql.includes("v_ai_pdm_principal_effective_grants_v2")) return [assignmentRow] as T[];
+      if (sql.includes("v_ai_pdm_principal_effective_grants_v3")) return [assignmentRow] as T[];
       if (sql.includes("FROM user_role_assignments")) return [{ role_code: "rd" }] as T[];
       if (sql.includes("FROM approval_delegations")) return [] as T[];
       if (sql.includes("FROM roles") && sql.includes("WHERE enabled = 1")) return [{
@@ -164,8 +163,8 @@ describe("DEV-121 authorization snapshot", () => {
     expect(client.transaction).toHaveBeenCalledTimes(1);
     expect(client.transactionOptions).toEqual({ isolationLevel: "repeatable_read", readOnly: true });
     expect(client.queries.some((sql) => sql.includes("v_active_principal_mappings_v1"))).toBe(true);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(true);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(true);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v3"))).toBe(true);
     expect(client.execute).not.toHaveBeenCalled();
     log.mockRestore();
   });
@@ -183,8 +182,8 @@ describe("DEV-121 authorization snapshot", () => {
     expect(allowed).toMatchObject({ allowed: true, decisionCode: "allowed" });
     expect(denied).toMatchObject({ allowed: false, decisionCode: "permission_not_granted" });
     expect(client.transaction).toHaveBeenCalledTimes(1);
-    expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toHaveLength(1);
-    expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toHaveLength(1);
+    expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toHaveLength(0);
+    expect(client.queries.filter((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v3"))).toHaveLength(1);
     log.mockRestore();
   });
 
@@ -196,21 +195,22 @@ describe("DEV-121 authorization snapshot", () => {
 
     expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_session_invalid" });
     expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(false);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v3"))).toBe(false);
   });
 
-  it("rejects legacy authority without consulting local roles", async () => {
+  it("ignores historical authority rows and authorizes only the published Principal grant", async () => {
     const client = makeClient({ authoritySource: "legacy_authority" });
     mocks.getAsyncDatabaseClient.mockReturnValue(client);
 
     const result = await checkNumberingPermissionAsync(requestInput());
 
-    expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_authority_unknown" });
+    expect(result).toMatchObject({ allowed: true, decisionCode: "allowed", roleCode: "rd" });
     expect(client.transaction).toHaveBeenCalledTimes(1);
     expect(client.transactionOptions).toEqual({ isolationLevel: "repeatable_read", readOnly: true });
     expect(client.queries.some((sql) => sql.includes("FROM user_role_assignments"))).toBe(false);
     expect(client.queries.some((sql) => sql.includes("FROM role_permissions p"))).toBe(false);
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_entitlement_authority_v1"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v3"))).toBe(true);
   });
 
   it("does not fall back when the active priority contract is missing", async () => {
@@ -220,6 +220,6 @@ describe("DEV-121 authorization snapshot", () => {
     const result = await checkNumberingPermissionAsync(requestInput());
 
     expect(result).toMatchObject({ allowed: false, decisionCode: "entitlement_authority_unavailable" });
-    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v2"))).toBe(false);
+    expect(client.queries.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v3"))).toBe(false);
   });
 });
