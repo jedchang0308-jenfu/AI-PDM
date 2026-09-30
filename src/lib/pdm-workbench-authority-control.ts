@@ -43,15 +43,19 @@ export async function readWorkbenchAuthorityControl(client: AsyncDatabaseClient)
   };
 }
 
-export function runtimeCommit() {
-  return process.env.PDM_BUILD_COMMIT?.trim() || process.env.VERCEL_GIT_COMMIT_SHA?.trim() || "local-dev";
+export function expectedWorkbenchAuthorityCommit() {
+  // This identifies the persisted workbench authority contract, not this
+  // application image. Owner release separately proves the source/image.
+  const configured = process.env.PDM_WORKBENCH_AUTHORITY_COMMIT?.trim();
+  if (configured) return /^[a-f0-9]{40}$/u.test(configured) ? configured : "";
+  return process.env.NODE_ENV === "production" ? "" : "local-dev";
 }
 
 export async function assertCanonicalWorkbenchAuthority(client: AsyncDatabaseClient) {
   const control = await readWorkbenchAuthorityControl(client);
   if (
     control.mode !== "canonical_only" || control.schemaHash !== DEV090_SCHEMA_HASH ||
-    !control.expectedCommit || control.expectedCommit !== runtimeCommit()
+    !control.expectedCommit || control.expectedCommit !== expectedWorkbenchAuthorityCommit()
   ) {
     throw new CanonicalWorkbenchError("WORKBENCH_AUTHORITY_MISMATCH", "系統切換中，請稍後再試", 503);
   }
