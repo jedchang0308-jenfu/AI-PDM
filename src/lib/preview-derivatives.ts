@@ -36,8 +36,41 @@ type PreviewSourceRow = {
   linked_entity_id: string;
 };
 
+// file_assets has no company_id. Resolve its owner from the canonical linked entity;
+// a caller-supplied company or a preview job's historical label is not proof.
+const previewSourceCompanyPredicate = (companyExpression: string) => `(
+  (fa.linked_entity_type = 'drawing_revision' AND EXISTS (
+    SELECT 1 FROM drawing_revisions revision
+    WHERE revision.id = fa.linked_entity_id AND revision.company_id = ${companyExpression}
+  )) OR
+  (fa.linked_entity_type = 'numbering_candidate_revision' AND EXISTS (
+    SELECT 1 FROM numbering_candidate_revision_drafts candidate
+    WHERE candidate.id = fa.linked_entity_id AND candidate.company_id = ${companyExpression}
+  )) OR
+  (fa.linked_entity_type = 'drawing_number' AND EXISTS (
+    SELECT 1 FROM drawing_numbers drawing
+    WHERE drawing.id = fa.linked_entity_id AND drawing.company_id = ${companyExpression}
+  )) OR
+  (fa.linked_entity_type = 'part_number' AND EXISTS (
+    SELECT 1 FROM part_numbers part
+    WHERE part.id = fa.linked_entity_id AND part.company_id = ${companyExpression}
+  ))
+)`;
+
+async function previewSourceBelongsToCompany(client: AsyncDatabaseClient, sourceFileAssetId: string, companyId: string) {
+  if (!sourceFileAssetId.trim() || !companyId.trim()) return false;
+  const source = await client.queryOne<{ id: string }>(
+    `SELECT fa.id FROM file_assets fa
+      WHERE fa.id = :sourceFileAssetId AND fa.deleted_at IS NULL
+        AND ${previewSourceCompanyPredicate(":companyId")}`,
+    { sourceFileAssetId, companyId }
+  );
+  return source?.id === sourceFileAssetId;
+}
+
 type PreviewJobRow = {
   id: string;
+  company_id: string;
   source_file_asset_id: string;
   source_content_hash: string;
   requested_kind: string;
@@ -162,49 +195,6 @@ export async function decorateMasterAttachmentsWithPreviewState(
   });
 }
 
-/** Ensure a detail read cannot leave a native SolidWorks source without a
- * Phase 1 PNG job. The operation is idempotent through preview_jobs' key. */
-export async function ensureAutomaticPreviewJobsForAttachmentsAsync(
-  client: AsyncDatabaseClient,
-  attachments: MasterAttachmentRecord[],
-  actorUserId: string
-) {
-  for (const attachment of attachments) {
-    if (!isNativeSolidWorksPreviewSource(attachment.fileExt)) continue;
-    const requestedKind = requestedPreviewKindForSource(attachment.fileExt);
-    const hasCurrentDerivative = attachment.previewDerivatives.some(
-      (derivative) => derivative.status === "ready" && derivative.sourceContentHash === attachment.contentHash
-    );
-    const hasCurrentJob = attachment.previewJob?.sourceContentHash === attachment.contentHash
-      && attachment.previewJob.requestedKind === requestedKind
-      && ["queued", "running"].includes(attachment.previewJob.status);
-    if (hasCurrentDerivative || hasCurrentJob) continue;
-
-    try {
-      const source = await client.queryOne<PreviewSourceRow>(
-        `SELECT 'company-jenfu' AS company_id,
-                COALESCE(fa.storage_provider, 'local_repository') AS storage_provider,
-                fa.original_path, fa.storage_key, fa.file_name, fa.file_ext, fa.mime_type,
-                fa.file_size, fa.content_hash, fa.hash_algorithm,
-                fa.linked_entity_type, fa.linked_entity_id, fa.id
-           FROM file_assets fa
-          WHERE fa.id = :attachmentId AND fa.deleted_at IS NULL`,
-        { attachmentId: attachment.id }
-      );
-      if (!source) continue;
-      await enqueuePreviewJobForSourceAsync(client, {
-        source,
-        actorUserId,
-        requestedKind,
-        generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? fakePreviewGeneratorProfile : realPreviewGeneratorProfile,
-        runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
-      });
-    } catch {
-      // Preview generation is non-blocking; the original attachment remains readable.
-    }
-  }
-}
-
 export type AutomaticPreviewPreparationResult = {
   sourceFileAssetId: string;
   disposition: "ready" | "active" | "queued" | "failed";
@@ -218,7 +208,7 @@ export type AutomaticPreviewPreparationResult = {
  */
 export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
   client: AsyncDatabaseClient,
-  input: { companyId: string; sourceFileAssetIds: string[]; actorUserId: string; requireQueued?: boolean; runFakeWorker?: boolean }
+  input: { companyId: string; sourceFileAssetIds: string[]; actorUserId: string; initiatorPrincipalId?: string; requireQueued?: boolean; runFakeWorker?: boolean }
 ): Promise<AutomaticPreviewPreparationResult[]> {
   const sourceFileAssetIds = [...new Set(input.sourceFileAssetIds.map((value) => value.trim()).filter(Boolean))];
   if (sourceFileAssetIds.length === 0) return [];
@@ -232,15 +222,16 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
             fa.linked_entity_type, fa.linked_entity_id
        FROM file_assets fa
       WHERE fa.id IN (${idClause.sql})
-        AND fa.deleted_at IS NULL`,
+        AND fa.deleted_at IS NULL
+        AND ${previewSourceCompanyPredicate(":companyId")}`,
     { companyId: input.companyId, ...idClause.params }
   );
   const states = await listPreviewStatesForAttachmentIds(client, sources.map((source) => source.id));
   const jobRows = await client.query<PreviewJobRow>(
     `SELECT * FROM preview_jobs
-      WHERE source_file_asset_id IN (${idClause.sql})
+      WHERE company_id = :companyId AND source_file_asset_id IN (${idClause.sql})
       ORDER BY updated_at DESC, created_at DESC`,
-    idClause.params
+    { companyId: input.companyId, ...idClause.params }
   );
   const jobsBySourceId = new Map<string, PreviewJobRow[]>();
   for (const job of jobRows) {
@@ -288,6 +279,7 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
       const prepared = await enqueuePreviewJobForSourceAsync(client, {
         source,
         actorUserId: input.actorUserId,
+        initiatorPrincipalId: input.initiatorPrincipalId,
         requestedKind,
         generatorProfile,
         runFakeWorker,
@@ -310,6 +302,7 @@ export async function enqueuePreviewJobForAttachmentAsync(
     entityCode: string;
     attachmentId: string;
     actorUserId: string;
+    initiatorPrincipalId?: string;
     requestedKind?: PreviewRequestedKind;
     generatorProfile?: string;
     runFakeWorker?: boolean;
@@ -322,6 +315,7 @@ export async function enqueuePreviewJobForAttachmentAsync(
   return enqueuePreviewJobForSourceAsync(client, {
     source,
     actorUserId: input.actorUserId,
+    initiatorPrincipalId: input.initiatorPrincipalId,
     requestedKind: input.requestedKind,
     generatorProfile: input.generatorProfile,
     runFakeWorker: input.runFakeWorker,
@@ -334,6 +328,7 @@ export async function enqueuePreviewJobForSourceAsync(
   input: {
     source: PreviewSourceRow;
     actorUserId: string;
+    initiatorPrincipalId?: string;
     requestedKind?: PreviewRequestedKind;
     generatorProfile?: string;
     runFakeWorker?: boolean;
@@ -341,6 +336,16 @@ export async function enqueuePreviewJobForSourceAsync(
   }
 ) {
   const source = input.source;
+  if (input.initiatorPrincipalId !== undefined &&
+      (!input.initiatorPrincipalId.trim() || input.initiatorPrincipalId.length > 255 ||
+        input.initiatorPrincipalId.startsWith("pdm:") ||
+        /[\u0000-\u001f\u007f]/u.test(input.initiatorPrincipalId))) {
+    throw new Error("PREVIEW_PRINCIPAL_INVALID");
+  }
+  const companyId = source.company_id?.trim();
+  if (!companyId || !await previewSourceBelongsToCompany(client, source.id, companyId)) {
+    throw new Error("PREVIEW_SOURCE_COMPANY_SCOPE_INVALID");
+  }
 
   const sourceExtension = normalizeExtension(source.file_ext);
   const requestedKind = input.requestedKind ?? requestedPreviewKindForSource(source.file_ext);
@@ -353,7 +358,7 @@ export async function enqueuePreviewJobForSourceAsync(
   const sourceContentHash = requireSourceHash(source);
   const job = await upsertPreviewJob(client, {
     id: crypto.randomUUID(),
-    companyId: source.company_id ?? "company-jenfu",
+    companyId,
     sourceFileAssetId: source.id,
     sourceContentHash,
     requestedKind,
@@ -363,6 +368,7 @@ export async function enqueuePreviewJobForSourceAsync(
     errorCode,
     errorSummary,
     actorUserId: input.actorUserId,
+    initiatorPrincipalId: input.initiatorPrincipalId,
     forceRegenerate: input.forceRegenerate === true,
     now
   });
@@ -394,8 +400,9 @@ export async function getPreviewDerivativeBytesForAttachmentAsync(
       WHERE id = :derivativeId
         AND source_file_asset_id = :sourceFileAssetId
         AND status = 'ready'
+        AND company_id = :companyId
     `,
-    { derivativeId: input.derivativeId, sourceFileAssetId: source.id }
+    { derivativeId: input.derivativeId, sourceFileAssetId: source.id, companyId: source.company_id }
   );
   if (!row) return null;
   if (row.source_content_hash !== sourceContentHash) throw new Error("PREVIEW_DERIVATIVE_STALE");
@@ -418,11 +425,13 @@ export async function getPreviewDerivativeBytesForSourceAssetAsync(
 ): Promise<PreviewDerivativeFile | null> {
   const row = await client.queryOne<FileDerivativeRow>(
     `
-      SELECT *
-      FROM file_derivatives
-      WHERE id = :derivativeId
-        AND source_file_asset_id = :sourceFileAssetId
-        AND status = 'ready'
+      SELECT derivative.*
+      FROM file_derivatives derivative
+      JOIN file_assets fa ON fa.id = derivative.source_file_asset_id AND fa.deleted_at IS NULL
+      WHERE derivative.id = :derivativeId
+        AND derivative.source_file_asset_id = :sourceFileAssetId
+        AND derivative.status = 'ready'
+        AND ${previewSourceCompanyPredicate("derivative.company_id")}
     `,
     input
   );
@@ -450,11 +459,12 @@ export async function claimPreviewJobAsync(
           AND source_extension IN (${extensionClause.sql})
         ORDER BY priority ASC, created_at ASC
         LIMIT 1
+        ${transactionClient.kind === "postgres" ? "FOR UPDATE SKIP LOCKED" : ""}
       `,
       { ...kindClause.params, ...extensionClause.params }
     );
     if (!selected) return null;
-    await transactionClient.execute(
+    const claimed = await transactionClient.queryOne<{ id: string }>(
       `
         UPDATE preview_jobs
         SET status = 'running',
@@ -462,11 +472,12 @@ export async function claimPreviewJobAsync(
             locked_at = :now,
             attempt_count = attempt_count + 1,
             updated_at = :now
-        WHERE id = :id
+        WHERE id = :id AND status = 'queued'
+        RETURNING id
       `,
       { id: selected.id, workerId: input.workerId, now: new Date().toISOString() }
     );
-    return selected;
+    return claimed ? selected : null;
   });
   if (!row) return null;
 
@@ -477,6 +488,16 @@ export async function claimPreviewJobAsync(
       status: "failed",
       errorCode: "source_file_missing",
       errorSummary: "來源檔案不存在，無法產生預覽。",
+      workerId: input.workerId
+    });
+    return null;
+  }
+  if (!row.company_id || !await previewSourceBelongsToCompany(client, row.source_file_asset_id, row.company_id)) {
+    await failPreviewJob(client, {
+      jobId: row.id,
+      status: "failed",
+      errorCode: "source_company_scope_invalid",
+      errorSummary: "來源檔案的公司範圍無法核實，預覽已停止。",
       workerId: input.workerId
     });
     return null;
@@ -497,18 +518,20 @@ export async function claimPreviewJobAsync(
 export async function heartbeatPreviewJobAsync(
   client: AsyncDatabaseClient,
   input: { jobId: string; workerId: string }
-) {
+): Promise<boolean> {
   const now = new Date().toISOString();
-  await client.execute(
+  const updated = await client.queryOne<{ id: string }>(
     `
       UPDATE preview_jobs
       SET updated_at = :now
       WHERE id = :jobId
         AND status = 'running'
         AND locked_by = :workerId
+      RETURNING id
     `,
     { jobId: input.jobId, workerId: input.workerId, now }
   );
+  return updated?.id === input.jobId;
 }
 
 export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient) {
@@ -605,6 +628,13 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
   const job = await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE id = :jobId", { jobId: input.jobId });
   if (!job) throw new Error("PREVIEW_JOB_NOT_FOUND");
   if (job.status !== "running" || job.locked_by !== input.workerId) return { accepted: false, derivativeIds: [] };
+  if (!job.company_id || !await previewSourceBelongsToCompany(client, job.source_file_asset_id, job.company_id)) {
+    await failPreviewJob(client, {
+      jobId: job.id, status: "failed", errorCode: "source_company_scope_invalid",
+      errorSummary: "來源檔案的公司範圍無法核實，預覽已停止。", workerId: input.workerId
+    });
+    return { accepted: false, derivativeIds: [] };
+  }
   if (job.source_content_hash !== input.sourceContentHash) {
     await failPreviewJob(client, {
       jobId: input.jobId,
@@ -617,6 +647,13 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
   }
 
   const derivativeIds = await client.transaction(async (transactionClient) => {
+    const owned = await transactionClient.queryOne<{ id: string }>(
+      `SELECT id FROM preview_jobs WHERE id = :jobId
+         AND status = 'running' AND locked_by = :workerId
+         ${transactionClient.kind === "postgres" ? "FOR UPDATE" : ""}`,
+      { jobId: input.jobId, workerId: input.workerId }
+    );
+    if (!owned) return null;
     const ids: string[] = [];
     for (const derivative of input.derivatives) {
       const bytes = Buffer.from(derivative.contentBase64, "base64");
@@ -639,7 +676,7 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
       });
       await insertDerivative(transactionClient, {
         id: derivativeId,
-        companyId: "company-jenfu",
+        companyId: job.company_id,
         sourceFileAssetId: job.source_file_asset_id,
         sourceContentHash: job.source_content_hash,
         derivativeKind: derivative.kind,
@@ -661,7 +698,7 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
       });
       ids.push(derivativeId);
     }
-    await transactionClient.execute(
+    const completed = await transactionClient.queryOne<{ id: string }>(
       `
         UPDATE preview_jobs
         SET status = 'succeeded',
@@ -673,13 +710,15 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
         WHERE id = :jobId
           AND status = 'running'
           AND locked_by = :workerId
+        RETURNING id
       `,
       { jobId: input.jobId, workerId: input.workerId, now: new Date().toISOString() }
     );
+    if (!completed) throw new Error("PREVIEW_JOB_CLAIM_LOST");
     return ids;
   });
 
-  return { accepted: true, derivativeIds };
+  return { accepted: derivativeIds !== null, derivativeIds: derivativeIds ?? [] };
 }
 
 async function runFakePreviewWorkerForJobAsync(client: AsyncDatabaseClient, input: { jobId: string; workerId: string }) {
@@ -693,6 +732,13 @@ async function runFakePreviewWorkerForJobAsync(client: AsyncDatabaseClient, inpu
       errorCode: "source_file_missing",
       errorSummary: "來源檔案不存在，無法產生預覽。",
       workerId: input.workerId
+    });
+    return;
+  }
+  if (!job.company_id || !await previewSourceBelongsToCompany(client, job.source_file_asset_id, job.company_id)) {
+    await failPreviewJob(client, {
+      jobId: job.id, status: "failed", errorCode: "source_company_scope_invalid",
+      errorSummary: "來源檔案的公司範圍無法核實，預覽已停止。", workerId: input.workerId
     });
     return;
   }
@@ -734,7 +780,7 @@ async function runFakePreviewWorkerForJobAsync(client: AsyncDatabaseClient, inpu
     });
     await insertDerivative(transactionClient, {
       id: crypto.randomUUID(),
-      companyId: source.company_id ?? "company-jenfu",
+      companyId: job.company_id,
       sourceFileAssetId: job.source_file_asset_id,
       sourceContentHash: job.source_content_hash,
       derivativeKind,
@@ -1009,10 +1055,12 @@ async function listPreviewStatesForAttachmentIds(client: AsyncDatabaseClient, at
   const idClause = buildNamedInClause("attachmentId", attachmentIds);
   const derivatives = await client.query<FileDerivativeRow>(
     `
-      SELECT *
-      FROM file_derivatives
-      WHERE source_file_asset_id IN (${idClause.sql})
-      ORDER BY created_at DESC
+      SELECT derivative.*
+      FROM file_derivatives derivative
+      JOIN file_assets fa ON fa.id = derivative.source_file_asset_id AND fa.deleted_at IS NULL
+      WHERE derivative.source_file_asset_id IN (${idClause.sql})
+        AND ${previewSourceCompanyPredicate("derivative.company_id")}
+      ORDER BY derivative.created_at DESC
     `,
     idClause.params
   );
@@ -1025,10 +1073,12 @@ async function listPreviewStatesForAttachmentIds(client: AsyncDatabaseClient, at
 
   const jobs = await client.query<PreviewJobRow>(
     `
-      SELECT *
-      FROM preview_jobs
-      WHERE source_file_asset_id IN (${idClause.sql})
-      ORDER BY updated_at DESC, created_at DESC
+      SELECT job.*
+      FROM preview_jobs job
+      JOIN file_assets fa ON fa.id = job.source_file_asset_id AND fa.deleted_at IS NULL
+      WHERE job.source_file_asset_id IN (${idClause.sql})
+        AND ${previewSourceCompanyPredicate("job.company_id")}
+      ORDER BY job.updated_at DESC, job.created_at DESC
     `,
     idClause.params
   );
@@ -1047,7 +1097,7 @@ async function resolvePreviewSource(
   if (input.entityType === "drawing_number") {
     return await client.queryOne<PreviewSourceRow>(
       `
-        SELECT fa.*, COALESCE(dn.company_id, 'company-jenfu') AS company_id
+        SELECT fa.*, dn.company_id AS company_id
         FROM file_assets fa
         JOIN drawing_numbers dn ON dn.id = fa.linked_entity_id
         WHERE fa.id = :attachmentId
@@ -1061,7 +1111,7 @@ async function resolvePreviewSource(
 
   return await client.queryOne<PreviewSourceRow>(
     `
-      SELECT fa.*, COALESCE(pn.company_id, 'company-jenfu') AS company_id
+      SELECT fa.*, pn.company_id AS company_id
       FROM file_assets fa
       JOIN part_numbers pn ON pn.id = fa.linked_entity_id
       WHERE fa.id = :attachmentId
@@ -1087,6 +1137,7 @@ async function upsertPreviewJob(
     errorCode: string | null;
     errorSummary: string | null;
     actorUserId: string;
+    initiatorPrincipalId?: string;
     forceRegenerate: boolean;
     now: string;
   }
@@ -1096,6 +1147,7 @@ async function upsertPreviewJob(
     idempotencyKey
   });
   if (existing) {
+    if (existing.company_id !== input.companyId) throw new Error("PREVIEW_JOB_COMPANY_CONFLICT");
     const retryableStatuses = new Set(["failed", "skipped", "cancelled"]);
     const forceResetStatuses = new Set(["succeeded", "failed", "skipped", "cancelled"]);
     const shouldResetExisting = input.forceRegenerate ? forceResetStatuses.has(existing.status) : retryableStatuses.has(existing.status);
@@ -1142,19 +1194,23 @@ async function upsertPreviewJob(
       VALUES (
         :id, :companyId, :sourceFileAssetId, :sourceContentHash, :requestedKind, :sourceExtension,
         :status, 100, 0, :idempotencyKey, :generatorProfile, :errorCode, :errorSummary,
-        :actorUserId, :now, :now, :completedAt, '{}'
+        :actorUserId, :now, :now, :completedAt, :metadataJson
       )
       ON CONFLICT (idempotency_key) DO NOTHING
     `,
     {
       ...input,
       idempotencyKey,
+      metadataJson: input.initiatorPrincipalId
+        ? JSON.stringify({ initiator: { kind: "verified_principal", principalId: input.initiatorPrincipalId } })
+        : "{}",
       completedAt: input.status === "skipped" ? input.now : null
     }
   );
 
   return (await client.queryOne<PreviewJobRow>("SELECT * FROM preview_jobs WHERE idempotency_key = :idempotencyKey", { idempotencyKey })) ?? {
     id: input.id,
+    company_id: input.companyId,
     source_file_asset_id: input.sourceFileAssetId,
     source_content_hash: input.sourceContentHash,
     requested_kind: input.requestedKind,
@@ -1183,12 +1239,7 @@ async function failPreviewJob(
   }
 ) {
   const now = new Date().toISOString();
-  const current = await client.queryOne<Pick<PreviewJobRow, "status" | "locked_by">>(
-    "SELECT status, locked_by FROM preview_jobs WHERE id = :jobId",
-    { jobId: input.jobId }
-  );
-  if (!current || current.status !== "running" || current.locked_by !== input.workerId) return false;
-  await client.execute(
+  const updated = await client.queryOne<{ id: string }>(
     `
       UPDATE preview_jobs
       SET status = :status,
@@ -1197,7 +1248,8 @@ async function failPreviewJob(
           locked_by = :workerId,
           updated_at = :now,
           completed_at = :now
-      WHERE id = :jobId
+      WHERE id = :jobId AND status = 'running' AND locked_by = :workerId
+      RETURNING id
     `,
     {
       jobId: input.jobId,
@@ -1208,7 +1260,7 @@ async function failPreviewJob(
       now
     }
   );
-  return true;
+  return Boolean(updated);
 }
 
 async function storePreviewDerivativeBytes(input: {

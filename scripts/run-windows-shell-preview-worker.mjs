@@ -263,7 +263,9 @@ async function completeJob(input) {
     })
   });
   if (!response.ok) throw new Error(`Preview worker complete failed with HTTP ${response.status}: ${await response.text()}`);
-  return await response.json();
+  const result = await response.json();
+  if (result.accepted !== true) throw new Error("PREVIEW_JOB_CLAIM_LOST");
+  return result;
 }
 
 function startJobHeartbeat(input) {

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAuthAsync, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
 import {
   decideApprovalPlatformRequestAsync,
-  getApprovalPlatformRequestDetailAsync,
   getApprovalPlatformRequestDetailForCompanyAsync
 } from "@/lib/approval-platform";
 import { approvalApiErrorResponse } from "@/lib/approval-api-error";
@@ -18,8 +17,9 @@ import {
   decideDrawingRevisionLifecycle,
   drawingRevisionLifecycleErrorPayload
 } from "@/lib/drawing-revision-lifecycle";
-import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
+import { isProductionNumberingLifecycleApprovalAction, isProductionNumberingLifecycleGateOpen, isProductionSliceActive, isProductionSliceEnforced, productionSliceDeniedPayload } from "@/lib/production-slice";
 import { projectApprovalDecisionFeedback } from "@/lib/approval-outcome-feedback";
+import { isPrincipalTransferReviewRequestId } from "@/lib/transfer-review-request-id";
 
 export const runtime = "nodejs";
 
@@ -30,6 +30,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   const decision = String(body.decision ?? "").trim();
   if (decision !== "approved" && decision !== "rejected" && decision !== "needs_info") {
     return NextResponse.json({ error: "decision must be approved, rejected, or needs_info" }, { status: 400 });
+  }
+
+  // New transfer reviews have a fixed owner-issued ID and a Principal binding
+  // in the request payload. The command re-reads both in one transaction.
+  if (isPrincipalTransferReviewRequestId(decodedRequestId)) {
+    if (isProductionSliceEnforced() && !isProductionSliceActive()) {
+      return NextResponse.json(productionSliceDeniedPayload("approvals.request.decisions"), { status: 403 });
+    }
+    const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
+    const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });
+    if (invalid) return invalid;
+    const access = await requireNumberingPlatformCommandAsync(request, {
+      action: "transfer.package.review.decide", permissionCode: "approval.request.decide",
+      discriminator: "approval_decision:transfer_package", body: body as Record<string, unknown>
+    });
+    if (access.response || !access.metadata || !access.actor) return access.response;
+    try {
+      await decideTransferPackageReview({
+        metadata: access.metadata,
+        requestId: decodedRequestId,
+        decision,
+        comment: nullableText(body.comment ?? body.decisionReason ?? body.decision_reason)
+      });
+      const updated = await getApprovalPlatformRequestDetailForCompanyAsync(
+        decodedRequestId, access.actor.organizationId);
+      return NextResponse.json({ request: updated });
+    } catch (error) {
+      return transferPhase1dErrorResponse(error, "decision");
+    }
   }
 
   const authenticated = await requireAuthAsync(request);
@@ -51,30 +80,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ req
   }
 
   if (detail.actionCode === "transfer.package_review") {
-    const idempotencyKey = request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key");
-    const invalid = validateNumberStateMutationRequest({ request, idempotencyKey, requireIdempotency: true });
-    if (invalid) return invalid;
-    const access = await requireNumberingPlatformCommandAsync(request, {
-      action: "transfer.package.review.decide",
-      permissionCode: "approval.request.decide",
-      body: body as Record<string, unknown>
-    });
-    if (access.response || !access.metadata || !access.actor) return access.response;
-    if (detail.companyId !== access.actor.organizationId) {
-      return NextResponse.json({ error: "APPROVAL_REQUEST_NOT_FOUND" }, { status: 404 });
-    }
-    try {
-      await decideTransferPackageReview({
-        metadata: access.metadata,
-        requestId: decodedRequestId,
-        decision,
-        comment: nullableText(body.comment ?? body.decisionReason ?? body.decision_reason)
-      });
-      const updated = await getApprovalPlatformRequestDetailAsync(decodedRequestId);
-      return NextResponse.json({ request: updated });
-    } catch (error) {
-      return transferPhase1dErrorResponse(error, "decision");
-    }
+    return NextResponse.json({ code: "TRANSFER_REVIEW_BINDING_INVALID" }, { status: 409 });
   }
 
   if (detail.actionCode === "numbering.candidate_bundle_review") {

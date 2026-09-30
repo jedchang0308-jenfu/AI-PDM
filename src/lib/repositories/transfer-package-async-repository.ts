@@ -409,15 +409,16 @@ export class AsyncTransferPackageRepository {
   async getById(id: string, companyId: string, client: AsyncDatabaseClient = this.client): Promise<TransferPackageRecord> {
     const row = await this.getRow(id, companyId, client);
     if (!row) throw new TransferPackageError("TRANSFER_PACKAGE_NOT_FOUND", "找不到技轉包。", 404);
-    const [items, draftItems, events] = await Promise.all([
-      client.query<ItemRow>(
+    // A transaction owns one PostgreSQL client. Concurrent query() calls on
+    // that connection are deprecated by pg and cannot execute in parallel.
+    const items = await client.query<ItemRow>(
         `SELECT id, entity_type, entity_id, entity_code, display_label, root_code, record_status, added_by, created_at
          FROM transfer_package_items
          WHERE company_id = :companyId AND package_id = :packageId
          ORDER BY created_at ASC, id ASC`,
         { companyId, packageId: id }
-      ),
-      client.query<DraftItemRow>(
+      );
+    const draftItems = await client.query<DraftItemRow>(
         `SELECT i.id, i.workspace_id, i.requiredness, i.inclusion_reason,
                 i.captured_workspace_version, w.row_version AS workspace_version,
                 w.lifecycle_status AS workspace_lifecycle, w.owner_id AS workspace_owner_id,
@@ -428,16 +429,15 @@ export class AsyncTransferPackageRepository {
          WHERE i.company_id = :companyId AND i.package_id = :packageId
          ORDER BY i.created_at ASC, i.id ASC`,
         { companyId, packageId: id }
-      ),
-      client.query<EventRow>(
+      );
+    const events = await client.query<EventRow>(
         `SELECT id, event_type, actor_id, detail_json, created_at
          FROM transfer_package_events
          WHERE company_id = :companyId AND package_id = :packageId
          ORDER BY created_at DESC, id DESC
          LIMIT 50`,
         { companyId, packageId: id }
-      )
-    ]);
+      );
     return {
       id: row.id,
       companyId: row.company_id,

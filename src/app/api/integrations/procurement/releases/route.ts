@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
+import { requireNumberStateReadAccessAsync } from "@/lib/number-state-flow-api";
 import { listManufacturingHandoffEntriesAsync } from "@/lib/handoff-async";
 
 export const runtime = "nodejs";
@@ -17,15 +17,15 @@ function parseSince(value: string | null) {
 }
 
 export async function GET(request: Request) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
-  if (auth.response) return auth.response;
+  const access = await requireNumberStateReadAccessAsync(request, "integration.procurement.view");
+  if (access.response) return access.response;
 
   const url = new URL(request.url);
   const limit = parseLimit(url.searchParams.get("limit"));
   const since = parseSince(url.searchParams.get("since"));
   const partNumber = url.searchParams.get("partNumber")?.trim().toLowerCase() ?? "";
 
-  const entries = (await listManufacturingHandoffEntriesAsync({ limit: 200 }))
+  const entries = (await listManufacturingHandoffEntriesAsync({ companyId: access.company.companyId, limit: 200 }))
     .filter((submission) => {
       if (partNumber && submission.part_number.toLowerCase() !== partNumber) return false;
       if (since && Date.parse(submission.released_at ?? submission.updated_at ?? submission.created_at) <= since) return false;
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
             sha256: submission.release_package.sha256,
             file_size: submission.release_package.file_size,
             created_at: submission.release_package.created_at,
-            download_url: `/api/submissions/${submission.id}/release-package`
+            download_url: `/api/integrations/procurement/releases/${submission.id}/package`
           }
         : null,
       files: submission.files.map((file) => ({

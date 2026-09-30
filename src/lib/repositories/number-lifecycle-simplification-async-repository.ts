@@ -578,6 +578,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
     companyId: string;
     candidateRevisionId: string;
     actorId: string;
+    initiatorPrincipalId?: string;
     expectedRowVersion: number;
     storage: CandidateFileStorageInput;
   }) {
@@ -718,6 +719,7 @@ export class AsyncNumberLifecycleSimplificationRepository {
             linked_entity_id: input.candidateRevisionId
           },
           actorUserId: input.actorId,
+          initiatorPrincipalId: input.initiatorPrincipalId,
           requestedKind: requestedPreviewKindForSource(extension),
           generatorProfile: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
           runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"

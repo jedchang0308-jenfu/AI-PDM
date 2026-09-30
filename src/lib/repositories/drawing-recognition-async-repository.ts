@@ -68,6 +68,7 @@ type SessionRow = {
   error_code: string | null;
   error_summary: string | null;
   created_by: string;
+  initiator_principal_id?: string | null;
   created_at: string;
   updated_at: string;
   formalized_by: string | null;
@@ -531,6 +532,7 @@ export class DrawingRecognitionAsyncRepository {
   async createSession(input: {
     companyId: string;
     actorId: string;
+    initiatorPrincipalId?: string;
     sourceContextType: DrawingRecognitionSourceContextType;
     sourceContextId: string;
     sourceAssetIds?: string[];
@@ -540,6 +542,11 @@ export class DrawingRecognitionAsyncRepository {
     sessionPurpose?: "recognition" | "rerun" | "amendment";
     evidenceOriginSessionId?: string | null;
   }) {
+    if (this.client.kind === "postgres" &&
+        (!input.initiatorPrincipalId || input.initiatorPrincipalId.length > 255)) {
+      throw new DrawingRecognitionError("RECOGNITION_PRINCIPAL_REQUIRED",
+        "此辨識工作缺少已驗證的發起者身分。", 403);
+    }
     const requestedPurpose = input.sessionPurpose ?? "recognition";
     return this.client.transaction(async (client) => {
       const repository = new DrawingRecognitionAsyncRepository(client);
@@ -640,20 +647,23 @@ export class DrawingRecognitionAsyncRepository {
       const drawingRevisionId = input.drawingRevisionId ?? scope.drawing_revision_id;
       const initialStatus = sessionPurpose === "amendment" ? "ready_to_formalize" : "queued";
       const notBefore = sessionPurpose === "amendment" ? timestamp : new Date(Date.now() + 2_000).toISOString();
+      const initiatorColumn = client.kind === "postgres" ? ", initiator_principal_id" : "";
+      const initiatorValue = client.kind === "postgres" ? ", :initiatorPrincipalId" : "";
       await client.execute(
         `INSERT INTO drawing_recognition_sessions (
           id, company_id, source_context_type, source_context_id, source_lineage_key, drawing_id, drawing_revision_id,
           source_set_fingerprint, deduplication_key, session_purpose, evidence_origin_session_id, status, priority, not_before, supersedes_session_id,
-          created_by, created_at, updated_at
+          created_by${initiatorColumn}, created_at, updated_at
         ) VALUES (
           :id, :companyId, :sourceContextType, :sourceContextId, :sourceLineageKey, :drawingId, :drawingRevisionId,
           :sourceSetFingerprint, :deduplicationKey, :sessionPurpose, :evidenceOriginSessionId, :status, 100, :notBefore, :supersedesSessionId,
-          :actorId, :timestamp, :timestamp
+          :actorId${initiatorValue}, :timestamp, :timestamp
         )`,
         {
           id, companyId: input.companyId, sourceContextType: input.sourceContextType, sourceContextId: input.sourceContextId,
           sourceLineageKey, drawingId, drawingRevisionId, sourceSetFingerprint, deduplicationKey, sessionPurpose, evidenceOriginSessionId, status: initialStatus, notBefore,
-          supersedesSessionId: input.supersedesSessionId ?? latest?.id ?? null, actorId: input.actorId, timestamp
+          supersedesSessionId: input.supersedesSessionId ?? latest?.id ?? null,
+          actorId: input.actorId, initiatorPrincipalId: input.initiatorPrincipalId ?? null, timestamp
         }
       );
       if (sessionPurpose !== "amendment") {
@@ -711,16 +721,34 @@ export class DrawingRecognitionAsyncRepository {
     }, { serializable: requestedPurpose === "amendment" });
   }
 
-  async assertSessionScope(input: { sessionId: string; companyId: string; actorId: string; privileged: boolean }) {
-    const row = await this.client.queryOne<SessionRow & { drawing_owner_id: string | null }>(
-      `SELECT session.*, drawing.owner_id AS drawing_owner_id
+  async assertSessionScope(input: { sessionId: string; companyId: string; actorId: string;
+    principalId?: string; privileged: boolean }) {
+    if (this.client.kind === "postgres" && !input.principalId) {
+      throw new DrawingRecognitionError("RECOGNITION_PRINCIPAL_REQUIRED",
+        "此辨識操作缺少已驗證的安全主體。", 403);
+    }
+    const principalOwnerColumn = this.client.kind === "postgres"
+      ? ", owner_account.principal_id AS drawing_owner_principal_id" : "";
+    const principalOwnerJoin = this.client.kind === "postgres"
+      ? `LEFT JOIN ai_pdm_core.principal_accounts owner_account
+           ON owner_account.pdm_user_id = drawing.owner_id
+          AND owner_account.company_id = drawing.company_id` : "";
+    const row = await this.client.queryOne<SessionRow & {
+      drawing_owner_id: string | null; drawing_owner_principal_id?: string | null
+    }>(
+      `SELECT session.*, drawing.owner_id AS drawing_owner_id${principalOwnerColumn}
        FROM drawing_recognition_sessions session
        LEFT JOIN drawings drawing ON drawing.id = session.drawing_id AND drawing.company_id = session.company_id
+       ${principalOwnerJoin}
        WHERE session.id = :sessionId AND session.company_id = :companyId`,
       { sessionId: input.sessionId, companyId: input.companyId }
     );
     if (!row) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
-    if (!input.privileged && row.created_by !== input.actorId && row.drawing_owner_id !== input.actorId) {
+    const ownsSession = this.client.kind === "postgres"
+      ? row.initiator_principal_id === input.principalId ||
+        row.drawing_owner_principal_id === input.principalId
+      : row.created_by === input.actorId || row.drawing_owner_id === input.actorId;
+    if (!input.privileged && !ownsSession) {
       throw new DrawingRecognitionError("RECOGNITION_SESSION_FORBIDDEN", "你沒有權限處理這個辨識工作。", 403);
     }
     return row;
@@ -947,6 +975,7 @@ export class DrawingRecognitionAsyncRepository {
       return {
         sessionId: session.id,
         companyId: session.company_id,
+        initiatorPrincipalId: session.initiator_principal_id ?? null,
         sourceSetFingerprint: session.source_set_fingerprint,
         attemptCount: Number(session.attempt_count) + 1,
         targetContext: {
@@ -1519,7 +1548,12 @@ export class DrawingRecognitionAsyncRepository {
     });
   }
 
-  async saveDecisions(input: { sessionId: string; companyId: string; actorId: string; expectedRowVersion: number; decisions: DrawingRecognitionDecisionInput[] }) {
+  async saveDecisions(input: { sessionId: string; companyId: string; actorId: string;
+    actorPrincipalId?: string; expectedRowVersion: number; decisions: DrawingRecognitionDecisionInput[] }) {
+    if (this.client.kind === "postgres" && !input.actorPrincipalId) {
+      throw new DrawingRecognitionError("RECOGNITION_PRINCIPAL_REQUIRED",
+        "此辨識決策缺少已驗證的安全主體。", 403);
+    }
     if (input.decisions.length === 0 || input.decisions.length > 100) throw new DrawingRecognitionError("RECOGNITION_DECISION_BATCH_INVALID", "請提供 1 到 100 筆審核決策。", 400);
     return this.client.transaction(async (client) => {
       const sessionSnapshot = await client.queryOne<SessionRow>(`SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId`, { sessionId: input.sessionId, companyId: input.companyId });
@@ -1567,18 +1601,21 @@ export class DrawingRecognitionAsyncRepository {
           if (resolution.kind !== "resolved") throw this.partOwnerError(resolution, update.ownerId);
           update.ownerId = resolution.ownerId;
         }
+        const principalColumn = client.kind === "postgres" ? ", actor_principal_id" : "";
+        const principalValue = client.kind === "postgres" ? ", :actorPrincipalId" : "";
         await client.execute(
           `INSERT INTO drawing_recognition_decisions (
              id, session_id, candidate_id, company_id, action, before_json, after_json, reason,
-             expected_session_version, actor_id, decided_at
+             expected_session_version, actor_id${principalColumn}, decided_at
            ) VALUES (
              :id, :sessionId, :candidateId, :companyId, :action, :beforeJson, :afterJson, :reason,
-             :expectedVersion, :actorId, :timestamp
+             :expectedVersion, :actorId${principalValue}, :timestamp
            )`,
           {
             id: `recognition-decision-${crypto.randomUUID()}`, sessionId: session.id, candidateId: candidate.id,
             companyId: session.company_id, action: decision.action, beforeJson: JSON.stringify(before), afterJson: JSON.stringify(update),
-            reason: boundedText(decision.reason, 500) || null, expectedVersion: input.expectedRowVersion, actorId: input.actorId, timestamp
+            reason: boundedText(decision.reason, 500) || null, expectedVersion: input.expectedRowVersion,
+            actorId: input.actorId, actorPrincipalId: input.actorPrincipalId ?? null, timestamp
           }
         );
         await client.execute(
@@ -1610,6 +1647,7 @@ export class DrawingRecognitionAsyncRepository {
     sessionId: string;
     companyId: string;
     actorId: string;
+    actorPrincipalId?: string;
     expectedRowVersion: number;
     decisions: DrawingRecognitionDecisionInput[];
     idempotencyKey: string;
@@ -1622,6 +1660,7 @@ export class DrawingRecognitionAsyncRepository {
           sessionId: input.sessionId,
           companyId: input.companyId,
           actorId: input.actorId,
+          actorPrincipalId: input.actorPrincipalId,
           expectedRowVersion: input.expectedRowVersion,
           decisions: input.decisions
         });
@@ -1638,6 +1677,7 @@ export class DrawingRecognitionAsyncRepository {
         sessionId: input.sessionId,
         companyId: input.companyId,
         actorId: input.actorId,
+        actorPrincipalId: input.actorPrincipalId,
         expectedRowVersion: Number(session.row_version),
         idempotencyKey: input.idempotencyKey,
         expectedImpactFingerprint: undefined,
@@ -1807,11 +1847,16 @@ export class DrawingRecognitionAsyncRepository {
     sessionId: string;
     companyId: string;
     actorId: string;
+    actorPrincipalId?: string;
     expectedRowVersion: number;
     idempotencyKey: string;
     expectedImpactFingerprint?: string;
     requirePostReleaseReason?: string | null;
   }) {
+    if (this.client.kind === "postgres" && !input.actorPrincipalId) {
+      throw new DrawingRecognitionError("RECOGNITION_PRINCIPAL_REQUIRED",
+        "此辨識正式寫入缺少已驗證的安全主體。", 403);
+    }
     const sessionSnapshot = await this.client.queryOne<SessionRow>(`SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId AND company_id = :companyId`, { sessionId: input.sessionId, companyId: input.companyId });
     if (!sessionSnapshot) throw new DrawingRecognitionError("RECOGNITION_SESSION_NOT_FOUND", "找不到辨識工作。", 404);
     await this.assertRecognitionWriteLifecycle(sessionSnapshot);
@@ -1835,16 +1880,19 @@ export class DrawingRecognitionAsyncRepository {
     const eventId = `recognition-event-${crypto.randomUUID()}`;
     const timestamp = now();
     const result = { eventId, sessionId: session.id, appliedCount: impact.changes.length, exclusions: impact.exclusions };
+    const principalColumn = this.client.kind === "postgres" ? ", actor_principal_id" : "";
+    const principalValue = this.client.kind === "postgres" ? ", :actorPrincipalId" : "";
     await this.client.execute(
       `INSERT INTO drawing_recognition_formalization_events (
-         id, session_id, company_id, actor_id, idempotency_key, impact_fingerprint, target_fingerprints_json,
+         id, session_id, company_id, actor_id${principalColumn}, idempotency_key, impact_fingerprint, target_fingerprints_json,
          applied_changes_json, exclusions_json, result_json, created_at
        ) VALUES (
-         :id, :sessionId, :companyId, :actorId, :idempotencyKey, :impactFingerprint, :targetFingerprintsJson,
+         :id, :sessionId, :companyId, :actorId${principalValue}, :idempotencyKey, :impactFingerprint, :targetFingerprintsJson,
          :appliedChangesJson, :exclusionsJson, :resultJson, :timestamp
        )`,
       {
-        id: eventId, sessionId: session.id, companyId: session.company_id, actorId: input.actorId,
+        id: eventId, sessionId: session.id, companyId: session.company_id,
+        actorId: input.actorId, actorPrincipalId: input.actorPrincipalId ?? null,
         idempotencyKey: input.idempotencyKey, impactFingerprint: impact.impactFingerprint,
         targetFingerprintsJson: JSON.stringify(impact.targetFingerprints), appliedChangesJson: JSON.stringify(impact.changes),
         exclusionsJson: JSON.stringify(impact.exclusions), resultJson: JSON.stringify(result), timestamp

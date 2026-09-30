@@ -1,5 +1,27 @@
 # AI PDM dev_task PM Control Board
 
+> **2026-09-30 AIPDM/DEV-121 Principal-only 候選版可審查狀態**：ORGMASTER/DEV-057 grant v3 producer 已由 PR #75 合併 `master`（merge `65795fa62ba04518be68eccd34a56c29570b1f68`）。本 owner 候選版通過型別、295-method 分類、route source lock、staged DB boundary、隔離 PostgreSQL 的技轉 7 項、辨識 18 項、預覽 worker 6 項、schema／ACL 26 項、授權 snapshot 2 項，以及 DEV-117 owner QC 與隔離正式建置（120 頁、主資料不變、清理完成）。歷史 migration 測例已固定檢查 067–073，不把新 forward-only migration 誤判為漂移。這些是本機／來源候選證據；尚無三系統 real-provider 正常瀏覽器流程、Production candidate／L4 或切流完成證據。
+
+> **2026-09-30 AIPDM/DEV-121 舊圖面進版入口批次合併**：[PR #151](https://github.com/jedchang0308-jenfu/AI-PDM/pull/151) 的 exact head `585909535b742d978f218dec422c332d203c35d8` 已以 merge commit `05d0cbcf1e44fd0b9836a267e72566100759aada` 進入 `main`。兩個既有 410 退役入口移除先行舊 guard 並固定 no-store，CI `DEV-012 Isolated PostgreSQL Cutover` 與 `Production Slice QC` 成功；其他未提交 Principal-only 變更仍保留同一工作樹／分支。這是來源合併，非 AI-PDM owner release、正式切流或 L4。
+
+> **2026-09-30 AIPDM/DEV-121#F06 現行跨 owner 進度（覆蓋下方同日快照）**：ORGMASTER/DEV-057 D57-22 已透過產品管理 HTTP、已驗 Principal session、task-owned PostgreSQL writer 指派及發布 grant v3，本 owner 受限 consumer 讀到精確 `rd_manager`／workspace scope；HTTP 撤權發布後讀回零 grant。D57-21／22 合計 22／22 PASS，OrgMaster 收據 `ai-doc/qa/DEV-057-management-http-grant-v3-postgres-r3-2026-09-30.json`。前兩次 D57-22 失敗為測例誤傳 v3 owner 欄位與漏建 exact typed principal admission；修正後各層讀回通過。共同邊界失敗累計 **10**，已依超過 8 次門檻通知並重估。本機 HTTP／資料庫邊界已驗，但正常管理 UI、real-provider、正式候選、Production L4 尚缺，不宣稱 F06 正式完成。
+
+> **2026-09-30 AIPDM/DEV-121#F06 owner catalog 產品讀回**：ORGMASTER/DEV-057 的 task-owned PostgreSQL 18.4 producer 測例現以完整 v5 catalog view 驗證 OrgMaster runtime 產品 repository 逐值讀回，再執行既有 grant v3→本 owner 指派／撤權／scope／技轉 consumer 21／21 PASS；OrgMaster 收據 `ai-doc/qa/DEV-057-grant-v3-product-catalog-postgres-2026-09-30.json`，臨時資源已清理。fixture 初次擴充時 PostgreSQL `42P16` 拒絕重排既有 view 欄位，修正後通過；共同邊界失敗累計 **8**，超過 8 須通知並重估。OrgMaster 管理 HTTP API 指派／發布、真實 provider、正式候選及 Production L4 尚未合成，F03／F06 不升級。
+
+> **2026-09-30 AIPDM/DEV-121#F06 HTTP 同庫最新候選**：ORGMASTER/DEV-057 發布 grant v3 後，本 owner 實際送審／核准 routes 與受限 PostgreSQL consumer 完成 Draft→inbox→核准→Principal receipt／pending outbox；撤權和異 scope 均為 HTTP 403 且零寫入。D57-21 全套 21／21、typecheck 通過；JENFU 收據 `ai-doc/qa/DEV-015-orgmaster-aipdm-grant-v3-route-r4-postgres-2026-09-30.json`，臨時資源已清理。Session、管理 UI、real-provider、候選 runtime 及 Production L4 未完成；共同邊界失敗保守累計 7，超過 8 通知重新估算。
+
+> **2026-09-30 AIPDM/DEV-121#F08 獨立 worker 進程增量**：受限辨識 worker 透過 task-owned HTTP bridge 呼叫實際 claim／heartbeat／holder-only source-content／complete handlers；來源大小及 SHA-256 通過核對，PostgreSQL 讀回原始人類 Principal 與成功的測試 adapter 結果。18／18、TypeScript PASS，worker／server／cluster／port 已清理。JENFU 收據 `ai-doc/qa/DEV-015-aipdm-recognition-worker-process-postgres-2026-09-30.json`。正式 CAD 解析、outbox delivery、provider、Production L4 未完成，F08 不升級。
+
+> **2026-09-30 AIPDM/DEV-121#F06 實際送審整鏈增量**：在 ORGMASTER/DEV-057 owner writer 發布的 v3 Principal grant 下，本 owner 受限 PostgreSQL consumer 以已核實 owner Principal 送出 Draft 技轉包、選定非送審者 reviewer、顯示待辦、核准並讀回 Principal outbox；撤權／異 scope 拒絕且零寫入。D57-21 全套 21／21、TypeScript PASS，資源已清理。JENFU 收據 `ai-doc/qa/DEV-015-orgmaster-aipdm-grant-v3-submit-review-postgres-2026-09-30.json`。session 為測例替身，管理 UI／provider／Production L4 未完成，F06 不升級；共同邊界失敗累計 6 次，超過 8 次才通知重新估算。
+
+> **2026-09-30 AIPDM/DEV-121#F08 worker API 本機增量**：受限 worker PostgreSQL 情境穿過 claim／complete handler，未登入 401、發起 Principal 保留、錯 worker 完成拒絕、結果讀回及重播拒絕；migration 073 整套 18／18、TypeScript PASS，task-owned 資源已清理。證據為 `JENFU/ai-doc/qa/DEV-015-aipdm-recognition-worker-http-postgres-2026-09-30.json`。外部 worker／source content／outbox delivery、真實 provider 與 Production L4 尚待驗，F08 未完成。
+
+> **2026-09-30 AIPDM/DEV-121#F06 本機整鏈增量**：ORGMASTER/DEV-057 owner writer 的指派／撤權／錯 scope／恢復四版已於同一 task-owned PostgreSQL 接上本 owner Principal inbox 與技轉決策。允許時 inbox→完成決策及 Principal receipt／pending outbox，拒絕時零寫入；D57-21 全套 21／21、TypeScript 通過，資源已清理。JENFU 收據 `ai-doc/qa/DEV-015-orgmaster-aipdm-grant-v3-inbox-decision-postgres-2026-09-30.json`。已驗 session 仍是測例替身，實際送審／管理 UI／Production L4 未完成；共同邊界失敗 5 次，超過 8 才通知重新估算。
+
+> **2026-09-30 AIPDM/DEV-121#F08 入口可達性更正**：舊送審核准、發行重試與 `/api/numbering/approval-decisions` 在 Principal 模式先被舊 auth guard 以 503 阻止；route map 的 permission 標記不等於正常登入後可操作。先核實現行 UI／外部 caller 與必要業務，再成組接入 Principal request、資源檢查、發行及辨識背景工作，或明確退役。這組入口仍未完成，OrgMaster grant v3→AI-PDM consumer 共同邊界失敗計數仍為 5／8。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
+
+> **2026-09-29 AIPDM/DEV-121 子任務順序**：[全 293 method 受控清單](specs/DEV-121-authorization-caller-inventory.v1.json)先追正常 UI／API、外部 add-in、SSR、worker、命令／outbox／audit 實際呼叫鏈；舊 guard marker、route 分類 PASS 或 v3 的 25 筆 deny 均不單獨構成完成證據。根因與 `JENFU/DEV-015`、`ORGMASTER/DEV-057` 合併後再成組重構／整合，最後 Production 發布／切流／L4；不新增主任務或低風險 gate。
+
 > **2026-09-29 DEV-121 審核入口 Principal-only 候選**：審核明細、決策、對象及比較四個 method 的無 Principal session 分支改為立即 401，並移除正常流量不可達的 v1 審核明細呈現；歷史審核資料及 v2 指派者／AAL2／grant／審核包核對保留。聚焦 20／20、typecheck、293-method 分類、DEV-005 runtime QC 與 scoped lint PASS，測試已納入 required CI。尚未合併、發布或完成 Production L4；檔案讀取與其他舊授權呼叫仍待處理。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。
 
 > **2026-09-29 DEV-121 料件變更與圖面作廢 Principal-only route 候選**：料件工作建立、讀取、更新、送審、取消，料件矩陣讀取及圖面 RD 作廢請求共七個 method 移除舊 route actor 分支；缺少 v2 Principal session 時先回 401，不解析 body 或執行舊命令。沿用已審 route policy、grant、公司／資源與 command 檢查。聚焦三檔 15／15、typecheck PASS；尚未合併或發布，其他審核及檔案路徑、全 cohort、回復與 Production L4 仍待處理。詳見 [DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)。

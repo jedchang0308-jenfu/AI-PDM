@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { requireAuthAsync } from "@/lib/auth-async";
+import { requireNumberStateReadAccessAsync } from "@/lib/number-state-flow-api";
 import { listManufacturingHandoffEntriesAsync } from "@/lib/handoff-async";
-import { scopedSubmittedBy } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireAuthAsync(request);
-  if (auth.response) return auth.response;
+  const access = await requireNumberStateReadAccessAsync(request, "handoff.published.view");
+  if (access.response) return access.response;
 
-  const entries = (await listManufacturingHandoffEntriesAsync({ submittedBy: scopedSubmittedBy(auth.user) })).map((submission) => ({
+  const entries = (await listManufacturingHandoffEntriesAsync({ companyId: access.company.companyId })).map((submission) => ({
     id: submission.id,
     drawing_number: submission.drawing_number,
     revision: submission.revision,
@@ -27,7 +26,7 @@ export async function GET(request: Request) {
           sha256: submission.release_package.sha256,
           file_size: submission.release_package.file_size,
           created_at: submission.release_package.created_at,
-          download_url: `/api/submissions/${submission.id}/release-package`
+          download_url: `/api/handoff/${submission.id}/release-package`
         }
       : null,
     files: submission.files.map((file) => ({

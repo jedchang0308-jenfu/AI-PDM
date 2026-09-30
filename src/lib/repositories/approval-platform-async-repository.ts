@@ -177,6 +177,18 @@ type NativeRequestRow = {
   superseded_at: string | null;
 };
 
+type PrincipalTransferReviewRow = {
+  id: string;
+  company_id: string;
+  title: string;
+  reason: string;
+  requested_by: string;
+  requested_by_name: string | null;
+  requested_at: string;
+  transfer_package_id: string;
+  package_status: string;
+};
+
 type TargetRow = {
   request_id: string;
   id: string;
@@ -795,21 +807,70 @@ export class AsyncApprovalPlatformRepository {
       input, limit);
   }
 
-  async listPrincipalWorkReviewInbox(input: ApprovalPlatformInboxFilter & { companyId: string; actorId: string }):
+  async listPrincipalWorkReviewInbox(input: ApprovalPlatformInboxFilter & { companyId: string; actorId: string; principalId: string }):
     Promise<ApprovalPlatformInboxPage> {
     const limit = Math.max(1, Math.min(input.limit ?? 100, 100));
-    const reviews = await this.listPdmWorkReviewInbox({
-      ...input, limit: 500, supportedRequestKinds:
-        ["drawing_revision", "drawing_rd_void", "part_change"]
-    });
-    return paginateInboxItems(reviews, input, limit);
+    const [reviews, transferReviews] = await Promise.all([
+      this.listPdmWorkReviewInbox({ ...input, limit: 500, supportedRequestKinds:
+        ["drawing_revision", "drawing_rd_void", "part_change"] }),
+      this.listPrincipalTransferReviewInbox(input)
+    ]);
+    return paginateInboxItems([...reviews, ...transferReviews], input, limit);
+  }
+
+  private async listPrincipalTransferReviewInbox(input: ApprovalPlatformInboxFilter &
+    { companyId: string; actorId: string; principalId: string }): Promise<ApprovalPlatformInboxItem[]> {
+    if (this.client.kind !== "postgres" || !input.principalId || !input.actorId) return [];
+    if (input.domainCode && input.domainCode !== "transfer") return [];
+    if (input.actionCode && input.actionCode !== "transfer.package_review") return [];
+    if (input.status && !["active", "all", "pending"].includes(input.status)) return [];
+    const search = approvalSearchPredicate(input.query, [
+      "request.id", "request.title", "reviewer_name.display_name", "package.id"
+    ]);
+    const rows = await this.client.query<PrincipalTransferReviewRow>(`
+      SELECT request.id, request.company_id, request.title, request.reason,
+             request.requested_by, reviewer_name.display_name AS requested_by_name,
+             request.requested_at::text, package.id AS transfer_package_id,
+             package.package_status
+      FROM approval_platform_requests request
+      JOIN transfer_packages package
+        ON package.review_request_id = request.id
+       AND package.company_id = request.company_id
+       AND package.package_status = 'InReview'
+       AND package.review_snapshot_hash = request.payload_json->>'snapshotHash'
+       AND package.id = request.payload_json->>'transferPackageId'
+      LEFT JOIN users reviewer_name ON reviewer_name.id = request.requested_by
+      WHERE request.company_id = :companyId
+        AND request.action_code = 'transfer.package_review'
+        AND request.request_status = 'pending'
+        AND request.payload_json->'reviewer'->>'version' = '1'
+        AND request.payload_json->'reviewer'->>'principalId' = :principalId
+        AND request.payload_json->'reviewer'->>'profileId' = :actorId
+        ${search.sql}
+      ORDER BY request.requested_at DESC, request.id DESC
+      LIMIT 501
+    `, { companyId: input.companyId, principalId: input.principalId,
+      actorId: input.actorId, ...search.params });
+    if (rows.length > 500) throw new Error("PRINCIPAL_TRANSFER_INBOX_LIMIT_EXCEEDED");
+    return rows.map((row) => ({
+      rowKey: approvalPlatformInboxRowKey("platform", row.id),
+      id: row.id, source: "platform" as const, companyId: row.company_id,
+      actionCode: "transfer.package_review", actionTitle: "技轉包審核", domainCode: "transfer",
+      title: row.title, status: "pending" as const, reason: row.reason,
+      requestedBy: row.requested_by, requestedByName: row.requested_by_name,
+      requestedAt: row.requested_at, packageId: row.transfer_package_id,
+      packageCode: row.transfer_package_id, packageStatus: row.package_status,
+      targetSummary: row.title, impactSummary: null, legacy: null,
+      primaryTarget: { type: "transfer_package", targetId: row.transfer_package_id,
+        code: row.transfer_package_id, label: row.title }
+    }));
   }
 
   async getRequestDetail(id: string, companyId = DEFAULT_COMPANY_ID): Promise<ApprovalPlatformRequestDetail | null> {
     const legacy = decodeLegacyApprovalId(id);
     if (legacy) return this.getLegacyDetail(legacy.source, legacy.legacyId, companyId);
     const row = await this.getNativeRequestRow(id);
-    if (!row) return null;
+    if (!row || row.company_id !== companyId) return null;
     const [targets, impactSnapshots, decisions, events] = await Promise.all([
       this.listTargets(row.id),
       this.listImpactSnapshots(row.id),

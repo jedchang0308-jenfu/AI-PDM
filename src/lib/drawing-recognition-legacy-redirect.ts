@@ -1,23 +1,24 @@
-import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
-import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { DrawingRecognitionError } from "@/lib/drawing-recognition-contract";
 import { DrawingRecognitionAsyncRepository } from "@/lib/repositories/drawing-recognition-async-repository";
 
 /**
- * Resolve the retired recognition page to the canonical Drawing workspace.
+ * Resolve the retired recognition URL to the canonical Drawing workspace.
  *
  * The old route is intentionally not a second review UI.  It only performs a
  * server-side, company-scoped lookup and returns the exact current Drawing
  * work target when one exists.  Missing, cross-company, or unauthorized
  * sessions fail closed to the Drawing list.
  */
-export async function resolveLegacyDrawingRecognitionNavigation(input: {
+export async function resolveDrawingRecognitionNavigation(input: {
+  snapshot: AsyncDatabaseClient;
   sessionId: string;
   companyId: string;
   actorId: string;
-  role?: string | null;
+  canReviewNonOwned: boolean;
   returnTo?: string | null;
 }) {
-  const client = getAsyncDatabaseClient();
+  const client = input.snapshot;
   const repository = new DrawingRecognitionAsyncRepository(client);
   let session: Awaited<ReturnType<DrawingRecognitionAsyncRepository["assertSessionScope"]>>;
   try {
@@ -25,10 +26,11 @@ export async function resolveLegacyDrawingRecognitionNavigation(input: {
       sessionId: input.sessionId,
       companyId: input.companyId,
       actorId: input.actorId,
-      privileged: hasPdmNonOwnerEditScope({ role: input.role })
+      privileged: input.canReviewNonOwned
     });
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof DrawingRecognitionError && [403, 404].includes(error.status)) return null;
+    throw error;
   }
 
   if (!session.drawing_id) return null;

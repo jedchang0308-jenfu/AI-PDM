@@ -16,6 +16,7 @@ export async function GET(request: Request, context: { params: Promise<{ partId:
       partId,
       companyId: access.company.companyId,
       actorId: access.actor.pdmUserId,
+      principalId: access.actor.principalId,
       roles: recognitionRoles(access)
     });
     return NextResponse.json(

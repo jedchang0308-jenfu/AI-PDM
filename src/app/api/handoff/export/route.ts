@@ -1,14 +1,13 @@
-import { requireAuthAsync } from "@/lib/auth-async";
+import { requireNumberStateReadAccessAsync } from "@/lib/number-state-flow-api";
 import { listManufacturingHandoffEntriesAsync } from "@/lib/handoff-async";
-import { scopedSubmittedBy } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const auth = await requireAuthAsync(request);
-  if (auth.response) return auth.response;
+  const access = await requireNumberStateReadAccessAsync(request, "handoff.published.view");
+  if (access.response) return access.response;
 
-  const entries = await listManufacturingHandoffEntriesAsync({ submittedBy: scopedSubmittedBy(auth.user) });
+  const entries = await listManufacturingHandoffEntriesAsync({ companyId: access.company.companyId });
   const rows = [
     [
       "submission_id",
@@ -32,7 +31,7 @@ export async function GET(request: Request) {
 
   for (const submission of entries) {
     const packageUrl = submission.release_package
-      ? new URL(`/api/submissions/${submission.id}/release-package`, request.url).toString()
+      ? new URL(`/api/handoff/${submission.id}/release-package`, request.url).toString()
       : "";
     rows.push([
       submission.id,

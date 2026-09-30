@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { appendDrawingRecognitionClientAdapterResult } from "@/lib/drawing-recognition";
-import { recognitionErrorResponse, recognitionJsonBody, recognitionRoles } from "@/lib/drawing-recognition-api";
+import { recognitionErrorResponse, recognitionJsonBody } from "@/lib/drawing-recognition-api";
+import { withPrincipalDrawingRecognitionMutation } from "@/lib/drawing-recognition-principal-mutation";
 import {
   DRAWING_RECOGNITION_CATEGORIES,
   DrawingRecognitionError,
@@ -74,21 +75,22 @@ export async function POST(request: Request, context: { params: Promise<{ sessio
     }
     const rawObservations = Array.isArray(body.observations) ? body.observations : [];
     if (rawObservations.length > DRAWING_OCR_POLICY.limits.observationsPerSource) throw new DrawingRecognitionError("RECOGNITION_OBSERVATION_LIMIT", "單一 PDF 辨識結果超過限制。", 400);
-    const session = await appendDrawingRecognitionClientAdapterResult({
-      sessionId: requireSafeRecognitionId(rawSessionId, "RECOGNITION_SESSION_ID_INVALID"),
-      companyId: access.company.companyId,
-      actorId: access.actor.pdmUserId,
-      roles: recognitionRoles(access),
-      result: {
-        expectedRowVersion,
-        sourceId: requireSafeRecognitionId(body.sourceId, "RECOGNITION_SOURCE_ID_INVALID"),
-        contentHash,
-        adapterCode,
-        adapterVersion,
-        status: status as "succeeded" | "partial" | "unsupported" | "failed" | "timeout",
-        diagnostics,
-        observations: rawObservations.map(parseObservation)
-      }
+    const result = {
+      expectedRowVersion,
+      sourceId: requireSafeRecognitionId(body.sourceId, "RECOGNITION_SOURCE_ID_INVALID"),
+      contentHash, adapterCode, adapterVersion,
+      status: status as "succeeded" | "partial" | "unsupported" | "failed" | "timeout",
+      diagnostics, observations: rawObservations.map(parseObservation)
+    };
+    const session = await withPrincipalDrawingRecognitionMutation({
+      metadata: access.metadata, permissionCode: "numbering.recognition.run",
+      companyId: access.company.companyId, actorId: access.actor.pdmUserId,
+      execute: (snapshot, decision, verified) => appendDrawingRecognitionClientAdapterResult({
+        sessionId: requireSafeRecognitionId(rawSessionId, "RECOGNITION_SESSION_ID_INVALID"),
+        companyId: access.company.companyId, actorId: access.actor.pdmUserId,
+        principalId: verified.session.principalId,
+        roles: decision.roleCode ? [decision.roleCode] : [], result, client: snapshot
+      })
     });
     return NextResponse.json({ session }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {

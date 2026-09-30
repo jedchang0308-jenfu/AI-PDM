@@ -101,12 +101,13 @@ export function resolveJenfuRoutePolicy(
 }
 
 /** Resolve only a unique reviewed policy for the actual HTTP method and URL. */
-export function resolveJenfuRoutePolicyFromRequest(request: Request, expectedPermissionCode: string) {
+export function resolveJenfuRoutePolicyFromRequest(request: Request, expectedPermissionCode: string,
+  discriminator: JenfuRouteDiscriminator | null = null) {
   let actualPath: string;
   try { actualPath = new URL(request.url).pathname; }
   catch { return null; }
   const matches = JENFU_ROUTE_PERMISSION_MAP.entries.filter((entry) =>
-    entry.method === request.method && entry.discriminator === null &&
+    entry.method === request.method && entry.discriminator === discriminator &&
     entry.authorizationMode === "permission" && entry.permissionCode === expectedPermissionCode &&
     routePathMatches(entry.path.replace(/^src\/app/u, "").replace(/\/route\.ts$/u, ""), actualPath));
   return matches.length === 1 ? matches[0] : null;

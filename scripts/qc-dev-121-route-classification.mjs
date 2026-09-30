@@ -152,6 +152,7 @@ const publicStatusRoutes = new Map([
   ["GET /api/numbering/state-flow/status", "numberStateFlowV1ClientStatus"]
 ]);
 const retiredRoutes = new Map([
+  ["PUT /api/policy/management", "PDM_POLICY_FILE_EDITOR_RETIRED"],
   ["POST /api/numbering/drawing-revisions/submissions", "DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED"],
   ["POST /api/numbering/drawing-revisions/fff-assessments", "DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED"],
   ["POST /api/submissions", "GENERIC_SUBMISSION_RETIRED"],

@@ -55,17 +55,18 @@ function database(overrides: Record<string, unknown> = {}) {
       if (sql.includes("transaction_timestamp()")) return [{
         decision_at: new Date(now * 1000).toISOString()
       }];
-      if (sql.includes("v_ai_pdm_principal_effective_grants_v2")) return overrides.privileged ? [{
-        contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v2",
+      if (sql.includes("v_ai_pdm_principal_effective_grants_v3")) return [{
+        contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3",
         assignment_version_id: "version-one", assignment_version: 1,
         assignment_id: "assignment-one", grant_kind: "direct", delegation_id: null,
         application_id: "ai-pdm", principal_id: claims.principalId,
         employee_id: claims.employeeId, subject_kind: "employee", target_principal_id: null,
-        stable_role_id: "role-rd-manager", role_code: "rd_manager",
+        stable_role_id: overrides.privileged ? "role-rd-manager" : "role-rd",
+        role_code: overrides.privileged ? "rd_manager" : "rd",
         catalog_version: "catalog-one", scope_kind: "workspace", scope_key: "company-one",
         valid_from: "2026-09-24T00:00:00.000Z", valid_until: null,
-        published_at: "2026-09-24T00:00:00.000Z", authority_version: 1
-      }] : [];
+        published_at: "2026-09-24T00:00:00.000Z"
+      }];
       throw new Error("unexpected query");
     },
     queryOne: async (sql: string, params?: Record<string, unknown>) => {

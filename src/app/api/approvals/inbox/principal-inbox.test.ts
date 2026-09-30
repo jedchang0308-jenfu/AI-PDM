@@ -54,7 +54,7 @@ describe("Principal approval inbox", () => {
     const response = await GET(request());
     expect(response.status).toBe(200);
     expect(mocks.listPrincipal).toHaveBeenCalledWith(expect.objectContaining({
-      companyId: "company-jenfu", actorId: "profile-one", status: "active"
+      companyId: "company-jenfu", actorId: "profile-one", principalId: "principal-one", status: "active"
     }));
   });
 

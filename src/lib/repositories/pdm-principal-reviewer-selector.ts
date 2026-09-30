@@ -16,11 +16,21 @@ type ReviewerCandidate = {
 const reviewerRoles = new Set(["rd_manager", "pdm_admin"]);
 const reviewerPermission = { permissionKind: "action", permissionCode: "approval.request.decide" } as const;
 
+export type PrincipalReviewerSelection = Readonly<{ principalId: string; profileId: string }>;
+
 /** Candidate eligibility is not a login. The eventual decision route must verify its own AAL2 session. */
 export async function selectPrincipalReviewerInSnapshot(
   tx: AsyncDatabaseClient,
   input: { companyId: string; ownerUserId: string }
 ): Promise<string> {
+  return (await selectPrincipalReviewerIdentityInSnapshot(tx, input)).profileId;
+}
+
+/** Keep the security subject alongside the historical review/profile FK. */
+export async function selectPrincipalReviewerIdentityInSnapshot(
+  tx: AsyncDatabaseClient,
+  input: { companyId: string; ownerUserId: string }
+): Promise<PrincipalReviewerSelection> {
   if (tx.kind !== "postgres" || tx.transactionScope !== "postgres" ||
       !input.companyId || !input.ownerUserId) {
     throw new Error("PRINCIPAL_REVIEWER_SNAPSHOT_REQUIRED");
@@ -63,7 +73,7 @@ export async function selectPrincipalReviewerInSnapshot(
     }
     groups.set(row.principal_id, [...(groups.get(row.principal_id) ?? []), row]);
   }
-  const eligible: Array<{ profileId: string; principalId: string; rank: number; owner: number }> = [];
+  const eligible: Array<{ profileId: string; principalId: string; rank: number }> = [];
   for (const [principalId, aliases] of groups) {
     const first = aliases[0];
     if (aliases.some((row) => row.pdm_user_id !== first.pdm_user_id ||
@@ -95,14 +105,14 @@ export async function selectPrincipalReviewerInSnapshot(
       // A principal without published authority cannot review; it must not
       // disqualify a different principal whose authority is proved.
     }
-    if (!role || !reviewerRoles.has(role)) continue;
+    if (!role || !reviewerRoles.has(role) || first.pdm_user_id === input.ownerUserId) continue;
     eligible.push({ profileId: first.pdm_user_id, principalId,
-      rank: rolePriority.indexOf(role), owner: first.pdm_user_id === input.ownerUserId ? 1 : 0 });
+      rank: rolePriority.indexOf(role) });
   }
-  eligible.sort((a, b) => a.rank - b.rank || a.owner - b.owner ||
+  eligible.sort((a, b) => a.rank - b.rank ||
     a.principalId.localeCompare(b.principalId));
   if (!eligible[0]) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "找不到可指派的審核負責人", 409);
   }
-  return eligible[0].profileId;
+  return { principalId: eligible[0].principalId, profileId: eligible[0].profileId };
 }

@@ -24,6 +24,7 @@ export async function GET(request: Request, context: { params: Promise<{ session
       sourceId: requireSafeRecognitionId(params.sourceId, "RECOGNITION_SOURCE_ID_INVALID"),
       companyId: access.company.companyId,
       actorId: access.actor.pdmUserId,
+      principalId: access.actor.principalId,
       roles: recognitionRoles(access)
     });
     return new NextResponse(result.bytes as unknown as BodyInit, {

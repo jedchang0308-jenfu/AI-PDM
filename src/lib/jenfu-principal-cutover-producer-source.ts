@@ -12,7 +12,6 @@ type ProducerSnapshotRow = {
   identity_subject: string;
   states: unknown;
   active_accounts: unknown;
-  authorities: unknown;
   grants: unknown;
 };
 
@@ -71,13 +70,8 @@ export async function capturePrincipalCutoverProducerSource(
              WHERE principal_issuer=requested.identity_issuer
                AND principal_subject=requested.identity_subject
              LIMIT 2) account) AS active_accounts,
-      (SELECT COALESCE(jsonb_agg(to_jsonb(authority)), '[]'::jsonb)
-       FROM (SELECT * FROM orgmaster_contract.v_ai_pdm_entitlement_authority_v1
-             WHERE application_id='ai-pdm'
-               AND (employee_id=requested.employee_id OR employee_id IS NULL)
-             LIMIT 2) authority) AS authorities,
       (SELECT COALESCE(jsonb_agg(to_jsonb(grant_row)), '[]'::jsonb)
-       FROM (SELECT * FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+       FROM (SELECT * FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v3
              WHERE application_id='ai-pdm'
                AND principal_id=requested.principal_id
                AND employee_id=requested.employee_id
@@ -89,10 +83,8 @@ export async function capturePrincipalCutoverProducerSource(
 
   const principalStates: Array<Record<string, unknown>> = [];
   const activeAccounts: Array<Record<string, unknown>> = [];
-  const authorities: Array<Record<string, unknown>> = [];
   const grants: Array<Record<string, unknown>> = [];
   const stateByPrincipal = new Map<string, string>();
-  const authorityByPrincipal = new Map<string, string>();
   const grantsByPrincipal = new Map<string, string>();
   const candidates = candidateSets.flat();
   for (const [index, row] of rows.entries()) {
@@ -104,9 +96,8 @@ export async function capturePrincipalCutoverProducerSource(
 
     const states = facts(row.states, 2);
     const accounts = facts(row.active_accounts, 2);
-    const authorityRows = facts(row.authorities, 2);
     const grantRows = facts(row.grants, 33);
-    if (states.length !== 1 || accounts.length !== 1 || authorityRows.length !== 1 ||
+    if (states.length !== 1 || accounts.length !== 1 ||
       grantRows.length > 32) invalid();
     const state = states[0];
     if (state.principal_id !== candidate.principalId ||
@@ -137,29 +128,18 @@ export async function capturePrincipalCutoverProducerSource(
     activeAccounts.push({ identityIssuer: candidate.identityIssuer,
       identitySubject: candidate.identitySubject, fact: account });
 
-    const authority = authorityRows[0];
-    if (authority.contract_version !== "jenfu.platform-entitlement.v1" ||
-      authority.application_id !== "ai-pdm" ||
-      (authority.employee_id !== candidate.employeeId && authority.employee_id !== null) ||
-      !["legacy_authority", "orgmaster_authority"].includes(String(authority.authority_source)) ||
-      !nonNegativeInteger(authority.authority_version) ||
-      Number(authority.authority_version) < 1) invalid();
-    const authorityKey = canonicalPrincipalSource(authority);
-    if (authorityByPrincipal.has(candidate.principalId)) {
-      if (authorityByPrincipal.get(candidate.principalId) !== authorityKey) invalid();
-    } else {
-      authorityByPrincipal.set(candidate.principalId, authorityKey);
-      authorities.push({ principalId: candidate.principalId, fact: authority });
-    }
-
-    if (authority.authority_source === "legacy_authority" && grantRows.length > 0) invalid();
+    const firstGrant = grantRows[0];
     for (const grant of grantRows) {
-      if (grant.contract_version !== "jenfu.orgmaster.ai-pdm-principal-grants.v2" ||
+      if (grant.contract_version !== "jenfu.orgmaster.ai-pdm-principal-grants.v3" ||
         grant.application_id !== "ai-pdm" || grant.principal_id !== candidate.principalId ||
         grant.employee_id !== candidate.employeeId ||
         "identity_issuer" in grant || "identity_subject" in grant ||
-        !nonNegativeInteger(grant.authority_version) ||
-        Number(grant.authority_version) !== Number(authority.authority_version)) invalid();
+        "authority_version" in grant ||
+        typeof grant.assignment_version_id !== "string" || !grant.assignment_version_id ||
+        !nonNegativeInteger(grant.assignment_version) || Number(grant.assignment_version) < 1 ||
+        grant.assignment_version_id !== firstGrant.assignment_version_id ||
+        Number(grant.assignment_version) !== Number(firstGrant.assignment_version) ||
+        grant.published_at !== firstGrant.published_at) invalid();
     }
     // Provider aliases prove admission; the authorization source is one
     // principal-keyed grant set, read in the same owner snapshot.
@@ -175,10 +155,9 @@ export async function capturePrincipalCutoverProducerSource(
     }
   }
   return hashPrincipalSource({
-    contractVersion: "ai-pdm.principal-cutover-producer-source.v2",
+    contractVersion: "ai-pdm.principal-cutover-producer-source.v3",
     principalStates: orderedPrincipalSourceRows(principalStates),
     activeAccounts: orderedPrincipalSourceRows(activeAccounts),
-    authorities: orderedPrincipalSourceRows(authorities),
     grants: orderedPrincipalSourceRows(grants)
   });
 }

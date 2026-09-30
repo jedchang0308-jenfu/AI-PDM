@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
 import { numberStateFlowJson } from "@/lib/number-state-flow-api";
 import { TransferPackageError } from "@/lib/repositories/transfer-package-async-repository";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
+import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
+import { JenfuPrincipalRequestError } from "@/lib/jenfu-principal-request-guard";
+import { principalRequestFailure } from "@/lib/jenfu-principal-http";
 
 export function requiredTransferVersion(value: unknown) {
   const version = Number(value);
@@ -15,6 +19,15 @@ export function transferPhase1dErrorResponse(error: unknown, operation: string) 
     return numberStateFlowJson({
       error: { code: error.code, message: error.message, retryable: error.status >= 500 }
     }, { status: error.status });
+  }
+  if (error instanceof JenfuEntitlementRepositoryError) {
+    return jenfuEntitlementFailureResponse(error.code);
+  }
+  if (error instanceof JenfuPrincipalRequestError) {
+    return principalRequestFailure(error);
+  }
+  if (error instanceof Error && error.message === "PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED") {
+    return jenfuEntitlementFailureResponse("permission_not_granted");
   }
   const correlationId = crypto.randomUUID();
   console.error("transfer_phase1d_operation_failed", {

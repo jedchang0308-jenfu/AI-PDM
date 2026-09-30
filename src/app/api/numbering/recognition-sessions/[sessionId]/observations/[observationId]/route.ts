@@ -10,7 +10,7 @@ export async function GET(request: Request, context: { params: Promise<{ session
     const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.recognition.review" });
     if (access.response || !access.company || !access.actor) return access.response;
     const params = await context.params;
-    const observation = await getDrawingRecognitionObservation({ sessionId: requireSafeRecognitionId(params.sessionId, "RECOGNITION_SESSION_ID_INVALID"), observationId: requireSafeRecognitionId(params.observationId, "RECOGNITION_OBSERVATION_ID_INVALID"), companyId: access.company.companyId, actorId: access.actor.pdmUserId, roles: recognitionRoles(access) });
+    const observation = await getDrawingRecognitionObservation({ sessionId: requireSafeRecognitionId(params.sessionId, "RECOGNITION_SESSION_ID_INVALID"), observationId: requireSafeRecognitionId(params.observationId, "RECOGNITION_OBSERVATION_ID_INVALID"), companyId: access.company.companyId, actorId: access.actor.pdmUserId, principalId: access.actor.principalId, roles: recognitionRoles(access) });
     return NextResponse.json({ observation }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     return recognitionErrorResponse(error, "recognition-sessions.observation");

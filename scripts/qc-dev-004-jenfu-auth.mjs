@@ -45,7 +45,11 @@ function readJson(path) {
 }
 
 function readPayload() {
-  return new Map(PAYLOAD_PATHS.map((path) => [path, readFileSync(join(contractRoot, ...path.split('/')))]))
+  // Git stores the controlled payloads with LF; Windows autocrlf can materialize CRLF.
+  // Hash the canonical source bytes, as the Platform producer and OrgMaster consumer do.
+  return new Map(PAYLOAD_PATHS.map((path) => [path, Buffer.from(
+    readFileSync(join(contractRoot, ...path.split('/')), 'utf8').replace(/\r\n/gu, '\n'), 'utf8'
+  )]))
 }
 
 function assertNonBlank(value, field) {

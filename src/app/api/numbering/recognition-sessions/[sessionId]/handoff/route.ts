@@ -5,7 +5,6 @@ import { recognitionJsonBody } from "@/lib/drawing-recognition-api";
 import { requireSafeRecognitionId } from "@/lib/drawing-recognition-contract";
 import { verifyCanonicalWorkbenchCommandContract } from "@/lib/pdm-workbench-authority-control";
 import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
-import { resolveDrawingRecognitionPartWorkAccess } from "@/lib/drawing-recognition-part-work-access";
 import { handoffDrawingRecognitionToPartWorks } from "@/lib/drawing-recognition-part-work-handoff";
 
 export const runtime = "nodejs";
@@ -29,7 +28,6 @@ export async function POST(request: Request, context: { params: Promise<{ sessio
     if (!sourceFingerprint || !relationFingerprint) throw inputError("缺少目前來源或關聯料號版本。");
     const { sessionId: rawSessionId } = await context.params;
     const sessionId = requireSafeRecognitionId(rawSessionId, "RECOGNITION_SESSION_ID_INVALID");
-    const workAccess = await resolveDrawingRecognitionPartWorkAccess(access.auth.user);
     const result = await handoffDrawingRecognitionToPartWorks({
       sessionId,
       companyId: access.company.companyId,
@@ -38,8 +36,7 @@ export async function POST(request: Request, context: { params: Promise<{ sessio
       expectedSourceSetFingerprint: sourceFingerprint,
       expectedRelationScopeFingerprint: relationFingerprint,
       draft: { commonValues: body.commonValues ?? body.common_values, overrides: body.overrides },
-      metadata: access.metadata,
-      access: workAccess
+      metadata: access.metadata
     });
     return NextResponse.json({ handoff: result }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {

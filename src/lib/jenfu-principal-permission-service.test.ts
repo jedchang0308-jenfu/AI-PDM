@@ -38,7 +38,7 @@ const verified = {
     assuranceLevel: "aal2"
   }
 };
-const authority = { authorityVersion: 6 };
+const publication = { assignmentVersion: 6 };
 const input = { token: "signed-token", keyRing: {} as never, identityIssuer: "https://issuer.test",
   trustPolicy: {} as never, database: {} as never,
   permissions: [{ permissionKind: "action" as const, permissionCode: "numbering.create" }] };
@@ -63,11 +63,11 @@ describe("DEV-121 principal workspace permission decision", () => {
   });
 
   it("uses only the verified principal and company for an OrgMaster grant", async () => {
-    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "allowed",
+    mocks.evaluate.mockResolvedValue([{ publication, decisionCode: "allowed",
       role: { risk: "normal", roleCode: "rd" }, assignment: { assignmentId: "grant-one" } }]);
     const result = await evaluatePrincipalWorkspacePermissions(input);
     expect(result).toEqual([{ allowed: true, permissionCode: "numbering.create", decisionCode: "allowed",
-      roleCode: "rd", assignmentId: "grant-one", principalId: "principal-one", authorityVersion: 6 }]);
+      roleCode: "rd", assignmentId: "grant-one", principalId: "principal-one", publishedAssignmentVersion: 6 }]);
     const [[queries, decisionAt]] = mocks.evaluate.mock.calls;
     expect(queries[0]).toMatchObject({
       actor: { principalId: "principal-one", localPrincipalId: "profile-one",
@@ -80,22 +80,22 @@ describe("DEV-121 principal workspace permission decision", () => {
     expect(mocks.catalogInput).toHaveBeenCalledWith(principalRoleCatalog);
   });
 
-  it("does not authorize an unknown authority decision", async () => {
-    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "entitlement_authority_unknown" }]);
+  it("does not authorize a missing published assignment", async () => {
+    mocks.evaluate.mockResolvedValue([{ publication, decisionCode: "entitlement_assignment_not_found" }]);
     await expect(evaluatePrincipalWorkspacePermissions(input)).resolves.toMatchObject([
-      { allowed: false, decisionCode: "entitlement_authority_unknown", roleCode: null }
+      { allowed: false, decisionCode: "entitlement_assignment_not_found", roleCode: null }
     ]);
   });
 
   it("keeps explicit deny and privileged AAL1 requests closed", async () => {
-    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "permission_explicit_deny" }]);
+    mocks.evaluate.mockResolvedValue([{ publication, decisionCode: "permission_explicit_deny" }]);
     await expect(evaluatePrincipalWorkspacePermissions(input)).resolves.toMatchObject([
       { allowed: false, decisionCode: "permission_explicit_deny" }
     ]);
     mocks.withVerified.mockImplementation(async (_request, evaluate) => evaluate(snapshot, {
       ...verified, session: { ...verified.session, assuranceLevel: "aal1" }
     }));
-    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "allowed",
+    mocks.evaluate.mockResolvedValue([{ publication, decisionCode: "allowed",
       role: { risk: "high", roleCode: "rd_manager" }, assignment: { assignmentId: "grant-two" } }]);
     await expect(evaluatePrincipalWorkspacePermissions(input)).resolves.toMatchObject([
       { allowed: false, decisionCode: "assurance_insufficient", roleCode: null }
@@ -109,7 +109,7 @@ describe("DEV-121 principal workspace permission decision", () => {
   });
 
   it("uses v5 for every principal capability only after active catalog readback in the same snapshot", async () => {
-    mocks.evaluate.mockResolvedValue([{ authority, decisionCode: "allowed",
+    mocks.evaluate.mockResolvedValue([{ publication, decisionCode: "allowed",
       role: { risk: "normal", roleCode: "rd" }, assignment: { assignmentId: "grant-one" } }]);
     const permission = { ...input, permissions: [{ permissionKind: "action" as const,
       permissionCode: "numbering.workspace.create" }] };

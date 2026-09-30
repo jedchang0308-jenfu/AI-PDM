@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import vectors from "../../contracts/jenfu-sso-handoff/v2/conformance-vectors.json";
 import { parseJenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 
 const mocks = vi.hoisted(() => ({
-  typed: vi.fn(), state: vi.fn(), account: vi.fn(), authority: vi.fn(),
+  typed: vi.fn(), state: vi.fn(), account: vi.fn(),
   assignments: vi.fn(), register: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-admission-repository", () => ({
@@ -17,7 +18,6 @@ vi.mock("@/lib/jenfu-principal-account-repository", () => ({
 }));
 vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
   JenfuEntitlementRepository: class {
-    resolveAuthority = mocks.authority;
     listEffectiveAssignments = mocks.assignments;
   }
 }));
@@ -33,14 +33,14 @@ const keyRing = { issuer: "ai-pdm-session", audience: "ai-pdm", currentKeyId: "c
   keys: { current: "k".repeat(48) } };
 const trustPolicy = { enabled: true, domains: ["example.test"], allowAal1PrivilegedPilot: false };
 function assignment(roleCode: string) { return {
-  contractVersion: "jenfu.orgmaster.ai-pdm-principal-grants.v2", applicationId: "ai-pdm",
+  contractVersion: "jenfu.orgmaster.ai-pdm-principal-grants.v3", applicationId: "ai-pdm",
   assignmentVersionId: "version-one", assignmentVersion: 1, assignmentId: "assignment-one",
   grantKind: "direct", delegationId: null,
   principalId: handoff.identity.principalId, employeeId: handoff.identity.employeeId,
   subjectKind: "employee", targetPrincipalId: null, stableRoleId: `role-${roleCode}`,
   roleCode, catalogVersion: "catalog-one", scopeKind: "workspace",
   scopeKey: "company-one", validFrom: "2026-09-24T00:00:00.000Z", validUntil: null,
-  publishedAt: "2026-09-24T00:00:00.000Z", authorityVersion: 1
+  publishedAt: "2026-09-24T00:00:00.000Z"
 }; }
 const snapshot = { kind: "postgres", execute: vi.fn(async () => undefined),
   query: vi.fn(async () => [{ decision_at: vectors.clock }]),
@@ -58,7 +58,6 @@ describe("DEV-121 principal handoff session issuance", () => {
     mocks.account.mockResolvedValue({ principalId: "principal-one", pdmUserId: "pdm-user-one",
       employeeId: "employee-one", accountType: "human_personal", companyId: "company-one",
       lifecycleVersion: 3, profileVersion: 2, minimumAssurance: "aal1", sessionInvalidBefore: null });
-    mocks.authority.mockResolvedValue({ authoritySource: "orgmaster_authority", authorityVersion: 1 });
     mocks.assignments.mockResolvedValue([assignment("rd")]);
     snapshot.queryOne.mockResolvedValue({ id: "pdm-user-one", company_id: "company-one" });
   });
@@ -98,7 +97,7 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
-  it("requires AAL2 when the selected authority has a privileged role", async () => {
+  it("requires AAL2 when the published Principal grant has a privileged role", async () => {
     mocks.assignments.mockResolvedValue([assignment("rd_manager")]);
     const result = await issueSessionForPrincipalHandoff(base);
     expect(result.claims).toMatchObject({ assuranceLevel: "aal2", secondFactor: "google_workspace_mfa" });
@@ -106,18 +105,18 @@ describe("DEV-121 principal handoff session issuance", () => {
       trustPolicy: { ...trustPolicy, enabled: false } })).rejects.toThrow("auth_token_invalid");
   });
 
-  it("rejects a mixed authority-version grant before issuing a session", async () => {
-    mocks.assignments.mockResolvedValue([{ ...assignment("rd_manager"), authorityVersion: 2 }]);
+  it("rejects mixed published assignment versions before issuing a session", async () => {
+    mocks.assignments.mockResolvedValue([assignment("rd_manager"),
+      { ...assignment("rd"), assignmentId: "assignment-two", assignmentVersion: 2 }]);
     await expect(issueSessionForPrincipalHandoff(base))
       .rejects.toThrow("PRINCIPAL_ASSURANCE_SOURCE_INVALID");
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
-  it("rejects legacy authority before issuing a session", async () => {
-    mocks.authority.mockResolvedValue({ authoritySource: "legacy_authority" });
+  it("rejects missing published grants before issuing a session", async () => {
+    mocks.assignments.mockResolvedValue([]);
     await expect(issueSessionForPrincipalHandoff(base))
       .rejects.toThrow("PRINCIPAL_ASSURANCE_SOURCE_INVALID");
-    expect(mocks.assignments).not.toHaveBeenCalled();
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
@@ -128,3 +127,29 @@ describe("DEV-121 principal handoff session issuance", () => {
   });
 
 });
+
+const producerProofPath = process.env.DEV015_HANDOFF_PROOF_INPUT;
+if (producerProofPath) {
+  it("issues a Principal-only session from the actual Platform producer proof", async () => {
+    vi.clearAllMocks();
+    const proof = (JSON.parse(readFileSync(producerProofPath, "utf8")) as { "ai-pdm": unknown })["ai-pdm"];
+    const issuer = (proof as { issuer: string }).issuer;
+    const issuedAt = Date.parse((proof as { issuedAt: string }).issuedAt);
+    const produced = parseJenfuPrincipalHandoff(proof, issuer, issuedAt + 1_000);
+    mocks.typed.mockResolvedValue({ principalId: produced.identity.principalId,
+      employeeId: produced.identity.employeeId, accountType: "human_personal" });
+    mocks.state.mockResolvedValue({ authEpoch: produced.authState.authEpoch, revokedBefore: null });
+    mocks.account.mockResolvedValue({ principalId: produced.identity.principalId, pdmUserId: "pdm-user-one",
+      employeeId: produced.identity.employeeId, accountType: "human_personal", companyId: "company-one",
+      lifecycleVersion: 3, profileVersion: 2, minimumAssurance: "aal1", sessionInvalidBefore: null });
+    mocks.assignments.mockResolvedValue([{ ...assignment("rd"), principalId: produced.identity.principalId,
+      employeeId: produced.identity.employeeId }]);
+    snapshot.queryOne.mockResolvedValue({ id: "pdm-user-one", company_id: "company-one" });
+    const result = await issueSessionForPrincipalHandoff({ ...base, handoff: produced,
+      expectedIdentityIssuer: produced.identity.identityIssuer, nowMs: issuedAt + 1_000 });
+    expect(result.claims).toMatchObject({ principalId: produced.identity.principalId,
+      employeeId: produced.identity.employeeId, authEpoch: produced.authState.authEpoch });
+    expect(result.claims).not.toHaveProperty("pdmUserId");
+    expect(mocks.register).toHaveBeenCalledWith(result.claims);
+  });
+}

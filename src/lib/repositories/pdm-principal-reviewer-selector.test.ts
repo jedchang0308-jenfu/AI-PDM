@@ -17,7 +17,7 @@ vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
   }
 }));
 
-import { selectPrincipalReviewerInSnapshot } from
+import { selectPrincipalReviewerIdentityInSnapshot, selectPrincipalReviewerInSnapshot } from
   "@/lib/repositories/pdm-principal-reviewer-selector";
 import { JenfuEntitlementRepositoryError } from
   "@/lib/repositories/jenfu-entitlement-repository";
@@ -64,6 +64,16 @@ describe("principal reviewer selection", () => {
     expect(sql).not.toContain("users.role");
   });
 
+  it("returns the canonical reviewer subject with the historical profile FK", async () => {
+    const snapshot = client([
+      candidate("principal-owner", "owner-profile"),
+      candidate("principal-manager", "profile-manager")
+    ]);
+    await expect(selectPrincipalReviewerIdentityInSnapshot(snapshot, input))
+      .resolves.toEqual({ principalId: "principal-manager", profileId: "profile-manager" });
+    expect(mocks.entitlement).toHaveBeenCalledTimes(2);
+  });
+
   it("does not nominate a candidate without published OrgMaster authority", async () => {
     mocks.entitlement.mockRejectedValue(new JenfuEntitlementRepositoryError("entitlement_authority_unknown"));
     await expect(selectPrincipalReviewerInSnapshot(client([
@@ -86,6 +96,17 @@ describe("principal reviewer selection", () => {
       candidate("principal-owner", "owner-profile"),
       candidate("principal-peer", "peer-profile")
     ]), input)).resolves.toBe("peer-profile");
+  });
+
+  it("never nominates the owner even when the owner has a higher-priority reviewer role", async () => {
+    mocks.entitlement.mockImplementation(async ([request]) => [{
+      decisionCode: "allowed", role: { roleCode:
+        request.actor.principalId === "principal-owner" ? "rd_manager" : "pdm_admin" }
+    }]);
+    await expect(selectPrincipalReviewerIdentityInSnapshot(client([
+      candidate("principal-owner", "owner-profile"),
+      candidate("principal-peer", "peer-profile")
+    ]), input)).resolves.toEqual({ principalId: "principal-peer", profileId: "peer-profile" });
   });
 
   it("does not nominate an explicitly denied candidate", async () => {

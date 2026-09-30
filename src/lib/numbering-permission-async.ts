@@ -120,7 +120,7 @@ export async function checkNumberingPermissionsAsync(inputs: readonly CheckNumbe
       if (result.evaluated?.decisionCode !== "allowed") continue;
       const log = createAuthorizationDecisionLog({
         correlationId: crypto.randomUUID(),
-        authority: result.evaluated.authority,
+        authority: null,
         permissionCode: inputs[index].permissionCode.trim(),
         scopeKind: result.evaluated.assignment.scopeKind,
         matchedStableRoleId: result.evaluated.assignment.stableRoleId,

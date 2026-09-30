@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { JenfuVerifiedAuthorizationActor } from "@/lib/jenfu-entitlement-contract";
 import type { PrincipalRequestInput } from "@/lib/jenfu-principal-request-guard";
+import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 
 export type PlatformAuthProvider = "current_pdm_session" | "local_password" | "google_oauth" | "future_shared_iam";
 
@@ -38,6 +39,7 @@ export type PdmCommandMetadata = {
     routePath: string;
     method: string;
     permissionCode: string;
+    discriminator?: JenfuRouteDiscriminator;
     additionalPermissionCodes?: string[];
   };
 };

@@ -11,7 +11,7 @@ export async function GET(request: Request, context: { params: Promise<{ drawing
     const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.recognition.review" });
     if (access.response || !access.company || !access.actor) return access.response;
     const { drawingNumber } = await context.params;
-    const session = await getLatestDrawingRecognitionForDrawing({ drawingNumber: decodeURIComponent(drawingNumber).trim().slice(0, 200), companyId: access.company.companyId, actorId: access.actor.pdmUserId, roles: recognitionRoles(access) });
+    const session = await getLatestDrawingRecognitionForDrawing({ drawingNumber: decodeURIComponent(drawingNumber).trim().slice(0, 200), companyId: access.company.companyId, actorId: access.actor.pdmUserId, principalId: access.actor.principalId, roles: recognitionRoles(access) });
     return NextResponse.json({ session, feature }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     return recognitionErrorResponse(error, "drawings.latest-recognition");

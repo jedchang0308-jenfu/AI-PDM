@@ -2,11 +2,9 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import roleCatalog from "../../../config/access-control/jenfu-role-catalog.v1.json" with { type: "json" };
 import {
   JENFU_AI_PDM_APPLICATION_ID,
-  JENFU_ENTITLEMENT_CONTRACT_VERSION,
   JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
   type JenfuApplicationRole,
   type JenfuEffectiveRoleAssignment,
-  type JenfuEntitlementAuthority,
   type JenfuVerifiedAuthorizationActor,
   resolveJenfuWorkspaceScopeKey,
   roleAllowsPermission,
@@ -20,16 +18,6 @@ export class JenfuEntitlementRepositoryError extends Error {
     this.name = "JenfuEntitlementRepositoryError";
   }
 }
-
-type AuthorityRow = {
-  contract_version: string;
-  application_id: string;
-  authority_source: "legacy_authority" | "orgmaster_authority";
-  authority_version: number;
-  employee_id: string | null;
-  updated_at: string;
-  operation_id: string | null;
-};
 
 type AssignmentRow = {
   application_id: string;
@@ -51,7 +39,6 @@ type AssignmentRow = {
   subject_kind: "employee" | "principal";
   target_principal_id: string | null;
   catalog_version: string;
-  authority_version: number;
 };
 
 export type JenfuEnforcedPermissionInput = {
@@ -82,37 +69,6 @@ export class JenfuEntitlementRepository {
     private readonly activeCatalog: JenfuEntitlementRoleCatalog = catalog
   ) {}
 
-  async resolveAuthority(input: { employeeId: string; applicationId?: string }): Promise<JenfuEntitlementAuthority> {
-    if (this.client.kind !== "postgres") throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
-    const applicationId = input.applicationId ?? JENFU_AI_PDM_APPLICATION_ID;
-    if (applicationId !== JENFU_AI_PDM_APPLICATION_ID || !input.employeeId.trim()) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
-    let rows: AuthorityRow[];
-    try {
-      rows = await this.client.query<AuthorityRow>(`
-        SELECT contract_version, application_id, authority_source, authority_version,
-               employee_id, updated_at::text, operation_id
-        FROM orgmaster_contract.v_ai_pdm_entitlement_authority_v1
-        WHERE application_id = :applicationId AND (employee_id = :employeeId OR employee_id IS NULL)
-        ORDER BY employee_id NULLS LAST
-      `, { applicationId, employeeId: input.employeeId });
-    } catch {
-      throw new JenfuEntitlementRepositoryError("entitlement_authority_unavailable");
-    }
-    if (rows.length === 0) throw new JenfuEntitlementRepositoryError("entitlement_authority_unknown");
-    if (rows.length > 1) throw new JenfuEntitlementRepositoryError("entitlement_dual_authority_detected");
-    const row = rows[0];
-    if (row.contract_version !== JENFU_ENTITLEMENT_CONTRACT_VERSION || row.application_id !== applicationId || !["legacy_authority", "orgmaster_authority"].includes(row.authority_source) || !Number.isSafeInteger(Number(row.authority_version)) || Number(row.authority_version) < 1 || !Number.isFinite(Date.parse(row.updated_at))) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
-    return {
-      contractVersion: JENFU_ENTITLEMENT_CONTRACT_VERSION,
-      applicationId: JENFU_AI_PDM_APPLICATION_ID,
-      authoritySource: row.authority_source,
-      authorityVersion: Number(row.authority_version),
-      employeeId: row.employee_id,
-      updatedAt: row.updated_at,
-      operationId: row.operation_id
-    };
-  }
-
   async listEffectiveAssignments(input: {
     identityIssuer: string;
     identitySubject: string;
@@ -142,8 +98,8 @@ export class JenfuEntitlementRepository {
                grant_kind, delegation_id, application_id,
                principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,
                role_code, catalog_version, scope_kind, scope_key, valid_from::text,
-               valid_until::text, published_at::text, authority_version
-        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v2
+               valid_until::text, published_at::text
+        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v3
         WHERE application_id = :applicationId
           AND principal_id = :principalId
           AND employee_id = :employeeId
@@ -202,8 +158,7 @@ export class JenfuEntitlementRepository {
         scopeKey: row.scope_key,
         validFrom: row.valid_from,
         validUntil: row.valid_until,
-        publishedAt: row.published_at,
-        authorityVersion: Number(row.authority_version)
+        publishedAt: row.published_at
       });
     }
     return assignments;
@@ -220,15 +175,16 @@ export class JenfuEntitlementRepository {
       || candidate.actor.companyId !== input.actor.companyId)) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
-    const authority = await this.resolveAuthority({ employeeId: input.actor.employeeId });
-    // A principal session has one published grant authority. The legacy
-    // source remains readable for inventory, but cannot authorize a request.
-    if (authority.authoritySource !== "orgmaster_authority") {
-      throw new JenfuEntitlementRepositoryError("entitlement_authority_unknown");
-    }
     const assignments = await this.listEffectiveAssignments(input.actor);
     if (assignments.length === 0) throw new JenfuEntitlementRepositoryError("entitlement_assignment_not_found");
-    if (assignments.some((assignment) => assignment.authorityVersion !== authority.authorityVersion)) {
+    const publication = {
+      assignmentVersionId: assignments[0].assignmentVersionId,
+      assignmentVersion: assignments[0].assignmentVersion,
+      publishedAt: assignments[0].publishedAt
+    };
+    if (assignments.some((assignment) => assignment.assignmentVersionId !== publication.assignmentVersionId ||
+      assignment.assignmentVersion !== publication.assignmentVersion ||
+      assignment.publishedAt !== publication.publishedAt)) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
     const priorityRank = new Map(input.rolePriority.map((roleCode, index) => [roleCode, index]));
@@ -284,10 +240,10 @@ export class JenfuEntitlementRepository {
       }
       decisionCandidates.sort((left, right) => (priorityRank.get(left.assignment.roleCode) ?? Number.MAX_SAFE_INTEGER) - (priorityRank.get(right.assignment.roleCode) ?? Number.MAX_SAFE_INTEGER));
       const selected = decisionCandidates[0];
-      if (selected && !selected.allowed) return { authority, assignments, decisionCode: "permission_explicit_deny" as const, evaluatedRoles };
-      if (selected) return { authority, assignments, decisionCode: "allowed" as const, role: selected.role, assignment: selected.assignment, evaluatedRoles };
-      if (scopeCandidate && permissionCandidate) return { authority, assignments, decisionCode: "entitlement_scope_mismatch" as const, evaluatedRoles };
-      return { authority, assignments, decisionCode: "permission_not_granted" as const, evaluatedRoles };
+      if (selected && !selected.allowed) return { publication, assignments, decisionCode: "permission_explicit_deny" as const, evaluatedRoles };
+      if (selected) return { publication, assignments, decisionCode: "allowed" as const, role: selected.role, assignment: selected.assignment, evaluatedRoles };
+      if (scopeCandidate && permissionCandidate) return { publication, assignments, decisionCode: "entitlement_scope_mismatch" as const, evaluatedRoles };
+      return { publication, assignments, decisionCode: "permission_not_granted" as const, evaluatedRoles };
     });
   }
 

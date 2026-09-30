@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { createPdmCommand, createPlatformActorContext } from "@/lib/platform-command";
 
 const mocks = vi.hoisted(() => ({
@@ -122,6 +123,44 @@ describe("principal command and mutation use one verified snapshot", () => {
     expect(vi.mocked(database.queryOne).mock.calls.some(([sql]) =>
       String(sql).includes("read_principal_cutover_for_command_v1"))).toBe(false);
     expect(mocks.claim.mock.calls[0][0].actor.platformOrganizationId).toBeNull();
+  });
+
+  it("passes the verified principal into resource-specific authorization in that snapshot", async () => {
+    const database = client();
+    const execute = vi.fn(async (snapshot: AsyncDatabaseClient, _decision: unknown,
+      verifiedRequest: VerifiedPrincipalRequest | null) => {
+      expect(snapshot).toBe(database);
+      expect(verifiedRequest).toBe(verified);
+      return { ok: true };
+    });
+    await expect(executePdmCommandWithOutbox({ ...input(database), execute }))
+      .resolves.toMatchObject({ result: { ok: true } });
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it("recognizes the exact recognition formalization route before writing", async () => {
+    const database = client();
+    const recognitionRoute = {
+      request: new Request("https://ai-pdm.test/api/numbering/recognition-sessions/recognition-one/formalize", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/numbering/recognition-sessions/[sessionId]/formalize/route.ts",
+      method: "POST", permissionCode: "numbering.recognition.formalize"
+    };
+    const recognitionCommand = createPdmCommand({
+      commandName: "drawing_recognition.formalize.v1", idempotencyKey: "recognition-one",
+      actor: command().actor, payload: { sessionId: "recognition-one" }
+    });
+    const mutate = vi.fn(async () => ({ ok: true }));
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true, principalId,
+      permissionCode: recognitionRoute.permissionCode }]);
+    await expect(executePdmCommandWithOutbox({
+      ...input(database, mutate), command: recognitionCommand,
+      principalAuthorization: recognitionRoute
+    })).resolves.toMatchObject({ result: { ok: true } });
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified,
+      [{ permissionKind: "action", permissionCode: "numbering.recognition.formalize" }]);
+    expect(mutate).toHaveBeenCalledOnce();
   });
 
   it("rechecks drawing creation's second capability in the same write snapshot", async () => {

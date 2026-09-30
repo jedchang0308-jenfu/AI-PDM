@@ -30,11 +30,13 @@ describe("storage access audit security subject", () => {
     expect(JSON.stringify(mocks.createAudit.mock.calls[0][0])).not.toContain("must-not-enter-audit");
   });
 
-  it("preserves legacy audit meaning for unchanged callers", async () => {
-    await auditStorageAccess({ ...base, actorId: "profile-legacy" });
+  it("records a public-share download without inventing a human security subject", async () => {
+    await auditStorageAccess({ ...base, accessKind: "public_share_package",
+      principalId: null, externalAccess: true });
     const audit = mocks.createAudit.mock.calls[0][0];
-    expect(audit.actorId).toBe("profile-legacy");
+    expect(audit.actorId).toBeNull();
     expect(audit.scopeKind).toBe("legacy_unscoped");
     expect(audit.detail).not.toHaveProperty("securityPrincipalId");
+    expect(audit.detail.externalAccess).toBe(true);
   });
 });

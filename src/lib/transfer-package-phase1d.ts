@@ -3,6 +3,7 @@ import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
 import { principalCanManageTransferPackageInSnapshot } from "@/lib/transfer-package-principal-resource";
+import { selectPrincipalReviewerIdentityInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
 import { DatabasePublicationEvidencePort } from "@/lib/publication-evidence";
 import {
   AsyncNumberStateFlowRepository,
@@ -101,6 +102,34 @@ function sha256(value: string) {
 
 function parseJson<T>(value: string | T): T {
   return typeof value === "string" ? JSON.parse(value) as T : value;
+}
+
+type TransferReviewPayload = {
+  transferPackageId: string;
+  snapshotHash: string;
+  reviewer: { version: 1; principalId: string; profileId: string };
+};
+
+function requireTransferReviewPayload(value: unknown): TransferReviewPayload {
+  let parsed: unknown;
+  try { parsed = typeof value === "string" ? JSON.parse(value) as unknown : value; }
+  catch { throw new TransferPackageError("TRANSFER_REVIEW_BINDING_INVALID", "技轉審核者綁定無效。", 409); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new TransferPackageError("TRANSFER_REVIEW_BINDING_INVALID", "技轉審核者綁定無效。", 409);
+  }
+  const payload = parsed as { transferPackageId?: unknown; snapshotHash?: unknown; reviewer?: unknown };
+  const reviewer = payload.reviewer;
+  if (typeof payload.transferPackageId !== "string" || !payload.transferPackageId ||
+      typeof payload.snapshotHash !== "string" || !/^[a-f0-9]{64}$/u.test(payload.snapshotHash) ||
+      !reviewer || typeof reviewer !== "object" || Array.isArray(reviewer) ||
+      (reviewer as { version?: unknown }).version !== 1 ||
+      typeof (reviewer as { principalId?: unknown }).principalId !== "string" ||
+      !(reviewer as { principalId: string }).principalId ||
+      typeof (reviewer as { profileId?: unknown }).profileId !== "string" ||
+      !(reviewer as { profileId: string }).profileId) {
+    throw new TransferPackageError("TRANSFER_REVIEW_BINDING_INVALID", "技轉審核者綁定無效。", 409);
+  }
+  return payload as TransferReviewPayload;
 }
 
 function id(prefix: string) {
@@ -759,6 +788,12 @@ export async function submitTransferPackageReview(input: {
       if (!readiness.ready) {
         throw new TransferPackageError(readiness.firstBlocker?.code ?? "TRANSFER_NOT_READY", readiness.firstBlocker?.message ?? "技轉包尚未準備完成。", 409);
       }
+      const reviewer = await selectPrincipalReviewerIdentityInSnapshot(client, {
+        companyId, ownerUserId: row.owner_id
+      });
+      if (reviewer.profileId === row.owner_id) {
+        throw new TransferPackageError("TRANSFER_REVIEWER_REQUIRED", "技轉包負責人不可審核自己的送審。", 409);
+      }
       const requestId = id("APR-TRF");
       const now = new Date().toISOString();
       await client.execute(
@@ -778,7 +813,8 @@ export async function submitTransferPackageReview(input: {
           reason: input.reason,
           requestedBy: input.metadata.actor.pdmUserId,
           requestedAt: now,
-          payloadJson: JSON.stringify({ transferPackageId: input.packageId, snapshotHash: readiness.snapshotHash }),
+          payloadJson: JSON.stringify({ transferPackageId: input.packageId, snapshotHash: readiness.snapshotHash,
+            reviewer: { version: 1, principalId: reviewer.principalId, profileId: reviewer.profileId } }),
           createdAt: now,
           updatedAt: now
         }
@@ -974,21 +1010,31 @@ export async function decideTransferPackageReview(input: {
     principalRequest: input.metadata.principalRequest,
     principalAuthorization: input.metadata.principalAuthorization,
     execute: async (client, principalDecision) => {
-      const request = await client.queryOne<{ id: string; request_status: string }>(
-        `SELECT id, request_status FROM approval_platform_requests
+      const request = await client.queryOne<{ id: string; request_status: string; payload_json: unknown }>(
+        `SELECT id, request_status, payload_json FROM approval_platform_requests
          WHERE id = :requestId AND company_id = :companyId AND action_code = 'transfer.package_review'
          ${client.kind === "postgres" ? "FOR UPDATE" : ""}`,
         { requestId: input.requestId, companyId: input.metadata.actor.organizationId }
       );
       if (!request) throw new TransferPackageError("APPROVAL_REQUEST_NOT_FOUND", "找不到審核申請。", 404);
       if (request.request_status !== "pending") throw new TransferPackageError("APPROVAL_REQUEST_ALREADY_DECIDED", "審核申請已有決定。", 409);
-      const pkg = await client.queryOne<{ id: string }>(
-        `SELECT id FROM transfer_packages
+      const payload = requireTransferReviewPayload(request.payload_json);
+      if (payload.reviewer.principalId !== input.metadata.actor.principalId ||
+          payload.reviewer.profileId !== input.metadata.actor.pdmUserId ||
+          !principalDecision?.allowed || principalDecision.principalId !== input.metadata.actor.principalId ||
+          principalDecision.permissionCode !== "approval.request.decide") {
+        throw new TransferPackageError("TRANSFER_REVIEWER_NOT_ASSIGNED", "僅指定且仍有權限的審核者可決定此技轉案。", 403);
+      }
+      const pkg = await client.queryOne<{ id: string; review_snapshot_hash: string }>(
+        `SELECT id, review_snapshot_hash FROM transfer_packages
          WHERE company_id = :companyId AND review_request_id = :requestId AND package_status = 'InReview'
          ${client.kind === "postgres" ? "FOR UPDATE" : ""}`,
         { companyId: input.metadata.actor.organizationId, requestId: input.requestId }
       );
       if (!pkg) throw new TransferPackageError("TRANSFER_REVIEW_STATE_INVALID", "技轉包審核狀態不一致。", 409);
+      if (payload.transferPackageId !== pkg.id || payload.snapshotHash !== pkg.review_snapshot_hash) {
+        throw new TransferPackageError("TRANSFER_REVIEW_BINDING_INVALID", "技轉審核者綁定與送審快照不一致。", 409);
+      }
       const now = new Date().toISOString();
       await client.execute(
         `INSERT INTO approval_platform_decisions

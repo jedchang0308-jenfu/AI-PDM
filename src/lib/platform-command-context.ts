@@ -12,6 +12,7 @@ import {
 import type { PdmCompanyContext } from "@/lib/company-context";
 import { principalRequestInput, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { resolveJenfuRoutePolicyFromRequest } from "@/lib/jenfu-route-permission-map";
+import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 import { assertProductionSmokeRuntimeIsolation } from "@/lib/production-smoke-runtime";
 
 export type NumberingPlatformCommandAccess =
@@ -49,10 +50,11 @@ export async function requireNumberingPlatformCommandAsync(
     permissionCode?: string;
     body?: Record<string, unknown>;
     additionalPermissionCodes?: string[];
+    discriminator?: JenfuRouteDiscriminator;
   }
 ): Promise<NumberingPlatformCommandAccess> {
   const permissionCode = input.permissionCode ?? input.action;
-  const route = resolveJenfuRoutePolicyFromRequest(request, permissionCode);
+  const route = resolveJenfuRoutePolicyFromRequest(request, permissionCode, input.discriminator);
   if (!route || route.scopeResolver !== "workspace") {
     return {
       auth: { user: { id: "", role: "" }, permission: null, response: null },
@@ -119,6 +121,7 @@ export async function requireNumberingPlatformCommandAsync(
       principalRequest: principalRequestInput(token),
       principalAuthorization: {
         request, routePath: route.path, method: request.method, permissionCode,
+        discriminator: input.discriminator,
         additionalPermissionCodes: input.additionalPermissionCodes ??
           (input.action === "numbering.create" &&
             Boolean(body.drawingRequested ?? body.drawing_requested)
