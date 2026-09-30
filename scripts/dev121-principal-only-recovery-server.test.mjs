@@ -42,7 +42,9 @@ test('recovery server does not echo request secrets or set a session', async () 
 })
 
 test('recovery image is source-labeled, pinned and isolated from app/database dependencies', () => {
-  assert.match(dockerfile, /distroless\/nodejs24-debian13:nonroot@sha256:[a-f0-9]{64}/u)
+  assert.match(dockerfile, /node:24\.20\.0-alpine@sha256:[a-f0-9]{64}/u)
+  assert.match(dockerfile, /RUN apk upgrade --no-cache/u)
+  assert.match(dockerfile, /USER 65532:65532/u)
   assert.match(dockerfile, /org\.opencontainers\.image\.revision="\$\{SOURCE_REVISION\}"/u)
   assert.match(dockerfile, /COPY --chown=65532:65532 scripts\/dev121-principal-only-recovery-server\.mjs/u)
   assert.doesNotMatch(dockerfile, /COPY .*\b(src|db|\.next|node_modules)\b/u)
