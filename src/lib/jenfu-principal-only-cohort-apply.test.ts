@@ -114,7 +114,8 @@ describe("Principal-only owner cohort transaction", () => {
     dependencies.lock.mockResolvedValue({ status: "replayed", result });
     const db = fixture();
     expect(await applyPrincipalOnlyCohortInOwnerTransaction(
-      db.client, operation)).toEqual({ replayed: true, result });
+      db.client, operation, { beforeApply: async () => { throw new Error("must not reapply"); } }))
+      .toEqual({ replayed: true, result });
     expect(dependencies.capture).not.toHaveBeenCalled();
     expect(db.query).not.toHaveBeenCalled();
     dependencies.lock.mockResolvedValue({ status: "replayed", result: {
@@ -123,6 +124,20 @@ describe("Principal-only owner cohort transaction", () => {
     await expect(applyPrincipalOnlyCohortInOwnerTransaction(
       db.client, operation)).rejects.toThrow(
       "PRINCIPAL_ONLY_COHORT_OPERATION_INVALID");
+  });
+
+  it("rechecks live fence after owner locks, but never on committed replay", async () => {
+    const db = fixture();
+    const guard = vi.fn(async () => {
+      expect(dependencies.lock).toHaveBeenCalled();
+      expect(dependencies.capture).not.toHaveBeenCalled();
+      throw new Error("fence drift");
+    });
+    await expect(applyPrincipalOnlyCohortInOwnerTransaction(
+      db.client, operation, { beforeApply: guard })).rejects.toThrow("fence drift");
+    expect(guard).toHaveBeenCalledOnce();
+    expect(db.query).not.toHaveBeenCalled();
+    expect(dependencies.capture).not.toHaveBeenCalled();
   });
 
   it("rejects source drift and partial withholding before operation receipt", async () => {

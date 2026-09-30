@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+> **2026-09-30 現行施工：一次性 cohort operator 已本機整合，未正式執行。** 既有 inventory Job 的 v3 `principal_only_apply` 接到唯一 owner 交易；輸入僅引用不可變來源收據與原 source operation，取得 cohort／table locks 後再核對 live manual-zero fence、同來源維護 recovery revision 及零 owner writer。已提交 operation 的重播不再要求舊停寫狀態，只讀回原結果並補發相同 GCS bytes；輸入漂移拒絕。真實 disposable PostgreSQL 已驗 writer 拒絕、寫入後失敗整筆 rollback、提交、重播、變更 input 衝突及零本機 ACL。來源／封裝／transport 20、owner primitive 4、PostgreSQL 20 與 typecheck PASS；[native 收據](qa/DEV-121-one-shot-inventory-operator-postgres-2026-09-30.json)。現為未提交候選，下一步 protected PR／merge、source-bound operator image／recovery proof，再於三 owner 停寫視窗使用；不另建 bridge 或逐人切換。下方早期「正式 apply runner 未接起／待實作」為歷史快照。F01–F10 正式狀態不升級。
+
 > **2026-09-30 DEV-121 F08 獨立 worker 進程**：[現行授權契約](specs/DEV-121-target-authorization-boundary.md)與 `JENFU/ai-doc/qa/DEV-015-aipdm-recognition-worker-process-postgres-2026-09-30.json` 記錄實際 worker process→claim／heartbeat／holder-only source-content／complete HTTP handlers→受限 PostgreSQL；來源大小／雜湊、發起 Principal 與 adapter 結果讀回通過，18／18，臨時資源已清理。正式 CAD 解析、outbox delivery、provider／Production L4 仍待驗證。
 
 > **2026-09-30 DEV-121／DEV-057 跨 owner 送審整鏈**：[現行 consumer 契約](specs/DEV-121-target-authorization-boundary.md)與 `JENFU/ai-doc/qa/DEV-015-orgmaster-aipdm-grant-v3-submit-review-postgres-2026-09-30.json` 記錄 OrgMaster 發布 grant v3 後的 Draft 送審、精確 reviewer 待辦、審批及 Principal outbox；撤權／異 scope 不寫入。全套 21／21，仍屬本機同庫證據；真實 provider、候選 runtime、Production L4 未完成。

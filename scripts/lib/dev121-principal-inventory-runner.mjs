@@ -1,4 +1,4 @@
-import { sha256, canonicalize } from './dev012-production-migration-runner.mjs'
+import { sha256, canonicalize, parseGsUri } from './dev012-production-migration-runner.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -38,8 +38,10 @@ export function assertInventoryOperation(value, { bytes, operationSha256, source
   const keys = ['schemaVersion', 'operationId', 'mode', 'sourceRevision', 'projectId',
     'region', 'database', 'applicationId', 'firebaseProjectId', 'sources',
     'expectedSourceHash', 'expectedRowVersion']
+  const apply = value?.mode === 'principal_only_apply'
+  if (apply) keys.push('sourceReceiptRef', 'principalOnlyFenceRef', 'principalOnlyRecovery')
   if (!exactKeys(value, keys) ||
-      value.schemaVersion !== (['principal_only_coverage', 'principal_only_source',
+      value.schemaVersion !== (apply ? 'ai-pdm.principal-inventory-operation.v3' : ['principal_only_coverage', 'principal_only_source',
         'principal_only_writer_readback'].includes(value.mode)
         ? 'ai-pdm.principal-inventory-operation.v2'
         : 'ai-pdm.principal-inventory-operation.v1') ||
@@ -48,8 +50,8 @@ export function assertInventoryOperation(value, { bytes, operationSha256, source
       value.applicationId !== 'ai-pdm' ||
       !/^[A-Za-z0-9][A-Za-z0-9._-]{7,95}$/u.test(value.operationId ?? '') ||
       !['preview', 'register', 'coverage', 'principal_only_coverage',
-        'principal_only_source', 'principal_only_writer_readback'].includes(value.mode) ||
-      (['coverage', 'principal_only_coverage', 'principal_only_writer_readback'].includes(value.mode)
+        'principal_only_source', 'principal_only_writer_readback', 'principal_only_apply'].includes(value.mode) ||
+      (['coverage', 'principal_only_coverage', 'principal_only_writer_readback', 'principal_only_apply'].includes(value.mode)
         ? value.firebaseProjectId !== (value.mode === 'coverage' ? null : 'jenfu-platform-prod') ||
           !Array.isArray(value.sources) || value.sources.length !== 0
         : !/^[a-z][a-z0-9-]{0,62}$/u.test(value.firebaseProjectId ?? '') ||
@@ -81,6 +83,24 @@ export function assertInventoryOperation(value, { bytes, operationSha256, source
       !Number.isSafeInteger(value.expectedRowVersion) || value.expectedRowVersion < 0
     : value.expectedSourceHash !== null || value.expectedRowVersion !== null) {
     fail('OPERATION_EXPECTATION_INVALID')
+  }
+  if (apply) {
+    const bucket = 'jenfu-platform-prod-aipdm-release'
+    const sourceRef = value.sourceReceiptRef
+    if (!exactKeys(sourceRef, ['uri', 'sha256', 'generation']) ||
+        !H64.test(sourceRef.sha256 ?? '') ||
+        !/^[1-9][0-9]*$/u.test(sourceRef.generation ?? '') ||
+        !exactKeys(value.principalOnlyFenceRef, ['uri', 'sha256']) ||
+        !H64.test(value.principalOnlyFenceRef.sha256 ?? '')) fail('APPLY_BINDING_INVALID')
+    parseGsUri(sourceRef.uri, bucket, 'receipts/releases/DEV121-PRINCIPAL-INVENTORY')
+    parseGsUri(value.principalOnlyFenceRef.uri, bucket,
+      'receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE')
+    if (!exactKeys(value.principalOnlyRecovery,
+      ['revision', 'imageDigest', 'serviceUid', 'receiptRef']) ||
+      !exactKeys(value.principalOnlyRecovery.receiptRef, ['uri', 'sha256']) ||
+      !H64.test(value.principalOnlyRecovery.receiptRef.sha256 ?? '')) fail('APPLY_BINDING_INVALID')
+    parseGsUri(value.principalOnlyRecovery.receiptRef.uri, bucket,
+      'receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY')
   }
   return value
 }

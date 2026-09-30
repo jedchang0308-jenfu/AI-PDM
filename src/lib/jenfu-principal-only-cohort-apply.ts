@@ -74,7 +74,8 @@ function assertReplay(
  */
 export async function applyPrincipalOnlyCohortInOwnerTransaction(
   client: AsyncDatabaseClient,
-  operation: PrincipalOnlyCohortOperation
+  operation: PrincipalOnlyCohortOperation,
+  options: { beforeApply?: () => Promise<void> } = {}
 ): Promise<{ replayed: boolean; result: PrincipalOnlyCohortResult }> {
   if (client.kind !== "postgres" || !operation || !id(operation.operationId) ||
     !hash(operation.inputHash) || !hash(operation.cohortHash) ||
@@ -94,6 +95,9 @@ export async function applyPrincipalOnlyCohortInOwnerTransaction(
   if (lock.status === "replayed") {
     return { replayed: true, result: assertReplay(lock.result, operation) };
   }
+  // Replays are read-only and can finish receipt publication after traffic
+  // has resumed. Fresh writes re-attest the live fence after all owner locks.
+  await options.beforeApply?.();
   const source = await capturePrincipalOnlyCohortSource(
     client, operation.verified, operation.firebaseProjectId, "locked_owner_apply"
   );

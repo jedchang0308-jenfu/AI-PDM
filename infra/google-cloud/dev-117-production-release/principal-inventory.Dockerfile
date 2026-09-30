@@ -12,12 +12,16 @@ COPY scripts/lib/dev012-production-migration-runner.mjs scripts/lib/dev012-produ
 COPY scripts/lib/dev121-ai-pdm-quiescence.mjs scripts/lib/dev121-ai-pdm-quiescence.mjs
 COPY scripts/lib/dev121-migration-fence.mjs scripts/lib/dev121-migration-fence.mjs
 COPY scripts/lib/dev121-principal-inventory-runner.mjs scripts/lib/dev121-principal-inventory-runner.mjs
+COPY scripts/lib/dev121-principal-only-apply.mjs scripts/lib/dev121-principal-only-apply.mjs
+COPY scripts/lib/dev121-principal-only-source-receipt.mjs scripts/lib/dev121-principal-only-source-receipt.mjs
+COPY scripts/lib/dev121-principal-only-release.mjs scripts/lib/dev121-principal-only-release.mjs
 COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-migration-runner.mjs
 COPY scripts/dev121-production-principal-inventory-runner.mjs scripts/dev121-production-principal-inventory-runner.mjs
 COPY scripts/qc-ts-path-loader.mjs scripts/qc-ts-path-loader.mjs
 COPY src/lib/jenfu-principal-inventory-coverage.ts src/lib/jenfu-principal-inventory-coverage.ts
 COPY src/lib/jenfu-principal-only-cohort-readback.ts src/lib/jenfu-principal-only-cohort-readback.ts
 COPY src/lib/jenfu-principal-only-cohort-source.ts src/lib/jenfu-principal-only-cohort-source.ts
+COPY src/lib/jenfu-principal-only-cohort-apply.ts src/lib/jenfu-principal-only-cohort-apply.ts
 COPY src/lib/jenfu-principal-only-writer-readback.ts src/lib/jenfu-principal-only-writer-readback.ts
 COPY src/lib/jenfu-principal-inventory-registration.ts src/lib/jenfu-principal-inventory-registration.ts
 COPY src/lib/jenfu-principal-inventory-repository.ts src/lib/jenfu-principal-inventory-repository.ts

@@ -461,6 +461,92 @@ try {
       const after = await client.query(`SELECT count(*)::integer AS n
         FROM ai_pdm_core.principal_accounts`)
       assert.equal(after.rows[0].n, 0)
+
+      // Clone this synthetic task-owned database to exercise real COMMIT and
+      // immutable operation replay without mutating the later schema fixtures.
+      const operatorDatabase = 'dev121_apply_operator_qc'
+      const admin = new pg.Client({ host: '127.0.0.1', port, user: 'postgres', database: 'template1' })
+      let operatorClient
+      let extraWriter
+      let cloned = false
+      let baseClientClosed = false
+      await admin.connect()
+      try {
+        await client.end()
+        baseClientClosed = true
+        await admin.query(`CREATE DATABASE ${operatorDatabase} TEMPLATE postgres`)
+        cloned = true
+        client = new pg.Client({ host: '127.0.0.1', port, user: 'postgres', database: 'postgres' })
+        await client.connect()
+        baseClientClosed = false
+        operatorClient = new pg.Client({ host: '127.0.0.1', port, user: 'postgres', database: operatorDatabase })
+        await operatorClient.connect()
+        process.stdout.write(`${JSON.stringify({ runtimeDeclaration: {
+          project: root, purpose: 'DEV-121 real PostgreSQL one-shot operator commit/replay/failure',
+          port, database: operatorDatabase, mutationScope: taskRoot, productionWrites: false,
+          owningProcessTree: 'existing task-owned PostgreSQL cluster',
+          cleanupCondition: 'operator clients closed and cloned disposable database dropped',
+          PDM_DATA_DIR: process.env.PDM_DATA_DIR, PDM_REPOSITORY_DIR: process.env.PDM_REPOSITORY_DIR,
+        } })}\n`)
+        const { createApplyFixture } = await import('./lib/dev121-principal-only-apply-fixture.mjs')
+        const { applyPrincipalOnlyInventoryOperation } = await import('./lib/dev121-principal-only-apply.mjs')
+        const fixture = createApplyFixture({ snapshot: preview })
+        const runApply = (database = operatorClient, inputHash = fixture.inputHash) =>
+          applyPrincipalOnlyInventoryOperation({ operation: fixture.operation, inputHash,
+            database, token: 'x'.repeat(25), fetchImpl: fixture.fetchImpl,
+            loadPrincipalOnlyApply: async () => ({ applyPrincipalOnlyCohortInOwnerTransaction }) })
+        extraWriter = new pg.Client({ host: '127.0.0.1', port, user: 'postgres', database: operatorDatabase })
+        await extraWriter.connect()
+        await assert.rejects(runApply(), /DEV121_MIGRATION_073_FENCE_INVALID/)
+        assert.equal((await operatorClient.query(`SELECT count(*)::integer AS n
+          FROM ai_pdm_core.principal_accounts`)).rows[0].n, 0)
+        await extraWriter.end()
+        extraWriter = null
+        const failedDatabase = { query: async (...args) => {
+          if (args[0]?.text?.includes('INSERT INTO ai_pdm_core.principal_identity_operations')) {
+            throw new Error('forced real PostgreSQL receipt failure')
+          }
+          return operatorClient.query(...args)
+        } }
+        await assert.rejects(runApply(failedDatabase), /forced real PostgreSQL receipt failure/)
+        assert.equal((await operatorClient.query(`SELECT count(*)::integer AS n
+          FROM ai_pdm_core.principal_accounts`)).rows[0].n, 0)
+        assert.equal((await operatorClient.query(`SELECT count(*)::integer AS n
+          FROM ai_pdm_core.users WHERE account_status='suspended'`)).rows[0].n, 0)
+        const committed = await runApply()
+        assert.equal(committed.replayed, false)
+        assert.deepEqual(committed.result.withheldPdmUserIds, ['pdm-user-two'])
+        const serviceReads = fixture.state.serviceReads
+        fixture.state.service.scaling = { scalingMode: 'AUTOMATIC' }
+        const replayed = await runApply()
+        assert.equal(replayed.replayed, true)
+        assert.deepEqual(replayed.result, committed.result)
+        assert.equal(fixture.state.serviceReads, serviceReads)
+        await assert.rejects(runApply(operatorClient, 'f'.repeat(64)),
+          /PRINCIPAL_CUTOVER_OPERATION_CONFLICT/)
+        assert.deepEqual((await operatorClient.query(`SELECT id,account_status
+          FROM ai_pdm_core.users ORDER BY id`)).rows, [
+          { id: 'pdm-user-one', account_status: 'active' },
+          { id: 'pdm-user-two', account_status: 'suspended' }
+        ])
+        assert.equal((await operatorClient.query(`SELECT count(*)::integer AS n
+          FROM ai_pdm_core.principal_identity_operations
+          WHERE operation_id=$1`, [fixture.operation.operationId])).rows[0].n, 1)
+        assert.equal((await operatorClient.query(`SELECT count(*)::integer AS n
+          FROM ai_pdm_core.principal_role_assignments`)).rows[0].n, 0)
+        process.stdout.write('PASS real PostgreSQL operator: writer denial, atomic rollback, commit, replay, input conflict, no local ACL\n')
+      } finally {
+        await extraWriter?.end().catch(() => undefined)
+        await operatorClient?.end().catch(() => undefined)
+        if (cloned) await admin.query(`DROP DATABASE ${operatorDatabase}`)
+        await admin.end()
+        // If creation failed after closing the base client, reopen it so the
+        // existing fixture cleanup and outer cluster cleanup can still run.
+        if (baseClientClosed) {
+          client = new pg.Client({ host: '127.0.0.1', port, user: 'postgres', database: 'postgres' })
+          await client.connect()
+        }
+      }
     } finally {
       await asRole('jenfu_ai_pdm_migrator', `DELETE FROM
         ai_pdm_core.platform_principal_mappings
