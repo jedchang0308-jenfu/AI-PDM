@@ -81,18 +81,38 @@ try {
     (application_id,catalog_version,activated_at,activated_by,activation_reason)
     VALUES ('ai-pdm',$1,now(),'task-owned DEV121 fixture','exact approved v3 prerequisite')`,[v3.catalogVersion]);
   for (const entry of profile.migrations.entries.slice(profile.migrations.baselineCount)) await apply(entry);
+  assert.ok([undefined,'direct','delegated'].includes(process.env.DEV057_NUMBERING_ACTOR));
+  const delegated=process.env.DEV057_NUMBERING_ACTOR==='delegated';
+  const principal=delegated?process.env.DEV057_NUMBERING_DELEGATE_PRINCIPAL_ID:'principal-legacy';
+  const employee=delegated?process.env.DEV057_NUMBERING_DELEGATE_EMPLOYEE_ID:'employee-legacy';
+  assert.ok(principal && employee && (!delegated || (process.env.DEV057_NUMBERING_DELEGATE_ISSUER && process.env.DEV057_NUMBERING_DELEGATE_SUBJECT)),
+    'delegated probe requires the producer-verified exact account tuple');
+  // Create the immutable profile link correctly at first insertion. Never
+  // delete/rebind an admitted account, even in this disposable fixture.
   await target.query(`INSERT INTO ai_pdm_core.companies (id,company_code,company_kind,display_name)
     VALUES ('company-jenfu','JENFU','business','Synthetic Jenfu'),('company-other','MAXIMA','business','Synthetic other');
     INSERT INTO ai_pdm_core.users (id,display_name,role,company_id) VALUES ('qc-profile-legacy','Synthetic profile','Engineer','company-jenfu');
-    INSERT INTO ai_pdm_core.principal_accounts
-      (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,
-       lifecycle_version,profile_version,system_role_enabled,minimum_assurance)
-    VALUES ('principal-legacy','qc-profile-legacy','company-jenfu','employee-legacy','human_personal','active',1,1,true,'aal1');
     INSERT INTO ai_pdm_core.role_priority_versions (id,version_code,priority_json)
     VALUES ('qc-priority','qc-priority','["system_admin","pdm_admin","rd_manager","qa","rd","manufacturing","procurement","external_specialist"]');`);
+  await target.query(`INSERT INTO ai_pdm_core.principal_accounts
+      (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,
+       lifecycle_version,profile_version,system_role_enabled,minimum_assurance)
+    VALUES ($1,'qc-profile-legacy','company-jenfu',$2,'human_personal','active',1,1,true,'aal1')`,[principal,employee]);
+  const review = process.env.DEV057_NATIVE_REVIEW_PROBE === '1';
+  if (review) {
+    const owner = process.env.DEV057_FLOW_OWNER_PRINCIPAL_ID;
+    assert.match(owner ?? '', /^principal-/u);
+    await target.query(`INSERT INTO ai_pdm_core.users (id,display_name,role,company_id)
+      VALUES ('qc-profile-owner','Synthetic owner','Engineer','company-jenfu');
+      UPDATE ai_pdm_core.pdm_workbench_state_authority_control SET mode='canonical_only',expected_commit='local-dev',schema_hash='dev090-v1';`);
+    await target.query(`INSERT INTO ai_pdm_core.principal_accounts
+      (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,
+       lifecycle_version,profile_version,system_role_enabled,minimum_assurance)
+      VALUES ($1,'qc-profile-owner','company-jenfu','employee-three','human_personal','active',1,1,true,'aal1')`,[owner]);
+  }
   const consumer = new URL(ownerUrl); consumer.username = 'dev057_ai_pdm_consumer_probe';
   const result = run(process.execPath, [path.join(root,'node_modules/vitest/vitest.mjs'),'run',
-    'src/lib/principal-numbering-owner-grant.postgres-contract.test.ts'], {
+    review ? 'src/lib/principal-work-review-owner-grant.postgres-contract.test.ts' : 'src/lib/principal-numbering-owner-grant.postgres-contract.test.ts'], {
     env: { ...process.env, CI:'1', DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
       PDM_POSTGRES_URL: consumer.toString(), PDM_DB_PROVIDER:'postgres', DEV010_N2_DATABASE_BOUNDARY:'required',
       PDM_DATA_DIR:path.join(taskRoot,'aipdm-numbering-data'), PDM_REPOSITORY_DIR:path.join(taskRoot,'aipdm-numbering-repository'),
@@ -103,7 +123,7 @@ try {
       PDM_SESSION_ISSUER:'https://ai-pdm.test',PDM_SESSION_AUDIENCE:'dev057-numbering-qc',
       PDM_SESSION_CURRENT_KEY_ID:'dev057-qc-key',PDM_SESSION_CURRENT_SECRET:'task-owned-synthetic-session-secret-for-local-qc-only' }
   });
-  assert.match(result.stdout, /Tests\s+8 passed/u, 'the actual numbering flow must execute, not skip');
+  assert.match(result.stdout, review ? /Tests\s+2 passed/u : /Tests\s+8 passed/u, 'the selected actual business flow must execute, not skip');
   console.log(JSON.stringify({ status:'PASS', phase:process.env.DEV057_CONTRACT_PHASE, migrations,
     producer:'actual OrgMaster schema and published artifact snapshot from the parent isolated cluster',
     session:'synthetic verified-session input; no provider evidence', productionWrites:false }));
