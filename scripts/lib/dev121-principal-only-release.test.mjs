@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   assertPrincipalOnlyRecoveryBinding,
   assertPrincipalOnlyRecoveryReadback,
+  assertRecoveryProofReadback,
   assertPrincipalOnlyActivationReadback,
   principalOnlyActivationRequest,
   principalOnlyRollbackRevision,
@@ -64,6 +65,9 @@ test('Principal-only recovery is source-bound and distinct from the old security
 test('recovery proof joins the exact service, source, ready revision and immutable image', () => {
   const service = { ...base, traffic: [oldTraffic], trafficStatuses: [oldTraffic] }
   assert.equal(assertPrincipalOnlyRecoveryReadback({ intent, profile, proof, service, revision }).revision, recovery)
+  assert.equal(assertRecoveryProofReadback({ sourceRevision: intent.sourceRevision,
+    oldRevision: old, binding: intent.principalOnlyRecovery, profile, proof,
+    service, revision }).revision, recovery)
   for (const changed of [
     { proof: { ...proof, sourceRevision: 'f'.repeat(40) } },
     { proof: { ...proof, imageDigest: image.replace('ai-pdm-recovery', 'ai-pdm') } },
