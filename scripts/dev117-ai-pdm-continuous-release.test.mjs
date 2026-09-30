@@ -314,3 +314,22 @@ test('DEV-121 migrator can read only the owned Cloud Run service for migration 0
   assert.ok(profile.stageBAdditional.includes(address))
   assert.ok(!profile.stageA.includes(address))
 })
+
+test('DEV-121 workbench authority binding survives newer source and rejects profile drift', () => {
+  const binding = '91de3a65df58dc60ddde88aab5263e9470a84565'
+  assert.equal(profile.environment.fixedValues.PDM_WORKBENCH_AUTHORITY_COMMIT, binding)
+  assert.ok(profile.environment.requiredPlainEnvironmentNames.includes('PDM_WORKBENCH_AUTHORITY_COMMIT'))
+  const previous = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
+    .filter(name => name !== 'PDM_WORKBENCH_AUTHORITY_COMMIT')
+    .map(name => [name, profile.environment.fixedValues[name] ?? 'plain-fixture']))
+  const resolved = resolvePlainEnvironment(profile, previous, { PDM_JENFU_SSO_HANDOFF_MODE: 'on' })
+  assert.equal(resolved.PDM_WORKBENCH_AUTHORITY_COMMIT, binding)
+  assert.equal(buildRuntimeConfig(profile, { plainEnvironment: resolved,
+    secretVersions: Object.fromEntries(profile.environment.requiredSecretNames.map(name => [name, '1']))
+  }).plainEnvironment.PDM_WORKBENCH_AUTHORITY_COMMIT, binding)
+  for (const value of ['', 'local-dev', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']) {
+    const wrong = structuredClone(profile)
+    wrong.environment.fixedValues.PDM_WORKBENCH_AUTHORITY_COMMIT = value
+    assert.throws(() => assertDev117V3Profile(wrong, v1, n1c), { code: 'ENVIRONMENT_VALUE_DRIFT' })
+  }
+})

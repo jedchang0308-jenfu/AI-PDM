@@ -103,8 +103,11 @@ try {
     const owner = process.env.DEV057_FLOW_OWNER_PRINCIPAL_ID;
     assert.match(owner ?? '', /^principal-/u);
     await target.query(`INSERT INTO ai_pdm_core.users (id,display_name,role,company_id)
-      VALUES ('qc-profile-owner','Synthetic owner','Engineer','company-jenfu');
-      UPDATE ai_pdm_core.pdm_workbench_state_authority_control SET mode='canonical_only',expected_commit='local-dev',schema_hash='dev090-v1';`);
+      VALUES ('qc-profile-owner','Synthetic owner','Engineer','company-jenfu');`);
+    const authorityCommit = profile.environment.fixedValues.PDM_WORKBENCH_AUTHORITY_COMMIT;
+    assert.match(authorityCommit ?? '', /^[a-f0-9]{40}$/u);
+    await target.query(`UPDATE ai_pdm_core.pdm_workbench_state_authority_control
+      SET mode='canonical_only',expected_commit=$1,schema_hash='dev090-v1'`, [authorityCommit]);
     await target.query(`INSERT INTO ai_pdm_core.principal_accounts
       (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,
        lifecycle_version,profile_version,system_role_enabled,minimum_assurance)
@@ -118,6 +121,7 @@ try {
       PDM_DATA_DIR:path.join(taskRoot,'aipdm-numbering-data'), PDM_REPOSITORY_DIR:path.join(taskRoot,'aipdm-numbering-repository'),
       PDM_PRODUCTION_SLICE_MODE:'official-numbering-draft', PDM_NUMBER_STATE_FLOW_V1:'1',
       PDM_AUTH_MODE:'firebase_bff',PDM_JENFU_PLATFORM_AUTH_MODE:'on',PDM_JENFU_ENTITLEMENT_MODE:'enforce',
+      PDM_WORKBENCH_AUTHORITY_COMMIT:profile.environment.fixedValues.PDM_WORKBENCH_AUTHORITY_COMMIT,
       JENFU_FIREBASE_PROJECT_ID:'dev057-synthetic',PDM_FIREBASE_PROJECT_ID:'dev057-synthetic',
       JENFU_IDENTITY_AUDIENCE:'dev057-synthetic',JENFU_IDENTITY_ISSUER:'https://securetoken.google.com/dev057-synthetic',
       PDM_SESSION_ISSUER:'https://ai-pdm.test',PDM_SESSION_AUDIENCE:'dev057-numbering-qc',
