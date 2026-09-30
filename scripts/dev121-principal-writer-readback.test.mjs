@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readPrincipalOnlyWriterSessions } from '../src/lib/jenfu-principal-only-writer-readback.ts'
 
-function database(row) {
+function database(row, authority = [{id:1,mode:'canonical_only',expected_commit:'local-dev',schema_hash:'dev090-v1',row_version:1}]) {
   const calls = []
   const snapshot = {
     execute: async (sql) => { calls.push(sql) },
-    query: async (sql, params) => { calls.push({ sql, params }); return [row] },
+    query: async (sql, params) => { calls.push({ sql, params }); return sql.includes('pdm_workbench_state_authority_control') ? authority : [row] },
   }
   return {
     calls,
@@ -63,4 +63,14 @@ test('writer readback never calls present sessions absent or hides unknown state
   })), /principal_only_writer_readback_invalid/u)
   await assert.rejects(readPrincipalOnlyWriterSessions({ kind: 'sqlite' }),
     /principal_only_writer_readback_invalid/u)
+})
+
+test('writer census reports persisted business authority without inferring readiness or changing it',async()=>{
+  const row={runtime_sessions:0,migrator_sessions:0,other_owner_sessions:0,hidden_sessions:0,active_transactions:0,non_idle_sessions:0};
+  const persisted={id:1,mode:'legacy_only',expected_commit:'historical',schema_hash:'old-schema',row_version:'4'};
+  const result=await readPrincipalOnlyWriterSessions(database(row,[persisted]));
+  assert.equal(result.ownerWriterSessionsAbsent,true);
+  assert.deepEqual(result.workbenchAuthority,{mode:'legacy_only',expectedCommit:'historical',schemaHash:'old-schema',rowVersion:4});
+  assert.equal((await readPrincipalOnlyWriterSessions(database(row,[]))).workbenchAuthority,null);
+  await assert.rejects(readPrincipalOnlyWriterSessions(database(row,[persisted,persisted])),/principal_only_writer_readback_invalid/u);
 })

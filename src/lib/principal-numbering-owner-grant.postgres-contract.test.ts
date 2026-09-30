@@ -3,6 +3,17 @@ import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+const delegationActor=process.env.DEV057_NUMBERING_ACTOR === 'delegated';
+function actorValue(name: string, direct: string): string {
+  if (!delegationActor) return direct;
+  const value=process.env[name];
+  if (!value) throw new Error('DEV057_DELEGATION_VERIFIED_TUPLE_REQUIRED:'+name);
+  return value;
+}
+const actorPrincipal=actorValue('DEV057_NUMBERING_DELEGATE_PRINCIPAL_ID','principal-legacy');
+const actorEmployee=actorValue('DEV057_NUMBERING_DELEGATE_EMPLOYEE_ID','employee-legacy');
+const actorIssuer=actorValue('DEV057_NUMBERING_DELEGATE_ISSUER','issuer-legacy');
+const actorSubject=actorValue('DEV057_NUMBERING_DELEGATE_SUBJECT','subject-legacy');
 vi.mock("@/lib/jenfu-principal-request-guard", async original => ({
   ...await original<typeof import("@/lib/jenfu-principal-request-guard")>(),
   withVerifiedJenfuPrincipalRequest: async (input: { database: AsyncDatabaseClient },
@@ -11,8 +22,8 @@ vi.mock("@/lib/jenfu-principal-request-guard", async original => ({
     input.database.transaction(client => run(client, {
       profile: { pdmUserId:"qc-profile-legacy",companyId:"company-jenfu" },
       session: { contractVersion:"jenfu.ai-pdm-session.v2",appId:"ai-pdm",sessionId:"numbering-qc",
-        identityIssuer:"issuer-legacy",identitySubject:"subject-legacy",principalId:"principal-legacy",
-        employeeId:"employee-legacy",authEpoch:1,profileVersion:1,assuranceLevel:"aal2",
+        identityIssuer:actorIssuer,identitySubject:actorSubject,principalId:actorPrincipal,
+        employeeId:actorEmployee,authEpoch:1,profileVersion:1,assuranceLevel:"aal2",
         issuedAt:"2026-09-30T00:00:00Z",expiresAt:"2026-09-30T01:00:00Z" }
     }), { readOnly:options.readOnly !== false, isolationLevel:options.isolationLevel ?? "repeatable_read" })
 }));
@@ -67,13 +78,13 @@ describe.runIf(enabled)("real OrgMaster grant -> Principal numbering HTTP -> nat
     expect(audit?.actor_id).toBe("qc-profile-legacy");
     expect(audit?.company_id).toBe("company-jenfu");
     const detail = typeof audit?.detail_json === "string" ? JSON.parse(audit.detail_json) : audit?.detail_json;
-    expect(detail).toMatchObject({ securityActor: { principalId:"principal-legacy",profileVersion:1,actorKind:"human" } });
+    expect(detail).toMatchObject({ securityActor: { principalId:actorPrincipal,profileVersion:1,actorKind:"human" } });
     const replay = await create();
     expect(replay.status).toBe(201);
     expect(await replay.json()).toEqual(created);
     for (const table of ["platform_command_receipts","platform_outbox_events"]) {
       const rows = await db.query<{ actor_id:string;principal_id:string;company_id:string }>("SELECT actor_id,principal_id,company_id FROM " + table);
-      expect(rows).toEqual([expect.objectContaining({ actor_id:"qc-profile-legacy",principal_id:"principal-legacy",company_id:"company-jenfu" })]);
+      expect(rows).toEqual([expect.objectContaining({ actor_id:"qc-profile-legacy",principal_id:actorPrincipal,company_id:"company-jenfu" })]);
     }
     expect((await db.queryOne<{ count:number }>("SELECT count(*)::integer AS count FROM audit_logs WHERE action='numbering.create'"))?.count).toBe(1);
   });
@@ -117,7 +128,7 @@ describe.runIf(enabled)("real OrgMaster grant -> Principal numbering HTTP -> nat
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({actor_id:"qc-profile-legacy",company_id:"company-jenfu",scope_kind:"tenant"});
     const detail=typeof rows[0].detail_json === "string" ? JSON.parse(rows[0].detail_json) : rows[0].detail_json;
-    expect(detail).toMatchObject({securityActor:{principalId:"principal-legacy",profileVersion:1,actorKind:"human",reason:entry.action}});
+    expect(detail).toMatchObject({securityActor:{principalId:actorPrincipal,profileVersion:1,actorKind:"human",reason:entry.action}});
     const reload=await rootDetail(request("/api/numbering/roots/"+rootCode),{params:Promise.resolve({rootCode})});
     expect(reload.status).toBe(200);
     const text=await reload.text();
@@ -137,7 +148,7 @@ describe.runIf(enabled)("real OrgMaster grant -> Principal numbering HTTP -> nat
     if (!db) throw new Error("TASK_OWNED_POSTGRES_REQUIRED");
     const before = await db.queryOne("SELECT (SELECT count(*) FROM part_roots) AS roots,(SELECT count(*) FROM audit_logs) AS audit");
     const verified = { profile:{pdmUserId:"different-profile",companyId:"company-jenfu"},
-      session:{principalId:"principal-legacy",profileVersion:1} } as VerifiedPrincipalRequest;
+      session:{principalId:actorPrincipal,profileVersion:1} } as VerifiedPrincipalRequest;
     await expect(new AsyncNumberingRepository(db,undefined,undefined,undefined,verified).createNumberingRecord({
       companyId:"company-jenfu",createdBy:"qc-profile-legacy",coreName:"mixed actor must roll back",
       itemKind:"purchased",structureType:"single_part"

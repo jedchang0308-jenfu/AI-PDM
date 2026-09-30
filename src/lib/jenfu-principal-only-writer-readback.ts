@@ -67,8 +67,25 @@ export async function readPrincipalOnlyWriterSessions(database: AsyncDatabaseCli
       nonIdleSessions > ownerSessions) {
       throw new Error("principal_only_writer_readback_invalid");
     }
+    // Business workbench provenance is separate from security identity. Read
+    // the real persisted contract; a local fixture's canonical/local-dev seed
+    // does not establish that the Production workbench can accept commands.
+    const authority = await snapshot.query<{
+      id:number;mode:string;expected_commit:string;schema_hash:string;row_version:number|string;
+    }>(`SELECT id,mode,expected_commit,schema_hash,row_version
+       FROM ai_pdm_core.pdm_workbench_state_authority_control ORDER BY id`);
+    if (authority.length > 1 || (authority.length === 1 && (authority[0].id !== 1 ||
+        typeof authority[0].mode !== 'string' || typeof authority[0].expected_commit !== 'string' ||
+        typeof authority[0].schema_hash !== 'string' || count(authority[0].row_version) < 1))) {
+      throw new Error('principal_only_writer_readback_invalid');
+    }
+    const workbenchAuthority = authority[0] ? {
+      mode:authority[0].mode, expectedCommit:authority[0].expected_commit,
+      schemaHash:authority[0].schema_hash,rowVersion:count(authority[0].row_version)
+    } : null;
     return {
       schemaVersion: "ai-pdm.principal-only-writer-readback.v2" as const,
+      workbenchAuthority,
       runtimeSessions, migratorSessions, otherOwnerSessions, hiddenSessions,
       activeTransactions, nonIdleSessions,
       ownerWriterSessionsAbsent: runtimeSessions === 0 && migratorSessions === 0 &&
