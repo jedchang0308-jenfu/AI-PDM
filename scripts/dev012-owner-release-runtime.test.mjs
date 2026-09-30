@@ -22,7 +22,7 @@ const json = (value, status = 200) => new Response(JSON.stringify(value), { stat
 
 test('production runner is pinned, non-root, and removes the unused vulnerable OS zlib', () => {
   const dockerfile = fs.readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')
-  const runtimeImage = 'gcr.io/distroless/nodejs24-debian13:nonroot@sha256:7781e8b4fccf59240bd539af6738cccf8dad4be303165c3a1fa065c48699b937'
+  const runtimeImage = 'gcr.io/distroless/nodejs24-debian13:nonroot-amd64@sha256:7924c53f56526359d0f491c22517306d8d92f1b285656a6094398e2c55bbaeca'
   const sanitizerImage = 'alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce'
   assert.ok(dockerfile.includes(`ARG RUNTIME_NODE_IMAGE=${runtimeImage}`))
   assert.ok(dockerfile.includes(`ARG RUNTIME_SANITIZER_IMAGE=${sanitizerImage}`))

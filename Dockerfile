@@ -1,5 +1,5 @@
 ARG NODE_IMAGE=node:24.17.0-bookworm-slim@sha256:862263c612aa437e3037674b85419622a9d93bff80aa1eee5398dfe686375532
-ARG RUNTIME_NODE_IMAGE=gcr.io/distroless/nodejs24-debian13:nonroot@sha256:7781e8b4fccf59240bd539af6738cccf8dad4be303165c3a1fa065c48699b937
+ARG RUNTIME_NODE_IMAGE=gcr.io/distroless/nodejs24-debian13:nonroot-amd64@sha256:7924c53f56526359d0f491c22517306d8d92f1b285656a6094398e2c55bbaeca
 ARG RUNTIME_SANITIZER_IMAGE=alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
 ARG SOURCE_REVISION=unknown
 ARG SOURCE_TREE=unknown
@@ -57,8 +57,23 @@ CMD ["node", "scripts/run-dev-046-cloudsql-migrations.mjs", "--dry-run"]
 
 FROM ${RUNTIME_NODE_IMAGE} AS runtime-base
 
+FROM ${NODE_IMAGE} AS runtime-security-packages
+RUN printf '%s\n' 'deb https://security.debian.org/debian-security trixie-security main' > /tmp/runtime-security.list \
+    && apt-get -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- update \
+    && cd /tmp \
+    && apt-get -o Dir::Etc::sourcelist=/tmp/runtime-security.list -o Dir::Etc::sourceparts=- download libssl3t64=3.5.7-1~deb13u3 \
+    && printf '%s\n' 'ff16bc048bcd7d1b256094450b79c77947d8e76fe2a24bd99b91021d591fa074  /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb' | sha256sum -c - \
+    && test "$(dpkg-deb -f /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb Package)" = libssl3t64 \
+    && test "$(dpkg-deb -f /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb Version)" = 3.5.7-1~deb13u3 \
+    && dpkg-deb -x /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb /patch-rootfs \
+    && dpkg-deb -e /tmp/libssl3t64_3.5.7-1~deb13u3_amd64.deb /package-metadata \
+    && mkdir -p /patch-rootfs/var/lib/dpkg/status.d \
+    && { printf '%s\n' 'Status: install ok installed'; cat /package-metadata/control; } > /patch-rootfs/var/lib/dpkg/status.d/libssl3t64 \
+    && cp /package-metadata/md5sums /patch-rootfs/var/lib/dpkg/status.d/libssl3t64.md5sums
+
 FROM ${RUNTIME_SANITIZER_IMAGE} AS runtime-sanitizer
 COPY --from=runtime-base / /rootfs
+COPY --from=runtime-security-packages /patch-rootfs/ /rootfs/
 RUN rm -f \
       /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1 \
       /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1.3.1 \
@@ -68,6 +83,12 @@ RUN rm -f \
     && test ! -e /rootfs/usr/lib/x86_64-linux-gnu/libz.so.1.3.1 \
     && test ! -e /rootfs/var/lib/dpkg/status.d/zlib1g \
     && test ! -e /rootfs/var/lib/dpkg/status.d/zlib1g.md5sums
+
+FROM scratch AS runtime-smoke
+COPY --from=runtime-sanitizer /rootfs /
+COPY scripts/dev015-runtime-security-smoke.mjs /runtime-smoke.mjs
+USER 65532:65532
+RUN ["/nodejs/bin/node", "/runtime-smoke.mjs"]
 
 FROM scratch AS runner
 COPY --from=runtime-sanitizer /rootfs /
