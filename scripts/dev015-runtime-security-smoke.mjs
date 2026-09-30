@@ -10,7 +10,10 @@ const packageStatus = readFileSync('/var/lib/dpkg/status.d/libssl3t64', 'utf8')
 assert.match(packageStatus, /^Version: 3\.5\.7-1~deb13u3$/mu)
 assert.match(packageStatus, /^Architecture: amd64$/mu)
 const checksums = new Map(readFileSync('/var/lib/dpkg/status.d/libssl3t64.md5sums', 'utf8')
-  .trim().split('\n').map(line => line.trim().split(/\s+/u)))
+  .trim().split('\n').map(line => {
+    const [checksum, file] = line.trim().split(/\s+/u)
+    return [file, checksum]
+  }))
 for (const library of ['usr/lib/x86_64-linux-gnu/libssl.so.3', 'usr/lib/x86_64-linux-gnu/libcrypto.so.3']) {
   const expected = checksums.get(library)
   assert.ok(expected, `Missing package checksum: ${library}`)
