@@ -1,0 +1,153 @@
+{
+  "contract": "AIPDM/DEV-121#F07 published package download",
+  "generatedAt": "2026-09-30T14:38:56.365Z",
+  "status": "LOCAL_REAL_POSTGRES_AND_BYTES_PASS_NOT_PRODUCTION",
+  "sourceRevision": "5a858c3cf8a52e453d5ccda94a0d40032c20ba6f",
+  "sourceHashes": {
+    "src/lib/jenfu-principal-http.ts": "84a2d02a2a2d96995714bed262c7718119c6901f7376c09d11afab36895f8fda",
+    "src/lib/jenfu-principal-http.test.ts": "4646aeb7425c63f02a6ebf3a42ecc872f974bd4af5bd11163e853597f3e9020a",
+    "src/lib/principal-published-release-package.postgres-contract.test.ts": "4a384c45c2d7b9e33521730832fe39869cd1b0b0f11df8e30aff387766ddfcd6",
+    "src/lib/principal-published-release-package.ts": "65ea32bf01dfe0ad6646ff6643789618945a13764de63b170008a63a5696f1a8",
+    "src/lib/principal-release-package-delivery.ts": "f0f1833c1277bfb24d574987f9a422a4ca82b1e645cbd95276491e009922e5af",
+    "src/lib/jenfu-principal-permission-service.ts": "7ae6e14e961d4826ea77184238dbfeb70214f476a4a81b1d3ac5975b8df8d224"
+  },
+  "orgmaster": {
+    "sourceRevision": "791bb786334442f09a238c11fdee0e32b38d0845",
+    "runnerPath": "scripts/qc-dev-047-postgres.mjs",
+    "runnerSha256": "1d1183f02707f0d079b5f8ac4b96cb56440fe604db4b0e1bb71d9f2561fff85b"
+  },
+  "failureAndCorrection": {
+    "failure": {
+      "project": "JENFU",
+      "path": "ai-doc/qa/DEV-015-orgmaster-aipdm-package-download-postgres-r1-2026-09-30.json",
+      "sha256": "3321583dc66cb8a6d077e7c05fc16698f7cc1c33b46e81dd84ba340e6dc4588f",
+      "status": "FAIL",
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    "correction": {
+      "project": "JENFU",
+      "path": "ai-doc/qa/DEV-015-orgmaster-aipdm-package-download-postgres-r5-2026-09-30.json",
+      "sha256": "f7ac4e3da61630a81ba1bad870abb56ad7608420aef7bcc4b4477b2aae67415d",
+      "status": "PASS",
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    "rootCause": "typed entitlement_assignment_not_found escaped the Principal HTTP error boundary as generic 503",
+    "change": "one shared Principal HTTP boundary reuses existing typed entitlement status taxonomy; unknown errors remain 503; no permission changes or fallback",
+    "sharedBoundaryFailureCount": 11
+  },
+  "covered": [
+    "actual OrgMaster owner writer -> v3 grants -> restricted AI-PDM PostgreSQL reader",
+    "actual handoff / procurement GET -> capability and scope -> current same-company Released row",
+    "actual package bytes / length / sha256 -> Principal storage audit persisted",
+    "role revocation and wrong scope -> 403 without delivery/audit",
+    "same-company superseded/draft, other-company and absent package -> 404 without audit",
+    "tampered storage bytes -> 503 without audit",
+    "missing Principal session -> 401",
+    "existing management publish/revoke and transfer submit/decision chain retained",
+    "actual submission historical file GET and PDF preview -> same published Principal grant -> exact submission/company -> bytes and Principal audit",
+    "historical file mismatch, missing storage, changed bytes and missing session -> refusal without audit"
+  ],
+  "limitations": [
+    "authenticated session input is synthetic; not real provider or session verification",
+    "task-owned local storage adapter, not Production GCS",
+    "no browser, application candidate or Production L4",
+    "full F07 and F01-F10 completion statuses are unchanged"
+  ],
+  "productionWrites": false,
+  "priorCorrection": {
+    "project": "JENFU",
+    "path": "ai-doc/qa/DEV-015-orgmaster-aipdm-package-download-postgres-r2-2026-09-30.json",
+    "sha256": "23cbc8a5cd178daf4b25af7a5e5912d44a12544cac65a7ce1e25f3cf6caa51ba",
+    "status": "PASS",
+    "cleanup": {
+      "clientClosed": true,
+      "auxiliaryClientsClosed": true,
+      "clusterStopped": true,
+      "portReleased": true,
+      "tempRemoved": true
+    }
+  },
+  "testIsolation": {
+    "failure": {
+      "project": "JENFU",
+      "path": "ai-doc/qa/DEV-015-orgmaster-aipdm-package-download-postgres-r3-2026-09-30.json",
+      "sha256": "42a75d36e0d056873c89effc04b6859f80552b500a79ec11b400cbad2612d482",
+      "status": "FAIL",
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    "correction": {
+      "project": "JENFU",
+      "path": "ai-doc/qa/DEV-015-orgmaster-aipdm-package-download-postgres-r4-2026-09-30.json",
+      "sha256": "e3ddc3b8c7ee981bb706402485d8599aa4f933213d7bbea61d2d28ec7f792b39",
+      "status": "PASS",
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    "cause": "The test-only guard expected /postgres instead of the runner-created /dev057_<16hex> database.",
+    "change": "Loopback, task-owned cluster/root, exact data directories and disposable database name remain mandatory.",
+    "applicationContractFailure": false
+  },
+  "validation": {
+    "focusedTests": {
+      "status": "PASS",
+      "count": 28,
+      "files": [
+        "src/lib/jenfu-principal-http.test.ts",
+        "src/lib/jenfu-entitlement-http.test.ts",
+        "src/lib/principal-published-release-package.test.ts",
+        "src/app/api/submissions/[id]/files/[...filePath]/principal-file-read.test.ts"
+      ]
+    },
+    "postgres": {
+      "status": "PASS",
+      "ownerCases": 22,
+      "downloadChecksPerPublishedPhase": 9,
+      "phases": 8,
+      "receipt": {
+        "project": "JENFU",
+        "path": "ai-doc/qa/DEV-015-orgmaster-aipdm-package-download-postgres-r5-2026-09-30.json",
+        "sha256": "f7ac4e3da61630a81ba1bad870abb56ad7608420aef7bcc4b4477b2aae67415d",
+        "status": "PASS",
+        "cleanup": {
+          "clientClosed": true,
+          "auxiliaryClientsClosed": true,
+          "clusterStopped": true,
+          "portReleased": true,
+          "tempRemoved": true
+        }
+      }
+    },
+    "typecheck": "PASS",
+    "scopedEslint": "PASS",
+    "databaseBoundary": "PASS",
+    "review": {
+      "role": "RD self-review; not independent QC",
+      "result": "No permission, identity, transaction or owner boundary changes; typed errors use the existing taxonomy, unknown errors remain dependency failures."
+    }
+  },
+  "sourceState": "BASE_REVISION_PLUS_VALIDATED_WORKING_TREE_BYTE_HASHES",
+  "releaseReadiness": "PR_REQUIRED; current prepared 5a858c3 release is superseded for application delivery by this HTTP fix"
+}
