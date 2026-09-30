@@ -1,3 +1,4 @@
+import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
 import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
@@ -408,8 +409,15 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       assertPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value, service, revision })
     }
     if (Object.keys(profile.environment?.controlledValues ?? {}).length > 0) {
-      const previousRevision = await transport.getRevision(profile, intent.previousRevision)
-      assertControlledEnvironmentAuthority({ intent, profile, values, runtime: derived.runtimeConfig, previousControlledEnvironment: revisionControlledEnvironment(profile, previousRevision) })
+      const repair = intent.baselineIntentRef
+        ? await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null
+      if (repair && (!recovery || repair.activeRevision !== intent.previousRevision
+        || service.scaling?.scalingMode !== 'MANUAL' || ![0, '0'].includes(service.scaling?.manualInstanceCount)
+        || canonicalize(repair.runtimeConfig) !== canonicalize(derived.runtimeConfig))) fail('PRINCIPAL_ONLY_FORWARD_REPAIR_MISMATCH')
+      const previousControlledEnvironment = repair
+        ? Object.fromEntries(Object.keys(profile.environment.controlledValues).map((name) => [name, repair.runtimeConfig.plainEnvironment[name]]))
+        : revisionControlledEnvironment(profile, await transport.getRevision(profile, intent.previousRevision))
+      assertControlledEnvironmentAuthority({ intent, profile, values, runtime: derived.runtimeConfig, previousControlledEnvironment })
     }
     return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(recovery ? { principalOnlyRecovery: recovery } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
@@ -578,6 +586,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       disposition = 'ROLLED_BACK'
     }
     const activeRevision = transport.effectiveRevision(service)
+    // The abort controller may have restored maintenance before this workflow.
+    if (intent.principalOnlyRecovery && activeRevision === rollbackRevision) disposition = 'ROLLED_BACK'
     if (![intent.previousRevision, rollbackRevision].includes(activeRevision)) fail('PRINCIPAL_ONLY_ROLLBACK_BASELINE_INVALID')
     await transport.removeCandidateTag({ profile, tag: facts.tag, candidateRevision: facts.candidateRevision, expectedActiveRevision: activeRevision, deadlineAt: intent.deadlineAt })
     if (!prepare) fail('PREPARE_RECEIPT_MISSING')

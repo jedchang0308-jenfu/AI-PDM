@@ -1,3 +1,5 @@
+import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
+import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 
@@ -211,6 +213,11 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     deadlineAt: input.deadlineAt,
   }
   if (input.baselineIntentRef) intent.baselineIntentRef = exactRef(input.baselineIntentRef, profile)
+  if (Object.hasOwn(input, 'principalOnlyFenceRef') || Object.hasOwn(input, 'principalOnlyRecovery')) {
+    intent.principalOnlyFenceRef = exactRef(input.principalOnlyFenceRef, profile)
+    intent.principalOnlyRecovery = structuredClone(input.principalOnlyRecovery)
+    assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
+  }
   if (!intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INPUT_INVALID')
   for (const [name, value] of Object.entries(prerequisiteValues)) {
     if (name !== 'foundation' && value?.ownerApplicationId && value.ownerApplicationId !== profile.application.id) fail('PREREQUISITE_OWNER_MISMATCH', name)
@@ -286,10 +293,14 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     let control
     try { control = JSON.parse(controlResult.bytes.toString('utf8')) } catch { fail('ROUTINE_CONTROL_INVALID') }
     const { controlSha256, ...controlCore } = control ?? {}
-    if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || control.result !== 'RELEASED'
+    if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || !['RELEASED', 'ROLLED_BACK'].includes(control.result)
       || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName
       || control.releaseId !== baselineIntentResult.value.releaseId || control.sourceRevision !== baselineIntentResult.value.sourceRevision
-      || control.candidateRevision !== previousRevision) fail('ROUTINE_CONTROL_INVALID')
+      || (control.result === 'RELEASED' && control.candidateRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
+    if (control.result === 'ROLLED_BACK') {
+      const repair = await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control })
+      if (!repair || repair.activeRevision !== previousRevision) fail('ROUTINE_CONTROL_INVALID')
+    }
     const expectedBaselineUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${control.releaseId}/release-intent.json`
     if (input.baselineIntentRef.uri !== expectedBaselineUri) fail('ROUTINE_CONTROL_INVALID')
     const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: input.baselineIntentRef, dataCutoverCompletionRef: input.dataCutoverCompletionRef ?? null, previousRevision, observedAt, expiresAt: input.expiresAt })

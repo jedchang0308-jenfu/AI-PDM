@@ -59,8 +59,9 @@ export function assertPrincipalOnlyRecoveryReadback({ intent, profile, proof, se
 }
 
 export function assertRecoveryProofReadback({ sourceRevision, oldRevision, binding,
-  profile, proof, service, revision }) {
+  profile, proof, service, revision, activeRevision = oldRevision }) {
   assertRecoveryBindingShape(binding, profile.artifact.releaseBucket, oldRevision)
+  if (![oldRevision, binding.revision].includes(activeRevision)) fail()
   if (!exactKeys(proof, ['schemaVersion', 'sourceRevision',
     'projectId', 'region', 'service', 'serviceUid', 'oldRevision',
     'recoveryRevision', 'imageDigest', 'status']) ||
@@ -75,8 +76,8 @@ export function assertRecoveryProofReadback({ sourceRevision, oldRevision, bindi
     service?.name !== SERVICE || service?.reconciling === true ||
     service?.terminalCondition?.state !== 'CONDITION_SUCCEEDED' ||
     String(service?.observedGeneration) !== String(service?.generation) ||
-    !exactTraffic(service.traffic, oldRevision) ||
-    !exactTraffic(service.trafficStatuses, oldRevision) ||
+    !exactTraffic(service.traffic, activeRevision) ||
+    !exactTraffic(service.trafficStatuses, activeRevision) ||
     revision?.name !== `${SERVICE}/revisions/${binding.revision}` ||
     revision?.conditions?.find((row) => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED' ||
     revision?.containers?.find((row) => row.name === profile.runtime.containerName)?.image !== binding.imageDigest) fail()
