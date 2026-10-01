@@ -60,3 +60,14 @@ export function matrixPayloadEqual(left: PartMatrixPayload, right: PartMatrixPay
 export function matrixRowDiffers(columns: Array<{ payload: PartMatrixPayload }>, key: PartMatrixRowKey) {
   return new Set(columns.map((column) => matrixPayloadValue(column.payload, key))).size > 1;
 }
+
+/** Autosave compares with the last persisted work, including a revert to formal values. */
+export function matrixPayloadNeedsSave(draft: PartMatrixPayload, persisted: PartMatrixPayload) {
+  return !matrixPayloadEqual(draft, persisted);
+}
+
+/** Accept server normalization unless the user typed newer input while saving. */
+export function matrixDraftAfterSave(local: PartMatrixPayload | undefined,
+  submitted: PartMatrixPayload, persisted: PartMatrixPayload): PartMatrixPayload {
+  return { ...(local && matrixPayloadNeedsSave(local, submitted) ? local : persisted) };
+}

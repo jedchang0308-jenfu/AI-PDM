@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { PdmEditPageFrame, type PdmEditPageStatus } from "@/components/pdm-edit-page-frame";
 import { PartMaintenanceWorkspaceSections } from "@/components/part-maintenance-workspace-sections";
 import { CANONICAL_NUMBERING_ITEM_KIND_OPTIONS } from "@/lib/numbering-item-kind";
-import { PART_MATRIX_AUTOSAVE_IDLE_MS, PART_MATRIX_MAX_CONCURRENCY, PART_MATRIX_ROW_REGISTRY, matrixPayloadEqual, matrixPayloadValue, matrixRowDiffers, normalizePartMaintenanceTab, PART_MAINTENANCE_TABS, type PartMaintenanceTab, type PartMatrixPayload, type PartMatrixRowKey } from "@/lib/part-number-matrix-contract";
+import { PART_MATRIX_AUTOSAVE_IDLE_MS, PART_MATRIX_MAX_CONCURRENCY, PART_MATRIX_ROW_REGISTRY, matrixPayloadEqual, matrixPayloadNeedsSave, matrixDraftAfterSave, matrixPayloadValue, matrixRowDiffers, normalizePartMaintenanceTab, PART_MAINTENANCE_TABS, type PartMaintenanceTab, type PartMatrixPayload, type PartMatrixRowKey } from "@/lib/part-number-matrix-contract";
 import { matrixCommandFingerprint } from "@/components/use-part-number-matrix-controller";
 
 type MatrixColumn = {
@@ -143,13 +143,13 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     return key;
   }
 
-  const applySavedResponse = useCallback((partIdValue: string, responseData: { workId: string; rowVersion: number; payload: PartMatrixPayload }) => {
+  const applySavedResponse = useCallback((partIdValue: string, responseData: { workId: string; rowVersion: number; payload: PartMatrixPayload }, submitted: PartMatrixPayload) => {
     setData((current) => current ? { ...current, columns: current.columns.map((column) => column.partId === partIdValue ? { ...column, workId: responseData.workId, workRowVersion: responseData.rowVersion, valueSource: "work", payload: responseData.payload, canSubmit: !matrixPayloadEqual(responseData.payload, column.formalPayload) && column.canEdit } : column) } : current);
     dataRef.current = dataRef.current ? { ...dataRef.current, columns: dataRef.current.columns.map((column) => column.partId === partIdValue ? { ...column, workId: responseData.workId, workRowVersion: responseData.rowVersion, valueSource: "work", payload: responseData.payload, canSubmit: !matrixPayloadEqual(responseData.payload, column.formalPayload) && column.canEdit } : column) } : dataRef.current;
     savedRef.current = { ...savedRef.current, [partIdValue]: clonePayload(responseData.payload) };
     setSaved(savedRef.current);
     const local = draftRef.current[partIdValue];
-    const nextDraft = local && !matrixPayloadEqual(local, responseData.payload) ? local : clonePayload(responseData.payload);
+    const nextDraft = matrixDraftAfterSave(local, submitted, responseData.payload);
     draftRef.current = { ...draftRef.current, [partIdValue]: nextDraft };
     setDrafts(draftRef.current);
     setCellErrors((current) => { const next = { ...current }; delete next[partIdValue]; return next; });
@@ -157,10 +157,12 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
   }, []);
 
   const flushPart = useCallback(async (partIdValue: string) => {
+    const pendingTimer = timersRef.current[partIdValue];
+    if (pendingTimer) { clearTimeout(pendingTimer); delete timersRef.current[partIdValue]; }
     const currentData = dataRef.current;
     const part = currentData?.columns.find((column) => column.partId === partIdValue);
     const draft = draftRef.current[partIdValue];
-    if (!part || !draft || !part.canEdit || matrixPayloadEqual(draft, part.formalPayload)) return true;
+    if (!part || !draft || !part.canEdit || !matrixPayloadNeedsSave(draft, savedRef.current[partIdValue] ?? part.payload)) return true;
     if (flightRef.current.has(partIdValue)) return false;
     flightRef.current.add(partIdValue);
     const existingWorkId = part.workId;
@@ -168,6 +170,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     const expected = existingWorkId ? Number(part.workRowVersion ?? 0) : Number(part.formalRowVersion);
     const body = existingWorkId ? draft : { initialPayload: draft };
     const key = commandKey(part, phase, expected, body);
+    let savedSuccessfully = false;
     await acquirePool();
     try {
       const response = await fetch(existingWorkId ? `/api/pdm/part-change-works/${encodeURIComponent(existingWorkId)}` : `/api/pdm/parts/${encodeURIComponent(part.partId)}/change-works`, {
@@ -185,12 +188,15 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
         });
         const retryBody = await retryResponse.json().catch(() => null) as { data?: { workId: string; rowVersion: number; payload: PartMatrixPayload }; error?: unknown } | null;
         if (!retryResponse.ok) throw Object.assign(new Error(errorMessage(retryBody, "儲存失敗。")), { code: errorCode(retryBody) });
-        if (retryBody?.data) applySavedResponse(part.partId, retryBody.data);
+        if (!retryBody?.data) throw new Error("儲存回應不完整，請重新載入後確認。");
+        applySavedResponse(part.partId, retryBody.data, draft);
+        savedSuccessfully = true;
       } else if (!response.ok) {
         throw Object.assign(new Error(errorMessage(responseBody, "此料號儲存失敗。")), { code: errorCode(responseBody), status: response.status });
       } else if (responseBody?.data) {
-        applySavedResponse(part.partId, responseBody.data);
-      }
+        applySavedResponse(part.partId, responseBody.data, draft);
+        savedSuccessfully = true;
+      } else throw new Error("儲存回應不完整，請重新載入後確認。");
       return true;
     } catch (flushError) {
       const message = flushError instanceof Error ? flushError.message : "此料號儲存失敗。";
@@ -203,7 +209,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
       flightRef.current.delete(partIdValue);
       const nextDraft = draftRef.current[partIdValue];
       const latestSaved = savedRef.current[partIdValue];
-      if (nextDraft && latestSaved && !matrixPayloadEqual(nextDraft, latestSaved)) {
+      if (savedSuccessfully && nextDraft && latestSaved && matrixPayloadNeedsSave(nextDraft, latestSaved)) {
         // A newer keystroke arrived while the command was in flight.  Keep it
         // local and serialize the next command after this one terminally ends.
         void flushPart(partIdValue);
@@ -382,3 +388,4 @@ function MatrixCell({ column, rowKey, control, draft, error, conflict, focused, 
     {conflict ? <span className="inline-error" role="alert">資料已變更，請重新載入此料號</span> : null}
   </td>;
 }
+
