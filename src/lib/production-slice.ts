@@ -56,6 +56,15 @@ const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp 
 ];
 
 const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
+  // Canonical work commands remain protected by their Principal capability,
+  // resource, ownership, review assignment and transactional owner boundaries.
+  { method: "POST", pattern: /^\/api\/pdm\/parts\/[^\/]+\/change-works$/u },
+  { method: "POST", pattern: /^\/api\/pdm\/drawings\/[^\/]+\/revision-works$/u },
+  { method: "PATCH", pattern: /^\/api\/pdm\/(?:part-change-works|drawing-revision-works)\/[^\/]+$/u },
+  { method: "POST", pattern: /^\/api\/pdm\/(?:part-change-works|drawing-revision-works)\/[^\/]+\/(?:submit|cancel)$/u },
+  { method: "POST", pattern: /^\/api\/pdm\/review-requests\/[^\/]+\/decisions$/u },
+  { method: "POST", pattern: /^\/api\/pdm\/drawing-revision-works\/[^\/]+\/files$/u },
+  { method: "DELETE", pattern: /^\/api\/pdm\/drawing-revision-works\/[^\/]+\/files\/[^\/]+$/u },
   // These routes enforce a verified Principal and published capability inside
   // the owner command. The old slice gate must not make the workflow unreachable.
   { method: "POST", pattern: /^\/api\/transfer-packages$/ },

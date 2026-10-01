@@ -1,3 +1,7 @@
+## 2026-10-02 日常 canonical 工作命令的共同阻擋
+
+Jed 實際料號 UI 能查詢與看明細，但點擊編輯到 POST `/api/pdm/parts/{id}/change-works` 回 403。共同根因為 Production slice 未納入已實作 Principal 邊界的 canonical 工作命令；直接呼叫 route 的 PostgreSQL 成果未涵蓋 middleware，不能代替整條 HTTP 鏈。集中納入料／圖工作建立、更新、送審、取消、指派審批及工作檔案命令的精確 method/path，保留 owner 內的 Principal/grant/resource/ownership/reviewer/transaction 檢查。unknown-mode、未核定 method、舊附件及作廢入口仍拒絕；不得關閉 slice 或放行 wildcard PDM 路徑。候選必須驗證實際 middleware + owner allow/deny，再以 task-owned A0060 編輯讀回證明 Production，尚未發布此修正。
+
 ## 2026-10-02 R21 日常料號清單修正（現行施工）
 
 已發布 v4 後 Jed 的正常 Principal SSO／編號搜尋通過，但 GET `/api/parts` 實際回 503 `principal_route_not_migrated`，不能宣稱日常工作完成。此入口改用既有 Principal company read；料號、選項、viewer capability 在同一唯讀 snapshot 內依已發布 grants 解析，historical profile ID 僅用於業務責任標籤。保留原篩選／分頁／公司隔離，不以 system_admin 或舊本機 ACL 放行。使用 existing numbering PostgreSQL assigned／revoked／out-of-scope／restored 案例驗證实际 parts HTTP 讀回；其他未遷移入口仍须各自按既有必要流程清單查清，禁止全域解除 generic guard。尚未發布本次清單修正。
