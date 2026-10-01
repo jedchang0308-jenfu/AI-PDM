@@ -1,3 +1,7 @@
+## 2026-10-02 R24 canonical 頁面與命令整鏈（現行施工）
+
+R23 命令已正式發布且 A0060-P01 建立工作回 200，但實際導向的料號 workspace 被頁面 slice 重寫為「未開放」。編輯尚未通過，不以命令 200 宣稱業務可用。已追查 canonical workbench 的兩個 editor destination 及 UUID review package destination，集中將三個精確頁面家族納入同一 active-mode policy。頁面只提供 shell；資料與修改仍經已驗證 Principal、published grant、company/resource、owner/reviewer、row version 與交易命令。未知 mode、舊 APR 審核、附件及無關路徑仍拒絕。GET/HEAD 真實 middleware 回歸與既有命令邊界 30 案、typecheck、slice QC 通過；待正式發布後驗證已保留工作 `30e9dd66-d9a2-4d71-b882-33cfa8ed69a9` 的載入／草稿儲存／讀回，禁止重建或取消刪除。下方未發布描述為歷史讀點。
+
 ## 2026-10-02 日常 canonical 工作命令的共同阻擋
 
 Jed 實際料號 UI 能查詢與看明細，但點擊編輯到 POST `/api/pdm/parts/{id}/change-works` 回 403。共同根因為 Production slice 未納入已實作 Principal 邊界的 canonical 工作命令；直接呼叫 route 的 PostgreSQL 成果未涵蓋 middleware，不能代替整條 HTTP 鏈。集中納入料／圖工作建立、更新、送審、取消、指派審批及工作檔案命令的精確 method/path，保留 owner 內的 Principal/grant/resource/ownership/reviewer/transaction 檢查。unknown-mode、未核定 method、舊附件及作廢入口仍拒絕；不得關閉 slice 或放行 wildcard PDM 路徑。候選必須驗證實際 middleware + owner allow/deny，再以 task-owned A0060 編輯讀回證明 Production，尚未發布此修正。
@@ -832,3 +836,4 @@ P01～P09 的 task-owned fixture 覆蓋 mapping／Portal assignment／authority�
 舊 canonical command 的 PostgreSQL 路徑已停止按 request 自動建立 organization mapping；其 actor 若已 `principal_active`，在鎖定 receipt 或執行業務副作用前回 410，不能從舊 v1 route 寫入。缺 marker 或未知狀態回 503，只有明示 `legacy_compatible` 才能繼續；這修正了「無列仍執行」的缺口，聚焦 23／23、typecheck、scoped ESLint PASS。未切換帳號的舊路徑暫時只能讀取既有 mapping；若 mapping 缺失則拒絕，不能在請求中補建。此負面 fence 只服務過渡期與 v1 回復，不是新 principal 授權的相容橋，切流收斂後整段刪除。
 
 歷史 Firebase 邀請的撤銷只修改 AI-PDM 本地 invitation、legacy mapping／account 狀態，先由 065 資料庫 fence 拒絕已 `principal_active` 的 profile，再撤銷本地邀請。AI-PDM 不再從此入口停用、撤銷 refresh token 或刪除共享 provider 身分；Shared Identity 的 provider lifecycle 由 Platform owner 處理。這避免舊應用指令破壞其他系統仍需使用的 canonical principal alias。全體切換後移除整條舊邀請 runtime 路徑，歷史紀錄留作不可授權的稽核資料。
+
