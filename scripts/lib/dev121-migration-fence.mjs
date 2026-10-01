@@ -3,6 +3,10 @@ import { canonicalize, sha256 } from './dev012-production-migration-runner.mjs'
 
 export const PRINCIPAL_ONLY_MIGRATION_PATH =
   'db/postgres/073_dev121_drawing_recognition_initiator_principal.sql'
+export const PRINCIPAL_ONLY_MIGRATION_ORDERS = Object.freeze({
+  [PRINCIPAL_ONLY_MIGRATION_PATH]: 24,
+  'db/postgres/074_dev121_principal_human_assurance_aal1.sql': 25,
+})
 const V2_SERVICE_URL =
   'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
 const H40 = /^[a-f0-9]{40}$/u
@@ -11,7 +15,7 @@ const H64 = /^[a-f0-9]{64}$/u
 function fail() { throw new Error('DEV121_MIGRATION_073_FENCE_INVALID') }
 
 export function requiresPrincipalOnlyMigrationFence(entry) {
-  return entry?.path === PRINCIPAL_ONLY_MIGRATION_PATH
+  return Object.hasOwn(PRINCIPAL_ONLY_MIGRATION_ORDERS, entry?.path ?? '')
 }
 
 /** Read the owner writer census on the same connection immediately before SQL. */

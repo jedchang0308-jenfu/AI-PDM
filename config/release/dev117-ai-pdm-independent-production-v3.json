@@ -241,7 +241,10 @@
     "controlledValues": {
       "PDM_JENFU_SSO_HANDOFF_MODE": {
         "defaultValue": "off",
-        "allowedValues": ["off", "on"]
+        "allowedValues": [
+          "off",
+          "on"
+        ]
       }
     }
   },
@@ -376,6 +379,11 @@
         "order": 24,
         "path": "db/postgres/073_dev121_drawing_recognition_initiator_principal.sql",
         "sha256": "07be90b7e9d8dd261a573fd1a32249492a1e5168cba66ba89c5c1ce49bb57a9f"
+      },
+      {
+        "order": 25,
+        "path": "db/postgres/074_dev121_principal_human_assurance_aal1.sql",
+        "sha256": "9bf0801478ebfb5a3cd8e25002ca5f05c7eb54b7373a584690dcdf57c1abcd66"
       }
     ]
   },

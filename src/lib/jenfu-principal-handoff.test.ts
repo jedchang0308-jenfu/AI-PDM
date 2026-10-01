@@ -28,6 +28,14 @@ describe("DEV-121 principal handoff v2", () => {
     });
   }
 
+  it("rejects a factor outside the published v2 handoff contract", () => {
+    const proof = mutated("authentication.secondFactor", "google_workspace_mfa") as {
+      authentication: { assuranceLevel: string }
+    };
+    proof.authentication.assuranceLevel = "aal2";
+    expect(() => parseJenfuPrincipalHandoff(proof, issuer, clock))
+      .toThrow("HANDOFF_INVALID");
+  });
   it("rejects wrong issuer, unbounded proof lifetime and invalid dates", () => {
     expect(() => parseJenfuPrincipalHandoff(vectors.valid, "https://other.example.test/api/sso", clock)).toThrow("HANDOFF_INVALID");
     expect(() => parseJenfuPrincipalHandoff(mutated("expiresAt", "2026-09-24T12:03:00.000Z"), issuer, clock)).toThrow("HANDOFF_EXPIRED");

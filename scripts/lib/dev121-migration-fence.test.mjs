@@ -30,9 +30,11 @@ function input() {
     service, observedAt: '2026-09-30T00:01:30.000Z' }
 }
 
-test('only the exact forward migration needs the Principal-only writer fence', () => {
+test('recognition and human assurance migrations require the Principal-only writer fence', () => {
   assert.equal(requiresPrincipalOnlyMigrationFence({
     path: 'db/postgres/073_dev121_drawing_recognition_initiator_principal.sql' }), true)
+  assert.equal(requiresPrincipalOnlyMigrationFence({path: 'db/postgres/074_dev121_principal_human_assurance_aal1.sql' }), true)
+  assert.equal(requiresPrincipalOnlyMigrationFence({path: 'db/postgres/075_unknown.sql' }), false)
   assert.equal(requiresPrincipalOnlyMigrationFence({
     path: 'db/postgres/072_dev121_principal_account_manager_grants_v3.sql' }), false)
 })

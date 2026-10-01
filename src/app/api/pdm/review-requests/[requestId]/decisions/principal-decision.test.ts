@@ -40,7 +40,7 @@ import { POST } from "@/app/api/pdm/review-requests/[requestId]/decisions/route"
 
 const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-jenfu" },
-  session: { principalId: "principal-one", assuranceLevel: "aal2" }
+  session: { principalId: "principal-one", assuranceLevel: "aal1" }
 };
 const tx = { kind: "postgres", transactionScope: "postgres" };
 function request() {
@@ -90,14 +90,17 @@ describe("principal DEV-087 decision route", () => {
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
 
-  it("rejects AAL1 and a different assigned reviewer without entering the old route", async () => {
+  it("accepts the assigned reviewer at AAL1 and rejects a different reviewer", async () => {
     mocks.withVerified.mockImplementationOnce(async (_input, evaluate) =>
       evaluate(tx, { ...verified, session: { ...verified.session, assuranceLevel: "aal1" } }));
-    expect((await POST(request(), params)).status).toBe(403);
-    expect(mocks.evaluate).not.toHaveBeenCalled();
+    expect((await POST(request(), params)).status).toBe(200);
+    expect(mocks.evaluate).toHaveBeenCalledWith(tx, expect.objectContaining({
+      session: expect.objectContaining({ assuranceLevel: "aal1" })
+    }), [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
+    expect(mocks.decidePart).toHaveBeenCalledOnce();
     mocks.getReview.mockResolvedValueOnce({ requestKind: "part_change", reviewerUserId: "other-profile" });
     expect((await POST(request(), params)).status).toBe(404);
-    expect(mocks.decidePart).not.toHaveBeenCalled();
+    expect(mocks.decidePart).toHaveBeenCalledOnce();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
 

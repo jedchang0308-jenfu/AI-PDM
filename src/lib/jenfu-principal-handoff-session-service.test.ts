@@ -17,6 +17,9 @@ vi.mock("@/lib/jenfu-principal-account-repository", () => ({
   JenfuPrincipalAccountRepository: class { requireActive = mocks.account; }
 }));
 vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
+  JenfuEntitlementRepositoryError: class extends Error {
+    constructor(readonly code: string) { super(code); this.name = "JenfuEntitlementRepositoryError"; }
+  },
   JenfuEntitlementRepository: class {
     listEffectiveAssignments = mocks.assignments;
   }
@@ -97,12 +100,28 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
-  it("requires AAL2 when the published Principal grant has a privileged role", async () => {
+  it("issues AAL1 for privileged roles while still validating the published grant snapshot", async () => {
+    mocks.typed.mockResolvedValue({ principalId: "principal-one", employeeId: "employee-one", accountType: "human_privileged" });
+    mocks.account.mockResolvedValue({ principalId: "principal-one", pdmUserId: "pdm-user-one",
+      employeeId: "employee-one", accountType: "human_privileged", companyId: "company-one",
+      lifecycleVersion: 3, profileVersion: 2, minimumAssurance: "aal1", sessionInvalidBefore: null });
     mocks.assignments.mockResolvedValue([assignment("rd_manager")]);
     const result = await issueSessionForPrincipalHandoff(base);
-    expect(result.claims).toMatchObject({ assuranceLevel: "aal2", secondFactor: "google_workspace_mfa" });
+    expect(result.claims).toMatchObject({ assuranceLevel: "aal1", secondFactor: null });
+    expect(mocks.assignments).toHaveBeenCalledOnce();
     await expect(issueSessionForPrincipalHandoff({ ...base,
-      trustPolicy: { ...trustPolicy, enabled: false } })).rejects.toThrow("auth_token_invalid");
+      trustPolicy: { ...trustPolicy, enabled: false } })).resolves.toMatchObject({
+        claims: { assuranceLevel: "aal1", secondFactor: null }
+      });
+  });
+
+  it("rejects a claimed AAL2 handoff with no recognized factor", async () => {
+    const fakeAal2 = { ...handoff, authentication: {
+      ...handoff.authentication, assuranceLevel: "aal2" as const, secondFactor: null
+    } };
+    await expect(issueSessionForPrincipalHandoff({ ...base, handoff: fakeAal2 }))
+      .rejects.toThrow("HANDOFF_FACTOR_INVALID");
+    expect(mocks.register).not.toHaveBeenCalled();
   });
 
   it("rejects mixed published assignment versions before issuing a session", async () => {
@@ -113,10 +132,10 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
-  it("rejects missing published grants before issuing a session", async () => {
+  it("denies a Principal with no published assignment before issuing a session", async () => {
     mocks.assignments.mockResolvedValue([]);
     await expect(issueSessionForPrincipalHandoff(base))
-      .rejects.toThrow("PRINCIPAL_ASSURANCE_SOURCE_INVALID");
+      .rejects.toMatchObject({ code: "permission_not_granted" });
     expect(mocks.register).not.toHaveBeenCalled();
   });
 

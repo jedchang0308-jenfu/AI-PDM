@@ -4,7 +4,7 @@ import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
 import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
 import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
 import { resolvePrincipalHandoffAssurance } from "@/lib/jenfu-principal-assurance";
-import { requiresPrincipalAal2 } from "@/lib/jenfu-principal-assurance-requirement";
+import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-published-grant-validation";
 import type { JenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
@@ -61,15 +61,14 @@ export async function issueSessionForPrincipalHandoff(input: {
     if (!profile || profile.id !== account.pdmUserId ||
       profile.company_id !== account.companyId) throw new Error("PRINCIPAL_PROFILE_INVALID");
 
-    const requiresPrivilegedRole = await requiresPrincipalAal2(snapshot, {
+    await validatePrincipalPublishedGrantSnapshot(snapshot, {
       identityIssuer: handoff.identity.identityIssuer,
       identitySubject: handoff.identity.identitySubject,
       principalId: handoff.identity.principalId,
       employeeId: handoff.identity.employeeId
     });
     const assurance = resolvePrincipalHandoffAssurance({
-      authentication: handoff.authentication,
-      account, policy: input.trustPolicy, requiresPrivilegedRole
+      authentication: handoff.authentication, policy: input.trustPolicy
     });
     // A proof may expire while the transaction is waiting on producer reads.
     // Test clocks stay fixed; production rechecks the wall clock before write.

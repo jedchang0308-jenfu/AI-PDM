@@ -20,7 +20,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (original) => ({
       identitySubject: "subject-legacy", principalId: "principal-legacy",
       employeeId: "employee-legacy", authEpoch: 1, profileVersion: 1,
       issuedAt: "2026-09-29T00:00:00.000Z", expiresAt: "2026-09-30T00:00:00.000Z",
-      assuranceLevel: "aal2" }
+      assuranceLevel: "aal1" }
   }), { readOnly: true, isolationLevel: "repeatable_read" })
 }));
 

@@ -18,11 +18,15 @@ describe("AI-PDM principal account readback", () => {
     expect(queryOne.mock.calls[0][0]).not.toContain("principal_identity_cutovers");
   });
 
-  it("rejects missing, disabled, wrong-principal, or under-assured privileged accounts", async () => {
+  it("accepts privileged AAL1 account metadata and rejects missing, disabled, or wrong-principal accounts", async () => {
     const queryOne = vi.fn();
     const repository = new JenfuPrincipalAccountRepository({ kind: "postgres", queryOne } as never);
+    const privileged = await new JenfuPrincipalAccountRepository({ kind: "postgres",
+      queryOne: vi.fn(async () => ({ ...row, account_type: "human_privileged", minimum_assurance: "aal1" })) } as never)
+      .requireActive("principal-one");
+    expect(privileged).toMatchObject({ accountType: "human_privileged", minimumAssurance: "aal1" });
     for (const candidate of [null, { ...row, account_status: "suspended" },
-      { ...row, principal_id: "principal-two" }, { ...row, account_type: "human_privileged", minimum_assurance: "aal1" }]) {
+      { ...row, principal_id: "principal-two" }, { ...row, minimum_assurance: "aal2" }]) {
       queryOne.mockResolvedValueOnce(candidate);
       await expect(repository.requireActive("principal-one")).rejects.toThrow("principal_account_unavailable");
     }

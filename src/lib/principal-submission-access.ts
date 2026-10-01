@@ -30,9 +30,6 @@ export async function authorizePrincipalSubmissionListInSnapshot(
     return Response.json({ code: "principal_route_policy_unavailable" },
       { status: 503, headers: { "cache-control": "no-store" } });
   }
-  if (role !== "rd" && verified.session.assuranceLevel !== "aal2") {
-    return denied("assurance_insufficient");
-  }
   return { submittedBy: role === "rd" ? verified.profile.pdmUserId : undefined };
 }
 

@@ -13,9 +13,6 @@ export async function readPrincipalReviewTarget(client: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest, input: {
     requestId: string; entityType: string; entityId: string;
   }) {
-  if (verified.session.assuranceLevel !== "aal2") {
-    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
-  }
   const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
     verified, [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
   if (!decision?.allowed) {

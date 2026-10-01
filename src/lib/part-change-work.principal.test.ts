@@ -58,7 +58,7 @@ import { PartChangeWorkService } from "@/lib/part-change-work";
 const tx = { kind: "postgres", transactionScope: "postgres",
   execute: vi.fn(), queryOne: vi.fn(), query: vi.fn() } as unknown as AsyncDatabaseClient;
 const verified = { profile: { pdmUserId: "profile-one", companyId: "company-jenfu" },
-  session: { principalId: "principal-one", assuranceLevel: "aal2" } } as VerifiedPrincipalRequest;
+  session: { principalId: "principal-one", assuranceLevel: "aal1" } } as VerifiedPrincipalRequest;
 const context = { idempotencyKey: "decision-one", contractToken: "contract-one",
   expectedRowVersion: 3 };
 const payload = {

@@ -46,5 +46,16 @@ describe("AI-PDM principal session v2", () => {
     expect(() => verifyJenfuPrincipalSession(token, ring, { nowSeconds: now + 61 })).toThrow("JENFU_PRINCIPAL_SESSION_TIME_INVALID");
     expect(() => issueJenfuPrincipalSession({ ...input, profileVersion: 0 }, ring, now)).toThrow("JENFU_PRINCIPAL_SESSION_CLAIMS_INVALID");
     expect(() => issueJenfuPrincipalSession({ ...input, authEpoch: -1 }, ring, now)).toThrow("JENFU_PRINCIPAL_SESSION_CLAIMS_INVALID");
+    expect(() => issueJenfuPrincipalSession({ ...input, assuranceLevel: "aal2", secondFactor: null }, ring, now))
+      .toThrow("JENFU_PRINCIPAL_SESSION_CLAIMS_INVALID");
+    expect(() => issueJenfuPrincipalSession({ ...input, assuranceLevel: "aal1", secondFactor: "totp" }, ring, now))
+      .toThrow("JENFU_PRINCIPAL_SESSION_CLAIMS_INVALID");
+    const unsupportedFactor = signedMutation(issueJenfuPrincipalSession(input, ring, now),
+      (_header, claims) => {
+        claims.assuranceLevel = "aal2";
+        claims.secondFactor = "google_workspace_mfa";
+      });
+    expect(() => verifyJenfuPrincipalSession(unsupportedFactor, ring, { nowSeconds: now }))
+      .toThrow("JENFU_PRINCIPAL_SESSION_CLAIMS_INVALID");
   });
 });

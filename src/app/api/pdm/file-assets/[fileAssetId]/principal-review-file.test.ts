@@ -71,7 +71,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate(tx, {
     profile: { pdmUserId: "profile-one", companyId: "company-one" },
-    session: { principalId: "principal-one", assuranceLevel: "aal2" }
+    session: { principalId: "principal-one", assuranceLevel: "aal1" }
   }));
   mocks.evaluate.mockResolvedValue([{ allowed: true }, { allowed: true }]);
   mocks.getReview.mockResolvedValue({ requestKind: "drawing_revision",
@@ -114,7 +114,7 @@ describe("principal review package file read", () => {
       snapshotOpen = true;
       const result = await evaluate(tx, {
         profile: { pdmUserId: "profile-one", companyId: "company-one" },
-        session: { principalId: "principal-one", assuranceLevel: "aal2" }
+        session: { principalId: "principal-one", assuranceLevel: "aal1" }
       });
       snapshotOpen = false;
       return result;

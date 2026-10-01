@@ -26,7 +26,7 @@ import { GET } from "@/app/api/approvals/inbox/route";
 
 const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-jenfu" },
-  session: { principalId: "principal-one", assuranceLevel: "aal2" }
+  session: { principalId: "principal-one", assuranceLevel: "aal1" }
 };
 const snapshot = { kind: "postgres", transactionScope: "postgres" };
 function request(token = true) {
@@ -75,7 +75,7 @@ describe("Principal approval inbox", () => {
     expect(mocks.listPrincipal).not.toHaveBeenCalled();
   });
 
-  it("fails closed on a grant for another principal or insufficient assurance", async () => {
+  it("fails closed on another principal and accepts a published grant at AAL1", async () => {
     mocks.evaluate.mockResolvedValueOnce([{
       allowed: true, permissionCode: "approval.inbox.view", principalId: "principal-other",
       decisionCode: "allowed"
@@ -84,7 +84,12 @@ describe("Principal approval inbox", () => {
     mocks.withVerified.mockImplementationOnce(async (_input, action) => action(snapshot, {
       ...verified, session: { ...verified.session, assuranceLevel: "aal1" }
     }));
+    expect((await GET(request())).status).toBe(200);
+    expect(mocks.listPrincipal).toHaveBeenCalledOnce();
+    mocks.evaluate.mockResolvedValueOnce([{
+      allowed: false, permissionCode: "approval.inbox.view", principalId: "principal-one",
+      decisionCode: "permission_not_granted"
+    }]);
     expect((await GET(request())).status).toBe(403);
-    expect(mocks.listPrincipal).not.toHaveBeenCalled();
   });
 });

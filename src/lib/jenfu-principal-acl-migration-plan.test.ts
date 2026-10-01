@@ -35,7 +35,7 @@ describe("principal ACL migration plan", () => {
   it("materializes only exact roles, preserving scopes, sponsor, delegation and original creation time", () => {
     const plan = planPrincipalAclMigration(source());
     expect(plan.accountAssurance).toEqual([
-      { principalId: "principal-one", minimumAssurance: "aal2" },
+      { principalId: "principal-one", minimumAssurance: "aal1" },
       { principalId: "principal-two", minimumAssurance: "aal1" }
     ]);
     expect(plan.principalAssignments).toHaveLength(4);

@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { getAuthMode, getJenfuPlatformAuthMode } from "@/lib/auth-config";
-import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { principalRequestFailure, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { canonicalErrorEnvelope } from "@/lib/pdm-canonical-workbench-contract";
 import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
 import { canUserUseNumberingActionAsync, requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
@@ -118,6 +119,7 @@ export async function dev087Json(request: Request) {
 }
 
 export function dev087RouteError(error: unknown) {
+  if (error instanceof JenfuEntitlementRepositoryError) return principalRequestFailure(error);
   if (error instanceof Error && error.message === "DEV087_IF_MATCH_REQUIRED") {
     return NextResponse.json({ error: { code: "WORKBENCH_BAD_REQUEST", message: "缺少有效的 If-Match", correlationId: crypto.randomUUID() } }, { status: 400 });
   }

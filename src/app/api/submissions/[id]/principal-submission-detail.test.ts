@@ -52,7 +52,7 @@ import { GET } from "@/app/api/submissions/[id]/route";
 const path = "src/app/api/submissions/[id]/route.ts";
 const verified = {
   profile: { pdmUserId: "profile-1", companyId: "company-1" },
-  session: { principalId: "principal-1", assuranceLevel: "aal2" }
+  session: { principalId: "principal-1", assuranceLevel: "aal1" }
 };
 const snapshot = { queryOne: mocks.resource };
 const request = () => new Request("https://ai-pdm.test/api/submissions/submission-1");
@@ -94,7 +94,7 @@ describe("Principal historical submission detail", () => {
     expect(mocks.legacyAuth).not.toHaveBeenCalled();
   });
 
-  it("allows an AAL2 published manager role to read another user's submission in the same company", async () => {
+  it("allows an AAL1 published manager role to read another user's submission in the same company", async () => {
     mocks.decisions.mockResolvedValue([decision("rd_manager")]);
     mocks.resource.mockResolvedValue({ company_id: "company-1", submitted_by: "profile-2" });
     mocks.detail.mockResolvedValue({ id: "submission-1", company_id: "company-1",
@@ -131,15 +131,17 @@ describe("Principal historical submission detail", () => {
     expect(mocks.resource).not.toHaveBeenCalled();
   });
 
-  it("refuses an unreviewed role or insufficient assurance for cross-owner read", async () => {
+  it("refuses an unreviewed role and accepts the published cross-owner grant at AAL1", async () => {
     mocks.decisions.mockResolvedValueOnce([decision("qa")]);
     expect((await GET(request(), context)).status).toBe(503);
     expect(mocks.resource).not.toHaveBeenCalled();
     mocks.decisions.mockResolvedValue([decision("pdm_admin")]);
     mocks.verifiedRead.mockImplementation(async (_input, read) =>
       read(snapshot, { ...verified, session: { ...verified.session, assuranceLevel: "aal1" } }));
+    expect((await GET(request(), context)).status).toBe(200);
+    expect(mocks.detail).toHaveBeenCalledOnce();
+    mocks.decisions.mockResolvedValueOnce([decision("pdm_admin", false)]);
     expect((await GET(request(), context)).status).toBe(403);
-    expect(mocks.detail).not.toHaveBeenCalled();
   });
 
   it("rejects a missing Principal session or disabled entitlement before reading the resource", async () => {

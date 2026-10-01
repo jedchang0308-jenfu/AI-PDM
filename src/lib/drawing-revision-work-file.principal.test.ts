@@ -56,7 +56,7 @@ const client = {
 } as unknown as AsyncDatabaseClient;
 const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-one" },
-  session: { principalId: "principal-one", assuranceLevel: "aal2" }
+  session: { principalId: "principal-one", assuranceLevel: "aal1" }
 };
 const payload = Buffer.from("drawing-pdf");
 function input() {

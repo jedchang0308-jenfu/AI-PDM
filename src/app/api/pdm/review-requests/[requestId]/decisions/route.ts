@@ -30,10 +30,6 @@ async function principalDecision(request: Request, params: Promise<{ requestId: 
     const decision = validateDev087ReviewDecision(body.decision);
     const context = dev087CommandContext(request);
     return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (tx, verified) => {
-      if (verified.session.assuranceLevel !== "aal2") {
-        return Response.json({ code: "assurance_insufficient" },
-          { status: 403, headers: { "cache-control": "no-store" } });
-      }
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified,
         [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
       if (decisions.length !== 1 || !decisions[0] || !decisions[0].allowed) {

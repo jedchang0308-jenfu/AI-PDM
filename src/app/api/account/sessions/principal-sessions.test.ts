@@ -31,7 +31,7 @@ function request() {
     principalId: "principal-one", employeeId: "employee-one", identityIssuer: "issuer",
     identitySubject: "subject", authEpoch: 0, accountLifecycleVersion: 1,
     profileVersion: 1, companyId: "company-one", authenticatedAt: now - 60,
-    assuranceLevel: "aal2", secondFactor: "google_workspace_mfa", assurancePolicyHash: "a".repeat(64)
+    assuranceLevel: "aal1", secondFactor: null, assurancePolicyHash: "a".repeat(64)
   }, { issuer: "issuer", audience: "ai-pdm", currentKeyId: "one",
     keys: { one: "task-only-test-signing-key-at-least-32-bytes" } }, now);
   return new Request("https://pdm.example/api/account/sessions", { headers: { cookie: `__session=${token}` } });
@@ -58,13 +58,13 @@ describe("principal-keyed session list", () => {
       session: { principalId: "principal-one", sessionId: "session-0123456789abcdef" }
     }));
     mocks.query.mockResolvedValue([{ principal_id: "principal-one", session_id_hash: currentHash,
-      assurance_level: "aal2", issued_at: "2026-09-25T00:00:00.000Z",
+      assurance_level: "aal1", issued_at: "2026-09-25T00:00:00.000Z",
       last_seen_at: "2026-09-25T00:01:00.000Z", expires_at: "2026-09-25T08:00:00.000Z", revoked_at: null }]);
     const response = await GET(request());
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect((await response.json()).sessions).toMatchObject([{ id: currentHash,
-      current: true, authProvider: "principal", assuranceLevel: "aal2", ipSummary: null }]);
+      current: true, authProvider: "principal", assuranceLevel: "aal1", ipSummary: null }]);
     expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining("WHERE principal_id=:principalId"),
       { principalId: "principal-one" });
     expect(mocks.legacyAuth).not.toHaveBeenCalled();
