@@ -1,3 +1,7 @@
+## 2026-10-01 已決定：管理帳號亦可執行日常 PDM 工作
+
+Jed 可依同員工已發布的 rd／rd_manager／pdm_admin 業務角色及 scope 工作。唯一正常 runtime grant reader 升至 OrgMaster principal-grants.v4，接受有效人類 personal／privileged 的 employee 業務角色，不加入特殊帳號 bypass、不把 system_admin 當全權。system_admin 仍須 exact target Principal／direct／global、禁止 employee-wide 管理权傳播與委派；撤權、scope、公司及資源檢查不變。029 是 OrgMaster 新 forward-only producer 候選；舊 028 不改。正常 consumer 不 fallback v3，缺 v4 拒絕；既有 one-shot operator 的封存 v2/v3來源契約不冒充新 runtime 入口。先 producer／consumer 真實 PostgreSQL、再 owner release／Production L4，尚未發布本修正。
+
 # DEV-121：AI-PDM 目標端授權邊界
 ## R20 正式交付增量（2026-10-01；完整 L4 尚未完成）
 

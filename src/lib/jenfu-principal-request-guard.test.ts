@@ -55,8 +55,8 @@ function database(overrides: Record<string, unknown> = {}) {
       if (sql.includes("transaction_timestamp()")) return [{
         decision_at: new Date(now * 1000).toISOString()
       }];
-      if (sql.includes("v_ai_pdm_principal_effective_grants_v3")) return overrides.assignments ?? [{
-        contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3",
+      if (sql.includes("v_ai_pdm_principal_effective_grants_v4")) return overrides.assignments ?? [{
+        contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v4",
         assignment_version_id: "version-one", assignment_version: 1,
         assignment_id: "assignment-one", grant_kind: "direct", delegation_id: null,
         application_id: "ai-pdm", principal_id: claims.principalId,
