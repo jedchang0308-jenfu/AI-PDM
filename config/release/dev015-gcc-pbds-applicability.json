@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "jenfu.dev015.gcc-pbds-applicability-policy.v1",
+  "cve": "CVE-2026-102010",
+  "state": "NOT_AFFECTED",
+  "justification": "VULNERABLE_CODE_NOT_PRESENT",
+  "ownerApplicationId": "ai-pdm",
+  "repository": "jedchang0308-jenfu/AI-PDM",
+  "projectId": "jenfu-platform-prod",
+  "region": "asia-east1",
+  "artifactUri": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm",
+  "releaseBucket": "jenfu-platform-prod-aipdm-release",
+  "nativeCodeFingerprint": "b443738b766eea4b7b8c69356448609bba87158146c3fa2db9cb4a4deee10a45",
+  "investigatedArtifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:dcd397be0dead1bb1235de2b006627070eb59c5a0c11819e84eff480328eb5e0",
+  "investigatedSourceRevision": "afa3574e9f9dade862963df3254805c85034f86d",
+  "assessmentRef": {
+    "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261001-R10/ai-pdm/assessment-79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc.json",
+    "sha256": "79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc"
+  }
+}

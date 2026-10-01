@@ -1,4 +1,5 @@
 import { canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-production-migration-runner.mjs'
+import { GCC_PBDS_CVE, readNativeInventoryProgram, gccPbdsOccurrenceMatches, readGccApplicabilityPolicy, assertGccApplicabilityAssessment } from './dev015-gcc-applicability.mjs'
 import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
 import { assertPrincipalOnlyActivationReadback, principalOnlyActivationRequest } from './dev121-principal-only-release.mjs'
 
@@ -836,6 +837,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     let sbomExport = null
     let exportAttempts = 0
     let last = null
+    let gccApplicability = null
     while (Date.now() < Date.parse(deadlineAt)) {
       last = await listOccurrences(profile, artifactDigest)
       const build = last.occurrences.filter((row) => row.kind === 'BUILD')
@@ -845,7 +847,10 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       const failed = discoveries.filter((row) => ['FINISHED_FAILED', 'FINISHED_UNSUPPORTED', 'ANALYSIS_ERROR'].includes(row.discovery?.analysisStatus))
       const complete = discoveries.filter((row) => row.discovery?.analysisStatus === 'FINISHED_SUCCESS')
       const blocking = vulnerabilities.filter((row) => ['HIGH', 'CRITICAL'].includes(row.vulnerability?.effectiveSeverity ?? row.vulnerability?.severity))
-      if (failed.length || blocking.length) fail('ARTIFACT_POLICY_FAILED')
+      if (failed.length || blocking.some((row) => !gccPbdsOccurrenceMatches(row))) fail('ARTIFACT_POLICY_FAILED')
+      if (blocking.length && complete.length && !gccApplicability) {
+        gccApplicability = await assessGccApplicability(profile, artifactDigest, deadlineAt)
+      }
       if (complete.length && !sbomExport) {
         try {
           sbomExport = await exportSbom(profile, artifactDigest)
@@ -856,10 +861,38 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
           continue
         }
       }
-      if (build.length && complete.length && sbomExport && sbom.length) return { resourceUrl: last.resourceUrl, buildOccurrenceNames: build.map((row) => row.name).sort(), discoveryOccurrenceNames: complete.map((row) => row.name).sort(), sbomOccurrenceNames: sbom.map((row) => row.name).sort(), vulnerabilityCount: vulnerabilities.length, blockingVulnerabilityCount: 0, sbomExport, observedAt: now(), status: 'PASS' }
+      if (build.length && complete.length && sbomExport && sbom.length && (!blocking.length || gccApplicability)) return { resourceUrl: last.resourceUrl, buildOccurrenceNames: build.map((row) => row.name).sort(), discoveryOccurrenceNames: complete.map((row) => row.name).sort(), sbomOccurrenceNames: sbom.map((row) => row.name).sort(), vulnerabilityCount: vulnerabilities.length, rawHighOrCriticalVulnerabilityCount: blocking.length, blockingVulnerabilityCount: 0, notAffectedAssessments: gccApplicability ? [gccApplicability] : [], sbomExport, observedAt: now(), status: 'PASS' }
       await sleep(5000)
     }
     fail('ARTIFACT_ANALYSIS_TIMEOUT', String(last?.occurrences?.length ?? 0))
+  }
+
+  async function assessGccApplicability(profile, artifactDigest, deadlineAt) {
+    // No CLI, environment, arbitrary VEX publisher, or image tag can waive this.
+    // The official owner source contains the reviewed native-input assessment.
+    const policy = readGccApplicabilityPolicy(profile)
+    if (!artifactDigest.startsWith(`${profile.artifact.uri}@sha256:`) || !H64.test(artifactDigest.split('@sha256:')[1] ?? '')) fail('ARTIFACT_POLICY_FAILED')
+    const assessment = await readJson(policy.assessmentRef, profile.artifact.releaseBucket)
+    const nativeInventoryProgram = readNativeInventoryProgram()
+    if (!profile.build.dockerBuilderImage?.includes('@sha256:')) fail('GCC_APPLICABILITY_INSPECTION_FAILED')
+    const quote = (text) => `'${text.replaceAll("'", "'\\''")}'`
+    const command = `set -eu\ndocker pull ${quote(artifactDigest)}\ndocker image inspect --format 'DEV015_IMAGE_USER={{.Config.User}}' ${quote(artifactDigest)}\ndocker run --rm --network=none --user=0:0 --entrypoint=/nodejs/bin/node ${quote(artifactDigest)} -e ${quote(nativeInventoryProgram)}`
+    // The inspector needs to read root-owned files; the application remains non-root.
+    // Docker run has no Cloud Build host mounts and cannot reach app/provider networks.
+    const body = { steps: [{ name: profile.build.dockerBuilderImage, entrypoint: 'bash', args: ['-c', command] }], timeout: '600s', queueTtl: '300s', logsBucket: `gs://${profile.artifact.releaseBucket}/logs/cloud-build`, serviceAccount: `projects/${profile.target.projectId}/serviceAccounts/${profile.identities.builder}`, options: { logging: 'GCS_ONLY', logStreamingOption: 'STREAM_OFF' }, tags: ['dev-015', profile.application.id, 'gcc-pbds-applicability'] }
+    const operation = await request(`https://cloudbuild.googleapis.com/v1/projects/${profile.target.projectId}/locations/${profile.target.region}/builds`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    const inspection = await waitBuild(operation, deadlineAt, profile.target.projectId, profile.target.region)
+    if (inspection.status !== 'SUCCESS' || inspection.projectId !== profile.target.projectId || inspection.serviceAccount !== body.serviceAccount
+      || inspection.steps?.length !== 1 || canonicalize({ name: inspection.steps[0].name, entrypoint: inspection.steps[0].entrypoint, args: inspection.steps[0].args }) !== canonicalize(body.steps[0])) fail('GCC_APPLICABILITY_INSPECTION_FAILED')
+    const log = await readBytes(`gs://${profile.artifact.releaseBucket}/logs/cloud-build/log-${inspection.id}.txt`, { prefixes: ['logs'] })
+    const marker = 'DEV015_NATIVE_INVENTORY='
+    const lines = log.bytes.toString('utf8').split('\n').filter((line) => line.includes(marker))
+    const users = log.bytes.toString('utf8').split('\n').filter((line) => line.includes('DEV015_IMAGE_USER='))
+    if (lines.length !== 1 || users.length !== 1 || users[0].slice(users[0].indexOf('DEV015_IMAGE_USER=') + 'DEV015_IMAGE_USER='.length).trim() !== '65532:65532') fail('GCC_APPLICABILITY_INSPECTION_FAILED')
+    const inventory = JSON.parse(lines[0].slice(lines[0].indexOf(marker) + marker.length))
+    inventory.runtimeUser = '65532:65532'
+    assertGccApplicabilityAssessment(policy, assessment.value, inventory)
+    return { cve: GCC_PBDS_CVE, state: 'NOT_AFFECTED', justification: policy.justification, artifactDigest, nativeCodeFingerprint: policy.nativeCodeFingerprint, assessmentRef: assessment.ref, inspectionBuildId: inspection.id, inspectionLogRef: log.ref, inspectionProgramSha256: sha256(nativeInventoryProgram), applicationUser: inventory.runtimeUser, inspectorUser: `${inventory.uid}:${inventory.gid}`, observedAt: now() }
   }
 
   async function runHttpSuite({ origin, suite, expectedRevision, expectedArtifactDigest, environment = process.env }) {

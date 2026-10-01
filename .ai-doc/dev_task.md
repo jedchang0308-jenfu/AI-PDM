@@ -1,5 +1,19 @@
 # AI PDM dev_task PM Control Board
 
+## 現行執行狀態（2026-10-01 R10）
+
+Principal-only 與 F01–F10 固定驗收契約維持，已核實者／withheld／停用者邊界不變。GCC CVE-2026-102010 的三個 official-source 應用映像已完成真實 Linux、來源／預編譯檔比對、libvips 28 份來源與 4 補丁、GCC runtime 來源及 SBOM／provider 告警讀回。受影響 PBDS erase_if 模板不在已查證 compiled code 中；本 owner 精確 digest、證據與失敗修正見 [受控查證](qa/DEV-121-gcc-pbds-applicability-2026-10-01.json)。
+
+發布政策保持 MEDIUM。只有 CVE-2026-102010／Debian 13 gcc-14 14.2.0-19 的 HIGH，且新精確 digest 經既有 pinned builder 的隔離、無網路檔案核對，證明 compiled-input fingerprint 與此 owner 受控來源內的完整來源查證及不可變收據一致，才分類 NOT_AFFECTED；原始 HIGH、SBOM、inspection build／log hash 仍寫入 scan receipt。其他 HIGH／CRITICAL、未知／新增 native binary、WASM、PBDS header、版本／owner／hash 漂移與不完整查證均拒絕。這不是套件修補、限時風險接受或泛用 VEX／CLI bypass。
+
+目前階段：本機 owner 程式修正與已建真實映像核對 PASS；三 owner 的 adapter 尚待 PR／required CI／official merge。本 owner Node suite 96 項 PASS，新增四案已接入既有 CI／QC；OrgMaster QC 子集原139案保留並增為143，不改 F01–F10 業務分母。曾發生的檢查工具 mount／權限／loader alias 差異均已取得新證據後處理，未變更原生程式碼、正式員工綁定或資料。
+
+2026-10-01T01:15:41.546Z provider 再核對三服務仍 MANUAL zero／原 revision 固定100%／無 tag（generation 90／188／71）。本次只建置與檢查 Artifact、發布 own receipts；沒有 migration、IAM、Secret、service 或 traffic 變更。應用映像查證不代表已部署或業務 L4 通過，F01–F10 正式結果維持未完成。
+
+唯一下一步：完成此 bounded adapter PR／CI／合併後，刷新 official source 的 application／recovery／runner／fence 與必要 image-only rotation；再沿正式帳號／session-code／writer 讀回→Platform→OrgMaster→AI-PDM migration-only→同 fence cohort apply／replay→full owner→F01–F10 Production L4。禁止舊 capsule／fence、逐人雙軌或 UID 授權回復。JENFU/DEV-015 baseline currentCheckpoint=deliveryCheckpoint20261001R10，下方舊施工指令仅留歷史追溯。
+
+## 歷史施工快照與原契約（保留追溯）
+
 > **2026-10-01 F06 共用設定根因及現行施工：** PR #166 已合併 protected main dcfa607；新 immutable owner operator 讀回 workbench canonical_only／dev090-v1／rowVersion 9／expectedCommit 91de3a65df58dc60ddde88aab5263e9470a84565，serving ai-pdm-prod-f5ee2af2d7ec 沒有 PDM_BUILD_COMMIT，舊 guard 因而比較 local-dev，release profile 也未携帶此值。這是已核實的必要 workbench／審批共同缺口，不是 grant v3 映射錯誤。新候選使用 owner profile 固定的 PDM_WORKBENCH_AUTHORITY_COMMIT 綁定已發布資料契約；application source／image 仍由原 owner release provenance 證明。Production 缺設定、錯 revision、非 canonical mode 或錯 schema 均拒絕，不 fallback 到 build SHA。token 的公司／profile 業務關聯与簽章保持，授權主體仍只來自已驗 principal_id；不改資料庫或已套用 migration。disposable PostgreSQL reviewer fixture 使用相同明確 binding，禁止以 local-dev seed 推論正式可用。新來源 recovery 已備、臨時 read-only Job 已刪除；實際 application release、資料轉換、正式儲存／provider／browser／L4 未完成。精確 evidence 與修正驗證將保留於 [native QA](qa/DEV-121-workbench-runtime-contract-2026-10-01.json)；下方逐人過渡及舊日期紀錄均為歷史，不再是施工指令。
 
 > **2026-10-01 DEV-121 現行增量：** ORGMASTER/DEV-057 grant v3 在 native PostgreSQL 下完成指派、撤權、scope、委派來源撤權／到期／未核實身分拒絕；本 consumer 完成實際料件建立／修改／送審／指定 Principal 核准與圖面上傳／送審／退回修正，原技轉／下載鏈仍通過。fixture 首次建立正確不可變 Principal profile，未刪除重綁或放寬 grant。來源與失敗／清理見 [native 證據](qa/DEV-121-review-delegation-postgres-2026-10-01.json)。PR #165 已合併 main 810f331b6；本批尚待 protected PR／CI／merge。writer-readback.v2 新增持久工作台 mode／expectedCommit／schemaHash／rowVersion 的唯讀欄位，不將零 writer 或 local canonical seed 當可用性證明；下一步由新 official source immutable operator 讀回 Production。真實 provider、正式儲存／browser／L4、停寫轉換與三 owner 切流未完成。下方舊日期文字只保留當時快照。
@@ -1988,7 +2002,7 @@ Owner：Dev PM
   - 摘要：修正 handoff 跨域版號誤比、authority／grants 分次讀取、verified actor 缺失、現行 v3 `workspace:company-jenfu` 與舊 v2 `current` 混用及未驗 company／resource scope、client project scope、版本校驗、priority fallback 及 route discriminator／inventory 漂移，維持目標自行授權及 owner release。
   - 來源 ID：`JENFU/DEV-015#target-authorization`；本地 owner `AIPDM/DEV-121`；producer 依賴 `ORGMASTER/DEV-057#identity-grants`。
   - 進度：handoff 版號比較、transactional batch permission、固定 transaction decision time、verified actor／workspace 傳遞、number-state 同快照 batch、role priority 與 typed route manifest 已有程式修正。AI-PDM focused Vitest `7 files / 42 tests PASS`、repository consumer `32/32`、change-feed consumer `5/5`、`typecheck:app`、`check:db-boundary`、DEV-005 authorization／contract／runtime QC及D121-PG-01／02隔離PostgreSQL race PASS；Platform `npm run typecheck PASS`。全 API 255 files／292 methods已分類，direct role gate=0；25筆代碼全部唯一並採 `deny_or_retire / deny / 403`，route-policy QC PASS並保留 fail closed。
-  - 下一步：B 已選定並回送 `JENFU/DEV-015#principal-identity-reassessment`；以當前 source／ledger 細化 principal↔PDM profile link、principal-keyed legacy ACL／session registry、helper allow-path 清單及回填 readback，完成本 owner 的 RD Implementation Ready；其後才驗跨 owner browser、v1/v2 recovery 與 Production L4。既有 v1/v2 owner-flow PASS 按原 source／fixture 保留。只有核定新增 grant 時才走 DEV-005 immutable catalog publication／OrgMaster readback；不得猜測 alias 或以 local role bypass。
+  - 下一步：依首段 R10 完成 GCC applicability adapter PR／CI／official merge，再刷新 owner source／artifact／runner／fence，完成同窗發布與 F01–F10 Production L4。舊日期過渡步驟僅供追溯。
   - 驗收：target owner contract／route matrix、競態拒絕、v1/v2 相容、local／global logout 及跨系統正常入口分層證明；歷史 DEV-118 evidence 不當作本 DEV PASS。
   - 子任務：`AIPDM/DEV-121#principal-consumer-impact` 承接 `JENFU/DEV-015#principal-identity-reassessment`，使用者選 B：已驗證 `principal_id` 為 session、ACL、account registry 與所有 allow-path 的唯一 security subject；`pdm_user_id` 保留歷史 domain FK。RD 複審已將 wire／session 版號與 `legacy_compatible → principal_active` 分開，補齊回填來源重驗、原子切換／舊 writer fence、profile version 失效及 principal-aware rollback；v1 handoff 不代表可回 UID。065資料模型／回填／helper／writer fence／session及命令全鏈、subject-bound replay／新帳號provision／assurance已在B實作契約固定；下一步依契約實作，原 P03／P04／P07／P08 內補案例，不新增 DEV 或改算既有 QC。
   - 證據：[DEV-121 contract](specs/DEV-121-target-authorization-boundary.md)。

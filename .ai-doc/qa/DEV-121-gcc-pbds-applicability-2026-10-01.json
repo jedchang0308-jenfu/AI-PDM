@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "jenfu.dev015.owner-gcc-applicability-evidence.v1",
+  "sourceTask": "JENFU/DEV-015#artifact-applicability",
+  "ownerApplicationId": "ai-pdm",
+  "nativeTask": "DEV-121",
+  "sourceRevision": "afa3574e9f9dade862963df3254805c85034f86d",
+  "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:dcd397be0dead1bb1235de2b006627070eb59c5a0c11819e84eff480328eb5e0",
+  "buildId": "717cf1f8-f9c7-4a86-95f7-a83dd689cf2e",
+  "sourceProof": {
+    "schemaVersion": "jenfu.dev012.official-merged-source.v1",
+    "repository": "jedchang0308-jenfu/AI-PDM",
+    "branch": "main",
+    "sourceRevision": "afa3574e9f9dade862963df3254805c85034f86d",
+    "sourceTree": "56dd2edd68a3f1d03af03173f2d882e850f148f5",
+    "branchProtected": true,
+    "reviewMode": "SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED",
+    "rulesetId": 24077878,
+    "requiredChecks": [
+      "DEV-012 Isolated PostgreSQL Cutover",
+      "Production Slice QC"
+    ],
+    "pullRequestNumber": 169,
+    "pullRequestUrl": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/169",
+    "mergedAt": "2026-09-30T21:25:11Z",
+    "status": "OFFICIAL_MERGED_PR_VERIFIED"
+  },
+  "assessmentRef": {
+    "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261001-R10/ai-pdm/assessment-79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc.json",
+    "sha256": "79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc"
+  },
+  "assessmentState": "NOT_AFFECTED",
+  "justification": "VULNERABLE_CODE_NOT_PRESENT",
+  "rawHighPreserved": 1,
+  "otherHighOrCritical": 0,
+  "artifactVerifier": {
+    "resourceUrl": "https://asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:dcd397be0dead1bb1235de2b006627070eb59c5a0c11819e84eff480328eb5e0",
+    "buildOccurrenceNames": [
+      "projects/jenfu-platform-prod/occurrences/28ac53a3-ca53-45d9-ad8c-ad6db7da8bdd",
+      "projects/jenfu-platform-prod/occurrences/841845e7-d619-4141-a2bf-88a2d88c48ce",
+      "projects/jenfu-platform-prod/occurrences/b688483b-f641-4c6e-b05b-55841ee7cf4a"
+    ],
+    "discoveryOccurrenceNames": [
+      "projects/jenfu-platform-prod/locations/asia-east1/occurrences/1824c61f-ac6a-406f-80cf-4126a50d896c"
+    ],
+    "sbomOccurrenceNames": [
+      "projects/jenfu-platform-prod/locations/asia-east1/occurrences/9222921d-cfa5-4ae9-a417-3e707de24b7b"
+    ],
+    "vulnerabilityCount": 22,
+    "rawHighOrCriticalVulnerabilityCount": 1,
+    "blockingVulnerabilityCount": 0,
+    "notAffectedAssessments": [
+      {
+        "cve": "CVE-2026-102010",
+        "state": "NOT_AFFECTED",
+        "justification": "VULNERABLE_CODE_NOT_PRESENT",
+        "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:dcd397be0dead1bb1235de2b006627070eb59c5a0c11819e84eff480328eb5e0",
+        "nativeCodeFingerprint": "b443738b766eea4b7b8c69356448609bba87158146c3fa2db9cb4a4deee10a45",
+        "assessmentRef": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261001-R10/ai-pdm/assessment-79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc.json",
+          "sha256": "79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc"
+        },
+        "inspectionBuildId": "1784f832-c4fb-4b61-a516-7e5328a75f40",
+        "inspectionLogRef": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/logs/cloud-build/log-1784f832-c4fb-4b61-a516-7e5328a75f40.txt",
+          "sha256": "1ede982a69f11ed985aa17555a7f2268627914e74ce418fec8a4ea8ca2945f3f"
+        },
+        "inspectionProgramSha256": "2e37fbcf91c7b28124b04a94130479ab6fc5a86e0a179d119bb0606c609f63a8",
+        "applicationUser": "65532:65532",
+        "inspectorUser": "0:0",
+        "observedAt": "2026-10-01T01:08:09.945Z"
+      }
+    ],
+    "sbomExport": {
+      "resourceUrl": "https://asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:dcd397be0dead1bb1235de2b006627070eb59c5a0c11819e84eff480328eb5e0",
+      "discoveryOccurrenceId": "projects/jenfu-platform-prod/locations/asia-east1/occurrences/1824c61f-ac6a-406f-80cf-4126a50d896c"
+    },
+    "observedAt": "2026-10-01T01:08:16.912Z",
+    "status": "PASS"
+  },
+  "localOwnerTestCount": 96,
+  "localOwnerTests": "PASS",
+  "officialSourceForAdapter": "NOT_YET_MERGED",
+  "production": {
+    "service": "ai-pdm-prod",
+    "generation": "71",
+    "observedGeneration": "71",
+    "scaling": {
+      "scalingMode": "MANUAL",
+      "manualInstanceCount": 0
+    },
+    "traffic": [
+      {
+        "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+        "revision": "ai-pdm-prod-f5ee2af2d7ec",
+        "percent": 100
+      }
+    ],
+    "latestReadyRevision": "projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-f5ee2af2d7ec",
+    "serviceChanged": false,
+    "trafficChanged": false
+  },
+  "failuresRetained": {
+    "firstInspection": {
+      "path": "dev015-gcc-ai-pdm-native-gate-20261001-r10.json",
+      "buildId": "3a60eb5f-5066-422f-adaa-3168eeba5a56",
+      "status": "FAILURE",
+      "logRef": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/logs/cloud-build/log-3a60eb5f-5066-422f-adaa-3168eeba5a56.txt",
+        "sha256": "414479a5f6f8ce4253d96124718bea2028510b0404cfa205c14698b791a8ae97"
+      },
+      "cause": "Cloud Build runtime mount was mistaken for image content",
+      "correction": "Run filesystem inspector in network-disabled mount-free Docker; verify non-root application image Config.User independently"
+    }
+  },
+  "limitations": [
+    "Not a GCC package fix or a general HIGH-severity exception.",
+    "Supplier prebuilt binaries are matched to HTTPS official archives and lockfile integrity; this assessment is not a reproducible-build attestation.",
+    "The supplier source closure includes the exact recorded patch bytes; upstream mutable patch URLs require renewed assessment when compiled content changes.",
+    "Any changed or additional native binary, WASM, PBDS header, architecture or Node version requires a new assessment."
+  ],
+  "observedAt": "2026-10-01T01:15:41.546Z"
+}
