@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildRuntimeConfig, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
+import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 
 function fixture() {
   const bucket = 'jenfu-platform-prod-aipdm-release'
@@ -29,8 +30,10 @@ function fixture() {
     region: 'asia-east1', service: serviceName, serviceUid: uid, oldRevision: old, recoveryRevision: recovery, imageDigest: image, status: 'PASS',
   })
   const runtimeRow = put(`gs://${bucket}/receipts/runtime.json`, { runtimeConfig: runtime })
+  const sourceLock = put(`gs://${bucket}/receipts/source-lock.json`, { ownerApplicationId: profile.application.id, sourceRevision: source,
+    migrationManifestSha256: 'f'.repeat(64), status: 'SOURCE_FROZEN', releaseAuthority: true, clean: true })
   const intent = { ownerApplicationId: profile.application.id, releaseId: 'DEV121-FAILED-RELEASE', sourceRevision: source, previousRevision: old,
-    sourceLockRef: { uri: `gs://${bucket}/receipts/source-lock.json`, sha256: 'e'.repeat(64) },
+    sourceLockRef: sourceLock.ref,
     runtimeConfigRef: runtimeRow.ref, migrationManifestSha256: 'f'.repeat(64),
     principalOnlyRecovery: { revision: recovery, imageDigest: image, serviceUid: uid, receiptRef: proof.ref },
     principalOnlyFenceRef: { uri: `gs://${bucket}/receipts/releases/DEV121-MANUAL-ZERO-FENCE/proof.json`, sha256: '2'.repeat(64) },
@@ -59,7 +62,7 @@ function fixture() {
   const run = { id: '42', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: source }
   const calls = []
   const transport = {
-    async readBytes(uri) { if (!objects.has(uri)) throw new Error('MISSING'); return objects.get(uri) },
+    async readBytes(uri) { if (!objects.has(uri)) throw Object.assign(new Error('MISSING'), { code: 'MISSING' }); return objects.get(uri) },
     async readJson(ref) { const row = await this.readBytes(ref.uri); assert.deepEqual(ref, row.ref); return row },
     async getService() { return service }, async getRevision(_profile, name) { calls.push(name); assert.equal(name, recovery); return revision },
     async readOwnerRun() { return run },
@@ -110,4 +113,51 @@ test('successful or pre-activation terminal receipts never become maintenance re
     const h = fixture(); h.seal('terminal', { result })
     assert.equal(await readPrincipalOnlyRepairBaseline(h.input), null)
   }
+})
+
+function abortFixture() {
+  const h = fixture()
+  h.service.scaling = { scalingMode: 'MANUAL', manualInstanceCount: 0 }
+  h.service.traffic = [{ revision: h.old, percent: 100 }]
+  h.service.trafficStatuses = [{ revision: h.old, percent: 100 }]
+  const previousCandidate = h.objects.get(h.paths.candidate).value.facts
+  h.seal('candidate', { ...previousCandidate, previousRevision: h.old, beforeTraffic: h.service.traffic })
+  const facts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision: h.recovery, databaseDisposition: 'FORWARD_APPLIED',
+    entrypointRecovery: { result: 'BASELINE_ALREADY_ACTIVE', changed: false } }
+  const rollback = h.seal('rollback', facts)
+  h.seal('terminal', facts, rollback.ref)
+  h.controlCore.result = 'PRE_ACTIVATION_ABORTED'
+  h.put(h.paths.control, { ...h.controlCore, controlSha256: sha256(canonicalize(h.controlCore)) })
+  h.input.transport.getRevision = async (_profile, name) => {
+    h.calls.push(name)
+    if (name === h.recovery) return h.revision
+    assert.equal(name, previousCandidate.candidateRevision)
+    return { name: `${h.service.name}/revisions/${name}`, conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }],
+      containers: [{ name: h.input.profile.runtime.containerName, image: previousCandidate.artifactDigest }] }
+  }
+  return h
+}
+
+test('cleaned pre-activation abort certifies the stopped original traffic, without calling it a rollback', async () => {
+  const h = abortFixture()
+  const result = await readPreActivationAbortContinuation(h.input)
+  assert.equal(result.result, 'PRE_ACTIVATION_ABORTED')
+  assert.equal(result.currentActiveRevision, h.old)
+  assert.equal(result.candidateRef.uri, h.paths.candidate)
+  assert.equal(await readPrincipalOnlyRepairBaseline(h.input), null)
+})
+
+test('abort continuation rejects activation, live or tagged traffic, incomplete receipts, source drift and unfinished runs', async () => {
+  for (const mutate of [
+    h => { h.put(h.paths.activate, { result: 'ACTIVATED' }) },
+    h => { h.service.scaling = { scalingMode: 'AUTOMATIC' } },
+    h => { h.service.traffic = [{ revision: h.recovery, percent: 100 }] },
+    h => { h.service.trafficStatuses.push({ revision: h.controlCore.candidateRevision, percent: 0, tag: 'candidate' }) },
+    h => { h.objects.delete(h.paths.migrate) },
+    h => { h.objects.delete(h.intent.sourceLockRef.uri) },
+    h => { const row = h.objects.get(h.paths.candidate); h.put(h.paths.candidate, { ...row.value, facts: { ...row.value.facts, previousRevision: h.recovery } }) },
+    h => { h.run.status = 'in_progress' },
+    h => { const core = { ...h.controlCore, candidateRevision: 'other-candidate' }; h.put(h.paths.control, { ...core, controlSha256: sha256(canonicalize(core)) }) },
+    h => { const core = { ...h.controlCore, result: 'RELEASED' }; h.put(h.paths.control, { ...core, controlSha256: sha256(canonicalize(core)) }) },
+  ]) { const h = abortFixture(); mutate(h); await assert.rejects(() => readPreActivationAbortContinuation(h.input), /MISSING|CONTINUATION|PRINCIPAL_/) }
 })

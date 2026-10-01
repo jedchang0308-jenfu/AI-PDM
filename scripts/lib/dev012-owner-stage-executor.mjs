@@ -1,4 +1,5 @@
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
+import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
 import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
@@ -408,6 +409,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       ])
       assertPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value, service, revision })
     }
+    const continuation = intent.baselineIntentRef
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null
+    if (continuation && (!recovery || continuation.currentActiveRevision !== intent.previousRevision)) fail('PREPARE_BASELINE_MISMATCH')
     if (Object.keys(profile.environment?.controlledValues ?? {}).length > 0) {
       const repair = intent.baselineIntentRef
         ? await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null

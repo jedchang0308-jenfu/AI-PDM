@@ -1,4 +1,5 @@
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
+import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
@@ -292,8 +293,11 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const controlResult = await transport.readBytes(`gs://${profile.artifact.releaseBucket}/control/active.json`, { prefixes: ['control'] })
     let control
     try { control = JSON.parse(controlResult.bytes.toString('utf8')) } catch { fail('ROUTINE_CONTROL_INVALID') }
+    const continuation = control?.result === 'PRE_ACTIVATION_ABORTED'
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control }) : null
+    if (control?.result === 'PRE_ACTIVATION_ABORTED' && (!continuation || continuation.currentActiveRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
     const { controlSha256, ...controlCore } = control ?? {}
-    if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || !['RELEASED', 'ROLLED_BACK'].includes(control.result)
+    if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || !['RELEASED', 'ROLLED_BACK', 'PRE_ACTIVATION_ABORTED'].includes(control.result)
       || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName
       || control.releaseId !== baselineIntentResult.value.releaseId || control.sourceRevision !== baselineIntentResult.value.sourceRevision
       || (control.result === 'RELEASED' && control.candidateRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')

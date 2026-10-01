@@ -95,6 +95,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
+          npm run test:dev-117:continuous
           npm run qc:source-boundary
           npm run qc:dev-121:route-policy-source
           npm run qc:dev-121:route-classification
@@ -117,5 +118,5 @@ jobs:
           npm run qc:dev-101:qa-integrity
           npm run qc:production-deployment-pipeline
 
-      - name: Build production artifact
-        run: npm run build
+      - name: Verify owner release adapter and isolated production artifact
+        run: npm run qc:dev-117:continuous
