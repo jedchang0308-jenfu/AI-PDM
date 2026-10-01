@@ -33,7 +33,7 @@ function redirect(target, cookies = []) {
   return new Response(null, { status: 303, headers })
 }
 
-function fakeFlow({ badCallback = false } = {}) {
+function fakeFlow({ badCallback = false, targetAuthRejected = false } = {}) {
   const calls = []
   let meCount = 0
   const authorize = new URL('/api/sso/authorize', platform)
@@ -66,6 +66,7 @@ function fakeFlow({ badCallback = false } = {}) {
     }
     if (url.pathname === '/api/auth/jenfu-sso/callback') {
       assert.match(init.headers.cookie, /^__Host-jenfu_sso_tx=/u)
+      if (targetAuthRejected) return redirect(`${canonical}/login?auth_error=auth_token_invalid`)
       return redirect(`${canonical}/`, [
         '__Host-jenfu_sso_tx=; Max-Age=0; Secure',
         '__session=opaque-cookie-secret-value; HttpOnly; Secure',
@@ -139,4 +140,15 @@ test('owner verify dispatches Principal SSO against the provider-readback candid
   assert.equal(canonicalSmoke.status, 'PASS')
   assert.equal(canonicalFlow.calls.filter((call) => call.origin === canonical &&
     call.path === '/api/auth/firebase/session').length, 0)
+})
+
+test('target token rejection is distinct from redirect drift and always closes the portal session', async () => {
+  for (const origin of [candidate, canonical]) {
+    const fake = fakeFlow({ targetAuthRejected: true })
+    await assert.rejects(runPrincipalEntrySmoke({ profile, origin, fetchImpl: fake.fetchImpl, environment,
+      ...(origin === candidate ? { candidateTag: tag, candidateRevision: revision, artifactDigest: image } : {}) }),
+      { code: 'PRINCIPAL_SMOKE_TARGET_AUTH_TOKEN_INVALID' })
+    assert.equal(fake.calls.filter((call) => call.origin === platform && call.path === '/api/auth/logout').length, 1)
+    assert.equal(fake.calls.some((call) => call.path === '/api/auth/me'), false)
+  }
 })

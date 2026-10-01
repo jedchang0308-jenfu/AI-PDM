@@ -95,6 +95,16 @@ export async function runPrincipalEntrySmoke({ profile, origin, candidateTag, ca
   // This is an HTTP candidate probe; browser-origin behavior is verified after activation.
   const targetCallback = new URL(`${callback.pathname}${callback.search}`, target)
   const exchanged = await call(targetCallback, { headers: { cookie: transactionCookie } })
+  // Surface only an allowlisted target error from the exact registered origin.
+  // Never include the callback URL, code, state, cookies, or provider response.
+  if (exchanged.status === 303) {
+    let rejected
+    try { rejected = new URL(exchanged.headers.get('location') ?? '') } catch { /* checked below */ }
+    if (rejected?.origin === profile.target.canonicalOrigin && rejected.pathname === '/login' &&
+        rejected.searchParams.get('auth_error') === 'auth_token_invalid' && !rejected.hash) {
+      fail('PRINCIPAL_SMOKE_TARGET_AUTH_TOKEN_INVALID')
+    }
+  }
   location(exchanged, profile.target.canonicalOrigin, '/')
   const targetCookie = cookiePair(exchanged, 'pdm_session')
   const me = await call(new URL(definition.mePath, target), { headers: { cookie: targetCookie } })
