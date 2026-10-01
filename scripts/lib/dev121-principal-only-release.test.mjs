@@ -140,3 +140,28 @@ test('activation readback rejects any legacy traffic and any incomplete resume',
     after: { ...after, ...changed }, candidateRevision: candidate,
     candidateTag: tag, recoveryRevision: recovery }), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
+
+test('activation matches exact traffic identities independently of provider row order', () => {
+  for (const configured of [base.traffic, [...base.traffic].reverse()]) {
+    for (const observed of [base.trafficStatuses, [...base.trafficStatuses].reverse()]) {
+      const before = { ...base, traffic: configured, trafficStatuses: observed }
+      const request = principalOnlyActivationRequest({ service: before, oldRevision: old,
+        candidateRevision: candidate, candidateTag: tag, recoveryRevision: recovery })
+      const after = { ...before, etag: 'etag-two', generation: '92', observedGeneration: '92',
+        scaling: { scalingMode: 'AUTOMATIC', maxInstanceCount: 1 },
+        traffic: [...request.traffic].reverse(), trafficStatuses: [...request.traffic].reverse() }
+      assert.equal(assertPrincipalOnlyActivationReadback({ before, after,
+        candidateRevision: candidate, candidateTag: tag, recoveryRevision: recovery }), after)
+    }
+  }
+  for (const rows of [
+    [oldTraffic, oldTraffic], [candidateTraffic, candidateTraffic],
+    [oldTraffic, { ...candidateTraffic, tag: 'candidate-ffffffffffff' }],
+    [oldTraffic, { ...candidateTraffic, revision: recovery }],
+    [oldTraffic, { ...candidateTraffic, percent: 50 }],
+    [oldTraffic, candidateTraffic, candidateTraffic],
+  ]) assert.throws(() => principalOnlyActivationRequest({
+    service: { ...base, trafficStatuses: rows }, oldRevision: old,
+    candidateRevision: candidate, candidateTag: tag, recoveryRevision: recovery }),
+    /PRINCIPAL_RECOVERY_INVALID/u)
+})
