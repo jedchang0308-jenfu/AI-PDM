@@ -95,6 +95,10 @@ const principalSessionRoutes = new Map([
     ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest", "isAllowedRequestOrigin"]]
 ]);
 const principalCompanyReadRoutes = new Map([
+  ["GET /api/parts", {
+    helper: "withPrincipalNumberingCompanyRead",
+    permissions: ["numbering.search"]
+  }],
   ["GET /api/numbering/roots/[rootCode]/submission-readiness", {
     helper: "withPrincipalNumberingCompanyRead",
     permissions: ["numbering.search"]

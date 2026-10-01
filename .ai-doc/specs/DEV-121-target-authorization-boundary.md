@@ -1,3 +1,7 @@
+## 2026-10-02 R21 日常料號清單修正（現行施工）
+
+已發布 v4 後 Jed 的正常 Principal SSO／編號搜尋通過，但 GET `/api/parts` 實際回 503 `principal_route_not_migrated`，不能宣稱日常工作完成。此入口改用既有 Principal company read；料號、選項、viewer capability 在同一唯讀 snapshot 內依已發布 grants 解析，historical profile ID 僅用於業務責任標籤。保留原篩選／分頁／公司隔離，不以 system_admin 或舊本機 ACL 放行。使用 existing numbering PostgreSQL assigned／revoked／out-of-scope／restored 案例驗證实际 parts HTTP 讀回；其他未遷移入口仍须各自按既有必要流程清單查清，禁止全域解除 generic guard。尚未發布本次清單修正。
+
 ## 2026-10-01 已決定：管理帳號亦可執行日常 PDM 工作
 
 Jed 可依同員工已發布的 rd／rd_manager／pdm_admin 業務角色及 scope 工作。唯一正常 runtime grant reader 升至 OrgMaster principal-grants.v4，接受有效人類 personal／privileged 的 employee 業務角色，不加入特殊帳號 bypass、不把 system_admin 當全權。system_admin 仍須 exact target Principal／direct／global、禁止 employee-wide 管理权傳播與委派；撤權、scope、公司及資源檢查不變。029 是 OrgMaster 新 forward-only producer 候選；舊 028 不改。正常 consumer 不 fallback v3，缺 v4 拒絕；既有 one-shot operator 的封存 v2/v3來源契約不冒充新 runtime 入口。先 producer／consumer 真實 PostgreSQL、再 owner release／Production L4，尚未發布本修正。
