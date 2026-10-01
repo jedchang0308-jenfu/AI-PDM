@@ -202,38 +202,52 @@ export async function officialItemSnapshot(
   item: TransferPackageRecord["items"][number]
 ): Promise<TransferOfficialItemSnapshot | null> {
   if (item.entityType === "drawing_number") {
-    const row = await client.queryOne<{
+    // The canonical production pointer is the version authority used by normal
+    // Drawing approvals. Legacy revision packages must not decide transfer scope.
+    const rows = await client.query<{
       record_status: string;
       updated_at: string;
       purpose_code: string;
       purpose_description: string;
       is_primary_manufacturing: number | boolean;
-      current_version_id: string | null;
-      current_version: string | null;
-      current_version_status: string | null;
-      current_version_at: string | null;
+      current_version_id: string;
+      current_version: string;
+      current_version_status: string;
+      current_version_at: string;
+      canonical_drawing_id: string;
+      canonical_state_id: string;
+      canonical_state_version: number | string;
+      revision_row_version: number | string;
+      policy_snapshot_json: string | unknown;
     }>(
       `SELECT drawing.record_status, drawing.updated_at,
               drawing.purpose_code, drawing.purpose_description, drawing.is_primary_manufacturing,
-              package.id AS current_version_id,
-              package.revision AS current_version,
-              COALESCE(package.lifecycle_state, package.status) AS current_version_status,
-              COALESCE(package.released_at, package.updated_at) AS current_version_at
+              revision.id AS current_version_id, revision.revision AS current_version,
+              revision.lifecycle_state AS current_version_status,
+              COALESCE(revision.released_at, revision.updated_at) AS current_version_at,
+              canonical.id AS canonical_drawing_id, production.id AS canonical_state_id,
+              production.row_version AS canonical_state_version,
+              revision.row_version AS revision_row_version, revision.policy_snapshot_json
          FROM drawing_numbers drawing
-         LEFT JOIN drawing_revision_packages package
-           ON package.id = (
-             SELECT candidate.id
-               FROM drawing_revision_packages candidate
-              WHERE candidate.company_id = drawing.company_id
-                AND candidate.drawing_number_id = drawing.id
-                AND (candidate.lifecycle_state = 'released' OR candidate.status = 'Released')
-              ORDER BY COALESCE(candidate.released_at, candidate.updated_at) DESC, candidate.id DESC
-              LIMIT 1
-           )
+         JOIN drawings canonical
+           ON canonical.formal_drawing_number_id = drawing.id
+          AND canonical.company_id = drawing.company_id
+         JOIN canonical_workbench_states production
+           ON production.company_id = canonical.company_id
+          AND production.entity_type = 'drawing'
+          AND production.canonical_entity_id = canonical.id
+          AND production.data_layer = 'drawing_production'
+         JOIN drawing_revisions revision
+           ON revision.id = production.revision_id
+          AND revision.company_id = canonical.company_id
+          AND revision.drawing_id = canonical.id
+          AND revision.lifecycle_state = 'released'
         WHERE drawing.id = :entityId AND drawing.company_id = :companyId`,
       { entityId: item.entityId, companyId }
     );
-    if (!row) return null;
+    // Missing or ambiguous canonical authority fails closed, with no legacy fallback.
+    if (rows.length !== 1) return null;
+    const row = rows[0];
     return {
       itemId: item.id,
       entityType: item.entityType,
@@ -245,7 +259,12 @@ export async function officialItemSnapshot(
         recordStatus: row.record_status,
         purposeCode: row.purpose_code,
         purposeDescription: row.purpose_description,
-        isPrimaryManufacturing: Boolean(row.is_primary_manufacturing)
+        isPrimaryManufacturing: Boolean(row.is_primary_manufacturing),
+        canonicalDrawingId: row.canonical_drawing_id,
+        canonicalStateId: row.canonical_state_id,
+        canonicalStateVersion: Number(row.canonical_state_version),
+        revisionRowVersion: Number(row.revision_row_version),
+        policySnapshot: parseJson(row.policy_snapshot_json ?? {})
       })),
       currentControlledVersionId: row.current_version_id,
       currentControlledVersion: row.current_version,
