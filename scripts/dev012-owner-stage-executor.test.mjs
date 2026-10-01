@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { gunzipSync } from 'node:zlib'
-import { buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
+import { buildRuntimeConfig, canonicalize, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 
 const H40 = 'a'.repeat(40)
@@ -155,6 +155,27 @@ test('recorded provider transport executes the ten immutable owner stages withou
   assert.equal(JSON.parse(terminal[1].bytes.toString()).facts.result, 'RELEASED')
   assert.equal(h.service().trafficStatuses.some((row) => row.tag), false)
   assert.equal(h.transport.effectiveRevision(h.service()), candidateRevision)
+})
+
+test('prepare replay rejects aborted baseline control drift before reusing a cached receipt', async () => {
+  const h = recordedHarness()
+  const { intentResult, input } = await authorizedRecordedInput(h, 'REL-PREPARE-REPLAY')
+  const original = (await h.transport.readJson(intentResult.ref)).value
+  const baselineIntent = { ...original, releaseId: 'REL-ABORTED-BASELINE' }
+  const baseline = await h.transport.putJson(`gs://${bucket}/receipts/intents/aborted.json`, baselineIntent, { bucket, prefix: 'receipts' })
+  const intent = { ...original, baselineIntentRef: baseline.ref }
+  const capsule = await h.transport.putJson(`gs://${bucket}/receipts/intents/replay.json`, intent, { bucket, prefix: 'receipts' })
+  const seal = (core) => ({ ...core, receiptSha256: sha256(canonicalize(core)) })
+  const core = { schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'platform', sourceRevision: H40, status: 'PASS' }
+  await h.transport.putJson(releasePaths(h.profile, baselineIntent, baseline.ref.sha256).terminal,
+    seal({ ...core, releaseId: baselineIntent.releaseId, stage: 'terminal', facts: { result: 'PRE_ACTIVATION_ABORTED' } }), { bucket, prefix: 'receipts' })
+  await h.transport.putJson(releasePaths(h.profile, intent, capsule.ref.sha256).prepare,
+    seal({ ...core, releaseId: intent.releaseId, stage: 'prepare', facts: {} }), { bucket, prefix: 'receipts' })
+  await h.transport.putJson(`gs://${bucket}/control/active.json`, { result: 'RELEASED' }, { bucket, prefix: 'control' })
+  const objectCount = h.objects.size
+  await assert.rejects(executeOwnerStage({ ...input, capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256, stage: 'prepare' }),
+    /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  assert.equal(h.objects.size, objectCount)
 })
 
 test('principal-only migration intent refuses a fence without a safe recovery revision', async () => {

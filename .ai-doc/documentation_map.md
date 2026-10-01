@@ -2,6 +2,9 @@
 
 ## 現行施工（2026-10-01 人類 AAL1／Principal-only）
 
+R18 發布可靠性增量：AAL1 runtime #172 已合併 main e702f857，runner image rotation receipt 已透過 JENFU #83 原生 finalize-only 恢復，沒有再次 apply。074/application candidate/切流/L4 仍未執行。目前 active control 是已建立 candidate、完成清理且仍 MANUAL 0 的 PRE_ACTIVATION_ABORTED；本 owner 新增專用 continuation verifier，串接 sealed terminal→rollback→candidate→deployment/migration、source lock、control、GitHub run、獨立 ready revision 與原流量讀回。routine-authority 與 prepare 共用；不偽稱 RELEASED/ROLLED_BACK，不覆寫 control，不啟用旧流量。原 maintenance ROLLED_BACK helper 語義不變。純記憶體聚焦 23 tests 與真實 provider 唯讀 verifier 通過，唯讀證據 JENFU/DEV-015 output/dev-012/inputs/dev121-r18-abort-verifier-readonly.json（不是 release authority）。required CI 執行 native owner tests 與 qc:dev-117:continuous（含 isolated build／primary invariant／cleanup），不在工作站新增高成長 build。
+
+
 取消人類與管理員強制第二因子／AAL2，單因子如實 AAL1；不採逐人 pilot、不使用 UID/email/profile/local ACL fallback。Google／GitHub／Cloud 管理 MFA 不變。OrgMaster 發布 typed Principal/grant，Platform 管登入/session，AI-PDM 判斷能力與資源權限；已停用與未核實帳號保持停用，已完成一次性 cohort 不重 apply。
 
 本批 runtime、074 forward-only migration、owner migration fence與測試集中驗證：修改的 23 個聚焦 test files 156 PASS；owner-native suite 97 PASS；typecheck／DB boundary PASS。OrgMaster→AI-PDM 真實 PostgreSQL 22-case 指派／撤權／scope／技轉與管理 HTTP 整鏈 PASS，session 為受控替身；074 專用 PostgreSQL harness 最終 26 項 PASS，metadata／session invalidation、actor grant／scope／lifecycle／撤權均驗證；三次 synthetic fixture 失敗完整保留，cluster／port／temp cleanup 全通過。受控證據：[AAL1 PostgreSQL receipt](qa/DEV-121-human-assurance-aal1-postgres-2026-10-01.json)。來源 merge、fresh runner image／APP_INFRA_IMAGE_ROTATION、Principal-only recovery／fence／intent、正式發布與 F01–F10 L4 尚未完成。現行契約：[DEV-121](specs/DEV-121-target-authorization-boundary.md)；跨專案受控證據 JENFU/DEV-015 `dev015-aal1-cross-owner-postgres-20261001-r3.json`。下方 R17／AAL2／TOTP／Workspace trust 僅留歷史，不再施工。

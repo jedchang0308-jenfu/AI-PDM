@@ -1,4 +1,5 @@
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
+import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
 import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
@@ -386,6 +387,11 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   }
 
   if (stage === 'prepare') {
+    // A cached prepare receipt cannot certify that an aborted baseline is still stopped.
+    const continuation = intent.baselineIntentRef
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef }) : null
+    if (continuation && (!assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
+      || continuation.currentActiveRevision !== intent.previousRevision)) fail('PREPARE_BASELINE_MISMATCH')
     const existing = await optionalNamedJson(transport, paths.prepare, profile)
     if (existing) {
       assertStage(existing.value, profile, intent, 'prepare')
