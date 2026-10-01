@@ -7,7 +7,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 if (!/^\/output export-ignore$/mu.test(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'))) throw new Error('PRODUCTION_SOURCE_ARCHIVE_OUTPUT_BOUNDARY_MISSING')
-const run = spawnSync(process.execPath, ['--test', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
+const run = spawnSync(process.execPath, ['--test', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
 const npmCli = process.env.npm_execpath
 if (!npmCli) throw new Error('NPM_EXEC_PATH_REQUIRED')
 const ownerExitCommands = [
@@ -38,7 +38,7 @@ const files = [
   'scripts/dev010-n1c-ai-pdm-package.test.mjs',
   'scripts/lib/dev117-ai-pdm-continuous-release.mjs', 'scripts/dev117-ai-pdm-continuous-release.mjs',
   'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/qc-dev-117-continuous-release.mjs',
-  'scripts/lib/dev012-owner-release-runtime.mjs', 'scripts/lib/dev012-owner-stage-executor.mjs', 'scripts/lib/dev012-production-data-cutover.mjs', 'scripts/lib/dev012-production-migration-runner.mjs',
+  'scripts/lib/dev012-owner-release-runtime.mjs', 'scripts/lib/dev012-owner-stage-executor.mjs', 'scripts/lib/dev015-gcc-applicability.mjs', 'scripts/dev015-native-image-inventory.cjs', 'scripts/dev015-gcc-applicability.test.mjs', 'config/release/dev015-gcc-pbds-applicability.json', 'scripts/lib/dev012-production-data-cutover.mjs', 'scripts/lib/dev012-production-migration-runner.mjs',
   'scripts/lib/dev121-principal-candidate-smoke.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs',
   'scripts/dev121-principal-only-recovery-server.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs',
   'scripts/lib/dev121-principal-only-release.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs',
