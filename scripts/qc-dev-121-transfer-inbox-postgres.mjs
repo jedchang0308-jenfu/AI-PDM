@@ -13,6 +13,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const tempRoot = path.resolve(os.tmpdir())
 const taskRoot = fs.mkdtempSync(path.join(tempRoot, 'aipdm-dev121-transfer-inbox-'))
 assert.ok(taskRoot.startsWith(`${tempRoot}${path.sep}`))
+const pdmDataDir = path.join(taskRoot, 'pdm-data')
+const pdmRepositoryDir = path.join(taskRoot, 'pdm-repository')
+process.env.PDM_DATA_DIR = pdmDataDir
+process.env.PDM_REPOSITORY_DIR = pdmRepositoryDir
 const cluster = path.join(taskRoot, 'cluster')
 const log = path.join(taskRoot, 'postgres.log')
 const bin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || 'C:\\Program Files\\PostgreSQL\\18\\bin')
@@ -78,7 +82,8 @@ try {
     project: root, purpose: 'DEV-121 Principal transfer review inbox PostgreSQL contract',
     port, owningProcessTree: 'qc-dev-121-transfer-inbox-postgres.mjs -> task-owned PostgreSQL cluster',
     cleanupCondition: 'clients closed, cluster stopped, port released, temporary root removed',
-    mutationScope: taskRoot, productionWrites: false
+    mutationScope: taskRoot, PDM_DATA_DIR: pdmDataDir,
+    PDM_REPOSITORY_DIR: pdmRepositoryDir, productionWrites: false
   } })}\n`)
   run('initdb.exe', ['-D', cluster, '--auth-local=trust', '--auth-host=trust',
     '--username=postgres', '--encoding=UTF8', '--no-locale'])
@@ -232,9 +237,9 @@ try {
     );
     INSERT INTO ai_pdm_core.principal_accounts VALUES
       ('principal-reviewer','profile-reviewer','employee-reviewer',
-       'human_personal','company-jenfu',1,1,'active',true,'aal2',NULL),
+       'human_personal','company-jenfu',1,1,'active',true,'aal1',NULL),
       ('principal-owner','profile-owner','employee-owner',
-       'human_personal','company-jenfu',1,1,'active',true,'aal2',NULL);
+       'human_personal','company-jenfu',1,1,'active',true,'aal1',NULL);
     CREATE TABLE ai_pdm_core.platform_command_receipts (
       id text PRIMARY KEY, company_id text NOT NULL, command_name text NOT NULL,
       schema_version integer NOT NULL, idempotency_key text NOT NULL,
