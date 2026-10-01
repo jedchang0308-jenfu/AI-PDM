@@ -1,3 +1,5 @@
+import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
+import { dev087RouteError } from "@/lib/pdm-dev087-route";
 import { readPartNumberMatrixWorkspace } from "@/lib/part-number-matrix-workspace";
 import { principalRequestFailure, principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
@@ -37,9 +39,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ part
     const workId = new URL(request.url).searchParams.get("workId")?.trim() ?? "";
     if (!workId) return Response.json({ error: { code: "WORKBENCH_BAD_REQUEST", message: "缺少來源工作資料" } },
       { status: 400, headers: { "cache-control": "private, no-store" } });
-    return Response.json(await readPartNumberMatrixWorkspace({ client: tx,
-      sourcePartId: decodeURIComponent(partId), sourceWorkId: workId, actor }),
-      { headers: { "cache-control": "private, no-store" } });
+    try {
+      return Response.json(await readPartNumberMatrixWorkspace({ client: tx,
+        sourcePartId: decodeURIComponent(partId), sourceWorkId: workId, actor }),
+        { headers: { "cache-control": "private, no-store" } });
+    } catch (error) {
+      if (error instanceof CanonicalWorkbenchError) return dev087RouteError(error);
+      throw error;
+    }
   });
   return principalResponse ?? Response.json({ code: "principal_authorization_unavailable" },
     { status: 503, headers: { "cache-control": "no-store" } });

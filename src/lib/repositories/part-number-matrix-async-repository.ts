@@ -62,7 +62,7 @@ type MatrixPartRow = {
   variant_note: string | null;
   work_id: string | null;
   work_owner_user_id: string | null;
-  work_payload: string | null;
+  work_payload: unknown;
   work_row_version: number | string | null;
   handling: string | null;
   blocker_reason: string | null;
@@ -92,10 +92,10 @@ function formalPayload(row: MatrixPartRow): PartChangePayload {
   });
 }
 
-function parseWorkPayload(value: string | null, baseline: PartChangePayload): PartChangePayload | null {
-  if (!value) return null;
+function parseWorkPayload(value: unknown, baseline: PartChangePayload): PartChangePayload | null {
+  if (value === null) return null;
   try {
-    return normalizePartChangePayload(JSON.parse(value), baseline);
+    return normalizePartChangePayload(typeof value === "string" ? JSON.parse(value) : value, baseline);
   } catch {
     throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "料號工作資料格式無效，請重新載入", 409);
   }
