@@ -29,6 +29,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async original => ({
 }));
 import { POST as createRecord } from "@/app/api/numbering/records/route";
 import { GET as rootDetail } from "@/app/api/numbering/roots/[rootCode]/route";
+import { GET as partList } from "@/app/api/parts/route";
 import { GET as search } from "@/app/api/numbering/search/route";
 import { isProductionSliceAllowedApiMutation } from "@/lib/production-slice";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
@@ -94,7 +95,10 @@ describe.runIf(enabled)("real OrgMaster grant -> Principal numbering HTTP -> nat
     expect(detail.status).toBe(allowed ? 200 : 403);
     const found = await search(request("/api/numbering/search?query="+encodeURIComponent(id)));
     expect(found.status).toBe(allowed ? 200 : 403);
+    const parts = await partList(request("/api/parts?query="+encodeURIComponent(id)));
+    expect(parts.status, await parts.clone().text()).toBe(allowed ? 200 : 403);
     if (allowed) {
+      expect(await parts.text()).toContain(created!.partNumber.partNumber);
       expect(await detail.text()).toContain(created!.partNumber.partNumber);
       expect(await found.text()).toContain(created!.partNumber.partNumber);
     }

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContextAsync } from "@/lib/numbering-company-context";
-import { listPartModuleRecordsAsync, listProductSeriesOptionsAsync, listSeriesCodeOptionsAsync } from "@/lib/numbering-async";
-import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
+import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
+import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 import { normalizeWorkStatusQuery } from "@/lib/work-status-presentation";
 import { projectRoleResponsibilityStatusPair, responsibilityStatusMatchesFilter } from "@/lib/responsibility-status-projection";
 import { projectPartHumanStatus } from "@/lib/part-human-status";
 import { projectPartAvailability } from "@/lib/availability-scope";
-import { resolveHumanStatusRoleCapabilitiesAsync } from "@/lib/numbering-human-status-viewer";
+import { resolvePrincipalHumanStatusRoleCapabilitiesInSnapshot } from "@/lib/numbering-human-status-viewer";
 import type { NumberingRecordStatus } from "@/lib/repositories/numbering-repository";
 import { parseNumberSortDirection } from "@/lib/number-sort";
 
@@ -26,12 +26,10 @@ const recordStatuses = new Set([
 ]);
 
 export async function GET(request: Request) {
-  const auth = await requireNumberingPageAsync(request, "numbering.search");
-  if (auth.response) return auth.response;
+  if (!principalSessionTokenFromRequest(request)) return NextResponse.json({ code: "auth_session_invalid" },
+    { status: 401, headers: { "cache-control": "no-store" } });
 
   const url = new URL(request.url);
-  const companyResult = await resolveNumberingCompanyContextAsync(auth.user.id, requestedNumberingCompanyCodeFromRequest(request));
-  if (companyResult.response) return companyResult.response;
 
   const recordStatus = normalizeEnum(url.searchParams.get("recordStatus"), recordStatuses) as NumberingRecordStatus | undefined;
   const productSeries = url.searchParams.get("productSeries")?.trim() || undefined;
@@ -40,45 +38,49 @@ export async function GET(request: Request) {
   const humanStatus = workStatusQuery.filter;
   const requestedLimit = normalizeLimit(url.searchParams.get("limit"), 50);
 
-  const [parts, productSeriesOptions, seriesCodeOptions, viewerCapabilities] = await Promise.all([
-    listPartModuleRecordsAsync({
-      companyId: companyResult.company.companyId,
-      query: url.searchParams.get("query") ?? "",
-      productSeries,
-      seriesCode,
-      recordStatus,
-      sortDirection: parseNumberSortDirection(url.searchParams.get("sortDirection")),
-      limit: humanStatus === "all" ? requestedLimit : null,
-      includeHistory: workStatusQuery.includeHistory
-    }),
-    listProductSeriesOptionsAsync(companyResult.company.companyId),
-    listSeriesCodeOptionsAsync(companyResult.company.companyId),
-    resolveHumanStatusRoleCapabilitiesAsync(auth.user)
-  ]);
+  return await withPrincipalNumberingCompanyRead(request, "numbering.search", async (snapshot, company, verified) => {
+    const repository = new AsyncNumberingRepository(snapshot);
+    const [parts, productSeriesOptions, seriesCodeOptions, viewerCapabilities] = await Promise.all([
+      repository.listPartModuleRecords({
+        companyId: company.companyId,
+        query: url.searchParams.get("query") ?? "",
+        productSeries,
+        seriesCode,
+        recordStatus,
+        sortDirection: parseNumberSortDirection(url.searchParams.get("sortDirection")),
+        limit: humanStatus === "all" ? requestedLimit : null,
+        includeHistory: workStatusQuery.includeHistory
+      }),
+      repository.listProductSeriesOptions(company.companyId),
+      repository.listSeriesCodeOptions(company.companyId),
+      resolvePrincipalHumanStatusRoleCapabilitiesInSnapshot(snapshot, verified)
+    ]);
 
-  const projectedParts = parts
-    .map((part) => {
-      const objectiveStatus = projectPartHumanStatus(part);
-      return {
-        ...part,
-        humanStatus: objectiveStatus,
-        ...projectRoleResponsibilityStatusPair({
-          status: objectiveStatus,
-          actorId: auth.user.id,
-          capabilities: viewerCapabilities,
-          href: `/parts?detail=${encodeURIComponent(`part:${part.id}`)}`
-        }),
-        availabilityScope: projectPartAvailability(part)
-      };
-    })
-    .filter((part) => responsibilityStatusMatchesFilter(part.responsibilityStatus, part.viewerActionability, part.humanStatus, humanStatus, part.availabilityScope))
-    .slice(0, requestedLimit);
-  return NextResponse.json({
-    parts: projectedParts,
-    productSeriesOptions,
-    seriesCodeOptions,
-    pdmCompany: companyResult.company
-  }, { headers: { "cache-control": "private, no-store" } });
+    const projectedParts = parts
+      .map((part) => {
+        const objectiveStatus = projectPartHumanStatus(part);
+        return {
+          ...part,
+          humanStatus: objectiveStatus,
+          ...projectRoleResponsibilityStatusPair({
+            status: objectiveStatus,
+            actorId: verified.profile.pdmUserId,
+            capabilities: viewerCapabilities,
+            href: `/parts?detail=${encodeURIComponent(`part:${part.id}`)}`
+          }),
+          availabilityScope: projectPartAvailability(part)
+        };
+      })
+      .filter((part) => responsibilityStatusMatchesFilter(part.responsibilityStatus, part.viewerActionability, part.humanStatus, humanStatus, part.availabilityScope))
+      .slice(0, requestedLimit);
+    return NextResponse.json({
+      parts: projectedParts,
+      productSeriesOptions,
+      seriesCodeOptions,
+      pdmCompany: company
+    }, { headers: { "cache-control": "private, no-store" } });
+  }) ?? NextResponse.json({ code: "principal_authorization_unavailable" },
+    { status: 503, headers: { "cache-control": "no-store" } });
 }
 
 function normalizeEnum(value: string | null, allowed: Set<string>) {
