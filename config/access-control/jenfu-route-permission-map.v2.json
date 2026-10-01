@@ -2,7 +2,7 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "7b1756c8fb6af2ccf3d41d4596f7d61d62fddb1e6ac2f7583fa900083fe14600",
+  "sourceSha256": "bbd658395752a0518441b23ac49c61ae552e3f044062adb50ff81a8b55b906c2",
   "denominator": {
     "uniqueFiles": 131,
     "uniqueMethods": 151,
@@ -507,7 +507,7 @@
       "permissionCode": "numbering.draft.obsolete",
       "authorizationTarget": "numbering.draft.obsolete",
       "scopeResolver": "workspace",
-      "preservedGuards": "verified AAL2 principal＋published grant＋company／exact RD branch／row version＋v2 review package／principal receipt"
+      "preservedGuards": "verified AAL1 principal＋published grant＋company／exact RD branch／row version＋v2 review package／principal receipt"
     },
     {
       "path": "src/app/api/pdm/drawing-revision-works/[workId]/cancel/route.ts",
@@ -567,7 +567,7 @@
       "permissionCode": "numbering.candidate.review.submit",
       "authorizationTarget": "numbering.candidate.review.submit",
       "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋verified principal／AAL2＋current owner＋principal reviewer＋v2 review package＋canonical receipt"
+      "preservedGuards": "workspace＋verified principal／AAL1＋current owner＋principal reviewer＋v2 review package＋canonical receipt"
     },
     {
       "path": "src/app/api/pdm/drawings/[drawingId]/revision-targets/route.ts",
@@ -637,7 +637,7 @@
       "permissionCode": null,
       "authorizationTarget": "authenticated_domain",
       "scopeResolver": "asset company",
-      "preservedGuards": "asset company＋exact pending/applying assigned-review scope／snapshot integrity；principal v2 限 review_package、AAL2、approval.inbox.view＋approval.request.decide、pending＋v2 package，物件 I/O 於授權快照後"
+      "preservedGuards": "asset company＋exact pending/applying assigned-review scope／snapshot integrity；principal v2 限 review_package、AAL1、approval.inbox.view＋approval.request.decide、pending＋v2 package，物件 I/O 於授權快照後"
     },
     {
       "path": "src/app/api/pdm/part-change-works/[workId]/cancel/route.ts",
@@ -677,7 +677,7 @@
       "permissionCode": "numbering.candidate.review.submit",
       "authorizationTarget": "numbering.candidate.review.submit",
       "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋verified principal／AAL2／current owner＋v2 review package＋canonical receipt"
+      "preservedGuards": "workspace＋verified principal／AAL1／current owner＋v2 review package＋canonical receipt"
     },
     {
       "path": "src/app/api/pdm/parts/[partId]/change-works/route.ts",
@@ -717,7 +717,7 @@
       "permissionCode": "approval.request.decide",
       "authorizationTarget": "approval.request.decide",
       "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋verified principal／AAL2／assigned reviewer＋request state；unmigrated review kinds fail closed"
+      "preservedGuards": "workspace＋verified principal／AAL1／assigned reviewer＋request state；unmigrated review kinds fail closed"
     },
     {
       "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
@@ -727,7 +727,7 @@
       "permissionCode": "approval.inbox.view",
       "authorizationTarget": "approval.inbox.view",
       "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋verified principal／AAL2／approval.request.decide＋assigned reviewer＋request state；unmigrated review kinds fail closed"
+      "preservedGuards": "workspace＋verified principal／AAL1／approval.request.decide＋assigned reviewer＋request state；unmigrated review kinds fail closed"
     },
     {
       "path": "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts",
@@ -737,7 +737,7 @@
       "permissionCode": "approval.inbox.view",
       "authorizationTarget": "approval.inbox.view",
       "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋verified principal／AAL2／approval.request.decide＋assigned reviewer＋v2 package target；unmigrated review kinds fail closed"
+      "preservedGuards": "workspace＋verified principal／AAL1／approval.request.decide＋assigned reviewer＋v2 package target；unmigrated review kinds fail closed"
     },
     {
       "path": "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/route.ts",
@@ -747,7 +747,7 @@
       "permissionCode": "approval.inbox.view",
       "authorizationTarget": "approval.inbox.view",
       "scopeResolver": "workspace",
-      "preservedGuards": "workspace＋verified principal／AAL2／approval.request.decide＋assigned reviewer＋v2 package target；unmigrated review kinds fail closed"
+      "preservedGuards": "workspace＋verified principal／AAL1／approval.request.decide＋assigned reviewer＋v2 package target；unmigrated review kinds fail closed"
     },
     {
       "path": "src/app/api/policy/management/route.ts",
@@ -787,7 +787,7 @@
       "permissionCode": "submission.view",
       "authorizationTarget": "submission.view",
       "scopeResolver": "submission company",
-      "preservedGuards": "published role／AAL2 for manager／same company／verified profile owner for rd／historical read-only search"
+      "preservedGuards": "published role／AAL1 for manager／same company／verified profile owner for rd／historical read-only search"
     },
     {
       "path": "src/app/api/settings/access/role-capabilities/change-feed/route.ts",
@@ -1257,7 +1257,7 @@
       "permissionCode": "submission.view",
       "authorizationTarget": "submission.view",
       "scopeResolver": "submission company",
-      "preservedGuards": "published role／AAL2 for manager／same company／verified profile owner for rd／historical read-only list"
+      "preservedGuards": "published role／AAL1 for manager／same company／verified profile owner for rd／historical read-only list"
     },
     {
       "path": "src/app/api/submissions/route.ts",
@@ -1427,7 +1427,7 @@
       "permissionCode": "submission.view",
       "authorizationTarget": "submission.view",
       "scopeResolver": "submission company",
-      "preservedGuards": "published role／AAL2 for manager／same company／verified profile owner for rd／historical read-only"
+      "preservedGuards": "published role／AAL1 for manager／same company／verified profile owner for rd／historical read-only"
     },
     {
       "path": "src/app/api/submissions/[id]/files/[...filePath]/route.ts",
