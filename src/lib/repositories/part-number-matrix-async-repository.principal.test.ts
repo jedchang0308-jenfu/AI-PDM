@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { PartNumberMatrixAsyncRepository } from "@/lib/repositories/part-number-matrix-async-repository";
 
-it("does not reveal an owned draft or offer editing without the published update grant", async () => {
+it.each(["text", "jsonb", "invalid-object", "invalid-text"])("does not reveal an owned %s draft without the published update grant", async (storage) => {
   const source = { source_part_id: "part-one", source_root_id: "root-one",
     root_id: "root-one", root_code: "R1", source_work_id: "work-one",
     source_work_state_id: "state-one" };
@@ -15,6 +15,9 @@ it("does not reveal an owned draft or offer editing without the published update
       partName: "Draft", itemKind: "purchased", isUniversal: false
     }), work_row_version: 2, handling: "owner", blocker_reason: null,
     attachment_count: 0 };
+  if (storage === "jsonb") row.work_payload = JSON.parse(row.work_payload);
+  if (storage === "invalid-object") row.work_payload = JSON.parse("[]");
+  if (storage === "invalid-text") row.work_payload = "invalid-json";
   const client = { queryOne: vi.fn(async () => source),
     query: vi.fn().mockResolvedValueOnce([row]).mockResolvedValueOnce([])
       .mockResolvedValueOnce([row]).mockResolvedValueOnce([]) } as unknown as AsyncDatabaseClient;
@@ -23,6 +26,10 @@ it("does not reveal an owned draft or offer editing without the published update
   const actor = { id: "profile-one", canEditNonOwned: false,
     permissions: { create: true, update: false, submit: true } };
 
+  if (storage.startsWith("invalid-")) {
+    await expect(repository.getMatrix({ ...basis, actor })).rejects.toMatchObject({code:"WORKBENCH_SNAPSHOT_DRIFT"});
+    return;
+  }
   const denied = await repository.getMatrix({ ...basis, actor });
   expect(denied.columns[0]).toMatchObject({ canEdit: false, canSubmit: false,
     workId: null, valueSource: "formal", payload: { partName: "Formal" } });

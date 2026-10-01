@@ -19,6 +19,8 @@ vi.mock("@/lib/jenfu-principal-request-guard", async original => ({
     }),{readOnly:options.readOnly!==false,isolationLevel:options.isolationLevel??"repeatable_read"})
 }));
 import { POST as createRecord } from "@/app/api/numbering/records/route";
+import { readPartNumberMatrixWorkspace } from "@/lib/part-number-matrix-workspace";
+import { GET as readMatrix } from "@/app/api/pdm/parts/[partId]/matrix-workspace/route";
 import { POST as createPartWork } from "@/app/api/pdm/parts/[partId]/change-works/route";
 import { GET as readPartWork, PATCH as updatePartWork } from "@/app/api/pdm/part-change-works/[workId]/route";
 import { POST as submitPart } from "@/app/api/pdm/part-change-works/[workId]/submit/route";
@@ -82,10 +84,24 @@ describe.runIf(enabled)("OrgMaster grant v3 -> actual Principal part/drawing wor
     const start=await ok<{data:{workId:string;rowVersion:number}}>(await createPartWork(request("/api/pdm/parts/"+partId+"/change-works",ownerToken,"POST",{},1,
       await contract("qc-profile-owner")),{params:Promise.resolve({partId})}));
     const workId=start.data.workId,params={params:Promise.resolve({workId})};
+    const actor={id:"qc-profile-owner",companyId:"company-jenfu",canEditNonOwned:false,
+      permissions:{create:true,update:true,submit:true,cancel:false,decide:false}};
+    const directMatrix=await db!.transaction(tx=>readPartNumberMatrixWorkspace({client:tx,sourcePartId:partId,
+      sourceWorkId:workId,actor}),{readOnly:true,isolationLevel:"repeatable_read"});
+    expect(directMatrix.data.columns[0]).toMatchObject({partId,workId,canEdit:true});
+    await ok(await readMatrix(request("/api/pdm/parts/"+partId+"/matrix-workspace?workId="+workId),
+      {params:Promise.resolve({partId})}));
+
     let work=await ok<Work>(await readPartWork(request("/api/pdm/part-change-works/"+workId),params));
     await ok(await updatePartWork(request("/api/pdm/part-change-works/"+workId,ownerToken,"PATCH",
       {...work.data.payload,partName:"Principal reviewed part"},work.data.rowVersion,work.meta.contractToken),params));
     work=await ok<Work>(await readPartWork(request("/api/pdm/part-change-works/"+workId),params));
+
+    const reloaded=await ok<{data:{columns:Array<{workId:string;payload:{partName:string}}>}}>(await readMatrix(
+      request("/api/pdm/parts/"+partId+"/matrix-workspace?workId="+workId),{params:Promise.resolve({partId})}));
+    expect(reloaded.data.columns[0]).toMatchObject({workId,payload:{partName:"Principal reviewed part"}});
+    await ok(await readMatrix(request("/api/pdm/parts/"+partId+"/matrix-workspace?workId=wrong-work"),
+      {params:Promise.resolve({partId})}),404);
     const submission=await ok<Submission>(await submitPart(request("/api/pdm/part-change-works/"+workId+"/submit",ownerToken,"POST",{},
       work.data.rowVersion,work.meta.contractToken),params));
     await completeReview(submission,"approve");

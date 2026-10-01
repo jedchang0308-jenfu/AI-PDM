@@ -1,3 +1,7 @@
+## 2026-10-02 R25 PostgreSQL 矩陣 JSON 契約修正（現行施工）
+
+R24 頁面入口已正式解除，但 A0060-P01 matrix-workspace 回 `principal_dependency_unavailable` 503。真實 PostgreSQL 重現確定 `work.proposed_payload` 已解析為物件；矩陣 repository 卻無條件 JSON.parse，將合法工作拒絕為 snapshot drift。不是角色不夠，不新增 grant。矩陣改為與既有工作 repository 相同的字串／JSON 物件解析後嚴格欄位驗證；非法字串與物件仍拒絕。route 僅將已知 CanonicalWorkbenchError 映射為原 domain code/status，未知依賴錯誤仍 fail closed。已把矩陣載入、修改後重載與錯誤 work ID 拒絕加入既有真實 PostgreSQL 建立→修改→指派審核整鏈；修正前重現 FAIL，修正後23個既有契約案例 PASS，cluster/port/temp 全清理。29項受影響本機回歸與 app typecheck PASS。正式編輯／儲存尚待此修正發布；沿 A0060-P01 既有 work 30e9dd66-d9a2-4d71-b882-33cfa8ed69a9 續測，禁止重建、取消刪除或宣稱全 DEV 結案。下方 R24／R23 未完成階段為歷史記錄。
+
 ## 2026-10-02 R24 canonical 頁面與命令整鏈（現行施工）
 
 R23 命令已正式發布且 A0060-P01 建立工作回 200，但實際導向的料號 workspace 被頁面 slice 重寫為「未開放」。編輯尚未通過，不以命令 200 宣稱業務可用。已追查 canonical workbench 的兩個 editor destination 及 UUID review package destination，集中將三個精確頁面家族納入同一 active-mode policy。頁面只提供 shell；資料與修改仍經已驗證 Principal、published grant、company/resource、owner/reviewer、row version 與交易命令。未知 mode、舊 APR 審核、附件及無關路徑仍拒絕。GET/HEAD 真實 middleware 回歸與既有命令邊界 30 案、typecheck、slice QC 通過；待正式發布後驗證已保留工作 `30e9dd66-d9a2-4d71-b882-33cfa8ed69a9` 的載入／草稿儲存／讀回，禁止重建或取消刪除。下方未發布描述為歷史讀點。
@@ -836,4 +840,5 @@ P01～P09 的 task-owned fixture 覆蓋 mapping／Portal assignment／authority�
 舊 canonical command 的 PostgreSQL 路徑已停止按 request 自動建立 organization mapping；其 actor 若已 `principal_active`，在鎖定 receipt 或執行業務副作用前回 410，不能從舊 v1 route 寫入。缺 marker 或未知狀態回 503，只有明示 `legacy_compatible` 才能繼續；這修正了「無列仍執行」的缺口，聚焦 23／23、typecheck、scoped ESLint PASS。未切換帳號的舊路徑暫時只能讀取既有 mapping；若 mapping 缺失則拒絕，不能在請求中補建。此負面 fence 只服務過渡期與 v1 回復，不是新 principal 授權的相容橋，切流收斂後整段刪除。
 
 歷史 Firebase 邀請的撤銷只修改 AI-PDM 本地 invitation、legacy mapping／account 狀態，先由 065 資料庫 fence 拒絕已 `principal_active` 的 profile，再撤銷本地邀請。AI-PDM 不再從此入口停用、撤銷 refresh token 或刪除共享 provider 身分；Shared Identity 的 provider lifecycle 由 Platform owner 處理。這避免舊應用指令破壞其他系統仍需使用的 canonical principal alias。全體切換後移除整條舊邀請 runtime 路徑，歷史紀錄留作不可授權的稽核資料。
+
 
