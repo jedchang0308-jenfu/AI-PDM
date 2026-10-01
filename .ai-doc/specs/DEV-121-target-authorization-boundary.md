@@ -1,4 +1,11 @@
 # DEV-121：AI-PDM 目標端授權邊界
+## R20 正式交付增量（2026-10-01；完整 L4 尚未完成）
+
+AI-PDM owner run 36874237437 已 RELEASED，正式 100% revision ai-pdm-prod-2eb9cb2b6383；OrgMaster owner run 36874231059 同樣 RELEASED。正常 Platform→兩 consumer SSO／Principal／AAL1 讀回通過，不代表必要業務 F01–F10 完成。JENFU/DEV-015 現行盤點保留共同發布、回復與正式證據；不重跑既有 cohort、不改已套用 migration。
+
+本批修正同一 production-slice 的 client/server 投影分歧：server 已准入 technical-transfer 與 approvals，sidebar 卻因 client openPagePaths 遺漏而停用。client status 改以既有 server page policy 篩選固定導航入口；不擴張能力、scope、命令或 API 邊界。既有 principal-transfer 回歸新增 advertised-path 一致性，5 tests 與 app typecheck 通過；正式 UI 修正仍待受保護 PR／發布驗證。
+
+正式編號驗證件 A0060／A0060-P01／A0060-M01 已建立並保留；搜尋403尚未解決。正式 source receipt 與 published policy 指向 Jed human_privileged 不承接 employee role，而 v5 system_admin 缺搜尋／部分日常能力。此為帳號隔離與能力政策落差，非 JSONB 雜湊問題；既有 employee-role 只適用 human_personal 的規則不得在等待政策決策時擅改。JFS9014／JFS9015 僅在明確身分／profile 核實後使用，其他未核實者保持停用。
 
 ## 人類政策決議（2026-10-01；AAL1／Principal-only）
 
