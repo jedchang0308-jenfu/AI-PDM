@@ -387,6 +387,11 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   }
 
   if (stage === 'prepare') {
+    // A cached prepare receipt cannot certify that an aborted baseline is still stopped.
+    const continuation = intent.baselineIntentRef
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef }) : null
+    if (continuation && (!assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
+      || continuation.currentActiveRevision !== intent.previousRevision)) fail('PREPARE_BASELINE_MISMATCH')
     const existing = await optionalNamedJson(transport, paths.prepare, profile)
     if (existing) {
       assertStage(existing.value, profile, intent, 'prepare')
@@ -409,9 +414,6 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       ])
       assertPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value, service, revision })
     }
-    const continuation = intent.baselineIntentRef
-      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null
-    if (continuation && (!recovery || continuation.currentActiveRevision !== intent.previousRevision)) fail('PREPARE_BASELINE_MISMATCH')
     if (Object.keys(profile.environment?.controlledValues ?? {}).length > 0) {
       const repair = intent.baselineIntentRef
         ? await readPrincipalOnlyRepairBaseline({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null
