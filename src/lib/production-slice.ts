@@ -224,6 +224,7 @@ export function productionSliceClientStatus(env: EnvLike = process.env) {
     unopenedCode: PRODUCTION_SLICE_UNOPENED_CODE,
     unopenedMessage: PRODUCTION_SLICE_UNOPENED_MESSAGE,
     numberingLifecycle: lifecycle,
-    openPagePaths
+    openPagePaths: [...openPagePaths, "/technical-transfer", "/approvals"]
+      .filter((path) => isProductionSliceOpenPagePath(path, env))
   };
 }

@@ -3,7 +3,8 @@ import { NextRequest } from "next/server";
 import { middleware } from "@/middleware";
 import {
   isProductionSliceAllowedApiMutation,
-  isProductionSliceOpenPagePath
+  isProductionSliceOpenPagePath,
+  productionSliceClientStatus
 } from "@/lib/production-slice";
 
 const active = { PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft" };
@@ -42,6 +43,18 @@ describe("Principal transfer workflow reachability in the existing production sl
       expect(isProductionSliceOpenPagePath(path, unknown)).toBe(false);
     }
     expect(isProductionSliceOpenPagePath("/approvals/APR-TRF-historical", active)).toBe(false);
+  });
+
+  it("advertises the same workflow entries that server policy opens without broadening unrelated pages", () => {
+    for (const env of [active, unknown, { ...active, PDM_PRODUCTION_NUMBERING_LIFECYCLE_GATE: "formal-obsolete" }]) {
+      const advertised = productionSliceClientStatus(env).openPagePaths;
+      for (const path of ["/technical-transfer", "/approvals", "/handoff", "/policy", "/settings"]) {
+        expect(advertised.includes(path)).toBe(isProductionSliceOpenPagePath(path, env));
+      }
+      expect(advertised).not.toContain("/approvals/APR-TRF-historical");
+    }
+    expect(productionSliceClientStatus(active).openPagePaths).toContain("/technical-transfer");
+    expect(productionSliceClientStatus(active).openPagePaths).toContain("/approvals");
   });
 
   it("passes the actual middleware for a bound transfer decision and blocks an unbound one", () => {
