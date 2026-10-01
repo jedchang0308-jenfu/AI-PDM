@@ -1,5 +1,8 @@
 # AI_PDM Documentation Map
 
+
+**DEV-121 現行發布可靠性子項：R20 provider traffic 行序修正（2026-10-01）。** 沿用 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121，不新增主任務。三 owner Principal-only activate 改依精確 revision／tag 配對，不依 provider 陣列順序；維持列數／比例／UID／recovery 拒絕條件。三 owner 18 項聚焦測試及獨立唯讀審查通過，protected PR／required CI／新 capsule 與正式業務 L4 待完成。共同根因及真實唯讀因果證據由 JENFU/DEV-015 inventory R20、`dev121-r19-traffic-order-diagnostic.json` 追溯；歷史 R19 capsule 不重跑，人類 AAL1／Principal-only 政策不變。
+
 ## 現行施工（2026-10-01 人類 AAL1／Principal-only）
 
 R18 發布可靠性增量：AAL1 runtime #172 已合併 main e702f857，runner image rotation receipt 已透過 JENFU #83 原生 finalize-only 恢復，沒有再次 apply。074/application candidate/切流/L4 仍未執行。目前 active control 是已建立 candidate、完成清理且仍 MANUAL 0 的 PRE_ACTIVATION_ABORTED；本 owner 新增專用 continuation verifier，串接 sealed terminal→rollback→candidate→deployment/migration、source lock、control、GitHub run、獨立 ready revision 與原流量讀回。routine-authority 與 prepare 共用；不偽稱 RELEASED/ROLLED_BACK，不覆寫 control，不啟用旧流量。原 maintenance ROLLED_BACK helper 語義不變。純記憶體聚焦 23 tests 與真實 provider 唯讀 verifier 通過，唯讀證據 JENFU/DEV-015 output/dev-012/inputs/dev121-r18-abort-verifier-readonly.json（不是 release authority）。required CI 執行 native owner tests 與 qc:dev-117:continuous（含 isolated build／primary invariant／cleanup），不在工作站新增高成長 build。

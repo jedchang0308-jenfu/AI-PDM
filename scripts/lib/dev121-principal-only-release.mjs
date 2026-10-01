@@ -97,8 +97,8 @@ export function principalOnlyActivationRequest({ service, oldRevision, candidate
     !/^candidate-[a-f0-9]{12}$/u.test(candidateTag ?? '')) fail()
   for (const rows of [service.traffic, service.trafficStatuses]) {
     if (!Array.isArray(rows) || rows.length !== 2 ||
-      !exactTraffic([rows[0]], oldRevision) ||
-      !exactZeroTag([rows[1]], candidateRevision, candidateTag)) fail()
+      !exactTraffic([rows.find((row) => row.tag === undefined)], oldRevision) ||
+      !exactZeroTag([rows.find((row) => row.tag === candidateTag)], candidateRevision, candidateTag)) fail()
   }
   return {
     name: service.name, etag: service.etag,
@@ -124,8 +124,8 @@ export function assertPrincipalOnlyActivationReadback({ before, after,
     !Array.isArray(after.traffic) || !Array.isArray(after.trafficStatuses) ||
     after.traffic.length !== 2 || after.trafficStatuses.length < 1 ||
     after.trafficStatuses.length > 2 ||
-    !exactTraffic([after.traffic[0]], candidateRevision) ||
-    !exactZeroTag([after.traffic[1]], candidateRevision, candidateTag) ||
+    !exactTraffic([after.traffic.find((row) => row.tag === undefined)], candidateRevision) ||
+    !exactZeroTag([after.traffic.find((row) => row.tag === candidateTag)], candidateRevision, candidateTag) ||
     after.trafficStatuses.some((row) => row.revision !== candidateRevision ||
       ![undefined, candidateTag].includes(row.tag) ||
       !((row.percent == null && row.tag === candidateTag) || [0, 100].includes(Number(row.percent)))) ||
