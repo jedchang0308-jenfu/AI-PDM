@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { middleware } from "@/middleware";
-import { isProductionSliceAllowedApiMutation } from "@/lib/production-slice";
+import { isProductionSliceAllowedApiMutation, isProductionSliceOpenPagePath } from "@/lib/production-slice";
 const active = { PDM_PRODUCTION_SLICE_MODE: "official-numbering-draft" };
 const commands: [string,string][] = [
  ["POST","/api/pdm/parts/part-one/change-works"], ["POST","/api/pdm/drawings/drawing-one/revision-works"],
@@ -26,6 +26,32 @@ describe("Principal canonical work commands reach their owner boundary", () => {
     ["POST","/api/pdm/part-change-works/work-one/publish"], ["DELETE","/api/pdm/parts/part-one"],
     ["POST","/api/parts/part-one/attachments"], ["POST","/api/pdm/drawing-rd-branches/branch-one/void-requests"]]) {
     expect(isProductionSliceAllowedApiMutation(method,path,active)).toBe(false);
+  }
+ });
+});
+
+describe("Canonical work destinations use the same production entry boundary", () => {
+ it.each([
+  "/parts/part-one/workspace?workId=work-one",
+  "/numbering/drawings/drawing-one/workspace?workId=work-one",
+  "/approvals/00000000-0000-4000-8000-000000000001"
+ ])("passes actual GET and HEAD middleware for %s", destination => {
+  const pathname=new URL("https://pdm.example"+destination).pathname;
+  expect(isProductionSliceOpenPagePath(pathname,active)).toBe(true);
+  expect(isProductionSliceOpenPagePath(pathname,{PDM_PRODUCTION_SLICE_MODE:"unknown-mode"})).toBe(false);
+  vi.stubEnv("PDM_PRODUCTION_SLICE_MODE","official-numbering-draft");
+  try {
+   for(const method of ["GET","HEAD"]) {
+    const response=middleware(new NextRequest("https://pdm.example"+destination,{method}));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+   }
+  } finally { vi.unstubAllEnvs(); }
+ });
+ it("keeps unrelated and historical destinations closed",()=>{
+  for(const path of ["/parts/part-one/attachments","/parts/part-one/workspace/extra",
+   "/numbering/drawings/drawing-one/admin","/approvals/APR-historical","/approvals/not-a-request"]) {
+   expect(isProductionSliceOpenPagePath(path,active)).toBe(false);
   }
  });
 });

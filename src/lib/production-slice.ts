@@ -195,6 +195,9 @@ export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = p
   const normalizedPath = normalizePathname(pathname);
   if (getProductionSliceState(env).active &&
     (normalizedPath === "/technical-transfer" || normalizedPath === "/approvals" ||
+     /^\/parts\/[^/]+\/workspace$/u.test(normalizedPath) ||
+     /^\/numbering\/drawings\/[^/]+\/workspace$/u.test(normalizedPath) ||
+     /^\/approvals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(normalizedPath) ||
      /^\/transfer-packages\/(?:new|[^/]+)$/u.test(normalizedPath) ||
      (normalizedPath.startsWith("/approvals/") &&
        isPrincipalTransferReviewRequestId(normalizedPath.slice("/approvals/".length))))) return true;
