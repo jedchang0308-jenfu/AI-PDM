@@ -24,7 +24,7 @@ const authorityRow = {
 };
 
 const assignment = {
-  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3",
+  contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v4",
   assignment_version_id: "assignment-version-1",
   assignment_version: 1,
   assignment_id: "assignment-1",
@@ -95,6 +95,27 @@ function repository(options: FakeClientOptions = {}, activeCatalog?: JenfuEntitl
 }
 
 describe("DEV-005 EntitlementRepository", () => {
+  it("rejects a historical v3 grant on the sole v4 authorization path", async () => {
+    await expect(repository({ assignmentRows: [{ ...assignment,
+      contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3" }] })
+      .listEffectiveAssignments(actor)).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+
+  it("does not retry v3 when the required v4 producer is unavailable", async () => {
+    const client = fakeClient();
+    const read = client.query.bind(client);
+    const observed: string[] = [];
+    client.query = async <T>(sql: string, params?: unknown): Promise<T[]> => {
+      observed.push(sql);
+      if (sql.includes("v_ai_pdm_principal_effective_grants_v4")) throw new Error("v4 unavailable");
+      return read<T>(sql, params);
+    };
+    await expect(new JenfuEntitlementRepository(client).listEffectiveAssignments(actor))
+      .rejects.toMatchObject({ code: "entitlement_authority_unavailable" });
+    expect(observed.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v4"))).toBe(true);
+    expect(observed.some((sql) => sql.includes("v_ai_pdm_principal_effective_grants_v3"))).toBe(false);
+  });
+
   it("allows an explicit active workspace permission even when catalogVersion is provenance-only", async () => {
     const result = await repository().evaluatePermission({
       rolePriority: ["system_admin", "pdm_admin", "rd_manager", "qa", "rd", "external_specialist"],

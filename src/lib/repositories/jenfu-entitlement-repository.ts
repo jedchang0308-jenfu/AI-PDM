@@ -99,7 +99,7 @@ export class JenfuEntitlementRepository {
                principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,
                role_code, catalog_version, scope_kind, scope_key, valid_from::text,
                valid_until::text, published_at::text
-        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v3
+        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
         WHERE application_id = :applicationId
           AND principal_id = :principalId
           AND employee_id = :employeeId

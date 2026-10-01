@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 export const JENFU_ENTITLEMENT_CONTRACT_VERSION = "jenfu.platform-entitlement.v1" as const;
-export const JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION = "jenfu.orgmaster.ai-pdm-principal-grants.v3" as const;
+export const JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION = "jenfu.orgmaster.ai-pdm-principal-grants.v4" as const;
 export const JENFU_AI_PDM_APPLICATION_ID = "ai-pdm" as const;
 export const JENFU_ROLE_CATALOG_VERSION = "ai-pdm.role-catalog.2026-09-03.v3" as const;
 

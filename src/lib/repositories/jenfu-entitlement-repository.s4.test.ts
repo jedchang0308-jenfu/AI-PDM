@@ -9,7 +9,7 @@ const permissionInput = { permissionKind: "action" as const, permissionCode: "se
 
 function privilegedAssignment(actor = privilegedActor) {
   return {
-    contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3",
+    contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v4",
     assignment_version_id: "assignment-version-privileged-1",
     assignment_version: 1,
     assignment_id: "assignment-system-admin-1",
