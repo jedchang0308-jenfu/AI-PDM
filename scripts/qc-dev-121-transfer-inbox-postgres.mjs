@@ -200,6 +200,25 @@ try {
       material_code text, material_label text, color_code text, color_label text,
       surface_treatment text, variant_note text
     );
+    CREATE TABLE ai_pdm_core.drawing_numbers (
+      id text PRIMARY KEY, company_id text NOT NULL, record_status text NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now(), purpose_code text NOT NULL,
+      purpose_description text NOT NULL, is_primary_manufacturing boolean NOT NULL
+    );
+    CREATE TABLE ai_pdm_core.drawings (
+      id text PRIMARY KEY, company_id text NOT NULL, formal_drawing_number_id text NOT NULL
+    );
+    CREATE TABLE ai_pdm_core.drawing_revisions (
+      id text PRIMARY KEY, company_id text NOT NULL, drawing_id text NOT NULL,
+      revision text NOT NULL, lifecycle_state text NOT NULL, released_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT now(), row_version integer NOT NULL DEFAULT 1,
+      policy_snapshot_json jsonb NOT NULL DEFAULT '{}'::jsonb
+    );
+    CREATE TABLE ai_pdm_core.canonical_workbench_states (
+      id text PRIMARY KEY, company_id text NOT NULL, entity_type text NOT NULL,
+      canonical_entity_id text NOT NULL, data_layer text NOT NULL,
+      revision_id text, row_version integer NOT NULL DEFAULT 1
+    );
     CREATE TABLE ai_pdm_core.approval_platform_targets (
       id text PRIMARY KEY, request_id text NOT NULL, target_role text NOT NULL,
       target_type text NOT NULL, target_id text NOT NULL, target_code text,
@@ -288,6 +307,10 @@ try {
       VALUES ('item-three','company-jenfu','package-three','part_number',
        'part-three','P-QC-3','QC part','P-QC-3','Active','profile-owner',now());
   `)
+  if (process.argv.includes('--official-snapshot-only')) {
+    await check('canonical official transfer snapshot on real PostgreSQL',
+      async () => probe('snapshot', contractUrl))
+  } else {
   await check('Principal transfer decision, receipt and outbox transaction',
     async () => probe('decision', contractUrl))
 
@@ -437,6 +460,7 @@ try {
     ['jenfu.orgmaster.ai-pdm-principal-grants.v3',catalog.catalogVersion])
   await check('published owner and reviewer grants drive submit, non-owner selection, decision and reload',
     async () => probe('grant-flow', contractUrl, grantTest))
+  }
 } finally {
   if (admin) await admin.end().catch(() => undefined)
   if (started) {

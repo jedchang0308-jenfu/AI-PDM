@@ -20,7 +20,7 @@ vi.mock("@/lib/repositories/pdm-principal-reviewer-selector", () => ({
   }))
 }));
 
-import { decideTransferPackageReview, submitTransferPackageReview } from "@/lib/transfer-package-phase1d";
+import { buildTransferPackageReadiness, officialItemSnapshot, decideTransferPackageReview, submitTransferPackageReview } from "@/lib/transfer-package-phase1d";
 
 const url = process.env.PDM_DEV121_TRANSFER_POSTGRES_URL;
 const phase = process.env.PDM_DEV121_TRANSFER_PHASE;
@@ -249,5 +249,114 @@ describe.skipIf(!database || phase !== "decision")("Principal transfer decision 
     expect(reloaded).toEqual({ package_status: "ApprovedPendingPublish",
       request_status: "approved", submitted_principal: "principal-owner",
       decided_principal: "principal-reviewer" });
+  });
+});
+
+// No drawing_revision_packages table is seeded: the normal consumer must use
+// canonical production authority, not silently succeed through a legacy alias.
+describe.skipIf(!database || phase !== "snapshot")("Canonical official transfer snapshot PostgreSQL contract", () => {
+  let ordinal = 0;
+  async function drawingFixture() {
+    const suffix = String(++ordinal);
+    const numberId = `official-${suffix}`, drawingId = `drawing-${suffix}`;
+    const revisionId = `revision-${suffix}`, stateId = `production-${suffix}`;
+    const params = { companyId, numberId, drawingId, revisionId, stateId };
+    await database!.execute(`INSERT INTO drawing_numbers
+      (id,company_id,record_status,purpose_code,purpose_description,is_primary_manufacturing)
+      VALUES (:numberId,:companyId,'Active','MA','Manufacturing',true)`, params);
+    await database!.execute(`INSERT INTO drawings VALUES (:drawingId,:companyId,:numberId)`, params);
+    await database!.execute(`INSERT INTO drawing_revisions
+      (id,company_id,drawing_id,revision,lifecycle_state,released_at)
+      VALUES (:revisionId,:companyId,:drawingId,'1','released',CURRENT_TIMESTAMP)`, params);
+    await database!.execute(`INSERT INTO canonical_workbench_states
+      (id,company_id,entity_type,canonical_entity_id,data_layer,revision_id)
+      VALUES (:stateId,:companyId,'drawing',:drawingId,'drawing_production',:revisionId)`, params);
+    const item = { id: `item-${suffix}`, entityType: "drawing_number" as const,
+      entityId: numberId, entityCode: `M-${suffix}`, displayLabel: `Drawing ${suffix}`,
+      rootCode: null, recordStatus: "Active", addedBy: "profile-owner",
+      createdAt: "2026-10-02T00:00:00.000Z" };
+    return { params, item };
+  }
+  it("reads the exact canonical released version with no legacy package table", async () => {
+    const { params, item } = await drawingFixture();
+    expect(await officialItemSnapshot(database!, companyId, item)).toMatchObject({
+      currentControlledVersionId: params.revisionId, currentControlledVersion: "1",
+      currentControlledVersionStatus: "released", recordStatus: "Active"
+    });
+  });
+  it("changes the authority hash when canonical version or approved policy changes", async () => {
+    const { params, item } = await drawingFixture();
+    await database!.execute(`UPDATE transfer_package_items SET entity_type='drawing_number',
+      entity_id=:numberId,entity_code='M-SNAPSHOT' WHERE id='item-three'`, params);
+    const before = await buildTransferPackageReadiness("package-three", companyId, database!);
+    expect(before.ready).toBe(true);
+    await database!.execute(`UPDATE canonical_workbench_states
+      SET row_version=row_version+1 WHERE id=:stateId`, params);
+    const stateChanged = await buildTransferPackageReadiness("package-three", companyId, database!);
+    expect(stateChanged.snapshot.authorityHash).not.toBe(before.snapshot.authorityHash);
+    const nextId = `${params.revisionId}-next`;
+    await database!.execute(`INSERT INTO drawing_revisions
+      (id,company_id,drawing_id,revision,lifecycle_state,released_at)
+      VALUES (:nextId,:companyId,:drawingId,'2','released',CURRENT_TIMESTAMP)`, { ...params, nextId });
+    await database!.execute(`UPDATE canonical_workbench_states
+      SET revision_id=:nextId,row_version=row_version+1 WHERE id=:stateId`, { ...params, nextId });
+    const changed = await buildTransferPackageReadiness("package-three", companyId, database!);
+    expect(changed.ready).toBe(true);
+    expect(changed.snapshot.authorityHash).not.toBe(stateChanged.snapshot.authorityHash);
+    expect(await officialItemSnapshot(database!, companyId, item)).toMatchObject({
+      currentControlledVersionId: nextId, currentControlledVersion: "2"
+    });
+    await database!.execute(`UPDATE drawing_revisions SET
+      policy_snapshot_json='{"approvedBasis":"changed"}'::jsonb WHERE id=:nextId`, { nextId });
+    const policyChanged = await buildTransferPackageReadiness("package-three", companyId, database!);
+    expect(policyChanged.snapshot.authorityHash).not.toBe(changed.snapshot.authorityHash);
+    await database!.execute(`UPDATE drawing_revisions SET row_version=row_version+1
+      WHERE id=:nextId`, { nextId });
+    const revisionRowChanged = await buildTransferPackageReadiness("package-three", companyId, database!);
+    expect(revisionRowChanged.snapshot.authorityHash).not.toBe(policyChanged.snapshot.authorityHash);
+  });
+  it("rejects missing production authority and RD-only versions", async () => {
+    const { params, item } = await drawingFixture();
+    await database!.execute(`UPDATE drawing_revisions SET lifecycle_state='rd_controlled'
+      WHERE id=:revisionId`, params);
+    expect(await officialItemSnapshot(database!, companyId, item)).toBeNull();
+    await database!.execute(`UPDATE drawing_revisions SET lifecycle_state='released' WHERE id=:revisionId`, params);
+    await database!.execute(`UPDATE canonical_workbench_states SET data_layer='drawing_rd' WHERE id=:stateId`, params);
+    expect(await officialItemSnapshot(database!, companyId, item)).toBeNull();
+  });
+  it("rejects cross-company and cross-Drawing revision pointers", async () => {
+    const { params, item } = await drawingFixture();
+    expect(await officialItemSnapshot(database!, "company-other", item)).toBeNull();
+    await database!.execute(`UPDATE drawing_revisions SET company_id='company-other' WHERE id=:revisionId`, params);
+    expect(await officialItemSnapshot(database!, companyId, item)).toBeNull();
+    await database!.execute(`UPDATE drawing_revisions SET company_id=:companyId,drawing_id='wrong-drawing'
+      WHERE id=:revisionId`, params);
+    expect(await officialItemSnapshot(database!, companyId, item)).toBeNull();
+  });
+  it("rejects ambiguous canonical mappings instead of choosing the first row", async () => {
+    const { params, item } = await drawingFixture();
+    await database!.execute(`INSERT INTO drawings VALUES ('ambiguous-drawing',:companyId,:numberId)`, params);
+    await database!.execute(`INSERT INTO drawing_revisions
+      (id,company_id,drawing_id,revision,lifecycle_state,released_at)
+      VALUES ('ambiguous-revision',:companyId,'ambiguous-drawing','1','released',CURRENT_TIMESTAMP)`, params);
+    await database!.execute(`INSERT INTO canonical_workbench_states
+      (id,company_id,entity_type,canonical_entity_id,data_layer,revision_id)
+      VALUES ('ambiguous-state',:companyId,'drawing','ambiguous-drawing','drawing_production','ambiguous-revision')`, params);
+    expect(await officialItemSnapshot(database!, companyId, item)).toBeNull();
+  });
+  it("preserves terminal Drawing and Draft Part eligibility denials", async () => {
+    const { params } = await drawingFixture();
+    await database!.execute(`UPDATE transfer_package_items SET entity_type='drawing_number',
+      entity_id=:numberId WHERE id='item-three'`, params);
+    await database!.execute(`UPDATE drawing_numbers SET record_status='Obsolete' WHERE id=:numberId`, params);
+    const terminal = await buildTransferPackageReadiness("package-three", companyId, database!);
+    expect(terminal.ready).toBe(false);
+    expect(terminal.blockers.map(x => x.code)).toContain("transfer_official_item_invalid");
+    await database!.execute(`UPDATE part_numbers SET record_status='Draft' WHERE id='part-three'`);
+    await database!.execute(`UPDATE transfer_package_items SET entity_type='part_number',
+      entity_id='part-three' WHERE id='item-three'`);
+    const draft = await buildTransferPackageReadiness("package-three", companyId, database!);
+    expect(draft.ready).toBe(false);
+    expect(draft.blockers.map(x => x.code)).toContain("transfer_official_item_invalid");
   });
 });
