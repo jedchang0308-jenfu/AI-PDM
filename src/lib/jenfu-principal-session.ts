@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { PlatformAssuranceLevel, PlatformSecondFactor, PlatformSessionKeyRing } from "@/lib/platform-session-v2";
+import type { PlatformAssuranceLevel, PlatformSessionKeyRing } from "@/lib/platform-session-v2";
 
 export const JENFU_PRINCIPAL_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 export const JENFU_PRINCIPAL_SESSION_CONTRACT_VERSION = "jenfu.ai-pdm-session.v2" as const;
@@ -24,7 +24,7 @@ export type JenfuPrincipalSessionClaims = {
   expiresAt: number;
   authenticatedAt: number;
   assuranceLevel: PlatformAssuranceLevel;
-  secondFactor: PlatformSecondFactor;
+  secondFactor: "totp" | null;
   assurancePolicyHash: string;
 };
 
@@ -99,8 +99,8 @@ function assertClaims(value: unknown): asserts value is JenfuPrincipalSessionCla
     claims.issuedAt < 1 || claims.authenticatedAt < 1 || claims.expiresAt <= claims.issuedAt ||
     claims.expiresAt - claims.issuedAt > JENFU_PRINCIPAL_SESSION_MAX_AGE_SECONDS ||
     !["aal1", "aal2"].includes(claims.assuranceLevel) ||
-    (claims.secondFactor !== null && claims.secondFactor !== "totp" && claims.secondFactor !== "google_workspace_mfa") ||
-    (claims.assuranceLevel === "aal2" && claims.secondFactor === null)) {
+    (claims.secondFactor !== null && claims.secondFactor !== "totp") ||
+    ((claims.assuranceLevel === "aal2") !== (claims.secondFactor !== null))) {
     throw new Error("JENFU_PRINCIPAL_SESSION_CLAIMS_INVALID");
   }
 }

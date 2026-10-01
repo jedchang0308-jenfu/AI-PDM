@@ -79,6 +79,7 @@ const googleErrorMessages: Record<string, string> = {
   sso_request_invalid: "登入驗證已失效，請重新從鉦富平台進入。",
   sso_code_invalid: "登入驗證已失效，請重新從鉦富平台進入。",
   principal_not_active: "此帳號尚未開通 PDM，請聯絡系統管理員。",
+  principal_access_denied: "此帳號尚未取得 AI-PDM 的有效權限，請聯絡系統管理員。",
   sso_principal_stale: "帳號或權限已更新，請重新登入。",
   principal_login_required: "請重新從鉦富平台登入。",
   auth_token_invalid: "登入驗證未通過，請重新登入。",

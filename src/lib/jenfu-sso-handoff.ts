@@ -7,6 +7,7 @@ import { getGoogleWorkspaceMfaTrustPolicy, getJenfuIdentityConfig, getJenfuSsoHa
 import { parseJenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 import { issueSessionForPrincipalHandoff } from "@/lib/jenfu-principal-handoff-session-service";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 export { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
 
 const COOKIE = "__Host-jenfu_sso_tx";
@@ -48,6 +49,10 @@ function decode(value: string | undefined): Transaction | null {
 function error(code: string, status: number) { return NextResponse.json({ code }, { status, headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } }); }
 
 function callbackErrorCode(errorValue: unknown) {
+  if (errorValue instanceof JenfuEntitlementRepositoryError && [
+    "entitlement_assignment_not_found", "entitlement_role_inactive",
+    "entitlement_scope_mismatch", "permission_explicit_deny", "permission_not_granted"
+  ].includes(errorValue.code)) return "principal_access_denied";
   const code = errorValue instanceof Error ? errorValue.message : "";
   if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED" || code === "BROKER_DENIED") return "sso_code_invalid";
   if (code === "PRINCIPAL_NOT_ACTIVE") return "principal_not_active";

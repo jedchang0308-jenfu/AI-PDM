@@ -40,8 +40,7 @@ async function actorInSnapshot(snapshot: AsyncDatabaseClient, verified: Verified
       submitWork: can("numbering.candidate.review.submit"),
       cancelWork: can("numbering.workspace.cancel"),
       decideReview: can("approval.request.decide"),
-      obsoleteDrawing: can("numbering.draft.obsolete") &&
-        verified.session.assuranceLevel === "aal2",
+      obsoleteDrawing: can("numbering.draft.obsolete"),
       // Formal obsolete commands still reject Principal sessions.
       obsoleteFormalPart: false,
       obsoleteFormalDrawing: false,

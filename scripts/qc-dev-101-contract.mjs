@@ -42,9 +42,15 @@ check("DEV101-CONTRACT-007", "target and comparison endpoints are present and re
   comparisonRoute.includes("withPrincipalDev087Route") &&
   targetRoute.includes("readPrincipalReviewTarget") &&
   comparisonRoute.includes("readPrincipalReviewTarget") &&
-  principalReviewTarget.includes('assuranceLevel !== "aal2"') &&
+  principalReviewTarget.includes("evaluatePrincipalWorkspacePermissionsInSnapshot") &&
   principalReviewTarget.includes('permissionCode: "approval.request.decide"') &&
+  principalReviewTarget.includes("if (!decision?.allowed)") &&
   principalReviewTarget.includes("item.reviewerUserId !== verified.profile.pdmUserId") &&
+  principalReviewTarget.includes("verified.profile.companyId") &&
+  principalReviewTarget.includes("parseReviewPackageSnapshot") &&
+  principalReviewTarget.includes("verifyReviewPackageIntegrity") &&
+  principalReviewTarget.includes("packageValue.targets.find") &&
+  !principalReviewTarget.includes('"aal2"') &&
   comparisonRoute.includes("compareReviewTarget"));
 check("DEV101-CONTRACT-008", "review_package file context checks package membership and content hash", fileRoute.includes('"review_package"') && fileRoute.includes("contentHash") && fileRoute.includes("verifyReviewScope"));
 check("DEV101-CONTRACT-009", "shared renderer is used through a domain-free immutable review adapter", reviewShell.includes("CanonicalReviewTargetWorkspace") && !reviewShell.includes("CanonicalDrawingChangeWorkspace") && !reviewShell.includes("CanonicalChangeWorkspace") && reviewTargetAdapter.includes("CanonicalDrawingChangeWorkspace") && reviewTargetAdapter.includes("CanonicalChangeWorkspace") && drawing.includes("snapshotMode") && part.includes("initialData"));

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 
 const mocks = vi.hoisted(() => ({ withVerified: vi.fn(), evaluate: vi.fn() }));
 vi.mock("@/lib/jenfu-principal-http", async (importOriginal) => ({
@@ -68,6 +69,23 @@ describe("principal DEV-087 route boundary", () => {
       const response = await withPrincipalDev087Route(request, "v2-token", input, execute);
       expect(response.status).toBe(503);
     }
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("maps typed published-grant denial to 403 and keeps authority read failure at 503", async () => {
+    const execute = vi.fn();
+    mocks.evaluate.mockRejectedValueOnce(
+      new JenfuEntitlementRepositoryError("permission_not_granted"));
+    const denied = await withPrincipalDev087Route(request, "v2-token", input, execute);
+    expect(denied.status).toBe(403);
+    await expect(denied.json()).resolves.toEqual({ error: "permission_not_granted" });
+    expect(execute).not.toHaveBeenCalled();
+
+    mocks.evaluate.mockRejectedValueOnce(
+      new JenfuEntitlementRepositoryError("entitlement_authority_unavailable"));
+    const unavailable = await withPrincipalDev087Route(request, "v2-token", input, execute);
+    expect(unavailable.status).toBe(503);
+    await expect(unavailable.json()).resolves.toEqual({ error: "entitlement_authority_unavailable" });
     expect(execute).not.toHaveBeenCalled();
   });
 

@@ -428,7 +428,6 @@ async function principalFileRead(request: Request, token: string, input: {
           return { source: found, actorId: verified.profile.pdmUserId, initiatorPrincipalId: verified.session.principalId };
         }
         if (!input.reviewRequestId) return null;
-        if (verified.session.assuranceLevel !== "aal2") return null;
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
           verified, [
             { permissionKind: "action", permissionCode: "approval.inbox.view" },

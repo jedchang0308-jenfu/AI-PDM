@@ -44,10 +44,6 @@ export async function GET(request: Request) {
         { status: 503, headers: { "cache-control": "no-store" } });
     }
     return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token), async (snapshot, verified) => {
-      if (verified.session.assuranceLevel !== "aal2") {
-        return NextResponse.json({ code: "assurance_insufficient" },
-          { status: 403, headers: { "cache-control": "no-store" } });
-      }
       const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
         [{ permissionKind: "action", permissionCode: "approval.inbox.view" }]);
       const decision = decisions[0];

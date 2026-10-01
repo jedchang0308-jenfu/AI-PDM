@@ -60,11 +60,11 @@ describe("principal cutover active ACL graph", () => {
     })).toThrow("PRINCIPAL_CUTOVER_GRAPH_MISMATCH");
   });
 
-  it("rejects lowering the migrated minimum assurance", () => {
+  it("rejects non-AAL1 account metadata after the policy change", () => {
     const input = source();
     const plan = planPrincipalAclMigration(input);
     expect(() => assertPrincipalAclGraphPreserved(input, {
-      ...plan, accountAssurance: [{ principalId: "principal-one", minimumAssurance: "aal1" }]
+      ...plan, accountAssurance: [{ principalId: "principal-one", minimumAssurance: "aal2" as "aal1" }]
     })).toThrow("PRINCIPAL_CUTOVER_GRAPH_MISMATCH");
   });
 });

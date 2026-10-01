@@ -92,7 +92,7 @@ describe("Principal historical submission list", () => {
     expect(mocks.legacyAuth).not.toHaveBeenCalled();
   });
 
-  it("allows a published AAL2 manager's company-wide list without profile owner widening", async () => {
+  it("allows a published AAL1 manager's company-wide list without profile owner widening", async () => {
     mocks.scope.mockResolvedValue({ submittedBy: undefined });
     expect((await GET(request())).status).toBe(200);
     expect(mocks.list).toHaveBeenCalledWith(expect.objectContaining({

@@ -35,7 +35,7 @@ const verified = {
     identityIssuer: "https://issuer.test", identitySubject: "subject-one",
     principalId: "principal-one", employeeId: "employee-one", authEpoch: 1,
     issuedAt: "2026-09-24T11:00:00Z", expiresAt: "2026-09-24T19:00:00Z",
-    assuranceLevel: "aal2"
+    assuranceLevel: "aal1"
   }
 };
 const publication = { assignmentVersion: 6 };
@@ -87,7 +87,7 @@ describe("DEV-121 principal workspace permission decision", () => {
     ]);
   });
 
-  it("keeps explicit deny and privileged AAL1 requests closed", async () => {
+  it("keeps published permission denies closed and permits an allowed privileged AAL1 grant", async () => {
     mocks.evaluate.mockResolvedValue([{ publication, decisionCode: "permission_explicit_deny" }]);
     await expect(evaluatePrincipalWorkspacePermissions(input)).resolves.toMatchObject([
       { allowed: false, decisionCode: "permission_explicit_deny" }
@@ -98,7 +98,7 @@ describe("DEV-121 principal workspace permission decision", () => {
     mocks.evaluate.mockResolvedValue([{ publication, decisionCode: "allowed",
       role: { risk: "high", roleCode: "rd_manager" }, assignment: { assignmentId: "grant-two" } }]);
     await expect(evaluatePrincipalWorkspacePermissions(input)).resolves.toMatchObject([
-      { allowed: false, decisionCode: "assurance_insufficient", roleCode: null }
+      { allowed: true, decisionCode: "allowed", roleCode: "rd_manager", assignmentId: "grant-two" }
     ]);
   });
 

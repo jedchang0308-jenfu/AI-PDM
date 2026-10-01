@@ -64,6 +64,7 @@ export function parseJenfuPrincipalHandoff(
     !boundedText(proof.authentication.signInProvider, 128) ||
     !["aal1", "aal2"].includes(proof.authentication.assuranceLevel) ||
     (proof.authentication.secondFactor !== null && proof.authentication.secondFactor !== "totp") ||
+    ((proof.authentication.assuranceLevel === "aal2") !== (proof.authentication.secondFactor !== null)) ||
     !Number.isSafeInteger(proof.authState.authEpoch) || proof.authState.authEpoch < 0 ||
     !Number.isSafeInteger(nowMs)) fail();
   const authenticatedAt = instant(proof.authentication.authenticatedAt);

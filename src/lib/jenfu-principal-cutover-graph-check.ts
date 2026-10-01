@@ -2,7 +2,7 @@ import type { PrincipalAclMigrationInput } from "@/lib/jenfu-principal-acl-migra
 import { hashPrincipalSource, orderedPrincipalSourceRows } from "@/lib/jenfu-principal-source-canonical";
 
 type Plan = {
-  accountAssurance: Array<{ principalId: string; minimumAssurance: "aal1" | "aal2" }>;
+  accountAssurance: Array<{ principalId: string; minimumAssurance: "aal1" }>;
   principalAssignments: Array<Record<string, unknown>>;
   principalDelegations: Array<Record<string, unknown>>;
 };
@@ -56,9 +56,7 @@ export function assertPrincipalAclGraphPreserved(
   const roleIdByCode = new Map(source.roles.map((row) => [row.roleCode, row.id]));
   if (roleIdByCode.size !== source.roles.length) mismatch();
   const expectedAssurance = source.profiles.map((row) => ({
-    principalId: row.principalId,
-    minimumAssurance: row.accountType === "human_privileged" ||
-      row.legacyRole === "Admin" || row.legacyRole === "R&D Manager" ? "aal2" : "aal1"
+    principalId: row.principalId, minimumAssurance: "aal1" as const
   }));
   same(orderedPrincipalSourceRows(expectedAssurance),
     orderedPrincipalSourceRows(plan.accountAssurance));

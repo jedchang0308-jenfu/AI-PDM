@@ -135,11 +135,9 @@ export function planPrincipalAclMigration(input: PrincipalAclMigrationInput) {
   };
   const requiredCodes = new Set<string>();
   const principalAssignments: Array<Record<string, unknown>> = [];
-  const accountAssurance: Array<{ principalId: string; minimumAssurance: "aal1" | "aal2" }> = [];
+  const accountAssurance: Array<{ principalId: string; minimumAssurance: "aal1" }> = [];
   for (const profile of profiles) {
-    accountAssurance.push({ principalId: profile.principalId,
-      minimumAssurance: profile.accountType === "human_privileged" ||
-        ["Admin", "R&D Manager"].includes(profile.legacyRole) ? "aal2" : "aal1" });
+    accountAssurance.push({ principalId: profile.principalId, minimumAssurance: "aal1" });
     for (const roleCode of BASE_ROLES[profile.legacyRole]) {
       requiredCodes.add(roleCode);
       const role = roleByCode.get(roleCode);

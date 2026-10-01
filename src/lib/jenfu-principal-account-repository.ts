@@ -10,7 +10,7 @@ export type JenfuPrincipalAccount = {
   profileVersion: number;
   accountStatus: "active" | "suspended" | "expired" | "offboarded";
   systemRoleEnabled: boolean;
-  minimumAssurance: "aal1" | "aal2";
+  minimumAssurance: "aal1";
   sessionInvalidBefore: string | null;
 };
 
@@ -54,8 +54,7 @@ export class JenfuPrincipalAccountRepository {
         !row.company_id || row.account_status !== "active" ||
         (row.system_role_enabled !== true && row.system_role_enabled !== 1) ||
         !["human_personal", "human_privileged"].includes(row.account_type) ||
-        !["aal1", "aal2"].includes(row.minimum_assurance) ||
-        (row.account_type === "human_privileged" && row.minimum_assurance !== "aal2") ||
+        row.minimum_assurance !== "aal1" ||
         !Number.isSafeInteger(lifecycleVersion) || lifecycleVersion < 1 ||
         !Number.isSafeInteger(profileVersion) || profileVersion < 1) throw new Error("principal account invalid");
       const sessionInvalidBefore = row.session_invalid_before == null ? null : new Date(row.session_invalid_before).toISOString();

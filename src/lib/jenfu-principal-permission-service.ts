@@ -75,15 +75,13 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
           roleCode: null, assignmentId: null, principalId: actor.principalId,
           publishedAssignmentVersion: result.publication.assignmentVersion };
       }
-      const privileged = result.role.risk !== "normal" ||
-        ["system_admin", "pdm_admin", "rd_manager"].includes(result.role.roleCode);
-      const assured = !privileged || verified.session.assuranceLevel === "aal2";
+      const allowed = result.decisionCode === "allowed";
       return {
-        allowed: assured,
+        allowed,
         permissionCode,
-        decisionCode: assured ? "allowed" : "assurance_insufficient",
-        roleCode: assured ? result.role.roleCode : null,
-        assignmentId: assured ? result.assignment.assignmentId : null,
+        decisionCode: result.decisionCode,
+        roleCode: allowed ? result.role.roleCode : null,
+        assignmentId: allowed ? result.assignment.assignmentId : null,
         principalId: actor.principalId,
         publishedAssignmentVersion: result.publication.assignmentVersion
       };

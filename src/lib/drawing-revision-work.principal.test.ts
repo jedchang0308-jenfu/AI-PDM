@@ -97,7 +97,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 
 const verified = {
-  session: { contractVersion: "jenfu.ai-pdm-session.v2", assuranceLevel: "aal2" },
+  session: { contractVersion: "jenfu.ai-pdm-session.v2", assuranceLevel: "aal1" },
   profile: { pdmUserId: "profile-one", companyId: "company-one" }
 } as VerifiedPrincipalRequest;
 const client = { kind: "postgres", transactionScope: "postgres",
@@ -258,15 +258,17 @@ describe("principal drawing revision work read", () => {
       { companyId: "company-one", workId: "work-one", expectedRowVersion: 2 });
   });
 
-  it("rejects drawing submission without current AAL2 before any reviewer lookup", async () => {
-    const lowAssurance = { ...verified, session: { ...verified.session,
-      assuranceLevel: "aal1" } } as VerifiedPrincipalRequest;
-    await expect(new DrawingRevisionWorkService(client).submitPrincipal(
-      "work-one", lowAssurance, { contractToken: "contract-one",
-        expectedRowVersion: 2, idempotencyKey: "submit-one" }))
-      .rejects.toMatchObject({ status: 403 });
-    expect(mocks.evaluate).not.toHaveBeenCalled();
-    expect(mocks.selectPrincipalReviewer).not.toHaveBeenCalled();
+  it("allows AAL1 drawing submission only after the published permission decision", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
+    const result = await new DrawingRevisionWorkService(client).submitPrincipal(
+      "work-one", verified, { contractToken: "contract-one",
+        expectedRowVersion: 2, idempotencyKey: "submit-one" });
+    expect(result.requestId).toBe("request-one");
+    expect(mocks.evaluate).toHaveBeenCalledWith(client, verified, [
+      { permissionKind: "action", permissionCode: "numbering.candidate.review.submit" }
+    ]);
+    expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client,
+      { companyId: "company-one", ownerUserId: "profile-one" });
   });
 
   it("submits through the principal reviewer and v2 package without legacy role selection", async () => {
@@ -335,15 +337,21 @@ describe("principal drawing revision work read", () => {
     expect(client.execute).not.toHaveBeenCalled();
   });
 
-  it("requires AAL2 before looking up an RD-void branch", async () => {
-    const lowAssurance = { ...verified, session: { ...verified.session,
-      assuranceLevel: "aal1" } } as VerifiedPrincipalRequest;
+  it("allows an AAL1 RD-void request after the published permission decision", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
+    mocks.readSourceState.mockResolvedValueOnce({
+      drawing_id: "drawing-one", branch_id: "branch-one",
+      data_layer: "drawing_rd", handling: "none", work_id: null,
+      branch_status: "open", latest_approved_revision_id: "revision-one",
+      revision_id: "revision-one", revision: "1.1", row_version: 2
+    });
     await expect(new DrawingRevisionWorkService(client).requestVoidPrincipal(
-      "branch-one", "cw_11111111-1111-4111-8111-111111111111",
-      lowAssurance, { contractToken: "contract-one", expectedRowVersion: 2,
-        idempotencyKey: "void-one" })).rejects.toMatchObject({ status: 403 });
-    expect(mocks.evaluate).not.toHaveBeenCalled();
-    expect(mocks.readSourceState).not.toHaveBeenCalled();
+      "branch-one", "cw_11111111-1111-4111-8111-111111111111", verified,
+      { contractToken: "contract-one", expectedRowVersion: 2,
+        idempotencyKey: "void-one" })).resolves.toMatchObject({ requestId: "request-one" });
+    expect(mocks.evaluate).toHaveBeenCalledWith(client, verified, [
+      { permissionKind: "action", permissionCode: "numbering.draft.obsolete" }
+    ]);
   });
 
   it("rejects a review assigned to another profile before principal drawing effects", async () => {

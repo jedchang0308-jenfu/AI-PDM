@@ -15,7 +15,7 @@ vi.mock("@/lib/pdm-dev087-route", async (importOriginal) => ({
 
 import { POST } from "@/app/api/pdm/drawing-rd-branches/[branchId]/void-requests/route";
 
-const verified = { session: { principalId: "principal-one", assuranceLevel: "aal2" },
+const verified = { session: { principalId: "principal-one", assuranceLevel: "aal1" },
   profile: { pdmUserId: "profile-one", companyId: "company-one" } };
 const tx = { kind: "postgres", transactionScope: "postgres" };
 function request(body: unknown) {

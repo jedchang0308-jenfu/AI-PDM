@@ -47,7 +47,7 @@ import { dev087RequestHash } from "@/lib/pdm-canonical-command";
 
 const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-jenfu" },
-  session: { principalId: "principal-one", assuranceLevel: "aal2" }
+  session: { principalId: "principal-one", assuranceLevel: "aal1" }
 };
 const tx = {
   kind: "postgres", transactionScope: "postgres",
@@ -116,18 +116,18 @@ describe("principal DEV-087 review detail", () => {
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
 
-  it("rejects insufficient assurance or either missing capability before reading the item", async () => {
+  it("accepts AAL1 for the assigned reviewer and rejects a missing capability", async () => {
     mocks.withVerified.mockImplementationOnce(async (_input, evaluate) =>
       evaluate(tx, { ...verified, session: { ...verified.session, assuranceLevel: "aal1" } }));
-    expect((await GET(request(), params)).status).toBe(403);
-    expect(mocks.getReview).not.toHaveBeenCalled();
+    expect((await GET(request(), params)).status).toBe(200);
+    expect(mocks.getReview).toHaveBeenCalledOnce();
 
     mocks.evaluate.mockResolvedValueOnce([
       { allowed: true, decisionCode: "allowed" },
       { allowed: false, decisionCode: "permission_not_granted" }
     ]);
     expect((await GET(request(), params)).status).toBe(403);
-    expect(mocks.getReview).not.toHaveBeenCalled();
+    expect(mocks.getReview).toHaveBeenCalledOnce();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
 

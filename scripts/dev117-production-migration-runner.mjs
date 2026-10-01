@@ -20,6 +20,7 @@ import {
   assertPrincipalOnlyMigrationWritersAbsent,
   readPrincipalOnlyServiceV2,
   requiresPrincipalOnlyMigrationFence,
+  PRINCIPAL_ONLY_MIGRATION_ORDERS,
 } from './lib/dev121-migration-fence.mjs'
 
 const FENCE_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'
@@ -73,9 +74,9 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
       target: TARGET,
       sourceRevision: args.sourceRevision,
       beforePending: async (pending) => {
-        const entry = pending.find(requiresPrincipalOnlyMigrationFence)
-        if (!entry) return
-        if (entry.order !== 24 || !environment.DEV121_MIGRATION_FENCE_REF ||
+        const entries = pending.filter(requiresPrincipalOnlyMigrationFence)
+        if (!entries.length) return
+        if (entries.some(entry => entry.order !== PRINCIPAL_ONLY_MIGRATION_ORDERS[entry.path]) || !environment.DEV121_MIGRATION_FENCE_REF ||
           !/^[a-f0-9]{64}$/u.test(environment.DEV121_MIGRATION_FENCE_SHA256 ?? '')) {
           throw new Error('DEV121_MIGRATION_073_FENCE_REQUIRED')
         }

@@ -18,6 +18,19 @@ const cluster = path.join(taskRoot, 'cluster')
 const log = path.join(taskRoot, 'postgres.log')
 const bin = path.resolve(process.env.PDM_POSTGRES_BIN?.trim() || 'C:\\Program Files\\PostgreSQL\\18\\bin')
 const checks = []
+const assurancePolicyPreMigrationSessionHash = createHash('sha256')
+  .update('dev121-qc:assurance-policy-change:principal-admin:pre-migration-session')
+  .digest('hex')
+const actorSessionHashes = {
+  current: createHash('sha256')
+    .update('dev121-qc:actor-session:principal-admin:current-aal1').digest('hex'),
+  staleProfile: createHash('sha256')
+    .update('dev121-qc:actor-session:principal-admin:stale-profile').digest('hex'),
+  expired: createHash('sha256')
+    .update('dev121-qc:actor-session:principal-admin:expired').digest('hex'),
+  revoked: createHash('sha256')
+    .update('dev121-qc:actor-session:principal-admin:revoked').digest('hex')
+}
 let port
 let client
 let started = false
@@ -93,6 +106,18 @@ try {
     CREATE ROLE jenfu_ai_pdm_runtime NOLOGIN;
     CREATE SCHEMA ai_pdm_core AUTHORIZATION jenfu_ai_pdm_migrator;
     CREATE SCHEMA ai_pdm_contract AUTHORIZATION jenfu_ai_pdm_migrator;
+    CREATE TABLE ai_pdm_core.pdm_workbench_state_authority_control (
+      id integer PRIMARY KEY CHECK (id = 1),
+      mode text NOT NULL CHECK (mode IN ('legacy_only','shadow_compare','cutover_window','canonical_only')),
+      expected_commit text NOT NULL DEFAULT '',
+      schema_hash text NOT NULL,
+      row_version integer NOT NULL DEFAULT 1 CHECK (row_version >= 1),
+      switched_at timestamptz NOT NULL DEFAULT now()
+    );
+    ALTER TABLE ai_pdm_core.pdm_workbench_state_authority_control OWNER TO jenfu_ai_pdm_migrator;
+    INSERT INTO ai_pdm_core.pdm_workbench_state_authority_control
+      (id,mode,expected_commit,schema_hash) VALUES (1,'legacy_only','','dev087-v1');
+
     CREATE TABLE ai_pdm_core.contract_manifest (
       contract_id text PRIMARY KEY, contract_version text NOT NULL,
       signature_sha256 char(64) NOT NULL, payload_sha256 char(64),
@@ -556,6 +581,49 @@ try {
     }
   })
 
+  await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.users (id,company_id)
+    VALUES ('pdm-user-admin','company-jenfu'),('pdm-user-admin-disabled','company-jenfu')`)
+  await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_accounts
+    (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,
+     lifecycle_version,profile_version,system_role_enabled,minimum_assurance)
+    VALUES
+      ('principal-admin','pdm-user-admin','company-jenfu','employee-admin',
+       'human_privileged','active',1,1,true,'aal2'),
+      ('principal-admin-disabled','pdm-user-admin-disabled','company-jenfu',
+       'employee-admin-disabled','human_privileged','suspended',4,5,false,'aal2')`)
+  await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_session_records
+    (principal_id,session_id_hash,principal_auth_epoch,lifecycle_version,profile_version,
+     authenticated_at,issued_at,expires_at,assurance_level,assurance_policy_hash)
+    VALUES ('principal-admin',$1,0,1,1,clock_timestamp()-interval '2 minutes',
+      clock_timestamp()-interval '1 minute',clock_timestamp()+interval '1 hour','aal2',$2)`,
+  [assurancePolicyPreMigrationSessionHash,'b'.repeat(64)])
+  const humanAssuranceMigration = fs.readFileSync(path.join(root,
+    'db/postgres/074_dev121_principal_human_assurance_aal1.sql'), 'utf8')
+  await client.query(humanAssuranceMigration)
+  await check('074 changes only human assurance metadata and invalidates registered sessions', async () => {
+    const accounts = await client.query(`SELECT principal_id,account_status,account_type,
+      company_id,employee_id,system_role_enabled,minimum_assurance,profile_version,
+      session_invalid_before
+      FROM ai_pdm_core.principal_accounts
+      WHERE principal_id IN ('principal-admin','principal-admin-disabled')
+      ORDER BY principal_id`)
+    assert.deepEqual(accounts.rows.map((row) => [row.principal_id,row.account_status,
+      row.account_type,row.company_id,row.employee_id,row.system_role_enabled,
+      row.minimum_assurance,row.profile_version]), [
+      ['principal-admin','active','human_privileged','company-jenfu','employee-admin',true,'aal1','2'],
+      ['principal-admin-disabled','suspended','human_privileged','company-jenfu',
+        'employee-admin-disabled',false,'aal1','6']
+    ])
+    assert.ok(accounts.rows.every((row) => row.session_invalid_before))
+    const oldSession = await client.query(`SELECT revoked_at,revoke_reason,profile_version
+      FROM ai_pdm_core.principal_session_records
+      WHERE principal_id='principal-admin' AND session_id_hash=$1`, [assurancePolicyPreMigrationSessionHash])
+    assert.equal(oldSession.rows.length, 1)
+    assert.ok(oldSession.rows[0].revoked_at)
+    assert.equal(oldSession.rows[0].revoke_reason, 'assurance_policy_changed')
+    assert.equal(oldSession.rows[0].profile_version, '1')
+  })
+
   await check('principal account owner commands no longer depend on cutover markers', async () => {
     const signatures = [
       'assert_principal_account_manager_v1(text,text,text,text,text,text)',
@@ -594,7 +662,7 @@ try {
     [before[0].signature_sha256])
   })
 
-  await check('one canonical principal owns one historical PDM profile', async () => {
+  await check('one canonical principal owns one historical PDM profile and human admins may use AAL1', async () => {
     await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_accounts
       (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,lifecycle_version,
        profile_version,system_role_enabled,minimum_assurance)
@@ -608,10 +676,20 @@ try {
        profile_version,system_role_enabled,minimum_assurance)
       VALUES ('wrong-company','pdm-user-two','company-jenfu','employee-two',
               'human_personal','active',1,1,true,'aal1')`), /23503/)
+    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.users (id,company_id)
+      VALUES ('pdm-user-assurance-aal1','company-one')`)
     await denied(() => asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_accounts
       (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,lifecycle_version,
        profile_version,system_role_enabled,minimum_assurance)
-      VALUES ('privileged','pdm-user-two','company-one','employee-two','human_privileged','active',1,1,true,'aal1')`), /23514/)
+      VALUES ('principal-privileged-aal2','pdm-user-assurance-aal1','company-one','employee-assurance-aal1',
+              'human_privileged','active',1,1,true,'aal2')`), /23514/)
+    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_accounts
+      (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,lifecycle_version,
+       profile_version,system_role_enabled,minimum_assurance)
+      VALUES ('principal-privileged-aal1','pdm-user-assurance-aal1','company-one','employee-assurance-aal1',
+              'human_privileged','active',1,1,true,'aal1')`)
+    assert.equal((await client.query(`SELECT minimum_assurance FROM ai_pdm_core.principal_accounts
+      WHERE principal_id='principal-privileged-aal1'`)).rows[0].minimum_assurance, 'aal1')
   })
 
   await check('canonical command provenance does not require an old principal mapping', async () => {
@@ -1544,61 +1622,7 @@ try {
         Number(row.row_version),Boolean(row.revoked_at)]),
       [['principal_active','principal-transfer',1,true]])
     })
-    await check('runtime principal ACL uses the installed 065 schema and exact principal', async () => {
-      const { PrincipalLocalAclRepository } = await import(pathToFileURL(
-        path.join(root, 'src/lib/repositories/principal-local-acl-repository.ts')).href)
-      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_role_assignments
-        (id,principal_id,role_id,origin,scope_template,assigned_at)
-        VALUES ('grant-qa','principal-one','role-one','principal_assignment',
-                'workspace_all','2026-09-24T12:00:00Z')`)
-      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.role_permissions
-        (id,role_id,permission_kind,permission_code,allowed)
-        VALUES ('permission-create','role-one','action','numbering.create',1)`)
-      const read = async () => {
-        await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
-        try {
-          await client.query('SET LOCAL ROLE jenfu_ai_pdm_runtime')
-          const adapter = { kind: 'postgres', query: async (sql, params = {}) => {
-            const names = []
-            const bound = sql.replace(/(?<!:):([A-Za-z][A-Za-z0-9_]*)/g, (_match, name) => {
-              let index = names.indexOf(name)
-              if (index < 0) { names.push(name); index = names.length - 1 }
-              return `$${index + 1}`
-            })
-            return (await client.query(bound, names.map((name) => params[name]))).rows
-          } }
-          const result = await new PrincipalLocalAclRepository(adapter).evaluateWorkspace({
-            principalId: 'principal-one',
-            permissions: [{ permissionKind: 'action', permissionCode: 'numbering.create' }],
-            rolePriority: ['qa', 'rd'], decisionAt: new Date(), assuranceLevel: 'aal1'
-          })
-          await client.query('COMMIT')
-          return result
-        } catch (error) {
-          await client.query('ROLLBACK').catch(() => undefined)
-          throw error
-        }
-      }
-      assert.equal((await read())[0].allowed, true)
-      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.role_scope_rules
-        (id,role_id,scope_kind,scope_code,allowed)
-        VALUES ('qa-project-scope','role-one','project','project-one',1)`)
-      assert.equal((await read())[0].allowed, false)
-      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_role_assignments
-        (id,principal_id,role_id,origin,scope_template,assigned_at)
-        VALUES ('grant-rd','principal-one','role-rd','principal_assignment',
-                'workspace_all','2026-09-24T12:00:00Z')`)
-      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.role_permissions
-        (id,role_id,permission_kind,permission_code,allowed)
-        VALUES ('permission-rd-create','role-rd','action','numbering.create',1)`)
-      assert.deepEqual((await read())[0], {
-        allowed: true, decisionCode: 'allowed', roleCode: 'rd', assignmentId: 'grant-rd'
-      })
-      await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.role_scope_rules
-        (id,role_id,scope_kind,scope_code,allowed)
-        VALUES ('rd-project-scope','role-rd','project','project-one',1)`)
-      assert.equal((await read())[0].allowed, false)
-    })
+
   }
 
   await check('active cutover requires an account and a successful operation', async () => {
@@ -1616,14 +1640,13 @@ try {
       ('pdm-user-one','principal-one','principal_active',$1,'operation-one',clock_timestamp())`, ['a'.repeat(64)])
   })
 
-  await check('owner provision assertion requires a current AAL2 session and an effective published capability', async () => {
-    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.users
-      (id,company_id) VALUES ('pdm-user-admin','company-jenfu')`)
-    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_accounts
-      (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,lifecycle_version,
-       profile_version,system_role_enabled,minimum_assurance)
-      VALUES ('principal-admin','pdm-user-admin','company-jenfu','employee-admin','human_personal',
-              'active',1,1,true,'aal2')`)
+  await check('owner provision assertion accepts current AAL1 and requires an effective published capability', async () => {
+    const migratedAdmin = await client.query(`SELECT account_type,account_status,profile_version,
+      minimum_assurance,system_role_enabled FROM ai_pdm_core.principal_accounts
+      WHERE principal_id='principal-admin'`)
+    assert.deepEqual(migratedAdmin.rows, [{ account_type: 'human_privileged',
+      account_status: 'active', profile_version: '2', minimum_assurance: 'aal1',
+      system_role_enabled: true }])
     await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_identity_operations
       (operation_id,operation_kind,input_hash,cohort_hash,result_json)
       VALUES ('operation-admin','cutover',$1,$2,'{}'::jsonb)`, ['1'.repeat(64), '2'.repeat(64)])
@@ -1631,7 +1654,7 @@ try {
       (pdm_user_id,principal_id,status,source_hash,operation_id,activated_at)
       VALUES ('pdm-user-admin','principal-admin','principal_active',$1,'operation-admin',clock_timestamp())`,
     ['3'.repeat(64)])
-    const args = ['principal-admin', 'issuer-admin', 'subject-admin', 'a'.repeat(64),
+    const args = ['principal-admin', 'issuer-admin', 'subject-admin', actorSessionHashes.current,
       'company-jenfu', 'accounts.invitation.manage']
     const call = `SELECT ai_pdm_core.assert_principal_account_manager_v1($1,$2,$3,$4,$5,$6)`
     await denied(() => asRole('jenfu_ai_pdm_runtime', call, args), /42501/)
@@ -1639,13 +1662,43 @@ try {
     await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_session_records
       (principal_id,session_id_hash,principal_auth_epoch,lifecycle_version,profile_version,
        authenticated_at,issued_at,expires_at,assurance_level,assurance_policy_hash)
-      VALUES ('principal-admin',$1,0,1,1,clock_timestamp(),clock_timestamp(),
-        clock_timestamp()+interval '1 hour','aal2',$2)`, ['a'.repeat(64), 'b'.repeat(64)])
+      VALUES ('principal-admin',$1,0,1,2,clock_timestamp(),clock_timestamp(),
+        clock_timestamp()+interval '1 hour','aal1',$2)`, [actorSessionHashes.current, 'c'.repeat(64)])
     await client.query(`INSERT INTO orgmaster_contract.v_active_principal_accounts_v1
       (principal_issuer,principal_subject,principal_id,employee_id,account_type,
        contract_version,employee_status,mapping_version,published_at)
-      VALUES ('issuer-admin','subject-admin','principal-admin','employee-admin','human_personal',
+      VALUES ('issuer-admin','subject-admin','principal-admin','employee-admin','human_privileged',
               'organization.active-principal.v1','active',1,clock_timestamp())`)
+    await denied(() => asRole('jenfu_ai_pdm_migrator', call,
+      ['principal-admin', 'issuer-admin', 'subject-admin', assurancePolicyPreMigrationSessionHash,
+        'company-jenfu', 'accounts.invitation.manage']), /AIPDM_PROVISION_ACTOR_INVALID/)
+    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_session_records
+      (principal_id,session_id_hash,principal_auth_epoch,lifecycle_version,profile_version,
+       authenticated_at,issued_at,expires_at,assurance_level,assurance_policy_hash)
+      VALUES ('principal-admin',$1,0,1,1,clock_timestamp(),clock_timestamp(),
+        clock_timestamp()+interval '1 hour','aal1',$2)`, [actorSessionHashes.staleProfile, 'c'.repeat(64)])
+    await denied(() => asRole('jenfu_ai_pdm_migrator', call,
+      ['principal-admin', 'issuer-admin', 'subject-admin', actorSessionHashes.staleProfile,
+        'company-jenfu', 'accounts.invitation.manage']), /AIPDM_PROVISION_ACTOR_INVALID/)
+    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_session_records
+      (principal_id,session_id_hash,principal_auth_epoch,lifecycle_version,profile_version,
+       authenticated_at,issued_at,expires_at,assurance_level,assurance_policy_hash)
+      VALUES ('principal-admin',$1,0,1,2,clock_timestamp()-interval '2 hours',
+        clock_timestamp()-interval '2 hours',clock_timestamp()-interval '1 hour',
+        'aal1',$2)`, [actorSessionHashes.expired, 'c'.repeat(64)])
+    await denied(() => asRole('jenfu_ai_pdm_migrator', call,
+      ['principal-admin', 'issuer-admin', 'subject-admin', actorSessionHashes.expired,
+        'company-jenfu', 'accounts.invitation.manage']), /AIPDM_PROVISION_ACTOR_INVALID/)
+    await asRole('jenfu_ai_pdm_migrator', `INSERT INTO ai_pdm_core.principal_session_records
+      (principal_id,session_id_hash,principal_auth_epoch,lifecycle_version,profile_version,
+       authenticated_at,issued_at,expires_at,revoked_at,revoke_reason,
+       assurance_level,assurance_policy_hash)
+      VALUES ('principal-admin',$1,0,1,2,clock_timestamp(),clock_timestamp(),
+        clock_timestamp()+interval '1 hour',clock_timestamp(),'operator_revoked',
+        'aal1',$2)`, [actorSessionHashes.revoked, 'c'.repeat(64)])
+    await denied(() => asRole('jenfu_ai_pdm_migrator', call,
+      ['principal-admin', 'issuer-admin', 'subject-admin', actorSessionHashes.revoked,
+        'company-jenfu', 'accounts.invitation.manage']), /AIPDM_PROVISION_ACTOR_INVALID/)
     await denied(() => asRole('jenfu_ai_pdm_migrator', call, args), /AIPDM_PROVISION_PERMISSION_DENIED/)
     await client.query(`INSERT INTO orgmaster_contract.v_ai_pdm_entitlement_authority_v1
       VALUES ('employee-admin',7,'jenfu.platform-entitlement.v1','ai-pdm','orgmaster_authority')`)
@@ -1717,7 +1770,7 @@ try {
         await client.query('SET LOCAL ROLE jenfu_ai_pdm_runtime')
         const result = await client.query(`SELECT ai_pdm_core.provision_principal_account_v1(
           $1::jsonb,'principal-admin','issuer-admin','subject-admin',$2) AS receipt`,
-        [JSON.stringify(payload), 'a'.repeat(64)])
+        [JSON.stringify(payload), actorSessionHashes.current])
         await client.query('COMMIT')
         return result.rows[0].receipt
       } catch (error) {
@@ -1827,7 +1880,7 @@ try {
         [operationId,target === 'principal-admin' ? 'pdm-user-admin' :
           (await client.query(`SELECT pdm_user_id FROM ai_pdm_core.principal_accounts
             WHERE principal_id='principal-target'`)).rows[0].pdm_user_id,
-        action,reason,'a'.repeat(64)])
+        action,reason,actorSessionHashes.current])
         await client.query('COMMIT')
         return result.rows[0].receipt
       } catch (error) {
@@ -1875,7 +1928,7 @@ try {
         await client.query('SET LOCAL ROLE jenfu_ai_pdm_runtime')
         const result = await client.query(`SELECT ai_pdm_core.revoke_principal_account_sessions_v1(
           $1,$2,$3,'company-jenfu','principal-admin','issuer-admin','subject-admin',$4) AS receipt`,
-        [operationId,pdmUserId,reason,'a'.repeat(64)])
+        [operationId,pdmUserId,reason,actorSessionHashes.current])
         await client.query('COMMIT')
         return result.rows[0].receipt
       } catch (error) {

@@ -1,0 +1,248 @@
+{
+  "format": "dev121-principal-postgres-qc-receipt.v1",
+  "project": "AI-PDM",
+  "recordedDate": "2026-10-01",
+  "branch": "codex/dev121-owner-ledger-floor",
+  "head": "65f3e895d1281e8136e8c82bd65f1460568cc72d",
+  "productionWrites": false,
+  "inputs": {
+    "migration074": {
+      "path": "db/postgres/074_dev121_principal_human_assurance_aal1.sql",
+      "gitBlob": "f06f1f1d9399ac487d20cc91d4a80f5b9750ff20",
+      "sha256": "9bf0801478ebfb5a3cd8e25002ca5f05c7eb54b7373a584690dcdf57c1abcd66"
+    },
+    "releaseProfile": {
+      "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+      "sha256": "44a66ce18833fe5cfe3289b581ec121627cb2514d203e420206477936d7ee3cd"
+    },
+    "runner": {
+      "path": "scripts/dev117-production-migration-runner.mjs",
+      "sha256": "2ab6a67737791dd767b7458a0fd44f043ebf3c32269ca5c0b9916c5978789899"
+    },
+    "migrationFence": {
+      "path": "scripts/lib/dev121-migration-fence.mjs",
+      "sha256": "c5d2167a4ebd3edee835ce72e7ee5856024a759dc73924ca4b1a6740d9252c99"
+    }
+  },
+  "priorCohortSourceAttempt": {
+    "status": "FAIL",
+    "result": "Migration 074 assurance/session invalidation vector passed; the later cohort-source assertion failed because the earlier AAL1 fixture had already linked an active privileged principal before eligible-cohort capture.",
+    "cleanup": {
+      "stopped": true,
+      "released": true,
+      "tempRemoved": true
+    },
+    "portAndTempPath": "not retained in the current command output"
+  },
+  "runs": [
+    {
+      "id": "2026-10-01-final-attempt-1",
+      "command": "npm run qc:dev-121:principal-acl-postgres",
+      "sourceAtRun": {
+        "path": "scripts/qc-dev-121-principal-schema-postgres.mjs",
+        "gitBlob": "e16a6c28d0dda881dc320f523ee188896ab86f64",
+        "sha256": "8bead3885cdd355d8ed6fff73d849c2afd05c28e7e2a5611e9997bafa1e68dd1"
+      },
+      "runtime": {
+        "port": 51817,
+        "mutationScope": "C:\\Users\\user\\AppData\\Local\\Temp\\aipdm-dev121-principal-pg-qANU3q",
+        "owner": "qc-dev-121-principal-schema-postgres.mjs -> task-owned PostgreSQL cluster"
+      },
+      "status": "FAIL",
+      "passedOutputVectors": [
+        "owner writer readback sees an unexpected AI-PDM role member",
+        "real PostgreSQL operator: writer denial, atomic rollback, commit, replay, input conflict, no local ACL",
+        "one-shot Principal-only owner transaction withholds unresolved profiles without local ACL",
+        "074 changes only human assurance metadata and invalidates registered sessions",
+        "principal account owner commands no longer depend on cutover markers",
+        "owner manifest is exact, visible through contract and replay is idempotent"
+      ],
+      "failure": {
+        "sqlState": "23514",
+        "message": "AIPDM_PRINCIPAL_ACCOUNT_LINK_IMMUTABLE",
+        "operation": "DELETE FROM ai_pdm_core.principal_accounts WHERE principal_id='principal-privileged-aal1'",
+        "trigger": "ai_pdm_core.guard_principal_identity_state_v1()",
+        "location": "scripts/qc-dev-121-principal-schema-postgres.mjs:673",
+        "cause": "The harness deleted an already-linked canonical account to sequence its AAL2 negative insert; the identity-link guard correctly rejected the delete."
+      },
+      "runnerSummary": {
+        "checksPassed": 5,
+        "productionWrites": false,
+        "cleanup": {
+          "stopped": true,
+          "released": true,
+          "tempRemoved": true
+        },
+        "retainedTempPath": null
+      }
+    },
+    {
+      "id": "2026-10-01-final-attempt-2",
+      "command": "npm run qc:dev-121:principal-acl-postgres",
+      "sourceAtRun": {
+        "path": "scripts/qc-dev-121-principal-schema-postgres.mjs",
+        "gitBlob": "d20dcb8c389be63f45d9753e68c94e7025c9084d",
+        "sha256": "9a71bf6695cf666f1292bf4c356e3776218b584cba1e2633dc3678ae7e34640e"
+      },
+      "runtime": {
+        "port": 54567,
+        "mutationScope": "C:\\Users\\user\\AppData\\Local\\Temp\\aipdm-dev121-principal-pg-PkqJxs",
+        "owner": "qc-dev-121-principal-schema-postgres.mjs -> task-owned PostgreSQL cluster"
+      },
+      "status": "FAIL",
+      "passedChecks": 14,
+      "passedOutputVectors": [
+        "owner writer readback sees an unexpected AI-PDM role member",
+        "real PostgreSQL operator: writer denial, atomic rollback, commit, replay, input conflict, no local ACL",
+        "one-shot Principal-only owner transaction withholds unresolved profiles without local ACL",
+        "074 changes only human assurance metadata and invalidates registered sessions",
+        "principal account owner commands no longer depend on cutover markers",
+        "owner manifest is exact, visible through contract and replay is idempotent",
+        "one canonical principal owns one historical PDM profile and human admins may use AAL1",
+        "canonical command provenance does not require an old principal mapping",
+        "verified inventory precedes account materialization but activation requires the exact pair",
+        "exact provider subject inventory matches published principal and local profile in one snapshot",
+        "owner inventory and cutover source gate commit, rollback and replay",
+        "active cutover requires an account and a successful operation",
+        "owner provision assertion accepts current AAL1 and requires an effective published capability",
+        "principal-only provision commits atomically, replays once and leaves old membership empty",
+        "runtime principal account list and detail read the new account without legacy membership"
+      ],
+      "failure": {
+        "sqlState": "23505",
+        "message": "duplicate key value violates unique constraint principal_session_records_session_id_hash_key",
+        "syntheticSessionHashPattern": "64 repetitions of 'd'",
+        "operation": "INSERT principal_session_records for principal-target at scripts/qc-dev-121-principal-schema-postgres.mjs:1856",
+        "cause": "The same synthetic session hash was already inserted for principal-admin by an earlier session-boundary vector around line 1666; the global UNIQUE constraint rejected the later fixture before its lifecycle assertion."
+      },
+      "runnerSummary": {
+        "productionWrites": false,
+        "cleanup": {
+          "stopped": true,
+          "released": true,
+          "tempRemoved": true
+        },
+        "retainedTempPath": null
+      }
+    },
+    {
+      "id": "2026-10-01-final-attempt-3",
+      "command": "npm run qc:dev-121:principal-acl-postgres",
+      "sourceAtRun": {
+        "path": "scripts/qc-dev-121-principal-schema-postgres.mjs",
+        "gitBlob": "e11d66557859bc9ae55420b9518b3e50adc90b96",
+        "sha256": "d59b63d525de943feba1942dd7428a7e27a1cef32970ef1d4594de13ed3726dc"
+      },
+      "runtime": {
+        "port": 63050,
+        "mutationScope": "C:\\Users\\user\\AppData\\Local\\Temp\\aipdm-dev121-principal-pg-cGFp6W",
+        "owner": "qc-dev-121-principal-schema-postgres.mjs -> task-owned PostgreSQL cluster"
+      },
+      "status": "FAIL",
+      "passedChecks": 12,
+      "passedOutputVectors": [
+        "owner writer readback sees an unexpected AI-PDM role member",
+        "real PostgreSQL operator: writer denial, atomic rollback, commit, replay, input conflict, no local ACL",
+        "one-shot Principal-only owner transaction withholds unresolved profiles without local ACL",
+        "074 changes only human assurance metadata and invalidates registered sessions",
+        "principal account owner commands no longer depend on cutover markers",
+        "owner manifest is exact, visible through contract and replay is idempotent",
+        "one canonical principal owns one historical PDM profile and human admins may use AAL1",
+        "canonical command provenance does not require an old principal mapping",
+        "verified inventory precedes account materialization but activation requires the exact pair",
+        "exact provider subject inventory matches published principal and local profile in one snapshot",
+        "owner inventory and cutover source gate commit, rollback and replay",
+        "active cutover requires an account and a successful operation"
+      ],
+      "failure": {
+        "sqlState": "42501",
+        "message": "AIPDM_PROVISION_ACTOR_INVALID",
+        "operation": "principal-only provision actor assertion (scripts/qc-dev-121-principal-schema-postgres.mjs:1771)",
+        "cause": "The test inserted the current actor session under its new deterministic hash, but provision/lifecycle/revoke calls still passed the superseded literal b-repeat hash."
+      },
+      "runnerSummary": {
+        "productionWrites": false,
+        "cleanup": {
+          "stopped": true,
+          "released": true,
+          "tempRemoved": true
+        },
+        "retainedTempPath": null
+      }
+    },
+    {
+      "id": "2026-10-01-final-attempt-4",
+      "command": "npm run qc:dev-121:principal-acl-postgres",
+      "sourceAtRun": {
+        "path": "scripts/qc-dev-121-principal-schema-postgres.mjs",
+        "gitBlob": "1d675e1d44890b3eef7220be2edf5fe0c53f10d6",
+        "sha256": "8b9a275936b50817fbb79fefe337232fb7f8d51f28b034022dce68da64503e7f"
+      },
+      "runtime": {
+        "port": 60702,
+        "mutationScope": "C:\\Users\\user\\AppData\\Local\\Temp\\aipdm-dev121-principal-pg-53WSah",
+        "owner": "qc-dev-121-principal-schema-postgres.mjs -> task-owned PostgreSQL cluster"
+      },
+      "status": "PASS",
+      "passedChecks": 26,
+      "passedOutputVectors": [
+        "owner writer readback sees an unexpected AI-PDM role member",
+        "real PostgreSQL operator: writer denial, atomic rollback, commit, replay, input conflict, no local ACL",
+        "one-shot Principal-only owner transaction withholds unresolved profiles without local ACL",
+        "074 changes only human assurance metadata and invalidates registered sessions",
+        "principal account owner commands no longer depend on cutover markers",
+        "owner manifest is exact, visible through contract and replay is idempotent",
+        "one canonical principal owns one historical PDM profile and human admins may use AAL1",
+        "canonical command provenance does not require an old principal mapping",
+        "verified inventory precedes account materialization but activation requires the exact pair",
+        "exact provider subject inventory matches published principal and local profile in one snapshot",
+        "owner inventory and cutover source gate commit, rollback and replay",
+        "active cutover requires an account and a successful operation",
+        "owner provision assertion accepts current AAL1 and requires an effective published capability",
+        "principal-only provision commits atomically, replays once and leaves old membership empty",
+        "runtime principal account list and detail read the new account without legacy membership",
+        "principal lifecycle uses current management grant, revokes sessions and replays without old user writes",
+        "principal admin session revoke uses its own grant, atomic barrier and immutable replay",
+        "principal-active profile rejects old security writers but permits contact edits",
+        "principal-active profile also rejects identity, UID session, membership and alias writers",
+        "cutover and principal/profile identity cannot be reversed",
+        "old writer waiting behind cutover sees the committed principal marker",
+        "old security writer cannot use a stale repeatable-read snapshot",
+        "serializable command marker reader aborts after concurrent cutover",
+        "runtime can read account and revoke session but cannot rewrite identity or ACL",
+        "principal reviewer selector refuses a non-Jenfu workspace even with a published grant",
+        "principal reviewer selector honors published OrgMaster authority without UID roles",
+        "principal DEV-087 receipt commits and replays without legacy identity mappings"
+      ],
+      "runnerSummary": {
+        "productionWrites": false,
+        "cleanup": {
+          "stopped": true,
+          "released": true,
+          "tempRemoved": true
+        },
+        "retainedTempPath": null
+      }
+    }
+  ],
+  "collisionAudit": {
+    "scope": "All principal_session_records INSERT and lookup sites plus synthetic profile/principal/employee IDs in scripts/qc-dev-121-principal-schema-postgres.mjs",
+    "result": "Found that newly added actor-session fixture IDs d/e repeated two older lifecycle-vector IDs. Existing historical d/e lifecycle hashes, principal-one c hash and profile/principal pairs are retained unchanged.",
+    "newDeterministicSessionHashes": {
+      "assurancePolicyPreMigration": "a2734769c7fbb06c470d8c7bc8a4c0dd00fac131435b4ca98be59fa998d35a80",
+      "principalAdminCurrentAal1": "8d6f3b7fe46285edc9db5344a9bf6c86b05ec418838b8abbcd7fd07c41ea7982",
+      "principalAdminStaleProfile": "55b983d70871ee2fdcfd496cbbbdcfcabacb39363c2ea6d93cce5101ed42e5dc",
+      "principalAdminExpired": "b46ff948acbefc8b1cb6c428cc5e056f34f7e012b97508a1f66fcd587e70f857",
+      "principalAdminRevoked": "7de1eeff4925d6000383eaa2c5c3d9bc8ef674f940a975094849ff9028e74bf6"
+    },
+    "harnessSourceAfterFix": {
+      "path": "scripts/qc-dev-121-principal-schema-postgres.mjs",
+      "gitBlob": "1d675e1d44890b3eef7220be2edf5fe0c53f10d6",
+      "sha256": "8b9a275936b50817fbb79fefe337232fb7f8d51f28b034022dce68da64503e7f"
+    }
+  },
+  "nextAttempt": {
+    "status": "COMPLETE",
+    "result": "The authorized final retry passed all 26 reported checks with task-owned cleanup complete. Earlier synthetic fixture failures remain preserved above."
+  }
+}

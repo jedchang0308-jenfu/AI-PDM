@@ -127,10 +127,9 @@ export class DrawingRevisionWorkService {
   private verify(actor: DrawingRevisionActor, token: string) { return verifyCanonicalWorkbenchCommandContract(this.client, { companyId: actor.companyId, actorId: actor.id, token }); }
 
   private async requirePrincipalCapability(verified: VerifiedPrincipalRequest,
-    permissionCode: string, requireAal2 = false) {
+    permissionCode: string) {
     if (this.client.kind !== "postgres" || this.client.transactionScope !== "postgres" ||
-        verified.session.contractVersion !== "jenfu.ai-pdm-session.v2" ||
-        (requireAal2 && verified.session.assuranceLevel !== "aal2")) {
+        verified.session.contractVersion !== "jenfu.ai-pdm-session.v2") {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
     const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
@@ -162,7 +161,7 @@ export class DrawingRevisionWorkService {
       companyId: verified.profile.companyId, canEditNonOwned: false,
       principalCapabilities: {
         update: decisions[1]?.allowed === true,
-        submit: decisions[2]?.allowed === true && verified.session.assuranceLevel === "aal2",
+        submit: decisions[2]?.allowed === true,
         cancel: decisions[3]?.allowed === true
       } });
   }
@@ -457,7 +456,7 @@ export class DrawingRevisionWorkService {
   async submitPrincipal(workId: string, verified: VerifiedPrincipalRequest,
     context: CommandContext) {
     const profile = await this.requirePrincipalCapability(verified,
-      "numbering.candidate.review.submit", true);
+      "numbering.candidate.review.submit");
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId: profile.companyId, actorId: profile.profileId, token: context.contractToken });
     return runPrincipalDev087Command(this.client, verified, {
@@ -575,7 +574,7 @@ export class DrawingRevisionWorkService {
   async requestVoidPrincipal(branchId: string, rowKey: string,
     verified: VerifiedPrincipalRequest, context: CommandContext) {
     const profile = await this.requirePrincipalCapability(verified,
-      "numbering.draft.obsolete", true);
+      "numbering.draft.obsolete");
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId: profile.companyId, actorId: profile.profileId,
         token: context.contractToken });
@@ -678,7 +677,7 @@ export class DrawingRevisionWorkService {
   async decidePrincipal(requestId: string, decision: Dev087ReviewDecision,
     verified: VerifiedPrincipalRequest, context: CommandContext) {
     const profile = await this.requirePrincipalCapability(verified,
-      "approval.request.decide", true);
+      "approval.request.decide");
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId: profile.companyId, actorId: profile.profileId, token: context.contractToken });
     return runPrincipalDev087Command(this.client, verified, {

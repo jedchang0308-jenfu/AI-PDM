@@ -51,7 +51,7 @@ import { GET as comparisonGET } from "@/app/api/pdm/review-requests/[requestId]/
 const tx = { kind: "postgres", transactionScope: "postgres" };
 const verified = {
   profile: { pdmUserId: "profile-one", companyId: "company-one" },
-  session: { principalId: "principal-one", assuranceLevel: "aal2" }
+  session: { principalId: "principal-one", assuranceLevel: "aal1" }
 };
 const params = { params: Promise.resolve({ requestId: "review-one",
   entityType: "drawing", entityId: "drawing-one" }) };

@@ -113,7 +113,7 @@ export async function applyPrincipalOnlyCohortInOwnerTransaction(
   const activatedAt = new Date(clock?.activated_at ?? "").toISOString();
   if (!Number.isFinite(Date.parse(activatedAt))) invalid();
   const verified = source.verified;
-  const minimumAssurance = verified.accountType === "human_privileged" ? "aal2" : "aal1";
+  const minimumAssurance = "aal1" as const;
   const account = await client.query<{ principal_id: string }>(`
     INSERT INTO ai_pdm_core.principal_accounts
       (principal_id,pdm_user_id,company_id,employee_id,account_type,

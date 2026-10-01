@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { principalAssurancePolicyHash } from "@/lib/jenfu-principal-assurance";
 import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { hashJenfuPrincipalSessionId } from "@/lib/jenfu-principal-session-registry";
@@ -14,7 +14,7 @@ const token = issueJenfuPrincipalSession({
   identityIssuer: "https://issuer.example.test", identitySubject: "subject-one",
   authEpoch: 0, accountLifecycleVersion: 3, profileVersion: 2,
   companyId: "company-one", authenticatedAt: now - 100,
-  assuranceLevel: "aal2", secondFactor: "google_workspace_mfa",
+  assuranceLevel: "aal1", secondFactor: null,
   assurancePolicyHash: principalAssurancePolicyHash(trustPolicy), maxAgeSeconds: 600
 }, ring, now);
 const claims = verifyJenfuPrincipalSession(token, ring, { nowSeconds: now });
@@ -55,7 +55,7 @@ function database(overrides: Record<string, unknown> = {}) {
       if (sql.includes("transaction_timestamp()")) return [{
         decision_at: new Date(now * 1000).toISOString()
       }];
-      if (sql.includes("v_ai_pdm_principal_effective_grants_v3")) return [{
+      if (sql.includes("v_ai_pdm_principal_effective_grants_v3")) return overrides.assignments ?? [{
         contract_version: "jenfu.orgmaster.ai-pdm-principal-grants.v3",
         assignment_version_id: "version-one", assignment_version: 1,
         assignment_id: "assignment-one", grant_kind: "direct", delegation_id: null,
@@ -77,7 +77,7 @@ function database(overrides: Record<string, unknown> = {}) {
         principal_id: claims.principalId, pdm_user_id: "profile-one", employee_id: claims.employeeId,
         account_type: "human_privileged", company_id: claims.companyId,
         lifecycle_version: 3, profile_version: 2, account_status: "active",
-        system_role_enabled: true, minimum_assurance: "aal2", session_invalid_before: null
+        system_role_enabled: true, minimum_assurance: "aal1", session_invalid_before: null
       } : overrides.account;
       if (sql.includes("FROM ai_pdm_core.principal_session_records")) {
         expect(params?.sessionIdHash).toBe(hashJenfuPrincipalSessionId(currentClaims.sessionId));
@@ -93,9 +93,6 @@ function database(overrides: Record<string, unknown> = {}) {
       }
       if (sql.includes("FROM ai_pdm_core.users profile")) return overrides.profile === undefined
         ? { id: "profile-one", company_id: "company-one" } : overrides.profile;
-      if (sql.includes("FROM ai_pdm_core.principal_role_assignments")) return {
-        privileged: overrides.privileged ?? false
-      };
       throw new Error("unexpected query");
     },
     transaction: async (fn: (tx: AsyncDatabaseClient) => unknown, options: AsyncDatabaseTransactionOptions) => {
@@ -118,6 +115,7 @@ describe("DEV-121 principal request verification", () => {
     expect(observed.options).toEqual({ isolationLevel: "repeatable_read", readOnly: true });
     expect(observed.queries.join("\n")).not.toContain("firebase_platform_principals");
     expect(observed.queries.join("\n")).not.toContain("user_role_assignments");
+    expect(observed.queries.join("\n")).not.toContain("principal_role_assignments");
     expect(observed.queries.join("\n")).not.toContain("profile.role");
     expect(observed.queries.join("\n")).toContain("owner.company_id=profile.company_id");
     expect(observed.queries.join("\n")).toContain("FROM ai_pdm_core.principal_accounts account");
@@ -137,10 +135,19 @@ describe("DEV-121 principal request verification", () => {
     }
   });
 
-  it("rejects a changed target policy before reading any authorization data", async () => {
+  it("rejects a session minted under the retired assurance policy before authorization reads", async () => {
+    const oldPolicyToken = issueJenfuPrincipalSession({
+      principalId: claims.principalId, employeeId: claims.employeeId,
+      identityIssuer: claims.identityIssuer, identitySubject: claims.identitySubject,
+      authEpoch: claims.authEpoch, accountLifecycleVersion: claims.accountLifecycleVersion,
+      profileVersion: claims.profileVersion, companyId: claims.companyId,
+      authenticatedAt: claims.authenticatedAt, assuranceLevel: "aal1", secondFactor: null,
+      assurancePolicyHash: "b".repeat(64), maxAgeSeconds: 600
+    }, ring, now);
     const { client, observed } = database();
-    await expect(request(client, { ...trustPolicy, enabled: false }))
-      .rejects.toMatchObject({ code: "auth_session_invalid" });
+    await expect(withVerifiedJenfuPrincipalRequest({ token: oldPolicyToken, keyRing: ring,
+      identityIssuer: claims.identityIssuer, trustPolicy, database: client, nowSeconds: now },
+    async () => "must_not_run")).rejects.toMatchObject({ code: "auth_session_invalid" });
     expect(observed.queries).toHaveLength(0);
   });
 
@@ -189,24 +196,17 @@ describe("DEV-121 principal request verification", () => {
     async () => { throw denied; })).rejects.toBe(denied);
   });
 
-  it("rejects an AAL1 session when the selected principal ACL has a current privileged role", async () => {
-    const personal = { principal_id: claims.principalId, pdm_user_id: "profile-one",
-      employee_id: claims.employeeId, account_type: "human_personal", company_id: claims.companyId,
-      lifecycle_version: 3, profile_version: 2, account_status: "active",
-      system_role_enabled: true, minimum_assurance: "aal1", session_invalid_before: null };
-    const typed = [{ contract_version: "organization.active-principal.v1",
-      principal_issuer: claims.identityIssuer, principal_subject: claims.identitySubject,
-      principal_id: claims.principalId, employee_id: claims.employeeId,
-      employee_status: "active", account_type: "human_personal",
-      mapping_version: 3, published_at: "2026-09-24T12:00:00.000Z" }];
+  it("admits AAL1 for privileged accounts but denies a zero-grant snapshot explicitly", async () => {
     const input = { token: aal1Token, keyRing: ring, identityIssuer: claims.identityIssuer,
       trustPolicy, nowSeconds: now };
-    const high = database({ claims: aal1Claims, account: personal, typed, privileged: true });
+    const high = database({ claims: aal1Claims, privileged: true });
     await expect(withVerifiedJenfuPrincipalRequest({ ...input, database: high.client },
-      async () => "unexpected")).rejects.toMatchObject({ code: "auth_session_invalid" });
-    const normal = database({ claims: aal1Claims, account: personal, typed, privileged: false });
-    await expect(withVerifiedJenfuPrincipalRequest({ ...input, database: normal.client },
       async () => "allowed_to_continue_to_permission_decision"))
       .resolves.toBe("allowed_to_continue_to_permission_decision");
+    const noGrant = database({ claims: aal1Claims, assignments: [] });
+    const protectedEffect = vi.fn(async () => "must_not_run");
+    await expect(withVerifiedJenfuPrincipalRequest({ ...input, database: noGrant.client }, protectedEffect))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    expect(protectedEffect).not.toHaveBeenCalled();
   });
 });

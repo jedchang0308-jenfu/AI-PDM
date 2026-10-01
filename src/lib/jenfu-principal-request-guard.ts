@@ -4,7 +4,8 @@ import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
 import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
 import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
 import { principalAssurancePolicyHash } from "@/lib/jenfu-principal-assurance";
-import { requiresPrincipalAal2 } from "@/lib/jenfu-principal-assurance-requirement";
+import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-published-grant-validation";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import type { PlatformSessionKeyRing } from "@/lib/platform-session-v2";
@@ -96,9 +97,7 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
           account.lifecycleVersion !== claims.accountLifecycleVersion ||
           account.profileVersion !== claims.profileVersion ||
           state.authEpoch !== claims.authEpoch || !registered ||
-          !profile || profile.id !== account.pdmUserId || profile.company_id !== account.companyId ||
-          (account.minimumAssurance === "aal2" && claims.assuranceLevel !== "aal2") ||
-          (account.accountType === "human_privileged" && claims.assuranceLevel !== "aal2")) {
+          !profile || profile.id !== account.pdmUserId || profile.company_id !== account.companyId) {
           throw new JenfuPrincipalRequestError("auth_session_invalid");
         }
         if (state.revokedBefore && claims.authenticatedAt * 1000 <= Date.parse(state.revokedBefore)) {
@@ -108,12 +107,10 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
             claims.issuedAt * 1000 <= Date.parse(account.sessionInvalidBefore)) {
           throw new JenfuPrincipalRequestError("auth_session_invalid");
         }
-        if (claims.assuranceLevel !== "aal2" && await requiresPrincipalAal2(client, {
+        await validatePrincipalPublishedGrantSnapshot(client, {
           principalId: claims.principalId, employeeId: claims.employeeId,
           identityIssuer: claims.identityIssuer, identitySubject: claims.identitySubject
-        })) {
-          throw new JenfuPrincipalRequestError("auth_session_invalid");
-        }
+        });
         verified = { profile: { pdmUserId: profile.id, companyId: profile.company_id }, session: {
           contractVersion: "jenfu.ai-pdm-session.v2",
           appId: "ai-pdm",
@@ -129,7 +126,7 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
           assuranceLevel: claims.assuranceLevel
         } };
       } catch (error) {
-        if (error instanceof JenfuPrincipalRequestError) throw error;
+        if (error instanceof JenfuPrincipalRequestError || error instanceof JenfuEntitlementRepositoryError) throw error;
         throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
       }
       try { return await evaluate(client, verified); }
@@ -138,7 +135,7 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
       readOnly: options.readOnly !== false });
   } catch (error) {
     if (error === evaluatorError && error !== undefined) throw error;
-    if (error instanceof JenfuPrincipalRequestError) throw error;
+    if (error instanceof JenfuPrincipalRequestError || error instanceof JenfuEntitlementRepositoryError) throw error;
     throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
   }
 }

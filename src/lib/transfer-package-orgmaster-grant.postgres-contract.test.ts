@@ -26,7 +26,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (original) => ({
       employeeId: input.token === ownerToken ? "employee-three" : "employee-legacy",
       authEpoch: 1, profileVersion: 1,
       issuedAt: "2026-09-29T00:00:00.000Z", expiresAt: "2026-09-30T00:00:00.000Z",
-      assuranceLevel: "aal2"
+      assuranceLevel: "aal1"
     }
   }), options)
 }));

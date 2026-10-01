@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 
 const mocks = vi.hoisted(() => ({
   issuePrincipal: vi.fn(),
@@ -128,6 +129,49 @@ describe("principal-first SSO callback routing", () => {
     expect(callback.headers.get("set-cookie")).toContain("HttpOnly");
     expect(callback.headers.get("referrer-policy")).toBe("no-referrer");
     expect(callback.headers.get("cache-control")).toBe("no-store");
+    expect(mocks.legacyResolver).not.toHaveBeenCalled();
+  });
+
+  it("maps a typed missing published grant to access denied and never issues a session", async () => {
+    const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
+    const state = new URL(started.headers.get("location")!).searchParams.get("state");
+    const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
+    const proof = principalProof();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(proof), { status: 200 })));
+    mocks.issuePrincipal.mockRejectedValueOnce(
+      new JenfuEntitlementRepositoryError("permission_not_granted"));
+
+    const callback = await jenfuSsoCallback(new Request(
+      `https://pdm.example/api/auth/jenfu-sso/callback?code=one-time-code&state=${state}&iss=${encodeURIComponent(proof.issuer)}`,
+      { headers: { cookie: transactionCookie } }
+    ));
+
+    expect(callback.status).toBe(303);
+    expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=principal_access_denied");
+    expect(callback.headers.get("location")).not.toContain("one-time-code");
+    expect(callback.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(callback.headers.get("set-cookie")).not.toContain("principal.session.token");
+    expect(mocks.legacyResolver).not.toHaveBeenCalled();
+  });
+
+  it("keeps typed entitlement read failures as dependency errors", async () => {
+    const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
+    const state = new URL(started.headers.get("location")!).searchParams.get("state");
+    const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
+    const proof = principalProof();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(proof), { status: 200 })));
+    mocks.issuePrincipal.mockRejectedValueOnce(
+      new JenfuEntitlementRepositoryError("entitlement_authority_unavailable"));
+
+    const callback = await jenfuSsoCallback(new Request(
+      `https://pdm.example/api/auth/jenfu-sso/callback?code=one-time-code&state=${state}&iss=${encodeURIComponent(proof.issuer)}`,
+      { headers: { cookie: transactionCookie } }
+    ));
+
+    expect(callback.status).toBe(303);
+    expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=sso_dependency_unavailable");
+    expect(callback.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(callback.headers.get("set-cookie")).not.toContain("principal.session.token");
     expect(mocks.legacyResolver).not.toHaveBeenCalled();
   });
 
