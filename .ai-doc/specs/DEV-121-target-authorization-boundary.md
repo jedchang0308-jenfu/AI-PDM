@@ -1,3 +1,12 @@
+## 2026-10-02 R30 業務儲存來源準備（未建立資源、未發布）
+
+PR183 已於 03:26Z 合併 protected main `46587ce7045d11028b30f2a056f3e2de0db04fc2`，exact head a27854ecb 的 CI36959681703 PostgreSQL／Slice皆成功，actual isolated build artifact/primary/cleanup PASS；來源接受不等於正式業務通過。Jed 查詢／建立／編輯的既有 R26 證據保留，附件／背景／技轉尚須完成 Production L4。
+
+沿 AIPDM/DEV-121 F08 子項準備 `infra/google-cloud/dev-121-business-storage` 與 `config/release/dev121-business-storage-plan.json`。此 root 僅擁有專用 private `jenfu-platform-prod-aipdm-files`、create/get custom role definition及既有 `aipdm-prod-runtime` 的單一bucket binding；不得在project level綁role。資料authority為AI-PDM，state獨立於release tooling，不改既有APP_INFRA完整地址集或receipt，不使用release evidence bucket。版本沿目前google7.45.0 lock；PAP enforced、UBLA、STANDARD、force_destroy=false、prevent_destroy、soft_delete_policy=2592000秒，無expiration/locked retention。完整五地址及create/no-op/read來源檢查已以現有assertPlanProfile的7情境確認；fmt PASS。未init、provider schema validate、正式plan/apply或讀回，這份準備不是完整Production plan proof。
+
+套用前仍缺：既有approved backend bucket provider讀回、clean official-source freeze／foundation manifest與immutable images的真實bindings、完整after欄位／unknown拒絕、exact plan digest與readback producer，及專用儲存按量費用決策。變數字串、synthetic plan或CLI輸入不能代替來源/資源證據。費用未核准前只準備source，不建立/套用雲端資源。沿既有owner/source-plan驗證完成，無新增主任務或一般人工核准。
+
+現行V3 profile／strict validator的fixed env目前不含四項GCS參數，這批不臨時注入或先啟用空bucket。provider readback及來源驗證齊備後，同步接入 PDM_STORAGE_PROVIDER=google_cloud_storage、PDM_GCS_LIVE_ENABLED=1、PDM_GCS_PROJECT_ID=jenfu-platform-prod、PDM_GCS_BUCKET=專用bucket；更新contract hash/runtime config與必要CI，再執行Principal authenticated bytes/replay及實際background。回復保留bucket/bytes，使用已驗Principal-only maintenance/application revision，不改回ephemeral provider或舊UID授權。歷史unavailable pointer需核實來源，不猜測重寫、不刪業務資料。詳細操作限制見該root README；下方讀點保留歷史。
 ## 2026-10-02 R30 背景來源契約續修（本機候選，未發布）
 
 本段為最新施工補充；正式仍 R26。正常 Windows Shell 與 Document Manager preview worker 原先直接讀 claim.originalPath，無法在遠端工作站消費 GCS immutable URI。兩 caller 改用同一 owner holder-only `GET /api/preview-jobs/{jobId}/content`：workload credential、running job/holder、原始 verified Principal initiator、company/source/hash 在讀取前核對；owner pointer/storage bytes 驗證，I/O 後再核對 holder。Worker 只下載 configured owner origin 的固定路徑，禁止 redirect，不使用 claim URL 或 local-path fallback；校驗 content hash/size 後在 task-owned temp 寫入，extractor source/output 一起於 finally 清理。此為技術 job capability，沒有新的人類 session 或平行授權來源。
