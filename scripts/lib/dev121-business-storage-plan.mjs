@@ -52,7 +52,7 @@ function fields(row,values) {
  * fixtures do not establish provenance, cost approval, backend ownership or release authority.
  */
 export function assertDev121BusinessStoragePlan(plan,{profile,expectedInputs}={}) {
-  if(profile?.schemaVersion!=='jenfu.dev121.business-storage-plan.v1' || profile.ownerApplicationId!=='ai-pdm' || profile.terraformRoot!=='infra/google-cloud/dev-121-business-storage' || profile.backendKey!=='dev-121/business-storage/default.tfstate') fail('profile');
+  if(profile?.schemaVersion!=='jenfu.dev121.business-storage-plan.v1' || profile.ownerApplicationId!=='ai-pdm' || profile.terraformRoot!=='infra/google-cloud/dev-121-business-storage' || profile.backendKey!=='dev-121/business-storage/default.tfstate' || profile.backendBucket!=='tfstate-jenfu-platform-prod') fail('profile');
   for(const [key,value] of Object.entries(target)) same(profile.target?.[key],value,`target:${key}`);
   same(profile.profiles?.BUSINESS_STORAGE?.addresses,addresses,'profile_addresses');
   same(profile.provenanceVariables,inputs,'provenance_variables');
