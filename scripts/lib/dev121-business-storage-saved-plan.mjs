@@ -68,7 +68,14 @@ export async function prepareDev121BusinessStoragePlan({root,intentRef,outputDir
   const env=storageTerraformEnvironment(token);
   if(typeof githubToken!=='string'||githubToken.length<20)fail('GITHUB_TOKEN_REQUIRED');
   if(!path.isAbsolute(outputDirectory)||fs.existsSync(outputDirectory))fail('NEW_ABSOLUTE_OUTPUT_REQUIRED');
-  const relative=path.relative(path.resolve(root),path.resolve(outputDirectory));
+  root=fs.realpathSync(root);
+  const requestedParent=path.dirname(outputDirectory);
+  // mkdir is non-recursive: the direct parent must already exist. Resolve all
+  // ancestor junctions before checking ownership; reject a linked direct parent.
+  if(fs.lstatSync(requestedParent).isSymbolicLink())fail('OUTPUT_PARENT_LINK');
+  outputDirectory=path.join(fs.realpathSync(requestedParent),path.basename(outputDirectory));
+  if(fs.existsSync(outputDirectory))fail('NEW_ABSOLUTE_OUTPUT_REQUIRED');
+  const relative=path.relative(root,outputDirectory);
   if(relative===''||!relative.startsWith('..')&&!path.isAbsolute(relative))fail('OUTPUT_INSIDE_SOURCE');
   const source=await snapshot(root,githubToken);
   const inputs=await collect({root,intentRef,token});

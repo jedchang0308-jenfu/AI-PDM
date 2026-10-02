@@ -17,6 +17,7 @@ function plan(){
 function fixture(t){
  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'dev121-saved-plan-test-'));
  t.after(()=>fs.rmSync(temp,{recursive:true,force:true}));
+ fs.mkdirSync(path.join(temp,'source'));
  const calls=[];
  const inputs={status:'OWNER_PLAN_INPUTS_VERIFIED',planInputProvenanceVerified:true,expectedInputs,releaseId:'DEV121-TEST',deadlineAt:'2099-01-01T00:00:00Z'};
  const source={git:{sourceRevision:expectedInputs.source_revision,sourceTree:'e'.repeat(40)},review:{status:'OFFICIAL_MERGED_PR_VERIFIED'},profile:structuredClone(profile),files:Object.fromEntries(['main.tf','versions.tf','.terraform.lock.hcl'].map(name=>[name,Buffer.from(name)]))};
@@ -71,4 +72,15 @@ test('operator reads actual admin enforcement and zero ruleset bypass actors',as
  protection.enforce_admins.enabled=false;await assert.rejects(verifyStorageSourceProtection({token:'test-only-github-token',fetchImpl}),/ADMIN_SOURCE_PROTECTION_INVALID/);
  protection.enforce_admins.enabled=true;ruleset.bypass_actors.push({actor_id:1});await assert.rejects(verifyStorageSourceProtection({token:'test-only-github-token',fetchImpl}),/ADMIN_SOURCE_PROTECTION_INVALID/);
  await assert.rejects(verifyStorageSourceProtection({token:'test-only-github-token',fetchImpl:async()=>({status:403})}),/ADMIN_SOURCE_READ_FAILED/);
+});
+
+test('junction parent cannot route an outside output into the source checkout',async t=>{
+ const f=fixture(t);const junction=path.join(f.temp,'junction');
+ fs.symlinkSync(f.args.root,junction,process.platform==='win32'?'junction':'dir');
+ await assert.rejects(prepareDev121BusinessStoragePlan({...f.args,outputDirectory:path.join(junction,'outside-looking')},f.dependencies),/OUTPUT_PARENT_LINK|OUTPUT_INSIDE_SOURCE/);
+ assert.equal(f.calls.length,0);assert.equal(fs.existsSync(path.join(f.args.root,'outside-looking')),false);
+ // Also cover an unlinked child reached through a linked ancestor.
+ fs.mkdirSync(path.join(f.args.root,'child'));
+ await assert.rejects(prepareDev121BusinessStoragePlan({...f.args,outputDirectory:path.join(junction,'child','output')},f.dependencies),/OUTPUT_INSIDE_SOURCE/);
+ assert.equal(f.calls.length,0);
 });
