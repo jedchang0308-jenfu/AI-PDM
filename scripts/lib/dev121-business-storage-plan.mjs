@@ -6,6 +6,7 @@ const addresses = ['data.google_project.current','data.google_service_account.ru
 const inputs = ['source_revision','foundation_manifest_sha256','application_image_digest','migration_runner_image_digest'];
 const permissions = ['storage.objects.create','storage.objects.get'];
 const role = 'projects/jenfu-platform-prod/roles/aipdmBusinessImmutableObjects';
+export { target as BUSINESS_STORAGE_TARGET, permissions as BUSINESS_STORAGE_PERMISSIONS, role as BUSINESS_STORAGE_ROLE };
 function fail(field) { throw new Error(`DEV121_BUSINESS_STORAGE_PLAN_INVALID:${field}`); }
 function same(actual,expected,field) { if(JSON.stringify(actual)!==JSON.stringify(expected)) fail(field); }
 function unknown(value) { if(value==null || value===false) return false; if(value===true || typeof value!=='object') return true; return Object.values(value).some(unknown); }
