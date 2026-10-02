@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {canonicalize,sha256} from './dev012-production-migration-runner.mjs';
 import {BUSINESS_STORAGE_TARGET as target,BUSINESS_STORAGE_PERMISSIONS as permissions,BUSINESS_STORAGE_ROLE as role} from './dev121-business-storage-plan.mjs';
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 function fail(field){throw new Error(`DEV121_BUSINESS_STORAGE_READBACK_INVALID:${field}`);}
@@ -47,4 +48,42 @@ export async function collectDev121BusinessStorageReadback({getJson,observedAt=n
     bucketMetageneration:String(bucket.metageneration??''),roleEtag:roleValue.etag??null,bucketPolicyEtag:policy.etag??null,
     runtimeBucketBinding:{role,member:subject,permissions},
     limitation:'Direct bucket binding only; project/ancestor/group IAM and source/plan/artifact provenance remain separate owner evidence.'};
+}
+
+/** One missing artifact observation in the existing owner evidence chain.
+ * A hash-bound provider infra receipt supplies the digest; no caller-entered image.
+ * This proves image availability, not clean current source, cost or apply authority.
+ */
+export async function collectDev121MigrationImageReadback({infraRef,readObject,getJson,observedAt=new Date().toISOString()}={}){
+  const bucket='jenfu-platform-prod-aipdm-release';
+  if(!infraRef || JSON.stringify(Object.keys(infraRef).sort())!==JSON.stringify(['sha256','uri']) ||
+    !new RegExp(`^gs://${bucket}/receipts/[A-Za-z0-9._/-]+\\.json$`,'u').test(infraRef.uri??'') ||
+    !/^[a-f0-9]{64}$/u.test(infraRef.sha256??'') || typeof readObject!=='function' ||
+    typeof getJson!=='function' || !Number.isFinite(Date.parse(observedAt)))fail('migration_input');
+  const object=await readObject({uri:infraRef.uri,expectedBucket:bucket,expectedPrefix:'receipts'});
+  if(!Buffer.isBuffer(object?.bytes) || sha256(object.bytes)!==infraRef.sha256 ||
+    !/^[1-9][0-9]*$/u.test(String(object.generation??'')))fail('migration_infra_object');
+  let receipt;
+  try{receipt=JSON.parse(object.bytes.toString('utf8'));}catch{fail('migration_infra_json');}
+  const core={...receipt};delete core.receiptSha256;
+  if(receipt.schemaVersion!=='jenfu.dev012.app-infra-receipt.v1' || receipt.ownerApplicationId!=='ai-pdm' ||
+    receipt.projectId!==target.projectId || receipt.region!==target.region || receipt.status!=='APPLIED' ||
+    receipt.releaseAuthority!==true || receipt.evidenceScope!=='PRODUCTION_PROVIDER' ||
+    receipt.receiptSha256!==sha256(canonicalize(core)) || !/^[a-f0-9]{40}$/u.test(receipt.sourceRevision??'') ||
+    !/^[a-f0-9]{64}$/u.test(receipt.foundationManifestSha256??''))fail('migration_infra_receipt');
+  const image='ai-pdm-migration-runner';
+  const prefix=`asia-east1-docker.pkg.dev/${target.projectId}/aipdm-release/${image}@`;
+  if(typeof receipt.migrationRunnerDigest!=='string' || !receipt.migrationRunnerDigest.startsWith(prefix) ||
+    !/^sha256:[a-f0-9]{64}$/u.test(receipt.migrationRunnerDigest.slice(prefix.length)))fail('migration_image_owner');
+  const digestValue=receipt.migrationRunnerDigest.slice(prefix.length);
+  const parent=`projects/${target.projectId}/locations/${target.region}/repositories/aipdm-release/dockerImages/`;
+  const name=`${parent}${image}@${digestValue}`;
+  const response=await getJson(`https://artifactregistry.googleapis.com/v1/${parent}${encodeURIComponent(`${image}@${digestValue}`)}`);
+  if(response?.status!==200 || response.body?.name!==name || response.body?.uri!==receipt.migrationRunnerDigest)fail('migration_image_readback');
+  return {schemaVersion:'jenfu.dev121.migration-image-readback.v1',observedAt,ownerApplicationId:'ai-pdm',
+    status:'MIGRATION_IMAGE_VERIFIED',infraRef,infraGeneration:String(object.generation),
+    infraSourceRevision:receipt.sourceRevision,foundationManifestSha256:receipt.foundationManifestSha256,
+    migrationRunnerDigest:receipt.migrationRunnerDigest,imageName:name,imageReadbackSha256:digest(response.body),
+    artifactProvenanceVerified:false,releaseAuthority:false,cloudMutations:0,
+    limitation:'Hash-bound prior provider infra and exact image availability only; current source/foundation/application image/saved plan remain separate owner proofs.'};
 }
