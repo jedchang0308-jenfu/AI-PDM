@@ -85,6 +85,7 @@ export async function prepareDev121BusinessStoragePlan({root,intentRef,outputDir
   if(profile.terraformRoot!==ROOT||profile.backendKey!==`${BACKEND.prefix}/default.tfstate`||profile.backendBucket!==BACKEND.bucket)fail('FIXED_BACKEND_PROFILE_REQUIRED');
   if(Object.keys(source.files).sort().join(',')!==[...FILES].sort().join(','))fail('SOURCE_FILES_INVALID');
   for(const bytes of Object.values(source.files))if(!Buffer.isBuffer(bytes)||bytes.length===0)fail('SOURCE_FILES_INVALID');
+  await assertReleaseUnclaimed({releaseId:inputs.releaseId,token,read:dependencies.readObject??readGcsObject});
   const backend=await backendRead({token});
   // Only create an isolated directory after every source/provider precondition.
   fs.mkdirSync(outputDirectory,{recursive:false});
@@ -168,6 +169,18 @@ function checkFiles(work,source){
 function assertSameInputs(actual,expected){
   if(actual.status!=='OWNER_PLAN_INPUTS_VERIFIED'||actual.planInputProvenanceVerified!==true||canonicalize(actual.expectedInputs)!==canonicalize(expected.expectedInputs)||actual.releaseId!==expected.releaseId||actual.deadlineAt!==expected.deadlineAt)fail('INPUTS_CHANGED');
 }
+async function assertReleaseUnclaimed({releaseId,token,read}){
+  if(!/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(releaseId??''))fail('PLAN_RECEIPT_BINDING');
+  const uri=`gs://${RELEASE_BUCKET}/receipts/releases/${releaseId}/business-storage/apply-claim.json`;
+  try{
+    await read({uri,expectedBucket:RELEASE_BUCKET,expectedPrefix:'receipts/releases',token});
+  }catch(error){
+    if(error.code==='MIGRATION_GCS_METADATA_FAILED'&&error.message==='MIGRATION_GCS_METADATA_FAILED:404')return;
+    throw error;
+  }
+  fail('RELEASE_ALREADY_CLAIMED_RECONCILE_ONLY');
+}
+
 function planReceiptUri(value){
   if(!/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(value.releaseId??'')||!/^[a-f0-9]{64}$/u.test(value.binarySha256??''))fail('PLAN_RECEIPT_BINDING');
   return `gs://${RELEASE_BUCKET}/receipts/releases/${value.releaseId}/business-storage/plan-${value.binarySha256}.json`;
@@ -207,6 +220,7 @@ export async function applyDev121BusinessStoragePlan({root,planRef,planDirectory
   const attemptFile=path.join(planDirectory,'apply-attempt.json');
   if(fs.existsSync(attemptFile))fail('PRIOR_APPLY_ATTEMPT_REQUIRES_READBACK');
   const {object,bound}=await readBoundPlan({planRef,token,read:dependencies.readObject??readGcsObject});
+  await assertReleaseUnclaimed({releaseId:bound.releaseId,token,read:dependencies.readObject??readGcsObject});
   const source=await (dependencies.snapshot??sourceSnapshot)(root,githubToken);
   if(bound.sourceRevision!==source.git.sourceRevision||bound.sourceTree!==source.git.sourceTree)fail('SOURCE_INPUT_MISMATCH');
   const inputs=await (dependencies.collect??collectDev121StoragePlanInputs)({root,intentRef:bound.intentRef,token});
@@ -239,7 +253,7 @@ export async function applyDev121BusinessStoragePlan({root,planRef,planDirectory
   let applied=false;
   try{
     // No vars, targets, auto-approve or replanning: this exact binary only.
-    const claimUri=`gs://${RELEASE_BUCKET}/receipts/releases/${bound.releaseId}/business-storage/claim-${bound.binarySha256}.json`;
+    const claimUri=`gs://${RELEASE_BUCKET}/receipts/releases/${bound.releaseId}/business-storage/apply-claim.json`;
     const claim={schemaVersion:'jenfu.dev121.business-storage-apply-claim.v1',ownerApplicationId:'ai-pdm',status:'APPLY_STARTED',planRef,planGeneration:String(object.generation),sourceRevision:source.git.sourceRevision,binarySha256:bound.binarySha256,attemptNonce:randomUUID(),releaseAuthority:false};
     const claimed=await (dependencies.publish??publishGcsJson)({uri:claimUri,expectedBucket:RELEASE_BUCKET,expectedPrefix:'receipts/releases',value:claim,token});
     if(claimed.reused!==false||claimed.sha256!==hash(Buffer.from(canonicalize(claim)+'\n'))||!/^[1-9][0-9]*$/u.test(String(claimed.generation??'')))fail('REMOTE_CLAIM_NOT_CREATED');
@@ -280,7 +294,7 @@ export async function reconcileDev121BusinessStoragePlan({root,planRef,planDirec
   if(relative===''||!relative.startsWith('..')&&!path.isAbsolute(relative))fail('OUTPUT_INSIDE_SOURCE');
   const {object,bound}=await readBoundPlan({planRef,token,read:dependencies.readObject??readGcsObject});
   const read=dependencies.readObject??readGcsObject;
-  const claimUri=`gs://${RELEASE_BUCKET}/receipts/releases/${bound.releaseId}/business-storage/claim-${bound.binarySha256}.json`;
+  const claimUri=`gs://${RELEASE_BUCKET}/receipts/releases/${bound.releaseId}/business-storage/apply-claim.json`;
   const claimObject=await read({uri:claimUri,expectedBucket:RELEASE_BUCKET,expectedPrefix:'receipts/releases',token});
   if(!Buffer.isBuffer(claimObject.bytes)||!/^[1-9][0-9]*$/u.test(String(claimObject.generation??'')))fail('REMOTE_CLAIM_READ_INVALID');
   const claim=JSON.parse(claimObject.bytes);
