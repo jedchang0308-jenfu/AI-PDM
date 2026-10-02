@@ -1,5 +1,7 @@
 # AI_PDM Documentation Map
 
+**DEV-121/F08 R41 現行候選：** owner-local saved-plan 入口與固定 backend 已接上既有來源／provider 四 inputs；actual binary＋JSON checker＋期限再核對有隔離測試。只有 plan preparation，尚無 apply入口，費用仍待決定且未init/plan/apply；不算 Jed 附件／背景工作或Production L4完成。實作及使用限制：[業務儲存 README](../infra/google-cloud/dev-121-business-storage/README.md)；既有 DEV與歷史證據保留。
+
 ## DEV-121 R30 現行交付（2026-10-02，本機及真實 PostgreSQL 整合通過，未發布）
 
 現行施工以 [DEV-121 R30 契約](specs/DEV-121-target-authorization-boundary.md) 的背景來源續修首段為準；holder-only source HTTP與兩個正常preview worker已本機修正，PG/HTTP獨立worker續批7案已通過並清理，尚待native extraction與live GCS。PR183已合併main46587ce7045d，a27854ecb兩項required CI與完整build通過，未發布；專用業務儲存root/profile與actual plan-content checker已準備，22項純JSON負例與targeted lint/fmt通過；owner真實bindings/readback/費用仍待，未init/plan/apply，詳見契約首段；下方 R20 及更早讀點保留歷史，不是另一套待執行佇列。Jed 管理 Principal 須能依已發布 rd／rd_manager／pdm_admin 與公司／資源範圍完成日常 PDM 工作，不增加管理員 bypass。
