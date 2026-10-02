@@ -109,6 +109,7 @@ jobs:
           npm exec vitest run 'src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts' 'src/app/api/pdm/review-requests/[requestId]/decisions/principal-decision.test.ts' 'src/app/api/pdm/review-requests/[requestId]/targets/principal-targets.test.ts'
           npm exec vitest run src/app/api/auth/me/principal-me.test.ts src/app/api/auth/logout/principal-logout.test.ts src/app/api/account/sessions/principal-sessions.test.ts 'src/app/api/account/sessions/[sessionId]/revoke/principal-revoke.test.ts' 'src/app/api/pdm/file-assets/[fileAssetId]/principal-review-file.test.ts'
           npm exec vitest run 'src/app/api/preview-jobs/[jobId]/content/route.principal.test.ts' src/lib/preview-worker-source.principal.test.ts src/lib/drawing-revision-work-file.principal.test.ts src/lib/preview-derivatives.principal-provenance.test.ts 'src/app/api/parts/[partNumber]/attachments/principal-read.test.ts' src/lib/drawing-preview-asset.principal.test.ts src/lib/file-response.security.test.ts src/lib/google-cloud-file-storage.test.ts src/lib/master-attachment-principal-command.test.ts src/lib/master-attachment-response.principal.test.ts src/lib/repositories/master-attachment-company-read.test.ts
+          npm exec vitest run src/lib/production-slice.principal-workbench.test.ts src/lib/jenfu-principal-provision-service.test.ts src/lib/jenfu-principal-provision-contract.test.ts
           npm run qc:pdm-principal-account-boundary
           npm run qc:pdm-production-slice-numbering-draft
           npm run qc:dev-032-production-iac-package

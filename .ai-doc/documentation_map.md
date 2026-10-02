@@ -1,3 +1,7 @@
+DEV-121/F02 native profile command evidence：`.ai-doc/qa/DEV-121-principal-profile-command-postgres-2026-10-02.json`，含actual producer／consumer source hashes、commit/replay/readback及cleanup；不作Production證據。
+
+DEV-121/F02 現行 account command修正：`db/postgres/076_dev121_principal_account_command_grants_v4.sql`；owner profile order27，actual producer native probe在 `scripts/qc-dev-121-numbering-owner-grant-postgres.mjs`；不新增主任務。前後證據由 JENFU/DEV-015 R48 checkpoint追溯。
+
 # AI_PDM Documentation Map
 
 **DEV-121/F08 R42 現行候選：** 同一 owner-local 儲存入口新增 immutable plan receipt 與 same-binary apply／state／output／provider readback。忽略可修改的本機摘要，重新讀回 own release bucket 的 hash/generation-bound 收據、當前 protected source／owner inputs、固定backend與frozen檔案；apply前先以固定own receipt URI建立write-once remote claim，只有首次publisher可執行，複製本機目录不能重跑；unknown outcome採GET-only reconciliation並保留永久claim。輸出仍releaseAuthority=false、effectiveInheritedIamVerified=false，不代替正式業務驗收。費用仍待決定且本輪未init/plan/apply；R41 plan-only措辭只保留當時歷史狀態。實作限制：[業務儲存 README](../infra/google-cloud/dev-121-business-storage/README.md)。

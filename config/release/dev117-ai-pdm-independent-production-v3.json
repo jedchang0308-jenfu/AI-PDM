@@ -389,6 +389,11 @@
         "order": 26,
         "path": "db/postgres/075_dev121_transfer_action_registration.sql",
         "sha256": "b343362c77e3e14a17d82cf616805bebfa9300bb71a9176b597ca620f65ebbc7"
+      },
+      {
+        "order": 27,
+        "path": "db/postgres/076_dev121_principal_account_command_grants_v4.sql",
+        "sha256": "514fb00d7acc7f8331952f1c5496b9521a389c5f3323694a84019a74630577ab"
       }
     ]
   },

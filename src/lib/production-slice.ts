@@ -85,6 +85,9 @@ const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }
   { method: "POST", pattern: /^\/api\/numbering\/part-number-drafts\/[^/]+\/recycle$/ },
   { method: "PATCH", pattern: /^\/api\/numbering\/admin\/matrix$/ },
   { method: "POST", pattern: /^\/api\/numbering\/admin\/matrix$/ },
+  // Profile provisioning still requires the verified Principal, published capability,
+  // exact producer tuple and owner transaction; this gate only permits route dispatch.
+  { method: "POST", pattern: /^\/api\/admin\/accounts$/ },
   { method: "POST", pattern: /^\/api\/admin\/account-invitations$/ },
   { method: "PATCH", pattern: /^\/api\/admin\/account-invitations$/ },
   { method: "POST", pattern: /^\/api\/admin\/accounts\/[^/]+\/lifecycle$/ },
