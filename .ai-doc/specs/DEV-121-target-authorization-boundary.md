@@ -1,4 +1,12 @@
+**R40 owner plan-input join（本機候選，未發布）：** 同一既有 GET-only storage readback CLI 新增 `--release-intent-ref-json <absolute bound ref> --output <absolute new receipt>`。從 byte/hash/generation-bound intent 的 sourceRevision 讀 Git frozen owner profile/config；核對 intent deadline、六個 prepare prerequisite refs、source identity/manifest、runtime/authority/readiness，再沿 foundation 與 reuse underlying provider infra 接入 exact application Cloud Build/Artifact Registry 與 runner readback。Deployment intent ref/hash、deadline 與 runner digest也必須一致；讀回結束再檢查intent／authorization／readiness expiry。Luna指出deadline遺漏後已集中修正，未操作正式資源。49項storage readback／join測例、20項owner proof回歸、syntax與targeted lint通過；首輪source-lock fixture多餘欄位被既有exact-key拒絕，已修正fixture而未放寬guard，未進入grant或正式流程。此為 `OWNER_PLAN_INPUTS_VERIFIED`／planInputProvenanceVerified=true，但 releaseAuthority=false；不證official storage-change source acceptance、saved binary plan/backend、effective inherited IAM、費用或apply，也不冒充migration/Production L4。未執行cloud mutation、init/plan/apply。下方R38/R39缺join的敘述只保留當時歷史；真正current owner build provider join仍待fresh來源／有效intent，不能重用過期R29。既有F06/F08/F09正式分母不縮減。
+
 ## DEV-121 R33 現行送審前置修正（本機候選，未發布）
+
+**R39 foundation 綁定續點（本機來源＋正式唯讀，未發布）：** 既有readback CLI新增互斥 `--foundation-ref-json <absolute ref> --output <absolute new path>`；沿已存R29 foundationRef經generation／CRC reader驗object hash、provider receipt內部hash、canonical manifest hash與fixed production/V3/noedge語義。35項既有及新增拒絕測例、syntax/lint通過；實際CLI回 `FOUNDATION_MANIFEST_VERIFIED`，manifest `e1f54a58d5c8c238fab22807b3642dca69925e6ab71e5aa3158d1977cb2e1b11` 與R35 migration infra一致。沒有任何cloud mutation或bucket/init/plan/apply。這只補foundation來源讀回；四項同一current owner prepare的輸入join、saved-plan/apply executor、費用決策與正式附件/背景/審批仍未完成。證據 `JENFU/DEV-015 output/dev-012/inputs/dev015-r39-foundation-checkpoint.json`。
+
+
+**R38 儲存發布證據續點（本機候選，未發布）：** R37原生worker／逾時批次已由PR187、required CI37001315199合併main `f4945667f7b14182b2ccbbe3015d93e04ce839db`，官方release checkout乾淨快轉；正式三owner revision／100%流量唯讀讀回不變。既有 `readOwnerReleaseProof` 新增明示 `mode: pre_migration`，精確refs內migrate／terminal只能null，重用source lock與build/provenance鏈，僅回build_only及releaseAuthority/migrationVerified false；provider GET保留同scope，假authority或migration/terminal欄位拒絕。默认post-migration与正常consumer不變，20項owner proof及targeted lint通過。此增量只補source/build的讀取前提；foundation/infra ref核對、四項plan inputs、saved-plan/apply與費用決策仍待，不以本機測例宣稱儲存或L4完成。證據 `JENFU/DEV-015 output/dev-012/inputs/dev015-r38-proof-checkpoint.json`。
+
 
 **R37 真實原生背景整鏈（2026-10-02，本機整合，未發布）：** 既有 preview PostgreSQL harness 保留原7案，新增 Windows-only opt-in `PDM_DEV121_NATIVE_PREVIEW_FIXTURE=<absolute vendor .sldprt>`，使用真正 Windows Shell worker API mode，透過實際 claim/content/job heartbeat/capability heartbeat/complete handlers 提取與寫回，沒有 `--source` standalone 或手工 PNG 代替。Luna 審查另指出 child 卡住會阻斷清理，已補兩個 worker 共用120秒 timeout與exact child PID tree終止、500ms stalled child案例；重跑9案通過（8業務／worker案＋1清理案）：holder／公司邊界、Principal initiator、來源fingerprint、非空PNG40102bytes、derivative hash／reader version與ready heartbeat、完成後來源403；PG／HTTP／child／temp及容量lease已清理。`PDM_DATA_DIR` 也隔離於task temp。僅最小worker schema＋synthetic Principal＋local repository，不代替完整OrgMaster producer、live GCS或Production L4。048歷史public表已由062搬入own schema，不能據歷史名稱判現行故障；已提交技術job依既有契約可於原人類logout後完成，正式採用仍須current human authorization，不新增worker impersonation或grant。Jed查詢／工作編輯已有正式證據，審批／附件／背景的正式分母不縮減。證據 `JENFU/DEV-015 output/dev-012/inputs/dev015-r37-native-preview-checkpoint.json` 與實際PG log；來源尚未提交。
 
@@ -107,9 +115,26 @@ Jed 實際料號 UI 能查詢與看明細，但點擊編輯到 POST `/api/pdm/pa
 
 已發布 v4 後 Jed 的正常 Principal SSO／編號搜尋通過，但 GET `/api/parts` 實際回 503 `principal_route_not_migrated`，不能宣稱日常工作完成。此入口改用既有 Principal company read；料號、選項、viewer capability 在同一唯讀 snapshot 內依已發布 grants 解析，historical profile ID 僅用於業務責任標籤。保留原篩選／分頁／公司隔離，不以 system_admin 或舊本機 ACL 放行。使用 existing numbering PostgreSQL assigned／revoked／out-of-scope／restored 案例驗證实际 parts HTTP 讀回；其他未遷移入口仍须各自按既有必要流程清單查清，禁止全域解除 generic guard。尚未發布本次清單修正。
 
-## 2026-10-01 已決定：管理帳號亦可執行日常 PDM 工作
+## 管理帳號的日常 PDM 工作（現行；2026-10-02 再確認）
+
+Jed 使用同一已驗證 Principal，依 OrgMaster 已發布的 rd／rd_manager／pdm_admin 業務角色與 company/resource scope 執行日常工作。管理身分不限制其業務角色，也不提供額外 bypass；system_admin 仍是 exact target Principal／direct／global 的管理能力，不自動授予業務全權。正常 consumer 使用唯一 principal-grants.v4，缺 grant、撤權、錯公司或錯資源範圍仍拒絕。
+
+| 必要日常流程 | 現有證據與階段 | 正式完成條件 |
+| --- | --- | --- |
+| 查詢、建立料號編輯工作、修改、儲存與重載 | R26 Jed 正式 UI 已通過；變更後還原原值並重載 | 沿未變來源重用；後續候選不得回歸 |
+| 送審及適格案件審批 | R33 actual OrgMaster v4→AI-PDM PostgreSQL 整合通過；session 邊界為合成 | 正常正式入口完成送審，由不同且有有效權限的 reviewer 決策，核對持久化結果／receipt／outbox；Jed 不得自審 |
+| 附件上傳、讀取及下載 | Principal 候選整合已通過；live 業務儲存與正式流程待完成 | 正常 UI／API 的實際 bytes、scope 拒絕、重播及稽核均核對；不把503當預期拒絕 |
+| 相關原生背景工作 | R37 真實 Windows worker／PostgreSQL 整鏈已通過；尚未發布 | 正式 owner bytes→claim→處理→完成與業務採用可用，保留 Principal initiator 與 workload/company 邊界 |
+| 三系統登入、登出及恢復工作 | R31 三系統登入及 R32 global logout／重新登入讀回通過 | 保留撤權／過期及必要回復驗收；不以管理登入成功代替上述業務流程 |
+
+證據來源為 JENFU/DEV-015：`output/dev-012/inputs/dev015-r26-jed-daily-edit-production.json`、`dev015-r31-business-boundary-checkpoint.json`、`dev015-r32-delivery-checkpoint.json`、`dev015-r33-delivery-checkpoint.json`、`dev015-r37-native-preview-checkpoint.json`。查詢／編輯的正式成功不能提升附件、背景或審批的完成階段。保留既有 A0060、work 與技轉包，不為驗證刪除、重建或強改發行狀態。此要求沿既有 DEV-121／DEV-015 子項，不新增主任務或人工 gate。
+
+<details>
+<summary>2026-10-01 決策及當時發布前紀錄（歷史，不作目前施工狀態）</summary>
 
 Jed 可依同員工已發布的 rd／rd_manager／pdm_admin 業務角色及 scope 工作。唯一正常 runtime grant reader 升至 OrgMaster principal-grants.v4，接受有效人類 personal／privileged 的 employee 業務角色，不加入特殊帳號 bypass、不把 system_admin 當全權。system_admin 仍須 exact target Principal／direct／global、禁止 employee-wide 管理权傳播與委派；撤權、scope、公司及資源檢查不變。029 是 OrgMaster 新 forward-only producer 候選；舊 028 不改。正常 consumer 不 fallback v3，缺 v4 拒絕；既有 one-shot operator 的封存 v2/v3來源契約不冒充新 runtime 入口。先 producer／consumer 真實 PostgreSQL、再 owner release／Production L4，尚未發布本修正。
+
+</details>
 
 # DEV-121：AI-PDM 目標端授權邊界
 ## R20 正式交付增量（2026-10-01；完整 L4 尚未完成）
