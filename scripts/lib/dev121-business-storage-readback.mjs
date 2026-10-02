@@ -175,8 +175,9 @@ export async function collectDev121StoragePlanInputs({intentRef,root,token,fetch
   const deploymentRef={uri:proof.buildChain.deployment.ref,sha256:proof.buildChain.deployment.sha256};
   const deployment=(await read(deploymentRef)).value;
   if(canonicalize(deployment.releaseIntentRef)!==canonicalize(intentRef) || deployment.releaseIntentSha256!==intentRef.sha256 ||
-    deployment.migrationRunnerDigest!==runner.migrationRunnerDigest)fail('plan_inputs_deployment_join');
+    deployment.migrationRunnerDigest!==runner.migrationRunnerDigest || deployment.deadlineAt!==intent.deadlineAt)fail('plan_inputs_deployment_join');
   const provider=await verifyOwnerProviderReadback({proof,token,fetchImpl});
+  if([intent.deadlineAt,values.authorization.expiresAt,values.readiness.expiresAt].some(value=>Date.parse(value)<=Date.now()))fail('plan_inputs_expired');
   return {schemaVersion:'jenfu.dev121.business-storage-plan-inputs.v1',status:'OWNER_PLAN_INPUTS_VERIFIED',observedAt,
     ownerApplicationId:'ai-pdm',projectId:target.projectId,region:target.region,releaseId:intent.releaseId,deadlineAt:intent.deadlineAt,
     expectedInputs:{source_revision:proof.sourceRevision,foundation_manifest_sha256:foundation.foundationManifestSha256,

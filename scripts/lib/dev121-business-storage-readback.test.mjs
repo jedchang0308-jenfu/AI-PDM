@@ -134,7 +134,7 @@ function planInputsFixture({intentChange={},prepareRefsChange={},sourceChange={}
     sourceObject,artifactDigest,status:'PASS',cloudBuild,artifactRegistry:{uri:artifactDigest}});
   const build=stage('build',prepare,{artifactDigest,sourceObject,provenanceReceiptRef:provenance});
   put(paths.deployment,{sourceRevision:fixtureRevision,artifactDigest,buildReceiptRef:build,releaseIntentRef:intentRef,
-    releaseIntentSha256:intentRef.sha256,migrationRunnerDigest:runnerDigest,...deploymentChange});
+    releaseIntentSha256:intentRef.sha256,migrationRunnerDigest:runnerDigest,deadlineAt:intent.deadlineAt,...deploymentChange});
   const fetchImpl=async url=>{
     if(url.includes('cloudbuild.googleapis.com'))return Response.json(cloudBuild);
     if(url.includes('artifactregistry.googleapis.com')){
@@ -172,7 +172,20 @@ for(const [name,changes,pattern] of [
   ['different runner foundation',{infraChange:{foundationManifestSha256:'f'.repeat(64)}},/plan_inputs_infra_join/],
   ['different deployment runner',{deploymentChange:{migrationRunnerDigest:'wrong'}},/plan_inputs_deployment_join/],
   ['different deployment intent',{deploymentChange:{releaseIntentSha256:'f'.repeat(64)}},/plan_inputs_deployment_join/],
+  ['different deployment deadline',{deploymentChange:{deadlineAt:'2998-01-01T00:00:00Z'}},/plan_inputs_deployment_join/],
   ['different observed runner',{runnerObservedUri:'wrong'},/migration_image_readback/],
   ['reuse source mismatch',{reuse:true,infraChange:{sourceRevision:'e'.repeat(40)}},/plan_inputs_infra_join/]
 ])test(`owner plan input join rejects ${name}`,async()=>{const f=planInputsFixture(changes);await assert.rejects(collectDev121StoragePlanInputs(f.options),pattern);});
 test('owner plan input join rejects tampered intent bytes',async()=>{const f=planInputsFixture();f.options.intentRef.sha256='f'.repeat(64);await assert.rejects(collectDev121StoragePlanInputs(f.options),/plan_inputs_object_hash/);});
+
+test('owner join rejects an intent expiring during provider observations',async context=>{
+  const now=Date.now(),f=planInputsFixture({intentChange:{deadlineAt:new Date(now+60000).toISOString()}});
+  const transport=f.options.fetchImpl;
+  f.options.fetchImpl=async (url,options)=>{
+    const response=await transport(url,options);
+    if(url.includes('artifactregistry.googleapis.com') && decodeURIComponent(url).includes('/dockerImages/ai-pdm@'))
+      context.mock.method(Date,'now',()=>now+120000);
+    return response;
+  };
+  await assert.rejects(collectDev121StoragePlanInputs(f.options),/plan_inputs_expired/);
+});
