@@ -664,6 +664,33 @@
         "callbackPort": 8085,
         "cleanupOwner": "this goal; retain only until human callback or verified cancellation"
       }
+    },
+    "previewSourceCiCorrection": {
+      "originalRunId": 37060858694,
+      "jobId": 111016880364,
+      "originalHead": "12b91ab3c3e4ef6533d38e5ce07d8f64c5375000",
+      "conclusion": "FAILURE",
+      "reason": "preview-worker-source test expected retired x-pdm-preview-worker-id after caller changed to x-pdm-worker-id",
+      "classification": "TEST_CONTRACT_DRIFT_NOT_PRODUCT_GRANT_FAILURE",
+      "originalLogSha256": "34f5d8f8134017b4a4b58ba1f1b63e4d7597e75facbc994d62a634a2d36bfb11",
+      "fix": "Test asserts Bearer, authenticated x-pdm-worker-id and absent retired header",
+      "localScriptGroup": {
+        "result": "PASS",
+        "cases": 102
+      },
+      "adjacentPrincipal": {
+        "result": "PASS",
+        "files": 5,
+        "cases": 23
+      },
+      "lint": "PASS",
+      "productSourceChanged": false,
+      "reuse": "R67 actual producer/native PostgreSQL and application isolated build retain unchanged product inputs",
+      "grantBoundaryFailures": 7,
+      "threshold": 8,
+      "productionMutation": false,
+      "browserController": "Cua kernel failed Windows error 5 before any page access; no UI login action performed",
+      "gcloud": "existing session 29371 still live, awaiting human callback"
     }
   },
   "gccAlignedNewInvestigation": {

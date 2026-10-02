@@ -12,7 +12,9 @@ test("fetches only the owner holder endpoint, verifies bytes and cleans its dire
   const result = await materializeClaimedPreviewSource({...input, request:async (url, options)=>{
     assert.equal(String(url),"https://owner.example/api/preview-jobs/job-one/content");
     assert.equal(options.redirect,"error");
-    assert.equal(options.headers["x-pdm-preview-worker-id"],"worker-one");
+    assert.equal(options.headers.authorization,`Bearer ${input.token}`);
+    assert.equal(options.headers["x-pdm-worker-id"],"worker-one");
+    assert.equal(options.headers["x-pdm-preview-worker-id"],undefined);
     return new Response(bytes,{headers:{"content-hash":digest,"content-length":String(bytes.length)}});
   }});
   const directory = path.dirname(result.sourcePath);
