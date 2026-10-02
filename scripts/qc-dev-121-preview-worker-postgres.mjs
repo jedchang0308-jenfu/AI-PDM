@@ -188,11 +188,22 @@ try {
       sourceContentHash: 'a'.repeat(64), derivatives: []
     })
     assert.deepEqual(refused, { accepted: false, derivativeIds: [] })
-    const accepted = await completePreviewJobAsync(workerOne, {
+    const empty = await completePreviewJobAsync(workerOne, {
       jobId: 'job-one', workerId: holder, status: 'succeeded',
       sourceContentHash: 'a'.repeat(64), derivatives: []
     })
-    assert.deepEqual(accepted, { accepted: true, derivativeIds: [] })
+    assert.deepEqual(empty, { accepted: false, derivativeIds: [] })
+    assert.equal((await admin.query("SELECT status FROM ai_pdm_core.preview_jobs WHERE id='job-one'")).rows[0].status,'running')
+    const accepted = await completePreviewJobAsync(workerOne, {
+      jobId: 'job-one', workerId: holder, status: 'succeeded',
+      sourceContentHash: 'a'.repeat(64), derivatives: [{
+        kind:'thumbnail_png',fileName:'preview.png',mimeType:'image/png',
+        contentBase64:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/fOQAAAAASUVORK5CYII=',
+        width:1,height:1,generatorProfile:'fake_preview_worker'
+      }]
+    })
+    assert.equal(accepted.accepted,true)
+    assert.equal(accepted.derivativeIds.length,1)
     const lateFailure = await completePreviewJobAsync(workerTwo, {
       jobId: 'job-one', workerId: holder, status: 'failed',
       errorCode: 'late_error', errorSummary: 'late failure'

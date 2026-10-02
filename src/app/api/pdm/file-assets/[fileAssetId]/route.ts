@@ -1,8 +1,9 @@
+import { auditStorageAccess } from "@/lib/storage-access-audit";
 import { readApprovalEvidenceFileSource } from "@/lib/pdm-approval-evidence-file-source";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { drawingPreviewMimeType, resolveDrawingPreviewAsync, type DrawingPreviewSource } from "@/lib/drawing-preview-asset";
-import { contentDispositionHeader } from "@/lib/file-response";
-import { createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
+import { protectedFileResponseHeaders } from "@/lib/file-response";
+import { assertStoredFileIntegrity, createFileStorageServiceForPointer, storagePointerFromRecord } from "@/lib/file-storage";
 import { isPdmFileReadContext, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
 import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
 import { resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
@@ -325,7 +326,8 @@ function snapshotFileMatches(file: unknown, sourceFileAssetId: string) {
 }
 
 async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFileSource,
-  input: { wantsPreview: boolean; derivativeId: string | null; actorId: string; initiatorPrincipalId: string }) {
+  input: { wantsPreview: boolean; derivativeId: string | null; actorId: string; initiatorPrincipalId: string;
+    context: PdmFileReadContext; contextId: string; bindingId: string }) {
   try {
     const resolved = input.wantsPreview
       ? await resolveDrawingPreviewAsync(client, source, {
@@ -363,14 +365,28 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
       );
     }
     const pointer = storagePointerFromRecord(resolved.record);
-    const bytes = await createFileStorageServiceForPointer(pointer).readObject(pointer.key);
+    const storage = createFileStorageServiceForPointer(pointer);
+    const bytes = await storage.readObject(pointer.key);
+    assertStoredFileIntegrity(bytes, resolved.record);
+    const responseHeaders = protectedFileResponseHeaders(input.wantsPreview ? "inline" : "attachment",
+      resolved.fileName, resolved.mimeType || "application/octet-stream");
+    const disposition = responseHeaders["content-disposition"].startsWith("inline;") ? "inline" : "attachment";
+    const access = await storage.createDownloadUrl({ key: pointer.key, filename: resolved.fileName,
+      forceDownload: disposition === "attachment", purpose: input.wantsPreview ? "preview" : "download" });
+    await auditStorageAccess({ principalId: input.initiatorPrincipalId, historicalProfileId: input.actorId,
+      companyId: source.company_id, submissionId: source.source_submission_id,
+      accessKind: input.wantsPreview ? "canonical_file_preview" : "canonical_file",
+      fileId: source.id, filename: resolved.fileName, bytes: bytes.length, disposition,
+      provider: access.provider, storageKey: pointer.key, bucket: access.bucket, generation: pointer.generation, access,
+      route: "/api/pdm/file-assets/[fileAssetId]", resourceContext: {
+        context: input.context, contextId: input.contextId, bindingId: input.bindingId,
+        derivativeId: resolved.record.id === source.id ? null : resolved.record.id
+      } });
     return new Response(new Uint8Array(bytes), {
       headers: {
         "content-type": resolved.mimeType || "application/octet-stream",
         "content-length": String(bytes.byteLength),
-        "content-disposition": contentDispositionHeader(input.wantsPreview ? "inline" : "attachment", resolved.fileName),
-        "x-content-type-options": "nosniff",
-        "cache-control": "private, no-store"
+        ...responseHeaders
       }
     });
   } catch {
@@ -418,7 +434,7 @@ async function principalFileRead(request: Request, token: string, input: {
             ? "numbering.search"
             : workFile ? "numbering.workspace.view" : "numbering.drawings.view";
           const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
-            verified, [{ permissionKind: "action", permissionCode }]);
+            verified, [{ permissionKind: workFile ? "action" : "page", permissionCode }]);
           if (!decision?.allowed) return null;
           const found = await resolveSource({ client: tx, context: input.context,
             contextId: input.contextId, bindingId: input.bindingId,
@@ -456,7 +472,8 @@ async function principalFileRead(request: Request, token: string, input: {
     return serveFileSource(getAsyncDatabaseClient(), source.source, {
       actorId: source.actorId, initiatorPrincipalId: source.initiatorPrincipalId,
       wantsPreview: input.wantsPreview,
-      derivativeId: input.derivativeId
+      derivativeId: input.derivativeId,
+      context: input.context, contextId: input.contextId, bindingId: input.bindingId
     });
   } catch (error) {
     return error instanceof JenfuPrincipalRequestError

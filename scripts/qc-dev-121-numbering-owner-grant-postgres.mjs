@@ -127,7 +127,7 @@ try {
       PDM_SESSION_ISSUER:'https://ai-pdm.test',PDM_SESSION_AUDIENCE:'dev057-numbering-qc',
       PDM_SESSION_CURRENT_KEY_ID:'dev057-qc-key',PDM_SESSION_CURRENT_SECRET:'task-owned-synthetic-session-secret-for-local-qc-only' }
   });
-  assert.match(result.stdout, review ? /Tests\s+2 passed/u : /Tests\s+8 passed/u, 'the selected actual business flow must execute, not skip');
+  assert.match(result.stdout, review ? /Tests\s+2 passed/u : /Tests\s+9 passed/u, 'the selected actual business flow must execute, not skip');
   console.log(JSON.stringify({ status:'PASS', phase:process.env.DEV057_CONTRACT_PHASE, migrations,
     producer:'actual OrgMaster schema and published artifact snapshot from the parent isolated cluster',
     session:'synthetic verified-session input; no provider evidence', productionWrites:false }));

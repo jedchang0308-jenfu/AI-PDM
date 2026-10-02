@@ -24,6 +24,7 @@ vi.mock("@/lib/pdm-workbench-authority-control", () => ({
 vi.mock("@/lib/repositories/drawing-revision-work-async-repository", () => ({
   DrawingRevisionWorkAsyncRepository: class {
     readWork = mocks.readWork;
+    assertWorkFileSnapshot = vi.fn().mockResolvedValue(undefined);
     assertWorkMutationBasis = mocks.assertWorkMutationBasis;
   }
 }));
@@ -89,7 +90,7 @@ describe("principal drawing file staging boundary", () => {
     expect(mocks.runLegacy).not.toHaveBeenCalled();
   });
 
-  it("deletes staged bytes when authority changes before the write snapshot", async () => {
+  it("preserves stable staged bytes when authority changes before the write snapshot", async () => {
     mocks.evaluate.mockResolvedValueOnce([{ allowed: true }])
       .mockResolvedValueOnce([{ allowed: false }]);
     await expect(uploadDrawingRevisionWorkFilePrincipal(input()))
@@ -99,7 +100,7 @@ describe("principal drawing file staging boundary", () => {
       { token: "v2-token", database: client }, expect.any(Function),
       { readOnly: false, isolationLevel: "serializable" });
     expect(mocks.putObject).toHaveBeenCalledTimes(1);
-    expect(mocks.deleteObject).toHaveBeenCalledWith("staged-one");
+    expect(mocks.deleteObject).not.toHaveBeenCalled();
     expect(mocks.runPrincipal).not.toHaveBeenCalled();
     expect(mocks.runLegacy).not.toHaveBeenCalled();
   });
@@ -125,4 +126,44 @@ describe("principal drawing file staging boundary", () => {
     expect(mocks.runLegacy).not.toHaveBeenCalled();
     expect(mocks.putObject).not.toHaveBeenCalled();
   });
+  it("reuses a stable Principal/company/work/command blob on unknown-outcome replay", async () => {
+    mocks.runPrincipal.mockResolvedValue({reused:true,file:{sourceFileAssetId:"asset-one"}});
+    await uploadDrawingRevisionWorkFilePrincipal(input());
+    await uploadDrawingRevisionWorkFilePrincipal({...input(),file:new File([payload],"renamed.pdf",{type:"application/pdf"})});
+    const keys=mocks.putObject.mock.calls.map(([value])=>value.key);
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[0]).toContain("drawing-revision-works/company-one/work-one/FA-");
+    expect(mocks.deleteObject).not.toHaveBeenCalled();
+  });
+  it("persists the immutable GCS pointer for normal file and preview readers", async () => {
+    mocks.putObject.mockResolvedValue({key:"immutable-source",provider:"google_cloud_storage",bucket:"own-files",
+      localPath:"gcs://own-files/immutable-source?generation=42",generation:"42",metageneration:"1",
+      bytes:payload.length,sha256:crypto.createHash("sha256").update(payload).digest("hex")});
+    const execute=vi.fn().mockResolvedValue(undefined);
+    Object.assign(client,{execute,query:vi.fn().mockResolvedValue([])});
+    mocks.runPrincipal.mockImplementation(async (_tx,_verified,_command,action)=>action(client));
+    await uploadDrawingRevisionWorkFilePrincipal(input());
+    const entry=execute.mock.calls.find(([sql])=>String(sql).includes("INSERT INTO file_assets"));
+    expect(entry?.[0]).toContain("storage_generation, storage_metageneration");
+    expect(entry?.[1]).toMatchObject({storageBucket:"own-files",storageGeneration:"42",storageMetageneration:"1",
+      originalPath:"gcs://own-files/immutable-source?generation=42"});
+  });
+  it("rejects different immutable bytes as a conflict without deleting another attempt's blob", async () => {
+    mocks.putObject.mockRejectedValueOnce(new Error("GCS_IMMUTABLE_OBJECT_CONFLICT"));
+    await expect(uploadDrawingRevisionWorkFilePrincipal(input())).rejects.toMatchObject({status:409});
+    expect(mocks.runPrincipal).not.toHaveBeenCalled();
+    expect(mocks.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite the original blob when a conflicting request changes bytes", async () => {
+    mocks.runPrincipal.mockResolvedValue({reused:true,file:{sourceFileAssetId:"asset-one"}});
+    await uploadDrawingRevisionWorkFilePrincipal(input());
+    const changed=Buffer.from("different drawing");
+    mocks.putObject.mockResolvedValueOnce({key:"changed-stage",provider:"test",bytes:changed.length,
+      sha256:crypto.createHash("sha256").update(changed).digest("hex")});
+    await uploadDrawingRevisionWorkFilePrincipal({...input(),file:new File([changed],"drawing.pdf",{type:"application/pdf"})});
+    expect(mocks.putObject.mock.calls[0][0].key).not.toBe(mocks.putObject.mock.calls[1][0].key);
+    expect(mocks.deleteObject).not.toHaveBeenCalled();
+  });
+
 });

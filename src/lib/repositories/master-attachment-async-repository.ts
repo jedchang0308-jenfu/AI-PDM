@@ -481,11 +481,11 @@ export const SELECT_ASYNC_MASTER_ATTACHMENT_DUPLICATE_SQL = `
 
 export const INSERT_ASYNC_MASTER_ATTACHMENT_SQL = `
   INSERT INTO file_assets (
-    id, storage_provider, original_path, storage_key, file_name, file_ext, mime_type, file_size,
+    id, storage_provider, original_path, storage_key, storage_bucket, storage_generation, storage_metageneration, file_name, file_ext, mime_type, file_size,
     content_hash, hash_algorithm, linked_entity_type, linked_entity_id, document_category,
     display_name, description, revision, uploaded_by, gdrive_status, sync_status, created_at, updated_at
   ) VALUES (
-    :id, :storageProvider, :originalPath, :storageKey, :fileName, :fileExt, :mimeType, :fileSize,
+    :id, :storageProvider, :originalPath, :storageKey, :storageBucket, :storageGeneration, :storageMetageneration, :fileName, :fileExt, :mimeType, :fileSize,
     :contentHash, :hashAlgorithm, :entityType, :entityId, :documentCategory,
     :displayName, :description, :revision, :uploadedBy, :gdriveStatus, :syncStatus, :createdAt, :updatedAt
   )
@@ -581,12 +581,22 @@ export class AsyncMasterAttachmentRepository {
   constructor(
     private readonly client: AsyncDatabaseClient,
     private readonly clock: () => string = () => new Date().toISOString(),
-    private readonly idFactory: () => string = () => crypto.randomUUID()
+    private readonly idFactory: () => string = () => crypto.randomUUID(),
+    private readonly principalContext?: { companyId: string; principalId: string; profileId: string; profileVersion: number }
   ) {}
 
   async listMasterAttachments(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
     if (!entity) return null;
+    return this.listAttachmentsForEntity(entity);
+  }
+
+  async listMasterAttachmentsInCompany(input: { entityType: MasterAttachmentEntityType; entityCode: string; companyId: string }) {
+    const entity = await this.resolveEntityInCompany(input);
+    return entity ? this.listAttachmentsForEntity(entity) : null;
+  }
+
+  private async listAttachmentsForEntity(entity: EntityRef) {
     const rows = await this.client.query<MasterAttachmentRow>(SELECT_ASYNC_MASTER_ATTACHMENTS_SQL, {
       entityType: entity.type,
       entityId: entity.id
@@ -597,6 +607,15 @@ export class AsyncMasterAttachmentRepository {
   async listDeletedMasterAttachments(input: { entityType: MasterAttachmentEntityType; entityCode: string }) {
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
     if (!entity) return null;
+    return this.listDeletedAttachmentsForEntity(entity);
+  }
+
+  async listDeletedMasterAttachmentsInCompany(input: { entityType: MasterAttachmentEntityType; entityCode: string; companyId: string }) {
+    const entity = await this.resolveEntityInCompany(input);
+    return entity ? this.listDeletedAttachmentsForEntity(entity) : null;
+  }
+
+  private async listDeletedAttachmentsForEntity(entity: EntityRef) {
     const rows = await this.client.query<MasterAttachmentRow>(SELECT_ASYNC_DELETED_MASTER_ATTACHMENTS_SQL, {
       entityType: entity.type,
       entityId: entity.id
@@ -619,7 +638,10 @@ export class AsyncMasterAttachmentRepository {
     description?: string;
     revision?: string | null;
     uploadedBy: string;
+    attachmentId?: string;
+    deferDriveSync?: boolean;
   }) {
+    this.assertActorProfile(input.uploadedBy);
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
     if (!entity) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
     const companyId = (await this.client.queryOne<{ company_id: string }>(
@@ -650,8 +672,9 @@ export class AsyncMasterAttachmentRepository {
     });
     if (duplicate) throw new Error("MASTER_ATTACHMENT_DUPLICATE_ACTIVE_FILE");
 
-    const saved = await saveMasterAttachmentFile({ entity, originalFilename, bytes: fileBuffer });
-    const id = this.idFactory();
+    const id = input.attachmentId ?? this.idFactory();
+    const saved = await saveMasterAttachmentFile({ entity, originalFilename, bytes: fileBuffer,
+      ...(input.attachmentId ? { companyId, attachmentId: id } : {}) });
     const contentHash = sha256(fileBuffer);
     const driveFolderId = await this.getMasterAttachmentsDriveFolderId();
     const initialDriveStatus: MasterAttachmentDriveStatus = driveFolderId && isGoogleDriveServiceConfigured() ? "uploading" : "none";
@@ -661,6 +684,7 @@ export class AsyncMasterAttachmentRepository {
       storageProvider: storageProviderForFileAsset(saved.storageProvider),
       originalPath: saved.localPath,
       storageKey: saved.storageKey,
+      storageBucket:saved.storageBucket,storageGeneration:saved.storageGeneration,storageMetageneration:saved.storageMetageneration,
       fileName: originalFilename,
       fileExt,
       mimeType: input.file.type || inferMimeType(originalFilename),
@@ -691,7 +715,9 @@ export class AsyncMasterAttachmentRepository {
       gdriveStatus: initialDriveStatus
     });
 
-    if (initialDriveStatus === "uploading") {
+    // Principal commands persist the delivery intent, never perform Drive I/O
+    // in a transaction which may roll back after the external upload.
+    if (initialDriveStatus === "uploading" && !input.deferDriveSync) {
       await this.syncMasterAttachmentToDrive({ attachmentId: id, actorId: input.uploadedBy });
     }
 
@@ -700,6 +726,13 @@ export class AsyncMasterAttachmentRepository {
 
   async getMasterAttachment(input: { entityType: MasterAttachmentEntityType; entityCode: string; attachmentId: string }) {
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
+    if (!entity) return null;
+    const row = await this.selectMasterAttachmentRow(entity, input.attachmentId);
+    return row ? mapMasterAttachment(row, entity.code) : null;
+  }
+
+  async getMasterAttachmentInCompany(input: { entityType: MasterAttachmentEntityType; entityCode: string; attachmentId: string; companyId: string }) {
+    const entity = await this.resolveEntityInCompany(input);
     if (!entity) return null;
     const row = await this.selectMasterAttachmentRow(entity, input.attachmentId);
     return row ? mapMasterAttachment(row, entity.code) : null;
@@ -738,6 +771,7 @@ export class AsyncMasterAttachmentRepository {
     deletedBy: string;
     reason?: string | null;
   }) {
+    this.assertActorProfile(input.deletedBy);
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
     if (!entity) throw new Error("MASTER_ATTACHMENT_ENTITY_NOT_FOUND");
     const companyId = (await this.client.queryOne<{ company_id: string }>(
@@ -778,6 +812,7 @@ export class AsyncMasterAttachmentRepository {
     restoredBy: string;
     reason?: string | null;
   }) {
+    this.assertActorProfile(input.restoredBy);
     const entity = await this.resolveEntity(input.entityType, input.entityCode);
     if (!entity) throw new Error("LIFE_ATTACHMENT_PARENT_INVALID");
     const companyId = (await this.client.queryOne<{ company_id: string }>(
@@ -828,6 +863,7 @@ export class AsyncMasterAttachmentRepository {
   }
 
   async syncMasterAttachmentToDrive(input: { attachmentId: string; actorId?: string | null }) {
+    this.assertActorProfile(input.actorId ?? null);
     const row = await this.client.queryOne<MasterAttachmentRow>(SELECT_ASYNC_MASTER_ATTACHMENT_BY_ID_SQL, {
       attachmentId: input.attachmentId
     });
@@ -889,9 +925,29 @@ export class AsyncMasterAttachmentRepository {
     return this.getMasterAttachment({ entityType: entity.type, entityCode: entity.code, attachmentId: row.id });
   }
 
+  private async resolveEntityInCompany(input: { entityType: MasterAttachmentEntityType; entityCode: string; companyId: string }): Promise<EntityRef | null> {
+    const code = input.entityCode.trim();
+    if (!code || !input.companyId.trim()) return null;
+    if (input.entityType === "drawing_number") {
+      const row = await this.client.queryOne<{ id: string; drawing_number: string }>(
+        `${SELECT_ASYNC_DRAWING_ATTACHMENT_ENTITY_SQL} AND company_id = :companyId`,
+        { code, companyId: input.companyId });
+      return row ? { type: input.entityType, id: row.id, code: row.drawing_number } : null;
+    }
+    const row = await this.client.queryOne<{ id: string; part_number: string }>(
+      `${SELECT_ASYNC_PART_ATTACHMENT_ENTITY_SQL} AND company_id = :companyId`,
+      { code, companyId: input.companyId });
+    return row ? { type: input.entityType, id: row.id, code: row.part_number } : null;
+  }
+
   private async resolveEntity(entityType: MasterAttachmentEntityType, entityCode: string): Promise<EntityRef | null> {
     const code = entityCode.trim();
     if (!code) return null;
+    if (this.principalContext) {
+      this.assertPrincipalContext();
+      return this.resolveEntityInCompany({ entityType, entityCode: code, companyId: this.principalContext.companyId });
+    }
+    if (this.client.kind === "postgres") throw new Error("MASTER_ATTACHMENT_PRINCIPAL_CONTEXT_REQUIRED");
     if (entityType === "drawing_number") {
       const row = await this.client.queryOne<{ id: string; drawing_number: string }>(SELECT_ASYNC_DRAWING_ATTACHMENT_ENTITY_SQL, { code });
       return row ? { type: "drawing_number", id: row.id, code: row.drawing_number } : null;
@@ -901,13 +957,18 @@ export class AsyncMasterAttachmentRepository {
   }
 
   private async resolveEntityById(entityType: MasterAttachmentEntityType, entityId: string): Promise<EntityRef | null> {
+    if (this.principalContext) this.assertPrincipalContext();
+    else if (this.client.kind === "postgres") throw new Error("MASTER_ATTACHMENT_PRINCIPAL_CONTEXT_REQUIRED");
+    const companyPredicate = this.principalContext ? " AND company_id = :companyId" : "";
+    const companyParams = this.principalContext ? { companyId: this.principalContext.companyId } : {};
+
     if (entityType === "drawing_number") {
-      const row = await this.client.queryOne<{ id: string; drawing_number: string }>(SELECT_ASYNC_DRAWING_ATTACHMENT_ENTITY_BY_ID_SQL, {
-        id: entityId
+      const row = await this.client.queryOne<{ id: string; drawing_number: string }>(SELECT_ASYNC_DRAWING_ATTACHMENT_ENTITY_BY_ID_SQL + companyPredicate, {
+        id: entityId, ...companyParams
       });
       return row ? { type: "drawing_number", id: row.id, code: row.drawing_number } : null;
     }
-    const row = await this.client.queryOne<{ id: string; part_number: string }>(SELECT_ASYNC_PART_ATTACHMENT_ENTITY_BY_ID_SQL, { id: entityId });
+    const row = await this.client.queryOne<{ id: string; part_number: string }>(SELECT_ASYNC_PART_ATTACHMENT_ENTITY_BY_ID_SQL + companyPredicate, { id: entityId, ...companyParams });
     return row ? { type: "part_number", id: row.id, code: row.part_number } : null;
   }
 
@@ -962,8 +1023,32 @@ export class AsyncMasterAttachmentRepository {
     return row?.value || process.env.GOOGLE_DRIVE_MASTER_ATTACHMENTS_FOLDER_ID?.trim() || "";
   }
 
+  private assertActorProfile(actorId: string | null) {
+    if (this.principalContext) {
+      this.assertPrincipalContext();
+      if (actorId !== this.principalContext.profileId) throw new Error("MASTER_ATTACHMENT_ACTOR_PROFILE_MISMATCH");
+    } else if (this.client.kind === "postgres") throw new Error("MASTER_ATTACHMENT_PRINCIPAL_CONTEXT_REQUIRED");
+  }
+
+  private assertPrincipalContext() {
+    const context = this.principalContext;
+    if (!context?.companyId.trim() || !context.profileId.trim() || !context.principalId.trim() ||
+        context.principalId.startsWith("pdm:") || !Number.isInteger(context.profileVersion) || context.profileVersion < 1 || /[\u0000-\u001f\u007f]/u.test(context.principalId)) {
+      throw new Error("MASTER_ATTACHMENT_PRINCIPAL_CONTEXT_REQUIRED");
+    }
+  }
+
   private async createAuditLog(actorId: string | null, action: string, detail: Record<string, unknown>) {
     const audit = new AsyncAuditRepository(this.client, this.clock, this.idFactory);
+    if (this.principalContext) {
+      this.assertPrincipalContext();
+      if (actorId !== this.principalContext.profileId) throw new Error("MASTER_ATTACHMENT_ACTOR_PROFILE_MISMATCH");
+      await audit.createAuditLog({ actorId, action, companyId: this.principalContext.companyId, scopeKind: "tenant",
+        detail: { ...detail, securityActor: { principalId: this.principalContext.principalId,
+          profileVersion: this.principalContext.profileVersion, actorKind: "human", reason: action } } });
+      return;
+    }
+    if (this.client.kind === "postgres") throw new Error("MASTER_ATTACHMENT_PRINCIPAL_CONTEXT_REQUIRED");
     await audit.createAuditLog({ actorId, action, detail });
   }
 }
@@ -982,21 +1067,27 @@ function validateAttachmentFile(filename: string, fileSize: number) {
   if (fileSize > getMaxAttachmentBytes()) throw new Error("MASTER_ATTACHMENT_FILE_TOO_LARGE");
 }
 
-async function saveMasterAttachmentFile(input: { entity: EntityRef; originalFilename: string; bytes: Buffer }) {
+async function saveMasterAttachmentFile(input: { entity: EntityRef; originalFilename: string; bytes: Buffer; companyId?: string; attachmentId?: string }) {
   const now = new Date();
   const yyyy = String(now.getFullYear());
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const safeName = sanitizeFilename(input.originalFilename);
   const entityDir = input.entity.type === "drawing_number" ? "drawing-number" : "part-number";
   const storedName = `${crypto.randomUUID()}-${safeName}`;
-  const stored = await createFileStorageService().putObject({
-    key: buildStorageKey(["master-attachments", entityDir, sanitizeFilename(input.entity.code), yyyy, mm, storedName]),
-    bytes: input.bytes
-  });
+  const storage = createFileStorageService();
+  const key = input.attachmentId && input.companyId
+    ? buildStorageKey(["master-attachments", sanitizeFilename(input.companyId), entityDir,
+      sanitizeFilename(input.entity.id), sanitizeFilename(input.attachmentId), `${sha256(input.bytes)}-${safeName}`])
+    : buildStorageKey(["master-attachments", entityDir, sanitizeFilename(input.entity.code), yyyy, mm, storedName]);
+  const stored = await storage.putObject({ key, bytes: input.bytes });
+  if (!await storage.verifyObjectHash(stored.key, sha256(input.bytes))) {
+    throw new Error("MASTER_ATTACHMENT_STORED_CONTENT_MISMATCH");
+  }
   return {
     localPath: stored.localPath,
     storageProvider: stored.provider,
-    storageKey: stored.key
+    storageKey: stored.key,storageBucket:stored.bucket ?? null,
+    storageGeneration:stored.generation ?? null,storageMetageneration:stored.metageneration ?? null
   };
 }
 

@@ -2,6 +2,8 @@ import { createAuditLogAsync } from "@/lib/audit-async";
 import type { DownloadUrl, FileStorageProvider } from "@/lib/file-storage";
 
 export type StorageAccessKind =
+  | "canonical_file"
+  | "canonical_file_preview"
   | "submission_file"
   | "submission_file_preview"
   | "release_package"
@@ -11,7 +13,7 @@ export type StorageAccessAuditInput = {
   principalId?: string | null;
   historicalProfileId?: string | null;
   companyId?: string | null;
-  submissionId: string;
+  submissionId?: string | null;
   accessKind: StorageAccessKind;
   fileId?: string | null;
   shareId?: string | null;
@@ -21,10 +23,12 @@ export type StorageAccessAuditInput = {
   provider: FileStorageProvider;
   storageKey: string;
   bucket?: string | null;
+  generation?: string | null;
   access: DownloadUrl;
   route: string;
   externalAccess?: boolean;
   provenance?: StorageAccessAuditProvenance;
+  resourceContext?: { context: string; contextId: string; bindingId: string; derivativeId: string | null };
 };
 
 export type StorageAccessAuditProvenance = {
@@ -59,6 +63,7 @@ export async function auditStorageAccess(input: StorageAccessAuditInput): Promis
     detail: {
       ...(input.principalId ? { securityPrincipalId: input.principalId,
         historicalProfileId: input.historicalProfileId ?? null } : {}),
+      ...(input.resourceContext ? { resourceContext: input.resourceContext } : {}),
       storageAccess: true,
       storageAccessSource: provenance.source,
       qcRunId: provenance.source === "qc_api" ? provenance.qcRunId ?? null : null,
@@ -72,6 +77,7 @@ export async function auditStorageAccess(input: StorageAccessAuditInput): Promis
       provider: input.provider,
       bucket: input.bucket ?? null,
       storageKey: input.storageKey,
+      storageGeneration: input.generation ?? null,
       accessMode: input.access.mode,
       signedUrlExpiresAt: input.access.expiresAt,
       signedUrlExpiresInSeconds: input.access.expiresInSeconds,

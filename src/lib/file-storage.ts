@@ -1,3 +1,4 @@
+import { GoogleCloudFileStorageAdapter } from "@/lib/google-cloud-file-storage";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -18,9 +19,13 @@ export type StoredObject = {
   localPath: string;
   bytes: number;
   sha256: string;
+  generation?: string;
+  metageneration?: string;
 };
 
 export type StorageObjectMetadata = {
+  generation?: string;
+  metageneration?: string;
   provider: FileStorageProvider;
   key: string;
   bucket?: string;
@@ -67,6 +72,7 @@ export type DownloadUrl = {
 };
 
 export type StoredFileStoragePointer = {
+  generation?: string | null;
   provider: FileStorageProvider;
   bucket: string | null;
   key: string;
@@ -314,11 +320,11 @@ export function createConfiguredFileStorageService(env: NodeJS.ProcessEnv = proc
   const provider = resolveFileStorageProvider(env);
   if (provider === "local_repository") return new LocalRepositoryStorageAdapter();
   if (provider === "s3_compatible") return new S3CompatibleStorageAdapter(resolveS3CompatibleStorageConfig(env));
-  return new GoogleCloudStorageDisabledAdapter(resolveGoogleCloudStorageDisabledConfig(env));
+  return createGcsFileStorageService(env);
 }
 
 export function createFileStorageServiceForPointer(
-  pointer: Pick<StoredFileStoragePointer, "provider" | "bucket">,
+  pointer: Pick<StoredFileStoragePointer, "provider" | "bucket" | "generation">,
   env: NodeJS.ProcessEnv = process.env
 ): FileStorageService {
   if (pointer.provider === "local_repository") return new LocalRepositoryStorageAdapter();
@@ -327,10 +333,9 @@ export function createFileStorageServiceForPointer(
   }
   if (pointer.provider === "google_cloud_storage") {
     const config = resolveGoogleCloudStorageDisabledConfig(env);
-    return new GoogleCloudStorageDisabledAdapter({
-      ...config,
-      bucket: pointer.bucket?.trim() || config.bucket
-    });
+    if (pointer.bucket && pointer.bucket!==config.bucket) throw new Error("GCS_POINTER_OWNER_MISMATCH");
+    if (env.PDM_GCS_LIVE_ENABLED === "1" && !pointer.generation) throw new Error("GCS_PINNED_GENERATION_REQUIRED");
+    return createGcsFileStorageService(env,pointer.generation);
   }
   const config = resolveS3CompatibleStorageConfig(env);
   return new S3CompatibleStorageAdapter({
@@ -344,10 +349,8 @@ export function createReleasePackageStorageService(env: NodeJS.ProcessEnv = proc
   if (provider === "local_repository") return new LocalRepositoryStorageAdapter(getReleasePackageRoot());
   if (provider === "google_cloud_storage") {
     const config = resolveGoogleCloudStorageDisabledConfig(env);
-    return new GoogleCloudStorageDisabledAdapter({
-      ...config,
-      bucket: env.PDM_GCS_RELEASE_PACKAGE_BUCKET?.trim() || env.PDM_GCS_BUCKET?.trim() || config.bucket
-    });
+    if (env.PDM_GCS_RELEASE_PACKAGE_BUCKET && env.PDM_GCS_RELEASE_PACKAGE_BUCKET!==config.bucket) throw new Error("GCS_POINTER_OWNER_MISMATCH");
+    return createGcsFileStorageService(env);
   }
   const config = resolveS3CompatibleStorageConfig(env);
   return new S3CompatibleStorageAdapter({
@@ -384,7 +387,8 @@ export function storagePointerFromStoredObject(stored: StoredObject): StoredFile
     provider: stored.provider,
     bucket: stored.bucket ?? null,
     key: normalizeStorageKey(stored.key),
-    legacyLocalPath: stored.localPath
+    legacyLocalPath: stored.localPath,
+    ...(stored.generation ? {generation:stored.generation} : {})
   };
 }
 
@@ -392,6 +396,7 @@ export function storagePointerFromRecord(
   input: {
     storage_provider?: string | null;
     storage_bucket?: string | null;
+    storage_generation?: string | null;
     storage_key?: string | null;
     local_path?: string | null;
     original_path?: string | null;
@@ -401,9 +406,13 @@ export function storagePointerFromRecord(
   const explicitKey = input.storage_key?.trim();
   const provider = resolveStoredProvider(input.storage_provider, input.local_path ?? input.original_path ?? null);
   if (explicitKey) {
+    const sourcePointer = provider === "google_cloud_storage"
+      ? parseStoragePointer(input.local_path ?? input.original_path ?? "") : null;
+    if (sourcePointer && (sourcePointer.key !== explicitKey || (input.storage_bucket && input.storage_bucket !== sourcePointer.bucket) || (input.storage_generation && sourcePointer.generation && input.storage_generation!==sourcePointer.generation))) throw new Error("GCS_POINTER_READBACK_MISMATCH");
     return {
       provider,
-      bucket: input.storage_bucket?.trim() || null,
+      bucket: input.storage_bucket?.trim() || sourcePointer?.bucket || null,
+      ...(provider === "google_cloud_storage" ? {generation:input.storage_generation ?? sourcePointer?.generation ?? null} : {}),
       key: normalizeStorageKey(explicitKey),
       legacyLocalPath: input.local_path ?? input.original_path ?? null
     };
@@ -505,8 +514,11 @@ function parseStoragePointer(pointer: string): StoredFileStoragePointer | null {
     return { provider: "s3_compatible", bucket: parsed.bucket, key: parsed.key, legacyLocalPath: pointer };
   }
   if (pointer.startsWith("gcs://")) {
-    const parsed = parseProviderPointer(pointer, "gcs://");
-    return { provider: "google_cloud_storage", bucket: parsed.bucket, key: parsed.key, legacyLocalPath: pointer };
+    const parsed = new URL(pointer);
+    const generation = parsed.searchParams.get("generation");
+    if (generation && !/^[1-9][0-9]*$/u.test(generation)) throw new Error("GCS_GENERATION_INVALID");
+    return { provider: "google_cloud_storage",bucket:parsed.hostname,
+      key:normalizeStorageKey(decodeURIComponent(parsed.pathname.slice(1))),generation,legacyLocalPath:pointer };
   }
   return null;
 }
@@ -550,4 +562,28 @@ function getRepositoryDir() {
   const configured = process.env.PDM_REPOSITORY_DIR?.trim();
   if (!configured) return path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "repository");
   return path.isAbsolute(configured) ? configured : path.join(/*turbopackIgnore: true*/ process.cwd(), configured);
+}
+
+function createGcsFileStorageService(env:NodeJS.ProcessEnv,generation?:string|null):FileStorageService {
+  const config=resolveGoogleCloudStorageDisabledConfig(env);
+  if (env.PDM_GCS_LIVE_ENABLED !== "1") return new GoogleCloudStorageDisabledAdapter(config);
+  if (!env.K_SERVICE || env.GOOGLE_APPLICATION_CREDENTIALS) throw new Error("GCS_WORKLOAD_IDENTITY_REQUIRED");
+  return new GoogleCloudFileStorageAdapter({...config,generation});
+}
+
+/** Compare returned bytes with the owner record, independently of provider metadata. */
+export function assertStoredFileIntegrity(bytes: Buffer, record: {
+  content_hash: string | null;
+  file_size?: number | string | null;
+}) {
+  const expectedHash = record.content_hash?.trim().toLowerCase();
+  if (!expectedHash || !/^[a-f0-9]{64}$/u.test(expectedHash) || sha256(bytes) !== expectedHash) {
+    throw new Error("STORED_FILE_INTEGRITY_MISMATCH");
+  }
+  if (record.file_size !== undefined && record.file_size !== null) {
+    const expectedSize = Number(record.file_size);
+    if (!Number.isSafeInteger(expectedSize) || expectedSize < 0 || bytes.length !== expectedSize) {
+      throw new Error("STORED_FILE_INTEGRITY_MISMATCH");
+    }
+  }
 }

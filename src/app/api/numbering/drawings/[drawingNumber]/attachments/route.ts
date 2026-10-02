@@ -1,32 +1,25 @@
+import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
 import { NextResponse } from "next/server";
-import { listDeletedMasterAttachmentsAsync, listMasterAttachmentsAsync } from "@/lib/master-attachments-async";
-import { requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { listMasterAttachmentsInCompanyAsync } from "@/lib/master-attachments-async";
 
 export const runtime = "nodejs";
 const noStoreHeaders = { "cache-control": "private, no-store" };
 
 export async function GET(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.drawings.view");
-  if (auth.response) return auth.response;
-
   const { drawingNumber } = await params;
-  const surface = new URL(request.url).searchParams.get("surface");
-  if (surface === "deleted_data") {
-    const result = await listDeletedMasterAttachmentsAsync({
-      entityType: "drawing_number",
-      entityCode: decodeURIComponent(drawingNumber)
+  const deleted = new URL(request.url).searchParams.get("surface") === "deleted_data";
+  const permissions = deleted
+    ? [{ permissionKind: "action" as const, permissionCode: "numbering.attachments.manage" }]
+    : [{ permissionKind: "page" as const, permissionCode: "numbering.drawings.view" }];
+  const response = await withPrincipalNumberingCompanyRead(request, permissions, async (snapshot, company) => {
+    const result = await listMasterAttachmentsInCompanyAsync(snapshot, {
+      entityType: "drawing_number", entityCode: decodeURIComponent(drawingNumber),
+      companyId: company.companyId, deleted
     });
-    if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404 });
-    return NextResponse.json({ entity: result.entity, attachments: result.attachments, surface: "deleted_data" }, { headers: noStoreHeaders });
-  }
-
-  const result = await listMasterAttachmentsAsync({
-    entityType: "drawing_number",
-    entityCode: decodeURIComponent(drawingNumber),
-    actorUserId: auth.user.id
+    if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404, headers: noStoreHeaders });
+    return NextResponse.json({ ...result, ...(deleted ? { surface: "deleted_data" } : {}) }, { headers: noStoreHeaders });
   });
-  if (!result) return NextResponse.json({ error: "DRAWING_NUMBER_NOT_FOUND" }, { status: 404 });
-  return NextResponse.json({ entity: result.entity, attachments: result.attachments }, { headers: noStoreHeaders });
+  return response ?? NextResponse.json({ code: "auth_session_invalid" }, { status: 401, headers: noStoreHeaders });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ drawingNumber: string }> }) {

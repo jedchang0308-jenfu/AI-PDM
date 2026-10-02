@@ -159,4 +159,21 @@ describe("principal preview job provenance", () => {
     });
     expect(execute).toHaveBeenCalledOnce();
   });
+  it("never commits success or file effects for empty or incompatible native preview output", async () => {
+    const transaction=vi.fn();const execute=vi.fn();
+    const client={kind:"postgres",transaction,execute,queryOne:vi.fn(async (sql:string)=>
+      sql.includes("FROM preview_jobs")?{id:"job-output",status:"running",locked_by:"worker-one",
+        company_id:"company-one",source_file_asset_id:"asset-one",source_content_hash:"a".repeat(64),
+        requested_kind:"native_thumbnail_png"}:{id:"asset-one"})} as unknown as AsyncDatabaseClient;
+    for(const derivatives of [[],[{kind:"drawing_pdf",fileName:"result.pdf",mimeType:"application/pdf",
+      contentBase64:Buffer.from("%PDF-1.7 fake output").toString("base64")}],
+      [{kind:"thumbnail_png",fileName:"result.png",mimeType:"image/png",
+        contentBase64:Buffer.from("<svg><script>active</script></svg>").toString("base64")}]]) {
+      const result=await completePreviewJobAsync(client,{jobId:"job-output",workerId:"worker-one",
+        status:"succeeded",sourceContentHash:"a".repeat(64),derivatives:derivatives as never});
+      expect(result).toEqual({accepted:false,derivativeIds:[]});
+    }
+    expect(transaction).not.toHaveBeenCalled();expect(execute).not.toHaveBeenCalled();
+  });
+
 });

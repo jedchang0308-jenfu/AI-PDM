@@ -303,12 +303,16 @@ export async function enqueuePreviewJobForAttachmentAsync(
     attachmentId: string;
     actorUserId: string;
     initiatorPrincipalId?: string;
+    companyId?: string;
     requestedKind?: PreviewRequestedKind;
     generatorProfile?: string;
     runFakeWorker?: boolean;
     forceRegenerate?: boolean;
   }
 ) {
+  if (client.kind === "postgres" && (!input.initiatorPrincipalId?.trim() || !input.companyId?.trim())) {
+    throw new Error("PREVIEW_PRINCIPAL_COMPANY_CONTEXT_REQUIRED");
+  }
   const source = await resolvePreviewSource(client, input);
   if (!source) throw new Error("MASTER_ATTACHMENT_NOT_FOUND");
 
@@ -645,6 +649,23 @@ export async function completePreviewJobAsync(client: AsyncDatabaseClient, input
     });
     return { accepted: false, derivativeIds: [] };
   }
+
+  // A successful preview must contain a usable result. Keep the current lease
+  // running on malformed/empty output; worker error handling decides whether to fail it.
+  if (!Array.isArray(input.derivatives) || input.derivatives.length === 0) {
+    return { accepted: false, derivativeIds: [] };
+  }
+  const validOutput = input.derivatives.every(derivative => {
+    if (!derivative || typeof derivative.fileName !== "string" || typeof derivative.contentBase64 !== "string") return false;
+    const bytes = Buffer.from(derivative.contentBase64, "base64");
+    const png = derivative.mimeType === "image/png" && /\.png$/iu.test(derivative.fileName)
+      && ["thumbnail_png", "model_preview_png", "sheet_png"].includes(derivative.kind)
+      && bytes.length >= 24 && bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+    const pdf = derivative.mimeType === "application/pdf" && /\.pdf$/iu.test(derivative.fileName)
+      && derivative.kind === "drawing_pdf" && bytes.subarray(0,5).toString("ascii") === "%PDF-";
+    return job.requested_kind === "native_thumbnail_png" ? png : (png || pdf);
+  });
+  if (!validOutput) return { accepted: false, derivativeIds: [] };
 
   const derivativeIds = await client.transaction(async (transactionClient) => {
     const owned = await transactionClient.queryOne<{ id: string }>(
@@ -1092,7 +1113,7 @@ async function listPreviewStatesForAttachmentIds(client: AsyncDatabaseClient, at
 
 async function resolvePreviewSource(
   client: AsyncDatabaseClient,
-  input: { entityType: MasterAttachmentEntityType; entityCode: string; attachmentId: string }
+  input: { entityType: MasterAttachmentEntityType; entityCode: string; attachmentId: string; companyId?: string }
 ) {
   if (input.entityType === "drawing_number") {
     return await client.queryOne<PreviewSourceRow>(
@@ -1103,9 +1124,10 @@ async function resolvePreviewSource(
         WHERE fa.id = :attachmentId
           AND fa.linked_entity_type = 'drawing_number'
           AND dn.drawing_number = :entityCode
+          AND (:companyId IS NULL OR dn.company_id = :companyId)
           AND fa.deleted_at IS NULL
       `,
-      { attachmentId: input.attachmentId, entityCode: input.entityCode }
+      { attachmentId: input.attachmentId, entityCode: input.entityCode, companyId: input.companyId ?? null }
     );
   }
 
@@ -1117,9 +1139,10 @@ async function resolvePreviewSource(
       WHERE fa.id = :attachmentId
         AND fa.linked_entity_type = 'part_number'
         AND pn.part_number = :entityCode
+        AND (:companyId IS NULL OR pn.company_id = :companyId)
         AND fa.deleted_at IS NULL
     `,
-    { attachmentId: input.attachmentId, entityCode: input.entityCode }
+    { attachmentId: input.attachmentId, entityCode: input.entityCode, companyId: input.companyId ?? null }
   );
 }
 

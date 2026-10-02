@@ -42,9 +42,7 @@ export function buildFileResponse(input: { file: SubmissionFile; bytes: Buffer; 
     headers: {
       "content-type": contentTypeFor(input.file),
       "content-length": String(input.bytes.byteLength),
-      "content-disposition": contentDispositionHeader(input.disposition, filename),
-      "x-content-type-options": "nosniff",
-      "cache-control": "private, no-store"
+      ...protectedFileResponseHeaders(input.disposition, filename, contentTypeFor(input.file))
     }
   });
 }
@@ -73,4 +71,17 @@ export function contentDispositionHeader(disposition: "inline" | "attachment", f
 
 function sanitizeContentDispositionFilename(filename: string) {
   return filename.replace(/[\u0000-\u001F\u007F"\\]/gu, "_").trim() || "download";
+}
+
+/** Uploaded MIME is untrusted. Active documents may download, but cannot run in the app origin. */
+export function protectedFileResponseHeaders(disposition: "inline" | "attachment", filename: string, mimeType: string) {
+  const type = mimeType.split(";", 1)[0].trim().toLowerCase();
+  const safeInline = new Set(["application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"]);
+  return {
+    "content-disposition": contentDispositionHeader(disposition === "inline" && safeInline.has(type) ? "inline" : "attachment", filename),
+    "x-content-type-options": "nosniff",
+    "content-security-policy": "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'",
+    "referrer-policy": "no-referrer",
+    "cache-control": "private, no-store"
+  };
 }

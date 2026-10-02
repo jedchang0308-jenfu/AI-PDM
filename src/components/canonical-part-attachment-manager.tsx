@@ -30,7 +30,7 @@ type DeletedAttachment = {
 
 type AttachmentResponse = { attachments?: PartAttachment[]; error?: unknown };
 type DeletedAttachmentResponse = { attachments?: DeletedAttachment[]; error?: unknown };
-type PermissionResponse = { actions?: Record<string, boolean>; error?: unknown };
+type PermissionResponse = { pages?: Record<string, boolean>; actions?: Record<string, boolean>; error?: unknown };
 
 function responseMessage(body: unknown, fallback: string) {
   if (!body || typeof body !== "object") return fallback;
@@ -87,6 +87,9 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [canManageAttachments, setCanManageAttachments] = useState(false);
+  const [canReadAttachments, setCanReadAttachments] = useState(false);
+  const uploadKeys = useRef(new WeakMap<File, string>());
+  const mutationKeys = useRef(new Map<string, string>());
   const [previewAttachment, setPreviewAttachment] = useState<PartAttachment | null>(null);
   const [progress, setProgress] = useState("");
   const [notice, setNotice] = useState("");
@@ -96,12 +99,14 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
 
   useEffect(() => { onDirtyChange?.(selectedFiles.length > 0 || busy); }, [busy, onDirtyChange, selectedFiles.length]);
 
-  const refreshAttachments = useCallback(async (includeDeleted: boolean) => {
-    const activeResponse = await fetch(endpoint, { cache: "no-store" });
-    const activeBody = await activeResponse.json().catch(() => null) as AttachmentResponse | null;
-    if (activeResponse.status === 404) throw new Error("PART_NUMBER_NOT_FOUND");
-    if (!activeResponse.ok) throw new Error(responseMessage(activeBody, "附件清單目前無法載入。"));
-    setAttachments(activeBody?.attachments ?? []);
+  const refreshAttachments = useCallback(async (includeDeleted: boolean, includeActive: boolean) => {
+    if (includeActive) {
+      const activeResponse = await fetch(endpoint, { cache: "no-store" });
+      const activeBody = await activeResponse.json().catch(() => null) as AttachmentResponse | null;
+      if (activeResponse.status === 404) throw new Error("PART_NUMBER_NOT_FOUND");
+      if (!activeResponse.ok) throw new Error(responseMessage(activeBody, "附件清單目前無法載入。"));
+      setAttachments(activeBody?.attachments ?? []);
+    } else { setAttachments([]); setPreviewAttachment(null); }
     if (!includeDeleted) { setDeletedAttachments([]); return; }
     const deletedResponse = await fetch(`${endpoint}?surface=deleted_data`, { cache: "no-store" });
     const deletedBody = await deletedResponse.json().catch(() => null) as DeletedAttachmentResponse | null;
@@ -119,9 +124,11 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
       const permissionBody = await permissionResponse.json().catch(() => null) as PermissionResponse | null;
       if (!permissionResponse.ok) throw new Error(responseMessage(permissionBody, "無法確認附件管理權限。"));
       const canManage = permissionBody?.actions?.["numbering.attachments.manage"] === true;
+      const canRead = permissionBody?.pages?.["numbering.search"] === true;
       if (requestId !== loadRequestRef.current) return;
       setCanManageAttachments(canManage);
-      await refreshAttachments(canManage);
+      setCanReadAttachments(canRead);
+      await refreshAttachments(canManage, canRead);
       if (requestId !== loadRequestRef.current) return;
       setStatus("ready");
     } catch (loadError) {
@@ -149,24 +156,37 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
         setProgress(`上傳中 ${index + 1}/${pendingFiles.length}：${file.name}`);
         const form = new FormData();
         form.set("file", file);
-        const response = await fetch(endpoint, { method: "POST", body: form });
+        const key = uploadKeys.current.get(file) ?? crypto.randomUUID();
+        uploadKeys.current.set(file, key);
+        const response = await fetch(endpoint, { method: "POST", headers: { "idempotency-key": key }, body: form });
         const body = await response.json().catch(() => null);
         if (!response.ok) {
           setSelectedFiles(pendingFiles.slice(index));
           throw new Error(responseMessage(body, `「${file.name}」上傳失敗。`));
         }
+        uploadKeys.current.delete(file);
         uploadedCount += 1;
       }
       setSelectedFiles([]);
       setNotice(`已上傳 ${uploadedCount} 個附件。`);
     } catch (uploadError) {
+      // Also retain only unfinished files after a network/response failure.
+      // Successful earlier files must not become new commands on retry.
+      setSelectedFiles(pendingFiles.slice(uploadedCount));
       setError(uploadError instanceof Error ? uploadError.message : "附件上傳失敗。");
       if (uploadedCount > 0) setNotice(`已完成 ${uploadedCount} 個附件；尚未完成的檔案仍保留在選取清單。`);
     } finally {
-      await refreshAttachments(canManageAttachments).catch(() => undefined);
+      await refreshAttachments(canManageAttachments, canReadAttachments).catch(() => undefined);
       setProgress("");
       setBusy(false);
     }
+  }
+
+  function mutationKey(operation: "delete" | "restore", attachmentId: string) {
+    const identity = `${operation}:${attachmentId}`;
+    const key = mutationKeys.current.get(identity) ?? crypto.randomUUID();
+    mutationKeys.current.set(identity, key);
+    return key;
   }
 
   async function deleteAttachment(attachment: PartAttachment) {
@@ -177,12 +197,13 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
     try {
       const response = await fetch(`${endpoint}/${encodeURIComponent(attachment.id)}`, {
         method: "DELETE",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "idempotency-key": mutationKey("delete", attachment.id) },
         body: JSON.stringify({ reason: "由料號附件管理頁刪除" })
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(responseMessage(body, "附件刪除失敗。"));
-      await refreshAttachments(canManageAttachments);
+      mutationKeys.current.delete(`delete:${attachment.id}`);
+      await refreshAttachments(canManageAttachments, canReadAttachments);
       setNotice("附件已移至已刪除區，可於本頁還原。");
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "附件刪除失敗。");
@@ -199,12 +220,13 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
     try {
       const response = await fetch(`${endpoint}/${encodeURIComponent(deleted.attachment.id)}/restore`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "idempotency-key": mutationKey("restore", deleted.attachment.id) },
         body: JSON.stringify({ reason: "由料號附件管理頁還原" })
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(responseMessage(body, "附件還原失敗。"));
-      await refreshAttachments(canManageAttachments);
+      mutationKeys.current.delete(`restore:${deleted.attachment.id}`);
+      await refreshAttachments(canManageAttachments, canReadAttachments);
       setNotice("附件已還原。");
     } catch (restoreError) {
       setError(restoreError instanceof Error ? restoreError.message : "附件還原失敗。");
@@ -233,7 +255,7 @@ export function CanonicalPartAttachmentManager({ partNumber, returnTo, embedded 
 
     <section className="pdm-edit-page-card" aria-labelledby="part-attachment-list-title">
       <div className="pdm-edit-page-card-heading"><div><h2 id="part-attachment-list-title">目前附件</h2></div></div>
-      {attachments.length ? <ul className="part-attachment-list">{attachments.map((attachment) => <li key={attachment.id}>
+      {!canReadAttachments ? <p className="canonical-empty">目前沒有查看有效附件的權限。</p> : attachments.length ? <ul className="part-attachment-list">{attachments.map((attachment) => <li key={attachment.id}>
         <div className="part-attachment-copy"><strong title={attachment.fileName}>{attachment.displayName || attachment.fileName}</strong><span>{formatBytes(attachment.fileSize)} · {formatDateTime(attachment.createdAt)}</span>{attachment.description ? <p>{attachment.description}</p> : null}</div>
         <div className="part-attachment-actions">{previewable(attachment) ? <button className="secondary-button" type="button" onClick={() => setPreviewAttachment((current) => current?.id === attachment.id ? null : attachment)}><Eye size={15} aria-hidden="true" />{previewAttachment?.id === attachment.id ? "關閉預覽" : "預覽"}</button> : null}<a className="secondary-button" href={attachmentDownloadHref(attachment)} download={attachment.fileName} aria-label={`下載 ${attachment.fileName}`} title={`下載 ${attachment.fileName}`}><Download size={15} aria-hidden="true" />下載</a>{canManageAttachments ? <button className="danger-button" type="button" disabled={busy} onClick={() => void deleteAttachment(attachment)}><Trash2 size={15} aria-hidden="true" />刪除</button> : null}</div>
         {previewAttachment?.id === attachment.id ? <div className="part-attachment-preview" role="region" aria-label={`${attachment.fileName} 預覽`}>{attachment.fileExt.toLowerCase().replace(/^\./u, "") === "pdf" ? <iframe src={attachmentPreviewHref(attachment)} title={`${attachment.fileName} PDF 預覽`} /> : <img src={attachmentPreviewHref(attachment)} alt={attachment.displayName || attachment.fileName} />}</div> : null}

@@ -36,6 +36,11 @@ import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-rep
 import { POST as appendPart } from "@/app/api/numbering/roots/[rootCode]/parts/route";
 import { POST as appendDrawing } from "@/app/api/numbering/roots/[rootCode]/drawings/route";
 import { POST as appendBoth } from "@/app/api/numbering/roots/[rootCode]/drawing-part/route";
+import { GET as attachmentList, POST as uploadAttachment } from "@/app/api/parts/[partNumber]/attachments/route";
+import { DELETE as deleteAttachment } from "@/app/api/parts/[partNumber]/attachments/[attachmentId]/route";
+import { POST as restoreAttachment } from "@/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route";
+import { GET as canonicalFileRead } from "@/app/api/pdm/file-assets/[fileAssetId]/route";
+import { AsyncMasterAttachmentRepository } from "@/lib/repositories/master-attachment-async-repository";
 const dsn = process.env.DEV121_NUMBERING_POSTGRES_URL;
 const phase = process.env.DEV057_CONTRACT_PHASE;
 const enabled = Boolean(dsn && ["assigned","revoked","out-of-scope","restored"].includes(phase ?? ""));
@@ -165,5 +170,105 @@ describe.runIf(enabled)("real OrgMaster grant -> Principal numbering HTTP -> nat
     const response = await createRecord(request("/api/numbering/records?company_code=MAXIMA","POST",{coreName:"wrong company",itemKind:"purchased",drawingRequested:false}));
     expect(response.status).toBe(403);
     expect(await db.queryOne("SELECT (SELECT count(*) FROM platform_command_receipts) AS receipts,(SELECT count(*) FROM platform_outbox_events) AS outbox,(SELECT count(*) FROM audit_logs) AS audit")).toEqual(before);
+  });
+
+  it("keeps actual upload HTTP and real attachment file I/O, delete/restore replay and audit inside the published Principal/company boundary", async () => {
+    if (!db) throw new Error("TASK_OWNED_POSTGRES_REQUIRED");
+    const partNumber = created?.partNumber.partNumber ?? "missing-part";
+    const endpoint = "/api/parts/" + encodeURIComponent(partNumber) + "/attachments";
+    const before = await db.queryOne("SELECT (SELECT count(*) FROM file_assets) AS assets,(SELECT count(*) FROM platform_command_receipts) AS receipts,(SELECT count(*) FROM platform_outbox_events) AS outbox,(SELECT count(*) FROM audit_logs) AS audit");
+    const active = await attachmentList(request(endpoint), { params: Promise.resolve({partNumber}) });
+    expect(active.status, await active.clone().text()).toBe(allowed ? 200 : 403);
+    if (!allowed) {
+      const uploadDenied = await uploadAttachment(request(endpoint,"POST",{}),{params:Promise.resolve({partNumber})});
+      expect(uploadDenied.status,await uploadDenied.clone().text()).toBe(403);
+      for (const handler of [deleteAttachment, restoreAttachment]) {
+        const method = handler === deleteAttachment ? "DELETE" : "POST";
+        const response = await handler(request(endpoint + "/missing-asset" + (method === "POST" ? "/restore" : ""),method,{reason:"synthetic revoked fixture"}), {params:Promise.resolve({partNumber,attachmentId:"missing-asset"})});
+        expect(response.status,await response.clone().text()).toBe(403);
+      }
+      expect(await db.queryOne("SELECT (SELECT count(*) FROM file_assets) AS assets,(SELECT count(*) FROM platform_command_receipts) AS receipts,(SELECT count(*) FROM platform_outbox_events) AS outbox,(SELECT count(*) FROM audit_logs) AS audit")).toEqual(before);
+      return;
+    }
+    const context = {companyId:"company-jenfu",profileId:"qc-profile-legacy",principalId:actorPrincipal,profileVersion:1};
+    const upload = (contents = "Principal attachment synthetic bytes\n") => {
+      const form = new FormData();
+      form.set("file",new File([contents],"principal-contract.txt",{type:"text/plain"}));
+      form.set("uploaded_by","untrusted-profile-must-not-be-used");
+      return uploadAttachment(new Request("https://ai-pdm.test"+endpoint,{method:"POST",
+        headers:{cookie:"pdm_session="+token,"idempotency-key":"dev057-attachment-upload"},body:form}),
+        {params:Promise.resolve({partNumber})});
+    };
+    const uploaded = await upload();
+    expect(uploaded.status,await uploaded.clone().text()).toBe(201);
+    const firstUpload = await uploaded.json();
+    const attachment = firstUpload.attachment as {id:string};
+    expect(attachment).toBeTruthy();
+    const uploadReplay = await upload();
+    expect(uploadReplay.status,await uploadReplay.clone().text()).toBe(201);
+    expect(await uploadReplay.json()).toEqual(firstUpload);
+    const payloadConflict = await upload("Different content must not reuse the same command");
+    expect(payloadConflict.status,await payloadConflict.clone().text()).toBe(409);
+    const uploadAudit = await db.query<{actor_id:string;company_id:string;detail_json:object|string}>(
+      "SELECT actor_id,company_id,detail_json FROM audit_logs WHERE action='numbering.master_attachment.upload'");
+    expect(uploadAudit).toHaveLength(1);
+    expect(uploadAudit[0]).toMatchObject({actor_id:"qc-profile-legacy",company_id:"company-jenfu"});
+    const uploadDetail = typeof uploadAudit[0].detail_json === "string" ? JSON.parse(uploadAudit[0].detail_json) : uploadAudit[0].detail_json;
+    expect(uploadDetail).toMatchObject({securityActor:{principalId:actorPrincipal,profileVersion:1,actorKind:"human"}});
+    expect(await db.query("SELECT principal_id,company_id FROM platform_command_receipts WHERE command_name='pdm.master_attachment.upload'"))
+      .toEqual([{principal_id:actorPrincipal,company_id:"company-jenfu"}]);
+    expect(await db.query("SELECT principal_id,company_id FROM platform_outbox_events WHERE event_type='pdm.master_attachment.upload'"))
+      .toEqual([{principal_id:actorPrincipal,company_id:"company-jenfu"}]);
+    const attachmentId = attachment!.id;
+    const downloadQuery = new URLSearchParams({ context:"part_attachment",
+      contextId:created!.partNumber.id, bindingId:attachmentId });
+    const download = await canonicalFileRead(request("/api/pdm/file-assets/"+attachmentId+"?"+downloadQuery),
+      {params:Promise.resolve({fileAssetId:attachmentId})});
+    expect(download.status,await download.clone().text()).toBe(200);
+    expect(await download.text()).toBe("Principal attachment synthetic bytes\n");
+    const downloadAudits = await db.query<{actor_id:string;company_id:string;submission_id:string|null;detail_json:object|string}>(
+      "SELECT actor_id,company_id,submission_id,detail_json FROM audit_logs WHERE action='StorageAccessed'");
+    expect(downloadAudits).toHaveLength(1);
+    expect(downloadAudits[0]).toMatchObject({actor_id:actorPrincipal,company_id:"company-jenfu",submission_id:null});
+    const downloadDetail = typeof downloadAudits[0].detail_json === "string"
+      ? JSON.parse(downloadAudits[0].detail_json) : downloadAudits[0].detail_json;
+    expect(downloadDetail).toMatchObject({securityPrincipalId:actorPrincipal,historicalProfileId:"qc-profile-legacy",
+      accessKind:"canonical_file",fileId:attachmentId,resourceContext:{context:"part_attachment",contextId:created!.partNumber.id,bindingId:attachmentId}});
+    const params = {params:Promise.resolve({partNumber,attachmentId})};
+    const repository = new AsyncMasterAttachmentRepository(db,undefined,undefined,context);
+    const original = await repository.getMasterAttachmentBytes({entityType:"part_number",entityCode:partNumber,attachmentId});
+    expect(original?.bytes.toString()).toBe("Principal attachment synthetic bytes\n");
+    const changedCompany = await attachmentList(request(endpoint+"?company_code=MAXIMA"),{params:Promise.resolve({partNumber})});
+    expect(changedCompany.status).toBe(403);
+    for (const operation of ["delete","restore"] as const) {
+      const method=operation === "delete" ? "DELETE" : "POST";
+      const url=endpoint+"/"+attachmentId+(operation === "restore" ? "/restore" : "");
+      const call=() => {
+        const input=request(url,method,{reason:"synthetic Principal contract"});
+        input.headers.set("idempotency-key","dev057-attachment-"+operation);
+        return (operation === "delete" ? deleteAttachment : restoreAttachment)(input,params);
+      };
+      const first=await call();
+      expect(first.status,await first.clone().text()).toBe(200);
+      const expected=await first.json();
+      const replay=await call();
+      expect(replay.status,await replay.clone().text()).toBe(200);
+      expect(await replay.json()).toEqual(expected);
+      const list=await attachmentList(request(endpoint+(operation === "delete" ? "?surface=deleted_data" : "")),{params:Promise.resolve({partNumber})});
+      expect(list.status,await list.clone().text()).toBe(200);
+      expect(await list.text()).toContain(attachmentId);
+      const audits=await db.query<{actor_id:string;company_id:string;detail_json:object|string}>(
+        "SELECT actor_id,company_id,detail_json FROM audit_logs WHERE action=:action",{action:"numbering.master_attachment."+operation});
+      expect(audits).toHaveLength(1);
+      expect(audits[0]).toMatchObject({actor_id:"qc-profile-legacy",company_id:"company-jenfu"});
+      const detail=typeof audits[0].detail_json === "string" ? JSON.parse(audits[0].detail_json) : audits[0].detail_json;
+      expect(detail).toMatchObject({securityActor:{principalId:actorPrincipal,profileVersion:1,actorKind:"human"}});
+      const receipts=await db.query("SELECT principal_id,company_id FROM platform_command_receipts WHERE command_name=:name",{name:"pdm.master_attachment."+operation});
+      expect(receipts).toEqual([{principal_id:actorPrincipal,company_id:"company-jenfu"}]);
+      const outbox=await db.query("SELECT principal_id,company_id FROM platform_outbox_events WHERE event_type=:type",{type:"pdm.master_attachment."+operation});
+      expect(outbox).toEqual([{principal_id:actorPrincipal,company_id:"company-jenfu"}]);
+    }
+    const restored=await repository.getMasterAttachmentBytes({entityType:"part_number",entityCode:partNumber,attachmentId});
+    expect(restored?.bytes).toEqual(original?.bytes);
   });
 });
