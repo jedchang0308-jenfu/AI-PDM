@@ -4,9 +4,10 @@ import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import net from 'node:net'
+import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 
@@ -22,6 +23,9 @@ let port
 let admin
 let workerOne
 let workerTwo
+let contentServer
+let contentPort
+let closeRuntimeClient
 let started = false
 let stopped = false
 let released = false
@@ -89,7 +93,8 @@ try {
     CREATE TABLE ai_pdm_core.file_assets (
       id text PRIMARY KEY, linked_entity_type text NOT NULL,
       linked_entity_id text NOT NULL, deleted_at timestamptz,
-      storage_key text, original_path text
+      storage_key text, original_path text, storage_provider text, file_name text,
+      file_ext text, mime_type text, file_size integer, content_hash text, hash_algorithm text
     );
     CREATE TABLE ai_pdm_core.preview_jobs (
       id text PRIMARY KEY, company_id text NOT NULL,
@@ -267,7 +272,98 @@ try {
     assert.deepEqual(JSON.parse(job.metadata_json).initiator,
       { kind: 'verified_principal', principalId: 'principal-one' })
   })
+  await check('separate preview worker consumes holder-only source HTTP and completes with Principal provenance', async () => {
+    const sourceBytes = Buffer.from('synthetic-cad-source-not-native-extraction');
+    const sourceDigest = crypto.createHash('sha256').update(sourceBytes).digest('hex');
+    fs.mkdirSync(path.join(repositoryRoot,'source'),{recursive:true});
+    fs.writeFileSync(path.join(repositoryRoot,'source','one'),sourceBytes);
+    await admin.query(`UPDATE ai_pdm_core.file_assets SET storage_provider='local_repository',
+      file_name='fixture.slddrw',file_ext='slddrw',mime_type='application/octet-stream',
+      file_size=$1,content_hash=$2,hash_algorithm='SHA-256' WHERE id='asset-one'`,[sourceBytes.length,sourceDigest]);
+    await admin.query(`INSERT INTO ai_pdm_core.preview_jobs
+      (id,company_id,source_file_asset_id,source_content_hash,requested_kind,
+       source_extension,status,idempotency_key,generator_profile,created_by,
+       created_at,updated_at,metadata_json)
+      VALUES ('job-http','company-one','asset-one',$1,
+       'native_thumbnail_png','slddrw','queued','job-http-key','synthetic_http_worker',
+       'profile-one',now(),now(),
+       '{"initiator":{"kind":"verified_principal","principalId":"principal-one"}}')`,[sourceDigest]);
+    process.env.PDM_DB_PROVIDER='postgres';
+    process.env.PDM_POSTGRES_URL=connectionString;
+    process.env.PDM_POSTGRES_MAX_CONNECTIONS='2';
+    process.env.DEV010_N2_DATABASE_BOUNDARY='required';
+    process.env.PDM_PREVIEW_WORKER_TOKEN='synthetic-task-owned-preview-token';
+    const [{POST:claimHandler},{GET:contentHandler},{POST:completeHandler},dbModule] = await Promise.all([
+      import('../src/app/api/preview-jobs/claim/route.ts'),
+      import('../src/app/api/preview-jobs/[jobId]/content/route.ts'),
+      import('../src/app/api/preview-jobs/[jobId]/complete/route.ts'),
+      import('../src/lib/db-async-provider.ts')
+    ]);
+    closeRuntimeClient=dbModule.closeAsyncDatabaseClient;
+    contentServer=http.createServer(async (incoming,outgoing)=>{
+      try {
+        const chunks=[];for await(const chunk of incoming)chunks.push(chunk);
+        const url=`http://127.0.0.1:${contentPort}${incoming.url}`;
+        const body=Buffer.concat(chunks);
+        const request=new Request(url,{method:incoming.method,headers:incoming.headers,
+          ...(body.length?{body:new Uint8Array(body)}:{})});
+        const route=new URL(url).pathname;
+        let response;
+        if(route==='/api/preview-jobs/claim' && request.method==='POST') response=await claimHandler(request);
+        else if(route==='/api/preview-jobs/job-http/content' && request.method==='GET') response=await contentHandler(request,{params:Promise.resolve({jobId:'job-http'})});
+        else if(route==='/api/preview-jobs/job-http/complete' && request.method==='POST') response=await completeHandler(request,{params:Promise.resolve({jobId:'job-http'})});
+        else response=new Response(null,{status:404});
+        outgoing.writeHead(response.status,Object.fromEntries(response.headers));
+        outgoing.end(Buffer.from(await response.arrayBuffer()));
+      } catch {outgoing.writeHead(500);outgoing.end('HTTP bridge failure');}
+    });
+    await new Promise((resolve,reject)=>{contentServer.once('error',reject);contentServer.listen(0,'127.0.0.1',resolve)});
+    contentPort=contentServer.address().port;
+    process.stdout.write(`${JSON.stringify({runtimeDeclaration:{project:root,purpose:'actual preview HTTP handlers and independent worker source transport',port:contentPort,
+      owningProcessTree:'qc-dev-121-preview-worker-postgres -> isolated HTTP bridge -> task-owned worker child',cleanupCondition:'child exits, HTTP closes, pools/cluster close, both ports released',mutationScope:taskRoot,productionWrites:false}})}\n`);
+    const workerSource=`
+      import assert from 'node:assert/strict';
+      import fs from 'node:fs/promises';
+      import path from 'node:path';
+      import {materializeClaimedPreviewSource} from ${JSON.stringify(new URL('./lib/preview-worker-source.mjs',import.meta.url).href)};
+      const baseUrl=process.env.R30_PREVIEW_BASE;
+      const token=process.env.PDM_PREVIEW_WORKER_TOKEN;
+      const headers={'content-type':'application/json','x-pdm-preview-worker-token':token};
+      let response=await fetch(baseUrl+'/api/preview-jobs/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({workerId:'http-worker'})});
+      assert.equal(response.status,403);
+      response=await fetch(baseUrl+'/api/preview-jobs/claim',{method:'POST',headers,body:JSON.stringify({workerId:'http-worker',supportedKinds:['native_thumbnail_png'],supportedExtensions:['slddrw']})});
+      assert.equal(response.status,200);const claim=(await response.json()).job;assert.equal(claim.jobId,'job-http');
+      await assert.rejects(materializeClaimedPreviewSource({baseUrl,token,workerId:'other-worker',claim}),/READ_FAILED:403/);
+      const source=await materializeClaimedPreviewSource({baseUrl,token,workerId:'http-worker',claim});
+      const temporary=path.dirname(source.sourcePath);
+      try {assert.equal((await fs.readFile(source.sourcePath)).toString(),'synthetic-cad-source-not-native-extraction');}
+      finally {await source.cleanup();}
+      await assert.rejects(fs.stat(temporary),{code:'ENOENT'});
+      const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/fOQAAAAASUVORK5CYII=';
+      const completion={workerId:'http-worker',status:'succeeded',sourceContentHash:claim.sourceContentHash,derivatives:[{kind:'thumbnail_png',fileName:'preview.png',mimeType:'image/png',contentBase64:png,width:1,height:1,generatorProfile:'synthetic_http_worker'}]};
+      response=await fetch(baseUrl+'/api/preview-jobs/job-http/complete',{method:'POST',headers,body:JSON.stringify(completion)});assert.equal(response.status,200);assert.equal((await response.json()).accepted,true);
+      response=await fetch(baseUrl+'/api/preview-jobs/job-http/complete',{method:'POST',headers,body:JSON.stringify(completion)});assert.equal(response.status,409);
+      response=await fetch(baseUrl+'/api/preview-jobs/job-http/content',{headers:{...headers,'x-pdm-preview-worker-id':'http-worker'}});assert.equal(response.status,403);
+      console.log(JSON.stringify({worker:'independent-node',sourceTransport:'actual HTTP',cleanup:true,nativeCadExtraction:false}));
+    `;
+    const workerResult=await new Promise((resolve,reject)=>{
+      const child=spawn(process.execPath,['--input-type=module','-e',workerSource],{cwd:root,windowsHide:true,
+        env:{...process.env,R30_PREVIEW_BASE:`http://127.0.0.1:${contentPort}`},stdio:['ignore','pipe','pipe']});
+      let stdout='';let stderr='';
+      child.stdout.on('data',chunk=>stdout+=chunk);child.stderr.on('data',chunk=>stderr+=chunk);
+      child.once('error',reject);child.once('exit',code=>resolve({code,stdout,stderr}));
+    });
+    assert.equal(workerResult.code,0,workerResult.stderr);process.stdout.write(workerResult.stdout);
+    const job=(await admin.query("SELECT status,metadata_json FROM ai_pdm_core.preview_jobs WHERE id='job-http'")).rows[0];
+    assert.equal(job.status,'succeeded');assert.equal(JSON.parse(job.metadata_json).initiator.principalId,'principal-one');
+    const derivatives=(await admin.query("SELECT * FROM ai_pdm_core.file_derivatives WHERE preview_job_id='job-http'")).rows;
+    assert.equal(derivatives.length,1);assert.equal(derivatives[0].company_id,'company-one');assert.equal(derivatives[0].created_by_worker,'http-worker');
+    const output=fs.readFileSync(derivatives[0].original_path);
+    assert.equal(crypto.createHash('sha256').update(output).digest('hex'),derivatives[0].content_hash);
+  });
 } finally {
+  if (contentServer) await new Promise(resolve=>contentServer.close(resolve));
+  if (closeRuntimeClient) await closeRuntimeClient().catch(()=>undefined);
   if (workerOne) await workerOne.close().catch(() => undefined)
   if (workerTwo) await workerTwo.close().catch(() => undefined)
   if (admin) await admin.end().catch(() => undefined)
@@ -275,7 +371,8 @@ try {
     try { run('pg_ctl.exe', ['-D', cluster, '-m', 'immediate', '-w', 'stop'],
       { stdio: 'ignore' }); stopped = true } catch { stopped = false }
   } else stopped = true
-  if (port) released = await portReleased(port)
+  if (port) released = await portReleased(port);
+  if (contentPort) released = released && await portReleased(contentPort);
   if (stopped && released) {
     fs.rmSync(taskRoot, { recursive: true, force: true })
     tempRemoved = !fs.existsSync(taskRoot)
