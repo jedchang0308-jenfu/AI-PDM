@@ -67,7 +67,34 @@ async function check(name, action) {
   process.stdout.write(`PASS ${name}\n`)
 }
 
+async function runWorkerChild(args, { env = process.env, timeoutMillis = 120_000 } = {}) {
+  return await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, args, { cwd: root, windowsHide: true,
+      env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = ''; let stderr = ''; let timedOut = false;
+    child.stdout.on('data', chunk => stdout += chunk);
+    child.stderr.on('data', chunk => stderr += chunk);
+    const timer = setTimeout(() => {
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      timedOut = true;
+      // Exact live child PID only; Windows /T includes its task-owned extractor.
+      if (process.platform === 'win32') {
+        const kill = spawnSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'],
+          { windowsHide: true, encoding: 'utf8', timeout: 10_000 });
+        if (kill.status !== 0) stderr += '\nTASK_CHILD_TREE_STOP_FAILED';
+      } else child.kill('SIGKILL');
+    }, timeoutMillis);
+    child.once('error', error => { clearTimeout(timer); reject(error); });
+    child.once('close', code => { clearTimeout(timer); resolve({ code, stdout, stderr, timedOut }); });
+  });
+}
+
 try {
+  await check('task-owned stalled worker exits within the bounded cleanup timeout', async () => {
+    const result = await runWorkerChild(['--eval','setInterval(()=>{},1000)'], { timeoutMillis: 500 });
+    assert.equal(result.timedOut, true);assert.notEqual(result.code, 0);
+    assert.ok(!result.stderr.includes('TASK_CHILD_TREE_STOP_FAILED'));
+  });
   port = await freePort()
   process.stdout.write(`${JSON.stringify({ runtimeDeclaration: {
     project: root, purpose: 'DEV-121 preview worker Principal provenance and PostgreSQL claim race',
@@ -119,6 +146,15 @@ try {
       created_at timestamptz NOT NULL, created_by_worker text,
       metadata_json text NOT NULL
     );
+    CREATE TABLE ai_pdm_core.worker_capability_heartbeats (
+      worker_id text NOT NULL, worker_kind text NOT NULL, capability_code text NOT NULL,
+      status text NOT NULL CHECK (status IN ('ready','blocked','degraded')),
+      applied_secret_kind text, applied_secret_version integer, applied_secret_fingerprint text,
+      reader_version text, issue_code text, last_applied_at timestamptz,
+      last_seen_at timestamptz NOT NULL, updated_at timestamptz NOT NULL,
+      PRIMARY KEY(worker_id,capability_code)
+    );
+    GRANT INSERT, UPDATE ON ai_pdm_core.worker_capability_heartbeats TO dev121_preview_runtime;
     GRANT USAGE ON SCHEMA ai_pdm_core TO dev121_preview_runtime;
     GRANT SELECT ON ALL TABLES IN SCHEMA ai_pdm_core TO dev121_preview_runtime;
     GRANT UPDATE ON ai_pdm_core.preview_jobs TO dev121_preview_runtime;
@@ -136,6 +172,7 @@ try {
        'profile-one',now(),now(),
        '{"initiator":{"kind":"verified_principal","principalId":"principal-one"}}');
   `)
+  process.env.PDM_DATA_DIR = path.join(taskRoot, 'data')
   process.env.PDM_REPOSITORY_DIR = repositoryRoot
   process.env.PDM_STORAGE_PROVIDER = 'local_repository'
   const [{ createAsyncDatabaseClient }, { claimPreviewJobAsync, completePreviewJobAsync,
@@ -293,11 +330,13 @@ try {
     process.env.PDM_POSTGRES_MAX_CONNECTIONS='2';
     process.env.DEV010_N2_DATABASE_BOUNDARY='required';
     process.env.PDM_PREVIEW_WORKER_TOKEN='synthetic-task-owned-preview-token';
-    const [{POST:claimHandler},{GET:contentHandler},{POST:completeHandler},dbModule] = await Promise.all([
+    const [{POST:claimHandler},{GET:contentHandler},{POST:completeHandler},dbModule,{POST:heartbeatHandler},{POST:capabilityHandler}] = await Promise.all([
       import('../src/app/api/preview-jobs/claim/route.ts'),
       import('../src/app/api/preview-jobs/[jobId]/content/route.ts'),
       import('../src/app/api/preview-jobs/[jobId]/complete/route.ts'),
-      import('../src/lib/db-async-provider.ts')
+      import('../src/lib/db-async-provider.ts'),
+      import('../src/app/api/preview-jobs/[jobId]/heartbeat/route.ts'),
+      import('../src/app/api/preview-workers/heartbeat/route.ts')
     ]);
     closeRuntimeClient=dbModule.closeAsyncDatabaseClient;
     contentServer=http.createServer(async (incoming,outgoing)=>{
@@ -310,8 +349,10 @@ try {
         const route=new URL(url).pathname;
         let response;
         if(route==='/api/preview-jobs/claim' && request.method==='POST') response=await claimHandler(request);
-        else if(route==='/api/preview-jobs/job-http/content' && request.method==='GET') response=await contentHandler(request,{params:Promise.resolve({jobId:'job-http'})});
-        else if(route==='/api/preview-jobs/job-http/complete' && request.method==='POST') response=await completeHandler(request,{params:Promise.resolve({jobId:'job-http'})});
+        else if(route==='/api/preview-workers/heartbeat' && request.method==='POST') response=await capabilityHandler(request);
+        else if(/^\/api\/preview-jobs\/job-(?:http|native)\/content$/u.test(route) && request.method==='GET') response=await contentHandler(request,{params:Promise.resolve({jobId:route.split('/')[3]})});
+        else if(/^\/api\/preview-jobs\/job-(?:http|native)\/complete$/u.test(route) && request.method==='POST') response=await completeHandler(request,{params:Promise.resolve({jobId:route.split('/')[3]})});
+        else if(/^\/api\/preview-jobs\/job-(?:http|native)\/heartbeat$/u.test(route) && request.method==='POST') response=await heartbeatHandler(request,{params:Promise.resolve({jobId:route.split('/')[3]})});
         else response=new Response(null,{status:404});
         outgoing.writeHead(response.status,Object.fromEntries(response.headers));
         outgoing.end(Buffer.from(await response.arrayBuffer()));
@@ -346,13 +387,9 @@ try {
       response=await fetch(baseUrl+'/api/preview-jobs/job-http/content',{headers:{...headers,'x-pdm-preview-worker-id':'http-worker'}});assert.equal(response.status,403);
       console.log(JSON.stringify({worker:'independent-node',sourceTransport:'actual HTTP',cleanup:true,nativeCadExtraction:false}));
     `;
-    const workerResult=await new Promise((resolve,reject)=>{
-      const child=spawn(process.execPath,['--input-type=module','-e',workerSource],{cwd:root,windowsHide:true,
-        env:{...process.env,R30_PREVIEW_BASE:`http://127.0.0.1:${contentPort}`},stdio:['ignore','pipe','pipe']});
-      let stdout='';let stderr='';
-      child.stdout.on('data',chunk=>stdout+=chunk);child.stderr.on('data',chunk=>stderr+=chunk);
-      child.once('error',reject);child.once('exit',code=>resolve({code,stdout,stderr}));
-    });
+    const workerResult=await runWorkerChild(['--input-type=module','-e',workerSource],
+      {env:{...process.env,R30_PREVIEW_BASE:`http://127.0.0.1:${contentPort}`}});
+    assert.equal(workerResult.timedOut,false);
     assert.equal(workerResult.code,0,workerResult.stderr);process.stdout.write(workerResult.stdout);
     const job=(await admin.query("SELECT status,metadata_json FROM ai_pdm_core.preview_jobs WHERE id='job-http'")).rows[0];
     assert.equal(job.status,'succeeded');assert.equal(JSON.parse(job.metadata_json).initiator.principalId,'principal-one');
@@ -361,6 +398,52 @@ try {
     const output=fs.readFileSync(derivatives[0].original_path);
     assert.equal(crypto.createHash('sha256').update(output).digest('hex'),derivatives[0].content_hash);
   });
+
+  // Opt-in Windows native extraction; the default CI case remains provider-independent.
+  // This minimal worker fixture is not the complete OrgMaster producer/consumer suite.
+  const nativeFixture = process.env.PDM_DEV121_NATIVE_PREVIEW_FIXTURE?.trim();
+  if (nativeFixture) await check('actual Windows Shell API worker extracts native source and persists holder-bound result', async () => {
+    assert.equal(process.platform,'win32');
+    assert.ok(path.isAbsolute(nativeFixture));
+    assert.equal(path.extname(nativeFixture).toLowerCase(),'.sldprt');
+    const sourceBytes=fs.readFileSync(nativeFixture);
+    const sourceHash=crypto.createHash('sha256').update(sourceBytes).digest('hex');
+    fs.writeFileSync(path.join(repositoryRoot,'source','native'),sourceBytes);
+    await admin.query("INSERT INTO ai_pdm_core.part_numbers VALUES ('native-part','company-one')");
+    await admin.query(`INSERT INTO ai_pdm_core.file_assets
+      (id,linked_entity_type,linked_entity_id,storage_key,storage_provider,file_name,file_ext,mime_type,file_size,content_hash,hash_algorithm)
+      VALUES ('asset-native','part_number','native-part','source/native','local_repository','fixture.sldprt','sldprt','application/octet-stream',$1,$2,'SHA-256')`,[sourceBytes.length,sourceHash]);
+    await admin.query(`INSERT INTO ai_pdm_core.preview_jobs
+      (id,company_id,source_file_asset_id,source_content_hash,requested_kind,source_extension,status,idempotency_key,generator_profile,created_by,created_at,updated_at,metadata_json)
+      VALUES ('job-native','company-one','asset-native',$1,'native_thumbnail_png','sldprt','queued','job-native-key','windows_solidworks_preview_worker','profile-one',now(),now(),
+      '{"initiator":{"kind":"verified_principal","principalId":"principal-one"}}')`,[sourceHash]);
+    const childResult=await runWorkerChild(['scripts/run-windows-shell-preview-worker.mjs','--base-url',`http://127.0.0.1:${contentPort}`,'--worker-id','native-worker','--models-only','--canary-source',nativeFixture],
+      {env:{...process.env,TEMP:taskRoot,TMP:taskRoot}});
+    assert.equal(childResult.timedOut,false);
+    assert.equal(childResult.code,0,childResult.stderr);
+    process.stdout.write(childResult.stdout);
+    const job=(await admin.query("SELECT * FROM ai_pdm_core.preview_jobs WHERE id='job-native'")).rows[0];
+    assert.equal(job.status,'succeeded');assert.equal(job.locked_by,'native-worker');assert.equal(job.attempt_count,1);
+    assert.equal(JSON.parse(job.metadata_json).initiator.principalId,'principal-one');
+    const rows=(await admin.query("SELECT * FROM ai_pdm_core.file_derivatives WHERE preview_job_id='job-native'")).rows;
+    assert.equal(rows.length,1);const derivative=rows[0];
+    assert.equal(derivative.company_id,'company-one');assert.equal(derivative.created_by_worker,'native-worker');
+    assert.equal(derivative.source_content_hash,sourceHash);
+    assert.equal(derivative.generator_version,'windows-shell-ishellitemimagefactory-v2');
+    const bytes=fs.readFileSync(derivative.original_path);
+    assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),derivative.content_hash);
+    const {default:sharp}=await import('sharp');const image=await sharp(bytes).metadata();
+    assert.equal(image.format,'png');assert.ok(image.width>1 && image.height>1);
+    const heartbeat=(await admin.query("SELECT * FROM ai_pdm_core.worker_capability_heartbeats WHERE worker_id='native-worker'")).rows[0];
+    assert.equal(heartbeat.status,'ready');assert.equal(heartbeat.capability_code,'solidworks_3d_preview_png');
+    assert.equal(heartbeat.reader_version,'windows-shell-ishellitemimagefactory-v2');
+    assert.deepEqual(fs.readdirSync(taskRoot).filter(name=>name.startsWith('aipdm-preview-source-')),[]);
+    assert.equal(crypto.createHash('sha256').update(fs.readFileSync(nativeFixture)).digest('hex'),sourceHash);
+    const headers={'x-pdm-preview-worker-token':process.env.PDM_PREVIEW_WORKER_TOKEN,'x-pdm-preview-worker-id':'native-worker'};
+    const after=await fetch(`http://127.0.0.1:${contentPort}/api/preview-jobs/job-native/content`,{headers});
+    assert.equal(after.status,403);
+  });
+
 } finally {
   if (contentServer) await new Promise(resolve=>contentServer.close(resolve));
   if (closeRuntimeClient) await closeRuntimeClient().catch(()=>undefined);

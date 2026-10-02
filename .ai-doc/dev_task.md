@@ -1,5 +1,8 @@
 # AI PDM dev_task PM Control Board
 
+**R37 真實原生背景整鏈（2026-10-02，本機整合，未發布）：** 既有 preview PostgreSQL harness 保留原7案，新增 Windows-only opt-in `PDM_DEV121_NATIVE_PREVIEW_FIXTURE=<absolute vendor .sldprt>`，使用真正 Windows Shell worker API mode，透過實際 claim/content/job heartbeat/capability heartbeat/complete handlers 提取與寫回，沒有 `--source` standalone 或手工 PNG 代替。Luna 審查另指出 child 卡住會阻斷清理，已補兩個 worker 共用120秒 timeout與exact child PID tree終止、500ms stalled child案例；重跑9案通過（8業務／worker案＋1清理案）：holder／公司邊界、Principal initiator、來源fingerprint、非空PNG40102bytes、derivative hash／reader version與ready heartbeat、完成後來源403；PG／HTTP／child／temp及容量lease已清理。`PDM_DATA_DIR` 也隔離於task temp。僅最小worker schema＋synthetic Principal＋local repository，不代替完整OrgMaster producer、live GCS或Production L4。048歷史public表已由062搬入own schema，不能據歷史名稱判現行故障；已提交技術job依既有契約可於原人類logout後完成，正式採用仍須current human authorization，不新增worker impersonation或grant。Jed查詢／工作編輯已有正式證據，審批／附件／背景的正式分母不縮減。證據 `JENFU/DEV-015 output/dev-012/inputs/dev015-r37-native-preview-checkpoint.json` 與實際PG log；來源尚未提交。
+
+
 ## DEV-121 R33 現行送審前置修正（本機候選，未發布）
 
 <a id="principal-transfer-action-registration"></a>
