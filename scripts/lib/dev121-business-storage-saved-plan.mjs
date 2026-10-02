@@ -152,6 +152,11 @@ function backendSnapshot(work){
   return hash(bytes);
 }
 function checkFiles(work,source){
+  for(const name of fs.readdirSync(work)){
+    if(/(?:\.tf|\.tf\.json|\.auto\.tfvars(?:\.json)?)$/iu.test(name)||/^terraform\.tfvars(?:\.json)?$/iu.test(name)){
+      if(!FILES.includes(name))fail('EXTRA_TERRAFORM_CONFIG');
+    }
+  }
   const hashes={};
   for(const [name,bytes] of Object.entries(source.files)){
     const file=path.join(work,name);
@@ -283,6 +288,8 @@ export async function reconcileDev121BusinessStoragePlan({root,planRef,planDirec
   const profile=dependencies.profile??JSON.parse(readGitBlob(root,'config/release/dev121-business-storage-plan.json',bound.sourceRevision));
   const work=path.join(planDirectory,'terraform');
   if(fs.lstatSync(work).isSymbolicLink()||backendSnapshot(work)!==bound.backendStateSha256)fail('BACKEND_DRIFT');
+  const files=dependencies.files??Object.fromEntries(FILES.map(name=>[name,readGitBlob(root,`${ROOT}/${name}`,bound.sourceRevision)]));
+  if(canonicalize(checkFiles(work,{files}))!==canonicalize(bound.sourceFiles))fail('FROZEN_FILES_CHANGED');
   const cliConfig=path.join(planDirectory,'reconcile-terraform.rc');
   const cliBytes='disable_checkpoint = true\n';
   if(fs.existsSync(cliConfig)){

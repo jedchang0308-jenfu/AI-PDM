@@ -161,8 +161,16 @@ test('read-only reconciliation observes state after unknown outcome and keeps re
  f.dependencies.terraform=(args,options)=>{if(args[0]==='apply'){f.calls.push({args,...options});throw new Error('unknown outcome');}return original(args,options);};
  await assert.rejects(applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies),/APPLY_OUTCOME_UNKNOWN/);
  const beforeCalls=f.calls.length;const beforeObjects=f.objects.size;
- const receipt=await reconcileDev121BusinessStoragePlan(f.applyArgs,{...f.dependencies,profile:f.source.profile});
+ const receipt=await reconcileDev121BusinessStoragePlan(f.applyArgs,{...f.dependencies,profile:f.source.profile,files:f.source.files});
  assert.equal(receipt.status,'RECONCILED_OWN_STORAGE_NOT_RELEASED');assert.equal(receipt.applyExecuted,'UNKNOWN');assert.equal(receipt.applyInvoked,false);assert.equal(receipt.claimRetained,true);assert.equal(receipt.cloudMutations,0);
  assert.deepEqual(f.calls.slice(beforeCalls).map(call=>call.args[0]),['state','show','output']);assert.equal(f.objects.size,beforeObjects);
  await assert.rejects(applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies),/PRIOR_APPLY_ATTEMPT_REQUIRES_READBACK/);
+});
+
+test('extra Terraform executable inputs cannot enter apply or reconciliation',async t=>{
+ const f=await applyFixture(t);const extra=path.join(f.args.outputDirectory,'terraform','sibling.tf');fs.writeFileSync(extra,'provider override');
+ await assert.rejects(applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies),/EXTRA_TERRAFORM_CONFIG/);assert.equal(f.calls.some(call=>call.args[0]==='apply'),false);
+ fs.rmSync(extra);await applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies);
+ fs.writeFileSync(extra,'provider override');
+ const count=f.calls.length;await assert.rejects(reconcileDev121BusinessStoragePlan(f.applyArgs,{...f.dependencies,profile:f.source.profile,files:f.source.files}),/EXTRA_TERRAFORM_CONFIG/);assert.equal(f.calls.length,count);
 });
