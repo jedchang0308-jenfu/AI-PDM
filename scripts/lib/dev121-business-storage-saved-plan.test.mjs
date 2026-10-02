@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {canonicalize,sha256} from './dev012-production-migration-runner.mjs';
-import {prepareDev121BusinessStoragePlan,applyDev121BusinessStoragePlan,storageTerraformEnvironment,verifyStorageSourceProtection} from './dev121-business-storage-saved-plan.mjs';
+import {prepareDev121BusinessStoragePlan,applyDev121BusinessStoragePlan,reconcileDev121BusinessStoragePlan,storageTerraformEnvironment,verifyStorageSourceProtection} from './dev121-business-storage-saved-plan.mjs';
 const profile=JSON.parse(fs.readFileSync(new URL('../../config/release/dev121-business-storage-plan.json',import.meta.url),'utf8'));
 const expectedInputs={source_revision:'a'.repeat(40),foundation_manifest_sha256:'b'.repeat(64),application_image_digest:'sha256:'+'c'.repeat(64),migration_runner_image_digest:'sha256:'+'d'.repeat(64)};
 function plan(){
@@ -22,7 +22,7 @@ function fixture(t){
  const calls=[];const objects=new Map();
  const inputs={status:'OWNER_PLAN_INPUTS_VERIFIED',planInputProvenanceVerified:true,expectedInputs,releaseId:'DEV121-TEST',deadlineAt:'2099-01-01T00:00:00Z'};
  const source={git:{sourceRevision:expectedInputs.source_revision,sourceTree:'e'.repeat(40)},review:{status:'OFFICIAL_MERGED_PR_VERIFIED'},profile:structuredClone(profile),files:Object.fromEntries(['main.tf','versions.tf','.terraform.lock.hcl'].map(name=>[name,Buffer.from(name)]))};
- const dependencies={publish:async({uri,value})=>{const bytes=Buffer.from(canonicalize(value)+'\n');const item={bytes,sha256:sha256(bytes),generation:'1'};objects.set(uri,item);return item;},readObject:async({uri})=>objects.get(uri),snapshot:async()=>source,collect:async()=>structuredClone(inputs),backendRead:async()=>({bucket:'tfstate-jenfu-platform-prod',prefix:'dev-121/business-storage'}),terraform:(args,{cwd,env})=>{
+ const dependencies={publish:async({uri,value})=>{const bytes=Buffer.from(canonicalize(value)+'\n');const prior=objects.get(uri);if(prior){if(!prior.bytes.equals(bytes))throw new Error('IMMUTABLE_CONFLICT');return {...prior,reused:true};}const item={bytes,sha256:sha256(bytes),generation:'1',reused:false};objects.set(uri,item);return item;},readObject:async({uri})=>objects.get(uri),snapshot:async()=>source,collect:async()=>structuredClone(inputs),backendRead:async()=>({bucket:'tfstate-jenfu-platform-prod',prefix:'dev-121/business-storage'}),terraform:(args,{cwd,env})=>{
    calls.push({args,cwd,env});
    if(args[0]==='init'){fs.mkdirSync(path.join(cwd,'.terraform'));fs.writeFileSync(path.join(cwd,'.terraform','terraform.tfstate'),JSON.stringify({backend:{type:'gcs',config:{bucket:'tfstate-jenfu-platform-prod',prefix:'dev-121/business-storage'}}}));}
    if(args[0]==='plan')fs.writeFileSync(args.find(value=>value.startsWith('-out=')).slice(5),'saved binary');
@@ -136,4 +136,33 @@ test('failed provider readback after apply is not a successful resource receipt'
  const f=await applyFixture(t);f.dependencies.resourceReadback=async()=>({status:'BUSINESS_STORAGE_NOT_PROVISIONED',ownResourcesVerified:false});
  await assert.rejects(applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies),/APPLIED_READBACK_OR_RECEIPT_FAILED/);
  assert.equal(f.calls.filter(call=>call.args[0]==='apply').length,1);assert.equal([...f.objects.keys()].some(uri=>uri.includes('/apply-')),false);
+});
+
+test('read-only preflight failure can resume after new provider evidence without reapply',async t=>{
+ const f=await applyFixture(t);const collect=f.dependencies.collect;let count=0;
+ f.dependencies.collect=async options=>{if(++count===2)throw new Error('temporary preflight read failed');return collect(options);};
+ await assert.rejects(applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies),/preflight read failed/);
+ assert.equal(f.calls.some(call=>call.args[0]==='apply'),false);assert.equal(fs.existsSync(path.join(f.args.outputDirectory,'apply-attempt.json')),false);
+ f.dependencies.collect=collect;
+ const receipt=await applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies);assert.equal(receipt.status,'OWN_STORAGE_APPLIED_NOT_RELEASED');assert.equal(f.calls.filter(call=>call.args[0]==='apply').length,1);
+});
+
+test('remote immutable claim bars reapply from a copied directory after unknown outcome',async t=>{
+ const f=await applyFixture(t);const copied=path.join(f.temp,'copied-plan');fs.cpSync(f.args.outputDirectory,copied,{recursive:true});
+ const original=f.dependencies.terraform;f.dependencies.terraform=(args,options)=>{if(args[0]==='apply'){f.calls.push({args,...options});throw new Error('unknown apply outcome');}return original(args,options);};
+ await assert.rejects(applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies),/APPLY_OUTCOME_UNKNOWN/);
+ await assert.rejects(applyDev121BusinessStoragePlan({...f.applyArgs,planDirectory:copied},f.dependencies),/APPLY_NOT_STARTED_CLAIM_OR_PREFLIGHT_FAILED/);
+ assert.equal(f.calls.filter(call=>call.args[0]==='apply').length,1);assert.equal([...f.objects.keys()].filter(uri=>uri.includes('/claim-')).length,1);
+ const attempt=JSON.parse(fs.readFileSync(path.join(copied,'apply-attempt.json')));assert.equal(attempt.applyExecuted,false);assert.equal(attempt.requiresProviderReadbackBeforeRetry,true);
+});
+
+test('read-only reconciliation observes state after unknown outcome and keeps remote barrier',async t=>{
+ const f=await applyFixture(t);const original=f.dependencies.terraform;
+ f.dependencies.terraform=(args,options)=>{if(args[0]==='apply'){f.calls.push({args,...options});throw new Error('unknown outcome');}return original(args,options);};
+ await assert.rejects(applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies),/APPLY_OUTCOME_UNKNOWN/);
+ const beforeCalls=f.calls.length;const beforeObjects=f.objects.size;
+ const receipt=await reconcileDev121BusinessStoragePlan(f.applyArgs,{...f.dependencies,profile:f.source.profile});
+ assert.equal(receipt.status,'RECONCILED_OWN_STORAGE_NOT_RELEASED');assert.equal(receipt.applyExecuted,'UNKNOWN');assert.equal(receipt.applyInvoked,false);assert.equal(receipt.claimRetained,true);assert.equal(receipt.cloudMutations,0);
+ assert.deepEqual(f.calls.slice(beforeCalls).map(call=>call.args[0]),['state','show','output']);assert.equal(f.objects.size,beforeObjects);
+ await assert.rejects(applyDev121BusinessStoragePlan(f.applyArgs,f.dependencies),/PRIOR_APPLY_ATTEMPT_REQUIRES_READBACK/);
 });

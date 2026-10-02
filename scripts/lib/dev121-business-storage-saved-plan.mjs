@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {readGitBlob} from './dev012-owner-stage-executor.mjs';
 import {readGitAuthority} from './dev012-owner-prerequisite-producer.mjs';
 import {verifyOfficialMergedSource} from './dev012-official-source-review.mjs';
@@ -168,6 +168,30 @@ function planReceiptUri(value){
   return `gs://${RELEASE_BUCKET}/receipts/releases/${value.releaseId}/business-storage/plan-${value.binarySha256}.json`;
 }
 
+async function readBoundPlan({planRef,token,read}){
+  if(!planRef||Object.keys(planRef).sort().join(',')!=='sha256,uri'||!/^[a-f0-9]{64}$/u.test(planRef.sha256??''))fail('BOUND_PLAN_REF_REQUIRED');
+  const object=await read({uri:planRef.uri,expectedBucket:RELEASE_BUCKET,expectedPrefix:'receipts/releases',token});
+  if(!Buffer.isBuffer(object.bytes)||hash(object.bytes)!==planRef.sha256||!/^[1-9][0-9]*$/u.test(String(object.generation??'')))fail('PLAN_RECEIPT_OBJECT_INVALID');
+  const bound=JSON.parse(object.bytes);
+  if(bound.schemaVersion!=='jenfu.dev121.business-storage-bound-plan.v1'||bound.ownerApplicationId!=='ai-pdm'||bound.status!=='SAVED_PLAN_PROVIDER_BOUND'||planRef.uri!==planReceiptUri(bound)||bound.backend?.bucket!==BACKEND.bucket||bound.backend?.prefix!==BACKEND.prefix)fail('PLAN_RECEIPT_BINDING');
+  return {object,bound};
+}
+
+function verifyStorageState(rawState,actual,output,profile,expectedInputs){
+  const state=JSON.parse(rawState);
+  if(typeof state.lineage!=='string'||!state.lineage||!Number.isInteger(state.serial)||state.serial<1)fail('STATE_READBACK_INVALID');
+    const binding=output.business_storage_binding?.value;
+    const expected={project_id:'jenfu-platform-prod',project_number:'9536592944',region:'asia-east1',bucket:'jenfu-platform-prod-aipdm-files',runtime_identity:'aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com',permissions:['storage.objects.create','storage.objects.get'],...expectedInputs};
+    if(!binding||canonicalize({...binding,permissions:[...(binding.permissions??[])].sort()})!==canonicalize(expected)||canonicalize(actual.values?.outputs?.business_storage_binding?.value)!==canonicalize(binding))fail('OUTPUT_READBACK_INVALID');
+    if(actual.values?.root_module?.child_modules?.length)fail('STATE_EXTRA_MODULES');
+    const resources=actual.values?.root_module?.resources;
+    if(!Array.isArray(resources))fail('STATE_READBACK_INVALID');
+    assertDev121BusinessStoragePlan({variables:Object.fromEntries(Object.entries(expectedInputs).map(([key,value])=>[key,{value}])),resource_changes:resources.map(row=>({address:row.address,change:{actions:['no-op'],before:row.values,after:row.values,after_unknown:{}}}))},{profile:profile,expectedInputs:expectedInputs});
+  return state;
+}
+
+function storageGetJson(token){return async url=>{const response=await fetch(url,{method:'GET',redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${token}`}});return {status:response.status,body:response.status===200?await response.json():null};};}
+
 export async function applyDev121BusinessStoragePlan({root,planRef,planDirectory,token,githubToken},dependencies={}){
   const env=storageTerraformEnvironment(token);
   if(typeof githubToken!=='string'||githubToken.length<20)fail('GITHUB_TOKEN_REQUIRED');
@@ -177,12 +201,7 @@ export async function applyDev121BusinessStoragePlan({root,planRef,planDirectory
   if(relative===''||!relative.startsWith('..')&&!path.isAbsolute(relative))fail('OUTPUT_INSIDE_SOURCE');
   const attemptFile=path.join(planDirectory,'apply-attempt.json');
   if(fs.existsSync(attemptFile))fail('PRIOR_APPLY_ATTEMPT_REQUIRES_READBACK');
-  if(!planRef||Object.keys(planRef).sort().join(',')!=='sha256,uri'||!/^[a-f0-9]{64}$/u.test(planRef.sha256??''))fail('BOUND_PLAN_REF_REQUIRED');
-  const read=dependencies.readObject??readGcsObject;
-  const object=await read({uri:planRef.uri,expectedBucket:RELEASE_BUCKET,expectedPrefix:'receipts/releases',token});
-  if(!Buffer.isBuffer(object.bytes)||hash(object.bytes)!==planRef.sha256||!/^[1-9][0-9]*$/u.test(String(object.generation??'')))fail('PLAN_RECEIPT_OBJECT_INVALID');
-  const bound=JSON.parse(object.bytes);
-  if(bound.schemaVersion!=='jenfu.dev121.business-storage-bound-plan.v1'||bound.ownerApplicationId!=='ai-pdm'||bound.status!=='SAVED_PLAN_PROVIDER_BOUND'||planRef.uri!==planReceiptUri(bound)||bound.backend?.bucket!==BACKEND.bucket||bound.backend?.prefix!==BACKEND.prefix)fail('PLAN_RECEIPT_BINDING');
+  const {object,bound}=await readBoundPlan({planRef,token,read:dependencies.readObject??readGcsObject});
   const source=await (dependencies.snapshot??sourceSnapshot)(root,githubToken);
   if(bound.sourceRevision!==source.git.sourceRevision||bound.sourceTree!==source.git.sourceTree)fail('SOURCE_INPUT_MISMATCH');
   const inputs=await (dependencies.collect??collectDev121StoragePlanInputs)({root,intentRef:bound.intentRef,token});
@@ -195,7 +214,10 @@ export async function applyDev121BusinessStoragePlan({root,planRef,planDirectory
   const binary=path.join(work,'business.tfplan');
   if(fs.lstatSync(binary).isSymbolicLink()||hash(fs.readFileSync(binary))!==bound.binarySha256)fail('BINARY_PLAN_CHANGED');
   const cliConfig=path.join(planDirectory,'apply-terraform.rc');
-  fs.writeFileSync(cliConfig,'disable_checkpoint = true\n',{flag:'wx'});
+  const cliBytes='disable_checkpoint = true\n';
+  if(fs.existsSync(cliConfig)){
+    if(fs.lstatSync(cliConfig).isSymbolicLink()||fs.readFileSync(cliConfig,'utf8')!==cliBytes)fail('CLI_CONFIG_DRIFT');
+  }else fs.writeFileSync(cliConfig,cliBytes,{flag:'wx'});
   Object.assign(env,{HOME:planDirectory,USERPROFILE:planDirectory,APPDATA:planDirectory,TF_CLI_CONFIG_FILE:cliConfig});
   const terraform=dependencies.terraform??runStorageTerraform;
   const execute=args=>terraform(args,{cwd:work,env});
@@ -206,37 +228,76 @@ export async function applyDev121BusinessStoragePlan({root,planRef,planDirectory
   assertSameInputs(fresh,bound);
   checkFiles(work,source);
   if(backendSnapshot(work)!==bound.backendStateSha256||hash(fs.readFileSync(binary))!==bound.binarySha256)fail('PLAN_CHANGED_BEFORE_APPLY');
-  const journal={schemaVersion:'jenfu.dev121.business-storage-apply.v1',ownerApplicationId:'ai-pdm',status:'APPLY_STARTED',releaseAuthority:false,planRef,planGeneration:String(object.generation),sourceRevision:source.git.sourceRevision,binarySha256:bound.binarySha256,applyExecuted:true,effectiveInheritedIamVerified:false};
+  const journal={schemaVersion:'jenfu.dev121.business-storage-apply.v1',ownerApplicationId:'ai-pdm',status:'APPLY_STARTED',releaseAuthority:false,planRef,planGeneration:String(object.generation),sourceRevision:source.git.sourceRevision,binarySha256:bound.binarySha256,applyExecuted:false,applyAttempted:false,effectiveInheritedIamVerified:false};
   fs.writeFileSync(attemptFile,JSON.stringify(journal,null,2)+'\n',{flag:'wx'});
   const write=()=>fs.writeFileSync(attemptFile,JSON.stringify(journal,null,2)+'\n');
   let applied=false;
   try{
     // No vars, targets, auto-approve or replanning: this exact binary only.
-    execute(['apply','-input=false','-no-color','-lock-timeout=60s',binary]);applied=true;
+    const claimUri=`gs://${RELEASE_BUCKET}/receipts/releases/${bound.releaseId}/business-storage/claim-${bound.binarySha256}.json`;
+    const claim={schemaVersion:'jenfu.dev121.business-storage-apply-claim.v1',ownerApplicationId:'ai-pdm',status:'APPLY_STARTED',planRef,planGeneration:String(object.generation),sourceRevision:source.git.sourceRevision,binarySha256:bound.binarySha256,attemptNonce:randomUUID(),releaseAuthority:false};
+    const claimed=await (dependencies.publish??publishGcsJson)({uri:claimUri,expectedBucket:RELEASE_BUCKET,expectedPrefix:'receipts/releases',value:claim,token});
+    if(claimed.reused!==false||claimed.sha256!==hash(Buffer.from(canonicalize(claim)+'\n'))||!/^[1-9][0-9]*$/u.test(String(claimed.generation??'')))fail('REMOTE_CLAIM_NOT_CREATED');
+    journal.claimRef={uri:claimUri,sha256:claimed.sha256};journal.claimGeneration=String(claimed.generation);write();
+    const afterClaim=await (dependencies.collect??collectDev121StoragePlanInputs)({root,intentRef:bound.intentRef,token});
+    assertSameInputs(afterClaim,bound);checkFiles(work,source);
+    if(backendSnapshot(work)!==bound.backendStateSha256||hash(fs.readFileSync(binary))!==bound.binarySha256)fail('PLAN_CHANGED_BEFORE_APPLY');
+    journal.applyAttempted=true;journal.applyExecuted='UNKNOWN';write();
+    execute(['apply','-input=false','-no-color','-lock-timeout=60s',binary]);applied=true;journal.applyExecuted=true;write();
     const rawState=execute(['state','pull']);
+    fs.writeFileSync(path.join(planDirectory,'post-apply-state.json'),rawState,{flag:'wx'});
     const state=JSON.parse(rawState);
     if(typeof state.lineage!=='string'||!state.lineage||!Number.isInteger(state.serial)||state.serial<1)fail('STATE_READBACK_INVALID');
     const actual=JSON.parse(execute(['show','-json']));
     const output=JSON.parse(execute(['output','-json']));
-    const binding=output.business_storage_binding?.value;
-    const expected={project_id:'jenfu-platform-prod',project_number:'9536592944',region:'asia-east1',bucket:'jenfu-platform-prod-aipdm-files',runtime_identity:'aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com',permissions:['storage.objects.create','storage.objects.get'],...inputs.expectedInputs};
-    if(!binding||canonicalize({...binding,permissions:[...(binding.permissions??[])].sort()})!==canonicalize(expected)||canonicalize(actual.values?.outputs?.business_storage_binding?.value)!==canonicalize(binding))fail('OUTPUT_READBACK_INVALID');
-    if(actual.values?.root_module?.child_modules?.length)fail('STATE_EXTRA_MODULES');
-    const resources=actual.values?.root_module?.resources;
-    if(!Array.isArray(resources))fail('STATE_READBACK_INVALID');
-    assertDev121BusinessStoragePlan({variables:Object.fromEntries(Object.entries(inputs.expectedInputs).map(([key,value])=>[key,{value}])),resource_changes:resources.map(row=>({address:row.address,change:{actions:['no-op'],before:row.values,after:row.values,after_unknown:{}}}))},{profile:source.profile,expectedInputs:inputs.expectedInputs});
-    const getJson=async url=>{const response=await fetch(url,{method:'GET',redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${token}`}});return {status:response.status,body:response.status===200?await response.json():null};};
+    fs.writeFileSync(path.join(planDirectory,'post-apply-output.json'),JSON.stringify(output,null,2)+'\n',{flag:'wx'});
+    verifyStorageState(rawState,actual,output,source.profile,inputs.expectedInputs);
+    const getJson=storageGetJson(token);
     const provider=await (dependencies.resourceReadback??collectDev121BusinessStorageReadback)({getJson});
     if(provider.status!=='OWN_BUSINESS_STORAGE_RESOURCES_MATCH'||provider.ownResourcesVerified!==true)fail('PROVIDER_READBACK_INVALID');
-    fs.writeFileSync(path.join(planDirectory,'post-apply-state.json'),rawState,{flag:'wx'});
-    fs.writeFileSync(path.join(planDirectory,'post-apply-output.json'),JSON.stringify(output,null,2)+'\n',{flag:'wx'});
     Object.assign(journal,{status:'OWN_STORAGE_APPLIED_NOT_RELEASED',releaseId:bound.releaseId,stateLineage:state.lineage,stateSerial:state.serial,stateSha256:hash(rawState),outputSha256:hash(canonicalize(output)),provider,providerResourcesVerified:true});
     const uri=`gs://${RELEASE_BUCKET}/receipts/releases/${bound.releaseId}/business-storage/apply-${bound.binarySha256}.json`;
     const published=await (dependencies.publish??publishGcsJson)({uri,expectedBucket:RELEASE_BUCKET,expectedPrefix:'receipts/releases',value:journal,token});
     journal.providerReceiptRef={uri,sha256:published.sha256};write();return journal;
   }catch{
-    journal.status=applied?'APPLIED_READBACK_OR_RECEIPT_FAILED':'APPLY_OUTCOME_UNKNOWN';
+    journal.status=applied?'APPLIED_READBACK_OR_RECEIPT_FAILED':journal.applyAttempted?'APPLY_OUTCOME_UNKNOWN':'APPLY_NOT_STARTED_CLAIM_OR_PREFLIGHT_FAILED';
     journal.requiresProviderReadbackBeforeRetry=true;write();
     fail(journal.status);
   }
+}
+
+/** Read-only recovery observation; never clears a remote claim or applies.
+ * A matching state proves resource consistency, not who ran Terraform or L4. */
+export async function reconcileDev121BusinessStoragePlan({root,planRef,planDirectory,token},dependencies={}){
+  const env=storageTerraformEnvironment(token);
+  root=fs.realpathSync(root);planDirectory=fs.realpathSync(planDirectory);
+  const relative=path.relative(root,planDirectory);
+  if(relative===''||!relative.startsWith('..')&&!path.isAbsolute(relative))fail('OUTPUT_INSIDE_SOURCE');
+  const {object,bound}=await readBoundPlan({planRef,token,read:dependencies.readObject??readGcsObject});
+  const read=dependencies.readObject??readGcsObject;
+  const claimUri=`gs://${RELEASE_BUCKET}/receipts/releases/${bound.releaseId}/business-storage/claim-${bound.binarySha256}.json`;
+  const claimObject=await read({uri:claimUri,expectedBucket:RELEASE_BUCKET,expectedPrefix:'receipts/releases',token});
+  if(!Buffer.isBuffer(claimObject.bytes)||!/^[1-9][0-9]*$/u.test(String(claimObject.generation??'')))fail('REMOTE_CLAIM_READ_INVALID');
+  const claim=JSON.parse(claimObject.bytes);
+  if(claim.schemaVersion!=='jenfu.dev121.business-storage-apply-claim.v1'||claim.ownerApplicationId!=='ai-pdm'||claim.status!=='APPLY_STARTED'||canonicalize(claim.planRef)!==canonicalize(planRef)||claim.planGeneration!==String(object.generation)||claim.sourceRevision!==bound.sourceRevision||claim.binarySha256!==bound.binarySha256)fail('REMOTE_CLAIM_BINDING_INVALID');
+  const profile=dependencies.profile??JSON.parse(readGitBlob(root,'config/release/dev121-business-storage-plan.json',bound.sourceRevision));
+  const work=path.join(planDirectory,'terraform');
+  if(fs.lstatSync(work).isSymbolicLink()||backendSnapshot(work)!==bound.backendStateSha256)fail('BACKEND_DRIFT');
+  const cliConfig=path.join(planDirectory,'reconcile-terraform.rc');
+  const cliBytes='disable_checkpoint = true\n';
+  if(fs.existsSync(cliConfig)){
+    if(fs.lstatSync(cliConfig).isSymbolicLink()||fs.readFileSync(cliConfig,'utf8')!==cliBytes)fail('CLI_CONFIG_DRIFT');
+  }else fs.writeFileSync(cliConfig,cliBytes,{flag:'wx'});
+  Object.assign(env,{HOME:planDirectory,USERPROFILE:planDirectory,APPDATA:planDirectory,TF_CLI_CONFIG_FILE:cliConfig});
+  const execute=args=>(dependencies.terraform??runStorageTerraform)(args,{cwd:work,env});
+  const rawState=execute(['state','pull']);
+  const actual=JSON.parse(execute(['show','-json']));
+  const output=JSON.parse(execute(['output','-json']));
+  const state=verifyStorageState(rawState,actual,output,profile,bound.expectedInputs);
+  const provider=await (dependencies.resourceReadback??collectDev121BusinessStorageReadback)({getJson:storageGetJson(token)});
+  if(provider.status!=='OWN_BUSINESS_STORAGE_RESOURCES_MATCH'||provider.ownResourcesVerified!==true)fail('PROVIDER_READBACK_INVALID');
+  const result={schemaVersion:'jenfu.dev121.business-storage-reconciliation.v1',status:'RECONCILED_OWN_STORAGE_NOT_RELEASED',ownerApplicationId:'ai-pdm',planRef,claimRef:{uri:claimUri,sha256:hash(claimObject.bytes)},stateLineage:state.lineage,stateSerial:state.serial,stateSha256:hash(rawState),outputSha256:hash(canonicalize(output)),provider,releaseAuthority:false,effectiveInheritedIamVerified:false,applyExecuted:'UNKNOWN',applyInvoked:false,claimRetained:true,cloudMutations:0};
+  const receiptPath=path.join(planDirectory,`reconcile-${randomUUID()}.json`);
+  fs.writeFileSync(receiptPath,JSON.stringify(result,null,2)+'\n',{flag:'wx'});
+  return {...result,receiptPath};
 }
