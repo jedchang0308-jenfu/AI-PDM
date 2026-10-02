@@ -1,4 +1,5 @@
 ## 2026-10-02 R30 業務儲存來源準備（未建立資源、未發布）
+**業務儲存計畫內容續修（現行）：** `scripts/lib/dev121-business-storage-plan.mjs` 使用既有完整address/action checker，新增actual after/private target/GA role/get-create/runtime scope/soft-delete/unknown拒絕與no-op before核對，以及四個expected input精確比對；22項純JSON安全負例與targeted lint/fmt通過，加入既有CI job，不新增人工gate。IAM role名稱改固定exact字串並保留custom role建立dependency，避免第一次plan用computed name而無法核對。結果只標PLAN_CONTENT_PASS，releaseAuthority=false/providerProvenanceVerified=false；目前已補plan內容缺口，下方先前僅7個地址情境為歷史讀點。既有backend的原始provider metadata已核對project number／region／PAP／UBLA／versioning（JENFU受控output，未讀state object）；仍缺真正owner artifacts導出的bindings、official source/saved binary plan hash、live business resources/effective inherited IAM producer與apply整合；費用pending，沒有正式plan/apply或GCS啟用。不得用合成JSON宣稱Production可發布。
 
 PR183 已於 03:26Z 合併 protected main `46587ce7045d11028b30f2a056f3e2de0db04fc2`，exact head a27854ecb 的 CI36959681703 PostgreSQL／Slice皆成功，actual isolated build artifact/primary/cleanup PASS；來源接受不等於正式業務通過。Jed 查詢／建立／編輯的既有 R26 證據保留，附件／背景／技轉尚須完成 Production L4。
 

@@ -2,7 +2,7 @@
 
 ## DEV-121 R30 現行交付（2026-10-02，本機及真實 PostgreSQL 整合通過，未發布）
 
-現行施工以 [DEV-121 R30 契約](specs/DEV-121-target-authorization-boundary.md) 的背景來源續修首段為準；holder-only source HTTP與兩個正常preview worker已本機修正，PG/HTTP獨立worker續批7案已通過並清理，尚待native extraction與live GCS。PR183已合併main46587ce7045d，a27854ecb兩項required CI與完整build通過，未發布；專用業務儲存root/profile僅來源準備（費用待決，未init/plan/apply），詳見契約首段；下方 R20 及更早讀點保留歷史，不是另一套待執行佇列。Jed 管理 Principal 須能依已發布 rd／rd_manager／pdm_admin 與公司／資源範圍完成日常 PDM 工作，不增加管理員 bypass。
+現行施工以 [DEV-121 R30 契約](specs/DEV-121-target-authorization-boundary.md) 的背景來源續修首段為準；holder-only source HTTP與兩個正常preview worker已本機修正，PG/HTTP獨立worker續批7案已通過並清理，尚待native extraction與live GCS。PR183已合併main46587ce7045d，a27854ecb兩項required CI與完整build通過，未發布；專用業務儲存root/profile與actual plan-content checker已準備，22項純JSON負例與targeted lint/fmt通過；owner真實bindings/readback/費用仍待，未init/plan/apply，詳見契約首段；下方 R20 及更早讀點保留歷史，不是另一套待執行佇列。Jed 管理 Principal 須能依已發布 rd／rd_manager／pdm_admin 與公司／資源範圍完成日常 PDM 工作，不增加管理員 bypass。
 
 整批附件候選涵蓋正常清單、上傳、canonical 下載、刪除／還原／重播、preview 命令與背景完成契約。正常下載已修正 page／action 分類不一致；命令以 verified Principal 授權，owner bytes 與稽核先於檔案交付。完整 OrgMaster producer→AI-PDM disposable PostgreSQL 已驗證指派／撤權／scope 及實際附件 HTTP 操作，仍使用 synthetic session；隔離 build 與受影響回歸通過，既有 CI job 納入測例，不新增人工 gate。
 

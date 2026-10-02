@@ -48,5 +48,6 @@
     "Secret",
     "project-wide IAM binding",
     "other owner resources"
-  ]
+  ],
+  "planContentValidatorRef": "scripts/lib/dev121-business-storage-plan.mjs#assertDev121BusinessStoragePlan"
 }

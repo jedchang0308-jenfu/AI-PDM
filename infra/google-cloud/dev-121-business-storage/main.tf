@@ -44,6 +44,7 @@ resource "google_storage_bucket" "business" {
 resource "google_project_iam_custom_role" "business_objects" {
   project     = local.project_id
   role_id     = "aipdmBusinessImmutableObjects"
+  stage       = "GA"
   title       = "AI-PDM immutable business objects"
   description = "Create and generation-pinned get only; no list, overwrite, delete or signing."
   permissions = ["storage.objects.create", "storage.objects.get"]
@@ -51,9 +52,10 @@ resource "google_project_iam_custom_role" "business_objects" {
 }
 
 resource "google_storage_bucket_iam_member" "runtime_objects" {
-  bucket = google_storage_bucket.business.name
-  role   = google_project_iam_custom_role.business_objects.name
-  member = "serviceAccount:${data.google_service_account.runtime.email}"
+  bucket     = google_storage_bucket.business.name
+  role       = "projects/jenfu-platform-prod/roles/aipdmBusinessImmutableObjects"
+  member     = "serviceAccount:${data.google_service_account.runtime.email}"
+  depends_on = [google_project_iam_custom_role.business_objects]
   lifecycle { prevent_destroy = true }
 }
 
