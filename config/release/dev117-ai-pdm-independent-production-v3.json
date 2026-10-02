@@ -146,6 +146,10 @@
       "PDM_UNIFIED_PART_RELATION_WORKBENCH_V1",
       "PDM_UNIFIED_ENTITY_DETAIL_V1",
       "PDM_DRAWING_REVISION_LIFECYCLE_MODE",
+      "PDM_STORAGE_PROVIDER",
+      "PDM_GCS_PROJECT_ID",
+      "PDM_GCS_BUCKET",
+      "PDM_GCS_LIVE_ENABLED",
       "PDM_SMOKE_GCS_WRITER",
       "PDM_SMOKE_OUTBOX_CONSUMER",
       "PDM_SMOKE_EXTERNAL_NOTIFICATION",
@@ -236,7 +240,11 @@
       "PDM_SESSION_AUDIENCE": "ai-pdm-production",
       "PDM_SESSION_CURRENT_KEY_ID": "production-session-v1",
       "PDM_SESSION_PREVIOUS_KEY_ID": "production-session-v0",
-      "PDM_JENFU_SSO_BROKER_ORIGIN": "https://jenfu-platform-prod-9536592944.asia-east1.run.app"
+      "PDM_JENFU_SSO_BROKER_ORIGIN": "https://jenfu-platform-prod-9536592944.asia-east1.run.app",
+      "PDM_STORAGE_PROVIDER": "google_cloud_storage",
+      "PDM_GCS_PROJECT_ID": "jenfu-platform-prod",
+      "PDM_GCS_BUCKET": "jenfu-platform-prod-aipdm-files",
+      "PDM_GCS_LIVE_ENABLED": "1"
     },
     "controlledValues": {
       "PDM_JENFU_SSO_HANDOFF_MODE": {

@@ -380,6 +380,40 @@ describe.skipIf(!enabled || phase !== "flow" || !nativePreviewFixture)("full-own
     expect(path.isAbsolute(nativePreviewFixture)).toBe(true);
     const source = await readFile(nativePreviewFixture);
     const sourceHash = createHash("sha256").update(source).digest("hex");
+    if (process.env.PDM_DEV121_NATIVE_PREVIEW_READBACK === "1") {
+      // This branch runs in a new Vitest process against the retained isolated
+      // database/repository, with no upload, worker launch or direct job seed.
+      const assets = await database.query<{ id: string }>(`SELECT id FROM ai_pdm_core.file_assets
+        WHERE linked_entity_type='part_number' AND linked_entity_id='part-org-native'
+          AND deleted_at IS NULL`);
+      expect(assets).toHaveLength(1);
+      const assetId = assets[0].id;
+      const jobs = await database.query<{ id: string; status: string }>(`SELECT id,status
+        FROM ai_pdm_core.preview_jobs WHERE source_file_asset_id=:assetId`, { assetId });
+      expect(jobs).toEqual([expect.objectContaining({ status: "succeeded" })]);
+      const derivatives = await database.query<{ id: string; content_hash: string }>(`SELECT id,content_hash
+        FROM ai_pdm_core.file_derivatives WHERE preview_job_id=:jobId`, { jobId: jobs[0].id });
+      expect(derivatives).toHaveLength(1);
+      const { GET: previews } = await import("@/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route");
+      const preview = await previews(apiRequest(`/api/parts/QF057-P02/attachments/${assetId}/previews`, reviewerToken),
+        { params: Promise.resolve({ partNumber: "QF057-P02", attachmentId: assetId }) });
+      expect(preview.status, await preview.clone().text()).toBe(200);
+      const metadata = await preview.json();
+      expect(metadata.job.status).toBe("succeeded");
+      expect(metadata.derivatives).toHaveLength(1);
+      const { GET: download } = await import("@/app/api/pdm/file-assets/[fileAssetId]/route");
+      const query = new URLSearchParams({ context: "part_attachment", contextId: "part-org-native", bindingId: assetId });
+      const original = await download(apiRequest(`/api/pdm/file-assets/${assetId}?${query}`, reviewerToken),
+        { params: Promise.resolve({ fileAssetId: assetId }) });
+      expect(original.status, await original.clone().text()).toBe(200);
+      expect(createHash("sha256").update(Buffer.from(await original.arrayBuffer())).digest("hex")).toBe(sourceHash);
+      query.set("previewDerivative", derivatives[0].id);
+      const rendered = await download(apiRequest(`/api/pdm/file-assets/${assetId}?${query}`, reviewerToken),
+        { params: Promise.resolve({ fileAssetId: assetId }) });
+      expect(rendered.status, await rendered.clone().text()).toBe(200);
+      expect(createHash("sha256").update(Buffer.from(await rendered.arrayBuffer())).digest("hex")).toBe(derivatives[0].content_hash);
+      return;
+    }
     const { POST: uploadRoute } = await import("@/app/api/parts/[partNumber]/attachments/route");
     const form = new FormData();
     form.set("file", new File([new Uint8Array(source)], "fixture.sldprt", { type: "application/octet-stream" }));
@@ -387,11 +421,20 @@ describe.skipIf(!enabled || phase !== "flow" || !nativePreviewFixture)("full-own
     const key = "dev057-full-owner-native-upload";
     const upload = await uploadRoute(new Request("https://ai-pdm.test/api/parts/QF057-P02/attachments", {
       method: "POST", headers: { cookie: `pdm_session=${reviewerToken}`,
-        origin: "https://ai-pdm.test", "idempotency-key": key }, body: form
+        origin: "https://ai-pdm.test", "idempotency-key": key, "x-correlation-id": "dev057-native-upload-correlation" }, body: form
     }), { params: Promise.resolve({ partNumber: "QF057-P02" }) });
     expect(upload.status, await upload.clone().text()).toBe(201);
     const uploaded = await upload.json();
     expect(uploaded.attachment.id).toBeTruthy();
+    const replayForm = new FormData();
+    replayForm.set("file", new File([new Uint8Array(source)], "fixture.sldprt", { type: "application/octet-stream" }));
+    replayForm.set("document_category", "other");
+    const replay = await uploadRoute(new Request("https://ai-pdm.test/api/parts/QF057-P02/attachments", {
+      method: "POST", headers: { cookie: `pdm_session=${reviewerToken}`, origin: "https://ai-pdm.test",
+        "idempotency-key": key, "x-correlation-id": "dev057-native-upload-correlation" }, body: replayForm
+    }), { params: Promise.resolve({ partNumber: "QF057-P02" }) });
+    expect(replay.status, await replay.clone().text()).toBe(201);
+    expect(await replay.json()).toEqual(uploaded);
     const queued = await database.query<{ id: string; metadata_json: string; source_content_hash: string }>(`
       SELECT id,metadata_json,source_content_hash FROM ai_pdm_core.preview_jobs
       WHERE source_file_asset_id=:assetId`, { assetId: uploaded.attachment.id });

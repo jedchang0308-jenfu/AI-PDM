@@ -103,5 +103,85 @@
     "productionVerified": false,
     "releaseAuthority": false,
     "cleanup": "R59 runtime and lease release receipts in JENFU output"
+  },
+  "nativeAttachmentReadback": {
+    "batch": "R62",
+    "status": "PASS_LOCAL_INTEGRATION_NOT_RELEASED",
+    "manifest": "JENFU/DEV-015 output/dev-012/inputs/dev015-r62-full-owner-native.json",
+    "manifestSha256": "8f1723d9a1c27aafd5654136c00822e98307cfc6214d5b09f9ba2a59159cbbf0",
+    "sourceFiles": {
+      "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs": "cdc203e1b5ca4f436523b8e2497c7399a425f763a99c6544d758dfa6c62209c0",
+      "src/lib/transfer-package-principal-grants-v4.postgres-contract.test.ts": "75f99b47bcdd2955983a31d7f7958bc938a57a2a11857155abefade85c709f6c"
+    },
+    "verified": [
+      "Actual identical multipart Principal upload replay returns same payload, one command receipt/outbox/job",
+      "Owner readback exact Principal/company/correlation, v2 receipt envelope/actor binding, result/aggregate ID and content hash",
+      "Actual native worker heartbeat ready with exact reader version and no issue",
+      "Separate fresh Vitest process uses normal Principal preview metadata and original/derivative download API; both hashes preserved",
+      "Both published personal/privileged business actors under actual Org001-029 plus AI076 PG18.4"
+    ],
+    "instrumentationCorrection": "R60 owner metadata_json TEXT parsed explicitly; R60 failure preserved, R61 first readback PASS, R62 full assertions PASS",
+    "session": "Synthetic verified AAL1 input, not real provider proof",
+    "storage": "Task-local repository, not Production GCS durability or Production L4",
+    "productionVerified": false,
+    "releaseAuthority": false,
+    "grantBoundaryFailures": 7,
+    "threshold": 8,
+    "cleanup": "Clients/cluster/port/temp cleaned; exact runtime/lease release receipts in JENFU output",
+    "delivery": "Unpushed local batch per human request to reduce PR/CI cycles",
+    "review": "Codex Luna read-only review: stated receipt/outbox/correlation/replay/heartbeat/fresh-process gaps covered, no blocking finding; did not independently run tests"
+  },
+  "businessStorageRuntimeBinding": {
+    "batch": "R63",
+    "scope": "LOCAL_SOURCE_CONTRACT",
+    "productionVerified": false,
+    "releaseAuthority": false,
+    "usageCostDecision": {
+      "humanAcceptedAt": "2026-10-03",
+      "monthlyTargetUsd": 10,
+      "hardCap": false
+    },
+    "bindings": {
+      "PDM_STORAGE_PROVIDER": "google_cloud_storage",
+      "PDM_GCS_PROJECT_ID": "jenfu-platform-prod",
+      "PDM_GCS_BUCKET": "jenfu-platform-prod-aipdm-files",
+      "PDM_GCS_LIVE_ENABLED": "1"
+    },
+    "sourceFiles": [
+      {
+        "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+        "sha256": "90fba9131656729b983624edd0f6ad0cda3294336086a8c42bbf23edfa89cb4c"
+      },
+      {
+        "path": "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+        "sha256": "d1846eb6d650af7e9cd4becfd3b2fb6d5f1d79ba0ca77732825514f7f487c2bd"
+      },
+      {
+        "path": "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+        "sha256": "af3bd4360fa42dac60765c6f68a0ec800909d8c2c41f539dc9f7f34c98539693"
+      }
+    ],
+    "validation": {
+      "continuousTests": "PASS 102",
+      "continuousQc": "PASS",
+      "abortController": "PASS 6",
+      "databaseBoundary": "PASS",
+      "typecheckApp": "PASS",
+      "isolatedBuild": "PASS primary invariant unchanged; cleanup=true",
+      "finalTargetedProfileTests": "PASS 15 after review correction"
+    },
+    "ownerQcReport": "output/dev-117/s1b/DEV117-S1B-20261002T171606410Z-8524E66B/owner-report.json",
+    "remaining": [
+      "fresh protected-source owner package",
+      "actual saved plan/apply/provider readback",
+      "effective inherited runtime IAM",
+      "Production generation-pinned Principal upload/replay/download/worker and full L4"
+    ],
+    "review": {
+      "scope": "read-only source review; tests executed separately by primary agent",
+      "result": "PASS for fixed own GCS env and runtime template validation",
+      "correction": "use actual NEXT_PUBLIC_GCS_BUCKET negative case; reject each missing fixed value",
+      "remaining": "Provider storage apply/readback and effective IAM must be verified before candidate deployment; runtime template hash is not resource proof."
+    }
   }
 }

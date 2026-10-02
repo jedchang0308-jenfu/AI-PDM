@@ -289,10 +289,7 @@ try {
   }
   const consumer = new URL(ownerUrl); consumer.username = 'dev057_ai_pdm_consumer_probe';
   const transferProbe = process.env.DEV057_NATIVE_TRANSFER_PROBE === '1';
-  const result = run(process.execPath, [path.join(root,'node_modules/vitest/vitest.mjs'),'run',
-    transferProbe ? 'src/lib/transfer-package-principal-grants-v4.postgres-contract.test.ts'
-      : review ? 'src/lib/principal-work-review-owner-grant.postgres-contract.test.ts'
-        : 'src/lib/principal-numbering-owner-grant.postgres-contract.test.ts'], {
+  const probeOptions = {
     env: { ...process.env,
       ...(transferProbe ? {
         DEV057_NUMBERING_PRINCIPAL_ID: actorTuple.principalId,
@@ -312,7 +309,54 @@ try {
       JENFU_IDENTITY_AUDIENCE:'dev057-synthetic',JENFU_IDENTITY_ISSUER:'https://securetoken.google.com/dev057-synthetic',
       PDM_SESSION_ISSUER:'https://ai-pdm.test',PDM_SESSION_AUDIENCE:'dev057-numbering-qc',
       PDM_SESSION_CURRENT_KEY_ID:'dev057-qc-key',PDM_SESSION_CURRENT_SECRET:'task-owned-synthetic-session-secret-for-local-qc-only' }
-  });
+  };
+  const probeFile = transferProbe ? 'src/lib/transfer-package-principal-grants-v4.postgres-contract.test.ts'
+    : review ? 'src/lib/principal-work-review-owner-grant.postgres-contract.test.ts'
+      : 'src/lib/principal-numbering-owner-grant.postgres-contract.test.ts';
+  const result = run(process.execPath, [path.join(root,'node_modules/vitest/vitest.mjs'),'run',probeFile],probeOptions);
+  if (transferProbe && process.env.DEV057_CONTRACT_PHASE === 'flow' && process.env.PDM_DEV121_NATIVE_PREVIEW_FIXTURE) {
+    const restart = run(process.execPath,[path.join(root,'node_modules/vitest/vitest.mjs'),'run',probeFile,
+      '-t','full-owner attachment native worker composition'],{
+      ...probeOptions,env:{...probeOptions.env,PDM_DEV121_NATIVE_PREVIEW_READBACK:'1'}
+    });
+    assert.match(restart.stdout,/Tests\s+1 passed/u,'fresh process must execute the native attachment readback');
+    const receipts = await target.query(`SELECT principal_id,company_id,command_status,correlation_id,response_json
+      FROM ai_pdm_core.platform_command_receipts
+      WHERE command_name='pdm.master_attachment.upload' AND idempotency_key='dev057-full-owner-native-upload'`);
+    assert.equal(receipts.rows.length,1);
+    const receipt=receipts.rows[0];
+    assert.equal(receipt.principal_id,actorTuple.principalId);
+    assert.equal(receipt.company_id,'company-jenfu');
+    assert.equal(receipt.command_status,'completed');
+    const events=await target.query(`SELECT principal_id,company_id,aggregate_id,correlation_id,payload_json
+      FROM ai_pdm_core.platform_outbox_events
+      WHERE event_type='pdm.master_attachment.upload' AND idempotency_key='dev057-full-owner-native-upload'`);
+    assert.equal(events.rows.length,1);
+    assert.equal(events.rows[0].principal_id,actorTuple.principalId);
+    assert.equal(events.rows[0].company_id,receipt.company_id);
+    assert.equal(events.rows[0].correlation_id,receipt.correlation_id);
+    assert.equal(events.rows[0].aggregate_id,events.rows[0].payload_json.attachmentId);
+    assert.equal(receipt.correlation_id,'dev057-native-upload-correlation');
+    const envelope=typeof receipt.response_json === 'string' ? JSON.parse(receipt.response_json) : receipt.response_json;
+    assert.equal(envelope.__platformCommandReceiptVersion,2);
+    assert.deepEqual(envelope.actorBinding,{version:2,actorKind:'human',principalId:actorTuple.principalId,companyId:'company-jenfu'});
+    assert.equal(envelope.result.id,events.rows[0].aggregate_id);
+    assert.equal(envelope.result.contentHash,hash(fs.readFileSync(process.env.PDM_DEV121_NATIVE_PREVIEW_FIXTURE)));
+    const heartbeats=await target.query(`SELECT worker_kind,status,reader_version,issue_code
+      FROM ai_pdm_core.worker_capability_heartbeats
+      WHERE worker_id='dev057-native-worker' AND capability_code='solidworks_3d_preview_png'`);
+    assert.deepEqual(heartbeats.rows,[{worker_kind:'solidworks-3d-preview',status:'ready',
+      reader_version:'windows-shell-ishellitemimagefactory-v2',issue_code:null}]);
+    const jobs=await target.query(`SELECT status,metadata_json FROM ai_pdm_core.preview_jobs
+      WHERE source_file_asset_id=$1`,[events.rows[0].aggregate_id]);
+    assert.equal(jobs.rows.length,1);
+    assert.equal(jobs.rows[0].status,'succeeded');
+    const metadata = typeof jobs.rows[0].metadata_json === 'string'
+      ? JSON.parse(jobs.rows[0].metadata_json) : jobs.rows[0].metadata_json;
+    assert.deepEqual(metadata.initiator,{kind:'verified_principal',principalId:actorTuple.principalId});
+    console.log('PASS full-owner attachment receipt/outbox Principal and fresh process download/preview readback');
+  }
+
   if (transferProbe) {
     // Receipt storage is deliberately not readable by runtime. Verify absence
     // or uniqueness with the harness owner only, without widening runtime ACL.

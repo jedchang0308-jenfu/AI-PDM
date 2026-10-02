@@ -1,5 +1,14 @@
 # DEV-121 business storage source preparation
 
+## R63 現行來源批次與費用決定（2026-10-03；尚未發布／套用）
+
+使用者已接受正式附件專用儲存用量費用，以每月 US$10 為初期預算目標（非硬上限），並授權繼續完成上線。下方 R42 的費用 pending 記述保留為當時歷史，現行阻礙是尚無 fresh source-bound owner package、actual saved plan/apply/provider readback 與 effective inherited IAM 證據。
+
+同一未推送批次同步補齊 V3 profile、嚴格驗證器及 runtime template 回歸：`PDM_STORAGE_PROVIDER=google_cloud_storage`、`PDM_GCS_PROJECT_ID=jenfu-platform-prod`、`PDM_GCS_BUCKET=jenfu-platform-prod-aipdm-files`、`PDM_GCS_LIVE_ENABLED=1`。拒絕本機 provider、legacy project、release／sibling bucket、disabled adapter、缺欄與 credential env。這些來源值不是 bucket 存在或 IAM 的證明；尚未 deploy、建立資源或切流。發布仍須沿既有 owner prerequisites 核對實際 storage apply/readback 與 effective IAM，不能只憑 runtime template hash 啟用。
+
+本批與 R62 的完整附件命令／事件／worker／fresh-process 讀回一起整合，再集中 PR；不按微小修改逐次推送。正式 GCS 的 generation-pinned Principal 上傳、重播、下載與背景 worker 驗證仍為未完成事項。
+
+
 ## R42 現行執行入口（本機候選，未發布／未執行）
 
 沿同一 `scripts/dev121-business-storage-saved-plan.mjs`：prepare CLI不變；驗證actual saved binary及source/backend後，使用既有write-once GCS publisher將無credential的plan收據發至 own release bucket `receipts/releases/<releaseId>/business-storage/plan-<binarySha256>.json`，並讀回bytes/hash/generation。固定workspace為default；backend access token/key/impersonation/custom endpoint不寫檔，backend metadata hash另綁定於收據。新成功狀態是 `SAVED_PLAN_PROVIDER_BOUND_NOT_APPLIED`；本機 `saved-plan.json` 不提供apply權威。

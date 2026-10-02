@@ -4,9 +4,10 @@ import fs from 'node:fs'
 import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, assertDev121MigrationOnlyWorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117MigrationPackage, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
-import { assertProtectedGitHubContext, buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
+import { assertProtectedGitHubContext, assertRuntimeConfig, buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
+import { canonicalize } from './lib/dev012-production-migration-runner.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
@@ -132,6 +133,59 @@ test('S1B-20 AI-PDM v3 direct-run profile and strict v1 retention', () => {
   assert.throws(() => resolvePlainEnvironment(profile, priorPlainEnvironment, { PDM_JENFU_SSO_HANDOFF_MODE: 'accept' }), /RUNTIME_CONFIG_READBACK_MISMATCH/u)
   assert.equal(Object.keys(LEGACY_STRICT_VALIDATORS).length, 5)
   assert.ok(Object.values(LEGACY_STRICT_VALIDATORS).every((fn) => typeof fn === 'function'))
+})
+
+test('DEV-121 business storage runtime binds the own bucket and rejects local or credential fallback', () => {
+  const bindings = {
+    PDM_STORAGE_PROVIDER: 'google_cloud_storage',
+    PDM_GCS_PROJECT_ID: 'jenfu-platform-prod',
+    PDM_GCS_BUCKET: 'jenfu-platform-prod-aipdm-files',
+    PDM_GCS_LIVE_ENABLED: '1',
+  }
+  const previous = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
+    .filter(name => !Object.hasOwn(profile.environment.fixedValues, name) && !Object.hasOwn(profile.environment.controlledValues, name))
+    .map(name => [name, 'fixture-public-value']))
+  const runtime = buildRuntimeConfig(profile, {
+    plainEnvironment: resolvePlainEnvironment(profile, previous),
+    secretVersions: Object.fromEntries(profile.environment.requiredSecretNames.map(name => [name, '1'])),
+  })
+  assertRuntimeConfig(profile, runtime)
+  const application = runtime.template.containers.find(container => container.name === profile.runtime.containerName)
+  for (const [name, value] of Object.entries(bindings)) {
+    assert.equal(runtime.plainEnvironment[name], value)
+    assert.deepEqual(application.env.filter(entry => entry.name === name), [{ name, value }])
+    const missing = structuredClone(profile)
+    missing.environment.requiredPlainEnvironmentNames = missing.environment.requiredPlainEnvironmentNames.filter(key => key !== name)
+    assert.throws(() => assertDev117V3Profile(missing, v1, n1c), { code: 'ENVIRONMENT_SET_DRIFT' })
+    const missingFixedValue = structuredClone(profile)
+    delete missingFixedValue.environment.fixedValues[name]
+    assert.throws(() => assertDev117V3Profile(missingFixedValue, v1, n1c), { code: 'ENVIRONMENT_VALUE_DRIFT' })
+    const missingRuntime = structuredClone(runtime)
+    delete missingRuntime.plainEnvironment[name]
+    assert.throws(() => assertRuntimeConfig(profile, missingRuntime), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+  }
+  for (const [name, value] of [
+    ['PDM_STORAGE_PROVIDER', 'local_repository'],
+    ['PDM_GCS_PROJECT_ID', 'jenfu-ai-pdm-prod'],
+    ['PDM_GCS_BUCKET', profile.artifact.releaseBucket],
+    ['PDM_GCS_BUCKET', 'jenfu-platform-prod-orgmaster-release'],
+    ['PDM_GCS_LIVE_ENABLED', '0'],
+  ]) {
+    const drift = structuredClone(profile)
+    drift.environment.fixedValues[name] = value
+    assert.throws(() => assertDev117V3Profile(drift, v1, n1c), { code: 'ENVIRONMENT_VALUE_DRIFT' })
+    assert.throws(() => resolvePlainEnvironment(profile, { ...previous, [name]: value }), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+    const forgedRuntime = structuredClone(runtime)
+    forgedRuntime.plainEnvironment[name] = value
+    forgedRuntime.template.containers.find(container => container.name === profile.runtime.containerName)
+      .env.find(entry => entry.name === name).value = value
+    forgedRuntime.serviceTemplateSha256 = sha256(canonicalize(forgedRuntime.template))
+    assert.throws(() => assertRuntimeConfig(profile, forgedRuntime), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+  }
+  for (const name of ['GOOGLE_APPLICATION_CREDENTIALS', 'PDM_GCS_ACCESS_TOKEN', 'NEXT_PUBLIC_GCS_BUCKET']) {
+    assert.ok(!profile.environment.requiredPlainEnvironmentNames.includes(name))
+    assert.throws(() => resolvePlainEnvironment(profile, { ...previous, [name]: 'forbidden' }), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+  }
 })
 
 test('AI-PDM owner prepare requires sealed DEV-013 authority before handoff on', () => {
