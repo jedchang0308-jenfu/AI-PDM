@@ -1,9 +1,10 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   withVerified: vi.fn(), evaluate: vi.fn(), getReview: vi.fn(),
   getApprovalDetail: vi.fn(), queryOne: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
-  readObject: vi.fn(), legacyAuthorization: vi.fn()
+  readObject: vi.fn(), audit: vi.fn(), createDownload: vi.fn(), legacyAuthorization: vi.fn()
 }));
 const tx = { kind: "postgres", transactionScope: "postgres", queryOne: mocks.queryOne };
 vi.mock("@/lib/db-async-provider", async (importOriginal) => ({
@@ -39,13 +40,14 @@ vi.mock("@/lib/pdm-review-package", async (importOriginal) => ({
 vi.mock("@/lib/file-storage", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/file-storage")>(),
   storagePointerFromRecord: () => ({ key: "object-one" }),
-  createFileStorageServiceForPointer: () => ({ readObject: mocks.readObject })
+  createFileStorageServiceForPointer: () => ({ readObject: mocks.readObject, createDownloadUrl: mocks.createDownload })
 }));
 vi.mock("@/lib/auth-async", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/auth-async")>(),
   requirePdmRouteAuthorizationAsync: mocks.legacyAuthorization
 }));
 
+vi.mock("@/lib/storage-access-audit", () => ({ auditStorageAccess: mocks.audit }));
 import { GET } from "@/app/api/pdm/file-assets/[fileAssetId]/route";
 
 function request(context = "review_package") {
@@ -63,12 +65,16 @@ function request(context = "review_package") {
 }
 const params = { params: Promise.resolve({ fileAssetId: "asset-one" }) };
 const source = { id: "asset-one", company_id: "company-one",
-  linked_entity_id: "drawing-one", content_hash: "hash-one",
+  linked_entity_id: "drawing-one", content_hash: createHash("sha256").update("review-file").digest("hex"),
   storage_provider: "test", storage_key: "object-one",
   file_name: "drawing.pdf", file_ext: "pdf", mime_type: "application/pdf" };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.audit.mockResolvedValue(undefined);
+  mocks.createDownload.mockResolvedValue({ provider:"local_repository", bucket:null, key:"object-one",
+    mode:"server_stream", url:null, expiresAt:null, expiresInSeconds:0,
+    authorizationHeaderRequired:true, auditRequired:true });
   mocks.withVerified.mockImplementation(async (_input, evaluate) => evaluate(tx, {
     profile: { pdmUserId: "profile-one", companyId: "company-one" },
     session: { principalId: "principal-one", assuranceLevel: "aal1" }
@@ -87,7 +93,7 @@ beforeEach(() => {
     ? { snapshot_payload: {}, snapshot_hash: "package-hash" } : source);
   mocks.verifyPackage.mockReturnValue({ targets: [{ targetKey: "drawing:drawing-one",
     workspace: { files: [{ bindingId: "binding-one", sourceFileAssetId: "asset-one",
-      contentHash: "hash-one" }], attachments: [] } }] });
+      contentHash: createHash("sha256").update("review-file").digest("hex") }], attachments: [] } }] });
   mocks.readObject.mockResolvedValue(Buffer.from("review-file"));
 });
 
@@ -203,7 +209,7 @@ describe("principal review package file read", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("review-file");
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, expect.any(Object), [
-      { permissionKind: "action", permissionCode }
+      { permissionKind: "page", permissionCode }
     ]);
     expect(mocks.getReview).not.toHaveBeenCalled();
     expect(mocks.legacyAuthorization).not.toHaveBeenCalled();
@@ -257,4 +263,41 @@ describe("principal review package file read", () => {
     expect(mocks.queryOne).not.toHaveBeenCalled();
     expect(mocks.readObject).not.toHaveBeenCalled();
   });
+});
+
+it("refuses replaced bytes even when their length matches the authorized source", async () => {
+  mocks.readObject.mockResolvedValueOnce(Buffer.from("other-file!"));
+  const response = await GET(request(), params);
+  expect(response.status).toBe(503);
+  expect(await response.text()).not.toContain("other-file!");
+});
+
+it("refuses bytes whose size differs from the owner record", async () => {
+  mocks.queryOne.mockImplementation(async (sql: string) =>
+    sql.includes("snapshot_payload, snapshot_hash")
+      ? { snapshot_payload: {}, snapshot_hash: "package-hash" }
+      : { ...source, file_size: 999 });
+  expect((await GET(request(), params)).status).toBe(503);
+});
+it("records the verified Principal and company only after bytes match", async () => {
+  expect((await GET(request(), params)).status).toBe(200);
+  expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({
+    principalId:"principal-one", historicalProfileId:"profile-one", companyId:"company-one",
+    accessKind:"canonical_file", fileId:"asset-one", bytes:11,
+    resourceContext:expect.objectContaining({context:"review_package", bindingId:"binding-one"})
+  }));
+  expect(mocks.readObject.mock.invocationCallOrder[0]).toBeLessThan(mocks.audit.mock.invocationCallOrder[0]);
+});
+
+it("does not deliver bytes when audit persistence fails", async () => {
+  mocks.audit.mockRejectedValueOnce(new Error("audit unavailable"));
+  const response = await GET(request(), params);
+  expect(response.status).toBe(503);
+  expect(await response.text()).not.toContain("review-file");
+});
+
+it("does not write a successful access audit for corrupt bytes", async () => {
+  mocks.readObject.mockResolvedValueOnce(Buffer.from("other-file!"));
+  expect((await GET(request(), params)).status).toBe(503);
+  expect(mocks.audit).not.toHaveBeenCalled();
 });

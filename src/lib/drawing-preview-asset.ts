@@ -2,6 +2,7 @@ import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 
 export type DrawingPreviewSource = {
   id: string;
+  company_id: string;
   storage_provider: string | null;
   storage_bucket: string | null;
   storage_key: string | null;
@@ -10,10 +11,12 @@ export type DrawingPreviewSource = {
   file_ext: string;
   mime_type: string | null;
   content_hash: string | null;
+  file_size?: number | string | null;
 };
 
 type DrawingPreviewDerivative = {
   id: string;
+  company_id: string;
   storage_provider: string;
   storage_bucket: string | null;
   storage_key: string;
@@ -21,6 +24,7 @@ type DrawingPreviewDerivative = {
   file_name: string;
   mime_type: string;
   content_hash: string;
+  file_size?: number | string | null;
   source_content_hash: string;
   generator_profile: string;
   generator_version: string | null;
@@ -48,11 +52,12 @@ export async function resolveDrawingPreviewAsync(
 
   const derivative = await client.queryOne<DrawingPreviewDerivative>(
     `
-      SELECT id, storage_provider, storage_bucket, storage_key, original_path,
-             file_name, mime_type, content_hash, source_content_hash,
+      SELECT id, company_id, storage_provider, storage_bucket, storage_key, original_path,
+             file_name, mime_type, file_size, content_hash, source_content_hash,
              generator_profile, generator_version
       FROM file_derivatives
       WHERE source_file_asset_id = :sourceFileAssetId
+        AND company_id = :companyId
         AND id = COALESCE(:derivativeId, id)
         AND status = 'ready'
         AND derivative_kind IN ('model_preview_png', 'thumbnail_png', 'drawing_pdf', 'sheet_png')
@@ -65,9 +70,9 @@ export async function resolveDrawingPreviewAsync(
       END, created_at DESC
       LIMIT 1
     `,
-    { sourceFileAssetId: source.id, derivativeId: options.derivativeId ?? null, allowFake: options.allowFake ? 1 : 0 }
+    { sourceFileAssetId: source.id, companyId: source.company_id, derivativeId: options.derivativeId ?? null, allowFake: options.allowFake ? 1 : 0 }
   );
-  if (!derivative) return null;
+  if (!derivative || derivative.company_id !== source.company_id) return null;
   if (source.content_hash && derivative.source_content_hash !== source.content_hash) return null;
   return { record: derivative, fileName: derivative.file_name || source.file_name || "圖面附件", mimeType: derivative.mime_type };
 }

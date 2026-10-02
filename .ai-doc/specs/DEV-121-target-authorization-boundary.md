@@ -1,4 +1,66 @@
-## 2026-10-02 R26 矩陣自動儲存狀態（現行施工）
+## 2026-10-02 R30 背景來源契約續修（本機候選，未發布）
+
+本段為最新施工補充；正式仍 R26。正常 Windows Shell 與 Document Manager preview worker 原先直接讀 claim.originalPath，無法在遠端工作站消費 GCS immutable URI。兩 caller 改用同一 owner holder-only `GET /api/preview-jobs/{jobId}/content`：workload credential、running job/holder、原始 verified Principal initiator、company/source/hash 在讀取前核對；owner pointer/storage bytes 驗證，I/O 後再核對 holder。Worker 只下載 configured owner origin 的固定路徑，禁止 redirect，不使用 claim URL 或 local-path fallback；校驗 content hash/size 後在 task-owned temp 寫入，extractor source/output 一起於 finally 清理。此為技術 job capability，沒有新的人類 session 或平行授權來源。
+
+4 項 transport/cleanup 與23項 service/route/provenance/command 聚焦測例、typecheck、source boundary 通過。續批既有 disposable PostgreSQL runner 追加獨立 Node worker，實際呼叫 claim/content/complete HTTP handlers，驗無 credential／非 holder 拒絕、bytes/hash/size、complete/replay、完成後拒絕再取來源及 PostgreSQL 的原始 Principal／單一 derivative；全7案通過，HTTP/PG ports、parent、TEMP與容量lease已清理。此新增情境仍用minimal schema、合成credential/CAD文字來源與PNG，不是native extraction或live GCS；既有完整producer/consumer整鏈的證據範圍保持不變。初次誤用不存在tsx於DB啟動前失敗，已保存並改回package.json現有native loader，沒有盲重跑。已加入既有CI。PR183 c349ee8c 的 CI PostgreSQL通過，但 slice 在三個 shared-reader GET 缺分類時停止；分類器已改沿 exact reader import追到既有 session/company/published permission/failure boundary，local完整分類通過（258 files/296 methods），不擴權，不原樣重跑。d9ab36ce3 已通過exact來源審查與CI36958515145两項required checks；新增harness另待同PR後續source CI，不能以未提交fixture作release proof。真實CAD/live GCS與Production L4尚待。
+
+Drive依有效ADR是核准匯出，不是日常附件權威／備份鏡像；正常Principal upload無真實delivery consumer，因此deferred mirror不再標uploading或在outbox宣告pending交付，不新增publisher。既有歷史匯出路徑不作正常授權fallback。durable bucket費用決策與live provider、技轉審批、三系統logout/recovery及Production L4仍待完成。
+## 2026-10-02 R30 現行檔案讀取契約（本機候選，未發布）
+
+本段覆蓋下方同批尚待驗證的歷史狀態；不新增任務或局部release。正常Part／Drawing下載由canonical file-assets GET在verified Principal/company/permission與binding快照後讀storage；normal numbering.search／numbering.drawings.view必須查page，drawing_revision_work的numbering.workspace.view查action，保持既有published catalog，不擴權。回應前必須以owner content_hash與已記錄的file_size核对bytes。provider metadata只能額外驗證，不能代替owner記錄；缺hash或bytes不符回unavailable，不猜測補資料、不改授權。source檔與preview derivative各用自己的hash。derivative query與readback明確核對同一公司；來源審查未找出現行跨公司寫入caller，此項是錯標歷史資料防護，不宣稱已證明漏洞。
+
+正常下載來源審查證明舊getMasterAttachmentBytesAsync／buildMasterAttachmentFileResponse沒有app route caller；本批不擴修它們。preview完成不得以空或錯格式輸出標成功；正常worker PNG格式相容，但仍須實際背景程序與正式bytes驗證。正常附件上傳→下載bytes→Principal/company存取稽核→刪除/還原/重播已在完整OrgMaster producer／AI-PDM native PostgreSQL及published grant下通過；其session/provider仍為synthetic。整批隔離production build及相關測例通過，缺漏測例已加入既有CI job，不新增gate。preview六案使用synthetic local PNG與最小schema，尚未代替真實worker、live GCS或Production L4。證據由JENFU/DEV-015的ownerBytesReadBatch／previewOutputBatch保存。
+
+剩餘集中交付：durable業務GCS費用決策及live provider、canonical下載／preview browser、必要技轉審批／背景／logout/recovery與全流程Production L4。正式仍R26，不回復UID路徑。正常下載／預覽沿既有儲存操作可稽核要求，復用auditStorageAccess，在owner bytes核對後、回應前記錄verified Principal、company、asset/context、provider/bucket/key/generation與实际disposition；無submission時存null，稽核失敗不交付檔案，不記token或網址。原Supabase/Drive特定provider步驟保留歷史，不恢復舊provider路徑。下方R30及更早讀點保留追溯，不作另一套施工指令。
+## 2026-10-02 R30 Drawing 儲存契約收斂（整合通過，尚未發布）
+
+沿 F08/F09 審查確認正常 Drawing 進版上傳也受 GCS pointer 缺口影響：非 local provider 原先丟棄 URI/generation，讀取會被 pinned-generation guard 拒絕；每次 request 新 UUID 還會使 unknown-outcome replay 先寫新 blob。現保存 bucket、generation、metageneration 及可解析 immutable URI。Principal staged key 綁定 company/principal/work/idempotencyKey/content hash，同 payload 重送／檔名變更重用同 blob，不同 bytes 不覆寫本機 fixture 或已存物件；命令 receipt 仍決定 payload 衝突，不合併權限。結果不明及 replay 不刪除可能已提交的物件，保留定位證據供 receipt 對帳；未引用物件尚須 owner reconciliation，不能宣稱已自動清理。legacy cleanup helper 不作 Principal caller 的回復路徑。
+
+7項 Drawing 聚焦回歸與 app typecheck PASS，真實 OrgMaster→AI-PDM contract runner `dev015-r30-drawing-native-pg-manifest.json` PASS，涵蓋正常 Drawing native file HTTP、送審／退回與同庫 published grant 邊界；此 runner 使用 local synthetic blob及 verified session fixture，GCS generation 則由 mock transport/SQL pointer 回歸證明，不能冒稱真實 GCS 或 Production 下載／預覽。runtime/port/TEMP/lease 已清理，`dev015-r30-drawing-pg-lifecycle.json` 可追溯。
+
+現行下一步仍是 durable storage 決策／真實啟用、背景與正常下載/UI驗證，再整批 protected source/release/L4；正式仍 R26。本段補齊下方「僅 Part 保存 generation」的缺口，歷史證據保留，不新增主任務或局部 API 發布。
+
+## 2026-10-02 R30 附件交付續批（現行施工指引）
+
+本段取代下方 R30 尚未接 upload HTTP 的施工描述；歷史證據保留。正常 Part POST 已以 verified principal_id、company 與 published attachments.manage 執行上傳命令；profile 只作業務 FK，request uploaded_by 不作 actor。每檔 idempotency key 綁定 canonical Principal/company 與 payload hash；receipt/outbox/audit 同交易，檔案儲存採穩定 key。外部 file I/O 不放入自動重試交易；未知 commit outcome 的重送讀回同一物件，不刪除可能已提交的檔案。原生 OrgMaster 001–029 producer 與 AI-PDM owner migrations 整链已驗證實際 upload HTTP、同 payload 重播、異 payload 409、撤權／scope 拒絕零寫入、delete/restore 與 bytes 一致。此證據使用 synthetic verified session，不是 Google/Firebase provider 或 Production L4。
+
+正式 R26 的儲存 profile 唯讀證據顯示 provider 未設定、無 repository volume mount，不能把容器本機檔案當 durable delivery。候選新增私有 GCS adapter：Cloud Run metadata identity、immutable create ifGenerationMatch=0、SHA-256 readback、固定 generation 與 own-bucket pointer、API 經 Principal 授權後 server stream；禁止 runtime 刪檔、key file、public/signed URL 和 latest-generation fallback。新增持久化 storage_bucket/generation/metageneration 使用既有欄位，未修改已套用 migration。GCS mock HTTP 和 pointer 測試通過；未連線正式 GCS，未建立 bucket 或更改 IAM/runtime。專用業務 bucket 的新增按量費用決策仍待人類，不得改用 owner release evidence bucket。
+
+檔案預覽共用安全回應僅讓 PDF 與常用點陣圖 inline；SVG/HTML 等主動 MIME 改下載，附 sandbox CSP、nosniff、no-referrer 與 private/no-store。維持正常預覽，無 Principal 或權限旁路。型別檢查與相關回歸通過；正式預覽效果尚待候選/Production。
+
+新增 generation 欄位後的真實 PostgreSQL 整链已再次通過，原生 manifest：`dev015-r30-generation-native-pg-manifest.json`；runtime/port/TEMP/lease 已清理。下一批：確認 Drive 的必要 caller/approved delivery 用途，不以 outbox queued 代替已送達；完成 preview worker、canonical下載及 UI browser。完整附件家族與必要流程通過後，才 protected PR/CI/merge、fresh owner release/cutover/L4。正式仍 R26 ai-pdm-prod-e31f277922df；不得宣稱 F08/F09 或三系統已完成。
+
+來源：JENFU/DEV-015/F08–F09，output/dev-012/inputs/dev015-r30-upload-native-pg-manifest.json、dev015-r30-storage-profile-readback.json；續批安全及 generation 證據由 JENFU 的 R30 交付 artifact 彙整。
+
+## 2026-10-02 R30 現行附件共用邊界（真實 PostgreSQL 整合通過，尚未發布）
+
+續批：Part DELETE／restore／preview POST 已接既有 command/outbox owner；command-time 重新驗 Principal/published permission，same company/entity/attachment、review lock、mutation、canonical securityActor audit、receipt/outbox 同交易。PostgreSQL repo 缺 Principal context、profile actor 錯配，均在查詢／效果前拒絕。profileVersion 來自 verified session，audit沿既有 detail_json.securityActor，歷史actor_id僅作domain FK。Part preview GET使用company snapshot且不排程。typed session/epoch拒絕、grant拒絕、依賴故障及收據衝突各自保留分類。23項mock回歸、typecheck、精確route-source檢查PASS。續批已在原生 OrgMaster 001–029 producer、AI-PDM 完整 owner migrations 與受限 runtime 上通過附件 delete/restore commit/replay、active/deleted listing、canonical audit/receipt/outbox、撤權/錯 scope/委派及 synthetic file bytes 一致性。測試以 synthetic verified session input 取代真實 provider，仍不是 Production L4。
+
+先前的「命令未接線／真實PG未驗」狀態由本續批取代。正常 UI 已依已發布 search/manage 分別載入，不因 active read 拒絕而阻擋有權限的 deleted_data；失敗重送保留每檔及delete/restore idempotency key。UI typecheck通過但尚待 browser驗證。上傳 HTTP 與file/Drive外部 effects的重播回復、worker及正式下載仍待同批完成。不得因Principal context缺失而fallback legacy profile／local ACL，也不得把file I/O放進會自動重試的交易而產生重複外部效果。不另發局部命令release。
+
+Jed 管理 Principal 的必要日常工作沿既有 published rd／rd_manager／pdm_admin 與 company/resource scope，不增加 admin bypass。附件正式清單 503 已沿 Part 維護元件 caller 確認，不能視為預期拒絕。共用 reader 改在同一已驗 Principal/company snapshot 精確查 company/entity，Part/Drawing listing 共用；deleted_data 只要求 attachments.manage。GET 不 recover/enqueue preview jobs；背景命令須另具 Principal actor 與權限。12 項 mock regressions 與 app typecheck 通過，task-owned temp 已清理，尚非真實 PostgreSQL或 Production L4。
+
+現行下一步：完成 upload HTTP 的 Principal命令及外部副作用恢復，接續 preview/background、UI與正式下載整鏈；沿已通過真實PG共同邊界驗證，不重跑未變測例當成進展。不逐 route 發布。canonical Drawing UI 的下載走 drawing revision files，未確認有 UI caller 的舊 master-attachment routes 不算下載通過。
+
+R29 PR182 已經 exact-head review、required CI、merge 至 4d5cf7ad0bac13d31a310f3822c301672d849d6a；owner run36939397099 因必要附件功能未完成，在無執行步驟時取消。正式仍 R26 ai-pdm-prod-e31f277922df，無新 migration/traffic。下方 R29「待 merge/發布」為歷史讀點；取消的 capsule 不重用。新完整候選版用新的 source-bound 綁定，無需新增低風險人工核准。
+
+來源 `JENFU / DEV-015 / F08`：output/dev-012/inputs/dev015-r30-attachment-principal-read-local.json、dev015-r30-native-pg-manifest.json（23 native cases，numbering/attachment 子 runner 每 phase 強制9 cases，cluster/port/temp已清理）；R29 取消後 provider/control 證據同目錄 dev015-r29-post-cancel-control.json、dev015-r29-post-cancel-traffic.json。既有工作樹與歷史證據保留。
+
+## 2026-10-02 R29 現行 F06：canonical Drawing 技轉 snapshot 修正（本機驗證，尚未發布）
+
+沿正常 Principal canonical review decision → DrawingRevisionWorkService → formalize 確認 production pointer/revision 是現行版本 authority；技轉 officialItemSnapshot 卻讀 legacy drawing_revision_packages，可能漏掉新版及其審核失效依據。本批只修正同一 consumer：exact company／formal-number mapping／Drawing／drawing_production／released revision，缺失或歧義拒絕，不 fallback legacy package；hash 納入 canonical identity、state/revision row_version 及正規化 policy。既有 master lifecycle eligibility 與 Part Active/Released 門檻不變。Part formal anchor 不等於已發行，A0060-P01／原 work 保留，不強改 Draft、不取消、不刪除。
+
+`npm run qc:dev-121:transfer-postgres -- --official-snapshot-only`：真實 disposable PostgreSQL snapshot 6 案與既有 readonly inbox 3 案通過；歷史 v3 grant phases 未執行，不計為本輪整鏈證據。`npm run typecheck:app` 通過。資料庫已停止、連接埠釋放、task-owned temp root 移除；無正式寫入。此為本機修正，尚待 exact-diff Codex review、protected PR／CI／merge、owner-native release 與正式技轉 L4，不能以此宣稱 F06 或三系統完成。
+
+來源專案 `JENFU / DEV-015 / F06`：`output/dev-012/inputs/dev015-r29-transfer-canonical-snapshot-local.json`。下方 R26 等交付讀點保留歷史，正式仍以 R26 owner receipt 為準。
+
+## 2026-10-02 現行交付：Jed Principal 日常料號工作
+
+OrgMaster v4 正式 producer 已發布，AI-PDM R26 source `68ba5e413c86d7a2f7e59bbfd9e5dd58387b07dc`、owner run `36916563920` finalized RELEASED，`ai-pdm-prod-e31f277922df` 正式100%。Jed verified Principal/AAL1 依已發布業務角色完成搜尋、建立既有 A0060-P01 編輯工作、矩陣載入、修改與 reload、改回原空值與 reload；兩次 PATCH200、rowVersion3→4、各只有一次idle寫入。工作API讀回 variantNote null，測試註記已還原，master／工作／檔案保留，未送審、取消或刪除。來源CI `36915585815`、exact-head Codex review、PR181與 fresh R26 capsule可追溯。未新增 grant、UID fallback 或管理員全權 bypass。
+
+來源專案 `JENFU / DEV-015 / Jed 日常編輯` join evidence：`output/dev-012/inputs/dev015-r26-jed-daily-edit-production.json`、`dev015-r26-owner-result-readback.json`、`dev015-r26-restored-work-read.log`。本段僅將正常查詢／草稿編輯整鏈提升為正式通過；技轉審批、背景／下載、scope／撤權、三系統logout／recovery與全F01–F10仍未結案。下方R26發布前／尚未还原及R25等施工段落僅作歷史證據。
+
+## 2026-10-02 R26 矩陣自動儲存狀態（歷史候選）
 
 R25 正式矩陣已可載入，Jed 首次 PATCH 成功且重載看到測試備註；恢復原值卻未送 PATCH。唯讀工作 API 證明 rowVersion=2、備註仍為 `DEV015-R25 Principal-only 儲存讀回驗證`；這不是授權拒絕。根因是前端對 formalPayload 判定無變更，忽略 last-saved work。集中修正同一 autosave 狀態鏈：以 last-saved draft 比較；接受 server normalization，但保留真正較新輸入；blur/idle 清除重複 timer；只有成功儲存且有較新輸入才排下一次，失敗不熱重試、不將不完整回應算儲存。23項受影響回歸及 typecheck PASS，Principal API/guard/database 保持不變，R25 真實 PostgreSQL證據仍有效。正式原值恢復尚待本版發布；A0060-P01 既有 work 保留，原始 variantNote 為空，發布後以正常 UI 恢復並重載證明，不人工 SQL，不取消刪除。下方 R25／R24／R23 待驗證階段保留為歷史。
 
@@ -844,6 +906,3 @@ P01～P09 的 task-owned fixture 覆蓋 mapping／Portal assignment／authority�
 舊 canonical command 的 PostgreSQL 路徑已停止按 request 自動建立 organization mapping；其 actor 若已 `principal_active`，在鎖定 receipt 或執行業務副作用前回 410，不能從舊 v1 route 寫入。缺 marker 或未知狀態回 503，只有明示 `legacy_compatible` 才能繼續；這修正了「無列仍執行」的缺口，聚焦 23／23、typecheck、scoped ESLint PASS。未切換帳號的舊路徑暫時只能讀取既有 mapping；若 mapping 缺失則拒絕，不能在請求中補建。此負面 fence 只服務過渡期與 v1 回復，不是新 principal 授權的相容橋，切流收斂後整段刪除。
 
 歷史 Firebase 邀請的撤銷只修改 AI-PDM 本地 invitation、legacy mapping／account 狀態，先由 065 資料庫 fence 拒絕已 `principal_active` 的 profile，再撤銷本地邀請。AI-PDM 不再從此入口停用、撤銷 refresh token 或刪除共享 provider 身分；Shared Identity 的 provider lifecycle 由 Platform owner 處理。這避免舊應用指令破壞其他系統仍需使用的 canonical principal alias。全體切換後移除整條舊邀請 runtime 路徑，歷史紀錄留作不可授權的稽核資料。
-
-
-

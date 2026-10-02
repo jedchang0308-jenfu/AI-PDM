@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "bbd658395752a0518441b23ac49c61ae552e3f044062adb50ff81a8b55b906c2",
+  "sourceSha256": "6d3262ea6d102c8e7971da5a15ef4e79a3ce91aa279070d1158014f8a884eb9a",
   "denominator": {
-    "uniqueFiles": 131,
-    "uniqueMethods": 151,
-    "policyEntries": 161
+    "uniqueFiles": 135,
+    "uniqueMethods": 155,
+    "policyEntries": 165
   },
   "entries": [
     {
@@ -1618,6 +1618,46 @@
       "authorizationTarget": "numbering.recognition.formalize",
       "scopeResolver": "workspace",
       "preservedGuards": "same-company session, current version and signed impact preview"
+    },
+    {
+      "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.attachments.manage",
+      "authorizationTarget": "numbering.attachments.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+    },
+    {
+      "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.attachments.manage",
+      "authorizationTarget": "numbering.attachments.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+    },
+    {
+      "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts",
+      "method": "DELETE",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.attachments.manage",
+      "authorizationTarget": "numbering.attachments.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+    },
+    {
+      "path": "src/app/api/parts/[partNumber]/attachments/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "numbering.attachments.manage",
+      "authorizationTarget": "numbering.attachments.manage",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
     }
   ]
 }

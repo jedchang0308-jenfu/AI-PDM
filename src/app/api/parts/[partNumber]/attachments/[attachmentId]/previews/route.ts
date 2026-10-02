@@ -1,42 +1,41 @@
+import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
+import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 import { NextResponse } from "next/server";
-import { enqueueMasterAttachmentPreviewJobAsync, getMasterAttachmentAsync } from "@/lib/master-attachments-async";
-import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
-import { requireNumberingActionAsync, requireNumberingPageAsync } from "@/lib/numbering-permission-guard";
+import { executeMasterAttachmentCommandAsync, getMasterAttachmentInCompanyAsync } from "@/lib/master-attachments-async";
+import { masterAttachmentCommandFailureResponse } from "@/lib/master-attachment-response";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ partNumber: string; attachmentId: string }> }) {
-  const auth = await requireNumberingPageAsync(request, "numbering.search");
-  if (auth.response) return auth.response;
-
   const { partNumber, attachmentId } = await params;
-  const attachment = await getMasterAttachmentAsync({
-    entityType: "part_number",
-    entityCode: decodeURIComponent(partNumber),
-    attachmentId
+  const response = await withPrincipalNumberingCompanyRead(request, "numbering.search", async (snapshot, company) => {
+    const attachment = await getMasterAttachmentInCompanyAsync(snapshot, {
+      entityType: "part_number", entityCode: decodeURIComponent(partNumber), attachmentId,
+      companyId: company.companyId
+    });
+    if (!attachment) return NextResponse.json({ error: "MASTER_ATTACHMENT_NOT_FOUND" }, { status: 404 });
+    return NextResponse.json({ derivatives: attachment.previewDerivatives, job: attachment.previewJob },
+      { headers: { "cache-control": "private, no-store" } });
   });
-  if (!attachment) return NextResponse.json({ error: "MASTER_ATTACHMENT_NOT_FOUND" }, { status: 404 });
-  return NextResponse.json({ derivatives: attachment.previewDerivatives, job: attachment.previewJob });
+  return response ?? NextResponse.json({ code: "auth_session_invalid" }, { status: 401 });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string; attachmentId: string }> }) {
-  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
-  if (auth.response) return auth.response;
-
-  const { partNumber, attachmentId } = await params;
   const body = await request.json().catch(() => ({}));
+  const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.attachments.manage", body });
+  if (access.response) return access.response;
+  const { partNumber, attachmentId } = await params;
   try {
-    const result = await enqueueMasterAttachmentPreviewJobAsync({
+    const result = await executeMasterAttachmentCommandAsync({
+      kind: "preview",
       entityType: "part_number",
       entityCode: decodeURIComponent(partNumber),
       attachmentId,
-      actorUserId: auth.user.id,
       requestedKind: body.requestedKind === "drawing_pdf" ? "drawing_pdf" : "native_thumbnail_png",
       forceRegenerate: body.forceRegenerate === true
-    });
+    }, access.metadata);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "MASTER_ATTACHMENT_PREVIEW_JOB_FAILED";
-    return NextResponse.json({ error: message }, { status: masterAttachmentStatusFromError(message) });
+    return masterAttachmentCommandFailureResponse(error);
   }
 }

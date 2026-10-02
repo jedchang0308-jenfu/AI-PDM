@@ -1,35 +1,24 @@
 import { NextResponse } from "next/server";
-import { getMasterAttachmentLifecyclePolicyAsync, restoreMasterAttachmentAsync } from "@/lib/master-attachments-async";
-import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
-import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
+import { executeMasterAttachmentCommandAsync } from "@/lib/master-attachments-async";
+import { masterAttachmentCommandFailureResponse } from "@/lib/master-attachment-response";
+import { requireNumberingPlatformCommandAsync } from "@/lib/platform-command-context";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ partNumber: string; attachmentId: string }> }) {
-  const auth = await requireNumberingActionAsync(request, "numbering.attachments.manage");
-  if (auth.response) return auth.response;
-
-  const { partNumber, attachmentId } = await params;
   const body = await request.json().catch(() => ({}));
+  const access = await requireNumberingPlatformCommandAsync(request, { action: "numbering.attachments.manage", body });
+  if (access.response) return access.response;
+  const { partNumber, attachmentId } = await params;
   const entityCode = decodeURIComponent(partNumber);
 
   try {
-    const attachment = await restoreMasterAttachmentAsync({
-      entityType: "part_number",
-      entityCode,
-      attachmentId,
-      restoredBy: auth.user.id,
+    const result = await executeMasterAttachmentCommandAsync({
+      kind: "restore", entityType: "part_number", entityCode, attachmentId,
       reason: String(body.reason ?? "")
-    });
-    if (!attachment) return NextResponse.json({ error: "LIFE_ATTACHMENT_NOT_FOUND" }, { status: 404 });
-    const policy = await getMasterAttachmentLifecyclePolicyAsync({
-      entityType: "part_number",
-      entityCode,
-      attachmentId
-    });
-    return NextResponse.json({ attachment, policy });
+    }, access.metadata);
+    return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "LIFE_ATTACHMENT_RESTORE_FAILED";
-    return NextResponse.json({ error: message }, { status: masterAttachmentStatusFromError(message) });
+    return masterAttachmentCommandFailureResponse(error);
   }
 }

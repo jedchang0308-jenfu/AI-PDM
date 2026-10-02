@@ -1,5 +1,14 @@
 # AI_PDM Documentation Map
 
+## DEV-121 R30 現行交付（2026-10-02，本機及真實 PostgreSQL 整合通過，未發布）
+
+現行施工以 [DEV-121 R30 契約](specs/DEV-121-target-authorization-boundary.md) 的背景來源續修首段為準；holder-only source HTTP與兩個正常preview worker已本機修正，PG/HTTP獨立worker續批7案已通過並清理，尚待native extraction與live GCS。PR183首輪slice缺分類已修正，d9ab36ce3 required CI已通過，未發布；下方 R20 及更早讀點保留歷史，不是另一套待執行佇列。Jed 管理 Principal 須能依已發布 rd／rd_manager／pdm_admin 與公司／資源範圍完成日常 PDM 工作，不增加管理員 bypass。
+
+整批附件候選涵蓋正常清單、上傳、canonical 下載、刪除／還原／重播、preview 命令與背景完成契約。正常下載已修正 page／action 分類不一致；命令以 verified Principal 授權，owner bytes 與稽核先於檔案交付。完整 OrgMaster producer→AI-PDM disposable PostgreSQL 已驗證指派／撤權／scope 及實際附件 HTTP 操作，仍使用 synthetic session；隔離 build 與受影響回歸通過，既有 CI job 納入測例，不新增人工 gate。
+
+正式仍 R26 ai-pdm-prod-e31f277922df。R29 已合併但 owner run 在無執行步驟時取消；舊 capsule 不重用。尚待 durable 業務儲存費用決策及 live provider、實際 preview/background、必要技轉審批、三系統登入／登出／回復與 Production L4。私有 GCS adapter 預設停用，不以 mock 或本機 PASS 宣稱上線完成。跨專案證據：JENFU / DEV-015 / F08–F09，`output/dev-012/inputs/dev015-r30-attachment-principal-read-local.json` 的 normalDownloadAuditBatch、candidateSourceReadinessBatch；失敗、修正、runtime 清理證據均保留。
+
+
 
 **DEV-121 現行發布可靠性子項：R20 provider traffic 行序修正（2026-10-01）。** 沿用 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121，不新增主任務。三 owner Principal-only activate 改依精確 revision／tag 配對，不依 provider 陣列順序；維持列數／比例／UID／recovery 拒絕條件。三 owner 18 項聚焦測試及獨立唯讀審查通過，protected PR／required CI／新 capsule 與正式業務 L4 待完成。共同根因及真實唯讀因果證據由 JENFU/DEV-015 inventory R20、`dev121-r19-traffic-order-diagnostic.json` 追溯；歷史 R19 capsule 不重跑，人類 AAL1／Principal-only 政策不變。
 

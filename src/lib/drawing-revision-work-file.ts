@@ -177,10 +177,21 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
     );
     if (!existing) {
       await input.checkpoint?.("before_upload_stage");
-      const fileAssetId = `FA-${crypto.randomUUID()}`;
+      const fileAssetId = input.principalToken
+        ? `FA-${crypto.createHash("sha256").update(JSON.stringify(["drawing.file.upload", input.actor.companyId, input.actor.principalId, input.workId, input.context.idempotencyKey])).digest("hex")}`
+        : `FA-${crypto.randomUUID()}`;
       const fileBindingId = crypto.randomUUID();
-      const storageKey = buildStorageKey(["drawing-revision-works", input.actor.companyId, input.workId, `${fileAssetId}-${fileName}`]);
-      const stored = await storage.putObject({ key: storageKey, bytes, contentType: mimeType });
+      // Principal retries share one immutable blob, including unknown commit outcomes.
+      // Renames reuse bytes; content-addressing also prevents local fixture overwrites.
+      // Changed payloads remain receipt conflicts and any unreferenced blob is reconciled.
+      const storageKey = buildStorageKey(["drawing-revision-works", input.actor.companyId, input.workId,
+        input.principalToken ? `${fileAssetId}/${contentHash}/source` : `${fileAssetId}-${fileName}`]);
+      const stored = await storage.putObject({ key: storageKey, bytes, contentType: mimeType }).catch(error => {
+        if (error instanceof Error && error.message === "GCS_IMMUTABLE_OBJECT_CONFLICT") {
+          throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "同一上傳命令的檔案內容不同，請重新讀取目前資料。", 409, commandCorrelation);
+        }
+        throw error;
+      });
       staged = { fileAssetId, fileBindingId, storageKey, stored };
       cleanupTarget = { key: stored.key, provider: stored.provider };
       if (stored.bytes !== bytes.byteLength || stored.sha256 !== contentHash || !(await storage.verifyObjectHash(stored.key, contentHash))) {
@@ -324,12 +335,12 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
 
       await tx.execute(
         `INSERT INTO file_assets (
-           id, storage_provider, original_path, storage_bucket, storage_key,
+           id, storage_provider, original_path, storage_bucket, storage_key, storage_generation, storage_metageneration,
            file_name, file_ext, mime_type, file_size, content_hash,
            linked_entity_type, linked_entity_id, document_category, display_name,
            description, revision, uploaded_by
          ) VALUES (
-           :id, :storageProvider, :originalPath, :storageBucket, :storageKey,
+           :id, :storageProvider, :originalPath, :storageBucket, :storageKey, :storageGeneration, :storageMetageneration,
            :fileName, :fileExt, :mimeType, :fileSize, :contentHash,
            'drawing_revision', :revisionId, :documentCategory, :displayName,
            :description, :revision, :actorId
@@ -337,8 +348,10 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
         {
           id: fileAssetId,
           storageProvider: stored.provider,
-          originalPath: stored.provider === "local_repository" ? stored.localPath : null,
+          originalPath: stored.localPath ?? null,
           storageBucket: stored.bucket ?? null,
+          storageGeneration: stored.generation ?? null,
+          storageMetageneration: stored.metageneration ?? null,
           storageKey: stored.key,
           fileName,
           fileExt,
@@ -440,7 +453,7 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
           }, execute);
         }, { readOnly: false, isolationLevel: "serializable" })
       : await runDev087IdempotentCommand(input.client, commandInput, execute);
-    if (result.reused && cleanupTarget) {
+    if (result.reused && cleanupTarget && !input.principalToken) {
       try { await storage.deleteObject(cleanupTarget.key); } catch { /* best-effort orphan cleanup */ }
     }
     cleanupTarget = null;
@@ -456,7 +469,15 @@ async function executeDrawingRevisionWorkFileUpload(input: DrawingFileUploadInpu
     return result;
   } catch (error) {
     const target = cleanupTarget as { key: string; provider: string } | null;
-    if (target) {
+    if (target && input.principalToken) {
+      // This stable key may already belong to a committed/replayed command.
+      // Preserve bytes for receipt-based reconciliation; never delete on unknown outcome.
+      console.warn("Drawing Principal upload requires receipt reconciliation.", {
+        correlationId: commandCorrelation, companyId: input.actor.companyId,
+        principalId: input.actor.principalId, workId: input.workId,
+        storageProvider: target.provider, storageKey: target.key
+      });
+    } else if (target) {
       try {
         await storage.deleteObject(target.key);
       } catch (cleanupError) {
