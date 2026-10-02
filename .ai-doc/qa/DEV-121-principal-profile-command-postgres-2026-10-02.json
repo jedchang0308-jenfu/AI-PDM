@@ -70,5 +70,38 @@
     "grantBoundaryFailures": 7,
     "threshold": 8,
     "cleanup": "Clients/cluster/port/TEMP/runtime and lease released"
+  },
+  "nativeAttachmentComposition": {
+    "batch": "R59",
+    "status": "PASS_LOCAL_INTEGRATION_NOT_RELEASED",
+    "manifest": "JENFU/DEV-015 output/dev-012/inputs/dev015-r59-full-owner-native.json",
+    "manifestSha256": "1fa38107a36e8ee12cacd3bdaa38a88b6d17b1b101278ecade0f1568cf180310",
+    "sourceFiles": {
+      "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs": "1bd771c8d64a6692c4641ad61d922bc10b30a4731d26b45ccbc4ad3bab79a77b",
+      "src/lib/transfer-package-principal-grants-v4.postgres-contract.test.ts": "8324c03ba4f0a3d4b98ab3b3f1a1a83444e28dbdaea6c45da3c7102b8f28e07d",
+      "src/lib/preview-derivatives.ts": "c138bc0b1727bd3df77399b503cf5ab1278da46daad2cb06f764301013bb09f4"
+    },
+    "verified": [
+      "Full actual OrgMaster 001-029 producer plus AI-PDM through076",
+      "Actual Principal authorized part attachment POST201; command enqueues native preview rather than direct test job insertion",
+      "Both published human_personal and human_privileged business actors",
+      "Actual finite Windows Shell worker against same-process loopback actual service handlers; synthetic task worker token",
+      "Source hash and verified initiator Principal preserved; job succeeded and exact worker derivative PNG hash/dimensions/readback",
+      "Completed source read403; vendor synthetic fixture unchanged; all clients/cluster/port/temp cleaned"
+    ],
+    "defect": "PostgreSQL source lookup parameter first appears in IS NULL: cast to TEXT on both part/drawing paths, company scope unchanged",
+    "instrumentationCorrection": "Explicit count of one opt-in skipped worker case outside flow; exact passed count still mandatory",
+    "session": "Synthetic verified registered AAL1 session, not provider or Production proof",
+    "storage": "Task-local repository only, no business GCS or Production durability evidence",
+    "remaining": [
+      "Production normal fixture login",
+      "Full candidate owner release and Production L4",
+      "Attachment command private receipt/outbox explicit owner readback and restart durability evidence"
+    ],
+    "grantBoundaryFailures": 7,
+    "threshold": 8,
+    "productionVerified": false,
+    "releaseAuthority": false,
+    "cleanup": "R59 runtime and lease release receipts in JENFU output"
   }
 }

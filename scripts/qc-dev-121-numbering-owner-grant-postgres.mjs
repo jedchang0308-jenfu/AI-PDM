@@ -209,6 +209,14 @@ try {
       VALUES ('part-org-flow','company-jenfu','part-root-dev057-flow','QF057-P01',1,
         'P01','DEV-057 transfer flow fixture','manufactured','Active',
         'numbering-rule-v3-alpha-root','qc-profile-owner')`);
+    if (process.env.PDM_DEV121_NATIVE_PREVIEW_FIXTURE) {
+      await target.query(`INSERT INTO ai_pdm_core.part_numbers
+        (id,company_id,part_root_id,part_number,sequence_no,sequence_code,part_name,
+         item_kind,record_status,rule_version_id,created_by)
+        VALUES ('part-org-native','company-jenfu','part-root-dev057-flow','QF057-P02',2,
+          'P02','Task-owned native attachment fixture','manufactured','Active',
+          'numbering-rule-v3-alpha-root','qc-profile-owner')`);
+    }
     await target.query(`INSERT INTO ai_pdm_core.transfer_packages
         (id,company_id,package_code,title,case_type,case_reason,source_reference_status,
          source_reference_reason,package_status,owner_id,created_by,create_idempotency_key,
@@ -293,7 +301,8 @@ try {
         DEV057_NUMBERING_ISSUER: actorTuple.issuer,
         DEV057_NUMBERING_SUBJECT: actorTuple.subject
       } : {}),
-      CI:'1', PDM_PUBLIC_BASE_URL:'https://ai-pdm.test', DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
+      CI:'1', PDM_PUBLIC_BASE_URL:'https://ai-pdm.test', PDM_STORAGE_PROVIDER:'local_repository',
+      PDM_LOCAL_FAKE_PREVIEW_WORKER:'0',PDM_PREVIEW_WORKER_TOKEN:'dev057-task-owned-synthetic-preview-token', DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
       PDM_POSTGRES_URL: consumer.toString(), PDM_DB_PROVIDER:'postgres', DEV010_N2_DATABASE_BOUNDARY:'required',
       PDM_DATA_DIR:path.join(taskRoot,'aipdm-numbering-data'), PDM_REPOSITORY_DIR:path.join(taskRoot,'aipdm-numbering-repository'),
       PDM_PRODUCTION_SLICE_MODE:'official-numbering-draft', PDM_NUMBER_STATE_FLOW_V1:'1',
@@ -313,8 +322,12 @@ try {
     console.log('PASS owner receipt readback after actual profile route: ' + process.env.DEV057_CONTRACT_PHASE);
   }
   if (transferProbe) {
-    const expectedTests = process.env.DEV057_CONTRACT_PHASE === 'assigned' ? 3 : 2;
-    assert.match(result.stdout, new RegExp('Tests\\s+' + expectedTests + ' passed\\s+\\(\\d+\\)', 'u'),
+    const expectedTests = (process.env.DEV057_CONTRACT_PHASE === 'assigned' ? 3 : 2) +
+      (process.env.DEV057_CONTRACT_PHASE === 'flow' && process.env.PDM_DEV121_NATIVE_PREVIEW_FIXTURE ? 1 : 0);
+    const expectedSkipped = process.env.DEV057_CONTRACT_PHASE === 'flow' && process.env.PDM_DEV121_NATIVE_PREVIEW_FIXTURE ? 0 : 1;
+    const expectedSummary = 'Tests\\s+' + expectedTests + ' passed' +
+      (expectedSkipped ? ' \\| 1 skipped' : '') + '\\s+\\(' + (expectedTests + expectedSkipped) + '\\)';
+    assert.match(result.stdout, new RegExp(expectedSummary, 'u'),
       'the selected v4 transfer route cases must all execute without skips');
   } else {
     assert.match(result.stdout, review ? /Tests\s+2 passed/u : /Tests\s+9 passed/u,

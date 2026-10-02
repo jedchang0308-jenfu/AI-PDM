@@ -1,3 +1,8 @@
+import { createServer } from "node:http";
+import { spawn } from "node:child_process";
+import { readFile, mkdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import path from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
@@ -364,4 +369,129 @@ describe.skipIf(!enabled)("published Principal profile route composition", () =>
       pdm_user_id: receipt.pdmUserId, account_company_id: companyId, account_status: "suspended", company_id: companyId });
 
   });
+});
+
+
+const nativePreviewFixture = process.env.PDM_DEV121_NATIVE_PREVIEW_FIXTURE;
+describe.skipIf(!enabled || phase !== "flow" || !nativePreviewFixture)("full-owner attachment native worker composition", () => {
+  it("uploads through the published Principal command, enqueues and persists actual native worker output", async () => {
+    if (!database || !nativePreviewFixture) throw new Error("DEV121_NATIVE_FIXTURE_REQUIRED");
+    expect(process.platform).toBe("win32");
+    expect(path.isAbsolute(nativePreviewFixture)).toBe(true);
+    const source = await readFile(nativePreviewFixture);
+    const sourceHash = createHash("sha256").update(source).digest("hex");
+    const { POST: uploadRoute } = await import("@/app/api/parts/[partNumber]/attachments/route");
+    const form = new FormData();
+    form.set("file", new File([new Uint8Array(source)], "fixture.sldprt", { type: "application/octet-stream" }));
+    form.set("document_category", "other");
+    const key = "dev057-full-owner-native-upload";
+    const upload = await uploadRoute(new Request("https://ai-pdm.test/api/parts/QF057-P02/attachments", {
+      method: "POST", headers: { cookie: `pdm_session=${reviewerToken}`,
+        origin: "https://ai-pdm.test", "idempotency-key": key }, body: form
+    }), { params: Promise.resolve({ partNumber: "QF057-P02" }) });
+    expect(upload.status, await upload.clone().text()).toBe(201);
+    const uploaded = await upload.json();
+    expect(uploaded.attachment.id).toBeTruthy();
+    const queued = await database.query<{ id: string; metadata_json: string; source_content_hash: string }>(`
+      SELECT id,metadata_json,source_content_hash FROM ai_pdm_core.preview_jobs
+      WHERE source_file_asset_id=:assetId`, { assetId: uploaded.attachment.id });
+    expect(queued).toHaveLength(1);
+    const jobId = queued[0].id;
+    expect(queued[0].source_content_hash).toBe(sourceHash);
+    const metadata = typeof queued[0].metadata_json === "string"
+      ? JSON.parse(queued[0].metadata_json) : queued[0].metadata_json;
+    expect(metadata.initiator.principalId).toBe(reviewer.principalId);
+    const [{ POST: claim }, { GET: content }, { POST: complete }, { POST: heartbeat }, { POST: capability }] = await Promise.all([
+      import("@/app/api/preview-jobs/claim/route"), import("@/app/api/preview-jobs/[jobId]/content/route"),
+      import("@/app/api/preview-jobs/[jobId]/complete/route"), import("@/app/api/preview-jobs/[jobId]/heartbeat/route"),
+      import("@/app/api/preview-workers/heartbeat/route")
+    ]);
+    const server = createServer(async (incoming, outgoing) => {
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of incoming) chunks.push(Buffer.from(chunk));
+        const body = Buffer.concat(chunks);
+        const address = server.address();
+        if (!address || typeof address === "string") throw new Error("BRIDGE_ADDRESS_INVALID");
+        const url = `http://127.0.0.1:${address.port}${incoming.url}`;
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(incoming.headers)) {
+          if (typeof value === "string") headers.set(name, value);
+          else if (value) headers.set(name, value.join(","));
+        }
+        const request = new Request(url, { method: incoming.method, headers,
+          ...(body.length ? { body: new Uint8Array(body) } : {}) });
+        const pathname = new URL(url).pathname;
+        const context = { params: Promise.resolve({ jobId }) };
+        let response: Response;
+        if (pathname === "/api/preview-jobs/claim" && incoming.method === "POST") response = await claim(request);
+        else if (pathname === "/api/preview-workers/heartbeat" && incoming.method === "POST") response = await capability(request);
+        else if (pathname === `/api/preview-jobs/${jobId}/content` && incoming.method === "GET") response = await content(request, context);
+        else if (pathname === `/api/preview-jobs/${jobId}/complete` && incoming.method === "POST") response = await complete(request, context);
+        else if (pathname === `/api/preview-jobs/${jobId}/heartbeat` && incoming.method === "POST") response = await heartbeat(request, context);
+        else response = new Response(null, { status: 404 });
+        outgoing.writeHead(response.status, Object.fromEntries(response.headers));
+        outgoing.end(Buffer.from(await response.arrayBuffer()));
+      } catch { outgoing.writeHead(500); outgoing.end("Task HTTP bridge failure"); }
+    });
+    let worker: ReturnType<typeof spawn> | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
+    let workerFinished: Promise<number | null> | undefined;
+    const stopOwnWorker = () => {
+      if (!worker || worker.exitCode !== null || !worker.pid) return;
+      // The PID belongs to the exact child spawned by this case, never a name/port kill.
+      spawn("taskkill.exe", ["/PID", String(worker.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+    };
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject); server.listen(0, "127.0.0.1", resolve);
+      });
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("BRIDGE_ADDRESS_INVALID");
+      console.log(JSON.stringify({ runtimeDeclaration: { project: "AIPDM/DEV121", purpose: "full-owner native preview HTTP",
+        port: address.port, owningProcessTree: `vitest:${process.pid} -> exact worker child`,
+        cleanupCondition: "worker exits, HTTP closes, outer runner closes PG and removes isolated repo", productionWrites: false } }));
+      if (!process.env.PDM_DATA_DIR) throw new Error("ISOLATED_DATA_DIR_REQUIRED");
+      await mkdir(process.env.PDM_DATA_DIR, { recursive: true });
+      worker = spawn(process.execPath, ["scripts/run-windows-shell-preview-worker.mjs", "--base-url",
+        `http://127.0.0.1:${address.port}`, "--worker-id", "dev057-native-worker", "--models-only", "--canary-source", nativePreviewFixture],
+      { cwd: process.cwd(), env: { ...process.env, TEMP: process.env.PDM_DATA_DIR, TMP: process.env.PDM_DATA_DIR }, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+      let stderr = "";
+      worker.stdout?.resume();
+      worker.stderr?.on("data", chunk => { stderr += String(chunk); });
+      workerFinished = new Promise<number | null>((resolve, reject) => {
+        worker!.once("error", reject); worker!.once("close", resolve);
+      });
+      timer = setTimeout(() => { timedOut = true; stopOwnWorker(); }, 120_000);
+      const exitCode = await workerFinished;
+      expect(timedOut).toBe(false);
+      expect(exitCode, stderr).toBe(0);
+      const job = await database.queryOne<{ status: string; locked_by: string }>(`
+        SELECT status,locked_by FROM ai_pdm_core.preview_jobs WHERE id=:jobId`, { jobId });
+      expect(job).toMatchObject({ status: "succeeded", locked_by: "dev057-native-worker" });
+      const derivatives = await database.query<{ company_id: string; content_hash: string; source_content_hash: string;
+        generator_version: string; original_path: string; created_by_worker: string }>(`
+        SELECT company_id,content_hash,source_content_hash,generator_version,original_path,created_by_worker
+        FROM ai_pdm_core.file_derivatives WHERE preview_job_id=:jobId`, { jobId });
+      expect(derivatives).toHaveLength(1);
+      expect(derivatives[0]).toMatchObject({ company_id: companyId, source_content_hash: sourceHash,
+        generator_version: "windows-shell-ishellitemimagefactory-v2", created_by_worker: "dev057-native-worker" });
+      const png = await readFile(derivatives[0].original_path);
+      expect(createHash("sha256").update(png).digest("hex")).toBe(derivatives[0].content_hash);
+      const { default: sharp } = await import("sharp");
+      const image = await sharp(png).metadata();
+      expect(image.format).toBe("png"); expect(image.width).toBeGreaterThan(1); expect(image.height).toBeGreaterThan(1);
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/preview-jobs/${jobId}/content`, {
+        headers: { "x-pdm-preview-worker-token": process.env.PDM_PREVIEW_WORKER_TOKEN!, "x-pdm-preview-worker-id": "dev057-native-worker" }
+      });
+      expect(response.status).toBe(403);
+      expect(createHash("sha256").update(await readFile(nativePreviewFixture)).digest("hex")).toBe(sourceHash);
+    } finally {
+      if (timer) clearTimeout(timer);
+      stopOwnWorker();
+      if (workerFinished) await workerFinished.catch(() => undefined);
+      if (server.listening) await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  }, 150_000);
 });
