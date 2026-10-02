@@ -114,8 +114,8 @@ for (const routeFile of [
 
 assert(drawingRoute.includes("numbering.attachments.manage") && partRoute.includes("numbering.attachments.manage"), "Preview enqueue routes require attachment manage permission");
 assert(drawingRoute.includes("numbering.drawings.view") && partRoute.includes("numbering.search"), "Preview GET routes inherit source read surface permission");
-assert(claimRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && completeRoute.includes("PDM_PREVIEW_WORKER_TOKEN"), "Worker routes require service token");
-assert(heartbeatRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && heartbeatRoute.includes("heartbeatPreviewJobAsync"), "Worker heartbeat route requires service token and updates job heartbeat");
+assert(claimRoute.includes('authenticateWorkerService(request, "preview_jobs")') && completeRoute.includes('authenticateWorkerService(request, "preview_jobs")'), "Worker routes require service token");
+assert(heartbeatRoute.includes('authenticateWorkerService(request, "preview_jobs")') && heartbeatRoute.includes("heartbeatPreviewJobAsync"), "Worker heartbeat route requires service token and updates job heartbeat");
 assert(
   canonicalFileAssetRoute.includes("previewDerivative")
     && canonicalFileAssetRoute.includes("resolveDrawingPreviewAsync")
@@ -182,7 +182,7 @@ assert(
   startLocalhost.includes("windows-shell-thumbnail-worker"),
   "Local launcher manages dedicated 2D and 3D preview workers with distinct identities"
 );
-assert(workerCredentialRoute.includes("PDM_PREVIEW_WORKER_TOKEN") && workerCredentialRoute.includes("resolveActiveSolidWorksDocumentManagerKey") && workerCredentialRoute.includes("no-store"), "Worker credential route is token-gated and never cacheable");
+assert(workerCredentialRoute.includes('authenticateWorkerService(request, "solidworks_credential")') && workerCredentialRoute.includes("resolveActiveSolidWorksDocumentManagerKey") && workerCredentialRoute.includes("no-store"), "Worker credential route is token-gated and never cacheable");
 assert(existsRequired("src/app/api/preview-workers/heartbeat/route.ts") && documentManagerWorker.includes("/api/preview-workers/heartbeat") && documentManagerWorker.includes("solidworks_2d_preview_png"), "2D preview worker reports a dedicated capability heartbeat");
 assert(windowsShellWorker.includes("solidworks_3d_preview_png") && windowsShellWorker.includes("preview_renderer_failed"), "3D preview worker reports renderer capability and a blocked converter state");
 assert(startLocalhost.includes("Test-PreviewWorkerCapabilityReady") && startLocalhost.includes("previewWorkerCapabilityFresh"), "Local launcher gates 3D health on fresh renderer capability instead of PID only");

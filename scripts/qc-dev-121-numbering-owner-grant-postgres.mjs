@@ -299,7 +299,11 @@ try {
         DEV057_NUMBERING_SUBJECT: actorTuple.subject
       } : {}),
       CI:'1', PDM_PUBLIC_BASE_URL:'https://ai-pdm.test', PDM_STORAGE_PROVIDER:'local_repository',
-      PDM_LOCAL_FAKE_PREVIEW_WORKER:'0',PDM_PREVIEW_WORKER_TOKEN:'dev057-task-owned-synthetic-preview-token', DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
+      PDM_LOCAL_FAKE_PREVIEW_WORKER:'0',
+      PDM_WORKLOAD_CREDENTIAL:Buffer.alloc(32,11).toString('base64url'), PDM_WORKLOAD_ID:'dev057-native-worker',
+      PDM_WORKLOAD_AUTH_CREDENTIALS:JSON.stringify({schemaVersion:'ai-pdm.workload-credentials.v1',workloads:[
+        {id:'dev057-native-worker',token:Buffer.alloc(32,11).toString('base64url'),purposes:['preview_jobs','preview_heartbeat'],capabilities:['solidworks_3d_preview_png']}
+      ]}), DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
       PDM_POSTGRES_URL: consumer.toString(), PDM_DB_PROVIDER:'postgres', DEV010_N2_DATABASE_BOUNDARY:'required',
       PDM_DATA_DIR:path.join(taskRoot,'aipdm-numbering-data'), PDM_REPOSITORY_DIR:path.join(taskRoot,'aipdm-numbering-repository'),
       PDM_PRODUCTION_SLICE_MODE:'official-numbering-draft', PDM_NUMBER_STATE_FLOW_V1:'1',

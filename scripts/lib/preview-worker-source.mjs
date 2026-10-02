@@ -10,7 +10,7 @@ export async function materializeClaimedPreviewSource({ baseUrl, token, workerId
       !/^[a-f0-9]{64}$/iu.test(claim.sourceContentHash || "")) throw new Error("PREVIEW_SOURCE_METADATA_INVALID");
   const url = new URL(`/api/preview-jobs/${encodeURIComponent(claim.jobId)}/content`, baseUrl);
   const response = await request(url, { redirect: "error", signal: AbortSignal.timeout(60000),
-    headers: { "x-pdm-preview-worker-token": token, "x-pdm-preview-worker-id": workerId } });
+    headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId } });
   if (!response.ok) throw new Error(`PREVIEW_SOURCE_READ_FAILED:${response.status}`);
   const bytes = Buffer.from(await response.arrayBuffer());
   const digest = crypto.createHash("sha256").update(bytes).digest("hex");

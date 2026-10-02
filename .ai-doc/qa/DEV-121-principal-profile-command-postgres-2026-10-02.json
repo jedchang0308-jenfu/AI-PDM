@@ -183,5 +183,539 @@
       "correction": "use actual NEXT_PUBLIC_GCS_BUCKET negative case; reject each missing fixed value",
       "remaining": "Provider storage apply/readback and effective IAM must be verified before candidate deployment; runtime template hash is not resource proof."
     }
+  },
+  "workloadActorAuthentication": {
+    "scope": "TASK_OWNED_LOCAL_POSTGRES_MINIMAL_WORKER_SCHEMA",
+    "productionVerified": false,
+    "releaseAuthority": false,
+    "sourceBase": "AI-PDM/25d256c2bab10d91abaa8d003f73edcf934c13c0",
+    "sourceSha256": {
+      "src/lib/worker-service-auth.ts": "e64beb7f04eecc6f1f0b4a63420d2716354a5dd4a0c897282715b0b83884d4d4",
+      "src/lib/worker-service-auth.test.ts": "44058508392d34d726995aa607887250d3c25014546a68781fe7ead6cae089a2",
+      "scripts/run-windows-shell-preview-worker.mjs": "f11ded5190e6992cf3c238f4e3a21fdce64ac0b4cf0da6e94d52d617f55fe662",
+      "scripts/run-solidworks-document-manager-preview-worker.mjs": "44a0f037aee165e8395c191f2c89ddab68a8793ab7ba3593381706b7aa485bd7",
+      "scripts/run-drawing-recognition-worker.mjs": "9fd397c420ddc2f1b43fb6ad99ec3dcea064191eb6eab42a45d55818855080a5",
+      "scripts/qc-dev-121-preview-worker-postgres.mjs": "b6529294dd188a292a9fdb274e60143ed39ea8e7866f167cbe481cb90f4fa283",
+      "scripts/qc-dev-121-recognition-initiator-postgres.mjs": "e90bc0c59f16957e2fa6a8843482893259bbfd1b047e2de115e65e97a526c4ba"
+    },
+    "serverConfiguration": "PDM_WORKLOAD_AUTH_CREDENTIALS / ai-pdm.workload-credentials.v1 / unique 32-byte opaque bearer per configured actor",
+    "callerConfiguration": "PDM_WORKLOAD_CREDENTIAL + registered PDM_WORKLOAD_ID; no --token or old token env fallback",
+    "verified": {
+      "focusedAuthAndSourceTests": 8,
+      "appTypecheck": "PASS after fixture headers typing correction",
+      "previewPostgres": {
+        "file": "dev015-r65-preview-auth-pg.log",
+        "sha256": "8a5b89498fac7b3396b07363dec4e7a065ca1615222d707d30f3c6fed49795ee",
+        "runner": "DEV-121 preview worker PostgreSQL",
+        "checks": [
+          "task-owned stalled worker exits within the bounded cleanup timeout",
+          "SKIP LOCKED does not wait for a job held by another transaction",
+          "two PostgreSQL workers claim the queued job only once",
+          "heartbeat acknowledges only the current claim holder",
+          "only the claim holder can complete and a late failure cannot overwrite success",
+          "worker rejects a job labeled with a different company than its source",
+          "claimed worker writes derivative bytes and Principal provenance stays on the job",
+          "separate preview worker consumes holder-only source HTTP and completes with Principal provenance"
+        ],
+        "productionWrites": false,
+        "cleanup": {
+          "stopped": true,
+          "released": true,
+          "tempRemoved": true
+        },
+        "retainedTempPath": null
+      },
+      "recognitionPostgres": {
+        "file": "dev015-r65-recognition-auth-pg.log",
+        "sha256": "26302336f48de6e3a506773bd4d55f6950d09b6dddfbe990d0b12877e050f9b4",
+        "runner": "DEV-121 recognition Principal PostgreSQL",
+        "migrationSha256": "07be90b7e9d8dd261a573fd1a32249492a1e5168cba66ba89c5c1ce49bb57a9f",
+        "workerHttpTestSha256": "d9f22da5683c8d87e019a9906b0f26e56928444dd37e4af847985c457b68952c",
+        "checksPassed": 18,
+        "productionWrites": false,
+        "cleanup": {
+          "stopped": true,
+          "released": true,
+          "tempRemoved": true
+        },
+        "retainedTempPath": null
+      }
+    },
+    "guardScope": "Server-resolved id and purpose/capability; immutable human Principal initiator; existing source hash/company/holder checks",
+    "cleanup": "Both exact registered runtime PIDs exited; all PostgreSQL/HTTP/worker/client/port/temp and lease cleanup verified",
+    "remaining": [
+      "GCC exact-image loader closure and CVE-specific owner assessment",
+      "Actual workload Secret numeric version/readback",
+      "Human selection of Production Windows worker host; no existing formal host evidence",
+      "Fresh merged source and accepted immutable owner build",
+      "Business storage saved-plan/apply/effective IAM and actual normal-provider Production L4/recovery"
+    ],
+    "grantBoundaryFailures": 7,
+    "threshold": 8,
+    "nonBlockingLegacyQc": {
+      "script": "qc-dev-035-contract.mjs",
+      "status": "15 PASS / existing drawn_by allowlist source-string check FAIL",
+      "cause": "Origin main repository already delegates stable field keys to drawing-recognition-contract; this batch did not change that domain repository",
+      "notCountedAsCurrentAuthorizationDefect": true
+    },
+    "followUpInputParsing": {
+      "schemaVersion": "jenfu.dev015.workload-auth-input-refinement.v1",
+      "sourceBase": "AI-PDM/25d256c2bab10d91abaa8d003f73edcf934c13c0",
+      "productionVerified": false,
+      "releaseAuthority": false,
+      "sourceSha256": {
+        "src/lib/worker-service-auth.ts": "b38bc24a0e1611dcb361e9db8c69fea1db46619b7a7f37e3c718196e567345ef",
+        "src/lib/worker-service-auth.test.ts": "f0c307ce10233efd92c350da79d2d541009cf0c169018906deeef33b7c8804e6",
+        "src/app/api/preview-jobs/[jobId]/content/route.principal.test.ts": "7cb6fddbc530ee72659cbb3c1e4dfd3a7f5d79d6dbc3b2867ebe9408cfbc19e8"
+      },
+      "behavior": "ASCII-only opaque bearer token with case-insensitive scheme; server-bound id/purpose/capability and no old-token fallback remain unchanged",
+      "verification": "8 focused auth/source tests PASS; targeted helper lint PASS; app typecheck and full changed-file lint PASS earlier same batch",
+      "fixtureCorrection": "Unicode Kelvin/long-s headers were rejected by Web Request ByteString construction before handler execution; removed invalid transport fixture instead of faking Request. Not a production or grant-boundary failure.",
+      "primaryInvariant": {
+        "fileSha256BeforeAfter": "7270444145e5bb8e7c052f05ac52ba383829ac8462165af3e92f3fd4129e3669",
+        "schemaHashBeforeAfter": "d2078fdc7125309d06eff2a190ab4438bc2523bad38d7abfaba51a5895c77e88",
+        "canonicalIdentityHashBeforeAfter": "992cf79b8ba33bd8caeeadb5dedc2d9113ef6ca1d76fc3f77eaa0e584ebfca25",
+        "migrationResidue": 0,
+        "rootReferenceViolations": 0,
+        "foreignKeyViolations": 0
+      },
+      "runtimeCleanup": {
+        "previewListeners": 0,
+        "previewTempExists": false,
+        "recognitionListeners": 0,
+        "recognitionTempExists": false,
+        "registeredParentsReleased": true,
+        "capacityLeaseReleased": true
+      },
+      "sameBranchUncommitted": true,
+      "newPr": false,
+      "grantBoundaryFailures": 7,
+      "threshold": 8
+    },
+    "localFixedEntrypoint": {
+      "schemaVersion": "dev121.local-workload-launcher-checkpoint.v1",
+      "recordedAt": "2026-10-02T19:16:59.512Z",
+      "stage": "LOCAL_AUTH_CALLER_REFACTOR_NOT_RELEASED",
+      "owner": "AIPDM/DEV-121",
+      "sourceHead": "25d256c2bab10d91abaa8d003f73edcf934c13c0",
+      "fixedEntrypoint": "npm run dev:local",
+      "primaryRuntimeStarted": false,
+      "productionMutation": false,
+      "productionVerified": false,
+      "credentialMaterialPrinted": false,
+      "files": [
+        {
+          "path": "scripts/start-localhost-3000.ps1",
+          "sha256": "669ec4ff4750cf1362c7d6eca5e48e5c0088532c5cf3ef041b19ac1add2a5c9d"
+        },
+        {
+          "path": "scripts/lib/local-workload-auth.ps1",
+          "sha256": "08db803d82cf63c53e8e625fccf50a0b83b3cbddfabb754981b9000c2e023ec8"
+        },
+        {
+          "path": "scripts/lib/local-workload-auth.test.ps1",
+          "sha256": "750fa30ad7d0ce8391f7cc648674bf5b32758bf795f594d3a1dcae1d1278d776"
+        },
+        {
+          "path": "scripts/lib/local-workload-auth.test.mjs",
+          "sha256": "bfb085ddbc8063970c19dce33605d46c38b56e3872854094b185db4658c3e7e5"
+        },
+        {
+          "path": "scripts/qc-pdm-sw-native-preview-worker.mjs",
+          "sha256": "ecaf1038e168c4b5923a4be3850444ee54acccc46fb9538aa10242257e44f57a"
+        },
+        {
+          "path": "scripts/qc-pdm-settings-center-secret-lifecycle.mjs",
+          "sha256": "f9f37f00731954ea2a9dbbe95c9e75d6691d3a90661826a7ed26deeaeadae6b7"
+        },
+        {
+          "path": "scripts/qc-pdm-gcp-secret-manager.mjs",
+          "sha256": "37bb1fc5809c8048458b67098a33152cab245cf279bcbf5725c94f46cabd3f61"
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "e1100686b9fef5e0b6c0efd424192ea78f50c14e3a8373bf0746efb69d3cab97"
+        }
+      ],
+      "validation": {
+        "localProcessContract": {
+          "passed": true,
+          "checks": 19,
+          "host": "Windows PowerShell 5",
+          "command": "node --test scripts/lib/local-workload-auth.test.mjs",
+          "covers": [
+            "DPAPI CurrentUser encrypted persistence",
+            "stable three registered workloads",
+            "legacy environment never reused",
+            "child receives only own credential and no server bundle",
+            "parent environment restored after success and failure",
+            "unknown identity, duplicate credential, scope widening, unknown fields and Production bootstrap rejection"
+          ]
+        },
+        "powerShellSyntax": {
+          "passed": true,
+          "files": [
+            "scripts/start-localhost-3000.ps1",
+            "scripts/lib/local-workload-auth.ps1",
+            "scripts/lib/local-workload-auth.test.ps1"
+          ]
+        },
+        "scopedDiffCheck": {
+          "passed": true
+        },
+        "legacyQc": {
+          "overallPassed": false,
+          "checks": [
+            {
+              "command": "qc-local-dev-entrypoint",
+              "cause": "unchanged official HEAD tsconfig includes generated tmp and repository-wide wildcards; 1238 files exceeds historical 700 limit",
+              "preexistingOnOfficialHead": true
+            },
+            {
+              "command": "qc-pdm-sw-native-preview-worker",
+              "cause": "old inline file-response helper string assertion missing on current and official HEAD",
+              "preexistingOnOfficialHead": true
+            },
+            {
+              "command": "qc-pdm-settings-center-secret-lifecycle",
+              "cause": "list route already uses Principal external-read authorization rather than old requireRoleAsync string",
+              "preexistingOnOfficialHead": true
+            },
+            {
+              "command": "qc-pdm-gcp-secret-manager",
+              "cause": "old UI readiness label strings missing on official HEAD",
+              "preexistingOnOfficialHead": true
+            }
+          ],
+          "newWorkloadCallerAssertionsUpdated": true,
+          "doesNotProveRuntimeDefect": true
+        },
+        "instrumentationCorrections": [
+          "Native PowerShell 5 test must not inherit PowerShell 7 module path; DPAPI binds Framework assembly explicitly",
+          "Do not Refresh completed Windows PowerShell 5 process before exit readback; completed child output and no-error receipt separately verified",
+          "Sandbox CIM denial was followed by successful authorized read-only OS cleanup verification"
+        ],
+        "fixedLocalOrigin": {
+          "sourceBound": true,
+          "preview": "http://localhost:3000/",
+          "recognition": "http://localhost:3000/",
+          "powerShellSyntaxPassed": true,
+          "primaryRuntimeStarted": false
+        },
+        "changedJavaScriptLint": {
+          "passed": true,
+          "files": [
+            "scripts/lib/local-workload-auth.test.mjs",
+            "scripts/qc-pdm-sw-native-preview-worker.mjs",
+            "scripts/qc-pdm-settings-center-secret-lifecycle.mjs",
+            "scripts/qc-pdm-gcp-secret-manager.mjs"
+          ]
+        }
+      },
+      "cleanup": {
+        "actualOsReadback": true,
+        "taskOwnedChildProcessesRemaining": 0,
+        "taskTemporaryDirectoriesRemaining": 0,
+        "existingRuntimesUntouched": true
+      },
+      "sharedGrantFailureCounter": {
+        "observed": 7,
+        "threshold": 8,
+        "incremented": false
+      },
+      "remaining": [
+        "full actual OrgMaster producer/native attachment composition with new credentials",
+        "Production numeric workload Secret binding and actual worker host lifecycle",
+        "GCC exact-image loader closure and narrow owner artifact policy",
+        "whole common-root PR and required CI",
+        "fresh accepted owner build",
+        "actual business-storage saved-plan/apply/effective IAM",
+        "complete candidate and Production L4"
+      ],
+      "updatedAt": "2026-10-02T19:20:53.082Z",
+      "review": {
+        "reviewer": "/root/r46_fixture_grant_readonly",
+        "mode": "READ_ONLY",
+        "sourceScope": "local-workload module and tests plus fixed launcher",
+        "blockingFindings": 0,
+        "productionAuthority": false,
+        "limits": [
+          "reviewer did not run tests",
+          "actual Production Secret, worker host, full composition and L4 still outstanding"
+        ]
+      }
+    },
+    "fullProducerNativePostgres": {
+      "schemaVersion": "jenfu.dev015.workload-producer-composition.v1",
+      "generatedAt": "2026-10-02T19:47:59.258Z",
+      "scope": "LOCAL_ACTUAL_POSTGRES_PRODUCER_CONSUMER_NATIVE_NOT_PROVIDER",
+      "productionWrites": false,
+      "productionVerified": false,
+      "releaseAuthority": false,
+      "producer": {
+        "revision": "625a86abc669926f2a1d37a4d04f8e59fc5ab2cc",
+        "migrations": 29
+      },
+      "consumer": {
+        "baseRevision": "25d256c2bab10d91abaa8d003f73edcf934c13c0",
+        "migrationCeiling": "076",
+        "nativeTestSha256": "a3f96825c8f7d654c58d07bc034c9d113d2394f3c3b8ec113ee1cb82d3bb6f5d"
+      },
+      "postgresVersion": "18.4",
+      "evidence": {
+        "file": "dev015-r66-full-owner-native.json",
+        "sha256": "27c63f5983a7abd0a7d53250effd35fa253d65448eaf0b2004bb79b7d8bb86a8",
+        "checks": 24
+      },
+      "phases": [
+        "assigned",
+        "revoked",
+        "out-of-scope",
+        "restored",
+        "flow"
+      ],
+      "covered": "actual OrgMaster published grants -> restricted AI-PDM consumer -> assignment/revocation/scope -> native transfer/attachment command/replay -> receipt/outbox/worker/heartbeat -> fresh-process download readback",
+      "session": "synthetic verified Principal; no Firebase or real provider login evidence",
+      "storage": "task-local bytes; no Production GCS proof",
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true,
+        "parentAbsent": true,
+        "postgresAbsent": true,
+        "listeners": 0,
+        "tempAbsent": true,
+        "runtimeReleased": true,
+        "leaseReleased": true
+      },
+      "ownerQc": {
+        "result": "PASS",
+        "directory": "output/dev-117/s1b/DEV117-S1B-20261002T194244138Z-6ECBE602",
+        "isolatedBuild": "PASS",
+        "primaryInvariant": "4533523cd4d50b7137d2a95ab35e650de6abd694145146fb1457c4b52c418f03",
+        "cleanup": {
+          "parentAbsent": true,
+          "runtimeReleased": true,
+          "leaseReleased": "released",
+          "runtimeTempAbsent": true
+        }
+      },
+      "workloadRelease": {
+        "status": "SOURCE_ONLY_TESTED",
+        "secretId": "aipdm-prod-workload-auth-credentials",
+        "numericEnabledVersionRequired": true,
+        "ownSecretResourceAccessorOnly": true,
+        "actualSecretProvisioned": false,
+        "workerHostLifecycleVerified": false
+      },
+      "grantBoundaryFailures": 7,
+      "threshold": 8,
+      "remaining": [
+        "GCC exact-image loader closure and CVE-specific owner assessment",
+        "Actual workload Secret numeric version/readback and Production worker host lifecycle",
+        "Fresh merged source and accepted immutable owner build",
+        "Business storage saved-plan/apply and effective IAM",
+        "Normal-provider complete candidate and Production business L4/recovery"
+      ],
+      "candidateRuntimeReadback": {
+        "status": "LOCAL_SOURCE_TESTED",
+        "stages": [
+          "candidate",
+          "verify",
+          "canonical"
+        ],
+        "fields": [
+          "runtimeServiceAccount",
+          "env",
+          "SecretIdAndNumericVersion",
+          "command",
+          "args",
+          "mounts",
+          "volumes"
+        ],
+        "tests": "26 runtime/executor cases PASS",
+        "lint": "PASS",
+        "codexReview": "Luna read-only: no blocking defect; provider Secret ENABLED readback still required",
+        "productionVerified": false
+      },
+      "authority": "Prior full owner QC/build covers unchanged app inputs; later runtime helper source is covered by its targeted runtime/executor tests and lint. No new accepted Production image or Secret proof."
+    },
+    "productionReleaseBinding": {
+      "status": "SOURCE_ONLY_TESTED",
+      "secretId": "aipdm-prod-workload-auth-credentials",
+      "numericEnabledVersionRequired": true,
+      "ownSecretResourceAccessorOnly": true,
+      "actualSecretProvisioned": false,
+      "workerHostLifecycleVerified": false
+    },
+    "candidateRuntimeReadback": {
+      "status": "LOCAL_SOURCE_TESTED",
+      "stages": [
+        "candidate",
+        "verify",
+        "canonical"
+      ],
+      "fields": [
+        "runtimeServiceAccount",
+        "env",
+        "SecretIdAndNumericVersion",
+        "command",
+        "args",
+        "mounts",
+        "volumes"
+      ],
+      "tests": "26 runtime/executor cases PASS",
+      "lint": "PASS",
+      "codexReview": "Luna read-only: no blocking defect; provider Secret ENABLED readback still required",
+      "productionVerified": false
+    },
+    "kindScopeCompletion": {
+      "schemaVersion": "jenfu.dev015.workload-kind-scope-completion.v1",
+      "generatedAt": "2026-10-02T20:26:22.273Z",
+      "scope": "LOCAL_ACTUAL_POSTGRES_PRODUCER_CONSUMER_NATIVE_NOT_PROVIDER",
+      "productionWrites": false,
+      "productionVerified": false,
+      "releaseAuthority": false,
+      "rootCause": "Caller-declared preview kind exceeded the authenticated workload capability",
+      "behavior": "PNG-only actor rejects PDF, mixed, unknown and empty kind arrays before DB; actual HTTP denials leave job queued/unlocked before native PNG worker success",
+      "producer": {
+        "revision": "625a86abc669926f2a1d37a4d04f8e59fc5ab2cc",
+        "migrations": 29
+      },
+      "consumer": {
+        "baseRevision": "25d256c2bab10d91abaa8d003f73edcf934c13c0",
+        "migrationCeiling": "076",
+        "claimRouteSha256": "83ea5b617620466579f4d66bdd00e5a8452cea78a9dfa497255fc7610785733c",
+        "nativeTestSha256": "52d8b3c79736307668375452dc1c0bb2445cb1e75386f066908160443764e1eb"
+      },
+      "postgresVersion": "18.4",
+      "fullProducerNativeEvidence": {
+        "file": "dev015-r67-full-owner-native.json",
+        "sha256": "9f82d468e1ffca2c54e2f4854fc9c27806c9dcff2cec8030ea60ef4417bd32c8",
+        "checks": 24,
+        "phases": [
+          "assigned",
+          "revoked",
+          "out-of-scope",
+          "restored",
+          "flow"
+        ]
+      },
+      "targetedTests": {
+        "files": 3,
+        "cases": 11,
+        "result": "PASS",
+        "command": "npm exec -- vitest run src/lib/worker-service-auth.test.ts src/app/api/preview-jobs/claim/route.workload.test.ts src/app/api/preview-jobs/[jobId]/content/route.principal.test.ts"
+      },
+      "lint": "PASS",
+      "typecheck": "PASS",
+      "build": {
+        "status": "PASS_CLEANED",
+        "primaryInvariant": "4533523cd4d50b7137d2a95ab35e650de6abd694145146fb1457c4b52c418f03",
+        "parentAbsent": true,
+        "childAbsent": true,
+        "artifact": true,
+        "primary": true,
+        "runtimeTempAbsent": true,
+        "runtimeReleased": true,
+        "leaseReleased": true,
+        "productionWrites": false,
+        "logSha256": "63f27c7195d1d0b3124049e93f90a6e595755684f1ab2be62cfdd5b451bac6b6"
+      },
+      "postgresCleanup": {
+        "status": "PASS_CLEANED",
+        "checks": 24,
+        "parentAbsent": true,
+        "postgresAbsent": true,
+        "listeners": 0,
+        "tempAbsent": true,
+        "nativeTestSha256": "52d8b3c79736307668375452dc1c0bb2445cb1e75386f066908160443764e1eb",
+        "productionWrites": false
+      },
+      "codexReview": {
+        "model": "GPT-6 Luna",
+        "mode": "read-only",
+        "blockingFindings": 0,
+        "scope": "PNG kind scope fix and original workload ownership/provenance guarantees",
+        "nonBlocking": "A non-array supportedKinds value currently uses the PNG default; no capability widening"
+      },
+      "providerSession": "synthetic verified Principal; not Google/Firebase/provider evidence",
+      "storage": "task-local bytes; not Production GCS proof",
+      "grantBoundaryFailures": 7,
+      "threshold": 8,
+      "remaining": [
+        "GCC exact-image loader closure and CVE-specific owner assessment",
+        "Actual workload Secret numeric version/readback",
+        "Human selection of Production Windows worker host; no existing formal host evidence",
+        "Fresh merged source and accepted immutable owner build",
+        "Business storage saved-plan/apply/effective IAM and actual normal-provider Production L4/recovery"
+      ],
+      "productionWindowsHost": {
+        "status": "AWAITING_ACTUAL_TARGET",
+        "temporaryLocalWorkerIsNotProduction": true,
+        "humanQuestionPresented": true
+      },
+      "gcloudAuth": {
+        "status": "EXISTING_LOGIN_PROCESS_WAITING",
+        "pid": 35496,
+        "session": 29371,
+        "callbackPort": 8085,
+        "cleanupOwner": "this goal; retain only until human callback or verified cancellation"
+      }
+    },
+    "previewSourceCiCorrection": {
+      "originalRunId": 37060858694,
+      "jobId": 111016880364,
+      "originalHead": "12b91ab3c3e4ef6533d38e5ce07d8f64c5375000",
+      "conclusion": "FAILURE",
+      "reason": "preview-worker-source test expected retired x-pdm-preview-worker-id after caller changed to x-pdm-worker-id",
+      "classification": "TEST_CONTRACT_DRIFT_NOT_PRODUCT_GRANT_FAILURE",
+      "originalLogSha256": "34f5d8f8134017b4a4b58ba1f1b63e4d7597e75facbc994d62a634a2d36bfb11",
+      "fix": "Test asserts Bearer, authenticated x-pdm-worker-id and absent retired header",
+      "localScriptGroup": {
+        "result": "PASS",
+        "cases": 102
+      },
+      "adjacentPrincipal": {
+        "result": "PASS",
+        "files": 5,
+        "cases": 23
+      },
+      "lint": "PASS",
+      "productSourceChanged": false,
+      "reuse": "R67 actual producer/native PostgreSQL and application isolated build retain unchanged product inputs",
+      "grantBoundaryFailures": 7,
+      "threshold": 8,
+      "productionMutation": false,
+      "browserController": "Cua kernel failed Windows error 5 before any page access; no UI login action performed",
+      "gcloud": "existing session 29371 still live, awaiting human callback"
+    }
+  },
+  "gccAlignedNewInvestigation": {
+    "scope": "EXACT_IMAGE_INVESTIGATION_NOT_RELEASE_AUTHORITY",
+    "cve": "CVE-2026-95619",
+    "status": "CODE_PATH_EVIDENCE_REVIEWED_LOADER_CLOSURE_PENDING",
+    "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a417d32a52986972b2b67e6e1c1cd57847ab1f3514fa1396ac67e8fbc60755c8",
+    "sourceRevision": "25d256c2bab10d91abaa8d003f73edcf934c13c0",
+    "nativeCodeFingerprint": "b443738b766eea4b7b8c69356448609bba87158146c3fa2db9cb4a4deee10a45",
+    "inspection": {
+      "buildId": "c068c9c2-81a9-4bf7-9fe1-62145daa9dfb",
+      "status": "SUCCESS",
+      "startTime": "2026-10-02T18:11:00.820700192Z",
+      "finishTime": "2026-10-02T18:11:56.396344Z",
+      "finalReadbackSha256": "66f0473702a510628fa7241eb43c8e4492feb639e59f188691908ebae0c3e8c7",
+      "logSha256": "f716a1d512dd64135925f1e037dd53c21661d87a89c69347857db17ce4121fdf",
+      "inventorySha256": "adb7750e82bcf00ddef006a541dbd130d78d92490bfb07051e32dc7bf1738078",
+      "programSha256": "fae1eb6abab02660bc5fede8658a97c5ee476631821dbed1a253ae33eccf41d6",
+      "probeSourceSha256": "eb2615b4229cacf3e65a4f08c3c4d69fdca9e1e9d83b298133d63bf788d00911"
+    },
+    "remaining": [
+      "Actual shipped loader environment/dynamic dependency resolution and absence of injected alternate implementation",
+      "CVE-specific source-bound owner validator/assessment and unrelated HIGH/CRITICAL rejection regressions",
+      "Fresh official source/package; raw R64 image is not accepted release build evidence"
+    ],
+    "rawHighSeverityRetained": true
   }
 }

@@ -12,7 +12,7 @@ check("alias profile exists", Boolean(aliases.profiles?.[aliases.fallbackProfile
 const aliasKeys = (aliases.profiles?.[aliases.fallbackProfile]?.aliases ?? []).flatMap((entry) => entry.aliases.map((alias) => alias.trim().normalize("NFKC").toLowerCase()));
 check("alias duplicates rejected", new Set(aliasKeys).size === aliasKeys.length);
 const route = read("src/app/api/recognition-jobs/[sessionId]/sources/[sourceId]/content/route.ts");
-check("source endpoint worker authentication", route.includes("requireRecognitionWorker") && route.includes("x-pdm-recognition-worker-id"));
+check("source endpoint worker authentication", route.includes('authenticateWorkerService(request, "recognition_jobs")') && route.includes("workerId = actor.id"));
 check("source endpoint no storage pointer leak", !route.includes("storage_key") && !route.includes("original_path"));
 check("source endpoint content hash", route.includes("content-hash") && route.includes("content-length"));
 const worker = read("scripts/run-drawing-recognition-worker.mjs");

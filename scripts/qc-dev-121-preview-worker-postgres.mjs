@@ -329,7 +329,10 @@ try {
     process.env.PDM_POSTGRES_URL=connectionString;
     process.env.PDM_POSTGRES_MAX_CONNECTIONS='2';
     process.env.DEV010_N2_DATABASE_BOUNDARY='required';
-    process.env.PDM_PREVIEW_WORKER_TOKEN='synthetic-task-owned-preview-token';
+    process.env.PDM_WORKLOAD_AUTH_CREDENTIALS=JSON.stringify({schemaVersion:'ai-pdm.workload-credentials.v1',workloads:[
+      {id:'http-worker',token:Buffer.alloc(32,31).toString('base64url'),purposes:['preview_jobs'],capabilities:['solidworks_2d_preview_png']},
+      {id:'native-worker',token:Buffer.alloc(32,32).toString('base64url'),purposes:['preview_jobs','preview_heartbeat'],capabilities:['solidworks_3d_preview_png']}
+    ]});
     const [{POST:claimHandler},{GET:contentHandler},{POST:completeHandler},dbModule,{POST:heartbeatHandler},{POST:capabilityHandler}] = await Promise.all([
       import('../src/app/api/preview-jobs/claim/route.ts'),
       import('../src/app/api/preview-jobs/[jobId]/content/route.ts'),
@@ -368,8 +371,8 @@ try {
       import path from 'node:path';
       import {materializeClaimedPreviewSource} from ${JSON.stringify(new URL('./lib/preview-worker-source.mjs',import.meta.url).href)};
       const baseUrl=process.env.R30_PREVIEW_BASE;
-      const token=process.env.PDM_PREVIEW_WORKER_TOKEN;
-      const headers={'content-type':'application/json','x-pdm-preview-worker-token':token};
+      const token=Buffer.alloc(32,31).toString('base64url');
+      const headers={'content-type':'application/json',authorization:'Bearer '+token,'x-pdm-worker-id':'http-worker'};
       let response=await fetch(baseUrl+'/api/preview-jobs/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({workerId:'http-worker'})});
       assert.equal(response.status,403);
       response=await fetch(baseUrl+'/api/preview-jobs/claim',{method:'POST',headers,body:JSON.stringify({workerId:'http-worker',supportedKinds:['native_thumbnail_png'],supportedExtensions:['slddrw']})});
@@ -418,7 +421,7 @@ try {
       VALUES ('job-native','company-one','asset-native',$1,'native_thumbnail_png','sldprt','queued','job-native-key','windows_solidworks_preview_worker','profile-one',now(),now(),
       '{"initiator":{"kind":"verified_principal","principalId":"principal-one"}}')`,[sourceHash]);
     const childResult=await runWorkerChild(['scripts/run-windows-shell-preview-worker.mjs','--base-url',`http://127.0.0.1:${contentPort}`,'--worker-id','native-worker','--models-only','--canary-source',nativeFixture],
-      {env:{...process.env,TEMP:taskRoot,TMP:taskRoot}});
+      {env:{...process.env,TEMP:taskRoot,TMP:taskRoot,PDM_WORKLOAD_ID:"native-worker",PDM_WORKLOAD_CREDENTIAL:Buffer.alloc(32,32).toString("base64url")}});
     assert.equal(childResult.timedOut,false);
     assert.equal(childResult.code,0,childResult.stderr);
     process.stdout.write(childResult.stdout);
@@ -439,7 +442,7 @@ try {
     assert.equal(heartbeat.reader_version,'windows-shell-ishellitemimagefactory-v2');
     assert.deepEqual(fs.readdirSync(taskRoot).filter(name=>name.startsWith('aipdm-preview-source-')),[]);
     assert.equal(crypto.createHash('sha256').update(fs.readFileSync(nativeFixture)).digest('hex'),sourceHash);
-    const headers={'x-pdm-preview-worker-token':process.env.PDM_PREVIEW_WORKER_TOKEN,'x-pdm-preview-worker-id':'native-worker'};
+    const headers={authorization:'Bearer '+Buffer.alloc(32,32).toString('base64url'),'x-pdm-worker-id':'native-worker'};
     const after=await fetch(`http://127.0.0.1:${contentPort}/api/preview-jobs/job-native/content`,{headers});
     assert.equal(after.status,403);
   });

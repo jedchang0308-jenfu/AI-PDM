@@ -65,7 +65,7 @@ try {
       !includesAll(lifecycle, ["SupabaseVaultSecretProvider", "vault.create_secret"])
   );
   record("SETTINGS-SECRET-008A lifecycle never reads historical Supabase Vault", !lifecycle.includes("vault.decrypted_secrets") && !lifecycle.includes("PDM_ENABLE_SUPABASE") && lifecycle.includes("resolveActiveSolidWorksDocumentManagerKey"));
-  record("SETTINGS-SECRET-008B worker credential route is token-gated and no-store", includesAll(workerCredentialRoute, ["PDM_PREVIEW_WORKER_TOKEN", "resolveActiveSolidWorksDocumentManagerKey", "Cache-Control", "no-store"]));
+  record("SETTINGS-SECRET-008B worker credential route is token-gated and no-store", includesAll(workerCredentialRoute, ['authenticateWorkerService(request, "solidworks_credential")', "resolveActiveSolidWorksDocumentManagerKey", "Cache-Control", "no-store"]));
   record("SETTINGS-SECRET-009 lifecycle stores fingerprint/masked hint, not legacy system_settings", !lifecycle.includes("setSystemSetting") && includesAll(lifecycle, ["maskedHint", "fingerprint"]));
   record("SETTINGS-SECRET-010 legacy settings route has no secret material fields", !/solidworks.*(?:api[_-]?key|secret)|secretValue|vault_secret_id/iu.test(settingsRoute));
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncSettingsSecretRepository } from "@/lib/repositories/settings-secret-async-repository";
-import { requireWorkerServiceToken, safeWorkerId } from "@/lib/worker-service-auth";
+import { authenticateWorkerService, rejectWorkerLabel, rejectWorkerCapability } from "@/lib/worker-service-auth";
 
 export const runtime = "nodejs";
 
@@ -14,19 +14,24 @@ type PreviewCapabilityCode = keyof typeof capabilityKinds;
 
 function previewCapability(value: unknown): PreviewCapabilityCode | null {
   const normalized = String(value ?? "").trim();
-  return normalized in capabilityKinds ? normalized as PreviewCapabilityCode : null;
+  return Object.hasOwn(capabilityKinds, normalized) ? normalized as PreviewCapabilityCode : null;
 }
 
 export async function POST(request: Request) {
-  const denied = requireWorkerServiceToken(request);
-  if (denied) return denied;
+  const authentication = authenticateWorkerService(request, "preview_heartbeat");
+  if ("response" in authentication) return authentication.response;
+  const { actor } = authentication;
 
   const body = await request.json().catch(() => ({}));
-  const workerId = safeWorkerId(body?.workerId);
+  const labelDenied = rejectWorkerLabel(actor, body?.workerId);
+  if (labelDenied) return labelDenied;
+  const workerId = actor.id;
   const capabilityCode = previewCapability(body?.capability);
   if (!workerId || !capabilityCode) {
     return NextResponse.json({ error: "INVALID_WORKER_CAPABILITY" }, { status: 400 });
   }
+  const capabilityDenied = rejectWorkerCapability(actor, capabilityCode);
+  if (capabilityDenied) return capabilityDenied;
 
   const status = body?.status === "ready" || body?.status === "degraded" ? body.status : "blocked";
   const now = new Date().toISOString();
@@ -51,13 +56,17 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const denied = requireWorkerServiceToken(request);
-  if (denied) return denied;
+  const authentication = authenticateWorkerService(request, "preview_heartbeat");
+  if ("response" in authentication) return authentication.response;
+  const { actor } = authentication;
 
   const capabilityCode = previewCapability(new URL(request.url).searchParams.get("capability"));
   if (!capabilityCode) return NextResponse.json({ error: "INVALID_WORKER_CAPABILITY" }, { status: 400 });
-  const heartbeat = await new AsyncSettingsSecretRepository(getAsyncDatabaseClient())
-    .getLatestWorkerCapabilityHeartbeat(capabilityCode);
+  const capabilityDenied = rejectWorkerCapability(actor, capabilityCode);
+  if (capabilityDenied) return capabilityDenied;
+  const latest = await new AsyncSettingsSecretRepository(getAsyncDatabaseClient())
+    .getLatestWorkerCapabilityHeartbeat(capabilityCode, actor.id);
+  const heartbeat = latest;
   const fresh = Boolean(heartbeat && Date.parse(heartbeat.lastSeenAt) >= Date.now() - 30_000);
   return NextResponse.json({
     capability: capabilityCode,

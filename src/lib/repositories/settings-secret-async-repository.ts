@@ -567,10 +567,10 @@ export class AsyncSettingsSecretRepository {
     );
   }
 
-  async getLatestWorkerCapabilityHeartbeat(capabilityCode: string): Promise<WorkerCapabilityHeartbeat | null> {
+  async getLatestWorkerCapabilityHeartbeat(capabilityCode: string, workerId?: string): Promise<WorkerCapabilityHeartbeat | null> {
     const row = await this.client.queryOne<WorkerCapabilityHeartbeatRow>(
-      "SELECT * FROM worker_capability_heartbeats WHERE capability_code = :capabilityCode ORDER BY last_seen_at DESC LIMIT 1",
-      { capabilityCode }
+      `SELECT * FROM worker_capability_heartbeats WHERE capability_code = :capabilityCode${workerId ? " AND worker_id = :workerId" : ""} ORDER BY last_seen_at DESC LIMIT 1`,
+      workerId ? { capabilityCode, workerId } : { capabilityCode }
     );
     return row ? mapHeartbeat(row) : null;
   }

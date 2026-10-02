@@ -11,7 +11,6 @@ import sharp from "sharp";
 const root = process.cwd();
 const extractorPath = path.join(root, "scripts", "windows-shell-thumbnail-extractor.ps1");
 const defaultBaseUrl = process.env.PDM_PREVIEW_WORKER_BASE_URL || "http://127.0.0.1:3000";
-const defaultWorkerId = process.env.PDM_PREVIEW_WORKER_ID || "windows-shell-thumbnail-worker";
 const modelPreviewCapability = "solidworks_3d_preview_png";
 const modelPreviewRendererVersion = "windows-shell-ishellitemimagefactory-v2";
 
@@ -33,13 +32,12 @@ if (args.source) {
   process.exit(0);
 }
 
-const token = args.token || process.env.PDM_PREVIEW_WORKER_TOKEN || "";
-if (!token.trim()) {
-  throw new Error("PDM_PREVIEW_WORKER_TOKEN is required for API worker mode.");
-}
+const token = String(process.env.PDM_WORKLOAD_CREDENTIAL ?? "").trim();
+if (!/^[A-Za-z0-9_-]{43}$/u.test(token)) throw new Error("PDM_WORKLOAD_CREDENTIAL_REQUIRED");
 
 const baseUrl = (args.baseUrl || defaultBaseUrl).replace(/\/+$/u, "");
-const workerId = args.workerId || defaultWorkerId;
+const workerId = String(process.env.PDM_WORKLOAD_ID ?? "").trim();
+if (!/^[A-Za-z0-9._:-]{1,120}$/u.test(workerId) || (args.workerId && args.workerId !== workerId)) throw new Error("PDM_WORKLOAD_ID_REQUIRED_OR_MISMATCH");
 const watchMode = args.watch === true;
 const pollMs = readPositiveInt(args.pollMs, 2000);
 const capabilityReporter = createCapabilityReporter({ baseUrl, token, workerId, watchMode });
@@ -173,7 +171,8 @@ function createCapabilityReporter(input) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-pdm-preview-worker-token": input.token
+        authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
       },
       body: JSON.stringify({
         workerId: input.workerId,
@@ -236,7 +235,8 @@ async function claimJob(input) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-pdm-preview-worker-token": input.token
+      authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
     },
     body: JSON.stringify({
       workerId: input.workerId,
@@ -258,7 +258,8 @@ async function completeJob(input) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-pdm-preview-worker-token": input.token
+      authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
     },
     body: JSON.stringify({
       workerId: input.workerId,
@@ -279,7 +280,8 @@ function startJobHeartbeat(input) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-pdm-preview-worker-token": input.token
+        authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
       },
       body: JSON.stringify({ workerId: input.workerId })
     }).catch(() => undefined);
@@ -294,7 +296,8 @@ async function failJob(input) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-pdm-preview-worker-token": input.token
+      authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
     },
     body: JSON.stringify({
       workerId: input.workerId,
@@ -461,7 +464,6 @@ function parseArgs(values) {
     else if (value === "--out") parsed.out = values[++index];
     else if (value === "--size") parsed.size = values[++index];
     else if (value === "--base-url") parsed.baseUrl = values[++index];
-    else if (value === "--token") parsed.token = values[++index];
     else if (value === "--worker-id") parsed.workerId = values[++index];
     else if (value === "--models-only") parsed.modelsOnly = true;
     else if (value === "--watch") parsed.watch = true;
@@ -474,13 +476,13 @@ function parseArgs(values) {
 function printHelp() {
   console.log(`Usage:
   node scripts/run-windows-shell-preview-worker.mjs --source <file> --out <png>
-  PDM_PREVIEW_WORKER_TOKEN=<token> node scripts/run-windows-shell-preview-worker.mjs
-  PDM_PREVIEW_WORKER_TOKEN=<token> node scripts/run-windows-shell-preview-worker.mjs --watch --models-only
+  PDM_WORKLOAD_CREDENTIAL=<credential> PDM_WORKLOAD_ID=<registered-id> node scripts/run-windows-shell-preview-worker.mjs
+  PDM_WORKLOAD_CREDENTIAL=<credential> PDM_WORKLOAD_ID=<registered-id> node scripts/run-windows-shell-preview-worker.mjs --watch --models-only
 
 Environment:
   PDM_PREVIEW_WORKER_BASE_URL  Defaults to http://127.0.0.1:3000
-  PDM_PREVIEW_WORKER_TOKEN     Required for API worker mode
-  PDM_PREVIEW_WORKER_ID        Defaults to windows-shell-thumbnail-worker
+  PDM_WORKLOAD_CREDENTIAL     Required for API worker mode
+  PDM_WORKLOAD_ID        Required registered workload identity
   PDM_3D_PREVIEW_CANARY_SOURCE Optional real SLDPRT/SLDASM used before reporting ready
 
 Notes:

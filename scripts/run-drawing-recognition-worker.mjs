@@ -11,16 +11,16 @@ import {
 } from "../src/lib/drawing-recognition-adapters.ts";
 
 const baseUrl = String(process.env.PDM_DRAWING_RECOGNITION_WORKER_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/u, "");
-const token = String(process.env.PDM_DRAWING_RECOGNITION_WORKER_TOKEN ?? "").trim();
-const previewToken = String(process.env.PDM_PREVIEW_WORKER_TOKEN ?? "").trim();
+const token = String(process.env.PDM_WORKLOAD_CREDENTIAL ?? "").trim();
 const workerIdFlagIndex = process.argv.indexOf("--worker-id");
 const workerIdFromArgs = workerIdFlagIndex >= 0 ? String(process.argv[workerIdFlagIndex + 1] ?? "").trim() : "";
-const workerId = String(process.env.PDM_DRAWING_RECOGNITION_WORKER_ID || workerIdFromArgs || `local-${crypto.randomUUID()}`).trim();
+const workerId = String(process.env.PDM_WORKLOAD_ID ?? "").trim();
+if (!/^[A-Za-z0-9._:-]{1,120}$/u.test(workerId) || (workerIdFromArgs && workerIdFromArgs !== workerId)) throw new Error("PDM_WORKLOAD_ID_REQUIRED_OR_MISMATCH");
 const once = process.argv.includes("--once");
 const fixtureMode = process.env.PDM_DRAWING_RECOGNITION_FIXTURE_MODE === "true" && process.env.NODE_ENV !== "production";
 const pollIntervalMs = Math.max(250, Math.min(Number(process.env.PDM_DRAWING_RECOGNITION_POLL_MS ?? 2_000), 30_000));
 const reconnectDelayMs = Math.max(250, Math.min(Number(process.env.PDM_DRAWING_RECOGNITION_RECONNECT_MS ?? 2_000), 30_000));
-if (!token) throw new Error("PDM_DRAWING_RECOGNITION_WORKER_TOKEN_REQUIRED");
+if (!/^[A-Za-z0-9_-]{43}$/u.test(token)) throw new Error("PDM_WORKLOAD_CREDENTIAL_REQUIRED");
 
 function delay(durationMs) {
   return new Promise((resolve) => setTimeout(resolve, durationMs));
@@ -37,7 +37,7 @@ function errorSummary(error) {
 async function request(path, body) {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId, "content-type": "application/json" },
     body: JSON.stringify(body)
   });
   if (response.status === 204) return null;
@@ -49,7 +49,7 @@ async function request(path, body) {
 async function requestWorker(path, body) {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { authorization: `Bearer ${previewToken}`, "x-pdm-preview-worker-token": previewToken, "content-type": "application/json" },
+    headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId, "content-type": "application/json" },
     body: JSON.stringify(body)
   });
   if (response.status === 204) return null;
@@ -60,7 +60,7 @@ async function requestWorker(path, body) {
 
 async function requestSourceContent(job, source) {
   const response = await fetch(`${baseUrl}/api/recognition-jobs/${encodeURIComponent(job.sessionId)}/sources/${encodeURIComponent(source.id)}/content`, {
-    headers: { authorization: `Bearer ${token}`, "x-pdm-recognition-worker-id": workerId }
+    headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId }
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -90,13 +90,13 @@ async function ensureNativeReaderCredential() {
   if (environmentName && envFallbackAllowed) {
     return { value: String(process.env[environmentName]).trim(), version: null, fingerprint: null, source: "worker_environment" };
   }
-  if (!previewToken) {
+  if (!token) {
     const error = new Error("native_metadata_license_missing");
     error.code = "native_metadata_license_missing";
     throw error;
   }
   const response = await fetch(`${baseUrl}/api/preview-workers/solidworks-document-manager-key`, {
-    headers: { authorization: `Bearer ${previewToken}`, "x-pdm-preview-worker-token": previewToken }
+    headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId }
   });
   if (!response.ok) {
     const error = new Error(response.status === 404 ? "native_metadata_license_missing" : "native_metadata_credential_unavailable");
@@ -270,7 +270,7 @@ async function processProbeJob(job) {
   let credential = null;
   try {
     const credentialResponse = await fetch(`${baseUrl}/api/settings-secret-probe-jobs/${encodeURIComponent(job.id)}/credential`, {
-      headers: { authorization: `Bearer ${previewToken}`, "x-pdm-preview-worker-token": previewToken, "x-pdm-worker-id": workerId }
+      headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId }
     });
     const credentialBody = await credentialResponse.json().catch(() => ({}));
     if (!credentialResponse.ok || !credentialBody?.value) {
