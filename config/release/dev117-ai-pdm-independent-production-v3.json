@@ -384,6 +384,11 @@
         "order": 25,
         "path": "db/postgres/074_dev121_principal_human_assurance_aal1.sql",
         "sha256": "9bf0801478ebfb5a3cd8e25002ca5f05c7eb54b7373a584690dcdf57c1abcd66"
+      },
+      {
+        "order": 26,
+        "path": "db/postgres/075_dev121_transfer_action_registration.sql",
+        "sha256": "b343362c77e3e14a17d82cf616805bebfa9300bb71a9176b597ca620f65ebbc7"
       }
     ]
   },

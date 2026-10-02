@@ -81,12 +81,61 @@ try {
     (application_id,catalog_version,activated_at,activated_by,activation_reason)
     VALUES ('ai-pdm',$1,now(),'task-owned DEV121 fixture','exact approved v3 prerequisite')`,[v3.catalogVersion]);
   for (const entry of profile.migrations.entries.slice(profile.migrations.baselineCount)) await apply(entry);
+  const nativeTransfer = process.env.DEV057_NATIVE_TRANSFER_PROBE === '1';
+  const review = process.env.DEV057_NATIVE_REVIEW_PROBE === '1';
+  assert.ok(!(nativeTransfer && review), 'review and transfer consumer probes are separate');
   assert.ok([undefined,'direct','delegated'].includes(process.env.DEV057_NUMBERING_ACTOR));
   const delegated=process.env.DEV057_NUMBERING_ACTOR==='delegated';
-  const principal=delegated?process.env.DEV057_NUMBERING_DELEGATE_PRINCIPAL_ID:'principal-legacy';
-  const employee=delegated?process.env.DEV057_NUMBERING_DELEGATE_EMPLOYEE_ID:'employee-legacy';
-  assert.ok(principal && employee && (!delegated || (process.env.DEV057_NUMBERING_DELEGATE_ISSUER && process.env.DEV057_NUMBERING_DELEGATE_SUBJECT)),
-    'delegated probe requires the producer-verified exact account tuple');
+  const actorTuple = nativeTransfer ? {
+    principalId: process.env.DEV057_NUMBERING_PRINCIPAL_ID,
+    employeeId: process.env.DEV057_NUMBERING_EMPLOYEE_ID,
+    accountType: process.env.DEV057_NUMBERING_ACCOUNT_TYPE,
+    issuer: process.env.DEV057_NUMBERING_ISSUER,
+    subject: process.env.DEV057_NUMBERING_SUBJECT
+  } : {
+    principalId: delegated?process.env.DEV057_NUMBERING_DELEGATE_PRINCIPAL_ID:'principal-legacy',
+    employeeId: delegated?process.env.DEV057_NUMBERING_DELEGATE_EMPLOYEE_ID:'employee-legacy',
+    accountType: 'human_personal',
+    issuer: delegated?process.env.DEV057_NUMBERING_DELEGATE_ISSUER:'issuer-legacy',
+    subject: delegated?process.env.DEV057_NUMBERING_DELEGATE_SUBJECT:'subject-legacy'
+  };
+  const { principalId: principal, employeeId: employee, accountType } = actorTuple;
+  assert.ok(principal && employee && actorTuple.issuer && actorTuple.subject &&
+    (!nativeTransfer || ['human_personal','human_privileged'].includes(accountType)),
+    nativeTransfer
+      ? 'transfer probe requires all five exact producer-readback reviewer fields and a supported account type'
+      : 'delegated probe requires the producer-verified exact account tuple');
+  const ownerTuple = nativeTransfer ? {
+    principalId: process.env.DEV057_FLOW_OWNER_PRINCIPAL_ID,
+    employeeId: process.env.DEV057_FLOW_OWNER_EMPLOYEE_ID,
+    accountType: process.env.DEV057_FLOW_OWNER_ACCOUNT_TYPE,
+    issuer: process.env.DEV057_FLOW_OWNER_ISSUER,
+    subject: process.env.DEV057_FLOW_OWNER_SUBJECT
+  } : null;
+  if (nativeTransfer) {
+    assert.ok(ownerTuple?.principalId && ownerTuple.employeeId && ownerTuple.accountType &&
+      ownerTuple.issuer && ownerTuple.subject,
+    'transfer probe requires the exact producer-readback owner tuple');
+    const assertTypedTuple = async (tuple, label) => {
+      const rows = await target.query(`SELECT contract_version,principal_id,employee_id,account_type,
+          principal_issuer,principal_subject,employee_status
+        FROM orgmaster_contract.v_active_principal_accounts_v1
+        WHERE principal_id=$1 AND employee_id=$2`, [tuple.principalId,tuple.employeeId]);
+      assert.ok(rows.rowCount >= 1 && rows.rowCount <= 2,
+        'the consumer contract permits only one or two active aliases per ' + label);
+      assert.ok(rows.rows.some((row) => row.contract_version === 'organization.active-principal.v1' &&
+        row.principal_id === tuple.principalId && row.employee_id === tuple.employeeId &&
+        row.account_type === tuple.accountType && row.principal_issuer === tuple.issuer &&
+        row.principal_subject === tuple.subject && row.employee_status === 'active'),
+      'the exact ' + label + ' tuple must be present in the real active typed-account producer');
+      assert.ok(rows.rows.every((row) => row.contract_version === 'organization.active-principal.v1' &&
+        row.employee_id === tuple.employeeId && row.account_type === tuple.accountType &&
+        row.employee_status === 'active'),
+      'typed aliases for ' + label + ' must retain one exact active Employee/account type');
+    };
+    await assertTypedTuple(actorTuple, 'transfer reviewer');
+    await assertTypedTuple(ownerTuple, 'transfer owner');
+  }
   // Create the immutable profile link correctly at first insertion. Never
   // delete/rebind an admitted account, even in this disposable fixture.
   await target.query(`INSERT INTO ai_pdm_core.companies (id,company_code,company_kind,display_name)
@@ -97,8 +146,85 @@ try {
   await target.query(`INSERT INTO ai_pdm_core.principal_accounts
       (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,
        lifecycle_version,profile_version,system_role_enabled,minimum_assurance)
-    VALUES ($1,'qc-profile-legacy','company-jenfu',$2,'human_personal','active',1,1,true,'aal1')`,[principal,employee]);
-  const review = process.env.DEV057_NATIVE_REVIEW_PROBE === '1';
+    VALUES ($1,'qc-profile-legacy','company-jenfu',$2,$3,'active',1,1,true,'aal1')`,
+  [principal,employee,accountType]);
+  if (nativeTransfer) {
+    await target.query(`INSERT INTO ai_pdm_core.users (id,display_name,role,company_id)
+      VALUES ('qc-profile-owner','Synthetic transfer owner','Engineer','company-jenfu'),
+             ('qc-profile-other','Synthetic other-company owner','Engineer','company-other')
+      ON CONFLICT (id) DO NOTHING`);
+    await target.query(`INSERT INTO ai_pdm_core.principal_accounts
+        (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,
+         lifecycle_version,profile_version,system_role_enabled,minimum_assurance)
+      VALUES ($1,'qc-profile-owner','company-jenfu',$2,$3,'active',1,1,true,'aal1')`,
+    [ownerTuple.principalId,ownerTuple.employeeId,ownerTuple.accountType]);
+    // Static action metadata must come from the actual owner migration;
+    // never repair a missing migration prerequisite with fixture seed.
+    const action = await target.query(`SELECT * FROM ai_pdm_core.approval_platform_actions
+      WHERE action_code='transfer.package_review'`);
+    assert.equal(action.rowCount, 1, 'owner migration must register the transfer action');
+    const actionMigration = fs.readFileSync(path.join(root,
+      'db/postgres/075_dev121_transfer_action_registration.sql'), 'utf8');
+    await target.query(actionMigration);
+    const replayedAction = await target.query(`SELECT * FROM ai_pdm_core.approval_platform_actions
+      WHERE action_code='transfer.package_review'`);
+    assert.deepEqual(replayedAction.rows, action.rows,
+      'migration replay must preserve existing canonical metadata and timestamps');
+    const reviewIds = [
+      ['APR-TRF-00000000-0000-4000-8000-000000000009','package-org-assigned','assigned','company-jenfu','qc-profile-owner'],
+      ['APR-TRF-00000000-0000-4000-8000-000000000010','package-org-revoked','revoked','company-jenfu','qc-profile-owner'],
+      ['APR-TRF-00000000-0000-4000-8000-000000000011','package-org-scoped','out-of-scope','company-jenfu','qc-profile-owner'],
+      ['APR-TRF-00000000-0000-4000-8000-000000000012','package-org-restored','restored','company-jenfu','qc-profile-owner'],
+      ['APR-TRF-00000000-0000-4000-8000-000000000013','package-org-other-company','wrong-company','company-other','qc-profile-other']
+    ];
+    const now = new Date().toISOString();
+    const snapshotHash = 'b'.repeat(64);
+    for (let index=0; index<reviewIds.length; index++) {
+      const [requestId,packageId,label,companyId,packageOwner] = reviewIds[index];
+      const packageCode = 'TP-DEV057-' + label.toUpperCase().replaceAll('-','_');
+      await target.query(`INSERT INTO ai_pdm_core.transfer_packages
+          (id,company_id,package_code,title,case_type,case_reason,source_reference_status,
+           source_reference_reason,package_status,owner_id,created_by,create_idempotency_key,
+           review_request_id,review_snapshot_hash,created_at,updated_at)
+        VALUES ($1,$2,$3,$4,'development_case','Controlled DEV-057 fixture',
+           'not_available','Task-owned disposable integration fixture','InReview',$5,$5,$6,$7,$8,$9,$9)`,
+      [packageId,companyId,packageCode,'DEV-057 ' + label + ' transfer fixture',packageOwner,
+        'dev057-transfer-fixture-' + label,requestId,snapshotHash,now]);
+      await target.query(`INSERT INTO ai_pdm_core.approval_platform_requests
+          (id,company_id,package_id,action_code,domain_code,request_status,title,reason,
+           requested_by,payload_json,created_at,updated_at)
+        VALUES ($1,$2,NULL,'transfer.package_review','transfer','pending',$3,
+          'Controlled DEV-057 transfer reviewer fixture',$4,$5::jsonb,$6,$6)`,
+      [requestId,companyId,'DEV-057 ' + label + ' transfer review',packageOwner,
+        JSON.stringify({ transferPackageId:packageId,snapshotHash,
+          reviewer:{ version:1,principalId:principal,profileId:'qc-profile-legacy' } }),now]);
+    }
+    await target.query(`INSERT INTO ai_pdm_core.part_roots
+        (id,company_id,root_code,core_name,item_kind,record_status,rule_version_id,created_by)
+      VALUES ('part-root-dev057-flow','company-jenfu','QF057','DEV-057 flow fixture',
+        'manufactured','Active','numbering-rule-v3-alpha-root','qc-profile-owner')`);
+    await target.query(`INSERT INTO ai_pdm_core.part_numbers
+        (id,company_id,part_root_id,part_number,sequence_no,sequence_code,part_name,
+         item_kind,record_status,rule_version_id,created_by)
+      VALUES ('part-org-flow','company-jenfu','part-root-dev057-flow','QF057-P01',1,
+        'P01','DEV-057 transfer flow fixture','manufactured','Active',
+        'numbering-rule-v3-alpha-root','qc-profile-owner')`);
+    await target.query(`INSERT INTO ai_pdm_core.transfer_packages
+        (id,company_id,package_code,title,case_type,case_reason,source_reference_status,
+         source_reference_reason,package_status,owner_id,created_by,create_idempotency_key,
+         row_version,created_at,updated_at)
+      VALUES ('package-org-flow','company-jenfu','TP-DEV057-FLOW',
+        'DEV-057 normal transfer approval flow','development_case',
+        'Controlled normal route flow','not_available',
+        'Task-owned disposable integration fixture','Draft','qc-profile-owner',
+        'qc-profile-owner','dev057-transfer-package-flow',1,$1,$1)`, [now]);
+    await target.query(`INSERT INTO ai_pdm_core.transfer_package_items
+        (id,company_id,package_id,entity_type,entity_id,entity_code,display_label,
+         root_code,record_status,added_by,created_at)
+      VALUES ('item-org-flow','company-jenfu','package-org-flow','part_number',
+        'part-org-flow','QF057-P01','DEV-057 transfer flow fixture','QF057',
+        'Active','qc-profile-owner',$1)`,[now]);
+  }
   if (review) {
     const owner = process.env.DEV057_FLOW_OWNER_PRINCIPAL_ID;
     assert.match(owner ?? '', /^principal-/u);
@@ -114,9 +240,20 @@ try {
       VALUES ($1,'qc-profile-owner','company-jenfu','employee-three','human_personal','active',1,1,true,'aal1')`,[owner]);
   }
   const consumer = new URL(ownerUrl); consumer.username = 'dev057_ai_pdm_consumer_probe';
+  const transferProbe = process.env.DEV057_NATIVE_TRANSFER_PROBE === '1';
   const result = run(process.execPath, [path.join(root,'node_modules/vitest/vitest.mjs'),'run',
-    review ? 'src/lib/principal-work-review-owner-grant.postgres-contract.test.ts' : 'src/lib/principal-numbering-owner-grant.postgres-contract.test.ts'], {
-    env: { ...process.env, CI:'1', DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
+    transferProbe ? 'src/lib/transfer-package-principal-grants-v4.postgres-contract.test.ts'
+      : review ? 'src/lib/principal-work-review-owner-grant.postgres-contract.test.ts'
+        : 'src/lib/principal-numbering-owner-grant.postgres-contract.test.ts'], {
+    env: { ...process.env,
+      ...(transferProbe ? {
+        DEV057_NUMBERING_PRINCIPAL_ID: actorTuple.principalId,
+        DEV057_NUMBERING_EMPLOYEE_ID: actorTuple.employeeId,
+        DEV057_NUMBERING_ACCOUNT_TYPE: actorTuple.accountType,
+        DEV057_NUMBERING_ISSUER: actorTuple.issuer,
+        DEV057_NUMBERING_SUBJECT: actorTuple.subject
+      } : {}),
+      CI:'1', DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
       PDM_POSTGRES_URL: consumer.toString(), PDM_DB_PROVIDER:'postgres', DEV010_N2_DATABASE_BOUNDARY:'required',
       PDM_DATA_DIR:path.join(taskRoot,'aipdm-numbering-data'), PDM_REPOSITORY_DIR:path.join(taskRoot,'aipdm-numbering-repository'),
       PDM_PRODUCTION_SLICE_MODE:'official-numbering-draft', PDM_NUMBER_STATE_FLOW_V1:'1',
@@ -127,8 +264,19 @@ try {
       PDM_SESSION_ISSUER:'https://ai-pdm.test',PDM_SESSION_AUDIENCE:'dev057-numbering-qc',
       PDM_SESSION_CURRENT_KEY_ID:'dev057-qc-key',PDM_SESSION_CURRENT_SECRET:'task-owned-synthetic-session-secret-for-local-qc-only' }
   });
-  assert.match(result.stdout, review ? /Tests\s+2 passed/u : /Tests\s+9 passed/u, 'the selected actual business flow must execute, not skip');
-  console.log(JSON.stringify({ status:'PASS', phase:process.env.DEV057_CONTRACT_PHASE, migrations,
+  if (transferProbe) {
+    const expectedTests = process.env.DEV057_CONTRACT_PHASE === 'assigned' ? 2 : 1;
+    assert.match(result.stdout, new RegExp('Tests\\s+' + expectedTests + ' passed\\s+\\(\\d+\\)', 'u'),
+      'the selected v4 transfer route cases must all execute without skips');
+  } else {
+    assert.match(result.stdout, review ? /Tests\s+2 passed/u : /Tests\s+9 passed/u,
+      'the selected actual business flow must execute, not skip');
+  }
+  console.log(JSON.stringify({ status:'PASS', phase:process.env.DEV057_CONTRACT_PHASE,
+    consumerProbe: transferProbe ? 'orgmaster-v4-transfer-approval' : review ? 'principal-work-review' : 'principal-numbering',
+    ...(transferProbe ? { actorPrincipalId: principal, actorAccountType: accountType,
+      ownerPrincipalId: ownerTuple.principalId, ownerAccountType: ownerTuple.accountType } : {}),
+    migrations,
     producer:'actual OrgMaster schema and published artifact snapshot from the parent isolated cluster',
     session:'synthetic verified-session input; no provider evidence', productionWrites:false }));
 } finally {

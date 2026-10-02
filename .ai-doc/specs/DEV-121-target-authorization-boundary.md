@@ -1,3 +1,13 @@
+## DEV-121 R33 現行送審前置修正（本機候選，未發布）
+
+<a id="principal-transfer-action-registration"></a>
+
+來源 `JENFU/DEV-015#native-v4-transfer`。唯讀追查確認 fresh owner profile 的 folded schema 沒有包含歷史 017 的 `transfer.package_review` static action row；正常 UI submit-review 寫入 approval request 時需要該 FK。這是 fresh-install 缺口，不表示正式環境已確認缺列。
+
+新增 forward-only `db/postgres/075_dev121_transfer_action_registration.sql`，僅於自身 `ai_pdm_core.approval_platform_actions` 補一筆 canonical action metadata，並加入 owner profile order26/hash；baselineCount15 與已套用001/017/065–074不變。ON CONFLICT DO NOTHING 後逐欄核對，現有 disabled 或 drift row 明確失敗，不自動重新啟用或覆寫。它不建立 grant、ACL、員工、Principal、session 或業務案件，也不新增 schema/權限。075 不含 073/074 的安全主體轉換，沿普通 owner migration transaction；不擴大既有 migration fence，也不手動正式 SQL。
+
+consumer harness 移除 test-only action seed，改讀回 actual owner migration 並驗證 replay 完整 metadata/時間戳不變；R33 真實 disposable PostgreSQL 18.4 整鏈通過，包含 actual 075 migration/replay、personal／privileged 指派／撤權／scope／送審／決策／receipt／outbox；verified session 為合成邊界，不是 Production 審批證據。runtime/port/temp及容量lease已清理；targeted lint、owner runner/fence與staged DB boundary通過。證據由 JENFU/DEV-015 output/dev-012/inputs/dev015-r33-transfer-action-postgres-result.json 追溯。Production 維持 R26，正式 action row 尚待 owner-native migration/readback 或正常業務證據。發布使用 protected main、fresh source-bound bundle、Principal-only rollback baseline；回復應用不刪除該固定 metadata，不回復 UID 路徑。附件／下載及背景的費用/整鏈待項不縮減。
+
 **業務儲存唯讀查驗（現行）：** 固定 target GET-only CLI `scripts/dev121-business-storage-readback.mjs` 已接入既有 CI；核對 project/runtime/bucket，bucket 存在才查 custom role 與 direct IAM。16 項 provider 情境通過，官方 JSON API 的 Requester Pays 以 `billing.requesterPays` 核對。2026-10-02 operator preflight 取得 BUSINESS_STORAGE_NOT_PROVISIONED，零雲端變更；此證據不包含 inherited IAM、artifact provenance、saved plan 或 Production 附件 L4。費用決策未完成，未 init/apply/啟用 runtime。既有 V3 source-lock/foundation/infra/application artifact chain 可沿用，不能將 migration Job 執行當唯讀 readback。
 
 ## 2026-10-02 R30 業務儲存來源準備（未建立資源、未發布）
