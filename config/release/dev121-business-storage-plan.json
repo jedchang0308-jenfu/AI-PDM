@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "jenfu.dev121.business-storage-plan.v1",
+  "ownerApplicationId": "ai-pdm",
+  "sourceTask": "AIPDM/DEV-121/F08",
+  "terraformRoot": "infra/google-cloud/dev-121-business-storage",
+  "backendKey": "dev-121/business-storage/default.tfstate",
+  "executionState": "PREPARED_NOT_APPROVED_FOR_APPLY",
+  "requiredVariables": {},
+  "profiles": {
+    "BUSINESS_STORAGE": {
+      "variables": {},
+      "addresses": [
+        "data.google_project.current",
+        "data.google_service_account.runtime",
+        "google_storage_bucket.business",
+        "google_project_iam_custom_role.business_objects",
+        "google_storage_bucket_iam_member.runtime_objects"
+      ]
+    }
+  },
+  "provenanceVariables": [
+    "source_revision",
+    "foundation_manifest_sha256",
+    "application_image_digest",
+    "migration_runner_image_digest"
+  ],
+  "target": {
+    "bucket": "jenfu-platform-prod-aipdm-files",
+    "region": "asia-east1",
+    "runtimeIdentity": "aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com",
+    "projectId": "jenfu-platform-prod",
+    "projectNumber": "9536592944"
+  },
+  "permissions": [
+    "storage.objects.create",
+    "storage.objects.get"
+  ],
+  "softDeleteSeconds": 2592000,
+  "allowedActions": [
+    "create",
+    "no-op",
+    "read"
+  ],
+  "excluded": [
+    "release evidence bucket",
+    "Cloud Run service or traffic",
+    "database",
+    "Secret",
+    "project-wide IAM binding",
+    "other owner resources"
+  ],
+  "planContentValidatorRef": "scripts/lib/dev121-business-storage-plan.mjs#assertDev121BusinessStoragePlan"
+}
