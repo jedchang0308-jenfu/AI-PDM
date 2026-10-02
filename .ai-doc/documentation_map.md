@@ -1,3 +1,5 @@
+**DEV-121/F02 R55 現行本機整合（未發布）：** 正常 candidate GET → exact published provider pair → account POST → 真實 v4 grant／active catalog／serializable owner command → commit201／replay200／Principal、Employee、pdm_user_id、公司及單一 receipt 讀回已通過；新 profile 保持 suspended。actual Org001–029／AI076／PG18.4 整鏈24cases成功，既有技轉流程保留。修正 provision service 把具型別撤權拒絕包成503的問題，沿既有 allowlisted HTTP taxonomy 回應；未知錯誤仍503，不擴權。合成session／測試receipt owner讀回／多alias精確選取與隔離Origin的測試誤差已排除；native runtime、port、TEMP、leases均清理。counter7／8，正常Google與Production L4仍未通過；完整證據沿用既有 `.ai-doc/qa/DEV-121-principal-profile-command-postgres-2026-10-02.json` routeComposition，source尚待送審。下方較舊候選／待驗狀態保留為歷史。
+
 DEV-121/F02 native profile command evidence：`.ai-doc/qa/DEV-121-principal-profile-command-postgres-2026-10-02.json`，含actual producer／consumer source hashes、commit/replay/readback及cleanup；不作Production證據。
 
 DEV-121/F02 現行 account command修正：`db/postgres/076_dev121_principal_account_command_grants_v4.sql`；owner profile order27，actual producer native probe在 `scripts/qc-dev-121-numbering-owner-grant-postgres.mjs`；不新增主任務。前後證據由 JENFU/DEV-015 R48 checkpoint追溯。

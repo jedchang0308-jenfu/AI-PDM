@@ -13,6 +13,7 @@ vi.mock("@/lib/jenfu-principal-candidate-repository", () => ({
   JenfuPrincipalCandidateRepository: class { listByPrincipal = mocks.candidates; }
 }));
 
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { provisionPrincipalAccount } from "@/lib/jenfu-principal-provision-service";
 
 const candidate = {
@@ -65,6 +66,15 @@ describe("principal-only account owner service", () => {
     mocks.candidates.mockResolvedValue([{ ...candidate, mappingVersion: 8 }]);
     await expect(provisionPrincipalAccount({ body } as never))
       .rejects.toMatchObject({ code: "source_drift", httpStatus: 409 });
+    expect(snapshot.queryOne).not.toHaveBeenCalled();
+  });
+
+  it.each(["entitlement_assignment_not_found", "entitlement_contract_mismatch", "entitlement_authority_unavailable"] as const)
+  ("preserves typed producer failure %s before mutation", async (code) => {
+    const failure = new JenfuEntitlementRepositoryError(code);
+    mocks.evaluate.mockRejectedValueOnce(failure);
+    await expect(provisionPrincipalAccount({ body } as never)).rejects.toBe(failure);
+    expect(mocks.candidates).not.toHaveBeenCalled();
     expect(snapshot.queryOne).not.toHaveBeenCalled();
   });
 
