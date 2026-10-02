@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { completeSettingsSecretProbe, SettingsSecretLifecycleError } from "@/lib/settings-secret-lifecycle";
-import { requireWorkerServiceToken, safeWorkerId } from "@/lib/worker-service-auth";
+import { authenticateWorkerService, rejectWorkerLabel, rejectWorkerCapability } from "@/lib/worker-service-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
-  const denied = requireWorkerServiceToken(request);
-  if (denied) return denied;
+  const authentication = authenticateWorkerService(request, "settings_secret_probe");
+  if ("response" in authentication) return authentication.response;
+  const { actor } = authentication;
+  const capabilityDenied = rejectWorkerCapability(actor, "solidworks_document_manager");
+  if (capabilityDenied) return capabilityDenied;
   const { jobId } = await params;
   const body = await request.json().catch(() => ({}));
-  const workerId = safeWorkerId(body?.workerId);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "INVALID_WORKER_BODY" }, { status: 400 });
+  const labelDenied = rejectWorkerLabel(actor, body.workerId);
+  if (labelDenied) return labelDenied;
+  const workerId = actor.id;
   if (!workerId || !["passed", "failed", "blocked"].includes(String(body?.status))) {
     return NextResponse.json({ error: "INVALID_PROBE_RESULT" }, { status: 400 });
   }

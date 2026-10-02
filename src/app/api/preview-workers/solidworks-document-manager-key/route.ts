@@ -1,12 +1,12 @@
-import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { resolveActiveSolidWorksDocumentManagerKey } from "@/lib/settings-secret-lifecycle";
+import { authenticateWorkerService } from "@/lib/worker-service-auth";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const tokenResponse = requirePreviewWorkerToken(request);
-  if (tokenResponse) return tokenResponse;
+  const authentication = authenticateWorkerService(request, "solidworks_credential");
+  if ("response" in authentication) return authentication.response;
 
   try {
     const resolved = await resolveActiveSolidWorksDocumentManagerKey();
@@ -24,20 +24,6 @@ export async function GET(request: Request) {
   }
 }
 
-function requirePreviewWorkerToken(request: Request) {
-  const configuredToken = process.env.PDM_PREVIEW_WORKER_TOKEN?.trim();
-  if (!configuredToken) return NextResponse.json({ error: "PREVIEW_WORKER_TOKEN_NOT_CONFIGURED" }, { status: 503, headers: noStoreHeaders() });
-  const authorizationToken = request.headers.get("authorization")?.replace(/^Bearer\s+/iu, "").trim();
-  const providedToken = authorizationToken || request.headers.get("x-pdm-preview-worker-token")?.trim();
-  if (!providedToken || !safeTokenEqual(providedToken, configuredToken)) return NextResponse.json({ error: "PREVIEW_WORKER_FORBIDDEN" }, { status: 403, headers: noStoreHeaders() });
-  return null;
-}
-
-function safeTokenEqual(providedToken: string, configuredToken: string) {
-  const provided = Buffer.from(providedToken, "utf8");
-  const configured = Buffer.from(configuredToken, "utf8");
-  return provided.length === configured.length && crypto.timingSafeEqual(provided, configured);
-}
 
 function noStoreHeaders() {
   return { "Cache-Control": "no-store, no-cache, must-revalidate", Pragma: "no-cache" };

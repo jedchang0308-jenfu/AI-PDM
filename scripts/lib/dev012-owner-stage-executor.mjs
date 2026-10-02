@@ -503,7 +503,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const tag = service.trafficStatuses?.find((row) => row.tag === candidate.value.facts.tag)
     if (tag?.revision !== candidate.value.facts.candidateRevision || Number(tag.percent ?? 0) !== 0 || !candidateTagUriMatches(service, candidate.value.facts, tag.uri) || transport.effectiveRevision(service) !== intent.previousRevision) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
-    transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage)
+    const runtimeReceipt = await transport.readJson(intent.runtimeConfigRef, profile.artifact.releaseBucket, ['receipts'])
+    const runtimeConfig = runtimeReceipt.value.runtimeConfig ?? runtimeReceipt.value
+    transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage, { runtimeConfig, origin: candidate.value.facts.tagUri })
     const readiness = await readNamedJson(transport, intent.readinessReceiptRef.uri, profile, intent.readinessReceiptRef.sha256, ['receipts'])
     const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: readiness.value, dataCutoverConfig })
     const smoke = await transport.runInternalCandidateSmoke({ profile, origin: candidate.value.facts.tagUri, candidateTag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, deadlineAt: intent.deadlineAt, environment })
@@ -542,7 +544,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (transport.effectiveRevision(service) !== candidate.value.facts.candidateRevision) fail('CANONICAL_REVISION_MISMATCH')
     transport.assertCanonicalEntrypoint(profile, service)
     const revision = await transport.getRevision(profile, candidate.value.facts.candidateRevision)
-    try { transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage) } catch { fail('CANONICAL_ARTIFACT_MISMATCH') }
+    const runtimeReceipt = await transport.readJson(intent.runtimeConfigRef, profile.artifact.releaseBucket, ['receipts'])
+    const runtimeConfig = runtimeReceipt.value.runtimeConfig ?? runtimeReceipt.value
+    try { transport.assertRevisionReady(profile, revision, candidate.value.facts.artifactDigest, candidate.value.facts.cloudSqlProxyResolvedImage, { runtimeConfig, origin: candidate.value.facts.tagUri }) } catch { fail('CANONICAL_ARTIFACT_MISMATCH') }
     const smoke = await transport.runAuthenticatedSmoke({ profile, origin: profile.target.canonicalOrigin, environment })
     const result = await writeStage(transport, paths, profile, intent, 'canonical', activate.ref, { activationReceiptRef: activate.ref, origin: profile.target.canonicalOrigin, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, smoke })
     await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate.value.facts, state: 'CANONICAL_VERIFIED', environment })

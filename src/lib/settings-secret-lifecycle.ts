@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { isWorkerPurposeConfigured } from "@/lib/worker-service-auth";
 import { createAuditLogAsync } from "@/lib/audit-async";
 import { getAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
 import {
@@ -313,7 +314,7 @@ function workerEnvironmentSecret() {
 }
 
 function workerServiceTokenConfigured() {
-  return String(process.env.PDM_PREVIEW_WORKER_TOKEN ?? "").trim().length >= 32;
+  return isWorkerPurposeConfigured("settings_secret_probe");
 }
 
 function workerEnvironmentFallbackAllowed() {

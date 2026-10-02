@@ -187,12 +187,14 @@
     "requiredSecretNames": [
       "PDM_SESSION_CURRENT_SECRET",
       "PDM_SESSION_PREVIOUS_SECRET",
-      "PDM_WORKBENCH_CONTRACT_SECRET"
+      "PDM_WORKBENCH_CONTRACT_SECRET",
+      "PDM_WORKLOAD_AUTH_CREDENTIALS"
     ],
     "allowedSecretIds": {
       "PDM_SESSION_CURRENT_SECRET": "aipdm-prod-session-current",
       "PDM_SESSION_PREVIOUS_SECRET": "aipdm-prod-session-previous",
-      "PDM_WORKBENCH_CONTRACT_SECRET": "aipdm-prod-workbench-contract"
+      "PDM_WORKBENCH_CONTRACT_SECRET": "aipdm-prod-workbench-contract",
+      "PDM_WORKLOAD_AUTH_CREDENTIALS": "aipdm-prod-workload-auth-credentials"
     },
     "numericVersionsRequired": true,
     "candidateOriginEnvironmentName": "PDM_RELEASE_CANDIDATE_ORIGIN",

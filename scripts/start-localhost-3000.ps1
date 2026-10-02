@@ -22,12 +22,12 @@ $StatusFile = Join-Path $RuntimeDir "ai-pdm-3000.status.json"
 $StdoutLog = Join-Path $RuntimeDir "ai-pdm-3000.out.log"
 $StderrLog = Join-Path $RuntimeDir "ai-pdm-3000.err.log"
 $PreviewWorkerPidFile = Join-Path $RuntimeDir "ai-pdm-preview-worker.pid"
-$PreviewWorkerTokenFile = Join-Path $RuntimeDir "ai-pdm-preview-worker.token"
+$WorkloadCredentialFile = Join-Path $RuntimeDir "ai-pdm-workloads.dpapi"
+. (Join-Path $PSScriptRoot "lib\local-workload-auth.ps1")
 $PreviewWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-preview-worker.out.log"
 $PreviewWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-preview-worker.err.log"
 $PreviewWorkerScript = Join-Path $ProjectRoot "scripts\run-windows-shell-preview-worker.mjs"
 $RecognitionWorkerPidFile = Join-Path $RuntimeDir "ai-pdm-recognition-worker.pid"
-$RecognitionWorkerTokenFile = Join-Path $RuntimeDir "ai-pdm-recognition-worker.token"
 $RecognitionWorkerStdoutLog = Join-Path $RuntimeDir "ai-pdm-recognition-worker.out.log"
 $RecognitionWorkerStderrLog = Join-Path $RuntimeDir "ai-pdm-recognition-worker.err.log"
 $RecognitionWorkerScript = Join-Path $ProjectRoot "scripts\run-drawing-recognition-worker.mjs"
@@ -49,39 +49,21 @@ function Ensure-RuntimeDir {
   New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
 }
 
-function Ensure-PreviewWorkerToken {
-  if ($env:PDM_PREVIEW_WORKER_TOKEN -and $env:PDM_PREVIEW_WORKER_TOKEN.Trim().Length -ge 32) {
-    return
+function Ensure-LocalWorkloadAuth {
+  $env:PDM_PREVIEW_WORKER_BASE_URL = $Url
+  $env:PDM_DRAWING_RECOGNITION_WORKER_BASE_URL = $Url
+  if (-not $script:LocalWorkloadBundle) {
+    $script:LocalWorkloadBundle = Initialize-PdmLocalWorkloadAuth -CredentialFile $WorkloadCredentialFile
   }
-
-  if (Test-Path -LiteralPath $PreviewWorkerTokenFile) {
-    $storedToken = (Get-Content -LiteralPath $PreviewWorkerTokenFile -Raw).Trim()
-    if ($storedToken.Length -ge 32) {
-      $env:PDM_PREVIEW_WORKER_TOKEN = $storedToken
-      return
-    }
-  }
-
-  $bytes = New-Object byte[] 32
-  $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-  try {
-    $generator.GetBytes($bytes)
-  }
-  finally {
-    $generator.Dispose()
-  }
-  $token = -join ($bytes | ForEach-Object { $_.ToString("x2") })
-  Set-Content -LiteralPath $PreviewWorkerTokenFile -Value $token -Encoding ascii
-  $env:PDM_PREVIEW_WORKER_TOKEN = $token
 }
 
 function Get-PreviewWorkerCapabilityState {
   try {
-    Ensure-PreviewWorkerToken
+    Ensure-LocalWorkloadAuth
     return Invoke-RestMethod `
       -Uri "${Url}api/preview-workers/heartbeat?capability=solidworks_3d_preview_png" `
       -Method Get `
-      -Headers @{ "x-pdm-preview-worker-token" = $env:PDM_PREVIEW_WORKER_TOKEN } `
+      -Headers @{ authorization = "Bearer $((@($script:LocalWorkloadBundle.workloads | Where-Object { $_.id -ceq 'windows-shell-thumbnail-worker' }))[0].token)"; "x-pdm-worker-id" = "windows-shell-thumbnail-worker" } `
       -TimeoutSec 5
   }
   catch {
@@ -98,44 +80,6 @@ function Get-PreviewWorkerCapabilityState {
 function Test-PreviewWorkerCapabilityReady {
   param($Capability)
   return $Capability -and $Capability.fresh -eq $true -and $Capability.status -eq "ready"
-}
-
-function Ensure-RecognitionWorkerToken {
-  if ($env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN -and $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN.Trim().Length -ge 32) {
-    return
-  }
-
-  $localEnvFile = Join-Path $ProjectRoot ".env.local"
-  if (Test-Path -LiteralPath $localEnvFile) {
-    $line = Get-Content -LiteralPath $localEnvFile -ErrorAction SilentlyContinue | Where-Object { $_ -match '^PDM_DRAWING_RECOGNITION_WORKER_TOKEN=(.+)$' } | Select-Object -First 1
-    if ($line -and $line -match '^PDM_DRAWING_RECOGNITION_WORKER_TOKEN=(.+)$') {
-      $localToken = $Matches[1].Trim()
-      if ($localToken.Length -ge 32) {
-        $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN = $localToken
-        return
-      }
-    }
-  }
-
-  if (Test-Path -LiteralPath $RecognitionWorkerTokenFile) {
-    $storedToken = (Get-Content -LiteralPath $RecognitionWorkerTokenFile -Raw).Trim()
-    if ($storedToken.Length -ge 32) {
-      $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN = $storedToken
-      return
-    }
-  }
-
-  $bytes = New-Object byte[] 32
-  $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-  try {
-    $generator.GetBytes($bytes)
-  }
-  finally {
-    $generator.Dispose()
-  }
-  $token = -join ($bytes | ForEach-Object { $_.ToString("x2") })
-  Set-Content -LiteralPath $RecognitionWorkerTokenFile -Value $token -Encoding ascii
-  $env:PDM_DRAWING_RECOGNITION_WORKER_TOKEN = $token
 }
 
 function Test-DocumentManagerPreviewKeyConfigured {
@@ -243,8 +187,7 @@ function Start-RecognitionWorker {
     return $existing
   }
 
-  Ensure-RecognitionWorkerToken
-  Ensure-PreviewWorkerToken
+  Ensure-LocalWorkloadAuth
   if ((Test-DocumentManagerInteropConfigured) -and (-not $env:PDM_DRAWING_RECOGNITION_METADATA_CMD)) {
     $env:PDM_DRAWING_RECOGNITION_METADATA_CMD = "node.exe"
     $env:PDM_DRAWING_RECOGNITION_METADATA_ARGS = '["--experimental-transform-types","scripts/run-solidworks-document-manager-metadata-extractor.mjs"]'
@@ -255,14 +198,13 @@ function Start-RecognitionWorker {
   }
   $env:PDM_DRAWING_RECOGNITION_WORKER_BASE_URL = $Url
   Remove-Item -LiteralPath $RecognitionWorkerStdoutLog, $RecognitionWorkerStderrLog, $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
-  $worker = Start-Process `
-    -FilePath "node.exe" `
-    -ArgumentList @("--experimental-transform-types", "`"$RecognitionWorkerScript`"", "--worker-id", "local-drawing-recognition-worker") `
-    -WorkingDirectory $ProjectRoot `
-    -WindowStyle Hidden `
-    -PassThru `
-    -RedirectStandardOutput $RecognitionWorkerStdoutLog `
-    -RedirectStandardError $RecognitionWorkerStderrLog
+  $worker = Start-PdmLocalWorkloadProcess -Bundle $script:LocalWorkloadBundle -WorkloadId "local-drawing-recognition-worker" -ProcessArguments @{
+    FilePath = "node.exe"
+    ArgumentList = @("--experimental-transform-types", "`"$RecognitionWorkerScript`"", "--worker-id", "local-drawing-recognition-worker")
+    WorkingDirectory = $ProjectRoot
+    RedirectStandardOutput = $RecognitionWorkerStdoutLog
+    RedirectStandardError = $RecognitionWorkerStderrLog
+  }
 
   Set-Content -LiteralPath $RecognitionWorkerPidFile -Value ([string]$worker.Id) -Encoding ascii
   Start-Sleep -Milliseconds 1500
@@ -270,7 +212,7 @@ function Start-RecognitionWorker {
     Write-Host "Recognition worker exited during startup."
     Get-Content -LiteralPath $RecognitionWorkerStderrLog -ErrorAction SilentlyContinue | Select-Object -Last 20
     Remove-Item -LiteralPath $RecognitionWorkerPidFile -ErrorAction SilentlyContinue
-    throw "AI_PDM recognition worker did not start. Check the worker token and recognition worker logs."
+    throw "AI_PDM recognition worker did not start. Check the registered workload configuration and recognition worker logs."
   }
 
   Write-Host "Recognition worker is running (PID $($worker.Id))."
@@ -283,20 +225,19 @@ function Start-PreviewWorker {
     return $existing
   }
 
-  Ensure-PreviewWorkerToken
+  Ensure-LocalWorkloadAuth
   Remove-Item -LiteralPath $PreviewWorkerStdoutLog, $PreviewWorkerStderrLog, $PreviewWorkerPidFile -ErrorAction SilentlyContinue
   $workerArguments = @("`"$PreviewWorkerScript`"", "--watch", "--models-only", "--worker-id", "windows-shell-thumbnail-worker")
   if ($env:PDM_3D_PREVIEW_CANARY_SOURCE) {
     $workerArguments += @("--canary-source", "`"$($env:PDM_3D_PREVIEW_CANARY_SOURCE)`"")
   }
-  $worker = Start-Process `
-    -FilePath "node.exe" `
-    -ArgumentList $workerArguments `
-    -WorkingDirectory $ProjectRoot `
-    -WindowStyle Hidden `
-    -PassThru `
-    -RedirectStandardOutput $PreviewWorkerStdoutLog `
-    -RedirectStandardError $PreviewWorkerStderrLog
+  $worker = Start-PdmLocalWorkloadProcess -Bundle $script:LocalWorkloadBundle -WorkloadId "windows-shell-thumbnail-worker" -ProcessArguments @{
+    FilePath = "node.exe"
+    ArgumentList = $workerArguments
+    WorkingDirectory = $ProjectRoot
+    RedirectStandardOutput = $PreviewWorkerStdoutLog
+    RedirectStandardError = $PreviewWorkerStderrLog
+  }
 
   Set-Content -LiteralPath $PreviewWorkerPidFile -Value ([string]$worker.Id) -Encoding ascii
   Start-Sleep -Milliseconds 1500
@@ -304,7 +245,7 @@ function Start-PreviewWorker {
     Write-Host "Preview worker exited during startup."
     Get-Content -LiteralPath $PreviewWorkerStderrLog -ErrorAction SilentlyContinue | Select-Object -Last 20
     Remove-Item -LiteralPath $PreviewWorkerPidFile -ErrorAction SilentlyContinue
-    throw "AI_PDM preview worker did not start. Restart the local server so the server and worker share the local service token."
+    throw "AI_PDM preview worker did not start. Check the registered workload configuration; restart the local server only with explicit operator approval."
   }
 
   Write-Host "Preview worker is running (PID $($worker.Id))."
@@ -360,16 +301,15 @@ function Start-DocumentManagerPreviewWorker {
     return $null
   }
 
-  Ensure-PreviewWorkerToken
+  Ensure-LocalWorkloadAuth
   Remove-Item -LiteralPath $DocumentManagerPreviewWorkerStdoutLog, $DocumentManagerPreviewWorkerStderrLog -ErrorAction SilentlyContinue
-  $worker = Start-Process `
-    -FilePath "node.exe" `
-    -ArgumentList @("`"$DocumentManagerPreviewWorkerScript`"", "--watch", "--poll-ms", "2000", "--worker-id", "solidworks-document-manager-preview-worker") `
-    -WorkingDirectory $ProjectRoot `
-    -WindowStyle Hidden `
-    -PassThru `
-    -RedirectStandardOutput $DocumentManagerPreviewWorkerStdoutLog `
-    -RedirectStandardError $DocumentManagerPreviewWorkerStderrLog
+  $worker = Start-PdmLocalWorkloadProcess -Bundle $script:LocalWorkloadBundle -WorkloadId "solidworks-document-manager-preview-worker" -ProcessArguments @{
+    FilePath = "node.exe"
+    ArgumentList = @("`"$DocumentManagerPreviewWorkerScript`"", "--watch", "--poll-ms", "2000", "--worker-id", "solidworks-document-manager-preview-worker")
+    WorkingDirectory = $ProjectRoot
+    RedirectStandardOutput = $DocumentManagerPreviewWorkerStdoutLog
+    RedirectStandardError = $DocumentManagerPreviewWorkerStderrLog
+  }
 
   Set-Content -LiteralPath $DocumentManagerPreviewWorkerPidFile -Value ([string]$worker.Id) -Encoding ascii
   Start-Sleep -Milliseconds 1500
@@ -764,8 +704,7 @@ Remove-Item -LiteralPath $StdoutLog, $StderrLog, $PidFile -ErrorAction SilentlyC
 Remove-Item -LiteralPath $PortOwnerPidFile, $StatusFile -ErrorAction SilentlyContinue
 
 $env:PDM_LOCAL_FULL_FUNCTION_VALIDATION = "true"
-Ensure-PreviewWorkerToken
-Ensure-RecognitionWorkerToken
+Ensure-LocalWorkloadAuth
 Write-Host "Starting AI_PDM local server..."
 Write-Host "Local full-function validation is enabled; production slice settings remain production-only."
 $process = Start-Process `

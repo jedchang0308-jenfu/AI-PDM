@@ -427,7 +427,33 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return /^(.+?)(?::[^/@]+)?@sha256:[a-f0-9]{64}$/u.exec(image ?? '')?.[1] ?? null
   }
 
-  function assertRevisionReady(profile, revision, artifactDigest, expectedResolvedProxyImage = null) {
+  function assertRevisionRuntimeConfig(profile, revision, binding) {
+    const expected = assertRuntimeConfig(profile, binding.runtimeConfig)
+    const expectedApp = expected.containers.find(row => row.name === profile.runtime.containerName)
+    upsertPlainEnvironment(expectedApp, profile.environment.candidateOriginEnvironmentName, binding.origin)
+    const projectSecret = value => {
+      if (typeof value !== 'string') return value
+      for (const project of [profile.target.projectId, profile.target.projectNumber]) {
+        const prefix = 'projects/' + project + '/secrets/'
+        if (value.startsWith(prefix)) return value.slice(prefix.length)
+      }
+      return value
+    }
+    const project = value => ({
+      serviceAccount: value.serviceAccount,
+      volumes: value.volumes ?? [],
+      containers: (value.containers ?? []).map(row => ({
+        name: row.name,
+        command: row.command ?? [], args: row.args ?? [], volumeMounts: row.volumeMounts ?? [],
+        env: (row.env ?? []).map(entry => entry.valueSource?.secretKeyRef ? {
+          ...entry, valueSource: { ...entry.valueSource, secretKeyRef: { ...entry.valueSource.secretKeyRef, secret: projectSecret(entry.valueSource.secretKeyRef.secret) } },
+        } : entry).sort((a,b) => a.name.localeCompare(b.name)),
+      })).sort((a,b) => a.name.localeCompare(b.name)),
+    })
+    if (canonicalize(project(revision)) !== canonicalize(project(expected))) fail('CANDIDATE_RUNTIME_READBACK_MISMATCH')
+  }
+
+  function assertRevisionReady(profile, revision, artifactDigest, expectedResolvedProxyImage = null, runtimeBinding = null) {
     const ready = revision?.conditions?.find((row) => row.type === 'Ready')
     const containers = revision?.containers
     const app = containers?.find((container) => container.name === profile.runtime.containerName)
@@ -439,6 +465,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       : proxy?.image === expectedResolvedProxyImage && resolvedProxyRepository === pinnedProxyRepository
     if (containers?.length !== 2 || app?.image !== artifactDigest || !proxyMatches
       || ready?.state !== 'CONDITION_SUCCEEDED') fail('CANDIDATE_REVISION_READBACK_MISMATCH')
+    if (runtimeBinding) assertRevisionRuntimeConfig(profile, revision, runtimeBinding)
     return revision
   }
 
@@ -506,7 +533,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     const tagUriMatches = candidateTagUriMatches(tagged, { tag, tagUri: exactCandidateOrigin }, tagStatus?.uri) || (tagUriMissing && tagged.defaultUriDisabled === true)
     if (!tagUriMatches || tagStatus?.revision !== candidateRevision || Number(tagStatus.percent ?? 0) !== 0 || canonicalize(generalAfter) !== canonicalize(generalBefore)) fail('CANDIDATE_TAG_READBACK_MISMATCH')
     const revision = await getRevision(profile, candidateRevision)
-    assertRevisionReady(profile, revision, artifactDigest)
+    assertRevisionReady(profile, revision, artifactDigest, null, { runtimeConfig, origin: exactCandidateOrigin })
     const revisionApp = revision.containers.find((container) => container.name === profile.runtime.containerName)
     const revisionProxy = revision.containers.find((container) => container.name === profile.runtime.cloudSqlProxyContainer)
     const revisionOrigin = revisionApp?.env?.find((row) => row.name === profile.environment.candidateOriginEnvironmentName)

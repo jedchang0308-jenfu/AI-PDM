@@ -12,7 +12,6 @@ const sourceCodePath = path.join(root, "scripts", "solidworks-document-manager-p
 const buildDir = path.join(root, ".tmp", "solidworks-document-manager-preview");
 const exporterExePath = path.join(buildDir, "SolidWorksDocumentManagerPreviewExporter.exe");
 const defaultBaseUrl = process.env.PDM_PREVIEW_WORKER_BASE_URL || "http://127.0.0.1:3000";
-const defaultWorkerId = process.env.PDM_PREVIEW_WORKER_ID || "solidworks-document-manager-preview-worker";
 const capabilityCode = "solidworks_2d_preview_png";
 const capabilityHeartbeatMs = 10_000;
 const interopDir = process.env.PDM_SOLIDWORKS_INTEROP_DIR || "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\api\\redist";
@@ -52,13 +51,12 @@ if (args.source) {
   }
 }
 
-const token = args.token || process.env.PDM_PREVIEW_WORKER_TOKEN || "";
-if (!token.trim()) {
-  throw new Error("PDM_PREVIEW_WORKER_TOKEN is required for API worker mode.");
-}
+const token = String(process.env.PDM_WORKLOAD_CREDENTIAL ?? "").trim();
+if (!/^[A-Za-z0-9_-]{43}$/u.test(token)) throw new Error("PDM_WORKLOAD_CREDENTIAL_REQUIRED");
 
 const baseUrl = (args.baseUrl || defaultBaseUrl).replace(/\/+$/u, "");
-const workerId = args.workerId || defaultWorkerId;
+const workerId = String(process.env.PDM_WORKLOAD_ID ?? "").trim();
+if (!/^[A-Za-z0-9._:-]{1,120}$/u.test(workerId) || (args.workerId && args.workerId !== workerId)) throw new Error("PDM_WORKLOAD_ID_REQUIRED_OR_MISMATCH");
 const watchMode = args.watch === true;
 const pollMs = readPositiveInt(args.pollMs, 2000);
 const credentialRefreshMs = readPositiveInt(args.credentialRefreshMs, 60000);
@@ -220,7 +218,8 @@ async function claimJob(input) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-pdm-preview-worker-token": input.token
+      authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
     },
     body: JSON.stringify({
       workerId: input.workerId,
@@ -251,7 +250,7 @@ async function ensureWorkerDocumentManagerKey(input) {
     method: "GET",
     headers: {
       authorization: `Bearer ${input.token}`,
-      "x-pdm-preview-worker-token": input.token
+      "x-pdm-worker-id": input.workerId
     }
   });
   if (!response.ok) {
@@ -300,7 +299,7 @@ async function reportCapabilityHeartbeat(input) {
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${input.token}`,
-      "x-pdm-preview-worker-token": input.token
+      "x-pdm-worker-id": input.workerId
     },
     body: JSON.stringify({
       workerId: input.workerId,
@@ -329,7 +328,8 @@ async function completeJob(input) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-pdm-preview-worker-token": input.token
+      authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
     },
     body: JSON.stringify({
       workerId: input.workerId,
@@ -350,7 +350,8 @@ function startJobHeartbeat(input) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-pdm-preview-worker-token": input.token
+        authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
       },
       body: JSON.stringify({ workerId: input.workerId })
     }).catch(() => undefined);
@@ -365,7 +366,8 @@ async function failJob(input) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-pdm-preview-worker-token": input.token
+      authorization: `Bearer ${input.token}`,
+      "x-pdm-worker-id": input.workerId
     },
     body: JSON.stringify({
       workerId: input.workerId,
@@ -529,7 +531,6 @@ function parseArgs(values) {
     else if (value === "--source") parsed.source = values[++index];
     else if (value === "--out") parsed.out = values[++index];
     else if (value === "--base-url") parsed.baseUrl = values[++index];
-    else if (value === "--token") parsed.token = values[++index];
     else if (value === "--worker-id") parsed.workerId = values[++index];
     else if (value === "--watch") parsed.watch = true;
     else if (value === "--poll-ms") parsed.pollMs = values[++index];
@@ -542,12 +543,12 @@ function parseArgs(values) {
 function printHelp() {
   console.log(`Usage:
   node scripts/run-solidworks-document-manager-preview-worker.mjs --source <drawing.slddrw> --out <png>
-  PDM_PREVIEW_WORKER_TOKEN=<token> PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY=<key> node scripts/run-solidworks-document-manager-preview-worker.mjs --watch
+  PDM_WORKLOAD_CREDENTIAL=<credential> PDM_WORKLOAD_ID=<registered-id> PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY=<key> node scripts/run-solidworks-document-manager-preview-worker.mjs --watch
 
 Environment:
   PDM_PREVIEW_WORKER_BASE_URL             Defaults to http://127.0.0.1:3000
-  PDM_PREVIEW_WORKER_TOKEN                Required for API worker mode
-  PDM_PREVIEW_WORKER_ID                   Defaults to solidworks-document-manager-preview-worker
+  PDM_WORKLOAD_CREDENTIAL                Required for API worker mode
+  PDM_WORKLOAD_ID                   Required registered workload identity
   PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY     Worker-local Document Manager key
   PDM_SW_DOCUMENT_MANAGER_LICENSE_KEY     Alternate Document Manager key env name
   PDM_SOLIDWORKS_INTEROP_DIR              Optional SolidWorks Interop DLL directory

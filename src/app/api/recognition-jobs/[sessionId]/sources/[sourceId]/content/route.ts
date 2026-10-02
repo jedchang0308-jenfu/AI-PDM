@@ -1,14 +1,17 @@
+import { authenticateWorkerService, rejectWorkerLabel } from "@/lib/worker-service-auth";
 import { NextResponse } from "next/server";
 import { readClaimedDrawingRecognitionSource } from "@/lib/drawing-recognition";
-import { recognitionErrorResponse, requireRecognitionWorker, workerUnauthorizedResponse } from "@/lib/drawing-recognition-api";
+import { recognitionErrorResponse } from "@/lib/drawing-recognition-api";
 import { requireSafeRecognitionId } from "@/lib/drawing-recognition-contract";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request, context: { params: Promise<{ sessionId: string; sourceId: string }> }) {
-  if (!requireRecognitionWorker(request)) return workerUnauthorizedResponse();
+  const authentication = authenticateWorkerService(request, "recognition_jobs");
+  if ("response" in authentication) return authentication.response;
+  const { actor } = authentication;
   try {
-    const workerId = request.headers.get("x-pdm-recognition-worker-id") ?? "";
+    const workerId = actor.id;
     const { sessionId, sourceId } = await context.params;
     const result = await readClaimedDrawingRecognitionSource({
       sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"),

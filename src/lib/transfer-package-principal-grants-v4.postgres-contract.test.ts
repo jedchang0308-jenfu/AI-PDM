@@ -495,6 +495,19 @@ describe.skipIf(!enabled || phase !== "flow" || !nativePreviewFixture)("full-own
       console.log(JSON.stringify({ runtimeDeclaration: { project: "AIPDM/DEV121", purpose: "full-owner native preview HTTP",
         port: address.port, owningProcessTree: `vitest:${process.pid} -> exact worker child`,
         cleanupCondition: "worker exits, HTTP closes, outer runner closes PG and removes isolated repo", productionWrites: false } }));
+      // A PNG-only workload must never acquire a PDF job before its normal claim.
+      for (const supportedKinds of [["drawing_pdf"], ["native_thumbnail_png", "drawing_pdf"]]) {
+        const denied = await fetch(`http://127.0.0.1:${address.port}/api/preview-jobs/claim`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${process.env.PDM_WORKLOAD_CREDENTIAL!}`, "content-type": "application/json" },
+          body: JSON.stringify({ workerId: "dev057-native-worker", supportedKinds, supportedExtensions: ["sldprt"] })
+        });
+        expect(denied.status).toBe(403);
+        expect(await denied.json()).toEqual({ error: "WORKLOAD_JOB_SCOPE_FORBIDDEN" });
+        const pending = await database.queryOne<{ status: string; locked_by: string | null }>(
+          "SELECT status,locked_by FROM ai_pdm_core.preview_jobs WHERE id=:jobId", { jobId });
+        expect(pending).toMatchObject({ status: "queued", locked_by: null });
+      }
       if (!process.env.PDM_DATA_DIR) throw new Error("ISOLATED_DATA_DIR_REQUIRED");
       await mkdir(process.env.PDM_DATA_DIR, { recursive: true });
       worker = spawn(process.execPath, ["scripts/run-windows-shell-preview-worker.mjs", "--base-url",
@@ -526,7 +539,7 @@ describe.skipIf(!enabled || phase !== "flow" || !nativePreviewFixture)("full-own
       const image = await sharp(png).metadata();
       expect(image.format).toBe("png"); expect(image.width).toBeGreaterThan(1); expect(image.height).toBeGreaterThan(1);
       const response = await fetch(`http://127.0.0.1:${address.port}/api/preview-jobs/${jobId}/content`, {
-        headers: { "x-pdm-preview-worker-token": process.env.PDM_PREVIEW_WORKER_TOKEN!, "x-pdm-preview-worker-id": "dev057-native-worker" }
+        headers: { authorization: `Bearer ${process.env.PDM_WORKLOAD_CREDENTIAL!}`, "x-pdm-worker-id": "dev057-native-worker" }
       });
       expect(response.status).toBe(403);
       expect(createHash("sha256").update(await readFile(nativePreviewFixture)).digest("hex")).toBe(sourceHash);

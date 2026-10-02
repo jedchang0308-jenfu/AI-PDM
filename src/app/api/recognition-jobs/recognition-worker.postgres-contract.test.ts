@@ -10,7 +10,8 @@ import { GET as sourceContent } from "@/app/api/recognition-jobs/[sessionId]/sou
 const enabled = Boolean(process.env.PDM_DEV121_WORKER_HTTP_POSTGRES_URL);
 const database = enabled ? getAsyncDatabaseClient() : null;
 const sessionId = "current-http";
-const token = process.env.PDM_DRAWING_RECOGNITION_WORKER_TOKEN ?? "";
+const token = Buffer.alloc(32,21).toString("base64url");
+const otherToken = Buffer.alloc(32,22).toString("base64url");
 
 function request(url: string, body: object, authorized = true) {
   return new Request(`https://ai-pdm.test${url}`, {
@@ -30,7 +31,7 @@ describe.runIf(enabled)("recognition worker HTTP handlers on restricted PostgreS
     const response = await claim(request("/api/recognition-jobs/claim", {
       workerId: "worker-http"
     }, false));
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(403);
     expect(await database!.queryOne<{ status: string }>(
       "SELECT status FROM drawing_recognition_sessions WHERE id=:sessionId", { sessionId }
     )).toEqual({ status: "queued" });
@@ -49,10 +50,13 @@ describe.runIf(enabled)("recognition worker HTTP handlers on restricted PostgreS
       `/api/recognition-jobs/${sessionId}/complete`, {
         workerId: "worker-other", sourceSetFingerprint: "fixture-fingerprint", results: []
       }), { params: Promise.resolve({ sessionId }) });
-    expect(wrongWorker.status).toBe(409);
-    expect(await wrongWorker.json()).toMatchObject({
-      error: { code: "RECOGNITION_JOB_LOCK_INVALID" }
-    });
+    expect(wrongWorker.status).toBe(403);
+    expect(await wrongWorker.json()).toMatchObject({error:"WORKLOAD_ID_MISMATCH"});
+    const otherHolderRequest = request(`/api/recognition-jobs/${sessionId}/heartbeat`, {workerId:"worker-other"});
+    otherHolderRequest.headers.set("authorization", `Bearer ${otherToken}`);
+    const otherHolder = await heartbeat(otherHolderRequest, {params:Promise.resolve({sessionId})});
+    expect(otherHolder.status).toBe(409);
+    expect(await otherHolder.json()).toMatchObject({error:{code:"RECOGNITION_JOB_LOCK_INVALID"}});
 
     const completed = await complete(request(
       `/api/recognition-jobs/${sessionId}/complete`, {
@@ -140,7 +144,8 @@ describe.runIf(enabled)("recognition worker HTTP handlers on restricted PostgreS
       cwd: process.cwd(), windowsHide: true,
       env: { ...process.env,
         PDM_DRAWING_RECOGNITION_WORKER_BASE_URL: `http://127.0.0.1:${address.port}`,
-        PDM_DRAWING_RECOGNITION_WORKER_ID: "worker-process",
+        PDM_WORKLOAD_ID: "worker-process",
+        PDM_WORKLOAD_CREDENTIAL: Buffer.alloc(32,23).toString("base64url"),
         PDM_DRAWING_RECOGNITION_FIXTURE_MODE: "false",
         PDM_DRAWING_RECOGNITION_METADATA_CMD: process.execPath,
         PDM_DRAWING_RECOGNITION_METADATA_ARGS: JSON.stringify([

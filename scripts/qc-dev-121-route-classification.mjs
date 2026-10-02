@@ -197,7 +197,7 @@ const explicitPermissionCalls = new Map([
 ]);
 const centralPermissionGuard = /\b(?:requirePdmRouteAuthorizationAsync|requireNumbering(?:Permission|Page|Action|CompanyPermission)Async|requireNumberingPlatformCommandAsync|requireNumberState(?:Read|Command)AccessAsync|resolveDev087RouteActor|resolveRelationMatrixActor)\s*\(/u;
 const sessionGuard = /\brequireAuthAsync\s*\(/u;
-const workerCapabilityGuard = /\b(?:requireWorkerServiceToken|requirePreviewWorkerToken|requireRecognitionWorker)\s*\(/u;
+const workerCapabilityGuard = /\b(?:authenticateWorkerService)\s*\(/u;
 
 function containsAll(source, needles, label) {
   for (const needle of needles) {

@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { getAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { AsyncSettingsSecretRepository } from "@/lib/repositories/settings-secret-async-repository";
-import { requireWorkerServiceToken, safeWorkerId } from "@/lib/worker-service-auth";
+import { authenticateWorkerService, rejectWorkerLabel, rejectWorkerCapability } from "@/lib/worker-service-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const denied = requireWorkerServiceToken(request);
-  if (denied) return denied;
+  const authentication = authenticateWorkerService(request, "recognition_heartbeat");
+  if ("response" in authentication) return authentication.response;
+  const { actor } = authentication;
+  const capabilityDenied = rejectWorkerCapability(actor, "solidworks_document_manager");
+  if (capabilityDenied) return capabilityDenied;
   const body = await request.json().catch(() => ({}));
-  const workerId = safeWorkerId(body?.workerId);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "INVALID_WORKER_BODY" }, { status: 400 });
+  const labelDenied = rejectWorkerLabel(actor, body.workerId);
+  if (labelDenied) return labelDenied;
+  const workerId = actor.id;
   const capability = String(body?.capability ?? "").trim();
   if (!workerId || capability !== "solidworks_document_manager") return NextResponse.json({ error: "INVALID_WORKER_CAPABILITY" }, { status: 400 });
   const status = body?.status === "ready" || body?.status === "degraded" ? body.status : "blocked";

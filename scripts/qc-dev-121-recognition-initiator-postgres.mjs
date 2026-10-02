@@ -398,8 +398,12 @@ process.stdout.write(JSON.stringify({
       env: { ...process.env, CI: '1', PDM_DB_PROVIDER: 'postgres',
         PDM_POSTGRES_URL: workerUrl, DEV010_N2_DATABASE_BOUNDARY: 'required',
         PDM_DEV121_WORKER_HTTP_POSTGRES_URL: workerUrl,
-        PDM_DRAWING_RECOGNITION_WORKER_TOKEN: 'dev121-task-owned-worker-token',
-        PDM_PREVIEW_WORKER_TOKEN: 'dev121-task-owned-preview-token',
+        PDM_DATA_DIR:taskRoot,
+        PDM_WORKLOAD_AUTH_CREDENTIALS:JSON.stringify({schemaVersion:'ai-pdm.workload-credentials.v1',workloads:[
+          {id:'worker-http',token:Buffer.alloc(32,21).toString('base64url'),purposes:['recognition_jobs'],capabilities:['solidworks_document_manager']},
+          {id:'worker-other',token:Buffer.alloc(32,22).toString('base64url'),purposes:['recognition_jobs'],capabilities:['solidworks_document_manager']},
+          {id:'worker-process',token:Buffer.alloc(32,23).toString('base64url'),purposes:['recognition_jobs','recognition_heartbeat','settings_secret_probe','solidworks_credential'],capabilities:['solidworks_document_manager']}
+        ]}),
         PDM_REPOSITORY_DIR: repositoryDir,
         DEV121_NATIVE_FIXTURE_ADAPTER: adapterScript } })
     assert.equal(result.status, 0, `worker HTTP PostgreSQL test failed: ${result.error?.message ?? ''}\n${result.stdout ?? ''}\n${result.stderr ?? ''}`)
