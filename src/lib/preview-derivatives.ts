@@ -1125,7 +1125,7 @@ async function resolvePreviewSource(
         WHERE fa.id = :attachmentId
           AND fa.linked_entity_type = 'drawing_number'
           AND dn.drawing_number = :entityCode
-          AND (:companyId IS NULL OR dn.company_id = :companyId)
+          AND (CAST(:companyId AS TEXT) IS NULL OR dn.company_id = :companyId)
           AND fa.deleted_at IS NULL
       `,
       { attachmentId: input.attachmentId, entityCode: input.entityCode, companyId: input.companyId ?? null }
@@ -1140,7 +1140,7 @@ async function resolvePreviewSource(
       WHERE fa.id = :attachmentId
         AND fa.linked_entity_type = 'part_number'
         AND pn.part_number = :entityCode
-        AND (:companyId IS NULL OR pn.company_id = :companyId)
+        AND (CAST(:companyId AS TEXT) IS NULL OR pn.company_id = :companyId)
         AND fa.deleted_at IS NULL
     `,
     { attachmentId: input.attachmentId, entityCode: input.entityCode, companyId: input.companyId ?? null }
