@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "ai-pdm.dev121.principal-profile-command-evidence.v1",
+  "scope": "TASK_OWNED_LOCAL_POSTGRES",
+  "productionVerified": false,
+  "releaseAuthority": false,
+  "producer": "actual OrgMaster migrations001-029",
+  "consumer": "actual AI owner profile through forward-only076",
+  "serverVersion": "18.4",
+  "nativeManifestSha256": "fdaadf9297fe00b36eea778a2c202df1fc27a89b155bdfc452efab0c6829e398",
+  "nativeManifestSource": "JENFU/DEV-015 output/dev-012/inputs/dev015-r48-profile-native-final.json",
+  "sourceFiles": {
+    "db/postgres/076_dev121_principal_account_command_grants_v4.sql": "514fb00d7acc7f8331952f1c5496b9521a389c5f3323694a84019a74630577ab",
+    "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs": "e337ff2270e05f9d0ddaba3a1dc6d3b68e1304bbf644015eb16e4ebc0c9bf958"
+  },
+  "verified": [
+    "actual manager grant reaches target validation",
+    "non-manager/revoked/out-of-scope rejection",
+    "unverified target zero profile and receipt",
+    "verified target owner command commit",
+    "same operation idempotent replay",
+    "receipt and persisted pdm_user_id match",
+    "exact Principal/Employee/account and profile company readback",
+    "new target stays suspended"
+  ],
+  "session": "synthetic registered AAL1 session; no real provider evidence",
+  "cleanup": {
+    "clientClosed": true,
+    "auxiliaryClientsClosed": true,
+    "clusterStopped": true,
+    "portReleased": true,
+    "tempRemoved": true
+  },
+  "review": "Codex Luna read-only source review; no blocking security finding; persisted profile/company assertion gap corrected",
+  "remaining": [
+    "normal fixture Google login",
+    "production candidate full release",
+    "Production profile, scope, approval and logout L4"
+  ],
+  "grantBoundaryFailureCounter": 6,
+  "threshold": 8
+}

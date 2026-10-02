@@ -55,3 +55,34 @@ describe("Canonical work destinations use the same production entry boundary", (
   }
  });
 });
+
+
+describe("Principal profile provisioning reaches the existing account owner", () => {
+ it("dispatches only the exact provisioning POST in the actual production mode", () => {
+  vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "official-numbering-draft");
+  vi.stubEnv("NODE_ENV", "production");
+  try {
+   const response = middleware(new NextRequest("https://pdm.example/api/admin/accounts", { method: "POST" }));
+   expect(response.headers.get("x-middleware-next")).toBe("1");
+   expect(response.headers.get("x-ai-pdm-production-slice")).toBeNull();
+   expect(isProductionSliceAllowedApiMutation("POST", "/api/admin/accounts",
+    { ...active, NODE_ENV: "production", PDM_LOCAL_FULL_FUNCTION_VALIDATION: "true" })).toBe(true);
+  } finally { vi.unstubAllEnvs(); }
+ });
+ it.each([
+  ["PUT", "/api/admin/accounts"], ["PATCH", "/api/admin/accounts"],
+  ["DELETE", "/api/admin/accounts"], ["POST", "/api/admin/accounts/unknown"],
+  ["POST", "/api/admin/accounts/import"], ["POST", "/api/admin/accounts-extra"]
+ ])("keeps unsupported mutations blocked: %s %s", (method, path) => {
+  vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "official-numbering-draft");
+  try {
+   expect(middleware(new NextRequest("https://pdm.example" + path, { method })).status).toBe(403);
+  } finally { vi.unstubAllEnvs(); }
+ });
+ it("does not open provisioning in an unknown mode", () => {
+  vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", "unknown-mode");
+  try {
+   expect(middleware(new NextRequest("https://pdm.example/api/admin/accounts", { method: "POST" })).status).toBe(403);
+  } finally { vi.unstubAllEnvs(); }
+ });
+});
