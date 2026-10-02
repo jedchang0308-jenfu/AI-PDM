@@ -1,8 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {prepareDev121BusinessStoragePlan} from './lib/dev121-business-storage-saved-plan.mjs';
+import {prepareDev121BusinessStoragePlan,applyDev121BusinessStoragePlan,reconcileDev121BusinessStoragePlan} from './lib/dev121-business-storage-saved-plan.mjs';
 const args=process.argv.slice(2);
-if(args.length!==4||args[0]!=='--release-intent-ref-json'||args[2]!=='--output-directory'||!path.isAbsolute(args[1])||!path.isAbsolute(args[3]))throw new Error('Required: --release-intent-ref-json <absolute bound ref file> --output-directory <absolute NEW directory outside source>');
-const receipt=await prepareDev121BusinessStoragePlan({root:fileURLToPath(new URL('../',import.meta.url)),intentRef:JSON.parse(fs.readFileSync(args[1],'utf8').replace(/^\uFEFF/u,'')),outputDirectory:args[3],token:process.env.DEV121_STORAGE_OPERATOR_TOKEN,githubToken:process.env.DEV121_STORAGE_GITHUB_TOKEN});
-console.log(JSON.stringify({status:receipt.status,applyExecuted:false,releaseAuthority:false,outputDirectory:receipt.outputDirectory}));
+const plan=args.length===4&&args[0]==='--release-intent-ref-json'&&args[2]==='--output-directory';
+const apply=args.length===4&&args[0]==='--apply-plan-ref-json'&&args[2]==='--plan-directory';
+const reconcile=args.length===4&&args[0]==='--reconcile-plan-ref-json'&&args[2]==='--plan-directory';
+if(!(plan||apply||reconcile)||!path.isAbsolute(args[1])||!path.isAbsolute(args[3]))throw new Error('Required: --release-intent-ref-json <absolute bound ref> --output-directory <absolute NEW directory>; OR --apply-plan-ref-json <absolute provider-bound ref> --plan-directory <absolute saved-plan directory>; OR --reconcile-plan-ref-json <absolute bound ref> --plan-directory <absolute saved-plan directory>');
+const ref=JSON.parse(fs.readFileSync(args[1],'utf8').replace(/^\uFEFF/u,''));
+const options={root:fileURLToPath(new URL('../',import.meta.url)),token:process.env.DEV121_STORAGE_OPERATOR_TOKEN,githubToken:process.env.DEV121_STORAGE_GITHUB_TOKEN};
+const receipt=plan?await prepareDev121BusinessStoragePlan({...options,intentRef:ref,outputDirectory:args[3]}):reconcile?await reconcileDev121BusinessStoragePlan({...options,planRef:ref,planDirectory:args[3]}):await applyDev121BusinessStoragePlan({...options,planRef:ref,planDirectory:args[3]});
+console.log(JSON.stringify({status:receipt.status,applyExecuted:receipt.applyExecuted,releaseAuthority:false,receiptRef:receipt.providerReceiptRef??receipt.providerPlanRef,receiptPath:receipt.receiptPath}));
