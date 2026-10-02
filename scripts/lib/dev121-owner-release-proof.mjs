@@ -232,13 +232,13 @@ async function readReleasedStageChain({ owner, config, revision, releaseId, root
 
 /** Read-only, bucket-pinned owner source evidence; it does not authorize cutover. */
 export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token,
-  fetchImpl = fetch }) {
+  fetchImpl = fetch, mode = 'post_migration' }) {
   const config = OWNERS[owner]
   if (!config || !H40.test(sourceRevision ?? '') ||
       !refs) {
     fail('INPUT_INVALID')
   }
-  const { releaseId, root } = assertOwnerReleaseRefSet(owner, refs)
+  const { releaseId, root } = assertOwnerReleaseRefSet(owner, refs, mode)
   const prepare = await readRef(refs.prepare, config.bucket, token, fetchImpl)
   assertStage(prepare.value, owner, sourceRevision, releaseId, 'prepare')
   if (prepare.value.previousReceiptRef !== null ||
@@ -250,8 +250,10 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
     config.bucket)
   const sourceLock = await readRef(sourceLockRef, config.bucket, token, fetchImpl)
   assertSourceLock(sourceLock.value, owner, config, sourceRevision, releaseId)
-  const migrate = await readRef(refs.migrate, config.bucket, token, fetchImpl)
-  assertMigration(migrate.value, owner, config, sourceRevision,
+  // Pre-migration mode is source/build observation only, never migration authority.
+  const migrate = mode === 'pre_migration' ? null
+    : await readRef(refs.migrate, config.bucket, token, fetchImpl)
+  if (migrate) assertMigration(migrate.value, owner, config, sourceRevision,
     sourceLock.value.migrationManifestSha256)
   let terminal = null
   let releaseChain = null
@@ -273,7 +275,7 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
       token, fetchImpl })
     buildEvidence = releaseChain
   } else {
-    // Migration-only is a pre-traffic build, not a released application. It
+    // A build-only or migration-only observation is not a released application. It
     // still has the immutable owner build/deployment receipts needed to attest
     // the exact image before principal materialization.
     const deployment = await readFixedJson(`${root}/deployment-capsule.json`,
@@ -286,10 +288,11 @@ export async function readOwnerReleaseProof({ owner, sourceRevision, refs, token
     sha256: readback.ref.sha256, generation: readback.generation,
     crc32c: readback.crc32c })
   return { owner, sourceRevision, releaseId,
-    disposition: terminal ? 'released' : 'migration_only',
+    disposition: terminal ? 'released' : migrate ? 'migration_only' : 'build_only',
+    ...(migrate ? {} : { releaseAuthority: false, migrationVerified: false }),
     migrationManifestSha256: sourceLock.value.migrationManifestSha256,
     prepare: object(prepare), sourceLock: object(sourceLock),
-    migrate: object(migrate),
+    ...(migrate ? { migrate: object(migrate) } : {}),
     artifactDigest: buildEvidence.deployment.value.artifactDigest,
     providerClaim: {
       buildId: buildEvidence.provenance.value.cloudBuild.id,
@@ -308,7 +311,9 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
   const config = OWNERS[proof?.owner]
   const claim = proof?.providerClaim
   const source = claim?.sourceObject
-  if (!config || !['released', 'migration_only'].includes(proof.disposition) ||
+  if (!config || !['released', 'migration_only', 'build_only'].includes(proof.disposition) ||
+      (proof.disposition === 'build_only' && (proof.releaseAuthority !== false ||
+        proof.migrationVerified !== false || Object.hasOwn(proof, 'migrate') || Object.hasOwn(proof, 'terminal'))) ||
       !H40.test(proof.sourceRevision ?? '') ||
       !RELEASE_ID.test(proof.releaseId ?? '') ||
       typeof proof.artifactDigest !== 'string' ||
@@ -359,12 +364,16 @@ export async function verifyOwnerProviderReadback({ proof, token, fetchImpl = fe
   }
   return { owner: proof.owner, sourceRevision: proof.sourceRevision,
     buildName, sourceGeneration: source.generation,
-    artifactDigest: proof.artifactDigest, imageName, status: 'BUILD_IMAGE_VERIFIED' }
+    artifactDigest: proof.artifactDigest, imageName, status: 'BUILD_IMAGE_VERIFIED',
+    ...(proof.disposition === 'build_only' ? { disposition: 'build_only',
+      releaseAuthority: false, migrationVerified: false } : {}) }
 }
 
-export function assertOwnerReleaseRefSet(owner, refs) {
+export function assertOwnerReleaseRefSet(owner, refs, mode = 'post_migration') {
   const config = OWNERS[owner]
-  if (!config || !exactKeys(refs, ['prepare', 'migrate', 'terminal']) ||
+  if (!['post_migration','pre_migration'].includes(mode) ||
+      (mode === 'pre_migration' && (refs?.migrate !== null || refs?.terminal !== null)) ||
+      !config || !exactKeys(refs, ['prepare', 'migrate', 'terminal']) ||
       (refs.terminal !== null && !exactKeys(refs.terminal, ['uri', 'sha256']))) {
     fail('INPUT_INVALID')
   }
@@ -374,7 +383,7 @@ export function assertOwnerReleaseRefSet(owner, refs) {
   const releaseId = rootMatch[1]
   const root = `gs://${config.bucket}/receipts/releases/${releaseId}/${rootMatch[2]}`
   assertRef(refs.prepare, config.bucket, `${root}/prepare.json`)
-  assertRef(refs.migrate, config.bucket, `${root}/migrate.json`)
+  if (mode === 'post_migration') assertRef(refs.migrate, config.bucket, `${root}/migrate.json`)
   if (refs.terminal) assertRef(refs.terminal, config.bucket, `${root}/terminal.json`)
   return { releaseId, root }
 }

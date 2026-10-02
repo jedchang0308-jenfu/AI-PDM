@@ -361,3 +361,49 @@ test('rejects object replacement even when its JSON claims the same revision', a
     Buffer.from(`${canonicalize({ schemaVersion: 'forged', sourceRevision: revision })}\n`))
   await assert.rejects(verify(input), /DEV121_OWNER_RELEASE_PROOF_OBJECT_HASH_MISMATCH/u)
 })
+
+test('pre-migration reads existing source/build evidence without reading or implying migration', async () => {
+  const input=fixture();input.objects.delete(input.refs.migrate.uri);
+  const proof=await readOwnerReleaseProof({owner:'platform',sourceRevision:revision,
+    refs:{...input.refs,migrate:null},mode:'pre_migration',token:'x'.repeat(25),fetchImpl:input.fetchImpl});
+  assert.equal(proof.disposition,'build_only');assert.equal(proof.releaseAuthority,false);
+  assert.equal(proof.migrationVerified,false);assert.equal(Object.hasOwn(proof,'migrate'),false);
+  assert.equal(Object.hasOwn(proof,'terminal'),false);
+  assert.deepEqual(Object.keys(proof.buildChain).sort(),['build','deployment','provenance']);
+  assert.equal(proof.sourceLock.generation,'7');
+});
+test('pre-migration mode cannot smuggle migration or released terminal evidence', async () => {
+  for(const input of [fixture(),fixture({includeTerminal:true})]) {
+    await assert.rejects(readOwnerReleaseProof({owner:'platform',sourceRevision:revision,
+      refs:input.refs,mode:'pre_migration',token:'x'.repeat(25),fetchImpl:input.fetchImpl}),/INPUT_INVALID/u);
+  }
+});
+test('default post-migration mode still rejects a missing migration ref', async () => {
+  const input=fixture();
+  await assert.rejects(readOwnerReleaseProof({owner:'platform',sourceRevision:revision,
+    refs:{...input.refs,migrate:null},token:'x'.repeat(25),fetchImpl:input.fetchImpl}),/REF_INVALID/u);
+});
+test('pre-migration mode preserves dirty source and build-chain rejection', async () => {
+  for(const input of [fixture({sourceLockChange:{clean:false}}),fixture({chainChange:{build:{artifactDigest:'wrong'}}})]) {
+    await assert.rejects(readOwnerReleaseProof({owner:'platform',sourceRevision:revision,
+      refs:{...input.refs,migrate:null},mode:'pre_migration',token:'x'.repeat(25),fetchImpl:input.fetchImpl}),/SOURCE_LOCK_INVALID|STAGE_CHAIN_INVALID/u);
+  }
+});
+test('unknown proof mode is rejected rather than selecting a weaker default', async () => {
+  const input=fixture();
+  await assert.rejects(readOwnerReleaseProof({owner:'platform',sourceRevision:revision,
+    refs:input.refs,mode:'preview',token:'x'.repeat(25),fetchImpl:input.fetchImpl}),/INPUT_INVALID/u);
+});
+
+test('build-only provider readback preserves non-release scope and rejects authority inflation', async () => {
+  const input=fixture();
+  const proof=await readOwnerReleaseProof({owner:'platform',sourceRevision:revision,
+    refs:{...input.refs,migrate:null},mode:'pre_migration',token:'x'.repeat(25),fetchImpl:input.fetchImpl});
+  const result=await verifyOwnerProviderReadback({proof,token:'provider-readback-token',fetchImpl:providerFetch(proof)});
+  assert.equal(result.status,'BUILD_IMAGE_VERIFIED');assert.equal(result.disposition,'build_only');
+  assert.equal(result.releaseAuthority,false);assert.equal(result.migrationVerified,false);
+  for(const change of [{releaseAuthority:true},{migrationVerified:true},{migrate:input.refs.migrate},{terminal:null}]) {
+    await assert.rejects(verifyOwnerProviderReadback({proof:{...proof,...change},token:'provider-readback-token',fetchImpl:()=>{throw new Error('UNEXPECTED_REQUEST')}}),/PROVIDER_INPUT_INVALID/u);
+  }
+  await assert.rejects(verifyOwnerProviderReadback({proof,token:'provider-readback-token',fetchImpl:providerFetch(proof,{imageStatus:403})}),/PROVIDER_READBACK_FAILED/u);
+});
