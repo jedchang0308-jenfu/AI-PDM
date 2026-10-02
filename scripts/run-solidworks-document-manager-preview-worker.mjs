@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { materializeClaimedPreviewSource } from "./lib/preview-worker-source.mjs";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -129,12 +130,14 @@ while (true) {
 }
 
 async function processClaim(input) {
+  let materializedSource;
   const { baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, claim } = input;
   const heartbeat = startJobHeartbeat({ baseUrl: claimBaseUrl, token: claimToken, workerId: claimWorkerId, jobId: claim.jobId });
   try {
     await ensureWorkerDocumentManagerKey({ baseUrl: claimBaseUrl, token: claimToken, refresh: false });
-    const sourcePath = resolveClaimSourcePath(claim);
-    const outputPath = path.join(os.tmpdir(), `ai-pdm-dm-preview-${claim.jobId}.png`);
+    materializedSource = await materializeClaimedPreviewSource(input);
+    const sourcePath = materializedSource.sourcePath;
+    const outputPath = path.join(path.dirname(sourcePath), "preview.png");
     const extracted = await extractDocumentManagerPreview(sourcePath, outputPath);
     const bytes = fs.readFileSync(outputPath);
     assertPng(bytes, outputPath);
@@ -167,6 +170,7 @@ async function processClaim(input) {
     return false;
   } finally {
     heartbeat.stop();
+    await materializedSource?.cleanup();
   }
 }
 
@@ -417,11 +421,6 @@ function spawnFileAsync(command, commandArgs, options = {}) {
   });
 }
 
-function resolveClaimSourcePath(claim) {
-  const sourcePath = String(claim.originalPath || "");
-  if (!sourcePath) throw new Error("Preview job claim did not include a local source path.");
-  return sourcePath;
-}
 
 function assertPng(bytes, outputPath) {
   if (bytes.byteLength < 24 || bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") {

@@ -677,7 +677,7 @@ export class AsyncMasterAttachmentRepository {
       ...(input.attachmentId ? { companyId, attachmentId: id } : {}) });
     const contentHash = sha256(fileBuffer);
     const driveFolderId = await this.getMasterAttachmentsDriveFolderId();
-    const initialDriveStatus: MasterAttachmentDriveStatus = driveFolderId && isGoogleDriveServiceConfigured() ? "uploading" : "none";
+    const initialDriveStatus: MasterAttachmentDriveStatus = !input.deferDriveSync && driveFolderId && isGoogleDriveServiceConfigured() ? "uploading" : "none";
 
     await this.client.execute(INSERT_ASYNC_MASTER_ATTACHMENT_SQL, {
       id,

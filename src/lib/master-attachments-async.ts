@@ -310,8 +310,7 @@ export async function executeMasterAttachmentUploadAsync(input: {
       return decorated[0] ?? attachment;
     },
     event:attachment => ({aggregateType:"master_attachment",aggregateId:attachment.id,
-      eventType:"pdm.master_attachment.upload",payload:{...payload,attachmentId:attachment.id,
-        driveDeliveryPending:attachment.gdriveStatus === "uploading"}})
+      eventType:"pdm.master_attachment.upload",payload:{...payload,attachmentId:attachment.id}})
   });
   return executed.result;
 }

@@ -1,3 +1,10 @@
+## 2026-10-02 R30 背景來源契約續修（本機候選，未發布）
+
+本段為最新施工補充；正式仍 R26。正常 Windows Shell 與 Document Manager preview worker 原先直接讀 claim.originalPath，無法在遠端工作站消費 GCS immutable URI。兩 caller 改用同一 owner holder-only `GET /api/preview-jobs/{jobId}/content`：workload credential、running job/holder、原始 verified Principal initiator、company/source/hash 在讀取前核對；owner pointer/storage bytes 驗證，I/O 後再核對 holder。Worker 只下載 configured owner origin 的固定路徑，禁止 redirect，不使用 claim URL 或 local-path fallback；校驗 content hash/size 後在 task-owned temp 寫入，extractor source/output 一起於 finally 清理。此為技術 job capability，沒有新的人類 session 或平行授權來源。
+
+4 項 transport/cleanup 與23項 service/route/provenance/command 聚焦測例、typecheck、source boundary 通過；尚未證明 native PostgreSQL+HTTP 背景整鏈、真實 CAD extraction 或 live GCS，原完整build也未覆蓋此續修。已加入既有CI。PR183 c349ee8c 的 CI PostgreSQL通過，但 slice 在三個 shared-reader GET 缺分類時停止；分類器已改沿 exact reader import追到既有 session/company/published permission/failure boundary，local完整分類通過（258 files/296 methods），不擴權，不原樣重跑。新source仍待exact review/CI/fresh build。
+
+Drive依有效ADR是核准匯出，不是日常附件權威／備份鏡像；正常Principal upload無真實delivery consumer，因此deferred mirror不再標uploading或在outbox宣告pending交付，不新增publisher。既有歷史匯出路徑不作正常授權fallback。durable bucket費用決策與live provider、技轉審批、三系統logout/recovery及Production L4仍待完成。
 ## 2026-10-02 R30 現行檔案讀取契約（本機候選，未發布）
 
 本段覆蓋下方同批尚待驗證的歷史狀態；不新增任務或局部release。正常Part／Drawing下載由canonical file-assets GET在verified Principal/company/permission與binding快照後讀storage；normal numbering.search／numbering.drawings.view必須查page，drawing_revision_work的numbering.workspace.view查action，保持既有published catalog，不擴權。回應前必須以owner content_hash與已記錄的file_size核对bytes。provider metadata只能額外驗證，不能代替owner記錄；缺hash或bytes不符回unavailable，不猜測補資料、不改授權。source檔與preview derivative各用自己的hash。derivative query與readback明確核對同一公司；來源審查未找出現行跨公司寫入caller，此項是錯標歷史資料防護，不宣稱已證明漏洞。

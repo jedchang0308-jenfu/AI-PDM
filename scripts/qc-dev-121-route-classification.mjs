@@ -95,6 +95,18 @@ const principalSessionRoutes = new Map([
     ["principalSessionTokenFromRequest", "withVerifiedJenfuPrincipalRequest", "isAllowedRequestOrigin"]]
 ]);
 const principalCompanyReadRoutes = new Map([
+  ["GET /api/numbering/drawings/[drawingNumber]/attachments", {
+    helper: "withPrincipalNumberingCompanyRead", sharedBoundary: true,
+    permissions: ["numbering.drawings.view", "numbering.attachments.manage"]
+  }],
+  ["GET /api/parts/[partNumber]/attachments", {
+    helper: "withPrincipalNumberingCompanyRead", sharedBoundary: true,
+    permissions: ["numbering.search", "numbering.attachments.manage"]
+  }],
+  ["GET /api/parts/[partNumber]/attachments/[attachmentId]/previews", {
+    helper: "withPrincipalNumberingCompanyRead", sharedBoundary: true,
+    permissions: ["numbering.search"]
+  }],
   ["GET /api/parts", {
     helper: "withPrincipalNumberingCompanyRead",
     permissions: ["numbering.search"]
@@ -324,11 +336,21 @@ function main() {
       }
       const principalCompanyRead = principalCompanyReadRoutes.get(key);
       if (principalCompanyRead) {
+        let boundaryGraph = graph;
+        if (principalCompanyRead.sharedBoundary) {
+          if (!text.includes('from "@/lib/principal-numbering-read"')) throw new Error(key + ": shared Principal reader import missing");
+          const numberingReader = readFileSync(join(appRoot, "src/lib/principal-numbering-read.ts"), "utf8");
+          const companyReader = readFileSync(join(appRoot, "src/lib/principal-company-read.ts"), "utf8");
+          containsAll(numberingReader, ["withPrincipalCompanyRead(request", "requestedNumberingCompanyCodeFromRequest(request)"], key);
+          containsAll(companyReader, ["withVerifiedJenfuPrincipalRequest", "resolvePrincipalCompanyContextInSnapshot",
+            "evaluatePrincipalWorkspacePermissionsInSnapshot", "return read(snapshot", "principalRequestFailure"], key);
+          boundaryGraph += numberingReader + companyReader;
+        }
         if (!graph.includes(principalCompanyRead.helper + "(") ||
-            !graph.includes("principalSessionTokenFromRequest(request)") ||
+            !boundaryGraph.includes("principalSessionTokenFromRequest(request)") ||
             !graph.includes("auth_session_invalid") || !/status:\s*401/u.test(graph) ||
-            !graph.includes("principal_authorization_unavailable") ||
-            !/status:\s*503/u.test(graph) ||
+            !boundaryGraph.includes("principal_authorization_unavailable") ||
+            !/status:\s*503/u.test(boundaryGraph) ||
             principalCompanyRead.permissions.some((permission) => !graph.includes(permission)) ||
             centralPermissionGuard.test(graph) || sessionGuard.test(graph)) {
           throw new Error(key + ": Principal company read boundary missing or old authorization restored");
