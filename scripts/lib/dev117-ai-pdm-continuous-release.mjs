@@ -52,7 +52,7 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   if (profile.verification?.candidateSmokeMode !== 'GITHUB_PRINCIPAL_SSO_V1' || profile.verification?.brokerOrigin !== 'https://jenfu-platform-prod-9536592944.asia-east1.run.app' || profile.verification?.candidateWorkflowName !== undefined || profile.verification?.candidateRefreshTokenSecretId !== undefined) fail('VERIFICATION_PROFILE_MISMATCH', 'AI-PDM Principal candidate-smoke profile mismatch')
   if (profile.incidentRuntime?.controllerAudience !== 'https://release-controller.jenfu.internal/aipdm' || profile.incidentRuntime?.githubReadTokenSecretId !== 'aipdm-prod-controller-github-read-token' || profile.incidentRuntime?.numericSecretVersionRequired !== true || profile.incidentRuntime?.activeControlObject !== 'control/active.json') fail('INCIDENT_RUNTIME_PROFILE_MISMATCH', 'AI-PDM abort controller profile mismatch')
   if (profile.migrations?.jobName !== 'ai-pdm-prod-migration-runner' || profile.migrations?.serviceAccount !== 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com' || profile.migrations?.baselineCount !== 15) fail('MIGRATION_JOB_MISMATCH', 'AI-PDM migration job mismatch')
-  const integrationPlain = ['PDM_WORKBENCH_AUTHORITY_COMMIT', 'PDM_JENFU_PLATFORM_AUTH_MODE', 'PDM_JENFU_ENTITLEMENT_MODE', 'JENFU_FIREBASE_PROJECT_ID', 'JENFU_IDENTITY_ISSUER', 'JENFU_IDENTITY_AUDIENCE', 'PDM_JENFU_SSO_HANDOFF_MODE', 'PDM_JENFU_SSO_BROKER_ORIGIN']
+  const integrationPlain = ['PDM_STORAGE_PROVIDER', 'PDM_GCS_PROJECT_ID', 'PDM_GCS_BUCKET', 'PDM_GCS_LIVE_ENABLED', 'PDM_WORKBENCH_AUTHORITY_COMMIT', 'PDM_JENFU_PLATFORM_AUTH_MODE', 'PDM_JENFU_ENTITLEMENT_MODE', 'JENFU_FIREBASE_PROJECT_ID', 'JENFU_IDENTITY_ISSUER', 'JENFU_IDENTITY_AUDIENCE', 'PDM_JENFU_SSO_HANDOFF_MODE', 'PDM_JENFU_SSO_BROKER_ORIGIN']
   const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain]
   if (JSON.stringify([...profile.environment.requiredPlainEnvironmentNames].sort()) !== JSON.stringify([...expectedPlain].sort()) || JSON.stringify([...profile.environment.requiredSecretNames].sort()) !== JSON.stringify([...v1.environment.requiredSecretEnvironmentNames].sort())) fail('ENVIRONMENT_SET_DRIFT', 'V3 environment set must preserve owner integration and workbench authority bindings')
   const fixed = profile.environment.fixedValues || {}
@@ -64,6 +64,10 @@ export function assertDev117V3Profile(profile, v1, n1c) {
     || fixed.PDM_JENFU_ENTITLEMENT_MODE !== 'enforce'
     || fixed.PDM_WORKBENCH_AUTHORITY_COMMIT !== '91de3a65df58dc60ddde88aab5263e9470a84565'
     || fixed.PDM_DB_PROVIDER !== 'cloud_sql_postgres'
+    || fixed.PDM_STORAGE_PROVIDER !== 'google_cloud_storage'
+    || fixed.PDM_GCS_PROJECT_ID !== target.projectId
+    || fixed.PDM_GCS_BUCKET !== 'jenfu-platform-prod-aipdm-files'
+    || fixed.PDM_GCS_LIVE_ENABLED !== '1'
     || fixed.JENFU_FIREBASE_PROJECT_ID !== target.projectId
     || fixed.JENFU_IDENTITY_ISSUER !== `https://securetoken.google.com/${target.projectId}`
     || fixed.JENFU_IDENTITY_AUDIENCE !== target.projectId

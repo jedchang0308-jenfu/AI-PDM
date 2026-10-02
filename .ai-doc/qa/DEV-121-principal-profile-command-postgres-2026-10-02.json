@@ -130,5 +130,58 @@
     "cleanup": "Clients/cluster/port/temp cleaned; exact runtime/lease release receipts in JENFU output",
     "delivery": "Unpushed local batch per human request to reduce PR/CI cycles",
     "review": "Codex Luna read-only review: stated receipt/outbox/correlation/replay/heartbeat/fresh-process gaps covered, no blocking finding; did not independently run tests"
+  },
+  "businessStorageRuntimeBinding": {
+    "batch": "R63",
+    "scope": "LOCAL_SOURCE_CONTRACT",
+    "productionVerified": false,
+    "releaseAuthority": false,
+    "usageCostDecision": {
+      "humanAcceptedAt": "2026-10-03",
+      "monthlyTargetUsd": 10,
+      "hardCap": false
+    },
+    "bindings": {
+      "PDM_STORAGE_PROVIDER": "google_cloud_storage",
+      "PDM_GCS_PROJECT_ID": "jenfu-platform-prod",
+      "PDM_GCS_BUCKET": "jenfu-platform-prod-aipdm-files",
+      "PDM_GCS_LIVE_ENABLED": "1"
+    },
+    "sourceFiles": [
+      {
+        "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+        "sha256": "90fba9131656729b983624edd0f6ad0cda3294336086a8c42bbf23edfa89cb4c"
+      },
+      {
+        "path": "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+        "sha256": "d1846eb6d650af7e9cd4becfd3b2fb6d5f1d79ba0ca77732825514f7f487c2bd"
+      },
+      {
+        "path": "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+        "sha256": "af3bd4360fa42dac60765c6f68a0ec800909d8c2c41f539dc9f7f34c98539693"
+      }
+    ],
+    "validation": {
+      "continuousTests": "PASS 102",
+      "continuousQc": "PASS",
+      "abortController": "PASS 6",
+      "databaseBoundary": "PASS",
+      "typecheckApp": "PASS",
+      "isolatedBuild": "PASS primary invariant unchanged; cleanup=true",
+      "finalTargetedProfileTests": "PASS 15 after review correction"
+    },
+    "ownerQcReport": "output/dev-117/s1b/DEV117-S1B-20261002T171606410Z-8524E66B/owner-report.json",
+    "remaining": [
+      "fresh protected-source owner package",
+      "actual saved plan/apply/provider readback",
+      "effective inherited runtime IAM",
+      "Production generation-pinned Principal upload/replay/download/worker and full L4"
+    ],
+    "review": {
+      "scope": "read-only source review; tests executed separately by primary agent",
+      "result": "PASS for fixed own GCS env and runtime template validation",
+      "correction": "use actual NEXT_PUBLIC_GCS_BUCKET negative case; reject each missing fixed value",
+      "remaining": "Provider storage apply/readback and effective IAM must be verified before candidate deployment; runtime template hash is not resource proof."
+    }
   }
 }
