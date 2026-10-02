@@ -37,5 +37,38 @@
     "Production profile, scope, approval and logout L4"
   ],
   "grantBoundaryFailureCounter": 6,
-  "threshold": 8
+  "threshold": 8,
+  "routeComposition": {
+    "batch": "R55",
+    "status": "PASS_LOCAL_INTEGRATION_NOT_RELEASED",
+    "manifest": "JENFU/DEV-015 output/dev-012/inputs/dev015-r55-profile-route-native.json",
+    "manifestSha256": "c61f9d2bd4fcb58fab1abb26ce9a18a6e2938cb17d0e1f3821731bdd238f7f68",
+    "sourceFiles": {
+      "src/lib/transfer-package-principal-grants-v4.postgres-contract.test.ts": "3327e0f2ca707b5e6d2a499db44d90a1c0a4c00db40c66a5c3ebe34a924728df",
+      "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs": "10ccfb1feeca63abfabdae4666b4bde960901e12d1cb1fcbca9d152a0c682cde",
+      "src/lib/jenfu-principal-provision-service.test.ts": "0eae795815862a984e64320ac2b55deaf29071ce20ed6ca1deb22992c5d4372b",
+      "src/lib/jenfu-principal-provision-service.ts": "f742432701b26f7a341c3c47e9cbfe5b07700a8f2d228ec45808b67c44a3af02"
+    },
+    "verified": [
+      "Actual candidate GET payload with exact published provider pair; legitimate aliases retained",
+      "Actual account POST and real capability / source / SERIALIZABLE owner service",
+      "Created201, separate idempotent replay200, exact Principal/Employee/pdm_user_id/account/profile company readback",
+      "New target suspended; one private receipt verified by harness owner only",
+      "Assigned/non-manager/revoked/out-of-scope/restored denial phases; transfer workflow retained"
+    ],
+    "defect": "Published typed denial previously wrapped as503; preserve exact entitlement error for allowlisted HTTP response",
+    "unitTests": 8,
+    "testCorrections": [
+      "Receipt readback uses harness owner, no runtime ACL widening",
+      "Synthetic registered hash uses runtime namespace",
+      "Isolated Origin explicit",
+      "Select exact provider pair among legitimate aliases"
+    ],
+    "session": "Synthetic verified registered AAL1 input; not real provider proof",
+    "productionVerified": false,
+    "releaseAuthority": false,
+    "grantBoundaryFailures": 7,
+    "threshold": 8,
+    "cleanup": "Clients/cluster/port/TEMP/runtime and lease released"
+  }
 }

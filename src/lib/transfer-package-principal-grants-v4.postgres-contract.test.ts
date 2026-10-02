@@ -28,6 +28,7 @@ const tokenHeader = Buffer.from(JSON.stringify({ type: "JENFU-AI-PDM-PRINCIPAL",
   .toString("base64url");
 const reviewerToken = `${tokenHeader}.reviewer.signature`;
 const ownerToken = `${tokenHeader}.owner.signature`;
+const profileToken = `${tokenHeader}.profile.signature`;
 
 // Only the verified session boundary is synthetic. Permission lookup, v4 grant
 // reads, command authorization, business writes, receipts and outbox stay real.
@@ -44,7 +45,8 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (original) => ({
       profile: { pdmUserId: isOwner ? ownerProfileId : reviewerProfileId, companyId },
       session: {
         contractVersion: "jenfu.ai-pdm-session.v2", appId: "ai-pdm",
-        sessionId: isOwner ? "dev057-transfer-owner-session" : "dev057-transfer-reviewer-session",
+        sessionId: input.token === profileToken ? `dev057-profile-command-session:${reviewer.principalId}`
+          : isOwner ? "dev057-transfer-owner-session" : "dev057-transfer-reviewer-session",
         identityIssuer: tuple.identityIssuer, identitySubject: tuple.identitySubject,
         principalId: tuple.principalId, employeeId: tuple.employeeId,
         authEpoch: 1, profileVersion: 1,
@@ -59,6 +61,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (original) => ({
   }
 }));
 
+import { GET as candidateRoute, POST as provisionRoute } from "@/app/api/admin/accounts/route";
 import { GET as inboxRoute } from "@/app/api/approvals/inbox/route";
 import { POST as decideRoute } from "@/app/api/approvals/requests/[requestId]/decisions/route";
 import { POST as submitRoute } from "@/app/api/transfer-packages/[id]/submit-review/route";
@@ -304,4 +307,61 @@ describe.runIf(enabled)("OrgMaster v4 grants authorize the normal AI-PDM transfe
       ]));
     });
   }
+});
+
+
+// Route composition with the real producer, capability reader, SERIALIZABLE
+// service and owner SQL. Only verified provider/session input remains synthetic.
+describe.skipIf(!enabled)("published Principal profile route composition", () => {
+  it("uses exact candidate payload, rejects unauthorized phases, commits once and replays", async () => {
+    if (!database) throw new Error("DEV057_TRANSFER_CONSUMER_DATABASE_REQUIRED");
+    const operationId = "verified-profile-probe";
+    const post = (body: object) => provisionRoute(new Request("https://ai-pdm.test/api/admin/accounts", {
+      method: "POST", headers: { origin: "https://ai-pdm.test", "content-type": "application/json",
+        cookie: `pdm_session=${profileToken}` }, body: JSON.stringify(body)
+    }));
+    const invalid = { contractVersion: "ai-pdm.principal-provision.v1", operationId,
+      principalRef: { principalId: "unverified-target", identityIssuer: "missing-issuer",
+        identitySubject: "missing-subject", employeeId: "missing-employee", accountType: "human_personal",
+        mappingVersion: 1, publishedAt: "2026-01-01T00:00:00.000Z" },
+      displayName: "Unverified target", contactEmail: null, accountEnabled: false };
+    const denied = await post(invalid);
+    expect(denied.status, await denied.clone().text()).toBe(phase === "flow" ? 409 : 403);
+    if (phase !== "flow") return;
+    const target = await database.queryOne<{ principal_id: string; principal_issuer: string; principal_subject: string }>(`
+      SELECT typed.principal_id,typed.principal_issuer,typed.principal_subject FROM orgmaster_contract.v_active_principal_accounts_v1 typed
+      WHERE typed.employee_status='active' AND typed.account_type IN ('human_personal','human_privileged')
+        AND NOT EXISTS (SELECT 1 FROM ai_pdm_core.principal_accounts account
+          WHERE account.principal_id=typed.principal_id)
+      ORDER BY typed.principal_id,typed.principal_issuer,typed.principal_subject LIMIT 1`);
+    expect(target?.principal_id).toBeTruthy();
+    const candidateResponse = await candidateRoute(apiRequest(
+      `/api/admin/accounts?view=principal-candidate&principalId=${encodeURIComponent(target!.principal_id)}`, profileToken));
+    expect(candidateResponse.status, await candidateResponse.clone().text()).toBe(200);
+    const candidates = (await candidateResponse.json()).candidates as Array<Record<string, unknown>>;
+    // One Principal may have multiple verified provider aliases. Select the
+    // exact published pair read above, as the UI's candidate selector does.
+    const selected = candidates.filter(candidate => candidate.principalId === target!.principal_id &&
+      candidate.identityIssuer === target!.principal_issuer && candidate.identitySubject === target!.principal_subject);
+    expect(selected).toHaveLength(1);
+    const body = { contractVersion: "ai-pdm.principal-provision.v1", operationId,
+      principalRef: selected[0], displayName: "Verified native profile", contactEmail: null, accountEnabled: false };
+    const first = await post(body);
+    expect(first.status, await first.clone().text()).toBe(201);
+    const receipt = await first.json();
+    const replay = await post(body);
+    expect(replay.status, await replay.clone().text()).toBe(200);
+    expect(await replay.json()).toMatchObject({ operationId, principalId: target!.principal_id,
+      pdmUserId: receipt.pdmUserId, replayed: true });
+    expect(receipt).toMatchObject({ operationId, principalId: target!.principal_id, replayed: false,
+      current: { accountStatus: "suspended" } });
+    const persisted = await database.queryOne(`SELECT account.principal_id,account.employee_id,
+      account.pdm_user_id,account.company_id AS account_company_id,account.account_status,
+      profile.company_id FROM ai_pdm_core.principal_accounts account
+      JOIN ai_pdm_core.users profile ON profile.id=account.pdm_user_id WHERE account.principal_id=:principalId`,
+    { principalId: target!.principal_id });
+    expect(persisted).toEqual({ principal_id: target!.principal_id, employee_id: selected[0].employeeId,
+      pdm_user_id: receipt.pdmUserId, account_company_id: companyId, account_status: "suspended", company_id: companyId });
+
+  });
 });

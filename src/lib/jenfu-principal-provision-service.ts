@@ -9,6 +9,7 @@ import {
   withVerifiedJenfuPrincipalRequest,
   type PrincipalRequestInput, type VerifiedPrincipalRequest
 } from "@/lib/jenfu-principal-request-guard";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { hashJenfuPrincipalSessionId } from "@/lib/jenfu-principal-session-registry";
 
 export type PrincipalProvisionReceipt = {
@@ -102,6 +103,9 @@ export async function provisionPrincipalAccountInSnapshot(
     });
     return receipt(row?.receipt, input);
   } catch (error) {
+    // Preserve the typed published-grant denial/contract taxonomy for the route.
+    // Unknown database failures still use the unavailable response below.
+    if (error instanceof JenfuEntitlementRepositoryError) throw error;
     if (typeof error === "object" && error !== null && "code" in error &&
         error.code === "23505" && error instanceof Error &&
         !error.message.includes("AIPDM_PROVISION_")) throw error;

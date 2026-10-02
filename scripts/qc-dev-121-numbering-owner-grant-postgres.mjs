@@ -242,7 +242,8 @@ try {
   if (nativeTransfer) {
     // Exercise the account command's actual SQL guard using the same published
     // producer and active owner catalog; only the registered session is synthetic.
-    const sessionHash = hash('dev057-profile-command-session:' + principal);
+    // Match the runtime hashJenfuPrincipalSessionId namespace exactly.
+    const sessionHash = hash('pdm-principal-session-v2:dev057-profile-command-session:' + principal);
     await target.query(`INSERT INTO ai_pdm_core.principal_session_records
       (principal_id,session_id_hash,principal_auth_epoch,lifecycle_version,profile_version,
        authenticated_at,issued_at,expires_at,assurance_level,assurance_policy_hash)
@@ -275,49 +276,7 @@ try {
     assert.equal((await target.query("SELECT count(*)::int AS count FROM ai_pdm_core.principal_accounts WHERE principal_id='unverified-target'")).rows[0].count,0);
     assert.equal((await target.query("SELECT count(*)::int AS count FROM ai_pdm_core.principal_identity_operations WHERE operation_id='invalid-target-probe'")).rows[0].count,0);
     console.log('PASS actual published profile command guard: ' + process.env.DEV057_CONTRACT_PHASE + '; zero unverified account or receipt');
-    if (managerFlow) {
-      const candidates = await target.query(`SELECT typed.*
-        FROM orgmaster_contract.v_active_principal_accounts_v1 typed
-        WHERE typed.employee_status='active'
-          AND typed.account_type IN ('human_personal','human_privileged')
-          AND NOT EXISTS (SELECT 1 FROM ai_pdm_core.principal_accounts account
-            WHERE account.principal_id=typed.principal_id)
-        ORDER BY typed.principal_id,typed.principal_issuer,typed.principal_subject LIMIT 1`);
-      assert.equal(candidates.rowCount,1,'the actual producer must supply an unprofiled verified target');
-      const candidate=candidates.rows[0];
-      const request={contractVersion:'ai-pdm.principal-provision.v1',operationId:'verified-profile-probe',
-        principalRef:{principalId:candidate.principal_id,identityIssuer:candidate.principal_issuer,
-          identitySubject:candidate.principal_subject,employeeId:candidate.employee_id,
-          accountType:candidate.account_type,mappingVersion:Number(candidate.mapping_version),
-          publishedAt:new Date(candidate.published_at).toISOString()},
-        displayName:'Verified native profile',contactEmail:null,accountEnabled:false,companyId:'company-jenfu'};
-      const provision=async()=>{
-        await target.query('BEGIN');
-        try {
-          await target.query('SET LOCAL ROLE dev057_ai_pdm_consumer_probe');
-          const result=await target.query(`SELECT ai_pdm_core.provision_principal_account_v1(
-            $1::jsonb,$2,$3,$4,$5) AS receipt`,
-            [JSON.stringify(request),principal,actorTuple.issuer,actorTuple.subject,sessionHash]);
-          await target.query('COMMIT');return result.rows[0].receipt;
-        } catch(error) {await target.query('ROLLBACK');throw error;}
-      };
-      const first=await provision();const replay=await provision();
-      assert.equal(first.principalId,candidate.principal_id);
-      assert.equal(first.replayed,false);assert.equal(replay.replayed,true);
-      assert.equal(replay.pdmUserId,first.pdmUserId);
-      const readback=await target.query(`SELECT account.principal_id,account.employee_id,
-          account.pdm_user_id,account.company_id AS account_company_id,
-          account.account_status,profile.company_id
-        FROM ai_pdm_core.principal_accounts account
-        JOIN ai_pdm_core.users profile ON profile.id=account.pdm_user_id
-        WHERE account.principal_id=$1`,[candidate.principal_id]);
-      assert.deepEqual(readback.rows,[{principal_id:candidate.principal_id,
-        employee_id:candidate.employee_id,pdm_user_id:first.pdmUserId,account_company_id:'company-jenfu',
-        account_status:'suspended',company_id:'company-jenfu'}]);
-      assert.equal((await target.query(`SELECT count(*)::int AS count
-        FROM ai_pdm_core.principal_identity_operations WHERE operation_id='verified-profile-probe'`)).rows[0].count,1);
-      console.log('PASS verified native profile commit, idempotent replay and account/company readback; target remains suspended');
-    }
+
 
   }
   const consumer = new URL(ownerUrl); consumer.username = 'dev057_ai_pdm_consumer_probe';
@@ -334,7 +293,7 @@ try {
         DEV057_NUMBERING_ISSUER: actorTuple.issuer,
         DEV057_NUMBERING_SUBJECT: actorTuple.subject
       } : {}),
-      CI:'1', DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
+      CI:'1', PDM_PUBLIC_BASE_URL:'https://ai-pdm.test', DEV121_NUMBERING_POSTGRES_URL: consumer.toString(),
       PDM_POSTGRES_URL: consumer.toString(), PDM_DB_PROVIDER:'postgres', DEV010_N2_DATABASE_BOUNDARY:'required',
       PDM_DATA_DIR:path.join(taskRoot,'aipdm-numbering-data'), PDM_REPOSITORY_DIR:path.join(taskRoot,'aipdm-numbering-repository'),
       PDM_PRODUCTION_SLICE_MODE:'official-numbering-draft', PDM_NUMBER_STATE_FLOW_V1:'1',
@@ -346,7 +305,15 @@ try {
       PDM_SESSION_CURRENT_KEY_ID:'dev057-qc-key',PDM_SESSION_CURRENT_SECRET:'task-owned-synthetic-session-secret-for-local-qc-only' }
   });
   if (transferProbe) {
-    const expectedTests = process.env.DEV057_CONTRACT_PHASE === 'assigned' ? 2 : 1;
+    // Receipt storage is deliberately not readable by runtime. Verify absence
+    // or uniqueness with the harness owner only, without widening runtime ACL.
+    const operationCount = await target.query(`SELECT count(*)::int AS count
+      FROM ai_pdm_core.principal_identity_operations WHERE operation_id='verified-profile-probe'`);
+    assert.equal(operationCount.rows[0].count, process.env.DEV057_CONTRACT_PHASE === 'flow' ? 1 : 0);
+    console.log('PASS owner receipt readback after actual profile route: ' + process.env.DEV057_CONTRACT_PHASE);
+  }
+  if (transferProbe) {
+    const expectedTests = process.env.DEV057_CONTRACT_PHASE === 'assigned' ? 3 : 2;
     assert.match(result.stdout, new RegExp('Tests\\s+' + expectedTests + ' passed\\s+\\(\\d+\\)', 'u'),
       'the selected v4 transfer route cases must all execute without skips');
   } else {
