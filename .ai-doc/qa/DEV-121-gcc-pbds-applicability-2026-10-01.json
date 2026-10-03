@@ -537,6 +537,17 @@
       "interruption": "R68 first QC cancelled before build after duplicate own capacity reservation was observed; process tree verified stopped and owned temp cleaned. Lease released, fresh WARNING-admitted capacity reservation used for R68b; original evidence retained."
     },
     "currentCandidateInspection": "REQUIRED_ON_EACH_NEW_ARTIFACT",
-    "runtimeOverrides": "Loader environment and Secret names rejected; effective command/args/volumes checked"
+    "runtimeOverrides": "Loader environment and Secret names rejected; effective command/args/volumes checked",
+    "workflowDependencyCorrection": {
+      "pullRequest": 196,
+      "initialCiRun": "37089382001",
+      "initialCiFailure": "npm audit @fastify/busboy 3.2.0",
+      "lockVersion": "3.2.2",
+      "productionAuditFindings": 0,
+      "ownerTestsPassed": 125,
+      "mode": "build_only then storage provisioning/readback then full_release, same unexpired immutable capsule",
+      "resume": "cached prepare revalidates six prerequisites and live baseline before migration",
+      "finalRequiredCi": "PENDING"
+    }
   }
 }

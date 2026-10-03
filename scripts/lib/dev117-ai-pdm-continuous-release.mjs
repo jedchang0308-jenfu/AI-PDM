@@ -131,9 +131,14 @@ export function buildDev117MigrationBundle(profile, packageValue, sourceRevision
 }
 
 export function assertDev117WorkflowSource(source) {
+  source = source.replaceAll('\r\n', '\n')
   const inputBlock = source.match(/workflow_dispatch:[^\S\r\n]*\r?\n\s*inputs:[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\s*concurrency:/)?.[1] || ''
   const keys = [...inputBlock.matchAll(/^\s{6}([A-Za-z0-9_-]+):/gm)].map((match) => match[1])
-  if (JSON.stringify(keys) !== JSON.stringify(['releaseCapsuleRef'])) fail('WORKFLOW_INPUT_DRIFT', 'Workflow must expose only releaseCapsuleRef')
+  if (JSON.stringify(keys) !== JSON.stringify(['releaseCapsuleRef', 'executionMode'])) fail('WORKFLOW_INPUT_DRIFT', 'Workflow accepts one capsule and a bounded execution mode')
+  if (!source.includes('default: full_release') || !source.includes('options: [full_release, build_only]')
+    || !source.includes('case "$EXECUTION_MODE" in full_release|build_only) ;; *) exit 1 ;; esac')
+    || !source.includes("  migrate:\n    if: ${{ inputs.executionMode == 'full_release' }}\n    needs: [prepare, build]")
+    || !source.includes("if: ${{ always() && inputs.executionMode == 'full_release' && needs.prepare.result == 'success' && contains(needs.*.result, 'failure') }}")) fail('WORKFLOW_BUILD_ONLY_BOUNDARY_DRIFT', 'Artifact preparation must not migrate, create candidates or roll back')
   for (const forbidden of ['product_owner_decision:', 'artifact_receipt_ref:', 'candidate_receipt_ref:', 'level4_receipt_ref:', 'stage:']) if (source.includes(forbidden)) fail('HISTORICAL_INPUT_ACTIVE', `Forbidden v1 workflow input ${forbidden}`)
   if (!source.includes('group: production-release-ai-pdm-prod')) fail('WORKFLOW_CONCURRENCY_DRIFT', 'Concurrency must be service-wide')
   for (const job of ['prepare:', 'build:', 'migrate:', 'candidate:', 'entrypoint:', 'verify:', 'decision:', 'activate:', 'canonical:', 'finalize:', 'failure:']) if (!source.includes(`\n  ${job}`)) fail('WORKFLOW_JOB_MISSING', job)

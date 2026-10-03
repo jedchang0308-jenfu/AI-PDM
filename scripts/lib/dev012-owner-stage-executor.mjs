@@ -396,7 +396,6 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (existing) {
       assertStage(existing.value, profile, intent, 'prepare')
       if (dataCutoverGateEnabled(profile) && !['DATA_READY_FOR_CANDIDATE', 'NEUTRAL_AUTHORITY_LIVE'].includes(existing.value.facts?.dataCutover?.status)) fail('DATA_CUTOVER_PREPARE_RECEIPT_INVALID')
-      return existing
     }
     const names = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const entries = await Promise.all(Object.entries(names).map(async ([name, field]) => [name, (await transport.readJson(intent[field], profile.artifact.releaseBucket, ['receipts'])).value]))
@@ -424,6 +423,12 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
         ? Object.fromEntries(Object.keys(profile.environment.controlledValues).map((name) => [name, repair.runtimeConfig.plainEnvironment[name]]))
         : revisionControlledEnvironment(profile, await transport.getRevision(profile, intent.previousRevision))
       assertControlledEnvironmentAuthority({ intent, profile, values, runtime: derived.runtimeConfig, previousControlledEnvironment })
+    }
+    if (existing) {
+      // A build-only run can pause before storage provisioning. Revalidate
+      // prerequisites and the live baseline before reusing its prepare receipt.
+      if (canonicalize(existing.value.facts.entrypointBaseline) !== canonicalize(transport.entrypointSnapshot(service))) fail('PREPARE_BASELINE_MISMATCH')
+      return existing
     }
     return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(recovery ? { principalOnlyRecovery: recovery } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
