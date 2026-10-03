@@ -8,7 +8,7 @@
 
 整理前文件原文在 [HISTORY_ONLY文件地圖](documentation_map-history-2026-10-03.md)，包含舊進度及取代關係；不預設載入、不執行舊雙軌／bridge／逐人／TOTP步骤。以下保留其他任務原索引，未因本次CA重新判定其完成度。
 
-本輪 auth-only 候選的本機／真實 PostgreSQL 結果及未驗界線在 [DEV-121 候選 QA](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)；它不代表正式發布或 L4。下一步仍為同根因一個 PR／必需 CI → fresh owner release → 本輪授權整合正式驗收。
+本輪 auth-only 候選的本機／真實 PostgreSQL 結果及未驗界線在[候選原始QA](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)，不是正式PASS。PR199已合併；R76候選登入失敗後已安全中止、未切流，下一步是[現行R76續點](dev_task.md#dev-121-current-contract)的因果診斷／集中修正 → fresh owner release → 授權整合正式驗收。原QA的capture狀態與FAIL不回寫；一般功能不重新進本輪queue。
 
 ## 1. Authoritative Entry Points
 
