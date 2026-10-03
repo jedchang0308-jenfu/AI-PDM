@@ -3,6 +3,7 @@ import { GCC_PBDS_CVE, readNativeInventoryProgram, gccPbdsOccurrenceMatches, rea
 import { GCC_ALIGNED_NEW_CVE, readAlignedNewInspectionProgram, gccAlignedNewOccurrenceMatches, readAlignedNewApplicabilityPolicy, assertAlignedNewApplicabilityAssessment } from './dev015-gcc-aligned-new-applicability.mjs'
 import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
 import { assertPrincipalOnlyActivationReadback, principalOnlyActivationRequest } from './dev121-principal-only-release.mjs'
+import { readOwnerReleaseProof, verifyOwnerProviderReadback } from './dev121-owner-release-proof.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -1125,7 +1126,18 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  return { request, readOwnerRun, readBytes, readJson, putBytes, putJson, deleteBytes, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, activatePrincipalOnly, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
+  // Source/build evidence is observation only. Only the operator producer asks
+  // for live Build/Registry readback; prepare uses its own GCS/Run permissions.
+  async function readOwnerSourceProof({ profile, sourceRevision, refs, verifyProvider = false }) {
+    if (profile.application.id !== 'ai-pdm' || profile.artifact.releaseBucket !== 'jenfu-platform-prod-aipdm-release'
+      || profile.target.projectId !== 'jenfu-platform-prod' || profile.target.region !== 'asia-east1'
+      || profile.target.serviceName !== 'ai-pdm-prod') fail('OWNER_SOURCE_PROOF_TARGET_INVALID')
+    const proof = await readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision, refs, token, fetchImpl })
+    const provider = verifyProvider ? await verifyOwnerProviderReadback({ proof, token, fetchImpl }) : null
+    return { proof, provider }
+  }
+
+  return { request, readOwnerRun, readOwnerSourceProof, readBytes, readJson, putBytes, putJson, deleteBytes, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, activatePrincipalOnly, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {
