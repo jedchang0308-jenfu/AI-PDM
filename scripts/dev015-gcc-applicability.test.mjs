@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
+import vm from 'node:vm'
+import path from 'node:path'
+import crypto from 'node:crypto'
 import { nativeCodeFingerprint, gccPbdsOccurrenceMatches, readGccApplicabilityPolicy, assertGccApplicabilityAssessment } from './lib/dev015-gcc-applicability.mjs'
 const inventory = { complete: true, platform: 'linux', arch: 'x64', node: '24.21.0', uid: 65532, gid: 65532, elf: [{ path: '/nodejs/bin/node', bytes: 100, sha256: 'a'.repeat(64), pbdsMarkers: [] }], wasm: [], headers: [], symlinks: [] }
 const fingerprint = nativeCodeFingerprint(inventory)
@@ -43,4 +46,32 @@ test('only the assessed GCC Debian HIGH occurrence qualifies; unrelated HIGH and
   for (const mutate of [(x) => x.noteName = 'projects/untrusted/notes/CVE-2026-102010', (x) => x.vulnerability.effectiveSeverity = 'CRITICAL', (x) => x.vulnerability.shortDescription = 'CVE-OTHER', (x) => x.vulnerability.packageIssue[0].affectedVersion.fullName = '15.0.0', (x) => x.vulnerability.packageIssue = []]) {
     const changed = structuredClone(occurrence); mutate(changed); assert.equal(gccPbdsOccurrenceMatches(changed), false)
   }
+})
+
+
+test('full native inventory fails closed on private-directory access errors', () => {
+  const program = fs.readFileSync(new URL('./dev015-native-image-inventory.cjs', import.meta.url), 'utf8')
+  for (const code of ['EACCES', 'EPERM', 'EIO']) {
+    const error = Object.assign(new Error('private directory read failed'), { code })
+    const visited = [], printed = []
+    const io = { readdirSync(directory) { visited.push(directory); if (directory === '/home') throw error; return [] } }
+    const context = { require: name => ({ 'node:fs': io, 'node:path': path.posix, 'node:crypto': crypto })[name],
+      process: { platform: 'linux', arch: 'x64', versions: { node: '24.21.0' }, getuid: () => 0, getgid: () => 0 },
+      Buffer, console: { log: value => printed.push(value) } }
+    assert.throws(() => vm.runInNewContext(program, context), value => value === error)
+    assert.ok(visited.includes('/home'))
+    assert.deepEqual(printed, [])
+  }
+})
+
+test('only offline read-only root inventory receives DAC read/search; runtime probes remain nonroot', () => {
+  const source = fs.readFileSync(new URL('./lib/dev012-owner-release-runtime.mjs', import.meta.url), 'utf8')
+  const inventoryCommand = source.split(/\r?\n/u).find(line => line.includes('let command =') && line.includes('nativeInventoryProgram'))
+  const loaderCommand = source.split(/\r?\n/u).find(line => line.includes('const run =') && line.includes('--user=65532:65532'))
+  assert.ok(inventoryCommand && loaderCommand)
+  assert.ok(inventoryCommand.includes('--network=none --read-only --cap-drop=ALL --cap-add=DAC_READ_SEARCH --user=0:0'))
+  assert.equal((source.match(/--cap-add=/gu) ?? []).length, 1)
+  assert.ok(loaderCommand.includes('--network=none --read-only --cap-drop=ALL --memory=512m --pids-limit=32 --user=65532:65532'))
+  assert.doesNotMatch(loaderCommand, /--cap-add|--privileged|--mount|--volume/u)
+  assert.doesNotMatch(inventoryCommand, /--privileged|DAC_OVERRIDE|SYS_ADMIN|--mount|--volume/u)
 })

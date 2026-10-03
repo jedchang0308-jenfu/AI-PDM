@@ -1,5 +1,17 @@
+## R71 唯一現行續點（2026-10-03；候選修正，未發布）
+
+PR196 已由 required CI37089857221 通過並合併 main 290c84a4965edd686c321ce02cc915049df160a1；R69 APP_INFRA_B 已套用專用 workload Secret/accessor，R70 Secret version2 已 ENABLED 且使用三個獨立 technical actors。R70 build-only run37090907394 FAILURE，app build成功但完整 native inventory 在 /home/nonroot 因 root cap-drop=ALL 缺少 DAC 讀取能力而 EACCES；migration/candidate/traffic 均未執行。不是 R66 vDSO 或應用授權錯誤。
+
+本批僅給 offline、read-only、無 host mount 的 inventory 加 DAC_READ_SEARCH；保留完整掃描、EACCES fail-closed、正式 image USER 及後續 nonroot loader probes。固定已建 ef86… image 的 focused Cloud Build13765e18-f8c5-448f-885a-d97cb12581bc SUCCESS，570 ELF 及 Node/sharp/SQLite loader 指紋均符合兩項既有 GCC policy。這是修正的真實診斷證據，不代替新 source owner scan 或 L4；原 HIGH 留存。 聚焦43案、完整owner127案、abort6案及DB boundary通過；受影響clean-lock CI、source merge與正式發布仍待。
+
+下一步：同批修正/回歸/既有文件一個 PR與必需CI → fresh source-bound infra reuse/capsule → build-only → own business-storage saved plan/apply/effective IAM → full-release → F01–F10 Production L4。R69 infra與Secret v2可核對後沿用，無須再次建立。Jed現行Platform→OrgMaster/AI-PDM正常入口已成功，但附件/審批/背景等正式業務尚未完成。正式Windows host確認仍取消，功能驗收不縮減，grant counter7/8不變。下方R68及更早全部是歷史讀點。
+
+來源證據：JENFU/DEV-015 output/dev-012/inputs/dev121-r70-owner-failed-readback.json、dev121-r70-native-inspection-build.json、dev121-r71-native-inspection-build.json、dev121-r71-inspection-check.json；本owner既有 GCC QA 的 inventoryReadAccess20261003R71。診斷log SHA256 f8ff6823b5f76696231ff947811d7ed923210f8af6f2ba021a0d65f832cb0e28。
+
+---
+
 R68 同批發布接縫修正（PR196）：首次 CI run37089382001 的 Production Slice QC 在 npm audit 發現 `@fastify/busboy` 3.2.0 的兩項 HIGH；僅將 transitive lock 升至 3.2.2，production audit 0 finding，不放寬 gate。原 owner workflow新增固定 `executionMode=build_only/full_release`（預設 full），前者只完成原 prepare/build 並成功結束，不執行 migration、candidate、rollback或terminal。依同一未過期 capsule 完成 business-storage saved plan/apply/effective IAM 後，再以 full_release 續行；prepare/build驗hash重用，cached prepare仍重新讀六個前提、期限及live baseline，任何漂移在migration前拒絕。已通過原owner suite125案及continuation負例；此補批乾淨安裝、build及跨PG必需CI仍待。沒有新增人類核准或發布身分。
-## R68 現行續點（2026-10-03，PR195已合併，R67本機整鏈證據保留）
+## R68 歷史續點（2026-10-03，PR195已合併，R67本機整鏈證據保留）
 
 R68 GCC續點（2026-10-03）：Jed gcloud登入已確認恢復；固定a417…映像的R65A disassembly／overflow probes、R66b成功子步驟與R66c實際Node／sharp／SQLite loader證據已核對。R66b整體FAILURE完整保留，R66c SUCCESS補足vDSO處理；僅關閉基線調查，不把舊artifact或本機測例當作新候選發布證據。同一owner consumer新增CVE-2026-95619專屬hash-bound評估，每個候選重新核對完整native與loader fingerprint；原CVE-2026-102010政策不变，原始HIGH保留，其他HIGH／CRITICAL與任何證據漂移仍拒絕。runtime template拒絕loader-control environment／Secret binding，既有revision readback核對command／args／volumeMounts。本機owner QC（含abort／DB boundary／typecheck／isolated build）已通過、primary SQLite不變且暫存已清理；immutable assessment及六份原始證據已create-only發布並hash讀回。protected PR／CI、新owner package與每個新artifact的實際inspection、workload Secret、business storage apply與Production L4仍待；不新增人工核准、主任務或正式Windows host確認。證據由JENFU/DEV-015 `output/dev-012/inputs/dev015-r68-loader-baseline.json`與本owner既有GCC QA的`alignedNewApplicability20261003R68`追溯。
 
