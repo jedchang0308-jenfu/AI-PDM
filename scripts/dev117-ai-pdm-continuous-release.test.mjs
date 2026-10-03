@@ -424,3 +424,15 @@ test('DEV-121 production worker credential has an exact own numeric Secret bindi
   assert.match(source, /prevent_destroy = true/u)
   assert.doesNotMatch(source, /resource "google_project_iam|resource "google_secret_manager_secret_version|secret_data/u)
 })
+
+test('S1B-20 build-only mode retains protected owner path and cannot reach mutations', () => {
+  const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-independent-production.yml', import.meta.url), 'utf8').replaceAll('\r\n','\n')
+  assert.equal(assertDev117WorkflowSource(source), true)
+  assert.equal(assertDev117WorkflowSource(source.replaceAll('\n', '\r\n')), true)
+  for (const changed of [
+    source.replace("if: ${{ inputs.executionMode == 'full_release' }}", "if: ${{ always() }}"),
+    source.replace("always() && inputs.executionMode == 'full_release' &&", 'always() &&'),
+    source.replace('options: [full_release, build_only]', 'options: [full_release, arbitrary_stage]'),
+    source.replace('case "$EXECUTION_MODE" in full_release|build_only) ;; *) exit 1 ;; esac', 'true'),
+  ]) assert.throws(() => assertDev117WorkflowSource(changed), {code:'WORKFLOW_BUILD_ONLY_BOUNDARY_DRIFT'})
+})

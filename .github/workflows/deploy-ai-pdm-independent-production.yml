@@ -7,6 +7,12 @@ on:
         description: Immutable AI-PDM release-intent URI with sha256 fragment
         required: true
         type: string
+      executionMode:
+        description: Build immutable artifacts for prerequisites, or complete the owner release
+        required: true
+        type: choice
+        default: full_release
+        options: [full_release, build_only]
 
 concurrency:
   group: production-release-ai-pdm-prod
@@ -39,9 +45,10 @@ jobs:
         run: node scripts/dev012-verify-official-source.mjs
       - id: bind
         shell: bash
-        env: { RELEASE_CAPSULE_REF: "${{ inputs.releaseCapsuleRef }}" }
+        env: { RELEASE_CAPSULE_REF: "${{ inputs.releaseCapsuleRef }}", EXECUTION_MODE: "${{ inputs.executionMode }}" }
         run: |
           set -euo pipefail
+          case "$EXECUTION_MODE" in full_release|build_only) ;; *) exit 1 ;; esac
           capsule_uri="${RELEASE_CAPSULE_REF%%#sha256=*}"
           capsule_sha256="${RELEASE_CAPSULE_REF##*#sha256=}"
           test "$capsule_uri" != "$RELEASE_CAPSULE_REF"
@@ -85,6 +92,7 @@ jobs:
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
   migrate:
+    if: ${{ inputs.executionMode == 'full_release' }}
     needs: [prepare, build]
     runs-on: ubuntu-latest
     environment: production
@@ -273,7 +281,7 @@ jobs:
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage finalize --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
   failure:
-    if: ${{ always() && needs.prepare.result == 'success' && contains(needs.*.result, 'failure') }}
+    if: ${{ always() && inputs.executionMode == 'full_release' && needs.prepare.result == 'success' && contains(needs.*.result, 'failure') }}
     needs: [prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical]
     runs-on: ubuntu-latest
     environment: production

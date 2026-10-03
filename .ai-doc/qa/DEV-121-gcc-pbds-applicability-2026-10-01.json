@@ -118,5 +118,436 @@
     "The supplier source closure includes the exact recorded patch bytes; upstream mutable patch URLs require renewed assessment when compiled content changes.",
     "Any changed or additional native binary, WASM, PBDS header, architecture or Node version requires a new assessment."
   ],
-  "observedAt": "2026-10-01T01:15:41.546Z"
+  "observedAt": "2026-10-01T01:15:41.546Z",
+  "snapshotScope": "Original R10 fields retained as historical artifact assessment; postMergeDelivery20261001R11 is latest owner-delivery evidence.",
+  "postMergeDelivery20261001R11": {
+    "ownerApplicationId": "ai-pdm",
+    "nativeTask": "DEV-121",
+    "sourceRevision": "3ade17707f166985c34cf70743705464b11e7323",
+    "pullRequestNumber": 170,
+    "sourceProof": {
+      "schemaVersion": "jenfu.dev012.official-merged-source.v1",
+      "repository": "jedchang0308-jenfu/AI-PDM",
+      "branch": "main",
+      "sourceRevision": "3ade17707f166985c34cf70743705464b11e7323",
+      "sourceTree": "5f6afe1083df769b26380689ee6b4bf7ed65e055",
+      "branchProtected": true,
+      "reviewMode": "SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED",
+      "rulesetId": 24077878,
+      "requiredChecks": [
+        "DEV-012 Isolated PostgreSQL Cutover",
+        "Production Slice QC"
+      ],
+      "pullRequestNumber": 170,
+      "pullRequestUrl": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/170",
+      "mergedAt": "2026-10-01T01:26:37Z",
+      "status": "OFFICIAL_MERGED_PR_VERIFIED"
+    },
+    "recovery": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/3ade17707f166985c34cf70743705464b11e7323.json",
+        "sha256": "15c92525f1a1ac6a801356ceef1874a8bdbf890e6cd4cce11b2d79e0dc052548"
+      },
+      "generation": "1790818227983229",
+      "value": {
+        "imageDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:850b34b009ff8dcc83d0a56300de9757fb8362d5a56ff31611e1cb7dbac796f4",
+        "oldRevision": "ai-pdm-prod-f5ee2af2d7ec",
+        "projectId": "jenfu-platform-prod",
+        "recoveryRevision": "ai-pdm-prod-recovery-3ade17707f16",
+        "region": "asia-east1",
+        "schemaVersion": "ai-pdm.principal-only-recovery.v1",
+        "service": "ai-pdm-prod",
+        "serviceUid": "d65f379b-a342-4eb3-ba22-109aa5f368c5",
+        "sourceRevision": "3ade17707f166985c34cf70743705464b11e7323",
+        "status": "PASS"
+      }
+    },
+    "productionAtRecoveryReadback": {
+      "name": "projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod",
+      "uid": "d65f379b-a342-4eb3-ba22-109aa5f368c5",
+      "generation": "72",
+      "updateTime": "2026-10-01T01:30:25.293154Z",
+      "scaling": {
+        "scalingMode": "MANUAL",
+        "manualInstanceCount": 0
+      },
+      "traffic": [
+        {
+          "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+          "revision": "ai-pdm-prod-f5ee2af2d7ec",
+          "percent": 100
+        }
+      ],
+      "trafficStatuses": [
+        {
+          "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+          "revision": "ai-pdm-prod-f5ee2af2d7ec",
+          "percent": 100
+        }
+      ],
+      "templateSha256": "ab3b7e293c9b2b6c5b43a3fe6bb0b591c18c34153f4e4201f5a961af9e87ebf3"
+    },
+    "runnerControllerInputs": "BYTE_IDENTICAL_RUNNER_AND_CONTROLLER",
+    "ownerPreparationStatus": "INTENT_PREPARED_NO_DISPATCH",
+    "infraReuseRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-AI-PDM-PRINCIPAL-ONLY-20261001-R11/app-infra-reuse.json",
+      "sha256": "881cba9d1d8b222127c6cd0721f19cf2f437ff1d26e0c6c845c65fa5483ede6c"
+    },
+    "scanOfNewOfficialApplication": null,
+    "scanOfNewOfficialApplicationStatus": "FULL_OWNER_WORKFLOW_NOT_DISPATCHED",
+    "productL4": "NOT_RUN",
+    "platformDependencyCheckpoint": {
+      "observedAt": "2026-10-01T02:51:56.404Z",
+      "scanRef": {
+        "uri": "gs://jenfu-platform-prod-platform-release/receipts/releases/DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R12/5fea8e0d36667134f80d05fa0cddf1c4f5f84b809581a9b5ac584c6d449054cf/scan.json",
+        "sha256": "3c51259b2c21bf80d6039908e8d873a46bb3f5e17ff1f73031d77a2229f748cb"
+      },
+      "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform@sha256:a0c99cef065abba0dec1a9e4ee0bf341730d41411ebb98be6749d0743244d4de",
+      "rawHighOrCriticalVulnerabilityCount": 1,
+      "blockingVulnerabilityCount": 0,
+      "workflowRunId": 36805052755,
+      "migrationStatus": "QUEUED_NO_RUNNER_NO_HUMAN_APPROVAL_WAIT",
+      "cutoverOrL4Completed": false
+    }
+  },
+  "platformDependencyR13": {
+    "observedAt": "2026-10-01T03:48:55.172Z",
+    "sourceProject": "JENFU / DEV-015 / owner-release-R13",
+    "runId": 36811288103,
+    "terminal": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-platform-release/receipts/releases/DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R13/c2548df6c8f57e72b0d1a2cb3f0469260ddf16c4fc6f7cdf984f29ff7f2e6777/terminal.json",
+        "sha256": "38720066ba1f6f84e8fde39b4eb38459d7baf4e98a0a916e8ee063b263974b99"
+      },
+      "generation": "1790826501292536",
+      "value": {
+        "facts": {
+          "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform@sha256:e8c14037bc210892e40f0ef3d0c61efde65f82d24cd92c92516c68bacb2ef79a",
+          "candidateRevision": "jenfu-platform-prod-7098b896e186",
+          "databaseDisposition": "FORWARD_APPLIED",
+          "dev014ConsumerConformanceRef": {
+            "sha256": "a07ee57a9157c852057f8f592c9104a9c7a344fb1a392c8f050333453d24ba46",
+            "uri": "gs://jenfu-platform-prod-platform-release/receipts/releases/DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R13/c2548df6c8f57e72b0d1a2cb3f0469260ddf16c4fc6f7cdf984f29ff7f2e6777/dev014-consumer-conformance.json"
+          },
+          "remainingHumanAction": 0,
+          "result": "RELEASED"
+        },
+        "observedAt": "2026-10-01T03:48:21.155Z",
+        "ownerApplicationId": "platform",
+        "previousReceiptRef": {
+          "sha256": "d68f7c9c2779390395b01b8f37df124d0882a14639fbec36ebce5f5ddcf3803c",
+          "uri": "gs://jenfu-platform-prod-platform-release/receipts/releases/DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R13/c2548df6c8f57e72b0d1a2cb3f0469260ddf16c4fc6f7cdf984f29ff7f2e6777/finalize.json"
+        },
+        "receiptSha256": "6f567380e604a7117b890c992f4c24fa7ce27b65deb08bf4b3e4122066f3f3d4",
+        "releaseId": "DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R13",
+        "schemaVersion": "jenfu.dev012.stage-receipt.v1",
+        "sourceRevision": "dca165880a0e23c2cbaff437726402ec0788e458",
+        "stage": "terminal",
+        "status": "PASS"
+      }
+    },
+    "canonical": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-platform-release/receipts/releases/DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R13/c2548df6c8f57e72b0d1a2cb3f0469260ddf16c4fc6f7cdf984f29ff7f2e6777/canonical.json",
+        "sha256": "9f538883c391254c9dff038044eda28fe90097a5fb544930686b4fe620dc50b3"
+      },
+      "generation": "1790826455826426",
+      "value": {
+        "facts": {
+          "activationReceiptRef": {
+            "sha256": "f3a305138e05992afe15421ba1cd8bc8f572085270abf27f567133b2f350fb34",
+            "uri": "gs://jenfu-platform-prod-platform-release/receipts/releases/DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R13/c2548df6c8f57e72b0d1a2cb3f0469260ddf16c4fc6f7cdf984f29ff7f2e6777/activate.json"
+          },
+          "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform@sha256:e8c14037bc210892e40f0ef3d0c61efde65f82d24cd92c92516c68bacb2ef79a",
+          "candidateRevision": "jenfu-platform-prod-7098b896e186",
+          "origin": "https://jenfu-platform-prod-9536592944.asia-east1.run.app",
+          "smoke": {
+            "observations": [
+              {
+                "id": "auth-mode",
+                "status": 200
+              },
+              {
+                "id": "session-create",
+                "status": 200
+              },
+              {
+                "id": "session-reload",
+                "status": 200
+              },
+              {
+                "id": "apps-api",
+                "status": 200
+              },
+              {
+                "id": "platform-map-api",
+                "status": 200
+              },
+              {
+                "id": "apps-api-unauthenticated",
+                "status": 401
+              },
+              {
+                "id": "session-revoked",
+                "status": 401
+              }
+            ],
+            "observedAt": "2026-10-01T03:47:35.682Z",
+            "origin": "https://jenfu-platform-prod-9536592944.asia-east1.run.app",
+            "status": "PASS",
+            "tokenExpiresInSeconds": 3600,
+            "tokenSource": "FIREBASE_REFRESH_TOKEN"
+          }
+        },
+        "observedAt": "2026-10-01T03:47:35.683Z",
+        "ownerApplicationId": "platform",
+        "previousReceiptRef": {
+          "sha256": "f3a305138e05992afe15421ba1cd8bc8f572085270abf27f567133b2f350fb34",
+          "uri": "gs://jenfu-platform-prod-platform-release/receipts/releases/DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R13/c2548df6c8f57e72b0d1a2cb3f0469260ddf16c4fc6f7cdf984f29ff7f2e6777/activate.json"
+        },
+        "receiptSha256": "00201ca3b4dfde86eb9adb167d67e0bdfc177af171890a39e98a0a78af7e87ff",
+        "releaseId": "DEV015-PLATFORM-PRINCIPAL-ONLY-20261001-R13",
+        "schemaVersion": "jenfu.dev012.stage-receipt.v1",
+        "sourceRevision": "dca165880a0e23c2cbaff437726402ec0788e458",
+        "stage": "canonical",
+        "status": "PASS"
+      }
+    },
+    "service": {
+      "name": "projects/jenfu-platform-prod/locations/asia-east1/services/jenfu-platform-prod",
+      "uid": "9b870673-24fb-4bc6-a3a0-4518f4c3ee2e",
+      "generation": "95",
+      "scaling": {
+        "scalingMode": "AUTOMATIC",
+        "maxInstanceCount": 1
+      },
+      "traffic": [
+        {
+          "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+          "revision": "jenfu-platform-prod-7098b896e186",
+          "percent": 100
+        }
+      ],
+      "trafficStatuses": [
+        {
+          "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+          "revision": "jenfu-platform-prod-7098b896e186",
+          "percent": 100
+        }
+      ],
+      "templateSha256": "07cfca347f2242c135c70f63a5f0cbb9d0c7a46c401e4e570e7841183375535d"
+    },
+    "orgmasterRun": {
+      "repository": "jedchang0308-jenfu/OrgMaster",
+      "branch": "master",
+      "revision": "8e6c1233491f8822463fed508ef59829cda6754a",
+      "file": "dev015-release-orgmaster-20261001-r11.json",
+      "workflow": "deploy-orgmaster-independent-production.yml",
+      "releaseId": "ORGMASTER-REL-20261001014714504-8E6C123",
+      "releaseCapsuleRef": "gs://jenfu-platform-prod-orgmaster-release/receipts/releases/ORGMASTER-REL-20261001014714504-8E6C123/release-intent.json#sha256=00dfd34c8e8547832d5b4619e445f528b92e5e587c8df007c30ef4027dbee57d",
+      "dispatchAt": "2026-10-01T03:49:37.939Z",
+      "priorRunIds": [
+        36341134277,
+        36340151574,
+        36338515999,
+        36337292776,
+        36146949383,
+        36139874430,
+        35962419155,
+        35902145983,
+        35893680102,
+        35892917286,
+        35877015931,
+        35763718912,
+        35759032270,
+        35755740422,
+        35748588580,
+        35730660189,
+        35724507823,
+        35714079868,
+        35666554078,
+        35587433590,
+        35583624698,
+        35575712269,
+        35572893659,
+        35571948963,
+        35515354549,
+        35513320693,
+        35334732678,
+        35314753668,
+        35310797807,
+        35307497175,
+        35299453716,
+        35194263031,
+        35070877802,
+        35063120604,
+        35062309077,
+        34837352152,
+        34829832862,
+        34822837530,
+        34816559484,
+        34809359730,
+        34804105810,
+        34792960647,
+        34787984275,
+        34784282452,
+        34779502752,
+        34776164748,
+        34772433866,
+        34769201126,
+        34765570371,
+        34760677761,
+        34757230599,
+        34756078056,
+        34548367978,
+        34545820987,
+        34538245007,
+        34516949009,
+        34506045085,
+        34483418416,
+        34465683121,
+        34446523171,
+        34440157348,
+        34434543710,
+        34429563283
+      ],
+      "sourceProtection": {
+        "adminEnforced": true,
+        "activeRulesets": [
+          {
+            "id": 24077876,
+            "enforcement": "active",
+            "bypassActors": 0
+          }
+        ]
+      },
+      "status": "in_progress",
+      "runId": 36812290276,
+      "runUrl": "https://github.com/jedchang0308-jenfu/OrgMaster/actions/runs/36812290276",
+      "conclusion": null,
+      "observedAt": "2026-10-01T03:54:08.473Z",
+      "jobs": [
+        {
+          "name": "prepare",
+          "status": "completed",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "build",
+          "status": "in_progress",
+          "conclusion": null,
+          "failedSteps": []
+        }
+      ]
+    },
+    "productionL4Complete": false
+  },
+  "alignedNewApplicability20261003R68": {
+    "status": "LOCAL_OWNER_QC_PASS_IMMUTABLE_BASELINE_PUBLISHED",
+    "cve": "CVE-2026-95619",
+    "sourceRevision": "25d256c2bab10d91abaa8d003f73edcf934c13c0",
+    "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a417d32a52986972b2b67e6e1c1cd57847ab1f3514fa1396ac67e8fbc60755c8",
+    "nativeCodeFingerprint": "b443738b766eea4b7b8c69356448609bba87158146c3fa2db9cb4a4deee10a45",
+    "baselineEvidence": {
+      "R65A": {
+        "buildId": "c068c9c2-81a9-4bf7-9fe1-62145daa9dfb",
+        "status": "SUCCESS",
+        "logSha256": "f716a1d512dd64135925f1e037dd53c21661d87a89c69347857db17ce4121fdf",
+        "readbackSha256": "66f0473702a510628fa7241eb43c8e4492feb639e59f188691908ebae0c3e8c7"
+      },
+      "R66b": {
+        "buildId": "ffaade2a-77cc-4e4c-9d52-2251d36cc5d0",
+        "status": "FAILURE_PARTIAL",
+        "providerStatus": "FAILURE",
+        "logSha256": "c772e662f4134fc8d65025c36582d86e6aa43aae721fbf6a97e3480b5c4e0126",
+        "readbackSha256": "a7014ce6087fd4f2b2d2dd227607f06be7c262a8843d6af950b856c4ca6d565c",
+        "failure": "Final original Node probe treated kernel vDSO as file; only emitted completed substeps used"
+      },
+      "R66c": {
+        "buildId": "506edf23-be37-4d40-a9d0-07ce5985cc2c",
+        "status": "SUCCESS",
+        "logSha256": "a5be39b8dc1f88c0a1a96aea6313605c66335650bd1318dc1b3ae2fdb576186c",
+        "readbackSha256": "dd7411a379792312edaca44c097995aa5789a0b21c2539158a84f1f327c34c32"
+      }
+    },
+    "releaseAuthority": false,
+    "productionL4": "NOT_RUN",
+    "scannerHighRetained": true,
+    "existingPbdsPolicyUnchanged": true,
+    "limits": [
+      "Baseline image only, not current release acceptance",
+      "Image config/probe do not prove Cloud Run runtime overrides",
+      "Musl artifacts ship but were not loaded by this standard glibc path",
+      "Raw scanner HIGH remains; separate source-controlled CVE-specific assessment required"
+    ],
+    "assessmentRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261003-R68/ai-pdm/assessment-ef20e080b636dd228c45f8e0193daeefa3a622d1bfa84cc0f3e67500af3b5ab0.json",
+      "sha256": "ef20e080b636dd228c45f8e0193daeefa3a622d1bfa84cc0f3e67500af3b5ab0"
+    },
+    "loaderClosureFingerprint": "796922920b8d45b326eb607629c7cbb54fc85aaba11c663fb32debb84de7adec",
+    "immutableEvidenceObjects": [
+      {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261003-R68/ai-pdm/r65a-log-f716a1d512dd64135925f1e037dd53c21661d87a89c69347857db17ce4121fdf.txt",
+        "sha256": "f716a1d512dd64135925f1e037dd53c21661d87a89c69347857db17ce4121fdf"
+      },
+      {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261003-R68/ai-pdm/r65a-readback-66f0473702a510628fa7241eb43c8e4492feb639e59f188691908ebae0c3e8c7.json",
+        "sha256": "66f0473702a510628fa7241eb43c8e4492feb639e59f188691908ebae0c3e8c7"
+      },
+      {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261003-R68/ai-pdm/r66b-log-c772e662f4134fc8d65025c36582d86e6aa43aae721fbf6a97e3480b5c4e0126.txt",
+        "sha256": "c772e662f4134fc8d65025c36582d86e6aa43aae721fbf6a97e3480b5c4e0126"
+      },
+      {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261003-R68/ai-pdm/r66b-readback-a7014ce6087fd4f2b2d2dd227607f06be7c262a8843d6af950b856c4ca6d565c.json",
+        "sha256": "a7014ce6087fd4f2b2d2dd227607f06be7c262a8843d6af950b856c4ca6d565c"
+      },
+      {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261003-R68/ai-pdm/r66c-log-a5be39b8dc1f88c0a1a96aea6313605c66335650bd1318dc1b3ae2fdb576186c.txt",
+        "sha256": "a5be39b8dc1f88c0a1a96aea6313605c66335650bd1318dc1b3ae2fdb576186c"
+      },
+      {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261003-R68/ai-pdm/r66c-readback-dd7411a379792312edaca44c097995aa5789a0b21c2539158a84f1f327c34c32.json",
+        "sha256": "dd7411a379792312edaca44c097995aa5789a0b21c2539158a84f1f327c34c32"
+      },
+      {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261003-R68/ai-pdm/assessment-ef20e080b636dd228c45f8e0193daeefa3a622d1bfa84cc0f3e67500af3b5ab0.json",
+        "sha256": "ef20e080b636dd228c45f8e0193daeefa3a622d1bfa84cc0f3e67500af3b5ab0"
+      }
+    ],
+    "localValidation": {
+      "scope": "LOCAL_CONTRACT_NOT_PRODUCTION",
+      "focusedTests": {
+        "passed": 37,
+        "failed": 0
+      },
+      "ownerTest": "test:dev-117:continuous PASS",
+      "ownerQc": "qc:dev-117:continuous PASS",
+      "ownerReport": "output/dev-117/s1b/DEV117-S1B-20261003T021714404Z-AF6F0A58/owner-report.json",
+      "checks": [
+        "abort",
+        "db-boundary",
+        "typecheck:app",
+        "build:isolated"
+      ],
+      "primarySqliteSha256": "4533523cd4d50b7137d2a95ab35e650de6abd694145146fb1457c4b52c418f03",
+      "cleanup": true,
+      "review": "Independent Codex read-only review: no P0/P1 in exact-CVE/policy/native/loader/current-source/artifact joins; R65/R66 facts checked against original logs and provider readbacks",
+      "interruption": "R68 first QC cancelled before build after duplicate own capacity reservation was observed; process tree verified stopped and owned temp cleaned. Lease released, fresh WARNING-admitted capacity reservation used for R68b; original evidence retained."
+    },
+    "currentCandidateInspection": "REQUIRED_ON_EACH_NEW_ARTIFACT",
+    "runtimeOverrides": "Loader environment and Secret names rejected; effective command/args/volumes checked",
+    "workflowDependencyCorrection": {
+      "pullRequest": 196,
+      "initialCiRun": "37089382001",
+      "initialCiFailure": "npm audit @fastify/busboy 3.2.0",
+      "lockVersion": "3.2.2",
+      "productionAuditFindings": 0,
+      "ownerTestsPassed": 125,
+      "mode": "build_only then storage provisioning/readback then full_release, same unexpired immutable capsule",
+      "resume": "cached prepare revalidates six prerequisites and live baseline before migration",
+      "finalRequiredCi": "PENDING"
+    }
+  }
 }

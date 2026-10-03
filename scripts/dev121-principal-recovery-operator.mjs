@@ -85,7 +85,7 @@ export async function executeRecoveryOperation({ profile, sourceRevision, archiv
   const build = await transport.waitBuild(operation, deadlineAt, 'jenfu-platform-prod', 'asia-east1')
   const imageDigest = assertRecoveryBuildReadback({ request: buildRequest, build, sourceRevision })
   await artifactImageReadback(transport, imageDigest)
-  await transport.waitArtifactEvidence({ profile, artifactDigest: imageDigest, deadlineAt })
+  await transport.waitArtifactEvidence({ profile, sourceRevision, artifactDigest: imageDigest, deadlineAt })
   const settled = await transport.getService(profile)
   if (settled.uid !== before.uid || transport.effectiveRevision(settled) !== oldRevision ||
     settled.generation !== before.generation) throw new Error('DEV121_RECOVERY_SERVICE_DRIFT')

@@ -396,7 +396,6 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (existing) {
       assertStage(existing.value, profile, intent, 'prepare')
       if (dataCutoverGateEnabled(profile) && !['DATA_READY_FOR_CANDIDATE', 'NEUTRAL_AUTHORITY_LIVE'].includes(existing.value.facts?.dataCutover?.status)) fail('DATA_CUTOVER_PREPARE_RECEIPT_INVALID')
-      return existing
     }
     const names = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const entries = await Promise.all(Object.entries(names).map(async ([name, field]) => [name, (await transport.readJson(intent[field], profile.artifact.releaseBucket, ['receipts'])).value]))
@@ -425,6 +424,12 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
         : revisionControlledEnvironment(profile, await transport.getRevision(profile, intent.previousRevision))
       assertControlledEnvironmentAuthority({ intent, profile, values, runtime: derived.runtimeConfig, previousControlledEnvironment })
     }
+    if (existing) {
+      // A build-only run can pause before storage provisioning. Revalidate
+      // prerequisites and the live baseline before reusing its prepare receipt.
+      if (canonicalize(existing.value.facts.entrypointBaseline) !== canonicalize(transport.entrypointSnapshot(service))) fail('PREPARE_BASELINE_MISMATCH')
+      return existing
+    }
     return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(recovery ? { principalOnlyRecovery: recovery } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 
@@ -449,7 +454,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const bundle = await transport.putBytes(bundleUri, migration.bytes, { bucket: profile.artifact.releaseBucket, prefix: profile.artifact.migrationBundlePrefix, contentType: 'application/json' })
     const build = await transport.createBuild({ profile, intent, sourceObject: source, deadlineAt: intent.deadlineAt })
     const artifact = await transport.readArtifactImage(profile, build.artifactDigest)
-    const analysis = await transport.waitArtifactEvidence({ profile, artifactDigest: build.artifactDigest, deadlineAt: intent.deadlineAt })
+    const analysis = await transport.waitArtifactEvidence({ profile, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, deadlineAt: intent.deadlineAt })
     const provenance = await transport.putJson(paths.provenance, { schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, cloudBuild: publicBuildReceipt(build.build), artifactRegistry: artifact, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const sbom = await transport.putJson(paths.sbom, { schemaVersion: 'jenfu.dev012.sbom-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, ...analysis.sbomExport, occurrenceNames: analysis.sbomOccurrenceNames, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const scan = await transport.putJson(paths.scan, { schemaVersion: 'jenfu.dev012.scan-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, buildOccurrenceNames: analysis.buildOccurrenceNames, discoveryOccurrenceNames: analysis.discoveryOccurrenceNames, vulnerabilityCount: analysis.vulnerabilityCount, blockingVulnerabilityCount: analysis.blockingVulnerabilityCount, ...(analysis.rawHighOrCriticalVulnerabilityCount !== undefined ? { rawHighOrCriticalVulnerabilityCount: analysis.rawHighOrCriticalVulnerabilityCount, notAffectedAssessments: analysis.notAffectedAssessments } : {}), maximumAllowedSeverity: profile.build.maximumAllowedSeverity, observedAt: analysis.observedAt, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })

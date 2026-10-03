@@ -264,3 +264,48 @@ test('post-activation rollback switches to the previous revision without rebindi
   assert.equal(h.service().ingress, 'INGRESS_TRAFFIC_INTERNAL_ONLY')
   assert.equal(h.service().defaultUriDisabled, true)
 })
+
+test('build-only preparation has no live mutation and a later exact-source run reuses its immutable build', async () => {
+  const h = recordedHarness()
+  const {intentResult,input} = await authorizedRecordedInput(h,'REL-BUILD-ONLY')
+  const before=structuredClone(h.service())
+  for (const name of ['runMigrationJob','createCandidate','setTraffic','configureEntrypoint','publishIncident']) h.transport[name]=async()=>{throw Error('UNEXPECTED_LIVE_MUTATION:'+name)}
+  await executeOwnerStage({...input,stage:'prepare'})
+  const first=await executeOwnerStage({...input,stage:'build'})
+  const objectCount=h.objects.size
+  h.transport.createBuild=async()=>{throw Error('BUILD_MUST_BE_REUSED')}
+  const environment={...h.environment,GITHUB_RUN_ID:'124'}
+  await executeOwnerStage({...input,environment,stage:'prepare'})
+  const repeated=await executeOwnerStage({...input,environment,stage:'build'})
+  assert.deepEqual(first.ref,repeated.ref)
+  assert.deepEqual(h.service(),before)
+  assert.equal(h.objects.size,objectCount)
+  assert.equal([...h.objects.keys()].some(uri=>uri.includes('/control/')||uri.endsWith('/terminal.json')||uri.endsWith('/migrate.json')),false)
+  await assert.rejects(executeOwnerStage({...input,environment:{...environment,GITHUB_SHA:'b'.repeat(40)},stage:'build'}))
+})
+
+test('build-only continuation revalidates current prerequisites and live baseline before migration', async () => {
+  for (const scenario of ['prerequisite','revision','entrypoint']) {
+    const h=recordedHarness()
+    const {input}=await authorizedRecordedInput(h,'REL-RESUME-'+scenario.toUpperCase())
+    await executeOwnerStage({...input,stage:'prepare'})
+    await executeOwnerStage({...input,stage:'build'})
+    if(scenario==='prerequisite') {
+      const read=h.transport.readJson
+      h.transport.readJson=async(ref,...args)=>{
+        if(ref.uri.endsWith('-authorization.json')) throw Error('AUTHORIZATION_READ_FAILED')
+        return read(ref,...args)
+      }
+    } else {
+      const read=h.transport.getService
+      h.transport.getService=async()=>{
+        const value=await read()
+        if(scenario==='revision') value.trafficStatuses[0].revision='another-release'
+        else value.defaultUriDisabled=false
+        return value
+      }
+    }
+    await assert.rejects(executeOwnerStage({...input,environment:{...h.environment,GITHUB_RUN_ID:'124'},stage:'prepare'}), scenario==='prerequisite'?/AUTHORIZATION_READ_FAILED/:/PREPARE_BASELINE_MISMATCH/)
+    assert.equal([...h.objects.keys()].some(uri=>uri.endsWith('/migrate.json')),false)
+  }
+})

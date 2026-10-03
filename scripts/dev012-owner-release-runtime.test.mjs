@@ -622,3 +622,44 @@ test('candidate readback verifies exact workload environment, Secret versions an
     assert.throws(() => transport.assertRevisionReady(profile, drifted, artifact, null, binding), { code:'CANDIDATE_RUNTIME_READBACK_MISMATCH' })
   }
 })
+
+test('runtime config cannot inject alternate native loaders through plain or Secret bindings', () => {
+  for (const name of ['LD_PRELOAD', 'LD_LIBRARY_PATH', 'LD_AUDIT', 'NODE_OPTIONS', 'NODE_PATH', 'GLIBC_TUNABLES', 'GCONV_PATH', 'VIPS_PATH', 'SHARP_FORCE_GLOBAL_LIBVIPS']) {
+    for (const kind of ['plain', 'secret']) {
+      const changed = structuredClone(profile)
+      const plainEnvironment = { NODE_ENV: 'production' }
+      const secretVersions = { SESSION_SECRET: '1' }
+      if (kind === 'plain') {
+        changed.environment.requiredPlainEnvironmentNames.push(name)
+        plainEnvironment[name] = '/unreviewed/loader.so'
+      } else {
+        changed.environment.requiredSecretNames.push(name)
+        changed.environment.allowedSecretIds[name] = 'platform-prod-injected-loader'
+        secretVersions[name] = '1'
+      }
+      assert.throws(() => buildRuntimeConfig(changed, { plainEnvironment, secretVersions }), /RUNTIME_CONFIG_READBACK_MISMATCH/u)
+    }
+  }
+})
+
+test('aligned-new assessment requires source identity; unrelated or escalated scanner findings still reject before inspection', async () => {
+  const digest = `${profile.artifact.uri}@sha256:${H64}`
+  const occurrence = { name: 'projects/jenfu-platform-prod/occurrences/aligned-new', resourceUri: `https://${digest}`, kind: 'VULNERABILITY', noteName: 'projects/goog-vulnz/notes/CVE-2026-95619', vulnerability: { effectiveSeverity: 'HIGH', shortDescription: 'CVE-2026-95619', packageIssue: [{ affectedPackage: 'gcc-14', packageType: 'OS', affectedCpeUri: 'cpe:/o:debian:debian_linux:13', affectedVersion: { fullName: '14.2.0-19' } }] } }
+  let writes = 0
+  const make = (finding) => createOwnerTransport({ token: 'x'.repeat(32), sleep: async () => undefined, fetchImpl: async (url, options = {}) => {
+    if (options.method === 'POST') { writes += 1; throw new Error('UNEXPECTED_WRITE') }
+    const kind = /^kind="([A-Z_]+)"/u.exec(new URL(String(url)).searchParams.get('filter') ?? '')?.[1]
+    return json({ occurrences: kind === 'VULNERABILITY' ? [finding] : kind === 'DISCOVERY' ? [{ kind, resourceUri: `https://${digest}`, discovery: { analysisStatus: 'FINISHED_SUCCESS' } }] : [] })
+  } })
+  await assert.rejects(() => make(occurrence).waitArtifactEvidence({ profile, artifactDigest: digest, deadlineAt: '2999-01-01T00:00:00.000Z' }), /ARTIFACT_POLICY_FAILED/u)
+  for (const mutate of [
+    row => row.vulnerability.effectiveSeverity = 'CRITICAL',
+    row => row.noteName = 'projects/goog-vulnz/notes/CVE-OTHER',
+    row => row.vulnerability.packageIssue[0].affectedPackage = 'unrelated-package',
+    row => row.vulnerability.packageIssue[0].affectedVersion.fullName = '14.2.0-20',
+  ]) {
+    const changed = structuredClone(occurrence); mutate(changed)
+    await assert.rejects(() => make(changed).waitArtifactEvidence({ profile, sourceRevision: H40, artifactDigest: digest, deadlineAt: '2999-01-01T00:00:00.000Z' }), /ARTIFACT_POLICY_FAILED/u)
+  }
+  assert.equal(writes, 0)
+})

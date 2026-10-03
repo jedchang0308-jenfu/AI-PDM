@@ -1,3 +1,7 @@
+# R68 current execution order
+
+Cost approval remains in force. Dispatch the existing protected owner workflow with `executionMode=build_only` to produce prepare/build artifacts without migration or candidate creation. Use that fresh immutable intent for the saved-plan and same-binary apply steps below; verify provider resources and effective inherited IAM. Only then dispatch `full_release` with the same still-valid capsule. Cached prepare revalidates all prerequisites and live service baseline before migration. Expired packages must be regenerated; no environment spoofing, timing race, extra human gate or new deployment identity is required. Earlier R41/R42 pending-cost and plan-only statements below are historical.
+
 # DEV-121 business storage source preparation
 
 ## R63 現行來源批次與費用決定（2026-10-03；尚未發布／套用）
