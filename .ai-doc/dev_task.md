@@ -8,11 +8,11 @@
 
 歷史原文在 [HISTORY_ONLY 任務快照](dev_task-history-2026-10-03.md)，不讀為當前命令。共同驗收依 [JENFU 既有盤點](../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)；scope／publish／verified Principal 防漏洞及可靠發布 storage validator 仍由 DEV-121 處理，不能搬到延期業務待辦。各層證據僅證明實際本機／整合／正式實測範圍。AI-PDM DEV-121 依自己的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 出口獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint 結果，任一 owner PASS 不推定三 owner joint PASS。
 
-## R75 唯一現行續點（2026-10-03；Principal-only 整合尚未完成正式發布）
+## R76 唯一現行續點（2026-10-03；已合併、安全中止，Production L4 未完成）
 
 官方 source `2806b72ec1909e969c5747f95a2a7e70130e89f0` 的 R75 business storage apply 已完成資源寫入；provider 把 bucket IAM member 的 bucket 回傳為 `b/<exact-name>`，舊 validator 在 apply 後拒絕。原 saved binary 與 immutable apply claim 必須保留且不可重放。root 已完成 provider-format 的精確值修正、102 項聚焦測試與獨立審查；read-only reconcile、完整 own resources 及 effective create/get-only IAM 已有 [原始 readback](qa/DEV-121-business-storage-provider-readback-2026-10-03.json)。這證明資源與權限，application storage activation／Production 業務 L4 仍未執行。
 
-同一 auth-only 候選已完成 reviewer／Drawing 36 案、storage validator／不可重放 readback 102 案、app typecheck，以及真實 PostgreSQL 18.4 的 OrgMaster producer→AI-PDM consumer 24 案，詳見 [候選證據及界線](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)。這些是本機／整合結果，不是 Production；Drawing-major publish 特定拒絕分支僅有 evaluator mock seam，不能說成 PG rollback 實證。下一步將同根因程式、測試與必要文件合成一個 protected-source PR／必需 CI，取得 fresh owner package 後唯讀 reconciliation 已存在的 R75 資源，續接授權整合 release／L4；不重新 apply 既有 saved plan。新建 Draft Part 發行、Drawing master lifecycle 同步及本機 077 不列入這批發布；不能因一般功能延期恢復 UID caller，也不能用合成 Active seed 或人工 SQL 宣稱業務完成。DEV-122 原生 PG partial 5-case 結果為 FAIL，task-owned cleanup 全通過，詳見 [延期證據](qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)。共同 grant 失敗計數保持原 7/8，此 internal business 測試不加計。
+同一 auth-only 候選已完成 reviewer／Drawing 36 案、storage validator／不可重放 readback 102 案、app typecheck，以及真實 PostgreSQL 18.4 的 OrgMaster producer→AI-PDM consumer 24 案，詳見[候選原始證據及界線](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)。這些僅為本機／整合結果；Drawing-major publish 特定拒絕分支僅有 evaluator mock seam，不能稱 PG rollback 實證。此批已經 PR199／必需CI合併官方 main `c17b0a73dfaec5811857a373dbd38118731fd825`。R76 owner run `37103916531` build、through076 migration／candidate 成功，但 candidate smoke→Platform 登入回401／auth_token_invalid，verify失敗；native failure 已 FINALIZED／PRE_ACTIVATION_ABORTED、tag清理、activation跳過。正式 traffic 保持 Principal-only R26 `ai-pdm-prod-e31f277922df` 100%，不記為新來源已發布或 L4 PASS。下一步先取得登入認證事實／barrier／caller 因果證據，集中修正與必要回歸後刷新 native recovery／release 綁定；不重試R76終止 capsule、不重新apply既有storage saved plan。共同[實際進度及原始readback](../../Jenfu-Platform/ai-doc/reports/DEV-015-authorization-delivery-scope-2026-10-03.json)是發布續點。新建Draft Part發行、Drawing master lifecycle及本機077留DEV-122，原 partial FAIL／cleanup 保存在[延期證據](qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)；無合成Active seed／人工SQL／UID fallback。grant計數仍7/8；R76未抵達該邊界，不加算。
 
 下方舊輪次與各 native 任務保留原追溯；任何較早「現行／下一步」不能取代本節。
 
@@ -1563,7 +1563,7 @@
 - ◐ DEV-121 [開發點] [執行中] [P0] [Principal-only 身分／授權整合；Production L4 NOT_RUN] 目標端授權邊界重構
   - 摘要：verified Principal 貫穿登入、grant／scope／撤權、caller、reviewer、命令／worker 與安全發布／回復。
   - 來源 ID：`JENFU/DEV-015#target-authorization`；owner `AIPDM/DEV-121`；producer `ORGMASTER/DEV-057#identity-grants`。
-  - 下一步：依 R75 現行續點集成 auth-only／可靠發布必要修正，完成必要 CI、owner release 與 Principal-only L4。
+  - 下一步：依 R76 現行續點釐清登入失敗、集中修正及驗證，取得 fresh native recovery 綁定後完成 owner release／Principal-only L4；PR199已合併，不再列為等待PR。
   - 阻塞 / 恢復條件：未核實／原停用者不啟用；不得以歷史 UID 回復、一般功能延期或本機總 PASS 代替正式授權驗收。
   - 證據：[現行契約](specs/DEV-121-target-authorization-boundary.md)、[R75 readback](qa/DEV-121-business-storage-provider-readback-2026-10-03.json)、[歷史原驗證](dev_task-history-2026-10-03.md)。
   - 計入交付：否；既有身分／授權交付後續開發點，一般業務生命周期由 DEV-122 獨立記錄。

@@ -74,7 +74,7 @@ workload actor與human actor分型；僅server註冊的worker identity可帶精�
 
 正式前先讀回active/suspended/unverified帳號、sessions/codes、背景寫入、排程及current revisions，確證舊binary writer不可再寫。對已核實需要繼續使用者做source-bound一次性owner forward-only轉換及readback，unknown歸屬維持停用；歷史users/UID/FK/receipts保留。applied migration不改，精確ledger與新ordinal由owner profile及fresh source binding核對。
 
-完成授權整合候選、必要 PG／跨 owner 身分與授權驗證、Principal-only recovery 後，按共同停用視窗依producer→consumer依賴與owner-native流程啟用。machine source/image/plan/receipt綁定更新不是新的人類架構決策；保留正式來源保護及CI。切後只能恢復Principal-only已驗版本或停用，不能舊UID授權版本。重復共同邊界失敗超過8次通知重新估算，先新證據後修正，無因果更新不盲重試。
+完成授權整合候選、必要 PG／跨 owner 身分與授權驗證、Principal-only recovery 後，沿 owner-native 流程發布。首次共同主體轉換或本次存在實際共享啟用依賴時，才協調同一受控停用視窗及 producer→consumer 啟用順序；共享契約已生效且未變的 AI-PDM 安全修正，以本 owner 發布、必要 consumer 回歸、Production L4／回復完成，不重開共同轉換，也不要求未变 sibling 重發。machine source/image/plan/receipt 綁定更新不是新的人類架構決策；保留正式來源保護及必需 CI。切後只能恢復 Principal-only 已驗版本或停用，不能舊 UID 授權版本。共同 grant 邊界失敗沿既有8次門檻通知重新估算，先取得新證據再修正，無因果更新不盲重試；一般業務／工具失敗不加算。
 
 ## 固定驗收（沿原P01–P09與共同F01–F10）
 
@@ -93,6 +93,10 @@ workload actor與human actor分型；僅server註冊的worker identity可帶精�
 [JENFU主責驗收與F01–F10](../../../Jenfu-Platform/ai-doc/specs/DEV-015-authentication-authorization-boundary-refactor.md#architecture-final)包含登入、指派、查詢、建立、審批、下載、背景、登出與回復；DEV-118/C01/C02與DEV-014原分母保持各自結論。每項進度只按本機／整合／正式證據標記；operator讀回不是service修復，合成session不是real-provider，部分帳號成功不是三系統結案。
 
 AI-PDM DEV-121 可依自己的 Principal consumer 正常入口安全、正式 owner release／L4／recovery 出口獨立結案；DEV-122 的一般功能延期不阻擋此出口。`JENFU/DEV-015` 彙整三 owner 的 joint 身分與授權整合結果；任何一個 owner 的 PASS 只證明自己的範圍，不推定 joint PASS，也不替其他 owner 結案。AI-PDM 結案仍須自己的實際正式證據，不能由文件收斂或本機 PASS 代替。
+
+## Smoke 憑證重新驗證（本次 AI-PDM 操作）
+
+`scripts/dev121-smoke-credential-reauth.mjs` 預設只驗證；只有明確 `--commit` 才能更新 AI-PDM 自有 refresh-token Secret 與 `production` GitHub environment secret。操作員輸入先前在本機 smoke 憑證設定頁為此帳號設定的既有密碼；不建立／重設帳號、不發送驗證 email、不變更綁定或 grant；仍必須核對 provider 的 email 已驗證狀態。固定使用已啟用 Secret v4 作為 provider pair 基準，確認新簽章 password token 的同一 issuer／subject、已驗證且未停用帳號，並走 Platform 正常 Firebase session、`/api/auth/me` 同一 Principal／Employee／AAL1、logout 後 401。email、密碼、token、cookie 只在記憶體中使用，不輸出或存檔。成功後只寫入 AI-PDM 自有 release bucket 的 `receipts/credential-reauth/` 不可變證據；Platform consumer 限定 AI-PDM、此 rotation mode、同一 source、bucket/prefix 與 plan numeric version，並保留五分鐘 fresh-auth barrier。此 v4→v5 是本次執行綁定，不是永久版本政策；後續輪次需更新 machine binding。既有 identity-readback v1 與其他 owner consumer 不變；本證據不宣稱全專案 user count、global auth config 或 first-principal bootstrap。
 
 ## 歷史引用入口（非施工指令）
 

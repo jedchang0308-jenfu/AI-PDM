@@ -25,7 +25,7 @@
 
 [QA 紀錄](../qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)列出 18 個 Part/shared/UI/migration/runner 檔與 capture hashes、raw evidence、原始 FAIL、58 focused tests、較早 typecheck、UI NOT_RUN 及 cleanup。Drawing slice由同分支 owner 保留；這是記錄時的 local candidate，未合併、不是官方發布來源。`deferredFiles` 是完整 dirty file capture 與未發布功能的證據清單，不是 deployment allowlist／全檔 stage 清單；同一路徑可能混有延期功能與可分離的安全 hunk。`authOnlyCandidates` 只表示候選判定，不能直接全檔加入發布：root 必須由 exact HEAD `7b02d83d9f5a1ac76002f955f9c9f48939ec8c8d` 抽取選定 hunk，另以實際 variant／patch manifest、paths／hashes 與排除範圍建立 source fence；本 QA 的 capture hashes 不等於該發布來源。當前 owner profile 工作樹包含新增 077，此項屬本 DEV 延後候選；root 必須在 auth-only release source fence 排除這項，不能因 profile dirty path 可讀而誤發布。已套用的既有 migrations 不改寫。
 
-安全候選目前僅保留 Drawing 既有 major effect 的 current `numbering.publish` 重驗及 shared selector `requirePublish`：沿同一 published evaluator，不包含新 077、basis v2、master lifecycle、Part 首次發行或 UI。候選不等於合併；scope／撤權／verified Principal 與可靠 owner release／recovery gate 仍在 DEV-121，不因一般功能延期而移動或豁免。
+安全 hunk 已完成抽取及合併：Drawing既有major effect的current `numbering.publish`重驗與shared selector `requirePublish`，及可靠發布validator，隨DEV-121 PR199進入官方main `c17b0a73dfaec5811857a373dbd38118731fd825`。上段capture／NOT_MERGED描述是抽取前歷史證據，不是當前待辦；一般077、basis v2、master lifecycle、Part首次發行及UI仍保留未合併候選，不撤回。R76 candidate verify失敗、安全中止且未切流，未算Production PASS；後續安全／可靠owner release／recovery由DEV-121續行，不能因一般功能延期豁免或移到本列表。
 
 Part 額外 owner-Principal guard 判定為「未納入／防禦性候選延期」，不是已證漏洞的必要 mainline fix。r46 獨立查證及 source readback 確認既有 065 `principal_accounts.principal_id PRIMARY KEY`、`pdm_user_id UNIQUE` 保持 one-to-one；HEAD reviewer selector 已排除同 owner profile，decision 已綁 assigned reviewer profile。同 Principal／不同歷史 profile 的 mock 並未證明在既有約束下可到達的正式漏洞。保留 local hunk／原測試證據，但不得以該測例或全檔 path 將它升格為本輪已證必要修正。
 
