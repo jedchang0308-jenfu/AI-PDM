@@ -294,7 +294,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     let control
     try { control = JSON.parse(controlResult.bytes.toString('utf8')) } catch { fail('ROUTINE_CONTROL_INVALID') }
     const continuation = control?.result === 'PRE_ACTIVATION_ABORTED'
-      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control }) : null
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control, verifyProvider: true }) : null
     if (control?.result === 'PRE_ACTIVATION_ABORTED' && (!continuation || continuation.currentActiveRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
     const { controlSha256, ...controlCore } = control ?? {}
     if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || !['RELEASED', 'ROLLED_BACK', 'PRE_ACTIVATION_ABORTED'].includes(control.result)
@@ -308,6 +308,10 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const expectedBaselineUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${control.releaseId}/release-intent.json`
     if (input.baselineIntentRef.uri !== expectedBaselineUri) fail('ROUTINE_CONTROL_INVALID')
     const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: input.baselineIntentRef, dataCutoverCompletionRef: input.dataCutoverCompletionRef ?? null, previousRevision, observedAt, expiresAt: input.expiresAt })
+    if (continuation?.kind === 'PRINCIPAL_ORDINARY_ABORT') {
+      values.authorization.preActivationAbortBasis = continuation.authorityBasis
+      values.readiness.preActivationAbortBasis = continuation.authorityBasis
+    }
     const authorization = await transport.putJson(uri('owner-authorization'), values.authorization, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const readiness = await transport.putJson(uri('owner-readiness'), values.readiness, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     return { ...readiness, refs: { authorizationPolicyRef: authorization.ref, readinessReceiptRef: readiness.ref }, previousRevision }

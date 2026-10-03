@@ -2,6 +2,8 @@
 
 <a id="architecture-final"></a>
 
+2026-10-03 已核准原生「候選安全中止後續發」修正：普通 Principal-only 候選的 PRE_ACTIVATION_ABORTED 不偽裝 RELEASED，也不重用 terminal capsule；已封存 PRE_ACTIVATION_ABORTED 的未過期 capsule 在正常 stage 的 provider mutation 前拒絕，rollback 收束保留。routine producer 由已封存 failed intent 唯一引用的完整 RELEASED Principal anchor，核對原生 source/build/migration/entry/rollback/control 與實際 Build／Registry；兩份 authority 凍結相同 basis。prepare（含 cached replay）以既有 own GCS／Run 權限重讀封存鏈、已過期 failed-run lease、無切流／無 tag、復原入口、100% Principal retained revision 與 fresh service UID，basis 不一致即拒絕。首次轉換的 manual-zero／maintenance recovery 路徑及正式來源、CI、CAS 規則保持有效。此修正只接受 failed intent 直接引用完整 RELEASED anchor；若後續候選再中止而其直接 baseline 也是 aborted intent，仍 fail closed，不遞迴猜選或沿用未核准 carry-forward。此修正的本機/mock PASS 不替代 Production L4。
+
 ## 唯一施工入口
 
 文件角色：CURRENT_CONTRACT。本地 `AIPDM/DEV-121#target-authorization`／`#principal-consumer-impact`，來源 `JENFU/DEV-015`，producer `ORGMASTER/DEV-057#identity-grants`；沿原任務。架構已定案，程式／整合／正式完成度另依本輪身分／授權證據。

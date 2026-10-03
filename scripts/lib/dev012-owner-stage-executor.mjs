@@ -384,13 +384,24 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
 
   if (stage !== 'rollback') {
     assertProtectedGitHubContext(profile, intent, environment, { stage, migrationOnlyWorkflowPath })
+    // An aborted capsule is terminal even while its original deadline is valid.
+    // Reject before candidate/entry/traffic mutations; rollback remains available.
+    const completed = await optionalNamedJson(transport, paths.terminal, profile)
+    if (completed) {
+      assertStage(completed.value, profile, intent, 'terminal')
+      if (completed.value.releaseId !== intent.releaseId) fail('STAGE_RECEIPT_INVALID', 'terminal')
+      if (completed.value.facts?.result === 'PRE_ACTIVATION_ABORTED') fail('RELEASE_ALREADY_PREACTIVATION_ABORTED')
+    }
   }
 
   if (stage === 'prepare') {
-    // A cached prepare receipt cannot certify that an aborted baseline is still stopped.
+    const service = await transport.getService(profile)
+    transport.assertServiceSettled(service, 'PREPARE_BASELINE_MISMATCH')
+    if (transport.effectiveRevision(service) !== intent.previousRevision) fail('PREPARE_BASELINE_MISMATCH')
+    // A cached prepare receipt cannot certify a stopped conversion or ordinary abort.
     const continuation = intent.baselineIntentRef
-      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef }) : null
-    if (continuation && (!assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null
+    if (continuation && ((continuation.kind !== 'PRINCIPAL_ORDINARY_ABORT' && !assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket))
       || continuation.currentActiveRevision !== intent.previousRevision)) fail('PREPARE_BASELINE_MISMATCH')
     const existing = await optionalNamedJson(transport, paths.prepare, profile)
     if (existing) {
@@ -400,11 +411,14 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const names = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const entries = await Promise.all(Object.entries(names).map(async ([name, field]) => [name, (await transport.readJson(intent[field], profile.artifact.releaseBucket, ['receipts'])).value]))
     const values = Object.fromEntries(entries)
+    if (continuation?.kind === 'PRINCIPAL_ORDINARY_ABORT') {
+      if (Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')
+        || canonicalize(values.authorization.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis)
+        || canonicalize(values.readiness.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis)
+        || (existing && canonicalize(existing.value.facts.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis))) fail('PREPARE_BASELINE_MISMATCH')
+    } else if (values.authorization.preActivationAbortBasis || values.readiness.preActivationAbortBasis) fail('PREPARE_BASELINE_MISMATCH')
     const derived = assertPreparePrerequisites({ intent, profile, values })
     const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: values.readiness, dataCutoverConfig })
-    const service = await transport.getService(profile)
-    transport.assertServiceSettled(service, 'PREPARE_BASELINE_MISMATCH')
-    if (transport.effectiveRevision(service) !== intent.previousRevision) fail('PREPARE_BASELINE_MISMATCH')
     const recovery = assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
     if (recovery) {
       const [proof, revision] = await Promise.all([
@@ -430,7 +444,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       if (canonicalize(existing.value.facts.entrypointBaseline) !== canonicalize(transport.entrypointSnapshot(service))) fail('PREPARE_BASELINE_MISMATCH')
       return existing
     }
-    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(recovery ? { principalOnlyRecovery: recovery } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
+    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(continuation?.kind === 'PRINCIPAL_ORDINARY_ABORT' ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 
   if (stage === 'build') {
