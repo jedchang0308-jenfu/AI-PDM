@@ -521,7 +521,8 @@ export class DrawingRevisionWorkService {
       const reviews = new PdmWorkReviewAsyncRepository(tx);
       const reviewerUserId = principalOnly
         ? await selectPrincipalReviewerInSnapshot(tx,
-          { companyId, ownerUserId: locked.owner_user_id })
+          { companyId, ownerUserId: locked.owner_user_id,
+            ...(Number(locked.target_minor) === 0 ? { requirePublish: true } : {}) })
         : await reviews.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id });
       const snapshotPayload = sanitizeDrawingRevisionWorkPayload(submittedPayload); const decisionBasis = { payload: snapshotPayload, revisionId: locked.revision_id, claimId: locked.target_claim_id }; const legacySnapshotHash = dev087RequestHash(decisionBasis);
       const packagePayload = principalOnly || reviewPackageV2WriteEnabled()
@@ -731,6 +732,15 @@ export class DrawingRevisionWorkService {
       assertReviewPackageRecognitionReady(verifiedPackage);
       if (!work) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
         "資料已改變，請退回修改後重新送審", 409);
+      if (Number(work.target_minor) === 0) {
+        const [publishDecision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(
+          tx, verified, [{ permissionKind: "action",
+            permissionCode: "numbering.publish" }]);
+        if (!publishDecision?.allowed) {
+          throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST",
+            "無權限執行此操作", 403);
+        }
+      }
       await repository.assertFormalizationAllowed(tx, work);
       await beginDev087Approval(tx, locked);
       const faultHandling = dev087FaultHandling();

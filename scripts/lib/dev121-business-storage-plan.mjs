@@ -47,7 +47,15 @@ function fields(row,values,{configuration,creating=false}={}) {
       same([...values.permissions].sort(),permissions,'permissions');
       if((!creating && values.deleted!==false) || values.deleted===true || (unknown(row.change.after_unknown?.deleted) && !(creating && row.change.after_unknown.deleted===true))) fail('role_deleted');
       break;
-    case addresses[4]: checkField('bucket',target.bucket); checkField('role',role); checkField('member',`serviceAccount:${target.runtimeIdentity}`); absentField('condition'); break;
+    case addresses[4]: {
+      // Google 7.45.0 persists this resource's bucket as b/<name>. Only this
+      // exact provider observation is equivalent; create input remains bare.
+      if(unknown(row.change.after_unknown?.bucket)) fail('unknown:binding_bucket');
+      same(values?.bucket,creating?target.bucket:`b/${target.bucket}`,'binding_bucket');
+      checkField('role',role); checkField('member',`serviceAccount:${target.runtimeIdentity}`); absentField('condition');
+      if(!creating || values?.id!=null) checkField('id',`b/${target.bucket}/${role}/serviceAccount:${target.runtimeIdentity}`);
+      break;
+    }
     default: fail('address');
   }
 }

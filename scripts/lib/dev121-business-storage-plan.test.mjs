@@ -53,3 +53,22 @@ test('profile target or permissions cannot be broadened',()=>{for(const changed 
 test('completion flags must be exact known booleans',()=>{
  for(const [key,values] of [['complete',[undefined,false,'true',1]],['errored',[undefined,true,'false',0]]])for(const value of values){const plan=fixture();if(value===undefined)delete plan[key];else plan[key]=value;assert.throws(()=>verify(plan),/incomplete_plan/);}
 });
+
+test('provider-persisted binding bucket and full identity are exact in state and no-op plan',()=>{
+ const state=stateFixture();assert.equal(state.values.root_module.resources[4].values.bucket,'b/'+profile.target.bucket);
+ assert.equal(assertDev121BusinessStorageState(state,{profile}).status,'STATE_CONTENT_PASS');verify(fixture({noOp:true}));
+ const bare=stateFixture();bare.values.root_module.resources[4].values.bucket=profile.target.bucket;
+ assert.throws(()=>assertDev121BusinessStorageState(bare,{profile}),/binding_bucket/);
+});
+test('binding aliases never widen bucket, owner role, runtime or persisted identity',()=>{
+ for(const bucket of ['b/other','b/'+profile.target.bucket+'/', 'gs://'+profile.target.bucket,'B/'+profile.target.bucket,'b/b/'+profile.target.bucket]){
+  const state=stateFixture();state.values.root_module.resources[4].values.bucket=bucket;assert.throws(()=>assertDev121BusinessStorageState(state,{profile}));
+ }
+ for(const id of [undefined,'b/other/projects/jenfu-platform-prod/roles/aipdmBusinessImmutableObjects/serviceAccount:'+profile.target.runtimeIdentity,'b/'+profile.target.bucket+'/roles/storage.objectAdmin/serviceAccount:'+profile.target.runtimeIdentity]){
+  const state=stateFixture();state.values.root_module.resources[4].values.id=id;assert.throws(()=>assertDev121BusinessStorageState(state,{profile}));
+ }
+ const create=fixture();create.resource_changes[2].change.after.bucket='b/'+profile.target.bucket;assert.throws(()=>verify(create),/binding_bucket/);
+ const knownWrongId=fixture();knownWrongId.resource_changes[2].change.after.id='b/other';knownWrongId.resource_changes[2].change.after_unknown.id=false;assert.throws(()=>verify(knownWrongId),/id/);
+ const knownCorrectId=fixture();knownCorrectId.resource_changes[2].change.after.id='b/'+profile.target.bucket+'/projects/jenfu-platform-prod/roles/aipdmBusinessImmutableObjects/serviceAccount:'+profile.target.runtimeIdentity;knownCorrectId.resource_changes[2].change.after_unknown.id=false;knownCorrectId.planned_values.root_module.resources[2].values.id=knownCorrectId.resource_changes[2].change.after.id;verify(knownCorrectId);
+ const unknown=fixture({noOp:true});unknown.resource_changes[2].change.after_unknown.id=true;assert.throws(()=>verify(unknown),/unknown/);
+});

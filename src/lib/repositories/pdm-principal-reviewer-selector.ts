@@ -21,7 +21,7 @@ export type PrincipalReviewerSelection = Readonly<{ principalId: string; profile
 /** Candidate eligibility is not a login. The eventual decision route must verify its own AAL2 session. */
 export async function selectPrincipalReviewerInSnapshot(
   tx: AsyncDatabaseClient,
-  input: { companyId: string; ownerUserId: string }
+  input: { companyId: string; ownerUserId: string; requirePublish?: boolean }
 ): Promise<string> {
   return (await selectPrincipalReviewerIdentityInSnapshot(tx, input)).profileId;
 }
@@ -29,7 +29,7 @@ export async function selectPrincipalReviewerInSnapshot(
 /** Keep the security subject alongside the historical review/profile FK. */
 export async function selectPrincipalReviewerIdentityInSnapshot(
   tx: AsyncDatabaseClient,
-  input: { companyId: string; ownerUserId: string }
+  input: { companyId: string; ownerUserId: string; requirePublish?: boolean }
 ): Promise<PrincipalReviewerSelection> {
   if (tx.kind !== "postgres" || tx.transactionScope !== "postgres" ||
       !input.companyId || !input.ownerUserId) {
@@ -92,11 +92,14 @@ export async function selectPrincipalReviewerIdentityInSnapshot(
     if (!actor) throw new Error("PRINCIPAL_REVIEWER_CANDIDATE_INVALID");
     let role: string | null = null;
     try {
-      const [result] = await entitlement.evaluatePermissions([{
-        actor, ...reviewerPermission, workspaceCode: input.companyId,
+      const permissions = [reviewerPermission, ...(input.requirePublish
+        ? [{ permissionKind: "action" as const, permissionCode: "numbering.publish" }] : [])];
+      const results = await entitlement.evaluatePermissions(permissions.map(permission => ({
+        actor, ...permission, workspaceCode: input.companyId,
         projectCode: null, rolePriority
-      }], decisionAt);
-      role = result.decisionCode === "allowed" ? result.role.roleCode : null;
+      })), decisionAt);
+      role = results.length === permissions.length && results.every(result => result.decisionCode === "allowed")
+        ? results[0].role.roleCode : null;
     } catch (error) {
       if (!(error instanceof JenfuEntitlementRepositoryError) ||
           !["entitlement_assignment_not_found", "entitlement_authority_unknown"].includes(error.code)) {

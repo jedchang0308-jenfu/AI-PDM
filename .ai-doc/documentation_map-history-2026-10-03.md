@@ -1,14 +1,241 @@
-# AI_PDM 文件地圖
+# HISTORY_ONLY：documentation_map.md 整理前原文
 
-## 本輪 Principal-only 唯一閱讀入口
+文件角色：HISTORY_ONLY；保存至2026-10-03文件CA的原文，不是現行施工或派工入口。原文中的「現行／唯一／下一步」僅代表當輪。
 
-文件角色：CURRENT_INDEX。本輪只讀 [DEV-121 現行任務](dev_task.md#dev-121-current-contract) → [Principal-only 身分／授權整合契約](specs/DEV-121-target-authorization-boundary.md) → 該交付所需證據。一般 canonical lifecycle、首次發行與附件／工作流功能問題集中 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md)，本輪延後。CURRENT_CONTRACT 定義架構，任務／既有盤點維護進度，不從下方其他 DEV 或歷史日期推定本輪指令。
+取代關係：本輪請讀[documentation_map.md現行入口](documentation_map.md)。正常Principal-only架構與驗收依各owner現行契約；只有核對原決策或證據才讀下文。
 
-三個native任務沿用 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121；正常授權只有Principal路徑，人類允許真實AAL1，未核實／原停用者保持停用，回復不能恢復UID授權。完整限制、owner及驗收以各自current契約為準。AI-PDM DEV-121 的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 可獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint，任一 owner PASS 不推定 joint PASS。
+下方原文payload逐byte保留，SHA-256 `5886224e643e6ffd69ba56831758f5df102d34453510eb71ae104ce37e774857`；相對引用與anchor保持原目錄語意。已套用migration、receipt及凍結發布產物未被本次整理改寫。
 
-整理前文件原文在 [HISTORY_ONLY文件地圖](documentation_map-history-2026-10-03.md)，包含舊進度及取代關係；不預設載入、不執行舊雙軌／bridge／逐人／TOTP步骤。以下保留其他任務原索引，未因本次CA重新判定其完成度。
+<!-- BEGIN PRESERVED ORIGINAL BYTES -->
+## R73 唯一現行續點（2026-10-03；本機修正通過，未發布）
 
-本輪 auth-only 候選的本機／真實 PostgreSQL 結果及未驗界線在 [DEV-121 候選 QA](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)；它不代表正式發布或 L4。下一步仍為同根因一個 PR／必需 CI → fresh owner release → 本輪授權整合正式驗收。
+PR197 已合併 main c3b90abf8bfa4fcb0f3a8905f8c6356e14a4c4c5；R72 owner build-only 37092842311 與新映像 native inspection 均 SUCCESS。附件儲存第一次真實 saved plan 在 apply 前拒絕：Terraform 1.14.5 / Google 7.45.0 將已讀取的兩個 data source 放在 prior_state，resource_changes 只有三個 managed create；舊合成 fixture 未覆蓋此格式。失敗 binary/journal 保留，沒有建立 bucket、套用 IAM、migration、candidate 或切流。
+
+本批已在 storage 專屬 validator 分開驗證完整 configuration、data readback、managed changes 與完成後 state；通用 gate、完整地址、精確 owner、四項 provenance inputs 與不可變 saved-plan/apply claim 不變。versioning 明寫 false；僅首次 create 的未設定 website／computed deleted 可延至完整 state/provider readback 確認，identity／permission／binding／retention 仍須已知且精確。100 個 storage 案例、owner continuous 測試、abort 6 案與 DB boundary 已通過；獨立差異審查未發現 P0/P1；唯一 P2 完成旗標已補強。clean-lock typecheck/build 由本批 PR 必需 CI 收斂。唯一下一步：一個 PR及必需CI → fresh owner package/build → own saved plan/apply/provider/effective IAM → full-release → F01–F10。R69 infra與Secret v2核對後沿用；Windows host確認仍取消，正常provider與必要業務驗收不縮減。
+
+證據由既有 DEV-121 QA businessStorageActualPlan20261003R73 與 JENFU/DEV-015 output/dev-012/inputs/dev121-r72-business-storage-plan 追溯。下方各輪僅為歷史讀點，不是有效執行佇列。
+
+---
+
+## R71 歷史續點（2026-10-03；候選修正，未發布）
+
+PR196 已由 required CI37089857221 通過並合併 main 290c84a4965edd686c321ce02cc915049df160a1；R69 APP_INFRA_B 已套用專用 workload Secret/accessor，R70 Secret version2 已 ENABLED 且使用三個獨立 technical actors。R70 build-only run37090907394 FAILURE，app build成功但完整 native inventory 在 /home/nonroot 因 root cap-drop=ALL 缺少 DAC 讀取能力而 EACCES；migration/candidate/traffic 均未執行。不是 R66 vDSO 或應用授權錯誤。
+
+本批僅給 offline、read-only、無 host mount 的 inventory 加 DAC_READ_SEARCH；保留完整掃描、EACCES fail-closed、正式 image USER 及後續 nonroot loader probes。固定已建 ef86… image 的 focused Cloud Build13765e18-f8c5-448f-885a-d97cb12581bc SUCCESS，570 ELF 及 Node/sharp/SQLite loader 指紋均符合兩項既有 GCC policy。這是修正的真實診斷證據，不代替新 source owner scan 或 L4；原 HIGH 留存。 聚焦43案、完整owner127案、abort6案及DB boundary通過；受影響clean-lock CI、source merge與正式發布仍待。
+
+下一步：同批修正/回歸/既有文件一個 PR與必需CI → fresh source-bound infra reuse/capsule → build-only → own business-storage saved plan/apply/effective IAM → full-release → F01–F10 Production L4。R69 infra與Secret v2可核對後沿用，無須再次建立。Jed現行Platform→OrgMaster/AI-PDM正常入口已成功，但附件/審批/背景等正式業務尚未完成。正式Windows host確認仍取消，功能驗收不縮減，grant counter7/8不變。下方R68及更早全部是歷史讀點。
+
+來源證據：JENFU/DEV-015 output/dev-012/inputs/dev121-r70-owner-failed-readback.json、dev121-r70-native-inspection-build.json、dev121-r71-native-inspection-build.json、dev121-r71-inspection-check.json；本owner既有 GCC QA 的 inventoryReadAccess20261003R71。診斷log SHA256 f8ff6823b5f76696231ff947811d7ed923210f8af6f2ba021a0d65f832cb0e28。
+
+---
+
+R68 同批發布接縫修正（PR196）：首次 CI run37089382001 的 Production Slice QC 在 npm audit 發現 `@fastify/busboy` 3.2.0 的兩項 HIGH；僅將 transitive lock 升至 3.2.2，production audit 0 finding，不放寬 gate。原 owner workflow新增固定 `executionMode=build_only/full_release`（預設 full），前者只完成原 prepare/build 並成功結束，不執行 migration、candidate、rollback或terminal。依同一未過期 capsule 完成 business-storage saved plan/apply/effective IAM 後，再以 full_release 續行；prepare/build驗hash重用，cached prepare仍重新讀六個前提、期限及live baseline，任何漂移在migration前拒絕。已通過原owner suite125案及continuation負例；此補批乾淨安裝、build及跨PG必需CI仍待。沒有新增人類核准或發布身分。
+## R68 歷史續點（2026-10-03，PR195已合併，R67本機整鏈證據保留）
+
+R68 GCC續點（2026-10-03）：Jed gcloud登入已確認恢復；固定a417…映像的R65A disassembly／overflow probes、R66b成功子步驟與R66c實際Node／sharp／SQLite loader證據已核對。R66b整體FAILURE完整保留，R66c SUCCESS補足vDSO處理；僅關閉基線調查，不把舊artifact或本機測例當作新候選發布證據。同一owner consumer新增CVE-2026-95619專屬hash-bound評估，每個候選重新核對完整native與loader fingerprint；原CVE-2026-102010政策不变，原始HIGH保留，其他HIGH／CRITICAL與任何證據漂移仍拒絕。runtime template拒絕loader-control environment／Secret binding，既有revision readback核對command／args／volumeMounts。本機owner QC（含abort／DB boundary／typecheck／isolated build）已通過、primary SQLite不變且暫存已清理；immutable assessment及六份原始證據已create-only發布並hash讀回。protected PR／CI、新owner package與每個新artifact的實際inspection、workload Secret、business storage apply與Production L4仍待；不新增人工核准、主任務或正式Windows host確認。證據由JENFU/DEV-015 `output/dev-012/inputs/dev015-r68-loader-baseline.json`與本owner既有GCC QA的`alignedNewApplicability20261003R68`追溯。
+
+唯一有效施工方向沿 [DEV-121 現行交付](specs/DEV-121-target-authorization-boundary.md)：既有Cloud SQL＋永久own GCS檔案儲存，Principal-only人類initiator與server-bound workload。R67本批workload整合完成（本機，未發布）：PNG capability先前能要求PDF種類的共同缺口已修正，種類在DB前按server actor能力拒絕；實際HTTP拒絕後job仍queued/unlocked，再由native PNG worker完成。更新後actual Org001–029／AI076／PG18.4整鏈、附件command/replay／receipt/outbox／worker／fresh-process下載再次通過；lint、typecheck、新候選隔離build／主SQLite不變與OS清理通過。Luna唯讀復審無阻擋。session及storage仍為合成Principal/task-local，不能作provider或Production證據。grant counter維持7／8。證據沿JENFU/DEV-015 `dev015-r67-workload-completion-checkpoint.json`；PR195已合併 protected main a712e03427529541d7084b6c716695bacbe95c28；此source merge不升級R67本機整鏈的合成session／task-local storage證據層級。R66成果保留歷史。
+
+正式Secret數字版本／ENABLED readback、GCC閉包、storage apply/effective IAM與normal-provider／Production functional L4仍待。正式Windows worker host確認／驗證已由人類於2026-10-03取消，從本輪及發布前置清單移除；不表示已選定或部署常駐host，也不宣稱PASS。R67既有Principal／claim／scope／command／outbox與背景工作功能驗收不變；本機worker證據仍限定其實際層級。費用已接受，US$10/月非硬上限。下方舊輪次、逐人過渡及bridge步驟只保留歷史，不作執行指令。
+
+**R63 歷史同批儲存來源契約（未推送／未發布）：** 正式附件用量費用已於2026-10-03獲人類接受，每月US$10為目標、非硬上限。V3 profile／strict validator／runtime template 回歸固定own GCS四個binding，拒絕local／legacy project／release或sibling bucket／缺欄／credential fallback；與R62完整附件流程沿同分支集中交付。既有continuous tests／QC／abort／db boundary／typecheck／isolated build已通過，primary invariant與cleanup通過；尚無actual bucket/apply/IAM或Production L4證據。沿既有QA businessStorageRuntimeBinding及business-storage README R63續接，舊費用pending記述保留為歷史。
+
+**F08 R62 歷史同批本機整合（未推送／未發布）：** 正常Principal附件POST＋相同key/content重播→單一receipt/outbox/job→真實native worker→heartbeat ready→新Vitest進程正常preview metadata／原檔與derivative下載hash讀回通過。owner驗證receipt v2 actor binding、Principal/company、固定correlation、result/aggregate及content hash；actual Org001–029／AI076／PG18.4，personal與privileged業務角色都通過。R60 metadata TEXT解析錯誤與R61／R62結果分別留證，不更改授權政策或共同grant counter7／8。task PG／port／TEMP／runtime／lease已清理；仍是合成session/task-local storage，正常provider／正式GCS／完整候選與Production L4未完成。PR193已合併main4100aa606748ce56a7456efcaa813267265ba71b且必需CI37035196644 SUCCESS；R62修正沿同分支集中，不另開小PR。QA沿用nativeAttachmentReadback；下方舊current敘述僅為歷史。
+
+**DEV-121/F08 R59 歷史本機整合（未發布）：** 實際附件 POST201 → Principal command → enqueue → 原生 Windows Shell worker → PNG hash／尺寸／company／initiator／job succeeded 讀回及完成後來源403，在 actual Org001–029＋AI076 PostgreSQL18.4 下通過 personal／privileged 業務角色。修正共用 part／drawing source lookup 的未定型 NULL 參數，CAST AS TEXT 保持公司scope，不擴權；opt-in worker 計數誤差與程式缺陷分開留證。task-local repository／合成registered session／synthetic service token不代替provider、正式GCS及Production L4；private receipt／outbox明確讀回和restart durability仍待補。本輪PG／port／TEMP／runtime／lease已清理，counter7／8。F02 R55已由PR192合併main8498725dcc661edb110d66308ece898c063d0570，必需CI37032256877 SUCCESS。完整證據見既有QA的nativeAttachmentComposition；下方較舊source待送審或候選敘述保留為歷史。
+
+**DEV-121/F02 R55 歷史本機整合（未發布）：** 正常 candidate GET → exact published provider pair → account POST → 真實 v4 grant／active catalog／serializable owner command → commit201／replay200／Principal、Employee、pdm_user_id、公司及單一 receipt 讀回已通過；新 profile 保持 suspended。actual Org001–029／AI076／PG18.4 整鏈24cases成功，既有技轉流程保留。修正 provision service 把具型別撤權拒絕包成503的問題，沿既有 allowlisted HTTP taxonomy 回應；未知錯誤仍503，不擴權。合成session／測試receipt owner讀回／多alias精確選取與隔離Origin的測試誤差已排除；native runtime、port、TEMP、leases均清理。counter7／8，正常Google與Production L4仍未通過；完整證據沿用既有 `.ai-doc/qa/DEV-121-principal-profile-command-postgres-2026-10-02.json` routeComposition，source尚待送審。下方較舊候選／待驗狀態保留為歷史。
+
+DEV-121/F02 native profile command evidence：`.ai-doc/qa/DEV-121-principal-profile-command-postgres-2026-10-02.json`，含actual producer／consumer source hashes、commit/replay/readback及cleanup；不作Production證據。
+
+DEV-121/F02 現行 account command修正：`db/postgres/076_dev121_principal_account_command_grants_v4.sql`；owner profile order27，actual producer native probe在 `scripts/qc-dev-121-numbering-owner-grant-postgres.mjs`；不新增主任務。前後證據由 JENFU/DEV-015 R48 checkpoint追溯。
+
+# AI_PDM Documentation Map
+
+**DEV-121/F08 R42 歷史候選：** 同一 owner-local 儲存入口新增 immutable plan receipt 與 same-binary apply／state／output／provider readback。忽略可修改的本機摘要，重新讀回 own release bucket 的 hash/generation-bound 收據、當前 protected source／owner inputs、固定backend與frozen檔案；apply前先以固定own receipt URI建立write-once remote claim，只有首次publisher可執行，複製本機目录不能重跑；unknown outcome採GET-only reconciliation並保留永久claim。輸出仍releaseAuthority=false、effectiveInheritedIamVerified=false，不代替正式業務驗收。費用仍待決定且本輪未init/plan/apply；R41 plan-only措辭只保留當時歷史狀態。實作限制：[業務儲存 README](../infra/google-cloud/dev-121-business-storage/README.md)。
+
+## DEV-121 R30 現行交付（2026-10-02，本機及真實 PostgreSQL 整合通過，未發布）
+
+現行施工以 [DEV-121 R30 契約](specs/DEV-121-target-authorization-boundary.md) 的背景來源續修首段為準；holder-only source HTTP與兩個正常preview worker已本機修正，PG/HTTP獨立worker續批7案已通過並清理，尚待native extraction與live GCS。PR183已合併main46587ce7045d，a27854ecb兩項required CI與完整build通過，未發布；專用業務儲存root/profile與actual plan-content checker已準備，22項純JSON負例與targeted lint/fmt通過；owner真實bindings/readback/費用仍待，未init/plan/apply，詳見契約首段；下方 R20 及更早讀點保留歷史，不是另一套待執行佇列。Jed 管理 Principal 須能依已發布 rd／rd_manager／pdm_admin 與公司／資源範圍完成日常 PDM 工作，不增加管理員 bypass。
+
+整批附件候選涵蓋正常清單、上傳、canonical 下載、刪除／還原／重播、preview 命令與背景完成契約。正常下載已修正 page／action 分類不一致；命令以 verified Principal 授權，owner bytes 與稽核先於檔案交付。完整 OrgMaster producer→AI-PDM disposable PostgreSQL 已驗證指派／撤權／scope 及實際附件 HTTP 操作，仍使用 synthetic session；隔離 build 與受影響回歸通過，既有 CI job 納入測例，不新增人工 gate。
+
+正式仍 R26 ai-pdm-prod-e31f277922df。R29 已合併但 owner run 在無執行步驟時取消；舊 capsule 不重用。尚待 durable 業務儲存費用決策及 live provider、實際 preview/background、必要技轉審批、三系統登入／登出／回復與 Production L4。私有 GCS adapter 預設停用，不以 mock 或本機 PASS 宣稱上線完成。跨專案證據：JENFU / DEV-015 / F08–F09，`output/dev-012/inputs/dev015-r30-attachment-principal-read-local.json` 的 normalDownloadAuditBatch、candidateSourceReadinessBatch；失敗、修正、runtime 清理證據均保留。
+
+
+
+**DEV-121 現行發布可靠性子項：R20 provider traffic 行序修正（2026-10-01）。** 沿用 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121，不新增主任務。三 owner Principal-only activate 改依精確 revision／tag 配對，不依 provider 陣列順序；維持列數／比例／UID／recovery 拒絕條件。三 owner 18 項聚焦測試及獨立唯讀審查通過，protected PR／required CI／新 capsule 與正式業務 L4 待完成。共同根因及真實唯讀因果證據由 JENFU/DEV-015 inventory R20、`dev121-r19-traffic-order-diagnostic.json` 追溯；歷史 R19 capsule 不重跑，人類 AAL1／Principal-only 政策不變。
+
+## 現行施工（2026-10-01 人類 AAL1／Principal-only）
+
+R18 發布可靠性增量：AAL1 runtime #172 已合併 main e702f857，runner image rotation receipt 已透過 JENFU #83 原生 finalize-only 恢復，沒有再次 apply。074/application candidate/切流/L4 仍未執行。目前 active control 是已建立 candidate、完成清理且仍 MANUAL 0 的 PRE_ACTIVATION_ABORTED；本 owner 新增專用 continuation verifier，串接 sealed terminal→rollback→candidate→deployment/migration、source lock、control、GitHub run、獨立 ready revision 與原流量讀回。routine-authority 與 prepare 共用；不偽稱 RELEASED/ROLLED_BACK，不覆寫 control，不啟用旧流量。原 maintenance ROLLED_BACK helper 語義不變。純記憶體聚焦 23 tests 與真實 provider 唯讀 verifier 通過，唯讀證據 JENFU/DEV-015 output/dev-012/inputs/dev121-r18-abort-verifier-readonly.json（不是 release authority）。required CI 執行 native owner tests 與 qc:dev-117:continuous（含 isolated build／primary invariant／cleanup），不在工作站新增高成長 build。
+
+
+取消人類與管理員強制第二因子／AAL2，單因子如實 AAL1；不採逐人 pilot、不使用 UID/email/profile/local ACL fallback。Google／GitHub／Cloud 管理 MFA 不變。OrgMaster 發布 typed Principal/grant，Platform 管登入/session，AI-PDM 判斷能力與資源權限；已停用與未核實帳號保持停用，已完成一次性 cohort 不重 apply。
+
+本批 runtime、074 forward-only migration、owner migration fence與測試集中驗證：修改的 23 個聚焦 test files 156 PASS；owner-native suite 97 PASS；typecheck／DB boundary PASS。OrgMaster→AI-PDM 真實 PostgreSQL 22-case 指派／撤權／scope／技轉與管理 HTTP 整鏈 PASS，session 為受控替身；074 專用 PostgreSQL harness 最終 26 項 PASS，metadata／session invalidation、actor grant／scope／lifecycle／撤權均驗證；三次 synthetic fixture 失敗完整保留，cluster／port／temp cleanup 全通過。受控證據：[AAL1 PostgreSQL receipt](qa/DEV-121-human-assurance-aal1-postgres-2026-10-01.json)。來源 merge、fresh runner image／APP_INFRA_IMAGE_ROTATION、Principal-only recovery／fence／intent、正式發布與 F01–F10 L4 尚未完成。現行契約：[DEV-121](specs/DEV-121-target-authorization-boundary.md)；跨專案受控證據 JENFU/DEV-015 `dev015-aal1-cross-owner-postgres-20261001-r3.json`。下方 R17／AAL2／TOTP／Workspace trust 僅留歷史，不再施工。
+
+## R17 執行狀態（歷史紀錄，已被 AAL1 決議取代）
+
+OrgMaster R17 owner run `36823937856` 為 `SUCCESS`／`RELEASED`，source revision `30cac631e7971b7f9dcdb40a6c96cb6047867072`。正式 revision 為 `orgmaster-prod-eb6cc270f2b7`、generation `204` 承接 100% traffic、無 candidate tag。正式 browser 部分流程：初始 SSO 為 `07:08:38.938Z`；於 `07:16:01Z`（elapsed 442 秒，超過 wire 60 秒）Org `GET /api/auth/me` 仍回 HTTP 200、`principalPresent=true`。真實 UI local logout 後 Org `/api/auth/me` 回 401，而 Platform `/api/auth/me` 仍為 200、Principal 仍存在；未執行 global 或 AI-PDM logout。這只證明 Org local logout 的部分 Production 行為，不代表完整 F01／F09 或 L4。Migration readback 為 `0 applied／28 replayed`。
+
+AI-PDM R17 one-shot cohort apply 與 idempotent replay 均成功：1 個 profile activated、3 個 withheld；replay 為同一 receipt SHA-256 `977da4d3bc1a1ea898d059152b3abc17ee667160ab79f404e99f1ccbb3b6f28a`。cohort 不回退、不重新 apply；Job 刪除後 provider readback 為 404。
+
+AI-PDM full owner run `36825643088`（source `3ade17707f166985c34cf70743705464b11e7323`，重用 R15 capsule）在 candidate verify 失敗，terminal state 為 `PRE_ACTIVATION_ABORTED`／control `FINALIZED`；callback evidence 是 stage `session_issue`、code `auth_token_invalid`。activate／canonical 未執行。Provider readback 為 generation `75`、`MANUAL 0`、無 candidate tag。
+
+現有 smoke refresh token 的 provider claims 為 `sign_in_provider=password`、`second_factor=null`、`amr` 不含 MFA、`email_verified=true`，不足以滿足 privileged Principal 的 AAL2。Candidate env 為 `PDM_TRUST_GOOGLE_WORKSPACE_MFA=false`、legacy pilot `PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED=true`、domains `jenfu.com.tw`。已保存的 Google Admin screenshot 顯示 root OU 的 2-Step Verification enforcement 為 OFF；child OU 設定未知，政策未修改。故目前 callback 拒絕符合 fail-closed 契約，沒有證據指向 grant-v3 defect，也沒有 Workspace MFA 已驗證的結論；不得降低 AAL2 或藉 pilot 放行，Workspace policy 後續處置待人類決策。
+
+Candidate smoke 使用 refresh-token credential，沒有互動 MFA challenge；現行 receipt 未攜帶同次 source-bound provider facts。Platform dca165 producer 將 Firebase `amr=mfa` 映為 AAL2、僅將 `sign_in_second_factor=totp` 傳為 `secondFactor`；AI Principal resolver 重新計算 assurance，不採 handoff 的 `assuranceLevel`。須以經核實的 Google／TOTP MFA 身分取得同一 candidate 的 redacted provider-facts evidence，且不得猜測 email 綁定。
+
+AI-PDM 本機驗證：`npm run test:dev-117:continuous` PASS 97/97、`npm run test:dev-117:abort` PASS 6/6、`npm run check:db-boundary` PASS（11 governed files）。continuous suite 的 task-owned recovery test 使用 loopback 動態 port，並在 `finally` 關閉 server；未啟動 app runtime 或雲端動作。`npm run qc:dev-117:continuous` 未執行，因其命令鏈含 `typecheck:app`、`build:isolated` 並寫入 owner report。
+
+F01–F10 Production L4 尚未完成；Org browser 證據只覆蓋上述部分流程，cohort receipt 與 AI-PDM candidate failure 也不代表完整端到端業務驗收或 L4。JENFU/DEV-015 currentCheckpoint=`deliveryCheckpoint20261001R17`。
+
+精確 readbacks（Jenfu-Platform root）：`output/dev-012/inputs/dev057-stage-readback-20261001-r17.json`、`dev121-one-shot-apply-20261001-r17-state.json`、`dev121-full-owner-workflow-20261001-r17-state.json`、`dev121-ai-pdm-full-stage-readback-20261001-r17.json`、`dev121-assurance-cause-20261001-r17.json`、`dev015-orgmaster-browser-assertion-ttl-20261001-r17.json`、`dev015-orgmaster-local-logout-20261001-r17.json`。
+
+### R11／R12 前置查證紀錄（僅供追溯，不再是施工指令）
+
+Principal-only 與 F01–F10 固定必要業務分母不變。三個 GCC applicability adapter 已通過既有 required CI 並合併：Platform #78（dca1658）、OrgMaster #83（8e6c123）、AI-PDM #170（3ade177）。精確 merged-source、recovery 與 scan 證據見 [本 owner 受控紀錄](qa/DEV-121-gcc-pbds-applicability-2026-10-01.json) 的 postMergeDelivery20261001R11；原 R10 查證完整保留為歷史，不再是待合併施工指令。
+
+GCC 仍只對 CVE-2026-102010／Debian 13 gcc-14 14.2.0-19 與本 owner 完整 compiled-input 查證作 NOT_AFFECTED。原始 HIGH 保留，其他 HIGH／CRITICAL 或未知／漂移 native code 照常拒絕。Platform R11 真實 owner workflow 已對新 application digest a530fe97… 完成 build／SBOM／精確容器隔離檢查並產生 scan PASS；不是以來源名稱、符號搜尋或套件版本推論不受影響。OrgMaster／AI-PDM application full-owner scan 尚未執行，不用先前 artifact PASS 代替它。
+
+三 owner 新合併來源的 Principal-only recovery 已建立且 provider 核對（generation 91／189／72），沒有切流或 candidate tag；原 UID 授權版本不能作切換後回復。全部 runner／controller Docker COPY 輸入與實際已套用 executable 逐檔一致，故未重建或旋轉。OrgMaster 使用自己的 native preparation 與 fresh-source provider infra receipt，不套用 Platform producer 的不存在 stage；R8 未套用的 image/receipt 不再當基線。準備工具失敗及 plan-bytes 未保留的限制留存。
+
+Platform 正式 session/code census 於 01:50:23Z 為 active v1/v2=0、recent v1=0。R11 workflow #36803272241 在 migration 出現 fetch failed，candidate／切流未執行，已由 owner failure workflow 封存 PRE_ACTIVATION_ABORTED；02:10Z 再讀仍 MANUAL zero、原 revision100%、無 tag、Job 範本已還原。不能由 terminal 的 NOT_APPLIED 宣稱獨立證明完整 ledger 無變動；既有 forward-only runner 在新嘗試時須仍核對 ledger 前綴及原 checksum。
+
+已取得新證據：同 immutable runner／identity／bundle 的只讀 token、GCS metadata、media、CRC／bundle hash／target 十個 entries 均成功，未連接或寫入 DB；診斷 Job 已精確还原。原失敗 fetch 步驟仍未知，Direct VPC startup 延遲僅是可能原因，不當成已證根因。Platform R12 #36805052755 的 prepare／build／scan 已通過，新 application digest a0c99cef… 有獨立精確容器檢查；截至 02:53:12Z migration 等待 hosted runner，無人工核准等待，02:51:56Z provider 仍 generation91／MANUAL0／原 revision100%／無 active migration。保留 R11 失敗；若再失敗，先取得步驟與 cause 證據，不原樣重跑。這批是發布工具／artifact 進度，沒有新增已完成業務流程；grant-v3 共同邊界最新 9/30 受控盤點已記11次，並記載已通知重估；這輪不增加該累計。較早6次只是當時快照。後續同根因再次失敗須先取得新證據，超過8次的重估規則仍有效。
+
+唯一施工順序：完成 Platform full v2→OrgMaster grant-v3/full→AI-PDM migration-only→同 R11 fresh fence cohort apply／replay→AI-PDM full owner→F01–F10 Production L4→入口重開。AI 在 cohort 前不得建立 candidate/tag 或改 generation72；未核實及原停用者保持停用。禁止逐人雙軌、舊 capsule／fence 與 UID 授權回復。正式業務、同窗切流與 L4 未完成。JENFU/DEV-015 baseline currentCheckpoint=deliveryCheckpoint20261001R11；下方全部日期快照僅供歷史追溯。
+
+L4 執行準備：沿用 JFS9014／JFS9015，先讀回 OrgMaster 已發布 typed Principal，再走既有 AI-PDM Principal 新帳號 UI／provision 契約建立應用 profile；callback 不自動建立，不用 UID／email 猜測綁定，不取代歷史 cohort 核對。目前尚未啟用、指派或建立這兩個測試 profile。既有 Playwright CLI 0.1.22 可啟動且沒有既有 CLI browser session；Codex CUA kernel 的 Windows error5 另列工具限制，沒有修改安全設定。一次性 apply／replay 腳本已更新最新 R11 operator／census／fence 並通過語法檢查，尚未執行。
+
+## 歷史施工快照與原契約（保留追溯）
+
+> **2026-10-01 F06 共用設定根因及現行施工：** PR #166 已合併 protected main dcfa607；新 immutable owner operator 讀回 workbench canonical_only／dev090-v1／rowVersion 9／expectedCommit 91de3a65df58dc60ddde88aab5263e9470a84565，serving ai-pdm-prod-f5ee2af2d7ec 沒有 PDM_BUILD_COMMIT，舊 guard 因而比較 local-dev，release profile 也未携帶此值。這是已核實的必要 workbench／審批共同缺口，不是 grant v3 映射錯誤。新候選使用 owner profile 固定的 PDM_WORKBENCH_AUTHORITY_COMMIT 綁定已發布資料契約；application source／image 仍由原 owner release provenance 證明。Production 缺設定、錯 revision、非 canonical mode 或錯 schema 均拒絕，不 fallback 到 build SHA。token 的公司／profile 業務關聯与簽章保持，授權主體仍只來自已驗 principal_id；不改資料庫或已套用 migration。disposable PostgreSQL reviewer fixture 使用相同明確 binding，禁止以 local-dev seed 推論正式可用。新來源 recovery 已備、臨時 read-only Job 已刪除；實際 application release、資料轉換、正式儲存／provider／browser／L4 未完成。精確 evidence 與修正驗證將保留於 [native QA](qa/DEV-121-workbench-runtime-contract-2026-10-01.json)；下方逐人過渡及舊日期紀錄均為歷史，不再是施工指令。
+
+> **2026-10-01 DEV-121 現行增量：** ORGMASTER/DEV-057 grant v3 在 native PostgreSQL 下完成指派、撤權、scope、委派來源撤權／到期／未核實身分拒絕；本 consumer 完成實際料件建立／修改／送審／指定 Principal 核准與圖面上傳／送審／退回修正，原技轉／下載鏈仍通過。fixture 首次建立正確不可變 Principal profile，未刪除重綁或放寬 grant。來源與失敗／清理見 [native 證據](qa/DEV-121-review-delegation-postgres-2026-10-01.json)。PR #165 已合併 main 810f331b6；本批尚待 protected PR／CI／merge。writer-readback.v2 新增持久工作台 mode／expectedCommit／schemaHash／rowVersion 的唯讀欄位，不將零 writer 或 local canonical seed 當可用性證明；下一步由新 official source immutable operator 讀回 Production。真實 provider、正式儲存／browser／L4、停寫轉換與三 owner 切流未完成。下方舊日期文字只保留當時快照。
+
+> **2026-09-30 F05 最新候選：** 七個編號命令將同次已驗 Principal 傳到共同稽核寫入點；保留 profile 業務 ID，PostgreSQL 稽核固定 Principal／profileVersion／actorKind／reason，缺少或混用 actor 整筆回復。OrgMaster 實際 grant v3→AI-PDM native PostgreSQL 的建立、料號／圖號／圖料追加、重播、reload／搜尋，及撤權／錯 scope／跨公司正反鏈通過；未擴權、未新增 migration。Session 仍為受控替身，頁面／真實 provider／正式切流與 L4 未驗；本機整鏈不升級完整業務完成度。 [native 證據](qa/DEV-121-numbering-owner-grant-postgres-2026-09-30.json)。PR #164 已合併 main 5fd4d31；本批修正仍須 protected PR／CI／merge，新 application source 不沿用舊 source-bound artifact 作發布。
+
+> **2026-09-30 F07 交接／採購真實 PostgreSQL 下載增量。** 既有 D57-21 現串接 OrgMaster 真實發布 writer／grant v3、受限 AI-PDM PostgreSQL、交接與採購 GET、Released／公司資源、實際檔案位元組與 Principal 稽核；指派／撤權／異 scope、未發布／舊版本／跨公司與檔案竄改正反鏈通過，D57-21／22 完整 22 項與 28 項聚焦測試 PASS。首次撤權下載回 503 的證據已保留；共同根因為 Principal HTTP 入口將 typed entitlement 拒絕當成依賴故障，現於單一共用邊界沿既有 taxonomy 修正，未知例外仍回 503、未擴權。共同邊界累計失敗 11；已通知並按同一根因修正。R5 同庫再驗送審原檔案下載／PDF 預覽、檔案與 submission／公司歸屬、實際 bytes／Principal audit，以及缺檔／竄改拒絕；八個發布階段各九項 HTTP 檢查與既有 D57-21／22 均 PASS。R3 是測試隔離的暫存 DB 名稱檢查錯誤，已保留並於 R4 修正，不重複算作共同授權契約失敗。Session 為替身、storage 為 task-owned local adapter；真實 provider／正式物件來源／瀏覽器與 Production L4 仍未驗，不能升級完整 F07 或整體上線狀態。[native 證據](qa/DEV-121-published-package-grant-postgres-2026-09-30.json)，producer 完整來源證據引用 JENFU/DEV-015。
+
+> **歷史施工快照：2026-09-30 一次性 cohort operator 本機整合（其後 PR #163 已合併並完成 immutable operator／zero-traffic recovery 讀回，尚未正式轉換）。** 既有 inventory Job 的 v3 `principal_only_apply` 接到唯一 owner 交易；輸入僅引用不可變來源收據與原 source operation，取得 cohort／table locks 後再核對 live manual-zero fence、同來源維護 recovery revision 及零 owner writer。已提交 operation 的重播不再要求舊停寫狀態，只讀回原結果並補發相同 GCS bytes；輸入漂移拒絕。真實 disposable PostgreSQL 已驗 writer 拒絕、寫入後失敗整筆 rollback、提交、重播、變更 input 衝突及零本機 ACL。來源／封裝／transport 20、owner primitive 4、PostgreSQL 20 與 typecheck PASS；[native 收據](qa/DEV-121-one-shot-inventory-operator-postgres-2026-09-30.json)。現為未提交候選，下一步 protected PR／merge、source-bound operator image／recovery proof，再於三 owner 停寫視窗使用；不另建 bridge 或逐人切換。下方早期「正式 apply runner 未接起／待實作」為歷史快照。F01–F10 正式狀態不升級。
+
+> **2026-09-30 DEV-121 F08 獨立 worker 進程**：[現行授權契約](specs/DEV-121-target-authorization-boundary.md)與 `JENFU/ai-doc/qa/DEV-015-aipdm-recognition-worker-process-postgres-2026-09-30.json` 記錄實際 worker process→claim／heartbeat／holder-only source-content／complete HTTP handlers→受限 PostgreSQL；來源大小／雜湊、發起 Principal 與 adapter 結果讀回通過，18／18，臨時資源已清理。正式 CAD 解析、outbox delivery、provider／Production L4 仍待驗證。
+
+> **2026-09-30 DEV-121／DEV-057 跨 owner 送審整鏈**：[現行 consumer 契約](specs/DEV-121-target-authorization-boundary.md)與 `JENFU/ai-doc/qa/DEV-015-orgmaster-aipdm-grant-v3-submit-review-postgres-2026-09-30.json` 記錄 OrgMaster 發布 grant v3 後的 Draft 送審、精確 reviewer 待辦、審批及 Principal outbox；撤權／異 scope 不寫入。全套 21／21，仍屬本機同庫證據；真實 provider、候選 runtime、Production L4 未完成。
+
+> **2026-09-29 AIPDM/DEV-121 全鏈盤點（進行中）**：[293 method 受控清單](specs/DEV-121-authorization-caller-inventory.v1.json)與 [本 owner 契約](specs/DEV-121-target-authorization-boundary.md)逐項保留 route policy、caller 線索、守衛、處置與證據缺口；標記只作待追線索，不能替代語義／Production 驗證。與 `JENFU/DEV-015`、`ORGMASTER/DEV-057` 合併根因後集中重構。
+
+> **2026-09-29 DEV-121 來源 receipt 校驗及指紋更正**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)已依 GCS bytes 修正 SHA-256 抄錄，並新增 fail-closed source／cohort receipt 驗證器；實際唯讀 receipt 與合成負例 PASS。正式資料及 traffic 未改，切流條件仍未滿足。
+
+> **2026-09-28 DEV-121 全 cohort 正式 source readback**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄受保護來源、immutable operator、唯讀 Job 與受限 receipt：4 筆歷史啟用 profile 中 1 筆精確已核實、3 筆 withheld。一次性 Job 已清理，正式資料／traffic 未改；此證據不代表 one-shot apply、候選切流或 Production L4。
+
+> **2026-09-28 DEV-121 來源重驗**：[DEV-121 現行契約](specs/DEV-121-target-authorization-boundary.md)另封存第二次 Production 唯讀 receipt：4 組 Firebase pair 中只有 1 組與 OrgMaster 已發布 canonical／typed 身分一致，3 組仍無可用綁定；不能依 email 或歷史 Google 列補授權。正式資料與 traffic 未變。
+
+> **2026-09-28 DEV-121 全 cohort 正式基線**：[現行 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄 AI-PDM Production 唯讀盤點的受限 receipt：4 筆歷史啟用 profile 全缺 Principal account，0 筆達可切流條件；Job 已清理，未改 traffic／資料。這取代下方「尚未執行全員讀回」的舊狀態，並不表示已核實個人歸屬或完成轉換。
+
+> **2026-09-28 DEV-121 owner ledger floor**：[DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)與 [任務板](dev_task.md)記錄三 owner 正式 migration 前置已發布，AI-PDM 唯讀 owner proof 現拒絕早於 Platform 010／OrgMaster 027／AI-PDM 020 的收據；不等於 cutover apply 或 L4。
+
+> **2026-09-28 DEV-121 Production 單人預覽證據**：[DEV-121 任務紀錄](dev_task.md)保留 Jed 唯讀 operation、operator source／digest、唯一啟用排序的 owner UI readback 與受限 receipt 指紋。這只證明單人 workspace shadow 無缺口，`applyAllowed=false`；全 cohort 歸屬、完整 resource／delegation 等價、recovery、service 切流與 Production L4 尚未完成。
+
+> **2026-09-28 DEV-121 正式來源決策**：[ADR-PDM-RELEASE-SOURCE-001](decisions/ADR-PDM-RELEASE-SOURCE-001-small-team-official-source.md)固定 PR／Codex QC／required CI／provider branch protection 的真實證據，不要求第二位人工審查者；active ruleset 與 classic protection 已讀回，但文件本身不能當成 owner release PASS。
+
+> **2026-09-26 DEV-121 R5 現行診斷／來源 policy**：[同一 DEV-121 契約](specs/DEV-121-target-authorization-boundary.md)記錄 R5 私有 profile label、三個未映射 Firebase pair、共用信箱承接與正式 `firebase_bff` 來源集合；歷史 Google OAuth 列不作當前登入證據。局部修正尚未發布，權限切換與 L4 仍停用。
+
+> **2026-09-26 DEV-121 目前缺列證據**：[DEV-121 雙 owner Production readback](specs/DEV-121-target-authorization-boundary.md)保留 AI-PDM R4／OrgMaster 精確 pair hash receipt、五組 producer 來源缺列與後續停止條件；private profile label 僅供查明 owner，不作 email mapping。沿用 DEV-121 子任務，不新增主任務。
+
+> **架構定案：已定案／RD Implementation Ready（Documents Only）**：[AIPDM/DEV-121 單一交接入口](specs/DEV-121-target-authorization-boundary.md#architecture-final)固定目前 owner 契約、來源／雜湊與失敗／恢復；與 JENFU/DEV-015 同名節對齊。沿用原子任務，先依相依順序實作；consumer conformance／recovery／Production L4 尚未完成。下方歷史紀錄不覆蓋此入口。 本輪再審核補 session／epoch 同快照、cutover 鎖後完整來源捕捉及 provision replay 分支；相關案例未執行。
+
+> **2026-09-24 ownership／command 現行修訂（Documents Only）**：verified principal貫穿factory／command／receipt／outbox／replay；新帳號直接provision為principal_active，target assurance與來源facts分開，高權限不沿用舊AAL1 pilot。 [目前交接契約](specs/DEV-121-target-authorization-boundary.md#principal-owner-command-amendment)承接原子任務；歷史證據保留，文件RD Implementation Ready不等於產品PASS。SQLite／release工具整併留後續，不新增主任務或分母。
+
+> **2026-09-24 RD 執行一致性複審**：[同一DEV的複審修正](specs/DEV-121-target-authorization-boundary.md#principal-review-20260924)已對齊缺列epoch鎖、cohort/receipt基數、相容inventory、token信任欄位及最低assurance；遷移等價性與明列安全修正分開驗。B／RD Implementation Ready維持，未新增主任務或產品PASS；本輪Documents Only。
+
+> **2026-09-24 B 文件收斂完成**：本次三專案 principal-first 既有子任務為 `Architecture Finalized / RD Implementation Ready / Documents Only`；以 [實作定案](specs/DEV-121-target-authorization-boundary.md#principal-implementation-contract)為目前交接入口。DDL／versioned contract、所有登入與helper、原子切換／writer fence、相容／rollback及原驗收案例均已固定。下方登入等待、bridge或local PASS是各次歷史狀態，不是本輪重跑舊流程的指令；B產品與Production驗證未完成。不新增主任務、不改算歷史分母。
+
+> **2026-09-23 DEV-121 目標端授權邊界（RD implementation in progress）**：native `AIPDM/DEV-121#target-authorization` 承接主責 `JENFU/DEV-015`，producer 為 `ORGMASTER/DEV-057#identity-grants`。[DEV-121 contract](specs/DEV-121-target-authorization-boundary.md)定案 handoff 版號語意、短暫唯讀 repeatable-read、共用 transaction decision time、verified actor、session company workspace mapping、唯一 active role priority、fail-closed mode 與 typed route discriminator。AI-PDM focused `7 files / 42 tests`、repository consumer `32/32`、change-feed consumer `5/5`、typecheck、DB boundary、DEV-005 route／contract／runtime QC與D121-PG-01／02隔離race PASS；全 API 255 files／292 methods分類完成且直接role gate=0。已建立 `config/access-control/jenfu-route-policy-dispositions.v1.json`，25筆字面代碼全部唯一並採 `deny_or_retire / deny / 403`；route-policy QC PASS，保留 OrgMaster authority fail-closed，沒有新增猜測式 grant。既有 DEV-005 catalog source discovery 已修正為優先 canonical `Jenfu-Platform`，`check:jms-dev-005-role-catalog`與contract QC均PASS。Platform typecheck PASS；OrgMaster producer migration 021及task-owned PostgreSQL D57-01～06亦PASS。DEV-101 v1／v2 local owner-flow 各為 5/6，因現有 snapshot 的 `company_id` schema drift 未認列 browser PASS；Production L4仍待完成。不修改DEV-118 checkpoint或C01／C02分母。
+
+> **2026-09-24 DEV-121 子任務（B 架構已定案／RD 複審已補正）**：`AIPDM/DEV-121#principal-consumer-impact` 對應 `JENFU/DEV-015#principal-identity-reassessment`；[DEV-121 contract](specs/DEV-121-target-authorization-boundary.md#principal-consumer-impact)固定 principal account／profile／ACL／registry，wire version 與持久 subject 切換狀態分離、原子回填／舊 writer fence、principal-aware rollback 及正常路徑 UID resolver 退役。`pdm_user_id` 保留 domain／歷史 FK。成熟度 `RD Implementation Ready`，既有 access-control／SSO capsule 已加明確 amendment 指向，不新增 DEV 或改寫本機／Production 歷史證據及 DEV-118 分母。
+
+> **2026-09-22 DEV-118 Production current checkpoint（現行）**：118-C current owner run `35669545522`已把main `6e21bb4c2f39d4b4777320d202a2037bde609b00`發布為`ai-pdm-prod-f5ee2af2d7ec`，image `sha256:fee7d3e6f653e29332a77a87ca53fa897b76aed215dcdee54f16fd585fde10bd`承接100% traffic；explicit local logout correction與current conformance均已發布。Workspace Google-first及`JFS0005`工號起手皆完成Platform session、AI-PDM handoff／reload、帳號管理與permission；global logout後AI-PDM protected APIs均401。AI-PDM local logout另以POST=200、protected APIs 401及Platform session免Google重驗重新handoff=200證明target-only session撤銷。這認列`PDM-W-G`、`PDM-W-E`與global invalidation的current evidence；Free-only／無Gmail fixture及negative／rate／race cells仍缺，C01／C02四格及LOGIN六案未full PASS。下方舊的production NOT_RUN／release pending文字均保留為歷史。
+
+> **2026-09-22 DEV-118 zero-paid-seat completion override（現行）**：由 Platform DEV-014 v2 plan 管理剩餘 Production L4。保留既有 `employee-shijie`／`jedchang0308@jenfu.com.tw` 的 Workspace 證據且不改其 state；只新增 `dev014-fp-google@jenfu.com.tw`、`dev014-fp-number@jenfu.com.tw` 兩個 Cloud Identity Free-only／無 Gmail principals 及其 bounded fixture state。Workspace pending cells由既成 Google／工號證據產生 `W-P-G-EQV`／`W-P-E-EQV` 等價性 proof；Free pending／active與 `PDM-F-G`／`PDM-F-E` 均須直接執行。完成條件是 `jenfu.dev014.login-production-completion.v2` 自驗章 aggregate receipt；禁止以付費席次、新既有帳號變更或自由格式敘述補足分母。
+
+> **2026-09-22 DEV-118 local logout correction（歷史 pre-release checkpoint；已由上段 current release 取代）**：Production browser檢查曾發現已登入側欄帳號入口未結束AI-PDM本地session。修正把入口改為呼叫既有`POST /api/auth/logout`，成功才導向`/login?reason=local-logout`，失敗保留session並顯示錯誤；contract=`14/14 PASS`、real-browser=`33/33 PASS`、`typecheck:app=PASS`，證據run=`DEV118-browser-2026-09-21T22-24-37-833Z`。此修正現已包含在owner run `35669545522`與current revision `ai-pdm-prod-f5ee2af2d7ec`；完整登入分母仍為`0/6 full cases`。
+
+> **2026-09-16 R78 workbench authority incident recovery（current）**：資料切換收據仍證明151 tables／3,569 rows完整；503根因是R78 runtime缺`PDM_BUILD_COMMIT`且authority仍綁舊正式commit。On-demand backup後，以live export＋serializable CAS只將singleton expected_commit由`bb30682c...`綁到R78、row_version 8→9，沒有重匯或業務資料異動。受控recovery重用R78 exact image建立0% candidate，從圖號／料號response contract token證明authority commit與50／59筆資料；activation停在獨立protected environment。Authority為[DEV-117 SPEC §31](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)與[QA §20](qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md)。
+
+> **2026-09-15 DEV-117／DEV-012 R78完成（現行）**：source=`91de3a65df58dc60ddde88aab5263e9470a84565`已由owner run `34952087442`完成正式十階段release；revision=`ai-pdm-prod-29a4a765563c`、100% traffic、canonical=`https://ai-pdm-prod-9536592944.asia-east1.run.app`，terminal=`RELEASED`、`remainingHumanAction=0`。151 tables／3,569 rows cutover與identity／row／hash／FK reconciliation、authenticated smoke、rollback與cleanup全PASS。後續ordinary release由本repo獨立執行；下方R72／S2／Production NOT_RUN只是歷史。
+
+> **2026-09-15 R72 current handoff**：R72 15-entry migration與3,623-row export PASS；target import因DEV087 polymorphic trigger dependency未被FK-only topological plan表示而整筆ROLLBACK。Legacy access／原revision／100% traffic已恢復，HTTP 200，Jobs／temporary IAM清除，R72固定為`RECOVERED_ABORT / releaseAuthority=false`。Current source將六條trigger-backed依賴寫入immutable export/import plan並做exact join；production catalog計算無cycle，`drawing_revision_works／part_change_works`先於`canonical_workbench_states`。Local data-cutover 18／18、continuous owner 32／32、isolated PostgreSQL、DB boundary、typecheck與isolated build PASS；commit／push後只可用fresh release。Authority為[SPEC §29](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md#dev012-r66-ai-pdm-data-cutover)與[QA §18](qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md#dev012-r66-data-cutover-qa)。
+
+> **2026-09-11 R38 historical handoff**：R35 AI-PDM production migration replay=`14 replayed`；candidate／entrypoint／traffic未執行。Owner修正Cloud Run v2 completion readback與exact Job viewer，且DEV-117 V1歷史adapter 12／12與V3 direct-run 28／28已拆分驗證。測試修正造成source drift，因此R37不得再作release authority且未執行AI-PDM app apply；當時operator取得新授權後以fresh R38繼續。這是歷史事實；現行DEV-013 v2只因source drift重建machine evidence，不要求SHA-bound human reauthorization。Current serving仍只允許provider `run.app`，不使用custom domain、Hosting、shared LB或TOTP。
+
+> **2026-09-10 R26 current handoff**：upstream app apply前揭露SBOM IAM stage classification缺口，AI-PDM未dispatch。Current owner docs固定三個SBOM binding為`incident_runtime_enabled` APP_INFRA_B additional `[0]` addresses；fresh source／provider only-create readback前Production仍NOT_RUN。
+
+> **2026-09-10 R25 current handoff**：DEV-117 current additive authority為[SPEC §27](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)與[QA §16](qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md)。AI-PDM未在R25 dispatch；own-prefix SBOM與exact-job override IAM完成source／provider重證後才可進production。
+
+> **2026-09-10 DEV-117 R22 correction（historical）**：AI-PDM未dispatch；該輪owner release實作新增per-kind exact-digest Artifact Analysis查詢、discovery-before-SBOM HTTP-400-only bounded retry與pinned non-root Node 24 Distroless production runner。該輪aggregate QC已PASS，但當時production為NOT_RUN；Current狀態只依上方R38 handoff。
+
+> **2026-09-10 DEV-117 R20 correction（historical）**：AI-PDM owner infra新增custom Cloud Build builder self-only `iam.serviceAccounts.actAs`與APP_INFRA_B additional complete-set驗證，stage A不含此build-runtime權限；R20未dispatch AI-PDM，R21舊分類作廢，當時production為NOT_RUN。Current狀態只依上方R38 handoff。
+
+This project uses `.ai-doc` as the single project documentation center.
+
+Cold start / progressive-read rule:
+
+1. Read `.ai-doc/cold-start.md` first for the low-token current boundary.
+2. Open `.ai-doc/dev_task.md` and read only `### 派工規則` and `### 目前派工任務清單`; do not load the full
+   `## 總任務清單` container.
+3. If a DEV ID is known, search its canonical index item and read only until the next peer DEV item.
+   If it is unknown, search by status symbol and feature term before opening any task detail.
+4. Select the target DEV / package from `dev_task.md`; then return to this map only for the matching package heading.
+5. Read only directly linked package docs for the selected DEV. Do not load unrelated `specs/`, `qa/`, `qc/`,
+   `reports/`, `archived/`, or historical package sections.
+6. Full-map reads are allowed only for documentation-map maintenance, archive restructuring, or explicit cross-package
+   consistency audits.
+7. Before product code/API/schema/state/permission/UI-flow/acceptance/release behavior changes, run the Spec Impact
+   Preflight in `.ai-doc/cold-start.md`; classify the result as `No conflict`, `Compatible exception`,
+   `Intentional replacement`, or `Unresolved conflict`.
+8. Current production status: `DEV-032` completed Gate A-E and closed on 2026-09-03. Exact source `bb30682c0a9671fb66564127643ccf3913fa732b` / revision `ai-pdm-prod-gh-bb30682c-33729286511` serves 100% traffic. `DEV-030/031` remain traceable completed sub-gates, not active tasks.
+9. For the five-user system, named-user Wave 0, fixed observation and waiver ceremony remain retired. Future release capsules must still repeat exact artifact, backup/restore, zero-traffic candidate, authenticated Level 4, zero open P0/P1, rollback readiness, Product Owner GO, explicit promotion and canonical smoke.
+
+> **2026-09-10 DEV-117 continuous V3 authority（current）**：current owner docs為[DEV-117 SPEC §26](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)與[QA-DEV-117 §15](qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md)，上游為Platform DEV-012 §29，contract SHA-256=`857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5`。狀態=`Architecture Finalized / RD Tech Lead PASS / P0=0 / P1=0 / V3 runtime correction implemented / S2 Paused for Operator Re-auth / Production Migration Replay PASS / Candidate、Entrypoint、Traffic NOT_RUN`。AI-PDM canonical entry為provider-verified `https://ai-pdm-prod-9536592944.asia-east1.run.app`；正式runtime固定共同身分`on`、entitlement `enforce`與exact shared identity tuple，custom domain、Hosting與shared edge只保留歷史／`RETAINED_UNUSED_EDGE`。
+
+> **2026-09-10 DEV-117 dependency gate refresh（current）**：release source固定Next.js 16.3.4與sharp 0.35.4；fresh production audit為`0 HIGH／0 CRITICAL`，owner／abort、DB boundary、typecheck及isolated build皆PASS。任何更舊source或R13 pre-fix receipt不得作本次release authority。
+
+> **2026-09-08 DEV-012 S1C production-entry correction（V2 historical）**：official release source固定為
+> `https://github.com/jedchang0308-jenfu/AI-PDM`的`main`。[DEV-117 §§24～25](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)的own native source/runtime/intent producer、Workflows internal OIDC smoke與numeric smoke Secret均已完成本機實作；當時canonical由shared HTTPS LB提供，legacy Hosting不改指neutral target。V2 snapshot=`S1C owner RD Implementation Complete / LOCAL_CONTRACT PASS / S2 Upfront Prerequisites In Progress`；serving entry與S2狀態以其上V3 authority為準。
+> 本次TOTP延期已從production login移除enrollment、challenge UI與client resolver；production provider固定disabled，既有AAL2-only operation維持fail closed。
+
+> **2026-09-09 DEV-117 continuous v2 authority（historical）**：owner docs為DEV-117 §§21～25與QA forward amendments；其two-capsule、migration、runtime及provider transport仍是V3基礎，但custom-domain與nine-stage current指令已由上方V3 authority取代。V2證據不得作V3 release authority。
+>
+> **2026-09-07 DEV-117 independent deployment authority（v1 historical）**：使用者已確認AI_PDM與Jenfu-Platform分開部署。AI_PDM v1 app-owned release authority為[DEV-117 SPEC](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)與[QA-DEV-117](qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md)：target固定`jenfu-platform-prod / asia-east1 / ai-pdm-prod`、runtime=`aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com`、database=`jenfu-platform-prod-pg / jenfu_prod`、canonical=`https://pdm.jenfu.com.tw`。legacy workflow只屬`jenfu-ai-pdm-prod`，不得替代neutral lane。`117-S1 Local Implementation Complete / QA-QC 12 of 12 PASS / Provider NOT_RUN`仍是有效本機歷史證據，但不得冒充continuous v2或production readiness。
+
+> **2026-09-05 Platform DEV-010 physical-topology successor（現行）**：AI-PDM `DEV-032`第一版production release維持已完成，但三系統共用資料庫的physical project／instance／database、schema placement與cross-app role契約改由Platform [DEV-010 direct spec](../../Jenfu-Management-system/ai-doc/specs/DEV-010-three-system-database-consolidation-contract.md) 接管。Current production target=`db-custom-1-3840 / ZONAL_DEDICATED / USD 100`；backup、PITR、deletion protection、private IAM與schema-role隔離不變，HA延後且不得宣稱automatic cross-zone failover。RD技術主管複審判定此成本決策未走回頭路；其後010-R1E已完成PostgreSQL verifier NOLOGIN group、三app owner-owned evidence views、exact IAM login binding與read-only executor source，fresh N1A=`11＋30 PASS`、R1E=`14＋4 PASS`、detached exact-HEAD N2=`48/48 PASS`，原P0 source blocker已關閉。R1-04 read-only verifier、三repo A immutable artifact producer、必要時F fail-closed first-revision producer與B digest-only neutral revision source均已完成；B=`7/7`、F=`8/8`、IaC合併=`22/22 PASS`。R1O再以Platform `3a3a3e9`強制九個operational cases具有同candidate typed evidence；R1R完成R1-05四來源capture source，R1S完成R1-08 rollback-readiness describe-only source，R1T完成R1-06三類source authority與可恢復DB ACL fence，R1U完成post-fence read-only exact-zero finalizer，R1V完成R1-09 least-privilege read-only observation executor（10/10 PASS），R1W完成R1-10 retirement-readiness finalizer（7/7 PASS）並保留rollback，R1X以Platform `20f020a`完成R1-12三版本、最小權限rotation executor（8/8 PASS；IaC 8/8 PASS）；R1-07 exact一筆`company-smoke` pending outbox被固定為consumer-disabled quarantine，不列unexpected backlog。Production R1仍有既有9項human／target／capacity blocker，正式migration／binding、A／F／B provider execution、reviewed runtime／rollback／write-fence／observation／retirement／rotation plan、R1-12 actual execution、其餘R1-13／14／15 provider executors、R1-06 actual fence／capture／finalization、R1-09／10 actual evidence、15案actual provider execution、deploy、DNS及authority／traffic switch只能由獨立release gate啟動；AI-PDM write smoke另要求Platform R1-04、R1-07與DEV-116 R01／R02引用同一AI-PDM source／digest／revision及exact company-smoke receipt。
+
+> **2026-09-05 DEV-010 R1P reconciliation dependency（現行）**：Platform `9b1bd5f`新增12組canonical source／candidate snapshots與repair-ledger assembler，unit=`9/9 PASS`、含adapter focused QC=`28/28 PASS`；四類provider snapshot producers及actual snapshots仍`NOT_RUN`。R1-05與QA-116-R02必須引用同一R1-04 candidate並各自PASS：前者證明canonical migration data完整，後者證明Production Auth／UI／API／Cloud SQL中的company-smoke COMMIT＋reload與Jenfu零污染，任一不得替代另一個。
+
+> **2026-09-05 DEV-010 R1Q snapshot producer dependency（現行）**：Platform `c194081`已完成reviewed mapping＋四captures到兩份canonical snapshots的typed producer，focused=`7/7`、combined=`35/35 PASS`；raw rows不落盤。Provider-native capture execution仍`NOT_RUN`，不增加R1-05或DEV-116 R02分子。
+
+> **2026-09-05 DEV-010 R1R provider capture executor dependency（現行）**：Platform `fa2aaf6／11c79b9`已完成四來源default-deny capture source，DB／frozen filesystem／exact GCS object metadata邊界與raw-row memory-only均有negative oracle；unit=`7/7`、combined=`42/42 PASS`。Current preflight仍`BLOCKED 9`，actual mapping／projection catalog、captures、R1-05及DEV-116 R02皆`NOT_RUN`；不啟用GCS writer或file-authority migration。
+
+> **2026-09-05 DEV-010 R1S rollback readiness dependency（現行）**：Platform已完成R1-08唯讀executor source；只有同release R1-03／04／05 PASS與reviewed plan成立後，才describe三service previous／candidate revisions與exact secret versions，要求previous=100%、candidate=0%、single writer及前後secret ENABLED。Unit=`7/7`、combined=`49/49 PASS`；actual plan／provider evidence、R1-08與DEV-116 R02仍`NOT_RUN`，R1-13 executed drill與R1-06 actual write-freeze均未被替代。
+
+> **2026-09-05 DEV-010 R1T source write-fence dependency（現行）**：Platform已完成R1-06 source executor；Platform為0 connected legacy runtime、OrgMaster為frozen Git／local-json，AI-PDM則由不掛Cloud Run的dedicated fence IAM／NOLOGIN controller在PostgreSQL authority同transaction撤銷migration IAM membership與`pdm_runtime` DML／sequence write ACL，並在DB ledger保存exact privilege／membership restore manifest。Platform Unit=`6/6`＋QC、AI-PDM controller source=`2/2 PASS`；current在provider／credential前BLOCKED，controller apply、actual fence、post-cutoff final delta=0與R1-06 receipt仍`NOT_RUN`。它不替代DEV-116 R02的`company-smoke`真實COMMIT＋reload，也不調高USD 100 budget。
+
+> **2026-09-05 DEV-010 R1U zero-delta finalizer dependency（現行）**：Platform `adc0269`已完成R1-06 post-fence finalizer source；四份post-cutoff read-only provider capture會在記憶體重建source／candidate snapshots，並與外部snapshot SHA hard join，要求同source lock／candidate／cursor、≤300秒skew及12組row／PK／content／FK／audit／file／migration ledger／domain／mapping／unclassified差異精確為0。Mode固定為`POST_FENCE_ZERO_DELTA_RECONCILIATION`且`candidateDatabaseWrites=false`，真正的`company-smoke` write只屬R1-07／QA-116-R02。Unit／QC=`6/6 PASS`、相鄰鏈=`61/61 PASS`；current `BLOCKED 9`，actual capture／finalizer／R1-06與R02均`NOT_RUN`，固定月成本增量0、USD 100 budget不變。
+
+> **2026-09-05 DEV-010 R1V read-only observation dependency（現行）**：Platform已完成R1-09 executor source；full preflight與R1-04／07／08 same-candidate成立後，以least-privilege `dev010-r1-verifier`讀Logging requests、Monitoring connections／alerts及DB views。P0／P1由provider alert ledger推導，connection samples須完整覆蓋30～120分鐘window；R1-07 exact一筆`company-smoke` pending outbox是consumer-disabled quarantine evidence，其他eligible backlog須為0，不得啟用consumer或刪除清零。Unit=`10/10 PASS`、focused QC PASS；current在credential前`BLOCKED`，actual R1-09／R02均`NOT_RUN`，固定月成本增量0、USD 100與Level 4責任不變。
+
+> **2026-09-05 DEV-010 R1W retirement-readiness dependency（現行）**：Platform已完成R1-10 read-only finalizer並修正舊的循環gate；R1-01 exact consumer manifest必須完整配置promotion後action，R1-08 rollback retained、R1-09至少30分鐘且P0／P1=0，三owner signoff不得授權提前retire／delete。Unit=`7/7 PASS`、focused QC PASS；actual R1-10／R02均`NOT_RUN / BLOCKED`，actual legacy retirement另需post-promotion gate，固定月成本增量0。
+
+> **2026-09-05 DEV-010 R1X guarded credential-rotation dependency（現行）**：Platform `20f020a`已完成R1-12 three-version executor source。R1-08綁定的rollback previous與candidate current都必須保持`ENABLED`；只有相異的superseded version在全部Cloud Run revisions／jobs零引用後，才可由只含`secretmanager.versions.disable`的custom role停用。禁止使用權限過寬的預定義Secret Version Manager，並以pre-disable `OUTCOME_UNKNOWN` progress ledger阻止不確定結果被盲目重跑。Unit=`8/8`、release=`19/19`、IaC=`8/8 PASS`；actual R1-12與R02均`NOT_RUN / BLOCKED`，固定月成本增量0，R1X不構成Production Level 4 claim。
+
+> **2026-09-05 DEV-010 R1Y isolated runtime-pointer rollback dependency（現行）**：Platform `21f5f3a`已完成R1-13 default-deny executor source。只在同project／region／tier／PG17 private clone建立task-owned schemas／NOLOGIN roles，三元件各執行previous→candidate→previous的catalog pointer、single-writer authority與無schema名稱runtime query，共9次readback；candidate只寫3筆clone sentinel，復原後data／auth before=after、unknown window=0、source unchanged且task DB objects／clone residue=0。Unit=`10/10`、release=`19/19`、focused QC=`PASS`；actual R1-13與R02均`NOT_RUN / BLOCKED`，固定月成本增量0。R1Y只證明rollback mechanics，不構成或替代Production Level 4；本段前向取代上方physical-topology摘要中「R1-13 executor尚未實作」的舊狀態，R1-14／15仍未實作。
+
+> **2026-09-05 DEV-010 R1Z read-only convergence readiness dependency（現行）**：Platform已把R1-14由互相矛盾的「pre-promotion outbox清零／candidate write rehearsal」前向修正為`READ_ONLY_CONVERGENCE_READINESS`。同candidate的R1-07／QA-116-R02 exact 1筆`company-smoke` event必須維持pending、consumer disabled；只有unexpected outbox、scheduled／retry／file-operation、external delivery、file delta及old-target activity須為0，actual drain另需post-promotion gate。Unit=`7/7`、R1-09 regression=`10/10`、release=`19/19`、focused QC=`PASS`；actual R1-14與R02均`NOT_RUN / BLOCKED`，固定月成本增量0。本段前向取代上方「R1-14 executor尚未實作」及R1Y尾句的舊狀態；目前只剩R1-15 source未完成。
+
+> **2026-09-05 DEV-010 R1AA read-only operational readiness dependency（現行）**：Platform已完成R1-15 tabletop-only finalizer，硬綁R1-02／04／09／10／13／14、四owner hashes、incident alert route、限時GO／NO_GO／ABORT／CLEANUP與handoff。Provider／DB／notification／traffic／cleanup mutation皆禁止，receipt不授權promotion。Unit=`7/7`、R1-09=`10/10`、R1-14=`7/7`、release=`19/19`、preflight=`16/16`及focused QC PASS；15案machine source paths已齊備，actual仍`0/15 PASS / BLOCKED 9`，R02與Production Level 4均`NOT_RUN`。本段前向取代R1Z尾句的「只剩R1-15 source」狀態。
 
 ## 1. Authoritative Entry Points
 
@@ -16,7 +243,6 @@ DEV-109 evidence correction (2026-09-01)：historical aggregate=`output/qa/dev-1
 
 | Need | Read |
 |---|---|
-| DEV-122／AI-PDM 內部功能缺陷集中處理 | [任務入口](dev_task.md#dev-122-business-defects) → [唯一問題列表](specs/DEV-122-ai-pdm-internal-function-issues.md) → [partial FAIL／cleanup 原始證據](qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)。延後／Brief Ready；local lifecycle／077 保留未合併，既有 resolved 不作 current 缺陷；不移走 DEV-121 的 scope／publish／verified Principal 或可靠發布必要修正。 |
 | DEV-120／Platform DEV-013 P_BOTH target session expiry修正 | [任務板](dev_task.md) → [DEV-120 QC receipt](qc/qc-dev-120-dev013-target-session-expiry-2026-09-21.md)；程式 `src/lib/jenfu-sso-handoff.ts`、回歸測試 `src/lib/jenfu-sso-handoff.test.ts`。根因為callback誤把短效`handoff.expiresAt`用作target session上限；current修正固定`min(now + 8h, sourceSessionExpiresAt)`，assertion expiry仍只驗callback freshness。Local=`test:dev-013` 4／4、`test:dev-013:l3` 17／17、typecheck、DB boundary、isolated build PASS；Production已安全回切`employee-shijie / ai-pdm`至`legacy_authority:5`，新revision deploy／re-switch／完整L4／global logout=`NOT_RUN`。 |
 | DEV-119／DEV-013 `013-S4-L3-AIPDM-ENV` shared-staging owner release | [任務板](dev_task.md) → [DEV-013 AI-PDM owner capsule](specs/DEV-013-ai-pdm-sso-consumer.md)；[local readiness receipt](qc/qc-dev-119-dev013-staging-release-readiness-2026-09-17.md)；profile `config/release/dev013-ai-pdm-managed-staging.json`；owner-native adapter／CLI／focused tests `scripts/lib/dev013-ai-pdm-managed-staging.mjs`、`scripts/dev013-ai-pdm-managed-staging.mjs`、`scripts/dev013-ai-pdm-managed-staging.test.mjs`；app-owned Infra A `infra/google-cloud/dev-013-l3-ai-pdm`。Status=`READY_FOR_NONPROD_APPLY`；manifest=`jenfu.dev013.l3-managed-staging.v2`／SHA `eefcfbd8…`，target固定`jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg`。Infra A只建立repository／evidence bucket／exact IAM並有8-address exact-after plan gate；existing service不納Terraform。Fresh owner-native read-only plan先把現有`latest=100%`固定至ready revision並啟用deletion protection，update mask只可為`traffic`或`traffic,deletionProtection`，template／labels／siblings=0；hard join完成後才可進入Secret numeric-pinning candidate與traffic-only activation並產生bootstrap receipt v2。final owner receipt v2另要求source／digest／etag／SA uniqueId／origin／callback／三組numeric refs／mode=on／100% traffic與rollback-floor exact join。所有雲端mutation／DB migration／L3 browser=`NOT_RUN`。 |
 | DEV-118 平台登入入口與 Google／工號契約 | [任務板](dev_task.md) → [PDM SPEC](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md)；[118-A QC](qc/qc-dev-118-local-implementation-2026-09-17.md)；[118-B 交接審查與歷史](qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)；[Production L4 checkpoint](qc/qc-dev-118-production-l4-2026-09-22.md)；[DEV-014 Production runbook](../../Jenfu-Platform/ai-doc/runbooks/DEV-014-production-protected-release.md)。118-C current owner run `35669545522`已把main `6e21bb4c2f39d4b4777320d202a2037bde609b00`發布至`ai-pdm-prod-f5ee2af2d7ec`並承接100% traffic。`PDM-W-G`、`PDM-W-E`、global invalidation及target-only local logout continuity具current evidence；完成仍以production canonical LOGIN六案與PDM C01／C02四格為準。 |

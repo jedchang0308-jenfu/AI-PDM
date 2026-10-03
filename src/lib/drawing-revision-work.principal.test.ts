@@ -517,4 +517,68 @@ describe("principal drawing revision work read", () => {
       expect.objectContaining({ command: "drawing.file.remove" }), expect.any(Function));
     expect(mocks.deleteObject).toHaveBeenCalledWith("owned-file-key");
   });
+
+  it("requires a publisher when assigning a major Principal drawing review", async () => {
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]);
+    mocks.readWork.mockResolvedValueOnce({ owner_user_id: "profile-one",
+      drawing_id: "drawing-one", id: "work-one", revision_id: "revision-one",
+      predecessor_revision_id: "revision-zero", target_claim_id: "claim-one",
+      proposed_payload: { changeImpact: { formState: "no_impact",
+        fitState: "no_impact", functionState: "no_impact", affectedPartNumberIds: [] } },
+      target_label: "2", target_major: 2, target_minor: 0,
+      row_version: 2, handling: "owner" });
+    await new DrawingRevisionWorkService(client).submitPrincipal(
+      "work-one", verified, { contractToken: "contract-one",
+        expectedRowVersion: 2, idempotencyKey: "submit-major" });
+    expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client, {
+      companyId: "company-one", ownerUserId: "profile-one", requirePublish: true
+    });
+  });
+
+  it("rechecks numbering.publish before formalizing a major Principal drawing review", async () => {
+    const basis = { payload: {}, revisionId: "revision-one", claimId: null };
+    mocks.evaluate.mockReset()
+      .mockResolvedValueOnce([{ allowed: true }])
+      .mockResolvedValueOnce([{ allowed: true }]);
+    mocks.readWork.mockResolvedValueOnce({ owner_user_id: "profile-one",
+      drawing_id: "drawing-one", id: "work-one", revision_id: "revision-one",
+      predecessor_revision_id: "revision-zero", target_claim_id: null,
+      proposed_payload: {}, target_label: "2", target_major: 2, target_minor: 0,
+      row_version: 2, handling: "review_owner" });
+    mocks.verifyPackage.mockReturnValueOnce({
+      requestKind: "drawing_revision", primaryTargetKey: "drawing:drawing-one",
+      decisionBasis: { kind: "drawing_revision_work", hash: dev087RequestHash(basis) }
+    });
+    await new DrawingRevisionWorkService(client).decidePrincipal(
+      "request-one", "approve", verified, { contractToken: "contract-one",
+        expectedRowVersion: 1, idempotencyKey: "approve-major" });
+    expect(mocks.evaluate).toHaveBeenNthCalledWith(2, client, verified, [
+      { permissionKind: "action", permissionCode: "numbering.publish" }
+    ]);
+    expect(mocks.formalize).toHaveBeenCalledWith(client,
+      expect.objectContaining({ companyId: "company-one" }));
+  });
+
+  it("does not begin major approval after publisher authority is revoked", async () => {
+    const basis = { payload: {}, revisionId: "revision-one", claimId: null };
+    mocks.evaluate.mockReset()
+      .mockResolvedValueOnce([{ allowed: true }])
+      .mockResolvedValueOnce([{ allowed: false }]);
+    mocks.readWork.mockResolvedValueOnce({ owner_user_id: "profile-one",
+      drawing_id: "drawing-one", id: "work-one", revision_id: "revision-one",
+      predecessor_revision_id: "revision-zero", target_claim_id: null,
+      proposed_payload: {}, target_label: "2", target_major: 2, target_minor: 0,
+      row_version: 2, handling: "review_owner" });
+    mocks.verifyPackage.mockReturnValueOnce({
+      requestKind: "drawing_revision", primaryTargetKey: "drawing:drawing-one",
+      decisionBasis: { kind: "drawing_revision_work", hash: dev087RequestHash(basis) }
+    });
+    await expect(new DrawingRevisionWorkService(client).decidePrincipal(
+      "request-one", "approve", verified, { contractToken: "contract-one",
+        expectedRowVersion: 1, idempotencyKey: "approve-major-revoked" }))
+      .rejects.toMatchObject({ status: 403 });
+    expect(mocks.beginApproval).not.toHaveBeenCalled();
+    expect(mocks.formalize).not.toHaveBeenCalled();
+    expect(mocks.recordTerminalReceipt).not.toHaveBeenCalled();
+  });
 });
