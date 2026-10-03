@@ -549,5 +549,63 @@
       "resume": "cached prepare revalidates six prerequisites and live baseline before migration",
       "finalRequiredCi": "PENDING"
     }
+  },
+  "inventoryReadAccess20261003R71": {
+    "observedAt": "2026-10-03T03:05:31.228Z",
+    "status": "DIAGNOSTIC_INPUTS_MATCH_REVIEWED_POLICIES",
+    "buildId": "13765e18-f8c5-448f-885a-d97cb12581bc",
+    "sourceRevision": "290c84a4965edd686c321ce02cc915049df160a1",
+    "image": "sha256:ef86a1195759b39065f8a593e3e4a3706435c5e5c96b4f0af5fd986b818f3460",
+    "nativeCodeFingerprint": "b443738b766eea4b7b8c69356448609bba87158146c3fa2db9cb4a4deee10a45",
+    "loaderClosureFingerprint": "796922920b8d45b326eb607629c7cbb54fc85aaba11c663fb32debb84de7adec",
+    "inventory": {
+      "complete": true,
+      "uid": 0,
+      "gid": 0,
+      "runtimeUser": "65532:65532",
+      "elfCount": 570,
+      "wasmCount": 0,
+      "headersCount": 0
+    },
+    "loader": {
+      "uid": 65532,
+      "gid": 65532,
+      "node": "24.21.0",
+      "rowCount": 12,
+      "sqliteProbe": "IN_MEMORY_SELECT_1"
+    },
+    "logSha256": "f8ff6823b5f76696231ff947811d7ed923210f8af6f2ba021a0d65f832cb0e28",
+    "releaseAuthority": false,
+    "productionL4": false,
+    "rootCause": "ROOT_INVENTORY_DROP_ALL_REMOVED_DAC_READ_SEARCH",
+    "failingOwnerRun": 37090907394,
+    "failedInspectionBuild": "a976511b-cc68-44c7-9640-a82b4928d337",
+    "correction": "DAC_READ_SEARCH_IN_OFFLINE_READONLY_ROOT_INVENTORY_ONLY",
+    "runtimeIdentityUnchanged": true,
+    "unreadablePathOmissionAllowed": false,
+    "currentSourceStage": "LOCAL_CANDIDATE_PENDING_REQUIRED_CI",
+    "requiredProductionFlowsComplete": false,
+    "tests": {
+      "focused": {
+        "status": "PASS",
+        "tests": 43,
+        "evidence": "JENFU/DEV-015 output/dev-012/inputs/dev121-r71-focused-tests.log"
+      },
+      "ownerContinuous": {
+        "status": "PASS",
+        "tests": 127,
+        "evidence": "JENFU/DEV-015 output/dev-012/inputs/dev121-r71-owner-tests.log"
+      },
+      "abort": {
+        "status": "PASS",
+        "tests": 6
+      },
+      "dbBoundary": {
+        "status": "PASS",
+        "governedFiles": 14
+      },
+      "cleanLockTypecheckAndIsolatedBuild": "PENDING_REQUIRED_CI",
+      "primaryRuntimeStarted": false
+    }
   }
 }

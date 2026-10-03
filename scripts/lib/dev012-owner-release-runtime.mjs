@@ -916,7 +916,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     if (!profile.build.dockerBuilderImage?.includes('@sha256:')) fail('GCC_APPLICABILITY_INSPECTION_FAILED')
     const quote = (text) => `'${text.replaceAll("'", "'\\''")}'`
     const image = quote(artifactDigest)
-    let command = `set -euo pipefail\ndocker pull ${image}\ndocker image inspect --format 'DEV015_IMAGE_USER={{.Config.User}}' ${image}\ndocker run --rm --network=none --read-only --cap-drop=ALL --user=0:0 --entrypoint=/nodejs/bin/node ${image} -e ${quote(nativeInventoryProgram)}\n`
+    let command = `set -euo pipefail\ndocker pull ${image}\ndocker image inspect --format 'DEV015_IMAGE_USER={{.Config.User}}' ${image}\ndocker run --rm --network=none --read-only --cap-drop=ALL --cap-add=DAC_READ_SEARCH --user=0:0 --entrypoint=/nodejs/bin/node ${image} -e ${quote(nativeInventoryProgram)}\n`
     if (aligned) {
       const run = `docker run --rm --network=none --read-only --cap-drop=ALL --memory=512m --pids-limit=32 --user=65532:65532 --entrypoint=/nodejs/bin/node`
       command += `docker image inspect --format '{{json .Config}}' ${image} | ${run} -i ${image} -e ${quote(loaderProgram)} -- --image-config\n${run} ${image} -e ${quote(loaderProgram)}\n`
