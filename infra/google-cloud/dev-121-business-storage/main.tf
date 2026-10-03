@@ -35,6 +35,7 @@ resource "google_storage_bucket" "business" {
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
   force_destroy               = false
+  versioning { enabled = false }
   soft_delete_policy { retention_duration_seconds = 2592000 }
   labels = { application = "ai-pdm", purpose = "business-files", environment = "production" }
   lifecycle { prevent_destroy = true }

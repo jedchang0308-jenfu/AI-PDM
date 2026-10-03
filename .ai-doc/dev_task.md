@@ -1,4 +1,14 @@
-## R71 唯一現行續點（2026-10-03；候選修正，未發布）
+## R73 唯一現行續點（2026-10-03；本機修正通過，未發布）
+
+PR197 已合併 main c3b90abf8bfa4fcb0f3a8905f8c6356e14a4c4c5；R72 owner build-only 37092842311 與新映像 native inspection 均 SUCCESS。附件儲存第一次真實 saved plan 在 apply 前拒絕：Terraform 1.14.5 / Google 7.45.0 將已讀取的兩個 data source 放在 prior_state，resource_changes 只有三個 managed create；舊合成 fixture 未覆蓋此格式。失敗 binary/journal 保留，沒有建立 bucket、套用 IAM、migration、candidate 或切流。
+
+本批已在 storage 專屬 validator 分開驗證完整 configuration、data readback、managed changes 與完成後 state；通用 gate、完整地址、精確 owner、四項 provenance inputs 與不可變 saved-plan/apply claim 不變。versioning 明寫 false；僅首次 create 的未設定 website／computed deleted 可延至完整 state/provider readback 確認，identity／permission／binding／retention 仍須已知且精確。100 個 storage 案例、owner continuous 測試、abort 6 案與 DB boundary 已通過；獨立差異審查未發現 P0/P1；唯一 P2 完成旗標已補強。clean-lock typecheck/build 由本批 PR 必需 CI 收斂。唯一下一步：一個 PR及必需CI → fresh owner package/build → own saved plan/apply/provider/effective IAM → full-release → F01–F10。R69 infra與Secret v2核對後沿用；Windows host確認仍取消，正常provider與必要業務驗收不縮減。
+
+證據由既有 DEV-121 QA businessStorageActualPlan20261003R73 與 JENFU/DEV-015 output/dev-012/inputs/dev121-r72-business-storage-plan 追溯。下方各輪僅為歷史讀點，不是有效執行佇列。
+
+---
+
+## R71 歷史續點（2026-10-03；候選修正，未發布）
 
 PR196 已由 required CI37089857221 通過並合併 main 290c84a4965edd686c321ce02cc915049df160a1；R69 APP_INFRA_B 已套用專用 workload Secret/accessor，R70 Secret version2 已 ENABLED 且使用三個獨立 technical actors。R70 build-only run37090907394 FAILURE，app build成功但完整 native inventory 在 /home/nonroot 因 root cap-drop=ALL 缺少 DAC 讀取能力而 EACCES；migration/candidate/traffic 均未執行。不是 R66 vDSO 或應用授權錯誤。
 

@@ -27,12 +27,12 @@ export async function collectDev121BusinessStorageReadback({getJson,observedAt=n
   if(account.disabled===true || typeof account.uniqueId!=='string' || !/^[0-9]+$/u.test(account.uniqueId))fail('runtime_disabled_or_unverified');
   const core={schemaVersion:'jenfu.dev121.business-storage-readback.v1',observedAt,target,runtimeUniqueId:account.uniqueId,
     ownResourcesVerified:false,effectiveInheritedIamVerified:false,artifactProvenanceVerified:false,releaseAuthority:false,cloudMutations:0};
-  const bucket=await read('bucket',`https://storage.googleapis.com/storage/v1/b/${target.bucket}?fields=name,projectNumber,location,storageClass,iamConfiguration,softDeletePolicy,lifecycle,retentionPolicy,versioning,billing,metageneration`,{missing:true});
+  const bucket=await read('bucket',`https://storage.googleapis.com/storage/v1/b/${target.bucket}?fields=name,projectNumber,location,storageClass,iamConfiguration,softDeletePolicy,lifecycle,retentionPolicy,versioning,website,cors,billing,metageneration`,{missing:true});
   if(!bucket)return {...core,status:'BUSINESS_STORAGE_NOT_PROVISIONED',missingResource:target.bucket};
   equal(bucket.name,target.bucket,'bucket');equal(String(bucket.projectNumber),target.projectNumber,'bucket_project');equal(bucket.location,'ASIA-EAST1','bucket_location');equal(bucket.storageClass,'STANDARD','storage_class');
   equal(bucket.iamConfiguration?.uniformBucketLevelAccess?.enabled,true,'uniform_access');equal(bucket.iamConfiguration?.publicAccessPrevention,'enforced','public_access');
   equal(String(bucket.softDeletePolicy?.retentionDurationSeconds),'2592000','soft_delete');
-  if(bucket.lifecycle?.rule?.length || bucket.retentionPolicy || bucket.versioning?.enabled===true || bucket.billing?.requesterPays===true)fail('unexpected_lifecycle_policy');
+  if(Object.keys(bucket.website??{}).length || bucket.cors?.length || bucket.lifecycle?.rule?.length || bucket.retentionPolicy || bucket.versioning?.enabled===true || bucket.billing?.requesterPays===true)fail('unexpected_lifecycle_policy');
   const roleValue=await read('role',`https://iam.googleapis.com/v1/${role}?fields=name,includedPermissions,stage,deleted,etag`);
   equal(roleValue.name,role,'role_name');equal(roleValue.stage,'GA','role_stage');
   if(roleValue.deleted===true || !Array.isArray(roleValue.includedPermissions))fail('role_state');

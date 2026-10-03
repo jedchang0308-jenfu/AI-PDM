@@ -16,7 +16,7 @@ function fixture(){return [
  {name:role,stage:'GA',includedPermissions:['storage.objects.get','storage.objects.create']},
  {bindings:[{role,members:[subject]}]}
 ];}
-async function collect(values,{status=200}={}){let calls=0;const result=await collectDev121BusinessStorageReadback({observedAt:'2026-10-02T04:00:00Z',getJson:async url=>{assert.match(url,/^https:\/\/(cloudresourcemanager|iam|storage)\.googleapis\.com\//);assert.ok(!url.includes('release'));if(url.includes('/storage/v1/b/') && url.includes('?fields=')){const fields=new URL(url).searchParams.get('fields').split(',');assert.ok(fields.includes('billing'));assert.ok(!fields.includes('requesterPays'));}const body=values[calls++];return {status:body===null?404:status,body};}});return {result,calls};}
+async function collect(values,{status=200}={}){let calls=0;const result=await collectDev121BusinessStorageReadback({observedAt:'2026-10-02T04:00:00Z',getJson:async url=>{assert.match(url,/^https:\/\/(cloudresourcemanager|iam|storage)\.googleapis\.com\//);assert.ok(!url.includes('release'));if(url.includes('/storage/v1/b/') && url.includes('?fields=')){const fields=new URL(url).searchParams.get('fields').split(',');assert.ok(fields.includes('billing'));assert.ok(fields.includes('website'));assert.ok(fields.includes('cors'));assert.ok(!fields.includes('requesterPays'));}const body=values[calls++];return {status:body===null?404:status,body};}});return {result,calls};}
 test('matching direct resources do not claim inherited IAM or release authority',async()=>{const {result,calls}=await collect(fixture());assert.equal(calls,5);assert.equal(result.ownResourcesVerified,true);assert.equal(result.effectiveInheritedIamVerified,false);assert.equal(result.artifactProvenanceVerified,false);assert.equal(result.releaseAuthority,false);assert.equal(result.cloudMutations,0);assert.match(result.evidenceHashes.bucket,/^[a-f0-9]{64}$/);});
 test('absent bucket ends preflight without IAM reads',async()=>{const values=fixture();values[2]=null;const {result,calls}=await collect(values);assert.equal(calls,3);assert.equal(result.status,'BUSINESS_STORAGE_NOT_PROVISIONED');assert.equal(result.ownResourcesVerified,false);});
 for(const [name,mutate] of [
@@ -28,6 +28,10 @@ for(const [name,mutate] of [
  ['requester pays enabled',v=>v[2].billing={requesterPays:true}],
  ['short soft deletion',v=>v[2].softDeletePolicy.retentionDurationSeconds='604800'],
  ['expiration enabled',v=>v[2].lifecycle={rule:[{action:{type:'Delete'}}]}],
+ ['website enabled',v=>v[2].website={mainPageSuffix:'index.html'}],
+ ['CORS enabled',v=>v[2].cors=[{origin:['*']}]],
+ ['versioning enabled',v=>v[2].versioning={enabled:true}],
+ ['deleted role',v=>v[3].deleted=true],
  ['extra delete permission',v=>v[3].includedPermissions.push('storage.objects.delete')],
  ['public binding',v=>v[4].bindings.push({role:'roles/storage.objectViewer',members:['allUsers']})],
  ['additional runtime privilege',v=>v[4].bindings.push({role:'roles/storage.admin',members:[subject]})],

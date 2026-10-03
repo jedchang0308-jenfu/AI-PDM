@@ -1,4 +1,12 @@
-# R68 current execution order
+# R73 actual-plan correction (current, 2026-10-03)
+
+R72 build-only run 37092842311 succeeded for protected main c3b90abf8bfa4fcb0f3a8905f8c6356e14a4c4c5. Its first real storage plan failed before apply: Terraform 1.14.5 / Google provider 7.45.0 puts two already-read data sources in prior_state, three managed resources in planned_values/resource_changes, and all five declarations in configuration. Earlier tests fabricated two data read changes and missed this provider shape. The failed binary and journal remain in JENFU/DEV-015 output/dev-012/inputs/dev121-r72-business-storage-plan; no apply claim, storage resource, migration, candidate or traffic mutation resulted.
+
+The correction belongs only to the storage-specific validator: verify the complete reviewed configuration, exact data facts and managed change set separately; reject missing/duplicate/extra resources and cross-owner targets. Validate completed state directly instead of manufacturing a plan from state. Identity, permissions, binding and retention values remain exact and known. Provider-computed defaults need an explicit configuration check and final state/provider readback; they are not a general unknown-field exception. Existing immutable plan/source/deadline/binary binding and write-once apply remain mandatory.
+
+The 100 focused storage cases, owner contract tests, abort tests and database boundary pass locally. Finish independent review and required clean-lock CI for this single source/test/documentation batch, then use a fresh source-bound owner package, build/scan, saved plan, same-binary apply, state/provider/effective IAM, full release and business L4. Do not apply the failed R72 plan or treat its application build as proof of a changed source. Cost acceptance and fixed resource scope remain in force. The following R68 execution description supplies the unchanged command sequence; older pending-cost or plan-only statements are historical.
+
+# R68 retained command sequence
 
 Cost approval remains in force. Dispatch the existing protected owner workflow with `executionMode=build_only` to produce prepare/build artifacts without migration or candidate creation. Use that fresh immutable intent for the saved-plan and same-binary apply steps below; verify provider resources and effective inherited IAM. Only then dispatch `full_release` with the same still-valid capsule. Cached prepare revalidates all prerequisites and live service baseline before migration. Expired packages must be regenerated; no environment spoofing, timing race, extra human gate or new deployment identity is required. Earlier R41/R42 pending-cost and plan-only statements below are historical.
 
