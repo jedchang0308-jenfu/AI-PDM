@@ -1,4 +1,6 @@
-## R67 唯一現行交付續點（2026-10-03；共同邊界修正中，未發布）
+## R68 唯一現行交付續點（2026-10-03；PR195已合併，R67本機整鏈證據保留）
+
+R68 GCC續點（2026-10-03）：Jed gcloud登入已確認恢復；固定a417…映像的R65A disassembly／overflow probes、R66b成功子步驟與R66c實際Node／sharp／SQLite loader證據已核對。R66b整體FAILURE完整保留，R66c SUCCESS補足vDSO處理；僅關閉基線調查，不把舊artifact或本機測例當作新候選發布證據。同一owner consumer新增CVE-2026-95619專屬hash-bound評估，每個候選重新核對完整native與loader fingerprint；原CVE-2026-102010政策不变，原始HIGH保留，其他HIGH／CRITICAL與任何證據漂移仍拒絕。runtime template拒絕loader-control environment／Secret binding，既有revision readback核對command／args／volumeMounts。本機owner QC（含abort／DB boundary／typecheck／isolated build）已通過、primary SQLite不變且暫存已清理；immutable assessment及六份原始證據已create-only發布並hash讀回。protected PR／CI、新owner package與每個新artifact的實際inspection、workload Secret、business storage apply與Production L4仍待；不新增人工核准、主任務或正式Windows host確認。證據由JENFU/DEV-015 `output/dev-012/inputs/dev015-r68-loader-baseline.json`與本owner既有GCC QA的`alignedNewApplicability20261003R68`追溯。
 
 R67本批workload整合完成（本機，未發布）：PNG capability先前能要求PDF種類的共同缺口已修正，種類在DB前按server actor能力拒絕；實際HTTP拒絕後job仍queued/unlocked，再由native PNG worker完成。更新後actual Org001–029／AI076／PG18.4整鏈、附件command/replay／receipt/outbox／worker／fresh-process下載再次通過；lint、typecheck、新候選隔離build／主SQLite不變與OS清理通過。Luna唯讀復審無阻擋。session及storage仍為合成Principal/task-local，不能作provider或Production證據。grant counter維持7／8。證據沿JENFU/DEV-015 `dev015-r67-workload-completion-checkpoint.json`；R66成果保留歷史。
 
@@ -6,13 +8,13 @@ R66完整實際producer/native整鏈已通過：Org001–029、AI076、PG18.4；
 
 維持既有正式 Cloud SQL `jenfu-platform-prod-pg / jenfu_prod`；業務資料、附件 metadata／關聯／權限／稽核仍在原資料庫，檔案 bytes 使用 AI-PDM 專用永久 GCS `jenfu-platform-prod-aipdm-files`。不新增資料庫。用量費用已獲人類接受，US$10/月是初期目標而非硬上限；正式 bucket 尚未建立。
 
-AI-PDM PR194 已合併 protected main `25d256c2bab10d91abaa8d003f73edcf934c13c0`，required CI37040144459 SUCCESS；feature 同一工作樹已乾淨基線快轉並保留既有 GCC QA dirty。R64 migration-only run37041725201 的 image build 成功，但 artifact policy 因新增 CVE-2026-95619 拒絕，migrate SKIPPED，沒有新增正式 migration execution、service 或 traffic 變更。CVE-2026-102010 是原有 PBDS finding，不是新 finding。
+AI-PDM PR195 已合併 protected main `a712e03427529541d7084b6c716695bacbe95c28`，required CI37061781060 PostgreSQL cutover與Production Slice QC均SUCCESS；官方 checkout C:/tmp/dev014-contract-release/AI_PDM 已乾淨快轉至 main a712e03427529541d7084b6c716695bacbe95c28；feature worktree仍為 HEAD f8fb95eac88ddbe624ad3cd913c50ba1fd11f634，保留既有 GCC QA dirty。R64 migration-only run37041725201 的 image build 成功，但 artifact policy 因新增 CVE-2026-95619 拒絕，migrate SKIPPED，沒有新增正式 migration execution、service 或 traffic 變更。CVE-2026-102010 是原有 PBDS finding，不是新 finding。
 
 本批共同根因是 technical worker 身分由 caller label 決定且跨用途共用 token。新的 server credential registry 解析穩定 actor／用途／capability；preview、recognition、probe、broker caller 同批集中修改，不接受舊共用 token fallback，不把工作 actor變成人類 Principal。人類 initiator Principal／company、lease、source/hash、receipt/outbox 維持原契約。targeted auth/source tests、app typecheck、changed-file lint通過；真實隔離PG之 preview HTTP／領取／來源／完成／重播／Principal provenance與 recognition HTTP／holder／initiator／結果通過，兩組 runtime／port／TEMP／capacity lease已清理。這是最小 worker schema 整合，沒有把R62完整Org001–029／AI076的舊成果冒充修改後整鏈。
 
 固定本機入口 `npm run dev:local` 已補同一 workload 契約：三個固定 technical actor 各自具備用途／capability，Windows DPAPI CurrentUser 保存 local-only bundle，worker child 僅取得自身憑證，不繼承 server bundle／舊 token。19項實際 child 契約與PS syntax／scoped diff通過；沒有啟動日常主環境，task child／TEMP已由OS讀回清理。既有四個legacy QC在官方HEAD已有字串／tsconfig不一致；本批更新新auth assertions但不把其全套結果宣稱PASS，也不把舊字串差異直接當Production缺陷。證據 `dev015-r65-local-workload-launcher-checkpoint.json`；完整producer/native/provider/L4仍待。
 
-下一步依序補：GCC loader closure／CVE-specific owner policy、正式workload Secret numeric readback與worker host、fresh完整來源／owner package、storage saved-plan/apply／effective IAM，最後normal provider／完整候選／Production L4。下方R65及更早未完成敘述均為歷史讀點，不重跑已通過整鏈。
+下一步依序補：GCC loader closure／CVE-specific owner policy、正式workload Secret numeric ENABLED readback、fresh完整來源／owner package、storage saved-plan/apply／effective IAM，最後normal provider／完整候選／Production L4。正式Windows worker host確認／驗證已由人類於2026-10-03取消，從本輪與發布前置清單移除；不宣稱常駐host已選定、部署或PASS。Principal、claim、scope、command、outbox與背景工作實際功能L4分母維持不變。下方R65及更早未完成敘述均為歷史讀點，不重跑已通過整鏈。
 
 證據沿 JENFU/DEV-015 `output/dev-012/inputs/dev015-r65-worker-auth-delivery-checkpoint.json`、`dev015-r65-aligned-new-investigation.json` 與 AIPDM/DEV-121既有QA的workloadActorAuthentication。下列輪次狀態全部為歷史讀點；過去「現行、未推送、費用待決定」不再作本輪指令。固定業務分母及Principal-only架構要求持續有效。
 
