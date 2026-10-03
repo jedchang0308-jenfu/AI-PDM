@@ -717,5 +717,111 @@
       "Fresh official source/package; raw R64 image is not accepted release build evidence"
     ],
     "rawHighSeverityRetained": true
+  },
+  "businessStorageActualPlan20261003R73": {
+    "observedAt": "2026-10-03T03:37:15.638Z",
+    "status": "LOCAL_CORRECTION_VALIDATED_NOT_RELEASED",
+    "rootCause": "Production Terraform plan omitted already-read data sources from resource_changes; prior synthetic fixtures assumed all five addresses were changes.",
+    "sourceRevision": "c3b90abf8bfa4fcb0f3a8905f8c6356e14a4c4c5",
+    "ownerBuild": {
+      "runId": 37092842311,
+      "status": "SUCCESS",
+      "applicationBuild": "7bd50b72-69fe-46a8-84bf-38c645eb2bf4",
+      "nativeInspection": "08c52241-8ca6-4903-b8a9-110ed4ecf9f2"
+    },
+    "failedPlan": {
+      "terraformVersion": "1.14.5",
+      "providerVersion": "7.45.0",
+      "status": "PLAN_FAILED_NOT_APPLIED",
+      "failure": "DEV010_N1C_PLAN_PROFILE_MISMATCH: BUSINESS_STORAGE",
+      "binarySha256": "1e4f0d228086ed0e16c846a239187fec5dae662707c1ded68ebb417311580ec1",
+      "journalSha256": "5358736e2d71d7ad16088252f49783678c9c26d09ca3eb7f17ce90a75e36dabd",
+      "changeAddresses": [
+        "google_project_iam_custom_role.business_objects",
+        "google_storage_bucket.business",
+        "google_storage_bucket_iam_member.runtime_objects"
+      ],
+      "priorDataAddresses": [
+        "data.google_project.current",
+        "data.google_service_account.runtime"
+      ],
+      "configurationAddresses": 5,
+      "applyExecuted": false
+    },
+    "correctionBoundary": {
+      "dedicatedStorageValidator": true,
+      "genericGateUnchanged": true,
+      "completeConfigurationAndResourceOwnership": true,
+      "providerComputedFieldsRequireExplicitChecksAndReadback": true,
+      "noMissingOrAdditionalResources": true,
+      "noWeakenedIam": true
+    },
+    "production": {
+      "businessStorageApplied": false,
+      "migrationExecuted": false,
+      "candidateCreated": false,
+      "trafficChanged": false,
+      "l4Complete": false
+    },
+    "remaining": [
+      "One PR with required clean-lock CI",
+      "Fresh source-bound owner package/build",
+      "Saved plan/apply/state/provider/effective IAM",
+      "Full owner release and F01-F10 Production L4"
+    ],
+    "formalWindowsHostVerification": "CANCELLED_BY_HUMAN",
+    "grantBoundaryCounterChanged": false,
+    "localValidation": {
+      "observedAt": "2026-10-03T03:57:48.837Z",
+      "storageTests": {
+        "passed": 100,
+        "failed": 0,
+        "command": "node --test scripts/lib/dev121-business-storage-plan.test.mjs scripts/lib/dev121-business-storage-readback.test.mjs scripts/lib/dev121-business-storage-saved-plan.test.mjs"
+      },
+      "ownerContinuousTests": "PASS",
+      "abortTests": {
+        "passed": 6,
+        "failed": 0
+      },
+      "databaseBoundary": "PASS",
+      "diffCheck": "PASS",
+      "cleanLockTypecheckAndBuild": "PENDING_REQUIRED_CI",
+      "qcWrapperAttempt": {
+        "result": "STOPPED_BEFORE_BUILD",
+        "reason": "Direct node invocation lacked npm_execpath; run the existing npm script in required CI. Not an application test failure."
+      },
+      "derivedActualPlan": {
+        "result": "PASS_AFTER_EXPLICIT_VERSIONING_FALSE",
+        "scope": "LOCAL_DERIVED_ACTUAL_PLAN_FIXTURE",
+        "originalR72Plan": "STILL_REJECTED",
+        "actualProviderApplied": false,
+        "releaseAuthority": false
+      }
+    },
+    "implementation": [
+      "Complete five-resource configuration plus two resolved data facts and exactly three managed create/no-op changes",
+      "Direct complete-state validation without synthetic no-op plans",
+      "Explicit disabled versioning; first-create computed website/deleted require configuration and completed state/provider checks",
+      "Known exact IAM permissions, binding, retention, source/artifact variables; generic gate unchanged",
+      "Saved binary, deadline, protected source, remote apply claim and unknown-outcome reconciliation unchanged"
+    ],
+    "changedSourceHashes": {
+      "scripts/lib/dev121-business-storage-plan.mjs": "0098cb17f67854e8cd2c5a954f1204977e94bb8b02ef2028fe5298a7cd9af3f6",
+      "scripts/lib/dev121-business-storage-readback.mjs": "9d1a2b855afc7087a562fda67461b4afec258562ec6ebe93918042e211006e3d",
+      "scripts/lib/dev121-business-storage-saved-plan.mjs": "3131fb59bda124d63bf6e0a1f5df923dca2d581aa44a49ed8d3ea448bb746be8",
+      "scripts/lib/dev121-business-storage-fixtures.mjs": "bf47cec35615d5a35266e875d54dcf2fc28168ca547eecfccfed5b760305ee17",
+      "scripts/lib/dev121-business-storage-plan.test.mjs": "b9fe88d40747afa97f98a9a8ecf289f1792eb980837f87db8f87bad10b45528b",
+      "scripts/lib/dev121-business-storage-readback.test.mjs": "20c0adbfa7d7afb7765fc6a1dc9611f704f98cee965852a8903d0fda90b45d92",
+      "scripts/lib/dev121-business-storage-saved-plan.test.mjs": "5e0d9ed7acb0c0e478511ac08d28683958109afdd7d380e80ba74a9e859dfa75",
+      "infra/google-cloud/dev-121-business-storage/main.tf": "2ccdf9e1672fe73fccf24b58b67c9c093c8f6579b1c388b4310e7f7145ffc83b"
+    },
+    "independentReview": {
+      "reviewer": "/root/r46_fixture_grant_readonly",
+      "mode": "READ_ONLY_DIFF_REVIEW",
+      "result": "NO_P0_P1",
+      "finding": "P2 complete/errored flags must be exact booleans",
+      "resolution": "Strict true/false required; missing/nonboolean/wrong flags regression passes",
+      "cloudMutations": 0
+    }
   }
 }

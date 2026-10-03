@@ -5,16 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {canonicalize,sha256} from './dev012-production-migration-runner.mjs';
 import {prepareDev121BusinessStoragePlan,applyDev121BusinessStoragePlan,reconcileDev121BusinessStoragePlan,storageTerraformEnvironment,verifyStorageSourceProtection} from './dev121-business-storage-saved-plan.mjs';
-const profile=JSON.parse(fs.readFileSync(new URL('../../config/release/dev121-business-storage-plan.json',import.meta.url),'utf8'));
-const expectedInputs={source_revision:'a'.repeat(40),foundation_manifest_sha256:'b'.repeat(64),application_image_digest:'sha256:'+'c'.repeat(64),migration_runner_image_digest:'sha256:'+'d'.repeat(64)};
-function plan(){
- const values=[{project_id:'jenfu-platform-prod',number:'9536592944'},
- {project:'jenfu-platform-prod',account_id:'aipdm-prod-runtime',email:profile.target.runtimeIdentity},
- {project:'jenfu-platform-prod',name:profile.target.bucket,location:'ASIA-EAST1',storage_class:'STANDARD',uniform_bucket_level_access:true,public_access_prevention:'enforced',force_destroy:false,soft_delete_policy:[{retention_duration_seconds:2592000}],lifecycle_rule:[],retention_policy:[],website:[],cors:[],requester_pays:false,versioning:[]},
- {project:'jenfu-platform-prod',role_id:'aipdmBusinessImmutableObjects',stage:'GA',permissions:['storage.objects.get','storage.objects.create'],deleted:false},
- {bucket:profile.target.bucket,role:'projects/jenfu-platform-prod/roles/aipdmBusinessImmutableObjects',member:'serviceAccount:'+profile.target.runtimeIdentity,condition:[]}];
- return {variables:Object.fromEntries(Object.entries(expectedInputs).map(([key,value])=>[key,{value}])),resource_changes:profile.profiles.BUSINESS_STORAGE.addresses.map((address,index)=>({address,change:{actions:[index<2?'read':'create'],before:null,after:values[index],after_unknown:{}}}))};
-}
+import {profile,expectedInputs,businessStoragePlanFixture as plan,businessStorageStateFixture} from './dev121-business-storage-fixtures.mjs';
 function fixture(t){
  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'dev121-saved-plan-test-'));
  t.after(()=>fs.rmSync(temp,{recursive:true,force:true}));
@@ -53,7 +44,7 @@ test('existing output and output inside source are rejected without execution',a
  await assert.rejects(prepareDev121BusinessStoragePlan({...f.args,outputDirectory:path.join(f.args.root,'output')},f.dependencies),/OUTPUT_INSIDE_SOURCE/);assert.equal(f.calls.length,0);
 });
 test('actual unsafe plan fails with evidence retained and no apply',async t=>{
- const f=fixture(t);const execute=f.dependencies.terraform;f.dependencies.terraform=(args,options)=>{const result=execute(args,options);if(args[0]!=='show')return result;const unsafe=JSON.parse(result);unsafe.resource_changes[2].change.after.public_access_prevention='inherited';return JSON.stringify(unsafe);};
+ const f=fixture(t);const execute=f.dependencies.terraform;f.dependencies.terraform=(args,options)=>{const result=execute(args,options);if(args[0]!=='show')return result;const unsafe=JSON.parse(result);unsafe.resource_changes[0].change.after.public_access_prevention='inherited';return JSON.stringify(unsafe);};
  await assert.rejects(prepareDev121BusinessStoragePlan(f.args,f.dependencies),/public_access_prevention/);
  assert.equal(JSON.parse(fs.readFileSync(path.join(f.args.outputDirectory,'saved-plan.json'))).status,'PLAN_FAILED_NOT_APPLIED');assert.equal(f.calls.some(call=>call.args[0]==='apply'),false);
 });
@@ -93,7 +84,7 @@ async function applyFixture(t){
  const binding={project_id:'jenfu-platform-prod',project_number:'9536592944',region:'asia-east1',bucket:profile.target.bucket,runtime_identity:profile.target.runtimeIdentity,permissions:['storage.objects.create','storage.objects.get'],...expectedInputs};
  const output={business_storage_binding:{value:binding}};
  f.dependencies.terraform=(args,options)=>{
-   if(args[0]==='show'&&args.length===2){f.calls.push({args,...options});return JSON.stringify({values:{outputs:output,root_module:{resources:plan().resource_changes.map(row=>({address:row.address,values:row.change.after}))}}});}
+   if(args[0]==='show'&&args.length===2){f.calls.push({args,...options});return JSON.stringify({values:{outputs:output,root_module:{resources:businessStorageStateFixture().values.root_module.resources}}});}
    if(args[0]==='state'){f.calls.push({args,...options});return JSON.stringify({lineage:'test-state-lineage',serial:1});}
    if(args[0]==='output'){f.calls.push({args,...options});return JSON.stringify(output);}
    return original(args,options);

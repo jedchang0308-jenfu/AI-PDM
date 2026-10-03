@@ -7,7 +7,7 @@ import {readGitAuthority} from './dev012-owner-prerequisite-producer.mjs';
 import {verifyOfficialMergedSource} from './dev012-official-source-review.mjs';
 import {collectDev121StoragePlanInputs,collectDev121BusinessStorageReadback} from './dev121-business-storage-readback.mjs';
 import {canonicalize,readGcsObject,publishGcsJson} from './dev012-production-migration-runner.mjs';
-import {assertDev121BusinessStoragePlan} from './dev121-business-storage-plan.mjs';
+import {assertDev121BusinessStoragePlan,assertDev121BusinessStorageState} from './dev121-business-storage-plan.mjs';
 
 const ROOT='infra/google-cloud/dev-121-business-storage';
 const FILES=['main.tf','versions.tf','.terraform.lock.hcl'];
@@ -204,7 +204,7 @@ function verifyStorageState(rawState,actual,output,profile,expectedInputs){
     if(actual.values?.root_module?.child_modules?.length)fail('STATE_EXTRA_MODULES');
     const resources=actual.values?.root_module?.resources;
     if(!Array.isArray(resources))fail('STATE_READBACK_INVALID');
-    assertDev121BusinessStoragePlan({variables:Object.fromEntries(Object.entries(expectedInputs).map(([key,value])=>[key,{value}])),resource_changes:resources.map(row=>({address:row.address,change:{actions:['no-op'],before:row.values,after:row.values,after_unknown:{}}}))},{profile:profile,expectedInputs:expectedInputs});
+    assertDev121BusinessStorageState(actual,{profile});
   return state;
 }
 
