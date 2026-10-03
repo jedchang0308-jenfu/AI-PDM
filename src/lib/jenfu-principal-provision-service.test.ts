@@ -41,13 +41,13 @@ describe("principal-only account owner service", () => {
     snapshot.queryOne.mockResolvedValue({ receipt: result });
   });
 
-  it("checks exact permission and producer tuple before one owner command in a serializable transaction", async () => {
+  it("checks current permission before one native receipt/CAS command in a serializable transaction", async () => {
     expect(await provisionPrincipalAccount({ body } as never)).toEqual(result);
     expect(mocks.verified).toHaveBeenCalledWith(expect.anything(), expect.any(Function),
       { readOnly: false, isolationLevel: "serializable" });
     expect(mocks.evaluate).toHaveBeenCalledWith(snapshot, actor,
       [{ permissionKind: "action", permissionCode: "accounts.invitation.manage" }]);
-    expect(mocks.candidates).toHaveBeenCalledWith("principal-target");
+    expect(mocks.candidates).not.toHaveBeenCalled();
     const [sql, params] = snapshot.queryOne.mock.calls[0];
     expect(sql).toContain("ai_pdm_core.provision_principal_account_v1");
     expect(params.actorPrincipalId).toBe("principal-admin");
@@ -58,15 +58,51 @@ describe("principal-only account owner service", () => {
     expect(JSON.parse(params.requestJson)).not.toHaveProperty("role");
   });
 
-  it("denies absent capability or changed published source before owner mutation", async () => {
+  it("denies absent capability before the owner command", async () => {
     mocks.evaluate.mockResolvedValue([{ allowed: false }]);
     await expect(provisionPrincipalAccount({ body } as never))
       .rejects.toMatchObject({ code: "permission_not_granted", httpStatus: 403 });
-    mocks.evaluate.mockResolvedValue([{ allowed: true }]);
-    mocks.candidates.mockResolvedValue([{ ...candidate, mappingVersion: 8 }]);
+    expect(snapshot.queryOne).not.toHaveBeenCalled();
+  });
+
+  it("preserves native exact source-CAS denial", async () => {
+    snapshot.queryOne.mockRejectedValueOnce(new Error("AIPDM_PROVISION_SOURCE_DRIFT"));
     await expect(provisionPrincipalAccount({ body } as never))
       .rejects.toMatchObject({ code: "source_drift", httpStatus: 409 });
-    expect(snapshot.queryOne).not.toHaveBeenCalled();
+    expect(snapshot.queryOne).toHaveBeenCalledTimes(1);
+    expect(mocks.candidates).not.toHaveBeenCalled();
+  });
+
+  it("retains all six published microsecond digits in the native CAS payload", async () => {
+    const precise = { ...candidate, publishedAt: "2026-09-25T01:23:45.891123Z" };
+    expect(await provisionPrincipalAccount({ body: { ...body, principalRef: precise } } as never))
+      .toEqual(result);
+    expect(snapshot.queryOne).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(snapshot.queryOne.mock.calls[0][1].requestJson)).toMatchObject({
+      principalRef: precise, accountEnabled: false
+    });
+  });
+
+  it("lets the native owner replay a frozen operation after its producer publication changes", async () => {
+    mocks.candidates.mockResolvedValue([{
+      ...candidate, mappingVersion: 8, publishedAt: "2026-09-25T01:23:45.000001Z"
+    }]);
+    snapshot.queryOne.mockResolvedValueOnce({ receipt: { ...result, replayed: true } });
+    expect(await provisionPrincipalAccount({ body } as never)).toEqual({ ...result, replayed: true });
+    expect(mocks.candidates).not.toHaveBeenCalled();
+    expect(JSON.parse(snapshot.queryOne.mock.calls[0][1].requestJson)).toMatchObject({
+      principalRef: candidate, operationId: body.operationId
+    });
+  });
+
+  it.each([
+    ["AIPDM_PROVISION_PERMISSION_DENIED", "permission_not_granted", 403],
+    ["AIPDM_PROVISION_ACTOR_INVALID", "permission_not_granted", 403],
+    ["AIPDM_PROVISION_OPERATION_CONFLICT", "operation_conflict", 409]
+  ])("preserves owner authority and frozen-operation failure %s", async (message, code, httpStatus) => {
+    snapshot.queryOne.mockRejectedValueOnce(new Error(String(message)));
+    await expect(provisionPrincipalAccount({ body } as never))
+      .rejects.toMatchObject({ code, httpStatus });
   });
 
   it.each(["entitlement_assignment_not_found", "entitlement_contract_mismatch", "entitlement_authority_unavailable"] as const)

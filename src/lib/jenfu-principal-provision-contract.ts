@@ -1,4 +1,5 @@
 import type { JenfuPrincipalCandidate } from "@/lib/jenfu-principal-candidate-repository";
+import { canonicalPrincipalSourceTimestamp } from "@/lib/jenfu-principal-source-timestamp";
 
 export const JENFU_PRINCIPAL_PROVISION_VERSION = "ai-pdm.principal-provision.v1" as const;
 
@@ -41,9 +42,7 @@ export function parseJenfuPrincipalProvisionRequest(value: unknown): JenfuPrinci
     (value.principalRef.accountType !== "human_personal" && value.principalRef.accountType !== "human_privileged") ||
     !Number.isSafeInteger(value.principalRef.mappingVersion) ||
     (value.principalRef.mappingVersion as number) < 1 ||
-    typeof value.principalRef.publishedAt !== "string" ||
-    !Number.isFinite(Date.parse(value.principalRef.publishedAt)) ||
-    new Date(value.principalRef.publishedAt).toISOString() !== value.principalRef.publishedAt ||
+    canonicalPrincipalSourceTimestamp(value.principalRef.publishedAt) === null ||
     typeof value.displayName !== "string" || !value.displayName.trim() ||
     value.displayName.length > 255 || /[\u0000-\u001f\u007f]/u.test(value.displayName) ||
     (value.accountEnabled !== undefined && typeof value.accountEnabled !== "boolean") ||
@@ -76,7 +75,8 @@ export function principalProvisionSourceMatches(
   requested: JenfuPrincipalCandidate,
   current: readonly JenfuPrincipalCandidate[]
 ): boolean {
-  if (current.length < 1 || current.length > 32) return false;
+  const requestedTimestamp = canonicalPrincipalSourceTimestamp(requested.publishedAt);
+  if (requestedTimestamp === null || current.length < 1 || current.length > 32) return false;
   const exact = current.filter((candidate) =>
     candidate.principalId === requested.principalId &&
     candidate.identityIssuer === requested.identityIssuer &&
@@ -84,8 +84,9 @@ export function principalProvisionSourceMatches(
     candidate.employeeId === requested.employeeId &&
     candidate.accountType === requested.accountType &&
     candidate.mappingVersion === requested.mappingVersion &&
-    candidate.publishedAt === requested.publishedAt);
+    canonicalPrincipalSourceTimestamp(candidate.publishedAt) === requestedTimestamp);
   return exact.length === 1 && current.every((candidate) =>
+    canonicalPrincipalSourceTimestamp(candidate.publishedAt) !== null &&
     candidate.principalId === requested.principalId &&
     candidate.employeeId === requested.employeeId &&
     candidate.accountType === requested.accountType);

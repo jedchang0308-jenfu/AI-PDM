@@ -28,7 +28,7 @@ exact provider pair／Principal／Employee／account type先核對active typed p
 
 `principal_accounts`是application association／lifecycle，不是第二個Principal註冊處；同一company/profile/Principal唯一關聯，version/CAS受控。`pdm_user_id`、歷史users/UID與外鍵保留，舊role/membership/system-role mirror不授權。原停用、未核實者維持suspended；一次核對／轉換不等於enable。
 
-新profile沿既有account-management及exact provision command，create-only輸入已發布target Principal/pair/Employee/type、expected source revision、已驗actor、server-bound company、operation id；accountEnabled省略false，初始沒有複製grant／delegation。callback不auto-enroll，email只contact。enable須producer active及既有顯式命令；停用／profile變版使現有session失效。runtime只授受控函式，不直接改安全state，不用GUC/marker繞過fence。
+新profile沿既有account-management及exact provision command，create-only輸入已發布target Principal/pair/Employee/type、expected source revision、已驗actor、server-bound company、operation id；accountEnabled省略false，初始沒有複製grant／delegation。callback不auto-enroll，email只contact。enable須producer active及既有顯式命令；停用／profile變版使現有session失效。runtime只授受控函式，不直接改安全state，不用GUC/marker繞過fence。 候選 publishedAt 以 UTC 六位微秒文字保留，禁止經 JavaScript Date 截斷；請求只接受有效 Gregorian UTC 日曆的三位或六位小數，原字串保留於 frozen command／input hash。三位毫秒僅等價六位且末三位為 000，不降低 native exact source CAS。新寫入與同操作重播由既有 owner 函式在目前 actor／permission 核對後先查 exact receipt，再對未成功操作驗 source；不在 receipt 前重查 target publication 阻擋已提交操作核對。
 
 正常認證只用Platform handoff v2。token固定header／signature/keyId/type/schema／app/audience，verified pair、principalId、employeeId、sessionId、principal epoch、lifecycle/profile version、company、原authentication time、issued/expiry及assurance facts/policy hash依既有owner parser核對。target session上限為既有8小時及sourceSessionExpiresAt最小值，不取短assertion expiry；token refresh不延長來源或改寫authentication time。cookie/credential不進command/receipt。
 

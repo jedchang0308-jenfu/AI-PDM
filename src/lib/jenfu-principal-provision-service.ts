@@ -1,9 +1,8 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-import { JenfuPrincipalCandidateRepository } from "@/lib/jenfu-principal-candidate-repository";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import {
   JenfuPrincipalProvisionInputError, parseJenfuPrincipalProvisionRequest,
-  principalProvisionSourceMatches, type JenfuPrincipalProvisionRequest
+  type JenfuPrincipalProvisionRequest
 } from "@/lib/jenfu-principal-provision-contract";
 import {
   withVerifiedJenfuPrincipalRequest,
@@ -73,7 +72,7 @@ function receipt(value: unknown, expected: JenfuPrincipalProvisionRequest): Prin
   return row as PrincipalProvisionReceipt;
 }
 
-/** Transaction-bound command: permission, producer source and mutation share one snapshot. */
+/** Transaction-bound command: current permission and native receipt/CAS share one snapshot. */
 export async function provisionPrincipalAccountInSnapshot(
   snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest, body: unknown
 ): Promise<PrincipalProvisionReceipt> {
@@ -85,11 +84,9 @@ export async function provisionPrincipalAccountInSnapshot(
     if (decisions.length !== 1 || !decisions[0].allowed) {
       throw new JenfuPrincipalProvisionError("permission_not_granted", 403);
     }
-    const current = await new JenfuPrincipalCandidateRepository(snapshot)
-      .listByPrincipal(input.principalRef.principalId);
-    if (!principalProvisionSourceMatches(input.principalRef, current)) {
-      throw new JenfuPrincipalProvisionError("source_drift", 409);
-    }
+    // The owner function checks current authority, then the frozen-operation receipt,
+    // then exact source CAS only for a new write. Rechecking the producer here would
+    // block recovery of a committed operation after its producer publication changed.
     const row = await snapshot.queryOne<{ receipt: unknown }>(`
       SELECT ai_pdm_core.provision_principal_account_v1(
         :requestJson::jsonb,:actorPrincipalId,:actorIssuer,:actorSubject,:sessionHash

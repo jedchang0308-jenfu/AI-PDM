@@ -1,5 +1,6 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JENFU_ACTIVE_PRINCIPAL_CONTRACT_VERSION } from "@/lib/jenfu-principal-admission-repository";
+import { canonicalPrincipalSourceTimestamp } from "@/lib/jenfu-principal-source-timestamp";
 
 export type JenfuPrincipalCandidate = {
   principalId: string;
@@ -20,7 +21,7 @@ type CandidateRow = {
   employee_status: string;
   account_type: string;
   mapping_version: number | string;
-  published_at: string | Date;
+  published_at: string;
 };
 
 export class JenfuPrincipalCandidateError extends Error {
@@ -45,12 +46,14 @@ export class JenfuPrincipalCandidateRepository {
     try {
       rows = await this.client.query<CandidateRow>(`
         SELECT contract_version,principal_issuer,principal_subject,principal_id,
-               employee_id,employee_status,account_type,mapping_version,published_at
+               employee_id,employee_status,account_type,mapping_version,
+               pg_catalog.to_char(published_at AT TIME ZONE 'UTC',
+                 :publishedAtFormat) AS published_at
         FROM orgmaster_contract.v_active_principal_accounts_v1
         WHERE principal_id=:principalId
         ORDER BY principal_issuer,principal_subject
         FETCH FIRST 33 ROWS ONLY
-      `, { principalId });
+      `, { principalId, publishedAtFormat: 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"' });
     } catch {
       throw new JenfuPrincipalCandidateError("principal_candidate_unavailable");
     }
@@ -60,14 +63,14 @@ export class JenfuPrincipalCandidateRepository {
     let type: JenfuPrincipalCandidate["accountType"] | null = null;
     return rows.map((row) => {
       const version = Number(row.mapping_version);
-      const publishedAt = row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at ?? "");
+      const publishedAt = row.published_at;
       const accountType = row.account_type;
       const pair = `${row.principal_issuer}\0${row.principal_subject}`;
       if (row.contract_version !== JENFU_ACTIVE_PRINCIPAL_CONTRACT_VERSION ||
         row.principal_id !== principalId || row.employee_status !== "active" ||
         !exactText(row.principal_issuer) || !exactText(row.principal_subject) || !exactText(row.employee_id) ||
         (accountType !== "human_personal" && accountType !== "human_privileged") ||
-        !Number.isSafeInteger(version) || version < 1 || !Number.isFinite(Date.parse(publishedAt)) ||
+        !Number.isSafeInteger(version) || version < 1 || canonicalPrincipalSourceTimestamp(publishedAt) === null ||
         pairs.has(pair) || (owner !== null && owner !== row.employee_id) ||
         (type !== null && type !== accountType)) {
         throw new JenfuPrincipalCandidateError("principal_candidate_contract_mismatch");
@@ -77,7 +80,7 @@ export class JenfuPrincipalCandidateRepository {
       type = accountType;
       return { principalId, employeeId: row.employee_id, accountType,
         identityIssuer: row.principal_issuer, identitySubject: row.principal_subject,
-        mappingVersion: version, publishedAt: new Date(publishedAt).toISOString() };
+        mappingVersion: version, publishedAt };
     });
   }
 }
