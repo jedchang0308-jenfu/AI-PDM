@@ -1,0 +1,148 @@
+{
+  "schemaVersion": "aipdm.dev121.authorization-candidate.v1",
+  "task": "AIPDM/DEV-121",
+  "sourceTask": "JENFU/DEV-015",
+  "observedAt": "2026-10-03T06:26:18.964Z",
+  "status": "LOCAL_AND_REAL_POSTGRES_VERIFIED_NOT_MERGED",
+  "baseHead": "7b02d83d9f5a1ac76002f955f9c9f48939ec8c8d",
+  "testedIndexTree": "407fa911cae93df7afd6a39dd1775336c43979f9",
+  "productionMutation": false,
+  "sourceFiles": [
+    {
+      "path": "src/lib/drawing-revision-work.ts",
+      "sha256": "ed5dd273c5933c80a7681e541412d0ac5aee8f423015a394942c980d9c749b82"
+    },
+    {
+      "path": "src/lib/drawing-revision-work.principal.test.ts",
+      "sha256": "1240396a3b7ba04be74202e5c3be256db2d9c2157cb81f06f0d4cd9844bfc796"
+    },
+    {
+      "path": "src/lib/repositories/pdm-principal-reviewer-selector.ts",
+      "sha256": "d0666723841feb225bef08b721d7add6b4ef30d55506963d099087c14b7ff33e"
+    },
+    {
+      "path": "src/lib/repositories/pdm-principal-reviewer-selector.test.ts",
+      "sha256": "2cd1c13180cbbd754b5b81c9121037bd1349762a3a54342817ba01d0639e8c08"
+    },
+    {
+      "path": "scripts/lib/dev121-business-storage-plan.mjs",
+      "sha256": "607a1c5e136b0eba1a09120cf64adb2b4cc8e60fe9a73748be51d4d682a45f1b"
+    },
+    {
+      "path": "scripts/lib/dev121-business-storage-fixtures.mjs",
+      "sha256": "7f762ca0d50f3ad858001fe5fd414ea6996cc7da73fa323b32f0ccd933b9522d"
+    },
+    {
+      "path": "scripts/lib/dev121-business-storage-plan.test.mjs",
+      "sha256": "b9c58f70c64f2a9be5fbe510aef74ddce2d5d2d03ee55cefc8960405c3662484"
+    }
+  ],
+  "validation": {
+    "principalReviewerAndDrawing": {
+      "status": "PASS_LOCAL_ONLY",
+      "caseCount": 36
+    },
+    "storagePlanApplyBarrierReadback": {
+      "status": "PASS_LOCAL_ONLY",
+      "caseCount": 102
+    },
+    "appTypecheck": "PASS_LOCAL_ONLY",
+    "producerConsumer": {
+      "status": "PASS_REAL_DISPOSABLE_POSTGRES",
+      "owner": "ORGMASTER/DEV-057",
+      "sourceRevision": "625a86abc669926f2a1d37a4d04f8e59fc5ab2cc",
+      "postgresVersion": "18.4",
+      "executedCaseCount": 24,
+      "caseIds": [
+        "D57-01",
+        "D57-10",
+        "D57-24",
+        "D57-09",
+        "D57-18",
+        "D57-19",
+        "D57-02",
+        "D57-03",
+        "D57-04",
+        "D57-05",
+        "D57-06",
+        "D57-11",
+        "D57-17",
+        "D57-20",
+        "D57-23",
+        "D57-12",
+        "D57-13",
+        "D57-14",
+        "D57-15",
+        "D57-16",
+        "D57-07",
+        "D57-08",
+        "D57-21",
+        "D57-22"
+      ],
+      "checks": {
+        "assignmentRevocationScope": "D57-21",
+        "managementPublicationWriter": "D57-22"
+      },
+      "productionWrites": false,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    }
+  },
+  "evidenceLimits": [
+    "Native 24 cases exercise actual OrgMaster publication/identity/grants and AI-PDM consumer/transfer/download/review fixtures; they do not independently prove Drawing-major publish-denial rollback in PostgreSQL.",
+    "Drawing-major numbering.publish denial ordering and zero approval/formalization/terminal-receipt calls are covered at the verified evaluator mock seam; current catalog reviewer roles jointly grant decide and publish, so selective publish-only revocation is not represented by this native fixture.",
+    "Production owner release, canonical auth L4, session/logout/recovery and full normal-caller closure remain pending."
+  ],
+  "review": {
+    "reviewer": "/root/r64_gcc_current_impact_readonly",
+    "status": "NO_P0_P1_SOURCE_FINDING",
+    "reviewedTree": "407fa911cae93df7afd6a39dd1775336c43979f9",
+    "p2EvidenceLimitDisclosed": true
+  },
+  "excluded": [
+    "migration077",
+    "basisv2 and general canonical lifecycle",
+    "general UI/algorithm/attachment business completion"
+  ],
+  "deferredTask": "AIPDM/DEV-122",
+  "sharedGrantFailureCounter": 7,
+  "threshold": 8,
+  "cleanup": "PASS_CLEANED",
+  "artifacts": [
+    {
+      "path": "../../../Jenfu-Platform/output/dev-012/inputs/dev121-auth-candidate-local-20261003-longpaths-context/test-results.json",
+      "sha256": "96b1c0ea819d7b71c1ad3515cbc3975cff52691e928cd9c8e9a6449422bd3a00"
+    },
+    {
+      "path": "../../../Jenfu-Platform/output/dev-012/inputs/dev015-auth-scope-native-pg-20261003.json",
+      "sha256": "dd752bdb9c25280bf7259275820294274a78442ae65e85352de80efea8692eb8"
+    },
+    {
+      "path": "../../../Jenfu-Platform/output/dev-012/inputs/dev121-auth-candidate-local-20261003-git-context/principal-tests.log",
+      "sha256": "ee2235b02d5b99afc073c3b2bbf26ebe732aa901f5f9bd844dd92a00d9988fef"
+    },
+    {
+      "path": "../../../Jenfu-Platform/output/dev-012/inputs/dev121-auth-candidate-local-20261003-longpaths-context/storage-tests.log",
+      "sha256": "b230cedd8f1b5cded66ecf3c927f47e7a4b475fcad24363d901f7cf830136cc1"
+    },
+    {
+      "path": "../../../Jenfu-Platform/output/dev-012/inputs/dev121-auth-candidate-local-20261003-longpaths-context/typecheck-app.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "../../../Jenfu-Platform/output/dev-012/inputs/dev121-auth-candidate-temp-cleanup-20261003.json",
+      "sha256": "1b088bf68c6516fc23c23cd4d5fb79bbed494e8a3ba4e6176111054090fa5b92"
+    }
+  ],
+  "failedAttemptsPreserved": [
+    "dev121-auth-candidate-local-20261003 (incomplete major FFF test fixture)",
+    "dev121-auth-candidate-local-20261003-fixture-fix (snapshot lacks Git metadata)",
+    "dev121-auth-candidate-local-20261003-git-context (Windows Git MAX_PATH)"
+  ],
+  "next": "One coherent protected-source PR with required CI, fresh owner source package/read-only R75 storage reconciliation, owner release and authorization-only Production L4; no saved plan reapply."
+}

@@ -1,0 +1,214 @@
+{
+  "contract": "DEV-121",
+  "owner": "AI-PDM",
+  "scope": "AI_PDM_INTERNAL_NECESSARY_WORKFLOW",
+  "generatedAt": "2026-10-03T05:07:57.372Z",
+  "affectedFlows": [
+    "F08 attachment upload/download and native preview"
+  ],
+  "sharedGrantBoundary": {
+    "changed": false,
+    "orgmasterContractChanged": false,
+    "failureCounterIncrement": 0
+  },
+  "source": {
+    "officialBoundRevision": "2806b72ec1909e969c5747f95a2a7e70130e89f0",
+    "localCorrection": "UNCOMMITTED_CANDIDATE_DIAGNOSTIC",
+    "files": {
+      "scripts/lib/dev121-business-storage-plan.mjs": "607a1c5e136b0eba1a09120cf64adb2b4cc8e60fe9a73748be51d4d682a45f1b",
+      "scripts/lib/dev121-business-storage-fixtures.mjs": "7f762ca0d50f3ad858001fe5fd414ea6996cc7da73fa323b32f0ccd933b9522d",
+      "scripts/lib/dev121-business-storage-plan.test.mjs": "b9c58f70c64f2a9be5fbe510aef74ddce2d5d2d03ee55cefc8960405c3662484"
+    }
+  },
+  "rootCause": "Google provider persists bucket IAM member bucket as b/<exact-name>; the old validator only accepted the bare name after a successful apply.",
+  "correction": "Create input remains the exact bare bucket; state and no-op accept only the exact provider form and require the full exact bucket/role/member identity. No apply-claim, source-provenance or resource scope relaxation.",
+  "localValidation": {
+    "status": "PASS",
+    "command": "node --test scripts/lib/dev121-business-storage-plan.test.mjs scripts/lib/dev121-business-storage-saved-plan.test.mjs scripts/lib/dev121-business-storage-readback.test.mjs",
+    "caseCount": 102,
+    "productionBusinessFlow": false,
+    "observedAt": "2026-10-03T05:15:37.000Z"
+  },
+  "buildOnly": {
+    "conclusion": "success",
+    "createdAt": "2026-10-03T04:27:09Z",
+    "databaseId": 37096584505,
+    "headSha": "2806b72ec1909e969c5747f95a2a7e70130e89f0",
+    "status": "completed",
+    "updatedAt": "2026-10-03T04:36:03Z",
+    "url": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37096584505"
+  },
+  "actualApply": {
+    "releaseId": "DEV121-AI-PDM-ATTACHMENT-STORAGE-20261003-R75",
+    "status": "APPLIED_READBACK_OR_RECEIPT_FAILED",
+    "applyExecuted": true,
+    "binarySha256": "555dfed674dec6503274905660410f297ba5b29d16efab441963d2932a592abf",
+    "claimRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-AI-PDM-ATTACHMENT-STORAGE-20261003-R75/business-storage/apply-claim.json",
+      "sha256": "458faecf549257cce474d47d10e70c032de01d3750ee84290946224dd277e81f"
+    },
+    "claimRetained": true,
+    "reapplyPermitted": false
+  },
+  "localCorrectionReadback": {
+    "schemaVersion": "jenfu.dev121.business-storage-reconciliation.v1",
+    "status": "RECONCILED_OWN_STORAGE_NOT_RELEASED",
+    "ownerApplicationId": "ai-pdm",
+    "planRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-AI-PDM-ATTACHMENT-STORAGE-20261003-R75/business-storage/plan-555dfed674dec6503274905660410f297ba5b29d16efab441963d2932a592abf.json",
+      "sha256": "ee9fa315343c91b58cc0ec9e4515858a1cf00add30cb3ba49abe12aaeff6c522"
+    },
+    "claimRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-AI-PDM-ATTACHMENT-STORAGE-20261003-R75/business-storage/apply-claim.json",
+      "sha256": "458faecf549257cce474d47d10e70c032de01d3750ee84290946224dd277e81f"
+    },
+    "stateLineage": "a3ca75bc-d479-9822-a6cd-ebc106f21a42",
+    "stateSerial": 3,
+    "stateSha256": "309b63aa4c3183062b08e85c2749c535f8b599fec99ce873212bb0f0c1ddf96c",
+    "outputSha256": "0b9c1df65d2cecfee60edfa18e18449739d47c76d67824e6e236be0674d8f394",
+    "provider": {
+      "schemaVersion": "jenfu.dev121.business-storage-readback.v1",
+      "observedAt": "2026-10-03T05:00:15.112Z",
+      "target": {
+        "projectId": "jenfu-platform-prod",
+        "projectNumber": "9536592944",
+        "region": "asia-east1",
+        "bucket": "jenfu-platform-prod-aipdm-files",
+        "runtimeIdentity": "aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com"
+      },
+      "runtimeUniqueId": "103071522732370836810",
+      "ownResourcesVerified": true,
+      "effectiveInheritedIamVerified": false,
+      "artifactProvenanceVerified": false,
+      "releaseAuthority": false,
+      "cloudMutations": 0,
+      "status": "OWN_BUSINESS_STORAGE_RESOURCES_MATCH",
+      "evidenceHashes": {
+        "project": "a7c9612bbecf588eb24ae841581915238ea626c5a7cc63562fafcfe1185be785",
+        "runtime": "e5fd112917d2cfe32268cb0eff631413e29d3d2b621d8c438f615682e1640fb1",
+        "bucket": "e55d6c081c1b743d112f9f2e98049b3d70f8619975e6f6230f2fd10456446120",
+        "role": "73588c6c33668328d9d7b965a811a90f84c69be0a1bfdd81fd66e631786d362f",
+        "bucketPolicy": "fca5cc232c3f1525ff72b81e493200efca6cf704944ee405b55aaba11ce9200e"
+      },
+      "bucketMetageneration": "2",
+      "roleEtag": "BwZc5/iS3+I=",
+      "bucketPolicyEtag": "CAI=",
+      "runtimeBucketBinding": {
+        "role": "projects/jenfu-platform-prod/roles/aipdmBusinessImmutableObjects",
+        "member": "serviceAccount:aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com",
+        "permissions": [
+          "storage.objects.create",
+          "storage.objects.get"
+        ]
+      },
+      "limitation": "Direct bucket binding only; project/ancestor/group IAM and source/plan/artifact provenance remain separate owner evidence."
+    },
+    "releaseAuthority": false,
+    "effectiveInheritedIamVerified": false,
+    "applyExecuted": "UNKNOWN",
+    "applyInvoked": false,
+    "claimRetained": true,
+    "cloudMutations": 0
+  },
+  "effectiveIam": {
+    "observedAt": "2026-10-03T04:56:51.253Z",
+    "status": "RUNTIME_CREATE_GET_ONLY_VERIFIED",
+    "effectiveInheritedIamVerified": true,
+    "ownResourceHashes": {
+      "project": "a7c9612bbecf588eb24ae841581915238ea626c5a7cc63562fafcfe1185be785",
+      "runtime": "e5fd112917d2cfe32268cb0eff631413e29d3d2b621d8c438f615682e1640fb1",
+      "bucket": "e55d6c081c1b743d112f9f2e98049b3d70f8619975e6f6230f2fd10456446120",
+      "role": "73588c6c33668328d9d7b965a811a90f84c69be0a1bfdd81fd66e631786d362f",
+      "bucketPolicy": "fca5cc232c3f1525ff72b81e493200efca6cf704944ee405b55aaba11ce9200e"
+    },
+    "ancestorPolicies": [
+      {
+        "scope": "projects/jenfu-platform-prod",
+        "policySha256": "037d68f109855656336a856320ea8b24cc6af49507222c1f05033abc976d9733",
+        "policyEtag": "BwZcfoB6rKk=",
+        "relevantBindings": [
+          {
+            "role": "roles/cloudsql.client",
+            "directRuntime": true,
+            "publicCount": 0,
+            "indirectCount": 0,
+            "conditionPresent": false,
+            "storagePermissions": [],
+            "rolePermissionSha256": "a425e42c7abb0caed2b24278841fa85f545072b07fb797eddf79cf540b82bff6"
+          },
+          {
+            "role": "roles/cloudsql.instanceUser",
+            "directRuntime": true,
+            "publicCount": 0,
+            "indirectCount": 0,
+            "conditionPresent": false,
+            "storagePermissions": [],
+            "rolePermissionSha256": "078e28fa6699ebc23381e608b44908af3d1a66a24a9e57022f9a45550d7eb64f"
+          },
+          {
+            "role": "roles/firebaseauth.viewer",
+            "directRuntime": true,
+            "publicCount": 0,
+            "indirectCount": 0,
+            "conditionPresent": false,
+            "storagePermissions": [],
+            "rolePermissionSha256": "76e3df9a613169f1df5bbfb1e1017758e6ccc5f1d82dc4a3b6d539e89981347d"
+          }
+        ]
+      },
+      {
+        "scope": "organizations/361825816000",
+        "policySha256": "1d3dcc6661ca9394c4ecb05658b0f5a38bf5eb01e2e2fd3fbf537f05367f7778",
+        "policyEtag": "BwZVrT1Dy7I=",
+        "relevantBindings": [
+          {
+            "role": "roles/billing.creator",
+            "directRuntime": false,
+            "publicCount": 0,
+            "indirectCount": 1,
+            "conditionPresent": false,
+            "storagePermissions": [],
+            "rolePermissionSha256": "fc57c08a5eff03d5c73996a850ba351d143bc47143c539b4057a72b3c4fa4b74"
+          },
+          {
+            "role": "roles/resourcemanager.projectCreator",
+            "directRuntime": false,
+            "publicCount": 0,
+            "indirectCount": 1,
+            "conditionPresent": false,
+            "storagePermissions": [],
+            "rolePermissionSha256": "9cc71c4d16720e2f79de28839e8b6b6649b06ab56447f2f57dd17025fbe7a729"
+          }
+        ]
+      }
+    ],
+    "cloudMutations": 0
+  },
+  "completion": {
+    "ownStorageResources": "PROVIDER_READBACK_PASS",
+    "storageCorrection": "LOCAL_VERIFIED_NOT_MERGED",
+    "runtimeBusinessStorage": "NOT_ACTIVATED",
+    "businessProductionL4": "NOT_RUN",
+    "sharedGrantBoundary": "UNCHANGED",
+    "goalComplete": false
+  },
+  "next": [
+    "One DEV-121 authorization/reliable-release PR with required CI; general business changes remain deferred in DEV-122.",
+    "Replay read-only reconciliation from the exact official merged source; retain R74 and R75 claims.",
+    "Fresh owner release binding and Principal-only authorization Production L4; deferred attachment/CAD business verification is not PASS."
+  ],
+  "credentialMaterialPresent": false,
+  "releaseAuthority": false,
+  "independentQc": {
+    "reviewer": "/root/r46_fixture_grant_readonly",
+    "initialFindings": [
+      "P2 evidence wording and observed bucket representation were inconsistent.",
+      "Known create ID was not checked."
+    ],
+    "disposition": "FINAL_SOURCE_REVIEW_PASS",
+    "changes": "Observed state/no-op require exact b/<bucket>; create stays bare and validates any known full ID. Unknown computed create ID still resolves in post-apply state.",
+    "reviewedAt": "2026-10-03T05:42:31.987Z",
+    "scope": "Read-only source/evidence review; independent reviewer did not rerun tests or mutate cloud.",
+    "remainingFindings": []
+  }
+}

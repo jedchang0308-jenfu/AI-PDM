@@ -1,0 +1,333 @@
+{
+  "contract": "AIPDM/DEV-122",
+  "sourceTask": "AIPDM/DEV-121",
+  "status": "DEFERRED_BUSINESS_NOT_AUTH_BOUNDARY",
+  "generatedAt": "2026-10-03T05:37:36.022331+00:00",
+  "releaseAuthority": false,
+  "productionWrites": false,
+  "scopeDecision": "2026-10-03 human narrowed this run to Principal-only identity/auth integration. General canonical lifecycle/attachments deferred; preserve local work and evidence; no new 077 or general release deployment.",
+  "source": {
+    "branch": "codex/dev121-owner-ledger-floor",
+    "head": "7b02d83d9f5a1ac76002f955f9c9f48939ec8c8d",
+    "state": "UNCOMMITTED_LOCAL_CANDIDATE_NOT_RELEASE_SOURCE",
+    "captureHashes": {
+      "config/release/dev117-ai-pdm-independent-production-v3.json": "215a9fdec4d76167c4e1a8408b82c3665a3c72d75bc5ea82ab28ef9fc8e2fa51",
+      "db/postgres/077_dev121_canonical_review_lifecycle.sql": "b5d6e84b68a5a2c206737323056801078ac94f3bcd4b5a521e944a335607636c",
+      "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs": "465a89cece054efc9a65f01e09cb5a134f2ec516899d820875e10f1835654ead",
+      "scripts/qc-dev-121-canonical-lifecycle-browser.mjs": "c6f676cfb25187ac525fe49ae8b828470987a906ec96bdceff94300e5a835443",
+      "src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts": "8638e3bf7a9a09da5e17878a0dc8f36e29e435acaa45616457d68e0555c711b9",
+      "src/app/api/pdm/review-requests/[requestId]/route.ts": "381d9cf3aca7709c03af404d4a1720b64fc551b632c29387ccbf8573160aabf3",
+      "src/components/canonical-review-package-workspace.tsx": "2ba42470159d92197cdb2f08d0e9ad0813ce12932be41d3f4ca8d62bf848280e",
+      "src/components/part-number-matrix-workspace.tsx": "1f578e7669bc3a7d31197e2256bdac02b3b0edb5436aa42cf21cb9b6bee5dc50",
+      "src/lib/part-change-work.principal.test.ts": "03bcc74084ffedb78ccb20730cbdb2b2088e448f92b4c1098571792367803518",
+      "src/lib/part-change-work.ts": "5750a637b4c97bf4f8d32b5e4f83d8e3b2ba5c9887bdd42471f1577b7d2607f1",
+      "src/lib/pdm-review-package-contract.ts": "98c0ffbeb3fb3ae5293f856bcedc7f2625935b71b4a09df349c8a87aba566bed",
+      "src/lib/pdm-review-package.ts": "e8799c392ef70cfd9aadd99659cda1fdc624fa6c102354f594e66d8b275aadb3",
+      "src/lib/pdm-review-package-lifecycle.test.ts": "626fbebf7bc94d3d4374c8e9a2e02e12ab735825c1844d275e35c474d36c5f3d",
+      "src/lib/principal-work-review-owner-grant.postgres-contract.test.ts": "65d5710db097f6050c28ff4bac91d1d0f1671f224a682406d3a863deed0e3bff",
+      "src/lib/repositories/part-change-work-async-repository.ts": "e41e21b7024883711097acc947a924304e0e2c68768bf54df52b6d3113cc3327",
+      "src/lib/repositories/part-number-matrix-async-repository.ts": "5b2b2622b5c4f9c6cc302bb5f894dca326f26ea7441841e3062a7638bb521154",
+      "src/lib/repositories/pdm-principal-reviewer-selector.test.ts": "ae636438e16e34c14fa3b69910ccfc18479f64d982bb57cc8c7d8fd33a35d283",
+      "src/lib/repositories/pdm-principal-reviewer-selector.ts": "d0666723841feb225bef08b721d7add6b4ef30d55506963d099087c14b7ff33e"
+    },
+    "captureHashNotFrozenExecutionSource": true
+  },
+  "validation": {
+    "focused": {
+      "status": "PASS_AT_EXECUTED_SLICE",
+      "files": 7,
+      "tests": 58,
+      "raw": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-final.stdout.log"
+    },
+    "appTypecheck": {
+      "status": "PASS_AT_EARLIER_EXECUTED_SLICE",
+      "currentAfterParallelDrawingEdits": "NOT_REVALIDATED",
+      "raw": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/typecheck.stdout.log"
+    },
+    "nativePostgres": {
+      "status": "FAIL",
+      "command": "node scripts/qc-dev-047-postgres.mjs --suite=dev057",
+      "cwd": "C:/Users/user/.codex/worktrees/dev014-platform-release/OrgMaster",
+      "consumerEnv": {
+        "DEV057_CROSS_OWNER_AI_PDM_ROOT": "C:\\Users\\user\\.codex\\worktrees\\dev014-platform-release\\AI_PDM"
+      },
+      "serverVersion": "18.4",
+      "producerBundle": "001-029",
+      "consumerProfileIncludesLocal077": true,
+      "executedProducerCases": 23,
+      "passedProducerCases": 22,
+      "failedCase": "D57-21",
+      "plannedConsumerReviewCases": 5,
+      "reportedConsumerFailures": 2,
+      "remainingThree": "No failure reported in captured Vitest error; no separate successful per-case receipt, not promoted to suite PASS.",
+      "failures": [
+        {
+          "case": "formal baseline drift rollback readback",
+          "actual": "POSTGRES_NAMED_PARAMETER_MISSING: review",
+          "location": "src/lib/principal-work-review-owner-grant.postgres-contract.test.ts:209",
+          "interpretation": "test readback SQL used literal dev087:review.decision; named-parameter normalizer parsed the colon. Scope narrowed before test repair or rerun."
+        },
+        {
+          "case": "post-formalize fault rollback/replay",
+          "actual": "expected [500,503], observed HTTP 400",
+          "location": "src/lib/principal-work-review-owner-grant.postgres-contract.test.ts:220",
+          "interpretation": "fixture assertion stopped before rollback/replay readback. No rollback success conclusion."
+        }
+      ],
+      "raw": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/native-pg-attempt1.json"
+    },
+    "browser": {
+      "status": "NOT_RUN",
+      "runner": "scripts/qc-dev-121-canonical-lifecycle-browser.mjs",
+      "reason": "prepared immediately before human scope narrowed; no server/browser started, no UI PASS claim"
+    }
+  },
+  "cleanup": {
+    "runtime": {
+      "project": "C:\\Users\\user\\.codex\\worktrees\\dev014-platform-release\\OrgMaster",
+      "purpose": "DEV-057 isolated PostgreSQL validation",
+      "port": 50543,
+      "postgresPid": 25408,
+      "owningProcessTree": "node:51252 -> postgres:25408",
+      "mutationScope": "C:\\Users\\user\\AppData\\Local\\Temp\\orgmaster-dev057-qc-NRJEfm",
+      "interruptedBy": null,
+      "cleanup": {
+        "clientClosed": true,
+        "auxiliaryClientsClosed": true,
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      }
+    },
+    "nodePid": 51252,
+    "nativeStartToken": "134354785903106922",
+    "nodeExitCode": 2,
+    "runtimeRegistrySession": "355e6d04-3cab-4f17-87a1-89cf20ac364c",
+    "runtimeRelease": "exited",
+    "capacityLease": "a7e01231-f706-45a0-ac3c-ed949251a371",
+    "operationId": "r75-canonical-lifecycle-pg-20261003-01",
+    "capacityInitialStatus": "WARNING_ALLOWED",
+    "leaseReleaseReason": "failed",
+    "rawPreservedBeforeTaskTempCleanup": true,
+    "taskTempRemoval": "VERIFIED_REMOVED",
+    "governorReadback": {
+      "status": "VERIFIED_RELEASED",
+      "ownProcessRecords": [
+        {
+          "cleanup_condition": "exact compiler process exits; data/repository scope remains under r75-lifecycle and task-owned temp removed at handoff",
+          "executable": "C:/Program Files/nodejs/node.exe",
+          "parent_pid": null,
+          "pid": 18352,
+          "ports": [],
+          "purpose": "R75 lifecycle isolated typecheck; no port; own data/repository root",
+          "release_reason": "exited",
+          "released_at": "2026-10-03T05:12:28Z",
+          "start_time": "134354779323747498",
+          "status": "released"
+        },
+        {
+          "cleanup_condition": "exact Vitest process tree exits, own r75-lifecycle temp removed at handoff",
+          "executable": "C:/Program Files/nodejs/node.exe",
+          "parent_pid": null,
+          "pid": 53640,
+          "ports": [],
+          "purpose": "R75 lifecycle focused tests; no ports; isolated data/repository",
+          "release_reason": "exited",
+          "released_at": "2026-10-03T05:14:08Z",
+          "start_time": "134354780435996261",
+          "status": "released"
+        },
+        {
+          "cleanup_condition": "Wait verified PID start token exit; release registration after tests complete",
+          "executable": "C:/Program Files/nodejs/node.exe",
+          "parent_pid": null,
+          "pid": 25644,
+          "ports": [],
+          "purpose": "AI-PDM R75 focused lifecycle regression; no listener; isolated data/repository under session/r75-lifecycle; task-owned node tree",
+          "release_reason": "exited",
+          "released_at": "2026-10-03T05:20:56Z",
+          "start_time": "134354784538984811",
+          "status": "released"
+        },
+        {
+          "cleanup_condition": "Verified PID exits then registration released",
+          "executable": "C:/Program Files/nodejs/node.exe",
+          "parent_pid": null,
+          "pid": 54248,
+          "ports": [],
+          "purpose": "AI-PDM R75 focused lifecycle regression; no listener; isolated data/repository; task-owned node tree",
+          "release_reason": "exited",
+          "released_at": "2026-10-03T05:21:50Z",
+          "start_time": "134354785075617738",
+          "status": "released"
+        },
+        {
+          "cleanup_condition": "Runner finally closes clients/stops exact PG cluster/confirms port released/removes task temp; await verified node PID exit then release registration",
+          "executable": "C:/Program Files/nodejs/node.exe",
+          "parent_pid": null,
+          "pid": 51252,
+          "ports": [],
+          "purpose": "OrgMaster existing DEV057 cross-owner runner -> AI-PDM R75 lifecycle; native task-owned PG dynamically allocated loopback port declared by runner; disposable orgmaster-dev057-qc-* cluster; no primary/Production writes",
+          "release_reason": "exited",
+          "released_at": "2026-10-03T05:26:15Z",
+          "start_time": "134354785903106922",
+          "status": "released"
+        }
+      ],
+      "leaseStatus": "released",
+      "leaseReleaseReason": "failed"
+    },
+    "osReadback": {
+      "activeRecordedPidCount": 0,
+      "listener50543Count": 0,
+      "observedAt": "2026-10-03T05:39:59.363816+00:00"
+    },
+    "status": "PASS_CLEANED"
+  },
+  "authOnlyCandidates": [
+    {
+      "files": [
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/repositories/pdm-principal-reviewer-selector.ts"
+      ],
+      "status": "CANDIDATE_REQUIRES_HEAD_HUNK_EXTRACTION_NOT_MERGED",
+      "change": "Existing Drawing major production-pointer effect must recheck numbering.publish in the owner transaction and select a publish-capable different Principal reviewer through the same published catalog/evaluator.",
+      "selectedHunkIntent": [
+        "Drawing major submission passes requirePublish=true.",
+        "Drawing major approval rechecks current numbering.publish including legacy v1 basis before the already-existing release effect.",
+        "Shared selector optional requirePublish evaluates decide+publish through the same published grants decision."
+      ],
+      "excludedFeatureHunks": [
+        "077 migration and owner-profile append",
+        "lifecycle basis v2 and hash expansion",
+        "new master lifecycle synchronization",
+        "Part first-release intent/formalization and UI",
+        "generic lifecycle/UI/attachment functions"
+      ],
+      "owner": "AIPDM/DEV-121 RD/QC; root source integration"
+    }
+  ],
+  "deferredFiles": [
+    "config/release/dev117-ai-pdm-independent-production-v3.json",
+    "db/postgres/077_dev121_canonical_review_lifecycle.sql",
+    "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs",
+    "scripts/qc-dev-121-canonical-lifecycle-browser.mjs",
+    "src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts",
+    "src/app/api/pdm/review-requests/[requestId]/route.ts",
+    "src/components/canonical-review-package-workspace.tsx",
+    "src/components/part-number-matrix-workspace.tsx",
+    "src/lib/part-change-work.principal.test.ts",
+    "src/lib/part-change-work.ts",
+    "src/lib/pdm-review-package-contract.ts",
+    "src/lib/pdm-review-package.ts",
+    "src/lib/pdm-review-package-lifecycle.test.ts",
+    "src/lib/principal-work-review-owner-grant.postgres-contract.test.ts",
+    "src/lib/repositories/part-change-work-async-repository.ts",
+    "src/lib/repositories/part-number-matrix-async-repository.ts",
+    "src/lib/repositories/pdm-principal-reviewer-selector.test.ts",
+    "src/lib/repositories/pdm-principal-reviewer-selector.ts"
+  ],
+  "historyUntouched": {
+    ".ai-doc/dev_task-history-2026-10-03.md": "55ea14ca521f5cc60ae4ed26e2626943f8b7ef78f634e4990d635862e34a49bd",
+    ".ai-doc/documentation_map-history-2026-10-03.md": "59a9f206bc914fbcd3265fa6e3badc32b2ac41fbba20fb8bc7fa821228fb35d9",
+    ".ai-doc/specs/DEV-121-target-authorization-boundary-history-2026-10-03.md": "92ea4ad53ea87d589ca8b9be2e205a5d2a8161524f93950b28baa4e01461e34a"
+  },
+  "rawArtifacts": [
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/native-pg-attempt1.json",
+      "sha256": "df4565d54548d2de29d27db106a3669a2b941d9069b59c898f2746c9fbf29f63",
+      "bytes": 23270
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/native-pg-attempt1.stdout.log",
+      "sha256": "9ac1648cc8d62615869ba168fe37e8de7071826e784a029d4e2ccaccd1c4ca50",
+      "bytes": 7137
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/native-pg-attempt1.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/typecheck.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/typecheck.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused.stdout.log",
+      "sha256": "00a86dc8e6a0599296e513c8ba8d4efbbd8e36446bb85b82d826ad23fd600876",
+      "bytes": 884
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused.stderr.log",
+      "sha256": "9ba2744e8716dd170197d4a7014cd10833da8e8515903d0fae9035dfa57f6b21",
+      "bytes": 4318
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-retry.stdout.log",
+      "sha256": "1a8e472e294bea75bef27b6f2f76a6906cba693504b7c17e00b410f1818149c1",
+      "bytes": 247
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-retry.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-final.stdout.log",
+      "sha256": "db47ff25ce184565d3326cd7397de5b44c3986e79cc61ef6aec8c5a5fc76371a",
+      "bytes": 248
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-final.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "sharedGrantBoundary": {
+    "changed": false,
+    "failureCounterIncrement": 0,
+    "counter": "7/8 retained by main task; internal FAIL not attributed to producer/grant boundary"
+  },
+  "environmentLimitation": {
+    "status": "NOT_PRODUCT_DEFECT_CONFIRMED",
+    "syntheticCad": "COM activation 0x8002802B / TYPE_E_ELEMENTNOTFOUND; no output CAD created; no rerun under narrowed scope",
+    "cleanupStatus": "EXCLUSIVE_TASK_ACTIVATION_CLEANED",
+    "evidence": "JENFU/DEV-015 output/dev-012/inputs/dev121-synthetic-cad-r75/verified-activation-cleanup.json",
+    "productionBytes": "NOT_VERIFIED_BY_THIS_LIFECYCLE_BATCH"
+  },
+  "schemaSemantics": {
+    "deferredFiles": "Complete dirty-file capture of the local unpublished functional candidate. A path may contain both deferred business hunks and an auth-only candidate hunk; membership does not classify every hunk in that file. This field is NOT a deployment allowlist, staging list, or whole-file release authorization.",
+    "captureHashes": "Hashes preserve the captured dirty file bytes for evidence. They do not bind a selected release variant or prove its source fence.",
+    "authOnlyCandidates": "Review dispositions only; candidate is not merged, accepted release source, or authorized whole-file addition. Security source must be extracted as selected hunks against an exact HEAD baseline and verified by its actual variant/patch manifest."
+  },
+  "disposition": {
+    "releaseSourceFence": {
+      "status": "REQUIRES_ACTUAL_VARIANT_MANIFEST",
+      "baselineHead": "7b02d83d9f5a1ac76002f955f9c9f48939ec8c8d",
+      "method": "Extract only selected security hunks from the exact HEAD baseline. Bind the actual hunk-selected variant/patch, selected paths, excluded hunks and source hashes in the root integration manifest; do not add an entire dirty file because its path appears in authOnlyCandidates.",
+      "actualVariantOrPatchManifest": "NOT_CLAIMED_BY_THIS_CAPTURE",
+      "candidateDoesNotMeanMerged": true
+    },
+    "partAdditionalOwnerPrincipalGuard": {
+      "status": "NOT_INCLUDED_DEFENSIVE_CANDIDATE_DEFERRED",
+      "mandatoryMainlineFix": false,
+      "provenSecurityGap": false,
+      "reason": "RD/QC readback confirms applied migration 065 principal_accounts principal_id PRIMARY KEY and pdm_user_id UNIQUE enforce one-to-one association. Existing reviewer selection rejects the same owner profile and decision binds the assigned reviewer profile. The proposed same-Principal/different-historical-profile mock does not establish a reachable production gap under these constraints.",
+      "evidence": [
+        "db/postgres/065_dev121_principal_security_subject.sql:24",
+        "db/postgres/065_dev121_principal_security_subject.sql:25",
+        "HEAD src/lib/repositories/pdm-principal-reviewer-selector.ts same owner profile exclusion",
+        "HEAD src/lib/part-change-work.ts assigned reviewer profile decision check",
+        "r46 independent review disposition relayed by root"
+      ],
+      "futureTreatment": "Preserve the local defensive candidate with DEV-122 evidence; do not extract it as an already-proven required auth fix."
+    },
+    "unchangedMainlineBoundary": "Verified Principal, resource/company scope, revocation and safe owner release/recovery gates remain DEV-121; no general business function or safety gate is moved or waived."
+  }
+}
