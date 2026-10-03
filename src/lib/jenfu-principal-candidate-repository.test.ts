@@ -18,8 +18,10 @@ describe("principal candidate source", () => {
     expect(result).toHaveLength(2);
     expect(result.map((item) => item.identitySubject)).toEqual(["subject-one", "subject-two"]);
     expect(query).toHaveBeenCalledWith(expect.stringContaining("WHERE principal_id=:principalId"),
-      { principalId: "principal-one" });
+      { principalId: "principal-one", publishedAtFormat: 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"' });
     expect(query.mock.calls[0][0]).not.toMatch(/email|firebase_uid|pdm_user_id/u);
+    expect(query.mock.calls[0][0]).toContain("pg_catalog.to_char(published_at AT TIME ZONE 'UTC'");
+    expect(query.mock.calls[0][0]).toContain(":publishedAtFormat) AS published_at");
   });
 
   it.each([
@@ -39,5 +41,28 @@ describe("principal candidate source", () => {
     const repository = new JenfuPrincipalCandidateRepository({ kind: "postgres",
       query: async () => [] } as never);
     await expect(repository.listByPrincipal("principal-one")).resolves.toEqual([]);
+  });
+});
+
+describe("principal candidate source timestamp precision", () => {
+  it.each(["2026-09-25T01:23:45.891123Z", "2026-09-25T01:23:45.891000Z"])(
+    "preserves PostgreSQL timestamp text %s without converting through Date", async (publishedAt) => {
+      const repository = new JenfuPrincipalCandidateRepository({ kind: "postgres",
+        query: async () => [candidate("subject-one", { published_at: publishedAt })] } as never);
+      const [result] = await repository.listByPrincipal("principal-one");
+      expect(result.publishedAt).toBe(publishedAt);
+    }
+  );
+
+  it.each([
+    new Date("2026-09-25T01:23:45.891Z"),
+    "2026-02-30T01:23:45.891123Z",
+    "2026-09-25T01:23:45.891123+00:00",
+    null
+  ])("rejects unexpected Date or invalid timestamp text instead of truncating it", async (publishedAt) => {
+    const repository = new JenfuPrincipalCandidateRepository({ kind: "postgres",
+      query: async () => [candidate("subject-one", { published_at: publishedAt })] } as never);
+    await expect(repository.listByPrincipal("principal-one"))
+      .rejects.toMatchObject({ code: "principal_candidate_contract_mismatch" });
   });
 });
