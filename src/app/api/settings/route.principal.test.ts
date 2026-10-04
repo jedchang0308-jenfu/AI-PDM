@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   legacyAuthorization: vi.fn(),
@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   principalWrite: vi.fn(),
   settings: vi.fn(),
   setSetting: vi.fn(),
-  audit: vi.fn()
+  audit: vi.fn(), secretPermissions: vi.fn()
 }));
 
 vi.mock("@/lib/auth-async", () => ({
@@ -21,6 +21,7 @@ vi.mock("@/lib/system-settings-async", () => ({
   setSystemSettingAsync: mocks.setSetting
 }));
 vi.mock("@/lib/audit-async", () => ({ createAuditLogAsync: mocks.audit }));
+vi.mock("@/lib/jenfu-principal-permission-service", () => ({ evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.secretPermissions }));
 
 import { GET, POST } from "@/app/api/settings/route";
 
@@ -32,26 +33,57 @@ function writeRequest(body: Record<string, unknown>, origin = "https://ai-pdm.te
 }
 
 describe("principal-only settings read", () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("PDM_DISABLE_SECRET_MANAGEMENT", "false");
+    mocks.secretPermissions.mockResolvedValue([{ allowed: true, principalId: "principal-jed", permissionCode: "settings.secret.manage" }]);
   });
 
   it("reads protected settings with the authorized principal snapshot", async () => {
     const snapshot = { kind: "postgres" };
     mocks.settings.mockResolvedValue({ gdrive_pending_folder_id: "folder-one" });
     mocks.principalRead.mockImplementation(async (_request, _company, _permissions, read) =>
-      read(snapshot));
+      read(snapshot, { companyId: "company-jenfu" }, { session: { principalId: "principal-jed" } }));
 
     const response = await GET(new Request("https://ai-pdm.test/api/settings"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect((await response.json()).settings.gdrive_pending_folder_id).toBe("folder-one");
+    const body = await response.json();
+    expect(body.settings.gdrive_pending_folder_id).toBe("folder-one");
+    expect(body.settings.secretManagementAvailable).toBe(true);
+    expect(mocks.secretPermissions).toHaveBeenCalledWith(snapshot,
+      { session: { principalId: "principal-jed" } }, [{ permissionKind: "action", permissionCode: "settings.secret.manage" }]);
     expect(mocks.principalRead).toHaveBeenCalledWith(expect.any(Request),
       { state: "absent" }, [{ permissionKind: "action", permissionCode: "settings.manage" }],
       expect.any(Function));
     expect(mocks.settings).toHaveBeenCalledWith(snapshot);
     expect(mocks.legacyAuthorization).not.toHaveBeenCalled();
+  });
+
+  it("retains summary access for settings.manage-only without offering secret management", async () => {
+    const snapshot = { kind: "postgres" };
+    mocks.settings.mockResolvedValue({ gdrive_pending_folder_id: "folder-one" });
+    mocks.secretPermissions.mockResolvedValue([{ allowed: false, principalId: "principal-jed", permissionCode: "settings.secret.manage" }]);
+    mocks.principalRead.mockImplementation(async (_request, _company, _permissions, read) =>
+      read(snapshot, { companyId: "company-jenfu" }, { session: { principalId: "principal-jed" } }));
+    const response = await GET(new Request("https://ai-pdm.test/api/settings"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).settings).toMatchObject({ gdrive_pending_folder_id: "folder-one", secretManagementAvailable: false });
+    expect(mocks.setSetting).not.toHaveBeenCalled();
+    expect(mocks.audit).not.toHaveBeenCalled();
+    expect(mocks.legacyAuthorization).not.toHaveBeenCalled();
+  });
+
+  it("does not expose secret management when the server explicitly disables it", async () => {
+    vi.stubEnv("PDM_DISABLE_SECRET_MANAGEMENT", "true");
+    mocks.settings.mockResolvedValue({});
+    mocks.principalRead.mockImplementation(async (_request, _company, _permissions, read) =>
+      read({ kind: "postgres" }, { companyId: "company-jenfu" }, { session: { principalId: "principal-jed" } }));
+    const response = await GET(new Request("https://ai-pdm.test/api/settings"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).settings.secretManagementAvailable).toBe(false);
   });
 
   it("does not read settings after a denied principal decision", async () => {

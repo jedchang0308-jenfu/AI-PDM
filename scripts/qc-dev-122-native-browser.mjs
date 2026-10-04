@@ -19,7 +19,7 @@ const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.js
 assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
-const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
 const output=path.join(root,'output','playwright','dev122',path.basename(runtime));fs.mkdirSync(output,{recursive:true});
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
@@ -72,6 +72,18 @@ function governor(action){const args=[process.env.DEV122_GOVERNOR_SCRIPT,'--agen
 }
 async function freePort(){const server=net.createServer();await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});const port=server.address().port;await new Promise(resolve=>server.close(resolve));return port;}
 async function released(port){return new Promise(resolve=>{const socket=net.connect({host:'127.0.0.1',port});socket.once('connect',()=>{socket.destroy();resolve(false);});socket.once('error',()=>resolve(true));});}
+async function settingsAwait(stage,operation,viewport=null) {
+  const entry={stage,viewport,enteredAt:new Date().toISOString(),timeoutMs:30000,status:'ENTER'};
+  receipt.settingsAwaitReadbacks??=[];receipt.settingsAwaitReadbacks.push(entry);save();let timer;
+  try {
+    const result=await Promise.race([Promise.resolve().then(operation),new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(new Error('DEV122_SETTINGS_AWAIT_TIMEOUT:'+stage)),30000);
+    })]);
+    entry.status='DONE';entry.completedAt=new Date().toISOString();save();return result;
+  }catch(error){entry.status='FAIL';entry.failedAt=new Date().toISOString();entry.message=error.message;
+    receipt.firstFailure??={message:error.message,stack:error.stack,stage,viewport};receipt.status='FAIL';save();throw error;
+  }finally{clearTimeout(timer);}
+}
 try {
   const browserTemp=path.join(runtime,'browser-temp');fs.mkdirSync(browserTemp);
   process.env.TEMP=browserTemp;process.env.TMP=browserTemp;
@@ -106,7 +118,17 @@ try {
       try{save();}catch(saveError){errors.push('DOWNLOAD_WAIT_FAILURE_SAVE_FAILED:'+saveError.message);}
     });return pending;};
     page.on('framenavigated',frame=>{if(frame===page.mainFrame()&&frame.url().startsWith(origin))navigationRoutes.push({pathname:new URL(frame.url()).pathname,search:new URL(frame.url()).search});});
-    let expectedSaveFailure=null,expectedSaveFailureReached=0;
+    let expectedSaveFailure=null,expectedSaveFailureReached=0,expectedSettingsDenied=false;
+    const secretMutationRequests=[],settingsDeniedHeaders=[],settingsUiResponseIds=new WeakMap();
+    let settingsDeniedProof=null;
+    if(flowSelection==='settings')page.on('request',request=>{
+      const target=new URL(request.url());
+      if(target.origin===origin&&/^\/api\/(?:settings(?:\/|$)|settings-secret-probe-jobs(?:\/|$)|recognition-workers(?:\/|$))/u.test(target.pathname)
+        &&!['GET','HEAD'].includes(request.method())) {
+        secretMutationRequests.push({pathname:target.pathname,method:request.method()});
+        errors.push('SETTINGS_CREDENTIAL_OR_WORKER_MUTATION_FORBIDDEN:'+target.pathname);
+      }
+    });
     page.on('pageerror',error=>errors.push(error.message));
     page.on('console',message=>{if(['error','warning'].includes(message.type())) {
       consoleReadbacks.push({observedAt:Date.now(),viewport:fixture.width,type:message.type(),text:message.text(),location:message.location(),pathname:new URL(page.url()).pathname});
@@ -116,8 +138,21 @@ try {
     page.on('response',response=>{if(response.url().startsWith(origin+'/api/')){
       const responseUrl=new URL(response.url());requests.push({url:responseUrl.pathname,status:response.status()});
       if(response.status()>=400)apiChecks.push((async()=>{
+        const headers=response.headers();
+        if(flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
+          &&responseUrl.pathname==='/api/settings'&&responseUrl.search===''&&response.status()===403
+          &&/^application\/json(?:;|$)/iu.test(headers['content-type']??'')&&/\bno-store\b/iu.test(headers['cache-control']??'')) {
+          const readback={evidenceId:path.basename(runtime)+':'+fixture.width+':ui-denied:'+String(settingsDeniedHeaders.length+1),
+            observedAt:Date.now(),viewport:fixture.width,actor:'dev122-principal-denied',method:'GET',url:response.url(),
+            pathname:responseUrl.pathname,query:responseUrl.search,status:403,cacheControl:headers['cache-control'],contentType:headers['content-type'],
+            headers:{cacheControl:headers['cache-control'],contentType:headers['content-type']},source:'NORMAL_UI_RELOAD_PAGE_RESPONSE_HEADERS_ONLY',
+            body:null,rawText:null,bodyCapture:'NOT_REQUESTED_NOT_CONSUMED_BY_PRODUCT',gate:'PENDING_SAME_SESSION_HTTP_AND_DENIED_DOM',expectedClassification:null};
+          settingsUiResponseIds.set(response,readback.evidenceId);settingsDeniedHeaders.push(readback);
+          receipt.apiErrorReadbacks??=[];receipt.apiErrorReadbacks.push(readback);save();return;
+        }
         let rawText=null,bodyReadError=null;
-        try{rawText=await response.text();}catch(error){bodyReadError={message:error.message};}
+        if(flowSelection==='settings')progress('settings API error headers before body',{pathname:responseUrl.pathname,status:response.status(),cacheControl:response.headers()['cache-control']??null});
+        try{rawText=flowSelection==='settings'?await settingsAwait('API error response body '+responseUrl.pathname,()=>response.text(),fixture.width):await response.text();}catch(error){bodyReadError={message:error.message};}
         let body=null;try{body=JSON.parse(rawText);}catch{}
         const readback={observedAt:Date.now(),viewport:fixture.width,method:response.request().method(),
           pathname:responseUrl.pathname,query:responseUrl.search,status:response.status(),cacheControl:response.headers()['cache-control']??null,
@@ -130,9 +165,13 @@ try {
           && previewContexts.get(assetId).includes(responseUrl.searchParams.get('contextId')) && body?.error?.code==='PREVIEW_FAILED' && body.error.retryable===false;
         const expectedAuthFailure=expectedSaveFailure===responseUrl.pathname&&response.request().method()==='PATCH'
           &&response.status()===401&&body?.code==='auth_session_invalid';
-        readback.expectedClassification=expectedTerminal?'exact terminal preview':expectedAuthFailure?'exact intentionally missing signed session':null;save();
+        const expectedSettingsFailure=flowSelection==='settings'&&expectedSettingsDenied&&response.request().method()==='GET'
+          &&['/api/settings','/api/settings/secrets'].includes(responseUrl.pathname)&&response.status()===403
+          &&(body?.error??body?.code)==='permission_not_granted'&&/no-store/u.test(readback.cacheControl??'');
+        readback.expectedClassification=expectedTerminal?'exact terminal preview':expectedAuthFailure?'exact intentionally missing signed session':
+          expectedSettingsFailure?'exact lawful Principal missing settings permission':null;save();
         if(expectedAuthFailure)expectedSaveFailureReached+=1;
-        if(!expectedTerminal&&!expectedAuthFailure)errors.push(`UNEXPECTED_API_RESPONSE:${response.status()}:${responseUrl.pathname}:${body?.error?.code??body?.code??'NO_SAFE_CODE'}`);
+        if(!expectedTerminal&&!expectedAuthFailure&&!expectedSettingsFailure)errors.push(`UNEXPECTED_API_RESPONSE:${response.status()}:${responseUrl.pathname}:${body?.error?.code??body?.code??'NO_SAFE_CODE'}`);
       })().catch(error=>{errors.push(`API_READBACK_FAILED:${error.message}`);receipt.apiReadbackFailures??=[];
         receipt.apiReadbackFailures.push({pathname:responseUrl.pathname,status:response.status(),message:error.message});save();}));
     }});
@@ -146,13 +185,40 @@ try {
       await link.click();
     };
     const healthy=async()=>{
-      await Promise.all(apiChecks);assert.deepEqual(errors,[],'UNEXPECTED_PAGE_ERROR_OR_API_RESPONSE');assert.deepEqual(alerts,[],'UNEXPECTED_DIALOG');
+      await Promise.all(apiChecks);
+      if(flowSelection==='settings'&&settingsDeniedHeaders.length) {
+        assert.ok(settingsDeniedProof,'SETTINGS_DENIED_DUAL_PROOF_MISSING');
+        assert.equal(settingsDeniedProof.viewport,fixture.width);assert.equal(settingsDeniedProof.actor,'dev122-principal-denied');
+        assert.equal(settingsDeniedProof.cookieMatchesSignedDenied,true);
+        assert.equal(settingsDeniedProof.dom.title,'需要系統管理員權限');assert.equal(settingsDeniedProof.dom.passwordCount,0);
+        assert.equal(settingsDeniedProof.ui.status,403);assert.equal(settingsDeniedProof.ui.url,origin+'/api/settings');
+        assert.match(settingsDeniedProof.ui.headers.cacheControl,/\bprivate\b.*\bno-store\b/iu);
+        assert.match(settingsDeniedProof.ui.headers.contentType,/^application\/json(?:;|$)/iu);
+        const http=settingsDeniedProof.sameSessionHttp;
+        assert.equal(http.viewport,fixture.width);assert.equal(http.actor,settingsDeniedProof.actor);assert.equal(http.method,'GET');
+        assert.equal(http.url,origin+'/api/settings');assert.equal(http.responseUrl,http.url);assert.equal(http.status,403);
+        assert.equal(http.body.error??http.body.code,'permission_not_granted');assert.equal(http.source,'INDEPENDENT_SAME_CONTEXT_REAL_HTTP_GET');
+        assert.match(http.headers.cacheControl,/\bno-store\b/iu);assert.match(http.headers.contentType,/^application\/json(?:;|$)/iu);
+        assert.notEqual(http.evidenceId,settingsDeniedProof.ui.evidenceId);
+        assert.ok(settingsDeniedHeaders.some(item=>item.evidenceId===settingsDeniedProof.ui.evidenceId),'SETTINGS_UI_RESPONSE_BINDING_MISSING');
+        for(const item of settingsDeniedHeaders) {
+          assert.equal(item.viewport,http.viewport);assert.equal(item.actor,http.actor);assert.equal(item.method,http.method);assert.equal(item.url,http.url);
+          assert.equal(item.status,403);assert.match(item.cacheControl,/\bprivate\b.*\bno-store\b/iu);
+          assert.match(item.contentType,/^application\/json(?:;|$)/iu);
+          assert.equal(item.body,null);assert.equal(item.rawText,null);assert.equal(item.bodyCapture,'NOT_REQUESTED_NOT_CONSUMED_BY_PRODUCT');
+          item.gate='BOTH_ACTUAL_LAYERS_PROVEN';item.dualProof={uiEvidenceId:item.evidenceId,domEvidenceId:settingsDeniedProof.dom.evidenceId,httpEvidenceId:http.evidenceId};
+          item.expectedClassification='exact denied UI headers and DOM; separate same-session HTTP permission_not_granted';
+        }
+        save();
+      }
+      assert.deepEqual(errors,[],'UNEXPECTED_PAGE_ERROR_OR_API_RESPONSE');assert.deepEqual(alerts,[],'UNEXPECTED_DIALOG');
       for(const message of consoleReadbacks) {
         if(message.type==='error') {
           const location=new URL(message.location.url||origin,origin);
           const expected=(receipt.apiErrorReadbacks??[]).find(item=>item.viewport===fixture.width&&item.expectedClassification&&item.pathname===location.pathname
             &&Math.abs(item.observedAt-message.observedAt)<5000&&message.text.includes('status of '+item.status));
           message.classification=expected?{reason:expected.expectedClassification,requestPath:expected.pathname,status:expected.status,body:expected.body}:null;
+          if(flowSelection==='settings'&&expected?.dualProof)message.classification.evidenceIds=expected.dualProof;
           assert.ok(expected,'UNEXPECTED_CONSOLE_ERROR:'+message.text);
         }else if(/hydration|unique.*key|Each child|uncaught/iu.test(message.text))throw new Error('UNEXPECTED_REACT_WARNING:'+message.text);
       }
@@ -216,7 +282,121 @@ try {
         canonicalPreviewURL:attachmentPreviewResponse.url(),downloadName:attachmentDownload.suggestedFilename(),layer:'ACTUAL_DOM_AND_SIGNED_CANONICAL_ROUTES',actualCADOutput:'NOT_APPLICABLE_IMAGE_ATTACHMENT'});
     };
     try {
-      await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+      if(flowSelection==='settings')await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
+      else await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+      if(flowSelection==='settings') {
+        assert.equal(fixture.flow,'settings');
+        const summaryPending=waitResponse(response=>new URL(response.url()).pathname==='/api/settings'&&response.request().method()==='GET');
+        const statusesPending=waitResponse(response=>new URL(response.url()).pathname==='/api/settings/secrets'&&response.request().method()==='GET');
+        await settingsAwait('allowed sidebar navigation',async()=>{await navigate('系統設定');await page.waitForURL(location=>location.pathname==='/settings',{timeout:30000});},fixture.width);
+        const summaryResponse=await settingsAwait('allowed summary headers',()=>summaryPending,fixture.width);
+        progress('actual settings summary headers',{status:summaryResponse.status(),cacheControl:summaryResponse.headers()['cache-control']});
+        const summary=await settingsAwait('allowed summary body',()=>summaryResponse.json(),fixture.width);
+        progress('actual settings summary GET raw',{status:summaryResponse.status(),cacheControl:summaryResponse.headers()['cache-control'],body:summary});
+        assert.equal(summaryResponse.status(),200,JSON.stringify(summary));
+        assert.equal(summary.settings.secretManagementAvailable,true);assert.equal(summary.settings.productionSliceSettingsLimited,true);
+        const statusesResponse=await settingsAwait('allowed secret-status headers',()=>statusesPending,fixture.width);
+        progress('actual settings secret-status headers',{status:statusesResponse.status(),cacheControl:statusesResponse.headers()['cache-control']});
+        const statuses=await settingsAwait('allowed secret-status body',()=>statusesResponse.json(),fixture.width);
+        progress('actual settings secret-status GET raw',{status:statusesResponse.status(),cacheControl:statusesResponse.headers()['cache-control'],body:statuses});
+        assert.equal(statusesResponse.status(),200,JSON.stringify(statuses));
+        assert.match(statusesResponse.headers()['cache-control'],/private.*no-store/u);
+        const status=statuses.secrets.find(item=>item.kind==='solidworks_document_manager');assert.ok(status);
+        assert.equal(status.active,null);assert.equal(status.latest,null);assert.equal(status.latestProbeJob,null);
+        assert.equal(status.configured,false);assert.equal(status.liveGate.status,'blocked');assert.equal(status.workerReadiness.status,'blocked');
+        assert.equal(status.workerPresence.status,'unknown');
+        assert.equal(status.liveGate.message,'Google Secret Manager 尚缺 Cloud SQL、project/secret 設定或 read/write gate；尚無金鑰版本。');
+        await settingsAwait('allowed settings DOM keyboard and screenshots',async()=>{
+        const areaNav=page.getByRole('navigation',{name:'設定區域',exact:true});
+        await areaNav.getByRole('link',{name:'安全',exact:true}).waitFor();
+        assert.deepEqual(await areaNav.getByRole('link').allTextContents(),['總覽','安全']);
+        const drive=page.locator('.settings-status-tile').filter({has:page.getByText('Google Drive',{exact:true})});
+        assert.equal(await drive.getByRole('link').count(),0);await drive.getByText('未開放',{exact:true}).waitFor();
+        await screenshot('settings-overview-provider-blocked');
+        const security=areaNav.getByRole('link',{name:'安全',exact:true});await security.focus();
+        assert.equal(await security.evaluate(element=>element===document.activeElement),true);await page.keyboard.press('Enter');
+        await page.waitForURL(location=>location.pathname==='/settings/security');
+        const password=page.getByLabel('API / 授權金鑰',{exact:true});await password.waitFor({state:'visible'});
+        assert.equal(await password.getAttribute('type'),'password');assert.equal(await password.inputValue(),'');
+        await password.focus();assert.equal(await password.evaluate(element=>element===document.activeElement),true);
+        await page.keyboard.press('Tab');assert.equal(await password.inputValue(),'');
+        const actions=['建立草稿','測試最新版本','啟用已測試版本','撤銷目前啟用版本'];
+        for(const name of actions)assert.equal(await page.getByRole('button',{name,exact:true}).isEnabled(),false,name);
+        await page.getByText(status.liveGate.message,{exact:true}).waitFor();
+        await page.getByText(status.workerReadiness.message,{exact:true}).waitFor();
+        await page.getByText(status.workerPresence.message,{exact:true}).waitFor();
+        assert.equal(await page.locator('#settings-security').getByText('尚未建立草稿',{exact:true}).count(),1);
+        await screenshot('settings-security-empty-password-no-worker');
+        },fixture.width);
+        progress('actual normal sidebar settings security blocked read-only state',{summaryStatus:summaryResponse.status(),
+          summary,statusesStatus:statusesResponse.status(),statusesCacheControl:statusesResponse.headers()['cache-control'],statuses,
+          passwordType:'password',passwordEmpty:true,passwordFilled:false,secretMutationRequests,keyboard:true,unopenedAreas:['integrations','workflow','system']});
+        // Legitimate published qa assignment, same company: reload the normally opened settings route.
+        expectedSettingsDenied=true;
+        await settingsAwait('denied Principal cookie',()=>context.addCookies([{name:'__session',value:sessions.denied,url:origin,httpOnly:true,sameSite:'Lax'}]),fixture.width);
+        const deniedPending=waitResponse(response=>new URL(response.url()).pathname==='/api/settings'&&response.request().method()==='GET');
+        await settingsAwait('denied reload DOMContentLoaded',()=>page.reload({waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
+        const deniedResponse=await settingsAwait('denied settings headers',()=>deniedPending,fixture.width);
+        progress('actual settings denied response headers',{status:deniedResponse.status(),cacheControl:deniedResponse.headers()['cache-control']});
+        assert.equal(deniedResponse.status(),403);assert.equal(deniedResponse.url(),origin+'/api/settings');
+        assert.match(deniedResponse.headers()['cache-control'],/\bprivate\b.*\bno-store\b/iu);
+        assert.match(deniedResponse.headers()['content-type'],/^application\/json(?:;|$)/iu);
+        const uiEvidenceId=settingsUiResponseIds.get(deniedResponse);assert.ok(uiEvidenceId,'SETTINGS_DENIED_UI_HEADER_RECORD_MISSING');
+        const deniedDom=await settingsAwait('denied DOM no password',async()=>{
+          await page.getByText('需要系統管理員權限',{exact:true}).waitFor({timeout:30000});
+          const passwordCount=await page.locator('input[type="password"]').count();assert.equal(passwordCount,0);
+          return {evidenceId:path.basename(runtime)+':'+fixture.width+':denied-dom',observedAt:Date.now(),
+            title:'需要系統管理員權限',passwordCount,source:'ACTUAL_NORMAL_RELOAD_MOUNTED_DOM'};
+        },fixture.width);
+        const cookieMatchesSignedDenied=await settingsAwait('denied same-context cookie binding',async()=>{
+          const cookies=(await context.cookies(origin+'/api/settings')).filter(item=>item.name==='__session');
+          return cookies.length===1&&cookies[0].value===sessions.denied;
+        },fixture.width);assert.equal(cookieMatchesSignedDenied,true);
+        const httpEvidenceId=path.basename(runtime)+':'+fixture.width+':independent-http-denied';
+        const httpStartedAt=Date.now();
+        const httpResponse=await settingsAwait('independent same-session denied HTTP GET',()=>context.request.get(origin+'/api/settings',
+          {timeout:30000,maxRedirects:0}),fixture.width);
+        const httpHeaders={cacheControl:httpResponse.headers()['cache-control']??'',contentType:httpResponse.headers()['content-type']??''};
+        progress('independent denied HTTP headers',{evidenceId:httpEvidenceId,actor:'dev122-principal-denied',viewport:fixture.width,
+          method:'GET',url:origin+'/api/settings',responseUrl:httpResponse.url(),status:httpResponse.status(),headers:httpHeaders,
+          source:'INDEPENDENT_SAME_CONTEXT_REAL_HTTP_GET'});
+        const httpRawText=await settingsAwait('independent same-session denied HTTP body',()=>httpResponse.text(),fixture.width);
+        progress('independent denied HTTP raw body',{evidenceId:httpEvidenceId,rawText:httpRawText,
+          rawSha256:createHash('sha256').update(httpRawText).digest('hex'),source:'INDEPENDENT_SAME_CONTEXT_REAL_HTTP_GET'});
+        const httpBody=JSON.parse(httpRawText);
+        assert.equal(httpResponse.status(),403);assert.equal(httpBody.error??httpBody.code,'permission_not_granted');
+        assert.equal(httpResponse.url(),origin+'/api/settings');assert.match(httpHeaders.cacheControl,/\bno-store\b/iu);
+        assert.match(httpHeaders.contentType,/^application\/json(?:;|$)/iu);
+        settingsDeniedProof={actor:'dev122-principal-denied',viewport:fixture.width,cookieMatchesSignedDenied,
+          ui:{evidenceId:uiEvidenceId,method:'GET',url:deniedResponse.url(),status:403,
+            headers:{cacheControl:deniedResponse.headers()['cache-control'],contentType:deniedResponse.headers()['content-type']},
+            source:'NORMAL_UI_RELOAD_PAGE_RESPONSE_HEADERS_ONLY',body:null,rawText:null,bodyCapture:'NOT_REQUESTED_NOT_CONSUMED_BY_PRODUCT'},dom:deniedDom,
+          sameSessionHttp:{evidenceId:httpEvidenceId,actor:'dev122-principal-denied',viewport:fixture.width,startedAt:httpStartedAt,completedAt:Date.now(),
+            method:'GET',url:origin+'/api/settings',responseUrl:httpResponse.url(),status:httpResponse.status(),headers:httpHeaders,
+            source:'INDEPENDENT_SAME_CONTEXT_REAL_HTTP_GET',rawText:httpRawText,body:httpBody,rawSha256:createHash('sha256').update(httpRawText).digest('hex')}};
+        progress('actual settings denied Principal dual-layer proof',settingsDeniedProof);
+        await settingsAwait('denied screenshot with both actual layers',()=>screenshot('settings-security-principal-denied'),fixture.width);
+        // Actual company-scoped signed GET, no UI quicklogin or response interception.
+        await settingsAwait('other-company Principal cookie',()=>context.addCookies([{name:'__session',value:sessions.other,url:origin,httpOnly:true,sameSite:'Lax'}]),fixture.width);
+        const otherReadbacks=[];
+        for(const route of ['/api/settings','/api/settings/secrets']) {
+          const response=await settingsAwait('other-company headers '+route,()=>context.request.get(origin+route,{timeout:30000}),fixture.width);
+          progress('actual settings other-company response headers',{route,status:response.status(),cacheControl:response.headers()['cache-control']});
+          const body=await settingsAwait('other-company body '+route,()=>response.json(),fixture.width);
+          progress('actual settings other-company GET raw',{route,status:response.status(),cacheControl:response.headers()['cache-control'],body});
+          assert.equal(response.status(),403);assert.equal(body.error??body.code,'entitlement_scope_mismatch');
+          assert.match(response.headers()['cache-control'],/no-store/u);
+          otherReadbacks.push({actor:'dev122-principal-other',company:'company-dev122-other',route,status:response.status(),body,
+            cacheControl:response.headers()['cache-control'],layer:'ACTUAL_SIGNED_BROWSER_CONTEXT_API_GET_NOT_NORMAL_OTHER_COMPANY_PAGE'});
+        }
+        assert.deepEqual(secretMutationRequests,[]);await settingsAwait('final settings console API and alert checks',()=>healthy(),fixture.width);
+        receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'settings',normalNavigation:true,
+          entry:['normal home','sidebar 系統設定','settings 安全 keyboard Enter'],signedPrincipal:true,
+          allowedSummary:summary,allowedSecretStatus:statuses,denied:settingsDeniedProof,otherReadbacks,
+          passwordEmpty:true,passwordFilled:false,secretMutationRequests,providerConnection:'NOT_RUN_LOCAL_GATES_CLOSED',
+          nativeProperties:'PENDING_HUMAN_PRODUCTION_VALIDATION',summaryOnlyRole:'UNIT_LAYER_ONLY_NO_LEGAL_V5_ROLE',
+          keyboard:true,overflowMetrics,navigationRoutes,requests});save();continue;
+      }
       await navigate('料號工作台');
       if(flowSelection==='lifecycle') {
         const snapshot=async()=>{
@@ -559,18 +739,63 @@ try {
         normalNavigation:true,normalCreation,matrixRoundTrip,signedPrincipal:true,keyboard:true,terminalTwoPeriods:true,download:true,gallery:true,overflowMetrics,navigationRoutes,
         reviewerEntry:['normal Part workbench submitted row','前往審核','返回審核清單','normal approvals list search/Enter'],drawingEntry:'actual homepage Link',frameworkAnnouncements,observedPageTitles,requests});save();
     } catch(error) {
-      fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-dom.html`),await page.content());
-      fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-accessibility.yml`),await page.locator('body').ariaSnapshot());
-      await page.screenshot({path:path.join(output,`${fixture.width}-first-failure.png`),fullPage:true}).catch(()=>{});
-      receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;throw error;
-    } finally {await context.close();}
+      if(flowSelection==='settings') {
+        receipt.status='FAIL';receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};
+        receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;save();
+        for(const [stage,capture] of [
+          ['failure DOM capture',async()=>fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-dom.html`),await page.content())],
+          ['failure accessibility capture',async()=>fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-accessibility.yml`),await page.locator('body').ariaSnapshot())],
+          ['failure screenshot capture',()=>page.screenshot({path:path.join(output,`${fixture.width}-first-failure.png`),fullPage:true})]
+        ]) {
+          try{await settingsAwait(stage,capture,fixture.width);}catch(captureError){
+            receipt.settingsDiagnosticFailures??=[];receipt.settingsDiagnosticFailures.push({stage,viewport:fixture.width,message:captureError.message});save();
+          }
+        }
+      }else {
+        fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-dom.html`),await page.content());
+        fs.writeFileSync(path.join(output,`${fixture.width}-first-failure-accessibility.yml`),await page.locator('body').ariaSnapshot());
+        await page.screenshot({path:path.join(output,`${fixture.width}-first-failure.png`),fullPage:true}).catch(()=>{});
+        receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;
+      }
+      throw error;
+    } finally {
+      if(flowSelection==='settings')await settingsAwait('context close',()=>context.close(),fixture.width);
+      else await context.close();
+    }
   }
   receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
-  receipt.coverage={partial:preflight?[]:flowSelection==='lifecycle'?['P-01','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?['prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
+  receipt.coverage={partial:preflight?[]:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?['prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-} catch(error) {receipt.status='FAIL';receipt.firstFailure={message:error.message,stack:error.stack};}
+} catch(error) {receipt.status='FAIL';if(flowSelection==='settings'){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
-  try{await browser?.close();await browserServer?.close();
+  try{
+    if(flowSelection==='settings') {
+      receipt.settingsCloseFailures=[];
+      for(const [stage,operation] of [['browser close',()=>browser?.close()],['browser server close',()=>browserServer?.close()]]) {
+        try{await settingsAwait(stage,operation);}catch(error){receipt.settingsCloseFailures.push({stage,message:error.message});save();}
+      }
+      if(browserIdentity) {
+        const proof=browserExitProof(browserIdentity);receipt.settingsRecovery={before:proof,treeStopIssued:false};save();
+        if(!proof.processDead) {
+          if(proof.pidReused||proof.actual.startToken!==browserIdentity.startToken||proof.actual.executable!==browserIdentity.executable)
+            throw new Error('DEV122_SETTINGS_RECOVERY_FINGERPRINT_MISMATCH');
+          if(process.platform!=='win32')throw new Error('DEV122_SETTINGS_RECOVERY_PLATFORM_UNSUPPORTED');
+          execFileSync('taskkill',['/PID',String(browserIdentity.pid),'/T','/F'],{windowsHide:true,stdio:'ignore',timeout:10000});
+          receipt.settingsRecovery.treeStopIssued=true;save();
+        }
+        await settingsAwait('fingerprint process and websocket cleanup',async()=>{
+          const deadline=Date.now()+5000;
+          do {
+            const after=browserExitProof(browserIdentity),portReleased=await released(receipt.browserDeclaration.port);
+            receipt.settingsRecovery.after={...after,portReleased};save();
+            if(after.processDead&&portReleased)return;
+            if(after.pidReused)throw new Error('DEV122_SETTINGS_RECOVERY_PID_REUSED');
+            await new Promise(resolve=>setTimeout(resolve,100));
+          }while(Date.now()<deadline);
+          throw new Error('DEV122_SETTINGS_RECOVERY_NOT_CLEAN');
+        });
+      }
+    }else{await browser?.close();await browserServer?.close();}
     receipt.browserCleanup={...(browserIdentity?browserExitProof(browserIdentity):{processDead:browserServer?false:true}),
       portReleased:receipt.browserDeclaration?await released(receipt.browserDeclaration.port):true};
     if(browserRegistered&&receipt.browserCleanup.processDead&&receipt.browserCleanup.portReleased)receipt.browserCleanup.governorRelease=governor('release');

@@ -3,10 +3,12 @@ import type { PdmCommandMetadata } from "@/lib/platform-command";
 
 const mocks = vi.hoisted(() => ({ command: vi.fn(), audit: vi.fn(),
   transaction: vi.fn(), provider: vi.fn(), readProvider: vi.fn(), preflight: vi.fn(), replay: vi.fn(), permissions: vi.fn(),
+  providerConfig: vi.fn(), readEnabled: vi.fn(), writeEnabled: vi.fn(),
   repository: { getReferenceById: vi.fn(), getLatestProbeJob: vi.fn(), enqueueProbeJob: vi.fn(),
     getActiveTypedProbeJob: vi.fn(),
     getProbeJobById: vi.fn(), completeProbeJob: vi.fn(), insertTestRun: vi.fn(),
     markReferenceTested: vi.fn(), insertActivationEvent: vi.fn(), retireActiveReferences: vi.fn(),
+    listReferencesByKind: vi.fn(), getLatestWorkerCapabilityHeartbeat: vi.fn(),
     activateReference: vi.fn(), revokeReference: vi.fn(), insertReference: vi.fn(), getNextVersion: vi.fn() } }));
 vi.mock("@/lib/db-async-provider", () => ({ getAsyncDatabaseClient: () => ({ kind: "postgres", transaction: mocks.transaction }) }));
 vi.mock("@/lib/platform-command-service", () => ({ executePdmCommandWithOutbox: mocks.command }));
@@ -16,11 +18,11 @@ vi.mock("@/lib/repositories/platform-outbox-async-repository", () => ({ Platform
 vi.mock("@/lib/audit-async", () => ({ createAuditLogAsync: mocks.audit }));
 vi.mock("@/lib/repositories/settings-secret-async-repository", () => ({ AsyncSettingsSecretRepository: class { constructor() { return mocks.repository; } } }));
 vi.mock("@/lib/google-secret-manager", () => ({ GoogleSecretManagerProvider: class { addVersion = mocks.provider; accessVersion = mocks.readProvider; },
-  GoogleSecretManagerError: class extends Error {}, getGoogleSecretManagerConfig: () => ({ projectId: "synthetic-project", secretId: "synthetic-secret" }),
-  isGoogleSecretManagerReadEnabled: () => false, isGoogleSecretManagerWriteEnabled: () => false }));
+  GoogleSecretManagerError: class extends Error {}, getGoogleSecretManagerConfig: mocks.providerConfig,
+  isGoogleSecretManagerReadEnabled: mocks.readEnabled, isGoogleSecretManagerWriteEnabled: mocks.writeEnabled }));
 
 import { activateSettingsSecretReference, completeSettingsSecretProbe, createSettingsSecretDraft,
-  enqueueSettingsSecretProbe, resolveSettingsSecretProbeCredential, revokeSettingsSecretReference } from "@/lib/settings-secret-lifecycle";
+  enqueueSettingsSecretProbe, resolveSettingsSecretProbeCredential, revokeSettingsSecretReference, listSettingsSecretStatuses } from "@/lib/settings-secret-lifecycle";
 const snapshot = { kind: "postgres" };
 const verified = { profile: { pdmUserId: "profile-tester", companyId: "company-one" },
   session: { principalId: "principal-tester", profileVersion: 7 } };
@@ -45,6 +47,9 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.stubEnv("PDM_SETTINGS_SECRET_PROVIDER", "google_secret_manager");
+    mocks.providerConfig.mockReturnValue({ projectId: "synthetic-project", secretId: "synthetic-secret" });
+    mocks.readEnabled.mockReturnValue(false);
+    mocks.writeEnabled.mockReturnValue(false);
     mocks.repository.getReferenceById.mockResolvedValue(reference);
     mocks.repository.getLatestProbeJob.mockResolvedValue(null);
     mocks.repository.getActiveTypedProbeJob.mockResolvedValue(null);
@@ -59,6 +64,24 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
     mocks.replay.mockResolvedValue({ completed: false });
     mocks.provider.mockResolvedValue("projects/synthetic-project/secrets/synthetic-secret/versions/1");
     mocks.readProvider.mockResolvedValue("synthetic-provider-key-never-production");
+  });
+
+  it.each(["configured", "missing configuration", "reads disabled", "writes disabled"])("keeps a missing key blocked with precise GCP prerequisite status: %s", async variant => {
+    mocks.repository.listReferencesByKind.mockResolvedValue([]);
+    mocks.repository.getLatestWorkerCapabilityHeartbeat.mockResolvedValue({ status: "online", lastSeenAt: new Date().toISOString() });
+    mocks.readEnabled.mockReturnValue(variant !== "reads disabled");
+    mocks.writeEnabled.mockReturnValue(variant !== "writes disabled");
+    if (variant === "missing configuration") mocks.providerConfig.mockReturnValue(null);
+    const [status] = await listSettingsSecretStatuses();
+    expect(status.configured).toBe(false);
+    expect(status.active).toBeNull();
+    expect(status.latest).toBeNull();
+    expect(status.liveGate.status).toBe("blocked");
+    expect(status.liveGate.message).toContain(variant === "configured" ? "設定已就緒；尚未建立金鑰版本" : "尚缺 Cloud SQL");
+    expect(status.workerReadiness.status).toBe("blocked");
+    expect(status.workerPresence.status).toBe("online");
+    expect(mocks.provider).not.toHaveBeenCalled();
+    expect(mocks.readProvider).not.toHaveBeenCalled();
   });
 
   it("queues the verified tester independently of the historical draft creator", async () => {

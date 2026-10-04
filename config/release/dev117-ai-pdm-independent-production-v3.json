@@ -150,6 +150,11 @@
       "PDM_GCS_PROJECT_ID",
       "PDM_GCS_BUCKET",
       "PDM_GCS_LIVE_ENABLED",
+      "PDM_SETTINGS_SECRET_PROVIDER",
+      "PDM_GCP_PROJECT_ID",
+      "PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID",
+      "PDM_ENABLE_GCP_SECRET_READS",
+      "PDM_ENABLE_GCP_SECRET_WRITES",
       "PDM_SMOKE_GCS_WRITER",
       "PDM_SMOKE_OUTBOX_CONSUMER",
       "PDM_SMOKE_EXTERNAL_NOTIFICATION",
@@ -246,7 +251,12 @@
       "PDM_STORAGE_PROVIDER": "google_cloud_storage",
       "PDM_GCS_PROJECT_ID": "jenfu-platform-prod",
       "PDM_GCS_BUCKET": "jenfu-platform-prod-aipdm-files",
-      "PDM_GCS_LIVE_ENABLED": "1"
+      "PDM_GCS_LIVE_ENABLED": "1",
+      "PDM_SETTINGS_SECRET_PROVIDER": "google_secret_manager",
+      "PDM_GCP_PROJECT_ID": "jenfu-platform-prod",
+      "PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID": "aipdm-prod-solidworks-document-manager-key",
+      "PDM_ENABLE_GCP_SECRET_READS": "true",
+      "PDM_ENABLE_GCP_SECRET_WRITES": "true"
     },
     "controlledValues": {
       "PDM_JENFU_SSO_HANDOFF_MODE": {
@@ -409,6 +419,11 @@
         "order": 28,
         "path": "db/postgres/078_dev121_settings_probe_principal_provenance.sql",
         "sha256": "cbaab14c6da4ddd72ffe2b96eaedae97cb954bb3b1d4a0db5bddbb38c894e2ca"
+      },
+      {
+        "order": 29,
+        "path": "db/postgres/079_dev122_canonical_review_lifecycle.sql",
+        "sha256": "08b4f287bc66a5ab48c8dcdcd45f064d49333fa32737c8d75400e51b0b836be6"
       }
     ]
   },

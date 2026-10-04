@@ -38,6 +38,8 @@ import { POST as decideTransfer } from "@/app/api/approvals/requests/[requestId]
 import { buildTransferPackageReadiness } from "@/lib/transfer-package-phase1d";
 import { PartChangeWorkAsyncRepository } from "@/lib/repositories/part-change-work-async-repository";
 import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
+import { GET as readSettings } from "@/app/api/settings/route";
+import { GET as readSettingsSecrets } from "@/app/api/settings/secrets/route";
 import { POST as createRecord } from "@/app/api/numbering/records/route";
 import { readPartNumberMatrixWorkspace } from "@/lib/part-number-matrix-workspace";
 import { GET as readMatrix } from "@/app/api/pdm/parts/[partId]/matrix-workspace/route";
@@ -115,7 +117,7 @@ beforeAll(async () => {
   const ring = getPlatformSessionKeyRing();
   const now = Math.floor(Date.now() / 1000);
   const tokens: Record<string, string> = {};
-  for (const identity of (["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
+  for (const identity of (process.env.DEV122_NATIVE_SUITE==="settings"||["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
     const token = issueJenfuPrincipalSession({
       principalId: "dev122-principal-" + identity, employeeId: "dev122-employee-" + identity,
       identityIssuer: "https://securetoken.google.com/dev122-local-fixture",
@@ -1614,7 +1616,7 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
     expect(await db!.queryOne("SELECT record_status FROM part_numbers WHERE id=:id", { id: fixture.partId })).toMatchObject({ record_status: "Released" });
     // Role-assignment expiry revokes decide+publish together, not separately.
   });
-  it("enforces the native 077 approval-context CHECK truth boundary while allowing legacy SQL NULL", async () => {
+  it("enforces the native 079 approval-context CHECK truth boundary while allowing legacy SQL NULL", async () => {
     const constraints = await db!.query<{ expression: string }>(`SELECT pg_get_expr(constraint_row.conbin,constraint_row.conrelid) AS expression
       FROM pg_catalog.pg_constraint constraint_row JOIN pg_catalog.pg_attribute column_row
         ON column_row.attrelid=constraint_row.conrelid AND column_row.attnum=ANY(constraint_row.conkey)
@@ -1845,5 +1847,50 @@ describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE
       await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!,"recognition-cli-inputs.json"),JSON.stringify(inputs));
       await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"recognition-cli-normal-input-ledger.json"),JSON.stringify(inputs));
     }
+  });
+});
+
+describe.runIf(enabled && process.env.DEV122_NATIVE_SUITE === "settings")("DEV122 actual Next settings prerequisites", () => {
+  it("reads empty settings through lawful signed Principal routes without key or business result fixtures", async () => {
+    expect(process.env.PDM_PRODUCTION_SLICE_MODE).toBe("official-numbering-draft");
+    expect(process.env.PDM_LOCAL_FULL_FUNCTION_VALIDATION).toBe("false");
+    expect(process.env.PDM_ENABLE_GCP_SECRET_READS).toBe("false");
+    expect(process.env.PDM_ENABLE_GCP_SECRET_WRITES).toBe("false");
+    const before = await ownedLifecycleSnapshot();
+    const rawReads:Array<Record<string,unknown>>=[];
+    const captureRead=async(actor:string,route:string,response:Response)=>{
+      rawReads.push({actor,route,status:response.status,cacheControl:response.headers.get("cache-control"),
+        contentType:response.headers.get("content-type"),rawText:await response.clone().text()});
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"settings-native-reads.raw.json"),JSON.stringify(rawReads));
+    };
+    expect(before.secret_references).toEqual([]); expect(before.settings_secret_probe_jobs).toEqual([]);
+    const summaryResponse = await readSettings(request("/api/settings"));
+    await captureRead("owner","/api/settings",summaryResponse);
+    const summary = await ok<{settings:{secretManagementAvailable:boolean;productionSliceSettingsLimited:boolean}}>(summaryResponse);
+    expect(summary.settings).toMatchObject({secretManagementAvailable:true,productionSliceSettingsLimited:true});
+    const secretResponse = await readSettingsSecrets(request("/api/settings/secrets"));
+    await captureRead("owner","/api/settings/secrets",secretResponse);
+    const statuses = await ok<{secrets:Array<{kind:string;active:unknown;latest:unknown;configured:boolean;
+      latestProbeJob:unknown;liveGate:{status:string;message:string};workerReadiness:{status:string};workerPresence:{status:string}}> }>(secretResponse);
+    const status = statuses.secrets.find(item=>item.kind==="solidworks_document_manager");
+    expect(status).toMatchObject({active:null,latest:null,configured:false,latestProbeJob:null,
+      liveGate:{status:"blocked"},workerReadiness:{status:"blocked"},workerPresence:{status:"unknown"}});
+    expect(status!.liveGate.message).toBe("Google Secret Manager 尚缺 Cloud SQL、project/secret 設定或 read/write gate；尚無金鑰版本。");
+    const deniedReadbacks=[];
+    for(const [actor,token,expectedCode] of [["denied",deniedToken,"permission_not_granted"],
+      ["other",otherToken,"entitlement_scope_mismatch"]] as const) {
+      for(const [route,read] of [["/api/settings",readSettings],["/api/settings/secrets",readSettingsSecrets]] as const) {
+        const response=await read(request(route,token));await captureRead(actor,route,response);const body=await response.json();
+        expect(response.status).toBe(403);expect(body.error??body.code).toBe(expectedCode);
+        expect(response.headers.get("cache-control")).toContain("no-store");
+        deniedReadbacks.push({actor,route,status:response.status,body,cacheControl:response.headers.get("cache-control")});
+      }
+    }
+    expect(await ownedLifecycleSnapshot()).toEqual(before);
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"settings-prerequisite-readbacks.json"),JSON.stringify({
+      producerBoundary:"FIXTURE",summary,statuses,deniedReadbacks,fullOwnedRowsUnchanged:true,
+      resultSeeded:false,credentialInput:"NOT_RUN",providerConnection:"NOT_RUN",summaryOnlyRole:"UNIT_LAYER_ONLY_NO_LEGAL_V5_ROLE"}));
+    await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!,"browser-fixtures.json"),JSON.stringify(
+      [1440,390].map(width=>({width,height:width===1440?900:844,flow:"settings",terminalAssetIds:[]}))));
   });
 });

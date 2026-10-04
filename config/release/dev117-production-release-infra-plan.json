@@ -96,7 +96,10 @@
     "google_project_iam_member.verifier_candidate_smoke_execution_invoker[0]",
     "google_project_iam_member.verifier_candidate_smoke_invoker_v2[0]",
     "google_secret_manager_secret.workload_auth_credentials[0]",
-    "google_secret_manager_secret_iam_member.runtime_workload_credentials_accessor[0]"
+    "google_secret_manager_secret_iam_member.runtime_workload_credentials_accessor[0]",
+    "google_secret_manager_secret.solidworks_document_manager[0]",
+    "google_project_iam_custom_role.solidworks_document_manager_runtime[0]",
+    "google_secret_manager_secret_iam_member.solidworks_document_manager_runtime[0]"
   ],
   "allowedActions": [
     "create",

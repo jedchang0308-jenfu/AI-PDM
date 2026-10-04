@@ -1570,7 +1570,7 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口修復／正式發布準備] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：整合官方 main 的 Principal settings 修正，完成正常金鑰設定入口與 exact provider 配置、必要驗證及 owner 正式發布；原生 CAD 屬性由使用者在正式環境驗證。
+  - 下一步：提交已通過本地驗證的設定入口草稿 PR；取得 provider numeric binding 修正與三項新增 own 資源的具體核准後，完成受影響檢查及 owner workflow 正式發布。原生 CAD 屬性由使用者正式驗證。
   - 阻塞 / 恢復條件：正式設定 UI 尚被 slice gate 擋住，provider env 未配置；官方 main 的 secret API Principal 接線已完成。新增 own Secret container／IAM 需具體 plan 與新增資源 gate。其他 28 組有相符層級證據，97／97 focused、typecheck、bounded build、DB boundary 與 desktop/narrow UI 的獨立 QC 已完成。三格式 filename CLI 的 partial 結果不替代 CAD 屬性成功；7 issues／29 groups 分母不變、整體未驗收。
   - 證據：[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
@@ -5242,6 +5242,7 @@ QC 要求保留的 Supabase stop wording：
 <a id="dev-122-business-defects"></a>
 
 ## DEV-122：AI-PDM 內部功能缺陷集中處理
+2026-10-05 現行續點：官方 main 已整合至7a8f156；未套用077 bytes未變改名079並接在078後，設定 exact gate／Principal capability fail-closed／provider狀態文案與三項B-only資源來源已準備。新增設定 focused85／85、release實際134／134（原wrapper reporter FAIL保留）、static/mock34+36+9與既定abort／DB boundary／typecheck／isolated build均有實際通過證據。078/079 native root／rollback回歸8／8；101 skip不算PASS。本輪正常設定UI在1440×900與390×844共2案例PASS，含導航／鍵盤／無overflow、允許與拒絕Principal、company隔離與空密碼／zero secret POST；原UI403 body未讀，另以same-session獨立HTTP核permission_not_granted，兩層證據不混用。163 own table rows前後相同；含nonce的snapshot hashes不同，不宣相同。原5cbd／941失敗與UNKNOWN不改寫；新e1c041c4f1bba741證據、source unchanged、inner/outer finally及fresh exactPID／port清理另列。唯讀native Terraform plan僅三create、既有83 read/no-op，state serial90／source不變；未apply。GCP canonical version使用數字project9536592944，現named env exact matcher存在合法response拒絕；最小配置修正兩次auto-review拒絕，来源未變，具體提案等待直接人類核准。新Secret/customrole/Secret-onlybinding亦待新增資源授權；先整理草稿PR，不merge／release GO或宣正式PASS。真key／probe／CAD properties由人類正式驗證，F-01F仍NOT_RUN，7／29分母不變。以下舊phase證據保留，不能覆蓋本續點。
 
 狀態：執行中（設定入口修復／正式發布準備；F-01F 待使用者正式驗證）／整體未驗收；成熟度：RD Implementation Ready；架構定案：已定案（2026-10-04）；節點類型：開發點；計入交付：否。
 
