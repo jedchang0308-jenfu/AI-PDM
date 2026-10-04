@@ -8,7 +8,9 @@
 
 整理前文件原文在 [HISTORY_ONLY文件地圖](documentation_map-history-2026-10-03.md)，包含舊進度及取代關係；不預設載入、不執行舊雙軌／bridge／逐人／TOTP步骤。以下保留其他任務原索引，未因本次CA重新判定其完成度。
 
-本輪 auth-only 候選的本機／真實 PostgreSQL 結果及未驗界線在[候選原始QA](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)，不是正式 PASS。R78 為現行 Production 基線；R79 verify stage 的 Platform POST（2026-10-04T02:38:30.564665Z）回 401，02:38:38.744832Z 決策碼為 auth_token_invalid，後已 PRE_ACTIVATION_ABORTED 並保留 R78，見[現行R79續點](dev_task.md#dev-121-current-contract)及 root 的[workflow readback](../../Jenfu-Platform/output/dev-012/inputs/dev121-r79-owner-run-watch.json)、[smoke auth diagnostic](../../Jenfu-Platform/output/dev-012/inputs/dev121-r79-smoke-auth-diagnostic.json)。v5 auth_time 早於／等於 global logout 僅是因果推論，current DB revokedBefore 未直接讀回。R79 後 producer explicit 5→6 本機測試 19/19 PASS，尚非 official CI／Production 驗收；clean official source 與 fresh owner release 是後續驗證。原QA capture／FAIL 不回寫；一般功能與 077 不移出 DEV-122。
+以下 R78／R79 為 HISTORY_ONLY 的原時點證據，不是現行 source／traffic binding；當前施工是 [DEV-121 probe Principal 續點](dev_task.md#dev-121-current-contract)，對照 [現行背景契約](specs/DEV-121-target-authorization-boundary.md#背景及檔案授權ai-pdm-既有用途)／native 078／actual command 與 workload tests。078 為 `new-version` writer 契約，歷史讀取／非 actor UPDATE 保留，新 enqueue 要求 typed Principal，不能把舊 writer 當相容回復。077 一般業務 dirty 保留於 DEV-122、未套用，不帶入本批；本機、PG、CI、Production 的層級不互相代替。
+
+本輪 auth-only 候選的本機／真實 PostgreSQL 結果及未驗界線在[候選原始QA](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)，不是正式 PASS。原時點 R78 為 Production 基線；R79 verify stage 的 Platform POST（2026-10-04T02:38:30.564665Z）回 401，02:38:38.744832Z 決策碼為 auth_token_invalid，後已 PRE_ACTIVATION_ABORTED 並保留 R78，見[歷史R79續點](dev_task.md#dev-121-current-contract)及 root 的[workflow readback](../../Jenfu-Platform/output/dev-012/inputs/dev121-r79-owner-run-watch.json)、[smoke auth diagnostic](../../Jenfu-Platform/output/dev-012/inputs/dev121-r79-smoke-auth-diagnostic.json)。v5 auth_time 早於／等於 global logout 僅是因果推論，current DB revokedBefore 未直接讀回。R79 後 producer explicit 5→6 本機測試 19/19 PASS，尚非 official CI／Production 驗收；clean official source 與 fresh owner release 是後續驗證。原QA capture／FAIL 不回寫；一般功能與 077 不移出 DEV-122。
 
 ## 1. Authoritative Entry Points
 

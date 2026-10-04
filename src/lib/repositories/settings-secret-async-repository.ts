@@ -60,6 +60,10 @@ export type SettingsSecretProbeJob = {
   createdAt: string;
   completedAt: string | null;
   updatedAt: string;
+  companyId: string | null;
+  initiatorPrincipalId: string | null;
+  initiatorProfileVersion: number | null;
+  purpose: "settings_secret_probe" | null;
 };
 
 export type WorkerCapabilityHeartbeat = {
@@ -131,6 +135,10 @@ type SettingsSecretProbeJobRow = {
   created_at: string;
   completed_at: string | null;
   updated_at: string;
+  company_id: string | null;
+  initiator_principal_id: string | null;
+  initiator_profile_version: number | string | null;
+  purpose: "settings_secret_probe" | null;
 };
 
 type WorkerCapabilityHeartbeatRow = {
@@ -350,7 +358,11 @@ function mapProbeJob(row: SettingsSecretProbeJobRow): SettingsSecretProbeJob {
     createdBy: row.created_by,
     createdAt: row.created_at,
     completedAt: row.completed_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    companyId: row.company_id ?? null,
+    initiatorPrincipalId: row.initiator_principal_id ?? null,
+    initiatorProfileVersion: row.initiator_profile_version == null ? null : Number(row.initiator_profile_version),
+    purpose: row.purpose ?? null
   };
 }
 
@@ -379,8 +391,9 @@ export class AsyncSettingsSecretRepository {
     return rows.map(mapSecretReference);
   }
 
-  async getReferenceById(id: string): Promise<SettingsSecretReference | null> {
-    const row = await this.client.queryOne<SettingsSecretReferenceRow>(SELECT_SECRET_REFERENCE_BY_ID_SQL, { id });
+  async getReferenceById(id: string, lock = false): Promise<SettingsSecretReference | null> {
+    const row = await this.client.queryOne<SettingsSecretReferenceRow>(SELECT_SECRET_REFERENCE_BY_ID_SQL +
+      (lock && this.client.kind === "postgres" ? " FOR UPDATE" : ""), { id });
     return row ? mapSecretReference(row) : null;
   }
 
@@ -482,10 +495,14 @@ export class AsyncSettingsSecretRepository {
     });
   }
 
-  async enqueueProbeJob(input: { id: string; secretReferenceId: string; kind: string; createdBy: string; createdAt: string; maxAttempts?: number }): Promise<SettingsSecretProbeJob> {
+  async enqueueProbeJob(input: { id: string; secretReferenceId: string; kind: string; createdBy: string; createdAt: string; maxAttempts?: number;
+    companyId: string; initiatorPrincipalId: string; initiatorProfileVersion: number;
+    purpose: "settings_secret_probe" }): Promise<SettingsSecretProbeJob> {
     await this.client.execute(
-      `INSERT INTO settings_secret_probe_jobs (id, secret_reference_id, kind, status, attempt_count, max_attempts, created_by, created_at, updated_at)
-       VALUES (:id, :secretReferenceId, :kind, 'pending', 0, :maxAttempts, :createdBy, :createdAt, :createdAt)`,
+      `INSERT INTO settings_secret_probe_jobs (id, secret_reference_id, kind, status, attempt_count, max_attempts, created_by, created_at, updated_at,
+          company_id, initiator_principal_id, initiator_profile_version, purpose)
+       VALUES (:id, :secretReferenceId, :kind, 'pending', 0, :maxAttempts, :createdBy, :createdAt, :createdAt,
+          :companyId, :initiatorPrincipalId, :initiatorProfileVersion, :purpose)`,
       { ...input, maxAttempts: input.maxAttempts ?? 2 }
     );
     const job = await this.getProbeJobById(input.id);
@@ -493,8 +510,9 @@ export class AsyncSettingsSecretRepository {
     return job;
   }
 
-  async getProbeJobById(id: string): Promise<SettingsSecretProbeJob | null> {
-    const row = await this.client.queryOne<SettingsSecretProbeJobRow>("SELECT * FROM settings_secret_probe_jobs WHERE id = :id", { id });
+  async getProbeJobById(id: string, lock = false): Promise<SettingsSecretProbeJob | null> {
+    const row = await this.client.queryOne<SettingsSecretProbeJobRow>("SELECT * FROM settings_secret_probe_jobs WHERE id = :id" +
+      (lock && this.client.kind === "postgres" ? " FOR UPDATE" : ""), { id });
     return row ? mapProbeJob(row) : null;
   }
 
@@ -506,17 +524,31 @@ export class AsyncSettingsSecretRepository {
     return row ? mapProbeJob(row) : null;
   }
 
+  async getActiveTypedProbeJob(secretReferenceId: string): Promise<SettingsSecretProbeJob | null> {
+    const row = await this.client.queryOne<SettingsSecretProbeJobRow>(
+      `SELECT * FROM settings_secret_probe_jobs WHERE secret_reference_id = :secretReferenceId
+       AND status IN ('pending', 'running') AND company_id IS NOT NULL
+       AND initiator_principal_id IS NOT NULL AND initiator_profile_version > 0
+       AND purpose = 'settings_secret_probe'`, { secretReferenceId });
+    return row ? mapProbeJob(row) : null;
+  }
+
   async claimProbeJob(workerId: string, now: string): Promise<SettingsSecretProbeJob | null> {
     return this.client.transaction(async (transactionClient) => {
       const staleCutoff = new Date(Date.parse(now) - 60_000).toISOString();
       await transactionClient.execute(
-        "UPDATE settings_secret_probe_jobs SET status = 'expired', result_code = 'probe_attempt_limit_exceeded', completed_at = :now, updated_at = :now WHERE status = 'running' AND updated_at < :staleCutoff AND attempt_count >= max_attempts",
+        `UPDATE settings_secret_probe_jobs SET status = 'expired', result_code = 'probe_attempt_limit_exceeded', completed_at = :now, updated_at = :now
+         WHERE status = 'running' AND updated_at < :staleCutoff AND attempt_count >= max_attempts
+           AND company_id IS NOT NULL AND initiator_principal_id IS NOT NULL
+           AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'`,
         { now, staleCutoff }
       );
       const candidate = await transactionClient.queryOne<SettingsSecretProbeJobRow>(
         `SELECT * FROM settings_secret_probe_jobs
-         WHERE status = 'pending' OR (status = 'running' AND updated_at < :staleCutoff AND attempt_count < max_attempts)
-         ORDER BY created_at ASC LIMIT 1`,
+         WHERE company_id IS NOT NULL AND initiator_principal_id IS NOT NULL
+           AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
+           AND (status = 'pending' OR (status = 'running' AND updated_at < :staleCutoff AND attempt_count < max_attempts))
+         ORDER BY created_at ASC LIMIT 1${transactionClient.kind === "postgres" ? " FOR UPDATE SKIP LOCKED" : ""}`,
         { staleCutoff }
       );
       if (!candidate) return null;
@@ -532,22 +564,27 @@ export class AsyncSettingsSecretRepository {
   }
 
   async heartbeatProbeJob(id: string, workerId: string, now: string): Promise<boolean> {
-    await this.client.execute(
-      "UPDATE settings_secret_probe_jobs SET heartbeat_at = :now, updated_at = :now WHERE id = :id AND status = 'running' AND locked_by = :workerId",
-      { id, workerId, now }
+    const updated = await this.client.queryOne<{ id: string }>(
+      `UPDATE settings_secret_probe_jobs SET heartbeat_at = :now, updated_at = :now
+       WHERE id = :id AND status = 'running' AND locked_by = :workerId
+         AND company_id IS NOT NULL AND initiator_principal_id IS NOT NULL
+         AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
+         AND updated_at >= :staleCutoff RETURNING id`,
+      { id, workerId, now, staleCutoff: new Date(Date.parse(now) - 60_000).toISOString() }
     );
-    const row = await this.getProbeJobById(id);
-    return row?.status === "running" && row.lockedBy === workerId;
+    return Boolean(updated);
   }
 
   async completeProbeJob(input: { id: string; workerId: string; status: Exclude<SettingsSecretProbeStatus, "pending" | "running" | "expired">; resultCode: string | null; readerVersion: string | null; completedAt: string }): Promise<boolean> {
-    await this.client.execute(
+    const updated = await this.client.queryOne<{ id: string }>(
       `UPDATE settings_secret_probe_jobs SET status = :status, result_code = :resultCode, reader_version = :readerVersion,
-        completed_at = :completedAt, updated_at = :completedAt WHERE id = :id AND status = 'running' AND locked_by = :workerId`,
-      input
+        completed_at = :completedAt, updated_at = :completedAt WHERE id = :id AND status = 'running' AND locked_by = :workerId
+        AND company_id IS NOT NULL AND initiator_principal_id IS NOT NULL
+        AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
+        AND updated_at >= :staleCutoff RETURNING id`,
+      { ...input, staleCutoff: new Date(Date.parse(input.completedAt) - 60_000).toISOString() }
     );
-    const row = await this.getProbeJobById(input.id);
-    return row?.status === input.status && row.lockedBy === input.workerId;
+    return Boolean(updated);
   }
 
   async upsertWorkerCapabilityHeartbeat(input: WorkerCapabilityHeartbeat): Promise<void> {

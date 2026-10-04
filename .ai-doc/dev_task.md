@@ -8,7 +8,15 @@
 
 歷史原文在 [HISTORY_ONLY 任務快照](dev_task-history-2026-10-03.md)，不讀為當前命令。共同驗收依 [JENFU 既有盤點](../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)；scope／publish／verified Principal 防漏洞及可靠發布 storage validator 仍由 DEV-121 處理，不能搬到延期業務待辦。各層證據僅證明實際本機／整合／正式實測範圍。AI-PDM DEV-121 依自己的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 出口獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint 結果，任一 owner PASS 不推定三 owner joint PASS。
 
-## R79 唯一現行續點（2026-10-04；候選安全中止並保留 R78，Production L4 未完成）
+## 現行安全修正：Settings Secret probe Principal provenance（2026-10-04）
+
+沿 `AIPDM/DEV-121#principal-only-background-work`／P07–P08，本輪已證實的正常設定中心四個 human command 及四個 probe workload caller，必須保留 verified Principal／company／purpose／queue initiator；草稿 creator 不等於 probe tester。處置依[現行背景契約](specs/DEV-121-target-authorization-boundary.md#背景及檔案授權ai-pdm-既有用途)；不是一般 Secret 建置或 DEV-122 業務缺失，不新增主任務。
+
+候選修正使用原工作樹、同一 branch；追加 native 078，不修改已套用 migrations，不帶未套用的 077／其他一般功能 dirty。四個 human caller 改用既有 `settings.secret.manage` Principal command，native 078 直接保存不可變的 queue Principal 與 company，worker result 同 transaction 保存 technical executor／原 initiator 的稽核。歷史缺 actor 的 job 保留並 hold，不讀 provider／不猜綁定。078 的 `new-version` writer 契約保留歷史讀取及非 actor UPDATE；新 INSERT 必須帶 typed Principal，部署短窗的舊 enqueue 會 fail closed，不宣稱舊 writer 相容。此段只記本機候選與待驗方向：CI、真實 PG／正式發布及 Production workload L4 各依實際證據，不由 unit 或 source 名稱推定 PASS。下一個可驗證交付是 actual PG queue→receipt/outbox/audit→claim/lease→completion 的 Principal 一致性及原子失敗／重播，隨後同一 owner 批次發布。
+
+下方 R75–R79 為封存歷史原文，不能當現行 release binding 或重試命令；current live baseline 與續點由 JENFU 的既有盤點／provider readback 核對，不從較早文件日期推定。
+
+## 歷史 R79 續點（HISTORY_ONLY；原 2026-10-04 判定保留）
 
 官方 source 2806b72ec1909e969c5747f95a2a7e70130e89f0 的 R75 business storage apply 已完成資源寫入；provider 把 bucket IAM member 的 bucket 回傳為 b/<exact-name>，舊 validator 在 apply 後拒絕。原 saved binary 與 immutable apply claim 必須保留且不可重放。provider-format 的精確值修正及 read-only reconcile、完整 own resources 與 effective create/get-only IAM 已有[原始 readback](qa/DEV-121-business-storage-provider-readback-2026-10-03.json)；這只證明資源與權限，application storage activation／Production 業務 L4 仍未執行。
 

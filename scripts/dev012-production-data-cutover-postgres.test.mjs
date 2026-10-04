@@ -3,7 +3,7 @@ import test from 'node:test'
 import pg from 'pg'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { insertTableRows, inspectSourceSessions, readCatalog, readTargetRows } from './dev012-production-data-cutover-runtime.mjs'
 import { summarizeRows } from './lib/dev012-production-data-cutover.mjs'
 
@@ -51,11 +51,11 @@ test('isolated PostgreSQL proves serializable import, non-deferrable self-FK con
   }
 })
 
-test('DEV121 Principal source precision, native lifecycle and public session taxonomy stay consistent', () => {
+test('DEV121 Principal precision, native lifecycle and settings commands/probe actor stay consistent', () => {
   assert.equal(process.env.DEV012_ISOLATED_POSTGRES, '1', 'DEV012_POSTGRES_TEST_REQUIRES_TASK_OWNED_CLUSTER')
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
   const result = spawnSync(process.execPath, ['--experimental-transform-types',
-    '--experimental-loader', path.join(root,'scripts/qc-ts-path-loader.mjs'),
+    '--experimental-loader', pathToFileURL(path.join(root,'scripts/qc-ts-path-loader.mjs')).href,
     path.join(root,'scripts/dev121-principal-source-precision-postgres.mjs')], {
     cwd: root,env: process.env,encoding: 'utf8',windowsHide: true,
     timeout: 180000,maxBuffer: 4*1024*1024
@@ -64,7 +64,9 @@ test('DEV121 Principal source precision, native lifecycle and public session tax
   const reports = result.stdout.trim().split(/\r?\n/u).filter(line => line.startsWith('{')).map(line => JSON.parse(line))
   const report = reports.find(item => item.status === 'PASS')
   assert.ok(report, 'the actual consumer/native PG regression must execute; no skip or mocked PASS')
-  assert.equal(report.checks.length,7)
+  assert.equal(report.checks.length,15)
+  assert.equal(report.settingsProviderMocked,true)
+  assert.ok(report.sourceProof.some(item => item.path === 'db/postgres/078_dev121_settings_probe_principal_provenance.sql'))
   assert.equal(report.providerConformance,false)
   assert.equal(report.productionL4,false)
   assert.deepEqual(report.cleanup,{ generatedDatabaseDropped: true,newRolesDropped: true,ownTempRemoved: true })

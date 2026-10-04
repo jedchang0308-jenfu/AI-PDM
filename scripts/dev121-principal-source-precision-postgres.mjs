@@ -2,6 +2,7 @@
 // are synthetic; this does not attest OrgMaster/provider/Production conformance.
 // The candidate/parser/service and unchanged 071 lifecycle / 074 provision / 076 manager guard
 // execute against a fresh database in the existing required CI PostgreSQL job.
+// Native 078 and four settings commands are real; Secret Manager I/O is synthetic-only.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -26,7 +27,7 @@ const roles = ['jenfu_ai_pdm_migrator', 'jenfu_ai_pdm_runtime'];
 const createdRoles = [];
 const checks = [];
 const sourceProof = [];
-let database, appDatabase, created = false, dropped = false, tempRemoved = false;
+let database, appDatabase, closeSettingsRuntime, created = false, dropped = false, tempRemoved = false;
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const actor = { principalId: 'principal-precision-manager', employeeId: 'employee-precision-manager',
   identityIssuer: 'issuer-precision-manager', identitySubject: 'subject-precision-manager' };
@@ -420,7 +421,319 @@ try {
   assert.equal((await admittedResponse(freshSession)).status,200);
   assert.equal(authorizedEffects,3);
   checks.push('query/malformed/missing association stay 503; reactivation rejects old session; zero typed producer denies 401 and exact producer restore admits fresh session');
+// Added to the existing synthetic consumer fixture; provider I/O alone is mocked.
+  await database.query(`
+    ALTER TABLE ai_pdm_core.principal_accounts ADD CONSTRAINT precision_principal_company_profile
+      UNIQUE(company_id,pdm_user_id,principal_id);
+    CREATE TABLE ai_pdm_core.secret_references (
+      id text PRIMARY KEY,kind text,provider text,display_name text,vault_provider text,vault_secret_id text,
+      masked_hint text,fingerprint text,lifecycle_status text,version integer,created_by text REFERENCES ai_pdm_core.users(id),
+      created_at timestamptz,tested_at timestamptz,activated_by text,activated_at timestamptz,
+      retired_by text,retired_at timestamptz,revoked_by text,revoked_at timestamptz,revoke_reason text,metadata_json text);
+    CREATE TABLE ai_pdm_core.setting_test_runs (id text PRIMARY KEY,secret_reference_id text REFERENCES ai_pdm_core.secret_references(id),
+      kind text,provider text,result_status text,summary text,redacted_error text,artifact_path text,tested_by text,
+      tested_at timestamptz,metadata_json text);
+    CREATE TABLE ai_pdm_core.setting_activation_events (id text PRIMARY KEY,secret_reference_id text REFERENCES ai_pdm_core.secret_references(id),
+      kind text,event_type text,actor_id text,event_at timestamptz,detail_json text);
+    CREATE TABLE ai_pdm_core.audit_logs (id text PRIMARY KEY,submission_id text,actor_id text,action text,detail_json text,
+      company_id text,scope_kind text,created_at timestamptz);
+    CREATE TABLE ai_pdm_core.platform_command_receipts (id text PRIMARY KEY,company_id text,command_name text,schema_version integer,
+      idempotency_key text,actor_id text,principal_id text,platform_principal_id text,platform_organization_id text,
+      correlation_id text,command_status text,response_json text,created_at timestamptz,completed_at timestamptz,
+      UNIQUE(company_id,command_name,idempotency_key));
+    CREATE TABLE ai_pdm_core.platform_outbox_events (id text PRIMARY KEY,company_id text,aggregate_type text,aggregate_id text,
+      event_type text,schema_version integer,payload_json text,actor_id text,principal_id text,platform_principal_id text,
+      platform_organization_id text,correlation_id text,idempotency_key text,delivery_status text,attempt_count integer,
+      occurred_at timestamptz,updated_at timestamptz,UNIQUE(company_id,event_type,idempotency_key));
+  `);
+  const schema048 = fs.readFileSync(path.join(root,'db/postgres/048_solidworks_credential_ui_activation.sql'),'utf8').replaceAll('\r\n','\n');
+  const jobsStart = schema048.indexOf('CREATE TABLE IF NOT EXISTS public.settings_secret_probe_jobs');
+  const jobsEnd = schema048.indexOf('CREATE TABLE IF NOT EXISTS public.worker_capability_heartbeats');
+  assert.ok(jobsStart >= 0 && jobsEnd > jobsStart);
+  const jobsSql = schema048.slice(jobsStart,jobsEnd).replaceAll('public.','ai_pdm_core.');
+  await database.query(jobsSql);
+  sourceProof.push({ path:'db/postgres/048_solidworks_credential_ui_activation.sql',sourceSha256:sha(schema048),
+    executedFunctionSha256:sha(jobsSql),scope:'actual probe table/index DDL projected to own schema; other baseline tables synthetic' });
+  // A genuinely pre-078 legacy row remains NULL; do not disable the new trigger to fabricate one.
+  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at)
+    VALUES ('secret-legacy','solidworks_document_manager','solidworks_document_manager','google_secret_manager','draft',999,$1,clock_timestamp())`,[actorProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs(id,secret_reference_id,kind,status,created_by,updated_at)
+    VALUES ('probe-legacy','secret-legacy','solidworks_document_manager','pending',$1,clock_timestamp()-interval '2 minutes')`,[actorProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at)
+    VALUES ('secret-legacy-passed','solidworks_document_manager','solidworks_document_manager','google_secret_manager','tested',998,$1,clock_timestamp())`,[actorProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs(id,secret_reference_id,kind,status,created_by,updated_at)
+    VALUES ('probe-legacy-passed','secret-legacy-passed','solidworks_document_manager','passed',$1,clock_timestamp()-interval '2 minutes')`,[actorProfile]);
+  await database.query('ALTER TABLE ai_pdm_core.settings_secret_probe_jobs OWNER TO jenfu_ai_pdm_migrator');
+  const source078 = fs.readFileSync(path.join(root,'db/postgres/078_dev121_settings_probe_principal_provenance.sql'),'utf8').replaceAll('\r\n','\n');
+  await database.query(source078);
+  sourceProof.push({ path:'db/postgres/078_dev121_settings_probe_principal_provenance.sql',sourceSha256:sha(source078),scope:'complete new migration, immutable trigger and composite FK on disposable fixture' });
+  await database.query(`GRANT SELECT,INSERT,UPDATE ON ai_pdm_core.secret_references,ai_pdm_core.setting_test_runs,
+    ai_pdm_core.setting_activation_events,ai_pdm_core.audit_logs,ai_pdm_core.platform_command_receipts,
+    ai_pdm_core.platform_outbox_events,ai_pdm_core.settings_secret_probe_jobs TO jenfu_ai_pdm_runtime;
+    INSERT INTO platform_contract.principal_state_fixture VALUES ('principal-precision-manager',0,NULL);`);
+  // Install only the provider seam. Actual service, command snapshot, ACL/binder,
+  // guard, receipt/outbox/audit and native 078 are not mocked.
+  const providerUrl = 'data:text/javascript,' + encodeURIComponent(`
+    export class GoogleSecretManagerError extends Error {}
+    export const getGoogleSecretManagerConfig = () => ({projectId:'synthetic-project',secretId:'synthetic-secret'});
+    export const isGoogleSecretManagerReadEnabled = () => true;
+    export const isGoogleSecretManagerWriteEnabled = () => true;
+    export class GoogleSecretManagerProvider {
+      async addVersion() { globalThis.__dev121SyntheticProviderWrites++;await globalThis.__dev121BeforeSyntheticProviderReturn?.();return 'projects/synthetic-project/secrets/synthetic-secret/versions/1'; }
+      async accessVersion() { throw Error('REAL_OR_SYNTHETIC_SECRET_ACCESS_FORBIDDEN_IN_PG_TEST'); }
+    }
+  `);
+  const providerLoader = path.join(taskRoot,'settings-provider-loader.mjs');
+  fs.writeFileSync(providerLoader,`export async function resolve(specifier,context,nextResolve) {
+    if (specifier === '@/lib/google-secret-manager') return {url:${JSON.stringify(providerUrl)},shortCircuit:true};
+    return nextResolve(specifier,context);
+  }\n`);
+  const { register } = await import('node:module');
+  register(pathToFileURL(providerLoader),import.meta.url);
+  globalThis.__dev121SyntheticProviderWrites = 0;
+  process.env.PDM_SETTINGS_SECRET_PROVIDER = 'google_secret_manager';
+  process.env.PDM_SECRET_FINGERPRINT_PEPPER = 'synthetic-pg-test-pepper';
+  process.env.PDM_DB_PROVIDER = 'postgres';
+  process.env.PDM_POSTGRES_MAX_CONNECTIONS = '1';
+  process.env.DEV010_N2_DATABASE_BOUNDARY = 'required';
+  // A newly owned LOGIN inherits only runtime ACL. Never execute these service
+  // transactions as postgres or depend on a connection-startup SET ROLE option.
+  const settingsLogin = 'dev121_settings_' + crypto.randomBytes(8).toString('hex');
+  const settingsPassword = crypto.randomBytes(24).toString('hex');
+  assert.match(settingsLogin,/^dev121_settings_[a-f0-9]{16}$/u);
+  assert.equal((await admin.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[settingsLogin])).rowCount,0);
+  await admin.query('CREATE ROLE '+settingsLogin+" LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '"+settingsPassword+"'");
+  createdRoles.push(settingsLogin);
+  await admin.query('GRANT jenfu_ai_pdm_runtime TO '+settingsLogin);
+  await admin.query('REVOKE CONNECT ON DATABASE '+dbName+' FROM PUBLIC');
+  await admin.query('GRANT CONNECT ON DATABASE '+dbName+' TO '+settingsLogin);
+  const settingsUrl = new URL(targetUrl);
+  settingsUrl.username = settingsLogin;
+  settingsUrl.password = settingsPassword;
+  process.env.PDM_POSTGRES_URL = settingsUrl.toString();
+  const { getAsyncDatabaseClient,closeAsyncDatabaseClient } = await import(pathToFileURL(path.join(root,'src/lib/db-async-provider.ts')));
+  closeSettingsRuntime = closeAsyncDatabaseClient;
+  const settingsClient = getAsyncDatabaseClient();
+  const settingsAcl = await settingsClient.queryOne(`SELECT current_user AS role,
+    pg_has_role(current_user,'jenfu_ai_pdm_runtime','USAGE') AS runtime_acl,
+    has_schema_privilege(current_user,'ai_pdm_core','CREATE') AS can_create,
+    rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls FROM pg_roles WHERE rolname=current_user`);
+  assert.deepEqual(settingsAcl,{role:settingsLogin,runtime_acl:true,can_create:false,
+    rolsuper:false,rolcreatedb:false,rolcreaterole:false,rolreplication:false,rolbypassrls:false});
+  const { createSettingsSecretDraft,enqueueSettingsSecretProbe,activateSettingsSecretReference,revokeSettingsSecretReference,
+    completeSettingsSecretProbe,resolveSettingsSecretProbeCredential } = await import(pathToFileURL(path.join(root,'src/lib/settings-secret-lifecycle.ts')));
+  const { AsyncSettingsSecretRepository } = await import(pathToFileURL(path.join(root,'src/lib/repositories/settings-secret-async-repository.ts')));
+  const repository = new AsyncSettingsSecretRepository(settingsClient);
+  const managerSeconds = Math.floor(Date.now()/1000);
+  const managerToken = issueJenfuPrincipalSession({ ...actor,authEpoch:0,accountLifecycleVersion:1,profileVersion:1,
+    companyId:'company-jenfu',authenticatedAt:managerSeconds-30,assuranceLevel:'aal1',secondFactor:null,
+    assurancePolicyHash:principalAssurancePolicyHash(trustPolicy),maxAgeSeconds:600 },keyRing,managerSeconds);
+  const managerClaims = verifyJenfuPrincipalSession(managerToken,keyRing,{nowSeconds:managerSeconds});
+  await appTransaction(snapshot => new JenfuPrincipalSessionRegistry(snapshot).register(managerClaims));
+  const metadata = (action,operation) => ({ actor:{ principalId:actor.principalId,pdmUserId:actorProfile,
+    organizationId:'company-jenfu',platformOrganizationId:null,roles:['pdm_admin'],scopes:['settings.secret.manage'],
+    authProvider:'current_pdm_session',correlationId:operation,requestId:operation,
+    authorizationActor:{ ...actor,localPrincipalId:actorProfile,companyId:'company-jenfu',sessionSchemaVersion:2 } },
+    idempotencyKey:operation,principalRequest:{ token:managerToken,keyRing,trustPolicy,identityIssuer:actor.identityIssuer,
+      database:settingsClient,nowSeconds:managerSeconds },principalAuthorization:{
+      request:new Request('https://pdm.example.test/api/settings/secrets/solidworks_document_manager/'+action,
+        {method:'POST',headers:{cookie:'pdm_session='+managerToken}}),
+      routePath:'src/app/api/settings/secrets/[kind]/'+action+'/route.ts',method:'POST',permissionCode:'settings.secret.manage' } });
+  const effects = async () => (await database.query(`SELECT
+    (SELECT count(*)::integer FROM ai_pdm_core.secret_references) AS references,
+    (SELECT count(*)::integer FROM ai_pdm_core.settings_secret_probe_jobs) AS jobs,
+    (SELECT count(*)::integer FROM ai_pdm_core.setting_test_runs) AS tests,
+    (SELECT count(*)::integer FROM ai_pdm_core.setting_activation_events) AS events,
+    (SELECT count(*)::integer FROM ai_pdm_core.audit_logs) AS audit,
+    (SELECT count(*)::integer FROM ai_pdm_core.platform_command_receipts) AS receipts,
+    (SELECT count(*)::integer FROM ai_pdm_core.platform_outbox_events) AS outbox`)).rows[0];
+  const syntheticValue = 'synthetic-pg-not-a-provider-key';
+  const draft = await createSettingsSecretDraft({kind:'solidworks_document_manager',secretValue:syntheticValue},metadata('draft','settings-draft'));
+  assert.equal(globalThis.__dev121SyntheticProviderWrites,1);
+  const afterDraft = await effects();
+  assert.deepEqual(await createSettingsSecretDraft({kind:'solidworks_document_manager',secretValue:syntheticValue},metadata('draft','settings-draft')),draft);
+  assert.deepEqual(await effects(),afterDraft);
+  assert.equal(globalThis.__dev121SyntheticProviderWrites,1);
+  const material = (await database.query(`SELECT jsonb_agg(to_jsonb(row))::text AS material FROM
+    (SELECT metadata_json FROM ai_pdm_core.secret_references UNION ALL SELECT response_json FROM ai_pdm_core.platform_command_receipts
+      UNION ALL SELECT payload_json FROM ai_pdm_core.platform_outbox_events UNION ALL SELECT detail_json FROM ai_pdm_core.audit_logs) row`)).rows[0].material;
+  assert.ok(!material.includes(syntheticValue));
+  checks.push('actual secret draft command commits canonical receipt/outbox/audit with synthetic-only provider; exact replay does not repeat provider or DB effects');
+  const providerRecheckBefore = await effects();
+  const providerWritesBefore = globalThis.__dev121SyntheticProviderWrites;
+  const withdrawnGrants = (await database.query(`SELECT jsonb_agg(to_jsonb(grant_row)) AS rows
+    FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 grant_row WHERE principal_id=$1`,[actor.principalId])).rows[0].rows;
+  assert.ok(Array.isArray(withdrawnGrants) && withdrawnGrants.length > 0);
+  // An effective producer removes withdrawn rows; retaining an expired row in
+  // this table fixture would instead test malformed authority/dependency failure.
+  globalThis.__dev121BeforeSyntheticProviderReturn = () => database.query(
+    'DELETE FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 WHERE principal_id=$1',[actor.principalId]);
+  try {
+    await assert.rejects(createSettingsSecretDraft({kind:'solidworks_document_manager',secretValue:syntheticValue},metadata('draft','settings-draft-after-revoke')),
+      error => error.code==='permission_not_granted' && jenfuEntitlementFailureResponse(error.code).status===403);
+    assert.deepEqual(await effects(),providerRecheckBefore);
+    assert.equal(globalThis.__dev121SyntheticProviderWrites,providerWritesBefore+1);
+  } finally {
+    delete globalThis.__dev121BeforeSyntheticProviderReturn;
+    await database.query(`INSERT INTO orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
+      SELECT * FROM jsonb_populate_recordset(NULL::orgmaster_contract.v_ai_pdm_principal_effective_grants_v4,$1::jsonb)`,[JSON.stringify(withdrawnGrants)]);
+  }
+  checks.push('fresh draft preflight then synthetic provider add then effective-grant withdrawal: actual command recheck denies typed403 with zero DB reference/receipt/outbox/audit; only unreferenced provider orphan remains');
+  await assert.rejects(database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs
+    (id,secret_reference_id,kind,status,created_by)
+    VALUES ('old-writer-insert','secret-legacy','solidworks_document_manager','pending',$1)`,[actorProfile]),
+  error => error.code==='23514' && error.message==='settings_probe_principal_required');
+  // Ordinary legacy updates are preserved, but may never invent an initiator.
+  await database.query("UPDATE ai_pdm_core.settings_secret_probe_jobs SET result_code='synthetic_legacy_held' WHERE id='probe-legacy'");
+  const legacyBefore = (await database.query("SELECT to_jsonb(job) AS value FROM ai_pdm_core.settings_secret_probe_jobs job WHERE id='probe-legacy'")).rows[0].value;
+  assert.equal(legacyBefore.result_code,'synthetic_legacy_held');
+  assert.equal(legacyBefore.company_id,null);assert.equal(legacyBefore.initiator_principal_id,null);
+  assert.equal(legacyBefore.initiator_profile_version,null);assert.equal(legacyBefore.purpose,null);
+  const replacement = await enqueueSettingsSecretProbe({secretReferenceId:'secret-legacy'},metadata('test','settings-legacy-new-typed'));
+  await assert.rejects(database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs
+    (id,secret_reference_id,kind,status,created_by,company_id,initiator_principal_id,initiator_profile_version,purpose)
+    VALUES ('typed-duplicate',$1,'solidworks_document_manager','pending',$2,'company-jenfu',$3,1,'settings_secret_probe')`,
+  ['secret-legacy',actorProfile,actor.principalId]),error => error.code==='23505');
+  const replacementWorker = {kind:'workload',id:'settings-synthetic-worker',purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager']};
+  assert.equal((await repository.claimProbeJob(replacementWorker.id,new Date().toISOString())).id,replacement.id);
+  await completeSettingsSecretProbe({probeJobId:replacement.id,worker:replacementWorker,status:'failed',resultCode:'synthetic_legacy_replacement',readerVersion:'synthetic'});
+  assert.deepEqual((await database.query("SELECT to_jsonb(job) AS value FROM ai_pdm_core.settings_secret_probe_jobs job WHERE id='probe-legacy'")).rows[0].value,legacyBefore);
+  checks.push('actual078 rejects old-writer INSERT, preserves legacy non-actor UPDATE, holds NULL row without reserving typed slot; normal same-reference typed enqueue/claim and typed uniqueness hold');
+  // A draft creator and queue tester are different synthetic existing profiles.
+  await database.query(`INSERT INTO ai_pdm_core.secret_references SELECT 'secret-other-creator',kind,provider,display_name,vault_provider,
+    vault_secret_id,masked_hint,fingerprint,'draft',100,$2,clock_timestamp(),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,metadata_json
+    FROM ai_pdm_core.secret_references WHERE id=$1`,[draft.id,first.pdmUserId]);
+  const queued = await enqueueSettingsSecretProbe({secretReferenceId:'secret-other-creator'},metadata('test','settings-queue'));
+  assert.equal(queued.createdBy,actorProfile);
+  assert.notEqual(queued.createdBy,first.pdmUserId);
+  assert.equal(queued.companyId,'company-jenfu');assert.equal(queued.initiatorPrincipalId,actor.principalId);
+  assert.equal(queued.initiatorProfileVersion,1);assert.equal(queued.purpose,'settings_secret_probe');
+  const queueCounts = await effects();
+  assert.deepEqual(await enqueueSettingsSecretProbe({secretReferenceId:'secret-other-creator'},metadata('test','settings-queue')),JSON.parse(JSON.stringify(queued)));
+  assert.deepEqual(await effects(),queueCounts);
+  for (const assignment of ["company_id='wrong-company'","created_by='wrong-profile'","initiator_principal_id='wrong-principal'",
+    'initiator_profile_version=2',"purpose='preview_jobs'","secret_reference_id='secret-legacy'","kind='other-kind'"]) {
+    await assert.rejects(database.query('UPDATE ai_pdm_core.settings_secret_probe_jobs SET '+assignment+' WHERE id=$1',[queued.id]),/settings_probe_initiator_immutable/u);
+  }
+  for (const [company,profileId,principalId] of [['wrong-company',actorProfile,actor.principalId],['company-jenfu',first.pdmUserId,actor.principalId]]) {
+    await assert.rejects(database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs
+      (id,secret_reference_id,kind,status,created_by,company_id,initiator_principal_id,initiator_profile_version,purpose)
+      VALUES ($1,$2,'solidworks_document_manager','failed',$3,$4,$5,1,'settings_secret_probe')`,
+    ['forged-'+crypto.randomUUID(),draft.id,profileId,company,principalId]),error => error.code === '23503');
+  }
+  for (const [principalId,version,purpose] of [[null,1,'settings_secret_probe'],[actor.principalId,0,'settings_secret_probe'],[actor.principalId,1,'preview_jobs']]) {
+    await assert.rejects(database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs
+      (id,secret_reference_id,kind,status,created_by,company_id,initiator_principal_id,initiator_profile_version,purpose)
+      VALUES ($1,$2,'solidworks_document_manager','failed',$3,'company-jenfu',$4,$5,$6)`,
+    ['untyped-'+crypto.randomUUID(),draft.id,actorProfile,principalId,version,purpose]),error => error.code==='23514');
+  }
+  const worker = {kind:'workload',id:'settings-synthetic-worker',purposes:['settings_secret_probe'],capabilities:['solidworks_document_manager']};
+  const claimed = await repository.claimProbeJob(worker.id,new Date().toISOString());
+  assert.equal(claimed.id,queued.id);assert.equal(claimed.initiatorPrincipalId,actor.principalId);
+  assert.equal(await repository.heartbeatProbeJob(queued.id,'another-worker',new Date().toISOString()),false);
+  assert.equal(await repository.heartbeatProbeJob(queued.id,worker.id,new Date().toISOString()),true);
+  const beforeWorker = await effects();
+  const completeInput = {probeJobId:queued.id,worker,status:'failed',resultCode:'synthetic_probe_failure',readerVersion:'synthetic-reader'};
+  await assert.rejects(completeSettingsSecretProbe({...completeInput,worker:{...worker,id:'another-worker'}}),error => error.code === 'SECRET_PROBE_JOB_LOCKED');
+  await assert.rejects(completeSettingsSecretProbe({...completeInput,worker:{...worker,purposes:['preview_jobs']}}),error => error.code === 'WORKLOAD_FORBIDDEN');
+  assert.deepEqual(await effects(),beforeWorker);
+  const failedRun = await completeSettingsSecretProbe(completeInput);
+  assert.equal(failedRun.testedBy,actorProfile);
+  assert.deepEqual(JSON.parse(failedRun.metadataJson).initiator,{kind:'human',principalId:actor.principalId,profileVersion:1});
+  assert.deepEqual(JSON.parse(failedRun.metadataJson).securityActor,{kind:'workload',id:worker.id,purpose:'settings_secret_probe'});
+  assert.equal((await repository.getReferenceById('secret-other-creator')).lifecycleStatus,'draft');
+  checks.push('actual enqueue/replay preserves tester separate from draft creator; native078 freezes full provenance tuple and rejects crosscompany/profile FK; actual claim/heartbeat/failed completion retain technical executor plus human initiator');
+  const ownProbe = await enqueueSettingsSecretProbe({secretReferenceId:draft.id},metadata('test','settings-queue-activate'));
+  assert.equal((await repository.claimProbeJob(worker.id,new Date().toISOString())).id,ownProbe.id);
+  await completeSettingsSecretProbe({...completeInput,probeJobId:ownProbe.id,status:'passed',resultCode:null});
+  const activatedSecret = await activateSettingsSecretReference({secretReferenceId:draft.id},metadata('activate','settings-activate'));
+  assert.equal(activatedSecret.lifecycleStatus,'active');
+  assert.equal((await revokeSettingsSecretReference({secretReferenceId:draft.id,reason:'synthetic revoke'},metadata('revoke','settings-revoke'))).lifecycleStatus,'revoked');
+  for (const [operation,commandName,action] of [['settings-draft','create_draft','SettingsSecretDraftCreated'],
+    ['settings-queue','probe.enqueue','SettingsSecretProbeQueued'],['settings-activate','activate','SettingsSecretActivated'],['settings-revoke','revoke','SettingsSecretRevoked']]) {
+    const receipt = (await database.query('SELECT * FROM ai_pdm_core.platform_command_receipts WHERE idempotency_key=$1',[operation])).rows[0];
+    const event = (await database.query('SELECT * FROM ai_pdm_core.platform_outbox_events WHERE idempotency_key=$1',[operation])).rows[0];
+    assert.equal(receipt.command_name,'pdm.settings_secret.'+commandName);assert.equal(receipt.command_status,'completed');
+    for (const row of [receipt,event]) {assert.equal(row.principal_id,actor.principalId);assert.equal(row.actor_id,actorProfile);assert.equal(row.company_id,'company-jenfu');assert.equal(row.platform_principal_id,null);}
+    assert.deepEqual(JSON.parse(receipt.response_json).actorBinding,{version:2,actorKind:'human',principalId:actor.principalId,companyId:'company-jenfu'});
+    const audits = (await database.query('SELECT * FROM ai_pdm_core.audit_logs WHERE action=$1',[action])).rows;
+    assert.ok(audits.length);assert.ok(audits.every(row => row.actor_id===actorProfile && row.company_id==='company-jenfu' &&
+      JSON.parse(row.detail_json).securityActor.principalId===actor.principalId));
+  }
+  checks.push('four actual human commands commit canonical Principal/profile/company receipt and outbox plus Principal domain audit; activation/revocation reload persists and never aliases legacy Platform UID');
+  const deniedBefore = await effects();
+  for (const forgedActor of [{organizationId:'wrong-company'},{pdmUserId:first.pdmUserId},{principalId:target}]) {
+    const bad = metadata('test','settings-forged-'+crypto.randomUUID());bad.actor={...bad.actor,...forgedActor};
+    await assert.rejects(enqueueSettingsSecretProbe({secretReferenceId:'secret-other-creator'},bad));
+  }
+  await database.query('UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 SET scope_key=$2 WHERE principal_id=$1',[actor.principalId,'wrong-company']);
+  try { await assert.rejects(enqueueSettingsSecretProbe({secretReferenceId:'secret-other-creator'},metadata('test','settings-scope-denied'))); }
+  finally { await database.query('UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 SET scope_key=$2 WHERE principal_id=$1',[actor.principalId,'company-jenfu']); }
+  await assert.rejects(activateSettingsSecretReference({secretReferenceId:'secret-legacy-passed'},metadata('activate','legacy-activate')),
+    error => error.code==='SECRET_PROBE_PRINCIPAL_PROVENANCE_REQUIRED');
+  await database.query("UPDATE ai_pdm_core.settings_secret_probe_jobs SET status='running',locked_by=$1,attempt_count=2,updated_at=clock_timestamp()-interval '2 minutes' WHERE id='probe-legacy'",[worker.id]);
+  assert.equal(await repository.claimProbeJob(worker.id,new Date().toISOString()),null);
+  assert.equal((await repository.getProbeJobById('probe-legacy')).status,'running');
+  assert.equal(await repository.heartbeatProbeJob('probe-legacy',worker.id,new Date().toISOString()),false);
+  await assert.rejects(completeSettingsSecretProbe({...completeInput,probeJobId:'probe-legacy'}),error => error.code==='SECRET_PROBE_PRINCIPAL_PROVENANCE_REQUIRED');
+  await assert.rejects(resolveSettingsSecretProbeCredential('probe-legacy',worker),error => error.code==='SECRET_PROBE_PRINCIPAL_PROVENANCE_REQUIRED');
+  assert.deepEqual(await effects(),deniedBefore);
+  checks.push('actual command rejects forged Principal/profile/company and out-of-company published grant with zero effects; pre078 NULL job cannot claim/heartbeat/complete/credential/activate or be repaired from creator');
+  const staleProbe = await enqueueSettingsSecretProbe({secretReferenceId:'secret-other-creator'},metadata('test','settings-stale-probe'));
+  await repository.claimProbeJob(worker.id,new Date().toISOString());
+  await database.query('UPDATE ai_pdm_core.settings_secret_probe_jobs SET updated_at=clock_timestamp()-interval \'2 minutes\' WHERE id=$1',[staleProbe.id]);
+  const staleBefore = await effects();
+  assert.equal(await repository.heartbeatProbeJob(staleProbe.id,worker.id,new Date().toISOString()),false);
+  await assert.rejects(completeSettingsSecretProbe({...completeInput,probeJobId:staleProbe.id}),error => error.code==='SECRET_PROBE_JOB_LOCKED');
+  assert.deepEqual(await effects(),staleBefore);
+  await database.query('UPDATE ai_pdm_core.settings_secret_probe_jobs SET updated_at=clock_timestamp() WHERE id=$1',[staleProbe.id]);
+  await revokeSettingsSecretReference({secretReferenceId:'secret-other-creator'},metadata('revoke','settings-revoke-inflight'));
+  const revokedBefore = await effects();
+  await assert.rejects(completeSettingsSecretProbe({...completeInput,probeJobId:staleProbe.id,status:'passed'}),error => error.code==='SECRET_REFERENCE_NOT_TESTABLE');
+  await assert.rejects(resolveSettingsSecretProbeCredential(staleProbe.id,worker),error => error.code==='SECRET_PROVIDER_NOT_READABLE');
+  assert.deepEqual(await effects(),revokedBefore);
+  assert.equal((await repository.getReferenceById('secret-other-creator')).lifecycleStatus,'revoked');
+  checks.push('expired holder has no heartbeat/completion; revoked reference blocks credential and late passing callback with zero effects and cannot resurrect');
+  // SQL failures after business writes must roll back the actual shared transaction.
+  await database.query(`CREATE FUNCTION ai_pdm_core.settings_test_audit_failure() RETURNS trigger LANGUAGE plpgsql AS $fixture$
+    BEGIN RAISE EXCEPTION 'synthetic_settings_audit_failure'; END; $fixture$;
+    CREATE TRIGGER settings_test_audit_failure BEFORE INSERT ON ai_pdm_core.audit_logs
+      FOR EACH ROW EXECUTE FUNCTION ai_pdm_core.settings_test_audit_failure();`);
+  const rollbackBefore = await effects();
+  const rollbackProviderBefore = globalThis.__dev121SyntheticProviderWrites;
+  try {
+    await assert.rejects(createSettingsSecretDraft({kind:'solidworks_document_manager',secretValue:syntheticValue},metadata('draft','settings-draft-rollback')),/synthetic_settings_audit_failure/u);
+    assert.deepEqual(await effects(),rollbackBefore);
+  } finally { await database.query('DROP TRIGGER settings_test_audit_failure ON ai_pdm_core.audit_logs'); }
+  assert.equal(globalThis.__dev121SyntheticProviderWrites,rollbackProviderBefore+1,'failed commit may orphan only synthetic provider version, never active DB reference');
+  const rollbackReference = await createSettingsSecretDraft({kind:'solidworks_document_manager',secretValue:syntheticValue},metadata('draft','settings-draft-for-worker-rollback'));
+  await database.query(`CREATE TRIGGER settings_test_audit_failure BEFORE INSERT ON ai_pdm_core.audit_logs
+    FOR EACH ROW EXECUTE FUNCTION ai_pdm_core.settings_test_audit_failure();`);
+  const queueRollbackBefore = await effects();
+  try {
+    await assert.rejects(enqueueSettingsSecretProbe({secretReferenceId:rollbackReference.id},metadata('test','settings-queue-rollback')),/synthetic_settings_audit_failure/u);
+    assert.deepEqual(await effects(),queueRollbackBefore);
+  } finally { await database.query('DROP TRIGGER settings_test_audit_failure ON ai_pdm_core.audit_logs'); }
+  const rollbackJob = await enqueueSettingsSecretProbe({secretReferenceId:rollbackReference.id},metadata('test','settings-queue-for-worker-rollback'));
+  assert.equal((await repository.claimProbeJob(worker.id,new Date().toISOString())).id,rollbackJob.id);
+  await database.query(`CREATE TRIGGER settings_test_audit_failure BEFORE INSERT ON ai_pdm_core.audit_logs
+    FOR EACH ROW EXECUTE FUNCTION ai_pdm_core.settings_test_audit_failure();`);
+  const workerRollbackBefore = await effects();
+  try {
+    await assert.rejects(completeSettingsSecretProbe({...completeInput,probeJobId:rollbackJob.id,status:'passed'}),/synthetic_settings_audit_failure/u);
+    assert.deepEqual(await effects(),workerRollbackBefore);
+    assert.equal((await repository.getProbeJobById(rollbackJob.id)).status,'running');
+    assert.equal((await repository.getReferenceById(rollbackReference.id)).lifecycleStatus,'draft');
+  } finally { await database.query('DROP TRIGGER settings_test_audit_failure ON ai_pdm_core.audit_logs'); }
+  checks.push('actual SQL audit failure rolls back human draft and queue/event/receipt/outbox atomically plus worker completion/test/reference/event/audit; provider orphan stays unreferenced');
+  for (const file of ['src/lib/settings-secret-lifecycle.ts','src/lib/repositories/settings-secret-async-repository.ts',
+    'src/lib/platform-command-service.ts','src/lib/jenfu-principal-request-guard.ts']) {
+    sourceProof.push({path:file,sourceSha256:sha(fs.readFileSync(path.join(root,file),'utf8').replaceAll('\r\n','\n')),
+      scope:'actual consumer runtime; only provider I/O mocked, identity/grant/session fixtures synthetic'});
+  }
+
 } finally {
+  await closeSettingsRuntime?.();
   await appDatabase?.close();
   await database?.query('ROLLBACK').catch(() => undefined);
   await database?.end();
@@ -437,5 +750,5 @@ try {
 }
 console.log(JSON.stringify({ status: 'PASS',checks,sourceProof,
   boundary: 'actual AI-PDM consumer/service/native command and request guard; synthetic OrgMaster typed/grant and Platform epoch producers and signed session',
-  providerConformance: false,productionL4: false,productionWrites: false,
+  settingsProviderMocked: true,providerConformance: false,productionL4: false,productionWrites: false,
   cleanup: { generatedDatabaseDropped: dropped,newRolesDropped: true,ownTempRemoved: tempRemoved } }));
