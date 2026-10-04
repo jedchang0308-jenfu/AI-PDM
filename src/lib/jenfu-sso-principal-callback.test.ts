@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
+import { JenfuPrincipalAccountError } from "@/lib/jenfu-principal-account-repository";
+import { JenfuPrincipalAdmissionError } from "@/lib/jenfu-principal-admission-repository";
 
 const mocks = vi.hoisted(() => ({
   issuePrincipal: vi.fn(),
@@ -10,6 +12,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("google-auth-library", () => ({
+  Compute: class {
+    async getAccessToken() { throw new Error("UNEXPECTED_STORAGE_ACCESS_IN_SSO_TEST"); }
+  },
   GoogleAuth: class {
     async getIdTokenClient() {
       return { idTokenProvider: { async fetchIdToken() { return "task-service-token"; } } };
@@ -109,7 +114,7 @@ describe("principal-first SSO callback routing", () => {
     expect(mocks.legacyResolver).not.toHaveBeenCalled();
   });
 
-  it("returns a clean login URL when the principal is not active", async () => {
+  it("keeps a raw inactive sentinel as an unclassified dependency failure", async () => {
     const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
     const state = new URL(started.headers.get("location")!).searchParams.get("state");
     const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
@@ -122,7 +127,10 @@ describe("principal-first SSO callback routing", () => {
     ));
 
     expect(callback.status).toBe(303);
-    expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=principal_not_active");
+    expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=sso_dependency_unavailable");
+    expect(callback.headers.get("location")).not.toContain("PRINCIPAL_NOT_ACTIVE");
+    expect(callback.cookies.getAll().map((cookie) => cookie.name)).toEqual(["__Host-jenfu_sso_tx"]);
+    expect(callback.headers.get("set-cookie")).not.toContain("principal.session.token");
     expect(callback.headers.get("location")).not.toContain("one-time-code");
     expect(callback.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(callback.headers.get("set-cookie")).toContain("Secure");
@@ -151,6 +159,32 @@ describe("principal-first SSO callback routing", () => {
     expect(callback.headers.get("location")).not.toContain("one-time-code");
     expect(callback.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(callback.headers.get("set-cookie")).not.toContain("principal.session.token");
+    expect(mocks.legacyResolver).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [new JenfuPrincipalAccountError("principal_account_inactive"), "principal_not_active"],
+    [new JenfuPrincipalAccountError(), "sso_dependency_unavailable"],
+    [new JenfuPrincipalAdmissionError("principal_not_active", 403), "principal_not_active"],
+    [new JenfuPrincipalAdmissionError("principal_directory_unavailable", 503), "sso_dependency_unavailable"],
+    [new JenfuPrincipalAdmissionError("principal_ambiguous", 403), "sso_dependency_unavailable"],
+    [new JenfuPrincipalAdmissionError("auth_contract_mismatch", 409), "sso_dependency_unavailable"],
+    [Object.assign(new Error("private database failure"), { code: "principal_account_inactive" }), "sso_dependency_unavailable"]
+  ])("maps only a typed inactive account to login denial", async (failure, expected) => {
+    const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
+    const state = new URL(started.headers.get("location")!).searchParams.get("state");
+    const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
+    const proof = principalProof();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(proof), { status: 200 })));
+    mocks.issuePrincipal.mockRejectedValueOnce(failure);
+    const response = await jenfuSsoCallback(new Request(
+      `https://pdm.example/api/auth/jenfu-sso/callback?code=one-time-code&state=${state}&iss=${encodeURIComponent(proof.issuer)}`,
+      { headers: { cookie: transactionCookie } }
+    ));
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`https://pdm.example/login?auth_error=${expected}`);
+    expect(response.headers.get("set-cookie")).not.toContain("principal.session.token");
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(mocks.legacyResolver).not.toHaveBeenCalled();
   });
 

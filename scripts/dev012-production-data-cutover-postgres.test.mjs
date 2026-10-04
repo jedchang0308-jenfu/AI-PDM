@@ -51,7 +51,7 @@ test('isolated PostgreSQL proves serializable import, non-deferrable self-FK con
   }
 })
 
-test('DEV121 Principal source precision keeps exact native CAS and recoverable operation replay', () => {
+test('DEV121 Principal source precision, native lifecycle and public session taxonomy stay consistent', () => {
   assert.equal(process.env.DEV012_ISOLATED_POSTGRES, '1', 'DEV012_POSTGRES_TEST_REQUIRES_TASK_OWNED_CLUSTER')
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
   const result = spawnSync(process.execPath, ['--experimental-transform-types',
@@ -64,7 +64,7 @@ test('DEV121 Principal source precision keeps exact native CAS and recoverable o
   const reports = result.stdout.trim().split(/\r?\n/u).filter(line => line.startsWith('{')).map(line => JSON.parse(line))
   const report = reports.find(item => item.status === 'PASS')
   assert.ok(report, 'the actual consumer/native PG regression must execute; no skip or mocked PASS')
-  assert.equal(report.checks.length,5)
+  assert.equal(report.checks.length,7)
   assert.equal(report.providerConformance,false)
   assert.equal(report.productionL4,false)
   assert.deepEqual(report.cleanup,{ generatedDatabaseDropped: true,newRolesDropped: true,ownTempRemoved: true })

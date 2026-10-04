@@ -1,6 +1,6 @@
-// CI-only consumer regression. The typed producer and verified session below
+// CI-only consumer regression. Typed/grant/epoch producers and signed sessions below
 // are synthetic; this does not attest OrgMaster/provider/Production conformance.
-// The candidate/parser/service and unchanged 074 provision + 076 manager guard
+// The candidate/parser/service and unchanged 071 lifecycle / 074 provision / 076 manager guard
 // execute against a fresh database in the existing required CI PostgreSQL job.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -54,7 +54,7 @@ try {
   await database.connect();
   assert.equal((await database.query('SELECT current_database() AS database')).rows[0].database, dbName);
   console.log(JSON.stringify({ runtimeDeclaration: { project: root,
-    purpose: 'DEV121 source timestamp precision consumer regression; synthetic producer/session',
+    purpose: 'DEV121 precision and inactive session consumer regression; synthetic producers/session',
     port: Number(baseUrl.port || '5432'), owningProcessTree: 'required CI PostgreSQL service / this test client',
     mutationScope: dbName, PDM_DATA_DIR: process.env.PDM_DATA_DIR,
     PDM_REPOSITORY_DIR: process.env.PDM_REPOSITORY_DIR,
@@ -64,6 +64,14 @@ try {
     CREATE SCHEMA ai_pdm_core AUTHORIZATION jenfu_ai_pdm_migrator;
     CREATE SCHEMA ai_pdm_contract AUTHORIZATION jenfu_ai_pdm_migrator;
     CREATE SCHEMA orgmaster_contract;
+    CREATE SCHEMA platform_contract;
+    CREATE TABLE platform_contract.principal_state_fixture (
+      principal_id text PRIMARY KEY,auth_epoch bigint NOT NULL,revoked_before timestamptz);
+    CREATE FUNCTION platform_contract.read_principal_auth_state_v3(p_principal_id text)
+      RETURNS TABLE (principal_id text,auth_epoch bigint,revoked_before timestamptz)
+      LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog
+      AS 'SELECT state.principal_id,state.auth_epoch,state.revoked_before
+          FROM platform_contract.principal_state_fixture state WHERE state.principal_id=p_principal_id';
     CREATE TABLE orgmaster_contract.v_active_principal_accounts_v1 (
       contract_version text,principal_issuer text,principal_subject text,principal_id text,
       employee_id text,employee_status text,account_type text,mapping_version bigint,published_at timestamptz);
@@ -85,10 +93,12 @@ try {
       principal_id text PRIMARY KEY,pdm_user_id text UNIQUE REFERENCES ai_pdm_core.users(id),
       company_id text,employee_id text,account_type text,account_status text,
       lifecycle_version bigint,profile_version bigint,system_role_enabled boolean,
-      minimum_assurance text,session_invalid_before timestamptz);
+      minimum_assurance text,session_invalid_before timestamptz,updated_at timestamptz DEFAULT clock_timestamp());
     CREATE TABLE ai_pdm_core.principal_session_records (
       principal_id text,session_id_hash text,issued_at timestamptz,expires_at timestamptz,
-      revoked_at timestamptz,lifecycle_version bigint,profile_version bigint);
+      revoked_at timestamptz,lifecycle_version bigint,profile_version bigint,
+      principal_auth_epoch bigint,authenticated_at timestamptz,assurance_level text,
+      assurance_policy_hash text,revoke_reason text);
     CREATE TABLE ai_pdm_core.principal_identity_operations (
       operation_id text PRIMARY KEY,operation_kind text,input_hash text,cohort_hash text,
       result_json jsonb,committed_at timestamptz);
@@ -101,6 +111,11 @@ try {
     GRANT SELECT ON ALL TABLES IN SCHEMA orgmaster_contract,ai_pdm_contract
       TO jenfu_ai_pdm_migrator,jenfu_ai_pdm_runtime;
     GRANT SELECT ON ai_pdm_core.role_priority_versions TO jenfu_ai_pdm_runtime;
+    GRANT SELECT ON ai_pdm_core.principal_accounts,ai_pdm_core.users,ai_pdm_core.principal_session_records
+      TO jenfu_ai_pdm_runtime;
+    GRANT INSERT ON ai_pdm_core.principal_session_records TO jenfu_ai_pdm_runtime;
+    GRANT USAGE ON SCHEMA platform_contract TO jenfu_ai_pdm_runtime;
+    GRANT EXECUTE ON FUNCTION platform_contract.read_principal_auth_state_v3(text) TO jenfu_ai_pdm_runtime;
   `);
   const path074 = 'db/postgres/074_dev121_principal_human_assurance_aal1.sql';
   const source074 = fs.readFileSync(path.join(root, path074), 'utf8').replaceAll('\r\n', '\n');
@@ -120,6 +135,20 @@ try {
   const source076 = fs.readFileSync(path.join(root, path076), 'utf8').replaceAll('\r\n', '\n');
   await database.query(source076);
   sourceProof.push({ path: path076, sourceSha256: sha(source076), scope: 'complete unchanged migration in disposable fixture' });
+  const path071 = 'db/postgres/071_dev121_principal_account_owner_no_cutover.sql';
+  const source071 = fs.readFileSync(path.join(root,path071),'utf8').replaceAll('\r\n','\n');
+  const lifecycleMarker = 'CREATE OR REPLACE FUNCTION ai_pdm_core.update_principal_account_lifecycle_v1(';
+  const lifecycleStart = source071.indexOf(lifecycleMarker);
+  const lifecycleEnd = source071.indexOf('CREATE OR REPLACE FUNCTION ai_pdm_core.revoke_principal_account_sessions_v1(',lifecycleStart);
+  assert.ok(lifecycleStart >= 0 && lifecycleEnd > lifecycleStart &&
+    source071.indexOf(lifecycleMarker,lifecycleStart+lifecycleMarker.length) < 0);
+  const lifecycleSql = source071.slice(lifecycleStart,lifecycleEnd);
+  await database.query('BEGIN');
+  await database.query('SET LOCAL ROLE jenfu_ai_pdm_migrator');
+  await database.query(lifecycleSql);
+  await database.query('COMMIT');
+  sourceProof.push({ path: path071,sourceSha256: sha(source071),executedFunctionSha256: sha(lifecycleSql),
+    scope: 'unchanged lifecycle function and ACL only; current 076 management guard' });
   const catalog = JSON.parse(fs.readFileSync(path.join(root, 'config/access-control/jenfu-role-catalog.v5.json'), 'utf8'));
   for (const [order, role] of catalog.roles.entries()) {
     await database.query(`INSERT INTO ai_pdm_contract.v_application_role_catalog_v1
@@ -149,6 +178,7 @@ try {
   const { hashJenfuPrincipalSessionId } = await import(pathToFileURL(path.join(root, 'src/lib/jenfu-principal-session-registry.ts')).href);
   const sessionHash = hashJenfuPrincipalSessionId(sessionId);
   await database.query(`INSERT INTO ai_pdm_core.principal_session_records
+    (principal_id,session_id_hash,issued_at,expires_at,revoked_at,lifecycle_version,profile_version)
     VALUES ($1,$2,clock_timestamp()-interval '1 second',clock_timestamp()+interval '1 hour',NULL,1,1)`,
   [actor.principalId,sessionHash]);
   const { JenfuPrincipalCandidateRepository } = await import(pathToFileURL(path.join(root, 'src/lib/jenfu-principal-candidate-repository.ts')).href);
@@ -269,6 +299,127 @@ try {
   assert.equal(alignedReceipt.current.accountStatus,'suspended');
   assert.deepEqual(await counts(),{ profiles: 3,accounts: 3,receipts: 2,markers: 2 });
   checks.push('legacy three-digit exact millisecond payload matches only .891000 native instant');
+
+  // Exercise the public admission boundary after the real owner lifecycle
+  // command, not a mocked repository failure or a fabricated expected status.
+  const { issueJenfuPrincipalSession,verifyJenfuPrincipalSession } = await import(pathToFileURL(path.join(root,'src/lib/jenfu-principal-session.ts')).href);
+  const { JenfuPrincipalSessionRegistry } = await import(pathToFileURL(path.join(root,'src/lib/jenfu-principal-session-registry.ts')).href);
+  const { principalAssurancePolicyHash } = await import(pathToFileURL(path.join(root,'src/lib/jenfu-principal-assurance.ts')).href);
+  const { withVerifiedJenfuPrincipalRequest } = await import(pathToFileURL(path.join(root,'src/lib/jenfu-principal-request-guard.ts')).href);
+  const { principalRequestFailure } = await import(pathToFileURL(path.join(root,'src/lib/jenfu-principal-http.ts')).href);
+  const { issueSessionForPrincipalHandoff } = await import(pathToFileURL(path.join(root,'src/lib/jenfu-principal-handoff-session-service.ts')).href);
+  await database.query(`INSERT INTO platform_contract.principal_state_fixture VALUES ($1,0,NULL)`,[target]);
+  await database.query(`INSERT INTO orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
+    VALUES ('jenfu.orgmaster.ai-pdm-principal-grants.v4','ai-pdm',$1,'employee-precision-target',
+      'precision-grant-publication',7,'precision-target-assignment','role-rd','rd',$2,
+      'employee',NULL,'direct',NULL,'workspace','company-jenfu',
+      clock_timestamp()-interval '1 minute',NULL,$3::timestamptz)`,[target,catalog.catalogVersion,at]);
+  const lifecycle = (operationId,action) => transaction(async () => (await database.query(`
+    SELECT ai_pdm_core.update_principal_account_lifecycle_v1(
+      $1,$2,$3,'synthetic lifecycle admission regression','company-jenfu',$4,$5,$6,$7) AS receipt`,
+  [operationId,first.pdmUserId,action,actor.principalId,actor.identityIssuer,actor.identitySubject,sessionHash])).rows[0].receipt);
+  const activated = await lifecycle('lifecycle-activate','reactivate');
+  assert.equal(activated.accountStatus,'active');
+  assert.equal(activated.lifecycleVersion,2);
+  const trustPolicy = { enabled: false,domains: ['example.test'],allowAal1PrivilegedPilot: true };
+  const keyRing = { issuer: 'https://pdm.example.test',audience: 'ai-pdm',currentKeyId: 'fixture',
+    keys: { fixture: 'synthetic-session-test-signing-key-at-least-32-bytes' } };
+  const signedSession = async version => {
+    const seconds = Math.floor(Date.now()/1000)+1;
+    const token = issueJenfuPrincipalSession({ principalId: target,employeeId: 'employee-precision-target',
+      identityIssuer: 'issuer-precision-target',identitySubject: 'subject-precision-target',
+      authEpoch: 0,accountLifecycleVersion: version,profileVersion: 1,companyId: 'company-jenfu',
+      authenticatedAt: seconds-30,assuranceLevel: 'aal1',secondFactor: null,
+      assurancePolicyHash: principalAssurancePolicyHash(trustPolicy),maxAgeSeconds: 600 },keyRing,seconds);
+    const claims = verifyJenfuPrincipalSession(token,keyRing,{ nowSeconds: seconds });
+    await appTransaction(snapshot => new JenfuPrincipalSessionRegistry(snapshot).register(claims));
+    return { token,claims,seconds };
+  };
+  const guardDatabase = { kind: appDatabase.kind,
+    transaction: (callback,options) => appDatabase.transaction(async snapshot => {
+      await snapshot.execute('SET LOCAL ROLE jenfu_ai_pdm_runtime');
+      return callback(snapshot);
+    },options) };
+  let authorizedEffects = 0;
+  const admittedResponse = async session => {
+    try {
+      return await withVerifiedJenfuPrincipalRequest({ token: session.token,keyRing,trustPolicy,
+        identityIssuer: 'issuer-precision-target',database: guardDatabase,nowSeconds: session.seconds },
+      async (_snapshot,verifiedPrincipal) => {
+        authorizedEffects++;
+        return Response.json({ principalId: verifiedPrincipal.session.principalId });
+      });
+    } catch (error) { return principalRequestFailure(error); }
+  };
+  const oldSession = await signedSession(2);
+  assert.equal((await admittedResponse(oldSession)).status,200);
+  const suspended = await lifecycle('lifecycle-suspend','suspend');
+  assert.equal(suspended.accountStatus,'suspended');
+  assert.equal(suspended.lifecycleVersion,3);
+  const withdrawn = (await database.query(`SELECT account_status,lifecycle_version,system_role_enabled,
+    session_invalid_before,(SELECT count(*)::integer FROM ai_pdm_core.principal_session_records
+      WHERE principal_id=$1 AND revoked_at IS NULL) AS live_sessions
+    FROM ai_pdm_core.principal_accounts WHERE principal_id=$1`,[target])).rows[0];
+  assert.equal(withdrawn.account_status,'suspended');
+  assert.equal(withdrawn.lifecycle_version,'3');
+  assert.equal(withdrawn.system_role_enabled,false);
+  assert.ok(withdrawn.session_invalid_before instanceof Date);
+  assert.equal(withdrawn.live_sessions,0);
+  const deniedSession = await admittedResponse(oldSession);
+  assert.equal(deniedSession.status,401);
+  assert.deepEqual(await deniedSession.json(),{ code: 'auth_session_invalid' });
+  assert.equal(authorizedEffects,1);
+  const beforeHandoffSessions = (await database.query(`SELECT count(*)::integer AS n
+    FROM ai_pdm_core.principal_session_records WHERE principal_id=$1`,[target])).rows[0].n;
+  const handoffNow = Date.now();
+  await assert.rejects(issueSessionForPrincipalHandoff({ database: guardDatabase,keyRing,trustPolicy,
+    expectedIdentityIssuer: 'issuer-precision-target',nowMs: handoffNow,
+    handoff: { identity: { principalId: target,employeeId: 'employee-precision-target',
+      identityIssuer: 'issuer-precision-target',identitySubject: 'subject-precision-target' },
+      contractVersion: 'jenfu.sso-handoff.v2',issuer: 'https://platform.example.test/api/sso',audience: 'ai-pdm',
+      authentication: { authenticatedAt: new Date(handoffNow-30000).toISOString(),
+        email: 'synthetic@example.test',emailVerified: true,signInProvider: 'google.com',secondFactor: null,assuranceLevel: 'aal1' },
+      authState: { authEpoch: 0,revokedBefore: null },issuedAt: new Date(handoffNow).toISOString(),
+      sourceSessionExpiresAt: new Date(handoffNow+600000).toISOString(),expiresAt: new Date(handoffNow+30000).toISOString() }
+  }),error => error.code === 'principal_account_inactive');
+  assert.equal((await database.query(`SELECT count(*)::integer AS n
+    FROM ai_pdm_core.principal_session_records WHERE principal_id=$1`,[target])).rows[0].n,beforeHandoffSessions);
+  checks.push('actual 071/076 suspend atomically advances lifecycle and revokes registry; actual guard/public mapper returns 401; handoff mints no session');
+  await database.query('ALTER TABLE ai_pdm_core.principal_accounts RENAME TO principal_accounts_unavailable_fixture');
+  try {
+    const unavailable = await admittedResponse(oldSession);
+    assert.equal(unavailable.status,503);
+    assert.deepEqual(await unavailable.json(),{ code: 'principal_dependency_unavailable' });
+  } finally { await database.query('ALTER TABLE ai_pdm_core.principal_accounts_unavailable_fixture RENAME TO principal_accounts'); }
+  await database.query('UPDATE ai_pdm_core.principal_accounts SET lifecycle_version=0 WHERE principal_id=$1',[target]);
+  try { assert.equal((await admittedResponse(oldSession)).status,503); }
+  finally { await database.query('UPDATE ai_pdm_core.principal_accounts SET lifecycle_version=3 WHERE principal_id=$1',[target]); }
+  await database.query('UPDATE ai_pdm_core.users SET company_id=$2 WHERE id=$1',[first.pdmUserId,'synthetic-profile-mismatch']);
+  try { assert.equal((await admittedResponse(oldSession)).status,503); }
+  finally { await database.query('UPDATE ai_pdm_core.users SET company_id=$2 WHERE id=$1',[first.pdmUserId,'company-jenfu']); }
+  assert.equal(authorizedEffects,1);
+  const reactivated = await lifecycle('lifecycle-reactivate','reactivate');
+  assert.equal(reactivated.lifecycleVersion,4);
+  assert.equal((await admittedResponse(oldSession)).status,401);
+  assert.equal(authorizedEffects,1);
+  const freshSession = await signedSession(4);
+  assert.equal((await admittedResponse(freshSession)).status,200);
+  assert.equal(authorizedEffects,2);
+  const producerRow = (await database.query(`SELECT to_jsonb(typed) AS value
+    FROM orgmaster_contract.v_active_principal_accounts_v1 typed WHERE principal_id=$1`,[target])).rows[0].value;
+  await database.query('DELETE FROM orgmaster_contract.v_active_principal_accounts_v1 WHERE principal_id=$1',[target]);
+  try {
+    const inactiveProducer = await admittedResponse(freshSession);
+    assert.equal(inactiveProducer.status,401);
+    assert.deepEqual(await inactiveProducer.json(),{ code: 'auth_session_invalid' });
+  } finally {
+    await database.query(`INSERT INTO orgmaster_contract.v_active_principal_accounts_v1
+      SELECT * FROM jsonb_populate_record(NULL::orgmaster_contract.v_active_principal_accounts_v1,$1::jsonb)`,[JSON.stringify(producerRow)]);
+  }
+  assert.equal(authorizedEffects,2);
+  assert.equal((await admittedResponse(freshSession)).status,200);
+  assert.equal(authorizedEffects,3);
+  checks.push('query/malformed/missing association stay 503; reactivation rejects old session; zero typed producer denies 401 and exact producer restore admits fresh session');
 } finally {
   await appDatabase?.close();
   await database?.query('ROLLBACK').catch(() => undefined);
@@ -285,6 +436,6 @@ try {
   assert.ok(tempRemoved);
 }
 console.log(JSON.stringify({ status: 'PASS',checks,sourceProof,
-  boundary: 'actual AI-PDM consumer/service/native command; synthetic OrgMaster typed/grant producer and verified session',
+  boundary: 'actual AI-PDM consumer/service/native command and request guard; synthetic OrgMaster typed/grant and Platform epoch producers and signed session',
   providerConformance: false,productionL4: false,productionWrites: false,
   cleanup: { generatedDatabaseDropped: dropped,newRolesDropped: true,ownTempRemoved: tempRemoved } }));

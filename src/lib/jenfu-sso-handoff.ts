@@ -6,6 +6,8 @@ import { setJenfuPlatformSessionResponseCookie } from "@/lib/auth-response-cooki
 import { getGoogleWorkspaceMfaTrustPolicy, getJenfuIdentityConfig, getJenfuSsoHandoffConfig } from "@/lib/auth-config";
 import { parseJenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 import { issueSessionForPrincipalHandoff } from "@/lib/jenfu-principal-handoff-session-service";
+import { JenfuPrincipalAccountError } from "@/lib/jenfu-principal-account-repository";
+import { JenfuPrincipalAdmissionError } from "@/lib/jenfu-principal-admission-repository";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 export { resolveJenfuTargetSessionExpiry } from "@/lib/jenfu-target-session-expiry";
@@ -49,13 +51,16 @@ function decode(value: string | undefined): Transaction | null {
 function error(code: string, status: number) { return NextResponse.json({ code }, { status, headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } }); }
 
 function callbackErrorCode(errorValue: unknown) {
+  if ((errorValue instanceof JenfuPrincipalAccountError && errorValue.code === "principal_account_inactive") ||
+    (errorValue instanceof JenfuPrincipalAdmissionError && errorValue.code === "principal_not_active" && errorValue.httpStatus === 403)) {
+    return "principal_not_active";
+  }
   if (errorValue instanceof JenfuEntitlementRepositoryError && [
     "entitlement_assignment_not_found", "entitlement_role_inactive",
     "entitlement_scope_mismatch", "permission_explicit_deny", "permission_not_granted"
   ].includes(errorValue.code)) return "principal_access_denied";
   const code = errorValue instanceof Error ? errorValue.message : "";
   if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED" || code === "BROKER_DENIED") return "sso_code_invalid";
-  if (code === "PRINCIPAL_NOT_ACTIVE") return "principal_not_active";
   if (code === "STALE_HANDOFF" || code === "PRINCIPAL_PROFILE_INVALID") return "sso_principal_stale";
   if (code === "HANDOFF_FACTOR_INVALID" || code === "auth_token_invalid") return "auth_token_invalid";
   return "sso_dependency_unavailable";
