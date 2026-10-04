@@ -6,6 +6,8 @@
 
 ## 唯一施工入口
 
+本輪 Principal-only 身分／授權正式出口已完成，實際來源、owner release／traffic、驗證層級及回復／清理見 [owner結案證據](../qa/DEV-121-principal-authorization-production-closure-2026-10-05.json)。原 P01–P09／F01–F10 及歷史未驗判定保留；一般業務不能由本輪授權 PASS 推定完成。
+
 文件角色：CURRENT_CONTRACT。本地 `AIPDM/DEV-121#target-authorization`／`#principal-consumer-impact`，來源 `JENFU/DEV-015`，producer `ORGMASTER/DEV-057#identity-grants`；沿原任務。架構已定案，程式／整合／正式完成度另依本輪身分／授權證據。
 
 2026-10-03 人類已收斂本輪為 Principal-only identity/auth integration。出口是既有用途的 verified actor、唯一 published grants、scope／撤權、reviewer／owner、command／receipt／worker provenance 與安全發布／回復一致；一般 canonical lifecycle、首次發行 UI、Drawing master lifecycle 同步及附件／工作流功能整理由 [DEV-122 集中問題列表](DEV-122-ai-pdm-internal-function-issues.md) 延後。已完成 local 修正與原 FAIL 證據保留，不回退、不算 auth 邊界 PASS；新 077 不隨本輪發布。安全／可靠發布具有直接因果的修正仍在本 DEV，不能移去延期。
