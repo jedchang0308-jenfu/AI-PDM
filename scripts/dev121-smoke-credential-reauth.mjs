@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import {
-  EXPECTED, ReauthError, runReauthentication, startLocalReauthPage, verifyFirebaseIdToken,
+  EXPECTED, ReauthError, parseReauthArguments, runReauthentication, startLocalReauthPage, verifyFirebaseIdToken,
 } from './lib/dev121-smoke-credential-reauth.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -79,7 +79,8 @@ export async function secretVersion(call, version) {
   const meta = await call('https://secretmanager.googleapis.com/v1/' + name)
   const numeric = /\/versions\/([1-9][0-9]*)$/u.exec(meta?.name ?? '')?.[1]
   if (!numeric || !meta.name.startsWith('projects/9536592944/secrets/' + EXPECTED.secretId + '/versions/') ||
-      (version !== 'latest' && numeric !== version) || !['ENABLED', 'DISABLED', 'DESTROYED'].includes(meta.state)) fail('SECRET_VERSION_METADATA_INVALID')
+      !Number.isSafeInteger(Number(numeric)) || (version !== 'latest' && numeric !== version) ||
+      !['ENABLED', 'DISABLED', 'DESTROYED'].includes(meta.state)) fail('SECRET_VERSION_METADATA_INVALID')
   return { ...meta, version: numeric }
 }
 async function readSecretVersion(call, version) {
@@ -107,9 +108,7 @@ async function verifyOldPair({ firebase, oldBytes, nowMs }) {
   }
 }
 async function main() {
-  const args = process.argv.slice(2)
-  if (args.length > 1 || (args.length === 1 && args[0] !== '--commit')) fail('USAGE')
-  const commit = args[0] === '--commit'
+  const { commit, previousVersion, newVersion } = parseReauthArguments(process.argv.slice(2))
   const profile = JSON.parse(await fs.readFile(PROFILE, 'utf8'))
   if (profile.application?.id !== EXPECTED.ownerApplicationId || profile.target?.projectId !== EXPECTED.projectId ||
       profile.target?.canonicalOrigin !== 'https://ai-pdm-prod-9536592944.asia-east1.run.app' ||
@@ -127,8 +126,8 @@ async function main() {
   if (typeof firebaseKey !== 'string' || !/^[A-Za-z0-9_-]{20,256}$/u.test(firebaseKey)) fail('FIREBASE_API_KEY_REQUIRED')
   const firebase = firebaseApi(fetch, firebaseKey)
   const latest = await secretVersion(call, 'latest')
-  if (!latest.name.endsWith('/versions/' + EXPECTED.oldSecretVersion) || latest.state !== 'ENABLED') fail('PRIOR_SECRET_VERSION_MISMATCH')
-  const prior = await readSecretVersion(call, EXPECTED.oldSecretVersion)
+  if (latest.version !== previousVersion || latest.state !== 'ENABLED') fail('PRIOR_SECRET_VERSION_MISMATCH')
+  const prior = await readSecretVersion(call, previousVersion)
   let expected
   try { expected = await verifyOldPair({ firebase, oldBytes: prior.bytes, nowMs: Date.now() }) } finally { prior.bytes.fill(0) }
   const ghList = () => JSON.parse(command('gh', ['secret', 'list', '--env', EXPECTED.githubEnvironment, '--repo', EXPECTED.repository, '--json', 'name,updatedAt'], { code: 'GITHUB_SECRET_READBACK_FAILED' }))
@@ -216,7 +215,10 @@ async function main() {
       let submittedEmail = email
       let submittedPassword = password
       try {
-        const result = await runReauthentication({ adapter, email: submittedEmail, password: submittedPassword, expected, sourceRevision, commit })
+        const result = await runReauthentication({
+          adapter, email: submittedEmail, password: submittedPassword, expected, sourceRevision, commit,
+          previousVersion, newVersion,
+        })
         finish(result)
         return result
       } catch (error) {

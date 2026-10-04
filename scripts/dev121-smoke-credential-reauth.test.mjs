@@ -4,7 +4,8 @@ import { generateKeyPairSync, sign } from 'node:crypto'
 import { firebaseApi, secretVersion } from './dev121-smoke-credential-reauth.mjs'
 import {
   EXPECTED, REAUTH_SCHEMA, admitLocalRequest, assertFreshAuthTime, assertPlatformMe, buildReauthReceipt,
-  identityPairHash, localPageSecurityHeaders, localRequestDenial, runReauthentication, sha256, validateReauthReceipt, verifyFirebaseIdToken,
+  identityPairHash, localPageSecurityHeaders, localRequestDenial, parseReauthArguments, resolveVersionBinding,
+  runReauthentication, sha256, validateReauthReceipt, verifyFirebaseIdToken,
 } from './lib/dev121-smoke-credential-reauth.mjs'
 
 const NOW = 1800000000000
@@ -48,6 +49,33 @@ test('fresh password token needs a recent auth_time', () => {
   assert.throws(() => assertFreshAuthTime(claims({ auth_time: Math.floor(NOW / 1000) - 301 }), NOW), /PASSWORD_AUTH_TIME_STALE/u)
 })
 
+test('explicit version args are paired, canonical, safe and exactly consecutive while no-arg compatibility stays 4 to 5', () => {
+  assert.deepEqual(parseReauthArguments([]), { commit: false, previousVersion: '4', newVersion: '5' })
+  assert.deepEqual(parseReauthArguments(['--commit', '--previous-version', '5', '--new-version', '6']),
+    { commit: true, previousVersion: '5', newVersion: '6' })
+  assert.deepEqual(parseReauthArguments(['--new-version', '6', '--previous-version', '5']),
+    { commit: false, previousVersion: '5', newVersion: '6' })
+  for (const args of [
+    ['--previous-version', '5'], ['--new-version', '6'], ['--unknown'],
+    ['--commit', '--commit'], ['--previous-version', '5', '--previous-version', '5', '--new-version', '6'],
+    ['--previous-version', '5', '--new-version'],
+  ]) assert.throws(() => parseReauthArguments(args), /USAGE/u)
+  for (const [previousVersion, newVersion] of [
+    ['05', '6'], ['0', '1'], ['5', '5'], ['6', '5'], ['5', '7'],
+    ['9007199254740991', '9007199254740992'], ['9007199254740992', '9007199254740993'],
+  ]) assert.throws(() => resolveVersionBinding(previousVersion, newVersion), /SECRET_VERSION_BINDING_INVALID/u)
+})
+
+test('invalid run binding is rejected before password authentication or any adapter work', async () => {
+  let calls = 0
+  const guardedAdapter = adapter({ signIn: async () => { calls += 1; throw new Error('must not sign in') } })
+  await assert.rejects(() => runReauthentication({
+    adapter: guardedAdapter, email: 'private-test@example.invalid', password: 'pw', expected,
+    sourceRevision: 'a'.repeat(40), commit: true, previousVersion: '5', newVersion: '7', now: () => NOW,
+  }), /SECRET_VERSION_BINDING_INVALID/u)
+  assert.equal(calls, 0)
+})
+
 test('Firebase ID token verifier checks RS256 signature and project claims', async () => {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
   const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-key' })).toString('base64url')
@@ -56,7 +84,9 @@ test('Firebase ID token verifier checks RS256 signature and project claims', asy
   const token = signed + '.' + sign('RSA-SHA256', Buffer.from(signed), privateKey).toString('base64url')
   const fetchImpl = async () => ({ ok: true, json: async () => ({ 'test-key': publicKey.export({ type: 'spki', format: 'pem' }) }) })
   assert.equal((await verifyFirebaseIdToken(token, { fetchImpl, nowMs: NOW })).sub, SUBJECT)
-  const bad = token.slice(0, -1) + (token.endsWith('A') ? 'B' : 'A')
+  const parts = token.split('.')
+  parts[2] = (parts[2][0] === 'A' ? 'B' : 'A') + parts[2].slice(1)
+  const bad = parts.join('.')
   await assert.rejects(() => verifyFirebaseIdToken(bad, { fetchImpl, nowMs: NOW }), /FIREBASE_TOKEN_SIGNATURE_INVALID|FIREBASE_TOKEN_INVALID/u)
 })
 
@@ -164,6 +194,32 @@ test('commit yields only a redacted source-bound receipt after exact version and
   assert.equal(refreshedValue.refreshToken, '')
 })
 
+test('explicit 5 to 6 commit binds prior read, new version, exact payload and receipt', async () => {
+  let latestCalls = 0
+  let addCalls = 0
+  let githubPayload
+  let receipt
+  const result = await runReauthentication({
+    adapter: adapter({
+      latestSecretVersion: async () => ({ version: ++latestCalls === 1 ? '5' : '6', state: 'ENABLED' }),
+      addSecretVersion: async (value) => { addCalls += 1; assert.equal(value, 'refresh-token-test-only-value'); return { version: '6' } },
+      setGithubSecret: async (bytes) => { githubPayload = Buffer.from(bytes) },
+      writeReceipt: async (value) => { receipt = value; return { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/credential-reauth/test.json', sha256: 'a'.repeat(64) } },
+    }),
+    email: 'private-test@example.invalid', password: 'never-log-this-password', expected,
+    sourceRevision: 'a'.repeat(40), commit: true, previousVersion: '5', newVersion: '6', now: () => NOW,
+  })
+  assert.equal(result.status, 'COMMITTED')
+  assert.equal(latestCalls, 2)
+  assert.equal(addCalls, 1)
+  assert.deepEqual(githubPayload, Buffer.from('refresh-token-test-only-value'))
+  assert.equal(receipt.secret.previousVersion, '5')
+  assert.equal(receipt.secret.newVersion, '6')
+  assert.equal(validateReauthReceipt(receipt, {
+    sourceRevision: 'a'.repeat(40), expectedPreviousVersion: '5', expectedNewVersion: '6', nowMs: NOW,
+  }), true)
+})
+
 test('version drift and GitHub write failure produce partial evidence, never PASS or deletion', async () => {
   let partialCount = 0
   await assert.rejects(() => runReauthentication({
@@ -192,6 +248,45 @@ test('version drift and GitHub write failure produce partial evidence, never PAS
   assert.equal(partialCount, 2)
 })
 
+test('explicit prewrite drift and postwrite version race never update GitHub', async () => {
+  let addCalls = 0
+  let githubCalls = 0
+  let partial
+  const beforeRace = adapter({
+    latestSecretVersion: async () => ({ version: '4', state: 'ENABLED' }),
+    addSecretVersion: async () => { addCalls += 1; return { version: '6' } },
+    setGithubSecret: async () => { githubCalls += 1 },
+    writePartialReceipt: async (value) => { partial = value },
+  })
+  await assert.rejects(() => runReauthentication({
+    adapter: beforeRace, email: 'private-test@example.invalid', password: 'pw', expected,
+    sourceRevision: 'a'.repeat(40), commit: true, previousVersion: '5', newVersion: '6', now: () => NOW,
+  }), /SECRET_VERSION_CHANGED/u)
+  assert.equal(addCalls, 0)
+  assert.equal(githubCalls, 0)
+  assert.equal(partial, undefined)
+
+  let latestCalls = 0
+  const afterRace = adapter({
+    latestSecretVersion: async () => ({ version: ++latestCalls === 1 ? '5' : '7', state: 'ENABLED' }),
+    addSecretVersion: async () => { addCalls += 1; return { version: '6' } },
+    setGithubSecret: async () => { githubCalls += 1 },
+    writePartialReceipt: async (value) => { partial = value },
+  })
+  const result = await runReauthentication({
+    adapter: afterRace, email: 'private-test@example.invalid', password: 'pw', expected,
+    sourceRevision: 'a'.repeat(40), commit: true, previousVersion: '5', newVersion: '6', now: () => NOW,
+  })
+  assert.equal(result.status, 'PARTIAL')
+  assert.equal(result.code, 'SECRET_VERSION_RACE')
+  assert.equal(addCalls, 1)
+  assert.equal(githubCalls, 0)
+  assert.equal(partial.status, 'PARTIAL')
+  assert.equal(partial.secret.previousVersion, '5')
+  assert.equal(partial.secret.newVersion, '6')
+  assert.deepEqual(partial.mutation, { secretVersionCreated: true, githubSecretConfigured: false })
+})
+
 test('receipt is exact, source-bound, fresh and hash-bound', () => {
   assert.equal(identityPairHash(expected.issuer, SUBJECT), sha256(expected.issuer + '\0' + SUBJECT))
   const receipt = buildReauthReceipt({
@@ -203,10 +298,14 @@ test('receipt is exact, source-bound, fresh and hash-bound', () => {
   assert.equal(validateReauthReceipt(receipt, { sourceRevision: 'a'.repeat(40), nowMs: NOW }), true)
   assert.throws(() => validateReauthReceipt({ ...receipt, projectId: 'other' }, { sourceRevision: 'a'.repeat(40), nowMs: NOW }), /REAUTH_RECEIPT_INVALID/u)
   assert.throws(() => validateReauthReceipt(receipt, { sourceRevision: 'b'.repeat(40), nowMs: NOW }), /REAUTH_RECEIPT_INVALID/u)
-  assert.throws(() => validateReauthReceipt(receipt, { sourceRevision: 'a'.repeat(40), expectedVersion: '6', nowMs: NOW }), /REAUTH_RECEIPT_INVALID/u)
+  assert.throws(() => validateReauthReceipt(receipt, {
+    sourceRevision: 'a'.repeat(40), expectedPreviousVersion: '5', expectedNewVersion: '6', nowMs: NOW,
+  }), /REAUTH_RECEIPT_INVALID/u)
   const nonmonotonic = buildReauthReceipt({ sourceRevision: 'a'.repeat(40), expected, authTime: Math.floor(NOW / 1000) - 15,
     authenticatedAt: new Date(NOW).toISOString(), principal, previousVersion: '4', newVersion: '4', observedAt: new Date(NOW + 1000).toISOString() })
-  assert.throws(() => validateReauthReceipt(nonmonotonic, { sourceRevision: 'a'.repeat(40), expectedVersion: '4', nowMs: NOW }), /REAUTH_RECEIPT_INVALID/u)
+  assert.throws(() => validateReauthReceipt(nonmonotonic, {
+    sourceRevision: 'a'.repeat(40), expectedPreviousVersion: '4', expectedNewVersion: '5', nowMs: NOW,
+  }), /REAUTH_RECEIPT_INVALID/u)
 })
 
 test('the local handler request predicate enforces exact Host, Origin, CSRF, size and single-flight policy', () => {
