@@ -3,6 +3,9 @@ import { principalAssurancePolicyHash } from "@/lib/jenfu-principal-assurance";
 import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { hashJenfuPrincipalSessionId } from "@/lib/jenfu-principal-session-registry";
 import { withVerifiedJenfuPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
+import { principalRequestFailure } from "@/lib/jenfu-principal-http";
+import { JenfuPrincipalAccountError } from "@/lib/jenfu-principal-account-repository";
+import { JenfuPrincipalAdmissionError } from "@/lib/jenfu-principal-admission-repository";
 import type { AsyncDatabaseClient, AsyncDatabaseTransactionOptions } from "@/lib/db-async-provider";
 
 const now = 1_800_000_000;
@@ -40,6 +43,7 @@ function database(overrides: Record<string, unknown> = {}) {
     execute: async () => undefined,
     query: async (sql: string) => {
       observed.queries.push(sql);
+      if (sql.includes("v_active_principal_accounts_v1") && overrides.typedReadError) throw overrides.typedReadError;
       if (sql.includes("v_active_principal_accounts_v1")) return overrides.typed === undefined ? [{
         contract_version: "organization.active-principal.v1", principal_issuer: claims.identityIssuer,
         principal_subject: claims.identitySubject, principal_id: claims.principalId,
@@ -71,6 +75,9 @@ function database(overrides: Record<string, unknown> = {}) {
     },
     queryOne: async (sql: string, params?: Record<string, unknown>) => {
       observed.queries.push(sql);
+      if (sql.includes("FROM ai_pdm_core.principal_accounts") && overrides.accountReadError) {
+        throw overrides.accountReadError;
+      }
       if (sql.includes("read_principal_auth_state_v3")) return overrides.epoch === undefined
         ? { principal_id: claims.principalId, auth_epoch: 0, revoked_before: null } : overrides.epoch;
       if (sql.includes("FROM ai_pdm_core.principal_accounts")) return overrides.account === undefined ? {
@@ -135,6 +142,63 @@ describe("DEV-121 principal request verification", () => {
     }
   });
 
+  it.each(["suspended", "expired", "offboarded", "system_role_disabled"])(
+    "returns invalid-session HTTP 401 for a validated %s account without entering authorization", async state => {
+      const { client } = database({ account: {
+        principal_id: claims.principalId, pdm_user_id: "profile-one", employee_id: claims.employeeId,
+        account_type: "human_privileged", company_id: claims.companyId,
+        lifecycle_version: 4, profile_version: 2,
+        account_status: state === "system_role_disabled" ? "active" : state,
+        system_role_enabled: false, minimum_assurance: "aal1", session_invalid_before: new Date(now * 1000)
+      }, session: { revoked_at: new Date(now * 1000) } });
+      const effect = vi.fn(async () => "must_not_run");
+      const failure = await withVerifiedJenfuPrincipalRequest({ token, keyRing: ring,
+        identityIssuer: claims.identityIssuer, trustPolicy, database: client, nowSeconds: now }, effect)
+        .then(() => { throw new Error("inactive account admitted"); }, error => error);
+      const response = principalRequestFailure(failure);
+      expect(response.status).toBe(401);
+      await expect(response.json()).resolves.toEqual({ code: "auth_session_invalid" });
+      expect(effect).not.toHaveBeenCalled();
+    });
+
+  it.each([null, { principal_id: claims.principalId, account_status: "suspended" }])(
+    "keeps missing or malformed inactive metadata as HTTP 503", async account => {
+      const effect = vi.fn(async () => "must_not_run");
+      const failure = await withVerifiedJenfuPrincipalRequest({ token, keyRing: ring,
+        identityIssuer: claims.identityIssuer, trustPolicy, database: database({ account }).client, nowSeconds: now }, effect)
+        .then(() => { throw new Error("malformed account admitted"); }, error => error);
+      const response = principalRequestFailure(failure);
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({ code: "principal_dependency_unavailable" });
+      expect(effect).not.toHaveBeenCalled();
+    });
+
+  it("keeps a query failure HTTP 503 even when the session registry is revoked", async () => {
+    const { client } = database({ session: { revoked_at: new Date(now * 1000) },
+      accountReadError: new Error("private database failure") });
+    const effect = vi.fn(async () => "must_not_run");
+    const failure = await withVerifiedJenfuPrincipalRequest({ token, keyRing: ring,
+      identityIssuer: claims.identityIssuer, trustPolicy, database: client, nowSeconds: now }, effect)
+      .then(() => { throw new Error("database failure admitted"); }, error => error);
+    expect(principalRequestFailure(failure).status).toBe(503);
+    expect(effect).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ typed: [] }, 401],
+    [{ typedReadError: new Error("private directory query failure") }, 503],
+    [{ typed: [{}, {}] }, 503],
+    [{ typed: [{ contract_version: "malformed" }] }, 503]
+  ])("classifies known producer inactivity separately from failed or ambiguous reads", async (override, status) => {
+    const effect = vi.fn(async () => "must_not_run");
+    const failure = await withVerifiedJenfuPrincipalRequest({ token, keyRing: ring,
+      identityIssuer: claims.identityIssuer, trustPolicy,
+      database: database(override as Record<string, unknown>).client, nowSeconds: now }, effect)
+      .then(() => { throw new Error("ineligible producer admitted"); }, error => error);
+    expect(principalRequestFailure(failure).status).toBe(status);
+    expect(effect).not.toHaveBeenCalled();
+  });
+
   it("rejects a session minted under the retired assurance policy before authorization reads", async () => {
     const oldPolicyToken = issueJenfuPrincipalSession({
       principalId: claims.principalId, employeeId: claims.employeeId,
@@ -195,6 +259,16 @@ describe("DEV-121 principal request verification", () => {
       identityIssuer: claims.identityIssuer, trustPolicy, database: database().client, nowSeconds: now },
     async () => { throw denied; })).rejects.toBe(denied);
   });
+
+  it.each([new JenfuPrincipalAccountError("principal_account_inactive"),
+    new JenfuPrincipalAdmissionError("principal_not_active", 403)])(
+    "preserves a command's same-snapshot typed inactive denial as HTTP 401", async inactive => {
+    const failure = await withVerifiedJenfuPrincipalRequest({ token, keyRing: ring,
+      identityIssuer: claims.identityIssuer, trustPolicy, database: database().client, nowSeconds: now },
+    async () => { throw inactive; }, { readOnly: false })
+      .then(() => { throw new Error("inactive command admitted"); }, error => error);
+    expect(principalRequestFailure(failure).status).toBe(401);
+    });
 
   it("admits AAL1 for privileged accounts but denies a zero-grant snapshot explicitly", async () => {
     const input = { token: aal1Token, keyRing: ring, identityIssuer: claims.identityIssuer,

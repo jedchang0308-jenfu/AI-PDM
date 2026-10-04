@@ -1,8 +1,8 @@
 import type { GoogleWorkspaceMfaTrustPolicy } from "@/lib/auth-config";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
-import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
-import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
+import { JenfuPrincipalAccountError, JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
+import { JenfuPrincipalAdmissionError, JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
 import { principalAssurancePolicyHash } from "@/lib/jenfu-principal-assurance";
 import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-published-grant-validation";
 import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
@@ -14,6 +14,11 @@ export class JenfuPrincipalRequestError extends Error {
   constructor(readonly code: "auth_session_invalid" | "auth_epoch_stale" | "principal_dependency_unavailable") {
     super(code);
   }
+}
+
+function knownInactivePrincipal(error: unknown): boolean {
+  return (error instanceof JenfuPrincipalAccountError && error.code === "principal_account_inactive") ||
+    (error instanceof JenfuPrincipalAdmissionError && error.code === "principal_not_active" && error.httpStatus === 403);
 }
 
 export type VerifiedJenfuPrincipalAppSession = {
@@ -126,6 +131,9 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
           assuranceLevel: claims.assuranceLevel
         } };
       } catch (error) {
+        if (knownInactivePrincipal(error)) {
+          throw new JenfuPrincipalRequestError("auth_session_invalid");
+        }
         if (error instanceof JenfuPrincipalRequestError || error instanceof JenfuEntitlementRepositoryError) throw error;
         throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
       }
@@ -134,6 +142,11 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
     }, { isolationLevel: options.isolationLevel ?? "repeatable_read",
       readOnly: options.readOnly !== false });
   } catch (error) {
+    // Commands may repeat the owner-account check in this same transaction.
+    // Preserve its typed admission denial at the public request boundary too.
+    if (knownInactivePrincipal(error)) {
+      throw new JenfuPrincipalRequestError("auth_session_invalid");
+    }
     if (error === evaluatorError && error !== undefined) throw error;
     if (error instanceof JenfuPrincipalRequestError || error instanceof JenfuEntitlementRepositoryError) throw error;
     throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
