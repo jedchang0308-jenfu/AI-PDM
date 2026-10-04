@@ -93,7 +93,8 @@ describe("principal command and mutation use one verified snapshot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.withRequest.mockImplementation(async (_input, run, options) => {
-      expect(options).toEqual({ readOnly: false, isolationLevel: "repeatable_read" });
+      expect(options).toMatchObject({ readOnly: false });
+      expect(["repeatable_read", "serializable"]).toContain(options.isolationLevel);
       return run(_input.database, verified);
     });
     mocks.evaluate.mockResolvedValue([{ allowed: true, principalId,
@@ -123,6 +124,76 @@ describe("principal command and mutation use one verified snapshot", () => {
     expect(vi.mocked(database.queryOne).mock.calls.some(([sql]) =>
       String(sql).includes("read_principal_cutover_for_command_v1"))).toBe(false);
     expect(mocks.claim.mock.calls[0][0].actor.platformOrganizationId).toBeNull();
+  });
+
+  it("allows only exact Principal-bound submission-share create with company and Released-package checks", async () => {
+    const database = client();
+    const queryOne = vi.mocked(database.queryOne);
+    queryOne.mockImplementation(async (sql: string) => {
+      if (sql.includes("current_setting('transaction_isolation')")) return { isolation_level: "serializable" } as never;
+      if (sql.includes("FROM ai_pdm_core.submissions")) {
+        return { id: "submission-one", company_id: companyId, status: "Released" } as never;
+      }
+      if (sql.includes("ai_pdm_core.release_packages")) return { id: "package-one" } as never;
+      return null;
+    });
+    const shareRoute = {
+      request: new Request("https://ai-pdm.test/api/submissions/submission-one/shares", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/submissions/[id]/shares/route.ts",
+      method: "POST", permissionCode: "submission.share",
+      resourceBinding: { kind: "submission_share" as const, submissionId: "submission-one" }
+    };
+    const shareCommand = createPdmCommand({ commandName: "pdm.submission_share.create",
+      idempotencyKey: "share-create-one", actor: command().actor,
+      payload: { submissionId: "submission-one", label: "Review", days: 14 } });
+    const execute = vi.fn(async (_snapshot: AsyncDatabaseClient, _decision: unknown,
+      verifiedRequest: VerifiedPrincipalRequest | null) => {
+      expect(verifiedRequest).toBe(verified);
+      return { shareId: "share-one" };
+    });
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true, principalId,
+      permissionCode: "submission.share" }]);
+    await expect(executePdmCommandWithOutbox({
+      ...input(database), command: shareCommand, principalAuthorization: shareRoute,
+      execute, serializable: true
+    })).resolves.toMatchObject({ result: { shareId: "share-one" }, reusedFromCommandReceipt: false });
+    expect(queryOne.mock.calls.some(([sql, params]) => String(sql).includes("FROM ai_pdm_core.submissions") &&
+      (params as Record<string, unknown>).companyId === companyId)).toBe(true);
+    expect(queryOne.mock.calls.some(([sql]) => String(sql).includes("ai_pdm_core.release_packages"))).toBe(true);
+    expect(mocks.evaluate).toHaveBeenCalledWith(database, verified,
+      [{ permissionKind: "action", permissionCode: "submission.share" }]);
+    expect(mocks.claim).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a forged submission-share binding before resource access or effects", async () => {
+    const database = client();
+    const queryOne = vi.mocked(database.queryOne);
+    const shareRoute = {
+      request: new Request("https://ai-pdm.test/api/submissions/submission-one/shares", {
+        method: "POST", headers: { cookie: `pdm_session=${token}` }
+      }),
+      routePath: "src/app/api/submissions/[id]/shares/route.ts",
+      method: "POST", permissionCode: "submission.share",
+      resourceBinding: { kind: "submission_share" as const, submissionId: "other-submission" }
+    };
+    const shareCommand = createPdmCommand({ commandName: "pdm.submission_share.create",
+      idempotencyKey: "share-create-forged", actor: command().actor,
+      payload: { submissionId: "other-submission", label: "Review", days: 14 } });
+    const execute = vi.fn(async () => ({ shareId: "unexpected" }));
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true, principalId,
+      permissionCode: "submission.share" }]);
+    await expect(executePdmCommandWithOutbox({
+      ...input(database), command: shareCommand, principalAuthorization: shareRoute,
+      execute, serializable: true
+    })).rejects.toThrow("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+    expect(queryOne.mock.calls.filter(([sql]) => !String(sql).includes("current_setting('transaction_isolation')"))).toHaveLength(0);
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("passes the verified principal into resource-specific authorization in that snapshot", async () => {

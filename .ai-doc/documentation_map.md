@@ -4,7 +4,7 @@
 
 文件角色：CURRENT_INDEX。本輪只讀 [DEV-121 現行任務](dev_task.md#dev-121-current-contract) → [Principal-only 身分／授權整合契約](specs/DEV-121-target-authorization-boundary.md) → 該交付所需證據。一般 canonical lifecycle、首次發行與附件／工作流功能問題集中 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md)，本輪延後。CURRENT_CONTRACT 定義架構，任務／既有盤點維護進度，不從下方其他 DEV 或歷史日期推定本輪指令。
 
-三個native任務沿用 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121；正常授權只有Principal路徑，人類允許真實AAL1，未核實／原停用者保持停用，回復不能恢復UID授權。完整限制、owner及驗收以各自current契約為準。AI-PDM DEV-121 的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 可獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint，任一 owner PASS 不推定 joint PASS。
+三個native任務沿用 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121；正常授權只有Principal路徑，人類允許真實AAL1，未核實／原停用者保持停用，回復不能恢復UID授權。完整限制、owner及驗收以各自current契約為準。AI-PDM DEV-121 的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 可獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint，任一 owner PASS 不推定 joint PASS。2026-10-04 share-boundary source batch：internal share management 使用既有 `submission.share`，public metadata/package 以 Principal＋`submission.view` 授權，token 僅 resource selector；supplier reply 暫因無已發布 capability／recipient contract 回 503，route 保留且標 `DEFERRED_DEV122_POLICY_NOT_RETIRED`。focused tests、required CI、disposable PostgreSQL coverage 尚待完成，不代表 Production L4。
 
 整理前文件原文在 [HISTORY_ONLY文件地圖](documentation_map-history-2026-10-03.md)，包含舊進度及取代關係；不預設載入、不執行舊雙軌／bridge／逐人／TOTP步骤。以下保留其他任務原索引，未因本次CA重新判定其完成度。
 

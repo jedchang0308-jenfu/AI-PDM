@@ -3,6 +3,7 @@
 // The candidate/parser/service and unchanged 071 lifecycle / 074 provision / 076 manager guard
 // execute against a fresh database in the existing required CI PostgreSQL job.
 // Native 078 and four settings commands are real; Secret Manager I/O is synthetic-only.
+// Mounted share routes also execute actual Principal transactions; resource/provider fixtures are synthetic.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -732,6 +733,226 @@ try {
       scope:'actual consumer runtime; only provider I/O mocked, identity/grant/session fixtures synthetic'});
   }
 
+  // Existing 15 cases are preserved. Resource/provider facts and signed sessions
+  // remain synthetic; mounted routes/guard/kernel/binder/repos execute unchanged.
+  assert.equal(checks.length,15);
+  const initialSchema=fs.readFileSync(path.join(root,'db/postgres/001_initial_schema.sql'),'utf8').replaceAll('\r\n','\n');
+  const extractTable=(first,last)=>{
+    const start=initialSchema.indexOf(first),end=initialSchema.indexOf(last,start);
+    assert.ok(start>=0 && end>start);return initialSchema.slice(start,end);
+  };
+  const shareDdl=extractTable('CREATE TABLE IF NOT EXISTS release_packages (','CREATE TABLE IF NOT EXISTS procurement_sync_runs (')+
+    extractTable('CREATE TABLE IF NOT EXISTS supplier_portal_responses (','CREATE TABLE IF NOT EXISTS discussion_comments (');
+  await database.query(`CREATE TABLE ai_pdm_core.submissions (
+    id text PRIMARY KEY,company_id text NOT NULL REFERENCES ai_pdm_core.companies(id),
+    submitted_by text REFERENCES ai_pdm_core.users(id),status text NOT NULL);
+    INSERT INTO ai_pdm_core.companies VALUES ('company-share-other');`);
+  await database.query('BEGIN');
+  try {await database.query('SET LOCAL search_path=ai_pdm_core,public');await database.query(shareDdl);await database.query('COMMIT');}
+  catch(error){await database.query('ROLLBACK');throw error;}
+  sourceProof.push({path:'db/postgres/001_initial_schema.sql',sourceSha256:sha(initialSchema),executedFunctionSha256:sha(shareDdl),
+    scope:'unchanged release/share/response table DDL only under own search_path; minimal submissions synthetic, not full migration suite'});
+  await database.query(`GRANT SELECT ON ai_pdm_core.submissions,ai_pdm_core.release_packages,ai_pdm_core.supplier_portal_responses TO jenfu_ai_pdm_runtime;
+    GRANT SELECT,INSERT,UPDATE ON ai_pdm_core.readonly_shares TO jenfu_ai_pdm_runtime;`);
+  const shareIdentity={principalId:'principal-share-manager',employeeId:'employee-share-manager',
+    identityIssuer:'https://securetoken.google.com/dev121-share-fixture',identitySubject:'subject-share-manager'};
+  const shareProfile='profile-share-manager';
+  await database.query(`INSERT INTO ai_pdm_core.users(id,company_id,display_name,role)
+    VALUES ($1,'company-jenfu','Synthetic share manager','Admin')`,[shareProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.principal_accounts
+    (principal_id,pdm_user_id,company_id,employee_id,account_type,account_status,lifecycle_version,profile_version,system_role_enabled,minimum_assurance)
+    VALUES ($1,$2,'company-jenfu',$3,'human_personal','active',1,1,true,'aal1')`,[shareIdentity.principalId,shareProfile,shareIdentity.employeeId]);
+  await database.query(`INSERT INTO orgmaster_contract.v_active_principal_accounts_v1
+    VALUES ('organization.active-principal.v1',$1,$2,$3,$4,'active','human_personal',7,$5::timestamptz)`,
+    [shareIdentity.identityIssuer,shareIdentity.identitySubject,shareIdentity.principalId,shareIdentity.employeeId,at]);
+  await database.query(`INSERT INTO orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
+    VALUES ('jenfu.orgmaster.ai-pdm-principal-grants.v4','ai-pdm',$1,$2,'share-grant-publication',7,'share-manager-assignment',
+      'role-pdm-admin','pdm_admin',$3,'employee',NULL,'direct',NULL,'workspace','company-jenfu',clock_timestamp()-interval '1 minute',NULL,$4::timestamptz)`,
+    [shareIdentity.principalId,shareIdentity.employeeId,catalog.catalogVersion,at]);
+  await database.query('INSERT INTO platform_contract.principal_state_fixture VALUES ($1,0,NULL)',[shareIdentity.principalId]);
+  await database.query(`INSERT INTO ai_pdm_core.submissions(id,company_id,submitted_by,status) VALUES
+    ('share-own','company-jenfu',$1,'Released'),('share-other','company-share-other',$1,'Released'),
+    ('share-draft','company-jenfu',$1,'Draft'),('share-no-package','company-jenfu',$1,'Released')`,[shareProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.release_packages(id,submission_id,package_filename,local_path,sha256,file_size,manifest_json,created_by)
+    VALUES ('share-package-own','share-own','synthetic.zip','synthetic-no-file',$1,0,'{}',$2),
+      ('share-package-other','share-other','synthetic.zip','synthetic-no-file',$1,0,'{}',$2)`,[sha('synthetic-package-no-bytes'),shareProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.readonly_shares(id,submission_id,token_hash,label,expires_at,created_by)
+    VALUES ('share-foreign-existing','share-other',$1,'Synthetic foreign share',clock_timestamp()+interval '1 day',$2)`,
+    [sha('synthetic-foreign-no-bearer'),shareProfile]);
+  Object.assign(process.env,{PDM_AUTH_MODE:'firebase_bff',PDM_JENFU_PLATFORM_AUTH_MODE:'on',PDM_JENFU_ENTITLEMENT_MODE:'enforce',
+    JENFU_FIREBASE_PROJECT_ID:'dev121-share-fixture',PDM_FIREBASE_PROJECT_ID:'dev121-share-fixture',
+    JENFU_IDENTITY_ISSUER:shareIdentity.identityIssuer,JENFU_IDENTITY_AUDIENCE:'dev121-share-fixture',
+    PDM_SESSION_ISSUER:keyRing.issuer,PDM_SESSION_AUDIENCE:keyRing.audience,
+    PDM_SESSION_CURRENT_KEY_ID:keyRing.currentKeyId,PDM_SESSION_CURRENT_SECRET:keyRing.keys.fixture,
+    PDM_TRUST_GOOGLE_WORKSPACE_MFA:'false',PDM_ALLOW_GOOGLE_WORKSPACE_AAL1_PRIVILEGED:'true',PDM_GOOGLE_WORKSPACE_DOMAINS:'example.test'});
+  delete process.env.PDM_SESSION_PREVIOUS_KEY_ID;delete process.env.PDM_SESSION_PREVIOUS_SECRET;
+  const shareSeconds=Math.floor(Date.now()/1000);
+  const shareSession=issueJenfuPrincipalSession({...shareIdentity,authEpoch:0,accountLifecycleVersion:1,profileVersion:1,
+    companyId:'company-jenfu',authenticatedAt:shareSeconds-30,assuranceLevel:'aal1',secondFactor:null,
+    assurancePolicyHash:principalAssurancePolicyHash(trustPolicy),maxAgeSeconds:600},keyRing,shareSeconds);
+  await settingsClient.transaction(snapshot=>new JenfuPrincipalSessionRegistry(snapshot)
+    .register(verifyJenfuPrincipalSession(shareSession,keyRing,{nowSeconds:shareSeconds})),{isolationLevel:'serializable',readOnly:false});
+  const {POST:sharePost}=await import(pathToFileURL(path.join(root,'src/app/api/submissions/[id]/shares/route.ts')));
+  const {PATCH:sharePatch}=await import(pathToFileURL(path.join(root,'src/app/api/submissions/[id]/shares/[shareId]/route.ts')));
+  const {executePdmCommandWithOutbox}=await import(pathToFileURL(path.join(root,'src/lib/platform-command-service.ts')));
+  const {createPlatformActorContext,createPdmCommand}=await import(pathToFileURL(path.join(root,'src/lib/platform-command.ts')));
+  const {AsyncReleaseRepository}=await import(pathToFileURL(path.join(root,'src/lib/repositories/release-async-repository.ts')));
+  const shareBody={label:'Synthetic Principal share',days:14};
+  const shareRequest=(method,submissionId,operation,shareId,body=shareBody)=>new Request(
+    'https://pdm.example.test/api/submissions/'+submissionId+'/shares'+(shareId?'/'+shareId:''),
+    {method,headers:{cookie:'pdm_session='+shareSession,'content-type':'application/json','idempotency-key':operation,'x-request-id':operation},
+      ...(method==='POST'?{body:JSON.stringify(body)}:{})});
+  const publicCreate=(operation,submissionId='share-own',body=shareBody)=>sharePost(
+    shareRequest('POST',submissionId,operation,undefined,body),{params:Promise.resolve({id:submissionId})});
+  const publicRevoke=(operation,shareId,submissionId='share-own')=>sharePatch(
+    shareRequest('PATCH',submissionId,operation,shareId),{params:Promise.resolve({id:submissionId,shareId})});
+  // Full row snapshots detect denied UPDATEs as well as INSERTs and duplicates.
+  const shareSnapshot=async()=>{
+    const result={};
+    for(const table of ['readonly_shares','platform_command_receipts','platform_outbox_events','audit_logs'])
+      result[table]=(await database.query(`SELECT COALESCE(jsonb_agg(to_jsonb(row) ORDER BY row.id),'[]'::jsonb) AS rows FROM ai_pdm_core.${table} row`)).rows[0].rows;
+    return result;
+  };
+  const shareEvidence=async(operation,commandName,eventType,action,shareId,forbidden=[])=>{
+    const receipts=(await database.query('SELECT * FROM ai_pdm_core.platform_command_receipts WHERE idempotency_key=$1',[operation])).rows;
+    const events=(await database.query('SELECT * FROM ai_pdm_core.platform_outbox_events WHERE idempotency_key=$1',[operation])).rows;
+    assert.equal(receipts.length,1);assert.equal(events.length,1);
+    const receipt=receipts[0],event=events[0];
+    assert.equal(receipt.command_name,commandName);assert.equal(receipt.command_status,'completed');
+    assert.equal(event.event_type,eventType);assert.equal(event.aggregate_id,shareId);assert.equal(event.delivery_status,'pending');
+    for(const row of [receipt,event]){
+      assert.equal(row.principal_id,shareIdentity.principalId);assert.equal(row.actor_id,shareProfile);assert.equal(row.company_id,'company-jenfu');
+      assert.equal(row.platform_principal_id,null);assert.equal(row.platform_organization_id,null);
+    }
+    const envelope=JSON.parse(receipt.response_json);
+    assert.deepEqual(envelope.actorBinding,{version:2,actorKind:'human',principalId:shareIdentity.principalId,companyId:'company-jenfu'});
+    assert.equal(envelope.result.share.id,shareId);
+    const audits=(await database.query(`SELECT * FROM ai_pdm_core.audit_logs WHERE action=$1 AND detail_json::jsonb->>'shareId'=$2`,[action,shareId])).rows;
+    assert.equal(audits.length,1);assert.equal(audits[0].actor_id,shareProfile);assert.equal(audits[0].company_id,'company-jenfu');
+    assert.equal(audits[0].scope_kind,'tenant');assert.equal(JSON.parse(audits[0].detail_json).securityPrincipalId,shareIdentity.principalId);
+    const material=JSON.stringify([receipt,event,audits[0]]);
+    for(const secret of forbidden) assert.ok(!material.includes(secret),'bearer token/hash excluded from receipt/outbox/audit');
+  };
+  const beforeCreate=await shareSnapshot(),createdResponse=await publicCreate('share-create');
+  assert.equal(createdResponse.status,201);
+  const createdShare=await createdResponse.json();
+  assert.equal(createdShare.share.submission_id,'share-own');assert.equal(createdShare.share.status,'active');
+  const createdRow=(await database.query('SELECT * FROM ai_pdm_core.readonly_shares WHERE id=$1',[createdShare.share.id])).rows[0];
+  assert.equal(createdRow.token_hash,sha(createdShare.token));
+  const afterCreate=await shareSnapshot();
+  for(const table of Object.keys(beforeCreate)) assert.equal(afterCreate[table].length,beforeCreate[table].length+1);
+  await shareEvidence('share-create','pdm.submission_share.create','pdm.submission_share.created','ReadonlyShareCreated',createdShare.share.id,[createdShare.token,createdRow.token_hash]);
+  const creationReplay=await publicCreate('share-create');
+  assert.equal(creationReplay.status,409);assert.deepEqual(await creationReplay.json(),{code:'share_creation_result_already_consumed'});
+  assert.deepEqual(await shareSnapshot(),afterCreate);
+  const changedReplay=await publicCreate('share-create','share-own',{...shareBody,label:'Changed request'});
+  assert.equal(changedReplay.status,503);assert.deepEqual(await changedReplay.json(),{code:'principal_dependency_unavailable'});
+  assert.deepEqual(await shareSnapshot(),afterCreate);
+  checks.push('actual mounted POST commits one Principal/company share/receipt/outbox/tenant audit without bearer material; stable request replay is consumed409 and changed request has zero effects');
+  const revokedResponse=await publicRevoke('share-revoke',createdShare.share.id);
+  assert.equal(revokedResponse.status,200);
+  const revokedShare=await revokedResponse.json();assert.equal(revokedShare.share.status,'revoked');
+  assert.equal((await database.query('SELECT revoked_by FROM ai_pdm_core.readonly_shares WHERE id=$1',[createdShare.share.id])).rows[0].revoked_by,shareProfile);
+  await shareEvidence('share-revoke','pdm.submission_share.revoke','pdm.submission_share.revoked','ReadonlyShareRevoked',createdShare.share.id);
+  const afterRevoke=await shareSnapshot(),revokeReplay=await publicRevoke('share-revoke',createdShare.share.id);
+  assert.equal(revokeReplay.status,200);assert.deepEqual(await revokeReplay.json(),revokedShare);assert.deepEqual(await shareSnapshot(),afterRevoke);
+  checks.push('actual mounted PATCH revokes/reloads with canonical Principal receipt/outbox/tenant audit; exact replay has no extra effects');
+  const directCommand=(operation,{submissionId='share-own',shareId,mutate}={})=>{
+    const revoke=shareId!==undefined,method=revoke?'PATCH':'POST';
+    const payload=revoke?{submissionId,shareId}:{submissionId,...shareBody};
+    const actorContext=createPlatformActorContext({pdmUserId:shareProfile,organizationId:'company-jenfu',requestId:operation,
+      authorizationActor:{...shareIdentity,localPrincipalId:shareProfile,companyId:'company-jenfu',sessionSchemaVersion:2}});
+    const input={client:settingsClient,command:createPdmCommand({commandName:revoke?'pdm.submission_share.revoke':'pdm.submission_share.create',
+      idempotencyKey:operation,actor:actorContext,payload}),
+      principalRequest:{token:shareSession,keyRing,trustPolicy,identityIssuer:shareIdentity.identityIssuer,database:settingsClient},
+      principalAuthorization:{request:shareRequest(method,submissionId,operation,shareId),method,permissionCode:'submission.share',
+        routePath:revoke?'src/app/api/submissions/[id]/shares/[shareId]/route.ts':'src/app/api/submissions/[id]/shares/route.ts',
+        resourceBinding:{kind:'submission_share',submissionId,...(revoke?{shareId}:{})}},
+      execute:async(client,_decision,verifiedPrincipal)=>{
+        assert.ok(verifiedPrincipal);
+        const repo=new AsyncReleaseRepository(client),principalAudit={principalId:verifiedPrincipal.session.principalId,companyId:verifiedPrincipal.profile.companyId};
+        const share=revoke?await repo.revokeReadonlyShare({submissionId,shareId,revokedBy:verifiedPrincipal.profile.pdmUserId,principalAudit}):
+          await repo.createReadonlyShare({submissionId,tokenHash:sha('synthetic-direct-'+operation),label:shareBody.label,
+            expiresAt:new Date(Date.now()+86400000).toISOString(),createdBy:verifiedPrincipal.profile.pdmUserId,principalAudit});
+        assert.ok(share);return {share};
+      },event:({share})=>({aggregateType:'readonly_share',aggregateId:share.id,eventType:revoke?'pdm.submission_share.revoked':'pdm.submission_share.created',
+        payload:{submissionId,shareId:share.id}}),idempotencyPayload:payload,serializable:true};
+    mutate?.(input);return executePdmCommandWithOutbox(input);
+  };
+  const forgeryBefore=await shareSnapshot();
+  const forgeries=[
+    [input=>{input.command.actor.principalId='forged-principal';},'PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID'],
+    [input=>{input.command.actor.pdmUserId=actorProfile;},'PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID'],
+    [input=>{input.command.actor.organizationId='company-share-other';},'PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID'],
+    [input=>{input.principalAuthorization.resourceBinding.submissionId='share-other';},'PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID'],
+    [input=>{input.command.payload.submissionId='share-other';},'PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID'],
+    [input=>{input.principalAuthorization.resourceBinding.shareId='share-foreign-existing';},'PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID'],
+    [input=>{input.command.commandName='pdm.submission_share.other';},'PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID'],
+    [input=>{input.principalAuthorization.additionalPermissionCodes=['submission.view'];},'PLATFORM_PRINCIPAL_COMMAND_CONTEXT_INVALID']
+  ];
+  for(const [index,[mutate,message]] of forgeries.entries()){
+    await assert.rejects(directCommand('share-forged-'+index,{mutate}),error=>error.message===message);assert.deepEqual(await shareSnapshot(),forgeryBefore);
+  }
+  await assert.rejects(directCommand('share-forged-revoke',{shareId:createdShare.share.id,
+    mutate:input=>{input.principalAuthorization.resourceBinding.shareId='share-foreign-existing';}}),
+    error=>error.message==='PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID');
+  assert.deepEqual(await shareSnapshot(),forgeryBefore);
+  checks.push('actual kernel rejects forged Principal/profile/company/path/payload/resource and broad company-scope dispatch before any share/receipt/outbox/audit effects');
+  const resourceBefore=await shareSnapshot();
+  for(const [id,status] of [['share-other',403],['share-draft',409],['share-no-package',409]]){
+    assert.equal((await publicCreate('share-resource-'+id,id)).status,status);assert.deepEqual(await shareSnapshot(),resourceBefore);
+  }
+  assert.equal((await publicRevoke('share-foreign-revoke','share-foreign-existing')).status,403);assert.deepEqual(await shareSnapshot(),resourceBefore);
+  checks.push('actual mounted routes reject foreign-company submission/share and non-Released or missing package with zero effects; no bearer/profile/local-role fallback');
+  const shareGrants=(await database.query(`SELECT jsonb_agg(to_jsonb(grant_row)) AS rows
+    FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 grant_row WHERE principal_id=$1`,[shareIdentity.principalId])).rows[0].rows;
+  const restoreGrants=async()=>{
+    await database.query('DELETE FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 WHERE principal_id=$1',[shareIdentity.principalId]);
+    await database.query(`INSERT INTO orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
+      SELECT * FROM jsonb_populate_recordset(NULL::orgmaster_contract.v_ai_pdm_principal_effective_grants_v4,$1::jsonb)`,[JSON.stringify(shareGrants)]);
+  };
+  const permissionBefore=await shareSnapshot();
+  const denyBoth=async suffix=>{
+    for(const response of [await publicCreate('share-denied-'+suffix),await publicRevoke('share-denied-'+suffix,createdShare.share.id)]) assert.equal(response.status,403);
+    assert.deepEqual(await shareSnapshot(),permissionBefore);
+    assert.equal((await publicCreate('share-create')).status,403,'current permission precedes completed receipt replay');assert.deepEqual(await shareSnapshot(),permissionBefore);
+  };
+  try{
+    await database.query('UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 SET scope_key=$2 WHERE principal_id=$1',[shareIdentity.principalId,'company-share-other']);
+    await denyBoth('scope');await restoreGrants();
+    await database.query("UPDATE orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 SET stable_role_id='role-rd',role_code='rd' WHERE principal_id=$1",[shareIdentity.principalId]);
+    await denyBoth('role');await restoreGrants();
+    await database.query('DELETE FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4 WHERE principal_id=$1',[shareIdentity.principalId]);await denyBoth('withdrawn');
+  }finally{await restoreGrants();}
+  checks.push('current grant scope/role/full withdrawal deny both mounted commands and completed-receipt replay with zero effects despite local Admin; exact synthetic producer rows restored');
+  const rollbackResponse=await publicCreate('share-rollback-target');assert.equal(rollbackResponse.status,201);
+  const rollbackShare=(await rollbackResponse.json()).share;
+  for(const [table,point] of [['audit_logs','audit'],['platform_outbox_events','outbox']]){
+    const name='share_test_'+point+'_failure';
+    await database.query(`CREATE FUNCTION ai_pdm_core.${name}() RETURNS trigger LANGUAGE plpgsql AS $fixture$
+      BEGIN RAISE EXCEPTION 'synthetic_share_${point}_failure'; END; $fixture$;
+      CREATE TRIGGER ${name} BEFORE INSERT ON ai_pdm_core.${table} FOR EACH ROW EXECUTE FUNCTION ai_pdm_core.${name}();`);
+    const rollbackState=await shareSnapshot();
+    try{
+      // Exact SQL cause proves the writer reached the injected failure; generic
+      // preflight denial is not considered successful transaction rollback.
+      for(const [suffix,options] of [['create',{}],['revoke',{shareId:rollbackShare.id}]]){
+        await assert.rejects(directCommand('share-rollback-'+point+'-'+suffix,options),error=>error.message==='synthetic_share_'+point+'_failure');
+        assert.deepEqual(await shareSnapshot(),rollbackState);
+      }
+      const response=await publicRevoke('share-rollback-public-'+point,rollbackShare.id);
+      assert.equal(response.status,503);assert.deepEqual(await response.json(),{code:'principal_dependency_unavailable'});assert.deepEqual(await shareSnapshot(),rollbackState);
+      assert.equal((await database.query('SELECT revoked_at FROM ai_pdm_core.readonly_shares WHERE id=$1',[rollbackShare.id])).rows[0].revoked_at,null);
+    }finally{await database.query(`DROP TRIGGER ${name} ON ai_pdm_core.${table}`);}
+  }
+  checks.push('actual SQL audit/outbox failure rolls back create/revoke, receipt and row updates atomically; public failure stays503 and active share remains active');
+  for(const file of ['src/app/api/submissions/[id]/shares/route.ts','src/app/api/submissions/[id]/shares/[shareId]/route.ts',
+    'src/lib/principal-readonly-share-command.ts','src/lib/principal-readonly-share.ts','src/lib/readonly-share-async.ts',
+    'src/lib/platform-command.ts','src/lib/repositories/release-async-repository.ts','config/access-control/jenfu-route-permission-map.v2.json'])
+    sourceProof.push({path:file,sourceSha256:sha(fs.readFileSync(path.join(root,file),'utf8').replaceAll('\r\n','\n')),
+      scope:file==='src/lib/principal-readonly-share.ts' ? 'management route imports this read helper only; share GET/package consumer not exercised by this fixture' :
+        'actual mounted share management route/command/repository, util or policy; synthetic producer/session/resource, real runtime ACL and PG transactions'});
+
 } finally {
   await closeSettingsRuntime?.();
   await appDatabase?.close();
@@ -750,5 +971,6 @@ try {
 }
 console.log(JSON.stringify({ status: 'PASS',checks,sourceProof,
   boundary: 'actual AI-PDM consumer/service/native command and request guard; synthetic OrgMaster typed/grant and Platform epoch producers and signed session',
-  settingsProviderMocked: true,providerConformance: false,productionL4: false,productionWrites: false,
+  settingsProviderMocked: true,shareManagementRoutesActual: true,shareResourceFixtureSynthetic: true,
+  providerConformance: false,productionL4: false,productionWrites: false,
   cleanup: { generatedDatabaseDropped: dropped,newRolesDropped: true,ownTempRemoved: tempRemoved } }));

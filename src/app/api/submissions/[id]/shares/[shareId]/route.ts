@@ -1,22 +1,31 @@
 import { NextResponse } from "next/server";
-import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
-import { canReadSubmissionAsync } from "@/lib/permissions";
-import { revokeReadonlyShareAsync } from "@/lib/release-records-async";
-import { getSubmissionAsync } from "@/lib/submissions-async";
+import { AsyncReleaseRepository } from "@/lib/repositories/release-async-repository";
+import { executePrincipalReadonlyShareCommand } from "@/lib/principal-readonly-share-command";
 
 export const runtime = "nodejs";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; shareId: string }> }) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
-  if (auth.response) return auth.response;
-
   const { id, shareId } = await params;
-  const submission = await getSubmissionAsync(id);
-  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
-  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
-
-  const share = await revokeReadonlyShareAsync({ submissionId: id, shareId, revokedBy: auth.user.id });
-  if (!share) return NextResponse.json({ error: "?曆??啣?鈭恍??" }, { status: 404 });
-  return NextResponse.json({ share });
+  const outcome = await executePrincipalReadonlyShareCommand({
+    request, routePath: "src/app/api/submissions/[id]/shares/[shareId]/route.ts", method: "PATCH",
+    commandName: "pdm.submission_share.revoke", submissionId: id, shareId,
+    payload: { submissionId: id, shareId }, idempotencyPayload: { submissionId: id, shareId },
+    execute: async (client, verified) => {
+      const share = await new AsyncReleaseRepository(client).revokeReadonlyShare({
+        submissionId: id, shareId, revokedBy: verified.profile.pdmUserId,
+        principalAudit: { principalId: verified.session.principalId, companyId: verified.profile.companyId }
+      });
+      return { share };
+    },
+    event: ({ share }) => {
+      if (!share) throw new Error("READONLY_SHARE_NOT_FOUND");
+      return { aggregateType: "readonly_share", aggregateId: share.id,
+        eventType: "pdm.submission_share.revoked",
+        payload: { submissionId: id, shareId: share.id } };
+    }
+  });
+  if (outcome instanceof Response) return outcome;
+  if (!outcome.result.share) return NextResponse.json({ error: "分享連結不存在" }, { status: 404 });
+  return NextResponse.json({ share: outcome.result.share }, { headers: { "cache-control": "private, no-store" } });
 }
 

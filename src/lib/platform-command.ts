@@ -41,6 +41,7 @@ export type PdmCommandMetadata = {
     permissionCode: string;
     discriminator?: JenfuRouteDiscriminator;
     additionalPermissionCodes?: string[];
+    resourceBinding?: { kind: "submission_share"; submissionId: string; shareId?: string };
   };
 };
 

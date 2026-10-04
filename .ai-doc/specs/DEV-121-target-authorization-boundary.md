@@ -72,6 +72,14 @@ workload actor與human actor分型；僅server註冊的worker identity可帶精�
 
 既有檔案用途按可信 company/resource/purpose、exact generation／hash 及既有下載條件授權，無 public／release-bucket／UID fallback。Principal 與 workload actor 的邊界、initiator、scope、撤權、receipt 與 exact object access 屬本 DEV；附件持久化、UI／採用及一般生命周期功能整理記 DEV-122。已執行 storage apply 的 provider-format validator／immutable claim／effective IAM readback 具有可靠發布因果，仍由本 DEV 收束；資源 PASS 不等於 runtime 啟用或 live bytes PASS，既有 US$10/月初期目標（非硬上限）與原 data/resource 限制保持。
 
+### Released submission 分享邊界（DEV-121，2026-10-04）
+
+內部分享清單／建立／撤銷使用既有 published `submission.share`，在 verified Principal、company resource、command receipt、outbox 與 tenant audit 同一授權流程中核對。建立只允許同 company 的 Released submission 且已有 release package；撤銷須將 share id 綁定 URL submission id。profile id 僅作既有領域外鍵，audit 的 `securityPrincipalId`、command receipt 與 outbox 綁定 verified Principal；bearer token 原文只在首次建立的 HTTP response 返回，receipt／outbox 不保存 token。
+
+公開 share metadata／package 的 opaque token 僅選擇 share row，不再是授權主體。兩個 GET 都要求已驗證 Principal 及 published `submission.view`，同 snapshot 核對同 company、active／expiry／revoke 狀態、Released submission 與 package；package 下載沿既有 bytes/checksum 驗證及 Principal storage audit，另記 share id。這不發布新的外部角色或能力。
+
+供應商回覆 POST 保留 route，並在 Principal session 驗證後回 `503 supplier_reply_policy_unavailable`／`DEFERRED_DEV122_POLICY_NOT_RETIRED`；目前 role catalog／controlled contract 沒有已發布的 supplier reply capability、recipient actor 或外部身分契約，因此不接受 token-only 回覆、不寫 response／audit，也不宣告功能已退役。後續是否允許外部供應商回覆及其可回覆對象仍待既有業務 owner 明確定義與發布權限，不能借用 `submission.share` 或 `submission.review` 擴權。
+
 ### Settings Secret probe 的發起者與執行者（DEV-121／P07–P08，2026-10-04）
 
 正常設定中心的 draft／test／activate／revoke 四個 POST 共用 `settings.secret.manage` 的既有 Principal command ingress 與 command-time grant／company 檢查，不以 legacy display Admin 或 profile 重新決定權限。Secret reference 維持既有 application-wide integration config；company 欄位保存操作者與 queue 來源，並非新設租戶 Secret 服務。資料改動、canonical receipt／outbox、lifecycle event 與 human audit 使用同一交易；provider I/O 在交易外，先驗 current Principal／permission 與 replay，再寫 provider，最後重新核對並提交。Secret value 不進 command／receipt／outbox／audit；commit 失敗的 provider version 保持未引用，不自動啟用或刪除。

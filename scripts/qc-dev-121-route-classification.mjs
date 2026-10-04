@@ -309,8 +309,45 @@ function main() {
       observedMethods.set(key, { relativeFile, sourceFile });
       const mapped = routeMap.entries.filter((entry) => entry.path === relativeFile && entry.method === handler.method);
       if (mapped.length > 0) {
+        const graph = functionGraph(sourceFile, handler.method);
+        if (relativeFile === "src/app/api/submissions/[id]/shares/route.ts") {
+          if (handler.method === "GET" && (!graph.includes("withPrincipalSharePermission") ||
+              !graph.includes("authorizePrincipalSubmissionShareInSnapshot") || !graph.includes("submission.share"))) {
+            throw new Error(`${key}: Principal share management read boundary missing`);
+          }
+          if (handler.method === "POST" && (!graph.includes("executePrincipalReadonlyShareCommand") ||
+              !graph.includes("pdm.submission_share.create"))) {
+            throw new Error(`${key}: Principal share create command boundary missing`);
+          }
+        }
+        if (relativeFile === "src/app/api/submissions/[id]/shares/[shareId]/route.ts" &&
+            (!graph.includes("executePrincipalReadonlyShareCommand") ||
+             !graph.includes("pdm.submission_share.revoke"))) {
+          throw new Error(`${key}: Principal share revoke command boundary missing`);
+        }
+        if (relativeFile === "src/app/api/public/shares/[token]/route.ts" ||
+            relativeFile === "src/app/api/public/shares/[token]/package/route.ts") {
+          if (!graph.includes("withPrincipalSharePermission") ||
+              !graph.includes("getAuthorizedPublicShareInSnapshot") || !graph.includes("submission.view")) {
+            throw new Error(`${key}: public share route must require verified Principal and submission.view`);
+          }
+        }
+        if (relativeFile === "src/app/api/public/shares/[token]/package/route.ts" &&
+            !graph.includes("deliverPrincipalReleasePackage")) {
+          throw new Error(`${key}: public share package must use Principal audited delivery`);
+        }
+        if (relativeFile === "src/app/api/public/shares/[token]/responses/route.ts" &&
+            (!graph.includes("withPrincipalIdentityOnlyShareRoute") ||
+             !graph.includes("supplier_reply_policy_unavailable") ||
+             graph.includes("createSupplierPortalResponseAsync"))) {
+          throw new Error(`${key}: unpublished supplier-reply policy must remain Principal-gated and mutation-free`);
+        }
+        if (relativeFile === "src/app/api/public/shares/[token]/responses/route.ts" &&
+            mapped.every((entry) => entry.authorizationMode === "authenticated_domain")) {
+          assign(key, "authenticated_domain");
+          continue;
+        }
         if (mapped.every((entry) => entry.authorizationMode === "retired" && entry.discriminator === null)) {
-          const graph = functionGraph(sourceFile, handler.method);
           const marker = retiredRoutes.get(key);
           if (!marker || !graph.includes(marker) || !/status:\s*410/u.test(graph) ||
             centralPermissionGuard.test(graph) || sessionGuard.test(graph)) {
@@ -384,11 +421,7 @@ function main() {
         continue;
       }
       if (key.startsWith("GET /api/public/shares/") || key.startsWith("POST /api/public/shares/")) {
-        if (!routePath.includes("[token]") || !/getPublicShareAsync\s*\(\s*token\s*\)/u.test(graph)) {
-          throw new Error(`${key}: signed share capability token validation is missing`);
-        }
-        assign(key, "signed_share_capability");
-        continue;
+        throw new Error(`${key}: public share route is missing an explicit Principal route policy`);
       }
       const retiredMarker = retiredRoutes.get(key);
       if (retiredMarker) {
@@ -435,6 +468,20 @@ function main() {
   containsAll(guardedSource("src/lib/pdm-dev087-route.ts"), ["requireNumberingPageAsync", "resolveDev087RouteActor"], "DEV-087 route helpers");
   containsAll(guardedSource("src/app/api/numbering/reviews/_review-action-handler.ts"), ["DRAWING_REVISION_LEGACY_WORKFLOW_RETIRED", "status: 410"], "retired review actions");
   containsAll(guardedSource("src/lib/platform-command-context.ts"), ["input.permissionCode ?? input.action", "scopes: [input.action]", "principalAuthorization"], "business action and permission separation");
+  containsAll(guardedSource("src/lib/platform-command-service.ts"), [
+    "resourceBinding?.kind === \"submission_share\"", "pdm.submission_share.create",
+    "pdm.submission_share.revoke", "PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID",
+    "ai_pdm_core.readonly_shares", "submission.status !== \"Released\""
+  ], "narrow Principal submission-share command scope");
+  containsAll(guardedSource("src/lib/principal-readonly-share.ts"), [
+    "withVerifiedJenfuPrincipalRequest", "submission.view", "submission.share",
+    "share.status !== \"active\"", "submission.status !== \"Released\"",
+    "submission.company_id !== resource.company_id"
+  ], "Principal share read boundary");
+  containsAll(guardedSource("src/lib/principal-readonly-share-command.ts"), [
+    "permissionCode: \"submission.share\"", "scopeResolver !== \"submission company\"",
+    "resourceBinding: { kind: \"submission_share\""
+  ], "Principal share command authorization");
   const catalogPermissionCodes = new Set(roleCatalog.roles.flatMap((role) => role.permissions.map((permission) => permission.code)));
   for (const codes of explicitPermissionCalls.values()) {
     for (const code of codes) if (!catalogPermissionCodes.has(code)) throw new Error(`Canonical permission is missing from the application role catalog: ${code}`);

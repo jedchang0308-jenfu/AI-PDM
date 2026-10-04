@@ -51,7 +51,7 @@ test('isolated PostgreSQL proves serializable import, non-deferrable self-FK con
   }
 })
 
-test('DEV121 Principal precision, native lifecycle and settings commands/probe actor stay consistent', () => {
+test('DEV121 Principal precision, lifecycle, settings actor and submission-share transactions stay consistent', () => {
   assert.equal(process.env.DEV012_ISOLATED_POSTGRES, '1', 'DEV012_POSTGRES_TEST_REQUIRES_TASK_OWNED_CLUSTER')
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
   const result = spawnSync(process.execPath, ['--experimental-transform-types',
@@ -64,8 +64,11 @@ test('DEV121 Principal precision, native lifecycle and settings commands/probe a
   const reports = result.stdout.trim().split(/\r?\n/u).filter(line => line.startsWith('{')).map(line => JSON.parse(line))
   const report = reports.find(item => item.status === 'PASS')
   assert.ok(report, 'the actual consumer/native PG regression must execute; no skip or mocked PASS')
-  assert.equal(report.checks.length,15)
+  assert.equal(report.checks.length,21)
   assert.equal(report.settingsProviderMocked,true)
+  assert.equal(report.shareManagementRoutesActual,true)
+  assert.equal(report.shareResourceFixtureSynthetic,true)
+  assert.ok(report.sourceProof.some(item => item.path === 'src/lib/principal-readonly-share-command.ts'))
   assert.ok(report.sourceProof.some(item => item.path === 'db/postgres/078_dev121_settings_probe_principal_provenance.sql'))
   assert.equal(report.providerConformance,false)
   assert.equal(report.productionL4,false)
