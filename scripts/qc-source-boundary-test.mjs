@@ -136,14 +136,16 @@ function verifiesOpenAiHttpErrorCoverage(source) {
   );
 }
 
-function verifiesSupplierResponseIdContract(source) {
+function verifiesSupplierResponseIdContract(source, focusedRouteTestSource, ciWorkflowSource) {
   return (
-    source.includes('const supplierResponseId = typeof supplierResponseBody.response?.id === "string" ? supplierResponseBody.response.id : ""') &&
-    source.includes("SUPPLIER-004A public supplier response returns an id") &&
-    source.includes("Boolean(supplierResponseId) && publicShareAfterSupplierBody.supplier_responses?.some") &&
-    source.includes("const listedSupplierResponse = managerSupplierListBody.responses?.find") &&
-    source.includes("const closeSupplierResponseId = listedSupplierResponse?.id ?? supplierResponseId") &&
-    source.includes("/supplier-responses/${closeSupplierResponseId}")
+    source.includes('deferStatus("SUPPLIER-004A supplier reply identifier", "NOT_RUN/DEFERRED_DEV122: no authorized producer exists in this SQLite/local-cookie QC.");') &&
+    source.includes('deferStatus("SUPPLIER-003 external supplier reply acceptance", "NOT_RUN/DEFERRED_DEV122: external recipient actor and reply permission are not defined; do not count controlled 503 as feature PASS or retirement.");') &&
+    source.includes("function deferStatus(name, reason)") &&
+    source.includes('results.push({ name, passed: false, status: "NOT_RUN", reason })') &&
+    !source.includes("SUPPLIER-004A public supplier response returns an id") &&
+    focusedRouteTestSource.includes('it("keeps supplier replies unavailable without parsing or mutating token-only input"') &&
+    focusedRouteTestSource.includes('it("SUPPLIER-PRINCIPAL-001 propagates missing Principal denial before supplier reply handling"') &&
+    ciWorkflowSource.includes("'src/app/api/public/shares/[token]/principal-share-access.test.ts'")
   );
 }
 
@@ -538,6 +540,8 @@ const configSource = read("src/lib/config.ts");
 const settingsRouteSource = read("src/app/api/settings/route.ts");
 const openAiQcSource = read("scripts/qc-openai-provider-test.mjs");
 const apiQcSource = read("scripts/qc-api-test.mjs");
+const principalShareRouteTestSource = read("src/app/api/public/shares/[token]/principal-share-access.test.ts");
+const ciWorkflowSource = read(".github/workflows/ci.yml");
 const dataBoundaryQcSource = read("scripts/qc-data-boundary-test.mjs");
 const cssBoundaryQcSource = read("scripts/qc-css-boundary-test.mjs");
 const adaptiveTaskFeedQcSource = read("scripts/qc-adaptive-task-feed.mjs");
@@ -2314,9 +2318,9 @@ record(
   "scripts/qc-openai-provider-test.mjs"
 );
 record(
-  "SOURCE-BOUNDARY API QC verifies supplier response id contract",
-  verifiesSupplierResponseIdContract(apiQcSource),
-  "scripts/qc-api-test.mjs"
+  "SOURCE-BOUNDARY API QC defers unresolved supplier response contract while Principal denial tests remain in CI",
+  verifiesSupplierResponseIdContract(apiQcSource, principalShareRouteTestSource, ciWorkflowSource),
+  "scripts/qc-api-test.mjs, public-share Principal tests, .github/workflows/ci.yml"
 );
 record(
   "SOURCE-BOUNDARY OpenAI QC fixtures stay ASCII-safe",

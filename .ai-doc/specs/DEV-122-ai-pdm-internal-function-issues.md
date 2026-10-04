@@ -257,6 +257,20 @@ Actual original recognition worker 先執行 native credential probe，probepass
 
 下列原始範圍／source fence／跨專案 runner 描述保存歷史追溯，不能取代上方單一 AI-PDM 本地契約。原受控 JSON／FAIL／cleanup／provider readback 不改寫；此次升級只整理契約，不重新判其證據層級。
 
+## D122-07：外部供應商回覆入口缺少已定義的 Principal／權限政策
+
+外部供應商回覆仍是待決的業務可用性項目。現行 `POST /api/public/shares/[token]/responses` 先要求已驗證的 AI-PDM Principal，再以 `503 supplier_reply_policy_unavailable` 和 `DEFERRED_DEV122_POLICY_NOT_RETIRED` 回覆；它不讀取 share token 或 body，也不建立回覆或稽核紀錄。這是安全收斂，不代表外部回覆功能通過或已退役。現有角色目錄沒有定義外部收件人 actor、公司範圍或回覆權限；不能把 share bearer token 當安全主體，也不能自行新增外部 grant。
+
+證據與後續：`src/app/api/public/shares/[token]/responses/route.ts`、`src/lib/principal-readonly-share.ts` 及 `src/app/api/public/shares/[token]/principal-share-access.test.ts`；`scripts/qc-api-test.mjs` 保留 `SUPPLIER-001` 至 `SUPPLIER-011` 原有 case IDs，對本地 SQLite／cookie 模式標記 `NOT_RUN/DEFERRED_DEV122`，不把它們算 PASS。後續先由 AI-PDM 業務 owner 定義外部 actor、公司界線、可回覆用途及 revoke/expiry 行為，再以實際正常入口驗證。R81 中 `POST /api/settings-secret-probe-jobs/claim` 的 `403 feature_not_open` 是不同 worker route，不能作為本分享回覆入口的授權或可用性證據。
+
+## D122-08：分享 metadata 業務 serializer 的 PostgreSQL 可選參數錯誤
+
+2026-10-04 本機 disposable PostgreSQL、正式 R81 source `56ecb7a93b68140476cc2c913e4eca7e4308559a` 的 actual handler：`GET /api/public/shares/[token]` 在已驗 Principal、actual OrgMaster 029 v4 grant、same-company Released resource／package 核對後，於 metadata serializer 回503 `principal_dependency_unavailable`；底層 SQLSTATE `42P08`。同 phase 的分享 metadata list、package bytes delivery 與 canonical Principal persisted audit 已成功，不能將此 serializer 缺陷判成共同 grant 失敗。
+
+實際因果 query 為 `src/lib/repositories/release-async-repository.ts` 的 `SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL`（實際 query bytes SHA256 `d131f390d2e3c5e18f152fa8eeaf480ef415067a6aa922e0fe7322b7b102b3c8`），由 `readonly-share-async.ts:serializePublicShareAsync` 使用；nullable `:shareId IS NULL OR spr.share_id=:shareId` 經 actual named-parameter binder 成為重用 positional parameter，在 PostgreSQL 產生 ambiguous parameter 錯誤。初始 schema 與 disposable fixture 的 `share_id` 均為 TEXT；不是缺欄位或 bigint wire assertion造成。尚未修 product SQL，不改 parser、不擅自退役分享入口。
+
+原始失敗／新增 SQLSTATE 診斷保留在 `JENFU/DEV-015 output/dev-012/inputs/dev121-share-read-pg-20261004-1791113052581-native-result.json`、`dev121-share-read-pg-20261004-1791113283694-native-result.json`；兩次各15 HTTP案例中14通過、public metadata positive 失敗，cleanup全true。後續 actual authorization wrapper＋token/resource resolver、package delivery/audit、撤權／scope 測例分层續驗；即使授權測例通過，public metadata 業務狀態仍是 `DEFERRED_KNOWN_BUSINESS_SQL_42P08 / NOT_PASS`。Verified session／business-detail schema／storage bytes 為明示合成 fixture，非 real-provider 或 Production L4。後續 AI-PDM 單專案功能排程再處理此 serializer 的窄 SQL typing 修正與正常 metadata 200驗收；本輪不擴張到其他 query／API。
+
 ## 已完成 local 檔案與證據保護
 
 [QA 紀錄](../qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)列出 18 個 Part/shared/UI/migration/runner 檔與 capture hashes、raw evidence、原始 FAIL、58 focused tests、較早 typecheck、UI NOT_RUN 及 cleanup。Drawing slice由同分支 owner 保留；這是記錄時的 local candidate，未合併、不是官方發布來源。`deferredFiles` 是完整 dirty file capture 與未發布功能的證據清單，不是 deployment allowlist／全檔 stage 清單；同一路徑可能混有延期功能與可分離的安全 hunk。`authOnlyCandidates` 只表示候選判定，不能直接全檔加入發布：root 必須由 exact HEAD `7b02d83d9f5a1ac76002f955f9c9f48939ec8c8d` 抽取選定 hunk，另以實際 variant／patch manifest、paths／hashes 與排除範圍建立 source fence；本 QA 的 capture hashes 不等於該發布來源。當前 owner profile 工作樹包含新增 077，此項屬本 DEV 延後候選；root 必須在 auth-only release source fence 排除這項，不能因 profile dirty path 可讀而誤發布。已套用的既有 migrations 不改寫。

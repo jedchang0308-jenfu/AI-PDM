@@ -12,6 +12,7 @@ import {
   type VerifiedPrincipalRequest
 } from "@/lib/jenfu-principal-request-guard";
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
+import { JenfuEntitlementRepositoryError } from "@/lib/repositories/jenfu-entitlement-repository";
 import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
 import { PlatformMappingAsyncRepository } from "@/lib/repositories/platform-mapping-async-repository";
 import { PlatformOutboxAsyncRepository } from "@/lib/repositories/platform-outbox-async-repository";
@@ -61,11 +62,21 @@ async function executeWithinClient<TPayload, TResult>(
       const route = input.principalAuthorization;
       const policy = route && resolveJenfuRoutePolicy(route.routePath, route.method,
         { discriminator: route.discriminator, expectedPermissionCode: route.permissionCode });
+      const resourceBinding = route?.resourceBinding;
+      const submissionShareCommand = Boolean(resourceBinding) &&
+        resourceBinding?.kind === "submission_share" &&
+        ((route?.routePath === "src/app/api/submissions/[id]/shares/route.ts" && route.method === "POST" &&
+          route.permissionCode === "submission.share" && input.command.commandName === "pdm.submission_share.create") ||
+         (route?.routePath === "src/app/api/submissions/[id]/shares/[shareId]/route.ts" && route.method === "PATCH" &&
+          route.permissionCode === "submission.share" && input.command.commandName === "pdm.submission_share.revoke"));
       if (!verifiedActor || !policy || !["POST", "PUT", "PATCH", "DELETE"].includes(route.method) ||
           !principalCommandRouteMatches(route.request, route.routePath, route.method) ||
           principalSessionTokenFromRequest(route.request) !== input.principalRequest?.token ||
           policy.authorizationMode !== "permission" ||
-          policy.scopeResolver !== "workspace" || !route ||
+          (policy.scopeResolver !== "workspace" &&
+            !(policy.scopeResolver === "submission company" && submissionShareCommand)) ||
+          (policy.scopeResolver === "workspace" && resourceBinding) ||
+          !route ||
           input.command.actor.principalId !== verifiedActor.principalId ||
           input.command.actor.pdmUserId !== verifiedActor.localPrincipalId ||
           input.command.actor.organizationId !== verifiedActor.companyId) {
@@ -103,9 +114,43 @@ async function executeWithinClient<TPayload, TResult>(
       if (decisions.length !== permissions.length || decisions.some((decision, index) =>
         !decision.allowed || decision.principalId !== verified.session.principalId ||
         decision.permissionCode !== permissions[index].permissionCode)) {
+        if (submissionShareCommand) throw new JenfuEntitlementRepositoryError("permission_not_granted");
         throw new Error("PLATFORM_PRINCIPAL_COMMAND_PERMISSION_DENIED");
       }
       primaryDecision = decisions[0];
+      if (submissionShareCommand) {
+        const actualPath = new URL(route.request.url).pathname;
+        const create = route.routePath === "src/app/api/submissions/[id]/shares/route.ts";
+        const match = create
+          ? /^\/api\/submissions\/([^/]+)\/shares$/u.exec(actualPath)
+          : /^\/api\/submissions\/([^/]+)\/shares\/([^/]+)$/u.exec(actualPath);
+        const payload = input.command.payload as Record<string, unknown>;
+        if (!match || !resourceBinding || match[1] !== resourceBinding.submissionId ||
+            payload.submissionId !== resourceBinding.submissionId ||
+            (create ? resourceBinding.shareId !== undefined :
+              !resourceBinding.shareId || match[2] !== resourceBinding.shareId || payload.shareId !== resourceBinding.shareId)) {
+          throw new Error("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_BINDING_INVALID");
+        }
+        const submission = await client.queryOne<{ id: string; company_id: string; status: string }>(
+          `SELECT s.id,s.company_id,s.status FROM ai_pdm_core.submissions s
+           WHERE s.id=:submissionId AND s.company_id=:companyId`,
+          { submissionId: resourceBinding.submissionId, companyId: verified.profile.companyId });
+        if (!submission) throw new JenfuEntitlementRepositoryError("permission_not_granted");
+        if (create) {
+          const releasePackage = await client.queryOne<{ id: string }>(
+            "SELECT id FROM ai_pdm_core.release_packages WHERE submission_id=:submissionId",
+            { submissionId: resourceBinding.submissionId });
+          if (submission.status !== "Released" || !releasePackage) {
+            throw new Error("PLATFORM_PRINCIPAL_COMMAND_RESOURCE_STATE_INVALID");
+          }
+        } else {
+          const share = await client.queryOne<{ id: string }>(
+            `SELECT id FROM ai_pdm_core.readonly_shares
+             WHERE id=:shareId AND submission_id=:submissionId`,
+            { shareId: resourceBinding.shareId, submissionId: resourceBinding.submissionId });
+          if (!share) throw new JenfuEntitlementRepositoryError("permission_not_granted");
+        }
+      }
     }
     const platformPrincipalId = input.command.actor.principalId;
     // "system" is a SQLite fixture sentinel, not a production security subject.

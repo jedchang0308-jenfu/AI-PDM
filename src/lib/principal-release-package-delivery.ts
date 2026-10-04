@@ -7,18 +7,24 @@ import {
   readReleasePackage
 } from "@/lib/release-package-file";
 import { auditStorageAccess, resolveStorageAccessAuditProvenance } from "@/lib/storage-access-audit";
+import type { StorageAccessKind } from "@/lib/storage-access-audit";
 
 export type AuthorizedReleasePackage = {
+  submissionId?: string;
   releasePackage: ReleasePackage;
   principalId: string;
   profileId: string;
   companyId: string;
+  shareId?: string;
+  accessKind?: StorageAccessKind;
+  externalAccess?: boolean;
 };
 
 /** One audited delivery path for submission, handoff and procurement reads. */
 export async function deliverPrincipalReleasePackage(
   request: Request, submissionId: string, route: string, authorized: AuthorizedReleasePackage
 ): Promise<Response> {
+  submissionId = authorized.submissionId ?? submissionId;
   const storageKey = getReleasePackageStorageKey(authorized.releasePackage);
   const bytes = await readReleasePackage(authorized.releasePackage);
   if (bytes.byteLength !== Number(authorized.releasePackage.file_size) ||
@@ -32,11 +38,13 @@ export async function deliverPrincipalReleasePackage(
       forceDownload: true, purpose: "release_package" });
   await auditStorageAccess({
     principalId: authorized.principalId, historicalProfileId: authorized.profileId,
-    companyId: authorized.companyId, submissionId, accessKind: "release_package",
+    companyId: authorized.companyId, submissionId, accessKind: authorized.accessKind ?? "release_package",
+    shareId: authorized.shareId,
     fileId: authorized.releasePackage.id, filename: authorized.releasePackage.package_filename,
     bytes: bytes.byteLength, disposition: "attachment", provider: access.provider,
     storageKey, bucket: access.bucket ?? null, access,
-    route, provenance: resolveStorageAccessAuditProvenance(request.headers)
+    route, externalAccess: authorized.externalAccess ?? false,
+    provenance: resolveStorageAccessAuditProvenance(request.headers)
   });
   return new Response(new Uint8Array(bytes), { headers: {
     "content-type": "application/zip", "content-length": String(bytes.byteLength),

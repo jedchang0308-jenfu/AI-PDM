@@ -72,6 +72,24 @@ workload actor與human actor分型；僅server註冊的worker identity可帶精�
 
 既有檔案用途按可信 company/resource/purpose、exact generation／hash 及既有下載條件授權，無 public／release-bucket／UID fallback。Principal 與 workload actor 的邊界、initiator、scope、撤權、receipt 與 exact object access 屬本 DEV；附件持久化、UI／採用及一般生命周期功能整理記 DEV-122。已執行 storage apply 的 provider-format validator／immutable claim／effective IAM readback 具有可靠發布因果，仍由本 DEV 收束；資源 PASS 不等於 runtime 啟用或 live bytes PASS，既有 US$10/月初期目標（非硬上限）與原 data/resource 限制保持。
 
+### Released submission 分享邊界（DEV-121，2026-10-04）
+
+內部分享清單／建立／撤銷使用既有 published `submission.share`，在 verified Principal、company resource、command receipt、outbox 與 tenant audit 同一授權流程中核對。建立只允許同 company 的 Released submission 且已有 release package；撤銷須將 share id 綁定 URL submission id。profile id 僅作既有領域外鍵，audit 的 `securityPrincipalId`、command receipt 與 outbox 綁定 verified Principal；bearer token 原文只在首次建立的 HTTP response 返回，receipt／outbox 不保存 token。
+
+公開 share metadata／package 的 opaque token 僅選擇 share row，不再是授權主體。兩個 GET 都要求已驗證 Principal 及 published `submission.view`，同 snapshot 核對同 company、active／expiry／revoke 狀態、Released submission 與 package；package 下載沿既有 bytes/checksum 驗證及 Principal storage audit，另記 share id。這不發布新的外部角色或能力。
+
+供應商回覆 POST 保留 route，並在 Principal session 驗證後回 `503 supplier_reply_policy_unavailable`／`DEFERRED_DEV122_POLICY_NOT_RETIRED`；目前 role catalog／controlled contract 沒有已發布的 supplier reply capability、recipient actor 或外部身分契約，因此不接受 token-only 回覆、不寫 response／audit，也不宣告功能已退役。後續是否允許外部供應商回覆及其可回覆對象仍待既有業務 owner 明確定義與發布權限，不能借用 `submission.share` 或 `submission.review` 擴權。
+
+### Settings Secret probe 的發起者與執行者（DEV-121／P07–P08，2026-10-04）
+
+正常設定中心的 draft／test／activate／revoke 四個 POST 共用 `settings.secret.manage` 的既有 Principal command ingress 與 command-time grant／company 檢查，不以 legacy display Admin 或 profile 重新決定權限。Secret reference 維持既有 application-wide integration config；company 欄位保存操作者與 queue 來源，並非新設租戶 Secret 服務。資料改動、canonical receipt／outbox、lifecycle event 與 human audit 使用同一交易；provider I/O 在交易外，先驗 current Principal／permission 與 replay，再寫 provider，最後重新核對並提交。Secret value 不進 command／receipt／outbox／audit；commit 失敗的 provider version 保持未引用，不自動啟用或刪除。
+
+新 `078_dev121_settings_probe_principal_provenance.sql` 直接保存 queue 的 `company_id`、`initiator_principal_id`、`initiator_profile_version`、固定 `settings_secret_probe` purpose；composite account FK 與 immutable trigger 保護綁定。`created_by` 保留 PDM profile 領域外鍵，不可用它或 reference creator 反查安全身分。歷史缺 typed actor 的 pending／running job 保持原狀且不 claim／heartbeat／讀 credential／complete，不猜回填；需合法新工作時由正常 human command 另提交，不靜默改寫舊 job。077 一般 canonical lifecycle 未套用、保留 DEV-122 延後，不隨這次 source bundle 發布；native owner manifest 精確 076→078，而非改動已套用 migration。
+
+四個 probe worker caller 維持 server-verified technical workload／purpose／capability；holder 與 60 秒 lease 檢查一致，provider read 後回傳前再次驗證 lease/reference，不能把 credential 回給前任 holder。完成結果同一 transaction 保存 original queue initiator、company 與 technical executor 到 test run／lifecycle event／audit，`tested_by` 是 queue profile，不能錯用 draft creator；revoked／retired reference 不因晚到 passed callback 復活。原已提交技術工作在 human logout 後按既有契約完成，不冒充人類 session。
+
+驗證按層標示：unit/mock、actual PostgreSQL transaction／native 078／consumer、owner CI、Production workload 都分別記錄。此修正尚未發布或完成 L4；既有 R67 Preview／Recognition 穩定鏈可按 source-byte 適用範圍沿用，不能代替新 probe 的 Production allow／deny／initiator 稽核證據。078 標示 `new-version`：nullable 欄位保留既有 Principal-only revision 的讀取與不改 actor 的歷史 UPDATE，但新 INSERT 必須由 Principal-aware writer 提供完整 typed actor；部署短窗內舊 enqueue 缺欄位會 fail closed，不能宣稱全面向後相容。回復舊版會恢復本次已知 probe actor 缺口，而且舊 enqueue 仍被新 trigger 拒絕；不能把本批證據投射回舊版，回復／停用選擇沿現有 owner 契約核對，不新增雙軌授權或發布關卡。
+
 ## 交付順序與恢復
 
 沿既有共同根因與 F01–F10 的身分／授權觀察，先真實 disposable PG 的 OrgMaster v4 指派／撤權／scope 整鏈，隨安全修正驗證，再核對既有技轉／背景 caller 及三系統登入／登出。正常API/命令/workers/caller inventory與共用依賴需一起收束；已不必要的legacy caller刪除，不為準備退役路徑加新功能。SQLite/sync 整併、工具整併、一般美化及 DEV-122 的生命周期／附件功能留後續；不能把這些延期項計作 shared grant 整合失敗或假定已驗收。
@@ -98,9 +116,7 @@ workload actor與human actor分型；僅server註冊的worker identity可帶精�
 
 AI-PDM DEV-121 可依自己的 Principal consumer 正常入口安全、正式 owner release／L4／recovery 出口獨立結案；DEV-122 的一般功能延期不阻擋此出口。`JENFU/DEV-015` 彙整三 owner 的 joint 身分與授權整合結果；任何一個 owner 的 PASS 只證明自己的範圍，不推定 joint PASS，也不替其他 owner 結案。AI-PDM 結案仍須自己的實際正式證據，不能由文件收斂或本機 PASS 代替。
 
-## Smoke 憑證重新驗證（本次 AI-PDM 操作）
-
-`scripts/dev121-smoke-credential-reauth.mjs` 預設只驗證；只有明確 `--commit` 才能更新 AI-PDM 自有 refresh-token Secret 與 `production` GitHub environment secret。操作員輸入先前在本機 smoke 憑證設定頁為此帳號設定的既有密碼；不建立／重設帳號、不發送驗證 email、不變更綁定或 grant；仍必須核對 provider 的 email 已驗證狀態。固定使用已啟用 Secret v4 作為 provider pair 基準，確認新簽章 password token 的同一 issuer／subject、已驗證且未停用帳號，並走 Platform 正常 Firebase session、`/api/auth/me` 同一 Principal／Employee／AAL1、logout 後 401。email、密碼、token、cookie 只在記憶體中使用，不輸出或存檔。成功後只寫入 AI-PDM 自有 release bucket 的 `receipts/credential-reauth/` 不可變證據；Platform consumer 限定 AI-PDM、此 rotation mode、同一 source、bucket/prefix 與 plan numeric version，並保留五分鐘 fresh-auth barrier。此 v4→v5 是本次執行綁定，不是永久版本政策；後續輪次需更新 machine binding。既有 identity-readback v1 與其他 owner consumer 不變；本證據不宣稱全專案 user count、global auth config 或 first-principal bootstrap。
+scripts/dev121-smoke-credential-reauth.mjs 預設只驗證；明確 --commit 才可更新 AI-PDM 自有 refresh-token Secret 與 production GitHub environment secret。操作者使用既有帳號密碼；不建立／重設帳號、不發送驗證 email、不變更綁定或 grant，且仍核對 provider email 已驗證。正式執行須明確成對提供 --previous-version N --new-version N+1；producer 確認簽章 password token 的 issuer／subject、帳號已驗證且未停用，走 Platform 正常 Firebase session、/api/auth/me 同一 Principal／Employee／AAL1、logout 後 401。email、密碼、token、cookie 只在記憶體使用，不輸出或存檔。明確版本必須是 canonical 正整數、安全整數且相鄰；provider latest 與新增後 latest 必須逐一等於綁定版本，race 或讀回不符即不寫 GitHub secret。無參數仍保留歷史 4→5 相容預設，不可當作動態正式版本選擇。成功僅寫 AI-PDM 自有 release bucket 的 receipts/credential-reauth/ 不可變證據；Platform consumer 限定 AI-PDM、此 rotation mode、同一 source、bucket/prefix 與 plan numeric version，並保留五分鐘 fresh-auth barrier。R79（2026-10-04T02:38:30.564665Z）Platform POST 回 401，02:38:38.744832Z 決策碼為 auth_token_invalid 後以 PRE_ACTIVATION_ABORTED 安全中止、traffic 保持 R78；v5 auth_time 早於或等於 Jed global logout 2026-10-04T00:19:50.680Z 是有證據支持的因果推論，current database revokedBefore 未直接讀回，根因仍未定論。R79 後本機動態 5→6 producer tests 19/19 PASS，尚未經 official required CI、clean-source owner release 或 Production smoke 驗證。既有 identity-readback v1 與其他 owner consumer 不變；本證據不宣稱全專案 user count、global auth config 或 first-principal bootstrap。
 
 ## 歷史引用入口（非施工指令）
 

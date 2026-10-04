@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
   try {
     const testRun = await completeSettingsSecretProbe({
       probeJobId: jobId,
-      workerId,
+      worker: actor,
       status: body.status,
       resultCode: body.resultCode ? String(body.resultCode).slice(0, 120) : null,
       readerVersion: body.readerVersion ? String(body.readerVersion).slice(0, 120) : null,

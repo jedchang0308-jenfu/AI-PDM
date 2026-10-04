@@ -23,6 +23,49 @@ export class ReauthError extends Error {
 function fail(code) { throw new ReauthError(code) }
 const H64 = /^[a-f0-9]{64}$/u
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/u
+const SECRET_VERSION = /^[1-9][0-9]*$/u
+
+export function resolveVersionBinding(previousVersion = EXPECTED.oldSecretVersion, newVersion = EXPECTED.newSecretVersion) {
+  if (typeof previousVersion !== 'string' || typeof newVersion !== 'string' ||
+      !SECRET_VERSION.test(previousVersion) || !SECRET_VERSION.test(newVersion)) fail('SECRET_VERSION_BINDING_INVALID')
+  const previousNumber = Number(previousVersion)
+  const newNumber = Number(newVersion)
+  if (!Number.isSafeInteger(previousNumber) || !Number.isSafeInteger(newNumber) ||
+      previousNumber >= Number.MAX_SAFE_INTEGER || newNumber !== previousNumber + 1) fail('SECRET_VERSION_BINDING_INVALID')
+  return { previousVersion, newVersion }
+}
+
+export function parseReauthArguments(args) {
+  if (!Array.isArray(args)) fail('USAGE')
+  let commit = false
+  let previousVersion
+  let newVersion
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]
+    if (arg === '--commit') {
+      if (commit) fail('USAGE')
+      commit = true
+    } else if (arg === '--previous-version' || arg === '--new-version') {
+      const value = args[index + 1]
+      if (typeof value !== 'string' || value.startsWith('--')) fail('USAGE')
+      index += 1
+      if (arg === '--previous-version') {
+        if (previousVersion !== undefined) fail('USAGE')
+        previousVersion = value
+      } else {
+        if (newVersion !== undefined) fail('USAGE')
+        newVersion = value
+      }
+    } else {
+      fail('USAGE')
+    }
+  }
+  if ((previousVersion === undefined) !== (newVersion === undefined)) fail('USAGE')
+  const binding = previousVersion === undefined
+    ? resolveVersionBinding()
+    : resolveVersionBinding(previousVersion, newVersion)
+  return { commit, ...binding }
+}
 
 export function canonicalize(value) {
   if (Array.isArray(value)) return '[' + value.map(canonicalize).join(',') + ']'
@@ -138,7 +181,11 @@ export function buildReauthReceipt({ sourceRevision, expected, authTime, authent
   }
   return { ...core, receiptSha256: sha256(core) }
 }
-export function validateReauthReceipt(receipt, { sourceRevision, expectedVersion = EXPECTED.newSecretVersion, nowMs = Date.now() } = {}) {
+export function validateReauthReceipt(receipt, {
+  sourceRevision, expectedPreviousVersion = EXPECTED.oldSecretVersion,
+  expectedNewVersion = EXPECTED.newSecretVersion, nowMs = Date.now(),
+} = {}) {
+  try { resolveVersionBinding(expectedPreviousVersion, expectedNewVersion) } catch { fail('REAUTH_RECEIPT_INVALID') }
   if (!receipt || receipt.schemaVersion !== REAUTH_SCHEMA || receipt.ownerApplicationId !== EXPECTED.ownerApplicationId ||
       receipt.projectId !== EXPECTED.projectId || receipt.sourceRevision !== sourceRevision ||
       receipt.status !== 'PASS' || receipt.releaseAuthority !== false || receipt.evidenceScope !== REAUTH_SCOPE ||
@@ -149,9 +196,9 @@ export function validateReauthReceipt(receipt, { sourceRevision, expectedVersion
       receipt.results?.principalReloaded !== true || receipt.results?.logoutRevoked !== true ||
       receipt.identityIssuer !== EXPECTED.issuer || !H64.test(receipt.identityPairSha256 ?? '') ||
       !IDENTIFIER.test(receipt.principalId ?? '') || !IDENTIFIER.test(receipt.employeeId ?? '') ||
-      receipt.secret?.id !== EXPECTED.secretId || receipt.secret?.previousVersion !== EXPECTED.oldSecretVersion ||
-      receipt.secret?.newVersion !== String(expectedVersion) || !/^[1-9][0-9]*$/u.test(receipt.secret?.previousVersion ?? '') ||
-      !/^[1-9][0-9]*$/u.test(receipt.secret?.newVersion ?? '') || Number(receipt.secret.newVersion) <= Number(receipt.secret.previousVersion) ||
+      receipt.secret?.id !== EXPECTED.secretId || receipt.secret?.previousVersion !== expectedPreviousVersion ||
+      receipt.secret?.newVersion !== expectedNewVersion || !SECRET_VERSION.test(receipt.secret?.previousVersion ?? '') ||
+      !SECRET_VERSION.test(receipt.secret?.newVersion ?? '') ||
       receipt.secret?.state !== 'ENABLED' ||
       receipt.github?.repository !== EXPECTED.repository || receipt.github?.environment !== EXPECTED.githubEnvironment ||
       receipt.github?.secretName !== EXPECTED.githubSecretName || receipt.github?.configured !== true ||
@@ -207,7 +254,14 @@ function safeCookie(value) {
   if (typeof value !== 'string' || value.length < 10 || value.length > 8192 || /[\r\n]/u.test(value)) fail('PLATFORM_SESSION_COOKIE_INVALID')
   return value
 }
-export async function runReauthentication({ adapter, email, password, expected, sourceRevision, commit = false, now = () => Date.now() }) {
+export async function runReauthentication({
+  adapter, email, password, expected, sourceRevision, commit = false,
+  previousVersion, newVersion, now = () => Date.now(),
+}) {
+  if ((previousVersion === undefined) !== (newVersion === undefined)) fail('SECRET_VERSION_BINDING_INVALID')
+  const versionBinding = previousVersion === undefined
+    ? resolveVersionBinding()
+    : resolveVersionBinding(previousVersion, newVersion)
   if (typeof email !== 'string' || email.length < 3 || email.length > 320 ||
       typeof password !== 'string' || password.length < 1 || password.length > 1024 ||
       expected?.issuer !== EXPECTED.issuer || typeof expected?.subject !== 'string') fail('REAUTH_INPUT_INVALID')
@@ -222,7 +276,7 @@ export async function runReauthentication({ adapter, email, password, expected, 
   let signedIn = null
   let refreshedToken = null
   let transientSecretBytes = null
-  let observedNewVersion = EXPECTED.oldSecretVersion
+  let observedNewVersion = versionBinding.previousVersion
   try {
     signedIn = await adapter.signIn(email, password)
   if (typeof signedIn?.idToken !== 'string' || typeof signedIn?.refreshToken !== 'string' ||
@@ -245,14 +299,14 @@ export async function runReauthentication({ adapter, email, password, expected, 
     assertLoggedOut(await adapter.me(sessionCookie))
     if (!commit) return { status: 'VERIFIED_ONLY', evidenceScope: REAUTH_SCOPE }
     const current = await adapter.latestSecretVersion()
-    if (String(current?.version) !== EXPECTED.oldSecretVersion || current?.state !== 'ENABLED') fail('SECRET_VERSION_CHANGED')
+    if (current?.version !== versionBinding.previousVersion || current?.state !== 'ENABLED') fail('SECRET_VERSION_CHANGED')
     mutationStarted = true
     const added = await adapter.addSecretVersion(signedIn.refreshToken)
     const version = String(added?.version ?? '')
-    if (/^[1-9][0-9]*$/u.test(version)) { observedNewVersion = version; secretVersionCreated = true }
-    if (version !== EXPECTED.newSecretVersion) fail('SECRET_VERSION_NONMONOTONIC')
+    if (SECRET_VERSION.test(version) && Number.isSafeInteger(Number(version))) { observedNewVersion = version; secretVersionCreated = true }
+    if (version !== versionBinding.newVersion) fail('SECRET_VERSION_NONMONOTONIC')
     const latestAfterWrite = await adapter.latestSecretVersion()
-    if (String(latestAfterWrite?.version) !== version || latestAfterWrite?.state !== 'ENABLED') fail('SECRET_VERSION_RACE')
+    if (latestAfterWrite?.version !== versionBinding.newVersion || latestAfterWrite?.state !== 'ENABLED') fail('SECRET_VERSION_RACE')
     const readback = await adapter.readSecretVersion(version)
     transientSecretBytes = readback?.bytes ?? null
     if (readback?.state !== 'ENABLED' || !Buffer.isBuffer(readback.bytes)) fail('SECRET_VERSION_READBACK_MISMATCH')
@@ -275,9 +329,12 @@ export async function runReauthentication({ adapter, email, password, expected, 
     const observedAt = new Date(now()).toISOString()
     const receipt = buildReauthReceipt({
       sourceRevision, expected, authTime, authenticatedAt, principal: identity,
-      previousVersion: EXPECTED.oldSecretVersion, newVersion: version, observedAt,
+      previousVersion: versionBinding.previousVersion, newVersion: versionBinding.newVersion, observedAt,
     })
-    validateReauthReceipt(receipt, { sourceRevision, expectedVersion: version, nowMs: now() })
+    validateReauthReceipt(receipt, {
+      sourceRevision, expectedPreviousVersion: versionBinding.previousVersion,
+      expectedNewVersion: versionBinding.newVersion, nowMs: now(),
+    })
     const ref = await adapter.writeReceipt(receipt)
     return { status: 'COMMITTED', evidenceScope: REAUTH_SCOPE, ref }
   } catch (error) {
@@ -289,7 +346,7 @@ export async function runReauthentication({ adapter, email, password, expected, 
         sourceRevision, expected, authTime: Number.isInteger(authTime) ? authTime : Math.floor(now() / 1000),
         authenticatedAt: authenticatedAt ?? new Date(now()).toISOString(),
         principal: identity,
-        previousVersion: EXPECTED.oldSecretVersion, newVersion: observedNewVersion,
+        previousVersion: versionBinding.previousVersion, newVersion: observedNewVersion,
         observedAt: new Date(now()).toISOString(), status: 'PARTIAL',
         mutation: { secretVersionCreated, githubSecretConfigured },
       })
