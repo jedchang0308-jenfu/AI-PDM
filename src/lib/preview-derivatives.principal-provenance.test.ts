@@ -19,7 +19,8 @@ describe("principal preview job provenance", () => {
     try {
       database.exec(`
         CREATE TABLE file_assets (id TEXT PRIMARY KEY, linked_entity_type TEXT NOT NULL,
-          linked_entity_id TEXT NOT NULL, deleted_at TEXT, storage_key TEXT, original_path TEXT);
+          linked_entity_id TEXT NOT NULL, deleted_at TEXT, storage_key TEXT, original_path TEXT,
+          content_hash TEXT, file_ext TEXT NOT NULL DEFAULT '');
         CREATE TABLE drawing_revisions (id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
         CREATE TABLE numbering_candidate_revision_drafts (id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
         CREATE TABLE drawing_numbers (id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
@@ -37,8 +38,8 @@ describe("principal preview job provenance", () => {
           completed_at TEXT, metadata_json TEXT NOT NULL, locked_by TEXT, locked_at TEXT
         );
         INSERT INTO drawing_revisions VALUES ('revision-one', 'company-one');
-        INSERT INTO file_assets (id, linked_entity_type, linked_entity_id, storage_key)
-          VALUES ('asset-one', 'drawing_revision', 'revision-one', 'source/one');
+        INSERT INTO file_assets (id, linked_entity_type, linked_entity_id, storage_key, content_hash, file_ext)
+          VALUES ('asset-one', 'drawing_revision', 'revision-one', 'source/one', '${source.content_hash}', '${source.file_ext}');
       `);
       const client = createAsyncDatabaseClient({ kind: "sqlite", database });
       await expect(enqueuePreviewJobForSourceAsync(client, {
@@ -63,12 +64,14 @@ describe("principal preview job provenance", () => {
       await expect(enqueuePreviewJobForSourceAsync(client, {
         source, actorUserId: "profile-one", initiatorPrincipalId: "principal-one"
       })).rejects.toThrow("PREVIEW_JOB_COMPANY_CONFLICT");
+      const beforeWrongCompanyClaim = database.prepare("SELECT * FROM preview_jobs WHERE id = ?").get(queued.jobId);
+      expect(beforeWrongCompanyClaim).toMatchObject({ company_id: "company-two", status: "queued" });
       const claim = await claimPreviewJobAsync(client, {
         workerId: "worker-one", supportedKinds: ["native_thumbnail_png"], supportedExtensions: ["slddrw"]
       });
       expect(claim).toBeNull();
-      expect(database.prepare("SELECT status, error_code FROM preview_jobs WHERE id = ?").get(queued.jobId))
-        .toEqual({ status: "failed", error_code: "source_company_scope_invalid" });
+      expect(database.prepare("SELECT * FROM preview_jobs WHERE id = ?").get(queued.jobId))
+        .toEqual(beforeWrongCompanyClaim);
 
       database.prepare(`INSERT INTO file_derivatives
         (id, company_id, source_file_asset_id, source_content_hash, status, created_at)
