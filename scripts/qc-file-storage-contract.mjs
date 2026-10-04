@@ -19,6 +19,8 @@ try {
   const submissionFileRoute = readProjectFile(root, "src/app/api/submissions/[id]/files/[...filePath]/route.ts");
   const releasePackageRoute = readProjectFile(root, "src/app/api/submissions/[id]/release-package/route.ts");
   const publicSharePackageRoute = readProjectFile(root, "src/app/api/public/shares/[token]/package/route.ts");
+  const principalPackageDelivery = readProjectFile(root, "src/lib/principal-release-package-delivery.ts");
+  const principalShare = readProjectFile(root, "src/lib/principal-readonly-share.ts");
   const releasePackage = readProjectFile(root, "src/lib/release-package.ts");
   const releasePackageAsync = readProjectFile(root, "src/lib/release-package-async.ts");
   const masterAttachmentRepository = readProjectFile(root, "src/lib/repositories/master-attachment-repository.ts");
@@ -98,13 +100,15 @@ try {
   record("FILE-STORAGE-066 release package route audits storage key", releasePackageRoute.includes("getReleasePackageStorageKey") && releasePackageRoute.includes("storageKey,"));
   record("FILE-STORAGE-067 storage access audit supports public share package kind", storageAccessAudit.includes('"public_share_package"'));
   record("FILE-STORAGE-068 storage access audit records share scope", storageAccessAudit.includes("shareId: input.shareId ?? null") && storageAccessAudit.includes("externalAccess: input.externalAccess ?? false"));
-  record("FILE-STORAGE-069 storage access audit allows anonymous external actor", storageAccessAudit.includes("actorId?: string | null"));
-  record("FILE-STORAGE-070 public share package route audits storage access", publicSharePackageRoute.includes("auditStorageAccess") && publicSharePackageRoute.includes('route: "/api/public/shares/[token]/package"'));
-  record("FILE-STORAGE-071 public share package route creates download access contract", publicSharePackageRoute.includes("createReleasePackageStorageServiceForRecord(publicShare.submission.release_package).createDownloadUrl"));
+  record("FILE-STORAGE-069 legacy storage audit contract retains nullable historical actor support", storageAccessAudit.includes("actorId?: string | null"));
+  record("FILE-STORAGE-070 public share package route delegates to audited Principal delivery", publicSharePackageRoute.includes("deliverPrincipalReleasePackage") && principalPackageDelivery.includes("auditStorageAccess") && principalPackageDelivery.includes('route, externalAccess: authorized.externalAccess ?? false'));
+  record("FILE-STORAGE-071 Principal package delivery creates download access contract", principalPackageDelivery.includes("createReleasePackageStorageServiceForRecord(authorized.releasePackage)") && principalPackageDelivery.includes(".createDownloadUrl"));
   record("FILE-STORAGE-072 public share package route uses supplier share purpose", publicSharePackageRoute.includes('purpose: "supplier_share"'));
   record("FILE-STORAGE-073 public share package route audits external access", publicSharePackageRoute.includes("externalAccess: true") && publicSharePackageRoute.includes('accessKind: "public_share_package"'));
   record("FILE-STORAGE-074 public share package route audits share id without raw token", publicSharePackageRoute.includes("shareId: publicShare.share.id") && !storageAccessAudit.includes("token") && !publicSharePackageRoute.includes("tokenHash"));
-  record("FILE-STORAGE-075 public share package route audits storage key", publicSharePackageRoute.includes("getReleasePackageStorageKey") && publicSharePackageRoute.includes("storageKey,"));
+  record("FILE-STORAGE-075 Principal package delivery audits storage key", principalPackageDelivery.includes("getReleasePackageStorageKey(authorized.releasePackage)") && principalPackageDelivery.includes("storageKey, bucket: access.bucket ?? null"));
+  record("FILE-STORAGE-076 public share package audit subject comes from verified Principal", publicSharePackageRoute.includes("verified.session.principalId") && publicSharePackageRoute.includes("verified.profile.companyId") && publicSharePackageRoute.includes("shareId: publicShare.share.id"));
+  record("FILE-STORAGE-077 public share token is only a selector after submission.view authorization", publicSharePackageRoute.includes("withPrincipalSharePermission") && publicSharePackageRoute.includes('"submission.view"') && principalShare.includes("authorizePrincipalSubmissionReadInSnapshot"));
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {

@@ -230,8 +230,9 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   const bundle = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), 'a'.repeat(40))
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
-  assert.deepEqual(bundle.bundle.entries.slice(-10).map((entry) => entry.version),
-    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076'])
+  assert.deepEqual(bundle.bundle.entries.slice(-11).map((entry) => entry.version),
+    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078'])
+  assert.equal(bundle.bundle.entries.some((entry) => entry.version === 'ai-pdm-077'), false)
   assert.throws(() => verifyDev117MigrationBytes(profile, new Map([...files].slice(0, -1))), /Migration file set/u)
   const reordered = structuredClone(profile)
   reordered.migrations.entries[15].path = reordered.migrations.entries[14].path

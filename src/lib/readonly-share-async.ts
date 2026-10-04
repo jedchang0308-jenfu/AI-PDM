@@ -1,24 +1,7 @@
 import crypto from "node:crypto";
-import {
-  getReadonlyShareByTokenHashAsync,
-  listSupplierPortalResponsesAsync,
-  recordReadonlyShareAccessAsync
-} from "@/lib/release-records-async";
-import { getSubmissionAsync } from "@/lib/submissions-async";
+import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { AsyncReleaseRepository } from "@/lib/repositories/release-async-repository";
 import type { SubmissionDetail } from "@/lib/types";
-
-export async function getPublicShareAsync(token: string) {
-  const normalized = normalizeShareToken(token);
-  if (!isPlausibleShareToken(normalized)) return null;
-
-  const share = await getReadonlyShareByTokenHashAsync(hashShareTokenAsync(normalized));
-  if (!share || share.status !== "active") return null;
-
-  const submission = await getSubmissionAsync(share.submission_id);
-  if (!submission || submission.status !== "Released" || !submission.release_package) return null;
-
-  return { share, submission, token: normalized };
-}
 
 export function generateShareTokenAsync() {
   return crypto.randomBytes(24).toString("base64url");
@@ -28,12 +11,11 @@ export function buildPublicShareUrlAsync(request: Request, token: string) {
   return new URL(`/share/${token}`, request.url).toString();
 }
 
-export async function recordPublicShareAccessAsync(shareId: string, submissionId: string) {
-  await recordReadonlyShareAccessAsync({ shareId, submissionId });
-}
-
-export async function serializePublicShareAsync(submission: SubmissionDetail, token: string, shareId: string) {
-  const supplierResponses = await listSupplierPortalResponsesAsync({ submissionId: submission.id, shareId });
+export async function serializePublicShareAsync(
+  submission: SubmissionDetail, token: string, shareId: string, snapshot: AsyncDatabaseClient
+) {
+  const supplierResponses = await new AsyncReleaseRepository(snapshot)
+    .listSupplierPortalResponses({ submissionId: submission.id, shareId });
 
   return {
     submission: {

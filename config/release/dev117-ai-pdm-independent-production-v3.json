@@ -404,6 +404,11 @@
         "order": 27,
         "path": "db/postgres/076_dev121_principal_account_command_grants_v4.sql",
         "sha256": "514fb00d7acc7f8331952f1c5496b9521a389c5f3323694a84019a74630577ab"
+      },
+      {
+        "order": 28,
+        "path": "db/postgres/078_dev121_settings_probe_principal_provenance.sql",
+        "sha256": "cbaab14c6da4ddd72ffe2b96eaedae97cb954bb3b1d4a0db5bddbb38c894e2ca"
       }
     ]
   },

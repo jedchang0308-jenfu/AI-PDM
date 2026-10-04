@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { forbidden, requirePdmRouteAuthorizationAsync } from "@/lib/auth-async";
-import { canReadSubmissionAsync } from "@/lib/permissions";
-import { createReadonlyShareAsync, listReadonlySharesAsync } from "@/lib/release-records-async";
+import { AsyncReleaseRepository } from "@/lib/repositories/release-async-repository";
+import { executePrincipalReadonlyShareCommand } from "@/lib/principal-readonly-share-command";
+import { authorizePrincipalSubmissionShareInSnapshot, withPrincipalSharePermission } from "@/lib/principal-readonly-share";
 import { buildPublicShareUrlAsync, generateShareTokenAsync, hashShareTokenAsync } from "@/lib/readonly-share-async";
-import { getSubmissionAsync } from "@/lib/submissions-async";
 
 export const runtime = "nodejs";
 
@@ -19,49 +18,53 @@ function parseLabel(value: unknown) {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
-  if (auth.response) return auth.response;
-
   const { id } = await params;
-  const submission = await getSubmissionAsync(id);
-  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
-  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
-
-  return NextResponse.json({ shares: await listReadonlySharesAsync(id) });
+  const response = await withPrincipalSharePermission(request,
+    "src/app/api/submissions/[id]/shares/route.ts", "submission.share", async ({ snapshot, verified }) => {
+      const submission = await authorizePrincipalSubmissionShareInSnapshot(snapshot, verified, id);
+      if (submission instanceof Response) return submission;
+      const shares = await new AsyncReleaseRepository(snapshot).listReadonlyShares(id);
+      return NextResponse.json({ shares }, { headers: { "cache-control": "private, no-store" } });
+    });
+  return response;
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requirePdmRouteAuthorizationAsync(request, ["R&D Manager", "Admin"]);
-  if (auth.response) return auth.response;
-
   const { id } = await params;
-  const submission = await getSubmissionAsync(id);
-  if (!submission) return NextResponse.json({ error: "?曆??圈祟鞈?" }, { status: 404 });
-  if (!(await canReadSubmissionAsync(auth.user, submission))) return forbidden();
-  if (submission.status !== "Released") {
-    return NextResponse.json({ error: "Release package is required before sharing" }, { status: 409 });
-  }
-  if (!submission.release_package) {
-    return NextResponse.json({ error: "Release package is required before sharing" }, { status: 409 });
-  }
-
-  const body = await request.json().catch(() => ({}));
+  const rawBody: unknown = await request.json().catch(() => ({}));
+  const body = rawBody && typeof rawBody === "object" ? rawBody as Record<string, unknown> : {};
   const days = parseDays(body.days);
-  if (!days) return NextResponse.json({ error: "days must be between 1 and 30" }, { status: 400 });
+  if (!days) return NextResponse.json({ error: "days must be between 1 and 90" }, { status: 400 });
 
   const token = generateShareTokenAsync();
   const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-  const share = await createReadonlyShareAsync({
-    submissionId: id,
-    tokenHash: hashShareTokenAsync(token),
-    label: parseLabel(body.label),
-    expiresAt,
-    createdBy: auth.user.id
+  const label = parseLabel(body.label);
+  const outcome = await executePrincipalReadonlyShareCommand({
+    request, routePath: "src/app/api/submissions/[id]/shares/route.ts", method: "POST",
+    commandName: "pdm.submission_share.create", submissionId: id,
+    payload: { submissionId: id, label, days },
+    idempotencyPayload: { submissionId: id, label, days },
+    execute: async (client, verified) => {
+      const share = await new AsyncReleaseRepository(client).createReadonlyShare({
+        submissionId: id, tokenHash: hashShareTokenAsync(token), label, expiresAt,
+        createdBy: verified.profile.pdmUserId,
+        principalAudit: { principalId: verified.session.principalId, companyId: verified.profile.companyId }
+      });
+      if (!share) throw new Error("READONLY_SHARE_CREATE_FAILED");
+      return { share };
+    },
+    event: ({ share }) => ({ aggregateType: "readonly_share", aggregateId: share.id,
+      eventType: "pdm.submission_share.created",
+      payload: { submissionId: id, shareId: share.id, label: share.label, expiresAt: share.expires_at } })
   });
+  if (outcome instanceof Response) return outcome;
+  if (outcome.reusedFromCommandReceipt) {
+    return NextResponse.json({ code: "share_creation_result_already_consumed" }, { status: 409 });
+  }
 
   return NextResponse.json(
     {
-      share,
+      share: outcome.result.share,
       token,
       public_url: buildPublicShareUrlAsync(request, token)
     },

@@ -430,7 +430,12 @@ export class AsyncReleaseRepository {
     label: string;
     expiresAt: string;
     createdBy: string;
+    principalAudit?: { principalId: string; companyId: string };
   }): Promise<ReadonlyShare | null> {
+    if (this.client.kind === "postgres" &&
+        (!input.principalAudit?.principalId || !input.principalAudit.companyId)) {
+      throw new Error("PLATFORM_PRINCIPAL_AUDIT_REQUIRED");
+    }
     const id = this.idFactory();
     const now = this.clock();
     await this.client.execute(INSERT_ASYNC_READONLY_SHARE_SQL, {
@@ -447,7 +452,10 @@ export class AsyncReleaseRepository {
       submissionId: input.submissionId,
       actorId: input.createdBy,
       action: "ReadonlyShareCreated",
-      detail: { shareId: id, label: input.label, expiresAt: input.expiresAt }
+      detail: { shareId: id, label: input.label, expiresAt: input.expiresAt,
+        ...(input.principalAudit ? { securityPrincipalId: input.principalAudit.principalId } : {}) },
+      companyId: input.principalAudit?.companyId,
+      scopeKind: input.principalAudit ? "tenant" : "legacy_unscoped"
     });
 
     return (await this.listReadonlyShares(input.submissionId)).find((share) => share.id === id) ?? null;
@@ -457,7 +465,12 @@ export class AsyncReleaseRepository {
     submissionId: string;
     shareId: string;
     revokedBy: string;
+    principalAudit?: { principalId: string; companyId: string };
   }): Promise<ReadonlyShare | null> {
+    if (this.client.kind === "postgres" &&
+        (!input.principalAudit?.principalId || !input.principalAudit.companyId)) {
+      throw new Error("PLATFORM_PRINCIPAL_AUDIT_REQUIRED");
+    }
     const existing = (await this.listReadonlyShares(input.submissionId)).find((share) => share.id === input.shareId) ?? null;
     if (!existing) return null;
 
@@ -472,7 +485,10 @@ export class AsyncReleaseRepository {
       submissionId: input.submissionId,
       actorId: input.revokedBy,
       action: "ReadonlyShareRevoked",
-      detail: { shareId: input.shareId }
+      detail: { shareId: input.shareId,
+        ...(input.principalAudit ? { securityPrincipalId: input.principalAudit.principalId } : {}) },
+      companyId: input.principalAudit?.companyId,
+      scopeKind: input.principalAudit ? "tenant" : "legacy_unscoped"
     });
 
     return (await this.listReadonlyShares(input.submissionId)).find((share) => share.id === input.shareId) ?? null;

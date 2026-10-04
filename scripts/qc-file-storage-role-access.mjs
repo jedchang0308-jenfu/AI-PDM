@@ -29,6 +29,8 @@ try {
   const submissionFileRoute = readRequired("src/app/api/submissions/[id]/files/[...filePath]/route.ts");
   const releasePackageRoute = readRequired("src/app/api/submissions/[id]/release-package/route.ts");
   const publicSharePackageRoute = readRequired("src/app/api/public/shares/[token]/package/route.ts");
+  const principalShare = readRequired("src/lib/principal-readonly-share.ts");
+  const shareAccessTest = readRequired("src/app/api/public/shares/[token]/principal-share-access.test.ts");
   const readonlyShare = readRequired("src/lib/readonly-share.ts");
   const releaseRepository = readRequired("src/lib/repositories/release-repository.ts");
   const apiQc = readRequired("scripts/qc-api-test.mjs");
@@ -60,16 +62,18 @@ try {
     ordered(principalPackageBranch, "const bytes = await readReleasePackage", "await auditStorageAccess") &&
     ordered(legacyPackageBranch, "const bytes = await readReleasePackage", "await auditStorageAccess"));
 
-  record("STORAGE-ROLE-ACCESS-013 public share package route is token scoped", includesAll(publicSharePackageRoute, ["getPublicShareAsync(token)", "publicShare.share.id", "recordPublicShareAccessAsync"]));
-  record("STORAGE-ROLE-ACCESS-014 public share package route never accepts actor cookies for scope", !publicSharePackageRoute.includes("requireAuth") && publicSharePackageRoute.includes("actorId: null"));
+  record("STORAGE-ROLE-ACCESS-013 public share package route uses Principal permission before token selection",
+    includesAll(publicSharePackageRoute, ["withPrincipalSharePermission", '"submission.view"', "getAuthorizedPublicShareInSnapshot", "deliverPrincipalReleasePackage"]));
+  record("STORAGE-ROLE-ACCESS-014 public share package delivery is bound to verified Principal and company",
+    includesAll(publicSharePackageRoute, ["verified.session.principalId", "verified.profile.companyId", "shareId: publicShare.share.id", "externalAccess: true"]));
   record("STORAGE-ROLE-ACCESS-015 readonly share repository normalizes revoked and expired shares", includesAll(releaseRepository, ["status: row.revoked_at ? \"revoked\" : expired ? \"expired\" : \"active\"", "Date.parse(row.expires_at)", "getReadonlyShareByTokenHash"]));
-  record("STORAGE-ROLE-ACCESS-015A public share lookup rejects non-active shares", includesAll(readonlyShare, ['share.status !== "active"', "getReadonlyShareByTokenHash", "return null"]));
-  record("STORAGE-ROLE-ACCESS-016 readonly share metadata redacts local paths and token hashes", includesAll(apiQc, ["SHARE-008 public share response excludes local paths, token hash and audit logs", "!publicShareText.includes(\"local_path\")", "!publicShareText.includes(\"token_hash\")"]));
+  record("STORAGE-ROLE-ACCESS-015A Principal public share lookup rejects non-active shares in the caller snapshot", includesAll(principalShare, ['share.status !== "active"', "getReadonlyShareByTokenHash", "status: 404"]));
+  record("STORAGE-ROLE-ACCESS-016 qc:api preserves legacy share IDs as explicit NOT_RUN", includesAll(apiQc, ["SHARE-008 public metadata redaction", "status: \"NOT_RUN\"", "results.push({ name, passed: false"]));
 
-  record("STORAGE-ROLE-ACCESS-017 qc:api covers unauthenticated and released package download", includesAll(apiQc, ["PKG-003 unauthenticated package download returns 401", "PKG-004 package download returns 200"]));
-  record("STORAGE-ROLE-ACCESS-018 qc:api covers share package and revocation", includesAll(apiQc, ["SHARE-010 public package download returns ZIP", "SHARE-017 manager revokes share", "SHARE-019 revoked public package download returns 404"]));
+  record("STORAGE-ROLE-ACCESS-017 focused Principal tests cover unauthenticated share-route denial", includesAll(shareAccessTest, ["unauthenticated denial before any public share selector lookup", "propagates missing Principal denial before supplier reply handling"]) && includesAll(apiQc, ["SHARE-010 package download behavior", "status: \"NOT_RUN\""]));
+  record("STORAGE-ROLE-ACCESS-018 qc:api keeps existing share revoke ID explicitly NOT_RUN", includesAll(apiQc, ["SHARE-017 manager revokes share", "NOT_RUN"]));
   record("STORAGE-ROLE-ACCESS-019 qc:api covers procurement release API role denial and redaction", includesAll(apiQc, ["PROCAPI-001 unauthenticated procurement releases returns 401", "PROCAPI-002 Engineer procurement releases returns 403", "PROCAPI-006 response excludes local paths, token hash and audit logs"]));
-  record("STORAGE-ROLE-ACCESS-020 local provider regression locks release/share storage audit", includesAll(localProviderQc, ["LOCAL-STORAGE-REGRESSION-018 release package route audits package download", "LOCAL-STORAGE-REGRESSION-033 qc:api asserts supplier share package boundary"]));
+  record("STORAGE-ROLE-ACCESS-020 local provider regression locks release/share storage audit", includesAll(localProviderQc, ["LOCAL-STORAGE-REGRESSION-018 release package route audits package download", "LOCAL-STORAGE-REGRESSION-033 qc:api keeps existing share IDs as failing NOT_RUN"]));
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));
 } catch (error) {

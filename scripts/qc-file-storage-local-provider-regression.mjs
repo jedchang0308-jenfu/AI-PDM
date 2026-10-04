@@ -29,6 +29,10 @@ try {
   const releasePackageFile = readProjectFile(root, "src/lib/release-package-file.ts");
   const releasePackageRoute = readProjectFile(root, "src/app/api/submissions/[id]/release-package/route.ts");
   const publicSharePackageRoute = readProjectFile(root, "src/app/api/public/shares/[token]/package/route.ts");
+  const principalShare = readProjectFile(root, "src/lib/principal-readonly-share.ts");
+  const releaseAsyncRepository = readProjectFile(root, "src/lib/repositories/release-async-repository.ts");
+  const supplierReplyRoute = readProjectFile(root, "src/app/api/public/shares/[token]/responses/route.ts");
+  const shareAccessTest = readProjectFile(root, "src/app/api/public/shares/[token]/principal-share-access.test.ts");
   const costReport = readProjectFile(root, "scripts/generate-file-storage-cost-report.mjs");
   const costReportQc = readProjectFile(root, "scripts/qc-file-storage-cost-report.mjs");
   const contractQc = readProjectFile(root, "scripts/qc-file-storage-contract.mjs");
@@ -64,14 +68,11 @@ try {
   record("LOCAL-STORAGE-REGRESSION-018 release package route audits package download", includesAll(releasePackageRoute, ['purpose: "release_package"', 'accessKind: "release_package"', 'route: "/api/submissions/[id]/release-package"']));
   record("LOCAL-STORAGE-REGRESSION-019 release package route returns zip attachment without cache", includesAll(releasePackageRoute, ['"content-type": "application/zip"', '"content-disposition": `attachment;', '"cache-control": "private, no-store"']));
 
-  record(
-    "LOCAL-STORAGE-REGRESSION-020 public share package route is token scoped",
-    includesAll(publicSharePackageRoute, [
-      "getPublicShareAsync(token)",
-      "recordPublicShareAccessAsync(publicShare.share.id",
-      "{ status: 404 }"
-    ])
-  );
+  record("LOCAL-STORAGE-REGRESSION-020 public share package requires submission.view Principal before token selection",
+    includesAll(publicSharePackageRoute, ["withPrincipalSharePermission", '"submission.view"', "getAuthorizedPublicShareInSnapshot", "deliverPrincipalReleasePackage"]));
+  record("LOCAL-STORAGE-REGRESSION-020A same-snapshot share selector validates active/company/Released package and repository expiry",
+    includesAll(principalShare, ["getReadonlyShareByTokenHash", 'share.status !== "active"', "submission.company_id", 'submission.status !== "Released"', "release_package"]) &&
+      includesAll(releaseAsyncRepository, ["Date.parse(row.expires_at)", 'expired ? "expired" : "active"']));
   record("LOCAL-STORAGE-REGRESSION-021 public share package route audits supplier package access", includesAll(publicSharePackageRoute, ['purpose: "supplier_share"', 'accessKind: "public_share_package"', "shareId: publicShare.share.id", "externalAccess: true"]));
   record("LOCAL-STORAGE-REGRESSION-022 public share package route returns zip attachment without cache", includesAll(publicSharePackageRoute, ['"content-type": "application/zip"', '"content-disposition": `attachment;', '"cache-control": "private, no-store"']));
 
@@ -85,9 +86,10 @@ try {
   record("LOCAL-STORAGE-REGRESSION-029 access audit QC covers runtime package/share assertions", includesAll(accessAuditQc, ["PKG-009 package download writes StorageAccessed audit", "SHARE-012 public package writes StorageAccessed audit"]));
 
   record("LOCAL-STORAGE-REGRESSION-030 qc:api asserts file download and PDF preview behavior", includesAll(apiQc, ["FILE-001 submission file download returns 200", "FILE-002 download uses attachment disposition", "FILE-003 PDF preview returns 200", "FILE-004 PDF preview content type is application/pdf", "FILE-005 PDF preview uses inline disposition"]));
-  record("LOCAL-STORAGE-REGRESSION-031 qc:api asserts storage access audit provenance", includesAll(apiQc, ["FILE-011 file audits record QC runtime provenance", "PKG-013 package audit records QC runtime provenance", "SHARE-016 public package audit records QC runtime provenance"]));
+  record("LOCAL-STORAGE-REGRESSION-031 qc:api asserts storage access audit provenance and retains share case as NOT_RUN", includesAll(apiQc, ["FILE-011 file audits record QC runtime provenance", "PKG-013 package audit records QC runtime provenance", "SHARE-016 public package QC provenance", "status: \"NOT_RUN\""]));
   record("LOCAL-STORAGE-REGRESSION-032 qc:api asserts release package download behavior", includesAll(apiQc, ["PKG-004 package download returns 200", "PKG-005 package content type is zip", "PKG-006 package has zip signature", "PKG-007 package contains manifest"]));
-  record("LOCAL-STORAGE-REGRESSION-033 qc:api asserts supplier share package boundary", includesAll(apiQc, ["SHARE-007 public share metadata is accessible without auth", "SHARE-010 public package download returns ZIP", "SHARE-017 manager revokes share", "SHARE-019 revoked public package download returns 404"]));
+  record("LOCAL-STORAGE-REGRESSION-033 qc:api keeps existing share IDs as failing NOT_RUN until a Principal fixture exists", includesAll(apiQc, ["SHARE-007 public metadata access (legacy anonymous behavior)", "SHARE-010 package download behavior", "status: \"NOT_RUN\"", "passed: false"]));
+  record("LOCAL-STORAGE-REGRESSION-033A focused route tests cover authenticated share boundary and keep supplier reply deferred", includesAll(shareAccessTest, ["submission.view", "unauthenticated denial before any public share selector lookup", "supplier replies unavailable without parsing or mutating token-only input"]) && includesAll(supplierReplyRoute, ["withPrincipalIdentityOnlyShareRoute", "supplier_reply_policy_unavailable", "DEFERRED_DEV122_POLICY_NOT_RETIRED"]) && apiQc.includes("SUPPLIER-003 external supplier reply acceptance"));
   record("LOCAL-STORAGE-REGRESSION-034 qc:api asserts procurement release payload is redacted", includesAll(apiQc, ["PROCAPI-001 unauthenticated procurement releases returns 401", "PROCAPI-002 Engineer procurement releases returns 403", "PROCAPI-003 Manager procurement releases returns 200", "!managerProcurementText.includes(\"local_path\")"]));
 
   console.log(JSON.stringify({ passed: results.length, failed: 0, results }, null, 2));

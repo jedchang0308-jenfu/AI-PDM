@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ jobI
   const workerId = actor.id;
   if (!workerId) return NextResponse.json({ error: "WORKER_ID_REQUIRED" }, { status: 400 });
   try {
-    const credential = await resolveSettingsSecretProbeCredential((await params).jobId, workerId);
+    const credential = await resolveSettingsSecretProbeCredential((await params).jobId, actor);
     return NextResponse.json(credential, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     if (error instanceof SettingsSecretLifecycleError) return NextResponse.json({ error: error.code, message: error.message }, { status: error.status });

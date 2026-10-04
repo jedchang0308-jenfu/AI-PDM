@@ -8,7 +8,15 @@
 
 歷史原文在 [HISTORY_ONLY 任務快照](dev_task-history-2026-10-03.md)，不讀為當前命令。共同驗收依 [JENFU 既有盤點](../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)；scope／publish／verified Principal 防漏洞及可靠發布 storage validator 仍由 DEV-121 處理，不能搬到延期業務待辦。各層證據僅證明實際本機／整合／正式實測範圍。AI-PDM DEV-121 依自己的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 出口獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint 結果，任一 owner PASS 不推定三 owner joint PASS。
 
-## R79 唯一現行續點（2026-10-04；候選安全中止並保留 R78，Production L4 未完成）
+## 現行安全修正：Settings Secret probe Principal provenance（2026-10-04）
+
+沿 `AIPDM/DEV-121#principal-only-background-work`／P07–P08，本輪已證實的正常設定中心四個 human command 及四個 probe workload caller，必須保留 verified Principal／company／purpose／queue initiator；草稿 creator 不等於 probe tester。處置依[現行背景契約](specs/DEV-121-target-authorization-boundary.md#背景及檔案授權ai-pdm-既有用途)；不是一般 Secret 建置或 DEV-122 業務缺失，不新增主任務。
+
+候選修正使用原工作樹、同一 branch；追加 native 078，不修改已套用 migrations，不帶未套用的 077／其他一般功能 dirty。四個 human caller 改用既有 `settings.secret.manage` Principal command，native 078 直接保存不可變的 queue Principal 與 company，worker result 同 transaction 保存 technical executor／原 initiator 的稽核。歷史缺 actor 的 job 保留並 hold，不讀 provider／不猜綁定。078 的 `new-version` writer 契約保留歷史讀取及非 actor UPDATE；新 INSERT 必須帶 typed Principal，部署短窗的舊 enqueue 會 fail closed，不宣稱舊 writer 相容。此段只記本機候選與待驗方向：CI、真實 PG／正式發布及 Production workload L4 各依實際證據，不由 unit 或 source 名稱推定 PASS。下一個可驗證交付是 actual PG queue→receipt/outbox/audit→claim/lease→completion 的 Principal 一致性及原子失敗／重播，隨後同一 owner 批次發布。
+
+下方 R75–R79 為封存歷史原文，不能當現行 release binding 或重試命令；current live baseline 與續點由 JENFU 的既有盤點／provider readback 核對，不從較早文件日期推定。
+
+## 歷史 R79 續點（HISTORY_ONLY；原 2026-10-04 判定保留）
 
 官方 source 2806b72ec1909e969c5747f95a2a7e70130e89f0 的 R75 business storage apply 已完成資源寫入；provider 把 bucket IAM member 的 bucket 回傳為 b/<exact-name>，舊 validator 在 apply 後拒絕。原 saved binary 與 immutable apply claim 必須保留且不可重放。provider-format 的精確值修正及 read-only reconcile、完整 own resources 與 effective create/get-only IAM 已有[原始 readback](qa/DEV-121-business-storage-provider-readback-2026-10-03.json)；這只證明資源與權限，application storage activation／Production 業務 L4 仍未執行。
 
@@ -60,7 +68,7 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- DEV-121 / `JENFU/DEV-015#target-authorization`：只續接 Principal-only identity/auth integration 與安全／可靠發布必要修正，依[現行契約](specs/DEV-121-target-authorization-boundary.md)及 R75 續點；一般生命周期、附件與工作流問題依 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md) 延後，不作本輪新增派工。
+- DEV-121 / `JENFU/DEV-015#target-authorization`：只續接 Principal-only identity/auth integration 與安全／可靠發布必要修正，依[現行契約](specs/DEV-121-target-authorization-boundary.md)及最新 owner receipts 續點；一般生命周期、附件與工作流問題依 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md) 延後，不作本輪新增派工。2026-10-04 share-boundary source batch 將 internal share management 綁既有 `submission.share`、public metadata/package 綁 verified Principal＋`submission.view`；opaque token 僅 resource selector；supplier reply 仍保留但因無 published capability／recipient contract 暫回 503 並列 `DEFERRED_DEV122_POLICY_NOT_RETIRED`。本機 focused checks、required CI 與 disposable PostgreSQL coverage 尚待完成；此紀錄不代表 owner release 或 Production L4。
 
 - DEV-120 / Platform `DEV-013 / 013-R1-P_BOTH-AIPDM-SESSION-TTL` 已完成 AI-PDM target session expiry 修正與本機驗證。Production P_BOTH 首次切換後，Platform→AI-PDM normal entry 可免再次輸入密碼，但 callback 錯把約 5 分鐘的 handoff assertion expiry 當成 target session 上限，稍後受保護 API 回 401；production 已安全回切 `orgmaster_authority:4 → legacy_authority:5`。修正後 target session 僅取 `min(now + 8h, sourceSessionExpiresAt)`，assertion expiry仍只負責 callback freshness。`test:dev-013` 4／4、`test:dev-013:l3` 17／17、typecheck、DB boundary、isolated build均PASS；production deploy、再次 authority switch、完整L4與global logout=`NOT_RUN`，待新exact release revision與授權。
 - DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging package v2：provider-read baseline traffic／deletion-protection plan、三組既有 Secret 一對一 numeric pinning migration、bootstrap／owner receipt v2，以及只建立 artifact repository／evidence bucket／exact IAM 的 app-owned Infra A exact plan gate；終態=`READY_FOR_NONPROD_APPLY`。Current exact read-only preflight確認`ai-pdm-stg`與runtime identity存在，deterministic origin=`https://ai-pdm-stg-1055054506544.asia-east1.run.app`、ready revision=`ai-pdm-stg-00004-pvm`、`latest=100%`且deletion protection=false；service labels仍為DEV-010、三組Secret仍指向`latest`，DEV-013 repository／evidence bucket尚未建立。計畫僅允許etag-bound `traffic,deletionProtection`且template／labels／siblings=0；所有雲端 mutation與 L3 browser 均未授權且`NOT_RUN`。
@@ -1568,9 +1576,9 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-121 [開發點] [執行中] [P0] [Principal-only 身分／授權整合；Production L4 NOT_RUN] 目標端授權邊界重構
   - 摘要：verified Principal 貫穿登入、grant／scope／撤權、caller、reviewer、命令／worker 與安全發布／回復。
   - 來源 ID：`JENFU/DEV-015#target-authorization`；owner `AIPDM/DEV-121`；producer `ORGMASTER/DEV-057#identity-grants`。
-  - 下一步：依 R76 現行續點釐清登入失敗、集中修正及驗證，取得 fresh native recovery 綁定後完成 owner release／Principal-only L4；PR199已合併，不再列為等待PR。
+  - 下一步：完成 share-boundary 批次的 focused tests、route/QC、required CI 與同一 company-scope command kernel 的 disposable PG commit/replay/deny/rollback evidence；再依 current source 與正式 owner receipts完成 release／Principal-only L4。PR199已合併，不再列為等待PR。
   - 阻塞 / 恢復條件：未核實／原停用者不啟用；不得以歷史 UID 回復、一般功能延期或本機總 PASS 代替正式授權驗收。
-  - 證據：[現行契約](specs/DEV-121-target-authorization-boundary.md)、[R75 readback](qa/DEV-121-business-storage-provider-readback-2026-10-03.json)、[歷史原驗證](dev_task-history-2026-10-03.md)。
+  - 證據：[現行契約](specs/DEV-121-target-authorization-boundary.md)、[R75 readback](qa/DEV-121-business-storage-provider-readback-2026-10-03.json)、[歷史原驗證](dev_task-history-2026-10-03.md)。share-boundary source／tests 尚未驗收，不得先稱為 Principal-only PASS。
   - 計入交付：否；既有身分／授權交付後續開發點，一般業務生命周期由 DEV-122 獨立記錄。
 
 - ◇ DEV-120 [開發點] [Local Fix Complete / Protected Production Release Pending] [P0] [DEV-013 P_BOTH] target session expiry 不得受 handoff assertion TTL 截短

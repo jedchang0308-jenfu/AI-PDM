@@ -545,6 +545,10 @@ async function expectStatus(name, actual, expected) {
   return { name, passed, actual, expected };
 }
 
+function deferStatus(name, reason) {
+  results.push({ name, passed: false, status: "NOT_RUN", reason });
+}
+
 const results = [];
 
 const retiredGenericSubmissionPost = await fetch(`${baseUrl}/api/submissions`, {
@@ -2077,23 +2081,9 @@ results.push(
 const releasable = await postSubmission();
 results.push(await expectStatus("WF setup pending submission returns 201", releasable.status, 201));
 
-const unauthShareListResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/shares`);
-results.push(await expectStatus("SHARE-001 unauthenticated share list returns 401", unauthShareListResponse.status, 401));
-
-const engineerShareCreateResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/shares`, {
-  method: "POST",
-  headers: { "content-type": "application/json", cookie: engineerCookie },
-  body: JSON.stringify({ label: "QC engineer share attempt", days: 7 })
-});
-results.push(await expectStatus("SHARE-002 Engineer cannot create read-only share", engineerShareCreateResponse.status, 403));
-
-const pendingShareCreateResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/shares`, {
-  method: "POST",
-  headers: { "content-type": "application/json", cookie: managerCookie },
-  body: JSON.stringify({ label: "QC pending share attempt", days: 7 })
-});
-results.push(await expectStatus("SHARE-003 Manager cannot create share for Pending submission", pendingShareCreateResponse.status, 409));
-
+deferStatus("SHARE-001 unauthenticated share list returns 401", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-002 Engineer cannot create read-only share", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-003 Manager cannot create share for Pending submission", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
 const aiApprove = await postChat("Please approve this submission now", { currentSubmissionId: releasable.body.submissionId });
 results.push(await expectStatus("AI-005 approve request is blocked", aiApprove.body.answer?.includes("AI_ACTION_BLOCKED") ?? false, true));
 
@@ -2283,170 +2273,35 @@ results.push(await expectStatus("PKG-011 package audit records attachment dispos
 results.push(await expectStatus("PKG-012 package audit records positive byte count", Number(releasePackageAudit?.detail.bytes ?? 0) > 0, true));
 results.push(await expectStatus("PKG-013 package audit records QC runtime provenance", storageAuditHasExpectedProvenance(releasePackageAudit), true));
 
-const shareCreateResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/shares`, {
-  method: "POST",
-  headers: { "content-type": "application/json", cookie: managerCookie },
-  body: JSON.stringify({ label: "QC supplier package review", days: 7 })
-});
-const shareCreateBody = await shareCreateResponse.json().catch(() => ({}));
-results.push(await expectStatus("SHARE-004 Manager creates read-only share for Released submission", shareCreateResponse.status, 201));
-results.push(
-  await expectStatus(
-    "SHARE-005 create response returns public URL/token once",
-    Boolean(shareCreateBody.public_url?.includes("/share/") && shareCreateBody.token && shareCreateBody.share?.id),
-    true
-  )
-);
-
-const shareListResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/shares`, {
-  headers: { cookie: managerCookie }
-});
-const shareListBody = await shareListResponse.json().catch(() => ({}));
-const createdShare = shareListBody.shares?.find((share) => share.id === shareCreateBody.share?.id);
-results.push(
-  await expectStatus(
-    "SHARE-006 manager list shows created share without token hash",
-    Boolean(createdShare && !("token_hash" in createdShare) && !("token" in createdShare)),
-    true
-  )
-);
-
-const publicShareResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}`);
-const publicShareText = await publicShareResponse.text();
-const publicShareBody = JSON.parse(publicShareText || "{}");
-results.push(await expectStatus("SHARE-007 public share metadata is accessible without auth", publicShareResponse.status, 200));
-results.push(
-  await expectStatus(
-    "SHARE-008 public share response excludes local paths, token hash and audit logs",
-    !publicShareText.includes("local_path") && !publicShareText.includes("token_hash") && !publicShareText.includes("audit_logs"),
-    true
-  )
-);
-results.push(
-  await expectStatus(
-    "SHARE-009 public share exposes released drawing and package URL",
-    publicShareBody.submission?.drawing_number === releasable.data.drawing_number &&
-      publicShareBody.package?.download_url === `/api/public/shares/${shareCreateBody.token}/package`,
-    true
-  )
-);
-
-const publicPackageResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}/package`, {
-  headers: qcStorageAuditHeaders
-});
-const publicPackageBytes = Buffer.from(await publicPackageResponse.arrayBuffer());
-results.push(await expectStatus("SHARE-010 public package download returns ZIP", publicPackageResponse.status, 200));
-results.push(await expectStatus("SHARE-011 public package has zip signature", publicPackageBytes.subarray(0, 2).toString("utf8"), "PK"));
-
-const packageShareAudits = getStorageAccessAudits(releasable.body.submissionId);
-const publicPackageAudit = packageShareAudits.find((audit) => audit.detail.accessKind === "public_share_package" && audit.detail.shareId === shareCreateBody.share?.id);
-const packageShareAuditText = JSON.stringify(packageShareAudits);
-results.push(await expectStatus("SHARE-012 public package writes StorageAccessed audit", Boolean(publicPackageAudit), true));
-results.push(await expectStatus("SHARE-013 public package audit records route", publicPackageAudit?.detail.route, "/api/public/shares/[token]/package"));
-results.push(await expectStatus("SHARE-014 public package audit records external access", publicPackageAudit?.detail.externalAccess, true));
-results.push(await expectStatus("SHARE-015 public package audit records positive byte count", Number(publicPackageAudit?.detail.bytes ?? 0) > 0, true));
-results.push(await expectStatus("SHARE-016 public package audit records QC runtime provenance", storageAuditHasExpectedProvenance(publicPackageAudit), true));
-results.push(
-  await expectStatus(
-    "SHARE-016A public package audit redacts raw token material",
-    !packageShareAuditText.includes(shareCreateBody.token) && !packageShareAuditText.includes("token_hash") && !packageShareAuditText.includes('"url"'),
-    true
-  )
-);
-
-const supplierInvalidTokenResponse = await fetch(`${baseUrl}/api/public/shares/not-a-valid-token/responses`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ responseKind: "question", supplierName: "QC Supplier", supplierEmail: "supplier@example.com", message: "Need drawing note detail." })
-});
-results.push(await expectStatus("SUPPLIER-001 invalid supplier portal token returns 404", supplierInvalidTokenResponse.status, 404));
-
-const supplierBadPayloadResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}/responses`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ responseKind: "question", supplierName: "Q", supplierEmail: "bad-email", message: "" })
-});
-results.push(await expectStatus("SUPPLIER-002 invalid supplier response payload returns 400", supplierBadPayloadResponse.status, 400));
-
-const supplierResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}/responses`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({
-    responseKind: "question",
-    supplierName: "QC Supplier",
-    supplierEmail: "supplier@example.com",
-    message: "Can this package be used for first article inspection?"
-  })
-});
-const supplierResponseBody = await supplierResponse.json().catch(() => ({}));
-const supplierResponseId = typeof supplierResponseBody.response?.id === "string" ? supplierResponseBody.response.id : "";
-results.push(await expectStatus("SUPPLIER-003 public supplier response returns 201", supplierResponse.status, 201));
-results.push(await expectStatus("SUPPLIER-004 public supplier response starts open", supplierResponseBody.response?.status, "open"));
-results.push(await expectStatus("SUPPLIER-004A public supplier response returns an id", supplierResponseId.length > 0, true));
-
-const publicShareAfterSupplierResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}`);
-const publicShareAfterSupplierBody = await publicShareAfterSupplierResponse.json().catch(() => ({}));
-results.push(
-  await expectStatus(
-    "SUPPLIER-005 public portal shows supplier response",
-    Boolean(supplierResponseId) && publicShareAfterSupplierBody.supplier_responses?.some((response) => response.id === supplierResponseId),
-    true
-  )
-);
-
-const engineerSupplierListResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses`, {
-  headers: { cookie: engineerCookie }
-});
-results.push(await expectStatus("SUPPLIER-006 Engineer cannot list supplier responses", engineerSupplierListResponse.status, 403));
-
-const managerSupplierListResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses`, {
-  headers: { cookie: managerCookie }
-});
-const managerSupplierListBody = await managerSupplierListResponse.json().catch(() => ({}));
-const listedSupplierResponse = managerSupplierListBody.responses?.find((response) => response.id === supplierResponseId);
-const closeSupplierResponseId = listedSupplierResponse?.id ?? supplierResponseId;
-results.push(await expectStatus("SUPPLIER-007 Manager lists supplier responses", managerSupplierListResponse.status, 200));
-results.push(
-  await expectStatus(
-    "SUPPLIER-008 Manager list includes supplier response",
-    Boolean(listedSupplierResponse),
-    true
-  )
-);
-
-const managerCloseSupplierResponse = await fetch(
-  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${closeSupplierResponseId}`,
-  {
-    method: "PATCH",
-    headers: { cookie: managerCookie }
-  }
-);
-const managerCloseSupplierBody = await managerCloseSupplierResponse.json().catch(() => ({}));
-results.push(await expectStatus("SUPPLIER-009 Manager closes supplier response", managerCloseSupplierResponse.status, 200));
-results.push(await expectStatus("SUPPLIER-010 closed supplier response status", managerCloseSupplierBody.response?.status, "closed"));
-
-const duplicateCloseSupplierResponse = await fetch(
-  `${baseUrl}/api/submissions/${releasable.body.submissionId}/supplier-responses/${closeSupplierResponseId}`,
-  {
-    method: "PATCH",
-    headers: { cookie: managerCookie }
-  }
-);
-results.push(await expectStatus("SUPPLIER-011 closing supplier response twice returns 409", duplicateCloseSupplierResponse.status, 409));
-
-const shareRevokeResponse = await fetch(`${baseUrl}/api/submissions/${releasable.body.submissionId}/shares/${shareCreateBody.share?.id}`, {
-  method: "PATCH",
-  headers: { "content-type": "application/json", cookie: managerCookie },
-  body: JSON.stringify({ revoked: true })
-});
-results.push(await expectStatus("SHARE-017 manager revokes share", shareRevokeResponse.status, 200));
-
-const revokedPublicShareResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}`);
-results.push(await expectStatus("SHARE-018 revoked public share metadata returns 404", revokedPublicShareResponse.status, 404));
-
-const revokedPublicPackageResponse = await fetch(`${baseUrl}/api/public/shares/${shareCreateBody.token}/package`);
-results.push(await expectStatus("SHARE-019 revoked public package download returns 404", revokedPublicPackageResponse.status, 404));
-
+deferStatus("SHARE-004 manager creates share for Released submission", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-005 create response returns one-time token", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-006 manager list redacts token material", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-007 public metadata access (legacy anonymous behavior)", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-008 public metadata redaction", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-009 public metadata package selector", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-010 package download behavior", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-011 package ZIP bytes", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-012 public package audit", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-013 public package route audit", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-014 public package external-access audit", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-015 public package positive byte-count audit", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-016 public package QC provenance", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-016A public package token redaction", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SUPPLIER-001 invalid-token reply behavior", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SUPPLIER-002 invalid-payload reply behavior", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SUPPLIER-003 external supplier reply acceptance", "NOT_RUN/DEFERRED_DEV122: external recipient actor and reply permission are not defined; do not count controlled 503 as feature PASS or retirement.");
+deferStatus("SUPPLIER-004 supplier reply lifecycle state", "NOT_RUN/DEFERRED_DEV122: no authorized producer exists in this SQLite/local-cookie QC.");
+deferStatus("SUPPLIER-004A supplier reply identifier", "NOT_RUN/DEFERRED_DEV122: no authorized producer exists in this SQLite/local-cookie QC.");
+deferStatus("SUPPLIER-005 supplier reply visible on public share", "NOT_RUN/DEFERRED_DEV122: no authorized producer exists in this SQLite/local-cookie QC.");
+deferStatus("SUPPLIER-006 Engineer cannot list supplier replies", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SUPPLIER-007 Manager supplier reply listing", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SUPPLIER-008 Manager list includes new supplier reply", "NOT_RUN/DEFERRED_DEV122: no authorized producer exists in this SQLite/local-cookie QC.");
+deferStatus("SUPPLIER-009 Manager closes supplier reply", "NOT_RUN/DEFERRED_DEV122: internal lifecycle requires an existing authorized/legacy response fixture.");
+deferStatus("SUPPLIER-010 closed supplier reply state", "NOT_RUN/DEFERRED_DEV122: internal lifecycle requires an existing authorized/legacy response fixture.");
+deferStatus("SUPPLIER-011 duplicate close conflict", "NOT_RUN/DEFERRED_DEV122: internal lifecycle requires an existing authorized/legacy response fixture.");
+deferStatus("SHARE-017 manager revokes share", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-018 revoked public metadata", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
+deferStatus("SHARE-019 revoked public package", "NOT_RUN: this SQLite/local-cookie QC has no native Principal session plus published grants; run the Principal route tests and disposable PostgreSQL evidence instead.");
 const unauthHandoffResponse = await fetch(`${baseUrl}/api/handoff`);
 results.push(await expectStatus("HANDOFF-001 unauthenticated handoff returns 401", unauthHandoffResponse.status, 401));
 
@@ -2633,8 +2488,10 @@ const badBearerSubmissions = await fetch(`${baseUrl}/api/submissions?status=Pend
 });
 results.push(await expectStatus("BEARER-004 get submissions using invalid Bearer Token returns 401", badBearerSubmissions.status, 401));
 
-const failed = results.filter((result) => !result.passed);
-console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));
+const failed = results.filter((result) => result.passed === false);
+const notRun = results.filter((result) => result.status === "NOT_RUN");
+const passed = results.filter((result) => result.passed === true);
+console.log(JSON.stringify({ passed: passed.length, failed: failed.length, notRun: notRun.length, results }, null, 2));
 
 if (failed.length > 0) {
   process.exit(1);
