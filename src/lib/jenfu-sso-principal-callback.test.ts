@@ -114,7 +114,7 @@ describe("principal-first SSO callback routing", () => {
     expect(mocks.legacyResolver).not.toHaveBeenCalled();
   });
 
-  it("returns a clean login URL when the principal is not active", async () => {
+  it("keeps a raw inactive sentinel as an unclassified dependency failure", async () => {
     const started = await jenfuSsoStart(new Request("https://pdm.example/api/auth/jenfu-sso/start"));
     const state = new URL(started.headers.get("location")!).searchParams.get("state");
     const transactionCookie = started.headers.get("set-cookie")!.split(";")[0];
@@ -127,7 +127,10 @@ describe("principal-first SSO callback routing", () => {
     ));
 
     expect(callback.status).toBe(303);
-    expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=principal_not_active");
+    expect(callback.headers.get("location")).toBe("https://pdm.example/login?auth_error=sso_dependency_unavailable");
+    expect(callback.headers.get("location")).not.toContain("PRINCIPAL_NOT_ACTIVE");
+    expect(callback.cookies.getAll().map((cookie) => cookie.name)).toEqual(["__Host-jenfu_sso_tx"]);
+    expect(callback.headers.get("set-cookie")).not.toContain("principal.session.token");
     expect(callback.headers.get("location")).not.toContain("one-time-code");
     expect(callback.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(callback.headers.get("set-cookie")).toContain("Secure");

@@ -61,7 +61,6 @@ function callbackErrorCode(errorValue: unknown) {
   ].includes(errorValue.code)) return "principal_access_denied";
   const code = errorValue instanceof Error ? errorValue.message : "";
   if (code === "HANDOFF_INVALID" || code === "HANDOFF_EXPIRED" || code === "BROKER_DENIED") return "sso_code_invalid";
-  if (code === "PRINCIPAL_NOT_ACTIVE") return "principal_not_active";
   if (code === "STALE_HANDOFF" || code === "PRINCIPAL_PROFILE_INVALID") return "sso_principal_stale";
   if (code === "HANDOFF_FACTOR_INVALID" || code === "auth_token_invalid") return "auth_token_invalid";
   return "sso_dependency_unavailable";
