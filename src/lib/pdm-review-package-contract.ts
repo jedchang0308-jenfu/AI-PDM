@@ -83,8 +83,18 @@ export type ReviewPackageMatrix = {
   }>;
 };
 
+export type ReviewPackageLifecycleBasis = {
+  intent: "edit" | "first_release" | "production_release";
+  masterId: string;
+  masterStatus: string;
+  masterHash: string;
+  formalRowVersion: number | null;
+};
+
 export type ReviewPackageDecisionBasis = {
-  version: 1;
+  version: 1 | 2;
+  workRowVersion?: number;
+  lifecycle?: ReviewPackageLifecycleBasis;
   kind: "drawing_revision_work" | "drawing_rd_void" | "part_change_work";
   hash: string;
   payload: ReviewPackageJsonObject;
@@ -216,8 +226,22 @@ function validMatrix(value: unknown): value is ReviewPackageMatrix {
 }
 
 function validDecisionBasis(value: unknown): value is ReviewPackageDecisionBasis {
-  return object(value) && exactKeys(value, ["claimId", "hash", "kind", "payload", "revisionId", "version"])
-    && value.version === 1
+  const lifecycle = object(value) ? value.lifecycle : null;
+  const lifecycleValid = object(lifecycle)
+    && exactKeys(lifecycle, ["formalRowVersion", "intent", "masterHash", "masterId", "masterStatus"])
+    && new Set(["edit", "first_release", "production_release"]).has(String(lifecycle.intent))
+    && typeof lifecycle.masterId === "string" && lifecycle.masterId.length > 0
+    && typeof lifecycle.masterStatus === "string" && lifecycle.masterStatus.length > 0
+    && typeof lifecycle.masterHash === "string" && SHA256.test(lifecycle.masterHash)
+    && (lifecycle.formalRowVersion === null || (Number.isInteger(lifecycle.formalRowVersion) && Number(lifecycle.formalRowVersion) >= 1));
+  return object(value) && (
+      value.version === 1 && exactKeys(value, ["claimId", "hash", "kind", "payload", "revisionId", "version"])
+      || value.version === 1 && exactKeys(value, ["claimId", "hash", "kind", "payload", "revisionId", "version", "workRowVersion"])
+        && Number.isInteger(value.workRowVersion) && Number(value.workRowVersion) > 0
+      || value.version === 2 && exactKeys(value, ["claimId", "hash", "kind", "lifecycle", "payload", "revisionId", "version"]) && lifecycleValid
+      || value.version === 2 && exactKeys(value, ["claimId", "hash", "kind", "lifecycle", "payload", "revisionId", "version", "workRowVersion"])
+        && lifecycleValid && Number.isInteger(value.workRowVersion) && Number(value.workRowVersion) > 0
+    )
     && new Set(["drawing_revision_work", "drawing_rd_void", "part_change_work"]).has(String(value.kind))
     && typeof value.hash === "string" && SHA256.test(value.hash) && jsonObject(value.payload)
     && nullableString(value.revisionId) && nullableString(value.claimId);
@@ -235,6 +259,17 @@ export function parseReviewPackageSnapshot(value: unknown): ReviewPackageParseRe
     return { kind: "invalid", code: "WORKBENCH_REVIEW_PACKAGE_INVALID", reason: "field-shape" };
   }
   if (!validDecisionBasis(value.decisionBasis)) return { kind: "invalid", code: "WORKBENCH_REVIEW_PACKAGE_INVALID", reason: "decision-basis-shape" };
+  if (value.decisionBasis.version === 2) {
+    const lifecycle = value.decisionBasis.lifecycle!;
+    const part = value.requestKind === "part_change";
+    if (value.requestKind === "drawing_rd_void"
+      || part && (lifecycle.intent === "production_release" || lifecycle.formalRowVersion === null
+        || value.primaryTargetKey !== `part:${lifecycle.masterId}`)
+      || !part && (lifecycle.intent === "first_release" || lifecycle.formalRowVersion !== null)
+      || lifecycle.intent === "first_release" && lifecycle.masterStatus !== "Draft") {
+      return { kind: "invalid", code: "WORKBENCH_REVIEW_PACKAGE_INVALID", reason: "lifecycle-basis-scope" };
+    }
+  }
   if (!validMatrix(value.matrix)) return { kind: "invalid", code: "WORKBENCH_REVIEW_PACKAGE_INVALID", reason: "matrix-shape" };
   if (!Array.isArray(value.targets) || !value.targets.every(validTarget)) return { kind: "invalid", code: "WORKBENCH_REVIEW_PACKAGE_INVALID", reason: "target-shape" };
   if (value.targets.length > PDM_REVIEW_PACKAGE_MAX_TARGETS || value.matrix.cells.length > PDM_REVIEW_PACKAGE_MAX_CELLS

@@ -77,7 +77,7 @@ beforeEach(() => {
   mocks.issueContract.mockResolvedValue("contract-one");
   mocks.parsePackage.mockReturnValue({ kind: "v2" });
   mocks.verifyPackage.mockReturnValue({
-    schemaVersion: "pdm-review-package-v2", requestKind: "part_change",
+    schemaVersion: "pdm-review-package-v2", requestKind: "part_change", decisionBasis: { version: 1 },
     primaryTargetKey: "part:part-one",
     packageHash: "package-hash", submittedAt: "2026-09-25T00:00:00Z",
     root: { id: "root-one", code: "R-001" }, matrix: {}, targets: []
@@ -210,7 +210,7 @@ describe("principal DEV-087 review detail", () => {
       workId: "work-one", snapshotPayload: {}, rowVersion: 3
     });
     mocks.verifyPackage.mockReturnValue({
-      schemaVersion: "pdm-review-package-v2", requestKind: "drawing_revision",
+      schemaVersion: "pdm-review-package-v2", requestKind: "drawing_revision", decisionBasis: { version: 1 },
       primaryTargetKey: "drawing:drawing-one",
       packageHash: "package-hash", submittedAt: "2026-09-25T00:00:00Z",
       root: { id: "root-one", code: "R-001" }, matrix: {}, targets: []

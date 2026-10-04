@@ -27,4 +27,14 @@ describe("principal manufacturing handoff company fence", () => {
       companyId: "company-1", submittedBy: null, limit: 10
     });
   });
+  it("types nullable and nonnullable submitter binds identically and bounds reads at 200", async () => {
+    const query = vi.fn(async (_sql: string, _params?: unknown) => []);
+    const repository = new AsyncHandoffRepository({ query } as unknown as AsyncDatabaseClient);
+    await repository.listManufacturingHandoffSubmissionIds({ companyId: "company-1", submittedBy: "owner", limit: 999 });
+    expect(query).toHaveBeenCalledWith(SELECT_ASYNC_MANUFACTURING_HANDOFF_SUBMISSION_IDS_SQL, {
+      companyId: "company-1", submittedBy: "owner", limit: 200
+    });
+    expect(SELECT_ASYNC_MANUFACTURING_HANDOFF_SUBMISSION_IDS_SQL).toContain("CAST(:submittedBy AS text) IS NULL");
+    expect(SELECT_ASYNC_MANUFACTURING_HANDOFF_SUBMISSION_IDS_SQL).toContain("s.submitted_by = CAST(:submittedBy AS text)");
+  });
 });

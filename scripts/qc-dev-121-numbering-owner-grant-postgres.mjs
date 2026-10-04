@@ -378,7 +378,7 @@ try {
     assert.match(result.stdout, new RegExp(expectedSummary, 'u'),
       'the selected v4 transfer route cases must all execute without skips');
   } else {
-    assert.match(result.stdout, review ? /Tests\s+2 passed/u : /Tests\s+9 passed/u,
+    assert.match(result.stdout, review ? /Tests\s+5 passed/u : /Tests\s+9 passed/u,
       'the selected actual business flow must execute, not skip');
   }
   console.log(JSON.stringify({ status:'PASS', phase:process.env.DEV057_CONTRACT_PHASE,

@@ -1,5 +1,7 @@
 # AI_PDM 開發任務
 
+> **2026-10-05 本工作樹入口：AIPDM/DEV-122 本地驗證／原生 CAD 屬性用途受阻**：codex/dev122-internal-functions，base 93b9b4cf6；19 選定候選／24 dirty paths 已移交。final candidate 凍結、97／97 focused、typecheck／isolated build／DB boundary 及兩 viewport 正常流程已完成獨立 QC。29 組中 28 組已有相符層級證據，F-01F native customproperties 待合法 Document Manager 本機設定；整體未驗收。續接讀[本地收據](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)，只補該用途，不重跑全套。單一 AI-PDM 本地授權；DEV-121 原工作樹由其 owner 接續，下方歷史不是本聊天施工 queue。
+
 <a id="dev-121-current-contract"></a>
 
 ## DEV-121 現行續接
@@ -1552,13 +1554,13 @@
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ↷ DEV-122 [開發點] [延後] [P2] [Brief Ready／僅問題紀錄] AI-PDM 內部功能缺陷集中處理
-  - 摘要：集中保留一般生命周期、首次發行與附件／工作流問題；區分本機已修、待修／待確認及歷史 resolved。
-  - 來源 ID：使用者 2026-10-03 指定下一個 AI-PDM native DEV 集中後續問題；發現脈絡 `AIPDM/DEV-121`。
-  - 下一步：等待後續單專案功能修復排程，再確認重現與驗收；停止本批 source／tests／077／UI 擴寫。
-  - 阻塞 / 恢復條件：本輪延後；local lifecycle 修正未合併／未發布，077 不得隨本輪 release 發布。
-  - 證據：[集中問題列表](specs/DEV-122-ai-pdm-internal-function-issues.md)、[原始 FAIL／cleanup](qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)。
-  - 計入交付：否；不增加 DEV-121 Principal-only 結案相依或共同 grant 失敗計數。
+- ◐ DEV-122 [開發點] [執行中] [P2] [設定入口修復／正式發布準備] AI-PDM 內部功能缺陷集中處理
+  - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
+  - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
+  - 下一步：整合官方 main 的 Principal settings 修正，完成正常金鑰設定入口與 exact provider 配置、必要驗證及 owner 正式發布；原生 CAD 屬性由使用者在正式環境驗證。
+  - 阻塞 / 恢復條件：正式設定 UI 尚被 slice gate 擋住，provider env 未配置；官方 main 的 secret API Principal 接線已完成。新增 own Secret container／IAM 需具體 plan 與新增資源 gate。其他 28 組有相符層級證據，97／97 focused、typecheck、bounded build、DB boundary 與 desktop/narrow UI 的獨立 QC 已完成。三格式 filename CLI 的 partial 結果不替代 CAD 屬性成功；7 issues／29 groups 分母不變、整體未驗收。
+  - 證據：[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
+  - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
 - ◐ DEV-121 [開發點] [執行中] [P0] [Principal-only 身分／授權整合；Production L4 NOT_RUN] 目標端授權邊界重構
   - 摘要：verified Principal 貫穿登入、grant／scope／撤權、caller、reviewer、命令／worker 與安全發布／回復。
@@ -5228,10 +5230,20 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-122：AI-PDM 內部功能缺陷集中處理
 
-狀態：延後；成熟度：Brief Ready；節點類型：開發點；計入交付：否。
+狀態：執行中（設定入口修復／正式發布準備；F-01F 待使用者正式驗證）／整體未驗收；成熟度：RD Implementation Ready；架構定案：已定案（2026-10-04）；節點類型：開發點；計入交付：否。
 
-唯一問題列表為 [DEV-122 controlled 記錄](specs/DEV-122-ai-pdm-internal-function-issues.md)。2026-10-03 人類將本輪收斂為 Principal-only identity/auth integration；本項接收一般 canonical lifecycle、首次發行、附件與工作流功能問題，保留已完成 local source／tests／077，不合併、不部署、不冒稱 PASS。歷史 R25/R26 的矩陣 JSON／autosave 已處理項只作復發追蹤。
+現行 2026-10-05 人類指示授權修好 AI-PDM 金鑰設定入口並上線 jenfu-platform-prod / asia-east1 / ai-pdm-prod；原生 CAD 屬性明確由使用者在正式環境驗證，保持 NOT_RUN／整體未驗收。停止本機 key 實驗，歷史失敗／來源／清理不改寫。官方 main 528429913272ceb3e8d77bb0fcf30d450c6fb368 已有 Principal settings commands/probe 与 078；新來源先整合並保護既有修改。新增 Secret container／IAM 須完成精確 own-resource plan 後處理新增資源 gate。以下本地-only、Production 未授權與 direct-module 輸入文字是原先 phase 的歷史背景，不能覆蓋最新人類指示。
 
-錯誤 Principal、越權、scope／撤權失效、fallback、existing release effect 缺 `numbering.publish` 及可靠發布 storage validator 仍在 DEV-121，不移到本項延期。後續新問題先追加同一列表，依 source、復現、實際證據層級、影響與 owner 排程；沒有重現的用途標待確認，不推定缺陷或擅自退役。
+唯一 CURRENT_CONTRACT 為 [DEV-122 本地開發契約與集中列表](specs/DEV-122-ai-pdm-internal-function-issues.md)。本輪人類授權完成單一 AI-PDM 本地開發，execution worktree C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM，branch codex/dev122-internal-functions，base HEAD 93b9b4cf67444d461aaa8934b8b1616537301b38。禁止跨專案開發；Production、遠端 DB、IAM、deploy 未授權。[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)與[收據](qa/DEV-122-worktree-transfer-2026-10-04.json)保留 24 dirty paths／19 candidate files／排除 hunk 的來源邊界，077 僅在 task-owned isolated PG apply／rerun 測試，live 未套用，不進 DEV-121 Production profile。
 
-原始本機／native PG partial FAIL 與 cleanup 為 [QA 紀錄](qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)。此文件整理未重新啟動測試、runtime、DB 或雲端操作，未 stage／commit；不新增 Production 授權。
+目前 Medium 本地 phase：D122-03 first_release；D122-04 Drawing major master 同步；D122-QA-01 測例修復與 AI-PDM 自有 isolated PG runner。D122-01/02 為歷史 resolved 回歸；D122-05 附件／worker 與 D122-06 procurement 500 留本 DEV 的調查→必要修正→本地驗收，不能任意改成 deferred 後把整個 DEV 標 Done。
+
+下一 gate：final candidate 已凍結；97／97 focused cases、typecheck、2GiB bounded isolated build、DB boundary 均由 Luna 獨立 CLI QC 通過。Sol 完成 desktop 1440×900／narrow 390×844 的普通 Part 與 Drawing paired major／minor 正常退回→fresh 重送→核准，並逐 29 IDs 對照：28 組已有相符層級證據，F-01F native CAD customproperties 因隔離環境未配置合法 Document Manager 金鑰受阻。人類 2026-10-05 已確認有 key 且授權 J:/我的雲端硬碟/02_工作/00_雜項任務(進行中)/20260703 PDM開發 測試資料；依同 spec secure local credential closure，準備一次性 task-only password input，actual DPAPI draft→original native probe→activate→broker→CAD3 properties。正常 settings UI 不可達，fixture direct module 不冒稱 UI PASS；正式 gate/auth/deploy 不變。只補該既有用途及受影響下游，不貼金鑰、不擴測全套。7 issues／29 groups 不變，整體未驗收；identity／typed grants 是明示 local versioned seam，producer integration／joint／Production NOT_RUN。
+
+驗收沿同一 spec 的 cases：ordinary edit 不發行；release-only Part 正常保存／送審／核准；major 同交易 canonical/master/pointer 一致而 minor 不發行；current grant／assigned reviewer／scope/CAS 拒絕與 native rollback/replay；正常 UI 操作、錯誤／資料 sanity／desktop+narrow；附件/worker 實際 bytes/output；procurement 真實 route／native hydration 與公司/權限拒絕。使用 task-owned PDM_DATA_DIR/PDM_REPOSITORY_DIR，seed 前 unmodified baseline invariants 與 fixture ledger，build primary before/after invariants，以及 verified PID/port/temp cleanup。
+
+已知證據：[原始 QA](qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)與所有 first-failure／UNKNOWN 原始收據保留。[本地續接收據](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)綁定 final source、[29 組跨層 QC](../output/qa/dev-122/DEV-122-final-29-group-cross-layer-readonly-qc-2026-10-05.json)、[最後 UI QC](../output/qa/dev-122/DEV-122-final-ui99f2-readonly-qc-2026-10-05.json)及其[路徑更正](../output/qa/dev-122/DEV-122-final-ui99f2-path-correction-qc-2026-10-05.json)、[Luna CLI QC](../output/qa/dev-122/DEV-122-final-cli-luna-qc-2026-10-05.json)。三種 CAD 的 normal upload→claim/content→fresh Shell→complete→Principal preview/download 與三種 original recognition CLI 的 filename／partial 結果分列；檔名辨識沒有讀取 CAD 自訂屬性，Shell thumbnail 不替代 recognition。新 Part／Drawing 根號防漂移與交易故障回滾有 native 證據；原 BAD200、錯根號核准及 UI reader500／missing-key 的失敗紀錄不改寫。Applied migrations 未改；077 僅 isolated PG apply／rerun，live 未套用。Integrated daemon NOT_RUN／PDF preview Phase2 deferred；正式 procurement 500 根因 UNKNOWN，Production bytes L4 NOT_RUN。所有已登記本輪 PID／ports／temp／Governor leases 已由 owner 與獨立 QC 核對清理；primary SQLite 僅確認兩路徑前後 ABSENT，不宣稱有 PRAGMA 快照。
+
+DEV-121 仍維護 verified Principal、scope／撤權、existing effect publish、防 fallback 與可靠發布安全；本 DEV 不移動其責任、不擴張共同 grant 分母。此輪未 stage／commit／merge／deploy，原 owner 工作樹及歷史受控證據保留。
+
+- 2026-10-04：PM 將同一 issue spec 由 Brief Ready 提升 RD Contract Ready，補全 current scope、正常入口、observable acceptance、native isolation／fixture、候選 validation 與 stop conditions；功能及 production 結論未升格。

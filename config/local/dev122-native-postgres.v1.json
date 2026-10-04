@@ -1,0 +1,70 @@
+{
+  "seamVersion": "ai-pdm.dev122.local-contract-seam.v1",
+  "sources": [
+    {
+      "sha256": "d329b27a61dcc33b0d15c9fe84614821784a6f07434dac5e4122f28f92e150fb",
+      "path": "src/lib/jenfu-principal-admission-repository.ts"
+    },
+    {
+      "sha256": "4333410ac4ad15730168e45512616ca9d3d6ef57e11d24071acfedbb5b6182ac",
+      "path": "src/lib/jenfu-principal-candidate-repository.ts"
+    },
+    {
+      "sha256": "8e1cc1cf18b801cf2ed798f23078f9567dc480093a1d14c21341e7e8f08fa266",
+      "path": "src/lib/jenfu-auth-epoch-repository.ts"
+    },
+    {
+      "sha256": "c4444702351a70b2125f4302bda0e364a52e667ef780eb3538cc04117b40fb03",
+      "path": "src/lib/repositories/jenfu-entitlement-repository.ts"
+    },
+    {
+      "sha256": "e11a045450b9b102f3448d6873eb6038e391e5047f6a56f23f91e39b1841064e",
+      "path": "src/lib/repositories/pdm-principal-reviewer-selector.ts"
+    }
+  ],
+  "marker": "AIPDM_DEV122_LOCAL_V1",
+  "templates": [
+    {
+      "source": "src/lib/jenfu-principal-admission-repository.ts",
+      "sql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, published_at\n  FROM orgmaster_contract.v_active_principal_mappings_v1\n  WHERE principal_issuer = $1\n    AND principal_subject = $2\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY",
+      "sha256": "709b2840bcaf1f66d8092668e64c6afe9aec43bbccfbffaf759fd029992996d1",
+      "mappedSql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, published_at\n  FROM ai_pdm_contract.dev122_fixture_active_principal_mappings_v1\n  WHERE principal_issuer = $1\n    AND principal_subject = $2\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY"
+    },
+    {
+      "source": "src/lib/jenfu-principal-admission-repository.ts",
+      "sql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, published_at, account_type\n  FROM orgmaster_contract.v_active_principal_accounts_v1\n  WHERE principal_issuer = $1\n    AND principal_subject = $2\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY",
+      "sha256": "0107e0e01633b0ffbfbf56dd8af5713eda62ae1a8974ac2c3fc313249870c6c9",
+      "mappedSql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, published_at, account_type\n  FROM ai_pdm_contract.dev122_fixture_active_principal_accounts_v1\n  WHERE principal_issuer = $1\n    AND principal_subject = $2\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY"
+    },
+    {
+      "source": "src/lib/jenfu-principal-candidate-repository.ts",
+      "sql": "SELECT contract_version,principal_issuer,principal_subject,principal_id,\n               employee_id,employee_status,account_type,mapping_version,\n               pg_catalog.to_char(published_at AT TIME ZONE 'UTC',\n                 $1) AS published_at\n        FROM orgmaster_contract.v_active_principal_accounts_v1\n        WHERE principal_id=$2\n        ORDER BY principal_issuer,principal_subject\n        FETCH FIRST 33 ROWS ONLY",
+      "sha256": "963fcd3f83f81f3dfd8273171e8c19a7ffbaa5c8436362942d3ff1f6143481f2",
+      "mappedSql": "SELECT contract_version,principal_issuer,principal_subject,principal_id,\n               employee_id,employee_status,account_type,mapping_version,\n               pg_catalog.to_char(published_at AT TIME ZONE 'UTC',\n                 $1) AS published_at\n        FROM ai_pdm_contract.dev122_fixture_active_principal_accounts_v1\n        WHERE principal_id=$2\n        ORDER BY principal_issuer,principal_subject\n        FETCH FIRST 33 ROWS ONLY"
+    },
+    {
+      "source": "src/lib/jenfu-auth-epoch-repository.ts",
+      "sql": "SELECT principal_id, auth_epoch, revoked_before\n  FROM platform_contract.read_principal_auth_state_v3($1)",
+      "sha256": "15d12d69771c1a90fc3527b60eee2f7b09c06efb25a3f4bfe22ff7a3c183b7b8",
+      "mappedSql": "SELECT principal_id, auth_epoch, revoked_before\n  FROM ai_pdm_contract.dev122_fixture_principal_auth_state_v3 WHERE principal_id=$1"
+    },
+    {
+      "source": "src/lib/repositories/jenfu-entitlement-repository.ts",
+      "sql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n               employee_id, employee_status\n        FROM orgmaster_contract.v_active_principal_accounts_v1\n        WHERE principal_id = $1\n        ORDER BY principal_issuer, principal_subject\n        LIMIT 3",
+      "sha256": "0fcc2100b1d8f0206b2b44c92423b4e520f6ad59be62459b60bff37757efba00",
+      "mappedSql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n               employee_id, employee_status\n        FROM ai_pdm_contract.dev122_fixture_active_principal_accounts_v1\n        WHERE principal_id = $1\n        ORDER BY principal_issuer, principal_subject\n        LIMIT 3"
+    },
+    {
+      "source": "src/lib/repositories/jenfu-entitlement-repository.ts",
+      "sql": "SELECT contract_version, assignment_version_id, assignment_version, assignment_id,\n               grant_kind, delegation_id, application_id,\n               principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,\n               role_code, catalog_version, scope_kind, scope_key, valid_from::text,\n               valid_until::text, published_at::text\n        FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4\n        WHERE application_id = $1\n          AND principal_id = $2\n          AND employee_id = $3\n        ORDER BY stable_role_id, assignment_id\n        LIMIT 33",
+      "sha256": "4e9f9194d42a2933975f5b544e40e640b9485e59cff8d1f679162c0a3a2193c4",
+      "mappedSql": "SELECT contract_version, assignment_version_id, assignment_version, assignment_id,\n               grant_kind, delegation_id, application_id,\n               principal_id, employee_id, subject_kind, target_principal_id, stable_role_id,\n               role_code, catalog_version, scope_kind, scope_key, valid_from::text,\n               valid_until::text, published_at::text\n        FROM ai_pdm_contract.dev122_fixture_principal_effective_grants_v4\n        WHERE application_id = $1\n          AND principal_id = $2\n          AND employee_id = $3\n        ORDER BY stable_role_id, assignment_id\n        LIMIT 33"
+    },
+    {
+      "source": "src/lib/repositories/pdm-principal-reviewer-selector.ts",
+      "sql": "SELECT account.principal_id, account.pdm_user_id, account.employee_id,\n           typed.principal_issuer AS identity_issuer,\n           typed.principal_subject AS identity_subject\n    FROM ai_pdm_core.principal_accounts account\n    JOIN orgmaster_contract.v_active_principal_accounts_v1 typed\n      ON typed.principal_id = account.principal_id\n     AND typed.employee_id = account.employee_id\n     AND typed.account_type = account.account_type\n     AND typed.contract_version = 'organization.active-principal.v1'\n     AND typed.employee_status = 'active'\n    WHERE account.company_id = $1\n      AND account.account_status = 'active'\n      AND account.system_role_enabled\n    ORDER BY account.principal_id, typed.principal_issuer, typed.principal_subject\n    LIMIT 65",
+      "sha256": "683b41cbec2fc9b3064c4d6381dccca1205893b0e04b3725984f1ac16d5b148a",
+      "mappedSql": "SELECT account.principal_id, account.pdm_user_id, account.employee_id,\n           typed.principal_issuer AS identity_issuer,\n           typed.principal_subject AS identity_subject\n    FROM ai_pdm_core.principal_accounts account\n    JOIN ai_pdm_contract.dev122_fixture_active_principal_accounts_v1 typed\n      ON typed.principal_id = account.principal_id\n     AND typed.employee_id = account.employee_id\n     AND typed.account_type = account.account_type\n     AND typed.contract_version = 'organization.active-principal.v1'\n     AND typed.employee_status = 'active'\n    WHERE account.company_id = $1\n      AND account.account_status = 'active'\n      AND account.system_role_enabled\n    ORDER BY account.principal_id, typed.principal_issuer, typed.principal_subject\n    LIMIT 65"
+    }
+  ]
+}

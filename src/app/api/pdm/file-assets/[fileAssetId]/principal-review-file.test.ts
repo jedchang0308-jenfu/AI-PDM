@@ -98,6 +98,21 @@ beforeEach(() => {
 });
 
 describe("principal review package file read", () => {
+  it.each(["readObject", "audit"] as const)("maps an unknown %s fault to exact safe JSON 500", async dependency => {
+    mocks[dependency].mockRejectedValueOnce(new Error("DEV122_PRIVATE_DEPENDENCY_FAULT"));
+    const response = await GET(request(), params);
+    expect(response.status).toBe(500);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const body = await response.json();
+    expect(body).toMatchObject({ error: { code: "WORKBENCH_INTERNAL_ERROR", message: "操作失敗，請稍後再試" } });
+    expect(JSON.stringify(body)).not.toContain("PRIVATE_DEPENDENCY");
+  });
+  it.each(["ENOENT", "ECONNRESET"])("keeps known storage dependency %s unavailable", async code => {
+    mocks.readObject.mockRejectedValueOnce(Object.assign(new Error("known storage dependency"), { code }));
+    const response = await GET(request(), params);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ error: { code: "PDM_FILE_UNAVAILABLE" } });
+  });
   it("rejects missing or legacy sessions before reading any file context", async () => {
     const noSession = new Request(request().url);
     const missing = await GET(noSession, params);
@@ -289,11 +304,13 @@ it("records the verified Principal and company only after bytes match", async ()
   expect(mocks.readObject.mock.invocationCallOrder[0]).toBeLessThan(mocks.audit.mock.invocationCallOrder[0]);
 });
 
-it("does not deliver bytes when audit persistence fails", async () => {
+it("does not deliver bytes and returns safe500 when unknown audit persistence fails", async () => {
   mocks.audit.mockRejectedValueOnce(new Error("audit unavailable"));
   const response = await GET(request(), params);
-  expect(response.status).toBe(503);
-  expect(await response.text()).not.toContain("review-file");
+  expect(response.status).toBe(500);
+  const body = await response.json();
+  expect(body).toMatchObject({ error: { code: "WORKBENCH_INTERNAL_ERROR", message: "操作失敗，請稍後再試" } });
+  expect(JSON.stringify(body)).not.toMatch(/audit unavailable|review-file|SELECT|stack/u);
 });
 
 it("does not write a successful access audit for corrupt bytes", async () => {
