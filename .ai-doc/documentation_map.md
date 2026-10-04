@@ -8,7 +8,7 @@
 
 整理前文件原文在 [HISTORY_ONLY文件地圖](documentation_map-history-2026-10-03.md)，包含舊進度及取代關係；不預設載入、不執行舊雙軌／bridge／逐人／TOTP步骤。以下保留其他任務原索引，未因本次CA重新判定其完成度。
 
-本輪 auth-only 候選的本機／真實 PostgreSQL 結果及未驗界線在[候選原始QA](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)，不是正式PASS。PR199已合併；R76候選登入失敗後已安全中止、未切流，下一步是[現行R76續點](dev_task.md#dev-121-current-contract)的因果診斷／集中修正 → fresh owner release → 授權整合正式驗收。原QA的capture狀態與FAIL不回寫；一般功能不重新進本輪queue。
+本輪 auth-only 候選的本機／真實 PostgreSQL 結果及未驗界線在[候選原始QA](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)，不是正式 PASS。R78 為現行 Production 基線；R79 verify stage 的 Platform POST（2026-10-04T02:38:30.564665Z）回 401，02:38:38.744832Z 決策碼為 auth_token_invalid，後已 PRE_ACTIVATION_ABORTED 並保留 R78，見[現行R79續點](dev_task.md#dev-121-current-contract)及 root 的[workflow readback](../../Jenfu-Platform/output/dev-012/inputs/dev121-r79-owner-run-watch.json)、[smoke auth diagnostic](../../Jenfu-Platform/output/dev-012/inputs/dev121-r79-smoke-auth-diagnostic.json)。v5 auth_time 早於／等於 global logout 僅是因果推論，current DB revokedBefore 未直接讀回。R79 後 producer explicit 5→6 本機測試 19/19 PASS，尚非 official CI／Production 驗收；clean official source 與 fresh owner release 是後續驗證。原QA capture／FAIL 不回寫；一般功能與 077 不移出 DEV-122。
 
 ## 1. Authoritative Entry Points
 
