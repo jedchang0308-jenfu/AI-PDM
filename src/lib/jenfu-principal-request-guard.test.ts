@@ -284,3 +284,11 @@ describe("DEV-121 principal request verification", () => {
     expect(protectedEffect).not.toHaveBeenCalled();
   });
 });
+
+
+it("normalizes only verified authentication and account-version data for durable consent",async()=>{
+  const {client}=database();const verified=await request(client as AsyncDatabaseClient);
+  expect(verified.session.authenticatedAt).toBe(new Date(claims.authenticatedAt*1000).toISOString());
+  expect(verified.session.accountLifecycleVersion).toBe(claims.accountLifecycleVersion);
+  expect(verified.session).not.toHaveProperty("token");
+});

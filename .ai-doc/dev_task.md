@@ -1,5 +1,10 @@
 # AI_PDM 開發任務
 
+## DEV-122 一次提交金鑰流程（2026-10-05；本機控制流程通過，發布檢查中）
+
+使用者已核准一次提交後自動測試、啟用及服務精確版本套用確認；一個主動作、持久進度與真實活動動畫已完成。170/170 unit、5/5 worker transport、34/34設定檢查、更新後134/134 release tests；real isolated PG／正常Settings入口1440及390px兩階段通過，restart後七表不變／zero POST。只證實fixture控制流程，不冒稱真key/CAD或完整native變體PASS。080只修正相容標記，原始FAIL保留，build/typecheck／Luna QC／required CI與R03待完成，正式仍R02。主機設定位置待人類，僅交付安全launcher，未註冊常駐服務。真key／原生CAD由使用者正式驗證；7 issues／29 groups、整體NOT_ACCEPTED不變。閱讀[追加契約](specs/DEV-122-ai-pdm-internal-function-issues.md)與[本輪checkpoint](qa/DEV-122-secret-workflow-automation-2026-10-05.json)。
+
+
 > **2026-10-05 本工作樹入口：AIPDM/DEV-122／R02 已部署**：100% ai-pdm-prod-52f421cb8db9、0 candidate tags，正式登入 smoke PASS；[結案與人工驗收界線](qa/DEV-122-settings-production-closure-2026-10-05.json)。安全頁憑證 reauth 已完成及清理。設定 UI／真 key／probe／activation 與原生 CAD 仍待使用者正式驗證，F-01F NOT_RUN／7 issues／29 groups／整體未驗收。下方 DEV-121 R81 是其 owner 當時結案背景；目前 serving 以本 R02 為準。單一 AI-PDM、禁止跨專案，其他 owner 修改保留。
 
 > HISTORY_ONLY／B合併前工作樹入口：**2026-10-05 本工作樹入口：AIPDM/DEV-122／B方案**：codex/dev122-internal-functions；B方案已完成：PDM_GCP_PROJECT_ID=jenfu-platform-prod保留，另設PDM_GCP_EXPECTED_PROJECT_NUMBER=9536592944；named請求／numeric canonical回傳分開嚴格核對。clean受測HEAD165a53f0bbcfbb9e54049c191505147936fcfaee已整合官方main46438028。unit83/83（Google57＋Principal26）、static36/36、mock27/27、release134/134及六項必要release檢查（QC97、abort6、boundary、typecheck、isolatedbuild）PASS；獨立gpt-6-luna QC為B_LOCAL_QC_PASS_REQUIRED_CI_PENDING_THREE_RESOURCES_PENDING_APPROVAL。新B required CI待同一草稿PR207刷新，舊b89 CI僅歷史。A未套用、不再待配置核准；僅三項新增正式Secret／IAM待明確資源授權，未merge／apply／deploy。真key/probe/activation及CAD properties由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups不變、整體未驗收。 [最後QC](../output/qa/dev-122/DEV-122-gsm-b-final-luna-qc-2026-10-05.json)／[三資源計畫](../output/qa/dev-122/DEV-122-gsm-b-production-resource-approval-plan-2026-10-05.md)。單一AI-PDM、禁止跨專案；DEV-121/canonical owner修改保留。

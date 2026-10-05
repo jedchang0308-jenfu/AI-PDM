@@ -39,19 +39,25 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
   verified: VerifiedPrincipalRequest,
   permissions: readonly PrincipalWorkspacePermission[]
 ): Promise<PrincipalWorkspaceDecision[]> {
+  return evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(snapshot, {
+    identityIssuer: verified.session.identityIssuer, identitySubject: verified.session.identitySubject,
+    principalId: verified.session.principalId, employeeId: verified.session.employeeId,
+    localPrincipalId: verified.profile.pdmUserId, companyId: verified.profile.companyId,
+    sessionSchemaVersion: 2
+  }, permissions);
+}
+
+/** Server-only core. The caller must freshly admit the actor in this same snapshot. */
+export async function evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(
+  snapshot: AsyncDatabaseClient,
+  admitted: Parameters<typeof createJenfuVerifiedAuthorizationActor>[0],
+  permissions: readonly PrincipalWorkspacePermission[]
+): Promise<PrincipalWorkspaceDecision[]> {
   if (permissions.length === 0 || permissions.some(({ permissionCode }) =>
     !permissionCode || permissionCode !== permissionCode.trim())) {
     throw new JenfuPrincipalRequestError("auth_session_invalid");
   }
-    const actor = createJenfuVerifiedAuthorizationActor({
-      identityIssuer: verified.session.identityIssuer,
-      identitySubject: verified.session.identitySubject,
-      principalId: verified.session.principalId,
-      employeeId: verified.session.employeeId,
-      localPrincipalId: verified.profile.pdmUserId,
-      companyId: verified.profile.companyId,
-      sessionSchemaVersion: 2
-    });
+    const actor = createJenfuVerifiedAuthorizationActor(admitted);
     if (!actor) throw new JenfuPrincipalRequestError("auth_session_invalid");
     const times = await snapshot.query<{ decision_at: string }>("SELECT transaction_timestamp()::text AS decision_at");
     const decisionAt = times.length === 1 ? new Date(times[0].decision_at) : new Date(Number.NaN);
@@ -63,7 +69,7 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
     const evaluated = await new JenfuEntitlementRepository(snapshot, publishedCatalog).evaluatePermissions(
       permissions.map(({ permissionKind, permissionCode }) => ({
         actor, permissionKind, permissionCode,
-        workspaceCode: verified.profile.companyId,
+        workspaceCode: actor.companyId,
         projectCode: null,
         rolePriority
       })), decisionAt

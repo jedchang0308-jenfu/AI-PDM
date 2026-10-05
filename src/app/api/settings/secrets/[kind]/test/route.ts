@@ -17,9 +17,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ kin
   const { kind: secretReferenceId } = await params;
 
   try {
-    const probeJob = await enqueueSettingsSecretProbe({ secretReferenceId }, access.metadata);
+    const probeJob = await enqueueSettingsSecretProbe({ secretReferenceId, autoActivate: body.autoActivate as boolean | undefined }, access.metadata);
     return NextResponse.json(
-      { probeJob, secrets: await listSettingsSecretStatuses() },
+      { probeJob, workflow:probeJob.workflow, secrets: await listSettingsSecretStatuses() },
       { status: 202, headers: noStoreHeaders }
     );
   } catch (error) {

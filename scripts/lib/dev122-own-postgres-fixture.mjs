@@ -6,7 +6,7 @@ export const marker = 'AIPDM_DEV122_LOCAL_V1';
 export const fixtureVersion = 'ai-pdm.dev122.own-postgres-fixture.v1';
 export const sha256 = value => crypto.createHash('sha256').update(value).digest('hex');
 const baseline = ['001','003','042','047','048','049','050','051','052','053','055','056','063','062','064'];
-const order = [...baseline, ...Array.from({ length: 12 }, (_, i) => String(i + 65).padStart(3, '0')), '078', '079'];
+const order = [...baseline, ...Array.from({ length: 12 }, (_, i) => String(i + 65).padStart(3, '0')), '078', '079', '080'];
 
 export function compileOwnMigrations(root) {
   const directory = path.join(root, 'db/postgres');

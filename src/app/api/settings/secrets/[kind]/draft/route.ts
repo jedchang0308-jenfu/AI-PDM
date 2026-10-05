@@ -24,11 +24,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ kin
   try {
     const reference = await createSettingsSecretDraft({
       kind,
-      secretValue: String(body.secretValue ?? "")
+      secretValue: String(body.secretValue ?? ""),
+      autoActivate: body.autoActivate as boolean | undefined
     }, access.metadata);
     return NextResponse.json(
       {
         reference: redactSettingsSecretReference(reference),
+        workflow: reference.workflow, intent: reference.intent, probeJob: reference.probeJob,
         secrets: await listSettingsSecretStatuses()
       },
       { status: 201, headers: noStoreHeaders }

@@ -117,7 +117,7 @@ beforeAll(async () => {
   const ring = getPlatformSessionKeyRing();
   const now = Math.floor(Date.now() / 1000);
   const tokens: Record<string, string> = {};
-  for (const identity of (process.env.DEV122_NATIVE_SUITE==="settings"||["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
+  for (const identity of (["settings","settings-automation"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
     const token = issueJenfuPrincipalSession({
       principalId: "dev122-principal-" + identity, employeeId: "dev122-employee-" + identity,
       identityIssuer: "https://securetoken.google.com/dev122-local-fixture",
@@ -1892,5 +1892,36 @@ describe.runIf(enabled && process.env.DEV122_NATIVE_SUITE === "settings")("DEV12
       resultSeeded:false,credentialInput:"NOT_RUN",providerConnection:"NOT_RUN",summaryOnlyRole:"UNIT_LAYER_ONLY_NO_LEGAL_V5_ROLE"}));
     await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!,"browser-fixtures.json"),JSON.stringify(
       [1440,390].map(width=>({width,height:width===1440?900:844,flow:"settings",terminalAssetIds:[]}))));
+  });
+});
+
+
+describe.runIf(enabled && process.env.DEV122_NATIVE_SUITE === "settings-automation")("DEV122 actual Next settings automation prerequisites", () => {
+  it("seeds only non-secret draft/probe provenance after native baseline invariants; no activation or native result", async () => {
+    expect(process.env.PDM_ENABLE_GCP_SECRET_READS).toBe("false");
+    expect(process.env.PDM_ENABLE_GCP_SECRET_WRITES).toBe("false");
+    const before=await ownedLifecycleSnapshot();
+    expect(before.secret_references).toEqual([]);expect(before.settings_secret_probe_jobs).toEqual([]);
+    expect(before.settings_secret_activation_intents).toEqual([]);
+    const summary=await ok<{settings:{secretManagementAvailable:boolean}}>(await readSettings(request("/api/settings")));
+    expect(summary.settings.secretManagementAvailable).toBe(true);
+    const referenceId="dev122-secret-control-desktop",jobId="dev122-probe-control-desktop";
+    await fixtureMutation("non-secret reference prerequisite, no provider key/payload/native result",`INSERT INTO secret_references
+      (id,kind,provider,display_name,vault_provider,vault_secret_id,masked_hint,fingerprint,lifecycle_status,version,created_by,metadata_json)
+      VALUES(:id,'solidworks_document_manager','solidworks','Control flow fixture','google_secret_manager',:vault,'non-secret fixture',:fingerprint,'draft',1,'dev122-profile-reviewer',:metadata)`,
+      {id:referenceId,vault:"projects/dev122-fixture-project/secrets/non-secret-reference/versions/1",fingerprint:createHash("sha256").update("non-secret-control-reference-1").digest("hex"),
+      metadata:JSON.stringify({companyId:"company-jenfu",securityActor:{kind:"human",principalId:"dev122-principal-reviewer",profileVersion:1}})});
+    await fixtureMutation("typed historical test-only probe prerequisite; preserve original reviewer",`INSERT INTO settings_secret_probe_jobs
+      (id,secret_reference_id,kind,status,created_by,company_id,initiator_principal_id,initiator_profile_version,purpose)
+      VALUES(:id,:reference,'solidworks_document_manager','pending','dev122-profile-reviewer','company-jenfu','dev122-principal-reviewer',1,'settings_secret_probe')`,{id:jobId,reference:referenceId});
+    const response=await readSettingsSecrets(request("/api/settings/secrets"));
+    const body=await ok<{secrets:Array<{workflow:{canResume:boolean;consentRequired:boolean;exactAck:boolean};active:unknown}>}>(response);
+    expect(body.secrets[0]).toMatchObject({active:null,workflow:{canResume:true,consentRequired:true,exactAck:false}});
+    const rows=await ownedLifecycleSnapshot();expect(rows.settings_secret_activation_intents).toEqual([]);
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"settings-automation-native-prerequisites.json"),JSON.stringify({layer:"ACTUAL_NATIVE_PG_SIGNED_READ_NON_SECRET_REFERENCE_FIXTURE",nativeCad:"NOT_RUN",keyPayload:"NOT_READ",summary,body,rows}));
+    await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!,"browser-fixtures.json"),JSON.stringify([
+      {width:1440,height:900,flow:"settings-automation",version:1,referenceId,jobId,terminalAssetIds:[]},
+      {width:390,height:844,flow:"settings-automation",version:2,referenceId:"dev122-secret-control-mobile",jobId:"dev122-probe-control-mobile",terminalAssetIds:[]}
+    ]));
   });
 });

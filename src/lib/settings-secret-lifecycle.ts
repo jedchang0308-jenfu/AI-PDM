@@ -1,3 +1,6 @@
+import { requireCurrentSettingsSecretActivationAuthority, SettingsSecretActivationDenied } from "@/lib/settings-secret-activation-authority";
+import { deriveSettingsSecretWorkflow, type SettingsSecretWorkflow } from "@/lib/settings-secret-workflow";
+import type { SettingsSecretActivationIntent } from "@/lib/repositories/settings-secret-async-repository";
 import crypto from "node:crypto";
 import { isWorkerPurposeConfigured, type VerifiedWorkloadActor } from "@/lib/worker-service-auth";
 import { createAuditLogAsync } from "@/lib/audit-async";
@@ -62,6 +65,8 @@ export type RedactedSecretVersionSummary = {
 
 export type SettingsSecretStatus = {
   kind: SettingsSecretKind;
+  workflow: SettingsSecretWorkflow | null;
+  nativeWorker: { online: boolean; lastSeenAt: string | null; workerId: string | null };
   provider: string;
   displayName: string;
   configured: boolean;
@@ -516,8 +521,16 @@ export async function listSettingsSecretStatuses(): Promise<SettingsSecretStatus
         : { status: "offline" as const, lastSeenAt: capabilityHeartbeat.lastSeenAt, message: "2D 預覽 worker 最近未回報 capability heartbeat。" }
       : await workerPresenceFor(client);
 
+    const dmHeartbeat = await repository.getLatestWorkerCapabilityHeartbeat("solidworks_document_manager");
+    const heartbeatAge = dmHeartbeat ? Date.now() - new Date(dmHeartbeat.lastSeenAt).getTime() : NaN;
+    const intent = client.kind === "postgres" && latest ? await repository.getLatestIntent(latest.id) : null;
+    const matchingHeartbeat = client.kind === "postgres" && active ? await repository.getMatchingDocumentManagerHeartbeat(active) : null;
+    const workflow = latest ? deriveSettingsSecretWorkflow({ reference: latest, active, intent, job: latestProbe,
+      heartbeat: matchingHeartbeat ?? dmHeartbeat }) : null;
     statuses.push({
       kind: definition.kind,
+      workflow, nativeWorker: { online: Boolean(dmHeartbeat && heartbeatAge >= 0 && heartbeatAge <= 30_000),
+        lastSeenAt: dmHeartbeat?.lastSeenAt ?? null, workerId: dmHeartbeat?.workerId ?? null },
       provider: definition.provider,
       displayName: definition.displayName,
       configured: Boolean(active && active.vaultProvider !== "local_test_double"),
@@ -571,8 +584,9 @@ async function executeSecretCommand<TResult>(metadata: PdmCommandMetadata, comma
   try { completed = await executePdmCommandWithOutbox({ client: getAsyncDatabaseClient(), command,
     principalRequest: metadata.principalRequest, principalAuthorization: metadata.principalAuthorization,
     serializable: true,
-    execute: (snapshot, _decision, verified) => {
+    execute: async (snapshot, _decision, verified) => {
       if (!verified) throw new SettingsSecretLifecycleError("SETTINGS_SECRET_PRINCIPAL_CONTEXT_REQUIRED", "需要 Principal。", 403);
+      await new AsyncSettingsSecretRepository(snapshot).lockKind("solidworks_document_manager");
       return execute(snapshot, verified);
     },
     event: result => ({ aggregateType: "settings_secret", eventType: commandName, ...event(result) }) }); }
@@ -597,14 +611,32 @@ async function auditSecretCommand(client: AsyncDatabaseClient, verified: Verifie
  * command-time admission is rechecked before publishing any database effect.
  * A provider version orphaned by a failed commit remains unreferenced, never active.
  */
-export async function createSettingsSecretDraft(input: { kind: string; secretValue: string }, metadata: PdmCommandMetadata): Promise<SettingsSecretReference> {
+async function workflowInSnapshot(repository: AsyncSettingsSecretRepository, reference: SettingsSecretReference,
+  job?: SettingsSecretProbeJob | null): Promise<SettingsSecretWorkflow> {
+  const references = await repository.listReferencesByKind(reference.kind);
+  const current = references.find(item => item.id === reference.id) ?? reference;
+  const active = references.find(item => item.lifecycleStatus === "active") ?? null;
+  const intent = await repository.getLatestIntent(reference.id);
+  const heartbeat = active ? await repository.getMatchingDocumentManagerHeartbeat(active) : null;
+  return deriveSettingsSecretWorkflow({reference:current,active,intent,
+    job:job ?? await repository.getLatestProbeJob(reference.id),
+    heartbeat:heartbeat ?? await repository.getLatestWorkerCapabilityHeartbeat("solidworks_document_manager"),
+    now:Date.parse(await repository.databaseNow())});
+}
+
+export type SettingsSecretDraftResult = SettingsSecretReference & {
+  workflow: SettingsSecretWorkflow; intent: SettingsSecretActivationIntent | null; probeJob: SettingsSecretProbeJob | null;
+};
+
+export async function createSettingsSecretDraft(input: { kind: string; secretValue: string; autoActivate?: boolean }, metadata: PdmCommandMetadata): Promise<SettingsSecretDraftResult> {
   requireSecretCommand(metadata);
+  const autoActivate = strictAutoActivate(input.autoActivate);
   const definition = getKindDefinition(input.kind);
   const secretValue = String(input.secretValue ?? "").trim();
   if (secretValue.length < definition.minimumLength) {
     throw new SettingsSecretLifecycleError("SECRET_VALUE_TOO_SHORT", "Secret 長度不足，請確認輸入完整 API/license key。", 400);
   }
-  const payload = { kind: definition.kind, fingerprint: fingerprintSecret(secretValue) };
+  const payload = { kind: definition.kind, fingerprint: fingerprintSecret(secretValue), autoActivate };
   const command = createPdmCommand({ commandName: "pdm.settings_secret.create_draft",
     idempotencyKey: metadata.idempotencyKey, actor: metadata.actor, payload });
   const client = getAsyncDatabaseClient();
@@ -617,16 +649,19 @@ export async function createSettingsSecretDraft(input: { kind: string; secretVal
     const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
       [{ permissionKind: "action", permissionCode: "settings.secret.manage" }]);
     if (!decision?.allowed) throw new SettingsSecretLifecycleError("SETTINGS_SECRET_PERMISSION_DENIED", "沒有設定管理權限。", 403);
-    return new PlatformOutboxAsyncRepository(snapshot).findCompletedCommand<SettingsSecretReference>(command);
+    return new PlatformOutboxAsyncRepository(snapshot).findCompletedCommand<SettingsSecretDraftResult>(command);
   });
   if (replay.completed) return replay.result;
   let stored: SecretStoreResult;
   try { stored = await resolveProvider().createSecret({ kind: definition.kind, value: secretValue,
     displayName: definition.displayName, actorId: metadata.actor.pdmUserId }); }
-  catch (error) { throw toLifecycleError(error, "SETTINGS_SECRET_PROVIDER_WRITE_FAILED", "Secret provider 寫入失敗。"); }
+  catch (error) {
+    const safe=toLifecycleError(error,"SETTINGS_SECRET_PROVIDER_WRITE_FAILED","Secret provider 寫入失敗。");
+    throw new SettingsSecretLifecycleError(safe.code,safe.message,safe.status,{...safe.details,retryable:false});
+  }
   return executeSecretCommand(metadata, command.commandName, payload, async (snapshot, verified) => {
     const repository = new AsyncSettingsSecretRepository(snapshot);
-    const now = new Date().toISOString();
+    const now = await repository.databaseNow();
     const reference: SettingsSecretReference = {
       id: `secret-ref-${crypto.randomUUID()}`, kind: definition.kind, provider: definition.provider,
       displayName: definition.displayName, vaultProvider: stored.vaultProvider, vaultSecretId: stored.vaultSecretId,
@@ -637,36 +672,188 @@ export async function createSettingsSecretDraft(input: { kind: string; secretVal
       metadataJson: JSON.stringify({ ...stored.metadata, securityActor: humanSecurityActor(verified), companyId: verified.profile.companyId })
     };
     await repository.insertReference(reference);
+    const probeJob = autoActivate ? await createTypedProbeJob(repository, reference, verified, now) : null;
+    const intent = probeJob ? await recordActivationConsent(snapshot, repository, reference, probeJob, verified, now) : null;
     await createLifecycleEvent(repository, { secretReferenceId: reference.id, kind: definition.kind,
       eventType: "created_draft", actorId: verified.profile.pdmUserId, eventAt: now,
       detail: { version: reference.version, vaultProvider: reference.vaultProvider, securityActor: humanSecurityActor(verified), companyId: verified.profile.companyId } });
     await auditSecretCommand(snapshot, verified, "SettingsSecretDraftCreated",
       { secretReferenceId: reference.id, kind: definition.kind, version: reference.version, vaultProvider: reference.vaultProvider });
-    return reference;
+    return {...reference,intent,probeJob,workflow:await workflowInSnapshot(repository,reference,probeJob)};
   }, reference => ({ aggregateId: reference.id, payload: { secretReferenceId: reference.id, kind: reference.kind, version: reference.version } }));
 }
 
-export async function enqueueSettingsSecretProbe(input: { secretReferenceId: string }, metadata: PdmCommandMetadata) {
-  return executeSecretCommand(metadata, "pdm.settings_secret.probe.enqueue", input, async (snapshot, verified) => {
+function strictAutoActivate(value: unknown): boolean {
+  if (value !== undefined && typeof value !== "boolean") throw new SettingsSecretLifecycleError("INVALID_AUTO_ACTIVATE", "autoActivate 必須是 boolean。", 400);
+  return value === true;
+}
+
+function requireReferenceCompany(reference: SettingsSecretReference, companyId: string) {
+  let metadata;
+  try { metadata = JSON.parse(reference.metadataJson); } catch {
+    throw new SettingsSecretLifecycleError("SECRET_REFERENCE_PROVENANCE_REQUIRED", "缺少可信任的版本 provenance。", 409);
+  }
+  if (!metadata || metadata.companyId !== companyId) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_SCOPE_MISMATCH", "版本不屬於目前公司。", 403);
+  const actor = metadata.securityActor;
+  if (actor?.kind !== "human" || typeof actor.principalId !== "string" || !actor.principalId.trim() ||
+    !Number.isSafeInteger(actor.profileVersion) || actor.profileVersion < 1) {
+    throw new SettingsSecretLifecycleError("SECRET_REFERENCE_PROVENANCE_REQUIRED", "缺少可信任的版本 provenance。", 409);
+  }
+}
+
+async function createTypedProbeJob(repository: AsyncSettingsSecretRepository, reference: SettingsSecretReference,
+  verified: VerifiedPrincipalRequest, now: string) {
+  return repository.enqueueProbeJob({ id: `secret-probe-${crypto.randomUUID()}`, secretReferenceId: reference.id,
+    kind: reference.kind, createdBy: verified.profile.pdmUserId, createdAt: now,
+    companyId: verified.profile.companyId, initiatorPrincipalId: verified.session.principalId,
+    initiatorProfileVersion: verified.session.profileVersion, purpose: "settings_secret_probe" });
+}
+
+async function recordActivationConsent(snapshot: AsyncDatabaseClient, repository: AsyncSettingsSecretRepository,
+  reference: SettingsSecretReference, job: SettingsSecretProbeJob, verified: VerifiedPrincipalRequest, now: string) {
+  requireReferenceCompany(reference, verified.profile.companyId);
+  probeProvenance(job);
+  if (job.companyId !== verified.profile.companyId) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_SCOPE_MISMATCH", "probe 公司不符。", 403);
+  const existing = await repository.getLatestIntent(reference.id, true);
+  if (existing?.probeJobId === job.id) return existing; // Never rewrite the first consent or original initiator.
+  if (existing) {
+    await repository.updateIntent(existing.id,"superseded","probe_replaced",now);
+    await auditSecretCommand(snapshot,verified,"SettingsSecretActivationConsentSuperseded",{intentId:existing.id,probeJobId:existing.probeJobId});
+  }
+  const newer = await repository.newestConsentedVersion(reference.kind) > reference.version;
+  if (!newer) await repository.supersedePending(reference.kind, reference.id, now);
+  const intent: SettingsSecretActivationIntent = { id: `secret-intent-${crypto.randomUUID()}`,
+    secretReferenceId: reference.id, probeJobId: job.id, kind: reference.kind, companyId: verified.profile.companyId,
+    consentPrincipalId: verified.session.principalId, consentEmployeeId: verified.session.employeeId,
+    consentPdmUserId: verified.profile.pdmUserId, identityIssuer: verified.session.identityIssuer,
+    identitySubject: verified.session.identitySubject, profileVersion: verified.session.profileVersion,
+    accountLifecycleVersion: verified.session.accountLifecycleVersion, authEpoch: verified.session.authEpoch,
+    authenticatedAt: verified.session.authenticatedAt, sessionIssuedAt: verified.session.issuedAt,
+    requestedAt: now, state: newer ? "superseded" : "pending", safeResultCode: newer ? "newer_consent" : null,
+    activatedAt: null, activationTestRunId: null, updatedAt: now };
+  await repository.insertIntent(intent);
+  await auditSecretCommand(snapshot, verified, "SettingsSecretActivationConsentRecorded", {
+    intentId: intent.id, secretReferenceId: reference.id, probeJobId: job.id, state: intent.state,
+    probeInitiator: probeProvenance(job), consentActor: humanSecurityActor(verified) });
+  return intent;
+}
+
+export async function enqueueSettingsSecretProbe(input: { secretReferenceId: string; autoActivate?: boolean }, metadata: PdmCommandMetadata) {
+  const autoActivate = strictAutoActivate(input.autoActivate);
+  return executeSecretCommand(metadata, "pdm.settings_secret.probe.enqueue", { ...input, autoActivate }, async (snapshot, verified) => {
     const repository = new AsyncSettingsSecretRepository(snapshot);
     const reference = await repository.getReferenceById(input.secretReferenceId, true);
     if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 secret version。", 404);
+    requireReferenceCompany(reference, verified.profile.companyId);
     if (!["draft", "tested"].includes(reference.lifecycleStatus)) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_TESTABLE", "只有草稿或已測試版本可執行測試。", 409);
     if (reference.vaultProvider === "local_test_double") throw new SettingsSecretLifecycleError("SECRET_TEST_DOUBLE_NOT_ACTIVATABLE", "測試替身不能執行原生 probe。", 409);
-    const existing = await repository.getActiveTypedProbeJob(reference.id);
-    if (existing) {
-      throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_BUSY", "同一版本已有 probe；保留原始發起者及既有工作。", 409);
+    const now = await repository.databaseNow();
+    const pendingIntent = await repository.getLatestIntent(reference.id,true);
+    if (pendingIntent) {
+      const priorJob = await repository.getProbeJobById(pendingIntent.probeJobId,true);
+      if (priorJob && ["failed","blocked","expired"].includes(priorJob.status)) {
+        await activatePendingIntent(snapshot,repository,reference,priorJob,pendingIntent,now);
+      }
     }
-    const now = new Date().toISOString();
-    const job = await repository.enqueueProbeJob({ id: `secret-probe-${crypto.randomUUID()}`,
-      secretReferenceId: reference.id, kind: reference.kind, createdBy: verified.profile.pdmUserId, createdAt: now,
-      companyId: verified.profile.companyId, initiatorPrincipalId: verified.session.principalId,
-      initiatorProfileVersion: verified.session.profileVersion, purpose: "settings_secret_probe" });
-    await auditSecretCommand(snapshot, verified, "SettingsSecretProbeQueued",
-      { kind: reference.kind, version: reference.version, secretReferenceId: reference.id, probeJobId: job.id });
-    return job;
+    let job = await repository.getActiveTypedProbeJob(reference.id);
+    if (!job && autoActivate) {
+      const latest = await repository.getLatestProbeJob(reference.id);
+      if (latest?.status === "passed") job = latest;
+    }
+    if (job) {
+      probeProvenance(job);
+      if (job.companyId !== verified.profile.companyId) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_SCOPE_MISMATCH", "probe 公司不符。", 403);
+    } else {
+      job = await createTypedProbeJob(repository, reference, verified, now);
+      await auditSecretCommand(snapshot, verified, "SettingsSecretProbeQueued",
+        { kind: reference.kind, version: reference.version, secretReferenceId: reference.id, probeJobId: job.id });
+    }
+    if (autoActivate) {
+      const intent = await recordActivationConsent(snapshot, repository, reference, job, verified, now);
+      if (intent.state === "pending" && job.status === "passed") {
+        await activatePendingIntent(snapshot, repository, reference, job, intent, now);
+      }
+    }
+    return {...job,workflow:await workflowInSnapshot(repository,reference,job)};
   }, job => ({ aggregateId: job.secretReferenceId, payload: { probeJobId: job.id, secretReferenceId: job.secretReferenceId,
     purpose: job.purpose, initiatorPrincipalId: job.initiatorPrincipalId, companyId: job.companyId } }));
+}
+
+export const resumeSettingsSecretActivation = (input: { secretReferenceId: string }, metadata: PdmCommandMetadata) =>
+  enqueueSettingsSecretProbe({ ...input, autoActivate: true }, metadata);
+
+async function activateTestedReferenceInSnapshot(snapshot: AsyncDatabaseClient, repository: AsyncSettingsSecretRepository,
+  reference: SettingsSecretReference, probe: SettingsSecretProbeJob,
+  human: { principalId: string; pdmUserId: string; companyId: string }, now: string,
+  detail: Record<string, unknown>) {
+  requireReferenceCompany(reference, human.companyId);
+  probeProvenance(probe);
+  if (reference.lifecycleStatus !== "tested" || ["local_test_double","supabase_vault"].includes(reference.vaultProvider) ||
+    probe.status !== "passed" || probe.companyId !== human.companyId || probe.secretReferenceId !== reference.id) {
+    throw new SettingsSecretLifecycleError("SECRET_NATIVE_PROBE_REQUIRED", "需要同一版本的原生 probe。", 409);
+  }
+  const latestProbe = await repository.getLatestProbeJob(reference.id);
+  if (latestProbe?.id !== probe.id) throw new SettingsSecretLifecycleError("SECRET_NATIVE_PROBE_REQUIRED","需要最新同版本測試。",409);
+  const testRun = probe.completionTestRunId ? await repository.getTestRunById(probe.completionTestRunId) : await repository.getLatestTestRun(reference.id);
+  let proof;
+  try { proof = testRun && JSON.parse(testRun.metadataJson); } catch { proof = null; }
+  if (!testRun || testRun.resultStatus !== "passed" || testRun.secretReferenceId !== reference.id ||
+    proof?.probeJobId !== probe.id || proof?.companyId !== human.companyId || proof?.securityActor?.kind !== "workload" ||
+    proof?.securityActor?.purpose !== "settings_secret_probe") {
+    throw new SettingsSecretLifecycleError("SECRET_NATIVE_PROBE_REQUIRED", "需要可信任的同版本測試 receipt。", 409);
+  }
+  await repository.retireActiveReferences(reference.kind, reference.id, human.pdmUserId, now);
+  await repository.activateReference(reference.id, human.pdmUserId, now);
+  await createLifecycleEvent(repository, { secretReferenceId: reference.id, kind: reference.kind as SettingsSecretKind,
+    eventType: "activated", actorId: human.pdmUserId, eventAt: now,
+    detail: { ...detail, version: reference.version, companyId: human.companyId } });
+  await createAuditLogAsync({ actorId: human.pdmUserId, companyId: human.companyId, scopeKind: "tenant",
+    action: "SettingsSecretActivated", detail: { ...detail, secretReferenceId: reference.id, version: reference.version } }, snapshot);
+  return testRun;
+}
+
+async function activatePendingIntent(snapshot: AsyncDatabaseClient, repository: AsyncSettingsSecretRepository,
+  reference: SettingsSecretReference, job: SettingsSecretProbeJob, intent: SettingsSecretActivationIntent, now: string) {
+  if (intent.state !== "pending" || intent.probeJobId !== job.id || intent.secretReferenceId !== reference.id ||
+    job.secretReferenceId !== reference.id || intent.kind !== reference.kind || job.kind !== reference.kind ||
+    intent.companyId !== job.companyId) return;
+  let safeCode: string | null = null;
+  let state: "blocked" | "superseded" = "blocked";
+  if (await repository.newestConsentedVersion(reference.kind) > reference.version) { safeCode = "newer_consent"; state = "superseded"; }
+  else if (["retired","revoked"].includes(reference.lifecycleStatus)) safeCode = "reference_inactive";
+  else if (["failed","blocked","expired"].includes(job.status)) safeCode = "native_probe_not_passed";
+  else if (job.status !== "passed") return;
+  if (!safeCode) {
+    try {
+      const human = await requireCurrentSettingsSecretActivationAuthority(snapshot, intent);
+      const testRun = await activateTestedReferenceInSnapshot(snapshot, repository, reference, job, human, now,
+        { intentId: intent.id, consentPrincipalId: intent.consentPrincipalId, consentProfileVersion: intent.profileVersion,
+          probeInitiator: probeProvenance(job), securityActor: { kind: "workload", id: job.lockedBy, purpose: "settings_secret_probe" } });
+      await repository.updateIntent(intent.id, "activated", null, now, testRun.id);
+      return;
+    } catch (error) {
+      if (error instanceof SettingsSecretActivationDenied) safeCode = error.code;
+      else if (error instanceof SettingsSecretLifecycleError && ["SECRET_NATIVE_PROBE_REQUIRED","SECRET_REFERENCE_SCOPE_MISMATCH","SECRET_REFERENCE_PROVENANCE_REQUIRED"].includes(error.code)) safeCode = "native_proof_invalid";
+      else throw error; // Dependency/unknown failure rolls back probe completion and activation together.
+    }
+  }
+  await repository.updateIntent(intent.id, state, safeCode, now);
+  await createAuditLogAsync({ actorId: intent.consentPdmUserId, companyId: intent.companyId, scopeKind: "tenant",
+    action: "SettingsSecretActivationBlocked", detail: { intentId: intent.id, secretReferenceId: reference.id, safeCode,
+      consentPrincipalId: intent.consentPrincipalId, probeInitiator: probeProvenance(job) } }, snapshot);
+}
+
+export async function reconcilePendingSettingsSecretActivation() {
+  return getAsyncDatabaseClient().transaction(async snapshot => {
+    const repository = new AsyncSettingsSecretRepository(snapshot);
+    await repository.lockKind("solidworks_document_manager");
+    const intent = await repository.getPendingIntentForReconciliation();
+    if (!intent) return;
+    const job = await repository.getProbeJobById(intent.probeJobId, true);
+    const reference = await repository.getReferenceById(intent.secretReferenceId, true);
+    if (!job || !reference) throw new Error("SETTINGS_SECRET_INTENT_BINDING_MISSING");
+    await activatePendingIntent(snapshot, repository, reference, job, intent, await repository.databaseNow());
+  }, { isolationLevel: "serializable", readOnly: false });
 }
 
 function probeProvenance(job: SettingsSecretProbeJob) {
@@ -686,59 +873,106 @@ function requireProbeWorker(actor: VerifiedWorkloadActor) {
   }
 }
 
-function requireProbeLease(job: SettingsSecretProbeJob, actor: VerifiedWorkloadActor) {
+function requireProbeLease(job: SettingsSecretProbeJob, actor: VerifiedWorkloadActor, leaseAttempt?: number) {
   probeProvenance(job);
+  if (leaseAttempt !== undefined && (!Number.isSafeInteger(leaseAttempt) || leaseAttempt < 1 || leaseAttempt !== job.attemptCount)) {
+    throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe attempt 已被接手。", 409);
+  }
   if (job.status !== "running" || job.lockedBy !== actor.id ||
       new Date(job.updatedAt).getTime() < Date.now() - 60_000 || !Number.isFinite(new Date(job.updatedAt).getTime())) {
     throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe lease 已過期、被接手或已完成。", 409);
   }
 }
 
-export async function completeSettingsSecretProbe(input: {
-  probeJobId: string; worker: VerifiedWorkloadActor; status: "passed" | "failed" | "blocked";
-  resultCode: string | null; readerVersion: string | null; summary?: string;
-}) {
-  requireProbeWorker(input.worker);
-  return getAsyncDatabaseClient().transaction(async snapshot => {
-    const repository = new AsyncSettingsSecretRepository(snapshot);
-    const job = await repository.getProbeJobById(input.probeJobId, true);
-    if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
-    requireProbeLease(job, input.worker);
-    const securityActor = { kind: "workload", id: input.worker.id, purpose: "settings_secret_probe" };
-    const initiator = probeProvenance(job);
-    const reference = await repository.getReferenceById(job.secretReferenceId, true);
-    if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 secret version。", 404);
-    if (!["draft", "tested"].includes(reference.lifecycleStatus)) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_TESTABLE", "此版本已非可測試狀態。", 409);
-    const completedAt = new Date().toISOString();
-    if (!await repository.completeProbeJob({ id: job.id, workerId: input.worker.id, status: input.status,
-      resultCode: input.resultCode, readerVersion: input.readerVersion, completedAt })) {
-      throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe job 狀態已變更。", 409);
-    }
-    const provenance = { probeJobId: job.id, companyId: job.companyId, initiator, securityActor,
-      readerVersion: input.readerVersion, provider: reference.vaultProvider, plaintextPersisted: false };
-    const testRun: SettingsSecretTestRun = { id: `setting-test-${crypto.randomUUID()}`, secretReferenceId: reference.id,
-      kind: reference.kind, provider: reference.provider, resultStatus: input.status,
-      summary: input.summary ?? "SolidWorks Document Manager 原生 credential probe 已完成。",
-      redactedError: input.resultCode, artifactPath: null, testedBy: job.createdBy, testedAt: completedAt,
-      metadataJson: JSON.stringify(provenance) };
-    await repository.insertTestRun(testRun);
-    if (input.status === "passed") await repository.markReferenceTested(reference.id, completedAt);
-    await createLifecycleEvent(repository, { secretReferenceId: reference.id, kind: reference.kind as SettingsSecretKind,
-      eventType: "tested", actorId: job.createdBy, eventAt: completedAt,
-      detail: { ...provenance, version: reference.version, resultStatus: input.status, resultCode: input.resultCode } });
-    await createAuditLogAsync({ actorId: job.createdBy, companyId: job.companyId, scopeKind: "tenant",
-      action: "SettingsSecretProbeCompleted", detail: { ...provenance, secretReferenceId: reference.id, resultStatus: input.status } }, snapshot);
-    return testRun;
-  }, { isolationLevel: "repeatable_read", readOnly: false });
+const safeProbeResultCodes = new Set(["native_metadata_credential_probe_failed","native_metadata_license_missing",
+  "native_metadata_credential_unavailable","native_metadata_not_configured"]);
+function normalizedProbeResult(input: { status: "passed" | "failed" | "blocked"; resultCode: string | null; readerVersion: string | null; summary?: string }) {
+  if (!["passed","failed","blocked"].includes(input.status) ||
+    (input.readerVersion !== null && input.readerVersion.match(/^[A-Za-z0-9._:-]{1,120}$/u)?.[0] !== input.readerVersion)) {
+    throw new SettingsSecretLifecycleError("INVALID_PROBE_RESULT", "probe 結果格式不符。", 400);
+  }
+  const summary=input.status === "passed" ? "SolidWorks Document Manager application probe 通過。" : "SolidWorks Document Manager application probe 未通過。";
+  if (input.summary !== undefined && ![summary,"SolidWorks Document Manager 原生 credential probe 已完成。"].includes(input.summary)) {
+    throw new SettingsSecretLifecycleError("INVALID_PROBE_RESULT","probe 摘要格式不符。",400);
+  }
+  return { status: input.status, resultCode: input.status === "passed" ? null :
+    safeProbeResultCodes.has(input.resultCode ?? "") ? input.resultCode : "native_metadata_credential_probe_failed",
+    readerVersion:input.readerVersion,summary:input.summary ?? summary };
 }
 
-export async function resolveSettingsSecretProbeCredential(probeJobId: string, worker: VerifiedWorkloadActor) {
+export async function completeSettingsSecretProbe(input: {
+  probeJobId: string; worker: VerifiedWorkloadActor; status: "passed" | "failed" | "blocked";
+  resultCode: string | null; readerVersion: string | null; summary?: string; leaseAttempt?: number;
+}) {
+  requireProbeWorker(input.worker);
+  const result = normalizedProbeResult(input);
+  return getAsyncDatabaseClient().transaction(async snapshot => {
+    const repository = new AsyncSettingsSecretRepository(snapshot);
+    await repository.lockKind("solidworks_document_manager");
+    const job = await repository.getProbeJobById(input.probeJobId, true);
+    if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
+    const digest = crypto.createHash("sha256").update(JSON.stringify({ workerId: input.worker.id,
+      referenceId: job.secretReferenceId, attempt: input.leaseAttempt ?? null, ...result })).digest("hex");
+    if (["passed","failed","blocked"].includes(job.status)) {
+      if (job.lockedBy === input.worker.id && job.completionDigest === digest && job.completionTestRunId &&
+        (input.leaseAttempt === undefined || input.leaseAttempt === job.attemptCount)) {
+        const saved = await repository.getTestRunById(job.completionTestRunId);
+        if (saved) {
+          const reference = await repository.getReferenceById(job.secretReferenceId);
+          if (!reference) throw new Error("SETTINGS_SECRET_RECEIPT_REFERENCE_MISSING");
+          return {...saved,workflow:await workflowInSnapshot(repository,reference,job)};
+        }
+      }
+      throw new SettingsSecretLifecycleError("SECRET_PROBE_RESULT_CONFLICT", "已完成結果與本次回報不符。", 409);
+    }
+    requireProbeLease(job, input.worker, input.leaseAttempt);
+    const intent = await repository.getLatestIntent(job.secretReferenceId, true);
+    if (input.leaseAttempt === undefined && await repository.getLatestIntent(job.secretReferenceId)) throw new SettingsSecretLifecycleError("PROBE_PROTOCOL_UPGRADE_REQUIRED", "此工作需要支援 fencing 的 worker。", 409);
+    const reference = await repository.getReferenceById(job.secretReferenceId, true);
+    if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 secret version。", 404);
+    if (!intent && !["draft","tested"].includes(reference.lifecycleStatus)) {
+      throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_TESTABLE","此版本已非可測試狀態。",409);
+    }
+    const completedAt = await repository.databaseNow();
+    if (!await repository.completeProbeJob({ id: job.id, workerId: input.worker.id, status: result.status,
+      resultCode: result.resultCode, readerVersion: result.readerVersion, completedAt, leaseAttempt: input.leaseAttempt })) {
+      throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_LOCKED", "probe job 狀態已變更。", 409);
+    }
+    const provenance = { probeJobId: job.id, companyId: job.companyId, initiator: probeProvenance(job),
+      securityActor: { kind: "workload", id: input.worker.id, purpose: "settings_secret_probe" },
+      leaseAttempt: job.attemptCount, readerVersion: result.readerVersion, provider: reference.vaultProvider,
+      referenceVersion: reference.version, referenceFingerprint: reference.fingerprint, plaintextPersisted: false };
+    const testRun: SettingsSecretTestRun = { id: `setting-test-${crypto.randomUUID()}`, secretReferenceId: reference.id,
+      kind: reference.kind, provider: reference.provider, resultStatus: result.status, summary: result.summary,
+      redactedError: result.resultCode, artifactPath: null, testedBy: job.createdBy, testedAt: completedAt,
+      metadataJson: JSON.stringify(provenance) };
+    await repository.insertTestRun(testRun);
+    await repository.saveCompletionReceipt(job.id, digest, testRun.id);
+    const completedJob = { ...job, status: result.status, completionTestRunId: testRun.id };
+    if (result.status === "passed" && ["draft","tested"].includes(reference.lifecycleStatus)) {
+      await repository.markReferenceTested(reference.id, completedAt);
+      reference.lifecycleStatus = "tested";
+    }
+    await createLifecycleEvent(repository, { secretReferenceId: reference.id, kind: reference.kind as SettingsSecretKind,
+      eventType: "tested", actorId: job.createdBy, eventAt: completedAt,
+      detail: { ...provenance, resultStatus: result.status, resultCode: result.resultCode } });
+    await createAuditLogAsync({ actorId: job.createdBy, companyId: job.companyId, scopeKind: "tenant",
+      action: "SettingsSecretProbeCompleted", detail: { ...provenance, secretReferenceId: reference.id, resultStatus: result.status } }, snapshot);
+    if (intent) await activatePendingIntent(snapshot, repository, reference, completedJob, intent, completedAt);
+    return {...testRun,workflow:await workflowInSnapshot(repository,reference,completedJob)};
+  }, { isolationLevel: "serializable", readOnly: false });
+}
+
+export async function resolveSettingsSecretProbeCredential(probeJobId: string, worker: VerifiedWorkloadActor, leaseAttempt?: number) {
   requireProbeWorker(worker);
   const client = getAsyncDatabaseClient();
   const repository = new AsyncSettingsSecretRepository(client);
   const job = await repository.getProbeJobById(probeJobId);
   if (!job) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
-  requireProbeLease(job, worker);
+  requireProbeLease(job, worker, leaseAttempt);
+  if (leaseAttempt === undefined && await repository.getLatestIntent(job.secretReferenceId)) {
+    throw new SettingsSecretLifecycleError("PROBE_PROTOCOL_UPGRADE_REQUIRED", "此工作需要新版 worker。", 409);
+  }
   const reference = await repository.getReferenceById(job.secretReferenceId);
   if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 secret version。", 404);
   if (!["draft", "tested"].includes(reference.lifecycleStatus) ||
@@ -751,12 +985,17 @@ export async function resolveSettingsSecretProbeCredential(probeJobId: string, w
   // changed while the provider answered; never return bytes to a former holder.
   const currentJob = await repository.getProbeJobById(probeJobId);
   if (!currentJob) throw new SettingsSecretLifecycleError("SECRET_PROBE_JOB_NOT_FOUND", "找不到 probe job。", 404);
-  requireProbeLease(currentJob, worker);
+  requireProbeLease(currentJob, worker, leaseAttempt);
+  if (leaseAttempt === undefined && await repository.getLatestIntent(job.secretReferenceId)) {
+    throw new SettingsSecretLifecycleError("PROBE_PROTOCOL_UPGRADE_REQUIRED", "此工作需要新版 worker。", 409);
+  }
   const currentReference = await repository.getReferenceById(job.secretReferenceId);
-  if (!currentReference || !["draft", "tested"].includes(currentReference.lifecycleStatus)) {
+  if (!currentReference || currentReference.vaultSecretId !== reference.vaultSecretId || currentReference.fingerprint !== reference.fingerprint ||
+      currentReference.version !== reference.version || !["draft", "tested"].includes(currentReference.lifecycleStatus)) {
     throw new SettingsSecretLifecycleError("SECRET_PROVIDER_NOT_READABLE", "此版本已不可執行 probe。", 409);
   }
-  return { value: resolved.value, version: reference.version, fingerprint: reference.fingerprint, source: resolved.source };
+  return {value:resolved.value,version:reference.version,fingerprint:reference.fingerprint,source:resolved.source,
+    secretReferenceId:reference.id,probeJobId,leaseAttempt:currentJob.attemptCount};
 }
 
 export async function activateSettingsSecretReference(input: { secretReferenceId: string }, metadata: PdmCommandMetadata): Promise<SettingsSecretReference> {
@@ -764,18 +1003,19 @@ export async function activateSettingsSecretReference(input: { secretReferenceId
     const repository = new AsyncSettingsSecretRepository(snapshot);
     const reference = await repository.getReferenceById(input.secretReferenceId, true);
     if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 secret version。", 404);
-    if (reference.lifecycleStatus !== "tested") throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_TESTED", "只有測試通過版本可以啟用。", 409);
-    if (reference.vaultProvider === "local_test_double") throw new SettingsSecretLifecycleError("SECRET_TEST_DOUBLE_NOT_ACTIVATABLE", "測試替身不能啟用。", 409);
+    requireReferenceCompany(reference, verified.profile.companyId);
     const probe = await repository.getLatestProbeJob(reference.id);
-    if (!probe || probe.status !== "passed") throw new SettingsSecretLifecycleError("SECRET_NATIVE_PROBE_REQUIRED", "需要同一版本的原生 probe。", 409);
-    probeProvenance(probe);
-    const now = new Date().toISOString();
-    await repository.retireActiveReferences(reference.kind, reference.id, verified.profile.pdmUserId, now);
-    await repository.activateReference(reference.id, verified.profile.pdmUserId, now);
-    await createLifecycleEvent(repository, { secretReferenceId: reference.id, kind: reference.kind as SettingsSecretKind,
-      eventType: "activated", actorId: verified.profile.pdmUserId, eventAt: now,
-      detail: { version: reference.version, retiredPriorActive: true, companyId: verified.profile.companyId, securityActor: humanSecurityActor(verified) } });
-    await auditSecretCommand(snapshot, verified, "SettingsSecretActivated", { secretReferenceId: reference.id, kind: reference.kind, version: reference.version });
+    if (!probe) throw new SettingsSecretLifecycleError("SECRET_NATIVE_PROBE_REQUIRED", "需要同一版本的原生 probe。", 409);
+    const now = await repository.databaseNow();
+    await activateTestedReferenceInSnapshot(snapshot, repository, reference, probe,
+      { principalId: verified.session.principalId, pdmUserId: verified.profile.pdmUserId, companyId: verified.profile.companyId }, now,
+      { securityActor: humanSecurityActor(verified) });
+    await repository.supersedePending(reference.kind, reference.id, now);
+    const pending = await repository.getLatestIntent(reference.id, true);
+    if (pending) {
+      const proof = await repository.getLatestTestRun(reference.id);
+      await repository.updateIntent(pending.id, "activated", null, now, proof?.id ?? null);
+    }
     return { ...reference, lifecycleStatus: "active", activatedBy: verified.profile.pdmUserId, activatedAt: now };
   }, reference => ({ aggregateId: reference.id, payload: { secretReferenceId: reference.id, kind: reference.kind, version: reference.version } }));
 }
@@ -786,9 +1026,12 @@ export async function revokeSettingsSecretReference(input: { secretReferenceId: 
     const repository = new AsyncSettingsSecretRepository(snapshot);
     const reference = await repository.getReferenceById(input.secretReferenceId, true);
     if (!reference) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_NOT_FOUND", "找不到 secret version。", 404);
+    requireReferenceCompany(reference, verified.profile.companyId);
     if (["revoked", "retired"].includes(reference.lifecycleStatus)) throw new SettingsSecretLifecycleError("SECRET_REFERENCE_ALREADY_INACTIVE", "此版本已非有效狀態。", 409);
     const now = new Date().toISOString();
     await repository.revokeReference(reference.id, verified.profile.pdmUserId, now, reason);
+    const pending = await repository.getLatestIntent(reference.id, true);
+    if (pending) await repository.updateIntent(pending.id, "blocked", "reference_inactive", now);
     await createLifecycleEvent(repository, { secretReferenceId: reference.id, kind: reference.kind as SettingsSecretKind,
       eventType: "revoked", actorId: verified.profile.pdmUserId, eventAt: now,
       detail: { version: reference.version, reason, companyId: verified.profile.companyId, securityActor: humanSecurityActor(verified) } });
