@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "dev121.workflow-entry-regression.v1",
+  "phase": "green",
+  "project": "AI-PDM",
+  "purpose": "Exact Principal read-only workflow page admission",
+  "pid": 39916,
+  "startToken": "134356903581016261",
+  "executable": "C:\\Users\\user\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe",
+  "ports": [],
+  "temp": "C:\\Users\\user\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\ai-dev-resource-governor\\temp\\development\\77d32985-4e25-4c4a-9e19-855409bca4fe\\dev121-role-page-green-3ff8a59a3ed84014864478c194525857",
+  "PDM_DATA_DIR": "C:\\Users\\user\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\ai-dev-resource-governor\\temp\\development\\77d32985-4e25-4c4a-9e19-855409bca4fe\\dev121-role-page-green-3ff8a59a3ed84014864478c194525857\\data",
+  "PDM_REPOSITORY_DIR": "C:\\Users\\user\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\ai-dev-resource-governor\\temp\\development\\77d32985-4e25-4c4a-9e19-855409bca4fe\\dev121-role-page-green-3ff8a59a3ed84014864478c194525857\\repo",
+  "cleanup": "Remove only own marked temp; release shell runtime after verified exit",
+  "testExitCode": 0,
+  "tempCleanupVerified": true
+}

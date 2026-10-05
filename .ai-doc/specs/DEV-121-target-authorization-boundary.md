@@ -53,6 +53,12 @@ OrgMaster grant v4 使用 stableRoleId＋roleCode＋active catalog 的 subject/s
 3. 正式 candidate／L4：正常 Jed Platform→AI-PDM SSO後圖號 workbench查詢 200及 settings v4 published role workspace 200 current；既有 disposable 測試 Principal 的低角色deny、跨公司／資源deny、撤權／過期與local/global logout及復原；same Principal命令／receipt／audit關聯與禁止自審回歸依既有可用caller驗證。以使用者原失敗畫面的刷新／對應 hard-reload UI證據確認錯誤已消失；API成功不替代原畫面。OrgMaster native active v6讀回／v4 grants、AI-PDM100%newrevision、0tags、owner finalized及Principal-only recovery/cleanup均可追溯，未驗不能PASS。
 
 本批只改共同根因及上述依賴，互相依賴的產品／測試／必要文件集中一批 PR（各 owner 各一批），保留 protected branch及必需CI。既有結案與DEV-122結果保留原ID／層級／取代關係；本批正式結果另記，不以文件定案、localPASS或角色code顯示判定完成。
+### 正式角色能力頁的 admission 修正（2026-10-06，現行續點）
+
+AI-PDM R3 的 Principal API／v6 已正式正常，但正常 `/settings/workflow` 先被 production slice 導向「未開放」，設定中心自身 limited navigation 又隱藏 workflow。此 caller 可用性缺口屬 ADMIN02／ADMIN04，不能以 direct API200代替原畫面；也不是 OrgMaster grant 缺失。只允許 active official-numbering-draft 的 exact只讀 workflow頁，讓 server-state limited設定同時顯示這一頁；未知slice、integration/system及workflow其他子路徑維持原限制。只讀 RoleCapabilitySettings 仍經 action:settings.admin_matrix 的 verified Principal/company PostgreSQL API，沒有編輯或舊ACL入口；不開放retired mutation。共用 limited-area policy 收斂三處UI判斷，不修改角色／scope／Employee／schema／Secret。
+
+先證明 middleware/clientStatus 的 exact path 與實際 limited SettingsScreen 掛載回歸；已有 API／PG／catalog及Org22e81證據保留。與必要文件同一PR，合併protected main後普通AI owner修正發布；Production畫面、snapshot及清理未通過前，ADMIN04／05仍未完成。
+
 ## 責任與唯一授權接口
 
 `principal_id` 是唯一安全主體。Platform負責verified provider登入、SSO、session／撤銷；OrgMaster發布Principal、Employee狀態、角色、scope與委派。AI-PDM統一解析verified actor、讀grant，判斷自己的capability、company／resource、owner／reviewer及業務狀態。OrgMaster不需要逐一對接AI-PDM API或worker用途。

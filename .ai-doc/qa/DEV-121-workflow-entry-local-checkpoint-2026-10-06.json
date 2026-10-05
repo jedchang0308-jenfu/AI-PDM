@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "aipdm.dev121.workflow-entry-checkpoint.v1",
+  "observedAt": "2026-10-05T16:23:23.762Z",
+  "sourceBase": "90b0d1dc0ba6f832d984938d2acbffb989c70e52",
+  "branch": "codex/dev121-admin-capabilities-v6",
+  "status": "LOCAL_REGRESSION_AND_SOURCE_QC_PASS_PRODUCTION_UI_PENDING",
+  "rootCause": "Existing known Production slice and limited Settings UI excluded the existing read-only workflow capability page; the verified role-capability API itself returned 200.",
+  "sourceFiles": [
+    {
+      "path": "src/lib/production-slice.ts",
+      "rawSha256": "5f1e813dffdd51bdc3030e120ce4a32efb6529ebf35d60356610684fce9668cd"
+    },
+    {
+      "path": "src/components/settings-screen.tsx",
+      "rawSha256": "c06b8e50e468454f9e0119ef1b6328e4b8e3f859fec940d5351a99b92986c821"
+    },
+    {
+      "path": "src/lib/production-slice.settings.test.ts",
+      "rawSha256": "acc24c3a9d199cbbb40e439cca341ee49c699cfb7c93697c349132254b989fe9"
+    },
+    {
+      "path": "src/components/settings-screen.production-slice.test.tsx",
+      "rawSha256": "00af1d8b89232b039354134def7f425309cd1b16f8952646d582850a57245550"
+    },
+    {
+      "path": ".ai-doc/specs/DEV-121-target-authorization-boundary.md",
+      "rawSha256": "8a91ab8770d89128aee1478a9cf4ac0d1cb35045714b74c484e06c1082e7207b"
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".ai-doc/qa/evidence/DEV121-WORKFLOW-ENTRY-20261006/red-result.json",
+      "sha256": "e968d48eba1b31747bd322da57bde654044ad3d8454b3b309b1ab9974f696d4f"
+    },
+    {
+      "path": ".ai-doc/qa/evidence/DEV121-WORKFLOW-ENTRY-20261006/red-vitest.json",
+      "sha256": "d4e74721cb3514f0f3980e25ea0edec889b1b2e613622682a1a579b2ef2123a9"
+    },
+    {
+      "path": ".ai-doc/qa/evidence/DEV121-WORKFLOW-ENTRY-20261006/green-result.json",
+      "sha256": "9db0f5ba62f3665a2367780b587517542b0f90f1f6d2320c8171ae09f0b7c857"
+    },
+    {
+      "path": ".ai-doc/qa/evidence/DEV121-WORKFLOW-ENTRY-20261006/green-vitest.json",
+      "sha256": "84d357416af25e7eabe8391ab1b9254d0c9e9d3ad1e257338428873b018262fd"
+    },
+    {
+      "path": ".ai-doc/qa/evidence/DEV121-WORKFLOW-ENTRY-20261006/typecheck-result.json",
+      "sha256": "a48d484bedb07df6833cebb70b0637e3fa82150854e312ee5078c55fd4e81a2b"
+    }
+  ],
+  "sourceQc": {
+    "agent": "/root/dev121_qc_batch_v6",
+    "result": "PASS",
+    "p1": 0,
+    "p2": 0,
+    "scope": "Exact read-only known slice page and limited-area caller; unknown slice/subpaths/retired mutations remain denied."
+  },
+  "runtimeCleanup": {
+    "red": true,
+    "green": true,
+    "typecheck": true,
+    "runtimeRegistrationsReleased": true
+  },
+  "productionHistory": {
+    "release": "DEV121-ADMIN-V6-20261005-R3",
+    "source": "90b0d1dc0ba6f832d984938d2acbffb989c70e52",
+    "apiPass": true,
+    "workflowUi": "FAIL_UI_WAIT_TIMEOUT",
+    "freshEvidence": "JENFU/DEV-015 output/playwright/dev121-admin-v6-2026-10-05T16-05-20-899Z-evidence.json"
+  },
+  "notRun": [
+    "new protected merge required CI",
+    "new owner release",
+    "fresh rendered Production workflow UI"
+  ],
+  "businessAcceptance": "DEV-122 unchanged; no inferred PASS or retirement"
+}
