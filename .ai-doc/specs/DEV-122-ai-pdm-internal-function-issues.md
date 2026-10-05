@@ -1,6 +1,6 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：PRODUCTION_SETTINGS_SOURCE_PREPARATION／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
+文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：B_LOCAL_QC_PASS_REQUIRED_CI_PENDING_THREE_RESOURCES_PENDING_APPROVAL／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
 
 ## 現行發布修正與人工驗證契約（2026-10-05；優先於下方歷史本地邊界）
 
@@ -47,6 +47,16 @@ RD 可先 syntax/targeted static checks，完整 QC 在 freeze 後派出；每�
 - 唯一產品寫入者 RD；allowlist：src/lib/google-secret-manager.ts、新 src/lib/google-secret-manager.test.ts、config/release/dev117-ai-pdm-independent-production-v3.json、scripts/lib/dev117-ai-pdm-continuous-release.mjs、scripts/dev117-ai-pdm-continuous-release.test.mjs、scripts/qc-pdm-gcp-secret-manager-runtime.mjs、scripts/qc-pdm-gcp-secret-manager.mjs、.env.example、scripts/start-localhost-3000.ps1。後兩檔只同步 expected number 的設定／就緒判斷；static QC 保留原 IDs 與驗收語意。原 runtime 9 案例保留，新增 B 正反例，不增加 DEV-122 的 29 組分母。越界先回 Root，不改 settings UI／Principal guard／角色 catalog／schema／migration／infra／跨專案內容。
 - QA/QC：真 provider 不可呼叫、真 key 不接收；mock transport 必須同時證明 named request URL、numeric canonical add reference、numeric input named access URL，以及 access response exact-name 核對。release positive 固定兩值，missing／foreign／named-as-number／invalid number／numeric-as-request ID profile 與 readback drift 均拒絕。對 getConfig／constructor 與 write/read gates、stable redacted provider faults 保留回歸。unit／mock 不冒充真 GCP、UI、native、正式 PASS。
 - Root freeze 後執行 affected provider unit/mock/static 與六項專案 release 檢查（continuous QC 已實際覆蓋 abort／DB boundary／typecheck／isolated build 时不得重複 build）。每個 runtime 預宣告 own project／PID tree／ports／PDM_DATA_DIR／PDM_REPOSITORY_DIR、來源与 finally 清理；build 做 fresh capacity preflight，不清 primary。獨立 QC 維持 gpt-6-luna；既有 UI／native8 證據按未受影響 source／layer applicability 保留，F-01F 由使用者正式驗證／NOT_RUN。
+
+### B實作與受影響層驗證收斂（2026-10-05）
+
+B方案已完成：PDM_GCP_PROJECT_ID=jenfu-platform-prod保留，另設PDM_GCP_EXPECTED_PROJECT_NUMBER=9536592944；named請求／numeric canonical回傳分開嚴格核對。clean受測HEAD165a53f0bbcfbb9e54049c191505147936fcfaee已整合官方main46438028。unit83/83（Google57＋Principal26）、static36/36、mock27/27、release134/134及六項必要release檢查（QC97、abort6、boundary、typecheck、isolatedbuild）PASS；獨立gpt-6-luna QC為B_LOCAL_QC_PASS_REQUIRED_CI_PENDING_THREE_RESOURCES_PENDING_APPROVAL。新B required CI待同一草稿PR207刷新，舊b89 CI僅歷史。A未套用、不再待配置核准；僅三項新增正式Secret／IAM待明確資源授權，未merge／apply／deploy。真key/probe/activation及CAD properties由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups不變、整體未驗收。
+
+[source freeze](../../output/qa/dev-122/DEV-122-gsm-b-source-freeze-2026-10-05.json)保留當時NOT_RUN_AT_FREEZE；[最後LunaQC](../../output/qa/dev-122/DEV-122-gsm-b-final-luna-qc-2026-10-05.json)由Root保存獨立Agent回覆，SHA256 628f6f88dda39ba883fb7adc145fa84d446f34fa39bea5bed8cf02891be31fc8。focused綁8項產品檔（.env.example不在該unit binding），完整freeze及release/checks另核九項hash；不補造unit binding。
+
+父／子程序、own temp/build runtime及lease已清理，primary兩SQLite前後ABSENT只證absence不變。fresh2GiB lease允許並釋放；outer maxObserved bytes不能代表inner build完整峰值。六項local檢查對165來源有效；後續三份PM metadata不改產品/config/deps，freshHostedCI綁最終候選。舊UI/native8僅依未變source/layer沿用，101skip非PASS；mock不作真GCP/CAD證據。
+
+[本輪唯一待核准三資源](../../output/qa/dev-122/DEV-122-gsm-b-production-resource-approval-plan-2026-10-05.md)為exact ownSecret、add/access customrole、該Secret-only runtime binding。既有owner正式發布授權延續，不重問。下方B前FAIL、A提案與當時pending狀態保留歷史，不作新gate或PASS。
 
 ### 歷史 A 提案／UI bounded 診斷（2026-10-05；A 已由 B 取代，未套用）
 
