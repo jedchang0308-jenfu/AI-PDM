@@ -315,7 +315,7 @@ try {
     async () => probe('decision', contractUrl))
 
   const catalog = JSON.parse(fs.readFileSync(path.join(root,
-    'config/access-control/jenfu-role-catalog.v5.json'), 'utf8'))
+    'config/access-control/jenfu-role-catalog.v6.json'), 'utf8'))
   const catalogRows = catalog.roles.map((role, displayOrder) => ({
     stableRoleId: role.stableRoleId, roleCode: role.roleCode,
     roleDefinitionHash: role.roleDefinitionHash, displayOrder

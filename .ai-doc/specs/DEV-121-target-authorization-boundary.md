@@ -6,7 +6,7 @@
 
 ## 唯一施工入口
 
-本輪 Principal-only 身分／授權正式出口已完成，實際來源、owner release／traffic、驗證層級及回復／清理見 [owner結案證據](../qa/DEV-121-principal-authorization-production-closure-2026-10-05.json)。原 P01–P09／F01–F10 及歷史未驗判定保留；一般業務不能由本輪授權 PASS 推定完成。
+此前 Principal-only 身分／授權正式出口的已完成範圍，實際來源、owner release／traffic、驗證層級及回復／清理見 [owner結案證據](../qa/DEV-121-principal-authorization-production-closure-2026-10-05.json)。2026-10-05 人類已啟動下方 [最高管理能力及 typed caller 修正](#system-admin-capability-batch)；這是既有 DEV-121／P01、P06、P09 的新修正批次，本機候選實作已完成，正在進行原生整鏈及獨立 QC；尚未發布，不能用此前結案替代本批驗收。原 P01–P09／F01–F10 及歷史未驗判定保留；一般業務不能由授權 PASS 推定完成。
 
 文件角色：CURRENT_CONTRACT。本地 `AIPDM/DEV-121#target-authorization`／`#principal-consumer-impact`，來源 `JENFU/DEV-015`，producer `ORGMASTER/DEV-057#identity-grants`；沿原任務。架構已定案，程式／整合／正式完成度另依本輪身分／授權證據。
 
@@ -14,11 +14,50 @@
 
 [HISTORY_ONLY原文快照](DEV-121-target-authorization-boundary-history-2026-10-03.md)保留Rxx施工、舊bridge／cohort／双軌、AAL2強制與local ACL歷史，不能繼續按它實作。當前續點只維護於 [DEV-121任務](../dev_task.md#dev-121-current-contract)，跨owner流程階段及根因只在 [JENFU既有盤點](../../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)；不把規格頂部快照當新發布狀態。
 
+<a id="system-admin-capability-batch"></a>
+
+## 最高管理能力及 typed caller 修正（2026-10-05／RD Implementation Ready）
+
+本批使用者已明確決定「Jed 為最高權限，權限全開」。安全主體、角色／scope owner 與 Principal-only 不變；只修復已核實最高管理角色的應用能力完整性、caller 的 permission kind、及角色能力讀取在正式 PostgreSQL 的失效機制。AI-PDM DEV-122 的一般業務修正與既有 dirty source 保留，不移入這一批；不新增主任務、第二個授權來源、通用能力編輯器或中央業務服務。
+
+**已確認因果與尚待讀回。** 正常 Principal SSO 後，Jed 的 `action:settings.admin_matrix` 為 true，但 `page:settings.admin_matrix` 為 false；圖號 workbench 因 `page:numbering.drawings.view` 拒絕。v5 角色目錄聯集 66 個 kind/code，system_admin 允許 60 個；缺 `action:handoff.published.view`、`action:numbering.workspace.view` 及 `page:numbering.drawings.view`／`numbering.request`／`numbering.search`／`numbering.tasks`。這六項是已確認缺口，不直接等同完整正常入口分母。角色能力 GET 的 400 已讀回為 `UNSUPPORTED_DB_PROVIDER`：display snapshot 的 get/save 用 SQLite-only `getDb()`；service 的 catch 又呼叫同一 get，使 fallback 例外逸出。真實 PostgreSQL 新增驗證另確認 INSERT 仍用 SQLite 的問號 bind；本批改為兩種 provider 都支援的命名參數，不修改共用 SQL adapter。另有 v2 snapshot validator 要求 `mutationAllowed=true`，但 Principal-only current source 實際為 false，會拒絕合法只讀 cache。正式 readback 見 root 受控輸出 `Jenfu-Platform/output/dev-012/inputs/dev121-admin-capability-readback-cause-20261005.json`；這些是目前症狀與根因，不是修正 PASS。獨立 QC 另確認 HTTP source reader 沒有 OrgMaster session，會被 producer auth middleware 拒絕；因此正常讀取改用下述現有已發布 PostgreSQL 契約，不透過補 cookie 或假冒治理來源解決。
+
+### 固定能力與 Principal 指派
+
+- AI-PDM 的能力身份一律是 `(permissionKind, permissionCode)`。以現行 route/method map、實際 Principal evaluator／owner command、正常 page/nav caller 與共用依賴建立受控 active capability 清單；逐項有 caller／kind／用途證據。保留但沒有正常 caller 的歷史常數、已退休／明確不支援 route 不因同名就自動增權；未知用途須查明，不能猜映射或宣告退役。分母檢查同時比較實際入口與目錄，不能只證明 catalog 聯集。
+- 建立新的 immutable `config/access-control/jenfu-role-catalog.v6.json`，version `ai-pdm.role-catalog.2026-10-05.v6`。system_admin 對上述每個有效 kind/code 都明確 `allowed=true`；其餘八角色的能力、stableRoleId、code、subject、risk、scope、委派與推薦規則不變。保持九角色與既有 canonical role/catalog hashing，重新產生本批確切 hash；v5 檔案、hash、已套用 SQL 保留。不在 runtime 使用 wildcard、未知 code 自動 allow、email／UID／Jed 特判或 role bypass。
+- 發布前唯讀核對 `orgmaster_contract.v_ai_pdm_principal_effective_grants_v4` 與 typed active account：Jed exact Principal `principal-firebase-b71682bf0d7cc5596b48dfad991e4096`／Employee `employee-shijie` 已有效 `role-system-admin`／`system_admin`、subject principal、targetPrincipalId 同 actor、direct、global/null、無 delegation，版本／有效期一致。settings action allow 只能證明該能力，不能替代此 formal grant readback。未核實或缺指派不得改 email 綁定或自動啟用，也不移除禁止自我指派規則。
+- 全能力不取消 same-snapshot Principal／Employee／profile active、company/resource、owner/reviewer、role priority／deny、委派、撤權、session、CAS、禁止自審／自我指派及稽核條件。system_admin 不傳播至同 Employee 的另一 Principal。未知／新增能力須日後顯式納入新版本，不從已授權全開推導永久自動擴權。
+
+### Typed caller 與已發布 PostgreSQL 顯示契約
+
+- 重用 `numbering-permission-codes.ts`，將 nav requirement 改為 typed kind/code，讀 `/api/numbering/permissions` 對應的 pages/actions；settings nav 使用既有 `action:settings.admin_matrix`，drawing workbench 保持 `page:numbering.drawings.view`。現行 `/approvals` 的 PrincipalApprovalInbox 與 inbox badge 使用 `action:approval.inbox.view`，舊 approvals URL 仍按既有轉址契約，不為 false `page:numbering.approvals` 新造平行能力。保留實際 API 的同 kind/code guard，不把 page/action 全域互換。permission response 及清單須涵蓋正常 nav 所需 action；歷史常數的移除／保留按 caller 證據記錄。
+- 正常 GET `/api/settings/access/role-capabilities` 使用只讀 `ai-pdm.role-capability-workspace.v4`。以既有 `withPrincipalCompanyRead` 驗證同一 Principal／session／company／`action:settings.admin_matrix`，在同一 PostgreSQL transaction snapshot 讀取 `ai_pdm_contract.v_application_role_catalog_v1` 及 `orgmaster_contract.v_ai_pdm_principal_effective_grants_v4`。不呼叫缺少 OrgMaster session 的 HTTP role workspace、不轉送 cookie、不偽造 draft／governance revision，也不再依賴顯示快取作正常讀取。native published catalog 的版本、hash、九角色仍精確核對；錯誤回 redacted correlated 503。
+- v4 顯示九角色的已發布能力，持有人統計僅為目前公司內、active AI-PDM profile 且有有效 global／該 workspace grant 的 distinct Principal 數。workspace key 重用既有 resolveJenfuWorkspaceScopeKey，company-jenfu 的 current／company-jenfu 為同一 scope；SQL 一併篩選且 COUNT DISTINCT，不能重算另一套 scope 或雙算。只以 principal_id／employee_id 的精確領域關聯限定公司，不回傳個人識別或混入 project-only holders；project 指派仍到 OrgMaster 查看。view 明列 `holderScope=current_company_workspace`、transaction sourceDataAt、`mutationAllowed=false`；既有 role selector／刷新／錯誤重試仍可操作。API 不修改指派、能力或 database，未知角色 404。
+- 原 v2/v3 HTTP workspace／056 display snapshot 只保留歷史用途、資料及回歸證據；本批已完成的 async／named bind／timestamp／只讀 cache 修正不撤回，但不能作 v4 正常入口驗收。正常頁面只顯示已發布能力與上述 scoped holder counts；職位建議／草稿採用及特權指派編輯一律由 OrgMaster 管理。AI-PDM source 管能力，不新增 code-level permission 編輯器或另一個授權來源。
+
+### 版本升級、受控停用與回復
+
+OrgMaster 目前精確 pin v5 artifact/version/hash；其 reader 若未先更新，v6 publication 會使治理讀取 `EXTERNAL_CATALOG_STALE`。先在 ORGMASTER/DEV-057 既有子任務加入兩份已核准 immutable v5/v6 artifact 的精確 reader 支援：只接受當前 active producer rows 對應的一份完全相同 artifact，核對所有角色／hash／值，未知 version、混合 rows、tamper 仍拒絕；不合併兩版 grant，也不以舊版作 request fallback。source 跟 active catalog 選擇一致，database 讀回是目前能力版本的事實。這項責任涵蓋 `server/aiPdmRoleCatalogRepository.ts`、`src/governance/aiPdmCatalog.ts` 與 `server/aiPdmRoleCapabilityStore.ts` 的正常 server caller：不能只放寬 registry reader 而仍回傳 bundled v5 workspace。用本次 active artifact 的純 metadata 轉換傳給既有治理／role workspace 流程，不增加 process-global mutable catalog；frontend 顯示服從當前 server readback。原 v3 及本批 v5 的歷史 assignment role snapshot，只能與當前 stableRoleId／roleCode／subject／scope 等未變角色語義核對來源合法性，不提供舊 permission list；不重寫已發布版本或以歷史artifact授權。
+
+AI-PDM 新 SQL 使用 `db/postgres/081_dev121_principal_role_catalog_v6.sql`：remote main 已占用 079／080（DEV-122），writer 的歷史 dirty 077 不是可用號碼。081 按既有 070 的 owner publication／CAS／transaction 模式精確核對 v5 baseline、插入 v6 九角色、retire v5 並原子推進 active pointer；unexpected baseline 或 v6 replay tamper 整個 transaction rollback。精確相同 replay 不新增 publication、entries 或權限。原 v3/v4/v5 history 保留，僅本 owner schema／versioned view；056 不改、dirty 077 不納入；079／080 已在現行官方來源／既有 owner profile，DEV-122 正式 R03 證據記錄 ledger 30。發布仍須 fresh readback 核對已套用 079／080 的 exact bytes，不將本批變成 DEV-122 DDL 發布；本批只在既有受保護 profile suffix 加入已審查 081（order 31）。
+
+OrgMaster grant v4 使用 stableRoleId＋roleCode＋active catalog 的 subject/scope/delegation 判定；assignment 的 catalogVersion 是原指派 publication provenance，不等於當前 active capability catalog。升版不重寫歷史 assignment／published policy，不因 provenance v5 就重建 grant；以 native PG producer→consumer readback 證明升版前後相同 exact direct/global holder 與其他角色scope/撤權仍有效。新 assignment 仍綁當前精確 catalog；不要為此移除 catalog 的 stale/tamper 檢查。
+
+採已授權的短停用視窗：先完成 OrgMaster v5/v6 reader 的 protected-source owner release 並讀回 v5 治理成功，再走 AI-PDM owner `prepare→build→migrate(081)→candidate→entrypoint→verify→decision→activate→canonical→finalize`。新版 AI-PDM Principal evaluator／role workspace 精確 pin v6，依相同 SQL snapshot 的 active catalog核對；無須再新增 AI-PDM v5/v6 runtime 雙版本或一輪僅相容發布。081 生效到新版切流間，舊 v5 binary 因 hash/version mismatch 會 fail closed 503；該窗口不得宣告入口可用或以舊版成功當 v6 驗證。窗口前讀回 current traffic、無其他 owner mutation、仍可用的 DB-free Principal-only maintenance recovery 與精確 source/image/ledger，按既有停用／回復規則限制流量。候選或驗證失敗依原生 owner 流程收束至已驗 maintenance revision，不 route 舊 v5 catalog consumer、不改 DB pointer 或 down migration、不恢復 UID 路徑；v6 publication 保留供修正後重發。三系統不因本批重開身分轉換；Platform source／traffic／資料不需要變更。
+
+### 本批 QA／QC 出口（既有 P01／P03–P09）
+
+1. 靜態與 unit：凍結 actual active caller 分母；所有 capability 在 v6 system_admin 明確 allow、其他八角色未變；typed nav／badge／API一致；未知code、wrongkind與 retired caller 不新增allow；role/hash/canonicalJSON完整，必要 source QC／boundary/typecheck 沿既有流程。
+2. 真實 disposable PG：081 v5→v6、exact replay、tampered baseline／entry rollback、歷史保留；實際 OrgMaster v4→AI-PDM evaluator 的 exact Principal grant、allow/deny、company/resource/scope、撤權／expiry及非targetPrincipal；v4 正常 native read 的 assignment／revocation／workspace-scope 四階段及合法 current alias、current-company holder counts、未知角色及 zero HTTP RPC；歷史 056 async save/load v2/v3／timestamp／tamper 另記其原層級，不替代 v4。沿用既有 PostgreSQL harness與native owner migrations，不拿 mock 或 SQLite PASS代替。
+3. 正式 candidate／L4：正常 Jed Platform→AI-PDM SSO後圖號 workbench查詢 200及 settings v4 published role workspace 200 current；既有 disposable 測試 Principal 的低角色deny、跨公司／資源deny、撤權／過期與local/global logout及復原；same Principal命令／receipt／audit關聯與禁止自審回歸依既有可用caller驗證。以使用者原失敗畫面的刷新／對應 hard-reload UI證據確認錯誤已消失；API成功不替代原畫面。OrgMaster native active v6讀回／v4 grants、AI-PDM100%newrevision、0tags、owner finalized及Principal-only recovery/cleanup均可追溯，未驗不能PASS。
+
+本批只改共同根因及上述依賴，互相依賴的產品／測試／必要文件集中一批 PR（各 owner 各一批），保留 protected branch及必需CI。既有結案與DEV-122結果保留原ID／層級／取代關係；本批正式結果另記，不以文件定案、localPASS或角色code顯示判定完成。
 ## 責任與唯一授權接口
 
 `principal_id` 是唯一安全主體。Platform負責verified provider登入、SSO、session／撤銷；OrgMaster發布Principal、Employee狀態、角色、scope與委派。AI-PDM統一解析verified actor、讀grant，判斷自己的capability、company／resource、owner／reviewer及業務狀態。OrgMaster不需要逐一對接AI-PDM API或worker用途。
 
-唯一正常角色來源為 [OrgMaster principal-effective-grants v4](../../contracts/orgmaster-ai-pdm-principal-effective-grants/v4/contract-manifest.json)，對應 [OrgMaster現行producer契約](../../../OrgMaster/ai-doc/specs/DEV-057-identity-and-grant-contract-boundary.md#architecture-final)。AI-PDM本地能力定義用 [active role catalog v5](../../config/access-control/jenfu-role-catalog.v5.json)與[route/method permission map](../../config/access-control/jenfu-route-permission-map.v2.json)，同snapshot核對正式publication version/hash及stable role定義；缺失／漂移不是「沒指派」，503拒絕。
+唯一正常角色來源為 [OrgMaster principal-effective-grants v4](../../contracts/orgmaster-ai-pdm-principal-effective-grants/v4/contract-manifest.json)，對應 [OrgMaster現行producer契約](../../../OrgMaster/ai-doc/specs/DEV-057-identity-and-grant-contract-boundary.md#architecture-final)。AI-PDM本地能力定義用 [本批 immutable role catalog v6](../../config/access-control/jenfu-role-catalog.v6.json)（發布前正式基線 v5 保留）與[route/method permission map](../../config/access-control/jenfu-route-permission-map.v2.json)，同snapshot核對正式publication version/hash及stable role定義；缺失／漂移不是「沒指派」，503拒絕。
 
 所有登入、SSR／middleware、API、業務命令、reviewer selector、下載、背景與audit均抵達同一verified Principal／owner evaluator。沒有 `legacy_compatible`、`legacy_authority`、逐人marker、principal-keyed本機ACL或UID／email／`pdm_user_id`授權fallback；不可從sessionUser.role、display role、command參數或Platform可見性補grant。history pair是provider核實資料，PDM profile id是業務關聯，不可用它重建／覆寫principal或產生 `pdm:<id>`。
 

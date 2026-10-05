@@ -16597,6 +16597,12 @@ select.dropdown-select:focus-visible,
 .access-role-nav-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .access-role-nav-item small, .access-role-count, .access-position-header p, .access-employee-row small, .access-position-option small { color: var(--muted); font-size: .76rem; }
 .access-role-count { min-width: 24px; text-align: right; }
+.access-role-detail { min-width: 0; }
+.access-capability-table { padding: 16px 22px; }
+.access-capability-table table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.access-capability-table th, .access-capability-table td { padding: 9px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; font-size: .82rem; }
+.access-capability-table th:first-child, .access-capability-table th:last-child { width: 60px; }
+@media (max-width: 560px) { .access-capability-table { padding: 14px; } }
 .access-role-main { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0; }
 .access-role-header { align-items: center; border-bottom: 1px solid var(--line); padding: 20px 22px 16px; }
 .access-role-header p { margin: 5px 0 0; color: var(--muted); font-size: .8rem; }

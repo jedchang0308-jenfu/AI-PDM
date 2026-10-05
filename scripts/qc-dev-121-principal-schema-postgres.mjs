@@ -2142,9 +2142,9 @@ try {
       const { selectPrincipalReviewerInSnapshot } = await import(pathToFileURL(
         path.join(root, 'src/lib/repositories/pdm-principal-reviewer-selector.ts')).href)
       const publishedCatalog = JSON.parse(fs.readFileSync(path.join(root,
-        'config/access-control/jenfu-role-catalog.v5.json'), 'utf8'))
+        'config/access-control/jenfu-role-catalog.v6.json'), 'utf8'))
       // Earlier SQL checks use a deliberately small legacy catalog fixture.
-      // The principal consumer requires exact v5 readback from its own contract.
+      // The principal consumer requires exact v6 readback from its own contract.
       await client.query(`ALTER TABLE ai_pdm_contract.v_application_role_catalog_v1
         ADD COLUMN display_order integer`)
       await client.query(`DELETE FROM ai_pdm_contract.v_application_role_catalog_v1`)

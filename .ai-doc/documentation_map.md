@@ -1,5 +1,13 @@
 # AI_PDM 文件地圖
 
+## DEV-121 最高管理角色能力修正（2026-10-05，執行中）
+
+[本批子任務](dev_task.md#dev-121-system-admin-follow-up) → [唯一 current 契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch) → [QA 分母](dev_task.md#dev-121-system-admin-qa) → [本機／原生整合checkpoint](qa/DEV-121-admin-capabilities-v6-local-checkpoint-2026-10-05.json)。v6 明確完整 system_admin 能力、typed nav/API、Jed exact published grant 及 PostgreSQL role-capability 400／HTTP source session 缺口修復同批收束（正常 v4 直接讀已發布契約；v2/v3 cache 僅歷史回歸）；OrgMaster 保持身分／指派／scope owner，AI-PDM 判斷能力及資源。其他八角色、公司隔離、撤權、expiry 與禁止自審不因全能力取消。
+
+沿既有 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121，不新增主任務。修正後驗收尚未完成；v5、已套用 migration／R81 歷史證據與 DEV-122 獨立 current 進度保留。下方 R81 只作前批證據，不能替代本批來源、正式版本或 PASS。
+
+## 本工作樹 DEV-122 設定入口已部署／人工驗收入口（2026-10-05）
+
 DEV-122 現行本地追加修復：D122-08 share metadata 可選參數型別，依[同一契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-08-本地修復階段2026-10-05rd-implementation-ready)執行；原7 issues／29 groups與人類CAD驗收不變，本階段沒有新增production授權。 [本地17 native／11 focused與層級限制](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)。D122-08 [PR213](https://github.com/jedchang0308-jenfu/AI-PDM/pull/213)已合併，Luna QC及required CI通過；正式發布範圍待人類決定。D122-07人類已確認維持停用、後續開發。
 
 ## DEV-122 一次提交金鑰流程（2026-10-05；R03 已部署，待使用者 CAD 驗證）
@@ -22,7 +30,8 @@ HISTORY_ONLY／B前CI fixture：[草稿 PR #207](https://github.com/jedchang0308
 HISTORY_ONLY／B前設定準備與A提案：latest main已整合、077未套用候選改079（bytes相同），設定入口app source已完成。85focused、實際134release tests、34+36+9static/mock與必要type/build/boundary已執行；最新078/079 native回歸8／8及[設定2viewport真實UI](../output/playwright/dev122/e1c041c4f1bba741/receipt.json)已PASS，本機provider blocked／無真key，不替代正式GCP或原生屬性。原5cbd／941的FAIL及body UNKNOWN保留，163 own table rows相同而nonce snapshot hashes不同；[fresh exactPID／ports清理核對](../output/qa/dev-122/DEV-122-settings-ui-final-cleanup-readback-2026-10-05.json)已完成。[三項own資源唯讀 native plan](../output/qa/dev-122/settings-infra-plan-a3440e795f394919bf4135d40fda5938/receipt.json)僅三create，既有83不變，無apply。正式GCP版本canonical數字ID的最小env修正遭auto-review兩次拒絕，待具體人類核准；新增Secret／customrole／Secret-onlybinding亦待資源授權。先準備草稿PR，尚未正式發布；人類key／probe／CAD properties NOT_RUN／整體未驗收。依source applicability沿用有效本地證據，不把historical或mock升為正式PASS。
 唯一開發授權專案是 AI-PDM；native runner/fixtures 必須自有、不使用 sibling source／runner，runtime/data／repository 必須 task-owned 並清理。現行人類指示已授權 AI-PDM owner 正式發布至 jenfu-platform-prod / asia-east1 / ai-pdm-prod；exact 三資源已另獲人類授權並由 R01 建立，R02 復用回執；真金鑰與 CAD 驗收尚待使用者。下方 DEV-121 入口與其歷史進度只作原 owner 的責任背景，不是本聊天施工 queue；原始 partial FAIL、UI NOT_RUN、正式異常與 resource-only readback 不升為 PASS。
 
-## 本輪 Principal-only 唯一閱讀入口
+## R81 Principal-only 已交付基線（HISTORY_ONLY；原結論保留）
+
 
 **本輪授權出口已完成。** [DEV-121 現行交付](dev_task.md#dev-121-current-contract) → [正式授權結案及層級限制](qa/DEV-121-principal-authorization-production-closure-2026-10-05.json) → [current契約](specs/DEV-121-target-authorization-boundary.md)。文件 PR／QC收尾不需要再發布未變的 runtime；DEV-122 業務仍 NOT_PASS。
 

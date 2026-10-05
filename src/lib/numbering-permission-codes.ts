@@ -2,10 +2,8 @@ export const NUMBERING_PAGE_PERMISSION_CODES = [
   "numbering.request",
   "numbering.search",
   "numbering.drawings.view",
-  "numbering.approvals",
   "numbering.tasks",
-  "numbering.reports",
-  "settings.admin_matrix"
+  "numbering.reports"
 ] as const;
 
 export const NUMBERING_ACTION_PERMISSION_CODES = [
@@ -48,6 +46,7 @@ export const NUMBERING_ACTION_PERMISSION_CODES = [
   "pdm.comment.create",
   "pdm.advice.create",
   "settings.admin_matrix",
+  "approval.inbox.view",
   "update_name",
   "update_spec",
   "obsolete_part_number",
@@ -61,16 +60,23 @@ export const NUMBERING_ACTION_PERMISSION_CODES = [
   "main_drawing_restore"
 ] as const;
 
-export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, string> = {
-  "/numbering/request": "numbering.request",
-  "/numbering/search": "numbering.search",
-  "/numbering/drawings": "numbering.drawings.view",
-  "/numbering/part-drafts": "numbering.tasks",
-  "/parts": "numbering.search",
-  "/approvals": "numbering.approvals",
-  "/numbering/approvals": "numbering.approvals",
-  "/numbering/change-reviews": "numbering.approvals",
-  "/settings/accounts": "settings.admin_matrix",
-  "/settings/account-invitations": "settings.admin_matrix",
-  "/settings": "settings.admin_matrix"
+export type NumberingPermissionRequirement = { kind: "page" | "action"; code: string };
+export type NumberingPermissionResponse = { pages: Record<string, boolean>; actions: Record<string, boolean> };
+
+export const NUMBERING_NAV_PERMISSION_BY_PATH: Record<string, NumberingPermissionRequirement> = {
+  "/numbering/request": { kind: "page", code: "numbering.request" },
+  "/numbering/search": { kind: "page", code: "numbering.search" },
+  "/numbering/drawings": { kind: "page", code: "numbering.drawings.view" },
+  "/numbering/part-drafts": { kind: "page", code: "numbering.tasks" },
+  "/parts": { kind: "page", code: "numbering.search" },
+  "/approvals": { kind: "action", code: "approval.inbox.view" },
+  "/numbering/approvals": { kind: "action", code: "approval.inbox.view" },
+  "/numbering/change-reviews": { kind: "action", code: "approval.inbox.view" },
+  "/settings/accounts": { kind: "action", code: "settings.admin_matrix" },
+  "/settings/account-invitations": { kind: "action", code: "settings.admin_matrix" },
+  "/settings": { kind: "action", code: "settings.admin_matrix" }
 };
+
+export function permitsNumberingNavigation(permissions: NumberingPermissionResponse | null, requirement: NumberingPermissionRequirement) {
+  return permissions?.[requirement.kind === "page" ? "pages" : "actions"]?.[requirement.code] === true;
+}
