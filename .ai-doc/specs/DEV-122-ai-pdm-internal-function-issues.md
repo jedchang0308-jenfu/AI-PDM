@@ -1,6 +1,6 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-本輪實作與local fixture控制流程已通過；證據、原始FAIL與必要build/CI/release續點依[本輪checkpoint](../qa/DEV-122-secret-workflow-automation-2026-10-05.json)。080只修正metadata精確值，SQL行為不變。真key／CAD與常駐主機仍由人類提供與驗證，整體DEV未驗收。
+本輪一次提交／自動啟用與動態進度已隨R03部署，PR／main required CI與owner RELEASED／FINALIZED通過；exact來源／migration／provider及層級限制依[新正式結案](../qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)。真key／CAD由使用者正式驗證，常駐worker主機位置待提供，整體DEV仍NOT_ACCEPTED。原始FAIL及[R02結案](../qa/DEV-122-settings-production-closure-2026-10-05.json)保留為歷史，未覆寫或升級mock驗收。
 
 文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：SETTINGS_ENTRY_DEPLOYED_PENDING_HUMAN_VALIDATION／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
 
