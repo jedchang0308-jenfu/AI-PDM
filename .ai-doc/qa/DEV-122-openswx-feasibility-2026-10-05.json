@@ -1,0 +1,685 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-native-feasibility.v1",
+  "capturedAtUtc": "2026-10-05T13:47:11.253554+00:00",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "baselineHead": "7cebdb376ef0a24cbe6bb6ee7e511323cf45b489",
+  "branch": "codex/dev122-share-metadata-closure",
+  "verdict": "PARTIAL_NATIVE_COMPATIBILITY_CONFIRMED_NOT_PRODUCTION_ACCEPTED",
+  "readerCommit": "30bd63845d3532cdecfdf2654e9cc0871229c45a",
+  "imageId": "sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97",
+  "artifactManifest": {
+    "path": "DEV-122-openswx-built-artifact-2026-10-05.json",
+    "sha256": "865489c37c2b5383784a77ab77f804978aeb9c8d595eb8ab5689604736e4a9ce",
+    "regularFiles": 268,
+    "licenseAliases": 3
+  },
+  "sourceBinding": {
+    "runnerSha256": "11ceedb08012e0cc5f62f13908552369fd99b4c63475a2e515efc5a604417b9c",
+    "sourceDriftAtBuildReadback": [],
+    "vendorVerifiedFiles": 19
+  },
+  "ownUnitTests": {
+    "status": "PASS",
+    "tests": 16,
+    "independentQc": "DEV-122-openswx-independent-qc-2026-10-05.json"
+  },
+  "nativeFiles": [
+    {
+      "name": "A0029-M01.SLDDRW",
+      "bytes": 171795,
+      "sha256": "06fd8358ce29411ea49ae466e1404b0ecc2fc964bbc98534d2df897ab09453bd",
+      "type": "drawing",
+      "typeProvenance": "extension_inferred",
+      "version": {
+        "value": 18000,
+        "availability": "internal_numeric"
+      },
+      "outcome": "partial",
+      "exitCode": 0,
+      "elapsedMs": 745,
+      "globalPropertyNames": [
+        "2D圖號(用途)",
+        "CreateDateTime",
+        "LastSaveDateTime",
+        "LastSavedBy",
+        "SWFormatSize",
+        "圖面類型"
+      ],
+      "globalPropertyCount": 6,
+      "configurations": [],
+      "totalPropertyCount": 6,
+      "configurationEffectivePropertyCounts": {},
+      "coverage": {
+        "storedValues": "observed_not_completeness_proof",
+        "rawValue": "unsupported_by_public_api",
+        "evaluatedValue": "unsupported_by_public_api",
+        "propertyType": "unsupported_by_public_api",
+        "linkedExpression": "unsupported_by_public_api",
+        "pureConfigurationScope": "unsupported_effective_merged_map",
+        "streamParseIntegrity": "unknown_silent_skip_possible"
+      },
+      "diagnostics": [
+        "public_api_value_kinds_incomplete",
+        "configuration_scope_merged",
+        "stream_integrity_not_exposed"
+      ],
+      "semanticEquivalence": "unknown_pending_human_ground_truth",
+      "sourceUnchanged": true,
+      "containerId": "320d15284b046bedb86dbc1b4180c82c8489e1160c6389933c99b678223477e3",
+      "cleanup": "verified_absent"
+    },
+    {
+      "name": "A0029.SLDPRT",
+      "bytes": 114885,
+      "sha256": "d3f2349aa36baf24d3e7fc0044cd2004897e62137bbb279b5da329f6521dfc39",
+      "type": "part",
+      "typeProvenance": "extension_inferred",
+      "version": {
+        "value": 18000,
+        "availability": "internal_numeric"
+      },
+      "outcome": "partial",
+      "exitCode": 0,
+      "elapsedMs": 585,
+      "globalPropertyNames": [
+        "3D圖號(主)",
+        "CreateDateTime",
+        "LastSaveDateTime",
+        "LastSavedBy",
+        "品名",
+        "圖號",
+        "版次",
+        "表面處理",
+        "製圖"
+      ],
+      "globalPropertyCount": 9,
+      "configurations": [
+        {
+          "index": 0,
+          "name": "預設",
+          "nameAvailability": "library_resolved_source_unknown",
+          "propertyCount": 9
+        }
+      ],
+      "totalPropertyCount": 18,
+      "configurationEffectivePropertyCounts": {
+        "預設": 9
+      },
+      "coverage": {
+        "storedValues": "observed_not_completeness_proof",
+        "rawValue": "unsupported_by_public_api",
+        "evaluatedValue": "unsupported_by_public_api",
+        "propertyType": "unsupported_by_public_api",
+        "linkedExpression": "unsupported_by_public_api",
+        "pureConfigurationScope": "unsupported_effective_merged_map",
+        "streamParseIntegrity": "unknown_silent_skip_possible"
+      },
+      "diagnostics": [
+        "public_api_value_kinds_incomplete",
+        "configuration_scope_merged",
+        "stream_integrity_not_exposed"
+      ],
+      "semanticEquivalence": "unknown_pending_human_ground_truth",
+      "sourceUnchanged": true,
+      "containerId": "f0e627e30d5b90caa17d3597b088960e171ae2988b73444f151a7fadb141edfe",
+      "cleanup": "verified_absent"
+    },
+    {
+      "name": "A0033-M01.SLDDRW",
+      "bytes": 366460,
+      "sha256": "55283cd6290ada4736c6e12de773d3d9b58eebdc5f10fce2cff313469e724bd0",
+      "type": "drawing",
+      "typeProvenance": "extension_inferred",
+      "version": {
+        "value": 18000,
+        "availability": "internal_numeric"
+      },
+      "outcome": "partial",
+      "exitCode": 0,
+      "elapsedMs": 558,
+      "globalPropertyNames": [
+        "2D圖號(用途)",
+        "CreateDateTime",
+        "LastSaveDateTime",
+        "LastSavedBy",
+        "SWFormatSize",
+        "圖面類型"
+      ],
+      "globalPropertyCount": 6,
+      "configurations": [],
+      "totalPropertyCount": 6,
+      "configurationEffectivePropertyCounts": {},
+      "coverage": {
+        "storedValues": "observed_not_completeness_proof",
+        "rawValue": "unsupported_by_public_api",
+        "evaluatedValue": "unsupported_by_public_api",
+        "propertyType": "unsupported_by_public_api",
+        "linkedExpression": "unsupported_by_public_api",
+        "pureConfigurationScope": "unsupported_effective_merged_map",
+        "streamParseIntegrity": "unknown_silent_skip_possible"
+      },
+      "diagnostics": [
+        "public_api_value_kinds_incomplete",
+        "configuration_scope_merged",
+        "stream_integrity_not_exposed"
+      ],
+      "semanticEquivalence": "unknown_pending_human_ground_truth",
+      "sourceUnchanged": true,
+      "containerId": "c38af78d035b014f4dcf10d0e16dc9ec0b38a835e2095771d203ce2d9cdfb4a9",
+      "cleanup": "verified_absent"
+    },
+    {
+      "name": "A0033.SLDPRT",
+      "bytes": 274042,
+      "sha256": "a350ea0b8e3ec2a47d700502cf3126166b480b88068a68bdf8aa5b5756987c44",
+      "type": "part",
+      "typeProvenance": "extension_inferred",
+      "version": {
+        "value": 18000,
+        "availability": "internal_numeric"
+      },
+      "outcome": "partial",
+      "exitCode": 0,
+      "elapsedMs": 615,
+      "globalPropertyNames": [
+        "3D圖號(主)",
+        "CreateDateTime",
+        "LastSaveDateTime",
+        "LastSavedBy",
+        "品名",
+        "圖號",
+        "版次",
+        "表面處理",
+        "製圖"
+      ],
+      "globalPropertyCount": 9,
+      "configurations": [
+        {
+          "index": 0,
+          "name": "預設",
+          "nameAvailability": "library_resolved_source_unknown",
+          "propertyCount": 9
+        }
+      ],
+      "totalPropertyCount": 18,
+      "configurationEffectivePropertyCounts": {
+        "預設": 9
+      },
+      "coverage": {
+        "storedValues": "observed_not_completeness_proof",
+        "rawValue": "unsupported_by_public_api",
+        "evaluatedValue": "unsupported_by_public_api",
+        "propertyType": "unsupported_by_public_api",
+        "linkedExpression": "unsupported_by_public_api",
+        "pureConfigurationScope": "unsupported_effective_merged_map",
+        "streamParseIntegrity": "unknown_silent_skip_possible"
+      },
+      "diagnostics": [
+        "public_api_value_kinds_incomplete",
+        "configuration_scope_merged",
+        "stream_integrity_not_exposed"
+      ],
+      "semanticEquivalence": "unknown_pending_human_ground_truth",
+      "sourceUnchanged": true,
+      "containerId": "c0e241a7b7b8963f5f79adfb9ebecd59af72725e24671b36455cb5fb60cc9c73",
+      "cleanup": "verified_absent"
+    },
+    {
+      "name": "A0053-M01.SLDDRW",
+      "bytes": 311452,
+      "sha256": "55bc18848c616c5758d23716fc839857a180f1bf05e274f5912588b60087f3f6",
+      "type": "drawing",
+      "typeProvenance": "extension_inferred",
+      "version": {
+        "value": 18000,
+        "availability": "internal_numeric"
+      },
+      "outcome": "partial",
+      "exitCode": 0,
+      "elapsedMs": 652,
+      "globalPropertyNames": [
+        "2D圖號(用途)",
+        "CreateDateTime",
+        "LastSaveDateTime",
+        "LastSavedBy",
+        "SWFormatSize",
+        "圖面類型"
+      ],
+      "globalPropertyCount": 6,
+      "configurations": [],
+      "totalPropertyCount": 6,
+      "configurationEffectivePropertyCounts": {},
+      "coverage": {
+        "storedValues": "observed_not_completeness_proof",
+        "rawValue": "unsupported_by_public_api",
+        "evaluatedValue": "unsupported_by_public_api",
+        "propertyType": "unsupported_by_public_api",
+        "linkedExpression": "unsupported_by_public_api",
+        "pureConfigurationScope": "unsupported_effective_merged_map",
+        "streamParseIntegrity": "unknown_silent_skip_possible"
+      },
+      "diagnostics": [
+        "public_api_value_kinds_incomplete",
+        "configuration_scope_merged",
+        "stream_integrity_not_exposed"
+      ],
+      "semanticEquivalence": "unknown_pending_human_ground_truth",
+      "sourceUnchanged": true,
+      "containerId": "f732ceaa642785db8121357b250e775c0dee87c0e43fe9549eea253d3756405c",
+      "cleanup": "verified_absent"
+    },
+    {
+      "name": "A0053.SLDASM",
+      "bytes": 174437,
+      "sha256": "a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694",
+      "type": "assembly",
+      "typeProvenance": "extension_inferred",
+      "version": {
+        "value": 18000,
+        "availability": "internal_numeric"
+      },
+      "outcome": "partial",
+      "exitCode": 0,
+      "elapsedMs": 637,
+      "globalPropertyNames": [
+        "3D圖號(主)",
+        "CreateDateTime",
+        "LastSaveDateTime",
+        "LastSavedBy",
+        "品名",
+        "版次",
+        "設計者"
+      ],
+      "globalPropertyCount": 7,
+      "configurations": [
+        {
+          "index": 0,
+          "name": "預設",
+          "nameAvailability": "library_resolved_source_unknown",
+          "propertyCount": 5
+        }
+      ],
+      "totalPropertyCount": 12,
+      "configurationEffectivePropertyCounts": {
+        "預設": 5
+      },
+      "coverage": {
+        "storedValues": "observed_not_completeness_proof",
+        "rawValue": "unsupported_by_public_api",
+        "evaluatedValue": "unsupported_by_public_api",
+        "propertyType": "unsupported_by_public_api",
+        "linkedExpression": "unsupported_by_public_api",
+        "pureConfigurationScope": "unsupported_effective_merged_map",
+        "streamParseIntegrity": "unknown_silent_skip_possible"
+      },
+      "diagnostics": [
+        "public_api_value_kinds_incomplete",
+        "configuration_scope_merged",
+        "stream_integrity_not_exposed"
+      ],
+      "semanticEquivalence": "unknown_pending_human_ground_truth",
+      "sourceUnchanged": true,
+      "containerId": "e6e8623756b1e49c404919e3ad4114e14ac8a87b69ce634b3844920d90d8af82",
+      "cleanup": "verified_absent"
+    },
+    {
+      "name": "D-0007-MA1.SLDDRW",
+      "bytes": 145826,
+      "sha256": "4e39ce88825ae14948353b79455daa2bc35c8b97f1c5706810f1ad926c301d09",
+      "type": "drawing",
+      "typeProvenance": "extension_inferred",
+      "version": {
+        "value": 18000,
+        "availability": "internal_numeric"
+      },
+      "outcome": "partial",
+      "exitCode": 0,
+      "elapsedMs": 537,
+      "globalPropertyNames": [
+        "2D圖號(用途)",
+        "CreateDateTime",
+        "LastSaveDateTime",
+        "LastSavedBy",
+        "SWFormatSize",
+        "圖面類型"
+      ],
+      "globalPropertyCount": 6,
+      "configurations": [],
+      "totalPropertyCount": 6,
+      "configurationEffectivePropertyCounts": {},
+      "coverage": {
+        "storedValues": "observed_not_completeness_proof",
+        "rawValue": "unsupported_by_public_api",
+        "evaluatedValue": "unsupported_by_public_api",
+        "propertyType": "unsupported_by_public_api",
+        "linkedExpression": "unsupported_by_public_api",
+        "pureConfigurationScope": "unsupported_effective_merged_map",
+        "streamParseIntegrity": "unknown_silent_skip_possible"
+      },
+      "diagnostics": [
+        "public_api_value_kinds_incomplete",
+        "configuration_scope_merged",
+        "stream_integrity_not_exposed"
+      ],
+      "semanticEquivalence": "unknown_pending_human_ground_truth",
+      "sourceUnchanged": true,
+      "containerId": "7637463763a17727c3571c273c807279ff093023f964e92473898c6df2e19b40",
+      "cleanup": "verified_absent"
+    },
+    {
+      "name": "D-0007-MA1.SLDPRT",
+      "bytes": 193353,
+      "sha256": "695ecccd9f4a6425faef1196b319579a8a5011de26d655baa0509a4f61bfc3e2",
+      "type": "part",
+      "typeProvenance": "extension_inferred",
+      "version": {
+        "value": 18000,
+        "availability": "internal_numeric"
+      },
+      "outcome": "partial",
+      "exitCode": 0,
+      "elapsedMs": 554,
+      "globalPropertyNames": [
+        "3D圖號(主)",
+        "CreateDateTime",
+        "LastSaveDateTime",
+        "LastSavedBy",
+        "品名",
+        "圖號",
+        "版次",
+        "表面處理",
+        "製圖"
+      ],
+      "globalPropertyCount": 9,
+      "configurations": [
+        {
+          "index": 0,
+          "name": "展開",
+          "nameAvailability": "library_resolved_source_unknown",
+          "propertyCount": 9
+        },
+        {
+          "index": 1,
+          "name": "彎折",
+          "nameAvailability": "library_resolved_source_unknown",
+          "propertyCount": 9
+        }
+      ],
+      "totalPropertyCount": 27,
+      "configurationEffectivePropertyCounts": {
+        "展開": 9,
+        "彎折": 9
+      },
+      "coverage": {
+        "storedValues": "observed_not_completeness_proof",
+        "rawValue": "unsupported_by_public_api",
+        "evaluatedValue": "unsupported_by_public_api",
+        "propertyType": "unsupported_by_public_api",
+        "linkedExpression": "unsupported_by_public_api",
+        "pureConfigurationScope": "unsupported_effective_merged_map",
+        "streamParseIntegrity": "unknown_silent_skip_possible"
+      },
+      "diagnostics": [
+        "public_api_value_kinds_incomplete",
+        "configuration_scope_merged",
+        "stream_integrity_not_exposed"
+      ],
+      "semanticEquivalence": "unknown_pending_human_ground_truth",
+      "sourceUnchanged": true,
+      "containerId": "b965e5e1cd55c636870943c9d149c6a375479eedff8ceb502f23fb70f2156c19",
+      "cleanup": "verified_absent"
+    }
+  ],
+  "negativeFixtures": [
+    {
+      "name": "legacy.SLDPRT",
+      "bytes": 8,
+      "sha256": "6dda1524c96123bdeaba431bb8bcf4eaae977606559d411919ffdda50edf3efe",
+      "outcome": "failed",
+      "exitCode": 10,
+      "elapsedMs": 534,
+      "containerId": "ad36235f26fc13b70abb06df4902555a334304d4c448bad5c0de270387b1ab86",
+      "sourceUnchanged": true,
+      "cleanup": "verified_absent",
+      "diagnostics": [
+        "library_open_rejected"
+      ],
+      "expected": "failed_or_partial_unknown_never_full",
+      "acceptance": "PASS_REJECTED"
+    },
+    {
+      "name": "malformed.SLDPRT",
+      "bytes": 4,
+      "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+      "outcome": "failed",
+      "exitCode": 10,
+      "elapsedMs": 512,
+      "containerId": "17324d7080fcb5c0f9b44c7b8f336bca3adaf9b6f85c56803d859de56470da00",
+      "sourceUnchanged": true,
+      "cleanup": "verified_absent",
+      "diagnostics": [
+        "library_open_rejected"
+      ],
+      "expected": "failed_or_partial_unknown_never_full",
+      "acceptance": "PASS_REJECTED"
+    },
+    {
+      "name": "truncated.SLDDRW",
+      "bytes": 64,
+      "sha256": "96115f6a773e3d7e5a395c313932797d40547708925ce704a865ecb2637a6346",
+      "outcome": "failed",
+      "exitCode": 10,
+      "elapsedMs": 523,
+      "containerId": "f17ec0b73bf20f440a7e373858eec0815c06ef4c2634f0f6e9f24e1d8da5988d",
+      "sourceUnchanged": true,
+      "cleanup": "verified_absent",
+      "diagnostics": [
+        "library_open_rejected"
+      ],
+      "expected": "failed_or_partial_unknown_never_full",
+      "acceptance": "PASS_REJECTED"
+    },
+    {
+      "name": "zip.SLDASM",
+      "bytes": 8,
+      "sha256": "c740f0ec5aff6078d92cd8843de452a73d41c5df00d238f5568b43dac4864740",
+      "outcome": "failed",
+      "exitCode": 10,
+      "elapsedMs": 555,
+      "containerId": "5d202fcbe2375d98894ec5fad7c18e430074f2900f13e78bd7565df9264283ab",
+      "sourceUnchanged": true,
+      "cleanup": "verified_absent",
+      "diagnostics": [
+        "library_open_rejected"
+      ],
+      "expected": "failed_or_partial_unknown_never_full",
+      "acceptance": "PASS_REJECTED"
+    }
+  ],
+  "originalFilesAfterParsing": [
+    {
+      "name": "A0029-M01.SLDDRW",
+      "bytes": 171795,
+      "sha256": "06fd8358ce29411ea49ae466e1404b0ecc2fc964bbc98534d2df897ab09453bd",
+      "unchanged": true
+    },
+    {
+      "name": "A0029.SLDPRT",
+      "bytes": 114885,
+      "sha256": "d3f2349aa36baf24d3e7fc0044cd2004897e62137bbb279b5da329f6521dfc39",
+      "unchanged": true
+    },
+    {
+      "name": "A0033-M01.SLDDRW",
+      "bytes": 366460,
+      "sha256": "55283cd6290ada4736c6e12de773d3d9b58eebdc5f10fce2cff313469e724bd0",
+      "unchanged": true
+    },
+    {
+      "name": "A0033.SLDPRT",
+      "bytes": 274042,
+      "sha256": "a350ea0b8e3ec2a47d700502cf3126166b480b88068a68bdf8aa5b5756987c44",
+      "unchanged": true
+    },
+    {
+      "name": "A0053-M01.SLDDRW",
+      "bytes": 311452,
+      "sha256": "55bc18848c616c5758d23716fc839857a180f1bf05e274f5912588b60087f3f6",
+      "unchanged": true
+    },
+    {
+      "name": "A0053.SLDASM",
+      "bytes": 174437,
+      "sha256": "a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694",
+      "unchanged": true
+    },
+    {
+      "name": "D-0007-MA1.SLDDRW",
+      "bytes": 145826,
+      "sha256": "4e39ce88825ae14948353b79455daa2bc35c8b97f1c5706810f1ad926c301d09",
+      "unchanged": true
+    },
+    {
+      "name": "D-0007-MA1.SLDPRT",
+      "bytes": 193353,
+      "sha256": "695ecccd9f4a6425faef1196b319579a8a5011de26d655baa0509a4f61bfc3e2",
+      "unchanged": true
+    }
+  ],
+  "runtimeLimits": {
+    "timeoutMs": 30000,
+    "memoryMiB": 512,
+    "inputBytes": 268435456,
+    "outputBytes": 2097152,
+    "network": "none",
+    "user": "65532:65532",
+    "readOnlyRootfs": true
+  },
+  "PDM_DATA_DIR": "/tmp/aipdm-data",
+  "PDM_REPOSITORY_DIR": "/tmp/aipdm-repository",
+  "primaryDataMutation": "none_no_database_initialization",
+  "primarySqlite": "ABSENT_CANONICAL_AND_WORKTREE; no PRAGMA claim",
+  "otherOwnerCanonicalFilesUnchanged": {
+    ".ai-doc/decisions/ADR-PDM-BOM-RETIREMENT-001-hard-delete-and-rebuild-boundary.md": "47e322e4bd6d272a317db3c31f8a98c03eb45a3fc6fdd236aa35496b0f1fc4e8",
+    ".ai-doc/qa/qa-dev-095-bom-retirement-validation-plan-2026-08-24.md": "a50f5b009c79187f56017ec4237df61f6f225f5740a1480dc007f7a9d4641acd",
+    ".ai-doc/qc/qc-dev-095-bom-retirement-2026-08-24.md": "bd492925c423f000d43ba8ac408462634618e2e8588dbb689294031bf64a7096",
+    ".ai-doc/reports/pm/DEV-014-015-057-118-121-consumer-completion-audit-2026-09-24.md": "bc8a2cb59b79b00b85922c03fb2cf3bacee5bb161ee80db4e380b4d6509e9782"
+  },
+  "historicalFailures": {
+    "r1": "CANCELLED_FLOATING_APT_INPUTS; not native failure",
+    "r2": {
+      "Project": "AI-PDM",
+      "Round": "R2",
+      "Status": "FAILED_BUILD",
+      "ProcessFingerprint": "3252/134356792171107068",
+      "ObservedPidAbsent": true,
+      "Failure": "CMake unable to find Unix Makefiles build program; make missing",
+      "LogSha256": "9fe6fd3a30e86ce5ceca735cf4467f1593a724ca35e8d1de2f3d4be2abac0214",
+      "Repair": "Own Dockerfile adds make in separate fixed-snapshot layer, preserving downloaded compiler layer",
+      "NativeCad": "NOT_RUN",
+      "CapturedAtUtc": "2026-10-05T13:29:02.4355390Z"
+    },
+    "nativeDriverPreflight": "EPERM ancestor attributes; metadata-only access correction passed",
+    "firstArtifactExport": "Windows symlink privilege failure; exact container verified absent; bounded tar readback later passed",
+    "driverRegistryAdmission": "PID30396/start134356813423878495 exited before Governor registration; PROCESS_FINGERPRINT_UNAVAILABLE retained; runtime declaration and per-container evidence preserved"
+  },
+  "cleanup": {
+    "positiveContainers": 8,
+    "negativeContainers": 4,
+    "artifactContainers": 2,
+    "reportedExactContainersAbsent": true,
+    "anonymousDriverConfigs": "verified_absent",
+    "buildR3PidAndCapacityLease": "released completed/exited",
+    "temporaryCadStaging": "VERIFIED_ABSENT_12_OWN_FIXTURE_FILES_REMOVED",
+    "localImage": "VERIFIED_EXACT_ENGINE_404_ABSENT",
+    "userDockerDesktop": "preexisting_after_human_reboot_preserved",
+    "ports": [],
+    "anonymousBuildConfigs": "VERIFIED_THREE_ABSENT",
+    "boundedMetadataEvidence": "retained_for_phase2_handoff_governor_session_active",
+    "receipts": {
+      "cleanup-files.json": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-cloud-run-20261005\\governor\\temp\\development\\5cb67529-5eaa-4508-ad91-dec5255a628e\\native-output\\cleanup-files.json",
+        "sha256": "9b737c8d70936471c5ffa88104ffbd20b7c3f86a1fa3b0606de2a5f1fbb42f23"
+      },
+      "cleanup-image.json": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-cloud-run-20261005\\governor\\temp\\development\\5cb67529-5eaa-4508-ad91-dec5255a628e\\native-output\\cleanup-image.json",
+        "sha256": "5b5df933bdb8fad9d6cd1ecb4e240b0112dffbe6830e3ff75bbfad3500c7dae3"
+      },
+      "cleanup-configs.json": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-cloud-run-20261005\\governor\\temp\\development\\5cb67529-5eaa-4508-ad91-dec5255a628e\\native-output\\cleanup-configs.json",
+        "sha256": "1adc958e87ef3ae75579b8c8f17a829727c9b85d436ef9d0abcd9f65c266af54"
+      }
+    },
+    "cleanupObservationsPreserved": [
+      "Native owner removed verified fixture files; Offline owner removed staged directory; native owner removed negative directory",
+      "Initial image cleanup succeeded; strict CLI config inventory rejected extra task buildx metadata; bounded inventory then exact own-directory cleanup succeeded"
+    ]
+  },
+  "validationLimits": {
+    "storedValues": "observed in all eight; completeness and human semantic equality not established",
+    "rawValue": "unsupported_by_public_api",
+    "linkedExpression": "unsupported_by_public_api",
+    "evaluatedValue": "unsupported_by_public_api",
+    "propertyType": "unsupported_by_public_api",
+    "pureConfigurationOwnedScope": "unsupported_effective_merged_only",
+    "streamIntegrity": "unknown_silent_skip_possible",
+    "cloudRunBuild": "Linux local image only; Cloud Run NOT_RUN",
+    "cloudRunDeploy": "NOT_RUN",
+    "humanF01F": "NOT_RUN_HUMAN_OWNED",
+    "wholeDev": "NOT_ACCEPTED"
+  },
+  "privacy": "No CAD binary or stored property values in this source-controlled summary; full bounded local metadata evidence retained under task-owned output",
+  "externalCadTransfer": false,
+  "documentManagerKeyRead": false,
+  "cloudIamSecretResourceMutation": false,
+  "crossProjectDevelopment": false,
+  "postCaptureFormatting": {
+    "changes": [
+      {
+        "path": "scripts/lib/openswx-reader/.dockerignore",
+        "beforeSha256": "00ef5355e2b91d3e418c9e5c9efe325fd4d1d8408c5eb791e80551131724e916",
+        "afterSha256": "759600da4e9ea6239faa9e15d69aedce274740a8ed15ab8537ab4fa3c558f0aa",
+        "change": "remove blank lines at EOF only"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/CMakeLists.txt",
+        "beforeSha256": "0a17022d464b3d8beb285366487637a7f0b1d1e3f174fe7998d847e3d7a59002",
+        "afterSha256": "c46a89eecac50ad559ed37b3687d7fc2bd0b0c0aa3cb2b5813a0e134bf27ddd8",
+        "change": "remove blank lines at EOF only"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/Dockerfile",
+        "beforeSha256": "5c060d117d3769ced6678b209037e7e9b6e55147f2e104292a0acb61d442020f",
+        "afterSha256": "af07777619d48e9573fadad854be080fcf4005b0fcdec48a01b551d86286fa4a",
+        "change": "remove blank lines at EOF only"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/normalize.mjs",
+        "beforeSha256": "10072d5ef4b641ba0f4b6048980d4fa035960a0dfd7ae99644937ad54154f33a",
+        "afterSha256": "5956b4180ae7b769b5d52267929f1b991bf7ce6855b9f6318293aef55a337c87",
+        "change": "remove blank lines at EOF only"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/process.mjs",
+        "beforeSha256": "d94d532d0543dd9025e640a63e21651480a6a454315cb3f0898b173026861ad3",
+        "afterSha256": "4a11f3fd02d9f84c21bbe2efb6b5cd84c4ba987f856a2a0f66c8c7392cf6b03a",
+        "change": "remove blank lines at EOF only"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/reader.cc",
+        "beforeSha256": "f23dd160bfb3e1c60345d4195c9df149bc7fe61720945cbd99e909488a4cde35",
+        "afterSha256": "54318011e37c03715a3fe2828dfd3e519ea2405dec60be175f744747b2891bd9",
+        "change": "remove blank lines at EOF only"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/reader.test.mjs",
+        "beforeSha256": "fcace1b4a6d047e0623d21f6099a3b12dde614745a7a44d0d4b5569116f2681c",
+        "afterSha256": "36a7b42c9a08ceb478acc8771355b85504e6d4b00012b992c18dfe2549715f43",
+        "change": "remove blank lines at EOF only"
+      }
+    ],
+    "artifactBinding": "The actual build/native capture remains bound to its original working-tree hashes; formatting-only commit is not the captured image. Phase2 image will be built with fresh source binding.",
+    "stagedGitEncoding": "Own text normalized by Git attributes; vendor -text exact bytes unchanged"
+  }
+}

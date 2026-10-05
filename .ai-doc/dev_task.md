@@ -1,8 +1,12 @@
 # AI_PDM 開發任務
 
+## DEV-122 Cloud Run 部署續點（2026-10-05；免費解析器部分屬性已實測、唯讀輔助結果開發中）
+
+使用者指定 worker 使用 Cloud Run。現有 Windows COM Document Manager reader 無法直接在 Cloud Run Linux 容器執行；現行續點改優先評估免費MIT OpenSWX（Linux／三格式／文件與組態屬性為作者宣稱），仍需本案CAD實跑完整度證據；Datakit只留商用備案，不先購買。固定版本OpenSWX Linux/amd64 own映像已建置並綁31檔source／268個artifact與licenses；16項mapping與隔離tests通過。8檔native CAD（3PRT／1ASM／4DRW）皆讀出非空屬性、明示partial；4損壞／截斷樣本皆拒絕。原始8檔hash未變，14個task容器皆報exact清理；storedValue與effective組態可讀，type／raw／linked／evaluated及完整性仍unsupported或unknown；獨立Luna actual artifact QC已完成；12份暫存測試檔、14個容器、本機own映像與3個build CLI configs已驗明清理。使用者已選擇先開發唯讀輔助結果，Phase2本地契約RD Implementation Ready、cloud資源待具體授權。R2缺make與Windows授權匯出symlink失敗紀錄保留，未建立或部署Cloud Run worker，未新增 IAM／Secret；F-01F 仍待使用者正式驗證，7 issues／29 groups、整體未驗收。依[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#cloud-run-部署指示與解析器相容性2026-10-05current優先於下方-windows-啟動契約)與[相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)與[8CAD／4負向實測](qa/DEV-122-openswx-feasibility-2026-10-05.json)、[immutable建置／授權](qa/DEV-122-openswx-built-artifact-2026-10-05.json)與[獨立Luna QC](qa/DEV-122-openswx-independent-qc-2026-10-05.json)接續；下方 R03 Windows 主機待提供為歷史，不再作現行待辦。
+
 ## DEV-122 一次提交金鑰流程（2026-10-05；R03 已部署，待使用者 CAD 驗證）
 
-一次提交後自動測試、啟用與精確服務版本套用確認已部署：R03 owner run [37286616142](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37286616142) RELEASED／FINALIZED，100% ai-pdm-prod-7e169d142ba7、0 candidate tags；官方來源 aacd16a461dec3fca0ac27d2b178939211c5b055（PR211 正常合併），PR／main required CI 均 SUCCESS。170/170 unit、5/5 worker transport、34/34設定、134/134 release tests；isolated PG／正常 Settings UI 1440與390px控制流程及restart七表不變已驗，Luna來源／21張畫面與最後fixture QC無P1/P2。080正式1 applied／29 replayed／ledger30，舊migration prefix未變；B配置與既有三own資源沿用，無新增IAM。真key／CAD與常駐worker未冒稱PASS，主機位置待人類，安全launcher已交付；F-01F由使用者正式驗證，7 issues／29 groups、整體NOT_ACCEPTED。閱讀[追加契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[本輪checkpoint](qa/DEV-122-secret-workflow-automation-2026-10-05.json)與[新正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)。
+一次提交後自動測試、啟用與精確服務版本套用確認已部署：R03 owner run [37286616142](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37286616142) RELEASED／FINALIZED，100% ai-pdm-prod-7e169d142ba7、0 candidate tags；官方來源 aacd16a461dec3fca0ac27d2b178939211c5b055（PR211 正常合併），PR／main required CI 均 SUCCESS。170/170 unit、5/5 worker transport、34/34設定、134/134 release tests；isolated PG／正常 Settings UI 1440與390px控制流程及restart七表不變已驗，Luna來源／21張畫面與最後fixture QC無P1/P2。080正式1 applied／29 replayed／ledger30，舊migration prefix未變；B配置與既有三own資源沿用，無新增IAM。真key／CAD與常駐worker未冒稱PASS，R03 Windows launcher已交付；現行 Cloud Run reader 相容性依上方續點處理；F-01F由使用者正式驗證，7 issues／29 groups、整體NOT_ACCEPTED。閱讀[追加契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[本輪checkpoint](qa/DEV-122-secret-workflow-automation-2026-10-05.json)與[新正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)。
 
 
 > HISTORY_ONLY／R02基線：**2026-10-05 本工作樹入口：AIPDM/DEV-122／R02 已部署**：100% ai-pdm-prod-52f421cb8db9、0 candidate tags，正式登入 smoke PASS；[結案與人工驗收界線](qa/DEV-122-settings-production-closure-2026-10-05.json)。安全頁憑證 reauth 已完成及清理。設定 UI／真 key／probe／activation 與原生 CAD 仍待使用者正式驗證，F-01F NOT_RUN／7 issues／29 groups／整體未驗收。下方 DEV-121 R81 是其 owner 當時結案背景；當時 serving 以 R02 為準；現行 R03 依本頁最上方結案。單一 AI-PDM、禁止跨專案，其他 owner 修改保留。
@@ -1581,9 +1585,9 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：D122-08 已通過獨立Luna QC／required CI並合併PR213，發布範圍待人類決定；原生CAD由使用者於R03正式環境驗證。
-  - 驗收缺口：R03 100%／0 tags／正常登入 smoke PASS；正式真 key/probe/activation 與 CAD 由使用者驗證，常駐 worker 主機待提供。既有 28 組僅按相符本地層級保留，三格式 filename partial 不替代原生 CAD；7 issues／29 groups、整體未驗收。
-  - 證據：[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
+  - 下一步：依人類Cloud Run指定，優先評估免費MIT OpenSWX及三格式自訂屬性證據，不以商用SDK採購作先決條件；原生CAD正式驗證仍由使用者執行。D122-08 已合併PR213／QC與CI通過，該修復發布範圍仍待人類決定。
+  - 驗收缺口：R03 100%／0 tags／正常登入 smoke PASS；正式真 key/probe/activation 與 CAD 由使用者驗證；Cloud Run 與現有 Windows reader 不相容，免費Linux reader的完整屬性與實跑相容性證據尚缺。既有 28 組僅按相符本地層級保留，三格式 filename partial 不替代原生 CAD；7 issues／29 groups、整體未驗收。
+  - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
 - ✓ DEV-121 [開發點] [本輪授權正式交付完成／文件收尾] [P0] [Principal-only Production L4] 目標端授權邊界重構

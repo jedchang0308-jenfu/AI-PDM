@@ -1,0 +1,142 @@
+{
+  "sourceCommit": "30bd63845d3532cdecfdf2654e9cc0871229c45a",
+  "files": [
+    {
+      "path": "LICENSE",
+      "size": 1077,
+      "gitBlobSha1": "9740399269d08f434bdadd0a825000352dd848a9",
+      "sha256": "f0a4162356ca7a87c1f971a9f8828799a54297e3faad68fd06f53b803a45b45e",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/LICENSE"
+    },
+    {
+      "path": "libopenswx/include/openswx/document.h",
+      "size": 8547,
+      "gitBlobSha1": "8d6bbb26e61a99ad73c88a99c84dd5a5712ba96e",
+      "sha256": "adc4ba93043e31c27d3d9341374c73ff4bb554d4bc099e17b911fca4e2a45c91",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/include/openswx/document.h"
+    },
+    {
+      "path": "libopenswx/include/openswx/types.h",
+      "size": 11643,
+      "gitBlobSha1": "ca9a8d7de4b1f1acf00048f63d50460ef7e65d96",
+      "sha256": "9b50552dacd533b832e9d2f184fcf6bfb618842112ec1db001d034a9aebaf969",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/include/openswx/types.h"
+    },
+    {
+      "path": "libopenswx/include/openswx/version.h.in",
+      "size": 141,
+      "gitBlobSha1": "ab238b4f0d2a76774308f7730eee362a606ab948",
+      "sha256": "b23b2627c3167fc0a08972e5c016a768165f69cd19d894506d2a59bbf8c7d2eb",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/include/openswx/version.h.in"
+    },
+    {
+      "path": "libopenswx/src/document.cc",
+      "size": 22775,
+      "gitBlobSha1": "19daa07bf87a2f4a14c3da26364bc23acb48f8e0",
+      "sha256": "c6e5991edf6b8025bfebb97d2ece21ff540e87fb237f2de31c46acdc6a9d9bd8",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/document.cc"
+    },
+    {
+      "path": "libopenswx/src/internal/byte_reader.h",
+      "size": 4556,
+      "gitBlobSha1": "0feef34e33c9e4fc9cc8f081ee9c1fb91954c9bf",
+      "sha256": "bc1f7f95ada052d64215c2bd08648c8636e5bacf9416e46151daa5b9c9037f46",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/byte_reader.h"
+    },
+    {
+      "path": "libopenswx/src/internal/cmgrhdr_reader.h",
+      "size": 12550,
+      "gitBlobSha1": "0f7226c82c1be0ddf074f6c922ef90fe70c4c99c",
+      "sha256": "6df4bac2540b8ab911cc42d8331e7419ca877d35fa50efce905383847fedbf61",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/cmgrhdr_reader.h"
+    },
+    {
+      "path": "libopenswx/src/internal/decompressor.cc",
+      "size": 2791,
+      "gitBlobSha1": "a3ce657ec1c7989182299c183978a898a535d53f",
+      "sha256": "7245649d507ab2bf0dee2fed4c31e70cacf94eda6279437292d745dc70bb9d72",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/decompressor.cc"
+    },
+    {
+      "path": "libopenswx/src/internal/decompressor.h",
+      "size": 927,
+      "gitBlobSha1": "45161109c11270a0eafd3909396ab474496df951",
+      "sha256": "2814677cba84ff730d62fe79f6c4288c05080cf4afa890dad9f696a67d29311b",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/decompressor.h"
+    },
+    {
+      "path": "libopenswx/src/internal/modern_parser.cc",
+      "size": 6011,
+      "gitBlobSha1": "a7ea58b171b2486a5acfd5a31c99d89a39e8412c",
+      "sha256": "88c51fc83a77d0bacd2e85c3a8dd4d229888ff2e7ce8d896607721ef42c13c3f",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/modern_parser.cc"
+    },
+    {
+      "path": "libopenswx/src/internal/modern_parser.h",
+      "size": 3557,
+      "gitBlobSha1": "9ed475f4b8cb3e86969bfa6074965ace1feb639d",
+      "sha256": "d45b1104c49f535021af572f5c0fa2e5a3fbd19db6b0ec2f59c6135021079da9",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/modern_parser.h"
+    },
+    {
+      "path": "libopenswx/src/internal/ole2_parser.cc",
+      "size": 14069,
+      "gitBlobSha1": "78fb52a08f82ba731d83b7500d2fe9a8824093b9",
+      "sha256": "724e79e43369f947a0d8bb777a79ff6638a48db1d83c6a33e2cc42d30d4c25de",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/ole2_parser.cc"
+    },
+    {
+      "path": "libopenswx/src/internal/ole2_parser.h",
+      "size": 967,
+      "gitBlobSha1": "0ccf8d3401ad6b7176ee06f5cc68ffef1de22318",
+      "sha256": "8f5af687c433dae1c0efce2a2ada2138a44e9788ab589b32cbcf19b2b132286b",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/ole2_parser.h"
+    },
+    {
+      "path": "libopenswx/src/internal/rol_codec.h",
+      "size": 1581,
+      "gitBlobSha1": "2833e268972c5ff6ae39a1807ae8819a3969a76e",
+      "sha256": "dc0af511ddd385cda2f131649d993fe9da90c47ccc53e9a05b72ba0f17f8f36b",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/rol_codec.h"
+    },
+    {
+      "path": "libopenswx/src/internal/sheet_name_reader.cc",
+      "size": 1128,
+      "gitBlobSha1": "58ba44f9f7165c139f5fb148749c1428d983f113",
+      "sha256": "a7d25e45e57d6e182e7ba744cb789d54310201b65593709358ee3f6f0dd03d65",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/sheet_name_reader.cc"
+    },
+    {
+      "path": "libopenswx/src/internal/sheet_name_reader.h",
+      "size": 890,
+      "gitBlobSha1": "5ea2722a2d68cac013244006dd07051f1b6e9f80",
+      "sha256": "071f2ac8dfaa57ed62a8d29098c896e61b45bd7c36f27069b6b738cf03f30c43",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/sheet_name_reader.h"
+    },
+    {
+      "path": "libopenswx/src/internal/stream_store.h",
+      "size": 1399,
+      "gitBlobSha1": "c93d1696316cbc7a85bc101256412f4e5d856a06",
+      "sha256": "4c1e2c883532654de0796fd323cf79a15fbc96f069b7695429ef2ff38b515951",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/stream_store.h"
+    },
+    {
+      "path": "libopenswx/src/internal/xml_readers.cc",
+      "size": 14701,
+      "gitBlobSha1": "d7cdf54b4a6668e127562bfd3a7cf7aed10b193c",
+      "sha256": "7ad337c06fb3f4ae7f742f37210f1e2155e19252010041fd612bb45463c2501a",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/xml_readers.cc"
+    },
+    {
+      "path": "libopenswx/src/internal/xml_readers.h",
+      "size": 3857,
+      "gitBlobSha1": "2bd187346b11528c69e8111481af2cd243f077a0",
+      "sha256": "9eff60ed26ed124408275f0be230bc5668fe801e463108c2c32c566aff87accc",
+      "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/xml_readers.h"
+    }
+  ],
+  "bytes": 113167,
+  "reviewOnly": false,
+  "upstreamCheckout": false,
+  "usage": "AI-PDM feasibility adapter dependency only"
+}
