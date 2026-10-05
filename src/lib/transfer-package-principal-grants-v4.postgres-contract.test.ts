@@ -54,7 +54,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (original) => ({
           : isOwner ? "dev057-transfer-owner-session" : "dev057-transfer-reviewer-session",
         identityIssuer: tuple.identityIssuer, identitySubject: tuple.identitySubject,
         principalId: tuple.principalId, employeeId: tuple.employeeId,
-        authEpoch: 1, profileVersion: 1,
+        authEpoch: 1, profileVersion: 1, accountLifecycleVersion: 1, authenticatedAt: "2026-10-02T00:00:00.000Z",
         issuedAt: "2026-10-02T00:00:00.000Z", expiresAt: "2026-10-02T01:00:00.000Z",
         assuranceLevel: "aal1"
       }

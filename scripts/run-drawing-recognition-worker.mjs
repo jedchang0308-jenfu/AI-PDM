@@ -1,3 +1,4 @@
+import { processSettingsSecretProbe } from "./lib/drawing-recognition-secret-workflow.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -42,19 +43,20 @@ async function request(path, body) {
   });
   if (response.status === 204) return null;
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`${path}: ${response.status} ${JSON.stringify(payload)}`);
+  if (!response.ok) { const error=new Error(`WORKER_REQUEST_FAILED:${response.status}`); error.status=response.status; throw error; }
   return payload;
 }
 
 async function requestWorker(path, body) {
   const response = await fetch(`${baseUrl}${path}`, {
+    signal: AbortSignal.timeout(10_000),
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId, "content-type": "application/json" },
     body: JSON.stringify(body)
   });
   if (response.status === 204) return null;
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`${path}: ${response.status} ${JSON.stringify(payload)}`);
+  if (!response.ok) { const error=new Error(`WORKER_REQUEST_FAILED:${response.status}`); error.status=response.status; throw error; }
   return payload;
 }
 
@@ -96,6 +98,7 @@ async function ensureNativeReaderCredential() {
     throw error;
   }
   const response = await fetch(`${baseUrl}/api/preview-workers/solidworks-document-manager-key`, {
+    signal: AbortSignal.timeout(10_000),
     headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId }
   });
   if (!response.ok) {
@@ -188,9 +191,9 @@ async function runExternalAttempt(source, job, adapterCode, command, args, timeo
     child.on("close", (code, signal) => {
       clearTimeout(timer);
       if (signal || timedOut) return resolve({ sourceId: source.id, adapterCode, adapterVersion: "external", status: "timeout", diagnostics: [`timeout after ${timeoutMs}ms`] });
-      if (code !== 0) return resolve({ sourceId: source.id, adapterCode, adapterVersion: "external", status: "failed", diagnostics: [`exit ${code}: ${stderr}`.slice(0, 300)] });
+      if (code !== 0) return resolve({ sourceId: source.id, adapterCode, adapterVersion: "external", status: "failed", diagnostics: [`extractor_failed_exit_${code}`] });
       try { resolve(validateExternalAdapterResult(source.id, adapterCode, JSON.parse(stdout))); }
-      catch (error) { resolve({ sourceId: source.id, adapterCode, adapterVersion: "external", status: "failed", diagnostics: [`validation: ${String(error)}`.slice(0, 300)] }); }
+      catch (error) { resolve({ sourceId: source.id, adapterCode, adapterVersion: "external", status: "failed", diagnostics: ["extractor_result_validation_failed"] }); }
     });
     child.stdin.end(JSON.stringify({
       schemaVersion: "drawing-recognition-extractor.v1",
@@ -256,70 +259,40 @@ async function sendCapabilityHeartbeat(input = {}) {
   await requestWorker("/api/recognition-workers/heartbeat", {
     workerId,
     capability: "solidworks_document_manager",
-    status: credential?.value ? "ready" : "blocked",
+    status: input.status ?? (credential?.value ? "ready" : "blocked"),
     appliedSecretKind: credential?.value ? "solidworks_document_manager" : null,
     appliedSecretVersion: credential?.version ?? null,
     appliedSecretFingerprint: credential?.fingerprint ?? null,
     readerVersion: "solidworks-document-manager-reader.v1",
-    issueCode: credential?.value ? null : "native_metadata_license_missing",
+    issueCode: input.issueCode ?? (credential?.value ? null : "native_metadata_license_missing"),
     lastAppliedAt: credential?.value ? new Date().toISOString() : null
   });
 }
 
 async function processProbeJob(job) {
-  let credential = null;
-  try {
-    const credentialResponse = await fetch(`${baseUrl}/api/settings-secret-probe-jobs/${encodeURIComponent(job.id)}/credential`, {
-      headers: { authorization: `Bearer ${token}`, "x-pdm-worker-id": workerId }
-    });
-    const credentialBody = await credentialResponse.json().catch(() => ({}));
-    if (!credentialResponse.ok || !credentialBody?.value) {
-      const error = new Error(String(credentialBody?.error ?? "native_metadata_license_missing"));
-      error.code = String(credentialBody?.error ?? "native_metadata_license_missing");
-      throw error;
-    }
-    credential = credentialBody;
-    const probeHeartbeat = setInterval(() => void requestWorker(`/api/settings-secret-probe-jobs/${encodeURIComponent(job.id)}/heartbeat`, { workerId }).catch(() => undefined), 5_000);
-    let result;
-    try {
-      result = await runExternal(
-        { id: job.id },
-        { sessionId: `settings-probe:${job.id}`, companyId: "system", targetContext: {}, sourceSetFingerprint: "settings-probe" },
-        "solidworks-credential-probe.v1",
-        "PDM_SOLIDWORKS_DOCUMENT_MANAGER_PROBE_CMD",
-        "PDM_SOLIDWORKS_DOCUMENT_MANAGER_PROBE_ARGS",
-        null,
-        { PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY: credential.value }
-      );
-    } finally {
-      clearInterval(probeHeartbeat);
-    }
-    const passed = result.status === "succeeded" || result.status === "success";
-    await requestWorker(`/api/settings-secret-probe-jobs/${encodeURIComponent(job.id)}/complete`, {
-      workerId,
-      status: passed ? "passed" : "failed",
-      resultCode: passed ? null : "native_metadata_credential_probe_failed",
-      readerVersion: result.adapterVersion ?? "solidworks-document-manager-reader.v1",
-      summary: passed ? "SolidWorks Document Manager application probe 通過。" : "SolidWorks Document Manager application probe 未通過。"
-    });
-    await sendCapabilityHeartbeat({ credential: passed ? credential : null });
-  } catch (error) {
-    await requestWorker(`/api/settings-secret-probe-jobs/${encodeURIComponent(job.id)}/complete`, {
-      workerId,
-      status: "blocked",
-      resultCode: String(error?.code ?? "native_metadata_credential_probe_failed").slice(0, 120),
-      readerVersion: "solidworks-document-manager-reader.v1"
-    }).catch(() => undefined);
-    await sendCapabilityHeartbeat().catch(() => undefined);
-  }
+  return processSettingsSecretProbe({job,workerId,request:requestWorker,delay,
+    startHeartbeat:callback=>{const timer=setInterval(()=>void callback(),5000);return ()=>clearInterval(timer);},
+    readCredential:async (claimed,fence)=>{
+      const response=await fetch(`${baseUrl}/api/settings-secret-probe-jobs/${encodeURIComponent(claimed.id)}/credential?leaseAttempt=${fence.leaseAttempt}`,
+        {signal:AbortSignal.timeout(10_000),headers:{authorization:`Bearer ${token}`,"x-pdm-worker-id":workerId}});
+      if (!response.ok) {const error=new Error('SECRET_PROBE_CREDENTIAL_UNAVAILABLE');error.status=response.status;throw error;}
+      return response.json();
+    },
+    runProbe:async (claimed,credential)=>runExternal({id:claimed.id},
+      {sessionId:`settings-probe:${claimed.id}`,companyId:claimed.companyId,targetContext:{},sourceSetFingerprint:'settings-probe'},
+      'solidworks-credential-probe.v1','PDM_SOLIDWORKS_DOCUMENT_MANAGER_PROBE_CMD','PDM_SOLIDWORKS_DOCUMENT_MANAGER_PROBE_ARGS',
+      null,{PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY:credential.value}),
+    readActiveCredential:async()=>await discoverNativeReaderCommands() ? ensureNativeReaderCredential() : null,
+    sendCapabilityHeartbeat
+  });
 }
 
 while (true) {
   try {
     const nativeMetadataConfigured = await discoverNativeReaderCommands();
     const credential = await ensureNativeReaderCredential().catch(() => null);
-    await sendCapabilityHeartbeat({ credential }).catch(() => undefined);
-    const probeJob = await requestWorker("/api/settings-secret-probe-jobs/claim", { workerId });
+    await sendCapabilityHeartbeat({ credential: nativeMetadataConfigured ? credential : null }).catch(() => undefined);
+    const probeJob = await requestWorker("/api/settings-secret-probe-jobs/claim", { workerId, protocolVersion:2 });
     if (probeJob) {
       await processProbeJob(probeJob);
       if (once) break;

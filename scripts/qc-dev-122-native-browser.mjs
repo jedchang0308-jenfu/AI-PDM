@@ -19,7 +19,9 @@ const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.js
 assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
-const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
+const boundedSettingsFlow=['settings','settings-automation'].includes(flowSelection);
 const output=path.join(root,'output','playwright','dev122',path.basename(runtime));fs.mkdirSync(output,{recursive:true});
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
@@ -85,7 +87,7 @@ async function settingsAwait(stage,operation,viewport=null) {
   }finally{clearTimeout(timer);}
 }
 try {
-  const browserTemp=path.join(runtime,'browser-temp');fs.mkdirSync(browserTemp);
+  const browserTemp=path.join(runtime,flowSelection==='settings-automation'?'browser-temp-'+automationPhase:'browser-temp');fs.mkdirSync(browserTemp);
   process.env.TEMP=browserTemp;process.env.TMP=browserTemp;
   receipt.browserDeclaration={project:'AIPDM',purpose:'DEV122 task-owned headless browser and local Playwright websocket',
     port:await freePort(),TEMP:browserTemp,PDM_DATA_DIR:process.env.PDM_DATA_DIR,PDM_REPOSITORY_DIR:process.env.PDM_REPOSITORY_DIR,
@@ -120,7 +122,12 @@ try {
     page.on('framenavigated',frame=>{if(frame===page.mainFrame()&&frame.url().startsWith(origin))navigationRoutes.push({pathname:new URL(frame.url()).pathname,search:new URL(frame.url()).search});});
     let expectedSaveFailure=null,expectedSaveFailureReached=0,expectedSettingsDenied=false;
     const secretMutationRequests=[],settingsDeniedHeaders=[],settingsUiResponseIds=new WeakMap();
-    let settingsDeniedProof=null;
+    let settingsDeniedProof=null,expectedSettingsReadAbort=false;
+    const settingsReadFailureEvidence=[];
+    if(flowSelection==='settings-automation') {
+      page.on('request',request=>{const target=new URL(request.url());if(target.origin===origin&&/^\/api\/(?:settings(?:\/|$)|settings-secret-probe-jobs(?:\/|$)|recognition-workers(?:\/|$))/u.test(target.pathname)&&!['GET','HEAD'].includes(request.method()))secretMutationRequests.push({pathname:target.pathname,method:request.method()});});
+      page.on('requestfailed',request=>{const target=new URL(request.url());if(expectedSettingsReadAbort&&target.pathname==='/api/settings/secrets'&&request.method()==='GET'){settingsReadFailureEvidence.push({at:Date.now(),pathname:target.pathname,error:request.failure()?.errorText,producerBoundary:'EXACT_STATUS_GET_ABORT_TESTCASE'});receipt.settingsInjectedReadFailures??=[];receipt.settingsInjectedReadFailures.push(settingsReadFailureEvidence.at(-1));save();}});
+    }
     if(flowSelection==='settings')page.on('request',request=>{
       const target=new URL(request.url());
       if(target.origin===origin&&/^\/api\/(?:settings(?:\/|$)|settings-secret-probe-jobs(?:\/|$)|recognition-workers(?:\/|$))/u.test(target.pathname)
@@ -215,6 +222,9 @@ try {
       for(const message of consoleReadbacks) {
         if(message.type==='error') {
           const location=new URL(message.location.url||origin,origin);
+          const expectedReadAbort=flowSelection==='settings-automation'&&settingsReadFailureEvidence.some(item=>Math.abs(item.at-message.observedAt)<5000)&&/net::ERR_FAILED/u.test(message.text)&&location.pathname==='/api/settings/secrets';
+          if(expectedReadAbort){message.classification={reason:'exact intentionally aborted status GET',evidence:settingsReadFailureEvidence};continue;}
+
           const expected=(receipt.apiErrorReadbacks??[]).find(item=>item.viewport===fixture.width&&item.expectedClassification&&item.pathname===location.pathname
             &&Math.abs(item.observedAt-message.observedAt)<5000&&message.text.includes('status of '+item.status));
           message.classification=expected?{reason:expected.expectedClassification,requestPath:expected.pathname,status:expected.status,body:expected.body}:null;
@@ -241,7 +251,7 @@ try {
           item,accepted,observedPageTitles:[...observedPageTitles]});save();
         assert.ok(accepted,'UNEXPECTED_NEXT_ROUTE_ANNOUNCEMENT');
       }
-      assert.deepEqual(liveAlerts.filter(item=>!item.isNext&&item.text).map(item=>item.text),[],'UNEXPECTED_PRODUCT_ALERT');
+      assert.deepEqual(liveAlerts.filter(item=>!item.isNext&&item.text&&!(flowSelection==='settings-automation'&&settingsReadFailureEvidence.length&&item.text==='無法取得最新狀態，請重試。')).map(item=>item.text),[],'UNEXPECTED_PRODUCT_ALERT');
     };
     const screenshot=async name=>{await healthy();
       const metrics=await page.evaluate(()=>({viewport:window.innerWidth,documentWidth:document.documentElement.scrollWidth,
@@ -282,8 +292,84 @@ try {
         canonicalPreviewURL:attachmentPreviewResponse.url(),downloadName:attachmentDownload.suggestedFilename(),layer:'ACTUAL_DOM_AND_SIGNED_CANONICAL_ROUTES',actualCADOutput:'NOT_APPLICABLE_IMAGE_ATTACHMENT'});
     };
     try {
-      if(flowSelection==='settings')await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
+      if(boundedSettingsFlow)await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
       else await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+      if(flowSelection==='settings-automation') {
+        assert.equal(fixture.flow,'settings-automation');
+        const control=async action=>{
+          const nonce=crypto.randomUUID(),requestPath=path.join(runtime,'secret-workflow-request.json'),resultPath=path.join(runtime,'secret-workflow-result.json');
+          fs.rmSync(resultPath,{force:true});fs.writeFileSync(requestPath+'.tmp',JSON.stringify({action,nonce,width:fixture.width}));fs.renameSync(requestPath+'.tmp',requestPath);
+          return settingsAwait('fixture '+action,async()=>{while(true){
+            if(fs.existsSync(resultPath)){const result=JSON.parse(fs.readFileSync(resultPath,'utf8'));if(result.nonce===nonce){assert.equal(result.action,action);assert.equal(result.status,'APPLIED',JSON.stringify(result));progress('fixture '+action,{layer:'LOCAL_API_PG_CONTROL_FLOW_SYNTHETIC_RESULT',result:result.result});return result.result;}}
+            await new Promise(resolve=>setTimeout(resolve,50));
+          }},fixture.width);
+        };
+        if(automationPhase==='submit'){await control('prepare');await control('offline');}
+        await settingsAwait('normal settings sidebar',async()=>{await navigate('系統設定');await page.waitForURL(location=>location.pathname==='/settings');},fixture.width);
+        const security=page.getByRole('navigation',{name:'設定區域',exact:true}).getByRole('link',{name:'安全',exact:true});
+        await security.focus();await page.keyboard.press('Enter');await page.waitForURL(location=>location.pathname==='/settings/security');
+        const panel=page.locator('#settings-security'),state=panel.locator('[data-workflow-state]');
+        const waitState=async value=>{await state.waitFor();await page.waitForFunction(value=>document.querySelector('[data-workflow-state]')?.getAttribute('data-workflow-state')===value,value,{timeout:20000});};
+        const motion=()=>panel.locator('.settings-secret-spin,.settings-secret-pulse');
+        const input=page.getByLabel('API / 授權金鑰',{exact:true});await input.waitFor();assert.equal(await input.inputValue(),'');
+        assert.equal(await panel.locator('form .primary-button').count(),1);
+        assert.equal(await panel.getByRole('button',{name:'測試最新版本',exact:true}).count(),0);
+        assert.equal(await panel.getByRole('button',{name:'啟用已測試版本',exact:true}).count(),0);
+        if(automationPhase==='readback') {
+          await waitState('blocked');await panel.getByRole('button',{name:'繼續並啟用 v3',exact:true}).waitFor();
+          assert.equal(await motion().count(),0);assert.equal(secretMutationRequests.length,0);
+          const snapshot=await control('snapshot');assert.equal(snapshot.intents.filter(row=>row.state==='blocked').length,1);
+          await screenshot('settings-automation-restart-durable-no-post');
+          receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'settings-automation',phase:automationPhase,normalNavigation:true,zeroMutation:true,secretMutationRequests,snapshot,overflowMetrics,navigationRoutes});save();continue;
+        }
+        const resume=panel.getByRole('button',{name:`繼續並啟用 v${fixture.version}`,exact:true});await resume.waitFor();assert.equal(await resume.isEnabled(),true);
+        assert.equal(await motion().count(),0);
+        await screenshot('settings-automation-explicit-consent');
+        const submitted=waitResponse(response=>new URL(response.url()).pathname===`/api/settings/secrets/${fixture.referenceId}/test`&&response.request().method()==='POST');
+        await resume.focus();await page.keyboard.press('Enter');await page.keyboard.press('Enter');
+        const submittedResponse=await submitted,submittedBody=await submittedResponse.json();assert.equal(submittedResponse.status(),202,JSON.stringify(submittedBody));
+        await waitState('waiting_worker');assert.equal(await motion().count(),0);
+        const pending=await control('snapshot');assert.equal(pending.intents.find(row=>row.secret_reference_id===fixture.referenceId).state,'pending');
+        assert.equal(pending.jobs.find(row=>row.id===fixture.jobId).initiator_principal_id,'dev122-principal-reviewer');
+        await screenshot('settings-automation-waiting-offline');
+        await control('online');await panel.locator('.settings-secret-pulse').waitFor();
+        await screenshot('settings-automation-waiting-online-pulse');
+        await page.emulateMedia({reducedMotion:'reduce'});
+        assert.equal(await panel.locator('.settings-secret-pulse').evaluate(element=>getComputedStyle(element).animationName),'none');
+        await screenshot('settings-automation-reduced-motion');await page.emulateMedia({reducedMotion:'no-preference'});
+        await control('claim');await waitState('testing');await panel.locator('.settings-secret-progress .settings-secret-spin').waitFor();
+        assert.notEqual(await panel.locator('.settings-secret-progress .settings-secret-spin').evaluate(element=>getComputedStyle(element).animationName),'none');
+        await screenshot('settings-automation-testing-spinner');
+        await control('stale_attempt');
+        const complete=await control('complete');assert.equal(complete.status.workflow.state,'awaiting_worker_ack');
+        await waitState('awaiting_worker_ack');await control('replay');
+        const wrongAck=await control('wrong_ack');assert.equal(wrongAck.status.workflow.exactAck,false);
+        await screenshot('settings-automation-awaiting-exact-ack');
+        await control('offline');await page.waitForFunction(()=>!document.querySelector('#settings-security .settings-secret-pulse')&&!document.querySelector('#settings-security .settings-secret-spin'),null,{timeout:20000});
+        await screenshot('settings-automation-ack-offline-static');
+        const ack=await control('ack');assert.equal(ack.status.workflow.exactAck,true);await waitState('ready');assert.equal(await motion().count(),0);
+        await control('immutable');await screenshot('settings-automation-ready');
+        // Actual browser network failure: one status GET is aborted, then explicit readback recovers without a POST.
+        expectedSettingsReadAbort=true;let aborted=false;
+        await page.route('**/api/settings/secrets',route=>{if(!aborted&&route.request().method()==='GET'){aborted=true;return route.abort('failed');}return route.continue();});
+        await waitState('read_error');assert.equal(aborted,true);assert.equal(await motion().count(),0);
+        await screenshot('settings-automation-read-error-static');
+        const retry=panel.getByRole('button',{name:'重新讀取狀態',exact:true});await retry.focus();await page.keyboard.press('Enter');await waitState('ready');
+        await page.unroute('**/api/settings/secrets');expectedSettingsReadAbort=false;
+        assert.equal(secretMutationRequests.length,1,'UI_DOUBLE_SUBMISSION');
+        if(fixture.width===390) {
+          await control('negative_prepare');await page.reload({waitUntil:'domcontentloaded'});
+          const negative=panel.getByRole('button',{name:'繼續並啟用 v3',exact:true});await negative.waitFor();
+          const negativePending=waitResponse(response=>new URL(response.url()).pathname==='/api/settings/secrets/dev122-secret-control-negative/test'&&response.request().method()==='POST');
+          await negative.focus();await page.keyboard.press('Enter');assert.equal((await negativePending).status(),202);
+          const blocked=await control('negative_complete');assert.equal(blocked.status.workflow.state,'blocked');
+          assert.equal(blocked.status.active.id,fixture.referenceId);await waitState('blocked');assert.equal(await motion().count(),0);
+          await screenshot('settings-automation-current-grant-withdrawn-keeps-active');
+          assert.equal(secretMutationRequests.length,2);
+        }
+        const finalSnapshot=await control('snapshot');
+        receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'settings-automation',phase:automationPhase,normalNavigation:true,signedPrincipal:true,keyInput:'NOT_FILLED',nativeCad:'NOT_RUN',providerCredential:'NOT_READ',secretMutationRequests,submittedBody,pending,finalSnapshot,reducedMotion:true,realNetworkReadFailure:settingsReadFailureEvidence,keyboard:true,overflowMetrics,navigationRoutes,requests});save();continue;
+      }
       if(flowSelection==='settings') {
         assert.equal(fixture.flow,'settings');
         const summaryPending=waitResponse(response=>new URL(response.url()).pathname==='/api/settings'&&response.request().method()==='GET');
@@ -320,8 +406,10 @@ try {
         assert.equal(await password.getAttribute('type'),'password');assert.equal(await password.inputValue(),'');
         await password.focus();assert.equal(await password.evaluate(element=>element===document.activeElement),true);
         await page.keyboard.press('Tab');assert.equal(await password.inputValue(),'');
-        const actions=['建立草稿','測試最新版本','啟用已測試版本','撤銷目前啟用版本'];
-        for(const name of actions)assert.equal(await page.getByRole('button',{name,exact:true}).isEnabled(),false,name);
+        assert.equal(await page.getByRole('button',{name:'儲存並啟用',exact:true}).isEnabled(),false);
+        assert.equal(await page.getByRole('button',{name:'測試最新版本',exact:true}).count(),0);
+        assert.equal(await page.getByRole('button',{name:'啟用已測試版本',exact:true}).count(),0);
+        const details=page.locator('.settings-secret-details > summary');await details.focus();await page.keyboard.press('Enter');
         await page.getByText(status.liveGate.message,{exact:true}).waitFor();
         await page.getByText(status.workerReadiness.message,{exact:true}).waitFor();
         await page.getByText(status.workerPresence.message,{exact:true}).waitFor();
@@ -739,7 +827,7 @@ try {
         normalNavigation:true,normalCreation,matrixRoundTrip,signedPrincipal:true,keyboard:true,terminalTwoPeriods:true,download:true,gallery:true,overflowMetrics,navigationRoutes,
         reviewerEntry:['normal Part workbench submitted row','前往審核','返回審核清單','normal approvals list search/Enter'],drawingEntry:'actual homepage Link',frameworkAnnouncements,observedPageTitles,requests});save();
     } catch(error) {
-      if(flowSelection==='settings') {
+      if(boundedSettingsFlow) {
         receipt.status='FAIL';receipt.firstFailure??={message:error.message,stack:error.stack,viewport:fixture.width};
         receipt.firstFailureRequests=requests;receipt.firstFailureNavigationRoutes=navigationRoutes;save();
         for(const [stage,capture] of [
@@ -759,17 +847,17 @@ try {
       }
       throw error;
     } finally {
-      if(flowSelection==='settings')await settingsAwait('context close',()=>context.close(),fixture.width);
+      if(boundedSettingsFlow)await settingsAwait('context close',()=>context.close(),fixture.width);
       else await context.close();
     }
   }
   receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
-  receipt.coverage={partial:preflight?[]:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?['prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
+  receipt.coverage={partial:preflight?[]:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?['prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
-} catch(error) {receipt.status='FAIL';if(flowSelection==='settings'){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
+} catch(error) {receipt.status='FAIL';if(boundedSettingsFlow){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
   try{
-    if(flowSelection==='settings') {
+    if(boundedSettingsFlow) {
       receipt.settingsCloseFailures=[];
       for(const [stage,operation] of [['browser close',()=>browser?.close()],['browser server close',()=>browserServer?.close()]]) {
         try{await settingsAwait(stage,operation);}catch(error){receipt.settingsCloseFailures.push({stage,message:error.message});save();}

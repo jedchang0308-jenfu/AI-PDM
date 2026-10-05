@@ -2,14 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PdmCommandMetadata } from "@/lib/platform-command";
 
 const mocks = vi.hoisted(() => ({ command: vi.fn(), audit: vi.fn(),
-  transaction: vi.fn(), provider: vi.fn(), readProvider: vi.fn(), preflight: vi.fn(), replay: vi.fn(), permissions: vi.fn(),
+  authority: vi.fn(), transaction: vi.fn(), provider: vi.fn(), readProvider: vi.fn(), preflight: vi.fn(), replay: vi.fn(), permissions: vi.fn(),
   providerConfig: vi.fn(), readEnabled: vi.fn(), writeEnabled: vi.fn(),
   repository: { getReferenceById: vi.fn(), getLatestProbeJob: vi.fn(), enqueueProbeJob: vi.fn(),
     getActiveTypedProbeJob: vi.fn(),
     getProbeJobById: vi.fn(), completeProbeJob: vi.fn(), insertTestRun: vi.fn(),
     markReferenceTested: vi.fn(), insertActivationEvent: vi.fn(), retireActiveReferences: vi.fn(),
     listReferencesByKind: vi.fn(), getLatestWorkerCapabilityHeartbeat: vi.fn(),
-    activateReference: vi.fn(), revokeReference: vi.fn(), insertReference: vi.fn(), getNextVersion: vi.fn() } }));
+    lockKind:vi.fn(), databaseNow:vi.fn(), getLatestIntent:vi.fn(), insertIntent:vi.fn(), updateIntent:vi.fn(), newestConsentedVersion:vi.fn(), supersedePending:vi.fn(),
+    getLatestTestRun:vi.fn(), getTestRunById:vi.fn(), saveCompletionReceipt:vi.fn(), getMatchingDocumentManagerHeartbeat:vi.fn(), activateReference: vi.fn(), revokeReference: vi.fn(), insertReference: vi.fn(), getNextVersion: vi.fn() } }));
+vi.mock("@/lib/settings-secret-activation-authority", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/settings-secret-activation-authority")>(),
+  requireCurrentSettingsSecretActivationAuthority: mocks.authority
+}));
 vi.mock("@/lib/db-async-provider", () => ({ getAsyncDatabaseClient: () => ({ kind: "postgres", transaction: mocks.transaction }) }));
 vi.mock("@/lib/platform-command-service", () => ({ executePdmCommandWithOutbox: mocks.command }));
 vi.mock("@/lib/jenfu-principal-request-guard", () => ({ withVerifiedJenfuPrincipalRequest: mocks.preflight }));
@@ -25,13 +30,14 @@ import { activateSettingsSecretReference, completeSettingsSecretProbe, createSet
   enqueueSettingsSecretProbe, resolveSettingsSecretProbeCredential, revokeSettingsSecretReference, listSettingsSecretStatuses } from "@/lib/settings-secret-lifecycle";
 const snapshot = { kind: "postgres" };
 const verified = { profile: { pdmUserId: "profile-tester", companyId: "company-one" },
-  session: { principalId: "principal-tester", profileVersion: 7 } };
+  session: { principalId:"principal-tester",profileVersion:7,employeeId:"employee",identityIssuer:"issuer",identitySubject:"subject",
+    authEpoch:1,accountLifecycleVersion:2,authenticatedAt:"2026-10-05T00:00:00.000Z",issuedAt:"2026-10-05T00:00:01.000Z" } };
 const worker = { kind: "workload" as const, id: "worker-one", purposes: ["settings_secret_probe" as const],
   capabilities: ["solidworks_document_manager" as const] };
 const reference = { id: "reference-one", kind: "solidworks_document_manager", provider: "solidworks_document_manager",
-  lifecycleStatus: "draft", vaultProvider: "google_secret_manager", createdBy: "profile-draft-creator", version: 1 };
+  lifecycleStatus: "draft", vaultProvider: "google_secret_manager", createdBy:"profile-draft-creator",version:1,metadataJson:JSON.stringify({companyId:"company-one",securityActor:{kind:"human",principalId:"creator",profileVersion:1}}) };
 function job(extra = {}) { return { id: "probe-one", secretReferenceId: reference.id, kind: reference.kind,
-  status: "running", lockedBy: worker.id, updatedAt: new Date().toISOString(), createdBy: "profile-tester",
+  status: "running", attemptCount:1, lockedBy: worker.id, updatedAt: new Date().toISOString(), createdBy: "profile-tester",
   companyId: "company-one", initiatorPrincipalId: "principal-tester", initiatorProfileVersion: 7,
   purpose: "settings_secret_probe", ...extra }; }
 function metadata(): PdmCommandMetadata { return { actor: { principalId: "principal-tester", pdmUserId: "profile-tester",
@@ -50,7 +56,12 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
     mocks.providerConfig.mockReturnValue({ projectId: "synthetic-project", secretId: "synthetic-secret" });
     mocks.readEnabled.mockReturnValue(false);
     mocks.writeEnabled.mockReturnValue(false);
-    mocks.repository.getReferenceById.mockResolvedValue(reference);
+    mocks.repository.getReferenceById.mockResolvedValue({...reference});
+    mocks.repository.listReferencesByKind.mockResolvedValue([]);
+    mocks.repository.databaseNow.mockResolvedValue(new Date().toISOString());
+    mocks.repository.getLatestIntent.mockResolvedValue(null);
+    mocks.repository.newestConsentedVersion.mockResolvedValue(0);
+    mocks.authority.mockResolvedValue({principalId:"principal-tester",pdmUserId:"profile-tester",companyId:"company-one"});
     mocks.repository.getLatestProbeJob.mockResolvedValue(null);
     mocks.repository.getActiveTypedProbeJob.mockResolvedValue(null);
     mocks.repository.enqueueProbeJob.mockImplementation(async value => ({ ...job(), ...value }));
@@ -98,7 +109,7 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
 
   it("does not transfer an already queued job to a later requester", async () => {
     mocks.repository.getActiveTypedProbeJob.mockResolvedValue(job({ status: "pending" }));
-    await expect(enqueueSettingsSecretProbe({ secretReferenceId: reference.id }, metadata())).rejects.toMatchObject({ code: "SECRET_PROBE_JOB_BUSY" });
+    expect(await enqueueSettingsSecretProbe({ secretReferenceId: reference.id }, metadata())).toMatchObject({id:"probe-one",status:"pending",initiatorPrincipalId:"principal-tester"});
     expect(mocks.repository.enqueueProbeJob).not.toHaveBeenCalled();
     expect(mocks.audit).not.toHaveBeenCalled();
   });
@@ -119,7 +130,7 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
       securityActor: { kind: "workload", id: "worker-one", purpose: "settings_secret_probe" } });
     expect(mocks.repository.getProbeJobById).toHaveBeenCalledWith("probe-one", true);
     expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "SettingsSecretProbeCompleted", actorId: "profile-tester" }), snapshot);
-    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "repeatable_read", readOnly: false });
+    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "serializable", readOnly: false });
   });
 
   it.each([
@@ -226,4 +237,94 @@ describe("DEV121 settings commands and worker Principal provenance", () => {
     await expect(enqueueSettingsSecretProbe({ secretReferenceId: reference.id }, metadata())).rejects.toBe(fault);
     expect(mocks.repository.enqueueProbeJob).not.toHaveBeenCalled();
   });
+  it.each(["true",1,null])("rejects non-boolean automatic consent before provider I/O: %s", async autoActivate=>{
+    await expect(createSettingsSecretDraft({kind:reference.kind,secretValue:"synthetic-canary",autoActivate:autoActivate as unknown as boolean},metadata())).rejects.toMatchObject({code:"INVALID_AUTO_ACTIVATE"});
+    expect(mocks.provider).not.toHaveBeenCalled();expect(mocks.command).not.toHaveBeenCalled();
+  });
+  it("records consent separately while reusing another human's original pending job",async()=>{
+    mocks.repository.getActiveTypedProbeJob.mockResolvedValue(job({status:"pending",initiatorPrincipalId:"original-principal"}));
+    await enqueueSettingsSecretProbe({secretReferenceId:reference.id,autoActivate:true},metadata());
+    expect(mocks.repository.insertIntent).toHaveBeenCalledWith(expect.objectContaining({probeJobId:"probe-one",consentPrincipalId:"principal-tester",companyId:"company-one"}));
+    expect(mocks.repository.enqueueProbeJob).not.toHaveBeenCalled();
+  });
+  it("creates draft, typed queue and consent inside the same SQL command after provider storage",async()=>{
+    await createSettingsSecretDraft({kind:reference.kind,secretValue:"synthetic-canary",autoActivate:true},metadata());
+    expect(mocks.repository.insertReference).toHaveBeenCalledOnce();expect(mocks.repository.enqueueProbeJob).toHaveBeenCalledOnce();
+    expect(mocks.repository.insertIntent).toHaveBeenCalledOnce();expect(mocks.repository.activateReference).not.toHaveBeenCalled();
+    expect(JSON.stringify(mocks.repository.insertIntent.mock.calls)).not.toContain("synthetic-canary");
+  });
+  it("denies a foreign company's draft before queue or consent effects",async()=>{
+    mocks.repository.getReferenceById.mockResolvedValue({...reference,metadataJson:JSON.stringify({companyId:"other"})});
+    await expect(enqueueSettingsSecretProbe({secretReferenceId:reference.id,autoActivate:true},metadata())).rejects.toMatchObject({code:"SECRET_REFERENCE_SCOPE_MISMATCH"});
+    expect(mocks.repository.enqueueProbeJob).not.toHaveBeenCalled();expect(mocks.repository.insertIntent).not.toHaveBeenCalled();
+  });
+  it("rejects a stale attempt before completion and authority queries",async()=>{
+    await expect(completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:2,status:"passed",resultCode:null,readerVersion:"reader.v1"})).rejects.toMatchObject({code:"SECRET_PROBE_JOB_LOCKED"});
+    expect(mocks.repository.completeProbeJob).not.toHaveBeenCalled();expect(mocks.authority).not.toHaveBeenCalled();
+  });
+  it("does not attach an old pending consent to a manual new probe completion",async()=>{
+    mocks.repository.getLatestIntent.mockResolvedValue({state:"pending",probeJobId:"old-job",secretReferenceId:reference.id,kind:reference.kind,companyId:"company-one"});
+    await completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:1,status:"passed",resultCode:null,readerVersion:"reader.v1"});
+    expect(mocks.authority).not.toHaveBeenCalled();expect(mocks.repository.activateReference).not.toHaveBeenCalled();
+  });
+  it("settles an expired pending intent before explicit new consent binds a fresh job",async()=>{
+    const old={id:"old-intent",state:"pending",probeJobId:"old-job",secretReferenceId:reference.id,kind:reference.kind,companyId:"company-one",consentPdmUserId:"profile-tester"};
+    mocks.repository.getLatestIntent.mockResolvedValueOnce(old).mockResolvedValue(null);
+    mocks.repository.getProbeJobById.mockResolvedValueOnce(job({id:"old-job",status:"expired"}));
+    await enqueueSettingsSecretProbe({secretReferenceId:reference.id,autoActivate:true},metadata());
+    expect(mocks.repository.updateIntent).toHaveBeenCalledWith("old-intent","blocked","native_probe_not_passed",expect.any(String));
+    expect(mocks.repository.insertIntent).toHaveBeenCalledWith(expect.objectContaining({state:"pending"}));
+  });
+  it("same terminal receipt returns its test run without repeating effects",async()=>{
+    const result={status:"passed",resultCode:null,readerVersion:"reader.v1",summary:"SolidWorks Document Manager application probe 通過。"};
+    const digest=(await import("node:crypto")).createHash("sha256").update(JSON.stringify({workerId:worker.id,referenceId:reference.id,attempt:1,...result})).digest("hex");
+    mocks.repository.getProbeJobById.mockResolvedValue(job({status:"passed",completionDigest:digest,completionTestRunId:"test-one"}));
+    mocks.repository.getTestRunById.mockResolvedValue({id:"test-one"});
+    expect(await completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:1,status:"passed",resultCode:null,readerVersion:"reader.v1"})).toMatchObject({id:"test-one",workflow:expect.objectContaining({referenceId:reference.id})});
+    expect(mocks.repository.completeProbeJob).not.toHaveBeenCalled();expect(mocks.repository.insertTestRun).not.toHaveBeenCalled();expect(mocks.audit).not.toHaveBeenCalled();
+  });
+
+  function automaticIntent(extra={}) {return {id:"intent-one",state:"pending",secretReferenceId:reference.id,probeJobId:"probe-one",kind:reference.kind,companyId:"company-one",consentPrincipalId:"principal-tester",consentPdmUserId:"profile-tester",...extra};}
+  function completedProof() {
+    mocks.repository.getLatestProbeJob.mockResolvedValue(job({status:"passed"}));
+    mocks.repository.getTestRunById.mockImplementation(async ()=>mocks.repository.insertTestRun.mock.calls.at(-1)?.[0]);
+  }
+  it("auto activation commits after the same exact probe and current human authority",async()=>{
+    completedProof();mocks.repository.getLatestIntent.mockResolvedValue(automaticIntent());
+    await completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:1,status:"passed",resultCode:null,readerVersion:"reader.v1"});
+    expect(mocks.authority).toHaveBeenCalledWith(snapshot,expect.objectContaining({id:"intent-one"}));
+    expect(mocks.repository.activateReference).toHaveBeenCalledOnce();expect(mocks.repository.retireActiveReferences).toHaveBeenCalledOnce();
+    expect(mocks.repository.updateIntent).toHaveBeenCalledWith("intent-one","activated",null,expect.any(String),expect.any(String));
+  });
+  it("known withdrawal persists a truthful pass but blocks activation and keeps prior active",async()=>{
+    completedProof();mocks.repository.getLatestIntent.mockResolvedValue(automaticIntent());
+    const {SettingsSecretActivationDenied}=await import("@/lib/settings-secret-activation-authority");
+    mocks.authority.mockRejectedValue(new SettingsSecretActivationDenied("consent_authority_revoked"));
+    await completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:1,status:"passed",resultCode:null,readerVersion:"reader.v1"});
+    expect(mocks.repository.insertTestRun).toHaveBeenCalledWith(expect.objectContaining({resultStatus:"passed"}));
+    expect(mocks.repository.updateIntent).toHaveBeenCalledWith("intent-one","blocked","consent_authority_revoked",expect.any(String));
+    expect(mocks.repository.retireActiveReferences).not.toHaveBeenCalled();expect(mocks.repository.activateReference).not.toHaveBeenCalled();
+  });
+  it("a dependency failure propagates to roll back completion instead of persisting a block",async()=>{
+    completedProof();mocks.repository.getLatestIntent.mockResolvedValue(automaticIntent());
+    const fault=new Error("synthetic transient authority unavailable");mocks.authority.mockRejectedValue(fault);
+    await expect(completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:1,status:"passed",resultCode:null,readerVersion:"reader.v1"})).rejects.toBe(fault);
+    expect(mocks.repository.updateIntent).not.toHaveBeenCalled();expect(mocks.repository.retireActiveReferences).not.toHaveBeenCalled();
+  });
+  it("newer explicit consent supersedes old completion without changing active",async()=>{
+    mocks.repository.getLatestIntent.mockResolvedValue(automaticIntent());mocks.repository.newestConsentedVersion.mockResolvedValue(2);
+    await completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:1,status:"passed",resultCode:null,readerVersion:"reader.v1"});
+    expect(mocks.repository.updateIntent).toHaveBeenCalledWith("intent-one","superseded","newer_consent",expect.any(String));
+    expect(mocks.authority).not.toHaveBeenCalled();expect(mocks.repository.retireActiveReferences).not.toHaveBeenCalled();
+  });
+  it("manual completion after a blocked intent cannot silently reactivate that consent",async()=>{
+    mocks.repository.getLatestIntent.mockImplementation(async (_id,pendingOnly)=>pendingOnly ? null : automaticIntent({state:"blocked"}));
+    await completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:1,status:"passed",resultCode:null,readerVersion:"reader.v1"});
+    expect(mocks.authority).not.toHaveBeenCalled();expect(mocks.repository.activateReference).not.toHaveBeenCalled();expect(mocks.repository.updateIntent).not.toHaveBeenCalled();
+  });
+  it("summary canary is rejected without persistence, audit or echo",async()=>{
+    await expect(completeSettingsSecretProbe({probeJobId:"probe-one",worker,leaseAttempt:1,status:"passed",resultCode:null,readerVersion:"reader.v1",summary:"synthetic-secret-canary"})).rejects.toMatchObject({code:"INVALID_PROBE_RESULT"});
+    expect(mocks.repository.insertTestRun).not.toHaveBeenCalled();expect(mocks.audit).not.toHaveBeenCalled();
+  });
+
 });

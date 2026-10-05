@@ -1,6 +1,90 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
+本輪實作與local fixture控制流程已通過；證據、原始FAIL與必要build/CI/release續點依[本輪checkpoint](../qa/DEV-122-secret-workflow-automation-2026-10-05.json)。080只修正metadata精確值，SQL行為不變。真key／CAD與常駐主機仍由人類提供與驗證，整體DEV未驗收。
+
 文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：SETTINGS_ENTRY_DEPLOYED_PENDING_HUMAN_VALIDATION／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
+
+## 現行追加契約：一次提交與自動金鑰流程（2026-10-05）
+
+狀態：RD Implementation Ready／架構定案 PASS（2026-10-05 source review）；使用者已依改善方案明確要求修改。本節只延續 AI-PDM 設定入口 corrective cycle，優先於下方舊 file allowlist；R02 已部署結果與所有原失敗保留。架構 PASS 只代表以下實作契約已收斂，未執行產品或正式驗證。原生 CAD／真金鑰／正式 native probe 驗收仍由使用者執行，整體 7 issues／29 groups 不變、NOT_ACCEPTED。
+
+- 使用者只提交一次「儲存並啟用」；伺服器持久化 exact-reference 自動啟用意圖，安全儲存後自動排原生 probe、通過後自動啟用、由原生服務確認精確版本套用。瀏覽器關閉／重新整理不取消既有工作；不能依賴前端輪詢觸發後續寫入。
+- 舊 test-only 草稿／工作不能自動轉成已同意啟用；提供一次「繼續並啟用」以記錄新的 human intent 並接續原工作。重複排程回既有 typed job，保留原 probe initiator；同公司與權限驗證不省略。
+- consent 與 probe initiator 分別保留。自動啟用前在 owner SQL transaction 重驗目前 human Principal、公司／profile／account／auth epoch 與已發布 settings.secret.manage；workload 只作 purpose-scoped 技術執行者，不能充當 human session。不得儲存 cookie、password、key 或 bearer token 作恢復資料。
+- 使用最小 own-schema forward-only 080 migration 持久化意圖與 fencing；不改 078／079 已套用 bytes。只改 ai_pdm_core，無外部 contract／角色新增；profile 只追加下一 ordinal 並綁精確 SHA。預設舊呼叫保留 test-only 語意。
+- 測試失敗、撤銷、被較新版本取代、權限撤回、過期或被接手 lease 都不得啟用該版本；新版本失败時原 active 保持可用。完成回報可安全重試、不得產生重複 audit／啟用或重新跑已完成工作；未知結果先讀回。
+- 主畫面一個 primary action 與一條進度，細節收合，撤銷保留 explicit secondary action。狀態顯示等待服務、測試中、套用中、已啟用可使用、失敗／需處理；只以原生 Document Manager capability heartbeat、job lease／結果、active reference 與精確 ACK 判定。2D preview heartbeat 不能冒充 Document Manager ACK。
+- 等待但服務在線可用呼吸提示；測試／套用中的已知活動用 spinner；離線／stale lease／API 讀取失敗停止進行動畫並顯示原因。不得虛構百分比或完成；支援 prefers-reduced-motion、aria-live、鍵盤與窄視窗。
+- 沿用既有 Windows worker polling／reconnect，完成測試後從 active broker 重新取得精確版本再確認套用，不回報 draft 為 active。提供一次設定的安全常駐啟動支援；實際主機／既有 workload credential 尚需定位，不能新增廣域 IAM 或讀取真 key。未提供主機／授權配置時僅交付本專案 tooling 並明示服務未在線。
+- 授權修改 surface：settings-secret lifecycle／repository／新背景意圖 authority、既有 draft/test/complete route 與必要 heartbeat；settings-screen／相關 CSS／進度 helper；drawing-recognition worker 與 Windows 啟動支援；新增080、release profile 的 migration SHA、own isolated fixture；直接相關 meaningful unit/API/native PG/browser tests與QC source assertions；本 spec／dev_task／documentation_map／新 QA evidence。production slice 只在新必要 exact 路由時增加，禁止 wildcard。Root 是 PM 文件 writer，TL 定案期間只寫本節架構，之後唯一 RD 產品 writer。
+- 驗證：fresh Principal permission 正反、同公司、duplicate/replay、legacy opt-in、lease takeover/stale、new-version supersession/revoke、test fail 保留 old active、typed audit/no plaintext、real isolated PG commit/rollback/rerun、UI 真實正常入口＋兩 viewport＋動作和 reduced-motion、worker broker exact ACK/reconnect。mock／測試替身僅證實控制流程，不宣稱真 CAD/GCP PASS。受影響 typecheck／db boundary／isolated build／release profile checks 與 required CI；候選凍結後獨立 Luna QC。
+
+### 架構定案
+
+定案 PASS，採一張 purpose-specific intent table、既有 probe queue 與既有 worker，不新增 generic workflow engine、排程服務或授權 fallback。本次 routing 沿派工 gpt-6.1-sol／high；主流程平衡、有限 QA／CLI QC gpt-6-luna／max，模型為派工 binding，非產品契約。以下是唯一 RD task package；實作後仍須獨立驗證，不能將本 source review 計為案例 PASS。
+
+#### A. 持久化同意與精確工作
+
+- 新 forward-only `db/postgres/080_dev122_settings_secret_activation_intents.sql` 僅建立 `ai_pdm_core.settings_secret_activation_intents`。最小欄位：id、secret_reference_id、probe_job_id、kind、company_id、consent_principal_id、consent_employee_id、consent_pdm_user_id、identity_issuer、identity_subject、profile_version、account_lifecycle_version、auth_epoch、authenticated_at、session_issued_at、requested_at、state、safe_result_code、activated_at、activation_test_run_id、updated_at。state 精確為 pending/activated/blocked/superseded；safe code 不含任意 exception/message。id 由 owner 產生；requested_at 使用 owner SQL 時鐘。Secret reference/probe/test-run FK、同意者 `(company_id, consent_pdm_user_id, consent_principal_id)` 的 own principal_accounts FK 使用 RESTRICT；不得 cascade 刪除 audit 或原 probe。
+- 同意欄位、reference/job/kind 關係為 immutable；INSERT 必須確認 exact reference、job 的 reference/kind、typed company 與本人 current company 相符。reference 原 creator company/securityActor 必須有可驗 provenance，不能從 email、歷史 UID 或 NULL metadata 補造。company 不一致或 provenance 缺失 typed 拒絕。intent consent 與 078 job initiator 分開：不同合法同公司 Principal 可明確接續，但不得 UPDATE 原 job 的 created_by/company/initiator/profile/purpose。
+- 一個 reference 同時至多一筆 pending intent；相同 owner command idempotency key replay 回原 intent/job。不同 command 接續同一 pending 工作回既有 intent/job，不覆寫第一位同意者；blocked/superseded 後重新同意建立新 immutable intent，明示新同意者。既有 active reference 不建立重複啟用 effect。expired probe 要經明確新同意後建立下一個合法 job，舊 row 保留。
+- `autoActivate` 是 strict boolean，缺省/false 保留歷史 test-only；不得 truthy coercion。draft 的 provider addVersion 仍在 SQL transaction 外，且在前後均沿 existing Principal owner preflight/recheck。SQL transaction 內一次提交 reference + typed probe job + intent + audit/outbox；其中任一失敗全回滾，provider 已建立但未提交的 exact version 仍是未引用版本，不能稱 provider 與 SQL 分散式原子。未知 provider write outcome 不盲重送，不記 key/body/value；不新增 provider lookup 或自動刪除版本。
+- supersession 以相同 kind 中最高 reference.version 的**明確同意**為準。新 test-only draft 不取消原 intent；舊 reference 的較晚 resume 不能倒序覆蓋較新同意。較新 pending intent 使較舊 pending intent superseded，但新 probe/activation 失敗不 retire 原 active。只保留既有 kind-wide 單 active 範圍，不藉此擴張成另一套 per-company active registry。
+- 不保存 cookie、password、Secret payload、bearer token 或可重放 session。authenticated_at/session_issued_at 只是已驗簽 claims 正規化後的安全 barrier 比較資料，不是恢復登入憑證。瀏覽器關閉及原 session 到期不取消明確持久化委派；新的 auth epoch／logout barrier／account invalid-before、撤權、停權、版本/公司/subject 漂移可使待執行 intent blocked。不得以伺服器時間 requested_at 冒充原 authentication 時間。
+
+#### B. 當前權限與交易原子性
+
+- 新 `src/lib/settings-secret-activation-authority.ts` 的 `requireCurrentSettingsSecretActivationAuthority(snapshot, intent)` 是 private server purpose-specific authority。使用原 `JenfuPrincipalAdmissionRepository.requireActiveTypedPrincipal(issuer, subject)`、`JenfuAuthEpochRepository.readCanonicalPrincipalState(principalId)`、`JenfuPrincipalAccountRepository.requireActive(principalId)`、同公司 owned profile JOIN、`validatePrincipalPublishedGrantSnapshot` 與原 published catalog/shared evaluator。要求 principal/employee/account type/company/pdmUser/profileVersion/accountLifecycleVersion/authEpoch 精確匹配；原 authenticated_at 必須晚於 current revokedBefore，原 session_issued_at 必須晚於 account.sessionInvalidBefore；目前 published `settings.secret.manage` 必須 allowed。
+- 背景 authority 不呼叫登入 session registry、不組造 `VerifiedPrincipalRequest`／session claims、不讀舊 token。`jenfu-principal-request-guard.ts` 僅在既有驗簽/admission 成功 output 加 normalized authenticatedAt/accountLifecycleVersion；不改 admission、session validity 或 producer。`jenfu-principal-permission-service.ts` 可抽取既有 evaluator 的 admitted actor/snapshot core 供 request wrapper 與上述背景 authority 共用，permission code/company/catalog/rolePriority/transaction timestamp 全保留；不提供任意外部 actor bypass API，不新增 ACL。
+- 所有可能配置或改變 kind/version/active/intent 的 owner write 使用同一固定 kind 的 transaction-scoped advisory lock，再依 job → reference/intent 的固定次序鎖 own rows；只鎖 own object，不鎖 sibling directory/grants。draft 的 MAX(version)+1、resume、manual activate/revoke、auto complete 共用此 lock。worker heartbeat 只更新 job，不在持有 job lock 時再取 kind lock。claim 使用 SKIP LOCKED；任何其後需要 kind lock 的 effect 必須先釋放 claim transaction，再按統一次序開始 owner transaction。不能先 lock job/reference 再補 kind lock。
+- `completeSettingsSecretProbe` 在同一 serializable owner transaction 完成 exact lease CAS、唯一 testRun、mark tested、intent fresh authority、retire prior active + activate target、intent terminal update、lifecycle event/audit/outbox。自動與手動啟用共用 `activateTestedReferenceInSnapshot` 的 exact tested/native-proof/provider/state gate；return DTO 同時含原 testRun 與 nonsecret workflow。已通過 proof 不使用較新、其他 reference 的結果；歷史無 intent 的工作永遠只 mark tested。
+- **暫時性依賴/未知錯誤**（DB unavailable、directory/auth-state/catalog 讀取失敗、serialization/deadlock等）不當作拒權：整個 completion transaction 回滾，safe retryable error，worker 保留同一實際 native result、持續 heartbeat，在原 lease 內 bounded retry。原生 probe 已運行但 owner 未提交不稱完成；lease 失去後按正常新 attempt 再執行，不能提交舊結果。
+- **已確認業務拒絕**（權限撤回、停權、barrier/version/company 漂移、revoked reference、superseded intent、probe failed/blocked/expired）保存 probe 真實 terminal 結果與 intent blocked/superseded 的 safe code，old active 不變，不發 activation audit。新同意才可重試已拒絕的啟用；GET 不 repair、不重新排 job、不自動放寬 authority。拒絕與依賴 unavailable 必須按原 typed error 區分，不能 blanket catch → blocked。
+- manual activate 同交易 supersede 所有衝突 pending intents，避免背景覆蓋剛選定的版本；revoke 同交易把該 exact reference 的 pending intents blocked。自動 gate 不 resurrect retired/revoked reference。新表只對既有 runtime 給 exact SELECT/INSERT/UPDATE，不給 DELETE、owner/DDL/migrator 或 general grants。completion summary/resultCode 使用 server safe taxonomy／固定摘要，不把 extractor stderr、任意 worker message、key 或 token 寫入 receipt/audit/outbox。
+- audit 保留 human consent initiator 與原 probe initiator 各自 identity/company/profile、workload executor id/purpose/capability、exact reference/job/attempt/testRun；使用現有 activated/tested lifecycle event types，intent requested/blocked/superseded 另寫 existing audit/outbox safe detail，不擴大 legacy event enum。原 `activated_by` 為 consent 的 owned pdmUser，不能填 workload 或捏造 session actor。
+
+#### C. 協定、lease fencing、replay 與 rolling compatibility
+
+- 沿既有 claim POST 增 strict `protocolVersion: 2`。新 worker 在 credential GET query、heartbeat/complete POST 傳 `leaseAttempt`，必須為 claim 回傳正整數 attemptCount，且與目前 DB attempt_count、locked_by、running status、60s current lease 全匹配；claim/probecredential 回傳 exact reference/version/fingerprint binding。provider read 前後都重驗該 fence。v2 heartbeat/complete 的 request handler 缺欄位或錯型別拒絕，不由 current attempt 偷補。
+- 無 protocolVersion 的舊 claim 只取**無 pending auto intent**的 typed test-only jobs；舊 credential/heartbeat/complete 只對無 auto intent 的歷史手動測試相容。opt-in 時若舊 worker 已持有 lease，無 v2 fencing 的進一步呼叫 typed `PROBE_PROTOCOL_UPGRADE_REQUIRED`，不啟用；相同 job 等 lease 正常過期由 v2 takeover，不重写原 initiator。舊服務 rollback 不讀 intent，因此最多留下 tested/pending、舊 active 不變，不得承諾舊服務也會自動啟用。
+- 完成提交保存 attempt/worker/exact reference 的 safe canonical result digest 與 testRun 綁定，可放 existing job/test-run metadata（新增 job completion_digest/test_run_id 等必要 receipt 欄位由080 additive提供，非改078）。replay 必須先讀 terminal receipt：same worker + leaseAttempt + normalized status/resultCode/readerVersion/summary binding 回原 testRun/workflow，不再 test/audit/activate；任一 mismatch typed409。不能把已提交 passed 因後續 heartbeat/網路錯誤改送 blocked。
+- v2 worker heartbeat 持續到 completion 已確認提交／安全 replay，不能如現 source 在 extractor 結束即先停 heartbeat。network unknown completion outcome 先重送同一 fenced result 讀回，不重新跑已提交 native probe；retry 有固定次數與上限，lease lost/已 terminal mismatch 停舊 attempt。restart/reconnect 透過既有持久化 queue 而非前端重送 key。
+- 為 opt-in already-passed 及服務 rolling 回復的安全續點，`resumeSettingsSecretActivation` 和 v2 POST claim 共用一個 bounded `reconcilePendingSettingsSecretActivationInSnapshot`：每次至多一個 eligible pending intent，必須有同 reference 的最新 typed passed proof + persisted testRun、非撤销/較新supersession、完整 current authority，按同 kind lock/serializable activation gate 執行。沒有合法 proof 不假造 result、不啟用，讓正常 probe queue 接手。這不是 GET mutation／新 generic scheduler；POST claim 的 technical purpose 維持 settings_secret_probe，human authority 仍來自 immutable intent。known block可保存，transient回滾由下一正常 poll重試。manual/test-only 歷史沒有 opt-in 不進此路徑。
+
+#### D. 端點、進度与 worker 套用
+
+| 現有端點 | 最小變更／不變邊界 |
+| --- | --- |
+| POST /api/settings/secrets/solidworks_document_manager/draft | 可帶 autoActivate:true；201仍包含 redacted reference，另含 intent/job/workflow。沿 existing settings.secret.manage owner command/idempotency；不回 Secret 值。 |
+| POST /api/settings/secrets/[referenceId]/test | 可帶 autoActivate:true 作一次「繼續並啟用」；reuse same-company active typed job，或處理 latest passed proof；沒有 flag 仍 test-only。新 command key/idempotent response綁 exact reference，不重写 probe provenance。 |
+| GET /api/settings/secrets | 純讀，同 Principal capability/company boundary。新增 nonsecret workflow DTO，保留既有 legacy readiness fields但不能拿2D readiness作新的完成判定。 |
+| POST /api/settings-secret-probe-jobs/claim、[jobId]/heartbeat、[jobId]/complete；GET [jobId]/credential | v2 claim/fence/completion replay/小型pending reconciliation，保留 existing settings_secret_probe + solidworks_document_manager guard；credential保持private no-store，值不進進度/audit。 |
+| POST /api/recognition-workers/heartbeat | 原 recognition_heartbeat + exact solidworks_document_manager guard 保留。exact active kind/version/fingerprint、status ready、server lastSeenAt 才是 ACK 候選。 |
+| GET /api/preview-workers/solidworks-document-manager-key；既有 activate/revoke POST | active broker、manual authority不變；必要共用 kind lock/exact activation gate與intent invalidation。無新路由，production-slice不擴張。 |
+
+- workflow 狀態由 intent/job/reference/current active + Document Manager heartbeat 合成：waiting_worker、testing、activating、awaiting_worker_ack、ready、blocked、superseded；不是 DB 任意 progress 字串。GET 至少回 referenceId/version、intentId/state/safeCode、jobId/status/attempt、leaseFresh、nativeWorkerOnline、lastSeenAt、exactAck。畫面簡化為一個 primary action、一條進度與收合明細；新同意的「儲存並啟用」不得由 CSS 隱藏實際 consent 語意。
+- DM ACK 必須 current active reference.kind/version/fingerprint 精確、worker capability=solidworks_document_manager/status=ready、server時鐘 0≤lastSeen age≤30s。stale/blocked/degraded/2D heartbeat或只有有key不算 ready。若 latest DM heartbeat 非matching不可自動採用別種capability；可讀取matching currentactive DM heartbeat證實至少一個合法實際worker可用，但必須保留workerId與讀回規則，不能 newestwrongversion覆蓋精確ACK。較新active切換後舊ready不可套新intent。
+- `run-drawing-recognition-worker.mjs.processProbeJob` 完成後重新走 active broker，核 exact active version/fingerprint，載入 existing native reader後才 sendCapabilityHeartbeat；不能用 credential draft object 作 ACK，也不把 env fallback 當 exact版本確認。reader command未配置/不可用則 blocked。保留原 credential/probe/extractor與原生結果，不新增 converter、不假metadataPASS。
+- worker startup/reconnect使用既有poll/reconnect；新增安全 Windows launcher僅啟同repo現有worker、固定原生readers，workload ID/credential從受保護本機配置讀入（不放 argv／啟動task正文／stdout）；沒有已配置host/合法credential則明示等待服务。可交付當前使用者 startup tooling，但實際註冊／提升常駐必須綁已授權 own host、明示ownership及停用/cleanup，未知機器不自動註冊、不中止其他worker、不新增 IAM／身份。沒有在線worker時持久化queue等待，不承諾伺服器代跑Windows COM。
+- 真正在queued且DM服務在線才有低強度等待提示；native running且leaseFresh才spinner；啟用已提交而ACK未到顯示套用中，若worker離線/read失敗立即停止進行動畫并說明。ready不由動畫結束推定；保留reduced-motion、aria-live、不重複送key/工作、兩viewport/keyboard。API讀取錯誤不顯示歷史cache ready作目前可用。
+
+#### E. RD exact file/method package 與驗證出口
+
+| Surface | 唯一責任與必要實作 |
+| --- | --- |
+| src/lib/settings-secret-lifecycle.ts | createSettingsSecretDraft/enqueueSettingsSecretProbe optionalauto；resume/reconcile/sharedactivate；complete/credential v2fence/replay；listStatuses新增DM workflow；manual/revoke共用lock。 |
+| src/lib/repositories/settings-secret-async-repository.ts | intent CRUD/CAS/immutable readback、kind lock、latestconsented/version、fenced claim/heartbeat/complete/receipt；不改078provenance。 |
+| 新 src/lib/settings-secret-activation-authority.ts | currenttyped/account/epoch/barrier/company/profile/publishedpermission；typed known denial與dependency fail distinction，不製造session。 |
+| src/lib/jenfu-principal-request-guard.ts；src/lib/jenfu-principal-permission-service.ts | 只normalizedverified claims output與原admittedactor evaluator core共用；admission/ACL不變。相應現有test fixtures只補合法新增欄位。 |
+| src/app/api/settings/secrets/[kind]/draft/route.ts、[kind]/test/route.ts、route.ts；settings-secret-probe-jobs/claim/route.ts、[jobId]/credential/route.ts、heartbeat/route.ts、complete/route.ts | strictbody/lease/schema；private no-store response/typed error；GET只讀。既有 activate/revoke route只在response workflow确有必要時同步，原Principal/workloadguard不改。 |
+| src/components/settings-screen.tsx；src/app/globals.css；新 src/lib/settings-secret-workflow.ts | nonsecret progress/readiness projection、一次submit/resume、減法UI/animation/reducedmotion；不開其他設定pages，不持久key。 |
+| scripts/run-drawing-recognition-worker.mjs；新 scripts/start-drawing-recognition-worker.ps1 | v2fence、completion boundedretry/readback、activebroker reload/DM ACK、startup/reconnect安全本機tooling；不改原C# extractor/probe業務、不讀真key。 |
+| 新080；config/release/dev117-ai-pdm-independent-production-v3.json；scripts/dev117-ai-pdm-continuous-release.test.mjs；scripts/lib/dev122-own-postgres-fixture.mjs | append080/order30在既有29-entry完整prefix後、exactSHA；fixture079後加080；release test原tail079/order29改currenttail080/order30，舊prefix逐byte保持。不修改已套用078/079、DB roles或general grants。 |
+| src/lib/settings-secret-lifecycle.principal.test.ts；jenfu-principal-request-guard.test.ts；新 settings-secret-activation-authority.test.ts／settings-secret-workflow.test.ts；直接上述route *.test.ts | 實際故障機制unit/API與network noeffects；freshdenial/依賴差異/legacyoptin/不同initiator/fence/replay/ACK。不得僅mirrorimplementation。 |
+| src/lib/dev122-native-business.postgres-contract.test.ts；scripts/qc-dev-122-native-postgres.mjs；scripts/qc-dev-122-native-browser.mjs；config/local/dev122-native-postgres.v1.json | narrow settings-automation fixture/source selection；actual ownPG constraint/claimrace/commitrollback/duplicategrant/typed audit及真正常settings入口兩viewport，固定snapshot/no fakebusiness/evaluator。seam仍只既有exacttemplates，必要binding補verifiedsource，不新增foreignobjects。 |
+| 新 scripts/lib/drawing-recognition-secret-workflow.test.mjs；scripts/qc-pdm-settings-center-secret-lifecycle.mjs；scripts/qc-pdm-gcp-secret-manager.mjs | originalworker orchestration/retry/no draftACK meaningful transportcases；static QC只改obsolete主流程binding，原caseIDs/安全語意保留、不用source regex冒runtimePASS。 |
+
+執行順序：先schema/immutableconsent+authority → atomicdraft/optin+lease/replay → worker/DM ACK → 減法UI → narrowmeaningfultests/隔離native/browser。Root凍結/派獨立QC、type/boundary/isolatedbuild/release requiredgates；每個runtime仍freshGov/ownports/PID/data/repo/finallycleanup。Root持PMdocs/evidence、單一RD持產品/測試/runner，禁止同檔並寫。驗證矩陣至少證明：不同initiator原provenance不變、legacy無consent不啟用、permission/currentepoch/barrier/account/company各拒绝noactivation、dependency rollback+retry、doubleclaim/takeover/stalecallback、twointent競爭/舊active保留、samecompletion replay零重複audit、matchingDMACK與2D/draftwrongACK反例、reload/close後持久進度、offline/error/reducedmotion及兩viewport。所有mock/fixture層明標，正式GCP/key/原生CAD由人類驗證保持NOT_RUN。沒有待決產品架構項；實際host/合法workload配置未定位只阻該主機上線，不擴權、不阻本專案可完成source。
 
 ## R02 正式部署結果與人工驗收（2026-10-05）
 

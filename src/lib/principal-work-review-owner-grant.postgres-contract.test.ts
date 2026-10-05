@@ -14,7 +14,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async original => ({
         identityIssuer:input.token===ownerToken?"issuer-race-binder-first":"issuer-legacy",
         identitySubject:input.token===ownerToken?"subject-race-binder-first":"subject-legacy",
         principalId:input.token===ownerToken?process.env.DEV057_FLOW_OWNER_PRINCIPAL_ID!:"principal-legacy",
-        employeeId:input.token===ownerToken?"employee-three":"employee-legacy",authEpoch:1,profileVersion:1,
+        employeeId:input.token===ownerToken?"employee-three":"employee-legacy",authEpoch:1,profileVersion:1, accountLifecycleVersion: 1, authenticatedAt: "2026-10-01T00:00:00Z",
         assuranceLevel:"aal2",issuedAt:"2026-10-01T00:00:00Z",expiresAt:"2026-10-01T01:00:00Z"}
     }),{readOnly:options.readOnly!==false,isolationLevel:options.isolationLevel??"repeatable_read"})
 }));

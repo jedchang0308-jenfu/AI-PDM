@@ -39,7 +39,9 @@ describe("DEV122 actual settings presentation respects the server slice status",
     fixture.secretReadState = "ready";
     const html = renderToStaticMarkup(<SettingsScreen initialArea="security" />);
     expect(html).toContain('type="password"');
-    expect(html).toContain("建立草稿");
+    expect(html).toContain("儲存並啟用");
+    expect(html).not.toContain("測試最新版本");
+    expect(html).not.toContain("啟用已測試版本");
   });
   it("offers only overview/security and no actionable integration CTA in the slice", () => {
     fixture.limited = true;

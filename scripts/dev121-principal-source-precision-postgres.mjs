@@ -2,7 +2,7 @@
 // are synthetic; this does not attest OrgMaster/provider/Production conformance.
 // The candidate/parser/service and unchanged 071 lifecycle / 074 provision / 076 manager guard
 // execute against a fresh database in the existing required CI PostgreSQL job.
-// Native 078 and four settings commands are real; Secret Manager I/O is synthetic-only.
+// Native 078/080 and four settings commands are real; Secret Manager I/O is synthetic-only.
 // Mounted share routes also execute actual Principal transactions; resource/provider fixtures are synthetic.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -453,24 +453,33 @@ try {
   assert.ok(jobsStart >= 0 && jobsEnd > jobsStart);
   const jobsSql = schema048.slice(jobsStart,jobsEnd).replaceAll('public.','ai_pdm_core.');
   await database.query(jobsSql);
+  const heartbeatSql = schema048.slice(jobsEnd).replaceAll('public.','ai_pdm_core.');
+  await database.query(heartbeatSql);
   sourceProof.push({ path:'db/postgres/048_solidworks_credential_ui_activation.sql',sourceSha256:sha(schema048),
     executedFunctionSha256:sha(jobsSql),scope:'actual probe table/index DDL projected to own schema; other baseline tables synthetic' });
   // A genuinely pre-078 legacy row remains NULL; do not disable the new trigger to fabricate one.
-  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at)
-    VALUES ('secret-legacy','solidworks_document_manager','solidworks_document_manager','google_secret_manager','draft',999,$1,clock_timestamp())`,[actorProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at,metadata_json)
+    VALUES ('secret-legacy','solidworks_document_manager','solidworks_document_manager','google_secret_manager','draft',999,$1,clock_timestamp(),'{"companyId":"company-jenfu","securityActor":{"kind":"human","principalId":"principal-precision-manager","profileVersion":1}}')`,[actorProfile]);
   await database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs(id,secret_reference_id,kind,status,created_by,updated_at)
     VALUES ('probe-legacy','secret-legacy','solidworks_document_manager','pending',$1,clock_timestamp()-interval '2 minutes')`,[actorProfile]);
-  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at)
-    VALUES ('secret-legacy-passed','solidworks_document_manager','solidworks_document_manager','google_secret_manager','tested',998,$1,clock_timestamp())`,[actorProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at,metadata_json)
+    VALUES ('secret-legacy-passed','solidworks_document_manager','solidworks_document_manager','google_secret_manager','tested',998,$1,clock_timestamp(),'{"companyId":"company-jenfu","securityActor":{"kind":"human","principalId":"principal-precision-manager","profileVersion":1}}')`,[actorProfile]);
   await database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs(id,secret_reference_id,kind,status,created_by,updated_at)
     VALUES ('probe-legacy-passed','secret-legacy-passed','solidworks_document_manager','passed',$1,clock_timestamp()-interval '2 minutes')`,[actorProfile]);
   await database.query('ALTER TABLE ai_pdm_core.settings_secret_probe_jobs OWNER TO jenfu_ai_pdm_migrator');
   const source078 = fs.readFileSync(path.join(root,'db/postgres/078_dev121_settings_probe_principal_provenance.sql'),'utf8').replaceAll('\r\n','\n');
   await database.query(source078);
   sourceProof.push({ path:'db/postgres/078_dev121_settings_probe_principal_provenance.sql',sourceSha256:sha(source078),scope:'complete new migration, immutable trigger and composite FK on disposable fixture' });
+  // Current lifecycle also reads durable consent/progress; apply complete080 in this disposable fixture.
+  await database.query('GRANT REFERENCES ON ai_pdm_core.secret_references,ai_pdm_core.setting_test_runs TO jenfu_ai_pdm_migrator');
+  const path080='db/postgres/080_dev122_settings_secret_activation_intents.sql';
+  const source080=fs.readFileSync(path.join(root,path080),'utf8').replaceAll('\r\n','\n');
+  await database.query(source080);
+  sourceProof.push({path:path080,sourceSha256:sha(source080),scope:'complete unchanged080; legacy test-only commands, no auto-activation consent fabricated'});
   await database.query(`GRANT SELECT,INSERT,UPDATE ON ai_pdm_core.secret_references,ai_pdm_core.setting_test_runs,
     ai_pdm_core.setting_activation_events,ai_pdm_core.audit_logs,ai_pdm_core.platform_command_receipts,
     ai_pdm_core.platform_outbox_events,ai_pdm_core.settings_secret_probe_jobs TO jenfu_ai_pdm_runtime;
+    GRANT SELECT ON ai_pdm_core.worker_capability_heartbeats TO jenfu_ai_pdm_runtime;
     INSERT INTO platform_contract.principal_state_fixture VALUES ('principal-precision-manager',0,NULL);`);
   // Install only the provider seam. Actual service, command snapshot, ACL/binder,
   // guard, receipt/outbox/audit and native 078 are not mocked.
@@ -590,6 +599,16 @@ try {
   assert.equal(legacyBefore.result_code,'synthetic_legacy_held');
   assert.equal(legacyBefore.company_id,null);assert.equal(legacyBefore.initiator_principal_id,null);
   assert.equal(legacyBefore.initiator_profile_version,null);assert.equal(legacyBefore.purpose,null);
+  // Reference creator provenance and pre078 queue provenance are separate fixtures.
+  // Missing creator provenance is rejected without inventing a Principal or enqueuing.
+  await database.query(`INSERT INTO ai_pdm_core.secret_references
+    (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at,metadata_json)
+    VALUES ('secret-untrusted-creator','solidworks_document_manager','solidworks_document_manager',
+      'google_secret_manager','draft',997,$1,clock_timestamp(),'{"companyId":"company-jenfu"}')`,[actorProfile]);
+  const untrustedBefore=await effects();
+  await assert.rejects(enqueueSettingsSecretProbe({secretReferenceId:'secret-untrusted-creator'},metadata('test','settings-untrusted-creator')),
+    error=>error.code==='SECRET_REFERENCE_PROVENANCE_REQUIRED');
+  assert.deepEqual(await effects(),untrustedBefore);
   const replacement = await enqueueSettingsSecretProbe({secretReferenceId:'secret-legacy'},metadata('test','settings-legacy-new-typed'));
   await assert.rejects(database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs
     (id,secret_reference_id,kind,status,created_by,company_id,initiator_principal_id,initiator_profile_version,purpose)

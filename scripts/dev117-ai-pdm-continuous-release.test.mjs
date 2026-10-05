@@ -303,11 +303,11 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   const bundle = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), 'a'.repeat(40))
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
-  assert.deepEqual(bundle.bundle.entries.slice(-12).map((entry) => entry.version),
-    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079'])
-  assert.deepEqual(profile.migrations.entries.at(-1), { order: 29,
-    path: 'db/postgres/079_dev122_canonical_review_lifecycle.sql',
-    sha256: '08b4f287bc66a5ab48c8dcdcd45f064d49333fa32737c8d75400e51b0b836be6' })
+  assert.deepEqual(bundle.bundle.entries.slice(-13).map((entry) => entry.version),
+    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080'])
+  assert.deepEqual(profile.migrations.entries.at(-1), { order: 30,
+    path: 'db/postgres/080_dev122_settings_secret_activation_intents.sql',
+    sha256: '5584b7f933f61b59331f5aeb87a5fe647f52d6cb30c462c63549d017522a9713' })
   const insertedBeforeApplied = structuredClone(profile)
   insertedBeforeApplied.migrations.entries.splice(27, 0, insertedBeforeApplied.migrations.entries.pop())
   assert.throws(() => assertDev117V3Profile(insertedBeforeApplied, v1, n1c), { code: 'MIGRATION_MANIFEST_DRIFT' })
