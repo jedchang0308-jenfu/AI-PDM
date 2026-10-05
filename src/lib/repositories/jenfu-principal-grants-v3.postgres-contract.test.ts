@@ -79,7 +79,7 @@ describe.runIf(active)("OrgMaster v3 published grant → AI-PDM PostgreSQL consu
           contractVersion: "jenfu.ai-pdm-session.v2", appId: "ai-pdm",
           sessionId: "dev057-contract-session", identityIssuer: actor.identityIssuer,
           identitySubject: actor.identitySubject, principalId: actor.principalId,
-          employeeId: actor.employeeId, authEpoch: 1, profileVersion: 1,
+          employeeId: actor.employeeId, authEpoch: 1, profileVersion: 1, accountLifecycleVersion: 1, authenticatedAt: "2026-09-29T00:00:00.000Z",
           issuedAt: "2026-09-29T00:00:00.000Z", expiresAt: "2026-09-30T00:00:00.000Z",
           assuranceLevel: "aal2"
         }

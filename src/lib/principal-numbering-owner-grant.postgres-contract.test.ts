@@ -23,7 +23,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async original => ({
       profile: { pdmUserId:"qc-profile-legacy",companyId:"company-jenfu" },
       session: { contractVersion:"jenfu.ai-pdm-session.v2",appId:"ai-pdm",sessionId:"numbering-qc",
         identityIssuer:actorIssuer,identitySubject:actorSubject,principalId:actorPrincipal,
-        employeeId:actorEmployee,authEpoch:1,profileVersion:1,assuranceLevel:"aal1",
+        employeeId:actorEmployee,authEpoch:1,profileVersion:1, accountLifecycleVersion: 1, authenticatedAt: "2026-09-30T00:00:00Z",assuranceLevel:"aal1",
         issuedAt:"2026-09-30T00:00:00Z",expiresAt:"2026-09-30T01:00:00Z" }
     }), { readOnly:options.readOnly !== false, isolationLevel:options.isolationLevel ?? "repeatable_read" })
 }));

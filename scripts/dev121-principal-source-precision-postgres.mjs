@@ -453,6 +453,8 @@ try {
   assert.ok(jobsStart >= 0 && jobsEnd > jobsStart);
   const jobsSql = schema048.slice(jobsStart,jobsEnd).replaceAll('public.','ai_pdm_core.');
   await database.query(jobsSql);
+  const heartbeatSql = schema048.slice(jobsEnd).replaceAll('public.','ai_pdm_core.');
+  await database.query(heartbeatSql);
   sourceProof.push({ path:'db/postgres/048_solidworks_credential_ui_activation.sql',sourceSha256:sha(schema048),
     executedFunctionSha256:sha(jobsSql),scope:'actual probe table/index DDL projected to own schema; other baseline tables synthetic' });
   // A genuinely pre-078 legacy row remains NULL; do not disable the new trigger to fabricate one.
@@ -468,9 +470,16 @@ try {
   const source078 = fs.readFileSync(path.join(root,'db/postgres/078_dev121_settings_probe_principal_provenance.sql'),'utf8').replaceAll('\r\n','\n');
   await database.query(source078);
   sourceProof.push({ path:'db/postgres/078_dev121_settings_probe_principal_provenance.sql',sourceSha256:sha(source078),scope:'complete new migration, immutable trigger and composite FK on disposable fixture' });
+  // Current lifecycle also reads durable consent/progress; apply complete080 in this disposable fixture.
+  await database.query('GRANT REFERENCES ON ai_pdm_core.secret_references,ai_pdm_core.setting_test_runs TO jenfu_ai_pdm_migrator');
+  const path080='db/postgres/080_dev122_settings_secret_activation_intents.sql';
+  const source080=fs.readFileSync(path.join(root,path080),'utf8').replaceAll('\r\n','\n');
+  await database.query(source080);
+  sourceProof.push({path:path080,sourceSha256:sha(source080),scope:'complete unchanged080; legacy test-only commands, no auto-activation consent fabricated'});
   await database.query(`GRANT SELECT,INSERT,UPDATE ON ai_pdm_core.secret_references,ai_pdm_core.setting_test_runs,
     ai_pdm_core.setting_activation_events,ai_pdm_core.audit_logs,ai_pdm_core.platform_command_receipts,
     ai_pdm_core.platform_outbox_events,ai_pdm_core.settings_secret_probe_jobs TO jenfu_ai_pdm_runtime;
+    GRANT SELECT ON ai_pdm_core.worker_capability_heartbeats TO jenfu_ai_pdm_runtime;
     INSERT INTO platform_contract.principal_state_fixture VALUES ('principal-precision-manager',0,NULL);`);
   // Install only the provider seam. Actual service, command snapshot, ACL/binder,
   // guard, receipt/outbox/audit and native 078 are not mocked.
