@@ -428,6 +428,11 @@
         "sha256": "08b4f287bc66a5ab48c8dcdcd45f064d49333fa32737c8d75400e51b0b836be6"
       },
       {
+        "order": 30,
+        "path": "db/postgres/080_dev122_settings_secret_activation_intents.sql",
+        "sha256": "5584b7f933f61b59331f5aeb87a5fe647f52d6cb30c462c63549d017522a9713"
+      },
+      {
         "order": 31,
         "path": "db/postgres/081_dev121_principal_role_catalog_v6.sql",
         "sha256": "c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284"

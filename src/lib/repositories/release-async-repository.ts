@@ -174,7 +174,7 @@ export const SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL = `
   JOIN readonly_shares rs ON rs.id = spr.share_id
   LEFT JOIN users closer ON closer.id = spr.closed_by
   WHERE spr.submission_id = :submissionId
-    AND (:shareId IS NULL OR spr.share_id = :shareId)
+    AND (CAST(:shareId AS text) IS NULL OR spr.share_id = CAST(:shareId AS text))
   ORDER BY
     CASE spr.status WHEN 'open' THEN 0 ELSE 1 END,
     spr.created_at DESC,

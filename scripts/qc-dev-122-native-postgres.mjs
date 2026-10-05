@@ -7,6 +7,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { compileOwnMigrations, bootstrapOwnSchemas, installOwnFixture, installContractFixture, marker, fixtureVersion, sha256 } from './lib/dev122-own-postgres-fixture.mjs';
+import { serveSettingsAutomationFixture } from './lib/dev122-settings-automation-fixture.mjs';
 import { loadSeamAllowlist, mapContractQuery, seamVersion } from './lib/dev122-contract-seam.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,7 +32,7 @@ const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
 const nativeSelection=process.env.DEV122_NATIVE_SELECTION??'suite';
 if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['file-route-gaps','file-authority-gaps','recognition-protocol'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
-const nativeTestPattern=suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
+const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='foundation-gaps'
   ?'reads native matrix JSON-|denies the default rd_manager-only|rejects native formal_payload drift':nativeSelection==='authority-gaps'
   ?'no eligible current reviewer|Part reviewer self|legal other-company Principal|Part terminal master|Drawing master .* drift|Drawing current assignment|returns a minor without':nativeSelection==='other-company-scope'
@@ -47,7 +48,7 @@ const nativeTestPattern=suite==='settings'?'DEV122 actual Next settings prerequi
 const diagnosticOnly=process.argv.includes('--diagnostic-only');
 const previewDiagnosticChild=process.argv.includes('--preview-diagnostic-child');
 const previewImportOnly=process.argv.includes('--preview-import-only');
-if (!['lifecycle','files','procurement','ui','settings','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
+if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
 const entries = compileOwnMigrations(root);
 const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const config = loadSeamAllowlist(root);
@@ -200,7 +201,7 @@ function postgresBin() {
 function captureControlledSource() {
   const files=['package.json','package-lock.json','next.config.mjs','next-env.d.ts','tsconfig.json','tsconfig.app.json','tsconfig.next.json',
     'scripts/qc-dev-122-native-postgres.mjs','scripts/qc-dev-122-native-browser.mjs','scripts/qc-ts-path-loader.mjs',
-    'scripts/lib/dev122-own-postgres-fixture.mjs','scripts/lib/dev122-contract-seam.mjs','scripts/lib/dev122-contract-seam-preload.mjs',
+    'scripts/lib/dev122-settings-automation-fixture.mjs','scripts/lib/drawing-recognition-secret-workflow.mjs','scripts/lib/drawing-recognition-secret-workflow.test.mjs','scripts/start-drawing-recognition-worker.ps1','scripts/lib/dev122-own-postgres-fixture.mjs','scripts/lib/dev122-contract-seam.mjs','scripts/lib/dev122-contract-seam-preload.mjs',
     'scripts/run-drawing-recognition-worker.mjs','scripts/run-solidworks-document-manager-credential-probe.mjs',
     'scripts/run-solidworks-document-manager-metadata-extractor.mjs','scripts/solidworks-document-manager-credential-probe.cs','scripts/solidworks-document-manager-metadata-exporter.cs',
     'config/solidworks-metadata-field-aliases.json','config/local/dev122-native-postgres.v1.json','.ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md'];
@@ -235,7 +236,7 @@ async function run() {
   manifest.controlledSourceBefore=captureControlledSource();
   fs.writeFileSync(path.join(evidenceRoot,'source-binding-before.json'),JSON.stringify(manifest.controlledSourceBefore,null,2));
   save(); // Persist before every runtime starts.
-  const children=[];let pgStarted=false,admin=null,bootstrap=null,bin,grantFixtureChannel=null,nextCopy=null,nextCapTimer=null,nextCapFailure=null;
+  const children=[];let pgStarted=false,admin=null,bootstrap=null,bin,grantFixtureChannel=null,secretAutomationChannel=null,nextCopy=null,nextCapTimer=null,nextCapFailure=null;
   const env={...process.env,DEV122_SOURCE_ROOT:root,DEV122_RUNTIME_ROOT:runtimeRoot,DEV122_EVIDENCE_ROOT:evidenceRoot,
     DEV122_NATIVE_SUITE:suite,DEV122_LOCAL_CONTRACT_SEAM:seamVersion,PDM_DEPLOYMENT_ENV:'local',
     PDM_DB_PROVIDER:'postgres',PDM_POSTGRES_URL:`postgresql://dev122_runtime@127.0.0.1:${pgPort}/${database}`,
@@ -248,15 +249,15 @@ async function run() {
     PDM_DEV087_FAULT_PROFILE:'',PDM_LOCAL_FAKE_PREVIEW_WORKER:'0',PDM_REVIEW_PACKAGE_V2_WRITE:'true',
     DEV122_APP_ORIGIN:`http://127.0.0.1:${nextPort}`,NODE_OPTIONS:`--import=${pathToFileURL(path.join(root,'scripts/lib/dev122-contract-seam-preload.mjs')).href}`};
   for(const name of ['K_SERVICE','GOOGLE_CLOUD_PROJECT','GOOGLE_APPLICATION_CREDENTIALS','PDM_CLOUD_SQL_DATABASE','PDM_SESSION_PREVIOUS_KEY_ID','PDM_SESSION_PREVIOUS_SECRET','DEV122_NEXT_PROJECT_ROOT'])delete env[name];
-  if(suite==='settings') {
+  if(['settings','settings-automation'].includes(suite)) {
     // Empty, read-only local settings proof; never inherit a credential/provider or a full-function bypass.
-    Object.assign(env,{DEV122_BROWSER_FLOW:'settings',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all',
+    Object.assign(env,{DEV122_BROWSER_FLOW:suite,DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all',
       PDM_PRODUCTION_SLICE_MODE:'official-numbering-draft',PDM_LOCAL_FULL_FUNCTION_VALIDATION:'false',
       PDM_SETTINGS_SECRET_PROVIDER:'google_secret_manager',PDM_ENABLE_GCP_SECRET_READS:'false',PDM_ENABLE_GCP_SECRET_WRITES:'false',
       PDM_ALLOW_WORKER_ENV_SECRET_FALLBACK:'false',PDM_DISABLE_SECRET_MANAGEMENT:'false'});
     for(const name of ['PDM_GCP_PROJECT_ID','PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID','PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY',
       'PDM_SW_DOCUMENT_MANAGER_LICENSE_KEY','SOLIDWORKS_DOCUMENT_MANAGER_KEY','PDM_WORKLOAD_AUTH_CREDENTIALS',
-      'PDM_WORKER_SERVICE_TOKEN','PDM_BREAK_GLASS_CHANGE_ID','PDM_WINDOWS_DPAPI_SECRET_DIR'])delete env[name];
+      'PDM_WORKER_SERVICE_TOKEN','PDM_WORKLOAD_CREDENTIAL','PDM_BREAK_GLASS_CHANGE_ID','PDM_WINDOWS_DPAPI_SECRET_DIR'])delete env[name];
     manifest.settingsBoundary={flow:'settings',slice:'official-numbering-draft',provider:'google_secret_manager',
       readEnabled:false,writeEnabled:false,credentialInput:'NOT_RUN',nativeProperties:'PENDING_HUMAN_PRODUCTION_VALIDATION',
       summaryOnlyRole:'UNREACHABLE_UNDER_COMMITTED_CATALOG_V5_UNIT_LAYER_ONLY',resultSeeded:false};save();
@@ -329,17 +330,17 @@ async function run() {
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
-      sourceApplicability:['ui','settings'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
+      sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
-      '--exclude','**/.tmp/**','--exclude','**/output/**','--reporter=json','--outputFile='+path.join(evidenceRoot,'vitest.json')],{allowNonzero:true});
+      '--exclude','**/.tmp/**','--exclude','**/output/**',...(suite==='share-metadata'?['--reporter=default']:[]),'--reporter=json','--outputFile='+path.join(evidenceRoot,'vitest.json')],{allowNonzero:true});
     manifest.nativeBusiness={exitCode:nativeExitCode,report:path.join(evidenceRoot,'vitest.json'),log:path.join(evidenceRoot,'native-business.log')};save();
     let tests;
     try{tests=JSON.parse(fs.readFileSync(manifest.nativeBusiness.report,'utf8'));}
     catch(error){throw Object.assign(new Error('DEV122_NATIVE_REPORT_UNREADABLE'),{cause:error,exitCode:nativeExitCode});}
     const assertions=tests.testResults?.flatMap(result=>result.assertionResults)??[];
     const completed=assertions.filter(test=>['passed','failed'].includes(test.status));
-    const expectedDescribe=suite==='files'?'DEV122 F01 actual signed':suite==='procurement'?'DEV122 I01 actual signed':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':null;
+    const expectedDescribe=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='files'?'DEV122 F01 actual signed':suite==='procurement'?'DEV122 I01 actual signed':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':null;
     manifest.executedCases=completed.length;
     manifest.cases=completed;manifest.skippedCases=assertions.filter(test=>!['passed','failed'].includes(test.status)).length;
     Object.assign(manifest.nativeSelection,{selected:assertions.filter(test=>test.status!=='pending'&&test.status!=='skipped').length,
@@ -356,14 +357,14 @@ async function run() {
     if(!manifest.executedCases)throw new Error('DEV122_ZERO_NATIVE_CASES');
     if(manifest.executedCases!==tests.numPassedTests+tests.numFailedTests)throw new Error('DEV122_NATIVE_CASE_COUNT_MISMATCH');
     if(nativeExitCode!==0||manifest.nativeBusiness.failed)throw Object.assign(new Error('DEV122_CHILD_FAILED:native-business'),{exitCode:nativeExitCode});
-    if(['ui','settings','all'].includes(suite)) {
+    if(['ui','settings','settings-automation','all'].includes(suite)) {
       manifest.nextCapacityAdmission=nextCapacityAdmission(evidenceRoot);save();
       nextCopy=prepareNextCopy(runtimeRoot,evidenceRoot);manifest.nextSourceCopy=nextCopy;save();
       const nextEnv={...env,DEV122_NEXT_PROJECT_ROOT:nextCopy.copyRoot,PDM_NEXT_DIST_DIR:'.tmp/next-dist',PDM_NEXT_TSCONFIG_PATH:'tsconfig.next.json'};
       const uiGalleryFlags={PDM_WORKBENCH_PREVIEW_GALLERY_V1:'true',PDM_UNIFIED_DRAWING_WORKBENCH_V1:'true',
         PDM_NUMBER_LIFECYCLE_V2:'true',PDM_NUMBER_STATE_FLOW_V1:'true'};
-      if(suite!=='settings')Object.assign(nextEnv,uiGalleryFlags);manifest.nextGalleryFlags={scope:'own Next child only',values:uiGalleryFlags,
-        applicable:suite!=='settings',preflight:suite==='settings'?null:Object.keys(uiGalleryFlags).every(name=>nextEnv[name]==='true')};save();
+      if(!['settings','settings-automation'].includes(suite))Object.assign(nextEnv,uiGalleryFlags);manifest.nextGalleryFlags={scope:'own Next child only',values:uiGalleryFlags,
+        applicable:!['settings','settings-automation'].includes(suite),preflight:['settings','settings-automation'].includes(suite)?null:Object.keys(uiGalleryFlags).every(name=>nextEnv[name]==='true')};save();
       const recognitionWorkerId='dev122-original-recognition-cli',recognitionToken=crypto.randomBytes(32).toString('base64url');
       const licenseNames=['PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY','PDM_SW_DOCUMENT_MANAGER_LICENSE_KEY','SOLIDWORKS_DOCUMENT_MANAGER_KEY'];
       const recognitionPurposes=['recognition_jobs','recognition_heartbeat','settings_secret_probe','solidworks_credential'];
@@ -379,7 +380,13 @@ async function run() {
           activeOwnSecretReferences:0,fallback:false,fixtureMode:false,licenseEnvironmentPresent:licenseNames.map(name=>({name,present:Boolean(nextEnv[name])})),
           workerSource:{path:'scripts/run-drawing-recognition-worker.mjs',hash:sha256(fs.readFileSync(path.join(root,'scripts/run-drawing-recognition-worker.mjs')))},cases:[]};save();
       }
-      const nextChild=await child('next',[path.join(root,'node_modules/next/dist/bin/next'),'dev','--webpack','--hostname','127.0.0.1','--port',String(nextPort)],
+      if(suite==='settings-automation') {
+        const workerId='dev122-settings-control-worker',token=crypto.randomBytes(32).toString('base64url');
+        nextEnv.PDM_WORKLOAD_AUTH_CREDENTIALS=JSON.stringify({schemaVersion:'ai-pdm.workload-credentials.v1',workloads:[{id:workerId,token,purposes:['settings_secret_probe','recognition_heartbeat'],capabilities:['solidworks_document_manager']}]});
+        secretAutomationChannel=await serveSettingsAutomationFixture({admin,runtimeRoot,evidenceRoot,origin:env.DEV122_APP_ORIGIN,workerId,token});
+        manifest.settingsAutomationBoundary={layer:'ACTUAL_LOCAL_API_NATIVE_PG_CONTROL_FLOW',nativeResult:'SYNTHETIC_FIXTURE_ONLY',keyPayload:'NOT_READ',credentialEndpoint:'NOT_CALLED',nativeCad:'NOT_RUN',workloadCredential:'PARENT_MEMORY_AND_OWN_NEXT_ENV_ONLY'};save();
+      }
+      let nextChild=await child('next',[path.join(root,'node_modules/next/dist/bin/next'),'dev','--webpack','--hostname','127.0.0.1','--port',String(nextPort)],
         {wait:false,childCwd:nextCopy.copyRoot,childEnv:nextEnv});
       nextCapTimer=setInterval(()=>{
         try{const bytes=nextCopyBytes(nextCopy);manifest.nextSourceCopy.observedBytes=bytes;
@@ -406,6 +413,28 @@ async function run() {
       manifest.firstFailure??=browserReceipt.firstFailure??null;save();
       if(browserExitCode!==0)throw Object.assign(new Error('DEV122_CHILD_FAILED:normal-browser'),{exitCode:browserExitCode});
       if(suite==='settings'&&!manifest.settingsOwnedRowsUnchanged)throw new Error('DEV122_SETTINGS_OWNED_ROWS_CHANGED');
+      if(suite==='settings-automation') {
+        const submitPath=path.join(path.dirname(browserReceiptPath),'receipt-submit.json');
+        fs.copyFileSync(browserReceiptPath,submitPath);
+        if(!sameProcess(nextChild.dev122Identity))throw new Error('DEV122_NEXT_RESTART_IDENTITY_MISMATCH');
+        const exited=new Promise(resolve=>nextChild.once('exit',resolve));
+        if(process.platform==='win32')execFileSync('taskkill',['/PID',String(nextChild.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});else nextChild.kill('SIGTERM');
+        await Promise.race([exited,new Promise((_,reject)=>setTimeout(()=>reject(new Error('DEV122_NEXT_RESTART_STOP_TIMEOUT')),10000))]);
+        if(!await portReleased(nextPort))throw new Error('DEV122_NEXT_RESTART_PORT_NOT_RELEASED');
+        nextChild=await child('next-restarted',[path.join(root,'node_modules/next/dist/bin/next'),'dev','--webpack','--hostname','127.0.0.1','--port',String(nextPort)],{wait:false,childCwd:nextCopy.copyRoot,childEnv:nextEnv});
+        let restarted=false;const restartDeadline=Date.now()+120000;
+        while(Date.now()<restartDeadline){try{const response=await fetch(env.DEV122_APP_ORIGIN+'/api/health/ready',{signal:AbortSignal.timeout(5000)});if(response.ok){restarted=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,500));}
+        if(!restarted)throw new Error('DEV122_NEXT_RESTART_START_TIMEOUT');
+        const beforeReadback=await grantFixtureChannel.readOwnedSnapshot();
+        const readbackExit=await child('normal-browser-readback',['scripts/qc-dev-122-native-browser.mjs'],{childEnv:{...env,NODE_OPTIONS:'',DEV122_SETTINGS_AUTOMATION_PHASE:'readback'},allowNonzero:true});
+        const readbackReceipt=JSON.parse(fs.readFileSync(browserReceiptPath,'utf8'));
+        const afterReadback=await grantFixtureChannel.readOwnedSnapshot();
+        // DM heartbeats may change their own timestamp. Consent/job/events/audit/outbox remain durable and read-only.
+        const tables=['secret_references','settings_secret_probe_jobs','settings_secret_activation_intents','setting_test_runs','setting_activation_events','audit_logs','platform_outbox_events'];
+        const unchanged=tables.every(table=>JSON.stringify(beforeReadback.rows[table])===JSON.stringify(afterReadback.rows[table]));
+        manifest.settingsAutomationRestart={submitReceipt:submitPath,readbackReceipt:browserReceiptPath,portReusedAfterVerifiedStop:true,readbackExit,status:readbackReceipt.status,cases:readbackReceipt.cases.length,cleanup:readbackReceipt.cleanup,persistentRowsUnchanged:unchanged,tables};save();
+        if(readbackExit!==0||!unchanged||!readbackReceipt.cleanup)throw new Error('DEV122_SETTINGS_RESTART_READBACK_FAILED');
+      }
       if(runRecognition) {
         const workerEnv={...env,NODE_OPTIONS:'',PDM_WORKLOAD_ID:recognitionWorkerId,PDM_WORKLOAD_CREDENTIAL:recognitionToken,
           PDM_DRAWING_RECOGNITION_WORKER_BASE_URL:env.DEV122_APP_ORIGIN,PDM_DRAWING_RECOGNITION_FIXTURE_MODE:'false',PDM_ALLOW_WORKER_ENV_SECRET_FALLBACK:'false',
@@ -459,8 +488,8 @@ async function run() {
     }
     manifest.status='PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:['P-01','P-02A','P-02B','P-02C','P-03A','P-03B','P-04A','P-04B','G-01','G-02','TX-01A','TX-01B','TX-01C'],
-      files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D']};
-    manifest.coverage={partial:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
+      files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
+    manifest.coverage={partial:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
       notRun:['remaining exact variants in all 29 QA groups','automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
     }
@@ -470,6 +499,7 @@ async function run() {
       fixtureMigration:error.fixtureMigration??null,fixtureSourceHash:error.fixtureSourceHash??null,fixtureCompiledHash:error.fixtureCompiledHash??null};
   } finally {
     clearInterval(nextCapTimer);
+    try{await secretAutomationChannel?.close();}catch(error){manifest.status='FAIL';manifest.secretAutomationCleanupFailure={message:error.message};}
     try{await grantFixtureChannel?.close();}catch(error){manifest.status='FAIL';manifest.fixtureRecoveryFailure={message:error.message};}
     await admin?.end().catch(()=>{});await bootstrap?.end().catch(()=>{});
     for(const processChild of children.reverse()) {
@@ -543,8 +573,37 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
     WHERE assignment_id=$3 AND principal_id=$4 AND application_id=$5 AND scope_kind=$6 AND scope_key=$7
       AND valid_until IS NOT DISTINCT FROM $2::timestamptz RETURNING CAST(valid_until AS TEXT) AS valid_until`;
   const requestPath=path.join(runtimeRoot,'grant-fixture-request.json'),resultPath=path.join(runtimeRoot,'grant-fixture-result.json');
-  let active=null,closed=false,busy=null,failure=null;
+  let active=null,withdrawn=null,closed=false,busy=null,failure=null;
+  const readFull=`SELECT to_jsonb(grant_row) AS row FROM ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4 grant_row
+    WHERE assignment_id=$1 AND principal_id=$2 AND application_id=$3 AND scope_kind=$4 AND scope_key=$5`;
   async function mutate(action,nonce) {
+    if(['withdraw','restore-withdrawn'].includes(action)) {
+      if(suite!=='share-metadata'||active!==null)throw new Error('DEV122_SHARE_GRANT_WITHDRAW_SCOPE_REJECTED');
+      const before=(await admin.query(readFull,keys)).rows;
+      let changed=null,writeError=null,sql,binds;
+      if(action==='withdraw') {
+        if(withdrawn!==null||before.length!==1)throw new Error('DEV122_SHARE_GRANT_WITHDRAW_BASELINE_INVALID');
+        withdrawn=before[0].row; // Set recovery before the write; always read back unknown outcomes.
+        sql=`DELETE FROM ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4
+          WHERE assignment_id=$1 AND principal_id=$2 AND application_id=$3 AND scope_kind=$4 AND scope_key=$5`;
+        binds=keys;
+      } else {
+        if(withdrawn===null)throw new Error('DEV122_SHARE_GRANT_RESTORE_BASELINE_INVALID');
+        if(before.length===1&&JSON.stringify(before[0].row)===JSON.stringify(withdrawn)) {withdrawn=null;return{before,after:before,rowCount:0,replayed:true};}
+        if(before.length!==0)throw new Error('DEV122_SHARE_GRANT_RESTORE_DRIFT');
+        sql=`INSERT INTO ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4
+          SELECT * FROM jsonb_populate_record(NULL::ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4,$1::jsonb)`;
+        binds=[JSON.stringify(withdrawn)];
+      }
+      try{changed=await admin.query(sql,binds);}catch(error){writeError=error;}
+      const after=(await admin.query(readFull,keys)).rows;
+      fs.appendFileSync(path.join(evidenceRoot,'grant-fixture-mutations.jsonl'),JSON.stringify({project:'AIPDM',purpose:'exact synthetic reviewer grant withdrawal; local fixture only',action,nonce,sql,binds,before,after,rowCount:changed?.rowCount??null,providerError:writeError?.code??null})+'\n');
+      if(action==='withdraw'&&after.length===1&&JSON.stringify(after[0].row)===JSON.stringify(withdrawn))withdrawn=null;
+      if(action==='restore-withdrawn'&&after.length===1&&JSON.stringify(after[0].row)===JSON.stringify(withdrawn))withdrawn=null;
+      if(writeError)throw writeError;
+      if(changed?.rowCount!==1||(action==='withdraw'?after.length!==0:withdrawn!==null))throw new Error('DEV122_SHARE_GRANT_WRITE_READBACK_FAILED');
+      return{before,after,rowCount:changed.rowCount};
+    }
     if(action==='expire'&&active!==null)throw new Error('DEV122_FIXTURE_CHANNEL_ALREADY_EXPIRED');
     if(action==='restore'&&active===null)throw new Error('DEV122_FIXTURE_CHANNEL_NOT_EXPIRED');
     const before=(await admin.query(select,keys)).rows;
@@ -599,7 +658,7 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
       let request;
       try{
         request=JSON.parse(fs.readFileSync(requestPath,'utf8'));
-        if(Object.keys(request).sort().join(',')!=='action,nonce'||!['expire','restore','owned-lifecycle-snapshot'].includes(request.action)
+        if(Object.keys(request).sort().join(',')!=='action,nonce'||!['expire','restore','owned-lifecycle-snapshot',...(suite==='share-metadata'?['withdraw','restore-withdrawn']:[])].includes(request.action)
           ||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(request.nonce))throw new Error('DEV122_FIXTURE_CHANNEL_REQUEST_INVALID');
         fs.unlinkSync(requestPath);
         const result=request.action==='owned-lifecycle-snapshot'?await snapshot(request.nonce):await mutate(request.action,request.nonce);
@@ -611,6 +670,7 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
     busy=snapshot(crypto.randomUUID());try{return await busy;}finally{busy=null;}},
     async close(){if(closed)return;closed=true;clearInterval(timer);await busy;
     if(active!==null)await mutate('restore','parent-finally-recovery');
+    if(withdrawn!==null)await mutate('restore-withdrawn','parent-finally-withdraw-recovery');
     if(failure)throw failure;
     fs.writeFileSync(path.join(evidenceRoot,'grant-fixture-recovery.json'),JSON.stringify({restored:true,originalUntil,after:(await admin.query(select,keys)).rows}));
   }};
@@ -623,7 +683,7 @@ async function seedPrincipals(admin,evidenceRoot) {
   await admin.query(`INSERT INTO ai_pdm_core.companies(id,company_code,display_name) VALUES
     ('company-jenfu','JENFU','DEV122 isolated Jenfu'),('company-dev122-other','DEV122OTHER','DEV122 isolated other') ON CONFLICT DO NOTHING;
     UPDATE ai_pdm_core.pdm_workbench_state_authority_control SET mode='canonical_only',schema_hash='dev090-v1',expected_commit='local-dev';`);
-  for(const [index,identity] of ((suite==='settings'||['authority-gaps','other-company-scope'].includes(nativeSelection))?['owner','reviewer','denied','other']:['owner','reviewer','denied']).entries()) {
+  for(const [index,identity] of ((['settings','settings-automation','share-metadata'].includes(suite)||['authority-gaps','other-company-scope'].includes(nativeSelection))?['owner','reviewer','denied','other']:['owner','reviewer','denied']).entries()) {
     const profile='dev122-profile-'+identity,principal='dev122-principal-'+identity,employee='dev122-employee-'+identity;
     const company=identity==='other'?'company-dev122-other':'company-jenfu';
     await admin.query(`INSERT INTO ai_pdm_core.users(id,display_name,email,role,company_id,account_status,system_role_enabled)
@@ -635,8 +695,8 @@ async function seedPrincipals(admin,evidenceRoot) {
       VALUES ('organization.active-principal.v1',$1,$2,$3,$4,'active',1,$5,'human_personal')`,
       ['https://securetoken.google.com/dev122-local-fixture','dev122-subject-'+identity,principal,employee,now]);
     await admin.query(`INSERT INTO ai_pdm_contract.dev122_fixture_principal_auth_state_v3 VALUES ($1,1,NULL)`,[principal]);
-    const role=catalog.roles.find(role=>role.roleCode===(identity==='denied'?'qa':suite==='settings'&&['owner','other'].includes(identity)?'pdm_admin':'rd_manager'));
-    if(suite==='settings'&&['owner','other'].includes(identity)&&(!role?.assignable||role.subjectKind!=='employee'||
+    const role=catalog.roles.find(role=>role.roleCode===(identity==='denied'?'qa':['settings','settings-automation'].includes(suite)&&['owner','other'].includes(identity)?'pdm_admin':'rd_manager'));
+    if(['settings','settings-automation'].includes(suite)&&['owner','other'].includes(identity)&&(!role?.assignable||role.subjectKind!=='employee'||
       !role.allowedScopeKinds.includes('workspace')||!['settings.manage','settings.secret.manage'].every(code=>
         role.permissions.some(permission=>permission.code===code&&permission.kind==='action'&&permission.allowed))))
       throw new Error('DEV122_SETTINGS_INITIAL_CATALOG_ROLE_INVALID');

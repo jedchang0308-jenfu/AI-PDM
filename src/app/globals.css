@@ -13738,81 +13738,51 @@ select.dropdown-select:focus-visible,
 
 .settings-secret-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
-  gap: 14px;
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  padding: 20px;
+  max-width: 860px;
   min-width: 0;
 }
-
-.settings-secret-form,
-.settings-secret-status,
-.settings-secret-version,
-.settings-secret-test-run {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #ffffff;
+.settings-secret-heading { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; }
+.settings-secret-heading h3 { margin: 0; font-size: 18px; }
+.settings-secret-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.settings-secret-form { display: grid; gap: 14px; align-content: start; }
+.settings-secret-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.settings-secret-actions .primary-button { min-height: 42px; }
+.settings-secret-progress { display: grid; gap: 14px; padding-block: 8px; min-width: 0; }
+.settings-secret-progress-title { display: flex; gap: 12px; align-items: flex-start; color: var(--text); }
+.settings-secret-progress-title > svg { flex-shrink: 0; margin-top: 1px; color: var(--accent, #0f766e); }
+.settings-secret-progress-title strong { font-size: 17px; }
+.settings-secret-progress-title p { margin: 5px 0 0; color: var(--muted); line-height: 1.65; }
+.settings-secret-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; gap: 8px; }
+.settings-secret-steps li { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; min-width: 0; }
+.settings-secret-steps li > span:first-child { display: flex; align-items: center; justify-content: center; width: 25px; height: 25px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 50%; }
+.settings-secret-steps li.is-current { color: #0f766e; font-weight: 700; }
+.settings-secret-steps li.is-current > span:first-child { background: #e4f4f1; border-color: #0f766e; }
+.settings-secret-steps li.is-done { color: #0f766e; }
+.settings-secret-last-seen { color: var(--muted); }
+.settings-secret-details { border-top: 1px solid var(--line); padding-top: 14px; min-width: 0; }
+.settings-secret-details > summary { cursor: pointer; color: var(--muted); padding-block: 4px; }
+.settings-secret-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding-block: 18px; }
+.settings-secret-version, .settings-secret-test-run { display: grid; gap: 5px; min-width: 0; align-content: start; }
+.settings-secret-version > span, .settings-secret-test-run > span { color: var(--muted); font-size: 13px; }
+.settings-secret-version small, .settings-secret-test-run small { overflow-wrap: anywhere; color: var(--muted); line-height: 1.6; }
+.settings-secret-message { border-radius: 6px; padding: 9px 10px; font-size: 13px; line-height: 1.65; }
+.settings-secret-message.is-error { background: #feecec; color: var(--danger); }
+.settings-secret-message.is-success { background: #e8f7ef; color: var(--success); }
+.settings-secret-spin { animation: settings-secret-spin 1s linear infinite; }
+.settings-secret-pulse { animation: settings-secret-pulse 1.6s ease-in-out infinite; }
+@keyframes settings-secret-spin { to { transform: rotate(360deg); } }
+@keyframes settings-secret-pulse { 50% { opacity: .35; } }
+@media (max-width: 560px) {
+  .settings-secret-layout { padding: 14px; gap: 16px; }
+  .settings-secret-status { grid-template-columns: minmax(0, 1fr); }
+  .settings-secret-steps li { flex-direction: column; text-align: center; gap: 5px; font-size: 12px; }
+  .settings-secret-actions .primary-button { width: 100%; justify-content: center; }
 }
-
-.settings-secret-form {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  align-content: start;
-}
-
-.settings-secret-heading {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-}
-
-.settings-secret-heading h3 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.settings-secret-heading p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.settings-secret-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.settings-secret-status {
-  display: grid;
-  gap: 10px;
-  padding: 10px;
-  align-content: start;
-}
-
-.settings-secret-version,
-.settings-secret-test-run {
-  display: grid;
-  gap: 2px;
-  padding: 10px;
-}
-
-.settings-secret-message {
-  border-radius: 6px;
-  padding: 9px 10px;
-  font-size: 13px;
-}
-
-.settings-secret-message.is-error {
-  background: #feecec;
-  color: var(--danger);
-}
-
-.settings-secret-message.is-success {
-  background: #e8f7ef;
-  color: var(--success);
+@media (prefers-reduced-motion: reduce) {
+  .settings-secret-spin, .settings-secret-pulse { animation: none; }
 }
 
 .settings-drive-status {

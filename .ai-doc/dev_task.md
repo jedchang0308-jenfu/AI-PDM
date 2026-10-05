@@ -1,6 +1,11 @@
 # AI_PDM 開發任務
 
-> **2026-10-05 本工作樹入口：AIPDM/DEV-122／R02 已部署**：100% ai-pdm-prod-52f421cb8db9、0 candidate tags，正式登入 smoke PASS；[結案與人工驗收界線](qa/DEV-122-settings-production-closure-2026-10-05.json)。安全頁憑證 reauth 已完成及清理。設定 UI／真 key／probe／activation 與原生 CAD 仍待使用者正式驗證，F-01F NOT_RUN／7 issues／29 groups／整體未驗收。下方 DEV-121 R81 是其 owner 當時結案背景；目前 serving 以本 R02 為準。單一 AI-PDM、禁止跨專案，其他 owner 修改保留。
+## DEV-122 一次提交金鑰流程（2026-10-05；R03 已部署，待使用者 CAD 驗證）
+
+一次提交後自動測試、啟用與精確服務版本套用確認已部署：R03 owner run [37286616142](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37286616142) RELEASED／FINALIZED，100% ai-pdm-prod-7e169d142ba7、0 candidate tags；官方來源 aacd16a461dec3fca0ac27d2b178939211c5b055（PR211 正常合併），PR／main required CI 均 SUCCESS。170/170 unit、5/5 worker transport、34/34設定、134/134 release tests；isolated PG／正常 Settings UI 1440與390px控制流程及restart七表不變已驗，Luna來源／21張畫面與最後fixture QC無P1/P2。080正式1 applied／29 replayed／ledger30，舊migration prefix未變；B配置與既有三own資源沿用，無新增IAM。真key／CAD與常駐worker未冒稱PASS，主機位置待人類，安全launcher已交付；F-01F由使用者正式驗證，7 issues／29 groups、整體NOT_ACCEPTED。閱讀[追加契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[本輪checkpoint](qa/DEV-122-secret-workflow-automation-2026-10-05.json)與[新正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)。
+
+
+> HISTORY_ONLY／R02基線：**2026-10-05 本工作樹入口：AIPDM/DEV-122／R02 已部署**：100% ai-pdm-prod-52f421cb8db9、0 candidate tags，正式登入 smoke PASS；[結案與人工驗收界線](qa/DEV-122-settings-production-closure-2026-10-05.json)。安全頁憑證 reauth 已完成及清理。設定 UI／真 key／probe／activation 與原生 CAD 仍待使用者正式驗證，F-01F NOT_RUN／7 issues／29 groups／整體未驗收。下方 DEV-121 R81 是其 owner 當時結案背景；當時 serving 以 R02 為準；現行 R03 依本頁最上方結案。單一 AI-PDM、禁止跨專案，其他 owner 修改保留。
 
 > HISTORY_ONLY／B合併前工作樹入口：**2026-10-05 本工作樹入口：AIPDM/DEV-122／B方案**：codex/dev122-internal-functions；B方案已完成：PDM_GCP_PROJECT_ID=jenfu-platform-prod保留，另設PDM_GCP_EXPECTED_PROJECT_NUMBER=9536592944；named請求／numeric canonical回傳分開嚴格核對。clean受測HEAD165a53f0bbcfbb9e54049c191505147936fcfaee已整合官方main46438028。unit83/83（Google57＋Principal26）、static36/36、mock27/27、release134/134及六項必要release檢查（QC97、abort6、boundary、typecheck、isolatedbuild）PASS；獨立gpt-6-luna QC為B_LOCAL_QC_PASS_REQUIRED_CI_PENDING_THREE_RESOURCES_PENDING_APPROVAL。新B required CI待同一草稿PR207刷新，舊b89 CI僅歷史。A未套用、不再待配置核准；僅三項新增正式Secret／IAM待明確資源授權，未merge／apply／deploy。真key/probe/activation及CAD properties由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups不變、整體未驗收。 [最後QC](../output/qa/dev-122/DEV-122-gsm-b-final-luna-qc-2026-10-05.json)／[三資源計畫](../output/qa/dev-122/DEV-122-gsm-b-production-resource-approval-plan-2026-10-05.md)。單一AI-PDM、禁止跨專案；DEV-121/canonical owner修改保留。
 
@@ -1596,9 +1601,9 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：使用者於正式 /settings/security 建立 Document Manager 金鑰草稿、測試、啟用並驗證原生 CAD 屬性；回報實際結果後補 F-01F 驗收，不再重試已成功 R02。
-  - 驗收缺口：R02 100%／0 tags／正常登入 smoke PASS；正式設定 UI 與真 key/probe/activation 尚未實測。既有 28 組僅按相符本地層級保留，三格式 filename partial 不替代原生 CAD；7 issues／29 groups、整體未驗收。
-  - 證據：[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
+  - 下一步：D122-08 已通過獨立Luna QC／required CI並合併PR213，發布範圍待人類決定；原生CAD由使用者於R03正式環境驗證。
+  - 驗收缺口：R03 100%／0 tags／正常登入 smoke PASS；正式真 key/probe/activation 與 CAD 由使用者驗證，常駐 worker 主機待提供。既有 28 組僅按相符本地層級保留，三格式 filename partial 不替代原生 CAD；7 issues／29 groups、整體未驗收。
+  - 證據：[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
 - ◐ DEV-121 [開發點] [最高管理角色能力修正中] [P0] [Principal-only owner release] 目標端授權邊界重構

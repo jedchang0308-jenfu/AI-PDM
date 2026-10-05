@@ -1,0 +1,21 @@
+import {beforeEach,describe,it,expect,vi} from "vitest";
+const mocks=vi.hoisted(()=>({auth:vi.fn(),claim:vi.fn(),reference:vi.fn(),reconcile:vi.fn(),complete:vi.fn()}));
+vi.mock("@/lib/worker-service-auth",()=>({authenticateWorkerService:mocks.auth,rejectWorkerLabel:()=>null,rejectWorkerCapability:()=>null}));
+vi.mock("@/lib/db-async-provider",()=>({getAsyncDatabaseClient:()=>({kind:"postgres"})}));
+vi.mock("@/lib/repositories/settings-secret-async-repository",()=>({AsyncSettingsSecretRepository:class {claimProbeJob=mocks.claim;getReferenceById=mocks.reference;}}));
+vi.mock("@/lib/settings-secret-lifecycle",async original=>({...await original<typeof import("@/lib/settings-secret-lifecycle")>(),reconcilePendingSettingsSecretActivation:mocks.reconcile,completeSettingsSecretProbe:mocks.complete}));
+import {POST as claim} from "./route";
+import {POST as complete} from "../[jobId]/complete/route";
+const worker={kind:"workload",id:"worker-one",purposes:["settings_secret_probe"],capabilities:["solidworks_document_manager"]};
+const request=(body:unknown)=>new Request("https://owner.test/api/settings-secret-probe-jobs/claim",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+describe("purpose-scoped probe protocol dispatch",()=>{
+ beforeEach(()=>{vi.resetAllMocks();mocks.auth.mockReturnValue({actor:worker});mocks.claim.mockResolvedValue(null);mocks.complete.mockResolvedValue({id:"test-run"});});
+ it("legacy claim remains test-only and skips automatic reconciliation",async()=>{expect((await claim(request({workerId:worker.id}))).status).toBe(204);expect(mocks.reconcile).not.toHaveBeenCalled();expect(mocks.claim).toHaveBeenCalledWith(worker.id,expect.any(String),undefined);});
+ it("protocol2 claim reconciles one bounded intent before actual queue selection",async()=>{expect((await claim(request({workerId:worker.id,protocolVersion:2}))).status).toBe(204);expect(mocks.reconcile).toHaveBeenCalledOnce();expect(mocks.claim).toHaveBeenCalledWith(worker.id,expect.any(String),2);expect(mocks.reconcile.mock.invocationCallOrder[0]).toBeLessThan(mocks.claim.mock.invocationCallOrder[0]);});
+ it.each(["2",1,null])("rejects noncanonical protocol %s before writes",async protocolVersion=>{expect((await claim(request({protocolVersion}))).status).toBe(400);expect(mocks.claim).not.toHaveBeenCalled();expect(mocks.reconcile).not.toHaveBeenCalled();});
+ it("does no business work after authentication denial",async()=>{mocks.auth.mockReturnValue({response:Response.json({error:"WORKLOAD_UNAUTHORIZED"},{status:401})});expect((await claim(request({protocolVersion:2}))).status).toBe(401);expect(mocks.claim).not.toHaveBeenCalled();expect(mocks.reconcile).not.toHaveBeenCalled();});
+ it("passes exact lease to completion using verified actor rather than body identity",async()=>{const response=await complete(request({workerId:worker.id,status:"passed",leaseAttempt:2,readerVersion:"reader.v1"}),{params:Promise.resolve({jobId:"job"})});expect(response.status).toBe(200);expect(mocks.complete).toHaveBeenCalledWith(expect.objectContaining({probeJobId:"job",leaseAttempt:2,worker}));expect(response.headers.get("cache-control")).toBe("private, no-store");});
+ it.each([0,-1,"2",1.1])("rejects malformed completion attempt %s without effects",async leaseAttempt=>{expect((await complete(request({status:"passed",leaseAttempt}),{params:Promise.resolve({jobId:"job"})})).status).toBe(400);expect(mocks.complete).not.toHaveBeenCalled();});
+ it.each([1,true,{}])("rejects coerced reader version %s before completion",async readerVersion=>{expect((await complete(request({status:"passed",leaseAttempt:1,readerVersion}),{params:Promise.resolve({jobId:"job"})})).status).toBe(400);expect(mocks.complete).not.toHaveBeenCalled();});
+ it("dependency failure is safe retryable503 with no secret message",async()=>{mocks.complete.mockRejectedValue(new Error("synthetic-private-canary"));const response=await complete(request({status:"passed",leaseAttempt:1}),{params:Promise.resolve({jobId:"job"})});expect(response.status).toBe(503);expect(await response.json()).toEqual({error:"SECRET_PROBE_COMPLETE_FAILED",retryable:true});});
+});

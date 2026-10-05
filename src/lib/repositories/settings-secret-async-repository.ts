@@ -64,7 +64,27 @@ export type SettingsSecretProbeJob = {
   initiatorPrincipalId: string | null;
   initiatorProfileVersion: number | null;
   purpose: "settings_secret_probe" | null;
+  completionDigest?: string | null;
+  completionTestRunId?: string | null;
 };
+
+export type SettingsSecretActivationIntent = {
+  id: string; secretReferenceId: string; probeJobId: string; kind: string; companyId: string;
+  consentPrincipalId: string; consentEmployeeId: string; consentPdmUserId: string;
+  identityIssuer: string; identitySubject: string; profileVersion: number; accountLifecycleVersion: number;
+  authEpoch: number; authenticatedAt: string; sessionIssuedAt: string; requestedAt: string;
+  state: "pending" | "activated" | "blocked" | "superseded"; safeResultCode: string | null;
+  activatedAt: string | null; activationTestRunId: string | null; updatedAt: string;
+};
+type IntentRow = Record<string, unknown>;
+function mapIntent(row: IntentRow): SettingsSecretActivationIntent {
+  const result = Object.fromEntries(Object.entries(row).map(([key,value]) => [
+    key.replace(/_([a-z])/g, (_,letter: string) => letter.toUpperCase()),
+    value instanceof Date ? value.toISOString() : value
+  ]));
+  for (const key of ["profileVersion","accountLifecycleVersion","authEpoch"]) result[key] = Number(result[key]);
+  return result as SettingsSecretActivationIntent;
+}
 
 export type WorkerCapabilityHeartbeat = {
   workerId: string;
@@ -139,6 +159,8 @@ type SettingsSecretProbeJobRow = {
   initiator_principal_id: string | null;
   initiator_profile_version: number | string | null;
   purpose: "settings_secret_probe" | null;
+  completion_digest?: string | null;
+  completion_test_run_id?: string | null;
 };
 
 type WorkerCapabilityHeartbeatRow = {
@@ -362,6 +384,8 @@ function mapProbeJob(row: SettingsSecretProbeJobRow): SettingsSecretProbeJob {
     companyId: row.company_id ?? null,
     initiatorPrincipalId: row.initiator_principal_id ?? null,
     initiatorProfileVersion: row.initiator_profile_version == null ? null : Number(row.initiator_profile_version),
+    completionDigest: row.completion_digest ?? null,
+    completionTestRunId: row.completion_test_run_id ?? null,
     purpose: row.purpose ?? null
   };
 }
@@ -385,6 +409,83 @@ function mapHeartbeat(row: WorkerCapabilityHeartbeatRow): WorkerCapabilityHeartb
 
 export class AsyncSettingsSecretRepository {
   constructor(private readonly client: AsyncDatabaseClient) {}
+
+  async lockKind(kind: string): Promise<void> {
+    if (this.client.kind !== "postgres" || kind !== "solidworks_document_manager") throw new Error("SETTINGS_SECRET_OWNER_DATABASE_REQUIRED");
+    await this.client.query("SELECT pg_advisory_xact_lock(122080,1)");
+  }
+
+  async databaseNow(): Promise<string> {
+    const row = await this.client.queryOne<{ now: string }>("SELECT transaction_timestamp()::text AS now");
+    if (!row || !Number.isFinite(Date.parse(row.now))) throw new Error("SETTINGS_SECRET_CLOCK_UNAVAILABLE");
+    return new Date(row.now).toISOString();
+  }
+
+  async getLatestIntent(secretReferenceId: string, pendingOnly = false): Promise<SettingsSecretActivationIntent | null> {
+    const row = await this.client.queryOne<IntentRow>(`SELECT * FROM settings_secret_activation_intents
+      WHERE secret_reference_id=:secretReferenceId ${pendingOnly ? "AND state='pending'" : ""}
+      ORDER BY requested_at DESC,id DESC LIMIT 1`, { secretReferenceId });
+    return row ? mapIntent(row) : null;
+  }
+
+  async getPendingIntentForReconciliation(): Promise<SettingsSecretActivationIntent | null> {
+    const row = await this.client.queryOne<IntentRow>(`SELECT intent.* FROM settings_secret_activation_intents intent
+      JOIN settings_secret_probe_jobs job ON job.id=intent.probe_job_id
+      WHERE intent.state='pending' AND job.status IN ('passed','failed','blocked','expired')
+      ORDER BY intent.requested_at,intent.id LIMIT 1`);
+    return row ? mapIntent(row) : null;
+  }
+
+  async insertIntent(intent: SettingsSecretActivationIntent): Promise<void> {
+    await this.client.execute(`INSERT INTO settings_secret_activation_intents
+      (id,secret_reference_id,probe_job_id,kind,company_id,consent_principal_id,consent_employee_id,consent_pdm_user_id,
+       identity_issuer,identity_subject,profile_version,account_lifecycle_version,auth_epoch,authenticated_at,
+       session_issued_at,requested_at,state,safe_result_code,activated_at,activation_test_run_id,updated_at)
+      VALUES (:id,:secretReferenceId,:probeJobId,:kind,:companyId,:consentPrincipalId,:consentEmployeeId,:consentPdmUserId,
+        :identityIssuer,:identitySubject,:profileVersion,:accountLifecycleVersion,:authEpoch,:authenticatedAt,
+        :sessionIssuedAt,:requestedAt,:state,:safeResultCode,:activatedAt,:activationTestRunId,:updatedAt)`, intent);
+  }
+
+  async updateIntent(id: string, state: SettingsSecretActivationIntent["state"], safeResultCode: string | null,
+    now: string, testRunId: string | null = null): Promise<void> {
+    const row = await this.client.queryOne<{id: string}>(`UPDATE settings_secret_activation_intents
+      SET state=:state,safe_result_code=:safeResultCode,updated_at=:now,
+        activated_at=CASE WHEN :state='activated' THEN CAST(:now AS timestamptz) ELSE NULL END,
+        activation_test_run_id=:testRunId WHERE id=:id AND state='pending' RETURNING id`,
+      {id,state,safeResultCode,now,testRunId});
+    if (!row) throw new Error("SETTINGS_SECRET_INTENT_CAS_FAILED");
+  }
+
+  async newestConsentedVersion(kind: string): Promise<number> {
+    const row = await this.client.queryOne<{version: string | number | null}>(`SELECT MAX(ref.version) AS version
+      FROM settings_secret_activation_intents intent JOIN secret_references ref ON ref.id=intent.secret_reference_id
+      WHERE intent.kind=:kind`, {kind});
+    return Number(row?.version ?? 0);
+  }
+
+  async supersedePending(kind: string, keepReferenceId: string, now: string): Promise<void> {
+    await this.client.execute(`UPDATE settings_secret_activation_intents SET state='superseded',
+      safe_result_code='newer_consent',updated_at=:now WHERE kind=:kind AND state='pending'
+      AND secret_reference_id<>:keepReferenceId`, {kind,keepReferenceId,now});
+  }
+
+  async getTestRunById(id: string): Promise<SettingsSecretTestRun | null> {
+    const row = await this.client.queryOne<SettingsSecretTestRunRow>("SELECT * FROM setting_test_runs WHERE id=:id", {id});
+    return row ? mapSecretTestRun(row) : null;
+  }
+
+  async saveCompletionReceipt(id: string, digest: string, testRunId: string): Promise<void> {
+    await this.client.execute(`UPDATE settings_secret_probe_jobs SET completion_digest=:digest,
+      completion_test_run_id=:testRunId WHERE id=:id`, {id,digest,testRunId});
+  }
+
+  async getMatchingDocumentManagerHeartbeat(reference: SettingsSecretReference): Promise<WorkerCapabilityHeartbeat | null> {
+    const row = await this.client.queryOne<WorkerCapabilityHeartbeatRow>(`SELECT * FROM worker_capability_heartbeats
+      WHERE capability_code='solidworks_document_manager' AND status='ready'
+      AND applied_secret_kind=:kind AND applied_secret_version=:version AND applied_secret_fingerprint=:fingerprint
+      ORDER BY last_seen_at DESC LIMIT 1`, {kind:reference.kind,version:reference.version,fingerprint:reference.fingerprint});
+    return row ? mapHeartbeat(row) : null;
+  }
 
   async listReferencesByKind(kind: string): Promise<SettingsSecretReference[]> {
     const rows = await this.client.query<SettingsSecretReferenceRow>(SELECT_SECRET_REFERENCES_BY_KIND_SQL, { kind });
@@ -533,7 +634,7 @@ export class AsyncSettingsSecretRepository {
     return row ? mapProbeJob(row) : null;
   }
 
-  async claimProbeJob(workerId: string, now: string): Promise<SettingsSecretProbeJob | null> {
+  async claimProbeJob(workerId: string, now: string, protocolVersion?: 2): Promise<SettingsSecretProbeJob | null> {
     return this.client.transaction(async (transactionClient) => {
       const staleCutoff = new Date(Date.parse(now) - 60_000).toISOString();
       await transactionClient.execute(
@@ -547,9 +648,11 @@ export class AsyncSettingsSecretRepository {
         `SELECT * FROM settings_secret_probe_jobs
          WHERE company_id IS NOT NULL AND initiator_principal_id IS NOT NULL
            AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
+           AND (:protocolV2=1 OR NOT EXISTS (SELECT 1 FROM settings_secret_activation_intents intent
+             WHERE intent.secret_reference_id=settings_secret_probe_jobs.secret_reference_id))
            AND (status = 'pending' OR (status = 'running' AND updated_at < :staleCutoff AND attempt_count < max_attempts))
          ORDER BY created_at ASC LIMIT 1${transactionClient.kind === "postgres" ? " FOR UPDATE SKIP LOCKED" : ""}`,
-        { staleCutoff }
+        { staleCutoff, protocolV2: protocolVersion === 2 ? 1 : 0 }
       );
       if (!candidate) return null;
       await transactionClient.execute(
@@ -563,26 +666,32 @@ export class AsyncSettingsSecretRepository {
     });
   }
 
-  async heartbeatProbeJob(id: string, workerId: string, now: string): Promise<boolean> {
+  async heartbeatProbeJob(id: string, workerId: string, now: string, leaseAttempt?: number): Promise<boolean> {
     const updated = await this.client.queryOne<{ id: string }>(
       `UPDATE settings_secret_probe_jobs SET heartbeat_at = :now, updated_at = :now
        WHERE id = :id AND status = 'running' AND locked_by = :workerId
          AND company_id IS NOT NULL AND initiator_principal_id IS NOT NULL
          AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
+         AND ((CAST(:leaseAttempt AS bigint) IS NOT NULL AND attempt_count=CAST(:leaseAttempt AS bigint))
+           OR (CAST(:leaseAttempt AS bigint) IS NULL AND NOT EXISTS (SELECT 1 FROM settings_secret_activation_intents intent
+             WHERE intent.secret_reference_id=settings_secret_probe_jobs.secret_reference_id)))
          AND updated_at >= :staleCutoff RETURNING id`,
-      { id, workerId, now, staleCutoff: new Date(Date.parse(now) - 60_000).toISOString() }
+      { id, workerId, now, leaseAttempt: leaseAttempt ?? null, staleCutoff: new Date(Date.parse(now) - 60_000).toISOString() }
     );
     return Boolean(updated);
   }
 
-  async completeProbeJob(input: { id: string; workerId: string; status: Exclude<SettingsSecretProbeStatus, "pending" | "running" | "expired">; resultCode: string | null; readerVersion: string | null; completedAt: string }): Promise<boolean> {
+  async completeProbeJob(input: { id: string; workerId: string; status: Exclude<SettingsSecretProbeStatus, "pending" | "running" | "expired">; resultCode: string | null; readerVersion: string | null; completedAt: string; leaseAttempt?: number }): Promise<boolean> {
     const updated = await this.client.queryOne<{ id: string }>(
       `UPDATE settings_secret_probe_jobs SET status = :status, result_code = :resultCode, reader_version = :readerVersion,
         completed_at = :completedAt, updated_at = :completedAt WHERE id = :id AND status = 'running' AND locked_by = :workerId
         AND company_id IS NOT NULL AND initiator_principal_id IS NOT NULL
         AND initiator_profile_version > 0 AND purpose = 'settings_secret_probe'
+        AND ((CAST(:leaseAttempt AS bigint) IS NOT NULL AND attempt_count=CAST(:leaseAttempt AS bigint))
+          OR (CAST(:leaseAttempt AS bigint) IS NULL AND NOT EXISTS (SELECT 1 FROM settings_secret_activation_intents intent
+            WHERE intent.secret_reference_id=settings_secret_probe_jobs.secret_reference_id)))
         AND updated_at >= :staleCutoff RETURNING id`,
-      { ...input, staleCutoff: new Date(Date.parse(input.completedAt) - 60_000).toISOString() }
+      { ...input, leaseAttempt: input.leaseAttempt ?? null, staleCutoff: new Date(Date.parse(input.completedAt) - 60_000).toISOString() }
     );
     return Boolean(updated);
   }

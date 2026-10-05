@@ -31,6 +31,8 @@ export type VerifiedJenfuPrincipalAppSession = {
   employeeId: string;
   authEpoch: number;
   profileVersion: number;
+  accountLifecycleVersion: number;
+  authenticatedAt: string;
   issuedAt: string;
   expiresAt: string;
   assuranceLevel: "aal1" | "aal2";
@@ -126,6 +128,8 @@ export async function withVerifiedJenfuPrincipalRequest<TResult>(
           employeeId: claims.employeeId,
           authEpoch: claims.authEpoch,
           profileVersion: claims.profileVersion,
+          accountLifecycleVersion: claims.accountLifecycleVersion,
+          authenticatedAt: new Date(claims.authenticatedAt * 1000).toISOString(),
           issuedAt: new Date(claims.issuedAt * 1000).toISOString(),
           expiresAt: new Date(claims.expiresAt * 1000).toISOString(),
           assuranceLevel: claims.assuranceLevel

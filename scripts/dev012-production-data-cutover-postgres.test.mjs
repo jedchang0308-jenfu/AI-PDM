@@ -70,6 +70,7 @@ test('DEV121 Principal precision, lifecycle, settings actor and submission-share
   assert.equal(report.shareResourceFixtureSynthetic,true)
   assert.ok(report.sourceProof.some(item => item.path === 'src/lib/principal-readonly-share-command.ts'))
   assert.ok(report.sourceProof.some(item => item.path === 'db/postgres/078_dev121_settings_probe_principal_provenance.sql'))
+  assert.ok(report.sourceProof.some(item => item.path === 'db/postgres/080_dev122_settings_secret_activation_intents.sql'))
   assert.equal(report.providerConformance,false)
   assert.equal(report.productionL4,false)
   assert.deepEqual(report.cleanup,{ generatedDatabaseDropped: true,newRolesDropped: true,ownTempRemoved: true })

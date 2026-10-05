@@ -23,7 +23,7 @@ vi.mock("@/lib/jenfu-principal-request-guard", async (original) => ({
     session: { contractVersion: "jenfu.ai-pdm-session.v2", appId: "ai-pdm",
       sessionId: "dev057-download-session", identityIssuer: "issuer-legacy",
       identitySubject: "subject-legacy", principalId: "principal-legacy",
-      employeeId: "employee-legacy", authEpoch: 1, profileVersion: 1,
+      employeeId: "employee-legacy", authEpoch: 1, profileVersion: 1, accountLifecycleVersion: 1, authenticatedAt: "2026-09-29T00:00:00.000Z",
       issuedAt: "2026-09-29T00:00:00.000Z", expiresAt: "2026-09-30T00:00:00.000Z",
       assuranceLevel: "aal1" }
   }), { readOnly: options.readOnly !== false, isolationLevel: "repeatable_read" }).catch(error => {
@@ -73,7 +73,7 @@ const shareFixtures = [
 ] as const;
 const activeShareToken = shareFixtures[0].token;
 const shareCaseEvidence: Array<{ id: string; authorization: "PASS" }> = [];
-let publicMetadataBusiness: "NOT_RUN" | "DEFERRED_KNOWN_BUSINESS_SQL_42P08" | "AUTHORIZATION_DENIED" = "NOT_RUN";
+let publicMetadataBusiness: "NOT_RUN" | "PASS_METADATA" | "AUTHORIZATION_DENIED" = "NOT_RUN";
 
 beforeAll(async () => {
   if (!enabled || !database || !dsn) return;
@@ -129,11 +129,11 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   if (enabled) process.stdout.write(JSON.stringify({ dev057ShareReadConformance: {
-    phase, status: shareCaseEvidence.length === 6 ? "PASS_AUTHORIZATION_ONLY" : "INCOMPLETE",
-    cases: shareCaseEvidence, publicMetadataBusiness, publicMetadataPositivePass: false,
-    businessKnownBlocked: { id: "D122-08", code: "42P08",
+    phase, status: shareCaseEvidence.length === 6 ? (publicMetadataBusiness === "PASS_METADATA" ? "PASS_SHARE_READ" : "PASS_AUTHORIZATION_ONLY") : "INCOMPLETE",
+    cases: shareCaseEvidence, publicMetadataBusiness, publicMetadataPositivePass: publicMetadataBusiness === "PASS_METADATA",
+    businessKnownBlocked: { id: "D122-08", code: publicMetadataBusiness === "PASS_METADATA" ? null : "NOT_RUN",
       querySha256: createHash("sha256").update(SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL).digest("hex"),
-      status: "DEFERRED_NOT_PASS" },
+      status: publicMetadataBusiness === "PASS_METADATA" ? "RESOLVED_IN_THIS_LOCAL_PHASE" : "NOT_RUN_AUTHORIZATION_DENIED" },
     syntheticVerifiedSession: true, syntheticBusinessSchema: true, syntheticStorageBytes: true,
     actualOrg029Producer: true, actualShareResolverAndDelivery: true,
     providerConformance: false, productionL4: false
@@ -275,7 +275,7 @@ describe.runIf(enabled)("OrgMaster published grant â†’ Principal package HTTP â†
     expect(await shareAccessCount()).toBe(accessBefore);
     shareCaseEvidence.push({ id: "SREAD-01", authorization: "PASS" });
   });
-  it("separates actual share authorization from the deferred metadata serializer failure", async () => {
+  it("delivers actual share metadata after the same published authorization", async () => {
     const before = await auditCount();
     const accessBefore = await shareAccessCount();
     const request = new Request("https://ai-pdm.test/api/public/shares/" + activeShareToken, {
@@ -298,11 +298,17 @@ describe.runIf(enabled)("OrgMaster published grant â†’ Principal package HTTP â†
     }
     const failuresBefore = evaluatorFailures.length;
     const response = await invokePublicShare(publicShare);
-    expect(response.status, JSON.stringify(evaluatorFailures)).toBe(shareAllowed ? 503 : 403);
+    expect(response.status, JSON.stringify(evaluatorFailures)).toBe(shareAllowed ? 200 : 403);
     if (shareAllowed) {
-      expect(evaluatorFailures.slice(failuresBefore)).toEqual([{ name: "error", code: "42P08", column: null }]);
-      expect(await response.json()).toMatchObject({ code: "principal_dependency_unavailable" });
-      publicMetadataBusiness = "DEFERRED_KNOWN_BUSINESS_SQL_42P08";
+      expect(evaluatorFailures.slice(failuresBefore)).toEqual([]);
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      const metadata = await response.json();
+      expect(metadata.submission).toMatchObject({ id: "f07-current", status: "Released" });
+      expect(Number(metadata.package.file_size)).toBe(bytes.byteLength);
+      expect(metadata.supplier_responses).toEqual([]);
+      expect(JSON.stringify(metadata)).not.toContain("local_path");
+      expect(JSON.stringify(metadata)).not.toContain("storage_key");
+      publicMetadataBusiness = "PASS_METADATA";
     } else {
       const expectedCode = ["revoked", "file-revoked"].includes(phase ?? "")
         ? "entitlement_assignment_not_found"
@@ -313,9 +319,8 @@ describe.runIf(enabled)("OrgMaster published grant â†’ Principal package HTTP â†
       expect(evaluatorFailures.slice(failuresBefore).every(error => error.code === expectedCode)).toBe(true);
       publicMetadataBusiness = "AUTHORIZATION_DENIED";
     }
-    // The real public metadata transaction fails and rolls back its access update.
-    // Only the separate, authorized resource probe above commits its one access.
-    expect(await shareAccessCount()).toBe(accessBefore + (shareAllowed ? 1 : 0));
+    // The separate authorized resolver and successful actual GET each commit one access.
+    expect(await shareAccessCount()).toBe(accessBefore + (shareAllowed ? 2 : 0));
     expect(await auditCount()).toBe(before);
     shareCaseEvidence.push({ id: "SREAD-02", authorization: "PASS" });
   });

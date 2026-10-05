@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import type { SettingsSecretWorkflow } from "@/lib/settings-secret-workflow";
 import {
   Ban,
   ChevronDown,
@@ -16,7 +17,6 @@ import {
   KeyRound,
   LoaderCircle,
   LockKeyhole,
-  Play,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -270,6 +270,7 @@ type RedactedSecretVersionSummary = {
 };
 
 type SettingsSecretStatus = {
+  workflow?: SettingsSecretWorkflow | null;
   kind: "solidworks_document_manager";
   provider: string;
   displayName: string;
@@ -470,6 +471,10 @@ function SettingsPanel({
   const [secretMessage, setSecretMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const secretManagementAvailable = settings.secretManagementAvailable === true;
   const secretActionsAvailable = secretManagementAvailable && secretReadState === "ready";
+  const secretMutationRef = useRef(false);
+  const secretFetchRef = useRef<AbortController | null>(null);
+  const secretReadGenerationRef = useRef(0);
+  const secretCommandKeyRef = useRef<{ path: string; key: string } | null>(null);
   const settingsLimited = settings.productionSliceSettingsLimited === true;
 
   useEffect(() => {
@@ -482,81 +487,114 @@ function SettingsPanel({
   }, [activeArea, settings.serviceAccountConfigured]);
 
   const loadSecretStatuses = useCallback(async () => {
-    if (!secretManagementAvailable) return;
+    if (!secretManagementAvailable || secretMutationRef.current || secretFetchRef.current) return;
+    const controller = new AbortController();
+    const generation = ++secretReadGenerationRef.current;
+    secretFetchRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
     setSecretLoading(true);
     try {
-      const response = await fetch("/api/settings/secrets");
+      const response = await fetch("/api/settings/secrets", { signal: controller.signal, cache: "no-store" });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message ?? body.error ?? "機密設定狀態讀取失敗");
-      if (!Array.isArray(body.secrets) || !body.secrets.some((status: SettingsSecretStatus) => status?.kind === "solidworks_document_manager")) {
-        throw new Error("機密設定狀態讀取失敗");
+      if (generation !== secretReadGenerationRef.current) return;
+      if (!response.ok || !Array.isArray(body.secrets) || !body.secrets.some((status: SettingsSecretStatus) => status?.kind === "solidworks_document_manager")) {
+        throw new Error("無法取得最新狀態，請重試。");
       }
       setSecretStatuses(body.secrets);
       setSecretReadState("ready");
-    } catch (error) {
+      setSecretMessage(current => current?.text === "無法取得最新狀態，請重試。" ? null : current);
+    } catch {
+      if (generation !== secretReadGenerationRef.current) return;
       setSecretReadState("failed");
-      setSecretStatuses([]);
       setSolidWorksSecret("");
-      setSecretMessage({ type: "error", text: error instanceof Error ? error.message : "機密設定狀態讀取失敗" });
+      setSecretMessage({ type: "error", text: "無法取得最新狀態，請重試。" });
     } finally {
-      setSecretLoading(false);
+      window.clearTimeout(timeout);
+      if (secretFetchRef.current === controller) secretFetchRef.current = null;
+      if (generation === secretReadGenerationRef.current) setSecretLoading(false);
     }
   }, [secretManagementAvailable]);
 
   useEffect(() => {
     void loadSecretStatuses();
+    return () => {
+      ++secretReadGenerationRef.current;
+      secretFetchRef.current?.abort();
+      secretFetchRef.current = null;
+    };
   }, [loadSecretStatuses]);
 
+  const secretWorkflow = secretStatuses.find(status => status.kind === "solidworks_document_manager")?.workflow;
+  const secretWorkflowPending = secretWorkflow?.intentState === "pending" || secretWorkflow?.state === "awaiting_worker_ack";
   useEffect(() => {
     if (!secretManagementAvailable || activeArea !== "security") return;
-    const timer = window.setInterval(() => void loadSecretStatuses(), 10000);
-    return () => window.clearInterval(timer);
-  }, [activeArea, loadSecretStatuses, secretManagementAvailable]);
+    const refresh = () => { if (document.visibilityState === "visible") void loadSecretStatuses(); };
+    const timer = window.setInterval(refresh, secretWorkflowPending ? 2000 : 10000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh); };
+  }, [activeArea, loadSecretStatuses, secretManagementAvailable, secretWorkflowPending]);
 
-  async function createSolidWorksSecretDraft(e: React.FormEvent) {
-    e.preventDefault();
-    if (!secretActionsAvailable) return;
-    setSecretAction("draft");
+  function changeSolidWorksSecret(value: string) {
+    secretCommandKeyRef.current = null;
+    setSolidWorksSecret(value);
     setSecretMessage(null);
+  }
+
+  async function submitSecretCommand(commandPath: string, payload: Record<string, unknown>, action: string) {
+    if (!secretActionsAvailable || secretMutationRef.current) return;
+    secretMutationRef.current = true;
+    ++secretReadGenerationRef.current;
+    secretFetchRef.current?.abort();
+    secretFetchRef.current = null;
+    setSecretLoading(false);
+    setSecretAction(action);
+    setSecretMessage(null);
+    if (secretCommandKeyRef.current?.path !== commandPath) secretCommandKeyRef.current = { path: commandPath, key: crypto.randomUUID() };
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 30000);
     try {
-      const response = await fetch("/api/settings/secrets/solidworks_document_manager/draft", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ secretValue: solidWorksSecret })
+      const response = await fetch(commandPath, {
+        method: "POST", signal: controller.signal,
+        headers: { "content-type": "application/json", "idempotency-key": secretCommandKeyRef.current.key },
+        body: JSON.stringify(payload)
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message ?? body.error ?? "建立金鑰草稿失敗");
-      setSecretStatuses(body.secrets ?? []);
+      if (!response.ok) {
+        if (response.status >= 500) throw new Error("SECRET_WRITE_UNCONFIRMED");
+        throw new Error(typeof body.message === "string" ? body.message : "操作未完成，請確認最新狀態。");
+      }
+      if (Array.isArray(body.secrets)) { setSecretStatuses(body.secrets); setSecretReadState("ready"); }
       setSolidWorksSecret("");
-      setSecretMessage({ type: "success", text: "SolidWorks 金鑰草稿已建立，請接續測試後再啟用。" });
+      secretCommandKeyRef.current = null;
+      if (action.startsWith("revoke:")) setSecretMessage({ type: "success", text: "已撤銷此版本。" });
     } catch (error) {
-      setSecretMessage({ type: "error", text: error instanceof Error ? error.message : "建立金鑰草稿失敗" });
+      const uncertain = error instanceof Error && (error.name === "AbortError" || error.name === "TypeError" || error.message === "SECRET_WRITE_UNCONFIRMED");
+      if (uncertain) setSolidWorksSecret("");
+      setSecretMessage({ type: "error", text: uncertain ? "送出結果尚未確認，正在重新讀取進度。" : error instanceof Error ? error.message : "操作未完成，請確認最新狀態。" });
     } finally {
+      window.clearTimeout(timeout);
+      secretMutationRef.current = false;
       setSecretAction(null);
+      // Readback only. A lost response must never automatically repeat provider writes.
+      void loadSecretStatuses();
+    }
+  }
+
+  async function createSolidWorksSecretDraft(event: React.FormEvent) {
+    event.preventDefault();
+    if (solidWorksSecret.trim()) {
+      await submitSecretCommand("/api/settings/secrets/solidworks_document_manager/draft", { secretValue: solidWorksSecret, autoActivate: true }, "save");
+      return;
+    }
+    const current = secretStatuses.find(status => status.kind === "solidworks_document_manager");
+    if (current?.latest && current.workflow?.canResume) {
+      await submitSecretCommand(`/api/settings/secrets/${encodeURIComponent(current.latest.id)}/test`, { autoActivate: true }, "resume");
     }
   }
 
   async function runSecretAction(secretReferenceId: string, action: "test" | "activate" | "revoke") {
-    if (!secretActionsAvailable) return;
-    setSecretAction(`${action}:${secretReferenceId}`);
-    setSecretMessage(null);
-    const body = action === "revoke" ? { reason: "Revoked from settings center UI" } : {};
-    try {
-      const response = await fetch(`/api/settings/secrets/${encodeURIComponent(secretReferenceId)}/${action}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.message ?? result.error ?? "機密設定操作失敗");
-      setSecretStatuses(result.secrets ?? []);
-      const labels = { test: "已送出原生 probe，等待 worker 回報", activate: "已啟用，等待 worker 套用並回報", revoke: "撤銷完成" } as const;
-      setSecretMessage({ type: "success", text: labels[action] });
-    } catch (error) {
-      setSecretMessage({ type: "error", text: error instanceof Error ? error.message : "機密設定操作失敗" });
-    } finally {
-      setSecretAction(null);
-    }
+    if (action !== "revoke") return;
+    await submitSecretCommand(`/api/settings/secrets/${encodeURIComponent(secretReferenceId)}/revoke`, { reason: "Revoked from settings center UI" }, `revoke:${secretReferenceId}`);
   }
 
   async function loadFolderChildren(parentId: string) {
@@ -731,7 +769,9 @@ function SettingsPanel({
             loading={secretLoading}
             action={secretAction}
             message={secretMessage}
-            onSecretValueChange={setSolidWorksSecret}
+            readState={secretReadState}
+            onRefresh={loadSecretStatuses}
+            onSecretValueChange={changeSolidWorksSecret}
             onCreateDraft={createSolidWorksSecretDraft}
             onRunAction={runSecretAction}
           />
@@ -1116,139 +1156,98 @@ function SettingsStatusTile({
   );
 }
 
-function SolidWorksSecretPanel({
-  status,
-  available,
-  secretValue,
-  loading,
-  action,
-  message,
-  onSecretValueChange,
-  onCreateDraft,
-  onRunAction
-}: {
-  status: SettingsSecretStatus;
-  available: boolean;
-  secretValue: string;
-  loading: boolean;
-  action: string | null;
+function SolidWorksSecretPanel({ status, available, secretValue, loading, action, message, readState,
+  onRefresh, onSecretValueChange, onCreateDraft, onRunAction }: {
+  status: SettingsSecretStatus; available: boolean; secretValue: string; loading: boolean; action: string | null;
   message: { type: "error" | "success"; text: string } | null;
-  onSecretValueChange: (value: string) => void;
+  readState: "pending" | "ready" | "failed";
+  onRefresh: () => void; onSecretValueChange: (value: string) => void;
   onCreateDraft: (event: React.FormEvent) => void;
   onRunAction: (secretReferenceId: string, action: "test" | "activate" | "revoke") => void;
 }) {
-  const latest = status.latest;
-  const active = status.active;
-  const canTest = latest ? latest.lifecycleStatus === "draft" || latest.lifecycleStatus === "tested" : false;
-  const canActivate = latest?.lifecycleStatus === "tested" && status.latestTestRun?.resultStatus === "passed" && status.latestProbeJob?.status === "passed";
-  const busy = Boolean(action) || loading;
-  const unavailableTitle = available ? undefined : "未開放";
-
-  return (
-    <section className="panel" id="settings-security">
-      <div className="panel-header">
-        <div>
-          <h2>安全設定</h2>
-          <p>金鑰流程：建立草稿、測試、啟用、撤銷。</p>
+  const workflow = status.workflow;
+  const canResume = Boolean(status.latest && workflow?.canResume);
+  const saving = Boolean(action && !action.startsWith("revoke:"));
+  const progress = secretWorkflowPresentation(workflow, readState, loading, saving);
+  const completed = readState === "ready" ? [Boolean(workflow), workflow?.jobStatus === "passed", Boolean(workflow && status.active?.id === workflow.referenceId), workflow?.exactAck === true] : [false, false, false, false];
+  const steps = ["儲存", "原生測試", "啟用", "服務套用"];
+  const busy = Boolean(action);
+  const buttonLabel = saving ? "送出中…" : secretValue.trim() ? "儲存並啟用" : canResume ? `繼續並啟用 v${status.latest!.version}` : "儲存並啟用";
+  return <section className="panel" id="settings-security">
+    <div className="panel-header"><h2>安全設定</h2></div>
+    <div className="settings-secret-layout">
+      <div className="settings-secret-heading"><KeyRound size={22} aria-hidden="true" /><div>
+        <h3>SolidWorks Document Manager</h3><p>儲存一次，系統會測試、啟用並等待服務套用。</p>
+      </div></div>
+      <div className={`settings-secret-progress is-${workflow?.state ?? "empty"}`} data-workflow-state={readState === "failed" ? "read_error" : saving ? "saving" : workflow?.state ?? "empty"}>
+        <div className="settings-secret-progress-title" role="status" aria-live="polite" aria-atomic="true">
+          {progress.motion === "spin" ? <LoaderCircle className="settings-secret-spin" size={23} aria-hidden="true" />
+            : progress.done ? <CheckCircle2 size={23} aria-hidden="true" />
+            : <Clock className={progress.motion === "pulse" ? "settings-secret-pulse" : undefined} size={23} aria-hidden="true" />}
+          <div><strong>{progress.title}</strong><p>{progress.detail}</p></div>
         </div>
-        <span className="settings-auto-status" title="狀態會自動更新" aria-label="狀態會自動更新">
-          <LoaderCircle size={16} aria-hidden="true" />
-          自動更新
-        </span>
+        <ol className="settings-secret-steps" aria-label="金鑰設定進度">
+          {steps.map((label, index) => <li key={label} className={!saving && completed[index] ? "is-done" : index === progress.step ? "is-current" : ""} aria-current={index === progress.step ? "step" : undefined}>
+            <span aria-hidden="true">{!saving && completed[index] ? <CheckCircle2 size={18} /> : index + 1}</span><span>{label}</span>
+          </li>)}
+        </ol>
+        {workflow?.lastSeenAt ? <small className="settings-secret-last-seen">服務最後回報：{formatDateTime(workflow.lastSeenAt)}</small> : null}
+        {readState === "failed" ? <button type="button" className="secondary-button" onClick={onRefresh} disabled={loading}>重新讀取狀態</button> : null}
       </div>
-
-      <div className="settings-secret-layout">
-        {available ? <form className="settings-secret-form" onSubmit={onCreateDraft}>
-          <div className="settings-secret-heading">
-            <KeyRound size={18} aria-hidden="true" />
-            <div>
-              <h3>SolidWorks Document Manager</h3>
-              <p>{status.workQueueMessage}</p>
-            </div>
-          </div>
-          <label style={labelStyle}>
-            API / 授權金鑰
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={secretValue}
-              onChange={(event) => onSecretValueChange(event.target.value)}
-              placeholder="貼上新的 SolidWorks 金鑰"
-              disabled={!available}
-              title={unavailableTitle}
-              style={fieldStyle}
-            />
-          </label>
-          <div className="settings-secret-actions">
-            <button className="primary-button" type="submit" disabled={busy || !available || !secretValue.trim()} title={unavailableTitle}>
-              <KeyRound size={16} />
-              {action === "draft" ? "建立中..." : "建立草稿"}
-            </button>
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={busy || !available || !latest || !canTest}
-              title={unavailableTitle}
-              onClick={() => {
-                if (latest) onRunAction(latest.id, "test");
-              }}
-            >
-              <Play size={16} />
-              測試最新版本
-            </button>
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={busy || !available || !latest || !canActivate}
-              title={unavailableTitle}
-              onClick={() => {
-                if (latest) onRunAction(latest.id, "activate");
-              }}
-            >
-              <ShieldCheck size={16} />
-              啟用已測試版本
-            </button>
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={busy || !available || !active}
-              title={unavailableTitle}
-              onClick={() => {
-                if (active) onRunAction(active.id, "revoke");
-              }}
-            >
-              <Ban size={16} />
-              撤銷目前啟用版本
-            </button>
-          </div>
-          {message ? <div className={`settings-secret-message is-${message.type}`}>{message.text}</div> : null}
-        </form> : <div className="settings-secret-form">
-          {message ? <div className={`settings-secret-message is-${message.type}`}>{message.text}</div>
-            : <p>{loading ? "正在讀取機密設定..." : "機密設定尚未可用。"}</p>}
-        </div>}
-
+      {available ? <form className="settings-secret-form" onSubmit={onCreateDraft}>
+        <label style={labelStyle}>API / 授權金鑰<input type="password" autoComplete="new-password" value={secretValue}
+          onChange={event => onSecretValueChange(event.target.value)} placeholder={status.latest ? "輸入新金鑰以替換目前版本" : "貼上 SolidWorks 金鑰"}
+          disabled={busy} style={fieldStyle} /></label>
+        <div className="settings-secret-actions"><button className="primary-button" type="submit" disabled={busy || (!secretValue.trim() && !canResume)}>
+          {saving ? <LoaderCircle className="settings-secret-spin" size={16} aria-hidden="true" /> : <ShieldCheck size={16} aria-hidden="true" />}{buttonLabel}
+        </button></div>
+      </form> : null}
+      {message ? <div className={`settings-secret-message is-${message.type}`} role={message.type === "error" ? "alert" : "status"}>{message.text}</div> : null}
+      <details className="settings-secret-details"><summary>版本與測試詳情</summary>
         <div className="settings-secret-status">
-          <SecretVersionDetails title="目前啟用版本" version={active} emptyText="尚未啟用" />
-          <SecretVersionDetails title="最新版本" version={latest} emptyText="尚未建立草稿" />
-          <div className="settings-secret-test-run">
-            <span>最近測試</span>
+          <SecretVersionDetails title="目前啟用版本" version={status.active} emptyText="尚未啟用" />
+          <SecretVersionDetails title="最新版本" version={status.latest} emptyText="尚未建立草稿" />
+          <div className="settings-secret-test-run"><span>最近測試</span>
             <strong>{status.latestProbeJob ? probeJobStatusLabel(status.latestProbeJob.status) : status.latestTestRun ? secretTestStatusLabel(status.latestTestRun.resultStatus) : "尚未測試"}</strong>
-            <small>{status.latestProbeJob ? `${formatDateTime(status.latestProbeJob.updatedAt)} / ${status.latestProbeJob.resultCode ?? "worker 正在執行原生 credential probe"}` : status.latestTestRun ? `${formatDateTime(status.latestTestRun.testedAt)} / ${status.latestTestRun.summary}` : status.liveGate.message}</small>
+            <small>{status.latestProbeJob ? `${formatDateTime(status.latestProbeJob.updatedAt)} / ${status.latestProbeJob.resultCode ?? (status.latestProbeJob.status === "running" ? "測試工作已接手" : status.latestProbeJob.status === "pending" ? "等待服務接手" : "已回報")}` : status.latestTestRun ? `${formatDateTime(status.latestTestRun.testedAt)} / ${status.latestTestRun.summary}` : status.liveGate.message}</small>
+            {workflow?.safeCode ? <small>原因：{workflow.safeCode}</small> : null}
           </div>
-          <div className="settings-secret-test-run">
-            <span>2D worker readiness</span>
-            <strong>{workerReadinessLabel(status.workerReadiness.status)}</strong>
-            <small>{status.workerReadiness.message}{status.workerReadiness.appliedVersion ? ` / 已套用 v${status.workerReadiness.appliedVersion}` : ""}</small>
-          </div>
-          <div className="settings-secret-test-run">
-            <span>2D 預覽服務</span>
-            <strong>{workerPresenceLabel(status.workerPresence.status)}</strong>
-            <small>{status.workerPresence.message}</small>
-          </div>
+          <div className="settings-secret-test-run"><span>2D worker readiness</span><strong>{workerReadinessLabel(status.workerReadiness.status)}</strong>
+            <small>{status.workerReadiness.message}{status.workerReadiness.appliedVersion ? ` / 已套用 v${status.workerReadiness.appliedVersion}` : ""}</small></div>
+          <div className="settings-secret-test-run"><span>2D 預覽服務</span><strong>{workerPresenceLabel(status.workerPresence.status)}</strong><small>{status.workerPresence.message}</small></div>
         </div>
-      </div>
-    </section>
-  );
+        {available && status.active ? <button className="secondary-button" type="button" disabled={busy} onClick={() => onRunAction(status.active!.id, "revoke")}>
+          <Ban size={16} aria-hidden="true" />撤銷目前啟用版本
+        </button> : null}
+      </details>
+    </div>
+  </section>;
+}
+
+function secretWorkflowPresentation(workflow: SettingsSecretWorkflow | null | undefined,
+  readState: "pending" | "ready" | "failed", loading: boolean, saving: boolean) {
+  const base = { motion: "none" as "none" | "pulse" | "spin", done: false, step: -1 };
+  if (readState === "failed") return { ...base, title: "進度暫停更新", detail: "無法取得最新狀態，重新讀取後會接續顯示。" };
+  if (saving) return { ...base, motion: "spin" as const, step: 0, title: "正在儲存設定", detail: "送出後即可離開此頁，系統會繼續處理。" };
+  if (!workflow) return { ...base, title: readState === "pending" && loading ? "正在讀取設定" : "尚未設定金鑰", detail: "輸入金鑰後按「儲存並啟用」。" };
+  if (workflow.canResume) {
+    const reasons: Record<string, string> = {
+      consent_authority_revoked: "啟用同意的帳號已失去權限。",
+      consent_identity_changed: "帳號資料已變更，需要新的啟用同意。",
+      consent_auth_barrier: "帳號驗證已更新，需要新的啟用同意。",
+      native_probe_not_passed: "這次測試未通過，原啟用版本仍保留。",
+      PROBE_PROTOCOL_UPGRADE_REQUIRED: "Windows 服務需要更新後才能繼續。"
+    };
+    return { ...base, step: 1, title: workflow.state === "blocked" ? "需要重新送出啟用同意" : "等待啟用同意", detail: `${workflow.state === "blocked" ? reasons[workflow.safeCode ?? ""] ?? "此次設定未完成。" : ""}按「繼續並啟用 v${workflow.version}」即可接續測試與啟用。` };
+  }
+  const motion = workflow.nativeWorkerOnline ? "pulse" as const : "none" as const;
+  if (workflow.state === "ready") return { ...base, done: true, title: `v${workflow.version} 已完成設定`, detail: "測試通過，服務已載入此啟用版本。" };
+  if (workflow.state === "testing") return { ...base, motion: workflow.nativeWorkerOnline && workflow.leaseFresh ? "spin" as const : "none" as const, step: 1, title: `正在測試 v${workflow.version}`, detail: "服務正在驗證 Document Manager 金鑰。" };
+  if (workflow.state === "activating") return { ...base, motion, step: 2, title: `正在啟用 v${workflow.version}`, detail: "測試已通過，系統正在確認權限並套用設定。" };
+  if (workflow.state === "awaiting_worker_ack") return { ...base, motion, step: 3, title: `等待服務套用 v${workflow.version}`, detail: workflow.nativeWorkerOnline ? "版本已啟用，等待服務回報載入結果。" : "版本已啟用，Windows 服務目前未連線；連線後會接續套用。" };
+  if (workflow.state === "superseded") return { ...base, title: "已由更新版本取代", detail: "此工作的原始紀錄已保留。" };
+  if (workflow.state === "blocked") return { ...base, title: "設定未完成", detail: "此版本未能啟用，請查看測試詳情。" };
+  return { ...base, motion: workflow.consentRequired ? "none" as const : motion, step: 1, title: "等待測試服務", detail: workflow.nativeWorkerOnline ? "工作已排入佇列，等待服務接手。" : "Windows 服務尚未連線；連線後會接續處理。" };
 }
 
 function SecretVersionDetails({
@@ -1285,7 +1284,10 @@ function settingWorkQueueLabel(state: SettingsSecretStatus["workQueueState"]) {
 }
 
 function settingSolidWorksStatusLabel(status: SettingsSecretStatus) {
-  if (status.workQueueState === "ready" && status.workerReadiness.status !== "ready") return "worker 未就緒";
+  if (status.workflow?.state === "ready") return "已完成設定";
+  if (status.workflow?.state === "awaiting_worker_ack") return "等待服務套用";
+  if (status.workflow?.intentState === "pending") return "自動處理中";
+  if (status.workQueueState === "ready" && status.workerReadiness.status !== "ready") return "等待服務回報";
   return settingWorkQueueLabel(status.workQueueState);
 }
 

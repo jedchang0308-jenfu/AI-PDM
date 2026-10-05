@@ -18,7 +18,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
   if (labelDenied) return labelDenied;
   const workerId = actor.id;
   if (!workerId) return NextResponse.json({ error: "WORKER_ID_REQUIRED" }, { status: 400 });
-  const repository = new AsyncSettingsSecretRepository(getAsyncDatabaseClient());
-  const ok = await repository.heartbeatProbeJob(jobId, workerId, new Date().toISOString());
-  return ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "SECRET_PROBE_JOB_LOCKED" }, { status: 409 });
+  if (body.leaseAttempt !== undefined && (!Number.isSafeInteger(body.leaseAttempt) || body.leaseAttempt < 1)) return NextResponse.json({error:"INVALID_LEASE_ATTEMPT"},{status:400});
+  try {
+    const repository = new AsyncSettingsSecretRepository(getAsyncDatabaseClient());
+    const job = await repository.getProbeJobById(jobId);
+    if (job && body.leaseAttempt === undefined && await repository.getLatestIntent(job.secretReferenceId)) return NextResponse.json({error:"PROBE_PROTOCOL_UPGRADE_REQUIRED"},{status:409});
+    const ok = await repository.heartbeatProbeJob(jobId,workerId,new Date().toISOString(),body.leaseAttempt);
+    return ok ? NextResponse.json({ok:true},{headers:{"cache-control":"private, no-store"}}) : NextResponse.json({error:"SECRET_PROBE_JOB_LOCKED"},{status:409});
+  } catch {
+    return NextResponse.json({error:"SECRET_PROBE_DEPENDENCY_UNAVAILABLE",retryable:true},{status:503,headers:{"cache-control":"private, no-store"}});
+  }
 }
