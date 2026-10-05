@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "aipdm.dev122.release-reauth-checkpoint.v1",
+  "status": "R01_PRE_ACTIVATION_ABORTED_REAUTH_PENDING",
+  "owner": "AI-PDM/DEV-122",
+  "officialSourceRevision": "697be61d51d105ec940ba594b57dac1c8f255ee6",
+  "pullRequest": 207,
+  "requiredCiRun": 37256330647,
+  "requiredCiStatus": "PASS",
+  "ownerRun": 37258147467,
+  "ownerResult": "PRE_ACTIVATION_ABORTED",
+  "verifyFailure": "PRINCIPAL_SMOKE_PORTAL_LOGIN_FAILED",
+  "portalSessionHttpStatus": 401,
+  "rootCause": "UNKNOWN",
+  "recoveryStatus": "PASS",
+  "servingRevision": "ai-pdm-prod-ec2ae6647962",
+  "servingPercent": 100,
+  "newResourcesProviderReadback": "EXACT_THREE_PROVIDER_READBACK_PASS",
+  "migration": {
+    "applied": 1,
+    "replayed": 28,
+    "ledgerCount": 29,
+    "newOrdinal": "079",
+    "rollback": "FORWARD_APPLIED"
+  },
+  "reauth": {
+    "humanChoice": "EXISTING_FIREBASE_PASSWORD_IN_LOCAL_SECURE_PAGE",
+    "status": "PENDING",
+    "previousVersion": "6",
+    "newVersion": "7",
+    "sourceRepair": "CLEAN_DETACHED_EXACT_OFFICIAL_MAIN_SUPPORT",
+    "credentialsRecorded": false
+  },
+  "nativeCadValidation": "PENDING_HUMAN_PRODUCTION_VALIDATION",
+  "acceptance": "NOT_ACCEPTED",
+  "evidence": "output/qa/dev-122/approved-release-20261005/",
+  "runtimeStarted": false
+}

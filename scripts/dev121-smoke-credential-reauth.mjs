@@ -22,6 +22,14 @@ function command(file, args, options = {}) {
   if (result.error || result.status !== 0) fail(options.code ?? 'LOCAL_PROVIDER_COMMAND_FAILED')
   return String(result.stdout ?? '').trim()
 }
+export function assertFrozenReauthSource({ branch, status, sourceRevision, remoteHead, remote }) {
+  if (!/^[a-f0-9]{40}$/u.test(sourceRevision ?? '') || !['main', ''].includes(branch) ||
+      status !== '' || remoteHead !== sourceRevision ||
+      !/^(?:https:\/\/github\.com\/|git@github\.com:)jedchang0308-jenfu\/AI-PDM(?:\.git)?$/u.test(remote ?? '')) {
+    fail('OWNER_SOURCE_NOT_FROZEN')
+  }
+  return true
+}
 function gcloudToken() {
   const exe = process.platform === 'win32'
     ? path.join(process.env.LOCALAPPDATA ?? '', 'Google', 'Cloud SDK', 'google-cloud-sdk', 'bin', 'gcloud.cmd')
@@ -119,7 +127,7 @@ async function main() {
   const branch = command('git', ['branch', '--show-current'])
   const remote = command('git', ['remote', 'get-url', 'origin'])
   const remoteHead = command('git', ['ls-remote', 'origin', 'refs/heads/main']).split(/\s+/u)[0]
-  if (branch !== 'main' || status !== '' || remoteHead !== sourceRevision || !/(?:github\.com[:/])jedchang0308-jenfu\/AI-PDM(?:\.git)?$/iu.test(remote)) fail('OWNER_SOURCE_NOT_FROZEN')
+  assertFrozenReauthSource({ branch, status, sourceRevision, remoteHead, remote })
   const token = gcloudToken()
   const call = api(fetch, token)
   const firebaseKey = process.env.DEV012_AIPDM_FIREBASE_API_KEY

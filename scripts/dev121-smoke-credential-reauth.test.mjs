@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { generateKeyPairSync, sign } from 'node:crypto'
-import { firebaseApi, secretVersion } from './dev121-smoke-credential-reauth.mjs'
+import { assertFrozenReauthSource, firebaseApi, secretVersion } from './dev121-smoke-credential-reauth.mjs'
 import {
   EXPECTED, REAUTH_SCHEMA, admitLocalRequest, assertFreshAuthTime, assertPlatformMe, buildReauthReceipt,
   identityPairHash, localPageSecurityHeaders, localRequestDenial, parseReauthArguments, resolveVersionBinding,
@@ -43,6 +43,22 @@ function adapter(overrides = {}) {
   }
   return { ...defaults, ...overrides }
 }
+
+test('reauth accepts only clean main or detached official main from the exact own repository', () => {
+  const frozen = { branch: 'main', status: '', sourceRevision: 'a'.repeat(40), remoteHead: 'a'.repeat(40),
+    remote: 'https://github.com/jedchang0308-jenfu/AI-PDM.git' }
+  assert.equal(assertFrozenReauthSource(frozen), true)
+  assert.equal(assertFrozenReauthSource({ ...frozen, branch: '' }), true)
+  assert.equal(assertFrozenReauthSource({ ...frozen, remote: 'git@github.com:jedchang0308-jenfu/AI-PDM.git' }), true)
+  for (const overrides of [
+    { branch: 'codex/dev122-internal-functions' }, { branch: undefined },
+    { status: ' M scripts/dev121-smoke-credential-reauth.mjs' }, { status: undefined },
+    { remoteHead: 'b'.repeat(40) }, { sourceRevision: 'invalid', remoteHead: 'invalid' },
+    { remote: 'https://github.com/jedchang0308-jenfu/jenfu-platform.git' },
+    { remote: 'https://evilgithub.com/jedchang0308-jenfu/AI-PDM.git' },
+    { remote: 'https://github.com/jedchang0308-jenfu/AI-PDM.git/extra' },
+  ]) assert.throws(() => assertFrozenReauthSource({ ...frozen, ...overrides }), /OWNER_SOURCE_NOT_FROZEN/u)
+})
 
 test('fresh password token needs a recent auth_time', () => {
   assert.equal(assertFreshAuthTime(claims(), NOW), true)
