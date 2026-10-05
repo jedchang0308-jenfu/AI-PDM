@@ -1,0 +1,414 @@
+{
+  "contract": "AIPDM/DEV-122#candidate-transfer",
+  "createdAt": "2026-10-04T03:40:54.938551+00:00",
+  "canonicalRepository": "C:\\VIBE CODING\\AI_PDM",
+  "authorization": "2026-10-04 human response annotation 1: execute independent branch/worktree from latest main and selectively transfer existing DEV-122 candidates; leave DEV-121 source worktree intact.",
+  "source": {
+    "root": "C:\\Users\\user\\.codex\\worktrees\\dev014-platform-release\\AI_PDM",
+    "branch": "codex/dev121-owner-ledger-floor",
+    "head": "e09e3d42f37ebf405ce061be6a82922104216a97",
+    "statusSha256": "99323d85ef39824dcea9d56a58ebf1cf5530514c61bd80f8d9541204711a4588"
+  },
+  "destinationBase": "93b9b4cf67444d461aaa8934b8b1616537301b38",
+  "canonicalStatusBeforeSha256": "9d105459ae5345287dbec20d27bb556d509aa45a00aaeb9a399d7d9502158ef4",
+  "productionWrites": false,
+  "releaseAuthority": false,
+  "sourceModifiedByTransfer": false,
+  "selected": [
+    {
+      "path": "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs",
+      "sourceSha256": "465a89cece054efc9a65f01e09cb5a134f2ec516899d820875e10f1835654ead",
+      "selectedSha256": "465a89cece054efc9a65f01e09cb5a134f2ec516899d820875e10f1835654ead",
+      "sourceBaselineSha256": "10e688890e586ba9f5c61bb64e221d2d386fde434ea8bae5f16dc322251dbb17",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "a5718bdcd1e95c9c2d1d2a84bf4baa6aa58c16bad5f8a386c39e03a4489dccc4"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts",
+      "sourceSha256": "8638e3bf7a9a09da5e17878a0dc8f36e29e435acaa45616457d68e0555c711b9",
+      "selectedSha256": "8638e3bf7a9a09da5e17878a0dc8f36e29e435acaa45616457d68e0555c711b9",
+      "sourceBaselineSha256": "a289b1c0cb48e68f7a81cb643af66e19e0a6d6c9e347da7f04a77b2ce7bc01c5",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "153215133663913ba42b8fd2c585f92392a49d18374299d26a216abb99964ad0"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
+      "sourceSha256": "381d9cf3aca7709c03af404d4a1720b64fc551b632c29387ccbf8573160aabf3",
+      "selectedSha256": "381d9cf3aca7709c03af404d4a1720b64fc551b632c29387ccbf8573160aabf3",
+      "sourceBaselineSha256": "f9194c6ce229d5113dac576082bea9b7cbe5a1195dbfced78bf8a9664ed83f9c",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "45b521e37787b0761572183ebe2472584d4c6ba9ae633b19fc2f3ab225e97091"
+    },
+    {
+      "path": "src/components/canonical-review-package-workspace.tsx",
+      "sourceSha256": "2ba42470159d92197cdb2f08d0e9ad0813ce12932be41d3f4ca8d62bf848280e",
+      "selectedSha256": "2ba42470159d92197cdb2f08d0e9ad0813ce12932be41d3f4ca8d62bf848280e",
+      "sourceBaselineSha256": "f6215cd266ccf2c0ede737ded1e4923b04c71f1534e7a7e73fb38c24e566b201",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "4b078e030def7a7566ec1df6ab78a57b4a26e606d26dda041d6994fd0811d651"
+    },
+    {
+      "path": "src/components/part-number-matrix-workspace.tsx",
+      "sourceSha256": "1f578e7669bc3a7d31197e2256bdac02b3b0edb5436aa42cf21cb9b6bee5dc50",
+      "selectedSha256": "1f578e7669bc3a7d31197e2256bdac02b3b0edb5436aa42cf21cb9b6bee5dc50",
+      "sourceBaselineSha256": "24f4262afc2dfbafc8a409e7bee70d69bf6a89b72c4bb3c5f0babf3e61ffbe17",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "a85a6b55407e762cf0cccba6866a1ff5a76104b64b9a74e9be9ab034bb102ae4"
+    },
+    {
+      "path": "src/lib/drawing-revision-work.principal.test.ts",
+      "sourceSha256": "eb6c145574dfb0ebdbd1584775bbe5a50be78e4d3c0dd34985c67e2ee5191902",
+      "selectedSha256": "ffa9157a6f48b379a9517309ad6c2ffa5c5b48db1ca35673f5540ffab0c1d670",
+      "sourceBaselineSha256": "1240396a3b7ba04be74202e5c3be256db2d9c2157cb81f06f0d4cd9844bfc796",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "cac53e31fdd6f7c920b19c78c288b0405e4a5908efef251d31beed3131e3a94e"
+    },
+    {
+      "path": "src/lib/drawing-revision-work.ts",
+      "sourceSha256": "44ecda224315b961a0deed6f595cfa35c2deb36c8869b7f60bfe80b0c9dc4896",
+      "selectedSha256": "44ecda224315b961a0deed6f595cfa35c2deb36c8869b7f60bfe80b0c9dc4896",
+      "sourceBaselineSha256": "ed5dd273c5933c80a7681e541412d0ac5aee8f423015a394942c980d9c749b82",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "d7b62eff1a49f14baa7af1fd4a8bada48b3df42c84b7896f9d4f08aeac9113a6"
+    },
+    {
+      "path": "src/lib/part-change-work.principal.test.ts",
+      "sourceSha256": "03bcc74084ffedb78ccb20730cbdb2b2088e448f92b4c1098571792367803518",
+      "selectedSha256": "defb933dc1de7e61370316942d6d3d4a5dfa89c4abdffe2df8781d2a20ddcaf9",
+      "sourceBaselineSha256": "d5494c316b5b4672b55fcfe19133170dcdda0cfc371a41313f35a19bb8402a73",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "1e96f1b0ab562ff7010a83677800034a6c042611cb24fa67f5cef8b242ab67e6"
+    },
+    {
+      "path": "src/lib/part-change-work.ts",
+      "sourceSha256": "5750a637b4c97bf4f8d32b5e4f83d8e3b2ba5c9887bdd42471f1577b7d2607f1",
+      "selectedSha256": "78413d1954c836a00d5784d41ddfd3208d9479f8d55ecc11bdc67d262873f3f3",
+      "sourceBaselineSha256": "945cbb34d6a98f45b93ca65e4cdca184cca13e45bb68ec7df5255251a3fabad3",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "bd4b500940cb394e6379234ae8f4d814da2741de0b0456f0f4e2fcb3fee2bb31"
+    },
+    {
+      "path": "src/lib/pdm-review-package-contract.ts",
+      "sourceSha256": "98c0ffbeb3fb3ae5293f856bcedc7f2625935b71b4a09df349c8a87aba566bed",
+      "selectedSha256": "98c0ffbeb3fb3ae5293f856bcedc7f2625935b71b4a09df349c8a87aba566bed",
+      "sourceBaselineSha256": "5d488b0dd39e15c5b02ce31b653578bd70d6ed1b08e8006ea8d5acd7a8f0250f",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "5673eb8b7a86e2b3e2ffaf9371f9fff42bf4fedfc1d5e04a51945bd8844fcfe4"
+    },
+    {
+      "path": "src/lib/pdm-review-package.ts",
+      "sourceSha256": "e8799c392ef70cfd9aadd99659cda1fdc624fa6c102354f594e66d8b275aadb3",
+      "selectedSha256": "e8799c392ef70cfd9aadd99659cda1fdc624fa6c102354f594e66d8b275aadb3",
+      "sourceBaselineSha256": "6e7a6f6300a0c2cb1508794ca4262a4a656d258017a28b5bf4d2cf1e8a258c67",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "27c3c1b7451b93dc16b24b9e3830df3a3c618095e381ab585cec6aac0c952881"
+    },
+    {
+      "path": "src/lib/principal-work-review-owner-grant.postgres-contract.test.ts",
+      "sourceSha256": "65d5710db097f6050c28ff4bac91d1d0f1671f224a682406d3a863deed0e3bff",
+      "selectedSha256": "65d5710db097f6050c28ff4bac91d1d0f1671f224a682406d3a863deed0e3bff",
+      "sourceBaselineSha256": "151fb2028f4a4d4b9ff605a9e0ac3f3d99b076c053b2e73d54b01336ce3a8e9a",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "aed29c719bde441d4fc32ba88b66501ca682239138e621867dbbf8eb7269bb96"
+    },
+    {
+      "path": "src/lib/repositories/drawing-revision-work-async-repository.ts",
+      "sourceSha256": "854beb4e8621eb940e04f5100257f3c5dc898d914a56b99b9fffec56fe4fe01e",
+      "selectedSha256": "e4624dcc73302408785dae7e54d0fd492baae5d8501b606c193d62f826fb9555",
+      "sourceBaselineSha256": "69399b470b236b70a6ad0d05ebd0c9ca5149717d4baf05f855cae249db287a36",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "c5b931e7a221f45978260166a2a1d07d09539707dca1acc3fb4c8c597f4b6aab"
+    },
+    {
+      "path": "src/lib/repositories/part-change-work-async-repository.ts",
+      "sourceSha256": "e41e21b7024883711097acc947a924304e0e2c68768bf54df52b6d3113cc3327",
+      "selectedSha256": "e41e21b7024883711097acc947a924304e0e2c68768bf54df52b6d3113cc3327",
+      "sourceBaselineSha256": "07f162911259f7148d43c341555bb2f5266599440e35c111789a7be0fb192531",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "1bf4fc85da1b80b594a273e60cc8e4e5c523a77fa70423c8e264571a913b979f"
+    },
+    {
+      "path": "src/lib/repositories/part-number-matrix-async-repository.ts",
+      "sourceSha256": "5b2b2622b5c4f9c6cc302bb5f894dca326f26ea7441841e3062a7638bb521154",
+      "selectedSha256": "5b2b2622b5c4f9c6cc302bb5f894dca326f26ea7441841e3062a7638bb521154",
+      "sourceBaselineSha256": "816cb6b444f39216fad8d40de1119fba5b84fec9a110253a74c4f82ce17b9aee",
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "7314661fd4305ed6a1b184a7e9d027630ba787363bb4e2d498f74da4332ee9ee"
+    },
+    {
+      "path": "db/postgres/077_dev121_canonical_review_lifecycle.sql",
+      "sourceSha256": "b5d6e84b68a5a2c206737323056801078ac94f3bcd4b5a521e944a335607636c",
+      "selectedSha256": "b5d6e84b68a5a2c206737323056801078ac94f3bcd4b5a521e944a335607636c",
+      "sourceBaselineSha256": null,
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "74905d590b0e9871c9262e65333710f8dfed29a3f5c3c6b2e3dc74a209485aea"
+    },
+    {
+      "path": "scripts/qc-dev-121-canonical-lifecycle-browser.mjs",
+      "sourceSha256": "c6f676cfb25187ac525fe49ae8b828470987a906ec96bdceff94300e5a835443",
+      "selectedSha256": "c6f676cfb25187ac525fe49ae8b828470987a906ec96bdceff94300e5a835443",
+      "sourceBaselineSha256": null,
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "a237b8f65e8c60103ae109d3d0a1f9ab629a060bb645f8a345777fed9b308dd0"
+    },
+    {
+      "path": "src/lib/pdm-review-package-lifecycle.test.ts",
+      "sourceSha256": "626fbebf7bc94d3d4374c8e9a2e02e12ab735825c1844d275e35c474d36c5f3d",
+      "selectedSha256": "626fbebf7bc94d3d4374c8e9a2e02e12ab735825c1844d275e35c474d36c5f3d",
+      "sourceBaselineSha256": null,
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "966a57354a3cf4359013bc073cce5d87495bb325799e2f49b3807e6ca940d594"
+    },
+    {
+      "path": "src/lib/repositories/drawing-revision-work-async-repository.lifecycle.test.ts",
+      "sourceSha256": "e16f41da70f9e1c44d0dbb93284d3451a25a81eb440321917504fd8b71df6b77",
+      "selectedSha256": "e16f41da70f9e1c44d0dbb93284d3451a25a81eb440321917504fd8b71df6b77",
+      "sourceBaselineSha256": null,
+      "selection": "business lifecycle or supporting local test candidate",
+      "destinationSha256": "d8dbf1d48fef0b71bf63e6f1fe041bd4026e82afd88d1cbe6554e95743317c73"
+    }
+  ],
+  "excludedFiles": {
+    "config/release/dev117-ai-pdm-independent-production-v3.json": "Production owner-profile append is excluded from this local candidate transfer; no release configuration authority.",
+    "src/lib/repositories/pdm-principal-reviewer-selector.test.ts": "Unrelated rewording/formatting of the already-merged decide+publish test; keep latest main test unchanged."
+  },
+  "excludedHunks": [
+    {
+      "path": "src/lib/part-change-work.ts",
+      "reason": "Additional same-Principal/different-profile query guard is explicitly deferred defensive candidate, not a proven required lifecycle fix; remove only that candidate and retain new first-release publish check. verified! is a typing-only extraction adjustment; decidePrincipal supplies verified to the private method."
+    },
+    {
+      "path": "src/lib/part-change-work.principal.test.ts",
+      "reason": "Exclude unreachable same-Principal/different-profile mock and its now-unused setup; retain lifecycle publish/revocation/return tests."
+    }
+  ],
+  "patches": {
+    "original-candidate.patch": "6a1783d6d03bd85c1eb7f09913b4a1fe18a294246ac557ab671a5afa4639208e",
+    "selected-candidate.patch": "ff35fa219220affe50b03886975de7175bb35b69b89e93cb30c38cad8a5e7a75",
+    "excluded-candidate.patch": "69557a602a9cb1e3233835dfb2c6224cda4ec5d9b26f6ae353e96512bd4e2cd8"
+  },
+  "migration": {
+    "path": "db/postgres/077_dev121_canonical_review_lifecycle.sql",
+    "state": "UNAPPLIED_LOCAL_CANDIDATE",
+    "rawPreserved": true,
+    "releaseProfileTransferred": false,
+    "numberRecheckRequiredBeforeMerge": true,
+    "targetMetadataAdaptation": "Unapplied copy only: compatibility normalized to additive; governance-review references AIPDM/DEV-122. DDL unchanged; source bytes preserved in capture."
+  },
+  "historicalEvidence": {
+    "focused": "58 tests at old source only; not new variant PASS",
+    "nativePostgres": "partial FAIL retained",
+    "browser": "NOT_RUN retained"
+  },
+  "runtime": {
+    "kind": "source-only capture utility",
+    "ports": [],
+    "PDM_DATA_DIR": "unused; no application runtime",
+    "PDM_REPOSITORY_DIR": "unused; no data/DB operations"
+  },
+  "destination": {
+    "root": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+    "branch": "codex/dev122-internal-functions",
+    "head": "93b9b4cf67444d461aaa8934b8b1616537301b38",
+    "state": "UNCOMMITTED_LOCAL_CANDIDATE"
+  },
+  "validation": {
+    "patchApplyCheck": "PASS",
+    "sourceCandidateHashParityAtApply": "19/19 PASS",
+    "dbBoundary": "PASS: npm run check:db-boundary; app=ai-pdm governedFiles=15",
+    "diffWhitespace": "PASS",
+    "typecheck": "NOT_RUN: new worktree has no node_modules; dependency installation not needed for this source-only handoff",
+    "unitPostgresBrowserBuild": "NOT_RUN: historical FAIL/NOT_RUN not upgraded",
+    "actualCandidateReverseCheck": "PASS",
+    "destinationCandidateHashes": "19/19 PASS",
+    "excludedPathsBaselineParity": "2/2 PASS",
+    "sourceReadback": {
+      "head": "e09e3d42f37ebf405ce061be6a82922104216a97",
+      "sameHead": true,
+      "sameDirtyStatus": true,
+      "files": [
+        {
+          "path": "scripts/qc-dev-121-canonical-lifecycle-browser.mjs",
+          "unchanged": true
+        },
+        {
+          "path": "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs",
+          "unchanged": true
+        },
+        {
+          "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+          "unchanged": true
+        },
+        {
+          "path": "db/postgres/077_dev121_canonical_review_lifecycle.sql",
+          "unchanged": true
+        },
+        {
+          "path": "src/components/canonical-review-package-workspace.tsx",
+          "unchanged": true
+        },
+        {
+          "path": "src/components/part-number-matrix-workspace.tsx",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/drawing-revision-work.principal.test.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/part-change-work.principal.test.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/part-change-work.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/pdm-review-package-contract.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/pdm-review-package-lifecycle.test.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/pdm-review-package.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/principal-work-review-owner-grant.postgres-contract.test.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/repositories/drawing-revision-work-async-repository.lifecycle.test.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/repositories/drawing-revision-work-async-repository.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/repositories/part-change-work-async-repository.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/repositories/part-number-matrix-async-repository.ts",
+          "unchanged": true
+        },
+        {
+          "path": "src/lib/repositories/pdm-principal-reviewer-selector.test.ts",
+          "unchanged": true
+        }
+      ]
+    },
+    "canonicalExistingDirtyPreserved": true,
+    "controlledHistoryAndAuthContractPreserved": "5/5 PASS",
+    "newDocumentLinksAndUniqueTaskAnchor": "PASS",
+    "dirtyBoundary": {
+      "changedPaths": [
+        ".ai-doc/dev_task.md",
+        ".ai-doc/documentation_map.md",
+        ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+        "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs",
+        "src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts",
+        "src/app/api/pdm/review-requests/[requestId]/route.ts",
+        "src/components/canonical-review-package-workspace.tsx",
+        "src/components/part-number-matrix-workspace.tsx",
+        "src/lib/drawing-revision-work.principal.test.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/part-change-work.principal.test.ts",
+        "src/lib/part-change-work.ts",
+        "src/lib/pdm-review-package-contract.ts",
+        "src/lib/pdm-review-package.ts",
+        "src/lib/principal-work-review-owner-grant.postgres-contract.test.ts",
+        "src/lib/repositories/drawing-revision-work-async-repository.ts",
+        "src/lib/repositories/part-change-work-async-repository.ts",
+        "src/lib/repositories/part-number-matrix-async-repository.ts",
+        ".ai-doc/qa/DEV-122-worktree-transfer-2026-10-04.json",
+        ".ai-doc/reports/pm/DEV-122-worktree-transfer-2026-10-04.md",
+        "db/postgres/077_dev121_canonical_review_lifecycle.sql",
+        "scripts/qc-dev-121-canonical-lifecycle-browser.mjs",
+        "src/lib/pdm-review-package-lifecycle.test.ts",
+        "src/lib/repositories/drawing-revision-work-async-repository.lifecycle.test.ts"
+      ],
+      "count": 24,
+      "stagedPaths": []
+    },
+    "appOrDbRuntimeStarted": false,
+    "verificationTime": "2026-10-04T03:52:12.507584+00:00"
+  },
+  "actualCandidatePatch": {
+    "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\dev-122\\worktree-transfer-2026-10-04\\transferred-candidate.patch",
+    "sha256": "4e5493aa62356a70fa03dbeb019c6b2f9987ab8461b0dc7258290970938fc056"
+  },
+  "copiedHistoricalEvidence": [
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/native-pg-attempt1.json",
+      "sha256": "df4565d54548d2de29d27db106a3669a2b941d9069b59c898f2746c9fbf29f63",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/native-pg-attempt1.stdout.log",
+      "sha256": "9ac1648cc8d62615869ba168fe37e8de7071826e784a029d4e2ccaccd1c4ca50",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/native-pg-attempt1.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/typecheck.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/typecheck.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused.stdout.log",
+      "sha256": "00a86dc8e6a0599296e513c8ba8d4efbbd8e36446bb85b82d826ad23fd600876",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused.stderr.log",
+      "sha256": "9ba2744e8716dd170197d4a7014cd10833da8e8515903d0fae9035dfa57f6b21",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-retry.stdout.log",
+      "sha256": "1a8e472e294bea75bef27b6f2f76a6906cba693504b7c17e00b410f1818149c1",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-retry.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-final.stdout.log",
+      "sha256": "db47ff25ce184565d3326cd7397de5b44c3986e79cc61ef6aec8c5a5fc76371a",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    },
+    {
+      "path": "output/dev-121/canonical-lifecycle-deferred-2026-10-03/focused-final.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "HISTORICAL_EVIDENCE_ONLY"
+    }
+  ],
+  "worktreeDisposition": "KEEP: human-requested DEV-122 development worktree; this chat owns handoff evidence; archive only after work is merged or explicitly abandoned."
+}

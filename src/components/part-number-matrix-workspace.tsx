@@ -14,6 +14,9 @@ type MatrixColumn = {
   partNumber: string;
   sequenceNo: number;
   formalRowVersion: number;
+  recordStatus: string;
+  lifecycleIntent: "edit" | "first_release";
+  canRequestRelease: boolean;
   handling: string;
   canEdit: boolean;
   canSubmit: boolean;
@@ -143,9 +146,9 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     return key;
   }
 
-  const applySavedResponse = useCallback((partIdValue: string, responseData: { workId: string; rowVersion: number; payload: PartMatrixPayload }, submitted: PartMatrixPayload) => {
-    setData((current) => current ? { ...current, columns: current.columns.map((column) => column.partId === partIdValue ? { ...column, workId: responseData.workId, workRowVersion: responseData.rowVersion, valueSource: "work", payload: responseData.payload, canSubmit: !matrixPayloadEqual(responseData.payload, column.formalPayload) && column.canEdit } : column) } : current);
-    dataRef.current = dataRef.current ? { ...dataRef.current, columns: dataRef.current.columns.map((column) => column.partId === partIdValue ? { ...column, workId: responseData.workId, workRowVersion: responseData.rowVersion, valueSource: "work", payload: responseData.payload, canSubmit: !matrixPayloadEqual(responseData.payload, column.formalPayload) && column.canEdit } : column) } : dataRef.current;
+  const applySavedResponse = useCallback((partIdValue: string, responseData: { workId: string; rowVersion: number; payload: PartMatrixPayload; lifecycleIntent?: "edit" | "first_release" }, submitted: PartMatrixPayload) => {
+    setData((current) => current ? { ...current, columns: current.columns.map((column) => column.partId === partIdValue ? { ...column, workId: responseData.workId, workRowVersion: responseData.rowVersion, valueSource: "work", payload: responseData.payload, lifecycleIntent: responseData.lifecycleIntent ?? column.lifecycleIntent, canSubmit: (!matrixPayloadEqual(responseData.payload, column.formalPayload) || (responseData.lifecycleIntent ?? column.lifecycleIntent) === "first_release") && column.canEdit } : column) } : current);
+    dataRef.current = dataRef.current ? { ...dataRef.current, columns: dataRef.current.columns.map((column) => column.partId === partIdValue ? { ...column, workId: responseData.workId, workRowVersion: responseData.rowVersion, valueSource: "work", payload: responseData.payload, lifecycleIntent: responseData.lifecycleIntent ?? column.lifecycleIntent, canSubmit: (!matrixPayloadEqual(responseData.payload, column.formalPayload) || (responseData.lifecycleIntent ?? column.lifecycleIntent) === "first_release") && column.canEdit } : column) } : dataRef.current;
     savedRef.current = { ...savedRef.current, [partIdValue]: clonePayload(responseData.payload) };
     setSaved(savedRef.current);
     const local = draftRef.current[partIdValue];
@@ -261,6 +264,32 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     await Promise.all(ids.map((id) => flushPart(id)));
   }
 
+  async function changeReleaseIntent(partIdValue: string, requested: boolean) {
+    if (busy) return;
+    setBusy(true); setError("");
+    try {
+      await flushAll();
+      if (flightRef.current.size || Object.keys(cellErrorsRef.current).length || Object.keys(conflictsRef.current).length) {
+        throw new Error("資料尚未成功儲存，請先處理原格提示。");
+      }
+      const column = dataRef.current?.columns.find(item => item.partId === partIdValue);
+      const payload = savedRef.current[partIdValue];
+      if (!column?.workId || !column.canRequestRelease || !payload) return;
+      const body = { ...payload, lifecycleIntent: requested ? "first_release" : "edit" };
+      const expected = Number(column.workRowVersion);
+      const response = await fetch(`/api/pdm/part-change-works/${encodeURIComponent(column.workId)}`, {
+        method: "PATCH", headers: { "content-type": "application/json", "if-match": `"${expected}"`,
+          "idempotency-key": commandKey(column, "update", expected, body), "x-pdm-workbench-contract": tokenRef.current },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.data) throw new Error(errorMessage(result, "發行申請未儲存。"));
+      applySavedResponse(partIdValue, result.data, payload);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "發行申請未儲存。");
+    } finally { setBusy(false); }
+  }
+
   async function submitAll() {
     setBusy(true); setError(""); setNotice("");
     await flushAll();
@@ -268,7 +297,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     if (!latest) { setBusy(false); return; }
     if (Object.keys(cellErrorsRef.current).length || Object.keys(conflictsRef.current).length || latest.columns.some((column) => {
       const draft = draftRef.current[column.partId];
-      const savedValue = saved[column.partId];
+      const savedValue = savedRef.current[column.partId];
       return Boolean(draft && savedValue && !matrixPayloadEqual(draft, savedValue));
     })) {
       setError("仍有欄位尚未成功儲存，請先處理原格提示。"); setBusy(false); return;
@@ -277,7 +306,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
     for (const part of latest.columns) {
       const current = dataRef.current?.columns.find((column) => column.partId === part.partId) ?? part;
       const payload = draftRef.current[part.partId] ?? current.payload;
-      if (!current.workId || !current.canEdit || matrixPayloadEqual(payload, current.formalPayload)) continue;
+      if (!current.workId || !current.canEdit || (matrixPayloadEqual(payload, current.formalPayload) && current.lifecycleIntent !== "first_release")) continue;
       const expected = Number(current.workRowVersion ?? 0);
       const key = commandKey(current, "submit", expected, {});
       try {
@@ -309,7 +338,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
   }, [columns]);
   const draftsForDiff = columns.map((column) => ({ ...column, payload: drafts[column.partId] ?? column.payload }));
   const hasPending = columns.some((column) => { const draft = drafts[column.partId]; const savedValue = saved[column.partId]; return Boolean(draft && savedValue && !matrixPayloadEqual(draft, savedValue)); });
-  const submitCount = columns.filter((column) => column.workId && column.canSubmit && !conflicts[column.partId] && !cellErrors[column.partId] && !matrixPayloadEqual(drafts[column.partId] ?? column.payload, column.formalPayload)).length;
+  const submitCount = columns.filter((column) => column.workId && column.canSubmit && !conflicts[column.partId] && !cellErrors[column.partId] && (!matrixPayloadEqual(drafts[column.partId] ?? column.payload, column.formalPayload) || column.lifecycleIntent === "first_release")).length;
   const title = data?.root.code || "料號資料總表";
 
   useEffect(() => {
@@ -352,7 +381,7 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
       <div className="part-number-matrix-scroll">
         <table className="part-number-matrix" data-matrix-scroll-owner="true">
           <thead><tr><th scope="col" className="part-number-matrix-row-header">資料欄位</th>{columns.map((column) => <th scope="col" key={column.partId} className={`part-number-matrix-column-header${column.partId === data.sourcePartId ? " is-source" : ""}`}><span>{column.partNumber}</span><button type="button" className="part-number-matrix-attachment" onClick={() => router.push(`/parts/${encodeURIComponent(column.partNumber)}/attachments?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`)} aria-label={`開啟 ${column.partNumber} 附件`}><FileText size={15} aria-hidden="true" />{column.attachmentCount}</button></th>)}</tr></thead>
-          <tbody>{PART_MATRIX_ROW_REGISTRY.map((row) => { const differs = matrixRowDiffers(draftsForDiff, row.key); return <tr key={row.key} data-difference={differs ? "true" : "false"} className={differs ? "is-different" : ""}><th scope="row" className="part-number-matrix-row-header">{row.label}</th>{columns.map((column) => <MatrixCell key={`${column.partId}:${row.key}`} column={column} rowKey={row.key} control={row.control} draft={drafts[column.partId] ?? column.payload} error={cellErrors[column.partId]} conflict={conflicts[column.partId]} focused={focusedCell === `${column.partId}:${row.key}`} onFocus={() => setFocusedCell(`${column.partId}:${row.key}`)} onBlur={() => { setFocusedCell(null); void flushPart(column.partId); }} onRevert={() => revertField(column.partId)} onChange={(value) => updateField(column.partId, row.key, value)} />)}</tr>; })}{confirmedRows.map((row) => { const differs = new Set(columns.map((column) => confirmedAttributeValue(column, row.key))).size > 1; return <tr key={`confirmed:${row.key}`} data-confirmed-row={row.key} data-difference={differs ? "true" : "false"} className={differs ? "is-different" : ""}><th scope="row" className="part-number-matrix-row-header">{row.label}</th>{columns.map((column) => <td key={column.partId} className="part-number-matrix-readonly-cell" data-confirmed-attribute={row.key} aria-label={`${column.partNumber} ${row.label} 唯讀`}>{confirmedAttributeValue(column, row.key)}</td>)}</tr>; })}<tr><th scope="row" className="part-number-matrix-row-header">附件</th>{columns.map((column) => <td key={column.partId}><button className="part-number-matrix-attachment-link" type="button" onClick={() => router.push(`/parts/${encodeURIComponent(column.partNumber)}/attachments?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`)}>{column.attachmentCount} 件</button></td>)}</tr></tbody>
+          <tbody><tr><th scope="row" className="part-number-matrix-row-header">首次發行</th>{columns.map(column => <td key={column.partId}>{column.canRequestRelease ? <label><input type="checkbox" checked={column.lifecycleIntent === "first_release"} disabled={busy} onChange={event => void changeReleaseIntent(column.partId, event.target.checked)} aria-label={`${column.partNumber} 申請首次發行`} />申請首次發行</label> : <span>{column.recordStatus === "Released" ? "已發布" : "—"}</span>}</td>)}</tr>{PART_MATRIX_ROW_REGISTRY.map((row) => { const differs = matrixRowDiffers(draftsForDiff, row.key); return <tr key={row.key} data-difference={differs ? "true" : "false"} className={differs ? "is-different" : ""}><th scope="row" className="part-number-matrix-row-header">{row.label}</th>{columns.map((column) => <MatrixCell key={`${column.partId}:${row.key}`} column={column} rowKey={row.key} control={row.control} draft={drafts[column.partId] ?? column.payload} error={cellErrors[column.partId]} conflict={conflicts[column.partId]} focused={focusedCell === `${column.partId}:${row.key}`} onFocus={() => setFocusedCell(`${column.partId}:${row.key}`)} onBlur={() => { setFocusedCell(null); void flushPart(column.partId); }} onRevert={() => revertField(column.partId)} onChange={(value) => updateField(column.partId, row.key, value)} />)}</tr>; })}{confirmedRows.map((row) => { const differs = new Set(columns.map((column) => confirmedAttributeValue(column, row.key))).size > 1; return <tr key={`confirmed:${row.key}`} data-confirmed-row={row.key} data-difference={differs ? "true" : "false"} className={differs ? "is-different" : ""}><th scope="row" className="part-number-matrix-row-header">{row.label}</th>{columns.map((column) => <td key={column.partId} className="part-number-matrix-readonly-cell" data-confirmed-attribute={row.key} aria-label={`${column.partNumber} ${row.label} 唯讀`}>{confirmedAttributeValue(column, row.key)}</td>)}</tr>; })}<tr><th scope="row" className="part-number-matrix-row-header">附件</th>{columns.map((column) => <td key={column.partId}><button className="part-number-matrix-attachment-link" type="button" onClick={() => router.push(`/parts/${encodeURIComponent(column.partNumber)}/attachments?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`)}>{column.attachmentCount} 件</button></td>)}</tr></tbody>
         </table>
       </div>
       </section> : <PartMaintenanceWorkspaceSections partId={partId} partNumber={data.columns.find((column) => column.partId === data.sourcePartId)?.partNumber ?? partId} sourceRowKey={data.sourceRowKey} contractToken={token} returnTo={typeof window === "undefined" ? returnHref : `${window.location.pathname}${window.location.search}`} tab={activeTab} onDirtyChange={setMaintenanceDirty} />}

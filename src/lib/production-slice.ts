@@ -56,6 +56,12 @@ const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp 
 ];
 
 const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
+  // Dispatch only; the existing Principal and technical-executor guards remain authoritative.
+  { method: "POST", pattern: /^\/api\/settings\/secrets\/solidworks_document_manager\/draft$/u },
+  { method: "POST", pattern: /^\/api\/settings\/secrets\/[^/]+\/(?:test|activate|revoke)$/u },
+  { method: "POST", pattern: /^\/api\/settings-secret-probe-jobs\/claim$/u },
+  { method: "POST", pattern: /^\/api\/settings-secret-probe-jobs\/[^/]+\/(?:heartbeat|complete)$/u },
+  { method: "POST", pattern: /^\/api\/recognition-workers\/heartbeat$/u },
   // Canonical work commands remain protected by their Principal capability,
   // resource, ownership, review assignment and transactional owner boundaries.
   { method: "POST", pattern: /^\/api\/pdm\/parts\/[^\/]+\/change-works$/u },
@@ -197,7 +203,8 @@ export function isProductionSliceAllowedApiMutation(method: string, pathname: st
 export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = process.env) {
   const normalizedPath = normalizePathname(pathname);
   if (getProductionSliceState(env).active &&
-    (normalizedPath === "/technical-transfer" || normalizedPath === "/approvals" ||
+    (normalizedPath === "/settings" || normalizedPath === "/settings/security" ||
+     normalizedPath === "/technical-transfer" || normalizedPath === "/approvals" ||
      /^\/parts\/[^/]+\/workspace$/u.test(normalizedPath) ||
      /^\/numbering\/drawings\/[^/]+\/workspace$/u.test(normalizedPath) ||
      /^\/approvals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(normalizedPath) ||
@@ -239,7 +246,7 @@ export function productionSliceClientStatus(env: EnvLike = process.env) {
     unopenedCode: PRODUCTION_SLICE_UNOPENED_CODE,
     unopenedMessage: PRODUCTION_SLICE_UNOPENED_MESSAGE,
     numberingLifecycle: lifecycle,
-    openPagePaths: [...openPagePaths, "/technical-transfer", "/approvals"]
+    openPagePaths: [...openPagePaths, "/technical-transfer", "/approvals", "/settings", "/settings/security"]
       .filter((path) => isProductionSliceOpenPagePath(path, env))
   };
 }

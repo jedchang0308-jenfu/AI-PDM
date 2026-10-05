@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { requireNumberStateReadAccessAsync } from "@/lib/number-state-flow-api";
+import { numberStateFlowErrorResponse, numberStateFlowJson, requireNumberStateReadAccessAsync } from "@/lib/number-state-flow-api";
 import { listManufacturingHandoffEntriesAsync } from "@/lib/handoff-async";
 
 export const runtime = "nodejs";
@@ -25,6 +24,7 @@ export async function GET(request: Request) {
   const since = parseSince(url.searchParams.get("since"));
   const partNumber = url.searchParams.get("partNumber")?.trim().toLowerCase() ?? "";
 
+  try {
   const entries = (await listManufacturingHandoffEntriesAsync({ companyId: access.company.companyId, limit: 200 }))
     .filter((submission) => {
       if (partNumber && submission.part_number.toLowerCase() !== partNumber) return false;
@@ -67,11 +67,14 @@ export async function GET(request: Request) {
       }))
     }));
 
-  return NextResponse.json({
+  return numberStateFlowJson({
     generated_at: new Date().toISOString(),
     integration: "procurement",
     schema_version: 1,
     count: entries.length,
     entries
   });
+  } catch (error) {
+    return numberStateFlowErrorResponse(error, "發行清單目前無法讀取，請稍後再試。");
+  }
 }

@@ -188,6 +188,79 @@ test('DEV-121 business storage runtime binds the own bucket and rejects local or
   }
 })
 
+test('DEV-122 settings provider is a fixed server binding, never a key or a latest reference', () => {
+  const bindings = { PDM_SETTINGS_SECRET_PROVIDER: 'google_secret_manager',
+    PDM_GCP_PROJECT_ID: 'jenfu-platform-prod', PDM_GCP_EXPECTED_PROJECT_NUMBER: '9536592944',
+    PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID: 'aipdm-prod-solidworks-document-manager-key',
+    PDM_ENABLE_GCP_SECRET_READS: 'true', PDM_ENABLE_GCP_SECRET_WRITES: 'true' }
+  const previous = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
+    .filter(name => !Object.hasOwn(profile.environment.fixedValues, name) && !Object.hasOwn(profile.environment.controlledValues, name))
+    .map(name => [name, 'fixture-public-value']))
+  const runtime = buildRuntimeConfig(profile, { plainEnvironment: resolvePlainEnvironment(profile, previous),
+    secretVersions: Object.fromEntries(profile.environment.requiredSecretNames.map(name => [name, '1'])) })
+  for (const [name, value] of Object.entries(bindings)) {
+    assert.equal(runtime.plainEnvironment[name], value)
+    assert.deepEqual(runtime.template.containers.find(container => container.name === profile.runtime.containerName)
+      .env.filter(entry => entry.name === name), [{ name, value }])
+    const missing = structuredClone(profile)
+    missing.environment.requiredPlainEnvironmentNames = missing.environment.requiredPlainEnvironmentNames.filter(key => key !== name)
+    assert.throws(() => assertDev117V3Profile(missing, v1, n1c), { code: 'ENVIRONMENT_SET_DRIFT' })
+    const missingFixed = structuredClone(profile)
+    delete missingFixed.environment.fixedValues[name]
+    assert.throws(() => assertDev117V3Profile(missingFixed, v1, n1c), { code: 'ENVIRONMENT_VALUE_DRIFT' })
+    const absent = structuredClone(runtime)
+    delete absent.plainEnvironment[name]
+    assert.throws(() => assertRuntimeConfig(profile, absent), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+  }
+  for (const [name, value] of [
+    ['PDM_SETTINGS_SECRET_PROVIDER', 'windows_dpapi'], ['PDM_GCP_PROJECT_ID', 'jenfu-ai-pdm-prod'],
+    ['PDM_GCP_PROJECT_ID', '9536592944'],
+    ...['', 'jenfu-platform-prod', '9536592945', '0', '09536592944', '-1', '1.0', '1e3', ' 9536592944 ', '9536592944\n'].map(value => ['PDM_GCP_EXPECTED_PROJECT_NUMBER', value]),
+    ['PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'other-secret'],
+    ['PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'aipdm-prod-solidworks-document-manager-key/versions/latest'],
+    ['PDM_ENABLE_GCP_SECRET_READS', 'false'], ['PDM_ENABLE_GCP_SECRET_WRITES', 'false']
+  ]) {
+    const changed = structuredClone(profile)
+    changed.environment.fixedValues[name] = value
+    assert.throws(() => assertDev117V3Profile(changed, v1, n1c), { code: 'ENVIRONMENT_VALUE_DRIFT' })
+    assert.throws(() => resolvePlainEnvironment(profile, { ...previous, [name]: value }), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+    const forged = structuredClone(runtime)
+    forged.plainEnvironment[name] = value
+    forged.template.containers.find(container => container.name === profile.runtime.containerName).env.find(entry => entry.name === name).value = value
+    forged.serviceTemplateSha256 = sha256(canonicalize(forged.template))
+    assert.throws(() => assertRuntimeConfig(profile, forged), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+  }
+  for (const name of ['PDM_SOLIDWORKS_DOCUMENT_MANAGER_KEY', 'PDM_SW_DOCUMENT_MANAGER_LICENSE_KEY',
+    'SOLIDWORKS_DOCUMENT_MANAGER_KEY', 'PDM_ALLOW_WORKER_ENV_SECRET_FALLBACK', 'NEXT_PUBLIC_SOLIDWORKS_DOCUMENT_MANAGER_KEY']) {
+    assert.ok(!profile.environment.requiredPlainEnvironmentNames.includes(name))
+    assert.ok(!profile.environment.requiredSecretNames.includes(name))
+    assert.throws(() => resolvePlainEnvironment(profile, { ...previous, [name]: 'forbidden' }), { code: 'RUNTIME_CONFIG_READBACK_MISMATCH' })
+  }
+})
+
+test('DEV-122 Secret source is B-only and grants exactly add/access on the own Secret', () => {
+  const source = readText('infra/google-cloud/dev-117-production-release/solidworks-document-manager-secret.tf')
+  const plan = read('config/release/dev117-production-release-infra-plan.json')
+  const addresses = ['google_secret_manager_secret.solidworks_document_manager[0]',
+    'google_project_iam_custom_role.solidworks_document_manager_runtime[0]',
+    'google_secret_manager_secret_iam_member.solidworks_document_manager_runtime[0]']
+  for (const address of addresses) {
+    assert.equal(plan.stageBAdditional.filter(value => value === address).length, 1)
+    assert.ok(!plan.stageA.includes(address))
+  }
+  assert.equal((source.match(/count\s+= var\.incident_runtime_enabled \? 1 : 0/gu) ?? []).length, 3)
+  assert.match(source, /secret_id\s+= "aipdm-prod-solidworks-document-manager-key"/u)
+  assert.match(source, /deletion_protection\s+= true/u)
+  assert.match(source, /prevent_destroy\s+= true/u)
+  assert.match(source, /replication \{\s+auto \{\}/u)
+  assert.match(source, /role_id\s+= "aipdmSolidworksDocumentManagerRuntime"/u)
+  assert.match(source, /permissions\s+= \["secretmanager\.versions\.add", "secretmanager\.versions\.access"\]/u)
+  assert.match(source, /secret_id\s+= google_secret_manager_secret\.solidworks_document_manager\[0\]\.secret_id/u)
+  assert.match(source, /role\s+= google_project_iam_custom_role\.solidworks_document_manager_runtime\[0\]\.name/u)
+  assert.match(source, /member\s+= "serviceAccount:\$\{data\.google_service_account\.runtime\.email\}"/u)
+  assert.doesNotMatch(source, /resource "google_(?:project_iam_member|secret_manager_secret_version)"|roles\/secretmanager|secret_data|versions\.(?:destroy|delete|disable|enable)/u)
+})
+
 test('AI-PDM owner prepare requires sealed DEV-013 authority before handoff on', () => {
   const priorPlainEnvironment = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
     .filter((name) => !Object.hasOwn(profile.environment.fixedValues, name) && !Object.hasOwn(profile.environment.controlledValues, name))
@@ -230,8 +303,14 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   const bundle = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), 'a'.repeat(40))
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
-  assert.deepEqual(bundle.bundle.entries.slice(-11).map((entry) => entry.version),
-    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078'])
+  assert.deepEqual(bundle.bundle.entries.slice(-12).map((entry) => entry.version),
+    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079'])
+  assert.deepEqual(profile.migrations.entries.at(-1), { order: 29,
+    path: 'db/postgres/079_dev122_canonical_review_lifecycle.sql',
+    sha256: '08b4f287bc66a5ab48c8dcdcd45f064d49333fa32737c8d75400e51b0b836be6' })
+  const insertedBeforeApplied = structuredClone(profile)
+  insertedBeforeApplied.migrations.entries.splice(27, 0, insertedBeforeApplied.migrations.entries.pop())
+  assert.throws(() => assertDev117V3Profile(insertedBeforeApplied, v1, n1c), { code: 'MIGRATION_MANIFEST_DRIFT' })
   assert.equal(bundle.bundle.entries.some((entry) => entry.version === 'ai-pdm-077'), false)
   assert.throws(() => verifyDev117MigrationBytes(profile, new Map([...files].slice(0, -1))), /Migration file set/u)
   const reordered = structuredClone(profile)

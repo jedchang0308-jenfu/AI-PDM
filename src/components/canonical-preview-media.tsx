@@ -18,6 +18,12 @@ export type CanonicalPreviewMediaModel = {
 const retryIntervalMs = 2_000;
 const retryLimit = 30;
 
+export function canonicalPreviewResponseDisposition(status: number, state: string | null, body: unknown) {
+  const error = body && typeof body === "object" && "error" in body ? body.error : null;
+  const retryable = error && typeof error === "object" && "retryable" in error && error.retryable === true;
+  return status === 202 && state === "pending" && retryable ? "pending" : "terminal";
+}
+
 function pdfViewerUrl(url: string, pageNumber?: number | null, hideToolbar = false) {
   const [baseUrl, fragment = ""] = url.split("#", 2);
   const params = new URLSearchParams(fragment);
@@ -41,6 +47,7 @@ export function CanonicalPreviewMedia({
   const [resolvedMode, setResolvedMode] = useState<CanonicalPreviewMediaModel["mode"] | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "waiting" | "ready" | "failed">("loading");
   const [retryToken, setRetryToken] = useState(0);
+  const [terminalReason, setTerminalReason] = useState("");
   const renderDocumentAsPdfPage = media.mode === "document" && Boolean(media.renderPdfPage || media.focusRegion);
 
   useEffect(() => {
@@ -52,11 +59,22 @@ export function CanonicalPreviewMedia({
     setObjectUrl("");
     setPdfBytes(null);
     setResolvedMode(null);
+    setTerminalReason("");
 
     const load = async () => {
       try {
         const response = await fetch(media.href, { credentials: "same-origin", cache: "no-store" });
-        if ((response.status === 202 || response.status === 409) && retryCount < retryLimit) {
+        if (!response.ok || response.status === 202) {
+          const state = response.headers.get("x-pdm-preview-state");
+          const body = await response.json().catch(() => null) as { error?: { retryable?: boolean; message?: string } } | null;
+          if (canonicalPreviewResponseDisposition(response.status, state, body) === "terminal") {
+            if (!cancelled) {
+              setTerminalReason(state === "unsupported" ? "此格式無法預覽，可下載原檔。" : "預覽無法顯示，可下載原檔。");
+              setLoadState("failed");
+            }
+            return;
+          }
+          if (retryCount >= retryLimit) throw new Error("preview-wait-expired");
           retryCount += 1;
           if (!cancelled) {
             setLoadState("waiting");
@@ -64,7 +82,6 @@ export function CanonicalPreviewMedia({
           }
           return;
         }
-        if (!response.ok) throw new Error(`preview-${response.status}`);
         const blob = await response.blob();
         if (cancelled) return;
         const nextMode = media.mode === "document" && blob.type.toLowerCase().startsWith("image/") ? "image" : media.mode;
@@ -112,8 +129,8 @@ export function CanonicalPreviewMedia({
   }
 
   return <span className={`drawing-preview-placeholder ${loadState === "failed" ? "unavailable" : "pending"}`} data-preview-state={loadState === "failed" ? "unavailable" : "pending"}>
-    <strong>{loadState === "failed" ? "預覽尚未就緒" : compact ? "載入中…" : "預覽正在準備"}</strong>
-    {!compact ? <span>{loadState === "failed" ? "可重新整理預覽。" : "完成後會自動顯示，請稍候。"}</span> : null}
-    {loadState === "failed" && interactive ? <button className="secondary-button preview-generate-button" type="button" onClick={() => setRetryToken((token) => token + 1)}>重新整理預覽</button> : null}
+    <strong>{loadState === "failed" ? terminalReason || "預覽尚未就緒" : compact ? "載入中…" : "預覽正在準備"}</strong>
+    {!compact && loadState !== "failed" ? <span>完成後會自動顯示，請稍候。</span> : null}
+    {loadState === "failed" && interactive && !terminalReason ? <button className="secondary-button preview-generate-button" type="button" onClick={() => setRetryToken((token) => token + 1)}>重新整理預覽</button> : null}
   </span>;
 }

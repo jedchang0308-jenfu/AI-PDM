@@ -383,15 +383,18 @@ export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
     function syncLegacyHash() {
       const hash = window.location.hash.replace(/^#/, "");
       const area = settingsAreas.find((item) => item.hash === hash)?.id;
-      if (area) setActiveArea(area);
+      if (area && (state.status !== "ready" || state.settings.productionSliceSettingsLimited !== true ||
+        area === "overview" || area === "security")) setActiveArea(area);
     }
 
     syncLegacyHash();
     window.addEventListener("hashchange", syncLegacyHash);
     return () => window.removeEventListener("hashchange", syncLegacyHash);
-  }, []);
+  }, [state]);
 
-  const activeAreaLabel = settingsAreas.find((area) => area.id === activeArea)?.label ?? "總覽";
+  const displayedArea = state.status === "ready" && state.settings.productionSliceSettingsLimited === true &&
+    !["overview", "security"].includes(activeArea) ? "overview" : activeArea;
+  const activeAreaLabel = settingsAreas.find((area) => area.id === displayedArea)?.label ?? "總覽";
 
   return (
     <>
@@ -410,7 +413,9 @@ export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
       {state.status === "unauthorized" ? <AccessPanel title="需要登入" message="請先登入後再查看系統設定。" /> : null}
       {state.status === "forbidden" ? <AccessPanel title="需要系統管理員權限" message="只有系統管理員可以管理系統設定。" /> : null}
       {state.status === "error" ? <AccessPanel title="無法讀取設定" message={state.message} /> : null}
-      {state.status === "ready" ? <SettingsPanel settings={state.settings} activeArea={activeArea} onSaved={fetchSettings} /> : null}
+      {state.status === "ready" ? <SettingsPanel settings={state.settings}
+        activeArea={displayedArea}
+        onSaved={fetchSettings} /> : null}
     </>
   );
 }
@@ -458,11 +463,14 @@ function SettingsPanel({
   const [folderLoading, setFolderLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [secretStatuses, setSecretStatuses] = useState<SettingsSecretStatus[]>([]);
+  const [secretReadState, setSecretReadState] = useState<"pending" | "ready" | "failed">("pending");
   const [secretLoading, setSecretLoading] = useState(false);
   const [secretAction, setSecretAction] = useState<string | null>(null);
   const [solidWorksSecret, setSolidWorksSecret] = useState("");
   const [secretMessage, setSecretMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const secretManagementAvailable = settings.secretManagementAvailable === true;
+  const secretActionsAvailable = secretManagementAvailable && secretReadState === "ready";
+  const settingsLimited = settings.productionSliceSettingsLimited === true;
 
   useEffect(() => {
     if (activeArea !== "integrations") return;
@@ -480,8 +488,15 @@ function SettingsPanel({
       const response = await fetch("/api/settings/secrets");
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message ?? body.error ?? "機密設定狀態讀取失敗");
-      setSecretStatuses(body.secrets ?? []);
+      if (!Array.isArray(body.secrets) || !body.secrets.some((status: SettingsSecretStatus) => status?.kind === "solidworks_document_manager")) {
+        throw new Error("機密設定狀態讀取失敗");
+      }
+      setSecretStatuses(body.secrets);
+      setSecretReadState("ready");
     } catch (error) {
+      setSecretReadState("failed");
+      setSecretStatuses([]);
+      setSolidWorksSecret("");
       setSecretMessage({ type: "error", text: error instanceof Error ? error.message : "機密設定狀態讀取失敗" });
     } finally {
       setSecretLoading(false);
@@ -500,6 +515,7 @@ function SettingsPanel({
 
   async function createSolidWorksSecretDraft(e: React.FormEvent) {
     e.preventDefault();
+    if (!secretActionsAvailable) return;
     setSecretAction("draft");
     setSecretMessage(null);
     try {
@@ -521,6 +537,7 @@ function SettingsPanel({
   }
 
   async function runSecretAction(secretReferenceId: string, action: "test" | "activate" | "revoke") {
+    if (!secretActionsAvailable) return;
     setSecretAction(`${action}:${secretReferenceId}`);
     setSecretMessage(null);
     const body = action === "revoke" ? { reason: "Revoked from settings center UI" } : {};
@@ -676,6 +693,7 @@ function SettingsPanel({
       !key.startsWith("gdrive_pending_folder_") &&
       !key.startsWith("gdrive_released_folder_") &&
       !key.startsWith("gdrive_master_attachments_folder_")
+      && key !== "productionSliceSettingsLimited"
   );
   const selectedSnapshot =
     selectedFolder && pendingSnapshot?.id === selectedFolder.id
@@ -692,7 +710,7 @@ function SettingsPanel({
 
   return (
     <div className="settings-center-shell">
-      <SettingsAreaNav activeArea={activeArea} />
+      <SettingsAreaNav activeArea={activeArea} limited={settingsLimited} />
 
       <div className="settings-center-page">
         {activeArea === "overview" ? (
@@ -700,14 +718,15 @@ function SettingsPanel({
             solidWorksStatus={solidWorksStatus}
             googleDriveReady={googleDriveReady}
             vaultProvider={solidWorksStatus.liveGate.provider}
-            secretManagementAvailable={secretManagementAvailable}
+            secretManagementAvailable={secretActionsAvailable}
+            limited={settingsLimited}
           />
         ) : null}
 
         {activeArea === "security" ? (
           <SolidWorksSecretPanel
             status={solidWorksStatus}
-            available={secretManagementAvailable}
+            available={secretActionsAvailable}
             secretValue={solidWorksSecret}
             loading={secretLoading}
             action={secretAction}
@@ -996,10 +1015,10 @@ function ApprovalRuleSummaryDisplay({
   );
 }
 
-function SettingsAreaNav({ activeArea }: { activeArea: SettingsArea }) {
+function SettingsAreaNav({ activeArea, limited }: { activeArea: SettingsArea; limited: boolean }) {
   return (
     <nav className="settings-center-nav" aria-label="設定區域">
-      {settingsAreas.map((area) => (
+      {settingsAreas.filter((area) => !limited || area.id === "overview" || area.id === "security").map((area) => (
         <Link
           className={activeArea === area.id ? "is-active" : undefined}
           href={area.href}
@@ -1017,12 +1036,14 @@ function SettingsCenterOverview({
   solidWorksStatus,
   googleDriveReady,
   vaultProvider,
-  secretManagementAvailable
+  secretManagementAvailable,
+  limited
 }: {
   solidWorksStatus: SettingsSecretStatus;
   googleDriveReady: boolean;
   vaultProvider: "local_test_double" | "windows_dpapi" | "google_secret_manager" | "supabase_vault";
   secretManagementAvailable: boolean;
+  limited: boolean;
 }) {
   return (
     <section className="panel" id="settings-overview">
@@ -1044,9 +1065,9 @@ function SettingsCenterOverview({
         <SettingsStatusTile
           icon={googleDriveReady ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
           title="Google Drive"
-          status={googleDriveReady ? "已驗證" : "待設定"}
-          detail={googleDriveReady ? "三個用途資料夾皆有驗證快照。" : "審核中、發布與主檔附件庫需各自驗證。"}
-          href="/settings/integrations"
+          status={limited ? "未開放" : googleDriveReady ? "已驗證" : "待設定"}
+          detail={limited ? "整合設定尚未開放。" : googleDriveReady ? "三個用途資料夾皆有驗證快照。" : "審核中、發布與主檔附件庫需各自驗證。"}
+          href={limited ? undefined : "/settings/integrations"}
           actionLabel="管理整合設定"
         />
         <SettingsStatusTile
@@ -1074,7 +1095,7 @@ function SettingsStatusTile({
   title: string;
   status: string;
   detail: string;
-  href: string;
+  href?: string;
   actionLabel: string;
 }) {
   return (
@@ -1086,10 +1107,10 @@ function SettingsStatusTile({
         <span>{title}</span>
         <strong>{status}</strong>
         <small>{detail}</small>
-        <Link className="settings-status-tile-action" href={href}>
+        {href ? <Link className="settings-status-tile-action" href={href}>
           {actionLabel}
           <ChevronRight size={14} aria-hidden="true" />
-        </Link>
+        </Link> : null}
       </div>
     </div>
   );
@@ -1137,7 +1158,7 @@ function SolidWorksSecretPanel({
       </div>
 
       <div className="settings-secret-layout">
-        <form className="settings-secret-form" onSubmit={onCreateDraft}>
+        {available ? <form className="settings-secret-form" onSubmit={onCreateDraft}>
           <div className="settings-secret-heading">
             <KeyRound size={18} aria-hidden="true" />
             <div>
@@ -1201,7 +1222,10 @@ function SolidWorksSecretPanel({
             </button>
           </div>
           {message ? <div className={`settings-secret-message is-${message.type}`}>{message.text}</div> : null}
-        </form>
+        </form> : <div className="settings-secret-form">
+          {message ? <div className={`settings-secret-message is-${message.type}`}>{message.text}</div>
+            : <p>{loading ? "正在讀取機密設定..." : "機密設定尚未可用。"}</p>}
+        </div>}
 
         <div className="settings-secret-status">
           <SecretVersionDetails title="目前啟用版本" version={active} emptyText="尚未啟用" />

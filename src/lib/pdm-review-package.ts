@@ -10,6 +10,7 @@ import { readDrawingRecognitionReviewProjections } from "@/lib/drawing-recogniti
 import type { DrawingRecognitionReviewProjectionBody } from "@/lib/drawing-recognition-review-projection";
 import type { PartChangePayload } from "@/lib/repositories/part-change-work-async-repository";
 import type {
+  ReviewPackageLifecycleBasis,
   ReviewPackageEntityType,
   ReviewPackageEnvelope,
   ReviewPackageFile,
@@ -27,8 +28,21 @@ type BuildInput = {
   canonicalEntityId: string;
   workId: string | null;
   branchId: string | null;
-  decisionBasis: { hash: string; payload: Record<string, unknown>; revisionId?: string | null; claimId?: string | null };
+  decisionBasis: { hash: string; payload: Record<string, unknown>; revisionId?: string | null; claimId?: string | null; lifecycle?: ReviewPackageLifecycleBasis; workRowVersion?: number };
 };
+
+/** Recheck only the submitted entity's frozen root in the approval transaction.
+ * Other matrix members remain immutable evidence, not a live matrix rebuild. */
+export async function assertReviewPackagePrimaryRoot(client: AsyncDatabaseClient, envelope: ReviewPackageEnvelope,
+  input: { companyId: string; entityType: "part" | "drawing"; entityId: string }) {
+  const query = input.entityType === "part"
+    ? "SELECT entity.part_root_id FROM part_numbers entity JOIN part_roots root ON root.id=entity.part_root_id AND root.company_id=entity.company_id WHERE entity.id=:entityId AND entity.company_id=:companyId"
+    : "SELECT entity.part_root_id FROM drawings entity JOIN part_roots root ON root.id=entity.part_root_id AND root.company_id=entity.company_id WHERE entity.id=:entityId AND entity.company_id=:companyId";
+  const row = await client.queryOne<{ part_root_id: string }>(query + (client.kind === "postgres" ? " FOR UPDATE OF entity" : ""),
+    { entityId: input.entityId, companyId: input.companyId });
+  if (!row || row.part_root_id !== envelope.root.id) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+    "圖料根號已改變，請退回修改後重新送審", 409);
+}
 
 type FileRow = {
   id: string;
@@ -419,7 +433,7 @@ export async function buildReviewPackage(client: AsyncDatabaseClient, input: Bui
     const changedPaths = workspace.baselinePayload ? Object.keys(workspace.payload).filter((key) => reviewPackageHash(workspace.payload[key]) !== reviewPackageHash(workspace.baselinePayload?.[key] ?? null)).sort() : [];
     const submittedFileChange = submitted && input.requestKind === "drawing_revision" && workspace.files.some((file) => file.currentRevisionUpload);
     if (submittedFileChange) changedPaths.push("files");
-    const changeMarker = submitted && input.requestKind === "drawing_rd_void"
+    const changeMarker = submitted && (input.requestKind === "drawing_rd_void" || input.decisionBasis.lifecycle?.intent === "first_release" || input.decisionBasis.lifecycle?.intent === "production_release")
       ? { kind: "lifecycle" as const, paths: ["lifecycle"] }
       : changedPaths.length
         ? { kind: changedPaths.some((path) => path !== "files") ? "field" as const : "file" as const, paths: [...new Set(changedPaths)].sort() }
@@ -470,7 +484,9 @@ export async function buildReviewPackage(client: AsyncDatabaseClient, input: Bui
     primaryTargetKey,
     root: { id: rootRow.id, code: rootRow.root_code },
     decisionBasis: {
-      version: 1 as const,
+      version: input.decisionBasis.lifecycle ? 2 as const : 1 as const,
+      ...(input.decisionBasis.workRowVersion === undefined ? {} : { workRowVersion: input.decisionBasis.workRowVersion }),
+      ...(input.decisionBasis.lifecycle ? { lifecycle: input.decisionBasis.lifecycle } : {}),
       kind: input.requestKind === "drawing_revision" ? "drawing_revision_work" as const : input.requestKind === "drawing_rd_void" ? "drawing_rd_void" as const : "part_change_work" as const,
       hash: input.decisionBasis.hash,
       payload: input.decisionBasis.payload as ReviewPackageEnvelope["decisionBasis"]["payload"],
@@ -635,9 +651,7 @@ export function verifyReviewPackageIntegrity(value: unknown, expectedSnapshotHas
     throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INTEGRITY_FAILED", "審核包完整性驗證失敗", 409);
   }
   const { evidenceHash: matrixEvidenceHash, ...matrixBody } = parsed.value.matrix;
-  const decisionHash = parsed.value.decisionBasis.kind === "drawing_revision_work"
-    ? dev087RequestHash({ payload: parsed.value.decisionBasis.payload, revisionId: parsed.value.decisionBasis.revisionId, claimId: parsed.value.decisionBasis.claimId })
-    : dev087RequestHash(parsed.value.decisionBasis.payload);
+  const decisionHash = reviewDecisionBasisHash(parsed.value.decisionBasis);
   const recognitionIntegrityFailed = parsed.value.targets.some((target) => {
     const recognition = target.workspace.recognition;
     if (!isReviewPackageRecognitionProjection(recognition)) return false;
@@ -653,4 +667,25 @@ export function verifyReviewPackageIntegrity(value: unknown, expectedSnapshotHas
     throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INTEGRITY_FAILED", "審核包證據雜湊驗證失敗", 409);
   }
   return parsed.value;
+}
+
+/** The immutable lifecycle intent and its source baseline are part of the decision. */
+export function reviewDecisionBasisHash(input: {
+  payload: Record<string, unknown>;
+  revisionId?: string | null;
+  claimId?: string | null;
+  lifecycle?: ReviewPackageLifecycleBasis;
+  kind?: string;
+  workRowVersion?: number;
+}) {
+  if (input.workRowVersion !== undefined) return dev087RequestHash({ payload: input.payload,
+    revisionId: input.revisionId ?? null, claimId: input.claimId ?? null,
+    ...(input.lifecycle ? { lifecycle: input.lifecycle } : {}), workRowVersion: input.workRowVersion });
+  if (input.lifecycle) return dev087RequestHash({ payload: input.payload,
+    revisionId: input.revisionId ?? null, claimId: input.claimId ?? null,
+    lifecycle: input.lifecycle });
+  return input.kind === "drawing_revision_work"
+    ? dev087RequestHash({ payload: input.payload, revisionId: input.revisionId ?? null,
+      claimId: input.claimId ?? null })
+    : dev087RequestHash(input.payload);
 }

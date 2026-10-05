@@ -1,26 +1,328 @@
-# DEV-122：AI-PDM 內部功能缺陷集中紀錄
+# DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-文件角色：CONTROLLED_ISSUE_LIST；成熟度：Brief Ready；狀態：DEFERRED_BUSINESS_NOT_AUTH_BOUNDARY。
+文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：B_LOCAL_QC_PASS_REQUIRED_CI_PENDING_THREE_RESOURCES_PENDING_APPROVAL／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
 
-## 目的與唯一邊界
+## 現行發布修正與人工驗證契約（2026-10-05；優先於下方歷史本地邊界）
 
-2026-10-03 人類指定 AI-PDM 下一個 native DEV 集中內部功能問題，並將本輪收斂為 Principal-only identity/auth integration。native 索引已登錄 DEV-122，本文件沿用同 ID。owner 是 AI-PDM；發現來源 `AIPDM/DEV-121`，三專案授權主線仍為 `JENFU/DEV-015`／`ORGMASTER/DEV-057`，OrgMaster 只發布穩定身分、角色與 scope，不理解 PDM 內部生命周期。
+人類已明確指示「先修好金鑰設定入口並上線」，並更正原生 CAD 屬性是「由我在正式環境驗證」。本節自該指示後生效，取代先前本地-only／未授權 deploy 的執行限制；不追溯改寫既有證據與當時授權。
 
-本列表保存一般功能根因、正常操作前提、source／證據、影響與責任，供後續單專案排程。local source／tests／077 保留未合併、未發布；不再擴寫或執行 lifecycle／附件驗證。已處理歷史問題不能只憑舊 FAIL 再列成現行缺陷；未實測用途標待確認。一般功能延期不加計共同 grant 7/8，也不冒稱業務 PASS。
+- 唯一開發專案仍為 AI-PDM；沿用同一 DEV-122 branch/worktree。canonical、移交與其他 owner 修改保護不變；禁止跨專案開發與 sibling source/release input。
+- 已授權主動作：完成本 DEV 既有候選，修復正常金鑰設定入口，依 protected-main PR/required CI 與 app-owned V3 owner release 發布 AI-PDM。目標固定 jenfu-platform-prod / asia-east1 / ai-pdm-prod；canonical entry 為 https://ai-pdm-prod-9536592944.asia-east1.run.app。
+- 原生 CAD customproperties、真 Document Manager probe 與真金鑰輸入由使用者於正式環境驗證；F-01F 保留 PENDING_HUMAN_PRODUCTION_VALIDATION / NOT_RUN。7 issues／29 groups 分母不變；不以 page 200、filename、Shell thumbnail 或部署成功作此用途 PASS。
+- 停止本機密碼輸入／DPAPI 實驗。三份原始失敗、實驗來源、自檢與清理證據完整保留；未收取／讀取任何真 key。過時 direct-module actorId provisioning 不進新正式發布來源，也不替代 Principal 工作流。
+- 官方 main 528429913272ceb3e8d77bb0fcf30d450c6fb368 已包含 settings.secret.manage 的 verified Principal owner command／probe provenance 與 migration 078。先前 93b9 起點的 legacy-auth 診斷只適用當時 source，不能套到最新 main；整合時保留該修正。
+- 發布來源需要可追溯的乾淨 PR merge 與 fresh profile/source binding。077 是本 DEV 尚未套用的 forward-only migration；與官方 078 整合前核對編號、依賴、schema ownership、apply/rerun 與相容性。不得改 applied migrations 或手工寫正式資料。
+- 設定開放採 exact /settings 與 /settings/security，以及 secret draft/test/activate/revoke、既有 purpose-scoped probe-worker 必要 dispatch；不得 wildcard 開放其他 settings、整合或 worker mutations。dispatch 不授予權限，正常 page/action 仍經 verified Principal、published capability/company boundary、same pinned owner transaction；workload credential/provenance 仍必須成立。
+- 正式服務 provider readback 證實目前沒有 PDM_SETTINGS_SECRET_PROVIDER、PDM_GCP_PROJECT_ID、PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID、PDM_ENABLE_GCP_SECRET_READS/WRITES。AI-PDM aipdm-prod Secret 名稱盤點未見 Document Manager 保管庫；歷史示例 pdm-solidworks-document-manager-key provider NOT_FOUND。只核對 metadata／名稱，未讀版本內容。
+- source 可準備既有 Google Secret Manager provider 的 exact project/secret env 與最小 own-resource provisioning plan。新增 Secret container／IAM 不從一般 release 授權自行擴張；具體 plan 與 affected checks 完成後才處理此新增資源 gate。不得 broad IAM、Secret Admin、key value 入 Terraform/state、secret destroy／disable 或 sibling mutation。
+- QA：沿原有效證據的 source applicability，只重驗整合與設定受影響層。必須證明正常設定導航、允許／拒絕 Principal、精確 gate 正反例、非秘密狀態與 worker readiness、失敗訊息、無 key 洩漏；改 release adapter/profile 後跑專案必需六項檢查。不可提交假金鑰到正式 provider；真 key 操作與 native CAD properties 留人類。
+- 正式驗證：Root 驗證 exact serving revision/canonical entry 及修復後設定入口；使用者輸入 key、查看 probe/activation 狀態並驗證 CAD properties。若正式 worker 未在線，UI 必須如實顯示，不宣称可用。新 runtime/UI 全部 task-owned、隔離且清理；未知 write outcome 先 provider readback 再重試。
+### 設定入口／發布配置 RD 精確實作契約（latest-main 已整合）
 
-錯誤 Principal、越權、scope／撤權失效、授權 fallback、既有 release effect 缺 `numbering.publish`，以及安全／可靠發布必要 validator 修正，仍留 [DEV-121 現行契約](DEV-121-target-authorization-boundary.md)。本列表不取消這些安全條件，不新增 Production mutation、IAM、跨 repo source 或資料修補授權。
+Root 已將 latest main 整合至 7a8f156198f1628a86f91adbee1a22c8e8084f9a，dirty=0；原產品候選未被覆蓋。唯一產品寫入者 RD，可修改以下 surface，其他變更先回 TL：
 
-## 集中問題列表
+- src/lib/production-slice.ts、新 src/lib/production-slice.settings.test.ts；必要的 src/components/settings-screen.tsx／其 targeted test、src/app/api/settings/route.ts。只開 /settings、/settings/security 與既有秘密四 POST（draft kind 固定 solidworks_document_manager；test/activate/revoke exact reference）、probe claim/job heartbeat/complete 與 recognition-workers heartbeat。錯 method/path、其他 settings、unknown slice 維持拒絕。Settings UI 若顯示仍 blocked 的其他分頁／整合 tile，利用既有 slice status 明示未開放或不提供可操作 CTA；不得擴放它們。
+- src/lib/settings-secret-lifecycle.ts／既有相關 targeted tests：僅修正已配置 GCP 但尚無 reference 的誤導文案，區分配置／真金鑰版本／worker 在線；不改 owner Principal command、probe provenance、state machine、provider 寫入或授權。
+- config/release/dev117-ai-pdm-independent-production-v3.json、scripts/lib/dev117-ai-pdm-continuous-release.mjs、scripts/dev117-ai-pdm-continuous-release.test.mjs：required/fixed plain env exact 新增 PDM_SETTINGS_SECRET_PROVIDER=google_secret_manager、PDM_GCP_PROJECT_ID=jenfu-platform-prod、PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID=aipdm-prod-solidworks-document-manager-key、PDM_ENABLE_GCP_SECRET_READS=true、PDM_ENABLE_GCP_SECRET_WRITES=true。它是 server-side exact-version lifecycle，不能把真 key 或 latest 注入 env、release receipt 或來源。
+- 尚未套用的 db/postgres/077_dev121_canonical_review_lifecycle.sql 改名為 db/postgres/079_dev122_canonical_review_lifecycle.sql，bytes SHA256 08b4f287bc66a5ab48c8dcdcd45f064d49333fa32737c8d75400e51b0b836be6 不變。官方 profile 已以 078 結尾，migration runner 要求完整 applied-ledger prefix，因此禁止把 077 插入它前方或放寬 forward-only validator。新 profile 在完整既有 28-entry prefix 後追加 order29/079；原078 path/order/hash不改。scripts/lib/dev122-own-postgres-fixture.mjs 的新隔離執行順序為既有 baseline、065–076、078、079；077 舊名僅在歷史備份/收據保留。另允 scripts/qc-dev-122-native-postgres.mjs 的單一 active diagnostic source-binding path 077→079，以及 src/lib/dev122-native-business.postgres-contract.test.ts 的同一 CHECK 案例標題 077→079；測例查詢／驗收／case數不變。每個新 fixture 必須含 actual078；source bytes及apply/rerun另綁定。
+- 新 infra/google-cloud/dev-117-production-release/solidworks-document-manager-secret.tf、既有 config/release/dev117-production-release-infra-plan.json 與 infra README：只準備 APP_INFRA_B 的三項 additional addresses，A 不变／不重跑。exact secret aipdm-prod-solidworks-document-manager-key（deletion protection、prevent_destroy、auto replication、既有own labels）；project custom role aipdmSolidworksDocumentManagerRuntime，permissions精確只有secretmanager.versions.add、secretmanager.versions.access；該 role 只綁此Secret到現有serviceAccount aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com。與既有 B 相同 incident_runtime_enabled gate。無版本/value、無 project-wide member、無 rotate/delete/destroy/admin、無 sibling。只寫 source／本地validate plan，不apply；native full-module provider plan須證其他地址read/no-op、只三項create，再取得新增資源授權。
 
-| ID／實際階段 | 復現／共同根因與影響 | Source 與證據 | 責任與後續 |
-| --- | --- | --- | --- |
-| D122-01／歷史已處理 | PostgreSQL 工作 payload 已是 JSON object，repository 再 JSON.parse 曾使既有工作 matrix-workspace 503。正常入口：既有 Part 編輯工作→矩陣載入。 | `src/lib/repositories/part-number-matrix-async-repository.ts` 字串／物件解析與欄位驗證已修；歷史 R25/R26 及正式矩陣載入／編輯／重載證據。 | AI-PDM Part read-model owner；resolved／復發追蹤，沒有新復現不重開。 |
-| D122-02／歷史已處理 | Autosave 曾與 formalPayload 比較，忽略上次 saved work，改回原值不送 PATCH。正常入口：Part 矩陣 idle／blur→重載。 | `src/components/part-number-matrix-workspace.tsx` 已改 last-saved／normalization／timer；歷史 R26 有兩次 PATCH、還原與重載證據。 | AI-PDM Part UI owner；resolved／復發追蹤，不計作 current 缺陷。 |
-| D122-03／已本機修改，驗證未完成 | 正常建立 Draft Part 會有 formal anchor；普通欄位核准仍 Draft。沒有 Principal-only 正常首次發行 intent 路徑，使新 fixture 無法滿足技轉 Active/Released gate。anchor 與正式欄位 generation 本身不是發行證據。 | `src/lib/part-change-work.ts`、`src/lib/repositories/part-change-work-async-repository.ts`、matrix UI／repository；local candidate 已凍結 first_release v2 basis、release-only submit、formal/master CAS、same-tx Draft→Released 與 approval_context。見[原始 QA](../qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)。 | AI-PDM Part owner；scope 延後後停止。58 focused PASS 僅證明原 slice；native 5-case partial FAIL，UI NOT_RUN。077、source、runner 不可隨本輪發布。 |
-| D122-04／已本機修改，只有 focused 證據 | canonical Drawing major 核准原可產 released revision／production pointer，但 legacy drawing_numbers master 未同步 Released，技轉的 canonical＋master gate 仍拒絕。minor 不應發行，terminal／invalid 不得復活，也不能擴張 root／Part scope。 | `src/lib/drawing-revision-work.ts`、`src/lib/repositories/drawing-revision-work-async-repository.ts`；local candidate 已凍結 exact master link/status/hash 並在 major owner transaction 同步。Drawing focused 37/37 為 agent 回報；major native／UI 未驗，不能宣稱完整修復。 | AI-PDM Drawing owner；後續仍需正常 major/minor、映射缺失／多義、漂移與 rollback/replay 驗收。existing major effect 的 publish grant 防漏獨立留 DEV-121。 |
-| D122-05／待確認用途與正式功能證據 | 附件／一般 worker 功能及 bytes 持久化仍須依正常用途逐項確認；R75 已有 bucket／exact create-get IAM readback，application storage activation／Production bytes L4 未執行。資源已建立與功能未驗是不同事實，不能再稱「沒有儲存」。 | `src/lib/file-storage.ts`、`src/lib/google-cloud-file-storage.ts` 及各原 caller；[R75 原始 provider readback](../qa/DEV-121-business-storage-provider-readback-2026-10-03.json)。沒有本輪新復現的 UI／附件功能先標待確認。 Root 的 task-owned synthetic CAD COM activation 回 `0x8002802B / TYPE_E_ELEMENTNOTFOUND`，未產檔；屬驗證環境待確認，非已定案產品缺陷。精確 activation cleanup 為 `EXCLUSIVE_TASK_ACTIVATION_CLEANED`，原始 receipt：`JENFU/DEV-015 output/dev-012/inputs/dev121-synthetic-cad-r75/verified-activation-cleanup.json`。 | AI-PDM file／worker owner；general functionality 延後。Principal／workload／scope／initiator／download 防漏洞及可靠發布 validator 留 DEV-121，不轉給 OrgMaster。 |
-| D122-QA-01／待修測例，未證產品 defect | native drift case 在最後 receipt readback 使用字面值 `dev087:review.decision`，DB named-parameter normalizer 誤讀 colon 而報 `POSTGRES_NAMED_PARAMETER_MISSING: review`；fault case 預期 500/503，但 route 回400，未到 rollback/replay 最終核對。 | `src/lib/principal-work-review-owner-grant.postgres-contract.test.ts:209`、`:220`；原始 PostgreSQL 整批 FAIL、22 producer PASS／D57-21 FAIL，cleanup 全true。沒有為結案修掉原始失敗或重新標 PASS。 | AI-PDM QA；後續啟動 DEV-122 時先修測例與故障 envelope 的預期，再重新證明 rollback/replay；當前不擴寫。 |
-| D122-06／正式可用性異常，根因待確認 | 2026-10-04T00:28:01Z，Jed 自有 `GET /api/integrations/procurement/releases` 回500、非JSON；同次 MAXIMA query 回403 `numbering_permission_denied`，為預期公司／權限拒絕。列表用途是供 procurement consumer 取得 Released package links；實際外部 caller 未在 AI source join。不可因一筆500猜測 auth fallback／跨公司漏洞或發布阻斷。 | 正式 source `d55ceeaf67748663da3d107e2c904034e9f40bf4`：`src/app/api/integrations/procurement/releases/route.ts` 先驗 `integration.procurement.view`，僅把 verified company 傳入 `handoff-async.ts`／`handoff-async-repository.ts`，再 hydrate submission details。當次證據 `JENFU/DEV-015 output/dev-012/inputs/dev015-r78-procurement-list-auth.json`；runtime logs 尚待 gcloud reauthentication，根因未知。既有 handoff mock／PG package-download 測例不證這個列表的正式可用性。 | AI-PDM read-model／integration owner；列 general availability 待確認，不改成PASS、不擅自退役、不重開歷史問題。取得對應日誌後再判 query／detail hydration／依賴的具體問題；本輪不修一般功能，不移動 DEV-121 的 suspended-account 安全分類修正。 |
+### QA 缺口補正與設定 UI 實驗契約（2026-10-05）
+
+- RD 可補 src/app/api/settings/route.principal.test.ts；一般 settings.manage 保留設定摘要，secretManagementAvailable 必須另核 verified Principal 的 settings.secret.manage，且與摘要同一 pinned snapshot/company。UI secret status 讀取失敗一律停用金鑰表單，不索取或提交使用者金鑰；不得改或擴張 authorization helper／role catalog。
+- RD 可更新 scripts/qc-pdm-gcp-secret-manager.mjs 的 GSM-023/024：刪除已被官方 main 取代的 legacy Admin／requireRoleAsync 斷言，改核現行 exact Principal capability、owner command、redaction 與 no-store。保留 case IDs／其他驗收；另允 GSM-015 等同檔 UI source binding 由已抽離 wrapper 的 src/app/settings/page.tsx 改 actual src/components/settings-screen.tsx。scripts/qc-pdm-settings-center-secret-lifecycle.mjs 同樣可逐一將官方 main 已淘汰的 Admin／requireRoleAsync 與 wrapper UI source 綁定更新到 actual Principal capability／owner command／SettingsScreen，保留 case IDs 與其語意，不跳過或降低 gate。任何非 source binding 的驗收差异先回 Root。這是 source static QC，不冒稱 production secret write。
+- harness RD 由既有 dev122_native_qc Agent 負責，專用 surface：scripts/qc-dev-122-native-postgres.mjs、scripts/qc-dev-122-native-browser.mjs、src/lib/dev122-native-business.postgres-contract.test.ts。產品 RD 完成 079 source-binding 後交出這三檔，兩者禁止同檔並行寫入。
+- 僅新增固定 settings suite／flow。隔離 PG 先經未修改 migration source 的 baseline／foreign-key／root-count invariants，既有 catalog v5 的 pdm_admin 作 employee/workspace/company-jenfu 原始 grant，保留 version/id/time 同版本 published snapshot 與 producerBoundary FIXTURE/readback/ledger。不得以 system_admin principal/global 假作 employee、不得變更產品 catalog、不得補權限 fallback；拒絕 actor／另一公司要獨立且合法初始設定。既有 full/lifecycle/files flow 不改 grant 或 case semantics。
+- settings prerequisites 只建立 lawful initial identities／signed sessions與 viewport fixtures，不建立 key/reference/probe結果、不建立 Part/Drawing發行結果、不 seed primary。實際 Next fixture只開 exact official-numbering-draft；GCP provider/write/read 在本機均不得呼叫，無真key。
+- actual UI 在 1440×900／390×844，以正常側欄導航到 settings→security；核 password empty、可操作權限、未開放分頁／tile、無版本與 worker 未就緒文案、鍵盤／overflow、允許／拒絕Principal與company、正常GET statuses。全程不填 password、不送 secret draft/test/activate/revoke；status須來真 route/native PG，不攔截供給成功status。截圖/請求結果保留；僅計實際完成案例，skip非PASS。若本機 provider 關閉，只能驗該 blocked狀態，configured-GCP/no-version來源單元證據另列，不能假作GCP連線。
+- 先做 harness source/static 收斂；Root 全來源 freeze 後才依 fresh容量lease、預宣告 own PG/Next/browser process/ports/data/repository，啟 task-owned bounded runtime並 finally 清理。人類正式 native驗證仍 NOT_RUN。
+RD 可先 syntax/targeted static checks，完整 QC 在 freeze 後派出；每次 runtime 仍須標 own project/port/PID/data/repository、來源、fresh容量lease與finally清理。Release-adapter六項：test:dev-117:continuous、qc:dev-117:continuous、test:dev-117:abort、check:db-boundary、typecheck:app、build:isolated。qc:dev-117:continuous 已內建後四項，引用實際子命令結果即可，不能再無理由重跑build。新真金鑰／原生probe/property成功不由RD或QC執行；人工正式驗證仍 NOT_RUN。
+### B 方案：文字請求 ID 與 canonical 專案編號分離（2026-10-05；本輪現行契約）
+
+人類已明確更正「改採 B 方案：保留文字 ID，另設預期專案編號，provider 分開處理請求路徑與回傳版本驗證」。因此先前將 PDM_GCP_PROJECT_ID 改數字的 A 提案改列 HISTORY_ONLY／NOT_APPLIED；原兩次自動審查拒絕與收據保留，不套用 A patch。B 實作與必要 same-project 驗證、既有 PR207 更新已授權；三項新增正式 Secret／IAM 資源仍待人類明確核准，不能以本 B 指示或文件代替該資源授權。
+
+- 請求 ID：PDM_GCP_PROJECT_ID 固定 jenfu-platform-prod，Cloud target／Terraform／IAM／GCS 維持原目標；另新增 server plain env PDM_GCP_EXPECTED_PROJECT_NUMBER=9536592944，required/fixed profile 以既有 target.projectNumber 核對。不得用 request ID、API 回傳內容、ADC、任意 alias 或動態 metadata lookup 推導 expected number。
+- Provider config 使用獨立 expectedProjectNumber。缺少或非 canonical 正整數的 expected number 必須 fail closed，constructor／env 設定拒絕先於 auth/fetch；不放寬 secret/version matcher。add 請求以 projects/jenfu-platform-prod/secrets/<exact-secret>:addVersion 發出，只接受 projects/9536592944/secrets/<same-secret>/versions/<canonical-positive-number>，保存該 canonical reference。
+- access 先驗輸入 canonical reference；只取其中 exact version number，以 request ID 建 access URL。回傳 response.name 必須等於該輸入 canonical reference，核對成功才解碼 payload。wrong project（含 request named ID 作 reference）、wrong Secret、latest／其他 alias、0／leading-zero／缺失版本、wrong response version／缺失 response.name 均拒絕；無效輸入與 config 不發網路請求，不輸出秘密或 provider raw error。
+- 唯一產品寫入者 RD；allowlist：src/lib/google-secret-manager.ts、新 src/lib/google-secret-manager.test.ts、config/release/dev117-ai-pdm-independent-production-v3.json、scripts/lib/dev117-ai-pdm-continuous-release.mjs、scripts/dev117-ai-pdm-continuous-release.test.mjs、scripts/qc-pdm-gcp-secret-manager-runtime.mjs、scripts/qc-pdm-gcp-secret-manager.mjs、.env.example、scripts/start-localhost-3000.ps1。後兩檔只同步 expected number 的設定／就緒判斷；static QC 保留原 IDs 與驗收語意。原 runtime 9 案例保留，新增 B 正反例，不增加 DEV-122 的 29 組分母。越界先回 Root，不改 settings UI／Principal guard／角色 catalog／schema／migration／infra／跨專案內容。
+- QA/QC：真 provider 不可呼叫、真 key 不接收；mock transport 必須同時證明 named request URL、numeric canonical add reference、numeric input named access URL，以及 access response exact-name 核對。release positive 固定兩值，missing／foreign／named-as-number／invalid number／numeric-as-request ID profile 與 readback drift 均拒絕。對 getConfig／constructor 與 write/read gates、stable redacted provider faults 保留回歸。unit／mock 不冒充真 GCP、UI、native、正式 PASS。
+- Root freeze 後執行 affected provider unit/mock/static 與六項專案 release 檢查（continuous QC 已實際覆蓋 abort／DB boundary／typecheck／isolated build 时不得重複 build）。每個 runtime 預宣告 own project／PID tree／ports／PDM_DATA_DIR／PDM_REPOSITORY_DIR、來源与 finally 清理；build 做 fresh capacity preflight，不清 primary。獨立 QC 維持 gpt-6-luna；既有 UI／native8 證據按未受影響 source／layer applicability 保留，F-01F 由使用者正式驗證／NOT_RUN。
+
+### B實作與受影響層驗證收斂（2026-10-05）
+
+B方案已完成：PDM_GCP_PROJECT_ID=jenfu-platform-prod保留，另設PDM_GCP_EXPECTED_PROJECT_NUMBER=9536592944；named請求／numeric canonical回傳分開嚴格核對。clean受測HEAD165a53f0bbcfbb9e54049c191505147936fcfaee已整合官方main46438028。unit83/83（Google57＋Principal26）、static36/36、mock27/27、release134/134及六項必要release檢查（QC97、abort6、boundary、typecheck、isolatedbuild）PASS；獨立gpt-6-luna QC為B_LOCAL_QC_PASS_REQUIRED_CI_PENDING_THREE_RESOURCES_PENDING_APPROVAL。新B required CI待同一草稿PR207刷新，舊b89 CI僅歷史。A未套用、不再待配置核准；僅三項新增正式Secret／IAM待明確資源授權，未merge／apply／deploy。真key/probe/activation及CAD properties由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups不變、整體未驗收。
+
+[source freeze](../../output/qa/dev-122/DEV-122-gsm-b-source-freeze-2026-10-05.json)保留當時NOT_RUN_AT_FREEZE；[最後LunaQC](../../output/qa/dev-122/DEV-122-gsm-b-final-luna-qc-2026-10-05.json)由Root保存獨立Agent回覆，SHA256 628f6f88dda39ba883fb7adc145fa84d446f34fa39bea5bed8cf02891be31fc8。focused綁8項產品檔（.env.example不在該unit binding），完整freeze及release/checks另核九項hash；不補造unit binding。
+
+父／子程序、own temp/build runtime及lease已清理，primary兩SQLite前後ABSENT只證absence不變。fresh2GiB lease允許並釋放；outer maxObserved bytes不能代表inner build完整峰值。六項local檢查對165來源有效；後續三份PM metadata不改產品/config/deps，freshHostedCI綁最終候選。舊UI/native8僅依未變source/layer沿用，101skip非PASS；mock不作真GCP/CAD證據。
+
+[本輪唯一待核准三資源](../../output/qa/dev-122/DEV-122-gsm-b-production-resource-approval-plan-2026-10-05.md)為exact ownSecret、add/access customrole、該Secret-only runtime binding。既有owner正式發布授權延續，不重問。下方B前FAIL、A提案與當時pending狀態保留歷史，不作新gate或PASS。
+
+### 歷史 A 提案／UI bounded 診斷（2026-10-05；A 已由 B 取代，未套用）
+
+- Root 唯讀核對自有 aipdm-prod-session-current Secret 與 version1 metadata，正式 provider canonical name 均使用 projects/9536592944。目前 literal exact-version 比對搭配 named project env 會拒絕該合法 response；唯一最小修正為 PDM_GCP_PROJECT_ID=9536592944，validator 以既有 exact target.projectNumber 核對。這是尚未套用的具體修正提案：source 仍保留上方 named ID；兩次 auto-review 拒絕後須人類明確核准，再套用並通過 affected checks 才取代該 binding。Cloud target、Terraform、IAM、GCS projectId 仍為 jenfu-platform-prod。不得放寬 adapter resource matcher 或接受任意 project alias。
+- 產品 RD 新增 scripts/qc-pdm-gcp-secret-manager-runtime.mjs allowlist：保留原9案例，追加 mock canonical numeric add/access 與 foreign project／foreign Secret／latest 拒絕，拒絕項不得發出 access request。其他 source surface 沿用原 exact allowlist。不可呼叫真 Secret provider、不可輸入真 key。
+- 原 settings UI run5cbd7ab10f03e0b4 在 allowed state 後無進度；Root fingerprint-gated 只中止 own browser child，inner runner 正常 finally 已核 children／PG／ports／temp／lease 清理。此 run FAIL，browser原 RUNNING/0cases與raw保留；不能從 server403或截圖宣告 denied case PASS。
+- harness RD 僅於 scripts/qc-dev-122-native-browser.mjs 增加 settings stage enter/done diagnostics、await／response body／context/browser close bounded 超時與 failure-before-cleanup 保存；必要 native runner own fingerprint cleanup 仍只限原3檔。保留實際 route、合法拒絕 Principal、company隔離、原 assertions／case IDs／分母，不可 mock、跳過、放寬 guard 或回填成功。其他 flow 行為不改。
+- QA 僅刷新受影響 mock transport、release profile／validator與專案既定六項；現有 app/SQL未變 evidence 按檔案hash沿用，native8項root guard補驗 actual078/079。新的兩viewport設定UI須實際完成並清理才可記PASS。原生CAD／真key／probe由人類正式驗證仍NOT_RUN，29groups不變。
+### 設定拒絕畫面與獨立 HTTP 回應對照（2026-10-05）
+
+9419559377bbfde6 已證 native UI403 headers/拒絕DOM/無password，但Page CDP的response.text/json逾時；該FAIL與原body UNKNOWN保留，不推定產品body壞掉或成功。未修 product／actor／grant。Root定案最小harness測量方法：正常same-Principal reload核實403、application/json與private/no-store headers、拒絕DOM與password不存在；同browser context cookiejar另發real HTTP GET /api/settings（30s、禁止redirect）核完整rawText與原exact permission_not_granted。兩請求分開local evidence IDs、時間、actor／viewport／method／URL／headers及body來源；fresh body不得回填original Page Response，原UI bodyCapture明列NOT_REQUESTED_NOT_CONSUMED_BY_PRODUCT，原body code不宣已讀。
+
+browser response observer僅explicit denied phase＋GET /api/settings＋403＋JSON/no-store此精確情境保存pending header-only observation；healthy只有成功獨立same-session HTTP＋actual拒絕DOM＋同viewport/actor/path各吻合才可接受對應console403。其他error照原full body/timeout/FAIL，不能任意接受403、不攔截供給body／status。改動僅原browser allowlist的observer、denied step、healthy分類，兩viewport／case IDs／company HTTP拒絕／zero-secretPOST／ownedPG rows before-after／cleanup不變。未獲新plan資源授權與numeric fix仍阻擋release；此測量修正不造成source/profile/infra／授權擴張。
+### 本輪設定入口驗證結果（2026-10-05）
+
+新 e1c041c4f1bba741 的正常 UI 在 1440×900／390×844 共2案例 PASS；prerequisite native 1／1。允許 settings／secret status GET200、拒絕UI403／DOM無password、獨立same-session HTTP403 permission_not_granted及other-company entitlement_scope_mismatch各自保留。password保持空、secret mutation request=0、鍵盤與overflow通過。本機 provider 沒有真配置／關閉reads與writes，此層只證本地blocked狀態，不證真GCP連線。163 own table rows相同；snapshot含nonce，before／after hash不同。source unchanged，所有ownbrowser／Next／PG／parent／port／temp／lease finally完成，[fresh OS cleanup readback](../../output/qa/dev-122/DEV-122-settings-ui-final-cleanup-readback-2026-10-05.json)另核exactPID全absent及三埠無listener。原5cbd與941的FAIL／UNKNOWN沒有回填或改寫。
+
+078/079 root／rollback native regression ac875c398fb97ddc為8／8、101 skip不算PASS；focused85／85、release實際134／134、static/mock34+36+9與專案必要release checks以原來源hash沿用，原reporter wrapper FAIL保持。整體PARTIAL_NOT_ACCEPTED只表示DEV尚未完成，不能改成Production或CAD PASS。provider numeric修正與三項新資源仍待具體核准，F-01F保持PENDING_HUMAN_PRODUCTION_VALIDATION／NOT_RUN，由使用者於正式環境自行驗證。
+### Required CI 的預覽夾具補正（2026-10-05）
+
+草稿PR207／db8eb7832cccd3ab18f08043448a0213f5752a18的required CI run37232762876：DEV-012 Isolated PostgreSQL Cutover通過；Production Slice QC在原109-case batch有1FAIL（fa.content_hash missing）並略過後續owner artifact驗證。原raw與FAIL保存於output/qa/dev-122/ci-37232762876-original-failure，不回填成功。TL核實db/schema.sql本來有content_hash／file_ext；第一個principal preview :memory: fixture缺少兩欄，是縮減測試schema未同步合法source predicate。
+
+首次fixture修正只補src/lib/preview-derivatives.principal-provenance.test.ts第一個SQLite DDL／seed：content_hash TEXT與file_ext TEXT NOT NULL DEFAULT ''，沿既有source常數。隔離補驗12案例為11PASS／1FAIL，missing-column已消失，新FAIL為舊wrong-company claim斷言期待failed，而現行guard拒絕且維持queued；原preview-fixture-focused-29a1dc558a32023b失敗／清理不改寫。
+
+TL與獨立Luna核對：既有D05明文other-company／replacement-source不變，native `worker claim excludes native company source input without effects`也要求job:null／full owned rows unchanged；新SELECT與CAS source predicate在claim前拒絕wrong-company，因此舊failed mutation期待已失去source applicability。歷史native7ea77664127659d6確有該case PASS，但缺dirty-product hash完整綁定，只作歷史支持，不宣current native PASS。最小第二修正仍只同一test檔第一case：保留claim:null，在claim前取得完整preview_jobs row、核wrong-company queued input，claim後核整row equality；此檢查涵蓋status／attempt／locks／provenance等不變，強於舊兩欄檢查。其餘enqueue scope/conflict拒絕、foreign derivative null及invalid running completion exact fail均保留；5 case IDs/count不變，不改product/schema/migration或降低guard。再次補驗既有5＋7案例、Luna獨立QC、同一草稿PR required CI。全程task-owned隔離data／repository、port none、bounded5minutes與PID/temp finally清理。numeric provider補丁／新增Secret/IAM仍未核准，不merge／deploy；human native NOT_RUN／7 issues／29 groups不變。
+第二修正ce6c29bf06b852eeaa829263effbbe26ee7374e320ad18490fa4bc9a0042f8b1已在preview-fixture-focused-85e07554830328b9實跑12／12、0FAIL／0pending，source before/after不變、primary兩路徑ABSENT不變；verified parent/child PID與own temp均已退出／移除，Governor runtime released。這只證focused unit regression，不替代native/current Production或原生CAD，仍待獨立final QC与provider required CI。
+
+## 本輪目標、來源與執行邊界
+
+本輪目標是完成 AI-PDM DEV-122 的本地開發與驗收：讓新 Part 能由正常 Principal 工作流申請首次發行，讓 Drawing major 核准的 canonical 與 master 狀態一致，修正原 native 測例並提供 AI-PDM 自有隔離 PG 驗證；附件／worker 與 procurement 500 同樣留在本 DEV，依 source 調查、必要修正及本地驗收收斂，不能在 lifecycle 局部 PASS 後任意延後並宣稱整個 DEV 完成。
+
+- 唯一專案：AIPDM；canonical repository：C:/VIBE CODING/AI_PDM。
+- 本輪 execution worktree：C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM；branch：codex/dev122-internal-functions；起點 HEAD：93b9b4cf67444d461aaa8934b8b1616537301b38。
+- 人類來源：2026-10-03 指定 AI-PDM native DEV 集中一般功能問題；2026-10-04 授權獨立候選移交並接續完成 DEV-122 本地開發。此次範圍限 AI-PDM，禁止跨專案開發。
+- 發現來源：AIPDM/DEV-121；JENFU/DEV-015、ORGMASTER/DEV-057 僅為歷史來源引用，不是本聊天的執行權限或 runner 入口。
+- [移交紀錄](../reports/pm/DEV-122-worktree-transfer-2026-10-04.md)與[機器收據](../qa/DEV-122-worktree-transfer-2026-10-04.json)綁定 19 個程式／測試／未套用 077 候選，加 3 份直接文件及 2 份移交證據，共 24 dirty paths。保留其他人的候選；不移入 DEV-121 其餘工作。
+- PM／TL 文件階段只寫本 spec、dev_task 的 DEV-122 與 documentation_map 的直接入口；不改程式／測試、不啟 runtime。RD 的 file surface 與 phase 進入條件已由下方 Closure Review 定案。
+- 本地 lifecycle、跨層 API／UI 與隔離 migration 屬 Medium lane。Production、遠端 DB、IAM、deploy、正式資料修補及其他專案 source／tests／runner 不在本輪授權內。
+
+本地 DEV 出口必須涵蓋全部 current issue，證據只支持實際執行層級。正式環境異常與 Production bytes L4 不因本地通過而改為 PASS；若其根因或必要功能在本地仍未收斂，DEV 保持執行中／驗證中或明列局部阻塞。文件 ready、候選移入、資源 readback 與測例修復不等於產品完成。
+
+## Scope 與 out of scope
+
+Scope：D122-03 Part first_release、D122-04 Drawing major master 同步、D122-QA-01 測例及自有 native PG runner；D122-05 現有附件／一般 worker 用途與功能缺口；D122-06 procurement release 列表可用性。D122-01／02 僅作回歸，除非新 source／正常入口出現新復現，不重開為 current 缺陷。
+
+Out of scope：修改 OrgMaster／Jenfu-Platform 或其他 repo；讀 sibling checkout 作實作、migration 或 runner 輸入；修改 producer 身分／grant 契約；UID、email、profile role 授權 fallback；新增 Principal ACL；正式 migration、人工 SQL／資料改 Released、production release profile、雲端 mutation、worker 外部部署、採購 consumer 專案實作、無關重構與原不可達防禦性 guard。未套用的 077 保持本地候選，合併前重查 migration 編號，不追加 DEV-121 Production allowlist，不改 applied migration。
+
+## Current Architecture Impact 與既有契約
+
+受影響面是 Part work intent → immutable review package → owner approval transaction → formal／master lifecycle，以及 Drawing major revision → production pointer → legacy master read-model。UI/API 需呈現同一 intent 與 basis；readiness 下游讀到的是同交易已持久化結果。新首次發行不靠 formal anchor 或欄位 generation 推定。
+
+[DEV-121 Principal-only 契約](DEV-121-target-authorization-boundary.md)仍是身分、安全與 shared evaluator 權威：verified Principal、published grants、company／resource scope、不同 Principal reviewer、same snapshot／pinned write transaction、current grant 重驗與 receipt／outbox／worker provenance 不變。本 DEV 新 lifecycle effect 沿用這些邊界；既有 effect 的 publish 防漏與可靠發布 validator 已合併來源仍留 DEV-121。Spec Impact Preflight 結論：Compatible exception，將該契約已交給 DEV-122 的一般功能恢復為本地 current phase；沒有取代身分契約，也沒有恢復歷史跨專案或 Production 指令。
+
+| Issue | Current disposition 與完成責任 | 已知來源／證據及限制 |
+| --- | --- | --- |
+| D122-01 | resolved／regression-only；Part read-model owner。既有工作 matrix 載入、編輯及重載正常，JSON object 與字串解析均不發生 503。 | part-number-matrix-async-repository.ts；歷史 R25/R26，舊證據不作本 variant PASS。 |
+| D122-02 | resolved／regression-only；Part UI owner。idle／blur 儲存後改回原值仍 PATCH，重載符合最後一次成功儲存。 | part-number-matrix-workspace.tsx；歷史 R26，失敗儲存不算 saved baseline。 |
+| D122-03 | current／candidate retained，RD → native PG →正常 UI 驗收；Part owner。 | part-change-work.ts、part-change-work-async-repository.ts、matrix UI／repository；first_release、basis v2、CAS 與 same-tx Draft→Released 已有候選。舊 58 focused PASS 僅為舊 slice；原 5-case native partial FAIL／UI NOT_RUN 保留。 |
+| D122-04 | current／candidate retained，RD → native PG →正常 major／minor UI 驗收；Drawing owner。 | drawing-revision-work.ts、drawing-revision-work-async-repository.ts；候選凍結 exact master link／status／hash。歷史 focused 37/37 為 agent 回報，major native／UI 尚未驗。 |
+| D122-05 | current／bounded investigation →必要修正→本地驗收；file／worker owner。先列現有 caller、purpose、metadata／bytes／output 契約；不以沒有新復現宣稱完成或無儲存。 | file-storage.ts、google-cloud-file-storage.ts 及現有 caller；[R75 readback](../qa/DEV-121-business-storage-provider-readback-2026-10-03.json)只證 bucket／exact create-get IAM。application activation／Production bytes L4 NOT_RUN。歷史 CAD COM 0x8002802B／TYPE_E_ELEMENTNOTFOUND 是環境訊號，沒有產檔，非已定案產品根因。 |
+| D122-QA-01 | current／test defect repair + AI-PDM native isolation，QA／runner owner。先核對測例與 domain failure envelope，再重驗 drift、fault rollback／replay。 | principal-work-review-owner-grant.postgres-contract.test.ts：readback SQL 字面值 dev087:review.decision 被 normalizer 誤讀 named parameter；fault 原預期 500／503、歷史實際 400。歷史當時未證產品 defect；本次 source trace 已定案未知 fault 的共同分類缺口，須修為 exact 500，不能只改成實際碼讓案例過。 |
+| D122-06 | current／bounded source investigation →必要修正→真實 route／native PG 驗收；integration read-model owner。保留 schema_version=1、Released package links 與公司／權限邊界；不退役用途。 | GET /api/integrations/procurement/releases →handoff-async.ts／handoff-async-repository.ts →detail hydration。2026-10-04T00:28:01Z Jed 自有 query 正式回 500／非 JSON；MAXIMA 403 numbering_permission_denied 是預期拒絕。正式 source d55ceeaf67748663da3d107e2c904034e9f40bf4；根因及實際外部 caller 未核實。 |
+
+## Current Phase RD Handoff Contract
+
+### D122-03：Part first_release
+
+1. 正常建立 Part 產生 Draft formal anchor；ordinary edit 核准只更新欄位／generation，保持 Draft，不把 anchor 當作 Released。
+2. Draft、合法狀態、同 owner/company/root 且具 current grants 時，可在既有 Part 矩陣明確選取「申請首次發行」。intent 必須由 server 持久化為 edit／first_release，失敗不在 UI 假裝已儲存；release-only（欄位無差異）也可送審。
+3. 送審凍結 basis v2 的 intent、exact master id/status/hash、formal/work row version 與 payload／package hash。reviewer 正常審核包能辨識「首次發行核准」，不能從當前 mutable row 重建送審事實。
+4. 核准在 owner pinned transaction 重新驗 verified Principal、assigned reviewer、不同 Principal、current decide/publish grant、work/formal/master CAS。全部成立才同交易更新 formal／master Draft→Released、approval_context、terminal receipt 及既有 audit/outbox；非 first_release 不產生此 effect。
+5. 退回修改不發行，重送使用新的 basis。撤權、錯公司／root、漂移、terminal／invalid、同 owner 自審、缺適格 reviewer 均明確拒絕，不能復活、fallback 或部分寫入。並行與相同 idempotency replay 最多一個發行 effect，fault 需證完整 rollback 及 fresh retry／terminal replay。
+
+### D122-04：Drawing major master 同步
+
+1. 保持既有 major／minor 語意：major 核准可產 released revision 與 production pointer；minor 不發行、不誤改 legacy master 為 Released。
+2. major basis 凍結 exact canonical→legacy drawing_numbers master link、status/hash、revision／work version、company/root／Part 邊界。缺失、多義、不一致、terminal／invalid 或不可合法發行的映射需拒絕，不擴大搜尋範圍或改寫無關 master。
+3. 核准沿既有 current publish 重驗，在同一 owner transaction 完成 revision、pointer、master Released、receipt/audit。任一 CAS／grant／basis 漂移拒絕且所有目標不變；故障 rollback、重播與並行都需 DB readback。
+4. 正常重載的 canonical 與 master 狀態一致；合法本地發行資料能通過既有技轉 readiness，Draft／minor／不一致資料仍拒絕。不得靠合成 Active／Released seed 填補 lifecycle 結果。
+
+### D122-05／06：本 DEV 的後續 bounded phase
+
+D05 先用 AI-PDM source 建 caller→purpose→storage／worker output 清單，區分已落地能力、產品缺口、驗證環境限制與未知。現有附件正常上傳／重載／下載需證 metadata、bytes hash／size、company/purpose/initiator/generation 一致；worker 用途需證既有 enqueue／claim／completion 或明確失敗與恢復，不把 placeholder、resource-only readback、純 mock output 或沒有 CAD output 當成功。若完成用途依賴未授權遠端服務、外部 worker 或 CAD 環境，留下精確局部 blocker 與恢復條件；可修的 AI-PDM source 與本地案例繼續，D05 不因此自動 resolved。
+
+D06 先追 list query、detail hydration、package/files/approvals mapping 及 PostgreSQL 相容性；以 AI-PDM 真實 route＋service＋native repository 重現，必要時修正 source。authorized company 應回 JSON schema_version=1、合理 count／entries、正確 Released package links；空白與 limit/since/partNumber filter 符合現有契約，跨公司與缺 integration.procurement.view 拒絕。依賴失敗的 status/code/envelope 依下方 TL 定案的既有 number-state error 契約，不能洩漏 stack 或把 500 變空列表掩蓋。若 source 尚不能解釋正式事件，保留 UNKNOWN；本地 PASS 不回寫正式 incident 為 resolved。
+
+D05 最新只讀 source 查證（2026-10-04）：preview-derivatives.ts 的 previewRequestSupported 僅接受 native_thumbnail_png 的 SolidWorks source 或 drawing_pdf 的 slddrw；non-native Drawing upload（dwg/dxf/step）實際寫 skipped／unsupported_preview_source，不是真正 queued。現行 /api/pdm/file-assets/[fileAssetId] GET 在未取得 derivative 時卻一律回 202 PREVIEW_NOT_READY、retryable=true、Retry-After=2／pending，可能把 terminal unsupported／failed 誤報為可重試準備中；動態復現與正常 UI 尚未執行。此 D05 current 候選採最小修復：保留原檔下載與既有 upload，用真實 latest-job 狀態呈現 unsupported／failed；queued/running 才報 pending 與適用 retry，不新增 converter、不退役用途。驗收需正常 Drawing work upload→preview→可見終止原因／原檔下載，native PG readback 證實 skipped/status/code，確認 UI 不持續無效 polling。supported native purpose 仍需依實際可用 worker output 分層驗收。
+
+master-attachment-panel.tsx 的 preview URL 用第二個 ? 拼接 query 是 static latent 候選；目前 source 搜尋沒有 current mount/import，不得稱正常入口產品缺陷，不優先為此擴大 RD surface。stale recover 只在 master-attachments-async 的舊入口見呼叫，是否抵達 current claim/list 仍需 TL 追蹤與動態驗證，未知不作已證根因。
+
+D06 最新只讀 source 疑點：handoff-async-repository.ts 的 (:submittedBy IS NULL OR s.submitted_by = :submittedBy) 未做型別 cast，而 releases 列表傳 null；nullable PostgreSQL parameter inference 為待 native 復現候選，不是已定案 500 根因。真實 route 沒有 service/detail hydration failure catch；需 native fixture 逐層定位、保留原 error 及決定正常 JSON failure envelope，不能僅因懷疑就 broad rewrite。
+
+### 正常入口與 evidence layer
+
+| Actor／入口 | 正常操作與 observable result | 必要 evidence |
+| --- | --- | --- |
+| Part owner／正常料號清單→Part 編輯工作→矩陣 | Draft ordinary edit；last-saved 還原／重載；選首次發行→儲存→送審。Released 不提供首次發行控制，失敗儲存不能送出未保存 intent。 | 正常導航、實際鍵盤／點選、PATCH/submit、重載畫面；API/DB 補持久化。 |
+| Assigned reviewer／正常審核清單→immutable review package | 首次發行核准／退回；重載狀態、intent、snapshot 不漂移。無適格 reviewer／拒絕情境有最短可恢復回饋。 | reviewer 身分／權限、正常導航、decision response、same-tx native readback；direct URL 只證 route 可達。 |
+| Drawing owner→既有圖號工作台→合法 revision work；reviewer→審核清單 | major/minor 逐模式保存、送審、核准／退回；major canonical/master/pointer 一致，minor 不發行。 | 正常 UI→API→service→native PG；不能只驗 major 或從 UI fixture 推定交易完成。 |
+| 現有附件／worker caller | D05 source 盤點後在相同既有入口上傳、重載、下載，或正常 job flow；結果由案例 delivery path 產生。 | caller/purpose／操作、metadata/bytes/output、error/recovery；無實際 worker output 的層級如實記 NOT_RUN。 |
+| procurement consumer／GET releases API | D06 為既有 API-only 列表 slice；UI entry: Out of scope，來源為該 route 對外 JSON 契約，不新增採購前端。 | 真實 route/auth/service/native DB；外部 consumer 用途未知另記，未授權跨專案驗收。 |
+
+UI 最終 Gate 在 RD 收斂、targeted tests 通過及 candidate freeze 後執行；AI/QC 收集正常／載入／空白／錯誤／permission-denied、desktop 1440×900 與 narrow 390×844、鍵盤流程、viewport、route、screenshots／必要量測。可見 inline-error、alert、4xx/5xx banner、Not Found／Internal Server Error 或非預期零資料即 FAIL／reopen；表格可用既有捲動邊界，但外層不得非預期水平溢出、重疊、文字／CTA 截斷。沿既有最小介面，首次發行 intent 與風險可見即可，不加入流程教學或無關摘要。
+
+## Native PG isolation、fixture 與 QA/QC gate
+
+- runner 必須完全位於此 AI-PDM source，不執行 OrgMaster／Jenfu-Platform runner、不讀 sibling migrations/source、不連遠端 DB、不使用 primary data。AI-PDM DDL 限 ai_pdm_core／ai_pdm_contract；已 applied migration 不改。077 只在 disposable own database 中 apply／rerun。
+- 下方 Closure Review 已定案可由 AI-PDM 已提交 consumer source 追溯的 local versioned typed Principal／grants fixture 與 adapter；不得為方便驗證建立其他 app 的 *_core、改 producer 契約、或將 evaluator seam 稱真實 producer integration。fixture 必須保留 Principal／company／grant 版本與 current revoke 行為。
+- 每個 build/test/app/browser/worker 開始前記 project、purpose、port、PID/process tree、cleanup condition、PDM_DATA_DIR／PDM_REPOSITORY_DIR、PG host/database／schema 與 mutation scope。兩個 data dir 均 task-owned，若不用仍記 unused；先確認可安全重用匹配 runtime，不清未知 port。
+- fixture seed 前，以 unmodified source snapshot 執行 master-count、canonical root/reference、migration-residue、global FK invariants；失敗即 stop，不先修 seed 或刪資料。帳本記 base fixture/hash、seed rows、理由、來源與變更，父資料／grant 前置可 seed，首次發行與 major 核准結果必須由正常 action 產生。
+- isolated build 前後證 primary SQLite schema、canonical root/part/drawing identities、migration-residue inventory、PRAGMA foreign_key_check 不變。所有 runtime／temp path 只清理 verified task-owned tree，記 port released；未清理不得無聲 handoff。
+- QA 凍結 cases/source dirty boundary 後 QC 執行，不在 QC 改產品或 acceptance 取得 PASS；第一個有效失敗保留 raw response/query/readback，回送 RD，只重驗受影響案例及下游。
+
+| Case gate | 操作與 pass／fail 條件 | Layer |
+| --- | --- | --- |
+| P-01／P-02 | ordinary edit 維持 Draft；first_release release-only 可保存／送審／核准，重載 formal/master Released、approval_context／receipt 一致。 | unit + true native PG + normal UI |
+| P-03 | return→修改／重送→新 basis；撤 publish／self reviewer／zero reviewer／wrong company/root 拒絕且無發行 effect。 | native PG；適用 UI error |
+| P-04 | 分別 work/formal/master 漂移、concurrent approve、同 key replay：最多一次 effect；拒絕時 formal/master/receipt/outbox 不部分寫入。 | native PG readback |
+| G-01／G-02 | 正常 major 發行同步 master／pointer；正常 minor 不發行；重載與 readiness 一致。 | native PG + normal UI |
+| G-03 | missing/ambiguous master、terminal/invalid、scope/basis drift 拒絕；無 unrelated master／Part 變更。 | native PG readback |
+| TX-01 | 在核准 effect 中注入 fault；核對合法 failure envelope、rollback 的全部 owned rows、receipt/outbox，再 fresh retry／replay，不能只 assert HTTP。 | native PG |
+| F-01 | 附件／worker purpose 正常入口的持久化／output、拒絕與恢復；non-native skipped/unsupported preview 呈現 terminal，下載可用，不持續 pending/retry；supported output 的缺環境與未完成實作分開判定。 | actual local route/storage/worker + native PG + normal UI，逐用途 |
+| I-01 | authorized procurement list、empty/filter、package/files/approvals hydration；跨公司／缺權限；依賴異常透明且不回假空列表。 | actual route + native PG |
+| UI-01 | Part/reviewer/Drawing 的正常導航、可見 error sweep、資料 sanity、desktop/narrow／鍵盤；fixture HTTP 僅提供 component visual evidence。 | actual browser/UI |
+| R-01 | D122-01 JSON string/object 回歸與 D122-02 saved→還原→重載回歸；既有 Principal 安全測例無新增 fallback。 | targeted tests + applicable UI |
+
+主要 fail-seeking／FMEA：intent 儲存失敗卻送審會造成錯誤發行（P-01/UI-01）；grant／CAS 漂移造成 unauthorized 或 stale 發行（P-03/P-04/G-03）；effect 中斷留下 pointer/master/receipt 不一致（TX-01）；component mock／seed 結果掩蓋壞 route/worker（F-01/I-01/UI-01）。這些都不能由 build 或平均測試通過數抵消。
+
+## Architecture Closure Review：已定案（2026-10-04）
+
+對照起點 HEAD 93b9b4cf67444d461aaa8934b8b1616537301b38＋移交 24 dirty paths 的 current source 完成工程 Closure Review；結論為 RD Implementation Ready／架構已定案，功能未驗收。Spec Impact 為 Compatible exception，沿用 DEV-121 Principal-only 安全契約；本地 fixture/seam 不取代 producer authority。ADR not needed：首次發行／major 同步已由本 DEV 與既有 canonical ADR 約束，本次選定局部修復與隔離驗證實作，沒有另立授權或 release 模型。RD 可立即在下列範圍修改 source；依賴精確安裝是 runtime 證據的進入條件，不能把錯版依賴結果計作 completion。
+
+### 工程責任面與 code write allowlist
+
+一位 RD 作為產品 writer；QA/QC 不改產品，TL 是本 spec 與 DEV-122 索引段落的 writer。允許面依 issue 限定，不等於全檔 stage 或授權修改無關 hunk。
+
+| Slice | 可修改的實際檔案／模組 | 限定責任 |
+| --- | --- | --- |
+| D03／D04，共用 review | src/lib/part-change-work.ts；src/lib/drawing-revision-work.ts；src/lib/repositories/part-change-work-async-repository.ts；src/lib/repositories/drawing-revision-work-async-repository.ts；src/lib/pdm-review-package-contract.ts；src/lib/pdm-review-package.ts；src/lib/repositories/part-number-matrix-async-repository.ts；src/components/part-number-matrix-workspace.tsx；src/components/canonical-review-package-workspace.tsx；src/app/api/pdm/review-requests/[requestId]/route.ts | 整理已移交的 intent／basis／CAS／same-tx／review projection／首次發行控制；正常既有 Drawing major/minor 入口。不得新增產品狀態或 auth fallback。 |
+| DQA01／unknown fault | src/lib/pdm-canonical-workbench-contract.ts；src/lib/pdm-dev087-route.ts（只有 classifier wiring 真有必要才改） | 在共同 error envelope 分類未知 server fault；保留已知 domain 和 Principal error。不得在每個 approval route 重複補丁。 |
+| D05 | src/app/api/pdm/file-assets/[fileAssetId]/route.ts；src/lib/preview-derivatives.ts；src/components/canonical-preview-media.tsx；src/lib/pdm-canonical-preview.ts（terminal reason projection 需要才改）；src/components/canonical-preview-panel.tsx（同一 reason 可見需要才改） | 真實 latest job／hash 的 terminal response、讀取不洗掉 failure、有限 stale recovery、停止 terminal polling、保留原檔下載；不做 converter 或無 mount 附件面板修補。 |
+| D06 | src/lib/repositories/handoff-async-repository.ts；src/lib/handoff-async.ts（只有 hydration 失效定位後必要修正）；src/app/api/integrations/procurement/releases/route.ts | native nullable query cast 與 list/hydration failure JSON envelope；success schema/filter/package links 與 existing auth 不變。 |
+| 本地 schema | db/postgres/077_dev121_canonical_review_lifecycle.sql | own additive lifecycle_intent＋approval_context；當前唯一 077、已提交 own lane 至 076，移交顯示 077 未套用。首次 apply 前核對 hash/編號；若衝突改為下一可用編號並同步本 DEV，不動 applied migration。不得加入 production profile。 |
+| 已移交 targeted tests | src/lib/part-change-work.principal.test.ts；src/lib/drawing-revision-work.principal.test.ts；src/lib/principal-work-review-owner-grant.postgres-contract.test.ts；src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts | lifecycle／review regression；readback colon 字面值與 fault 到達性、native readback。不保留誤稱 OrgMaster producer 的 describe/evidence label。 |
+| 新增／既有最小 focused tests | src/lib/pdm-canonical-workbench-contract.error.test.ts；src/lib/repositories/handoff-async-repository.principal.test.ts；src/app/api/integrations/procurement/releases/principal-releases.test.ts；src/app/api/pdm/file-assets/[fileAssetId]/principal-review-file.test.ts；src/app/api/pdm/file-assets/[fileAssetId]/preview-status.test.ts；src/lib/preview-derivatives.dev122-recovery.test.ts；src/components/canonical-preview-media.dev122.test.tsx | 分類／nullable PG／terminal／recovery 的 fail-seeking 案例；真實 native 預期不能以 mock PASS 代替。命名以此 allowlist 為準。 |
+| DEV-122 自有 runner／fixture | scripts/qc-dev-122-native-postgres.mjs；scripts/qc-dev-122-native-browser.mjs；scripts/lib/dev122-own-postgres-fixture.mjs；scripts/lib/dev122-contract-seam.mjs；scripts/lib/dev122-contract-seam-preload.mjs；config/local/dev122-native-postgres.v1.json；src/lib/dev122-native-business.postgres-contract.test.ts | 新 runner 只啟動 task-owned loopback PG／actual Next；fixture／契約映射／runtime manifest／ledger／evidence／cleanup。不呼叫舊 foreign runner。 |
+| package scripts（可省略） | package.json 的 DEV-122 local script entries | 僅便利入口，exact 命令可直接 node；不改 dependencies/lock 或 production/release scripts。精確依賴安裝另依既有人類容量決策。 |
+
+scripts/qc-dev-121-numbering-owner-grant-postgres.mjs 已移交 dirty hunk保留為 HISTORY_ONLY；不得作 DEV-122 runner、不修其 foreign input、不修改或發布 production release profile。任何新增責任面先回 TL 更新同一 spec，不能以一般授權順手改其他檔案。原移交 capture/hash 與歷史 FAIL 證據不可回寫。
+
+### lifecycle 資料、相容與交易凍結
+
+- Part update 的 lifecycleIntent 是 command metadata，edit／first_release 獨立於 validated attribute payload；GET/matrix 正確讀持久化值，沒有欄位差異的 first_release 可送審。existing works／舊 basis v1 預設 ordinary edit；不得替舊 pending request 補 first_release。basis v2 凍結 exact formal/master/work 和 package/hash，review 從 immutable package 讀 intent。
+- work CAS 的工程定案：既有 immutable decisionBasis 新增 optional workRowVersion（positive integer）；新 Principal Part／Drawing revision submission 一律從同 transaction 已鎖 work.row_version 凍結，包含無 mapped master 的 minor。parser 僅允許既有 exact shape 或原 shape 加此單一欄位；hash 只在欄位存在時納入，既存 package bytes/hash 不重算、不補造。approve 在 same transaction 鎖 work 後，先精確比較 frozen counter，再執行 approval effect；repository formalize 的 expectedWorkRowVersion 與刪除 CAS 使用同一 frozen value，零 affected rows 拒絕並 rollback。新 basis 不得漏值；舊 lifecycle basis v2 漏值回 typed 409，return→重新送審取得新 basis。保留舊 decisionBasis v1 的 ordinary Part edit／無 lifecycle minor 相容（僅原非發行行為），不替舊包造 counter、不准用此相容路徑首次發行或 major production release；Drawing void 不涉及 work，不要求此欄位。這是落實原 exact work／CAS 與 P-04A／G-03B 的 compatible metadata closure，沒有新增 schema、permission、產品狀態或 API endpoint。
+- Part first_release 只允許 Draft master＋Draft formal anchor；所有 terminal/invalid、非 Draft 或 scope/link 不一致拒絕，ordinary edit保持原合法生命週期。owner pinned serializable transaction 涵蓋 current grants、review assignment、work/formal/master CAS、formal/master update、approval_context、trace/audit、terminal receipt、command receipt/outbox 與 work/request cleanup。任何層拒絕不留下部分 effect。
+- unmapped minor 的可達性：work basis helper 可保留無 legacy lifecycle 的 RD 相容，但 Principal submission 仍須有完整同公司／root 的 immutable review matrix 與 primary target。從正常 mapped Drawing 人工拆除 formal pointer、造成 primary 消失的 fixture 必須在 submit 回既有 typed 409，完整 readback 不變；此是 G-03A mapping 負例，不能冒稱已到 work-counter drift。mapped minor 的 native counter drift 與正常 major/minor 驗收保留；不為不合法 root/matrix 補 synthetic axis 或放寬 package integrity。
+- Drawing major 用 exact drawings.formal_drawing_number_id→drawing_numbers.id，對 company/root/Part、master status/hash、basis/pointer/work 逐一驗；major 的 master allowlist 精確為 Draft／Released：Draft 首次 major發行或 Released 後續 major可同步；NeedInfo／Rejected／Active／PendingReview 不是本 DEV 的直接發行起點，須按既有生命週期處理後重新送審，回 typed 409 而不自動跳過舊制責任鏈。terminal/invalid master不復活。minor仍是 RD revision，不新建 released production pointer、不將 Draft master發行、不降級既有 Released master；它可凍結既有合法非終止 master 狀態（Draft／NeedInfo／Rejected／Active／PendingReview／Released）供 drift 檢查，PendingReview 有其他 pending／needs_info numbering request 仍拒絕。這是對 frozen Draft／Released 契約的局部 Closure 澄清：candidate 六狀態集合與其 Rejected 測例未驗收；numbering 舊制狀態機 Rejected→NeedInfo→Active→PendingReview→Released 不能推定為 canonical major 一次跨越的 authority。舊 basis缺凍結資料不補造，需退回／重送取得新 basis後才執行新 lifecycle effect。
+- decide／publish 撤權的可達性定案：本 repo committed v1／v4／v5 catalogs 各九角色皆同有或同無這兩權限，無合法單權限 role/grant input。P-03B／G-03B 保留兩個 current guard 的個別 focused 拒絕／零 effect 證據，加上 actual native published-assignment coupled revoke→403／full rollback→exact restore→fresh approve/replay。兩個獨立撤單權的 native input 標 UNREACHABLE_UNDER_COMMITTED_CATALOG，不算 executed 或 N/A PASS；不得造角色、改 catalog/hash 或放寬 evaluator。這個分層等價證據只閉合不可達組合，其他 assigned reviewer／self／zero reviewer／company/root/link／terminal/invalid 等可達 variants 與全 29-group 分母保持。
+- 同 request／相同 idempotency key 的 completed replay回既有 receipt，不能再次 effect；不同 payload/key 的 collision 與 concurrent approve照現行安全契約拒絕或安全重播，readback最多一次。current publish grant 在 effect前於同一 transaction重驗；不得改 selector/evaluator成角色 fallback。
+
+### DQA01：colon 與 fault 的明確判定
+
+source trace：review decisions route catch→dev087RouteError→canonicalErrorEnvelope；src/lib/pdm-canonical-workbench-contract.ts 的 unknown fallback目前是 WORKBENCH_BAD_REQUEST／400。post-formalize injected Error屬未知 server fault，400為共同分類缺口，不能把測例預期改400或接受任何4xx；歷史receipt仍保留「當時未證產品 defect」。
+
+1. readback查詢將 command_name='dev087:review.decision'改為 command_name=:commandName，參數值保持精確 dev087:review.decision；同樣修所有本 slice receipt readback。保存原 SQL／POSTGRES_NAMED_PARAMETER_MISSING 首次失敗；不 broad rewrite db-async-provider normalizer，也不以刪 receipt assertion掩蓋。
+2. canonicalErrorEnvelope 對已知 CanonicalWorkbenchError保留其status/code/message/correlation；dev087RouteError仍保留有效 If-Match 400、Principal／entitlement契約。未知 Error／非Error server throw回500，error.code=WORKBENCH_INTERNAL_ERROR、generic safe message、correlationId及private no-store，不洩漏stack／SQL／injected marker。必要新增 union/status 500；已知依賴503照既有typed error保留。
+3. TX-01 必須assert formalize fault spy確實呼叫一次、original formalize完成後才throw；若被grant/basis/route前置拒絕，為fixture或產品failure，不算rollback PASS。fault profile保持空，不用PDM_DEV087_FAULT_PROFILE的terminal outcome代替本案例。
+4. failure response exact500／safe JSON＋DB before/after：formal payload/version、master status/hash、work、pending request/status/version、canonical states、approved snapshot、terminal receipt、trace/audit、command receipt、outbox均完整回復。移除fault後fresh retry成功，再same-key terminal replay；readback只一個發行與approved snapshot／receipt／outbox effect。Drawing major另注入pointer／master effect後故障，證同等 rollback。只assert HTTP不充分。
+
+### D05：preview terminal 與 bounded recovery 契約
+
+先凍結 caller→purpose→metadata/bytes/job/output盤點，至少列現有 Drawing work files、Part attachment/preview、正常已mount的canonical file/read/review-package、preview workload claim/heartbeat/source/complete、drawing recognition與既有release-package file reader。只讀盤點其他 storage wrapper；無current caller標latent，不能順手改或據此退役功能。各用途記正常入口、initiator Principal/company、content hash/size/generation、storage provider、output與既有error/recovery能力。
+
+current source確定：file-assets GET在derivative缺失時忽略enqueue回傳的state，一律202；preview-derivatives upsert會在再次enqueue時重設failed/skipped/cancelled。修復先依company＋asset＋source hash＋requested kind讀最新job/derivative；GET不自動重設已有terminal job。沒有匹配job時才建立，existing明示regenerate command可沿原權限重試；不新增無權限重試入口。
+
+| 實際狀態 | file-assets preview response | UI／持久化規則 |
+| --- | --- | --- |
+| ready且source hash/generation符合 | 200，原bytes/MIME契約 | 顯示合法derivative；hash drift仍拒絕。 |
+| queued／running | 202 PREVIEW_NOT_READY，retryable=true，Retry-After=2，x-pdm-preview-state=pending | 有限poll，保留現行30次上限；job具matching來源。 |
+| skipped／unsupported_preview_source（DWG/DXF/STEP） | 422 PREVIEW_UNSUPPORTED，retryable=false，x-pdm-preview-state=unsupported；safe message說明可下載原檔 | 原job skipped/code不被GET洗掉；停止poll，原檔下載／hash/size可用；不新增converter。 |
+| failed／cancelled或succeeded但derivative遺失 | 409 PREVIEW_FAILED／PREVIEW_CANCELLED／PREVIEW_OUTPUT_MISSING，retryable=false，x-pdm-preview-state=failed；附safe job errorCode／generic reason | 409不能僅按status重試；UI讀retryable與state，停止timer，顯示最短terminal原因／原檔操作。 |
+| enqueue/DB/storage依賴異常 | 已知 typed 503或unknown safe JSON500 | 不回202偽queued、不回空成功；原檔storage依賴錯誤仍按原安全契約回報。 |
+
+沒有匹配job且無法enqueue不可宣稱pending；一次GET/readback保留真實error。canonical-preview-media對terminal／202 body與header用同一contract；保留可見錯誤的短reason與可用下載，不新增說明面板。non-interactive/gallery也不能把terminal畫成永遠pending。
+
+stale recovery動態進入條件：原source的canonical claim/read，使用matching fresh與stale jobs，固定clock分別超過既有previewHeartbeatStaleAfterMs／previewQueuedUnclaimedAfterMs，先保存「未recover」first failure，再修preview-derivatives共同入口。read recovery只處理已授權company/asset集合；workload claim只處理其supported kinds/extensions，保留CAS timestamp/status與attempt上限。fresh heartbeat、other-company／unsupported purpose、replacement source不變；recovered queued才可重新claim，exhausted或unclaimed逾時呈terminal。不可使每次GET恢復同一terminal，或全局無scope掃描混入讀入口。若original可恢復，保留PASS回歸而不改該slice。
+
+supported native purpose：正常upload/enqueue/claim／heartbeat／source bytes／complete／download readback逐層驗；task fake output僅worker protocol/fixture證據，不能算真CAD產檔。真worker/CAD缺環境時記該purpose局部BLOCKED與恢復條件（受支援worker／SolidWorks COM註冊、合法原檔fixture及成功bytes），D05保持未完成；其餘terminal/read/storage本地修復繼續。Production storage activation／bytes L4本輪NOT_RUN。
+
+### D06：原native復現與可見JSON failure
+
+先以unmodified handoff SQL、submittedBy=null／非null及真native parameter binding執行，保留原query、values形狀、SQLSTATE（nullable疑點預期42P18，實際碼以native為準）、source/hash與first response；不可先CAST再稱root cause已復現。若原nullquery確實失敗，採repo既有dashboard相同CAST(:submittedBy AS text)的兩處型別穩定寫法；company/status/latest ordering、max200 scan、filter/limit語意不变。未復現則不投機CAST，native定位下一層list→getSubmission→files/approvals/package hydration。
+
+route的access拒絕response保留401／403 numbering_permission_denied等契約；success保留integration=procurement、schema_version=1、generated_at/count/entries及Released package URL。service/list/hydration依賴throw由route以既有numberStateFlowErrorResponse(error, safe generic message)收斂：unknown500、error.code=number_state_internal、message不洩漏SQL/stack、retryable=false、private no-store；已知NumberStateFlowError維持typed status/code/retryable。不能catch後entries=[]／count=0／200。fixture中非空Released submission、files、approvals與release package須actual readback並normal下載；真正empty fixture另建empty case，非預期zero為FAIL。null hydration／company mismatch若掩蓋有權fixture的row需保存證據再局部修service，不擴展新資料模型。formal historical500根因仍UNKNOWN，local SQLSTATE與JSON修正只證local失效機制。
+
+### Native PG lawful fixture 與 actual Next executor（凍結v1）
+
+新增AI-PDM runner，而不改用scripts/qc-dev-121-numbering-owner-grant-postgres.mjs。exact local入口：node scripts/qc-dev-122-native-postgres.mjs --suite=lifecycle|files|procurement|ui|all；--plan-only僅source/target plan，不算驗收。每個suite可獨立fail seeking；all依序全套，phase failure保留raw證據。runner配套檔由上方allowlist新增，不能只回報「runner unavailable」而未實作。
+
+- 選用已安裝本機PG17/18的initdb/pg_ctl；新task-owned cluster、127.0.0.1動態free port、dev122_<16hex> database與marker AIPDM_DEV122_LOCAL_V1。runtime login只具own業務DML/select/execute，不是postgres、owner、DDL或migrator；bootstrap與migration login分離。schema inventory除system/extension只有ai_pdm_core/ai_pdm_contract，zero foreign *_core、zero foreign schema、zero public app objects，拒絕任何遠端dsn與未標记data directory。
+- fixture schema源自本repo已提交baseline own lane：001,003,042,047,048,049,050,051,052,053,055,056,063,062,064，再065–076，最後未套用077；054為retired，004–041/043–046已folded、002僅trace。manifest記每個source bytes/hash與compiled hash，077 apply＋rerun證additive default edit／context NULL、constraints與immutable triggers。不修改applied source或production profile/hash。
+- baseline新local compiler直接把歷史public app namespace編譯到ai_pdm_core，不建立ai_pdm_legacy_stage。062的import_legacy_ledger、move_public_relations、move_public_functions三named DO blocks因fresh own namespace已到位而精確略過並記transform；保留catalog move、own functions/views、FK indexes、ownership、runtime grants與public-empty assertion。role名相容所需的historical placeholders只能在此disposable cluster建NOLOGIN，沒有其他app schema／資料／登入權。拒絕任何未宣告transform，編譯SQL保留審查artifact；不execute existingN1C遠端CLI。
+- 055／066起catalog prerequisites只seed本repoconfig/access-control的committed catalog publication＋roles/active catalog，逐版hash ledger；077以077實際byte hash獨立記錄，不抄production migration allowlist。unmodified snapshot在任何case seed前通過master-count/root-reference/migration-residue/globalFK；再ledger寫入公司、Principal one-to-one account/profile、ownsession registry、versioned grant/identity前置。每個fault/drift種子另列mutation ledger。
+- local versioned seam名稱ai-pdm.dev122.local-contract-seam.v1；own fixture objects為ai_pdm_contract.dev122_fixture_active_principal_accounts_v1、dev122_fixture_active_principal_mappings_v1、dev122_fixture_principal_effective_grants_v4、dev122_fixture_principal_auth_state_v3。欄位／version取自本repoconsumer契約；typed account、alias唯一、issuer/subject、employee、company、active lifecycle、authEpoch/profileVersion、assignmentVersion/hash/currentrevocation均具actualPG rows／readback。
+- scripts/lib/dev122-contract-seam-preload.mjs僅test runner注入。只接受本repo已核對的exact read-only versioned-contract SELECT templates：orgmaster_contract.v_active_principal_accounts_v1、v_active_principal_mappings_v1、v_ai_pdm_principal_effective_grants_v4及platform_contract.read_principal_auth_state_v3；讀取模板hash allowlist映射到上述ownobjects，其餘SQLtext、parameters與同一pinnedPG client不变。不是泛replace schema；unknown foreign句、非SELECT/mutation或other *_core立即fail。若startup/API需其他contract模板，先回TL核對consumer用途更新v1allowlist，不能runtime自动扩權。storedownmigrations中的contract依賴不建立foreign objects，不執行不在此case用途的account manager流程。
+- effective-grants fixture 的工程定案：唯一 private own base object ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4 保留 revoked／expired input，只有 bootstrap parent seed／exact CAS／readback 可存取。原 dev122_fixture_principal_effective_grants_v4 名稱為 SELECT-only view，投影 transaction_timestamp() 位於 [valid_from, valid_until) 的有效 rows；valid_until NULL 為無上界。runtime 僅具該 view SELECT，沒有 base grant。原 consumer SELECT／hash、seam template／mapped SQL／parameters／pinned client 不變，不新增 foreign template、role、permission、producer authority 或 runtime mutation grant。原 expired row 造成 source-invalid／503 的診斷保留；修後 actual consumer 無有效 assignment 應按既有契約回 typed permission denial，不改產品 validator 或接受任意503。
+- seam只能在explicit task local env、loopbackPGmarker/readback、own runtime login、verifiedtask dirs下啟用；production/cloud/unknowntarget立即拒絕。正常mode不載入seam、不改產品requestguard／permissionevaluator／reviewerselector、不mock business repository、service、route、DB transaction或HTTPresponse。
+- native readback 的工程定案：business runtime 仍沿原非 owner／非 DDL／非 migrator privileges，不為完整 rollback snapshot 擴 grant。既有 bootstrap parent 可提供 fixed-action、nonce-bound 的 owned-lifecycle-snapshot，只以 read-only repeatable-read transaction 列出 ai_pdm_core 自有 catalog 並讀全部 qualified／quoted tables；caller 不得提供 SQL、table、schema、credential 或任意資源參數。所有效應前後快照保留原完整 rows，含 runtime 無權讀的 migration metadata；observer 結果不作 business authorization 或 effect input。runner 明示並 preflight firebase_bff／platform on／entitlement enforce，禁止繼承缺漏 mode 造成無效案例。此為隔離驗證 harness closure，不改產品／producer／權限契約或驗收分母。
+- actual Next UI executor使用同一isolatedPG與task-ownedPDM dirs。Next root metadata isolation：runner先以固定allowlist複製本execution worktree的package.json／next.config.mjs／tsconfig.json／tsconfig.app.json／tsconfig.next.json／next-env.d.ts及src／public／db／config／contracts到.tmp/dev122/<runId>/app-project，保存逐檔source/copy hash並確認相等；public若source不存在只記ABSENT且copy亦不存在；其餘required files／directories缺漏仍fail-closed。拒絕source symlink／非regular input，不複製.env、primary data、output、其他worktree或sibling。既有exact node_modules只建指向本worktree的verified junction，不複製／安裝依賴。node node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port <reserved-local-port>以app-project為cwd；--webpack為installed Next16.3.8正式支援的executor mode，actualpages／API／service／businessSQL不替換。PDM_NEXT_DIST_DIR固定copy-relative .tmp/next-dist，PDM_NEXT_TSCONFIG_PATH固定copy-relative tsconfig.next.json，Next actual path.join／resolve readback須與app-project/.tmp/next-dist及app-project/tsconfig.next.json相等；不把Windows絕對path直接交給Next設定。只有Next child增加DEV122_NEXT_PROJECT_ROOT，seam驗其realpath精確等於runtimeRoot/app-project、該copy marker及process.cwd()；僅PDM_NEXT_DIST_DIR以此已驗copy root解析，PDM_DATA_DIR／PDM_REPOSITORY_DIR與其他native/browser children保持原ownroot範圍及guards。relative/escape/symlink mismatch立即拒絕；契約SELECT templates／source hashes／mappedSQL／parameters／provider／runtimeprivileges不變。metadata／typegen只能寫task copy，copy-only agentRules:false禁用額外Agent檔案生成並保存config唯一差異。copy及Next dist合計採2GiB硬上限監測，不follow node_modules junction，超限只停止fingerprint相符的ownNext tree並保留FAIL；readiness每次fetch最多5秒、overall120秒。每輪Next前以固定原session／C:\／lint_test／2GiB／operationId重新Governor check --reserve並保存ownrun原始JSON；只以當次matchingactivelease／policy／expiry執行，finally停止verified runtime並清理後釋放，不使用risk override或拿已released歷史receipt啟動。Vitest runner CLI明確排除**/.tmp/**及**/output/**，只執行既定source testcase而非runtime copy中的重複檔；不改全域vitestconfig。NODE_OPTIONS只在Next child注入本repo exact seam preload，其root／模板／privileges不變。正確signedfixture Principal cookie與ownsessionregistry用本reposessioncodec建立；不提供UIquickloginfallback。source worktree tracked config／next-env before/after hash相等；runtime child停止／port釋放／junction target再次核對後才刪除marker-bound task copy，cleanup包含browser/context。既有Vite qc-dev-121-canonical-lifecycle-browser.mjs僅componentvisual輔助，不作normalapp驗收。
+- runner建fixture/querymapping自驗：unknown foreign句拒絕、mutating contract句拒絕、unsupported dsn/marker拒絕、denied/revoked/aliascollision確實拒絕；native business rollback不由seam處理。evidence標REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM；identity/producer boundary=FIXTURE，producer integration/joint/Production=NOT_RUN。不稱真OrgMaster producerpublication。
+- 一個case只seed合法開始條件；P/G預期Released／pointer／approvedsnapshot由normalaction產生。procurement可seed明示historicalReleased讀取前置，這只證D06readcontract；不得把此seed當D03/D04發行成果。F實際source bytes由normalupload產生；fakeoutput必須另標，不證CADconversion。
+- project=AIPDM，purpose／port／ownerPID/process tree／cleanupcondition、PDM_DATA_DIR/PDM_REPOSITORY_DIR（unused也記）、PGdsn不含credential／database/schema/marker均在啟動前存manifest。runtime_root=.tmp/dev122/<runId>，evidence_root=output/qa/dev-122/<runId>；暫存cluster/files/dist/bootstrapkeys皆taskowned，evidence保留。finally只停止verifiedchildtree／pgcluster、確認portsreleased，再刪verifiedtaskpaths；不能關未知node／port或userownedUI。
+- 精確dependency gate：有效測試前逐項比對 package-lock 與實際 installed packages，所有 nonoptional dependency 必須存在且版本一致；閱讀該實際 Next 的 node_modules/next/dist/docs 相關指南。精確安裝沿既有單次 5GiB 容量決策；新的高成長 operation 另核對容量。wrong-version runtime 不算 PASS；原版本 drift 與新 readback 各自保留，不回寫歷史。沒有 exact deps 只擋該 runtime 驗收，不改 scope。
+
+### Browser native process identity closure
+
+2026-10-04 的 run d0c875d7b36e22cc 證明 Chromium PID／creation FILETIME 相同，但 PowerShell Process.Path 與 QueryFullProcessImageNameW 回報 MSIX alias／native executable 兩個路徑。Browser harness 以 OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)、GetProcessTimes、QueryFullProcessImageNameW 取得的 exact PID／creation token／executable 作唯一 canonical identity，與 Governor 的原生 fingerprint 方法一致。PowerShell alias 與原始 raw 診斷保留；PID／creation token 必須完全相同，不接受 native mismatch、不刪 port argument、不修改 Governor 或放寬 runtime 登記。cleanup 使用同一 native identity，關閉 own browser/context 後須實際確認原 process 已退出與 websocket port 已釋放；任意 query error 不能當作 process dead，須有原生已退出或 PID 不存在的可核對證據。重新使用的 PID 必須辨識不同 creation token，不得停止新 process。
+
+UI suite 可只選已存在的 actual Next UI prerequisites describe，以 actual signed codec/session registry、原生 schema/合法正常 API 產生必要 fixture。manifest 明列 selected／executed／skipped case 與 source applicability，不能聲稱本輪執行 P/G 全套；既有 source-compatible native receipts 可單獨引用。此分派不變更全 29 IDs、任何驗收變體、actual UI 正常入口、兩種 viewport 或完整 final candidate gate。
+### UI Drawing lawful multi-role fixture closure
+
+run d61448ac8265f886 的正常 Drawing 首頁入口／清單實際回 permission_not_granted／403，原 rd_manager-only input 與 first failure 保留；不得以 selector timeout、direct workspace URL 或接受 403 代替正常 UI。現行清單要求 page numbering.drawings.view；committed v5 manufacturing 已授予該 page，rd_manager 已授予正常編修／送審／發行 actions。Consumer 的 effective assignments 支援多筆，但同 Principal 必須屬同一 published assignment version/id/time。
+
+僅 UI suite 的初始 lawful fixture 可為原 owner Principal 增加一筆既有 committed manufacturing role 的 direct employee workspace/company-jenfu assignment：不同固定 assignmentId、相同 grantVersionId/version/publishedAt、相同 typed employee／issuer／subject／company link。先核現行 consumer cardinality、catalog allowed scope/subject 與版本驗證；bootstrap 在 sessions／commands 前 seed，逐欄 ledger/readback，保持 exact catalog bytes/hash、producerBoundary=FIXTURE，不能聲稱 real producer integration。這是合法多角色 union，不創 permission/role、不修改 evaluator、API policy 或產品 guard。原 reviewer 單筆及 native lifecycle/files/procurement default fixture 不擴；single decide-only/publish-only 仍依 committed catalog 的原可達性界線處理。版本不一致／duplicate assignment／scope 或 identity mismatch 必須拒絕；未知 producer cardinality 或 actual validation failure 回 TL。
+
+UI 必須保留原單角色 403 的狀態與 raw；新同公司多角色 fixture 以 actual Drawing list 200、非零 own row、正常首頁 click→列表→workspace action 驗證。Reviewer 由既有 Part submitted row→前往審核→返回審核清單→list→同一 immutable package，保留實際 route/CTA 序列；Drawing 由既有首頁 link。全 29 IDs、正常 permission denial、兩種 viewport 及 final frozen candidate gate 不變。
+### Validation、正常入口與 evidence gate
+
+| Layer | Exact entry／case gate | Pass條件與證據適用 |
+| --- | --- | --- |
+| source／DBboundary | git diff --check；npm run check:db-boundary | 記HEAD＋dirty path/hash；boundary靜態pass只證source。077／localcompiler變更後重新核對actualchangedSQL，不能只用stagedmode忽略unstaged。 |
+| focused tests | npx vitest run src/lib/part-change-work.principal.test.ts src/lib/drawing-revision-work.principal.test.ts src/lib/pdm-review-package-lifecycle.test.ts src/lib/repositories/drawing-revision-work-async-repository.lifecycle.test.ts src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts src/lib/pdm-canonical-workbench-contract.error.test.ts src/lib/repositories/handoff-async-repository.principal.test.ts src/app/api/integrations/procurement/releases/principal-releases.test.ts src/app/api/pdm/file-assets/[fileAssetId]/principal-review-file.test.ts src/app/api/pdm/file-assets/[fileAssetId]/preview-status.test.ts src/lib/preview-derivatives.dev122-recovery.test.ts src/components/canonical-preview-media.dev122.test.tsx | exact deps＋taskownedenv；errorclass與terminal/current lifecycle回歸。未存在newtest由RD新增再執行，不因missingfile移除case。 |
+| native lifecycle | node scripts/qc-dev-122-native-postgres.mjs --suite=lifecycle | P01–P04/G01–G03/TX01；true business PG、same TXreadback、grant revocation、work/formal/master/pointer drift、concurrency/replay＋colon測例。selectedsuite必須非zeroexecutedcases，skip不算PASS。 |
+| files／worker | node scripts/qc-dev-122-native-postgres.mjs --suite=files | F01拆caller/purpose；actual routes/native PG/storagebytes、terminal poll/readback、bounded stale recovery、scope/provenance、native job claim/complete。real CAD output缺失另明列BLOCKED，不能用fakePASS抵消。 |
+| procurement | node scripts/qc-dev-122-native-postgres.mjs --suite=procurement | I01含original null SQLSTATE／fixed native query、actualGET/auth/service/hydration、非空count/links/bytes、empty/filter/denied、list與每個hydration依賴faultJSON500。formalincidentrootcauseUNKNOWN另保留。 |
+| actual UI | node scripts/qc-dev-122-native-postgres.mjs --suite=ui | UI01/R01：owner由正常/numbering/create建立Draft，/numbering/search→Partcontrol→matrix保存/還原→首次發行→送審；reviewer由/approvals清單→requestpackage核准/退回；Drawing由/numbering/drawings列表→workspace major/minor→upload→submit→review。actual NextAPI/services/native PG，不只direct URL；finalfrozen candidate收集desktop1440×900/narrow390×844、keyboard、loading/empty/error/permissiondeny、screenshots/network與DBreadback。 |
+| type/build | npm run typecheck:app；npm run build:isolated | exact deps，taskowneddirs；existing build script 已有 cwd primary logical snapshot；本 DEV 額外由 caller 以 readonly/fileMustExist/query_only 工具對 canonical C:/VIBE CODING/AI_PDM/data/ai-pdm.sqlite 作 before/after snapshot，核對 schema、canonical root/part/drawing identities、migration residue、PRAGMA foreign_key_check 四類不變。這只讀 inventory 不作 build input、不啟 primary runtime；worktree absent 不替代 canonical primary 檢查。若 canonical path 亦不存在，記兩處 exact path absent before/after，不能冒稱查過 primary；不得讀 sibling source 作 build input。 |
+
+QA依上方既有P/G/TX/F/I/UI/Rcase展開最小可執行計畫；case分母包含全部currentissue，D01/D02只regression。驗收故意觸發的expectederror可以PASS；正常畫面的inlineerror/alert/route4xx5xxbanner、NotFound/InternalServerError或非預期criticalzero為FAIL/reopen，不能用其他layer結果抹掉。沒有適格reviewer、intentsave失敗、stalegrant或terminalmapping均有短可恢復回饋；外層不新增overflow/overlap/CTAcutoff。正常action與API/DBevidence必須同source/fixture/variant。
+
+首個有效failure保留rawresponse/query／SQLSTATE/readback；QC不得改test/acceptance，回RD後只重驗affectedcases與下游。artifact含sourceHEAD＋dirtyhash、exact deps/Nextversion、runner/fixture/seamversion、command/exit、case/role/company、seed ledger、route/method/viewport、screenshots、DBbefore/after/byteshashsizegeneration、PIDportsdirs与cleanup。unknown／NOT_RUN／BLOCKED不得平均成PASS。
+
+執行順序：RD整理lifecycle/schema＋classifier/tests→own runner/fixture seam→originalD05/D06failseeking與必要修正→focused/native gates→candidate freeze→actualnormal UI→QA/QCaggregate/SpecDrift。D05/D06只讀調查与既定source修復可平行於依賴安裝等待；single product writer不重疊hunk。不得先做Vite UI PASS後宣稱native完成。
+
+### Stop／re-entry與實作裁量
+
+授權project/environment漂移、sibling/remote/production/primary mutation、dirty hunk不可分離、fixture baseline invariant失敗、mapping/schemaowner不明、unknown write outcome、existing security contract冲突立即停止受影響phase。runtimeexact deps不可得、Next/seam/worker不可啟動按該layerBLOCKED，記actualfailure及恢復條件，不縮scope。case/正常入口無法抵達、需要新增API/schema/state/permission/跨模組責任或allowlist之外檔案，先回TL重新ClosureReview；不得自補新架構／改acceptance以PASS。
+
+RD可決定局部命名、無契約影響的寫法、測例組織／taskPID/port/runId和可追溯的fixturerows；不能改首次發行/major/minor語意、terminal不復活、immutable basis/version、current grants、same TX、realPG/actual Next驗收層、producer fixture標註或全issue分母。TL文件ready不表示functional PASS；DEV全部local completion需所有currentcase通過，未通過／未充分驗證／unknown仍保持執行中或相應局部BLOCKED。
+
+Release impact note：維持旧review package相容、publishedgrants、forward-only migration與storage/runtime provenance；本轮沒有deploy／traffic／formal migration authority，不改production release profile。077不得偷偷進DEV-121release capsule。
+
+使用思考習慣：#問題拆解、#可驗證性、#證據品質
+
+### F-01F secure local credential prerequisite closure（2026-10-05；HISTORY_ONLY／已停止）
+
+人類已確認持有 Document Manager key，但不知道設定位置；授權 J:/我的雲端硬碟/02_工作/00_雜項任務(進行中)/20260703 PDM開發 的檔案作測試資料。正式 /settings 截圖為 production-slice-blocked；現行 source 的 /settings/security 與 secrets mutation 未列入 production slice，且 secret routes 仍呼叫 legacy requireAuthAsync，在 Principal-on 模式回 principal_route_not_migrated。這是目前正常設定 UI 的不可達邊界，不可透過舊身份、permission fallback、修改 production gate 或換 demo mode來略過。正式設定 UI／production setup 不在本輪本地 native properties 驗收範圍；未驗收、未部署。
+
+本 Closure Review 只補既有 F-01F native_metadata/customproperties 的 fixture provisioning。唯一 RD 可修改既有 DEV-122 runner、native business tests，並新增 scripts/lib/dev122-secure-credential-input.mjs 作 task-only loopback 密碼輸入 helper；不改產品 API/auth/catalog/schema/state、browser normal-flow tests、dependencies 或 frozen29case分母。這個 helper 必須明示 DEV-122 隔離測試用途及使用後刪除，以 single-use owner nonce、exact Host/Origin、CSRF、body limit、no-store 保護；只 bind loopback，不記輸入／request body、不可把 key放chat/log/argv/URL/plaintextfile/global env。輸入經記憶體／匿名 stdin 交 actual createSettingsSecretDraft 與 enqueueSettingsSecretProbe（DIRECT_MODULE_FIXTURE_PROVISIONING 層），明設 PDM_SETTINGS_SECRET_PROVIDER=windows_dpapi、PDM_WINDOWS_DPAPI_SECRET_DIR=task-owned credential-vault；encrypted blob只在此隔離根，讀取不跨入預設／primary secret-store。
+
+Actual original recognition worker 先執行 native credential probe，probepassed後才用既有 activate function啟用隔離 reference；原 broker讀 active exact version，worker env fallback與breakglass禁用，Google Secret Manager／遠端零操作。接續三格式授權 CAD正常 enqueue→claim→heartbeat→source bytes→原 native reader→complete→persisted result/readback；真 native properties／extractor id／source hash與provenance為成功證據，filename/Shell不能替代。Key生命週期不冒稱正常Principal settingsUI PASS，native purpose也不能因 setup helper成功算PASS。若 key/probe/讀檔失敗保存安全 result code與first failure，不能偽造或手填 properties。
+
+先 source freeze／helper empty-input smoke，再以已登記 own runtime等待人類私下輸入；記project、ports、owner PID tree、PDM_DATA_DIR/PDM_REPOSITORY_DIR／DPAPI mutation scope、cleanup條件／責任。只收受人類本輪主動輸入；不得讀其既有 primary secret。human等待期間helper與fixture的未清理義務由RD/Root持有，所有task-owned ports/processes/temp/UI於驗證完成或取消後清理。原CLI/UI/native/failure收據及其source綁定維持歷史原樣，新變更另綁before/after及既有證據applicability；只補此目的與受影響下游，不無條件重跑完整97/fullUI/build。預先確認baseline invariants及fixture mutation ledger，獨立QC保留驗收層與29分母。
+## 歷史候選與證據保護（HISTORY_ONLY，非施工 queue）
+
+下列原始範圍／source fence／跨專案 runner 描述保存歷史追溯，不能取代上方單一 AI-PDM 本地契約。原受控 JSON／FAIL／cleanup／provider readback 不改寫；此次升級只整理契約，不重新判其證據層級。
 
 ## D122-07：外部供應商回覆入口缺少已定義的 Principal／權限政策
 
@@ -48,10 +350,6 @@ native 命令是 OrgMaster existing `node scripts/qc-dev-047-postgres.mjs --suit
 
 歷史 resolved 原證據來源為 [DEV-121 HISTORY_ONLY](DEV-121-target-authorization-boundary-history-2026-10-03.md) R25/R26 以及 `JENFU/DEV-015` 的 `output/dev-012/inputs/dev015-r26-jed-daily-edit-production.json`、`dev015-r26-owner-result-readback.json`、`dev015-r26-restored-work-read.log`。history 只取證，不恢復舊 UID／bridge／future phase 指令。
 
-## 恢復條件與驗收方向
+### Actual UI existing gallery flag closure (2026-10-04)
 
-後續由人類啟動 AI-PDM 單專案功能修復排程，先確認 current source、重現與業務語意，再提升同一文件所需成熟度。不把這份 Brief Ready 當 RD 或 Production 操作命令。
-
-生命周期恢復時，最小方向是明確意圖／immutable review basis／不同 Principal／current grants、exact work/formal/master CAS、同交易 owner effect。首次 Part anchor仍不得視為 Released；普通 edit 不改狀態，minor 不發行，終止／invalid 不復活。正常 UI→API→service→native PG 保存、重載、review return/approve、撤權／漂移拒絕、並行／重播、故障 rollback 及技轉 readiness 按實際層級驗證；不使用合成 Active seed、人工 Production SQL 或退役 UID release caller。
-
-附件／worker僅在用途確認後驗其 metadata/bytes/company/purpose/initiator/generation與正常入口；新發現先追加同一列表，不為症狀另建 DEV。文件 ready、本機 PASS、raw FAIL 或資源 readback 都不替代功能完成與正式 L4。
+Run 27a5023151b6ef6d 已從正常首頁抵達 Drawing list 200／own row、workspace、terminal preview 409／停止輪詢及原檔下載，但 list 未投影 previewByRowKey、gallery 未掛載；原 FAIL 與 cleanup 原樣保留，不以 selector fallback 當 PASS。source number-state-flow-feature.ts 的 gallery guard 要求既有 PDM_WORKBENCH_PREVIEW_GALLERY_V1、PDM_UNIFIED_DRAWING_WORKBENCH_V1、PDM_NUMBER_LIFECYCLE_V2。為執行原 F-01C／UI-01 mounted gallery case，僅此 DEV own UI Next child 固定這三項為 true，並明設其既有 PDM_NUMBER_STATE_FLOW_V1=true；runner 保存 exact child env flags／preflight，actual list raw 必須有 previewByRowKey，正常 UI 才驗 gallery。不得改產品 default、global/User/Machine env、其他 child／非 UI fixture、grant／evaluator／schema／業務 SQL，也不啟用無關 flag或擴大 scope。所有 29 IDs、兩 viewport、正常入口、terminal quiet／download 與 permission negative gates 不變；已清理的原未啟 flag batch 不作 gallery PASS。此為既有驗收層的 executor prerequisite closure，未新增產品功能或 release authority。

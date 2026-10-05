@@ -18,6 +18,12 @@ vi.mock("@/lib/jenfu-principal-request-guard", async original => ({
         assuranceLevel:"aal2",issuedAt:"2026-10-01T00:00:00Z",expiresAt:"2026-10-01T01:00:00Z"}
     }),{readOnly:options.readOnly!==false,isolationLevel:options.isolationLevel??"repeatable_read"})
 }));
+import { POST as createTransfer } from "@/app/api/transfer-packages/route";
+import { POST as addTransferItem } from "@/app/api/transfer-packages/[id]/items/route";
+import { POST as submitTransfer } from "@/app/api/transfer-packages/[id]/submit-review/route";
+import { POST as decideTransfer } from "@/app/api/approvals/requests/[requestId]/decisions/route";
+import { buildTransferPackageReadiness } from "@/lib/transfer-package-phase1d";
+import { PartChangeWorkAsyncRepository } from "@/lib/repositories/part-change-work-async-repository";
 import { POST as createRecord } from "@/app/api/numbering/records/route";
 import { readPartNumberMatrixWorkspace } from "@/lib/part-number-matrix-workspace";
 import { GET as readMatrix } from "@/app/api/pdm/parts/[partId]/matrix-workspace/route";
@@ -76,7 +82,7 @@ beforeAll(async()=>{
   await fs.access(path.join(taskRoot,"cluster","PG_VERSION"));
 });
 afterAll(async()=>{await db?.close();});
-describe.runIf(enabled)("OrgMaster grant v3 -> actual Principal part/drawing work and review on native PostgreSQL",()=>{
+describe.runIf(enabled)("Historical Principal fixture -> actual part/drawing work and review on native PostgreSQL",()=>{
   it("creates, edits, submits and approves a part; only the assigned Principal can decide, with exact replay",async()=>{
     const created=await ok<{partNumber:{id:string}}>(await createRecord(request("/api/numbering/records",ownerToken,"POST",
       {coreName:"DEV057 part review",itemKind:"purchased",structureType:"single_part",drawingRequested:false})),201);
@@ -105,7 +111,7 @@ describe.runIf(enabled)("OrgMaster grant v3 -> actual Principal part/drawing wor
     const submission=await ok<Submission>(await submitPart(request("/api/pdm/part-change-works/"+workId+"/submit",ownerToken,"POST",{},
       work.data.rowVersion,work.meta.contractToken),params));
     await completeReview(submission,"approve");
-    expect(await db!.queryOne("SELECT part_name FROM part_numbers WHERE id=:id",{id:partId})).toMatchObject({part_name:"Principal reviewed part"});
+    expect(await db!.queryOne("SELECT part_name,record_status FROM part_numbers WHERE id=:id",{id:partId})).toMatchObject({part_name:"Principal reviewed part",record_status:"Draft"});
     expect(await db!.queryOne("SELECT id FROM part_change_works WHERE id=:id",{id:workId})).toBeNull();
   });
   it("uploads two native drawing files, submits the first revision and returns it for correction without changing its owner",async()=>{
@@ -130,3 +136,116 @@ describe.runIf(enabled)("OrgMaster grant v3 -> actual Principal part/drawing wor
     expect(await db!.queryOne("SELECT owner_user_id FROM drawing_revision_works WHERE id=:id",{id:workId})).toMatchObject({owner_user_id:"qc-profile-owner"});
   });
 });
+
+
+async function draftReleaseFixture(label: string) {
+  const created = await ok<{partNumber:{id:string;partNumber:string}}>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+    {coreName:"DEV121 lifecycle "+label,itemKind:"purchased",structureType:"single_part",drawingRequested:false},1,"","lifecycle-number-"+label)),201);
+  const partId=created.partNumber.id;
+  expect(await db!.queryOne("SELECT record_status FROM part_numbers WHERE id=:id",{id:partId})).toMatchObject({record_status:"Draft"});
+  expect(await db!.queryOne("SELECT id FROM part_approved_change_snapshots WHERE part_id=:id",{id:partId})).toBeNull();
+  const started=await ok<{data:{workId:string}}>(await createPartWork(request("/api/pdm/parts/"+partId+"/change-works",ownerToken,"POST",{},1,
+    await contract("qc-profile-owner")),{params:Promise.resolve({partId})}));
+  const workId=started.data.workId,params={params:Promise.resolve({workId})};
+  const before=await ok<Work>(await readPartWork(request("/api/pdm/part-change-works/"+workId),params));
+  await ok(await updatePartWork(request("/api/pdm/part-change-works/"+workId,ownerToken,"PATCH",
+    {...before.data.payload,lifecycleIntent:"first_release"},before.data.rowVersion,before.meta.contractToken),params));
+  const work=await ok<Work>(await readPartWork(request("/api/pdm/part-change-works/"+workId),params));
+  expect(work.data.payload).toEqual(before.data.payload);
+  const matrix=await ok<{data:{columns:Array<Record<string,unknown>>}}>(await readMatrix(
+    request("/api/pdm/parts/"+partId+"/matrix-workspace?workId="+workId),{params:Promise.resolve({partId})}));
+  expect(matrix.data.columns.find(column=>column.partId===partId)).toMatchObject({lifecycleIntent:"first_release",canSubmit:true,canRequestRelease:true});
+  const submission=await ok<Submission>(await submitPart(request("/api/pdm/part-change-works/"+workId+"/submit",ownerToken,"POST",{},
+    work.data.rowVersion,work.meta.contractToken),params));
+  const review=await ok<{data:{lifecycle:{intent:string;masterStatus:string}}}>(await readReview(request("/api/pdm/review-requests/"+submission.data.requestId,reviewerToken),
+    {params:Promise.resolve({requestId:submission.data.requestId})}));
+  expect(review.data.lifecycle).toMatchObject({intent:"first_release",masterStatus:"Draft"});
+  return {partId,workId,submission};
+}
+
+describe.runIf(enabled)("DEV121 internal F05/F06 native canonical lifecycle",()=>{
+  it("uses normal Draft creation and release-only review before a real transfer can be submitted and approved",async()=>{
+    const fixture=await draftReleaseFixture("transfer");
+    const intake=await ok<{workbench:{id:string;rowVersion:number}}>(await createTransfer(request("/api/transfer-packages",ownerToken,"POST",
+      {title:"DEV121 normal released Part transfer",caseType:"development_case",caseReason:"Native lifecycle acceptance",
+       sourceReferenceStatus:"not_available",sourceReferenceReason:"Task-owned synthetic intake"},1,"","lifecycle-transfer-create")),201);
+    const packageId=intake.workbench.id,params={params:Promise.resolve({id:packageId})};
+    await ok(await addTransferItem(request("/api/transfer-packages/"+packageId+"/items",ownerToken,"POST",
+      {expectedRowVersion:intake.workbench.rowVersion,entityType:"part_number",entityId:fixture.partId},1,"","lifecycle-transfer-item"),params));
+    let readiness=await db!.transaction(tx=>buildTransferPackageReadiness(packageId,"company-jenfu",tx),{readOnly:true});
+    expect(readiness.ready).toBe(false);
+    expect(readiness.blockers.map(b=>b.code)).toContain("transfer_official_item_invalid");
+    await completeReview(fixture.submission,"approve");
+    expect(await db!.queryOne("SELECT record_status FROM part_numbers WHERE id=:id",{id:fixture.partId})).toMatchObject({record_status:"Released"});
+    const evidence=await db!.queryOne<{approval_context:{reviewerPrincipalId:string;lifecycle:{intent:string};recordStatusAfter:string}}>(
+      "SELECT approval_context FROM part_approved_change_snapshots WHERE part_id=:id",{id:fixture.partId});
+    expect(evidence?.approval_context).toMatchObject({reviewerPrincipalId:"principal-legacy",lifecycle:{intent:"first_release"},recordStatusAfter:"Released"});
+    readiness=await db!.transaction(tx=>buildTransferPackageReadiness(packageId,"company-jenfu",tx),{readOnly:true});
+    expect(readiness.ready,JSON.stringify(readiness.blockers)).toBe(true);
+    const submitted=await ok<{requestId:string}>(await submitTransfer(request("/api/transfer-packages/"+packageId+"/submit-review",ownerToken,"POST",
+      {expectedRowVersion:readiness.rowVersion,reason:"Normal released Part scope"},1,"","lifecycle-transfer-submit"),params));
+    const assigned=await db!.queryOne<{payload_json:{principalReviewer:{principalId:string}}}>(
+      "SELECT payload_json FROM approval_platform_requests WHERE id=:id",{id:submitted.requestId});
+    expect(JSON.stringify(assigned)).toContain("principal-legacy");
+    const decisionParams={params:Promise.resolve({requestId:submitted.requestId})};
+    const ownerAttempt=await decideTransfer(request("/api/approvals/requests/"+submitted.requestId+"/decisions",ownerToken,"POST",
+      {decision:"approved"},1,"","lifecycle-transfer-self-denied"),decisionParams);
+    expect([403,404]).toContain(ownerAttempt.status);
+    await ok(await decideTransfer(request("/api/approvals/requests/"+submitted.requestId+"/decisions",reviewerToken,"POST",
+      {decision:"approved"},1,"","lifecycle-transfer-approved"),decisionParams));
+    expect(await db!.queryOne("SELECT package_status FROM transfer_packages WHERE id=:id",{id:packageId})).toMatchObject({package_status:"ApprovedPendingPublish"});
+  });
+  it("rejects formal baseline drift and rolls back the attempted approval receipt and evidence",async()=>{
+    const fixture=await draftReleaseFixture("drift");
+    // Explicit disposable fault injection: no lifecycle or grant is seeded.
+    await db!.execute("UPDATE part_numbers SET part_name='Concurrent formal change' WHERE id=:id",{id:fixture.partId});
+    const id=fixture.submission.data.requestId;
+    const result=await decideReview(request("/api/pdm/review-requests/"+id+"/decisions",reviewerToken,"POST",{decision:"approve"},
+      fixture.submission.data.rowVersion,await contract("qc-profile-legacy")),{params:Promise.resolve({requestId:id})});
+    expect(result.status).toBe(409);
+    expect(await db!.queryOne("SELECT record_status FROM part_numbers WHERE id=:id",{id:fixture.partId})).toMatchObject({record_status:"Draft"});
+    expect(await db!.queryOne("SELECT request_status FROM pdm_work_review_requests WHERE id=:id",{id})).toMatchObject({request_status:"pending"});
+    expect(await db!.queryOne("SELECT id FROM part_approved_change_snapshots WHERE part_id=:id",{id:fixture.partId})).toBeNull();
+    expect(await db!.queryOne("SELECT id FROM platform_command_receipts WHERE effect_key=:effect AND command_name=:commandName",{effect:"review:"+id,commandName:"dev087:review.decision"})).toBeNull();
+  });
+  it("rolls back a post-formalize failure and then replays the same request exactly once",async()=>{
+    const fixture=await draftReleaseFixture("rollback"),id=fixture.submission.data.requestId;
+    const before = await ownedLifecycleSnapshot();
+    const original=PartChangeWorkAsyncRepository.prototype.formalize;
+    let originalCompleted = false;
+    const fault=vi.spyOn(PartChangeWorkAsyncRepository.prototype,"formalize").mockImplementationOnce(async function(this: PartChangeWorkAsyncRepository,tx,input){
+      await original.call(this,tx,input);originalCompleted = true;
+      throw new Error("DEV121_TASK_OWNED_POST_FORMALIZE_FAULT");
+    });
+    try{
+      const result=await decideReview(request("/api/pdm/review-requests/"+id+"/decisions",reviewerToken,"POST",{decision:"approve"},
+        fixture.submission.data.rowVersion,await contract("qc-profile-legacy")),{params:Promise.resolve({requestId:id})});
+      expect(fault).toHaveBeenCalledTimes(1);
+      expect(originalCompleted).toBe(true);
+      expect(result.status).toBe(500);
+      expect(result.headers.get("cache-control")).toBe("private, no-store");
+      const body = await result.json();
+      expect(body).toMatchObject({error:{code:"WORKBENCH_INTERNAL_ERROR",message:"操作失敗，請稍後再試"}});
+      expect(body.error.correlationId).toMatch(/^[0-9a-f-]{36}$/u);
+      expect(JSON.stringify(body)).not.toMatch(/POST_FORMALIZE|SQL|stack/u);
+    }finally{fault.mockRestore();}
+    expect(await ownedLifecycleSnapshot()).toEqual(before);
+    expect(await db!.queryOne("SELECT record_status FROM part_numbers WHERE id=:id",{id:fixture.partId})).toMatchObject({record_status:"Draft"});
+    expect(await db!.queryOne("SELECT id FROM part_approved_change_snapshots WHERE part_id=:id",{id:fixture.partId})).toBeNull();
+    expect(await db!.queryOne("SELECT id FROM part_change_works WHERE id=:id",{id:fixture.workId})).toBeTruthy();
+    await completeReview(fixture.submission,"approve");
+    expect(await db!.queryOne("SELECT count(*)::int AS count FROM part_approved_change_snapshots WHERE part_id=:id",{id:fixture.partId})).toMatchObject({count:1});
+  });
+});
+
+async function ownedLifecycleSnapshot() {
+  const tables = ["part_numbers", "part_variant_attributes", "part_change_works",
+    "pdm_work_review_requests", "canonical_workbench_states", "part_approved_change_snapshots",
+    "pdm_work_review_terminal_receipts", "pdm_review_traces", "audit_logs", "platform_command_receipts", "platform_outbox_events"];
+  const result: Record<string, unknown[]> = {};
+  for (const table of tables) {
+    // Exact task-owned tables; no contract source or foreign schemas enter this readback.
+    result[table] = await db!.query(`SELECT to_jsonb(row) AS row FROM ${table} row ORDER BY to_jsonb(row)::text`);
+  }
+  return result;
+}

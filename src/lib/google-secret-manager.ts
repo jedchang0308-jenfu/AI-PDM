@@ -5,6 +5,7 @@ const DEFAULT_API_BASE_URL = "https://secretmanager.googleapis.com/v1";
 
 export type GoogleSecretManagerConfig = {
   projectId: string;
+  expectedProjectNumber: string;
   secretId: string;
   apiBaseUrl: string;
 };
@@ -33,9 +34,11 @@ export class GoogleSecretManagerError extends Error {
 export function getGoogleSecretManagerConfig(): GoogleSecretManagerConfig | null {
   const projectId = String(process.env.PDM_GCP_PROJECT_ID ?? process.env.GOOGLE_CLOUD_PROJECT ?? "").trim();
   const secretId = String(process.env.PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID ?? "").trim();
-  if (!projectId || !secretId) return null;
+  const expectedProjectNumber = String(process.env.PDM_GCP_EXPECTED_PROJECT_NUMBER ?? "");
+  if (!projectId || !secretId || !isCanonicalProjectNumber(expectedProjectNumber)) return null;
   return {
     projectId,
+    expectedProjectNumber,
     secretId,
     apiBaseUrl: String(process.env.PDM_GOOGLE_SECRET_MANAGER_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/+$/u, "")
   };
@@ -57,12 +60,17 @@ export class GoogleSecretManagerProvider {
     private readonly config: GoogleSecretManagerConfig = getGoogleSecretManagerConfig() ?? missingConfig(),
     dependencies: { auth?: GoogleSecretManagerAuth; fetchImpl?: GoogleSecretManagerFetch } = {}
   ) {
+    if (!config.projectId || !config.secretId || !isCanonicalProjectNumber(config.expectedProjectNumber)) missingConfig();
     this.auth = dependencies.auth ?? new GoogleAuth({ scopes: [GOOGLE_CLOUD_PLATFORM_SCOPE] });
     this.fetchImpl = dependencies.fetchImpl ?? ((input, init) => fetch(input, init));
   }
 
   get secretName() {
     return `projects/${this.config.projectId}/secrets/${this.config.secretId}`;
+  }
+
+  private get canonicalSecretName() {
+    return `projects/${this.config.expectedProjectNumber}/secrets/${this.config.secretId}`;
   }
 
   async addVersion(value: string) {
@@ -77,8 +85,8 @@ export class GoogleSecretManagerProvider {
       method: "POST",
       body: JSON.stringify({ payload: { data: Buffer.from(value, "utf8").toString("base64") } })
     });
-    const name = String(response?.name ?? "").trim();
-    if (!isExactVersionResource(name, this.secretName)) {
+    const name = typeof response?.name === "string" ? response.name : "";
+    if (!isExactVersionResource(name, this.canonicalSecretName)) {
       throw new GoogleSecretManagerError("GCP_SECRET_MANAGER_INVALID_VERSION", "Google Secret Manager 未回傳有效的精確版本。", 502);
     }
     return name;
@@ -92,10 +100,14 @@ export class GoogleSecretManagerProvider {
         409
       );
     }
-    if (!isExactVersionResource(versionName, this.secretName)) {
+    if (!isExactVersionResource(versionName, this.canonicalSecretName)) {
       throw new GoogleSecretManagerError("GCP_SECRET_MANAGER_VERSION_REFERENCE_INVALID", "Google Secret Manager 版本 reference 無效。", 400);
     }
-    const response = await this.request(`${versionName}:access`, { method: "GET" });
+    const versionNumber = versionName.slice(this.canonicalSecretName.length + "/versions/".length);
+    const response = await this.request(`${this.secretName}/versions/${versionNumber}:access`, { method: "GET" });
+    if (response?.name !== versionName) {
+      throw new GoogleSecretManagerError("GCP_SECRET_MANAGER_INVALID_VERSION", "Google Secret Manager 未回傳有效的精確版本。", 502);
+    }
     const encoded = String(response?.payload?.data ?? "").trim();
     if (!encoded) throw new GoogleSecretManagerError("GCP_SECRET_MANAGER_SECRET_EMPTY", "Google Secret Manager 版本沒有可讀取的 key。", 404);
     try {
@@ -145,17 +157,24 @@ export class GoogleSecretManagerProvider {
 }
 
 export function isExactVersionResource(value: string, secretName: string) {
-  return new RegExp(`^${escapeRegExp(secretName)}/versions/[1-9][0-9]*$`, "u").test(value) && !value.endsWith("/versions/latest");
+  if (typeof value !== "string") return false;
+  const match = new RegExp(`^${escapeRegExp(secretName)}/versions/[1-9][0-9]*$`, "u").exec(value);
+  return match?.[0] === value && !value.endsWith("/versions/latest");
 }
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
+function isCanonicalProjectNumber(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  return /^[1-9][0-9]*$/u.exec(value)?.[0] === value;
+}
+
 function missingConfig(): GoogleSecretManagerConfig {
   throw new GoogleSecretManagerError(
     "GCP_SECRET_MANAGER_CONFIG_MISSING",
-    "Google Secret Manager 尚未設定 project 與 SolidWorks secret ID。",
+    "Google Secret Manager 尚未設定有效的請求 project、預期專案編號與 SolidWorks secret ID。",
     409
   );
 }

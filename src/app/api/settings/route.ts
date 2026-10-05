@@ -8,6 +8,9 @@ import { withPrincipalCompanyRead, withPrincipalCompanyWrite } from "@/lib/princ
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { validateNumberStateMutationRequest } from "@/lib/number-state-flow-api";
+import { isProductionSliceEnforced } from "@/lib/production-slice";
+import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { JenfuPrincipalRequestError, type VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 
 export const runtime = "nodejs";
 
@@ -39,12 +42,18 @@ export async function GET(request: Request) {
   }
   return await withPrincipalCompanyRead(request, requestedPdmCompanyCodeFromRequest(request),
     [{ permissionKind: "action", permissionCode: "settings.manage" }],
-    async (snapshot) => settingsResponse(snapshot))
+    async (snapshot, _company, verified) => settingsResponse(snapshot, verified))
     ?? NextResponse.json({ code: "auth_session_invalid" },
       { status: 401, headers: { "cache-control": "no-store" } });
 }
 
-async function settingsResponse(snapshot: AsyncDatabaseClient) {
+async function settingsResponse(snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) {
+  const secretDecisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
+    [{ permissionKind: "action", permissionCode: "settings.secret.manage" }]);
+  if (secretDecisions.length !== 1 || !secretDecisions[0] || secretDecisions[0].principalId !== verified.session.principalId ||
+      secretDecisions[0].permissionCode !== "settings.secret.manage") {
+    throw new JenfuPrincipalRequestError("principal_dependency_unavailable");
+  }
   const dbSettings = await getAllSystemSettingsAsync(snapshot);
   return NextResponse.json({
     settings: {
@@ -70,7 +79,8 @@ async function settingsResponse(snapshot: AsyncDatabaseClient) {
       openAiConfigured: Boolean(llmConfig.openAiApiKey),
       openAiModel: llmConfig.openAiModel,
       serviceAccountConfigured: isGoogleDriveServiceConfigured(),
-      secretManagementAvailable: process.env.PDM_DISABLE_SECRET_MANAGEMENT !== "true"
+      secretManagementAvailable: process.env.PDM_DISABLE_SECRET_MANAGEMENT !== "true" && secretDecisions[0].allowed === true,
+      productionSliceSettingsLimited: isProductionSliceEnforced()
     }
   }, { headers: { "cache-control": "private, no-store" } });
 }

@@ -61,7 +61,7 @@ export function RelationMatrixTable({
   }, [activeTarget?.entityType, activeTarget?.targetId]);
 
   const cellByPair = new Map(matrix.map((cell) => [`${cell.partNumber}:${cell.drawingNumber}`, cell]));
-  const identity = (item: RelationMatrixIdentity, onOpen: (() => void) | undefined, active = false) => <span className="pdm-relation-matrix-identity-wrap">
+  const identity = (item: RelationMatrixIdentity, onOpen: (() => void) | undefined, active = false) => <span key={item.id} className="pdm-relation-matrix-identity-wrap">
     {onOpen ? <button className={`pdm-relation-matrix-identity${active ? " is-active" : ""}`} type="button" aria-label={item.number} aria-current={active ? "true" : undefined} onClick={onOpen}><SearchHighlight value={item.number} query={query} /></button>
       : <span className="pdm-relation-matrix-identity"><SearchHighlight value={item.number} query={query} /></span>}
     {item.targetId && item.markers ? <ReviewTargetMarkerSlots targetKey={item.targetId} facts={item.markers} /> : null}

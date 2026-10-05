@@ -7,7 +7,7 @@ import { assertStoredFileIntegrity, createFileStorageServiceForPointer, storageP
 import { isPdmFileReadContext, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
 import type { PdmEntityKey } from "@/lib/pdm-entity-detail-contract";
 import { resolvePdmReviewScopeReceiptAsync } from "@/lib/pdm-review-scope";
-import { enqueuePreviewJobForSourceAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
+import { canonicalPreviewJobResponse, enqueuePreviewJobForSourceAsync, readLatestPreviewJobForSourceAsync, recoverStalePreviewJobsAsync, requestedPreviewKindForSource } from "@/lib/preview-derivatives";
 import { parseReviewPackageSnapshot, reviewPackageTargetKey } from "@/lib/pdm-review-package-contract";
 import { verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { resolveJenfuRouteAuthorization, type JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
@@ -341,6 +341,11 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
         };
     if (!resolved) {
       try {
+        const scope = { companyId: source.company_id, sourceFileAssetId: source.id,
+          sourceContentHash: source.content_hash ?? "", requestedKind: requestedPreviewKindForSource(source.file_ext) };
+        await recoverStalePreviewJobsAsync(client, { companyId: source.company_id, sourceFileAssetIds: [source.id] });
+        let job = await readLatestPreviewJobForSourceAsync(client, scope);
+        if (!job) {
         await enqueuePreviewJobForSourceAsync(client, {
           source: {
             ...source,
@@ -355,14 +360,14 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
             process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1" ? "fake_preview_worker" : undefined,
           runFakeWorker: process.env.PDM_LOCAL_FAKE_PREVIEW_WORKER === "1"
         });
-      } catch {
-        // Read remains available while preview preparation retries independently.
+        job = await readLatestPreviewJobForSourceAsync(client, scope);
+        if (!job) throw new Error("PREVIEW_ENQUEUE_READBACK_MISSING");
+        }
+        const response = canonicalPreviewJobResponse(job);
+        return Response.json(response.body, { status: response.status, headers: response.headers });
+      } catch (error) {
+        return dev087RouteError(error);
       }
-      return Response.json(
-        { error: { code: "PREVIEW_NOT_READY", message: "預覽正在準備；可先下載原檔。", retryable: true } },
-        { status: 202, headers: { "retry-after": "2", "x-pdm-preview-state": "pending",
-          "cache-control": "private, no-store" } }
-      );
     }
     const pointer = storagePointerFromRecord(resolved.record);
     const storage = createFileStorageServiceForPointer(pointer);
@@ -389,8 +394,16 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
         ...responseHeaders
       }
     });
-  } catch {
-    return jsonError("PDM_FILE_UNAVAILABLE", "檔案目前無法讀取，請稍後再試。", 503);
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+    const message = error instanceof Error ? error.message : "";
+    // Existing storage/integrity failures remain unavailable. Unknown query,
+    // resolver or audit faults use the shared canonical internal-error envelope.
+    const knownStorageFailure = ["ENOENT", "EACCES", "EPERM", "EIO", "ETIMEDOUT", "ECONNRESET", "ECONNREFUSED"].includes(code)
+      || /^(?:GCS_(?:OBJECT_NOT_FOUND|OBJECT_VERSION_NOT_FOUND|OBJECT_READBACK_MISMATCH|OBJECT_CONTENT_MISMATCH|WORKLOAD_IDENTITY_REQUIRED|WORKLOAD_TOKEN_UNAVAILABLE)|STORED_FILE_INTEGRITY_MISMATCH|GCS_OBJECT_READ_FAILED:[45][0-9]{2})$/u.test(message);
+    return knownStorageFailure
+      ? jsonError("PDM_FILE_UNAVAILABLE", "檔案目前無法讀取，請稍後再試。", 503)
+      : dev087RouteError(error);
   }
 }
 

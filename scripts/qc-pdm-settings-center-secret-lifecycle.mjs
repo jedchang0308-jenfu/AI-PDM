@@ -35,7 +35,7 @@ try {
   const activateRoute = readProjectFile(root, "src/app/api/settings/secrets/[kind]/activate/route.ts");
   const revokeRoute = readProjectFile(root, "src/app/api/settings/secrets/[kind]/revoke/route.ts");
   const workerCredentialRoute = readProjectFile(root, "src/app/api/preview-workers/solidworks-document-manager-key/route.ts");
-  const settingsPage = readProjectFile(root, "src/app/settings/page.tsx");
+  const settingsPage = readProjectFile(root, "src/components/settings-screen.tsx");
   const integrationsPage = readProjectFile(root, "src/app/settings/integrations/page.tsx");
   const securityPage = readProjectFile(root, "src/app/settings/security/page.tsx");
   const workflowPage = readProjectFile(root, "src/app/settings/workflow/page.tsx");
@@ -76,7 +76,11 @@ try {
     ["activate", activateRoute],
     ["revoke", revokeRoute]
   ]) {
-    record(`SETTINGS-SECRET-011 ${name} route requires Admin`, source.includes("requireRoleAsync") && source.includes('["Admin"]'));
+    record(`SETTINGS-SECRET-011 ${name} route requires the exact Principal secret capability`,
+      (name === "list"
+        ? includesAll(source, ["authorizePrincipalWorkspaceExternalRead", '"src/app/api/settings/secrets/route.ts", "settings.secret.manage"'])
+        : includesAll(source, ["requireNumberingPlatformCommandAsync", 'action: "settings.secret.manage"', "if (access.response) return access.response;", "access.metadata"]))
+      && !/requireRoleAsync|requirePdmRouteAuthorizationAsync/u.test(source));
     record(`SETTINGS-SECRET-011A ${name} route disables caching`, source.includes("private, no-store"));
   }
 

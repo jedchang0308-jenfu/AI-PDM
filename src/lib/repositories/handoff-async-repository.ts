@@ -11,7 +11,7 @@ export const SELECT_ASYNC_MANUFACTURING_HANDOFF_SUBMISSION_IDS_SQL = `
   FROM submissions s
   WHERE s.status = 'Released'
     AND s.company_id = :companyId
-    AND (:submittedBy IS NULL OR s.submitted_by = :submittedBy)
+    AND (CAST(:submittedBy AS text) IS NULL OR s.submitted_by = CAST(:submittedBy AS text))
     AND NOT EXISTS (
       SELECT 1
       FROM submissions newer

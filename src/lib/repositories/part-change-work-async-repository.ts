@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { ReviewPackageLifecycleBasis } from "@/lib/pdm-review-package-contract";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
@@ -19,10 +20,10 @@ export type PartChangePayload = {
 type PartRow = {
   id: string; company_id: string; part_name: string; item_kind: PartChangePayload["itemKind"];
   custom_specification: string | null; is_universal: number | boolean;
-  updated_at: string | Date;
+  updated_at: string | Date; record_status: string;
   material_code: string | null; material_label: string | null; color_code: string | null; color_label: string | null; surface_treatment: string | null; variant_note: string | null;
 };
-type WorkRow = { id: string; company_id: string; part_id: string; owner_user_id: string; proposed_payload: string | PartChangePayload; base_hash: string; row_version: number };
+type WorkRow = { id: string; company_id: string; part_id: string; owner_user_id: string; proposed_payload: string | PartChangePayload; base_hash: string; base_formal_row_version: number; lifecycle_intent: "edit" | "first_release"; row_version: number };
 
 export type PartWorkBatchMutation =
   | { kind: "create"; companyId: string; partId: string; ownerUserId: string; expectedFormalRowVersion: number; initialPayload: PartChangePayload }
@@ -141,7 +142,7 @@ export class PartChangeWorkAsyncRepository {
 
   async readPart(client: AsyncDatabaseClient, companyId: string, partId: string, lock = false) {
     return client.queryOne<PartRow>(
-      `SELECT part.id, part.company_id, part.part_name, part.item_kind, part.custom_specification, part.is_universal, part.updated_at,
+      `SELECT part.id, part.company_id, part.part_name, part.item_kind, part.custom_specification, part.is_universal, part.updated_at, part.record_status,
               attributes.material_code, attributes.material_label, attributes.color_code, attributes.color_label, attributes.surface_treatment, attributes.variant_note
        FROM part_numbers part
        LEFT JOIN part_variant_attributes attributes ON attributes.part_number_id = part.id
@@ -152,7 +153,8 @@ export class PartChangeWorkAsyncRepository {
 
   async readWork(client: AsyncDatabaseClient, companyId: string, workId: string, lock = false) {
     return client.queryOne<WorkRow>(
-      `SELECT id, company_id, part_id, owner_user_id, proposed_payload, base_hash, row_version
+      `SELECT id, company_id, part_id, owner_user_id, proposed_payload, base_hash, base_formal_row_version,
+              ${client.kind === "postgres" ? "lifecycle_intent" : "'edit' AS lifecycle_intent"}, row_version
        FROM part_change_works WHERE id = :workId AND company_id = :companyId${lock && client.kind === "postgres" ? " FOR UPDATE" : ""}`,
       { companyId, workId }
     );
@@ -175,7 +177,7 @@ export class PartChangeWorkAsyncRepository {
     await tx.execute(
       `INSERT INTO part_change_works (id, company_id, part_id, owner_user_id, proposed_payload, base_formal_row_version, base_hash, row_version)
        VALUES (:id, :companyId, :partId, :ownerUserId, :payload, :baseVersion, :baseHash, 1)`,
-      { id: workId, companyId: input.companyId, partId: input.partId, ownerUserId: input.ownerUserId, payload: JSON.stringify(payload), baseVersion: input.expectedFormalRowVersion, baseHash: dev087RequestHash(payload) }
+      { id: workId, companyId: input.companyId, partId: input.partId, ownerUserId: input.ownerUserId, payload: JSON.stringify(payload), baseVersion: input.expectedFormalRowVersion, baseHash: dev087RequestHash(formalPayload) }
     );
     const stateId = crypto.randomUUID();
     await tx.execute(
@@ -186,27 +188,31 @@ export class PartChangeWorkAsyncRepository {
     return { workId, rowId: stateId, rowVersion: 1, payload };
   }
 
-  async update(tx: AsyncDatabaseClient, input: { companyId: string; workId: string; expectedRowVersion: number; payload: PartChangePayload }) {
+  async update(tx: AsyncDatabaseClient, input: { companyId: string; workId: string; expectedRowVersion: number; payload: PartChangePayload; lifecycleIntent?: "edit" | "first_release" }) {
     const work = await this.readWork(tx, input.companyId, input.workId, true);
     if (!work || Number(work.row_version) !== input.expectedRowVersion) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409);
     const part = await this.readPart(tx, input.companyId, work.part_id, true);
     if (!part) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "料號資料已不存在，請重新載入", 409);
     const payload = normalizePartChangePayload(input.payload, rowPayload(part));
+    const lifecycleIntent = input.lifecycleIntent ?? work.lifecycle_intent ?? "edit";
+    if (lifecycleIntent === "first_release" && (tx.kind !== "postgres" || part.record_status !== "Draft")) {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "只有未發行料號可申請首次發行", 409);
+    }
     const state = await tx.queryOne<{ handling: string }>(
       `SELECT handling FROM canonical_workbench_states WHERE company_id = :companyId AND work_id = :workId${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
       input
     );
     if (state?.handling !== "owner") throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "目前資料不可編輯", 409);
     await tx.execute(
-      `UPDATE part_change_works SET proposed_payload = :payload, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+      `UPDATE part_change_works SET proposed_payload = :payload, ${tx.kind === "postgres" ? "lifecycle_intent = :lifecycleIntent," : ""} row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE id = :workId AND company_id = :companyId AND row_version = :expectedRowVersion`,
-      { ...input, payload: JSON.stringify(payload) }
+      { ...input, lifecycleIntent, payload: JSON.stringify(payload) }
     );
     await tx.execute(
       `UPDATE canonical_workbench_states SET row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE company_id = :companyId AND work_id = :workId`, input
     );
-    return { workId: input.workId, rowVersion: input.expectedRowVersion + 1, payload };
+    return { workId: input.workId, rowVersion: input.expectedRowVersion + 1, payload, lifecycleIntent };
   }
 
   async cancel(tx: AsyncDatabaseClient, input: { companyId: string; workId: string; expectedRowVersion: number }) {
@@ -219,21 +225,68 @@ export class PartChangeWorkAsyncRepository {
     return { cancelled: true };
   }
 
-  async formalize(tx: AsyncDatabaseClient, input: { companyId: string; work: WorkRow; reviewCycleId: string }) {
+  /** Freeze the actual formal/master source; a navigation anchor alone is never a release. */
+  async readLifecycleBasis(tx: AsyncDatabaseClient, companyId: string, work: WorkRow): Promise<ReviewPackageLifecycleBasis> {
+    const part = await this.readPart(tx, companyId, work.part_id, true);
+    const formal = await tx.queryOne<{ row_version: number }>(
+      `SELECT row_version FROM canonical_workbench_states WHERE company_id = :companyId
+       AND entity_type = 'part' AND canonical_entity_id = :partId AND data_layer = 'part_formal'${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
+      { companyId, partId: work.part_id });
+    if (!part || !formal || Number(formal.row_version) !== Number(work.base_formal_row_version)
+      || dev087RequestHash(rowPayload(part)) !== work.base_hash) {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "正式資料已改變，請重新核對後送審", 409);
+    }
+    const intent = work.lifecycle_intent ?? "edit";
+    if (!["edit", "first_release"].includes(intent)
+      || intent === "first_release" && part.record_status !== "Draft") {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "目前料號狀態不可發行或修改", 409);
+    }
+    return { intent, masterId: work.part_id, masterStatus: part.record_status,
+      masterHash: dev087RequestHash({ partId: work.part_id, recordStatus: part.record_status, payload: rowPayload(part) }),
+      formalRowVersion: Number(formal.row_version) };
+  }
+
+  async formalize(tx: AsyncDatabaseClient, input: { companyId: string; work: WorkRow; reviewCycleId: string;
+    expectedWorkRowVersion?: number;
+    lifecycle?: ReviewPackageLifecycleBasis;
+    approval?: { requestId: string; packageHash: string; reviewerPrincipalId: string; reviewerProfileId: string } }) {
+    if (input.lifecycle && input.expectedWorkRowVersion === undefined) {
+      throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "審核包缺少工作版本，請退回修改後重新送審", 409);
+    }
+    if (input.expectedWorkRowVersion !== undefined && Number(input.work.row_version) !== input.expectedWorkRowVersion) {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "工作版本已改變，請退回修改後重新送審", 409);
+    }
     const part = await this.readPart(tx, input.companyId, input.work.part_id, true);
     if (!part) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
+    if (!input.lifecycle && input.work.lifecycle_intent === "first_release") {
+      throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "發行意圖未納入審核快照", 409);
+    }
+    if (input.lifecycle) {
+      const current = await this.readLifecycleBasis(tx, input.companyId, input.work);
+      if (dev087RequestHash(current) !== dev087RequestHash(input.lifecycle)) {
+        throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "正式資料或發行基準已改變，請退回修改", 409);
+      }
+      if (input.lifecycle.intent === "first_release" && (!input.approval || tx.kind !== "postgres")) {
+        throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "發行核准證據不完整", 409);
+      }
+    }
     const before = rowPayload(part);
     const after = parsePayload(input.work.proposed_payload);
     const snapshotId = crypto.randomUUID();
-    const contentHash = dev087RequestHash({ reviewCycleId: input.reviewCycleId, before, after });
+    const approvalContext = input.lifecycle ? { version: 1, reviewCycleId: input.reviewCycleId,
+      ...input.approval, lifecycle: input.lifecycle,
+      formalRowVersionAfter: Number(input.lifecycle.formalRowVersion) + 1,
+      recordStatusAfter: input.lifecycle.intent === "first_release" ? "Released" : part.record_status } : null;
+    const contentHash = dev087RequestHash({ reviewCycleId: input.reviewCycleId, before, after,
+      ...(approvalContext ? { approvalContext } : {}) });
     await tx.execute(
-      `INSERT INTO part_approved_change_snapshots (id, company_id, part_id, before_payload, after_payload, content_hash, formalized_at)
-       VALUES (:id, :companyId, :partId, :beforePayload, :afterPayload, :contentHash, CURRENT_TIMESTAMP)`,
-      { id: snapshotId, companyId: input.companyId, partId: input.work.part_id, beforePayload: JSON.stringify(before), afterPayload: JSON.stringify(after), contentHash }
+      `INSERT INTO part_approved_change_snapshots (id, company_id, part_id, before_payload, after_payload, content_hash, formalized_at${tx.kind === "postgres" ? ", approval_context" : ""})
+       VALUES (:id, :companyId, :partId, :beforePayload, :afterPayload, :contentHash, CURRENT_TIMESTAMP${tx.kind === "postgres" ? ", :approvalContext" : ""})`,
+      { id: snapshotId, companyId: input.companyId, partId: input.work.part_id, beforePayload: JSON.stringify(before), afterPayload: JSON.stringify(after), contentHash, approvalContext: approvalContext ? JSON.stringify(approvalContext) : null }
     );
     await tx.execute(
       `UPDATE part_numbers SET part_name = :partName, item_kind = :itemKind, custom_specification = :customSpecification,
-         is_universal = :isUniversal, updated_at = CURRENT_TIMESTAMP
+         is_universal = :isUniversal, ${input.lifecycle?.intent === "first_release" ? "record_status = 'Released'," : ""} updated_at = CURRENT_TIMESTAMP
        WHERE id = :partId AND company_id = :companyId`,
       { companyId: input.companyId, partId: input.work.part_id, ...after, isUniversal: after.isUniversal ? 1 : 0 }
     );
@@ -266,7 +319,16 @@ export class PartChangeWorkAsyncRepository {
       throw new CanonicalWorkbenchError("WORKBENCH_AUTHORITY_MISMATCH", "核准後資料狀態未完成，請稍後再試", 503);
     }
     await tx.execute(`DELETE FROM canonical_workbench_states WHERE company_id = :companyId AND work_id = :workId`, { companyId: input.companyId, workId: input.work.id });
-    await tx.execute(`DELETE FROM part_change_works WHERE company_id = :companyId AND id = :workId`, { companyId: input.companyId, workId: input.work.id });
+    if (input.expectedWorkRowVersion !== undefined) {
+      const removed = await tx.query<{ id: string }>(`DELETE FROM part_change_works
+        WHERE company_id = :companyId AND id = :workId AND row_version = :expectedWorkRowVersion RETURNING id`,
+      { companyId: input.companyId, workId: input.work.id, expectedWorkRowVersion: input.expectedWorkRowVersion });
+      if (removed.length !== 1 || removed[0].id !== input.work.id) {
+        throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "工作版本已改變，請退回修改後重新送審", 409);
+      }
+    } else {
+      await tx.execute(`DELETE FROM part_change_works WHERE company_id = :companyId AND id = :workId`, { companyId: input.companyId, workId: input.work.id });
+    }
     await tx.execute(
       `UPDATE canonical_workbench_states SET row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
        WHERE id = :formalStateId AND company_id = :companyId`,

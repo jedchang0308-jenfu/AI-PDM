@@ -95,6 +95,7 @@ function Test-DocumentManagerPreviewKeyConfigured {
   }
   return ($env:PDM_SETTINGS_SECRET_PROVIDER -eq "google_secret_manager" -and
     $env:PDM_GCP_PROJECT_ID -and
+    $env:PDM_GCP_EXPECTED_PROJECT_NUMBER -cmatch '\A[1-9][0-9]*\z' -and
     $env:PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID -and
     $env:PDM_ENABLE_GCP_SECRET_READS -eq "true")
 }

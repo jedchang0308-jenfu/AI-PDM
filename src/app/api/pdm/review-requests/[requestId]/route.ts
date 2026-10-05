@@ -144,6 +144,7 @@ async function readAssignedReview(client: AsyncDatabaseClient, requestId: string
       matrix: packageValue.matrix,
       packageHash: packageValue.packageHash,
       submittedAt: packageValue.submittedAt,
+      lifecycle: packageValue.decisionBasis.version === 2 ? packageValue.decisionBasis.lifecycle : null,
       targets: targetSummaries,
       actions: reviewBasisState === "stale"
         ? [{ key: "return_for_correction", label: "退回修改" }]

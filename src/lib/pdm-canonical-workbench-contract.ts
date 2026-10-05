@@ -302,13 +302,14 @@ export type CanonicalWorkbenchErrorCode =
   | "DEV087_DECISION_NOT_ALLOWED"
   | "PART_PREVIEW_ACTIVE_ASSET"
   | "IDEMPOTENCY_KEY_REUSED"
+  | "WORKBENCH_INTERNAL_ERROR"
   | "WORKBENCH_BAD_REQUEST";
 
 export class CanonicalWorkbenchError extends Error {
   constructor(
     readonly code: CanonicalWorkbenchErrorCode,
     message: string,
-    readonly status: 400 | 403 | 404 | 409 | 410 | 413 | 422 | 503,
+    readonly status: 400 | 403 | 404 | 409 | 410 | 413 | 422 | 500 | 503,
     readonly correlationId: string = globalThis.crypto.randomUUID()
   ) {
     super(message);
@@ -424,7 +425,7 @@ export function parseCanonicalRowKey(value: string) {
 export function canonicalErrorEnvelope(error: unknown) {
   const resolved = error instanceof CanonicalWorkbenchError
     ? error
-    : new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "操作失敗，請稍後再試", 400);
+    : new CanonicalWorkbenchError("WORKBENCH_INTERNAL_ERROR", "操作失敗，請稍後再試", 500);
   return {
     status: resolved.status,
     body: { error: { code: resolved.code, message: resolved.message, correlationId: resolved.correlationId } }

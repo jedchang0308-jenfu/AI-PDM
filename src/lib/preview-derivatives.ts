@@ -202,6 +202,37 @@ export type AutomaticPreviewPreparationResult = {
   jobId: string | null;
 };
 
+/** Authorized callers pass an exact source identity. A read must never select
+ * another company's job or a replacement source's prior generation. */
+export async function readLatestPreviewJobForSourceAsync(client: AsyncDatabaseClient, input: {
+  companyId: string; sourceFileAssetId: string; sourceContentHash: string;
+  requestedKind: PreviewRequestedKind;
+}): Promise<MasterAttachmentPreviewJob | null> {
+  const job = await client.queryOne<PreviewJobRow>(`SELECT * FROM preview_jobs
+    WHERE company_id=:companyId AND source_file_asset_id=:sourceFileAssetId
+      AND source_content_hash=:sourceContentHash AND requested_kind=:requestedKind
+    ORDER BY updated_at DESC,created_at DESC,id DESC LIMIT 1`, input);
+  return job ? mapPreviewJob(job) : null;
+}
+
+export function canonicalPreviewJobResponse(job: MasterAttachmentPreviewJob | null): {
+  status: number; headers: Record<string, string>;
+  body: { error: { code: string; message: string; retryable: boolean; jobErrorCode?: string } };
+} {
+  const headers: Record<string, string> = { "cache-control": "private, no-store" };
+  if (job?.status === "queued" || job?.status === "running") {
+    return { status: 202, headers: { ...headers, "retry-after": "2", "x-pdm-preview-state": "pending" },
+      body: { error: { code: "PREVIEW_NOT_READY", message: "預覽正在準備；可先下載原檔。", retryable: true } } };
+  }
+  const unsupported = job?.status === "skipped";
+  const code = unsupported ? "PREVIEW_UNSUPPORTED" : job?.status === "cancelled"
+    ? "PREVIEW_CANCELLED" : job?.status === "succeeded" ? "PREVIEW_OUTPUT_MISSING" : "PREVIEW_FAILED";
+  return { status: unsupported ? 422 : 409,
+    headers: { ...headers, "x-pdm-preview-state": unsupported ? "unsupported" : "failed" },
+    body: { error: { code, message: unsupported ? "此格式無法預覽；可下載原檔。" : "預覽無法顯示；可下載原檔。",
+      retryable: false, ...(job?.errorCode ? { jobErrorCode: sanitizePreviewErrorCode(job.errorCode) } : {}) } } };
+}
+
 /**
  * Shared lifecycle/detail recovery for canonical file assets. Callers must
  * supply company-scoped asset ids that were resolved through their own read or
@@ -213,6 +244,8 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
 ): Promise<AutomaticPreviewPreparationResult[]> {
   const sourceFileAssetIds = [...new Set(input.sourceFileAssetIds.map((value) => value.trim()).filter(Boolean))];
   if (sourceFileAssetIds.length === 0) return [];
+
+  await recoverStalePreviewJobsAsync(client, { companyId: input.companyId, sourceFileAssetIds });
 
   const idClause = buildNamedInClause("canonicalPreviewAsset", sourceFileAssetIds);
   const sources = await client.query<PreviewSourceRow>(
@@ -276,6 +309,13 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
       continue;
     }
 
+    if (currentJob) {
+      // Detail/GET recovery cannot resurrect a terminal job. Explicit worker
+      // regeneration is a separate command with its existing authority.
+      results.push({ sourceFileAssetId: source.id, disposition: "failed", jobId: currentJob.id });
+      continue;
+    }
+
     try {
       const prepared = await enqueuePreviewJobForSourceAsync(client, {
         source,
@@ -284,12 +324,12 @@ export async function ensureAutomaticPreviewJobsForSourceAssetsAsync(
         requestedKind,
         generatorProfile,
         runFakeWorker,
-        forceRegenerate: currentJob?.status === "succeeded"
+        forceRegenerate: false
       });
       results.push({ sourceFileAssetId: source.id, disposition: "queued", jobId: prepared.jobId });
     } catch (error) {
       if (input.requireQueued) throw error;
-      results.push({ sourceFileAssetId: source.id, disposition: "failed", jobId: currentJob?.id ?? null });
+      results.push({ sourceFileAssetId: source.id, disposition: "failed", jobId: null });
     }
   }
 
@@ -452,35 +492,40 @@ export async function claimPreviewJobAsync(
   client: AsyncDatabaseClient,
   input: { workerId: string; supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] }
 ): Promise<PreviewWorkerClaim | null> {
+  if (!input.supportedKinds.length || !input.supportedExtensions.length) return null;
+  await recoverStalePreviewJobsAsync(client, { supportedKinds: input.supportedKinds, supportedExtensions: input.supportedExtensions });
   const kindClause = buildNamedInClause("kind", input.supportedKinds);
   const extensionClause = buildNamedInClause("extension", input.supportedExtensions.map(normalizeExtension));
   const row = await client.transaction(async (transactionClient) => {
     const selected = await transactionClient.queryOne<PreviewJobRow>(
       `
         SELECT *
-        FROM preview_jobs
+        FROM preview_jobs job
         WHERE status = 'queued'
+          AND attempt_count < :maxAttempts
           AND requested_kind IN (${kindClause.sql})
           AND source_extension IN (${extensionClause.sql})
+          AND ${recoverablePreviewSourcePredicate()}
         ORDER BY priority ASC, created_at ASC
         LIMIT 1
         ${transactionClient.kind === "postgres" ? "FOR UPDATE SKIP LOCKED" : ""}
       `,
-      { ...kindClause.params, ...extensionClause.params }
+      { ...kindClause.params, ...extensionClause.params, maxAttempts: previewMaxAttempts }
     );
     if (!selected) return null;
     const claimed = await transactionClient.queryOne<{ id: string }>(
       `
-        UPDATE preview_jobs
+        UPDATE preview_jobs AS job
         SET status = 'running',
             locked_by = :workerId,
             locked_at = :now,
             attempt_count = attempt_count + 1,
             updated_at = :now
-        WHERE id = :id AND status = 'queued'
+        WHERE id = :id AND status = 'queued' AND attempt_count < :maxAttempts
+          AND ${recoverablePreviewSourcePredicate()}
         RETURNING id
       `,
-      { id: selected.id, workerId: input.workerId, now: new Date().toISOString() }
+      { id: selected.id, workerId: input.workerId, now: new Date().toISOString(), maxAttempts: previewMaxAttempts }
     );
     return claimed ? selected : null;
   });
@@ -539,83 +584,64 @@ export async function heartbeatPreviewJobAsync(
   return updated?.id === input.jobId;
 }
 
-export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient) {
-  const rows = await client.query<Pick<PreviewJobRow, "id" | "attempt_count" | "updated_at">>(
-    `
-      SELECT id, attempt_count, updated_at
-      FROM preview_jobs
-      WHERE status = 'running'
-    `
-  );
-  const now = Date.now();
-  let recovered = 0;
-  for (const row of rows) {
-    const updatedAt = Date.parse(row.updated_at);
-    if (!Number.isFinite(updatedAt) || now - updatedAt < previewHeartbeatStaleAfterMs) continue;
-    const attemptCount = Number(row.attempt_count ?? 0);
-    const shouldRetry = attemptCount < previewMaxAttempts;
-    await client.execute(
-      `
-        UPDATE preview_jobs
-        SET status = :status,
-            error_code = :errorCode,
-            error_summary = :errorSummary,
-            locked_by = NULL,
-            locked_at = NULL,
-            updated_at = :now,
-            completed_at = :completedAt
-        WHERE id = :jobId
-          AND status = 'running'
-          AND updated_at = :previousUpdatedAt
-      `,
-      {
-        jobId: row.id,
-        status: shouldRetry ? "queued" : "failed",
-        errorCode: "preview_worker_heartbeat_timeout",
-        errorSummary: shouldRetry ? "系統已自動重新排程。" : "預覽服務未回應，請稍後再試。",
-        now: new Date().toISOString(),
-        completedAt: shouldRetry ? null : new Date().toISOString(),
-        previousUpdatedAt: row.updated_at
-      }
-    );
-    recovered += 1;
-  }
+function recoverablePreviewSourcePredicate() {
+  return `EXISTS (SELECT 1 FROM file_assets fa WHERE fa.id=job.source_file_asset_id
+    AND fa.deleted_at IS NULL AND fa.content_hash=job.source_content_hash
+    AND LOWER(REPLACE(fa.file_ext,'.',''))=LOWER(REPLACE(job.source_extension,'.',''))
+    AND LOWER(REPLACE(fa.file_ext,'.','')) IN ('sldprt','sldasm','slddrw')
+    AND job.requested_kind='native_thumbnail_png' AND ${previewSourceCompanyPredicate("job.company_id")})`;
+}
 
-  const queuedRows = await client.query<Pick<PreviewJobRow, "id" | "updated_at">>(
-    `
-      SELECT id, updated_at
-      FROM preview_jobs
-      WHERE status = 'queued'
-    `
-  );
-  let queuedUnclaimed = 0;
-  for (const row of queuedRows) {
-    const updatedAt = Date.parse(row.updated_at);
-    if (!Number.isFinite(updatedAt) || now - updatedAt < previewQueuedUnclaimedAfterMs) continue;
-    await client.execute(
-      `
-        UPDATE preview_jobs
-        SET status = 'failed',
-            error_code = 'preview_worker_unavailable',
-            error_summary = '2D 預覽服務未接手，已停止等待，請確認服務後重試。',
-            locked_by = NULL,
-            locked_at = NULL,
-            updated_at = :now,
-            completed_at = :completedAt
-        WHERE id = :jobId
-          AND status = 'queued'
-          AND updated_at = :previousUpdatedAt
-      `,
-      {
-        jobId: row.id,
-        now: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        previousUpdatedAt: row.updated_at
-      }
-    );
-    queuedUnclaimed += 1;
+export type PreviewRecoveryScope = { companyId: string; sourceFileAssetIds: string[] }
+  | { supportedKinds: PreviewRequestedKind[]; supportedExtensions: string[] };
+
+export async function recoverStalePreviewJobsAsync(client: AsyncDatabaseClient, scope?: PreviewRecoveryScope) {
+  // Legacy callers without a verified resource/workload scope may read, but
+  // must never recover the entire application queue.
+  if (!scope) return { recovered: 0, queuedUnclaimed: 0 };
+  let scopeSql: string;
+  let scopeParams: Record<string, string>;
+  if ("companyId" in scope) {
+    const ids = [...new Set(scope.sourceFileAssetIds.map(value => value.trim()).filter(Boolean))];
+    if (!scope.companyId.trim() || !ids.length) return { recovered: 0, queuedUnclaimed: 0 };
+    const assets = buildNamedInClause("recoveryAsset", ids);
+    scopeSql = `job.company_id=:recoveryCompany AND job.source_file_asset_id IN (${assets.sql})`;
+    scopeParams = { recoveryCompany: scope.companyId, ...assets.params };
+  } else {
+    if (!scope.supportedKinds.length || !scope.supportedExtensions.length) return { recovered: 0, queuedUnclaimed: 0 };
+    const kinds = buildNamedInClause("recoveryKind", scope.supportedKinds);
+    const extensions = buildNamedInClause("recoveryExtension", scope.supportedExtensions.map(normalizeExtension));
+    scopeSql = `job.requested_kind IN (${kinds.sql}) AND LOWER(REPLACE(job.source_extension,'.','')) IN (${extensions.sql})`;
+    scopeParams = { ...kinds.params, ...extensions.params };
   }
-  return { recovered: recovered + queuedUnclaimed, queuedUnclaimed };
+  const sourceSql = recoverablePreviewSourcePredicate();
+  const rows = await client.query<Pick<PreviewJobRow, "id" | "status" | "attempt_count"> & { updated_at: string | Date; previous_updated_at: string }>(
+    `SELECT job.id,job.status,job.attempt_count,job.updated_at,CAST(job.updated_at AS TEXT) AS previous_updated_at FROM preview_jobs job
+      WHERE job.status IN ('running','queued') AND ${scopeSql} AND ${sourceSql}`, scopeParams);
+  const now = Date.now(), nowIso = new Date(now).toISOString();
+  let recovered = 0, queuedUnclaimed = 0;
+  for (const row of rows) {
+    const updatedAt = row.updated_at instanceof Date ? row.updated_at.getTime() : Date.parse(row.updated_at);
+    const timeout = row.status === "running" ? previewHeartbeatStaleAfterMs : previewQueuedUnclaimedAfterMs;
+    if (!Number.isFinite(updatedAt) || now - updatedAt < timeout) continue;
+    const attemptCount = Number(row.attempt_count ?? 0);
+    const retry = row.status === "running" && attemptCount < previewMaxAttempts;
+    const changed = await client.queryOne<{ id: string }>(`UPDATE preview_jobs AS job SET status=:nextStatus,
+      error_code=:errorCode,error_summary=:errorSummary,locked_by=NULL,locked_at=NULL,updated_at=:now,completed_at=:completedAt
+      WHERE job.id=:jobId AND job.status=:previousStatus AND job.updated_at=:previousUpdatedAt
+        AND job.attempt_count=:previousAttempts AND ${scopeSql} AND ${sourceSql} RETURNING job.id`, {
+      ...scopeParams, jobId: row.id, previousStatus: row.status, previousUpdatedAt: row.previous_updated_at,
+      previousAttempts: attemptCount, nextStatus: retry ? "queued" : "failed", now: nowIso,
+      completedAt: retry ? null : nowIso,
+      errorCode: row.status === "queued" ? "preview_worker_unavailable" : "preview_worker_heartbeat_timeout",
+      errorSummary: row.status === "queued" ? "預覽服務未接手，已停止等待，請確認服務後重試。"
+        : retry ? "系統已自動重新排程。" : "預覽服務未回應，請稍後再試。"
+    });
+    if (!changed) continue;
+    recovered += 1;
+    if (row.status === "queued") queuedUnclaimed += 1;
+  }
+  return { recovered, queuedUnclaimed };
 }
 
 export async function completePreviewJobAsync(client: AsyncDatabaseClient, input: PreviewWorkerCompletionInput) {
@@ -1172,9 +1198,8 @@ async function upsertPreviewJob(
   });
   if (existing) {
     if (existing.company_id !== input.companyId) throw new Error("PREVIEW_JOB_COMPANY_CONFLICT");
-    const retryableStatuses = new Set(["failed", "skipped", "cancelled"]);
     const forceResetStatuses = new Set(["succeeded", "failed", "skipped", "cancelled"]);
-    const shouldResetExisting = input.forceRegenerate ? forceResetStatuses.has(existing.status) : retryableStatuses.has(existing.status);
+    const shouldResetExisting = input.forceRegenerate && forceResetStatuses.has(existing.status);
     if (shouldResetExisting) {
       await client.execute(
         `

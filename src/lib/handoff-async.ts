@@ -11,6 +11,10 @@ export async function listManufacturingHandoffEntriesAsync(
   const submissionRepository = new AsyncSubmissionListRepository(client);
   const submissionIds = await handoffRepository.listManufacturingHandoffSubmissionIds(input);
   const submissions = await Promise.all(submissionIds.map((id) => submissionRepository.getSubmission(id)));
-  return submissions.filter((submission): submission is SubmissionDetail =>
-    Boolean(submission && submission.company_id === input.companyId));
+  return submissions.map((submission) => {
+    if (!submission || submission.company_id !== input.companyId) {
+      throw new Error("Manufacturing handoff hydration no longer matches its scoped source.");
+    }
+    return submission;
+  });
 }

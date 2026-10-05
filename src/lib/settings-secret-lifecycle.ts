@@ -304,7 +304,11 @@ function liveGateFor(client: AsyncDatabaseClient, reference: SettingsSecretRefer
     return { provider: "supabase_vault", status: "blocked", message: "此為歷史 Supabase Vault reference；新設定已切換至 Google Secret Manager。" };
   }
   if ((process.env.PDM_SETTINGS_SECRET_PROVIDER ?? "").trim().toLowerCase() === "google_secret_manager") {
-    return { provider: "google_secret_manager", status: "blocked", message: "Google Secret Manager live target 尚未完成，無法建立可用 secret。" };
+    const configured = client.kind === "postgres" && Boolean(getGoogleSecretManagerConfig()) &&
+      isGoogleSecretManagerReadEnabled() && isGoogleSecretManagerWriteEnabled();
+    return { provider: "google_secret_manager", status: "blocked", message: configured
+      ? "Google Secret Manager 設定已就緒；尚未建立金鑰版本，請先建立草稿、測試並啟用。Worker 上線狀態需另行確認。"
+      : "Google Secret Manager 尚缺 Cloud SQL、project/secret 設定或 read/write gate；尚無金鑰版本。" };
   }
   return { provider: "local_test_double", status: "mocked", message: "目前只有本機測試替身；不可測試通過、啟用或顯示 ready。" };
 }
