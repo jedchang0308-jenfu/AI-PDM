@@ -432,7 +432,7 @@ Actual original recognition worker 先執行 native credential probe，probepass
 
 ## D122-08 本地修復階段（2026-10-05；RD Implementation Ready）
 
-窄修復已完成：actual native PG 17／17、focused 11／11（含實際 SQLite）、typecheck／選定 lint／DB boundary 通過；actual GET200只投影所选share responses，計數恰加一；撤權／過期 grant 與全部拒絕/故障路徑零副作用，exact fixture grant 回存已驗。原始query／HTTP503與fixture FAIL保留。[本地結果及層級限制](../qa/DEV-122-share-metadata-local-closure-2026-10-05.json)；最終獨立QC／PR CI另記於PR。正式 metadata NOT_RUN，原7 issues／29 groups及人類CAD缺口不變。
+窄修復已完成：actual native PG 17／17、focused 11／11（含實際 SQLite）、typecheck／選定 lint／DB boundary 通過；actual GET200只投影所选share responses，計數恰加一；撤權／過期 grant 與全部拒絕/故障路徑零副作用，exact fixture grant 回存已驗。原始query／HTTP503與fixture FAIL保留。[本地結果及層級限制](../qa/DEV-122-share-metadata-local-closure-2026-10-05.json)；獨立gpt-6-luna max QC無P1/P2；[PR213](https://github.com/jedchang0308-jenfu/AI-PDM/pull/213)／[required CI37296352232](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37296352232)通過並合併30b952d48b128ef50a04b4c1971914290c2df8ac；正式發布範圍待人類決定。正式 metadata NOT_RUN，原7 issues／29 groups及人類CAD缺口不變。
 
 沿用人類「完成 DEV-122 開發／禁止跨專案開發」的 AI-PDM 本地開發授權，將下方已登記的 D122-08 窄 SQL 缺陷排入本地修復。此前 DEFERRED 與 42P08 為原始歷史，保留原始失敗；本階段不包含正式部署、外部供應商 actor 政策、真實 producer 或原生 CAD 驗收。唯一產品 writer 為 Root，QC 使用獨立 Luna。主分支來源為 7058b0139f7107cffda8356080c3e2f19759e2d1，工作分支 codex/dev122-share-metadata。
 

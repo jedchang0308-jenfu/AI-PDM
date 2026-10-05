@@ -1,6 +1,6 @@
 # AI_PDM 文件地圖
 
-DEV-122 現行本地追加修復：D122-08 share metadata 可選參數型別，依[同一契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-08-本地修復階段2026-10-05rd-implementation-ready)執行；原7 issues／29 groups與人類CAD驗收不變，本階段沒有新增production授權。 [本地17 native／11 focused與層級限制](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)。D122-07人類已確認維持停用、後續開發。
+DEV-122 現行本地追加修復：D122-08 share metadata 可選參數型別，依[同一契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-08-本地修復階段2026-10-05rd-implementation-ready)執行；原7 issues／29 groups與人類CAD驗收不變，本階段沒有新增production授權。 [本地17 native／11 focused與層級限制](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)。D122-08 [PR213](https://github.com/jedchang0308-jenfu/AI-PDM/pull/213)已合併，Luna QC及required CI通過；正式發布範圍待人類決定。D122-07人類已確認維持停用、後續開發。
 
 ## DEV-122 一次提交金鑰流程（2026-10-05；R03 已部署，待使用者 CAD 驗證）
 
