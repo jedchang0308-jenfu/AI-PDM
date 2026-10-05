@@ -1,34 +1,33 @@
+import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
-import type { RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
-import { readPrivilegedRoleCapabilityWorkspace, readRoleCapabilityWorkspace } from '@/lib/ai-pdm-role-capability-service'
-import { authorizePrincipalWorkspaceExternalRead } from '@/lib/principal-company-read'
+import { readPublishedRoleCapabilityWorkspace } from '@/lib/ai-pdm-published-role-capability-workspace'
+import { withPrincipalCompanyRead } from '@/lib/principal-company-read'
+import { requestedPdmCompanyCodeFromRequest } from '@/lib/company-context'
+import { resolveJenfuRoutePolicy } from '@/lib/jenfu-route-permission-map'
 
 export const runtime = 'nodejs'
 
-async function readView(request: Request) {
-  const selected = new URL(request.url).searchParams.get('stableRoleId')?.trim() || null
-  if (selected === 'role-system-admin') return readPrivilegedRoleCapabilityWorkspace()
-  const view = await readRoleCapabilityWorkspace()
-  if (selected && view.roles.length && !view.roles.some((role) => role.catalogRole.stableRoleId === selected)) return null
-  return { ...view, selectedRoleId: selected, roles: selected && view.roles.length ? view.roles.filter((role) => role.catalogRole.stableRoleId === selected) : view.roles } as RoleCapabilityWorkspaceV2
-}
-
-function errorResponse(error: unknown) {
-  const code = error instanceof Error ? error.message : 'ROLE_CAPABILITY_FAILED'
-  const status = code.includes('REVISION') ? 409 : code.includes('UNAVAILABLE') ? 503 : 400
-  return NextResponse.json({ error: code }, { status, headers: { 'cache-control': 'no-store' } })
-}
-
 export async function GET(request: Request) {
-  const authorization = await authorizePrincipalWorkspaceExternalRead(request,
-    'src/app/api/settings/access/role-capabilities/route.ts', 'settings.admin_matrix')
-  if (authorization instanceof Response) return authorization
-  try {
-    const view = await readView(request) as RoleCapabilityWorkspaceV2 | RoleCapabilityWorkspaceV3 | null
-    if (!view) return NextResponse.json({ error: 'ROLE_NOT_FOUND' }, { status: 404 })
-    if (view.dataState === 'unavailable') return NextResponse.json({ ...view, error: view.dependency.decisionCode }, { status: 503, headers: { 'cache-control': 'no-store' } })
-    return NextResponse.json(view, { headers: { 'cache-control': 'no-store' } })
-  } catch (error) {
-    return errorResponse(error)
+  const policy = resolveJenfuRoutePolicy('src/app/api/settings/access/role-capabilities/route.ts', 'GET',
+    { expectedPermissionCode: 'settings.admin_matrix' })
+  if (request.method !== 'GET' || policy?.authorizationMode !== 'permission' || policy.scopeResolver !== 'workspace') {
+    return NextResponse.json({ code: 'principal_route_policy_unavailable' }, { status: 503 })
   }
+  const selected = new URL(request.url).searchParams.get('stableRoleId')?.trim() || null
+  const response = await withPrincipalCompanyRead(request, requestedPdmCompanyCodeFromRequest(request),
+    [{ permissionKind: 'action', permissionCode: 'settings.admin_matrix' }], async (snapshot, company) => {
+      try {
+        const view = await readPublishedRoleCapabilityWorkspace(snapshot, company.companyId, selected)
+        return view ? NextResponse.json(view, { headers: { 'cache-control': 'no-store' } })
+          : NextResponse.json({ error: 'ROLE_NOT_FOUND' }, { status: 404, headers: { 'cache-control': 'no-store' } })
+      } catch {
+        const correlationId = randomUUID()
+        console.error(JSON.stringify({ event: 'role_capability_read_failed', stage: 'published_contract_read',
+          correlationId, reason: 'PUBLISHED_CONTRACT_UNAVAILABLE' }))
+        return NextResponse.json({ error: 'ROLE_CAPABILITY_UNAVAILABLE', correlationId },
+          { status: 503, headers: { 'cache-control': 'no-store' } })
+      }
+    })
+  return response ?? NextResponse.json({ code: 'auth_session_invalid' },
+    { status: 401, headers: { 'cache-control': 'no-store' } })
 }

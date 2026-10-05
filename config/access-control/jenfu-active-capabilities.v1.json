@@ -1,0 +1,3929 @@
+{
+  "contractVersion": "ai-pdm.active-capabilities.v1",
+  "applicationId": "ai-pdm",
+  "sourceCatalogVersion": "ai-pdm.role-catalog.2026-09-28.v5",
+  "capabilities": [
+    {
+      "kind": "action",
+      "code": "accounts.identity.manage",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/admin/accounts/[userId]/identities/[identityId]/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.identity.manage",
+          "authorizationTarget": "accounts.identity.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋target account／identity lifecycle"
+        },
+        {
+          "path": "src/app/api/admin/accounts/[userId]/login-aliases/[aliasId]/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.identity.manage",
+          "authorizationTarget": "accounts.identity.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋alias ownership／uniqueness"
+        },
+        {
+          "path": "src/app/api/admin/accounts/[userId]/login-aliases/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.identity.manage",
+          "authorizationTarget": "accounts.identity.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋alias ownership／uniqueness"
+        },
+        {
+          "path": "src/app/api/admin/accounts/[userId]/password-reset/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.identity.manage",
+          "authorizationTarget": "accounts.identity.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋target account lifecycle"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "accounts.invitation.manage",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/admin/accounts/route.ts",
+        "src/lib/jenfu-principal-provision-service.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/admin/account-invitations/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.invitation.manage",
+          "authorizationTarget": "accounts.invitation.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋既有invitation filters"
+        },
+        {
+          "path": "src/app/api/admin/account-invitations/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.invitation.manage",
+          "authorizationTarget": "accounts.invitation.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋target invitation state"
+        },
+        {
+          "path": "src/app/api/admin/account-invitations/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.invitation.manage",
+          "authorizationTarget": "accounts.invitation.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋invite validation／audit"
+        },
+        {
+          "path": "src/app/api/admin/accounts/route.ts",
+          "method": "GET",
+          "discriminator": "view:principal-candidate",
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.invitation.manage",
+          "authorizationTarget": "accounts.invitation.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal＋exact OrgMaster typed source"
+        },
+        {
+          "path": "src/app/api/admin/accounts/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.invitation.manage",
+          "authorizationTarget": "accounts.invitation.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋same-origin＋verified principal＋published source＋owner DB mutation fence"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/admin/accounts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/jenfu-principal-provision-service.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "accounts.lifecycle.manage",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/admin/accounts/route.ts",
+        "src/app/api/admin/accounts/[userId]/lifecycle/route.ts",
+        "src/app/api/admin/accounts/[userId]/route.ts",
+        "src/lib/jenfu-principal-lifecycle-service.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/admin/accounts/[userId]/lifecycle/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.lifecycle.manage",
+          "authorizationTarget": "accounts.lifecycle.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋target account lifecycle"
+        },
+        {
+          "path": "src/app/api/admin/accounts/[userId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.lifecycle.manage",
+          "authorizationTarget": "accounts.lifecycle.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋target account projection"
+        },
+        {
+          "path": "src/app/api/admin/accounts/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.lifecycle.manage",
+          "authorizationTarget": "accounts.lifecycle.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋bounded account projection"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/admin/accounts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/admin/accounts/[userId]/lifecycle/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/admin/accounts/[userId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/jenfu-principal-lifecycle-service.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "accounts.session.revoke",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/admin/accounts/[userId]/sessions/revoke/route.ts",
+        "src/lib/jenfu-principal-admin-session-revoke.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/admin/accounts/[userId]/sessions/revoke/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "accounts.session.revoke",
+          "authorizationTarget": "accounts.session.revoke",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋target account／session registry"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/admin/accounts/[userId]/sessions/revoke/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/jenfu-principal-admin-session-revoke.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "approval.inbox.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/approvals/inbox/route.ts",
+        "src/app/api/numbering/approval-batches/route.ts",
+        "src/app/api/numbering/approval-batches/[batchId]/route.ts",
+        "src/app/api/numbering/reviews/pending/route.ts",
+        "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+        "src/app/api/pdm/review-requests/[requestId]/route.ts",
+        "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts",
+        "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/route.ts",
+        "src/lib/pdm-dev087-route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/approvals/inbox/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "approval.inbox.view",
+          "authorizationTarget": "approval.inbox.view",
+          "scopeResolver": "company",
+          "preservedGuards": "company＋assigned reviewer／state"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "approval.inbox.view",
+          "authorizationTarget": "approval.inbox.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／AAL1／approval.request.decide＋assigned reviewer＋request state；unmigrated review kinds fail closed"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "approval.inbox.view",
+          "authorizationTarget": "approval.inbox.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／AAL1／approval.request.decide＋assigned reviewer＋v2 package target；unmigrated review kinds fail closed"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "approval.inbox.view",
+          "authorizationTarget": "approval.inbox.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／AAL1／approval.request.decide＋assigned reviewer＋v2 package target；unmigrated review kinds fail closed"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/approvals/inbox/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/approval-batches/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/approval-batches/[batchId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/reviews/pending/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "approval.request.apply",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/approvals/requests/[requestId]/apply/route.ts",
+        "src/app/api/numbering/approval-batches/[batchId]/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/apply/route.ts",
+          "method": "POST",
+          "discriminator": "approval_apply:registered",
+          "authorizationMode": "permission",
+          "permissionCode": "approval.request.apply",
+          "authorizationTarget": "approval.request.apply",
+          "scopeResolver": "company",
+          "preservedGuards": "company＋production-slice／registered-action／request-state／idempotency gates"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/apply/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/approval-batches/[batchId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "approval.request.cleanup",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/cleanup/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "approval.request.cleanup",
+          "authorizationTarget": "approval.request.cleanup",
+          "scopeResolver": "company",
+          "preservedGuards": "company＋request state／cleanup eligibility"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "approval.request.decide",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+        "src/app/api/numbering/approval-batches/[batchId]/route.ts",
+        "src/app/api/numbering/approval-decisions/route.ts",
+        "src/app/api/numbering/drawings/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/route.ts",
+        "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+        "src/app/api/pdm/review-requests/[requestId]/decisions/route.ts",
+        "src/app/api/pdm/review-requests/[requestId]/route.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/part-change-work.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts",
+        "src/lib/pdm-principal-review-target.ts",
+        "src/lib/repositories/pdm-principal-reviewer-selector.ts",
+        "src/lib/transfer-package-phase1d.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+          "method": "POST",
+          "discriminator": "approval_decision:drawing_lifecycle",
+          "authorizationMode": "permission",
+          "permissionCode": "approval.request.decide",
+          "authorizationTarget": "approval.request.decide",
+          "scopeResolver": "company",
+          "preservedGuards": "company＋assigned reviewer＋drawing lifecycle／idempotency state"
+        },
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+          "method": "POST",
+          "discriminator": "approval_decision:registered",
+          "authorizationMode": "permission",
+          "permissionCode": "approval.request.decide",
+          "authorizationTarget": "approval.request.decide",
+          "scopeResolver": "company",
+          "preservedGuards": "company＋assigned reviewer＋request／domain apply state；unregistered／disabled deny"
+        },
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+          "method": "POST",
+          "discriminator": "approval_decision:transfer_package",
+          "authorizationMode": "permission",
+          "permissionCode": "approval.request.decide",
+          "authorizationTarget": "approval.request.decide",
+          "scopeResolver": "workspace",
+          "preservedGuards": "company＋assigned reviewer＋state；不得疊加或取代command guard"
+        },
+        {
+          "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+          "method": "GET",
+          "discriminator": "file_read:approval_evidence",
+          "authorizationMode": "permission",
+          "permissionCode": "approval.request.decide",
+          "authorizationTarget": "approval.request.decide",
+          "scopeResolver": "exact approval request／snapshot evidence membership",
+          "preservedGuards": "exact approval request／snapshot evidence membership＋候選圖面、圖面 package／revision 或提交檔案的 company 關聯；principal v2 在同一唯讀快照驗能力與案件公司，舊審批資料只供 domain read，不作 UID 權限來源"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/decisions/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "approval.request.decide",
+          "authorizationTarget": "approval.request.decide",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／AAL1／assigned reviewer＋request state；unmigrated review kinds fail closed"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/approval-batches/[batchId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/approval-decisions/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/decisions/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/part-change-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-review-target.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/pdm-principal-reviewer-selector.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/transfer-package-phase1d.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "handoff.published.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/handoff/export/route.ts",
+        "src/app/api/handoff/route.ts",
+        "src/app/api/handoff/[id]/release-package/route.ts",
+        "src/app/api/technical-transfer/route.ts",
+        "src/app/api/technical-transfer/[id]/export/route.ts",
+        "src/lib/principal-published-release-package.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/handoff/[id]/release-package/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "handoff.published.view",
+          "authorizationTarget": "handoff.published.view",
+          "scopeResolver": "published handoff company",
+          "preservedGuards": "verified Principal／published capability／same company／current Released version／package binding／checksum／principal audit before response"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/handoff/export/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/handoff/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/handoff/[id]/release-package/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/technical-transfer/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/technical-transfer/[id]/export/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/principal-published-release-package.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "integration.procurement.manage",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/integrations/procurement/sync-runs/[runId]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "integration.procurement.manage",
+          "authorizationTarget": "integration.procurement.manage",
+          "scopeResolver": "integration company",
+          "preservedGuards": "integration company＋run state"
+        },
+        {
+          "path": "src/app/api/integrations/procurement/sync-runs/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "integration.procurement.manage",
+          "authorizationTarget": "integration.procurement.manage",
+          "scopeResolver": "integration company",
+          "preservedGuards": "integration company＋provider／idempotency"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "integration.procurement.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/integrations/procurement/releases/route.ts",
+        "src/app/api/integrations/procurement/releases/[id]/package/route.ts",
+        "src/lib/principal-published-release-package.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/integrations/procurement/releases/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "integration.procurement.view",
+          "authorizationTarget": "integration.procurement.view",
+          "scopeResolver": "integration company",
+          "preservedGuards": "integration company＋release projection"
+        },
+        {
+          "path": "src/app/api/integrations/procurement/sync-runs/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "integration.procurement.view",
+          "authorizationTarget": "integration.procurement.view",
+          "scopeResolver": "integration company",
+          "preservedGuards": "integration company＋bounded run projection"
+        },
+        {
+          "path": "src/app/api/integrations/procurement/releases/[id]/package/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "integration.procurement.view",
+          "authorizationTarget": "integration.procurement.view",
+          "scopeResolver": "published procurement company",
+          "preservedGuards": "verified Principal／integration capability／same company／current Released version／package binding／checksum／principal audit before response"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/integrations/procurement/releases/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/integrations/procurement/releases/[id]/package/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/principal-published-release-package.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "manufacturing.baseline.manage",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/manufacturing-baselines/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "manufacturing.baseline.manage",
+          "authorizationTarget": "manufacturing.baseline.manage",
+          "scopeResolver": "baseline company",
+          "preservedGuards": "baseline company＋lifecycle validation"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "manufacturing.baseline.release",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/manufacturing-baselines/[baselineId]/release/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "manufacturing.baseline.release",
+          "authorizationTarget": "manufacturing.baseline.release",
+          "scopeResolver": "baseline company",
+          "preservedGuards": "baseline company＋lifecycle／release state"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "manufacturing.baseline.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/manufacturing-baselines/resolve/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/manufacturing-baselines/resolve/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "manufacturing.baseline.view",
+          "authorizationTarget": "manufacturing.baseline.view",
+          "scopeResolver": "baseline company",
+          "preservedGuards": "baseline company＋released/resource projection"
+        },
+        {
+          "path": "src/app/api/manufacturing-baselines/resolve/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "manufacturing.baseline.view",
+          "authorizationTarget": "manufacturing.baseline.view",
+          "scopeResolver": "read-only resolution；baseline company",
+          "preservedGuards": "read-only resolution；baseline company＋resource projection"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/manufacturing-baselines/resolve/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.approval.batch.create",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/approval-batches/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/approval-batches/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.approval.request",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/part-number-drafts/[draftId]/submit-review/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/repositories/numbering-async-repository.ts",
+        "src/lib/repositories/numbering-repository.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/part-number-drafts/[draftId]/submit-review/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.attachments.manage",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/drawings/[drawingNumber]/attachments/route.ts",
+        "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts",
+        "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/restore/route.ts",
+        "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/route.ts",
+        "src/app/api/numbering/drawings/[drawingNumber]/revision-files/route.ts",
+        "src/app/api/parts/[partNumber]/attachments/route.ts",
+        "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+        "src/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route.ts",
+        "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts",
+        "src/app/api/parts/[partNumber]/preview-image/reset/route.ts",
+        "src/app/api/parts/[partNumber]/preview-image/route.ts",
+        "src/components/canonical-change-workspace.tsx",
+        "src/components/canonical-part-attachment-manager.tsx",
+        "src/components/canonical-pdm-workbench.tsx",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/master-attachments-async.ts",
+        "src/lib/pdm-dev087-route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.attachments.manage",
+          "authorizationTarget": "numbering.attachments.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.attachments.manage",
+          "authorizationTarget": "numbering.attachments.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts",
+          "method": "DELETE",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.attachments.manage",
+          "authorizationTarget": "numbering.attachments.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.attachments.manage",
+          "authorizationTarget": "numbering.attachments.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified Principal/company; exact part/attachment; review locks; canonical actor audit; atomic command/outbox; idempotent replay"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/restore/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/revision-files/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/restore/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/preview-image/reset/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/preview-image/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/canonical-change-workspace.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/components/canonical-part-attachment-manager.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/components/canonical-pdm-workbench.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/master-attachments-async.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.audit_report.generate",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/monthly-audit-reports/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/monthly-audit-reports/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.candidate.review.submit",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/roots/[rootCode]/route.ts",
+        "src/app/api/pdm/drawing-revision-works/[workId]/submit/route.ts",
+        "src/app/api/pdm/part-change-works/[workId]/submit/route.ts",
+        "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+        "src/lib/access-control-policy.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/number-state-flow.ts",
+        "src/lib/numbering-human-status-viewer.ts",
+        "src/lib/part-change-work.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/submit/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.candidate.review.submit",
+          "authorizationTarget": "numbering.candidate.review.submit",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／AAL1＋current owner＋principal reviewer＋v2 review package＋canonical receipt"
+        },
+        {
+          "path": "src/app/api/pdm/part-change-works/[workId]/submit/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.candidate.review.submit",
+          "authorizationTarget": "numbering.candidate.review.submit",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／AAL1／current owner＋v2 review package＋canonical receipt"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/submit/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/part-change-works/[workId]/submit/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/access-control-policy.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/number-state-flow.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/numbering-human-status-viewer.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/part-change-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.create",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/drawings/[drawingNumber]/parts/route.ts",
+        "src/app/api/numbering/records/preview/route.ts",
+        "src/app/api/numbering/records/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/drawing-part/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/drawings/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/parts/route.ts",
+        "src/app/api/numbering/series-codes/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/audit-scope.ts",
+        "src/lib/platform-command-context.ts",
+        "src/lib/platform-command-service.ts",
+        "src/lib/repositories/numbering-async-repository.ts",
+        "src/lib/repositories/numbering-repository.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/numbering/records/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.create",
+          "authorizationTarget": "numbering.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋company＋link_variant when drawing requested＋numbering validation／idempotency"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/drawing-part/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.create",
+          "authorizationTarget": "numbering.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋company＋link_variant when relation created＋append validation／idempotency"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/drawings/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.create",
+          "authorizationTarget": "numbering.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋company＋link_variant when relation created＋append validation／idempotency"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/parts/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.create",
+          "authorizationTarget": "numbering.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋company＋link_variant when relation created＋append validation／idempotency"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/parts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/records/preview/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/records/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/drawing-part/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/drawings/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/parts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/series-codes/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/audit-scope.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/platform-command-context.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/platform-command-service.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.draft.admin_confirm",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/drafts/overdue/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/drafts/overdue/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.draft.obsolete",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/part-number-drafts/[draftId]/recycle/route.ts",
+        "src/app/api/numbering/part-number-drafts/[draftId]/restore/route.ts",
+        "src/app/api/numbering/part-number-drafts/[draftId]/void/route.ts",
+        "src/app/api/numbering/records/[rootCode]/draft/route.ts",
+        "src/app/api/numbering/records/[rootCode]/obsolete/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/obsolete-impact/route.ts",
+        "src/app/api/pdm/drawing-rd-branches/[branchId]/void-requests/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts",
+        "src/lib/repositories/numbering-async-repository.ts",
+        "src/lib/repositories/numbering-repository.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/numbering/records/[rootCode]/obsolete/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.draft.obsolete",
+          "authorizationTarget": "numbering.draft.obsolete",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋company＋draft lifecycle／root ownership＋confirmation／idempotency"
+        },
+        {
+          "path": "src/app/api/pdm/drawing-rd-branches/[branchId]/void-requests/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.draft.obsolete",
+          "authorizationTarget": "numbering.draft.obsolete",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified AAL1 principal＋published grant＋company／exact RD branch／row version＋v2 review package／principal receipt"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/part-number-drafts/[draftId]/recycle/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/part-number-drafts/[draftId]/restore/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/part-number-drafts/[draftId]/void/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/records/[rootCode]/draft/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/records/[rootCode]/obsolete/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/obsolete-impact/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/drawing-rd-branches/[branchId]/void-requests/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.draft.update",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/drawing-revision-packages/[packageId]/supplements/route.ts",
+        "src/app/api/numbering/part-number-drafts/route.ts",
+        "src/app/api/numbering/part-number-drafts/[draftId]/reconfirm/route.ts",
+        "src/app/api/numbering/part-number-drafts/[draftId]/route.ts",
+        "src/app/api/numbering/records/[rootCode]/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/route.ts",
+        "src/app/api/parts/[partNumber]/variant/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/numbering-human-status-viewer.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts",
+        "src/lib/repositories/numbering-async-repository.ts",
+        "src/lib/repositories/numbering-repository.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/drawing-revision-packages/[packageId]/supplements/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/part-number-drafts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/part-number-drafts/[draftId]/reconfirm/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/part-number-drafts/[draftId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/records/[rootCode]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/variant/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/numbering-human-status-viewer.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.drawing_revision_lifecycle_review",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/approvals/requests/[requestId]/cleanup/route.ts",
+        "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+        "src/app/api/approvals/requests/[requestId]/route.ts",
+        "src/app/api/approvals/requests/[requestId]/withdraw/route.ts",
+        "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+        "src/lib/drawing-revision-lifecycle-adoption.ts",
+        "src/lib/pdm-approval-owner-route.ts",
+        "src/lib/pdm-review-scope.ts",
+        "src/lib/repositories/approval-platform-async-repository.ts",
+        "src/lib/repositories/drawing-revision-lifecycle-async-repository.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/numbering/drawing-revision-packages/[packageId]/model-basis/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.drawing_revision_lifecycle_review",
+          "authorizationTarget": "numbering.drawing_revision_lifecycle_review",
+          "scopeResolver": "package company",
+          "preservedGuards": "package company＋assigned reviewer／state"
+        },
+        {
+          "path": "src/app/api/numbering/drawing-revision-packages/supplements/[supplementId]/decision/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.drawing_revision_lifecycle_review",
+          "authorizationTarget": "numbering.drawing_revision_lifecycle_review",
+          "scopeResolver": "package company",
+          "preservedGuards": "package company＋assigned reviewer／state"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/cleanup/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/decisions/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/approvals/requests/[requestId]/withdraw/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/drawing-revision-lifecycle-adoption.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-approval-owner-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-review-scope.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/approval-platform-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/drawing-revision-lifecycle-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.duplicate_check",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/duplicate-check/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/repositories/numbering-async-repository.ts",
+        "src/lib/repositories/numbering-repository.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/numbering/duplicate-check/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.duplicate_check",
+          "authorizationTarget": "numbering.duplicate_check",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／profile FK／same-transaction duplicate audit"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/duplicate-check/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.export.create",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/export-jobs/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/export-jobs/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.link_variant",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/drawings/[drawingNumber]/parts/route.ts",
+        "src/app/api/numbering/records/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/drawing-part/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/drawings/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/parts/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/route.ts",
+        "src/app/api/numbering/variants/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/numbering-human-status-viewer.ts",
+        "src/lib/platform-command-context.ts",
+        "src/lib/platform-command-service.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/parts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/records/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/drawing-part/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/drawings/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/parts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/variants/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/numbering-human-status-viewer.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/platform-command-context.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/platform-command-service.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.notification.update",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/notifications/[notificationId]/handled/route.ts",
+        "src/app/api/numbering/notifications/[notificationId]/read/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/notifications/[notificationId]/handled/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/notifications/[notificationId]/read/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.publish",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/roots/[rootCode]/route.ts",
+        "src/lib/access-control-policy.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/number-state-flow.ts",
+        "src/lib/numbering-human-status-viewer.ts",
+        "src/lib/part-change-work.ts",
+        "src/lib/repositories/pdm-principal-reviewer-selector.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/access-control-policy.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/number-state-flow.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/numbering-human-status-viewer.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/part-change-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/pdm-principal-reviewer-selector.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.recognition.formalize",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/recognition-sessions/[sessionId]/commit/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/formalize/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/handoff/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/write-impact/route.ts",
+        "src/lib/drawing-recognition-part-work-handoff.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/commit/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.formalize",
+          "authorizationTarget": "numbering.recognition.formalize",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, current version, business write and command receipt"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/formalize/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.formalize",
+          "authorizationTarget": "numbering.recognition.formalize",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, signed impact, conditional post-release grant and command receipt"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/handoff/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.formalize",
+          "authorizationTarget": "numbering.recognition.formalize",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, canonical work contract and handoff scope"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/write-impact/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.formalize",
+          "authorizationTarget": "numbering.recognition.formalize",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, current version and signed impact preview"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/commit/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/formalize/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/handoff/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/write-impact/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/drawing-recognition-part-work-handoff.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.recognition.review",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/drawings/[drawingNumber]/recognition-session/route.ts",
+        "src/app/api/numbering/parts/[partId]/recognition-session/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/amendments/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/cancel-amendment/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/decisions/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/observations/[observationId]/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/sources/[sourceId]/content/route.ts",
+        "src/app/numbering/recognition/[sessionId]/page.tsx"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/recognition-session/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company drawing and scoped recognition session"
+        },
+        {
+          "path": "src/app/api/numbering/parts/[partId]/recognition-session/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company part and scoped recognition session"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session and actor or published reviewer scope"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/amendments/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, current version and command receipt"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/cancel-amendment/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, current version and command receipt"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/decisions/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, actor scope and current version"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/observations/[observationId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, actor scope and observation binding"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/sources/[sourceId]/content/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, actor scope and source binding"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/recognition-session/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/parts/[partId]/recognition-session/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/amendments/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/cancel-amendment/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/decisions/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/observations/[observationId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/sources/[sourceId]/content/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/numbering/recognition/[sessionId]/page.tsx",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.recognition.run",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/recognition-sessions/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/client-adapter-results/route.ts",
+        "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/numbering/recognition-sessions/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.run",
+          "authorizationTarget": "numbering.recognition.run",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company source context and bounded source assets"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/client-adapter-results/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.run",
+          "authorizationTarget": "numbering.recognition.run",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, source binding and adapter validation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.run",
+          "authorizationTarget": "numbering.recognition.run",
+          "scopeResolver": "workspace",
+          "preservedGuards": "same-company session, actor scope and source set"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/recognition-sessions/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/client-adapter-results/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.task.update",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/tasks/[taskId]/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/tasks/[taskId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.workspace.cancel",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/pdm/drawing-revision-works/[workId]/cancel/route.ts",
+        "src/app/api/pdm/part-change-works/[workId]/cancel/route.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/part-change-work.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/cancel/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.cancel",
+          "authorizationTarget": "numbering.workspace.cancel",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／current owner＋row version＋canonical receipt"
+        },
+        {
+          "path": "src/app/api/pdm/part-change-works/[workId]/cancel/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.cancel",
+          "authorizationTarget": "numbering.workspace.cancel",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／current owner＋row version＋canonical receipt"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/cancel/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/part-change-works/[workId]/cancel/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/part-change-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.workspace.create",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/pdm/drawings/[drawingId]/revision-targets/route.ts",
+        "src/app/api/pdm/drawings/[drawingId]/revision-works/route.ts",
+        "src/app/api/pdm/parts/[partId]/change-works/route.ts",
+        "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+        "src/lib/drawing-recognition-part-work-handoff.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/part-change-work.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/pdm/drawings/[drawingId]/revision-targets/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.create",
+          "authorizationTarget": "numbering.workspace.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／server-read source row＋target token"
+        },
+        {
+          "path": "src/app/api/pdm/drawings/[drawingId]/revision-works/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.create",
+          "authorizationTarget": "numbering.workspace.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／target token或manual rule＋row version＋canonical receipt"
+        },
+        {
+          "path": "src/app/api/pdm/parts/[partId]/change-works/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.create",
+          "authorizationTarget": "numbering.workspace.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／formal row version＋canonical receipt"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/pdm/drawings/[drawingId]/revision-targets/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/drawings/[drawingId]/revision-works/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/parts/[partId]/change-works/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/drawing-recognition-part-work-handoff.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/part-change-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.workspace.update",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/pdm/drawing-revision-works/[workId]/files/route.ts",
+        "src/app/api/pdm/drawing-revision-works/[workId]/files/[fileBindingId]/route.ts",
+        "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
+        "src/app/api/pdm/part-change-works/[workId]/route.ts",
+        "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+        "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+        "src/lib/drawing-recognition-part-work-handoff.ts",
+        "src/lib/drawing-revision-work-file.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/part-change-work.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/files/[fileBindingId]/route.ts",
+          "method": "DELETE",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.update",
+          "authorizationTarget": "numbering.workspace.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／locked owner＋current revision binding＋DB tombstone before object cleanup"
+        },
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/files/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.update",
+          "authorizationTarget": "numbering.workspace.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／prestage owner check＋write-snapshot recheck＋canonical file receipt"
+        },
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.update",
+          "authorizationTarget": "numbering.workspace.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／current owner＋row version＋canonical receipt"
+        },
+        {
+          "path": "src/app/api/pdm/part-change-works/[workId]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.update",
+          "authorizationTarget": "numbering.workspace.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／current owner＋row version＋canonical receipt"
+        },
+        {
+          "path": "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.update",
+          "authorizationTarget": "numbering.workspace.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋published action grant＋company／root scope＋ETag／idempotent principal receipt"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/files/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/files/[fileBindingId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/part-change-works/[workId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/drawing-recognition-part-work-handoff.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/drawing-revision-work-file.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/part-change-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "numbering.workspace.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/drawings/workbench/[rowKey]/preview/route.ts",
+        "src/app/api/parts/workbench/[rowKey]/preview/route.ts",
+        "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
+        "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+        "src/app/api/pdm/part-change-works/[workId]/route.ts",
+        "src/lib/drawing-revision-work.ts",
+        "src/lib/part-change-work.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.view",
+          "authorizationTarget": "numbering.workspace.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／current owner＋capability-limited interaction"
+        },
+        {
+          "path": "src/app/api/pdm/part-change-works/[workId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.workspace.view",
+          "authorizationTarget": "numbering.workspace.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified principal／current owner"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/drawings/workbench/[rowKey]/preview/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/workbench/[rowKey]/preview/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/drawing-revision-works/[workId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/part-change-works/[workId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/drawing-revision-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/part-change-work.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "obsolete_part_root",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/lifecycle/obsolete-requests/route.ts",
+        "src/app/api/numbering/approval-requests/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/obsolete-impact/route.ts",
+        "src/lib/production-slice.ts",
+        "src/lib/repositories/numbering-async-repository.ts",
+        "src/lib/repositories/numbering-repository.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/lifecycle/obsolete-requests/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/approval-requests/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/obsolete-impact/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/production-slice.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/repositories/numbering-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "pdm.file_metadata.detect",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/file-metadata/detect/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/file-metadata/detect/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "pdm.file_metadata.detect",
+          "authorizationTarget": "pdm.file_metadata.detect",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋upload owner／content validation"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/file-metadata/detect/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "pdm.shared_model.manage",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/parts/[partNumber]/shared-models/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "pdm.shared_model.manage",
+          "authorizationTarget": "pdm.shared_model.manage",
+          "scopeResolver": "Part company",
+          "preservedGuards": "Part company＋owner／content validation"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "pdm.shared_model.view",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/parts/[partNumber]/shared-models/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "pdm.shared_model.view",
+          "authorizationTarget": "pdm.shared_model.view",
+          "scopeResolver": "Part company",
+          "preservedGuards": "Part company＋owner／released projection"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "post_release_change",
+      "registration": "published-catalog",
+      "callers": [
+        "src/components/settings-screen.tsx",
+        "src/lib/drawing-recognition-formalization-authorization.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/drawing-recognition-formalization-authorization.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "settings.admin_matrix",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/admin/matrix/route.ts",
+        "src/app/api/numbering/rule-simulator/route.ts",
+        "src/app/api/settings/access/role-capabilities/change-feed/route.ts",
+        "src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts",
+        "src/app/api/settings/access/role-capabilities/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/settings/access/role-capabilities/change-feed/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.admin_matrix",
+          "authorizationTarget": "settings.admin_matrix",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋bounded audit projection"
+        },
+        {
+          "path": "src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.admin_matrix",
+          "authorizationTarget": "settings.admin_matrix",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋exact command projection"
+        },
+        {
+          "path": "src/app/api/settings/access/role-capabilities/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.admin_matrix",
+          "authorizationTarget": "settings.admin_matrix",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋role catalog projection"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/admin/matrix/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/rule-simulator/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/settings/access/role-capabilities/change-feed/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/settings/access/role-capabilities/commands/[commandId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/settings/access/role-capabilities/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "settings.integration.manage",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/settings/gdrive/folders/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/settings/gdrive/folders/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.integration.manage",
+          "authorizationTarget": "settings.integration.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋provider scope"
+        },
+        {
+          "path": "src/app/api/settings/gdrive/folders/verify/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.integration.manage",
+          "authorizationTarget": "settings.integration.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋provider／folder validation"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/settings/gdrive/folders/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "settings.manage",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/settings/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/settings/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.manage",
+          "authorizationTarget": "settings.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋redacted projection"
+        },
+        {
+          "path": "src/app/api/settings/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.manage",
+          "authorizationTarget": "settings.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋settings validation／audit"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/settings/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "settings.secret.manage",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/settings/secrets/route.ts",
+        "src/app/api/settings/secrets/[kind]/activate/route.ts",
+        "src/app/api/settings/secrets/[kind]/draft/route.ts",
+        "src/app/api/settings/secrets/[kind]/revoke/route.ts",
+        "src/app/api/settings/secrets/[kind]/test/route.ts",
+        "src/lib/settings-secret-lifecycle.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/settings/secrets/[kind]/activate/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.secret.manage",
+          "authorizationTarget": "settings.secret.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋step-up＋provider／secret state"
+        },
+        {
+          "path": "src/app/api/settings/secrets/[kind]/draft/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.secret.manage",
+          "authorizationTarget": "settings.secret.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋step-up＋redaction／secret state"
+        },
+        {
+          "path": "src/app/api/settings/secrets/[kind]/revoke/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.secret.manage",
+          "authorizationTarget": "settings.secret.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋step-up＋secret state"
+        },
+        {
+          "path": "src/app/api/settings/secrets/[kind]/test/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.secret.manage",
+          "authorizationTarget": "settings.secret.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋step-up＋provider／rate limit"
+        },
+        {
+          "path": "src/app/api/settings/secrets/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.secret.manage",
+          "authorizationTarget": "settings.secret.manage",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋step-up＋redacted projection"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/settings/secrets/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/settings/secrets/[kind]/activate/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/settings/secrets/[kind]/draft/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/settings/secrets/[kind]/revoke/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/settings/secrets/[kind]/test/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/settings-secret-lifecycle.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "settings.storage_evidence.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/notifications/route.ts",
+        "src/app/api/storage/evidence/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/storage/evidence/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "settings.storage_evidence.view",
+          "authorizationTarget": "settings.storage_evidence.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋redacted evidence projection"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/notifications/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/storage/evidence/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "submission.create",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/submission-readiness/resolve/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/submission-readiness/resolve/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.create",
+          "authorizationTarget": "submission.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋published workspace grant；pure readiness calculation after authorization"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/submission-readiness/resolve/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "submission.decide",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/submissions/[id]/approve/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.decide",
+          "authorizationTarget": "submission.decide",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋assigned reviewer／lifecycle"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/reject/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.decide",
+          "authorizationTarget": "submission.decide",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋assigned reviewer／lifecycle"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/return-for-correction/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.decide",
+          "authorizationTarget": "submission.decide",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋assigned reviewer／lifecycle"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "submission.lifecycle.decide",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/submission-lifecycle-requests/[requestId]/approve/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.lifecycle.decide",
+          "authorizationTarget": "submission.lifecycle.decide",
+          "scopeResolver": "company",
+          "preservedGuards": "company＋assigned reviewer／request state"
+        },
+        {
+          "path": "src/app/api/submission-lifecycle-requests/[requestId]/reject/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.lifecycle.decide",
+          "authorizationTarget": "submission.lifecycle.decide",
+          "scopeResolver": "company",
+          "preservedGuards": "company＋assigned reviewer／request state"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "submission.retry",
+      "registration": "published-catalog",
+      "callers": [],
+      "routes": [
+        {
+          "path": "src/app/api/submissions/[id]/retry-release/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.retry",
+          "authorizationTarget": "submission.retry",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋retry eligibility／idempotency"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/retry-upload/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.retry",
+          "authorizationTarget": "submission.retry",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋retry eligibility／idempotency"
+        }
+      ],
+      "callerEvidence": [],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "submission.review",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/submissions/[id]/cancel/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/submissions/[id]/approval-matrix/[requirementId]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.review",
+          "authorizationTarget": "submission.review",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋reviewer／matrix state"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/approval-matrix/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.review",
+          "authorizationTarget": "submission.review",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋reviewer／matrix state"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/changes/[changeId]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.review",
+          "authorizationTarget": "submission.review",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋reviewer／change state"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/supplier-responses/[responseId]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.review",
+          "authorizationTarget": "submission.review",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋reviewer／response state"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/supplier-responses/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.review",
+          "authorizationTarget": "submission.review",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋manager/reviewer restriction"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/submissions/[id]/cancel/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "submission.share",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/submissions/[id]/shares/route.ts",
+        "src/lib/platform-command-service.ts",
+        "src/lib/principal-readonly-share-command.ts",
+        "src/lib/principal-readonly-share.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/submissions/[id]/shares/[shareId]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.share",
+          "authorizationTarget": "submission.share",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／share state"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/shares/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.share",
+          "authorizationTarget": "submission.share",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／share projection"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/shares/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.share",
+          "authorizationTarget": "submission.share",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／recipient validation"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/submissions/[id]/shares/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/platform-command-service.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/principal-readonly-share-command.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/principal-readonly-share.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "submission.update",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/submissions/preflight-lock/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/submissions/[id]/changes/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.update",
+          "authorizationTarget": "submission.update",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／lifecycle"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/checkout/route.ts",
+          "method": "DELETE",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.update",
+          "authorizationTarget": "submission.update",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／lock ownership"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/checkout/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.update",
+          "authorizationTarget": "submission.update",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／lock state"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/obsolete-request/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.update",
+          "authorizationTarget": "submission.update",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／lifecycle"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/sandbox/[branchId]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.update",
+          "authorizationTarget": "submission.update",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／branch state"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/sandbox/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.update",
+          "authorizationTarget": "submission.update",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／lifecycle"
+        },
+        {
+          "path": "src/app/api/submissions/preflight-lock/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.update",
+          "authorizationTarget": "submission.update",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋owner／preflight state"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/submissions/preflight-lock/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "submission.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/public/shares/[token]/package/route.ts",
+        "src/app/api/public/shares/[token]/route.ts",
+        "src/app/api/search/route.ts",
+        "src/app/api/submission-rules/active/route.ts",
+        "src/app/api/submissions/route.ts",
+        "src/app/api/submissions/[id]/cancel/route.ts",
+        "src/app/api/submissions/[id]/files/[...filePath]/route.ts",
+        "src/app/api/submissions/[id]/release-package/route.ts",
+        "src/app/api/submissions/[id]/route.ts",
+        "src/lib/principal-readonly-share.ts",
+        "src/lib/principal-submission-access.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/search/route.ts",
+          "method": "GET",
+          "discriminator": "search:submission",
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "submission company",
+          "preservedGuards": "published role／AAL1 for manager／same company／verified profile owner for rd／historical read-only search"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/sandbox/[branchId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "submission company",
+          "preservedGuards": "submission company＋branch/resource projection"
+        },
+        {
+          "path": "src/app/api/public/shares/[token]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "submission company",
+          "preservedGuards": "verified Principal／token selects share only／same-company published submission.view／active expiry and revoke／Released package"
+        },
+        {
+          "path": "src/app/api/public/shares/[token]/package/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "submission company",
+          "preservedGuards": "verified Principal／token selects share only／same-company published submission.view／active expiry and revoke／Released package checksum and Principal audit"
+        },
+        {
+          "path": "src/app/api/submission-rules/active/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋published workspace grant；versioned rules after authorization"
+        },
+        {
+          "path": "src/app/api/submissions/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "submission company",
+          "preservedGuards": "published role／AAL1 for manager／same company／verified profile owner for rd／historical read-only list"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "submission company",
+          "preservedGuards": "published role／AAL1 for manager／same company／verified profile owner for rd／historical read-only"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/files/[...filePath]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "submission company",
+          "preservedGuards": "published role／same company／verified profile owner／file binding／checksum／principal audit before response"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/release-package/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "submission.view",
+          "authorizationTarget": "submission.view",
+          "scopeResolver": "submission company",
+          "preservedGuards": "published role／same company／verified profile owner／released or obsolete／package binding／checksum／principal audit before response"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/public/shares/[token]/package/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/public/shares/[token]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/search/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/submission-rules/active/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/submissions/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/cancel/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/files/[...filePath]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/release-package/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/submissions/[id]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/lib/principal-readonly-share.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/principal-submission-access.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "transfer.package.create",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/transfer-packages/route.ts",
+        "src/app/api/transfer-packages/workbench-context/route.ts",
+        "src/components/transfer-package-workbench.tsx"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/transfer-packages/workbench-context/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.create",
+          "authorizationTarget": "transfer.package.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋source company／read-only snapshot"
+        },
+        {
+          "path": "src/app/api/transfer-packages/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.create",
+          "authorizationTarget": "transfer.package.create",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋source validation／command receipt／outbox"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/transfer-packages/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/transfer-packages/workbench-context/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/transfer-package-workbench.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "transfer.package.publish",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/transfer-packages/[id]/publish/route.ts",
+        "src/components/transfer-package-workbench.tsx",
+        "src/lib/access-control-policy.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/publish/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.publish",
+          "authorizationTarget": "transfer.package.publish",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋approved snapshot／publication evidence／command receipt／outbox"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/publish/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/transfer-package-workbench.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/access-control-policy.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "transfer.package.review.submit",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/transfer-packages/[id]/submit-review/route.ts",
+        "src/components/transfer-package-workbench.tsx",
+        "src/lib/access-control-policy.ts",
+        "src/lib/transfer-package-phase1d.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/submit-review/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.review.submit",
+          "authorizationTarget": "transfer.package.review.submit",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋Principal package owner／readiness／command receipt／outbox"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/submit-review/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/transfer-package-workbench.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/access-control-policy.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/transfer-package-phase1d.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "transfer.package.review.withdraw",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/transfer-packages/[id]/withdraw-review/route.ts",
+        "src/components/transfer-package-workbench.tsx",
+        "src/lib/access-control-policy.ts",
+        "src/lib/transfer-package-phase1d.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/withdraw-review/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.review.withdraw",
+          "authorizationTarget": "transfer.package.review.withdraw",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋Principal package owner／pending review／command receipt／outbox"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/withdraw-review/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/transfer-package-workbench.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/access-control-policy.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/transfer-package-phase1d.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "transfer.package.update",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/transfer-packages/[id]/cancel/route.ts",
+        "src/app/api/transfer-packages/[id]/draft-items/route.ts",
+        "src/app/api/transfer-packages/[id]/draft-items/[itemId]/route.ts",
+        "src/app/api/transfer-packages/[id]/items/route.ts",
+        "src/app/api/transfer-packages/[id]/items/[itemId]/route.ts",
+        "src/app/api/transfer-packages/[id]/route.ts",
+        "src/components/transfer-package-workbench.tsx",
+        "src/lib/repositories/transfer-package-async-repository.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/route.ts",
+          "method": "PATCH",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.update",
+          "authorizationTarget": "transfer.package.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋Principal package owner／version／command receipt／outbox"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/draft-items/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.update",
+          "authorizationTarget": "transfer.package.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋Principal package owner／draft scope／command receipt／outbox"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/draft-items/[itemId]/route.ts",
+          "method": "DELETE",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.update",
+          "authorizationTarget": "transfer.package.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋Principal package owner／draft scope／command receipt／outbox"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/items/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.update",
+          "authorizationTarget": "transfer.package.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋Principal package owner／entity scope／command receipt／outbox"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/items/[itemId]/route.ts",
+          "method": "DELETE",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.update",
+          "authorizationTarget": "transfer.package.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋Principal package owner／entity scope／command receipt／outbox"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/cancel/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.update",
+          "authorizationTarget": "transfer.package.update",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋Principal package owner／version／command receipt／outbox"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/cancel/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/draft-items/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/draft-items/[itemId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/items/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/items/[itemId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/transfer-package-workbench.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/repositories/transfer-package-async-repository.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "action",
+      "code": "transfer.package.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/technical-transfer/route.ts",
+        "src/app/api/transfer-packages/[id]/readiness-summary/route.ts",
+        "src/app/api/transfer-packages/[id]/route.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/transfer-packages/[id]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.view",
+          "authorizationTarget": "transfer.package.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋package company／read-only snapshot"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/readiness-summary/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "transfer.package.view",
+          "authorizationTarget": "transfer.package.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋read-only readiness snapshot／package company"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/technical-transfer/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/readiness-summary/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/transfer-packages/[id]/route.ts",
+          "purpose": "method policy plus route implementation"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "page",
+      "code": "numbering.drawings.view",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/lifecycle/policy/route.ts",
+        "src/app/api/numbering/drawings/resolve/route.ts",
+        "src/app/api/numbering/drawings/route.ts",
+        "src/app/api/numbering/drawings/workbench/[rowKey]/preview/route.ts",
+        "src/app/api/numbering/drawings/[drawingNumber]/attachments/route.ts",
+        "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts",
+        "src/app/api/numbering/drawings/[drawingNumber]/history/[revisionId]/route.ts",
+        "src/app/api/numbering/series-codes/route.ts",
+        "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/history/[revisionId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.drawings.view",
+          "authorizationTarget": "numbering.drawings.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋drawing company＋exact revision／readable lifecycle＋bound files"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/workbench/[rowKey]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.drawings.view",
+          "authorizationTarget": "numbering.drawings.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋published action grants＋company／row identity＋read-only snapshot"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/workbench/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.drawings.view",
+          "authorizationTarget": "numbering.drawings.view",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋published action grants＋company／stable read snapshot"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/lifecycle/policy/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/resolve/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/workbench/[rowKey]/preview/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/attachments/[attachmentId]/previews/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/drawings/[drawingNumber]/history/[revisionId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/series-codes/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "page",
+      "code": "numbering.reports",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/export-jobs/route.ts",
+        "src/app/api/numbering/export-jobs/[jobId]/route.ts",
+        "src/app/api/numbering/monthly-audit-reports/route.ts",
+        "src/app/api/numbering/monthly-audit-reports/[reportId]/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/export-jobs/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/export-jobs/[jobId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/monthly-audit-reports/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/monthly-audit-reports/[reportId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "page",
+      "code": "numbering.request",
+      "registration": "published-catalog",
+      "callers": [
+        "src/components/settings-screen.tsx"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "page",
+      "code": "numbering.search",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/lifecycle/obsolete-impact/route.ts",
+        "src/app/api/lifecycle/policy/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/append-policy/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/obsolete-impact/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/route.ts",
+        "src/app/api/numbering/roots/[rootCode]/submission-readiness/route.ts",
+        "src/app/api/numbering/search/route.ts",
+        "src/app/api/numbering/series-codes/route.ts",
+        "src/app/api/parts/route.ts",
+        "src/app/api/parts/workbench/[rowKey]/preview/route.ts",
+        "src/app/api/parts/[partNumber]/attachments/route.ts",
+        "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+        "src/app/api/parts/[partNumber]/replacement-attachment-candidates/route.ts",
+        "src/app/api/parts/[partNumber]/route.ts",
+        "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+        "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+        "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+        "src/app/api/search/route.ts",
+        "src/components/canonical-part-attachment-manager.tsx",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts",
+        "src/lib/pdm-dev087-route.ts",
+        "src/lib/pdm-principal-canonical-workbench-read.ts"
+      ],
+      "routes": [
+        {
+          "path": "src/app/api/parts/workbench/[rowKey]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.search",
+          "authorizationTarget": "numbering.search",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋published action grants＋company／row identity＋read-only snapshot"
+        },
+        {
+          "path": "src/app/api/parts/workbench/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.search",
+          "authorizationTarget": "numbering.search",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋published action grants＋company／stable read snapshot"
+        },
+        {
+          "path": "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.search",
+          "authorizationTarget": "numbering.search",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified principal＋published page grant＋company／root scope＋read-only snapshot"
+        },
+        {
+          "path": "src/app/api/search/route.ts",
+          "method": "GET",
+          "discriminator": "search:part",
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.search",
+          "authorizationTarget": "numbering.search",
+          "scopeResolver": "principal company",
+          "preservedGuards": "published page grant／verified principal／same company／part number metadata"
+        },
+        {
+          "path": "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.search",
+          "authorizationTarget": "numbering.search",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified Principal／source work company／owner-only edit projection"
+        },
+        {
+          "path": "src/app/api/lifecycle/obsolete-impact/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.search",
+          "authorizationTarget": "numbering.search",
+          "scopeResolver": "workspace",
+          "preservedGuards": "workspace＋verified Principal／formal entity company／read-only impact snapshot"
+        }
+      ],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/lifecycle/obsolete-impact/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/lifecycle/policy/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/append-policy/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/obsolete-impact/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/roots/[rootCode]/submission-readiness/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/search/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/series-codes/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/workbench/[rowKey]/preview/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/attachments/[attachmentId]/previews/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/replacement-attachment-candidates/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/parts/[partNumber]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/file-assets/[fileAssetId]/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/parts/[partId]/matrix-workspace/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/pdm/relations/[rootId]/matrix/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/search/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/canonical-part-attachment-manager.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-dev087-route.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/lib/pdm-principal-canonical-workbench-read.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    },
+    {
+      "kind": "page",
+      "code": "numbering.tasks",
+      "registration": "published-catalog",
+      "callers": [
+        "src/app/api/numbering/notifications/route.ts",
+        "src/app/api/numbering/part-number-drafts/route.ts",
+        "src/app/api/numbering/tasks/route.ts",
+        "src/components/settings-screen.tsx",
+        "src/lib/approval-rule-summary.ts"
+      ],
+      "routes": [],
+      "callerEvidence": [
+        {
+          "path": "src/app/api/numbering/notifications/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/part-number-drafts/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/tasks/route.ts",
+          "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/components/settings-screen.tsx",
+          "purpose": "UI display or navigation; API remains authoritative"
+        },
+        {
+          "path": "src/lib/approval-rule-summary.ts",
+          "purpose": "shared permission consumer; no catalog-derived bypass"
+        }
+      ],
+      "usage": "registered capability with caller evidence"
+    }
+  ]
+}

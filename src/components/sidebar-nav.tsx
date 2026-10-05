@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { NUMBERING_NAV_PERMISSION_BY_PATH } from "@/lib/numbering-permission-codes";
+import { NUMBERING_NAV_PERMISSION_BY_PATH, permitsNumberingNavigation, type NumberingPermissionResponse } from "@/lib/numbering-permission-codes";
 
 type NavItem = {
   href: string;
@@ -98,12 +98,12 @@ const navSections: NavSection[] = [
 
 function isVisibleItem(
   item: NavItem,
-  pagePermissions: Record<string, boolean> | null,
+  permissions: NumberingPermissionResponse | null,
   productionSlice: ProductionSliceClientStatus | null
 ) {
   if (productionSlice?.configured) return true;
   const requiredPermission = NUMBERING_NAV_PERMISSION_BY_PATH[item.href];
-  return !requiredPermission || pagePermissions?.[requiredPermission] === true;
+  return !requiredPermission || permitsNumberingNavigation(permissions, requiredPermission);
 }
 
 function isOpenInProductionSlice(item: NavItem, productionSlice: ProductionSliceClientStatus | null) {
@@ -115,7 +115,7 @@ export function SidebarNav() {
   const pathname = usePathname() || "/";
   const router = useRouter();
   const publicAuthPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/account-recovery") || pathname.startsWith("/account-invitation/");
-  const [pagePermissions, setPagePermissions] = useState<Record<string, boolean> | null>(null);
+  const [permissions, setPermissions] = useState<NumberingPermissionResponse | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -152,7 +152,7 @@ export function SidebarNav() {
   }, [publicAuthPage]);
 
   useEffect(() => {
-    const canViewApprovals = pagePermissions?.["numbering.approvals"] === true;
+    const canViewApprovals = permissions?.actions["approval.inbox.view"] === true;
     if (publicAuthPage || !canViewApprovals) {
       setPendingApprovalCount(null);
       return;
@@ -183,21 +183,21 @@ export function SidebarNav() {
       window.removeEventListener("approval-inbox-changed", loadPendingApprovalCount);
       document.removeEventListener("visibilitychange", refreshOnVisible);
     };
-  }, [pagePermissions, publicAuthPage]);
+  }, [permissions, publicAuthPage]);
 
   useEffect(() => {
     if (publicAuthPage) {
-      setPagePermissions(null);
+      setPermissions(null);
       return;
     }
     let cancelled = false;
     fetch("/api/numbering/permissions")
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: { pages?: Record<string, boolean> } | null) => {
-        if (!cancelled && body?.pages) setPagePermissions(body.pages);
+      .then((body: NumberingPermissionResponse | null) => {
+        if (!cancelled && body?.pages && body?.actions) setPermissions(body);
       })
       .catch(() => {
-        if (!cancelled) setPagePermissions(null);
+        if (!cancelled) setPermissions(null);
       });
     return () => {
       cancelled = true;
@@ -297,7 +297,7 @@ export function SidebarNav() {
       ) : null}
       <nav id="primary-navigation" className={mobileNavOpen ? "nav mobile-open" : "nav"} aria-label="主導覽">
         {navSections.map((section) => {
-          const visibleItems = section.items.filter((item) => isVisibleItem(item, pagePermissions, productionSlice));
+          const visibleItems = section.items.filter((item) => isVisibleItem(item, permissions, productionSlice));
           if (visibleItems.length === 0) return null;
 
           return (

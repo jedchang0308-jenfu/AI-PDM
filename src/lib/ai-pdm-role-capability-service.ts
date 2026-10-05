@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import roleCatalog from '../../config/access-control/jenfu-role-catalog.v5.json' with { type: 'json' }
+import roleCatalog from '../../config/access-control/jenfu-role-catalog.v6.json' with { type: 'json' }
 import type { RoleCapabilityCatalog, RoleCapabilityPrivilegedCatalogRole, RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
 import { getPrivilegedAssignmentWorkspace, getRoleCapabilityWorkspace, AiPdmRoleCapabilityRepositoryError, type PrivilegedAssignmentWorkspaceSource } from '@/lib/repositories/ai-pdm-role-capability-repository'
 import { getRoleCapabilityDisplaySnapshot, saveRoleCapabilityDisplaySnapshot } from '@/lib/repositories/role-capability-display-snapshot-repository'
@@ -15,7 +15,7 @@ function unavailableCode(error: unknown) {
 
 function validateWorkspace(workspace: Awaited<ReturnType<typeof getRoleCapabilityWorkspace>>) {
   const expectedCatalogPayloadHash = String((roleCatalog as unknown as { catalogSha256?: string }).catalogSha256 ?? '').toLowerCase()
-  if (workspace.contractVersion !== 'ai-pdm.role-capability-workspace.v2' || workspace.applicationId !== 'ai-pdm' || workspace.catalogVersion !== catalog.catalogVersion || workspace.catalogPayloadHash.toLowerCase() !== expectedCatalogPayloadHash || !/^[a-f0-9]{64}$/u.test(workspace.catalogPayloadHash) || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/u.test(String(workspace.sourceDataAt ?? '')) || !Number.isFinite(Date.parse(String(workspace.sourceDataAt)))) throw new AiPdmRoleCapabilityRepositoryError('ORGMASTER_CATALOG_MISMATCH')
+  if (workspace.dataState !== 'current' || workspace.mutationAllowed !== false || workspace.contractVersion !== 'ai-pdm.role-capability-workspace.v2' || workspace.applicationId !== 'ai-pdm' || workspace.catalogVersion !== catalog.catalogVersion || workspace.catalogPayloadHash.toLowerCase() !== expectedCatalogPayloadHash || !/^[a-f0-9]{64}$/u.test(workspace.catalogPayloadHash) || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/u.test(String(workspace.sourceDataAt ?? '')) || !Number.isFinite(Date.parse(String(workspace.sourceDataAt)))) throw new AiPdmRoleCapabilityRepositoryError('ORGMASTER_CATALOG_MISMATCH')
   if (!Array.isArray(workspace.roles) || workspace.roles.length !== catalog.roles.length) throw new AiPdmRoleCapabilityRepositoryError('ORGMASTER_CONTRACT_INVALID')
   const incomingRoleIds = workspace.roles.map((role) => role.catalogRole.stableRoleId)
   if (JSON.stringify(incomingRoleIds) !== JSON.stringify(catalog.roles.map((role) => role.stableRoleId))) throw new AiPdmRoleCapabilityRepositoryError('ORGMASTER_CATALOG_MISMATCH')
@@ -127,8 +127,8 @@ function isPrivilegedSnapshotPayload(value: unknown): value is Omit<RoleCapabili
     && !forbiddenKey(workspace)
 }
 
-function restorePrivilegedSnapshot(snapshot: ReturnType<typeof getRoleCapabilityDisplaySnapshot>, decisionCode: string, correlationId: string): RoleCapabilityWorkspaceV3 | null {
-  if (!snapshot || !isPrivilegedSnapshotPayload(snapshot.payload)) return null
+function restorePrivilegedSnapshot(snapshot: Awaited<ReturnType<typeof getRoleCapabilityDisplaySnapshot>>, decisionCode: string, correlationId: string): RoleCapabilityWorkspaceV3 | null {
+  if (!snapshot || snapshot.catalogVersion !== catalog.catalogVersion || snapshot.catalogPayloadHash !== catalog.catalogSha256 || !isPrivilegedSnapshotPayload(snapshot.payload)) return null
   const surface = managementSurface()
   return {
     ...snapshot.payload, dataState: 'stale_snapshot', mutationAllowed: false, snapshotStoredAt: snapshot.snapshotStoredAt,
@@ -155,21 +155,26 @@ function unavailablePrivilegedWorkspace(decisionCode: string, correlationId: str
   }
 }
 
+async function safeDisplaySnapshot(applicationId = 'ai-pdm') {
+  try { return await getRoleCapabilityDisplaySnapshot(applicationId) } catch { return null }
+}
+
 export async function readPrivilegedRoleCapabilityWorkspace(): Promise<RoleCapabilityWorkspaceV3> {
   const correlationId = randomUUID()
   try {
     const [baseWorkspace, privilegedSource] = await Promise.all([getRoleCapabilityWorkspace(), getPrivilegedAssignmentWorkspace()])
     const current = buildPrivilegedRoleCapabilityWorkspace(baseWorkspace, privilegedSource, correlationId)
     try {
-      const stored = saveRoleCapabilityDisplaySnapshot(current)
+      const stored = await saveRoleCapabilityDisplaySnapshot(current)
       return { ...current, snapshotStoredAt: stored?.snapshotStoredAt ?? null }
     } catch {
-      const previous = restorePrivilegedSnapshot(getRoleCapabilityDisplaySnapshot(PRIVILEGED_SNAPSHOT_KEY), 'ROLE_CAPABILITY_SNAPSHOT_PERSIST_FAILED', correlationId)
-      return previous ?? unavailablePrivilegedWorkspace('ROLE_CAPABILITY_SNAPSHOT_PERSIST_FAILED', correlationId)
+      return { ...current, snapshotStoredAt: null,
+        dependency: { status: 'available', decisionCode: 'ROLE_CAPABILITY_SNAPSHOT_PERSIST_FAILED', correlationId } }
     }
   } catch (error) {
     const decisionCode = unavailableCode(error)
-    return restorePrivilegedSnapshot(getRoleCapabilityDisplaySnapshot(PRIVILEGED_SNAPSHOT_KEY), decisionCode, correlationId) ?? unavailablePrivilegedWorkspace(decisionCode, correlationId)
+    return restorePrivilegedSnapshot(await safeDisplaySnapshot(PRIVILEGED_SNAPSHOT_KEY), decisionCode, correlationId)
+      ?? unavailablePrivilegedWorkspace(decisionCode, correlationId)
   }
 }
 
@@ -177,28 +182,33 @@ export async function readRoleCapabilityWorkspace(): Promise<RoleCapabilityWorks
   const correlationId = randomUUID()
   try {
     const source = validateWorkspace(await getRoleCapabilityWorkspace())
-    const current: RoleCapabilityWorkspaceV2 = { ...source, contractVersion: 'ai-pdm.role-capability-workspace.v2', dataState: 'current', mutationAllowed: false, sourceDataAt: source.sourceDataAt, snapshotStoredAt: null, catalogPayloadHash: source.catalogPayloadHash, dependency: { status: 'available', decisionCode: 'CURRENT_SOURCE', correlationId }, managementSurface: managementSurface() }
-    let stored: ReturnType<typeof saveRoleCapabilityDisplaySnapshot> = null
-    try { stored = saveRoleCapabilityDisplaySnapshot(current) } catch {
-      const previous = getRoleCapabilityDisplaySnapshot()
-      if (previous && previous.catalogVersion === catalog.catalogVersion && previous.payload.contractVersion === 'ai-pdm.role-capability-workspace.v2') {
-        try {
-          const validatedPrevious = validateWorkspace(previous.payload)
-          return { ...validatedPrevious, contractVersion: 'ai-pdm.role-capability-workspace.v2', dataState: 'stale_snapshot', mutationAllowed: false, snapshotStoredAt: previous.snapshotStoredAt, dependency: { status: 'unavailable', decisionCode: 'ROLE_CAPABILITY_SNAPSHOT_PERSIST_FAILED', correlationId } }
-        } catch { /* discard a snapshot that no longer matches the catalog contract */ }
-      }
-      return { ...current, roles: [], dataState: 'unavailable', mutationAllowed: false, sourceDataAt: null, snapshotStoredAt: null, dependency: { status: 'unavailable', decisionCode: 'ROLE_CAPABILITY_SNAPSHOT_PERSIST_FAILED', correlationId } }
+    const current: RoleCapabilityWorkspaceV2 = { ...source, contractVersion: 'ai-pdm.role-capability-workspace.v2',
+      dataState: 'current', mutationAllowed: false, sourceDataAt: source.sourceDataAt, snapshotStoredAt: null,
+      dependency: { status: 'available', decisionCode: 'CURRENT_SOURCE', correlationId }, managementSurface: managementSurface() }
+    try {
+      const stored = await saveRoleCapabilityDisplaySnapshot(current)
+      return { ...current, snapshotStoredAt: stored?.snapshotStoredAt ?? null }
+    } catch {
+      return { ...current, snapshotStoredAt: null,
+        dependency: { status: 'available', decisionCode: 'ROLE_CAPABILITY_SNAPSHOT_PERSIST_FAILED', correlationId } }
     }
-    return { ...current, snapshotStoredAt: stored?.snapshotStoredAt ?? null }
   } catch (error) {
-    const snapshot = getRoleCapabilityDisplaySnapshot()
-    if (snapshot && snapshot.catalogVersion === catalog.catalogVersion && snapshot.payload.contractVersion === 'ai-pdm.role-capability-workspace.v2' && /^[a-f0-9]{64}$/u.test(snapshot.catalogPayloadHash)) {
+    const snapshot = await safeDisplaySnapshot()
+    if (snapshot && snapshot.catalogVersion === catalog.catalogVersion && snapshot.catalogPayloadHash === catalog.catalogSha256
+      && snapshot.payload.contractVersion === 'ai-pdm.role-capability-workspace.v2') {
       try {
         const validatedSnapshot = validateWorkspace(snapshot.payload)
-        return { ...validatedSnapshot, contractVersion: 'ai-pdm.role-capability-workspace.v2', dataState: 'stale_snapshot', mutationAllowed: false, snapshotStoredAt: snapshot.snapshotStoredAt, dependency: { status: 'unavailable', decisionCode: unavailableCode(error), correlationId } }
-      } catch { /* do not serve an invalid or catalog-drifted snapshot */ }
+        return { ...validatedSnapshot, contractVersion: 'ai-pdm.role-capability-workspace.v2',
+          dataState: 'stale_snapshot', mutationAllowed: false, snapshotStoredAt: snapshot.snapshotStoredAt,
+          dependency: { status: 'unavailable', decisionCode: unavailableCode(error), correlationId },
+          managementSurface: managementSurface() }
+      } catch { /* display cache never substitutes for a validated source or grants */ }
     }
-    const code = unavailableCode(error)
-    return { contractVersion: 'ai-pdm.role-capability-workspace.v2', applicationId: 'ai-pdm', catalogVersion: catalog.catalogVersion, catalogPayloadHash: String((roleCatalog as unknown as { catalogSha256?: string }).catalogSha256 ?? '').toLowerCase(), governanceRevision: '', organizationVersionId: '', organizationRevision: '', projectionCursor: 0, selectedRoleId: null, roles: [], dataState: 'unavailable', mutationAllowed: false, sourceDataAt: null, snapshotStoredAt: null, dependency: { status: 'unavailable', decisionCode: code, correlationId } }
+    return { contractVersion: 'ai-pdm.role-capability-workspace.v2', applicationId: 'ai-pdm',
+      catalogVersion: catalog.catalogVersion, catalogPayloadHash: catalog.catalogSha256,
+      governanceRevision: '', organizationVersionId: '', organizationRevision: '', projectionCursor: 0,
+      selectedRoleId: null, roles: [], dataState: 'unavailable', mutationAllowed: false,
+      sourceDataAt: null, snapshotStoredAt: null,
+      dependency: { status: 'unavailable', decisionCode: unavailableCode(error), correlationId } }
   }
 }

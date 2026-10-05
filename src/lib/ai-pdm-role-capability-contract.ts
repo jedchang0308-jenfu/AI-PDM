@@ -166,3 +166,20 @@ export type RoleCapabilityMutationResponse = {
 }
 
 export type RoleCapabilityCatalog = Pick<JenfuApplicationRoleCatalog, 'contractVersion' | 'applicationId' | 'catalogVersion' | 'roles' | 'catalogSha256'>
+
+/** Published abilities and effective workspace holders, distinct from OrgMaster's draft/adoption workspace. */
+export type RoleCapabilityPublishedWorkspaceV4 = {
+  contractVersion: 'ai-pdm.role-capability-workspace.v4'
+  applicationId: 'ai-pdm'
+  catalogVersion: string
+  catalogPayloadHash: string
+  selectedRoleId: string | null
+  companyId: string
+  holderScope: 'current_company_workspace'
+  roles: Array<{ catalogRole: JenfuApplicationRole; effectiveWorkspaceHolderCount: number }>
+  dataState: 'current'
+  mutationAllowed: false
+  sourceDataAt: string
+  dependency: { status: 'available'; decisionCode: 'PUBLISHED_CONTRACT_AVAILABLE'; correlationId: string }
+  managementSurface?: RoleCapabilityManagementSurface
+}
