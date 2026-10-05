@@ -32,7 +32,7 @@ const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
 const nativeSelection=process.env.DEV122_NATIVE_SELECTION??'suite';
 if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['file-route-gaps','file-authority-gaps','recognition-protocol'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
-const nativeTestPattern=suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
+const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='foundation-gaps'
   ?'reads native matrix JSON-|denies the default rd_manager-only|rejects native formal_payload drift':nativeSelection==='authority-gaps'
   ?'no eligible current reviewer|Part reviewer self|legal other-company Principal|Part terminal master|Drawing master .* drift|Drawing current assignment|returns a minor without':nativeSelection==='other-company-scope'
@@ -48,7 +48,7 @@ const nativeTestPattern=suite==='settings-automation'?'DEV122 actual Next settin
 const diagnosticOnly=process.argv.includes('--diagnostic-only');
 const previewDiagnosticChild=process.argv.includes('--preview-diagnostic-child');
 const previewImportOnly=process.argv.includes('--preview-import-only');
-if (!['lifecycle','files','procurement','ui','settings','settings-automation','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
+if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
 const entries = compileOwnMigrations(root);
 const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const config = loadSeamAllowlist(root);
@@ -333,14 +333,14 @@ async function run() {
       sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
-      '--exclude','**/.tmp/**','--exclude','**/output/**','--reporter=json','--outputFile='+path.join(evidenceRoot,'vitest.json')],{allowNonzero:true});
+      '--exclude','**/.tmp/**','--exclude','**/output/**',...(suite==='share-metadata'?['--reporter=default']:[]),'--reporter=json','--outputFile='+path.join(evidenceRoot,'vitest.json')],{allowNonzero:true});
     manifest.nativeBusiness={exitCode:nativeExitCode,report:path.join(evidenceRoot,'vitest.json'),log:path.join(evidenceRoot,'native-business.log')};save();
     let tests;
     try{tests=JSON.parse(fs.readFileSync(manifest.nativeBusiness.report,'utf8'));}
     catch(error){throw Object.assign(new Error('DEV122_NATIVE_REPORT_UNREADABLE'),{cause:error,exitCode:nativeExitCode});}
     const assertions=tests.testResults?.flatMap(result=>result.assertionResults)??[];
     const completed=assertions.filter(test=>['passed','failed'].includes(test.status));
-    const expectedDescribe=suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='files'?'DEV122 F01 actual signed':suite==='procurement'?'DEV122 I01 actual signed':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':null;
+    const expectedDescribe=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='files'?'DEV122 F01 actual signed':suite==='procurement'?'DEV122 I01 actual signed':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':null;
     manifest.executedCases=completed.length;
     manifest.cases=completed;manifest.skippedCases=assertions.filter(test=>!['passed','failed'].includes(test.status)).length;
     Object.assign(manifest.nativeSelection,{selected:assertions.filter(test=>test.status!=='pending'&&test.status!=='skipped').length,
@@ -488,7 +488,7 @@ async function run() {
     }
     manifest.status='PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:['P-01','P-02A','P-02B','P-02C','P-03A','P-03B','P-04A','P-04B','G-01','G-02','TX-01A','TX-01B','TX-01C'],
-      files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D']};
+      files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
     manifest.coverage={partial:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
       notRun:['remaining exact variants in all 29 QA groups','automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
@@ -573,8 +573,37 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
     WHERE assignment_id=$3 AND principal_id=$4 AND application_id=$5 AND scope_kind=$6 AND scope_key=$7
       AND valid_until IS NOT DISTINCT FROM $2::timestamptz RETURNING CAST(valid_until AS TEXT) AS valid_until`;
   const requestPath=path.join(runtimeRoot,'grant-fixture-request.json'),resultPath=path.join(runtimeRoot,'grant-fixture-result.json');
-  let active=null,closed=false,busy=null,failure=null;
+  let active=null,withdrawn=null,closed=false,busy=null,failure=null;
+  const readFull=`SELECT to_jsonb(grant_row) AS row FROM ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4 grant_row
+    WHERE assignment_id=$1 AND principal_id=$2 AND application_id=$3 AND scope_kind=$4 AND scope_key=$5`;
   async function mutate(action,nonce) {
+    if(['withdraw','restore-withdrawn'].includes(action)) {
+      if(suite!=='share-metadata'||active!==null)throw new Error('DEV122_SHARE_GRANT_WITHDRAW_SCOPE_REJECTED');
+      const before=(await admin.query(readFull,keys)).rows;
+      let changed=null,writeError=null,sql,binds;
+      if(action==='withdraw') {
+        if(withdrawn!==null||before.length!==1)throw new Error('DEV122_SHARE_GRANT_WITHDRAW_BASELINE_INVALID');
+        withdrawn=before[0].row; // Set recovery before the write; always read back unknown outcomes.
+        sql=`DELETE FROM ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4
+          WHERE assignment_id=$1 AND principal_id=$2 AND application_id=$3 AND scope_kind=$4 AND scope_key=$5`;
+        binds=keys;
+      } else {
+        if(withdrawn===null)throw new Error('DEV122_SHARE_GRANT_RESTORE_BASELINE_INVALID');
+        if(before.length===1&&JSON.stringify(before[0].row)===JSON.stringify(withdrawn)) {withdrawn=null;return{before,after:before,rowCount:0,replayed:true};}
+        if(before.length!==0)throw new Error('DEV122_SHARE_GRANT_RESTORE_DRIFT');
+        sql=`INSERT INTO ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4
+          SELECT * FROM jsonb_populate_record(NULL::ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4,$1::jsonb)`;
+        binds=[JSON.stringify(withdrawn)];
+      }
+      try{changed=await admin.query(sql,binds);}catch(error){writeError=error;}
+      const after=(await admin.query(readFull,keys)).rows;
+      fs.appendFileSync(path.join(evidenceRoot,'grant-fixture-mutations.jsonl'),JSON.stringify({project:'AIPDM',purpose:'exact synthetic reviewer grant withdrawal; local fixture only',action,nonce,sql,binds,before,after,rowCount:changed?.rowCount??null,providerError:writeError?.code??null})+'\n');
+      if(action==='withdraw'&&after.length===1&&JSON.stringify(after[0].row)===JSON.stringify(withdrawn))withdrawn=null;
+      if(action==='restore-withdrawn'&&after.length===1&&JSON.stringify(after[0].row)===JSON.stringify(withdrawn))withdrawn=null;
+      if(writeError)throw writeError;
+      if(changed?.rowCount!==1||(action==='withdraw'?after.length!==0:withdrawn!==null))throw new Error('DEV122_SHARE_GRANT_WRITE_READBACK_FAILED');
+      return{before,after,rowCount:changed.rowCount};
+    }
     if(action==='expire'&&active!==null)throw new Error('DEV122_FIXTURE_CHANNEL_ALREADY_EXPIRED');
     if(action==='restore'&&active===null)throw new Error('DEV122_FIXTURE_CHANNEL_NOT_EXPIRED');
     const before=(await admin.query(select,keys)).rows;
@@ -629,7 +658,7 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
       let request;
       try{
         request=JSON.parse(fs.readFileSync(requestPath,'utf8'));
-        if(Object.keys(request).sort().join(',')!=='action,nonce'||!['expire','restore','owned-lifecycle-snapshot'].includes(request.action)
+        if(Object.keys(request).sort().join(',')!=='action,nonce'||!['expire','restore','owned-lifecycle-snapshot',...(suite==='share-metadata'?['withdraw','restore-withdrawn']:[])].includes(request.action)
           ||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(request.nonce))throw new Error('DEV122_FIXTURE_CHANNEL_REQUEST_INVALID');
         fs.unlinkSync(requestPath);
         const result=request.action==='owned-lifecycle-snapshot'?await snapshot(request.nonce):await mutate(request.action,request.nonce);
@@ -641,6 +670,7 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
     busy=snapshot(crypto.randomUUID());try{return await busy;}finally{busy=null;}},
     async close(){if(closed)return;closed=true;clearInterval(timer);await busy;
     if(active!==null)await mutate('restore','parent-finally-recovery');
+    if(withdrawn!==null)await mutate('restore-withdrawn','parent-finally-withdraw-recovery');
     if(failure)throw failure;
     fs.writeFileSync(path.join(evidenceRoot,'grant-fixture-recovery.json'),JSON.stringify({restored:true,originalUntil,after:(await admin.query(select,keys)).rows}));
   }};
@@ -653,7 +683,7 @@ async function seedPrincipals(admin,evidenceRoot) {
   await admin.query(`INSERT INTO ai_pdm_core.companies(id,company_code,display_name) VALUES
     ('company-jenfu','JENFU','DEV122 isolated Jenfu'),('company-dev122-other','DEV122OTHER','DEV122 isolated other') ON CONFLICT DO NOTHING;
     UPDATE ai_pdm_core.pdm_workbench_state_authority_control SET mode='canonical_only',schema_hash='dev090-v1',expected_commit='local-dev';`);
-  for(const [index,identity] of ((['settings','settings-automation'].includes(suite)||['authority-gaps','other-company-scope'].includes(nativeSelection))?['owner','reviewer','denied','other']:['owner','reviewer','denied']).entries()) {
+  for(const [index,identity] of ((['settings','settings-automation','share-metadata'].includes(suite)||['authority-gaps','other-company-scope'].includes(nativeSelection))?['owner','reviewer','denied','other']:['owner','reviewer','denied']).entries()) {
     const profile='dev122-profile-'+identity,principal='dev122-principal-'+identity,employee='dev122-employee-'+identity;
     const company=identity==='other'?'company-dev122-other':'company-jenfu';
     await admin.query(`INSERT INTO ai_pdm_core.users(id,display_name,email,role,company_id,account_status,system_role_enabled)

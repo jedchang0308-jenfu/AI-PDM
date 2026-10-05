@@ -1,3 +1,7 @@
+import { GET as readPublicShareMetadata } from "@/app/api/public/shares/[token]/route";
+import { AsyncReleaseRepository, SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL } from "@/lib/repositories/release-async-repository";
+import { withPrincipalSharePermission, getAuthorizedPublicShareInSnapshot } from "@/lib/principal-readonly-share";
+import { hashShareTokenAsync } from "@/lib/readonly-share-async";
 import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
@@ -117,7 +121,7 @@ beforeAll(async () => {
   const ring = getPlatformSessionKeyRing();
   const now = Math.floor(Date.now() / 1000);
   const tokens: Record<string, string> = {};
-  for (const identity of (["settings","settings-automation"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
+  for (const identity of (["settings","settings-automation","share-metadata"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
     const token = issueJenfuPrincipalSession({
       principalId: "dev122-principal-" + identity, employeeId: "dev122-employee-" + identity,
       identityIssuer: "https://securetoken.google.com/dev122-local-fixture",
@@ -145,7 +149,7 @@ async function fixtureMutation(purpose: string, sql: string, params: Record<stri
 }
 
 let fixtureRequestOutstanding = false;
-async function fixtureParentAction(action: "expire" | "restore" | "owned-lifecycle-snapshot") {
+async function fixtureParentAction(action: "expire" | "restore" | "owned-lifecycle-snapshot" | "withdraw" | "restore-withdrawn") {
   expect(fixtureRequestOutstanding).toBe(false); fixtureRequestOutstanding = true;
   const taskRoot = process.env.DEV122_RUNTIME_ROOT!, nonce = crypto.randomUUID();
   const requestPath = path.join(taskRoot, "grant-fixture-request.json"), resultPath = path.join(taskRoot, "grant-fixture-result.json");
@@ -1923,5 +1927,163 @@ describe.runIf(enabled && process.env.DEV122_NATIVE_SUITE === "settings-automati
       {width:1440,height:900,flow:"settings-automation",version:1,referenceId,jobId,terminalAssetIds:[]},
       {width:390,height:844,flow:"settings-automation",version:2,referenceId:"dev122-secret-control-mobile",jobId:"dev122-probe-control-mobile",terminalAssetIds:[]}
     ]));
+  });
+});
+
+
+// D122-08 is a separately bounded local metadata repair, outside the frozen 29 groups.
+const shareMetadataEnabled = enabled && process.env.DEV122_NATIVE_SUITE === "share-metadata";
+const shareMetadataInputs = [
+  { id: "d12208-a", submission: "d12208-own", token: "d12208-active-share-token-000001", state: "active" },
+  { id: "d12208-b", submission: "d12208-own", token: "d12208-second-share-token-000001", state: "active" },
+  { id: "d12208-foreign", submission: "d12208-other", token: "d12208-foreign-share-token-0001", state: "active" },
+  { id: "d12208-revoked", submission: "d12208-own", token: "d12208-revoked-share-token-0001", state: "revoked" },
+  { id: "d12208-expired", submission: "d12208-own", token: "d12208-expired-share-token-0001", state: "expired" },
+  { id: "d12208-draft", submission: "d12208-draft", token: "d12208-draft-share-token-000001", state: "active" },
+  { id: "d12208-no-package", submission: "d12208-no-package", token: "d12208-no-package-token-000001", state: "active" }
+] as const;
+async function shareMetadataSnapshot() {
+  return {
+    shares: await db!.query("SELECT * FROM readonly_shares WHERE id LIKE 'd12208-%' ORDER BY id"),
+    audits: await db!.query("SELECT * FROM audit_logs ORDER BY id"),
+    receipts: await db!.query("SELECT * FROM platform_command_receipts ORDER BY id"),
+    outbox: await db!.query("SELECT * FROM platform_outbox_events ORDER BY id")
+  };
+}
+async function saveShareMetadataEvidence(name: string, detail: object) {
+  await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "d12208-" + name + ".json"),
+    JSON.stringify({ project: "AIPDM", issue: "D122-08", layer: "LOCAL_NATIVE_POSTGRES_WITH_SYNTHETIC_PRINCIPAL", ...detail }, null, 2));
+}
+async function seedShareMetadataHistory() {
+  for (const input of [
+    { id: "d12208-own", company: "company-jenfu", status: "Released" },
+    { id: "d12208-other", company: "company-dev122-other", status: "Released" },
+    { id: "d12208-draft", company: "company-jenfu", status: "Pending" },
+    { id: "d12208-no-package", company: "company-jenfu", status: "Released" }
+  ]) {
+    await fixtureMutation("D12208 explicit historical read prerequisite; not lifecycle release evidence",
+      "INSERT INTO items(id,company_id,part_number,part_name) VALUES(:id,:company,:id,'D12208 history')", input);
+    await fixtureMutation("D12208 historical submission input", `INSERT INTO submissions
+      (id,company_id,item_id,drawing_number,revision,material,surface_finish,document_type,change_description,status,submitted_by,released_at)
+      VALUES(:id,:company,:id,:id,'1.0','SUS304','none','part','historical share read',:status,'dev122-profile-owner',:released)`,
+      { ...input, released: input.status === "Released" ? "2026-09-01T00:00:00Z" : null });
+    if (["d12208-own", "d12208-other"].includes(input.id)) {
+      const stored = await createReleasePackageStorageService().putObject({ key: "dev122/d12208/"+input.id+".zip", bytes: procurementArchive, contentType: "application/zip" });
+      await fixtureMutation("D12208 stored package read input", `INSERT INTO release_packages
+        (id,submission_id,package_filename,local_path,storage_key,sha256,file_size,manifest_json,created_by)
+        VALUES(:id,:submission,'history.zip',:localPath,:key,:hash,:size,CAST(:manifest AS jsonb),'dev122-profile-owner')`,
+        { id: input.id+"-package", submission: input.id, localPath: stored.localPath, key: stored.key, hash: stored.sha256, size: stored.bytes, manifest: JSON.stringify({ boundary: "historical read fixture" }) });
+    }
+  }
+  for (const input of shareMetadataInputs) await fixtureMutation("D12208 readonly share read input", `INSERT INTO readonly_shares
+    (id,submission_id,token_hash,label,expires_at,created_by,revoked_at,revoked_by)
+    VALUES(:id,:submission,:hash,:id,:expires,'dev122-profile-owner',:revoked,:revoker)`,
+    { ...input, hash: hashShareTokenAsync(input.token), expires: input.state === "expired" ? "2000-01-01T00:00:00Z" : "2099-01-01T00:00:00Z",
+      revoked: input.state === "revoked" ? "2026-09-01T00:00:00Z" : null, revoker: input.state === "revoked" ? "dev122-profile-owner" : null });
+  for (const row of [
+    { id: "d12208-a1", share: "d12208-a", submission: "d12208-own", status: "open", created: "2026-09-01T00:00:00Z" },
+    { id: "d12208-a2", share: "d12208-a", submission: "d12208-own", status: "open", created: "2026-09-01T00:00:00Z" },
+    { id: "d12208-a-closed", share: "d12208-a", submission: "d12208-own", status: "closed", created: "2026-09-03T00:00:00Z" },
+    { id: "d12208-b1", share: "d12208-b", submission: "d12208-own", status: "open", created: "2026-09-02T00:00:00Z" },
+    { id: "d12208-other1", share: "d12208-foreign", submission: "d12208-other", status: "open", created: "2026-09-04T00:00:00Z" }
+  ]) await fixtureMutation("D12208 cross-share/submission sorting and isolation input", `INSERT INTO supplier_portal_responses
+    (id,share_id,submission_id,response_kind,supplier_name,supplier_email,message,status,created_at)
+    VALUES(:id,:share,:submission,'question','Synthetic supplier',:email,:id,:status,:created)`, {...row,email:'supplier@dev122.invalid'});
+}
+const invokeShareMetadata = (selector: string, actor = ownerToken) => readPublicShareMetadata(
+  request("/api/public/shares/" + selector, actor), { params: Promise.resolve({ token: selector }) });
+describe.runIf(shareMetadataEnabled)("DEV122 D12208 actual share metadata", () => {
+  beforeAll(seedShareMetadataHistory);
+  it.each([null, "d12208-a"])("original query diagnoses 42P08 for shareId %s without changing binder", async shareId => {
+    const sql = SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL.replaceAll("CAST(:shareId AS text)", ":shareId");
+    const hash = createHash("sha256").update(sql).digest("hex");
+    expect(hash).toBe("d131f390d2e3c5e18f152fa8eeaf480ef415067a6aa922e0fe7322b7b102b3c8");
+    let failure: unknown;
+    try { await db!.query(sql, { submissionId: "d12208-own", shareId }); } catch (error) { failure = error; }
+    await saveShareMetadataEvidence(shareId === null ? "original-null" : "original-share", { queryHash: hash, sqlState: (failure as {code?:string})?.code });
+    expect(failure).toMatchObject({ code: "42P08" });
+  });
+  it.each([
+    { label: "null", shareId: undefined, ids: ["d12208-b1", "d12208-a2", "d12208-a1", "d12208-a-closed"] },
+    { label: "specified", shareId: "d12208-a", ids: ["d12208-a2", "d12208-a1", "d12208-a-closed"] }
+  ])("current repository scopes and orders $label shareId", async input => {
+    const before = await shareMetadataSnapshot();
+    try {
+      const rows = await new AsyncReleaseRepository(db!).listSupplierPortalResponses({ submissionId: "d12208-own", shareId: input.shareId });
+      expect(rows.map(row => row.id)).toEqual(input.ids);
+      expect(await shareMetadataSnapshot()).toEqual(before);
+      await saveShareMetadataEvidence("current-"+input.label, { queryHash: createHash("sha256").update(SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL).digest("hex"), ids: rows.map(row=>row.id), unchanged: true });
+    } catch (error) {
+      await saveShareMetadataEvidence("current-"+input.label, { queryHash: createHash("sha256").update(SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL).digest("hex"), sqlState: (error as {code?:string})?.code }); throw error;
+    }
+  });
+  it("actual GET delivers only selected share metadata and commits one access", async () => {
+    const before = await shareMetadataSnapshot();
+    const response = await invokeShareMetadata(shareMetadataInputs[0].token);
+    const body = await response.json();
+    const after = await shareMetadataSnapshot();
+    await saveShareMetadataEvidence("actual-get", { status: response.status, body, before, after });
+    if (response.status !== 200) expect(after).toEqual(before);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(body.submission).toMatchObject({ id: "d12208-own", status: "Released", part_number: "d12208-own" });
+    expect(body.supplier_responses.map((row: {id:string})=>row.id)).toEqual(["d12208-a2", "d12208-a1", "d12208-a-closed"]);
+    expect(Object.keys(body.package).sort()).toEqual(["created_at","download_url","file_size","filename","sha256"]);
+    expect(JSON.stringify(body)).not.toContain("local_path"); expect(JSON.stringify(body)).not.toContain("storage_key");
+    expect(after.audits).toEqual(before.audits); expect(after.receipts).toEqual(before.receipts); expect(after.outbox).toEqual(before.outbox);
+    for (let i=0;i<after.shares.length;i++) {
+      const a=after.shares[i] as Record<string,unknown>, b=before.shares[i] as Record<string,unknown>;
+      if(a.id!=="d12208-a")expect(a).toEqual(b);
+      else { expect(a.access_count).toBe(Number(b.access_count)+1); expect(a.last_accessed_at).toBeTruthy();
+        expect({...a,access_count:b.access_count,last_accessed_at:b.last_accessed_at,updated_at:b.updated_at}).toEqual(b); }
+    }
+  });
+  it("original actual SQL fault rolls back resolver access in the same real transaction", async () => {
+    const before = await shareMetadataSnapshot(), selector=shareMetadataInputs[0].token;
+    const response = await withPrincipalSharePermission(request("/api/public/shares/"+selector),
+      "src/app/api/public/shares/[token]/route.ts", "submission.view", async ({snapshot,verified}) => {
+        const resolved=await getAuthorizedPublicShareInSnapshot(snapshot,verified,selector);
+        if(resolved instanceof Response)return resolved;
+        return snapshot.query(SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL.replaceAll("CAST(:shareId AS text)", ":shareId"),
+          { submissionId:resolved.submission.id,shareId:resolved.share.id });
+      }, { readOnly:false });
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(503);
+    expect(await (response as Response).json()).toMatchObject({code:"principal_dependency_unavailable"});
+    expect(await shareMetadataSnapshot()).toEqual(before);
+  });
+  it.each([
+    {label:"no session",selector:0,actor:"missing",status:401},
+    {label:"invalid session",selector:0,actor:"invalid",status:401},
+    {label:"permission absent",selector:0,actor:"denied",status:403},
+    {label:"foreign Principal",selector:0,actor:"other",status:403},
+    {label:"foreign resource",selector:2,actor:"owner",status:404},
+    {label:"revoked share",selector:3,actor:"owner",status:404},
+    {label:"expired share",selector:4,actor:"owner",status:404},
+    {label:"unreleased Pending",selector:5,actor:"owner",status:404},
+    {label:"no package",selector:6,actor:"owner",status:404}
+  ])("rejects $label without effects", async input => {
+    const before=await shareMetadataSnapshot();
+    const actor=input.actor==="other"?otherToken:input.actor==="denied"?deniedToken:input.actor==="missing"?"":input.actor==="invalid"?"invalid-synthetic-session":ownerToken;
+    const response=await invokeShareMetadata(shareMetadataInputs[input.selector].token,actor);
+    expect(response.status,await response.clone().text()).toBe(input.status);
+    expect(await shareMetadataSnapshot()).toEqual(before);
+  });
+  it("withdrawn current grant denies immediately and exact restore recovers", async () => {
+    const withdrawn=await fixtureParentAction("withdraw");expect(withdrawn.rowCount).toBe(1);expect(withdrawn.after).toEqual([]);
+    try { const before=await shareMetadataSnapshot(),response=await invokeShareMetadata(shareMetadataInputs[0].token,reviewerToken);
+      expect(response.status,await response.clone().text()).toBe(403);expect(await response.json()).toMatchObject({error:"permission_not_granted"});
+      expect(await shareMetadataSnapshot()).toEqual(before);
+    } finally { const restored=await fixtureParentAction("restore-withdrawn");expect(restored.rowCount).toBe(1);expect(restored.after).toEqual(withdrawn.before); }
+    const before=await shareMetadataSnapshot(),response=await invokeShareMetadata(shareMetadataInputs[0].token,reviewerToken);
+    expect(response.status,await response.clone().text()).toBe(200);
+    const after=await shareMetadataSnapshot();expect(after.audits).toEqual(before.audits);expect(after.receipts).toEqual(before.receipts);expect(after.outbox).toEqual(before.outbox);
+    expect((after.shares.find((r:any)=>r.id==="d12208-a") as any).access_count).toBe(Number((before.shares.find((r:any)=>r.id==="d12208-a") as any).access_count)+1);
+  });
+  it("expired current grant denies the actual GET without effects", async () => {
+    await fixtureGrantAction("expire");
+    try { const before=await shareMetadataSnapshot(),response=await invokeShareMetadata(shareMetadataInputs[0].token,reviewerToken);
+      expect(response.status,await response.clone().text()).toBe(403);expect(await shareMetadataSnapshot()).toEqual(before);
+    } finally { await fixtureGrantAction("restore"); }
   });
 });

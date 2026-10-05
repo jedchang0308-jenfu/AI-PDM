@@ -1,0 +1,152 @@
+{
+  "project": "AIPDM",
+  "task": "DEV-122",
+  "issue": "D122-08",
+  "status": "LOCAL_NATIVE_POSTGRES_PASS_PRODUCTION_NOT_RUN",
+  "capturedAt": "2026-10-05T10:21:36.054509+00:00",
+  "sourceHead": "7058b0139f7107cffda8356080c3e2f19759e2d1",
+  "branch": "codex/dev122-share-metadata",
+  "runtimeFiles": [
+    {
+      "path": "src/lib/repositories/release-async-repository.ts",
+      "sha256": "1606b6ad0f1bb6690ec8519b6d07de5c78df367771e0d59aad1bd65b3dfb9aa9"
+    },
+    {
+      "path": "src/lib/repositories/release-async-repository.share-audit.test.ts",
+      "sha256": "35fae21b5150497ee19dedfdb5ea74a80e06f16a6f8917648829469fbf861a03"
+    },
+    {
+      "path": "src/lib/principal-published-release-package.postgres-contract.test.ts",
+      "sha256": "3ee2ac6f5e0bfd5276c90c680190a88166f7a1ced1ae7c30f2d8d71156215b2c"
+    },
+    {
+      "path": "src/lib/dev122-native-business.postgres-contract.test.ts",
+      "sha256": "cc099cff4dfa502ceb8b3131d0866a227f1d9e1b6631e22cdc8ebfa3894eefde"
+    },
+    {
+      "path": "scripts/qc-dev-122-native-postgres.mjs",
+      "sha256": "135de5ad30f07690e1d1e186f9a6fa13241c756744e1d72c724a35111f3575f7"
+    }
+  ],
+  "authorization": "Existing human active goal: complete DEV-122 development; AI-PDM only; this repair local scope. No new production action authorized here.",
+  "change": "Two CAST(:shareId AS text) occurrences in one existing query; no binder/auth/catalog/schema/migration change.",
+  "query": {
+    "originalSha256": "d131f390d2e3c5e18f152fa8eeaf480ef415067a6aa922e0fe7322b7b102b3c8",
+    "candidateSha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c"
+  },
+  "baseline": {
+    "evidence": "output/qa/dev-122/9aab5fbbcccaac92/manifest.json",
+    "status": "FAIL_PRESERVED",
+    "nativePassed": 11,
+    "nativeFailed": 4,
+    "actualGet": {
+      "httpStatus": 503,
+      "code": "principal_dependency_unavailable",
+      "completeSnapshotRollback": true
+    },
+    "actualQuerySqlStates": [
+      "42P08",
+      "42P08"
+    ],
+    "assertionCorrection": "One foreign-Principal negative expected404 but unchanged consumer returned403 entitlement_scope_mismatch; corrected separately from product SQL.",
+    "priorFixtureFailures": [
+      "452bfab5a857e267: illegal Draft fixture status",
+      "00fcf5f0fe3f0e66: literal email interpreted by unchanged binder",
+      "6a2442f9b8309ce3: wrong fixture snapshot table name"
+    ],
+    "withdrawAssertionFailure": "b716087c793a6ba9: actual403 permission_not_granted, incorrect expected entitlement_assignment_not_found; evaluator unchanged.",
+    "staticHarnessFailure": "output/qa/dev-122/share-metadata-20261005/static-harness-preflight-failure.json"
+  },
+  "validation": {
+    "native": {
+      "passed": 17,
+      "failed": 0,
+      "layer": "Actual own disposable PG named binder/repository/Principal GET with versioned local contract seam. Synthetic identity/grant/history fixtures, no real producer.",
+      "overallManifestStatusPreserved": "PARTIAL_NOT_ACCEPTED",
+      "sourceBeforeAfterUnchanged": true,
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true
+      },
+      "originalFaultCaseLayer": "Actual Principal wrapper/resolver/transaction + direct original SQL; this case is not actual GET fault injection.",
+      "actualGet": {
+        "status": 200,
+        "responseIds": [
+          "d12208-a2",
+          "d12208-a1",
+          "d12208-a-closed"
+        ],
+        "accessDelta": {
+          "d12208-a": 1,
+          "d12208-b": 0,
+          "d12208-draft": 0,
+          "d12208-expired": 0,
+          "d12208-foreign": 0,
+          "d12208-no-package": 0,
+          "d12208-revoked": 0
+        },
+        "nonShareSideEffectsUnchanged": true
+      }
+    },
+    "focused": {
+      "passed": 11,
+      "failed": 0,
+      "layer": "Two actual in-memory SQLite query variants plus existing share audit/authorization regressions; auth mocks do not substitute native GET."
+    },
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "dbBoundary": "PASS",
+    "evidence": [
+      {
+        "kind": "native",
+        "path": "output/qa/dev-122/4a98c984ce199de3/manifest.json",
+        "sha256": "6cc41a85491f73eae8699c16aaaf90c8d9d893c699b14e276ebc1315f7c3abb0"
+      },
+      {
+        "kind": "focused",
+        "path": "output/qa/dev-122/share-metadata-focused-96ca60dd0d1dff03/manifest.json",
+        "sha256": "7bffe5511fffbe6b96a43b95732ff43235fbf81326194ff25a6431ac46944f2d"
+      },
+      {
+        "kind": "typecheck",
+        "path": "output/qa/dev-122/share-metadata-typecheck-3bdce1b454bc8382/manifest.json",
+        "sha256": "671d884a4084d01dcd38b1c76a550214d1ed4ac22d419fe9b6a7dfcbf8b4f2b3"
+      },
+      {
+        "kind": "lint",
+        "path": "output/qa/dev-122/share-metadata-lint-eedb9d4a785e440c/manifest.json",
+        "sha256": "9c538f18c9adcae084e805b06e09f15027cc2cbdf87945deb51e78544e5be777"
+      },
+      {
+        "kind": "boundary",
+        "path": "output/qa/dev-122/share-metadata-boundary-820c756acd97a51b/manifest.json",
+        "sha256": "753a5346b6530ad480015a419dc1ccd986edc35d9627c308518aea66038a15ed"
+      }
+    ]
+  },
+  "boundaries": {
+    "canonicalDirtyUnchanged": true,
+    "primarySqliteBothAbsent": true,
+    "siblingDevelopment": false,
+    "productionMutation": false,
+    "nativeCadKeyRead": false,
+    "temporaryProcessPortsDataCleaned": true
+  },
+  "scopeLimits": {
+    "originalIssues": 7,
+    "originalQaGroups": 29,
+    "D12208AddedToOriginalDenominator": false,
+    "wholeDev122": "NOT_ACCEPTED",
+    "nativeCad": "HUMAN_PRODUCTION_VALIDATION_PENDING",
+    "workerHost": "PENDING_HUMAN_LOCATION",
+    "productionShareMetadata": "NOT_RUN",
+    "historicalOrgMasterContractRunner": "NOT_RUN_BY_THIS_REPAIR",
+    "D12207": "HUMAN_CONFIRMED_KEEP_DISABLED_DEFER_FUTURE"
+  },
+  "humanDecision": {
+    "date": "2026-10-05",
+    "D12207": "維持停用，另排後續開發（建議）"
+  }
+}
