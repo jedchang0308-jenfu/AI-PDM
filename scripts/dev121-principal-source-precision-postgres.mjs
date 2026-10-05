@@ -151,7 +151,10 @@ try {
   await database.query('COMMIT');
   sourceProof.push({ path: path071,sourceSha256: sha(source071),executedFunctionSha256: sha(lifecycleSql),
     scope: 'unchanged lifecycle function and ACL only; current 076 management guard' });
-  const catalog = JSON.parse(fs.readFileSync(path.join(root, 'config/access-control/jenfu-role-catalog.v5.json'), 'utf8'));
+  // Positive fixtures must use the same pinned active artifact as the actual consumer.
+  // Historical v5 SQL/history tests remain separate; no authorization expectation changes.
+  const { principalCatalog: catalog } = await import(pathToFileURL(path.join(root,
+    'src/lib/jenfu-principal-role-catalog.ts')).href);
   for (const [order, role] of catalog.roles.entries()) {
     await database.query(`INSERT INTO ai_pdm_contract.v_application_role_catalog_v1
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb)`,

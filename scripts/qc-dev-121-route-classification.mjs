@@ -10,7 +10,7 @@ const routeRoot = join(appRoot, "src", "app", "api");
 const routeMap = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-route-permission-map.v2.json"), "utf8"));
 // Evaluate the candidate Principal-only catalog; v1/v3 dispositions remain
 // historical evidence and must not be mistaken for the new runtime decision.
-const roleCatalog = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-role-catalog.v5.json"), "utf8"));
+const roleCatalog = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-role-catalog.v6.json"), "utf8"));
 const routePolicyDispositions = JSON.parse(readFileSync(join(appRoot, "config", "access-control", "jenfu-route-policy-dispositions.v1.json"), "utf8"));
 const methods = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 

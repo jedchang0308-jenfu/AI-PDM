@@ -1532,5 +1532,45 @@
       }
     ],
     "metadataNote": "Original freeze branch field records remote base names; actual feature branches and tested HEADs are in source above. This file preserves original freeze bytes/hash; only completion metadata/docs were subsequently edited."
+  },
+  "ciFixtureFollowup": {
+    "failedRun": 37302412651,
+    "failedJobs": [
+      111738022040,
+      111738022305
+    ],
+    "source": "9c829651bb70fdbdd3418db4d18075e724f3e0ec",
+    "cause": "Positive active-catalog fixtures still supplied v5 while exact consumer requires v6; dependency failure precedes provision CAS / entitlement evaluator. Runtime rejection unchanged.",
+    "fix": "Precision and permission-service use actual current consumer artifact. Current route classifier and two manual native positive fixtures align to exact v6. Historical v5 migration/replay and provenance unchanged.",
+    "precisionNative": {
+      "status": "PASS",
+      "entrypoint": "node --test scripts/dev012-production-data-cutover-postgres.test.mjs",
+      "tests": 2,
+      "principalPrecisionLifecycleSettingsShareChecks": 21,
+      "syntheticProducers": true,
+      "productionL4": false,
+      "cleanup": {
+        "clusterStopped": true,
+        "portReleased": true,
+        "tempRemoved": true
+      },
+      "rawPath": "C:\\Users\\user\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\ai-dev-resource-governor\\temp\\development\\77d32985-4e25-4c4a-9e19-855409bca4fe\\dev121-ci-precision-r1-result.json"
+    },
+    "unit": {
+      "status": "PASS",
+      "cases": 5,
+      "path": "src/lib/jenfu-principal-permission-service.test.ts"
+    },
+    "independentQc": {
+      "status": "PASS",
+      "reviewer": "/root/dev121_qc_batch_v6",
+      "model": "GPT-6.1 Sol",
+      "sourceDiffOnly": true,
+      "findingsP1P2": 0,
+      "unchangedAssertions": true,
+      "manualAclTransferRerun": false
+    },
+    "ciRetry": "PENDING",
+    "historicalCiFailurePreserved": true
   }
 }
