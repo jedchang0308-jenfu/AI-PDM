@@ -424,9 +424,21 @@ Actual original recognition worker 先執行 native credential probe，probepass
 
 ## D122-07：外部供應商回覆入口缺少已定義的 Principal／權限政策
 
+2026-10-05 人類已明確決定「維持停用，另排後續開發」。本階段沿用停用政策；未開放不算功能 PASS，後續 actor／公司／回覆權限政策留 future capsule。
+
 外部供應商回覆仍是待決的業務可用性項目。現行 `POST /api/public/shares/[token]/responses` 先要求已驗證的 AI-PDM Principal，再以 `503 supplier_reply_policy_unavailable` 和 `DEFERRED_DEV122_POLICY_NOT_RETIRED` 回覆；它不讀取 share token 或 body，也不建立回覆或稽核紀錄。這是安全收斂，不代表外部回覆功能通過或已退役。現有角色目錄沒有定義外部收件人 actor、公司範圍或回覆權限；不能把 share bearer token 當安全主體，也不能自行新增外部 grant。
 
 證據與後續：`src/app/api/public/shares/[token]/responses/route.ts`、`src/lib/principal-readonly-share.ts` 及 `src/app/api/public/shares/[token]/principal-share-access.test.ts`；`scripts/qc-api-test.mjs` 保留 `SUPPLIER-001` 至 `SUPPLIER-011` 原有 case IDs，對本地 SQLite／cookie 模式標記 `NOT_RUN/DEFERRED_DEV122`，不把它們算 PASS。後續先由 AI-PDM 業務 owner 定義外部 actor、公司界線、可回覆用途及 revoke/expiry 行為，再以實際正常入口驗證。R81 中 `POST /api/settings-secret-probe-jobs/claim` 的 `403 feature_not_open` 是不同 worker route，不能作為本分享回覆入口的授權或可用性證據。
+
+## D122-08 本地修復階段（2026-10-05；RD Implementation Ready）
+
+窄修復已完成：actual native PG 17／17、focused 11／11（含實際 SQLite）、typecheck／選定 lint／DB boundary 通過；actual GET200只投影所选share responses，計數恰加一；撤權／過期 grant 與全部拒絕/故障路徑零副作用，exact fixture grant 回存已驗。原始query／HTTP503與fixture FAIL保留。[本地結果及層級限制](../qa/DEV-122-share-metadata-local-closure-2026-10-05.json)；最終獨立QC／PR CI另記於PR。正式 metadata NOT_RUN，原7 issues／29 groups及人類CAD缺口不變。
+
+沿用人類「完成 DEV-122 開發／禁止跨專案開發」的 AI-PDM 本地開發授權，將下方已登記的 D122-08 窄 SQL 缺陷排入本地修復。此前 DEFERRED 與 42P08 為原始歷史，保留原始失敗；本階段不包含正式部署、外部供應商 actor 政策、真實 producer 或原生 CAD 驗收。唯一產品 writer 為 Root，QC 使用獨立 Luna。主分支來源為 7058b0139f7107cffda8356080c3e2f19759e2d1，工作分支 codex/dev122-share-metadata。
+
+產品只允許 release-async-repository.ts 的 SELECT_ASYNC_SUPPLIER_PORTAL_RESPONSES_SQL 對兩處可選 shareId 做 CAST(... AS text)，保留 submission/share 篩選與排序、binder、Principal/grant/company/resource 邊界及 schema。驗證允許既有 DEV-122 own native runner 增加 share-metadata 子集、native business test、既有 release-async-repository.share-audit.test.ts 的 actual in-memory SQLite 相容測例、既有 published-release-package contract test 的 D122-08 預期同步，以及本 spec／dev_task／documentation_map／一份結果證據；不新增依賴或 migration。
+
+驗收：先以未改產品 SQL、actual named binder 與 disposable native PostgreSQL 留下 null／指定 shareId 的 42P08 和 actual GET 503 首發失敗；修正後 actual repository 兩分支正常且不跨 submission/share，排序不變；actual GET 200／private,no-store／資料投影正確／access_count 恰加一；同一實際 transaction 的原始 SQL fault、缺 session、跨公司、撤權/過期 grant、revoked/expired share、未發行 Pending/無 package 都不得留下計數或額外副作用。只使用已有 own schemas、明示 synthetic Principal／grant／歷史 Released 輸入與標記隔離 data/repository；source binding、fixture ledger、primary boundary、exact process/port/temp cleanup 必須保留。此追加 issue 與原 7 issues／29 groups 分母分開，成功只代表本地 native PG SQL／handler。
 
 ## D122-08：分享 metadata 業務 serializer 的 PostgreSQL 可選參數錯誤
 

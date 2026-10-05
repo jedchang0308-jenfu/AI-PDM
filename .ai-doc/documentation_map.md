@@ -1,5 +1,7 @@
 # AI_PDM 文件地圖
 
+DEV-122 現行本地追加修復：D122-08 share metadata 可選參數型別，依[同一契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-08-本地修復階段2026-10-05rd-implementation-ready)執行；原7 issues／29 groups與人類CAD驗收不變，本階段沒有新增production授權。 [本地17 native／11 focused與層級限制](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)。D122-07人類已確認維持停用、後續開發。
+
 ## DEV-122 一次提交金鑰流程（2026-10-05；R03 已部署，待使用者 CAD 驗證）
 
 一次提交後自動測試、啟用與精確服務版本套用確認已部署：R03 owner run [37286616142](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37286616142) RELEASED／FINALIZED，100% ai-pdm-prod-7e169d142ba7、0 candidate tags；官方來源 aacd16a461dec3fca0ac27d2b178939211c5b055（PR211 正常合併），PR／main required CI 均 SUCCESS。170/170 unit、5/5 worker transport、34/34設定、134/134 release tests；isolated PG／正常 Settings UI 1440與390px控制流程及restart七表不變已驗，Luna來源／21張畫面與最後fixture QC無P1/P2。080正式1 applied／29 replayed／ledger30，舊migration prefix未變；B配置與既有三own資源沿用，無新增IAM。真key／CAD與常駐worker未冒稱PASS，主機位置待人類，安全launcher已交付；F-01F由使用者正式驗證，7 issues／29 groups、整體NOT_ACCEPTED。閱讀[追加契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[本輪checkpoint](qa/DEV-122-secret-workflow-automation-2026-10-05.json)與[新正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)。
