@@ -1,0 +1,1536 @@
+{
+  "schemaVersion": "dev121-admin-v6-local-acceptance.v1",
+  "capturedAt": "2026-10-05T11:07:43.581Z",
+  "status": "LOCAL_NATIVE_AND_INDEPENDENT_QC_PASS_CI_PRODUCTION_PENDING",
+  "mainModel": {
+    "name": "GPT-6.1 Sol",
+    "confirmation": "human_original_reply"
+  },
+  "source": {
+    "aiPdm": {
+      "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+      "head": "3d66143d9973f09d57efffba8a74cb8c2a943cd6",
+      "branch": "codex/dev121-admin-capabilities-v6"
+    },
+    "orgMaster": {
+      "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+      "head": "61ce0b944ea83ba5024bdc8655f819b387d4f824",
+      "branch": "codex/dev057-active-catalog-v6"
+    }
+  },
+  "catalog": {
+    "version": "ai-pdm.role-catalog.2026-10-05.v6",
+    "sha256": "bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af",
+    "highestRoleExplicitAllowedCapabilities": 66,
+    "otherRolesChanged": false,
+    "unknownAutoAllow": false,
+    "migration": "db/postgres/081_dev121_principal_role_catalog_v6.sql",
+    "migrationSha256": "c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284",
+    "ownerLedgerOrder": 31,
+    "officialAppliedPredecessor": "080_dev122_settings_secret_activation_intents.sql"
+  },
+  "native": {
+    "status": "PASS",
+    "executedCases": 24,
+    "checks": [
+      {
+        "id": "D57-01",
+        "label": "migration preflight rejects an existing legacy/managed active-principal collision before replacing views",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-10",
+        "label": "migration rejects one principal assigned to two Employees without partial DDL",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-24",
+        "label": "fixture diagnostic executes native owner SELECTs in a read-only snapshot",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-09",
+        "label": "principal reservations preserve resolved and unresolved provider-pair history",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-18",
+        "label": "v2 session admission reads published policy roles and applications",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-19",
+        "label": "cutover producer manifest is exact and AI-PDM migrator can read only the contract view",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-02",
+        "label": "principal mapping and AI-PDM portal visibility do not depend on an OrgMaster role or the AI-PDM authority selector",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-03",
+        "label": "effective AI-PDM role assignments remain authority-gated while portal visibility is stable",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-04",
+        "label": "delegated AI-PDM permission grants portal visibility to the recipient principal",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-05",
+        "label": "governance publisher rejects historical-principal reassignment and duplicate active pairs",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-06",
+        "label": "bind and governance publication serialize in both writer orders",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-11",
+        "label": "both writers enforce immutable principal ownership while allowing distinct principals and aliases",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-17",
+        "label": "principal grant v2 has one alias-independent row per effective grant",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-20",
+        "label": "principal grant v3 follows published assignments without the per-employee authority switch",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-23",
+        "label": "human management Principal receives published business roles with unchanged scope and immediate revocation",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-12",
+        "label": "owner reservations cannot be rewritten and runtime cannot call the private writer",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-13",
+        "label": "managed-login verification binds the exact principal and bind replay preserves one reservation",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-14",
+        "label": "authority v2 atomically switches, replays and reverses with exact target and readback",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-15",
+        "label": "authority v2 rereads target admission after waiting for the producer lock",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-16",
+        "label": "issued principal session binding is immutable while last-seen and revocation remain writable",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-07",
+        "label": "identity-only producer keeps unclassified legacy mapping out of the account-typed adapter",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-08",
+        "label": "active managed mapping reaches typed adapter only through an exact managed identity match",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-21",
+        "label": "published Principal grants drive actual share metadata and package access, revocation, scope and restore on one PostgreSQL",
+        "status": "PASS"
+      },
+      {
+        "id": "D57-22",
+        "label": "management HTTP publishes and revokes a Principal grant through the product PostgreSQL writer",
+        "status": "PASS"
+      }
+    ],
+    "catalogPublicationEvidence": {
+      "target": "task-owned-disposable-postgresql",
+      "catalogPrerequisiteScope": "055 + catalog-only ownership changes from 062",
+      "migrationHashes": {
+        "055_jenfu_role_catalog_publication.sql": "277525f7d4fb4044ca8f5beb85854e393bba49ca321bbd7459535461d2ead442",
+        "066_dev121_principal_role_catalog_v4.sql": "ae33547a48dc4627f055a5122c90638cb5d06f4e231ad5e9d0eb65d84975ac06",
+        "070_dev121_principal_role_catalog_v5.sql": "9b882ba60fd3a2e2b4bd13ca054f83e2de91b3513bbde11fe0698aa019179013",
+        "081_dev121_principal_role_catalog_v6.sql": "c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284"
+      },
+      "rejectionCases": [
+        {
+          "id": "v5-hash",
+          "rejected": true,
+          "atomicRollback": true
+        },
+        {
+          "id": "v5-permissions",
+          "rejected": true,
+          "atomicRollback": true
+        },
+        {
+          "id": "v5-pointer",
+          "rejected": true,
+          "atomicRollback": true
+        },
+        {
+          "id": "v6-published-at",
+          "rejected": true,
+          "atomicRollback": true
+        },
+        {
+          "id": "v6-role-name",
+          "rejected": true,
+          "atomicRollback": true
+        },
+        {
+          "id": "v6-permissions",
+          "rejected": true,
+          "atomicRollback": true
+        },
+        {
+          "id": "v6-role-order",
+          "rejected": true,
+          "atomicRollback": true
+        }
+      ],
+      "firstApply": true,
+      "replayCount": 2,
+      "immutableHistoricalEntries": 27,
+      "activeRoleCount": 9,
+      "catalogVersion": "ai-pdm.role-catalog.2026-10-05.v6",
+      "catalogSha256": "bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af",
+      "orgmasterActiveCatalogReadback": [
+        "v5",
+        "v6"
+      ],
+      "displaySnapshot": {
+        "migration056Sha256": "38f432a6599abeea2517182257f702b4c0ddcbe00190bbbe115bafb17d757951",
+        "executedCases": 3,
+        "provider": "postgres",
+        "restrictedRole": "dev057_ai_pdm_consumer_probe",
+        "securityAuthority": false
+      },
+      "formalDiagnostic": {
+        "actualSelectQueries": 4,
+        "readOnly": true,
+        "absentFixtureRejected": true,
+        "scope": "NATIVE_SQL_COMPATIBILITY_ONLY_NOT_FORMAL_PRODUCTION_GRANT_PROOF"
+      }
+    },
+    "grantAndDisplay": {
+      "evidenceScope": "TARGETED_ACTUAL_ORG029_PRODUCER_AND_AI_SHARE_READ_CONSUMER_AUTH_ONLY",
+      "catalogPublicationEvidence": {
+        "target": "task-owned-disposable-postgresql",
+        "catalogPrerequisiteScope": "055 + catalog-only ownership changes from 062",
+        "migrationHashes": {
+          "055_jenfu_role_catalog_publication.sql": "277525f7d4fb4044ca8f5beb85854e393bba49ca321bbd7459535461d2ead442",
+          "066_dev121_principal_role_catalog_v4.sql": "ae33547a48dc4627f055a5122c90638cb5d06f4e231ad5e9d0eb65d84975ac06",
+          "070_dev121_principal_role_catalog_v5.sql": "9b882ba60fd3a2e2b4bd13ca054f83e2de91b3513bbde11fe0698aa019179013",
+          "081_dev121_principal_role_catalog_v6.sql": "c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284"
+        },
+        "rejectionCases": [
+          {
+            "id": "v5-hash",
+            "rejected": true,
+            "atomicRollback": true
+          },
+          {
+            "id": "v5-permissions",
+            "rejected": true,
+            "atomicRollback": true
+          },
+          {
+            "id": "v5-pointer",
+            "rejected": true,
+            "atomicRollback": true
+          },
+          {
+            "id": "v6-published-at",
+            "rejected": true,
+            "atomicRollback": true
+          },
+          {
+            "id": "v6-role-name",
+            "rejected": true,
+            "atomicRollback": true
+          },
+          {
+            "id": "v6-permissions",
+            "rejected": true,
+            "atomicRollback": true
+          },
+          {
+            "id": "v6-role-order",
+            "rejected": true,
+            "atomicRollback": true
+          }
+        ],
+        "firstApply": true,
+        "replayCount": 2,
+        "immutableHistoricalEntries": 27,
+        "activeRoleCount": 9,
+        "catalogVersion": "ai-pdm.role-catalog.2026-10-05.v6",
+        "catalogSha256": "bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af",
+        "orgmasterActiveCatalogReadback": [
+          "v5",
+          "v6"
+        ],
+        "displaySnapshot": {
+          "migration056Sha256": "38f432a6599abeea2517182257f702b4c0ddcbe00190bbbe115bafb17d757951",
+          "executedCases": 3,
+          "provider": "postgres",
+          "restrictedRole": "dev057_ai_pdm_consumer_probe",
+          "securityAuthority": false
+        },
+        "formalDiagnostic": {
+          "actualSelectQueries": 4,
+          "readOnly": true,
+          "absentFixtureRejected": true,
+          "scope": "NATIVE_SQL_COMPATIBILITY_ONLY_NOT_FORMAL_PRODUCTION_GRANT_PROOF"
+        }
+      },
+      "consumerPackage": "ai-pdm",
+      "runtimeRole": "dev057_ai_pdm_consumer_probe",
+      "downloadTestSha256": "5bad90d280fc49cd8b9c6393e93b1f5da9b5e9bb237f6b9f9ee40124af2aa858",
+      "producer029Sha256": "e24bad6ebafe8bbe9ec9ce167758ac52879d04ca670cfff4900c770dc41e5b6c",
+      "publishedVersions": [
+        "gov-dev057-contract-reviewer-assigned",
+        "gov-dev057-contract-revoked",
+        "gov-dev057-contract-scoped",
+        "gov-dev057-contract-restored",
+        "gov-dev057-contract-flow",
+        "gov-dev057-contract-file-handoff",
+        "gov-dev057-contract-file-revoked",
+        "gov-dev057-contract-file-scoped"
+      ],
+      "shareReadEvidence": [
+        {
+          "phase": "assigned",
+          "status": "PASS_SHARE_READ",
+          "cases": [
+            {
+              "id": "SREAD-01",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-02",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-03",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-04",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-05",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-06",
+              "authorization": "PASS"
+            }
+          ],
+          "publicMetadataBusiness": "PASS_METADATA",
+          "publicMetadataPositivePass": true,
+          "businessKnownBlocked": {
+            "id": "D122-08",
+            "code": null,
+            "querySha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c",
+            "status": "RESOLVED_IN_THIS_LOCAL_PHASE"
+          },
+          "syntheticVerifiedSession": true,
+          "syntheticBusinessSchema": true,
+          "syntheticStorageBytes": true,
+          "actualOrg029Producer": true,
+          "actualShareResolverAndDelivery": true,
+          "providerConformance": false,
+          "productionL4": false
+        },
+        {
+          "phase": "revoked",
+          "status": "PASS_AUTHORIZATION_ONLY",
+          "cases": [
+            {
+              "id": "SREAD-01",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-02",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-03",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-04",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-05",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-06",
+              "authorization": "PASS"
+            }
+          ],
+          "publicMetadataBusiness": "AUTHORIZATION_DENIED",
+          "publicMetadataPositivePass": false,
+          "businessKnownBlocked": {
+            "id": "D122-08",
+            "code": "NOT_RUN",
+            "querySha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c",
+            "status": "NOT_RUN_AUTHORIZATION_DENIED"
+          },
+          "syntheticVerifiedSession": true,
+          "syntheticBusinessSchema": true,
+          "syntheticStorageBytes": true,
+          "actualOrg029Producer": true,
+          "actualShareResolverAndDelivery": true,
+          "providerConformance": false,
+          "productionL4": false
+        },
+        {
+          "phase": "out-of-scope",
+          "status": "PASS_AUTHORIZATION_ONLY",
+          "cases": [
+            {
+              "id": "SREAD-01",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-02",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-03",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-04",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-05",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-06",
+              "authorization": "PASS"
+            }
+          ],
+          "publicMetadataBusiness": "AUTHORIZATION_DENIED",
+          "publicMetadataPositivePass": false,
+          "businessKnownBlocked": {
+            "id": "D122-08",
+            "code": "NOT_RUN",
+            "querySha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c",
+            "status": "NOT_RUN_AUTHORIZATION_DENIED"
+          },
+          "syntheticVerifiedSession": true,
+          "syntheticBusinessSchema": true,
+          "syntheticStorageBytes": true,
+          "actualOrg029Producer": true,
+          "actualShareResolverAndDelivery": true,
+          "providerConformance": false,
+          "productionL4": false
+        },
+        {
+          "phase": "restored",
+          "status": "PASS_SHARE_READ",
+          "cases": [
+            {
+              "id": "SREAD-01",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-02",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-03",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-04",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-05",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-06",
+              "authorization": "PASS"
+            }
+          ],
+          "publicMetadataBusiness": "PASS_METADATA",
+          "publicMetadataPositivePass": true,
+          "businessKnownBlocked": {
+            "id": "D122-08",
+            "code": null,
+            "querySha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c",
+            "status": "RESOLVED_IN_THIS_LOCAL_PHASE"
+          },
+          "syntheticVerifiedSession": true,
+          "syntheticBusinessSchema": true,
+          "syntheticStorageBytes": true,
+          "actualOrg029Producer": true,
+          "actualShareResolverAndDelivery": true,
+          "providerConformance": false,
+          "productionL4": false
+        },
+        {
+          "phase": "flow",
+          "status": "PASS_SHARE_READ",
+          "cases": [
+            {
+              "id": "SREAD-01",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-02",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-03",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-04",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-05",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-06",
+              "authorization": "PASS"
+            }
+          ],
+          "publicMetadataBusiness": "PASS_METADATA",
+          "publicMetadataPositivePass": true,
+          "businessKnownBlocked": {
+            "id": "D122-08",
+            "code": null,
+            "querySha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c",
+            "status": "RESOLVED_IN_THIS_LOCAL_PHASE"
+          },
+          "syntheticVerifiedSession": true,
+          "syntheticBusinessSchema": true,
+          "syntheticStorageBytes": true,
+          "actualOrg029Producer": true,
+          "actualShareResolverAndDelivery": true,
+          "providerConformance": false,
+          "productionL4": false
+        },
+        {
+          "phase": "file-handoff",
+          "status": "PASS_AUTHORIZATION_ONLY",
+          "cases": [
+            {
+              "id": "SREAD-01",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-02",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-03",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-04",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-05",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-06",
+              "authorization": "PASS"
+            }
+          ],
+          "publicMetadataBusiness": "AUTHORIZATION_DENIED",
+          "publicMetadataPositivePass": false,
+          "businessKnownBlocked": {
+            "id": "D122-08",
+            "code": "NOT_RUN",
+            "querySha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c",
+            "status": "NOT_RUN_AUTHORIZATION_DENIED"
+          },
+          "syntheticVerifiedSession": true,
+          "syntheticBusinessSchema": true,
+          "syntheticStorageBytes": true,
+          "actualOrg029Producer": true,
+          "actualShareResolverAndDelivery": true,
+          "providerConformance": false,
+          "productionL4": false
+        },
+        {
+          "phase": "file-revoked",
+          "status": "PASS_AUTHORIZATION_ONLY",
+          "cases": [
+            {
+              "id": "SREAD-01",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-02",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-03",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-04",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-05",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-06",
+              "authorization": "PASS"
+            }
+          ],
+          "publicMetadataBusiness": "AUTHORIZATION_DENIED",
+          "publicMetadataPositivePass": false,
+          "businessKnownBlocked": {
+            "id": "D122-08",
+            "code": "NOT_RUN",
+            "querySha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c",
+            "status": "NOT_RUN_AUTHORIZATION_DENIED"
+          },
+          "syntheticVerifiedSession": true,
+          "syntheticBusinessSchema": true,
+          "syntheticStorageBytes": true,
+          "actualOrg029Producer": true,
+          "actualShareResolverAndDelivery": true,
+          "providerConformance": false,
+          "productionL4": false
+        },
+        {
+          "phase": "file-scoped",
+          "status": "PASS_AUTHORIZATION_ONLY",
+          "cases": [
+            {
+              "id": "SREAD-01",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-02",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-03",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-04",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-05",
+              "authorization": "PASS"
+            },
+            {
+              "id": "SREAD-06",
+              "authorization": "PASS"
+            }
+          ],
+          "publicMetadataBusiness": "AUTHORIZATION_DENIED",
+          "publicMetadataPositivePass": false,
+          "businessKnownBlocked": {
+            "id": "D122-08",
+            "code": "NOT_RUN",
+            "querySha256": "7216177d70e9f26e64e462bccdebe2e2226e6434197bdea03563a105a372337c",
+            "status": "NOT_RUN_AUTHORIZATION_DENIED"
+          },
+          "syntheticVerifiedSession": true,
+          "syntheticBusinessSchema": true,
+          "syntheticStorageBytes": true,
+          "actualOrg029Producer": true,
+          "actualShareResolverAndDelivery": true,
+          "providerConformance": false,
+          "productionL4": false
+        }
+      ],
+      "actualShareReadCasesPerPhase": 6,
+      "totalHttpCasesPerPhase": 15,
+      "verifiedSession": "synthetic-v2-principal",
+      "providerConformance": false,
+      "productionL4": false,
+      "businessDetailSchema": "minimal-synthetic-query-fixture",
+      "storageBytes": "task-owned-synthetic",
+      "transferNumberingAndReviewProbes": "NOT_RUN_SELECTED_READ_SCOPE",
+      "publicMetadataPositivePass": true,
+      "businessKnownBlocked": "D122-08/LOCAL_METADATA_VERIFIED_PRODUCTION_NOT_RUN",
+      "download": "actual HTTP, owner-published v4 grants, restricted PostgreSQL, token/resource resolver, actual local bytes and persisted Principal audit"
+    },
+    "governance": {
+      "testSha256": "ab0c6f0b6a1726956ed10b550e9c9e73c8b8dbb182bf630942dacdb01bbe9422",
+      "checkpoints": [
+        {
+          "stage": "read-before",
+          "elapsedMs": 301
+        },
+        {
+          "stage": "read-after",
+          "elapsedMs": 391,
+          "status": 200
+        },
+        {
+          "stage": "publish-before",
+          "elapsedMs": 518
+        },
+        {
+          "stage": "publish-after",
+          "elapsedMs": 658,
+          "status": 201
+        },
+        {
+          "stage": "revoke-before",
+          "elapsedMs": 658
+        },
+        {
+          "stage": "revoke-after",
+          "elapsedMs": 869,
+          "status": 201
+        },
+        {
+          "stage": "race-before",
+          "elapsedMs": 941,
+          "withdrawal": "session"
+        },
+        {
+          "stage": "lock-wait-before",
+          "elapsedMs": 950,
+          "forStage": "session"
+        },
+        {
+          "stage": "lock-wait-observed",
+          "elapsedMs": 1015,
+          "forStage": "session"
+        },
+        {
+          "stage": "race-withdrawal-committed",
+          "elapsedMs": 1024,
+          "withdrawal": "session"
+        },
+        {
+          "stage": "race-assertions-after",
+          "elapsedMs": 1056,
+          "withdrawal": "session",
+          "status": 401
+        },
+        {
+          "stage": "race-after",
+          "elapsedMs": 1149,
+          "withdrawal": "session"
+        },
+        {
+          "stage": "race-before",
+          "elapsedMs": 1203,
+          "withdrawal": "epoch"
+        },
+        {
+          "stage": "lock-wait-before",
+          "elapsedMs": 1212,
+          "forStage": "epoch"
+        },
+        {
+          "stage": "lock-wait-observed",
+          "elapsedMs": 1272,
+          "forStage": "epoch"
+        },
+        {
+          "stage": "race-withdrawal-committed",
+          "elapsedMs": 1279,
+          "withdrawal": "epoch"
+        },
+        {
+          "stage": "race-assertions-after",
+          "elapsedMs": 1333,
+          "withdrawal": "epoch",
+          "status": 401
+        },
+        {
+          "stage": "race-after",
+          "elapsedMs": 1420,
+          "withdrawal": "epoch"
+        },
+        {
+          "stage": "race-before",
+          "elapsedMs": 1471,
+          "withdrawal": "governance-cas"
+        },
+        {
+          "stage": "lock-wait-before",
+          "elapsedMs": 1483,
+          "forStage": "governance-cas"
+        },
+        {
+          "stage": "lock-wait-observed",
+          "elapsedMs": 1535,
+          "forStage": "governance-cas"
+        },
+        {
+          "stage": "race-withdrawal-committed",
+          "elapsedMs": 1560,
+          "withdrawal": "governance-cas"
+        },
+        {
+          "stage": "race-assertions-after",
+          "elapsedMs": 1594,
+          "withdrawal": "governance-cas",
+          "status": 409
+        },
+        {
+          "stage": "race-after",
+          "elapsedMs": 1681,
+          "withdrawal": "governance-cas"
+        },
+        {
+          "stage": "race-before",
+          "elapsedMs": 1736,
+          "withdrawal": "workspace"
+        },
+        {
+          "stage": "lock-wait-before",
+          "elapsedMs": 1745,
+          "forStage": "workspace"
+        },
+        {
+          "stage": "lock-wait-observed",
+          "elapsedMs": 1799,
+          "forStage": "workspace"
+        },
+        {
+          "stage": "race-withdrawal-committed",
+          "elapsedMs": 1811,
+          "withdrawal": "workspace"
+        },
+        {
+          "stage": "race-assertions-after",
+          "elapsedMs": 1831,
+          "withdrawal": "workspace",
+          "status": 409
+        },
+        {
+          "stage": "race-after",
+          "elapsedMs": 1916,
+          "withdrawal": "workspace"
+        },
+        {
+          "stage": "race-before",
+          "elapsedMs": 1970,
+          "withdrawal": "managed-quarantine"
+        },
+        {
+          "stage": "lock-wait-before",
+          "elapsedMs": 1979,
+          "forStage": "managed-quarantine"
+        },
+        {
+          "stage": "lock-wait-observed",
+          "elapsedMs": 2032,
+          "forStage": "managed-quarantine"
+        },
+        {
+          "stage": "race-withdrawal-committed",
+          "elapsedMs": 2038,
+          "withdrawal": "managed-quarantine"
+        },
+        {
+          "stage": "race-assertions-after",
+          "elapsedMs": 2086,
+          "withdrawal": "managed-quarantine",
+          "status": 401
+        },
+        {
+          "stage": "race-after",
+          "elapsedMs": 2181,
+          "withdrawal": "managed-quarantine"
+        },
+        {
+          "stage": "race-before",
+          "elapsedMs": 2237,
+          "withdrawal": "admission"
+        },
+        {
+          "stage": "lock-wait-before",
+          "elapsedMs": 2245,
+          "forStage": "admission"
+        },
+        {
+          "stage": "lock-wait-observed",
+          "elapsedMs": 2299,
+          "forStage": "admission"
+        },
+        {
+          "stage": "race-withdrawal-committed",
+          "elapsedMs": 2305,
+          "withdrawal": "admission"
+        },
+        {
+          "stage": "race-assertions-after",
+          "elapsedMs": 2353,
+          "withdrawal": "admission",
+          "status": 401
+        },
+        {
+          "stage": "race-after",
+          "elapsedMs": 2447,
+          "withdrawal": "admission"
+        },
+        {
+          "stage": "write-first-before",
+          "elapsedMs": 2447
+        },
+        {
+          "stage": "write-first-ready",
+          "elapsedMs": 2531
+        },
+        {
+          "stage": "lock-wait-before",
+          "elapsedMs": 2554,
+          "forStage": "write-first-revoker"
+        },
+        {
+          "stage": "lock-wait-observed",
+          "elapsedMs": 2570,
+          "forStage": "write-first-revoker"
+        },
+        {
+          "stage": "write-first-commit-before",
+          "elapsedMs": 2571
+        },
+        {
+          "stage": "write-first-commit-after",
+          "elapsedMs": 2572
+        },
+        {
+          "stage": "write-first-after",
+          "elapsedMs": 2584
+        },
+        {
+          "stage": "cleanup-after",
+          "elapsedMs": 2600
+        }
+      ],
+      "verifiedSession": "persisted-v2-principal-with-official-epoch-contract",
+      "platformEpochComposition": {
+        "source": "08e3832337330980705271fc9ec1c327236a7422",
+        "manifest": [
+          {
+            "contract_version": "jenfu.platform-contract.principal-auth-state.v3",
+            "signature_sha256": "2e56c51ca3d2ad4889d818013cc503fc2727c6817d1d9d71663538901d3de385"
+          }
+        ],
+        "migrations": [
+          {
+            "owner": "platform",
+            "path": "db/migrations/001_platform_auth_epoch_and_portal_sessions.sql",
+            "sha256": "4758d5758299473c30e54cec0a407dd1918c77c87ed2059d2174d7197fef4fee"
+          },
+          {
+            "owner": "platform",
+            "path": "db/migrations/002_dev005_employee_auth_epoch_invalidation.sql",
+            "sha256": "57e02ef732aba57fd2bc2e17e3174d80796bf779d705fa1d393e0d8ba0ce5153"
+          },
+          {
+            "owner": "platform",
+            "path": "db/migrations/003_dev010_platform_contract_producer.sql",
+            "sha256": "472c62b7ccb6b7c2295e3c8df1b3698345339a0fb7731ff0e8ddc5b45cef5a48"
+          },
+          {
+            "owner": "platform",
+            "path": "db/migrations/005_dev013_sso_handoff_and_auth_state.sql",
+            "sha256": "61d62cdd47518ce29306f95702ae13a6fcfc5ae5cde86ebdb63a63637438cfe2"
+          },
+          {
+            "owner": "platform",
+            "path": "db/migrations/006_dev014_global_invalidation_consumer.sql",
+            "sha256": "502e7b7ebfd2fc3ab1866c86b0c274f01423887a38a97c6a65015eb8ecb2bb6e"
+          },
+          {
+            "owner": "platform",
+            "path": "db/migrations/008_dev014_platform_authority_switch_contract.sql",
+            "sha256": "cff36d49d2c0538516aa886aad8542764c2ec04d44a8748c047aed2bb7cd4f03"
+          },
+          {
+            "owner": "platform",
+            "path": "db/migrations/009_dev015_principal_auth_state.sql",
+            "sha256": "e71ab07995d55f7597b7c382061a492109f88addbbbd7619a644d72925371b88"
+          },
+          {
+            "owner": "platform",
+            "path": "db/migrations/010_dev015_principal_auth_contract_manifest.sql",
+            "sha256": "3303c1528be281965a861f79f49f025c71d067018a5fc87cc295bc62dba5687d"
+          }
+        ]
+      },
+      "phases": [
+        "managed-no-json-alias",
+        "published-assignment",
+        "published-revocation",
+        "same-snapshot-cas",
+        "workspace-withdrawal",
+        "managed-quarantine",
+        "session-revocation",
+        "principal-epoch-withdrawal",
+        "write-first-revoke-waits"
+      ],
+      "ownerApi": "actual-http",
+      "consumer": "ai-pdm-runtime-grant-v3"
+    },
+    "cleanup": {
+      "clientClosed": true,
+      "auxiliaryClientsClosed": true,
+      "clusterStopped": true,
+      "portReleased": true,
+      "tempRemoved": true
+    },
+    "rawLocalEvidence": {
+      "path": "C:\\Users\\user\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\ai-dev-resource-governor\\temp\\development\\0faab067-230f-493e-a09e-7652aae4063f\\dev121-native-r11-result.json",
+      "sha256": "4885c7665ba888ad92be0b2a0feba41f7645339549cf4530fffc5c64fb3e54a3"
+    },
+    "limits": {
+      "providerConformance": false,
+      "productionL4": false,
+      "fullProductionBusinessSchema": false,
+      "syntheticVerifiedAiSession": true,
+      "formalJedGrantReadback": "NOT_RUN",
+      "businessMetadata": "ACTUAL_LOCAL_GET_WITH_SYNTHETIC_BUSINESS_FIXTURE_NOT_PRODUCTION"
+    }
+  },
+  "requiredOwnerChecks": [
+    {
+      "args": [
+        "scripts/dev121-build-principal-role-catalog-v6.mjs",
+        "--check"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-05T10:59:00.0943060Z",
+      "finishedAt": "2026-10-05T10:59:00.2158900Z",
+      "cwd": "C:\\tmp\\dev014-contract-release\\AI_PDM"
+    },
+    {
+      "args": [
+        "scripts/dev121-build-principal-role-catalog-v6-migration.mjs",
+        "--check"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-05T10:59:00.2656828Z",
+      "finishedAt": "2026-10-05T10:59:00.3485598Z",
+      "cwd": "C:\\tmp\\dev014-contract-release\\AI_PDM"
+    },
+    {
+      "args": [
+        "--test",
+        "scripts/dev121-build-principal-role-catalog-v6.test.mjs",
+        "scripts/lib/dev121-migration-fence.test.mjs"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-05T10:59:00.3505642Z",
+      "finishedAt": "2026-10-05T10:59:00.5519219Z",
+      "cwd": "C:\\tmp\\dev014-contract-release\\AI_PDM"
+    },
+    {
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "src/lib/published-role-capability-route.test.ts",
+        "src/lib/numbering-navigation-permissions.test.ts",
+        "src/lib/role-capability-display-availability.test.ts",
+        "src/lib/jenfu-principal-request-guard.test.ts"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-05T10:59:00.5539232Z",
+      "finishedAt": "2026-10-05T10:59:03.5808821Z",
+      "cwd": "C:\\tmp\\dev014-contract-release\\AI_PDM"
+    },
+    {
+      "args": [
+        "run",
+        "qc:dev-040:r2"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-05T10:59:03.5839583Z",
+      "finishedAt": "2026-10-05T11:00:53.2794875Z",
+      "cwd": "C:\\tmp\\dev014-contract-release\\OrgMaster"
+    },
+    {
+      "args": [
+        "run",
+        "test:dev-117:continuous"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-05T11:00:53.2824860Z",
+      "finishedAt": "2026-10-05T11:00:54.6240396Z",
+      "cwd": "C:\\tmp\\dev014-contract-release\\AI_PDM"
+    },
+    {
+      "args": [
+        "run",
+        "qc:dev-117:continuous"
+      ],
+      "exitCode": 0,
+      "startedAt": "2026-10-05T11:00:54.6270208Z",
+      "finishedAt": "2026-10-05T11:02:52.4147240Z",
+      "cwd": "C:\\tmp\\dev014-contract-release\\AI_PDM"
+    }
+  ],
+  "ui": {
+    "status": "PASS",
+    "evidenceScope": "ACTUAL_COMPONENT_SYNTHETIC_V4_RESPONSE",
+    "checks": [
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": "PASS",
+        "systemAdminRows": 66,
+        "allAllow": true,
+        "noRoleSwitchRPC": true,
+        "overflow": 0,
+        "errorClearsCurrent": true,
+        "retryRestoresCurrent": true,
+        "uncaughtErrors": []
+      },
+      {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "status": "PASS",
+        "systemAdminRows": 66,
+        "allAllow": true,
+        "noRoleSwitchRPC": true,
+        "overflow": 0,
+        "errorClearsCurrent": true,
+        "retryRestoresCurrent": true,
+        "uncaughtErrors": []
+      }
+    ],
+    "sourceBefore": [
+      {
+        "path": "src/components/access-governance/role-capability-settings.tsx",
+        "sha256": "7c21f5a6e2e040a27a2469571e9b47c74c63a98bc90db59908ad8a8b05067059"
+      },
+      {
+        "path": "src/app/globals.css",
+        "sha256": "0a7d47d1c025296988964d3864568f744fa9dd3e1e80961d773d374824836d16"
+      },
+      {
+        "path": "config/access-control/jenfu-role-catalog.v6.json",
+        "sha256": "237e1a92814aa8fec87e878a8ffaac7f74bc9c5ce4fb6766c266970c9d509b8a"
+      }
+    ],
+    "sourceAfter": [
+      {
+        "path": "src/components/access-governance/role-capability-settings.tsx",
+        "sha256": "7c21f5a6e2e040a27a2469571e9b47c74c63a98bc90db59908ad8a8b05067059"
+      },
+      {
+        "path": "src/app/globals.css",
+        "sha256": "0a7d47d1c025296988964d3864568f744fa9dd3e1e80961d773d374824836d16"
+      },
+      {
+        "path": "config/access-control/jenfu-role-catalog.v6.json",
+        "sha256": "237e1a92814aa8fec87e878a8ffaac7f74bc9c5ce4fb6766c266970c9d509b8a"
+      }
+    ],
+    "expectedFailureResponses": [
+      {
+        "type": "response",
+        "url": "http://127.0.0.1:65074/api/settings/access/role-capabilities",
+        "status": 503
+      },
+      {
+        "type": "response",
+        "url": "http://127.0.0.1:65074/api/settings/access/role-capabilities",
+        "status": 503
+      }
+    ],
+    "cleanup": {
+      "browserClosed": true,
+      "serverClosed": true,
+      "portReleased": true,
+      "tempRemoved": true
+    },
+    "productionL4": false
+  },
+  "independentQc": {
+    "R8": "PASS_SOURCE_NATIVE_CURRENT_SCOPE_NO_NEW_DEFECT",
+    "remoteIntegratedFinal": {
+      "status": "PASS",
+      "reviewer": "/root/dev121_qc_batch_v6",
+      "model": "GPT-6.1 Sol",
+      "mode": "read_only_affected_scope",
+      "sourceFiles": 52,
+      "unchangedSourceFiles": 52,
+      "findingsP1P2": 0,
+      "freezeSha256": "a1bc1fdf41b2d52b2d2ffc203027b15b2a302afef2732077ee4459b9f752610c",
+      "conclusion": "081/profile/fence exact; incoming guard lifecycle and authenticatedAt preserved; native phase-specific allow/deny and receipt-derived aggregate strict; CI/merge/exact Jed grant/release/L4 still not run",
+      "reviewerModifiedSource": false
+    }
+  },
+  "remaining": {
+    "exactJedNativeDirectGlobalGrant": "NOT_RUN",
+    "requiredPrCi": "NOT_RUN",
+    "officialMerge": "NOT_RUN",
+    "orgMasterOwnerRelease": "NOT_RUN",
+    "aiPdm081PublicationAndRelease": "NOT_RUN",
+    "productionL4": "NOT_RUN",
+    "principalOnlyRecovery": "NOT_RUN_THIS_BATCH"
+  },
+  "historyPreserved": [
+    "R6 missing Platform epoch env FAIL",
+    "R9 stale deferred-business assertion FAIL",
+    "required R9 process-only ExecutionPolicy FAIL",
+    "UI R1 missing JSX runtime FAIL",
+    "UI R2/R3 fixture after Vite fallback FAIL",
+    "R10 original stale aggregate report preserved; R11 aggregate derived from asserted actual phase receipts"
+  ],
+  "noProductionMutation": true,
+  "noHistoricalMigrationEdit": true,
+  "project": "AIPDM",
+  "sourceFreeze": {
+    "normalization": "UTF8-LF",
+    "sha256": "a1bc1fdf41b2d52b2d2ffc203027b15b2a302afef2732077ee4459b9f752610c",
+    "files": [
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": ".ai-doc/dev_task.md",
+        "sha256": "40b233278bd9649c3079da61be538e25e9b2b540b6f291fc7c86cac27be96130"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": ".ai-doc/documentation_map.md",
+        "sha256": "8d5f6c9a1d51fab03e6db4e9caa0ce3fd0d599940d6799d127d8fddf8fb666c4"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": ".ai-doc/specs/DEV-121-target-authorization-boundary.md",
+        "sha256": "ecfeebe424506dea7f5afc244abf5d096cea49c596e7d29949b48e5bd260c6a2"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "config/access-control/jenfu-active-capabilities.v1.json",
+        "sha256": "0563e3701fe359f88fa301cc28dc929a2462e9c8ac0947407428e480c55725d2"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "config/access-control/jenfu-role-catalog.v6.json",
+        "sha256": "237e1a92814aa8fec87e878a8ffaac7f74bc9c5ce4fb6766c266970c9d509b8a"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+        "sha256": "dd5e478ec4eba9154365b1aca2fbceb4bbab135c0460db611f7a498517b5b6b6"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "db/postgres/081_dev121_principal_role_catalog_v6.sql",
+        "sha256": "c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+        "sha256": "cd1a7cabe0f167f1177f8954d5af454d115d9736c96da9d2ada488a0395b3fb9"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "scripts/dev121-build-principal-role-catalog-v6-migration.mjs",
+        "sha256": "b24cbe542d80c93bbed0c2b76abebb54f0ae3b18226bf1778610375d3eda8d1e"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "scripts/dev121-build-principal-role-catalog-v6.mjs",
+        "sha256": "a43db9f81a680e667e32c03baf4555429e9a6e5edce969ca1f82ea28a02acf7b"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "scripts/dev121-build-principal-role-catalog-v6.test.mjs",
+        "sha256": "5b52f3cf16c384b049efeb0f3050296a65fb1e080633d346f7d032f2d3a4b4c4"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "scripts/lib/dev121-migration-fence.mjs",
+        "sha256": "09b2817a1e3ed6059b9be5223b4f1eaeedccd6bf37b669c879012996d9bf8e1d"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "scripts/lib/dev121-migration-fence.test.mjs",
+        "sha256": "d809da59d2448187c73c7234b0334c898a9c5bb2029146b416771aa8bbad1ef0"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/app/api/settings/access/role-capabilities/route.ts",
+        "sha256": "ae7b54754942c5d0078e30ab2e3c8b3cfb1b5eb774a7e8179be36a4ee3f25bf5"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/app/globals.css",
+        "sha256": "0a7d47d1c025296988964d3864568f744fa9dd3e1e80961d773d374824836d16"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/components/access-governance/role-capability-settings.tsx",
+        "sha256": "7c21f5a6e2e040a27a2469571e9b47c74c63a98bc90db59908ad8a8b05067059"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/components/sidebar-nav.tsx",
+        "sha256": "c146ba196e45c0c2f933bacffbae39214b94c5c45fe9aac10882d8cacc247e00"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/ai-pdm-published-role-capability-workspace.ts",
+        "sha256": "54849e6a4bb370cfd829708aa5f0a750cb990c16c20d4e06666db7b62e20ab93"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/ai-pdm-role-capability-contract.ts",
+        "sha256": "f90d33f7800f1cf32300ea6f77685fd1955bd34971bae50b1f54c51b187a5a02"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/ai-pdm-role-capability-service.test.ts",
+        "sha256": "1ae751393733d52a0ffcf4204dd3afa9fcdd70024adabdfa7a686cc0514b92b8"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/ai-pdm-role-capability-service.ts",
+        "sha256": "fe4fa4660fe3bf6dc509327794fef7c683ddf7769127ba28703848ce8aeff7c6"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/jenfu-principal-role-catalog.ts",
+        "sha256": "87d6b557d0d3bd49e10e7ef80a890bf42d210cbc41484633d241ae19b41703e3"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/numbering-navigation-permissions.test.ts",
+        "sha256": "f33645beeee65eb4977f36c5d4f34476b166fcf02623b6fd970c8606d8fb6e61"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/numbering-permission-codes.ts",
+        "sha256": "f7476428418ae96258b9740a910fc25640f183c9bb9dd9194f1a38b79cacb1cd"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/principal-role-capability-read-only.test.ts",
+        "sha256": "286380430d18b897c52b755f18c6dfbeff781fd875f509abdf89dd5ca0254b8b"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/published-role-capability-route.test.ts",
+        "sha256": "9d6ff64f3c6e6891d96f6d691dd423e146c77e934ce0865690f8a736698ce53f"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/repositories/jenfu-principal-grants-v3.postgres-contract.test.ts",
+        "sha256": "4d06f5c2187d0b3d3b8a6cb8ac4d2222bf728770a200216857c666b1eba941b0"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/repositories/role-capability-display-snapshot-repository.ts",
+        "sha256": "ce5b27cd4ade7033f8b1cbf7806fe40be1e291f025f82ca01e51a5c7b63988cd"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/repositories/role-capability-display-snapshot.postgres-contract.test.ts",
+        "sha256": "3d29c0c2cc23ce2669c19a0ddb50fb9a7655c62e33d890fcf31a8eece8a0d68d"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/role-capability-display-availability.test.ts",
+        "sha256": "230fdc9f76e88802a2fd3e2cc1400a1b6a7f4a900264fadb2ef4903075e65aff"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "ai-doc/dev_task.md",
+        "sha256": "ca2f0e5e20c9500c5f79843cf92bb34c9f6472af1db51e8e8972a6b7db9e4ff7"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "ai-doc/documentation_map.md",
+        "sha256": "ed5dded5c015de7e912b0f3bc494fa83a2f0075e41b2a358cf06172819b6e43a"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "ai-doc/specs/DEV-057-identity-and-grant-contract-boundary.md",
+        "sha256": "5759e172418ba49a661025f0268b397a35f4ed721eec05a5d7f0bd8b599fddbd"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "config/catalogs/ai-pdm-role-catalog.v6.json",
+        "sha256": "237e1a92814aa8fec87e878a8ffaac7f74bc9c5ce4fb6766c266970c9d509b8a"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "scripts/dev057-production-principal-pair-diagnostic-runner.mjs",
+        "sha256": "5647a495a34966966de39d11916365e694d84ced19ece39e855a87d275b113bd"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "scripts/dev057-production-principal-pair-diagnostic-runner.test.mjs",
+        "sha256": "a5de69cc3197d97122056756af32a157b4ecc96c71be924e0d645e8cea70fe35"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "scripts/lib/dev057-native-ai-pdm-catalog-postgres-qc.mjs",
+        "sha256": "adb9a4c4d395298ce72e9c060d920cec66d2cb9a9e0be13f1225b23f360d3026"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "scripts/qc-dev-047-postgres.mjs",
+        "sha256": "b2934ca72a14188664390f3f5a4e30096a19b4ae55de660bd98d410a980ee797"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/aiPdmRoleCapabilityStore.ts",
+        "sha256": "80de512fca966ca91efd3c80d4def17a4700e676424d6937f424e6aee0cdf95a"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/aiPdmRoleCatalogRepository.postgres.test.ts",
+        "sha256": "0f8f08006b8bb812874c320638bf4d053f7db87edd5fa3d3d9c2333d6cd374a2"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/aiPdmRoleCatalogRepository.ts",
+        "sha256": "798d86b8fadf999f3d917f4fbb488c4c8681c3dca3d23a9d7c4703b0971dbf54"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/applicationRoleCatalogRegistry.test.ts",
+        "sha256": "16c3dd571eeae8b3301db2f52362bcc2eb9e5fdfc220b49e2f597cee6f580e6d"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/applicationRoleCatalogRegistry.ts",
+        "sha256": "9d73491afae588591653f99ab02c74d45b97fb8addbe1403474fac87b0123cc8"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/orgmasterGovernanceApi.ts",
+        "sha256": "015a13163ed80c9844c920deb98f3bebe84512d9dc5dcda4d7721fa8f9e69676"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/orgmasterGovernanceProduct.postgres.test.ts",
+        "sha256": "363c9340117f50727fdac4447b292fc23af76acfcc31cbd30e39487fb16e0f68"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/orgmasterGovernanceStore.ts",
+        "sha256": "8a7b8c79b6af9c3e6aef91d59dc01f97ed13c2ca8ad67912fb69ddb50fcefe55"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "server/privilegedAssignmentStore.ts",
+        "sha256": "098c99e3a1f460bc417fa645eb841186c356406872d9c594260ebf1c29c93a0a"
+      },
+      {
+        "project": "OrgMaster",
+        "root": "C:\\tmp\\dev014-contract-release\\OrgMaster",
+        "path": "src/governance/aiPdmCatalog.ts",
+        "sha256": "0b247bb4a2233f2cdc6980935cc8c963584c46dc561a1a8898bdecddd609cb13"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/jenfu-principal-permission-service.ts",
+        "sha256": "3c86c3c5684adbc29eace764839b220a55f5f45b247721d16f131b11d5ecce3d"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/jenfu-principal-request-guard.ts",
+        "sha256": "695292dabca100601621393cd1db542a060ca19fa3b44bdc9750af427cd740fb"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/repositories/release-async-repository.ts",
+        "sha256": "1606b6ad0f1bb6690ec8519b6d07de5c78df367771e0d59aad1bd65b3dfb9aa9"
+      },
+      {
+        "project": "AI-PDM",
+        "root": "C:\\tmp\\dev014-contract-release\\AI_PDM",
+        "path": "src/lib/principal-published-release-package.postgres-contract.test.ts",
+        "sha256": "3ee2ac6f5e0bfd5276c90c680190a88166f7a1ced1ae7c30f2d8d71156215b2c"
+      }
+    ],
+    "metadataNote": "Original freeze branch field records remote base names; actual feature branches and tested HEADs are in source above. This file preserves original freeze bytes/hash; only completion metadata/docs were subsequently edited."
+  }
+}

@@ -2,7 +2,7 @@
 
 ## DEV-121 最高管理角色能力修正（2026-10-05，執行中）
 
-[本批子任務](dev_task.md#dev-121-system-admin-follow-up) → [唯一 current 契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch) → [QA 分母](dev_task.md#dev-121-system-admin-qa)。v6 明確完整 system_admin 能力、typed nav/API、Jed exact published grant 及 PostgreSQL role-capability 400／HTTP source session 缺口修復同批收束（正常 v4 直接讀已發布契約；v2/v3 cache 僅歷史回歸）；OrgMaster 保持身分／指派／scope owner，AI-PDM 判斷能力及資源。其他八角色、公司隔離、撤權、expiry 與禁止自審不因全能力取消。
+[本批子任務](dev_task.md#dev-121-system-admin-follow-up) → [唯一 current 契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch) → [QA 分母](dev_task.md#dev-121-system-admin-qa) → [本機／原生整合checkpoint](qa/DEV-121-admin-capabilities-v6-local-checkpoint-2026-10-05.json)。v6 明確完整 system_admin 能力、typed nav/API、Jed exact published grant 及 PostgreSQL role-capability 400／HTTP source session 缺口修復同批收束（正常 v4 直接讀已發布契約；v2/v3 cache 僅歷史回歸）；OrgMaster 保持身分／指派／scope owner，AI-PDM 判斷能力及資源。其他八角色、公司隔離、撤權、expiry 與禁止自審不因全能力取消。
 
 沿既有 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121，不新增主任務。修正後驗收尚未完成；v5、已套用 migration／R81 歷史證據與 DEV-122 獨立 current 進度保留。下方 R81 只作前批證據，不能替代本批來源、正式版本或 PASS。
 

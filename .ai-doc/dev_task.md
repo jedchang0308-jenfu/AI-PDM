@@ -19,15 +19,18 @@
 
 沿既有 `AIPDM/DEV-121#system-admin-capabilities` 子任務，依人類本輪三專案開發及正式發布授權，續作 system_admin 全能力、typed caller 與 PostgreSQL 角色設定讀取修正。來源為 `JENFU/DEV-015#target-authorization`，published grants 由 `ORGMASTER/DEV-057#identity-grants` 擁有。架構為 [RD Implementation Ready](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch)；以下修正後驗收尚未完成，R81 原結論保留。
 
-- [ ] ADMIN01：v6 immutable catalog 明確允許 system_admin 全部已註冊有效 page／action；其他八角色不擴權，未知能力拒絕。
-- [ ] ADMIN02：nav／badge／API 使用同一 typed kind/code，settings 為 action、drawings 為 page，實際 approvals caller 對齊。
+- [x] ADMIN01（LOCAL_ARTIFACT_PASS／未發布）：v6 immutable catalog 明確允許 system_admin 全部已註冊有效 page／action；其他八角色不擴權，未知能力拒絕。
+- [x] ADMIN02（LOCAL_SOURCE_PASS／未正式驗證）：nav／badge／API 使用同一 typed kind/code，settings 為 action、drawings 為 page，實際 approvals caller 對齊。
 - [ ] ADMIN03：owner-native 發布；讀回 exact Jed Principal／direct／global effective grant 及 active catalog version/hash，不重寫歷史指派。
 - [ ] ADMIN04：Jed drawings／settings allow、低角色及 company/resource／撤權／expiry deny；400 的舊 SQLite snapshot 與 HTTP source session 缺口分別記錄；v4 於 verified Principal/company 同 snapshot 讀已發布契約，無 HTTP／cache 授權來源。
-- [ ] ADMIN05：同批 protected-source CI／merge、OrgMaster 相容 reader 先發布、AI-PDM 080／candidate／traffic、Production L4 與 Principal-only maintenance recovery 完整。
+- [ ] ADMIN05：同批 protected-source CI／merge、OrgMaster 相容 reader 先發布、AI-PDM 081／candidate／traffic、Production L4 與 Principal-only maintenance recovery 完整。
 
 <a id="dev-121-system-admin-qa"></a>
 
-本批 QA：local typed capability／hash／caller consistency；task-owned disposable PostgreSQL 的 native OrgMaster producer→AI-PDM consumer grant／scope／撤權，以及 080 transition／replay／tamper rollback、v4 scoped holders 四階段及 zero HTTP；056 cache 只作歷史回歸；正式正常 SSO、原失敗畫面 hard reload、allow／deny／logout 與 recovery。各層分開認列，未知 kind/code 不允許、全部拒絕不算成功。本批 R5 native producer／consumer 原有 grant、080、命令／outbox 與治理 publish/revoke 驗證已通過；新 v4 display 契約正在補驗，獨立 QC 首輪 FAIL 已保存因果，CI／release／L4 仍 `NOT_RUN`。DEV-122 的 current 狀態及既有 dirty 保留。
+本批 QA：local typed capability／hash／caller consistency；task-owned disposable PostgreSQL 的 native OrgMaster producer→AI-PDM consumer grant／scope／撤權，以及 081 transition／replay／tamper rollback、v4 scoped holders 四階段及 zero HTTP；056 cache 只作歷史回歸；正式正常 SSO、原失敗畫面 hard reload、allow／deny／logout 與 recovery。各層分開認列，未知 kind/code 不允許、全部拒絕不算成功。本批 R11 native producer／consumer grant、081、download audit 與治理 publish/revoke 驗證已通過；v4 display、合法 current scope、publication／replay／tamper、actual governance publish/revoke 與 session/epoch 競態已原生整合通過；桌面／窄螢幕實際元件亦通過。最終 remote 整合來源已通過獨立唯讀 QC（52/52 source hash 無漂移、無新增 P1/P2）；required CI／official merge／release／L4 仍 `NOT_RUN`。DEV-122 的 current 狀態及既有 dirty 保留。
+
+
+[本批本機／原生整合證據及未驗界線](qa/DEV-121-admin-capabilities-v6-local-checkpoint-2026-10-05.json)。081為新追加order31；官方080／DEV-122歷史及其他工作樹dirty未修改。D122-08經已合併修復在此synthetic share fixture真正GET200；原42P08歷史FAIL保留，Production業務狀態仍NOT_RUN。
 
 ### R81 已交付基線（HISTORY_ONLY；原結論保留）
 
