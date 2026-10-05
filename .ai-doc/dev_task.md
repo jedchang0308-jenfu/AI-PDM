@@ -17,6 +17,27 @@
 
 ## DEV-121 現行交付
 
+<a id="dev-121-system-admin-follow-up"></a>
+
+### 最高管理角色能力修正（2026-10-05，執行中）
+
+沿既有 `AIPDM/DEV-121#system-admin-capabilities` 子任務，依人類本輪三專案開發及正式發布授權，續作 system_admin 全能力、typed caller 與 PostgreSQL 角色設定讀取修正。來源為 `JENFU/DEV-015#target-authorization`，published grants 由 `ORGMASTER/DEV-057#identity-grants` 擁有。架構為 [RD Implementation Ready](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch)；以下修正後驗收尚未完成，R81 原結論保留。
+
+- [x] ADMIN01（LOCAL_ARTIFACT_PASS／未發布）：v6 immutable catalog 明確允許 system_admin 全部已註冊有效 page／action；其他八角色不擴權，未知能力拒絕。
+- [x] ADMIN02（LOCAL_SOURCE_PASS／未正式驗證）：nav／badge／API 使用同一 typed kind/code，settings 為 action、drawings 為 page，實際 approvals caller 對齊。
+- [ ] ADMIN03：owner-native 發布；讀回 exact Jed Principal／direct／global effective grant 及 active catalog version/hash，不重寫歷史指派。
+- [ ] ADMIN04：Jed drawings／settings allow、低角色及 company/resource／撤權／expiry deny；400 的舊 SQLite snapshot 與 HTTP source session 缺口分別記錄；v4 於 verified Principal/company 同 snapshot 讀已發布契約，無 HTTP／cache 授權來源。
+- [ ] ADMIN05：同批 protected-source CI／merge、OrgMaster 相容 reader 先發布、AI-PDM 081／candidate／traffic、Production L4 與 Principal-only maintenance recovery 完整。
+
+<a id="dev-121-system-admin-qa"></a>
+
+本批 QA：local typed capability／hash／caller consistency；task-owned disposable PostgreSQL 的 native OrgMaster producer→AI-PDM consumer grant／scope／撤權，以及 081 transition／replay／tamper rollback、v4 scoped holders 四階段及 zero HTTP；056 cache 只作歷史回歸；正式正常 SSO、原失敗畫面 hard reload、allow／deny／logout 與 recovery。各層分開認列，未知 kind/code 不允許、全部拒絕不算成功。本批 R11 native producer／consumer grant、081、download audit 與治理 publish/revoke 驗證已通過；v4 display、合法 current scope、publication／replay／tamper、actual governance publish/revoke 與 session/epoch 競態已原生整合通過；桌面／窄螢幕實際元件亦通過。最終 remote 整合來源已通過獨立唯讀 QC（52/52 source hash 無漂移、無新增 P1/P2）；required CI／official merge／release／L4 仍 `NOT_RUN`。DEV-122 的 current 狀態及既有 dirty 保留。
+
+
+[本批本機／原生整合證據及未驗界線](qa/DEV-121-admin-capabilities-v6-local-checkpoint-2026-10-05.json)。081為新追加order31；官方080／DEV-122歷史及其他工作樹dirty未修改。D122-08經已合併修復在此synthetic share fixture真正GET200；原42P08歷史FAIL保留，Production業務狀態仍NOT_RUN。
+
+### R81 已交付基線（HISTORY_ONLY；原結論保留）
+
 **2026-10-05 本輪授權出口完成：** AI-PDM R81 的 Principal-only source `56ecb7a`／`ai-pdm-prod-ec2ae6647962` 已 owner-native RELEASED／100%／0 tags。正常 Google／Portal SSO、AAL1 Principal 一致、JENFU 查詢 allow／他公司 deny、local／global logout 及正常復原已有正式效果證據；實際 producer／consumer PostgreSQL 的指派／撤權／scope及 commands／receipt／outbox／audit／typed workload 與 frozen caller closure已核對。依[本 owner 結案](qa/DEV-121-principal-authorization-production-closure-2026-10-05.json)分清整合與正式層級，未驗 share-specific bytes／held workload 不冒稱 Production 業務 PASS。
 
 後續 main tests-only 差異沒有改變正式 runtime，無須為文件再發版。回復只可使用已 Ready 的 DB-free Principal-only maintenance revision，舊 UID revision禁止。未核實／原停用者沒有啟用；一般業務仍 DEV-122 `DEFERRED_NOT_PASS`。本輪剩餘文件 PR／CI及共同結案 QC；下方設定 probe／R79 舊進度僅為 HISTORY_ONLY，不是新的施工佇列。
@@ -85,7 +106,9 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 此段是 PM / RD 唯一派工入口；完整 DEV 摘要與證據仍以後方 `### 任務索引` 為準。
 
-- DEV-121 / `JENFU/DEV-015#target-authorization`：只續接 Principal-only identity/auth integration 與安全／可靠發布必要修正，依[現行契約](specs/DEV-121-target-authorization-boundary.md)及最新 owner receipts 續點；一般生命周期、附件與工作流問題依 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md) 延後，不作本輪新增派工。2026-10-04 share-boundary source batch 將 internal share management 綁既有 `submission.share`、public metadata/package 綁 verified Principal＋`submission.view`；opaque token 僅 resource selector；supplier reply 仍保留但因無 published capability／recipient contract 暫回 503 並列 `DEFERRED_DEV122_POLICY_NOT_RETIRED`。本機 focused checks、required CI 與 disposable PostgreSQL coverage 尚待完成；此紀錄不代表 owner release 或 Production L4。
+- DEV-121 / `AIPDM/DEV-121#system-admin-capabilities`：依[最高管理角色現行批次](#dev-121-system-admin-follow-up)完成 v6 明確能力、typed nav/API、PostgreSQL 顯示快照及 OrgMaster active catalog reader；集中完成真實 PostgreSQL、獨立 QC 與 owner-native 發布／正式 L4。已交付的 R81 與下方 share 紀錄保留為歷史，不重新作本批施工項。
+
+> HISTORY_ONLY（由 2026-10-05 最高管理角色批次取代派工方向）：DEV-121 / `JENFU/DEV-015#target-authorization`：只續接 Principal-only identity/auth integration 與安全／可靠發布必要修正，依[現行契約](specs/DEV-121-target-authorization-boundary.md)及最新 owner receipts 續點；一般生命周期、附件與工作流問題依 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md) 延後，不作本輪新增派工。2026-10-04 share-boundary source batch 將 internal share management 綁既有 `submission.share`、public metadata/package 綁 verified Principal＋`submission.view`；opaque token 僅 resource selector；supplier reply 仍保留但因無 published capability／recipient contract 暫回 503 並列 `DEFERRED_DEV122_POLICY_NOT_RETIRED`。本機 focused checks、required CI 與 disposable PostgreSQL coverage 尚待完成；此紀錄不代表 owner release 或 Production L4。
 
 - DEV-120 / Platform `DEV-013 / 013-R1-P_BOTH-AIPDM-SESSION-TTL` 已完成 AI-PDM target session expiry 修正與本機驗證。Production P_BOTH 首次切換後，Platform→AI-PDM normal entry 可免再次輸入密碼，但 callback 錯把約 5 分鐘的 handoff assertion expiry 當成 target session 上限，稍後受保護 API 回 401；production 已安全回切 `orgmaster_authority:4 → legacy_authority:5`。修正後 target session 僅取 `min(now + 8h, sourceSessionExpiresAt)`，assertion expiry仍只負責 callback freshness。`test:dev-013` 4／4、`test:dev-013:l3` 17／17、typecheck、DB boundary、isolated build均PASS；production deploy、再次 authority switch、完整L4與global logout=`NOT_RUN`，待新exact release revision與授權。
 - DEV-119 / `013-S4-L3-AIPDM-ENV` 已完成 AI-PDM owner-native shared-staging package v2：provider-read baseline traffic／deletion-protection plan、三組既有 Secret 一對一 numeric pinning migration、bootstrap／owner receipt v2，以及只建立 artifact repository／evidence bucket／exact IAM 的 app-owned Infra A exact plan gate；終態=`READY_FOR_NONPROD_APPLY`。Current exact read-only preflight確認`ai-pdm-stg`與runtime identity存在，deterministic origin=`https://ai-pdm-stg-1055054506544.asia-east1.run.app`、ready revision=`ai-pdm-stg-00004-pvm`、`latest=100%`且deletion protection=false；service labels仍為DEV-010、三組Secret仍指向`latest`，DEV-013 repository／evidence bucket尚未建立。計畫僅允許etag-bound `traffic,deletionProtection`且template／labels／siblings=0；所有雲端 mutation與 L3 browser 均未授權且`NOT_RUN`。
@@ -1590,12 +1613,12 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
   - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
-- ✓ DEV-121 [開發點] [本輪授權正式交付完成／文件收尾] [P0] [Principal-only Production L4] 目標端授權邊界重構
-  - 摘要：verified Principal 貫穿唯一 grant／scope／撤權、normal caller、command／receipt／workload；一般業務延期不改 PASS。
+- ◐ DEV-121 [開發點] [最高管理角色能力修正中] [P0] [Principal-only owner release] 目標端授權邊界重構
+  - 摘要：追加 system_admin 完整 typed 能力、nav/API 與 PostgreSQL 角色設定讀取修正；R81 結案保留，本批另驗。
   - 來源 ID：`JENFU/DEV-015#target-authorization`；owner `AIPDM/DEV-121`；producer `ORGMASTER/DEV-057#identity-grants`。
-  - 下一步：本輪文件 PR／CI及共同 evidence QC；後續業務依 DEV-122 重新進入，不重开旧授权路径。
+  - 下一步：沿[本批子任務](#dev-121-system-admin-follow-up)集中 source／QA／QC，再完成既有 owner release／Production L4。
   - 證據：[正式授權結案](qa/DEV-121-principal-authorization-production-closure-2026-10-05.json)、[唯一契約](specs/DEV-121-target-authorization-boundary.md)、[歷史驗證](dev_task-history-2026-10-03.md)。
-  - 計入交付：否；沿既有開發點與原歷史分母，DEV-122 維持延期 NOT_PASS。
+  - 計入交付：否；沿既有開發點與原歷史分母，不改 DEV-122 獨立進度或判定。
 
 - ◇ DEV-120 [開發點] [Local Fix Complete / Protected Production Release Pending] [P0] [DEV-013 P_BOTH] target session expiry 不得受 handoff assertion TTL 截短
   - 摘要：Platform `DEV-013` production P_BOTH 切換已證明 AI-PDM normal entry 可在不再輸入密碼下建立本地session，但舊callback將 `handoff.expiresAt` 一併放入session expiry的最小值，使約5分鐘的單次assertion壽命誤成應用session壽命，稍後 `/api/numbering/permissions` 等受保護API回401。依Platform契約，target session expiry固定為 `min(now + appMaxAge, sourceSessionExpiresAt)`；assertion `expiresAt`僅在callback parse時驗證freshness。

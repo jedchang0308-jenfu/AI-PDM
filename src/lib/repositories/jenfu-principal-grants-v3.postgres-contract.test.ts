@@ -1,13 +1,15 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { PostgresAsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuEntitlementRepository } from "@/lib/repositories/jenfu-entitlement-repository";
 import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { selectPrincipalReviewerIdentityInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
 
+import { readPublishedRoleCapabilityWorkspace } from "@/lib/ai-pdm-published-role-capability-workspace";
+
 const connectionString = process.env.DEV057_CONTRACT_POSTGRES_URL;
 const phase = process.env.DEV057_CONTRACT_PHASE;
 const expectedVersion = process.env.DEV057_CONTRACT_VERSION;
-const phases = ["assigned", "revoked", "out-of-scope", "restored"];
+const phases = ["assigned", "current-scope", "revoked", "out-of-scope", "restored"];
 const active = Boolean(connectionString && expectedVersion && phase && phases.includes(phase));
 
 const database = active ? new PostgresAsyncDatabaseClient({
@@ -46,7 +48,7 @@ describe.runIf(active)("OrgMaster v3 published grant → AI-PDM PostgreSQL consu
         stableRoleId: "role-rd-manager",
         roleCode: "rd_manager",
         scopeKind: "workspace",
-        scopeKey: phase === "out-of-scope" ? "company-other" : "company-jenfu"
+        scopeKey: phase === "out-of-scope" ? "company-other" : phase === "current-scope" ? "current" : "company-jenfu"
       });
     }
 
@@ -118,4 +120,39 @@ describe.runIf(active)("OrgMaster v3 published grant → AI-PDM PostgreSQL consu
       });
     }
   });
+  it("reads current published capability display and company-scoped holders in the native snapshot without an OrgMaster HTTP session", async () => {
+    if (!database) throw new Error("DEV057_CONTRACT_POSTGRES_URL_REQUIRED");
+    const forbiddenHttp = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("HTTP_NOT_ALLOWED"));
+    try {
+      const read = (companyId: string, roleId: string | null = null) => database.transaction(
+        snapshot => readPublishedRoleCapabilityWorkspace(snapshot, companyId, roleId),
+        { readOnly: true, isolationLevel: "repeatable_read" });
+      const workspace = await read("company-jenfu");
+      expect(workspace).toMatchObject({
+        contractVersion: "ai-pdm.role-capability-workspace.v4", catalogVersion: "ai-pdm.role-catalog.2026-10-05.v6",
+        dataState: "current", mutationAllowed: false, holderScope: "current_company_workspace",
+        companyId: "company-jenfu", dependency: { status: "available", decisionCode: "PUBLISHED_CONTRACT_AVAILABLE" }
+      });
+      expect(workspace?.roles).toHaveLength(9);
+      const admin = workspace?.roles.find(role => role.catalogRole.roleCode === "system_admin");
+      expect(admin?.catalogRole.permissions).toHaveLength(66);
+      expect(admin?.catalogRole.permissions.every(permission => permission.allowed)).toBe(true);
+      const manager = workspace?.roles.find(role => role.catalogRole.roleCode === "rd_manager");
+      expect(manager?.effectiveWorkspaceHolderCount).toBe(
+        phase === "assigned" || phase === "current-scope" || phase === "restored" ? 1 : 0);
+      const otherCompany = await read("company-other");
+      expect(otherCompany?.roles.every(role => role.effectiveWorkspaceHolderCount === 0)).toBe(true);
+      expect(await read("company-jenfu", "unregistered-role")).toBeNull();
+      expect(workspace).not.toHaveProperty("governanceRevision");
+      expect(workspace).not.toHaveProperty("projectionCursor");
+      const serialized = JSON.stringify(workspace);
+      for (const privateIdentifier of ["principal-legacy", "qc-profile-legacy", "issuer-legacy", "subject-legacy"]) {
+        expect(serialized).not.toContain(privateIdentifier);
+      }
+      expect(forbiddenHttp).not.toHaveBeenCalled();
+    } finally {
+      forbiddenHttp.mockRestore();
+    }
+  });
+
 });
