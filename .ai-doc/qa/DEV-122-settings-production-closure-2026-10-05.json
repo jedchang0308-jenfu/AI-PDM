@@ -1,0 +1,386 @@
+{
+  "schemaVersion": "aipdm.dev122.settings-production-closure.v1",
+  "capturedAt": "2026-10-05T04:41:33.378Z",
+  "status": "SETTINGS_ENTRY_DEPLOYED_PENDING_HUMAN_VALIDATION",
+  "owner": "AIPDM/DEV-122",
+  "authorizationEnvelope": {
+    "project": "AI-PDM",
+    "targetProject": "jenfu-platform-prod",
+    "region": "asia-east1",
+    "service": "ai-pdm-prod",
+    "crossProjectDevelopment": "FORBIDDEN",
+    "humanProductionReleaseAuthorized": true,
+    "exactThreeOwnSecretIamResourcesAuthorized": true,
+    "nativeCadValidationOwner": "HUMAN"
+  },
+  "officialSourceRevision": "602413097ef27a203fe1e2beccac3166c6e2351a",
+  "pullRequest": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/209",
+  "requiredCi": {
+    "prRun": 37260629208,
+    "prHead": "3c411e1204c810152a6e30ab3206c3111be9ad13",
+    "prStatus": "SUCCESS",
+    "mainRun": 37261580326,
+    "mainStatus": "SUCCESS",
+    "providerEvidence": "output/qa/dev-122/approved-release-20261005/reauth-main-ci.raw.json"
+  },
+  "ownerRun": {
+    "id": 37262598122,
+    "url": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122",
+    "status": "completed",
+    "conclusion": "success",
+    "sourceRevision": "602413097ef27a203fe1e2beccac3166c6e2351a",
+    "updatedAt": "2026-10-05T04:33:32Z"
+  },
+  "release": {
+    "id": "DEV122-AI-PDM-SETTINGS-20261005-R02",
+    "result": "RELEASED",
+    "state": "FINALIZED",
+    "revision": "ai-pdm-prod-52f421cb8db9",
+    "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:cd6d83ad5447ae6fda3d7a8b7f63f4cf5b8a9e599c3e6018cd7136ab75d8df14",
+    "canonicalOrigin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+    "servingPercent": 100,
+    "temporaryCandidateTags": 0,
+    "previousRevision": "ai-pdm-prod-ec2ae6647962",
+    "stageRefs": [
+      {
+        "stage": "prepare",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/prepare.json",
+          "sha256": "8401f09c26d86496dab17eb755e6d0353ff3e82949b312a0d4b9a33eb2402a1a"
+        },
+        "generation": "1791173731671524"
+      },
+      {
+        "stage": "build",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/build.json",
+          "sha256": "b6d1569afda669e8ac22132108f5e9ddcc499d3bac634e3e407e46ef7d9bb233"
+        },
+        "generation": "1791174225821423"
+      },
+      {
+        "stage": "migrate",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/migrate.json",
+          "sha256": "a71c3fe80eb8d3afe143e33579b3118d5d00ef09b163e78ee3d10a967b561f07"
+        },
+        "generation": "1791174309274398"
+      },
+      {
+        "stage": "candidate",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/candidate.json",
+          "sha256": "6e6abcc7e49f67f05218d2479aa66d371c8b9416a0c3822976a96883cb2203b6"
+        },
+        "generation": "1791174403533432"
+      },
+      {
+        "stage": "entrypoint",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/entrypoint.json",
+          "sha256": "c280d93ba39586fb4e6d0bc47a04be2b598be96a568b38c126a6f39d28bc2bcb"
+        },
+        "generation": "1791174464399696"
+      },
+      {
+        "stage": "verify",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/verify.json",
+          "sha256": "e8c1f5b21877502f45d9df3db612701a6727152fab4e5e987befb5715bc3def4"
+        },
+        "generation": "1791174546170454"
+      },
+      {
+        "stage": "decision",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/decision.json",
+          "sha256": "9f0d7572345b373e26d53e6882323bb8bfa61fa47e9d06a3eb913a367029b13e"
+        },
+        "generation": "1791174609442931"
+      },
+      {
+        "stage": "activate",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/activate.json",
+          "sha256": "7ecdd289fa7efbde177e30835afb7b1c36953da4c3ccdcd74b02036d0b454a4f"
+        },
+        "generation": "1791174674619392"
+      },
+      {
+        "stage": "canonical",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/canonical.json",
+          "sha256": "343521a5b495e1f0ab3e675e5c5e6a2fac1e40793b3b7631d9cb71997fe5ba7a"
+        },
+        "generation": "1791174732284799"
+      },
+      {
+        "stage": "finalize",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/finalize.json",
+          "sha256": "8cd711a2017f0de5193810aa5f317da0ac5ed0c3e029cd8e22a63af17627ffcc"
+        },
+        "generation": "1791174802045978"
+      },
+      {
+        "stage": "terminal",
+        "status": "PASS",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/cb7e727bf52de5160767e181812f49d850ee406483a123ca30837bfae456feac/terminal.json",
+          "sha256": "0a244f9632024e10d2705f1b9538b4d16899d5940f896a235b7215a37aceccf8"
+        },
+        "generation": "1791174805703729"
+      }
+    ],
+    "activeControlRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/control/active.json",
+      "sha256": "1bb009bdfacd5ab354d058f505ff4681db9e722f02a5203b042e9ec1374bc363"
+    },
+    "activeControlGeneration": "1791174808234170",
+    "finalProviderReadback": "output/qa/dev-122/approved-release-20261005/r02/final-provider-readback.json"
+  },
+  "settingsConfiguration": {
+    "plan": "B_NAMED_REQUEST_ID_NUMERIC_EXPECTED_PROJECT",
+    "providerReadback": [
+      {
+        "value": "google_secret_manager",
+        "name": "PDM_SETTINGS_SECRET_PROVIDER"
+      },
+      {
+        "value": "jenfu-platform-prod",
+        "name": "PDM_GCP_PROJECT_ID"
+      },
+      {
+        "value": "9536592944",
+        "name": "PDM_GCP_EXPECTED_PROJECT_NUMBER"
+      },
+      {
+        "value": "aipdm-prod-solidworks-document-manager-key",
+        "name": "PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID"
+      },
+      {
+        "value": "true",
+        "name": "PDM_ENABLE_GCP_SECRET_READS"
+      },
+      {
+        "value": "true",
+        "name": "PDM_ENABLE_GCP_SECRET_WRITES"
+      },
+      {
+        "value": "https://candidate-52f421cb8db9---ai-pdm-prod-9536592944.asia-east1.run.app",
+        "name": "PDM_RELEASE_CANDIDATE_ORIGIN"
+      }
+    ],
+    "runtimeIdentity": "aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com",
+    "providerEvidence": "output/qa/dev-122/approved-release-20261005/r02/candidate-settings-env-provider-readback.json"
+  },
+  "productionVerification": {
+    "candidateSmoke": "PASS",
+    "canonicalSmoke": {
+      "observations": [
+        {
+          "id": "auth-mode",
+          "status": 200
+        },
+        {
+          "id": "platform-session",
+          "status": 200
+        },
+        {
+          "id": "sso-start",
+          "status": 303
+        },
+        {
+          "id": "sso-authorize",
+          "status": 303
+        },
+        {
+          "id": "sso-callback",
+          "status": 303
+        },
+        {
+          "id": "target-session",
+          "status": 200
+        },
+        {
+          "id": "authenticated-probe",
+          "status": 200
+        },
+        {
+          "id": "unauthenticated-probe",
+          "status": 401
+        },
+        {
+          "id": "session-revoked",
+          "status": 401
+        }
+      ],
+      "observedAt": "2026-10-05T04:32:12.143Z",
+      "origin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+      "status": "PASS",
+      "tokenExpiresInSeconds": 3600,
+      "tokenSource": "GITHUB_PRODUCTION_SECRET"
+    },
+    "authenticationNegativeEvidence": "UNAUTHENTICATED_AND_REVOKED_401",
+    "permission403ProductionCheck": "NOT_RUN",
+    "productionSettingsUi": "NOT_RUN_TOOL_LIMIT",
+    "productionSecretDraftProbeActivation": "PENDING_HUMAN_VALIDATION",
+    "nativeCadProperties": "PENDING_HUMAN_PRODUCTION_VALIDATION",
+    "anonymousSettingsHttp200": "NOT_FEATURE_PROOF_OLD_BASELINE_ALSO_200"
+  },
+  "ownResources": {
+    "status": "APPLIED_R01_PROVIDER_READBACK_PASS_REUSED_R02",
+    "resources": [
+      "aipdm-prod-solidworks-document-manager-key",
+      "aipdmSolidworksDocumentManagerRuntime",
+      "secret-only binding to aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com"
+    ],
+    "permissions": [
+      "secretmanager.versions.add",
+      "secretmanager.versions.access"
+    ],
+    "scope": "EXACT_OWN_SECRET_ONLY",
+    "r01Receipt": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R01/app-infra.json",
+      "sha256": "99be1a48dbc5ddc89c7ddfa00de39318c68c36a97510e834de39afe962380c0c"
+    },
+    "r02SourceOnlyReuse": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-AI-PDM-SETTINGS-20261005-R02/app-infra-reuse.json",
+      "sha256": "c5b2bd3d2cd4b20a019b2ee7b6e2be58f05968db662e40d64febdb8ad03c7376"
+    },
+    "stageARerun": false,
+    "humanCadKeyPayloadAccess": "NONE"
+  },
+  "migration": {
+    "path": "db/postgres/079_dev122_canonical_review_lifecycle.sql",
+    "bytesUnchangedFromHistorical077": true,
+    "r01": {
+      "applied": 1,
+      "replayed": 28,
+      "ledgerCount": 29
+    },
+    "r02": {
+      "applied": 0,
+      "replayed": 29,
+      "ledgerCount": 29,
+      "boundaryStatus": "PASS"
+    },
+    "appliedMigrationEdits": "NONE",
+    "downMigration": "NONE"
+  },
+  "reauthentication": {
+    "status": "COMMITTED",
+    "sourceRevision": "602413097ef27a203fe1e2beccac3166c6e2351a",
+    "existingFirebaseSubjectOnly": true,
+    "previousNumericVersion": 6,
+    "newNumericVersion": 7,
+    "receipt": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/credential-reauth/2026-10-05T04-06-46.775Z-e1d4f43adeeecc48.json",
+      "sha256": "e17d174cfd6cb981df64e7a4de293192bc9a6399270a6e31dc167280dd5ebf44"
+    },
+    "githubProductionSecretUpdated": true,
+    "releaseAuthority": false,
+    "passwordOrTokenLogged": false,
+    "evidence": "output/qa/dev-122/approved-release-20261005/reauth-result.json"
+  },
+  "historicalWorkflowRotation": {
+    "disposition": "NOT_REQUIRED_FOR_V3_NOT_APPLIED",
+    "terraformApply": "NOT_RUN",
+    "workflowMutation": "NONE",
+    "reason": "Current V3 requires GITHUB_PRINCIPAL_SSO_V1; candidateWorkflowName and candidateRefreshTokenSecretId forbidden",
+    "evidence": "output/qa/dev-122/approved-release-20261005/rotation-disposition-and-cleanup.json"
+  },
+  "preservedR01Failure": {
+    "checkpoint": ".ai-doc/qa/DEV-122-settings-release-reauth-checkpoint-2026-10-05.json",
+    "sourceRevision": "697be61d51d105ec940ba594b57dac1c8f255ee6",
+    "ownerRun": 37258147467,
+    "result": "PRE_ACTIVATION_ABORTED",
+    "verifyCode": "PRINCIPAL_SMOKE_PORTAL_LOGIN_FAILED",
+    "portalSessionStatus": 401,
+    "rootCause": "UNKNOWN",
+    "r81TrafficRetainedAtAbort": 100,
+    "failureEvidenceRewritten": false
+  },
+  "build": {
+    "cloudBuildId": "3515a5fa-6df0-43f3-a899-04147115f95f",
+    "status": "SUCCESS",
+    "nativeSbom": "PASS",
+    "nativeScan": "PASS",
+    "rawVulnerabilities": 23,
+    "rawHighOrCritical": 2,
+    "blockingVulnerabilities": 0,
+    "applicability": "Native notAffected assessments retained; raw findings not zero",
+    "evidence": "output/qa/dev-122/approved-release-20261005/r02/build-provider-readback.json"
+  },
+  "unchangedBProductSha256": {
+    "src/lib/google-secret-manager.ts": "aeb3b191f763891ef1acde9222c70a61c115dc26cc996af8fc96ebd99409fe2b",
+    "src/lib/google-secret-manager.test.ts": "66ac582a63c2252a802041c76f0650177f33cd1faf46784db08751a79a7e04a5",
+    "config/release/dev117-ai-pdm-independent-production-v3.json": "5df62acd71e3faf4ab60434dc41818ffe6e4077eccf5b4306b08d12b626a5831",
+    "scripts/lib/dev117-ai-pdm-continuous-release.mjs": "97002d7c6a935e37ffcf85ca36d28b5593795085db3c7b3bd519866914102bd7",
+    "scripts/dev117-ai-pdm-continuous-release.test.mjs": "3f5bfbfdfac725903c227904c0a3d2ab7eb56b76c51ef9a6c61f3f4914c08665",
+    "scripts/qc-pdm-gcp-secret-manager-runtime.mjs": "2c6fe28575b1f8e9dafbd7ce5aea497f4b8a90c2ea61b9caf2d3ad042d8ef9f2",
+    "scripts/qc-pdm-gcp-secret-manager.mjs": "34257dfa8e8371961656340bc5039c70dfd21f6ccc3f802824045b9cf4a3d2c5",
+    ".env.example": "1413afe9e147a5c137f53e98ce597142f8d1f25d3d75149833a6ac9b9343f14b",
+    "scripts/start-localhost-3000.ps1": "26659e55c6b5ac946c3ca5d99c4d50474b71e633b44cd6d2f94ab68f649ab1b8"
+  },
+  "acceptance": {
+    "issues": 7,
+    "groups": 29,
+    "nativeCadCase": "F-01F",
+    "nativeCadStatus": "NOT_RUN",
+    "overall": "NOT_ACCEPTED",
+    "localEvidenceDoesNotBecomeProductionEvidence": true
+  },
+  "cleanup": {
+    "reauthRuntime": {
+      "observedAt": "2026-10-05T04:08:27.3688745Z",
+      "verifiedParentFingerprintActive": false,
+      "verifiedChildFingerprintsActive": false,
+      "portReleased": true,
+      "tempRemoved": true,
+      "governorRelease": "OK",
+      "uiCleanup": "MUST_CLOSE_ONLY_OWN_REAUTH_TAB_OR_REPORT_TOOL_LIMIT"
+    },
+    "reauthRuntimeStatus": "RUNTIME_CLEANED",
+    "workflowPlanTempRemoved": true,
+    "capacityLeasesReleased": true,
+    "appDataMutation": "NONE",
+    "primarySqlite": "Prior two-path ABSENT evidence only; no PRAGMA snapshot claim",
+    "ui": "Codex safe-page open queued; visible surface unconfirmed and no panel-close tool. Loopback server expired/removed. Any human-opened tab is user-owned; do not disturb it. Root records queued-panel cleanup limitation."
+  },
+  "gitBoundary": {
+    "executionWorktree": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+    "branch": "codex/dev122-internal-functions",
+    "canonicalHead": "cdba31ccf8f0915f77caab1842ce6c4798960731",
+    "canonicalBranch": "codex/dev118-production-closure-docs",
+    "canonicalDirtyPathInventoryUnchanged": true,
+    "canonicalBytesUnchangedIndependentlyVerified": false,
+    "siblingReleaseInputs": "NONE",
+    "closureChanges": "ONLY_NEW_QA_JSON_AND_THREE_DEV122_PM_DOCS",
+    "docsOnlyRedeploy": "NOT_REQUIRED"
+  },
+  "independentClosureQc": {
+    "status": "SAVED_NATIVE_EVIDENCE_QC_PASS",
+    "reviewer": "dev122_cli_qc_luna",
+    "model": "gpt-6-luna",
+    "scope": "SAVED_NATIVE_EVIDENCE_AND_DOCUMENT_MATCH",
+    "liveProviderQueryByQc": false,
+    "secretPayloadReadByQc": false,
+    "reviewedQaSnapshotSha256": "e46737723636d8e3e6d3645d1286f5aef9d7a695f66ec7007b21c8bfbdc70f1c",
+    "proofFieldsUnchangedAfterQc": true,
+    "evidence": "output/qa/dev-122/approved-release-20261005/r02/closure-luna-qc.json",
+    "rootFinalCleanupEvidence": "output/qa/dev-122/approved-release-20261005/r02/closure-cleanup-final.json",
+    "internalReceiptAndControlSeals": "Root verified independently; QC byte-hash/reference comparison only",
+    "remainingValidation": "PRODUCTION_SETTINGS_UI_AND_REAL_KEY_NATIVE_CAD_BY_HUMAN"
+  }
+}
