@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "jenfu.system-admin-v6.owner-production-closure.v1",
+  "observedAt": "2026-10-05T17:27:36.438Z",
+  "status": "BOUNDED_OWNER_PRODUCTION_ACCEPTED",
+  "shared": {
+    "repository": "jedchang0308-jenfu/Jenfu-Platform",
+    "visibility": "PRIVATE",
+    "closure": {
+      "path": "ai-doc/qa/DEV-015-system-admin-v6-production-closure-2026-10-06.json",
+      "sha256": "b2c503676dafd30f9b282af103aac9285ffb80a88f1692457659f1dfd1a5bd92"
+    },
+    "peerQc": {
+      "path": "ai-doc/qa/DEV-015-system-admin-v6-production-peer-qc-2026-10-06.json",
+      "sha256": "edabaa54bc49afa8895a4fd8e14a09ce224eb395b8e246b4338d0595e44a943c"
+    },
+    "archiveIndex": {
+      "path": "ai-doc/qa/evidence/DEV015-SYSTEM-ADMIN-V6-20261006/index.json",
+      "sha256": "85d3025bad22b83379492086d986d8019caf2b3b38bf95685b3b5fd18b4b2da5"
+    },
+    "rawArtifacts": 57
+  },
+  "catalog": {
+    "version": "ai-pdm.role-catalog.2026-10-05.v6",
+    "sha256": "bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af",
+    "highestRoleExplicitAllowedCapabilities": 66,
+    "otherRolesChanged": false,
+    "unknownAutoAllow": false,
+    "migration": "db/postgres/081_dev121_principal_role_catalog_v6.sql",
+    "migrationSha256": "c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284",
+    "ownerLedgerOrder": 31,
+    "officialAppliedPredecessor": "080_dev122_settings_secret_activation_intents.sql"
+  },
+  "acceptance": {
+    "ADMIN01": {
+      "status": "PASS_CURRENT_NATIVE_PLUS_ACTIVE_PRODUCTION"
+    },
+    "ADMIN02": {
+      "status": "PASS_CURRENT_CALLER_TESTS_PLUS_FRESH_RENDERED_ENTRY"
+    },
+    "ADMIN03": {
+      "status": "PASS_FORMAL_DIRECT_GLOBAL_PLUS_ACTIVE_V6"
+    },
+    "ADMIN04": {
+      "status": "PASS_FRESH_AFFECTED_PRODUCTION_WITH_REUSED_SECURITY_BOUNDARIES"
+    },
+    "ADMIN05": {
+      "status": "PASS_PROTECTED_OWNER_RELEASES_AND_RETAINED_PRINCIPAL_ONLY_RECOVERY"
+    }
+  },
+  "verification": {
+    "fresh": {
+      "drawings200": true,
+      "drawingsRows": 51,
+      "drawingsGroups": 50,
+      "roleSettingsApi200": true,
+      "roleSettingsRendered": true,
+      "explicitAdminAllows": 66,
+      "orgGovernanceAndRoleWorkspace200": true,
+      "crossCompany403": true,
+      "businessMutationRequests": 0
+    },
+    "retained": "Prior low-role/withdrawal/resource/session-expiry/global-logout/no-self-review evidence joined through current source/PG; not fresh execution",
+    "caller": "settings/action; drawings/page; approvals/action",
+    "formalGrant": "exact verified Jed Principal; active human_privileged; direct/global/null system_admin; historical assignment not rewritten",
+    "cleanup": "three own sessions logout200 then me401; task browser/PID tree/listeners gone; temporary formal diagnostic Job404",
+    "recovery": "retained Principal-only DB-free assets Ready,0traffic; AI automatic rollback R3 Principal-only; no new traffic rehearsal"
+  },
+  "peerVerdict": "independent QA bounded5/5 + QC noP1/P2; exact shared hashes",
+  "limits": {
+    "freshInteractiveGooglePopupRetested": false,
+    "allBusinessFunctionsAccepted": false,
+    "DEV122": "Original NOT_RUN / NOT_ACCEPTED / deferred business verdicts unchanged",
+    "drawingsDataRows": 51,
+    "drawingsQuery200DoesNotProveBusinessLifecycle": true,
+    "otherOwnersCompleteNotInferred": true,
+    "retainedEvidenceRelabeledAsFresh": false,
+    "globalLogoutTransportUnknownRetained": true,
+    "credentialsRecorded": false,
+    "grantExpiryNotInferred": true,
+    "anonymous401NotLowRoleSubstitute": true,
+    "recoveryTrafficRehearsedThisBatch": false,
+    "otherParentTasksNotClosed": true
+  },
+  "historicalSnapshots": {
+    "originalLocalNotRunUnchanged": true,
+    "fail404500503AndWorkflowUiPreserved": true,
+    "DEV122NotAcceptedUnchanged": true
+  },
+  "doesNotCreateCapabilityEditor": true,
+  "doesNotCloseAllParentTasks": true,
+  "noProductionMutationByThisDocumentationBatch": true,
+  "owner": "AIPDM/DEV-121#system-admin-capabilities",
+  "source": {
+    "source": "2e4485cca9f332e37317f7ce7c9d72ba089d2cf2",
+    "releaseId": "DEV121-ADMIN-V6-20261006-R4",
+    "runId": 37342672866,
+    "revision": "ai-pdm-prod-5c8854b292a1",
+    "image": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:e0d105479a1c9485ee486cc8e7a061b22656b1cd6fe4b979b709a4d2d39a3110",
+    "terminal": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-ADMIN-V6-20261006-R4/77bd329dd2b8376212ffe8b04d230a6b3885eede305dc4f11c594a6c75a9c6ad/terminal.json",
+      "sha256": "365e558bf682cc8a5853b67db9b9ad3db9af312aa48a1d0c2536476c23db36e9"
+    },
+    "migration": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-ADMIN-V6-20261006-R4/77bd329dd2b8376212ffe8b04d230a6b3885eede305dc4f11c594a6c75a9c6ad/migrate.json",
+      "sha256": "e73f855444dcd12650221df81e18d6ee114797678993a9d8d839f48e02497cca"
+    }
+  },
+  "release": {
+    "trafficPercent": 100,
+    "candidateTags": 0,
+    "applied": 0,
+    "replayed": 31,
+    "ledger": 31
+  },
+  "productPr": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/216"
+}

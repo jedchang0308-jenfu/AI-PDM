@@ -1,5 +1,13 @@
 # AI_PDM 文件地圖
 
+## DEV-121 最高管理能力批次：正式結案（2026-10-06）
+
+[本批唯一結果](dev_task.md#dev-121-system-admin-follow-up) → [owner正式closure](qa/DEV-121-admin-capabilities-v6-production-closure-2026-10-06.json) → [現行契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch)。PR216／requiredCI／R4 owner release及fresh正常UI／API通過，system_admin66explicitallow；Org22e81 role workspace200、跨公司403。安全negative沿exact source／current PG／原正式層級，未重標fresh；只讀頁不等於新能力編輯器。私人JENFU封存57raw及独立QA5/5／QC無P1/P2，精確hash在owner closure。
+
+原local checkpoints、R3頁blocked及原400/500/503保留HISTORY_ONLY，不再是pending施工指令；DEV-122、其他owner义务與未驗business判定不變。
+
+<details><summary>HISTORY_ONLY：本批早期進度</summary>
+
 ## DEV-121 最高管理角色能力修正（2026-10-05，執行中）
 
 現行 2026-10-06 workflow admission 續點：[local checkpoint](qa/DEV-121-workflow-entry-local-checkpoint-2026-10-06.json)。R3 API 正式 PASS、actual workflow UI FAIL 保留；exact readonly page caller 已本機修正與 QC，new CI／release／UI 待驗。DEV-122 不變。
@@ -7,6 +15,9 @@
 [本批子任務](dev_task.md#dev-121-system-admin-follow-up) → [唯一 current 契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch) → [QA 分母](dev_task.md#dev-121-system-admin-qa) → [本機／原生整合checkpoint](qa/DEV-121-admin-capabilities-v6-local-checkpoint-2026-10-05.json)。v6 明確完整 system_admin 能力、typed nav/API、Jed exact published grant 及 PostgreSQL role-capability 400／HTTP source session 缺口修復同批收束（正常 v4 直接讀已發布契約；v2/v3 cache 僅歷史回歸）；OrgMaster 保持身分／指派／scope owner，AI-PDM 判斷能力及資源。其他八角色、公司隔離、撤權、expiry 與禁止自審不因全能力取消。
 
 沿既有 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121，不新增主任務。修正後驗收尚未完成；v5、已套用 migration／R81 歷史證據與 DEV-122 獨立 current 進度保留。下方 R81 只作前批證據，不能替代本批來源、正式版本或 PASS。
+
+
+</details>
 
 ## 本工作樹 DEV-122 設定入口已部署／人工驗收入口（2026-10-05）
 
