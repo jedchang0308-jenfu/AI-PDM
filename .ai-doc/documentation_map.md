@@ -2,13 +2,15 @@
 
 ## 本輪 Principal-only 唯一閱讀入口
 
+**本輪授權出口已完成。** [DEV-121 現行交付](dev_task.md#dev-121-current-contract) → [正式授權結案及層級限制](qa/DEV-121-principal-authorization-production-closure-2026-10-05.json) → [current契約](specs/DEV-121-target-authorization-boundary.md)。文件 PR／QC收尾不需要再發布未變的 runtime；DEV-122 業務仍 NOT_PASS。
+
 文件角色：CURRENT_INDEX。本輪只讀 [DEV-121 現行任務](dev_task.md#dev-121-current-contract) → [Principal-only 身分／授權整合契約](specs/DEV-121-target-authorization-boundary.md) → 該交付所需證據。一般 canonical lifecycle、首次發行與附件／工作流功能問題集中 [DEV-122](specs/DEV-122-ai-pdm-internal-function-issues.md)，本輪延後。CURRENT_CONTRACT 定義架構，任務／既有盤點維護進度，不從下方其他 DEV 或歷史日期推定本輪指令。
 
-三個native任務沿用 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121；正常授權只有Principal路徑，人類允許真實AAL1，未核實／原停用者保持停用，回復不能恢復UID授權。完整限制、owner及驗收以各自current契約為準。AI-PDM DEV-121 的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 可獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint，任一 owner PASS 不推定 joint PASS。2026-10-04 share-boundary source batch：internal share management 使用既有 `submission.share`，public metadata/package 以 Principal＋`submission.view` 授權，token 僅 resource selector；supplier reply 暫因無已發布 capability／recipient contract 回 503，route 保留且標 `DEFERRED_DEV122_POLICY_NOT_RETIRED`。focused tests、required CI、disposable PostgreSQL coverage 尚待完成，不代表 Production L4。
+三個native任務沿用 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121；正常授權只有Principal路徑，人類允許真實AAL1，未核實／原停用者保持停用，回復不能恢復UID授權。完整限制、owner及驗收以各自current契約為準。AI-PDM DEV-121 的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 可獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint，任一 owner PASS 不推定 joint PASS。2026-10-04 share-boundary source batch：internal share management 使用既有 `submission.share`，public metadata/package 以 Principal＋`submission.view` 授權，token 僅 resource selector；supplier reply 暫因無已發布 capability／recipient contract 回 503，route 保留且標 `DEFERRED_DEV122_POLICY_NOT_RETIRED`。此批「尚待 focused tests／CI／PG」為 HISTORY_ONLY 原時點；後續真實 PostgreSQL 八階段的授權／delivery／audit 已通過，正式 consumer 及分層結果依上方結案證據。share-specific Production positive bytes 與 metadata 業務缺陷仍 NOT_RUN／DEV-122 NOT_PASS。
 
 整理前文件原文在 [HISTORY_ONLY文件地圖](documentation_map-history-2026-10-03.md)，包含舊進度及取代關係；不預設載入、不執行舊雙軌／bridge／逐人／TOTP步骤。以下保留其他任務原索引，未因本次CA重新判定其完成度。
 
-以下 R78／R79 為 HISTORY_ONLY 的原時點證據，不是現行 source／traffic binding；當前施工是 [DEV-121 probe Principal 續點](dev_task.md#dev-121-current-contract)，對照 [現行背景契約](specs/DEV-121-target-authorization-boundary.md#背景及檔案授權ai-pdm-既有用途)／native 078／actual command 與 workload tests。078 為 `new-version` writer 契約，歷史讀取／非 actor UPDATE 保留，新 enqueue 要求 typed Principal，不能把舊 writer 當相容回復。077 一般業務 dirty 保留於 DEV-122、未套用，不帶入本批；本機、PG、CI、Production 的層級不互相代替。
+以下 R78／R79 與當時 probe 候選為 HISTORY_ONLY；source／image／100%traffic與正式授權结果只依上方結案證據。078 已納 R81，077 一般業務仍未套用並留 DEV-122；不按歷史失敗紀錄重試。
 
 本輪 auth-only 候選的本機／真實 PostgreSQL 結果及未驗界線在[候選原始QA](qa/DEV-121-authorization-delivery-candidate-2026-10-03.json)，不是正式 PASS。原時點 R78 為 Production 基線；R79 verify stage 的 Platform POST（2026-10-04T02:38:30.564665Z）回 401，02:38:38.744832Z 決策碼為 auth_token_invalid，後已 PRE_ACTIVATION_ABORTED 並保留 R78，見[歷史R79續點](dev_task.md#dev-121-current-contract)及 root 的[workflow readback](../../Jenfu-Platform/output/dev-012/inputs/dev121-r79-owner-run-watch.json)、[smoke auth diagnostic](../../Jenfu-Platform/output/dev-012/inputs/dev121-r79-smoke-auth-diagnostic.json)。v5 auth_time 早於／等於 global logout 僅是因果推論，current DB revokedBefore 未直接讀回。R79 後 producer explicit 5→6 本機測試 19/19 PASS，尚非 official CI／Production 驗收；clean official source 與 fresh owner release 是後續驗證。原QA capture／FAIL 不回寫；一般功能與 077 不移出 DEV-122。
 
