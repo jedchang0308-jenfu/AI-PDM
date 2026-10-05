@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-phase2-core-checkpoint.v1",
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "capturedOn": "2026-10-05",
+  "executionWorktree": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+  "branch": "codex/dev122-share-metadata-closure",
+  "sourceHead": "29c7764a0e0ff0c9e11b9bdb11aaca154955d081",
+  "sourceHashes": [
+    {
+      "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+      "sha256": "7d33ea6930c4172b148d14a8d58efac4b8dbba9e58986655dc3e4247d4bde3c3"
+    },
+    {
+      "path": "src/lib/db.ts",
+      "sha256": "7e800b4ffefa296da5072fba50468ba8d54a204a087c692d6c5d267686ab1988"
+    },
+    {
+      "path": "src/lib/worker-service-auth.ts",
+      "sha256": "31bbe424bf14059fb0246e82413ffb01379ac980f93d28f160aeb05683b20e33"
+    },
+    {
+      "path": "src/lib/worker-service-auth.test.ts",
+      "sha256": "4c9da279b5452f95f513e797e49237beecfd5e9149e0657b05b01efb65fe4b20"
+    },
+    {
+      "path": "db/postgres/082_dev122_openswx_auxiliary_jobs.sql",
+      "sha256": "684054b19706aafeb8991c237bdbda1157b9e223ed962ecddd57ad10fee87885"
+    },
+    {
+      "path": "src/lib/openswx-metadata-contract.ts",
+      "sha256": "e54b24dbcd830866bd59a378538cc304f68690fbf25226c474e889fca2786d08"
+    },
+    {
+      "path": "src/lib/openswx-metadata.ts",
+      "sha256": "943dcfcc59b253d672e9edfd1a694e0a4df337fadb53469c951c8cef5c644cad"
+    },
+    {
+      "path": "src/lib/repositories/openswx-metadata-async-repository.ts",
+      "sha256": "b36e2115f0cb80784589b8a9de5a0d759d08fdc2f1fa9317eb4855c6aadeac89"
+    },
+    {
+      "path": "src/lib/openswx-metadata.test.ts",
+      "sha256": "90d8664578b5ef9230fecff4f6ff4863e36adc887a725b955f0bfb28aebfed77"
+    },
+    {
+      "path": "src/lib/openswx-metadata.postgres-contract.test.ts",
+      "sha256": "7746c84a388d4a9564dd61813af0cd0a6d6f86d7dc6ac94db4f2bf89c97f4147"
+    }
+  ],
+  "role": "PM bounded factual checkpoint; executed by RD/root, independent QC pending",
+  "status": "LOCAL_CORE_22_FOCUSED_3_NATIVE_PASS_NEXT_API_RUNNER_UI_PENDING",
+  "focused": {
+    "passed": 22,
+    "core": 17,
+    "purposeAuth": 5,
+    "evidence": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\rd-core\\targeted-final.txt",
+    "layer": "SQLite/source tests; authority seams are declared, not native HTTP permission proof"
+  },
+  "nativePostgres": {
+    "passed": 3,
+    "migrations": "own fresh fixture through081 plus exact082",
+    "migration082Sha256": "684054b19706aafeb8991c237bdbda1157b9e223ed962ecddd57ad10fee87885",
+    "foreignKeyCount": 501,
+    "unmodifiedSnapshotBeforeIdentitySeed": "PASS",
+    "masterRootResidueForeignKeysAfter": "PASS",
+    "runtimePrivileges": {
+      "selectInsertUpdate": true,
+      "deleteDdl": false
+    },
+    "migrationReplay": "VERIFIED_LEDGER_SKIP; no re-execution of applied082",
+    "firstFailure": "3 cases failed in fixture source_context_type drawing_number before product assertions; preserved",
+    "correction": "only test fixture to allowed drawing_revision; no constraint/schema/product relaxation",
+    "transactionScope": "three rollback-only synthetic asset/session/source/jobs, zero auxiliary rows after",
+    "layer": "native SQL constraints/receipt only, not live producer/API authority"
+  },
+  "cleanup": {
+    "project": "AI-PDM",
+    "dev": "DEV-122",
+    "pid": 101540,
+    "startToken": "134356860909754120",
+    "processFingerprint": "INACTIVE",
+    "port": 62701,
+    "portProbe": "LOOPBACK_BIND_SUCCEEDED_RELEASED",
+    "runtimeRoot": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-cloud-run-20261005\\governor\\temp\\development\\5cb67529-5eaa-4508-ad91-dec5255a628e\\native-output\\phase2-pg-1c6618ac-5c59-4e65-8a4f-dd982dbdfd05",
+    "runtimeRootStatus": "ABSENT",
+    "bytesObservedBeforeCleanup": 73213139.0,
+    "expectedBytesMax": 209715200,
+    "primaryCanonical": "ABSENT",
+    "primaryExecution": "ABSENT",
+    "temporaryUi": "NONE_OPENED",
+    "completedAt": "2026-10-05T15:11:22.6110833Z"
+  },
+  "otherChecks": {
+    "appTypecheck": "RD PASS",
+    "targetedLint": "RD PASS",
+    "dbBoundaryBaseHead": "RD PASS --base=HEAD",
+    "diffCheck": "PASS root fresh staged",
+    "dbBoundaryStaged": "PASS DEV010_DB_RULESET_V1 governedFiles=19 diffMode=staged including new082"
+  },
+  "remaining": [
+    "Real human/API current Principal permission and content-before/after guards",
+    "Dispatch/provider unknown recovery and Scheduler OIDC tests",
+    "Finite Linux worker image plus child syscall-deny/cancel proof",
+    "Real readonly UI at two viewports and reduced motion",
+    "Independent Luna frozen-candidate QC",
+    "Concrete Cloud resource bootstrap approval, owner release, provider readback/smoke",
+    "Human F-01F native semantic validation; overall DEV122 NOT_ACCEPTED"
+  ],
+  "cloudResources": "NOT_CREATED_NOT_DEPLOYED",
+  "formalFieldAndOriginalDmQueueWrites": "NONE",
+  "primarySqlite": "canonical and execution ABSENT; no PRAGMA claimed",
+  "evidence": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\migration-source-ledger.json",
+      "sha256": "9fcef1c42c2fb43016ea465f1c63f95695e13a25a5715a224b541c8c50faaff8",
+      "bytes": 10437
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\baseline-invariants.json",
+      "sha256": "5ad86c2e26a9f7f74f674d2d058663a7e72c85379286721a88285826c7e68509",
+      "bytes": 198974
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\runtime-privileges.json",
+      "sha256": "a23e179a38d7b7f0bd27d376762642dae142aada5219ebf31c53afe1c2ea003c",
+      "bytes": 115
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\migration-replay-readback.json",
+      "sha256": "162ae02bce7c10c7b85b1d10a125bdd83d11e2a0bd755608e90fc6e889c334d5",
+      "bytes": 4867
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\fixture-gate.json",
+      "sha256": "ddac29c326ddb7cf999433531a33de7f9019fc8dfc425a134244073c4a034d63",
+      "bytes": 386
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\fixture-mutation-ledger.json",
+      "sha256": "9390fe3654688b3a41d8207d41f46e21d73d58ff1a81f89e4aa26a840b2877ad",
+      "bytes": 1266
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\vitest-native.txt",
+      "sha256": "b49975d369966d3135c869d9143d1eb37c38535db1bc542fd81f43c191ecc7cc",
+      "bytes": 3341
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\outcome.json",
+      "sha256": "70758d5f911d0115c68ced3eb66e4e0ebb7fabd60e1fcdb543f9705f0d1371b9",
+      "bytes": 2377
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\fixture-correction-source-binding.json",
+      "sha256": "dd22bb297319761e41c16f78d9c412a437b651f3f6906f31f044a88a1223b7a8",
+      "bytes": 411
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\vitest-native-corrected-fixture.txt",
+      "sha256": "24c2b5b07d647f7984a211debfa9e5721276f12cf6cb50185b3324f887af51cd",
+      "bytes": 906
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\outcome-corrected-fixture.json",
+      "sha256": "9f8273d056ef6078a3070b8e55cf12669dbd518d32b58b93ce460a4a8f84cf5a",
+      "bytes": 2242
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\after-corrected-test-invariants.json",
+      "sha256": "ee85a05a919e08e50b6de07718a046224e4de1dc40cd5fa703a18b5c03c50921",
+      "bytes": 198975
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\runtime-cleanup.json",
+      "sha256": "3a6de60d6776bb39899d3dcf5358a24773333ab672080c70f2997f440255512a",
+      "bytes": 700
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-core\\lifecycle-first-failures.json",
+      "sha256": "0e46ec32fe3c07735cce08111bf4d2b22515c4024d368d677f9a7d5df7022906",
+      "bytes": 632
+    }
+  ]
+}

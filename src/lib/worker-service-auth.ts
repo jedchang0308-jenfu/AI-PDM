@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 
-const purposes = ["preview_jobs", "preview_heartbeat", "recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential"] as const;
-const capabilities = ["solidworks_3d_preview_png", "solidworks_2d_preview_png", "solidworks_document_manager"] as const;
+const purposes = ["preview_jobs", "preview_heartbeat", "recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential", "openswx_metadata_jobs"] as const;
+const capabilities = ["solidworks_3d_preview_png", "solidworks_2d_preview_png", "solidworks_document_manager", "openswx_metadata"] as const;
 export type WorkloadPurpose = typeof purposes[number];
 export type WorkloadCapability = typeof capabilities[number];
 export type VerifiedWorkloadActor = Readonly<{
@@ -38,6 +38,8 @@ function readCredentials(): Credential[] | null {
         || row.capabilities.some((capability: unknown) => !capabilities.includes(capability as WorkloadCapability))) return null;
       const needsDocumentManager = row.purposes.some((purpose: WorkloadPurpose) => ["recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential"].includes(purpose));
       const needsPreview = row.purposes.some((purpose: WorkloadPurpose) => ["preview_jobs", "preview_heartbeat"].includes(purpose));
+      const auxiliary = row.purposes.includes("openswx_metadata_jobs") || row.capabilities.includes("openswx_metadata");
+      if (auxiliary && (row.id !== "openswx-metadata-reader" || row.purposes.length !== 1 || row.purposes[0] !== "openswx_metadata_jobs" || row.capabilities.length !== 1 || row.capabilities[0] !== "openswx_metadata")) return null;
       if ((needsDocumentManager && !row.capabilities.includes("solidworks_document_manager"))
         || (needsPreview && !row.capabilities.some((capability: WorkloadCapability) => ["solidworks_2d_preview_png", "solidworks_3d_preview_png"].includes(capability)))) return null;
       ids.add(row.id); tokens.add(row.token);
