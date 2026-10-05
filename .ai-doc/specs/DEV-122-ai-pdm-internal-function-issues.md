@@ -1,6 +1,14 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：B_LOCAL_QC_PASS_REQUIRED_CI_PENDING_THREE_RESOURCES_PENDING_APPROVAL／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
+文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：R01_PRE_ACTIVATION_ABORTED_REAUTH_PENDING／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
+
+## 正式 R01 中止後的現行續點（2026-10-05）
+
+R01 已安全中止於 verify：PR 207 正常合併至 697be61d51d105ec940ba594b57dac1c8f255ee6，required CI 37256330647 PASS；人類已授權並建立 exact SolidWorks Secret、add/access custom role、Secret-only runtime binding，provider readback PASS。Owner run 37258147467 的 prepare/build/migrate/candidate/entrypoint PASS，079 forward-only 已套用（1 applied、28 replayed、ledger 29），verify 因既有 smoke 憑證 Portal session 401 失敗。Recovery PASS／PRE_ACTIVATION_ABORTED，R81 ai-pdm-prod-ec2ae6647962 維持 100%，沒有切流。人類已選擇在本機安全頁輸入既有 Firebase 密碼；本輪只修復 reauth CLI 接受 clean detached exact official main，保留 source/repository、同 issuer/subject、Principal、fresh auth、numeric 6→7 與 readback gate。安全頁、憑證更新與重試發布仍 PENDING；401 根因 UNKNOWN，不能以版本輪替成功冒稱恢復。只限 AI-PDM／jenfu-platform-prod／asia-east1／ai-pdm-prod 及自有發布資源，禁止跨專案開發。真 CAD key/probe/activation/property 由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups及整體未驗收不變。
+
+本輪 corrective file surface：scripts/dev121-smoke-credential-reauth.mjs 的官方來源 gate、對應測試，以及三份 DEV-122 PM 入口與本次 checkpoint；不改 Portal、帳號、Principal guard、079 或其他 migration。
+
+[機器 checkpoint](../qa/DEV-122-settings-release-reauth-checkpoint-2026-10-05.json)。下方「待三資源核准／未 merge／未 apply」為先前 source freeze 歷史，不再是現行 gate。
 
 ## 現行發布修正與人工驗證契約（2026-10-05；優先於下方歷史本地邊界）
 
