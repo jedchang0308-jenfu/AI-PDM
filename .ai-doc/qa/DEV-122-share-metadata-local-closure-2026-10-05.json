@@ -4,7 +4,7 @@
   "issue": "D122-08",
   "status": "LOCAL_NATIVE_POSTGRES_PASS_PRODUCTION_NOT_RUN",
   "capturedAt": "2026-10-05T10:21:36.054509+00:00",
-  "sourceHead": "7058b0139f7107cffda8356080c3e2f19759e2d1",
+  "sourceHead": "9dcb322bede0fa7a22375e821e6926783dbdf619",
   "branch": "codex/dev122-share-metadata",
   "runtimeFiles": [
     {
@@ -143,10 +143,54 @@
     "workerHost": "PENDING_HUMAN_LOCATION",
     "productionShareMetadata": "NOT_RUN",
     "historicalOrgMasterContractRunner": "NOT_RUN_BY_THIS_REPAIR",
-    "D12207": "HUMAN_CONFIRMED_KEEP_DISABLED_DEFER_FUTURE"
+    "D12207": "HUMAN_CONFIRMED_KEEP_DISABLED_DEFER_FUTURE",
+    "productionReleaseDecision": "PENDING_HUMAN_SCOPE_DECISION; no current production mutation"
   },
   "humanDecision": {
     "date": "2026-10-05",
     "D12207": "維持停用，另排後續開發（建議）"
-  }
+  },
+  "testedNativeCaptureSourceHead": "7058b0139f7107cffda8356080c3e2f19759e2d1",
+  "officialMergedSource": "30b952d48b128ef50a04b4c1971914290c2df8ac",
+  "independentQc": {
+    "model": "gpt-6-luna",
+    "reasoning": "max",
+    "sourceHead": "9dcb322bede0fa7a22375e821e6926783dbdf619",
+    "status": "PASS_LOCAL_SOURCE_AND_EXISTING_NATIVE_EVIDENCE_ONLY",
+    "p1": 0,
+    "p2": 0,
+    "sourceFilesExact": true,
+    "reviewerExecutedRuntime": false,
+    "receipt": "output/qa/dev-122/share-metadata-20261005/independent-luna-qc.json"
+  },
+  "requiredCi": {
+    "runId": 37296352232,
+    "sourceHead": "9dcb322bede0fa7a22375e821e6926783dbdf619",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "Production Slice QC",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "DEV-012 Isolated PostgreSQL Cutover",
+        "status": "completed"
+      }
+    ],
+    "url": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37296352232"
+  },
+  "pullRequest": {
+    "headRefOid": "9dcb322bede0fa7a22375e821e6926783dbdf619",
+    "mergeCommit": {
+      "oid": "30b952d48b128ef50a04b4c1971914290c2df8ac"
+    },
+    "mergedAt": "2026-10-05T10:29:49Z",
+    "number": 213,
+    "state": "MERGED",
+    "url": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/213"
+  },
+  "sourceApplicability": "Own native tests executed on dirty base7058 with frozen five runtime/test bytes; exact committed9dcb and official30b bytes match those bindings. CI verified committed9dcb. Docs-only closing changes do not change tested runtime."
 }

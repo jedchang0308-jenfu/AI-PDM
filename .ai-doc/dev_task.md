@@ -1581,7 +1581,7 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：D122-08 本地修復17 native／11focused及static通過，收斂獨立QC／PR CI；R03已提供「儲存並啟用」，原生CAD由使用者正式驗證。
+  - 下一步：D122-08 已通過獨立Luna QC／required CI並合併PR213，發布範圍待人類決定；原生CAD由使用者於R03正式環境驗證。
   - 驗收缺口：R03 100%／0 tags／正常登入 smoke PASS；正式真 key/probe/activation 與 CAD 由使用者驗證，常駐 worker 主機待提供。既有 28 組僅按相符本地層級保留，三格式 filename partial 不替代原生 CAD；7 issues／29 groups、整體未驗收。
   - 證據：[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
