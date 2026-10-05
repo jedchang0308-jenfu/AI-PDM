@@ -15,6 +15,12 @@
 
 <a id="dev-121-system-admin-follow-up"></a>
 
+### 正式角色能力頁入口續點（2026-10-06，現行）
+
+R3／source `90b0d1dc0ba6f832d984938d2acbffb989c70e52` 已正式發布；Jed v6 全能力、圖號 API 與 readonly role-capability API 已正式讀回。實際 `/settings/workflow` 畫面仍被既有 Production slice／limited Settings caller 阻擋，屬 ADMIN02／04，不能以 API 200 代替畫面 PASS。本批只開放 known slice 的 exact readonly workflow 入口；未知 slice、額外子路徑、其他設定與 retired mutation 維持拒絕。RED 37 案中 3 FAIL → GREEN 37/37、0 skip，app typecheck 與獨立來源 QC PASS；[新 checkpoint](qa/DEV-121-workflow-entry-local-checkpoint-2026-10-06.json)保留測試／清理證據。下一步為同批 protected PR／required CI、新 owner release 及 fresh Production UI；ADMIN04／05 尚未完成。既有 catalog、grant、PostgreSQL 安全邊界成果沿來源等值證據沿用，DEV-122 一般業務判定不變。
+
+下方 2026-10-05 本機進度為原始歷史 checkpoint，未發布／NOT_RUN 描述保留當時含義，由本續點取代執行指引。
+
 ### 最高管理角色能力修正（2026-10-05，執行中）
 
 沿既有 `AIPDM/DEV-121#system-admin-capabilities` 子任務，依人類本輪三專案開發及正式發布授權，續作 system_admin 全能力、typed caller 與 PostgreSQL 角色設定讀取修正。來源為 `JENFU/DEV-015#target-authorization`，published grants 由 `ORGMASTER/DEV-057#identity-grants` 擁有。架構為 [RD Implementation Ready](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch)；以下修正後驗收尚未完成，R81 原結論保留。

@@ -203,7 +203,7 @@ export function isProductionSliceAllowedApiMutation(method: string, pathname: st
 export function isProductionSliceOpenPagePath(pathname: string, env: EnvLike = process.env) {
   const normalizedPath = normalizePathname(pathname);
   if (getProductionSliceState(env).active &&
-    (normalizedPath === "/settings" || normalizedPath === "/settings/security" ||
+    (normalizedPath === "/settings" || normalizedPath === "/settings/security" || normalizedPath === "/settings/workflow" ||
      normalizedPath === "/technical-transfer" || normalizedPath === "/approvals" ||
      /^\/parts\/[^/]+\/workspace$/u.test(normalizedPath) ||
      /^\/numbering\/drawings\/[^/]+\/workspace$/u.test(normalizedPath) ||
@@ -246,7 +246,7 @@ export function productionSliceClientStatus(env: EnvLike = process.env) {
     unopenedCode: PRODUCTION_SLICE_UNOPENED_CODE,
     unopenedMessage: PRODUCTION_SLICE_UNOPENED_MESSAGE,
     numberingLifecycle: lifecycle,
-    openPagePaths: [...openPagePaths, "/technical-transfer", "/approvals", "/settings", "/settings/security"]
+    openPagePaths: [...openPagePaths, "/technical-transfer", "/approvals", "/settings", "/settings/security", "/settings/workflow"]
       .filter((path) => isProductionSliceOpenPagePath(path, env))
   };
 }
