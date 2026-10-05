@@ -2,7 +2,7 @@
 // are synthetic; this does not attest OrgMaster/provider/Production conformance.
 // The candidate/parser/service and unchanged 071 lifecycle / 074 provision / 076 manager guard
 // execute against a fresh database in the existing required CI PostgreSQL job.
-// Native 078 and four settings commands are real; Secret Manager I/O is synthetic-only.
+// Native 078/080 and four settings commands are real; Secret Manager I/O is synthetic-only.
 // Mounted share routes also execute actual Principal transactions; resource/provider fixtures are synthetic.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -458,12 +458,12 @@ try {
   sourceProof.push({ path:'db/postgres/048_solidworks_credential_ui_activation.sql',sourceSha256:sha(schema048),
     executedFunctionSha256:sha(jobsSql),scope:'actual probe table/index DDL projected to own schema; other baseline tables synthetic' });
   // A genuinely pre-078 legacy row remains NULL; do not disable the new trigger to fabricate one.
-  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at)
-    VALUES ('secret-legacy','solidworks_document_manager','solidworks_document_manager','google_secret_manager','draft',999,$1,clock_timestamp())`,[actorProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at,metadata_json)
+    VALUES ('secret-legacy','solidworks_document_manager','solidworks_document_manager','google_secret_manager','draft',999,$1,clock_timestamp(),'{"companyId":"company-jenfu"}')`,[actorProfile]);
   await database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs(id,secret_reference_id,kind,status,created_by,updated_at)
     VALUES ('probe-legacy','secret-legacy','solidworks_document_manager','pending',$1,clock_timestamp()-interval '2 minutes')`,[actorProfile]);
-  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at)
-    VALUES ('secret-legacy-passed','solidworks_document_manager','solidworks_document_manager','google_secret_manager','tested',998,$1,clock_timestamp())`,[actorProfile]);
+  await database.query(`INSERT INTO ai_pdm_core.secret_references (id,kind,provider,vault_provider,lifecycle_status,version,created_by,created_at,metadata_json)
+    VALUES ('secret-legacy-passed','solidworks_document_manager','solidworks_document_manager','google_secret_manager','tested',998,$1,clock_timestamp(),'{"companyId":"company-jenfu"}')`,[actorProfile]);
   await database.query(`INSERT INTO ai_pdm_core.settings_secret_probe_jobs(id,secret_reference_id,kind,status,created_by,updated_at)
     VALUES ('probe-legacy-passed','secret-legacy-passed','solidworks_document_manager','passed',$1,clock_timestamp()-interval '2 minutes')`,[actorProfile]);
   await database.query('ALTER TABLE ai_pdm_core.settings_secret_probe_jobs OWNER TO jenfu_ai_pdm_migrator');
