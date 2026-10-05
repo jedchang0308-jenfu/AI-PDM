@@ -6,7 +6,7 @@
 
 ## 唯一施工入口
 
-此前 Principal-only 身分／授權正式出口的已完成範圍，實際來源、owner release／traffic、驗證層級及回復／清理見 [owner結案證據](../qa/DEV-121-principal-authorization-production-closure-2026-10-05.json)。2026-10-05 人類已啟動下方 [最高管理能力及 typed caller 修正](#system-admin-capability-batch)；這是既有 DEV-121／P01、P06、P09 的新修正批次，本機候選實作已完成，正在進行原生整鏈及獨立 QC；尚未發布，不能用此前結案替代本批驗收。原 P01–P09／F01–F10 及歷史未驗判定保留；一般業務不能由授權 PASS 推定完成。
+此前Principal-only身分／授權出口及歷史判定保持。2026-10-06最高管理能力／typed caller／PostgreSQL只讀角色能力批次已完成protected release與affected Production驗收，依[本批owner closure](../qa/DEV-121-admin-capabilities-v6-production-closure-2026-10-06.json)與[現行任務](../dev_task.md#dev-121-system-admin-follow-up)認列；原local checkpoint未發布／NOT_RUN保留當時狀態，不改成正式PASS。只結本批既有子項；一般業務與其他owner義務不因本批完成。
 
 文件角色：CURRENT_CONTRACT。本地 `AIPDM/DEV-121#target-authorization`／`#principal-consumer-impact`，來源 `JENFU/DEV-015`，producer `ORGMASTER/DEV-057#identity-grants`；沿原任務。架構已定案，程式／整合／正式完成度另依本輪身分／授權證據。
 
