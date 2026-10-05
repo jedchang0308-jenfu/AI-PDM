@@ -38,7 +38,7 @@ try {
   record("GSM-002 adapter uses Google ADC", includesAll(adapter, ["GoogleAuth", "cloud-platform", "getClient", "getAccessToken"]));
   record("GSM-003 writes are explicitly gated", includesAll(adapter, ["PDM_ENABLE_GCP_SECRET_WRITES", "GCP_SECRET_MANAGER_WRITE_GATE_REQUIRED", ":addVersion"]));
   record("GSM-004 reads are explicitly gated", includesAll(adapter, ["PDM_ENABLE_GCP_SECRET_READS", "GCP_SECRET_MANAGER_READ_GATE_REQUIRED", ":access"]));
-  record("GSM-005 adapter accepts only exact numeric version resources", includesAll(adapter, ["isExactVersionResource", "/versions/[1-9][0-9]*", "versions/latest"]));
+  record("GSM-005 adapter accepts only exact numeric version resources", includesAll(adapter, ["isExactVersionResource", "/versions/[1-9][0-9]*", "versions/latest", "expectedProjectNumber", "this.canonicalSecretName", "response?.name !== versionName", "${this.secretName}/versions/${versionNumber}:access", "match?.[0] === value"]));
   record("GSM-006 provider does not persist plaintext", includesAll(adapter, ["payload", "Buffer.from(value, \"utf8\").toString(\"base64\")"]) && !adapter.includes("console.log(value)"));
   record("GSM-007 provider redacts upstream error bodies", includesAll(adapter, ["GCP_SECRET_MANAGER_PERMISSION_DENIED", "GCP_SECRET_MANAGER_REQUEST_FAILED"]) && !adapter.includes("response.text()"));
   record("GSM-008 Cloud SQL reference type includes Google provider", repository.includes('"google_secret_manager"'));
@@ -54,7 +54,7 @@ try {
   record("GSM-018 PostgreSQL migration is additive to references", includesAll(postgresMigration, ["BEGIN;", "COMMIT;", "Existing rows"]) && !postgresMigration.includes("DROP TABLE") && !postgresMigration.includes("DROP COLUMN"));
   record("GSM-019 SQLite migration preserves all secret metadata columns", includesAll(sqliteRuntime, ["secret_references_google_secret_manager_migration", "INSERT INTO secret_references_google_secret_manager_migration", "metadata_json", "ALTER TABLE secret_references_google_secret_manager_migration RENAME TO secret_references"]));
   record("GSM-020 active-version uniqueness remains enforced", includesAll(sqliteRuntime + sqliteSchema + postgresSchema, ["idx_secret_references_kind_active_unique", "WHERE lifecycle_status = 'active'"]));
-  record("GSM-021 example config keeps UI-managed provider boundary explicit", includesAll(envExample, ["PDM_SETTINGS_SECRET_PROVIDER=", "PDM_GCP_PROJECT_ID", "PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID", "PDM_ENABLE_GCP_SECRET_READS", "Settings UI is the only daily credential entry point"]));
+  record("GSM-021 example config keeps UI-managed provider boundary explicit", includesAll(envExample, ["PDM_SETTINGS_SECRET_PROVIDER=", "PDM_GCP_PROJECT_ID", "PDM_GCP_EXPECTED_PROJECT_NUMBER", "PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID", "PDM_ENABLE_GCP_SECRET_READS", "Settings UI is the only daily credential entry point"]));
   record("GSM-022 worker route is token-gated and no-store", includesAll(workerRoute, ['authenticateWorkerService(request, "solidworks_credential")', "resolveActiveSolidWorksDocumentManagerKey", "no-store"]));
   record("GSM-023 Principal secret owner commands redact references", [draftRoute, activateRoute, revokeRoute].every((source) =>
     includesAll(source, ["redactSettingsSecretReference(reference)", "requireNumberingPlatformCommandAsync", 'action: "settings.secret.manage"', "access.metadata"])
@@ -92,7 +92,7 @@ try {
     "gcp-ref-1",
     "solidworks_document_manager",
     "google_secret_manager",
-    "projects/demo/secrets/pdm-solidworks-document-manager-key/versions/7",
+    "projects/9536592944/secrets/pdm-solidworks-document-manager-key/versions/7",
     "active",
     7
   );

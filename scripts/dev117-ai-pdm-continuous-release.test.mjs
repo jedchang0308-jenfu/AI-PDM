@@ -190,7 +190,7 @@ test('DEV-121 business storage runtime binds the own bucket and rejects local or
 
 test('DEV-122 settings provider is a fixed server binding, never a key or a latest reference', () => {
   const bindings = { PDM_SETTINGS_SECRET_PROVIDER: 'google_secret_manager',
-    PDM_GCP_PROJECT_ID: 'jenfu-platform-prod',
+    PDM_GCP_PROJECT_ID: 'jenfu-platform-prod', PDM_GCP_EXPECTED_PROJECT_NUMBER: '9536592944',
     PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID: 'aipdm-prod-solidworks-document-manager-key',
     PDM_ENABLE_GCP_SECRET_READS: 'true', PDM_ENABLE_GCP_SECRET_WRITES: 'true' }
   const previous = Object.fromEntries(profile.environment.requiredPlainEnvironmentNames
@@ -214,6 +214,8 @@ test('DEV-122 settings provider is a fixed server binding, never a key or a late
   }
   for (const [name, value] of [
     ['PDM_SETTINGS_SECRET_PROVIDER', 'windows_dpapi'], ['PDM_GCP_PROJECT_ID', 'jenfu-ai-pdm-prod'],
+    ['PDM_GCP_PROJECT_ID', '9536592944'],
+    ...['', 'jenfu-platform-prod', '9536592945', '0', '09536592944', '-1', '1.0', '1e3', ' 9536592944 ', '9536592944\n'].map(value => ['PDM_GCP_EXPECTED_PROJECT_NUMBER', value]),
     ['PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'other-secret'],
     ['PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'aipdm-prod-solidworks-document-manager-key/versions/latest'],
     ['PDM_ENABLE_GCP_SECRET_READS', 'false'], ['PDM_ENABLE_GCP_SECRET_WRITES', 'false']

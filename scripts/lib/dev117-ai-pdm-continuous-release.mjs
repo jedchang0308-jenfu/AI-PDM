@@ -53,7 +53,7 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   if (profile.incidentRuntime?.controllerAudience !== 'https://release-controller.jenfu.internal/aipdm' || profile.incidentRuntime?.githubReadTokenSecretId !== 'aipdm-prod-controller-github-read-token' || profile.incidentRuntime?.numericSecretVersionRequired !== true || profile.incidentRuntime?.activeControlObject !== 'control/active.json') fail('INCIDENT_RUNTIME_PROFILE_MISMATCH', 'AI-PDM abort controller profile mismatch')
   if (profile.migrations?.jobName !== 'ai-pdm-prod-migration-runner' || profile.migrations?.serviceAccount !== 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com' || profile.migrations?.baselineCount !== 15) fail('MIGRATION_JOB_MISMATCH', 'AI-PDM migration job mismatch')
   const integrationPlain = ['PDM_STORAGE_PROVIDER', 'PDM_GCS_PROJECT_ID', 'PDM_GCS_BUCKET', 'PDM_GCS_LIVE_ENABLED', 'PDM_WORKBENCH_AUTHORITY_COMMIT', 'PDM_JENFU_PLATFORM_AUTH_MODE', 'PDM_JENFU_ENTITLEMENT_MODE', 'JENFU_FIREBASE_PROJECT_ID', 'JENFU_IDENTITY_ISSUER', 'JENFU_IDENTITY_AUDIENCE', 'PDM_JENFU_SSO_HANDOFF_MODE', 'PDM_JENFU_SSO_BROKER_ORIGIN']
-  const settingsPlain = ['PDM_SETTINGS_SECRET_PROVIDER', 'PDM_GCP_PROJECT_ID', 'PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'PDM_ENABLE_GCP_SECRET_READS', 'PDM_ENABLE_GCP_SECRET_WRITES']
+  const settingsPlain = ['PDM_SETTINGS_SECRET_PROVIDER', 'PDM_GCP_PROJECT_ID', 'PDM_GCP_EXPECTED_PROJECT_NUMBER', 'PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'PDM_ENABLE_GCP_SECRET_READS', 'PDM_ENABLE_GCP_SECRET_WRITES']
   const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain, ...settingsPlain]
   const expectedSecrets = [...v1.environment.requiredSecretEnvironmentNames, 'PDM_WORKLOAD_AUTH_CREDENTIALS']
   const expectedSecretIds = { ...v1.environment.allowedSecretReferences, PDM_WORKLOAD_AUTH_CREDENTIALS: 'aipdm-prod-workload-auth-credentials' }
@@ -74,6 +74,7 @@ export function assertDev117V3Profile(profile, v1, n1c) {
     || fixed.PDM_GCS_LIVE_ENABLED !== '1'
     || fixed.PDM_SETTINGS_SECRET_PROVIDER !== 'google_secret_manager'
     || fixed.PDM_GCP_PROJECT_ID !== target.projectId
+    || fixed.PDM_GCP_EXPECTED_PROJECT_NUMBER !== target.projectNumber
     || fixed.PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID !== 'aipdm-prod-solidworks-document-manager-key'
     || fixed.PDM_ENABLE_GCP_SECRET_READS !== 'true'
     || fixed.PDM_ENABLE_GCP_SECRET_WRITES !== 'true'

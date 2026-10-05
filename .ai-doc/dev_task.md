@@ -1,6 +1,6 @@
 # AI_PDM 開發任務
 
-> **2026-10-05 本工作樹入口：AIPDM/DEV-122 本地驗證／原生 CAD 屬性用途受阻**：codex/dev122-internal-functions，base 93b9b4cf6；19 選定候選／24 dirty paths 已移交。final candidate 凍結、97／97 focused、typecheck／isolated build／DB boundary 及兩 viewport 正常流程已完成獨立 QC。29 組中 28 組已有相符層級證據，F-01F native customproperties 待合法 Document Manager 本機設定；整體未驗收。續接讀[本地收據](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)，只補該用途，不重跑全套。單一 AI-PDM 本地授權；DEV-121 原工作樹由其 owner 接續，下方歷史不是本聊天施工 queue。
+> **2026-10-05 本工作樹入口：AIPDM/DEV-122 設定入口發布／B 方案**：codex/dev122-internal-functions，目前候選 b89dc219bb3a9f9bb29486b8f24873731a33ec93／草稿 PR207；兩項 required CI 已 PASS。人類改採 B：保留 PDM_GCP_PROJECT_ID=jenfu-platform-prod，另設 PDM_GCP_EXPECTED_PROJECT_NUMBER=9536592944，request path／canonical response validation 分離。續接[現行 B 契約](specs/DEV-122-ai-pdm-internal-function-issues.md)，完成受影響驗證與 Luna QC 後更新同一 PR。三项新增正式 Secret／IAM 資源仍待明確核准，尚未 merge／apply／deploy；原生 CAD 屬性由使用者正式驗證／F-01F NOT_RUN、29 組分母不變。單一 AI-PDM，禁止跨專案，DEV-121／canonical owner 修改保留。
 
 <a id="dev-121-current-contract"></a>
 
