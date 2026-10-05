@@ -1,8 +1,14 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：R01_PRE_ACTIVATION_ABORTED_REAUTH_PENDING／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
+文件角色：CURRENT_CONTRACT／CONTROLLED_ISSUE_LIST；成熟度：RD Implementation Ready；狀態：SETTINGS_ENTRY_DEPLOYED_PENDING_HUMAN_VALIDATION／原生屬性待使用者正式驗證、整體未驗收。架構定案：已定案（2026-10-04 source Closure Review）；RD 依本文件 allowlist、實作順序與 gate 開始本地開發。
 
-## 正式 R01 中止後的現行續點（2026-10-05）
+## R02 正式部署結果與人工驗收（2026-10-05）
+
+2026-10-05 現行正式發布結果：R02 已由 app-owned V3 owner run [37262598122](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122) 完成 RELEASED／FINALIZED；正式 ai-pdm-prod-52f421cb8db9 接收 100% 流量、0 candidate tags。官方來源 602413097ef27a203fe1e2beccac3166c6e2351a 來自正常 PR209 合併，PR／main required CI 均 SUCCESS。人類在本機安全頁完成既有 Firebase 帳號重新驗證，own numeric 6→7 與既有 GitHub production smoke Secret 更新成功；候選及 canonical 正常 SSO／authenticated probe 通過，匿名／撤銷 session 回 401。B 配置保留 jenfu-platform-prod 並另核 expected number 9536592944；三項已授權 own Secret／IAM 於 R01 APPLIED，R02 只沿用來源相容回執，沒有 historical workflow rotation apply。079 在 R01 已 forward apply，R02 0 applied／29 replayed／ledger 29。正式設定 UI 因工具限制 NOT_RUN；登入與 provider 證據不替代 key draft/probe/activation 或原生 CAD 屬性。這些由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups、整體 NOT_ACCEPTED。R01 401／UNKNOWN／安全中止證據保留。
+
+[正式結案與層級限制](../qa/DEV-122-settings-production-closure-2026-10-05.json)。本輪只更新本 QA JSON 與三份 DEV-122 PM 入口，未變更產品、未再發布文件。下方舊 pending／未套用描述僅為當時歷史，不作新的施工 gate。
+
+## HISTORY_ONLY：正式 R01 中止後的續點（2026-10-05）
 
 R01 已安全中止於 verify：PR 207 正常合併至 697be61d51d105ec940ba594b57dac1c8f255ee6，required CI 37256330647 PASS；人類已授權並建立 exact SolidWorks Secret、add/access custom role、Secret-only runtime binding，provider readback PASS。Owner run 37258147467 的 prepare/build/migrate/candidate/entrypoint PASS，079 forward-only 已套用（1 applied、28 replayed、ledger 29），verify 因既有 smoke 憑證 Portal session 401 失敗。Recovery PASS／PRE_ACTIVATION_ABORTED，R81 ai-pdm-prod-ec2ae6647962 維持 100%，沒有切流。人類已選擇在本機安全頁輸入既有 Firebase 密碼；本輪只修復 reauth CLI 接受 clean detached exact official main，保留 source/repository、同 issuer/subject、Principal、fresh auth、numeric 6→7 與 readback gate。安全頁、憑證更新與重試發布仍 PENDING；401 根因 UNKNOWN，不能以版本輪替成功冒稱恢復。只限 AI-PDM／jenfu-platform-prod／asia-east1／ai-pdm-prod 及自有發布資源，禁止跨專案開發。真 CAD key/probe/activation/property 由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups及整體未驗收不變。
 
@@ -21,7 +27,7 @@ R01 已安全中止於 verify：PR 207 正常合併至 697be61d51d105ec940ba594b
 - 官方 main 528429913272ceb3e8d77bb0fcf30d450c6fb368 已包含 settings.secret.manage 的 verified Principal owner command／probe provenance 與 migration 078。先前 93b9 起點的 legacy-auth 診斷只適用當時 source，不能套到最新 main；整合時保留該修正。
 - 發布來源需要可追溯的乾淨 PR merge 與 fresh profile/source binding。077 是本 DEV 尚未套用的 forward-only migration；與官方 078 整合前核對編號、依賴、schema ownership、apply/rerun 與相容性。不得改 applied migrations 或手工寫正式資料。
 - 設定開放採 exact /settings 與 /settings/security，以及 secret draft/test/activate/revoke、既有 purpose-scoped probe-worker 必要 dispatch；不得 wildcard 開放其他 settings、整合或 worker mutations。dispatch 不授予權限，正常 page/action 仍經 verified Principal、published capability/company boundary、same pinned owner transaction；workload credential/provenance 仍必須成立。
-- 正式服務 provider readback 證實目前沒有 PDM_SETTINGS_SECRET_PROVIDER、PDM_GCP_PROJECT_ID、PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID、PDM_ENABLE_GCP_SECRET_READS/WRITES。AI-PDM aipdm-prod Secret 名稱盤點未見 Document Manager 保管庫；歷史示例 pdm-solidworks-document-manager-key provider NOT_FOUND。只核對 metadata／名稱，未讀版本內容。
+- HISTORY_ONLY／修復前正式服務 provider readback 證實當時沒有 PDM_SETTINGS_SECRET_PROVIDER、PDM_GCP_PROJECT_ID、PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID、PDM_ENABLE_GCP_SECRET_READS/WRITES。AI-PDM aipdm-prod Secret 名稱盤點未見 Document Manager 保管庫；歷史示例 pdm-solidworks-document-manager-key provider NOT_FOUND。只核對 metadata／名稱，未讀版本內容。
 - source 可準備既有 Google Secret Manager provider 的 exact project/secret env 與最小 own-resource provisioning plan。新增 Secret container／IAM 不從一般 release 授權自行擴張；具體 plan 與 affected checks 完成後才處理此新增資源 gate。不得 broad IAM、Secret Admin、key value 入 Terraform/state、secret destroy／disable 或 sibling mutation。
 - QA：沿原有效證據的 source applicability，只重驗整合與設定受影響層。必須證明正常設定導航、允許／拒絕 Principal、精確 gate 正反例、非秘密狀態與 worker readiness、失敗訊息、無 key 洩漏；改 release adapter/profile 後跑專案必需六項檢查。不可提交假金鑰到正式 provider；真 key 操作與 native CAD properties 留人類。
 - 正式驗證：Root 驗證 exact serving revision/canonical entry 及修復後設定入口；使用者輸入 key、查看 probe/activation 狀態並驗證 CAD properties。若正式 worker 未在線，UI 必須如實顯示，不宣称可用。新 runtime/UI 全部 task-owned、隔離且清理；未知 write outcome 先 provider readback 再重試。
@@ -47,7 +53,7 @@ Root 已將 latest main 整合至 7a8f156198f1628a86f91adbee1a22c8e8084f9a，dir
 RD 可先 syntax/targeted static checks，完整 QC 在 freeze 後派出；每次 runtime 仍須標 own project/port/PID/data/repository、來源、fresh容量lease與finally清理。Release-adapter六項：test:dev-117:continuous、qc:dev-117:continuous、test:dev-117:abort、check:db-boundary、typecheck:app、build:isolated。qc:dev-117:continuous 已內建後四項，引用實際子命令結果即可，不能再無理由重跑build。新真金鑰／原生probe/property成功不由RD或QC執行；人工正式驗證仍 NOT_RUN。
 ### B 方案：文字請求 ID 與 canonical 專案編號分離（2026-10-05；本輪現行契約）
 
-人類已明確更正「改採 B 方案：保留文字 ID，另設預期專案編號，provider 分開處理請求路徑與回傳版本驗證」。因此先前將 PDM_GCP_PROJECT_ID 改數字的 A 提案改列 HISTORY_ONLY／NOT_APPLIED；原兩次自動審查拒絕與收據保留，不套用 A patch。B 實作與必要 same-project 驗證、既有 PR207 更新已授權；三項新增正式 Secret／IAM 資源仍待人類明確核准，不能以本 B 指示或文件代替該資源授權。
+人類已明確更正「改採 B 方案：保留文字 ID，另設預期專案編號，provider 分開處理請求路徑與回傳版本驗證」。因此先前將 PDM_GCP_PROJECT_ID 改數字的 A 提案改列 HISTORY_ONLY／NOT_APPLIED；原兩次自動審查拒絕與收據保留，不套用 A patch。B 實作與必要 same-project 驗證、既有 PR207 更新已授權；三項新增正式 Secret／IAM 在該 B 指示當時仍待人類明確核准；後續人類另行核准並已由 R01 建立，見上方 R02 結案。
 
 - 請求 ID：PDM_GCP_PROJECT_ID 固定 jenfu-platform-prod，Cloud target／Terraform／IAM／GCS 維持原目標；另新增 server plain env PDM_GCP_EXPECTED_PROJECT_NUMBER=9536592944，required/fixed profile 以既有 target.projectNumber 核對。不得用 request ID、API 回傳內容、ADC、任意 alias 或動態 metadata lookup 推導 expected number。
 - Provider config 使用獨立 expectedProjectNumber。缺少或非 canonical 正整數的 expected number 必須 fail closed，constructor／env 設定拒絕先於 auth/fetch；不放寬 secret/version matcher。add 請求以 projects/jenfu-platform-prod/secrets/<exact-secret>:addVersion 發出，只接受 projects/9536592944/secrets/<same-secret>/versions/<canonical-positive-number>，保存該 canonical reference。
