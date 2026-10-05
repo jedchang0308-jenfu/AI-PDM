@@ -4,13 +4,17 @@
 
 <a id="dev-121-current-contract"></a>
 
-## DEV-121 現行續接
+## DEV-121 現行交付
+
+**2026-10-05 本輪授權出口完成：** AI-PDM R81 的 Principal-only source `56ecb7a`／`ai-pdm-prod-ec2ae6647962` 已 owner-native RELEASED／100%／0 tags。正常 Google／Portal SSO、AAL1 Principal 一致、JENFU 查詢 allow／他公司 deny、local／global logout 及正常復原已有正式效果證據；實際 producer／consumer PostgreSQL 的指派／撤權／scope及 commands／receipt／outbox／audit／typed workload 與 frozen caller closure已核對。依[本 owner 結案](qa/DEV-121-principal-authorization-production-closure-2026-10-05.json)分清整合與正式層級，未驗 share-specific bytes／held workload 不冒稱 Production 業務 PASS。
+
+後續 main tests-only 差異沒有改變正式 runtime，無須為文件再發版。回復只可使用已 Ready 的 DB-free Principal-only maintenance revision，舊 UID revision禁止。未核實／原停用者沒有啟用；一般業務仍 DEV-122 `DEFERRED_NOT_PASS`。本輪剩餘文件 PR／CI及共同結案 QC；下方設定 probe／R79 舊進度僅為 HISTORY_ONLY，不是新的施工佇列。
 
 本輪有效出口只有 [Principal-only 身分／授權整合契約](specs/DEV-121-target-authorization-boundary.md)：verified Principal、唯一 published grants、scope／撤權、caller／reviewer／receipt／worker actor 與安全發布／回復一致。2026-10-03 人類收斂範圍後，一般 canonical lifecycle、首次發行 UI、附件／工作流功能整理改由 [DEV-122 集中問題列表](specs/DEV-122-ai-pdm-internal-function-issues.md) 延後處理。已完成的本機修正與原始 FAIL 證據保留，不撤回，也不算本輪驗收 PASS。
 
 歷史原文在 [HISTORY_ONLY 任務快照](dev_task-history-2026-10-03.md)，不讀為當前命令。共同驗收依 [JENFU 既有盤點](../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)；scope／publish／verified Principal 防漏洞及可靠發布 storage validator 仍由 DEV-121 處理，不能搬到延期業務待辦。各層證據僅證明實際本機／整合／正式實測範圍。AI-PDM DEV-121 依自己的 Principal consumer 正常入口安全及正式 owner release／L4／recovery 出口獨立結案，DEV-122 不阻擋；`JENFU/DEV-015` 彙整 joint 結果，任一 owner PASS 不推定三 owner joint PASS。
 
-## 現行安全修正：Settings Secret probe Principal provenance（2026-10-04）
+## Settings Secret probe 修正歷史（HISTORY_ONLY，已納 R81）
 
 沿 `AIPDM/DEV-121#principal-only-background-work`／P07–P08，本輪已證實的正常設定中心四個 human command 及四個 probe workload caller，必須保留 verified Principal／company／purpose／queue initiator；草稿 creator 不等於 probe tester。處置依[現行背景契約](specs/DEV-121-target-authorization-boundary.md#背景及檔案授權ai-pdm-既有用途)；不是一般 Secret 建置或 DEV-122 業務缺失，不新增主任務。
 
@@ -1575,13 +1579,12 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
   - 證據：[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
-- ◐ DEV-121 [開發點] [執行中] [P0] [Principal-only 身分／授權整合；Production L4 NOT_RUN] 目標端授權邊界重構
-  - 摘要：verified Principal 貫穿登入、grant／scope／撤權、caller、reviewer、命令／worker 與安全發布／回復。
+- ✓ DEV-121 [開發點] [本輪授權正式交付完成／文件收尾] [P0] [Principal-only Production L4] 目標端授權邊界重構
+  - 摘要：verified Principal 貫穿唯一 grant／scope／撤權、normal caller、command／receipt／workload；一般業務延期不改 PASS。
   - 來源 ID：`JENFU/DEV-015#target-authorization`；owner `AIPDM/DEV-121`；producer `ORGMASTER/DEV-057#identity-grants`。
-  - 下一步：完成 share-boundary 批次的 focused tests、route/QC、required CI 與同一 company-scope command kernel 的 disposable PG commit/replay/deny/rollback evidence；再依 current source 與正式 owner receipts完成 release／Principal-only L4。PR199已合併，不再列為等待PR。
-  - 阻塞 / 恢復條件：未核實／原停用者不啟用；不得以歷史 UID 回復、一般功能延期或本機總 PASS 代替正式授權驗收。
-  - 證據：[現行契約](specs/DEV-121-target-authorization-boundary.md)、[R75 readback](qa/DEV-121-business-storage-provider-readback-2026-10-03.json)、[歷史原驗證](dev_task-history-2026-10-03.md)。share-boundary source／tests 尚未驗收，不得先稱為 Principal-only PASS。
-  - 計入交付：否；既有身分／授權交付後續開發點，一般業務生命周期由 DEV-122 獨立記錄。
+  - 下一步：本輪文件 PR／CI及共同 evidence QC；後續業務依 DEV-122 重新進入，不重开旧授权路径。
+  - 證據：[正式授權結案](qa/DEV-121-principal-authorization-production-closure-2026-10-05.json)、[唯一契約](specs/DEV-121-target-authorization-boundary.md)、[歷史驗證](dev_task-history-2026-10-03.md)。
+  - 計入交付：否；沿既有開發點與原歷史分母，DEV-122 維持延期 NOT_PASS。
 
 - ◇ DEV-120 [開發點] [Local Fix Complete / Protected Production Release Pending] [P0] [DEV-013 P_BOTH] target session expiry 不得受 handoff assertion TTL 截短
   - 摘要：Platform `DEV-013` production P_BOTH 切換已證明 AI-PDM normal entry 可在不再輸入密碼下建立本地session，但舊callback將 `handoff.expiresAt` 一併放入session expiry的最小值，使約5分鐘的單次assertion壽命誤成應用session壽命，稍後 `/api/numbering/permissions` 等受保護API回401。依Platform契約，target session expiry固定為 `min(now + appMaxAge, sourceSessionExpiresAt)`；assertion `expiresAt`僅在callback parse時驗證freshness。

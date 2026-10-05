@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "aipdm.dev121.principal-authorization-production-closure.v1",
+  "generatedAt": "2026-10-04T23:47:35.431Z",
+  "owner": "AIPDM",
+  "task": "DEV-121",
+  "sourceTask": "JENFU/DEV-015#target-authorization",
+  "status": "PRODUCTION_AUTHORIZATION_EXIT_PASS",
+  "productionL4": true,
+  "goalComplete": false,
+  "production": {
+    "owner": "AIPDM",
+    "sourceRevision": "56ecb7a93b68140476cc2c913e4eca7e4308559a",
+    "releaseId": "DEV121-AI-PDM-PRINCIPAL-AUTH-20261004-R81",
+    "revision": "ai-pdm-prod-ec2ae6647962",
+    "image": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:a752dc44dddd10ef82c36d95fd1ed7a0a5fe6dac4f0ac0ffde12e67433f1d967",
+    "trafficPercent": 100,
+    "tags": 0,
+    "releaseResult": "RELEASED",
+    "run": {
+      "id": 37190348242,
+      "url": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37190348242",
+      "allTenStages": "SUCCESS"
+    },
+    "principalFlags": {
+      "PDM_AUTH_MODE": "firebase_bff",
+      "PDM_JENFU_PLATFORM_AUTH_MODE": "on",
+      "PDM_JENFU_ENTITLEMENT_MODE": "enforce",
+      "PDM_JENFU_SSO_HANDOFF_MODE": "on"
+    }
+  },
+  "sourceEvidence": {
+    "project": "JENFU",
+    "path": "ai-doc/qa/DEV-015-principal-authorization-production-closure-2026-10-05.json",
+    "rawSha256": "c0121bde7b1fabfad4aa1b27158d9890a7dbd32f50ab7202ec1061ba291e882d"
+  },
+  "acceptance": {
+    "F01": {
+      "status": "PRODUCTION_AUTH_PASS",
+      "result": "Normal Google AAL1; Portal SSO to both entitled targets; same verified Principal/Employee; reload and >assertion-TTL continuity"
+    },
+    "F02": {
+      "status": "PRODUCTION_AUTH_PASS",
+      "result": "Typed producer/provider-pair/profile ownership readback; unknown and originally inactive users not enabled; JFS9014 no AI profile and JFS9015 original suspended profile retained"
+    },
+    "F03": {
+      "status": "PRODUCTION_AUTH_PASS_WITH_REAL_PG_CONTRACT",
+      "result": "Actual producer/consumer PostgreSQL assignment/revoke/scope/race plus existing Production AI grant chain and final normal Org management/revocation"
+    },
+    "F04": {
+      "status": "PRODUCTION_AUTH_PASS",
+      "result": "Normal JENFU query returns authorized data; actual other-company selector denied; shared caller and resource scope closure"
+    },
+    "F05": {
+      "status": "PRODUCTION_AUTH_PASS",
+      "result": "Normal governance mutation and persisted Principal audit; existing actual native session-revoke receipt/replay; actual command/outbox/audit contract evidence"
+    },
+    "F06": {
+      "status": "AUTH_BOUNDARY_PASS",
+      "layer": "Exact deployed caller plus real PG review/delegation/self-review/publish-recheck and available Production authorization; business lifecycle not promoted"
+    },
+    "F07": {
+      "status": "AUTH_BOUNDARY_PASS",
+      "layer": "Exact deployed share guard/package delivery/resource/audit plus actual PG eight-phase allow/revoke/scope; per-resource Production positive bytes NOT_RUN"
+    },
+    "F08": {
+      "status": "AUTH_BOUNDARY_PASS",
+      "layer": "Actual PG typed workload/company/purpose/lease/initiator/receipt/outbox/audit plus exact deployed held/settings boundary; Production worker workload NOT_RUN"
+    },
+    "F09": {
+      "status": "PRODUCTION_AUTH_PASS",
+      "result": "Local isolation; one normal global-logout action; three old sessions 401; normal Google/Portal recovery 200; expiry/replay/revocation contracts retained"
+    },
+    "F10": {
+      "status": "PRODUCTION_AUTH_PASS",
+      "result": "Protected exact source and required CI, three owner-native RELEASED/100%/zero tags, Principal-only compatible recovery, task UI/PG cleanup"
+    }
+  },
+  "recovery": {
+    "status": "PRINCIPAL_ONLY_COMPATIBILITY_PASS",
+    "newThreeOwnerTrafficExercise": false,
+    "aiActualPriorMaintenanceAndRestoreReused": true,
+    "aiOldUidRevisionForbidden": true,
+    "retainedOrgBaselineDoesNotClaimNewGovernanceRaceGuard": true,
+    "basis": "Fresh exact bindings/readiness/runtime/terminal/control joins plus actual AI R81 maintenance/restore evidence; no fabricated new rollback traffic"
+  },
+  "logoutCaptureLimit": "UNKNOWN_PRESERVED",
+  "normalGlobalEffectsAndRecovery": "PASS",
+  "cleanup": {
+    "taskOwnedBrowserContextsClosed": 3,
+    "pgCleanupComplete": true,
+    "userOwnedBrowserTouched": false,
+    "fixtureEffectiveRightsRestored": true,
+    "historyAndBusinessDataPreserved": true
+  },
+  "unverifiedAndOriginallyDisabledAccountsNotEnabled": true,
+  "deferred": {
+    "owner": "AIPDM",
+    "task": "DEV-122",
+    "status": "DEFERRED_NOT_PASS",
+    "items": [
+      "Matrix parsing/autosave/UI and business algorithms",
+      "Part/Drawing/technical-transfer business lifecycle and deferred migration077 acceptance",
+      "Share metadata SQL 42P08 D122-08 and full attachment/bytes business acceptance",
+      "CAD/derivative held business workers and cancelled Windows-host verification"
+    ],
+    "untestedNeverPass": true,
+    "notRetired": true
+  },
+  "historicalDenominatorsNotRewritten": true,
+  "remaining": "Protected documentation PR/CI and final joint evidence QC; no runtime release for documents only",
+  "finalIndependentQc": {
+    "project": "JENFU",
+    "path": "ai-doc/qa/DEV-015-principal-authorization-production-closure-peer-qc-2026-10-05.json",
+    "rawSha256": "5ece6b0a0bc4469628595c44f4a1c7de0e866e6069ff988070480261e55cf0d2",
+    "result": "NO_P1_P2",
+    "missingProductionItems": []
+  }
+}
