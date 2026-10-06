@@ -2,7 +2,9 @@
 
 ## DEV-122 Cloud Run 部署續點（2026-10-06；本地 QC／建置通過，新增雲端資源待授權）
 
-CURRENT PR218 lint 修正：首次 CI37395720942 的 Cutover SUCCESS／Production Slice QC 在 lint FAILURE 保留；只將 auxiliary-job.test.mjs 的 mock source 字串變數 module 改名 moduleSource，斷言與產品行為不變，targeted ESLint 已 PASS。[修正後66檔來源](qa/DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json)為下一次 CI 候選；舊63檔中61檔未變、main設定頁 auto merge 與此測試更名為兩個差異，owner20 hash 未變。合併後正常 worker／build 驗證待本次 exact PR head CI，Cloud 權限與人類 F-01F 待決邊界不變。
+CURRENT PR218 相依套件修正：第二次 CI37398155430（head5f4e481）Cutover SUCCESS，Production Slice QC 在 production dependency audit FAILURE，lint／後續建置未跑；原始失敗與 provider 回讀保留。依官方修正版只更新 lockfile 中 source-map-js 三欄位1.2.1→1.2.2，其餘套件紀錄、package.json及前66檔未變；新[67檔來源](qa/DEV-122-openswx-phase2-pr218-source-freeze-dependency-v3-2026-10-06.json)與[Luna來源核對](qa/DEV-122-openswx-phase2-pr218-dependency-independent-qc-2026-10-06.json)綁定本次候選。實際 lockfile production audit code0/high與critical0，task cache／child已清理；本機node_modules未更新，尚未宣稱新套件安裝或建置PASS。下一head required CI／build待跑；舊63檔full-r4只屬原來源，Cloud資源授權、完成結果UI、人類F-01F與整體NOT_ACCEPTED邊界不變。
+
+HISTORY_ONLY PR218 lint 修正：首次 CI37395720942 的 Cutover SUCCESS／Production Slice QC 在 lint FAILURE 保留；只將 auxiliary-job.test.mjs 的 mock source 字串變數 module 改名 moduleSource，斷言與產品行為不變，targeted ESLint 已 PASS。[修正後66檔來源](qa/DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json)為下一次 CI 候選；舊63檔中61檔未變、main設定頁 auto merge 與此測試更名為兩個差異，owner20 hash 未變。合併後正常 worker／build 驗證待本次 exact PR head CI，Cloud 權限與人類 F-01F 待決邊界不變。
 
 HISTORY_ONLY PR218 main 整合來源37a9578：保留最新官方 main 9b446d498 的 DEV-121 設定唯讀角色頁與正式結案；文件地圖衝突只合併兩方段落。原 63 個凍結產品檔案有 62 個 hash 未變，production-slice.ts 自動整合兩方既有 guard，另三個設定頁／測試檔與官方 main blob 一致。[合併來源凍結](qa/DEV-122-openswx-phase2-pr218-source-freeze-2026-10-06.json)記錄 66 個相關檔案；先前 full-r4／Luna 本地結案只屬其當時來源，合併候選的 required CI 尚待 exact head 結果。新 Cloud 資源授權、人類 F-01F 與整體 NOT_ACCEPTED 不變。
 

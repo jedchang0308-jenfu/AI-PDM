@@ -44,7 +44,7 @@
     "executionWorktree": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM",
     "branchAtPlanAuthoring": "codex/dev122-share-metadata-closure",
     "freshOriginMainAtPlanAuthoring": "90b0d1dc0ba6f832d984938d2acbffb989c70e52",
-    "integrationGate": "Current binding is the 66-file PR218 lint-v2 source freeze. All 66 listed live files match exact bytes/SHA-256, the independent source QC confirms 66 raw/filtered blobs and all 20 owner files unchanged. HEAD 37a9578752390ed17d57fac292cf0b7db5ba8048 is capture provenance only. The reviewed production-slice automatic merge is retained; the only source fix is a two-line test identifier rename with assertions/product implementation unchanged. The earlier 63-file full-R4/Luna evidence remains limited to its prior frozen source. CI 37395720942 failed at lint before the fix; targeted lint now passes, while required CI and build for the corrected next head remain PENDING_NEW_HEAD. Source identity/review is not full candidate QC or acceptance.",
+    "integrationGate": "Current source binding is the PR218 dependency-v3 67-file freeze. All 67 current files match exact bytes/SHA and independent raw/filtered blob readback; the prior 66 product files and owner20 remain unchanged. The only newly bound file is package-lock.json with source-map-js version/resolved/integrity updated from 1.2.1 to 1.2.2; official metadata matches. Local production-lock audit PASS and cleanup are recorded only, without package installation or application build. Historical CI 37395720942 failed at lint; CI 37398155430 on HEAD 5f4e481191632a4c937af078a6fa7df2052aca03 failed dependency audit after Cutover success, with lint/build not run. Corrected next-head CI/build remain PENDING_NEW_HEAD. Prior full-R4 evidence remains limited to its 63-file source.",
     "ownership": "The original QA plan and its authoring-time assertions are preserved byte-for-byte in the authorized final-qa-rebind history directory. This bounded update changes only current source/status bindings in this QA plan plus the permitted history/receipt files; preserve all other dirty worktree changes.",
     "initialHeadBeforePhase1Integration": "7cebdb376ef0a24cbe6bb6ee7e511323cf45b489",
     "phase1Commit": "c999e917fcdaa3c89ba2c6d45101965e9a821c7a",
@@ -77,7 +77,7 @@
     "currentContextApplicability": {
       "specPath": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
       "specSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
-      "scope": "CURRENT spec and the exact PR218 lint-v2 source freeze identify the integrated 66-file candidate by bytes/SHA; source-only identity QC and targeted lint are bounded evidence, while corrected-head CI/build, independent full-candidate QC and release/human layers remain pending.",
+      "scope": "CURRENT spec and dependency-v3 source freeze identify the 67-file source by exact bytes/SHA; independent review and lock-only audit/cleanup are bounded evidence. New-head CI/build, full candidate QC and release/human layers remain pending.",
       "status": "CURRENT_SPEC_REBOUND; owner native SQL context recheck is a bounded subset; app/API/dispatch/UI/Linux layers retain their per-case evidence boundaries and full Phase 2 remains incomplete.",
       "coreV1Commit": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
       "coreV1Checkpoint": ".ai-doc/qa/DEV-122-openswx-phase2-core-checkpoint-2026-10-05.json",
@@ -223,22 +223,27 @@
     },
     "contextCheckpointSha256": "c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35",
     "finalSourceFreeze": {
-      "path": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json",
-      "sha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
+      "path": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-dependency-v3-2026-10-06.json",
+      "sha256": "451ec62004856f04f346aeff357eee969ddd6eaf7e231c250b75e65998b49095",
       "currentSpecPath": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
       "currentSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
-      "sourceHeadProvenanceOnly": "37a9578752390ed17d57fac292cf0b7db5ba8048",
       "branch": "codex/dev122-share-metadata-closure",
-      "fileCount": 66,
-      "verifiedByteAndShaMatches": 66,
-      "verifiedRawAndFilteredBlobMatches": 66,
+      "sourceHeadProvenanceOnly": "5f4e481191632a4c937af078a6fa7df2052aca03",
+      "fileCount": 67,
+      "verifiedByteAndShaMatches": 67,
+      "verifiedRawAndFilteredBlobMatches": 67,
       "mismatches": 0,
+      "priorSourceFreezeSha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
+      "priorFileCount": 66,
+      "priorFilesUnchanged": 66,
+      "newlyBoundFile": "package-lock.json",
+      "delta": "Only source-map-js package-lock version/resolved/integrity changed from 1.2.1 to 1.2.2; other lock entries unchanged.",
       "owner20FreezeSha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
       "owner20RawHashesUnchanged": true,
-      "independentSourceQcPath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/DEV-122-openswx-phase2-pr218-source-independent-qc-2026-10-06.json",
-      "independentSourceQcSha256": "65432de19fa0cdc01ff079697f08f8786b25524aad5f32617b551007b7aa9795",
-      "interpretation": "Current 66-file source identity and independent raw/filtered blob review only. Production-slice is the reviewed automatic merge; the lint fix is a two-line test identifier rename with assertions and product implementation unchanged. Not full candidate QC.",
-      "requiredCurrentCiAndBuild": "PENDING_NEW_HEAD"
+      "independentSourceQcPath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/DEV-122-openswx-phase2-pr218-dependency-independent-qc-2026-10-06.json",
+      "independentSourceQcSha256": "bbe0fa55e44d3d94249eb5560c8b3bb7b2d360c059e34a33ff2753382a2eafa5",
+      "interpretation": "Source/dependency-audit evidence only; no package installation, application build, full candidate QC, or acceptance claim.",
+      "requiredCurrentHeadCiAndBuild": "PENDING_NEW_HEAD"
     },
     "authoringTimeContextSourceInstructions": {
       "scope": "Latest CURRENT context, Dispatch and owner first-enable contract; context/source applicability remains pending a fresh integrated implementation freeze and independent QC.",
@@ -264,19 +269,47 @@
     },
     "requiredCiBuildCurrentHead": {
       "status": "PENDING_NEW_HEAD",
-      "headProvenanceOnly": "37a9578752390ed17d57fac292cf0b7db5ba8048",
+      "sourceFreezePath": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-dependency-v3-2026-10-06.json",
+      "sourceFreezeSha256": "451ec62004856f04f346aeff357eee969ddd6eaf7e231c250b75e65998b49095",
+      "headProvenanceOnly": "5f4e481191632a4c937af078a6fa7df2052aca03",
       "requiredRemoteCi": "PENDING_NEW_HEAD",
       "requiredBuild": "PENDING_NEW_HEAD",
-      "previousRun": {
-        "runId": 37395720942,
-        "head": "37a9578752390ed17d57fac292cf0b7db5ba8048",
-        "status": "FAILURE_AT_LINT",
-        "cutover": "SUCCESS",
-        "failedLogSha256": "8cebdd4b2d4389c338d0e1a300e0b3ad9fe1cfae65f8ec925f3c15aa04aecff0"
-      },
-      "targetedLintEvidencePath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/pr218-lint-v2-result.json",
-      "targetedLintEvidenceSha256": "9dc555ca834a975e57ab318b55f4f9cb7c9ec6578a7e77c388e18f24a502ac8a",
+      "historicalFailedRuns": [
+        {
+          "runId": 37395720942,
+          "result": "FAILURE_AT_LINT",
+          "applicability": "Historical lint-v2 candidate before dependency update."
+        },
+        {
+          "runId": 37398155430,
+          "head": "5f4e481191632a4c937af078a6fa7df2052aca03",
+          "result": "FAILURE_AT_DEPENDENCY_AUDIT",
+          "cutover": "SUCCESS",
+          "lintAndBuild": "NOT_RUN",
+          "providerReadbackSha256": "2eea40c9a3a4f3e590d053b7fc0bef714730922fbc70f016887b45fa4af3d35d"
+        }
+      ],
+      "sourceIndependentQcSha256": "bbe0fa55e44d3d94249eb5560c8b3bb7b2d360c059e34a33ff2753382a2eafa5",
+      "providerMutation": "NONE",
       "releaseAuthority": false
+    },
+    "priorFinalSourceFreezeLintV2": {
+      "path": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json",
+      "sha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
+      "currentSpecPath": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+      "currentSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+      "sourceHeadProvenanceOnly": "37a9578752390ed17d57fac292cf0b7db5ba8048",
+      "branch": "codex/dev122-share-metadata-closure",
+      "fileCount": 66,
+      "verifiedByteAndShaMatches": 66,
+      "verifiedRawAndFilteredBlobMatches": 66,
+      "mismatches": 0,
+      "owner20FreezeSha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
+      "owner20RawHashesUnchanged": true,
+      "independentSourceQcPath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/DEV-122-openswx-phase2-pr218-source-independent-qc-2026-10-06.json",
+      "independentSourceQcSha256": "65432de19fa0cdc01ff079697f08f8786b25524aad5f32617b551007b7aa9795",
+      "interpretation": "Current 66-file source identity and independent raw/filtered blob review only. Production-slice is the reviewed automatic merge; the lint fix is a two-line test identifier rename with assertions and product implementation unchanged. Not full candidate QC.",
+      "requiredCurrentCiAndBuild": "PENDING_NEW_HEAD"
     }
   },
   "contractEvidence": {
@@ -1091,7 +1124,7 @@
     }
   ],
   "layerDisposition": {
-    "localSource": "PR218_LINT_V2_SOURCE_IDENTITY_AND_INDEPENDENT_SOURCE_REVIEW_PASS_LOCAL_ONLY; 66/66 bytes and raw/filtered blobs match, owner20 unchanged; product implementation unchanged by the two-line test identifier fix. Targeted lint passed. CI 37395720942 failed at lint before that fix; corrected next-head CI/build remain PENDING_NEW_HEAD. Not full candidate QC.",
+    "localSource": "PR218_DEPENDENCY_V3_SOURCE_AND_DEPENDENCY_AUDIT_EVIDENCE_ONLY; 67/67 exact source bytes/SHA and raw/filtered blobs match, prior66 and owner20 unchanged; package-lock has only source-map-js version/resolved/integrity 1.2.1→1.2.2, matching official metadata. Recorded production-lock audit PASS has high/critical/total 0 and task cache cleanup was read back; no package installation or build claim. Prior CI 37395720942 failed at lint; CI 37398155430 failed dependency audit after Cutover success and before lint/build. New-head CI/build remain PENDING_NEW_HEAD. Not full candidate QC.",
     "isolatedDatabase": "OWNER_NATIVE_CONTEXT_SQL_SUBSET_PASS_3_TESTS_505_FK; both primary SQLite files absent, PRAGMA not applicable; not full database acceptance.",
     "localLinux": "INDEPENDENT_R3_LOCAL_LINUX_ARTIFACT_BOUNDED_PASS; two test groups code 0, 27 source bindings matched, eight CAD outputs partial with unchanged hashes/results, ten containers verified absent; child_network_syscalls_denied only, not namespace/full sandbox. Cloud NOT_AUTHORIZED_NOT_RUN; F-01F human-owned NOT_RUN.",
     "localBrowserUI": "OWNER_LOCAL_BROWSER_QUEUED_CANCEL_ONLY; 40 HTTP 200 requests and 1440/390 measurements are fixture evidence; completed-result page and independent UI QC remain NOT_RUN.",
@@ -1157,34 +1190,46 @@
     }
   },
   "finalEvidenceRebind": {
-    "status": "CURRENT_66_SOURCE_IDENTITY_REBOUND; SOURCE_FIX_REVIEW_PASS_LOCAL_ONLY; REQUIRED_NEW_HEAD_CI_AND_BUILD_PENDING; FULL_PHASE2_QC_PENDING; WHOLE_DEV122_NOT_ACCEPTED",
+    "status": "CURRENT_DEPENDENCY_V3_SOURCE_AND_AUDIT_EVIDENCE_REBOUND; NEW_HEAD_CI_AND_BUILD_PENDING; FULL_PHASE2_QC_PENDING; WHOLE_DEV122_NOT_ACCEPTED",
     "reboundOn": "2026-10-06",
     "sourceIdentity": {
       "canonicalRepository": "C:/VIBE CODING/AI_PDM",
       "executionWorktree": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM",
       "branch": "codex/dev122-share-metadata-closure",
-      "headProvenanceOnly": "37a9578752390ed17d57fac292cf0b7db5ba8048",
+      "headProvenanceOnly": "5f4e481191632a4c937af078a6fa7df2052aca03",
       "currentSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
-      "finalSourceFreezeSha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
-      "fileCount": 66,
-      "matchedFileCount": 66,
+      "finalSourceFreezeSha256": "451ec62004856f04f346aeff357eee969ddd6eaf7e231c250b75e65998b49095",
+      "fileCount": 67,
+      "matchedFileCount": 67,
       "mismatches": 0,
+      "prior66FilesUnchanged": true,
+      "newlyBoundFile": "package-lock.json",
+      "lockChangedFields": [
+        "version",
+        "resolved",
+        "integrity"
+      ],
+      "lockFrom": "1.2.1",
+      "lockTo": "1.2.2",
       "owner20FreezeSha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
       "owner20RawHashesUnchanged": true,
-      "sourceIndependentQcSha256": "65432de19fa0cdc01ff079697f08f8786b25524aad5f32617b551007b7aa9795",
-      "sourceIndependentQcResult": "SOURCE_FIX_REVIEW_PASS_REQUIRED_CI_PENDING",
-      "correctedHeadRequiredCiAndBuild": "PENDING_NEW_HEAD"
+      "sourceIndependentQcSha256": "bbe0fa55e44d3d94249eb5560c8b3bb7b2d360c059e34a33ff2753382a2eafa5",
+      "sourceIndependentQcResult": "SOURCE/DEPENDENCY-AUDIT EVIDENCE ONLY",
+      "recordedLocalAudit": "PASS; production lock only; high=0; critical=0; total=0; no package install/build claim",
+      "previousCi37395720942": "FAILURE_AT_LINT",
+      "previousCi37398155430": "FAILURE_AT_DEPENDENCY_AUDIT; lint/build NOT_RUN",
+      "correctedHeadCiAndBuild": "PENDING_NEW_HEAD"
     },
     "originalPlan": {
       "sha256": "4b5ec29abe1f7d8e2024d6b3fc54b5d6eb2215f9d8229cac2e44fcdd916f692d",
       "historyPath": "output/qa/dev-122/openswx-phase2/final-qa-rebind/DEV-122-openswx-phase2-validation-plan-2026-10-05.original.json"
     },
-    "rebindReceiptPath": "output/qa/dev-122/openswx-phase2/final-qa-rebind/pr218-lint-v2-source-evidence-rebind-receipt-2026-10-06.json",
+    "rebindReceiptPath": "output/qa/dev-122/openswx-phase2/final-qa-rebind/pr218-dependency-v3-source-evidence-rebind-receipt-2026-10-06.json",
     "evidenceRefs": {
       "finalSourceFreeze": {
-        "path": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json",
-        "sha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
-        "scope": "66-file source identity: 66 live bytes/SHA and independent raw/filtered blobs match; owner20 unchanged. Capture HEAD is provenance only. This is not full candidate QC."
+        "path": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-dependency-v3-2026-10-06.json",
+        "sha256": "451ec62004856f04f346aeff357eee969ddd6eaf7e231c250b75e65998b49095",
+        "scope": "Current 67-file dependency-v3 source identity; 67/67 bytes/SHA and independent raw/filtered blobs match, previous66 and owner20 unchanged; package-lock only adds the audited three-field source-map-js 1.2.2 binding."
       },
       "localActualApi": {
         "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/native-ui/actual-api-outcome.json",
@@ -1456,23 +1501,120 @@
       },
       "pr218CorrectedHeadCiBuildPending": {
         "status": "PENDING_NEW_HEAD",
-        "sourceFreezePath": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json",
-        "sourceFreezeSha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
-        "captureHeadProvenanceOnly": "37a9578752390ed17d57fac292cf0b7db5ba8048",
+        "sourceFreezePath": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-dependency-v3-2026-10-06.json",
+        "sourceFreezeSha256": "451ec62004856f04f346aeff357eee969ddd6eaf7e231c250b75e65998b49095",
+        "captureHeadProvenanceOnly": "5f4e481191632a4c937af078a6fa7df2052aca03",
+        "previousFailedCiRuns": [
+          37395720942,
+          37398155430
+        ],
         "requiredRemoteCi": "PENDING_NEW_HEAD",
         "requiredBuild": "PENDING_NEW_HEAD",
         "noSuccessClaim": true
+      },
+      "priorPr218LintV2SourceFreeze": {
+        "path": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json",
+        "sha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
+        "scope": "66-file source identity: 66 live bytes/SHA and independent raw/filtered blobs match; owner20 unchanged. Capture HEAD is provenance only. This is not full candidate QC."
+      },
+      "pr218DependencyV3SourceIndependentQc": {
+        "sourceArtifactPath": ".ai-doc/qa/DEV-122-openswx-phase2-pr218-dependency-independent-qc-2026-10-06.json",
+        "sourceArtifactSha256": "bbe0fa55e44d3d94249eb5560c8b3bb7b2d360c059e34a33ff2753382a2eafa5",
+        "canonicalReadbackPath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/DEV-122-openswx-phase2-pr218-dependency-independent-qc-2026-10-06.json",
+        "canonicalReadbackSha256": "bbe0fa55e44d3d94249eb5560c8b3bb7b2d360c059e34a33ff2753382a2eafa5",
+        "result": "SOURCE/DEPENDENCY-AUDIT EVIDENCE ONLY",
+        "sourceFiles": 67,
+        "rawAndFilteredBlobMismatches": 0,
+        "prior66FilesUnchanged": true,
+        "ownerFiles": 20,
+        "ownerRawHashMismatches": 0,
+        "lockChangedFields": [
+          "version",
+          "resolved",
+          "integrity"
+        ],
+        "metadataIntegrityAndLicenseMatch": true,
+        "localNodeModules": "Still 1.2.1; no install/build claim.",
+        "scope": "Independent source/audit/cleanup evidence readback only; no new audit/test/build execution."
+      },
+      "pr218SourceMapLockV3PatchReceipt": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/pr218-source-map-lock-v3-patch-receipt.json",
+        "sha256": "4cdd2c52c61732d21adb09a7bef50642183490646054c036e9d13f18cbf06280",
+        "result": "EXACT_LOCK_ENTRY_PATCHED",
+        "beforeLockSha256": "1c6046afbc56b33ab947b421091c3dfae40c4821ccf76979807ab57e8d3a61d1",
+        "afterLockSha256": "0e24e9f05cf438b755b55992dd73d3a27f0076d7d6cb73a6160598657118b041",
+        "affectedEntry": "packages.node_modules/source-map-js",
+        "changedFields": [
+          "version",
+          "resolved",
+          "integrity"
+        ],
+        "otherLockEntriesUnchanged": true,
+        "packageJsonUnchanged": true,
+        "nodeModulesMutation": "NONE"
+      },
+      "sourceMapJs122OfficialMetadata": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/source-map-js-1.2.2-registry-metadata.json",
+        "sha256": "2a7a225c550e3a0e75f9af72a635e33d7b2e4a0fca4f596679a2775971f53ed6",
+        "version": "1.2.2",
+        "integrity": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==",
+        "license": "BSD-3-Clause",
+        "scope": "Official registry metadata readback; not package installation."
+      },
+      "pr218NpmAuditV3": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/pr218-npm-audit-v3-result.json",
+        "sha256": "9d040aac5c03c22e0fe9c51ac74903898cff14f41d3a3f62bc5fdc633bc891fe",
+        "result": "PASS",
+        "code": 0,
+        "lockSha256": "0e24e9f05cf438b755b55992dd73d3a27f0076d7d6cb73a6160598657118b041",
+        "vulnerabilityCounts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "scope": "Current package-lock production dependencies only, does not install patched package or validate application build",
+        "providerMutation": "NONE"
+      },
+      "pr218NpmAuditV3Cleanup": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/pr218-npm-audit-v3-cleanup.json",
+        "sha256": "608c18209e2b0ed050f8d5a75bd69bbcc5ee1cc3751b3783c6793476c9e5faa8",
+        "result": "TASK_AUDIT_CACHE_CLEANED",
+        "childNativeAbsent": true,
+        "taskDataAbsent": true,
+        "taskRepositoryAbsent": true,
+        "targetReadbackAbsent": true,
+        "sharedDependencies": "PRESERVED",
+        "providerMutation": "NONE"
+      },
+      "pr218FailedCi37398155430": {
+        "runId": 37398155430,
+        "head": "5f4e481191632a4c937af078a6fa7df2052aca03",
+        "result": "FAILURE_AT_DEPENDENCY_AUDIT",
+        "cutover": "SUCCESS",
+        "lintAndLaterBuild": "NOT_RUN",
+        "failedStdoutPath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/pr218-ci37398155430-failed-stdout.txt",
+        "failedStdoutSha256": "3eff6a630eaabe63da0b030d8bba3d1e5d0b4170da33e7c9e408ce2245be4a35",
+        "providerReadbackPath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/pr218-ci37398155430-provider-readback.json",
+        "providerReadbackSha256": "2eea40c9a3a4f3e590d053b7fc0bef714730922fbc70f016887b45fa4af3d35d",
+        "providerConclusion": "failure",
+        "providerStatus": "completed",
+        "applicability": "Historical failed pre-dependency-patch attempt; not current corrected-source CI success."
       }
     },
     "caseStatusBindings": [
       {
         "caseId": "P2-SOURCE-FREEZE",
-        "status": "SOURCE_IDENTITY_AND_INDEPENDENT_SOURCE_REVIEW_ONLY_66_OF_66; NOT_FULL_CANDIDATE_QC",
+        "status": "SOURCE_AND_DEPENDENCY_AUDIT_EVIDENCE_ONLY_67_OF_67; FULL_CANDIDATE_QC_PENDING",
         "evidence": [
           "finalSourceFreeze",
-          "pr218SourceIndependentQc"
+          "pr218DependencyV3SourceIndependentQc",
+          "pr218NpmAuditV3",
+          "pr218NpmAuditV3Cleanup"
         ],
-        "limit": "All 66 frozen file bytes/SHA and raw/filtered blobs match, with owner20 unchanged. Independent review confirms the two-line test identifier fix leaves assertions and product implementation unchanged; targeted lint PASS is a bounded check. The prior CI run failed at lint; corrected-head required CI/build remain PENDING_NEW_HEAD. This does not establish full candidate QC, Cloud behavior, or DEV-122 acceptance."
+        "limit": "Independent readback confirms 67/67 source files match, prior66 and owner20 are unchanged, and only the source-map-js lock version/resolved/integrity fields changed. Recorded production-lock audit PASS has zero high/critical/total and its task cache cleanup was confirmed; no package install/build or full candidate QC claim. CI 37398155430 failed dependency audit before lint/build; corrected new-head CI/build remain PENDING_NEW_HEAD."
       },
       {
         "caseId": "P2-PRINCIPAL-ROUTES",
@@ -1583,7 +1725,7 @@
       },
       {
         "caseId": "P2-ISOLATED-BUILD",
-        "status": "CURRENT_CORRECTED_HEAD_ISOLATED_BUILD_AND_REQUIRED_CI_PENDING; PRIOR_R4_BUILD_PASS_SCOPED_TO_63_FILE_SOURCE",
+        "status": "CURRENT_DEPENDENCY_V3_HEAD_CI_AND_BUILD_PENDING; LAST_CI_FAILED_DEPENDENCY_AUDIT; PRIOR_R4_PASS_SCOPED_TO_63_FILE_SOURCE",
         "evidence": [
           "ownerFullR4",
           "ownerLocalOwnerV4",
@@ -1594,12 +1736,16 @@
           "independentSnapshotReadR4",
           "independentFinalOwnerBuildCleanupQcR4",
           "finalSourceFreeze",
-          "pr218SourceIndependentQc",
-          "pr218TargetedLintV2",
+          "pr218DependencyV3SourceIndependentQc",
+          "pr218SourceMapLockV3PatchReceipt",
+          "sourceMapJs122OfficialMetadata",
+          "pr218NpmAuditV3",
+          "pr218NpmAuditV3Cleanup",
           "pr218FailedCi37395720942",
+          "pr218FailedCi37398155430",
           "pr218CorrectedHeadCiBuildPending"
         ],
-        "limit": "The prior owner R4 build and Luna source/cleanup readback apply to the earlier 63-file frozen source only. The current PR218 lint-v2 candidate is the 66-file source freeze captured with HEAD 37a9578752390ed17d57fac292cf0b7db5ba8048 as provenance; its two-line test identifier correction and targeted lint are bounded evidence. CI 37395720942 failed at lint before the correction. Required CI and isolated build for the corrected next head remain PENDING_NEW_HEAD; the old capacity block and one named human-accepted override remain historical and are not a general capacity PASS. Cloud and completed-result UI are NOT_RUN, F-01F remains human-owned NOT_RUN, and whole DEV-122 remains NOT_ACCEPTED."
+        "limit": "Prior owner R4 build/source-cleanup evidence applies only to the earlier 63-file frozen source. Current dependency-v3 source is 67 files with package-lock.json adding the three source-map-js 1.2.2 fields; independent source review and production-lock audit/cleanup are recorded evidence only, with no installed-package/application-build claim. CI 37395720942 failed at lint; CI 37398155430 failed at dependency audit after Cutover success, and lint/build did not run. Corrected new-head CI/build remain PENDING_NEW_HEAD. Historical capacity remains BLOCKED under its named human-accepted override, not a general capacity PASS. Cloud and completed-result UI remain NOT_RUN, F-01F remains human-owned NOT_RUN, whole DEV-122 remains NOT_ACCEPTED."
       },
       {
         "caseId": "P2-PARSER-CHILD-ISOLATION",
@@ -1628,6 +1774,22 @@
       "fileCount": 63,
       "matchedFileCount": 63,
       "mismatches": 0
+    },
+    "priorSourceIdentityLintV2": {
+      "canonicalRepository": "C:/VIBE CODING/AI_PDM",
+      "executionWorktree": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM",
+      "branch": "codex/dev122-share-metadata-closure",
+      "headProvenanceOnly": "37a9578752390ed17d57fac292cf0b7db5ba8048",
+      "currentSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+      "finalSourceFreezeSha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
+      "fileCount": 66,
+      "matchedFileCount": 66,
+      "mismatches": 0,
+      "owner20FreezeSha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
+      "owner20RawHashesUnchanged": true,
+      "sourceIndependentQcSha256": "65432de19fa0cdc01ff079697f08f8786b25524aad5f32617b551007b7aa9795",
+      "sourceIndependentQcResult": "SOURCE_FIX_REVIEW_PASS_REQUIRED_CI_PENDING",
+      "correctedHeadRequiredCiAndBuild": "PENDING_NEW_HEAD"
     }
   }
 }

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "aipdm.dev122.pr218-source-independent-qc.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "recordedAt": "2026-10-06T01:31:44.082604+00:00",
+  "role": "Independent QC",
+  "agent": "/root/dev122_openswx_qc_luna",
+  "model": "gpt-6-luna",
+  "reasoningEffort": "max",
+  "recorder": "/root",
+  "recordType": "Root-preserved independent final handoff; source/evidence readback only, no new audit/test/build execution",
+  "independentResult": "SOURCE/DEPENDENCY-AUDIT EVIDENCE ONLY",
+  "sourceHeadProvenanceOnly": "5f4e481191632a4c937af078a6fa7df2052aca03",
+  "sourceFreeze": {
+    "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\.ai-doc\\qa\\DEV-122-openswx-phase2-pr218-source-freeze-dependency-v3-2026-10-06.json",
+    "sha256": "451ec62004856f04f346aeff357eee969ddd6eaf7e231c250b75e65998b49095"
+  },
+  "verified": {
+    "sourceFiles": 67,
+    "rawAndFilteredBlobMismatches": 0,
+    "prior66FilesUnchanged": true,
+    "ownerFiles": 20,
+    "ownerRawHashMismatches": 0,
+    "changedEntry": "packages.node_modules/source-map-js",
+    "changedFields": [
+      "version",
+      "resolved",
+      "integrity"
+    ],
+    "from": "1.2.1",
+    "to": "1.2.2",
+    "otherLockEntriesUnchanged": true,
+    "packageJsonUnchanged": true,
+    "localNodeModules": "Still 1.2.1, mtime precedes this lock patch; no installed-package/build claim",
+    "officialMetadataIntegrityAndLicenseMatch": true
+  },
+  "evidence": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\pr218-source-map-lock-v3-patch-receipt.json",
+      "sha256": "4cdd2c52c61732d21adb09a7bef50642183490646054c036e9d13f18cbf06280"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\source-map-js-1.2.2-registry-metadata.json",
+      "sha256": "2a7a225c550e3a0e75f9af72a635e33d7b2e4a0fca4f596679a2775971f53ed6"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\pr218-npm-audit-v3-result.json",
+      "sha256": "9d040aac5c03c22e0fe9c51ac74903898cff14f41d3a3f62bc5fdc633bc891fe"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\pr218-npm-audit-v3-cleanup.json",
+      "sha256": "608c18209e2b0ed050f8d5a75bd69bbcc5ee1cc3751b3783c6793476c9e5faa8"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\pr218-ci37398155430-failed-stdout.txt",
+      "sha256": "3eff6a630eaabe63da0b030d8bba3d1e5d0b4170da33e7c9e408ce2245be4a35"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\pr218-ci37398155430-provider-readback.json",
+      "sha256": "2eea40c9a3a4f3e590d053b7fc0bef714730922fbc70f016887b45fa4af3d35d"
+    }
+  ],
+  "officialReferences": [
+    "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+    "https://github.com/7rulnik/source-map-js/releases/tag/v1.2.2"
+  ],
+  "auditEvidenceReadback": "Recorded exit0 and all production lockfile vulnerability counts0; independent reviewer did not rerun audit",
+  "cleanupEvidenceReadback": "Recorded task audit cache/data/repository and native child absent; independent reviewer reread paths and preserved shared dependencies",
+  "historicalCi": {
+    "runId": 37398155430,
+    "head": "5f4e481191632a4c937af078a6fa7df2052aca03",
+    "cutover": "SUCCESS",
+    "productionSliceQC": "FAILURE_AT_DEPENDENCY_AUDIT",
+    "lintAndLaterBuild": "NOT_RUN"
+  },
+  "boundaries": {
+    "requiredNextHeadCIAndBuild": "PENDING_NEW_HEAD",
+    "old63FullR4": "Historical source only, not extended to dependency change",
+    "cloud": "NOT_RUN_PENDING_HUMAN_RESOURCE_AUTHORIZATION",
+    "normalCompletedResultUI": "NOT_RUN",
+    "fullNativeF01F": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+    "providerMutation": "NONE",
+    "releaseAuthority": false,
+    "wholeDEV122": "NOT_ACCEPTED"
+  },
+  "handoff": "67/67 raw and filtered blobs match, prior66 and owner20 unchanged. Exact single lock entry version/resolved/integrity patch matches official1.2.2 metadata and vulnerability fix. Existing production-lock audit/cleanup evidence read back only. No install/build/behavior/Cloud/native/whole-DEV acceptance claim."
+}
