@@ -182,7 +182,11 @@ async function readPartialFirstBootstrap(args) {
   return { ...proof, readback }
 }
 
-async function readCompletedFirstProof({ transport, profile, descriptor, plan, build, basis, completedFirstBootstrapInputRef, completedFirstPauseInputRef, supplementalIamReadbackRef, readSource }) {
+async function readCompletedFirstProof({ transport, profile, descriptor, plan, build, basis, completedFirstBootstrapInputRef, completedFirstPauseInputRef, supplementalIamReadbackRef, readSource, ancestors = [] }) {
+  // Every successor proves its immutable predecessor; an execution count alone
+  // never authorizes an inherited run. Bound the receipt walk and reject cycles.
+  if (ancestors.length >= 8 || ancestors.includes(completedFirstBootstrapInputRef?.uri)) fail('OPENSWX_COMPLETED_FIRST_CHAIN_INVALID')
+  const chain = [...ancestors, completedFirstBootstrapInputRef?.uri]
   for (const ref of [completedFirstBootstrapInputRef, completedFirstPauseInputRef, supplementalIamReadbackRef]) assertOpenSwxWorkerRef(ref)
   const oldInputRow = await transport.readJson(completedFirstBootstrapInputRef, BUCKET, [WORKER_RECEIPT_PREFIX]), oldInput = oldInputRow.value
   const oldPauseInputRow = await transport.readJson(completedFirstPauseInputRef, BUCKET, [WORKER_RECEIPT_PREFIX]), oldPauseInput = oldPauseInputRow.value
@@ -203,13 +207,24 @@ async function readCompletedFirstProof({ transport, profile, descriptor, plan, b
   const oldApply = (await transport.readJson(oldInput.resourceApplyRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   if (oldApply.schemaVersion !== 'aipdm.openswx-resource-apply.v1' || oldApply.ownerApplicationId !== 'ai-pdm' || oldApply.actor !== profile.normalActor
     || oldApply.status !== 'APPLIED' || oldApply.evidenceScope !== 'PRODUCTION_PROVIDER' || oldApply.sourceRevision !== oldDescriptor.sourceRevision
-    || oldApply.resourcePlanHash !== descriptor.resourcePlanHash || oldApply.mutation !== 'READBACK_ONLY_FIRST_SOURCE_RECONCILIATION'
+    || oldApply.resourcePlanHash !== descriptor.resourcePlanHash || !['READBACK_ONLY_FIRST_SOURCE_RECONCILIATION', 'READBACK_ONLY_COMPLETED_FIRST_SOURCE_RECONCILIATION'].includes(oldApply.mutation)
     || canonicalize(oldApply.descriptorRef) !== canonicalize(oldDescriptorRow.ref) || canonicalize(oldApply.approvedPlanRef) !== canonicalize(oldDescriptor.resourcePlanRef)
     || canonicalize(oldApply.requestRef) !== canonicalize(basis.priorResourceRequestRef) || canonicalize(oldApply.binaryPlanReceiptRef) !== canonicalize(basis.priorBinaryPlanReceiptRef)
-    || canonicalize(oldApply.firstSourceReconciliation) !== canonicalize(oldBasis) || oldApply.readback?.image !== basis.priorImage || !oldApply.partialFirstBootstrap) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
+    || canonicalize(oldApply.firstSourceReconciliation) !== canonicalize(oldBasis)) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
+  let inherited = null
+  if (oldApply.mutation === 'READBACK_ONLY_COMPLETED_FIRST_SOURCE_RECONCILIATION') {
+    if (!oldApply.completedFirstBootstrap || oldApply.partialFirstBootstrap
+      || canonicalize(oldApply.supplementalIamReadbackRef) !== canonicalize(oldApply.completedFirstBootstrap.supplementalIamReadbackRef)) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
+    inherited = await readCompletedFirstProof({ transport, profile, descriptor: oldDescriptor, plan: oldPlan, build: oldBuild, basis: oldBasis,
+      ...oldApply.completedFirstBootstrap, readSource, ancestors: chain })
+    if (canonicalize(oldApply.completedFirstBootstrap) !== canonicalize(inherited.completed)
+      || oldApply.readback?.image !== inherited.completed.priorImage) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
+  } else if (!oldApply.partialFirstBootstrap || oldApply.completedFirstBootstrap || oldApply.supplementalIamReadbackRef
+    || oldApply.readback?.image !== basis.priorImage) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
+  const partial = inherited?.partial ?? oldApply.partialFirstBootstrap
   // Completed-FIRST consumes an already sealed credential chain. A missing
   // seal must not turn this read-only proof stage into issuance reconciliation.
-  const originalInput = (await transport.readJson(oldApply.partialFirstBootstrap.priorBootstrapInputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  const originalInput = (await transport.readJson(partial.priorBootstrapInputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   if (!/^[A-Za-z0-9-]{6,100}$/u.test(originalInput?.receiptId ?? '')) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
   const originalCredentialRoot = `${profile.receiptRoot}/${originalInput.receiptId}`
   for (const suffix of ['-token-version.json', '-registry-version-request.json', '-registry-version.json']) {
@@ -219,13 +234,15 @@ async function readCompletedFirstProof({ transport, profile, descriptor, plan, b
   if (!bootstrap || !paused) fail('OPENSWX_COMPLETED_FIRST_PROOF_MISSING')
   assertWorkerReceipt(bootstrap.value, oldDescriptor, 'bootstrap', { actor: profile.normalActor, image: oldBuild.image })
   assertWorkerReceipt(paused.value, oldDescriptor, 'paused-drained', { actor: profile.normalActor, image: oldBuild.image })
-  const credentials = await readPartialFirstCredentialProof({ transport, profile, descriptor, plan, build, basis, priorBootstrapInputRef: oldApply.partialFirstBootstrap.priorBootstrapInputRef,
+  const credentials = inherited ? { partial: inherited.partial } : await readPartialFirstCredentialProof({ transport, profile, descriptor, plan, build, basis, priorBootstrapInputRef: partial.priorBootstrapInputRef,
     allowCredentialProgress: true, registryAuthority: { deadlineAt: oldInput.deadlineAt, completedAt: bootstrap.value.observedAt } })
-  if (canonicalize(credentials.partial) !== canonicalize(oldApply.partialFirstBootstrap)) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
+  if (canonicalize(credentials.partial) !== canonicalize(partial)) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
   await assertPausedDrainReceipt(transport, paused.value, oldDescriptor, profile)
   const facts = bootstrap.value.facts, selftest = workerTemplate(profile, oldBuild.image, null, 'selftest')
   if (facts.bootstrapKind !== 'FIRST_CREATE' || canonicalize(facts.resourceApplyRef) !== canonicalize(oldInput.resourceApplyRef)
-    || canonicalize(facts.partialFirstBootstrap) !== canonicalize(credentials.partial) || facts.tokenSecretVersion !== credentials.partial.tokenSecretVersion
+    || (inherited ? canonicalize(facts.completedFirstBootstrap) !== canonicalize(inherited.completed) || facts.partialFirstBootstrap != null
+      : canonicalize(facts.partialFirstBootstrap) !== canonicalize(credentials.partial) || facts.completedFirstBootstrap != null)
+    || facts.tokenSecretVersion !== credentials.partial.tokenSecretVersion
     || facts.registrySecretVersion !== `projects/${profile.projectNumber}/secrets/${profile.registrySecretId}/versions/3`
     || facts.priorRegistryVersion !== credentials.partial.priorRegistryVersion || oldInput.currentRegistryVersion !== credentials.partial.priorRegistryVersion
     || facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, oldBuild.image, facts.tokenSecretVersion)))
@@ -242,6 +259,7 @@ async function readCompletedFirstProof({ transport, profile, descriptor, plan, b
   assertWorkerReceipt(finite.value, oldDescriptor, 'finite-terminal', { actor: profile.normalActor, image: oldBuild.image })
   const execution = assertTerminalExecution(finite.value.facts.execution, finite.value.facts.executionName, { success: true }), proof = preflight.value.facts.proof
   const executionName = canonicalWorkerExecution(execution.name)
+  if ([execution.createTime, execution.completionTime, proof?.marker?.timestamp, paused.value.facts.quiescenceCompletedAt].some(value => typeof value !== 'string' || !Number.isFinite(Date.parse(value)))) fail('OPENSWX_COMPLETED_FIRST_EXECUTION_INVALID')
   if (finite.ref.uri !== bootstrap.ref.uri.replace(/\.json$/u, '-selftest.json') || finite.value.templateSha256 !== facts.selftestTemplateSha256 || finite.value.facts.terminalExitZero !== true
     || canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(selftest.template)
     || proof?.claimProof !== 'ISOLATION_ONLY_NO_CAD' || proof.executionName !== executionName || proof.marker?.marker?.state !== 'isolation_verified'
@@ -254,7 +272,11 @@ async function readCompletedFirstProof({ transport, profile, descriptor, plan, b
     pausedDrainedRef: paused.ref, priorDescriptorRef: oldDescriptorRow.ref, priorWorkerBuildRef: oldBuildRow.ref, cloudPreflightRef: preflight.ref,
     finiteSelftestRef: finite.ref, supplementalIamReadbackRef, partialFirstBootstrap: credentials.partial,
     tokenSecretVersion: facts.tokenSecretVersion, registrySecretVersion: facts.registrySecretVersion, priorImage: oldBuild.image }
-  return { completed, partial: credentials.partial, execution, priorJob: paused.value.facts.providerJob }
+  const executions = [...(inherited?.executions ?? []), execution]
+  if (new Set(executions.map(row => canonicalWorkerExecution(row.name))).size !== executions.length
+    || (inherited && Date.parse(execution.createTime) < Date.parse(inherited.quiescenceCompletedAt))) fail('OPENSWX_COMPLETED_FIRST_EXECUTION_INVALID')
+  return { completed, partial: credentials.partial, execution, executions, priorJob: paused.value.facts.providerJob,
+    quiescenceCompletedAt: paused.value.facts.quiescenceCompletedAt }
 }
 function preservedJobMetadata(job) {
   return Object.fromEntries(['labels', 'annotations', 'client', 'clientVersion', 'launchStage', 'binaryAuthorization'].filter(key => Object.hasOwn(job, key)).map(key => [key, job[key]]))
@@ -262,7 +284,7 @@ function preservedJobMetadata(job) {
 async function assertCompletedFirstProvider({ transport, profile, descriptor, proof, readSource, image = proof.completed.priorImage, extraExecution = null }) {
   const readback = await readWorkerResources(transport, profile, image, workerTemplate(profile, image, null, 'selftest'), { ref: proof.completed.supplementalIamReadbackRef, sourceRevision: descriptor.sourceRevision, readSource })
   if (canonicalize(preservedJobMetadata(readback.providerJob)) !== canonicalize(preservedJobMetadata(proof.priorJob))) fail('OPENSWX_JOB_METADATA_DRIFT')
-  const expected = [proof.execution, ...(extraExecution ? [extraExecution] : [])]
+  const expected = [...proof.executions, ...(extraExecution ? [extraExecution] : [])]
   const rows = await assertNoActiveExecutions(transport)
   if (rows.length !== expected.length || new Set(rows.map(row => canonicalWorkerExecution(row.name))).size !== rows.length) fail('OPENSWX_COMPLETED_FIRST_EXECUTION_INVALID')
   for (const row of rows) {
@@ -395,7 +417,8 @@ export function parseWorkerStdoutMarker(row, executionName, expectedState = 'emp
 export async function readWorkerStdoutProof({ transport, profile, execution, expectedState = 'empty', deadlineAt }) {
   assertOpenSwxWorkerProfile(profile); checkDeadline(deadlineAt)
   const executionName = canonicalWorkerExecution(execution.name), executionId = executionName.split('/').at(-1)
-  if (!execution.createTime || !execution.completionTime) fail('OPENSWX_STDOUT_WINDOW_INVALID')
+  if ([execution.createTime, execution.completionTime].some(value => typeof value !== 'string' || !Number.isFinite(Date.parse(value)))
+    || Date.parse(execution.createTime) > Date.parse(execution.completionTime)) fail('OPENSWX_STDOUT_WINDOW_INVALID')
   const filter = [`resource.type="cloud_run_job"`, `resource.labels.project_id="${profile.projectId}"`, `resource.labels.location="${profile.location}"`, `resource.labels.job_name="${profile.jobId}"`, `labels."run.googleapis.com/execution_name"="${executionId}"`, 'logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Fstdout"', `timestamp>="${execution.createTime}"`, `timestamp<="${execution.completionTime}"`].join(' AND ')
   const markers = new Map(); let pageToken = ''
   for (let page = 0; page < profile.bounds.maxLogPages; page += 1) {
@@ -730,6 +753,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
         const finite = await transport.readJson(preflight.value.previousRefs[0], BUCKET, [WORKER_RECEIPT_PREFIX])
         assertWorkerReceipt(finite.value, descriptor.value, 'finite-terminal', { actor: actor.email, image: build.image })
         const execution = assertTerminalExecution(finite.value.facts.execution, finite.value.facts.executionName, { success: true }), storedProof = preflight.value.facts.proof
+        if ([execution.createTime, execution.completionTime, storedProof?.marker?.timestamp].some(value => typeof value !== 'string' || !Number.isFinite(Date.parse(value)))) fail('OPENSWX_COMPLETED_FIRST_EXECUTION_INVALID')
         if (finite.ref.uri !== uri.slice(0, -5) + '-selftest.json' || finite.value.templateSha256 !== facts.selftestTemplateSha256 || finite.value.facts.terminalExitZero !== true
           || canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(selftest.template)
           || storedProof?.claimProof !== 'ISOLATION_ONLY_NO_CAD' || storedProof.executionName !== canonicalWorkerExecution(execution.name)

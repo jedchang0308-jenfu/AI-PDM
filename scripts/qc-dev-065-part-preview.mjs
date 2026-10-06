@@ -111,6 +111,15 @@ await checkAsync("PPC-IMG-008 unsupported GIF and oversized input fail before ac
   await rejectsCode({ bytes: Buffer.alloc(10 * 1024 * 1024 + 1), fileName: "part.png", declaredMimeType: "image/png" }, "PART_PREVIEW_IMAGE_TOO_LARGE");
 });
 
+if (process.argv[2] === "--image-only") {
+  const expectedSharp = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).dependencies.sharp;
+  const versionMatches = sharp.versions.sharp === expectedSharp;
+  const imageFailed = checks.filter((item) => !item.pass);
+  for (const item of checks) console.log(`${item.pass ? "PASS" : "FAIL"} ${item.id}`);
+  console.log(JSON.stringify({ scope: "IMAGE_ONLY_NO_SCHEMA_OR_FIXTURES", sharp: sharp.versions.sharp, expectedSharp, versionMatches, tests: checks.length, passed: checks.length - imageFailed.length, failed: imageFailed.length }));
+  process.exit(imageFailed.length || !versionMatches ? 1 : 0);
+}
+
 const schema = fs.readFileSync(path.join(root, "db", "schema.sql"), "utf8");
 const db = new Database(":memory:");
 db.pragma("foreign_keys = ON");

@@ -1,10 +1,10 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（2026-10-06；五項讀取補權已核准／來源驗證及獨立 QC 通過，正式發布待執行）
+## DEV-122 CURRENT（2026-10-06；五項補權已套用／R06 通過，來源修復及獨立 QC 通過）
 
-本節優先於下方歷史續點。PR223 官方 main `43ea5722` 的 A07 受保護建置及 worker raw HIGH／CRITICAL=0 通過；R05 已完成十二資源唯讀核對、reader v1／registry v3 與一次成功隔離自測，再確認 PAUSED。B04 在 prepare 被拒，實際首先被拒的 API 仍 UNKNOWN；082／candidate／traffic 未執行，既有正式 revision `ai-pdm-prod-5c8854b292a1` 保持 100%／0 tags。
+本節優先於下方歷史續點。PR225 已正常合併至官方 main `f1940bb9`，PR／main required CI 均 SUCCESS；A08 受保護 prepare／build 完成，app 與 worker 建置成功，worker raw HIGH／CRITICAL=0。已核准五項唯讀 IAM 實際 APPLIED。R06 原十二資源僅唯讀銜接，bootstrap 與 PAUSED／drained 均 PASS，reader v1／registry v3 原值重用，沒有重發。B05 在本地 runtime-config prerequisite 因 `OPENSWX_IAM_SOURCE_READER_REQUIRED` 停止，未產生完整 capsule；082／candidate／traffic 未執行，既有正式 revision `ai-pdm-prod-5c8854b292a1` 維持 100%／0 tags。
 
-人類已明確核准新增五項唯讀 IAM；Scheduler 有效權限為專案內所有排程設定 get，程式限定本功能。依[架構契約](specs/DEV-122-openswx-release-readback-iam-contract-2026-10-06.md)與[本次續點](qa/DEV-122-openswx-release-readback-iam-2026-10-06.json)，在同一 AI-PDM worktree 修正獨立 completed-FIRST bridge，重用已 sealed v1／v3，不重套原十二資源；owner actors 只驗 GCS 補權證據，human bootstrap 才做 fresh IAM 回讀。目前來源 48／48 mock 與 targeted ESLint 通過，own runtime／temp 已清理，Tech Lead bounded source review 無未解 P0／P1；獨立 Luna source QC 亦通過，沒有未解 P0／P1；normal PR required CI、五項 apply 與新正式 release 待執行。8-CAD completed UI 尚 NOT_RUN，F-01F 由使用者正式驗證，外部供應商回覆保持停用，整體 NOT_ACCEPTED。
+此次修正共用 producer 兩處既有 `readWorkerSource` callback 傳遞，並以最多八層、唯一 immutable bootstrap ref 的完整前序證據續接 completed-FIRST；每筆 inherited execution 須各自驗證來源／成功終態／template／時間／receipt 與現行 exact inventory，任何多出、缺少、active、unknown 或漂移立即停止。沿用原 sealed v1／v3 及最初發行權限時窗，不重套原十二 Terraform、不增加人類或 owner actor 權限；新來源須正常 PR／required CI／fresh capsule，新五資源僅 create／no-op 的原授權套件。詳見[續接架構契約](specs/DEV-122-openswx-release-readback-iam-contract-2026-10-06.md)與[此次修復續點](qa/DEV-122-openswx-producer-continuation-2026-10-06.json)。來源 67／67 mock（含兩個實際 producer caller 與第三來源續接／拒絕／重放）及 targeted ESLint 通過，own runtime／暫存已清理，獨立 Luna source QC 通過且無未解 P0／P1／P2；新來源 required CI／正式發布待執行；正常 8-CAD completed UI 尚 NOT_RUN，完整原生 F-01F 留由使用者正式驗證，供應商回覆停用／延後，整體 NOT_ACCEPTED。
 
 ## DEV-122 CURRENT（2026-10-06；Job PATCH API修復／40 mock PASS）
 

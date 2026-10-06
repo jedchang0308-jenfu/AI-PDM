@@ -3,11 +3,34 @@ import { spawnSync } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
+import { assertSharpImageQcSummary } from './lib/dev122-sharp-ci-evidence.mjs'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 if (!/^\/output export-ignore$/mu.test(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'))) throw new Error('PRODUCTION_SOURCE_ARCHIVE_OUTPUT_BOUNDARY_MISSING')
-const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'scripts/dev122-openswx-owner-release.test.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
+const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'scripts/lib/dev122-sharp-ci-evidence.test.mjs', 'scripts/dev122-openswx-owner-release.test.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
+const imageTempPrefix = path.resolve(os.tmpdir(), 'aipdm-dev122-sharp-');
+const imageTemp = fs.mkdtempSync(imageTempPrefix);
+const imageScope = { project: 'AI-PDM', purpose: 'DEV122 patched sharp converter and static preview contract CI', port: null, parentPid: process.pid, executable: process.execPath, PDM_DATA_DIR: path.join(imageTemp, 'unused-data'), PDM_REPOSITORY_DIR: path.join(imageTemp, 'unused-repository'), mutationScope: 'IMAGE_ONLY_NO_SCHEMA_OR_FIXTURES', cleanupCondition: 'Finite own Node CLI exits; own temp removed' };
+console.log('DEV122_SHARP_RUNTIME_DECLARED=' + JSON.stringify(imageScope));
+try {
+  for (const [name, args] of [
+    ['canonical-preview-contract', ['--experimental-transform-types', '--experimental-loader', './scripts/qc-ts-path-loader.mjs', 'scripts/qc-dev-065-canonical-preview-contract.mjs']],
+    ['part-preview-image-only', ['--conditions=react-server', '--experimental-transform-types', '--experimental-loader', './scripts/qc-ts-path-loader.mjs', 'scripts/qc-dev-065-part-preview.mjs', '--image-only']],
+  ]) {
+    const result = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8', timeout: 180000, windowsHide: true, env: { ...process.env, PDM_DATA_DIR: imageScope.PDM_DATA_DIR, PDM_REPOSITORY_DIR: imageScope.PDM_REPOSITORY_DIR } });
+    process.stdout.write(result.stdout ?? ''); process.stderr.write(result.stderr ?? '');
+    console.log('DEV122_SHARP_RUNTIME_EXIT=' + JSON.stringify({ name, pid: result.pid, exitCode: result.status, signal: result.signal, processStopped: Number.isInteger(result.status) && result.signal === null }));
+    if (result.error) throw result.error;
+    if (result.status !== 0 || result.signal !== null) throw new Error('DEV122_SHARP_IMAGE_QC_FAILED:' + name);
+    if (name === 'part-preview-image-only') assertSharpImageQcSummary(result.stdout, JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).dependencies.sharp);
+  }
+} finally {
+  if (!path.resolve(imageTemp).startsWith(imageTempPrefix)) throw new Error('DEV122_SHARP_TEMP_SCOPE_DRIFT');
+  fs.rmSync(imageTemp, { recursive: true, force: true });
+  console.log('DEV122_SHARP_RUNTIME_CLEANUP=' + JSON.stringify({ taskTempRemoved: !fs.existsSync(imageTemp), port: null }));
+}
 const npmCli = process.env.npm_execpath
 if (!npmCli) throw new Error('NPM_EXEC_PATH_REQUIRED')
 const ownerExitCommands = [
