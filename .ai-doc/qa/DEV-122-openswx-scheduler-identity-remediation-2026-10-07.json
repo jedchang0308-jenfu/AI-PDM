@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "aipdm.dev122.scheduler-identity-remediation.v1",
+  "project": "AI-PDM",
+  "state": "LOCAL_AUTH_DISPATCH_TESTS_LINT_TYPECHECK_PASS_OFFICIAL_CI_AND_RELEASE_PENDING",
+  "sourceBase": "312be7e8087677f23e78011c3105a80355c03f55",
+  "branch": "codex/dev122-scheduler-subject-binding",
+  "authorization": "Existing AI-PDM-only production release corrective cycle; no new project/environment/resource/IAM/credentials",
+  "actualReleasedBaseline": {
+    "releaseId": "DEV122-OPENSWX-20261007-B08",
+    "sourceRevision": "312be7e8087677f23e78011c3105a80355c03f55",
+    "revision": "ai-pdm-prod-7af5f15c8803",
+    "trafficPercent": 100,
+    "migration082": "APPLIED_ONCE",
+    "ownerRun": 37537820569
+  },
+  "preservedEvidence": [
+    {
+      "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/B08-final-provider-readback.json",
+      "sha256": "9864a278f9cb5d5f301890c02cd7d078035746f4f6214e3e39124184140e2fac"
+    },
+    {
+      "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/B08-R09-ready-provider-readback.json",
+      "sha256": "72fa0a0456ee42da902b841f636c6e27d65219146e18d3d5bec9b7e1685c6e96"
+    },
+    {
+      "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/B08-scheduler-identity-defect-readback.json",
+      "sha256": "2b169e9bd3f73e66c81a24336f143e1153c5659605576220d89778895eb1c583"
+    },
+    {
+      "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/B08-scheduler-quiesce-result.json",
+      "sha256": "0d9944d8df388e555ee2a9bc7e7412c68018ab46de82d9af39314fa8b2b9b37c"
+    },
+    {
+      "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/completed-ui-result.json",
+      "sha256": "36a8614f6a37c5d81a8bc629edb01721142b356938c6df9ba7877df954108f17"
+    },
+    {
+      "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/completed-ui-resume-result.json",
+      "sha256": "e82fcd0c8cb6675fe9a939d6953642226d6f3b6813cf1ae4d46b82a36aec6ef6"
+    },
+    {
+      "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/completed-ui-diagnostic-result.json",
+      "sha256": "09a3c66b278cb4f8ae48836581ad8a772772360385d54acd39818f3b7185410f"
+    }
+  ],
+  "defect": {
+    "dispatchServiceAccount": "aipdm-prod-openswx-dispatch@jenfu-platform-prod.iam.gserviceaccount.com",
+    "providerUniqueId": "107606630865191707245",
+    "errorCode": "OPENSWX_SCHEDULER_NOT_CONFIGURED",
+    "httpStatus": 503,
+    "cause": "Production route depends on environment setting absent from strict app-owned runtime contract; prior sealed READY only proved finite worker/empty admission, not a successful automatic scheduled dispatch"
+  },
+  "fix": {
+    "module": "src/lib/openswx-metadata-dispatch-auth.ts",
+    "compiledSubject": "107606630865191707245",
+    "defaultPath": "Same immutable identity style as existing fixed email/audience; route passes request only; explicit verifier/clock/subject remain test seams",
+    "unchanged": [
+      "Google RSA signature verification",
+      "Exact issuer/audience/email/sub/verified-email/time guards",
+      "Fresh schedule-time guard",
+      "Cookie/reader rejection",
+      "Unknown explicit subject fail-closed",
+      "DEV117 adapter/workflows/optional extensions",
+      "Source membership/slot replacement",
+      "IAM/resources/reader v1/registry v3",
+      "Database migrations"
+    ],
+    "TLDecision": "Accepted compiled exact default as the smaller immutable identity fix; no deployment override"
+  },
+  "eightCad": {
+    "status": "NOT_PASS",
+    "harnessCause": "All eight uploaded into a work with one primary drawing_2d and one primary cad_3d slot; six were replaced normally, later all-eight GET rejected correctly",
+    "normalCurrentPair": {
+      "workId": "bab5c49a-b93f-4f3c-b6c3-abe10df610fa",
+      "contextId": "cfbf7ffa-b67c-448f-b679-aea4959f9364",
+      "jobId": "037ad840-78b2-4d69-98b3-d19f7aad31b8",
+      "read": "GET_200_TWO_CURRENT_SOURCES",
+      "status": "QUEUED_DUE_ATTEMPT0"
+    },
+    "plan": "Four normal task-owned works, one SLDDRW plus one SLDPRT/SLDASM per work; continue current pair without re-enqueue"
+  },
+  "recovery": {
+    "schedulerState": "PAUSED_PROVIDER_VERIFIED",
+    "durableQueue": "RETAINED",
+    "next": "RSA default-path and existing dispatch tests; independent source QC; normal PR/required CI; fresh source-bound build/full immutable release; successful actual scheduled dispatch and eight-CAD UI/provider results"
+  },
+  "nativeF01F": "USER_PRODUCTION_PENDING",
+  "supplierReplies": "DISABLED_DEFERRED",
+  "wholeDev": "NOT_ACCEPTED",
+  "localValidation": {
+    "tests": 19,
+    "passed": 19,
+    "files": 2,
+    "newDefaultPathCases": 3,
+    "scope": "Local real RSA signature and mocked dispatch state-machine regression; not Google/provider scheduled-dispatch evidence",
+    "checks": [
+      {
+        "label": "tests",
+        "runtime": "A12-scheduler-tests-runtime.json",
+        "runtimeSha256": "c7be5f0f2958875435782ac9e711e7fa20c79b9f8ccb7c66396ad4422c2befd2",
+        "stdoutSha256": "ed19dcc1861da6f98a4ac66409c07ab0369886693ef23b5e3eb003d95a4c2124",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "exitCode": 0,
+        "processStopped": true,
+        "tempRemoved": true
+      },
+      {
+        "label": "lint",
+        "runtime": "A12-scheduler-lint-runtime.json",
+        "runtimeSha256": "ad31823b88edb4adab3cef0697d5900476e79beb0b6a4c8d1878f183872e0d3c",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "exitCode": 0,
+        "processStopped": true,
+        "tempRemoved": true
+      },
+      {
+        "label": "typecheck",
+        "runtime": "A12-scheduler-typecheck-runtime.json",
+        "runtimeSha256": "ac718d099c586bcc0f96912d09e73a22bed98424fcf5117dddd8abe4bdb7eca1",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "exitCode": 0,
+        "processStopped": true,
+        "tempRemoved": true
+      }
+    ]
+  }
+}
