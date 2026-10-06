@@ -145,7 +145,13 @@ export function assertWorkerJob(job, expectedTemplate) {
 }
 export function assertPausedScheduler(value, profile) {
   const expected = { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } }
-  if (value?.name !== workerSchedulerName() || value.state !== 'PAUSED' || value.schedule !== profile.bounds.schedule || value.attemptDeadline !== '30s' || value.retryConfig?.retryCount !== 0
+  // Scheduler/ProtoJSON may omit the two zero retry limits. Both must be
+  // zero: a positive maxRetryDuration can retry even when retryCount is zero.
+  const retry = value?.retryConfig
+  const noRetries = retry === undefined || (retry !== null && typeof retry === 'object' && !Array.isArray(retry)
+    && (retry.retryCount === undefined || retry.retryCount === 0)
+    && (retry.maxRetryDuration === undefined || (typeof retry.maxRetryDuration === 'string' && /^0(?:\.0{1,9})?s$/u.test(retry.maxRetryDuration))))
+  if (value?.name !== workerSchedulerName() || value.state !== 'PAUSED' || value.schedule !== profile.bounds.schedule || value.timeZone !== 'Etc/UTC' || value.attemptDeadline !== '30s' || !noRetries
     || canonicalize(value.httpTarget) !== canonicalize(expected)) fail('OPENSWX_SCHEDULER_NOT_PAUSED')
   return value
 }

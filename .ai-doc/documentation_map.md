@@ -1,10 +1,10 @@
 # AI_PDM 文件地圖
 
-## DEV-122 CURRENT（2026-10-06；A03 build/security 通過，provider 權限查詢修正中）
+## DEV-122 CURRENT（2026-10-06；A04 build/security通過，Scheduler預設回傳修正中）
 
 PR219 已正常合併至 8f25b0a1a5f42c63e6e20d1e48bd44dd91a9a775，PR／main required CI 通過。A03 owner run 37410760255 與兩映像建置成功；worker 精確 digest e9194d35…a59eacc 的 raw HIGH／CRITICAL=0，實際 Linux static-zlib／ldd／APK 移除與隔離自測成功。僅證明 build/security readiness，未證明正常 CAD 或 UI。
 
-十二資源 Terraform R01 已執行，worker selftest Job 與 PAUSED Scheduler 已存在；錯誤 GET reader ServiceAccount IAM 回404，已改官方 POST 空 body。原 R01 request／plan 保留。此次[provider readback 修正](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)包含 actual-provider-only GEN2／省略空env正規化，以及嚴格唯讀 FIRST source reconciliation，只有四TF／完整worker source與profile不變、完整舊新join、同人類授權hash、兩build raw/blocking scan0、所有12資源/IAM exact、PAUSED／零execution／reader Secret零version才承接。橋接不執行Terraform、不重發既有apply；FIRST_CREATE與完成receipt重放另核憑證／source／template／resource joins。聚焦29案全部通過，專屬程序及暫存已清理；獨立Luna source QC PASS（含raw Job對照缺口修正及args狹義比對）；新PRhead required CI待收斂。TF／IAM／DB／worker binaries不變，正式numeric bootstrap／082／切流／completed UI待執行；F-01F由人類正式驗證、D122-07停用、整體NOT_ACCEPTED。
+十二資源 Terraform R01 已執行且不重套；PR220官方main84f08dbc之A04受保護建置、實際封存與worker raw HIGH/CRITICAL=0通過（run37417618753）。R02唯讀FIRST銜接在PAUSED Scheduler省略retryConfig時被strict比較誤拒絕；未發numeric version、未執行082、未建立candidate或切流。此次[provider readback修正](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)僅按官方語意接受actual省略zero retryCount/maxRetryDuration，同時拒絕null/非zero/invalid limit，並要求既有Terraform之Etc/UTC exact；desired/policy/profile/TF/worker source不变。31/31聚焦mock通過，own程序/暫存已清理；獨立Luna source QC已通過；新head required CI待驗。R01/A04/R02失敗原始證據保留。兩numeric bootstrap、082、正式切流及8CAD completed UI仍待實跑；F-01F由人類正式驗證、D122-07停用、7 issues/29 groups与整體NOT_ACCEPTED不變。
 
 人類既有「核准, 請接續」及本次容量風險授權持續有效。下一步為修正來源的 normal PR／required CI、重新凍結與 build，先核對既有12資源，再接 numeric bootstrap、082與 app-owned 上線。正式仍 R4；新 credential versions／082／切流及 completed 正常UI皆 NOT_RUN，F-01F由使用者正式驗證、D122-07停用與整体NOT_ACCEPTED不變。下方續點為歷史，不再當目前操作佇列。
 

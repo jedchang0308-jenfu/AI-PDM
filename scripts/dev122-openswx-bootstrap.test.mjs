@@ -131,7 +131,7 @@ async function dailyHarness({ markerState = null, wrongPriorImage = false } = {}
   h.transport.request = async (url, options = {}) => {
     h.calls.push({ url, options })
     if (url.endsWith('/userinfo')) return { email: profile.normalActor, email_verified: true, sub: 'recorded-subject' }
-    if (url.includes('cloudscheduler')) { if (url.endsWith(':pause')) state = 'PAUSED'; if (url.endsWith(':resume')) { state = 'ENABLED'; if (controls.resumeUnknown) throw Error('unknown resume') } return { name: workerSchedulerName(), state, schedule: '*/5 * * * *', attemptDeadline: '30s', retryConfig: { retryCount: 0 }, httpTarget: target } }
+    if (url.includes('cloudscheduler')) { if (url.endsWith(':pause')) state = 'PAUSED'; if (url.endsWith(':resume')) { state = 'ENABLED'; if (controls.resumeUnknown) throw Error('unknown resume') } return { name: workerSchedulerName(), state, schedule: '*/5 * * * *', timeZone: 'Etc/UTC', attemptDeadline: '30s', retryConfig: { retryCount: 0 }, httpTarget: target } }
     if (url.includes('secretmanager')) {
       if (url.endsWith(':access')) { const name = url.includes(profile.tokenSecretId) ? tokenName : registryName; return { name, payload: { data: (name === tokenName ? Buffer.from(token) : Buffer.from(JSON.stringify(registry))).toString('base64') } } }
       if (url.endsWith(':getIamPolicy')) return { bindings: [{ role: 'roles/secretmanager.secretAccessor', members: [`serviceAccount:${profile.readerServiceAccount}`] }] }
