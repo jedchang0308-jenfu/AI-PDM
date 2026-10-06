@@ -1,0 +1,21 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "AI-PDM OpenSWX finite worker static zlib component",
+  "documentNamespace": "https://jenfu.com.tw/ai-pdm/dev122/zlib/df84af25dc1942490e1d1c899a07619152a46148",
+  "creationInfo": {"creators": ["Organization: Jenfu Machinery"], "created": "2026-10-06T03:00:00Z"},
+  "packages": [{
+    "name": "zlib",
+    "SPDXID": "SPDXRef-zlib-fixed",
+    "versionInfo": "1.3.2.1-motley",
+    "downloadLocation": "https://codeload.github.com/madler/zlib/tar.gz/df84af25dc1942490e1d1c899a07619152a46148",
+    "filesAnalyzed": false,
+    "licenseConcluded": "Zlib",
+    "licenseDeclared": "Zlib",
+    "copyrightText": "NOASSERTION",
+    "checksums": [{"algorithm": "SHA256", "checksumValue": "03a76732cfaa124c58b67600699d935d081604385c03aa282f81a101b7536161"}],
+    "sourceInfo": "Unmodified upstream commit df84af25dc1942490e1d1c899a07619152a46148 fixes CVE-2026-85091; statically linked into the reader. LICENSE SHA256 e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2. Actual compiled library hash is retained at /reader-build/zlib-sha256.txt. Provider-generated whole-image SBOM and scan are separate required evidence."
+  }],
+  "relationships": [{"spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES", "relatedSpdxElement": "SPDXRef-zlib-fixed"}]
+}

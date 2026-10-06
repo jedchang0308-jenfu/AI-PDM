@@ -11,7 +11,7 @@ const REGION = 'asia-east1'
 const JOB = 'ai-pdm-prod-openswx-metadata'
 export const WORKER_SOURCE_PATHS = Object.freeze([
   WORKER_PROFILE_PATH, 'scripts/run-openswx-metadata-job.mjs',
-  ...['Dockerfile', 'CMakeLists.txt', 'reader.cc', 'process.mjs', 'normalize.mjs', 'auxiliary-job.mjs', 'source-manifest.json'].map(name => `scripts/lib/openswx-reader/${name}`),
+  ...['Dockerfile', 'CMakeLists.txt', 'reader.cc', 'process.mjs', 'normalize.mjs', 'auxiliary-job.mjs', 'source-manifest.json', 'zlib-component.spdx.json'].map(name => `scripts/lib/openswx-reader/${name}`),
 ])
 function fail(code) { const error = new Error(code); error.code = code; throw error }
 function exact(value, keys, code) {

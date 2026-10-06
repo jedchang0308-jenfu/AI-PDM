@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "aipdm.dev122.worker-security-remediation.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122#openswx-readonly-auxiliary",
+  "observedAt": "2026-10-06T03:30:45.219Z",
+  "status": "SOURCE_FIX_ROUND1_TARGETED_TESTS_PASS_CLOUD_PENDING",
+  "riskLane": "High",
+  "sourceBase": "caa34a39607fa8a51b7d1b7dc38cec49bc80f254",
+  "branch": "codex/dev122-worker-security-closure",
+  "singleWriter": "root",
+  "authorization": {
+    "humanOriginal": "核准, 請接續",
+    "scope": "AI-PDM only; approved twelve resources, numeric worker/registry versions, forward-only082 and app-owned release",
+    "planSha256": "a8920a8655a9934bd916023a3a016711b0156006f4b7102c492894791e80557b",
+    "capacityHumanOriginal": "接受本次容量風險，繼續安裝與上線",
+    "capacityRequest": "dev122-openswx-bounded-provider-7390-20261006",
+    "capacityScope": "Same original session/action/filesystem/effective5GiB/policy; fresh machine check remains required before installation"
+  },
+  "history": {
+    "PR218": "MERGED",
+    "officialSource": "caa34a39607fa8a51b7d1b7dc38cec49bc80f254",
+    "requiredPrCi": {
+      "runId": "37400230541",
+      "status": "SUCCESS"
+    },
+    "requiredMainCi": {
+      "runId": "37403134621",
+      "status": "SUCCESS"
+    },
+    "A01": {
+      "runId": "37403868403",
+      "status": "FAILED_OPENSWX_ARCHIVE_JOIN_INVALID",
+      "correction": "Provider tar and gzip readback proves LF git archive, gzip9 and Linux OS header; no resource/migration/traffic mutation"
+    },
+    "A02": {
+      "runId": "37405889919",
+      "status": "ARTIFACT_POLICY_FAILED",
+      "workerCloudBuildId": "0c987676-b41d-421b-b4b7-8aca17a05a7d",
+      "workerCloudBuildStatus": "SUCCESS",
+      "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-openswx-worker@sha256:21e90d8f314069a4c0c4422fb575dc94fed0af43029b7e6491b07d2e0474aab0",
+      "rawHighCritical": 17,
+      "readbackSha256": "3d762854223537aabbe22f32e6d4c2ccf048a1af0bb78df8c833d090c2b1dbbc"
+    }
+  },
+  "fix": {
+    "round": 1,
+    "mechanism": "Finite worker inherited unused vulnerable Debian packages and stock zlib; retain strict image scan and replace only finite build/runtime dependency chain",
+    "specImpact": "No API/schema/authority/acceptance change; compatible internal image replacement",
+    "nodeBase": "node:24.19.0-alpine3.24@sha256:2a49bdf71e9fd965a58c1703fd9ddd205b34e5782b692a72dd1d248abb0beb43",
+    "readerAbi": "Fresh Linux/amd64 musl compile; do not copy historical glibc binary",
+    "zlib": {
+      "commit": "df84af25dc1942490e1d1c899a07619152a46148",
+      "url": "https://codeload.github.com/madler/zlib/tar.gz/df84af25dc1942490e1d1c899a07619152a46148",
+      "bytes": 1571608,
+      "archiveSha256": "03a76732cfaa124c58b67600699d935d081604385c03aa282f81a101b7536161",
+      "licenseSha256": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2",
+      "versionDeclaration": [
+        "#define ZLIB_VERSION \"1.3.2.1-motley\""
+      ]
+    },
+    "transparency": "Static component SPDX/source/license/compiled hash evidence; package manager removes stock runtime zlib with genuine APK DB retained",
+    "sourceBinding": "WORKER_SOURCE_PATHS includes zlib-component.spdx.json",
+    "defaultCli": "Historical Debian CLI chain retained",
+    "providerScanPolicy": "UNCHANGED_RAW_HIGH_CRITICAL_ZERO_REQUIRED"
+  },
+  "candidatePaths": [
+    {
+      "path": "scripts/lib/dev122-openswx-owner-release.mjs",
+      "workingCopySha256": "6072f60c4ffbb531bedcc1198b6fee1c948c86f570b6572013ecdcf2619b7fb5"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/Dockerfile",
+      "workingCopySha256": "016c49031c9c13248a2322b692292ff9e6eac241945b5bb8463a0abed2c3b4c8"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/zlib-component.spdx.json",
+      "workingCopySha256": "e28769411e00f738341796cdb1c6422d01c97e96ce79f114537595821fe1cfc4"
+    }
+  ],
+  "targetedTests": {
+    "files": [
+      "scripts/dev122-openswx-owner-release.test.mjs",
+      "scripts/dev122-openswx-bootstrap.test.mjs",
+      "scripts/lib/openswx-reader/reader.test.mjs",
+      "scripts/lib/openswx-reader/auxiliary-job.test.mjs"
+    ],
+    "command": "node --test <four exact existing test files>",
+    "tests": 44,
+    "pass": 43,
+    "fail": 0,
+    "skipped": 1,
+    "skipReason": "Linux descendant/process-group case cannot run on Windows",
+    "evidenceLayer": "Existing fixture/mocked provider and finite Node process tests only",
+    "stdoutSha256": "01865eedcc421d705c96114fac3881f65d455ad8f1041331d2f137b010a6d0fd",
+    "runtimeSha256": "1ee7e051dfe3ea98bac93afd88415123aae4742f07a51d1a5af12e36ab214bff",
+    "cleanup": {
+      "processStopped": true,
+      "lifecycleReleased": true,
+      "taskTempRemoved": true
+    }
+  },
+  "independentSourceQc": {
+    "status": "SOURCE_QC_PASS_CLOUD_BUILD_SCAN_CAD_NOT_RUN",
+    "agent": "/root/dev122_production_qc_luna",
+    "model": "gpt-6-luna",
+    "reasoningEffort": "max",
+    "writeScope": [],
+    "recordedAt": "2026-10-06T03:32:32.694Z",
+    "candidateBase": "caa34a39607fa8a51b7d1b7dc38cec49bc80f254",
+    "findings": "Fixed musl build and static upstream zlib are coherently bound; SPDX and owner source path join match; historical CLI and strict raw HIGH/CRITICAL zero policy unchanged; four existing tests43pass/0fail/1Linuxskip",
+    "actualClaims": [
+      "Read-only product diff and source review",
+      "Existing targeted test output readback"
+    ],
+    "notRun": [
+      "Actual Linux/musl image build",
+      "Provider whole-image SBOM and scan",
+      "Actual package removal/ldd/self-test assertions",
+      "CAD parsing and normal completed-result UI"
+    ]
+  },
+  "pending": [
+    "New protected PR and exact-head required CI",
+    "New official merged source and capsule",
+    "Actual new Linux build, image SBOM and zero HIGH/CRITICAL scan",
+    "Actual musl child isolation self-test",
+    "Terraform init/plan/apply and two numeric versions",
+    "Forward-only082, B full release and normal worker READY",
+    "Actual completed CAD result normal UI and cleanup"
+  ],
+  "production": {
+    "servingRevision": "ai-pdm-prod-5c8854b292a1",
+    "servingRelease": "DEV121-ADMIN-V6-20261006-R4",
+    "newResources": "NOT_RUN",
+    "newNumericVersions": "NOT_RUN",
+    "migration082": "NOT_RUN",
+    "candidateTraffic": "NOT_RUN",
+    "browserDiscovery": "Normal SSO and heading discovery only; early loading snapshot does not prove populated workbench"
+  },
+  "unchangedAcceptance": {
+    "fullNativeProperties": "NOT_RUN_USER_PRODUCTION_VALIDATION_F01F",
+    "supplierReply": "DISABLED_DEFERRED",
+    "issues": 7,
+    "groups": 29,
+    "overall": "NOT_ACCEPTED"
+  }
+}

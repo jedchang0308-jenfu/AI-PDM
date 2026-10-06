@@ -1,5 +1,16 @@
 # AI_PDM 開發任務
 
+## DEV-122 Cloud Run 部署續點（2026-10-06；已授權，worker 安全修補／正式驗證中）
+
+人類已核准原十二個限定資源、兩項 numeric credential versions、自有082 forward-only migration及同一AI-PDM app-owned上線；另接受本次固定Terraform provider安裝容量風險。授權只限 AI-PDM／jenfu-platform-prod／asia-east1／ai-pdm-prod，禁止跨專案；精確來源、映像、plan及capsule依執行重綁，安裝前仍需fresh容量結果。
+
+PR218已正常合併至caa34a39607fa8a51b7d1b7dc38cec49bc80f254，required PR／main CI SUCCESS。A01在archive join安全停止，provider位元組回讀已定位並修正Windows換行／gzip差異；A02兩個Cloud Build SUCCESS，但worker映像有17項raw HIGH／CRITICAL，ARTIFACT_POLICY_FAILED，未建立新資源／Secret、未跑082或切流。正式仍為R4／ai-pdm-prod-5c8854b292a1。
+
+[本次worker安全修補](qa/DEV-122-openswx-worker-security-remediation-2026-10-06.json)只更換finite-worker的固定musl建置／執行鏈，靜態連結作者已修補zlib並保留SPDX／license／實際套件DB；歷史CLI及嚴格scan不變。四個既有測試44案：43 PASS、1 Linux限定SKIP、0 FAIL；專屬程序與暫存已清理。這些不證明新Linux成品或CAD結果。獨立Luna來源QC已通過；下一步是normal PR／required CI、新來源Cloud Build／scan，再續已核准資源及發布；completed-result正常UI仍NOT_RUN，完整F-01F由使用者正式驗證，D122-07維持停用，7 issues／29 groups與整體NOT_ACCEPTED不變。
+
+<details>
+<summary>HISTORY_ONLY：PR218合併前與原資源待授權續點；以上 current 取代施工指引</summary>
+
 ## DEV-122 Cloud Run 部署續點（2026-10-06；本地 QC／建置通過，新增雲端資源待授權）
 
 CURRENT PR218 相依套件修正：第二次 CI37398155430（head5f4e481）Cutover SUCCESS，Production Slice QC 在 production dependency audit FAILURE，lint／後續建置未跑；原始失敗與 provider 回讀保留。依官方修正版只更新 lockfile 中 source-map-js 三欄位1.2.1→1.2.2，其餘套件紀錄、package.json及前66檔未變；新[67檔來源](qa/DEV-122-openswx-phase2-pr218-source-freeze-dependency-v3-2026-10-06.json)與[Luna來源核對](qa/DEV-122-openswx-phase2-pr218-dependency-independent-qc-2026-10-06.json)綁定本次候選。實際 lockfile production audit code0/high與critical0，task cache／child已清理；本機node_modules未更新，尚未宣稱新套件安裝或建置PASS。下一head required CI／build待跑；舊63檔full-r4只屬原來源，Cloud資源授權、完成結果UI、人類F-01F與整體NOT_ACCEPTED邊界不變。
@@ -21,6 +32,9 @@ CURRENT 最後本地 owner checks 已通過：[本地結案與證據索引](qa/D
 下一步為[新增正式資源與上線範圍核准](C:/VIBE%20CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/cloud-resource-production-approval-plan-2026-10-06.md)：十二個限定 Terraform addresses、兩項 numeric credential versions 與自有 082 forward-only migration 尚待該批明確授權；Terraform init／plan／apply、Cloud worker 正常執行與 completed-result 正常 UI 皆 NOT_RUN。B 方案保留文字 project ID 並核預期 number；首版依 CURRENT A build_only→normal bootstrap→B full→normal activation。F-01F 完整原生屬性由使用者正式驗證；7 issues／29 groups、整體 NOT_ACCEPTED；本段為提交前證據，後續 Git 狀態依提交收據，不替代正式驗收。
 
 HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證據](qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json)：新版082 exact SHA `9f4ff68f…c8000`、3 native tests及505真外鍵通過，四typedcontext／optional session／防偽造／same-company／single receipt已驗；未種資料基線先通過、lawfulfixture與原DM全列前後不變。Task-owned PG／62702／暫存cluster已清理。只適用凍結SQL subset；normal UI／最終獨立QC／Cloud與完整native CAD仍待各自驗證，整體NOT_ACCEPTED。
+
+
+</details>
 
 ## DEV-122 一次提交金鑰流程（2026-10-05；R03 已部署，待使用者 CAD 驗證）
 
