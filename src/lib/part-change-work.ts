@@ -11,7 +11,7 @@ import { beginDev087Approval, dev087FaultHandling, recordDev087Fault, returnDev0
 import { PartChangeWorkAsyncRepository, validatePartChangePayload, type PartChangePayload } from "@/lib/repositories/part-change-work-async-repository";
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 import { selectPrincipalReviewerInSnapshot } from "@/lib/repositories/pdm-principal-reviewer-selector";
-import { buildReviewPackage, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import { buildReviewPackage, reviewDecisionBasisHash, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
 import { parseReviewPackageSnapshot } from "@/lib/pdm-review-package-contract";
 
 export type PartChangeActor = {
@@ -68,7 +68,7 @@ export class PartChangeWorkService {
         { partId: work.part_id, companyId: actor.companyId }
       )
     ]);
-    return { data: { entityType: "part" as const, entityId: work.part_id, workId: work.id, rowVersion: Number(work.row_version), payload, identity, attachments, formalAttributes, readonly: false }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.id }), correlationId: crypto.randomUUID() } };
+    return { data: { entityType: "part" as const, entityId: work.part_id, workId: work.id, rowVersion: Number(work.row_version), payload, lifecycleIntent: work.lifecycle_intent ?? "edit", identity, attachments, formalAttributes, readonly: false }, meta: { contractToken: await issueCanonicalWorkbenchContract(this.client, { companyId: actor.companyId, actorId: actor.id }), correlationId: crypto.randomUUID() } };
   }
 
   async readPrincipal(workId: string, verified: VerifiedPrincipalRequest) {
@@ -136,10 +136,17 @@ export class PartChangeWorkService {
       "numbering.workspace.update");
     await verifyCanonicalWorkbenchCommandContract(this.client,
       { companyId, actorId, token: context.contractToken });
-    const validated = validatePartChangePayload(payload);
+    const command = payload && typeof payload === "object" && !Array.isArray(payload)
+      ? payload as Record<string, unknown> : {};
+    const { lifecycleIntent, ...attributes } = command;
+    if (lifecycleIntent !== undefined && lifecycleIntent !== "edit" && lifecycleIntent !== "first_release") {
+      throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "發行意圖格式無效", 422);
+    }
+    const validated = validatePartChangePayload(attributes);
     return runPrincipalDev087Command(this.client, verified, {
       command: "part.update", idempotencyKey: context.idempotencyKey,
-      request: { workId, expectedRowVersion: context.expectedRowVersion, payload: validated },
+      request: { workId, expectedRowVersion: context.expectedRowVersion, payload: validated,
+        ...(lifecycleIntent === undefined ? {} : { lifecycleIntent }) },
       effectKey: `part-work:${workId}:update`, correlationId: correlation(context.correlationId)
     }, async (tx) => {
       const repository = new PartChangeWorkAsyncRepository(tx);
@@ -149,7 +156,7 @@ export class PartChangeWorkService {
         throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
       }
       return repository.update(tx, { companyId, workId,
-        expectedRowVersion: context.expectedRowVersion, payload: validated });
+        expectedRowVersion: context.expectedRowVersion, payload: validated, lifecycleIntent });
     });
   }
 
@@ -192,20 +199,23 @@ export class PartChangeWorkService {
     if (principalOnly && locked.owner_user_id !== principalOwnerId) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
+    const lifecycle = principalOnly
+      ? await new PartChangeWorkAsyncRepository(tx).readLifecycleBasis(tx, companyId, locked)
+      : undefined;
     const reviewRepository = new PdmWorkReviewAsyncRepository(tx);
     const reviewerUserId = principalOnly
       ? await selectPrincipalReviewerInSnapshot(tx,
-        { companyId, ownerUserId: locked.owner_user_id })
+        { companyId, ownerUserId: locked.owner_user_id, ...(lifecycle?.intent === "first_release" ? { requirePublish: true } : {}) })
       : await reviewRepository.selectReviewer(tx,
         { companyId, ownerUserId: locked.owner_user_id });
     const snapshotPayload = typeof locked.proposed_payload === "string"
       ? JSON.parse(locked.proposed_payload) as PartChangePayload : locked.proposed_payload;
-    const snapshotHash = dev087RequestHash(snapshotPayload);
+    const snapshotHash = reviewDecisionBasisHash({ payload: snapshotPayload, lifecycle });
     const packagePayload = principalOnly || reviewPackageV2WriteEnabled()
       ? await buildReviewPackage(tx, {
         companyId, requestKind: "part_change", entityType: "part",
         canonicalEntityId: locked.part_id, workId, branchId: null,
-        decisionBasis: { hash: snapshotHash, payload: snapshotPayload }
+        decisionBasis: { hash: snapshotHash, payload: snapshotPayload, ...(lifecycle ? { lifecycle } : {}) }
       })
       : snapshotPayload;
     const request = await reviewRepository.create(tx, {
@@ -286,12 +296,12 @@ export class PartChangeWorkService {
       request: { requestId, decision, expectedRowVersion: context.expectedRowVersion },
       effectKey: `review:${requestId}`, correlationId: correlation(context.correlationId)
     }, (tx) => this.applyDecision(tx, requestId, decision, companyId,
-      actorId, context.expectedRowVersion, true));
+      actorId, context.expectedRowVersion, true, verified));
   }
 
   private async applyDecision(tx: AsyncDatabaseClient, requestId: string,
     decision: Dev087ReviewDecision, companyId: string, actorId: string,
-    expectedRowVersion: number, principalOnly = false) {
+    expectedRowVersion: number, principalOnly = false, verified?: VerifiedPrincipalRequest) {
     const reviewRepository = new PdmWorkReviewAsyncRepository(tx);
     const locked = await reviewRepository.get(tx, { companyId, requestId }, true);
     if (!locked || locked.requestKind !== "part_change" ||
@@ -312,13 +322,32 @@ export class PartChangeWorkService {
     if (!locked.workId) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
     const workRepository = new PartChangeWorkAsyncRepository(tx);
     const work = await workRepository.readWork(tx, companyId, locked.workId, true);
+    const lifecycle = verifiedPackage?.decisionBasis.version === 2 ? verifiedPackage.decisionBasis.lifecycle : undefined;
     const expectedHash = verifiedPackage?.decisionBasis.hash ?? locked.snapshotHash;
-    if (!work || dev087RequestHash(typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload) !== expectedHash) {
+    if (!work || reviewDecisionBasisHash({ payload: typeof work.proposed_payload === "string" ? JSON.parse(work.proposed_payload) : work.proposed_payload,
+      lifecycle }) !== expectedHash) {
       throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "資料已改變，請退回修改後重新送審", 409);
     }
-    await workRepository.formalize(tx, { companyId, work, reviewCycleId: locked.reviewCycleId });
+    if (work.lifecycle_intent === "first_release" && !lifecycle) {
+      throw new CanonicalWorkbenchError("WORKBENCH_REVIEW_PACKAGE_INVALID", "發行意圖未納入審核快照", 409);
+    }
+    if (principalOnly) {
+      const owner = await tx.queryOne<{ principal_id: string }>(
+        `SELECT principal_id FROM ai_pdm_core.principal_accounts
+         WHERE pdm_user_id = :ownerId AND company_id = :companyId`,
+        { ownerId: work.owner_user_id, companyId });
+      if (!verified || !owner || owner.principal_id === verified.session.principalId || work.owner_user_id === actorId) {
+        throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "申請人不可核准自己的工作", 403);
+      }
+      if (lifecycle?.intent === "first_release") await this.requirePrincipalCapability(verified, "numbering.publish");
+    }
+    const formalized = await workRepository.formalize(tx, { companyId, work,
+      reviewCycleId: locked.reviewCycleId, lifecycle,
+      ...(verified && verifiedPackage ? { approval: { requestId: locked.id,
+        packageHash: verifiedPackage.packageHash, reviewerPrincipalId: verified.session.principalId,
+        reviewerProfileId: actorId } } : {}) });
     await reviewRepository.recordTerminalReceipt(tx, locked);
     await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked);
-    return { acknowledged: true };
+    return { acknowledged: true, ...formalized };
   }
 }

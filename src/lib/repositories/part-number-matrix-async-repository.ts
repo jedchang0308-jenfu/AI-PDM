@@ -15,6 +15,9 @@ export type PartNumberMatrixColumn = {
   partNumber: string;
   sequenceNo: number;
   formalRowVersion: number;
+  recordStatus: string;
+  lifecycleIntent: "edit" | "first_release";
+  canRequestRelease: boolean;
   handling: string;
   canEdit: boolean;
   canSubmit: boolean;
@@ -48,6 +51,8 @@ type SourceGuardRow = {
 type MatrixPartRow = {
   part_id: string;
   part_number: string;
+  record_status: string;
+  lifecycle_intent: "edit" | "first_release";
   sequence_no: number | string;
   formal_row_version: number | string | null;
   part_name: string;
@@ -142,7 +147,8 @@ export class PartNumberMatrixAsyncRepository {
     if (!source.source_work_state_id) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT", "修改資料狀態不完整，請重新載入", 409);
 
     const rows = await this.client.query<MatrixPartRow>(`
-      SELECT part.id AS part_id, part.part_number, part.sequence_no,
+      SELECT part.id AS part_id, part.part_number, part.sequence_no, part.record_status,
+             ${this.client.kind === "postgres" ? "COALESCE(work.lifecycle_intent, 'edit')" : "'edit'"} AS lifecycle_intent,
              formal_state.row_version AS formal_row_version,
              part.part_name, part.item_kind, part.custom_specification, part.is_universal,
              attributes.material_code, attributes.material_label, attributes.color_code,
@@ -210,8 +216,11 @@ export class PartNumberMatrixAsyncRepository {
           sequenceNo: Number(row.sequence_no),
           formalRowVersion: Number(row.formal_row_version ?? 1),
           handling,
+          recordStatus: row.record_status,
+          lifecycleIntent: workVisible ? row.lifecycle_intent : "edit",
+          canRequestRelease: Boolean(this.client.kind === "postgres" && row.record_status === "Draft" && workVisible && canEdit && input.actor.permissions.submit),
           canEdit,
-          canSubmit: Boolean(row.work_id && canEdit && differs && input.actor.permissions.submit),
+          canSubmit: Boolean(row.work_id && canEdit && (differs || row.lifecycle_intent === "first_release") && input.actor.permissions.submit),
           disabledReason: canEdit ? null : handlingReason(row.handling, row.work_owner_user_id, input.actor) ?? "目前沒有編輯權限",
           workId: workVisible ? row.work_id : null,
           workRowVersion: workVisible && row.work_row_version != null ? Number(row.work_row_version) : null,

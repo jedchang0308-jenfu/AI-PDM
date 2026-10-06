@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
   getReview: vi.fn(), returnForCorrection: vi.fn(), parsePackage: vi.fn(), verifyPackage: vi.fn(),
   getWork: vi.fn(), createReview: vi.fn(), selectLegacyReviewer: vi.fn(),
   selectPrincipalReviewer: vi.fn(), buildPackage: vi.fn(),
-  createWork: vi.fn(), updateWork: vi.fn(), cancelWork: vi.fn(), issueContract: vi.fn()
+  createWork: vi.fn(), updateWork: vi.fn(), cancelWork: vi.fn(), issueContract: vi.fn(),
+  readLifecycle: vi.fn(), formalize: vi.fn(), beginApproval: vi.fn(), terminal: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-permission-service", () => ({
   evaluatePrincipalWorkspacePermissionsInSnapshot: mocks.evaluate
@@ -24,12 +25,15 @@ vi.mock("@/lib/repositories/pdm-work-review-async-repository", () => ({
     get = mocks.getReview;
     create = mocks.createReview;
     selectReviewer = mocks.selectLegacyReviewer;
+    recordTerminalReceipt = mocks.terminal;
   }
 }));
 vi.mock("@/lib/repositories/part-change-work-async-repository", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/repositories/part-change-work-async-repository")>(),
   PartChangeWorkAsyncRepository: class {
     readWork = mocks.getWork;
+    readLifecycleBasis = mocks.readLifecycle;
+    formalize = mocks.formalize;
     create = mocks.createWork;
     update = mocks.updateWork;
     cancel = mocks.cancelWork;
@@ -40,7 +44,8 @@ vi.mock("@/lib/repositories/pdm-principal-reviewer-selector", () => ({
 }));
 vi.mock("@/lib/pdm-work-review", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pdm-work-review")>(),
-  returnDev087WorkForCorrection: mocks.returnForCorrection
+  returnDev087WorkForCorrection: mocks.returnForCorrection,
+  beginDev087Approval: mocks.beginApproval
 }));
 vi.mock("@/lib/pdm-review-package-contract", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pdm-review-package-contract")>(),
@@ -73,12 +78,14 @@ beforeEach(() => {
   mocks.verifyContract.mockResolvedValue(undefined);
   mocks.getReview.mockResolvedValue({ id: "review-one", requestKind: "part_change",
     reviewerUserId: "profile-one", requestStatus: "pending", rowVersion: 3,
-    snapshotPayload: { previous: "legacy review content" } });
+    workId: "work-one", reviewCycleId: "cycle-one", snapshotPayload: { previous: "legacy review content" } });
   mocks.returnForCorrection.mockResolvedValue({ acknowledged: true });
   mocks.getWork.mockResolvedValue({
     id: "work-one", part_id: "part-one", owner_user_id: "profile-one",
     row_version: 3, proposed_payload: { name: "Updated part" }
   });
+  mocks.readLifecycle.mockResolvedValue({ intent: "edit", masterId: "part-one", masterStatus: "Draft", masterHash: "b".repeat(64), formalRowVersion: 1 });
+  mocks.formalize.mockResolvedValue({ snapshotId: "snapshot-one", partId: "part-one" });
   mocks.createReview.mockResolvedValue({
     id: "review-created", reviewCycleId: "cycle-one", rowVersion: 1
   });
@@ -210,5 +217,57 @@ describe("principal part-work commands", () => {
       .rejects.toMatchObject({ status: 403 });
     expect(mocks.runPrincipal).not.toHaveBeenCalled();
     expect(mocks.createWork).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("Part explicit first release", () => {
+  const lifecycle = { intent: "first_release" as const, masterId: "part-one",
+    masterStatus: "Draft", masterHash: "b".repeat(64), formalRowVersion: 1 };
+  async function releaseReview() {
+    const { reviewDecisionBasisHash } = await import("@/lib/pdm-review-package");
+    mocks.getWork.mockResolvedValue({ id: "work-one", part_id: "part-one",
+      owner_user_id: "owner-profile", row_version: 3, proposed_payload: payload,
+      lifecycle_intent: "first_release" });
+    mocks.verifyPackage.mockReturnValue({ packageHash: "a".repeat(64), decisionBasis: {
+      version: 2, lifecycle, payload, hash: reviewDecisionBasisHash({ payload, lifecycle }) } });
+    vi.mocked(tx.queryOne).mockResolvedValue({ principal_id: "owner-principal" });
+  }
+  it("selects a different published reviewer with both decide and publish for release-only submission", async () => {
+    mocks.readLifecycle.mockResolvedValue(lifecycle);
+    await new PartChangeWorkService(tx).submitPrincipal("work-one", verified, context);
+    expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(tx,
+      { companyId: "company-jenfu", ownerUserId: "profile-one", requirePublish: true });
+    expect(mocks.buildPackage).toHaveBeenCalledWith(tx, expect.objectContaining({
+      decisionBasis: expect.objectContaining({ lifecycle }) }));
+  });
+  it("rechecks the live publisher capability and persists the approved snapshot in the receipt result", async () => {
+    await releaseReview();
+    const result = await new PartChangeWorkService(tx).decidePrincipal("review-one", "approve", verified, context);
+    expect(result).toMatchObject({ acknowledged: true, snapshotId: "snapshot-one" });
+    expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified,
+      [{ permissionKind: "action", permissionCode: "numbering.publish" }]);
+    expect(mocks.formalize).toHaveBeenCalledWith(tx, expect.objectContaining({ lifecycle,
+      approval: expect.objectContaining({ reviewerPrincipalId: "principal-one" }) }));
+  });
+  it("denies a reviewer whose publish capability was revoked", async () => {
+    await releaseReview();
+    mocks.evaluate.mockResolvedValueOnce([{ allowed: true }]).mockResolvedValueOnce([{ allowed: false }]);
+    await expect(new PartChangeWorkService(tx).decidePrincipal("review-one", "approve", verified, context))
+      .rejects.toMatchObject({ status: 403 });
+    expect(mocks.formalize).not.toHaveBeenCalled();
+  });
+  it("denies the same Principal even if a historical profile differs", async () => {
+    await releaseReview();
+    vi.mocked(tx.queryOne).mockResolvedValue({ principal_id: "principal-one" });
+    await expect(new PartChangeWorkService(tx).decidePrincipal("review-one", "approve", verified, context))
+      .rejects.toMatchObject({ status: 403 });
+    expect(mocks.formalize).not.toHaveBeenCalled();
+  });
+  it("keeps return-for-correction from executing any release or publisher mutation", async () => {
+    await releaseReview();
+    await new PartChangeWorkService(tx).decidePrincipal("review-one", "return_for_correction", verified, context);
+    expect(mocks.formalize).not.toHaveBeenCalled();
+    expect(mocks.evaluate).toHaveBeenCalledTimes(1);
   });
 });

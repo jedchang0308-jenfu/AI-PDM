@@ -20,14 +20,20 @@ import { createFileStorageService } from "@/lib/file-storage";
 import { deriveDrawingRevisionBasis, type DrawingRevisionBasisState } from "@/lib/drawing-revision-lifecycle-policy";
 import { issueDrawingRevisionTargetToken, verifyDrawingRevisionTargetToken } from "@/lib/drawing-revision-target-token.server";
 import { DrawingRevisionTargetContractError, parseDrawingRevisionCreateSelection } from "@/lib/drawing-revision-target-contract";
-import { assertDrawingRecognitionWriteReady, assertReviewPackageRecognitionReady, buildReviewPackage, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
-import { parseReviewPackageSnapshot } from "@/lib/pdm-review-package-contract";
+import { assertDrawingRecognitionWriteReady, assertReviewPackageRecognitionReady, buildReviewPackage, reviewDecisionBasisHash, reviewPackageV2WriteEnabled, verifyReviewPackageIntegrity } from "@/lib/pdm-review-package";
+import { parseReviewPackageSnapshot, type ReviewPackageLifecycleBasis } from "@/lib/pdm-review-package-contract";
 
 export type DrawingRevisionActor = { id: string; companyId: string; canEditNonOwned: boolean; permissions: { create: boolean; update: boolean; submit: boolean; cancel: boolean; decide: boolean; obsolete: boolean } };
 type CommandContext = { idempotencyKey: string; contractToken: string; expectedRowVersion: number; correlationId?: string };
 function correlation(value?: string) { return value?.trim() || crypto.randomUUID(); }
 function allow(value: boolean) { if (!value) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403); }
 function edit(actor: DrawingRevisionActor, owner: string) { if (actor.id !== owner && !actor.canEditNonOwned) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403); }
+function sameLifecycleBasis(left: ReviewPackageLifecycleBasis,
+  right: ReviewPackageLifecycleBasis) {
+  return left.intent === right.intent && left.masterId === right.masterId &&
+    left.masterStatus === right.masterStatus && left.masterHash === right.masterHash &&
+    left.formalRowVersion === right.formalRowVersion;
+}
 function parseCreateSelection(value: unknown) {
   try {
     return parseDrawingRevisionCreateSelection(value);
@@ -519,12 +525,26 @@ export class DrawingRevisionWorkService {
         throw error;
       }
       const reviews = new PdmWorkReviewAsyncRepository(tx);
+      const lifecycleBasis = principalOnly
+        ? await repository.readMasterLifecycleBasis(tx, {
+          companyId, drawingId: locked.drawing_id,
+          targetMinor: Number(locked.target_minor),
+          required: Number(locked.target_minor) === 0
+        })
+        : null;
       const reviewerUserId = principalOnly
         ? await selectPrincipalReviewerInSnapshot(tx,
           { companyId, ownerUserId: locked.owner_user_id,
             ...(Number(locked.target_minor) === 0 ? { requirePublish: true } : {}) })
         : await reviews.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id });
-      const snapshotPayload = sanitizeDrawingRevisionWorkPayload(submittedPayload); const decisionBasis = { payload: snapshotPayload, revisionId: locked.revision_id, claimId: locked.target_claim_id }; const legacySnapshotHash = dev087RequestHash(decisionBasis);
+      const snapshotPayload = sanitizeDrawingRevisionWorkPayload(submittedPayload);
+      const basisFields = { payload: snapshotPayload, revisionId: locked.revision_id,
+        claimId: locked.target_claim_id };
+      const decisionBasis = lifecycleBasis
+        ? { ...basisFields, lifecycle: lifecycleBasis } : basisFields;
+      const legacySnapshotHash = lifecycleBasis
+        ? reviewDecisionBasisHash({ ...basisFields, lifecycle: lifecycleBasis })
+        : dev087RequestHash(basisFields);
       const packagePayload = principalOnly || reviewPackageV2WriteEnabled()
         ? await buildReviewPackage(tx, { companyId, requestKind: "drawing_revision", entityType: "drawing", canonicalEntityId: locked.drawing_id, workId, branchId: locked.branch_id, decisionBasis: { hash: legacySnapshotHash, ...decisionBasis } })
         : { payload: snapshotPayload, revisionId: locked.revision_id, claimId: locked.target_claim_id };
@@ -732,7 +752,8 @@ export class DrawingRevisionWorkService {
       assertReviewPackageRecognitionReady(verifiedPackage);
       if (!work) throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
         "資料已改變，請退回修改後重新送審", 409);
-      if (Number(work.target_minor) === 0) {
+      const majorRelease = Number(work.target_minor) === 0;
+      if (majorRelease) {
         const [publishDecision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(
           tx, verified, [{ permissionKind: "action",
             permissionCode: "numbering.publish" }]);
@@ -742,18 +763,39 @@ export class DrawingRevisionWorkService {
         }
       }
       await repository.assertFormalizationAllowed(tx, work);
-      await beginDev087Approval(tx, locked);
-      const faultHandling = dev087FaultHandling();
-      if (faultHandling) return recordDev087Fault(tx, locked, faultHandling);
       const rawPayload = typeof work.proposed_payload === "string"
         ? JSON.parse(work.proposed_payload) : work.proposed_payload;
       const decisionBasis = { payload: sanitizeDrawingRevisionWorkPayload(rawPayload),
         revisionId: work.revision_id, claimId: work.target_claim_id };
-      if (dev087RequestHash(decisionBasis) !== verifiedPackage.decisionBasis.hash) {
+      const lifecycleBasis = verifiedPackage.decisionBasis.lifecycle;
+      if (lifecycleBasis) {
+        if (lifecycleBasis.intent !== (majorRelease
+            ? "production_release" : "edit")) {
+          throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+            "審核包發行意圖與目標版次不符，請退回修改後重新送審", 409);
+        }
+        const currentLifecycleBasis = await repository.readMasterLifecycleBasis(tx, {
+          companyId: profile.companyId, drawingId: work.drawing_id,
+          targetMinor: Number(work.target_minor), required: majorRelease
+        });
+        if (!currentLifecycleBasis ||
+            !sameLifecycleBasis(currentLifecycleBasis, lifecycleBasis)) {
+          throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+            "正式圖號基準已改變，請退回修改後重新送審", 409);
+        }
+      }
+      const currentDecisionHash = lifecycleBasis
+        ? reviewDecisionBasisHash({ ...decisionBasis, lifecycle: lifecycleBasis })
+        : dev087RequestHash(decisionBasis);
+      if (currentDecisionHash !== verifiedPackage.decisionBasis.hash) {
         throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
           "資料已改變，請退回修改後重新送審", 409);
       }
-      await repository.formalize(tx, { companyId: profile.companyId, work });
+      await beginDev087Approval(tx, locked);
+      const faultHandling = dev087FaultHandling();
+      if (faultHandling) return recordDev087Fault(tx, locked, faultHandling);
+      await repository.formalize(tx, { companyId: profile.companyId, work,
+        ...(lifecycleBasis ? { lifecycleBasis } : {}) });
       await reviews.recordTerminalReceipt(tx, locked);
       await tx.execute(`DELETE FROM pdm_work_review_requests WHERE id = :id AND company_id = :companyId`, locked);
       return { acknowledged: true as const };

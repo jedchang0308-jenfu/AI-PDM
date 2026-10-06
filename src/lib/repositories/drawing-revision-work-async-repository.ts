@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { CanonicalWorkbenchError } from "@/lib/pdm-canonical-workbench-contract";
 import { dev087RequestHash } from "@/lib/pdm-canonical-command";
+import type { ReviewPackageLifecycleBasis } from "@/lib/pdm-review-package-contract";
 import { affectedPartFingerprint, validateDrawingChangeImpactForWork } from "@/lib/drawing-change-impact";
 import {
   collectDrawingWorkFileSnapshotAnomalies,
@@ -25,6 +26,65 @@ export type DrawingWorkRow = {
   target_major: number; target_minor: number; target_label: string; predecessor_revision_id: string | null;
   revision_id: string; handling: string;
 };
+
+type FormalDrawingMasterRow = {
+  drawing_id: string;
+  drawing_company_id: string;
+  formal_drawing_number_id: string;
+  mapped_drawing_number: string | null;
+  master_id: string;
+  master_company_id: string;
+  master_drawing_number: string;
+  master_status: string;
+  master_updated_at: Date | string | null;
+  master_purpose_code: string;
+  master_purpose_description: string;
+  master_is_primary_manufacturing: boolean | number | string;
+  formal_number_match_count: number | string;
+};
+
+const releasableDrawingMasterStatuses = new Set([
+  "Draft", "NeedInfo", "Rejected", "Active", "PendingReview", "Released"
+]);
+
+function normalizeMasterUpdatedAt(value: Date | string | null) {
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) throw new CanonicalWorkbenchError(
+      "WORKBENCH_SNAPSHOT_DRIFT", "正式圖號基準無效，請重新送審", 409);
+    return value.toISOString();
+  }
+  if (typeof value !== "string" || !value.trim()) {
+    throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+      "正式圖號基準無效，請重新送審", 409);
+  }
+  const raw = value.trim();
+  const utc = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/u.test(raw)
+    ? raw.replace(" ", "T") + "Z"
+    : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/u.test(raw)
+      ? raw + "Z" : raw;
+  const parsed = new Date(utc);
+  if (!Number.isFinite(parsed.getTime())) {
+    throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+      "正式圖號基準無效，請重新送審", 409);
+  }
+  return parsed.toISOString();
+}
+
+function normalizeMasterPrimaryFlag(value: boolean | number | string) {
+  if (value === true || value === 1 || value === "1") return true;
+  if (value === false || value === 0 || value === "0") return false;
+  throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+    "正式圖號基準無效，請重新送審", 409);
+}
+
+function sameDrawingMasterLifecycleBasis(
+  left: ReviewPackageLifecycleBasis,
+  right: ReviewPackageLifecycleBasis
+) {
+  return left.intent === right.intent && left.masterId === right.masterId &&
+    left.masterStatus === right.masterStatus && left.masterHash === right.masterHash &&
+    left.formalRowVersion === right.formalRowVersion;
+}
 
 export function parseCanonicalRevision(value: string): RevisionTuple {
   const match = /^(0|[1-9]\d*)(?:\.([1-9]\d*))?$/u.exec(value.trim());
@@ -417,8 +477,128 @@ export class DrawingRevisionWorkAsyncRepository {
     return basis;
   }
 
-  async formalize(tx: AsyncDatabaseClient, input: { companyId: string; work: DrawingWorkRow }) {
+  async readMasterLifecycleBasis(client: AsyncDatabaseClient, input: {
+    companyId: string; drawingId: string; targetMinor: number; required?: boolean;
+  }): Promise<ReviewPackageLifecycleBasis | null> {
+    const lockClause = client.kind === "postgres" ? " FOR UPDATE OF drawing, master" : "";
+    const rows = await client.query<FormalDrawingMasterRow>(
+      "SELECT drawing.id AS drawing_id, drawing.company_id AS drawing_company_id, " +
+      "drawing.formal_drawing_number_id, drawing.drawing_number AS mapped_drawing_number, " +
+      "master.id AS master_id, master.company_id AS master_company_id, " +
+      "master.drawing_number AS master_drawing_number, master.record_status AS master_status, " +
+      "master.updated_at AS master_updated_at, master.purpose_code AS master_purpose_code, " +
+      "master.purpose_description AS master_purpose_description, " +
+      "master.is_primary_manufacturing AS master_is_primary_manufacturing, " +
+      "(SELECT COUNT(*) FROM drawing_numbers matched " +
+      " WHERE matched.company_id = master.company_id " +
+      "   AND matched.drawing_number = master.drawing_number) AS formal_number_match_count " +
+      "FROM drawings drawing " +
+      "JOIN drawing_numbers master " +
+      "  ON master.id = drawing.formal_drawing_number_id " +
+      " AND master.company_id = drawing.company_id " +
+      "WHERE drawing.id = :drawingId AND drawing.company_id = :companyId" +
+      lockClause,
+      input
+    );
+    if (rows.length === 0 && input.targetMinor > 0 && input.required !== true) return null;
+    if (rows.length !== 1) throw new CanonicalWorkbenchError(
+      "WORKBENCH_SNAPSHOT_DRIFT", "正式圖號對應已不存在或不唯一，請重新送審", 409);
+    const row = rows[0];
+    if (row.drawing_id !== input.drawingId || row.drawing_company_id !== input.companyId ||
+        row.formal_drawing_number_id !== row.master_id ||
+        row.master_company_id !== input.companyId ||
+        Number(row.formal_number_match_count) !== 1 ||
+        (row.mapped_drawing_number !== null &&
+          row.mapped_drawing_number !== row.master_drawing_number)) {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+        "正式圖號對應已改變或不唯一，請重新送審", 409);
+    }
+    if (!releasableDrawingMasterStatuses.has(row.master_status)) {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+        "正式圖號目前不可採用為量產版，請先完成既有生命週期處理", 409);
+    }
+    if (row.master_status === "PendingReview") {
+      const pending = await client.query<{ id: string }>(
+        "SELECT id FROM approval_requests " +
+        "WHERE company_id = :companyId AND request_type = 'numbering' " +
+        "AND entity_type = 'drawing_number' AND entity_id = :masterId " +
+        "AND request_status IN ('pending', 'needs_info') LIMIT 1",
+        { companyId: input.companyId, masterId: row.master_id }
+      );
+      if (pending.length > 0) throw new CanonicalWorkbenchError(
+        "WORKBENCH_SNAPSHOT_DRIFT",
+        "正式圖號仍有其他待處理審核，不能同時採用", 409);
+    }
+    return {
+      intent: input.targetMinor === 0 ? "production_release" : "edit",
+      masterId: row.master_id,
+      masterStatus: row.master_status,
+      masterHash: dev087RequestHash({
+        id: row.master_id,
+        recordStatus: row.master_status,
+        updatedAt: normalizeMasterUpdatedAt(row.master_updated_at),
+        purposeCode: row.master_purpose_code,
+        purposeDescription: row.master_purpose_description,
+        isPrimaryManufacturing: normalizeMasterPrimaryFlag(
+          row.master_is_primary_manufacturing)
+      }),
+      formalRowVersion: null
+    };
+  }
+
+  async releaseMasterForProduction(tx: AsyncDatabaseClient, input: {
+    companyId: string; drawingId: string; lifecycleBasis: ReviewPackageLifecycleBasis;
+  }) {
+    if (tx.kind !== "postgres" ||
+        input.lifecycleBasis.intent !== "production_release") {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+        "正式圖號發行基準無效，請重新送審", 409);
+    }
+    const current = await this.readMasterLifecycleBasis(tx, {
+      companyId: input.companyId, drawingId: input.drawingId,
+      targetMinor: 0, required: true
+    });
+    if (!current || !sameDrawingMasterLifecycleBasis(current,
+        input.lifecycleBasis)) {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+        "正式圖號基準已改變，請重新送審", 409);
+    }
+    const updated = await tx.query<{ id: string }>(
+      "UPDATE drawing_numbers SET record_status = 'Released', " +
+      "updated_at = CURRENT_TIMESTAMP " +
+      "WHERE id = :masterId AND company_id = :companyId " +
+      "AND record_status = :expectedStatus RETURNING id",
+      { masterId: current.masterId, companyId: input.companyId,
+        expectedStatus: current.masterStatus }
+    );
+    if (updated.length !== 1 || updated[0].id !== current.masterId) {
+      throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+        "正式圖號未能同步發行，請重新送審", 409);
+    }
+  }
+
+  async formalize(tx: AsyncDatabaseClient, input: {
+    companyId: string; work: DrawingWorkRow;
+    lifecycleBasis?: ReviewPackageLifecycleBasis;
+  }) {
     await this.assertFormalizationAllowed(tx, input.work);
+    if (input.lifecycleBasis) {
+      const targetMinor = Number(input.work.target_minor);
+      const expectedIntent = targetMinor === 0 ? "production_release" : "edit";
+      if (input.lifecycleBasis.intent !== expectedIntent) {
+        throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+          "正式圖號發行基準與目標版次不符，請重新送審", 409);
+      }
+      const current = await this.readMasterLifecycleBasis(tx, {
+        companyId: input.companyId, drawingId: input.work.drawing_id,
+        targetMinor, required: targetMinor === 0
+      });
+      if (!current || !sameDrawingMasterLifecycleBasis(
+          current, input.lifecycleBasis)) {
+        throw new CanonicalWorkbenchError("WORKBENCH_SNAPSHOT_DRIFT",
+          "正式圖號基準已改變，請重新送審", 409);
+      }
+    }
     const proposed = typeof input.work.proposed_payload === "string" ? JSON.parse(input.work.proposed_payload) as Record<string, unknown> : input.work.proposed_payload as Record<string, unknown>;
     const changeImpact = input.work.predecessor_revision_id === null ? null : await validateDrawingChangeImpactForWork(tx, {
       companyId: input.companyId,
@@ -555,6 +735,12 @@ export class DrawingRevisionWorkAsyncRepository {
     }
     await tx.execute(`DELETE FROM drawing_revision_work_files WHERE work_id = :workId`, { workId: input.work.id });
     await tx.execute(`DELETE FROM drawing_revision_works WHERE id = :workId AND company_id = :companyId`, { companyId: input.companyId, workId: input.work.id });
+    if (Number(input.work.target_minor) === 0 && input.lifecycleBasis) {
+      await this.releaseMasterForProduction(tx, {
+        companyId: input.companyId, drawingId: input.work.drawing_id,
+        lifecycleBasis: input.lifecycleBasis
+      });
+    }
     return { drawingId: input.work.drawing_id, revisionId: input.work.revision_id, revision: input.work.target_label };
   }
 }
