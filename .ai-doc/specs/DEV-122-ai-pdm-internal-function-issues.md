@@ -1,5 +1,11 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
+### 2026-10-06 CURRENT：正式資源授權與 worker 安全修補
+
+人類已明確核准[原十二項正式資源與上線方案](C:/VIBE%20CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/cloud-resource-production-approval-plan-2026-10-06.md)，另接受固定Terraform provider安裝的本次容量風險。下方「resource authorization pending／未授權」僅為當時歷史，現行 scope 為 AI-PDM own十二地址、兩numeric versions、082 forward-only及同一功能app-owned發布／已知版本回復；禁止跨專案、廣泛IAM、down migration及手動正式業務資料修改不變。
+
+A02 Cloud Build雖成功，worker raw HIGH／CRITICAL為17，正式安全掃描失敗保留；未建立新資源或切流。依[本次修補與QA缺口](../qa/DEV-122-openswx-worker-security-remediation-2026-10-06.json)，只替換finite-worker固定musl build/runtime、重編reader並靜態連結固定upstream修補zlib；透明SPDX／source／license／compiled hash入成品，新SPDX入worker source binding。Historical CLI、vendor bytes、child隔離要求、scan zero HIGH/CRITICAL、API／schema／權限及驗收分母不變（No contract drift）。新image需actual build／SBOM／scan、無CAD隔離self-test及normal有限CAD結果，既有Debian artifact不可冒充新musl artifact PASS；完整native F-01F仍human-owned，D122-07停用／延後，整體NOT_ACCEPTED。
+
 本輪一次提交／自動啟用與動態進度已隨R03部署，PR／main required CI與owner RELEASED／FINALIZED通過；exact來源／migration／provider及層級限制依[新正式結案](../qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)。真key／CAD由使用者正式驗證；使用者已指定 Cloud Run，現有 Windows Document Manager 不相容，免費 OpenSWX 已選定本地評估，8檔已讀出partial儲存屬性，Cloud Run 唯讀輔助結果本地實作中，整體DEV仍NOT_ACCEPTED。原始FAIL及[R02結案](../qa/DEV-122-settings-production-closure-2026-10-05.json)保留為歷史，未覆寫或升級mock驗收。
 
 ## Cloud Run 部署指示與解析器相容性（2026-10-05；CURRENT，優先於下方 Windows 啟動契約）
