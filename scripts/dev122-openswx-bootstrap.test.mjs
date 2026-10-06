@@ -622,6 +622,10 @@ test('readback IAM Terraform gate requires exactly five scoped create/no-op reso
   assert.equal(assertReadbackIamTerraformPlan(allNoOp).length, 5)
   for (const mutate of [
     plan => { plan.resource_changes.pop() },
+    plan => { plan.resource_changes.push(structuredClone(plan.resource_changes[0])) },
+    plan => { plan.resource_changes[1] = structuredClone(plan.resource_changes[0]) },
+    plan => { plan.resource_changes.find(row => row.address.endsWith('verifier_job_readback')).change.after.deleted = true },
+    plan => { plan.resource_changes.find(row => row.address.endsWith('verifier_job_readback')).change.after.stage = 'DISABLED' },
     plan => { plan.resource_changes[0].address = 'google_project_iam_member.foreign' },
     plan => { plan.resource_changes[0].change.actions = ['update'] },
     plan => { plan.resource_changes[0].change.actions = ['delete', 'create'] },
@@ -632,6 +636,51 @@ test('readback IAM Terraform gate requires exactly five scoped create/no-op reso
     plan => { plan.resource_changes[0].change.after_unknown = [] },
     plan => { plan.resource_changes.find(row => row.address.endsWith('verifier_scheduler_readback')).change.after.condition = [{ title: 'broad' }] },
   ]) { const bad = readbackIamPlanFixture(); mutate(bad); assert.throws(() => assertReadbackIamTerraformPlan(bad)) }
+})
+
+function recordedReadbackIamNoOpPlanFixture() {
+  return JSON.parse(fs.readFileSync(new URL('./dev122-openswx-readback-iam-provider-noop.fixture.json', import.meta.url))).plan
+}
+
+test('readback IAM gate accepts the recorded provider no-op plan with the exact full Job name', () => {
+  const plan = recordedReadbackIamNoOpPlanFixture()
+  assert.deepEqual(assertReadbackIamTerraformPlan(plan), [...READBACK_IAM_ADDRESSES].sort().map(address => ({ address, actions: ['no-op'] })))
+  const job = plan.resource_changes.find(row => row.address === 'google_cloud_run_v2_job_iam_member.verifier_readback')
+  assert.equal(job.change.after.name, workerJobName())
+  assert.deepEqual(job.change.after_unknown, {})
+  job.change.after.name = READBACK_IAM_SPECS[job.address].name
+  assert.equal(assertReadbackIamTerraformPlan(plan).length, 5)
+})
+
+test('readback IAM gate rejects canonical Job name scope, unknown, actor and action drift', () => {
+  const mutations = [
+    ['foreign project', row => { row.change.after.name = workerJobName().replace('jenfu-platform-prod', 'sibling-project') }],
+    ['project number alias', row => { row.change.after.name = workerJobName().replace('jenfu-platform-prod', '9536592944') }],
+    ['foreign location', row => { row.change.after.name = workerJobName().replace('asia-east1', 'us-central1') }],
+    ['foreign Job', row => { row.change.after.name = workerJobName() + '-other' }],
+    ['suffix match', row => { row.change.after.name = 'foreign/' + workerJobName() }],
+    ['URL form', row => { row.change.after.name = 'https://run.googleapis.com/v2/' + workerJobName() }],
+    ['trailing slash', row => { row.change.after.name = workerJobName() + '/' }],
+    ['foreign resource kind', row => { row.change.after.name = workerJobName().replace('/jobs/', '/services/') }],
+    ['missing name', row => { delete row.change.after.name }],
+    ['non-string name', row => { row.change.after.name = 123 }],
+    ['encoded path', row => { row.change.after.name = workerJobName().replace('/jobs/', '%2Fjobs%2F') }],
+    ['unknown location', row => { row.change.after_unknown.location = true }],
+    ['unknown name', row => { row.change.after_unknown.name = true }],
+    ['unknown project', row => { row.change.after_unknown.project = true }],
+    ['project drift', row => { row.change.after.project = 'sibling-project' }],
+    ['location drift', row => { row.change.after.location = 'us-central1' }],
+    ['actor drift', row => { row.change.after.member = READBACK_IAM_DEPLOYER }],
+    ['role drift', row => { row.change.after.role = 'roles/run.admin' }],
+    ['condition', row => { row.change.after.condition = [{ title: 'other' }] }],
+    ['update', row => { row.change.actions = ['update'] }],
+    ['import', row => { row.change.importing = { id: 'foreign' } }],
+  ]
+  for (const [name, mutate] of mutations) {
+    const plan = recordedReadbackIamNoOpPlanFixture()
+    mutate(plan.resource_changes.find(row => row.address === 'google_cloud_run_v2_job_iam_member.verifier_readback'))
+    assert.throws(() => assertReadbackIamTerraformPlan(plan), { code: 'OPENSWX_IAM_PLAN_INVALID' }, name)
+  }
 })
 
 test('readback IAM receipt source proof is GCS-only; fresh provider seal requires exact bindings and unchanged unrelated project policy', async () => {
@@ -739,11 +788,11 @@ test('completed FIRST bridge accepts sealed selftest/pause and replays before up
   }
 })
 
-test('readback IAM injected Terraform applies once and saved request/binary/final receipts replay read-only', async () => {
-  for (const lostApplyResponse of [false, true]) {
-  const h = await firstReconciliationHarness(), d = h.args.descriptor, receiptId = 'iam-runner-replay-' + String(lostApplyResponse)
+test('readback IAM injected Terraform handles create and recorded no-op once; saved proofs replay read-only', async () => {
+  for (const [noOp, lostApplyResponse] of [[false, false], [false, true], [true, false], [true, true]]) {
+  const h = await firstReconciliationHarness(), d = h.args.descriptor, receiptId = 'iam-runner-replay-' + String(noOp) + '-' + String(lostApplyResponse)
   const approved = await seedReadbackIamApproval(h, { descriptorValue: d, descriptorRef: h.args.descriptorRef, workerBuildRef: h.workerBuildRef, receiptId })
-  const readbackPlan = readbackIamPlanFixture(), calls = [], state = { applied: false }; let ownedTemp = null
+  const readbackPlan = noOp ? recordedReadbackIamNoOpPlanFixture() : readbackIamPlanFixture(), calls = [], state = { applied: noOp }; let ownedTemp = null
   const projectBefore = readbackIamProjectPolicy().filter(row => row.role !== READBACK_SCHEDULER_ROLE)
   const projectAfter = [...projectBefore, { role: READBACK_SCHEDULER_ROLE, members: [READBACK_IAM_DEPLOYER, READBACK_IAM_VERIFIER].sort() }]
   const iamCalls = installReadbackIamProvider(h, {
@@ -771,6 +820,10 @@ test('readback IAM injected Terraform applies once and saved request/binary/fina
     verifyActor: async () => ({ email: 'jedchang0308@jenfu.com.tw' }), terraformRunner })
   const first = await invoke()
   assert.equal(first.value.status, 'APPLIED')
+  assert.deepEqual(calls, ['init', 'plan', 'show', 'apply'])
+  const savedRequest = h.objects.get(ref(receiptId + '-request').uri).value
+  assert.ok(savedRequest.changes.every(row => row.actions[0] === (noOp ? 'no-op' : 'create')))
+  if (noOp) assert.equal(first.value.readback.unrelatedProjectBindingsSha256, readbackIamUnrelatedHash(projectAfter))
   assert.equal(first.value.mutation, lostApplyResponse ? 'UNKNOWN_APPLY_THEN_READBACK' : 'APPLY_THEN_READBACK')
   assert.equal(fs.existsSync(ownedTemp), false)
   assert.equal(calls.filter(command => command === 'apply').length, 1)

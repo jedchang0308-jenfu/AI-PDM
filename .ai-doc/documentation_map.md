@@ -1,5 +1,12 @@
 # AI_PDM 文件地圖
 
+## DEV-122 CURRENT（2026-10-07；A10 建置通過，五項 IAM 完整名稱修復）
+
+本節優先於下方歷史續點。PR227 官方 main `87e01223` 的 required CI 與 A10 protected build-only 均 SUCCESS，app／worker 建置及原安全 gate 通過。五項 IAM 來源刷新在 apply 前被 `OPENSWX_IAM_PLAN_INVALID` 拒絕；實際 NO_APPLY 計畫五筆全為 no-op，前後 IAM 完全相同且 request／plan／final 回執均未建立。唯一差異是同一固定 Job 的名稱由短名變為完整 resource name。修正只允許 exact address/name 的原短名或 frozen project/location/job 完整名；原五地址、帳號、權限、unknown 與 actions 等限制、Terraform／owner workflow／profile／依賴均保留。
+
+42／42 既有 bootstrap／IAM 聚焦測試（含實際 no-op fixture、21 種漂移拒絕及已存在 IAM 的保存計畫／回讀／零 Terraform 重放）通過，专屬程序／暫存已清理；[修復與失敗證據](qa/DEV-122-openswx-iam-canonical-name-remediation-2026-10-07.json)與[限定 B10 契約](specs/DEV-122-openswx-release-readback-iam-contract-2026-10-06.md)保留原失敗及 A10 成功建置。新來源獨立 QC／normal PR／required CI／build／來源回讀仍待跑；原十二資源僅回讀、五 IAM 原範圍刷新、reader v1／registry v3 重用，再接 082／完整發布與正常 8-CAD UI。正式仍 `ai-pdm-prod-5c8854b292a1` 100%／0 tags、Scheduler PAUSED；F-01F 由使用者正式驗證、供應商回覆停用延後、整體 NOT_ACCEPTED。
+
+
 ## DEV-122 CURRENT（2026-10-07；原生套件安全證據已更新，正式發布待新來源 CI）
 
 本節優先於下方歷史續點。PR226 官方 main `10110697` 的 A09 app 建置成功，但兩筆 GCC 評估仍綁舊 sharp/vips 指紋，因此既有 gate 以 `GCC_APPLICABILITY_EVIDENCE_INVALID` 停止；worker build、082、candidate 與 traffic 未執行。已完成限定 AI-PDM 的新 source closure：28 份來源／5 份固定補丁／4 份 npm 原生成品與實際映像逐一對上，570 ELF／288 canonical 中 284 未變、4 項升級，載入閉包的 10 個共通檔案未變。新收集與沿用歷史測試分開記錄；R66b 的 FAILURE_PARTIAL 保留，9／9／3 歷史配置測試未重跑。

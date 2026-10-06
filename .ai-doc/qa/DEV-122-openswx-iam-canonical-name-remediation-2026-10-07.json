@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "aipdm.dev122.iam-canonical-name-remediation.v1",
+  "project": "AI-PDM",
+  "status": "LOCAL_SOURCE_TESTS_PASS_OFFICIAL_CI_AND_PRODUCTION_PENDING",
+  "sourceBase": "87e01223e6ec6b8b3a53735ac20ea1acb2ef5cd5",
+  "branch": "codex/dev122-iam-canonical-name",
+  "authorization": {
+    "continuity": "Existing human-approved AI-PDM production release and exact five read-only IAM corrective cycle; no new project, environment, resource or permission",
+    "originalTwelveResources": "READBACK_ONLY",
+    "existingFiveIam": "EXACT_CREATE_OR_NO_OP_AND_PROVIDER_READBACK",
+    "credentials": "REUSE_READER_V1_REGISTRY_V3_NO_NEW_VERSIONS"
+  },
+  "priorOfficialBuild": {
+    "releaseId": "DEV122-OPENSWX-20261007-A10",
+    "ownerRunId": 37524226594,
+    "status": "SUCCESS_BUILD_ONLY",
+    "workerBuildId": "0abc6095-0995-471a-bddd-70c5eeb915a1",
+    "appBuildId": "bf1456fc-4837-4164-afd8-888ad0923a45",
+    "workerRawHighOrCritical": 0,
+    "scope": "No migration, candidate or traffic"
+  },
+  "preservedFailure": {
+    "inputPath": "production/A10-IAMR02-first-input-readback-iam.json",
+    "inputSha256": "776bbdd1300501573b3ad5365a03fabf6c83d7c9b548436bcd73ca3c87829b05",
+    "runtimePath": "production/A10-IAMR02-first-readback-iam-runtime.json",
+    "runtimeSha256": "c55abb44c8ccac5e4a634a19ad3b7d909b4970b5838c5085c140d8e901a52374",
+    "error": "OPENSWX_IAM_PLAN_INVALID",
+    "phase": "BEFORE_REQUEST_BINARY_JOURNAL_OR_APPLY"
+  },
+  "actualNoApplyDiagnostic": {
+    "path": "production/A10-IAMR02-plan-diagnostic.json",
+    "sha256": "bad1c275c80dd01992062d9459c425d22736d43f0c4101610f20fa73310fecd4",
+    "rawPlanPath": "production/A10-IAMR02-actual-plan.raw.json",
+    "rawPlanSha256": "3e2df34604d536fc10fe44f22d0676c8e84e234e06dc622d17c80e19977e4e4e",
+    "sourceRevision": "87e01223e6ec6b8b3a53735ac20ea1acb2ef5cd5",
+    "state": "ACTUAL_PLAN_CAPTURED_NO_APPLY_IAM_UNCHANGED",
+    "resourceCount": 5,
+    "actions": [
+      "no-op"
+    ],
+    "beforeAfterIamEqual": true,
+    "transportWrites": 0,
+    "requestPlanFinalReceipts": "ALL_THREE_PROVIDER_MISSING_404",
+    "temporaryRemoved": true,
+    "terraformCommands": [
+      "init",
+      "plan",
+      "show"
+    ]
+  },
+  "provedCause": {
+    "address": "google_cloud_run_v2_job_iam_member.verifier_readback",
+    "field": "name",
+    "expectedShort": "ai-pdm-prod-openswx-metadata",
+    "actualCanonical": "projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata",
+    "otherControlledFields": "ALL_MATCH"
+  },
+  "repair": {
+    "module": "scripts/lib/dev122-openswx-readback-iam.mjs",
+    "rule": "Only this exact address/name may match the frozen project/location/job full name or original short name; no suffix, basename, numeric alias or URL normalization",
+    "unchanged": [
+      "Five resource addresses",
+      "Managed Google provider",
+      "create/no-op actions only",
+      "Known project/location/name/member/role/permissions",
+      "Unknown identity rejection",
+      "Condition/import/deleted/stage guards",
+      "Terraform files and resource specs",
+      "Owner workflow/profile/security policies/dependencies"
+    ]
+  },
+  "recordedFixture": {
+    "path": "scripts/dev122-openswx-readback-iam-provider-noop.fixture.json",
+    "sha256": "bd3bbb8aba5f8acc6660e8d6000827ea7971cbf826a6d160ca5a536416aba8c1",
+    "scope": "Exact resource_changes projection from captured provider plan; replay unit test, not live release acceptance"
+  },
+  "focusedTests": {
+    "path": "production/A11-iam-canonical-tests-runtime.json",
+    "sha256": "a2cfe0f8d7756851f830d611ddca915218349b6123c2f9578e3614af0ae28196",
+    "stdoutPath": "production/A11-iam-canonical-tests-stdout.raw.log",
+    "stdoutSha256": "01c5c5cba49a98af4283d77c107746365b6e8c9bdd5ffdd4dfb6802b61c48e38",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests": 42,
+    "passed": 42,
+    "failed": 0,
+    "skipped": 0,
+    "newTests": 2,
+    "canonicalDriftNegativeVariants": 21,
+    "scope": "Complete existing worker bootstrap/five-IAM suite plus recorded no-op and exact drift regression; synthetic transport proofs are not live Cloud/CAD results",
+    "pid": 99036,
+    "processStopped": true,
+    "temporaryRemoved": true,
+    "injectedRunnerCases": [
+      "create",
+      "create-lost-apply-response",
+      "recorded-no-op-existing-IAM",
+      "recorded-no-op-lost-apply-response"
+    ],
+    "savedBinaryOnlyApplyAndProofOrdering": true,
+    "sameReceiptReplayZeroTerraform": true,
+    "firstPassHistory": "production/A11-first-test-freeze-history.json",
+    "firstControlledQaSha256": "64f8be0ebd8482e447ebc7286018e7e5839f7b8982151884dfdacc0fba4f8cae"
+  },
+  "next": "Independent source QC; normal PR/required CI/main; fresh source-bound app/worker build and five-IAM no-op/readback; twelve resources readback and sealed v1/v3 reuse; own migration082/full release and normal eight-CAD UI",
+  "production": {
+    "status": "NOT_RELEASED_FOR_THIS_REPAIR",
+    "servingRevision": "ai-pdm-prod-5c8854b292a1",
+    "trafficPercent": 100,
+    "tags": 0,
+    "scheduler": "PAUSED",
+    "migration082": "NOT_RUN",
+    "eightCadNormalUi": "NOT_RUN"
+  },
+  "nativeF01F": "USER_PRODUCTION_VALIDATION_PENDING",
+  "supplierReplies": "DISABLED_DEFERRED",
+  "wholeDev": "NOT_ACCEPTED"
+}
