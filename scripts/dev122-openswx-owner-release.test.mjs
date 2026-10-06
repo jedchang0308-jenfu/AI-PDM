@@ -169,3 +169,40 @@ test('new finite request semantic join fails before run when expected source dri
   assert.equal(h.calls.filter(row => row.url.endsWith(':run')).length, 0)
   assert.ok(!h.objects.has(ref('join-before-run').uri))
 })
+
+test('legal Jobs.patch preserves fresh writable metadata and applied lost responses use one PATCH', async () => {
+  for (const lost of [false, true]) {
+    const h = recordedProvider(), changed = structuredClone(h.template)
+    changed.template.containers[0].args = ['--isolation-self-test-only']
+    Object.assign(h.job, { labels: { 'goog-terraform-provisioned': 'true' }, annotations: { own: 'retained' }, client: 'terraform', clientVersion: '7.39.0', launchStage: 'GA', binaryAuthorization: { useDefault: true }, uid: 'output-only', runExecutionToken: 'must-not-run' })
+    const metadata = Object.fromEntries(['labels', 'annotations', 'client', 'clientVersion', 'launchStage', 'binaryAuthorization'].map(key => [key, structuredClone(h.job[key])]))
+    const original = h.transport.request; let patches = 0
+    h.transport.request = async (url, options = {}) => {
+      if (options.method === 'PATCH') {
+        patches++; assert.equal(url, `https://run.googleapis.com/v2/${workerJobName()}`)
+        const body = JSON.parse(options.body)
+        assert.deepEqual(body, { name: workerJobName(), etag: 'e1', ...metadata, template: changed })
+        Object.assign(h.job, { ...body, etag: 'e2', generation: '2', observedGeneration: '2' })
+        if (lost) throw Error('lost applied response')
+        return {}
+      }
+      return original(url, options)
+    }
+    const result = await updateWorkerJob({ transport: h.transport, profile, template: changed, deadlineAt: '2999-01-01T00:00:00Z' })
+    assert.equal(patches, 1); assert.deepEqual(result.template, changed)
+    for (const key of Object.keys(metadata)) assert.deepEqual(result[key], metadata[key])
+  }
+})
+test('settled Job metadata drift fails without a second PATCH', async () => {
+  for (const key of ['labels', 'annotations', 'binaryAuthorization']) {
+    const h = recordedProvider(), changed = structuredClone(h.template); changed.template.containers[0].args = ['--isolation-self-test-only']
+    Object.assign(h.job, { labels: { own: 'retained' }, annotations: { own: 'retained' }, binaryAuthorization: { useDefault: true } })
+    const original = h.transport.request; let patches = 0
+    h.transport.request = async (url, options = {}) => {
+      if (options.method === 'PATCH') { patches++; h.job.template = changed; h.job[key] = {}; return {} }
+      return original(url, options)
+    }
+    await assert.rejects(updateWorkerJob({ transport: h.transport, profile, template: changed, deadlineAt: '2999-01-01T00:00:00Z' }), /METADATA_DRIFT/)
+    assert.equal(patches, 1)
+  }
+})

@@ -2,9 +2,9 @@
   "schemaVersion": "aipdm.dev122.provider-readback-remediation.v1",
   "project": "AI-PDM",
   "task": "DEV-122#openswx-readonly-auxiliary",
-  "sourceBase": "19552e3f19f5f3b3340820e802304b5a68c58870",
-  "branch": "codex/dev122-partial-bootstrap-readback-fix",
-  "status": "SOURCE_QC_PASS_36_MOCK_OFFICIAL_CI_PENDING",
+  "sourceBase": "9240b84b7a0da1b7840e72cf3176e4bdbc72f572",
+  "branch": "codex/dev122-job-patch-api-fix",
+  "status": "JOB_PATCH_SOURCE_QC_PASS_40_MOCK_OFFICIAL_CI_PENDING",
   "singleWriter": "root",
   "authorization": {
     "humanOriginal": "核准, 請接續",
@@ -47,20 +47,21 @@
   },
   "validation": {
     "kind": "PRODUCTION_SHAPED_MOCK_NOT_PRODUCTION",
-    "tests": 36,
-    "pass": 36,
+    "tests": 40,
+    "pass": 40,
     "fail": 0,
     "skip": 0,
     "candidateHashes": {
-      "scripts/lib/dev122-openswx-bootstrap.mjs": "65e56f9084499977b95e5d24dd129e31b8e55b3e54a63a959edcf6996667a66b",
-      "scripts/dev122-openswx-owner-release.test.mjs": "696b83da85c25f9a204c9e75650d040227d7eb5979fe0cdb6b29eb94326d2bfd",
-      "scripts/lib/dev122-openswx-owner-release.mjs": "f1ce1ac75fb90ac9456c56405911438f0267727c2cb1163d29f1b4046dc5f360",
-      "scripts/dev122-openswx-bootstrap.test.mjs": "222cecb76146e5a223ce80532ca863365ef7c4408858c089a4677836e6ee90ad"
+      "scripts/dev122-openswx-owner-release.test.mjs": "6b3754cb931f3ab855527d55150bece85f7cd922a671b7e256ce710a245a6457",
+      "scripts/dev122-openswx-bootstrap.test.mjs": "0a921ef74ba631956475eaa8bfaaa84b904421cbd837f53cab33b356faa55fb5",
+      "scripts/lib/dev122-openswx-bootstrap.mjs": "6c49fa001a81854f6cc3f9a2607572e9c5e0cf8037d2e42d853bfa6aa0a5098c",
+      "scripts/lib/dev122-openswx-owner-release.mjs": "11fb075a0c4cda1502a080818ce31f72385f8d190a8305ba02854f040ab2b93d"
     },
     "runtimeStopped": true,
     "lifecycleReleased": true,
     "temporaryRemoved": true,
-    "outputSha256": "75c4d1d951eb6c5764ef569dd7f22a9e85ef8966383b7be8d28e350adfdd425c"
+    "runtimePath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\job-patch-tests-runtime.json",
+    "outputSha256": "d05a8f5f6c6020de29203c1869067f75db1c0401ca786de8ba81ed6f97389dc2"
   },
   "priorA03": {
     "evidenceScope": "BUILD_SECURITY_READINESS_ONLY",
@@ -72,11 +73,16 @@
     "workerBuild": "395d0b64-114c-4002-ac8e-f56076b51d07"
   },
   "independentSourceQc": {
+    "status": "SOURCE_QC_PASS",
     "model": "gpt-6-luna",
-    "effort": "max",
-    "status": "SOURCE_QC_PASS_INCREMENTAL",
-    "scope": "Four current source/test hashes;36/36 mocked provider tests; exact partial FIRST recovery; production source release/CAD/UI pending",
-    "facts": "Independent Luna/max readonly confirmed all four current hashes and36 PASS/no skip/fail, partial FIRST chain reused from first review, explicit six-field request join before run and on replay; source drift mock has run count0, existing replay remains single POST; PID67152 stopped/released/temp removed; no authority expansion. Non-blocking35→36 QC scope text synchronized by root only."
+    "scope": "Frozen four product/test hashes; expected eight paths; 40 recorded tests; real validateOnly shape; no P0/P1; production PATCH/CAD UI/whole acceptance NOT_RUN",
+    "candidateHashes": {
+      "scripts/dev122-openswx-owner-release.test.mjs": "6b3754cb931f3ab855527d55150bece85f7cd922a671b7e256ce710a245a6457",
+      "scripts/dev122-openswx-bootstrap.test.mjs": "0a921ef74ba631956475eaa8bfaaa84b904421cbd837f53cab33b356faa55fb5",
+      "scripts/lib/dev122-openswx-bootstrap.mjs": "6c49fa001a81854f6cc3f9a2607572e9c5e0cf8037d2e42d853bfa6aa0a5098c",
+      "scripts/lib/dev122-openswx-owner-release.mjs": "11fb075a0c4cda1502a080818ce31f72385f8d190a8305ba02854f040ab2b93d"
+    },
+    "notes": "Prior 36-case top-level QC is historical; metadata validation 200 is nonpersistent request-shape evidence only"
   },
   "completionBoundary": {
     "wholeDev": "NOT_ACCEPTED",
@@ -263,6 +269,136 @@
       "independentQc": "SOURCE_QC_PASS_INCREMENTAL",
       "latestMock": "36/36 PASS; PID67152 exited/released/temp removed",
       "disposition": "Explicit semantic join extracted and invoked before new :run, and on replay; test source drift during write proves zero :run side effects"
+    }
+  },
+  "priorRemediationBeforeJobPatch": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A06-history\\provider-remediation-before-job-patch.json",
+    "sha256": "e5c3cd32fbe54de89ea778457c4062d8db4ce6e89518e804f6140ca447230e84",
+    "status": "SOURCE_QC_PASS_36_MOCK_OFFICIAL_CI_PENDING",
+    "sourceBase": "19552e3f19f5f3b3340820e802304b5a68c58870",
+    "branch": "codex/dev122-partial-bootstrap-readback-fix",
+    "validation": {
+      "kind": "PRODUCTION_SHAPED_MOCK_NOT_PRODUCTION",
+      "tests": 36,
+      "pass": 36,
+      "fail": 0,
+      "skip": 0,
+      "candidateHashes": {
+        "scripts/lib/dev122-openswx-bootstrap.mjs": "65e56f9084499977b95e5d24dd129e31b8e55b3e54a63a959edcf6996667a66b",
+        "scripts/dev122-openswx-owner-release.test.mjs": "696b83da85c25f9a204c9e75650d040227d7eb5979fe0cdb6b29eb94326d2bfd",
+        "scripts/lib/dev122-openswx-owner-release.mjs": "f1ce1ac75fb90ac9456c56405911438f0267727c2cb1163d29f1b4046dc5f360",
+        "scripts/dev122-openswx-bootstrap.test.mjs": "222cecb76146e5a223ce80532ca863365ef7c4408858c089a4677836e6ee90ad"
+      },
+      "runtimeStopped": true,
+      "lifecycleReleased": true,
+      "temporaryRemoved": true,
+      "outputSha256": "75c4d1d951eb6c5764ef569dd7f22a9e85ef8966383b7be8d28e350adfdd425c"
+    },
+    "disposition": "HISTORY_ONLY_SOURCE_AND_MOCK_EVIDENCE_RETAINED"
+  },
+  "jobPatchRemediation": {
+    "contractStatus": "RD_IMPLEMENTATION_READY_TECH_LEAD_CONTRACT_READY",
+    "techLead": "gpt-6-luna read-only contract review; root sole writer",
+    "actualPrecedingRelease": {
+      "officialMain": "9240b84b7a0da1b7840e72cf3176e4bdbc72f572",
+      "pr": 222,
+      "mainCi": 37426213227,
+      "mainCiStatus": "SUCCESS",
+      "ownerRun": 37426847261,
+      "buildStatus": "SUCCESS",
+      "workerImage": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-openswx-worker@sha256:fa73c5b45a10a607af749d3410a8b2b69af87da622d983ddd7d298e9002b371d",
+      "rawHighCritical": 0,
+      "sourceArchiveBytes": 16064603,
+      "sourceArchiveSha256": "430d9b0b6be3902e605ffd0da426de86159446462a026430850840114eb999a1"
+    },
+    "actualFailure": {
+      "stage": "R04 bootstrap",
+      "code": "OPENSWX_JOB_UPDATE_OUTCOME_UNKNOWN",
+      "jobUpdate": "REJECTED_INVALID_UPDATE_MASK_QUERY",
+      "readerVersion": "1_REUSED",
+      "registryVersion": "3_CREATED_ORIGINAL_R03_CREDENTIAL_ROOT",
+      "workerJob": "OLD_A03_IMAGE_UNCHANGED",
+      "executions": 0,
+      "scheduler": "PAUSED",
+      "migration082": "NOT_RUN",
+      "candidate": "NOT_RUN",
+      "traffic": "DEV121_R4_UNCHANGED"
+    },
+    "actualValidation": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\R04-job-validation-readback.json",
+      "sha256": "6cb22563cdd1591d75793ff99f5de5ed3d6cfed9d676f401794eae4322b6b616",
+      "badQueryStatus": 400,
+      "correctedQueryValidateOnlyStatus": 200,
+      "jobUnchanged": true,
+      "secretPayloadStored": false,
+      "runtimeStopped": true,
+      "lifecycleReleased": true,
+      "taskTempRemoved": true
+    },
+    "officialReferences": [
+      "https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs/patch",
+      "https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs"
+    ],
+    "frozenContract": {
+      "jobPatch": "exact Job URL without updateMask or allowMissing; fresh etag; fixed template; copy only six existing writable metadata fields unchanged; no output-only or execution tokens; settled READY exact template and metadata; unknown result GET before further action; no second PATCH on drift/unknown",
+      "existingMetadata": [
+        "labels",
+        "annotations",
+        "client",
+        "clientVersion",
+        "launchStage",
+        "binaryAuthorization"
+      ],
+      "firstProgress": "Only explicit original priorBootstrapInputRef FIRST bridge permits existing helper allowCredentialProgress; original token v1 and exact original latch-derived registry v3 request/receipt/hash/window/metadata/version inventory must join; old selftest/12 resources/IAM/PAUSED/zero executions exact; resources READBACK_ONLY; bootstrap reuses original credential root without addVersion",
+      "stopConditions": [
+        "unknown/disabled/extra secret version",
+        "wrong receipt/request hash or 30s window",
+        "foreign or changed source/profile/TF/worker hashes",
+        "metadata/template drift",
+        "active/unknown execution or enabled Scheduler",
+        "new project/environment/authority/destructive scope"
+      ]
+    },
+    "qaScope": [
+      "legal exact PATCH and writable metadata preservation",
+      "applied response loss uses one PATCH; nonapplied unknown stops",
+      "settled metadata drift rejects without retry",
+      "new source FIRST resource readback reuses sealed v1/v3; bootstrap adds zero versions",
+      "wrong registry hash/window/requestRef/version rejects before receipt seal"
+    ],
+    "independentSourceQc": {
+      "status": "SOURCE_QC_PASS",
+      "model": "gpt-6-luna",
+      "scope": "Frozen four product/test hashes; expected eight paths; 40 recorded tests; real validateOnly shape; no P0/P1; production PATCH/CAD UI/whole acceptance NOT_RUN",
+      "candidateHashes": {
+        "scripts/dev122-openswx-owner-release.test.mjs": "6b3754cb931f3ab855527d55150bece85f7cd922a671b7e256ce710a245a6457",
+        "scripts/dev122-openswx-bootstrap.test.mjs": "0a921ef74ba631956475eaa8bfaaa84b904421cbd837f53cab33b356faa55fb5",
+        "scripts/lib/dev122-openswx-bootstrap.mjs": "6c49fa001a81854f6cc3f9a2607572e9c5e0cf8037d2e42d853bfa6aa0a5098c",
+        "scripts/lib/dev122-openswx-owner-release.mjs": "11fb075a0c4cda1502a080818ce31f72385f8d190a8305ba02854f040ab2b93d"
+      },
+      "notes": "Prior 36-case top-level QC is historical; metadata validation 200 is nonpersistent request-shape evidence only"
+    },
+    "requiredCi": "PENDING_NEW_HEAD",
+    "productionCorrectedPatch": "NOT_RUN",
+    "completedCadUi": "NOT_RUN",
+    "fullNativeF01F": "NOT_RUN_USER_OWNED",
+    "wholeDev": "NOT_ACCEPTED",
+    "actualPreservedMetadataValidation": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\R04-preserved-metadata-validation.json",
+      "sha256": "b58288d49432501b541e852cc0453e12863bbc247d1af8d05aedb764eff878c2",
+      "status": 200,
+      "mutation": "VALIDATE_ONLY_NO_PERSISTENCE",
+      "jobUnchanged": true
+    }
+  },
+  "priorIndependentSourceQc": {
+    "disposition": "HISTORY_ONLY_PRIOR_36_CASE_SCOPE",
+    "value": {
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "status": "SOURCE_QC_PASS_INCREMENTAL",
+      "scope": "Four current source/test hashes;36/36 mocked provider tests; exact partial FIRST recovery; production source release/CAD/UI pending",
+      "facts": "Independent Luna/max readonly confirmed all four current hashes and36 PASS/no skip/fail, partial FIRST chain reused from first review, explicit six-field request join before run and on replay; source drift mock has run count0, existing replay remains single POST; PID67152 stopped/released/temp removed; no authority expansion. Non-blocking35→36 QC scope text synchronized by root only."
     }
   }
 }

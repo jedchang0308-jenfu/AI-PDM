@@ -56,7 +56,7 @@ test('resource latch replay rejects stale or tampered complete plan binding befo
 })
 test('valid resource proof replay reads provider only and preserves original plan/request/receipt timestamps', async () => {
   const h = await resourceReplayHarness(), provider = await dailyHarness()
-  await provider.transport.request(`https://run.googleapis.com/v2/${workerJobName()}?updateMask=template`, { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, h.args.build.image, null, 'selftest') }) })
+  await provider.transport.request(`https://run.googleapis.com/v2/${workerJobName()}`, { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, h.args.build.image, null, 'selftest') }) })
   await provider.transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}:pause`, { method: 'POST', body: '{}' })
   provider.calls.length = 0; h.transport.request = provider.transport.request
   const originalRequest = Buffer.from(h.objects.get(ref('resources-test-request').uri).bytes), originalPlan = Buffer.from(h.objects.get(ref('resources-test-plan').uri).bytes)
@@ -145,7 +145,7 @@ async function dailyHarness({ markerState = null, wrongPriorImage = false } = {}
     if (url.endsWith(':run')) { const now = Date.now(); executions.push({ name: executionName + '-' + executions.length, createTime: new Date(now + 10).toISOString(), completionTime: new Date(now + 20).toISOString(), succeededCount: 1, failedCount: 0, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: structuredClone(job.template.template) }); return { name: 'projects/9536592944/locations/asia-east1/operations/recorded' } }
     if (url.includes('/executions?')) return { executions }
     if (url.includes('/executions/')) return executions.find(row => row.name === url.replace('https://run.googleapis.com/v2/', ''))
-    if (options.method === 'PATCH') { job = { ...job, etag: job.etag + 'x', template: JSON.parse(options.body).template }; return {} }
+    if (options.method === 'PATCH') { assert.equal(url, `https://run.googleapis.com/v2/${workerJobName()}`); job = { ...job, etag: job.etag + 'x', template: JSON.parse(options.body).template }; return {} }
     return job
   }
   const invoke = async (stage, extra, name) => { const inputRef = await h.put(name + '-input', { schemaVersion: `aipdm.openswx-${stage}-input.v1`, descriptorRef: nextDescriptorRef, workerBuildRef: nextBuildRef, deadlineAt: deadline(), receiptId: name, ...extra }); return executeOpenSwxBootstrap({ stage, inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} }) }
@@ -191,7 +191,7 @@ async function activationHarness() {
   const capsule = { ...h.priorCapsule, releaseId: 'DEV122-NEXT-001', sourceRevision: full.sourceRevision, runtimeConfigRef: runtimeRef, openswxWorkerRef: descriptorRef }, capsuleRef = await h.put('full-capsule', capsule), paths = releasePaths(appProfile, capsule, capsuleRef.sha256)
   const canonical = await h.transport.putJson(paths.canonical, { stage: 'canonical', sourceRevision: full.sourceRevision, facts: { origin: profile.canonicalOrigin, candidateRevision: 'ai-pdm-prod-new' } })
   const template = workerTemplate(profile, h.nextImage, tokenName)
-  await h.transport.request(`https://run.googleapis.com/v2/${workerJobName()}?updateMask=template`, { method: 'PATCH', body: JSON.stringify({ template }) })
+  await h.transport.request(`https://run.googleapis.com/v2/${workerJobName()}`, { method: 'PATCH', body: JSON.stringify({ template }) })
   const smoke = await runWorkerFinite({ transport: h.transport, descriptor: full, profile, template, receiptUri: ref('wif-finite').uri, actor: 'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', deadlineAt: deadline() })
   await h.transport.putJson(paths.finalize, { stage: 'finalize', ownerApplicationId: 'ai-pdm', sourceRevision: full.sourceRevision, previousReceiptRef: canonical.ref, facts: { result: 'RELEASED', openswxWorker: { status: 'ACTIVATION_PENDING', finiteSmokeRef: smoke.ref } } })
   h.transport.effectiveRevision = () => 'ai-pdm-prod-new'
@@ -226,7 +226,7 @@ async function firstReconciliationHarness() {
   const binaryPlanReceiptRef = await h.put('first-old-resource-plan', { schemaVersion: 'aipdm.openswx-resource-binary-plan.v1', ...binding })
   const priorResourceRequestRef = await h.put('first-old-resource-request', { schemaVersion: 'aipdm.openswx-resource-apply-request.v1', ...binding, binaryPlanReceiptRef })
   const provider = await dailyHarness()
-  await provider.transport.request(`https://run.googleapis.com/v2/${workerJobName()}?updateMask=template`, { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image('a'), null, 'selftest') }) })
+  await provider.transport.request(`https://run.googleapis.com/v2/${workerJobName()}`, { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image('a'), null, 'selftest') }) })
   await provider.transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}:pause`, { method: 'POST', body: '{}' }); provider.calls.length = 0
   const request = provider.transport.request
   h.transport.request = async (url, options = {}) => { if (url.includes(profile.tokenSecretId + '/versions?')) { provider.calls.push({ url, options }); return { versions: [] } }; return request(url, options) }
@@ -438,4 +438,60 @@ test('partial FIRST recovers already sealed original registry progress after an 
   const resumed = await h.bootstrap(applied)
   assert.equal(resumed.value.facts.tokenSecretVersion, h.tokenVersion); assert.equal(resumed.value.facts.registrySecretVersion, h.registryVersion)
   assert.ok(h.provider.calls.every(row => !row.url.endsWith(':addVersion')))
+})
+
+async function registryProgressHarness() {
+  const h = await partialFirstHarness(), applied = await h.resource(), original = h.transport.request
+  h.transport.request = async (url, options = {}) => {
+    if (options.method === 'PATCH') { h.provider.calls.push({ url, options }); throw Error('lost update before apply') }
+    return original(url, options)
+  }
+  await assert.rejects(h.bootstrap(applied), /OUTCOME_UNKNOWN/)
+  h.transport.request = original
+  const next = structuredClone(h.args.descriptor); next.sourceRevision = 'd'.repeat(40)
+  const plan = h.objects.get(next.resourcePlanRef.uri).value
+  const capacityGateRef = await h.put('progress-capacity', { project: 'AI-PDM', sourceRevision: next.sourceRevision, status: 'PASS', observedAt: h.transport.now() })
+  next.resourcePlanRef = await h.put('progress-approved', { ...plan, sourceRevision: next.sourceRevision, capacityGateRef })
+  const descriptorRef = await h.put('progress-descriptor', next)
+  const build = { ...structuredClone(h.args.build), sourceRevision: next.sourceRevision, image: `${profile.artifactUri}@sha256:${'d'.repeat(64)}` }
+  const workerBuildRef = await h.put('progress-build', build)
+  const args = { ...h.args, descriptor: next, descriptorRef, build, uri: ref('progress-resources').uri }
+  h.provider.calls.length = 0
+  return { ...h, args, next, descriptorRef, workerBuildRef }
+}
+test('new official source FIRST resources bridge sealed v1/v3 without issuance and bootstrap reuses original credential root', async () => {
+  const h = await registryProgressHarness(), applied = await executeOpenSwxResources(h.args)
+  assert.equal(applied.value.mutation, 'READBACK_ONLY_FIRST_SOURCE_RECONCILIATION')
+  assert.equal(applied.value.partialFirstBootstrap.credentialReceiptRoot, h.root)
+  assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  const oldInput = h.objects.get(h.inputRef.uri).value
+  const inputRef = await h.put('progress-bootstrap-input', { ...oldInput, descriptorRef: h.descriptorRef, workerBuildRef: h.workerBuildRef, resourceApplyRef: applied.ref, receiptId: 'progress-next-proof', deadlineAt: deadline() })
+  h.provider.calls.length = 0
+  const result = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  assert.equal(result.value.facts.tokenSecretVersion, h.tokenVersion); assert.equal(result.value.facts.registrySecretVersion, h.registryVersion)
+  assert.ok(h.provider.calls.every(row => !row.url.endsWith(':addVersion')))
+  assert.equal(h.provider.calls.filter(row => row.options.method === 'PATCH').length, 1)
+  assert.ok(!h.objects.has(ref('progress-next-proof-token-version-request').uri))
+  assert.ok(!h.objects.has(ref('progress-next-proof-registry-version-request').uri))
+})
+test('cross-source registry progress rejects hash/window/requestRef or provider version drift before resource seal', async () => {
+  for (const scenario of ['hash', 'window', 'requestRef', 'extra-version', 'disabled-version']) {
+    const h = await registryProgressHarness(), request = h.objects.get(h.root + '-registry-version-request.json'), receipt = h.objects.get(h.root + '-registry-version.json')
+    if (scenario === 'hash') request.value.payloadSha256 = 'f'.repeat(64)
+    if (scenario === 'window') request.value.windowEnd = request.value.startedAt
+    if (scenario === 'requestRef') receipt.value.requestRef = ref('foreign-request')
+    request.bytes = Buffer.from(canonicalize(request.value)); receipt.bytes = Buffer.from(canonicalize(receipt.value))
+    const original = h.transport.request
+    h.transport.request = async (url, options = {}) => {
+      const row = await original(url, options)
+      if (url.includes(profile.registrySecretId + '/versions?')) {
+        if (scenario === 'extra-version') row.versions.push({ name: h.registryVersion.replace('/3', '/4'), state: 'ENABLED' })
+        if (scenario === 'disabled-version') row.versions.find(v => v.name === h.registryVersion).state = 'DISABLED'
+      }
+      return row
+    }
+    await assert.rejects(executeOpenSwxResources(h.args), undefined, scenario)
+    assert.ok(!h.objects.has(h.args.uri))
+    assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  }
 })
