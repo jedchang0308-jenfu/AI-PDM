@@ -1,5 +1,11 @@
 # AI_PDM 開發任務
 
+## DEV-122 CURRENT（2026-10-06；五項讀取補權已核准／來源驗證及獨立 QC 通過，正式發布待執行）
+
+本節優先於下方歷史續點。PR223 官方 main `43ea5722` 的 A07 受保護建置及 worker raw HIGH／CRITICAL=0 通過；R05 已完成十二資源唯讀核對、reader v1／registry v3 與一次成功隔離自測，再確認 PAUSED。B04 在 prepare 被拒，實際首先被拒的 API 仍 UNKNOWN；082／candidate／traffic 未執行，既有正式 revision `ai-pdm-prod-5c8854b292a1` 保持 100%／0 tags。
+
+人類已明確核准新增五項唯讀 IAM；Scheduler 有效權限為專案內所有排程設定 get，程式限定本功能。依[架構契約](specs/DEV-122-openswx-release-readback-iam-contract-2026-10-06.md)與[本次續點](qa/DEV-122-openswx-release-readback-iam-2026-10-06.json)，在同一 AI-PDM worktree 修正獨立 completed-FIRST bridge，重用已 sealed v1／v3，不重套原十二資源；owner actors 只驗 GCS 補權證據，human bootstrap 才做 fresh IAM 回讀。目前來源 48／48 mock 與 targeted ESLint 通過，own runtime／temp 已清理，Tech Lead bounded source review 無未解 P0／P1；獨立 Luna source QC 亦通過，沒有未解 P0／P1；normal PR required CI、五項 apply 與新正式 release 待執行。8-CAD completed UI 尚 NOT_RUN，F-01F 由使用者正式驗證，外部供應商回覆保持停用，整體 NOT_ACCEPTED。
+
 ## DEV-122 CURRENT（2026-10-06；Job PATCH API修復／40 mock PASS）
 
 PR222官方main9240b84b之A06受保護建置、actual Git LF封存與worker raw HIGH/CRITICAL=0通過（run37426847261）。R04十二資源唯讀銜接APPLIED；原reader v1已恢復、registry v3沿原R03 credential root成功建立，Job因不支援updateMask query被400拒絕，仍舊selftest/PAUSED/零execution，082/candidate/traffic未跑。actual validateOnly比較證明bad query400、合法query200、Job前後完全不變；原FAIL/回執保留。此次[修復證據](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)只改合法Job PATCH、fresh etag與六項既有metadata原值保留/回讀；explicit priorBootstrapInputRef FIRST bridge沿用嚴格helper核對已sealed v1/v3，不重發憑證或重套Terraform。40/40 mock通過且own runtime/temp已清理；獨立Luna source QC已通過；新head required CI待驗。正常completed CAD UI與修正後正式Job仍NOT_RUN，F-01F由使用者正式驗證、D122-07停用、7 issues/29 groups與整體NOT_ACCEPTED不變。
@@ -1683,8 +1689,8 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：最後 owner QC／isolated build 與 Luna 獨立來源／清理讀核已 PASS_LOCAL_ONLY；十二項限定 Cloud Run 自有資源、兩項 numeric credential versions 與 082 正向 migration 的具體上線提案待授權。本地候選先整理提交；完整原生 CAD 正式驗證仍由使用者執行，D122-08 PR213 既有發布範圍待人類決定。
-  - 驗收缺口：R03 100%／0 tags／正常登入 smoke PASS；正式真 key/probe/activation 與 CAD 由使用者驗證；Cloud Run 與現有 Windows reader 不相容，免費Linux reader的完整屬性與實跑相容性證據尚缺。既有 28 組僅按相符本地層級保留，三格式 filename partial 不替代原生 CAD；7 issues／29 groups、整體未驗收。
+  - 下一步：五項唯讀 IAM 已核准；完成 completed-FIRST 與補權 targeted tests／Luna QC、normal PR／required CI，fresh source build 後 apply 五項並續既有受保護正式發布。原十二資源只回讀，reader v1／registry v3 不重發；正式 8-CAD completed UI 與使用者 F-01F 分列驗收。
+  - 驗收缺口：A07 build/security 與 R05 隔離 selftest／pause 已通過；B04 prepare 被拒而後續 skip，舊正式版本保持 100%／0 tags。新增五項 IAM／新來源正式發布與正常 completed CAD UI 尚未執行；完整 F-01F 由使用者驗證，外部供應商回覆停用，7 issues／29 groups、整體未驗收。
   - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
