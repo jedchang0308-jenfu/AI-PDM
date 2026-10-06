@@ -62,7 +62,7 @@ check("CPG-021 loading/empty/error remain local", gallery.includes("正在載入
 check("CPG-022 responsive contain media exists", css.includes("canonical-preview-gallery") && css.includes("object-fit: contain") && css.includes("@media (max-width: 560px)"));
 check("CPG-023 list/detail Part share one resolver", service.match(/resolvePartPreviewsAsync/g)?.length === 3 && partService.includes("export async function resolvePartPreviewsAsync"));
 check("CPG-024 feature is default-off and dependency-gated", feature.includes("PDM_PART_PREVIEW_V1") && feature.includes("WORKBENCH_PREVIEW_GALLERY_V1_FLAG") && feature.includes("UNIFIED_PART_RELATION_WORKBENCH_V1_FLAG"));
-check("CPG-025 direct sharp and focused scripts are registered", packageJson.dependencies?.sharp === "0.35.3" && packageJson.scripts?.["qc:dev-065:part-preview"] && packageJson.scripts?.["qc:dev-065:postgres"]);
+check("CPG-025 direct sharp and focused scripts are registered", packageJson.dependencies?.sharp === "0.35.5" && packageJson.scripts?.["qc:dev-065:part-preview"] && packageJson.scripts?.["qc:dev-065:postgres"]);
 check("CPG-026 Drawing adapter is thin and loader-free", drawingAdapter.includes("CanonicalPreviewPanel") && !drawingAdapter.includes("useEffect") && !drawingAdapter.includes("fetch("));
 check("CPG-027 shared component layering is one-way", panel.includes("CanonicalPreviewMedia") && gallery.includes("CanonicalPreviewMedia") && partControl.includes("/preview-image/reset"));
 check("CPG-028 provisional override flag has zero callers", ![feature, service, partService, component, gallery].some((text) => text.includes("PDM_PART_PREVIEW_OVERRIDE_V1")));
