@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "aipdm.dev122.readback-iam-remediation.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122#openswx-readonly-auxiliary",
+  "sourceBase": "43ea572295790356aa085b010c7b9b79886f6f3b",
+  "branch": "codex/dev122-release-readback-iam",
+  "status": "SOURCE_VALIDATION_AND_INDEPENDENT_QC_PASS_REQUIRED_CI_PENDING",
+  "singleProductWriter": "root",
+  "authorization": {
+    "humanOriginal": "核准這 5 項補權，繼續上線（建議）",
+    "recordPath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production-readback-iam-human-authorization-2026-10-06.json",
+    "recordSha256": "0c8b26ee7be6197bb5f9f0f5649e9355541927e66de55d7aff3823837c99afa7",
+    "proposalSha256": "9c1486473425e2f0475cb87aff97af00093987692199de9ff8205cd3b9ba613b",
+    "resourceCount": 5,
+    "schedulerScope": "PROJECT_WIDE_GET_ALL_SCHEDULER_JOB_CONFIGURATION",
+    "programScope": "ONLY_aipdm-prod-openswx-dispatch",
+    "secretPayloadAuthority": "NONE_FOR_IAM",
+    "capacityHumanOriginal": "接受本次容量風險，繼續安裝與上線"
+  },
+  "contractRef": "../specs/DEV-122-openswx-release-readback-iam-contract-2026-10-06.md",
+  "priorProduction": {
+    "A07": "PROTECTED_BUILD_SUCCESS_WORKER_RAW_HIGH_CRITICAL_ZERO",
+    "source": "43ea572295790356aa085b010c7b9b79886f6f3b",
+    "R05": "RESOURCES_READBACK_ONLY_APPLIED_BOOTSTRAP_SELFTEST_AND_PAUSE_PASS",
+    "readerTokenVersion": 1,
+    "registryVersion": 3,
+    "B04": "PREPARE_DENIED_LATER_STAGES_SKIPPED",
+    "firstDeniedApi": "UNKNOWN",
+    "servingRevision": "ai-pdm-prod-5c8854b292a1",
+    "trafficPercent": 100,
+    "candidateTags": 0,
+    "schedulerState": "PAUSED",
+    "migration082": "NOT_RUN",
+    "checkpointPath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B04-pre-approval-production-checkpoint.json"
+  },
+  "scope": {
+    "iac": "EXACT_FIVE_CREATE_OR_NO_OP_OWN_STATE_PREFIX",
+    "backendPrefix": "dev-122/openswx-release-readback",
+    "originalTwelve": "READBACK_ONLY_NO_TERRAFORM_REAPPLY",
+    "credentials": "REUSE_SEALED_READER_V1_REGISTRY_V3_ZERO_NEW_ISSUANCE",
+    "completedFirst": "SEPARATE_COMPLETE_R03_R05_R01_CHAIN_WITH_NEW_IAM_SOURCE_PROOF",
+    "ownerActorProof": "GCS_ONLY_NO_NEW_ROLES_GET_OR_GET_IAM_POLICY",
+    "normalHumanProof": "FRESH_EXACT_IAM_READBACK",
+    "partialFirst": "ORIGINAL_ZERO_TOTAL_EXECUTION_GATE_PRESERVED",
+    "replay": "READBACK_BEFORE_RETRY_NO_DUPLICATE_PATCH_RUN_OR_CREDENTIAL"
+  },
+  "baselineValidation": {
+    "scope": "MOCK_SOURCE_ONLY_NOT_PRODUCTION",
+    "tests": 40,
+    "pass": 40,
+    "fail": 0,
+    "recordPath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\readback-iam-baseline40-runtime.json",
+    "recordSha256": "ca90f3c1f9e15d0df362502078139db159b46388f5d526c49167b74349641532",
+    "processStopped": true,
+    "lifecycleReleased": true,
+    "temporaryRemoved": true
+  },
+  "newValidation": {
+    "scope": "MOCK_SOURCE_ONLY_NOT_PRODUCTION",
+    "tests": 48,
+    "pass": 48,
+    "fail": 0,
+    "runtimeReceipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\readback-iam-tests-runtime.json",
+    "runtimeReceiptSha256": "bc3db3a0d867e579b7e7f3b9b638656c3de445b7b6ecb58c8c465d177ef0dbd7",
+    "stdoutReceipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\readback-iam-tests-stdout.raw.log",
+    "stdoutSha256": "45390f74826fa0f6eadcbd757bec3b1ac4202b6047efc4af65665e3c2d8f0113",
+    "lintReceipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\readback-iam-lint-runtime.json",
+    "lintReceiptSha256": "c8edb59c041e47e1a5caffae921e478c4e8d4679d1eea969ac7c77c8de35d027",
+    "lintExitCode": 0,
+    "testedSourceHashes": {
+      "scripts/dev122-openswx-bootstrap.mjs": "c664f7f618d8b3a8a42bfcdfa96d1043b62b8389e8dcab2fafe7102a15babcda",
+      "scripts/dev122-openswx-bootstrap.test.mjs": "94e094cd308c5324576653fe2e612352dd46d27693fe675c5bf69d82901f4311",
+      "scripts/dev122-openswx-owner-release.test.mjs": "6b3754cb931f3ab855527d55150bece85f7cd922a671b7e256ce710a245a6457",
+      "scripts/lib/dev122-openswx-owner-release.mjs": "7d219466e4ac4c7eb958eb59055d36369fd069464df212c9765ce17c1f42242a",
+      "scripts/lib/dev122-openswx-readback-iam.mjs": "952b68296e8b3f9c7b463b92761916b58eb7bfaaece6fe2e7d8e2acffe0ca5af",
+      "scripts/dev122-openswx-readback-iam.mjs": "df6b4914785a91a254fc23cab96c5dcc476d247122d4f6c16311430f2c6bfc94",
+      "scripts/lib/dev122-openswx-bootstrap.mjs": "355aeea9091e691971db5cfdf1fb3571d4af8543559a11b115e81693299a6407"
+    },
+    "processStopped": true,
+    "lifecycleReleased": true,
+    "temporaryRemoved": true
+  },
+  "independentSourceQc": {
+    "status": "SOURCE_QC_PASS",
+    "model": "gpt-6-luna",
+    "scope": "SOURCE_ONLY_NOT_PRODUCTION",
+    "freezeSha256": "582289963cca54990b9af6b7c8e25760a4683e701f8f396d4ee8427248a4d7b8",
+    "receiptPath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\readback-iam-final-source-qc.json",
+    "receiptSha256": "f15289d9bed09ed302e121a74e086688707b5871bb2a77c841aba806d731e0a0",
+    "remainingP0P1": 0
+  },
+  "officialRequiredCi": "PENDING",
+  "iamApply": "NOT_RUN",
+  "productionRelease": "NOT_RUN",
+  "eightCadNormalCompletedUi": "NOT_RUN",
+  "completionBoundary": {
+    "nativeF01F": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+    "externalSupplierReply": "DISABLED_DEFERRED",
+    "wholeDev": "NOT_ACCEPTED"
+  },
+  "techLeadSourceReview": {
+    "decision": "SOURCE_REVIEW_PASS_NO_P0_OR_P1_IN_BOUNDED_SCOPE",
+    "receiptPath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B05-readback-iam-source-review.json",
+    "receiptSha256": "8d30ff540784099c1e4a02e075ffde90d87cc9ee8ab3ade7a4311e83db0b6587",
+    "remainingFindings": 0,
+    "contractSha256": "ee7831e3228eb75e6504f99de58f1abf127b6baffdad73109265166cdf0ae012",
+    "driftRecoveryLimitation": "The reviewed executor currently fails closed on unrelated project IAM digest drift; it does not expose a read-only receipt reseal operation that avoids Terraform init/plan/apply. Until such a source-bound reseal path or an explicitly approved evidence procedure exists, a changed digest remains a stop condition. The opaque hash cannot be used to restore policy."
+  }
+}

@@ -1,5 +1,11 @@
 # AI_PDM 文件地圖
 
+## DEV-122 CURRENT（2026-10-06；五項讀取補權已核准／來源驗證及獨立 QC 通過，正式發布待執行）
+
+本節優先於下方歷史續點。PR223 官方 main `43ea5722` 的 A07 受保護建置及 worker raw HIGH／CRITICAL=0 通過；R05 已完成十二資源唯讀核對、reader v1／registry v3 與一次成功隔離自測，再確認 PAUSED。B04 在 prepare 被拒，實際首先被拒的 API 仍 UNKNOWN；082／candidate／traffic 未執行，既有正式 revision `ai-pdm-prod-5c8854b292a1` 保持 100%／0 tags。
+
+人類已明確核准新增五項唯讀 IAM；Scheduler 有效權限為專案內所有排程設定 get，程式限定本功能。依[架構契約](specs/DEV-122-openswx-release-readback-iam-contract-2026-10-06.md)與[本次續點](qa/DEV-122-openswx-release-readback-iam-2026-10-06.json)，在同一 AI-PDM worktree 修正獨立 completed-FIRST bridge，重用已 sealed v1／v3，不重套原十二資源；owner actors 只驗 GCS 補權證據，human bootstrap 才做 fresh IAM 回讀。目前來源 48／48 mock 與 targeted ESLint 通過，own runtime／temp 已清理，Tech Lead bounded source review 無未解 P0／P1；獨立 Luna source QC 亦通過，沒有未解 P0／P1；normal PR required CI、五項 apply 與新正式 release 待執行。8-CAD completed UI 尚 NOT_RUN，F-01F 由使用者正式驗證，外部供應商回覆保持停用，整體 NOT_ACCEPTED。
+
 ## DEV-122 CURRENT（2026-10-06；Job PATCH API修復／40 mock PASS）
 
 PR222官方main9240b84b之A06受保護建置、actual Git LF封存與worker raw HIGH/CRITICAL=0通過（run37426847261）。R04十二資源唯讀銜接APPLIED；原reader v1已恢復、registry v3沿原R03 credential root成功建立，Job因不支援updateMask query被400拒絕，仍舊selftest/PAUSED/零execution，082/candidate/traffic未跑。actual validateOnly比較證明bad query400、合法query200、Job前後完全不變；原FAIL/回執保留。此次[修復證據](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)只改合法Job PATCH、fresh etag與六項既有metadata原值保留/回讀；explicit priorBootstrapInputRef FIRST bridge沿用嚴格helper核對已sealed v1/v3，不重發憑證或重套Terraform。40/40 mock通過且own runtime/temp已清理；獨立Luna source QC已通過；新head required CI待驗。正常completed CAD UI與修正後正式Job仍NOT_RUN，F-01F由使用者正式驗證、D122-07停用、7 issues/29 groups與整體NOT_ACCEPTED不變。

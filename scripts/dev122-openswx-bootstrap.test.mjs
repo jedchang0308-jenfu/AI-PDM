@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE,
+  assertReadbackIamTerraformPlan, readbackIamPlan, expectedReadbackJobBindings,
+  readReadbackIamReceipt, assertReadbackIamReceipt, executeReleaseReadbackIam } from './lib/dev122-openswx-readback-iam.mjs'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources } from './lib/dev122-openswx-bootstrap.mjs'
 import { WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite } from './lib/dev122-openswx-owner-release.mjs'
@@ -493,5 +498,368 @@ test('cross-source registry progress rejects hash/window/requestRef or provider 
     await assert.rejects(executeOpenSwxResources(h.args), undefined, scenario)
     assert.ok(!h.objects.has(h.args.uri))
     assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  }
+})
+
+const READBACK_IAM_PROJECT = 'jenfu-platform-prod'
+const READBACK_IAM_VERIFIER = 'serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com'
+const READBACK_IAM_DEPLOYER = 'serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'
+const READBACK_IAM_JOB_POLICY_URL = 'https://run.googleapis.com/v2/' + workerJobName() + ':getIamPolicy'
+const READBACK_IAM_PROJECT_POLICY_URL = 'https://cloudresourcemanager.googleapis.com/v1/projects/' + READBACK_IAM_PROJECT + ':getIamPolicy'
+
+function readbackIamPlanFixture(actionFor = () => ['create']) {
+  return { resource_changes: READBACK_IAM_ADDRESSES.map(address => {
+    const spec = structuredClone(READBACK_IAM_SPECS[address])
+    const afterUnknown = { id: true }
+    if (address.startsWith('google_project_iam_custom_role.')) { spec.stage = 'GA'; spec.deleted = false; afterUnknown.name = [true] }
+    return { address, mode: 'managed', provider_name: 'registry.terraform.io/hashicorp/google',
+      change: { actions: actionFor(address), after: spec, after_unknown: afterUnknown } }
+  }) }
+}
+
+function readbackIamRoles() {
+  return [
+    { name: READBACK_JOB_ROLE, permissions: ['run.executions.list', 'run.jobs.get'] },
+    { name: READBACK_SCHEDULER_ROLE, permissions: ['cloudscheduler.jobs.get'] },
+  ]
+}
+function readbackIamProjectPolicy() {
+  return [
+    { role: READBACK_SCHEDULER_ROLE, members: [READBACK_IAM_DEPLOYER, READBACK_IAM_VERIFIER].sort() },
+    { role: 'roles/jenfu-fixture-existing-reader', members: ['serviceAccount:existing-reader@jenfu-platform-prod.iam.gserviceaccount.com'] },
+  ]
+}
+function readbackIamUnrelatedHash(bindings) {
+  const unrelated = bindings.filter(row => row.role !== READBACK_SCHEDULER_ROLE)
+    .map(row => ({ ...row, members: [...(row.members ?? [])].sort() }))
+    .sort((a, b) => canonicalize(a).localeCompare(canonicalize(b)))
+  return sha256(canonicalize(unrelated))
+}
+function readbackIamReadback(bindings = readbackIamProjectPolicy()) {
+  return {
+    roles: readbackIamRoles(),
+    jobBindings: expectedReadbackJobBindings(),
+    schedulerBinding: { role: READBACK_SCHEDULER_ROLE, members: [READBACK_IAM_DEPLOYER, READBACK_IAM_VERIFIER].sort(), effectiveScope: 'PROJECT_WIDE_GET' },
+    unrelatedProjectBindingsSha256: readbackIamUnrelatedHash(bindings),
+  }
+}
+
+async function seedReadbackIamApproval(h, { descriptorValue, descriptorRef, workerBuildRef, receiptId }) {
+  const plan = readbackIamPlan(readSource, descriptorValue.sourceRevision)
+  const capacityGateRef = await h.put('readback-capacity-' + receiptId, {
+    project: 'AI-PDM', sourceRevision: descriptorValue.sourceRevision, status: 'PASS', observedAt: h.transport.now(),
+  })
+  const sourceBinding = { descriptorRef, workerBuildRef, sourceArchiveSha256: descriptorValue.sourceArchiveSha256 }
+  const approvedPlanRef = await h.put('readback-approved-' + receiptId, {
+    schemaVersion: 'aipdm.openswx-approved-readback-iam-plan.v1', ownerApplicationId: 'ai-pdm', status: 'APPROVED',
+    releaseAuthority: true, evidenceScope: 'HUMAN_APPROVED_READBACK_IAM_PLAN', sourceRevision: descriptorValue.sourceRevision,
+    authorizationStatementSha256: 'c'.repeat(64), planSha256: sha256(canonicalize(plan)), plan, ...sourceBinding, capacityGateRef,
+  })
+  const inputRef = await h.put('readback-input-' + receiptId, {
+    schemaVersion: 'aipdm.openswx-release-readback-iam-input.v1', sourceRevision: descriptorValue.sourceRevision,
+    approvedPlanRef, descriptorRef, workerBuildRef, receiptId, deadlineAt: deadline(),
+  })
+  return { plan, sourceBinding, approvedPlanRef, inputRef, receiptId }
+}
+
+async function seedReadbackIamReceipt(h, args) {
+  const base = await seedReadbackIamApproval(h, args)
+  const receiptUri = ref(base.receiptId).uri
+  const binding = {
+    ownerApplicationId: 'ai-pdm', actor: profile.normalActor, sourceRevision: args.descriptorValue.sourceRevision,
+    ...base.sourceBinding, approvedPlanRef: base.approvedPlanRef, planSha256: sha256(canonicalize(base.plan)), receiptUri,
+  }
+  const binaryPlanSha256 = 'd'.repeat(64), unrelatedProjectBindingsBeforeSha256 = readbackIamUnrelatedHash(readbackIamProjectPolicy())
+  const changes = [...READBACK_IAM_ADDRESSES].sort().map(address => ({ address, actions: ['create'] }))
+  const commonProof = { ...binding, binaryPlanSha256, changes, requestedAt: h.transport.now(), unrelatedProjectBindingsBeforeSha256 }
+  const requestRef = await h.put(base.receiptId + '-request', {
+    schemaVersion: 'aipdm.openswx-release-readback-iam-request.v1', ...commonProof,
+  })
+  const binaryPlanReceiptRef = await h.put(base.receiptId + '-plan', {
+    schemaVersion: 'aipdm.openswx-release-readback-iam-plan-binary.v1', ...commonProof,
+  })
+  const receiptRef = await h.put(base.receiptId, {
+    schemaVersion: 'aipdm.openswx-release-readback-iam.v1', ...binding, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER',
+    inputRef: base.inputRef, requestRef, binaryPlanReceiptRef, binaryPlanSha256,
+    sourceArchiveSha256: args.descriptorValue.sourceArchiveSha256,
+    readback: readbackIamReadback(),
+    mutation: 'APPLY_THEN_READBACK', observedAt: h.transport.now(),
+  })
+  return { ...base, receiptRef, requestRef, binaryPlanReceiptRef }
+}
+
+function installReadbackIamProvider(h, { jobBindings = expectedReadbackJobBindings(), projectBindings = readbackIamProjectPolicy(), roleLookup } = {}) {
+  const calls = [], original = h.transport.request
+  h.transport.request = async (url, options = {}) => {
+    if (url === 'https://iam.googleapis.com/v1/' + READBACK_JOB_ROLE || url === 'https://iam.googleapis.com/v1/' + READBACK_SCHEDULER_ROLE) {
+      calls.push({ url, options })
+      if (roleLookup) return roleLookup(url)
+      return { name: url.slice('https://iam.googleapis.com/v1/'.length), deleted: false, stage: 'GA',
+        includedPermissions: url.endsWith('aipdmOpenswxVerifierJobReadback') ? ['run.jobs.get', 'run.executions.list'] : ['cloudscheduler.jobs.get'] }
+    }
+    if (url === READBACK_IAM_JOB_POLICY_URL) { calls.push({ url, options }); return { bindings: structuredClone(jobBindings) } }
+    if (url === READBACK_IAM_PROJECT_POLICY_URL) {
+      calls.push({ url, options })
+      assert.equal(options.method, 'POST')
+      assert.equal(options.body, JSON.stringify({ options: { requestedPolicyVersion: 3 } }))
+      return { bindings: structuredClone(typeof projectBindings === 'function' ? projectBindings() : projectBindings) }
+    }
+    if (!original) throw Error('UNEXPECTED_PROVIDER_API ' + url)
+    return original(url, options)
+  }
+  return calls
+}
+
+test('readback IAM Terraform gate requires exactly five scoped create/no-op resources and tolerates only unrelated computed outputs', () => {
+  const value = readbackIamPlanFixture(address => address.endsWith('deployer_scheduler_readback') ? ['no-op'] : ['create'])
+  assert.equal(assertReadbackIamTerraformPlan(value).length, 5)
+  for (const row of value.resource_changes) if (row.change.after.permissions) row.change.after_unknown.permissions = row.change.after.permissions.map(() => false)
+  assert.equal(assertReadbackIamTerraformPlan(value).length, 5)
+  const allNoOp = readbackIamPlanFixture(() => ['no-op'])
+  assert.equal(assertReadbackIamTerraformPlan(allNoOp).length, 5)
+  for (const mutate of [
+    plan => { plan.resource_changes.pop() },
+    plan => { plan.resource_changes[0].address = 'google_project_iam_member.foreign' },
+    plan => { plan.resource_changes[0].change.actions = ['update'] },
+    plan => { plan.resource_changes[0].change.actions = ['delete', 'create'] },
+    plan => { plan.resource_changes.find(row => row.address.endsWith('verifier_job_readback')).change.after.permissions.push('run.jobs.run') },
+    plan => { plan.resource_changes.find(row => row.address.endsWith('verifier_readback')).change.after.member = 'serviceAccount:other@jenfu-platform-prod.iam.gserviceaccount.com' },
+    plan => { plan.resource_changes.find(row => row.address.endsWith('verifier_scheduler_readback')).change.after.project = 'sibling-project' },
+    plan => { plan.resource_changes.find(row => row.address.endsWith('verifier_job_readback')).change.after_unknown.permissions = [true] },
+    plan => { plan.resource_changes[0].change.after_unknown = [] },
+    plan => { plan.resource_changes.find(row => row.address.endsWith('verifier_scheduler_readback')).change.after.condition = [{ title: 'broad' }] },
+  ]) { const bad = readbackIamPlanFixture(); mutate(bad); assert.throws(() => assertReadbackIamTerraformPlan(bad)) }
+})
+
+test('readback IAM receipt source proof is GCS-only; fresh provider seal requires exact bindings and unchanged unrelated project policy', async () => {
+  const h = await firstReconciliationHarness()
+  const buildRef = h.workerBuildRef, d = h.args.descriptor
+  const proof = await seedReadbackIamReceipt(h, { descriptorValue: d, descriptorRef: h.args.descriptorRef, workerBuildRef: buildRef, receiptId: 'iam-proof-gcs-only' })
+  let apiCalls = 0
+  const gcsOnly = { ...h.transport, request: async () => { apiCalls++; throw Error('IAM_API_FORBIDDEN_IN_PURE_RECEIPT_JOIN') } }
+  const joined = await readReadbackIamReceipt({ transport: gcsOnly, ref: proof.receiptRef, sourceRevision: d.sourceRevision, readSource, normalActor: profile.normalActor })
+  assert.deepEqual(joined.ref, proof.receiptRef)
+  assert.equal(apiCalls, 0)
+
+  let policy = readbackIamProjectPolicy()
+  const providerCalls = installReadbackIamProvider(h, { projectBindings: () => policy })
+  const verify = () => assertReadbackIamReceipt({ transport: h.transport, ref: proof.receiptRef, sourceRevision: d.sourceRevision, readSource, normalActor: profile.normalActor })
+  await verify()
+  assert.ok(providerCalls.some(row => row.url === READBACK_IAM_PROJECT_POLICY_URL && row.options.method === 'POST'))
+  policy = [...policy, { role: 'roles/jenfu-fixture-unrelated-added-after-seal', members: ['user:unexpected@example.com'] }]
+  await assert.rejects(verify(), { code: 'OPENSWX_IAM_READBACK_DRIFT' })
+})
+
+async function completedFirstHarness() {
+  const h = await partialFirstHarness()
+  const oldApplied = await h.resource()
+  const oldBootstrap = await h.bootstrap(oldApplied)
+  const oldBootstrapInputRow = h.objects.get(ref('partial-bootstrap-input').uri)
+  const oldBootstrapInputRef = oldBootstrapInputRow.ref
+  const oldBootstrapInput = oldBootstrapInputRow.value
+  await new Promise(resolve => setTimeout(resolve, 30))
+  const oldPauseInputRef = await h.put('completed-first-pause-input', {
+    schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: h.args.descriptorRef,
+    workerBuildRef: oldBootstrapInput.workerBuildRef, deadlineAt: deadline(), receiptId: 'completed-first-pause',
+    drainKind: 'FIRST_PROVIDER_ONLY', resourceApplyRef: oldApplied.ref,
+  })
+  const oldPause = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: oldPauseInputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  assert.equal(oldBootstrap.value.facts.bootstrapKind, 'FIRST_CREATE')
+  assert.equal(oldPause.value.facts.schedulerPaused, true)
+  assert.equal(oldPause.value.facts.providerJob.name, workerJobName())
+
+  const next = descriptor('e'.repeat(40))
+  const capacityGateRef = await h.put('completed-next-capacity', { project: 'AI-PDM', sourceRevision: next.value.sourceRevision, status: 'PASS', observedAt: h.transport.now() })
+  const oldApproved = h.objects.get(h.args.descriptor.resourcePlanRef.uri).value
+  const approved = await h.put('completed-next-worker-approved', { ...oldApproved, sourceRevision: next.value.sourceRevision, capacityGateRef, plan: next.plan })
+  next.value.resourcePlanRef = approved
+  const nextDescriptorRef = await h.put('completed-next-descriptor', next.value)
+  const nextImage = profile.artifactUri + '@sha256:' + 'e'.repeat(64)
+  const nextBuildValue = workerReceipt({ descriptor: next.value, kind: 'build', actor: appProfile.identities.builder, image: nextImage,
+    template: workerTemplate(profile, nextImage, null, 'selftest'), observedAt: h.transport.now(),
+    facts: { ...structuredClone(h.args.build.facts), sourceObject: { sha256: next.value.sourceArchiveSha256, generation: '4' },
+      scan: { ...structuredClone(h.args.build.facts.scan), rawHighOrCriticalVulnerabilityCount: 0 } } })
+  const nextBuildRef = await h.put('completed-next-build', nextBuildValue)
+  const iam = await seedReadbackIamReceipt(h, { descriptorValue: next.value, descriptorRef: nextDescriptorRef, workerBuildRef: nextBuildRef, receiptId: 'completed-next-iam' })
+  const { priorBootstrapInputRef: _partialInput, ...oldBasis } = h.args.firstReconciliation
+  const nextArgs = { ...h.args, descriptor: next.value, descriptorRef: nextDescriptorRef, build: nextBuildValue,
+    uri: ref('completed-next-resource').uri,
+    firstReconciliation: { ...oldBasis, completedFirstBootstrapInputRef: oldBootstrapInputRef,
+      completedFirstPauseInputRef: oldPauseInputRef, supplementalIamReadbackRef: iam.receiptRef } }
+  const iamCalls = installReadbackIamProvider(h)
+  const allCalls = () => [...h.provider.calls, ...iamCalls]
+  return { ...h, nextArgs, next, nextDescriptorRef, nextBuildRef, oldBootstrap, oldPause, oldApplied, iam, iamCalls, allCalls }
+}
+test('completed FIRST bridge accepts sealed selftest/pause and replays before update; bootstrap reuses credentials once', async () => {
+  const h = await completedFirstHarness(), { nextArgs, next, nextDescriptorRef, nextBuildRef, iam, allCalls } = h
+  h.provider.calls.length = 0
+  const resources = await executeOpenSwxResources(nextArgs)
+  const resourcesBytes = Buffer.from(h.objects.get(resources.ref.uri).bytes)
+  assert.equal(resources.value.mutation, 'READBACK_ONLY_COMPLETED_FIRST_SOURCE_RECONCILIATION')
+  assert.deepEqual(resources.value.completedFirstBootstrap.supplementalIamReadbackRef, iam.receiptRef)
+  assert.equal(allCalls().filter(row => row.url.endsWith(':addVersion')).length, 0)
+  assert.ok(allCalls().every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  assert.ok(!allCalls().some(row => row.url.includes('terraform') || row.url.endsWith(':run') || row.options.method === 'PATCH'))
+
+  const resourceReplay = await executeOpenSwxResources(nextArgs)
+  assert.deepEqual(resourceReplay.ref, resources.ref)
+  assert.ok(h.objects.get(resources.ref.uri).bytes.equals(resourcesBytes))
+  const bootstrapInputRef = await h.put('completed-next-bootstrap-input', {
+    schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef: nextDescriptorRef, workerBuildRef: nextBuildRef,
+    deadlineAt: deadline(), receiptId: 'completed-next-bootstrap', bootstrapKind: 'FIRST_CREATE',
+    resourceApplyRef: resources.ref, currentRegistryVersion: resources.value.completedFirstBootstrap.partialFirstBootstrap.priorRegistryVersion,
+  })
+  h.provider.calls.length = 0
+  const completed = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapInputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  assert.equal(allCalls().filter(row => row.url.endsWith(':addVersion')).length, 0)
+  assert.equal(allCalls().filter(row => row.options.method === 'PATCH').length, 1)
+  assert.equal(allCalls().filter(row => row.url.endsWith(':run')).length, 1)
+  const replayCallsStart = allCalls().length
+  const replay = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapInputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  assert.deepEqual(replay.ref, completed.ref)
+  assert.equal(allCalls().slice(replayCallsStart).filter(row => row.url.endsWith(':addVersion') || row.url.endsWith(':run') || row.options.method === 'PATCH').length, 0)
+  await assert.rejects(executeOpenSwxResources(nextArgs), /OPENSWX_/u)
+  await new Promise(resolve => setTimeout(resolve, 30))
+  const pauseInputRef = await h.put('completed-next-owner-pause-input', { schemaVersion: 'aipdm.openswx-pause-input.v1',
+    descriptorRef: nextDescriptorRef, workerBuildRef: nextBuildRef, deadlineAt: deadline(), receiptId: 'completed-next-owner-pause',
+    drainKind: 'FIRST_PROVIDER_ONLY', resourceApplyRef: resources.ref })
+  const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseInputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  const full = { ...next.value, purpose: 'full', workerBuildRef: nextBuildRef, bootstrapRef: completed.ref,
+    cloudPreflightRef: completed.value.facts.cloudPreflightRef, pausedDrainedRef: paused.ref, tokenSecretVersion: h.tokenVersion, registrySecretVersion: h.registryVersion }
+  delete full.resourcePlanRef
+  for (const actor of ['builder', 'verifier', 'deployer']) {
+    let apiCalls = 0
+    const owner = { ...h.transport, request: async () => { apiCalls++; throw Error(actor + ' MUST_NOT_USE_IAM_API_FOR_PROOF') } }
+    const evidence = await readWorkerFullEvidence(owner, full, profile, readSource)
+    assert.deepEqual(evidence.supplementalIam, { ref: iam.receiptRef, sourceRevision: next.value.sourceRevision })
+    assert.equal(apiCalls, 0)
+  }
+})
+
+test('readback IAM injected Terraform applies once and saved request/binary/final receipts replay read-only', async () => {
+  for (const lostApplyResponse of [false, true]) {
+  const h = await firstReconciliationHarness(), d = h.args.descriptor, receiptId = 'iam-runner-replay-' + String(lostApplyResponse)
+  const approved = await seedReadbackIamApproval(h, { descriptorValue: d, descriptorRef: h.args.descriptorRef, workerBuildRef: h.workerBuildRef, receiptId })
+  const readbackPlan = readbackIamPlanFixture(), calls = [], state = { applied: false }; let ownedTemp = null
+  const projectBefore = readbackIamProjectPolicy().filter(row => row.role !== READBACK_SCHEDULER_ROLE)
+  const projectAfter = [...projectBefore, { role: READBACK_SCHEDULER_ROLE, members: [READBACK_IAM_DEPLOYER, READBACK_IAM_VERIFIER].sort() }]
+  const iamCalls = installReadbackIamProvider(h, {
+    projectBindings: () => state.applied ? projectAfter : projectBefore,
+    roleLookup: url => {
+      if (!state.applied) throw Object.assign(Error('MISSING'), { code: 'MISSING' })
+      return { name: url.slice('https://iam.googleapis.com/v1/'.length), deleted: false, stage: 'GA',
+        includedPermissions: url.endsWith('aipdmOpenswxVerifierJobReadback') ? ['run.jobs.get', 'run.executions.list'] : ['cloudscheduler.jobs.get'] }
+    },
+  })
+  const terraformRunner = (args, options) => {
+    calls.push(args[0]); ownedTemp = options.cwd
+    if (args[0] === 'plan') fs.writeFileSync(path.join(options.cwd, 'owned.tfplan'), Buffer.from('recorded-plan-binary'))
+    if (args[0] === 'show') return { status: 0, stdout: JSON.stringify(readbackPlan) }
+    if (args[0] === 'apply') {
+      assert.deepEqual(args, ['apply', '-input=false', '-no-color', '-auto-approve', 'owned.tfplan'])
+      assert.ok(h.objects.has(ref(receiptId + '-request').uri)); assert.ok(h.objects.has(ref(receiptId + '-plan').uri))
+      state.applied = true
+      if (lostApplyResponse) return { status: 1, stdout: '' }
+    }
+    return { status: 0, stdout: '' }
+  }
+  const invoke = () => executeReleaseReadbackIam({ inputRef: approved.inputRef, transport: h.transport, readSource,
+    root: fileURLToPath(new URL('../', import.meta.url)), oauthToken: 'recorded-memory-only-token',
+    verifyActor: async () => ({ email: 'jedchang0308@jenfu.com.tw' }), terraformRunner })
+  const first = await invoke()
+  assert.equal(first.value.status, 'APPLIED')
+  assert.equal(first.value.mutation, lostApplyResponse ? 'UNKNOWN_APPLY_THEN_READBACK' : 'APPLY_THEN_READBACK')
+  assert.equal(fs.existsSync(ownedTemp), false)
+  assert.equal(calls.filter(command => command === 'apply').length, 1)
+  assert.ok(h.objects.has(ref(receiptId + '-request').uri)); assert.ok(h.objects.has(ref(receiptId + '-plan').uri))
+  const beforeReplay = calls.length, replay = await invoke()
+  assert.deepEqual(replay.ref, first.ref)
+  assert.equal(calls.length, beforeReplay)
+  assert.equal(calls.filter(command => command === 'apply').length, 1)
+  assert.ok(iamCalls.every(row => row.options.method !== 'PATCH'))
+  }
+})
+
+
+test('completed FIRST missing or mismatched sealed proof and live drift fail before credential or Job writes', async () => {
+  for (const scenario of ['missing-token-seal', 'wrong-bootstrap', 'wrong-pause', 'wrong-finite', 'wrong-iam-source', 'enabled-scheduler', 'job-metadata', 'extra-execution', 'extra-scheduler-member', 'extra-role-permission', 'registry-deadline', 'registry-start-after-completion', 'registry-created-after-completion']) {
+    const h = await completedFirstHarness(), original = h.transport.request
+    const corrupt = (uri, change) => { const row = h.objects.get(uri); change(row.value); row.bytes = Buffer.from(canonicalize(row.value)) }
+    if (scenario === 'missing-token-seal') h.objects.delete(h.root + '-token-version.json')
+    if (scenario === 'wrong-bootstrap') corrupt(h.oldBootstrap.ref.uri, row => { row.facts.partialFirstBootstrap.tokenSecretVersion = registryName })
+    if (scenario === 'wrong-pause') corrupt(h.oldPause.ref.uri, row => { row.facts.drainKind = 'OTHER' })
+    if (scenario === 'wrong-finite') { const preflight = h.objects.get(h.oldBootstrap.value.facts.cloudPreflightRef.uri).value; corrupt(preflight.previousRefs[0].uri, row => { row.facts.terminalExitZero = false }) }
+    if (scenario === 'wrong-iam-source') corrupt(h.iam.receiptRef.uri, row => { row.sourceRevision = 'f'.repeat(40) })
+    const registryRequest = h.objects.get(h.root + '-registry-version-request.json').value
+    if (scenario === 'registry-deadline') corrupt(ref('partial-bootstrap-input').uri, row => { row.deadlineAt = new Date(Date.parse(registryRequest.windowEnd) - 1).toISOString() })
+    if (scenario === 'registry-start-after-completion') corrupt(h.oldBootstrap.ref.uri, row => { row.observedAt = new Date(Date.parse(registryRequest.startedAt) - 1).toISOString() })
+    h.transport.request = async (url, options) => {
+      const row = structuredClone(await original(url, options))
+      if (scenario === 'enabled-scheduler' && url.includes('cloudscheduler')) row.state = 'ENABLED'
+      if (scenario === 'job-metadata' && url === `https://run.googleapis.com/v2/${workerJobName()}`) row.labels = { unapproved: 'drift' }
+      if (scenario === 'extra-execution' && url.includes('/executions?')) row.executions.push({ ...structuredClone(row.executions[0]), name: row.executions[0].name + '-extra' })
+      if (scenario === 'extra-scheduler-member' && url === READBACK_IAM_PROJECT_POLICY_URL) row.bindings.find(binding => binding.role === READBACK_SCHEDULER_ROLE).members.push('user:unexpected@example.com')
+      if (scenario === 'extra-role-permission' && url.endsWith('aipdmOpenswxSchedulerReadback')) row.includedPermissions.push('cloudscheduler.jobs.run')
+      if (scenario === 'registry-created-after-completion' && url.includes(profile.registrySecretId + '/versions?')) row.versions.find(version => version.name.endsWith('/3')).createTime = new Date(Date.parse(registryRequest.startedAt) + 20_000).toISOString()
+      return row
+    }
+    h.provider.calls.length = 0; h.iamCalls.length = 0
+    const before = [...h.objects.keys()].sort()
+    await assert.rejects(executeOpenSwxResources(h.nextArgs), undefined, scenario)
+    assert.deepEqual([...h.objects.keys()].sort(), before, scenario + ' must remain read-only')
+    assert.ok(h.allCalls().every(row => !row.url.endsWith(':addVersion') && !row.url.endsWith(':run') && row.options.method !== 'PATCH'))
+  }
+})
+
+test('completed FIRST recovers after a preflight seal interruption without a second PATCH or execution', async () => {
+  const h = await completedFirstHarness(), applied = await executeOpenSwxResources(h.nextArgs)
+  const inputRef = await h.put('completed-interrupted-input', { schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef: h.nextDescriptorRef, workerBuildRef: h.nextBuildRef,
+    deadlineAt: deadline(), receiptId: 'completed-interrupted', bootstrapKind: 'FIRST_CREATE', resourceApplyRef: applied.ref,
+    currentRegistryVersion: applied.value.completedFirstBootstrap.partialFirstBootstrap.priorRegistryVersion })
+  const invoke = () => executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  const original = h.transport.putJson, uri = ref('completed-interrupted').uri
+  h.transport.putJson = async (target, value, ...rest) => { if (target === uri) throw Object.assign(Error('response interrupted before final seal'), { code: 'OUTCOME_UNKNOWN' }); return original(target, value, ...rest) }
+  h.provider.calls.length = 0; h.iamCalls.length = 0
+  await assert.rejects(invoke(), { code: 'OUTCOME_UNKNOWN' })
+  const preflight = h.objects.get(ref('completed-interrupted-preflight').uri), savedBytes = Buffer.from(preflight.bytes)
+  assert.equal(h.allCalls().filter(row => row.options.method === 'PATCH').length, 1)
+  assert.equal(h.allCalls().filter(row => row.url.endsWith(':run')).length, 1)
+  h.transport.putJson = original; h.provider.calls.length = 0; h.iamCalls.length = 0
+  const done = await invoke()
+  assert.equal(done.value.facts.tokenSecretVersion, h.tokenVersion)
+  assert.ok(h.objects.get(preflight.ref.uri).bytes.equals(savedBytes))
+  assert.equal(h.allCalls().filter(row => row.options.method === 'PATCH' || row.url.endsWith(':run') || row.url.endsWith(':addVersion')).length, 0)
+})
+
+
+test('credential issuance refuses a thirty-second request window beyond the fresh deadline before any write', async () => {
+  const h = memory(), ownUri = ref('short-credential-deadline').uri
+  h.transport.request = async () => { throw Error('NO_PROVIDER_CALL_AUTHORIZED') }
+  await assert.rejects(addCredentialVersion({ transport: h.transport, profile, secretId: profile.tokenSecretId,
+    bytes: Buffer.from(token), uri: ownUri, deadlineAt: new Date(Date.now() + 1000).toISOString() }), { code: 'OPENSWX_CREDENTIAL_REQUEST_DEADLINE' })
+  assert.equal(h.objects.size, 0)
+})
+
+
+test('incomplete registry progress is limited by each fixed fresh recovery input and cannot derive completed IAM authority', async () => {
+  for (const stage of ['resources', 'bootstrap']) {
+    const h = await registryProgressHarness()
+    let invoke
+    if (stage === 'resources') {
+      h.args.deadlineAt = new Date(Date.now() + 1000).toISOString()
+      invoke = () => executeOpenSwxResources(h.args)
+    } else {
+      const applied = await executeOpenSwxResources(h.args), oldInput = h.objects.get(h.inputRef.uri).value
+      assert.equal(applied.value.completedFirstBootstrap, undefined)
+      assert.equal(applied.value.supplementalIamReadbackRef, undefined)
+      const inputRef = await h.put('partial-short-deadline-input', { ...oldInput, descriptorRef: h.descriptorRef, workerBuildRef: h.workerBuildRef,
+        resourceApplyRef: applied.ref, receiptId: 'partial-short-deadline', deadlineAt: new Date(Date.now() + 1000).toISOString() })
+      invoke = () => executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+    }
+    h.provider.calls.length = 0
+    const before = [...h.objects.keys()].sort()
+    await assert.rejects(invoke(), { code: 'OPENSWX_REGISTRY_CREDENTIAL_AUTHORITY_INVALID' })
+    assert.deepEqual([...h.objects.keys()].sort(), before)
+    assert.ok(h.provider.calls.every(row => !row.url.endsWith(':addVersion') && !row.url.endsWith(':run') && row.options.method !== 'PATCH'))
   }
 })

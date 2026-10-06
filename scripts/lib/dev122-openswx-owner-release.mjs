@@ -1,3 +1,4 @@
+import { readReadbackIamReceipt, readbackIamPlan } from './dev122-openswx-readback-iam.mjs'
 import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 
 export const WORKER_PROFILE_PATH = 'config/release/dev122-openswx-worker.json'
@@ -351,7 +352,33 @@ export async function assertPausedDrainReceipt(transport, paused, descriptor, pr
     if (terminal.templateSha256 !== paused.templateSha256 || terminal.facts.executionName !== paused.facts.dbAdmissionProof.executionName) fail('OPENSWX_DAILY_DRAIN_INVALID')
   } else fail('OPENSWX_DRAIN_KIND_INVALID')
 }
-export async function readWorkerFullEvidence(transport, descriptor, profile) {
+export async function readBootstrapSupplementalIam(transport, bootstrap, descriptor, profile, readSource) {
+  let ref = null
+  if (bootstrap.facts.completedFirstBootstrap) {
+    const applied = (await transport.readJson(bootstrap.facts.resourceApplyRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+    if (applied.schemaVersion !== 'aipdm.openswx-resource-apply.v1' || applied.ownerApplicationId !== 'ai-pdm' || applied.actor !== profile.normalActor
+      || applied.sourceRevision !== descriptor.sourceRevision || applied.resourcePlanHash !== descriptor.resourcePlanHash || applied.status !== 'APPLIED' || applied.evidenceScope !== 'PRODUCTION_PROVIDER'
+      || applied.mutation !== 'READBACK_ONLY_COMPLETED_FIRST_SOURCE_RECONCILIATION'
+      || canonicalize(applied.completedFirstBootstrap) !== canonicalize(bootstrap.facts.completedFirstBootstrap)
+      || canonicalize(applied.supplementalIamReadbackRef) !== canonicalize(applied.completedFirstBootstrap.supplementalIamReadbackRef)) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
+    ref = applied.supplementalIamReadbackRef
+  } else if (bootstrap.facts.resourceProvenance?.supplementalIamReadbackRef) {
+    const row = await transport.readJson(bootstrap.facts.resourceProvenance.resourceReadbackRef, BUCKET, [WORKER_RECEIPT_PREFIX])
+    if (row.ref.sha256 !== bootstrap.facts.resourceProvenance.resourceReadbackSha256 || row.value.resourcesUnchanged !== true
+      || canonicalize(row.value.supplementalIamReadbackRef) !== canonicalize(bootstrap.facts.resourceProvenance.supplementalIamReadbackRef)) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
+    ref = row.value.supplementalIamReadbackRef
+  }
+  if (!ref) return null
+  if (typeof readSource !== 'function') fail('OPENSWX_IAM_SOURCE_READER_REQUIRED')
+  assertOpenSwxWorkerRef(ref)
+  const receipt = (await transport.readJson(ref, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  // Subsequent DAILY releases may retain the exact unchanged IAM source package.
+  if (receipt.planSha256 !== sha256(canonicalize(readbackIamPlan(readSource, descriptor.sourceRevision)))) fail('OPENSWX_IAM_SOURCE_DRIFT')
+  if (bootstrap.facts.completedFirstBootstrap && receipt.sourceRevision !== descriptor.sourceRevision) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
+  await readReadbackIamReceipt({ transport, ref, sourceRevision: receipt.sourceRevision, readSource, normalActor: profile.normalActor })
+  return { ref, sourceRevision: receipt.sourceRevision }
+}
+export async function readWorkerFullEvidence(transport, descriptor, profile, readSource) {
   if (descriptor.purpose !== 'full') fail('OPENSWX_FULL_DESCRIPTOR_REQUIRED')
   const results = {};
   for (const [field, kind] of [['workerBuildRef', 'build'], ['bootstrapRef', 'bootstrap'], ['cloudPreflightRef', 'cloud-preflight'], ['pausedDrainedRef', 'paused-drained']]) {
@@ -382,7 +409,8 @@ export async function readWorkerFullEvidence(transport, descriptor, profile) {
     if (readback.resourcesUnchanged !== true || canonicalize(readback.targetWorkerBuildRef) !== canonicalize(descriptor.workerBuildRef)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
   }
   if (results.pausedDrainedRef.facts.drainKind === 'FIRST_PROVIDER_ONLY' && results.pausedDrainedRef.image !== image) fail('OPENSWX_RECEIPT_JOIN_INVALID')
-  return { image, receipts: results }
+  const supplementalIam = await readBootstrapSupplementalIam(transport, results.bootstrapRef, descriptor, profile, readSource)
+  return { image, receipts: results, ...(supplementalIam ? { supplementalIam } : {}) }
 }
 /** Default implementation uses only the existing verified owner transport and frozen Git blobs. */
 export function createOpenSwxOwnerRelease({ transport, readSource, environment }) {
@@ -399,7 +427,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
   async function pausedAndDrained(descriptor) {
     const scheduler = await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`)
     assertPausedScheduler(scheduler, descriptor.profile)
-    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile)
+    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
     const executions = await assertNoActiveExecutions(transport)
     const preflight = evidence.receipts.cloudPreflightRef.facts.proof
     const allowed = [preflight?.executionName]
@@ -426,7 +454,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
         || !H64.test(plan.authorizationStatementSha256 ?? '')) fail('OPENSWX_RESOURCE_PLAN_NOT_APPROVED')
       return { descriptorRef: descriptor.ref, purpose: 'build_only' }
     }
-    await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile)
+    await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
     await pausedAndDrained(descriptor)
     return { descriptorRef: descriptor.ref, purpose: 'full' }
   }
@@ -434,7 +462,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     const descriptor = await resolve(intent, profile); if (!descriptor) return null
     if (sourceObject.ref.sha256 !== descriptor.value.sourceArchiveSha256) fail('OPENSWX_ARCHIVE_JOIN_INVALID')
     if (descriptor.value.purpose === 'full') {
-      const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile)
+      const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
       return { descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: evidence.image }
     }
     const uri = `${rootFor(intent)}/build.json`, existing = await optionalReceipt(transport, uri)
@@ -461,7 +489,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
   }
   async function candidate({ intent, profile, deployment }) {
     const descriptor = await resolve(intent, profile); if (!descriptor) return null
-    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile)
+    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
     if (deployment.sourceObject.sha256 !== descriptor.value.sourceArchiveSha256 || deployment.openswxWorker?.image !== evidence.image) fail('OPENSWX_ARCHIVE_JOIN_INVALID')
     await pausedAndDrained(descriptor)
     const uri = `${rootFor(intent)}/normal-job.json`, existing = await optionalReceipt(transport, uri)
@@ -480,7 +508,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
   }
   async function finalize({ intent, profile }) {
     const descriptor = await resolve(intent, profile); if (!descriptor) return null
-    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile)
+    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
     await pausedAndDrained(descriptor)
     const template = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion)
     const terminal = await runWorkerFinite({ transport, descriptor: descriptor.value, profile: descriptor.profile, template, receiptUri: `${rootFor(intent)}/finite-smoke.json`, actor: 'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', deadlineAt: intent.deadlineAt })
@@ -502,7 +530,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
       await assertNoActiveExecutions(transport)
       const prior = await optionalReceipt(transport, `${rootFor(intent)}/prior-job.json`)
       if (prior) {
-        const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile)
+        const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
         assertWorkerReceipt(prior.value, descriptor.value, 'prior-job')
         const restore = prior.value.facts.priorRestoreTemplate
         if (canonicalize(restore) !== canonicalize(normalizeWorkerTemplate(prior.value.facts.priorJob.template)) || prior.value.templateSha256 !== sha256(canonicalize(restore))
