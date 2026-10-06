@@ -419,6 +419,46 @@ export class DrawingRecognitionAsyncRepository {
    * mutating a recognition session.  Submit/commit guards use this one method
    * so source-set hashing cannot drift from create/amend/formalize semantics.
    */
+  /** Read-only auxiliary source selection. It never creates or mutates a DM session. */
+  async readContextSourceSnapshot(input: { companyId: string; sourceContextType: DrawingRecognitionSourceContextType; sourceContextId: string; sourceAssetIds: readonly string[] }) {
+    if (input.sourceContextType === "candidate_revision" && !await this.client.queryOne(`SELECT candidate.id FROM numbering_candidate_revision_drafts candidate JOIN numbering_draft_workspaces workspace ON workspace.id=candidate.workspace_id AND workspace.company_id=candidate.company_id WHERE candidate.id=:id AND candidate.company_id=:companyId`, { id: input.sourceContextId, companyId: input.companyId })) throw new DrawingRecognitionError("OPENSWX_CONTEXT_NOT_FOUND", "找不到此公司來源。", 404);
+    const scope = await this.resolveContextScope(input.companyId, input.sourceContextType, input.sourceContextId);
+    if (!scope) throw new DrawingRecognitionError("OPENSWX_CONTEXT_NOT_FOUND", "找不到此公司來源。", 404);
+    let ownerId = scope.owner_id;
+    if (input.sourceContextType === "drawing_revision") {
+      const current = await this.client.query<{ owner_id: string | null }>(`SELECT work.owner_user_id AS owner_id
+        FROM canonical_workbench_states state
+        JOIN drawing_revisions revision ON revision.id=state.revision_id AND revision.company_id=state.company_id
+        JOIN drawings drawing ON drawing.id=revision.drawing_id AND drawing.company_id=revision.company_id
+        LEFT JOIN drawing_revision_works work ON work.id=state.work_id AND work.company_id=state.company_id
+          AND work.drawing_id=drawing.id AND state.canonical_entity_id=drawing.id AND work.branch_id=state.branch_id
+        WHERE state.company_id=:companyId AND state.revision_id=:id AND state.entity_type='drawing' AND state.work_id IS NOT NULL`, { companyId: input.companyId, id: input.sourceContextId });
+      if (current.length > 0) {
+        if (current.length !== 1 || !current[0].owner_id) throw new DrawingRecognitionError("OPENSWX_CONTEXT_OWNER_UNKNOWN", "目前圖面工作擁有者無法確認。", 403);
+        ownerId = current[0].owner_id;
+      }
+    }
+    if (!ownerId) {
+      const fallback = input.sourceContextType === "candidate_revision"
+        ? await this.client.queryOne<{ owner_id: string }>(`SELECT workspace.owner_id FROM numbering_candidate_revision_drafts candidate JOIN numbering_draft_workspaces workspace ON workspace.id=candidate.workspace_id AND workspace.company_id=candidate.company_id WHERE candidate.id=:id AND candidate.company_id=:companyId`, { id: input.sourceContextId, companyId: input.companyId })
+        : input.sourceContextType === "drawing_number"
+          ? await this.client.queryOne<{ owner_id: string }>(`SELECT created_by AS owner_id FROM drawing_numbers WHERE id=:id AND company_id=:companyId`, { id: input.sourceContextId, companyId: input.companyId })
+          : input.sourceContextType === "revision_package"
+            ? await this.client.queryOne<{ owner_id: string }>(`SELECT created_by AS owner_id FROM drawing_revision_packages WHERE id=:id AND company_id=:companyId`, { id: input.sourceContextId, companyId: input.companyId }) : null;
+      ownerId = fallback?.owner_id ?? null;
+    }
+    const owner = ownerId ? await this.client.queryOne<{ principal_id: string }>(`SELECT principal_id FROM principal_accounts WHERE company_id=:companyId AND pdm_user_id=:ownerId`, { companyId: input.companyId, ownerId }) : null;
+    if (!owner) throw new DrawingRecognitionError("OPENSWX_CONTEXT_OWNER_UNKNOWN", "來源擁有者無法確認。", 403);
+    const selected = input.sourceAssetIds;
+    if (!Array.isArray(selected) || selected.length < 1 || selected.length > 8 || new Set(selected).size !== selected.length || selected.some(id => typeof id !== "string" || !/^[A-Za-z0-9._:-]{1,200}$/u.test(id))) throw new DrawingRecognitionError("OPENSWX_SOURCE_SELECTION_INVALID", "請選擇 1–8 個唯一 CAD 來源。", 400);
+    const available = await this.listContextSources(input.companyId, input.sourceContextType, input.sourceContextId);
+    const rows = selected.map(id => available.filter(row => row.file_asset_id === id).sort((a, b) => Number(a.sort_order) - Number(b.sort_order) || a.source_role.localeCompare(b.source_role))[0]);
+    if (rows.some(row => !row)) throw new DrawingRecognitionError("OPENSWX_SOURCE_OWNERSHIP_LOST", "來源不屬於目前範圍。", 403);
+    const sources = rows.sort((a, b) => Number(a.sort_order) - Number(b.sort_order) || a.file_asset_id.localeCompare(b.file_asset_id)).map((row, selectedOrdinal) => ({ id: row.file_asset_id, fileAssetId: row.file_asset_id, sha256: row.content_hash ?? "", bytes: Number(row.file_size), extension: row.file_ext.toLowerCase().replace(/^\./u, ""), storageGeneration: row.storage_generation, sourceRole: row.source_role, sortOrder: selectedOrdinal }));
+    if (sources.some(s => !/^[a-f0-9]{64}$/u.test(s.sha256 ?? "") || !Number.isSafeInteger(s.bytes) || s.bytes < 1 || s.bytes > 268435456 || !["sldprt", "sldasm", "slddrw"].includes(s.extension))) throw new DrawingRecognitionError("OPENSWX_SOURCE_BINDING_INVALID", "僅支援有內容指紋且符合大小限制的 CAD。", 413);
+    return { context: { companyId: input.companyId, sourceContextType: input.sourceContextType, sourceContextId: input.sourceContextId, ownerPrincipalId: owner.principal_id }, sources, fingerprint: sha256Canonical(sources) };
+  }
+
   async readCurrentSourceBasis(input: {
     companyId: string;
     sourceContextType: DrawingRecognitionSourceContextType;
@@ -2128,7 +2168,7 @@ export class DrawingRecognitionAsyncRepository {
     return this.client.query<FileSourceRow>(
       select.replace("%SCOPED%", `SELECT file.source_file_asset_id AS file_asset_id, file.role AS source_role, file.sort_order
         FROM drawing_revision_files file JOIN drawing_revisions revision ON revision.id = file.drawing_revision_id
-        WHERE file.drawing_revision_id = :id AND revision.company_id = :companyId AND file.removed_at IS NULL
+        WHERE file.drawing_revision_id = :id AND revision.company_id = :companyId AND file.company_id = revision.company_id AND file.removed_at IS NULL
         UNION
         SELECT source.source_file_asset_id AS file_asset_id, source.role AS source_role, binding.ordinal AS sort_order
         FROM canonical_workbench_states state

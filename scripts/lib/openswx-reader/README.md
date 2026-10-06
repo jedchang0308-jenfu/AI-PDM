@@ -21,6 +21,24 @@ Only the verified task-owned container is terminated after timeout/output failur
 Local evaluation only. Cloud Run workload capability, trigger, deployment and
 human production validation remain separate gates.
 
+Phase 2 finite worker target: build from the AI-PDM repository, select
+`--target finite-worker --build-arg READER_SOURCE=scripts/lib/openswx-reader`.
+The historical CLI context must select `--target reader-runtime`. Node uses the
+existing app's immutable 24.17.0 Bookworm image pin; no npm dependencies are added.
+Use a new frozen source/image manifest. The old Phase 1 image is not a full Job.
+No build or provider action is implied by these instructions.
+
+The fixed Linux/amd64 child closes inherited non-stdio FDs, clears its environment,
+sets no-new-privileges and denies network/process-escape syscalls with seccomp.
+Its `--isolation-self-test` must succeed before claim/download. This proves only
+`child_network_syscalls_denied.v1`, not a complete filesystem/network sandbox.
+Cloud Run syscall support and parent HTTP/child deny behavior require separate
+actual artifact gates; unsupported installation is blocked without fallback.
+The runner takes one exact cloud-injected execution, at most one job, no DM key,
+and a purpose-specific reader token. Dispatch remains disabled unless explicitly
+configured by the owner. Unknown provider/completion outcomes are read back,
+never blindly retried. SIGTERM/deadline abort HTTP/parser and clean own temp bytes.
+
 
 Input and output directories must preexist, have no symlink/junction ancestors and
 remain disjoint. The input directory must contain exactly the manifest files.

@@ -1,10 +1,20 @@
 # AI_PDM 開發任務
 
-## DEV-122 Cloud Run 部署續點（2026-10-05；免費解析器部分屬性已實測、唯讀輔助結果開發中）
+## DEV-122 Cloud Run 部署續點（2026-10-06；本地 QC／建置通過，新增雲端資源待授權）
 
 使用者指定 worker 使用 Cloud Run。現有 Windows COM Document Manager reader 無法直接在 Cloud Run Linux 容器執行；現行續點改優先評估免費MIT OpenSWX（Linux／三格式／文件與組態屬性為作者宣稱），仍需本案CAD實跑完整度證據；Datakit只留商用備案，不先購買。固定版本OpenSWX Linux/amd64 own映像已建置並綁31檔source／268個artifact與licenses；16項mapping與隔離tests通過。8檔native CAD（3PRT／1ASM／4DRW）皆讀出非空屬性、明示partial；4損壞／截斷樣本皆拒絕。原始8檔hash未變，14個task容器皆報exact清理；storedValue與effective組態可讀，type／raw／linked／evaluated及完整性仍unsupported或unknown；獨立Luna actual artifact QC已完成；12份暫存測試檔、14個容器、本機own映像與3個build CLI configs已驗明清理。使用者已選擇先開發唯讀輔助結果，Phase2本地契約RD Implementation Ready、cloud資源待具體授權。R2缺make與Windows授權匯出symlink失敗紀錄保留，未建立或部署Cloud Run worker，未新增 IAM／Secret；F-01F 仍待使用者正式驗證，7 issues／29 groups、整體未驗收。依[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#cloud-run-部署指示與解析器相容性2026-10-05current優先於下方-windows-啟動契約)與[相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)與[8CAD／4負向實測](qa/DEV-122-openswx-feasibility-2026-10-05.json)、[immutable建置／授權](qa/DEV-122-openswx-built-artifact-2026-10-05.json)與[獨立Luna QC](qa/DEV-122-openswx-independent-qc-2026-10-05.json)接續；下方 R03 Windows 主機待提供為歷史，不再作現行待辦。
 
-[Phase2核心本地證據](qa/DEV-122-openswx-phase2-core-checkpoint-2026-10-05.json)：22項focused及3項native PostgreSQL通過，501外鍵與未種資料基線/隔離/防竄改/回執已驗；首fixture失敗保留，task-owned PG與62701已清理。API/dispatch/finite runner/唯讀UI及獨立QC接續中；Cloud child隔離、新資源與正式執行尚未驗證/授權，整體NOT_ACCEPTED。
+HISTORY_ONLY／core-v1切片：[Phase2核心本地證據](qa/DEV-122-openswx-phase2-core-checkpoint-2026-10-05.json)：22項focused及3項native PostgreSQL通過，501外鍵與未種資料基線/隔離/防竄改/回執已驗；首fixture失敗保留，task-owned PG與62701已清理。API/dispatch/finite runner/唯讀UI及獨立QC接續中；Cloud child隔離、新資源與正式執行尚未驗證/授權，整體NOT_ACCEPTED。
+
+2026-10-06 CURRENT 唯讀輔助結果續點：最終[63檔來源凍結](qa/DEV-122-openswx-phase2-final-source-freeze-2026-10-06.json)與[QA計畫](qa/DEV-122-openswx-phase2-validation-plan-2026-10-05.json)為本地候選；context-owned單CTA不需DM session，human POST僅提交status-only job，Scheduler自動派送。最新獨立QC已涵蓋47項API／dispatch／UI契約、7項current-work ownership與14項bootstrap／15個錯配變異；各結果只證明對應來源切片。正常Principal API的建立→CAD/PDF上傳→GET／enqueue／重複提交，以及home→Drawing列表→workspace的桌面1440／窄版390等待與取消操作已有本地實測；completed結果正常頁面與正式published authority仍未驗。原生SQL重驗3項／505真外鍵通過，DM表列不變；PG／Next／browser已驗明停止與埠釋放，兩根primary SQLite僅確認ABSENT。獨立Linux成品QC已讀驗同8CAD／10個自有容器均驗明移除，儲存值均partial且hash未變；計算值／公式／型別與完整性缺口保留，child syscall隔離不冒稱namespace／同UID檔案隔離。134項發布契約與6項abort已實跑通過；首次隔離副本漏Dockerfile的133通過／1 ENOENT失敗保留。
+
+CURRENT 獨立驗證索引：[47項契約切片](qa/DEV-122-openswx-phase2-independent-qc-2026-10-06.json)、[current-work owner切片](qa/DEV-122-openswx-phase2-current-work-owner-independent-qc-2026-10-06.json)、[owner bootstrap來源與回放](qa/DEV-122-openswx-owner-source-independent-qc-2026-10-06.json)、[Linux成品與8筆partial CAD](qa/DEV-122-openswx-phase2-independent-artifact-qc-2026-10-06.json)。各紀錄保留自己的來源、首次失敗與適用範圍；不得加總為整體DEV完成。
+
+CURRENT 最後本地 owner checks 已通過：[本地結案與證據索引](qa/DEV-122-openswx-phase2-owner-build-local-closure-2026-10-06.json)綁 full-r4 aggregate 119、abort 6、DB boundary、typecheck、isolated build PASS；134 continuous 僅沿用相同凍結來源的既有 PASS。獨立 Luna／max 逐檔核對 2182 檔與 166 個 freeze comparisons，並確認兩暫存根、三 junction、task-owned process／listener、Governor runtime／lease 已清理，共用依賴保留。建置 artifact 已依 isolated helper 清理，不能當成保留的部署映像；ENOENT／ENOTCONN 失敗歷史不改寫。人類選項 1 僅接受原 session／operation 的 C: 25 GiB 單次風險；容量底層仍 BLOCKED，非一般容量或 Cloud 授權。
+
+下一步為[新增正式資源與上線範圍核准](C:/VIBE%20CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/cloud-resource-production-approval-plan-2026-10-06.md)：十二個限定 Terraform addresses、兩項 numeric credential versions 與自有 082 forward-only migration 尚待該批明確授權；Terraform init／plan／apply、Cloud worker 正常執行與 completed-result 正常 UI 皆 NOT_RUN。B 方案保留文字 project ID 並核預期 number；首版依 CURRENT A build_only→normal bootstrap→B full→normal activation。F-01F 完整原生屬性由使用者正式驗證；7 issues／29 groups、整體 NOT_ACCEPTED；本段為提交前證據，後續 Git 狀態依提交收據，不替代正式驗收。
+
+HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證據](qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json)：新版082 exact SHA `9f4ff68f…c8000`、3 native tests及505真外鍵通過，四typedcontext／optional session／防偽造／same-company／single receipt已驗；未種資料基線先通過、lawfulfixture與原DM全列前後不變。Task-owned PG／62702／暫存cluster已清理。只適用凍結SQL subset；normal UI／最終獨立QC／Cloud與完整native CAD仍待各自驗證，整體NOT_ACCEPTED。
 
 ## DEV-122 一次提交金鑰流程（2026-10-05；R03 已部署，待使用者 CAD 驗證）
 
@@ -1610,7 +1620,7 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：依人類Cloud Run指定，優先評估免費MIT OpenSWX及三格式自訂屬性證據，不以商用SDK採購作先決條件；原生CAD正式驗證仍由使用者執行。D122-08 已合併PR213／QC與CI通過，該修復發布範圍仍待人類決定。
+  - 下一步：最後 owner QC／isolated build 與 Luna 獨立來源／清理讀核已 PASS_LOCAL_ONLY；十二項限定 Cloud Run 自有資源、兩項 numeric credential versions 與 082 正向 migration 的具體上線提案待授權。本地候選先整理提交；完整原生 CAD 正式驗證仍由使用者執行，D122-08 PR213 既有發布範圍待人類決定。
   - 驗收缺口：R03 100%／0 tags／正常登入 smoke PASS；正式真 key/probe/activation 與 CAD 由使用者驗證；Cloud Run 與現有 Windows reader 不相容，免費Linux reader的完整屬性與實跑相容性證據尚缺。既有 28 組僅按相符本地層級保留，三格式 filename partial 不替代原生 CAD；7 issues／29 groups、整體未驗收。
   - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。

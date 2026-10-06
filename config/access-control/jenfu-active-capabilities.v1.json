@@ -1762,7 +1762,8 @@
         "src/app/api/numbering/recognition-sessions/[sessionId]/observations/[observationId]/route.ts",
         "src/app/api/numbering/recognition-sessions/[sessionId]/route.ts",
         "src/app/api/numbering/recognition-sessions/[sessionId]/sources/[sourceId]/content/route.ts",
-        "src/app/numbering/recognition/[sessionId]/page.tsx"
+        "src/app/numbering/recognition/[sessionId]/page.tsx",
+        "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts"
       ],
       "routes": [
         {
@@ -1844,6 +1845,16 @@
           "authorizationTarget": "numbering.recognition.review",
           "scopeResolver": "workspace",
           "preservedGuards": "same-company session, actor scope and source binding"
+        },
+        {
+          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
+          "method": "GET",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.review",
+          "authorizationTarget": "numbering.recognition.review",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
         }
       ],
       "callerEvidence": [
@@ -1882,6 +1893,10 @@
         {
           "path": "src/app/numbering/recognition/[sessionId]/page.tsx",
           "purpose": "shared permission consumer; no catalog-derived bypass"
+        },
+        {
+          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
+          "purpose": "method policy plus auxiliary-only context route implementation"
         }
       ],
       "usage": "registered capability with caller evidence"
@@ -1893,7 +1908,9 @@
       "callers": [
         "src/app/api/numbering/recognition-sessions/route.ts",
         "src/app/api/numbering/recognition-sessions/[sessionId]/client-adapter-results/route.ts",
-        "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts"
+        "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts",
+        "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
+        "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts"
       ],
       "routes": [
         {
@@ -1925,6 +1942,26 @@
           "authorizationTarget": "numbering.recognition.run",
           "scopeResolver": "workspace",
           "preservedGuards": "same-company session, actor scope and source set"
+        },
+        {
+          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.run",
+          "authorizationTarget": "numbering.recognition.run",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
+        },
+        {
+          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts",
+          "method": "POST",
+          "discriminator": null,
+          "authorizationMode": "permission",
+          "permissionCode": "numbering.recognition.run",
+          "authorizationTarget": "numbering.recognition.run",
+          "scopeResolver": "workspace",
+          "preservedGuards": "verified Principal/current published capability; same-company typed context/canonical owner; selected live CAD snapshot; auxiliary-only durable state; no DM queue mutation"
         }
       ],
       "callerEvidence": [
@@ -1939,6 +1976,14 @@
         {
           "path": "src/app/api/numbering/recognition-sessions/[sessionId]/reruns/route.ts",
           "purpose": "method policy plus route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
+          "purpose": "method policy plus auxiliary-only context route implementation"
+        },
+        {
+          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts",
+          "purpose": "method policy plus auxiliary-only context route implementation"
         }
       ],
       "usage": "registered capability with caller evidence"

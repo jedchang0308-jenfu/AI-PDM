@@ -7,6 +7,7 @@ import path from 'node:path'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
+import { WORKER_PROFILE_PATH, assertWorkerRuntimeJoin, readWorkerDescriptor, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -87,9 +88,9 @@ export function buildSourceFreeze({ profile, releaseId, observedAt, git, sourceI
   }
 }
 
-export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment, secretVersions, observedAt }) {
+export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment, secretVersions, observedAt, openswxWorker = null }) {
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id || sourceLock?.status !== 'SOURCE_FROZEN' || sourceLock?.releaseAuthority !== true || !sourceLock.clean || !Number.isFinite(Date.parse(observedAt))) fail('SOURCE_LOCK_NOT_RELEASE_AUTHORITY')
-  const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment, secretVersions })
+  const runtimeConfig = buildRuntimeConfig(profile, { plainEnvironment, secretVersions, openswxWorker })
   assertRuntimeConfig(profile, runtimeConfig)
   return {
     schemaVersion: 'jenfu.dev012.owner-runtime-config-receipt.v1',
@@ -195,7 +196,7 @@ export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock,
   return { authorization, readiness }
 }
 
-export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent }) {
+export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent, workerDescriptor = null }) {
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id) fail('RELEASE_INTENT_INPUT_INVALID')
   const intent = {
     schemaVersion: profile.schemas.releaseIntent,
@@ -214,6 +215,7 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     deadlineAt: input.deadlineAt,
   }
   if (input.baselineIntentRef) intent.baselineIntentRef = exactRef(input.baselineIntentRef, profile)
+  if (Object.hasOwn(input, 'openswxWorkerRef')) intent.openswxWorkerRef = exactRef(input.openswxWorkerRef, profile)
   if (Object.hasOwn(input, 'principalOnlyFenceRef') || Object.hasOwn(input, 'principalOnlyRecovery')) {
     intent.principalOnlyFenceRef = exactRef(input.principalOnlyFenceRef, profile)
     intent.principalOnlyRecovery = structuredClone(input.principalOnlyRecovery)
@@ -225,6 +227,8 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     if (name !== 'foundation' && !(name === 'infra' && value?.schemaVersion === 'jenfu.dev012.app-infra-reuse-receipt.v1') && value?.sourceRevision && value.sourceRevision !== sourceLock.sourceRevision) fail('PREREQUISITE_SOURCE_MISMATCH', name)
   }
   assertPreparePrerequisites({ intent, profile, values: prerequisiteValues })
+  const runtime = prerequisiteValues.runtimeConfig.runtimeConfig ?? prerequisiteValues.runtimeConfig
+  assertWorkerRuntimeJoin(runtime, intent, workerDescriptor)
   validateIntent(intent, profile)
   return intent
 }
@@ -256,7 +260,7 @@ async function readRef(transport, ref, profile) {
   return (await transport.readJson(ref, profile.artifact.releaseBucket, ['receipts'])).value
 }
 
-export async function executePrerequisiteProducer({ stage, releaseId, input, profile, root, transport, createSourceIdentity, buildMigrationBundle, validateIntent, observedAt = new Date().toISOString(), gitReader = readGitAuthority }) {
+export async function executePrerequisiteProducer({ stage, releaseId, input, profile, root, transport, createSourceIdentity, buildMigrationBundle, readWorkerSource, validateIntent, observedAt = new Date().toISOString(), gitReader = readGitAuthority }) {
   const uri = (name) => `gs://${profile.artifact.releaseBucket}/receipts/releases/${releaseId}/${name}.json`
   if (stage === 'source-freeze') {
     const git = gitReader(root, profile)
@@ -266,7 +270,16 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
   }
   if (stage === 'runtime-config') {
     const sourceLock = await readRef(transport, input.sourceLockRef, profile)
-    const value = buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment: input.plainEnvironment, secretVersions: input.secretVersions, observedAt })
+    let openswxWorker = null, enabled = '0'
+    if (input.openswxWorkerRef) {
+      if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
+      const descriptor = await readWorkerDescriptor({ transport, ref: input.openswxWorkerRef, profileBytes: readWorkerSource(WORKER_PROFILE_PATH, sourceLock.sourceRevision), sourceRevision: sourceLock.sourceRevision })
+      if (descriptor.value.purpose === 'full') { await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile); enabled = '1' }
+      openswxWorker = { descriptorRef: descriptor.ref, sourceRevision: sourceLock.sourceRevision, workerProfileSha256: descriptor.value.workerProfileSha256, purpose: descriptor.value.purpose }
+    }
+    if (input.plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED != null && input.plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED !== enabled) fail('OPENSWX_RUNTIME_BINDING_INVALID')
+    const plainEnvironment = profile.environment.optionalExtensions ? { ...input.plainEnvironment, PDM_OPENSWX_DISPATCH_ENABLED: enabled } : input.plainEnvironment
+    const value = buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plainEnvironment, secretVersions: input.secretVersions, observedAt, openswxWorker })
     return transport.putJson(uri('runtime-config'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   if (stage === 'infra-reuse') {
@@ -344,7 +357,14 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const fields = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const rows = await Promise.all(Object.entries(fields).map(async ([name, field]) => [name, await readRef(transport, input[field], profile)]))
     const prerequisiteValues = Object.fromEntries(rows)
-    const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent })
+    let workerDescriptor = null
+    if (input.openswxWorkerRef) {
+      if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
+      const descriptor = await readWorkerDescriptor({ transport, ref: input.openswxWorkerRef, profileBytes: readWorkerSource(WORKER_PROFILE_PATH, prerequisiteValues.sourceLock.sourceRevision), sourceRevision: prerequisiteValues.sourceLock.sourceRevision })
+      workerDescriptor = descriptor.value
+      if (workerDescriptor.purpose === 'full') await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile)
+    }
+    const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent, workerDescriptor })
     return transport.putJson(uri('release-intent'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   fail('STAGE_DENIED')

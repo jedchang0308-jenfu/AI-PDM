@@ -75,9 +75,23 @@ export function assertProtectedGitHubContext(profile, intent, environment, { sta
   return true
 }
 
-function runtimeTemplate(profile, plainEnvironment, secretVersions) {
+function assertOpenSwxRuntimeBinding(binding) {
+  if (!binding || Object.keys(binding).sort().join(',') !== 'descriptorRef,purpose,sourceRevision,workerProfileSha256' || !['build_only', 'full'].includes(binding.purpose)
+    || !H40.test(binding.sourceRevision ?? '') || !H64.test(binding.workerProfileSha256 ?? '')) fail('OPENSWX_RUNTIME_BINDING_INVALID')
+  assertImmutableRef(binding.descriptorRef, 'jenfu-platform-prod-aipdm-release', ['receipts/dev-122/openswx-worker'])
+}
+function runtimeTemplate(profile, plainEnvironment, secretVersions, openswxWorker = null) {
   const code = 'RUNTIME_CONFIG_READBACK_MISMATCH'
-  const requiredPlain = profile.environment?.requiredPlainEnvironmentNames ?? profile.environment?.requiredNames ?? []
+  const requiredPlain = [...(profile.environment?.requiredPlainEnvironmentNames ?? profile.environment?.requiredNames ?? [])]
+  const flag = plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED
+  if (flag !== undefined) {
+    const extension = { openswxDispatch: { name: 'PDM_OPENSWX_DISPATCH_ENABLED', off: '0', on: '1', binding: 'openswxWorkerRef' } }
+    if (profile.application.id !== 'ai-pdm' || canonicalize(profile.environment?.optionalExtensions) !== canonicalize(extension) || !['0', '1'].includes(flag)) fail('OPENSWX_RUNTIME_EXTENSION_INVALID')
+    requiredPlain.push('PDM_OPENSWX_DISPATCH_ENABLED')
+  }
+  if (openswxWorker) assertOpenSwxRuntimeBinding(openswxWorker)
+  if ((flag ?? '0') === '1' && openswxWorker?.purpose !== 'full') fail('OPENSWX_RUNTIME_BINDING_INVALID')
+  if (openswxWorker?.purpose === 'full' && flag !== '1') fail('OPENSWX_RUNTIME_BINDING_INVALID')
   const fixedValues = profile.environment?.fixedValues ?? {}
   const controlledValues = profile.environment?.controlledValues ?? {}
   const allowedSecrets = profile.environment?.allowedSecretIds ?? profile.environment?.secretIds ?? {}
@@ -167,8 +181,8 @@ export function resolvePlainEnvironment(profile, previousPlainEnvironment, contr
   return result
 }
 
-export function buildRuntimeConfig(profile, { plainEnvironment, secretVersions }) {
-  const template = runtimeTemplate(profile, plainEnvironment, secretVersions)
+export function buildRuntimeConfig(profile, { plainEnvironment, secretVersions, openswxWorker = null }) {
+  const template = runtimeTemplate(profile, plainEnvironment, secretVersions, openswxWorker)
   return {
     runtimeServiceAccount: profile.target.runtimeServiceAccount,
     applicationContainerName: profile.runtime.containerName,
@@ -176,6 +190,7 @@ export function buildRuntimeConfig(profile, { plainEnvironment, secretVersions }
     cloudSqlProxyImage: profile.runtime.cloudSqlProxyImage,
     plainEnvironment: structuredClone(plainEnvironment),
     secretVersions: structuredClone(secretVersions),
+    ...(openswxWorker ? { openswxWorker: structuredClone(openswxWorker) } : {}),
     serviceTemplateSha256: sha256(canonicalize(template)),
     template,
   }
@@ -195,7 +210,7 @@ export function assertRuntimeConfig(profile, runtimeConfig) {
     || runtimeConfig.serviceTemplateSha256 !== sha256(canonicalize(template))
     || template?.revision != null) fail(code)
   let expected
-  try { expected = runtimeTemplate(profile, runtimeConfig.plainEnvironment, runtimeConfig.secretVersions) } catch { fail(code) }
+  try { expected = runtimeTemplate(profile, runtimeConfig.plainEnvironment, runtimeConfig.secretVersions, runtimeConfig.openswxWorker ?? null) } catch { fail(code) }
   if (canonicalize(template) !== canonicalize(expected)) fail(code)
   return structuredClone(template)
 }
@@ -797,12 +812,17 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     }
   }
 
-  async function createBuild({ profile, intent, sourceObject, deadlineAt }) {
+  async function createBuild({ profile, intent, sourceObject, deadlineAt, openswxWorker = false }) {
     assertImmutableRef(sourceObject.ref, profile.artifact.releaseBucket, ['source'])
     if (!/^[1-9][0-9]*$/u.test(String(sourceObject.metadata?.generation ?? '')) || profile.build?.dockerBuilderImage !== 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c' || !/^[A-Za-z0-9._/-]+$/u.test(profile.build?.dockerfile ?? '') || !/^[A-Za-z0-9._-]+$/u.test(profile.build?.dockerTarget ?? '')) fail('BUILD_PROFILE_INVALID')
     const parsed = parseGsUri(sourceObject.ref.uri, profile.artifact.releaseBucket, 'source')
     const tag = `${profile.artifact.uri}:release-${intent.sourceRevision}`
     const args = ['build', '--pull=false', '--no-cache', '--file', profile.build.dockerfile, '--target', profile.build.dockerTarget, '--build-arg', `SOURCE_REVISION=${intent.sourceRevision}`, '--build-arg', `SOURCE_TREE=${intent.sourceSha256}`, '--build-arg', 'SOURCE_CREATED_AT=1970-01-01T00:00:00Z', '--build-arg', `SOURCE_VERSION=${intent.releaseId}`, '--build-arg', 'SOURCE_STATE=frozen', '--tag', tag, '.']
+    if (openswxWorker) {
+      if (profile.application.id !== 'ai-pdm' || profile.artifact.uri !== 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-openswx-worker'
+        || profile.build.dockerfile !== 'scripts/lib/openswx-reader/Dockerfile' || profile.build.dockerTarget !== 'finite-worker') fail('OPENSWX_BUILD_PROFILE_INVALID')
+      args.splice(args.length - 1, 0, '--build-arg', 'READER_SOURCE=scripts/lib/openswx-reader')
+    }
     const body = {
       source: { storageSource: { bucket: parsed.bucket, object: parsed.object, generation: String(sourceObject.metadata.generation) } },
       steps: [{ name: profile.build.dockerBuilderImage, dir: 'source', args }],
@@ -880,7 +900,7 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
       const failed = discoveries.filter((row) => ['FINISHED_FAILED', 'FINISHED_UNSUPPORTED', 'ANALYSIS_ERROR'].includes(row.discovery?.analysisStatus))
       const complete = discoveries.filter((row) => row.discovery?.analysisStatus === 'FINISHED_SUCCESS')
       const blocking = vulnerabilities.filter((row) => ['HIGH', 'CRITICAL'].includes(row.vulnerability?.effectiveSeverity ?? row.vulnerability?.severity))
-      if (failed.length || blocking.some((row) => !gccPbdsOccurrenceMatches(row) && !gccAlignedNewOccurrenceMatches(row))) fail('ARTIFACT_POLICY_FAILED')
+      if (failed.length || (profile.build.openswxStrictScan === true && blocking.length) || blocking.some((row) => !gccPbdsOccurrenceMatches(row) && !gccAlignedNewOccurrenceMatches(row))) fail('ARTIFACT_POLICY_FAILED')
       const needed = [...new Set(blocking.map(row => gccPbdsOccurrenceMatches(row) ? GCC_PBDS_CVE : GCC_ALIGNED_NEW_CVE))]
       const missing = needed.filter(cve => !assessments.has(cve))
       if (missing.length && complete.length) {

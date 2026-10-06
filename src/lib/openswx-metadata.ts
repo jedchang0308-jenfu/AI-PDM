@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createFileStorageServiceForPointer, storagePointerFromRecord, type FileStorageService } from "@/lib/file-storage";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import type { VerifiedWorkloadActor } from "@/lib/worker-service-auth";
@@ -10,9 +11,9 @@ import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-p
 import { evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import { DrawingRecognitionAsyncRepository } from "@/lib/repositories/drawing-recognition-async-repository";
 import { hasPdmNonOwnerEditScope } from "@/lib/pdm-edit-scope-policy";
-import type { DrawingRecognitionSourceContextType } from "@/lib/drawing-recognition-contract";
+import { DrawingRecognitionError } from "@/lib/drawing-recognition-contract";
 import { OpenSwxMetadataAsyncRepository, type OpenSwxJob } from "@/lib/repositories/openswx-metadata-async-repository";
-import { encodeOpenSwxCompletion, OpenSwxMetadataError, OPENSWX_LIMITS, OPENSWX_READER, requireOpenSwxSources, type OpenSwxFence, type OpenSwxInitiator, type OpenSwxSource } from "@/lib/openswx-metadata-contract";
+import { encodeOpenSwxCompletion, OpenSwxMetadataError, OPENSWX_LIMITS, OPENSWX_READER, type OpenSwxFence, type OpenSwxInitiator, type OpenSwxContextType } from "@/lib/openswx-metadata-contract";
 
 /** Rechecks durable delegation against canonical typed state and current published grants, never restores a session. */
 export async function requireCurrentOpenSwxAuthority(db: AsyncDatabaseClient, i: OpenSwxInitiator, permission = "numbering.recognition.run") {
@@ -32,20 +33,11 @@ export async function requireCurrentOpenSwxAuthority(db: AsyncDatabaseClient, i:
     throw error;
   }
 }
-type Session = { id: string; company_id: string; source_context_type: DrawingRecognitionSourceContextType; source_context_id: string; source_set_fingerprint: string; initiator_principal_id: string | null; created_by: string; drawing_id: string | null };
-/** Exact source snapshot plus current context membership. V6 source catalog is never permission authority. */
-export async function readCurrentOpenSwxSources(db: AsyncDatabaseClient, companyId: string, sessionId: string) {
-  const session = await db.queryOne<Session>(`SELECT * FROM ai_pdm_core.drawing_recognition_sessions WHERE id=:sessionId AND company_id=:companyId`, { sessionId, companyId });
-  if (!session) throw new OpenSwxMetadataError("OPENSWX_SESSION_NOT_FOUND", 404);
-  const contextTable = { drawing_number: "drawing_numbers", drawing_revision: "drawing_revisions", revision_package: "drawing_revision_packages", candidate_revision: "numbering_candidate_revisions" }[session.source_context_type];
-  if (!contextTable || !await db.queryOne(`SELECT id FROM ai_pdm_core.${contextTable} WHERE id=:contextId AND company_id=:companyId`, { contextId: session.source_context_id, companyId })) throw new OpenSwxMetadataError("OPENSWX_SOURCE_OWNERSHIP_LOST", 403);
-  const current = await new DrawingRecognitionAsyncRepository(db).readCurrentSourceBasis({ companyId, sourceContextId: session.source_context_id, sourceContextType: session.source_context_type });
-  if (current.sourceSetFingerprint !== session.source_set_fingerprint) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
-  const rows = await db.query<{ id: string; file_asset_id: string; content_hash: string; file_size: number | string; file_ext: string; storage_generation: string | null }>(`SELECT source.id,source.file_asset_id,source.content_hash,source.file_size,source.file_ext,source.storage_generation FROM ai_pdm_core.drawing_recognition_sources source JOIN ai_pdm_core.file_assets asset ON asset.id=source.file_asset_id WHERE source.company_id=:companyId AND source.session_id=:sessionId AND asset.deleted_at IS NULL AND source.content_hash=asset.content_hash AND source.file_size=asset.file_size AND COALESCE(source.storage_generation,'')=COALESCE(asset.storage_generation,'') ORDER BY source.sort_order,source.id`, { companyId, sessionId });
-  if (rows.length !== current.sources.length || rows.some(r => !current.sources.some(c => c.fileAssetId === r.file_asset_id && c.contentHash === r.content_hash && c.storageGeneration === r.storage_generation))) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
-  const sources = rows.map(r => ({ id: r.id, fileAssetId: r.file_asset_id, sha256: r.content_hash, bytes: Number(r.file_size), extension: r.file_ext.toLowerCase().replace(/^\./u, ""), storageGeneration: r.storage_generation }));
-  requireOpenSwxSources(sources);
-  return { session, sources, fingerprint: current.sourceSetFingerprint };
+export type OpenSwxSelection = { sourceContextType: OpenSwxContextType; sourceContextId: string; sourceAssetIds: readonly string[] };
+/** Same-company context and selected current membership; no DM session dependency. */
+export async function readCurrentOpenSwxSources(db: AsyncDatabaseClient, companyId: string, input: OpenSwxSelection) {
+  try { return await new DrawingRecognitionAsyncRepository(db).readContextSourceSnapshot({ companyId, ...input }); }
+  catch (error) { if (error instanceof DrawingRecognitionError) throw new OpenSwxMetadataError(error.code, error.status); throw error; }
 }
 export type OpenSwxCoreDependencies = {
   /** Test seams are explicit: production wiring uses the defaults and a verified request guard. */
@@ -62,16 +54,15 @@ export class OpenSwxMetadataService {
   constructor(private readonly db: AsyncDatabaseClient, private readonly dependencies: OpenSwxCoreDependencies = {}) {}
   private now() { return this.dependencies.now?.() ?? Date.now(); }
   private authority = (db: AsyncDatabaseClient, i: OpenSwxInitiator, p?: string) => (this.dependencies.authority ?? requireCurrentOpenSwxAuthority)(db, i, p);
-  private basis = (db: AsyncDatabaseClient, c: string, s: string) => (this.dependencies.sourceBasis ?? readCurrentOpenSwxSources)(db, c, s);
+  private basis = (db: AsyncDatabaseClient, c: string, s: OpenSwxSelection) => (this.dependencies.sourceBasis ?? readCurrentOpenSwxSources)(db, c, s);
   private async current(db: AsyncDatabaseClient, job: OpenSwxJob) {
     const decision = await this.authority(db, job.initiator);
-    const basis = await this.basis(db, job.companyId, job.sessionId);
-    await this.resource(db, basis.session, job.initiator, decision.roleCode);
+    const basis = await this.basis(db, job.companyId, { sourceContextType: job.sourceContextType, sourceContextId: job.sourceContextId, sourceAssetIds: job.sources.map(s => s.fileAssetId) });
+    this.resource(basis.context.ownerPrincipalId, job.initiator, decision.roleCode);
     if (basis.fingerprint !== job.sourceSetFingerprint || JSON.stringify(basis.sources) !== JSON.stringify(job.sources)) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
   }
-  private async resource(db: AsyncDatabaseClient, session: Session, i: OpenSwxInitiator, roleCode: string | null) {
-    const owner = session.initiator_principal_id === i.principalId || Boolean(session.drawing_id && await db.queryOne(`SELECT drawing.id FROM ai_pdm_core.drawings drawing JOIN ai_pdm_core.principal_accounts account ON account.pdm_user_id=drawing.owner_id AND account.company_id=drawing.company_id WHERE drawing.id=:drawingId AND drawing.company_id=:companyId AND account.principal_id=:principalId`, { drawingId: session.drawing_id, companyId: i.companyId, principalId: i.principalId }));
-    if (!owner && !hasPdmNonOwnerEditScope({ roles: roleCode ? [roleCode] : [] })) throw new OpenSwxMetadataError("OPENSWX_SESSION_FORBIDDEN", 403);
+  private resource(ownerPrincipalId: string, i: OpenSwxInitiator, roleCode: string | null) {
+    if (ownerPrincipalId !== i.principalId && !hasPdmNonOwnerEditScope({ roles: roleCode ? [roleCode] : [] })) throw new OpenSwxMetadataError("OPENSWX_CONTEXT_FORBIDDEN", 403);
   }
   private async job(db: AsyncDatabaseClient, id: string, companyId: string) {
     const job = await new OpenSwxMetadataAsyncRepository(db).read(id, companyId, true);
@@ -83,13 +74,51 @@ export class OpenSwxMetadataService {
     if (!Number.isSafeInteger(f.attempt) || f.attempt < 1 || job.attemptCount !== f.attempt || job.lockedBy !== actor.id || job.readerCommit !== OPENSWX_READER.commit || f.readerCommit !== job.readerCommit || f.sourceSetFingerprint !== job.sourceSetFingerprint || !f.executionName || f.executionName !== job.executionName || (!terminal && (job.status !== "running" || !job.leaseExpiresAt || !Number.isFinite(Date.parse(job.leaseExpiresAt)) || Date.parse(job.leaseExpiresAt) <= this.now()))) throw new OpenSwxMetadataError("OPENSWX_LEASE_FENCE_LOST");
     if (job.status === "cancelled" || job.status === "failed") throw new OpenSwxMetadataError("OPENSWX_JOB_TERMINAL");
   }
-  async enqueue(verified: VerifiedPrincipalRequest, sessionId: string) {
+  async enqueue(verified: VerifiedPrincipalRequest, selection: OpenSwxSelection) {
     return this.db.transaction(async db => {
       const i = initiator(verified), decision = await this.authority(db, i);
-      const basis = await this.basis(db, i.companyId, sessionId);
+      const basis = await this.basis(db, i.companyId, selection);
       // Same current resource rules as recognition: Principal owner or published privileged role.
-      await this.resource(db, basis.session, i, decision.roleCode);
-      return new OpenSwxMetadataAsyncRepository(db).insert({ id: crypto.randomUUID(), sessionId, sourceSetFingerprint: basis.fingerprint, readerCommit: OPENSWX_READER.commit, initiator: i, sources: basis.sources, now: new Date(this.now()).toISOString() });
+      this.resource(basis.context.ownerPrincipalId, i, decision.roleCode);
+      return new OpenSwxMetadataAsyncRepository(db).insert({ id: crypto.randomUUID(), sourceContextType: selection.sourceContextType, sourceContextId: selection.sourceContextId, sourceSetFingerprint: basis.fingerprint, readerCommit: OPENSWX_READER.commit, initiator: i, sources: basis.sources, now: new Date(this.now()).toISOString() });
+    }, { serializable: true });
+  }
+  async humanRead(verified: VerifiedPrincipalRequest, selection: OpenSwxSelection) {
+    return this.db.transaction(async db => {
+      const i = initiator(verified), decision = await this.authority(db, i, "numbering.recognition.review");
+      const basis = await this.basis(db, i.companyId, selection);
+      this.resource(basis.context.ownerPrincipalId, i, decision.roleCode);
+      const job = await new OpenSwxMetadataAsyncRepository(db).readByBinding(i.companyId, selection.sourceContextType, selection.sourceContextId, basis.fingerprint, OPENSWX_READER.commit);
+      if (job && (job.sourceSetFingerprint !== basis.fingerprint || JSON.stringify(job.sources) !== JSON.stringify(basis.sources))) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
+      return job;
+    });
+  }
+  /** Company authority comes exclusively from the unique persisted provider execution. */
+  async workerFence(actor: VerifiedWorkloadActor, jobId: string, input: Omit<OpenSwxFence, "jobId" | "companyId">): Promise<OpenSwxFence> {
+    reader(actor);
+    return this.db.transaction(async db => {
+      const job = await new OpenSwxMetadataAsyncRepository(db).readAdmissionForExecution(input.executionName);
+      if (!job || job.id !== jobId) throw new OpenSwxMetadataError("OPENSWX_CLAIM_NOT_ADMITTED");
+      const f = { ...input, jobId, companyId: job.companyId };
+      this.fence(job, actor, f, job.status === "completed");
+      return f;
+    });
+  }
+  async authorizeDispatch(job: OpenSwxJob) {
+    return this.db.transaction(async db => {
+      const saved = await this.job(db, job.id, job.companyId);
+      const check = () => { if (saved.status !== "queued" || saved.dispatchState !== "requested" || saved.dispatchGeneration !== job.dispatchGeneration || !saved.dispatchLeaseExpiresAt || Date.parse(saved.dispatchLeaseExpiresAt) <= this.now()) throw new OpenSwxMetadataError("OPENSWX_DISPATCH_FENCE_LOST"); };
+      check(); await this.current(db, saved); check();
+    });
+  }
+  async cancelContext(verified: VerifiedPrincipalRequest, selection: OpenSwxSelection) {
+    return this.db.transaction(async db => {
+      const i = initiator(verified), decision = await this.authority(db, i);
+      const basis = await this.basis(db, i.companyId, selection);
+      this.resource(basis.context.ownerPrincipalId, i, decision.roleCode);
+      const job = await new OpenSwxMetadataAsyncRepository(db).readByBinding(i.companyId, selection.sourceContextType, selection.sourceContextId, basis.fingerprint, OPENSWX_READER.commit);
+      if (!job) throw new OpenSwxMetadataError("OPENSWX_JOB_NOT_FOUND", 404);
+      return new OpenSwxMetadataAsyncRepository(db).cancel(job, new Date(this.now()).toISOString());
     }, { serializable: true });
   }
   async claim(actor: VerifiedWorkloadActor, input: { executionName: string }) {
@@ -105,14 +134,14 @@ export class OpenSwxMetadataService {
   }
   async heartbeat(actor: VerifiedWorkloadActor, f: OpenSwxFence) {
     return this.db.transaction(async db => {
-      const job = await this.job(db, f.jobId, f.companyId); this.fence(job, actor, f); await this.current(db, job);
+      const job = await this.job(db, f.jobId, f.companyId); this.fence(job, actor, f); await this.current(db, job); this.fence(job, actor, f);
       const now = this.now();
       return new OpenSwxMetadataAsyncRepository(db).heartbeat(job, new Date(now).toISOString(), new Date(now + OPENSWX_LIMITS.leaseMs).toISOString());
     }, { serializable: true });
   }
   async authorizeSource(actor: VerifiedWorkloadActor, f: OpenSwxFence, sourceId: string) {
     return this.db.transaction(async db => {
-      const job = await this.job(db, f.jobId, f.companyId); this.fence(job, actor, f); await this.current(db, job);
+      const job = await this.job(db, f.jobId, f.companyId); this.fence(job, actor, f); await this.current(db, job); this.fence(job, actor, f);
       const source = job.sources.find(s => s.id === sourceId);
       if (!source) throw new OpenSwxMetadataError("OPENSWX_SOURCE_FORBIDDEN", 403);
       return source;
@@ -121,7 +150,7 @@ export class OpenSwxMetadataService {
   async complete(actor: VerifiedWorkloadActor, f: OpenSwxFence, results: readonly { sourceId: string; payload: unknown }[]) {
     return this.db.transaction(async db => {
       const job = await this.job(db, f.jobId, f.companyId);
-      this.fence(job, actor, f, job.status === "completed"); await this.current(db, job);
+      this.fence(job, actor, f, job.status === "completed"); await this.current(db, job); this.fence(job, actor, f, job.status === "completed");
       const result = encodeOpenSwxCompletion(job.sources, results);
       if (job.status === "completed") {
         if (job.completionDigest !== result.digest) throw new OpenSwxMetadataError("OPENSWX_COMPLETION_CONFLICT");
@@ -132,17 +161,76 @@ export class OpenSwxMetadataService {
   }
   async readback(actor: VerifiedWorkloadActor, f: OpenSwxFence) {
     return this.db.transaction(async db => {
-      const job = await this.job(db, f.jobId, f.companyId); this.fence(job, actor, f, job.status === "completed"); await this.current(db, job); return job;
+      const job = await this.job(db, f.jobId, f.companyId); this.fence(job, actor, f, job.status === "completed"); await this.current(db, job); this.fence(job, actor, f, job.status === "completed"); return job;
     }, { serializable: true });
   }
   async cancel(verified: VerifiedPrincipalRequest, jobId: string) {
     return this.db.transaction(async db => {
       const i = initiator(verified), decision = await this.authority(db, i);
       const job = await this.job(db, jobId, i.companyId);
-      const session = await db.queryOne<Session>(`SELECT * FROM ai_pdm_core.drawing_recognition_sessions WHERE id=:sessionId AND company_id=:companyId`, { sessionId: job.sessionId, companyId: job.companyId });
-      if (!session) throw new OpenSwxMetadataError("OPENSWX_SESSION_NOT_FOUND", 404);
-      await this.resource(db, session, i, decision.roleCode);
+      const basis = await this.basis(db, i.companyId, { sourceContextType: job.sourceContextType, sourceContextId: job.sourceContextId, sourceAssetIds: job.sources.map(s => s.fileAssetId) });
+      this.resource(basis.context.ownerPrincipalId, i, decision.roleCode);
       return new OpenSwxMetadataAsyncRepository(db).cancel(job, new Date(this.now()).toISOString());
     }, { serializable: true });
   }
+}
+
+export const openSwxPrivateHeaders = { "cache-control": "private, no-store", "x-content-type-options": "nosniff" };
+export function openSwxErrorResponse(error: unknown) {
+  return Response.json({ code: error instanceof OpenSwxMetadataError ? error.code : "OPENSWX_DEPENDENCY_UNAVAILABLE" }, { status: error instanceof OpenSwxMetadataError ? error.status : 503, headers: openSwxPrivateHeaders });
+}
+export function openSwxHumanProjection(job: OpenSwxJob | null, configured: boolean) {
+  return { configured, job: job ? { id: job.id, status: job.status, dispatchState: job.dispatchState, attempt: job.attemptCount, heartbeatAt: job.heartbeatAt, leaseExpiresAt: job.leaseExpiresAt, readerCommit: job.readerCommit, sourceSetFingerprint: job.sourceSetFingerprint, result: job.resultJson ? JSON.parse(job.resultJson) : null } : null };
+}
+/** Run permission admits/cancels work. CAD values require the separate review GET guard. */
+export function openSwxHumanStatusProjection(job: OpenSwxJob | null, configured: boolean) {
+  return { configured, job: job ? { id: job.id, status: job.status, dispatchState: job.dispatchState, attempt: job.attemptCount, heartbeatAt: job.heartbeatAt, leaseExpiresAt: job.leaseExpiresAt } : null };
+}
+export function openSwxWorkerProjection(job: OpenSwxJob | null) {
+  return job ? { id: job.id, status: job.status, attempt: job.attemptCount, readerCommit: job.readerCommit, sourceSetFingerprint: job.sourceSetFingerprint, executionName: job.executionName, leaseExpiresAt: job.leaseExpiresAt, sources: job.sources, completionDigest: job.completionDigest, completionReceiptId: job.completionReceiptId } : null;
+}
+/** Bounded JSON without trusting Content-Length or silently dropping fields. */
+export async function readOpenSwxJson(request: Request, allowed: readonly string[], maxBytes = 2 * 1024 * 1024, parentSignal?: AbortSignal) {
+  if (!request.headers.get("content-type")?.startsWith("application/json")) throw new OpenSwxMetadataError("OPENSWX_BODY_INVALID", 400);
+  const stream = request.body?.getReader(); if (!stream) throw new OpenSwxMetadataError("OPENSWX_BODY_INVALID", 400);
+  const signal = AbortSignal.any([request.signal, AbortSignal.timeout(10_000), ...(parentSignal ? [parentSignal] : [])]);
+  async function nextChunk() {
+    if (signal.aborted) throw new OpenSwxMetadataError("OPENSWX_REQUEST_ABORTED", 408);
+    let abort: (() => void) | undefined;
+    try { return await Promise.race([stream!.read(), new Promise<never>((_, reject) => { abort = () => reject(new OpenSwxMetadataError("OPENSWX_REQUEST_ABORTED", 408)); signal.addEventListener("abort", abort, { once: true }); if (signal.aborted) abort(); })]); }
+    finally { if (abort) signal.removeEventListener("abort", abort); }
+  }
+  let bytes = 0; const chunks: Uint8Array[] = [];
+  try {
+    while (true) { const next = await nextChunk(); if (next.done) break; bytes += next.value.length; if (bytes > maxBytes) throw new OpenSwxMetadataError("OPENSWX_BODY_LIMIT", 413); chunks.push(next.value); }
+    const value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)));
+    if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(k => !allowed.includes(k))) throw new OpenSwxMetadataError("OPENSWX_BODY_INVALID", 400);
+    return value as Record<string, unknown>;
+  } catch (error) { if (error instanceof OpenSwxMetadataError) throw error; throw new OpenSwxMetadataError("OPENSWX_BODY_INVALID", 400); }
+  finally { await stream.cancel().catch(() => {}); stream.releaseLock(); }
+}
+export function openSwxRequestFence(request: Request): Omit<OpenSwxFence, "jobId" | "companyId"> {
+  const attempt = Number(request.headers.get("x-openswx-attempt"));
+  const sourceSetFingerprint = request.headers.get("x-openswx-source-fingerprint") ?? "";
+  const readerCommit = request.headers.get("x-openswx-reader-commit") ?? "";
+  const executionName = request.headers.get("x-openswx-execution") ?? "";
+  if (!Number.isSafeInteger(attempt) || attempt < 1 || !/^[a-f0-9]{64}$/u.test(sourceSetFingerprint) || readerCommit !== OPENSWX_READER.commit || executionName.length > 300) throw new OpenSwxMetadataError("OPENSWX_FENCE_INVALID", 400);
+  return { attempt, sourceSetFingerprint, readerCommit, executionName };
+}
+export async function readOpenSwxContent(db: AsyncDatabaseClient, service: OpenSwxMetadataService, actor: VerifiedWorkloadActor, fence: OpenSwxFence, sourceId: string, storageFactory: typeof createFileStorageServiceForPointer = createFileStorageServiceForPointer) {
+  const source = await service.authorizeSource(actor, fence, sourceId);
+  async function pointer() {
+    const asset = await db.queryOne<{ storage_provider: string | null; storage_bucket: string | null; storage_generation: string | null; storage_key: string | null; local_path: string | null; content_hash: string; file_size: number }>(`SELECT asset.* FROM ai_pdm_core.file_assets asset WHERE asset.id=:assetId AND asset.deleted_at IS NULL`, { assetId: source.fileAssetId });
+    if (!asset || asset.content_hash !== source.sha256 || Number(asset.file_size) !== source.bytes || asset.storage_generation !== source.storageGeneration) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
+    return storagePointerFromRecord(asset);
+  }
+  const before = await pointer(), storage: FileStorageService = storageFactory(before);
+  const metadata = await storage.getObjectMetadata(before.key);
+  if (!metadata || metadata.bytes !== source.bytes || (metadata.generation ?? null) !== source.storageGeneration) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
+  const bytes = await storage.readObject(before.key);
+  const afterMetadata = await storage.getObjectMetadata(before.key);
+  if (JSON.stringify(await pointer()) !== JSON.stringify(before) || !afterMetadata || afterMetadata.bytes !== source.bytes || (afterMetadata.generation ?? null) !== source.storageGeneration || bytes.length !== source.bytes || crypto.createHash("sha256").update(bytes).digest("hex") !== source.sha256) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
+  // Final authority/lease/source check is the last await before bytes leave this service.
+  await service.authorizeSource(actor, fence, sourceId);
+  return { bytes, sha256: source.sha256 };
 }

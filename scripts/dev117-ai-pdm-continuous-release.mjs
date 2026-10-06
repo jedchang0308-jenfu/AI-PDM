@@ -22,6 +22,7 @@ async function main() {
     ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig, migrationOnlyWorkflowPath: '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml',
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
     createSourceArchive: async (sourceRevision) => createGitArchive(root, sourceRevision),
+    readWorkerSource: (repositoryPath, sourceRevision) => readGitBlob(root, repositoryPath, sourceRevision),
     buildMigrationBundle: async (sourceRevision) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision),
   })
   process.stdout.write(`${JSON.stringify({ stage: args.stage, ref: result.ref, generation: String(result.metadata.generation), status: 'PASS' })}\n`)

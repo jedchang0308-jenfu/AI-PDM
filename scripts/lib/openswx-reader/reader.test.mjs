@@ -60,3 +60,22 @@ test("invalid UTF8 is rejected instead of replacing stored text", async () => {
   const r=await boundedProcess(process.execPath,["-e","process.stdout.write(Buffer.from([255]))"]);
   assert.equal(r.reason,"invalid_utf8");
 });
+test("pre-aborted parse does not spawn a child", async () => {
+  const c = new AbortController(); c.abort();
+  const r = await boundedProcess(process.execPath, ["-e", "throw Error('must-not-run')"], { signal: c.signal });
+  assert.equal(r.reason, "aborted"); assert.equal(r.pid, undefined); assert.equal(r.cleanupVerified, true);
+});
+test("abort tears down only the own finite child", async () => {
+  const c = new AbortController(); const timer = setTimeout(() => c.abort(), 100);
+  try {
+    const r = await boundedProcess(process.execPath, ["-e", "setInterval(()=>{},1000)"], { signal: c.signal });
+    assert.equal(r.reason, "aborted"); assert.equal(r.cleanupVerified, true); assert.throws(() => process.kill(r.pid, 0));
+  } finally { clearTimeout(timer); }
+});
+test("Linux ignores SIGTERM and descendant stdout are bounded by own group KILL", { skip: process.platform !== "linux" }, async () => {
+  const code = "const {spawn}=require('node:child_process');process.on('SIGTERM',()=>{});spawn(process.execPath,['-e',\"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)\"],{stdio:['ignore',1,2]});setInterval(()=>{},1000)";
+  const start = Date.now();
+  const r = await boundedProcess(process.execPath, ["-e", code], { timeoutMs: 300 });
+  assert.equal(r.reason, "timeout"); assert.equal(r.cleanupVerified, true); assert.ok(Date.now() - start < 2500);
+  assert.throws(() => process.kill(-r.pid, 0));
+});

@@ -1,0 +1,346 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-integrated-source-freeze.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "phase": "readonly auxiliary results",
+  "createdAt": "2026-10-05T19:16:18.910468+00:00",
+  "sourceRoot": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+  "sourceHeadProvenanceOnly": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+  "branch": "codex/dev122-share-metadata-closure",
+  "specSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+  "ownerFreezeSha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
+  "historicalBaseManifestSha256": "f029c599138ac1c2437a1029ac281a257188be585dcdf2ecedb3e913f26b8b6e",
+  "fileCount": 63,
+  "files": [
+    {
+      "path": ".github/workflows/deploy-ai-pdm-independent-production.yml",
+      "bytes": 13719,
+      "sha256": "5705b22df3760d60fed4ca2091a11af629f9d0907acec4f8a30799c417f54a3d"
+    },
+    {
+      "path": "config/access-control/jenfu-active-capabilities.v1.json",
+      "bytes": 163005,
+      "sha256": "81710661521776dcdde233d0719a1ff2fbed5eb89ca8f3d3a697023e0afe1a61"
+    },
+    {
+      "path": "config/access-control/jenfu-route-permission-map.v2.json",
+      "bytes": 73493,
+      "sha256": "5c7336c778ab81b2982ceb24b862c6f1e60a659a0dce858c6e795cc41ca7f4a9"
+    },
+    {
+      "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+      "bytes": 19526,
+      "sha256": "0f1ef7397db68070bb3365054d1502ed3c447c250d414c7542734b0fe7d9d391"
+    },
+    {
+      "path": "config/release/dev122-openswx-worker.json",
+      "bytes": 1825,
+      "sha256": "65d6530a0f1e713c7936bdb0889bb529742334a530b20b6e8bf18ea81a7461dc"
+    },
+    {
+      "path": "db/postgres/082_dev122_openswx_auxiliary_jobs.sql",
+      "bytes": 12818,
+      "sha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000"
+    },
+    {
+      "path": "infra/google-cloud/dev-122-openswx-worker/README.md",
+      "bytes": 2805,
+      "sha256": "cf3be1f2ba89bf2e53e83bc7faa7cc02b124e79c2a90ba81c1a1abf8e3d75f5b"
+    },
+    {
+      "path": "infra/google-cloud/dev-122-openswx-worker/backend.tf",
+      "bytes": 117,
+      "sha256": "398ef4320db00f6bdf72ffde2bd31bc7e148806d215ad2c0774414672a74ab64"
+    },
+    {
+      "path": "infra/google-cloud/dev-122-openswx-worker/main.tf",
+      "bytes": 4887,
+      "sha256": "e159e5149cad0bd233b61b823e604f6272e7f5f248cd91f7f8e509099306138c"
+    },
+    {
+      "path": "infra/google-cloud/dev-122-openswx-worker/versions.tf",
+      "bytes": 327,
+      "sha256": "e28a63e089b4f5143e20b96fb6ec7f15a4d84c5b3306cda745d63879eabd5c51"
+    },
+    {
+      "path": "scripts/dev117-ai-pdm-continuous-release.mjs",
+      "bytes": 2606,
+      "sha256": "c902741092761cad347df70f9b81e4c937e484ba9156478e93571bec8627cb6f"
+    },
+    {
+      "path": "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+      "bytes": 46057,
+      "sha256": "d3d388fe205e177f1354e83a296ac678b19561f55aad07c46b404ccd283a49e3"
+    },
+    {
+      "path": "scripts/dev117-ai-pdm-prerequisite-producer.mjs",
+      "bytes": 2619,
+      "sha256": "39831ae4a2cf55e65e8941cb8d7e1f70e440c058ed44f0f7164b9700d419ef5d"
+    },
+    {
+      "path": "scripts/dev121-build-principal-route-map-v2.mjs",
+      "bytes": 2761,
+      "sha256": "7c66c0aa9d7c825568ef9e1a6948c4f7765eebf44f87ca17bec7cb6dd7bebe7d"
+    },
+    {
+      "path": "scripts/dev121-build-principal-route-map-v2.test.mjs",
+      "bytes": 2907,
+      "sha256": "01a89b0bac570e5262c1e5b66a01c72f5e9994cc69625545951ee27188e24159"
+    },
+    {
+      "path": "scripts/dev122-openswx-bootstrap.mjs",
+      "bytes": 1548,
+      "sha256": "a5129c9fb420183a16e1dde63ce37cf8fb36414157ff061656956c18a527a7ad"
+    },
+    {
+      "path": "scripts/dev122-openswx-bootstrap.test.mjs",
+      "bytes": 32287,
+      "sha256": "2f86083c1ed343d48deaa878e6c824eecc138669110d00fbe45ac6b48bb0fc92"
+    },
+    {
+      "path": "scripts/dev122-openswx-owner-release.test.mjs",
+      "bytes": 11626,
+      "sha256": "685449c35a8f66e1cb1d4a1fd7d88e627f406f995c8c96dabcbdf5a54848719b"
+    },
+    {
+      "path": "scripts/lib/dev012-owner-prerequisite-producer.mjs",
+      "bytes": 29913,
+      "sha256": "0f4d7033bc796a6faf4a732fafaacdde463b17a56976b10dca5292236be4bd08"
+    },
+    {
+      "path": "scripts/lib/dev012-owner-release-runtime.mjs",
+      "bytes": 81453,
+      "sha256": "5e5af998010658647512a8159305429cb11b7d68688090ee5d613b830e9a9072"
+    },
+    {
+      "path": "scripts/lib/dev012-owner-stage-executor.mjs",
+      "bytes": 63408,
+      "sha256": "e678c1c1fc44d4ed6a65b68cb6de22b5de3b6d851b5712930b82fe4926d15516"
+    },
+    {
+      "path": "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+      "bytes": 26828,
+      "sha256": "eb27a8c0734e0e832d471fa5b0d850eca0b9a4c416efef6dfca0f06a4f8454d4"
+    },
+    {
+      "path": "scripts/lib/dev122-openswx-bootstrap.mjs",
+      "bytes": 55257,
+      "sha256": "85757bf750bca8d9ddf9f99d027e55399bdf2d9bb854f1485140dd72b0b90880"
+    },
+    {
+      "path": "scripts/lib/dev122-openswx-owner-release.mjs",
+      "bytes": 40943,
+      "sha256": "51c4de39d4b670f81868db7cd69011b61ff8d4e7ffff6684bad1eddfe408999c"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/Dockerfile",
+      "bytes": 4487,
+      "sha256": "2f6fa3b971e3dd46c74d271bb8869eb65e86c934cebff6b6b234dc4b2314d11c"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/README.md",
+      "bytes": 2960,
+      "sha256": "3d1067abc81108dc12825d501c8122223c1a176f7ddc0e91abe9ce7e5c27d70d"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/auxiliary-job.mjs",
+      "bytes": 8702,
+      "sha256": "fbbef1abdf3adfcd4a9ef30b28a939e31690ad6e1ce6f5805d3aa92da2be6182"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/auxiliary-job.test.mjs",
+      "bytes": 8617,
+      "sha256": "35920be146e513de480f88063ec405912f758601a658ae5875daff3eca6e555f"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/normalize.mjs",
+      "bytes": 6380,
+      "sha256": "c2050dc18447d3529d4cf33d59dffc3f781249459e0c22bc3c54236df12479aa"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/process.mjs",
+      "bytes": 2909,
+      "sha256": "276a8af293ec3c7cecad40d8cc33e129bf08786738cce633ab10c111904b8809"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/reader.cc",
+      "bytes": 6067,
+      "sha256": "51da9592908a65aac7f995d2e71c34ce1f4a6c85891a7a51507e2214274e589f"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/reader.test.mjs",
+      "bytes": 5527,
+      "sha256": "8fcb8f7b72b4df7faceea0f03a22273967d7f4c9f569ff1d5a97604ca388edd9"
+    },
+    {
+      "path": "scripts/qc-dev-117-continuous-release.mjs",
+      "bytes": 7216,
+      "sha256": "9135f50c983a6bf97ba7be76e1878bd24c174a95c5f9a22db8a2d70b16d7fff8"
+    },
+    {
+      "path": "scripts/qc-dev-121-route-classification.mjs",
+      "bytes": 34065,
+      "sha256": "4b65d8c145157ce6c5fe3376639d3636b2239dc5521d44a555b37c101fc346c1"
+    },
+    {
+      "path": "scripts/qc-dev-121-route-classification.test.mjs",
+      "bytes": 1657,
+      "sha256": "3ff1dd2082214c26d40227a20ef5100946743f565aef42b04b27012921366efb"
+    },
+    {
+      "path": "scripts/run-openswx-metadata-job.mjs",
+      "bytes": 1216,
+      "sha256": "e88f8716eb9a2de8726c9aedc96e9b0417538da0a06a9a5dedb2198a0dfab7b6"
+    },
+    {
+      "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts",
+      "bytes": 1373,
+      "sha256": "d1500050ee21728256251b92f5855e582451f943db160c42cf97d95252fc326d"
+    },
+    {
+      "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
+      "bytes": 2967,
+      "sha256": "9d460651fbfda941e10dd36e666e1c31e3d925f38bb5ee7ae92c44a6f89af657"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-dispatch/recover/route.ts",
+      "bytes": 1034,
+      "sha256": "299b10d1cad1c7329203026684d247655d214e4fc19ef1c3c4a15eefd05eb05b"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/[jobId]/complete/route.ts",
+      "bytes": 1549,
+      "sha256": "91caef5bffc62238f5ce7b6002f33de522efdec5ea079d5c727a2521f0dd512b"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/[jobId]/heartbeat/route.ts",
+      "bytes": 1356,
+      "sha256": "5df55c55895da3041f7483e47f0af933b923bad4b9ca38b30114ce08de09a096"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/[jobId]/route.ts",
+      "bytes": 1291,
+      "sha256": "50ede5795d1b0c00f3cb93e4287903ef87461fb56781f3f8c3f4c3ff12e1e645"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/[jobId]/sources/[sourceId]/content/route.ts",
+      "bytes": 1523,
+      "sha256": "9be9320d171113db8528bfc734124cf7cbeba18b58af1ec180b1fba3ccd525f6"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/claim/route.ts",
+      "bytes": 1510,
+      "sha256": "a8e5cf57752543b0c94be8fe689dcc31668c22bde7a173b861be624981c67f65"
+    },
+    {
+      "path": "src/components/canonical-drawing-change-workspace.tsx",
+      "bytes": 45012,
+      "sha256": "a28ad21f6913194b62b8ea536b8a6265e3caabef19ccffec486c760c6631718d"
+    },
+    {
+      "path": "src/components/drawing-recognition-workspace-panel.module.css",
+      "bytes": 4027,
+      "sha256": "512fe13d6b64f65529f225480c40a4dd4f79fe17e50767ba4ddb71279d9237f1"
+    },
+    {
+      "path": "src/components/drawing-recognition-workspace-panel.openswx.test.tsx",
+      "bytes": 8180,
+      "sha256": "e79a138ebe524e2be9572fa5d8bc77881f7b73040d4efcb02b28ff391e23c558"
+    },
+    {
+      "path": "src/components/drawing-recognition-workspace-panel.tsx",
+      "bytes": 68619,
+      "sha256": "a07eaa3171e224fa02c7442c2c5e3892851355a8a8c5c75d9d43cac736a0e7ba"
+    },
+    {
+      "path": "src/lib/db.ts",
+      "bytes": 146354,
+      "sha256": "63308f0ed3cc48a5913d9460fe3baaae6a283c572eeff90b35548a82f1fbdc9e"
+    },
+    {
+      "path": "src/lib/jenfu-route-permission-map.test.ts",
+      "bytes": 7936,
+      "sha256": "1a71314271b2d03365cd544360a8fe966f5225debb9e030e67c5048b4cc45b68"
+    },
+    {
+      "path": "src/lib/openswx-metadata-contract.ts",
+      "bytes": 8159,
+      "sha256": "75e245e670b16b963854817280bf77f23c22a57a57b45a33cbddf4a488fdd346"
+    },
+    {
+      "path": "src/lib/openswx-metadata-dispatch-auth.test.ts",
+      "bytes": 3928,
+      "sha256": "2f40d968732c0b91c4a6ad610515fc732ad1db3c20a0bdc100dbd5488b086eef"
+    },
+    {
+      "path": "src/lib/openswx-metadata-dispatch-auth.ts",
+      "bytes": 2735,
+      "sha256": "1f4bf6e5edd9427c6da1324518fa663ef55c5daa4da3e7904cee75c5ef8b4b1a"
+    },
+    {
+      "path": "src/lib/openswx-metadata-dispatch.test.ts",
+      "bytes": 12580,
+      "sha256": "277f5593adce5f3f9c6bddc3ef1e15ee88fed90a22cacd99f96b42e1cd6a4eb5"
+    },
+    {
+      "path": "src/lib/openswx-metadata-dispatch.ts",
+      "bytes": 11601,
+      "sha256": "7578e67a3d52d9f91bd288680d21a6fce1d3e63a1cdaa1ccce53afb13c817d9e"
+    },
+    {
+      "path": "src/lib/openswx-metadata.api.test.ts",
+      "bytes": 12020,
+      "sha256": "671a2d27de07921408c4521eedd67f0d26b2bd4ba8c0b89203f5e6c36ed101d9"
+    },
+    {
+      "path": "src/lib/openswx-metadata.postgres-contract.test.ts",
+      "bytes": 14016,
+      "sha256": "447090ad5a057eea845aed55966e13b194dd34703a85c5fe18b2363b0a335c3e"
+    },
+    {
+      "path": "src/lib/openswx-metadata.test.ts",
+      "bytes": 17570,
+      "sha256": "d190f9d4a76f50d9733b3b672566f2717c4f745cb409e83070fee54ef89b46bd"
+    },
+    {
+      "path": "src/lib/openswx-metadata.ts",
+      "bytes": 21835,
+      "sha256": "0d306029337444cd51b2167d50f491e593f9dbdc0c994fbe739557f383753d86"
+    },
+    {
+      "path": "src/lib/production-slice.ts",
+      "bytes": 13767,
+      "sha256": "b6ec48583da223e6169c1f1787652eff2b7325acd512afa06393703356ba0b39"
+    },
+    {
+      "path": "src/lib/repositories/drawing-recognition-async-repository.ts",
+      "bytes": 149784,
+      "sha256": "fe88f9d9b09a7c3b5357b729e934755f8f7a04edb6bb4a817b45168c055d6923"
+    },
+    {
+      "path": "src/lib/repositories/drawing-recognition-context-source-snapshot.test.ts",
+      "bytes": 9779,
+      "sha256": "97f83df96ab9fd076016bc9c9f14e5dadf4780e3ec4014e37f7a5acdaef4cce5"
+    },
+    {
+      "path": "src/lib/repositories/openswx-metadata-async-repository.ts",
+      "bytes": 11152,
+      "sha256": "21ecf0a9816702409ab5bcabc9548048c75962a14bc5b452eede833a9a243116"
+    }
+  ],
+  "productWriter": "FROZEN",
+  "gateDisposition": {
+    "continuousContract": "PASS_LOCAL",
+    "abortContract": "PASS_LOCAL",
+    "fullAggregateAndIsolatedBuild": "NOT_RUN_CAPACITY_DECISION_PENDING",
+    "linuxIndependentArtifactQC": "RUNNING",
+    "production": "NOT_RUN",
+    "nativeCADFullF01F": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+    "wholeDEV122": "NOT_ACCEPTED"
+  },
+  "releaseAuthority": false,
+  "primarySQLite": "ABSENT_BOTH_ROOTS",
+  "stageCommitPush": "NOT_RUN",
+  "resourceMutation": "NONE",
+  "scope": "Exact union of prior 44 product files, final 20 owner files and bounded corrective source; historical checks remain slice-specific"
+}

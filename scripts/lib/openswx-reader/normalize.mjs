@@ -55,3 +55,17 @@ export function normalize(payload, source) {
     diagnostics: ["public_api_value_kinds_incomplete", "configuration_scope_merged", "stream_integrity_not_exposed",
       ...(mapped.length ? [] : ["empty_properties_not_proof_of_absence"])] };
 }
+/** Auxiliary wire contract, deterministic and distinct from the Phase 1 feasibility receipt. */
+export function normalizeAuxiliary(payload, source) {
+  const ordered = payload?.status === "opened" ? { ...payload,
+    globalProperties: Object.fromEntries(Object.entries(payload.globalProperties ?? {}).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)),
+    configurations: [...(payload.configurations ?? [])].sort((a, b) => a.index - b.index).map(c => ({ ...c, effectiveProperties: Object.fromEntries(Object.entries(c.effectiveProperties ?? {}).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) })) } : payload;
+  const r = normalize(ordered, { ...source, extension: `.${source.extension}` });
+  const properties = r.properties.map(p => ({ name: p.name, storedValue: p.storedValue, valueAvailability: p.storedValue ? "stored_string" : "stored_empty_string", scope: p.scope,
+    ...(p.configurationIndex !== undefined ? { configurationIndex: p.configurationIndex, configurationName: p.configurationName } : {}), propertyType: p.propertyType, linkedExpression: p.linkedExpression, evaluatedValue: p.evaluatedValue }));
+  const coverage = r.coverage ?? { storedValues: "empty_unknown", rawValue: "unsupported_by_public_api", evaluatedValue: "unsupported_by_public_api", propertyType: "unsupported_by_public_api", linkedExpression: "unsupported_by_public_api", pureConfigurationScope: "unsupported_effective_merged_map", streamParseIntegrity: "unknown_silent_skip_possible" };
+  const base = { source, reader: { id: "openswx-metadata-reader", commit: READER_COMMIT, schema: "aipdm.openswx-auxiliary.v1" }, semanticEquivalence: r.semanticEquivalence, coverage, properties };
+  if (r.outcome === "failed") return { ...base, outcome: "failed", diagnostics: [...new Set(r.diagnostics)].sort() };
+  if (new Set(r.configurations.map(c => c.index)).size !== r.configurations.length) throw Error("configuration_duplicate");
+  return { ...base, outcome: "partial", documentType: r.documentType, documentTypeProvenance: r.documentTypeProvenance, version: r.version, configurations: r.configurations, sheetCount: r.sheetCount, diagnostics: r.diagnostics };
+}

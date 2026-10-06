@@ -20,6 +20,7 @@ type FileRow = {
   display_name?: string;
   role?: string;
   file_name?: string;
+  file_ext?: string;
   mime_type?: string;
   file_size?: number;
   is_primary?: boolean | number;
@@ -497,6 +498,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     });
   }, [data, evidenceLocationNotice, fileReadContext, files, reviewRequestId, selectedEvidence, showEvidenceFocus]);
   const sourceAssetIds = useMemo(() => files.map((file) => file.source_file_asset_id).filter((id): id is string => Boolean(id)), [files]);
+  const auxiliarySourceAssetIds = useMemo(() => files.filter(file => ["sldprt", "sldasm", "slddrw"].includes((file.file_ext ?? "").toLowerCase().replace(/^\./u, ""))).map(file => file.source_file_asset_id).filter((id): id is string => Boolean(id)), [files]);
   const replacementWarnings = useMemo(() => primaryReplacementWarnings(selectedFiles), [selectedFiles]);
   const title = data?.identity?.code || drawingId || "圖號工作資料";
   const revisionLabel = text(data?.revision ?? payload.revision) || "—";
@@ -584,7 +586,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           {snapshotMode ? isReviewPackageRecognitionProjection(data.recognition)
             ? <DrawingRecognitionWorkspacePanel drawingNumber={data.identity?.code || title} sourceContextType="drawing_revision" sourceContextId={data.revisionId ?? ""} sourceAssetIds={sourceAssetIds} snapshotProjection={data.recognition} disabled />
             : <div className="canonical-note" title="這筆相容資料沒有完整辨識投影"><strong>辨識依據不完整</strong><span>{data.recognition && "status" in data.recognition && data.recognition.status ? `相容狀態：${data.recognition.status}` : "送審時沒有可用的完整辨識快照"}</span></div>
-            : data.revisionId ? <DrawingRecognitionWorkspacePanel drawingNumber={data.identity?.code || title} sourceContextType="drawing_revision" sourceContextId={data.revisionId} sourceAssetIds={sourceAssetIds} disabled={!canMutateContent || busy} onEvidenceSelect={locateRecognitionEvidence} onDirtyChange={setRecognitionDirty} /> : <p className="canonical-empty">這筆工作資料尚無可辨識的版次來源。</p>}
+            : data.revisionId ? <DrawingRecognitionWorkspacePanel drawingNumber={data.identity?.code || title} sourceContextType="drawing_revision" sourceContextId={data.revisionId} sourceAssetIds={sourceAssetIds} auxiliarySourceAssetIds={auxiliarySourceAssetIds} disabled={!canMutateContent || busy} onEvidenceSelect={locateRecognitionEvidence} onDirtyChange={setRecognitionDirty} /> : <p className="canonical-empty">這筆工作資料尚無可辨識的版次來源。</p>}
         </section>
       </div>
       </div>{suppressFooter ? null : <footer className="dev079-workspace-footer" aria-label="圖號工作區操作列"><div className="dev079-workspace-footer-actions">{recognitionDirty ? <span className="dev079-workspace-footer-blocker" role="status"><AlertTriangle size={15} aria-hidden="true" />請先儲存智慧辨識欄位修改</span> : null}{reviewRequestId ? <>{canReturn ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void decide("return_for_correction")}><XCircle size={15} />退回修改</button> : null}{canApprove ? <button className="primary-button" type="button" disabled={busy} onClick={() => void decide("approve")}><CheckCircle2 size={15} />核准</button> : null}</> : <>{canCancel ? <button className="danger-button" type="button" disabled={busy} onClick={() => void ownerCommand("cancel")}>取消本次工作</button> : null}{canSubmit ? <button className="primary-button" type="button" disabled={busy || recognitionDirty || !submitReady} onClick={() => void ownerCommand("submit")} title={recognitionDirty ? "請先儲存智慧辨識欄位修改" : !filesReady ? "請先重新上傳本版次的 2D 與 3D 主檔" : !fffReady ? "請先完成 FFF 判定" : undefined}><Send size={15} />送出審核</button> : null}</>}<button className="secondary-button" type="button" onClick={leave}>返回圖號清單</button></div></footer>}</aside>

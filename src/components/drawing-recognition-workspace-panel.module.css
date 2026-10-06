@@ -4,6 +4,19 @@
   padding: 14px 0 16px;
   border-bottom: 1px solid var(--border-subtle, #d9e2ec);
 }
+.panelStyles :global(.dev122-openswx) { padding: 12px 0; border-bottom: 1px solid #d9e2ec; min-width: 0; }
+.panelStyles :global(.dev122-openswx-actions) { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.panelStyles :global(.dev122-openswx-actions span) { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; }
+.panelStyles :global(.dev122-openswx details) { margin-top: 10px; }
+.panelStyles :global(.dev122-openswx summary) { cursor: pointer; }
+.panelStyles :global(.dev122-openswx table) { table-layout: fixed; width: 100%; border-collapse: collapse; }
+.panelStyles :global(.dev122-openswx td), .panelStyles :global(.dev122-openswx th) { padding: 6px; text-align: left; vertical-align: top; overflow-wrap: anywhere; border-bottom: 1px solid #e2e8f0; }
+.panelStyles :global(.dev122-openswx-source code), .panelStyles :global(.dev122-openswx-source dd) { overflow-wrap: anywhere; }
+.panelStyles :global(.dev122-openswx-source dl) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); font-size: .8rem; gap: 4px 8px; }
+.panelStyles :global(.dev122-openswx-source dd) { margin: 0; }
+.panelStyles :global(.dev122-openswx-spin) { animation: dev122-openswx-spin 1s linear infinite; }
+@keyframes dev122-openswx-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .panelStyles :global(.dev122-openswx-spin) { animation: none; } }
 .panelStyles :global(.dev079-recognition-common-header) {
   display: flex;
   align-items: baseline;

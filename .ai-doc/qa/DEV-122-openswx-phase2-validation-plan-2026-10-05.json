@@ -1,0 +1,1517 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-phase2-validation-plan.v1",
+  "createdOn": "2026-10-05",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "phase": "Phase 2 local readonly auxiliary",
+  "role": "QA",
+  "planStatus": "FINAL_SOURCE_REBOUND_PARTIAL_EVIDENCE; FULL_PHASE2_QC_PENDING; WHOLE_DEV122_NOT_ACCEPTED",
+  "thinkingHabits": [
+    "#限制條件",
+    "#可驗證性",
+    "#證據基礎"
+  ],
+  "authorization": {
+    "humanChoice": "先開發唯讀輔助結果",
+    "project": "AI-PDM",
+    "scope": "Local Phase 2 readonly auxiliary product work and task-owned isolated local QA.",
+    "notAuthorized": [
+      "Cloud Run Job creation/update/execution",
+      "Secret creation/rotation",
+      "IAM changes",
+      "Cloud Scheduler creation/invocation",
+      "Production deployment, provider writes, live migration, or shared managed DB mutation",
+      "CAD outside the eight-file Phase 1 manifest, real keys, or local ADC"
+    ],
+    "boundary": "Local tests/fixtures/browser cannot prove provider or human acceptance. Cloud resource actions require separate resource-bound authorization."
+  },
+  "scope": {
+    "inScope": [
+      "Auxiliary contract/normalizer, one purpose-specific table, exact Human/workload routes, worker/dispatch fences, finite local runner, readonly UI",
+      "Necessary existing DM-denial and route-classification contract regressions",
+      "Task-owned isolated SQLite/PostgreSQL fixtures, bounded Linux integration, real browser evidence and cleanup"
+    ],
+    "outOfScope": [
+      "All 29 historical groups or rerunning all eight Phase 1 CAD files",
+      "Changing native completeness/F-01F",
+      "Changing DM key/probe lifecycle, recognition completion, formalization, handoff, or production data",
+      "Cloud resource/provider/human acceptance"
+    ],
+    "resultBoundary": "This plan can accept only local Phase 2 readonly responsibilities. DEV-122 and native semantic equivalence remain NOT_ACCEPTED until separate gates pass."
+  },
+  "sourceBindings": {
+    "canonicalRepository": "C:/VIBE CODING/AI_PDM",
+    "executionWorktree": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM",
+    "branchAtPlanAuthoring": "codex/dev122-share-metadata-closure",
+    "freshOriginMainAtPlanAuthoring": "90b0d1dc0ba6f832d984938d2acbffb989c70e52",
+    "integrationGate": "Final source binding is the 63-file freeze receipt recorded in sourceBindings.finalSourceFreeze. All 63 listed files were rechecked by bytes and SHA-256 at this rebind. HEAD 5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc is provenance only. Evidence remains slice-specific and the final per-case status overlay is in finalEvidenceRebind; this source identity receipt is not an all-files QC PASS.",
+    "ownership": "The original QA plan and its authoring-time assertions are preserved byte-for-byte in the authorized final-qa-rebind history directory. This bounded update changes only current source/status bindings in this QA plan plus the permitted history/receipt files; preserve all other dirty worktree changes.",
+    "initialHeadBeforePhase1Integration": "7cebdb376ef0a24cbe6bb6ee7e511323cf45b489",
+    "phase1Commit": "c999e917fcdaa3c89ba2c6d45101965e9a821c7a",
+    "postPhase1MainMergeHead": "29c7764a0e0ff0c9e11b9bdb11aaca154955d081",
+    "postMergeWorktreeStatus": "Verified at handoff: only this QA plan is untracked; phase1Commit is integrated with fresh origin/main.",
+    "preexistingDirtyPathsAtInitialInventory": [
+      ".ai-doc/dev_task.md",
+      ".ai-doc/documentation_map.md",
+      ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+      ".ai-doc/qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json",
+      ".ai-doc/qa/DEV-122-openswx-built-artifact-2026-10-05.json",
+      ".ai-doc/qa/DEV-122-openswx-feasibility-2026-10-05.json",
+      ".ai-doc/qa/DEV-122-openswx-independent-qc-2026-10-05.json",
+      "scripts/dev122-openswx-feasibility.mjs",
+      "scripts/lib/openswx-reader/"
+    ],
+    "amendmentObservedAt": {
+      "head": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "specSha256": "79dc1c3a092c91c87fcc56fb5b636d1e600b330d5bd86adc9391006e0504c460",
+      "worktreeState": "Root/RD source and spec edits were present during plan amendment; no frozen Phase 2 source/image binding supplied. Recapture after integration."
+    },
+    "currentCoreCheckpoint": {
+      "commit": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "checkpointPath": ".ai-doc/qa/DEV-122-openswx-phase2-core-checkpoint-2026-10-05.json",
+      "checkpointSha256": "076aba75e8e863fb53c3f975fd36f444dfe7f171df131904ea42136b812e4d73",
+      "checkpointSourceHead": "29c7764a0e0ff0c9e11b9bdb11aaca154955d081",
+      "role": "Committed RD core checkpoint provenance only; not a frozen Phase 2 QA/QC binding.",
+      "nextRd": "Do not bind the next RD source/image hash until it is frozen."
+    },
+    "currentContextApplicability": {
+      "specPath": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+      "specSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+      "scope": "CURRENT spec and the exact finalSourceFreeze identify the integrated 63-file candidate; finalEvidenceRebind records slice-specific evidence and unresolved full Phase2 QC/build/cloud layers.",
+      "status": "CURRENT_SPEC_REBOUND; owner native SQL context recheck is a bounded subset; app/API/dispatch/UI/Linux layers retain their per-case evidence boundaries and full Phase 2 remains incomplete.",
+      "coreV1Commit": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "coreV1Checkpoint": ".ai-doc/qa/DEV-122-openswx-phase2-core-checkpoint-2026-10-05.json",
+      "nextImplementation": "Product source is frozen. Consume finalSourceFreeze and its per-case evidence; do not start another RD or declare full Phase2 pass from the historical core-v1 instructions.",
+      "priorObservedSpecSha256": "6e95045d8f56f818e700aaf8c4580ff6a1c1f83401f2397ae345c355a31dbaeb",
+      "observedSpecHashHistory": [
+        "6e95045d8f56f818e700aaf8c4580ff6a1c1f83401f2397ae345c355a31dbaeb",
+        "1a0d536b4c4064a64301e042d51e0bacba4a43f4c00b7e151eeecc481bba3950",
+        "a258aef10dcf33af799327bd77fe59818c49048c68032d0cfb547ff39502474a"
+      ],
+      "nativeCheckpointPath": ".ai-doc/qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json",
+      "nativeCheckpointSha256": "c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35",
+      "previousCurrentSpecSha256": "a258aef10dcf33af799327bd77fe59818c49048c68032d0cfb547ff39502474a",
+      "nativeCheckpointDisposition": "This named context checkpoint is historical pre-corrective-batch2 evidence only; current native context readback is the exact native-context-recheck evidence in finalEvidenceRebind."
+    },
+    "currentDispatchApplicability": {
+      "specPath": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+      "specSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+      "scope": "Latest CURRENT dispatch/owner sequence and deadline/reconcile contracts (lines 75-77, 113-127, 131).",
+      "status": "CURRENT_SPEC_REBOUND; 47 focused unit cases are a mocked/local slice only; live Scheduler/provider behavior and whole-candidate independent QC remain NOT_RUN.",
+      "normalDispatch": "Purpose-specific Scheduler OIDC recover every 5 minutes only; human GET/POST is durable/read only and does not call recover or provider.",
+      "directWorkerSmoke": "Without persisted savedExecutionAdmission, expect HTTP 204 and prove a due row is not picked.",
+      "deploymentGate": "Pending only: A build_only plus no-CAD self-test-only template/readback with Scheduler paused; B full capsule bound to A/preflight/paused-drained refs and same source archive, normal Job readback with Scheduler paused; canonical/app and no-admission/empty-claim 204 smoke; root normal actor fixed CLI enable/readback/immutable activation receipt. No C capsule or human per-step CTA. Cloud NOT_RUN.",
+      "nextImplementation": "No future RD source/image hash is bound. Re-evaluate against the integrated frozen candidate.",
+      "priorObservedSpecSha256": "28fbb17f820c23f9910e3b4f4da15ed53430d14a5ab5f3a767e07a6dd9499460",
+      "noAdmissionContract": "Direct worker without savedExecutionAdmission must return 204 without admitting/running/claiming a due row; recover idle empty branch may reconcile only known exact terminal execution and CAS, not dispatch.",
+      "observedSpecHashHistory": [
+        "1a0d536b4c4064a64301e042d51e0bacba4a43f4c00b7e151eeecc481bba3950",
+        "a258aef10dcf33af799327bd77fe59818c49048c68032d0cfb547ff39502474a"
+      ],
+      "timingBounds": "Scheduler retryCount=0; attemptDeadline=30s; next 5-minute tick compensates. Recover overall=20s; propagate abort and recheck deadline after every wait and before admission/:run. Exact OIDC check precedes freshness<=60s/futureSkew<=5s.",
+      "pauseDrainEmptyBranch": "Exact Scheduler pause/readback and prior target hash; bounded quiescence and prior normal Job drain. Pause alone does not stop an in-flight handler; after deadline fresh exact executions and DB admission readback are required. Closed empty branch only reconciles an exact known terminal execution to generation-fenced CAS; no admit/run/claim due. 204 only with true no active/unknown; due may remain. Active/requested-unbound/unknown/readback failure is bounded pending/fail, never 204.",
+      "workerReadyGate": "Worker READY only after actual immutable activation receipt; app released alone is worker ACTIVATION_PENDING.",
+      "previousCurrentSpecSha256": "a258aef10dcf33af799327bd77fe59818c49048c68032d0cfb547ff39502474a"
+    },
+    "nativeContextSubset": {
+      "status": "RD_NATIVE_CONTEXT_SUBSET_PASS_HASH_BOUND; INDEPENDENT_QC_PENDING_FINAL_FROZEN_CANDIDATE",
+      "scope": "frozen context-owned SQL subset only",
+      "checkpointPath": ".ai-doc/qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json",
+      "checkpointSha256": "c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35",
+      "sourceHeadProvenanceOnly": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "sourceHashes": [
+        {
+          "path": "db/postgres/082_dev122_openswx_auxiliary_jobs.sql",
+          "sha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000"
+        },
+        {
+          "path": "src/lib/db.ts",
+          "sha256": "63308f0ed3cc48a5913d9460fe3baaae6a283c572eeff90b35548a82f1fbdc9e"
+        },
+        {
+          "path": "src/lib/openswx-metadata.postgres-contract.test.ts",
+          "sha256": "665f029eedcf85eb86837de8220a9c20b246389c20479bb32f5849c156fc6d3f"
+        },
+        {
+          "path": "src/lib/openswx-metadata-contract.ts",
+          "sha256": "75e245e670b16b963854817280bf77f23c22a57a57b45a33cbddf4a488fdd346"
+        },
+        {
+          "path": "src/lib/repositories/openswx-metadata-async-repository.ts",
+          "sha256": "94c5dc97c83cd82095fa6626997088dfc6cf34a9d58bba0243d332942421b57f"
+        },
+        {
+          "path": "scripts/lib/dev122-own-postgres-fixture.mjs",
+          "sha256": "775a68e57fcbe5c230d68e3f8fa954ce41d378e9cca966ea670ecc7bbeefcf98"
+        }
+      ],
+      "migration082Sha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000",
+      "verdict": "PASS_NATIVE_SQL_CONTEXT_SUBSET_NOT_WHOLE_DEV_ACCEPTED",
+      "nativeTests": 3,
+      "nativeForeignKeys": 505,
+      "typedContexts": [
+        "drawing_number",
+        "drawing_revision",
+        "revision_package",
+        "candidate_revision"
+      ],
+      "baseline": "PASS_BEFORE_IDENTITY_SEED",
+      "migrationReplay": "ALL_LEDGER_VERIFIED_SKIPPED",
+      "fixtureBindingsAfter": "EXACT_UNCHANGED",
+      "dmRows": "EXACT_UNCHANGED",
+      "auxiliaryRowsAfter": 0,
+      "primaryBeforeAfter": {
+        "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite": "ABSENT",
+        "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\data\\ai-pdm.sqlite": "ABSENT"
+      },
+      "sqlitePragma": "NOT_APPLICABLE_PRIMARY_FILES_ABSENT",
+      "rawEvidence": [
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\outcome.json",
+          "sha256": "6a0dfd1ebda424c088b583a42516d1873077dd04699b69d7b58f597b3509def3"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\runtime-cleanup.json",
+          "sha256": "a13d14ad6e9823543eb953d91eff623ed8ea12b6cb923001e0561593cf8ca75b"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\fixture-gate.json",
+          "sha256": "c45d7efad64f96e99b265f22875c74aa67f5460745bef1f4d12ab5ce008ad4c6"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\fixture-mutation-ledger.json",
+          "sha256": "b32e6b63fe5cfcedd3954f2ea375ace7f0ab42c33f4e7ca11ff9598141fb85e0"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\seeded-fixture-bindings.json",
+          "sha256": "cd7f3dba076021562d7a653e12765613a4cf69076d4a2b77b07807bb31f07b0a"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\after-test-fixture-bindings.json",
+          "sha256": "cd7f3dba076021562d7a653e12765613a4cf69076d4a2b77b07807bb31f07b0a"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\migration-source-ledger.json",
+          "sha256": "9e7de5f92793f1ae9a4c77344aa6ff47a064f9bdac09befc66e0c67d38922017"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\migration-replay-readback.json",
+          "sha256": "1662b69e05897130383eb3bce22c2664fd4b7cd0b598eb0e284d97a11efab0db"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\runtime-privileges.json",
+          "sha256": "a23e179a38d7b7f0bd27d376762642dae142aada5219ebf31c53afe1c2ea003c"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\vitest-native.txt",
+          "sha256": "ff000791460f4f7785e2b753326205e696dd59c1127eed5aac55c37def288fba"
+        }
+      ],
+      "cleanup": "VERIFIED_POSTMASTER_INACTIVE_PORT_RELEASED_OWN_ROOT_ABSENT",
+      "limitations": [
+        "current Principal API authorization",
+        "production migration",
+        "Cloud Run execution",
+        "full native CAD semantics"
+      ],
+      "independentQc": "PENDING_FINAL_FROZEN_CANDIDATE",
+      "cloud": "NOT_AUTHORIZED_NOT_RUN",
+      "F01F": "NOT_RUN_HUMAN_OWNED",
+      "overallDev122": "NOT_ACCEPTED",
+      "scopeBoundary": "Applies only to exact native SQL/migration/repository/test/fixture hashes in this checkpoint. Does not freeze or validate the context wrapper API, routes, Principal authorization, dispatch, UI, Linux worker, Cloud or full application candidate.",
+      "cleanupNuance": "Raw outcome.json records runtimeCleanup=PENDING_ROOT_EXACT_STOP; separately hashed runtime-cleanup.json and controlled checkpoint verify postmaster inactive, port released and owned root absent. Preserve both observations; later exact cleanup receipt is the cleanup readback."
+    },
+    "contextCheckpointSha256": "c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35",
+    "finalSourceFreeze": {
+      "path": ".ai-doc/qa/DEV-122-openswx-phase2-final-source-freeze-2026-10-06.json",
+      "sha256": "ae72e21cbb8558e54cf160422d78fa637b50d5108526c81aa1c47f7dad77116b",
+      "currentSpecPath": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+      "currentSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+      "sourceHeadProvenanceOnly": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "branch": "codex/dev122-share-metadata-closure",
+      "fileCount": 63,
+      "verifiedByteAndShaMatches": 63,
+      "mismatches": 0,
+      "interpretation": "Frozen source identity only; it does not establish 63-file test or QC coverage."
+    },
+    "authoringTimeContextSourceInstructions": {
+      "scope": "Latest CURRENT context, Dispatch and owner first-enable contract; context/source applicability remains pending a fresh integrated implementation freeze and independent QC.",
+      "nextImplementation": "No next-RD source/image hash is bound here. Freeze the integrated source and re-evaluate all context subcases before QC."
+    },
+    "statusPrecedence": "Final source identity and finalEvidenceRebind are CURRENT; prior authoring-time status notes retained in this document are history. Acceptance cases/FMEA/UI/completion criteria remain unchanged; pending layers remain pending."
+  },
+  "contractEvidence": {
+    "spec": {
+      "path": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+      "sha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+      "scope": "CURRENT lines 5-114; Phase 2 local READONLY_AUXILIARY_IMPLEMENTATION",
+      "currentAmendment": {
+        "path": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+        "sha256": "79dc1c3a092c91c87fcc56fb5b636d1e600b330d5bd86adc9391006e0504c460",
+        "capturedOn": "2026-10-05",
+        "scope": "Root-added CURRENT parser child syscall deny/self-test and bounded abort/SIGKILL/cleanup contract; authoring hash preserved above.",
+        "bindingRule": "This is a planning-time spec binding only. Freshly capture source, test, and image hashes after implementation integration before independent QC."
+      },
+      "currentContextAmendment": {
+        "path": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+        "sha256": "6e95045d8f56f818e700aaf8c4580ff6a1c1f83401f2397ae345c355a31dbaeb",
+        "capturedOn": "2026-10-05",
+        "scope": "CURRENT context decoupling corrective contract, including lines 67-71 and Phase 2 QA lines 117-118: four actual contexts, optional session provenance, context-based source revalidation, DM-disabled normal entry.",
+        "applicability": "Exact source applicability PASS only for the frozen native SQL subset hashes in sourceBindings.nativeContextSubset. App/API/wrapper/UI/dispatch sources, full independent QC, Cloud and human native semantics remain pending/not run.",
+        "historicalV1": "Core commit 5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc and its 22 focused/3 native SQL receipt remain historical v1 evidence; they do not prove the context-decoupled implementation.",
+        "latestEnclosingSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+        "nativeContextCheckpointSha256": "c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35",
+        "previousLatestEnclosingSpecSha256": "a258aef10dcf33af799327bd77fe59818c49048c68032d0cfb547ff39502474a"
+      },
+      "currentDispatchAmendment": {
+        "path": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+        "sha256": "a258aef10dcf33af799327bd77fe59818c49048c68032d0cfb547ff39502474a",
+        "capturedOn": "2026-10-05",
+        "scope": "Latest CURRENT context, Scheduler deadlines, pause/drain, reconcile-only empty branch, and A/B owner activation contract.",
+        "applicability": "Specification bound; dispatch/source implementation applicability remains pending fresh integrated freeze and independent QC.",
+        "authorization": "No provider/Cloud resource action was run or authorized by this planning update.",
+        "priorObservedSha256": "28fbb17f820c23f9910e3b4f4da15ed53430d14a5ab5f3a767e07a6dd9499460",
+        "ownerSequence": "A build_only artifact; approved bootstrap uses A for resources/credentials with Scheduler paused and a no-CAD self-test-only template/readback. B binds A plus preflight/paused-drained refs and same source archive; full normal Job is read back while Scheduler stays paused. WIF finalize runs the exact normal Job without overrides and proves authenticated empty claim 204/exit 0/terminal receipt. Root normal actor fixed CLI then verifies B/canonical/smoke refs, paused/no-active/no-unknown, enables/readbacks and emits immutable activation receipt; no C capsule or per-step human CTA.",
+        "observedSpecHashHistory": [
+          "28fbb17f820c23f9910e3b4f4da15ed53430d14a5ab5f3a767e07a6dd9499460",
+          "1a0d536b4c4064a64301e042d51e0bacba4a43f4c00b7e151eeecc481bba3950"
+        ],
+        "latestTimingAndEmptyBranch": "Scheduler retryCount=0 and attemptDeadline=30s; recover overall deadline=20s with AbortSignal propagation and deadline recheck after waits and before admission/:run. After exact OIDC identity validation, schedule-time freshness <=60s and future skew <=5s are timing bounds only. A closed empty branch without matching execution may only reconcile exact provider-terminal execution to generation-fenced CAS; no admit/run/claim due. True no-active/no-unknown may return 204 with due row retained. Active/requested-unbound/unknown/readback-failed is bounded pending/fail, never 204.",
+        "latestCurrentSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4"
+      },
+      "priorAuthoringSha256": "47d075d4df40aea2760a1a2ddb4215b90afed9205861ea5758ad80b188ffa568",
+      "finalCurrentBinding": {
+        "path": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+        "sha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+        "boundByFreezeReceipt": ".ai-doc/qa/DEV-122-openswx-phase2-final-source-freeze-2026-10-06.json",
+        "freezeReceiptSha256": "ae72e21cbb8558e54cf160422d78fa637b50d5108526c81aa1c47f7dad77116b",
+        "capturedOn": "2026-10-06",
+        "boundary": "Current spec identity; no scope or acceptance criteria changed by this rebind."
+      }
+    },
+    "phase1Feasibility": {
+      "path": ".ai-doc/qa/DEV-122-openswx-feasibility-2026-10-05.json",
+      "sha256": "6a5e2f626e5cd21662a3f8756fb21576777e41d71c8bf1af6db3e67f500aeac6",
+      "verdict": "PARTIAL_NATIVE_COMPATIBILITY_CONFIRMED_NOT_PRODUCTION_ACCEPTED",
+      "actual": "Eight native files are all partial; four negative fixtures rejected; 16 own tests PASS; 19 vendor files verified at the pinned reader commit. Latest root cleanup ledger and independent follow-up readback record 12 temporary CAD fixture files removed, 14 exact containers absent, the exact local image absent, three anonymous build configs absent, no ports, and the R3 PID/lease released.",
+      "limits": "storedValue is not completeness proof. rawValue/linkedExpression/evaluatedValue/propertyType/pure configuration scope are unsupported; stream integrity is unknown. Primary SQLite was not initialized and no PRAGMA result was claimed.",
+      "cleanupEvidenceNuance": "The independent QC's controlled feasibility snapshot hash differs from the current feasibility receipt hash because the root later appended the final cleanup ledger. Bind each file by its own current hash; do not state that the independent QC hashed the later revision."
+    },
+    "phase1Artifact": {
+      "path": ".ai-doc/qa/DEV-122-openswx-built-artifact-2026-10-05.json",
+      "sha256": "865489c37c2b5383784a77ab77f804978aeb9c8d595eb8ab5689604736e4a9ce",
+      "actual": "Linux/amd64 image sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97; 268 regular files; 3 license aliases; artifact extraction PASS; extraction container verified absent; native CAD NOT_RUN during artifact capture; Cloud Run NOT_RUN."
+    },
+    "reuse": "Reuse Phase 1 only when current file, reader, image and output hashes match; it does not prove Phase 2 runner, DB, auth, dispatch, UI, provider or human behavior. Phase 1 network=none proves the host Docker boundary only; it does not prove parser-child syscall denial inside the same Linux/Cloud Run container. Do not reuse the Phase 1 image for this new claim. Rebuild and freeze the own Linux candidate after child isolation changes, then bind its exact source/image/output hashes. Cloud remains NOT_VERIFIED until the separately authorized exact Job/image gate passes. The 5538f92 core v1 receipt predates CURRENT context decoupling; retain it only for its original source binding. Do not reuse its session-required route/source assumptions or PASS counts for the newer four-context implementation.",
+    "preservedNativeGaps": {
+      "rawValue": "unsupported_by_public_api",
+      "linkedExpression": "unsupported_by_public_api",
+      "evaluatedValue": "unsupported_by_public_api",
+      "propertyType": "unsupported_by_public_api",
+      "pureConfigurationScope": "unsupported_effective_merged_map",
+      "streamParseIntegrity": "unknown_silent_skip_possible",
+      "F01F": "NOT_RUN; human-owned"
+    },
+    "migrationOrdinal": {
+      "occupiedAtFreshMain": "db/postgres/081_dev121_principal_role_catalog_v6.sql",
+      "candidate": "082_dev122_openswx_auxiliary_jobs.sql",
+      "meaning": "082 is provisional machine binding, not standing policy.",
+      "gate": "RD re-reads merged own task index and db/postgres before schema work, chooses the next free AI-PDM ordinal, and refreshes order/hash if it changes."
+    },
+    "phase1IndependentQc": {
+      "path": ".ai-doc/qa/DEV-122-openswx-independent-qc-2026-10-05.json",
+      "sha256": "aa2b092ceadc46f2a52e16cfb9b5cc677ef875b02d0ae8cb0e50d5089a9811c4",
+      "verdict": "PARTIAL_QC_PHASE1_LOCAL_ARTIFACT_NATIVE_ONLY",
+      "scope": "Read-only independent source/artifact/CAD-hash/cleanup cross-check; it did not rerun tests, build, CAD parsing, or provider work.",
+      "checkedFeasibilitySnapshotSha256": "6317a38ab72f029c08523202f053876e3ad196af1a77cf8bd8f445dcb96c459a",
+      "finalCleanupReadback": "14 of 14 exact container IDs absent; 12 temporary CAD fixture files absent; exact image absent; three anonymous build configs absent; no ports; R3 process/lease released. The user-owned Docker Desktop runtime was preserved.",
+      "limit": "All eight CAD outputs remain partial and human semantic validation remains NOT_RUN."
+    }
+  },
+  "testDataAndIsolation": {
+    "cadScope": "Use only the authorized eight-file manifest. Reuse exact Phase 1 evidence on hash match. For new finite-runner integration, parse at most one approved part, one assembly and one drawing; do not reparse the full eight-file matrix.",
+    "finiteBounds": {
+      "sourcesPerJob": 8,
+      "sourceBytes": 268435456,
+      "parseMsPerSource": 30000,
+      "jobDeadlineMs": 270000,
+      "taskTimeoutMs": 300000,
+      "resultBytes": 2097152,
+      "maxQueueAttempts": 2,
+      "taskCount": 1,
+      "parallelism": 1,
+      "providerTaskRetries": 0,
+      "heartbeatMs": 5000,
+      "leaseMs": 60000
+    },
+    "redaction": "No CAD bytes or property values in git, logs, screenshots or QA summaries; record only hashes, byte counts, statuses, provenance, bounded diagnostics and cleanup.",
+    "seedGate": "Before fixture seeding, prove the unmodified snapshot passes master-count, root-reference, migration-residue and global foreign-key invariants.",
+    "primarySqliteBeforeAfter": [
+      "schema fingerprint",
+      "canonical root/part/drawing identities and master counts",
+      "migration-residue inventory",
+      "PRAGMA foreign_key_check"
+    ],
+    "postgres": "Task-owned isolated PostgreSQL only. Apply/rerun the forward-only migration there; test minimum runtime DML under runtime role; verify only ai_pdm_core objects, RLS/constraints and least grants. No shared DB, public object, other app schema, primary fixture, owner/DDL/migrator runtime privilege, or ai_pdm_contract unless separately in scope.",
+    "mutationLedger": "Record run/time, owned DB/path, mutation, pre/post fingerprint, fixture IDs/counts, cleanup and verified final state.",
+    "runtimeRegistration": "Before launch record AI-PDM, purpose, free loopback port or none, task-owned process/container tree, source/image digest, fixed command, unique PDM_DATA_DIR/PDM_REPOSITORY_DIR, limits and cleanup condition.",
+    "runtimeIsolation": "Non-root, readonly rootfs/input, network none, bounded CPU/memory/tmp/output, no workspace/host/Docker socket/credential mount, ref traversal, free command override or original source-path response.",
+    "cleanup": "Remove only verified task-owned process/container/tab and temporary paths; prove no owned runtime remains and reserved port is released.",
+    "legacyDmControlSnapshot": "In task-owned isolated fixtures, snapshot complete row sets (stable ordered projection/hash plus counts) before and after for drawing_recognition_sessions, drawing_recognition_sources, recognition_jobs, and recognition_heartbeat. Require exact equality and zero hidden/cancelled DM rows; never read/write the primary DB for this check."
+  },
+  "acceptanceCases": [
+    {
+      "id": "P2-SOURCE-FREEZE",
+      "layer": "local source",
+      "preconditions": [
+        "Phase 1 commit and fresh-main integration recorded; applicable AGENTS/spec/index/migration allocation reread."
+      ],
+      "operation": "Capture branch/HEAD/status/diff, exact allowlist, source/vendor/test/image hashes; preserve unrelated dirty work. Because parser child isolation changed after Phase 1, capture a new frozen own Linux candidate after implementation integration: bind exact source/vendor/test/runtime/image hashes and prove the fixed syscall self-test runs before claim or CAD download. Retain the Phase 1 artifact digest only as historical CAD compatibility evidence. Re-evaluate source applicability after CURRENT context decoupling; bind the integrated four-context wrapper/routes/UI and their tests only when the next RD candidate is frozen. Keep 5538f92 and its checkpoint as v1 history, not the newer context source binding. Freeze and classify applicability of the latest Dispatch/admission changes as well as context decoupling. Do not bind a future RD source/image before it is integrated and frozen.",
+      "expectedResult": "One reproducible frozen local candidate inside authorized Phase 2 files; no sibling input, CAD bytes, production data or cloud resource. The frozen candidate includes the new reader child syscall deny and process cleanup behavior. Phase 1 host Docker network=none remains a host-boundary fact and cannot satisfy this child-process case or the Cloud gate. Current context source applicability is explicitly classified against the frozen candidate; no session-only implementation or stale v1 receipts are used as evidence.Native SQL subset may be reused only on exact checkpoint source hashes; app-level context/dispatch applicability requires its own fresh integrated freeze.",
+      "actualResult": "Native SQL subset is root-bound to the context checkpoint; complete frozen app candidate and independent QC remain NOT_RUN.",
+      "evidenceNeeded": [
+        "Git status/diff/HEAD",
+        "Source/vendor hash manifest",
+        "Fresh index/ordinal readback",
+        "QC run and artifact ID",
+        "Post-integration branch/HEAD/status/diff and exact changed-file allowlist",
+        "Fresh source/test/runtime/image digest manifest for the changed parser child isolation implementation",
+        "Ordered event receipt proving self-test completed before claim or CAD download",
+        "Root-reported RD outputs kept separate from independent QC outputs",
+        "Latest CURRENT hash a258aef10dcf33af799327bd77fe59818c49048c68032d0cfb547ff39502474a and context-checkpoint c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35; native SQL source hashes may be reused only for the listed subset.",
+        "Fresh post-integration source/test/image hashes for context routes, source wrapper, repository and UI",
+        "Historical v1 checkpoint link retained separately from new frozen binding",
+        "Current Dispatch contract hash and exact source-applicability decision",
+        "Frozen implementation/test bindings for durable-only human enqueue, Scheduler-only recover, savedExecutionAdmission and first-enable sequence",
+        "A build_only artifact/provenance and no-CAD self-test-only template/terminal readback binding",
+        "B typed capsule references to A, preflight and paused-drained receipts; same sourceRevision/archiveSha256",
+        "Canonical/finalize/smoke receipts and normal-actor fixed CLI enable/readback/activation receipt bindings, all as future gated evidence",
+        "Fresh app/API/context-wrapper/UI/dispatch source hashes and independent QC binding; do not infer these from native SQL checkpoint."
+      ],
+      "failCriteria": [
+        "QC on pre-integration source",
+        "Unowned dirty-file reset",
+        "Unbound source drift",
+        "Reusing Phase 1 host network=none as proof of child syscall deny",
+        "QC against pre-integration or stale image/source binding",
+        "5538f92 v1 checkpoint represented as proof of context decoupling",
+        "New context implementation used without fresh frozen source applicability binding",
+        "Treating old core v1 or unbound next-RD dispatch code as verified"
+      ]
+    },
+    {
+      "id": "P2-PRINCIPAL-ROUTES",
+      "layer": "route classification and Principal",
+      "preconditions": [
+        "Frozen exact context route map/tests and isolated Principal, permission, owner/membership fixtures.",
+        "Four closed context types are drawing_number, drawing_revision, revision_package, and candidate_revision; no session-only route is used as the normal entry."
+      ],
+      "operation": "Classify POST/GET /api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId] and POST .../[sourceContextId]/cancel. POST enqueue/cancel uses existing numbering.recognition.run; GET uses existing numbering.recognition.review. Workload and Scheduler endpoints have no Human permission-map entry. Verify exact published producer permission for the context routes and current Principal/workspace guard; absence is NOT_VERIFIED, never repaired with a fabricated grant.",
+      "expectedResult": "Only the exact normal context routes classify to the existing published run/review permissions; identity, company, current resource owner and context membership are resolved server-side. No new role/grant/capability is created. If published producer evidence is absent, retain NOT_VERIFIED.",
+      "actualResult": "NOT_RUN; latest context-route source applicability is pending fresh implementation freeze. Published producer proof remains NOT_VERIFIED unless exact registry evidence is captured.",
+      "evidenceNeeded": [
+        "Route-map version/hash/denominator and exact method/path classification",
+        "Published permission producer readback/version for both context routes or explicit NOT_VERIFIED",
+        "Redacted Principal/company/profile/authEpoch plus actual parent-owner/membership ledger",
+        "Active-capabilities v1 exact run/review caller entries with unchanged capability denominator/kind/code and v6 catalog binding",
+        "Evidence no session-only route is required for normal enqueue/read"
+      ],
+      "failCriteria": [
+        "Human policy on workload/recovery route",
+        "Body-supplied identity, company, owner, reader, or grant accepted",
+        "Local map mistaken for published producer proof",
+        "A new role/grant/capability is invented or existing published catalog broadened",
+        "Session-only path is required for a supported context"
+      ]
+    },
+    {
+      "id": "P2-ENQUEUE-OWNERSHIP",
+      "layer": "one-row enqueue/read/cancel",
+      "preconditions": [
+        "Isolated fixture passes pre-seed integrity gate; Principal has only existing run/review permissions.",
+        "Each of the four true context types has a same-company parent, canonical resource owner/membership, and only the selected CAD asset IDs; optional session fixtures include null, matching same-company/context, and invalid mismatches."
+      ],
+      "operation": "For drawing_number, drawing_revision, revision_package, and candidate_revision, use the readonly context wrapper to resolve actual company parent, canonical owner and context membership; select one to eight CAD assets and compute the server-owned sorted snapshot/fingerprint from selected IDs only. Verify an attached but unselected PDF is absent from snapshot/fingerprint. Enqueue and read through the normal context route with DM disabled and zero recognition sessions; repeat identical enqueue from a second authorized Principal to check dedup preserves original initiator. Exercise optional session as null or matching same-company/context provenance only. Assert the human context POST commits only the durable row and schedule status, and human GET only reads current state; neither invokes dispatch recover nor any provider transport.",
+      "expectedResult": "One auxiliary purpose row binds company, true context owner/membership, actor, source-set snapshot/fingerprint and reader. Only selected supported CAD files appear; unselected PDF never appears in fingerprint or returned content. DM session is nullable provenance and not needed for enqueue/read/dispatch. Duplicate returns the original job and does not overwrite its initiator, company, session, or source snapshot. No path/storage key/unselected bytes leak; all legacy DM sessions/sources/queue rows remain unchanged. Human GET/POST make zero provider/recover calls. Dispatch proceeds only through the purpose-specific Scheduler OIDC route; the user performs one CTA and then waits for scheduled progress. HUMAN POST only commits the durable row and schedule state; it does not call recover or provider. HUMAN GET is read-only and makes zero provider calls. The ordinary user makes one CTA and waits for automatic Scheduler progress.",
+      "actualResult": "NOT_RUN; core v1 session-bound evidence does not establish the new context-source behavior.",
+      "evidenceNeeded": [
+        "Redacted rows/requests/responses",
+        "Source hashes/bytes and idempotency receipt",
+        "Before/after legacy session/queue state",
+        "Fixture mutation ledger",
+        "Four per-context owner/membership joins and selected snapshot records with unselected PDF exclusion",
+        "Sorted selected-CAD fingerprint input/output with server-side source metadata only",
+        "DM disabled, zero-session normal context enqueue/read requests and responses",
+        "Optional session null/matching-context success and wrong-company/wrong-context rejection",
+        "Duplicate enqueue readback proving original initiator/provenance unchanged",
+        "Complete legacy DM table row-set snapshot before/after",
+        "Instrumentation/call ledger showing zero provider and recover calls for human context GET/POST",
+        "POST durable commit/readback and schedule-state response without an execute receipt",
+        "Separate human route GET/POST call trace proves zero recover/provider invocations; no provider credential or Cloud transport is configured."
+      ],
+      "failCriteria": [
+        "Duplicate job",
+        "Cross-scope or over-limit source accepted",
+        "Auxiliary path mutates/claims/completes DM work",
+        "Requester or session initiator is used instead of actual canonical context owner",
+        "File asset existence alone is treated as company ownership",
+        "Unselected PDF enters source snapshot/fingerprint",
+        "A recognition session is required to enqueue/read",
+        "Dedup overwrites original initiator or immutable provenance",
+        "Human GET/POST invokes recover, Cloud Run/provider transport, or direct worker execution",
+        "A second user dispatch CTA is required instead of scheduled progress"
+      ],
+      "subcases": [
+        {
+          "id": "CTX-FOUR-CONTEXT-OWNER-MEMBERSHIP",
+          "status": "NOT_RUN",
+          "scope": "drawing_number; drawing_revision; revision_package; candidate_revision",
+          "expected": "Prove the true same-company parent and canonical owner/membership join for each type; candidate_revision uses actual draft-to-workspace ownership. Selected 1-8 CAD assets alone form the sorted snapshot/fingerprint; attached unselected PDF excluded.",
+          "evidenceNeeded": "Per-type redacted SQL/readback, owner/membership identity, selected IDs/hash/bytes/extension/generation and fingerprint constituents.",
+          "rootNativeEvidence": "Native checkpoint binds four context typed-parent SQL subset only. Application source wrapper, actual owner/membership joins and selected-PDF fingerprint behavior are not among its source hashes; this subcase remains NOT_RUN pending app freeze/QC."
+        },
+        {
+          "id": "CTX-OPTIONAL-SESSION-AND-DEDUP",
+          "status": "NOT_RUN",
+          "expected": "No session is valid; a provided session is nullable provenance only and must match company/context. Duplicate enqueue returns the same job without changing the first initiator or any immutable provenance.",
+          "evidenceNeeded": "Null/matching/mismatching session cases plus before/after immutable job fields from a second authorized initiator."
+        },
+        {
+          "id": "DISPATCH-HUMAN-DURABLE-ONLY",
+          "status": "NOT_RUN",
+          "expected": "Human enqueue commits one durable row and returns schedule status; human GET reads only. Both record zero recover/provider calls and create no provider execution.",
+          "evidenceNeeded": "Local call ledger showing zero recover/provider invocations plus transaction commit and GET readback."
+        }
+      ]
+    },
+    {
+      "id": "P2-WORKER-PURPOSE",
+      "layer": "workload capability and DM denial",
+      "preconditions": [
+        "Separate isolated reader/DM/preview test identities; no production token."
+      ],
+      "operation": "Call auxiliary routes with valid reader, DM-only, preview-only, wrong ID/capability, malformed credential and body-supplied purpose/version. Call preview, recognition, settings_secret_probe, solidworks_credential, DM heartbeat and applied ACK with reader.",
+      "expectedResult": "Only server-bound openswx_metadata purpose/capability reaches auxiliary routes. Reader is denied from existing DM/key/probe/preview/ACK routes; DM cannot claim auxiliary. Request body grants no authority; existing DM behavior stays intact.",
+      "actualResult": "NOT_RUN.",
+      "evidenceNeeded": [
+        "Redacted actor/token fingerprints and route-purpose-status matrix",
+        "Focused auth test output",
+        "No credential/value in logs"
+      ],
+      "failCriteria": [
+        "Reader uses or reaches DM authority",
+        "DM protection is weakened",
+        "Body-supplied capability accepted"
+      ]
+    },
+    {
+      "id": "P2-SOURCE-FENCE",
+      "layer": "content, current revoke/cancel and attempts",
+      "preconditions": [
+        "Owned fixtures cover all four current context owner/membership joins, selected source hashes/bytes/generations, attempts, dispatch generations, leases, cancellation, current Principal permission and membership revoke."
+      ],
+      "operation": "For one valid selected source, read content once before change and verify exact hash/length/generation. Then separately revoke current Principal permission or context membership/owner access and retry content; in another fixture change selected source-set fingerprint and storage generation or attempt generation between reads. Exercise later heartbeat/complete after each revoke/drift, plus stale worker/execution, wrong reader, expired lease, foreign source/job and cancel.",
+      "expectedResult": "Before change, content returns only the exact selected bytes after current context owner/membership, Principal, lease and generation checks. After permission/membership/owner revoke, content and later heartbeat/complete fail 403 with no bytes. After source fingerprint/storage-generation/attempt-generation drift, content and completion fail 409 with no bytes. Cancel/revoke stop continued work; only current fence passes and CAS preserves winner; active/unknown dispatch prevents another execute.",
+      "actualResult": "NOT_RUN; core v1 source/session fence does not establish the new context-source applicability.",
+      "evidenceNeeded": [
+        "Before/after CAS rows and generations/lease",
+        "Current Principal permission/lifecycle readback",
+        "Source hash/ownership/status",
+        "Fake dispatch request count",
+        "Ordered before/after content request, authority/membership change and redacted response status; no paths/storage keys or CAD values",
+        "Selected source-set fingerprint, source hash/length/storageGeneration and attempt generation before/after drift",
+        "Proof revoked/drifted reads return no bytes and heartbeat/complete do not mutate state",
+        "Current Principal and actual resource owner/membership readback at each checkpoint"
+      ],
+      "failCriteria": [
+        "Enqueue-only authorization",
+        "Stale worker reads/completes",
+        "Duplicate active/unknown dispatch",
+        "Path/storage key/unrelated bytes returned",
+        "Content uses drawing_recognition_sources or recognition session as authority/input",
+        "No current owner/membership recheck before content or bytes returned after revoke",
+        "Changed source fingerprint, storage generation, or attempt generation is accepted",
+        "Any unrelated or unselected bytes are returned"
+      ],
+      "subcases": [
+        {
+          "id": "CTX-CONTENT-BEFORE-AFTER-REVOKE",
+          "status": "NOT_RUN",
+          "expected": "Valid selected content is readable before revoke; after current Principal permission or context membership/owner revoke, content returns 403 without bytes and later heartbeat/complete do not commit.",
+          "evidenceNeeded": "Ordered authority and content readbacks with statuses, hashes only, and no leaked source path/key."
+        },
+        {
+          "id": "CTX-CONTENT-SOURCE-AND-GENERATION-DRIFT",
+          "status": "NOT_RUN",
+          "expected": "Changing the selected source-set fingerprint, storage generation, or attempt generation after first read makes subsequent content/complete fail 409 without bytes.",
+          "evidenceNeeded": "Before/after snapshot, generation/fence values, content response statuses and unchanged completion receipt/result."
+        }
+      ]
+    },
+    {
+      "id": "P2-REPLAY-UNKNOWN",
+      "layer": "completion replay and unknown outcome",
+      "preconditions": [
+        "Local deterministic fake transport only; no provider API calls."
+      ],
+      "operation": "Replay same completion tuple/digest, then changed digest/stale fence. Simulate app timeout after commit and unknown provider outcome; exercise exact readback found/not-found/ambiguous and terminal/nonterminal states. Exercise worker start/claim without a persisted savedExecutionAdmission while a due row exists; separately exercise Scheduler OIDC recover eligibility and ensure a direct worker smoke cannot consume that row. Keep all provider transport fake/local and call count zero. Include the current closed empty branch: absent a matching persisted execution, reconcile only a known exact provider-terminal execution then generation-fenced CAS; do not admit/run/claim a due row. Direct worker smoke without savedExecutionAdmission returns 204 and leaves due row untouched. Apply CURRENT timing bounds: recover overall deadline 20s, Scheduler attemptDeadline 30s, retryCount=0, abort propagation and deadline recheck after waits and before admission/:run. Timeout does not start another attempt immediately; next five-minute tick compensates.",
+      "expectedResult": "Same digest returns same receipt without duplicate audit; different/stale is rejected. Unknown app completion reads receipt first. Exact provider readback resolves known states; ambiguous persists dispatch_unknown and issues no second run. Fake proves local branches only. A worker without savedExecutionAdmission returns HTTP 204 and leaves the due row unchanged/unclaimed. Only the persisted exact admission may identify one row/execution; unknown or active admission blocks any second execute. No-admission direct worker is 204 with no row claim. A recover empty branch may only reconcile known exact terminal work and CAS; it cannot start execution or claim due work. Unknown/active/requested-unbound/readback-failed state remains bounded pending/fail and blocks new run. Deadline expiry aborts within bounds; recovery rechecks before admission/run. Timeout has no immediate retry. Unknown/unbound/readback-failed remains pending/fail, never 204.",
+      "actualResult": "NOT_RUN.",
+      "evidenceNeeded": [
+        "Before/after result/audit counts",
+        "Ordered redacted request/readback trace",
+        "Zero re-execute on ambiguous branch",
+        "Execution/receipt binding",
+        "No-admission direct-worker HTTP 204 response",
+        "Due-row status/attempt/generation before and after smoke proving no claim or mutation",
+        "Exact saved execution admission compare for valid worker path and no second execute under unknown state",
+        "Known-terminal versus no-matching-execution empty branches, exact execution binding, CAS result and proof zero admit/run/claim on empty/no-admission paths.",
+        "Fake-clock boundary for 20s recover and 30s attempt; retryCount=0 and next-five-minute compensation contract",
+        "Abort propagation/deadline recheck after each wait and before admission/:run"
+      ],
+      "failCriteria": [
+        "Changed result replaces current",
+        "Blind retry",
+        "Fake evidence represented as provider proof",
+        "Worker with no saved admission claims a due row or returns a work payload",
+        "A direct worker smoke causes provider execution or changes queue state",
+        "Late continuation admits/runs after deadline",
+        "Immediate retry despite retryCount=0",
+        "Unknown/unbound/readback-failed returns 204"
+      ],
+      "subcases": [
+        {
+          "id": "DISPATCH-WORKER-204-WITHOUT-ADMISSION",
+          "status": "NOT_RUN",
+          "expected": "Direct worker smoke without persisted savedExecutionAdmission returns 204, consumes no due row and makes zero provider calls.",
+          "evidenceNeeded": "Response status/body class, due row and attempt/generation before/after, zero provider call ledger."
+        },
+        {
+          "id": "DISPATCH-ADMISSION-FENCES-EXECUTION",
+          "status": "NOT_RUN",
+          "expected": "A worker may process only the one row named by a persisted exact admission; active/unknown admission prevents a second execution.",
+          "evidenceNeeded": "Admission/dispatch lease/row/execution readback and bounded fake transport trace."
+        },
+        {
+          "id": "DISPATCH-RECOVER-DEADLINE-20-30",
+          "status": "NOT_RUN",
+          "expected": "Recover is bounded at 20s; each scheduler attempt at 30s with retryCount=0; abort propagates, deadline is rechecked after waits and before admission/run; next 5-minute tick compensates.",
+          "evidenceNeeded": "Deterministic timing/abort trace, no late admission or provider run, schedule retry and cadence source binding."
+        }
+      ]
+    },
+    {
+      "id": "P2-NORMALIZER-LINUX",
+      "layer": "normalizer and real Linux artifact",
+      "preconditions": [
+        "Candidate source/image frozen; reuse Phase 1 only where file/reader/image/output hashes match."
+      ],
+      "operation": "Run new finite entry on at most one approved part, assembly and drawing. Unit fixtures cover empty/missing/Unicode, global/effective-merged scope, unknown config/version, unsupported kind, malformed input and output bound. Compare to pinned OpenSWX output, never DM output.",
+      "expectedResult": "Only aipdm.openswx-auxiliary.v1; values labeled storedValue, scopes document_global/configuration_effective_merged; provenance and seven coverage/diagnostic classes explicit. Unsupported raw/linked/evaluated/type/pure-config/integrity stay unsupported/unknown with reasons. All real samples partial. No DM rawValue adapter; >2MiB fails visibly without slicing.",
+      "actualResult": "NOT_RUN; Phase 1 eight partial outputs/four negative rejects are reusable only under exact binding.",
+      "evidenceNeeded": [
+        "Fresh image/runner/source hashes and sample bytes/status/time/exit",
+        "Redacted JSON and expected/actual diff",
+        "Output size/diagnostics",
+        "Proof logs omit bytes/property values"
+      ],
+      "failCriteria": [
+        "Complete/equivalent label",
+        "Unsupported field shown as read value",
+        "DM/business-field mapping",
+        "Source drift or unbounded output"
+      ]
+    },
+    {
+      "id": "P2-FINITE-RUNTIME",
+      "layer": "Node/C++ process bounds and cleanup",
+      "preconditions": [
+        "Owned temp root and unique PDM dirs registered; exact free port recorded or parser port none."
+      ],
+      "operation": "Exercise one-job execution, empty claim, malformed input, per-file C++ timeout, job deadline, oversize result and cancellation during read/parse; inspect only task-owned process tree.",
+      "expectedResult": "Empty claim exits without polling; work terminates at per-file/job bounds. Parsing is non-root, readonly, network none. Cancel/revoke prevents later content/complete and clears temp bytes. At handoff no task-owned process/container/path remains and port is released.",
+      "actualResult": "NOT_RUN for independent Phase 2 QA. The committed root/RD checkpoint is linked provenance; it lists finite Linux worker image and child syscall-deny/cancel proof as remaining.",
+      "evidenceNeeded": [
+        "Runtime declaration/process tree/image/limits/timestamps",
+        "Per-source exit/status/output bytes",
+        "Isolation settings",
+        "Owner-only cleanup and released-port receipt",
+        "Join with P2-PARSER-CHILD-ISOLATION: verify AbortSignal, SIGTERM->250ms->SIGKILL, close/group disappearance, descendant stdout bound, <=2s cleanup, and fail-closed behavior."
+      ],
+      "failCriteria": [
+        "Unbounded poll/retry, credential/host mount/network, leaked temp bytes, or unrelated process/port terminated"
+      ]
+    },
+    {
+      "id": "P2-ISOLATED-DB",
+      "layer": "SQLite/PostgreSQL isolated schema/repository",
+      "preconditions": [
+        "Snapshot passes master-count/root-reference/migration-residue/global-FK gate; fresh ordinal/order/hash checked.",
+        "Use isolated synthetic parent/session/source/job fixtures only. Snapshot complete DM session/source/queue row sets before any seed and before/after the test; no primary/shared DB."
+      ],
+      "operation": "Apply and rerun forward migration on task-owned isolated PostgreSQL; test minimum runtime DML/denied DDL with least-privilege identity. Test equivalent isolated SQLite transitions, uniqueness, ownership, CAS and size bound. Compare canonical primary SQLite schema/identities/counts/residue/PRAGMA foreign_key_check before and after build/QA; ledger fixture changes and cleanup. Verify the composite FK references an existing or allowed additive UNIQUE(company_id,id) index on drawing_recognition_sessions; exercise the purpose-specific trigger by attempting to change the new table's immutable initiator/source snapshot fields, and verify permitted state/lease/dispatch transitions still work. Add typed-parent constraints for all four context tables: exactly one matching typed parent and true same-company composite FK; reject mismatched/zero/multiple/cross-company parents. Verify optional recognition session accepts NULL, otherwise same-company and context-consistent, while remaining non-authoritative. Attempt updates to immutable context, typed parent, session, source snapshot and initiator fields. Duplicate the same key from a second initiator and prove dedup does not overwrite first provenance. Compare every row before/after in drawing_recognition_sessions, drawing_recognition_sources, recognition_jobs and recognition_heartbeat.",
+      "expectedResult": "One ai_pdm_core.openswx_metadata_jobs table with exact indexes/checks/FK/RLS/minimum DML grants; no public/other-app objects; runtime no owner/DDL/migrator. Rerun has no drift. Primary data is unchanged and isolated fixtures are cleaned. 082 is provisional and must change if occupied. The existing DM session state and original rows remain unchanged. The new table's initiator/source snapshot fields reject mutation; the composite FK is backed by the exact existing or additive UNIQUE(company_id,id) constraint. Exactly one context typed FK is present and matches its context/company; mismatches are rejected. Null session works; present session is same-company/context consistent and remains provenance only. Immutable fields reject updates; dedup preserves the first initiator. All DM session/source/queue table row sets exactly match their before snapshots, with zero hidden or cancelled DM rows.",
+      "actualResult": "RD native context SQL subset PASS (3 tests, 505 FK, four typed contexts) on checkpoint c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35 and migration 082 9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000; independent QA remains NOT_RUN and full database acceptance is incomplete.",
+      "evidenceNeeded": [
+        "Primary SQLite pre/post invariants",
+        "Isolated PG migration/hash/catalog/grant/RLS/rerun readback",
+        "Runtime DML/denied DDL",
+        "Fixture ledger/cleanup",
+        "npm run check:db-boundary",
+        "Catalog/readback proving the composite FK target and exact UNIQUE(company_id,id) constraint",
+        "Trigger test: immutable initiator/source snapshot update rejected while allowed state/lease/dispatch transitions pass",
+        "Bind the checkpoint native PostgreSQL receipts and foreignKeyCount=501 catalog observation; count alone is not an acceptance verdict, and later QC must still capture the exact frozen source/image and isolated DB readback.",
+        "Four typed-parent FK/check mappings, positive and mismatch/cross-company negative results",
+        "Optional session null/matching/wrong-context/wrong-company cases and immutable update rejection",
+        "Duplicate key from second initiator proving original initiator and provenance unchanged",
+        "Stable full-row projection/hash and counts before/after for drawing_recognition_sessions, drawing_recognition_sources, recognition_jobs, recognition_heartbeat",
+        "Proof no hidden/cancelled DM session/source/queue rows were inserted",
+        "Root context checkpoint .ai-doc/qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json and its raw outcome/cleanup hashes for the native SQL subset; retain remaining full-case QC evidence needs."
+      ],
+      "failCriteria": [
+        "Shared/primary DB use",
+        "Stale ordinal",
+        "Extra table/schema/grant",
+        "Primary drift or missing ledger",
+        "Changing existing DM session state/data or broader DM behavior",
+        "Missing composite FK target uniqueness or trigger protecting only the new immutable snapshot fields",
+        "Any of the four typed parents lacks a true same-company composite FK or context/id match",
+        "Optional session becomes required, mismatched session accepted, or session controls permission/dispatch",
+        "Immutable initiator/source/context fields change or dedup overwrites original initiator",
+        "Any DM session/source/queue row-set difference before/after"
+      ],
+      "subcases": [
+        {
+          "id": "CTX-TYPED-PARENT-FOUR-FK",
+          "status": "NOT_RUN",
+          "expected": "Each context has exactly one matching typed parent and a real same-company composite FK; wrong type/id/company and zero/multiple typed parents are rejected.",
+          "evidenceNeeded": "Schema catalog and positive/negative isolated PostgreSQL and SQLite results for each context.",
+          "rootNativeEvidence": "Root checkpoint PASS_NATIVE_SQL_CONTEXT_SUBSET: migration 082 9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000; 3 native tests, foreignKeyCount=505 and typed contexts drawing_number, drawing_revision, revision_package, candidate_revision. This is source-hash-matched DB-layer evidence; independent QA subcase remains NOT_RUN."
+        },
+        {
+          "id": "CTX-OPTIONAL-SESSION-IMMUTABLE-DEDUP",
+          "status": "NOT_RUN",
+          "expected": "Null session is valid; a provided session is same-company/context consistent provenance. Immutable context/typed parent/session/snapshot/initiator fields reject mutation. Duplicate key from another authorized initiator returns original row without replacing first provenance.",
+          "evidenceNeeded": "Null/matching/mismatching fixtures, attempted update results, duplicate readback of first initiator/session/snapshot.",
+          "rootNativeEvidence": "The native SQL checkpoint covers immutable snapshot/same-company FK/receipt cases; it does not explicitly prove nullable optional-session application semantics or second-initiator dedup preservation. Those remain NOT_RUN."
+        },
+        {
+          "id": "CTX-LEGACY-DM-ROWSET-INVARIANCE",
+          "status": "NOT_RUN",
+          "tables": [
+            "drawing_recognition_sessions",
+            "drawing_recognition_sources",
+            "recognition_jobs",
+            "recognition_heartbeat"
+          ],
+          "expected": "Complete ordered row sets and stable hashes are identical before/after; no hidden, cancelled, claimed, or completed DM rows appear.",
+          "evidenceNeeded": "Isolated synthetic fixture before/after row-set receipts and ledger; primary DB remains absent/unread.",
+          "rootNativeEvidence": "Root context checkpoint reports fixtureBindingsAfter=EXACT_UNCHANGED and dmRows=EXACT_UNCHANGED; independent QA remains NOT_RUN and must still verify the planned complete table row-set comparison on the final candidate."
+        }
+      ],
+      "rootNativeEvidence": {
+        "checkpointPath": ".ai-doc/qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json",
+        "checkpointSha256": "c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35",
+        "outcomePath": "output/qa/dev-122/openswx-phase2/native-context/outcome.json",
+        "outcomeSha256": "6a0dfd1ebda424c088b583a42516d1873077dd04699b69d7b58f597b3509def3",
+        "cleanupPath": "output/qa/dev-122/openswx-phase2/native-context/runtime-cleanup.json",
+        "cleanupSha256": "a13d14ad6e9823543eb953d91eff623ed8ea12b6cb923001e0561593cf8ca75b",
+        "migration082Sha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000",
+        "nativeTests": 3,
+        "foreignKeyCount": 505,
+        "typedContexts": [
+          "drawing_number",
+          "drawing_revision",
+          "revision_package",
+          "candidate_revision"
+        ],
+        "fixtureBindingsAfter": "EXACT_UNCHANGED",
+        "dmRows": "EXACT_UNCHANGED",
+        "auxiliaryRowsAfter": 0,
+        "independentQc": "NOT_RUN",
+        "boundary": "RD native SQL subset only; optional-session application behavior, enqueue dedup initiator preservation, full app source applicability, routes/UI/dispatch and entire P2 DB acceptance remain pending."
+      }
+    },
+    {
+      "id": "P2-SCHEDULER-CLASSIFICATION",
+      "layer": "local Scheduler recovery route classification",
+      "preconditions": [
+        "Use isolated test-signing material only; no Google token fetch, ADC, Scheduler resource, or job execution.",
+        "The Phase 2 allowlist includes only the purpose-specific Scheduler OIDC recovery helper and its direct route-classification test.",
+        "No provider transport, Cloud Run execution, Scheduler resource, local ADC, or Cloud IAM is used; verify the fixed five-minute cadence as source/config contract only."
+      ],
+      "operation": "Run the focused route-classification command. Exercise the local helper with a valid test-signed claim bound to exact issuer https://accounts.google.com, exact dispatch service-account subject/email, exact canonical audience https://ai-pdm-prod-9536592944.asia-east1.run.app, valid signature and expiry. Reject reader bearer, Human cookie, wrong issuer/subject/audience/signature/expiry, mutable target and generic bearer. Verify that the only normal dispatcher is the purpose-specific Scheduler OIDC recover endpoint with fixed five-minute cadence and bounded retry. Exercise idle/no-due-row, due row with no active/unknown admission, and due row with active/unknown admission using local deterministic transport. Confirm human GET/POST do not trigger recover and no provider call is made in this local classification. Check schedule-time token freshness no older than 60 seconds and future clock skew no greater than 5 seconds after exact OIDC identity validation; these are freshness bounds only, not authorization. Exercise the closed empty branch and prove it never admits, runs, or claims a due row. Apply exact Scheduler pause/readback of prior state and target hash, bounded quiescence plus prior normal Job drain. Pause alone does not prove an in-flight handler stopped; after the quiescence deadline require fresh exact executions and DB admission readbacks. Freeze paused-drained ref and recheck before candidate; unknown prevents Job update. Enforce recover 20s overall and attempt 30s/retryCount=0.",
+      "expectedResult": "Only the purpose-specific Scheduler OIDC route helper is classified for the fixed recovery endpoint. Identity, issuer, audience, signature and expiry are all exact; route classification is not inferred from endpoint name or generic bearer. No provider run occurs; this is local code-contract evidence only. Scheduler OIDC is the only normal dispatch initiator; idle performs no empty Cloud Run Job. Human actions cannot dispatch. Local tests do not claim a live Scheduler resource or provider readback. Valid Scheduler identity with freshness bounds is still only a route/auth contract. Closed empty branch does not dispatch or claim; only a due row with no active/unknown admission can be submitted by the fixed recover app path. No live Cloud resource is created or invoked. Pause/drain is valid only with fresh exact provider execution and DB admission evidence. Unknown or unfinished work blocks Job update. OIDC freshness<=60s/futureSkew<=5s follows identity validation and is timing only. Closed empty branch reconciles exact known terminal work only; true no-active/no-unknown may return 204 with due row retained; active/requested-unbound/unknown/readback failure is pending/fail, never 204.",
+      "actualResult": "NOT_RUN.",
+      "evidenceNeeded": [
+        "npm run qc:dev-121:route-classification output",
+        "Direct helper allow/deny case matrix with test-key fingerprint and no secret material",
+        "Route/method/issuer/subject/audience constants and zero provider calls",
+        "Fixed five-minute Scheduler cadence and exact OIDC route/source/config binding",
+        "Due/idle/active/unknown admission branch outputs and zero-provider-call assertion",
+        "Route classification plus exact issuer/subject/audience/signature/expiry matrix",
+        "Schedule-time freshness <=60s and future skew <=5s cases after issuer/subject/audience/signature validation",
+        "Empty-branch readback proving no admission/run/claim; unknown branch blocks",
+        "Exact Scheduler prior-state/target-hash pause readback and bounded quiescence/drain receipt",
+        "After-deadline exact executions and DB admission readback; paused-drained ref revalidated before candidate",
+        "OIDC identity then freshness<=60s/futureSkew<=5s boundary tests",
+        "Empty branch exact-terminal/unknown/no-active branch matrix with due-row and run/claim counts"
+      ],
+      "failCriteria": [
+        "Generic workload bearer or Human session accepted",
+        "Name/path alone authorizes Scheduler",
+        "Wrong issuer/subject/audience/signature/expiry accepted",
+        "Any live Scheduler/Cloud Run call",
+        "Human or direct worker initiates normal dispatch",
+        "Idle schedule executes an empty Cloud Run Job",
+        "Cloud/Scheduler behavior claimed from local route tests",
+        "Stale schedule token or excessive future skew accepted",
+        "Empty/no-matching-execution path admits, runs or claims due row",
+        "Pause treated as cancellation of in-flight handler",
+        "No fresh execution/admission readback after quiescence deadline",
+        "Unknown work permits Job update or receives 204",
+        "Freshness limits used as authorization or omitted after OIDC validation"
+      ],
+      "subcases": [
+        {
+          "id": "DISPATCH-SCHEDULER-OIDC-ONLY",
+          "status": "NOT_RUN",
+          "expected": "Only purpose-specific Scheduler OIDC recover may start normal dispatch, at the fixed five-minute schedule; due/idle/active/unknown admission behavior is bounded and has no generic bearer path.",
+          "evidenceNeeded": "Local schedule/source binding, exact OIDC test matrix, and deterministic due-state branch receipts."
+        },
+        {
+          "id": "DISPATCH-CLOSED-EMPTY-RECONCILE-ONLY",
+          "status": "NOT_RUN",
+          "expected": "With no matching execution, only reconcile exact known provider-terminal execution to generation-fenced CAS. No admit/run/claim due. Return 204 only with true no active/unknown; due may remain. Active/requested-unbound/unknown/readback failure is bounded pending/fail, never 204.",
+          "evidenceNeeded": "No-match/exact-terminal/unknown branch matrix; exact terminal binding, CAS result, due-row state and provider-call counts."
+        },
+        {
+          "id": "DISPATCH-PAUSE-DRAIN-QUIESCENCE",
+          "status": "NOT_RUN",
+          "expected": "Pause/readback saves prior state/target hash; bounded quiescence/drain is proven with fresh execution plus DB admission readback. Pause alone never implies in-flight work stopped. Unknown blocks candidate/Job update.",
+          "evidenceNeeded": "Prior-state/hash readback, quiescence deadline, exact execution/admission state, paused-drained ref and candidate-time refresh."
+        }
+      ]
+    },
+    {
+      "id": "P2-DM-ROUTE-REGRESSION",
+      "layer": "focused existing DM/route regression",
+      "preconditions": [
+        "Isolated test identities and frozen route map/source."
+      ],
+      "operation": "Run only existing worker-service-auth, route-permission-map and Principal command-route tests for purpose/capability/company/revoke/dynamic route classification. Assert legacy recognition/key/probe/heartbeat/applied ACK remain DM-only and auxiliary completion/cancel leaves legacy queue/formalization unchanged. Retain the focused `scripts/qc-dev-121-route-classification.mjs` Scheduler-purpose regression and direct test; it must not accept generic bearer or name-based authority.",
+      "expectedResult": "Existing DM requirements remain; new reader cannot reach DM paths. No full 29-group suite or R03 real-key retest is claimed.",
+      "actualResult": "NOT_RUN.",
+      "evidenceNeeded": [
+        "Focused outputs/route-map hash",
+        "Purpose matrix/statuses",
+        "Before/after isolated legacy queue/session state"
+      ],
+      "failCriteria": [
+        "DM guard weakened, wrong classification, auxiliary result enters observations/handoff/commit/formalize"
+      ]
+    },
+    {
+      "id": "P2-UI-FLOW",
+      "layer": "real browser normal readonly entry",
+      "preconditions": [
+        "Fresh frozen context-decoupled candidate and owned four-context fixture with DM feature disabled, zero recognition sessions, selected CAD assets, and nonzero expected counts.",
+        "Use the normal canonical drawing-change workspace/context entry; bind exact context route/source hash at QC."
+      ],
+      "operation": "With DM disabled and zero recognition sessions, hard reload and navigate the ordinary drawing-change context for the selected supported context; read readiness, explicitly enqueue through the single readonly auxiliary CTA, then read the job through GET. Verify GET with no job is readiness-only and never auto-POSTs. Open/read/close details, return to the unchanged DM recognition surface, and use keyboard/reduced-motion at 1365x900 and 390x844. After the single CTA, leave the durable job waiting for automatic Scheduler progress; do not call recover or require another manual dispatch action. Capture waiting before a live lease and later states only when actually present.",
+      "expectedResult": "Normal context enqueue/read works despite DM being disabled and having zero sessions. The CTA uses only selected context/asset IDs; no createDrawingRecognitionSession call or hidden/cancelled DM rows are created. GET readiness does not enqueue. The readonly detail clearly shows storedValue/scope/provenance/partial/missing coverage with no accept/map/apply/handoff/commit/formalize CTA or business write. No overflow/overlap/truncation/double scroll/hidden warning/focus loss at either viewport; legacy DM session/source/queue row sets remain unchanged. One CTA is enough; the interface shows scheduled waiting and the defined progress boundary. No browser action triggers provider dispatch and no active animation appears without a live lease.",
+      "actualResult": "NOT_RUN; the 5538f92 core v1 checkpoint predates context decoupling and does not establish DM-disabled zero-session normal entry.",
+      "evidenceNeeded": [
+        "Candidate hash, route/session/fixture, both screenshots",
+        "Operation/network/status/DOM evidence",
+        "Keyboard/focus/reduced-motion evidence",
+        "Console/network sweep and nonzero counts",
+        "Context type/id and DM disabled plus zero-session precondition readback",
+        "Normal entry screenshots at both viewports, CTA event and exact context enqueue/read requests",
+        "GET-without-job evidence showing no implicit POST",
+        "Legacy DM session/source/queue full-row before/after snapshots",
+        "Keyboard/focus/reduced-motion evidence, console/network sweep and nonzero counts",
+        "Single CTA event plus durable scheduled-waiting response and no recover/provider request",
+        "Waiting-state screenshot/DOM before a live lease; any later active state must bind to a real lease"
+      ],
+      "failCriteria": [
+        "No actual viewport/screenshot",
+        "Visible error, false formal action, unexplained empty data, inaccessible/clipped content",
+        "Entry requires an existing recognition session or enabled DM worker",
+        "GET readiness enqueues, or CTA creates a DM session/queue item",
+        "Any legacy DM row changes"
+      ],
+      "subcases": [
+        {
+          "id": "CTX-DM-DISABLED-ZERO-SESSION-NORMAL-ENQUEUE-READ",
+          "status": "NOT_RUN",
+          "expected": "On ordinary context UI, DM disabled and zero recognition sessions, explicit CTA enqueues one auxiliary context job and GET reads it. GET-only readiness does not POST; no DM session/source/queue mutation.",
+          "evidenceNeeded": "Precondition fixture, UI/network event timeline and full DM table row-set before/after."
+        }
+      ]
+    },
+    {
+      "id": "P2-UI-STATE",
+      "layer": "real browser idle/error/accessibility",
+      "preconditions": [
+        "Owned fixture can show configured/scheduled/executing/degraded/blocked/result and true idle.",
+        "Include a due or queued job waiting for the next scheduled recovery with no live worker lease."
+      ],
+      "operation": "Inspect no-heartbeat idle, active lease, error and revoked states at both viewports; sweep .inline-error, role=alert, visible 4xx/5xx, Not Found, Internal Server Error and /api/... failures. Inspect scheduled-waiting state after the single CTA, with no live lease; verify browser refresh/read only observes state and cannot initiate recover/provider work.",
+      "expectedResult": "Durable state drives status. Idle has no spinner/fake heartbeat/offline/ready; activity only for live lease. Errors stay visible and fixture-required counts are nonzero. Normal state has no unjustified persistent teaching or duplicate signals. Missing visual evidence is NOT_VERIFIED. Waiting for the five-minute Scheduler is a durable waiting state, not active/executing. No fake spinner, heartbeat, countdown, or progress activity is shown without a live lease; the UI does not need repeated user clicks. Waiting does not fake a countdown/progress indicator. The UI explains the scheduled wait boundary and does not ask the user to click dispatch steps; app dispatch may be enabled while Scheduler remains paused only as an explicitly gated owner state.",
+      "actualResult": "NOT_RUN.",
+      "evidenceNeeded": [
+        "State fixture/lease timestamps",
+        "Screenshot per required state/viewport",
+        "Visible error sweep, console/network, expected/rendered counts",
+        "Reduced-motion and status announcement evidence",
+        "Waiting-state lease absence and scheduler state fixture",
+        "No active animation while lease absent, then true activity only when a live lease fixture exists",
+        "Zero browser-triggered recover/provider calls",
+        "Current UI explanation of scheduled waiting/boundary and one-CTA flow; no setup/dispatch step-by-step user controls."
+      ],
+      "failCriteria": [
+        "Unexpected visible error, false activity, unexplained zero, hidden status/error, missing state evidence",
+        "Waiting state presented as active work without a live lease",
+        "UI/browser polling invokes recover or requires repeated user dispatch clicks"
+      ],
+      "subcases": [
+        {
+          "id": "DISPATCH-SCHEDULED-WAIT-NO-FAKE-ACTIVITY",
+          "status": "NOT_RUN",
+          "expected": "After one CTA, waiting for scheduled recovery is visibly waiting, not active; no fake animation or browser-triggered dispatch occurs without a live lease.",
+          "evidenceNeeded": "Real-browser waiting-state evidence, no-lease readback and zero recover/provider request trace."
+        }
+      ]
+    },
+    {
+      "id": "P2-ISOLATED-BUILD",
+      "layer": "isolated build/integrity",
+      "preconditions": [
+        "Primary SQLite snapshot captured; build helper bound to owned data/repository paths."
+      ],
+      "operation": "Run typecheck and isolated build, recapture SQLite invariants, and verify task-owned cleanup.",
+      "expectedResult": "Frozen candidate typechecks/builds; primary schema/identities/counts/residue/FK unchanged. Build is source evidence only.",
+      "actualResult": "NOT_RUN.",
+      "evidenceNeeded": [
+        "HEAD and command outputs",
+        "Pre/post SQLite receipt",
+        "Runtime/temp cleanup receipt",
+        "DB boundary result"
+      ],
+      "failCriteria": [
+        "Primary mutation/drift, shared path reused, or build misreported as UI/provider/native acceptance"
+      ]
+    },
+    {
+      "id": "P2-PARSER-CHILD-ISOLATION",
+      "layer": "local Linux worker parent/child syscall boundary and bounded parser lifecycle; Cloud is a separate gate",
+      "preconditions": [
+        "Use the fresh post-integration frozen Linux/amd64 candidate with exact source, Node/runtime, reader, and image hashes; no Cloud/provider resource is needed or authorized for this case.",
+        "Use non-sensitive local harness inputs for isolation probes; record task-owned process tree and cleanup bounds before launch."
+      ],
+      "operation": "Before any job claim or CAD download, run the fixed child-isolation self-test and prove no_new_privs/seccomp installation on the supported Linux/amd64 ABI. Verify child environment allowlist and that only required stdio descriptors remain. Exercise denied TCP, UDP, Unix-domain socket and raw socket/syscall paths while the parent HTTP control path remains usable. Then exercise AbortSignal, timeout, worker SIGTERM, child SIGTERM followed by SIGKILL after 250ms, close wait, process-group disappearance, a descendant holding stdout, and cleanup deadline <=2s. Verify cleanup failure blocks success completion and the next source parse.",
+      "expectedResult": "Self-test succeeds before claim/download; ABI or installation mismatch fails closed with PARSER_ISOLATION_UNAVAILABLE and nonzero exit, with no direct-parse fallback. Child socket/raw syscall attempts are denied while parent HTTP remains available. Child inherits only allowlisted env and required stdio; no token/Secret/ADC/proxy/LD_* is exposed. Abort/timeout/SIGTERM stops fetch/heartbeat, terminates the own process group (SIGTERM then SIGKILL at 250ms), waits for close, and proves the group gone within the 2s cleanup deadline. Descendant-held stdout cannot hang the worker. Failed cleanup prevents complete and next-file parse. Result is limited to local child_network_syscalls_denied.v1 evidence; it does not claim a full sandbox or Cloud verification.",
+      "actualResult": "NOT_RUN for independent QA. The committed core checkpoint reports 22 focused SQLite/source tests, and explicitly lists finite Linux worker image plus child syscall-deny/cancel proof as remaining. No independent QC or Cloud child-isolation result exists.",
+      "evidenceNeeded": [
+        "Frozen HEAD, changed-file allowlist, source/test/runtime/image digests",
+        "Timestamped event ordering for self-test success before claim and before any CAD download",
+        "Self-test results for TCP, UDP, Unix-domain socket, raw socket/syscall denial; parent HTTP positive-control response",
+        "Redacted child environment and open-FD allowlist result; no secret values or CAD bytes",
+        "Abort/timeout/SIGTERM/SIGKILL/close/process-group timeline, including 250ms escalation and <=2s cleanup",
+        "Descendant-holds-stdout bounded termination evidence",
+        "Assertion that cleanup failure yields no success completion and no next source parse",
+        "Task-owned process/container cleanup and port readback",
+        "Independent QC command/output hashes distinct from root-reported RD evidence"
+      ],
+      "failCriteria": [
+        "Claim or CAD download occurs before successful self-test",
+        "Any forbidden child socket/raw syscall succeeds, or parent/child boundary cannot be distinguished",
+        "Child receives non-allowlisted environment or unexpected non-stdio descriptors",
+        "Isolation failure/ABI mismatch falls back to direct parsing",
+        "Child process group/descendant remains after the deadline, or cleanup exceeds 2s",
+        "Cleanup failure still permits completion or another source parse",
+        "Phase 1 Docker network=none or local Linux result is represented as Cloud PASS"
+      ]
+    }
+  ],
+  "uiAcceptance": {
+    "viewports": [
+      {
+        "width": 1365,
+        "height": 900
+      },
+      {
+        "width": 390,
+        "height": 844
+      }
+    ],
+    "states": [
+      "normal entry",
+      "partial result",
+      "true idle",
+      "live lease",
+      "degraded/error",
+      "blocked/revoked"
+    ],
+    "accessibility": [
+      "keyboard/focus",
+      "accessible names",
+      "status/error announcement",
+      "reduced motion"
+    ],
+    "visibleErrorGate": "Any unanticipated inline error, role=alert, visible 4xx/5xx, Not Found, Internal Server Error or API route failure fails/reopens QC.",
+    "dataSanityGate": "Expected-nonempty fixtures must show nonzero source/result counts; unexplained zero fails. Only a documented empty fixture may pass empty-state QA.",
+    "evidenceRule": "No actual route, viewport, screenshot, interaction and fixture evidence means UI NOT_VERIFIED."
+  },
+  "qcCommandSuggestions": {
+    "executionRule": "Suggestions only; no test/build/runtime was run. Recheck package scripts/frozen paths. No command may target shared DB/provider.",
+    "reader": "node --test scripts/lib/openswx-reader/auxiliary-job.test.mjs",
+    "contracts": "npm exec -- vitest run src/lib/openswx-metadata.test.ts src/lib/openswx-metadata-dispatch.test.ts src/lib/openswx-metadata-dispatch-auth.test.ts src/lib/openswx-metadata.postgres-contract.test.ts src/lib/worker-service-auth.test.ts src/lib/jenfu-route-permission-map.test.ts src/lib/principal-command-routes.test.ts",
+    "dbBoundary": "npm run check:db-boundary",
+    "typecheck": "npm run typecheck:app",
+    "isolatedBuild": "npm run build:isolated",
+    "postgres": "Use a focused harness only for task-owned isolated PostgreSQL. If no safe harness exists, report DB NOT_VERIFIED; never substitute shared managed DB.",
+    "browser": "Use established local browser harness on the frozen candidate and owned fixture; capture both viewports, reload/flow, state/error sweep, console/network and cleanup.",
+    "suiteLimit": "Only Phase 2 new responsibility cases plus necessary existing DM-denial/route-classification regressions; do not recreate all 29 groups.",
+    "routeClassification": "npm run qc:dev-121:route-classification",
+    "parserChildIsolation": "Use the exact parser/runner focused test commands from the frozen checkout; record argv/output/source/image hashes. No command was run while authoring this plan, and root-reported PASS counts do not replace independent QC."
+  },
+  "fmea": [
+    {
+      "failureMode": "Cross-company/revoked Principal or false session association keeps context job access",
+      "cause": "Missing actual same-company parent owner/membership checks, relying on requester/session initiator, treating optional session as authority/requirement, or checking only at enqueue.",
+      "userImpact": "CAD metadata exposed after access changes",
+      "detection": "P2-PRINCIPAL-ROUTES, P2-ENQUEUE-OWNERSHIP context subcases, and P2-SOURCE-FENCE revoke-before/after-content subcase.",
+      "priority": "P1",
+      "mitigation": "Resolve the four true parent/context owner and membership joins server-side; keep session nullable provenance; recheck Principal, owner and membership before every source/content action."
+    },
+    {
+      "failureMode": "Reader gains DM/key/probe/ACK authority",
+      "cause": "Purpose widening or body-supplied identity",
+      "userImpact": "Readonly helper gains credentialed or formal action",
+      "detection": "P2-WORKER-PURPOSE and P2-DM-ROUTE-REGRESSION",
+      "priority": "P1",
+      "mitigation": "Exact server-bound purpose/capability and unchanged DM requirements."
+    },
+    {
+      "failureMode": "Partial result appears as complete DM/native data",
+      "cause": "Merged scope/inferred type/storedValue mapped to formal field",
+      "userImpact": "Business decision from missing or false properties",
+      "detection": "P2-NORMALIZER-LINUX and P2-UI-FLOW",
+      "priority": "P1",
+      "mitigation": "Readonly schema, unsupported diagnostics, no DM adapter/business write."
+    },
+    {
+      "failureMode": "Stale or duplicate context work overwrites initiator/provenance or returns drifted bytes",
+      "cause": "Missing context/source/attempt generation fence, dedup mutation, stale membership or no storage generation check. Or dispatch can be initiated by human/direct worker without the persisted Scheduler execution admission.",
+      "userImpact": "Wrong or duplicated result",
+      "detection": "P2-ENQUEUE-OWNERSHIP dedup subcase, P2-SOURCE-FENCE context drift subcases, P2-ISOLATED-DB immutable/dedup subcase.; P2-REPLAY-UNKNOWN direct-worker no-admission 204 and P2-SCHEDULER-CLASSIFICATION Scheduler-only subcase.",
+      "priority": "P1",
+      "mitigation": "Use exact selected snapshot/fingerprint and current owner/membership checks; reject changed source or generation, keep initiator/context/session snapshot immutable, and return the original row for duplicate enqueue. Human GET/POST must commit/read only; a direct worker without saved admission returns 204 without claiming due work; only Scheduler OIDC starts recover. The only normal dispatch is Scheduler OIDC with persisted admission; no-admission direct worker returns 204 without picking due work, and empty recovery only reconciles known terminal work."
+    },
+    {
+      "failureMode": "Large/malformed job leaks data or exhausts worker",
+      "cause": "Unbounded input/output/deadline or cancel cleanup bypass",
+      "userImpact": "Exhaustion or private data retention",
+      "detection": "P2-FINITE-RUNTIME",
+      "priority": "P1",
+      "mitigation": "Strict finite limits, readonly isolated mounts, network none, verified owner-only cleanup."
+    },
+    {
+      "failureMode": "Fixture/build changes primary data",
+      "cause": "Wrong DB/path or skipped baseline gate",
+      "userImpact": "Primary or legacy DM session/source/queue state is corrupted or hidden DM work is created.",
+      "detection": "P2-ISOLATED-DB and P2-ISOLATED-BUILD plus complete legacy DM session/source/queue before/after row-set snapshots in isolated fixtures.",
+      "priority": "P1",
+      "mitigation": "Use owned fixtures only; require identical full-row snapshots for drawing_recognition_sessions, drawing_recognition_sources, recognition_jobs, and recognition_heartbeat, alongside primary invariants and fixture ledger."
+    },
+    {
+      "failureMode": "UI shows fake activity or hides failure",
+      "cause": "Heartbeat treated as readiness, stale spinner, hidden empty/error Or scheduled waiting is presented as active work before a live lease.",
+      "userImpact": "User trusts nonexistent work/result",
+      "detection": "P2-UI-STATE at both viewports; DISPATCH-SCHEDULED-WAIT-NO-FAKE-ACTIVITY subcase.",
+      "priority": "P2",
+      "mitigation": "Durable status, live-lease activity, visible error and data-sanity gate. Show durable scheduled waiting after one CTA; display active animation only with a live lease, and never dispatch from browser polling."
+    },
+    {
+      "failureMode": "Parser child reaches a socket path or starts before isolation self-test",
+      "cause": "Self-test is late/skipped, ABI/seccomp failure falls back, env/FD inheritance widens access, or host Docker network=none is mistaken for child syscall denial.",
+      "userImpact": "Readonly parser can exceed its intended network/credential boundary; local or Cloud isolation claims become unreliable.",
+      "detection": "P2-PARSER-CHILD-ISOLATION ordering, forbidden syscall probes, env/FD review, and parent HTTP positive control.",
+      "priority": "P1",
+      "mitigation": "Fail closed before claim/download; require child syscall deny and env/FD bounds on the fresh frozen Linux candidate. Keep Cloud as NOT_VERIFIED until its separately authorized exact Job/image gate."
+    },
+    {
+      "failureMode": "Parser or descendant survives abort/timeout and cleanup is reported complete",
+      "cause": "AbortSignal is ignored, only the direct PID is signaled, stdout remains held by a descendant, SIGKILL escalation or group verification is omitted, or cleanup exceeds its bound.",
+      "userImpact": "Worker/resource leak, retained CAD temp bytes, or later source/completion work after cancel/revoke.",
+      "detection": "P2-PARSER-CHILD-ISOLATION and P2-FINITE-RUNTIME process-group/close/cleanup timeline.",
+      "priority": "P1",
+      "mitigation": "Stop fetch/heartbeat, terminate the own process group with SIGTERM then SIGKILL after 250ms, await close and group disappearance within 2s; cleanup failure blocks success and next-file parse."
+    }
+  ],
+  "layerDisposition": {
+    "localSource": "FROZEN_SOURCE_IDENTITY_63_OF_63_BYTES_AND_SHA_MATCH; not all-file QC.",
+    "isolatedDatabase": "OWNER_NATIVE_CONTEXT_SQL_SUBSET_PASS_3_TESTS_505_FK; both primary SQLite files absent, PRAGMA not applicable; not full database acceptance.",
+    "localLinux": "INDEPENDENT_R3_LOCAL_LINUX_ARTIFACT_BOUNDED_PASS; two test groups code 0, 27 source bindings matched, eight CAD outputs partial with unchanged hashes/results, ten containers verified absent; child_network_syscalls_denied only, not namespace/full sandbox. Cloud NOT_AUTHORIZED_NOT_RUN; F-01F human-owned NOT_RUN.",
+    "localBrowserUI": "OWNER_LOCAL_BROWSER_QUEUED_CANCEL_ONLY; 40 HTTP 200 requests and 1440/390 measurements are fixture evidence; completed-result page and independent UI QC remain NOT_RUN.",
+    "cloudProvider": "NOT_AUTHORIZED_NOT_RUN.",
+    "humanNativeValidation": "F01F_NOT_RUN_HUMAN_OWNED; whole DEV-122 NOT_ACCEPTED."
+  },
+  "completionGate": {
+    "localPhase2": "Applicable source, isolated DB, Linux runner and real UI cases pass on one frozen binding with evidence/cleanup. Missing is NOT_VERIFIED; security/data/UI failure fails local gate.",
+    "preservedGates": [
+      "Cloud Run/Secret/IAM/Scheduler remain unauthorized and unrun.",
+      "F-01F/native semantic equivalence remains human-owned NOT_RUN.",
+      "Partial results never upgrade DEV-122.",
+      "Mocks/source/build/tests/screenshots cannot substitute across layers.",
+      "Native context SQL checkpoint proves only its exact frozen source hashes; app freeze and final independent QC remain pending."
+    ],
+    "handoff": "QC records exact frozen HEAD/artifact hashes, each expected/actual/evidence, first failures, owned cleanup, and unresolved gates. This plan does not change PM/spec/task status.",
+    "dispatchFirstEnableGate": {
+      "status": "NOT_AUTHORIZED_NOT_RUN",
+      "orderedGates": [
+        "A capsule: build_only from one frozen source/archive/generation with exact worker digest/profile/template/source binding and provenance/SBOM/scan. Under a separately approved bootstrap plan, create fixed resources/numeric credentials with Scheduler paused; run only self-test-only Job template without CAD and read back terminal/template.",
+        "B capsule: typed descriptor binds A worker build, bootstrap, Cloud preflight and paused-drained refs; prove same sourceRevision/archiveSha256. Read back full normal finite Job while Scheduler is paused; no overrides. App dispatch may be enabled, but human POST only enqueues.",
+        "Existing protected app candidate/canonical/finalize path. WIF finalize runs exact normal Job without overrides; prove isolation, authenticated empty claim 204, exit 0 and exact terminal readback; report app released / worker ACTIVATION_PENDING only.",
+        "Canonical/smoke verification plus direct-worker no-admission smoke: expected 204 and no due-row admission/run/claim. Keep exact B capsule and receipts bound.",
+        "Root normal actor fixed CLI consumes B finalize/canonical/smoke refs; freshly verify Job image/template/numeric credentials, Scheduler paused, and no active/unknown work. Only then enable/readback and emit immutable activation receipt. Worker READY requires that actual receipt; no C capsule or per-step human CTA."
+      ],
+      "evidenceNeeded": "Exact frozen A/B source/archive/capsule refs; A no-CAD terminal/template readback; B/preflight/paused-drained refs and Job readback; canonical/finalize/smoke receipts; no-admission 204 row invariant; fixed normal-actor CLI enable/readback/activation receipt.",
+      "authorizationBoundary": "Future acceptance order only. All Cloud/provider/resource mutations and activation remain NOT_RUN and NOT_AUTHORIZED until the human grants the exact resource-bound scope. This plan does not run or authorize any step.",
+      "noThirdCapsule": true,
+      "humanSteps": "One ordinary user CTA only for auxiliary enqueue; deployment progress is handled by the root normal actor/owner workflow, not per-step human buttons.",
+      "failureHandling": "B failure leaves Scheduler paused. Enable unknown is read back then paused; never auto-enable. Any failure leaves activation pending/recovery required; worker is not READY without immutable activation receipt.",
+      "runtimeBounds": "Scheduler retryCount=0/attemptDeadline=30s; recover overall=20s with abort/deadline rechecks; pause/drain must be freshly read back before protected prepare and candidate."
+    },
+    "cloudProvider": "NOT_AUTHORIZED_NOT_RUN"
+  },
+  "rootReportedExecutionEvidence": {
+    "provenance": "Committed root/RD checkpoint at 5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc; receipt .ai-doc/qa/DEV-122-openswx-phase2-core-checkpoint-2026-10-05.json SHA-256 076aba75e8e863fb53c3f975fd36f444dfe7f171df131904ea42136b812e4d73. This is RD evidence, not independent QC.",
+    "classification": "DEVELOPMENT_EVIDENCE_ONLY; does not change planStatus, does not establish independent QC, and does not establish Cloud/provider PASS.",
+    "reportedFocusedTests": "22 focused SQLite/source tests PASS (17 core + 5 purpose/auth); the receipt explicitly says declared authority seams are not native HTTP permission proof.",
+    "reportedNativePostgreSqlTests": "3 native PostgreSQL tests PASS on an own fresh fixture through 081 plus exact 082; runtime SELECT/INSERT/UPDATE allowed, DELETE/DDL denied; migration replay verified by ledger skip.",
+    "reportedFixtureCorrection": "Three initial cases failed in the test fixture using invalid source_context_type drawing_number before product assertions. Only the fixture was corrected to allowed drawing_revision; no constraint/schema/product relaxation. The corrected test source hash is 7746c84a388d4a9564dd61813af0cd0a6d6f86d7dc6ac94db4f2bf89c97f4147.",
+    "reportedFollowUp": "Native PostgreSQL receipt reports foreignKeyCount=501. The count is raw catalog evidence, not an acceptance verdict by itself.",
+    "reportedPrimaryDatabase": "Canonical and execution primary SQLite are ABSENT; no PRAGMA result claimed.",
+    "reportedCleanup": "Checkpoint reports PID 101540 inactive, port 62701 loopback bind succeeded then released, task runtime root absent; task-owned temporary runtime cleanup evidence is in the linked checkpoint.",
+    "qcBindingRequired": "Later independent QC must capture exact command/output, source and frozen image bindings, isolated DB identity, and cleanup readback. This core checkpoint proves only its recorded RD SQL/source evidence and leaves the Linux worker/child isolation, live API authority, dispatch/provider, UI, Cloud, and human gates open.",
+    "migration082Sha256": "684054b19706aafeb8991c237bdbda1157b9e223ed962ecddd57ad10fee87885",
+    "remainingReportedGates": [
+      "Real human/API current Principal permission and content-before/after guards",
+      "Dispatch/provider unknown recovery and Scheduler OIDC tests",
+      "Finite Linux worker image plus child syscall-deny/cancel proof",
+      "Real readonly UI at two viewports and reduced motion",
+      "Independent frozen-candidate QC",
+      "Cloud resource authorization, owner release, provider readback/smoke",
+      "Human F-01F native semantic validation; overall DEV-122 NOT_ACCEPTED"
+    ],
+    "nativeContextCheckpoint": {
+      "path": ".ai-doc/qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json",
+      "sha256": "c1e10c7bb03933e04fdd3f29df88cd814d03d75512558d26126321f299d89e35",
+      "scope": "PASS_NATIVE_SQL_CONTEXT_SUBSET_NOT_WHOLE_DEV_ACCEPTED",
+      "sourceHeadProvenanceOnly": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "independentQc": "PENDING_FINAL_FROZEN_CANDIDATE",
+      "cloud": "NOT_AUTHORIZED_NOT_RUN",
+      "F01F": "NOT_RUN_HUMAN_OWNED"
+    }
+  },
+  "finalEvidenceRebind": {
+    "status": "FINAL_SOURCE_REBOUND_PARTIAL_EVIDENCE; FULL_PHASE2_QC_PENDING; WHOLE_DEV122_NOT_ACCEPTED",
+    "reboundOn": "2026-10-06",
+    "sourceIdentity": {
+      "canonicalRepository": "C:/VIBE CODING/AI_PDM",
+      "executionWorktree": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM",
+      "branch": "codex/dev122-share-metadata-closure",
+      "headProvenanceOnly": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "currentSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+      "finalSourceFreezeSha256": "ae72e21cbb8558e54cf160422d78fa637b50d5108526c81aa1c47f7dad77116b",
+      "fileCount": 63,
+      "matchedFileCount": 63,
+      "mismatches": 0
+    },
+    "originalPlan": {
+      "sha256": "4b5ec29abe1f7d8e2024d6b3fc54b5d6eb2215f9d8229cac2e44fcdd916f692d",
+      "historyPath": "output/qa/dev-122/openswx-phase2/final-qa-rebind/DEV-122-openswx-phase2-validation-plan-2026-10-05.original.json"
+    },
+    "rebindReceiptPath": "output/qa/dev-122/openswx-phase2/final-qa-rebind/r4-isolated-build-rebind-receipt-2026-10-06.json",
+    "evidenceRefs": {
+      "finalSourceFreeze": {
+        "path": ".ai-doc/qa/DEV-122-openswx-phase2-final-source-freeze-2026-10-06.json",
+        "sha256": "ae72e21cbb8558e54cf160422d78fa637b50d5108526c81aa1c47f7dad77116b",
+        "scope": "63-file source identity only; 63/63 bytes and SHA-256 matched at rebind."
+      },
+      "localActualApi": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/native-ui/actual-api-outcome.json",
+        "sha256": "02c7cf43a505c46470512e1e4e0074ed3f654a015701791382a39ad212730ec5",
+        "scope": "Owner-produced local versioned-contract fixture; auth denials, enqueue/status-only behavior, idempotency, source selection and unchanged DM rows; not published authority or production."
+      },
+      "nativeUiReadback": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/native-ui/final-native-readback.json",
+        "sha256": "e3d689f4233c631198d3aa5e8e9920a6dd9ddc9bc97d01b9fa20c79b3f9cd41d",
+        "scope": "Owner-produced local API/browser fixture readback; queue/cancel only, completed-result page not run; DM rows unchanged; production not run."
+      },
+      "nativeUiCleanup": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/native-ui/native-runtime-cleanup.json",
+        "sha256": "30e632978d74f1b568d0502b14c6b156b4d8aae67b7bb9bce170a40477961983",
+        "scope": "Owned runtime ports released and task runtime data cleanup recorded; primary SQLite absent at both roots; source snapshot retained for the capacity-gated isolated build, so no PRAGMA pass is claimed."
+      },
+      "browserCleanup": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/native-ui/browser-native-cleanup-readback.json",
+        "sha256": "ff23b09c2ecf096084fd64820579f6edddc78913022c3a87b3295b59990a5552",
+        "scope": "Exact owned browser PIDs absent and port 51997 not listening."
+      },
+      "nativeContextRecheck": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/native-context-recheck/outcome.json",
+        "sha256": "57c43bed8a492b1102fa7453c3cb91409c83b932e522fec620d77b37fe1675b2",
+        "scope": "Owner native SQL context subset: 3 tests, 505 FK rows, fixture bindings and DM rows unchanged; primary SQLite absent at both roots, so PRAGMA is not applicable; not full Phase 2."
+      },
+      "currentWorkOwnerQc": {
+        "path": ".ai-doc/qa/DEV-122-openswx-phase2-current-work-owner-independent-qc-2026-10-06.json",
+        "sha256": "c39044670cc6ecc612387267ac4457ea1c28a8b2d3e749add612c6d063132890",
+        "scope": "Independent 7/7 current-work-owner unit slice only. Its read-only browser subsection binds the owner local receipt at C:/VIBE CODING/AI_PDM/output/playwright/dev122/openswx-phase2/browser/receipt.json SHA-256 0ca1831e14ba0523918af0f77bd56f9b0ea7e32dd014e3798883170d25e4aa23: 40/40 HTTP 200, 1440/390 viewport, queued/cancel only, no measured horizontal overflow, reduced motion on mobile; local fixture only."
+      },
+      "affectedUnitQc47": {
+        "path": ".ai-doc/qa/DEV-122-openswx-phase2-independent-qc-2026-10-06.json",
+        "sha256": "a8aaa2044f5b0593c4edbf2e2e070da7d64ef43dd2d31b66175091a646273055",
+        "scope": "Independent 47/47 focused unit slice on its listed corrected files; mocked/unit seams only. Three paths remained unreconciled to the historical 44-file manifest; this checkpoint does not accept all 63 files or whole Phase 2."
+      },
+      "ownerLatchQc": {
+        "path": ".ai-doc/qa/DEV-122-openswx-owner-source-independent-qc-2026-10-06.json",
+        "sha256": "541ae318deee58fd672433b48375a47dddae5f2d2b0ec411e1ad9eff28af32bb",
+        "scope": "Corrected latch-v2 bounded recheck: 14 tests pass, 15 tampered binding variants rejected before provider mock calls; valid replay readback-only. Mocked transport; closes only this provenance finding."
+      },
+      "linuxRootArtifact": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/linux-worker/entry-correction-r2/linux-test-report.json",
+        "sha256": "bd8ae2241724ef414a22f6615c97360205012a61191e295984134996c2878252",
+        "imageId": "sha256:ede6559ac7fc39f9bba0c026b7945e987810d4fc0f3326c971e44e844e5875c1",
+        "scope": "Root/RD local Linux artifact evidence: eight CAD outputs partial and unchanged; ten owned containers verified absent; child_network_syscalls_denied only, not a namespace or full sandbox proof; F-01F and production not run."
+      },
+      "linuxIndependentQc": {
+        "path": ".ai-doc/qa/DEV-122-openswx-phase2-independent-artifact-qc-2026-10-06.json",
+        "sha256": "fa54d9f7cf5393021054998e90ac109dc97bfad2d41c4942c3eed767809c5cd9",
+        "scope": "Independent r3 local Linux artifact QC: two test groups code 0 with zero failures; 27 frozen product-source bindings matched; all eight CAD records remain partial with source/result hashes matched and originals/results unchanged; ten task-owned containers verified absent. Evidence is limited to child_network_syscalls_denied; it does not establish namespace isolation or a full sandbox. Cloud is NOT_AUTHORIZED_NOT_RUN, F-01F is human-owned NOT_RUN, and whole DEV-122 remains NOT_ACCEPTED.",
+        "currentDisposition": "PASS_LOCAL_LINUX_ARTIFACT_ONLY; CAD_PARTIAL; bounded local evidence only.",
+        "historicalBeforeGo": {
+          "path": ".ai-doc/qa/DEV-122-openswx-owner-source-independent-qc-2026-10-06.json",
+          "sha256": "541ae318deee58fd672433b48375a47dddae5f2d2b0ec411e1ad9eff28af32bb",
+          "disposition": "Preserve the prior r2 and earlier admission failures as historical evidence; they were blocked before GO and are superseded for current Linux artifact status only by the r3 checkpoint above."
+        }
+      },
+      "ownerContractsV2": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/contracts-r2-report-v2.json",
+        "sha256": "f2b2c4e0e17c5cb8e21a7cfee6e5a3eb8f567e3ffd99be11966434658ab2ad75",
+        "continuousStdoutSha256": "57d30975e440680a11847f18fa5d300b4007545d5670187156069fdb814f5bd6",
+        "abortStdoutSha256": "e806f249f428696f5e3fec48bfe813eec13be709538204c2ef58dd6c14fa5856",
+        "scope": "Owner-local contracts v2: 134 continuous + 6 abort tests PASS_LOCAL; 2,178 source files had exact bytes and primary absence before/after; runtime cleanup readback recorded. This is not full Phase 2 QC."
+      },
+      "ownerContractsV1FirstFailure": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/contracts-report-v1.json",
+        "sha256": "769f2e9adcf1c1ed71ec92f603a688a867c6bad85ab171904505a17f44646298",
+        "scope": "Preserved initial v1 continuous-contract failure; not overwritten by v2 PASS_LOCAL result."
+      },
+      "isolatedBuildCapacity": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/build-capacity-blocked.json",
+        "sha256": "d8497b9de6dc4e8b0db8534d014434d8e6a9f189cf7cfb4dd48b289d825a3c4d",
+        "scope": "Exact 25 GiB isolated-build reservation is BLOCKED by capacity governor; full aggregate/typecheck/build remains NOT_RUN and human capacity choice pending."
+      },
+      "isolatedBuildCapacityAfterCleanup": {
+        "capacityPath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/build-capacity-recheck-after-own-cleanup.json",
+        "capacitySha256": "59c78b17f9051f98b0c4380d95c06da198c759c89e990f7f0847e19343b0bfb2",
+        "capacityStatus": "BLOCKED",
+        "maintenancePath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/build-maintenance-after-own-cleanup-inspect.json",
+        "maintenanceSha256": "2caef623b5e7bb023815ced4ff129d9251f4f5b4656659662f5e18c8adede53e",
+        "maintenanceStatus": "OK; no actionable candidates; terminal_reason=no_candidates; no cleanup performed.",
+        "scope": "Latest isolated-build capacity preflight after owned cleanup; 25 GiB reservation remains blocked. No tests, aggregate, typecheck, or build was run under this recheck."
+      },
+      "ownerFullR4": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/full-r4-report-v4.json",
+        "sha256": "1cdba1e50aac8e3c787ed26d5f39abf6b7a0c7b8b9d361361609b8cdacb08a65",
+        "result": "PASS_LOCAL_ONLY",
+        "sourceFiles": 2182,
+        "sourceBefore": "PASS_EXACT_BYTES_AND_PRIMARY_ABSENCE",
+        "sourceAfter": "PASS_EXACT_BYTES_AND_PRIMARY_ABSENCE",
+        "ownerFreezeSha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
+        "actualOwnerReportSha256": "f3347534bd0a57871a9ca6476185587b861284b59ff62540cb4ff40ce11b4288",
+        "scope": "Owner local r4 full-QC report; 2,182 source files exact before/after and primary SQLite absent both times; continuous QC aggregate command code 0; no provider mutation and releaseAuthority=false. This is local owner evidence, not independent Phase 2 acceptance."
+      },
+      "ownerLocalOwnerV4": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/actual-local-owner-report-v4.json",
+        "sha256": "f3347534bd0a57871a9ca6476185587b861284b59ff62540cb4ff40ce11b4288",
+        "result": "PASS",
+        "evidenceScope": "LOCAL_CONTRACT",
+        "releaseAuthority": false,
+        "scope": "Actual owner v4 report declares continuous test PASS, qc continuous SELF, abort PASS, DB boundary PASS, app typecheck PASS and isolated build PASS; no provider mutation; report remains local owner evidence."
+      },
+      "ownerFullR4Output": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/full-r4-1-stdout-v4.txt",
+        "sha256": "4c075eb646e8969e5ca3030f96cfac2c14ea7b3311a38a33cfe6bdf7ff22e537",
+        "scope": "Owner r4 stdout records aggregate 119 tests, abort 6 tests, DB boundary and app typecheck PASS, isolated build PASS with artifact=true/primary=true/cleanup=true, and continuous QC PASS. Owner-produced local execution evidence only."
+      },
+      "isolatedBuildCapacityR4": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/full-r4-capacity-admission.json",
+        "sha256": "09a8f01003dab1a6f7c1af9009fb44d6dea4237c3012c8e22c01a00d6694d354",
+        "status": "HUMAN_RISK_ACCEPTED_FOR_SINGLE_EXACT_BUILD_REQUEST",
+        "underlyingStatus": "BLOCKED",
+        "operationId": "dev122-openswx-owner-build-20261006",
+        "sessionId": "5cb67529-5eaa-4508-ad91-dec5255a628e",
+        "reservationBytes": 26843545600,
+        "targetFilesystem": "C:/",
+        "runtimeRelease": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/full-r4-runtime-release-native.json",
+          "sha256": "16d856ef115f6ddf15a7cd93a3956235cf35ebb3fad31803a9949e78a00186ab",
+          "status": "OK_RELEASED"
+        },
+        "leaseRelease": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/full-r4-lease-release-native.json",
+          "sha256": "7895bae2b82750bc533045659656da8a344c4517fcfc401e683297d43e8944e6",
+          "status": "released",
+          "releaseReason": "completed"
+        },
+        "finalNativeProcessReadback": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/full-r4-native-process-listener-final.json",
+          "sha256": "3c66dbbe70cb1c0dc63f4c1267aeb44b772f5f6c4fafc4af1a86792e202e2d95",
+          "ownProcesses": 0,
+          "ownListeners": 0
+        },
+        "scope": "The original capacity decision remained BLOCKED; a single exact 25 GiB request was human-risk accepted for this named session/build operation. This is not a general capacity PASS or reusable build authorization."
+      },
+      "ownerBuildFinalCleanupR4": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/owner-build-final-cleanup.json",
+        "sha256": "4ed97c370b11c22adcba7f2be038b094e6ed19cc7e857fdec6f8c8868430622b",
+        "result": "VERIFIED_OWN_RUNTIME_AND_STATIC_COPY_CLEAN",
+        "removedRoots": 2,
+        "removedJunctions": 3,
+        "dependencyTargetPreserved": true,
+        "primaryAbsenceUnchanged": true,
+        "ownProcesses": 0,
+        "ownListeners": 0,
+        "runtimeReleased": true,
+        "capacityLeaseReleased": true,
+        "productSourceEdited": false,
+        "userBrowserUntouched": true,
+        "providerMutation": "NONE",
+        "releaseAuthority": false,
+        "scope": "Exact owner final-cleanup receipt verifies both task-owned source roots absent, three owned junctions removed, dependency target preserved, and primary absence unchanged."
+      },
+      "ownerBuildEnvironmentHistoryR4": {
+        "preservedFailures": [
+          {
+            "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/full-report-v2.json",
+            "sha256": "d9111a37ed990712b1a01db51d6dda5bf34e15ef371893f14f521feb7bdfc7f6",
+            "result": "FAIL",
+            "scope": "Preserved first full-r2 record; earlier continuous 134-test result remains bound as PASS on the same frozen source, while aggregate report failure remains history."
+          },
+          {
+            "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/full-r3-report-v3.json",
+            "sha256": "4fbccf9c20d49b1a556b3f8c6bc7fb2ee49c5bf1a200fe852eb20644bd5956e3",
+            "result": "FAIL",
+            "scope": "Preserved second attempt and junction/Next environment failure history; precise ENOTCONN cause remains unproven."
+          }
+        ],
+        "diagnosis": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/independent-qc-environment-diagnosis.json",
+          "sha256": "5f2dc183c912ab5a2fee0216ae9d1ece39290998d53440d2b1b78ace67de718b",
+          "result": "BOTH_BUILDS_FAILED_ENVIRONMENT_NO_ARTIFACT"
+        },
+        "environmentCorrection": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/physical-short-copy-v5.json",
+          "sha256": "c16a78756a744c1cea56218b94d20d3d8f714b98c23dca91ad39d449edb6bd17",
+          "result": "MEASURED_STATIC_SOURCE_COPY_ONLY",
+          "sourceFreeze63Unchanged": true,
+          "releaseAuthority": false
+        },
+        "scope": "Earlier FAIL outcomes remain preserved and are not overwritten by r4; physical short-copy evidence is only an environment correction measurement, not independent execution authority."
+      },
+      "independentFinalOwnerBuildCleanupQcR4": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/independent-final-owner-build-cleanup-qc.json",
+        "sha256": "aff6979a51af654e8e9e0ac334c5e082203830800993dd7da9fe95af227134b2",
+        "result": "PASS_LOCAL_ONLY",
+        "agent": "/root/dev122_openswx_qc_luna",
+        "model": "gpt-6-luna",
+        "sourceCopyFiles": 2182,
+        "sourceHashMismatches": 0,
+        "freezeComparisons": 166,
+        "aggregateTests": 119,
+        "abortTests": 6,
+        "continuousTests": "134 PASS reused for identical frozen source",
+        "dbBoundary": "PASS",
+        "typecheck": "PASS",
+        "isolatedBuild": "PASS artifact=true; primary=true; cleanup=true",
+        "ownedRootsAbsent": 2,
+        "ownedJunctionsAbsent": 3,
+        "ownerProcessAndListenerReadback": 0,
+        "executionNextDependencyPreserved": true,
+        "primaryAbsence": "canonical and execution primary SQLite absent",
+        "releaseAuthority": false,
+        "providerMutation": "NONE",
+        "cloud": "NOT_RUN",
+        "completedResultUI": "NOT_RUN",
+        "f01f": "NOT_RUN_HUMAN_OWNED",
+        "wholeDEV122": "NOT_ACCEPTED",
+        "scope": "Root-preserved independent final handoff; confirms exact source/freeze and owner cleanup readback, not a new test execution or production authority."
+      },
+      "independentSnapshotReadR4": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/independent-snapshot-read-complete.json",
+        "sha256": "d419bd1508c684e0550296ab4c52d24897b45f4ee00d7bf3ceba47aaf7287646",
+        "result": "PASS_EXACT_2182",
+        "files": 2182,
+        "bytes": 24218961,
+        "mismatches": 0,
+        "freezeEntryComparisons": 166,
+        "sourceFreeze63": "ae72e21cbb8558e54cf160422d78fa637b50d5108526c81aa1c47f7dad77116b",
+        "ownerFreeze20": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
+        "scope": "Independent exact source/snapshot readback before cleanup. The later final cleanup handoff is independently bound separately."
+      }
+    },
+    "caseStatusBindings": [
+      {
+        "caseId": "P2-SOURCE-FREEZE",
+        "status": "SOURCE_IDENTITY_ONLY_63_OF_63_MATCHED",
+        "evidence": [
+          "finalSourceFreeze"
+        ],
+        "limit": "This does not mean all 63 files passed QC."
+      },
+      {
+        "caseId": "P2-PRINCIPAL-ROUTES",
+        "status": "OWNER_LOCAL_ACTUAL_API_FIXTURE_EVIDENCE",
+        "evidence": [
+          "localActualApi"
+        ],
+        "limit": "Local versioned-contract fixture is not published Principal authority or production proof."
+      },
+      {
+        "caseId": "P2-ENQUEUE-OWNERSHIP",
+        "status": "OWNER_LOCAL_QUEUED_CREATE_IDEMPOTENCY_AND_STATUS_ONLY_EVIDENCE",
+        "evidence": [
+          "localActualApi",
+          "currentWorkOwnerQc"
+        ],
+        "limit": "Independent 7/7 is a repository unit slice; Cloud dispatch and completed result are not proven."
+      },
+      {
+        "caseId": "P2-WORKER-PURPOSE",
+        "status": "INDEPENDENT_LOCAL_LINUX_ARTIFACT_BOUNDED_PASS",
+        "evidence": [
+          "linuxRootArtifact",
+          "linuxIndependentQc"
+        ],
+        "limit": "r3 local Linux artifact only; two test groups code 0. No Cloud/provider execution, production proof, or whole-candidate acceptance."
+      },
+      {
+        "caseId": "P2-SOURCE-FENCE",
+        "status": "OWNER_LOCAL_SOURCE_SELECTION_AND_AUTH_FIXTURE_EVIDENCE",
+        "evidence": [
+          "localActualApi",
+          "currentWorkOwnerQc"
+        ],
+        "limit": "No production Principal authority or full native semantic validation."
+      },
+      {
+        "caseId": "P2-REPLAY-UNKNOWN",
+        "status": "MOCKED_UNIT_SEAM_ONLY",
+        "evidence": [
+          "affectedUnitQc47"
+        ],
+        "limit": "Actual provider execution/readback and Scheduler behavior remain NOT_RUN."
+      },
+      {
+        "caseId": "P2-NORMALIZER-LINUX",
+        "status": "INDEPENDENT_LINUX_EIGHT_FILES_PARTIAL_HASH_MATCHED",
+        "evidence": [
+          "linuxRootArtifact",
+          "linuxIndependentQc"
+        ],
+        "limit": "All eight CAD outputs remain partial; source/result hashes match and originals/results are unchanged. This is not completeness or full semantic proof; F-01F is human-owned NOT_RUN."
+      },
+      {
+        "caseId": "P2-FINITE-RUNTIME",
+        "status": "INDEPENDENT_LINUX_FINITE_RUN_AND_CLEANUP_BOUNDED_PASS",
+        "evidence": [
+          "linuxRootArtifact",
+          "linuxIndependentQc"
+        ],
+        "limit": "Bounded r3 Linux runs completed with code 0 and ten task-owned containers were verified absent. This does not prove Cloud execution or other runtime environments."
+      },
+      {
+        "caseId": "P2-ISOLATED-DB",
+        "status": "OWNER_NATIVE_SQL_CONTEXT_SUBSET_PASS",
+        "evidence": [
+          "nativeContextRecheck",
+          "nativeUiCleanup"
+        ],
+        "limit": "Three tests/505 FK rows only; both primary SQLite files were absent so no PRAGMA pass is claimed."
+      },
+      {
+        "caseId": "P2-SCHEDULER-CLASSIFICATION",
+        "status": "MOCKED_FOCUSED_UNIT_SLICE_PASS_ONLY",
+        "evidence": [
+          "affectedUnitQc47"
+        ],
+        "limit": "No live Scheduler, provider, Cloud Job, or unknown-outcome readback."
+      },
+      {
+        "caseId": "P2-DM-ROUTE-REGRESSION",
+        "status": "LOCAL_API_FIXTURE_DM_ROWS_UNCHANGED",
+        "evidence": [
+          "localActualApi",
+          "nativeUiReadback",
+          "nativeContextRecheck"
+        ],
+        "limit": "This does not prove production database state."
+      },
+      {
+        "caseId": "P2-UI-FLOW",
+        "status": "OWNER_LOCAL_BROWSER_QUEUED_CANCEL_ONLY",
+        "evidence": [
+          "currentWorkOwnerQc",
+          "nativeUiReadback",
+          "browserCleanup"
+        ],
+        "limit": "The actual completed-result page was NOT_RUN; fixture is not published authority and independent UI QC remains incomplete."
+      },
+      {
+        "caseId": "P2-UI-STATE",
+        "status": "OWNER_LOCAL_VIEWPORT_MEASUREMENTS_QUEUED_CANCEL_ONLY",
+        "evidence": [
+          "currentWorkOwnerQc",
+          "browserCleanup"
+        ],
+        "limit": "1440/390 viewports, mobile reduced motion, no horizontal overflow; no completed-result state or independent visual QC."
+      },
+      {
+        "caseId": "P2-ISOLATED-BUILD",
+        "status": "OWNER_LOCAL_R4_ISOLATED_BUILD_PASS; INDEPENDENT_SOURCE_AND_FINAL_CLEANUP_READBACK_PASS_LOCAL_ONLY",
+        "evidence": [
+          "ownerFullR4",
+          "ownerLocalOwnerV4",
+          "ownerFullR4Output",
+          "isolatedBuildCapacityR4",
+          "ownerBuildFinalCleanupR4",
+          "ownerBuildEnvironmentHistoryR4",
+          "independentSnapshotReadR4",
+          "independentFinalOwnerBuildCleanupQcR4"
+        ],
+        "limit": "This case is limited to local source/build evidence and independent source/cleanup readback: 2,182 source files exact before/after, 166 freeze comparisons, primary SQLite absent, owner-local aggregate/boundary/typecheck/build PASS with artifact=true/primary=true/cleanup=true, and two task-owned roots plus three junctions independently confirmed absent. Capacity remained underlying BLOCKED under one human-accepted 25 GiB request for the named session/build operation only. Historical ENOENT/ENOTCONN attempts remain preserved. Cloud and completed-result UI remain NOT_RUN, F-01F is human-owned NOT_RUN, and whole DEV-122 remains NOT_ACCEPTED."
+      },
+      {
+        "caseId": "P2-PARSER-CHILD-ISOLATION",
+        "status": "INDEPENDENT_CHILD_NETWORK_SYSCALL_DENIAL_BOUNDED_ONLY",
+        "evidence": [
+          "linuxRootArtifact",
+          "linuxIndependentQc"
+        ],
+        "limit": "Evidence is child_network_syscalls_denied only; it does not establish namespace isolation or a full sandbox. Prior before-GO admission failures remain preserved in the checkpoint history."
+      }
+    ],
+    "preservation": {
+      "acceptanceCases": "15 case definitions and acceptance criteria unchanged; current evidence is overlaid only in caseStatusBindings.",
+      "fmea": "9 FMEA entries unchanged.",
+      "uiAcceptance": "Existing viewport, visible-error, data-sanity and interaction criteria unchanged.",
+      "scope": "Project, scope and authorization text unchanged except for binding and evidence status clarifications; no product scope added.",
+      "testsBuildRuntime": "No tests, build, runtime, or provider action was run by this QA rebind."
+    }
+  }
+}

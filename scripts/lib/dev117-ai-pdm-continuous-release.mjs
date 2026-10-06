@@ -11,6 +11,7 @@ import {
 import { assertDev116R02Receipt } from './dev116-r02-receipt.mjs'
 import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
+import { assertOpenSwxWorkerRef } from './dev122-openswx-owner-release.mjs'
 import { buildAiPdmPackage, deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 
 const H40 = /^[a-f0-9]{40}$/
@@ -26,6 +27,7 @@ export function assertDev117ReleaseIntent(value, profile) {
   if (value?.baselineIntentRef) expected.push('baselineIntentRef')
   if (value?.principalOnlyFenceRef) expected.push('principalOnlyFenceRef')
   if (value?.principalOnlyRecovery) expected.push('principalOnlyRecovery')
+  if (Object.hasOwn(value ?? {}, 'openswxWorkerRef')) { expected.push('openswxWorkerRef'); assertOpenSwxWorkerRef(value.openswxWorkerRef) }
   expected.sort()
   if (!value || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(expected) || value.schemaVersion !== profile.schemas.releaseIntent || value.ownerApplicationId !== 'ai-pdm' || !/^[A-Z0-9][A-Z0-9-]{5,63}$/.test(value.releaseId ?? '') || !H40.test(value.sourceRevision ?? '') || !H64.test(value.sourceSha256 ?? '') || !H64.test(value.migrationManifestSha256 ?? '') || !value.previousRevision || value.previousRevision === 'latest' || !Number.isFinite(Date.parse(value.deadlineAt))) fail('RELEASE_INTENT_INVALID', 'AI-PDM release intent invalid')
   for (const name of ['sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef']) if (!new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/[A-Za-z0-9._/-]+\\.json$`).test(value[name]?.uri ?? '') || !H64.test(value[name]?.sha256 ?? '') || JSON.stringify(Object.keys(value[name] ?? {}).sort()) !== JSON.stringify(['sha256', 'uri'])) fail('RELEASE_INTENT_REF_INVALID', name)
@@ -56,6 +58,7 @@ export function assertDev117V3Profile(profile, v1, n1c) {
   const settingsPlain = ['PDM_SETTINGS_SECRET_PROVIDER', 'PDM_GCP_PROJECT_ID', 'PDM_GCP_EXPECTED_PROJECT_NUMBER', 'PDM_SOLIDWORKS_DOCUMENT_MANAGER_SECRET_ID', 'PDM_ENABLE_GCP_SECRET_READS', 'PDM_ENABLE_GCP_SECRET_WRITES']
   const expectedPlain = [...v1.environment.requiredPlainEnvironmentNames.filter((name) => !['PDM_CANDIDATE_CLOUD_RUN_SERVICE', 'PDM_CANDIDATE_CLOUD_RUN_TAG'].includes(name)), ...integrationPlain, ...settingsPlain]
   const expectedSecrets = [...v1.environment.requiredSecretEnvironmentNames, 'PDM_WORKLOAD_AUTH_CREDENTIALS']
+  if (profile.environment.optionalExtensions != null && JSON.stringify(profile.environment.optionalExtensions) !== JSON.stringify({ openswxDispatch: { name: 'PDM_OPENSWX_DISPATCH_ENABLED', off: '0', on: '1', binding: 'openswxWorkerRef' } })) fail('OPENSWX_RUNTIME_EXTENSION_INVALID')
   const expectedSecretIds = { ...v1.environment.allowedSecretReferences, PDM_WORKLOAD_AUTH_CREDENTIALS: 'aipdm-prod-workload-auth-credentials' }
   if (JSON.stringify([...profile.environment.requiredPlainEnvironmentNames].sort()) !== JSON.stringify([...expectedPlain].sort()) || JSON.stringify([...profile.environment.requiredSecretNames].sort()) !== JSON.stringify([...expectedSecrets].sort())) fail('ENVIRONMENT_SET_DRIFT', 'V3 environment set must preserve owner integration and workload bindings')
   if (JSON.stringify(Object.entries(profile.environment.allowedSecretIds ?? {}).sort()) !== JSON.stringify(Object.entries(expectedSecretIds).sort())) fail('WORKLOAD_SECRET_BINDING_DRIFT', 'V3 requires its own workload credential Secret; session secrets are not worker credentials')
@@ -149,6 +152,7 @@ export function assertDev117WorkflowSource(source) {
   for (const forbidden of ['product_owner_decision:', 'artifact_receipt_ref:', 'candidate_receipt_ref:', 'level4_receipt_ref:', 'stage:']) if (source.includes(forbidden)) fail('HISTORICAL_INPUT_ACTIVE', `Forbidden v1 workflow input ${forbidden}`)
   if (!source.includes('group: production-release-ai-pdm-prod')) fail('WORKFLOW_CONCURRENCY_DRIFT', 'Concurrency must be service-wide')
   for (const job of ['prepare:', 'build:', 'migrate:', 'candidate:', 'entrypoint:', 'verify:', 'decision:', 'activate:', 'canonical:', 'finalize:', 'failure:']) if (!source.includes(`\n  ${job}`)) fail('WORKFLOW_JOB_MISSING', job)
+  if (!/\n  failure:[\s\S]*?needs:\s*\[prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical, finalize\]/u.test(source)) fail('OPENSWX_FINALIZE_FAILURE_WIRING_MISSING')
   if (/CAPSULE_PROVIDER_FETCH_REQUIRED|run:\s*echo\s/iu.test(source)) fail('PROVIDER_PLACEHOLDER_ACTIVE', 'Workflow contains a provider placeholder')
   if ((source.match(/^    environment: production$/gmu) ?? []).length !== 11 || (source.match(/DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:/gu) ?? []).length !== 2 || (source.match(/DEV012_AIPDM_FIREBASE_API_KEY:/gu) ?? []).length !== 2 || source.includes('DEV012_AIPDM_FIREBASE_ID_TOKEN')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', 'Protected environment or refresh-token smoke binding drifted')
   for (const block of source.split(/^  (?=[a-z][a-z-]+:)/gmu).filter((value) => value.includes('google-github-actions/auth@v3'))) if (block.indexOf('actions/checkout@v4') < 0 || block.indexOf('actions/checkout@v4') > block.indexOf('google-github-actions/auth@v3')) fail('WORKFLOW_AUTH_ORDER_DRIFT', 'Checkout must precede WIF authentication')

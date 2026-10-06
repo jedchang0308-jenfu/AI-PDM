@@ -13,6 +13,8 @@ const reviewed = JSON.parse(readFileSync(join(root,
 
 test('v2 source hash binds every reviewed route and retired cross-owner mutation', () => {
   assert.deepEqual(buildPrincipalRouteMapV2(source, reviewed), reviewed)
+  assert.deepEqual(reviewed.denominator, { uniqueFiles: 140, uniqueMethods: 161, policyEntries: 171 })
+  assert.equal(reviewed.entries.filter(e => e.path.includes('/openswx-metadata/')).length, 3)
 })
 
 test('new grants, restored old mutations, and deleted policies all fail the source lock', () => {

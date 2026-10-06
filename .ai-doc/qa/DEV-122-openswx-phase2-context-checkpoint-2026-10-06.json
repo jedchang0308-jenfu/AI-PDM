@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-context-checkpoint.v1",
+  "capturedAtUtc": "2026-10-05T16:40:48.100950+00:00",
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "scope": "frozen context-owned SQL subset only",
+  "sourceHeadProvenanceOnly": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+  "sourceHashes": [
+    {
+      "path": "db/postgres/082_dev122_openswx_auxiliary_jobs.sql",
+      "sha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000"
+    },
+    {
+      "path": "src/lib/db.ts",
+      "sha256": "63308f0ed3cc48a5913d9460fe3baaae6a283c572eeff90b35548a82f1fbdc9e"
+    },
+    {
+      "path": "src/lib/openswx-metadata.postgres-contract.test.ts",
+      "sha256": "665f029eedcf85eb86837de8220a9c20b246389c20479bb32f5849c156fc6d3f"
+    },
+    {
+      "path": "src/lib/openswx-metadata-contract.ts",
+      "sha256": "75e245e670b16b963854817280bf77f23c22a57a57b45a33cbddf4a488fdd346"
+    },
+    {
+      "path": "src/lib/repositories/openswx-metadata-async-repository.ts",
+      "sha256": "94c5dc97c83cd82095fa6626997088dfc6cf34a9d58bba0243d332942421b57f"
+    },
+    {
+      "path": "scripts/lib/dev122-own-postgres-fixture.mjs",
+      "sha256": "775a68e57fcbe5c230d68e3f8fa954ce41d378e9cca966ea670ecc7bbeefcf98"
+    }
+  ],
+  "migration082": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000",
+  "verdict": "PASS_NATIVE_SQL_CONTEXT_SUBSET_NOT_WHOLE_DEV_ACCEPTED",
+  "nativeTests": 3,
+  "typedContexts": [
+    "drawing_number",
+    "drawing_revision",
+    "revision_package",
+    "candidate_revision"
+  ],
+  "nativeForeignKeys": 505,
+  "baseline": "PASS_BEFORE_IDENTITY_SEED",
+  "migrationReplay": "ALL_LEDGER_VERIFIED_SKIPPED",
+  "fixtureBindingsAfter": "EXACT_UNCHANGED",
+  "dmRows": "EXACT_UNCHANGED",
+  "auxiliaryRowsAfter": 0,
+  "primaryBeforeAfter": {
+    "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite": "ABSENT",
+    "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\data\\ai-pdm.sqlite": "ABSENT"
+  },
+  "sqlitePragma": "NOT_APPLICABLE_PRIMARY_FILES_ABSENT",
+  "cleanup": "VERIFIED_POSTMASTER_INACTIVE_PORT_RELEASED_OWN_ROOT_ABSENT",
+  "rawEvidence": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\outcome.json",
+      "sha256": "6a0dfd1ebda424c088b583a42516d1873077dd04699b69d7b58f597b3509def3"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\runtime-cleanup.json",
+      "sha256": "a13d14ad6e9823543eb953d91eff623ed8ea12b6cb923001e0561593cf8ca75b"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\fixture-gate.json",
+      "sha256": "c45d7efad64f96e99b265f22875c74aa67f5460745bef1f4d12ab5ce008ad4c6"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\fixture-mutation-ledger.json",
+      "sha256": "b32e6b63fe5cfcedd3954f2ea375ace7f0ab42c33f4e7ca11ff9598141fb85e0"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\seeded-fixture-bindings.json",
+      "sha256": "cd7f3dba076021562d7a653e12765613a4cf69076d4a2b77b07807bb31f07b0a"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\after-test-fixture-bindings.json",
+      "sha256": "cd7f3dba076021562d7a653e12765613a4cf69076d4a2b77b07807bb31f07b0a"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\migration-source-ledger.json",
+      "sha256": "9e7de5f92793f1ae9a4c77344aa6ff47a064f9bdac09befc66e0c67d38922017"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\migration-replay-readback.json",
+      "sha256": "1662b69e05897130383eb3bce22c2664fd4b7cd0b598eb0e284d97a11efab0db"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\runtime-privileges.json",
+      "sha256": "a23e179a38d7b7f0bd27d376762642dae142aada5219ebf31c53afe1c2ea003c"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context\\vitest-native.txt",
+      "sha256": "ff000791460f4f7785e2b753326205e696dd59c1127eed5aac55c37def288fba"
+    }
+  ],
+  "notProofOf": [
+    "current Principal API authorization",
+    "production migration",
+    "Cloud Run execution",
+    "full native CAD semantics"
+  ],
+  "independentQc": "PENDING_FINAL_FROZEN_CANDIDATE",
+  "cloud": "NOT_AUTHORIZED_NOT_RUN",
+  "F01F": "NOT_RUN_HUMAN_OWNED",
+  "overallDev122": "NOT_ACCEPTED"
+}

@@ -7,7 +7,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 if (!/^\/output export-ignore$/mu.test(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'))) throw new Error('PRODUCTION_SOURCE_ARCHIVE_OUTPUT_BOUNDARY_MISSING')
-const run = spawnSync(process.execPath, ['--test', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
+const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'scripts/dev122-openswx-owner-release.test.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
 const npmCli = process.env.npm_execpath
 if (!npmCli) throw new Error('NPM_EXEC_PATH_REQUIRED')
 const ownerExitCommands = [
@@ -24,6 +24,9 @@ const ownerExitCommands = [
 })
 const runId = `DEV117-S1B-${new Date().toISOString().replace(/[-:.]/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`; const dir = path.join(root, 'output', 'dev-117', 's1b', runId); fs.mkdirSync(dir, { recursive: true })
 const files = [
+  'config/release/dev122-openswx-worker.json', 'scripts/lib/dev122-openswx-owner-release.mjs', 'scripts/dev122-openswx-owner-release.test.mjs',
+  'scripts/dev122-openswx-bootstrap.mjs', 'scripts/lib/dev122-openswx-bootstrap.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs',
+  ...['main.tf', 'backend.tf', 'versions.tf', 'README.md'].map(name => `infra/google-cloud/dev-122-openswx-worker/${name}`),
   '.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md',
   '.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md',
   '.ai-doc/dev_task.md', '.ai-doc/documentation_map.md', '.gitattributes', 'AGENTS.md', 'package.json',

@@ -1,0 +1,344 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-owner-source-independent-qc.v1",
+  "createdOn": "2026-10-06",
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "role": "Independent QC Luna",
+  "verdict": "OWNER_SOURCE_LATCH_V2_20_MATCH; BOOTSTRAP_TARGETED_14_PASS; P2_CORRECTIVE_RECHECK_PASS; NOT_WHOLE_DEV122_ACCEPTED",
+  "authorizationAndScope": {
+    "projectBoundary": "AI-PDM only; existing execution worktree.",
+    "worktree": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+    "branch": "codex/dev122-share-metadata-closure",
+    "head": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+    "productChanges": "none; wrote only this owner-source QC checkpoint. Root is product/PM sole writer.",
+    "onlyReviewFile": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\.ai-doc\\qa\\DEV-122-openswx-owner-source-independent-qc-2026-10-06.json",
+    "taskIdentity": "DEV-122 already exists in both .ai-doc/dev_task.md and .ai-doc/documentation_map.md; no task ID or PM/map entry added.",
+    "prohibitedAndNotRun": [
+      "other projects",
+      "HTTP/server/browser",
+      "Cloud/provider",
+      "Terraform init/plan/apply",
+      "production/shared database",
+      "full build",
+      "stage/commit/push",
+      "Secret payload or local ADC inspection"
+    ]
+  },
+  "ownerSourceFreeze": {
+    "manifestPath": "output/qa/dev-122/openswx-phase2/rd-integration/owner-source-freeze.json",
+    "manifestSha256": "a04cc8c9ca7183e490f2dbc9d4c085b6974bbb12b32431501954e4fd9ee01797",
+    "scope": "LOCAL_SOURCE_ONLY",
+    "sourceHead": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+    "branch": "codex/dev122-share-metadata-closure",
+    "currentSpecPath": ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+    "currentSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+    "expectedSpecSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+    "specBindingMatched": true,
+    "fileCount": 20,
+    "measuredAtInitialFreezeCheck": "20 of 20 listed file hashes matched the manifest before root corrective edits.",
+    "sourceFiles": [
+      {
+        "path": ".github/workflows/deploy-ai-pdm-independent-production.yml",
+        "expectedSha256": "5705b22df3760d60fed4ca2091a11af629f9d0907acec4f8a30799c417f54a3d",
+        "measuredSha256AtInitialFreezeCheck": "5705b22df3760d60fed4ca2091a11af629f9d0907acec4f8a30799c417f54a3d",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+        "expectedSha256": "0f1ef7397db68070bb3365054d1502ed3c447c250d414c7542734b0fe7d9d391",
+        "measuredSha256AtInitialFreezeCheck": "0f1ef7397db68070bb3365054d1502ed3c447c250d414c7542734b0fe7d9d391",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "config/release/dev122-openswx-worker.json",
+        "expectedSha256": "65d6530a0f1e713c7936bdb0889bb529742334a530b20b6e8bf18ea81a7461dc",
+        "measuredSha256AtInitialFreezeCheck": "65d6530a0f1e713c7936bdb0889bb529742334a530b20b6e8bf18ea81a7461dc",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/dev117-ai-pdm-continuous-release.mjs",
+        "expectedSha256": "c902741092761cad347df70f9b81e4c937e484ba9156478e93571bec8627cb6f",
+        "measuredSha256AtInitialFreezeCheck": "c902741092761cad347df70f9b81e4c937e484ba9156478e93571bec8627cb6f",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+        "expectedSha256": "d3d388fe205e177f1354e83a296ac678b19561f55aad07c46b404ccd283a49e3",
+        "measuredSha256AtInitialFreezeCheck": "d3d388fe205e177f1354e83a296ac678b19561f55aad07c46b404ccd283a49e3",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/dev117-ai-pdm-prerequisite-producer.mjs",
+        "expectedSha256": "39831ae4a2cf55e65e8941cb8d7e1f70e440c058ed44f0f7164b9700d419ef5d",
+        "measuredSha256AtInitialFreezeCheck": "39831ae4a2cf55e65e8941cb8d7e1f70e440c058ed44f0f7164b9700d419ef5d",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/qc-dev-117-continuous-release.mjs",
+        "expectedSha256": "9135f50c983a6bf97ba7be76e1878bd24c174a95c5f9a22db8a2d70b16d7fff8",
+        "measuredSha256AtInitialFreezeCheck": "9135f50c983a6bf97ba7be76e1878bd24c174a95c5f9a22db8a2d70b16d7fff8",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+        "expectedSha256": "eb27a8c0734e0e832d471fa5b0d850eca0b9a4c416efef6dfca0f06a4f8454d4",
+        "measuredSha256AtInitialFreezeCheck": "eb27a8c0734e0e832d471fa5b0d850eca0b9a4c416efef6dfca0f06a4f8454d4",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/lib/dev012-owner-prerequisite-producer.mjs",
+        "expectedSha256": "0f4d7033bc796a6faf4a732fafaacdde463b17a56976b10dca5292236be4bd08",
+        "measuredSha256AtInitialFreezeCheck": "0f4d7033bc796a6faf4a732fafaacdde463b17a56976b10dca5292236be4bd08",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/lib/dev012-owner-stage-executor.mjs",
+        "expectedSha256": "e678c1c1fc44d4ed6a65b68cb6de22b5de3b6d851b5712930b82fe4926d15516",
+        "measuredSha256AtInitialFreezeCheck": "e678c1c1fc44d4ed6a65b68cb6de22b5de3b6d851b5712930b82fe4926d15516",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/lib/dev012-owner-release-runtime.mjs",
+        "expectedSha256": "5e5af998010658647512a8159305429cb11b7d68688090ee5d613b830e9a9072",
+        "measuredSha256AtInitialFreezeCheck": "5e5af998010658647512a8159305429cb11b7d68688090ee5d613b830e9a9072",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/lib/dev122-openswx-owner-release.mjs",
+        "expectedSha256": "51c4de39d4b670f81868db7cd69011b61ff8d4e7ffff6684bad1eddfe408999c",
+        "measuredSha256AtInitialFreezeCheck": "51c4de39d4b670f81868db7cd69011b61ff8d4e7ffff6684bad1eddfe408999c",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/dev122-openswx-owner-release.test.mjs",
+        "expectedSha256": "685449c35a8f66e1cb1d4a1fd7d88e627f406f995c8c96dabcbdf5a54848719b",
+        "measuredSha256AtInitialFreezeCheck": "685449c35a8f66e1cb1d4a1fd7d88e627f406f995c8c96dabcbdf5a54848719b",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/dev122-openswx-bootstrap.mjs",
+        "expectedSha256": "a5129c9fb420183a16e1dde63ce37cf8fb36414157ff061656956c18a527a7ad",
+        "measuredSha256AtInitialFreezeCheck": "a5129c9fb420183a16e1dde63ce37cf8fb36414157ff061656956c18a527a7ad",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/lib/dev122-openswx-bootstrap.mjs",
+        "expectedSha256": "c2521c6cbd4b96c7a3df8bd3e2b9ba6888a9170520c7e3931d780adaea6879c0",
+        "measuredSha256AtInitialFreezeCheck": "c2521c6cbd4b96c7a3df8bd3e2b9ba6888a9170520c7e3931d780adaea6879c0",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "scripts/dev122-openswx-bootstrap.test.mjs",
+        "expectedSha256": "51f8fc0879bec397004a047c2983f9e7e99de87ecd220d24b5849b69e226db2b",
+        "measuredSha256AtInitialFreezeCheck": "51f8fc0879bec397004a047c2983f9e7e99de87ecd220d24b5849b69e226db2b",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "infra/google-cloud/dev-122-openswx-worker/main.tf",
+        "expectedSha256": "e159e5149cad0bd233b61b823e604f6272e7f5f248cd91f7f8e509099306138c",
+        "measuredSha256AtInitialFreezeCheck": "e159e5149cad0bd233b61b823e604f6272e7f5f248cd91f7f8e509099306138c",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "infra/google-cloud/dev-122-openswx-worker/backend.tf",
+        "expectedSha256": "398ef4320db00f6bdf72ffde2bd31bc7e148806d215ad2c0774414672a74ab64",
+        "measuredSha256AtInitialFreezeCheck": "398ef4320db00f6bdf72ffde2bd31bc7e148806d215ad2c0774414672a74ab64",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "infra/google-cloud/dev-122-openswx-worker/versions.tf",
+        "expectedSha256": "e28a63e089b4f5143e20b96fb6ec7f15a4d84c5b3306cda745d63879eabd5c51",
+        "measuredSha256AtInitialFreezeCheck": "e28a63e089b4f5143e20b96fb6ec7f15a4d84c5b3306cda745d63879eabd5c51",
+        "matchedAtInitialFreezeCheck": true
+      },
+      {
+        "path": "infra/google-cloud/dev-122-openswx-worker/README.md",
+        "expectedSha256": "cf3be1f2ba89bf2e53e83bc7faa7cc02b124e79c2a90ba81c1a1abf8e3d75f5b",
+        "measuredSha256AtInitialFreezeCheck": "cf3be1f2ba89bf2e53e83bc7faa7cc02b124e79c2a90ba81c1a1abf8e3d75f5b",
+        "matchedAtInitialFreezeCheck": true
+      }
+    ],
+    "ownerManifestDeclarations": {
+      "directOwnerCases": 20,
+      "compatibilityCases": 80,
+      "ownerDeclaredResult": "PASS",
+      "typecheckExit": 0,
+      "lint": "PASS",
+      "terraformFormatCheckExit": 0,
+      "dbBoundary": "PASS",
+      "independentlyRerun": "Only the two authorized Node test files were independently run here; other manifest gate fields remain owner-declared evidence."
+    },
+    "postCorrectiveReadback": {
+      "measuredDriftCount": 2,
+      "changed": [
+        {
+          "path": "scripts/lib/dev122-openswx-bootstrap.mjs",
+          "frozenSha256": "c2521c6cbd4b96c7a3df8bd3e2b9ba6888a9170520c7e3931d780adaea6879c0",
+          "currentSha256": "85757bf750bca8d9ddf9f99d027e55399bdf2d9bb854f1485140dd72b0b90880"
+        },
+        {
+          "path": "scripts/dev122-openswx-bootstrap.test.mjs",
+          "frozenSha256": "51f8fc0879bec397004a047c2983f9e7e99de87ecd220d24b5849b69e226db2b",
+          "currentSha256": "2f86083c1ed343d48deaa878e6c824eecc138669110d00fbe45ac6b48bb0fc92"
+        }
+      ],
+      "status": "The owner-source freeze is historical for the first-pass review; changed helper/test require the parent-directed affected-only recheck. Do not infer pass for revised hashes."
+    },
+    "latchV2Recheck": {
+      "manifestPath": "output/qa/dev-122/openswx-phase2/rd-integration/owner-source-freeze-latch-v2.json",
+      "manifestSha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
+      "sourceHead": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "branch": "codex/dev122-share-metadata-closure",
+      "fileCount": 20,
+      "matches": 20,
+      "mismatches": 0,
+      "measuredAfterTest": "2026-10-06 local read-only hash pass",
+      "specSha256": "dd37f459f60c4561f64036648f045795683a77913ebacea71cfd58b381a7baa4",
+      "correctiveFiles": [
+        {
+          "path": "scripts/lib/dev122-openswx-bootstrap.mjs",
+          "sha256": "85757bf750bca8d9ddf9f99d027e55399bdf2d9bb854f1485140dd72b0b90880"
+        },
+        {
+          "path": "scripts/dev122-openswx-bootstrap.test.mjs",
+          "sha256": "2f86083c1ed343d48deaa878e6c824eecc138669110d00fbe45ac6b48bb0fc92"
+        }
+      ],
+      "priorCheckpointFileFreezeRetained": "owner-source-freeze.json SHA a04cc8c9ca7183e490f2dbc9d4c085b6974bbb12b32431501954e4fd9ee01797; original 20-test run remains historical"
+    }
+  },
+  "localResourcePlan": {
+    "path": "output/qa/dev-122/openswx-phase2/rd-integration/owner-resource-plan-local.json",
+    "sha256": "415b36a2d5af0115ebe8c221468251fdd5e19af9f57d499bdb89c77d74eebdd8",
+    "status": "LOCAL_REVIEW",
+    "releaseAuthority": false,
+    "evidenceScope": "LOCAL_SOURCE_ONLY",
+    "projectId": "jenfu-platform-prod",
+    "backendBucket": "tfstate-jenfu-platform-prod",
+    "backendPrefix": "dev-122/openswx-worker",
+    "resourceAddresses": [
+      "google_service_account.reader",
+      "google_service_account.dispatch",
+      "google_secret_manager_secret.reader_token",
+      "google_secret_manager_secret_iam_member.reader_token_access",
+      "google_project_iam_custom_role.app_readback",
+      "google_project_iam_custom_role.worker_lifecycle",
+      "google_cloud_run_v2_job.reader",
+      "google_cloud_run_v2_job_iam_member.app_run",
+      "google_cloud_run_v2_job_iam_member.app_readback",
+      "google_cloud_run_v2_job_iam_member.deployer_lifecycle",
+      "google_service_account_iam_member.deployer_reader_act_as",
+      "google_cloud_scheduler_job.dispatch"
+    ],
+    "allowedActions": [
+      "create",
+      "no-op"
+    ],
+    "excludedActions": [
+      "update",
+      "delete",
+      "Secret version in Terraform",
+      "project-wide runtime grant",
+      "WIF Logging grant",
+      "sibling resource"
+    ],
+    "resourceMutation": "NOT_RUN",
+    "initPlanApply": "NOT_RUN",
+    "scopeResult": "LOCAL_REVIEW; releaseAuthority=false; no resource creation authority was present in this local evidence."
+  },
+  "sourceReview": {
+    "result": "One P2 evidence-provenance defect found in the exact 20-file freeze; root accepted and assigned one bounded source/test correction.",
+    "passes": [
+      "Fixed AI-PDM profile and immutable in-prefix references; closed bootstrap stage enum and exact versioned-input key shapes.",
+      "Release intent, runtime config, descriptor, worker build, bootstrap, preflight, paused/drained, canonical activation and daily provenance are joined by source revision, archive/profile/plan hashes, exact refs, image/job and actor.",
+      "Capacity gate requires AI-PDM source-bound PASS within the 600-second age bound.",
+      "The durable finite request is recorded before :run; unknown POST is reconciled against an exact bounded execution listing; replay does not issue :run again or assert empty-claim proof.",
+      "Unknown Job PATCH is read back and never repeated; unknown Scheduler resume is read back, paused, and never repeated; credential addVersion uses a hash-only request latch and numeric exact-version readback.",
+      "Daily refresh reuses prior numeric credential versions, verifies the prior live image and resource hashes, and its focused test observes zero :addVersion, Terraform and Scheduler resume calls.",
+      "Normal and selftest templates require numeric secret versions; no mutable latest alias. Selftest carries no reader token.",
+      "Credential payloads are used in memory; request/receipt evidence retains numeric names and hashes, not token/registry payloads.",
+      "Worker proof is closed to exact project/location/job/execution stdout log scope and a unique exact empty-state marker before activation; WIF finite evidence remains ACTIVATION_PENDING.",
+      "Terraform plan guard is limited to the twelve named AI-PDM resource addresses and create/no-op actions; current local resource plan is explicitly non-authoritative."
+    ],
+    "limitations": [
+      "All API/provider behaviors in the two Node files are in-memory/mock tests, not real OAuth Principal, Cloud, Terraform, Secret Manager, Scheduler or Cloud Run proof.",
+      "No resource/provider/Secret changes were executed; the local review plan is not authority to create resources.",
+      "No full DEV117 gates, build, deployment, production rollout, Cloud run, or human F01F validation was executed."
+    ]
+  },
+  "focusedTestEvidence": {
+    "command": "node --test scripts/dev122-openswx-owner-release.test.mjs scripts/dev122-openswx-bootstrap.test.mjs",
+    "count": 20,
+    "passed": 20,
+    "failed": 0,
+    "nodePid": 143228,
+    "sourceState": "The initial run was against the original 20/20 matching owner-source freeze, before parent corrective edits.",
+    "transport": "In-memory/mocked transport only; no provider network.",
+    "tempRoot": "C:\\Users\\user\\AppData\\Local\\Temp\\dev122-owner-qc-luna-20261006-26d8db670bc5409086b4db7f2aee53e8",
+    "pdmDataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\dev122-owner-qc-luna-20261006-26d8db670bc5409086b4db7f2aee53e8\\data",
+    "pdmRepositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\dev122-owner-qc-luna-20261006-26d8db670bc5409086b4db7f2aee53e8\\repository",
+    "port": "none",
+    "primaryWorktreeSqlite": "absent before and after",
+    "tempCleanup": "exact task TEMP root removed; readback absent",
+    "nextStep": "Recheck only parent-frozen latch helper/test hashes and affected cases; no unnecessary 20-test rerun."
+  },
+  "finding": {
+    "id": "OWNER-P2-RESOURCE-APPLY-LATCH-JOIN",
+    "priority": "P2",
+    "sourcePath": "scripts/lib/dev122-openswx-bootstrap.mjs",
+    "sourceSha256AtFinding": "c2521c6cbd4b96c7a3df8bd3e2b9ba6888a9170520c7e3931d780adaea6879c0",
+    "sourceLine": 99,
+    "assertion": "When a resource apply request latch already existed, original source validated only matching sourceRevision and resourcePlanHash before resource readback. It did not join schemaVersion, current descriptorRef, approvedPlanRef, actor, binaryPlanSha256, exact changes, project/backend, or request time.",
+    "impact": "A stale/malformed latch with the same sourceRevision/resourcePlanHash could be accepted; after exact mocked readback the code path writes a current APPLIED / PRODUCTION_PROVIDER receipt and does not bind that receipt to the latched binary plan. The replay path did not repeat Terraform apply, so the defect is provenance binding, not a blind mutation retry.",
+    "sourceLevelCounterexample": {
+      "requestSourceRevision": "exact match to current descriptor",
+      "requestResourcePlanHash": "exact match to current approved plan",
+      "requestSchemaVersion": "wrong-schema",
+      "requestDescriptorRef": "foreign descriptor reference",
+      "requestApprovedPlanRef": "foreign approval reference",
+      "requestActor": "other-project@example.invalid",
+      "requestBinaryPlanSha256": "not-a-sha256",
+      "requestChanges": [
+        {
+          "address": "google_secret_manager_secret_version.forbidden",
+          "actions": [
+            "delete"
+          ]
+        }
+      ],
+      "expected": "Reject OPENSWX_RESOURCE_REQUEST_JOIN_INVALID before any provider readback or APPLIED receipt.",
+      "actualOriginalBranch": "Only the two sourceRevision/resourcePlanHash fields were tested, followed by exact provider readback; on successful readback, APPLIED / READBACK_ONLY / PRODUCTION_PROVIDER receipt was emitted.",
+      "executionStatus": "STATIC_COUNTEREXAMPLE_FROM_FROZEN_SOURCE; a live dynamic mock repro was not run because root changed the frozen helper before the harness ran. No real Terraform or provider was called."
+    },
+    "ownerDisposition": "Root accepted this finding and assigned a bounded helper plus negative-test correction.",
+    "correctiveRecheck": "PASS_FINAL_LATCH_V2_TARGETED_14_CASES",
+    "correctiveRecheckScope": "The original P2 and false-positive-fixture/first-failure history above remain preserved. Final 20-file freeze matched exactly; latch-v2 rejects all 15 tampered request/binary-plan joins before provider readback and valid replay is readback-only. This closes only the bounded provenance finding, not the whole owner workflow, package, or release."
+  },
+  "updatedOn": "2026-10-06",
+  "historicalCheckpointSha256": "541ae318deee58fd672433b48375a47dddae5f2d2b0ec411e1ad9eff28af32bb",
+  "latchV2CorrectiveRecheck": {
+    "command": "node --test scripts/dev122-openswx-bootstrap.test.mjs",
+    "sourceFile": "scripts/dev122-openswx-bootstrap.test.mjs",
+    "sourceSha256": "2f86083c1ed343d48deaa878e6c824eecc138669110d00fbe45ac6b48bb0fc92",
+    "helperSha256": "85757bf750bca8d9ddf9f99d027e55399bdf2d9bb854f1485140dd72b0b90880",
+    "tests": 14,
+    "passed": 14,
+    "failed": 0,
+    "skipped": 0,
+    "focusedCases": [
+      "resource latch replay rejects stale or tampered complete plan binding before provider readback or sealing",
+      "valid resource proof replay reads provider only and preserves original plan/request/receipt timestamps"
+    ],
+    "negativeRequestVariants": 15,
+    "negativeResult": "Each malformed binding, including well-formed alternate SHA-256, create/no-op disagreement, foreign refs/actor/project/backend, malformed timestamp, extra/missing fields and missing/corrupt binary-plan reference, was rejected before any provider mock call or new receipt.",
+    "positiveReplay": "READBACK_ONLY; only mocked GET; original request/plan bytes and prior receipt ref/observedAt unchanged",
+    "transport": "in-memory/mocked provider only; no real Terraform, OAuth, Cloud, Secret, Scheduler, Job, or CAD",
+    "processPid": 44328,
+    "port": "none",
+    "pdmDataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\aipdm-dev122-latch-v2-qc-7fe4053aa1b645069650de18219feb83\\data",
+    "pdmRepositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\aipdm-dev122-latch-v2-qc-7fe4053aa1b645069650de18219feb83\\repository",
+    "tempCleanup": "exact task TEMP root removed after exit",
+    "primaryDatabase": "not opened by test; worktree SQLite remains absent"
+  },
+  "artifactQcNextStatus": "INDEPENDENT_LINUX_ARTIFACT_RECHECK_BLOCKED_BEFORE_GO_BY_GOVERNOR_SESSION_LOOKUP; no runner active, no gate, no container. Separate artifact checkpoint will preserve root-read evidence and all failed admissions."
+}

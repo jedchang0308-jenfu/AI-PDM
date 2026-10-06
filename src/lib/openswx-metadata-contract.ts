@@ -5,7 +5,13 @@ export const OPENSWX_LIMITS = Object.freeze({ sources: 8, sourceBytes: 256 * 102
 export class OpenSwxMetadataError extends Error {
   constructor(readonly code: string, readonly status = 409) { super(code); }
 }
-export type OpenSwxSource = Readonly<{ id: string; fileAssetId: string; sha256: string; bytes: number; extension: string; storageGeneration: string | null }>;
+export type OpenSwxSource = Readonly<{ id: string; fileAssetId: string; sha256: string; bytes: number; extension: string; storageGeneration: string | null; sourceRole?: string; sortOrder?: number }>;
+export const OPENSWX_CONTEXT_TYPES = ["drawing_number", "drawing_revision", "revision_package", "candidate_revision"] as const;
+export type OpenSwxContextType = typeof OPENSWX_CONTEXT_TYPES[number];
+export function requireOpenSwxContext(type: unknown, id: unknown) {
+  if (!OPENSWX_CONTEXT_TYPES.includes(type as OpenSwxContextType) || typeof id !== "string" || !/^[A-Za-z0-9._:-]{1,200}$/u.test(id)) throw new OpenSwxMetadataError("OPENSWX_CONTEXT_INVALID", 400);
+  return { sourceContextType: type as OpenSwxContextType, sourceContextId: id };
+}
 export type OpenSwxInitiator = Readonly<{ principalId: string; employeeId: string; pdmUserId: string; companyId: string; identityIssuer: string; identitySubject: string; profileVersion: number; accountLifecycleVersion: number; authEpoch: number; authenticatedAt: string; sessionIssuedAt: string }>;
 export type OpenSwxFence = Readonly<{ jobId: string; companyId: string; attempt: number; sourceSetFingerprint: string; readerCommit: string; executionName: string }>;
 export type OpenSwxProperty = { name: string; storedValue: string; valueAvailability: "stored_string" | "stored_empty_string"; scope: "document_global" | "configuration_effective_merged"; configurationIndex?: number; configurationName?: string; propertyType: { availability: "unsupported_by_public_api" }; linkedExpression: { availability: "unsupported_by_public_api" }; evaluatedValue: { availability: "unsupported_by_public_api" } };

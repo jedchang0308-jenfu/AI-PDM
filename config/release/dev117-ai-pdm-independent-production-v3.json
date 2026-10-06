@@ -260,6 +260,9 @@
       "PDM_ENABLE_GCP_SECRET_READS": "true",
       "PDM_ENABLE_GCP_SECRET_WRITES": "true"
     },
+    "optionalExtensions": {
+      "openswxDispatch": { "name": "PDM_OPENSWX_DISPATCH_ENABLED", "off": "0", "on": "1", "binding": "openswxWorkerRef" }
+    },
     "controlledValues": {
       "PDM_JENFU_SSO_HANDOFF_MODE": {
         "defaultValue": "off",
@@ -440,7 +443,7 @@
       {
         "order": 32,
         "path": "db/postgres/082_dev122_openswx_auxiliary_jobs.sql",
-        "sha256": "684054b19706aafeb8991c237bdbda1157b9e223ed962ecddd57ad10fee87885"
+        "sha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000"
       }
     ]
   },

@@ -1,0 +1,239 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-phase2-independent-qc.v1",
+  "createdOn": "2026-10-06",
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "phase": "Phase 2 local readonly auxiliary",
+  "role": "Independent QC Luna",
+  "verdict": "CORRECTIVE_BATCH_2_AFFECTED_UNIT_SLICE_PASS; FULL_PHASE2_QC_PENDING; WHOLE_DEV122_NOT_ACCEPTED",
+  "scope": {
+    "authorizedProject": "AI-PDM only",
+    "productMutation": "none",
+    "qcWrite": ".ai-doc/qa/DEV-122-openswx-phase2-independent-qc-2026-10-06.json only",
+    "executionLimits": [
+      "no browser/runtime",
+      "no PostgreSQL runtime",
+      "no Docker/container runner",
+      "no Cloud/provider calls or mutations",
+      "no real keys or local ADC reads",
+      "no CAD execution"
+    ],
+    "rootProductOwnership": "Root/RD remains sole product writer; all other dirty paths preserved."
+  },
+  "binding": {
+    "canonicalRepository": "C:\\VIBE CODING\\AI_PDM",
+    "executionWorktree": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+    "branch": "codex/dev122-share-metadata-closure",
+    "head": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+    "expectedHead": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+    "headMatches": true,
+    "originalIntegration": {
+      "handoffPath": "output/qa/dev-122/openswx-phase2/rd-integration/integration-handoff.json",
+      "handoffSha256": "526a4f2a03cd5c407c73383e40cadae70009ba44f905cbb817d6667ef5a9b47a",
+      "sourceManifestPath": "output/qa/dev-122/openswx-phase2/rd-integration/product-source-hashes.json",
+      "sourceManifestSha256": "f029c599138ac1c2437a1029ac281a257188be585dcdf2ecedb3e913f26b8b6e",
+      "originalSourceCount": 44,
+      "reconciliationRule": "Compare the original 44-file manifest, overriding the ten files named in the corrective-batch-2 freeze with that freeze SHA; remaining paths use original manifest SHA.",
+      "reconciledMatchedCount": 41,
+      "reconciledMismatchCount": 3,
+      "unresolvedSourceBindings": [
+        {
+          "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+          "expected": "40c100486e98b6935dfbc54d0aa826ccbf7adbd7fd10459c5013887fa1ecc36e",
+          "actual": "0f1ef7397db68070bb3365054d1502ed3c447c250d414c7542734b0fe7d9d391",
+          "scope": "outside corrective-batch-2 ten-file binding"
+        },
+        {
+          "path": "scripts/lib/openswx-reader/auxiliary-job.test.mjs",
+          "expected": "46b71fb57fbb78c3c5823e901af3883e150d541d433c2deb40c37c5581d425d5",
+          "actual": "35920be146e513de480f88063ec405912f758601a658ae5875daff3eca6e555f",
+          "scope": "outside corrective-batch-2 ten-file binding"
+        },
+        {
+          "path": "scripts/run-openswx-metadata-job.mjs",
+          "expected": "6bd077e8efba9cd25c0da04eb6b2838788a19c6a73534dc03331ab03114da32e",
+          "actual": "e88f8716eb9a2de8726c9aedc96e9b0417538da0a06a9a5dedb2198a0dfab7b6",
+          "scope": "outside corrective-batch-2 ten-file binding"
+        }
+      ],
+      "status": "NOT_FULLY_REBOUND_41_OF_44_MATCH; three current paths outside batch-2 binding need owner/source-artifact reconciliation."
+    },
+    "correctiveBatch2": {
+      "path": "output/qa/dev-122/openswx-phase2/rd-integration/corrective-batch2-freeze.json",
+      "sha256": "ab5132a2a93fa8615e44b805401d60d795390c5fba7da6de5fab34f50aefa490",
+      "expectedHead": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+      "sourceHashCount": 10,
+      "sourceHashes": [
+        {
+          "path": "src/lib/openswx-metadata.ts",
+          "sha256": "0d306029337444cd51b2167d50f491e593f9dbdc0c994fbe739557f383753d86"
+        },
+        {
+          "path": "src/lib/openswx-metadata-dispatch.ts",
+          "sha256": "7578e67a3d52d9f91bd288680d21a6fce1d3e63a1cdaa1ccce53afb13c817d9e"
+        },
+        {
+          "path": "src/lib/repositories/openswx-metadata-async-repository.ts",
+          "sha256": "21ecf0a9816702409ab5bcabc9548048c75962a14bc5b452eede833a9a243116"
+        },
+        {
+          "path": "src/lib/openswx-metadata.api.test.ts",
+          "sha256": "671a2d27de07921408c4521eedd67f0d26b2bd4ba8c0b89203f5e6c36ed101d9"
+        },
+        {
+          "path": "src/lib/openswx-metadata-dispatch.test.ts",
+          "sha256": "277f5593adce5f3f9c6bddc3ef1e15ee88fed90a22cacd99f96b42e1cd6a4eb5"
+        },
+        {
+          "path": "src/lib/openswx-metadata.postgres-contract.test.ts",
+          "sha256": "447090ad5a057eea845aed55966e13b194dd34703a85c5fe18b2363b0a335c3e"
+        },
+        {
+          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
+          "sha256": "9d460651fbfda941e10dd36e666e1c31e3d925f38bb5ee7ae92c44a6f89af657"
+        },
+        {
+          "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts",
+          "sha256": "d1500050ee21728256251b92f5855e582451f943db160c42cf97d95252fc326d"
+        },
+        {
+          "path": "src/components/drawing-recognition-workspace-panel.tsx",
+          "sha256": "a07eaa3171e224fa02c7442c2c5e3892851355a8a8c5c75d9d43cac736a0e7ba"
+        },
+        {
+          "path": "src/components/drawing-recognition-workspace-panel.openswx.test.tsx",
+          "sha256": "e79a138ebe524e2be9572fa5d8bc77881f7b73040d4efcb02b28ff391e23c558"
+        }
+      ],
+      "allTenHashesMatch": true,
+      "ownerReportedTargetedChecks": {
+        "tests": "47/47",
+        "typecheckExit": 0,
+        "lintExit": 0,
+        "dbBoundary": "PASS",
+        "routeMap": {
+          "files": 140,
+          "methods": 161,
+          "entries": 171
+        },
+        "nativeAffected": "NOT_RUN_ROOT_OWNED"
+      }
+    }
+  },
+  "historicalFirstRound": {
+    "sourceBinding": {
+      "handoffSha256": "526a4f2a03cd5c407c73383e40cadae70009ba44f905cbb817d6667ef5a9b47a",
+      "sourceManifestSha256": "f029c599138ac1c2437a1029ac281a257188be585dcdf2ecedb3e913f26b8b6e",
+      "frozenFiles": 44
+    },
+    "independentTestSummary": {
+      "pass": 72,
+      "skipped": 3,
+      "failed": 0,
+      "disposition": "HISTORICAL_PRE_CORRECTIVE_SOURCE_ONLY_NOT_REUSED_AS_CURRENT_PASS",
+      "limitations": [
+        "3 PostgreSQL cases skipped because fixture URL was unset",
+        "synthetic seams are not real Principal/native/Linux/browser proof"
+      ]
+    },
+    "findings": [
+      {
+        "id": "P1_RUN_ONLY_DUPLICATE_RESULT_LEAK",
+        "initialSource": "src/lib/openswx-metadata.ts",
+        "initialSha256": "e9955cea8cc8e0237e0a631b7ee8fed2e751b61e125365cfa705be1e131a4f9b",
+        "initialEvidence": "Human run-permission POST/cancel could return a completed deduplicated job projection containing resultJson, while result GET separately required review.",
+        "currentDisposition": "CORRECTED_IN_CURRENT_UNIT_SLICE; actual successful Principal authorization/API fixture remains NOT_VERIFIED."
+      },
+      {
+        "id": "P2_QUEUED_TERMINAL_FALSE_WAITING",
+        "initialSource": "src/lib/openswx-metadata-dispatch.ts plus src/components/drawing-recognition-workspace-panel.tsx",
+        "initialUiSha256": "bc44973eff9a7e4876007bfe11abd1c39fee23ef156660a42ee850994ec5185a",
+        "initialEvidence": "terminal dispatch with queued status was displayed as scheduled waiting although it would never be dispatched again.",
+        "currentDisposition": "CORRECTED_AND_COVERED_BY_TARGETED_UI_TEST."
+      },
+      {
+        "id": "P2_ACTION_ERROR_CLEARED_BY_REFRESH",
+        "initialSource": "src/components/drawing-recognition-workspace-panel.tsx",
+        "initialEvidence": "A successful GET after a failed action erased the action error.",
+        "currentDisposition": "CORRECTED_AND_COVERED_BY_TARGETED_UI_TEST; action and refresh error state are separate."
+      },
+      {
+        "id": "P2_UNCONFIGURED_CTA_ENABLED",
+        "initialSource": "src/components/drawing-recognition-workspace-panel.tsx",
+        "initialEvidence": "Service-unconfigured copy could coexist with an enabled enqueue CTA.",
+        "currentDisposition": "CORRECTED_AND_COVERED_BY_TARGETED_UI_TEST; configured=false disables CTA and retained queued work is shown."
+      },
+      {
+        "id": "P2_TERMINAL_RETRY_CTA",
+        "initialSource": "src/components/drawing-recognition-workspace-panel.tsx",
+        "initialEvidence": "Failed/cancelled immutable binding could leave a CTA that only deduplicated back to its terminal row.",
+        "currentDisposition": "CORRECTED_IN_UI; completed/failed/cancelled rows expose no retry CTA and UI states this binding cannot be rescheduled."
+      },
+      {
+        "id": "P2_RESULT_PROVENANCE_NOT_SURFACED",
+        "initialSource": "src/components/drawing-recognition-workspace-panel.tsx",
+        "initialEvidence": "Configuration-name availability, inferred document-type provenance, version availability and diagnostics were not visible.",
+        "currentDisposition": "CORRECTED_AND_COVERED_BY_TARGETED_UI_TEST; the listed provenance fields and diagnostics render."
+      },
+      {
+        "id": "P2_STALE_SOURCE_OLD_JOB_CANCEL",
+        "initialSource": "src/lib/openswx-metadata.ts",
+        "initialEvidence": "Current-selection cancel lookup uses the current source fingerprint and cannot address an old job after source drift.",
+        "currentDisposition": "BOUNDED_BY_DESIGN_FOR_DUE_QUEUED_ROWS: no historical jobId cancellation override; authorizeDispatch rechecks current source/authority and dispatchBlocked CAS fails+terminalizes before provider POST. Exact active/unknown provider terminal readback and native affected proof remain ROOT_OWNED_NOT_RUN; no permanent-running counterexample was found in this bounded source review."
+      }
+    ]
+  },
+  "independentCorrectiveBatch2": {
+    "testCommand": ".\\node_modules\\.bin\\vitest.cmd run --config vitest.config.ts --configLoader runner --exclude '.worktrees/**' src/lib/openswx-metadata.test.ts src/lib/openswx-metadata.api.test.ts src/lib/openswx-metadata-dispatch.test.ts src/components/drawing-recognition-workspace-panel.openswx.test.tsx --reporter=verbose",
+    "runner": "Vitest 4.1.10; config loader runner",
+    "filesPassed": 4,
+    "testsPassed": 47,
+    "testsFailed": 0,
+    "skipped": 0,
+    "files": [
+      "src/lib/openswx-metadata.test.ts",
+      "src/lib/openswx-metadata.api.test.ts",
+      "src/lib/openswx-metadata-dispatch.test.ts",
+      "src/components/drawing-recognition-workspace-panel.openswx.test.tsx"
+    ],
+    "outcomes": {
+      "runPermissionDuplicateEnqueueCancel": "PASS_STATUS_ONLY_PROJECTION_TEST_SEAM; real Principal success path NOT_VERIFIED",
+      "dispatchAuthorityBeforeProviderAndBlockedCAS": "PASS_UNIT_TEST_SEAM; exact native provider/runtime behavior NOT_VERIFIED",
+      "uiTerminalDispatchActionErrorUnconfiguredTerminalCtaProvenance": "PASS_STATIC_RENDER_AND_REDUCER_TESTS; real browser UI NOT_RUN",
+      "partialReadonlyStoredProperties": "PASS_UNIT_TEST_SEAM; F01F/native semantic equivalence NOT_RUN"
+    },
+    "runtime": {
+      "project": "AI-PDM",
+      "purpose": "independent focused Phase-2 core/API/dispatch/UI tests",
+      "port": "none",
+      "owner": "Vitest/Node process tree; command exited before cleanup",
+      "pdmDataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\dev122-phase2-independent-qc-20261006-final\\data",
+      "pdmRepositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\dev122-phase2-independent-qc-20261006-final\\repository",
+      "mutationScope": "Only the two task-owned TEMP directories.",
+      "primarySqliteBeforeAfter": "Canonical and execution-worktree data/ai-pdm.sqlite ABSENT before and after.",
+      "databaseAndCloudEnv": "PostgreSQL URL/connection environment and credential-override environment unset; no local ADC file opened.",
+      "cleanup": "Exact task TEMP root recursively removed after path/reparse-point check; readback absent. No port/runtime left."
+    },
+    "excludedFromThisRun": [
+      "src/lib/openswx-metadata.postgres-contract.test.ts: not run; no native PostgreSQL PASS inferred.",
+      "root Linux finite worker/artifact evidence: not run by QC.",
+      "normal browser UI, successful current Principal API fixture, Cloud/provider, F01F: not run."
+    ]
+  },
+  "remainingEvidence": {
+    "nativePostgres": "CURRENT_CORRECTIVE_SOURCE: root-owned affected native cases NOT_RUN/awaiting evidence. Historical c1e10c7 context subset is owner evidence for its exact older source binding only, not this corrected candidate.",
+    "linuxWorkerArtifact": "ROOT_OWNED_EVIDENCE_NOT_INCLUDED_IN_THIS_QC_RUN; do not infer from unit tests or old image.",
+    "realPrincipalApiSuccess": "NOT_VERIFIED; denial/mock seams do not prove a successful current Principal session.",
+    "browserUI": "NOT_RUN; static render tests do not establish interaction, viewport or accessibility acceptance.",
+    "dispatchProviderAndScheduler": "Current provider/cloud execution NOT_AUTHORIZED_NOT_RUN; unknown/active state requires exact provider terminal readback.",
+    "cloud": "NOT_AUTHORIZED_NOT_RUN",
+    "F01F": "NOT_RUN_HUMAN_OWNED",
+    "wholeDev122": "NOT_ACCEPTED; DEV-7 issues/29 historical groups remain outside this bounded QC."
+  },
+  "limits": [
+    "47 targeted tests validate only the listed source snapshot and mocked/unit seams.",
+    "Three current paths remain unmatched to the original 44-file source manifest after applying the ten-file corrective freeze; overall source/package binding is not fully reconciled.",
+    "No native PostgreSQL, Linux image/worker, normal browser, real successful Principal API, Cloud provider, or human F01F evidence is inferred.",
+    "Partial OpenSWX results remain informational and do not establish native semantic equivalence."
+  ]
+}
