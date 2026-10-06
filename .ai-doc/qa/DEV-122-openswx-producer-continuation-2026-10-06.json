@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "aipdm.dev122.producer-continuation.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122#openswx-readonly-auxiliary",
+  "sourceBase": "f1940bb90c4524c644cdae032f7a0aef60dd242c",
+  "branch": "codex/dev122-producer-source-reader",
+  "singleProductWriter": "root",
+  "status": "SOURCE_VALIDATION_AND_INDEPENDENT_QC_PASS_REQUIRED_CI_PENDING",
+  "authorization": "Existing original 12 and exact five human approvals; same-task bounded corrective cycle",
+  "priorOfficialCi": {
+    "pr": 225,
+    "prRun": 37474507706,
+    "mainRun": 37475684206,
+    "status": "SUCCESS"
+  },
+  "actual": {
+    "A08OwnerRun": 37477531200,
+    "A08": "BUILD_SUCCESS_RAW_HIGH_CRITICAL_ZERO",
+    "fiveIam": "APPLIED",
+    "fiveIamRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-OPENSWX-READBACK-IAM-20261006-R01.json",
+      "sha256": "c99892c4d12cd3630b8e97ea29d60187b0cd823cbd41bc29b2bc0b1447a9202f"
+    },
+    "R06": "RESOURCE_READBACK_BOOTSTRAP_PAUSE_PASS",
+    "tokenVersion": 1,
+    "registryVersion": 3,
+    "B05": "LOCAL_RUNTIME_CONFIG_PREREQUISITE_FAILED_OPENSWX_IAM_SOURCE_READER_REQUIRED_NO_CAPSULE",
+    "scheduler": "PAUSED",
+    "servingRevision": "ai-pdm-prod-5c8854b292a1",
+    "trafficPercent": 100,
+    "tags": 0,
+    "migration082": "NOT_RUN",
+    "candidate": "NOT_RUN",
+    "activation": "NOT_RUN"
+  },
+  "correction": {
+    "producer": "Forward existing frozen source reader at two full-evidence caller boundaries",
+    "completedFirst": "Bounded immutable predecessor proof with exact inherited finite execution inventory",
+    "originalTwelve": "READBACK_ONLY_NO_TERRAFORM_REAPPLY",
+    "credentials": "REUSE_SEALED_V1_V3_NO_NEW_ISSUANCE",
+    "ownerIamProof": "GCS_ONLY",
+    "iamPackage": "EXACT_SAME_FIVE_CREATE_OR_NO_OP_OWN_STATE_PREFIX"
+  },
+  "validation": {
+    "existingRegressions": {
+      "tests": 59,
+      "pass": 59,
+      "fail": 0,
+      "scope": "HISTORICAL_MOCK_BASELINE_BEFORE_FINAL_CLOCK_HARDENING",
+      "receipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B06-baseline59-tests-runtime.json",
+      "cleanup": "OWN_PROCESS_AND_TEMP_RELEASED",
+      "receiptSha256": "57858a364a651be96c2e01624c0818bd2f467f67c658174466d4cd2d7a75f623",
+      "stdoutReceipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B06-baseline59-tests-stdout.raw.log",
+      "stdoutSha256": "3be1a9ecfc2acdde5f590503b579f10a66e5e05a7bb478687046a0e04a549e3a",
+      "testedHashes": {
+        "scripts/dev122-openswx-readback-iam.mjs": "df6b4914785a91a254fc23cab96c5dcc476d247122d4f6c16311430f2c6bfc94",
+        "scripts/lib/dev012-owner-prerequisite-producer.mjs": "17b8ae98e22592bdc9dbb3342b32529400ae48721436173deeead82d504938f5",
+        "scripts/dev122-openswx-owner-release.test.mjs": "6b3754cb931f3ab855527d55150bece85f7cd922a671b7e256ce710a245a6457",
+        "scripts/dev122-openswx-bootstrap.test.mjs": "94e094cd308c5324576653fe2e612352dd46d27693fe675c5bf69d82901f4311",
+        "scripts/lib/dev122-openswx-bootstrap.mjs": "2fa52a286d526407a1603f8f433fd5f8117a3e02ea382fe1fcf2571b3d1de5b3",
+        "scripts/lib/dev122-openswx-readback-iam.mjs": "952b68296e8b3f9c7b463b92761916b58eb7bfaaece6fe2e7d8e2acffe0ca5af",
+        "scripts/dev122-openswx-bootstrap.mjs": "c664f7f618d8b3a8a42bfcdfa96d1043b62b8389e8dcab2fafe7102a15babcda",
+        "scripts/dev012-owner-prerequisite-producer.test.mjs": "2383de8d8341a5508d81224de9bc21b6027e30362b9fedae279a1c5e06cda467",
+        "scripts/lib/dev122-openswx-owner-release.mjs": "7d219466e4ac4c7eb958eb59055d36369fd069464df212c9765ce17c1f42242a"
+      }
+    },
+    "newFocusedCases": {
+      "scope": "MOCK_SOURCE_ONLY_NOT_PRODUCTION",
+      "tests": 67,
+      "pass": 67,
+      "fail": 0,
+      "runtimeReceipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B06-source-reader-tests-runtime.json",
+      "runtimeReceiptSha256": "5ac99163dba9e3c107ec9028803a8d5866f3cd042f787648adac5b336f8a4c06",
+      "stdoutSha256": "1dec08aa92ebce0d4b4e59f713834763b6c76232f5d9fdc54930a1dfb8a36f0e",
+      "lintReceiptSha256": "0cae25a94cfa255e95a88c68300ebe7116b26c41261f965f057b0a2e56470dd9",
+      "testedHashes": {
+        "scripts/lib/dev122-openswx-bootstrap.mjs": "4a526d2ed96130952f7c596713e56f4174fea62e5c0ad7144f231a4182c6ba3b",
+        "scripts/dev122-openswx-bootstrap.mjs": "c664f7f618d8b3a8a42bfcdfa96d1043b62b8389e8dcab2fafe7102a15babcda",
+        "scripts/dev122-openswx-owner-release.test.mjs": "6b3754cb931f3ab855527d55150bece85f7cd922a671b7e256ce710a245a6457",
+        "scripts/dev122-openswx-bootstrap.test.mjs": "2af9ef836bea85d9ba4efb46525ce62e81c28902a3219307e2265474d8342034",
+        "scripts/dev122-openswx-readback-iam.mjs": "df6b4914785a91a254fc23cab96c5dcc476d247122d4f6c16311430f2c6bfc94",
+        "scripts/dev012-owner-prerequisite-producer.test.mjs": "2383de8d8341a5508d81224de9bc21b6027e30362b9fedae279a1c5e06cda467",
+        "scripts/lib/dev122-openswx-owner-release.mjs": "7d219466e4ac4c7eb958eb59055d36369fd069464df212c9765ce17c1f42242a",
+        "scripts/lib/dev122-openswx-readback-iam.mjs": "952b68296e8b3f9c7b463b92761916b58eb7bfaaece6fe2e7d8e2acffe0ca5af",
+        "scripts/lib/dev012-owner-prerequisite-producer.mjs": "17b8ae98e22592bdc9dbb3342b32529400ae48721436173deeead82d504938f5"
+      },
+      "cleanup": "OWN_PROCESS_AND_TEMP_RELEASED"
+    },
+    "independentLunaQc": {
+      "status": "SOURCE_QC_PASS",
+      "model": "gpt-6-luna",
+      "scope": "SOURCE_ONLY_NOT_PRODUCTION",
+      "freezeSha256": "45c45c1693a611c6f30fbd2e97948a7a32ba1832afb104a74f47dfccbbcbd963",
+      "receipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B06-source-reader-final-qc.json",
+      "receiptSha256": "cbf2ae0df4e6bd6b79c75db16657aeb9450330a78cd6205a5968bd5d2502cf24",
+      "remainingP0P1P2": 0
+    },
+    "newRequiredCi": "PENDING",
+    "qcHistory": [
+      {
+        "freezeSha256": "cee75913e78ba4e1138d0eb89fdab1465c1bf31abffa484184d0d2e2a8845ef7",
+        "decision": "SOURCE_QC_FAIL",
+        "remainingP2": 1,
+        "finding": "The historical59 baseline referred to the overwritten final67 runtime path; fixed to preserved59 bytes only",
+        "receipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B06-source-reader-qc-v1-metadata-fail.json",
+        "receiptSha256": "993b68078cb27f32409ef7992dd739f776d04702800cc2f955f4d28a3dbf6adc"
+      }
+    ]
+  },
+  "eightCadNormalCompletedUi": "NOT_RUN",
+  "nativeF01F": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+  "externalSupplierReply": "DISABLED_DEFERRED",
+  "wholeDev": "NOT_ACCEPTED",
+  "techLeadReview": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B06-successor-source-review.json",
+    "sha256": "4fa6a3cdd3845dbe2525ab383823c4b3fc6f0b4715597ddacfe451a252a861f3",
+    "decision": "SOURCE_REVIEW_PASS_NO_P0_OR_P1_IN_BOUNDED_SCOPE; TARGETED_TESTS_67_OF_67_PASS; LINT_PENDING"
+  }
+}

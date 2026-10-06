@@ -274,7 +274,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     if (input.openswxWorkerRef) {
       if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
       const descriptor = await readWorkerDescriptor({ transport, ref: input.openswxWorkerRef, profileBytes: readWorkerSource(WORKER_PROFILE_PATH, sourceLock.sourceRevision), sourceRevision: sourceLock.sourceRevision })
-      if (descriptor.value.purpose === 'full') { await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile); enabled = '1' }
+      if (descriptor.value.purpose === 'full') { await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource); enabled = '1' }
       openswxWorker = { descriptorRef: descriptor.ref, sourceRevision: sourceLock.sourceRevision, workerProfileSha256: descriptor.value.workerProfileSha256, purpose: descriptor.value.purpose }
     }
     if (input.plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED != null && input.plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED !== enabled) fail('OPENSWX_RUNTIME_BINDING_INVALID')
@@ -362,7 +362,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
       const descriptor = await readWorkerDescriptor({ transport, ref: input.openswxWorkerRef, profileBytes: readWorkerSource(WORKER_PROFILE_PATH, prerequisiteValues.sourceLock.sourceRevision), sourceRevision: prerequisiteValues.sourceLock.sourceRevision })
       workerDescriptor = descriptor.value
-      if (workerDescriptor.purpose === 'full') await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile)
+      if (workerDescriptor.purpose === 'full') await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource)
     }
     const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent, workerDescriptor })
     return transport.putJson(uri('release-intent'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })

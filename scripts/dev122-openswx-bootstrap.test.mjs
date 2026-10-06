@@ -3,12 +3,15 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE,
+import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE,
   assertReadbackIamTerraformPlan, readbackIamPlan, expectedReadbackJobBindings,
   readReadbackIamReceipt, assertReadbackIamReceipt, executeReleaseReadbackIam } from './lib/dev122-openswx-readback-iam.mjs'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources } from './lib/dev122-openswx-bootstrap.mjs'
-import { WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite } from './lib/dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite } from './lib/dev122-openswx-owner-release.mjs'
+
+import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
+import { buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 
 // Recorded provider control tests: no real Principal, OAuth, Cloud, Terraform or CAD proof.
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url)), profile = JSON.parse(profileBytes)
@@ -861,5 +864,340 @@ test('incomplete registry progress is limited by each fixed fresh recovery input
     await assert.rejects(invoke(), { code: 'OPENSWX_REGISTRY_CREDENTIAL_AUTHORITY_INVALID' })
     assert.deepEqual([...h.objects.keys()].sort(), before)
     assert.ok(h.provider.calls.every(row => !row.url.endsWith(':addVersion') && !row.url.endsWith(':run') && row.options.method !== 'PATCH'))
+  }
+})
+
+
+const producerReleaseId = 'DEV122-QA-SOURCE-READER'
+
+async function completedR06ProducerFixture() {
+  const h = await completedFirstHarness()
+  const resources = await executeOpenSwxResources(h.nextArgs)
+  const bootstrapInputRef = await h.put('producer-r06-bootstrap-input', {
+    schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef: h.nextDescriptorRef,
+    workerBuildRef: h.nextBuildRef, deadlineAt: deadline(), receiptId: 'producer-r06-bootstrap',
+    bootstrapKind: 'FIRST_CREATE', resourceApplyRef: resources.ref,
+    currentRegistryVersion: resources.value.completedFirstBootstrap.partialFirstBootstrap.priorRegistryVersion,
+  })
+  const bootstrap = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapInputRef,
+    transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  await new Promise(resolve => setTimeout(resolve, 30))
+  const pauseInputRef = await h.put('producer-r06-pause-input', {
+    schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: h.nextDescriptorRef,
+    workerBuildRef: h.nextBuildRef, deadlineAt: deadline(), receiptId: 'producer-r06-pause',
+    drainKind: 'FIRST_PROVIDER_ONLY', resourceApplyRef: resources.ref,
+  })
+  const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseInputRef,
+    transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  const full = { ...h.next.value, purpose: 'full', workerBuildRef: h.nextBuildRef,
+    bootstrapRef: bootstrap.ref, cloudPreflightRef: bootstrap.value.facts.cloudPreflightRef,
+    pausedDrainedRef: paused.ref, tokenSecretVersion: h.tokenVersion, registrySecretVersion: h.registryVersion }
+  delete full.resourcePlanRef
+  const fullDescriptorRef = await h.put('producer-r06-full-descriptor', full)
+  const sourceLock = buildSourceFreeze({ profile: appProfile, releaseId: producerReleaseId,
+    observedAt: h.transport.now(), git: { clean: true, branch: appProfile.application.branch,
+      sourceRevision: full.sourceRevision, sourceTree: 'f'.repeat(40), remoteRevision: full.sourceRevision },
+    sourceIdentityBytes: Buffer.from('producer source-reader test fixture'),
+    migrationBundle: { bundle: { manifestSha256: 'd'.repeat(64) } } })
+  const sourceLockRef = await h.put('producer-r06-source-lock', sourceLock)
+  const fixed = appProfile.environment.fixedValues
+  const controlled = appProfile.environment.controlledValues
+  const plainEnvironment = Object.fromEntries(appProfile.environment.requiredPlainEnvironmentNames.map(name => [
+    name, fixed[name] ?? controlled[name]?.defaultValue ?? (name === 'PDM_FIREBASE_API_KEY' ? 'fixture-api-key' : 'fixture-app-id'),
+  ]))
+  const secretVersions = Object.fromEntries(appProfile.environment.requiredSecretNames.map(name => [
+    name, name === 'PDM_WORKLOAD_AUTH_CREDENTIALS' ? h.registryVersion.split('/').at(-1) : '1',
+  ]))
+  const readWorkerSource = (repositoryPath, revision) => {
+    assert.equal(revision, full.sourceRevision)
+    return repositoryPath === WORKER_PROFILE_PATH ? profileBytes : readSource(repositoryPath)
+  }
+  const readWorkerSourceFailsAtSupplementalIam = (repositoryPath, revision) => {
+    assert.equal(revision, full.sourceRevision)
+    if (repositoryPath === WORKER_PROFILE_PATH) return profileBytes
+    if (READBACK_IAM_PATHS.includes(repositoryPath)) {
+      throw Object.assign(new Error('bounded fixture source read failure'), { code: 'PRODUCER_TEST_SOURCE_UNAVAILABLE' })
+    }
+    return readSource(repositoryPath)
+  }
+  const runtimeInput = { sourceLockRef, openswxWorkerRef: fullDescriptorRef,
+    plainEnvironment, secretVersions }
+  return { h, resources, bootstrap, paused, full, fullDescriptorRef, sourceLock, sourceLockRef,
+    readWorkerSource, readWorkerSourceFailsAtSupplementalIam, runtimeInput, plainEnvironment, secretVersions }
+}
+
+function producerOutputUri(stage) {
+  return 'gs://' + appProfile.artifact.releaseBucket + '/receipts/releases/' + producerReleaseId + '/' + stage + '.json'
+}
+
+async function seedReleaseIntentProducerInputs(fx, runtimeConfigRef) {
+  const expiresAt = deadline()
+  const common = { ownerApplicationId: 'ai-pdm', projectId: appProfile.target.projectId,
+    releaseId: producerReleaseId, sourceRevision: fx.full.sourceRevision, releaseAuthority: true,
+    evidenceScope: 'PRODUCTION_BOUND', status: 'PASS', environment: 'production',
+    remainingHumanAction: 0, expiresAt }
+  const authorizationPolicyRef = await fx.h.put('producer-release-authorization', common)
+  const readinessReceiptRef = await fx.h.put('producer-release-readiness', common)
+  const foundationReceiptRef = await fx.h.put('producer-release-foundation', {
+    ...common, ownerApplicationId: 'shared-foundation', status: 'APPLIED',
+    evidenceScope: 'PRODUCTION_PROVIDER', foundationManifestSha256: 'e'.repeat(64),
+  })
+  const infraReceiptRef = await fx.h.put('producer-release-infra', {
+    schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ...common, status: 'APPLIED',
+    evidenceScope: 'PRODUCTION_PROVIDER', region: appProfile.target.region,
+    migrationRunnerDigest: appProfile.artifact.migrationRunnerUri + '@sha256:' + 'a'.repeat(64),
+    controllerImageDigest: appProfile.artifact.uri + '@sha256:' + 'b'.repeat(64),
+    foundationManifestSha256: 'e'.repeat(64),
+  })
+  return { sourceLockRef: fx.sourceLockRef, authorizationPolicyRef, readinessReceiptRef,
+    foundationReceiptRef, infraReceiptRef, runtimeConfigRef,
+    openswxWorkerRef: fx.fullDescriptorRef, previousRevision: 'ai-pdm-prod-producer-fixture-old',
+    deadlineAt: deadline() }
+}
+
+test('runtime-config producer forwards the frozen source reader for completed full worker evidence', async () => {
+  const fx = await completedR06ProducerFixture()
+  fx.h.provider.calls.length = 0
+  fx.h.iamCalls.length = 0
+  const make = readWorkerSource => executePrerequisiteProducer({ stage: 'runtime-config',
+    releaseId: producerReleaseId, input: fx.runtimeInput, profile: appProfile,
+    root: '/', transport: fx.h.transport, readWorkerSource, observedAt: fx.h.transport.now() })
+  const result = await make(fx.readWorkerSource)
+  const runtimeValue = fx.h.objects.get(result.ref.uri).value
+  assert.equal(runtimeValue.status, 'VERIFIED')
+  assert.equal(runtimeValue.runtimeConfig.plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED, '1')
+  assert.deepEqual(runtimeValue.runtimeConfig.openswxWorker, {
+    descriptorRef: fx.fullDescriptorRef, sourceRevision: fx.full.sourceRevision,
+    workerProfileSha256: fx.full.workerProfileSha256, purpose: 'full',
+  })
+  assert.equal(runtimeValue.runtimeConfig.secretVersions.PDM_WORKLOAD_AUTH_CREDENTIALS,
+    fx.full.registrySecretVersion.split('/').at(-1))
+  assert.equal(result.ref.uri, producerOutputUri('runtime-config'))
+  assert.equal(fx.h.provider.calls.length, 0)
+  assert.equal(fx.h.iamCalls.length, 0)
+
+  const absent = await completedR06ProducerFixture()
+  await assert.rejects(executePrerequisiteProducer({ stage: 'runtime-config', releaseId: producerReleaseId,
+    input: absent.runtimeInput, profile: appProfile, root: '/', transport: absent.h.transport,
+    readWorkerSource: undefined, observedAt: absent.h.transport.now() }), { code: 'OPENSWX_FROZEN_SOURCE_READER_REQUIRED' })
+  assert.equal(absent.h.objects.has(producerOutputUri('runtime-config')), false)
+
+  const bad = await completedR06ProducerFixture()
+  bad.h.provider.calls.length = 0; bad.h.iamCalls.length = 0
+  await assert.rejects(executePrerequisiteProducer({ stage: 'runtime-config', releaseId: producerReleaseId,
+    input: bad.runtimeInput, profile: appProfile, root: '/', transport: bad.h.transport,
+    readWorkerSource: bad.readWorkerSourceFailsAtSupplementalIam,
+    observedAt: bad.h.transport.now() }), { code: 'PRODUCER_TEST_SOURCE_UNAVAILABLE' })
+  assert.equal(bad.h.objects.has(producerOutputUri('runtime-config')), false)
+  assert.equal(bad.h.provider.calls.length, 0)
+})
+
+test('release-intent producer forwards the frozen source reader for completed full worker evidence', async () => {
+  const fx = await completedR06ProducerFixture()
+  const runtime = await executePrerequisiteProducer({ stage: 'runtime-config', releaseId: producerReleaseId,
+    input: fx.runtimeInput, profile: appProfile, root: '/', transport: fx.h.transport,
+    readWorkerSource: fx.readWorkerSource, observedAt: fx.h.transport.now() })
+  const input = await seedReleaseIntentProducerInputs(fx, runtime.ref)
+  fx.h.provider.calls.length = 0
+  fx.h.iamCalls.length = 0
+  const make = readWorkerSource => executePrerequisiteProducer({ stage: 'release-intent',
+    releaseId: producerReleaseId, input, profile: appProfile, root: '/', transport: fx.h.transport,
+    readWorkerSource, validateIntent: assertDev117ReleaseIntent, observedAt: fx.h.transport.now() })
+  const result = await make(fx.readWorkerSource)
+  const intentValue = fx.h.objects.get(result.ref.uri).value
+  assert.equal(intentValue.ownerApplicationId, 'ai-pdm')
+  assert.equal(intentValue.sourceRevision, fx.full.sourceRevision)
+  assert.deepEqual(intentValue.openswxWorkerRef, fx.fullDescriptorRef)
+  assert.deepEqual(intentValue.runtimeConfigRef, runtime.ref)
+  assert.deepEqual(intentValue.sourceLockRef, fx.sourceLockRef)
+  assert.equal(result.ref.uri, producerOutputUri('release-intent'))
+  assert.equal(fx.h.provider.calls.length, 0)
+  assert.equal(fx.h.iamCalls.length, 0)
+
+  for (const [label, callback, expectedCode] of [
+    ['missing', undefined, 'OPENSWX_FROZEN_SOURCE_READER_REQUIRED'],
+    ['unavailable', fx.readWorkerSourceFailsAtSupplementalIam, 'PRODUCER_TEST_SOURCE_UNAVAILABLE'],
+  ]) {
+    const bad = await completedR06ProducerFixture()
+    const badRuntime = await executePrerequisiteProducer({ stage: 'runtime-config', releaseId: producerReleaseId,
+      input: bad.runtimeInput, profile: appProfile, root: '/', transport: bad.h.transport,
+      readWorkerSource: bad.readWorkerSource, observedAt: bad.h.transport.now() })
+    const badInput = await seedReleaseIntentProducerInputs(bad, badRuntime.ref)
+    await assert.rejects(executePrerequisiteProducer({ stage: 'release-intent', releaseId: producerReleaseId,
+      input: badInput, profile: appProfile, root: '/', transport: bad.h.transport,
+      readWorkerSource: callback, validateIntent: assertDev117ReleaseIntent,
+      observedAt: bad.h.transport.now() }), { code: expectedCode }, label)
+    assert.equal(bad.h.objects.has(producerOutputUri('release-intent')), false)
+  }
+})
+
+async function completeSourceSuccessor(h, args, descriptorRef, buildRef, label) {
+  const resources = await executeOpenSwxResources(args)
+  const bootstrapInputRef = await h.put(label + '-bootstrap-input', {
+    schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef, workerBuildRef: buildRef,
+    deadlineAt: deadline(), receiptId: label + '-bootstrap', bootstrapKind: 'FIRST_CREATE',
+    resourceApplyRef: resources.ref, currentRegistryVersion: resources.value.completedFirstBootstrap.partialFirstBootstrap.priorRegistryVersion,
+  })
+  const bootstrap = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapInputRef,
+    transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  await new Promise(resolve => setTimeout(resolve, 30))
+  const pauseInputRef = await h.put(label + '-pause-input', {
+    schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef, workerBuildRef: buildRef,
+    deadlineAt: deadline(), receiptId: label + '-pause', drainKind: 'FIRST_PROVIDER_ONLY', resourceApplyRef: resources.ref,
+  })
+  const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseInputRef,
+    transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  return { args, descriptorRef, buildRef, resources, bootstrapInputRef, bootstrap, pauseInputRef, paused }
+}
+async function prepareNextSourceSuccessor(h, previous, ordinal) {
+  const label = 'nested-successor-' + ordinal, d = descriptor(ordinal.toString(16).padStart(40, '0'))
+  const capacityGateRef = await h.put(label + '-capacity', { project: 'AI-PDM', sourceRevision: d.value.sourceRevision, status: 'PASS', observedAt: h.transport.now() })
+  const oldPlan = h.objects.get(previous.args.descriptor.resourcePlanRef.uri).value
+  d.value.resourcePlanRef = await h.put(label + '-approved', { ...oldPlan, sourceRevision: d.value.sourceRevision,
+    resourcePlanHash: d.value.resourcePlanHash, capacityGateRef, plan: d.plan })
+  const descriptorRef = await h.put(label + '-descriptor', d.value), image = profile.artifactUri + '@sha256:' + ordinal.toString(16).padStart(64, '0')
+  const build = workerReceipt({ descriptor: d.value, kind: 'build', actor: appProfile.identities.builder, image,
+    template: workerTemplate(profile, image, null, 'selftest'), observedAt: h.transport.now(),
+    facts: { ...structuredClone(previous.args.build.facts), sourceObject: { sha256: d.value.sourceArchiveSha256, generation: String(ordinal) } } })
+  const buildRef = await h.put(label + '-build', build)
+  const iam = await seedReadbackIamReceipt(h, { descriptorValue: d.value, descriptorRef, workerBuildRef: buildRef, receiptId: label + '-iam' })
+  return { descriptorRef, buildRef, label, args: { ...h.nextArgs, descriptor: d.value, descriptorRef, build, uri: ref(label + '-resource').uri,
+    firstReconciliation: { ...h.nextArgs.firstReconciliation, completedFirstBootstrapInputRef: previous.bootstrapInputRef,
+      completedFirstPauseInputRef: previous.pauseInputRef, supplementalIamReadbackRef: iam.receiptRef } } }
+}
+function assertNoSuccessorProviderWrites(h) {
+  assert.ok(h.allCalls().every(row => row.options.method !== 'PATCH' && !row.url.endsWith(':run') && !row.url.endsWith(':addVersion')))
+}
+test('third source completed-FIRST proves both predecessor executions, reuses sealed credentials and replays without mutation', async () => {
+  const h = await completedFirstHarness()
+  const r6 = await completeSourceSuccessor(h, h.nextArgs, h.nextDescriptorRef, h.nextBuildRef, 'nested-r06')
+  const r7 = await prepareNextSourceSuccessor(h, r6, 7)
+  h.provider.calls.length = 0; h.iamCalls.length = 0
+  const resource = await executeOpenSwxResources(r7.args), savedBytes = Buffer.from(h.objects.get(resource.ref.uri).bytes)
+  assert.equal(resource.value.mutation, 'READBACK_ONLY_COMPLETED_FIRST_SOURCE_RECONCILIATION')
+  assert.deepEqual(Object.keys(resource.value.completedFirstBootstrap).sort(), Object.keys(r6.resources.value.completedFirstBootstrap).sort())
+  assert.deepEqual(resource.value.completedFirstBootstrap.bootstrapRef, r6.bootstrap.ref)
+  assert.equal(resource.value.completedFirstBootstrap.tokenSecretVersion, h.tokenVersion)
+  assert.equal(resource.value.completedFirstBootstrap.registrySecretVersion, h.registryVersion)
+  assertNoSuccessorProviderWrites(h)
+  assert.deepEqual((await executeOpenSwxResources(r7.args)).ref, resource.ref)
+  assert.ok(h.objects.get(resource.ref.uri).bytes.equals(savedBytes)); assertNoSuccessorProviderWrites(h)
+  h.provider.calls.length = 0; h.iamCalls.length = 0
+  const completed = await completeSourceSuccessor(h, r7.args, r7.descriptorRef, r7.buildRef, r7.label)
+  assert.equal(completed.bootstrap.value.facts.tokenSecretVersion, h.tokenVersion)
+  assert.equal(completed.bootstrap.value.facts.registrySecretVersion, h.registryVersion)
+  assert.equal(h.allCalls().filter(row => row.options.method === 'PATCH').length, 1)
+  assert.equal(h.allCalls().filter(row => row.url.endsWith(':run')).length, 1)
+  assert.equal(h.allCalls().filter(row => row.url.endsWith(':addVersion')).length, 0)
+  const executions = await h.transport.request(`https://run.googleapis.com/v2/${workerJobName()}/executions?pageSize=100`)
+  assert.equal(executions.executions.length, 3)
+  assert.equal(new Set(executions.executions.map(row => row.name)).size, 3)
+  assert.ok(executions.executions.every(row => row.conditions[0].state === 'CONDITION_SUCCEEDED'))
+  h.provider.calls.length = 0; h.iamCalls.length = 0
+  assert.deepEqual((await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: completed.bootstrapInputRef,
+    transport: h.transport, readSource, appProfile, sleep: async () => {} })).ref, completed.bootstrap.ref)
+  assertNoSuccessorProviderWrites(h)
+})
+test('third source rejects missing or extra inherited execution, nested receipt drift and malformed finite clocks before writes', async () => {
+  for (const scenario of ['missing-execution', 'extra-execution', 'nested-proof', 'wrong-iam-source', 'missing-create', 'invalid-create', 'numeric-completion', 'invalid-marker']) {
+    const h = await completedFirstHarness(), r6 = await completeSourceSuccessor(h, h.nextArgs, h.nextDescriptorRef, h.nextBuildRef, 'negative-r06')
+    const r7 = await prepareNextSourceSuccessor(h, r6, 7), original = h.transport.request
+    const corrupt = (reference, mutate) => { const row = h.objects.get(reference.uri); mutate(row.value); row.bytes = Buffer.from(canonicalize(row.value)) }
+    if (scenario === 'nested-proof') corrupt(r6.resources.ref, value => { value.completedFirstBootstrap.tokenSecretVersion = registryName })
+    if (scenario === 'wrong-iam-source') corrupt(r7.args.firstReconciliation.supplementalIamReadbackRef, value => { value.sourceRevision = 'f'.repeat(40) })
+    const preflight = h.objects.get(h.oldBootstrap.value.facts.cloudPreflightRef.uri).value
+    if (scenario === 'missing-create') corrupt(preflight.previousRefs[0], value => { delete value.facts.execution.createTime })
+    if (scenario === 'invalid-create') corrupt(preflight.previousRefs[0], value => { value.facts.execution.createTime = 'invalid' })
+    if (scenario === 'numeric-completion') corrupt(preflight.previousRefs[0], value => { value.facts.execution.completionTime = 2026 })
+    if (scenario === 'invalid-marker') corrupt(h.oldBootstrap.value.facts.cloudPreflightRef, value => { value.facts.proof.marker.timestamp = 'invalid'; value.facts.proof.markerSha256 = sha256(canonicalize(value.facts.proof.marker)) })
+    h.transport.request = async (url, options) => {
+      const value = structuredClone(await original(url, options))
+      if (url.includes('/executions?')) {
+        if (scenario === 'missing-execution') value.executions.shift()
+        if (scenario === 'extra-execution') value.executions.push({ ...structuredClone(value.executions[0]), name: value.executions[0].name + '-extra' })
+      }
+      return value
+    }
+    h.provider.calls.length = 0; h.iamCalls.length = 0
+    const before = [...h.objects.keys()].sort()
+    await assert.rejects(executeOpenSwxResources(r7.args), /OPENSWX_/u, scenario)
+    assert.deepEqual([...h.objects.keys()].sort(), before); assertNoSuccessorProviderWrites(h)
+  }
+})
+test('completed-FIRST recursive proof rejects a cycle and stops at eight immutable predecessor inputs', async () => {
+  const h = await completedFirstHarness()
+  let prior = await completeSourceSuccessor(h, h.nextArgs, h.nextDescriptorRef, h.nextBuildRef, 'bounded-r06')
+  const r7 = await prepareNextSourceSuccessor(h, prior, 7), row = h.objects.get(prior.resources.ref.uri)
+  const saved = structuredClone(row.value)
+  row.value.completedFirstBootstrap.completedFirstBootstrapInputRef = prior.bootstrapInputRef
+  row.bytes = Buffer.from(canonicalize(row.value))
+  h.provider.calls.length = 0; h.iamCalls.length = 0
+  await assert.rejects(executeOpenSwxResources(r7.args), { code: 'OPENSWX_COMPLETED_FIRST_CHAIN_INVALID' }); assertNoSuccessorProviderWrites(h)
+  row.value = saved; row.bytes = Buffer.from(canonicalize(saved))
+  // The base anchor plus seven completed successors is the final admissible walk.
+  for (let ordinal = 7; ordinal <= 13; ordinal++) {
+    const next = ordinal === 7 ? r7 : await prepareNextSourceSuccessor(h, prior, ordinal)
+    prior = await completeSourceSuccessor(h, next.args, next.descriptorRef, next.buildRef, next.label)
+  }
+  const refused = await prepareNextSourceSuccessor(h, prior, 14)
+  h.provider.calls.length = 0; h.iamCalls.length = 0
+  const before = [...h.objects.keys()].sort()
+  await assert.rejects(executeOpenSwxResources(refused.args), { code: 'OPENSWX_COMPLETED_FIRST_CHAIN_INVALID' })
+  assert.deepEqual([...h.objects.keys()].sort(), before); assertNoSuccessorProviderWrites(h)
+})
+
+
+test('stdout proof refuses malformed or inverted execution windows before a logging request', async () => {
+  for (const clocks of [{ createTime: undefined, completionTime: new Date().toISOString() },
+    { createTime: 'invalid', completionTime: new Date().toISOString() },
+    { createTime: new Date().toISOString(), completionTime: 'invalid' },
+    { createTime: '2026-01-01T00:00:00Z', completionTime: 2026 },
+    { createTime: '2026-10-06T00:00:02Z', completionTime: '2026-10-06T00:00:01Z' }]) {
+    let calls = 0
+    await assert.rejects(readWorkerStdoutProof({ transport: { request: async () => { calls++; throw Error('UNAUTHORIZED_LOG_QUERY') } },
+      profile, execution: { name: executionName, ...clocks }, deadlineAt: deadline() }), { code: 'OPENSWX_STDOUT_WINDOW_INVALID' })
+    assert.equal(calls, 0)
+  }
+})
+test('same completed-FIRST bootstrap replay refuses malformed create and marker timestamps without writes', async () => {
+  for (const scenario of ['missing-create', 'invalid-create', 'numeric-completion', 'invalid-marker']) {
+    const h = await completedFirstHarness()
+    const r6 = await completeSourceSuccessor(h, h.nextArgs, h.nextDescriptorRef, h.nextBuildRef, 'clock-replay-r06')
+    const preflightRow = h.objects.get(r6.bootstrap.value.facts.cloudPreflightRef.uri)
+    const finiteRow = h.objects.get(preflightRow.value.previousRefs[0].uri)
+    if (scenario === 'missing-create') delete finiteRow.value.facts.execution.createTime
+    if (scenario === 'invalid-create') finiteRow.value.facts.execution.createTime = 'invalid'
+    if (scenario === 'numeric-completion') finiteRow.value.facts.execution.completionTime = 2026
+    if (scenario === 'invalid-marker') {
+      preflightRow.value.facts.proof.marker.timestamp = 'invalid'
+      preflightRow.value.facts.proof.markerSha256 = sha256(canonicalize(preflightRow.value.facts.proof.marker))
+    }
+    finiteRow.bytes = Buffer.from(canonicalize(finiteRow.value)); preflightRow.bytes = Buffer.from(canonicalize(preflightRow.value))
+    h.provider.calls.length = 0; h.iamCalls.length = 0
+    const before = [...h.objects.keys()].sort()
+    await assert.rejects(executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: r6.bootstrapInputRef,
+      transport: h.transport, readSource, appProfile, sleep: async () => {} }), { code: 'OPENSWX_COMPLETED_FIRST_EXECUTION_INVALID' })
+    assert.deepEqual([...h.objects.keys()].sort(), before); assertNoSuccessorProviderWrites(h)
+  }
+})
+test('both full-worker producer stages reject mismatched supplemental IAM source bytes before output writes', async () => {
+  for (const stage of ['runtime-config', 'release-intent']) {
+    const fx = await completedR06ProducerFixture()
+    let input = fx.runtimeInput
+    if (stage === 'release-intent') {
+      const runtime = await executePrerequisiteProducer({ stage: 'runtime-config', releaseId: producerReleaseId,
+        input, profile: appProfile, transport: fx.h.transport, readWorkerSource: fx.readWorkerSource })
+      input = await seedReleaseIntentProducerInputs(fx, runtime.ref)
+    }
+    const driftedSource = (p, revision) => {
+      const bytes = fx.readWorkerSource(p, revision)
+      return READBACK_IAM_PATHS.includes(p) ? Buffer.concat([bytes, Buffer.from('unexpected source drift')]) : bytes
+    }
+    fx.h.provider.calls.length = 0; fx.h.iamCalls.length = 0
+    const before = [...fx.h.objects.keys()].sort()
+    await assert.rejects(executePrerequisiteProducer({ stage, releaseId: producerReleaseId, input,
+      profile: appProfile, transport: fx.h.transport, readWorkerSource: driftedSource,
+      validateIntent: assertDev117ReleaseIntent }), { code: 'OPENSWX_IAM_SOURCE_DRIFT' })
+    assert.deepEqual([...fx.h.objects.keys()].sort(), before); assert.equal(fx.h.provider.calls.length, 0); assert.equal(fx.h.iamCalls.length, 0)
   }
 })
