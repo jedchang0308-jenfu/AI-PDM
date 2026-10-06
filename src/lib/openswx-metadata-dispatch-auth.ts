@@ -2,12 +2,14 @@ import { OAuth2Client } from "google-auth-library";
 import { openSwxPrivateHeaders } from "@/lib/openswx-metadata";
 export const OPENSWX_SCHEDULER_AUDIENCE = "https://ai-pdm-prod-9536592944.asia-east1.run.app";
 export const OPENSWX_SCHEDULER_EMAIL = "aipdm-prod-openswx-dispatch@jenfu-platform-prod.iam.gserviceaccount.com";
+// Immutable identity of the existing dispatch account, verified by IAM provider readback.
+export const OPENSWX_SCHEDULER_SUBJECT = "107606630865191707245";
 const google = new OAuth2Client({ transporterOptions: { timeout: 10_000, retry: false } });
 type Claims = { iss?: string; sub?: string; email?: string; email_verified?: boolean; aud?: string; exp?: number; iat?: number };
 type Verify = (token: string) => Promise<Claims | undefined>;
 const verifyGoogle: Verify = async token => (await google.verifyIdToken({ idToken: token, audience: OPENSWX_SCHEDULER_AUDIENCE })).getPayload();
 /** Actual Google signature verification precedes the fixed purpose identity check. Unknown subject fails closed. */
-export async function authenticateOpenSwxScheduler(request: Request, verify: Verify = verifyGoogle, now: number | (() => number) = Date.now, subject = process.env.PDM_OPENSWX_SCHEDULER_SUBJECT) {
+export async function authenticateOpenSwxScheduler(request: Request, verify: Verify = verifyGoogle, now: number | (() => number) = Date.now, subject = OPENSWX_SCHEDULER_SUBJECT) {
   const denied = (code: string, status = 403) => Response.json({ code }, { status, headers: openSwxPrivateHeaders });
   if (!subject || !/^[1-9][0-9]{5,30}$/u.test(subject)) return denied("OPENSWX_SCHEDULER_NOT_CONFIGURED", 503);
   if (request.method !== "POST" || new URL(request.url).origin !== OPENSWX_SCHEDULER_AUDIENCE || new URL(request.url).pathname !== "/api/openswx-metadata-dispatch/recover" || request.headers.has("cookie")) return denied("OPENSWX_SCHEDULER_FORBIDDEN");

@@ -1,5 +1,12 @@
 # AI_PDM 文件地圖
 
+## DEV-122 CURRENT（2026-10-07；B08 已上線，固定排程身分修正中）
+
+本節優先於下方歷史續點。PR228 官方來源 `312be7e8` 的 B08 owner run `37537820569` 全流程 SUCCESS；migration 082 已套用一次、正式 `ai-pdm-prod-7af5f15c8803` 100%／0 tags，原十二資源 readback-only、五 IAM no-op／前後不變、reader v1／registry v3 重用。R09 finite 自測與 sealed activation READY 通過，但第一次實際排程返回 503 `OPENSWX_SCHEDULER_NOT_CONFIGURED`，未派送正常 CAD；READY 不代表排程曾成功。實際 IAM 回讀固定 dispatch 帳號 uniqueId `107606630865191707245`，並確診缺少環境設定。已用原固定 pause helper 暫停唯一 Scheduler，原佇列保留。
+
+修正限 auth 模組的 compiled exact subject default 與 RSA regression；固定 email／audience／sub 聯結及簽章、expiry、時效、cookie／reader／未知身分拒絕均保留，不改 release adapter、IAM、資源、憑證或 migration。8-CAD 首次 harness 把八個檔案放入同一工作，但既有一份 2D／一份 3D 主檔替換規則只保留最後兩份；正常頁面兩來源 GET200，harness 已替換來源 GET403 是正確歸屬拒絕。將依既有規則分四工作驗證，沿用現有 pair／job，不重排。[實際發布、故障與修復證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)保存每次 FAIL；19／19 RSA default-path／dispatch 回歸、聚焦 lint 與 app typecheck 通過，own 程序／暫存已清理；獨立 QC／normal PR／required CI／新 immutable build與full release／正常排程與8-CAD驗證待完成。完整原生 F-01F 由使用者正式驗證、供應商回覆停用延後、整體 NOT_ACCEPTED。
+
+
 ## DEV-122 CURRENT（2026-10-07；A10 建置通過，五項 IAM 完整名稱修復）
 
 本節優先於下方歷史續點。PR227 官方 main `87e01223` 的 required CI 與 A10 protected build-only 均 SUCCESS，app／worker 建置及原安全 gate 通過。五項 IAM 來源刷新在 apply 前被 `OPENSWX_IAM_PLAN_INVALID` 拒絕；實際 NO_APPLY 計畫五筆全為 no-op，前後 IAM 完全相同且 request／plan／final 回執均未建立。唯一差異是同一固定 Job 的名稱由短名變為完整 resource name。修正只允許 exact address/name 的原短名或 frozen project/location/job 完整名；原五地址、帳號、權限、unknown 與 actions 等限制、Terraform／owner workflow／profile／依賴均保留。
