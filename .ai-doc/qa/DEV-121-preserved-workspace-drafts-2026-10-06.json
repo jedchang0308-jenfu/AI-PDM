@@ -1,0 +1,231 @@
+{
+  "schema": "preserved-workspace-drafts.v1",
+  "status": "WIP_NOT_RELEASE_READY",
+  "owner": "AIPDM/DEV-121",
+  "sourceHead": "46438028ade8d9ec93d4bdc7cec3ecc2a8ec584d",
+  "branch": "codex/dev121-owner-ledger-floor",
+  "publication": "LOCAL_ONLY",
+  "productVerification": "NOT_RUN",
+  "files": [
+    {
+      "path": ".ai-doc/dev_task.md",
+      "sha256": "58c24cc736b949ba0a9bb4f7e9471344b59a9c01153ae2c173adee51974dcb88",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": ".ai-doc/documentation_map.md",
+      "sha256": "bff6576344ab8dddaaf9552732451179a1d8e275c5a12a0a122be22b37492db0",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": ".ai-doc/specs/DEV-121-target-authorization-boundary.md",
+      "sha256": "301a64f8e4b8ac204d3fbc16c8ec51333dbc4be462b353d25ff9ff8dd5417bf4",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+      "sha256": "215a9fdec4d76167c4e1a8408b82c3665a3c72d75bc5ea82ab28ef9fc8e2fa51",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "scripts/lib/dev121-migration-fence.mjs",
+      "sha256": "aceadb572d669802376900a45198e222c72621f975d1fb8cbeac4d7a8c01ee2e",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "scripts/lib/dev121-migration-fence.test.mjs",
+      "sha256": "34dccaeee282b0d9c09e0650f6d805838d1681f5b85556f90f6e372322fe551d",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "scripts/qc-dev-121-numbering-owner-grant-postgres.mjs",
+      "sha256": "465a89cece054efc9a65f01e09cb5a134f2ec516899d820875e10f1835654ead",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts",
+      "sha256": "8638e3bf7a9a09da5e17878a0dc8f36e29e435acaa45616457d68e0555c711b9",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/app/api/pdm/review-requests/[requestId]/route.ts",
+      "sha256": "381d9cf3aca7709c03af404d4a1720b64fc551b632c29387ccbf8573160aabf3",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/app/api/settings/access/role-capabilities/route.ts",
+      "sha256": "c215eff23c4c3da6a02f6b5b4eb9b6f59bd4bb4f119e9186849b5b8201c4d2aa",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/components/sidebar-nav.tsx",
+      "sha256": "e233a6f5f8b690f2769637451fc9f1a8e0360342ffa08e08635e856e9b75355c",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/ai-pdm-role-capability-service.test.ts",
+      "sha256": "7c0ee35d8794f3959e093cc122cdf9370e0d2c87182fd581d260bdf46d3110ab",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/ai-pdm-role-capability-service.ts",
+      "sha256": "fe4fa4660fe3bf6dc509327794fef7c683ddf7769127ba28703848ce8aeff7c6",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/jenfu-principal-role-catalog.ts",
+      "sha256": "307e5e52df451b8aa8cf99d490fbc616448a376b6b035075f98ef1b89f18ed8f",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/numbering-permission-codes.ts",
+      "sha256": "caa7f7df80363576d5e46f53d231836169f75d8595903144d4573c452e38c6f5",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/principal-role-capability-read-only.test.ts",
+      "sha256": "286380430d18b897c52b755f18c6dfbeff781fd875f509abdf89dd5ca0254b8b",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/principal-work-review-owner-grant.postgres-contract.test.ts",
+      "sha256": "65d5710db097f6050c28ff4bac91d1d0f1671f224a682406d3a863deed0e3bff",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/repositories/pdm-principal-reviewer-selector.test.ts",
+      "sha256": "ae636438e16e34c14fa3b69910ccfc18479f64d982bb57cc8c7d8fd33a35d283",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/repositories/role-capability-display-snapshot-repository.ts",
+      "sha256": "ce5b27cd4ade7033f8b1cbf7806fe40be1e291f025f82ca01e51a5c7b63988cd",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "config/access-control/jenfu-active-capabilities.v1.json",
+      "sha256": "0563e3701fe359f88fa301cc28dc929a2462e9c8ac0947407428e480c55725d2",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "config/access-control/jenfu-role-catalog.v6.json",
+      "sha256": "237e1a92814aa8fec87e878a8ffaac7f74bc9c5ce4fb6766c266970c9d509b8a",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "db/postgres/080_dev121_principal_role_catalog_v6.sql",
+      "sha256": "c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "scripts/dev121-build-principal-role-catalog-v6-migration.mjs",
+      "sha256": "4e6d1fa0a4b3bea4ef59cdc56293976b6516a5e13af618c5b4ece9d5f4774638",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "scripts/dev121-build-principal-role-catalog-v6.mjs",
+      "sha256": "a43db9f81a680e667e32c03baf4555429e9a6e5edce969ca1f82ea28a02acf7b",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "scripts/dev121-build-principal-role-catalog-v6.test.mjs",
+      "sha256": "6f59e9f2bb4ba3b83f830489ead1d750e99be9a8ff4428d3cd2b51f83e4dd08a",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/numbering-navigation-permissions.test.ts",
+      "sha256": "f33645beeee65eb4977f36c5d4f34476b166fcf02623b6fd970c8606d8fb6e61",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/repositories/role-capability-display-snapshot.postgres-contract.test.ts",
+      "sha256": "1c1a7e204150aac8046c03cf39703ffa4387cf7307ead352c187b651aafe6e21",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/lib/role-capability-display-availability.test.ts",
+      "sha256": "230fdc9f76e88802a2fd3e2cc1400a1b6a7f4a900264fadb2ef4903075e65aff",
+      "disposition": "SAVED_LOCAL_WIP"
+    },
+    {
+      "path": "src/components/canonical-review-package-workspace.tsx",
+      "sha256": "2ba42470159d92197cdb2f08d0e9ad0813ce12932be41d3f4ca8d62bf848280e",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/components/part-number-matrix-workspace.tsx",
+      "sha256": "1f578e7669bc3a7d31197e2256bdac02b3b0edb5436aa42cf21cb9b6bee5dc50",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/drawing-revision-work.principal.test.ts",
+      "sha256": "eb6c145574dfb0ebdbd1584775bbe5a50be78e4d3c0dd34985c67e2ee5191902",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/drawing-revision-work.ts",
+      "sha256": "44ecda224315b961a0deed6f595cfa35c2deb36c8869b7f60bfe80b0c9dc4896",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/part-change-work.principal.test.ts",
+      "sha256": "03bcc74084ffedb78ccb20730cbdb2b2088e448f92b4c1098571792367803518",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/part-change-work.ts",
+      "sha256": "5750a637b4c97bf4f8d32b5e4f83d8e3b2ba5c9887bdd42471f1577b7d2607f1",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/pdm-review-package-contract.ts",
+      "sha256": "98c0ffbeb3fb3ae5293f856bcedc7f2625935b71b4a09df349c8a87aba566bed",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/pdm-review-package.ts",
+      "sha256": "e8799c392ef70cfd9aadd99659cda1fdc624fa6c102354f594e66d8b275aadb3",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/repositories/drawing-revision-work-async-repository.ts",
+      "sha256": "854beb4e8621eb940e04f5100257f3c5dc898d914a56b99b9fffec56fe4fe01e",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/repositories/part-change-work-async-repository.ts",
+      "sha256": "e41e21b7024883711097acc947a924304e0e2c68768bf54df52b6d3113cc3327",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/repositories/part-number-matrix-async-repository.ts",
+      "sha256": "5b2b2622b5c4f9c6cc302bb5f894dca326f26ea7441841e3062a7638bb521154",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "db/postgres/077_dev121_canonical_review_lifecycle.sql",
+      "sha256": "b5d6e84b68a5a2c206737323056801078ac94f3bcd4b5a521e944a335607636c",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/pdm-review-package-lifecycle.test.ts",
+      "sha256": "626fbebf7bc94d3d4374c8e9a2e02e12ab735825c1844d275e35c474d36c5f3d",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "src/lib/repositories/drawing-revision-work-async-repository.lifecycle.test.ts",
+      "sha256": "e16f41da70f9e1c44d0dbb93284d3451a25a81eb440321917504fd8b71df6b77",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    },
+    {
+      "path": "scripts/qc-dev-121-canonical-lifecycle-browser.mjs",
+      "sha256": "c6f676cfb25187ac525fe49ae8b828470987a906ec96bdceff94300e5a835443",
+      "disposition": "PRESERVED_DEV122_NOT_STAGED"
+    }
+  ],
+  "originalDocumentCopies": [
+    ".ai-doc/qa/evidence/DEV121-WORKSPACE-SAVE-20261006/dev_task.md.original.txt",
+    ".ai-doc/qa/evidence/DEV121-WORKSPACE-SAVE-20261006/documentation_map.md.original.txt",
+    ".ai-doc/qa/evidence/DEV121-WORKSPACE-SAVE-20261006/DEV-121-target-authorization-boundary.md.original.txt"
+  ]
+}

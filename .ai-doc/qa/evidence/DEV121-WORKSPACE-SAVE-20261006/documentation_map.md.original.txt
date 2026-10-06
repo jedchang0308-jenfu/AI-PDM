@@ -1,104 +1,12 @@
 # AI_PDM 文件地圖
 
-## DEV-122 CURRENT（2026-10-06；Job PATCH API修復／40 mock PASS）
-
-PR222官方main9240b84b之A06受保護建置、actual Git LF封存與worker raw HIGH/CRITICAL=0通過（run37426847261）。R04十二資源唯讀銜接APPLIED；原reader v1已恢復、registry v3沿原R03 credential root成功建立，Job因不支援updateMask query被400拒絕，仍舊selftest/PAUSED/零execution，082/candidate/traffic未跑。actual validateOnly比較證明bad query400、合法query200、Job前後完全不變；原FAIL/回執保留。此次[修復證據](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)只改合法Job PATCH、fresh etag與六項既有metadata原值保留/回讀；explicit priorBootstrapInputRef FIRST bridge沿用嚴格helper核對已sealed v1/v3，不重發憑證或重套Terraform。40/40 mock通過且own runtime/temp已清理；獨立Luna source QC已通過；新head required CI待驗。正常completed CAD UI與修正後正式Job仍NOT_RUN，F-01F由使用者正式驗證、D122-07停用、7 issues/29 groups與整體NOT_ACCEPTED不變。
-
-## DEV-122 CURRENT（2026-10-06；部分憑證發行回讀修復／36 mock PASS）
-
-PR221官方main19552e3f的A05受保護建置／實際封存／worker raw HIGH/CRITICAL=0通過（run37421000474）；R03十二資源唯讀銜接已APPLIED，不重套Terraform。R03 bootstrap在reader token v1已建立後因putJson無parsed value失敗；實際hash-only原latch與v1 hash/30s時窗吻合，registry仍v1/v2、舊selftest Job、PAUSED、零execution，082／candidate／traffic未執行。此次[修復證據](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)改DEV122專用write helper從驗證bytes解析value，並以原immutable input限定恢復v1、只發剩餘registry；global transport／TF／IAM／worker來源不變。36/36真實回傳格式mock通過，own runtime／暫存清理已驗；獨立Luna來源QC已通過，新head required CI待驗。原FAIL／A05／R03證據保留；正式completed UI待實跑、F-01F由使用者正式驗證、D122-07停用、7 issues／29 groups与整體NOT_ACCEPTED不變。
-
-
-## DEV-122 CURRENT（2026-10-06；A04 build/security通過，Scheduler預設回傳修正中）
-
-PR219 已正常合併至 8f25b0a1a5f42c63e6e20d1e48bd44dd91a9a775，PR／main required CI 通過。A03 owner run 37410760255 與兩映像建置成功；worker 精確 digest e9194d35…a59eacc 的 raw HIGH／CRITICAL=0，實際 Linux static-zlib／ldd／APK 移除與隔離自測成功。僅證明 build/security readiness，未證明正常 CAD 或 UI。
-
-十二資源 Terraform R01 已執行且不重套；PR220官方main84f08dbc之A04受保護建置、實際封存與worker raw HIGH/CRITICAL=0通過（run37417618753）。R02唯讀FIRST銜接在PAUSED Scheduler省略retryConfig時被strict比較誤拒絕；未發numeric version、未執行082、未建立candidate或切流。此次[provider readback修正](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)僅按官方語意接受actual省略zero retryCount/maxRetryDuration，同時拒絕null/非zero/invalid limit，並要求既有Terraform之Etc/UTC exact；desired/policy/profile/TF/worker source不变。31/31聚焦mock通過，own程序/暫存已清理；獨立Luna source QC已通過；新head required CI待驗。R01/A04/R02失敗原始證據保留。兩numeric bootstrap、082、正式切流及8CAD completed UI仍待實跑；F-01F由人類正式驗證、D122-07停用、7 issues/29 groups与整體NOT_ACCEPTED不變。
-
-人類既有「核准, 請接續」及本次容量風險授權持續有效。下一步為修正來源的 normal PR／required CI、重新凍結與 build，先核對既有12資源，再接 numeric bootstrap、082與 app-owned 上線。正式仍 R4；新 credential versions／082／切流及 completed 正常UI皆 NOT_RUN，F-01F由使用者正式驗證、D122-07停用與整体NOT_ACCEPTED不變。下方續點為歷史，不再當目前操作佇列。
-
-## DEV-122 Cloud Run 部署續點（2026-10-06；已授權，worker 安全修補／正式驗證中）
-
-人類已核准原十二個限定資源、兩項 numeric credential versions、自有082 forward-only migration及同一AI-PDM app-owned上線；另接受本次固定Terraform provider安裝容量風險。授權只限 AI-PDM／jenfu-platform-prod／asia-east1／ai-pdm-prod，禁止跨專案；精確來源、映像、plan及capsule依執行重綁，安裝前仍需fresh容量結果。
-
-PR218已正常合併至caa34a39607fa8a51b7d1b7dc38cec49bc80f254，required PR／main CI SUCCESS。A01在archive join安全停止，provider位元組回讀已定位並修正Windows換行／gzip差異；A02兩個Cloud Build SUCCESS，但worker映像有17項raw HIGH／CRITICAL，ARTIFACT_POLICY_FAILED，未建立新資源／Secret、未跑082或切流。正式仍為R4／ai-pdm-prod-5c8854b292a1。
-
-[本次worker安全修補](qa/DEV-122-openswx-worker-security-remediation-2026-10-06.json)只更換finite-worker的固定musl建置／執行鏈，靜態連結作者已修補zlib並保留SPDX／license／實際套件DB；歷史CLI及嚴格scan不變。四個既有測試44案：43 PASS、1 Linux限定SKIP、0 FAIL；專屬程序與暫存已清理。這些不證明新Linux成品或CAD結果。獨立Luna來源QC已通過；下一步是normal PR／required CI、新來源Cloud Build／scan，再續已核准資源及發布；completed-result正常UI仍NOT_RUN，完整F-01F由使用者正式驗證，D122-07維持停用，7 issues／29 groups與整體NOT_ACCEPTED不變。
-
-<details>
-<summary>HISTORY_ONLY：PR218合併前與原資源待授權續點；以上 current 取代施工指引</summary>
-
-## DEV-122 Cloud Run 部署續點（2026-10-06；本地 QC／建置通過，新增雲端資源待授權）
-
-CURRENT PR218 相依套件修正：第二次 CI37398155430（head5f4e481）Cutover SUCCESS，Production Slice QC 在 production dependency audit FAILURE，lint／後續建置未跑；原始失敗與 provider 回讀保留。依官方修正版只更新 lockfile 中 source-map-js 三欄位1.2.1→1.2.2，其餘套件紀錄、package.json及前66檔未變；新[67檔來源](qa/DEV-122-openswx-phase2-pr218-source-freeze-dependency-v3-2026-10-06.json)與[Luna來源核對](qa/DEV-122-openswx-phase2-pr218-dependency-independent-qc-2026-10-06.json)綁定本次候選。實際 lockfile production audit code0/high與critical0，task cache／child已清理；本機node_modules未更新，尚未宣稱新套件安裝或建置PASS。下一head required CI／build待跑；舊63檔full-r4只屬原來源，Cloud資源授權、完成結果UI、人類F-01F與整體NOT_ACCEPTED邊界不變。
-
-HISTORY_ONLY PR218 lint 修正：首次 CI37395720942 的 Cutover SUCCESS／Production Slice QC 在 lint FAILURE 保留；只將 auxiliary-job.test.mjs 的 mock source 字串變數 module 改名 moduleSource，斷言與產品行為不變，targeted ESLint 已 PASS。[修正後66檔來源](qa/DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json)為下一次 CI 候選；舊63檔中61檔未變、main設定頁 auto merge 與此測試更名為兩個差異，owner20 hash 未變。合併後正常 worker／build 驗證待本次 exact PR head CI，Cloud 權限與人類 F-01F 待決邊界不變。
-
-HISTORY_ONLY PR218 main 整合來源37a9578：保留最新官方 main 9b446d498 的 DEV-121 設定唯讀角色頁與正式結案；文件地圖衝突只合併兩方段落。原 63 個凍結產品檔案有 62 個 hash 未變，production-slice.ts 自動整合兩方既有 guard，另三個設定頁／測試檔與官方 main blob 一致。[合併來源凍結](qa/DEV-122-openswx-phase2-pr218-source-freeze-2026-10-06.json)記錄 66 個相關檔案；先前 full-r4／Luna 本地結案只屬其當時來源，合併候選的 required CI 尚待 exact head 結果。新 Cloud 資源授權、人類 F-01F 與整體 NOT_ACCEPTED 不變。
-
-使用者指定 worker 使用 Cloud Run。現有 Windows COM Document Manager reader 無法直接在 Cloud Run Linux 容器執行；現行續點改優先評估免費MIT OpenSWX（Linux／三格式／文件與組態屬性為作者宣稱），仍需本案CAD實跑完整度證據；Datakit只留商用備案，不先購買。固定版本OpenSWX Linux/amd64 own映像已建置並綁31檔source／268個artifact與licenses；16項mapping與隔離tests通過。8檔native CAD（3PRT／1ASM／4DRW）皆讀出非空屬性、明示partial；4損壞／截斷樣本皆拒絕。原始8檔hash未變，14個task容器皆報exact清理；storedValue與effective組態可讀，type／raw／linked／evaluated及完整性仍unsupported或unknown；獨立Luna actual artifact QC已完成；12份暫存測試檔、14個容器、本機own映像與3個build CLI configs已驗明清理。使用者已選擇先開發唯讀輔助結果，Phase2本地契約RD Implementation Ready、cloud資源待具體授權。R2缺make與Windows授權匯出symlink失敗紀錄保留，未建立或部署Cloud Run worker，未新增 IAM／Secret；F-01F 仍待使用者正式驗證，7 issues／29 groups、整體未驗收。依[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#cloud-run-部署指示與解析器相容性2026-10-05current優先於下方-windows-啟動契約)與[相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)與[8CAD／4負向實測](qa/DEV-122-openswx-feasibility-2026-10-05.json)、[immutable建置／授權](qa/DEV-122-openswx-built-artifact-2026-10-05.json)與[獨立Luna QC](qa/DEV-122-openswx-independent-qc-2026-10-05.json)接續；下方 R03 Windows 主機待提供為歷史，不再作現行待辦。
-
-HISTORY_ONLY／core-v1切片：[Phase2 QA 計畫](qa/DEV-122-openswx-phase2-validation-plan-2026-10-05.json)與[核心本地證據](qa/DEV-122-openswx-phase2-core-checkpoint-2026-10-05.json)：22項focused、3項native PostgreSQL通過，501外鍵與基線/隔離/防竄改/完成回執已驗，首次fixture失敗保留；API/dispatch/finite runner/UI與獨立QC接續中，Cloud child隔離及新資源待實證/授權。
-
-2026-10-06 CURRENT 唯讀輔助結果續點：最終[63檔來源凍結](qa/DEV-122-openswx-phase2-final-source-freeze-2026-10-06.json)與[QA計畫](qa/DEV-122-openswx-phase2-validation-plan-2026-10-05.json)為本地候選；context-owned單CTA不需DM session，human POST僅提交status-only job，Scheduler自動派送。最新獨立QC已涵蓋47項API／dispatch／UI契約、7項current-work ownership與14項bootstrap／15個錯配變異；各結果只證明對應來源切片。正常Principal API的建立→CAD/PDF上傳→GET／enqueue／重複提交，以及home→Drawing列表→workspace的桌面1440／窄版390等待與取消操作已有本地實測；completed結果正常頁面與正式published authority仍未驗。原生SQL重驗3項／505真外鍵通過，DM表列不變；PG／Next／browser已驗明停止與埠釋放，兩根primary SQLite僅確認ABSENT。獨立Linux成品QC已讀驗同8CAD／10個自有容器均驗明移除，儲存值均partial且hash未變；計算值／公式／型別與完整性缺口保留，child syscall隔離不冒稱namespace／同UID檔案隔離。134項發布契約與6項abort已實跑通過；首次隔離副本漏Dockerfile的133通過／1 ENOENT失敗保留。
-
-CURRENT 獨立驗證索引：[47項契約切片](qa/DEV-122-openswx-phase2-independent-qc-2026-10-06.json)、[current-work owner切片](qa/DEV-122-openswx-phase2-current-work-owner-independent-qc-2026-10-06.json)、[owner bootstrap來源與回放](qa/DEV-122-openswx-owner-source-independent-qc-2026-10-06.json)、[Linux成品與8筆partial CAD](qa/DEV-122-openswx-phase2-independent-artifact-qc-2026-10-06.json)。各紀錄保留自己的來源、首次失敗與適用範圍；不得加總為整體DEV完成。
-
-CURRENT 最後本地 owner checks 已通過：[本地結案與證據索引](qa/DEV-122-openswx-phase2-owner-build-local-closure-2026-10-06.json)綁 full-r4 aggregate 119、abort 6、DB boundary、typecheck、isolated build PASS；134 continuous 僅沿用相同凍結來源的既有 PASS。獨立 Luna／max 逐檔核對 2182 檔與 166 個 freeze comparisons，並確認兩暫存根、三 junction、task-owned process／listener、Governor runtime／lease 已清理，共用依賴保留。建置 artifact 已依 isolated helper 清理，不能當成保留的部署映像；ENOENT／ENOTCONN 失敗歷史不改寫。人類選項 1 僅接受原 session／operation 的 C: 25 GiB 單次風險；容量底層仍 BLOCKED，非一般容量或 Cloud 授權。
-
-下一步為[新增正式資源與上線範圍核准](C:/VIBE%20CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/cloud-resource-production-approval-plan-2026-10-06.md)：十二個限定 Terraform addresses、兩項 numeric credential versions 與自有 082 forward-only migration 尚待該批明確授權；Terraform init／plan／apply、Cloud worker 正常執行與 completed-result 正常 UI 皆 NOT_RUN。B 方案保留文字 project ID 並核預期 number；首版依 CURRENT A build_only→normal bootstrap→B full→normal activation。F-01F 完整原生屬性由使用者正式驗證；7 issues／29 groups、整體 NOT_ACCEPTED；本段為提交前證據，後續 Git 狀態依提交收據，不替代正式驗收。
-
-HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證據](qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json)：新版082 exact SHA `9f4ff68f…c8000`、3 native tests及505真外鍵通過，四typedcontext／optional session／防偽造／same-company／single receipt已驗；未種資料基線先通過、lawfulfixture與原DM全列前後不變。Task-owned PG／62702／暫存cluster已清理。只適用凍結SQL subset；normal UI／最終獨立QC／Cloud與完整native CAD仍待各自驗證，整體NOT_ACCEPTED。
-
-
-</details>
-
-## DEV-121 最高管理能力批次：正式結案（2026-10-06）
-
-[本批唯一結果](dev_task.md#dev-121-system-admin-follow-up) → [owner正式closure](qa/DEV-121-admin-capabilities-v6-production-closure-2026-10-06.json) → [現行契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch)。PR216／requiredCI／R4 owner release及fresh正常UI／API通過，system_admin66explicitallow；Org22e81 role workspace200、跨公司403。安全negative沿exact source／current PG／原正式層級，未重標fresh；只讀頁不等於新能力編輯器。私人JENFU封存57raw及独立QA5/5／QC無P1/P2，精確hash在owner closure。
-
-原local checkpoints、R3頁blocked及原400/500/503保留HISTORY_ONLY，不再是pending施工指令；DEV-122、其他owner义务與未驗business判定不變。
-
-<details><summary>HISTORY_ONLY：本批早期進度</summary>
-
-
 ## DEV-121 最高管理角色能力修正（2026-10-05，執行中）
 
-現行 2026-10-06 workflow admission 續點：[local checkpoint](qa/DEV-121-workflow-entry-local-checkpoint-2026-10-06.json)。R3 API 正式 PASS、actual workflow UI FAIL 保留；exact readonly page caller 已本機修正與 QC，new CI／release／UI 待驗。DEV-122 不變。
-
-[本批子任務](dev_task.md#dev-121-system-admin-follow-up) → [唯一 current 契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch) → [QA 分母](dev_task.md#dev-121-system-admin-qa) → [本機／原生整合checkpoint](qa/DEV-121-admin-capabilities-v6-local-checkpoint-2026-10-05.json)。v6 明確完整 system_admin 能力、typed nav/API、Jed exact published grant 及 PostgreSQL role-capability 400／HTTP source session 缺口修復同批收束（正常 v4 直接讀已發布契約；v2/v3 cache 僅歷史回歸）；OrgMaster 保持身分／指派／scope owner，AI-PDM 判斷能力及資源。其他八角色、公司隔離、撤權、expiry 與禁止自審不因全能力取消。
+[本批子任務](dev_task.md#dev-121-system-admin-follow-up) → [唯一 current 契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch) → [QA 分母](dev_task.md#dev-121-system-admin-qa)。v6 明確完整 system_admin 能力、typed nav/API、Jed exact published grant 及 PostgreSQL role-capability 400 修復同批收束；OrgMaster 保持身分／指派／scope owner，AI-PDM 判斷能力及資源。其他八角色、公司隔離、撤權、expiry 與禁止自審不因全能力取消。
 
 沿既有 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121，不新增主任務。修正後驗收尚未完成；v5、已套用 migration／R81 歷史證據與 DEV-122 獨立 current 進度保留。下方 R81 只作前批證據，不能替代本批來源、正式版本或 PASS。
 
-
-</details>
-
-## 本工作樹 DEV-122 設定入口已部署／人工驗收入口（2026-10-05）
-
-DEV-122 現行本地追加修復：D122-08 share metadata 可選參數型別，依[同一契約](specs/DEV-122-ai-pdm-internal-function-issues.md#d122-08-本地修復階段2026-10-05rd-implementation-ready)執行；原7 issues／29 groups與人類CAD驗收不變，本階段沒有新增production授權。 [本地17 native／11 focused與層級限制](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)。D122-08 [PR213](https://github.com/jedchang0308-jenfu/AI-PDM/pull/213)已合併，Luna QC及required CI通過；正式發布範圍待人類決定。D122-07人類已確認維持停用、後續開發。
-
-## DEV-122 一次提交金鑰流程（2026-10-05；R03 已部署，待使用者 CAD 驗證）
-
-一次提交後自動測試、啟用與精確服務版本套用確認已部署：R03 owner run [37286616142](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37286616142) RELEASED／FINALIZED，100% ai-pdm-prod-7e169d142ba7、0 candidate tags；官方來源 aacd16a461dec3fca0ac27d2b178939211c5b055（PR211 正常合併），PR／main required CI 均 SUCCESS。170/170 unit、5/5 worker transport、34/34設定、134/134 release tests；isolated PG／正常 Settings UI 1440與390px控制流程及restart七表不變已驗，Luna來源／21張畫面與最後fixture QC無P1/P2。080正式1 applied／29 replayed／ledger30，舊migration prefix未變；B配置與既有三own資源沿用，無新增IAM。真key／CAD與常駐worker未冒稱PASS，R03 Windows launcher已交付；現行 Cloud Run reader 相容性依上方續點處理；F-01F由使用者正式驗證，7 issues／29 groups、整體NOT_ACCEPTED。閱讀[追加契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[本輪checkpoint](qa/DEV-122-secret-workflow-automation-2026-10-05.json)與[新正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)。
-
-
-## HISTORY_ONLY／R02 設定入口與人工驗收入口（2026-10-05）
-
-2026-10-05 R02 歷史基線發布結果：R02 已由 app-owned V3 owner run [37262598122](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122) 完成 RELEASED／FINALIZED；正式 ai-pdm-prod-52f421cb8db9 接收 100% 流量、0 candidate tags。官方來源 602413097ef27a203fe1e2beccac3166c6e2351a 來自正常 PR209 合併，PR／main required CI 均 SUCCESS。人類在本機安全頁完成既有 Firebase 帳號重新驗證，own numeric 6→7 與既有 GitHub production smoke Secret 更新成功；候選及 canonical 正常 SSO／authenticated probe 通過，匿名／撤銷 session 回 401。B 配置保留 jenfu-platform-prod 並另核 expected number 9536592944；三項已授權 own Secret／IAM 於 R01 APPLIED，R02 只沿用來源相容回執，沒有 historical workflow rotation apply。079 在 R01 已 forward apply，R02 0 applied／29 replayed／ledger 29。正式設定 UI 因工具限制 NOT_RUN；登入與 provider 證據不替代 key draft/probe/activation 或原生 CAD 屬性。這些由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups、整體 NOT_ACCEPTED。R01 401／UNKNOWN／安全中止證據保留。 [正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)。
-
-HISTORY_ONLY／R01 中止後續點：現行續點：R01 已安全中止於 verify：PR 207 正常合併至 697be61d51d105ec940ba594b57dac1c8f255ee6，required CI 37256330647 PASS；人類已授權並建立 exact SolidWorks Secret、add/access custom role、Secret-only runtime binding，provider readback PASS。Owner run 37258147467 的 prepare/build/migrate/candidate/entrypoint PASS，079 forward-only 已套用（1 applied、28 replayed、ledger 29），verify 因既有 smoke 憑證 Portal session 401 失敗。Recovery PASS／PRE_ACTIVATION_ABORTED，R81 ai-pdm-prod-ec2ae6647962 維持 100%，沒有切流。人類已選擇在本機安全頁輸入既有 Firebase 密碼；本輪只修復 reauth CLI 接受 clean detached exact official main，保留 source/repository、同 issuer/subject、Principal、fresh auth、numeric 6→7 與 readback gate。安全頁、憑證更新與重試發布仍 PENDING；401 根因 UNKNOWN，不能以版本輪替成功冒稱恢復。只限 AI-PDM／jenfu-platform-prod／asia-east1／ai-pdm-prod 及自有發布資源，禁止跨專案開發。真 CAD key/probe/activation/property 由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups及整體未驗收不變。 [R01 checkpoint](qa/DEV-122-settings-release-reauth-checkpoint-2026-10-05.json)。
-
-HISTORY_ONLY／B 合併前續點：B方案已完成：PDM_GCP_PROJECT_ID=jenfu-platform-prod保留，另設PDM_GCP_EXPECTED_PROJECT_NUMBER=9536592944；named請求／numeric canonical回傳分開嚴格核對。clean受測HEAD165a53f0bbcfbb9e54049c191505147936fcfaee已整合官方main46438028。unit83/83（Google57＋Principal26）、static36/36、mock27/27、release134/134及六項必要release檢查（QC97、abort6、boundary、typecheck、isolatedbuild）PASS；獨立gpt-6-luna QC為B_LOCAL_QC_PASS_REQUIRED_CI_PENDING_THREE_RESOURCES_PENDING_APPROVAL。新B required CI待同一草稿PR207刷新，舊b89 CI僅歷史。A未套用、不再待配置核准；僅三項新增正式Secret／IAM待明確資源授權，未merge／apply／deploy。真key/probe/activation及CAD properties由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups不變、整體未驗收。 [B契約](specs/DEV-122-ai-pdm-internal-function-issues.md#b-方案文字請求-id-與-canonical-專案編號分離2026-10-05本輪現行契約) → [最後LunaQC](../output/qa/dev-122/DEV-122-gsm-b-final-luna-qc-2026-10-05.json) → [三資源計畫](../output/qa/dev-122/DEV-122-gsm-b-production-resource-approval-plan-2026-10-05.md)。
-
-HISTORY_ONLY／R02 前本地證據入口：本工作樹 owner 為 AIPDM/DEV-122，branch codex/dev122-internal-functions，base HEAD 93b9b4cf67444d461aaa8934b8b1616537301b38。閱讀順序：[DEV-122 任務](dev_task.md#dev-122-business-defects) → [唯一 CURRENT_CONTRACT／issue disposition](specs/DEV-122-ai-pdm-internal-function-issues.md) → [本地續接收據與最後 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json) → 必要[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)。final source 凍結；97／97 focused、typecheck、2GiB bounded isolated build、DB boundary 的 Luna CLI QC 與 desktop/narrow 普通 Part／Drawing paired major／minor 的 Sol 跨層 QC 已完成。29 組中 28 組已有相符層級證據，F-01F 原生屬性尚未驗收；人類已授權修好設定入口並上線，原生 CAD 屬性由使用者正式驗證。官方 main 已修正 secret API Principal 接線；仍需 exact slice gate、provider env 與 own Secret container／IAM plan。停止本機 key 實驗；整體未驗收。三 CAD Shell appchain、original filename CLI partial 與真正屬性讀取分列，integrated daemon NOT_RUN／PDF preview Phase2 deferred，正式 procurement incident 根因 UNKNOWN。只補合法本機配置後的既有用途與受影響下游，不重跑已有效通過證據；原始 FAIL／UNKNOWN、coupled grants reachability、unit/mock／native／UI 層級邊界保留。077 live 未套用；本輪 runtime／ports／temp／leases 已清理。D03/D04/QA01、D05/D06 都留本 DEV；D01/D02 僅回歸。
-
-HISTORY_ONLY／B前CI fixture：[草稿 PR #207](https://github.com/jedchang0308-jenfu/AI-PDM/pull/207)原run37232762876一項PASS、一項FAIL（後續artifact略過）；[原CI失敗](../output/qa/dev-122/ci-37232762876-original-failure/receipt.json)及後續11P／1F保留。fixture DDL／seed補欄，舊跨公司claim寫入期待依已凍結no-effects契約改為完整row不變，產品guard未改；[新12案例補驗](../output/qa/dev-122/preview-fixture-focused-85e07554830328b9/manifest.json)12／12及[source/cleanup讀回](../output/qa/dev-122/preview-fixture-parent-1cdc8bbea86d44e38d29807759e91626/post-exit-cleanup.json)已完成。待final independent QC及同一PR required CI；發布仍待既有兩項具體核准，F-01F人類正式NOT_RUN。
-
-HISTORY_ONLY／B前設定準備與A提案：latest main已整合、077未套用候選改079（bytes相同），設定入口app source已完成。85focused、實際134release tests、34+36+9static/mock與必要type/build/boundary已執行；最新078/079 native回歸8／8及[設定2viewport真實UI](../output/playwright/dev122/e1c041c4f1bba741/receipt.json)已PASS，本機provider blocked／無真key，不替代正式GCP或原生屬性。原5cbd／941的FAIL及body UNKNOWN保留，163 own table rows相同而nonce snapshot hashes不同；[fresh exactPID／ports清理核對](../output/qa/dev-122/DEV-122-settings-ui-final-cleanup-readback-2026-10-05.json)已完成。[三項own資源唯讀 native plan](../output/qa/dev-122/settings-infra-plan-a3440e795f394919bf4135d40fda5938/receipt.json)僅三create，既有83不變，無apply。正式GCP版本canonical數字ID的最小env修正遭auto-review兩次拒絕，待具體人類核准；新增Secret／customrole／Secret-onlybinding亦待資源授權。先準備草稿PR，尚未正式發布；人類key／probe／CAD properties NOT_RUN／整體未驗收。依source applicability沿用有效本地證據，不把historical或mock升為正式PASS。
-唯一開發授權專案是 AI-PDM；native runner/fixtures 必須自有、不使用 sibling source／runner，runtime/data／repository 必須 task-owned 並清理。現行人類指示已授權 AI-PDM owner 正式發布至 jenfu-platform-prod / asia-east1 / ai-pdm-prod；exact 三資源已另獲人類授權並由 R01 建立，R02 復用回執；真金鑰與 CAD 驗收尚待使用者。下方 DEV-121 入口與其歷史進度只作原 owner 的責任背景，不是本聊天施工 queue；原始 partial FAIL、UI NOT_RUN、正式異常與 resource-only readback 不升為 PASS。
-
 ## R81 Principal-only 已交付基線（HISTORY_ONLY；原結論保留）
-
 
 **本輪授權出口已完成。** [DEV-121 現行交付](dev_task.md#dev-121-current-contract) → [正式授權結案及層級限制](qa/DEV-121-principal-authorization-production-closure-2026-10-05.json) → [current契約](specs/DEV-121-target-authorization-boundary.md)。文件 PR／QC收尾不需要再發布未變的 runtime；DEV-122 業務仍 NOT_PASS。
 
@@ -118,7 +26,7 @@ DEV-109 evidence correction (2026-09-01)：historical aggregate=`output/qa/dev-1
 
 | Need | Read |
 |---|---|
-| DEV-122／AI-PDM 內部功能缺陷集中處理 | [任務入口](dev_task.md#dev-122-business-defects) → [現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md) → [R03結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)。一次提交與真實動態進度已部署；100% ai-pdm-prod-7e169d142ba7／0 tags／canonical smoke PASS。真key／原生CAD正式驗證由使用者執行；Cloud Run接線依CURRENT續點，Windows主機待提供為歷史；7 issues／29 groups／整體NOT_ACCEPTED，歷史與mock不推定正式業務PASS。單一AI-PDM，禁止跨專案開發。 |
+| DEV-122／AI-PDM 內部功能缺陷集中處理 | [任務入口](dev_task.md#dev-122-business-defects) → [唯一問題列表](specs/DEV-122-ai-pdm-internal-function-issues.md) → [partial FAIL／cleanup 原始證據](qa/DEV-122-canonical-lifecycle-deferred-2026-10-03.json)。延後／Brief Ready；local lifecycle／077 保留未合併，既有 resolved 不作 current 缺陷；不移走 DEV-121 的 scope／publish／verified Principal 或可靠發布必要修正。 |
 | DEV-120／Platform DEV-013 P_BOTH target session expiry修正 | [任務板](dev_task.md) → [DEV-120 QC receipt](qc/qc-dev-120-dev013-target-session-expiry-2026-09-21.md)；程式 `src/lib/jenfu-sso-handoff.ts`、回歸測試 `src/lib/jenfu-sso-handoff.test.ts`。根因為callback誤把短效`handoff.expiresAt`用作target session上限；current修正固定`min(now + 8h, sourceSessionExpiresAt)`，assertion expiry仍只驗callback freshness。Local=`test:dev-013` 4／4、`test:dev-013:l3` 17／17、typecheck、DB boundary、isolated build PASS；Production已安全回切`employee-shijie / ai-pdm`至`legacy_authority:5`，新revision deploy／re-switch／完整L4／global logout=`NOT_RUN`。 |
 | DEV-119／DEV-013 `013-S4-L3-AIPDM-ENV` shared-staging owner release | [任務板](dev_task.md) → [DEV-013 AI-PDM owner capsule](specs/DEV-013-ai-pdm-sso-consumer.md)；[local readiness receipt](qc/qc-dev-119-dev013-staging-release-readiness-2026-09-17.md)；profile `config/release/dev013-ai-pdm-managed-staging.json`；owner-native adapter／CLI／focused tests `scripts/lib/dev013-ai-pdm-managed-staging.mjs`、`scripts/dev013-ai-pdm-managed-staging.mjs`、`scripts/dev013-ai-pdm-managed-staging.test.mjs`；app-owned Infra A `infra/google-cloud/dev-013-l3-ai-pdm`。Status=`READY_FOR_NONPROD_APPLY`；manifest=`jenfu.dev013.l3-managed-staging.v2`／SHA `eefcfbd8…`，target固定`jenfu-platform-nonprod / asia-east1 / ai-pdm-stg / jenfu_stg`。Infra A只建立repository／evidence bucket／exact IAM並有8-address exact-after plan gate；existing service不納Terraform。Fresh owner-native read-only plan先把現有`latest=100%`固定至ready revision並啟用deletion protection，update mask只可為`traffic`或`traffic,deletionProtection`，template／labels／siblings=0；hard join完成後才可進入Secret numeric-pinning candidate與traffic-only activation並產生bootstrap receipt v2。final owner receipt v2另要求source／digest／etag／SA uniqueId／origin／callback／三組numeric refs／mode=on／100% traffic與rollback-floor exact join。所有雲端mutation／DB migration／L3 browser=`NOT_RUN`。 |
 | DEV-118 平台登入入口與 Google／工號契約 | [任務板](dev_task.md) → [PDM SPEC](specs/SPEC-PDM-PRODUCTION-GOOGLE-SIGN-IN-READINESS-001-provider-capability-and-entrypoint-gate.md)；[118-A QC](qc/qc-dev-118-local-implementation-2026-09-17.md)；[118-B 交接審查與歷史](qc/qc-dev-118-platform-handoff-readonly-2026-09-17.md)；[Production L4 checkpoint](qc/qc-dev-118-production-l4-2026-09-22.md)；[DEV-014 Production runbook](../../Jenfu-Platform/ai-doc/runbooks/DEV-014-production-protected-release.md)。118-C current owner run `35669545522`已把main `6e21bb4c2f39d4b4777320d202a2037bde609b00`發布至`ai-pdm-prod-f5ee2af2d7ec`並承接100% traffic。`PDM-W-G`、`PDM-W-E`、global invalidation及target-only local logout continuity具current evidence；完成仍以production canonical LOGIN六案與PDM C01／C02四格為準。 |
@@ -2048,8 +1956,3 @@ DEV-109 source-plan root-cause correction（2026-09-01 continuation）：stabili
 
 DEV-109 corrected source-plan recheck（2026-09-01 06:34Z）：dirty evidence churn 下 plan `stable=true`、included source=`299`、unknown risk=`0`、`safeToStageIncludedSource=true`，但仍 `safeToBuildForProduction=false`、`exactReleaseCommitExists=false`；§31.10 planning ledger 交集 `52/54`、非 CAPA paths=`247`。scope/hunk selection與exact commit未完成前，不得進入production build/deploy或關閉CAPA；receipts=`output/qa/dev-109-capa-production/2026-09-01T0315Z/source-scope-overlap-2026-09-01T0634Z.json`、`release-owner-decision-packet-2026-09-01T0634Z.json`。
 DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unified aggregate `54/54 PASS`、`missing=[]`，task-owned provider/browser，`productionConnection=false`／`productionWrites=false`；evidence=`output/qa/dev-109-unified/2026-09-01T05-44-34-610Z/aggregate.json`。此證據仍不代表 production CAPA-P01～P04 完成。
-
-
-### 2026-10-06 保存草稿收斂（HISTORY_ONLY）
-
-[DEV-121 主線收斂／原稿保存](qa/DEV-121-preserved-workspace-drafts-2026-10-06.md)：RECONCILED_HISTORY_ONLY。相關 runtime 已在 main 或已確認不採用；原始文件與程式 patch 保存供追溯，不是新的待開發或發布指令。本批不改變 DEV-121 正式結案，DEV-122 延期與其他工作樹原稿保留；必要 CI／review 以本文件 PR 精確來源為準。
