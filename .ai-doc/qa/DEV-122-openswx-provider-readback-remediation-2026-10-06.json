@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "aipdm.dev122.provider-readback-remediation.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122#openswx-readonly-auxiliary",
+  "sourceBase": "e2323de5eeb85013e788c5f34292e3cb6094f493",
+  "branch": "codex/dev122-provider-readback-fix",
+  "status": "SOURCE_QC_PASS_29_MOCK_TESTS_OFFICIAL_CI_PENDING",
+  "singleWriter": "root",
+  "authorization": {
+    "humanOriginal": "核准, 請接續",
+    "capacityHumanOriginal": "接受本次容量風險，繼續安裝與上線",
+    "scope": "Same twelve AI-PDM resources; numeric credentials; forward082; app-owned production release; corrective cycle; no sibling"
+  },
+  "failure": {
+    "migration082": "NOT_RUN",
+    "traffic": "R4_UNCHANGED",
+    "actualMethod": "GET",
+    "requestBody": "EMPTY",
+    "newSecretVersions": "NOT_RUN",
+    "existingApplyRequest": "RETAINED_R01_NO_BLIND_REAPPLY",
+    "endpoint": "IAM ServiceAccount getIamPolicy",
+    "resourcesStage": "MISSING",
+    "diagnostic": {
+      "sha256": "e0f3371ec9d6a969fd7b2d4cae0ed63cbee949eec14286e81bad9ccf56c2d711",
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\resources-readback-diagnostic.json"
+    },
+    "actualReaderActAs": "EXACT_DEPLOYER_ONLY_CONFIRMED_BY_NATIVE_GCLOUD",
+    "requiredMethod": "POST",
+    "actualSchedulerState": "PAUSED",
+    "officialReference": "https://docs.cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/getIamPolicy",
+    "actualWorkerJob": "EXISTS_SELFTEST_IMAGE_E9194D35"
+  },
+  "scope": {
+    "terraformChanges": "NONE",
+    "changedProducts": [
+      "scripts/lib/dev122-openswx-owner-release.mjs",
+      "scripts/lib/dev122-openswx-bootstrap.mjs",
+      "scripts/dev122-openswx-bootstrap.test.mjs",
+      "scripts/dev122-openswx-owner-release.test.mjs"
+    ],
+    "recovery": "Keep scheduler paused and existing service traffic; provider readback before any next apply",
+    "iamChanges": "NONE",
+    "workerChainChanges": "FIRST readback-only source reconciliation and actual-provider default normalization; desired policies and worker binaries unchanged",
+    "firstBridge": "Twelve existing resources; complete R01 request/binary/approved-plan/descriptor/build join; identical TF/profile/worker sources; same human authorization hash; raw/blocking scan zero; all scoped provider IAM/resource exact; PAUSED; zero executions; reader Secret zero versions; no Terraform init/plan/apply or new resource authority",
+    "consumer": "FIRST_CREATE rechecks basis/provider before two authorized numeric versions and fresh-etag selftest; completed replay rechecks basis/template/resource/numeric credential binding without issuance",
+    "providerDefaults": "Only actual provider GEN2, omitted empty env, and omitted empty args for exact ENTRYPOINT-only finite-worker image; null/nonempty/other-field drift remains rejected; desired/policy/descriptor hashes literal; prior raw Job and canonical restore target joined by hash"
+  },
+  "validation": {
+    "kind": "MOCK_PROVIDER_TARGETED_NOT_PRODUCTION",
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "skip": 0,
+    "candidateHashes": {
+      "scripts/lib/dev122-openswx-bootstrap.mjs": "ea3e08edc3d3f0b34e8f66bb7167bdf3d89a037176baf9b44be6e24a76be01a7",
+      "scripts/dev122-openswx-owner-release.test.mjs": "571d1877872cf292692e4d6d06cea5f6d0dc0352fcd11c80bce799922746ef2e",
+      "scripts/lib/dev122-openswx-owner-release.mjs": "2aa4d911a95481c6500692de66368f93ac0cbb139fe8857246f2f820e8adff62",
+      "scripts/dev122-openswx-bootstrap.test.mjs": "61e037591de7f134ce7beb90ba8c936acf50faa131c3b7c22962376ae39d3ffa"
+    },
+    "runtimeStopped": true,
+    "lifecycleReleased": true,
+    "temporaryRemoved": true,
+    "outputSha256": "f0f8a9064ce5f6b9a163990e5ec75f082c5e5152fc6d6b11f26ef34195b107c0",
+    "initialFixtureFailure": "Retained round1-fixture logs: optional reads serialized bytes; test mutated only value. Fixture serialization corrected; no gate or case removed."
+  },
+  "priorA03": {
+    "evidenceScope": "BUILD_SECURITY_READINESS_ONLY",
+    "cloudLinuxIsolation": "PASS",
+    "rawHighCritical": 0,
+    "sourceRevision": "8f25b0a1a5f42c63e6e20d1e48bd44dd91a9a775",
+    "workerImage": "sha256:e9194d35da569b491ed65a20bef27cacaf44f28b9f83269f1bbd85341a59eacc",
+    "ownerRun": "37410760255",
+    "workerBuild": "395d0b64-114c-4002-ac8e-f56076b51d07"
+  },
+  "independentSourceQc": {
+    "model": "gpt-6-luna",
+    "effort": "max",
+    "status": "SOURCE_QC_PASS",
+    "scope": "Four source/test hashes and frozen spec, 29-case mock output and lifecycle; provider/CAD/UI NOT_RUN_BY_QC",
+    "facts": "Independent Luna verified all four current hashes, 29/29 mock stdout, lifecycle stopped/released/temp removed; P1 raw Job vs canonical join repaired; provider/CAD/UI remain NOT_RUN"
+  },
+  "completionBoundary": {
+    "wholeDev": "NOT_ACCEPTED",
+    "externalSupplierReply": "DISABLED_DEFERRED",
+    "nativeF01F": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+    "completedNormalUi": "NOT_RUN"
+  },
+  "historicalPostOnly": {
+    "sourceBase": "8f25b0a1a5f42c63e6e20d1e48bd44dd91a9a775",
+    "validation": {
+      "fail": 0,
+      "tests": 14,
+      "temporaryRemoved": true,
+      "pass": 14,
+      "skip": 0,
+      "runtimeStopped": true,
+      "kind": "MOCK_PROVIDER_TARGETED_EXISTING_TEST",
+      "outputSha256": "a72d8fa5a287528e78b50f2508e2029995c4fe197f2a28984b5279e47a2046a2"
+    },
+    "independentSourceQc": {
+      "cleanup": "Root-owned native lifecycle receipt; not independently read by QC",
+      "effort": "max",
+      "scope": "Two product/test files plus actual 14-case stdout",
+      "model": "gpt-6-luna",
+      "providerRuntime": "NOT_RUN_BY_QC",
+      "status": "SOURCE_QC_PASS"
+    },
+    "commit": "e2323de5eeb85013e788c5f34292e3cb6094f493",
+    "requiredCi": {
+      "runId": "37413302900",
+      "status": "SUCCESS",
+      "scope": "POST_ONLY_NOT_CURRENT_BRIDGE"
+    }
+  },
+  "providerSemanticReferences": [
+    "https://docs.cloud.google.com/run/docs/reference/rest/v2/Container",
+    "https://docs.docker.com/reference/dockerfile/#understand-how-cmd-and-entrypoint-interact",
+    "https://protobuf.dev/programming-guides/json/"
+  ],
+  "normalArgsProviderObservation": "NOT_RUN; fixed-image equivalence verified from Dockerfile and official semantics; first actual normal Job readback still required",
+  "sourceQcCorrectiveRound": {
+    "firstFinding": "P1 FIRST receipts lacked raw provider Job required by frozen contract",
+    "disposition": "RD corrected readWorkerResources providerJob and paused-drained facts.providerJob; raw GEN2/omitted env vs canonical hash assertions strengthened; no authority or policy change",
+    "sourceQc": "SOURCE_QC_PASS_INCREMENTAL_CURRENT_FOUR_HASHES",
+    "tests": "29/29 mocked provider PASS"
+  }
+}

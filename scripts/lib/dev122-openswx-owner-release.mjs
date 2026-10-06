@@ -126,9 +126,21 @@ export function assertWorkerReceipt(value, descriptor, kind, { actor, image } = 
     || (actor && value.actor !== actor) || (image && value.image !== image) || value.jobName !== workerJobName()) fail('OPENSWX_RECEIPT_JOIN_INVALID')
   return value
 }
+// Cloud Run v2 omits empty env and reports the fixed Jobs GEN2 environment.
+// Normalize only these observed defaults; all other fields remain exact.
+export function normalizeWorkerTemplate(template) {
+  const value = structuredClone(template), task = value.template ?? value
+  if (task.executionEnvironment === 'EXECUTION_ENVIRONMENT_GEN2') delete task.executionEnvironment
+  for (const container of task.containers ?? []) {
+    if (container.env === undefined) container.env = []
+    // This exact finite-worker sets ENTRYPOINT and has an empty image CMD.
+    if (container.args === undefined) container.args = []
+  }
+  return value
+}
 export function assertWorkerJob(job, expectedTemplate) {
   if (![workerJobName(), workerJobName().replace(PROJECT, NUMBER)].includes(job?.name) || job.reconciling === true || String(job.generation) !== String(job.observedGeneration)
-    || job.terminalCondition?.state !== 'CONDITION_SUCCEEDED' || canonicalize(job.template) !== canonicalize(expectedTemplate)) fail('OPENSWX_JOB_READBACK_MISMATCH')
+    || job.terminalCondition?.state !== 'CONDITION_SUCCEEDED' || canonicalize(normalizeWorkerTemplate(job.template)) !== canonicalize(expectedTemplate)) fail('OPENSWX_JOB_READBACK_MISMATCH')
   return job
 }
 export function assertPausedScheduler(value, profile) {
@@ -170,7 +182,7 @@ export async function updateWorkerJob({ transport, profile, template, deadlineAt
   const before = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
   if (!before.etag || before.reconciling || Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_JOB_UPDATE_NOT_READY')
   await assertNoActiveExecutions(transport)
-  if (canonicalize(before.template) === canonicalize(template)) return assertWorkerJob(before, template)
+  if (canonicalize(normalizeWorkerTemplate(before.template)) === canonicalize(template)) return assertWorkerJob(before, template)
   try {
     await transport.request(`https://run.googleapis.com/v2/${workerJobName()}?updateMask=template`, {
       method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: workerJobName(), etag: before.etag, template }),
@@ -178,7 +190,7 @@ export async function updateWorkerJob({ transport, profile, template, deadlineAt
   } catch {
     // A lost response never permits a second PATCH. Read the exact resource.
     const current = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
-    if (canonicalize(current.template) !== canonicalize(template)) fail('OPENSWX_JOB_UPDATE_OUTCOME_UNKNOWN')
+    if (canonicalize(normalizeWorkerTemplate(current.template)) !== canonicalize(template)) fail('OPENSWX_JOB_UPDATE_OUTCOME_UNKNOWN')
   }
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_JOB_UPDATE_OUTCOME_UNKNOWN')
@@ -235,7 +247,7 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
       const execution = await transport.request(`https://run.googleapis.com/v2/${executionName}`)
       if (execution.completionTime) {
         assertTerminalExecution(execution, executionName, { success: true })
-        if (canonicalize(execution.template) !== canonicalize(template.template)) fail('OPENSWX_EXECUTION_TEMPLATE_MISMATCH')
+        if (canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(template.template)) fail('OPENSWX_EXECUTION_TEMPLATE_MISMATCH')
         assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), template)
         const receipt = workerReceipt({ descriptor, kind: 'finite-terminal', actor, image: template.template.containers[0].image, template, observedAt: transport.now(), previousRefs: [request.ref],
           facts: { executionName, execution, requestRef: request.ref, terminalExitZero: true, claimProof: 'PENDING_NORMAL_ACTOR_STDOUT_READBACK', workerStatus: 'ACTIVATION_PENDING' } })
@@ -370,8 +382,8 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     }
     const job = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
     const normal = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion), selftest = workerTemplate(descriptor.profile, evidence.image, null, 'selftest')
-    if (![canonicalize(normal), canonicalize(selftest)].includes(canonicalize(job.template))) fail('OPENSWX_DRAIN_JOB_DRIFT')
-    assertWorkerJob(job, job.template)
+    if (![canonicalize(normal), canonicalize(selftest)].includes(canonicalize(normalizeWorkerTemplate(job.template)))) fail('OPENSWX_DRAIN_JOB_DRIFT')
+    assertWorkerJob(job, normalizeWorkerTemplate(job.template))
     return scheduler
   }
   async function prepare({ intent, profile, runtimeConfig }) {
@@ -427,7 +439,10 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     if (existing) { assertWorkerReceipt(existing.value, descriptor.value, 'normal-job', { image: evidence.image }); assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), template); return existing.ref }
     const before = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
     if (!before?.template) fail('OPENSWX_PRIOR_JOB_MISSING')
-    const prior = await write(`${rootFor(intent)}/prior-job.json`, workerReceipt({ descriptor: descriptor.value, kind: 'prior-job', actor: 'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', image: evidence.image, template: before.template, observedAt: transport.now(), previousRefs: [descriptor.ref], facts: { priorJob: before } }))
+    const priorRestoreTemplate = normalizeWorkerTemplate(before.template)
+    if (![canonicalize(template), canonicalize(workerTemplate(descriptor.profile, evidence.image, null, 'selftest'))].includes(canonicalize(priorRestoreTemplate))) fail('OPENSWX_PRIOR_JOB_MISSING')
+    assertWorkerJob(before, priorRestoreTemplate)
+    const prior = await write(`${rootFor(intent)}/prior-job.json`, workerReceipt({ descriptor: descriptor.value, kind: 'prior-job', actor: 'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', image: evidence.image, template: priorRestoreTemplate, observedAt: transport.now(), previousRefs: [descriptor.ref], facts: { priorJob: before, priorRestoreTemplate } }))
     await pausedAndDrained(descriptor)
     await updateWorkerJob({ transport, profile: descriptor.profile, template, deadlineAt: intent.deadlineAt })
     const saved = await write(uri, workerReceipt({ descriptor: descriptor.value, kind: 'normal-job', actor: 'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', image: evidence.image, template, observedAt: transport.now(), previousRefs: [prior.ref, descriptor.value.pausedDrainedRef], facts: { tokenSecretVersion: assertNumericSecret(descriptor.value.tokenSecretVersion, descriptor.profile.tokenSecretId), priorJobRef: prior.ref } }))
@@ -457,8 +472,12 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
       await assertNoActiveExecutions(transport)
       const prior = await optionalReceipt(transport, `${rootFor(intent)}/prior-job.json`)
       if (prior) {
+        const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile)
         assertWorkerReceipt(prior.value, descriptor.value, 'prior-job')
-        await updateWorkerJob({ transport, profile: descriptor.profile, template: prior.value.facts.priorJob.template, deadlineAt: intent.deadlineAt })
+        const restore = prior.value.facts.priorRestoreTemplate
+        if (canonicalize(restore) !== canonicalize(normalizeWorkerTemplate(prior.value.facts.priorJob.template)) || prior.value.templateSha256 !== sha256(canonicalize(restore))
+          || ![workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion), workerTemplate(descriptor.profile, evidence.image, null, 'selftest')].some(template => canonicalize(template) === canonicalize(restore))) fail('OPENSWX_PRIOR_JOB_MISSING')
+        await updateWorkerJob({ transport, profile: descriptor.profile, template: restore, deadlineAt: intent.deadlineAt })
       }
       return { status: 'PAUSED_RECOVERED', durableQueue: 'RETAINED', schedulerEnabled: false }
     } catch { return { status: 'RECOVERY_REQUIRED', durableQueue: 'RETAINED', schedulerEnabled: false } }

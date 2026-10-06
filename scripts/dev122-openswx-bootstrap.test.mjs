@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources } from './lib/dev122-openswx-bootstrap.mjs'
-import { WORKER_SOURCE_PATHS, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite } from './lib/dev122-openswx-owner-release.mjs'
+import { WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite } from './lib/dev122-openswx-owner-release.mjs'
 
 // Recorded provider control tests: no real Principal, OAuth, Cloud, Terraform or CAD proof.
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url)), profile = JSON.parse(profileBytes)
@@ -66,7 +66,10 @@ test('valid resource proof replay reads provider only and preserves original pla
   assert.deepEqual(first.ref, replay.ref); assert.equal(first.value.observedAt, replay.value.observedAt)
   assert.equal(first.value.mutation, 'READBACK_ONLY'); assert.equal(first.value.binaryPlanSha256, 'd'.repeat(64))
   assert.ok(h.objects.get(ref('resources-test-request').uri).bytes.equals(originalRequest)); assert.ok(h.objects.get(ref('resources-test-plan').uri).bytes.equals(originalPlan))
-  assert.ok(provider.calls.every(row => !row.options.method || row.options.method === 'GET'))
+  assert.ok(provider.calls.every(row => !row.options.method || row.options.method === 'GET' || (row.options.method === 'POST' && row.url === `https://iam.googleapis.com/v1/projects/${profile.projectId}/serviceAccounts/${profile.readerServiceAccount}:getIamPolicy`)))
+  const policyReads = provider.calls.filter(row => row.url.includes('iam.googleapis.com') && row.url.endsWith(':getIamPolicy'))
+  assert.equal(policyReads.length, 2)
+  assert.ok(policyReads.every(row => row.options.method === 'POST' && row.options.body === undefined))
 })
 test('stdout empty proof rejects completed/selftest/null/wrong execution/extra fields/foreign log scope', () => {
   assert.equal(parseWorkerStdoutMarker(marker(), executionName).marker.state, 'empty')
@@ -136,7 +139,7 @@ async function dailyHarness({ markerState = null, wrongPriorImage = false } = {}
       return { name: `projects/9536592944/secrets/${profile.tokenSecretId}` }
     }
     if (url.includes('/roles/')) { const lifecycle = url.endsWith('aipdmOpenswxJobLifecycle'); return { name: `projects/${profile.projectId}/roles/${lifecycle ? 'aipdmOpenswxJobLifecycle' : 'aipdmOpenswxJobReadback'}`, includedPermissions: lifecycle ? ['run.jobs.get', 'run.jobs.update', 'run.jobs.run', 'run.executions.get', 'run.executions.list', 'run.executions.cancel'] : ['run.jobs.get', 'run.executions.get', 'run.executions.list'] } }
-    if (url.includes('iam.googleapis.com')) { if (url.endsWith(':getIamPolicy')) return { bindings: [{ role: 'roles/iam.serviceAccountUser', members: ['serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'] }] }; return { email: url.split('/').at(-1) } }
+    if (url.includes('iam.googleapis.com')) { if (url.endsWith(':getIamPolicy')) { assert.equal(options.method, 'POST'); assert.equal(options.body, undefined); return { bindings: [{ role: 'roles/iam.serviceAccountUser', members: ['serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'] }] } }; return { email: url.split('/').at(-1) } }
     if (url.endsWith(':getIamPolicy')) return { bindings: [{ role: 'roles/run.invoker', members: ['serviceAccount:aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com'] }, { role: 'projects/jenfu-platform-prod/roles/aipdmOpenswxJobReadback', members: ['serviceAccount:aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com'] }, { role: 'projects/jenfu-platform-prod/roles/aipdmOpenswxJobLifecycle', members: ['serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'] }] }
     if (url.includes('logging.googleapis.com')) { const execution = executions.at(-1), row = marker(controls.markerState ?? (execution.template.containers[0].args.length ? 'isolation_verified' : 'empty'), execution.name); row.timestamp = execution.completionTime; return { entries: [row] } }
     if (url.endsWith(':run')) { const now = Date.now(); executions.push({ name: executionName + '-' + executions.length, createTime: new Date(now + 10).toISOString(), completionTime: new Date(now + 20).toISOString(), succeededCount: 1, failedCount: 0, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: structuredClone(job.template.template) }); return { name: 'projects/9536592944/locations/asia-east1/operations/recorded' } }
@@ -207,4 +210,138 @@ test('completed marker blocks activation; unknown resume reads back then pauses 
   assert.equal(unknown.calls.filter(row => row.url.endsWith(':resume')).length, 1)
   const scheduler = await unknown.transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`); assert.equal(scheduler.state, 'PAUSED')
   assert.ok(!unknown.objects.has(ref('normal-activation').uri))
+})
+
+async function firstReconciliationHarness() {
+  const h = memory(), prior = descriptor('a'.repeat(40)), target = descriptor('b'.repeat(40))
+  const capacity = await h.put('first-capacity', { project: 'AI-PDM', sourceRevision: target.value.sourceRevision, status: 'PASS', observedAt: h.transport.now() })
+  const approved = d => ({ schemaVersion: 'aipdm.openswx-approved-resource-plan.v1', ownerApplicationId: 'ai-pdm', sourceRevision: d.value.sourceRevision, status: 'APPROVED', releaseAuthority: true, evidenceScope: 'HUMAN_APPROVED_RESOURCE_PLAN', authorizationStatementSha256: 'c'.repeat(64), resourcePlanHash: d.value.resourcePlanHash, capacityGateRef: capacity, plan: d.plan })
+  prior.value.resourcePlanRef = await h.put('first-old-approved', approved(prior)); target.value.resourcePlanRef = await h.put('first-next-approved', approved(target))
+  const priorDescriptorRef = await h.put('first-old-descriptor', prior.value), descriptorRef = await h.put('first-next-descriptor', target.value)
+  const sourceHashes = [...WORKER_SOURCE_PATHS.map(path => ({ path, sha256: sha256(readSource(path)) })), ...Array.from({ length: 19 }, (_, i) => ({ path: `scripts/lib/openswx-reader/vendor/fixture-${i}`, sha256: 'c'.repeat(64) }))]
+  const image = letter => `${profile.artifactUri}@sha256:${letter.repeat(64)}`
+  const built = (d, letter) => workerReceipt({ descriptor: d.value, kind: 'build', actor: appProfile.identities.builder, image: image(letter), template: workerTemplate(profile, image(letter), null, 'selftest'), observedAt: h.transport.now(), facts: { sourceObject: { sha256: d.value.sourceArchiveSha256, generation: '1' }, sourceHashes: structuredClone(sourceHashes), scan: { status: 'PASS', blockingVulnerabilityCount: 0, rawHighOrCriticalVulnerabilityCount: 0 }, provenance: ['recorded-provenance'], sbom: ['recorded-sbom'] } })
+  const priorWorkerBuildRef = await h.put('first-old-build', built(prior, 'a')), workerBuildRef = await h.put('first-next-build', built(target, 'b'))
+  const binding = { ownerApplicationId: 'ai-pdm', projectId: profile.projectId, backendBucket: profile.backendBucket, backendPrefix: profile.backendPrefix, receiptUri: ref('first-old-resource').uri, descriptorRef: priorDescriptorRef, approvedPlanRef: prior.value.resourcePlanRef, actor: profile.normalActor, sourceRevision: prior.value.sourceRevision, sourceArchiveSha256: prior.value.sourceArchiveSha256, resourcePlanHash: prior.value.resourcePlanHash, workerImage: image('a'), binaryPlanSha256: 'd'.repeat(64), changes: OPENSWX_TERRAFORM_ADDRESSES.map(address => ({ address, actions: ['create'] })), requestedAt: h.transport.now() }
+  const binaryPlanReceiptRef = await h.put('first-old-resource-plan', { schemaVersion: 'aipdm.openswx-resource-binary-plan.v1', ...binding })
+  const priorResourceRequestRef = await h.put('first-old-resource-request', { schemaVersion: 'aipdm.openswx-resource-apply-request.v1', ...binding, binaryPlanReceiptRef })
+  const provider = await dailyHarness()
+  await provider.transport.request(`https://run.googleapis.com/v2/${workerJobName()}?updateMask=template`, { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image('a'), null, 'selftest') }) })
+  await provider.transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}:pause`, { method: 'POST', body: '{}' }); provider.calls.length = 0
+  const request = provider.transport.request
+  h.transport.request = async (url, options = {}) => { if (url.includes(profile.tokenSecretId + '/versions?')) { provider.calls.push({ url, options }); return { versions: [] } }; return request(url, options) }
+  const args = { transport: h.transport, profile, descriptor: target.value, descriptorRef, build: h.objects.get(workerBuildRef.uri).value, readSource, oauthToken: 'recorded-memory-only-token', root: '/INVALID_NO_TERRAFORM_ALLOWED', uri: ref('first-new-resource').uri, deadlineAt: deadline(), actor: { email: profile.normalActor }, firstReconciliation: { priorResourceRequestRef, priorWorkerBuildRef } }
+  return { ...h, args, provider, request, priorResourceRequestRef, priorWorkerBuildRef, workerBuildRef, binaryPlanReceiptRef, priorDescriptorRef, priorPlanRef: prior.value.resourcePlanRef }
+}
+test('FIRST source reconciliation reads existing twelve resources only, preserves R01 and replays proof without Terraform or issuance', async () => {
+  const h = await firstReconciliationHarness(), original = Buffer.from(h.objects.get(h.priorResourceRequestRef.uri).bytes)
+  const request = h.transport.request
+  h.transport.request = async (url, options) => { const result = await request(url, options); if (url === `https://run.googleapis.com/v2/${workerJobName()}`) { const raw = structuredClone(result); raw.template.template.executionEnvironment = 'EXECUTION_ENVIRONMENT_GEN2'; delete raw.template.template.containers[0].env; return raw }; return result }
+  const first = await executeOpenSwxResources(h.args), replay = await executeOpenSwxResources(h.args)
+  assert.equal(first.value.mutation, 'READBACK_ONLY_FIRST_SOURCE_RECONCILIATION'); assert.deepEqual(first.ref, replay.ref)
+  assert.equal(first.value.readback.image, h.objects.get(h.priorWorkerBuildRef.uri).value.image)
+  assert.equal(first.value.firstSourceReconciliation.targetImage, h.args.build.image)
+  assert.equal(first.value.readback.providerJob.template.template.executionEnvironment, 'EXECUTION_ENVIRONMENT_GEN2')
+  assert.equal(first.value.readback.providerJob.template.template.containers[0].env, undefined)
+  assert.deepEqual(normalizeWorkerTemplate(first.value.readback.providerJob.template), workerTemplate(profile, first.value.readback.image, null, 'selftest'))
+  assert.ok(h.objects.get(h.priorResourceRequestRef.uri).bytes.equals(original))
+  assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || (row.options.method === 'POST' && row.url.endsWith(':getIamPolicy'))))
+  assert.ok(!h.objects.has(ref('first-new-resource-request').uri))
+})
+test('FIRST source reconciliation rejects foreign/tampered joins, plan/profile/source/scan drift before provider readback', async () => {
+  for (const mutate of [h => { h.objects.get(h.priorResourceRequestRef.uri).value.actor = 'other' }, h => { h.objects.get(h.priorResourceRequestRef.uri).value.projectId = 'sibling' }, h => { h.objects.get(h.priorResourceRequestRef.uri).value.receiptUri = ref('wrong').uri }, h => { h.objects.get(h.binaryPlanReceiptRef.uri).value.binaryPlanSha256 = 'e'.repeat(64) }, h => { h.objects.get(h.binaryPlanReceiptRef.uri).value.changes[0].actions = ['delete'] }, h => { h.objects.get(h.priorPlanRef.uri).value.authorizationStatementSha256 = 'f'.repeat(64) }, h => { h.objects.get(h.priorPlanRef.uri).value.plan.sourceHashes[0].sha256 = 'f'.repeat(64) }, h => { h.objects.get(h.priorDescriptorRef.uri).value.workerProfileSha256 = 'f'.repeat(64) }, h => { h.objects.get(h.priorWorkerBuildRef.uri).value.facts.sourceHashes[0].sha256 = 'f'.repeat(64) }, h => { h.args.build.facts.scan.rawHighOrCriticalVulnerabilityCount = 1 }, h => { h.objects.get(h.priorWorkerBuildRef.uri).value.facts.scan.rawHighOrCriticalVulnerabilityCount = 1 }, h => { h.objects.get(h.priorWorkerBuildRef.uri).value.facts.sbom = [] }]) {
+    const h = await firstReconciliationHarness(); mutate(h)
+    await assert.rejects(executeOpenSwxResources(h.args)); assert.equal(h.provider.calls.length, 0); assert.ok(!h.objects.has(h.args.uri))
+  }
+})
+test('FIRST source reconciliation rejects normal Job, enabled Scheduler, missing/extra IAM, execution or issued Secret', async () => {
+  for (const scenario of ['normal', 'enabled', 'missing', 'extra-iam', 'execution', 'issued']) {
+    const h = await firstReconciliationHarness(), original = h.transport.request
+    h.transport.request = async (url, options) => {
+      if (scenario === 'missing' && url.includes('/roles/')) throw Object.assign(Error('MISSING'), { code: 'MISSING' })
+      const result = await original(url, options)
+      if (scenario === 'normal' && url === `https://run.googleapis.com/v2/${workerJobName()}`) result.template = workerTemplate(profile, h.objects.get(h.priorWorkerBuildRef.uri).value.image, tokenName)
+      if (scenario === 'enabled' && url.includes('cloudscheduler')) result.state = 'ENABLED'
+      if (scenario === 'extra-iam' && url.includes('iam.googleapis.com') && url.endsWith(':getIamPolicy')) result.bindings[0].members.push('serviceAccount:other@jenfu-platform-prod.iam.gserviceaccount.com')
+      if (scenario === 'execution' && url.includes('/executions?')) result.executions = [{ name: executionName }]
+      if (scenario === 'issued' && url.includes(profile.tokenSecretId + '/versions?')) result.versions = [{ name: tokenName }]
+      return result
+    }
+    await assert.rejects(executeOpenSwxResources(h.args)); assert.ok(!h.objects.has(h.args.uri))
+    assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  }
+})
+
+async function firstConsumerHarness() {
+  const h = await firstReconciliationHarness(), applied = await executeOpenSwxResources(h.args)
+  const legacyRegistry = { schemaVersion: registry.schemaVersion, workloads: [{ id: 'legacy-worker', token: 'L'.repeat(43), purposes: ['recognition_jobs'], capabilities: ['solidworks_document_manager'] }] }
+  const initialRegistryName = `projects/9536592944/secrets/${profile.registrySecretId}/versions/2`
+  const payloads = new Map([[initialRegistryName, Buffer.from(JSON.stringify(legacyRegistry))]])
+  const original = h.transport.request
+  h.transport.request = async (url, options = {}) => {
+    if (url.endsWith(':addVersion')) {
+      h.provider.calls.push({ url, options })
+      const name = url.includes(profile.tokenSecretId) ? tokenName : registryName
+      assert.ok(!payloads.has(name)); payloads.set(name, Buffer.from(JSON.parse(options.body).payload.data, 'base64'))
+      return { name }
+    }
+    if (url.endsWith(':access')) {
+      const name = url.replace('https://secretmanager.googleapis.com/v1/', '').replace(':access', '')
+      if (payloads.has(name)) { h.provider.calls.push({ url, options }); return { name, payload: { data: payloads.get(name).toString('base64') } } }
+    }
+    const result = await original(url, options)
+    if (url === `https://run.googleapis.com/v2/${workerJobName()}`) { const raw = structuredClone(result); raw.template.template.executionEnvironment = 'EXECUTION_ENVIRONMENT_GEN2'; if (raw.template.template.containers[0].env.length === 0) delete raw.template.template.containers[0].env; if (raw.template.template.containers[0].args.length === 0) delete raw.template.template.containers[0].args; return raw }
+    return result
+  }
+  const inputRef = await h.put('first-consumer-input', { schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef: h.args.descriptorRef, workerBuildRef: h.workerBuildRef, deadlineAt: deadline(), receiptId: 'first-consumer-proof', bootstrapKind: 'FIRST_CREATE', resourceApplyRef: applied.ref, currentRegistryVersion: initialRegistryName })
+  const invoke = () => executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  h.provider.calls.length = 0
+  return { ...h, invoke, applied, inputRef, payloads, legacyRegistry }
+}
+test('FIRST_CREATE consumes exact bridge, updates new selftest once, issues two versions preserving registry, and replays without mutations', async () => {
+  const h = await firstConsumerHarness(), first = await h.invoke()
+  assert.equal(first.value.image, h.args.build.image)
+  assert.deepEqual(first.value.facts.resourceApplyRef, h.applied.ref)
+  assert.equal(first.value.facts.bootstrapKind, 'FIRST_CREATE')
+  assert.equal(h.provider.calls.filter(row => row.url.endsWith(':addVersion')).length, 2)
+  assert.equal(h.provider.calls.filter(row => row.options.method === 'PATCH').length, 1)
+  assert.equal(h.provider.calls.filter(row => row.url.endsWith(':run')).length, 1)
+  const updated = JSON.parse(h.payloads.get(registryName))
+  assert.deepEqual(updated.workloads[0], h.legacyRegistry.workloads[0]); assert.equal(updated.workloads[1].id, profile.readerId)
+  assert.equal(updated.workloads[1].token, h.payloads.get(tokenName).toString())
+  h.provider.calls.length = 0
+  assert.deepEqual((await h.invoke()).ref, first.ref)
+  assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  assert.ok([...h.objects.values()].every(row => !row.bytes.includes(updated.workloads[1].token)))
+  const pauseInput = await h.put('first-consumer-pause-input', { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: h.args.descriptorRef, workerBuildRef: h.workerBuildRef, deadlineAt: deadline(), receiptId: 'first-consumer-pause-proof', drainKind: 'FIRST_PROVIDER_ONLY', resourceApplyRef: h.applied.ref })
+  const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseInput, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  assert.equal(paused.value.facts.providerJob.template.template.executionEnvironment, 'EXECUTION_ENVIRONMENT_GEN2'); assert.equal(paused.value.facts.providerJob.template.template.containers[0].env, undefined)
+  assert.equal(paused.value.templateSha256, sha256(canonicalize(normalizeWorkerTemplate(paused.value.facts.providerJob.template))))
+})
+test('FIRST consumer rejects stale bridge, provider drift, preissued Secret or altered completed receipt before issuance', async () => {
+  for (const scenario of ['mutation', 'descriptor', 'approved', 'normal', 'enabled', 'issued', 'replay-resource', 'replay-template', 'replay-basis']) {
+    const h = await firstConsumerHarness()
+    if (scenario.startsWith('replay-')) {
+      const done = await h.invoke()
+      if (scenario === 'replay-resource') done.value.facts.resourceApplyRef = ref('other')
+      if (scenario === 'replay-template') done.value.templateSha256 = 'f'.repeat(64)
+      if (scenario === 'replay-basis') h.applied.value.firstSourceReconciliation.priorImage = h.args.build.image
+      h.objects.get(done.ref.uri).bytes = Buffer.from(canonicalize(done.value))
+    } else if (scenario === 'mutation') h.applied.value.mutation = 'OTHER'
+    else if (scenario === 'descriptor') h.applied.value.descriptorRef = ref('wrong')
+    else if (scenario === 'approved') h.applied.value.approvedPlanRef = ref('wrong')
+    else {
+      const original = h.transport.request
+      h.transport.request = async (url, options) => {
+        const result = await original(url, options)
+        if (scenario === 'normal' && url === `https://run.googleapis.com/v2/${workerJobName()}`) result.template = workerTemplate(profile, h.args.build.image, tokenName)
+        if (scenario === 'enabled' && url.includes('cloudscheduler')) result.state = 'ENABLED'
+        if (scenario === 'issued' && url.includes(profile.tokenSecretId + '/versions?')) result.versions = [{ name: tokenName, state: 'DISABLED' }]
+        return result
+      }
+    }
+    h.provider.calls.length = 0
+    await assert.rejects(h.invoke(), undefined, scenario)
+    assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  }
 })

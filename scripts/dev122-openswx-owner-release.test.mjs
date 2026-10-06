@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, assertWorkerRuntimeJoin, assertPausedScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
+import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
 const profile = JSON.parse(profileBytes)
@@ -107,4 +107,32 @@ test('owner request propagates an abort deadline and refuses a late awaited resp
   await assert.rejects(transport.request('https://run.googleapis.com/v2/' + workerJobName()), /DEADLINE/)
   assert.ok(signal instanceof AbortSignal)
   assert.throws(() => boundOpenSwxTransport({}, 'not-a-deadline'), /DEADLINE/)
+})
+
+test('provider GEN2 and omitted empty env normalize without changing policy or accepting other template drift', () => {
+  const expected = workerTemplate(profile, image, null, 'selftest'), observed = structuredClone(expected)
+  observed.template.executionEnvironment = 'EXECUTION_ENVIRONMENT_GEN2'; delete observed.template.containers[0].env
+  const job = { name: workerJobName(), generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: observed }
+  assertWorkerJob(job, expected)
+  assert.deepEqual(normalizeWorkerTemplate(observed), expected)
+  assert.equal(workerReceipt({ descriptor: workerDescriptor(), kind: 'paused-drained', actor: profile.normalActor, image, template: normalizeWorkerTemplate(observed), observedAt: new Date().toISOString() }).templateSha256, sha256(canonicalize(expected)))
+  const literalPolicy = workerTemplatePolicy(profile, 'selftest'), policyHash = sha256(canonicalize(literalPolicy))
+  assert.equal(policyHash, workerDescriptor().selftestTemplatePolicySha256)
+  assert.throws(() => assertWorkerJob(job, observed))
+  assert.notEqual(workerReceipt({ descriptor: workerDescriptor(), kind: 'paused-drained', actor: profile.normalActor, image, template: observed, observedAt: new Date().toISOString() }).templateSha256, sha256(canonicalize(expected)))
+  assert.equal(sha256(canonicalize(workerTemplatePolicy(profile, 'selftest'))), policyHash)
+  for (const mutate of [t => { t.template.executionEnvironment = null }, t => { t.template.executionEnvironment = 'OTHER' }, t => { t.template.containers[0].env = null }, t => { t.template.containers[0].extra = true }, t => { t.template.containers.push(structuredClone(t.template.containers[0])) }, t => { t.template.containers[0].command = ['other'] }, t => { t.template.containers[0].args = [] }, t => { t.template.containers[0].resources.limits.cpu = '2' }, t => { t.template.serviceAccount = 'other' }, t => { t.template.executionEnvironment = 'EXECUTION_ENVIRONMENT_GEN1' }, t => { t.template.containers[0].env = [{ name: 'unexpected', value: 'x' }] }, t => { t.template.containers[0].image = `${profile.artifactUri}@sha256:${'f'.repeat(64)}` }, t => { t.template.timeout = '600s' }, t => { t.template.vpcAccess = {} }]) { const template = structuredClone(observed); mutate(template); assert.throws(() => assertWorkerJob({ ...job, template }, expected)) }
+})
+
+test('fixed finite-worker normal omitted args means empty CMD; selftest arguments and literal policies remain strict', () => {
+  const expected = workerTemplate(profile, image, 'projects/9536592944/secrets/aipdm-prod-openswx-reader-token/versions/7'), observed = structuredClone(expected)
+  delete observed.template.containers[0].args; observed.template.executionEnvironment = 'EXECUTION_ENVIRONMENT_GEN2'
+  const policyHash = sha256(canonicalize(workerTemplatePolicy(profile, 'normal'))), desiredHash = sha256(canonicalize(expected))
+  const job = { name: workerJobName(), generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: observed }
+  assertWorkerJob(job, expected); assert.deepEqual(normalizeWorkerTemplate(observed), expected)
+  assert.equal(sha256(canonicalize(expected)), desiredHash); assert.equal(sha256(canonicalize(workerTemplatePolicy(profile, 'normal'))), policyHash)
+  for (const args of [null, ['--isolation-self-test-only'], ['unexpected', 'order']]) { const template = structuredClone(observed); template.template.containers[0].args = args; assert.throws(() => assertWorkerJob({ ...job, template }, expected)) }
+  const wrongImage = structuredClone(observed); wrongImage.template.containers[0].image = `${profile.artifactUri}@sha256:${'f'.repeat(64)}`; assert.throws(() => assertWorkerJob({ ...job, template: wrongImage }, expected))
+  const wrongSecret = structuredClone(observed); wrongSecret.template.containers[0].env[1].valueSource.secretKeyRef.version = '8'; assert.throws(() => assertWorkerJob({ ...job, template: wrongSecret }, expected))
+  const selftest = workerTemplate(profile, image, null, 'selftest'), omittedSelftest = structuredClone(selftest); delete omittedSelftest.template.containers[0].args; assert.throws(() => assertWorkerJob({ ...job, template: omittedSelftest }, selftest))
 })
