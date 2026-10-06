@@ -9,11 +9,11 @@
   "region": "asia-east1",
   "artifactUri": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm",
   "releaseBucket": "jenfu-platform-prod-aipdm-release",
-  "nativeCodeFingerprint": "b443738b766eea4b7b8c69356448609bba87158146c3fa2db9cb4a4deee10a45",
-  "investigatedArtifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:dcd397be0dead1bb1235de2b006627070eb59c5a0c11819e84eff480328eb5e0",
-  "investigatedSourceRevision": "afa3574e9f9dade862963df3254805c85034f86d",
+  "nativeCodeFingerprint": "0a5901da89849eb243f906e88278529dc1956e2a26e6ef547e1ee1070e7a32de",
+  "investigatedArtifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:05e416cf0749acbeb2b58bac0232a3b572db864f8c14d50a1c9541f32d730797",
+  "investigatedSourceRevision": "10110697c0dbd44a4ea4a8499034f4857e69c7c9",
   "assessmentRef": {
-    "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261001-R10/ai-pdm/assessment-79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc.json",
-    "sha256": "79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc"
+    "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/assessment-1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d.json",
+    "sha256": "1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d"
   }
 }

@@ -1,0 +1,684 @@
+{
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "observedAt": "2026-10-06T19:36:27.384850+00:00",
+  "state": "NATIVE_EVIDENCE_QC_AND_PROVIDER_PUBLICATION_COMPLETE_SOURCE_CI_PENDING",
+  "sourceBase": "10110697c0dbd44a4ea4a8499034f4857e69c7c9",
+  "branch": "codex/dev122-native-closure-renewal",
+  "scope": "Two AI-PDM native applicability policy pins and controlled DEV-122 metadata only; existing validators, profiles and release gates unchanged",
+  "a09Failure": {
+    "ownerRunId": 37502215768,
+    "code": "GCC_APPLICABILITY_EVIDENCE_INVALID",
+    "appBuildStatus": "SUCCESS",
+    "source": "10110697c0dbd44a4ea4a8499034f4857e69c7c9",
+    "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:05e416cf0749acbeb2b58bac0232a3b572db864f8c14d50a1c9541f32d730797",
+    "imageInspectionBuildId": "1347bc43-ebbf-4cfb-851c-0eec838e6c63",
+    "downstream": "WORKER_BUILD_MIGRATION_CANDIDATE_TRAFFIC_NOT_RUN"
+  },
+  "collector": {
+    "buildId": "0c6c1dee-88e7-48d6-a75c-70dfe3b26a2f",
+    "providerStatus": "SUCCESS",
+    "inputComponents": 28,
+    "inputPatches": 5,
+    "nativeNpmArchives": 4,
+    "sourcesComplete": true,
+    "temporaryElfFilesCleaned": true,
+    "providerReadback": {
+      "project": "AI-PDM",
+      "sourceRevision": "10110697c0dbd44a4ea4a8499034f4857e69c7c9",
+      "buildId": "0c6c1dee-88e7-48d6-a75c-70dfe3b26a2f",
+      "status": "EXACT_PROVIDER_LOG_BYTES_READ_BACK_ONLY_NO_VERDICT",
+      "observedAt": "2026-10-06T18:59:14.311Z",
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/logs/cloud-build/log-0c6c1dee-88e7-48d6-a75c-70dfe3b26a2f.txt",
+        "sha256": "85f842933f15551669751c13ec97506963acbb1be2404d9ccfc4aa0f311bf146"
+      },
+      "generation": "1791313065348939",
+      "crc32c": "TB6DVg==",
+      "bytes": 79281,
+      "resultSha256": "abf8343e9840542fb85ddbd5944a9f055053a0438c0ebacb45086abf84914dfa"
+    },
+    "resultSha256": "abf8343e9840542fb85ddbd5944a9f055053a0438c0ebacb45086abf84914dfa",
+    "firstLauncherFailure": {
+      "buildId": "acbd0a82-9a8d-4715-acce-b844d5c7978f",
+      "status": "FAILURE",
+      "exitCode": 126,
+      "cause": "Linux MAX_ARG_STRLEN before collector; full first-attempt evidence preserved; fixed finite task file launcher"
+    }
+  },
+  "nativeClosure": {
+    "elfFiles": 570,
+    "canonicalFiles": 288,
+    "unchangedFiles": 284,
+    "changedFiles": 4,
+    "commonLoadedFilesUnchanged": 10,
+    "newDefinedAlignedImplementations": 0,
+    "newVipsCallers": 2,
+    "nativeCodeFingerprint": "0a5901da89849eb243f906e88278529dc1956e2a26e6ef547e1ee1070e7a32de",
+    "loaderClosureFingerprint": "39912ff87ee3399b013db13bbe4af8a37f92eca5e5ee180c2deac6f079b01524",
+    "historicalTestsRepeated": false,
+    "historicalEvidence": "Unchanged Node/SQLite/GCC/libstdc++ source and hashes; preserved R65A SUCCESS, R66b FAILURE_PARTIAL and R66c SUCCESS; 9 throwing/9 nothrow/3 valid allocation probes not rerun",
+    "fullGccSourceMarkers": "Expected header/test matches retained; only assessed runtime source prefix is marker-free"
+  },
+  "independentEvidenceQc": {
+    "recordSha256": "a8709eb80ef260e943cc6b1b39de7741850bbd6ed464f9fcd59929fe53a838d8",
+    "record": {
+      "schemaVersion": "aipdm.dev122.native-renewal-evidence-qc.v1",
+      "project": "AI-PDM",
+      "qcRole": "INDEPENDENT_FACTUAL_EVIDENCE_QC",
+      "observedAtUtc": "2026-10-07T03:31:16.0718883+08:00",
+      "decision": "NATIVE_APPLICABILITY_EVIDENCE_READY",
+      "unresolvedP0P1P2": 0,
+      "unresolvedByPriority": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0
+      },
+      "sourceRevision": "10110697c0dbd44a4ea4a8499034f4857e69c7c9",
+      "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:05e416cf0749acbeb2b58bac0232a3b572db864f8c14d50a1c9541f32d730797",
+      "executionBinding": {
+        "buildId": "0c6c1dee-88e7-48d6-a75c-70dfe3b26a2f",
+        "buildStatus": "SUCCESS",
+        "project": "jenfu-platform-prod",
+        "tag": "dev122-native-renewal-a10-r2",
+        "requestBodySha256": "ed735e0cd5d942cb89ba9e89f120cf1ec84ec82cfe7662b91842cb97f0f30a73",
+        "freezePath": "production/A10-native-renewal-execution-freeze.json",
+        "freezeSha256": "b68d1e4f15d537d31c64e7c2d5d472ddfcc9d82f66beec7c6ac957f4aea04129",
+        "frozenFileCount": 30,
+        "recomputedFrozenFileMismatches": 0,
+        "priorPreexecutionQc": "production/A10-native-renewal-preexecution-qc.json",
+        "priorPreexecutionDecision": "BOUNDED_NATIVE_COLLECTOR_READY",
+        "priorPreexecutionMatchedFiles": "30/30",
+        "serviceAccount": "projects/jenfu-platform-prod/serviceAccounts/aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com",
+        "builderImage": "node:24.17.0-bookworm-slim@sha256:862263c612aa437e3037674b85419622a9d93bff80aa1eee5398dfe686375532",
+        "timeoutSeconds": 1200,
+        "queueTtlSeconds": 300,
+        "oneBuildStep": true,
+        "r1FailureRetained": "production/A10-native-renewal-launch-first-failure-qc.json; first wrapper attempt failed with exit 126 / argument list too long; R2 uses the distinct dev122-native-renewal-a10-r2 tag and new frozen request"
+      },
+      "providerReadback": {
+        "providerRecordPath": "production/A10-native-renewal-provider.json",
+        "providerRecordSha256": "686970f35d7c40de6f18a9fd1f3d9879dca57f4db111417ed016e7ebe0296e24",
+        "buildId": "0c6c1dee-88e7-48d6-a75c-70dfe3b26a2f",
+        "status": "SUCCESS",
+        "tag": "dev122-native-renewal-a10-r2",
+        "rawLogPath": "production/A10-native-renewal-provider.raw.log",
+        "rawLogUri": "gs://jenfu-platform-prod-aipdm-release/logs/cloud-build/log-0c6c1dee-88e7-48d6-a75c-70dfe3b26a2f.txt",
+        "rawLogBytes": 79281,
+        "rawLogSha256": "85f842933f15551669751c13ec97506963acbb1be2404d9ccfc4aa0f311bf146",
+        "rawLogGeneration": "1791313065348939",
+        "rawLogCrc32c": "TB6DVg==",
+        "resultPath": "production/A10-native-renewal-result.json",
+        "resultSha256": "abf8343e9840542fb85ddbd5944a9f055053a0438c0ebacb45086abf84914dfa",
+        "readbackReceiptPath": "production/A10-native-renewal-provider-readback.json",
+        "readbackReceiptSha256": "d51b32e452432285a7dc27a23de95d2852a4bea08a1b1fcd35de3ec695a90f3a",
+        "readbackReceiptStatus": "EXACT_PROVIDER_LOG_BYTES_READ_BACK_ONLY_NO_VERDICT",
+        "collectorJsonMarkerCount": 1,
+        "parsedMarkerEqualsResultFile": true,
+        "resultStatus": "COLLECTED_AWAITING_INDEPENDENT_QC",
+        "collectorOverallVerdict": "NOT_ISSUED",
+        "failures": 0,
+        "supplierMarkerHits": 0,
+        "temporaryElfFilesCleaned": true
+      },
+      "freshSupplierClosure": {
+        "supplierCommit": "ebb95f8add54eee8bed840e3fb587e4cbec857d7",
+        "sourceInputsSha256": "9a1e764ff26b3599843f6bb01fbf41d121fb3d8fa78c833a80ab591e40be4a3f",
+        "expectedComponentCount": 28,
+        "observedComponentCount": 28,
+        "completeComponentCount": 28,
+        "expectedObservedComponentSetEqual": true,
+        "components": [
+          "proxy-libintl",
+          "zlib-ng",
+          "ffi",
+          "glib",
+          "xml2",
+          "exif",
+          "lcms",
+          "aom",
+          "heif",
+          "mozjpeg",
+          "png",
+          "imagequant",
+          "webp",
+          "tiff",
+          "highway",
+          "freetype",
+          "expat",
+          "archive",
+          "fontconfig",
+          "harfbuzz",
+          "pixman",
+          "cairo",
+          "fribidi",
+          "pango",
+          "rsvg",
+          "cgif",
+          "uhdr",
+          "vips"
+        ],
+        "allSupplierMarkerCountsZero": true,
+        "patchFiles": [
+          {
+            "file": "A10-supplier-patch-1.patch",
+            "component": "glib",
+            "bytes": 7759,
+            "sha256": "b1f2930a11292e529de137c7eb723850e0cc0969b1a2b0358196389312acd272",
+            "matchesFrozen": true
+          },
+          {
+            "file": "A10-supplier-patch-2.patch",
+            "component": "mozjpeg",
+            "bytes": 8103,
+            "sha256": "a65f87cadf3a6052e44d6314c906f6e2891352f82646b8a6f0b8fcf2c1891e7c",
+            "matchesFrozen": true
+          },
+          {
+            "file": "A10-supplier-patch-3.patch",
+            "component": "rsvg",
+            "bytes": 5111,
+            "sha256": "8b841d2ec8feb964fa76859075e0e0c41b69136ba143cf0d26469d9bebc19231",
+            "matchesFrozen": true
+          },
+          {
+            "file": "A10-supplier-patch-4.patch",
+            "component": "uhdr",
+            "bytes": 7567,
+            "sha256": "57658db2a11ae964755e513b01db21bcfa408c350b11b3a6ef9bc8576fb749ba",
+            "matchesFrozen": true
+          },
+          {
+            "file": "A10-supplier-patch-5.patch",
+            "component": "vips",
+            "bytes": 514,
+            "sha256": "256b7d6f8c973bb53b20cff5171c7117d6b35d3aa4e72d22cb906f4fe1e2c890",
+            "matchesFrozen": true
+          }
+        ],
+        "sharp": {
+          "version": "0.35.5",
+          "gitHead": "51a990faa26ade5586a4934ac9673c98d8893326",
+          "archiveSha256": "d600bcbdd550ea096a384391a474907e6aa8138f97ea472bf5228b07ae75f779",
+          "complete": true,
+          "archiveMembers": 844,
+          "regularFilesScanned": 798,
+          "markerHits": 0
+        },
+        "npmNativePackages": [
+          {
+            "name": "@img/sharp-linux-x64",
+            "version": "0.35.5",
+            "lockIntegrityVerified": true,
+            "matchesActualImageInventory": true,
+            "member": "package/lib/sharp-linux-x64-0.35.5.node",
+            "memberSha256": "cf896cc1b7f3ae9c3e8eb3d7b2b198b8de2824ff7d0681d684bab5a825def335",
+            "memberBytes": 415112,
+            "lockIntegrity": "sha512-SxFtLTeJInhAA9Q836kux2vZNeOBQEx658qvbboZScr0wIARym3IcGmW7KpVD5sbVg0Ojy+udFQdayYIZyoNog==",
+            "npmArchiveSha256": "556787285d3244c07686a355de5b5a4c4d0019a12785bf24764e756a96ea3334"
+          },
+          {
+            "name": "@img/sharp-linuxmusl-x64",
+            "version": "0.35.5",
+            "lockIntegrityVerified": true,
+            "matchesActualImageInventory": true,
+            "member": "package/lib/sharp-linuxmusl-x64-0.35.5.node",
+            "memberSha256": "14ce8ddd283c101f225089152da805632568bfa372d336ccbfdd811f4f1dca02",
+            "memberBytes": 301328,
+            "lockIntegrity": "sha512-4KOphqB035HrVdqLZfCgMzzERrQkkzOwRhl4OAkRO1YCldbaFjySXMaK534Mo0V+LndnlJk+sbUyLeU0ULyD1A==",
+            "npmArchiveSha256": "577bca1fabb66b2d8d89fc203851280d2bf604130803382d229544f75bab2ea0"
+          },
+          {
+            "name": "@img/sharp-libvips-linux-x64",
+            "version": "1.3.4",
+            "lockIntegrityVerified": true,
+            "matchesActualImageInventory": true,
+            "member": "package/lib/libvips-cpp.so.8.18.7",
+            "memberSha256": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+            "memberBytes": 18699288,
+            "lockIntegrity": "sha512-GJ//SSXbnwSDes02umB3nDJLFcQzw8a18V8fyhqr6tV515tOEMdImjjxj1AoafMRz56F3PHgftnj1QEKSU1zkw==",
+            "npmArchiveSha256": "e371cb713fc8822c96a0d3fb60a3d092799d0aefab6d7f1fb3b72d8d75f1d109"
+          },
+          {
+            "name": "@img/sharp-libvips-linuxmusl-x64",
+            "version": "1.3.4",
+            "lockIntegrityVerified": true,
+            "matchesActualImageInventory": true,
+            "member": "package/lib/libvips-cpp.so.8.18.7",
+            "memberSha256": "979b625437190a1970b835164e0e30d47dc60159ce6a394ce78cc40cb9d59ab8",
+            "memberBytes": 18911144,
+            "lockIntegrity": "sha512-6zXKeE/p39I1AmA3cJG35eyBGNqNddLnUXjhwBnsGjFPWqf5VKkDBEqaEkPDoTEtkxwi2vv8Tcr2mDyP4So7Fg==",
+            "npmArchiveSha256": "c6312802c16511458a1cf3d990c3e2b9dba555932caf297025ba0bec34ee5cbe"
+          }
+        ],
+        "staticElfCount": 4,
+        "staticElfHashes": {
+          "@img/sharp-linux-x64": "cf896cc1b7f3ae9c3e8eb3d7b2b198b8de2824ff7d0681d684bab5a825def335",
+          "@img/sharp-linuxmusl-x64": "14ce8ddd283c101f225089152da805632568bfa372d336ccbfdd811f4f1dca02",
+          "@img/sharp-libvips-linux-x64": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+          "@img/sharp-libvips-linuxmusl-x64": "979b625437190a1970b835164e0e30d47dc60159ce6a394ce78cc40cb9d59ab8"
+        },
+        "alignedNewDefinitionsAcrossFour": 0,
+        "sharpNodeAlignedNewImports": 0,
+        "libvipsAlignedNewCallers": [
+          {
+            "package": "@img/sharp-libvips-linux-x64",
+            "sha256": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+            "alignedImportFamilies": 2,
+            "DT_NEEDED_libstdcxx": true,
+            "actuallyLoadedInCurrentGlibcRuntime": true
+          },
+          {
+            "package": "@img/sharp-libvips-linuxmusl-x64",
+            "sha256": "979b625437190a1970b835164e0e30d47dc60159ce6a394ce78cc40cb9d59ab8",
+            "alignedImportFamilies": 2,
+            "DT_NEEDED_libstdcxx": true,
+            "actuallyLoadedInCurrentGlibcRuntime": false
+          }
+        ],
+        "mutableNoncompiledNotice": {
+          "url": "https://raw.githubusercontent.com/lovell/sharp-libvips/main/THIRD-PARTY-NOTICES.md",
+          "classification": "NONCOMPILED_NOTICE_DOWNLOAD_NOT_SOURCE_OR_PATCH",
+          "fetched": false,
+          "usedAsSourceEvidence": false
+        }
+      },
+      "currentImageEvidence": {
+        "inspectionBuildId": "1347bc43-ebbf-4cfb-851c-0eec838e6c63",
+        "inspectionBuildStatus": "SUCCESS",
+        "inspectionRawLogSha256": "6c97adf7770926608313f8d31851caac6e502a03edf13a6bc79a2497736a2f4f",
+        "inspectionReadbackReceiptSha256": "494e08f4fcf19e80c4d1a32a372973e94f3b237acbe3136d744968da1025be66",
+        "inspectionRawLogGeneration": "1791307486558211",
+        "inspectionRawLogBytes": 97876,
+        "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:05e416cf0749acbeb2b58bac0232a3b572db864f8c14d50a1c9541f32d730797",
+        "imageConfig": {
+          "user": "65532:65532",
+          "workingDirectory": "/app",
+          "entrypoint": "/nodejs/bin/node",
+          "command": "server.js",
+          "loaderOverridesAbsent": true,
+          "volumePaths": 0
+        },
+        "inventory": {
+          "complete": true,
+          "platform": "linux",
+          "arch": "x64",
+          "elfCount": 570,
+          "wasmCount": 0,
+          "pbdsHeaderPaths": 0,
+          "elfOrWasmPbdsMarkerHits": 0,
+          "inventoryInspectorUid": 0,
+          "loadedRuntimeUid": 65532
+        },
+        "loader": {
+          "platform": "linux",
+          "arch": "x64",
+          "node": "24.21.0",
+          "uid": 65532,
+          "gid": 65532,
+          "rows": 12,
+          "libstdcxxSha256": "972bb2a18b71140dab0240f8a1f68ab3fb1d56bcd4c4f824a91b70888faf5a00",
+          "loadedSharpSha256": "cf896cc1b7f3ae9c3e8eb3d7b2b198b8de2824ff7d0681d684bab5a825def335",
+          "loadedLibvipsSha256": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+          "loadedBetterSqlite3Sha256": "4a6fdb191fdd1f9c0522e6932accc940f4e2a2f15a3b8c9008e57ad88d24872a",
+          "loadedPngSha256": "fd8c679d04c2f33eae265e221eb5d359677c1bd31213e11f68c4d70afb906620",
+          "sqliteProbe": "IN_MEMORY_SELECT_1",
+          "controlsCount": 4,
+          "libstdcxxAliasesCount": 2
+        },
+        "nativeCodeFingerprint": "0a5901da89849eb243f906e88278529dc1956e2a26e6ef547e1ee1070e7a32de",
+        "loaderClosureFingerprint": "39912ff87ee3399b013db13bbe4af8a37f92eca5e5ee180c2deac6f079b01524"
+      },
+      "vulnerabilityEvidence": {
+        "providerReadbackPath": "production/A09-app-security-readback.json",
+        "providerReadbackSha256": "fd7fccf25aa9d28f28fac232b447d60b5ad48a8319093d90ef410e55dc3cd11a",
+        "status": "READBACK_ONLY_NO_APPLICABILITY_OVERRIDE",
+        "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:05e416cf0749acbeb2b58bac0232a3b572db864f8c14d50a1c9541f32d730797",
+        "effectiveRawHighOrCriticalCount": 2,
+        "versionIsDirectOccurrenceValue": true,
+        "occurrences": [
+          {
+            "cve": "CVE-2026-102010",
+            "severity": "HIGH",
+            "effectiveSeverity": "HIGH",
+            "cvss": 7.0,
+            "package": "gcc-14",
+            "version": "14.2.0-19",
+            "occurrence": "projects/jenfu-platform-prod/locations/asia-east1/occurrences/4cf7d0e3-581b-481b-8fdf-34a6d31ccf48"
+          },
+          {
+            "cve": "CVE-2026-95619",
+            "severity": "HIGH",
+            "effectiveSeverity": "HIGH",
+            "cvss": 7.7,
+            "package": "gcc-14",
+            "version": "14.2.0-19",
+            "occurrence": "projects/jenfu-platform-prod/locations/asia-east1/occurrences/cd90cb16-a3d9-4aaf-bceb-e8a49bb7b936"
+          }
+        ],
+        "versionUpgradeAloneUsedAsOverride": false
+      },
+      "applicability": {
+        "CVE-2026-102010": {
+          "candidateSchema": "jenfu.dev015.gcc-applicability-assessment.v1",
+          "candidateState": "NOT_AFFECTED",
+          "candidateJustification": "VULNERABLE_CODE_NOT_PRESENT",
+          "sourceNativeFingerprint": "0a5901da89849eb243f906e88278529dc1956e2a26e6ef547e1ee1070e7a32de",
+          "sourceClosureBuildId": "0c6c1dee-88e7-48d6-a75c-70dfe3b26a2f",
+          "sourceClosureSha256": "d7fc457e7855b83a2ddd948110b5d5f712ca350d4f25e3cf781460ba973bd349",
+          "historicalGcc": {
+            "status": "REUSED_EXACT_HISTORICAL_SOURCE_NOT_RERUN",
+            "sourceCommit": "04696df09633baf97cdbbdd6e9929b9d472161d3",
+            "archiveSha256": "bc304fe24d9c046588d6336a283325eb86c85b88699111ae9cccc08ca16fbc66",
+            "sourceClosureSha256": "379d7c901232fc410d48b02fbcbe64265831b1716c16775c0f067388e023078e",
+            "fullGccSourceMarkerHits": 413,
+            "historicalRuntimeSourceFiles": 2509,
+            "historicalRuntimeMarkerHits": 0,
+            "freshGccSourceScan": false
+          },
+          "currentImage": {
+            "wholeImageScanBuildId": "1347bc43-ebbf-4cfb-851c-0eec838e6c63",
+            "wholeImageScanComplete": true,
+            "elfCount": 570,
+            "pbdsHeaders": 0,
+            "elfWasmMarkerHits": 0
+          },
+          "currentSupplierSourceMarkerHits": 0,
+          "rationale": "The raw gcc-14 HIGH remains. Fresh exact source/patch closure for all shipped sharp/libvips supplier components has zero PBDS marker hits; current digest image scan is complete over 570 ELF/0 WASM with no PBDS header path or ELF/WASM marker hits. The complete GCC source set historically has 413 PBDS-related hits (expected source-tree presence); its separately recorded 2,509 runtime-source-file scan had zero hits and is explicitly historical, not recollected. This supports the candidate only for the exact scanned image/source closure; it is not a GCC package fix or version-based override.",
+          "source": "https://security-tracker.debian.org/tracker/CVE-2026-102010"
+        },
+        "CVE-2026-95619": {
+          "candidateSchema": "jenfu.dev015.gcc-aligned-new-applicability-assessment.v1",
+          "candidateState": "NOT_AFFECTED",
+          "candidateJustification": "VULNERABLE_CODE_NOT_PRESENT",
+          "nativeCodeFingerprint": "0a5901da89849eb243f906e88278529dc1956e2a26e6ef547e1ee1070e7a32de",
+          "loaderClosureFingerprint": "39912ff87ee3399b013db13bbe4af8a37f92eca5e5ee180c2deac6f079b01524",
+          "actualCallers": {
+            "glibcLibvipsSha256": "4aa73553408c3964071728f4a231a8e86918e39bc49f1fbae75355f7ea933ea9",
+            "glibcImportsAlignedFamilies": 2,
+            "muslLibvipsSha256": "979b625437190a1970b835164e0e30d47dc60159ce6a394ce78cc40cb9d59ab8",
+            "muslImportsAlignedFamilies": 2,
+            "muslLoaded": false,
+            "glibcLibvipsLoaded": true,
+            "bothUseDTNeededLibstdcxx": true
+          },
+          "actualImplementation": {
+            "path": "/lib/x86_64-linux-gnu/libstdc++.so.6.0.33",
+            "sha256": "972bb2a18b71140dab0240f8a1f68ab3fb1d56bcd4c4f824a91b70888faf5a00",
+            "currentLoaderHashMatchesHistoricalOwner": true,
+            "historicalDisassemblySymbol": "_ZnwmSt11align_val_t",
+            "historicalPosixMemalignCall": true,
+            "historicalThrowingRejections": 9,
+            "historicalNothrowRejections": 9,
+            "historicalValidAllocations": 3,
+            "historicalMeasurementsRepeated": false
+          },
+          "rationale": "The raw gcc-14 HIGH remains and both vips binaries really import aligned new/delete (the conclusion does not rely on symbol absence). The exact glibc vips binary is loaded in the current Linux image and resolves against the same hash-pinned libstdc++ implementation whose historical source/disassembly/probe record identifies the posix_memalign path without size rounding. The musl artifact is present and hash-bound but was not loaded by this reviewed glibc entrypoint. Existing Node/GCC/SQLite bytes and 9/9/3 probes are historical reuse, not fresh measurements; no package-version remediation is claimed.",
+          "source": "https://security-tracker.debian.org/tracker/CVE-2026-95619"
+        }
+      },
+      "draftArtifacts": {
+        "manifestPath": "production/A10-native-assessment-drafts-manifest.json",
+        "draftsManifestSha256": "3623874a2251ab5e12c87c4f8c5fad5f7b54f2b38e956128a5e8abcbedce1982",
+        "manifestState": "LOCAL_DRAFTS_AWAITING_INDEPENDENT_EVIDENCE_QC_NOT_PUBLISHED",
+        "sourceRevision": "10110697c0dbd44a4ea4a8499034f4857e69c7c9",
+        "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:05e416cf0749acbeb2b58bac0232a3b572db864f8c14d50a1c9541f32d730797",
+        "collectorResultSha256": "abf8343e9840542fb85ddbd5944a9f055053a0438c0ebacb45086abf84914dfa",
+        "localDraftCount": 5,
+        "files": [
+          {
+            "file": "A10-native-renewal-baseline-draft.json",
+            "bytes": 54306,
+            "sha256": "73bfe953077d7021f751b37afca20599bb643c0ff3e259e04465f9fb0c35d785",
+            "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/unchanged-baseline-73bfe953077d7021f751b37afca20599bb643c0ff3e259e04465f9fb0c35d785.json"
+          },
+          {
+            "file": "A10-native-renewal-source-closure-draft.json",
+            "bytes": 89862,
+            "sha256": "d7fc457e7855b83a2ddd948110b5d5f712ca350d4f25e3cf781460ba973bd349",
+            "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/source-closure-d7fc457e7855b83a2ddd948110b5d5f712ca350d4f25e3cf781460ba973bd349.json"
+          },
+          {
+            "file": "A10-native-renewal-investigation-draft.json",
+            "bytes": 197079,
+            "sha256": "d1279aff2a99b39f6a568d1b7976eaf82d0f18688d78ab569b2dc23da38b8ed0",
+            "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/investigation-d1279aff2a99b39f6a568d1b7976eaf82d0f18688d78ab569b2dc23da38b8ed0.json"
+          },
+          {
+            "file": "A10-pbds-assessment-draft.json",
+            "bytes": 3808,
+            "sha256": "1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d",
+            "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/assessment-1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d.json"
+          },
+          {
+            "file": "A10-aligned-new-assessment-draft.json",
+            "bytes": 11983,
+            "sha256": "baefcda7558509e19145a4ead844aa535c1e9fa7c8430b0aee872c3b3e8ee943",
+            "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261007-R69/ai-pdm/assessment-baefcda7558509e19145a4ead844aa535c1e9fa7c8430b0aee872c3b3e8ee943.json"
+          }
+        ],
+        "exactlyTwoAssessmentSchemasMatchExisting": true,
+        "existingAssessmentBaselines": [
+          {
+            "cve": "CVE-2026-102010",
+            "schema": "jenfu.dev015.gcc-applicability-assessment.v1",
+            "originalBaselineSha256": "79b08ac787de1862c7c37803ed2e991e7bea92e32f7e739556feaede03abcfdc",
+            "originalBaselineProviderBytes": "EXACT_PROVIDER_BYTES",
+            "candidateSha256": "1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d"
+          },
+          {
+            "cve": "CVE-2026-95619",
+            "schema": "jenfu.dev015.gcc-aligned-new-applicability-assessment.v1",
+            "originalBaselineSha256": "ef20e080b636dd228c45f8e0193daeefa3a622d1bfa84cc0f3e67500af3b5ab0",
+            "originalBaselineProviderBytes": "EXACT_PROVIDER_BYTES",
+            "candidateSha256": "baefcda7558509e19145a4ead844aa535c1e9fa7c8430b0aee872c3b3e8ee943"
+          }
+        ],
+        "desiredPolicyTargets": [
+          "CVE-2026-102010",
+          "CVE-2026-95619"
+        ],
+        "manifestRecordedExistingValidatorEvidenceAcceptance": 2,
+        "manifestRecordedHashDriftRejections": 2,
+        "validatorCountsNotReexecutedByQc": true,
+        "legacyReceiptPrefixesAreLocationsOnly": true,
+        "newNativeDevAssignment": false,
+        "originalBaselineProof": {
+          "inputPath": "production/A10-unchanged-native-baseline-proof.json",
+          "originalInputSha256": "b89404fab44b948fa54203be25f61dd597a433a96eb024fbc7c34646cb09ac24",
+          "exactlyBoundInR2Freeze": true,
+          "derivedDraftSha256": "73bfe953077d7021f751b37afca20599bb643c0ff3e259e04465f9fb0c35d785",
+          "parsedCoreValuesEqualExceptVolatilePidAndObservedAt": true
+        }
+      },
+      "publicationReview": {
+        "executionFiles": {
+          "A10-native-renewal-assessment-drafts.mjs": "44c0e7dcd3a9e065cdfe106bd1b3ff75a2e7a41ee5a205e4a9d875ce4ff8a340",
+          "A10-native-renewal-publish.mjs": "84d10e35ca7f99680b58b1f7aaec10ac0afccd4927e7d16a9d16d5ac7104ec2f",
+          "A10-native-renewal-publish-launch.ps1": "db83117ae0bc13c3af0d0de163f8e0cba75ba531ce8401046b44bac76bad41b3"
+        },
+        "publisherTransportSourceSha256": "5e5af998010658647512a8159305429cb11b7d68688090ee5d613b830e9a9072",
+        "publisherNotExecuted": true,
+        "operationScope": "Five fixed content-addressed JSON objects in jenfu-platform-prod-aipdm-release only",
+        "objectCount": 5,
+        "prefixes": [
+          "receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm",
+          "receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261007-R69/ai-pdm"
+        ],
+        "preReadBeforeCreate": true,
+        "onlyKnownMissing404PermitsCreate": true,
+        "createOnlyIfGenerationMatch": "0",
+        "unknownOutcomeBlindRetry": false,
+        "verifyReadbackBytesSha256Crc32cGeneration": true,
+        "IAMSecretServiceSchemaMigrationTrafficMutations": false,
+        "policyPinMutationPerformed": false,
+        "publisherTransportUsesGcsObjectReadAndConditionalCreateOnly": true
+      },
+      "limits": [
+        "This receipt validates evidence readiness only; the collector verdict remains NOT_ISSUED and local assessment drafts remain NOT_PUBLISHED.",
+        "The two gcc-14 findings remain effective HIGH at the directly observed package version 14.2.0-19; no severity suppression, package-fix claim, or version-only override is made.",
+        "Full GCC source PBDS markers (413) and the 2,509-file runtime-source marker scan (0) are historical reuse; the compiler source closure, disassembly and 9/9/3 allocation probes were not rerun.",
+        "The 4/5 native images have source/lock/member closure, but this is not a reproducible-build attestation. Supplier build scripts/native compilation were not executed in this collection.",
+        "The mutable main-branch THIRD-PARTY-NOTICES.md URL is explicitly classified noncompiled notice metadata, was not fetched, and is not source evidence.",
+        "Historical R65A/R66b FAILURE_PARTIAL/R66c state is retained; no historical failure is reclassified as a current pass.",
+        "No whole-DEV acceptance, native F01F user validation, 8CAD result, production policy pin update, service/migration/candidate/traffic action, or publication is claimed."
+      ],
+      "wholeDev": "NOT_ACCEPTED",
+      "F01F": "NOT_RUN_USER",
+      "8CAD": "NOT_RUN",
+      "draftsManifestSha256": "3623874a2251ab5e12c87c4f8c5fad5f7b54f2b38e956128a5e8abcbedce1982",
+      "executionFiles": {
+        "A10-native-renewal-assessment-drafts.mjs": "44c0e7dcd3a9e065cdfe106bd1b3ff75a2e7a41ee5a205e4a9d875ce4ff8a340",
+        "A10-native-renewal-publish.mjs": "84d10e35ca7f99680b58b1f7aaec10ac0afccd4927e7d16a9d16d5ac7104ec2f",
+        "A10-native-renewal-publish-launch.ps1": "db83117ae0bc13c3af0d0de163f8e0cba75ba531ce8401046b44bac76bad41b3"
+      },
+      "schemaCorrection": {
+        "previousReceiptSha256": "73009f043c5350095f5373e088d560ce670bacd4ea36a5627b7b6ecb1e94aabd",
+        "reason": "The publisher requires draftsManifestSha256 and executionFiles at the receipt top level; the first schema placed them only under draftArtifacts and publicationReview.",
+        "firstSchemaArchive": "production/A10-native-renewal-evidence-qc-first-schema.json",
+        "firstSchemaArchiveSha256": "73009f043c5350095f5373e088d560ce670bacd4ea36a5627b7b6ecb1e94aabd",
+        "publisherGateOutcome": "SAFELY_REJECTED_MISSING_REQUIRED_TOP_LEVEL_FIELDS",
+        "publicationState": "NOT_PUBLISHED",
+        "providerWriteAttempted": false,
+        "policyMutationAttempted": false,
+        "existingEvidenceFactsChanged": false
+      }
+    }
+  },
+  "immutablePublication": {
+    "recordSha256": "9fa197764b6759eccc26a19c3df6cdcf679ce7cc152ed594d78bea4aa518ea0e",
+    "state": "FIVE_IMMUTABLE_OBJECTS_PROVIDER_READBACK_COMPLETE",
+    "objects": [
+      {
+        "file": "A10-native-renewal-baseline-draft.json",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/unchanged-baseline-73bfe953077d7021f751b37afca20599bb643c0ff3e259e04465f9fb0c35d785.json",
+          "sha256": "73bfe953077d7021f751b37afca20599bb643c0ff3e259e04465f9fb0c35d785"
+        },
+        "bytes": 54306,
+        "state": "REUSED_EXACT_PROVIDER_BYTES",
+        "generation": "1791315347193025",
+        "crc32c": "SrgGqA=="
+      },
+      {
+        "file": "A10-native-renewal-source-closure-draft.json",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/source-closure-d7fc457e7855b83a2ddd948110b5d5f712ca350d4f25e3cf781460ba973bd349.json",
+          "sha256": "d7fc457e7855b83a2ddd948110b5d5f712ca350d4f25e3cf781460ba973bd349"
+        },
+        "bytes": 89862,
+        "state": "REUSED_EXACT_PROVIDER_BYTES",
+        "generation": "1791315347663072",
+        "crc32c": "NbqDIg=="
+      },
+      {
+        "file": "A10-native-renewal-investigation-draft.json",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/investigation-d1279aff2a99b39f6a568d1b7976eaf82d0f18688d78ab569b2dc23da38b8ed0.json",
+          "sha256": "d1279aff2a99b39f6a568d1b7976eaf82d0f18688d78ab569b2dc23da38b8ed0"
+        },
+        "bytes": 197079,
+        "state": "REUSED_EXACT_PROVIDER_BYTES",
+        "generation": "1791315348283410",
+        "crc32c": "1xc3JQ=="
+      },
+      {
+        "file": "A10-pbds-assessment-draft.json",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/assessment-1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d.json",
+          "sha256": "1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d"
+        },
+        "bytes": 3808,
+        "state": "REUSED_EXACT_PROVIDER_BYTES",
+        "generation": "1791315348605338",
+        "crc32c": "LuFw5A=="
+      },
+      {
+        "file": "A10-aligned-new-assessment-draft.json",
+        "ref": {
+          "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261007-R69/ai-pdm/assessment-baefcda7558509e19145a4ead844aa535c1e9fa7c8430b0aee872c3b3e8ee943.json",
+          "sha256": "baefcda7558509e19145a4ead844aa535c1e9fa7c8430b0aee872c3b3e8ee943"
+        },
+        "bytes": 11983,
+        "state": "REUSED_EXACT_PROVIDER_BYTES",
+        "generation": "1791315348870844",
+        "crc32c": "Cs1IAA=="
+      }
+    ],
+    "completedAt": "2026-10-06T19:37:27.316Z",
+    "bindingRefresh": {
+      "observedAt": "2026-10-06T19:38:04.044100+00:00",
+      "cause": "Root consumed the complete top-level QC bindings before the QC author added final schemaCorrection provenance; evidence, manifest and execution files were unchanged",
+      "firstConsumedQcSha256": "0807e5e8e47553c4164ce924dca48adb08ed8d59ccb6959892a97c05543dbbe8",
+      "finalQcSha256": "a8709eb80ef260e943cc6b1b39de7741850bbd6ed464f9fcd59929fe53a838d8",
+      "firstPublicationSha256": "e0588080f90af91255ba004d34279993366b03fbd9d6a1df5bfe2b1f4c7bab65",
+      "finalPublicationSha256": "9fa197764b6759eccc26a19c3df6cdcf679ce7cc152ed594d78bea4aa518ea0e",
+      "finalProviderReadback": "ALL_FIVE_REUSED_EXACT_SAME_BYTES_GENERATIONS_CRC",
+      "additionalObjectCreation": false,
+      "policyBytesChangedDuringRefresh": false
+    }
+  },
+  "policyChanges": [
+    {
+      "path": "config/release/dev015-gcc-pbds-applicability.json",
+      "beforeSha256": "cb75ef8d049e0741b37592f7fa5f3676888f39df1608c2a025a26bc9efecbf84",
+      "afterSha256": "5c8dd6ee387984ab3d11631f87f44550df6dad546abbef3dae31d98a3d168e69",
+      "changedFields": [
+        "nativeCodeFingerprint",
+        "investigatedArtifactDigest",
+        "investigatedSourceRevision",
+        "assessmentRef"
+      ],
+      "assessmentRef": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-APPLICABILITY-20261007-R11/ai-pdm/assessment-1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d.json",
+        "sha256": "1638236dd1894436417c00b2aea0d345f207913a22b1e26af096d0883aab181d"
+      }
+    },
+    {
+      "path": "config/release/dev015-gcc-aligned-new-applicability.json",
+      "beforeSha256": "76ec83e1c70dc13f8dcd9e3513bd9a29495e289e14936aa6d36839bb98fbc299",
+      "afterSha256": "caba506cf9cc9f8c5394ba2d2c553f0a26ca400826ed40e4b51b27f2f2628aa7",
+      "changedFields": [
+        "nativeCodeFingerprint",
+        "loaderClosureFingerprint",
+        "investigatedSourceRevision",
+        "investigatedArtifactDigest",
+        "assessmentRef"
+      ],
+      "assessmentRef": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV015-GCC-ALIGNED-NEW-APPLICABILITY-20261007-R69/ai-pdm/assessment-baefcda7558509e19145a4ead844aa535c1e9fa7c8430b0aee872c3b3e8ee943.json",
+        "sha256": "baefcda7558509e19145a4ead844aa535c1e9fa7c8430b0aee872c3b3e8ee943"
+      }
+    }
+  ],
+  "focusedTests": {
+    "runtimeSha256": "a10d3127b348c3124d9aaaea597305449268b70d54122032de5b9cc51684a7cb",
+    "tests": [
+      "scripts/dev015-gcc-applicability.test.mjs",
+      "scripts/dev015-gcc-aligned-new-applicability.test.mjs",
+      "scripts/dev015-aligned-new-loader-inspection.test.mjs"
+    ],
+    "exitCode": 0,
+    "stdoutSha256": "de74ac20bd0474757716ab41d26fb9916f7f098f5c144298cc4e28ea437c6609",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "syntheticEvidenceLimit": "Existing acceptance/rejection and loader unit tests; not production provenance or a new CAD pass",
+    "processStopped": true,
+    "taskTempRemoved": true,
+    "cases": 22,
+    "passed": 22,
+    "failed": 0
+  },
+  "next": "Normal PR/required CI/main merge; fresh app/worker build and existing strict artifact gate; exact five IAM no-op/readback refresh; original twelve resources readback only and reader v1/registry v3 reuse; 082/full app-owned release and eight CAD normal UI verification",
+  "production": {
+    "status": "NOT_RUN_FOR_THIS_SOURCE",
+    "servingRevision": "ai-pdm-prod-5c8854b292a1",
+    "trafficPercent": 100,
+    "tags": 0,
+    "scheduler": "PAUSED",
+    "migration082": "NOT_RUN",
+    "eightCadNormalUi": "NOT_RUN"
+  },
+  "nativeF01F": "USER_PRODUCTION_VALIDATION_PENDING",
+  "supplierReplies": "DISABLED_DEFERRED",
+  "wholeDev": "NOT_ACCEPTED"
+}

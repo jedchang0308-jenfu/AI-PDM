@@ -1,5 +1,11 @@
 # AI_PDM 文件地圖
 
+## DEV-122 CURRENT（2026-10-07；原生套件安全證據已更新，正式發布待新來源 CI）
+
+本節優先於下方歷史續點。PR226 官方 main `10110697` 的 A09 app 建置成功，但兩筆 GCC 評估仍綁舊 sharp/vips 指紋，因此既有 gate 以 `GCC_APPLICABILITY_EVIDENCE_INVALID` 停止；worker build、082、candidate 與 traffic 未執行。已完成限定 AI-PDM 的新 source closure：28 份來源／5 份固定補丁／4 份 npm 原生成品與實際映像逐一對上，570 ELF／288 canonical 中 284 未變、4 項升級，載入閉包的 10 個共通檔案未變。新收集與沿用歷史測試分開記錄；R66b 的 FAILURE_PARTIAL 保留，9／9／3 歷史配置測試未重跑。
+
+獨立 Luna evidence QC 通過，五份 content-addressed 自有評估物件已發布並逐位元組回讀；僅更新兩個既有 policy 的 4／5 個引用欄位，驗證器、CVE／owner profile、門檻與 raw HIGH 掃描均未改動。既有聚焦測試通過，專屬程序／暫存已清理；詳見[本次原生安全證據續點](qa/DEV-122-native-applicability-renewal-2026-10-07.json)與[限定續接契約](specs/DEV-122-openswx-release-readback-iam-contract-2026-10-06.md)。下一步是正常 PR／required CI、新來源 app／worker build 與原安全 gate，原十二資源僅回讀、原五項 IAM 僅 no-op／來源回讀，reader v1／registry v3 重用，再接 082／完整 app-owned 上線與正常 8-CAD completed UI。正式仍 `ai-pdm-prod-5c8854b292a1` 100%／0 tags、Scheduler PAUSED；新來源發布及正常 8-CAD NOT_RUN，完整原生 F-01F 留由使用者正式驗證、供應商回覆停用／延後、整體 NOT_ACCEPTED。
+
 ## DEV-122 CURRENT（2026-10-06；五項補權已套用／R06 通過，來源修復及獨立 QC 通過）
 
 本節優先於下方歷史續點。PR225 已正常合併至官方 main `f1940bb9`，PR／main required CI 均 SUCCESS；A08 受保護 prepare／build 完成，app 與 worker 建置成功，worker raw HIGH／CRITICAL=0。已核准五項唯讀 IAM 實際 APPLIED。R06 原十二資源僅唯讀銜接，bootstrap 與 PAUSED／drained 均 PASS，reader v1／registry v3 原值重用，沒有重發。B05 在本地 runtime-config prerequisite 因 `OPENSWX_IAM_SOURCE_READER_REQUIRED` 停止，未產生完整 capsule；082／candidate／traffic 未執行，既有正式 revision `ai-pdm-prod-5c8854b292a1` 維持 100%／0 tags。
