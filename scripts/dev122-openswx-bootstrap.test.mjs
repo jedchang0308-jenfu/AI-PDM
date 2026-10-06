@@ -19,7 +19,7 @@ function marker(state = 'empty', name = executionName) {
 }
 function memory() {
   const objects = new Map(), calls = []
-  const putJson = async (uri, value) => { const bytes = Buffer.from(canonicalize(value)), row = { bytes, value, ref: { uri, sha256: sha256(bytes) }, metadata: { generation: '1' } }; if (objects.has(uri)) assert.deepEqual(objects.get(uri).value, value); objects.set(uri, row); return row }
+  const putJson = async (uri, value) => { const bytes = Buffer.from(canonicalize(value)), row = { bytes, value, ref: { uri, sha256: sha256(bytes) }, metadata: { generation: '1' } }; if (objects.has(uri)) assert.deepEqual(objects.get(uri).value, value); objects.set(uri, row); return { bytes: row.bytes, ref: row.ref, metadata: row.metadata } }
   const readBytes = async uri => { if (!objects.has(uri)) throw Object.assign(Error('MISSING'), { code: 'MISSING' }); return objects.get(uri) }
   const readJson = async reference => { const row = await readBytes(reference.uri); assert.equal(row.ref.sha256, reference.sha256); return row }
   return { objects, calls, transport: { putJson, readBytes, readJson, now: () => new Date().toISOString() }, put: async (name, value) => (await putJson(ref(name).uri, value)).ref }
@@ -340,8 +340,102 @@ test('FIRST consumer rejects stale bridge, provider drift, preissued Secret or a
         return result
       }
     }
+    // writeWorkerJson now returns an independently parsed provider value; synchronize the intentionally corrupted fixture.
+    h.objects.get(h.applied.ref.uri).value = h.applied.value
+    h.objects.get(h.applied.ref.uri).bytes = Buffer.from(canonicalize(h.applied.value))
     h.provider.calls.length = 0
     await assert.rejects(h.invoke(), undefined, scenario)
     assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
   }
+})
+
+async function partialFirstHarness() {
+  const h = await firstConsumerHarness(), target = descriptor('c'.repeat(40))
+  const oldInput = h.objects.get(h.inputRef.uri).value, root = `${profile.receiptRoot}/${oldInput.receiptId}`
+  const tokenVersion = `projects/${profile.projectNumber}/secrets/${profile.tokenSecretId}/versions/1`
+  const registryVersion = `projects/${profile.projectNumber}/secrets/${profile.registrySecretId}/versions/3`
+  const startedAt = h.transport.now(), createdAt = new Date(Date.parse(startedAt) + 10).toISOString()
+  const tokenRequest = await h.transport.putJson(root + '-token-version-request.json', { schemaVersion: 'aipdm.openswx-credential-request.v1', secretId: profile.tokenSecretId, payloadSha256: sha256(Buffer.from(token)), startedAt, windowEnd: new Date(Date.parse(startedAt) + 30_000).toISOString() })
+  h.payloads.set(tokenVersion, Buffer.from(token))
+  const capacity = await h.put('partial-capacity', { project: 'AI-PDM', sourceRevision: target.value.sourceRevision, status: 'PASS', observedAt: h.transport.now() })
+  target.value.resourcePlanRef = await h.put('partial-approved', { ...h.objects.get(h.args.descriptor.resourcePlanRef.uri).value, sourceRevision: target.value.sourceRevision, capacityGateRef: capacity })
+  const descriptorRef = await h.put('partial-descriptor', target.value), image = `${profile.artifactUri}@sha256:${'c'.repeat(64)}`
+  const oldBuild = h.objects.get(h.workerBuildRef.uri).value
+  const build = workerReceipt({ descriptor: target.value, kind: 'build', actor: appProfile.identities.builder, image, template: workerTemplate(profile, image, null, 'selftest'), observedAt: h.transport.now(), facts: { ...structuredClone(oldBuild.facts), sourceObject: { sha256: target.value.sourceArchiveSha256, generation: '2' } } })
+  const workerBuildRef = await h.put('partial-build', build), original = h.transport.request
+  let registryCreatedAt = null
+  h.transport.request = async (url, options = {}) => {
+    if (url.endsWith(':addVersion')) {
+      assert.ok(url.includes(profile.registrySecretId), 'partial FIRST must not reissue reader token')
+      h.provider.calls.push({ url, options }); h.payloads.set(registryVersion, Buffer.from(JSON.parse(options.body).payload.data, 'base64')); registryCreatedAt = h.transport.now(); return { name: registryVersion }
+    }
+    if (url.includes('secretmanager') && url.includes('/versions?')) {
+      h.provider.calls.push({ url, options })
+      return { versions: url.includes(profile.tokenSecretId) ? [{ name: tokenVersion, state: 'ENABLED', createTime: createdAt }] : [1, 2, ...(h.payloads.has(registryVersion) ? [3] : [])].map(version => ({ name: `projects/${profile.projectNumber}/secrets/${profile.registrySecretId}/versions/${version}`, state: 'ENABLED', createTime: version === 3 ? registryCreatedAt : startedAt })) }
+    }
+    if (url.includes('secretmanager') && url.endsWith(':access')) {
+      const name = url.replace('https://secretmanager.googleapis.com/v1/', '').replace(':access', '')
+      if (h.payloads.has(name)) { h.provider.calls.push({ url, options }); return { name, payload: { data: h.payloads.get(name).toString('base64') } } }
+    }
+    if (url.includes('secretmanager') && url.includes('/versions/')) { h.provider.calls.push({ url, options }); return { name: url.replace('https://secretmanager.googleapis.com/v1/', ''), state: 'ENABLED' } }
+    return original(url, options)
+  }
+  const args = { ...h.args, descriptor: target.value, descriptorRef, build, uri: ref('partial-resources').uri, firstReconciliation: { ...h.args.firstReconciliation, priorBootstrapInputRef: h.inputRef } }
+  const resource = () => executeOpenSwxResources(args)
+  let nextInputRef = null
+  const bootstrap = async applied => {
+    const inputRef = nextInputRef ?? await h.put('partial-bootstrap-input', { ...oldInput, descriptorRef, workerBuildRef, resourceApplyRef: applied.ref, receiptId: 'partial-new-proof', deadlineAt: deadline() })
+    nextInputRef = inputRef
+    return executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  }
+  h.provider.calls.length = 0
+  return { ...h, args, resource, bootstrap, tokenVersion, registryVersion, tokenRequest, root }
+}
+test('partial FIRST bridges exact token-only issuance to new source; original token is sealed without reissue and registry preserved', async () => {
+  const h = await partialFirstHarness(), applied = await h.resource()
+  assert.equal(applied.value.partialFirstBootstrap.tokenSecretVersion, h.tokenVersion)
+  assert.deepEqual(applied.value.partialFirstBootstrap.tokenRequestRef, h.tokenRequest.ref)
+  assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  const first = await h.bootstrap(applied)
+  assert.equal(first.value.facts.tokenSecretVersion, h.tokenVersion); assert.equal(first.value.facts.registrySecretVersion, h.registryVersion)
+  assert.equal(h.provider.calls.filter(row => row.url.endsWith(':addVersion')).length, 1)
+  assert.ok(h.objects.has(h.root + '-token-version.json')); assert.ok(h.objects.has(h.root + '-registry-version.json'))
+  assert.ok(!h.objects.has(ref('partial-new-proof-token-version-request').uri))
+  const updated = JSON.parse(h.payloads.get(h.registryVersion)); assert.deepEqual(updated.workloads[0], h.legacyRegistry.workloads[0]); assert.equal(updated.workloads[1].token, token)
+  h.provider.calls.length = 0; assert.deepEqual((await h.bootstrap(applied)).ref, first.ref)
+  assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+})
+test('partial FIRST rejects drifted immutable chain, latch schema/window/hash, extra/disabled versions, registry progress, Job or Scheduler before writes', async () => {
+  for (const scenario of ['old-input', 'old-apply', 'latch-window', 'latch-secret', 'latch-hash', 'extra-token', 'disabled-token', 'extra-registry', 'registry-progress', 'normal-job', 'enabled-scheduler']) {
+    const h = await partialFirstHarness(), original = h.transport.request
+    if (scenario === 'old-input') h.objects.get(h.inputRef.uri).value.bootstrapKind = 'DAILY_REFRESH'
+    if (scenario === 'old-apply') h.objects.get(h.applied.ref.uri).value.actor = 'other'
+    if (scenario.startsWith('latch-')) { const row = h.objects.get(h.tokenRequest.ref.uri); if (scenario === 'latch-window') row.value.windowEnd = 'bad'; if (scenario === 'latch-secret') row.value.secretId = 'sibling'; if (scenario === 'latch-hash') row.value.payloadSha256 = 'f'.repeat(64); row.bytes = Buffer.from(canonicalize(row.value)) }
+    if (scenario === 'registry-progress') await h.put('first-consumer-proof-registry-version-request', {})
+    h.transport.request = async (url, options) => {
+      const value = await original(url, options)
+      if (scenario === 'extra-token' && url.includes(profile.tokenSecretId + '/versions?')) value.versions.push({ ...value.versions[0], name: h.tokenVersion.replace('/1', '/2') })
+      if (scenario === 'disabled-token' && url.includes(profile.tokenSecretId + '/versions?')) value.versions[0].state = 'DISABLED'
+      if (scenario === 'extra-registry' && url.includes(profile.registrySecretId + '/versions?')) value.versions.push({ name: h.registryVersion, state: 'ENABLED' })
+      if (scenario === 'normal-job' && url === `https://run.googleapis.com/v2/${workerJobName()}`) value.template = workerTemplate(profile, h.objects.get(h.priorWorkerBuildRef.uri).value.image, h.tokenVersion)
+      if (scenario === 'enabled-scheduler' && url.includes('cloudscheduler')) value.state = 'ENABLED'
+      return value
+    }
+    await assert.rejects(h.resource(), undefined, scenario); assert.ok(!h.objects.has(h.args.uri))
+    assert.ok(h.provider.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  }
+})
+
+test('partial FIRST recovers already sealed original registry progress after an unknown Job update without adding credentials again', async () => {
+  const h = await partialFirstHarness(), applied = await h.resource(), original = h.transport.request
+  h.transport.request = async (url, options) => {
+    if (options?.method === 'PATCH') { h.provider.calls.push({ url, options }); throw Object.assign(Error('unknown update'), { code: 'OUTCOME_UNKNOWN' }) }
+    return original(url, options)
+  }
+  await assert.rejects(h.bootstrap(applied), /OUTCOME_UNKNOWN/)
+  assert.equal(h.provider.calls.filter(row => row.url.endsWith(':addVersion')).length, 1)
+  h.transport.request = original; h.provider.calls.length = 0
+  const resumed = await h.bootstrap(applied)
+  assert.equal(resumed.value.facts.tokenSecretVersion, h.tokenVersion); assert.equal(resumed.value.facts.registrySecretVersion, h.registryVersion)
+  assert.ok(h.provider.calls.every(row => !row.url.endsWith(':addVersion')))
 })

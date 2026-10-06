@@ -5,7 +5,7 @@ import os from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
-import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, boundOpenSwxTransport } from './dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, boundOpenSwxTransport, writeWorkerJson } from './dev122-openswx-owner-release.mjs'
 
 const BUCKET = 'jenfu-platform-prod-aipdm-release'
 const MARKER = 'aipdm.openswx-finite-terminal.v1'
@@ -94,6 +94,79 @@ async function assertFirstProviderUnissued(transport, profile, image) {
   return readback
 }
 
+function assertCredentialRequest(value, secretId, payloadSha256 = value?.payloadSha256) {
+  if (!value || Array.isArray(value) || Object.keys(value).sort().join(',') !== 'payloadSha256,schemaVersion,secretId,startedAt,windowEnd'
+    || value.schemaVersion !== 'aipdm.openswx-credential-request.v1' || value.secretId !== secretId || value.payloadSha256 !== payloadSha256
+    || !/^[a-f0-9]{64}$/u.test(payloadSha256 ?? '') || !Number.isFinite(Date.parse(value.startedAt))
+    || Date.parse(value.windowEnd) - Date.parse(value.startedAt) !== 30_000) fail('OPENSWX_CREDENTIAL_REQUEST_JOIN_INVALID')
+}
+/** Adopt only the unique token already issued by the exact incomplete FIRST input. No new authority or Terraform. */
+async function readPartialFirstBootstrap({ transport, profile, descriptor, plan, build, basis, priorBootstrapInputRef, allowCredentialProgress = false }) {
+  assertOpenSwxWorkerRef(priorBootstrapInputRef)
+  const priorInput = await transport.readJson(priorBootstrapInputRef, BUCKET, [WORKER_RECEIPT_PREFIX]), oldInput = priorInput.value
+  if (!oldInput || Array.isArray(oldInput) || Object.keys(oldInput).sort().join(',') !== 'bootstrapKind,currentRegistryVersion,deadlineAt,descriptorRef,receiptId,resourceApplyRef,schemaVersion,workerBuildRef'
+    || oldInput.schemaVersion !== 'aipdm.openswx-bootstrap-input.v1' || oldInput.bootstrapKind !== 'FIRST_CREATE'
+    || !/^[A-Za-z0-9-]{6,100}$/u.test(oldInput.receiptId ?? '') || !Number.isFinite(Date.parse(oldInput.deadlineAt))) fail('OPENSWX_PARTIAL_FIRST_JOIN_INVALID')
+  const oldDescriptorRow = await transport.readJson(oldInput.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])
+  const oldDescriptor = assertWorkerDescriptor(oldDescriptorRow.value, profile, descriptor.workerProfileSha256, oldDescriptorRow.value.sourceRevision)
+  const oldBuildRow = await transport.readJson(oldInput.workerBuildRef, BUCKET, [WORKER_RECEIPT_PREFIX])
+  assertWorkerReceipt(oldBuildRow.value, oldDescriptor, 'build'); assertWorkerBuildSource(oldBuildRow.value, oldDescriptor)
+  const oldApply = (await transport.readJson(oldInput.resourceApplyRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  const oldPlan = (await transport.readJson(oldDescriptor.resourcePlanRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  const oldBasis = await firstResourceBasis({ transport, profile, descriptor: oldDescriptor, plan: oldPlan, build: oldBuildRow.value, priorResourceRequestRef: basis.priorResourceRequestRef, priorWorkerBuildRef: basis.priorWorkerBuildRef })
+  if (oldDescriptor.purpose !== 'build_only' || oldDescriptor.sourceRevision === descriptor.sourceRevision || oldDescriptor.resourcePlanHash !== descriptor.resourcePlanHash
+    || canonicalize(oldBuildRow.value.facts.sourceHashes) !== canonicalize(build.facts.sourceHashes) || oldBuildRow.value.facts.scan.rawHighOrCriticalVulnerabilityCount !== 0
+    || oldPlan.authorizationStatementSha256 !== plan.authorizationStatementSha256 || canonicalize(oldPlan.plan) !== canonicalize(plan.plan)
+    || oldApply.schemaVersion !== 'aipdm.openswx-resource-apply.v1' || oldApply.ownerApplicationId !== 'ai-pdm' || oldApply.actor !== profile.normalActor
+    || oldApply.sourceRevision !== oldDescriptor.sourceRevision || oldApply.resourcePlanHash !== descriptor.resourcePlanHash || oldApply.status !== 'APPLIED' || oldApply.evidenceScope !== 'PRODUCTION_PROVIDER'
+    || oldApply.mutation !== 'READBACK_ONLY_FIRST_SOURCE_RECONCILIATION' || oldApply.partialFirstBootstrap
+    || canonicalize(oldApply.descriptorRef) !== canonicalize(oldDescriptorRow.ref) || canonicalize(oldApply.approvedPlanRef) !== canonicalize(oldDescriptor.resourcePlanRef)
+    || canonicalize(oldApply.requestRef) !== canonicalize(basis.priorResourceRequestRef) || canonicalize(oldApply.binaryPlanReceiptRef) !== canonicalize(basis.priorBinaryPlanReceiptRef)
+    || canonicalize(oldApply.firstSourceReconciliation) !== canonicalize(oldBasis) || oldApply.readback?.image !== basis.priorImage) fail('OPENSWX_PARTIAL_FIRST_JOIN_INVALID')
+  const credentialReceiptRoot = `${profile.receiptRoot}/${oldInput.receiptId}`
+  if (await optional(transport, credentialReceiptRoot + '.json')) fail('OPENSWX_PARTIAL_FIRST_ALREADY_COMPLETED')
+  const tokenRequest = await optional(transport, credentialReceiptRoot + '-token-version-request.json')
+  assertCredentialRequest(tokenRequest?.value, profile.tokenSecretId)
+  if (Date.parse(tokenRequest.value.windowEnd) > Date.parse(oldInput.deadlineAt)) fail('OPENSWX_PARTIAL_FIRST_JOIN_INVALID')
+  if (!allowCredentialProgress) for (const suffix of ['-token-version.json', '-registry-version.json', '-registry-version-request.json']) {
+    if (await optional(transport, credentialReceiptRoot + suffix)) fail('OPENSWX_PARTIAL_FIRST_PROGRESS_UNKNOWN')
+  }
+  const versions = await transport.request(`https://secretmanager.googleapis.com/v1/projects/${profile.projectId}/secrets/${profile.tokenSecretId}/versions?pageSize=100`)
+  if (versions.nextPageToken || !Array.isArray(versions.versions) || versions.versions.length !== 1) fail('OPENSWX_PARTIAL_FIRST_VERSION_UNKNOWN')
+  const metadata = versions.versions[0], tokenSecretVersion = assertNumericSecret(metadata.name, profile.tokenSecretId)
+  if (tokenSecretVersion !== `projects/${profile.projectNumber}/secrets/${profile.tokenSecretId}/versions/1`) fail('OPENSWX_PARTIAL_FIRST_VERSION_UNKNOWN')
+  const created = Date.parse(metadata.createTime)
+  if (metadata.state !== 'ENABLED' || !Number.isFinite(created) || created < Date.parse(tokenRequest.value.startedAt) || created > Date.parse(tokenRequest.value.windowEnd)) fail('OPENSWX_PARTIAL_FIRST_VERSION_UNKNOWN')
+  const recovered = await readIssuedCredential({ transport, profile, secretId: profile.tokenSecretId, uri: credentialReceiptRoot + '-token-version.json', deadlineAt: new Date(Date.now() + 60_000).toISOString() })
+  if (!recovered || recovered.name !== tokenSecretVersion) fail('OPENSWX_PARTIAL_FIRST_VERSION_UNKNOWN')
+  const priorRegistryVersion = assertNumericSecret(oldInput.currentRegistryVersion, profile.registrySecretId)
+  const registryMetadata = await transport.request(`https://secretmanager.googleapis.com/v1/${priorRegistryVersion}`)
+  if (registryMetadata.state !== 'ENABLED' || assertNumericSecret(registryMetadata.name, profile.registrySecretId) !== priorRegistryVersion) fail('OPENSWX_CREDENTIAL_DISABLED')
+  if (priorRegistryVersion !== `projects/${profile.projectNumber}/secrets/${profile.registrySecretId}/versions/2`) fail('OPENSWX_PARTIAL_FIRST_VERSION_UNKNOWN')
+  const nextRegistry = appendReaderCredential(await readSecretBytes(transport, priorRegistryVersion, profile), profile, recovered.bytes.toString())
+  recovered.bytes.fill(0)
+  const registryRequest = await optional(transport, credentialReceiptRoot + '-registry-version-request.json')
+  const registryReceipt = await optional(transport, credentialReceiptRoot + '-registry-version.json')
+  const registryVersions = await transport.request(`https://secretmanager.googleapis.com/v1/projects/${profile.projectId}/secrets/${profile.registrySecretId}/versions?pageSize=100`)
+  const expectedNames = [1, 2, ...(registryRequest && allowCredentialProgress ? [3] : [])].map(version => `projects/${profile.projectNumber}/secrets/${profile.registrySecretId}/versions/${version}`)
+  if (registryVersions.nextPageToken || !Array.isArray(registryVersions.versions) || registryVersions.versions.length !== expectedNames.length
+    || registryVersions.versions.some(row => row.state !== 'ENABLED') || canonicalize(registryVersions.versions.map(row => assertNumericSecret(row.name, profile.registrySecretId)).sort()) !== canonicalize(expectedNames.sort())) fail('OPENSWX_PARTIAL_FIRST_VERSION_UNKNOWN')
+  if (registryReceipt && !registryRequest) fail('OPENSWX_PARTIAL_FIRST_PROGRESS_UNKNOWN')
+  if (registryRequest) {
+    if (!allowCredentialProgress) fail('OPENSWX_PARTIAL_FIRST_PROGRESS_UNKNOWN')
+    assertCredentialRequest(registryRequest.value, profile.registrySecretId, sha256(nextRegistry))
+    const row = registryVersions.versions.find(row => row.name.endsWith('/3')), created = Date.parse(row.createTime)
+    if (!Number.isFinite(created) || created < Date.parse(registryRequest.value.startedAt) || created > Date.parse(registryRequest.value.windowEnd)) fail('OPENSWX_PARTIAL_FIRST_VERSION_UNKNOWN')
+    const issued = await readIssuedCredential({ transport, profile, secretId: profile.registrySecretId, uri: credentialReceiptRoot + '-registry-version.json', deadlineAt: new Date(Date.now() + 60_000).toISOString() })
+    if (!issued || issued.name !== `projects/${profile.projectNumber}/secrets/${profile.registrySecretId}/versions/3` || !issued.bytes.equals(nextRegistry)) fail('OPENSWX_PARTIAL_FIRST_PROGRESS_UNKNOWN')
+    issued.bytes.fill(0)
+  }
+  nextRegistry.fill(0)
+  const readback = await readWorkerResources(transport, profile, basis.priorImage)
+  if ((await assertNoActiveExecutions(transport)).length !== 0) fail('OPENSWX_FIRST_RESOURCE_NOT_EMPTY')
+  return { partial: { priorBootstrapInputRef: priorInput.ref, tokenRequestRef: tokenRequest.ref, tokenSecretVersion, priorRegistryVersion, credentialReceiptRoot }, readback }
+}
+
 export async function executeOpenSwxResources({ transport, profile, descriptor, descriptorRef, build, root, readSource, oauthToken, uri, deadlineAt, actor, firstReconciliation = null }) {
   if (descriptor.purpose !== 'build_only' || actor.email !== profile.normalActor || typeof oauthToken !== 'string' || oauthToken.length < 20) fail('OPENSWX_RESOURCE_AUTHORITY_INVALID')
   const plan = (await transport.readJson(descriptor.resourcePlanRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
@@ -108,17 +181,19 @@ export async function executeOpenSwxResources({ transport, profile, descriptor, 
   if (capacity.project !== 'AI-PDM' || capacity.sourceRevision !== descriptor.sourceRevision || capacity.status !== 'PASS' || !Number.isFinite(capacityAge) || capacityAge < 0 || capacityAge > 600_000) fail('OPENSWX_RESOURCE_CAPACITY_GATE_REQUIRED')
   if (firstReconciliation) {
     const basis = await firstResourceBasis({ transport, profile, descriptor, plan, build, ...firstReconciliation })
-    const readback = await assertFirstProviderUnissued(transport, profile, basis.priorImage)
+    const recovery = firstReconciliation.priorBootstrapInputRef ? await readPartialFirstBootstrap({ transport, profile, descriptor, plan, build, basis, priorBootstrapInputRef: firstReconciliation.priorBootstrapInputRef }) : null
+    const readback = recovery?.readback ?? await assertFirstProviderUnissued(transport, profile, basis.priorImage)
     const previous = await optional(transport, uri)
     if (previous) {
       if (previous.value.schemaVersion !== 'aipdm.openswx-resource-apply.v1' || previous.value.ownerApplicationId !== 'ai-pdm' || previous.value.actor !== actor.email || previous.value.resourcePlanHash !== descriptor.resourcePlanHash
         || previous.value.sourceRevision !== descriptor.sourceRevision || canonicalize(previous.value.descriptorRef) !== canonicalize(descriptorRef) || canonicalize(previous.value.approvedPlanRef) !== canonicalize(descriptor.resourcePlanRef)
         || canonicalize(previous.value.requestRef) !== canonicalize(basis.priorResourceRequestRef) || canonicalize(previous.value.binaryPlanReceiptRef) !== canonicalize(basis.priorBinaryPlanReceiptRef)
         || canonicalize(previous.value.firstSourceReconciliation) !== canonicalize(basis) || previous.value.mutation !== 'READBACK_ONLY_FIRST_SOURCE_RECONCILIATION' || previous.value.readback?.image !== basis.priorImage
+        || canonicalize(previous.value.partialFirstBootstrap ?? null) !== canonicalize(recovery?.partial ?? null)
         || previous.value.status !== 'APPLIED' || previous.value.evidenceScope !== 'PRODUCTION_PROVIDER') fail('OPENSWX_FIRST_RESOURCE_JOIN_INVALID')
       return previous
     }
-    return write(transport, uri, { schemaVersion: 'aipdm.openswx-resource-apply.v1', ownerApplicationId: 'ai-pdm', actor: actor.email, resourcePlanHash: descriptor.resourcePlanHash, sourceRevision: descriptor.sourceRevision, descriptorRef, approvedPlanRef: descriptor.resourcePlanRef, requestRef: basis.priorResourceRequestRef, binaryPlanReceiptRef: basis.priorBinaryPlanReceiptRef, observedAt: transport.now(), readback, firstSourceReconciliation: basis, mutation: 'READBACK_ONLY_FIRST_SOURCE_RECONCILIATION', status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER' })
+    return write(transport, uri, { schemaVersion: 'aipdm.openswx-resource-apply.v1', ownerApplicationId: 'ai-pdm', actor: actor.email, resourcePlanHash: descriptor.resourcePlanHash, sourceRevision: descriptor.sourceRevision, descriptorRef, approvedPlanRef: descriptor.resourcePlanRef, requestRef: basis.priorResourceRequestRef, binaryPlanReceiptRef: basis.priorBinaryPlanReceiptRef, observedAt: transport.now(), readback, firstSourceReconciliation: basis, ...(recovery ? { partialFirstBootstrap: recovery.partial } : {}), mutation: 'READBACK_ONLY_FIRST_SOURCE_RECONCILIATION', status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER' })
   }
 
   const requestUri = `${uri.slice(0, -5)}-request.json`, planUri = `${uri.slice(0, -5)}-plan.json`
@@ -181,7 +256,7 @@ export async function executeOpenSwxResources({ transport, profile, descriptor, 
   return write(transport, uri, { schemaVersion: 'aipdm.openswx-resource-apply.v1', ownerApplicationId: 'ai-pdm', actor: actor.email, resourcePlanHash: descriptor.resourcePlanHash, sourceRevision: descriptor.sourceRevision, descriptorRef, approvedPlanRef: descriptor.resourcePlanRef, requestRef: request.ref, binaryPlanReceiptRef: binaryPlan.ref, binaryPlanSha256: binaryPlan.value.binaryPlanSha256, observedAt: transport.now(), readback, mutation, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER' })
 }
 async function optional(transport, uri) { try { const row = await transport.readBytes(uri, { prefixes: [WORKER_RECEIPT_PREFIX] }); return { ...row, value: JSON.parse(row.bytes) } } catch (error) { if (error.code === 'MISSING') return null; throw error } }
-const write = (transport, uri, value) => transport.putJson(uri, value, { bucket: BUCKET, prefix: WORKER_RECEIPT_PREFIX })
+const write = writeWorkerJson
 export function parseOpenSwxBootstrapArgs(argv) {
   const options = {}
   for (let n = 0; n < argv.length; n += 2) {
@@ -255,10 +330,12 @@ export async function addCredentialVersion({ transport, profile, secretId, bytes
   let request = await optional(transport, latchUri), version = null
   if (!request) {
     checkDeadline(deadlineAt)
-    request = await write(transport, latchUri, { schemaVersion: 'aipdm.openswx-credential-request.v1', secretId, payloadSha256, startedAt: transport.now(), windowEnd: new Date(Date.parse(transport.now()) + 30_000).toISOString() })
+    const startedAt = transport.now()
+    request = await write(transport, latchUri, { schemaVersion: 'aipdm.openswx-credential-request.v1', secretId, payloadSha256, startedAt, windowEnd: new Date(Date.parse(startedAt) + 30_000).toISOString() })
+    assertCredentialRequest(request.value, secretId, payloadSha256)
     try { version = (await transport.request(`https://secretmanager.googleapis.com/v1/projects/${profile.projectId}/secrets/${secretId}:addVersion`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ payload: { data: bytes.toString('base64') } }) }))?.name } catch { /* exact-secret readback below; never add again */ }
   }
-  if (request.value?.secretId !== secretId || request.value.payloadSha256 !== payloadSha256) fail('OPENSWX_CREDENTIAL_REQUEST_JOIN_INVALID')
+  assertCredentialRequest(request.value, secretId, payloadSha256)
   if (!version) {
     const result = await transport.request(`https://secretmanager.googleapis.com/v1/projects/${profile.projectId}/secrets/${secretId}/versions?pageSize=100`)
     if (result.nextPageToken) fail('OPENSWX_CREDENTIAL_READBACK_BOUND')
@@ -282,7 +359,9 @@ async function readIssuedCredential({ transport, profile, secretId, uri, deadlin
   const saved = await optional(transport, uri), pending = await optional(transport, `${uri.slice(0, -5)}-request.json`)
   if (!saved && !pending) return null
   const digest = saved?.value.payloadSha256 ?? pending?.value.payloadSha256
-  if (!/^[a-f0-9]{64}$/u.test(digest ?? '') || (pending && pending.value.secretId !== secretId)) fail('OPENSWX_CREDENTIAL_REQUEST_JOIN_INVALID')
+  assertCredentialRequest(pending?.value, secretId, digest)
+  if (saved && (saved.value.schemaVersion !== 'aipdm.openswx-credential-version.v1' || saved.value.payloadSha256 !== digest
+    || canonicalize(saved.value.requestRef) !== canonicalize(pending.ref))) fail('OPENSWX_CREDENTIAL_REQUEST_JOIN_INVALID')
   let name = saved?.value.secretVersion
   if (!name) {
     const result = await transport.request(`https://secretmanager.googleapis.com/v1/projects/${profile.projectId}/secrets/${secretId}/versions?pageSize=100`)
@@ -473,7 +552,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   assertOpenSwxWorkerRef(inputRef)
   const input = (await transport.readJson(inputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const base = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId']
-  const allowed = stage === 'activate' ? ['schemaVersion', 'releaseCapsuleRef', 'deadlineAt', 'receiptId'] : stage === 'resources' ? [...base, ...(input?.priorResourceRequestRef ? ['priorResourceRequestRef', 'priorWorkerBuildRef'] : [])]
+  const allowed = stage === 'activate' ? ['schemaVersion', 'releaseCapsuleRef', 'deadlineAt', 'receiptId'] : stage === 'resources' ? [...base, ...(input?.priorResourceRequestRef ? ['priorResourceRequestRef', 'priorWorkerBuildRef', ...(input?.priorBootstrapInputRef ? ['priorBootstrapInputRef'] : [])] : [])]
     : stage === 'pause' ? [...base, 'drainKind', ...(input?.drainKind === 'DAILY_DB_VERIFIED' ? ['priorActivationRef'] : ['resourceApplyRef'])]
       : [...base, 'bootstrapKind', ...(input?.bootstrapKind === 'DAILY_REFRESH' ? ['priorActivationRef', 'pausedDrainedRef'] : ['resourceApplyRef', 'currentRegistryVersion'])]
   if (!input || Object.keys(input).sort().join(',') !== allowed.sort().join(',') || input.schemaVersion !== `aipdm.openswx-${stage}-input.v1` || !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '')
@@ -495,7 +574,8 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   const buildRow = await transport.readJson(input.workerBuildRef, BUCKET, [WORKER_RECEIPT_PREFIX]), build = buildRow.value
   assertWorkerReceipt(build, descriptor.value, 'build')
   assertWorkerBuildSource(build, descriptor.value)
-  if (stage === 'resources') return executeOpenSwxResources({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, build, root, readSource, oauthToken, uri, deadlineAt: input.deadlineAt, actor, firstReconciliation: input.priorResourceRequestRef ? { priorResourceRequestRef: input.priorResourceRequestRef, priorWorkerBuildRef: input.priorWorkerBuildRef } : null })
+  if (stage === 'resources') return executeOpenSwxResources({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, build, root, readSource, oauthToken, uri, deadlineAt: input.deadlineAt, actor, firstReconciliation: input.priorResourceRequestRef ? { priorResourceRequestRef: input.priorResourceRequestRef, priorWorkerBuildRef: input.priorWorkerBuildRef, ...(input.priorBootstrapInputRef ? { priorBootstrapInputRef: input.priorBootstrapInputRef } : {}) } : null })
+  let partialFirstBootstrap = null
   const daily = input.drainKind === 'DAILY_DB_VERIFIED' || input.bootstrapKind === 'DAILY_REFRESH'
   const prior = daily ? await readPriorWorkerActivation(transport, input.priorActivationRef, profile) : null
   if (!daily) {
@@ -512,12 +592,16 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
       if (existing) {
         assertWorkerReceipt(existing.value, descriptor.value, 'bootstrap', { actor: actor.email, image: build.image })
         const facts = existing.value.facts, selftest = workerTemplate(profile, build.image, null, 'selftest')
-        if (facts.bootstrapKind !== 'FIRST_CREATE' || canonicalize(facts.resourceApplyRef) !== canonicalize(input.resourceApplyRef) || existing.value.templateSha256 !== sha256(canonicalize(selftest))
+        if (facts.bootstrapKind !== 'FIRST_CREATE' || canonicalize(facts.resourceApplyRef) !== canonicalize(input.resourceApplyRef) || canonicalize(facts.partialFirstBootstrap ?? null) !== canonicalize(applied.partialFirstBootstrap ?? null) || existing.value.templateSha256 !== sha256(canonicalize(selftest))
           || facts.selftestTemplateSha256 !== existing.value.templateSha256 || facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, build.image, facts.tokenSecretVersion)))) fail('OPENSWX_FIRST_RESOURCE_JOIN_INVALID')
         await verifyExistingReaderCredentials(transport, profile, facts)
         await readWorkerResources(transport, profile, build.image); await assertNoActiveExecutions(transport); return existing
       }
-      await assertFirstProviderUnissued(transport, profile, basis.priorImage)
+      if (applied.partialFirstBootstrap) {
+        const recovery = await readPartialFirstBootstrap({ transport, profile, descriptor: descriptor.value, plan, build, basis, priorBootstrapInputRef: applied.partialFirstBootstrap.priorBootstrapInputRef, allowCredentialProgress: true })
+        if (canonicalize(recovery.partial) !== canonicalize(applied.partialFirstBootstrap) || input.currentRegistryVersion !== recovery.partial.priorRegistryVersion) fail('OPENSWX_PARTIAL_FIRST_JOIN_INVALID')
+        partialFirstBootstrap = recovery.partial
+      } else await assertFirstProviderUnissued(transport, profile, basis.priorImage)
     } else assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), workerTemplate(profile, build.image, null, 'selftest'))
   }
   const paused = await pauseWorkerScheduler({ transport, profile, deadlineAt: input.deadlineAt })
@@ -552,12 +636,13 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   } else {
     registryVersion = assertNumericSecret(input.currentRegistryVersion, profile.registrySecretId)
     const registryBytes = await readSecretBytes(transport, registryVersion, profile)
-    const tokenUri = `${uri.slice(0, -5)}-token-version.json`
+    const credentialRoot = partialFirstBootstrap?.credentialReceiptRoot ?? uri.slice(0, -5)
+    const tokenUri = `${credentialRoot}-token-version.json`
     const recovered = await readIssuedCredential({ transport, profile, secretId: profile.tokenSecretId, uri: tokenUri, deadlineAt: input.deadlineAt })
     const token = recovered?.bytes.toString() ?? crypto.randomBytes(32).toString('base64url')
     const registry = appendReaderCredential(registryBytes, profile, token)
     tokenSecretVersion = await addCredentialVersion({ transport, profile, secretId: profile.tokenSecretId, bytes: Buffer.from(token), uri: tokenUri, deadlineAt: input.deadlineAt })
-    newRegistryVersion = await addCredentialVersion({ transport, profile, secretId: profile.registrySecretId, bytes: registry, uri: `${uri.slice(0, -5)}-registry-version.json`, deadlineAt: input.deadlineAt })
+    newRegistryVersion = await addCredentialVersion({ transport, profile, secretId: profile.registrySecretId, bytes: registry, uri: `${credentialRoot}-registry-version.json`, deadlineAt: input.deadlineAt })
   }
   const selftest = workerTemplate(profile, build.image, null, 'selftest'), normal = workerTemplate(profile, build.image, tokenSecretVersion)
   if (prior) await write(transport, `${uri.slice(0, -5)}-prior-recovery.json`, { schemaVersion: 'aipdm.openswx-prior-recovery.v1', priorActivationRef: input.priorActivationRef, priorTemplate: prior.template, priorCapsuleRef: prior.capsuleRef, targetDescriptorRef: descriptor.ref, observedAt: transport.now() })
@@ -568,7 +653,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   const preflight = await write(transport, `${uri.slice(0, -5)}-preflight.json`, workerReceipt({ descriptor: descriptor.value, kind: 'cloud-preflight', actor: actor.email, image: build.image, template: selftest, observedAt: transport.now(), previousRefs: [finite.ref], facts: { isolationVerified: true, noCad: true, proof, normalTemplateSha256: sha256(canonicalize(normal)), selftestTemplateSha256: sha256(canonicalize(selftest)) } }))
   await assertNoActiveExecutions(transport)
   await readWorkerResources(transport, profile, build.image, selftest)
-  return write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'bootstrap', actor: actor.email, image: build.image, template: selftest, observedAt: transport.now(), previousRefs: [inputRef, descriptor.ref, input.workerBuildRef, preflight.ref], facts: { bootstrapKind: input.bootstrapKind, tokenSecretVersion, registrySecretVersion: newRegistryVersion, priorRegistryVersion: registryVersion, normalTemplateSha256: sha256(canonicalize(normal)), selftestTemplateSha256: sha256(canonicalize(selftest)), cloudPreflightRef: preflight.ref, ...(resourceProvenance ? { resourceProvenance, priorActivationRef: input.priorActivationRef, pausedDrainedRef: input.pausedDrainedRef } : { resourceApplyRef: input.resourceApplyRef }) } }))
+  return write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'bootstrap', actor: actor.email, image: build.image, template: selftest, observedAt: transport.now(), previousRefs: [inputRef, descriptor.ref, input.workerBuildRef, preflight.ref], facts: { bootstrapKind: input.bootstrapKind, tokenSecretVersion, registrySecretVersion: newRegistryVersion, priorRegistryVersion: registryVersion, normalTemplateSha256: sha256(canonicalize(normal)), selftestTemplateSha256: sha256(canonicalize(selftest)), cloudPreflightRef: preflight.ref, ...(resourceProvenance ? { resourceProvenance, priorActivationRef: input.priorActivationRef, pausedDrainedRef: input.pausedDrainedRef } : { resourceApplyRef: input.resourceApplyRef, ...(partialFirstBootstrap ? { partialFirstBootstrap } : {}) }) } }))
   } catch (error) {
     let priorJobRestored = false, priorEmptyProof = null
     if (prior) {
