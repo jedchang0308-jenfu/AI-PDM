@@ -49,6 +49,11 @@ type SettingsState =
 
 export type SettingsArea = "overview" | "integrations" | "security" | "workflow" | "system";
 
+// The workflow area contains only the Principal-published, read-only role viewer.
+function isSliceSettingsAreaOpen(area: SettingsArea) {
+  return area === "overview" || area === "security" || area === "workflow";
+}
+
 const settingsAreas: Array<{ id: SettingsArea; label: string; href: string; hash: string }> = [
   { id: "overview", label: "總覽", href: "/settings", hash: "settings-overview" },
   { id: "integrations", label: "整合", href: "/settings/integrations", hash: "settings-integrations" },
@@ -385,7 +390,7 @@ export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
       const hash = window.location.hash.replace(/^#/, "");
       const area = settingsAreas.find((item) => item.hash === hash)?.id;
       if (area && (state.status !== "ready" || state.settings.productionSliceSettingsLimited !== true ||
-        area === "overview" || area === "security")) setActiveArea(area);
+        isSliceSettingsAreaOpen(area))) setActiveArea(area);
     }
 
     syncLegacyHash();
@@ -394,7 +399,7 @@ export function SettingsScreen({ initialArea }: { initialArea: SettingsArea }) {
   }, [state]);
 
   const displayedArea = state.status === "ready" && state.settings.productionSliceSettingsLimited === true &&
-    !["overview", "security"].includes(activeArea) ? "overview" : activeArea;
+    !isSliceSettingsAreaOpen(activeArea) ? "overview" : activeArea;
   const activeAreaLabel = settingsAreas.find((area) => area.id === displayedArea)?.label ?? "總覽";
 
   return (
@@ -1058,7 +1063,7 @@ function ApprovalRuleSummaryDisplay({
 function SettingsAreaNav({ activeArea, limited }: { activeArea: SettingsArea; limited: boolean }) {
   return (
     <nav className="settings-center-nav" aria-label="設定區域">
-      {settingsAreas.filter((area) => !limited || area.id === "overview" || area.id === "security").map((area) => (
+      {settingsAreas.filter((area) => !limited || isSliceSettingsAreaOpen(area.id)).map((area) => (
         <Link
           className={activeArea === area.id ? "is-active" : undefined}
           href={area.href}

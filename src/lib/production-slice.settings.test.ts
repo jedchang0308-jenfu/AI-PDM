@@ -32,7 +32,7 @@ describe("DEV122 settings dispatch retains the existing owner guards", () => {
     vi.stubEnv("PDM_PRODUCTION_SLICE_MODE", active.PDM_PRODUCTION_SLICE_MODE);
     expect(middleware(new NextRequest("https://pdm.example" + path, { method: "POST" })).status).toBe(403);
   });
-  it.each(["/settings", "/settings/security"])("opens exact page and client navigation: %s", path => {
+  it.each(["/settings", "/settings/security", "/settings/workflow"])("opens exact page and client navigation: %s", path => {
     expect(isProductionSliceOpenPagePath(path, active)).toBe(true);
     expect(productionSliceClientStatus(active).openPagePaths).toContain(path);
     const unknown = { PDM_PRODUCTION_SLICE_MODE: "unknown" };
@@ -45,7 +45,7 @@ describe("DEV122 settings dispatch retains the existing owner guards", () => {
       expect(response.headers.get("x-middleware-rewrite")).toBeNull();
     }
   });
-  it.each(["/settings/security/extra", "/settings/integrations", "/settings/workflow", "/settings/system"])("keeps unopened settings page closed: %s", path => {
+  it.each(["/settings/security/extra", "/settings/integrations", "/settings/workflow/extra", "/settings/system"])("keeps unopened settings page closed: %s", path => {
     expect(isProductionSliceOpenPagePath(path, active)).toBe(false);
     expect(productionSliceClientStatus(active).openPagePaths).not.toContain(path);
   });

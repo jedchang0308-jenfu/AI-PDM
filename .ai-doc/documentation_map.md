@@ -2,6 +2,8 @@
 
 ## DEV-122 Cloud Run 部署續點（2026-10-06；本地 QC／建置通過，新增雲端資源待授權）
 
+CURRENT PR218 main 整合：保留最新官方 main 9b446d498 的 DEV-121 設定唯讀角色頁與正式結案；文件地圖衝突只合併兩方段落。原 63 個凍結產品檔案有 62 個 hash 未變，production-slice.ts 自動整合兩方既有 guard，另三個設定頁／測試檔與官方 main blob 一致。[合併來源凍結](qa/DEV-122-openswx-phase2-pr218-source-freeze-2026-10-06.json)記錄 66 個相關檔案；先前 full-r4／Luna 本地結案只屬其當時來源，合併候選的 required CI 尚待 exact head 結果。新 Cloud 資源授權、人類 F-01F 與整體 NOT_ACCEPTED 不變。
+
 使用者指定 worker 使用 Cloud Run。現有 Windows COM Document Manager reader 無法直接在 Cloud Run Linux 容器執行；現行續點改優先評估免費MIT OpenSWX（Linux／三格式／文件與組態屬性為作者宣稱），仍需本案CAD實跑完整度證據；Datakit只留商用備案，不先購買。固定版本OpenSWX Linux/amd64 own映像已建置並綁31檔source／268個artifact與licenses；16項mapping與隔離tests通過。8檔native CAD（3PRT／1ASM／4DRW）皆讀出非空屬性、明示partial；4損壞／截斷樣本皆拒絕。原始8檔hash未變，14個task容器皆報exact清理；storedValue與effective組態可讀，type／raw／linked／evaluated及完整性仍unsupported或unknown；獨立Luna actual artifact QC已完成；12份暫存測試檔、14個容器、本機own映像與3個build CLI configs已驗明清理。使用者已選擇先開發唯讀輔助結果，Phase2本地契約RD Implementation Ready、cloud資源待具體授權。R2缺make與Windows授權匯出symlink失敗紀錄保留，未建立或部署Cloud Run worker，未新增 IAM／Secret；F-01F 仍待使用者正式驗證，7 issues／29 groups、整體未驗收。依[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md#cloud-run-部署指示與解析器相容性2026-10-05current優先於下方-windows-啟動契約)與[相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)與[8CAD／4負向實測](qa/DEV-122-openswx-feasibility-2026-10-05.json)、[immutable建置／授權](qa/DEV-122-openswx-built-artifact-2026-10-05.json)與[獨立Luna QC](qa/DEV-122-openswx-independent-qc-2026-10-05.json)接續；下方 R03 Windows 主機待提供為歷史，不再作現行待辦。
 
 HISTORY_ONLY／core-v1切片：[Phase2 QA 計畫](qa/DEV-122-openswx-phase2-validation-plan-2026-10-05.json)與[核心本地證據](qa/DEV-122-openswx-phase2-core-checkpoint-2026-10-05.json)：22項focused、3項native PostgreSQL通過，501外鍵與基線/隔離/防竄改/完成回執已驗，首次fixture失敗保留；API/dispatch/finite runner/UI與獨立QC接續中，Cloud child隔離及新資源待實證/授權。
@@ -16,11 +18,25 @@ CURRENT 最後本地 owner checks 已通過：[本地結案與證據索引](qa/D
 
 HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證據](qa/DEV-122-openswx-phase2-context-checkpoint-2026-10-06.json)：新版082 exact SHA `9f4ff68f…c8000`、3 native tests及505真外鍵通過，四typedcontext／optional session／防偽造／same-company／single receipt已驗；未種資料基線先通過、lawfulfixture與原DM全列前後不變。Task-owned PG／62702／暫存cluster已清理。只適用凍結SQL subset；normal UI／最終獨立QC／Cloud與完整native CAD仍待各自驗證，整體NOT_ACCEPTED。
 
+## DEV-121 最高管理能力批次：正式結案（2026-10-06）
+
+[本批唯一結果](dev_task.md#dev-121-system-admin-follow-up) → [owner正式closure](qa/DEV-121-admin-capabilities-v6-production-closure-2026-10-06.json) → [現行契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch)。PR216／requiredCI／R4 owner release及fresh正常UI／API通過，system_admin66explicitallow；Org22e81 role workspace200、跨公司403。安全negative沿exact source／current PG／原正式層級，未重標fresh；只讀頁不等於新能力編輯器。私人JENFU封存57raw及独立QA5/5／QC無P1/P2，精確hash在owner closure。
+
+原local checkpoints、R3頁blocked及原400/500/503保留HISTORY_ONLY，不再是pending施工指令；DEV-122、其他owner义务與未驗business判定不變。
+
+<details><summary>HISTORY_ONLY：本批早期進度</summary>
+
+
 ## DEV-121 最高管理角色能力修正（2026-10-05，執行中）
+
+現行 2026-10-06 workflow admission 續點：[local checkpoint](qa/DEV-121-workflow-entry-local-checkpoint-2026-10-06.json)。R3 API 正式 PASS、actual workflow UI FAIL 保留；exact readonly page caller 已本機修正與 QC，new CI／release／UI 待驗。DEV-122 不變。
 
 [本批子任務](dev_task.md#dev-121-system-admin-follow-up) → [唯一 current 契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch) → [QA 分母](dev_task.md#dev-121-system-admin-qa) → [本機／原生整合checkpoint](qa/DEV-121-admin-capabilities-v6-local-checkpoint-2026-10-05.json)。v6 明確完整 system_admin 能力、typed nav/API、Jed exact published grant 及 PostgreSQL role-capability 400／HTTP source session 缺口修復同批收束（正常 v4 直接讀已發布契約；v2/v3 cache 僅歷史回歸）；OrgMaster 保持身分／指派／scope owner，AI-PDM 判斷能力及資源。其他八角色、公司隔離、撤權、expiry 與禁止自審不因全能力取消。
 
 沿既有 JENFU/DEV-015、ORGMASTER/DEV-057、AIPDM/DEV-121，不新增主任務。修正後驗收尚未完成；v5、已套用 migration／R81 歷史證據與 DEV-122 獨立 current 進度保留。下方 R81 只作前批證據，不能替代本批來源、正式版本或 PASS。
+
+
+</details>
 
 ## 本工作樹 DEV-122 設定入口已部署／人工驗收入口（2026-10-05）
 
