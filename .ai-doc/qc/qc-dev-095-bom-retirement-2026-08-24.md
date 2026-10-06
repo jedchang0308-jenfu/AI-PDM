@@ -1,8 +1,10 @@
 # QC-DEV-095 BOM 模組硬刪除驗證報告
 
-狀態：Local RD/QA/QC and primary SQLite retirement passed / Production execution pending
+狀態：Closed / Local RD/QA/QC、current isolated build與primary SQLite retirement passed / Production retirement out of scope
 日期：2026-08-24
-Verdict：IN PROGRESS
+Verdict：CLOSED（LOCAL SCOPE）
+
+> **2026-09-22 scope closure**：使用者確認正式環境 BOM retirement 不在 DEV-095 current scope。Production candidate、Cloud SQL backup/PITR、047 migration、promotion 與 post-release smoke 的歷史待辦不再阻塞本 DEV 結案，也不代表已執行正式環境刪除。
 
 ## 已完成證據
 
@@ -23,8 +25,16 @@ Verdict：IN PROGRESS
 - isolated PostgreSQL 18 retirement rehearsal：13/13 PASS。以目前整併後production-shaped baseline模擬既有`001–039` ledger狀態，只執行正式新增的`047`；12個既存BOM表加1個可能存在的migration-residue表皆於執行後不存在，`bom_usage_policy`與舊confirmation/action/audit資料歸零，非BOM approval matrix規則保留，canonical fixture 7類資料逐列digest維持`b279f419...c8557`，第二次執行`047`仍通過且unvalidated FK=0。隔離port `55439`與task temp均已清理。
 - fresh sequential replay不是本專案正式migration runner路徑：目前`001`是已整併clean-room baseline，舊`004`不可在其後重播；正式runner依`pdm_schema_migrations`既有ledger跳過`001–039`，本次演練依該實際路徑驗證`047`。新增`047`後，舊staging manifest evidence不再可沿用，必須重新完成staging／Wave 0 gate。
 
-## 待完成
+## 結案判定
 
-- production candidate、Cloud SQL backup／PITR、047 migration、Level 4／Wave 0、promotion與 post-release smoke。
+- 本機 BOM hard retirement、focused QC、typecheck、isolated build 與既有 primary／isolated invariant evidence 已完成。
+- Production deletion／migration／promotion 未執行，且依 2026-09-22 人類決策已移出 DEV-095 範圍；本報告不宣稱 production deletion completed。
 
-目前不得將本報告解讀為 production deletion completed。
+## 2026-09-22 current-source revalidation
+
+- Branch：`codex/dev118-production-closure-docs`；HEAD：`ba618f093`；working tree在驗證前後維持 clean。
+- `npm.cmd run qc:dev-095`：`qc:dev-095-bom-retirement`=`20/20 PASS`；`typecheck:app` PASS。
+- `npm.cmd run build:isolated`：Webpack production build PASS；static page generation `120/120`；artifact=`true`；primary invariant readback=`database-absent` before/after；cleanup=`true`。
+- Build runtime declaration：AI-PDM task-owned `.tmp/next-qc-runtime-project-*`；port=`none`；`PDM_DATA_DIR`與`PDM_REPOSITORY_DIR`均限於該runtime root；isolated runtime與dist已由runner清理。
+- 本次工作樹沒有`data/ai-pdm.sqlite`，因此本輪只證明build未建立primary DB且前後皆不存在；primary schema／identity／counts／residue／FK仍沿用上方既有完整receipt，不把本輪`database-absent`擴張成新的schema hash證據。
+- 結論：DEV-095本機退役、focused QC、typecheck與isolated build已完成；Cloud SQL backup／PITR、candidate、`047`正式migration、Level 4／Wave 0、promotion與post-release smoke仍未執行。

@@ -2,13 +2,15 @@
 
 對應任務：`DEV-095`
 對應 ADR：`ADR-PDM-BOM-RETIREMENT-001`
-狀態：Executing / Production release-gated
+狀態：Closed / Local scope complete / Production retirement out of scope
 日期：2026-08-24
-風險：High；正式資料刪除與跨模組回歸
+風險：Medium（current local scope）；High（historical production scope）
+
+> **2026-09-22 current scope amendment**：使用者確認 DEV-095 不執行正式環境 BOM retirement；本 QA plan 的 current acceptance 只涵蓋本機產品退役、isolated data/schema rehearsal、focused regression、typecheck 與 isolated build。G5～G9 的 production backup、candidate、migration、promotion 與 post-release smoke 保留為歷史方案，不再是本 DEV 的待完成條件。
 
 ## 1. 驗收結論
 
-本任務只有在產品碼、baseline schema、本機資料、Cloud SQL 正式資料與 production runtime 都完成移除後才可結案。程式刪除或 migration artifact 單獨完成不得宣稱正式環境已刪除。
+本任務 current scope 在產品碼、baseline schema、本機資料與 isolated regression/build 完成後即可結案。依 2026-09-22 人類決策，Cloud SQL 正式資料與 production runtime 不在本 DEV 範圍；本 QA 不宣稱正式環境已刪除。
 
 ## 2. Gate 與 FMEA
 
@@ -29,17 +31,13 @@
 
 所有 build、test、browser 與 migration rehearsal 使用 task-owned `PDM_DATA_DIR`、`PDM_REPOSITORY_DIR`、dist 與 port。不得 seed／clean primary DB；build 前後必須證明 primary SQLite schema、canonical root/part/drawing identity、migration residue 與 `PRAGMA foreign_key_check` 不變。暫存 runtime 結束時只停止 task-owned process tree並確認 port 釋放。
 
-## 4. Required commands
+## 4. Required commands（current local scope）
 
 - `npm.cmd run qc:dev-095-bom-retirement`
 - `npm.cmd run typecheck:app`
-- `npm.cmd run qc:pdm-change-control`
-- `npm.cmd run qc:pdm-lifecycle-actions`
-- `npm.cmd run qc:pdm-lifecycle-controlled-history`
-- `npm.cmd run qc:db-provider-contract`
-- `npm.cmd run qc:dev-032-cloudsql-migration-package`
-- `npm.cmd run qc:production-deployment-pipeline`
-- isolated production build、candidate smoke、post-promotion production smoke
+- `npm.cmd run build:isolated`
+
+既有 `qc:pdm-change-control`、lifecycle、DB boundary 與 migration rehearsal receipts 可重用；正式環境 backup、candidate、migration、promotion 與 post-release smoke 已依 scope amendment 移出本 DEV。
 
 ## 5. Stop conditions
 
