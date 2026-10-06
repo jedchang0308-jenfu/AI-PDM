@@ -181,7 +181,7 @@ export async function executeOpenSwxResources({ transport, profile, descriptor, 
   if (capacity.project !== 'AI-PDM' || capacity.sourceRevision !== descriptor.sourceRevision || capacity.status !== 'PASS' || !Number.isFinite(capacityAge) || capacityAge < 0 || capacityAge > 600_000) fail('OPENSWX_RESOURCE_CAPACITY_GATE_REQUIRED')
   if (firstReconciliation) {
     const basis = await firstResourceBasis({ transport, profile, descriptor, plan, build, ...firstReconciliation })
-    const recovery = firstReconciliation.priorBootstrapInputRef ? await readPartialFirstBootstrap({ transport, profile, descriptor, plan, build, basis, priorBootstrapInputRef: firstReconciliation.priorBootstrapInputRef }) : null
+    const recovery = firstReconciliation.priorBootstrapInputRef ? await readPartialFirstBootstrap({ transport, profile, descriptor, plan, build, basis, priorBootstrapInputRef: firstReconciliation.priorBootstrapInputRef, allowCredentialProgress: true }) : null
     const readback = recovery?.readback ?? await assertFirstProviderUnissued(transport, profile, basis.priorImage)
     const previous = await optional(transport, uri)
     if (previous) {

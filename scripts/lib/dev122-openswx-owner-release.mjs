@@ -192,15 +192,22 @@ export function workerReceipt({ descriptor, kind, actor, image, template, observ
     actor, image, templateSha256: sha256(canonicalize(template)), jobName: workerJobName(), observedAt, previousRefs, facts, status: 'PASS', evidenceScope: 'PRODUCTION_PROVIDER' }
 }
 
+// Jobs.patch has no updateMask. Round-trip only existing writable metadata;
+// never send output-only fields or execution tokens with this template update.
+function workerJobMetadata(job) {
+  return Object.fromEntries(['labels', 'annotations', 'client', 'clientVersion', 'launchStage', 'binaryAuthorization']
+    .filter(key => Object.hasOwn(job, key)).map(key => [key, structuredClone(job[key])]))
+}
 export async function updateWorkerJob({ transport, profile, template, deadlineAt }) {
   assertOpenSwxWorkerProfile(profile)
   const before = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
   if (!before.etag || before.reconciling || Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_JOB_UPDATE_NOT_READY')
   await assertNoActiveExecutions(transport)
   if (canonicalize(normalizeWorkerTemplate(before.template)) === canonicalize(template)) return assertWorkerJob(before, template)
+  const metadata = workerJobMetadata(before)
   try {
-    await transport.request(`https://run.googleapis.com/v2/${workerJobName()}?updateMask=template`, {
-      method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: workerJobName(), etag: before.etag, template }),
+    await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`, {
+      method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: workerJobName(), etag: before.etag, ...metadata, template }),
     })
   } catch {
     // A lost response never permits a second PATCH. Read the exact resource.
@@ -210,7 +217,11 @@ export async function updateWorkerJob({ transport, profile, template, deadlineAt
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_JOB_UPDATE_OUTCOME_UNKNOWN')
     const current = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
-    if (!current.reconciling) return assertWorkerJob(current, template)
+    if (!current.reconciling) {
+      assertWorkerJob(current, template)
+      if (canonicalize(workerJobMetadata(current)) !== canonicalize(metadata)) fail('OPENSWX_JOB_METADATA_DRIFT')
+      return current
+    }
     await new Promise(resolve => setTimeout(resolve, 1000))
   }
   fail('OPENSWX_JOB_UPDATE_OUTCOME_UNKNOWN')
