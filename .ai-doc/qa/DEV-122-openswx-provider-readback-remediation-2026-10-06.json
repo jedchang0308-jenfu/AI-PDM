@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "aipdm.dev122.provider-readback-remediation.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122#openswx-readonly-auxiliary",
+  "sourceBase": "8f25b0a1a5f42c63e6e20d1e48bd44dd91a9a775",
+  "branch": "codex/dev122-provider-readback-fix",
+  "status": "SOURCE_FIX_TARGETED_TESTS_PASS_OFFICIAL_CI_PENDING",
+  "singleWriter": "root",
+  "authorization": {
+    "humanOriginal": "核准, 請接續",
+    "capacityHumanOriginal": "接受本次容量風險，繼續安裝與上線",
+    "scope": "Same twelve AI-PDM resources; numeric credentials; forward082; app-owned production release; corrective cycle; no sibling"
+  },
+  "failure": {
+    "migration082": "NOT_RUN",
+    "traffic": "R4_UNCHANGED",
+    "actualMethod": "GET",
+    "requestBody": "EMPTY",
+    "newSecretVersions": "NOT_RUN",
+    "existingApplyRequest": "RETAINED_R01_NO_BLIND_REAPPLY",
+    "endpoint": "IAM ServiceAccount getIamPolicy",
+    "resourcesStage": "MISSING",
+    "diagnostic": {
+      "sha256": "e0f3371ec9d6a969fd7b2d4cae0ed63cbee949eec14286e81bad9ccf56c2d711",
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\resources-readback-diagnostic.json"
+    },
+    "actualReaderActAs": "EXACT_DEPLOYER_ONLY_CONFIRMED_BY_NATIVE_GCLOUD",
+    "requiredMethod": "POST",
+    "actualSchedulerState": "PAUSED",
+    "officialReference": "https://docs.cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/getIamPolicy",
+    "actualWorkerJob": "EXISTS_SELFTEST_IMAGE_E9194D35"
+  },
+  "scope": {
+    "terraformChanges": "NONE",
+    "changedProducts": [
+      "scripts/lib/dev122-openswx-bootstrap.mjs",
+      "scripts/dev122-openswx-bootstrap.test.mjs"
+    ],
+    "recovery": "Keep scheduler paused and existing service traffic; provider readback before any next apply",
+    "iamChanges": "NONE",
+    "workerChainChanges": "NONE"
+  },
+  "validation": {
+    "fail": 0,
+    "tests": 14,
+    "temporaryRemoved": true,
+    "pass": 14,
+    "skip": 0,
+    "runtimeStopped": true,
+    "kind": "MOCK_PROVIDER_TARGETED_EXISTING_TEST",
+    "outputSha256": "a72d8fa5a287528e78b50f2508e2029995c4fe197f2a28984b5279e47a2046a2"
+  },
+  "priorA03": {
+    "evidenceScope": "BUILD_SECURITY_READINESS_ONLY",
+    "cloudLinuxIsolation": "PASS",
+    "rawHighCritical": 0,
+    "sourceRevision": "8f25b0a1a5f42c63e6e20d1e48bd44dd91a9a775",
+    "workerImage": "sha256:e9194d35da569b491ed65a20bef27cacaf44f28b9f83269f1bbd85341a59eacc",
+    "ownerRun": "37410760255",
+    "workerBuild": "395d0b64-114c-4002-ac8e-f56076b51d07"
+  },
+  "independentSourceQc": {
+    "cleanup": "Root-owned native lifecycle receipt; not independently read by QC",
+    "effort": "max",
+    "scope": "Two product/test files plus actual 14-case stdout",
+    "model": "gpt-6-luna",
+    "providerRuntime": "NOT_RUN_BY_QC",
+    "status": "SOURCE_QC_PASS"
+  },
+  "completionBoundary": {
+    "wholeDev": "NOT_ACCEPTED",
+    "externalSupplierReply": "DISABLED_DEFERRED",
+    "nativeF01F": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+    "completedNormalUi": "NOT_RUN"
+  }
+}

@@ -50,7 +50,7 @@ async function readWorkerResources(transport, profile, image, expectedTemplate =
   if (canonicalize((policy.bindings ?? []).sort((a, b) => a.role.localeCompare(b.role))) !== canonicalize(bindings.sort((a, b) => a.role.localeCompare(b.role)))) fail('OPENSWX_RESOURCE_READBACK_INVALID')
   const access = await transport.request(`https://secretmanager.googleapis.com/v1/projects/${profile.projectId}/secrets/${profile.tokenSecretId}:getIamPolicy`)
   if (canonicalize(access.bindings) !== canonicalize([{ role: 'roles/secretmanager.secretAccessor', members: [`serviceAccount:${profile.readerServiceAccount}`] }])) fail('OPENSWX_RESOURCE_READBACK_INVALID')
-  const actAs = await transport.request(`https://iam.googleapis.com/v1/projects/${profile.projectId}/serviceAccounts/${profile.readerServiceAccount}:getIamPolicy`)
+  const actAs = await transport.request(`https://iam.googleapis.com/v1/projects/${profile.projectId}/serviceAccounts/${profile.readerServiceAccount}:getIamPolicy`, { method: 'POST' })
   if (canonicalize(actAs.bindings) !== canonicalize([{ role: 'roles/iam.serviceAccountUser', members: ['serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'] }])) fail('OPENSWX_RESOURCE_READBACK_INVALID')
   const job = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
   assertWorkerJob(job, expectedTemplate)

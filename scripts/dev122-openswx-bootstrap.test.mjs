@@ -66,7 +66,10 @@ test('valid resource proof replay reads provider only and preserves original pla
   assert.deepEqual(first.ref, replay.ref); assert.equal(first.value.observedAt, replay.value.observedAt)
   assert.equal(first.value.mutation, 'READBACK_ONLY'); assert.equal(first.value.binaryPlanSha256, 'd'.repeat(64))
   assert.ok(h.objects.get(ref('resources-test-request').uri).bytes.equals(originalRequest)); assert.ok(h.objects.get(ref('resources-test-plan').uri).bytes.equals(originalPlan))
-  assert.ok(provider.calls.every(row => !row.options.method || row.options.method === 'GET'))
+  assert.ok(provider.calls.every(row => !row.options.method || row.options.method === 'GET' || (row.options.method === 'POST' && row.url === `https://iam.googleapis.com/v1/projects/${profile.projectId}/serviceAccounts/${profile.readerServiceAccount}:getIamPolicy`)))
+  const policyReads = provider.calls.filter(row => row.url.includes('iam.googleapis.com') && row.url.endsWith(':getIamPolicy'))
+  assert.equal(policyReads.length, 2)
+  assert.ok(policyReads.every(row => row.options.method === 'POST' && row.options.body === undefined))
 })
 test('stdout empty proof rejects completed/selftest/null/wrong execution/extra fields/foreign log scope', () => {
   assert.equal(parseWorkerStdoutMarker(marker(), executionName).marker.state, 'empty')
@@ -136,7 +139,7 @@ async function dailyHarness({ markerState = null, wrongPriorImage = false } = {}
       return { name: `projects/9536592944/secrets/${profile.tokenSecretId}` }
     }
     if (url.includes('/roles/')) { const lifecycle = url.endsWith('aipdmOpenswxJobLifecycle'); return { name: `projects/${profile.projectId}/roles/${lifecycle ? 'aipdmOpenswxJobLifecycle' : 'aipdmOpenswxJobReadback'}`, includedPermissions: lifecycle ? ['run.jobs.get', 'run.jobs.update', 'run.jobs.run', 'run.executions.get', 'run.executions.list', 'run.executions.cancel'] : ['run.jobs.get', 'run.executions.get', 'run.executions.list'] } }
-    if (url.includes('iam.googleapis.com')) { if (url.endsWith(':getIamPolicy')) return { bindings: [{ role: 'roles/iam.serviceAccountUser', members: ['serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'] }] }; return { email: url.split('/').at(-1) } }
+    if (url.includes('iam.googleapis.com')) { if (url.endsWith(':getIamPolicy')) { assert.equal(options.method, 'POST'); assert.equal(options.body, undefined); return { bindings: [{ role: 'roles/iam.serviceAccountUser', members: ['serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'] }] } }; return { email: url.split('/').at(-1) } }
     if (url.endsWith(':getIamPolicy')) return { bindings: [{ role: 'roles/run.invoker', members: ['serviceAccount:aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com'] }, { role: 'projects/jenfu-platform-prod/roles/aipdmOpenswxJobReadback', members: ['serviceAccount:aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com'] }, { role: 'projects/jenfu-platform-prod/roles/aipdmOpenswxJobLifecycle', members: ['serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'] }] }
     if (url.includes('logging.googleapis.com')) { const execution = executions.at(-1), row = marker(controls.markerState ?? (execution.template.containers[0].args.length ? 'isolation_verified' : 'empty'), execution.name); row.timestamp = execution.completionTime; return { entries: [row] } }
     if (url.endsWith(':run')) { const now = Date.now(); executions.push({ name: executionName + '-' + executions.length, createTime: new Date(now + 10).toISOString(), completionTime: new Date(now + 20).toISOString(), succeededCount: 1, failedCount: 0, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: structuredClone(job.template.template) }); return { name: 'projects/9536592944/locations/asia-east1/operations/recorded' } }

@@ -1,5 +1,9 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
+### 2026-10-06 CURRENT：A03 build/security 通過；provider policy 查詢修正
+
+[Provider readback 修正](../qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)記錄 A03 已成功與 raw HIGH／CRITICAL=0；十二資源已執行後，錯誤 GET reader ServiceAccount getIamPolicy 回404，官方必須 POST 空 body。只修查詢方法與既有 replay tests，14案通過；TF／IAM／schema／worker 鏈不變。原 R01 request及實際資源保留，新來源正常 PR／CI／freeze後先做既有資源readback，不盲目重跑原apply。既有 AI-PDM 正式部署及本次容量風險授權持續有效；numeric bootstrap／082／切流／completed UI 尚待，F-01F仍由使用者正式驗證、D122-07停用及整體NOT_ACCEPTED不變。下方安全修補續點保留歷史，不能當未執行A03的判定。
+
 ### 2026-10-06 CURRENT：正式資源授權與 worker 安全修補
 
 人類已明確核准[原十二項正式資源與上線方案](C:/VIBE%20CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/cloud-resource-production-approval-plan-2026-10-06.md)，另接受固定Terraform provider安裝的本次容量風險。下方「resource authorization pending／未授權」僅為當時歷史，現行 scope 為 AI-PDM own十二地址、兩numeric versions、082 forward-only及同一功能app-owned發布／已知版本回復；禁止跨專案、廣泛IAM、down migration及手動正式業務資料修改不變。
