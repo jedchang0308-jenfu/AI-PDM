@@ -1,0 +1,250 @@
+{
+  "schemaVersion": "aipdm.dev122.local-owner-build-closure.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "recordedAt": "2026-10-05T23:47:45.851547+00:00",
+  "result": "LOCAL_OWNER_CHECKS_AND_INDEPENDENT_QC_PASS",
+  "evidenceScope": "LOCAL_CONTRACT",
+  "releaseAuthority": false,
+  "sourceRoot": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+  "branch": "codex/dev122-share-metadata-closure",
+  "headProvenanceOnly": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+  "finalProductFreezeReadback": {
+    "files": 63,
+    "mismatches": 0,
+    "result": "EXACT_BYTES_AND_SHA_MATCH"
+  },
+  "ownerChecks": [
+    {
+      "command": "npm run test:dev-117:continuous",
+      "result": "PASS_134_REUSED_IDENTICAL_FROZEN_SOURCE",
+      "historyReportOverall": "FAIL_BUILD_ENVIRONMENT; continuous command itself PASS"
+    },
+    {
+      "command": "npm run qc:dev-117:continuous",
+      "result": "PASS",
+      "aggregateTests": 119,
+      "actualOuterExit": 0
+    },
+    {
+      "command": "npm run test:dev-117:abort",
+      "result": "PASS",
+      "tests": 6
+    },
+    {
+      "command": "npm run check:db-boundary",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run typecheck:app",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build:isolated",
+      "result": "PASS",
+      "artifactCreated": true,
+      "primaryUnchanged": true,
+      "cleanupVerified": true,
+      "deployableArtifactRetained": false
+    }
+  ],
+  "sourceCopy": {
+    "files": 2182,
+    "bytes": 24218961,
+    "beforeAfter": "EXACT_BYTES_AND_PRIMARY_ABSENCE",
+    "independentHashMismatches": 0,
+    "freezeComparisons": 166
+  },
+  "capacity": {
+    "userReply": "1",
+    "underlyingStatus": "BLOCKED",
+    "admission": "HUMAN_RISK_ACCEPTED_SINGLE_CAPACITY_REQUEST",
+    "sessionId": "5cb67529-5eaa-4508-ad91-dec5255a628e",
+    "operationId": "dev122-openswx-owner-build-20261006",
+    "reservationBytes": 26843545600,
+    "filesystem": "C:/",
+    "policyHash": "3a52a27924aaa4efab5117481638d2e77bcd9277d3f6d85df8f2e12fb8a9b7ff",
+    "leaseReleased": true,
+    "notGeneralCloudOrCapacityAuthorization": true
+  },
+  "environmentHistory": [
+    {
+      "attempt": "preflight",
+      "result": "FAIL_BEFORE_RUNTIME",
+      "reason": "4 omitted frozen files; only 20192 bytes added to own static snapshot, no product edit"
+    },
+    {
+      "attempt": "full-v2",
+      "result": "FAIL_BUILD_ENOENT",
+      "reason": "native probe distinguishes 272-character cwd ENOENT from 51-character cwd success"
+    },
+    {
+      "attempt": "full-r3",
+      "result": "FAIL_BUILD_ENOTCONN",
+      "reason": "Next realpath resolves alias to long physical path; precise socket failure cause unproven"
+    },
+    {
+      "attempt": "full-r4",
+      "result": "PASS",
+      "reason": "exact physical short source copy; original Next build defaults and shared dependency target retained"
+    }
+  ],
+  "independentQC": {
+    "agent": "/root/dev122_openswx_qc_luna",
+    "model": "gpt-6-luna",
+    "reasoningEffort": "max",
+    "result": "PASS_LOCAL_ONLY",
+    "rootPreservedHandoff": true,
+    "newTestExecution": false
+  },
+  "cleanup": {
+    "ownedRootsAbsent": 2,
+    "ownedJunctionsAbsent": 3,
+    "processes": 0,
+    "listeners": 0,
+    "runtimeReleased": true,
+    "leaseReleased": true,
+    "sharedDependenciesPreserved": true,
+    "independentlyReadBack": true,
+    "userBrowserUntouched": true
+  },
+  "primaryIntegrity": "Primary SQLite ABSENT before/after; no schema/identity/PRAGMA claim for absent databases",
+  "qaRebind": {
+    "planSha256": "5c6a82a6549fce544879e2851d5dcd00d82e3b7b8f511d260fd40abb25ff2cff",
+    "caseCount": 15,
+    "fmeaCount": 9,
+    "criteriaAndCompletionGateUnchanged": true,
+    "onlyP2IsolatedBuildEvidenceBindingUpdated": true
+  },
+  "postBuildMetadata": "PM status and controlled closure only; owner report document snapshot remains its original point-in-time binding. Product 63 hashes unchanged; no new build claimed for later metadata bytes.",
+  "nextDecision": "Explicit new-resource/credential/082 production scope approval described by linked LOCAL_REVIEW plan",
+  "pending": {
+    "terraformInitPlanApply": "NOT_RUN",
+    "cloudWorkerNormalExecution": "NOT_RUN",
+    "normalCompletedResultUI": "NOT_RUN",
+    "nativeCADFullF01F": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+    "issues": 7,
+    "groups": 29,
+    "wholeDEV122": "NOT_ACCEPTED"
+  },
+  "providerMutation": {
+    "cloud": 0,
+    "database": 0,
+    "traffic": 0,
+    "credentials": 0,
+    "sibling": 0
+  },
+  "stageCommitPush": "NOT_RUN",
+  "evidence": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-r4-report-v4.json",
+      "sha256": "1cdba1e50aac8e3c787ed26d5f39abf6b7a0c7b8b9d361361609b8cdacb08a65",
+      "bytes": 2299
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\actual-local-owner-report-v4.json",
+      "sha256": "f3347534bd0a57871a9ca6476185587b861284b59ff62540cb4ff40ce11b4288",
+      "bytes": 7278
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-r4-1-stdout-v4.txt",
+      "sha256": "4c075eb646e8969e5ca3030f96cfac2c14ea7b3311a38a33cfe6bdf7ff22e537",
+      "bytes": 28681
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-r4-1-stderr-v4.txt",
+      "sha256": "09aeb8684b20c5e4bbb662c453cb20294a329e763bbbfdc34482593cb59fafa7",
+      "bytes": 2608
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-report-v2.json",
+      "sha256": "d9111a37ed990712b1a01db51d6dda5bf34e15ef371893f14f521feb7bdfc7f6",
+      "bytes": 2421
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-r3-report-v3.json",
+      "sha256": "4fbccf9c20d49b1a556b3f8c6bc7fb2ee49c5bf1a200fe852eb20644bd5956e3",
+      "bytes": 2592
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\independent-qc-environment-diagnosis.json",
+      "sha256": "5f2dc183c912ab5a2fee0216ae9d1ece39290998d53440d2b1b78ace67de718b",
+      "bytes": 2961
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\physical-short-copy-v5.json",
+      "sha256": "c16a78756a744c1cea56218b94d20d3d8f714b98c23dca91ad39d449edb6bd17",
+      "bytes": 929
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\runtime-plan.json",
+      "sha256": "f8905ef0b267f305875154c3f0bc2efc291a769bc39d0424b4b53d7bc81e9787",
+      "bytes": 400644
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\owner-build-final-cleanup.json",
+      "sha256": "4ed97c370b11c22adcba7f2be038b094e6ed19cc7e857fdec6f8c8868430622b",
+      "bytes": 1373
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-r4-native-process-listener-final.json",
+      "sha256": "3c66dbbe70cb1c0dc63f4c1267aeb44b772f5f6c4fafc4af1a86792e202e2d95",
+      "bytes": 161
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-r4-runtime-release-native.json",
+      "sha256": "16d856ef115f6ddf15a7cd93a3956235cf35ebb3fad31803a9949e78a00186ab",
+      "bytes": 13718
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-r4-lease-release-native.json",
+      "sha256": "7895bae2b82750bc533045659656da8a344c4517fcfc401e683297d43e8944e6",
+      "bytes": 935
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-capacity-risk-admission-2026-10-06.json",
+      "sha256": "ca28f45c5d289ee248e1c5dbf391e2435cf79f9f0b820a5e9af0897f6eeb5980",
+      "bytes": 2605
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\full-r4-capacity-admission.json",
+      "sha256": "09a8f01003dab1a6f7c1af9009fb44d6dea4237c3012c8e22c01a00d6694d354",
+      "bytes": 2110
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\independent-final-owner-build-cleanup-qc.json",
+      "sha256": "aff6979a51af654e8e9e0ac334c5e082203830800993dd7da9fe95af227134b2",
+      "bytes": 3767
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\cloud-resource-production-approval-plan-2026-10-06.md",
+      "sha256": "a8920a8655a9934bd916023a3a016711b0156006f4b7102c492894791e80557b",
+      "bytes": 6895
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\.ai-doc\\qa\\DEV-122-openswx-phase2-validation-plan-2026-10-05.json",
+      "sha256": "5c6a82a6549fce544879e2851d5dcd00d82e3b7b8f511d260fd40abb25ff2cff",
+      "bytes": 124829
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\final-qa-rebind\\DEV-122-openswx-phase2-validation-plan-2026-10-05.pre-r4-isolated-build-2026-10-06.json",
+      "sha256": "69dec92a77730e661bda9c47275da84df5fa7a456bcd03742603678689fb8346",
+      "bytes": 115170
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\final-qa-rebind\\r4-isolated-build-rebind-receipt-2026-10-06.json",
+      "sha256": "7f659962d1a0982cd55ed4658a19a1360af63028dc0425bab2e7f791d7feb2f1",
+      "bytes": 5109
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\.ai-doc\\qa\\DEV-122-openswx-phase2-final-source-freeze-2026-10-06.json",
+      "sha256": "ae72e21cbb8558e54cf160422d78fa637b50d5108526c81aa1c47f7dad77116b",
+      "bytes": 12942
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\rd-integration\\owner-resource-plan-local-latch-v2.json",
+      "sha256": "06ed3efec3b706d6e506de593d3807c4638205163c91a32ba1e86da4455a4818",
+      "bytes": 3129
+    }
+  ]
+}

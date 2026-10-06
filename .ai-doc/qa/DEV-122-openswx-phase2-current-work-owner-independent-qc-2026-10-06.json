@@ -1,0 +1,289 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-phase2-current-work-owner-independent-qc.v1",
+  "createdOn": "2026-10-06",
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "role": "Independent QC Luna",
+  "verdict": "FINAL_BOUNDED_CURRENT_WORK_OWNER_UNIT_SLICE_PASS_7_OF_7; NOT_WHOLE_PHASE2_OR_DEV122_ACCEPTED",
+  "authorizationAndScope": {
+    "projectBoundary": "AI-PDM only; existing execution worktree.",
+    "worktree": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+    "branch": "codex/dev122-share-metadata-closure",
+    "head": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+    "productChanges": "none; only this unique QC checkpoint was written.",
+    "permittedProductSourceUnderTest": [
+      "src/lib/repositories/drawing-recognition-async-repository.ts",
+      "src/lib/repositories/drawing-recognition-context-source-snapshot.test.ts"
+    ],
+    "prohibitedAndNotRun": [
+      "082 migration edits or execution",
+      "Cloud/provider calls or mutations",
+      "other projects",
+      "47-test suite",
+      "browser/runtime",
+      "shared or production database writes"
+    ]
+  },
+  "governanceRead": {
+    "projectInstructions": "AI-PDM AGENTS.md",
+    "roleSkill": "C:\\Users\\user\\.codex\\skills\\agent-role-playbook\\SKILL.md",
+    "hcsSkill": "C:\\Users\\user\\.codex\\skills\\hcs\\SKILL.md",
+    "governanceSkill": "C:\\Users\\user\\.codex\\skills\\ai-agent-company-os\\SKILL.md",
+    "qmsReadOnlyReferences": [
+      "AI-QMS-LOAD-RULES v1.2",
+      "AI-ROLE-P001 v1.0",
+      "AI-VAL-P001 v1.0",
+      "AI-DATA-P001 v1.0",
+      "AI-ROLE-W003 v1.0"
+    ],
+    "contextClassification": "software-project; internal; elevated; QC factual verification.",
+    "roleBoundary": "Read/search/test/evidence collection only; no changes to tested source/test/spec/PM/migration."
+  },
+  "sourceBinding": {
+    "source": {
+      "path": "src/lib/repositories/drawing-recognition-async-repository.ts",
+      "expectedSha256": "fe88f9d9b09a7c3b5357b729e934755f8f7a04edb6bb4a817b45168c055d6923",
+      "actualSha256": "fe88f9d9b09a7c3b5357b729e934755f8f7a04edb6bb4a817b45168c055d6923",
+      "matched": true
+    },
+    "test": {
+      "path": "src/lib/repositories/drawing-recognition-context-source-snapshot.test.ts",
+      "expectedSha256": "97f83df96ab9fd076016bc9c9f14e5dadf4780e3ec4014e37f7a5acdaef4cce5",
+      "actualSha256": "97f83df96ab9fd076016bc9c9f14e5dadf4780e3ec4014e37f7a5acdaef4cce5",
+      "matched": true
+    },
+    "qaPlan": {
+      "path": ".ai-doc/qa/DEV-122-openswx-phase2-validation-plan-2026-10-05.json",
+      "sha256": "4b5ec29abe1f7d8e2024d6b3fc54b5d6eb2215f9d8229cac2e44fcdd916f692d"
+    },
+    "migration082": {
+      "path": "db/postgres/082_dev122_openswx_auxiliary_jobs.sql",
+      "expectedSha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000",
+      "actualSha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000",
+      "sourceRefreshReceipt": "schema082=UNCHANGED"
+    },
+    "sourceRefreshReceipt": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-ui\\current-work-owner-source-refresh.json",
+      "sha256": "3d8df6bb41d43ce0f6e2a6052978544ed522d47db09296ef75e8e9227ee05bd3",
+      "confirms": [
+        "repository implementation source after hash matches the current source binding",
+        "receipt test after hash binds the historical six-case test SHA 89712bff39eb6a449e99cb10e3f916f2ff7ecf53c4a2a8ee614bef18afe4c3fa, not the final seven-case test",
+        "schema082 unchanged",
+        "first actual HTTP 403 preserved"
+      ],
+      "testBinding": "Historical refresh receipt binds the six-case test version; final seven-case assertion is independently bound by this checkpoint sourceBinding and finalTestRun."
+    }
+  },
+  "repositoryCases": {
+    "sourceTestType": "In-memory SQLite repository control test; no Principal auth mock and no shared DB connection.",
+    "testCommand": ".\\node_modules\\.bin\\vitest.cmd run --config vitest.config.ts --configLoader runner --exclude '.worktrees/**' src/lib/repositories/drawing-recognition-context-source-snapshot.test.ts --reporter=verbose",
+    "fileCount": 1,
+    "testsPassed": 7,
+    "testsFailed": 0,
+    "cases": [
+      {
+        "name": "current canonical revision work owner has priority over absent/other formal drawing owner",
+        "result": "PASS"
+      },
+      {
+        "name": "unknown owner, company mismatch, drawing mismatch, branch mismatch and multiple current state rows fail closed without formal-owner fallback",
+        "result": "PASS"
+      },
+      {
+        "name": "all four typed context membership queries produce canonical company owner/descriptor; foreign company rejected",
+        "result": "PASS"
+      },
+      {
+        "name": "unselected PDF add/remove leaves selected CAD fingerprint and ordinal unchanged",
+        "result": "PASS"
+      },
+      {
+        "name": "explicit PDF, duplicate, missing, empty and oversize selections reject without filtering",
+        "result": "PASS"
+      },
+      {
+        "name": "unknown canonical owner, removed links and foreign-company membership fail closed",
+        "result": "PASS"
+      },
+      {
+        "name": "dangling current canonical work reference denies instead of borrowing the formal owner",
+        "result": "PASS"
+      }
+    ],
+    "explicitCoverageGap": {
+      "case": "A canonical_workbench_states row with non-null work_id referencing no drawing_revision_works row (dangling work reference).",
+      "testStatus": "PASS_EXPLICIT_DANGLING_NEGATIVE_TEST",
+      "sourceInspection": "Source inspection remains consistent with the fail-closed query behavior; the final frozen test now directly proves that a non-null canonical work_id with no drawing_revision_works row is rejected instead of borrowing the formal owner.",
+      "staticReasoningOnly": false,
+      "testEvidence": {
+        "path": "src/lib/repositories/drawing-recognition-context-source-snapshot.test.ts",
+        "sha256": "97f83df96ab9fd076016bc9c9f14e5dadf4780e3ec4014e37f7a5acdaef4cce5",
+        "case": "a dangling current canonical work reference denies instead of borrowing the formal owner",
+        "result": "PASS"
+      }
+    },
+    "noCurrentWorkFallback": {
+      "status": "PASS_IN_FOUR_CONTEXT_QUERY_CASE",
+      "basis": "Fixture has no canonical_workbench_states rows before querying typed contexts; drawing_revision resolves its formal scope owner. Current-owner priority is separately tested with canonical work present."
+    }
+  },
+  "localActualApiEvidence": {
+    "inspectionMode": "Read-only inspection of owner-produced request/outcome/refresh JSON; QC did not replay API requests.",
+    "boundary": "LOCAL_VERSIONED_CONTRACT_FIXTURE_NOT_PUBLISHED_AUTHORITY; not production Principal publisher authority, production data, or Cloud proof.",
+    "r3PreservedFail": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-ui\\actual-api-r3-requests.json",
+      "sha256": "d5dd67195bab32ca6332e4d8903394819de3146b6bb04c345f719531ab8b3c59",
+      "summary": "8 entries; first evidence retains expected 200 / actual 403 on normal fixture. Not overwritten."
+    },
+    "r4": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-ui\\actual-api-r4-requests.json",
+      "sha256": "41ed3269decfea8deef8304aa7226094e524b5d8efa2a8be56707d032bd2abd0",
+      "summary": "6 entries; actual statuses [401,403,200,202,202,200] match expected."
+    },
+    "outcome": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-ui\\actual-api-outcome.json",
+      "sha256": "02c7cf43a505c46470512e1e4e0074ed3f654a015701791382a39ad212730ec5",
+      "result": "PASS_LOCAL_ACTUAL_PRINCIPAL_API",
+      "assertions": [
+        "missing session denied",
+        "no-permission Principal denied",
+        "review GET does not enqueue",
+        "run POST durable status-only",
+        "duplicate idempotent",
+        "CAD selected and PDF excluded",
+        "initiator retained",
+        "DM disabled rows unchanged"
+      ],
+      "browser": "NOT_YET_RUN_AT_API_OUTCOME_CAPTURE; separate later browser evidence is recorded in browserEvidenceReadOnly.",
+      "cloud": "NOT_RUN",
+      "F01F": "NOT_RUN_HUMAN_OWNED"
+    },
+    "refresh": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-ui\\current-work-owner-source-refresh.json",
+      "sha256": "3d8df6bb41d43ce0f6e2a6052978544ed522d47db09296ef75e8e9227ee05bd3",
+      "firstActual403": "PRESERVED",
+      "schema082": "UNCHANGED"
+    },
+    "refreshTestBinding": "The refresh receipt SHA 3d8df6bb…ee05bd3 binds the test after SHA 89712bff…c3fa. The final seven-case test SHA 97f83df…4cce5 is separately bound by this checkpoint."
+  },
+  "isolationAndCleanup": {
+    "project": "AI-PDM",
+    "purpose": "Independent seven-case current-work-owner source snapshot test",
+    "port": "none",
+    "processOwner": "Vitest/Node process tree; command exited before cleanup",
+    "pdmDataDir": "C:\\Users\\user\\AppData\\Local\\Temp\\dev122-current-work-owner-qc-20261006-luna-r2\\data",
+    "pdmRepositoryDir": "C:\\Users\\user\\AppData\\Local\\Temp\\dev122-current-work-owner-qc-20261006-luna-r2\\repository",
+    "databaseConnectionEnv": "DATABASE_URL, PDM_DATABASE_URL, PDM_TEST_POSTGRES_URL and PG connection env unset.",
+    "primarySqliteBeforeAfter": "Canonical and execution-worktree data/ai-pdm.sqlite absent before and after.",
+    "fixture": ":memory: SQLite only. Fixture seeds one existing drawing_recognition_sessions row and asserts it remains byte-for-byte logically unchanged after each test; PRAGMA foreign_key_check stays empty.",
+    "sharedDataDisposition": "No shared/primary database was opened or mutated by this QC. Owner API outcome separately asserts DM disabled rows unchanged; this remains local versioned-contract evidence.",
+    "tempCleanup": "Exact task TEMP root removed after full-path and reparse-point checks; readback absent; no port/runtime started by this QC test."
+  },
+  "limitations": [
+    "R4 actual API logs and the separate 1440/390 browser run are owner-produced local versioned-contract fixture evidence; they do not establish production Principal publisher authority, shared database behavior, or Cloud behavior.",
+    "Root native context artifact reports 505 native foreign-key rows and unchanged DM rows, but its captured runtimeCleanup remains PENDING_ROOT_EXACT_STOP; it is not the QC in-memory repository test.",
+    "No shared/production database write, Cloud/provider operation, F01F human validation, or production deployment was performed.",
+    "This checkpoint accepts only the bounded current-work-owner seven-case unit slice and records local owner evidence separately; whole Phase 2 and DEV-122 remain NOT_ACCEPTED."
+  ],
+  "historicalSixCaseStage": {
+    "checkpointSha256": "6e3bb3da322c9396d28ec8067b3b794a0ce37961dc7d2792adef48710991994c",
+    "testSha256": "89712bff39eb6a449e99cb10e3f916f2ff7ecf53c4a2a8ee614bef18afe4c3fa",
+    "result": "PASS_6_OF_6_AT_THAT_STAGE",
+    "danglingCase": "source-inspected as fail-closed only; not explicitly tested at that stage",
+    "history": "Preserved as historical evidence; superseded for final bounded verdict by the final frozen seven-case test."
+  },
+  "finalTestRun": {
+    "project": "AI-PDM",
+    "purpose": "Final explicit dangling-current-work-owner regression verification",
+    "command": ".\\node_modules\\.bin\\vitest.cmd run --config vitest.config.ts --configLoader runner --exclude '.worktrees/**' src/lib/repositories/drawing-recognition-context-source-snapshot.test.ts --reporter=verbose",
+    "testFileCount": 1,
+    "passed": 7,
+    "failed": 0,
+    "sourceSha256": "fe88f9d9b09a7c3b5357b729e934755f8f7a04edb6bb4a817b45168c055d6923",
+    "testSha256": "97f83df96ab9fd076016bc9c9f14e5dadf4780e3ec4014e37f7a5acdaef4cce5",
+    "outcome": "PASS; includes direct dangling-work-reference negative case",
+    "isolation": "In-memory SQLite fixture; no shared/primary database connection."
+  },
+  "browserEvidenceReadOnly": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\playwright\\dev122\\openswx-phase2\\browser\\receipt.json",
+    "sha256": "0ca1831e14ba0523918af0f77bd56f9b0ea7e32dd014e3798883170d25e4aa23",
+    "status": "PASS_ACTUAL_BROWSER_NORMAL_FLOW",
+    "boundary": "ACTUAL_NORMAL_UI_LOCAL_VERSIONED_CONTRACT_FIXTURE",
+    "requests": 40,
+    "allResponsesHttp200": true,
+    "viewports": [
+      1440,
+      390
+    ],
+    "cases": [
+      {
+        "width": 1440,
+        "state": "queued then UI cancelled",
+        "pendingSpinner": false,
+        "terminalRetryDisabled": true,
+        "scrollWidth": 379,
+        "clientWidth": 379,
+        "reducedMotion": false
+      },
+      {
+        "width": 390,
+        "state": "cancelled",
+        "pendingSpinner": false,
+        "terminalRetryDisabled": true,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "reducedMotion": true
+      }
+    ],
+    "receiptSnapshots": "chromium=running is the startup snapshot; cleanup.native=absent is the later finally snapshot. They are time-ordered observations, not concurrent states.",
+    "production": "NOT_RUN",
+    "F01F": "NOT_RUN_HUMAN_OWNED"
+  },
+  "browserCleanupReadback": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-ui\\browser-native-cleanup-readback.json",
+    "sha256": "ff23b09c2ecf096084fd64820579f6edddc78913022c3a87b3295b59990a5552",
+    "result": "PASS_NATIVE_BROWSER_CLEANUP",
+    "observedAt": "2026-10-05T18:30:30.8293913Z",
+    "exactPids": [
+      163120,
+      166224
+    ],
+    "nativeProcesses": "ABSENT",
+    "port": 51997,
+    "portListening": false,
+    "observationPhase": "AFTER_BROWSER_SERVER_CLOSE_AND_FINITE_CONTROLLER_EXIT"
+  },
+  "nextRuntimeCleanupReadback": {
+    "beforePath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-ui\\next-cleanup-before.json",
+    "beforeSha256": "f024fb4e125164f8ef001e6c5d108c40b2bb76926b62e6afb792b17f34c5eddb",
+    "afterPath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-ui\\next-cleanup-after.json",
+    "afterSha256": "daacd38e184e099efff379e47334ea7f47290ce62b22f705031636d3d0f6fa5a",
+    "result": "PASS_EXACT_NEXT_TREE_ABSENT",
+    "portReleased": true,
+    "scope": "Owner-produced exact next-tree cleanup readback; independently inspected read-only."
+  },
+  "nativeContextOwnerEvidence": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\native-context-recheck\\outcome.json",
+    "sha256": "57c43bed8a492b1102fa7453c3cb91409c83b932e522fec620d77b37fe1675b2",
+    "result": "PASS_NATIVE_CONTEXT_SUITE",
+    "nativeForeignKeys": 505,
+    "dmRows": "UNCHANGED",
+    "runtimeCleanupAtCapture": "PENDING_ROOT_EXACT_STOP",
+    "limit": "Owner-produced suite evidence only; not the independent QC in-memory test. Cleanup state remains pending in this captured outcome and must not be called PASS."
+  },
+  "independentNativeCleanupReadback": {
+    "method": "Read-only exact PID and TCP-port query after access was granted for the bounded observation; no process or listener action.",
+    "exactPidsAbsent": [
+      163120,
+      166224,
+      125388,
+      99660
+    ],
+    "exactPortsNoConnections": [
+      51997,
+      61542
+    ],
+    "result": "PASS_READ_ONLY_EXACT_PROCESS_AND_PORT_ABSENCE"
+  },
+  "updatedOn": "2026-10-06"
+}

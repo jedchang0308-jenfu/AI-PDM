@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
-import { createGitSourceIdentity } from './lib/dev012-owner-stage-executor.mjs'
+import { createGitSourceIdentity, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { executePrerequisiteProducer, parsePrerequisiteProducerArgs, resolveOwnerInputPath } from './lib/dev012-owner-prerequisite-producer.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -31,6 +31,7 @@ async function main() {
     ...args, input, profile, root, transport,
     validateIntent: assertDev117ReleaseIntent,
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
+    readWorkerSource: (repositoryPath, sourceRevision) => readGitBlob(root, repositoryPath, sourceRevision),
     buildMigrationBundle: async (sourceRevision) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision),
   })
   process.stdout.write(`${JSON.stringify({ stage: args.stage, releaseId: args.releaseId, ref: result.ref, refs: result.refs ?? null, previousRevision: result.previousRevision ?? null, generation: String(result.metadata.generation), status: 'PASS' })}\n`)

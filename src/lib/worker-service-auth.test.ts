@@ -63,4 +63,15 @@ describe("owner-bound technical workload authentication", () => {
     expect(status(authenticateWorkerService(request(), "preview_jobs"))).toBe(403);
     expect(status(authenticateWorkerService(request(otherToken), "preview_jobs"))).toBe(200);
   });
+  it("isolates the exact OpenSWX reader purpose from every DM/preview/key/ACK purpose", () => {
+    const auxiliaryToken = Buffer.alloc(32, 14).toString("base64url");
+    const auxiliary = { id: "openswx-metadata-reader", token: auxiliaryToken, purposes: ["openswx_metadata_jobs"], capabilities: ["openswx_metadata"] };
+    configure([native, recognition, auxiliary]);
+    expect(status(authenticateWorkerService(request(auxiliaryToken), "openswx_metadata_jobs"))).toBe(200);
+    for (const purpose of ["preview_jobs", "preview_heartbeat", "recognition_jobs", "recognition_heartbeat", "settings_secret_probe", "solidworks_credential"] as const) expect(status(authenticateWorkerService(request(auxiliaryToken), purpose))).toBe(403);
+    expect(status(authenticateWorkerService(request(otherToken), "openswx_metadata_jobs"))).toBe(403);
+    for (const bad of [{ ...auxiliary, id: "other" }, { ...auxiliary, purposes: ["openswx_metadata_jobs", "solidworks_credential"], capabilities: ["openswx_metadata", "solidworks_document_manager"] }, { ...auxiliary, capabilities: ["solidworks_document_manager"] }]) {
+      configure([bad]); expect(status(authenticateWorkerService(request(auxiliaryToken), "openswx_metadata_jobs"))).toBe(503);
+    }
+  });
 });

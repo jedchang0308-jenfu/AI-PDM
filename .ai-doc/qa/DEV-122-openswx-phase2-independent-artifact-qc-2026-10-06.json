@@ -1,0 +1,538 @@
+{
+  "schemaVersion": "ai-pdm.dev122.phase2.independent-artifact-qc.v1",
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "phase": "OpenSWX Phase 2 Linux artifact bounded QC",
+  "status": "LOCAL_ARTIFACT_RECHECK_COMPLETE_CAD_PARTIAL",
+  "branch": "codex/dev122-share-metadata-closure",
+  "head": "5538f92fb0d6ab88f8e45dd2c1f91f5f5344d2cc",
+  "scope": "AI-PDM only. This independent QC completed bounded local Linux artifact execution on the frozen image and eight read-only CAD inputs. It did not build the image or use Cloud, browser, or DB; product source, tests, config and task files remained read-only.",
+  "currentSourceFreeze": {
+    "path": ".ai-doc/qa/DEV-122-openswx-phase2-final-source-freeze-2026-10-06.json",
+    "sha256": "ae72e21cbb8558e54cf160422d78fa637b50d5108526c81aa1c47f7dad77116b",
+    "fileCount": 63,
+    "runtimePlanPath": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-invoker-r3/runtime-plan.json",
+    "runtimePlanSha256": "18f34173da5b2420bdebc4bbe087cd241988143f4a19f9d23ba4a7e58d2e3522",
+    "productSourceHashes": {
+      "expected": 27,
+      "matched": 27
+    },
+    "noProductMutation": true,
+    "priorAdmissionRuntimePlanPath": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-admission-r2/runtime-plan.json"
+  },
+  "diagnosticAdmissionOnlyCorrection": {
+    "path": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-admission-r2/admission-correction.json",
+    "sha256": "2bdc6735932b668f1681732c4e70af747243dc22f30713cfed4e34afac7fd48b",
+    "priorRunnerSha256": "2f20e6f320424286787ccd3b0e533f801cbd4f91579840c8fd0cb09ee2e55a2c",
+    "correctedRunnerSha256": "da1780c07ea3f62a5403786d3382c68f82bea6b41c599e0f561e19854da9a7d8",
+    "onlyChange": "const gateDeadline = Date.now() + 30000; → const gateDeadline = Date.now() + 120000;",
+    "normalizedBackToPriorRunnerMatchesSha256": true,
+    "nodeCheckExitCode": 0,
+    "copiedFiles": [
+      {
+        "path": "runtime-plan.json",
+        "sha256": "18f34173da5b2420bdebc4bbe087cd241988143f4a19f9d23ba4a7e58d2e3522",
+        "matchesPriorLeafAndManifest": true
+      },
+      {
+        "path": "test-input-binding.json",
+        "sha256": "558b6db7643911966abb16021a3d8be699c1b7ed2fa577b352614112acf807f1",
+        "matchesPriorLeafAndManifest": true
+      },
+      {
+        "path": "image-id.txt",
+        "sha256": "62d92c091642521f76784a35ddace309b01bcdc11f7b3a52aaa840147e4a6fa1",
+        "matchesPriorLeafAndManifest": true
+      },
+      {
+        "path": "launch-linux-tests.py",
+        "sha256": "c63d1f30709b0a8b1167fe1480260c7b0da460226a43fb29f1a9df62606fc46d",
+        "matchesPriorLeafAndManifest": true
+      }
+    ],
+    "immutableImage": "sha256:ede6559ac7fc39f9bba0c026b7945e987810d4fc0f3326c971e44e844e5875c1",
+    "inputsLimitsAndAssertionsChanged": false
+  },
+  "rootProducedArtifactEvidenceReadOnly": {
+    "canonicalReportPath": "output/qa/dev-122/openswx-phase2/linux-worker/entry-correction-r2/linux-test-report.json",
+    "independentlyReadCopyPath": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc/root-linux-test-report.json",
+    "reportSha256": "bd8ae2241724ef414a22f6615c97360205012a61191e295984134996c2878252",
+    "copiedImageIdFileSha256": "62d92c091642521f76784a35ddace309b01bcdc11f7b3a52aaa840147e4a6fa1",
+    "imageId": "sha256:ede6559ac7fc39f9bba0c026b7945e987810d4fc0f3326c971e44e844e5875c1",
+    "tests": [
+      {
+        "case": "actual finite entry no token/no CAD",
+        "code": 0,
+        "passed": true
+      },
+      {
+        "case": "actual image Linux tests plus parent HTTP/child socket denial",
+        "code": 0,
+        "passed": true
+      }
+    ],
+    "nativeCad": {
+      "count": 8,
+      "records": [
+        {
+          "name": "A0029-M01.SLDDRW",
+          "sourceSha256": "06fd8358ce29411ea49ae466e1404b0ecc2fc964bbc98534d2df897ab09453bd",
+          "resultSha256": "6d70aca57473b1c1aec933a4bc8a96a2f0b492cd3468b64b7f48225c5f888f8d",
+          "outcome": "partial",
+          "code": 0,
+          "propertyCount": 6,
+          "originalUnchanged": true,
+          "storedResultUnchanged": true
+        },
+        {
+          "name": "A0029.SLDPRT",
+          "sourceSha256": "d3f2349aa36baf24d3e7fc0044cd2004897e62137bbb279b5da329f6521dfc39",
+          "resultSha256": "aecb5c46593affa4bb1ba5d10fd3fdfc3db1d54b089a4495008b419c8779101a",
+          "outcome": "partial",
+          "code": 0,
+          "propertyCount": 18,
+          "originalUnchanged": true,
+          "storedResultUnchanged": true
+        },
+        {
+          "name": "A0033-M01.SLDDRW",
+          "sourceSha256": "55283cd6290ada4736c6e12de773d3d9b58eebdc5f10fce2cff313469e724bd0",
+          "resultSha256": "2e950ac2a050ca363cc321275a8cdcb8f6061b020fffb17cf584e914b20acdc1",
+          "outcome": "partial",
+          "code": 0,
+          "propertyCount": 6,
+          "originalUnchanged": true,
+          "storedResultUnchanged": true
+        },
+        {
+          "name": "A0033.SLDPRT",
+          "sourceSha256": "a350ea0b8e3ec2a47d700502cf3126166b480b88068a68bdf8aa5b5756987c44",
+          "resultSha256": "6e0cbb76a52d4d77558ecbb3ba3bf96ba25d08ffc0461ff31d38d166fef57eeb",
+          "outcome": "partial",
+          "code": 0,
+          "propertyCount": 18,
+          "originalUnchanged": true,
+          "storedResultUnchanged": true
+        },
+        {
+          "name": "A0053-M01.SLDDRW",
+          "sourceSha256": "55bc18848c616c5758d23716fc839857a180f1bf05e274f5912588b60087f3f6",
+          "resultSha256": "471bc7fe85376075cba1d80a21fbd1292108c48b146953945c75dbb86c5633a2",
+          "outcome": "partial",
+          "code": 0,
+          "propertyCount": 6,
+          "originalUnchanged": true,
+          "storedResultUnchanged": true
+        },
+        {
+          "name": "A0053.SLDASM",
+          "sourceSha256": "a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694",
+          "resultSha256": "4ad67b76ae1f8ad8856cb9bd787d7e879cafd59c7e931ed8984635dfe05590b1",
+          "outcome": "partial",
+          "code": 0,
+          "propertyCount": 12,
+          "originalUnchanged": true,
+          "storedResultUnchanged": true
+        },
+        {
+          "name": "D-0007-MA1.SLDDRW",
+          "sourceSha256": "4e39ce88825ae14948353b79455daa2bc35c8b97f1c5706810f1ad926c301d09",
+          "resultSha256": "9ecbe7d66de7a91e0c7718d18a97c8a5b26ed3c47fa2490fd04f32f7cbdc231c",
+          "outcome": "partial",
+          "code": 0,
+          "propertyCount": 6,
+          "originalUnchanged": true,
+          "storedResultUnchanged": true
+        },
+        {
+          "name": "D-0007-MA1.SLDPRT",
+          "sourceSha256": "695ecccd9f4a6425faef1196b319579a8a5011de26d655baa0509a4f61bfc3e2",
+          "resultSha256": "f6f066c280d6d657b789768b2f687315520990b5f56eef76e030f52f557cf99a",
+          "outcome": "partial",
+          "code": 0,
+          "propertyCount": 27,
+          "originalUnchanged": true,
+          "storedResultUnchanged": true
+        }
+      ],
+      "resultHashesMatchCurrentReadback": true,
+      "completenessLimitations": [
+        "Observed stored values do not prove full source completeness.",
+        "Raw/evaluated/type/linked-expression values are unavailable through the reviewed public API.",
+        "The effective merged configuration map remains unsupported.",
+        "Stream parse integrity remains unknown; silent skip is possible."
+      ]
+    },
+    "containers": {
+      "count": 10,
+      "cleanupValue": "VERIFIED_ABSENT",
+      "names": [
+        "aipdm-dev122-finite-7a949244-bb8d-4021-9a1c-76c40db16332",
+        "aipdm-dev122-finite-68c52f89-6b0d-4e5d-8a81-ce9cd358a965",
+        "aipdm-dev122-finite-a5388842-874a-4bc0-b438-54a11ade8298",
+        "aipdm-dev122-finite-23bcf9a3-8ec0-4e77-9535-c1b79d8be64b",
+        "aipdm-dev122-finite-1e181451-c004-4698-aba4-c9dfe1b5a180",
+        "aipdm-dev122-finite-69bae9fb-d37c-4507-8a21-ce7558835736",
+        "aipdm-dev122-finite-94eab265-f400-44e4-9da8-3fed40afe828",
+        "aipdm-dev122-finite-fd84eaa9-7e50-4171-8b90-0f0859964350",
+        "aipdm-dev122-finite-d364f1e8-18d1-4c9a-b733-1cf61a5add82",
+        "aipdm-dev122-finite-e6253f44-ff97-41c8-9f3b-c301275e6dd9"
+      ]
+    },
+    "rootController": {
+      "pid": 95004,
+      "nativeAbsent": true,
+      "ports": []
+    },
+    "cloud": "NOT_AUTHORIZED_NOT_RUN",
+    "f01f": "NOT_RUN_HUMAN_OWNED",
+    "wholeDev": "NOT_ACCEPTED",
+    "evidenceClassification": "ROOT_PRODUCED_READ_ONLY_REVIEW; NOT THIS QC AGENT'S ACTUAL REEXECUTION"
+  },
+  "independentAdmissionAttempt": {
+    "leaf": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-admission-r2",
+    "result": "BLOCKED_BEFORE_ENGINE",
+    "failureRecordPath": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-admission-r2/admission-attempt-001.json",
+    "failureRecordSha256": "cab7f80a54be16affe91cb356e168fbf2d57f2543b520494ced1ae009522b3ee",
+    "launcherReceiptPath": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-admission-r2/linux-tests-launch.json",
+    "launcherReceiptSha256": "76ca2b8e3181ff65af8c857d67a07ed221c186a7b7b932fb6fabe55578a8f980",
+    "pid": 70360,
+    "startToken": "134357026194525715",
+    "executable": "C:\\Program Files\\nodejs\\node.exe",
+    "governor": {
+      "session": "5cb67529-5eaa-4508-ad91-dec5255a628e",
+      "registerExitCode": 0,
+      "status": "OK",
+      "errors": [],
+      "runtimePidStartTokenExecutableMatched": true
+    },
+    "qcOrchestrationError": "My validator incorrectly required an absent top-level data.session_id although nested data.session.session_id and the exact active runtime triple matched. Therefore I failed to apply GO within the one functions.exec call.",
+    "goGateWritten": false,
+    "runnerStderrSha256": "789d52aa032792716c82f0c295f73ac919ff59ad23f1d7ec9aa46224f178eb1a",
+    "runnerOutcome": "REGISTRATION_GATE_TIMEOUT at 120 seconds while waiting for GO; it did not reach the Docker Engine API or create a container.",
+    "independentReportCreated": false,
+    "engineAccess": "NOT_REACHED",
+    "governorCleanup": {
+      "firstRelease": "RUNTIME_STILL_ACTIVE while the runner was still alive",
+      "nativeReadback": "Exact PID absent after timeout (narrow escalated query)",
+      "finalRelease": "status OK, released true, reason exited"
+    },
+    "ports": [],
+    "taskDataDirectories": "Governor-owned isolated task paths only; no DB accessed."
+  },
+  "historicalAdmissionFailures": [
+    {
+      "attempt": 1,
+      "leaf": "independent-qc",
+      "finding": "Launcher imported a wrong platform helper; failed before registration; old runner gate timed out."
+    },
+    {
+      "attempt": 2,
+      "leaf": "independent-qc",
+      "finding": "Governor call exited 1; output was not captured; exact process was stopped."
+    },
+    {
+      "attempt": 3,
+      "leaf": "independent-qc",
+      "finding": "UNSUPPORTED_STATE_FILESYSTEM when explicit state root was accessed from the worktree context; exact process stopped."
+    },
+    {
+      "attempt": 4,
+      "leaf": "independent-qc",
+      "finding": "SESSION_NOT_FOUND using the default Governor state; exact process stopped."
+    },
+    {
+      "attempt": 5,
+      "leaf": "independent-qc",
+      "finding": "Direct registration succeeded, but 30-second gate expired before GO; no Engine access."
+    },
+    {
+      "attempt": 1,
+      "leaf": "independent-qc-admission-r2",
+      "finding": "Governor registration matched, but this QC agent's false-negative predicate withheld GO; the corrected 120-second gate then expired. No Engine access."
+    }
+  ],
+  "priorOwnerSourceQc": {
+    "path": ".ai-doc/qa/DEV-122-openswx-owner-source-independent-qc-2026-10-06.json",
+    "sha256": "f61e33efada066b07cb5a1dddfa038678fc6bab403779182ca06db1d722feadd",
+    "priorBoundedResult": "bootstrap latch-v2 direct 14/14 PASS; not rerun in this artifact slice"
+  },
+  "cleanup": {
+    "thisAgentsRunner": "CURRENT: r2 PID 70360 and r3 PID 93872 are absent; both exact Governor runtimes are released; no owned ports remain.",
+    "rootImageAndCadStage": "CURRENT: exact root-owned worker images were verified absent and worker staging was removed; see cleanup evidence below.",
+    "temporaryPorts": "none",
+    "rootImageCleanupEvidence": {
+      "path": "output/qa/dev-122/openswx-phase2/linux-worker/own-image-cleanup.json",
+      "sha256": "507a9ebf56cbdd1a495ffd8b844fa2da401afbfa711b5fc10a8bae27c022eedb",
+      "result": "PASS_EXACT_OWN_IMAGES_REMOVED",
+      "images": [
+        {
+          "id": "sha256:ede6559ac7fc39f9bba0c026b7945e987810d4fc0f3326c971e44e844e5875c1",
+          "owner": "phase2-worker-c98a4115-3262-4d04-b835-321bb8ca6113",
+          "outcome": "VERIFIED_ABSENT",
+          "consumerCount": 0,
+          "deleteStatus": 200
+        },
+        {
+          "id": "sha256:2c7fc24d272f035e29e58b230068cc7cd6a0c257aad6ff6afd2cbdffbc4c33aa",
+          "owner": "phase2-worker-c98a4115-3262-4d04-b835-321bb8ca6113",
+          "outcome": "VERIFIED_ABSENT",
+          "consumerCount": 0,
+          "deleteStatus": 200
+        }
+      ],
+      "rootReportedPostDeleteProviderReadbackHttpStatus": 404,
+      "sharedCachePrune": false,
+      "dockerDesktopMutation": false
+    },
+    "rootWorkerStagingCleanupEvidence": {
+      "path": "output/qa/dev-122/openswx-phase2/linux-worker/own-worker-staging-cleanup.json",
+      "sha256": "f69a1e176080f2355ff00d563e4436733e7422af22e00c0abdeebd63c3be4777",
+      "result": "PASS_EXACT_OWN_WORKER_STAGING_REMOVED",
+      "runtimeRoot": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-cloud-run-20261005\\governor\\temp\\development\\5cb67529-5eaa-4508-ad91-dec5255a628e\\native-output\\phase2-worker-c98a4115-3262-4d04-b835-321bb8ca6113",
+      "fileCount": 47,
+      "bytes": 1927009,
+      "processes": [
+        {
+          "pid": 67660,
+          "outcome": "NATIVE_PID_ABSENT"
+        },
+        {
+          "pid": 95004,
+          "outcome": "NATIVE_PID_ABSENT"
+        },
+        {
+          "pid": 93872,
+          "outcome": "NATIVE_PID_ABSENT"
+        },
+        {
+          "pid": 70360,
+          "outcome": "NATIVE_PID_ABSENT"
+        }
+      ],
+      "originalAuthorizedCadMutation": false,
+      "sharedDockerCacheMutation": false,
+      "otherResourceCleanup": false
+    },
+    "currentStatus": "CURRENT_VERIFIED_CLEAN"
+  },
+  "finalDisposition": "Independent r3 local artifact recheck completed: two Linux test groups pass, eight CAD records are partial, and ten task-owned containers are verified absent. The r2 admission false-negative and earlier tool-first failures remain preserved. Cloud is not run, F01F remains human-owned, and whole DEV-122 remains NOT_ACCEPTED. Root-owned images and worker staging have since been cleaned under exact ownership evidence.",
+  "independentAdmissionR3": {
+    "leaf": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-invoker-r3",
+    "status": "PASS_LOCAL_LINUX_ARTIFACT_ONLY",
+    "runner": {
+      "pid": 93872,
+      "startToken": "134357032102897533",
+      "executable": "C:\\Program Files\\nodejs\\node.exe",
+      "governorSession": "5cb67529-5eaa-4508-ad91-dec5255a628e",
+      "registration": "status OK, errors [], nested session and runtime PID/start_time/executable matched",
+      "goGate": {
+        "project": "AI-PDM",
+        "pid": 93872,
+        "sha256": "c7076f0aad45896991666991b0474abc30413d49abf14f491f33948a7685a25b"
+      },
+      "nativeCleanup": {
+        "processAbsent": true,
+        "ownedTcpConnections": 0,
+        "ports": []
+      },
+      "governorRelease": {
+        "status": "OK",
+        "released": true,
+        "reason": "exited",
+        "ports": []
+      }
+    },
+    "boundCopiesMatchAdmissionR2": [
+      {
+        "name": "runtime-plan.json",
+        "sha256": "18f34173da5b2420bdebc4bbe087cd241988143f4a19f9d23ba4a7e58d2e3522"
+      },
+      {
+        "name": "test-input-binding.json",
+        "sha256": "558b6db7643911966abb16021a3d8be699c1b7ed2fa577b352614112acf807f1"
+      },
+      {
+        "name": "image-id.txt",
+        "sha256": "62d92c091642521f76784a35ddace309b01bcdc11f7b3a52aaa840147e4a6fa1"
+      },
+      {
+        "name": "launch-linux-tests.py",
+        "sha256": "c63d1f30709b0a8b1167fe1480260c7b0da460226a43fb29f1a9df62606fc46d"
+      },
+      {
+        "name": "run-linux-tests.mjs",
+        "sha256": "da1780c07ea3f62a5403786d3382c68f82bea6b41c599e0f561e19854da9a7d8"
+      },
+      {
+        "name": "admission-correction.json",
+        "sha256": "2bdc6735932b668f1681732c4e70af747243dc22f30713cfed4e34afac7fd48b"
+      }
+    ],
+    "image": {
+      "id": "sha256:ede6559ac7fc39f9bba0c026b7945e987810d4fc0f3326c971e44e844e5875c1",
+      "owner": "phase2-worker-c98a4115-3262-4d04-b835-321bb8ca6113",
+      "readbackSha256": "a46d9122606d2a69a3dd37b16b9604ccefa016d174baadb64a01f3999139b9ff",
+      "postRunCleanupStatus": "REMOVED_AND_VERIFIED_ABSENT"
+    },
+    "outputs": {
+      "reportPath": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-invoker-r3/linux-test-report.json",
+      "reportSha256": "a6e40c9f0ae9bec50a2f7119816260919ddfc277b3e959c121113d3b07d5c613",
+      "launchReceiptSha256": "545667ceae2ec7c6f84fb4185723fc3d8f4d2b95ed2ea80de7a0db26ec8860b4",
+      "entrySelftestSha256": "779557afebb3aae9726a073f6903d46e605eb8d7d96895e73f267bb8c60c7c76",
+      "stdoutSha256": "fe0a2f63116339f13501d2002fe7add88ef7ab53d000c97ab1610135c05f20b5",
+      "stderrBytes": 0,
+      "testGroups": [
+        {
+          "case": "actual finite entry no token/no CAD",
+          "code": 0,
+          "passed": true
+        },
+        {
+          "case": "actual image Linux tests plus parent HTTP/child socket denial",
+          "code": 0,
+          "passed": true
+        }
+      ],
+      "failureCount": 0
+    },
+    "cadComparisonWithRootReport": {
+      "count": 8,
+      "everyOutcomePartial": true,
+      "everyCodeZero": true,
+      "everySourceHashMatchesRootReport": true,
+      "everyResultHashMatchesRootReport": true,
+      "everyBaselineResultHashMatchesCurrentResultHash": true,
+      "everyOriginalUnchanged": true,
+      "everyStoredResultUnchanged": true,
+      "rows": [
+        {
+          "name": "A0029-M01.SLDDRW",
+          "sourceSha256": "06fd8358ce29411ea49ae466e1404b0ecc2fc964bbc98534d2df897ab09453bd",
+          "resultSha256": "6d70aca57473b1c1aec933a4bc8a96a2f0b492cd3468b64b7f48225c5f888f8d",
+          "propertyCount": 6
+        },
+        {
+          "name": "A0029.SLDPRT",
+          "sourceSha256": "d3f2349aa36baf24d3e7fc0044cd2004897e62137bbb279b5da329f6521dfc39",
+          "resultSha256": "aecb5c46593affa4bb1ba5d10fd3fdfc3db1d54b089a4495008b419c8779101a",
+          "propertyCount": 18
+        },
+        {
+          "name": "A0033-M01.SLDDRW",
+          "sourceSha256": "55283cd6290ada4736c6e12de773d3d9b58eebdc5f10fce2cff313469e724bd0",
+          "resultSha256": "2e950ac2a050ca363cc321275a8cdcb8f6061b020fffb17cf584e914b20acdc1",
+          "propertyCount": 6
+        },
+        {
+          "name": "A0033.SLDPRT",
+          "sourceSha256": "a350ea0b8e3ec2a47d700502cf3126166b480b88068a68bdf8aa5b5756987c44",
+          "resultSha256": "6e0cbb76a52d4d77558ecbb3ba3bf96ba25d08ffc0461ff31d38d166fef57eeb",
+          "propertyCount": 18
+        },
+        {
+          "name": "A0053-M01.SLDDRW",
+          "sourceSha256": "55bc18848c616c5758d23716fc839857a180f1bf05e274f5912588b60087f3f6",
+          "resultSha256": "471bc7fe85376075cba1d80a21fbd1292108c48b146953945c75dbb86c5633a2",
+          "propertyCount": 6
+        },
+        {
+          "name": "A0053.SLDASM",
+          "sourceSha256": "a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694",
+          "resultSha256": "4ad67b76ae1f8ad8856cb9bd787d7e879cafd59c7e931ed8984635dfe05590b1",
+          "propertyCount": 12
+        },
+        {
+          "name": "D-0007-MA1.SLDDRW",
+          "sourceSha256": "4e39ce88825ae14948353b79455daa2bc35c8b97f1c5706810f1ad926c301d09",
+          "resultSha256": "9ecbe7d66de7a91e0c7718d18a97c8a5b26ed3c47fa2490fd04f32f7cbdc231c",
+          "propertyCount": 6
+        },
+        {
+          "name": "D-0007-MA1.SLDPRT",
+          "sourceSha256": "695ecccd9f4a6425faef1196b319579a8a5011de26d655baa0509a4f61bfc3e2",
+          "resultSha256": "f6f066c280d6d657b789768b2f687315520990b5f56eef76e030f52f557cf99a",
+          "propertyCount": 27
+        }
+      ]
+    },
+    "containers": {
+      "count": 10,
+      "allCleanupVerifiedAbsent": true,
+      "network": "none",
+      "ports": "none",
+      "memoryMiB": 512,
+      "pidsLimit": 32,
+      "exact": [
+        {
+          "name": "aipdm-dev122-finite-ff800907-8189-4103-b53e-dbf8793cc47c",
+          "id": "ecc7a3384f473374a8043774b3411021be8c9c17d167fad5156f227c7deda0a4",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-ec32b6eb-1ac7-42d8-b9ae-cca3f2808dd0",
+          "id": "a3e69e76dbed719d2e8f4ca1f0b0aae36179c9c1d5f1c7331493be16d92f9189",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-2a4e45c2-5eea-4fcb-b941-9d3116ca155f",
+          "id": "93d012f359dba72ce0606030ce958bcc2b8e55d6a8fe6980e991ed5573a23294",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-b26bfc9d-261d-4bac-8965-976e9b073095",
+          "id": "cb6643d3fe617709c4bf36ab5ad987a1828465955f8fa7d62a83db4ce21d1582",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-dbfb36d8-aaa6-4fe4-97e1-12fdaf42064f",
+          "id": "3468bfa5936e6f57ca9ec0abc883b959606ce6cc0cc38a7293e3504a9d49e377",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-9c64b6bd-d9b3-4b9e-b14b-e3f51a4002bc",
+          "id": "9b9adf6e9a19f2c38b6ed21501c251666c7dbfb3ba643d328111a4f25ab9a7b5",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-d4d8fa81-271a-4c68-8045-3f026a94baf2",
+          "id": "ce0c3950402c37bd53781c7fcef1cfc1551094d88da66bc5233178aa8380bf63",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-9a598189-3daa-44d7-ad42-94a2ce576a3b",
+          "id": "461c222f1151cdd55525af0d5f6ed0f87fe5172fc9004b27cade97445751b8dc",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-f74cb9e0-0d79-4274-bb1e-2b456a23d12f",
+          "id": "7f9e8a29b6dd92daef082a530d3dfb7af1bec78bf06cfec61bf3f8ca5873f0a0",
+          "cleanup": "VERIFIED_ABSENT"
+        },
+        {
+          "name": "aipdm-dev122-finite-a5651913-6e8d-4d7c-b6b4-22b8eb0af9fb",
+          "id": "544ae2c9137a9aaa8263e1adbef9b95dba3e6d43e9fcd46baf76e5bbefdeecc6",
+          "cleanup": "VERIFIED_ABSENT"
+        }
+      ]
+    },
+    "providerMutation": "NONE",
+    "externalCadTransfer": false,
+    "cloud": "NOT_AUTHORIZED_NOT_RUN",
+    "f01f": "NOT_RUN_HUMAN_OWNED",
+    "wholeDev": "NOT_ACCEPTED",
+    "earlierAdmissionR2FalseNegativeAnd120sTimeout": "Preserved in independentAdmissionAttempt and historical failures."
+  },
+  "scopeCleanupCorrectionHistory": {
+    "correctionReason": "Post-r3 documentation correction: the prior top-level scope incorrectly said no Docker Engine artifact execution completed; r3 did execute the bounded local image checks. Root-owned image and worker staging were later cleaned.",
+    "correctedAt": "2026-10-06",
+    "scopeBeforeCorrection": "AI-PDM only; product source, tests, config and task files remained read-only. No build, Cloud, browser, DB, or Docker Engine artifact execution completed by this independent QC.",
+    "runtimePlanPathBeforeCorrection": "output/qa/dev-122/openswx-phase2/linux-worker/independent-qc-admission-r2/runtime-plan.json",
+    "cleanupBeforeRootCleanup": {
+      "thisAgentsRunner": "PID 70360 absent and exact Governor runtime released; no container was started.",
+      "rootImageAndCadStage": "Still root-owned and retained for root cleanup after reviewing this bounded result.",
+      "temporaryPorts": "none"
+    },
+    "currentDisposition": "r3 bounded local Linux artifact execution completed; root-owned image removal and worker staging cleanup are now verified from the referenced evidence."
+  }
+}

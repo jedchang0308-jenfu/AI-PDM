@@ -1,0 +1,1975 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-built-artifact.v1",
+  "capturedAtUtc": "2026-10-05T13:41:26.425480+00:00",
+  "project": "AI-PDM",
+  "imageId": "sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97",
+  "buildReadback": {
+    "project": "AI-PDM",
+    "imageId": "sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97",
+    "os": "linux",
+    "architecture": "amd64",
+    "user": "65532:65532",
+    "ownerLabel": "01a104e1-3ccb-7253-b94b-6ea4668c91fa",
+    "sourceFiles": 31,
+    "sourceBytes": 146776.0,
+    "sourceDrift": [],
+    "buildLogSha256": "7f8861a0357518729a6496fb7d31048abb9bf19a8c8c4db761c12becaa37c147",
+    "buildPidAbsent": true,
+    "capturedAtUtc": "2026-10-05T13:36:46.3015616Z"
+  },
+  "buildContext": [
+    {
+      "path": ".dockerignore",
+      "bytes": 81,
+      "sha256": "00ef5355e2b91d3e418c9e5c9efe325fd4d1d8408c5eb791e80551131724e916"
+    },
+    {
+      "path": ".gitattributes",
+      "bytes": 16,
+      "sha256": "4697bdcc5a0e92bf201efc735aa6559f271aa4410cecaf2dde34eaccc98716ff"
+    },
+    {
+      "path": "CMakeLists.txt",
+      "bytes": 916,
+      "sha256": "0a17022d464b3d8beb285366487637a7f0b1d1e3f174fe7998d847e3d7a59002"
+    },
+    {
+      "path": "Dockerfile",
+      "bytes": 2769,
+      "sha256": "5c060d117d3769ced6678b209037e7e9b6e55147f2e104292a0acb61d442020f"
+    },
+    {
+      "path": "isolation.mjs",
+      "bytes": 3877,
+      "sha256": "dca546cbfb7f686fbf3fd8217c67433332839f5b5341f1593c62c146fc580d41"
+    },
+    {
+      "path": "isolation.test.mjs",
+      "bytes": 4086,
+      "sha256": "b8a1b123ce5cc971769ee34f3cc8cef96c49701863d62403a9a135698aa69e6a"
+    },
+    {
+      "path": "normalize.mjs",
+      "bytes": 4241,
+      "sha256": "10072d5ef4b641ba0f4b6048980d4fa035960a0dfd7ae99644937ad54154f33a"
+    },
+    {
+      "path": "process.mjs",
+      "bytes": 1306,
+      "sha256": "d94d532d0543dd9025e640a63e21651480a6a454315cb3f0898b173026861ad3"
+    },
+    {
+      "path": "reader.cc",
+      "bytes": 3028,
+      "sha256": "f23dd160bfb3e1c60345d4195c9df149bc7fe61720945cbd99e909488a4cde35"
+    },
+    {
+      "path": "reader.test.mjs",
+      "bytes": 4118,
+      "sha256": "fcace1b4a6d047e0623d21f6099a3b12dde614745a7a44d0d4b5569116f2681c"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1698,
+      "sha256": "093e3815a7fe02862a69c4bb5f92af816ad7ee895cc768db24bbba36e0caf115"
+    },
+    {
+      "path": "source-manifest.json",
+      "bytes": 7473,
+      "sha256": "f65c60b18c41738206840d9b4bff77561a4b8cbcede95ab6a62acab8b909cd18"
+    },
+    {
+      "path": "vendor/libopenswx/include/openswx/document.h",
+      "bytes": 8547,
+      "sha256": "adc4ba93043e31c27d3d9341374c73ff4bb554d4bc099e17b911fca4e2a45c91"
+    },
+    {
+      "path": "vendor/libopenswx/include/openswx/types.h",
+      "bytes": 11643,
+      "sha256": "9b50552dacd533b832e9d2f184fcf6bfb618842112ec1db001d034a9aebaf969"
+    },
+    {
+      "path": "vendor/libopenswx/include/openswx/version.h.in",
+      "bytes": 141,
+      "sha256": "b23b2627c3167fc0a08972e5c016a768165f69cd19d894506d2a59bbf8c7d2eb"
+    },
+    {
+      "path": "vendor/libopenswx/src/document.cc",
+      "bytes": 22775,
+      "sha256": "c6e5991edf6b8025bfebb97d2ece21ff540e87fb237f2de31c46acdc6a9d9bd8"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/byte_reader.h",
+      "bytes": 4556,
+      "sha256": "bc1f7f95ada052d64215c2bd08648c8636e5bacf9416e46151daa5b9c9037f46"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/cmgrhdr_reader.h",
+      "bytes": 12550,
+      "sha256": "6df4bac2540b8ab911cc42d8331e7419ca877d35fa50efce905383847fedbf61"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/decompressor.cc",
+      "bytes": 2791,
+      "sha256": "7245649d507ab2bf0dee2fed4c31e70cacf94eda6279437292d745dc70bb9d72"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/decompressor.h",
+      "bytes": 927,
+      "sha256": "2814677cba84ff730d62fe79f6c4288c05080cf4afa890dad9f696a67d29311b"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/modern_parser.cc",
+      "bytes": 6011,
+      "sha256": "88c51fc83a77d0bacd2e85c3a8dd4d229888ff2e7ce8d896607721ef42c13c3f"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/modern_parser.h",
+      "bytes": 3557,
+      "sha256": "d45b1104c49f535021af572f5c0fa2e5a3fbd19db6b0ec2f59c6135021079da9"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/ole2_parser.cc",
+      "bytes": 14069,
+      "sha256": "724e79e43369f947a0d8bb777a79ff6638a48db1d83c6a33e2cc42d30d4c25de"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/ole2_parser.h",
+      "bytes": 967,
+      "sha256": "8f5af687c433dae1c0efce2a2ada2138a44e9788ab589b32cbcf19b2b132286b"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/rol_codec.h",
+      "bytes": 1581,
+      "sha256": "dc0af511ddd385cda2f131649d993fe9da90c47ccc53e9a05b72ba0f17f8f36b"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/sheet_name_reader.cc",
+      "bytes": 1128,
+      "sha256": "a7d25e45e57d6e182e7ba744cb789d54310201b65593709358ee3f6f0dd03d65"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/sheet_name_reader.h",
+      "bytes": 890,
+      "sha256": "071f2ac8dfaa57ed62a8d29098c896e61b45bd7c36f27069b6b738cf03f30c43"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/stream_store.h",
+      "bytes": 1399,
+      "sha256": "4c1e2c883532654de0796fd323cf79a15fbc96f069b7695429ef2ff38b515951"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/xml_readers.cc",
+      "bytes": 14701,
+      "sha256": "7ad337c06fb3f4ae7f742f37210f1e2155e19252010041fd612bb45463c2501a"
+    },
+    {
+      "path": "vendor/libopenswx/src/internal/xml_readers.h",
+      "bytes": 3857,
+      "sha256": "9eff60ed26ed124408275f0be230bc5668fe801e463108c2c32c566aff87accc"
+    },
+    {
+      "path": "vendor/LICENSE",
+      "bytes": 1077,
+      "sha256": "f0a4162356ca7a87c1f971a9f8828799a54297e3faad68fd06f53b803a45b45e"
+    }
+  ],
+  "sourceManifestInImage": {
+    "sourceCommit": "30bd63845d3532cdecfdf2654e9cc0871229c45a",
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 1077,
+        "gitBlobSha1": "9740399269d08f434bdadd0a825000352dd848a9",
+        "sha256": "f0a4162356ca7a87c1f971a9f8828799a54297e3faad68fd06f53b803a45b45e",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/LICENSE"
+      },
+      {
+        "path": "libopenswx/include/openswx/document.h",
+        "size": 8547,
+        "gitBlobSha1": "8d6bbb26e61a99ad73c88a99c84dd5a5712ba96e",
+        "sha256": "adc4ba93043e31c27d3d9341374c73ff4bb554d4bc099e17b911fca4e2a45c91",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/include/openswx/document.h"
+      },
+      {
+        "path": "libopenswx/include/openswx/types.h",
+        "size": 11643,
+        "gitBlobSha1": "ca9a8d7de4b1f1acf00048f63d50460ef7e65d96",
+        "sha256": "9b50552dacd533b832e9d2f184fcf6bfb618842112ec1db001d034a9aebaf969",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/include/openswx/types.h"
+      },
+      {
+        "path": "libopenswx/include/openswx/version.h.in",
+        "size": 141,
+        "gitBlobSha1": "ab238b4f0d2a76774308f7730eee362a606ab948",
+        "sha256": "b23b2627c3167fc0a08972e5c016a768165f69cd19d894506d2a59bbf8c7d2eb",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/include/openswx/version.h.in"
+      },
+      {
+        "path": "libopenswx/src/document.cc",
+        "size": 22775,
+        "gitBlobSha1": "19daa07bf87a2f4a14c3da26364bc23acb48f8e0",
+        "sha256": "c6e5991edf6b8025bfebb97d2ece21ff540e87fb237f2de31c46acdc6a9d9bd8",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/document.cc"
+      },
+      {
+        "path": "libopenswx/src/internal/byte_reader.h",
+        "size": 4556,
+        "gitBlobSha1": "0feef34e33c9e4fc9cc8f081ee9c1fb91954c9bf",
+        "sha256": "bc1f7f95ada052d64215c2bd08648c8636e5bacf9416e46151daa5b9c9037f46",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/byte_reader.h"
+      },
+      {
+        "path": "libopenswx/src/internal/cmgrhdr_reader.h",
+        "size": 12550,
+        "gitBlobSha1": "0f7226c82c1be0ddf074f6c922ef90fe70c4c99c",
+        "sha256": "6df4bac2540b8ab911cc42d8331e7419ca877d35fa50efce905383847fedbf61",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/cmgrhdr_reader.h"
+      },
+      {
+        "path": "libopenswx/src/internal/decompressor.cc",
+        "size": 2791,
+        "gitBlobSha1": "a3ce657ec1c7989182299c183978a898a535d53f",
+        "sha256": "7245649d507ab2bf0dee2fed4c31e70cacf94eda6279437292d745dc70bb9d72",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/decompressor.cc"
+      },
+      {
+        "path": "libopenswx/src/internal/decompressor.h",
+        "size": 927,
+        "gitBlobSha1": "45161109c11270a0eafd3909396ab474496df951",
+        "sha256": "2814677cba84ff730d62fe79f6c4288c05080cf4afa890dad9f696a67d29311b",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/decompressor.h"
+      },
+      {
+        "path": "libopenswx/src/internal/modern_parser.cc",
+        "size": 6011,
+        "gitBlobSha1": "a7ea58b171b2486a5acfd5a31c99d89a39e8412c",
+        "sha256": "88c51fc83a77d0bacd2e85c3a8dd4d229888ff2e7ce8d896607721ef42c13c3f",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/modern_parser.cc"
+      },
+      {
+        "path": "libopenswx/src/internal/modern_parser.h",
+        "size": 3557,
+        "gitBlobSha1": "9ed475f4b8cb3e86969bfa6074965ace1feb639d",
+        "sha256": "d45b1104c49f535021af572f5c0fa2e5a3fbd19db6b0ec2f59c6135021079da9",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/modern_parser.h"
+      },
+      {
+        "path": "libopenswx/src/internal/ole2_parser.cc",
+        "size": 14069,
+        "gitBlobSha1": "78fb52a08f82ba731d83b7500d2fe9a8824093b9",
+        "sha256": "724e79e43369f947a0d8bb777a79ff6638a48db1d83c6a33e2cc42d30d4c25de",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/ole2_parser.cc"
+      },
+      {
+        "path": "libopenswx/src/internal/ole2_parser.h",
+        "size": 967,
+        "gitBlobSha1": "0ccf8d3401ad6b7176ee06f5cc68ffef1de22318",
+        "sha256": "8f5af687c433dae1c0efce2a2ada2138a44e9788ab589b32cbcf19b2b132286b",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/ole2_parser.h"
+      },
+      {
+        "path": "libopenswx/src/internal/rol_codec.h",
+        "size": 1581,
+        "gitBlobSha1": "2833e268972c5ff6ae39a1807ae8819a3969a76e",
+        "sha256": "dc0af511ddd385cda2f131649d993fe9da90c47ccc53e9a05b72ba0f17f8f36b",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/rol_codec.h"
+      },
+      {
+        "path": "libopenswx/src/internal/sheet_name_reader.cc",
+        "size": 1128,
+        "gitBlobSha1": "58ba44f9f7165c139f5fb148749c1428d983f113",
+        "sha256": "a7d25e45e57d6e182e7ba744cb789d54310201b65593709358ee3f6f0dd03d65",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/sheet_name_reader.cc"
+      },
+      {
+        "path": "libopenswx/src/internal/sheet_name_reader.h",
+        "size": 890,
+        "gitBlobSha1": "5ea2722a2d68cac013244006dd07051f1b6e9f80",
+        "sha256": "071f2ac8dfaa57ed62a8d29098c896e61b45bd7c36f27069b6b738cf03f30c43",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/sheet_name_reader.h"
+      },
+      {
+        "path": "libopenswx/src/internal/stream_store.h",
+        "size": 1399,
+        "gitBlobSha1": "c93d1696316cbc7a85bc101256412f4e5d856a06",
+        "sha256": "4c1e2c883532654de0796fd323cf79a15fbc96f069b7695429ef2ff38b515951",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/stream_store.h"
+      },
+      {
+        "path": "libopenswx/src/internal/xml_readers.cc",
+        "size": 14701,
+        "gitBlobSha1": "d7cdf54b4a6668e127562bfd3a7cf7aed10b193c",
+        "sha256": "7ad337c06fb3f4ae7f742f37210f1e2155e19252010041fd612bb45463c2501a",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/xml_readers.cc"
+      },
+      {
+        "path": "libopenswx/src/internal/xml_readers.h",
+        "size": 3857,
+        "gitBlobSha1": "2bd187346b11528c69e8111481af2cd243f077a0",
+        "sha256": "9eff60ed26ed124408275f0be230bc5668fe801e463108c2c32c566aff87accc",
+        "url": "https://raw.githubusercontent.com/schwitters/openswx/30bd63845d3532cdecfdf2654e9cc0871229c45a/libopenswx/src/internal/xml_readers.h"
+      }
+    ],
+    "bytes": 113167,
+    "reviewOnly": false,
+    "upstreamCheckout": false,
+    "usage": "AI-PDM feasibility adapter dependency only"
+  },
+  "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0\nCopyright (C) 2022 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "cmake": "cmake version 3.25.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+  "toolchainPackages": {
+    "adduser": "3.134",
+    "apt": "2.6.1",
+    "base-files": "12.4+deb12u15",
+    "base-passwd": "3.6.1",
+    "bash": "5.2.15-2+b13",
+    "binutils": "2.40-2",
+    "binutils-common:amd64": "2.40-2",
+    "binutils-x86-64-linux-gnu": "2.40-2",
+    "bsdutils": "1:2.38.1-5+deb12u3",
+    "cmake": "3.25.1-1",
+    "cmake-data": "3.25.1-1",
+    "coreutils": "9.1-1",
+    "cpp": "4:12.2.0-3",
+    "cpp-12": "12.2.0-14+deb12u1",
+    "dash": "0.5.12-2",
+    "debconf": "1.5.82",
+    "debian-archive-keyring": "2023.3+deb12u2",
+    "debianutils": "5.7-0.5~deb12u1",
+    "diffutils": "1:3.8-4",
+    "dpkg": "1.21.23",
+    "e2fsprogs": "1.47.0-2+b2",
+    "findutils": "4.9.0-4",
+    "g++": "4:12.2.0-3",
+    "g++-12": "12.2.0-14+deb12u1",
+    "gcc": "4:12.2.0-3",
+    "gcc-12": "12.2.0-14+deb12u1",
+    "gcc-12-base:amd64": "12.2.0-14+deb12u1",
+    "gpgv": "2.2.40-1.1+deb12u2",
+    "grep": "3.8-5",
+    "gzip": "1.12-1",
+    "hostname": "3.23+nmu1",
+    "init-system-helpers": "1.65.2+deb12u1",
+    "libacl1:amd64": "2.3.1-3",
+    "libapt-pkg6.0:amd64": "2.6.1",
+    "libarchive13:amd64": "3.6.2-1+deb12u5",
+    "libasan8:amd64": "12.2.0-14+deb12u1",
+    "libatomic1:amd64": "12.2.0-14+deb12u1",
+    "libattr1:amd64": "1:2.5.1-4",
+    "libaudit-common": "1:3.0.9-1",
+    "libaudit1:amd64": "1:3.0.9-1",
+    "libbinutils:amd64": "2.40-2",
+    "libblkid1:amd64": "2.38.1-5+deb12u3",
+    "libbrotli1:amd64": "1.0.9-2+b6",
+    "libbz2-1.0:amd64": "1.0.8-5+b1",
+    "libc-bin": "2.36-9+deb12u14",
+    "libc-dev-bin": "2.36-9+deb12u14",
+    "libc6:amd64": "2.36-9+deb12u14",
+    "libc6-dev:amd64": "2.36-9+deb12u14",
+    "libcap-ng0:amd64": "0.8.3-1+b3",
+    "libcap2:amd64": "1:2.66-4+deb12u3+b1",
+    "libcc1-0:amd64": "12.2.0-14+deb12u1",
+    "libcom-err2:amd64": "1.47.0-2+b2",
+    "libcrypt-dev:amd64": "1:4.4.33-2",
+    "libcrypt1:amd64": "1:4.4.33-2",
+    "libctf-nobfd0:amd64": "2.40-2",
+    "libctf0:amd64": "2.40-2",
+    "libcurl4:amd64": "7.88.1-10+deb12u15",
+    "libdb5.3:amd64": "5.3.28+dfsg2-1",
+    "libdebconfclient0:amd64": "0.270",
+    "libexpat1:amd64": "2.5.0-1+deb12u4",
+    "libext2fs2:amd64": "1.47.0-2+b2",
+    "libffi8:amd64": "3.4.4-1",
+    "libgcc-12-dev:amd64": "12.2.0-14+deb12u1",
+    "libgcc-s1:amd64": "12.2.0-14+deb12u1",
+    "libgcrypt20:amd64": "1.10.1-3+deb12u1",
+    "libgmp10:amd64": "2:6.2.1+dfsg1-1.1",
+    "libgnutls30:amd64": "3.7.9-2+deb12u7",
+    "libgomp1:amd64": "12.2.0-14+deb12u1",
+    "libgpg-error0:amd64": "1.46-1",
+    "libgprofng0:amd64": "2.40-2",
+    "libgssapi-krb5-2:amd64": "1.20.1-2+deb12u5",
+    "libhogweed6:amd64": "3.8.1-2",
+    "libicu72:amd64": "72.1-3+deb12u1",
+    "libidn2-0:amd64": "2.3.3-1+b1",
+    "libisl23:amd64": "0.25-1.1",
+    "libitm1:amd64": "12.2.0-14+deb12u1",
+    "libjansson4:amd64": "2.14-2",
+    "libjsoncpp25:amd64": "1.9.5-4",
+    "libk5crypto3:amd64": "1.20.1-2+deb12u5",
+    "libkeyutils1:amd64": "1.6.3-2",
+    "libkrb5-3:amd64": "1.20.1-2+deb12u5",
+    "libkrb5support0:amd64": "1.20.1-2+deb12u5",
+    "libldap-2.5-0:amd64": "2.5.13+dfsg-5",
+    "liblsan0:amd64": "12.2.0-14+deb12u1",
+    "liblz4-1:amd64": "1.9.4-1",
+    "liblzma5:amd64": "5.4.1-1+deb12u2",
+    "libmd0:amd64": "1.0.4-2",
+    "libmount1:amd64": "2.38.1-5+deb12u3",
+    "libmpc3:amd64": "1.3.1-1",
+    "libmpfr6:amd64": "4.2.0-1",
+    "libncursesw6:amd64": "6.4-4",
+    "libnettle8:amd64": "3.8.1-2",
+    "libnghttp2-14:amd64": "1.52.0-1+deb12u3",
+    "libnsl-dev:amd64": "1.3.0-2",
+    "libnsl2:amd64": "1.3.0-2",
+    "libp11-kit0:amd64": "0.24.1-2",
+    "libpam-modules:amd64": "1.5.2-6+deb12u2",
+    "libpam-modules-bin": "1.5.2-6+deb12u2",
+    "libpam-runtime": "1.5.2-6+deb12u2",
+    "libpam0g:amd64": "1.5.2-6+deb12u2",
+    "libpcre2-8-0:amd64": "10.42-1+deb12u1",
+    "libproc2-0:amd64": "2:4.0.2-3",
+    "libpsl5:amd64": "0.21.2-1",
+    "libpugixml-dev:amd64": "1.13-0.2",
+    "libpugixml1v5:amd64": "1.13-0.2",
+    "libquadmath0:amd64": "12.2.0-14+deb12u1",
+    "librhash0:amd64": "1.4.3-3",
+    "librtmp1:amd64": "2.4+20151223.gitfa8646d.1-2+b2",
+    "libsasl2-2:amd64": "2.1.28+dfsg-10",
+    "libsasl2-modules-db:amd64": "2.1.28+dfsg-10",
+    "libseccomp2:amd64": "2.5.4-1+deb12u1",
+    "libselinux1:amd64": "3.4-1+b6",
+    "libsemanage-common": "3.4-1",
+    "libsemanage2:amd64": "3.4-1+b5",
+    "libsepol2:amd64": "3.4-2.1",
+    "libsmartcols1:amd64": "2.38.1-5+deb12u3",
+    "libss2:amd64": "1.47.0-2+b2",
+    "libssh2-1:amd64": "1.10.0-3+deb12u1",
+    "libssl3:amd64": "3.0.22-1~deb12u1",
+    "libstdc++-12-dev:amd64": "12.2.0-14+deb12u1",
+    "libstdc++6:amd64": "12.2.0-14+deb12u1",
+    "libsystemd0:amd64": "252.39-1~deb12u2",
+    "libtasn1-6:amd64": "4.19.0-2+deb12u1",
+    "libtinfo6:amd64": "6.4-4",
+    "libtirpc-common": "1.3.3+ds-1",
+    "libtirpc-dev:amd64": "1.3.3+ds-1",
+    "libtirpc3:amd64": "1.3.3+ds-1",
+    "libtsan2:amd64": "12.2.0-14+deb12u1",
+    "libubsan1:amd64": "12.2.0-14+deb12u1",
+    "libudev1:amd64": "252.39-1~deb12u2",
+    "libunistring2:amd64": "1.0-2",
+    "libuuid1:amd64": "2.38.1-5+deb12u3",
+    "libuv1:amd64": "1.44.2-1+deb12u1",
+    "libxml2:amd64": "2.9.14+dfsg-1.3~deb12u6",
+    "libxxhash0:amd64": "0.8.1-1",
+    "libzstd1:amd64": "1.5.4+dfsg2-5",
+    "linux-libc-dev:amd64": "6.1.187-1",
+    "login": "1:4.13+dfsg1-1+deb12u2",
+    "logsave": "1.47.0-2+b2",
+    "make": "4.3-4.1",
+    "mawk": "1.3.4.20200120-3.1",
+    "mount": "2.38.1-5+deb12u3",
+    "ncurses-base": "6.4-4",
+    "ncurses-bin": "6.4-4",
+    "passwd": "1:4.13+dfsg1-1+deb12u2",
+    "perl-base": "5.36.0-7+deb12u3",
+    "procps": "2:4.0.2-3",
+    "rpcsvc-proto": "1.4.3-1",
+    "sed": "4.9-1+deb12u1",
+    "sysvinit-utils": "3.06-4",
+    "tar": "1.34+dfsg-1.2+deb12u1",
+    "tzdata": "2026b-0+deb12u1",
+    "usr-is-merged": "37~deb12u1",
+    "util-linux": "2.38.1-5+deb12u3",
+    "util-linux-extra": "2.38.1-5+deb12u3",
+    "zlib1g:amd64": "1:1.2.13.dfsg-1",
+    "zlib1g-dev:amd64": "1:1.2.13.dfsg-1"
+  },
+  "runtimePackages": {
+    "adduser": "3.134",
+    "apt": "2.6.1",
+    "base-files": "12.4+deb12u15",
+    "base-passwd": "3.6.1",
+    "bash": "5.2.15-2+b13",
+    "bsdutils": "1:2.38.1-5+deb12u3",
+    "coreutils": "9.1-1",
+    "dash": "0.5.12-2",
+    "debconf": "1.5.82",
+    "debian-archive-keyring": "2023.3+deb12u2",
+    "debianutils": "5.7-0.5~deb12u1",
+    "diffutils": "1:3.8-4",
+    "dpkg": "1.21.23",
+    "e2fsprogs": "1.47.0-2+b2",
+    "findutils": "4.9.0-4",
+    "gcc-12-base:amd64": "12.2.0-14+deb12u1",
+    "gpgv": "2.2.40-1.1+deb12u2",
+    "grep": "3.8-5",
+    "gzip": "1.12-1",
+    "hostname": "3.23+nmu1",
+    "init-system-helpers": "1.65.2+deb12u1",
+    "libacl1:amd64": "2.3.1-3",
+    "libapt-pkg6.0:amd64": "2.6.1",
+    "libattr1:amd64": "1:2.5.1-4",
+    "libaudit-common": "1:3.0.9-1",
+    "libaudit1:amd64": "1:3.0.9-1",
+    "libblkid1:amd64": "2.38.1-5+deb12u3",
+    "libbz2-1.0:amd64": "1.0.8-5+b1",
+    "libc-bin": "2.36-9+deb12u14",
+    "libc6:amd64": "2.36-9+deb12u14",
+    "libcap-ng0:amd64": "0.8.3-1+b3",
+    "libcap2:amd64": "1:2.66-4+deb12u3+b1",
+    "libcom-err2:amd64": "1.47.0-2+b2",
+    "libcrypt1:amd64": "1:4.4.33-2",
+    "libdb5.3:amd64": "5.3.28+dfsg2-1",
+    "libdebconfclient0:amd64": "0.270",
+    "libext2fs2:amd64": "1.47.0-2+b2",
+    "libffi8:amd64": "3.4.4-1",
+    "libgcc-s1:amd64": "12.2.0-14+deb12u1",
+    "libgcrypt20:amd64": "1.10.1-3+deb12u1",
+    "libgmp10:amd64": "2:6.2.1+dfsg1-1.1",
+    "libgnutls30:amd64": "3.7.9-2+deb12u7",
+    "libgpg-error0:amd64": "1.46-1",
+    "libhogweed6:amd64": "3.8.1-2",
+    "libidn2-0:amd64": "2.3.3-1+b1",
+    "liblz4-1:amd64": "1.9.4-1",
+    "liblzma5:amd64": "5.4.1-1+deb12u2",
+    "libmd0:amd64": "1.0.4-2",
+    "libmount1:amd64": "2.38.1-5+deb12u3",
+    "libnettle8:amd64": "3.8.1-2",
+    "libp11-kit0:amd64": "0.24.1-2",
+    "libpam-modules:amd64": "1.5.2-6+deb12u2",
+    "libpam-modules-bin": "1.5.2-6+deb12u2",
+    "libpam-runtime": "1.5.2-6+deb12u2",
+    "libpam0g:amd64": "1.5.2-6+deb12u2",
+    "libpcre2-8-0:amd64": "10.42-1+deb12u1",
+    "libpugixml1v5:amd64": "1.13-0.2",
+    "libseccomp2:amd64": "2.5.4-1+deb12u1",
+    "libselinux1:amd64": "3.4-1+b6",
+    "libsemanage-common": "3.4-1",
+    "libsemanage2:amd64": "3.4-1+b5",
+    "libsepol2:amd64": "3.4-2.1",
+    "libsmartcols1:amd64": "2.38.1-5+deb12u3",
+    "libss2:amd64": "1.47.0-2+b2",
+    "libstdc++6:amd64": "12.2.0-14+deb12u1",
+    "libsystemd0:amd64": "252.39-1~deb12u2",
+    "libtasn1-6:amd64": "4.19.0-2+deb12u1",
+    "libtinfo6:amd64": "6.4-4",
+    "libudev1:amd64": "252.39-1~deb12u2",
+    "libunistring2:amd64": "1.0-2",
+    "libuuid1:amd64": "2.38.1-5+deb12u3",
+    "libxxhash0:amd64": "0.8.1-1",
+    "libzstd1:amd64": "1.5.4+dfsg2-5",
+    "login": "1:4.13+dfsg1-1+deb12u2",
+    "logsave": "1.47.0-2+b2",
+    "mawk": "1.3.4.20200120-3.1",
+    "mount": "2.38.1-5+deb12u3",
+    "ncurses-base": "6.4-4",
+    "ncurses-bin": "6.4-4",
+    "passwd": "1:4.13+dfsg1-1+deb12u2",
+    "perl-base": "5.36.0-7+deb12u3",
+    "sed": "4.9-1+deb12u1",
+    "sysvinit-utils": "3.06-4",
+    "tar": "1.34+dfsg-1.2+deb12u1",
+    "tzdata": "2026b-0+deb12u1",
+    "usr-is-merged": "37~deb12u1",
+    "util-linux": "2.38.1-5+deb12u3",
+    "util-linux-extra": "2.38.1-5+deb12u3",
+    "zlib1g:amd64": "1:1.2.13.dfsg-1"
+  },
+  "artifactFiles": [
+    {
+      "path": "aipdm-openswx-reader",
+      "bytes": 193896,
+      "sha256": "ea67594444b6f9e0028f136e3820f798713dc8c038c5bf0b56e56982c8b3e36e"
+    },
+    {
+      "path": "reader-build/OpenSWX-LICENSE",
+      "bytes": 1077,
+      "sha256": "f0a4162356ca7a87c1f971a9f8828799a54297e3faad68fd06f53b803a45b45e"
+    },
+    {
+      "path": "reader-build/cmake.txt",
+      "bytes": 91,
+      "sha256": "f4a9d760d2f9fe05719f20377b3562eb9c97c65aac742714d3f095d6aa4086a9"
+    },
+    {
+      "path": "reader-build/common-licenses/Apache-2.0",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "reader-build/common-licenses/Artistic",
+      "bytes": 6111,
+      "sha256": "b7fd9b73ea99602016a326e0b62e6646060d18febdd065ceca8bb482208c3d88"
+    },
+    {
+      "path": "reader-build/common-licenses/BSD",
+      "bytes": 1499,
+      "sha256": "5d588eb3b157d52112afea935c88a7ff9efddc1e2d95a42c25d3b96ad9055008"
+    },
+    {
+      "path": "reader-build/common-licenses/CC0-1.0",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+    },
+    {
+      "path": "reader-build/common-licenses/GFDL-1.2",
+      "bytes": 20432,
+      "sha256": "d8e94ae5fdb5433fcae2961aeb1a8cf17174d6f4a0465d24bf37dd8a038bd439"
+    },
+    {
+      "path": "reader-build/common-licenses/GFDL-1.3",
+      "bytes": 22955,
+      "sha256": "110535522396708cea37c72a802c5e7e81391139f5f7985631c93ef242b206a4"
+    },
+    {
+      "path": "reader-build/common-licenses/GPL-1",
+      "bytes": 12632,
+      "sha256": "d77d235e41d54594865151f4751e835c5a82322b0e87ace266567c3391a4b912"
+    },
+    {
+      "path": "reader-build/common-licenses/GPL-2",
+      "bytes": 18092,
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+    },
+    {
+      "path": "reader-build/common-licenses/GPL-3",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "path": "reader-build/common-licenses/LGPL-2",
+      "bytes": 25381,
+      "sha256": "681e386e44a19d7d0674b4320272c90e66b6610b741e7e6305f8219c42e85366"
+    },
+    {
+      "path": "reader-build/common-licenses/LGPL-2.1",
+      "bytes": 26530,
+      "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+    },
+    {
+      "path": "reader-build/common-licenses/LGPL-3",
+      "bytes": 7652,
+      "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+    },
+    {
+      "path": "reader-build/common-licenses/MPL-1.1",
+      "bytes": 25755,
+      "sha256": "f849fc26a7a99981611a3a370e83078deb617d12a45776d6c4cada4d338be469"
+    },
+    {
+      "path": "reader-build/common-licenses/MPL-2.0",
+      "bytes": 16726,
+      "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+    },
+    {
+      "path": "reader-build/compiler.txt",
+      "bytes": 240,
+      "sha256": "caf794435afe6be08582cd57c892872e093d9b6a9d45df9940cfe7d2398e3c91"
+    },
+    {
+      "path": "reader-build/licenses/adduser.txt",
+      "bytes": 12432,
+      "sha256": "b143053a4862ab354831487b5f8bd31dc9ffdc589d15de9d9c764332a0209796"
+    },
+    {
+      "path": "reader-build/licenses/apt.txt",
+      "bytes": 7668,
+      "sha256": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12"
+    },
+    {
+      "path": "reader-build/licenses/base-files.txt",
+      "bytes": 1208,
+      "sha256": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23"
+    },
+    {
+      "path": "reader-build/licenses/base-passwd.txt",
+      "bytes": 798,
+      "sha256": "0f1cde79bd80a75f9029ae9a8c252b642223027ef36f6989c63a8230aae576a7"
+    },
+    {
+      "path": "reader-build/licenses/bash.txt",
+      "bytes": 9764,
+      "sha256": "06319d84c3e5ed096036f6a9310a030c7e84e50dff2b8a6792285c83ec0ada73"
+    },
+    {
+      "path": "reader-build/licenses/binutils-common.txt",
+      "bytes": 1795,
+      "sha256": "a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+    },
+    {
+      "path": "reader-build/licenses/binutils-x86-64-linux-gnu.txt",
+      "bytes": 1795,
+      "sha256": "a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+    },
+    {
+      "path": "reader-build/licenses/binutils.txt",
+      "bytes": 1795,
+      "sha256": "a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+    },
+    {
+      "path": "reader-build/licenses/bsdutils.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/licenses/cmake-data.txt",
+      "bytes": 29578,
+      "sha256": "b70ca2018b7fd516ac9b9953678c1a9733eb9e15f3cfbe9b26c137ef0dbd5782"
+    },
+    {
+      "path": "reader-build/licenses/cmake.txt",
+      "bytes": 29578,
+      "sha256": "b70ca2018b7fd516ac9b9953678c1a9733eb9e15f3cfbe9b26c137ef0dbd5782"
+    },
+    {
+      "path": "reader-build/licenses/coreutils.txt",
+      "bytes": 5552,
+      "sha256": "24e86c5ca53d6bfd8e0c47988160daa62d10a74997fe11f651e1d9533c78bff6"
+    },
+    {
+      "path": "reader-build/licenses/cpp-12.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/cpp.txt",
+      "bytes": 2196,
+      "sha256": "156004744edbf17a975f0004ac4a9295b160ab403d646c445235711255ca9ff8"
+    },
+    {
+      "path": "reader-build/licenses/dash.txt",
+      "bytes": 3878,
+      "sha256": "d98c53f281321baad38164aa9ae6e368a9253be6ec51bd26a759b5e72b326f4a"
+    },
+    {
+      "path": "reader-build/licenses/debconf.txt",
+      "bytes": 2764,
+      "sha256": "57163c71bd8a5289660892827dd0dfaa7fef47f89deedc9dc6711ced7d0a28d7"
+    },
+    {
+      "path": "reader-build/licenses/debian-archive-keyring.txt",
+      "bytes": 1243,
+      "sha256": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732"
+    },
+    {
+      "path": "reader-build/licenses/debianutils.txt",
+      "bytes": 9055,
+      "sha256": "fd2d797e208bcfb713510e47a89867191180943e1167d44c2acd8ff1b88e5c10"
+    },
+    {
+      "path": "reader-build/licenses/diffutils.txt",
+      "bytes": 16112,
+      "sha256": "8654d7cc7cdae1f31bb67a3ce5bf35d512c0bdfffd071df757edc54153cc7930"
+    },
+    {
+      "path": "reader-build/licenses/dpkg.txt",
+      "bytes": 7943,
+      "sha256": "7442bdadcd44e818fddd786057db07639cc68225c389c7c240d3bb3984b05173"
+    },
+    {
+      "path": "reader-build/licenses/e2fsprogs.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/licenses/findutils.txt",
+      "bytes": 24782,
+      "sha256": "8fbcc77ed31f480a85654e9b6d1d25cbb95b62e9dc5159ae1565bca684c3e1dc"
+    },
+    {
+      "path": "reader-build/licenses/g++-12.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/g++.txt",
+      "bytes": 2196,
+      "sha256": "156004744edbf17a975f0004ac4a9295b160ab403d646c445235711255ca9ff8"
+    },
+    {
+      "path": "reader-build/licenses/gcc-12-base.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/gcc-12.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/gcc.txt",
+      "bytes": 2196,
+      "sha256": "156004744edbf17a975f0004ac4a9295b160ab403d646c445235711255ca9ff8"
+    },
+    {
+      "path": "reader-build/licenses/gpgv.txt",
+      "bytes": 10555,
+      "sha256": "84dab06b5c1baf3a7a45c3cdc5f98fb121234e98fdd6266c3f773d54fcdc4f54"
+    },
+    {
+      "path": "reader-build/licenses/grep.txt",
+      "bytes": 1807,
+      "sha256": "42d9b4d610396b1e8d1303dcb9487af3f5a2d2709623cf03a04cf76acdf6c5e3"
+    },
+    {
+      "path": "reader-build/licenses/gzip.txt",
+      "bytes": 2895,
+      "sha256": "1ca5dd5098fe2e1c0f0d05196f5b3da8b414a807702e6ca8b536eb5fd3059130"
+    },
+    {
+      "path": "reader-build/licenses/hostname.txt",
+      "bytes": 1273,
+      "sha256": "94189fc5a9a7b7224d96e1a0cfdfe9be0df2018b04bf21d591627ab96b30cad1"
+    },
+    {
+      "path": "reader-build/licenses/init-system-helpers.txt",
+      "bytes": 3133,
+      "sha256": "7534601cc4fa513804d16490359f5831e7b6a1212da3bbf948bebdd4c8799783"
+    },
+    {
+      "path": "reader-build/licenses/libacl1.txt",
+      "bytes": 2048,
+      "sha256": "9a2dfb4a5abc7e84be2cc41f1089be665519c9409549296f6c19de57ab1d37c2"
+    },
+    {
+      "path": "reader-build/licenses/libapt-pkg6.0.txt",
+      "bytes": 7668,
+      "sha256": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12"
+    },
+    {
+      "path": "reader-build/licenses/libarchive13.txt",
+      "bytes": 21582,
+      "sha256": "110589f39b975d51836677b1501933f9e14925aa8ea7e33db6ee6a5c164aeeb5"
+    },
+    {
+      "path": "reader-build/licenses/libasan8.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libatomic1.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libattr1.txt",
+      "bytes": 1947,
+      "sha256": "0cbec745d85ea775450b2d54fac55277197f429e52d611f72852ed420450620e"
+    },
+    {
+      "path": "reader-build/licenses/libaudit-common.txt",
+      "bytes": 1596,
+      "sha256": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc"
+    },
+    {
+      "path": "reader-build/licenses/libaudit1.txt",
+      "bytes": 1596,
+      "sha256": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc"
+    },
+    {
+      "path": "reader-build/licenses/libbinutils.txt",
+      "bytes": 1795,
+      "sha256": "a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+    },
+    {
+      "path": "reader-build/licenses/libblkid1.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/licenses/libbrotli1.txt",
+      "bytes": 1354,
+      "sha256": "24a64e5bb83d0960d1835696a1e23c0896ad6055b0ca47c66ab0eb9a766324b1"
+    },
+    {
+      "path": "reader-build/licenses/libbz2-1.0.txt",
+      "bytes": 2228,
+      "sha256": "832ed535ff3c3d025a8d2348eb1b697b89addcf2eaadbc17650262040b9145e2"
+    },
+    {
+      "path": "reader-build/licenses/libc-bin.txt",
+      "bytes": 25467,
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+    },
+    {
+      "path": "reader-build/licenses/libc-dev-bin.txt",
+      "bytes": 25467,
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+    },
+    {
+      "path": "reader-build/licenses/libc6-dev.txt",
+      "bytes": 25467,
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+    },
+    {
+      "path": "reader-build/licenses/libc6.txt",
+      "bytes": 25467,
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+    },
+    {
+      "path": "reader-build/licenses/libcap-ng0.txt",
+      "bytes": 2035,
+      "sha256": "49b5db19990a3e3cc1a9ed716aed231f6f3c1c217e58f62ae4dc2818c6d3e9cc"
+    },
+    {
+      "path": "reader-build/licenses/libcap2.txt",
+      "bytes": 4631,
+      "sha256": "e60a5642e12e340060e4e519a65b2eb0330be2917854841c644e36268f607d54"
+    },
+    {
+      "path": "reader-build/licenses/libcc1-0.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libcom-err2.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/licenses/libcrypt-dev.txt",
+      "bytes": 6010,
+      "sha256": "5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16"
+    },
+    {
+      "path": "reader-build/licenses/libcrypt1.txt",
+      "bytes": 6010,
+      "sha256": "5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16"
+    },
+    {
+      "path": "reader-build/licenses/libctf-nobfd0.txt",
+      "bytes": 1795,
+      "sha256": "a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+    },
+    {
+      "path": "reader-build/licenses/libctf0.txt",
+      "bytes": 1795,
+      "sha256": "a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+    },
+    {
+      "path": "reader-build/licenses/libcurl4.txt",
+      "bytes": 21749,
+      "sha256": "a7c131b21e6e73b3b085a7d9f1637b68f5f92b832cc6f462e0c978fbe7841ccb"
+    },
+    {
+      "path": "reader-build/licenses/libdb5.3.txt",
+      "bytes": 17177,
+      "sha256": "8b53da37d73289d9df7317b3a2dbe16491f1fa9fec8b77b86d69704b40ce2c26"
+    },
+    {
+      "path": "reader-build/licenses/libdebconfclient0.txt",
+      "bytes": 5856,
+      "sha256": "cf63099896d1c0f6529c41b8d95738e6fea342ffba609187d339c4f38ce36ecc"
+    },
+    {
+      "path": "reader-build/licenses/libexpat1.txt",
+      "bytes": 1756,
+      "sha256": "60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292"
+    },
+    {
+      "path": "reader-build/licenses/libext2fs2.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/licenses/libffi8.txt",
+      "bytes": 10165,
+      "sha256": "f83d2ecba1ea4d99957e81c50bebbd076a128194288a3ec22cc8ccdb77c43087"
+    },
+    {
+      "path": "reader-build/licenses/libgcc-12-dev.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libgcc-s1.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libgcrypt20.txt",
+      "bytes": 24896,
+      "sha256": "95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d"
+    },
+    {
+      "path": "reader-build/licenses/libgmp10.txt",
+      "bytes": 4153,
+      "sha256": "7d366aef5ba325150246de1d7820c4c9926cd27ca61a69948492b26cd3b61601"
+    },
+    {
+      "path": "reader-build/licenses/libgnutls30.txt",
+      "bytes": 51588,
+      "sha256": "bb7e5c24b3e27bbba5671dd710d159a0066833bda4caa1d55d8027ffed539337"
+    },
+    {
+      "path": "reader-build/licenses/libgomp1.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libgpg-error0.txt",
+      "bytes": 4903,
+      "sha256": "8760fd36efa1d7186f8769d4e76a3e678045b94d54465bf6f2db5eb871c7c27f"
+    },
+    {
+      "path": "reader-build/licenses/libgprofng0.txt",
+      "bytes": 1795,
+      "sha256": "a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+    },
+    {
+      "path": "reader-build/licenses/libgssapi-krb5-2.txt",
+      "bytes": 63047,
+      "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816"
+    },
+    {
+      "path": "reader-build/licenses/libhogweed6.txt",
+      "bytes": 24923,
+      "sha256": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93"
+    },
+    {
+      "path": "reader-build/licenses/libicu72.txt",
+      "bytes": 2214,
+      "sha256": "5bbff5f646ce750ac0a347e7f91793279b7422a1119820b5f75d98879c201c68"
+    },
+    {
+      "path": "reader-build/licenses/libidn2-0.txt",
+      "bytes": 5348,
+      "sha256": "41702469f28e8ff406345e3d1dd0c741f11bdfca319264f67036efd6aaa79e4b"
+    },
+    {
+      "path": "reader-build/licenses/libisl23.txt",
+      "bytes": 7035,
+      "sha256": "fb1ea085945df53c756939eecf5d9bf4072316538bc3b314a5408350b679a637"
+    },
+    {
+      "path": "reader-build/licenses/libitm1.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libjansson4.txt",
+      "bytes": 1805,
+      "sha256": "29347e2528ab31d20e8582b09aa89cd878d306c59a273541141c9aede1903cb8"
+    },
+    {
+      "path": "reader-build/licenses/libjsoncpp25.txt",
+      "bytes": 3983,
+      "sha256": "9304db2aec23318d436229b9268268db96829dc4117ac6cd10d2a59ecd95a6cf"
+    },
+    {
+      "path": "reader-build/licenses/libk5crypto3.txt",
+      "bytes": 63047,
+      "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816"
+    },
+    {
+      "path": "reader-build/licenses/libkeyutils1.txt",
+      "bytes": 2104,
+      "sha256": "c62fe37d22203046611112bc10a9e03a39a7f73bec1b061e7c615326166d9ff5"
+    },
+    {
+      "path": "reader-build/licenses/libkrb5-3.txt",
+      "bytes": 63047,
+      "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816"
+    },
+    {
+      "path": "reader-build/licenses/libkrb5support0.txt",
+      "bytes": 63047,
+      "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816"
+    },
+    {
+      "path": "reader-build/licenses/libldap-2.5-0.txt",
+      "bytes": 62837,
+      "sha256": "b4081907f0d9a4110736fa6540dc8ca9d7d60a20878b5d78f84916cc04907bdc"
+    },
+    {
+      "path": "reader-build/licenses/liblsan0.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/liblz4-1.txt",
+      "bytes": 3275,
+      "sha256": "d3be0f43fe14da244f97c451bbae789c0acf868612598a69f5f22a289abeca40"
+    },
+    {
+      "path": "reader-build/licenses/liblzma5.txt",
+      "bytes": 15465,
+      "sha256": "a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8"
+    },
+    {
+      "path": "reader-build/licenses/libmd0.txt",
+      "bytes": 8018,
+      "sha256": "4365ef6255ad553fce69dd4bc0e093472c5d0e41b8ea493a545cc926ce171aa6"
+    },
+    {
+      "path": "reader-build/licenses/libmount1.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/licenses/libmpc3.txt",
+      "bytes": 743,
+      "sha256": "80763e4cca3963670637b98abff467ee09b83d1737d683ad5ccfb1e919bea94b"
+    },
+    {
+      "path": "reader-build/licenses/libmpfr6.txt",
+      "bytes": 953,
+      "sha256": "c434a44e656a89e72b5cee13bba6719011e0899bfc626ab9c08205010ab2dbbe"
+    },
+    {
+      "path": "reader-build/licenses/libncursesw6.txt",
+      "bytes": 4670,
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+    },
+    {
+      "path": "reader-build/licenses/libnettle8.txt",
+      "bytes": 24923,
+      "sha256": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93"
+    },
+    {
+      "path": "reader-build/licenses/libnghttp2-14.txt",
+      "bytes": 6535,
+      "sha256": "a34ae32a5eba61e535835a8de7c398f47e420247d339bc400a3b9c618ba29a3d"
+    },
+    {
+      "path": "reader-build/licenses/libnsl-dev.txt",
+      "bytes": 13646,
+      "sha256": "7d9c79b73fd956319a90cd210441498b225e00960352c4c6d447436481bb0eec"
+    },
+    {
+      "path": "reader-build/licenses/libnsl2.txt",
+      "bytes": 13646,
+      "sha256": "7d9c79b73fd956319a90cd210441498b225e00960352c4c6d447436481bb0eec"
+    },
+    {
+      "path": "reader-build/licenses/libp11-kit0.txt",
+      "bytes": 8646,
+      "sha256": "ed139379f7c874f0ee75f3ddcc2e01091dd828d84ee1a0bdff6a1c5673ee6e58"
+    },
+    {
+      "path": "reader-build/licenses/libpam-modules-bin.txt",
+      "bytes": 9477,
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+    },
+    {
+      "path": "reader-build/licenses/libpam-modules.txt",
+      "bytes": 9477,
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+    },
+    {
+      "path": "reader-build/licenses/libpam-runtime.txt",
+      "bytes": 9477,
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+    },
+    {
+      "path": "reader-build/licenses/libpam0g.txt",
+      "bytes": 9477,
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+    },
+    {
+      "path": "reader-build/licenses/libpcre2-8-0.txt",
+      "bytes": 6626,
+      "sha256": "030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38"
+    },
+    {
+      "path": "reader-build/licenses/libproc2-0.txt",
+      "bytes": 3974,
+      "sha256": "90a66617c36d83068b52bbb77cbfef1234f526bfa287156d9d05f7df4d339539"
+    },
+    {
+      "path": "reader-build/licenses/libpsl5.txt",
+      "bytes": 3310,
+      "sha256": "bbafb0cf52d34465fc69f5ffd22d724224f6a2f28402c88b045c69d88af06aaf"
+    },
+    {
+      "path": "reader-build/licenses/libpugixml-dev.txt",
+      "bytes": 2473,
+      "sha256": "7725a986e63782b482d489ac13385ef87d67e52fd8403f9fbeed5dbd2bcc7ef2"
+    },
+    {
+      "path": "reader-build/licenses/libpugixml1v5.txt",
+      "bytes": 2473,
+      "sha256": "7725a986e63782b482d489ac13385ef87d67e52fd8403f9fbeed5dbd2bcc7ef2"
+    },
+    {
+      "path": "reader-build/licenses/libquadmath0.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/librhash0.txt",
+      "bytes": 1240,
+      "sha256": "f0aaef8266168387d80f2b2ca8f69be2f0ea6a8c5161192abcd439f7672dd218"
+    },
+    {
+      "path": "reader-build/licenses/librtmp1.txt",
+      "bytes": 2726,
+      "sha256": "4302abcc1ea1b6cbe8d19c79b892acf78878030220210707c19006828866207c"
+    },
+    {
+      "path": "reader-build/licenses/libsasl2-2.txt",
+      "bytes": 32354,
+      "sha256": "5e77ddcac7fb682d696bc4b034dc2869e5a9011e8c2ed3c570ab8db0f4506931"
+    },
+    {
+      "path": "reader-build/licenses/libsasl2-modules-db.txt",
+      "bytes": 32354,
+      "sha256": "5e77ddcac7fb682d696bc4b034dc2869e5a9011e8c2ed3c570ab8db0f4506931"
+    },
+    {
+      "path": "reader-build/licenses/libseccomp2.txt",
+      "bytes": 1429,
+      "sha256": "6da0653a365b80ab31478dbfe9e7c358e80d58b6d2b52b4e16b4dbb42d7d9f5c"
+    },
+    {
+      "path": "reader-build/licenses/libselinux1.txt",
+      "bytes": 3131,
+      "sha256": "641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b"
+    },
+    {
+      "path": "reader-build/licenses/libsemanage-common.txt",
+      "bytes": 1830,
+      "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51"
+    },
+    {
+      "path": "reader-build/licenses/libsemanage2.txt",
+      "bytes": 1830,
+      "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51"
+    },
+    {
+      "path": "reader-build/licenses/libsepol2.txt",
+      "bytes": 3750,
+      "sha256": "78d2a34606a0302057ec499a3b3c07bcbc43ca334064ce4c80891a0f69c8f6c6"
+    },
+    {
+      "path": "reader-build/licenses/libsmartcols1.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/licenses/libss2.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/licenses/libssh2-1.txt",
+      "bytes": 2099,
+      "sha256": "98978241c573785aa7c8504e399bb66cfb3c40c1f20507a0d3c7580bfbf9d8d4"
+    },
+    {
+      "path": "reader-build/licenses/libssl3.txt",
+      "bytes": 2543,
+      "sha256": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35"
+    },
+    {
+      "path": "reader-build/licenses/libstdc++-12-dev.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libstdc++6.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libsystemd0.txt",
+      "bytes": 12776,
+      "sha256": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3"
+    },
+    {
+      "path": "reader-build/licenses/libtasn1-6.txt",
+      "bytes": 3451,
+      "sha256": "572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65"
+    },
+    {
+      "path": "reader-build/licenses/libtinfo6.txt",
+      "bytes": 4670,
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+    },
+    {
+      "path": "reader-build/licenses/libtirpc-common.txt",
+      "bytes": 13121,
+      "sha256": "401dcf98d8ef2b712ec6ab310dbf727fc2cdce290bfde5b6d0b609a927530217"
+    },
+    {
+      "path": "reader-build/licenses/libtirpc-dev.txt",
+      "bytes": 13121,
+      "sha256": "401dcf98d8ef2b712ec6ab310dbf727fc2cdce290bfde5b6d0b609a927530217"
+    },
+    {
+      "path": "reader-build/licenses/libtirpc3.txt",
+      "bytes": 13121,
+      "sha256": "401dcf98d8ef2b712ec6ab310dbf727fc2cdce290bfde5b6d0b609a927530217"
+    },
+    {
+      "path": "reader-build/licenses/libtsan2.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libubsan1.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/licenses/libudev1.txt",
+      "bytes": 12776,
+      "sha256": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3"
+    },
+    {
+      "path": "reader-build/licenses/libunistring2.txt",
+      "bytes": 6068,
+      "sha256": "0035f89e5317f3cec389383e8727788521b0fde3e75cea881fa0e92e1d48cb57"
+    },
+    {
+      "path": "reader-build/licenses/libuuid1.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/licenses/libuv1.txt",
+      "bytes": 32524,
+      "sha256": "0272d95e62eb096d3ed3f5b8d8e450b48514e04cccf89ec7cf39e7ba5e86fee6"
+    },
+    {
+      "path": "reader-build/licenses/libxml2.txt",
+      "bytes": 3067,
+      "sha256": "ee746b96cfa5be73c3ea3e4cfb1285e9b315d4c9267f99b2ee9c5d911d9fe3f4"
+    },
+    {
+      "path": "reader-build/licenses/libxxhash0.txt",
+      "bytes": 2579,
+      "sha256": "a123c93b07e781919ae996276ac02bb1c8b19dfde88176cd1240ab277c14a4ce"
+    },
+    {
+      "path": "reader-build/licenses/libzstd1.txt",
+      "bytes": 5389,
+      "sha256": "35e85e8e9bbb71492c5f5dddf39ed65b68775a02ad8d710c25d097b497f06c49"
+    },
+    {
+      "path": "reader-build/licenses/linux-libc-dev.txt",
+      "bytes": 13378,
+      "sha256": "b747c37629e008bbb10bf2d44c5bb6e014ce2dde36b9ef1dc81e1425417c24bf"
+    },
+    {
+      "path": "reader-build/licenses/login.txt",
+      "bytes": 7044,
+      "sha256": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5"
+    },
+    {
+      "path": "reader-build/licenses/logsave.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/licenses/make.txt",
+      "bytes": 2093,
+      "sha256": "16deb73e706ec72758ce5e079a80d1aab17f3834449da9b718c4a4b60eb1f6ec"
+    },
+    {
+      "path": "reader-build/licenses/mawk.txt",
+      "bytes": 22591,
+      "sha256": "167d04422f2fdf76ab565878c23be8ba0c2ebb2c57a5dac0a5a59ccd27e747a5"
+    },
+    {
+      "path": "reader-build/licenses/mount.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/licenses/ncurses-base.txt",
+      "bytes": 4670,
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+    },
+    {
+      "path": "reader-build/licenses/ncurses-bin.txt",
+      "bytes": 4670,
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+    },
+    {
+      "path": "reader-build/licenses/passwd.txt",
+      "bytes": 7044,
+      "sha256": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5"
+    },
+    {
+      "path": "reader-build/licenses/perl-base.txt",
+      "bytes": 109772,
+      "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d"
+    },
+    {
+      "path": "reader-build/licenses/procps.txt",
+      "bytes": 3974,
+      "sha256": "90a66617c36d83068b52bbb77cbfef1234f526bfa287156d9d05f7df4d339539"
+    },
+    {
+      "path": "reader-build/licenses/rpcsvc-proto.txt",
+      "bytes": 9344,
+      "sha256": "824b5da9d19adbc33463cc298cbcb3f8dfeb8016c68845b0d1fa4a8bc6ba0816"
+    },
+    {
+      "path": "reader-build/licenses/sed.txt",
+      "bytes": 8618,
+      "sha256": "719320e425e8e6da53a55e0fcfa2f2ed9b1332cea16abd65321bd651b2a88568"
+    },
+    {
+      "path": "reader-build/licenses/sysvinit-utils.txt",
+      "bytes": 4689,
+      "sha256": "ad7cb339e58a88918a883d553ca236795191f027e158788a8b33f747ff502fb2"
+    },
+    {
+      "path": "reader-build/licenses/tar.txt",
+      "bytes": 3798,
+      "sha256": "bea61e0c172868e07845cf50423f97f093a9a46de167dbbe333a38be610c8e00"
+    },
+    {
+      "path": "reader-build/licenses/tzdata.txt",
+      "bytes": 375,
+      "sha256": "cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a"
+    },
+    {
+      "path": "reader-build/licenses/usr-is-merged.txt",
+      "bytes": 987,
+      "sha256": "9836bfe2ef94505bbf29701e8c90799ab1a5fd966d26d60d019a822cdbf3d61a"
+    },
+    {
+      "path": "reader-build/licenses/util-linux-extra.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/licenses/util-linux.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/licenses/zlib1g-dev.txt",
+      "bytes": 2927,
+      "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6"
+    },
+    {
+      "path": "reader-build/licenses/zlib1g.txt",
+      "bytes": 2927,
+      "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6"
+    },
+    {
+      "path": "reader-build/runtime-license-sha256.txt",
+      "bytes": 9918,
+      "sha256": "4ace7f4161733a51c568cb070c4eb319a737aa1600dd57654579d2cf51615b1f"
+    },
+    {
+      "path": "reader-build/runtime-licenses/adduser.txt",
+      "bytes": 12432,
+      "sha256": "b143053a4862ab354831487b5f8bd31dc9ffdc589d15de9d9c764332a0209796"
+    },
+    {
+      "path": "reader-build/runtime-licenses/apt.txt",
+      "bytes": 7668,
+      "sha256": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12"
+    },
+    {
+      "path": "reader-build/runtime-licenses/base-files.txt",
+      "bytes": 1208,
+      "sha256": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23"
+    },
+    {
+      "path": "reader-build/runtime-licenses/base-passwd.txt",
+      "bytes": 798,
+      "sha256": "0f1cde79bd80a75f9029ae9a8c252b642223027ef36f6989c63a8230aae576a7"
+    },
+    {
+      "path": "reader-build/runtime-licenses/bash.txt",
+      "bytes": 9764,
+      "sha256": "06319d84c3e5ed096036f6a9310a030c7e84e50dff2b8a6792285c83ec0ada73"
+    },
+    {
+      "path": "reader-build/runtime-licenses/bsdutils.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/coreutils.txt",
+      "bytes": 5552,
+      "sha256": "24e86c5ca53d6bfd8e0c47988160daa62d10a74997fe11f651e1d9533c78bff6"
+    },
+    {
+      "path": "reader-build/runtime-licenses/dash.txt",
+      "bytes": 3878,
+      "sha256": "d98c53f281321baad38164aa9ae6e368a9253be6ec51bd26a759b5e72b326f4a"
+    },
+    {
+      "path": "reader-build/runtime-licenses/debconf.txt",
+      "bytes": 2764,
+      "sha256": "57163c71bd8a5289660892827dd0dfaa7fef47f89deedc9dc6711ced7d0a28d7"
+    },
+    {
+      "path": "reader-build/runtime-licenses/debian-archive-keyring.txt",
+      "bytes": 1243,
+      "sha256": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732"
+    },
+    {
+      "path": "reader-build/runtime-licenses/debianutils.txt",
+      "bytes": 9055,
+      "sha256": "fd2d797e208bcfb713510e47a89867191180943e1167d44c2acd8ff1b88e5c10"
+    },
+    {
+      "path": "reader-build/runtime-licenses/diffutils.txt",
+      "bytes": 16112,
+      "sha256": "8654d7cc7cdae1f31bb67a3ce5bf35d512c0bdfffd071df757edc54153cc7930"
+    },
+    {
+      "path": "reader-build/runtime-licenses/dpkg.txt",
+      "bytes": 7943,
+      "sha256": "7442bdadcd44e818fddd786057db07639cc68225c389c7c240d3bb3984b05173"
+    },
+    {
+      "path": "reader-build/runtime-licenses/e2fsprogs.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/runtime-licenses/findutils.txt",
+      "bytes": 24782,
+      "sha256": "8fbcc77ed31f480a85654e9b6d1d25cbb95b62e9dc5159ae1565bca684c3e1dc"
+    },
+    {
+      "path": "reader-build/runtime-licenses/gcc-12-base.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/runtime-licenses/gpgv.txt",
+      "bytes": 10555,
+      "sha256": "84dab06b5c1baf3a7a45c3cdc5f98fb121234e98fdd6266c3f773d54fcdc4f54"
+    },
+    {
+      "path": "reader-build/runtime-licenses/grep.txt",
+      "bytes": 1807,
+      "sha256": "42d9b4d610396b1e8d1303dcb9487af3f5a2d2709623cf03a04cf76acdf6c5e3"
+    },
+    {
+      "path": "reader-build/runtime-licenses/gzip.txt",
+      "bytes": 2895,
+      "sha256": "1ca5dd5098fe2e1c0f0d05196f5b3da8b414a807702e6ca8b536eb5fd3059130"
+    },
+    {
+      "path": "reader-build/runtime-licenses/hostname.txt",
+      "bytes": 1273,
+      "sha256": "94189fc5a9a7b7224d96e1a0cfdfe9be0df2018b04bf21d591627ab96b30cad1"
+    },
+    {
+      "path": "reader-build/runtime-licenses/init-system-helpers.txt",
+      "bytes": 3133,
+      "sha256": "7534601cc4fa513804d16490359f5831e7b6a1212da3bbf948bebdd4c8799783"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libacl1.txt",
+      "bytes": 2048,
+      "sha256": "9a2dfb4a5abc7e84be2cc41f1089be665519c9409549296f6c19de57ab1d37c2"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libapt-pkg6.0.txt",
+      "bytes": 7668,
+      "sha256": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libattr1.txt",
+      "bytes": 1947,
+      "sha256": "0cbec745d85ea775450b2d54fac55277197f429e52d611f72852ed420450620e"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libaudit-common.txt",
+      "bytes": 1596,
+      "sha256": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libaudit1.txt",
+      "bytes": 1596,
+      "sha256": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libblkid1.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libbz2-1.0.txt",
+      "bytes": 2228,
+      "sha256": "832ed535ff3c3d025a8d2348eb1b697b89addcf2eaadbc17650262040b9145e2"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libc-bin.txt",
+      "bytes": 25467,
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libc6.txt",
+      "bytes": 25467,
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libcap-ng0.txt",
+      "bytes": 2035,
+      "sha256": "49b5db19990a3e3cc1a9ed716aed231f6f3c1c217e58f62ae4dc2818c6d3e9cc"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libcap2.txt",
+      "bytes": 4631,
+      "sha256": "e60a5642e12e340060e4e519a65b2eb0330be2917854841c644e36268f607d54"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libcom-err2.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libcrypt1.txt",
+      "bytes": 6010,
+      "sha256": "5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libdb5.3.txt",
+      "bytes": 17177,
+      "sha256": "8b53da37d73289d9df7317b3a2dbe16491f1fa9fec8b77b86d69704b40ce2c26"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libdebconfclient0.txt",
+      "bytes": 5856,
+      "sha256": "cf63099896d1c0f6529c41b8d95738e6fea342ffba609187d339c4f38ce36ecc"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libext2fs2.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libffi8.txt",
+      "bytes": 10165,
+      "sha256": "f83d2ecba1ea4d99957e81c50bebbd076a128194288a3ec22cc8ccdb77c43087"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libgcc-s1.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libgcrypt20.txt",
+      "bytes": 24896,
+      "sha256": "95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libgmp10.txt",
+      "bytes": 4153,
+      "sha256": "7d366aef5ba325150246de1d7820c4c9926cd27ca61a69948492b26cd3b61601"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libgnutls30.txt",
+      "bytes": 51588,
+      "sha256": "bb7e5c24b3e27bbba5671dd710d159a0066833bda4caa1d55d8027ffed539337"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libgpg-error0.txt",
+      "bytes": 4903,
+      "sha256": "8760fd36efa1d7186f8769d4e76a3e678045b94d54465bf6f2db5eb871c7c27f"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libhogweed6.txt",
+      "bytes": 24923,
+      "sha256": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libidn2-0.txt",
+      "bytes": 5348,
+      "sha256": "41702469f28e8ff406345e3d1dd0c741f11bdfca319264f67036efd6aaa79e4b"
+    },
+    {
+      "path": "reader-build/runtime-licenses/liblz4-1.txt",
+      "bytes": 3275,
+      "sha256": "d3be0f43fe14da244f97c451bbae789c0acf868612598a69f5f22a289abeca40"
+    },
+    {
+      "path": "reader-build/runtime-licenses/liblzma5.txt",
+      "bytes": 15465,
+      "sha256": "a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libmd0.txt",
+      "bytes": 8018,
+      "sha256": "4365ef6255ad553fce69dd4bc0e093472c5d0e41b8ea493a545cc926ce171aa6"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libmount1.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libnettle8.txt",
+      "bytes": 24923,
+      "sha256": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libp11-kit0.txt",
+      "bytes": 8646,
+      "sha256": "ed139379f7c874f0ee75f3ddcc2e01091dd828d84ee1a0bdff6a1c5673ee6e58"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libpam-modules-bin.txt",
+      "bytes": 9477,
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libpam-modules.txt",
+      "bytes": 9477,
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libpam-runtime.txt",
+      "bytes": 9477,
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libpam0g.txt",
+      "bytes": 9477,
+      "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libpcre2-8-0.txt",
+      "bytes": 6626,
+      "sha256": "030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libpugixml1v5.txt",
+      "bytes": 2473,
+      "sha256": "7725a986e63782b482d489ac13385ef87d67e52fd8403f9fbeed5dbd2bcc7ef2"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libseccomp2.txt",
+      "bytes": 1429,
+      "sha256": "6da0653a365b80ab31478dbfe9e7c358e80d58b6d2b52b4e16b4dbb42d7d9f5c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libselinux1.txt",
+      "bytes": 3131,
+      "sha256": "641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libsemanage-common.txt",
+      "bytes": 1830,
+      "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libsemanage2.txt",
+      "bytes": 1830,
+      "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libsepol2.txt",
+      "bytes": 3750,
+      "sha256": "78d2a34606a0302057ec499a3b3c07bcbc43ca334064ce4c80891a0f69c8f6c6"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libsmartcols1.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libss2.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libstdc++6.txt",
+      "bytes": 68194,
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libsystemd0.txt",
+      "bytes": 12776,
+      "sha256": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libtasn1-6.txt",
+      "bytes": 3451,
+      "sha256": "572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libtinfo6.txt",
+      "bytes": 4670,
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libudev1.txt",
+      "bytes": 12776,
+      "sha256": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libunistring2.txt",
+      "bytes": 6068,
+      "sha256": "0035f89e5317f3cec389383e8727788521b0fde3e75cea881fa0e92e1d48cb57"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libuuid1.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libxxhash0.txt",
+      "bytes": 2579,
+      "sha256": "a123c93b07e781919ae996276ac02bb1c8b19dfde88176cd1240ab277c14a4ce"
+    },
+    {
+      "path": "reader-build/runtime-licenses/libzstd1.txt",
+      "bytes": 5389,
+      "sha256": "35e85e8e9bbb71492c5f5dddf39ed65b68775a02ad8d710c25d097b497f06c49"
+    },
+    {
+      "path": "reader-build/runtime-licenses/login.txt",
+      "bytes": 7044,
+      "sha256": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5"
+    },
+    {
+      "path": "reader-build/runtime-licenses/logsave.txt",
+      "bytes": 15209,
+      "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+    },
+    {
+      "path": "reader-build/runtime-licenses/mawk.txt",
+      "bytes": 22591,
+      "sha256": "167d04422f2fdf76ab565878c23be8ba0c2ebb2c57a5dac0a5a59ccd27e747a5"
+    },
+    {
+      "path": "reader-build/runtime-licenses/mount.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/ncurses-base.txt",
+      "bytes": 4670,
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+    },
+    {
+      "path": "reader-build/runtime-licenses/ncurses-bin.txt",
+      "bytes": 4670,
+      "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+    },
+    {
+      "path": "reader-build/runtime-licenses/passwd.txt",
+      "bytes": 7044,
+      "sha256": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5"
+    },
+    {
+      "path": "reader-build/runtime-licenses/perl-base.txt",
+      "bytes": 109772,
+      "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d"
+    },
+    {
+      "path": "reader-build/runtime-licenses/sed.txt",
+      "bytes": 8618,
+      "sha256": "719320e425e8e6da53a55e0fcfa2f2ed9b1332cea16abd65321bd651b2a88568"
+    },
+    {
+      "path": "reader-build/runtime-licenses/sysvinit-utils.txt",
+      "bytes": 4689,
+      "sha256": "ad7cb339e58a88918a883d553ca236795191f027e158788a8b33f747ff502fb2"
+    },
+    {
+      "path": "reader-build/runtime-licenses/tar.txt",
+      "bytes": 3798,
+      "sha256": "bea61e0c172868e07845cf50423f97f093a9a46de167dbbe333a38be610c8e00"
+    },
+    {
+      "path": "reader-build/runtime-licenses/tzdata.txt",
+      "bytes": 375,
+      "sha256": "cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a"
+    },
+    {
+      "path": "reader-build/runtime-licenses/usr-is-merged.txt",
+      "bytes": 987,
+      "sha256": "9836bfe2ef94505bbf29701e8c90799ab1a5fd966d26d60d019a822cdbf3d61a"
+    },
+    {
+      "path": "reader-build/runtime-licenses/util-linux-extra.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/util-linux.txt",
+      "bytes": 23237,
+      "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+    },
+    {
+      "path": "reader-build/runtime-licenses/zlib1g.txt",
+      "bytes": 2927,
+      "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6"
+    },
+    {
+      "path": "reader-build/source-manifest.json",
+      "bytes": 7473,
+      "sha256": "f65c60b18c41738206840d9b4bff77561a4b8cbcede95ab6a62acab8b909cd18"
+    },
+    {
+      "path": "reader-build/toolchain-packages.tsv",
+      "bytes": 4296,
+      "sha256": "4c87da4c4bc489fe1657f467a63dab0f4306ae1bcf7bf542c9cb99953083b464"
+    },
+    {
+      "path": "runtime-packages.tsv",
+      "bytes": 2340,
+      "sha256": "fdcea8786d9f6bf85723859b645522531f08c0fa5512ac289cc3edd027aa1c03"
+    }
+  ],
+  "symbolicLicenseAliases": [
+    {
+      "path": "reader-build/common-licenses/GFDL",
+      "target": "reader-build/common-licenses/GFDL-1.3",
+      "resolvedSha256": "110535522396708cea37c72a802c5e7e81391139f5f7985631c93ef242b206a4"
+    },
+    {
+      "path": "reader-build/common-licenses/GPL",
+      "target": "reader-build/common-licenses/GPL-3",
+      "resolvedSha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "path": "reader-build/common-licenses/LGPL",
+      "target": "reader-build/common-licenses/LGPL-3",
+      "resolvedSha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+    }
+  ],
+  "extraction": {
+    "project": "AI-PDM",
+    "purpose": "Bounded artifact archive readback; container never started",
+    "port": null,
+    "PDM_DATA_DIR": "unused",
+    "PDM_REPOSITORY_DIR": "unused",
+    "image": "sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97",
+    "owner": "2080b60c-69e9-4c85-8fa9-15ad9d607193",
+    "containerName": "aipdm-dev122-2080b60c-69e9-4c85-8fa9-15ad9d607193-9",
+    "priorFailure": "artifact-runtime.json retained",
+    "startedAtUtc": "2026-10-05T13:40:16.868Z",
+    "archives": [
+      {
+        "file": "reader-build.tar",
+        "bytes": 4493312,
+        "sha256": "88c6bf546b3c518a01930d2bff79a3e931eff4ddb73f2a54060ec29c148d9e40"
+      },
+      {
+        "file": "runtime-packages.tar",
+        "bytes": 4096,
+        "sha256": "d3d2f07bec4ee07ea37b5ba08038f44bae0c6f46a610826651e93fdcdaff0e7b"
+      },
+      {
+        "file": "reader-binary.tar",
+        "bytes": 195584,
+        "sha256": "adf65df139097841281d5f0f67dcd7a4b56f7c2272ddf1a6c700efa0ff858c4a"
+      }
+    ],
+    "cleanup": "verified_absent",
+    "containerId": "318bc2415148c26093dfce576ce3cd5b7d6dae0684bdd2b493ab012264c67e9d",
+    "extraction": "PASS",
+    "removal": {
+      "code": 0,
+      "signal": null,
+      "reason": null,
+      "stdout": "318bc2415148c26093dfce576ce3cd5b7d6dae0684bdd2b493ab012264c67e9d\n",
+      "stderr": "",
+      "stdoutBytes": 65,
+      "pid": 27980
+    },
+    "finishedAtUtc": "2026-10-05T13:40:17.462Z"
+  },
+  "archiveHandling": "No host symlink or path extraction; tar regular entries hashed and relative license aliases validated in memory",
+  "nativeCad": "NOT_RUN_AT_ARTIFACT_CAPTURE",
+  "cloudRun": "NOT_RUN"
+}

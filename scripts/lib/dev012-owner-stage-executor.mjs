@@ -8,6 +8,7 @@ import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProvid
 import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
 import { buildDev014ConsumerConformance } from './dev014-consumer-conformance.mjs'
 import { assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
+import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease } from './dev122-openswx-owner-release.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
@@ -76,6 +77,10 @@ function assertIntentBase(intent, profile, intentRef, intentSha256) {
       ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'])
   }
   if (intent?.principalOnlyRecovery) { exact.push('principalOnlyRecovery'); exact.sort() }
+  if (Object.hasOwn(intent ?? {}, 'openswxWorkerRef')) {
+    if (profile.application.id !== 'ai-pdm') fail('OPENSWX_OWNER_MISMATCH')
+    exact.push('openswxWorkerRef'); exact.sort(); assertOpenSwxWorkerRef(intent.openswxWorkerRef)
+  }
   if (!intent || JSON.stringify(Object.keys(intent).sort()) !== JSON.stringify(exact) || intent.schemaVersion !== profile.schemas.releaseIntent || intent.ownerApplicationId !== profile.application.id || !/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(intent.releaseId ?? '') || !H40.test(intent.sourceRevision ?? '') || !H64.test(intent.sourceSha256 ?? '') || !H64.test(intent.migrationManifestSha256 ?? '') || !intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INVALID')
   assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
   if (intentRef.uri.split('/')[2] !== profile.artifact.releaseBucket || intentRef.sha256 !== intentSha256) fail('RELEASE_INTENT_REF_INVALID')
@@ -285,6 +290,11 @@ function assertDeployment(value, profile, intent, intentRef, intentSha256) {
   if (!value.artifactDigest?.startsWith(`${profile.artifact.uri}@sha256:`) || !value.migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)) fail('DEPLOYMENT_ARTIFACT_INVALID')
   if (!H64.test(value.sourceObject?.sha256 ?? '') || !/^[1-9][0-9]*$/u.test(String(value.sourceObject?.generation ?? '')) || typeof value.sourceObject?.crc32c !== 'string') fail('DEPLOYMENT_SOURCE_INVALID')
   for (const name of ['migrationBundleRef', 'buildReceiptRef', 'provenanceReceiptRef', 'sbomReceiptRef', 'scanReceiptRef']) if (!value[name]?.uri || !H64.test(value[name]?.sha256 ?? '')) fail('DEPLOYMENT_EVIDENCE_REF_INVALID', name)
+  if (intent.openswxWorkerRef) {
+    if (canonicalize(value.openswxWorker?.descriptorRef) !== canonicalize(intent.openswxWorkerRef)
+      || !/^asia-east1-docker.pkg.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-openswx-worker@sha256:[a-f0-9]{64}$/u.test(value.openswxWorker?.image ?? '')) fail('OPENSWX_DEPLOYMENT_JOIN_INVALID')
+    assertOpenSwxWorkerRef(value.openswxWorker.workerBuildRef)
+  } else if (value.openswxWorker) fail('OPENSWX_DEPLOYMENT_JOIN_INVALID')
   if (profile.productionData?.required === true) {
     assertImmutableRef(value.productionDataRef, profile.artifact.releaseBucket, [profile.productionData.dataObjectPrefix])
     assertImmutableRef(value.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix])
@@ -377,9 +387,11 @@ function publicBuildReceipt(build) {
   return { name: build.name, id: build.id, projectId: build.projectId, status: build.status, serviceAccount: build.serviceAccount, createTime: build.createTime, startTime: build.startTime, finishTime: build.finishTime, sourceProvenance: build.sourceProvenance, results: build.results, options: build.options }
 }
 
-export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
+export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, readWorkerSource, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
   const { intent, intentRef, paths } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent })
+  const worker = intent.openswxWorkerRef ? createOpenSwxOwnerRelease({ transport, readSource: readWorkerSource, environment }) : null
+  if (worker && typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
   const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, releaseIntentSha256: capsuleSha256 }))
 
   if (stage !== 'rollback') {
@@ -418,6 +430,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
         || (existing && canonicalize(existing.value.facts.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis))) fail('PREPARE_BASELINE_MISMATCH')
     } else if (values.authorization.preActivationAbortBasis || values.readiness.preActivationAbortBasis) fail('PREPARE_BASELINE_MISMATCH')
     const derived = assertPreparePrerequisites({ intent, profile, values })
+    if (worker) await worker.prepare({ intent, profile, runtimeConfig: derived.runtimeConfig })
+    else assertWorkerRuntimeJoin(derived.runtimeConfig, intent)
     const dataCutover = await readDataCutoverEvidence({ transport, profile, intent, readiness: values.readiness, dataCutoverConfig })
     const recovery = assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
     if (recovery) {
@@ -453,6 +467,10 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (existing) {
       assertDeployment(existing.value, profile, intent, intentRef, capsuleSha256)
       await readStage(transport, paths, profile, intent, 'build')
+      if (worker) {
+        const frozen = await worker.build({ intent, profile, sourceObject: { ref: existing.value.sourceObject } })
+        if (canonicalize(frozen) !== canonicalize(existing.value.openswxWorker)) fail('OPENSWX_DEPLOYMENT_JOIN_INVALID')
+      }
       return existing
     }
     const sourceIdentityBytes = await createSourceIdentity(intent.sourceRevision)
@@ -472,9 +490,11 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const provenance = await transport.putJson(paths.provenance, { schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, cloudBuild: publicBuildReceipt(build.build), artifactRegistry: artifact, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const sbom = await transport.putJson(paths.sbom, { schemaVersion: 'jenfu.dev012.sbom-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, ...analysis.sbomExport, occurrenceNames: analysis.sbomOccurrenceNames, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const scan = await transport.putJson(paths.scan, { schemaVersion: 'jenfu.dev012.scan-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: build.artifactDigest, buildOccurrenceNames: analysis.buildOccurrenceNames, discoveryOccurrenceNames: analysis.discoveryOccurrenceNames, vulnerabilityCount: analysis.vulnerabilityCount, blockingVulnerabilityCount: analysis.blockingVulnerabilityCount, ...(analysis.rawHighOrCriticalVulnerabilityCount !== undefined ? { rawHighOrCriticalVulnerabilityCount: analysis.rawHighOrCriticalVulnerabilityCount, notAffectedAssessments: analysis.notAffectedAssessments } : {}), maximumAllowedSeverity: profile.build.maximumAllowedSeverity, observedAt: analysis.observedAt, status: 'PASS' }, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
+    const workerBuild = worker ? await worker.build({ intent, profile, sourceObject: source }) : null
     const buildStage = await writeStage(transport, paths, profile, intent, 'build', prepare.ref, { artifactDigest: build.artifactDigest, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, migrationBundleRef: bundle.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref })
     const cutoverDeploymentAuthority = !dataCutoverGateEnabled(profile) ? {} : prepare.value.facts.dataCutover.status === 'DATA_READY_FOR_CANDIDATE' ? { dataCutoverHandoffRef: prepare.value.facts.dataCutover.handoffReceiptRef } : { dataCutoverCompletionRef: prepare.value.facts.dataCutover.completionReceiptRef }
     const deployment = { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: profile.application.id, releaseIntentRef: intentRef, releaseIntentSha256: capsuleSha256, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, migrationBundleRef: bundle.ref, migrationRunnerDigest: prepare.value.facts.migrationRunnerDigest, ...(profile.productionData?.required === true ? { productionDataRef: prepare.value.facts.productionDataRef, firstPrincipalBootstrapRef: prepare.value.facts.firstPrincipalBootstrapRef } : {}), ...cutoverDeploymentAuthority, buildReceiptRef: buildStage.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref, deadlineAt: intent.deadlineAt }
+    if (workerBuild) deployment.openswxWorker = workerBuild
     assertDeployment(deployment, profile, intent, intentRef, capsuleSha256)
     return transport.putJson(paths.deployment, deployment, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
@@ -496,6 +516,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (migration.value?.status !== 'PASS' || migration.value?.sourceRevision !== intent.sourceRevision) fail('MIGRATION_RECEIPT_INVALID')
     const runtimeReceipt = await transport.readJson(intent.runtimeConfigRef, profile.artifact.releaseBucket, ['receipts'])
     const runtimeConfig = runtimeReceipt.value.runtimeConfig ?? runtimeReceipt.value
+    if (worker) assertWorkerRuntimeJoin(runtimeConfig, intent, (await worker.resolve(intent, profile)).value)
+    else assertWorkerRuntimeJoin(runtimeConfig, intent)
+    if (worker) await worker.candidate({ intent, profile, deployment: deployment.value })
     const candidate = await transport.createCandidate({ profile, artifactDigest: deployment.value.artifactDigest, runtimeConfig, fingerprint, deadlineAt: intent.deadlineAt, principalOnly: Boolean(intent.principalOnlyRecovery) })
     if (candidate.previousRevision !== intent.previousRevision) fail('CANDIDATE_BASELINE_MISMATCH')
     const result = await writeStage(transport, paths, profile, intent, 'candidate', migration.ref, { deploymentCapsuleRef: deployment.ref, migrationReceiptRef: migration.ref, ...candidate })
@@ -575,13 +598,14 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   if (stage === 'finalize') {
     const canonical = await readStage(transport, paths, profile, intent, 'canonical')
     const candidate = await readStage(transport, paths, profile, intent, 'candidate')
+    const workerFinalization = worker ? await worker.finalize({ intent, profile }) : null
     await transport.removeCandidateTag({ profile, tag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, expectedActiveRevision: candidate.value.facts.candidateRevision, deadlineAt: intent.deadlineAt })
-    const finalized = await writeStage(transport, paths, profile, intent, 'finalize', canonical.ref, { canonicalReceiptRef: canonical.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, temporaryCandidateTags: 0, result: 'RELEASED' })
+    const finalized = await writeStage(transport, paths, profile, intent, 'finalize', canonical.ref, { canonicalReceiptRef: canonical.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, temporaryCandidateTags: 0, result: 'RELEASED', ...(workerFinalization ? { openswxWorker: workerFinalization } : {}) })
     const conformance = buildDev014ConsumerConformance({ appId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: candidate.value.facts.artifactDigest.split('@').at(-1), failSeekingEvidenceRef: canonical.ref.uri, verifiedAt: transport.now() })
     const conformanceResult = await transport.putJson(`gs://${profile.artifact.releaseBucket}/${paths.root}/dev014-consumer-conformance.json`, conformance, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const readiness = await readNamedJson(transport, intent.readinessReceiptRef.uri, profile, intent.readinessReceiptRef.sha256, ['receipts'])
     const dev013Transition = dev013TerminalTransitionFact(readiness.value, intent)
-    const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: finalized.ref, facts: { result: 'RELEASED', candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, databaseDisposition: 'FORWARD_APPLIED', remainingHumanAction: 0, dev014ConsumerConformanceRef: conformanceResult.ref, ...(dev013Transition ? { dev013Transition } : {}) }, observedAt: transport.now() })
+    const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: finalized.ref, facts: { result: 'RELEASED', candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, databaseDisposition: 'FORWARD_APPLIED', remainingHumanAction: 0, dev014ConsumerConformanceRef: conformanceResult.ref, ...(workerFinalization ? { openswxWorker: workerFinalization } : {}), ...(dev013Transition ? { dev013Transition } : {}) }, observedAt: transport.now() })
     const terminalResult = await transport.putJson(paths.terminal, terminal, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const prepare = await readStage(transport, paths, profile, intent, 'prepare')
     if (profile.dataCutover?.postLiveCleanupRequired === true && prepare.value.facts?.dataCutover?.status === 'DATA_READY_FOR_CANDIDATE') {
@@ -603,6 +627,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   const migration = await optionalNamedJson(transport, paths.migrate, profile)
   if (migration && (migration.value?.schemaVersion !== 'jenfu.dev012.migration-receipt.v1' || migration.value.ownerApplicationId !== profile.application.id || migration.value.sourceRevision !== intent.sourceRevision || migration.value.manifestSha256 !== intent.migrationManifestSha256 || migration.value.status !== 'PASS' || migration.value.boundaryStatus !== 'PASS' || (profile.productionData?.required === true && migration.value.productionData?.status !== 'PASS'))) fail('MIGRATION_RECEIPT_INVALID')
   const databaseDisposition = migration ? 'FORWARD_APPLIED' : 'NOT_APPLIED'
+  const workerRecovery = worker ? await worker.recover({ intent, profile }) : null
   const rollbackRevision = principalOnlyRollbackRevision(intent)
   let disposition = 'PRE_ACTIVATION_ABORTED'
   let entrypointRecovery = { changed: false, result: 'NOT_REQUIRED' }
@@ -635,8 +660,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       await transport.removeCandidateTag({ profile, tag: deterministicTag, candidateRevision: deterministicRevision, expectedActiveRevision: activeRevision, deadlineAt: intent.deadlineAt })
     }
   }
-  const rollback = await writeStage(transport, paths, profile, intent, 'rollback', entrypoint?.ref ?? candidate?.ref ?? migration?.ref ?? null, { result: disposition, previousRevision: rollbackRevision, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'], entrypointRecovery, databaseDisposition })
-  const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: rollback.ref, facts: { result: disposition, previousRevision: rollbackRevision, entrypointRecovery, databaseDisposition }, observedAt: transport.now() })
+  const rollback = await writeStage(transport, paths, profile, intent, 'rollback', entrypoint?.ref ?? candidate?.ref ?? migration?.ref ?? null, { result: disposition, previousRevision: rollbackRevision, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'], entrypointRecovery, databaseDisposition, ...(workerRecovery ? { openswxWorker: workerRecovery } : {}) })
+  const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: rollback.ref, facts: { result: disposition, previousRevision: rollbackRevision, entrypointRecovery, databaseDisposition, ...(workerRecovery ? { openswxWorker: workerRecovery } : {}) }, observedAt: transport.now() })
   const terminalResult = await transport.putJson(paths.terminal, terminal, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   await transport.publishIncident(profile, { correlationId: `${intent.releaseId}-${environment.GITHUB_RUN_ATTEMPT ?? '1'}`, ownerApplicationId: profile.application.id, sourceLockSha256: intent.sourceLockRef.sha256, eventRef: terminalResult.ref, occurredAt: transport.now() })
   await writeControl({ transport, paths, profile, intent, fingerprint, candidate: candidate?.value?.facts ?? null, state: 'FINALIZED', result: disposition, environment })

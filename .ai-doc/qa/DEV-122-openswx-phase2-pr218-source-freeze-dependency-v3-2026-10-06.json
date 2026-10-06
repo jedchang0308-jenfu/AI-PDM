@@ -1,0 +1,456 @@
+{
+  "schemaVersion": "aipdm.dev122.pr-integration-source-freeze.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "capturedAt": "2026-10-06T01:23:09.534530+00:00",
+  "sourceRoot": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM",
+  "branch": "codex/dev122-share-metadata-closure",
+  "captureHeadProvenanceOnly": "5f4e481191632a4c937af078a6fa7df2052aca03",
+  "sourceAuthority": "Exact current bytes and filtered Git blobs; final commit/PR CI readback supplied separately",
+  "priorSourceFreezeSha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e",
+  "priorFrozenFiles": 66,
+  "unchangedPriorFiles": 66,
+  "newlyBoundFile": "package-lock.json",
+  "delta": "Only packages.node_modules/source-map-js version/resolved/integrity changed from 1.2.1 to 1.2.2. Other lock entries and 66 prior product files unchanged; node_modules not mutated.",
+  "integratedOfficialMain": "9b446d498b31c2b6e09df50b4c0138c61b905669",
+  "owner20FreezeSha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed",
+  "owner20RawHashesUnchanged": true,
+  "fileCount": 67,
+  "files": [
+    {
+      "path": ".github/workflows/deploy-ai-pdm-independent-production.yml",
+      "bytes": 13719,
+      "sha256": "5705b22df3760d60fed4ca2091a11af629f9d0907acec4f8a30799c417f54a3d",
+      "gitFilteredBlobOid": "1a7722c96258135e0b508fd36cf1589ae0d10fbe"
+    },
+    {
+      "path": "config/access-control/jenfu-active-capabilities.v1.json",
+      "bytes": 163005,
+      "sha256": "81710661521776dcdde233d0719a1ff2fbed5eb89ca8f3d3a697023e0afe1a61",
+      "gitFilteredBlobOid": "ff8ff0022cda2f4a41803c08f8e45e308644eb76"
+    },
+    {
+      "path": "config/access-control/jenfu-route-permission-map.v2.json",
+      "bytes": 73493,
+      "sha256": "5c7336c778ab81b2982ceb24b862c6f1e60a659a0dce858c6e795cc41ca7f4a9",
+      "gitFilteredBlobOid": "2ea360de042880c5a20d1799afb80dc581e32d37"
+    },
+    {
+      "path": "config/release/dev117-ai-pdm-independent-production-v3.json",
+      "bytes": 19526,
+      "sha256": "0f1ef7397db68070bb3365054d1502ed3c447c250d414c7542734b0fe7d9d391",
+      "gitFilteredBlobOid": "815e55295e09f0d0739ef9dc199d5e69f70ec9e0"
+    },
+    {
+      "path": "config/release/dev122-openswx-worker.json",
+      "bytes": 1825,
+      "sha256": "65d6530a0f1e713c7936bdb0889bb529742334a530b20b6e8bf18ea81a7461dc",
+      "gitFilteredBlobOid": "09ae60c547d1f0c281671074d896d184685681f2"
+    },
+    {
+      "path": "db/postgres/082_dev122_openswx_auxiliary_jobs.sql",
+      "bytes": 12818,
+      "sha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000",
+      "gitFilteredBlobOid": "ea9da5dfd4fec08a99d8db58c142d0b705bde70c"
+    },
+    {
+      "path": "infra/google-cloud/dev-122-openswx-worker/README.md",
+      "bytes": 2805,
+      "sha256": "cf3be1f2ba89bf2e53e83bc7faa7cc02b124e79c2a90ba81c1a1abf8e3d75f5b",
+      "gitFilteredBlobOid": "d8534cbc7280225cec7a9def612ac76cfd2a160f"
+    },
+    {
+      "path": "infra/google-cloud/dev-122-openswx-worker/backend.tf",
+      "bytes": 117,
+      "sha256": "398ef4320db00f6bdf72ffde2bd31bc7e148806d215ad2c0774414672a74ab64",
+      "gitFilteredBlobOid": "e7b455f5595fcc231f5f231e1532ca8fe11de349"
+    },
+    {
+      "path": "infra/google-cloud/dev-122-openswx-worker/main.tf",
+      "bytes": 4887,
+      "sha256": "e159e5149cad0bd233b61b823e604f6272e7f5f248cd91f7f8e509099306138c",
+      "gitFilteredBlobOid": "9812e09f739a4d352719881f589dbf80909fbb32"
+    },
+    {
+      "path": "infra/google-cloud/dev-122-openswx-worker/versions.tf",
+      "bytes": 327,
+      "sha256": "e28a63e089b4f5143e20b96fb6ec7f15a4d84c5b3306cda745d63879eabd5c51",
+      "gitFilteredBlobOid": "30a151142fc3e9fa79d7c0e74e21d24c019e470c"
+    },
+    {
+      "path": "scripts/dev117-ai-pdm-continuous-release.mjs",
+      "bytes": 2606,
+      "sha256": "c902741092761cad347df70f9b81e4c937e484ba9156478e93571bec8627cb6f",
+      "gitFilteredBlobOid": "b98d6419188ed18cbc00e95cb8c460d7c17f7341"
+    },
+    {
+      "path": "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+      "bytes": 46057,
+      "sha256": "d3d388fe205e177f1354e83a296ac678b19561f55aad07c46b404ccd283a49e3",
+      "gitFilteredBlobOid": "cdd9447be8e9a6d437eea3507e4f8a30a67cd67f"
+    },
+    {
+      "path": "scripts/dev117-ai-pdm-prerequisite-producer.mjs",
+      "bytes": 2619,
+      "sha256": "39831ae4a2cf55e65e8941cb8d7e1f70e440c058ed44f0f7164b9700d419ef5d",
+      "gitFilteredBlobOid": "821c0e61cb78633cd9cc4d1979266ca5ed5605cf"
+    },
+    {
+      "path": "scripts/dev121-build-principal-route-map-v2.mjs",
+      "bytes": 2761,
+      "sha256": "7c66c0aa9d7c825568ef9e1a6948c4f7765eebf44f87ca17bec7cb6dd7bebe7d",
+      "gitFilteredBlobOid": "1e98a98310a634d60ea066545242bc38f43072d3"
+    },
+    {
+      "path": "scripts/dev121-build-principal-route-map-v2.test.mjs",
+      "bytes": 2907,
+      "sha256": "01a89b0bac570e5262c1e5b66a01c72f5e9994cc69625545951ee27188e24159",
+      "gitFilteredBlobOid": "463556f4a4a2195d91a196252bec4f3f673a7aa2"
+    },
+    {
+      "path": "scripts/dev122-openswx-bootstrap.mjs",
+      "bytes": 1548,
+      "sha256": "a5129c9fb420183a16e1dde63ce37cf8fb36414157ff061656956c18a527a7ad",
+      "gitFilteredBlobOid": "30c53b6b0fada5da60d34ec6246bae2400af6e12"
+    },
+    {
+      "path": "scripts/dev122-openswx-bootstrap.test.mjs",
+      "bytes": 32287,
+      "sha256": "2f86083c1ed343d48deaa878e6c824eecc138669110d00fbe45ac6b48bb0fc92",
+      "gitFilteredBlobOid": "c752695387091d1ecb90fcfcf28eec6402934938"
+    },
+    {
+      "path": "scripts/dev122-openswx-owner-release.test.mjs",
+      "bytes": 11626,
+      "sha256": "685449c35a8f66e1cb1d4a1fd7d88e627f406f995c8c96dabcbdf5a54848719b",
+      "gitFilteredBlobOid": "111aa49f66f2e2a6022347206ab42d2141f1e559"
+    },
+    {
+      "path": "scripts/lib/dev012-owner-prerequisite-producer.mjs",
+      "bytes": 29913,
+      "sha256": "0f4d7033bc796a6faf4a732fafaacdde463b17a56976b10dca5292236be4bd08",
+      "gitFilteredBlobOid": "73f302d95fe943a1823cd4f05bb2584c062ecd3c"
+    },
+    {
+      "path": "scripts/lib/dev012-owner-release-runtime.mjs",
+      "bytes": 81453,
+      "sha256": "5e5af998010658647512a8159305429cb11b7d68688090ee5d613b830e9a9072",
+      "gitFilteredBlobOid": "0bfbe2db80744c98516e06ccfb3960824659d55e"
+    },
+    {
+      "path": "scripts/lib/dev012-owner-stage-executor.mjs",
+      "bytes": 63408,
+      "sha256": "e678c1c1fc44d4ed6a65b68cb6de22b5de3b6d851b5712930b82fe4926d15516",
+      "gitFilteredBlobOid": "cfd1e0813d55844469316a0a266d31edb3439b51"
+    },
+    {
+      "path": "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+      "bytes": 26828,
+      "sha256": "eb27a8c0734e0e832d471fa5b0d850eca0b9a4c416efef6dfca0f06a4f8454d4",
+      "gitFilteredBlobOid": "56ce1e847491e824b39bc5b790e876980f754d3a"
+    },
+    {
+      "path": "scripts/lib/dev122-openswx-bootstrap.mjs",
+      "bytes": 55257,
+      "sha256": "85757bf750bca8d9ddf9f99d027e55399bdf2d9bb854f1485140dd72b0b90880",
+      "gitFilteredBlobOid": "b3cf9fde6e412ac92b9220dc489a4ae6be76f997"
+    },
+    {
+      "path": "scripts/lib/dev122-openswx-owner-release.mjs",
+      "bytes": 40943,
+      "sha256": "51c4de39d4b670f81868db7cd69011b61ff8d4e7ffff6684bad1eddfe408999c",
+      "gitFilteredBlobOid": "04499933eb03bd34e31339bd77daff77d4e0bc15"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/Dockerfile",
+      "bytes": 4487,
+      "sha256": "2f6fa3b971e3dd46c74d271bb8869eb65e86c934cebff6b6b234dc4b2314d11c",
+      "gitFilteredBlobOid": "9a2c32362ef46b2dc8d6b1f9faaa1c8158df2c9f"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/README.md",
+      "bytes": 2960,
+      "sha256": "3d1067abc81108dc12825d501c8122223c1a176f7ddc0e91abe9ce7e5c27d70d",
+      "gitFilteredBlobOid": "76d658fed0d14c75383856043058efba73a8ffa3"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/auxiliary-job.mjs",
+      "bytes": 8702,
+      "sha256": "fbbef1abdf3adfcd4a9ef30b28a939e31690ad6e1ce6f5805d3aa92da2be6182",
+      "gitFilteredBlobOid": "282dbbc52e4702eb2f24933d0e7eb14191ce4408"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/auxiliary-job.test.mjs",
+      "bytes": 8629,
+      "sha256": "c6a084fe98b6f0d90f1745a69106f9cf67c49c81e4ad2aceb0f3f1480c55f2fb",
+      "gitFilteredBlobOid": "68937f89ee0fc414870facdb44e4f9bff0bbe944"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/normalize.mjs",
+      "bytes": 6380,
+      "sha256": "c2050dc18447d3529d4cf33d59dffc3f781249459e0c22bc3c54236df12479aa",
+      "gitFilteredBlobOid": "35f7094d44920a7f81ac543401170adae9300160"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/process.mjs",
+      "bytes": 2909,
+      "sha256": "276a8af293ec3c7cecad40d8cc33e129bf08786738cce633ab10c111904b8809",
+      "gitFilteredBlobOid": "a2f0e9a24a4f17185cb4c6cacd9f7aab5c14b076"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/reader.cc",
+      "bytes": 6067,
+      "sha256": "51da9592908a65aac7f995d2e71c34ce1f4a6c85891a7a51507e2214274e589f",
+      "gitFilteredBlobOid": "86bfe177c6e3979c56fddd2283999df6a212c7bc"
+    },
+    {
+      "path": "scripts/lib/openswx-reader/reader.test.mjs",
+      "bytes": 5527,
+      "sha256": "8fcb8f7b72b4df7faceea0f03a22273967d7f4c9f569ff1d5a97604ca388edd9",
+      "gitFilteredBlobOid": "4354306ad5696a7e8307879418450404cab6ed39"
+    },
+    {
+      "path": "scripts/qc-dev-117-continuous-release.mjs",
+      "bytes": 7216,
+      "sha256": "9135f50c983a6bf97ba7be76e1878bd24c174a95c5f9a22db8a2d70b16d7fff8",
+      "gitFilteredBlobOid": "6ffbcabaab702c757e97a81b368c6ec498b7edb3"
+    },
+    {
+      "path": "scripts/qc-dev-121-route-classification.mjs",
+      "bytes": 34065,
+      "sha256": "4b65d8c145157ce6c5fe3376639d3636b2239dc5521d44a555b37c101fc346c1",
+      "gitFilteredBlobOid": "444fdd9232774dda6db3615f0d712e36e30a53f1"
+    },
+    {
+      "path": "scripts/qc-dev-121-route-classification.test.mjs",
+      "bytes": 1657,
+      "sha256": "3ff1dd2082214c26d40227a20ef5100946743f565aef42b04b27012921366efb",
+      "gitFilteredBlobOid": "2e628c955cdd8d05022739c45ec057d99e2cfd6d"
+    },
+    {
+      "path": "scripts/run-openswx-metadata-job.mjs",
+      "bytes": 1216,
+      "sha256": "e88f8716eb9a2de8726c9aedc96e9b0417538da0a06a9a5dedb2198a0dfab7b6",
+      "gitFilteredBlobOid": "35ce545b4f8c5e252df3c542b02a4b2c013b42b6"
+    },
+    {
+      "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/cancel/route.ts",
+      "bytes": 1373,
+      "sha256": "d1500050ee21728256251b92f5855e582451f943db160c42cf97d95252fc326d",
+      "gitFilteredBlobOid": "7814b7e5014dab568a5c78bc616d4694955b3ac2"
+    },
+    {
+      "path": "src/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route.ts",
+      "bytes": 2967,
+      "sha256": "9d460651fbfda941e10dd36e666e1c31e3d925f38bb5ee7ae92c44a6f89af657",
+      "gitFilteredBlobOid": "81addf304ce0f3c389b0d9903359264bcae0ac0d"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-dispatch/recover/route.ts",
+      "bytes": 1034,
+      "sha256": "299b10d1cad1c7329203026684d247655d214e4fc19ef1c3c4a15eefd05eb05b",
+      "gitFilteredBlobOid": "2e850ddf06924ac7dc8f305d770861976590c3b9"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/[jobId]/complete/route.ts",
+      "bytes": 1549,
+      "sha256": "91caef5bffc62238f5ce7b6002f33de522efdec5ea079d5c727a2521f0dd512b",
+      "gitFilteredBlobOid": "5965c575be3dfd9a2a5f711913e1da6fc4edfc6e"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/[jobId]/heartbeat/route.ts",
+      "bytes": 1356,
+      "sha256": "5df55c55895da3041f7483e47f0af933b923bad4b9ca38b30114ce08de09a096",
+      "gitFilteredBlobOid": "3f078316635952f99bf70b4038c3c091a29019cd"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/[jobId]/route.ts",
+      "bytes": 1291,
+      "sha256": "50ede5795d1b0c00f3cb93e4287903ef87461fb56781f3f8c3f4c3ff12e1e645",
+      "gitFilteredBlobOid": "767ea098eb52e757449e40f0a33369e0be71156c"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/[jobId]/sources/[sourceId]/content/route.ts",
+      "bytes": 1523,
+      "sha256": "9be9320d171113db8528bfc734124cf7cbeba18b58af1ec180b1fba3ccd525f6",
+      "gitFilteredBlobOid": "7c922505defba25c26a9135139a2bb25cfd6a5de"
+    },
+    {
+      "path": "src/app/api/openswx-metadata-jobs/claim/route.ts",
+      "bytes": 1510,
+      "sha256": "a8e5cf57752543b0c94be8fe689dcc31668c22bde7a173b861be624981c67f65",
+      "gitFilteredBlobOid": "c38dc01929669871fda17ee18a1e4ae6475ca495"
+    },
+    {
+      "path": "src/components/canonical-drawing-change-workspace.tsx",
+      "bytes": 45012,
+      "sha256": "a28ad21f6913194b62b8ea536b8a6265e3caabef19ccffec486c760c6631718d",
+      "gitFilteredBlobOid": "9ac66749ac01f814685e33193fd9eea6ed5a2a60"
+    },
+    {
+      "path": "src/components/drawing-recognition-workspace-panel.module.css",
+      "bytes": 4027,
+      "sha256": "512fe13d6b64f65529f225480c40a4dd4f79fe17e50767ba4ddb71279d9237f1",
+      "gitFilteredBlobOid": "2cc422e000b597177f3b5aa06b71d6c527d47a92"
+    },
+    {
+      "path": "src/components/drawing-recognition-workspace-panel.openswx.test.tsx",
+      "bytes": 8180,
+      "sha256": "e79a138ebe524e2be9572fa5d8bc77881f7b73040d4efcb02b28ff391e23c558",
+      "gitFilteredBlobOid": "46d07ebf9d07d254c91b0e557ff668beb6fc2190"
+    },
+    {
+      "path": "src/components/drawing-recognition-workspace-panel.tsx",
+      "bytes": 68619,
+      "sha256": "a07eaa3171e224fa02c7442c2c5e3892851355a8a8c5c75d9d43cac736a0e7ba",
+      "gitFilteredBlobOid": "e483744e7f208f1f2aaeb31b35b32191f3910011"
+    },
+    {
+      "path": "src/components/settings-screen.production-slice.test.tsx",
+      "bytes": 4095,
+      "sha256": "ee35976594f77a9db65b04598c689cfca8df9ba28800c9b68061da3df96fb3e8",
+      "gitFilteredBlobOid": "40288cf514e50cbe33c1b3ebec0855f101cc577b"
+    },
+    {
+      "path": "src/components/settings-screen.tsx",
+      "bytes": 141350,
+      "sha256": "914d0161af03fa30139d45072c0581b3eb69cb4471b1d5449a52178e2061ee7f",
+      "gitFilteredBlobOid": "086431333aa885cb13da1f0ee91a5e52f27f264e"
+    },
+    {
+      "path": "src/lib/db.ts",
+      "bytes": 146354,
+      "sha256": "63308f0ed3cc48a5913d9460fe3baaae6a283c572eeff90b35548a82f1fbdc9e",
+      "gitFilteredBlobOid": "b361048e1665ae56c43ffbb3157af3ede252cb62"
+    },
+    {
+      "path": "src/lib/jenfu-route-permission-map.test.ts",
+      "bytes": 7936,
+      "sha256": "1a71314271b2d03365cd544360a8fe966f5225debb9e030e67c5048b4cc45b68",
+      "gitFilteredBlobOid": "b9618a9cab5a138a33eef629f855e426b0900bdd"
+    },
+    {
+      "path": "src/lib/openswx-metadata-contract.ts",
+      "bytes": 8159,
+      "sha256": "75e245e670b16b963854817280bf77f23c22a57a57b45a33cbddf4a488fdd346",
+      "gitFilteredBlobOid": "1442724581c6d0a7e140ad02c0aa0798a225cc96"
+    },
+    {
+      "path": "src/lib/openswx-metadata-dispatch-auth.test.ts",
+      "bytes": 3928,
+      "sha256": "2f40d968732c0b91c4a6ad610515fc732ad1db3c20a0bdc100dbd5488b086eef",
+      "gitFilteredBlobOid": "0d58b5bfc9d63f7811febf367f52608ff870f734"
+    },
+    {
+      "path": "src/lib/openswx-metadata-dispatch-auth.ts",
+      "bytes": 2735,
+      "sha256": "1f4bf6e5edd9427c6da1324518fa663ef55c5daa4da3e7904cee75c5ef8b4b1a",
+      "gitFilteredBlobOid": "4552b15f75a4f2fa28458de15f11ad469abb51cb"
+    },
+    {
+      "path": "src/lib/openswx-metadata-dispatch.test.ts",
+      "bytes": 12580,
+      "sha256": "277f5593adce5f3f9c6bddc3ef1e15ee88fed90a22cacd99f96b42e1cd6a4eb5",
+      "gitFilteredBlobOid": "d69a7f3cc8e7df1ba55d66debdb6d42e918af4ed"
+    },
+    {
+      "path": "src/lib/openswx-metadata-dispatch.ts",
+      "bytes": 11601,
+      "sha256": "7578e67a3d52d9f91bd288680d21a6fce1d3e63a1cdaa1ccce53afb13c817d9e",
+      "gitFilteredBlobOid": "676b53b4f83de8e54a13b36c08c102741630e3a7"
+    },
+    {
+      "path": "src/lib/openswx-metadata.api.test.ts",
+      "bytes": 12020,
+      "sha256": "671a2d27de07921408c4521eedd67f0d26b2bd4ba8c0b89203f5e6c36ed101d9",
+      "gitFilteredBlobOid": "1bcc40571e95cd01b7004a6ae80a5341da09a257"
+    },
+    {
+      "path": "src/lib/openswx-metadata.postgres-contract.test.ts",
+      "bytes": 14016,
+      "sha256": "447090ad5a057eea845aed55966e13b194dd34703a85c5fe18b2363b0a335c3e",
+      "gitFilteredBlobOid": "b0dbaedb277a30a6dc489174be4281e7bdb023f8"
+    },
+    {
+      "path": "src/lib/openswx-metadata.test.ts",
+      "bytes": 17570,
+      "sha256": "d190f9d4a76f50d9733b3b672566f2717c4f745cb409e83070fee54ef89b46bd",
+      "gitFilteredBlobOid": "56d25df5753699249465c1ec9c37736d71c99678"
+    },
+    {
+      "path": "src/lib/openswx-metadata.ts",
+      "bytes": 21835,
+      "sha256": "0d306029337444cd51b2167d50f491e593f9dbdc0c994fbe739557f383753d86",
+      "gitFilteredBlobOid": "022f729eea3fd7832f5898549c33da11371838bb"
+    },
+    {
+      "path": "src/lib/production-slice.settings.test.ts",
+      "bytes": 3481,
+      "sha256": "acc24c3a9d199cbbb40e439cca341ee49c699cfb7c93697c349132254b989fe9",
+      "gitFilteredBlobOid": "d2c9629a1310348a923282c492c41d58b256c3d4"
+    },
+    {
+      "path": "src/lib/production-slice.ts",
+      "bytes": 13848,
+      "sha256": "110f0e0b386ea1fffbd106034f40c183e731da242a342f316e1fd5413ce1f210",
+      "gitFilteredBlobOid": "5e0b320d2f6ae06203c96eb7c762298d7655f681"
+    },
+    {
+      "path": "src/lib/repositories/drawing-recognition-async-repository.ts",
+      "bytes": 149784,
+      "sha256": "fe88f9d9b09a7c3b5357b729e934755f8f7a04edb6bb4a817b45168c055d6923",
+      "gitFilteredBlobOid": "2363817b9b66884c0e62395ab657075cc4410cd5"
+    },
+    {
+      "path": "src/lib/repositories/drawing-recognition-context-source-snapshot.test.ts",
+      "bytes": 9779,
+      "sha256": "97f83df96ab9fd076016bc9c9f14e5dadf4780e3ec4014e37f7a5acdaef4cce5",
+      "gitFilteredBlobOid": "19c360c4e105521910c32971b9c74fa0af46e62c"
+    },
+    {
+      "path": "src/lib/repositories/openswx-metadata-async-repository.ts",
+      "bytes": 11152,
+      "sha256": "21ecf0a9816702409ab5bcabc9548048c75962a14bc5b452eede833a9a243116",
+      "gitFilteredBlobOid": "20d325c4cfa6573330603ff3e2d76110cf776414"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 395282,
+      "sha256": "0e24e9f05cf438b755b55992dd73d3a27f0076d7d6cb73a6160598657118b041",
+      "gitFilteredBlobOid": "d7f549df8886f84245cb4447efceb83ebee6bbac"
+    }
+  ],
+  "localAudit": {
+    "result": "PASS",
+    "scope": "Patched lockfile production dependencies only, not installed package/runtime/build",
+    "receiptSha256": "9d040aac5c03c22e0fe9c51ac74903898cff14f41d3a3f62bc5fdc633bc891fe",
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "cleanupReceiptSha256": "608c18209e2b0ed050f8d5a75bd69bbcc5ee1cc3751b3783c6793476c9e5faa8"
+  },
+  "priorCi": [
+    {
+      "runId": 37395720942,
+      "result": "FAILURE_AT_LINT"
+    },
+    {
+      "runId": 37398155430,
+      "head": "5f4e481191632a4c937af078a6fa7df2052aca03",
+      "cutover": "SUCCESS",
+      "result": "FAILURE_AT_DEPENDENCY_AUDIT",
+      "lintAndLaterSteps": "NOT_RUN",
+      "failedLogSha256": "3eff6a630eaabe63da0b030d8bba3d1e5d0b4170da33e7c9e408ce2245be4a35"
+    }
+  ],
+  "requiredCI": "PENDING_NEW_HEAD",
+  "independentQC": "PENDING_SOURCE_REVIEW",
+  "cloud": "PENDING_HUMAN_RESOURCE_AUTHORIZATION_NOT_RUN",
+  "fullNativeCAD": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+  "wholeDEV122": "NOT_ACCEPTED"
+}

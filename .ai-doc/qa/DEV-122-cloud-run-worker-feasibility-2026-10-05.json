@@ -1,0 +1,257 @@
+{
+  "schemaVersion": "aipdm.dev122.cloud-run-feasibility.v1",
+  "capturedAt": "2026-10-05T11:40:44.806660+00:00",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "status": "OPENSWX_PHASE1_PARTIAL_NATIVE_CONFIRMED_PHASE2_LOCAL_IMPLEMENTATION_READY",
+  "sourceHead": "7cebdb376ef0a24cbe6bb6ee7e511323cf45b489",
+  "sourceCleanBeforeDocs": true,
+  "sourceFiles": [
+    {
+      "path": "scripts/run-drawing-recognition-worker.mjs",
+      "sha256": "03525697d9bef5feb56709664189bf897bcbeeb219626637eb5ffd7f41bc28e7"
+    },
+    {
+      "path": "scripts/run-solidworks-document-manager-metadata-extractor.mjs",
+      "sha256": "0bceadfbf7a773823df0c091f1c429d089ace292dc7492a168b1c2a3eb93d9dc"
+    },
+    {
+      "path": "scripts/run-solidworks-document-manager-credential-probe.mjs",
+      "sha256": "5c37525dbfe5faa2ba473f0a2bf8913c179013304e60a232dce0a5f7d8f04107"
+    },
+    {
+      "path": "scripts/solidworks-document-manager-metadata-exporter.cs",
+      "sha256": "696a4324e1f8a624d578d6320ef9363f0f05fbe0d882ee648be97c6b1b687c00"
+    },
+    {
+      "path": "scripts/solidworks-document-manager-credential-probe.cs",
+      "sha256": "38f14ccdf2453eed68679880d571f000200fc2b9401e903f2f53d2c0da2e0cb7"
+    }
+  ],
+  "humanDirection": {
+    "date": "2026-10-05",
+    "quote": "不要架在主機上, 使用cloud run",
+    "meaning": "Cloud Run runtime required; replace prior next-step request for permanent Windows host/configuration location",
+    "externalVendorPurchaseOrMessagingAuthorized": false
+  },
+  "facts": [
+    {
+      "claim": "Cloud Run requires Linux 64-bit executables, linux/amd64",
+      "source": "https://docs.cloud.google.com/run/docs/container-contract",
+      "verification": "OFFICIAL_DOCUMENTATION_READ"
+    },
+    {
+      "claim": "SolidWorks Document Manager is COM contained in SwDocumentMgr.dll and registered using Windows tools",
+      "source": "https://help.solidworks.com/2025/english/api/swdocmgrapi/GettingStarted-swdocmgrapi.html?id=8.2",
+      "verification": "OFFICIAL_DOCUMENTATION_READ"
+    },
+    {
+      "claim": "Current wrappers compile Windows executable and use Interop DLL/COM ProgID",
+      "source": "Own frozen sourceFiles",
+      "verification": "ACTUAL_SOURCE_READ"
+    },
+    {
+      "claim": "Datakit lists Linux, SLDPRT/SLDASM/SLDDRW and metadata capabilities",
+      "source": "https://www.datakit.com/en/crosscad_ware.php",
+      "verification": "VENDOR_DECLARATION_ONLY_NOT_TESTED"
+    },
+    {
+      "claim": "OpenSWX MIT reader claims Linux, three SolidWorks native types, document/configuration custom properties, no COM",
+      "source": "https://github.com/schwitters/openswx",
+      "licenseSource": "https://github.com/schwitters/openswx/blob/main/LICENSE",
+      "verification": "AUTHOR_SOURCE_DOCUMENTATION_AND_LICENSE_ONLY_NOT_EXECUTED"
+    }
+  ],
+  "conditionalDesign": {
+    "runtime": "Cloud Run Job with validated free Linux reader",
+    "execution": "Finite batch; claim lease heartbeat result completion and exit; preserve existing durable queue and company/hash/source boundaries",
+    "requiredUnimplemented": [
+      "Actual validated SDK integration",
+      "Job trigger and exact workload identity",
+      "Reader-specific credential/probe/capability and readiness without impersonating Document Manager"
+    ],
+    "currentPollingScriptDirectJobCompatibility": false
+  },
+  "validation": {
+    "sourceAndOfficialCompatibilityReview": "PASS_CURRENT_READER_INCOMPATIBILITY_CONFIRMED",
+    "linuxSdkNativeCad": "NOT_RUN_SDK_NOT_AVAILABLE",
+    "cloudRunWorkerBuild": "NOT_RUN",
+    "cloudRunWorkerDeploy": "NOT_RUN",
+    "humanProductionNativeCad": "NOT_RUN_HUMAN_OWNED",
+    "nativeCadKeyRead": false,
+    "externalCadTransfer": false,
+    "vendorContactOrPurchase": false,
+    "productSourceEdited": false,
+    "cloudResourcesOrIamSecretMutated": false,
+    "testBuildBrowserRuntimeStarted": false,
+    "crossProjectDevelopment": false
+  },
+  "supersedes": "Only previous forward-looking request for a permanent Windows worker host; immutable R03 source/production/test receipts remain as-captured",
+  "remaining": [
+    "Free Linux reader compatibility and complete property evidence",
+    "Explicit provider-specific capability/credential/readiness design; no Document Manager impersonation",
+    "AI-PDM Cloud Run implementation/resource-bound deployment package",
+    "Human production native CAD validation"
+  ],
+  "scopeLimits": {
+    "originalIssues": 7,
+    "originalQaGroups": 29,
+    "F01F": "PENDING",
+    "wholeDev": "NOT_ACCEPTED",
+    "D12207": "HUMAN_CONFIRMED_KEEP_DISABLED_FUTURE",
+    "D12208ProductionDecision": "Still separate pending decision"
+  },
+  "updatedAt": "2026-10-05T13:50:35.421277+00:00",
+  "costQuestion": {
+    "humanQuestion": "這是要另外購買的嗎? 沒有免費方案嗎?",
+    "resolution": "Commercial SDK procurement is not a prerequisite; prioritize a free MIT reader compatibility assessment. Cloud usage remains separate.",
+    "purchaseExecuted": false
+  },
+  "commercialCandidate": {
+    "sdk": "Datakit CrossCad/Ware",
+    "selection": "PROPOSED_NOT_SELECTED",
+    "fullNativePropertyScope": [
+      "SLDPRT",
+      "SLDASM",
+      "SLDDRW",
+      "document and configuration properties",
+      "raw/linked/evaluated values"
+    ],
+    "unknown": [
+      "Actual property coverage with authorized sample CAD versions",
+      "Serverless deployment/redistribution and scaling licence terms",
+      "SDK acquisition/trial availability",
+      "Price"
+    ],
+    "solidworksDocumentManagerKeyReusable": false
+  },
+  "candidate": {
+    "reader": "OpenSWX / libopenswx",
+    "selection": "FREE_FIRST_EVALUATION_CANDIDATE_NOT_PRODUCTION_SELECTED",
+    "codeLicense": "MIT",
+    "source": "https://github.com/schwitters/openswx",
+    "licenseSource": "https://github.com/schwitters/openswx/blob/main/LICENSE",
+    "vendorClaims": [
+      "Linux and cross-platform C++20",
+      "SLDPRT/SLDASM/SLDDRW",
+      "Global and per-configuration custom properties",
+      "No SolidWorks installation/COM/Windows-only dependency"
+    ],
+    "actualSampleCadCompatibility": "NOT_RUN",
+    "unknown": [
+      "Raw/linked/evaluated-value equivalence for this project",
+      "CAD-version and malformed-file coverage",
+      "Full configuration and Drawing property coverage",
+      "Bounded parser safety and deployment packaging"
+    ],
+    "commercialSdkPurchaseRequired": false,
+    "documentManagerKeyUsed": false
+  },
+  "otherCandidatesReviewed": [
+    {
+      "name": "sldkit 0.2+",
+      "source": "https://github.com/monozukuri-ai/sldkit",
+      "status": "NOT_FREE_COMMERCIAL_DEFAULT",
+      "reason": "New material PolyForm Noncommercial; separate commercial licence; metadata coverage partial"
+    },
+    {
+      "name": "solidworks-file-format via native-cad-viewer",
+      "source": "https://github.com/jfk-solutions/native-cad-viewer/blob/main/THIRD_PARTY_NOTICES.md",
+      "status": "NOT_CONFIRMED_FREE",
+      "reason": "Format table MIT claim conflicts with proprietary/final-license-pending notices; not selected"
+    },
+    {
+      "name": "cadmpeg",
+      "source": "https://github.com/cadmpeg/cadmpeg/blob/main/docs/format-support.md",
+      "status": "NOT_COMPLETE_THREE_FORMAT_DEFAULT",
+      "reason": "Reviewed SolidWorks profile lists SLDPRT partial; full three-format property coverage not established"
+    }
+  ],
+  "currentProgress": {
+    "state": "PHASE1_INDEPENDENT_QC_COMPLETE_CLEANUP_VERIFIED_PHASE2_LOCAL_IMPLEMENTATION_READY",
+    "baselineHead": "7cebdb376ef0a24cbe6bb6ee7e511323cf45b489",
+    "readerCommit": "30bd63845d3532cdecfdf2654e9cc0871229c45a",
+    "unmodifiedVendorVerified": 19,
+    "ownPackage": "scripts/lib/openswx-reader",
+    "runner": "scripts/dev122-openswx-feasibility.mjs",
+    "mappingAndIsolationTests": {
+      "status": "PASS",
+      "tests": 16,
+      "nonemptyConfigurationNameAssertionAdded": true
+    },
+    "independentQc": "DEV-122-openswx-independent-qc-2026-10-05.json",
+    "independentQcLayer": "PASS source/unit/live Engine404/actual image/archive/native observations; full native semantics remain PARTIAL",
+    "r2": {
+      "status": "FAILED_BUILD_MAKE_MISSING",
+      "firstLogSha256": "9fe6fd3a30e86ce5ceca735cf4467f1593a724ca35e8d1de2f3d4be2abac0214",
+      "pidAndLeaseReleased": true
+    },
+    "r3": {
+      "status": "PASS_BUILD_READBACK_SOURCE_MATCH",
+      "pid": 24752,
+      "startToken": "134356807329648942",
+      "leaseId": "0bd2d51b-386c-4434-be9c-02caa6fbb483",
+      "dockerfileSha256": "5c060d117d3769ced6678b209037e7e9b6e55147f2e104292a0acb61d442020f",
+      "imageId": "sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97",
+      "pidAndLeaseReleased": true
+    },
+    "nativeDriverPreflight": {
+      "original": "FAIL_PRIVATE_TEMP_ANCESTOR_ATTRIBUTES",
+      "remediation": "Exact own ancestor ReadAttributes/Traverse non-inheriting; no file data or broad rights",
+      "actualAfter": "PASS_input_output_and_root_driver_exact404"
+    },
+    "apiCoverage": {
+      "storedValues": "available_if_parsed",
+      "configurationScope": "effective_merged_only",
+      "propertyType": "unsupported_by_public_api",
+      "linkedExpression": "unsupported_by_public_api",
+      "evaluatedValue": "unsupported_by_public_api",
+      "streamIntegrity": "unknown_silent_skip_possible"
+    },
+    "nativeCadEight": "ACTUAL_EIGHT_PARTIAL_NONEMPTY_STORED_PROPERTIES",
+    "imageAndDependencyManifest": "PASS_REAL_VERSIONS_BINARY_SOURCE_LICENSE_HASHES",
+    "cloudRunDeploy": "NOT_RUN",
+    "humanF01F": "NOT_RUN_HUMAN_OWNED",
+    "wholeDev": "NOT_ACCEPTED",
+    "historicalInitialValidationFields": "preserved as captured; current progress does not overwrite initial observation",
+    "nativeEvidence": "DEV-122-openswx-feasibility-2026-10-05.json",
+    "artifactEvidence": "DEV-122-openswx-built-artifact-2026-10-05.json",
+    "negativeFixtures": {
+      "actualRejected": 4,
+      "sourceHashesUnchanged": true
+    },
+    "originalSourceHashesUnchanged": 8,
+    "cleanup": {
+      "containersReportedAbsent": 14,
+      "independentReadback": "PASS_EXACT_14_CONTAINERS_ABSENT",
+      "stagedCad": "VERIFIED_12_OWN_FILES_AND_BOTH_DIRS_ABSENT",
+      "image": "VERIFIED_EXACT_ENGINE_404_ABSENT",
+      "anonymousBuildConfigs": "VERIFIED_THREE_ABSENT",
+      "receipts": {
+        "cleanup-files.json": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-cloud-run-20261005\\governor\\temp\\development\\5cb67529-5eaa-4508-ad91-dec5255a628e\\native-output\\cleanup-files.json",
+          "sha256": "9b737c8d70936471c5ffa88104ffbd20b7c3f86a1fa3b0606de2a5f1fbb42f23"
+        },
+        "cleanup-image.json": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-cloud-run-20261005\\governor\\temp\\development\\5cb67529-5eaa-4508-ad91-dec5255a628e\\native-output\\cleanup-image.json",
+          "sha256": "5b5df933bdb8fad9d6cd1ecb4e240b0112dffbe6830e3ff75bbfad3500c7dae3"
+        },
+        "cleanup-configs.json": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-cloud-run-20261005\\governor\\temp\\development\\5cb67529-5eaa-4508-ad91-dec5255a628e\\native-output\\cleanup-configs.json",
+          "sha256": "1adc958e87ef3ae75579b8c8f17a829727c9b85d436ef9d0abcd9f65c266af54"
+        }
+      }
+    },
+    "independentQcSha256": "aa2b092ceadc46f2a52e16cfb9b5cc677ef875b02d0ae8cb0e50d5089a9811c4",
+    "phase2": {
+      "humanChoice": "先開發唯讀輔助結果（建議）",
+      "local": "RD_IMPLEMENTATION_READY",
+      "cloudResources": "CONDITIONAL_RESOURCE_AUTHORIZATION_PENDING",
+      "wholeNativeAcceptance": "NOT_DOWNGRADED",
+      "mainIntegrationTarget": "90b0d1dc0ba6f832d984938d2acbffb989c70e52",
+      "migrationCandidate": "082_dev122_openswx_auxiliary_jobs.sql_REVALIDATE_BEFORE_RD"
+    }
+  },
+  "initialStatus": "CLOUD_RUN_REQUIRED_FREE_READER_CANDIDATE_COMPATIBILITY_NOT_TESTED",
+  "validationAsCapturedAt": "2026-10-05T11:40:44.806660+00:00"
+}

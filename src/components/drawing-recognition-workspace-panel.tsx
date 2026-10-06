@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import type { OpenSwxProperty } from "@/lib/openswx-metadata-contract";
 import { AlertTriangle, Check, CheckCircle2, LoaderCircle, RefreshCcw, ScanSearch } from "lucide-react";
 import {
   useDrawingRecognitionBrowserOcr,
@@ -123,6 +124,79 @@ const HANDOFF_FIELD_OPTIONS = [
   { fieldKey: "surface_finish", label: "表面處理" },
   { fieldKey: "variant_note", label: "版本備註" }
 ] as const;
+
+type AuxiliaryState = { configured: boolean; job: null | { id: string; status: string; dispatchState: string; heartbeatAt: string | null; leaseExpiresAt: string | null; result?: null | { results: { source: { id: string; sha256: string }; reader: { commit: string }; outcome: string; coverage: Record<string, string>; properties: OpenSwxProperty[]; documentType?: string; documentTypeProvenance?: string; semanticEquivalence?: string; version?: { value: number | null; availability: string }; configurations?: { index: number; name: string; nameAvailability: string; propertyCount: number }[]; diagnostics?: string[] }[] } } };
+type AuxiliaryErrors = { actionError: string; refreshError: string };
+export function reduceOpenSwxErrors(state: AuxiliaryErrors, event: { kind: "action_started" | "action_failed" | "refresh_succeeded" | "refresh_failed"; message?: string }): AuxiliaryErrors {
+  if (event.kind === "action_started") return { ...state, actionError: "" };
+  if (event.kind === "action_failed") return { ...state, actionError: event.message || "輔助讀取失敗" };
+  return { ...state, refreshError: event.kind === "refresh_succeeded" ? "" : event.message || "輔助結果目前無法讀取" };
+}
+export function openSwxUiActivity(state: AuxiliaryState | null, error: string, now: number) {
+  const job = state?.job;
+  return Boolean(!error && state?.configured && job?.status === "running" && job.dispatchState === "dispatched" && job.heartbeatAt && job.leaseExpiresAt && Date.parse(job.leaseExpiresAt) > now && now - Date.parse(job.heartbeatAt) >= 0 && now - Date.parse(job.heartbeatAt) <= 15_000);
+}
+export function OpenSwxAuxiliaryView({ state, error, now, disabled, busy, selectedCount, onRead, onCancel }: { state: AuxiliaryState | null; error: string; now: number; disabled: boolean; busy: boolean; selectedCount: number; onRead: () => void; onCancel: () => void }) {
+  const job = state?.job, active = openSwxUiActivity(state, error, now);
+  const stopped = Boolean(job && ["queued", "running"].includes(job.status) && job.dispatchState === "terminal");
+  const pending = job && !stopped && ["queued", "running"].includes(job.status);
+  const message = error || (!selectedCount ? "沒有支援的 CAD 來源" : job?.status === "completed" ? "部分輔助屬性；此來源讀取已結束" : job?.status === "cancelled" ? "已取消；此來源不可重新排程" : job?.status === "failed" ? "讀取失敗；此來源不可重新排程" : stopped ? "讀取已停止，來源或權限需重新確認" : state?.configured === false ? pending ? "輔助讀取服務尚未配置；排程已保留，待服務配置" : "輔助讀取服務尚未配置" : job?.dispatchState === "dispatch_unknown" ? "派送結果待確認" : active ? "讀取中" : job?.status === "running" ? "讀取活動已中斷，等待確認" : pending ? "等待自動排程（每 5 分鐘）" : state ? "可讀取輔助屬性" : "正在確認輔助讀取狀態");
+  return <section className="dev122-openswx" aria-label="免費讀取的輔助結果">
+    <div className="dev122-openswx-actions">
+      <button type="button" className="secondary-button" disabled={disabled || busy || !selectedCount || Boolean(job) || state?.configured !== true} onClick={onRead}>讀取輔助屬性</button>
+      {pending ? <button type="button" className="link-button" disabled={disabled || busy} onClick={onCancel}>取消</button> : null}
+      <span role={error ? "alert" : "status"} aria-live="polite">{active ? <LoaderCircle className="dev122-openswx-spin" size={15} aria-hidden="true" /> : null}{message}</span>
+    </div>
+    {job?.result ? <details><summary>查看部分屬性與來源</summary>
+      <p>僅供參考。組態值為合併結果；原始值、運算值、型別與完整性尚未驗證。</p>
+      {job.result.results.map(result => <div className="dev122-openswx-source" key={result.source.id}>
+        <p>{result.outcome === "partial" ? "部分結果" : "解析失敗"} · 來源 <code>{result.source.sha256}</code> · Reader <code>{result.reader.commit}</code></p>
+        <dl>{Object.entries(result.coverage).map(([kind, availability]) => <React.Fragment key={kind}><dt>{kind}</dt><dd>{availability}</dd></React.Fragment>)}</dl>
+        <dl>
+          {result.documentType ? <><dt>文件類型</dt><dd>{result.documentType} · {result.documentTypeProvenance}</dd></> : null}
+          {result.version ? <><dt>版本資訊</dt><dd>{result.version.value ?? "未知"} · {result.version.availability}</dd></> : null}
+          {result.semanticEquivalence ? <><dt>語意驗證狀態</dt><dd>{result.semanticEquivalence}</dd></> : null}
+          {result.configurations?.map(configuration => <React.Fragment key={configuration.index}><dt>組態 {configuration.index}</dt><dd>{configuration.name || "未知組態名稱"} · {configuration.nameAvailability} · {configuration.propertyCount} 個屬性</dd></React.Fragment>)}
+          {result.diagnostics?.length ? <><dt>可用性說明</dt><dd>{result.diagnostics.join(" · ")}</dd></> : null}
+        </dl>
+        <table><thead><tr><th>屬性</th><th>儲存值</th><th>來源範圍</th></tr></thead><tbody>{result.properties.map((property, index) => <tr key={index}><td>{property.name}</td><td>{property.valueAvailability === "stored_empty_string" ? "（儲存空字串）" : property.storedValue}</td><td>{property.scope === "document_global" ? "文件全域" : `${property.configurationName || "未命名組態"} · 有效合併值`}</td></tr>)}</tbody></table>
+      </div>)}
+    </details> : null}
+  </section>;
+}
+function OpenSwxAuxiliaryPanel({ sourceContextType, sourceContextId, sourceAssetIds, disabled }: { sourceContextType: string; sourceContextId: string; sourceAssetIds: string[]; disabled: boolean }) {
+  const [state, setState] = useState<AuxiliaryState | null>(null), [errors, updateErrors] = useReducer(reduceOpenSwxErrors, { actionError: "", refreshError: "" }), [busy, setBusy] = useState(false), [now, setNow] = useState(0);
+  const error = errors.actionError || errors.refreshError;
+  const sourceKey = JSON.stringify(sourceAssetIds), selection = useMemo(() => JSON.parse(sourceKey) as string[], [sourceKey]);
+  const base = `/api/numbering/openswx-metadata/${encodeURIComponent(sourceContextType)}/${encodeURIComponent(sourceContextId)}`;
+  const endpoint = `${base}?${selection.map(id => `sourceAssetId=${encodeURIComponent(id)}`).join("&")}`;
+  useEffect(() => {
+    if (busy || !selection.length || !sourceContextId) return;
+    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
+    async function load() {
+      try {
+        const response = await fetch(endpoint, { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]) });
+        const body = await response.json(); if (!response.ok) throw Error("輔助結果目前無法讀取");
+        if (controller.signal.aborted) return; setState(body); updateErrors({ kind: "refresh_succeeded" }); setNow(Date.now());
+        if (body.job && body.job.dispatchState !== "terminal" && ["queued", "running"].includes(body.job.status)) timer = setTimeout(load, 5000);
+      } catch { if (!controller.signal.aborted) { updateErrors({ kind: "refresh_failed" }); timer = setTimeout(load, 5000); } }
+    }
+    void load(); return () => { controller.abort(); clearTimeout(timer); };
+  }, [endpoint, selection.length, sourceContextId, busy]);
+  useEffect(() => { if (state?.job?.status !== "running") return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [state?.job?.status]);
+  const actionAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => actionAbort.current?.abort(), []);
+  async function action(cancel = false) {
+    const controller = new AbortController(); actionAbort.current?.abort(); actionAbort.current = controller; setBusy(true); updateErrors({ kind: "action_started" });
+    try {
+      const response = await fetch(cancel ? `${base}/cancel` : base, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sourceAssetIds: selection }), signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]) });
+      const body = await response.json(); if (!response.ok) throw Error(cancel ? "取消失敗" : "輔助讀取目前無法排程");
+      if (!controller.signal.aborted) setState(body);
+    } catch (cause) { if (!controller.signal.aborted) updateErrors({ kind: "action_failed", message: cause instanceof Error ? cause.message : "輔助讀取失敗" }); }
+    finally { if (!controller.signal.aborted) setBusy(false); }
+  }
+  return <OpenSwxAuxiliaryView state={state} error={error} now={now} disabled={disabled} busy={busy} selectedCount={selection.length} onRead={() => void action()} onCancel={() => void action(true)} />;
+}
 
 function NativeMetadataHealthBanner({
   health,
@@ -319,6 +393,7 @@ export function DrawingRecognitionWorkspacePanel({
   sourceContextType,
   sourceContextId,
   sourceAssetIds,
+  auxiliarySourceAssetIds = [],
   snapshotProjection,
   disabled = false,
   onEvidenceSelect,
@@ -328,6 +403,7 @@ export function DrawingRecognitionWorkspacePanel({
   sourceContextType: "candidate_revision" | "drawing_revision" | "drawing_number";
   sourceContextId: string;
   sourceAssetIds: string[];
+  auxiliarySourceAssetIds?: string[];
   snapshotProjection?: DrawingRecognitionReviewProjection | null;
   disabled?: boolean;
   onEvidenceSelect?: (evidence: DrawingRecognitionEvidence) => void;
@@ -768,6 +844,7 @@ export function DrawingRecognitionWorkspacePanel({
   return (
     <div className={`${styles.panelStyles} dev079-recognition-panel`} data-dev079-recognition={snapshotMode ? "immutable-review" : "embedded"}>
       {snapshotMode && session ? <div className="canonical-note" role="status"><strong>辨識送審快照</strong><span>投影 {snapshotProjection?.projectionHash.slice(0, 12)} · {session.sources.length} 個來源</span></div> : null}
+      {!snapshotMode ? <OpenSwxAuxiliaryPanel key={`${sourceContextType}:${sourceContextId}:${JSON.stringify(auxiliarySourceAssetIds)}`} sourceContextType={sourceContextType} sourceContextId={sourceContextId} sourceAssetIds={auxiliarySourceAssetIds} disabled={disabled} /> : null}
       {restricted ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>目前無辨識核對權限</strong><span>不影響既有版次權限或送審資格。</span></div> : null}
       {!restricted && !featureEnabled ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>智慧辨識尚未啟用</strong><span>版次與檔案功能仍可正常使用。</span></div> : null}
       {!restricted && featureEnabled && loading ? <div className="dev079-recognition-state"><LoaderCircle className="spin" size={18} />正在讀取辨識結果…</div> : null}

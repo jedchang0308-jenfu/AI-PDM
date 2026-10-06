@@ -1,0 +1,767 @@
+{
+  "schemaVersion": "aipdm.dev122.openswx-independent-qc.v1",
+  "capturedAtUtc": "2026-10-05T13:12:20Z",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "reviewer": "Independent QC Luna",
+  "verdict": "PARTIAL_QC_PHASE1_LOCAL_ARTIFACT_NATIVE_ONLY",
+  "scope": {
+    "worktree": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM",
+    "branch": "codex/dev122-share-metadata-closure",
+    "baselineHead": "7cebdb376ef0a24cbe6bb6ee7e511323cf45b489",
+    "reviewedPackage": "OpenSWX Phase 1 feasibility reader",
+    "writeScope": ".ai-doc/qa/DEV-122-openswx-independent-qc-2026-10-05.json",
+    "pmAndProductChangesByQc": false
+  },
+  "sourceBinding": {
+    "ownFiles": [
+      {
+        "path": "scripts/dev122-openswx-feasibility.mjs",
+        "bytes": 8281,
+        "sha256": "11ceedb08012e0cc5f62f13908552369fd99b4c63475a2e515efc5a604417b9c"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/CMakeLists.txt",
+        "bytes": 916,
+        "sha256": "0a17022d464b3d8beb285366487637a7f0b1d1e3f174fe7998d847e3d7a59002"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/Dockerfile",
+        "bytes": 2769,
+        "sha256": "5c060d117d3769ced6678b209037e7e9b6e55147f2e104292a0acb61d442020f"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/README.md",
+        "bytes": 1698,
+        "sha256": "093e3815a7fe02862a69c4bb5f92af816ad7ee895cc768db24bbba36e0caf115"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/isolation.mjs",
+        "bytes": 3877,
+        "sha256": "dca546cbfb7f686fbf3fd8217c67433332839f5b5341f1593c62c146fc580d41"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/isolation.test.mjs",
+        "bytes": 4086,
+        "sha256": "b8a1b123ce5cc971769ee34f3cc8cef96c49701863d62403a9a135698aa69e6a"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/normalize.mjs",
+        "bytes": 4241,
+        "sha256": "10072d5ef4b641ba0f4b6048980d4fa035960a0dfd7ae99644937ad54154f33a"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/process.mjs",
+        "bytes": 1306,
+        "sha256": "d94d532d0543dd9025e640a63e21651480a6a454315cb3f0898b173026861ad3"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/reader.cc",
+        "bytes": 3028,
+        "sha256": "f23dd160bfb3e1c60345d4195c9df149bc7fe61720945cbd99e909488a4cde35"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/reader.test.mjs",
+        "bytes": 4118,
+        "sha256": "fcace1b4a6d047e0623d21f6099a3b12dde614745a7a44d0d4b5569116f2681c"
+      },
+      {
+        "path": "scripts/lib/openswx-reader/source-manifest.json",
+        "bytes": 7473,
+        "sha256": "f65c60b18c41738206840d9b4bff77561a4b8cbcede95ab6a62acab8b909cd18"
+      }
+    ],
+    "vendorManifest": {
+      "path": "scripts/lib/openswx-reader/source-manifest.json",
+      "sourceCommit": "30bd63845d3532cdecfdf2654e9cc0871229c45a",
+      "listedFiles": 19,
+      "verifiedFiles": 19,
+      "mismatches": [],
+      "verification": "Each local file matched manifest bytes, SHA256, and Git blob SHA1.",
+      "manifestSha256": "f65c60b18c41738206840d9b4bff77561a4b8cbcede95ab6a62acab8b909cd18"
+    },
+    "sourceState": "Uncommitted candidate under the recorded baseline HEAD; parent-authored PM changes were preserved.",
+    "dockerfileRevisionHistory": [
+      {
+        "previousSha256": "a7e9f375983767d648d5fc6397df40103de3a81a63c18beb5ee146f43ac931b3",
+        "currentSha256": "5c060d117d3769ced6678b209037e7e9b6e55147f2e104292a0acb61d442020f",
+        "bytes": 2769,
+        "change": "Separate RUN installs make from the same fixed Debian snapshot; compiler/CMake/pugi/zlib layer remains separate and available as a cached layer.",
+        "review": "Static source check only; fixed snapshot still present. No rebuild or unit-test rerun by QC."
+      }
+    ]
+  },
+  "executedChecks": {
+    "unitTests": {
+      "command": "node --test scripts/lib/openswx-reader/reader.test.mjs scripts/lib/openswx-reader/isolation.test.mjs",
+      "status": "PASS",
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 370.41,
+      "project": "AI-PDM",
+      "port": null,
+      "processTree": "This QC exec PowerShell process -> node --test and its bounded child-process test; all exited.",
+      "PDM_DATA_DIR": "%TEMP%/aipdm-dev122-openswx-qc-data",
+      "PDM_REPOSITORY_DIR": "%TEMP%/aipdm-dev122-openswx-qc-repository",
+      "databaseOrPrimaryDataMutation": false,
+      "temporaryFixtures": "Unit tests created isolated OS temporary directories and removed them in finally blocks.",
+      "testSourceSha256": "fcace1b4a6d047e0623d21f6099a3b12dde614745a7a44d0d4b5569116f2681c"
+    },
+    "mappingAndBoundsSourceReview": {
+      "storedValues": "PASS_SOURCE_REVIEWED; strings remain stored-only.",
+      "configurationScope": "PASS_SOURCE_REVIEWED; configuration values are labeled effective_merged.",
+      "configurationNameProvenance": "PASS_SOURCE_REVIEWED_AND_TESTED; nonempty config.name is asserted as library_resolved_source_unknown (16-test suite).",
+      "documentType": "PASS_SOURCE_REVIEWED; extension_inferred is explicit.",
+      "emptyAndSilentSkip": "PASS_SOURCE_REVIEWED; empty properties stay unknown and stream integrity stays unknown_silent_skip_possible.",
+      "partialCoverage": "PASS_SOURCE_REVIEWED; opened files remain partial and unsupported API fields remain explicit.",
+      "inputIsolation": "PASS_SOURCE_AND_TEST_REVIEWED; exact manifest directory, original path ancestor check, and one read-only file bind per container.",
+      "processBounds": "SOURCE_REVIEWED; 30s per file, 512MiB memory, 256MiB input, 2MiB emitted-output ceiling, 32 PIDs, 1 CPU, no network, read-only rootfs, non-root user.",
+      "outputBufferLimitation": "The C++ adapter serializes to an in-memory stream before checking the 2MiB output ceiling. The container memory limit still caps process memory at 512MiB; 2MiB is the emitted-output limit, not a serialization-buffer allocation limit.",
+      "containerCleanup": "SOURCE_REVIEWED; exact owner/image checks and direct Engine inspect readback are used; only exact 404 absence and validated 200 presence are accepted."
+    },
+    "engineHttpReadback": {
+      "status": "PASS_CURRENT_SOURCE_READBACK_VERIFIED",
+      "request": "One GET for a random nonexistent container through the current inspectContainer helper; no container mutation.",
+      "sandboxAttempt": "cleanup_readback_unknown; no HTTP response was received.",
+      "dockerCliReadOnlyDiagnosis": "permission denied at the Docker Engine named pipe; Docker config was also inaccessible to the sandbox.",
+      "narrowEscalation": "Twice not executed because automatic review failed with Selected model is at capacity. No alternate path or retry was used.",
+      "maintainerReportedPriorReadback": "A prior elevated read-only exact-404 result was reported by the root agent, but this QC agent could not independently bind that result to the current candidate source hashes.",
+      "latestAttempt": {
+        "status": "PASS",
+        "name": "aipdm-dev122-1cce7ee8-72a9-4db0-bf4c-f000a8761d3d-999999",
+        "method": "GET /v1.43/containers/<name>/json via current inspectContainer helper",
+        "httpStatus": 404,
+        "classification": "absent; current helper accepts absent only for exact Engine 404",
+        "containerMutation": "none"
+      }
+    },
+    "dockerfileFollowUpSourceReview": {
+      "status": "PASS_STATIC_SOURCE_REVIEW",
+      "path": "scripts/lib/openswx-reader/Dockerfile",
+      "bytes": 2769,
+      "sha256": "5c060d117d3769ced6678b209037e7e9b6e55147f2e104292a0acb61d442020f",
+      "makeLayerPresent": true,
+      "fixedSnapshotPresent": true,
+      "buildOrTestsRun": false
+    }
+  },
+  "historicalFindings": [
+    {
+      "id": "QC-HIST-001",
+      "severity": "P1",
+      "originalRunnerSha256": "5a48ae6d253fe892e898bd24c77b18d91bb08790084c5c360eef976ee035099e",
+      "finding": "Docker inspect nonzero exits could be misread as verified absence after unknown create/remove results.",
+      "currentDisposition": "Current source uses authoritative direct Engine response classification. Unit classification passes; this QC independently observed exact Engine 404 absence for the current helper. Runtime cleanup failure paths remain unexercised."
+    },
+    {
+      "id": "QC-HIST-002",
+      "severity": "P2",
+      "originalRunnerSha256": "5a48ae6d253fe892e898bd24c77b18d91bb08790084c5c360eef976ee035099e",
+      "finding": "The original runner mounted the whole input directory and did not reject files outside the manifest.",
+      "currentDisposition": "Current source verifies exact directory contents and mounts only the selected file read-only; source and unit coverage pass."
+    },
+    {
+      "id": "QC-HIST-003",
+      "severity": "P2",
+      "originalRunnerSha256": "5a48ae6d253fe892e898bd24c77b18d91bb08790084c5c360eef976ee035099e",
+      "finding": "Original output/input overlap checks were lexical and case-sensitive on Windows; aliases could bypass the check.",
+      "currentDisposition": "Current source checks reparse aliases and case-insensitive containment; symlink/junction and Windows containment tests pass."
+    },
+    {
+      "id": "QC-HIST-004",
+      "severity": "P2",
+      "originalNormalizeSha256": "e925f00e096d39a7e5f016373b79ce0658151aedd14e47b9562446bbf0e1b86f",
+      "finding": "A nonempty library-resolved configuration name was initially labeled stored even though the public API does not report its source.",
+      "currentDisposition": "Current source labels the name library_resolved_source_unknown; the updated 16-test suite asserts this for a nonempty name."
+    },
+    {
+      "id": "QC-HIST-005",
+      "severity": "P2",
+      "originalDockerfileSha256": "fce0c56ac28c157a20141669ccdcad58ecb607f458bf6f369537381ad2ab4d5b",
+      "finding": "Initial build inputs used floating Debian packages and did not capture complete dependency versions/licenses or own-source hashes.",
+      "currentDisposition": "R3 built-artifact manifest and archive evidence were independently checked: 31/31 current build-context files match, package TSV versions match all 157 toolchain and 89 runtime manifest entries, archive hashes match, and selected binary/license members match. Cloud Run and production remain unverified/not run."
+    },
+    {
+      "id": "QC-HIST-006",
+      "severity": "P2",
+      "finding": "Duplicate CLI flags could overwrite prior bindings while passing the original key-set check.",
+      "currentDisposition": "Current parser requires exactly four unique flags; negative unit coverage passes."
+    },
+    {
+      "id": "QC-HIST-007",
+      "severity": "P2",
+      "finding": "The initial temporary Docker config cleanup was skipped on thrown error paths.",
+      "currentDisposition": "Current source has outer finally cleanup and reports cleanup state. Runtime failure-path cleanup has not been exercised by this QC agent."
+    },
+    {
+      "id": "QC-HIST-008",
+      "severity": "P2",
+      "finding": "The intermediate path checker canonicalized the input before validating all original ancestors.",
+      "currentDisposition": "Current source checks the original input path before canonicalization; parent-junction negative test passes."
+    },
+    {
+      "id": "QC-HIST-009",
+      "severity": "P2",
+      "finding": "The CLI documentation did not say input/output directories must preexist and be disjoint.",
+      "currentDisposition": "Current README documents preexisting, disjoint, no-alias directories; output separation tests pass."
+    }
+  ],
+  "pendingEvidence": {
+    "phase1ImageBuild": "R3 SUCCESS is reported in the controlled summary and independently bound by this QC to the local Docker Engine immutable image object sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97 plus artifact archives. This establishes only the local Linux image/build artifact, not a Cloud Run image or production release.",
+    "previousBuild": "R1 floating-APT output remains non-reproducibility evidence. R2 fixed-snapshot build failed CMAKE_MAKE_MISSING; original log SHA256 9fe6fd3a30e86ce5ceca735cf4467f1593a724ca35e8d1de2f3d4be2abac0214 is preserved from the root report. R3 succeeded after the fixed-snapshot make layer.",
+    "nativeCad": "QC independently matched all 8 original J: CAD file sizes/SHA256 to original-input-ledger.json without parsing CAD. Controlled summary and actual evaluation match 8/8 real files (all partial, nonempty properties) and 4/4 negative fixtures (failed/library_open_rejected). Semantic equivalence remains unknown; no CAD parse was rerun by this QC.",
+    "cloudRunBuildDeployOrProduction": "NOT_RUN; no Cloud Run, production mutation, credentials, or local ADC were used by this QC run.",
+    "humanAcceptance": "F-01F NOT_RUN and human-owned. Whole DEV-122 remains NOT_ACCEPTED with 7 issues and 29 QA groups.",
+    "r2BuildContextTestFile": "ROOT_REPORTED: R2 build context contains prior reader.test.mjs SHA256 08a9763d8bea579781c5c0bd82ea500183e6b190dd13435d6a7652c38644e577. Compiled reader, Dockerfile, and vendor sources are reported unchanged; this QC did not rebuild. Latest reader.test.mjs SHA256 fcace1b4a6d047e0623d21f6099a3b12dde614745a7a44d0d4b5569116f2681c was verified and tested separately.",
+    "r3BuildAttempt": {
+      "status": "ROOT_REPORTED_SUCCESS_QC_IMAGE_ARTIFACT_VERIFIED",
+      "leasePrefix": "0bd2",
+      "pid": 24752,
+      "processStartFingerprint": "134356807329648942",
+      "r2Status": "ROOT_REPORTED_FAILED_AND_LEASE_RELEASED",
+      "r2Failure": "CMAKE_MAKE_MISSING",
+      "r2FailureLogSha256": "9fe6fd3a30e86ce5ceca735cf4467f1593a724ca35e8d1de2f3d4be2abac0214",
+      "preflight": "Root reports current input/output checks and exact Engine 404 passed; QC independently rechecked only Engine 404, not input/output.",
+      "result": "Local immutable image GET, artifact manifest, 31 source files, archives, package tables and selected binary/license members verified by QC. Root reports build PID and capacity lease released; driver registration failure is not claimed as registered."
+    },
+    "r3BuildContext": "QC compared all 31 built-artifact-manifest build-context entries to current worktree files: 31/31 match, 146776 bytes, including current Dockerfile and reader.test.mjs hashes. Manifest source drift is empty.",
+    "phase2ReadOnlyAuxiliary": "Root reports human selected read-only auxiliary result development and TL is revising the spec. This QC performed no Phase 2 implementation or product/spec edits."
+  },
+  "orchestrationContextReportedByRoot": {
+    "R1": {
+      "pid": 13520,
+      "processStartFingerprint": "134356777100543776",
+      "status": "stopped_and_resources_released_reported_by_root",
+      "qcIndependentlyVerified": false
+    },
+    "R2": {
+      "pid": 3252,
+      "processStartFingerprint": "134356792171107068",
+      "status": "running_reported_by_root",
+      "fixedSnapshotSourceBytes": 146585,
+      "containsCad": false,
+      "qcIndependentlyVerified": false
+    }
+  },
+  "followUpRecheck": {
+    "recordedAtUtc": "2026-10-05 13:31:52 UTC",
+    "changedFile": {
+      "path": "scripts/lib/openswx-reader/reader.test.mjs",
+      "previousSha256": "08a9763d8bea579781c5c0bd82ea500183e6b190dd13435d6a7652c38644e577",
+      "currentSha256": "fcace1b4a6d047e0623d21f6099a3b12dde614745a7a44d0d4b5569116f2681c",
+      "bytes": 4118
+    },
+    "coverage": "Nonempty configuration name is asserted to remain library_resolved_source_unknown.",
+    "tests": {
+      "command": "node --test scripts/lib/openswx-reader/reader.test.mjs scripts/lib/openswx-reader/isolation.test.mjs",
+      "status": "PASS",
+      "passed": 16,
+      "failed": 0,
+      "pdmDataDir": "%TEMP%/aipdm-dev122-openswx-qc-data",
+      "pdmRepositoryDir": "%TEMP%/aipdm-dev122-openswx-qc-repository"
+    },
+    "engineReadback": {
+      "status": "PASS",
+      "name": "aipdm-dev122-1cce7ee8-72a9-4db0-bf4c-f000a8761d3d-999999",
+      "method": "GET /v1.43/containers/<name>/json via current inspectContainer helper",
+      "httpStatus": 404,
+      "classification": "absent; current helper accepts absent only for exact Engine 404",
+      "containerMutation": "none"
+    },
+    "r2Build": "Not started or repeated by QC; root-reported build context retains the prior test assertion revision."
+  },
+  "followUpDockerfileRecheck": {
+    "recordedAtUtc": "2026-10-05 13:33:28 UTC",
+    "file": {
+      "path": "scripts/lib/openswx-reader/Dockerfile",
+      "previousSha256": "a7e9f375983767d648d5fc6397df40103de3a81a63c18beb5ee146f43ac931b3",
+      "currentSha256": "5c060d117d3769ced6678b209037e7e9b6e55147f2e104292a0acb61d442020f",
+      "bytes": 2769
+    },
+    "sourceObservation": "A separate apt-get layer installs make from the same pinned Debian snapshot; compiler/CMake/pugi/zlib install layer remains separate. Static inspection only.",
+    "r2FailureHistory": {
+      "status": "ROOT_REPORTED_FAILED_CMAKE_MAKE_MISSING",
+      "logSha256": "9fe6fd3a30e86ce5ceca735cf4467f1593a724ca35e8d1de2f3d4be2abac0214",
+      "qcLogReview": "not performed"
+    },
+    "r3Status": "ROOT_REPORTED_ACTIVE_WARNING; output pending",
+    "unitTests": "Not rerun per instruction."
+  },
+  "followUpPhase1ArtifactCadCleanupQc": {
+    "recordedAtUtc": "2026-10-05 14:03:42 UTC",
+    "verdict": "PARTIAL_QC_PHASE1_LOCAL_ARTIFACT_NATIVE_ONLY",
+    "scope": "Read-only independent artifact/source/CAD-hash/cleanup cross-check. No build, CAD parse, test rerun, container mutation, Cloud Run/production action, or cleanup by this QC.",
+    "controlledSummaries": [
+      {
+        "path": ".ai-doc/qa/DEV-122-openswx-feasibility-2026-10-05.json",
+        "bytes": 22224,
+        "sha256": "6317a38ab72f029c08523202f053876e3ad196af1a77cf8bd8f445dcb96c459a",
+        "expectedSha256": "6317a38ab72f029c08523202f053876e3ad196af1a77cf8bd8f445dcb96c459a",
+        "match": true
+      },
+      {
+        "path": ".ai-doc/qa/DEV-122-openswx-built-artifact-2026-10-05.json",
+        "bytes": 74049,
+        "sha256": "865489c37c2b5383784a77ab77f804978aeb9c8d595eb8ab5689604736e4a9ce",
+        "expectedSha256": "865489c37c2b5383784a77ab77f804978aeb9c8d595eb8ab5689604736e4a9ce",
+        "match": true
+      },
+      {
+        "path": "output/qa/dev-122/openswx-cloud-run-20261005/governor/temp/development/5cb67529-5eaa-4508-ad91-dec5255a628e/native-output/built-artifact-manifest.json",
+        "bytes": 74049,
+        "sha256": "865489c37c2b5383784a77ab77f804978aeb9c8d595eb8ab5689604736e4a9ce",
+        "byteIdenticalToArtifactSummary": true
+      }
+    ],
+    "summaryToActualEvaluation": {
+      "positiveFiles": {
+        "summary": 8,
+        "actualEvaluation": 8,
+        "matched": 8,
+        "mismatches": []
+      },
+      "negativeFixtures": {
+        "summary": 4,
+        "actualEvaluation": 4,
+        "matched": 4,
+        "mismatches": []
+      },
+      "nativeOutcomes": "All 8 actual CAD results are partial with nonempty observed properties; all remain semanticEquivalence unknown_pending_human_ground_truth and document type extension_inferred.",
+      "negativeOutcomes": "All 4 negative fixtures failed with library_open_rejected and verified_absent cleanup."
+    },
+    "imageBinding": {
+      "immutableImageId": "sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97",
+      "allEvidenceImageIdsEqual": true,
+      "directDockerEngineImageGet": {
+        "statusCode": 200,
+        "id": "sha256:41ca13a8256349410a983f792a78dd0d5cd5d0eb91175cb3f82a6c00c62aeb97",
+        "os": "linux",
+        "architecture": "amd64",
+        "user": "65532:65532",
+        "rootfsLayers": 9,
+        "match": true
+      },
+      "cloudRunArtifact": false,
+      "productionValidation": "NOT_RUN"
+    },
+    "sourceBinding": {
+      "runnerExpectedSha256": "11ceedb08012e0cc5f62f13908552369fd99b4c63475a2e515efc5a604417b9c",
+      "runnerCurrentSha256": "11ceedb08012e0cc5f62f13908552369fd99b4c63475a2e515efc5a604417b9c",
+      "buildContextFiles": 31,
+      "buildContextBytes": 146776,
+      "currentWorktreeMatches": 31,
+      "mismatches": [],
+      "imageManifestSourceDrift": [],
+      "vendorCommit": "30bd63845d3532cdecfdf2654e9cc0871229c45a",
+      "vendorFiles": 19,
+      "embeddedSourceManifestSha256": "f65c60b18c41738206840d9b4bff77561a4b8cbcede95ab6a62acab8b909cd18",
+      "currentKeyFileHashes": [
+        {
+          "path": "scripts/lib/openswx-reader/Dockerfile",
+          "bytes": 2769,
+          "sha256": "5c060d117d3769ced6678b209037e7e9b6e55147f2e104292a0acb61d442020f"
+        },
+        {
+          "path": "scripts/lib/openswx-reader/reader.test.mjs",
+          "bytes": 4118,
+          "sha256": "fcace1b4a6d047e0623d21f6099a3b12dde614745a7a44d0d4b5569116f2681c"
+        },
+        {
+          "path": "scripts/lib/openswx-reader/source-manifest.json",
+          "bytes": 7473,
+          "sha256": "f65c60b18c41738206840d9b4bff77561a4b8cbcede95ab6a62acab8b909cd18"
+        }
+      ]
+    },
+    "packageAndLicenseBinding": {
+      "toolchainPackageCount": 157,
+      "runtimePackageCount": 89,
+      "packageTsvParsedAndCompared": true,
+      "mismatches": [],
+      "versions": {
+        "make": "4.3-4.1",
+        "cmake": "3.25.1-1",
+        "g++": "4:12.2.0-3",
+        "libpugixml-dev:amd64": "1.13-0.2",
+        "libpugixml1v5:amd64": "1.13-0.2",
+        "zlib1g:amd64": "1:1.2.13.dfsg-1"
+      },
+      "artifactFileCount": 268,
+      "licenseArtifactCount": 261,
+      "archives": [
+        {
+          "file": "reader-build.tar",
+          "bytes": 4493312,
+          "sha256": "88c6bf546b3c518a01930d2bff79a3e931eff4ddb73f2a54060ec29c148d9e40",
+          "match": true
+        },
+        {
+          "file": "runtime-packages.tar",
+          "bytes": 4096,
+          "sha256": "d3d2f07bec4ee07ea37b5ba08038f44bae0c6f46a610826651e93fdcdaff0e7b",
+          "match": true
+        },
+        {
+          "file": "reader-binary.tar",
+          "bytes": 195584,
+          "sha256": "adf65df139097841281d5f0f67dcd7a4b56f7c2272ddf1a6c700efa0ff858c4a",
+          "match": true
+        }
+      ],
+      "sampledArchiveMembers": [
+        {
+          "archive": "reader-binary.tar",
+          "path": "aipdm-openswx-reader",
+          "bytes": 193896,
+          "sha256": "ea67594444b6f9e0028f136e3820f798713dc8c038c5bf0b56e56982c8b3e36e",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/OpenSWX-LICENSE",
+          "bytes": 1077,
+          "sha256": "f0a4162356ca7a87c1f971a9f8828799a54297e3faad68fd06f53b803a45b45e",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/source-manifest.json",
+          "bytes": 7473,
+          "sha256": "f65c60b18c41738206840d9b4bff77561a4b8cbcede95ab6a62acab8b909cd18",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/toolchain-packages.tsv",
+          "bytes": 4296,
+          "sha256": "4c87da4c4bc489fe1657f467a63dab0f4306ae1bcf7bf542c9cb99953083b464",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "runtime-packages.tar",
+          "path": "runtime-packages.tsv",
+          "bytes": 2340,
+          "sha256": "fdcea8786d9f6bf85723859b645522531f08c0fa5512ac289cc3edd027aa1c03",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/compiler.txt",
+          "bytes": 240,
+          "sha256": "caf794435afe6be08582cd57c892872e093d9b6a9d45df9940cfe7d2398e3c91",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/cmake.txt",
+          "bytes": 91,
+          "sha256": "f4a9d760d2f9fe05719f20377b3562eb9c97c65aac742714d3f095d6aa4086a9",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/licenses/cmake.txt",
+          "bytes": 29578,
+          "sha256": "b70ca2018b7fd516ac9b9953678c1a9733eb9e15f3cfbe9b26c137ef0dbd5782",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/licenses/g++.txt",
+          "bytes": 2196,
+          "sha256": "156004744edbf17a975f0004ac4a9295b160ab403d646c445235711255ca9ff8",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/licenses/libpugixml-dev.txt",
+          "bytes": 2473,
+          "sha256": "7725a986e63782b482d489ac13385ef87d67e52fd8403f9fbeed5dbd2bcc7ef2",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/licenses/zlib1g.txt",
+          "bytes": 2927,
+          "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/common-licenses/GFDL-1.3",
+          "bytes": 22955,
+          "sha256": "110535522396708cea37c72a802c5e7e81391139f5f7985631c93ef242b206a4",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/common-licenses/GPL-3",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/common-licenses/LGPL-3",
+          "bytes": 7652,
+          "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/runtime-license-sha256.txt",
+          "bytes": 9918,
+          "sha256": "4ace7f4161733a51c568cb070c4eb319a737aa1600dd57654579d2cf51615b1f",
+          "manifestMemberMatch": true
+        },
+        {
+          "archive": "reader-build.tar",
+          "path": "reader-build/runtime-licenses/zlib1g.txt",
+          "bytes": 2927,
+          "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6",
+          "manifestMemberMatch": true
+        }
+      ],
+      "licenseAliases": [
+        {
+          "path": "reader-build/common-licenses/GFDL",
+          "target": "reader-build/common-licenses/GFDL-1.3",
+          "resolvedSha256": "110535522396708cea37c72a802c5e7e81391139f5f7985631c93ef242b206a4",
+          "targetHashMatch": true
+        },
+        {
+          "path": "reader-build/common-licenses/GPL",
+          "target": "reader-build/common-licenses/GPL-3",
+          "resolvedSha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "targetHashMatch": true
+        },
+        {
+          "path": "reader-build/common-licenses/LGPL",
+          "target": "reader-build/common-licenses/LGPL-3",
+          "resolvedSha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+          "targetHashMatch": true
+        }
+      ],
+      "packageVersionsAndLicenseHashesAreLocalImageArtifactEvidenceOnly": true
+    },
+    "originalJCadFiles": {
+      "sourceRoot": "J:/我的雲端硬碟/02_工作/00_雜項任務(進行中)/20260703 PDM開發",
+      "externalTransfer": false,
+      "readable": 8,
+      "total": 8,
+      "allHashesAndBytesMatchLedger": true,
+      "files": [
+        {
+          "name": "A0029-M01.SLDDRW",
+          "bytes": 171795,
+          "sha256": "06fd8358ce29411ea49ae466e1404b0ecc2fc964bbc98534d2df897ab09453bd",
+          "ledgerMatch": true,
+          "currentOriginalJHashMatch": true
+        },
+        {
+          "name": "A0029.SLDPRT",
+          "bytes": 114885,
+          "sha256": "d3f2349aa36baf24d3e7fc0044cd2004897e62137bbb279b5da329f6521dfc39",
+          "ledgerMatch": true,
+          "currentOriginalJHashMatch": true
+        },
+        {
+          "name": "A0033-M01.SLDDRW",
+          "bytes": 366460,
+          "sha256": "55283cd6290ada4736c6e12de773d3d9b58eebdc5f10fce2cff313469e724bd0",
+          "ledgerMatch": true,
+          "currentOriginalJHashMatch": true
+        },
+        {
+          "name": "A0033.SLDPRT",
+          "bytes": 274042,
+          "sha256": "a350ea0b8e3ec2a47d700502cf3126166b480b88068a68bdf8aa5b5756987c44",
+          "ledgerMatch": true,
+          "currentOriginalJHashMatch": true
+        },
+        {
+          "name": "A0053-M01.SLDDRW",
+          "bytes": 311452,
+          "sha256": "55bc18848c616c5758d23716fc839857a180f1bf05e274f5912588b60087f3f6",
+          "ledgerMatch": true,
+          "currentOriginalJHashMatch": true
+        },
+        {
+          "name": "A0053.SLDASM",
+          "bytes": 174437,
+          "sha256": "a742e01991a82f08170e82fb137819bb0b1b4ebad8096fe035f841c383385694",
+          "ledgerMatch": true,
+          "currentOriginalJHashMatch": true
+        },
+        {
+          "name": "D-0007-MA1.SLDDRW",
+          "bytes": 145826,
+          "sha256": "4e39ce88825ae14948353b79455daa2bc35c8b97f1c5706810f1ad926c301d09",
+          "ledgerMatch": true,
+          "currentOriginalJHashMatch": true
+        },
+        {
+          "name": "D-0007-MA1.SLDPRT",
+          "bytes": 193353,
+          "sha256": "695ecccd9f4a6425faef1196b319579a8a5011de26d655baa0509a4f61bfc3e2",
+          "ledgerMatch": true,
+          "currentOriginalJHashMatch": true
+        }
+      ]
+    },
+    "containerReadback": {
+      "helperSha256": "dca546cbfb7f686fbf3fd8217c67433332839f5b5341f1593c62c146fc580d41",
+      "exactIdsChecked": 14,
+      "absent": 14,
+      "errors": 0,
+      "method": "One direct Docker Engine GET per manifest-listed container ID; helper accepts absent only from exact 404 response with exact no-such-container message.",
+      "ids": [
+        {
+          "group": "positive",
+          "containerId": "320d15284b046bedb86dbc1b4180c82c8489e1160c6389933c99b678223477e3",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "positive",
+          "containerId": "f0e627e30d5b90caa17d3597b088960e171ae2988b73444f151a7fadb141edfe",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "positive",
+          "containerId": "c38af78d035b014f4dcf10d0e16dc9ec0b38a835e2095771d203ce2d9cdfb4a9",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "positive",
+          "containerId": "c0e241a7b7b8963f5f79adfb9ebecd59af72725e24671b36455cb5fb60cc9c73",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "positive",
+          "containerId": "f732ceaa642785db8121357b250e775c0dee87c0e43fe9549eea253d3756405c",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "positive",
+          "containerId": "e6e8623756b1e49c404919e3ad4114e14ac8a87b69ce634b3844920d90d8af82",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "positive",
+          "containerId": "7637463763a17727c3571c273c807279ff093023f964e92473898c6df2e19b40",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "positive",
+          "containerId": "b965e5e1cd55c636870943c9d149c6a375479eedff8ceb502f23fb70f2156c19",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "negative",
+          "containerId": "ad36235f26fc13b70abb06df4902555a334304d4c448bad5c0de270387b1ab86",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "negative",
+          "containerId": "17324d7080fcb5c0f9b44c7b8f336bca3adaf9b6f85c56803d859de56470da00",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "negative",
+          "containerId": "f17ec0b73bf20f440a7e373858eec0815c06ef4c2634f0f6e9f24e1d8da5988d",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "negative",
+          "containerId": "5d202fcbe2375d98894ec5fad7c18e430074f2900f13e78bd7565df9264283ab",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "artifact-r1",
+          "containerId": "5e4094432761c306b9b43cbe137b4ee01284d12fada438ef8292f3bff7e9d7ab",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        },
+        {
+          "group": "artifact-r2",
+          "containerId": "318bc2415148c26093dfce576ce3cd5b7d6dae0684bdd2b493ab012264c67e9d",
+          "status": "absent",
+          "method": "current inspectContainer helper; direct Engine GET accepted only exact 404"
+        }
+      ],
+      "mutation": "none"
+    },
+    "driverConfigs": {
+      "mainEvaluation": "verified_absent",
+      "negativeEvaluation": "verified_absent",
+      "exactPathsLstat": [
+        {
+          "path": "native-output/docker-cli",
+          "status": "ABSENT",
+          "code": "ENOENT"
+        },
+        {
+          "path": "native-output/negative-output/docker-cli",
+          "status": "ABSENT",
+          "code": "ENOENT"
+        },
+        {
+          "path": "native-output/artifact/docker-cli",
+          "status": "ABSENT",
+          "code": "ENOENT"
+        },
+        {
+          "path": "native-output/artifact-archives/docker-cli",
+          "status": "ABSENT",
+          "code": "ENOENT"
+        }
+      ],
+      "note": "Only exact expected path names were checked; config.json contents were not read."
+    },
+    "retainedFailureHistory": {
+      "r2Build": {
+        "status": "ROOT_REPORTED_FAILED_CMAKE_MAKE_MISSING",
+        "logSha256": "9fe6fd3a30e86ce5ceca735cf4467f1593a724ca35e8d1de2f3d4be2abac0214"
+      },
+      "artifactRuntimeFirstAttempt": {
+        "status": "FAILED_WINDOWS_SYMLINK_PRIVILEGE",
+        "containerId": "5e4094432761c306b9b43cbe137b4ee01284d12fada438ef8292f3bff7e9d7ab",
+        "error": "symlink GFDL-1.3 failed: A required privilege is not held by the client; original artifact-runtime.json retained."
+      },
+      "artifactRuntimeArchiveRetry": {
+        "status": "PASS",
+        "containerId": "318bc2415148c26093dfce576ce3cd5b7d6dae0684bdd2b493ab012264c67e9d",
+        "extraction": "archive hashes matched; no host symlink/path extraction."
+      },
+      "r1Build": "floating-APT build remains excluded from reproducibility evidence."
+    },
+    "driverLifecycle": {
+      "processRegistration": "ROOT_REPORTED PROCESS_FINGERPRINT_UNAVAILABLE; do not claim that the positive driver was registered. The driver-runtime PID/start token fields are not registration confirmation.",
+      "r3BuildAndLease": "Root reports R3 process/lease released; manifest buildPidAbsent true.",
+      "taskResources": "QC made no cleanup; root may perform its previously planned owner cleanup after this independent read-only check."
+    },
+    "limits": {
+      "noSemanticEquivalence": "All actual CAD outcomes remain partial; semantic equality awaits human ground truth.",
+      "streamIntegrity": "unknown_silent_skip_possible",
+      "configurationScope": "effective_merged; pure configuration-owned scope unsupported",
+      "cloudRun": "NOT_RUN; local Linux image is not a Cloud Run artifact.",
+      "humanF01F": "NOT_RUN_HUMAN_OWNED",
+      "wholeDev": "NOT_ACCEPTED; 7 issues and 29 QA groups remain.",
+      "unitTests": "Earlier 16/16 source/unit check remains bound; no tests were rerun for this artifact/CAD/cleanup QC."
+    }
+  }
+}

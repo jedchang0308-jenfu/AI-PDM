@@ -9,6 +9,14 @@ import {
 import type { JenfuRouteDiscriminator } from "@/lib/jenfu-route-permission-map";
 
 describe("DEV-121 route authorization manifest", () => {
+  it("auxiliary context GET/POST/cancel bind only published review/run and preserve the exact denominator", () => {
+    expect(JENFU_ROUTE_PERMISSION_MAP.denominator).toEqual({ uniqueFiles: 140, uniqueMethods: 161, policyEntries: 171 });
+    const path = "src/app/api/numbering/openswx-metadata/drawing_revision/own-context/route.ts";
+    expect(resolveJenfuRoutePolicy(path, "GET", { expectedPermissionCode: "numbering.recognition.review" })).toMatchObject({ permissionCode: "numbering.recognition.review" });
+    expect(resolveJenfuRoutePolicy(path, "POST", { expectedPermissionCode: "numbering.recognition.run" })).toMatchObject({ permissionCode: "numbering.recognition.run" });
+    expect(resolveJenfuRoutePolicy(path.replace("/route.ts", "/cancel/route.ts"), "POST", { expectedPermissionCode: "numbering.recognition.run" })).toMatchObject({ permissionCode: "numbering.recognition.run" });
+    expect(resolveJenfuRoutePolicy(path, "POST", { expectedPermissionCode: "numbering.recognition.review" })).toBeNull();
+  });
   it("checks the declared denominator against actual entries and routes", () => {
     expect(validateJenfuRoutePermissionMap()).toEqual(JENFU_ROUTE_PERMISSION_MAP.denominator);
   });

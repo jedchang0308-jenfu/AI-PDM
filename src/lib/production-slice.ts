@@ -56,6 +56,11 @@ const alwaysAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp 
 ];
 
 const sliceAllowedApiMutationMatchers: Array<{ method: string; pattern: RegExp }> = [
+  // Auxiliary-only purpose: the human Principal/worker/Scheduler guards remain authoritative.
+  { method: "POST", pattern: /^\/api\/numbering\/openswx-metadata\/(?:drawing_number|drawing_revision|revision_package|candidate_revision)\/[^/]+(?:\/cancel)?$/u },
+  { method: "POST", pattern: /^\/api\/openswx-metadata-jobs\/claim$/u },
+  { method: "POST", pattern: /^\/api\/openswx-metadata-jobs\/[^/]+\/(?:heartbeat|complete)$/u },
+  { method: "POST", pattern: /^\/api\/openswx-metadata-dispatch\/recover$/u },
   // Dispatch only; the existing Principal and technical-executor guards remain authoritative.
   { method: "POST", pattern: /^\/api\/settings\/secrets\/solidworks_document_manager\/draft$/u },
   { method: "POST", pattern: /^\/api\/settings\/secrets\/[^/]+\/(?:test|activate|revoke)$/u },

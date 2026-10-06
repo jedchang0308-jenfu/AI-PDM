@@ -277,6 +277,7 @@ function initDatabase(database: SqliteDatabase) {
   ensureSubmissionLifecycleRequestSchema(database);
   ensureReviewConfirmationDecisionSchema(database);
   ensureSettingsSecretLifecycleSchema(database);
+  ensureOpenSwxMetadataSchema(database);
   ensureShared3dBaselineSchema(database);
   ensureSubmissionIndexes(database);
   reconcileItemCurrentRevisions(database);
@@ -1901,6 +1902,68 @@ function ensureSubmissionStoragePointerSchema(database: SqliteDatabase) {
       ON submission_files(storage_provider, storage_bucket, storage_key);
     CREATE INDEX IF NOT EXISTS idx_release_packages_storage_pointer
       ON release_packages(storage_provider, storage_bucket, storage_key);
+  `);
+}
+
+/** DEV-122 auxiliary queue only. Tests can initialize this schema on an invariant-checked isolated fixture. */
+export function ensureOpenSwxMetadataSchema(database: SqliteDatabase) {
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS openswx_session_company_identity ON drawing_recognition_sessions(company_id,id);
+    CREATE UNIQUE INDEX IF NOT EXISTS openswx_number_company_identity ON drawing_numbers(company_id,id);
+    CREATE UNIQUE INDEX IF NOT EXISTS openswx_revision_company_identity ON drawing_revisions(company_id,id);
+    CREATE UNIQUE INDEX IF NOT EXISTS openswx_package_company_identity ON drawing_revision_packages(company_id,id);
+    CREATE UNIQUE INDEX IF NOT EXISTS openswx_candidate_company_identity ON numbering_candidate_revision_drafts(company_id,id);
+    CREATE TABLE IF NOT EXISTS openswx_metadata_jobs (
+      id TEXT PRIMARY KEY,company_id TEXT NOT NULL,session_id TEXT,
+      source_context_type TEXT NOT NULL CHECK(source_context_type IN ('drawing_number','drawing_revision','revision_package','candidate_revision')),source_context_id TEXT NOT NULL,
+      drawing_number_id TEXT,drawing_revision_id TEXT,revision_package_id TEXT,candidate_revision_id TEXT,
+      source_set_fingerprint TEXT NOT NULL CHECK(length(source_set_fingerprint)=64 AND source_set_fingerprint NOT GLOB '*[^a-f0-9]*'),
+      reader_commit TEXT NOT NULL CHECK(reader_commit='30bd63845d3532cdecfdf2654e9cc0871229c45a'),
+      initiator_principal_id TEXT NOT NULL,initiator_pdm_user_id TEXT NOT NULL,
+      initiator_json TEXT NOT NULL CHECK(json_valid(initiator_json) AND json_type(initiator_json)='object'),
+      sources_json TEXT NOT NULL CHECK(json_valid(sources_json) AND json_type(sources_json)='array' AND json_array_length(sources_json) BETWEEN 1 AND 8),
+      status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','running','completed','failed','cancelled')),
+      attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count BETWEEN 0 AND 2),
+      locked_by TEXT CHECK(locked_by IS NULL OR locked_by='openswx-metadata-reader'),lease_expires_at TEXT,heartbeat_at TEXT,
+      dispatch_state TEXT NOT NULL DEFAULT 'due' CHECK(dispatch_state IN ('due','requested','dispatched','dispatch_unknown','terminal')),
+      dispatch_generation INTEGER NOT NULL DEFAULT 0 CHECK(dispatch_generation>=0),dispatch_lease_expires_at TEXT,dispatch_requested_at TEXT,dispatch_request_window_end TEXT,
+      provider_operation TEXT,execution_name TEXT,
+      completion_digest TEXT CHECK(completion_digest IS NULL OR (length(completion_digest)=64 AND completion_digest NOT GLOB '*[^a-f0-9]*')),
+      completion_receipt_id TEXT UNIQUE,completion_audit_json TEXT,result_json TEXT,result_bytes INTEGER CHECK(result_bytes BETWEEN 1 AND 2097152),completed_at TEXT,
+      created_at TEXT NOT NULL,updated_at TEXT NOT NULL,
+      UNIQUE(company_id,source_context_type,source_context_id,source_set_fingerprint,reader_commit),
+      CHECK((drawing_number_id IS NOT NULL)+(drawing_revision_id IS NOT NULL)+(revision_package_id IS NOT NULL)+(candidate_revision_id IS NOT NULL)=1 AND COALESCE(CASE source_context_type WHEN 'drawing_number' THEN drawing_number_id WHEN 'drawing_revision' THEN drawing_revision_id WHEN 'revision_package' THEN revision_package_id WHEN 'candidate_revision' THEN candidate_revision_id END=source_context_id,0)),
+      FOREIGN KEY(company_id,drawing_number_id) REFERENCES drawing_numbers(company_id,id) ON DELETE RESTRICT,
+      FOREIGN KEY(company_id,drawing_revision_id) REFERENCES drawing_revisions(company_id,id) ON DELETE RESTRICT,
+      FOREIGN KEY(company_id,revision_package_id) REFERENCES drawing_revision_packages(company_id,id) ON DELETE RESTRICT,
+      FOREIGN KEY(company_id,candidate_revision_id) REFERENCES numbering_candidate_revision_drafts(company_id,id) ON DELETE RESTRICT,
+      FOREIGN KEY(company_id,session_id) REFERENCES drawing_recognition_sessions(company_id,id) ON DELETE RESTRICT,
+      FOREIGN KEY(company_id,initiator_pdm_user_id,initiator_principal_id) REFERENCES principal_accounts(company_id,pdm_user_id,principal_id) ON DELETE RESTRICT,
+      CHECK(COALESCE(json_extract(initiator_json,'$.companyId')=company_id AND json_extract(initiator_json,'$.principalId')=initiator_principal_id AND json_extract(initiator_json,'$.pdmUserId')=initiator_pdm_user_id,0)),
+      CHECK(status<>'running' OR (attempt_count>0 AND locked_by IS NOT NULL AND lease_expires_at IS NOT NULL AND execution_name IS NOT NULL AND dispatch_state='dispatched')),
+      CHECK(status<>'completed' OR (completion_digest IS NOT NULL AND completion_receipt_id IS NOT NULL AND completion_audit_json IS NOT NULL AND result_json IS NOT NULL AND result_bytes IS NOT NULL AND completed_at IS NOT NULL)),
+      CHECK(completion_audit_json IS NULL OR (json_valid(completion_audit_json) AND json_type(completion_audit_json)='object')),
+      CHECK(result_json IS NULL OR COALESCE(length(CAST(result_json AS BLOB))=result_bytes AND json_extract(result_json,'$.schemaVersion')='aipdm.openswx-auxiliary.v1',0))
+    );
+    CREATE INDEX IF NOT EXISTS openswx_metadata_due ON openswx_metadata_jobs(dispatch_state,status,created_at,id);
+    CREATE UNIQUE INDEX IF NOT EXISTS openswx_metadata_one_admission ON openswx_metadata_jobs((1)) WHERE dispatch_state IN ('requested','dispatched','dispatch_unknown');
+    CREATE TRIGGER IF NOT EXISTS openswx_metadata_source_binding BEFORE INSERT ON openswx_metadata_jobs BEGIN
+      SELECT CASE WHEN NEW.session_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM drawing_recognition_sessions session WHERE session.id=NEW.session_id AND session.company_id=NEW.company_id AND session.source_context_type=NEW.source_context_type AND session.source_context_id=NEW.source_context_id) THEN RAISE(ABORT,'openswx_session_provenance_invalid') END;
+      SELECT CASE WHEN EXISTS(SELECT 1 FROM json_each(NEW.sources_json) j WHERE COALESCE(json_type(j.value,'$.bytes'),'')<>'integer' OR COALESCE(json_type(j.value,'$.sourceRole'),'')<>'text' OR COALESCE(length(json_extract(j.value,'$.sourceRole')),0) NOT BETWEEN 1 AND 100 OR COALESCE(json_type(j.value,'$.sortOrder'),'')<>'integer' OR json_extract(j.value,'$.sortOrder')<>CAST(j.key AS INTEGER) OR COALESCE(json_type(j.value,'$.storageGeneration'),'') NOT IN ('null','text') OR NOT EXISTS (
+        SELECT 1 FROM file_assets asset WHERE asset.id=json_extract(j.value,'$.fileAssetId') AND asset.id=json_extract(j.value,'$.id') AND asset.deleted_at IS NULL AND asset.content_hash=json_extract(j.value,'$.sha256') AND asset.file_size=json_extract(j.value,'$.bytes') AND asset.file_size BETWEEN 1 AND 268435456 AND json_extract(j.value,'$.extension') IN ('sldprt','sldasm','slddrw') AND lower(ltrim(asset.file_ext,'.'))=json_extract(j.value,'$.extension') AND COALESCE(asset.storage_generation,'')=COALESCE(json_extract(j.value,'$.storageGeneration'),'') AND ((NEW.source_context_type='drawing_number' AND EXISTS(SELECT 1 FROM file_assets link JOIN drawing_numbers parent ON parent.id=link.linked_entity_id AND parent.company_id=NEW.company_id WHERE link.id=asset.id AND link.linked_entity_type='drawing_number' AND parent.id=NEW.source_context_id))
+ OR (NEW.source_context_type='candidate_revision' AND EXISTS(SELECT 1 FROM numbering_candidate_revision_files file JOIN numbering_candidate_revision_drafts parent ON parent.id=file.candidate_revision_id AND parent.company_id=file.company_id JOIN numbering_draft_workspaces workspace ON workspace.id=parent.workspace_id AND workspace.company_id=parent.company_id WHERE parent.id=NEW.source_context_id AND parent.company_id=NEW.company_id AND file.source_file_asset_id=asset.id AND file.removed_at IS NULL))
+ OR (NEW.source_context_type='revision_package' AND EXISTS(SELECT 1 FROM drawing_revision_package_files file JOIN drawing_revision_packages parent ON parent.id=file.package_id WHERE parent.id=NEW.source_context_id AND parent.company_id=NEW.company_id AND file.source_file_asset_id=asset.id))
+ OR (NEW.source_context_type='drawing_revision' AND (EXISTS(SELECT 1 FROM drawing_revision_files file JOIN drawing_revisions parent ON parent.id=file.drawing_revision_id AND parent.company_id=file.company_id JOIN drawings drawing ON drawing.id=parent.drawing_id AND drawing.company_id=parent.company_id WHERE parent.id=NEW.source_context_id AND parent.company_id=NEW.company_id AND file.source_file_asset_id=asset.id AND file.removed_at IS NULL)
+ OR EXISTS(SELECT 1 FROM canonical_workbench_states state JOIN drawing_revision_works work ON work.id=state.work_id AND work.company_id=state.company_id JOIN drawing_revision_work_files binding ON binding.work_id=work.id JOIN drawing_revision_files file ON file.id=binding.file_binding_id AND file.company_id=state.company_id WHERE state.revision_id=NEW.source_context_id AND state.company_id=NEW.company_id AND file.source_file_asset_id=asset.id AND file.removed_at IS NULL))))
+      )) OR (SELECT count(DISTINCT json_extract(value,'$.fileAssetId')) FROM json_each(NEW.sources_json))<>json_array_length(NEW.sources_json)
+      THEN RAISE(ABORT,'openswx_source_binding_invalid') END;
+    END;
+    CREATE TRIGGER IF NOT EXISTS openswx_metadata_immutable BEFORE UPDATE ON openswx_metadata_jobs WHEN
+      NEW.id IS NOT OLD.id OR NEW.company_id IS NOT OLD.company_id OR NEW.session_id IS NOT OLD.session_id OR NEW.source_context_type IS NOT OLD.source_context_type OR NEW.source_context_id IS NOT OLD.source_context_id OR NEW.drawing_number_id IS NOT OLD.drawing_number_id OR NEW.drawing_revision_id IS NOT OLD.drawing_revision_id OR NEW.revision_package_id IS NOT OLD.revision_package_id OR NEW.candidate_revision_id IS NOT OLD.candidate_revision_id OR NEW.source_set_fingerprint IS NOT OLD.source_set_fingerprint OR NEW.reader_commit IS NOT OLD.reader_commit OR NEW.initiator_principal_id IS NOT OLD.initiator_principal_id OR NEW.initiator_pdm_user_id IS NOT OLD.initiator_pdm_user_id OR NEW.initiator_json IS NOT OLD.initiator_json OR NEW.sources_json IS NOT OLD.sources_json OR NEW.created_at IS NOT OLD.created_at
+      BEGIN SELECT RAISE(ABORT,'openswx_snapshot_immutable'); END;
+    CREATE TRIGGER IF NOT EXISTS openswx_metadata_receipt_immutable BEFORE UPDATE ON openswx_metadata_jobs WHEN OLD.completion_digest IS NOT NULL AND (
+      NEW.completion_digest IS NOT OLD.completion_digest OR NEW.completion_receipt_id IS NOT OLD.completion_receipt_id OR NEW.completion_audit_json IS NOT OLD.completion_audit_json OR NEW.result_json IS NOT OLD.result_json OR NEW.result_bytes IS NOT OLD.result_bytes OR NEW.completed_at IS NOT OLD.completed_at)
+      BEGIN SELECT RAISE(ABORT,'openswx_receipt_immutable'); END;
   `);
 }
 

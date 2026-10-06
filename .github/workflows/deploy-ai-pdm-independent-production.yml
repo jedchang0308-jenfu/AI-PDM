@@ -23,6 +23,7 @@ permissions:
 
 env:
   NODE_VERSION: "24.11.0"
+  OWNER_EXECUTION_MODE: "${{ inputs.executionMode }}"
   WIF_PROVIDER: ${{ vars.AIPDM_PROD_WIF_PROVIDER }}
 
 jobs:
@@ -282,7 +283,7 @@ jobs:
 
   failure:
     if: ${{ always() && inputs.executionMode == 'full_release' && needs.prepare.result == 'success' && contains(needs.*.result, 'failure') }}
-    needs: [prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical]
+    needs: [prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical, finalize]
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
