@@ -2,9 +2,9 @@
   "schemaVersion": "aipdm.dev122.provider-readback-remediation.v1",
   "project": "AI-PDM",
   "task": "DEV-122#openswx-readonly-auxiliary",
-  "sourceBase": "e2323de5eeb85013e788c5f34292e3cb6094f493",
-  "branch": "codex/dev122-provider-readback-fix",
-  "status": "SOURCE_QC_PASS_29_MOCK_TESTS_OFFICIAL_CI_PENDING",
+  "sourceBase": "84f08dbc793e585dcbfccc89e0e1b5120f97c8cd",
+  "branch": "codex/dev122-scheduler-default-readback-fix",
+  "status": "SOURCE_QC_PASS_31_MOCK_OFFICIAL_CI_PENDING",
   "singleWriter": "root",
   "authorization": {
     "humanOriginal": "核准, 請接續",
@@ -47,21 +47,20 @@
   },
   "validation": {
     "kind": "MOCK_PROVIDER_TARGETED_NOT_PRODUCTION",
-    "tests": 29,
-    "pass": 29,
+    "tests": 31,
+    "pass": 31,
     "fail": 0,
     "skip": 0,
     "candidateHashes": {
-      "scripts/lib/dev122-openswx-bootstrap.mjs": "ea3e08edc3d3f0b34e8f66bb7167bdf3d89a037176baf9b44be6e24a76be01a7",
-      "scripts/dev122-openswx-owner-release.test.mjs": "571d1877872cf292692e4d6d06cea5f6d0dc0352fcd11c80bce799922746ef2e",
-      "scripts/lib/dev122-openswx-owner-release.mjs": "2aa4d911a95481c6500692de66368f93ac0cbb139fe8857246f2f820e8adff62",
-      "scripts/dev122-openswx-bootstrap.test.mjs": "61e037591de7f134ce7beb90ba8c936acf50faa131c3b7c22962376ae39d3ffa"
+      "scripts/dev122-openswx-bootstrap.test.mjs": "97f9c32e3b773d391fcf7ef0661688f93dc22eb2c5bc403e44d407777991ee7c",
+      "scripts/lib/dev122-openswx-owner-release.mjs": "bba7480aeab7212a5141aa693061bcb209b353da26ac3369f7f8ef2251f0fff5",
+      "scripts/dev122-openswx-owner-release.test.mjs": "8e26fa48b5a93bb70e6613fe2343b6aadf49f8262f5e9eca5365a258820cbda5",
+      "scripts/lib/dev122-openswx-bootstrap.mjs": "ea3e08edc3d3f0b34e8f66bb7167bdf3d89a037176baf9b44be6e24a76be01a7"
     },
     "runtimeStopped": true,
     "lifecycleReleased": true,
     "temporaryRemoved": true,
-    "outputSha256": "f0f8a9064ce5f6b9a163990e5ec75f082c5e5152fc6d6b11f26ef34195b107c0",
-    "initialFixtureFailure": "Retained round1-fixture logs: optional reads serialized bytes; test mutated only value. Fixture serialization corrected; no gate or case removed."
+    "outputSha256": "5edfb119b309bf8ffa23ade82fe4fcf2906ebb3fc68f6b89c185325d0f132913"
   },
   "priorA03": {
     "evidenceScope": "BUILD_SECURITY_READINESS_ONLY",
@@ -76,8 +75,8 @@
     "model": "gpt-6-luna",
     "effort": "max",
     "status": "SOURCE_QC_PASS",
-    "scope": "Four source/test hashes and frozen spec, 29-case mock output and lifecycle; provider/CAD/UI NOT_RUN_BY_QC",
-    "facts": "Independent Luna verified all four current hashes, 29/29 mock stdout, lifecycle stopped/released/temp removed; P1 raw Job vs canonical join repaired; provider/CAD/UI remain NOT_RUN"
+    "scope": "Current four source/test hashes and31 mock cases; provider/CAD/UI NOT_RUN",
+    "facts": "Independent Luna readonly verified four current hashes and31/31 mock output; PID133952 exited/released/temp removed; omitted zero limits only; null/nonzero/invalid rejected; exact timezone/target; no P0/P1 or authority expansion. Production/CAD/UI not run by QC."
   },
   "completionBoundary": {
     "wholeDev": "NOT_ACCEPTED",
@@ -123,5 +122,74 @@
     "disposition": "RD corrected readWorkerResources providerJob and paused-drained facts.providerJob; raw GEN2/omitted env vs canonical hash assertions strengthened; no authority or policy change",
     "sourceQc": "SOURCE_QC_PASS_INCREMENTAL_CURRENT_FOUR_HASHES",
     "tests": "29/29 mocked provider PASS"
+  },
+  "historicalPr220": {
+    "sourceBase": "e2323de5eeb85013e788c5f34292e3cb6094f493",
+    "validation": {
+      "kind": "MOCK_PROVIDER_TARGETED_NOT_PRODUCTION",
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "skip": 0,
+      "candidateHashes": {
+        "scripts/lib/dev122-openswx-bootstrap.mjs": "ea3e08edc3d3f0b34e8f66bb7167bdf3d89a037176baf9b44be6e24a76be01a7",
+        "scripts/dev122-openswx-owner-release.test.mjs": "571d1877872cf292692e4d6d06cea5f6d0dc0352fcd11c80bce799922746ef2e",
+        "scripts/lib/dev122-openswx-owner-release.mjs": "2aa4d911a95481c6500692de66368f93ac0cbb139fe8857246f2f820e8adff62",
+        "scripts/dev122-openswx-bootstrap.test.mjs": "61e037591de7f134ce7beb90ba8c936acf50faa131c3b7c22962376ae39d3ffa"
+      },
+      "runtimeStopped": true,
+      "lifecycleReleased": true,
+      "temporaryRemoved": true,
+      "outputSha256": "f0f8a9064ce5f6b9a163990e5ec75f082c5e5152fc6d6b11f26ef34195b107c0",
+      "initialFixtureFailure": "Retained round1-fixture logs: optional reads serialized bytes; test mutated only value. Fixture serialization corrected; no gate or case removed."
+    },
+    "independentSourceQc": {
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "status": "SOURCE_QC_PASS",
+      "scope": "Four source/test hashes and frozen spec, 29-case mock output and lifecycle; provider/CAD/UI NOT_RUN_BY_QC",
+      "facts": "Independent Luna verified all four current hashes, 29/29 mock stdout, lifecycle stopped/released/temp removed; P1 raw Job vs canonical join repaired; provider/CAD/UI remain NOT_RUN"
+    },
+    "mergeCommit": "84f08dbc793e585dcbfccc89e0e1b5120f97c8cd",
+    "pullRequest": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/220",
+    "requiredPrCi": "37416685585 SUCCESS",
+    "mainCi": "37417381409 SUCCESS",
+    "a04OwnerRun": "37417618753 SUCCESS",
+    "a04WorkerImage": "sha256:8a9fb96272187f07f141419a82ccb72b6e00bc2b602a14f6bd4d49a684704b7b",
+    "actualSourceArchive": "50fed34e50e997913dbb7a1453c552b1b158b1a135f9b013abca336bac3b0640",
+    "rawHighCritical": 0,
+    "scope": "BUILD/SECURITY_SOURCE_PROOF_ONLY; R02 resources readonly failed before numeric/bootstrap/082/traffic"
+  },
+  "schedulerCorrective": {
+    "rawProvider": {
+      "attemptDeadline": "30s",
+      "httpTarget": {
+        "body": "e30=",
+        "headers": {
+          "Content-Type": "application/json",
+          "User-Agent": "Google-Cloud-Scheduler"
+        },
+        "httpMethod": "POST",
+        "oidcToken": {
+          "audience": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+          "serviceAccountEmail": "aipdm-prod-openswx-dispatch@jenfu-platform-prod.iam.gserviceaccount.com"
+        },
+        "uri": "https://ai-pdm-prod-9536592944.asia-east1.run.app/api/openswx-metadata-dispatch/recover"
+      },
+      "name": "projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch",
+      "schedule": "*/5 * * * *",
+      "state": "PAUSED",
+      "status": {
+        "code": -1
+      },
+      "timeZone": "Etc/UTC",
+      "userUpdateTime": "2026-10-06T04:11:28.762495Z"
+    },
+    "rawProviderSha256": "ccea484329afbcf7d8d3dc65f49a78364243a1407fb0fdf05396a0981e264828",
+    "failureCode": "OPENSWX_SCHEDULER_NOT_PAUSED",
+    "actualMutation": "READBACK_ONLY;NO_APPLY_ISSUANCE_MIGRATION_OR_TRAFFIC",
+    "decision": "Actual omitted RetryConfig/count/duration means zero retry limits; null/nonzero/invalid limits reject; timezone exact Etc/UTC; desired policy/profile/TF/worker source unchanged",
+    "techLead": "Independent gpt-6-luna/max READ_ONLY_APPROVED; no product/runtime/cloud mutations",
+    "reference": "https://docs.cloud.google.com/scheduler/docs/reference/rest/v1/projects.locations.jobs#RetryConfig"
   }
 }

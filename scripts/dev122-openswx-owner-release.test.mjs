@@ -97,10 +97,21 @@ test('Job update never repeats an unknown PATCH and requires paused scheduler ex
   h.transport.request = async (url, options) => { if (options?.method === 'PATCH') { patches++; throw Error('unknown') } return request(url, options) }
   await assert.rejects(updateWorkerJob({ transport: h.transport, profile, template: changed, deadlineAt: '2999-01-01T00:00:00Z' }), /OUTCOME_UNKNOWN/); assert.equal(patches, 1)
   assertWorkerJob(h.job, h.template)
-  const scheduler = { name: workerSchedulerName(), state: 'PAUSED', schedule: '*/5 * * * *', attemptDeadline: '30s', retryConfig: { retryCount: 0 }, httpTarget: { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } } }
+  const scheduler = { name: workerSchedulerName(), state: 'PAUSED', schedule: '*/5 * * * *', timeZone: 'Etc/UTC', attemptDeadline: '30s', retryConfig: { retryCount: 0 }, httpTarget: { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } } }
   assertPausedScheduler(scheduler, profile)
   assert.throws(() => assertPausedScheduler({ ...scheduler, state: 'ENABLED' }, profile))
 })
+test('actual Scheduler zero retry limits may be omitted but nonzero, null and invalid limits fail closed', () => {
+  const scheduler = { name: workerSchedulerName(), state: 'PAUSED', schedule: '*/5 * * * *', timeZone: 'Etc/UTC', attemptDeadline: '30s', httpTarget: { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } } }
+  for (const retryConfig of [undefined, {}, { retryCount: 0 }, { maxRetryDuration: '0s' }, { retryCount: 0, maxRetryDuration: '0.000000000s' }]) assertPausedScheduler({ ...scheduler, retryConfig }, profile)
+  for (const retryConfig of [null, [], 0, { retryCount: null }, { retryCount: 1 }, { retryCount: -1 }, { retryCount: '0' }, { retryCount: false }, { maxRetryDuration: null }, { maxRetryDuration: 0 }, { maxRetryDuration: '1s' }, { maxRetryDuration: '0.000000001s' }, { maxRetryDuration: '0' }, { maxRetryDuration: '0.0000000000s' }]) assert.throws(() => assertPausedScheduler({ ...scheduler, retryConfig }, profile), /SCHEDULER_NOT_PAUSED/)
+})
+test('actual Scheduler timezone and target remain exact with omitted zero retry defaults', () => {
+  const scheduler = { name: workerSchedulerName(), state: 'PAUSED', schedule: '*/5 * * * *', timeZone: 'Etc/UTC', attemptDeadline: '30s', httpTarget: { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } } }
+  for (const timeZone of [undefined, null, 'UTC', 'Asia/Taipei']) assert.throws(() => assertPausedScheduler({ ...scheduler, timeZone }, profile), /SCHEDULER_NOT_PAUSED/)
+  for (const changed of [{ state: 'ENABLED' }, { schedule: '* * * * *' }, { attemptDeadline: '31s' }, { httpTarget: { ...scheduler.httpTarget, uri: profile.canonicalOrigin + '/other' } }, { httpTarget: { ...scheduler.httpTarget, oidcToken: { ...scheduler.httpTarget.oidcToken, audience: 'https://other.invalid' } } }]) assert.throws(() => assertPausedScheduler({ ...scheduler, ...changed }, profile), /SCHEDULER_NOT_PAUSED/)
+})
+
 test('owner request propagates an abort deadline and refuses a late awaited response', async () => {
   let signal
   const transport = boundOpenSwxTransport({ request: async (_url, options) => { signal = options.signal; await new Promise(resolve => setTimeout(resolve, 30)); return {} } }, new Date(Date.now() + 10).toISOString())
