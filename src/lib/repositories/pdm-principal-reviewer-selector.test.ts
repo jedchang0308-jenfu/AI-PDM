@@ -159,18 +159,15 @@ describe("principal reviewer selection", () => {
 
 
 describe("release reviewer published capability", () => {
-  it("requires decide and publish from the same principal grant evaluation", async () => {
+  it("requires decide and publish from the same candidate grant evaluation", async () => {
     mocks.priority.mockResolvedValue(["rd_manager", "pdm_admin"]);
     mocks.catalog.mockResolvedValue({ roles: [] });
-    mocks.entitlement.mockImplementation(async (requests: Array<{ permissionCode: string }>) =>
-      requests.map(request => ({
-        decisionCode: request.permissionCode === "numbering.publish"
-          ? "permission_not_granted" : "allowed",
-        role: { roleCode: "rd_manager" }
-      })));
-    await expect(selectPrincipalReviewerInSnapshot(client([
-      candidate("principal-manager", "manager-profile")
-    ]), { ...input, requirePublish: true })).rejects.toMatchObject({ status: 409 });
+    mocks.entitlement.mockImplementation(async requests => requests.map((request: { permissionCode: string }) => ({
+      decisionCode: request.permissionCode === "numbering.publish" ? "permission_not_granted" : "allowed",
+      role: { roleCode: "rd_manager" }
+    })));
+    await expect(selectPrincipalReviewerInSnapshot(client([candidate("principal-manager", "manager-profile")]),
+      { ...input, requirePublish: true })).rejects.toMatchObject({ status: 409 });
     expect(mocks.entitlement).toHaveBeenLastCalledWith(expect.arrayContaining([
       expect.objectContaining({ permissionCode: "approval.request.decide" }),
       expect.objectContaining({ permissionCode: "numbering.publish" })]), expect.any(Date));

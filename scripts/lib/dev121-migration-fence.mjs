@@ -6,6 +6,7 @@ export const PRINCIPAL_ONLY_MIGRATION_PATH =
 export const PRINCIPAL_ONLY_MIGRATION_ORDERS = Object.freeze({
   [PRINCIPAL_ONLY_MIGRATION_PATH]: 24,
   'db/postgres/074_dev121_principal_human_assurance_aal1.sql': 25,
+  'db/postgres/080_dev121_principal_role_catalog_v6.sql': 30,
 })
 const V2_SERVICE_URL =
   'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'

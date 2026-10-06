@@ -407,8 +407,8 @@
       },
       {
         "order": 28,
-        "path": "db/postgres/078_dev121_settings_probe_principal_provenance.sql",
-        "sha256": "cbaab14c6da4ddd72ffe2b96eaedae97cb954bb3b1d4a0db5bddbb38c894e2ca"
+        "path": "db/postgres/077_dev121_canonical_review_lifecycle.sql",
+        "sha256": "b5d6e84b68a5a2c206737323056801078ac94f3bcd4b5a521e944a335607636c"
       }
     ]
   },

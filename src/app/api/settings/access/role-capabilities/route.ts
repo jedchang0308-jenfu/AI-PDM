@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import type { RoleCapabilityWorkspaceV2, RoleCapabilityWorkspaceV3 } from '@/lib/ai-pdm-role-capability-contract'
 import { readPrivilegedRoleCapabilityWorkspace, readRoleCapabilityWorkspace } from '@/lib/ai-pdm-role-capability-service'
@@ -14,9 +15,13 @@ async function readView(request: Request) {
 }
 
 function errorResponse(error: unknown) {
-  const code = error instanceof Error ? error.message : 'ROLE_CAPABILITY_FAILED'
-  const status = code.includes('REVISION') ? 409 : code.includes('UNAVAILABLE') ? 503 : 400
-  return NextResponse.json({ error: code }, { status, headers: { 'cache-control': 'no-store' } })
+  const correlationId = randomUUID();
+  const safeCodes = new Set(['ORGMASTER_CATALOG_MISMATCH', 'ORGMASTER_CONTRACT_INVALID', 'ROLE_CAPABILITY_SNAPSHOT_INVALID']);
+  const observedCode = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+  console.error(JSON.stringify({ event: 'role_capability_read_failed', stage: 'display_read', correlationId,
+    reason: safeCodes.has(observedCode) ? observedCode : 'UNEXPECTED_DEPENDENCY_FAILURE' }));
+  return NextResponse.json({ error: "ROLE_CAPABILITY_UNAVAILABLE", correlationId },
+    { status: 503, headers: { "cache-control": "no-store" } })
 }
 
 export async function GET(request: Request) {

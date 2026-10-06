@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import roleCatalog from '../../config/access-control/jenfu-role-catalog.v5.json' with { type: 'json' }
+import roleCatalog from '../../config/access-control/jenfu-role-catalog.v6.json' with { type: 'json' }
 import type { RoleCapabilityCatalog, RoleCapabilityWorkspaceV2 } from '@/lib/ai-pdm-role-capability-contract'
 import type { PrivilegedAssignmentWorkspaceSource } from '@/lib/repositories/ai-pdm-role-capability-repository'
 import { buildManagementSurface, buildPrivilegedRoleCapabilityWorkspace } from '@/lib/ai-pdm-role-capability-service'
@@ -22,7 +22,7 @@ function baseWorkspace(): RoleCapabilityWorkspaceV2 {
         changeCursor: 13, adoptionState: 'published', positions: [], manualAssignments: [],
       },
     })),
-    dataState: 'current', mutationAllowed: true, sourceDataAt: '2026-09-02T00:05:00.000Z', snapshotStoredAt: null,
+    dataState: 'current', mutationAllowed: false, sourceDataAt: '2026-09-02T00:05:00.000Z', snapshotStoredAt: null,
     dependency: { status: 'available', decisionCode: 'CURRENT_SOURCE', correlationId: 'fixture-base' },
   }
 }

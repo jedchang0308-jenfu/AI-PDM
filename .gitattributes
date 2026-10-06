@@ -5,3 +5,6 @@ supabase/migrations/manifest.json text eol=lf
 
 # Historical local QA evidence is repository history, not production build input.
 /output export-ignore
+
+# Preserve the original historical workspace document bytes.
+.ai-doc/qa/evidence/DEV121-WORKSPACE-SAVE-20261006/*.original.txt -text whitespace=cr-at-eol

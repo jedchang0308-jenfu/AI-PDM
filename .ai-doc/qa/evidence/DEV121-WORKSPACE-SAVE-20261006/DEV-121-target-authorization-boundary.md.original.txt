@@ -1,5 +1,3 @@
-> 2026-10-06 本地保存狀態：WIP_NOT_RELEASE_READY。以下為原工作樹歷史草稿，包含已被後來主線取代的進度與 migration 綁定；不得作為新的發布指令。原始 bytes、已知差異與正式結案界線見[保存紀錄](../qa/DEV-121-preserved-workspace-drafts-2026-10-06.md)。
-
 # DEV-121：AI-PDM Principal-only 身分／授權整合（現行契約）
 
 <a id="architecture-final"></a>
