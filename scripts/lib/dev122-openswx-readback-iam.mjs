@@ -39,7 +39,10 @@ export function assertReadbackIamTerraformPlan(value) {
       || !unknown || typeof unknown !== 'object' || Array.isArray(unknown)
       || (after.condition != null && (!Array.isArray(after.condition) || after.condition.length !== 0)) || after.deleted === true || (after.stage && after.stage !== 'GA')) fail('OPENSWX_IAM_PLAN_INVALID')
     for (const [key, expected] of Object.entries(spec)) {
-      if (containsUnknown(unknown[key]) || !(key === 'permissions' ? Array.isArray(after[key]) && same(sorted(after[key]), sorted(expected)) : same(after[key], expected))) fail('OPENSWX_IAM_PLAN_INVALID')
+      // An applied Job IAM state uses the exact full resource name for the same Job.
+      const equivalentJobName = row.address === 'google_cloud_run_v2_job_iam_member.verifier_readback' && key === 'name'
+        && same(after[key], `projects/${spec.project}/locations/${spec.location}/jobs/${expected}`)
+      if (containsUnknown(unknown[key]) || !(key === 'permissions' ? Array.isArray(after[key]) && same(sorted(after[key]), sorted(expected)) : same(after[key], expected) || equivalentJobName)) fail('OPENSWX_IAM_PLAN_INVALID')
     }
     // deleted/name/id are provider-computed outputs on create. Actual readback
     // still rejects a deleted role; identity, scope and permissions must be known.

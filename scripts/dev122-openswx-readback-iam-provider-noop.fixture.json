@@ -1,0 +1,264 @@
+{
+  "evidenceScope": "RECORDED_PROVIDER_PLAN_FIXTURE_NOT_LIVE_PRODUCTION_PROOF",
+  "sourceRevision": "87e01223e6ec6b8b3a53735ac20ea1acb2ef5cd5",
+  "rawPlanSha256": "3e2df34604d536fc10fe44f22d0676c8e84e234e06dc622d17c80e19977e4e4e",
+  "plan": {
+    "resource_changes": [
+      {
+        "address": "google_cloud_run_v2_job_iam_member.verifier_readback",
+        "mode": "managed",
+        "type": "google_cloud_run_v2_job_iam_member",
+        "name": "verifier_readback",
+        "provider_name": "registry.terraform.io/hashicorp/google",
+        "change": {
+          "actions": [
+            "no-op"
+          ],
+          "before": {
+            "condition": [],
+            "etag": "BwZdLOv6ha0=",
+            "id": "projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata/projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback/serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "location": "asia-east1",
+            "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "name": "projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback"
+          },
+          "after": {
+            "condition": [],
+            "etag": "BwZdLOv6ha0=",
+            "id": "projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata/projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback/serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "location": "asia-east1",
+            "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "name": "projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback"
+          },
+          "after_unknown": {},
+          "before_sensitive": {
+            "condition": []
+          },
+          "after_sensitive": {
+            "condition": []
+          },
+          "before_identity": {
+            "condition_title": null,
+            "location": "asia-east1",
+            "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "name": "projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback"
+          },
+          "after_identity": {
+            "condition_title": null,
+            "location": "asia-east1",
+            "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "name": "projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback"
+          }
+        }
+      },
+      {
+        "address": "google_project_iam_custom_role.release_scheduler_readback",
+        "mode": "managed",
+        "type": "google_project_iam_custom_role",
+        "name": "release_scheduler_readback",
+        "provider_name": "registry.terraform.io/hashicorp/google",
+        "change": {
+          "actions": [
+            "no-op"
+          ],
+          "before": {
+            "deleted": false,
+            "deletion_policy": "DELETE",
+            "description": "",
+            "id": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback",
+            "name": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback",
+            "permissions": [
+              "cloudscheduler.jobs.get"
+            ],
+            "project": "jenfu-platform-prod",
+            "role_id": "aipdmOpenswxSchedulerReadback",
+            "stage": "GA",
+            "title": "AI-PDM release Scheduler configuration readback"
+          },
+          "after": {
+            "deleted": false,
+            "deletion_policy": "DELETE",
+            "description": "",
+            "id": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback",
+            "name": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback",
+            "permissions": [
+              "cloudscheduler.jobs.get"
+            ],
+            "project": "jenfu-platform-prod",
+            "role_id": "aipdmOpenswxSchedulerReadback",
+            "stage": "GA",
+            "title": "AI-PDM release Scheduler configuration readback"
+          },
+          "after_unknown": {},
+          "before_sensitive": {
+            "permissions": [
+              false
+            ]
+          },
+          "after_sensitive": {
+            "permissions": [
+              false
+            ]
+          }
+        }
+      },
+      {
+        "address": "google_project_iam_custom_role.verifier_job_readback",
+        "mode": "managed",
+        "type": "google_project_iam_custom_role",
+        "name": "verifier_job_readback",
+        "provider_name": "registry.terraform.io/hashicorp/google",
+        "change": {
+          "actions": [
+            "no-op"
+          ],
+          "before": {
+            "deleted": false,
+            "deletion_policy": "DELETE",
+            "description": "",
+            "id": "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback",
+            "name": "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback",
+            "permissions": [
+              "run.executions.list",
+              "run.jobs.get"
+            ],
+            "project": "jenfu-platform-prod",
+            "role_id": "aipdmOpenswxVerifierJobReadback",
+            "stage": "GA",
+            "title": "AI-PDM OpenSWX release verifier Job readback"
+          },
+          "after": {
+            "deleted": false,
+            "deletion_policy": "DELETE",
+            "description": "",
+            "id": "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback",
+            "name": "projects/jenfu-platform-prod/roles/aipdmOpenswxVerifierJobReadback",
+            "permissions": [
+              "run.executions.list",
+              "run.jobs.get"
+            ],
+            "project": "jenfu-platform-prod",
+            "role_id": "aipdmOpenswxVerifierJobReadback",
+            "stage": "GA",
+            "title": "AI-PDM OpenSWX release verifier Job readback"
+          },
+          "after_unknown": {},
+          "before_sensitive": {
+            "permissions": [
+              false,
+              false
+            ]
+          },
+          "after_sensitive": {
+            "permissions": [
+              false,
+              false
+            ]
+          }
+        }
+      },
+      {
+        "address": "google_project_iam_member.deployer_scheduler_readback",
+        "mode": "managed",
+        "type": "google_project_iam_member",
+        "name": "deployer_scheduler_readback",
+        "provider_name": "registry.terraform.io/hashicorp/google",
+        "change": {
+          "actions": [
+            "no-op"
+          ],
+          "before": {
+            "condition": [],
+            "etag": "BwZdLOxFxpc=",
+            "id": "jenfu-platform-prod/projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback/serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+          },
+          "after": {
+            "condition": [],
+            "etag": "BwZdLOxFxpc=",
+            "id": "jenfu-platform-prod/projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback/serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+          },
+          "after_unknown": {},
+          "before_sensitive": {
+            "condition": []
+          },
+          "after_sensitive": {
+            "condition": []
+          },
+          "before_identity": {
+            "condition_title": null,
+            "member": "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+          },
+          "after_identity": {
+            "condition_title": null,
+            "member": "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+          }
+        }
+      },
+      {
+        "address": "google_project_iam_member.verifier_scheduler_readback",
+        "mode": "managed",
+        "type": "google_project_iam_member",
+        "name": "verifier_scheduler_readback",
+        "provider_name": "registry.terraform.io/hashicorp/google",
+        "change": {
+          "actions": [
+            "no-op"
+          ],
+          "before": {
+            "condition": [],
+            "etag": "BwZdLOxFxpc=",
+            "id": "jenfu-platform-prod/projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback/serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+          },
+          "after": {
+            "condition": [],
+            "etag": "BwZdLOxFxpc=",
+            "id": "jenfu-platform-prod/projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback/serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+          },
+          "after_unknown": {},
+          "before_sensitive": {
+            "condition": []
+          },
+          "after_sensitive": {
+            "condition": []
+          },
+          "before_identity": {
+            "condition_title": null,
+            "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+          },
+          "after_identity": {
+            "condition_title": null,
+            "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+            "project": "jenfu-platform-prod",
+            "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSchedulerReadback"
+          }
+        }
+      }
+    ]
+  }
+}
