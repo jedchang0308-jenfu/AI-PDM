@@ -39,8 +39,8 @@ test("actual closed entry rejects arbitrary commands and env arguments before an
 test("actual entry emits only closed state and execution fields; mock module does not prove Linux/HTTP", async () => {
   const entry = fileURLToPath(new URL("../../run-openswx-metadata-job.mjs", import.meta.url));
   for (const [state, args, expectedCode] of [["empty", [], 0], ["completed", [], 0], ["isolation_verified", ["--isolation-self-test-only"], 0], ["unexpected", [], 1], ["completed", ["--isolation-self-test-only"], 1]]) {
-    const module = `export const runAuxiliaryJob=async()=>({state:${JSON.stringify(state)},receiptId:'PRIVATE_RECEIPT',result:'PRIVATE_RESULT'});export const isolationSelfTestOnly=runAuxiliaryJob;export const executionFromEnvironment=()=>${JSON.stringify(job.executionName)};`;
-    const hook = `import {registerHooks} from 'node:module';registerHooks({load(url,context,next){if(url.endsWith('/lib/openswx-reader/auxiliary-job.mjs'))return {format:'module',source:${JSON.stringify(module)},shortCircuit:true};return next(url,context);}});`;
+    const moduleSource = `export const runAuxiliaryJob=async()=>({state:${JSON.stringify(state)},receiptId:'PRIVATE_RECEIPT',result:'PRIVATE_RESULT'});export const isolationSelfTestOnly=runAuxiliaryJob;export const executionFromEnvironment=()=>${JSON.stringify(job.executionName)};`;
+    const hook = `import {registerHooks} from 'node:module';registerHooks({load(url,context,next){if(url.endsWith('/lib/openswx-reader/auxiliary-job.mjs'))return {format:'module',source:${JSON.stringify(moduleSource)},shortCircuit:true};return next(url,context);}});`;
     const result = await boundedProcess(process.execPath, ["--import", `data:text/javascript,${encodeURIComponent(hook)}`, entry, ...args], { timeoutMs: 5000, maxBytes: 2048, env: { ...env, PDM_OPENSWX_READER_TOKEN: "PRIVATE_TOKEN" } });
     assert.equal(result.code, expectedCode); assert.equal(result.cleanupVerified, true);
     assert.ok(!result.stdout.includes("PRIVATE_"));

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "aipdm.dev122.pr218-source-independent-qc.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "recordedAt": "2026-10-06T00:59:01.840794+00:00",
+  "role": "Independent QC",
+  "agent": "/root/dev122_openswx_qc_luna",
+  "model": "gpt-6-luna",
+  "reasoningEffort": "max",
+  "recorder": "/root",
+  "result": "SOURCE_FIX_REVIEW_PASS_REQUIRED_CI_PENDING",
+  "recordType": "Root-preserved independent final handoff; no new test execution",
+  "sourceHeadProvenanceOnly": "37a9578752390ed17d57fac292cf0b7db5ba8048",
+  "sourceFreeze": {
+    "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\.ai-doc\\qa\\DEV-122-openswx-phase2-pr218-source-freeze-lint-v2-2026-10-06.json",
+    "sha256": "673f1493a1faf05c2be32e29da64bfbfe2f4ce6496ad251d53f6a14de011749e"
+  },
+  "verified": {
+    "sourceFiles": 66,
+    "rawAndFilteredBlobMismatches": 0,
+    "ownerFiles": 20,
+    "ownerRawHashMismatches": 0,
+    "changedSourceFromMergeHead": [
+      "scripts/lib/openswx-reader/auxiliary-job.test.mjs"
+    ],
+    "changedLines": 2,
+    "change": "module identifier -> moduleSource plus JSON.stringify reference",
+    "testAssertionsUnchanged": true,
+    "productImplementationUnchangedByLintFix": true,
+    "priorMergeReview": "Four auxiliary POST regex retained; exact /settings/workflow from main; three upstream settings source/test blobs preserved; both document sections retained"
+  },
+  "evidence": [
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\rd-integration\\owner-source-freeze-latch-v2.json",
+      "sha256": "154996090d5e41a3a65b8d5b72ed23d2a85b8fd73d5bbe16dfa8910842435eed"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\pr218-lint-v2-result.json",
+      "sha256": "9dc555ca834a975e57ab318b55f4f9cb7c9ec6578a7e77c388e18f24a502ac8a"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\pr218-ci37395720942-failed-stdout.txt",
+      "sha256": "8cebdd4b2d4389c338d0e1a300e0b3ad9fe1cfae65f8ec925f3c15aa04aecff0"
+    }
+  ],
+  "targetedLint": "Recorded exit 0, child exited, two runtime-data paths absent; independent agent did not rerun",
+  "historicalCI": {
+    "runId": 37395720942,
+    "head": "37a9578752390ed17d57fac292cf0b7db5ba8048",
+    "cutover": "SUCCESS",
+    "productionSliceQC": "FAILURE_AT_LINT",
+    "cause": "Next no-assign-module-variable at line42; raw failure retained"
+  },
+  "boundaries": {
+    "evidenceScope": "SOURCE_AND_RECORDED_STATIC_LINT_ONLY",
+    "requiredCurrentHeadCI": "PENDING",
+    "releaseAuthority": false,
+    "providerMutation": "NONE",
+    "cloud": "NOT_RUN",
+    "normalCompletedResultUI": "NOT_RUN",
+    "fullNativeF01F": "NOT_RUN_USER_PRODUCTION_VALIDATION",
+    "wholeDEV122": "NOT_ACCEPTED"
+  },
+  "handoff": "SOURCE_FIX_REVIEW_PASS; all66 new freeze files and all20 owner source hashes match. Two-line test identifier rename only, assertions and product code unchanged. Targeted lint exit0 is recorded evidence, not a rerun. Old failed CI is historical; fixed candidate CI remains pending. No behavior/Cloud/full-native/whole-DEV acceptance claim."
+}
