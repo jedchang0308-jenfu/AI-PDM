@@ -4,7 +4,7 @@
 
 PR219 已正常合併至 8f25b0a1a5f42c63e6e20d1e48bd44dd91a9a775，PR／main required CI 通過。A03 owner run 37410760255 與兩映像建置成功；worker 精確 digest e9194d35…a59eacc 的 raw HIGH／CRITICAL=0，實際 Linux static-zlib／ldd／APK 移除與隔離自測成功。僅證明 build/security readiness，未證明正常 CAD 或 UI。
 
-十二資源 Terraform R01 已執行，worker Job 與暫停 Scheduler 已存在；工具以錯誤 GET 查詢 reader ServiceAccount IAM 而回404。官方規定 POST 空 body，native gcloud 已確認 exact deployer act-as policy；原 R01 request／plan 保留，禁止盲目重跑。此次[provider readback 修正](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)只修查詢方法及既有重放測試，14案通過／0失敗，專屬程序與暫存已清理；IAM／TF／DB與 worker 鏈不變。
+十二資源 Terraform R01 已執行，worker selftest Job 與 PAUSED Scheduler 已存在；錯誤 GET reader ServiceAccount IAM 回404，已改官方 POST 空 body。原 R01 request／plan 保留。此次[provider readback 修正](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)包含 actual-provider-only GEN2／省略空env正規化，以及嚴格唯讀 FIRST source reconciliation，只有四TF／完整worker source與profile不變、完整舊新join、同人類授權hash、兩build raw/blocking scan0、所有12資源/IAM exact、PAUSED／零execution／reader Secret零version才承接。橋接不執行Terraform、不重發既有apply；FIRST_CREATE與完成receipt重放另核憑證／source／template／resource joins。聚焦29案全部通過，專屬程序及暫存已清理；獨立Luna source QC PASS（含raw Job對照缺口修正及args狹義比對）；新PRhead required CI待收斂。TF／IAM／DB／worker binaries不變，正式numeric bootstrap／082／切流／completed UI待執行；F-01F由人類正式驗證、D122-07停用、整體NOT_ACCEPTED。
 
 人類既有「核准, 請接續」及本次容量風險授權持續有效。下一步為修正來源的 normal PR／required CI、重新凍結與 build，先核對既有12資源，再接 numeric bootstrap、082與 app-owned 上線。正式仍 R4；新 credential versions／082／切流及 completed 正常UI皆 NOT_RUN，F-01F由使用者正式驗證、D122-07停用與整体NOT_ACCEPTED不變。下方續點為歷史，不再當目前操作佇列。
 
