@@ -1,5 +1,10 @@
 # AI_PDM 開發任務
 
+## DEV-122 CURRENT（2026-10-06；部分憑證發行回讀修復／36 mock PASS）
+
+PR221官方main19552e3f的A05受保護建置／實際封存／worker raw HIGH/CRITICAL=0通過（run37421000474）；R03十二資源唯讀銜接已APPLIED，不重套Terraform。R03 bootstrap在reader token v1已建立後因putJson無parsed value失敗；實際hash-only原latch與v1 hash/30s時窗吻合，registry仍v1/v2、舊selftest Job、PAUSED、零execution，082／candidate／traffic未執行。此次[修復證據](qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)改DEV122專用write helper從驗證bytes解析value，並以原immutable input限定恢復v1、只發剩餘registry；global transport／TF／IAM／worker來源不變。36/36真實回傳格式mock通過，own runtime／暫存清理已驗；獨立Luna來源QC已通過，新head required CI待驗。原FAIL／A05／R03證據保留；正式completed UI待實跑、F-01F由使用者正式驗證、D122-07停用、7 issues／29 groups与整體NOT_ACCEPTED不變。
+
+
 ## DEV-122 CURRENT（2026-10-06；A03 build/security 通過，provider 權限查詢修正中）
 
 PR219 已正常合併至 8f25b0a1a5f42c63e6e20d1e48bd44dd91a9a775，PR／main required CI 通過。A03 owner run 37410760255 與兩映像建置成功；worker 精確 digest e9194d35…a59eacc 的 raw HIGH／CRITICAL=0，實際 Linux static-zlib／ldd／APK 移除與隔離自測成功。僅證明 build/security readiness，未證明正常 CAD 或 UI。

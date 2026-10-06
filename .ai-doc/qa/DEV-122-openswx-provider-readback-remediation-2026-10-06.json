@@ -2,9 +2,9 @@
   "schemaVersion": "aipdm.dev122.provider-readback-remediation.v1",
   "project": "AI-PDM",
   "task": "DEV-122#openswx-readonly-auxiliary",
-  "sourceBase": "84f08dbc793e585dcbfccc89e0e1b5120f97c8cd",
-  "branch": "codex/dev122-scheduler-default-readback-fix",
-  "status": "SOURCE_QC_PASS_31_MOCK_OFFICIAL_CI_PENDING",
+  "sourceBase": "19552e3f19f5f3b3340820e802304b5a68c58870",
+  "branch": "codex/dev122-partial-bootstrap-readback-fix",
+  "status": "SOURCE_QC_PASS_36_MOCK_OFFICIAL_CI_PENDING",
   "singleWriter": "root",
   "authorization": {
     "humanOriginal": "核准, 請接續",
@@ -46,21 +46,21 @@
     "providerDefaults": "Only actual provider GEN2, omitted empty env, and omitted empty args for exact ENTRYPOINT-only finite-worker image; null/nonempty/other-field drift remains rejected; desired/policy/descriptor hashes literal; prior raw Job and canonical restore target joined by hash"
   },
   "validation": {
-    "kind": "MOCK_PROVIDER_TARGETED_NOT_PRODUCTION",
-    "tests": 31,
-    "pass": 31,
+    "kind": "PRODUCTION_SHAPED_MOCK_NOT_PRODUCTION",
+    "tests": 36,
+    "pass": 36,
     "fail": 0,
     "skip": 0,
     "candidateHashes": {
-      "scripts/dev122-openswx-bootstrap.test.mjs": "97f9c32e3b773d391fcf7ef0661688f93dc22eb2c5bc403e44d407777991ee7c",
-      "scripts/lib/dev122-openswx-owner-release.mjs": "bba7480aeab7212a5141aa693061bcb209b353da26ac3369f7f8ef2251f0fff5",
-      "scripts/dev122-openswx-owner-release.test.mjs": "8e26fa48b5a93bb70e6613fe2343b6aadf49f8262f5e9eca5365a258820cbda5",
-      "scripts/lib/dev122-openswx-bootstrap.mjs": "ea3e08edc3d3f0b34e8f66bb7167bdf3d89a037176baf9b44be6e24a76be01a7"
+      "scripts/lib/dev122-openswx-bootstrap.mjs": "65e56f9084499977b95e5d24dd129e31b8e55b3e54a63a959edcf6996667a66b",
+      "scripts/dev122-openswx-owner-release.test.mjs": "696b83da85c25f9a204c9e75650d040227d7eb5979fe0cdb6b29eb94326d2bfd",
+      "scripts/lib/dev122-openswx-owner-release.mjs": "f1ce1ac75fb90ac9456c56405911438f0267727c2cb1163d29f1b4046dc5f360",
+      "scripts/dev122-openswx-bootstrap.test.mjs": "222cecb76146e5a223ce80532ca863365ef7c4408858c089a4677836e6ee90ad"
     },
     "runtimeStopped": true,
     "lifecycleReleased": true,
     "temporaryRemoved": true,
-    "outputSha256": "5edfb119b309bf8ffa23ade82fe4fcf2906ebb3fc68f6b89c185325d0f132913"
+    "outputSha256": "75c4d1d951eb6c5764ef569dd7f22a9e85ef8966383b7be8d28e350adfdd425c"
   },
   "priorA03": {
     "evidenceScope": "BUILD_SECURITY_READINESS_ONLY",
@@ -74,9 +74,9 @@
   "independentSourceQc": {
     "model": "gpt-6-luna",
     "effort": "max",
-    "status": "SOURCE_QC_PASS",
-    "scope": "Current four source/test hashes and31 mock cases; provider/CAD/UI NOT_RUN",
-    "facts": "Independent Luna readonly verified four current hashes and31/31 mock output; PID133952 exited/released/temp removed; omitted zero limits only; null/nonzero/invalid rejected; exact timezone/target; no P0/P1 or authority expansion. Production/CAD/UI not run by QC."
+    "status": "SOURCE_QC_PASS_INCREMENTAL",
+    "scope": "Four current source/test hashes;36/36 mocked provider tests; exact partial FIRST recovery; production source release/CAD/UI pending",
+    "facts": "Independent Luna/max readonly confirmed all four current hashes and36 PASS/no skip/fail, partial FIRST chain reused from first review, explicit six-field request join before run and on replay; source drift mock has run count0, existing replay remains single POST; PID67152 stopped/released/temp removed; no authority expansion. Non-blocking35→36 QC scope text synchronized by root only."
   },
   "completionBoundary": {
     "wholeDev": "NOT_ACCEPTED",
@@ -191,5 +191,78 @@
     "decision": "Actual omitted RetryConfig/count/duration means zero retry limits; null/nonzero/invalid limits reject; timezone exact Etc/UTC; desired policy/profile/TF/worker source unchanged",
     "techLead": "Independent gpt-6-luna/max READ_ONLY_APPROVED; no product/runtime/cloud mutations",
     "reference": "https://docs.cloud.google.com/scheduler/docs/reference/rest/v1/projects.locations.jobs#RetryConfig"
+  },
+  "historicalPr221": {
+    "sourceBase": "84f08dbc793e585dcbfccc89e0e1b5120f97c8cd",
+    "validation": {
+      "kind": "MOCK_PROVIDER_TARGETED_NOT_PRODUCTION",
+      "tests": 31,
+      "pass": 31,
+      "fail": 0,
+      "skip": 0,
+      "candidateHashes": {
+        "scripts/dev122-openswx-bootstrap.test.mjs": "97f9c32e3b773d391fcf7ef0661688f93dc22eb2c5bc403e44d407777991ee7c",
+        "scripts/lib/dev122-openswx-owner-release.mjs": "bba7480aeab7212a5141aa693061bcb209b353da26ac3369f7f8ef2251f0fff5",
+        "scripts/dev122-openswx-owner-release.test.mjs": "8e26fa48b5a93bb70e6613fe2343b6aadf49f8262f5e9eca5365a258820cbda5",
+        "scripts/lib/dev122-openswx-bootstrap.mjs": "ea3e08edc3d3f0b34e8f66bb7167bdf3d89a037176baf9b44be6e24a76be01a7"
+      },
+      "runtimeStopped": true,
+      "lifecycleReleased": true,
+      "temporaryRemoved": true,
+      "outputSha256": "5edfb119b309bf8ffa23ade82fe4fcf2906ebb3fc68f6b89c185325d0f132913"
+    },
+    "independentSourceQc": {
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "status": "SOURCE_QC_PASS",
+      "scope": "Current four source/test hashes and31 mock cases; provider/CAD/UI NOT_RUN",
+      "facts": "Independent Luna readonly verified four current hashes and31/31 mock output; PID133952 exited/released/temp removed; omitted zero limits only; null/nonzero/invalid rejected; exact timezone/target; no P0/P1 or authority expansion. Production/CAD/UI not run by QC."
+    },
+    "mergeCommit": "19552e3f19f5f3b3340820e802304b5a68c58870",
+    "pullRequest": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/221",
+    "requiredPrCi": "37420140084 SUCCESS",
+    "mainCi": "37420862504 SUCCESS",
+    "a05OwnerRun": "37421000474 SUCCESS",
+    "a05WorkerImage": "sha256:7db3af60aa03cd609baa4fe2573424a5ceab9930a51f9a2e876f543058e317d8",
+    "actualSourceArchive": "65a2ae9410e2d7ae4375fcb8a5985958a614f7ddb6134efb1d93c76cc0ba5206",
+    "rawHighCritical": 0,
+    "scope": "BUILD_SOURCE_SECURITY_AND_R03_RESOURCE_READBACK_ONLY; partial reader v1 issued; no082/candidate/traffic"
+  },
+  "partialFirstCorrective": {
+    "failureCode": "OPENSWX_CREDENTIAL_REQUEST_JOIN_INVALID",
+    "mechanism": "Production putJson returns verified bytes/ref without value; fixture had value. Credential v1 was created before value check failed. Same root cause affects binary-plan and finite-request paths.",
+    "actualPartialReadback": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\R03-partial-first-issuance-readback.json",
+      "sha256": "01fa1987880721f74a18c8983ed6c3f8bfdc3461ee3c9f4865b12afa4f306344",
+      "status": "ACTUAL_PARTIAL_FIRST_TOKEN_ISSUANCE_PROVEN",
+      "inputRef": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-OPENSWX-BOOTSTRAP-20261006-R03-input-1791267182908.json",
+        "sha256": "c3e9dbdf0f74f1970ffa606368eecc63e614252015ea92e863ab73d939643c8b"
+      },
+      "tokenRequestRef": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-OPENSWX-BOOTSTRAP-20261006-R03-token-version-request.json",
+        "sha256": "32b7ef6e74637e71dfbdc125e45e62e1673cc9e76e5c10b62bbd13b9f44c09bc"
+      },
+      "numericVersion": "projects/9536592944/secrets/aipdm-prod-openswx-reader-token/versions/1",
+      "payloadSha256Matches": true,
+      "payloadStored": false,
+      "scheduler": "PAUSED",
+      "executions": 0
+    },
+    "tlContract": "APPROVED_BOUND_FIRST_PARTIAL_RECOVERY",
+    "writeFix": "DEV122 writeWorkerJson parses verified provider bytes after URI/hash/canonical payload equality; global DEV012 transport unchanged; all three request/receipt consumers covered; parse/join before dependent mutation.",
+    "resourceRecovery": "Only optional priorBootstrapInputRef paired with both original R01 resource refs. Complete old FIRST input/descriptor/build/APPLIED/basis/approval chain and new basis rederived; TF/profile/worker hashes and human authorization unchanged; unique enabled token v1 exact original hash/time window; registry v1/v2 enabled and baseline v2 append-valid; original final/token/registry receipts absent; old selftest and twelve resources/IAM exact, PAUSED, zero executions. Readback only; no Terraform.",
+    "bootstrapRecovery": "FIRST_CREATE retains newsource terminal/resource refs but derives credential receipt URI exclusively from original priorBootstrapInput receiptId. Recover/seal original token v1 without POST; create only remaining registry. Exact original registry latch hash/window may recover unique v3, with no extra versions/pages. Completed replay retains exact recovery provenance and ordinary source/template/credential/resource checks.",
+    "firstFixtureFailure": "33/34 PASS; prior fixture mutated returned parsed copy but not stored provider object. Original logs/runtime retained round1-fixture; synchronized deliberately corrupted fixture, no acceptance removed.",
+    "productionNewSource": "NOT_RUN",
+    "migration082": "NOT_RUN",
+    "traffic": "R4_UNCHANGED",
+    "semanticQcCorrection": {
+      "firstResult": "SOURCE_QC_FAIL_P1_FINITE_JOIN_ORDER",
+      "localEditFailure": "Retained round2-local-helper evidence; accidental recursive helper caught by tests and repaired before any production execution",
+      "independentQc": "SOURCE_QC_PASS_INCREMENTAL",
+      "latestMock": "36/36 PASS; PID67152 exited/released/temp removed",
+      "disposition": "Explicit semantic join extracted and invoked before new :run, and on replay; test source drift during write proves zero :run side effects"
+    }
   }
 }

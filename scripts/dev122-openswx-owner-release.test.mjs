@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
+import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
 const profile = JSON.parse(profileBytes)
@@ -62,7 +62,7 @@ function recordedProvider({ ambiguous = false, wrongTemplate = false } = {}) {
   const job = { name: workerJobName(), etag: 'e1', generation: '1', observedGeneration: '1', reconciling: false, terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template }
   const execution = { name: executionName, createTime: '2026-10-05T00:00:01Z', completionTime: '2026-10-05T00:00:02Z', succeededCount: 1, failedCount: 0, template: wrongTemplate ? {} : template.template, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
   const transport = { now: () => '2026-10-05T00:00:00Z',
-    putJson: async (uri, value) => { const bytes = Buffer.from(canonicalize(value)); const row = { value, bytes, ref: { uri, sha256: sha256(bytes) }, metadata: { generation: '1' } }; if (objects.has(uri)) assert.deepEqual(objects.get(uri).value, value); objects.set(uri, row); return row },
+    putJson: async (uri, value) => { const bytes = Buffer.from(canonicalize(value)); const row = { value, bytes, ref: { uri, sha256: sha256(bytes) }, metadata: { generation: '1' } }; if (objects.has(uri)) assert.deepEqual(objects.get(uri).value, value); objects.set(uri, row); return { bytes: row.bytes, ref: row.ref, metadata: row.metadata } },
     readBytes: async uri => { if (!objects.has(uri)) throw Object.assign(Error('MISSING'), { code: 'MISSING' }); return objects.get(uri) },
     request: async (url, options = {}) => { calls.push({ url, options });
       if (url.endsWith(':run')) { posted = true; throw Object.assign(Error('lost response'), { code: 'OUTCOME_UNKNOWN' }) }
@@ -146,4 +146,26 @@ test('fixed finite-worker normal omitted args means empty CMD; selftest argument
   const wrongImage = structuredClone(observed); wrongImage.template.containers[0].image = `${profile.artifactUri}@sha256:${'f'.repeat(64)}`; assert.throws(() => assertWorkerJob({ ...job, template: wrongImage }, expected))
   const wrongSecret = structuredClone(observed); wrongSecret.template.containers[0].env[1].valueSource.secretKeyRef.version = '8'; assert.throws(() => assertWorkerJob({ ...job, template: wrongSecret }, expected))
   const selftest = workerTemplate(profile, image, null, 'selftest'), omittedSelftest = structuredClone(selftest); delete omittedSelftest.template.containers[0].args; assert.throws(() => assertWorkerJob({ ...job, template: omittedSelftest }, selftest))
+})
+
+test('worker JSON write parses verified provider bytes and refuses mismatched digest or value before dependent effects', async () => {
+  const h = recordedProvider(), value = { schemaVersion: 'fixture', facts: { status: 'known' } }
+  const raw = await h.transport.putJson(ref('shape').uri, value)
+  assert.equal(raw.value, undefined)
+  assert.deepEqual((await writeWorkerJson(h.transport, ref('shape').uri, value)).value, value)
+  for (const corrupt of [row => ({ ...row, ref: { ...row.ref, sha256: 'f'.repeat(64) } }), row => ({ ...row, value, bytes: Buffer.from('{"bad":true}'), ref: { ...row.ref, sha256: sha256(Buffer.from('{"bad":true}')) } })]) {
+    await assert.rejects(writeWorkerJson({ putJson: async () => corrupt(raw) }, raw.ref.uri, value), /WRITE_READBACK_INVALID/)
+  }
+})
+
+test('new finite request semantic join fails before run when expected source drifts during its verified write', async () => {
+  const h = recordedProvider(), descriptor = workerDescriptor('full'), putJson = h.transport.putJson
+  h.transport.putJson = async (uri, value) => {
+    const row = await putJson(uri, value)
+    if (value.schemaVersion === 'aipdm.openswx-finite-request.v1') descriptor.sourceRevision = 'f'.repeat(40)
+    return row
+  }
+  await assert.rejects(runWorkerFinite({ transport: h.transport, descriptor, profile, template: h.template, receiptUri: ref('join-before-run').uri, actor: 'fixed-wif', deadlineAt: '2999-01-01T00:00:00Z' }), /REQUEST_JOIN_INVALID/)
+  assert.equal(h.calls.filter(row => row.url.endsWith(':run')).length, 0)
+  assert.ok(!h.objects.has(ref('join-before-run').uri))
 })

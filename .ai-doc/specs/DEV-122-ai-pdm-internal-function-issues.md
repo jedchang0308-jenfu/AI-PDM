@@ -1,5 +1,14 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
+### 2026-10-06 CURRENT：partial FIRST發行恢復／provider bytes修正
+
+PR221官方main19552e3f的A05受保護建置／實際封存／worker raw HIGH/CRITICAL=0通過（run37421000474）；R03十二資源唯讀銜接已APPLIED，不重套Terraform。R03 bootstrap在reader token v1已建立後因putJson無parsed value失敗；實際hash-only原latch與v1 hash/30s時窗吻合，registry仍v1/v2、舊selftest Job、PAUSED、零execution，082／candidate／traffic未執行。此次[修復證據](../qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)改DEV122專用write helper從驗證bytes解析value，並以原immutable input限定恢復v1、只發剩餘registry；global transport／TF／IAM／worker來源不變。36/36真實回傳格式mock通過，own runtime／暫存清理已驗；獨立Luna來源QC已通過，新head required CI待驗。原FAIL／A05／R03證據保留；正式completed UI待實跑、F-01F由使用者正式驗證、D122-07停用、7 issues／29 groups与整體NOT_ACCEPTED不變。
+
+**Partial FIRST recovery corrective contract（架構定案）**：resources input僅在原成對priorResourceRequestRef/priorWorkerBuildRef之外接受priorBootstrapInputRef，否則拒絕；完整回讀舊FIRST_CREATE input、build_only descriptor、old build／APPLIED／first basis／approved plan與new first basis，TF/profile/worker source hashes、人類授權hash及12地址完全不變。old deadline只作歷史證據可過期但必須合法；original token latch exact schema/keys/secret/hash/startedAt+30s，window在原deadline內；own reader Secret僅一個ENABLED numeric v1，createTime在window內且access hash唯一吻合。資源stage限定old final/token-version/registry-version及registry-request均缺；registry僅ENABLED v1/v2且原v2合法可append，old R01 selftest/IAM/Scheduler PAUSED/zero executions exact，seal newsource READBACK_ONLY APPLIED並存public partialFirstBootstrap refs，禁止Terraform重套。FIRST_CREATE新terminal用新receiptId，credential root強制由old input receiptId推導，重新驗public recovery join及provider，只recover/seal既有v1，剩餘registry可沿原latch的exact append bytes/hash/30s window唯一recover v3；extra/disabled/page/ambiguous/unknown立即停止，不重發token。完成replay驗相同recovery provenance、source/template／numeric binding／resources，不再要求零versions。所有credential payload仅記憶體，不寫proof或聊天；無新IAM／resource種類／schema／traffic authority。
+
+**Provider JSON write contract（架構定案）**：production putJson僅回verified bytes/ref，不提供value。DEV122專用writeWorkerJson先驗own URI/ref/hash/canonical bytes==requested JSON，再parse actual bytes為value；credential request、finite execution request及binary plan共享此責任。dependent addVersion／run必須在可信request建立/解析/join後發起。Mock putJson回傳也只給bytes/ref/metadata，不再用parsed value掩蓋真實差異；global DEV012 transport不變。
+
+
 ### 2026-10-06 CURRENT：A03 build/security 通過；provider policy 查詢修正
 
 十二資源 Terraform R01 已執行且不重套；PR220官方main84f08dbc之A04受保護建置、實際封存與worker raw HIGH/CRITICAL=0通過（run37417618753）。R02唯讀FIRST銜接在PAUSED Scheduler省略retryConfig時被strict比較誤拒絕；未發numeric version、未執行082、未建立candidate或切流。此次[provider readback修正](../qa/DEV-122-openswx-provider-readback-remediation-2026-10-06.json)僅按官方語意接受actual省略zero retryCount/maxRetryDuration，同時拒絕null/非zero/invalid limit，並要求既有Terraform之Etc/UTC exact；desired/policy/profile/TF/worker source不变。31/31聚焦mock通過，own程序/暫存已清理；獨立Luna source QC已通過；新head required CI待驗。R01/A04/R02失敗原始證據保留。兩numeric bootstrap、082、正式切流及8CAD completed UI仍待實跑；F-01F由人類正式驗證、D122-07停用、7 issues/29 groups与整體NOT_ACCEPTED不變。

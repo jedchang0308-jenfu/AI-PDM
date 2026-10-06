@@ -32,6 +32,15 @@ export function boundOpenSwxTransport(transport, deadlineAt) {
   }
   return bounded
 }
+/** putJson returns verified provider bytes, not a parsed value. Parse before any dependent mutation. */
+export async function writeWorkerJson(transport, uri, value) {
+  const row = await transport.putJson(uri, value, { bucket: BUCKET, prefix: WORKER_RECEIPT_PREFIX })
+  assertOpenSwxWorkerRef(row.ref)
+  if (row.ref.uri !== uri || !Buffer.isBuffer(row.bytes) || sha256(row.bytes) !== row.ref.sha256) fail('OPENSWX_JSON_WRITE_READBACK_INVALID')
+  const actual = JSON.parse(row.bytes)
+  if (canonicalize(actual) !== canonicalize(value)) fail('OPENSWX_JSON_WRITE_READBACK_INVALID')
+  return { ...row, value: actual }
+}
 export function assertOpenSwxWorkerRef(ref) {
   return assertImmutableRef(ref, BUCKET, [WORKER_RECEIPT_PREFIX])
 }
@@ -211,7 +220,7 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
   assertOpenSwxWorkerProfile(profile)
   deadlineAt = new Date(Math.min(Date.parse(deadlineAt), Date.now() + profile.bounds.ownerDeadlineSeconds * 1000)).toISOString()
   transport = boundOpenSwxTransport(transport, deadlineAt)
-  const write = (uri, value) => transport.putJson(uri, value, { bucket: BUCKET, prefix: WORKER_RECEIPT_PREFIX })
+  const write = (uri, value) => writeWorkerJson(transport, uri, value)
   const terminal = await optionalReceipt(transport, receiptUri)
   if (terminal) {
     assertWorkerReceipt(terminal.value, descriptor, 'finite-terminal', { actor, image: template.template.containers[0].image })
@@ -221,6 +230,11 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
     return terminal
   }
   assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), template)
+  const assertRequestJoin = request => {
+  if (request.value?.schemaVersion !== 'aipdm.openswx-finite-request.v1' || request.value.sourceRevision !== descriptor.sourceRevision
+    || request.value.sourceArchiveSha256 !== descriptor.sourceArchiveSha256 || request.value.jobName !== workerJobName() || request.value.actor !== actor
+    || request.value.templateSha256 !== sha256(canonicalize(template))) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
+  }
   let request = await optionalReceipt(transport, `${receiptUri.slice(0, -5)}-request.json`)
   if (!request) {
     const baseline = await assertNoActiveExecutions(transport)
@@ -232,6 +246,7 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
       requestWindowEndsAt: new Date(Math.min(Date.parse(deadlineAt), Date.parse(transport.now()) + 30_000)).toISOString(),
       baselineExecutionNames: baseline.map(row => canonicalWorkerExecution(row.name)).sort(),
     })
+    assertRequestJoin(request)
     if (Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_EXECUTION_DEADLINE')
     try {
       const operation = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
@@ -239,9 +254,7 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
       await write(`${receiptUri.slice(0, -5)}-operation.json`, { schemaVersion: 'aipdm.openswx-finite-operation.v1', requestRef: request.ref, providerOperationName: operation.name })
     } catch { /* Reconcile exact Job executions even after an unknown POST response. */ }
   }
-  if (request.value?.schemaVersion !== 'aipdm.openswx-finite-request.v1' || request.value.sourceRevision !== descriptor.sourceRevision
-    || request.value.sourceArchiveSha256 !== descriptor.sourceArchiveSha256 || request.value.jobName !== workerJobName() || request.value.actor !== actor
-    || request.value.templateSha256 !== sha256(canonicalize(template))) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
+  assertRequestJoin(request)
   for (let attempt = 0; attempt < 300; attempt += 1) {
     if (Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_EXECUTION_OUTCOME_UNKNOWN')
     const executions = await listWorkerExecutions(transport)
@@ -370,7 +383,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     if ((environment.OWNER_EXECUTION_MODE === 'build_only' ? 'build_only' : environment.OWNER_EXECUTION_MODE === 'full_release' ? 'full' : '') !== descriptor.value.purpose) fail('OPENSWX_EXECUTION_MODE_MISMATCH')
     return descriptor
   }
-  const write = (uri, value) => transport.putJson(uri, value, { bucket: BUCKET, prefix: WORKER_RECEIPT_PREFIX })
+  const write = (uri, value) => writeWorkerJson(transport, uri, value)
   const rootFor = intent => `${intent.openswxWorkerRef.uri.slice(0, -5)}-execution`
   async function pausedAndDrained(descriptor) {
     const scheduler = await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`)
