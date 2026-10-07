@@ -27,6 +27,11 @@ function exact(value, keys, code = 'OPENSWX_REUSE_SCHEMA_INVALID') {
 function same(a, b, code = 'OPENSWX_REUSE_JOIN_INVALID') { if (canonicalize(a) !== canonicalize(b)) fail(code) }
 function time(value) { if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) fail('OPENSWX_REUSE_TIME_INVALID'); return Date.parse(value) }
 function ownRef(ref) { assertOpenSwxWorkerRef(ref); return ref }
+function releaseCapsuleRef(ref) {
+  assertImmutableRef(ref, BUCKET, ['receipts/releases'])
+  if (!/^gs:\/\/jenfu-platform-prod-aipdm-release\/receipts\/releases\/[A-Z0-9][A-Z0-9-]{5,63}\/release-intent\.json$/u.test(ref.uri)) fail('IMMUTABLE_REF_INVALID')
+  return ref
+}
 function rows(value, max = 256) { if (!Array.isArray(value) || !value.length || value.length > max) fail('OPENSWX_REUSE_ARRAY_INVALID'); return value }
 function proofPath(name) { return name === ENTRY || name === '.dockerignore' || name === WORKER_PROFILE_PATH || name.startsWith(`${READER}/`) }
 function safePath(name) { return typeof name === 'string' && /^[A-Za-z0-9._/-]+$/u.test(name) && !name.startsWith('/') && !name.split('/').some(p => p === '.' || p === '..' || !p) }
@@ -130,8 +135,8 @@ function manifestEqual(original, current) {
   same(original.entries, current.entries, 'OPENSWX_REUSE_EXECUTABLE_DRIFT')
 }
 function context() { return { depth: 0, ancestors: new Set() } }
-function descend(ctx, ref, association = true) {
-  ownRef(ref)
+function descend(ctx, ref, association = true, validateRef = ownRef) {
+  validateRef(ref)
   if ((association && ctx.depth >= 8) || ctx.ancestors.has(ref.uri)) fail('OPENSWX_REUSE_ORIGIN_CYCLE_OR_DEPTH')
   return { depth: ctx.depth + (association ? 1 : 0), ancestors: new Set([...ctx.ancestors, ref.uri]) }
 }
@@ -141,8 +146,9 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   if (activation.kind !== 'activation' || activation.facts?.workerStatus !== 'READY' || activation.facts.schedulerState !== 'ENABLED'
     || activation.facts.claimProof?.claimProof !== 'AUTHENTICATED_204_SOURCE_BOUND' || activation.facts.dbAdmissionProof !== 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN'
     || !Array.isArray(activation.previousRefs) || activation.previousRefs.length !== 5) fail('OPENSWX_REUSE_PRIOR_READY_INVALID')
-  const capsuleRef = activation.previousRefs[0], capsule = assertDev117ReleaseIntent((await read(transport, capsuleRef, ['receipts'])).value, CAPSULE_PROFILE)
-  const capsuleContext = descend(next, capsuleRef, false)
+  const capsuleRef = releaseCapsuleRef(activation.previousRefs[0]), capsule = assertDev117ReleaseIntent((await read(transport, capsuleRef, ['receipts/releases'])).value, CAPSULE_PROFILE)
+  if (capsuleRef.uri !== `gs://${BUCKET}/receipts/releases/${capsule.releaseId}/release-intent.json`) fail('IMMUTABLE_REF_INVALID')
+  const capsuleContext = descend(next, capsuleRef, false, releaseCapsuleRef)
   const priorLock = (await read(transport, capsule.sourceLockRef, ['receipts'])).value
   assertReuseSourceLock(priorLock, capsule.sourceRevision)
   if (priorLock.sourceSha256 !== capsule.sourceSha256 || priorLock.releaseId !== capsule.releaseId || priorLock.migrationManifestSha256 !== capsule.migrationManifestSha256) fail('OPENSWX_REUSE_PRIOR_SOURCE_LOCK_INVALID')
@@ -218,7 +224,7 @@ export function assertWorkerBuildAssociation(value, descriptor, profile) {
   exact(p, PROOF_KEYS); exact(o, ORIGIN_KEYS); exact(r, RESOURCE_KEYS); exact(s, SECURITY_KEYS)
   for (const key of ['originalManifestRef', 'currentManifestRef']) ownRef(p[key])
   for (const key of ['priorReadyFullDescriptorRef', 'originalBuildReceiptRef', 'originalBuildOnlyDescriptorRef', 'originalApprovedResourcePlanRef']) ownRef(o[key])
-  assertImmutableRef(o.priorReadyCapsuleRef, BUCKET, ['receipts'])
+  releaseCapsuleRef(o.priorReadyCapsuleRef)
   exact(o.sourceObject, ['uri', 'sha256', 'generation', 'crc32c']); assertImmutableRef({ uri: o.sourceObject.uri, sha256: o.sourceObject.sha256 }, BUCKET, ['source'])
   if (!H40.test(o.sourceRevision) || !H64.test(o.sourceArchiveSha256) || !H64.test(o.workerProfileSha256) || !H64.test(o.buildRequestSha256)
     || o.sourceObject.sha256 !== o.sourceArchiveSha256 || !/^[1-9][0-9]*$/u.test(o.sourceObject.generation) || typeof o.sourceObject.crc32c !== 'string' || !o.sourceObject.crc32c
