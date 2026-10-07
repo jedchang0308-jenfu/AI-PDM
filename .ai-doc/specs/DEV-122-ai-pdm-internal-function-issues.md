@@ -10,6 +10,8 @@ B17 唯一產品差異為既有 auth.ts 及 auth.test.ts：嚴格日曆／時間
 
 本地 focused 18／18、lint 與六項 release 檢查已實際 PASS。Luna 初次來源審查 PASS，依其 evidence gap 補 empty present header／second61／非法 fraction 與 offset 表格案例；空值維持 MISSING 拒絕，不修改產品。補齊後 focused18／18、lint／typecheck 實際 PASS；最終獨立文件／證據 QC 與新來源 PR／main CI／發布待執行。原六項證據以未變的 auth／release／build code 與 fixture 保留，原 raw log 不改寫。
 
+PR235 初次 source `9ce5904690e0ba1320b00bc3cda90f47ae8b41f5` 的 CI `37602330878` 實際 FAIL：route-classification 仍檢查舊 `scheduled` 毫秒字串；PostgreSQL cutover／lint／continuous 通過，後續 release artifact step 未跑，未 merge／未 deploy。B17 r2 將同 repo 的既有 `scripts/qc-dev-121-route-classification.mjs` 對齊嚴格日曆／offset／奈秒時窗與 safe clock，保留 Google／identity／exact route gate；auth 與其測試 byte 不變。gate 語法／完整305 method路由分類／20項記憶體副本安全斷言移除驗證實際 PASS；失敗 helper 的重疊字串 first-missing 期望已修正並保留失敗及完整清理紀錄，產品 byte 未變。最終獨立 QC／新 head CI／發布待執行，舊 CI 失敗 evidence 保留。
+
 QA r2 PlanSHA `8123423baee7ec9f689328fe99311611baba2ef9b5bd1f2eddd71cccf533bdc8`。須聚焦 real-RSA／installed Next adapter 及六項既有 release 檢查、獨立 Luna QC、正常 PR／required main CI，再以 fresh source-bound build／bootstrap／full capsule 續行。新來源的自然 */5 tick、四工作八 CAD／99 儲存值、桌面／窄版／動畫／reduced-motion 仍待實跑；既有帳號限定。歷史 UI 觀察中斷後已證原 PID 不存在；重用 PID 不碰，own temp 清理與 governor 登記追蹤另存證。
 
 native F-01F 仍由使用者正式驗證，供應商回覆停用延後，原 7 issues／29 groups 與整體 NOT_ACCEPTED 不變。[B17 受控修復與證據](../qa/DEV-122-openswx-schedule-time-remediation-2026-10-07.json)。

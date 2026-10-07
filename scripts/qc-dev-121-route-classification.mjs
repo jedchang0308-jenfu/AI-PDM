@@ -201,7 +201,7 @@ const workerCapabilityGuard = /\b(?:authenticateWorkerService)\s*\(/u;
 export function classifyOpenSwxSchedulerRoute(relativeFile, method, routeSource, authSource) {
   if (relativeFile !== "src/app/api/openswx-metadata-dispatch/recover/route.ts" || method !== "POST") return false;
   containsAll(routeSource, ['from "@/lib/openswx-metadata-dispatch-auth"', "await authenticateOpenSwxScheduler(request);", "if (denied) return denied;", "await recoverOpenSwxDispatch("], "OpenSWX exact Scheduler route");
-  containsAll(authSource, ['from "google-auth-library"', "google.verifyIdToken({ idToken: token, audience: OPENSWX_SCHEDULER_AUDIENCE })", "verify: Verify = verifyGoogle", "c.sub !== subject", "c.email !== OPENSWX_SCHEDULER_EMAIL", "c.aud !== OPENSWX_SCHEDULER_AUDIENCE", "OPENSWX_SCHEDULER_NOT_CONFIGURED", "x-cloudscheduler-scheduletime", "scheduled < observedNow - 60_000", "scheduled > observedNow + 5000"], "OpenSWX fixed signed Scheduler boundary");
+  containsAll(authSource, ['from "google-auth-library"', "google.verifyIdToken({ idToken: token, audience: OPENSWX_SCHEDULER_AUDIENCE })", "verify: Verify = verifyGoogle", "c.sub !== subject", "c.email !== OPENSWX_SCHEDULER_EMAIL", "c.aud !== OPENSWX_SCHEDULER_AUDIENCE", "OPENSWX_SCHEDULER_NOT_CONFIGURED", "x-cloudscheduler-scheduletime", "Number.isSafeInteger(observedNow)", "schedulerInstant(request.headers.get(\"x-cloudscheduler-scheduletime\"))", "BigInt(observedNow) * 1_000_000n", "schedule.nanos < observedNanos - 60_000_000_000n", "schedule.nanos > observedNanos + 5_000_000_000n", "calendar.getUTCFullYear() !== year", "match[8] === \"-00:00\"", "padEnd(9, \"0\")"], "OpenSWX fixed signed Scheduler boundary");
   return true;
 }
 

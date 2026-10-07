@@ -2,7 +2,7 @@
   "schemaVersion": "aipdm.dev122.schedule-time-remediation.v1",
   "project": "AI-PDM",
   "slice": "DEV-122 / B17 / strict Scheduler schedule-time",
-  "status": "LOCAL_CHECKS_PASS_FINAL_INDEPENDENT_QC_AND_NEW_SOURCE_RELEASE_PENDING",
+  "status": "B17_R2_STATIC_GATE_LOCAL_PASS_FINAL_SOURCE_QC_AND_EXACT_HEAD_CI_PENDING",
   "sourceBase": "fb5dba8269e8f664acae5b69a47a5c58684b28e9",
   "branch": "codex/dev122-scheduler-rfc3339-offset",
   "production": {
@@ -293,5 +293,37 @@
     "isolatedBuildPrimary": "TASK_WORKTREE_DATABASE_ABSENT_BEFORE_AND_AFTER_NO_SCHEMA_OR_FIXTURE_SEED",
     "sourceQc": "FINAL_PENDING",
     "noProductionPassClaim": true
+  },
+  "ciGateRepair": {
+    "failedSource": "9ce5904690e0ba1320b00bc3cda90f47ae8b41f5",
+    "pullRequest": 235,
+    "runId": 37602330878,
+    "result": "ACTUAL_FAILURE_NOT_MERGED_NOT_DEPLOYED",
+    "reason": "STATIC_GATE_OLD_MILLISECOND_SOURCE_NEEDLES",
+    "changedFile": "scripts/qc-dev-121-route-classification.mjs",
+    "authAndFocusedTests": "UNCHANGED",
+    "newRequirement": "PRESERVE_FIXED_GOOGLE_IDENTITY_AND_EXACT_ROUTE;ASSERT_NEW_STRICT_CALENDAR_OFFSET_NANOSECOND_SOURCE",
+    "verification": {
+      "state": "ACTUAL_SYNTAX_FULL_ROUTE_GATE_AND_20_IN_MEMORY_ASSERTION_REMOVALS_PASS",
+      "result": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17r2-gate-r2-check-result.json",
+        "sha256": "9b2e0d2d7f627fa7957d2752a86fad5e5e7dc0b8a08ce6b063faa7d5059aaff7"
+      },
+      "runtime": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17r2-gate-r2-runtime.json",
+        "sha256": "f50bed918c562df48462cd225386c9c911cb58126bfa72d3f31874b8b158a52f"
+      },
+      "qaPlan": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17r2-static-gate-qa-plan.json",
+        "sha256": "e76286351115ab8e631b49d91a5524c743ae3dfca142d3dc7ace35d4d4005fdc"
+      },
+      "failedHelperAttemptRetained": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17r2-sensitivity-tooling-correction.json",
+        "sha256": "d05a8eca59a8660ac702732e4433c428cc8e16fd24555fe1725ffc5eb39aa6c1"
+      },
+      "authAndFocusedTestsByteUnchanged": true,
+      "sourceQcAndNewHeadCi": "PENDING"
+    },
+    "observedAt": "2026-10-07T09:56:54.375338+00:00"
   }
 }
