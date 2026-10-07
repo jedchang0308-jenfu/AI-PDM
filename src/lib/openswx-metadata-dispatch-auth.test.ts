@@ -1,4 +1,8 @@
 import crypto from "node:crypto";
+import { Readable } from "node:stream";
+import NextNodeServer from "next/dist/server/next-server";
+import { NodeNextRequest } from "next/dist/server/base-http/node";
+import { NextRequestAdapter } from "next/dist/server/web/spec-extension/adapters/next-request";
 import { OAuth2Client } from "google-auth-library";
 import { describe, expect, it } from "vitest";
 import { authenticateOpenSwxScheduler, OPENSWX_SCHEDULER_AUDIENCE as audience, OPENSWX_SCHEDULER_EMAIL as email, OPENSWX_SCHEDULER_SUBJECT as fixedSubject } from "./openswx-metadata-dispatch-auth";
@@ -14,6 +18,71 @@ const oauth = new OAuth2Client();
 const verify = async (jwt: string) => (await oauth.verifySignedJwtWithCertsAsync(jwt, { fixture: keys.publicKey.export({ format: "pem", type: "spki" }).toString() }, audience, ["https://accounts.google.com"])).getPayload();
 const request = (jwt = token(), cookie = false, scheduleTime: string | null = new Date(now).toISOString()) => new Request(`${audience}/api/openswx-metadata-dispatch/recover`, { method: "POST", headers: { authorization: `Bearer ${jwt}`, ...(scheduleTime ? { "x-cloudscheduler-scheduletime": scheduleTime } : {}), ...(cookie ? { cookie: "pdm_session=fixture" } : {}) } });
 describe("OpenSWX Scheduler signature and exact purpose", () => {
+  const internalRequest = (url = "https://0.0.0.0:8080", overrides: Partial<Record<string, string | null>> = {}, jwt = token()) => {
+    const headers = new Headers({ host: new URL(audience).host, "x-forwarded-proto": "https", authorization: `Bearer ${jwt}`, "x-cloudscheduler-scheduletime": new Date(now).toISOString() });
+    for (const [name, value] of Object.entries(overrides)) { if (value === undefined) continue; if (value === null) headers.delete(name); else headers.set(name, value); }
+    return new Request(url + "/api/openswx-metadata-dispatch/recover", { method: "POST", headers });
+  };
+  async function inCloudRun(run: () => Promise<void>) {
+    const service = process.env.K_SERVICE, port = process.env.PORT;
+    process.env.K_SERVICE = "ai-pdm-prod"; process.env.PORT = "8080";
+    try { await run(); }
+    finally { if (service === undefined) delete process.env.K_SERVICE; else process.env.K_SERVICE = service; if (port === undefined) delete process.env.PORT; else process.env.PORT = port; }
+  }
+  it("rejects mismatched runtime and canonical transport before Google verification", async () => {
+    await inCloudRun(async () => {
+      let calls = 0; const unused = async () => { calls++; return claims; };
+      for (const overrides of [{ host: null }, { host: "foreign.example" }, { host: new URL(audience).host + ",foreign.example" }, { "x-forwarded-proto": null }, { "x-forwarded-proto": "http" }, { "x-forwarded-proto": "https,http" }]) expect((await authenticateOpenSwxScheduler(internalRequest(undefined, overrides), unused, now))?.status).toBe(403);
+      for (const url of ["http://0.0.0.0:8080", "https://0.0.0.0:8081", "https://localhost:8080", "https://127.0.0.1:8080", "https://foreign.example"]) expect((await authenticateOpenSwxScheduler(internalRequest(url), unused, now))?.status).toBe(403);
+      for (const [service, port] of [["other-service", "8080"], ["", "8080"], ["ai-pdm-prod", "3000"], ["ai-pdm-prod", ""]]) { process.env.K_SERVICE = service; process.env.PORT = port; expect((await authenticateOpenSwxScheduler(internalRequest(), unused, now))?.status).toBe(403); }
+      expect(calls).toBe(0);
+    });
+  });
+  it("a canonical URL cannot hide conflicting Host or protocol headers", async () => {
+    let calls = 0; const unused = async () => { calls++; return claims; };
+    for (const overrides of [{ host: "foreign.example" }, { host: new URL(audience).host + ",foreign.example" }, { "x-forwarded-proto": "http" }, { "x-forwarded-proto": "https,http" }]) expect((await authenticateOpenSwxScheduler(internalRequest(audience, overrides), unused, now))?.status).toBe(403);
+    expect(calls).toBe(0);
+  });
+  it("forwarded host cannot replace the incoming canonical Host", async () => {
+    await inCloudRun(async () => {
+      for (const host of [null, "foreign.example"]) expect((await authenticateOpenSwxScheduler(internalRequest(undefined, { host, "x-forwarded-host": new URL(audience).host }), verify, now))?.status).toBe(403);
+    });
+  });
+  it("the standalone transport still requires valid RSA, fixed claims and schedule freshness", async () => {
+    await inCloudRun(async () => {
+      expect(await authenticateOpenSwxScheduler(internalRequest(), verify, now)).toBeNull();
+      const other = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+      expect((await authenticateOpenSwxScheduler(internalRequest(undefined, {}, token({}, other.privateKey)), verify, now))?.status).toBe(403);
+      for (const bad of [{ aud: audience + "/" }, { sub: "999999999" }, { email: "other@jenfu-platform-prod.iam.gserviceaccount.com" }, { email_verified: false }, { exp: seconds - 1 }]) expect((await authenticateOpenSwxScheduler(internalRequest(undefined, {}, token(bad)), verify, now))?.status).toBe(403);
+      for (const scheduleTime of [null, new Date(now - 60001).toISOString(), new Date(now + 5001).toISOString()]) expect((await authenticateOpenSwxScheduler(internalRequest(undefined, { "x-cloudscheduler-scheduletime": scheduleTime }), verify, now))?.status).toBe(403);
+      expect((await authenticateOpenSwxScheduler(internalRequest(undefined, { cookie: "fixture" }), verify, now))?.status).toBe(403);
+    });
+  });
+
+  it("accepts the canonical Scheduler destination through the installed standalone adapter", async () => {
+    const originalService = process.env.K_SERVICE, originalPort = process.env.PORT;
+    process.env.K_SERVICE = "ai-pdm-prod"; process.env.PORT = "8080";
+    try {
+      const incoming = Object.assign(Readable.from([Buffer.from("{}")]), {
+        method: "POST", url: "/api/openswx-metadata-dispatch/recover",
+        headers: { host: new URL(audience).host, "x-forwarded-proto": "https", authorization: `Bearer ${token()}`, "x-cloudscheduler-scheduletime": new Date(now).toISOString() }
+      });
+      // Use the installed production adapter and the exact Docker hostname/port.
+      const nodeRequest = new NodeNextRequest(incoming as never);
+      const server = { fetchHostname: "0.0.0.0", port: 8080, nextConfig: { experimental: { trustHostHeader: false } } };
+      Reflect.apply(Reflect.get(NextNodeServer.prototype, "attachRequestMeta"), server, [nodeRequest, { query: {} }, false]);
+      const adapted = NextRequestAdapter.fromNodeNextRequest(nodeRequest, new AbortController().signal);
+      expect(new URL(adapted.url).origin).toBe("https://0.0.0.0:8080");
+      expect(adapted.headers.get("host")).toBe(new URL(audience).host);
+      let verified = 0;
+      const signed = async (jwt: string) => { verified++; return verify(jwt); };
+      expect(await authenticateOpenSwxScheduler(adapted, signed, now)).toBeNull();
+      expect(verified).toBe(1);
+    } finally {
+      if (originalService === undefined) delete process.env.K_SERVICE; else process.env.K_SERVICE = originalService;
+      if (originalPort === undefined) delete process.env.PORT; else process.env.PORT = originalPort;
+    }
+  });
   it("accepts the fixed verified identity through the production default without an environment setting", async () => {
     const previous = process.env.PDM_OPENSWX_SCHEDULER_SUBJECT;
     delete process.env.PDM_OPENSWX_SCHEDULER_SUBJECT;
