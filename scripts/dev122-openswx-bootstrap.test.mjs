@@ -12,7 +12,7 @@ import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBAC
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan, readPrebuildIamContinuation } from './lib/dev122-openswx-readback-iam.mjs'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
-import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources } from './lib/dev122-openswx-bootstrap.mjs'
+import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources, readCurrentReadyWorkerResources } from './lib/dev122-openswx-bootstrap.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
@@ -164,6 +164,38 @@ async function dailyHarness({ markerState = null, wrongPriorImage = false } = {}
   const invoke = async (stage, extra, name) => { const inputRef = await h.put(name + '-input', { schemaVersion: `aipdm.openswx-${stage}-input.v1`, descriptorRef: nextDescriptorRef, workerBuildRef: nextBuildRef, deadlineAt: deadline(), receiptId: name, ...extra }); return executeOpenSwxBootstrap({ stage, inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} }) }
   return { ...h, invoke, controls, priorCapsule: capsule, prior: p.value, next: n.value, nextDescriptorRef, nextBuildRef, activationRef, priorImage, nextImage }
 }
+test('B19 READY resource wrapper observes actual ENABLED normal Job, metadata only, with no lifecycle or evidence writes', async () => {
+  const h = await dailyHarness(), prior = await readPriorWorkerActivation(h.transport, h.activationRef, profile, readSource), provider = h.transport.request
+  h.transport.request = async (url, opts) => {
+    const body = await provider(url, opts)
+    if (url.includes('secretmanager') && url.includes('/versions/')) return { ...body, etag: 'opaque-test-secret-etag' }
+    return body
+  }
+  const count = h.objects.size, result = await readCurrentReadyWorkerResources({ transport: h.transport, profile, prior, supplementalIam: null })
+  assert.equal(result.schedulerState, 'ENABLED'); assert.equal(result.normalTemplateSha256, sha256(canonicalize(prior.template)))
+  assert.equal(result.resourcesUnchanged, true); assert.equal(result.quiescenceClaimed, false); assert.equal(result.mutationPerformed, false)
+  assert.equal(result.jobEtagBefore, result.jobEtagAfter); assert.equal(h.objects.size, count)
+  assert.equal(result.schedulerUserUpdateTime, null); assert.equal(result.secretMetadata.length, 2)
+  assert.ok(h.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  assert.ok(h.calls.every(row => !/:access|:run|:pause|:resume|:addVersion/u.test(row.url)))
+})
+test('B19 READY double read rejects state/Job/Secret/Scheduler drift and free policy overrides without writes', async () => {
+  for (const defect of ['PAUSED', 'job-etag', 'secret-etag', 'scheduler-policy']) {
+    const h = await dailyHarness(), prior = await readPriorWorkerActivation(h.transport, h.activationRef, profile, readSource), provider = h.transport.request
+    const counts = new Map(); h.transport.request = async (url, opts) => {
+      const body = await provider(url, opts), count = (counts.get(url) ?? 0) + 1; counts.set(url, count)
+      if (url.includes('secretmanager') && url.includes('/versions/')) return { ...body, etag: defect === 'secret-etag' && count > 1 ? 'changed' : 'opaque-etag' }
+      if (defect === 'PAUSED' && url.includes('cloudscheduler')) return { ...body, state: 'PAUSED' }
+      if (defect === 'job-etag' && url === `https://run.googleapis.com/v2/${workerJobName()}` && count > 1) return { ...body, etag: 'changed' }
+      if (defect === 'scheduler-policy' && url.includes('cloudscheduler') && count > 1) return { ...body, userUpdateTime: '2026-10-07T00:00:00Z' }
+      return body
+    }
+    const size = h.objects.size
+    await assert.rejects(readCurrentReadyWorkerResources({ transport: h.transport, profile, prior, supplementalIam: null }))
+    assert.equal(h.objects.size, size); assert.ok(!h.calls.some(row => /:pause|:run|:resume|:addVersion|:access/u.test(row.url)))
+    await assert.rejects(readCurrentReadyWorkerResources({ transport: h.transport, profile, prior, supplementalIam: null, expectedState: 'PAUSED' }), { code: 'OPENSWX_READY_INPUT_INVALID' })
+  }
+})
 test('daily target-linked drain retains prior actual image; new source bootstrap reuses numeric credentials with zero issuance/apply', async () => {
   const h = await dailyHarness(), drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'daily-drain')
   assert.equal(drained.value.image, h.priorImage); assert.equal(drained.value.facts.targetWorkerBuildRef.sha256, h.nextBuildRef.sha256)

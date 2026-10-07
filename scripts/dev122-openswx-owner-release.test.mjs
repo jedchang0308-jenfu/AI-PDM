@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
+import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
 const profile = JSON.parse(profileBytes)
@@ -17,6 +17,25 @@ export function workerDescriptor(purpose = 'build_only') {
   for (const key of ['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot']) common[key] = profile[key]
   return { ...common, ...(purpose === 'build_only' ? { resourcePlanRef: ref('approved-plan') } : { workerBuildRef: ref('a-build'), bootstrapRef: ref('bootstrap'), cloudPreflightRef: ref('preflight'), pausedDrainedRef: ref('drained'), tokenSecretVersion: token, registrySecretVersion: 'projects/9536592944/secrets/aipdm-prod-workload-auth-credentials/versions/9' }) }
 }
+test('B19 fixed ENABLED READY and legacy PAUSED policies remain separate with exact zero retry semantics', () => {
+  const ready = { name: workerSchedulerName(), state: 'ENABLED', schedule: profile.bounds.schedule, timeZone: 'Etc/UTC', attemptDeadline: '30s',
+    httpTarget: { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } } }
+  assertCurrentReadyScheduler(ready, profile); assert.throws(() => assertPausedScheduler(ready, profile), { code: 'OPENSWX_SCHEDULER_NOT_PAUSED' })
+  const paused = { ...ready, state: 'PAUSED' }; assertPausedScheduler(paused, profile); assert.throws(() => assertCurrentReadyScheduler(paused, profile), { code: 'OPENSWX_SCHEDULER_NOT_CURRENT_READY' })
+  for (const retryConfig of [undefined, {}, { retryCount: 0 }, { maxRetryDuration: '0s' }, { retryCount: 0, maxRetryDuration: '0.000000000s' }]) {
+    assertCurrentReadyScheduler({ ...ready, retryConfig }, profile); assertPausedScheduler({ ...paused, retryConfig }, profile)
+  }
+  for (const mutation of [{ state: 'DISABLED' }, { schedule: '* * * * *' }, { timeZone: 'Asia/Taipei' }, { attemptDeadline: '60s' }, { httpTarget: { ...ready.httpTarget, body: 'eA==' } }, { httpTarget: { ...ready.httpTarget, oidcToken: { ...ready.httpTarget.oidcToken, audience: 'https://other' } } }, ...[null, [], { retryCount: '0' }, { retryCount: 1 }, { maxRetryDuration: '0' }, { maxRetryDuration: '1s' }].map(retryConfig => ({ retryConfig }))]) assert.throws(() => assertCurrentReadyScheduler({ ...ready, ...mutation }, profile))
+})
+test('B19 closed v2 keeps the original purpose/runtime contract; v1 old-source plan is never rebound', () => {
+  for (const purpose of ['build_only', 'full']) {
+    const d = { ...workerDescriptor(purpose), schemaVersion: 'aipdm.openswx-worker-descriptor.v2', artifactMode: 'REUSE_VERIFIED' }
+    if (purpose === 'build_only') { delete d.resourcePlanRef; d.workerBuildRef = ref('association') }
+    assertWorkerDescriptor(d, profile, sha256(profileBytes), sourceRevision)
+    for (const patch of [{ artifactMode: 'BUILD' }, { purpose: 'reuse' }, { resourcePlanRef: ref('forged-current-approval') }, { command: 'build' }]) assert.throws(() => assertWorkerDescriptor({ ...d, ...patch }, profile, sha256(profileBytes), sourceRevision))
+  }
+  assertWorkerDescriptor(workerDescriptor(), profile, sha256(profileBytes), sourceRevision)
+})
 test('fixed profile and descriptor reject arbitrary authority, mutable refs and policy/actual confusion', () => {
   assertOpenSwxWorkerProfile(profile)
   assertWorkerDescriptor(workerDescriptor(), profile, sha256(profileBytes), sourceRevision)

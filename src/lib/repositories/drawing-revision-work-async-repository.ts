@@ -385,9 +385,26 @@ export class DrawingRevisionWorkAsyncRepository {
     const branch = await tx.queryOne<{ latest_approved_revision_id: string | null }>(`SELECT latest_approved_revision_id FROM drawing_rd_branches WHERE id = :branchId AND company_id = :companyId${tx.kind === "postgres" ? " FOR UPDATE" : ""}`, { companyId: input.companyId, branchId: work.branch_id });
     const state = await tx.queryOne<{ handling: string }>(`SELECT handling FROM canonical_workbench_states WHERE company_id = :companyId AND work_id = :workId${tx.kind === "postgres" ? " FOR UPDATE" : ""}`, input);
     if (state?.handling !== "owner") throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "目前版本不可取消", 409);
+    // This parent gate also fences an absent job against concurrent drawing-revision enqueue.
+    const revision = await tx.queryOne<{ lifecycle_state: string; row_version: number | string }>(
+      `SELECT lifecycle_state, row_version FROM drawing_revisions
+       WHERE id = :revisionId AND company_id = :companyId${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
+      { companyId: input.companyId, revisionId: work.revision_id }
+    );
+    if (!revision || !["preparing", "correction_required"].includes(revision.lifecycle_state)) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "目前版本不可取消", 409);
+    const openSwxJobs = await tx.query<{ id: string; status: string; session_id: string | null }>(
+      `SELECT id, status, session_id FROM openswx_metadata_jobs
+       WHERE company_id = :companyId AND drawing_revision_id = :revisionId
+       ORDER BY id${tx.kind === "postgres" ? " FOR UPDATE" : ""}`,
+      { companyId: input.companyId, revisionId: work.revision_id }
+    );
+    if (openSwxJobs.some(job => job.status === "queued" || job.status === "running")) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "輔助辨識工作尚未結束，目前版本不可取消", 409);
+    const retainRevision = openSwxJobs.length > 0;
+    const retainRecognitionSessions = openSwxJobs.some(job => job.session_id !== null);
     const recognitionSessions = await tx.query<{ id: string }>(
       `SELECT id FROM drawing_recognition_sessions
-       WHERE company_id = :companyId AND source_context_type = 'drawing_revision' AND drawing_revision_id = :revisionId
+       WHERE company_id = :companyId AND drawing_revision_id = :revisionId
+       ${retainRecognitionSessions ? "" : "AND source_context_type = 'drawing_revision'"}
        ${tx.kind === "postgres" ? "FOR UPDATE" : ""}`,
       { companyId: input.companyId, revisionId: work.revision_id }
     );
@@ -399,18 +416,20 @@ export class DrawingRevisionWorkAsyncRepository {
         { companyId: input.companyId, revisionId: work.revision_id }
       );
       if (Number(formalized?.count ?? 0) > 0) throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "辨識結果已正式寫入，這筆工作資料不可直接取消", 409);
-      if (tx.kind === "postgres") await tx.query(`SELECT set_config('app.dev087_cancel_revision_id', :revisionId, true)`, { revisionId: work.revision_id });
+      if (!retainRecognitionSessions && tx.kind === "postgres") await tx.query(`SELECT set_config('app.dev087_cancel_revision_id', :revisionId, true)`, { revisionId: work.revision_id });
       await tx.execute(`UPDATE drawing_recognition_sessions SET status = 'cancelled', cancelled_at = CURRENT_TIMESTAMP, locked_by = NULL, locked_at = NULL, heartbeat_at = NULL, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND drawing_revision_id = :revisionId`, { companyId: input.companyId, revisionId: work.revision_id });
-      for (const table of ["drawing_recognition_decisions", "drawing_recognition_candidate_observations", "drawing_recognition_observations", "drawing_recognition_adapter_results"] as const) {
-        const predicate = table === "drawing_recognition_candidate_observations"
-          ? `candidate_id IN (SELECT candidate.id FROM drawing_recognition_candidates candidate JOIN drawing_recognition_sessions session ON session.id = candidate.session_id WHERE session.company_id = :companyId AND session.drawing_revision_id = :revisionId)`
-          : `session_id IN (SELECT id FROM drawing_recognition_sessions WHERE company_id = :companyId AND drawing_revision_id = :revisionId)`;
-        await tx.execute(`DELETE FROM ${table} WHERE ${predicate}`, { companyId: input.companyId, revisionId: work.revision_id });
+      if (!retainRecognitionSessions) {
+        for (const table of ["drawing_recognition_decisions", "drawing_recognition_candidate_observations", "drawing_recognition_observations", "drawing_recognition_adapter_results"] as const) {
+          const predicate = table === "drawing_recognition_candidate_observations"
+            ? `candidate_id IN (SELECT candidate.id FROM drawing_recognition_candidates candidate JOIN drawing_recognition_sessions session ON session.id = candidate.session_id WHERE session.company_id = :companyId AND session.drawing_revision_id = :revisionId)`
+            : `session_id IN (SELECT id FROM drawing_recognition_sessions WHERE company_id = :companyId AND drawing_revision_id = :revisionId)`;
+          await tx.execute(`DELETE FROM ${table} WHERE ${predicate}`, { companyId: input.companyId, revisionId: work.revision_id });
+        }
+        await tx.execute(`DELETE FROM drawing_recognition_candidates WHERE session_id IN (SELECT id FROM drawing_recognition_sessions WHERE company_id = :companyId AND drawing_revision_id = :revisionId)`, { companyId: input.companyId, revisionId: work.revision_id });
+        await tx.execute(`DELETE FROM drawing_recognition_sources WHERE session_id IN (SELECT id FROM drawing_recognition_sessions WHERE company_id = :companyId AND drawing_revision_id = :revisionId)`, { companyId: input.companyId, revisionId: work.revision_id });
+        await tx.execute(`UPDATE drawing_recognition_sessions SET supersedes_session_id = NULL WHERE company_id = :companyId AND drawing_revision_id = :revisionId`, { companyId: input.companyId, revisionId: work.revision_id });
+        await tx.execute(`DELETE FROM drawing_recognition_sessions WHERE company_id = :companyId AND drawing_revision_id = :revisionId`, { companyId: input.companyId, revisionId: work.revision_id });
       }
-      await tx.execute(`DELETE FROM drawing_recognition_candidates WHERE session_id IN (SELECT id FROM drawing_recognition_sessions WHERE company_id = :companyId AND drawing_revision_id = :revisionId)`, { companyId: input.companyId, revisionId: work.revision_id });
-      await tx.execute(`DELETE FROM drawing_recognition_sources WHERE session_id IN (SELECT id FROM drawing_recognition_sessions WHERE company_id = :companyId AND drawing_revision_id = :revisionId)`, { companyId: input.companyId, revisionId: work.revision_id });
-      await tx.execute(`UPDATE drawing_recognition_sessions SET supersedes_session_id = NULL WHERE company_id = :companyId AND drawing_revision_id = :revisionId`, { companyId: input.companyId, revisionId: work.revision_id });
-      await tx.execute(`DELETE FROM drawing_recognition_sessions WHERE company_id = :companyId AND drawing_revision_id = :revisionId`, { companyId: input.companyId, revisionId: work.revision_id });
     }
     if (branch?.latest_approved_revision_id) {
       await tx.execute(`UPDATE canonical_workbench_states SET revision_id = :revisionId, work_id = NULL, handling = 'none', row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP WHERE company_id = :companyId AND branch_id = :branchId`, { companyId: input.companyId, branchId: work.branch_id, revisionId: branch.latest_approved_revision_id });
@@ -444,7 +463,18 @@ export class DrawingRevisionWorkAsyncRepository {
       { companyId: input.companyId, revisionId: work.revision_id }
     );
     await tx.execute(`DELETE FROM drawing_revision_works WHERE id = :workId AND company_id = :companyId`, input);
-    await tx.execute(`DELETE FROM drawing_revisions WHERE id = :revisionId AND company_id = :companyId AND lifecycle_state IN ('preparing','correction_required')`, { companyId: input.companyId, revisionId: work.revision_id });
+    if (retainRevision) {
+      const cancelled = await tx.query<{ id: string }>(
+        `UPDATE drawing_revisions SET lifecycle_state = 'cancelled', cancelled_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP, row_version = row_version + 1
+         WHERE id = :revisionId AND company_id = :companyId AND lifecycle_state IN ('preparing','correction_required')
+           AND row_version = :expectedRevisionVersion RETURNING id`,
+        { companyId: input.companyId, revisionId: work.revision_id, expectedRevisionVersion: Number(revision.row_version) }
+      );
+      if (cancelled.length !== 1) throw new CanonicalWorkbenchError("WORKBENCH_ROW_VERSION_CONFLICT", "重新讀取目前資料", 409);
+    } else {
+      await tx.execute(`DELETE FROM drawing_revisions WHERE id = :revisionId AND company_id = :companyId AND lifecycle_state IN ('preparing','correction_required')`, { companyId: input.companyId, revisionId: work.revision_id });
+    }
     await tx.execute(`DELETE FROM drawing_revision_claims WHERE id = :claimId AND company_id = :companyId AND claim_state = 'work'`, { companyId: input.companyId, claimId: work.target_claim_id });
     if (!branch?.latest_approved_revision_id) {
       await tx.execute(`DELETE FROM drawing_rd_branches WHERE company_id = :companyId AND id = :branchId`, { companyId: input.companyId, branchId: work.branch_id });

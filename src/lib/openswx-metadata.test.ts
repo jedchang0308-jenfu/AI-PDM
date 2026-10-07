@@ -1,9 +1,9 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureOpenSwxMetadataSchema } from "@/lib/db";
-import { SQLiteAsyncDatabaseClient, type AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { SQLiteAsyncDatabaseClient, type AsyncDatabaseClient, type AsyncDatabaseQueryParams } from "@/lib/db-async-provider";
 import { OpenSwxMetadataService, requireCurrentOpenSwxAuthority, type OpenSwxCoreDependencies } from "./openswx-metadata";
 import { OpenSwxMetadataAsyncRepository } from "./repositories/openswx-metadata-async-repository";
 import { OPENSWX_READER, encodeOpenSwxCompletion, type OpenSwxFence } from "./openswx-metadata-contract";
@@ -34,7 +34,7 @@ beforeEach(() => {
   expect(sqlite.prepare("SELECT name FROM sqlite_master WHERE name LIKE '%migration%'").all()).toEqual([]);
   expect(sqlite.pragma("foreign_key_check")).toEqual([]);
   sqlite.exec(`CREATE TABLE drawing_numbers(id TEXT PRIMARY KEY,company_id TEXT,created_by TEXT);
-CREATE TABLE drawing_revisions(id TEXT PRIMARY KEY,company_id TEXT,drawing_id TEXT);
+CREATE TABLE drawing_revisions(id TEXT PRIMARY KEY,company_id TEXT,drawing_id TEXT,lifecycle_state TEXT NOT NULL DEFAULT 'preparing');
 CREATE TABLE drawing_revision_packages(id TEXT PRIMARY KEY,company_id TEXT);
 CREATE TABLE numbering_candidate_revision_drafts(id TEXT PRIMARY KEY,company_id TEXT,workspace_id TEXT);
 CREATE TABLE numbering_draft_workspaces(id TEXT PRIMARY KEY,company_id TEXT,owner_id TEXT);
@@ -69,7 +69,117 @@ async function running() {
   const fence: OpenSwxFence = { jobId: job.id, companyId: "company", attempt: 1, sourceSetFingerprint: hash, readerCommit: OPENSWX_READER.commit, executionName };
   return fence;
 }
+function b18TouchFixture(kind: "postgres" | "sqlite", lifecycle = "preparing", failure?: "null-insert" | "missing-touch" | "touch-error") {
+  sqlite.exec(`ALTER TABLE drawing_revisions ADD COLUMN row_version INTEGER NOT NULL DEFAULT 7;
+    ALTER TABLE drawing_revisions ADD COLUMN updated_by TEXT NOT NULL DEFAULT 'original-editor';
+    ALTER TABLE drawing_revisions ADD COLUMN updated_at TEXT NOT NULL DEFAULT 'original-timestamp';
+    ALTER TABLE drawing_revisions ADD COLUMN revision TEXT NOT NULL DEFAULT '1';
+    ALTER TABLE drawing_revisions ADD COLUMN policy_snapshot_json TEXT NOT NULL DEFAULT '{}';
+    ALTER TABLE drawing_revisions ADD COLUMN override_reason TEXT;
+    CREATE TRIGGER b18_fixture_updated_at AFTER UPDATE ON drawing_revisions BEGIN
+      UPDATE drawing_revisions SET updated_at=OLD.updated_at || ':touch' WHERE id=NEW.id;
+    END;
+    INSERT INTO drawings(id,company_id) VALUES('touch-drawing','company');`);
+  sqlite.prepare("INSERT INTO drawing_revisions(id,company_id,drawing_id,lifecycle_state) VALUES('touch-revision','company','touch-drawing',?)").run(lifecycle);
+  sqlite.exec("INSERT INTO drawing_revision_files VALUES('touch-file','touch-revision','company','asset',NULL)");
+  ledger.push({ fixture: "B18 touch unit seam", kind, lifecycle, failure: failure ?? null, seed: ["isolated revision metadata columns", "isolated updated_at trigger", "company/touch-drawing/touch-revision", "actual drawing_revision_files membership: company/touch-revision/asset"], nativeMVCC: "NOT_TESTED", primaryData: "untouched" });
+  const statements: string[] = [];
+  const normalize = (sql: string) => sql.replace(/\s+FOR UPDATE\b/gu, "");
+  const wrap = (client: AsyncDatabaseClient): AsyncDatabaseClient => ({
+    kind,
+    async query<T>(sql: string, params?: AsyncDatabaseQueryParams) {
+      statements.push(sql);
+      const touch = /^UPDATE\s+(?:ai_pdm_core\.)?drawing_revisions\b/iu.test(sql.trim());
+      if (touch && failure === "touch-error") throw new Error("B18_UNIT_TOUCH_FAILURE");
+      const rows = await client.query<T>(normalize(sql), params);
+      return touch && failure === "missing-touch" ? [] : rows;
+    },
+    async queryOne<T>(sql: string, params?: AsyncDatabaseQueryParams) {
+      statements.push(sql); const row = await client.queryOne<T>(normalize(sql), params);
+      return failure === "null-insert" && /FROM ai_pdm_core\.openswx_metadata_jobs WHERE company_id=:companyId AND source_context_type=/u.test(sql) ? null : row;
+    },
+    async execute(sql: string, params?: AsyncDatabaseQueryParams) { statements.push(sql); await client.execute(normalize(sql), params); },
+    async transaction<T>(callback: (tx: AsyncDatabaseClient) => T | Promise<T>) { return client.transaction(tx => callback(wrap(tx))); },
+    close: () => client.close()
+  });
+  // SQL/transaction semantics seam on real isolated SQLite: this is not PostgreSQL MVCC or driver evidence.
+  const authority = vi.fn(async () => { if (revoked) throw Error("authority_revoked"); return { allowed: true, roleCode: null } as Awaited<ReturnType<NonNullable<OpenSwxCoreDependencies["authority"]>>>; });
+  const basis = vi.fn(async (_db: AsyncDatabaseClient, _company: string, selection: Parameters<NonNullable<OpenSwxCoreDependencies["sourceBasis"]>>[2]) => { if (drift) throw Error("source_drift"); return { context: { companyId: "company", sourceContextType: selection.sourceContextType, sourceContextId: selection.sourceContextId, ownerPrincipalId: owner }, fingerprint: hash, sources: [source] }; });
+  return { service: new OpenSwxMetadataService(wrap(db), { now: () => time, authority, sourceBasis: basis }), statements, basis,
+    selection: { sourceContextType: "drawing_revision" as const, sourceContextId: "touch-revision", sourceAssetIds: ["asset"] },
+    parent: () => sqlite.prepare("SELECT * FROM drawing_revisions WHERE id='touch-revision'").get() as Record<string, unknown>,
+    jobs: () => sqlite.prepare("SELECT * FROM openswx_metadata_jobs ORDER BY id").all(),
+    touches: () => statements.filter(sql => /^UPDATE\s+(?:ai_pdm_core\.)?drawing_revisions\b/iu.test(sql.trim())) };
+}
+describe("B18 NEW-only parent MVCC touch service contract (unit seam, not native proof)", () => {
+  it.each(["preparing", "correction_required"])("touches a proven NEW PostgreSQL binding in %s after source checks and insert while preserving metadata and sources", async lifecycle => {
+    const fixture = b18TouchFixture("postgres", lifecycle), before = fixture.parent();
+    const job = await fixture.service.enqueue(verified, fixture.selection);
+    expect(job).toBeTruthy(); expect(fixture.touches()).toHaveLength(1);
+    const after = fixture.parent(); expect(after.updated_at).not.toBe(before.updated_at);
+    expect({ ...after, updated_at: before.updated_at }).toEqual(before);
+    expect(job!.sourceSetFingerprint).toBe(hash); expect(job!.sources).toEqual([source]); expect(job!.initiator.principalId).toBe("principal");
+    const insertIndex = fixture.statements.findIndex(sql => sql.trim().startsWith("INSERT INTO ai_pdm_core.openswx_metadata_jobs"));
+    expect(fixture.statements.indexOf(fixture.touches()[0])).toBeGreaterThan(insertIndex); expect(fixture.basis).toHaveBeenCalledOnce();
+  });
+  it("deduplicated PostgreSQL binding returns original job bytes with zero extra parent write", async () => {
+    const fixture = b18TouchFixture("postgres"), first = await fixture.service.enqueue(verified, fixture.selection);
+    const parent = fixture.parent(), bytes = fixture.jobs(), touches = fixture.touches().length;
+    expect(touches).toBe(1);
+    const replay = await fixture.service.enqueue(verified, fixture.selection);
+    expect(replay).toEqual(first); expect(fixture.jobs()).toEqual(bytes); expect(fixture.parent()).toEqual(parent); expect(fixture.touches()).toHaveLength(touches);
+  });
+  it.each(["authority", "source", "owner", "missing", "cancelled"])("rejected %s request never touches or inserts", async denial => {
+    const fixture = b18TouchFixture("postgres", denial === "cancelled" ? "cancelled" : "preparing");
+    if (denial === "authority") revoked = true; if (denial === "source") drift = true; if (denial === "owner") owner = "different-principal";
+    if (denial === "missing") sqlite.exec("DELETE FROM drawing_revisions WHERE id='touch-revision'");
+    const parent = fixture.parent(), jobs = fixture.jobs();
+    await expect(fixture.service.enqueue(verified, fixture.selection)).rejects.toThrow();
+    expect(fixture.touches()).toEqual([]); expect(fixture.parent()).toEqual(parent); expect(fixture.jobs()).toEqual(jobs);
+  });
+  it.each(["rd_controlled", "released", "superseded", "in_review"])("keeps existing readable %s source acceptance without parent touch", async lifecycle => {
+    const fixture = b18TouchFixture("postgres", lifecycle), parent = fixture.parent();
+    expect(await fixture.service.enqueue(verified, fixture.selection)).toBeTruthy(); expect(fixture.touches()).toEqual([]); expect(fixture.parent()).toEqual(parent);
+  });
+  it("SQLite NEW and dedup keep parent bytes unchanged through actual BEGIN IMMEDIATE", async () => {
+    const fixture = b18TouchFixture("sqlite"), parent = fixture.parent();
+    const first = await fixture.service.enqueue(verified, fixture.selection), second = await fixture.service.enqueue(verified, fixture.selection);
+    expect(second).toEqual(first); expect(fixture.jobs()).toHaveLength(1); expect(fixture.parent()).toEqual(parent); expect(fixture.touches()).toEqual([]);
+  });
+  it("PostgreSQL other-context enqueue preserves its existing path with zero revision gate or touch", async () => {
+    const fixture = b18TouchFixture("postgres"), parent = fixture.parent();
+    expect(await fixture.service.enqueue(verified, { sourceContextType: "drawing_number", sourceContextId: "drawing", sourceAssetIds: ["asset"] })).toBeTruthy();
+    expect(fixture.touches()).toEqual([]); expect(fixture.parent()).toEqual(parent);
+    expect(fixture.statements.some(sql => /SELECT lifecycle_state FROM ai_pdm_core\.drawing_revisions/u.test(sql))).toBe(false);
+  });
+  it.each(["null-insert", "missing-touch", "touch-error"] as const)("fails closed and rolls back NEW job and parent on %s", async failure => {
+    const fixture = b18TouchFixture("postgres", "preparing", failure), parent = fixture.parent(), jobs = fixture.jobs();
+    const result = fixture.service.enqueue(verified, fixture.selection);
+    if (failure === "touch-error") await expect(result).rejects.toThrow("B18_UNIT_TOUCH_FAILURE");
+    else await expect(result).rejects.toMatchObject({ code: "OPENSWX_SOURCE_DRIFT", status: 409 });
+    expect(fixture.parent()).toEqual(parent); expect(fixture.jobs()).toEqual(jobs);
+  });
+});
 describe("OpenSWX auxiliary transaction core", () => {
+  it.each(["missing", "cancelled", "crosscompany"])("B18 drawing revision gate rejects %s before a source/owner basis is read", async state => {
+    sqlite.exec("INSERT INTO drawings(id,company_id) VALUES('revision-drawing','company')");
+    if (state !== "missing") sqlite.prepare("INSERT INTO drawing_revisions(id,company_id,drawing_id,lifecycle_state) VALUES(?,?,?,?)")
+      .run("gate-revision", state === "crosscompany" ? "other" : "company", "revision-drawing", state === "cancelled" ? "cancelled" : "preparing");
+    const basis = vi.fn(async () => ({ context: { companyId: "company", sourceContextType: "drawing_revision" as const, sourceContextId: "gate-revision", ownerPrincipalId: "principal" }, fingerprint: hash, sources: [source] }));
+    const gated = new OpenSwxMetadataService(db, { authority: async () => ({ allowed: true, roleCode: null }) as Awaited<ReturnType<NonNullable<OpenSwxCoreDependencies["authority"]>>>, sourceBasis: basis });
+    const before = sqlite.prepare("SELECT * FROM openswx_metadata_jobs").all();
+    await expect(gated.enqueue(verified, { sourceContextType: "drawing_revision", sourceContextId: "gate-revision", sourceAssetIds: ["asset"] }))
+      .rejects.toMatchObject({ code: state === "cancelled" ? "OPENSWX_SOURCE_DRIFT" : "OPENSWX_CONTEXT_NOT_FOUND", status: state === "cancelled" ? 409 : 404 });
+    expect(basis).not.toHaveBeenCalled(); expect(sqlite.prepare("SELECT * FROM openswx_metadata_jobs").all()).toEqual(before);
+  });
+  it("B18 drawing revision gate permits a preparing revision and retains normal immutable dedup", async () => {
+    sqlite.exec("INSERT INTO drawings(id,company_id) VALUES('revision-drawing','company'); INSERT INTO drawing_revisions(id,company_id,drawing_id) VALUES('gate-revision','company','revision-drawing'); INSERT INTO drawing_revision_files VALUES('gate-file','gate-revision','company','asset',NULL)");
+    const basis = vi.fn(async () => ({ context: { companyId: "company", sourceContextType: "drawing_revision" as const, sourceContextId: "gate-revision", ownerPrincipalId: "principal" }, fingerprint: hash, sources: [source] }));
+    const gated = new OpenSwxMetadataService(db, { authority: async () => ({ allowed: true, roleCode: null }) as Awaited<ReturnType<NonNullable<OpenSwxCoreDependencies["authority"]>>>, sourceBasis: basis });
+    const selection = { sourceContextType: "drawing_revision" as const, sourceContextId: "gate-revision", sourceAssetIds: ["asset"] };
+    const first = await gated.enqueue(verified, selection), second = await gated.enqueue(verified, selection);
+    expect(first!.id).toBe(second!.id); expect(basis).toHaveBeenCalledTimes(2); expect(sqlite.prepare("SELECT count(*) n FROM openswx_metadata_jobs").get()).toEqual({ n: 1 });
+  });
   it("dispatch authority rejects cancellation, generation drift and expired admission before provider", async () => {
     await service.enqueue(verified, { sourceContextType: "drawing_number", sourceContextId: "drawing", sourceAssetIds: ["asset"] });
     const admission = await new OpenSwxMetadataAsyncRepository(db).dispatchAdmission(new Date(time).toISOString(), new Date(time + 30_000).toISOString());

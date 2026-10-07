@@ -4,10 +4,14 @@ import { withPrincipalSharePermission, getAuthorizedPublicShareInSnapshot } from
 import { hashShareTokenAsync } from "@/lib/readonly-share-async";
 import { issueJenfuPrincipalSession, verifyJenfuPrincipalSession } from "@/lib/jenfu-principal-session";
 import { JenfuPrincipalSessionRegistry } from "@/lib/jenfu-principal-session-registry";
+import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
+import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
+import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
 import { getPlatformSessionKeyRing } from "@/lib/platform-session-key-ring";
 import { getGoogleWorkspaceMfaTrustPolicy } from "@/lib/auth-config";
 import { principalAssurancePolicyHash } from "@/lib/jenfu-principal-assurance";
 import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-published-grant-validation";
+import { requirePublishedPrincipalCatalog, principalCatalog } from "@/lib/jenfu-principal-role-catalog";
 import { validateEffectiveRoleAssignment } from "@/lib/jenfu-entitlement-contract";
 import { JenfuEntitlementRepository } from "@/lib/repositories/jenfu-entitlement-repository";
 import path from "node:path";
@@ -58,6 +62,12 @@ import { POST as createDrawingWork } from "@/app/api/pdm/drawings/[drawingId]/re
 import { POST as uploadDrawingFile } from "@/app/api/pdm/drawing-revision-works/[workId]/files/route";
 import { GET as listPartAttachments, POST as uploadPartAttachment } from "@/app/api/parts/[partNumber]/attachments/route";
 import { POST as submitDrawing } from "@/app/api/pdm/drawing-revision-works/[workId]/submit/route";
+import { POST as cancelDrawing } from "@/app/api/pdm/drawing-revision-works/[workId]/cancel/route";
+import { POST as enqueueOpenSwx } from "@/app/api/numbering/openswx-metadata/[sourceContextType]/[sourceContextId]/route";
+import { OpenSwxMetadataService, readCurrentOpenSwxSources } from "@/lib/openswx-metadata";
+import { OpenSwxMetadataAsyncRepository } from "@/lib/repositories/openswx-metadata-async-repository";
+import { OPENSWX_READER } from "@/lib/openswx-metadata-contract";
+import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 import { GET as inbox } from "@/app/api/approvals/inbox/route";
 import { GET as readReview } from "@/app/api/pdm/review-requests/[requestId]/route";
 import { POST as decideReview } from "@/app/api/pdm/review-requests/[requestId]/decisions/route";
@@ -121,7 +131,7 @@ beforeAll(async () => {
   const ring = getPlatformSessionKeyRing();
   const now = Math.floor(Date.now() / 1000);
   const tokens: Record<string, string> = {};
-  for (const identity of (["settings","settings-automation","share-metadata"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
+  for (const identity of (["settings","settings-automation","share-metadata"].includes(process.env.DEV122_NATIVE_SUITE??"")||["authority-gaps","other-company-scope","openswx-work-cancel"].includes(process.env.DEV122_NATIVE_SELECTION??"")?["owner", "reviewer", "denied","other"]:["owner", "reviewer", "denied"])) {
     const token = issueJenfuPrincipalSession({
       principalId: "dev122-principal-" + identity, employeeId: "dev122-employee-" + identity,
       identityIssuer: "https://securetoken.google.com/dev122-local-fixture",
@@ -1797,6 +1807,442 @@ async function ownedLifecycleSnapshot() {
   expect(result.snapshotHash).toMatch(/^[a-f0-9]{64}$/);
   return result.rows as Record<string, unknown[]>;
 }
+
+type B18Fixture = Awaited<ReturnType<typeof b18Fixture>>;
+let b18DependenciesVerified = false;
+async function b18DependencyReadback() {
+  if (b18DependenciesVerified) return;
+  const claims = verifyJenfuPrincipalSession(ownerToken, getPlatformSessionKeyRing());
+  let stage = "typed-principal";
+  try {
+    await db!.transaction(async tx => {
+      await new JenfuPrincipalAdmissionRepository(tx).requireActiveTypedPrincipal(claims.identityIssuer, claims.identitySubject);
+      stage = "canonical-auth-state"; await new JenfuAuthEpochRepository(tx).readCanonicalPrincipalState(claims.principalId);
+      stage = "own-account"; await new JenfuPrincipalAccountRepository(tx).requireActive(claims.principalId);
+      stage = "session-registry"; expect(await new JenfuPrincipalSessionRegistry(tx).isActive(claims)).toBe(true);
+      stage = "published-grants"; await validatePrincipalPublishedGrantSnapshot(tx, claims);
+      stage = "published-role-catalog";
+      const catalogRows = await tx.query<{ catalog_version: string; catalog_sha256: string; contract_version: string }>("SELECT DISTINCT catalog_version,catalog_sha256,contract_version FROM ai_pdm_contract.v_application_role_catalog_v1 ORDER BY catalog_version");
+      await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "b18-principal-dependency-readback.jsonl"), JSON.stringify({ stage, catalogRows,
+        expected: { catalogVersion: principalCatalog.catalogVersion, catalogSha256: principalCatalog.catalogSha256, contractVersion: principalCatalog.contractVersion } }) + "\n");
+      await requirePublishedPrincipalCatalog(tx);
+    }, { readOnly: true });
+    b18DependenciesVerified = true;
+    await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "b18-principal-dependency-readback.jsonl"), JSON.stringify({ layer: "ACTUAL_NATIVE_READ_ONLY_ADMISSION_PREREQUISITES", status: "PASS", stage, parameters: "OMITTED" }) + "\n");
+  } catch (error) {
+    const failure = error as { code?: unknown; message?: unknown };
+    const safeCode = typeof failure.code === "string" && /^[A-Za-z0-9_]{1,100}$/u.test(failure.code) ? failure.code : null;
+    const safeMessage = typeof failure.message === "string" && /^[A-Z0-9_:-]{1,180}$/u.test(failure.message) ? failure.message : null;
+    await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "b18-principal-dependency-readback.jsonl"), JSON.stringify({ layer: "ACTUAL_NATIVE_READ_ONLY_ADMISSION_PREREQUISITES", status: "FAIL", stage, safeCode, safeMessage, parameters: "OMITTED" }) + "\n");
+    throw error;
+  }
+}
+async function b18Fixture(label: string, approved = false) {
+  await b18DependencyReadback();
+  const initial = await initialDrawingFixture("b18-" + label);
+  if (approved) await completeReview(await submitNativeDrawing(initial.workId), "approve");
+  const workId = approved ? await nextDrawingWork(initial.drawingId, "rd", "b18-" + label + "-next") : initial.workId;
+  const work = await new DrawingRevisionWorkAsyncRepository(db!).readWork(db!, "company-jenfu", workId);
+  expect(work).toBeTruthy();
+  const assets = await db!.query<{ id: string }>(`SELECT file.source_file_asset_id AS id FROM drawing_revision_files file
+    WHERE file.company_id='company-jenfu' AND file.drawing_revision_id=:id ORDER BY file.sort_order,file.id`, { id: work!.revision_id });
+  expect(assets).toHaveLength(2);
+  return { ...initial, workId, work: work!, assetIds: assets.map(row => row.id) };
+}
+async function b18Enqueue(fixture: B18Fixture) {
+  const revisionId = fixture.work.revision_id;
+  await ok(await enqueueOpenSwx(request(`/api/numbering/openswx-metadata/drawing_revision/${revisionId}`, ownerToken, "POST",
+    { sourceAssetIds: fixture.assetIds }), { params: Promise.resolve({ sourceContextType: "drawing_revision", sourceContextId: revisionId }) }), 202);
+  const job = await db!.queryOne<{ id: string }>("SELECT id FROM openswx_metadata_jobs WHERE drawing_revision_id=:id", { id: revisionId });
+  expect(job).toBeTruthy(); return job!.id;
+}
+async function b18Cancel(fixture: B18Fixture, key: string, options: { token?: string; version?: number; actor?: string; company?: string } = {}) {
+  return cancelDrawing(request("/api/pdm/drawing-revision-works/" + fixture.workId + "/cancel", options.token ?? ownerToken, "POST", {},
+    options.version ?? Number(fixture.work.row_version), await contract(options.actor ?? "dev122-profile-owner", options.company ?? "company-jenfu"), key),
+  { params: Promise.resolve({ workId: fixture.workId }) });
+}
+async function b18JobBytes(revisionId: string) {
+  // PostgreSQL's stored text/JSON fields are preserved; no projection drops audit or timestamps.
+  return db!.query<{ bytes: string }>("SELECT row_to_json(job)::text AS bytes FROM openswx_metadata_jobs job WHERE drawing_revision_id=:id ORDER BY job.id", { id: revisionId });
+}
+async function b18Terminal(jobId: string, status: "completed" | "failed" | "cancelled", admission = "terminal") {
+  const result = JSON.stringify({ schemaVersion: "aipdm.openswx-auxiliary.v1", fixture: "historical typed terminal INPUT, never cancellation output" });
+  await fixtureMutation("B18 typed historical terminal/admission INPUT; no provider or cancellation outcome", `UPDATE openswx_metadata_jobs
+    SET status=:status,dispatch_state=:admission,dispatch_generation=1,provider_operation=:operation,execution_name=:execution,
+      completion_digest=:digest,completion_receipt_id=:receipt,completion_audit_json=:audit,result_json=:result,result_bytes=:bytes,
+      completed_at=CASE WHEN :status='completed' THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id=:id`, {
+    id: jobId, status, admission, operation: "fixture-operation-" + jobId, execution: "fixture-execution-" + jobId,
+    digest: status === "completed" ? createHash("sha256").update(result).digest("hex") : null,
+    receipt: status === "completed" ? "fixture-receipt-" + jobId : null, audit: status === "completed" ? '{"boundary":"historical input"}' : null,
+    result: status === "completed" ? result : null, bytes: status === "completed" ? Buffer.byteLength(result) : null
+  });
+}
+async function b18Sessions(fixture: B18Fixture, jobId: string) {
+  const sessions: string[] = [];
+  for (let ordinal = 0; ordinal < 2; ordinal++) {
+    const id = crypto.randomUUID(), parent = sessions[0] ?? null;
+    await fixtureMutation("B18 typed same-revision session/provenance INPUT, retain native lineage trigger", `INSERT INTO drawing_recognition_sessions
+      (id,company_id,source_context_type,source_context_id,source_lineage_key,drawing_id,drawing_revision_id,source_set_fingerprint,deduplication_key,
+       status,locked_by,locked_at,heartbeat_at,created_by,initiator_principal_id,session_purpose,supersedes_session_id,evidence_origin_session_id)
+      VALUES(:id,'company-jenfu','drawing_revision',:revision,:revision,:drawing,:revision,:hash,:id,'extracting','fixture-dm',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,
+      'dev122-profile-owner','dev122-principal-owner',:purpose,:parent,:parent)`, {
+      id, revision: fixture.work.revision_id, drawing: fixture.drawingId, hash: "a".repeat(64), purpose: ordinal ? "rerun" : "recognition", parent
+    });
+    sessions.push(id);
+    const sourceId = crypto.randomUUID(), adapterId = crypto.randomUUID(), observationId = crypto.randomUUID(), candidateId = crypto.randomUUID();
+    await fixtureMutation("B18 original DM source input", `INSERT INTO drawing_recognition_sources
+      (id,session_id,company_id,file_asset_id,content_hash,storage_generation,file_name,file_ext,mime_type,file_size,source_role,sort_order)
+      SELECT :id,:session,'company-jenfu',id,content_hash,storage_generation,file_name,file_ext,mime_type,file_size,'main',0 FROM file_assets WHERE id=:asset`,
+    { id: sourceId, session: id, asset: fixture.assetIds[0] });
+    await fixtureMutation("B18 original DM adapter result input", `INSERT INTO drawing_recognition_adapter_results
+      (id,session_id,source_id,company_id,adapter_code,adapter_version,status,started_at,completed_at)
+      VALUES(:id,:session,:source,'company-jenfu','filename','fixture','succeeded',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`, { id: adapterId, session: id, source: sourceId });
+    await fixtureMutation("B18 original DM observation input", `INSERT INTO drawing_recognition_observations
+      (id,session_id,source_id,adapter_result_id,company_id,raw_text,extractor_code,extractor_version,captured_at)
+      VALUES(:id,:session,:source,:adapter,'company-jenfu','Original input','filename','fixture',CURRENT_TIMESTAMP)`,
+    { id: observationId, session: id, source: sourceId, adapter: adapterId });
+    await fixtureMutation("B18 original DM candidate input", `INSERT INTO drawing_recognition_candidates
+      (id,session_id,company_id,category,field_label,group_key) VALUES(:id,:session,'company-jenfu','unclassified','Original input',:id)`, { id: candidateId, session: id });
+    await fixtureMutation("B18 original DM candidate observation input", `INSERT INTO drawing_recognition_candidate_observations
+      (candidate_id,observation_id,company_id) VALUES(:candidate,:observation,'company-jenfu')`, { candidate: candidateId, observation: observationId });
+    await fixtureMutation("B18 original DM decision input", `INSERT INTO drawing_recognition_decisions
+      (id,session_id,candidate_id,company_id,action,before_json,after_json,expected_session_version,actor_id,actor_principal_id)
+      VALUES(:id,:session,:candidate,'company-jenfu','defer','{}','{}',1,'dev122-profile-owner','dev122-principal-owner')`, { id: crypto.randomUUID(), session: id, candidate: candidateId });
+  }
+  if (jobId) {
+    // A fresh subset binding permits a second immutable job. Provenance is an insertion-only input.
+    const basis = await readCurrentOpenSwxSources(db!, "company-jenfu", { sourceContextType: "drawing_revision", sourceContextId: fixture.work.revision_id, sourceAssetIds: [fixture.assetIds[0]] });
+    await fixtureMutation("B18 immutable native OpenSWX provenance INPUT from actual current subset basis", `INSERT INTO openswx_metadata_jobs
+      (id,company_id,session_id,source_context_type,source_context_id,drawing_revision_id,source_set_fingerprint,reader_commit,
+       initiator_principal_id,initiator_pdm_user_id,initiator_json,sources_json,status,dispatch_state)
+      SELECT :id,company_id,:session,source_context_type,source_context_id,drawing_revision_id,:fingerprint,reader_commit,
+      initiator_principal_id,initiator_pdm_user_id,initiator_json,:sources,'failed','terminal' FROM openswx_metadata_jobs WHERE id=:job`,
+    { id: crypto.randomUUID(), session: sessions[1], fingerprint: basis.fingerprint, sources: JSON.stringify(basis.sources), job: jobId });
+  }
+  return sessions;
+}
+async function b18AssertCancelled(fixture: B18Fixture, bytes: Awaited<ReturnType<typeof b18JobBytes>>, approved = false) {
+  expect(await b18JobBytes(fixture.work.revision_id)).toEqual(bytes);
+  expect(await db!.queryOne("SELECT id FROM drawing_revision_works WHERE id=:id", { id: fixture.workId })).toBeNull();
+  expect(await db!.queryOne("SELECT id FROM drawing_revision_claims WHERE id=:id", { id: fixture.work.target_claim_id })).toBeNull();
+  expect(await db!.query("SELECT file_binding_id FROM drawing_revision_work_files WHERE work_id=:id", { id: fixture.workId })).toEqual([]);
+  expect(await db!.query("SELECT id FROM drawing_revision_files WHERE drawing_revision_id=:id", { id: fixture.work.revision_id })).toEqual([]);
+  expect(await db!.queryOne("SELECT lifecycle_state FROM drawing_revisions WHERE id=:id", { id: fixture.work.revision_id })).toEqual({ lifecycle_state: "cancelled" });
+  expect((await readDrawingWork(request("/api/pdm/drawing-revision-works/" + fixture.workId), { params: Promise.resolve({ workId: fixture.workId }) })).status).toBe(404);
+  expect(await db!.queryOne("SELECT id FROM drawing_rd_branches WHERE id=:id", { id: fixture.work.branch_id })).toEqual(approved ? { id: fixture.work.branch_id } : null);
+  expect(await db!.queryOne("SELECT open_branch_count FROM pdm_workbench_aggregates WHERE canonical_entity_id=:id AND entity_type='drawing'", { id: fixture.drawingId })).toEqual({ open_branch_count: approved ? 1 : 0 });
+  const assets = await db!.query<{ id: string; deleted_at: unknown }>("SELECT id,deleted_at FROM file_assets WHERE id IN (:first,:second) ORDER BY id", { first: fixture.assetIds[0], second: fixture.assetIds[1] });
+  expect(assets).toHaveLength(2); expect(assets.every(asset => asset.deleted_at !== null)).toBe(true);
+}
+const b18Enabled = lifecycleEnabled && process.env.DEV122_NATIVE_SELECTION === "openswx-work-cancel";
+function b18Barrier() {
+  let release!: () => void;
+  const promise = new Promise<void>(resolve => { release = resolve; });
+  return { promise, release };
+}
+async function b18WaitForLock(pid: number, settled?: () => { done: boolean; error: unknown }) {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const completed = settled?.();
+    if (completed?.done) throw completed.error ?? new Error("B18_SECOND_CLIENT_BYPASSED_LOCK_BARRIER");
+    const row = await db!.queryOne<{ waiting: boolean }>("SELECT wait_event_type='Lock' AS waiting FROM pg_stat_activity WHERE pid=:pid", { pid });
+    if (row?.waiting) return;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  throw new Error("B18_SECOND_CLIENT_DID_NOT_REACH_REAL_LOCK_BARRIER");
+}
+async function b18VerifiedFromJob(jobId: string): Promise<VerifiedPrincipalRequest> {
+  const job = await new OpenSwxMetadataAsyncRepository(db!).read(jobId, "company-jenfu"); expect(job).toBeTruthy();
+  const claims = verifyJenfuPrincipalSession(ownerToken, getPlatformSessionKeyRing());
+  const account = await new JenfuPrincipalAccountRepository(db!).requireActive(claims.principalId);
+  expect(await new JenfuPrincipalSessionRegistry(db!).isActive(claims)).toBe(true);
+  expect(account.companyId).toBe(claims.companyId); expect(account.employeeId).toBe(claims.employeeId);
+  expect(account.profileVersion).toBe(claims.profileVersion); expect(account.lifecycleVersion).toBe(claims.accountLifecycleVersion);
+  // Use the real registered token's complete session with the production guard's timestamp mapping.
+  const verified: VerifiedPrincipalRequest = { profile: { companyId: account.companyId, pdmUserId: account.pdmUserId }, session: {
+    contractVersion: claims.contractVersion, appId: claims.appId, sessionId: claims.sessionId,
+    identityIssuer: claims.identityIssuer, identitySubject: claims.identitySubject,
+    principalId: claims.principalId, employeeId: claims.employeeId,
+    authEpoch: claims.authEpoch, profileVersion: claims.profileVersion, accountLifecycleVersion: claims.accountLifecycleVersion,
+    authenticatedAt: new Date(claims.authenticatedAt * 1000).toISOString(), issuedAt: new Date(claims.issuedAt * 1000).toISOString(),
+    expiresAt: new Date(claims.expiresAt * 1000).toISOString(), assuranceLevel: claims.assuranceLevel
+  } };
+  expect(job!.companyId).toBe(verified.profile.companyId);
+  expect(job!.initiator).toEqual({ companyId: verified.profile.companyId, pdmUserId: verified.profile.pdmUserId,
+    principalId: verified.session.principalId, employeeId: verified.session.employeeId,
+    identityIssuer: verified.session.identityIssuer, identitySubject: verified.session.identitySubject,
+    profileVersion: verified.session.profileVersion, accountLifecycleVersion: verified.session.accountLifecycleVersion, authEpoch: verified.session.authEpoch,
+    authenticatedAt: verified.session.authenticatedAt, sessionIssuedAt: verified.session.issuedAt });
+  expect(Date.parse(verified.session.authenticatedAt)).toBeLessThanOrEqual(Date.parse(verified.session.issuedAt));
+  expect(Date.parse(verified.session.expiresAt)).toBeGreaterThan(Date.now());
+  return verified; // The actual service still evaluates native current authority for every callback/attempt.
+}
+async function b18Deadline<T>(promise: Promise<T>, stage: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try { return await Promise.race([promise, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("B18_BARRIER_DEADLINE:" + stage)), 8_000); })]); }
+  finally { if (timer) clearTimeout(timer); }
+}
+async function b18EnqueueWinsRace(retained: boolean) {
+  const warm = await b18Fixture("race-authority-" + retained), warmJob = await b18Enqueue(warm); await b18Terminal(warmJob, "failed");
+  const verified = await b18VerifiedFromJob(warmJob), fixture = await b18Fixture("race-enqueue-" + retained);
+  const selection = { sourceContextType: "drawing_revision" as const, sourceContextId: fixture.work.revision_id, sourceAssetIds: fixture.assetIds };
+  let oldJobId: string | null = null;
+  if (retained) { oldJobId = await b18Enqueue({ ...fixture, assetIds: [fixture.assetIds[0]] }); await b18Terminal(oldJobId, "failed"); }
+  const oldBytes = await b18JobBytes(fixture.work.revision_id);
+  const parentRow = (value: { row: unknown } | null) => {
+    expect(value).not.toBeNull();
+    const row = value!.row;
+    expect(row).not.toBeNull(); expect(typeof row).toBe("object"); expect(Array.isArray(row)).toBe(false);
+    const record = row as Record<string, unknown>;
+    expect(record.id).toBe(fixture.work.revision_id); expect(typeof record.updated_at).toBe("string");
+    expect((record.updated_at as string).trim().length).toBeGreaterThan(0);
+    expect(Number.isFinite(Date.parse(record.updated_at as string))).toBe(true);
+    return record;
+  };
+  const parentBefore = parentRow(await db!.queryOne<{ row: unknown }>("SELECT to_jsonb(revision.*) AS row FROM drawing_revisions revision WHERE id=:id", { id: fixture.work.revision_id }));
+  let parentAfter: Record<string, unknown> | null = null;
+  const held = b18Barrier(), release = b18Barrier(), started = b18Barrier(), acquired = b18Barrier(), continueCancel = b18Barrier();
+  let pid = 0, attempts = 0, firstDone = false, secondDone = false;
+  const events: object[] = [], driverErrors: { attempt: number; code: string | null; constraint: string | null }[] = [];
+  let baseline: Record<string, unknown[]> | null = null, after: Record<string, unknown[]> | null = null;
+  let committedBytes: Awaited<ReturnType<typeof b18JobBytes>> = [], finalBytes: Awaited<ReturnType<typeof b18JobBytes>> = [];
+  let firstResult: { value: Awaited<ReturnType<OpenSwxMetadataService["enqueue"]>>; error: unknown } | null = null;
+  let secondResult: { value: unknown; error: unknown } | null = null;
+  const first = db!.transaction(async tx => {
+    const value = await new OpenSwxMetadataService(tx).enqueue(verified, selection);
+    held.release(); await b18Deadline(release.promise, "enqueue-release"); return value;
+  }).then(value => { firstDone = true; return { value, error: null }; }, error => { firstDone = true; held.release(); return { value: null, error }; });
+  let second: Promise<{ value: unknown; error: unknown }> | undefined;
+  try {
+    await b18Deadline(held.promise, "enqueue-held");
+    if (firstDone) { firstResult = await first; if (firstResult.error) throw firstResult.error; }
+    second = db!.transaction(async tx => {
+      const attempt = ++attempts;
+      pid = (await tx.queryOne<{ pid: number }>("SELECT pg_backend_pid() AS pid"))!.pid;
+      events.push({ stage: "provider-callback-attempt", attempt, pid }); started.release();
+      const original = tx.queryOne.bind(tx);
+      tx.queryOne = async <T>(sql: string, params?: AsyncDatabaseQueryParams): Promise<T | null> => {
+        const gate = sql.replace(/\s+/gu, " ").trim() === "SELECT lifecycle_state, row_version FROM drawing_revisions WHERE id = :revisionId AND company_id = :companyId FOR UPDATE";
+        let row: T | null;
+        try { row = await original<T>(sql, params); }
+        catch (error) {
+          if (gate) { const failure = error as { code?: string; constraint?: string }; driverErrors.push({ attempt, code: failure.code ?? null, constraint: failure.constraint ?? null }); }
+          throw error; // Actual native failure reaches the unchanged provider retry policy.
+        }
+        if (gate && row) { events.push({ stage: "successful-parent-gate-before-jobs-and-dml", attempt, pid }); acquired.release(); await b18Deadline(continueCancel.promise, "cancel-gate-release"); }
+        return row; // Scheduling only: original parameters and return value are retained.
+      };
+      try { return await new DrawingRevisionWorkAsyncRepository(tx).cancel(tx, { companyId: "company-jenfu", workId: fixture.workId, expectedRowVersion: Number(fixture.work.row_version) }); }
+      finally { tx.queryOne = original; }
+    }, { serializable: true }).then(value => { secondDone = true; acquired.release(); return { value, error: null }; }, error => { secondDone = true; acquired.release(); return { value: null, error }; });
+    await b18Deadline(started.promise, "cancel-started"); await b18WaitForLock(pid); events.push({ stage: "real-pg-lock-observed", pid });
+    release.release(); firstResult = await b18Deadline(first, "enqueue-commit"); if (firstResult.error) throw firstResult.error;
+    expect(firstResult.value).toBeTruthy(); expect(firstResult.value!.id).not.toBe(oldJobId);
+    await b18Deadline(acquired.promise, "successful-retry-parent-gate");
+    if (secondDone) { secondResult = await second; throw secondResult.error ?? new Error("B18_CANCEL_BYPASSED_SUCCESSFUL_PARENT_GATE"); }
+    baseline = await ownedLifecycleSnapshot(); expect(Object.keys(baseline)).toHaveLength(165);
+    committedBytes = await b18JobBytes(fixture.work.revision_id); events.push({ stage: "parent-ipc-post-enqueue-pre-cancel-dml-snapshot", tables: Object.keys(baseline).length });
+    continueCancel.release(); secondResult = await b18Deadline(second, "cancel-result");
+    after = await ownedLifecycleSnapshot(); finalBytes = await b18JobBytes(fixture.work.revision_id);
+    parentAfter = parentRow(await db!.queryOne<{ row: unknown }>("SELECT to_jsonb(revision.*) AS row FROM drawing_revisions revision WHERE id=:id", { id: fixture.work.revision_id }));
+    expect(secondResult.error).toMatchObject({ status: 409 });
+    expect(driverErrors.some(error => error.code === "40001")).toBe(true); expect(attempts).toBeGreaterThan(1); expect(attempts).toBeLessThanOrEqual(3);
+    expect(after).toEqual(baseline); expect(finalBytes).toEqual(committedBytes);
+    const committedJobs = committedBytes.map(row => JSON.parse(row.bytes) as { id: string; status: string });
+    expect(committedJobs).toHaveLength(retained ? 2 : 1); expect(committedJobs.find(job => job.id === firstResult!.value!.id)?.status).toBe("queued");
+    if (oldJobId) expect(committedBytes.filter(row => (JSON.parse(row.bytes) as { id: string }).id === oldJobId)).toEqual(oldBytes);
+    const withoutUpdatedAt = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value).filter(([key]) => key !== "updated_at"));
+    expect(withoutUpdatedAt(parentAfter)).toEqual(withoutUpdatedAt(parentBefore));
+    expect(parentAfter.updated_at).not.toBe(parentBefore.updated_at);
+  } finally {
+    release.release(); continueCancel.release(); events.push({ stage: "finally-all-barriers-released" });
+    firstResult ??= await b18Deadline(first, "finally-enqueue-settled");
+    if (second) secondResult ??= await b18Deadline(second, "finally-cancel-settled");
+    const safeError = (error: unknown) => { const failure = error as { code?: string; constraint?: string; status?: number } | null; return failure ? { code: failure.code ?? null, constraint: failure.constraint ?? null, status: failure.status ?? null } : null; };
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "b18-enqueue-wins-" + (retained ? "retained-terminal" : "no-job") + ".json"), JSON.stringify({ layer: "ACTUAL_NATIVE_DRIVER_PROVIDER_RETRY_AND_PARENT_IPC", retained, oldJobId, newJobId: firstResult?.value?.id, attempts, maxExistingProviderAttempts: 3, pid, events, driverErrors, firstError: safeError(firstResult?.error), cancelError: safeError(secondResult?.error), cancelOutcome: secondResult ? secondResult.error ? "REJECTED" : "FULFILLED" : "NOT_SETTLED", baseline, after, changedTables: baseline && after ? Object.keys(baseline).filter(table => JSON.stringify(baseline![table]) !== JSON.stringify(after![table])) : null, cancellationRollbackIdentical: baseline !== null && JSON.stringify(baseline) === JSON.stringify(after), parentBefore, parentAfter, oldBytes, committedBytes, finalBytes, productionSqlstate: "UNKNOWN" }));
+    // Cleanup is declared fixture INPUT only after the cancellation invariant window is captured.
+    if (firstResult?.value) await fixtureMutation("B18 close race queued INPUT after invariant evidence", "UPDATE openswx_metadata_jobs SET status='failed',dispatch_state='terminal' WHERE id=:id AND status='queued'", { id: firstResult.value.id });
+  }
+}
+describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => {
+  it.each(["completed", "failed", "cancelled"] as const)("retains terminal %s all-column bytes and proves rollback on the original native driver failure", async status => {
+    const fixture = await b18Fixture("terminal-" + status), job = await b18Enqueue(fixture);
+    await b18Terminal(job, status);
+    const before = await ownedLifecycleSnapshot(), bytes = await b18JobBytes(fixture.work.revision_id);
+    let driverFailure: { code?: string; constraint?: string } | null = null;
+    const original = DrawingRevisionWorkAsyncRepository.prototype.cancel;
+    const observe = vi.spyOn(DrawingRevisionWorkAsyncRepository.prototype, "cancel").mockImplementation(async function (this: DrawingRevisionWorkAsyncRepository, tx, input) {
+      try { return await original.call(this, tx, input); }
+      catch (error) { const native = error as { code?: string; constraint?: string }; driverFailure = { code: native.code, constraint: native.constraint }; throw error; }
+    });
+    let response: Response;
+    try { response = await b18Cancel(fixture, "b18-terminal-" + status); } finally { observe.mockRestore(); }
+    const after = await ownedLifecycleSnapshot();
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "b18-terminal-" + status + ".json"), JSON.stringify({
+      layer: "ACTUAL_PRINCIPAL_ROUTE_SERVICE_REPOSITORY_NATIVE_PG", status: response.status, driverFailure,
+      sourceRevision: process.env.DEV122_SOURCE_ROOT, before, after, rollbackIdentical: JSON.stringify(before) === JSON.stringify(after),
+      jobBytes: bytes, jobDigest: createHash("sha256").update(JSON.stringify(bytes)).digest("hex"), productionSqlstate: "UNKNOWN"
+    }));
+    if (driverFailure) { expect(driverFailure).toEqual({ code: "23001", constraint: "openswx_metadata_jobs_company_id_drawing_revision_id_fkey" }); expect(after).toEqual(before); }
+    // Red is a real failure, retained with SQLSTATE and complete rollback; the same case must turn green.
+    expect(response.status, JSON.stringify(driverFailure)).toBe(200);
+    await b18AssertCancelled(fixture, bytes);
+  });
+  it("retains all same-revision sessions children and lineage when any job has native provenance", async () => {
+    const fixture = await b18Fixture("provenance"), job = await b18Enqueue(fixture);
+    await b18Terminal(job, "completed"); const sessions = await b18Sessions(fixture, job);
+    const before = await ownedLifecycleSnapshot(), bytes = await b18JobBytes(fixture.work.revision_id);
+    await ok(await b18Cancel(fixture, "b18-provenance")); await b18AssertCancelled(fixture, bytes);
+    const after = await ownedLifecycleSnapshot();
+    for (const table of ["drawing_recognition_sources", "drawing_recognition_candidates", "drawing_recognition_observations", "drawing_recognition_adapter_results", "drawing_recognition_decisions", "drawing_recognition_candidate_observations"]) expect(after[table]).toEqual(before[table]);
+    const allowed = new Set(["status", "cancelled_at", "locked_by", "locked_at", "heartbeat_at", "row_version", "updated_at"]);
+    const unwrap = (entry: unknown) => {
+      expect(entry).not.toBeNull(); expect(typeof entry).toBe("object"); expect(Object.keys(entry as object)).toEqual(["row"]);
+      const row = (entry as { row: unknown }).row;
+      expect(row).not.toBeNull(); expect(typeof row).toBe("object"); expect(Array.isArray(row)).toBe(false);
+      return row as Record<string, unknown>;
+    };
+    const preserved = (entry: unknown) => Object.fromEntries(Object.entries(unwrap(entry)).filter(([key]) => !allowed.has(key)));
+    expect(after.drawing_recognition_sessions.map(preserved)).toEqual(before.drawing_recognition_sessions.map(preserved));
+    const beforeSessions = before.drawing_recognition_sessions.map(unwrap), afterSessions = after.drawing_recognition_sessions.map(unwrap);
+    for (const id of sessions) {
+      const original = beforeSessions.find(row => row.id === id), cancelled = afterSessions.find(row => row.id === id);
+      expect(original).toBeTruthy(); expect(cancelled).toBeTruthy();
+      expect(cancelled!.row_version).toBe(Number(original!.row_version) + 1);
+      expect(original!.cancelled_at).toBeNull(); expect(typeof cancelled!.cancelled_at).toBe("string");
+      expect(Number.isFinite(Date.parse(cancelled!.cancelled_at as string))).toBe(true);
+    }
+    expect(await db!.query("SELECT id,status,locked_by,locked_at,heartbeat_at FROM drawing_recognition_sessions WHERE id IN (:first,:second) ORDER BY id", { first: sessions[0], second: sessions[1] })).toEqual([...sessions].sort().map(id => ({ id, status: "cancelled", locked_by: null, locked_at: null, heartbeat_at: null })));
+  });
+  it.each(["requested", "dispatched", "dispatch_unknown"])("retains terminal job with outstanding %s admission exactly", async admission => {
+    const fixture = await b18Fixture("admission-" + admission), job = await b18Enqueue(fixture); await b18Terminal(job, "failed", admission);
+    const bytes = await b18JobBytes(fixture.work.revision_id);
+    try { await ok(await b18Cancel(fixture, "b18-admission-" + admission)); await b18AssertCancelled(fixture, bytes); }
+    finally { await fixtureMutation("B18 restore exclusive fixture admission AFTER byte comparison, never cancellation evidence", "UPDATE openswx_metadata_jobs SET dispatch_state='terminal' WHERE id=:id", { id: job }); }
+  });
+  for (const status of ["queued", "running"]) for (const admission of status === "running" ? ["dispatched"] : ["due", "requested", "dispatched", "dispatch_unknown", "terminal"]) {
+    it(`rejects active ${status}/${admission} with zero durable product and command receipt mutation`, async () => {
+      const fixture = await b18Fixture("active-" + status + "-" + admission), job = await b18Enqueue(fixture);
+      await fixtureMutation("B18 active job INPUT; expired lease cannot make it terminal", `UPDATE openswx_metadata_jobs SET status=:status,dispatch_state=:admission,
+        attempt_count=1,locked_by='openswx-metadata-reader',lease_expires_at=CURRENT_TIMESTAMP-INTERVAL '1 minute',execution_name=:execution WHERE id=:id`,
+      { id: job, status, admission, execution: "fixture-execution-" + job });
+      const before = await ownedLifecycleSnapshot();
+      try { expect((await b18Cancel(fixture, "b18-active-" + job)).status).toBe(409); expect(await ownedLifecycleSnapshot()).toEqual(before); }
+      finally { await fixtureMutation("B18 end active fixture input AFTER zero-write comparison", "UPDATE openswx_metadata_jobs SET status='failed',dispatch_state='terminal' WHERE id=:id", { id: job }); }
+    });
+  }
+  it.each(["formalized", "stale", "crosscompany", "nonowner"])("rejects %s input with no durable writes", async variant => {
+    const fixture = await b18Fixture("reject-" + variant), job = await b18Enqueue(fixture); await b18Terminal(job, "failed");
+    if (variant === "formalized") {
+      const sessions = await b18Sessions(fixture, job);
+      await fixtureMutation("B18 immutable formalization historical INPUT, never cancellation output", `INSERT INTO drawing_recognition_formalization_events
+        (id,session_id,company_id,actor_id,actor_principal_id,idempotency_key,impact_fingerprint,target_fingerprints_json,applied_changes_json,exclusions_json,result_json)
+        VALUES(:id,:session,'company-jenfu','dev122-profile-owner','dev122-principal-owner',:id,:id,'{}','[]','[]','{}')`, { id: crypto.randomUUID(), session: sessions[0] });
+    }
+    const before = await ownedLifecycleSnapshot();
+    const response = await b18Cancel(fixture, "b18-reject-" + variant, variant === "crosscompany"
+      ? { token: otherToken, actor: "dev122-profile-other", company: "company-dev122-other" }
+      : variant === "nonowner" ? { token: reviewerToken, actor: "dev122-profile-reviewer" }
+        : variant === "stale" ? { version: fixture.work.row_version + 1 } : {});
+    if (variant === "crosscompany") {
+      const body = await response.json();
+      await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "b18-authority-denials.jsonl"), JSON.stringify({ variant, status: response.status, body,
+        denialLayer: "existing Jenfu workspace scope adapter before resource lookup", productionAuthority: "NOT_TESTED" }) + "\n");
+      expect(response.status).toBe(403); expect(body).toEqual({ error: "entitlement_scope_mismatch" });
+    } else expect(response.status).toBe(variant === "nonowner" ? 403 : 409);
+    expect(await ownedLifecycleSnapshot()).toEqual(before);
+  });
+  it.each([false, true])("keeps no-job legacy DM cleanup with approved branch %s", async approved => {
+    const fixture = await b18Fixture("legacy-" + approved, approved); await b18Sessions(fixture, "");
+    const before = await ownedLifecycleSnapshot(); await ok(await b18Cancel(fixture, "b18-legacy-" + approved));
+    expect(await db!.queryOne("SELECT id FROM drawing_revisions WHERE id=:id", { id: fixture.work.revision_id })).toBeNull();
+    expect(await db!.query("SELECT id FROM drawing_recognition_sessions WHERE drawing_revision_id=:id", { id: fixture.work.revision_id })).toEqual([]);
+    const after = await ownedLifecycleSnapshot(); expect(after.openswx_metadata_jobs).toEqual(before.openswx_metadata_jobs);
+    if (approved) expect(await db!.queryOne("SELECT revision_id,work_id,handling FROM canonical_workbench_states WHERE branch_id=:id", { id: fixture.work.branch_id })).toEqual({ revision_id: fixture.work.predecessor_revision_id, work_id: null, handling: "none" });
+    expect(await db!.queryOne("SELECT open_branch_count FROM pdm_workbench_aggregates WHERE canonical_entity_id=:id AND entity_type='drawing'", { id: fixture.drawingId })).toEqual({ open_branch_count: approved ? 1 : 0 });
+  });
+  it("cleans DM without native provenance and releases the claim for same-label new revision and job", async () => {
+    const fixture = await b18Fixture("claim-reuse", true), job = await b18Enqueue(fixture); await b18Terminal(job, "failed"); await b18Sessions(fixture, "");
+    const bytes = await b18JobBytes(fixture.work.revision_id); await ok(await b18Cancel(fixture, "b18-claim-release")); await b18AssertCancelled(fixture, bytes, true);
+    expect(await db!.query("SELECT id FROM drawing_recognition_sessions WHERE drawing_revision_id=:id", { id: fixture.work.revision_id })).toEqual([]);
+    const newWork = await nextDrawingWork(fixture.drawingId, "rd", "b18-claim-reused"), actual = await new DrawingRevisionWorkAsyncRepository(db!).readWork(db!, "company-jenfu", newWork);
+    expect(actual!.target_label).toBe(fixture.work.target_label); expect(actual!.revision_id).not.toBe(fixture.work.revision_id); expect(actual!.target_claim_id).not.toBe(fixture.work.target_claim_id);
+    const assetIds = (await db!.query<{ id: string }>("SELECT source_file_asset_id AS id FROM drawing_revision_files WHERE drawing_revision_id=:id", { id: actual!.revision_id })).map(row => row.id);
+    const nextJob = await b18Enqueue({ ...fixture, workId: newWork, work: actual!, assetIds }); expect(nextJob).not.toBe(job);
+    expect(await b18JobBytes(fixture.work.revision_id)).toEqual(bytes);
+    await fixtureMutation("B18 close recreated queued INPUT after claim proof", "UPDATE openswx_metadata_jobs SET status='failed',dispatch_state='terminal' WHERE id=:id", { id: nextJob });
+  });
+  it.each(["enqueue", "cancel"] as const)("two native clients serialize %s winning the shared revision gate without orphan jobs", async winner => {
+    if (winner === "enqueue") { await b18EnqueueWinsRace(false); return; }
+    const warm = await b18Fixture("race-authority-" + winner), warmJob = await b18Enqueue(warm); await b18Terminal(warmJob, "failed");
+    const verified = await b18VerifiedFromJob(warmJob), fixture = await b18Fixture("race-" + winner);
+    const held = b18Barrier(), release = b18Barrier(), contenderStarted = b18Barrier(); let pid = 0;
+    const selection = { sourceContextType: "drawing_revision" as const, sourceContextId: fixture.work.revision_id, sourceAssetIds: fixture.assetIds };
+    const first = db!.transaction(async tx => {
+      const result = await new DrawingRevisionWorkAsyncRepository(tx).cancel(tx, { companyId: "company-jenfu", workId: fixture.workId, expectedRowVersion: Number(fixture.work.row_version) });
+      held.release(); await b18Deadline(release.promise, "cancel-winner-release"); return result;
+    });
+    // Catch immediately so pre-fix failures cannot strand a barrier or produce an unhandled rejection.
+    const firstResult = first.then(value => ({ value, error: null }), error => { held.release(); return { value: null, error }; });
+    let second: Promise<{ value: Awaited<ReturnType<OpenSwxMetadataService["enqueue"]>>; error: unknown }> | undefined;
+    try {
+      await b18Deadline(held.promise, "cancel-winner-held");
+      const early = await Promise.race([firstResult, Promise.resolve(null)]); if (early?.error) throw early.error;
+      second = db!.transaction(async tx => {
+        pid = (await tx.queryOne<{ pid: number }>("SELECT pg_backend_pid() AS pid"))!.pid; contenderStarted.release();
+        return new OpenSwxMetadataService(tx).enqueue(verified, selection);
+      }, { serializable: true }).then(value => ({ value, error: null }), error => ({ value: null, error }));
+      try { await b18Deadline(contenderStarted.promise, "enqueue-loser-started"); await b18WaitForLock(pid); } finally { release.release(); }
+      const [a, b] = await Promise.all([firstResult, second]); expect(a.error).toBeNull();
+      expect(b.error).toMatchObject({ status: 404 });
+      const jobs = await db!.query<{ id: string; status: string }>("SELECT id,status FROM openswx_metadata_jobs WHERE drawing_revision_id=:id", { id: fixture.work.revision_id });
+      expect(jobs).toEqual([]); expect(await db!.queryOne("SELECT id FROM drawing_revisions WHERE id=:id", { id: fixture.work.revision_id })).toBeNull();
+      await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "b18-races.jsonl"), JSON.stringify({ winner, secondBackendPid: pid, observedNativeLock: true, loserStatus: (b.error as { status: number }).status, jobs }) + "\n");
+    } finally {
+      release.release(); await b18Deadline(firstResult, "finally-cancel-winner-settled");
+      if (second) await b18Deadline(second, "finally-enqueue-loser-settled");
+    }
+  }, 30_000);
+  it("retained terminal job and genuinely new queued job serialize enqueue winning with native retry and all165 cancellation invariants", async () => {
+    await b18EnqueueWinsRace(true);
+  }, 30_000);
+  it("worker completion winning the actual job lock preserves its entire receipt before cancellation", async () => {
+    const fixture = await b18Fixture("worker-wins"), jobId = await b18Enqueue(fixture), execution = "fixture-worker-" + jobId;
+    await fixtureMutation("B18 running worker INPUT, native service produces completion", `UPDATE openswx_metadata_jobs SET status='running',dispatch_state='dispatched',
+      attempt_count=1,locked_by='openswx-metadata-reader',lease_expires_at=CURRENT_TIMESTAMP+INTERVAL '5 minutes',execution_name=:execution WHERE id=:id`, { id: jobId, execution });
+    const job = await new OpenSwxMetadataAsyncRepository(db!).read(jobId, "company-jenfu"), held = b18Barrier(), release = b18Barrier(), contenderStarted = b18Barrier(); let pid = 0;
+    let completionFault: unknown = null, cancelSettled = false, cancelFault: unknown = null;
+    const completion = db!.transaction(async tx => {
+      const result = await new OpenSwxMetadataService(tx).complete({ kind: "workload", id: OPENSWX_READER.id, purposes: ["openswx_metadata_jobs"], capabilities: ["openswx_metadata"] },
+        { jobId, companyId: "company-jenfu", attempt: 1, sourceSetFingerprint: job!.sourceSetFingerprint, readerCommit: OPENSWX_READER.commit, executionName: execution },
+        job!.sources.map(source => ({ sourceId: source.id, payload: { schemaVersion: "aipdm.openswx-public-api.v1", status: "failed", diagnostics: ["library_open_rejected"] } })));
+      expect(result!.status).toBe("completed"); const bytes = await tx.query("SELECT row_to_json(job)::text AS bytes FROM openswx_metadata_jobs job WHERE id=:id", { id: jobId });
+      held.release(); await release.promise; return bytes;
+    }).then(value => ({ value, error: null }), error => { completionFault = error; held.release(); return { value: null, error }; });
+    await held.promise;
+    if (completionFault) throw completionFault;
+    const cancel = db!.transaction(async tx => {
+      pid = (await tx.queryOne<{ pid: number }>("SELECT pg_backend_pid() AS pid"))!.pid; contenderStarted.release();
+      return new DrawingRevisionWorkAsyncRepository(tx).cancel(tx, { companyId: "company-jenfu", workId: fixture.workId, expectedRowVersion: Number(fixture.work.row_version) });
+    }).then(value => { cancelSettled = true; return { value, error: null }; }, error => { cancelSettled = true; cancelFault = error; return { value: null, error }; });
+    let barrierFailure: unknown = null;
+    try { await contenderStarted.promise; await b18WaitForLock(pid, () => ({ done: cancelSettled, error: cancelFault })); }
+    catch (error) { barrierFailure = error; }
+    finally { release.release(); }
+    const [completed, cancelled] = await Promise.all([completion, cancel]);
+    const safeError = (error: unknown) => {
+      const failure = error as { code?: string; constraint?: string } | null;
+      return failure ? { code: failure.code ?? null, constraint: failure.constraint ?? null } : null;
+    };
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "b18-worker-completion-race.json"), JSON.stringify({
+      layer: "ACTUAL_WORKER_SERVICE_COMPLETION_AND_CANCEL_REPOSITORY_TWO_NATIVE_CLIENTS", completionFailure: safeError(completed.error),
+      cancellationFailure: safeError(cancelled.error), barrierFailure: safeError(barrierFailure), completedJobBytes: completed.value,
+      actualJobBytes: await b18JobBytes(fixture.work.revision_id), secondBackendPid: pid }));
+    expect(completed.error).toBeNull(); expect(cancelled.error).toBeNull();
+    expect(await b18JobBytes(fixture.work.revision_id)).toEqual(completed.value);
+    expect(barrierFailure).toBeNull();
+  }, 15_000);
+});
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
