@@ -1,14 +1,28 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（2026-10-07；B11 建置前中止，封閉續行修復待獨立 QC）
+## DEV-122 CURRENT（2026-10-07；B16 補權續接相容性修正，正式套用待執行）
 
-B13 canonical destination 修正已經正常 PR232、PR／main required CI及獨立來源 QC，官方來源 `b3a47c88`。A14 build-only／current-image安全讀回及R13 DAILY bootstrap已實際成功；B11 owner run `37571921864` 在來源上傳後、Cloud Build建立前失敗，sealed結果為PRE_ACTIVATION_ABORTED／NOT_APPLIED。正式仍為B10 `ai-pdm-prod-abd7ac77760c` 100%／0 tags；唯一Scheduler PAUSED、durable queue保留。已讀回精確來源generation／size／SHA-256／CRC全部吻合；numeric23與30秒讀回逾時時間相符，但原始逾時endpoint仍UNKNOWN，不宣稱完整根因已證明。
+本節優先於下方歷史續點。人類已明確核准兩項 prebuild 補權並要求沿用現有測試帳號；PR234 第一輪 exact-head CI 已通過，尚未 merge／apply。套用前確認既有 DAILY fresh IAM 檢查會把新增 binding 算入 unrelated hash，故先補同範圍相容性修正，不把舊 hash 或 receipt 改寫成新結果。
 
-B14只補既有ordinary continuation的封閉pre-build分支：sealed prepare／rollback／terminal、expired finalized control與failed owner等值，後續stage全部確定不存在，provider對exact failed-release tag的Build list必須成功且為合法空清單，再驗原B10 RELEASED Principal source／build／SSO chain與live100%／無tags／auto1／entry／Ready image／principal env。原FORWARD_APPLIED分支及已aborted capsule拒絕重送不變；fresh authority與cached prepare仍deep-equal並重查live basis。RED與首輪fixture assertion FAIL保留；TL發現異常list假empty的P2已補strict shape及負例，r3檢查通過但Luna source QC另發現cold／cached prepare漏查exact failed-tag Build的P2；已只在prebuild分支改為每次查詢，保留anchor verifier與原FORWARD_APPLIED。新增producer空清單後prepare遇到nonempty／unknown必須零寫入拒絕的回歸，RED確實重現，首輪error-name assertion FAIL保留，最終r4b focused12／12、continuous139／139與六項DEV117 checks實際通過，尚待新freeze的Luna QC與新PR／CI。這不證明新正式排程或CAD完成。
+只有 immutable human approval、正式 main source-lock、exact 原四份 IAM source＋新 tf 的 Git hash、恰七項 Terraform 計畫／saved binary／request、實際 before／after provider readback 全部一致才接受續接。原五項必須 no-op，新兩項僅 create／no-op；保留 before／after 原始 policy hash，AFTER 移除完整唯一 verifier 新 role row 後必須回到原 sealed raw hash，其餘 IAM 漂移仍拒。正常 bootstrap／replay 每次 fresh 驗原五項及新 role 的兩項權限；full owner 只沿 sealed chain 驗證，不新增 IAM 讀取權限。
 
-下一步為本六檔source獨立QC、normal PR／protected-main CI、fresh A15／R14／B12保護發布及四工作八CAD。新source必須有相符build/bootstrap，A14／R13不重標；原十二資源／五IAM只回讀、reader v1／registry v3不重發。native F-01F由使用者正式驗證；供應商回覆停用延後；7 issues／29 groups與整體NOT_ACCEPTED不變。
+新 ref 僅 DAILY_REFRESH 可顯式輸入，封存於 resource readback／provenance 並沿後續 DAILY／full 繼承；FIRST／pause 注入、explicit 與 inherited 不符、錯來源／approval／binary／policy、額外 member／condition／binding／permission 均拒。補權為 prepare 前置，不依賴尚不存在的新 workerBuild；producer 先讀回 protected main PR／required CI／protection 再 source-freeze，owner prepare 沿既有規則重新驗官方來源。
 
-[實際失敗、續行修復與證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
+本次四檔產品 focused 73／73、continuous 139／139 及六項 DEV117 檢查實際通過，task-owned PID／temp／容量 lease 已清理；這只證明本地控制流程。SOURCE_SNAPSHOT：獨立 Luna QC、新 head PR／main CI、fresh Terraform apply／readback、A16／R15／B13 發布與正常排程／四工作八 CAD／動畫 UI 尚待完成，不把第一輪旧 head CI當最終來源證據。
+
+測試沿用既有帳號；原十二資源只讀、reader v1／registry v3不重發，082不重套。native F-01F 仍由使用者正式驗證，供應商回覆停用延後，7 issues／29 groups及整體 NOT_ACCEPTED 不變。[受控修正證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
+
+## DEV-122 CURRENT（2026-10-07；A15 prepare DENIED；二項補權已獲人類核准，PR／CI與套用待執行）
+
+B14 prebuild continuation已正常PR233、PR／main required CI及Luna來源QC通過；官方來源`018e1369`，focused12／12、continuous139／139及六項DEV117 checks通過。r3 source QC的prepare漏查P2已補cold／cached每次fresh exact-tag Build list；原FORWARD_APPLIED與其他owner guard未變。原QC FAIL／欄位澄清各以新不可覆寫檔保留。
+
+新A15的operator baseline／routine authority及immutable capsule實際成功，但保護workflow `37577933151` 的prepare以verifier回報DENIED；build與所有後續階段SKIPPED。已實際讀回prepare及後續收據皆404、exact A15 Build list空、control仍B11 FINALIZED／PRE_ACTIVATION_ABORTED；B10 `ai-pdm-prod-abd7ac77760c` 100%／0 tags、Scheduler PAUSED、durable queue保留。原owner log只保留DENIED，並未記錄被拒URL；Cloud Build list缺權由新增query與verifier實際IAM盤點確認，不冒稱完整request trace或已證實serviceusage另被拒。
+
+最小提案只新增AI-PDM自己的Cloud Build custom role與verifier project binding：`cloudbuild.builds.list`及官方custom-role規則要求的`serviceusage.services.use`。已跑Terraform fmt／validate與既有own-state的readonly plan：2 creates／5 no-ops／0 updates／0 deletes，未apply。IAM作用範圍為jenfu-platform-prod全專案Build records（可能含其他應用的source／steps等建置設定）；程式exact failed-tag filter只限制查詢，不能冒充IAM隔離。這是超出原12資源＋5讀取IAM的新增範圍；人類已於2026-10-07明確回覆「核准 2 項補權，繼續上線, 使用現有個測試帳號」，限定上述二項資源／權限與AI-PDM正式發布；不把Source SHA／plan SHA刷新當成額外人類決策。
+
+沿已核准的同一AI-PDM正式發布目標完成source PR／required CI、refresh frozen plan／apply／readback，再以新source-bound build/bootstrap/full capsule續行；原12資源／5IAM只回讀，reader v1／registry v3不重發。A15失敗capsule不冒充新source成功。使用現有測試帳號，不建立帳號或調整能力；正常排程／四工作八CAD／動畫UI仍未完成；native F-01F由使用者正式驗證，供應商回覆停用延後，7 issues／29 groups與整體NOT_ACCEPTED不變。
+
+[實際發布失敗與唯讀補權提案](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
 
 ## DEV-122 CURRENT（2026-10-07；B08 已上線，固定排程身分修正中）
 
@@ -1719,7 +1733,7 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：B11建置前中止／NOT_APPLIED，B10仍100%；pre-build封閉續行六檔經Luna QC／normal PR與main CI後，fresh A15／R14／B12及四工作八CAD。Scheduler PAUSED／佇列保留，十二資源／五IAM只回讀、v1／v3不重發。
+  - 下一步：PR233／main CI通過，A15 prepare DENIED；2項新增Cloud Build唯讀IAM的實際plan為2 create／5 no-op，人類已核准新增scope；接續正常PR／CI／apply／readback及新source正式發布、四工作八CAD，沿用現有測試帳號。B10仍100%、Scheduler PAUSED、佇列保留、v1／v3不重發。
   - 驗收缺口：082在B08套用一次；B10 RELEASED，B11 NOT_APPLIED中止；A14／R13成功但不能冒充新source或CAD PASS。新正式發布、自動排程／8-CAD UI待驗；F-01F由使用者驗證，供應商回覆停用，整體未驗收。
   - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。

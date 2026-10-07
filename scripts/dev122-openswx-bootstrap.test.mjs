@@ -8,7 +8,9 @@ import { readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE,
   assertReadbackIamTerraformPlan, readbackIamPlan, expectedReadbackJobBindings,
-  readReadbackIamReceipt, assertReadbackIamReceipt, executeReleaseReadbackIam } from './lib/dev122-openswx-readback-iam.mjs'
+  readReadbackIamReceipt, assertReadbackIamReceipt, executeReleaseReadbackIam,
+  PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
+  prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan, readPrebuildIamContinuation } from './lib/dev122-openswx-readback-iam.mjs'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources } from './lib/dev122-openswx-bootstrap.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
@@ -703,6 +705,216 @@ test('readback IAM receipt source proof is GCS-only; fresh provider seal require
   assert.ok(providerCalls.some(row => row.url === READBACK_IAM_PROJECT_POLICY_URL && row.options.method === 'POST'))
   policy = [...policy, { role: 'roles/jenfu-fixture-unrelated-added-after-seal', members: ['user:unexpected@example.com'] }]
   await assert.rejects(verify(), { code: 'OPENSWX_IAM_READBACK_DRIFT' })
+})
+
+// The approved human artifact is byte-bound, including its original CRLFs.
+// It is recorded authorization, not a provider or production-success fixture.
+const prebuildHumanApprovalBytes = Buffer.from('ew0KICAic2NoZW1hVmVyc2lvbiI6ICJhaXBkbS5kZXYxMjIuYjE1LWh1bWFuLWlhbS1hcHByb3ZhbC52MSIsDQogICJwcm9qZWN0IjogIkFJLVBETSIsDQogICJhdXRob3JpemF0aW9uU291cmNlIjogIkhVTUFOX1VTRVJfTUVTU0FHRV9JTl9DVVJSRU5UX1RIUkVBRCIsDQogICJ1c2VyVGV4dCI6ICLmoLjlh4YgMiDpoIXoo5zmrIrvvIznubznuozkuIrnt5osIOS9v+eUqOePvuacieWAi+a4rOippuW4s+iZnyIsDQogICJzdGF0dXMiOiAiQVBQUk9WRUQiLA0KICAiZW52aXJvbm1lbnQiOiAiUFJPRFVDVElPTiIsDQogICJwcm9qZWN0SWQiOiAiamVuZnUtcGxhdGZvcm0tcHJvZCIsDQogICJwcm9qZWN0TnVtYmVyIjogIjk1MzY1OTI5NDQiLA0KICAicHJpbmNpcGFsIjogInNlcnZpY2VBY2NvdW50OmFpcGRtLXByb2QtdmVyaWZpZXJAamVuZnUtcGxhdGZvcm0tcHJvZC5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsDQogICJyb2xlSWQiOiAiYWlwZG1EZXYxMjJQcmVidWlsZExpc3QiLA0KICAicGVybWlzc2lvbnMiOiBbDQogICAgImNsb3VkYnVpbGQuYnVpbGRzLmxpc3QiLA0KICAgICJzZXJ2aWNldXNhZ2Uuc2VydmljZXMudXNlIg0KICBdLA0KICAicmVzb3VyY2VzIjogWw0KICAgICJnb29nbGVfcHJvamVjdF9pYW1fY3VzdG9tX3JvbGUucHJlYnVpbGRfbGlzdF9yZWFkYmFjayIsDQogICAgImdvb2dsZV9wcm9qZWN0X2lhbV9tZW1iZXIudmVyaWZpZXJfcHJlYnVpbGRfbGlzdF9yZWFkYmFjayINCiAgXSwNCiAgInZpc2liaWxpdHkiOiAiUFJPSkVDVF9XSURFX0JVSUxEX0xJU1RfTUVUQURBVEE7UVVFUllfRklMVEVSX05PVF9JQU1fQk9VTkRBUlkiLA0KICAib3JpZ2luYWxQcm9wb3NhbEZyZWV6ZVNoYTI1NiI6ICI4ZjUzMGUyNzg0NzIxOTBlYTBlNjEyMDQ1MWZjN2I5MDk1YzcxNDY2ZDZmMzgwZDY0NGU4MGNmYWYwZWJjMDEyIiwNCiAgIm9yaWdpbmFsUHJvcG9zYWxRY1NoYTI1NiI6ICIxY2Q2YzdlNTMxNjBjNmZkYmJjOGM4ZWFhNjQ0MGNhMzA2ZTY3M2VlYzg0YThiNGYwOTNmOGViZTZiMDI3NDc3IiwNCiAgInN0YW5kaW5nU2NvcGUiOiAiQUktUERNIHByb2R1Y3Rpb24gc291cmNlL1BSL0NJL2J1aWxkL2Jvb3RzdHJhcC9mdWxsIHJlbGVhc2UgYW5kIHZlcmlmaWNhdGlvbjsgb3JpZ2luYWwxMi9vcmlnaW5hbDUgdW5jaGFuZ2VkOyBubyBjcm9zcy1wcm9qZWN0IGRldmVsb3BtZW50IiwNCiAgInRlc3RBY2NvdW50UmV1c2UiOiAiRVhJU1RJTkdfVEVTVF9BQ0NPVU5UU19PTkxZO05PX0FDQ09VTlRfQ1JFQVRJT05fT1JfQ0FQQUJJTElUWV9DSEFOR0UiLA0KICAibmF0aXZlRjAxRiI6ICJVU0VSX1BST0RVQ1RJT05fVkFMSURBVElPTl9QRU5ESU5HIiwNCiAgIm9ic2VydmVkQXQiOiAiMjAyNi0xMC0wN1QwNjoyNjoyMS41NDkzMTkrMDA6MDAiDQp9DQo=', 'base64')
+function prebuildTerraformFixture() {
+  return { resource_changes: [...readbackIamPlanFixture(() => ['no-op']).resource_changes,
+    ...PREBUILD_IAM_ADDRESSES.map(address => ({ address, mode: 'managed', provider_name: 'registry.terraform.io/hashicorp/google',
+      change: { actions: ['create'], after: structuredClone(PREBUILD_IAM_SPECS[address]), after_unknown: { id: true } } }))] }
+}
+async function seedPrebuildIamContinuation(h, supplementalIamReadbackRef, name = 'prebuild-iam-continuation') {
+  assert.equal(sha256(prebuildHumanApprovalBytes), PREBUILD_IAM_HUMAN_APPROVAL_SHA256)
+  const receiptUri = ref(name).uri, times = Date.now(), at = delta => new Date(times + delta).toISOString()
+  const humanApprovalRef = { uri: ref(name + '-human').uri, sha256: PREBUILD_IAM_HUMAN_APPROVAL_SHA256 }
+  h.objects.set(humanApprovalRef.uri, { bytes: prebuildHumanApprovalBytes, value: JSON.parse(prebuildHumanApprovalBytes), ref: humanApprovalRef, metadata: { generation: '1' } })
+  const sourceRevision = 'f'.repeat(40), sourceTree = '1'.repeat(40), sourceSha256 = '2'.repeat(64)
+  const source = { schemaVersion: 'jenfu.dev012.owner-source-lock.v1', ownerApplicationId: 'ai-pdm', repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main',
+    releaseId: 'DEV122-PREBUILD-IAM-001', sourceRevision, sourceTree, sourceSha256, migrationManifestSha256: '3'.repeat(64), clean: true,
+    remoteRef: 'refs/heads/main', remoteRevision: sourceRevision, status: 'SOURCE_FROZEN', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', observedAt: at(-1500) }
+  const sourceProofRef = (await h.transport.putJson(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${source.releaseId}/source-lock.json`, source)).ref
+  const plan = prebuildIamContinuationPlan(readSource, sourceRevision), planSha256 = sha256(canonicalize(plan))
+  const planBinding = { ownerApplicationId: 'ai-pdm', sourceRevision, sourceTree, sourceSha256, sourceProofRef, supplementalIamReadbackRef, humanApprovalRef }
+  const approvedPlanRef = await h.put(name + '-approved', { schemaVersion: 'aipdm.openswx-approved-prebuild-readback-iam-plan.v1', ...planBinding,
+    status: 'APPROVED', releaseAuthority: true, evidenceScope: 'HUMAN_APPROVED_PREBUILD_READBACK_IAM_PLAN', planSha256, plan })
+  const beforePolicy = { bindings: readbackIamProjectPolicy(), etag: 'recorded-before', version: 3 }
+  const afterPolicy = { bindings: [...readbackIamProjectPolicy(), { role: PREBUILD_IAM_ROLE, members: [READBACK_IAM_VERIFIER] }], etag: 'recorded-after', version: 3 }
+  const role = { name: PREBUILD_IAM_ROLE, stage: 'GA', includedPermissions: [...PREBUILD_IAM_PERMISSIONS] }
+  const policy = (phase, projectPolicy, prebuildRole, observedAt) => ({ schemaVersion: 'aipdm.openswx-prebuild-readback-iam-policy.v1', ownerApplicationId: 'ai-pdm', projectId: READBACK_IAM_PROJECT,
+    actor: profile.normalActor, phase, observedAt, projectPolicy, prebuildRole })
+  const beforeReadbackRef = await h.put(name + '-before', policy('BEFORE', beforePolicy, null, at(-1000)))
+  const afterReadbackRef = await h.put(name + '-after', policy('AFTER', afterPolicy, role, at(-250)))
+  const binaryBytes = Buffer.from('RECORDED_FROZEN_TERRAFORM_BINARY_FIXTURE_NOT_A_PRODUCTION_PLAN'), binaryPlanSha256 = sha256(binaryBytes)
+  const binaryPlanRef = { uri: receiptUri.replace(/\.json$/u, '-plan.tfplan'), sha256: binaryPlanSha256 }
+  h.objects.set(binaryPlanRef.uri, { bytes: binaryBytes, ref: binaryPlanRef, metadata: { generation: '1' } })
+  const terraformPlanRef = await h.put(name + '-terraform-plan', prebuildTerraformFixture())
+  const binding = { ...planBinding, actor: profile.normalActor, approvedPlanRef, planSha256, receiptUri }
+  const request = { ...binding, binaryPlanRef, binaryPlanSha256, terraformPlanRef, changes: assertPrebuildIamTerraformPlan(prebuildTerraformFixture()),
+    requestedAt: at(-500), deadlineAt: at(120000), beforeReadbackRef }
+  const requestRef = await h.put(name + '-request', { schemaVersion: 'aipdm.openswx-prebuild-readback-iam-request.v1', ...request })
+  const binaryPlanReceiptRef = await h.put(name + '-plan', { schemaVersion: 'aipdm.openswx-prebuild-readback-iam-plan-binary.v1', ...request })
+  const continuationRef = await h.put(name, { schemaVersion: 'aipdm.openswx-prebuild-readback-iam-continuation.v1', ...binding, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER',
+    requestRef, binaryPlanReceiptRef, binaryPlanSha256, beforeReadbackRef, afterReadbackRef,
+    unrelatedProjectBindingsBeforeSha256: readbackIamUnrelatedHash(beforePolicy.bindings), unrelatedProjectBindingsAfterSha256: readbackIamUnrelatedHash(afterPolicy.bindings),
+    observedAt: at(-100), mutation: 'UNKNOWN_APPLY_THEN_READBACK' })
+  return { continuationRef, sourceProofRef, approvedPlanRef, requestRef, binaryPlanReceiptRef, beforeReadbackRef, afterReadbackRef, binaryPlanRef, terraformPlanRef, role, afterPolicy }
+}
+async function prebuildIamHarness() {
+  const h = await dailyHarness(), old = descriptor(h.prior.sourceRevision)
+  old.value.resourcePlanRef = await h.put('prebuild-old-iam-resources', { resourcePlanHash: old.value.resourcePlanHash, plan: old.plan })
+  const descriptorRef = await h.put('prebuild-old-iam-descriptor', old.value)
+  const oldBuild = structuredClone(h.objects.get(h.prior.workerBuildRef.uri).value)
+  oldBuild.facts.scan.rawHighOrCriticalVulnerabilityCount = 0
+  const workerBuildRef = await h.put('prebuild-old-iam-build', oldBuild)
+  const iam = await seedReadbackIamReceipt(h, { descriptorValue: old.value, descriptorRef, workerBuildRef, receiptId: 'prebuild-old-iam' })
+  const resourceReadbackRef = await h.put('prebuild-prior-resource-readback', { resourcesUnchanged: true, supplementalIamReadbackRef: iam.receiptRef })
+  const bootstrap = h.objects.get(h.prior.bootstrapRef.uri).value
+  bootstrap.facts.resourceProvenance = { priorResourceApplyRef: bootstrap.facts.resourceApplyRef, resourceReadbackRef, resourceReadbackSha256: resourceReadbackRef.sha256,
+    resourcesUnchanged: true, supplementalIamReadbackRef: iam.receiptRef, supplementalIamSourceRevision: h.prior.sourceRevision }
+  const proof = await seedPrebuildIamContinuation(h, iam.receiptRef)
+  h.controls.prebuildBindings = structuredClone(proof.afterPolicy.bindings)
+  h.controls.prebuildRole = structuredClone(proof.role)
+  const iamCalls = installReadbackIamProvider(h, { projectBindings: () => h.controls.prebuildBindings })
+  const request = h.transport.request
+  h.transport.request = async (url, options = {}) => {
+    if (url === 'https://iam.googleapis.com/v1/' + PREBUILD_IAM_ROLE) { iamCalls.push({ url, options }); return structuredClone(h.controls.prebuildRole) }
+    return request(url, options)
+  }
+  const readerArgs = { transport: h.transport, ref: proof.continuationRef, supplementalIamReadbackRef: iam.receiptRef,
+    sourceRevision: h.next.sourceRevision, readSource, normalActor: profile.normalActor }
+  const assertArgs = { transport: h.transport, ref: iam.receiptRef, sourceRevision: h.prior.sourceRevision, readSource, normalActor: profile.normalActor,
+    prebuildIamContinuationRef: proof.continuationRef, verificationSourceRevision: h.next.sourceRevision }
+  return { ...h, iam, proof, readerArgs, assertArgs, iamCalls, allCalls: () => [...h.calls, ...iamCalls] }
+}
+
+test('prebuild IAM continuation admits only the approved two additions and five retained no-ops', () => {
+  assert.equal(assertPrebuildIamTerraformPlan(prebuildTerraformFixture()).length, 7)
+  assert.equal(READBACK_IAM_PATHS.length, 4)
+  for (const mutate of [
+    value => { value.resource_changes[0].change.actions = ['create'] },
+    value => { value.resource_changes.pop() },
+    value => { value.resource_changes[6] = structuredClone(value.resource_changes[5]) },
+    value => { value.resource_changes[5].change.actions = ['update'] },
+    value => { value.resource_changes[6].change.actions = ['delete', 'create'] },
+    value => { value.resource_changes[5].change.after.permissions.push('cloudbuild.builds.create') },
+    value => { value.resource_changes[5].change.after_unknown.permissions = [true] },
+    value => { value.resource_changes[6].change.after.member = READBACK_IAM_DEPLOYER },
+    value => { value.resource_changes[6].change.after.condition = [{ title: 'not-approved' }] },
+    value => { value.resource_changes[6].change.importing = { id: 'foreign' } },
+  ]) { const value = prebuildTerraformFixture(); mutate(value); assert.throws(() => assertPrebuildIamTerraformPlan(value), { code: 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID' }) }
+})
+
+test('prebuild IAM immutable proof needs no new worker build and preserves both raw policy hashes', async () => {
+  const h = await prebuildIamHarness(), calls = h.allCalls().length
+  const sealed = await readPrebuildIamContinuation({ ...h.readerArgs, transport: { ...h.transport, request: async () => { throw Error('PROVIDER_API_FORBIDDEN_IN_SEALED_JOIN') } } })
+  assert.deepEqual(sealed.ref, h.proof.continuationRef)
+  assert.notEqual(sealed.value.unrelatedProjectBindingsBeforeSha256, sealed.value.unrelatedProjectBindingsAfterSha256)
+  assert.equal(sealed.value.unrelatedProjectBindingsBeforeSha256, h.objects.get(h.iam.receiptRef.uri).value.readback.unrelatedProjectBindingsSha256)
+  assert.equal(h.allCalls().length, calls)
+  assert.equal(sealed.value.workerBuildRef, undefined)
+  assert.equal(sealed.value.sourceRevision, 'f'.repeat(40))
+  assert.ok(![...h.objects.values()].some(row => row.value?.kind === 'build' && row.value.sourceRevision === sealed.value.sourceRevision))
+  const previous = Buffer.from(h.objects.get(h.iam.receiptRef.uri).bytes)
+  await assertReadbackIamReceipt(h.assertArgs)
+  assert.ok(h.objects.get(h.iam.receiptRef.uri).bytes.equals(previous))
+  await assert.rejects(assertReadbackIamReceipt({ ...h.assertArgs, prebuildIamContinuationRef: undefined }), { code: 'OPENSWX_IAM_READBACK_DRIFT' })
+})
+
+test('prebuild IAM proof rejects unapproved or unjoined source, plan, request and policy artifacts without mutation', async () => {
+  const mutations = [
+    ['proof', value => { value.status = 'UNKNOWN' }],
+    ['proof', value => { value.supplementalIamReadbackRef = ref('foreign-old-iam') }],
+    ['proof', value => { value.humanApprovalRef.sha256 = '0'.repeat(64) }],
+    ['proof', value => { value.actor = 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }],
+    ['proof', value => { value.unknown = true }],
+    ['sourceProofRef', value => { value.repository = 'foreign/repo' }],
+    ['sourceProofRef', value => { value.clean = false }],
+    ['sourceProofRef', value => { value.remoteRevision = '0'.repeat(40) }],
+    ['sourceProofRef', value => { value.sourceTree = '0'.repeat(40) }],
+    ['sourceProofRef', value => { value.releaseAuthority = false }],
+    ['approvedPlanRef', value => { value.plan.sourceHashes.at(-1).sha256 = '0'.repeat(64) }],
+    ['requestRef', value => { value.binaryPlanSha256 = '0'.repeat(64) }],
+    ['requestRef', value => { value.requestedAt = 'bad' }],
+    ['requestRef', value => { value.deadlineAt = new Date(Date.parse(value.requestedAt) + 600001).toISOString() }],
+    ['binaryPlanReceiptRef', value => { value.actor = 'foreign@example.com' }],
+    ['beforeReadbackRef', value => { value.prebuildRole = {} }],
+    ['beforeReadbackRef', value => { value.projectPolicy.bindings.push({ role: PREBUILD_IAM_ROLE, members: [READBACK_IAM_VERIFIER] }) }],
+    ['afterReadbackRef', value => { value.projectPolicy.bindings.at(-1).members.push(READBACK_IAM_DEPLOYER) }],
+    ['afterReadbackRef', value => { value.prebuildRole.includedPermissions.push('cloudbuild.builds.create') }],
+    ['afterReadbackRef', value => { value.projectPolicy.bindings[1].members.push('user:foreign@example.com') }],
+    ['afterReadbackRef', value => { value.observedAt = new Date(Date.now() + 600000).toISOString() }],
+  ]
+  for (const [key, mutate] of mutations) {
+    const h = await prebuildIamHarness(), reference = key === 'proof' ? h.proof.continuationRef : h.proof[key]
+    const value = structuredClone(h.objects.get(reference.uri).value); mutate(value); h.objects.get(reference.uri).value = value
+    const count = h.objects.size
+    await assert.rejects(readPrebuildIamContinuation(h.readerArgs), { code: 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID' }, key)
+    assert.equal(h.objects.size, count)
+    assert.equal(h.allCalls().length, 0)
+  }
+  const h = await prebuildIamHarness()
+  await assert.rejects(readPrebuildIamContinuation({ ...h.readerArgs, readSource: (repositoryPath, sourceRevision) => repositoryPath === PREBUILD_IAM_SOURCE_PATH ? Buffer.from('wrong-new-tf') : readSource(repositoryPath, sourceRevision) }), { code: 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID' })
+  h.objects.get(h.proof.binaryPlanRef.uri).bytes = Buffer.from('changed-binary')
+  await assert.rejects(readPrebuildIamContinuation(h.readerArgs), { code: 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID' })
+})
+
+test('prebuild IAM fresh validation rejects every additional role, binding and unrelated policy drift', async () => {
+  for (const mutate of [
+    h => { h.controls.prebuildBindings.at(-1).members.push(READBACK_IAM_DEPLOYER) },
+    h => { h.controls.prebuildBindings.at(-1).condition = { expression: 'true' } },
+    h => { h.controls.prebuildBindings.push(structuredClone(h.controls.prebuildBindings.at(-1))) },
+    h => { h.controls.prebuildBindings.pop() },
+    h => { h.controls.prebuildRole.includedPermissions.push('cloudbuild.builds.get') },
+    h => { h.controls.prebuildRole.deleted = true },
+    h => { h.controls.prebuildRole.stage = 'DISABLED' },
+  ]) {
+    const h = await prebuildIamHarness(); mutate(h)
+    await assert.rejects(assertReadbackIamReceipt(h.assertArgs), { code: 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID' })
+    assert.ok(h.allCalls().every(row => !row.options.method || row.url.endsWith(':getIamPolicy')))
+  }
+  const h = await prebuildIamHarness()
+  h.controls.prebuildBindings[1].members.push('user:foreign@example.com')
+  await assert.rejects(assertReadbackIamReceipt(h.assertArgs), { code: 'OPENSWX_IAM_READBACK_DRIFT' })
+  h.controls.prebuildBindings = structuredClone(h.proof.afterPolicy.bindings)
+  h.controls.prebuildBindings[0].members.pop()
+  await assert.rejects(assertReadbackIamReceipt(h.assertArgs), { code: 'OPENSWX_IAM_READBACK_INVALID' })
+})
+
+test('DAILY prebuild IAM ref seals into full evidence and replay rechecks live IAM without issuing work or credentials', async () => {
+  const h = await prebuildIamHarness()
+  const drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'prebuild-daily-drain')
+  const input = { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref, prebuildIamContinuationRef: h.proof.continuationRef }
+  const result = await h.invoke('bootstrap', input, 'prebuild-daily-bootstrap')
+  assert.deepEqual(result.value.facts.resourceProvenance.prebuildIamContinuationRef, h.proof.continuationRef)
+  const resource = await h.transport.readJson(result.value.facts.resourceProvenance.resourceReadbackRef)
+  assert.deepEqual(resource.value.prebuildIamContinuationRef, h.proof.continuationRef)
+  const full = { ...h.next, purpose: 'full', workerBuildRef: h.nextBuildRef, bootstrapRef: result.ref, cloudPreflightRef: result.value.facts.cloudPreflightRef,
+    pausedDrainedRef: drained.ref, tokenSecretVersion: tokenName, registrySecretVersion: registryName }; delete full.resourcePlanRef
+  const evidence = await readWorkerFullEvidence({ ...h.transport, request: async () => { throw Error('OWNER_MUST_USE_SEALED_IAM_CHAIN') } }, full, profile, readSource)
+  assert.deepEqual(evidence.supplementalIam.prebuildIamContinuationRef, h.proof.continuationRef)
+  const isMutation = row => row.options.method === 'PATCH' || /:run$|:addVersion$|:resume$/u.test(row.url)
+  const beforeMutations = h.allCalls().filter(isMutation).length
+  const roleReadsBefore = h.allCalls().filter(row => row.url === 'https://iam.googleapis.com/v1/' + PREBUILD_IAM_ROLE).length
+  const bootstrapInput = h.objects.get(ref('prebuild-daily-bootstrap-input').uri)
+  const invokeReplay = () => executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapInput.ref, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  const replay = await invokeReplay()
+  assert.deepEqual(replay.ref, result.ref)
+  assert.ok(h.allCalls().filter(row => row.url === 'https://iam.googleapis.com/v1/' + PREBUILD_IAM_ROLE).length > roleReadsBefore)
+  assert.equal(h.allCalls().filter(isMutation).length, beforeMutations)
+  h.controls.prebuildBindings[1].members.push('user:post-seal-drift@example.com')
+  await assert.rejects(invokeReplay(), { code: 'OPENSWX_IAM_READBACK_DRIFT' })
+  assert.ok(h.allCalls().every(row => !/:addVersion$|:resume$|terraform/u.test(row.url)))
+  const malformed = structuredClone(resource.value); delete malformed.prebuildIamContinuationRef
+  h.objects.get(resource.ref.uri).value = malformed
+  await assert.rejects(readWorkerFullEvidence(h.transport, full, profile, readSource), { code: 'OPENSWX_IAM_AUTHORITY_CHAIN_INVALID' })
+})
+
+test('prebuild IAM ref is DAILY bootstrap only and explicit refs cannot replace an inherited sealed ref', async () => {
+  const h = await prebuildIamHarness()
+  await assert.rejects(h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef, prebuildIamContinuationRef: h.proof.continuationRef }, 'prebuild-wrong-pause'), { code: 'OPENSWX_BOOTSTRAP_INPUT_INVALID' })
+  await assert.rejects(h.invoke('bootstrap', { bootstrapKind: 'FIRST_CREATE', resourceApplyRef: ref('resource-apply'), currentRegistryVersion: registryName, prebuildIamContinuationRef: h.proof.continuationRef }, 'prebuild-wrong-first'), { code: 'OPENSWX_BOOTSTRAP_INPUT_INVALID' })
+  const prior = h.objects.get(h.prior.bootstrapRef.uri).value
+  const readbackRef = await h.put('prebuild-inherited-resources', { resourcesUnchanged: true, supplementalIamReadbackRef: h.iam.receiptRef, prebuildIamContinuationRef: h.proof.continuationRef })
+  prior.facts.bootstrapKind = 'DAILY_REFRESH'
+  Object.assign(prior.facts.resourceProvenance, { prebuildIamContinuationRef: h.proof.continuationRef, resourceReadbackRef: readbackRef, resourceReadbackSha256: readbackRef.sha256 })
+  const drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'prebuild-inherited-drain')
+  await assert.rejects(h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref,
+    prebuildIamContinuationRef: ref('different-continuation') }, 'prebuild-conflicting-bootstrap'), { code: 'OPENSWX_IAM_AUTHORITY_CHAIN_INVALID' })
+  assert.ok(h.allCalls().every(row => row.options.method !== 'PATCH' && !/:addVersion$|:resume$/u.test(row.url)))
+  const result = await h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref }, 'prebuild-inherited-bootstrap')
+  assert.deepEqual(result.value.facts.resourceProvenance.prebuildIamContinuationRef, h.proof.continuationRef)
 })
 
 async function completedFirstHarness() {

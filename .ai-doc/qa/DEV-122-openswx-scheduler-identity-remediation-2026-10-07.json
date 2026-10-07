@@ -1,10 +1,10 @@
 {
   "schemaVersion": "aipdm.dev122.scheduler-identity-remediation.v1",
   "project": "AI-PDM",
-  "state": "B11_PREBUILD_ABORT_NOT_APPLIED_B14_LOCAL_CHECKS_PASS_SOURCE_QC_AND_OFFICIAL_RELEASE_PENDING",
-  "sourceBase": "312be7e8087677f23e78011c3105a80355c03f55",
-  "branch": "codex/dev122-scheduler-subject-binding",
-  "authorization": "Existing AI-PDM-only production release corrective cycle; no new project/environment/resource/IAM/credentials",
+  "state": "B16_CONSUMER_LOCAL_CHECKS_PASS_INDEPENDENT_QC_FINAL_HEAD_CI_IAM_APPLY_RELEASE_PENDING",
+  "sourceBase": "e863d980df8624619da6200caae3f9f30a5acbdc",
+  "branch": "codex/dev122-prebuild-verifier-readback",
+  "authorization": "Existing AI-PDM-only production corrective cycle plus exact human-approved prebuild readback role/member; existing test accounts only; no cross-project development",
   "actualReleasedBaseline": {
     "releaseId": "DEV122-OPENSWX-20261007-B08",
     "sourceRevision": "312be7e8087677f23e78011c3105a80355c03f55",
@@ -1003,6 +1003,250 @@
     "denominator": "7 issues /29 groups unchanged",
     "nativeF01F": "PENDING_HUMAN_PRODUCTION_VALIDATION",
     "supplierReplies": "DISABLED_DEFERRED",
-    "observedAt": "2026-10-07T05:19:54.636030+00:00"
+    "observedAt": "2026-10-07T05:19:54.636030+00:00",
+    "completion": {
+      "source": "018e13696c12729c6444a001a8818f5f3685ed64",
+      "PR": 233,
+      "mainCi": 37577075640,
+      "sourceQc": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4-prebuild-independent-qc.json",
+        "sha256": "2f09dfd911d39fb58d2c804be0ee137b2d12900d927e9f37e4e57064355ccce7"
+      },
+      "sourceQcReportClarification": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4-source-qc-owner-run-clarification.json",
+        "sha256": "b0a250712d5443246fed91f8e795818387b423f435c7f950fa0051578767b79e"
+      },
+      "officialSource": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-official-source.json",
+        "sha256": "252db7592212871429a1bcbccb593f89aa978f00dd2b5162cd243ebaccd4da7a"
+      }
+    }
+  },
+  "prebuildVerifierIamProposal": {
+    "sourceBase": "018e13696c12729c6444a001a8818f5f3685ed64",
+    "branch": "codex/dev122-prebuild-verifier-readback",
+    "state": "HUMAN_APPROVED_SOURCE_CI_AND_FRESH_APPLY_PENDING",
+    "actualA15": {
+      "ownerRun": 37577933151,
+      "prepare": "FAIL_DENIED",
+      "laterStages": "SKIPPED",
+      "actualMissingStageReceipts": true,
+      "cloudBuildCount": 0,
+      "activeRevision": "ai-pdm-prod-abd7ac77760c",
+      "traffic": 100,
+      "scheduler": "PAUSED",
+      "queue": "RETAINED",
+      "failureEndpoint": "NOT_CAPTURED;PERMISSION_GAP_FROM_CODE_AND_ACTUAL_IAM;NO_FAKE_TRACE",
+      "evidence": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\A15-r2-failure-provider-readback.json",
+        "sha256": "111e6bcd2c3365868c9b09463289a7d20d9ce363f6073cca2826d125d21b55d7"
+      },
+      "rawLog": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\A15-owner-failed.raw.log",
+        "sha256": "998cb65950de2e107d52d6caf02e018cf0f4ef9a3e30ce7a2bd416db42b039e9"
+      },
+      "firstReadbackParserFailure": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\A15-failure-provider-readback.json",
+        "sha256": "b1c833ac4e1f2ffd045f1fc7f307bb7d38d2711b7c6fe8c2e90744b15d88fe67"
+      }
+    },
+    "proposal": {
+      "projectId": "jenfu-platform-prod",
+      "projectNumber": "9536592944",
+      "principal": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+      "roleId": "aipdmDev122PrebuildList",
+      "permissions": [
+        "cloudbuild.builds.list",
+        "serviceusage.services.use"
+      ],
+      "resources": [
+        "google_project_iam_custom_role.prebuild_list_readback",
+        "google_project_iam_member.verifier_prebuild_list_readback"
+      ],
+      "visibility": "PROJECT_WIDE_BUILD_LIST_METADATA;TAG_FILTER_QUERY_ONLY",
+      "humanDecision": "APPROVED_BY_ORIGINAL_HUMAN_MESSAGE;EXACT_TWO_RESOURCES_AND_PERMISSIONS;SOURCE_PLAN_BINDINGS_REFRESHABLE",
+      "apply": "NOT_RUN"
+    },
+    "validation": {
+      "actualTerraformPlan": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\A15-iam-proposal-plan.json",
+        "sha256": "ab79d45e5a6c48434cfd3e4cb07cce02d06f5e1d010e8af7a98f9bb3dd0ed56b"
+      },
+      "runtime": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\A15-iam-proposal-plan-runtime.json",
+        "sha256": "ac23859d4717b9b0ce4696d79b48685f8aa496516c957e4df732cbb9c533125a"
+      },
+      "planCounts": {
+        "create": 2,
+        "no-op": 5,
+        "update": 0,
+        "delete": 0
+      },
+      "checks": [
+        "terraform fmt -check",
+        "terraform validate",
+        "actual own-state terraform plan -lock=false"
+      ],
+      "newSixChecks": "NOT_REQUIRED_FOR_INFRA_PROPOSAL;RELEASE_ADAPTER_CODE_UNCHANGED_FROM_PR233;NORMAL_PR_AND_MAIN_CI_PENDING_FOR_NEW_SOURCE"
+    },
+    "officialDocumentation": [
+      "https://docs.cloud.google.com/build/docs/api/reference/rest/v1/projects.locations.builds/list",
+      "https://docs.cloud.google.com/build/docs/securing-builds/configure-access-to-resources"
+    ],
+    "excluded": [
+      "No builder token passed to generic prepare",
+      "No producer stale-readback fallback",
+      "No new build-submit/update/delete/Secret permissions",
+      "No changes to original12 or original5",
+      "No nativeCAD or eightCAD completion claim"
+    ],
+    "nativeF01F": "HUMAN_PRODUCTION_VALIDATION_PENDING",
+    "wholeDev": "NOT_ACCEPTED",
+    "denominator": "7 issues /29 groups unchanged",
+    "observedAt": "2026-10-07T06:04:51.132574+00:00",
+    "humanApproval": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B15-human-iam-approval.json",
+      "sha256": "6227c9b14d3af84d45b2dbedf17ceed76002a18ced61f4237725ed656eeb33b8",
+      "userText": "核准 2 項補權，繼續上線, 使用現有個測試帳號",
+      "originalProposalQcSha256": "1cd6c7e53160c6fdbbc8c8eaa6440ca306e673eec84a8b4f093f8ebe6b027477",
+      "testAccountReuse": "EXISTING_TEST_ACCOUNTS_ONLY;NO_ACCOUNT_CREATION_OR_CAPABILITY_CHANGE"
+    }
+  },
+  "priorTopLevelSourceContext": {
+    "sourceBase": "312be7e8087677f23e78011c3105a80355c03f55",
+    "branch": "codex/dev122-scheduler-subject-binding",
+    "authorization": "Existing AI-PDM-only production release corrective cycle; no new project/environment/resource/IAM/credentials"
+  },
+  "prebuildIamContinuationRemediation": {
+    "sourceBase": "e863d980df8624619da6200caae3f9f30a5acbdc",
+    "branch": "codex/dev122-prebuild-verifier-readback",
+    "authorizationStatementSha256": "6227c9b14d3af84d45b2dbedf17ceed76002a18ced61f4237725ed656eeb33b8",
+    "contract": {
+      "oldReceipt": "UNMODIFIED_FULL_HISTORICAL_CHAIN_VALIDATION",
+      "policy": "PRESERVE_RAW_BEFORE_AFTER_HASHES;REMOVE_ONLY_UNIQUE_EXACT_APPROVED_NEW_BINDING_TO_MATCH_OLD_RAW",
+      "sourceProof": "EXISTING_OFFICIAL_MAIN_SOURCE_LOCK_BEFORE_BUILD;NO_NEW_WORKER_BUILD_DEPENDENCY",
+      "plan": "EXACT_7_ROWS_OLD5_NOOP_NEW2_CREATE_OR_NOOP;ONLY_SAVED_BINARY_APPLY;UNKNOWN_READBACK_BEFORE_ANY_RETRY",
+      "input": "DAILY_REFRESH_ONLY;EXPLICIT_OR_SEALED_INHERITANCE_EXACT_JOIN;CACHED_REPLAY_FRESH_IAM",
+      "fullOwner": "SEALED_CHAIN_READ_ONLY_WITH_EXISTING_AUTHORITY"
+    },
+    "validation": {
+      "focusedCases": 73,
+      "continuousCases": 139,
+      "checks": {
+        "focused": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-focused-check-result.json",
+            "sha256": "a5bb59ab99ba8c1acea1cf5cacd2941e2ec56f0e81ee3b09f807a5520d954e7b"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-focused-runtime.json",
+            "sha256": "eb645e162632c70fc834f75479125ff8942720dfd2b0091323a64dae21d04df5"
+          },
+          "stdout": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-focused-stdout.raw.log",
+            "sha256": "d5ef48881d0be6e5fa474adc4ec0986ae66f91657c7e8cc40826c41c23339457"
+          }
+        },
+        "continuous": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-continuous-check-result.json",
+            "sha256": "5aa535ff58bd98b7b2d9d29986ba6e21db9104a9933df1f9139a82c3400f27e2"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-continuous-runtime.json",
+            "sha256": "b2a7d44f449223fbfc61b0268f54916a337816c223c9400dbdb4cc8811154d39"
+          },
+          "stdout": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-continuous-stdout.raw.log",
+            "sha256": "5e59cfc2756b11152d73d6e0788603860702d10b35be7cd627608449d1afbcfc"
+          }
+        },
+        "qc": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-qc-check-result.json",
+            "sha256": "352d46dffe5d94430eca219a49236f45fab28f318c7025875e57f87819112916"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-qc-runtime.json",
+            "sha256": "1c7c3fe2383fb9c685a52cc414a32a153f0c1f232e126b0b9e0098baf26f2e20"
+          },
+          "stdout": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-qc-stdout.raw.log",
+            "sha256": "45a76a967c76ad3a1d680de8caf593946d98eb83aaf78a7a78db4ef8cfdbb10d"
+          }
+        },
+        "abort": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-abort-check-result.json",
+            "sha256": "22303c8c572d1cabe9933cbb013b50aa411cd45e85b5d91d52091e24e15c429e"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-abort-runtime.json",
+            "sha256": "b2384c70a7e4cb7545299cb3a6a81706e85f178e6330c675109bc8ad19f75129"
+          },
+          "stdout": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-abort-stdout.raw.log",
+            "sha256": "55574fb018a3520be67a4f9ee8a3c3cb17b013d0c264793985b64f32a475ea36"
+          }
+        },
+        "boundary": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-boundary-check-result.json",
+            "sha256": "7c8be48c75677cf698f7d9100ff568a186f23e7c0733cc9aa9d23b340fc9f023"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-boundary-runtime.json",
+            "sha256": "037061dfd621fe7d64f35cb98cc85c65e608461956e85ce51db378f3c9b72fd9"
+          },
+          "stdout": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-boundary-stdout.raw.log",
+            "sha256": "1e75a3ea6bc77d4febc9803b8d7d4e726e517eccf71977ea9e65b0d1d03404c6"
+          }
+        },
+        "typecheck": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-typecheck-check-result.json",
+            "sha256": "54df0be3e181eaba3dccdb96859a1c50688ba7f96a86f095b999fae467114044"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-typecheck-runtime.json",
+            "sha256": "ba8cda78b20acad39841dc99703bb005377e9a0fe4a58786ef0dbf765129e598"
+          },
+          "stdout": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-typecheck-stdout.raw.log",
+            "sha256": "d6b9becea135553c38235c1abc9a68eb40424d8fe332335aca88ad02e2e923a6"
+          }
+        },
+        "build": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-build-check-result.json",
+            "sha256": "1cc46f5236ae59e87490a1d4a3e73ead6119324f4767e607c0aae8a7c230db0e"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-build-runtime.json",
+            "sha256": "9b1e3c106f8fd28560a13843a3db7ef076b2a1ee0e48222ffc67d2279bce1495"
+          },
+          "stdout": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-build-stdout.raw.log",
+            "sha256": "ec4d9027cbded96d11846632cb5de39adbf87ee042b45b19c995a9f6ce2f477c"
+          }
+        }
+      },
+      "qaPlan": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-continuation-qa-plan-r2.json",
+        "sha256": "3f415685360b44c43925c1c317e751524b5c64355e6feb684f265d14aaf4a69e"
+      },
+      "productFreeze": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A16-B13\\B16-product-freeze.json",
+        "sha256": "956f1c3e1cd587976eaab5910d1b11ac8bc247ff50888bc9b498b1ffaef6cce3"
+      },
+      "independentQc": "PENDING_AT_SOURCE_SNAPSHOT"
+    },
+    "productionIamApply": "NOT_RUN",
+    "newProductionRelease": "NOT_RUN",
+    "testAccounts": "EXISTING_ONLY_NO_CREATION_OR_CAPABILITY_CHANGE",
+    "nativeF01F": "USER_PRODUCTION_VALIDATION_PENDING",
+    "wholeDev": "NOT_ACCEPTED",
+    "observedAt": "2026-10-07T07:01:32.006057+00:00"
   }
 }

@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
+import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertOpenSwxWorkerRef, workerJobName, WORKER_RECEIPT_PREFIX, WORKER_PROFILE_PATH, writeWorkerJson, boundOpenSwxTransport, readWorkerDescriptor, assertWorkerReceipt, assertWorkerBuildSource } from './dev122-openswx-owner-release.mjs'
 
 const PROJECT = 'jenfu-platform-prod'
@@ -22,6 +22,15 @@ export const READBACK_IAM_SPECS = Object.freeze({
   'google_project_iam_member.deployer_scheduler_readback': { project: PROJECT, role: READBACK_SCHEDULER_ROLE, member: DEPLOYER },
 })
 export const READBACK_IAM_ADDRESSES = Object.freeze(Object.keys(READBACK_IAM_SPECS))
+export const PREBUILD_IAM_ROLE = `${ROLE_ROOT}aipdmDev122PrebuildList`
+export const PREBUILD_IAM_PERMISSIONS = Object.freeze(['cloudbuild.builds.list', 'serviceusage.services.use'])
+export const PREBUILD_IAM_SOURCE_PATH = `${ROOT}/prebuild-list-readback.tf`
+export const PREBUILD_IAM_HUMAN_APPROVAL_SHA256 = '6227c9b14d3af84d45b2dbedf17ceed76002a18ced61f4237725ed656eeb33b8'
+export const PREBUILD_IAM_SPECS = Object.freeze({
+  'google_project_iam_custom_role.prebuild_list_readback': { project: PROJECT, role_id: 'aipdmDev122PrebuildList', permissions: PREBUILD_IAM_PERMISSIONS },
+  'google_project_iam_member.verifier_prebuild_list_readback': { project: PROJECT, role: PREBUILD_IAM_ROLE, member: VERIFIER },
+})
+export const PREBUILD_IAM_ADDRESSES = Object.freeze(Object.keys(PREBUILD_IAM_SPECS))
 function fail(code) { throw Object.assign(Error(code), { code }) }
 const same = (a, b) => canonicalize(a) === canonicalize(b)
 const sorted = rows => [...rows].sort()
@@ -64,7 +73,7 @@ export function expectedReadbackJobBindings() {
     { role: READBACK_JOB_ROLE, members: [VERIFIER] },
   ].sort((a, b) => a.role.localeCompare(b.role))
 }
-export async function readbackReleaseIam(transport) {
+export async function readbackReleaseIam(transport, { prebuildIamContinuation = false } = {}) {
   const roleSpecs = [[READBACK_JOB_ROLE, ['run.jobs.get', 'run.executions.list']], [READBACK_SCHEDULER_ROLE, ['cloudscheduler.jobs.get']]]
   const roles = []
   for (const [name, permissions] of roleSpecs) {
@@ -78,7 +87,14 @@ export async function readbackReleaseIam(transport) {
   const own = (policy.bindings ?? []).filter(row => row.role === READBACK_SCHEDULER_ROLE)
   if (own.length !== 1 || !same(Object.keys(own[0]).sort(), ['members', 'role']) || !same(sorted(own[0].members ?? []), sorted([VERIFIER, DEPLOYER]))) fail('OPENSWX_IAM_READBACK_INVALID')
   const unrelated = (policy.bindings ?? []).filter(row => row.role !== READBACK_SCHEDULER_ROLE).map(row => ({ ...row, members: sorted(row.members ?? []) })).sort((a, b) => canonicalize(a).localeCompare(canonicalize(b)))
-  return { roles, jobBindings: expectedReadbackJobBindings(), schedulerBinding: { role: READBACK_SCHEDULER_ROLE, members: sorted([VERIFIER, DEPLOYER]), effectiveScope: 'PROJECT_WIDE_GET' }, unrelatedProjectBindingsSha256: sha256(canonicalize(unrelated)) }
+  const readback = { roles, jobBindings: expectedReadbackJobBindings(), schedulerBinding: { role: READBACK_SCHEDULER_ROLE, members: sorted([VERIFIER, DEPLOYER]), effectiveScope: 'PROJECT_WIDE_GET' }, unrelatedProjectBindingsSha256: sha256(canonicalize(unrelated)) }
+  if (prebuildIamContinuation) {
+    assertPrebuildProjectPolicy(policy, true)
+    const role = await transport.request(`https://iam.googleapis.com/v1/${PREBUILD_IAM_ROLE}`)
+    assertPrebuildRole(role)
+    readback.prebuildIamReadback = { role: { name: role.name, permissions: sorted(role.includedPermissions) }, unrelatedProjectBindingsWithoutPrebuildSha256: projectBindingsHash(policy, true) }
+  }
+  return readback
 }
 async function optional(transport, uri) {
   try { const row = await transport.readBytes(uri, { prefixes: [WORKER_RECEIPT_PREFIX] }); return { ...row, value: JSON.parse(row.bytes) } }
@@ -119,8 +135,142 @@ export async function readReadbackIamReceipt({ transport, ref, sourceRevision, r
 }
 /** Only the normal human resources/bootstrap path performs IAM policy GETs. */
 export async function assertReadbackIamReceipt(args) {
-  const row = await readReadbackIamReceipt(args), current = await readbackReleaseIam(args.transport)
-  for (const key of ['roles', 'jobBindings', 'schedulerBinding', 'unrelatedProjectBindingsSha256']) if (!same(row.value.readback[key], current[key])) fail('OPENSWX_IAM_READBACK_DRIFT')
+  const row = await readReadbackIamReceipt(args)
+  if (args.prebuildIamContinuationRef) await readPrebuildIamContinuation({ transport: args.transport, ref: args.prebuildIamContinuationRef,
+    supplementalIamReadbackRef: args.ref, sourceRevision: args.verificationSourceRevision, readSource: args.readSource, normalActor: args.normalActor })
+  const current = await readbackReleaseIam(args.transport, { prebuildIamContinuation: Boolean(args.prebuildIamContinuationRef) })
+  for (const key of ['roles', 'jobBindings', 'schedulerBinding']) if (!same(row.value.readback[key], current[key])) fail('OPENSWX_IAM_READBACK_DRIFT')
+  const currentHash = args.prebuildIamContinuationRef ? current.prebuildIamReadback.unrelatedProjectBindingsWithoutPrebuildSha256 : current.unrelatedProjectBindingsSha256
+  if (row.value.readback.unrelatedProjectBindingsSha256 !== currentHash) fail('OPENSWX_IAM_READBACK_DRIFT')
+  return row
+}
+const PREBUILD_INVALID = 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID'
+const hash64 = value => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value)
+const exactKeys = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) && same(Object.keys(value).sort(), [...keys].sort())
+const prebuildBinding = () => ({ role: PREBUILD_IAM_ROLE, members: [VERIFIER] })
+function assertPrebuildRole(value) {
+  if (!value || value.name !== PREBUILD_IAM_ROLE || (Object.hasOwn(value, 'deleted') && value.deleted !== false) || value.stage !== 'GA'
+    || !Array.isArray(value.includedPermissions) || !same(sorted(value.includedPermissions), PREBUILD_IAM_PERMISSIONS)) fail(PREBUILD_INVALID)
+}
+function assertPrebuildProjectPolicy(policy, applied) {
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy) || !Array.isArray(policy.bindings)
+    || policy.bindings.some(row => !row || typeof row !== 'object' || Array.isArray(row) || typeof row.role !== 'string' || !Array.isArray(row.members))) fail(PREBUILD_INVALID)
+  const scheduler = policy.bindings.filter(row => row.role === READBACK_SCHEDULER_ROLE)
+  if (scheduler.length !== 1 || !exactKeys(scheduler[0], ['role', 'members']) || !same(sorted(scheduler[0].members), sorted([VERIFIER, DEPLOYER]))) fail(PREBUILD_INVALID)
+  const own = policy.bindings.filter(row => row.role === PREBUILD_IAM_ROLE)
+  if (applied ? own.length !== 1 || !same(own[0], prebuildBinding()) : own.length !== 0) fail(PREBUILD_INVALID)
+}
+function projectBindingsHash(policy, withoutPrebuild = false) {
+  const rows = policy.bindings.filter(row => row.role !== READBACK_SCHEDULER_ROLE && (!withoutPrebuild || row.role !== PREBUILD_IAM_ROLE))
+    .map(row => ({ ...row, members: sorted(row.members) })).sort((a, b) => canonicalize(a).localeCompare(canonicalize(b)))
+  return sha256(canonicalize(rows))
+}
+export function prebuildIamContinuationPlan(readSource, sourceRevision) {
+  const retained = readbackIamPlan(readSource, sourceRevision)
+  return { ...retained,
+    sourceHashes: [...retained.sourceHashes, { path: PREBUILD_IAM_SOURCE_PATH, sha256: sha256(readSource(PREBUILD_IAM_SOURCE_PATH, sourceRevision)) }],
+    resourceAddresses: [...READBACK_IAM_ADDRESSES, ...PREBUILD_IAM_ADDRESSES], resourceSpecs: { ...READBACK_IAM_SPECS, ...PREBUILD_IAM_SPECS },
+    retainedResourceAddresses: READBACK_IAM_ADDRESSES, additiveResourceAddresses: PREBUILD_IAM_ADDRESSES }
+}
+/** The old five must be no-ops; this is separate from their historical executor. */
+export function assertPrebuildIamTerraformPlan(value) {
+  if (!Array.isArray(value?.resource_changes) || value.resource_changes.length !== 7) fail(PREBUILD_INVALID)
+  const retained = value.resource_changes.filter(row => READBACK_IAM_ADDRESSES.includes(row?.address))
+  assertReadbackIamTerraformPlan({ resource_changes: retained })
+  if (retained.some(row => !same(row.change.actions, ['no-op']))) fail(PREBUILD_INVALID)
+  const added = value.resource_changes.filter(row => PREBUILD_IAM_ADDRESSES.includes(row?.address))
+  if (added.length !== 2 || new Set(added.map(row => row.address)).size !== 2) fail(PREBUILD_INVALID)
+  for (const row of added) {
+    const after = row.change?.after, unknown = row.change?.after_unknown ?? {}, spec = PREBUILD_IAM_SPECS[row.address]
+    if (row.mode !== 'managed' || row.provider_name !== 'registry.terraform.io/hashicorp/google' || !after || row.change.importing
+      || !['create', 'no-op'].includes(row.change?.actions?.join(',')) || typeof unknown !== 'object' || Array.isArray(unknown) || unknown === null
+      || (after.condition != null && (!Array.isArray(after.condition) || after.condition.length !== 0))
+      || after.deleted === true || (after.stage && after.stage !== 'GA') || containsUnknown(unknown.condition) || containsUnknown(unknown.stage)) fail(PREBUILD_INVALID)
+    for (const [key, expected] of Object.entries(spec)) if (containsUnknown(unknown[key])
+      || !(key === 'permissions' ? Array.isArray(after[key]) && same(sorted(after[key]), expected) : same(after[key], expected))) fail(PREBUILD_INVALID)
+  }
+  return value.resource_changes.map(row => ({ address: row.address, actions: row.change.actions })).sort((a, b) => a.address.localeCompare(b.address))
+}
+/** Immutable historical joins only. Live role/policy checks stay on the normal actor path. */
+export async function readPrebuildIamContinuation({ transport, ref, supplementalIamReadbackRef, sourceRevision, readSource, normalActor }) {
+  assertOpenSwxWorkerRef(ref); assertOpenSwxWorkerRef(supplementalIamReadbackRef)
+  const row = await transport.readJson(ref, BUCKET, [WORKER_RECEIPT_PREFIX]), value = row.value
+  const bindingKeys = ['ownerApplicationId', 'actor', 'sourceRevision', 'sourceTree', 'sourceSha256', 'sourceProofRef', 'supplementalIamReadbackRef', 'humanApprovalRef', 'approvedPlanRef', 'planSha256', 'receiptUri']
+  const resultKeys = ['schemaVersion', ...bindingKeys, 'status', 'evidenceScope', 'requestRef', 'binaryPlanReceiptRef', 'binaryPlanSha256', 'beforeReadbackRef', 'afterReadbackRef', 'unrelatedProjectBindingsBeforeSha256', 'unrelatedProjectBindingsAfterSha256', 'observedAt', 'mutation']
+  if (!exactKeys(value, resultKeys) || value.schemaVersion !== 'aipdm.openswx-prebuild-readback-iam-continuation.v1'
+    || value.ownerApplicationId !== 'ai-pdm' || value.actor !== normalActor || normalActor !== 'jedchang0308@jenfu.com.tw'
+    || !/^[a-f0-9]{40}$/u.test(value.sourceRevision ?? '') || !/^[a-f0-9]{40}$/u.test(value.sourceTree ?? '') || !hash64(value.sourceSha256)
+    || value.status !== 'APPLIED' || value.evidenceScope !== 'PRODUCTION_PROVIDER' || value.receiptUri !== ref.uri
+    || !same(value.supplementalIamReadbackRef, supplementalIamReadbackRef) || !hash64(value.binaryPlanSha256)
+    || !['APPLY_THEN_READBACK', 'UNKNOWN_APPLY_THEN_READBACK', 'READBACK_ONLY'].includes(value.mutation)
+    || typeof readSource !== 'function' || !/^[a-f0-9]{40}$/u.test(sourceRevision ?? '')) fail(PREBUILD_INVALID)
+  const read = async reference => { assertOpenSwxWorkerRef(reference); return transport.readJson(reference, BUCKET, [WORKER_RECEIPT_PREFIX]) }
+  const old = (await read(supplementalIamReadbackRef)).value
+  await readReadbackIamReceipt({ transport, ref: supplementalIamReadbackRef, sourceRevision: old?.sourceRevision, readSource, normalActor })
+  if (old.planSha256 !== sha256(canonicalize(readbackIamPlan(readSource, sourceRevision)))) fail('OPENSWX_IAM_SOURCE_DRIFT')
+  assertOpenSwxWorkerRef(value.humanApprovalRef)
+  if (value.humanApprovalRef.sha256 !== PREBUILD_IAM_HUMAN_APPROVAL_SHA256) fail(PREBUILD_INVALID)
+  const approvalRow = await transport.readBytes(value.humanApprovalRef.uri, { prefixes: [WORKER_RECEIPT_PREFIX] })
+  if (sha256(approvalRow.bytes) !== PREBUILD_IAM_HUMAN_APPROVAL_SHA256) fail(PREBUILD_INVALID)
+  const human = JSON.parse(approvalRow.bytes)
+  if (human.schemaVersion !== 'aipdm.dev122.b15-human-iam-approval.v1' || human.project !== 'AI-PDM' || human.status !== 'APPROVED'
+    || human.authorizationSource !== 'HUMAN_USER_MESSAGE_IN_CURRENT_THREAD' || human.environment !== 'PRODUCTION' || human.projectId !== PROJECT
+    || human.projectNumber !== '9536592944' || human.principal !== VERIFIER || human.roleId !== 'aipdmDev122PrebuildList'
+    || !same(human.permissions, PREBUILD_IAM_PERMISSIONS) || !same(human.resources, PREBUILD_IAM_ADDRESSES)) fail(PREBUILD_INVALID)
+  assertImmutableRef(value.sourceProofRef, BUCKET, ['receipts/releases'])
+  const source = (await transport.readJson(value.sourceProofRef, BUCKET, ['receipts/releases'])).value
+  const sourceKeys = ['schemaVersion', 'ownerApplicationId', 'repository', 'branch', 'releaseId', 'sourceRevision', 'sourceTree', 'sourceSha256', 'migrationManifestSha256', 'clean', 'remoteRef', 'remoteRevision', 'status', 'releaseAuthority', 'evidenceScope', 'observedAt']
+  if (!exactKeys(source, sourceKeys) || source.schemaVersion !== 'jenfu.dev012.owner-source-lock.v1' || source.ownerApplicationId !== 'ai-pdm'
+    || source.repository !== 'jedchang0308-jenfu/AI-PDM' || source.branch !== 'main' || source.remoteRef !== 'refs/heads/main'
+    || source.sourceRevision !== value.sourceRevision || source.remoteRevision !== value.sourceRevision || source.sourceTree !== value.sourceTree
+    || source.sourceSha256 !== value.sourceSha256 || !hash64(source.migrationManifestSha256) || source.clean !== true
+    || source.status !== 'SOURCE_FROZEN' || source.releaseAuthority !== true || source.evidenceScope !== 'PRODUCTION_BOUND'
+    || !/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(source.releaseId ?? '')
+    || value.sourceProofRef.uri !== `gs://${BUCKET}/receipts/releases/${source.releaseId}/source-lock.json`) fail(PREBUILD_INVALID)
+  const plan = prebuildIamContinuationPlan(readSource, sourceRevision), planSha256 = sha256(canonicalize(plan))
+  const approved = (await read(value.approvedPlanRef)).value
+  const planBindingKeys = ['ownerApplicationId', 'sourceRevision', 'sourceTree', 'sourceSha256', 'sourceProofRef', 'supplementalIamReadbackRef', 'humanApprovalRef']
+  if (!exactKeys(approved, ['schemaVersion', ...planBindingKeys, 'status', 'releaseAuthority', 'evidenceScope', 'planSha256', 'plan'])
+    || approved.schemaVersion !== 'aipdm.openswx-approved-prebuild-readback-iam-plan.v1' || approved.status !== 'APPROVED' || approved.releaseAuthority !== true
+    || approved.evidenceScope !== 'HUMAN_APPROVED_PREBUILD_READBACK_IAM_PLAN' || approved.planSha256 !== planSha256 || value.planSha256 !== planSha256
+    || !same(approved.plan, plan) || planBindingKeys.some(key => !same(approved[key], value[key]))) fail(PREBUILD_INVALID)
+  const binding = Object.fromEntries(bindingKeys.map(key => [key, value[key]])), proofs = []
+  const requestKeys = ['schemaVersion', ...bindingKeys, 'binaryPlanRef', 'binaryPlanSha256', 'terraformPlanRef', 'changes', 'requestedAt', 'deadlineAt', 'beforeReadbackRef']
+  for (const [key, suffix, schema] of [['requestRef', '-request.json', 'aipdm.openswx-prebuild-readback-iam-request.v1'], ['binaryPlanReceiptRef', '-plan.json', 'aipdm.openswx-prebuild-readback-iam-plan-binary.v1']]) {
+    if (value[key]?.uri !== ref.uri.replace(/\.json$/u, suffix)) fail(PREBUILD_INVALID)
+    const proof = (await read(value[key])).value
+    if (!exactKeys(proof, requestKeys) || proof.schemaVersion !== schema || Object.entries(binding).some(([key, expected]) => !same(proof[key], expected))
+      || proof.binaryPlanSha256 !== value.binaryPlanSha256 || !same(proof.beforeReadbackRef, value.beforeReadbackRef)) fail(PREBUILD_INVALID)
+    proofs.push(proof)
+  }
+  if (!same({ ...proofs[0], schemaVersion: proofs[1].schemaVersion }, proofs[1])) fail(PREBUILD_INVALID)
+  const request = proofs[0], requestedAt = Date.parse(request.requestedAt), deadlineAt = Date.parse(request.deadlineAt)
+  if (![requestedAt, deadlineAt, Date.parse(source.observedAt)].every(Number.isFinite) || deadlineAt <= requestedAt || deadlineAt - requestedAt > 600_000
+    || Date.parse(source.observedAt) > requestedAt || requestedAt - Date.parse(source.observedAt) > 600_000) fail(PREBUILD_INVALID)
+  assertOpenSwxWorkerRef(request.binaryPlanRef)
+  if (request.binaryPlanRef.uri !== ref.uri.replace(/\.json$/u, '-plan.tfplan') || request.binaryPlanRef.sha256 !== value.binaryPlanSha256
+    || request.terraformPlanRef?.uri !== ref.uri.replace(/\.json$/u, '-terraform-plan.json')) fail(PREBUILD_INVALID)
+  const binary = await transport.readBytes(request.binaryPlanRef.uri, { prefixes: [WORKER_RECEIPT_PREFIX] })
+  if (sha256(binary.bytes) !== value.binaryPlanSha256) fail(PREBUILD_INVALID)
+  const changes = assertPrebuildIamTerraformPlan((await read(request.terraformPlanRef)).value)
+  if (!same(request.changes, changes)) fail(PREBUILD_INVALID)
+  const policies = []
+  for (const [key, phase, suffix] of [['beforeReadbackRef', 'BEFORE', '-before.json'], ['afterReadbackRef', 'AFTER', '-after.json']]) {
+    if (value[key]?.uri !== ref.uri.replace(/\.json$/u, suffix)) fail(PREBUILD_INVALID)
+    const policy = (await read(value[key])).value
+    if (!exactKeys(policy, ['schemaVersion', 'ownerApplicationId', 'projectId', 'actor', 'phase', 'observedAt', 'projectPolicy', 'prebuildRole'])
+      || policy.schemaVersion !== 'aipdm.openswx-prebuild-readback-iam-policy.v1' || policy.ownerApplicationId !== 'ai-pdm' || policy.projectId !== PROJECT
+      || policy.actor !== normalActor || policy.phase !== phase || !Number.isFinite(Date.parse(policy.observedAt))) fail(PREBUILD_INVALID)
+    assertPrebuildProjectPolicy(policy.projectPolicy, phase === 'AFTER')
+    if (phase === 'BEFORE') { if (policy.prebuildRole !== null) fail(PREBUILD_INVALID) } else assertPrebuildRole(policy.prebuildRole)
+    policies.push(policy)
+  }
+  const [before, after] = policies, beforeAt = Date.parse(before.observedAt), afterAt = Date.parse(after.observedAt), observedAt = Date.parse(value.observedAt)
+  if (!Number.isFinite(observedAt) || beforeAt > requestedAt || requestedAt - beforeAt > 600_000 || afterAt < requestedAt || afterAt > deadlineAt
+    || observedAt < afterAt || observedAt > deadlineAt || projectBindingsHash(before.projectPolicy) !== old.readback.unrelatedProjectBindingsSha256
+    || projectBindingsHash(after.projectPolicy, true) !== old.readback.unrelatedProjectBindingsSha256
+    || value.unrelatedProjectBindingsBeforeSha256 !== projectBindingsHash(before.projectPolicy)
+    || value.unrelatedProjectBindingsAfterSha256 !== projectBindingsHash(after.projectPolicy)) fail(PREBUILD_INVALID)
   return row
 }
 function assertApplyProof(value, schema, binding) {
