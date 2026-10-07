@@ -1,0 +1,329 @@
+{
+  "schemaVersion": "aipdm.dev122.schedule-time-remediation.v1",
+  "project": "AI-PDM",
+  "slice": "DEV-122 / B17 / strict Scheduler schedule-time",
+  "status": "B17_R2_STATIC_GATE_LOCAL_PASS_FINAL_SOURCE_QC_AND_EXACT_HEAD_CI_PENDING",
+  "sourceBase": "fb5dba8269e8f664acae5b69a47a5c58684b28e9",
+  "branch": "codex/dev122-scheduler-rfc3339-offset",
+  "production": {
+    "B13ownerRun": 37593373429,
+    "revision": "ai-pdm-prod-06cc9e8ba15d",
+    "source": "fb5dba8269e8f664acae5b69a47a5c58684b28e9",
+    "release": "ACTUAL_RELEASED_10_STAGES_PASS",
+    "automaticCad": "ACTUAL_SCHEDULE_TIME_403_NOT_COMPLETED",
+    "actualHeaderValue": "UNKNOWN",
+    "containment": "R16_PAUSED_DAILY_DB_VERIFIED_PASS",
+    "queue": "RETAINED"
+  },
+  "contract": {
+    "sourceFiles": [
+      "src/lib/openswx-metadata-dispatch-auth.ts",
+      "src/lib/openswx-metadata-dispatch-auth.test.ts"
+    ],
+    "timestamp": "STRICT_RFC3339_Z_OR_OFFSET_1_TO_9_FRACTIONAL_DIGITS_EXACT_NANOSECONDS",
+    "freshnessMilliseconds": [
+      -60000,
+      5000
+    ],
+    "unknownOffset": "REJECT_MINUS_ZERO",
+    "diagnostics": [
+      "MISSING",
+      "FORMAT",
+      "INVALID_TIMESTAMP",
+      "TOO_OLD",
+      "TOO_FUTURE"
+    ],
+    "fixedAuthentication": "UNCHANGED_REAL_RSA_FIXED_CLAIMS_DESTINATION_POST_NO_COOKIE",
+    "newIamSecretResourcesWorkerSchema": "NONE",
+    "emptyPresentHeader": "REJECT_MISSING_CATEGORY_UNCHANGED_PRODUCT"
+  },
+  "qaPlan": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-schedule-time-qa-plan-r2.json",
+    "sha256": "8123423baee7ec9f689328fe99311611baba2ef9b5bd1f2eddd71cccf533bdc8"
+  },
+  "requiredChecks": [
+    "focused real RSA / installed Next adapter",
+    "test:dev-117:continuous",
+    "qc:dev-117:continuous",
+    "test:dev-117:abort",
+    "check:db-boundary",
+    "typecheck:app",
+    "build:isolated"
+  ],
+  "remaining": [
+    "independent source QC",
+    "PR/main CI",
+    "corrected immutable release",
+    "natural Scheduler success",
+    "4 works /8 CAD /99 props normal UI and provider"
+  ],
+  "nativeF01F": "USER_PRODUCTION_VALIDATION_PENDING",
+  "supplierReply": "DISABLED_DEFERRED",
+  "issueDenominator": 7,
+  "groupDenominator": 29,
+  "wholeDEV122": "NOT_ACCEPTED",
+  "testGapRemediation": {
+    "sourceReview": "Luna source PASS scoped; explicit negative-case evidence gaps",
+    "addedCases": [
+      "empty present header",
+      "second 61",
+      "empty fraction",
+      "offset width +8:00",
+      "offset missing colon +0800",
+      "offset malformed sign *08:00"
+    ],
+    "productCodeChange": "NONE",
+    "priorProductAuthSha256": "c7d72f6a956ed9422636a8929e3a955984d4fe2c22dbd78e7280bc7f89b99fb7",
+    "priorSixRequiredChecks": "PASS_RETAINED_UNCHANGED_AUTH_AND_RELEASE_CODE",
+    "verification": "FOCUSED18_LINT_TYPECHECK_ACTUAL_PASS"
+  },
+  "validation": {
+    "focusedCases": 18,
+    "continuousCases": 139,
+    "checks": {
+      "focused-retry": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-focused-retry-check-result.json",
+          "sha256": "cacb231583a822b20e574c8acb4ddb6f912ef31fda867a5249a3ea884b590fc5"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-focused-retry-runtime.json",
+          "sha256": "b6406b729f9eef7c588cfeb56101fbf1e70ff9778a7295d8e09c647d669dbdb2"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-focused-retry-stdout.raw.log",
+          "sha256": "2595e3c018e33dcd7ba10945c5fc7dd2aa8bef38b3058ff36a989f7b02377a87"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-focused-retry-stderr.raw.log",
+          "sha256": "87462c5c8103fba09fd68b2843ada2d13ea0ba9de8b46253d13b332086355b0d"
+        }
+      },
+      "lint": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-lint-check-result.json",
+          "sha256": "3ff40f938d1a4cff76d0ac9b13284cb40b9728375ed6776e682494a345503a31"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-lint-runtime.json",
+          "sha256": "ae23ca448151468c563632529e7dc7a8c5e8201cad65b1b79497b4fad1405442"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-lint-stdout.raw.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-lint-stderr.raw.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "continuous": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-continuous-check-result.json",
+          "sha256": "6b2e87ad1c7d36eb0847dead046753d2f6efddd6f0a7793b7b46d25e58cf119a"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-continuous-runtime.json",
+          "sha256": "9b843c928a9342bbb9af0696982f2333d40417bb137897b3bec4519a3c32da91"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-continuous-stdout.raw.log",
+          "sha256": "1544808adebb161158f116149946e333e74752ed543bf5294392851d8504f5d2"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-continuous-stderr.raw.log",
+          "sha256": "2d381f07e758fbfcfb2a11c1026f291f58e7fe197b8423ab934891728f3ef161"
+        }
+      },
+      "qc": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-qc-check-result.json",
+          "sha256": "43157ca7dd72093c3d54e01a21caf3fe5b08f3e69dc32f5b2aabb525b67de394"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-qc-runtime.json",
+          "sha256": "14568be766ba43f0947c813daec929783cdf20de842a628088c3c7ece3d42145"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-qc-stdout.raw.log",
+          "sha256": "1566551d06a94d4bcce9beb6e83a221da71627be8c49a954331823ce9206970f"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-qc-stderr.raw.log",
+          "sha256": "eee5e33652d4a0da3945056e2655940a0c6b0f5aced91e187ab7eaf5f53a783d"
+        }
+      },
+      "abort": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-abort-check-result.json",
+          "sha256": "e9f8a00f2e1c254f9340cb6438aa18f3a1131abd8fe2b9c75419c08fae7858fc"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-abort-runtime.json",
+          "sha256": "b4fa4eba6618d646d69d0ff0c0ae8c61be1a434801564dd32efae32c63260e7e"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-abort-stdout.raw.log",
+          "sha256": "95a6bb9ef6df0fd73ec5afef08b6b0ad3c5d43e4d6e98ac67f251c200bc8af9b"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-abort-stderr.raw.log",
+          "sha256": "2d381f07e758fbfcfb2a11c1026f291f58e7fe197b8423ab934891728f3ef161"
+        }
+      },
+      "boundary": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-boundary-check-result.json",
+          "sha256": "66ba6f6e3992f86880d0da951df6f8a9793b666a66e8a05c5d9cd96ee69125e0"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-boundary-runtime.json",
+          "sha256": "dbf1fbf8b6949a585497c17d2423f78b15027cadebb387c4221913a9e3bcc008"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-boundary-stdout.raw.log",
+          "sha256": "1e75a3ea6bc77d4febc9803b8d7d4e726e517eccf71977ea9e65b0d1d03404c6"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-boundary-stderr.raw.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "typecheck": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-typecheck-check-result.json",
+          "sha256": "819aa8e3f9809e285edcdfe7fc5c695e13e67b0e7f2671253e0bff6854b1f226"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-typecheck-runtime.json",
+          "sha256": "cc07db8cd0ef57d86459f22bf17a1a96cd93f80a00ef1a053e398744420e5155"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-typecheck-stdout.raw.log",
+          "sha256": "d6b9becea135553c38235c1abc9a68eb40424d8fe332335aca88ad02e2e923a6"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-typecheck-stderr.raw.log",
+          "sha256": "2d381f07e758fbfcfb2a11c1026f291f58e7fe197b8423ab934891728f3ef161"
+        }
+      },
+      "build": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-build-check-result.json",
+          "sha256": "efb37003a0ee61c05d1f7c1252e69d3cddb0bc7466cd0e605b8c14f4dd80a424"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-build-runtime.json",
+          "sha256": "6e40f986f9e57ff8f5211f2ab296f792da337c6d2ee00613bf8de1e6aae20317"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-build-stdout.raw.log",
+          "sha256": "25ba6e161e5167ae04f9b518c42cbb4e23d80523573b79d3c6d09d0b9072d13c"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-build-stderr.raw.log",
+          "sha256": "92ca8f34c5ee2a66715fbbb17dfa309891b5796bf0abfe71948643a57582983f"
+        }
+      },
+      "gap-focused": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-focused-check-result.json",
+          "sha256": "143ab9c5cec02ab16c26a5f8abac76517c4f2935381c2cf56a41f1783646dd78"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-focused-runtime.json",
+          "sha256": "a1bd20f455e3cae5650d9d3b67c3de6abb0793f95d9c41e8caea6d3eaf40a103"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-focused-stdout.raw.log",
+          "sha256": "84adb95f39bbf313cff81ee88b307c356fdc2506125a1d7ffd8483fb06fd7536"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-focused-stderr.raw.log",
+          "sha256": "87462c5c8103fba09fd68b2843ada2d13ea0ba9de8b46253d13b332086355b0d"
+        }
+      },
+      "gap-lint": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-lint-check-result.json",
+          "sha256": "a1536d9832c11d3d2566273c7077bb2ef33effd56ddbb9137c5c050cd29823d8"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-lint-runtime.json",
+          "sha256": "75a6de6021c9637b7d266450cfd3712c8ea4547356a3e5bce2fa120af7292c34"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-lint-stdout.raw.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-lint-stderr.raw.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "gap-typecheck": {
+        "result": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-typecheck-check-result.json",
+          "sha256": "37f38dd4ba06ec1bfa8d9b32a0c9725c82362bd9cd5f92bd3c3df700b076f12e"
+        },
+        "runtime": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-typecheck-runtime.json",
+          "sha256": "5e764ce3a1fbf506c92eefe4f9f61a59082f279609ac330c7e2f2769d4551efc"
+        },
+        "stdout": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-typecheck-stdout.raw.log",
+          "sha256": "d6b9becea135553c38235c1abc9a68eb40424d8fe332335aca88ad02e2e923a6"
+        },
+        "stderr": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-gap-typecheck-stderr.raw.log",
+          "sha256": "2d381f07e758fbfcfb2a11c1026f291f58e7fe197b8423ab934891728f3ef161"
+        }
+      }
+    },
+    "red": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17-red-check-result.json",
+      "sha256": "47591fb38e7de5790fabdb805dfc543984fb2b028ba774fc8b3d18ade5a28735"
+    },
+    "redCounts": {
+      "oldPass": 13,
+      "newFail": 5
+    },
+    "productAuthSha256UnchangedAfterInitialGreen": "c7d72f6a956ed9422636a8929e3a955984d4fe2c22dbd78e7280bc7f89b99fb7",
+    "priorSixCheckReuseBasis": "ONLY_ADDED_NEGATIVE_TEST_TABLE_AND_CONTROLLED_DOCS;AUTH_AND_ALL_RELEASE_BUILD_DB_CODE_FIXTURE_ENV_UNCHANGED;FOCUSED_LINT_TYPECHECK_REEXECUTED",
+    "isolatedBuildPrimary": "TASK_WORKTREE_DATABASE_ABSENT_BEFORE_AND_AFTER_NO_SCHEMA_OR_FIXTURE_SEED",
+    "sourceQc": "FINAL_PENDING",
+    "noProductionPassClaim": true
+  },
+  "ciGateRepair": {
+    "failedSource": "9ce5904690e0ba1320b00bc3cda90f47ae8b41f5",
+    "pullRequest": 235,
+    "runId": 37602330878,
+    "result": "ACTUAL_FAILURE_NOT_MERGED_NOT_DEPLOYED",
+    "reason": "STATIC_GATE_OLD_MILLISECOND_SOURCE_NEEDLES",
+    "changedFile": "scripts/qc-dev-121-route-classification.mjs",
+    "authAndFocusedTests": "UNCHANGED",
+    "newRequirement": "PRESERVE_FIXED_GOOGLE_IDENTITY_AND_EXACT_ROUTE;ASSERT_NEW_STRICT_CALENDAR_OFFSET_NANOSECOND_SOURCE",
+    "verification": {
+      "state": "ACTUAL_SYNTAX_FULL_ROUTE_GATE_AND_20_IN_MEMORY_ASSERTION_REMOVALS_PASS",
+      "result": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17r2-gate-r2-check-result.json",
+        "sha256": "9b2e0d2d7f627fa7957d2752a86fad5e5e7dc0b8a08ce6b063faa7d5059aaff7"
+      },
+      "runtime": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17r2-gate-r2-runtime.json",
+        "sha256": "f50bed918c562df48462cd225386c9c911cb58126bfa72d3f31874b8b158a52f"
+      },
+      "qaPlan": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17r2-static-gate-qa-plan.json",
+        "sha256": "e76286351115ab8e631b49d91a5524c743ae3dfca142d3dc7ace35d4d4005fdc"
+      },
+      "failedHelperAttemptRetained": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A17-B14\\B17r2-sensitivity-tooling-correction.json",
+        "sha256": "d05a8eca59a8660ac702732e4433c428cc8e16fd24555fe1725ffc5eb39aa6c1"
+      },
+      "authAndFocusedTestsByteUnchanged": true,
+      "sourceQcAndNewHeadCi": "PENDING"
+    },
+    "observedAt": "2026-10-07T09:56:54.375338+00:00"
+  }
+}

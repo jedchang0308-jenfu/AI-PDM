@@ -4,7 +4,7 @@ import NextNodeServer from "next/dist/server/next-server";
 import { NodeNextRequest } from "next/dist/server/base-http/node";
 import { NextRequestAdapter } from "next/dist/server/web/spec-extension/adapters/next-request";
 import { OAuth2Client } from "google-auth-library";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { authenticateOpenSwxScheduler, OPENSWX_SCHEDULER_AUDIENCE as audience, OPENSWX_SCHEDULER_EMAIL as email, OPENSWX_SCHEDULER_SUBJECT as fixedSubject } from "./openswx-metadata-dispatch-auth";
 // Real RSA verification with a local cert fixture, not Google/provider identity evidence.
 const keys = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -119,5 +119,59 @@ describe("OpenSWX Scheduler signature and exact purpose", () => {
     expect((await authenticateOpenSwxScheduler(request("x".repeat(43)), unused, now, subject))?.status).toBe(403);
     expect((await authenticateOpenSwxScheduler(request(token(), true), unused, now, subject))?.status).toBe(403);
     expect(calls).toBe(0);
+  });
+});
+
+describe("OpenSWX strict RFC3339 schedule instant", () => {
+  const encoded = (millis: number, offsetMinutes: number, extraNanos = 0n) => {
+    const nanos = BigInt(millis) * 1_000_000n + extraNanos;
+    const local = new Date(Number(nanos / 1_000_000_000n) * 1000 + offsetMinutes * 60_000).toISOString().slice(0, 19);
+    const magnitude = Math.abs(offsetMinutes), offset = `${offsetMinutes < 0 ? "-" : "+"}${String(Math.floor(magnitude / 60)).padStart(2, "0")}:${String(magnitude % 60).padStart(2, "0")}`;
+    return `${local}.${String(nanos % 1_000_000_000n).padStart(9, "0")}${offset}`;
+  };
+  it("accepts equivalent signed UTC and positive/negative offset instants", async () => {
+    for (const offset of [0, 480, -240]) expect(await authenticateOpenSwxScheduler(request(token(), false, encoded(now, offset)), verify, now)).toBeNull();
+    const base = new Date(Math.floor(now / 1000) * 1000).toISOString().slice(0, 19);
+    for (let digits = 1; digits <= 9; digits++) expect(await authenticateOpenSwxScheduler(request(token(), false, `${base}.${"1".repeat(digits)}Z`), verify, now)).toBeNull();
+  });
+  it("preserves inclusive boundaries and rejects even one nanosecond outside", async () => {
+    for (const offset of [0, 480, -240]) {
+      for (const boundary of [now - 60_000, now + 5000]) expect(await authenticateOpenSwxScheduler(request(token(), false, encoded(boundary, offset)), verify, now)).toBeNull();
+      for (const [boundary, extra] of [[now - 60_000, -1n], [now + 5000, 1n], [now - 60_001, 0n], [now + 5001, 0n]] as const) expect((await authenticateOpenSwxScheduler(request(token(), false, encoded(boundary, offset, extra)), verify, now))?.status).toBe(403);
+    }
+  });
+  it("accepts offset headers through the installed standalone adapter with real RSA", async () => {
+    const service = process.env.K_SERVICE, port = process.env.PORT;
+    process.env.K_SERVICE = "ai-pdm-prod"; process.env.PORT = "8080";
+    try {
+      for (const offset of [0, 480, -240]) {
+        const incoming = Object.assign(Readable.from([Buffer.from("{}")]), { method: "POST", url: "/api/openswx-metadata-dispatch/recover", headers: { host: new URL(audience).host, "x-forwarded-proto": "https", authorization: `Bearer ${token()}`, "x-cloudscheduler-scheduletime": encoded(now, offset) } });
+        const nodeRequest = new NodeNextRequest(incoming as never);
+        Reflect.apply(Reflect.get(NextNodeServer.prototype, "attachRequestMeta"), { fetchHostname: "0.0.0.0", port: 8080, nextConfig: { experimental: { trustHostHeader: false } } }, [nodeRequest, { query: {} }, false]);
+        const adapted = NextRequestAdapter.fromNodeNextRequest(nodeRequest, new AbortController().signal);
+        expect(await authenticateOpenSwxScheduler(adapted, verify, now)).toBeNull();
+      }
+    } finally { if (service === undefined) delete process.env.K_SERVICE; else process.env.K_SERVICE = service; if (port === undefined) delete process.env.PORT; else process.env.PORT = port; }
+  });
+  it("fails closed on malformed dates, offsets and lists with only safe categories", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const cases: Array<[string | null, string]> = [
+      [null, "MISSING"], ["", "MISSING"], ["B17_PRIVATE_SENTINEL", "FORMAT"], ["2026-10-07T08:55:00.Z", "FORMAT"], ["2026-10-07T08:55:00+8:00", "FORMAT"], ["2026-10-07T08:55:00+0800", "FORMAT"], ["2026-10-07T08:55:00*08:00", "FORMAT"], ["2026-10-07T08:55:61Z", "INVALID_TIMESTAMP"], ["2026-10-07T08:55:00", "FORMAT"], ["2026-10-07T08:55:00Z,2026-10-07T08:55:00Z", "FORMAT"], ["2026-10-07T08:55:00.1234567890Z", "FORMAT"],
+      ["2026-02-30T08:55:00Z", "INVALID_TIMESTAMP"], ["2025-02-29T08:55:00Z", "INVALID_TIMESTAMP"], ["2026-13-01T08:55:00Z", "INVALID_TIMESTAMP"], ["2026-10-00T08:55:00Z", "INVALID_TIMESTAMP"], ["2026-10-07T24:55:00Z", "INVALID_TIMESTAMP"], ["2026-10-07T08:60:00Z", "INVALID_TIMESTAMP"], ["2026-10-07T08:55:60Z", "INVALID_TIMESTAMP"],
+      ["2026-10-07T08:55:00+24:00", "INVALID_TIMESTAMP"], ["2026-10-07T08:55:00+00:60", "INVALID_TIMESTAMP"], ["2026-10-07T08:55:00-00:00", "INVALID_TIMESTAMP"], [encoded(now - 60_000, 480, -1n), "TOO_OLD"], [encoded(now + 5000, -240, 1n), "TOO_FUTURE"]
+    ];
+    try {
+      for (const [value, category] of cases) {
+        warn.mockClear(); const current = request(token(), false, value); if (value === "") current.headers.set("x-cloudscheduler-scheduletime", ""); const response = await authenticateOpenSwxScheduler(current, verify, now);
+        expect(response?.status).toBe(403); expect(await response?.json()).toEqual({ code: "OPENSWX_SCHEDULER_STALE" });
+        expect(warn).toHaveBeenCalledTimes(1); expect(JSON.parse(warn.mock.calls[0][0])).toEqual({ schemaVersion: "aipdm.openswx-scheduler-rejection.v1", reason: "schedule_time", category });
+        expect(warn.mock.calls[0][0]).not.toContain("B17_PRIVATE_SENTINEL"); expect(warn.mock.calls[0][0]).not.toContain(token());
+      }
+      const duplicate = request(); duplicate.headers.append("x-cloudscheduler-scheduletime", new Date(now).toISOString());
+      expect((await authenticateOpenSwxScheduler(duplicate, verify, now))?.status).toBe(403);
+    } finally { warn.mockRestore(); }
+  });
+  it("rejects an invalid freshness clock rather than converting it to an instant", async () => {
+    for (const clock of [NaN, Infinity, now + 0.5]) expect((await authenticateOpenSwxScheduler(request(), async () => claims, clock))?.status).toBe(403);
   });
 });
