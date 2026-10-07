@@ -1,14 +1,16 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（2026-10-07；B11 建置前中止，封閉續行修復待獨立 QC）
+## DEV-122 CURRENT（2026-10-07；A15 prepare DENIED；二項補權已獲人類核准，PR／CI與套用待執行）
 
-B13 canonical destination 修正已經正常 PR232、PR／main required CI及獨立來源 QC，官方來源 `b3a47c88`。A14 build-only／current-image安全讀回及R13 DAILY bootstrap已實際成功；B11 owner run `37571921864` 在來源上傳後、Cloud Build建立前失敗，sealed結果為PRE_ACTIVATION_ABORTED／NOT_APPLIED。正式仍為B10 `ai-pdm-prod-abd7ac77760c` 100%／0 tags；唯一Scheduler PAUSED、durable queue保留。已讀回精確來源generation／size／SHA-256／CRC全部吻合；numeric23與30秒讀回逾時時間相符，但原始逾時endpoint仍UNKNOWN，不宣稱完整根因已證明。
+B14 prebuild continuation已正常PR233、PR／main required CI及Luna來源QC通過；官方來源`018e1369`，focused12／12、continuous139／139及六項DEV117 checks通過。r3 source QC的prepare漏查P2已補cold／cached每次fresh exact-tag Build list；原FORWARD_APPLIED與其他owner guard未變。原QC FAIL／欄位澄清各以新不可覆寫檔保留。
 
-B14只補既有ordinary continuation的封閉pre-build分支：sealed prepare／rollback／terminal、expired finalized control與failed owner等值，後續stage全部確定不存在，provider對exact failed-release tag的Build list必須成功且為合法空清單，再驗原B10 RELEASED Principal source／build／SSO chain與live100%／無tags／auto1／entry／Ready image／principal env。原FORWARD_APPLIED分支及已aborted capsule拒絕重送不變；fresh authority與cached prepare仍deep-equal並重查live basis。RED與首輪fixture assertion FAIL保留；TL發現異常list假empty的P2已補strict shape及負例，r3檢查通過但Luna source QC另發現cold／cached prepare漏查exact failed-tag Build的P2；已只在prebuild分支改為每次查詢，保留anchor verifier與原FORWARD_APPLIED。新增producer空清單後prepare遇到nonempty／unknown必須零寫入拒絕的回歸，RED確實重現，首輪error-name assertion FAIL保留，最終r4b focused12／12、continuous139／139與六項DEV117 checks實際通過，尚待新freeze的Luna QC與新PR／CI。這不證明新正式排程或CAD完成。
+新A15的operator baseline／routine authority及immutable capsule實際成功，但保護workflow `37577933151` 的prepare以verifier回報DENIED；build與所有後續階段SKIPPED。已實際讀回prepare及後續收據皆404、exact A15 Build list空、control仍B11 FINALIZED／PRE_ACTIVATION_ABORTED；B10 `ai-pdm-prod-abd7ac77760c` 100%／0 tags、Scheduler PAUSED、durable queue保留。原owner log只保留DENIED，並未記錄被拒URL；Cloud Build list缺權由新增query與verifier實際IAM盤點確認，不冒稱完整request trace或已證實serviceusage另被拒。
 
-下一步為本六檔source獨立QC、normal PR／protected-main CI、fresh A15／R14／B12保護發布及四工作八CAD。新source必須有相符build/bootstrap，A14／R13不重標；原十二資源／五IAM只回讀、reader v1／registry v3不重發。native F-01F由使用者正式驗證；供應商回覆停用延後；7 issues／29 groups與整體NOT_ACCEPTED不變。
+最小提案只新增AI-PDM自己的Cloud Build custom role與verifier project binding：`cloudbuild.builds.list`及官方custom-role規則要求的`serviceusage.services.use`。已跑Terraform fmt／validate與既有own-state的readonly plan：2 creates／5 no-ops／0 updates／0 deletes，未apply。IAM作用範圍為jenfu-platform-prod全專案Build records（可能含其他應用的source／steps等建置設定）；程式exact failed-tag filter只限制查詢，不能冒充IAM隔離。這是超出原12資源＋5讀取IAM的新增範圍；人類已於2026-10-07明確回覆「核准 2 項補權，繼續上線, 使用現有個測試帳號」，限定上述二項資源／權限與AI-PDM正式發布；不把Source SHA／plan SHA刷新當成額外人類決策。
 
-[實際失敗、續行修復與證據](../qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
+沿已核准的同一AI-PDM正式發布目標完成source PR／required CI、refresh frozen plan／apply／readback，再以新source-bound build/bootstrap/full capsule續行；原12資源／5IAM只回讀，reader v1／registry v3不重發。A15失敗capsule不冒充新source成功。使用現有測試帳號，不建立帳號或調整能力；正常排程／四工作八CAD／動畫UI仍未完成；native F-01F由使用者正式驗證，供應商回覆停用延後，7 issues／29 groups與整體NOT_ACCEPTED不變。
+
+[實際發布失敗與唯讀補權提案](../qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
 
 ### 2026-10-07 HISTORY_ONLY：successful DAILY bootstrap continuation（已隨 PR230／231 上線；以下當時驗證狀態保留）
 
