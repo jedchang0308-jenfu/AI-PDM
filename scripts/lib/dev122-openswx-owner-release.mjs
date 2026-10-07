@@ -256,11 +256,13 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
   if (!request) {
     const baseline = await assertNoActiveExecutions(transport)
     if (Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_EXECUTION_DEADLINE')
+    const requestStartedAt = transport.now(), requestStartedAtMs = Date.parse(requestStartedAt), deadlineMs = Date.parse(deadlineAt)
+    if (!Number.isFinite(requestStartedAtMs) || !Number.isFinite(deadlineMs) || requestStartedAtMs >= deadlineMs) fail('OPENSWX_EXECUTION_DEADLINE')
     request = await write(`${receiptUri.slice(0, -5)}-request.json`, {
       schemaVersion: 'aipdm.openswx-finite-request.v1', ownerApplicationId: 'ai-pdm', sourceRevision: descriptor.sourceRevision,
       sourceArchiveSha256: descriptor.sourceArchiveSha256, jobName: workerJobName(), actor,
-      templateSha256: sha256(canonicalize(template)), requestStartedAt: transport.now(),
-      requestWindowEndsAt: new Date(Math.min(Date.parse(deadlineAt), Date.parse(transport.now()) + 30_000)).toISOString(),
+      templateSha256: sha256(canonicalize(template)), requestStartedAt,
+      requestWindowEndsAt: new Date(Math.min(deadlineMs, requestStartedAtMs + 30_000)).toISOString(),
       baselineExecutionNames: baseline.map(row => canonicalWorkerExecution(row.name)).sort(),
     })
     assertRequestJoin(request)

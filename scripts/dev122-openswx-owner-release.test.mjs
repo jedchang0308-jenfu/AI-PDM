@@ -72,6 +72,40 @@ function recordedProvider({ ambiguous = false, wrongTemplate = false } = {}) {
     } }
   return { transport, template, objects, calls, job, executionName }
 }
+test('finite request clock binds a full or deadline-clamped window to one advancing timestamp', async () => {
+  for (const limit of [120_000, 15_000]) {
+    const h = recordedProvider(), provider = h.transport.request, started = Date.now() + 1000
+    let reads = 0
+    h.transport.now = () => new Date(started + reads++ * 17).toISOString()
+    h.transport.request = async (url, options) => {
+      const value = await provider(url, options)
+      const clocked = execution => ({ ...execution, createTime: new Date(started + 1000).toISOString(), completionTime: new Date(started + 2000).toISOString() })
+      if (url.includes('/executions?')) return { ...value, executions: value.executions.map(clocked) }
+      if (url.includes('/executions/')) return clocked(value)
+      return value
+    }
+    const uri = ref('single-clock-' + limit).uri
+    const args = { transport: h.transport, descriptor: workerDescriptor('full'), profile, template: h.template, receiptUri: uri, actor: 'fixed-wif', deadlineAt: new Date(started + limit).toISOString() }
+    const first = await runWorkerFinite(args)
+    const request = h.objects.get(first.value.facts.requestRef.uri).value
+    assert.equal(request.requestStartedAt, new Date(started).toISOString())
+    assert.equal(request.requestWindowEndsAt, new Date(started + Math.min(limit, 30_000)).toISOString())
+    assert.ok(Date.parse(request.requestWindowEndsAt) - Date.parse(request.requestStartedAt) <= 30_000)
+    assert.deepEqual((await runWorkerFinite(args)).ref, first.ref)
+    assert.equal(h.calls.filter(row => row.url.endsWith(':run')).length, 1)
+  }
+})
+test('finite request clock rejects invalid or post-deadline timestamps before any write or run', async () => {
+  const end = Date.now() + 60_000
+  for (const clock of ['not-a-date', new Date(end).toISOString(), new Date(end + 1).toISOString()]) {
+    const h = recordedProvider(); h.transport.now = () => clock
+    await assert.rejects(runWorkerFinite({ transport: h.transport, descriptor: workerDescriptor('full'), profile, template: h.template, receiptUri: ref('bad-clock').uri, actor: 'fixed-wif', deadlineAt: new Date(end).toISOString() }), { code: 'OPENSWX_EXECUTION_DEADLINE' })
+    assert.equal(h.objects.size, 0)
+    assert.equal(h.calls.filter(row => row.url.endsWith(':run')).length, 0)
+  }
+})
+
+
 test('unknown :run reads exact provider execution; durable replay never executes again or claims 204', async () => {
   const h = recordedProvider(), descriptor = workerDescriptor('full')
   const args = { transport: h.transport, descriptor, profile, template: h.template, receiptUri: ref('finite').uri, actor: 'fixed-wif', deadlineAt: '2999-01-01T00:00:00Z' }

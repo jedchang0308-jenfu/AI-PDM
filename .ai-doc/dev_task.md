@@ -1,12 +1,12 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（2026-10-07；歷史來源與 successful DAILY continuation 本地通過）
+## DEV-122 CURRENT（2026-10-07；finite request 單次讀鐘修正待獨立 QC）
 
-本節優先於下方歷史續點。B09 owner run `37550749876` 在 prepare 因 depth1 checkout 無法讀歷史 IAM source 而失敗；actual 十階段收據均 404，B08 正式 `ai-pdm-prod-7af5f15c8803` 仍 100%／0 tags，R11 A12 selftest Job 與 PAUSED Scheduler 保留，082 未重套。原 source-history 六檔已獨立 Luna SOURCE_QC_PASS；該 PASS 僅涵蓋原凍結包。
+本節優先於下方歷史續點。B11 八檔 Luna SOURCE_QC_PASS、PR230 required CI 通過並正常合併 `cf52412f`，但 main run `37558693093` 在 already-normal continuation 因 `OPENSWX_CONTINUATION_JOIN_INVALID` 失敗。新 A13 capsule／build／provider mutation 尚未開始；正式仍 B08 `ai-pdm-prod-7af5f15c8803` 100%／0 tags，R11 A12 selftest Job 與 PAUSED Scheduler 保留，082 不重套。
 
-本次同範圍修復保留十一處 full owner fetch-depth=0／不保留credentials，補 existing DAILY-only pause 的三 immutable refs 續接，完整驗成功 bootstrap／selftest request／preflight／prior capture，派生 sealed R09 normal template、fresh-GET 漂移拒絕、durable request／unknown readback／無盲重PATCH，再沿原單次 fresh authenticated normal drain與strict replay。6 targeted／21 named negatives、134 continuous及180 QC（重疊不相加）、六項必要 checks與隔離建置通過；TL 兩項 P2 已關閉，own runtime／暫存／capacity lease清理已驗。原fixture FAIL與前次checks保留；recorded provider只證控制行為，未宣稱正式恢復。
+根因是 finite-request producer 兩次讀鐘偶爾產生超過 30 秒的時窗，strict consumer 正確拒絕。本次只將 producer 改為單次時間取樣，先驗合法且未過 deadline，再取 min(deadline,start+30000)；consumer、continuation、workflow、權限与 replay guards不變。原 producer 的 +17ms／invalid-clock 兩項 recorded-provider RED 留存；修正後 2 clock／6 continuation／134 continuous／182 QC（重疊不相加）、六項必要 checks與隔離建置通過，own runtime／暫存／容量 lease清理已驗。RED early-exit lifecycle限制如實保留。實際 R11 immutable request正好30000ms、execution在原時窗內，無需新增例外或改寫證據。
 
-下一步為新八檔 candidate 獨立 Luna QC、normal PR／required CI、fresh官方來源 build／capsule、actual bound recovery／DAILY bootstrap／完整發布及四工作八 CAD正常排程／completed UI。原十二資源與五 IAM僅回讀，reader v1／registry v3不重發，無新權限／資源；完整 F-01F由使用者正式驗證，供應商回覆停用延後，整體NOT_ACCEPTED。
+下一步是新六檔 frozen source 獨立 Luna QC、normal PR與PR／main required CI，fresh官方來源 A13 build-only、R12 sealed continuation／DAILY bootstrap、protected B10 full release／activation，再以四工作八 CAD驗證正常排程與 completed UI。原十二資源與五 IAM只回讀，reader v1／registry v3不重發；完整 F-01F由使用者正式驗證，供應商回覆停用延後，整體NOT_ACCEPTED。
 
 [本次失敗／修復與分層證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
 
@@ -1719,7 +1719,7 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：source-history 與 DAILY continuation 本地六項checks已通過；新八檔 candidate 經 Luna QC／normal PR／required CI 後，以 fresh 官方來源續 worker恢復、完整發布及四工作八 CAD。原十二資源／五 IAM只回讀，v1／v3不重發。
+  - 下一步：finite-request 單次讀鐘的六項checks已通過；新六檔 freeze 經 Luna QC／normal PR與PR／main CI 後，以 fresh官方來源續 worker恢復、完整發布及四工作八 CAD。原十二資源／五 IAM只回讀，v1／v3不重發。
   - 驗收缺口：B08 已正式上線、082 已套用一次；A12 build／R11 bootstrap 通過，B09 prepare 失敗且未寫入後續階段，Scheduler 保持 PAUSED。新 source 正式發布、正常 scheduled dispatch／8-CAD completed UI 待執行；F-01F 由使用者驗證，供應商回覆停用，整體未驗收。
   - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。

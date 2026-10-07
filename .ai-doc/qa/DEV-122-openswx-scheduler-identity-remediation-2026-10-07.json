@@ -417,5 +417,143 @@
       "Whole DEV NOT_ACCEPTED"
     ],
     "next": "Independent frozen-source Luna QC, normal PR/required CI, fresh official-source build, bound prior recovery/daily bootstrap, protected full release and four normal work pairs/eight CAD"
+  },
+  "finiteRequestClockRemediation": {
+    "state": "LOCAL_SIX_REQUIRED_CHECKS_PASS_FROZEN_SOURCE_QC_PR_MAIN_CI_PRODUCTION_PENDING",
+    "sourceBase": "cf52412f5528ca012a9f8bf2391d3dc17e0e2ea9",
+    "branch": "codex/dev122-finite-clock-binding",
+    "previousCandidate": {
+      "independentQc": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-continuation-independent-qc.json",
+        "sha256": "5cf66781cc3a107578ffd952037616dcac1c11d14fcb9e0f11fc1329e9ee6e68"
+      },
+      "scope": "B11_EIGHT_FILE_CANDIDATE_ONLY",
+      "pr": 230,
+      "sourceCommit": "ce27ba06f8153a1d35bf787ccffadb9dc7d9cb80",
+      "mergeCommit": "cf52412f5528ca012a9f8bf2391d3dc17e0e2ea9",
+      "prCi": {
+        "runId": 37558073975,
+        "result": "PASS"
+      },
+      "mainCi": {
+        "runId": 37558693093,
+        "result": "FAILURE",
+        "failedCase": "already-normal continuation; OPENSWX_CONTINUATION_JOIN_INVALID",
+        "rawLog": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\A13-main-ci-failure.raw.log",
+          "sha256": "697a24528ecc06d329f6dd99342e0c0cd6b2f73311f83fa44c4e3fdb44b4bacf"
+        }
+      },
+      "productionMutation": "NO_A13_CAPSULE_BUILD_OR_PROVIDER_MUTATION"
+    },
+    "cause": "Two transport.now reads can emit a finite-request window longer than strict 30000ms; consumer correctly refuses it",
+    "fix": "Sample transport.now once; validate finite start/deadline before write; clamp end to min(deadline,start+30000); retain strict consumer and existing deadline/write/run/replay guards",
+    "deterministicRed": {
+      "diagnostic": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\B12-r1-clock-diagnostic.json",
+        "sha256": "2eace8ee158e460f3e98a39490c775246ed9da1a89ad6c71713e5d5e8989ab64"
+      },
+      "stdout": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\B12-r1-clock-stdout.raw.log",
+        "sha256": "140072d2e70a0d63ddd3286ab9ae9d66d00ee13037924b8ca97034f321df4bf3"
+      },
+      "scope": "RECORDED_PROVIDER_ONLY",
+      "result": "TWO_TEST_FAILURES_ON_ORIGINAL_PRODUCER",
+      "limitation": "Early child exit prevented governor registration/exitCode capture; original runtime source label was stale. Diagnostic corrects it; stopped/temp removed verified, no lifecycle release claim"
+    },
+    "realHistoricalCompatibility": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\A13-R11-finite-clock-readback.json",
+      "sha256": "2fcbbf4774cf97541f4a22f71af8de7344272594b3abe6652707221da0fd0936",
+      "requestRef": {
+        "sha256": "e74a4b4ab4da2f04b4ca4ec7ea9236236bd580eb373c0a95535b04fa22c892bd",
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-OPENSWX-BOOTSTRAP-20261007-R11-selftest-request.json"
+      },
+      "windowMilliseconds": 30000,
+      "exceptionAdded": false,
+      "immutableBytesChanged": false
+    },
+    "techLead": {
+      "scope": "MINIMAL_TWO_CODE_FILES_AND_STRICT_R11_COMPATIBILITY_READ_ONLY",
+      "decision": "PASS",
+      "remainingP0P1P2": [
+        0,
+        0,
+        0
+      ]
+    },
+    "localValidation": {
+      "evidenceScope": "LOCAL_RECORDED_PROVIDER_AND_ISOLATED_BUILD_ONLY",
+      "runtimes": [
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\B12-r2-clock-runtime.json",
+          "sha256": "d606f8ff17966c96a84e4064609ac803e708e15dbed41f0bf490940ccb4ed0a4"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\B12-r2-continuation-runtime.json",
+          "sha256": "4dcffe7d8faf24ae2e406106c743115fecd5e057e366dc176b24b44d4c798cac"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\B12-r2-continuous-runtime.json",
+          "sha256": "152de9f77dd51e934bc5c4ee7c753ce82f2a431fadb7e4da5bf1c331a1e905ed"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\B12-r2-qc-runtime.json",
+          "sha256": "b2913616e97276e18349e4841c18639b1cf2171661938f52d910f08eeffc61aa"
+        }
+      ],
+      "tests": {
+        "clock": 2,
+        "continuation": 6,
+        "continuous": 134,
+        "qc": 182
+      },
+      "overlap": "DO_NOT_ADD_COUNTS;CONTINUOUS_134_EXCLUDES_OWNER_AND_BOOTSTRAP_TESTS;QC_182_INCLUDES_THEM",
+      "sixRequiredCommands": [
+        {
+          "command": "npm run test:dev-117:continuous",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run qc:dev-117:continuous",
+          "result": "SELF"
+        },
+        {
+          "command": "npm run test:dev-117:abort",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run check:db-boundary",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run typecheck:app",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run build:isolated",
+          "result": "PASS"
+        }
+      ],
+      "ownerReport": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\dev-117\\s1b\\DEV117-S1B-20261007T020020785Z-3AFE325C\\owner-report.json",
+        "sha256": "8cd898bf3eb8164178148680e96bcdf397cb4744fbe8bdf2cb4e94369a9a9020"
+      },
+      "qcSelfResult": "SELF retained; actual QC runtime exit 0 and archived stdout prove wrapper completion",
+      "capacityLeaseRelease": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A13-B10\\B12-checks-capacity-lease-release.json",
+        "sha256": "15de349e356ff678cd5f97c95be9008bac467cec20de31ba106f67c0c3e98b8f"
+      },
+      "primarySqlite": "BOTH_CANONICAL_AND_WORKTREE_ABSENT;ISOLATED_BUILD_DATABASE_ABSENT_INVARIANT_PASS;NO_PRAGMA_CLAIM"
+    },
+    "unchanged": [
+      "Continuation consumer/workflow/profile/Terraform/IAM/dependencies unchanged from cf52412f",
+      "Original twelve resources and five IAM READBACK_ONLY",
+      "Numeric reader v1/registry v3 reused; zero issuance",
+      "Applied 082 untouched; future release replay only",
+      "Native F-01F human production validation pending",
+      "Supplier replies disabled/deferred",
+      "Whole DEV NOT_ACCEPTED"
+    ],
+    "next": "Independent Luna six-file freeze QC, normal PR and both PR/main required CI, fresh official-source A13 build-only, R12 continuation/bootstrap, protected B10 full release/activation and real scheduled four-work/eight-CAD UI verification"
   }
 }
