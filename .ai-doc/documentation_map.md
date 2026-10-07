@@ -1,5 +1,19 @@
 # AI_PDM 文件地圖
 
+## DEV-122 CURRENT（2026-10-07；B13 已發布，排程時間驗證拒絕，B17 窄修復）
+
+PR234 已合併至 main `fb5dba8269e8f664acae5b69a47a5c58684b28e9`；已核准二項 prebuild IAM 實際套用，計畫恰二 create／五 no-op。B13 owner `37593373429` 十階段成功，正式 `ai-pdm-prod-06cc9e8ba15d` 100%／0 tags；migration 為既有 32 筆 replay、零新 apply。R15 worker READY、reader v1／registry v3 原值重用。這些發布證據不等於 CAD 自動處理驗收。
+
+啟用後 08:50／08:55 UTC（台北 16:50／16:55）自然排程實際 HTTP403，固定 Google 簽章／claims／目的地後才到 `schedule_time` gate。現有 parser 只接受 `Z`；Google HttpTarget 明訂 RFC3339 UTC offset，已確認格式契約缺口，但實際 HTTP header 值仍 UNKNOWN，不能把 offset 推論當實際根因。原始 B13 失敗與未完成 UI 保留。R16 固定 pause 已 PASS，佇列保留，沒有手動 CAD run／取消／新增工作。
+
+B17 唯一產品差異為既有 auth.ts 及 auth.test.ts：嚴格日曆／時間／offset 語意、Z 或 ±HH:MM，拒未知 `-00:00`／無時區／list／非法日期／leap second；1..9 位小數以整數奈秒比較原 -60000..+5000 ms 時窗，越界 1ns 也拒。保留真 RSA、固定 issuer／aud／sub／email、POST／path／no-cookie、Host／runtime 與 await 後取 clock。診斷只保留原 schema／reason 並增加封閉 category（MISSING／FORMAT／INVALID_TIMESTAMP／TOO_OLD／TOO_FUTURE），不輸出原始 header／token／cookie／claims。IAM／Secret／worker／schema／排程頻率不變。
+
+本地 focused 18／18、lint 與六項 release 檢查已實際 PASS。Luna 初次來源審查 PASS，依其 evidence gap 補 empty present header／second61／非法 fraction 與 offset 表格案例；空值維持 MISSING 拒絕，不修改產品。補齊後 focused18／18、lint／typecheck 實際 PASS；最終獨立文件／證據 QC 與新來源 PR／main CI／發布待執行。原六項證據以未變的 auth／release／build code 與 fixture 保留，原 raw log 不改寫。
+
+QA r2 PlanSHA `8123423baee7ec9f689328fe99311611baba2ef9b5bd1f2eddd71cccf533bdc8`。須聚焦 real-RSA／installed Next adapter 及六項既有 release 檢查、獨立 Luna QC、正常 PR／required main CI，再以 fresh source-bound build／bootstrap／full capsule 續行。新來源的自然 */5 tick、四工作八 CAD／99 儲存值、桌面／窄版／動畫／reduced-motion 仍待實跑；既有帳號限定。歷史 UI 觀察中斷後已證原 PID 不存在；重用 PID 不碰，own temp 清理與 governor 登記追蹤另存證。
+
+native F-01F 仍由使用者正式驗證，供應商回覆停用延後，原 7 issues／29 groups 與整體 NOT_ACCEPTED 不變。[B17 受控修復與證據](qa/DEV-122-openswx-schedule-time-remediation-2026-10-07.json)。
+
 ## DEV-122 CURRENT（2026-10-07；B16 補權續接相容性修正，正式套用待執行）
 
 本節優先於下方歷史續點。人類已明確核准兩項 prebuild 補權並要求沿用現有測試帳號；PR234 第一輪 exact-head CI 已通過，尚未 merge／apply。套用前確認既有 DAILY fresh IAM 檢查會把新增 binding 算入 unrelated hash，故先補同範圍相容性修正，不把舊 hash 或 receipt 改寫成新結果。
