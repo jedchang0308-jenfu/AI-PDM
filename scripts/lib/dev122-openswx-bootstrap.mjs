@@ -83,7 +83,10 @@ export async function readCurrentReadyWorkerResources(options) {
   if (canonicalize(prior.template) !== canonicalize(template) || canonicalize(prior.activation.facts.numericCredentials) !== canonicalize(credentials)) fail('OPENSWX_READY_INPUT_INVALID')
   const raw = [], observationStartedAt = transport.now()
   const observed = { ...transport, request: async (url, opts) => {
-    if (opts?.method && opts.method !== 'GET' && !(opts.method === 'POST' && url === `https://iam.googleapis.com/v1/projects/${profile.projectId}/serviceAccounts/${profile.readerServiceAccount}:getIamPolicy`)) fail('OPENSWX_READY_MUTATION_DENIED')
+    const projectPolicyRead = opts?.method === 'POST' && url === `https://cloudresourcemanager.googleapis.com/v1/projects/${profile.projectId}:getIamPolicy`
+      && canonicalize(opts.headers ?? {}) === canonicalize({ 'content-type': 'application/json' })
+      && opts.body === JSON.stringify({ options: { requestedPolicyVersion: 3 } })
+    if (opts?.method && opts.method !== 'GET' && !projectPolicyRead && !(opts.method === 'POST' && url === `https://iam.googleapis.com/v1/projects/${profile.projectId}/serviceAccounts/${profile.readerServiceAccount}:getIamPolicy`)) fail('OPENSWX_READY_MUTATION_DENIED')
     const body = await transport.request(url, opts); raw.push({ url, body: structuredClone(body) }); return body
   } }
   const metadata = async name => {

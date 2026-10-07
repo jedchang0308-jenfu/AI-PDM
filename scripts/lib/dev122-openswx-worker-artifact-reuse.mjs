@@ -383,7 +383,7 @@ function assertReadyProof(value, association, origin, profile) {
   for (const [index, row] of value.secretMetadata.entries()) {
     exact(row, ['name', 'state', 'etag']); if (row.name !== value.numericCredentials[['token', 'registry'][index]] || row.state !== 'ENABLED' || typeof row.etag !== 'string' || !row.etag) fail('OPENSWX_REUSE_READY_PROOF_INVALID')
   }
-  for (const row of rows(value.providerReadbackRefs, 64)) { exact(row, ['url', 'ref']); ownRef(row.ref); if (typeof row.url !== 'string' || !/^https:\/\/(?:run|iam|secretmanager|cloudscheduler)\.googleapis\.com\/v[12]\//u.test(row.url)) fail('OPENSWX_REUSE_READY_PROOF_INVALID') }
+  for (const row of rows(value.providerReadbackRefs, 64)) { exact(row, ['url', 'ref']); ownRef(row.ref); if (typeof row.url !== 'string' || (!/^https:\/\/(?:run|iam|secretmanager|cloudscheduler)\.googleapis\.com\/v[12]\//u.test(row.url) && row.url !== `https://cloudresourcemanager.googleapis.com/v1/projects/${profile.projectId}:getIamPolicy`)) fail('OPENSWX_REUSE_READY_PROOF_INVALID') }
 }
 export function assertWorkerReuseInput(value, { historical = false } = {}) {
   exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId'], 'OPENSWX_REUSE_INPUT_INVALID')
@@ -457,7 +457,7 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   same(plan, origin.approved.plan, 'OPENSWX_REUSE_RESOURCE_DRIFT'); same(plan, origin.appliedPlan.plan, 'OPENSWX_REUSE_RESOURCE_DRIFT')
   const security = await providerSecurity(transport, origin, profile)
   const supplementalIam = await readBootstrapSupplementalIam(transport, origin.prior.bootstrap, origin.prior.descriptor, profile, readSource, revision)
-  const ready = await readCurrentReadyWorkerResources({ transport, profile, prior: origin.prior, supplementalIam })
+  const ready = await readCurrentReadyWorkerResources({ transport, profile, prior: origin.prior, supplementalIam: supplementalIam ? { ...supplementalIam, readSource } : null })
   const root = `${profile.receiptRoot}/${input.receiptId}-${inputRef.sha256.slice(0, 16)}`, associationUri = `${root}-association.json`
   const existing = await optional(transport, associationUri)
   const descriptor = { schemaVersion: 'aipdm.openswx-worker-descriptor.v2', artifactMode: 'REUSE_VERIFIED', sourceRevision: revision, sourceArchiveSha256: input.currentSourceObjectRef.sha256, workerProfileSha256: sha256(profileBytes), resourcePlanHash: origin.buildOnly.resourcePlanHash }

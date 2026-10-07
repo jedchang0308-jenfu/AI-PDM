@@ -10,6 +10,9 @@ import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-r
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap } from './lib/dev122-openswx-bootstrap.mjs'
 import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
+  PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
+  prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan } from './lib/dev122-openswx-readback-iam.mjs'
 
 // LOCAL_TEST recorded transports. No provider/production/efficiency claim.
 // Git reads use raw canonical blobs, never Windows CRLF normalization.
@@ -168,6 +171,245 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {} } = {}) {
 }
 function noMutation(h) { assert.ok(h.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy'))); assert.ok(!h.calls.some(row => /:run|:pause|:resume|:addVersion|:access|:exportSBOM/u.test(row.url))) }
 
+async function b22ReuseIamFixture() {
+  const h = await harness(), iamRevision = 'd'.repeat(40), prebuildRevision = 'f'.repeat(40), sourceCalls = []
+  const readSource = (repositoryPath, revision) => {
+    sourceCalls.push({ path: repositoryPath, revision })
+    if (revision === iamRevision || revision === prebuildRevision) {
+      assert.ok([...READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH, WORKER_PROFILE_PATH, ...WORKER_SOURCE_PATHS].includes(repositoryPath), 'historical fixture reads stay in the IAM closure')
+      return canonicalSource(repositoryPath)
+    }
+    return h.readSource(repositoryPath, revision)
+  }
+  Object.assign(readSource, h.readSource)
+  const ref = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
+  h.put = async (name, value) => h.seedBytes(ref(name).uri, Buffer.from(`${canonicalize(value)}\n`))
+const READBACK_IAM_PROJECT = 'jenfu-platform-prod'
+const READBACK_IAM_VERIFIER = 'serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com'
+const READBACK_IAM_DEPLOYER = 'serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'
+const READBACK_IAM_JOB_POLICY_URL = 'https://run.googleapis.com/v2/' + workerJobName() + ':getIamPolicy'
+const READBACK_IAM_PROJECT_POLICY_URL = 'https://cloudresourcemanager.googleapis.com/v1/projects/' + READBACK_IAM_PROJECT + ':getIamPolicy'
+
+function readbackIamPlanFixture(actionFor = () => ['create']) {
+  return { resource_changes: READBACK_IAM_ADDRESSES.map(address => {
+    const spec = structuredClone(READBACK_IAM_SPECS[address])
+    const afterUnknown = { id: true }
+    if (address.startsWith('google_project_iam_custom_role.')) { spec.stage = 'GA'; spec.deleted = false; afterUnknown.name = [true] }
+    return { address, mode: 'managed', provider_name: 'registry.terraform.io/hashicorp/google',
+      change: { actions: actionFor(address), after: spec, after_unknown: afterUnknown } }
+  }) }
+}
+
+function readbackIamRoles() {
+  return [
+    { name: READBACK_JOB_ROLE, permissions: ['run.executions.list', 'run.jobs.get'] },
+    { name: READBACK_SCHEDULER_ROLE, permissions: ['cloudscheduler.jobs.get'] },
+  ]
+}
+function readbackIamProjectPolicy() {
+  return [
+    { role: READBACK_SCHEDULER_ROLE, members: [READBACK_IAM_DEPLOYER, READBACK_IAM_VERIFIER].sort() },
+    { role: 'roles/jenfu-fixture-existing-reader', members: ['serviceAccount:existing-reader@jenfu-platform-prod.iam.gserviceaccount.com'] },
+  ]
+}
+function readbackIamUnrelatedHash(bindings) {
+  const unrelated = bindings.filter(row => row.role !== READBACK_SCHEDULER_ROLE)
+    .map(row => ({ ...row, members: [...(row.members ?? [])].sort() }))
+    .sort((a, b) => canonicalize(a).localeCompare(canonicalize(b)))
+  return sha256(canonicalize(unrelated))
+}
+function readbackIamReadback(bindings = readbackIamProjectPolicy()) {
+  return {
+    roles: readbackIamRoles(),
+    jobBindings: expectedReadbackJobBindings(),
+    schedulerBinding: { role: READBACK_SCHEDULER_ROLE, members: [READBACK_IAM_DEPLOYER, READBACK_IAM_VERIFIER].sort(), effectiveScope: 'PROJECT_WIDE_GET' },
+    unrelatedProjectBindingsSha256: readbackIamUnrelatedHash(bindings),
+  }
+}
+
+async function seedReadbackIamApproval(h, { descriptorValue, descriptorRef, workerBuildRef, receiptId }) {
+  const plan = readbackIamPlan(readSource, descriptorValue.sourceRevision)
+  const capacityGateRef = await h.put('readback-capacity-' + receiptId, {
+    project: 'AI-PDM', sourceRevision: descriptorValue.sourceRevision, status: 'PASS', observedAt: h.transport.now(),
+  })
+  const sourceBinding = { descriptorRef, workerBuildRef, sourceArchiveSha256: descriptorValue.sourceArchiveSha256 }
+  const approvedPlanRef = await h.put('readback-approved-' + receiptId, {
+    schemaVersion: 'aipdm.openswx-approved-readback-iam-plan.v1', ownerApplicationId: 'ai-pdm', status: 'APPROVED',
+    releaseAuthority: true, evidenceScope: 'HUMAN_APPROVED_READBACK_IAM_PLAN', sourceRevision: descriptorValue.sourceRevision,
+    authorizationStatementSha256: 'c'.repeat(64), planSha256: sha256(canonicalize(plan)), plan, ...sourceBinding, capacityGateRef,
+  })
+  const inputRef = await h.put('readback-input-' + receiptId, {
+    schemaVersion: 'aipdm.openswx-release-readback-iam-input.v1', sourceRevision: descriptorValue.sourceRevision,
+    approvedPlanRef, descriptorRef, workerBuildRef, receiptId, deadlineAt: deadline(),
+  })
+  return { plan, sourceBinding, approvedPlanRef, inputRef, receiptId }
+}
+
+async function seedReadbackIamReceipt(h, args) {
+  const base = await seedReadbackIamApproval(h, args)
+  const receiptUri = ref(base.receiptId).uri
+  const binding = {
+    ownerApplicationId: 'ai-pdm', actor: profile.normalActor, sourceRevision: args.descriptorValue.sourceRevision,
+    ...base.sourceBinding, approvedPlanRef: base.approvedPlanRef, planSha256: sha256(canonicalize(base.plan)), receiptUri,
+  }
+  const binaryPlanSha256 = 'd'.repeat(64), unrelatedProjectBindingsBeforeSha256 = readbackIamUnrelatedHash(readbackIamProjectPolicy())
+  const changes = [...READBACK_IAM_ADDRESSES].sort().map(address => ({ address, actions: ['create'] }))
+  const commonProof = { ...binding, binaryPlanSha256, changes, requestedAt: h.transport.now(), unrelatedProjectBindingsBeforeSha256 }
+  const requestRef = await h.put(base.receiptId + '-request', {
+    schemaVersion: 'aipdm.openswx-release-readback-iam-request.v1', ...commonProof,
+  })
+  const binaryPlanReceiptRef = await h.put(base.receiptId + '-plan', {
+    schemaVersion: 'aipdm.openswx-release-readback-iam-plan-binary.v1', ...commonProof,
+  })
+  const receiptRef = await h.put(base.receiptId, {
+    schemaVersion: 'aipdm.openswx-release-readback-iam.v1', ...binding, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER',
+    inputRef: base.inputRef, requestRef, binaryPlanReceiptRef, binaryPlanSha256,
+    sourceArchiveSha256: args.descriptorValue.sourceArchiveSha256,
+    readback: readbackIamReadback(),
+    mutation: 'APPLY_THEN_READBACK', observedAt: h.transport.now(),
+  })
+  return { ...base, receiptRef, requestRef, binaryPlanReceiptRef }
+}
+
+const prebuildHumanApprovalBytes = Buffer.from('ew0KICAic2NoZW1hVmVyc2lvbiI6ICJhaXBkbS5kZXYxMjIuYjE1LWh1bWFuLWlhbS1hcHByb3ZhbC52MSIsDQogICJwcm9qZWN0IjogIkFJLVBETSIsDQogICJhdXRob3JpemF0aW9uU291cmNlIjogIkhVTUFOX1VTRVJfTUVTU0FHRV9JTl9DVVJSRU5UX1RIUkVBRCIsDQogICJ1c2VyVGV4dCI6ICLmoLjlh4YgMiDpoIXoo5zmrIrvvIznubznuozkuIrnt5osIOS9v+eUqOePvuacieWAi+a4rOippuW4s+iZnyIsDQogICJzdGF0dXMiOiAiQVBQUk9WRUQiLA0KICAiZW52aXJvbm1lbnQiOiAiUFJPRFVDVElPTiIsDQogICJwcm9qZWN0SWQiOiAiamVuZnUtcGxhdGZvcm0tcHJvZCIsDQogICJwcm9qZWN0TnVtYmVyIjogIjk1MzY1OTI5NDQiLA0KICAicHJpbmNpcGFsIjogInNlcnZpY2VBY2NvdW50OmFpcGRtLXByb2QtdmVyaWZpZXJAamVuZnUtcGxhdGZvcm0tcHJvZC5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsDQogICJyb2xlSWQiOiAiYWlwZG1EZXYxMjJQcmVidWlsZExpc3QiLA0KICAicGVybWlzc2lvbnMiOiBbDQogICAgImNsb3VkYnVpbGQuYnVpbGRzLmxpc3QiLA0KICAgICJzZXJ2aWNldXNhZ2Uuc2VydmljZXMudXNlIg0KICBdLA0KICAicmVzb3VyY2VzIjogWw0KICAgICJnb29nbGVfcHJvamVjdF9pYW1fY3VzdG9tX3JvbGUucHJlYnVpbGRfbGlzdF9yZWFkYmFjayIsDQogICAgImdvb2dsZV9wcm9qZWN0X2lhbV9tZW1iZXIudmVyaWZpZXJfcHJlYnVpbGRfbGlzdF9yZWFkYmFjayINCiAgXSwNCiAgInZpc2liaWxpdHkiOiAiUFJPSkVDVF9XSURFX0JVSUxEX0xJU1RfTUVUQURBVEE7UVVFUllfRklMVEVSX05PVF9JQU1fQk9VTkRBUlkiLA0KICAib3JpZ2luYWxQcm9wb3NhbEZyZWV6ZVNoYTI1NiI6ICI4ZjUzMGUyNzg0NzIxOTBlYTBlNjEyMDQ1MWZjN2I5MDk1YzcxNDY2ZDZmMzgwZDY0NGU4MGNmYWYwZWJjMDEyIiwNCiAgIm9yaWdpbmFsUHJvcG9zYWxRY1NoYTI1NiI6ICIxY2Q2YzdlNTMxNjBjNmZkYmJjOGM4ZWFhNjQ0MGNhMzA2ZTY3M2VlYzg0YThiNGYwOTNmOGViZTZiMDI3NDc3IiwNCiAgInN0YW5kaW5nU2NvcGUiOiAiQUktUERNIHByb2R1Y3Rpb24gc291cmNlL1BSL0NJL2J1aWxkL2Jvb3RzdHJhcC9mdWxsIHJlbGVhc2UgYW5kIHZlcmlmaWNhdGlvbjsgb3JpZ2luYWwxMi9vcmlnaW5hbDUgdW5jaGFuZ2VkOyBubyBjcm9zcy1wcm9qZWN0IGRldmVsb3BtZW50IiwNCiAgInRlc3RBY2NvdW50UmV1c2UiOiAiRVhJU1RJTkdfVEVTVF9BQ0NPVU5UU19PTkxZO05PX0FDQ09VTlRfQ1JFQVRJT05fT1JfQ0FQQUJJTElUWV9DSEFOR0UiLA0KICAibmF0aXZlRjAxRiI6ICJVU0VSX1BST0RVQ1RJT05fVkFMSURBVElPTl9QRU5ESU5HIiwNCiAgIm9ic2VydmVkQXQiOiAiMjAyNi0xMC0wN1QwNjoyNjoyMS41NDkzMTkrMDA6MDAiDQp9DQo=', 'base64')
+function prebuildTerraformFixture() {
+  return { resource_changes: [...readbackIamPlanFixture(() => ['no-op']).resource_changes,
+    ...PREBUILD_IAM_ADDRESSES.map(address => ({ address, mode: 'managed', provider_name: 'registry.terraform.io/hashicorp/google',
+      change: { actions: ['create'], after: structuredClone(PREBUILD_IAM_SPECS[address]), after_unknown: { id: true } } }))] }
+}
+async function seedPrebuildIamContinuation(h, supplementalIamReadbackRef, name = 'prebuild-iam-continuation') {
+  assert.equal(sha256(prebuildHumanApprovalBytes), PREBUILD_IAM_HUMAN_APPROVAL_SHA256)
+  const receiptUri = ref(name).uri, times = Date.now(), at = delta => new Date(times + delta).toISOString()
+  const humanApprovalRef = { uri: ref(name + '-human').uri, sha256: PREBUILD_IAM_HUMAN_APPROVAL_SHA256 }
+  h.objects.set(humanApprovalRef.uri, { bytes: prebuildHumanApprovalBytes, value: JSON.parse(prebuildHumanApprovalBytes), ref: humanApprovalRef, metadata: { generation: '1' } })
+  const sourceRevision = 'f'.repeat(40), sourceTree = '1'.repeat(40), sourceSha256 = '2'.repeat(64)
+  const source = { schemaVersion: 'jenfu.dev012.owner-source-lock.v1', ownerApplicationId: 'ai-pdm', repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main',
+    releaseId: 'DEV122-PREBUILD-IAM-001', sourceRevision, sourceTree, sourceSha256, migrationManifestSha256: '3'.repeat(64), clean: true,
+    remoteRef: 'refs/heads/main', remoteRevision: sourceRevision, status: 'SOURCE_FROZEN', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', observedAt: at(-1500) }
+  const sourceProofRef = (await h.transport.putJson(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${source.releaseId}/source-lock.json`, source)).ref
+  const plan = prebuildIamContinuationPlan(readSource, sourceRevision), planSha256 = sha256(canonicalize(plan))
+  const planBinding = { ownerApplicationId: 'ai-pdm', sourceRevision, sourceTree, sourceSha256, sourceProofRef, supplementalIamReadbackRef, humanApprovalRef }
+  const approvedPlanRef = await h.put(name + '-approved', { schemaVersion: 'aipdm.openswx-approved-prebuild-readback-iam-plan.v1', ...planBinding,
+    status: 'APPROVED', releaseAuthority: true, evidenceScope: 'HUMAN_APPROVED_PREBUILD_READBACK_IAM_PLAN', planSha256, plan })
+  const beforePolicy = { bindings: readbackIamProjectPolicy(), etag: 'recorded-before', version: 3 }
+  const afterPolicy = { bindings: [...readbackIamProjectPolicy(), { role: PREBUILD_IAM_ROLE, members: [READBACK_IAM_VERIFIER] }], etag: 'recorded-after', version: 3 }
+  const role = { name: PREBUILD_IAM_ROLE, stage: 'GA', includedPermissions: [...PREBUILD_IAM_PERMISSIONS] }
+  const policy = (phase, projectPolicy, prebuildRole, observedAt) => ({ schemaVersion: 'aipdm.openswx-prebuild-readback-iam-policy.v1', ownerApplicationId: 'ai-pdm', projectId: READBACK_IAM_PROJECT,
+    actor: profile.normalActor, phase, observedAt, projectPolicy, prebuildRole })
+  const beforeReadbackRef = await h.put(name + '-before', policy('BEFORE', beforePolicy, null, at(-1000)))
+  const afterReadbackRef = await h.put(name + '-after', policy('AFTER', afterPolicy, role, at(-250)))
+  const binaryBytes = Buffer.from('RECORDED_FROZEN_TERRAFORM_BINARY_FIXTURE_NOT_A_PRODUCTION_PLAN'), binaryPlanSha256 = sha256(binaryBytes)
+  const binaryPlanRef = { uri: receiptUri.replace(/\.json$/u, '-plan.tfplan'), sha256: binaryPlanSha256 }
+  h.objects.set(binaryPlanRef.uri, { bytes: binaryBytes, ref: binaryPlanRef, metadata: { generation: '1' } })
+  const terraformPlanRef = await h.put(name + '-terraform-plan', prebuildTerraformFixture())
+  const binding = { ...planBinding, actor: profile.normalActor, approvedPlanRef, planSha256, receiptUri }
+  const request = { ...binding, binaryPlanRef, binaryPlanSha256, terraformPlanRef, changes: assertPrebuildIamTerraformPlan(prebuildTerraformFixture()),
+    requestedAt: at(-500), deadlineAt: at(120000), beforeReadbackRef }
+  const requestRef = await h.put(name + '-request', { schemaVersion: 'aipdm.openswx-prebuild-readback-iam-request.v1', ...request })
+  const binaryPlanReceiptRef = await h.put(name + '-plan', { schemaVersion: 'aipdm.openswx-prebuild-readback-iam-plan-binary.v1', ...request })
+  const continuationRef = await h.put(name, { schemaVersion: 'aipdm.openswx-prebuild-readback-iam-continuation.v1', ...binding, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER',
+    requestRef, binaryPlanReceiptRef, binaryPlanSha256, beforeReadbackRef, afterReadbackRef,
+    unrelatedProjectBindingsBeforeSha256: readbackIamUnrelatedHash(beforePolicy.bindings), unrelatedProjectBindingsAfterSha256: readbackIamUnrelatedHash(afterPolicy.bindings),
+    observedAt: at(-100), mutation: 'UNKNOWN_APPLY_THEN_READBACK' })
+  return { continuationRef, sourceProofRef, approvedPlanRef, requestRef, binaryPlanReceiptRef, beforeReadbackRef, afterReadbackRef, binaryPlanRef, terraformPlanRef, role, afterPolicy }
+}
+  const descriptorValue = { ...JSON.parse(h.objects.get(h.buildOnlyRef.uri).bytes), sourceRevision: iamRevision }
+  const descriptorRef = await h.put('b22-original-iam-descriptor', descriptorValue)
+  const build = { ...structuredClone(h.build), sourceRevision: iamRevision, previousRefs: [descriptorRef] }
+  build.facts.scan.rawHighOrCriticalVulnerabilityCount = 0
+  const workerBuildRef = await h.put('b22-original-iam-build', build)
+  const iam = await seedReadbackIamReceipt(h, { descriptorValue, descriptorRef, workerBuildRef, receiptId: 'b22-original-iam' })
+  const proof = await seedPrebuildIamContinuation(h, iam.receiptRef, 'b22-prebuild-iam')
+  assert.equal(JSON.parse(h.objects.get(proof.continuationRef.uri).bytes).sourceRevision, prebuildRevision)
+  const resourceReadbackRef = await h.put('b22-prior-resource-readback', { resourcesUnchanged: true, supplementalIamReadbackRef: iam.receiptRef, prebuildIamContinuationRef: proof.continuationRef })
+  const priorBootstrap = JSON.parse(h.objects.get(h.full.bootstrapRef.uri).bytes)
+  priorBootstrap.facts.bootstrapKind = 'DAILY_REFRESH'
+  priorBootstrap.facts.resourceProvenance = { priorResourceApplyRef: priorBootstrap.facts.resourceApplyRef, resourceReadbackRef, resourceReadbackSha256: resourceReadbackRef.sha256,
+    resourcesUnchanged: true, supplementalIamReadbackRef: iam.receiptRef, supplementalIamSourceRevision: iamRevision, prebuildIamContinuationRef: proof.continuationRef }
+  priorBootstrap.facts.priorActivationRef = h.priorActivationRef
+  const priorDrain = JSON.parse(h.objects.get(h.full.pausedDrainedRef.uri).bytes)
+  Object.assign(priorDrain.facts, { drainKind: 'DAILY_DB_VERIFIED', dbAdmissionProof: { claimProof: 'AUTHENTICATED_204_SOURCE_BOUND' }, priorActivationRef: h.priorActivationRef, targetWorkerBuildRef: h.buildRef })
+  const pausedDrainedRef = await h.put('b22-prior-drained', priorDrain); priorBootstrap.facts.pausedDrainedRef = pausedDrainedRef
+  const bootstrapRef = await h.put('b22-prior-bootstrap', priorBootstrap), full = { ...h.full, bootstrapRef, pausedDrainedRef }, fullRef = await h.put('b22-prior-full', full)
+  const capsule = JSON.parse(h.objects.get(h.capsuleRef.uri).bytes); capsule.openswxWorkerRef = fullRef
+  const capsuleRef = h.seedBytes(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${capsule.releaseId}/release-intent.json`, Buffer.from(`${canonicalize(capsule)}\n`))
+  const activation = JSON.parse(h.objects.get(h.priorActivationRef.uri).bytes); activation.previousRefs[0] = capsuleRef
+  const activationRef = await h.put('b22-prior-activation', activation), inputRef = await h.put('b22-reuse-input', { ...h.input, priorActivationRef: activationRef })
+  const originalRequest = h.transport.request
+  h.transport.request = async (url, options = {}) => {
+    if ([READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, PREBUILD_IAM_ROLE].some(role => url === `https://iam.googleapis.com/v1/${role}`)) {
+      h.calls.push({ url, options }); assert.ok(!options.method || options.method === 'GET')
+      const includedPermissions = url.endsWith(READBACK_JOB_ROLE) ? ['run.jobs.get', 'run.executions.list'] : url.endsWith(READBACK_SCHEDULER_ROLE) ? ['cloudscheduler.jobs.get'] : [...PREBUILD_IAM_PERMISSIONS]
+      return { name: url.slice('https://iam.googleapis.com/v1/'.length), deleted: false, stage: 'GA', includedPermissions }
+    }
+    if (url === `https://run.googleapis.com/v2/${workerJobName()}:getIamPolicy`) { h.calls.push({ url, options }); return { bindings: expectedReadbackJobBindings() } }
+    if (url === READBACK_IAM_PROJECT_POLICY_URL) {
+      h.calls.push({ url, options }); assert.equal(options.method, 'POST'); assert.deepEqual(options.headers, { 'content-type': 'application/json' }); assert.equal(options.body, JSON.stringify({ options: { requestedPolicyVersion: 3 } }))
+      return structuredClone(proof.afterPolicy)
+    }
+    return originalRequest(url, options)
+  }
+  return { ...h, inputRef, readSource, sourceCalls, iam, proof, iamRevision, prebuildRevision, originalSnapshot: new Map([...h.objects].map(([uri, row]) => [uri, Buffer.from(row.bytes)])) }
+}
+test('B22 reuse forwards supplemental IAM readSource through actual READY collection', async t => {
+  const h = await b22ReuseIamFixture(), writes = h.puts.length
+  let saved
+  try { saved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef: h.inputRef, readSource: h.readSource }) }
+  catch (error) {
+    const publications = h.puts.slice(writes)
+    t.diagnostic(JSON.stringify({ witness: 'B22_REUSE_ACTUAL_CALLEE_FAILURE', name: error.name, code: error.code ?? null, message: error.message, stack: error.stack, newPublications: publications.length,
+      immutablePreAssociationEvidence: publications.filter(uri => !uri.endsWith('-association.json')), associationPublications: publications.filter(uri => uri.endsWith('-association.json')).length,
+      sourceReaderCalls: h.sourceCalls.filter(row => READBACK_IAM_PATHS.includes(row.path)), providerCalls: h.calls.map(row => ({ url: row.url, method: row.options.method ?? 'GET' })) }))
+    noMutation(h)
+    assert.ok(publications.every(uri => uri.startsWith(`${profile.receiptRoot}/`) && !uri.endsWith('-association.json')), 'failed producer may retain own immutable pre-association evidence only')
+    if ((error instanceof TypeError && error.message.includes('readSource is not a function')) || error.code === 'OPENSWX_READY_MUTATION_DENIED') assert.equal(publications.length, 0, 'early context/policy failure must publish zero evidence')
+    throw error
+  }
+  assert.equal(saved.value.status, 'PASS')
+  assert.ok(h.sourceCalls.some(row => row.revision === h.iamRevision && READBACK_IAM_PATHS.includes(row.path)))
+  assert.ok(h.sourceCalls.some(row => row.revision === currentRevision && READBACK_IAM_PATHS.includes(row.path)))
+  assert.equal(JSON.parse(h.objects.get(h.proof.continuationRef.uri).bytes).sourceRevision, h.prebuildRevision)
+  assert.ok(h.calls.some(row => row.url === 'https://cloudresourcemanager.googleapis.com/v1/projects/jenfu-platform-prod:getIamPolicy' && row.options.method === 'POST'))
+  const ready = await h.transport.readJson(saved.value.resourceAssociation.readbackRef)
+  assert.equal(ready.value.schedulerState, 'ENABLED'); assert.equal(ready.value.quiescenceClaimed, false); assert.equal(ready.value.mutationPerformed, false)
+  const projectPolicyUrl = 'https://cloudresourcemanager.googleapis.com/v1/projects/jenfu-platform-prod:getIamPolicy'
+  const policyIndex = ready.value.providerReadbackRefs.findIndex(row => row.url === projectPolicyUrl)
+  assert.ok(policyIndex >= 0, 'positive proof must contain the actual CRM policy observation')
+  const invalidRows = [
+    ...[projectPolicyUrl.replace('jenfu-platform-prod', 'sibling-project'), projectPolicyUrl.replace('jenfu-platform-prod', '9536592944'),
+      projectPolicyUrl.replace('/v1/', '/v2/'), projectPolicyUrl.replace(':getIamPolicy', ':setIamPolicy'), projectPolicyUrl + '?alternate=1', projectPolicyUrl + '#fragment',
+      projectPolicyUrl.replace('jenfu-platform-prod', 'jenfu%2Dplatform%2Dprod'), projectPolicyUrl.replace('/projects/', '/projects//')].map(url => ({ mutate: row => { row.url = url }, code: 'OPENSWX_REUSE_READY_PROOF_INVALID' })),
+    { mutate: row => { row.ref.uri = 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OUTSIDE/proof.json' }, code: 'IMMUTABLE_REF_INVALID' },
+    { mutate: row => { row.ref.uri = row.ref.uri.replace('jenfu-platform-prod-aipdm-release', 'sibling-release') }, code: 'IMMUTABLE_REF_INVALID' },
+    { mutate: row => { row.ref.sha256 = 'a'.repeat(63) }, code: 'IMMUTABLE_REF_INVALID' },
+    { mutate: row => { row.extra = true }, code: 'OPENSWX_REUSE_SCHEMA_INVALID' },
+  ]
+  for (const [index, { mutate, code }] of invalidRows.entries()) {
+    const tampered = structuredClone(ready.value); mutate(tampered.providerReadbackRefs[policyIndex])
+    const proofRef = h.seed(`b22-invalid-policy-proof-${index}`, tampered)
+    const associationRef = h.seed(`b22-invalid-policy-association-${index}`, { ...saved.value, resourceAssociation: { ...saved.value.resourceAssociation, readbackRef: proofRef } })
+    const count = h.puts.length, calls = h.calls.length
+    await assert.rejects(resolveWorkerArtifact({ transport: h.transport, descriptor: h.v2(associationRef), profile, readSource: h.readSource }), { code })
+    assert.equal(h.puts.length, count, 'hash-correct rejected proof/association inputs publish no new PASS')
+    assert.equal(h.calls.length, calls, 'pure resolver rejection performs no lower provider request')
+  }
+  for (const [uri, bytes] of h.originalSnapshot) assert.ok(h.objects.get(uri).bytes.equals(bytes), uri)
+  noMutation(h)
+  for (const defect of ['current-source-drift', 'provider-denied']) {
+    const bad = await b22ReuseIamFixture(), count = bad.puts.length, reader = bad.readSource, request = bad.transport.request
+    const badReader = (repositoryPath, revision) => {
+      const bytes = reader(repositoryPath, revision)
+      return defect === 'current-source-drift' && repositoryPath === READBACK_IAM_PATHS[0] && revision === currentRevision ? Buffer.concat([bytes, Buffer.from('# changed current IAM package\n')]) : bytes
+    }
+    Object.assign(badReader, reader)
+    if (defect === 'provider-denied') bad.transport.request = async (url, options) => {
+      if (url === `https://iam.googleapis.com/v1/${READBACK_JOB_ROLE}`) throw Object.assign(Error('FORBIDDEN'), { code: 'FORBIDDEN' })
+      return request(url, options)
+    }
+    await assert.rejects(executeWorkerArtifactReuse({ transport: bad.transport, inputRef: bad.inputRef, readSource: badReader }), { code: defect === 'current-source-drift' ? 'OPENSWX_IAM_SOURCE_DRIFT' : 'FORBIDDEN' })
+    assert.equal(bad.puts.length, count); noMutation(bad)
+  }
+})
 test('B19-01/02 LOCAL_TEST original v1 identity stays immutable; app-only association retains actual leaf and timestamps', async () => {
   const h = await harness(), originalBytes = new Map([...h.objects].map(([uri, row]) => [uri, Buffer.from(row.bytes)]))
   const legacy = await resolveWorkerArtifact({ transport: h.transport, descriptor: h.full, profile, readSource: h.readSource })
