@@ -3,8 +3,8 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
-import { readGitBlob, createGitSourceIdentity } from './lib/dev012-owner-stage-executor.mjs'
-import { READBACK_IAM_PATHS } from './lib/dev122-openswx-readback-iam.mjs'
+import { createGitSourceIdentity } from './lib/dev012-owner-stage-executor.mjs'
+import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { executeOpenSwxBootstrap, parseOpenSwxBootstrapArgs } from './lib/dev122-openswx-bootstrap.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -14,12 +14,14 @@ async function main() {
   const appProfile = JSON.parse(await fs.readFile(path.join(root, 'config/release/dev117-ai-pdm-independent-production-v3.json'), 'utf8'))
   const transport = createOwnerTransport({ token: oauthToken })
   let frozenSource = null
+  let reader = null
+  const readSource = (repositoryPath, sourceRevision) => {
+    if (frozenSource === null) { createGitSourceIdentity(root, sourceRevision); frozenSource = sourceRevision; reader = createWorkerGitReader(root, sourceRevision) }
+    return reader(repositoryPath, sourceRevision)
+  }
+  readSource.authorizeOrigin = sourceRevision => reader.authorizeOrigin(sourceRevision)
   const result = await executeOpenSwxBootstrap({ ...args, root, oauthToken, appProfile, transport,
-    readSource(repositoryPath, sourceRevision) {
-      if (frozenSource === null) { createGitSourceIdentity(root, sourceRevision); frozenSource = sourceRevision }
-      if (sourceRevision !== frozenSource && ![...READBACK_IAM_PATHS, 'config/release/dev122-openswx-worker.json'].includes(repositoryPath)) throw Error('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
-      return readGitBlob(root, repositoryPath, sourceRevision)
-    },
+    readSource,
   })
   process.stdout.write(`${JSON.stringify({ stage: args.stage, ref: result.ref, status: result.value?.facts?.workerStatus ?? result.value?.status })}\n`)
 }

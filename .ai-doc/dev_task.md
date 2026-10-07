@@ -1,5 +1,15 @@
 # AI_PDM 開發任務
 
+## DEV-122 CURRENT（2026-10-07；B18 限定 source QC 通過，B19 RD Implementation Ready／架構已定案）
+
+B14／R17 歷史正式證據保留：官方來源 `54d3c4c3`、`ai-pdm-prod-44984e6018dc` 100%／0 tags，首次自然 Scheduler／app HTTP200／worker execution完成兩CAD、33屬性；正常 parent-work cancel HTTP500與UI FAIL不改寫。正式 SQLSTATE仍UNKNOWN，current production取消未重測；實際native RESTRICT code23001，原23503預測錯誤。
+
+B18修復已在同repo branch `codex/dev122-openswx-work-cancel` dirty source完成限定QC：cancel鎖parent/jobs，queued/running於domain DML前409且永不改job；terminal保留revision/session provenance並釋放claim。PostgreSQL preparing/correction_required只有NEW enqueue才實際MVCC parent touch，row_version/content/updated_by不變、原trigger改updated_at；native兩enqueue-wins race實際40001 whole-callback retry後409且165表與全job bytes不變。Current native test050 fresh24／24（runner仍PARTIAL_NOT_ACCEPTED）、focused138／138有效重用、SQLite6／6、actual ledger17／17及typecheck/lint/boundary exit0；own runtime/temp/capacity已清理。Historical matched red6／green3只綁舊tests，current050沒有exact red twin。獨立Luna `PASS_QUALIFIED_B18_SOURCE_AND_BOUNDED_EVIDENCE`及追加用詞更正已封存，非正式／wholeDEV PASS。
+
+下一個獨立施工slice為[唯一現行SPEC的B19](specs/DEV-122-ai-pdm-internal-function-issues.md)：五OpenSWX產品＋三測試allowlist，closed current-source association／resolver、canonical Git path/mode/raw bytes與Linux archive完整COPY proof、exact READY-full→build→唯一original-build_only→approved-plan chain；fixed READY ENABLED只讀proof與原FIRST/DAILY/full/abort PAUSED guards分開，fresh security/原approved12/current actor readiness，不新建或重套資源／IAM／Secret，零unchanged worker build/image。B19 `RD Implementation Ready／架構已定案`，implementation／provider／efficiency仍pending；先single RD與限定QA，再正常PR／requiredCI與同範圍corrective release／正常取消讀回。DEV117 QC內含actual abort/boundary/typecheck/isolatedbuild計證，不重複standalone成功checks。
+
+[Root B18 actual readback](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B14/release/B18-root-final-r4-bounded-readback.json>)／[Luna QC](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B14/release/B18-independent-luna-final-source-qc.json>)／[QC scope correction](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B14/release/B18-independent-luna-final-source-qc-wording-correction.json>)／[B19 accepted main＋annexes](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B14/release/B19-root-accepted-contract-annexes.json>)。使用Sol／平衡與獨立Luna；單一AI-PDM，禁止cross-project／sibling release input。7 issues／29 groups／整體NOT_ACCEPTED、F-01F USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED、歷史UI FAIL／four-pair 8CAD NOT_RUN不變；下方歷史CURRENT不能作新施工入口。
+
 ## DEV-122 CURRENT（2026-10-07；B13 已發布，排程時間驗證拒絕，B17 窄修復）
 
 PR234 已合併至 main `fb5dba8269e8f664acae5b69a47a5c58684b28e9`；已核准二項 prebuild IAM 實際套用，計畫恰二 create／五 no-op。B13 owner `37593373429` 十階段成功，正式 `ai-pdm-prod-06cc9e8ba15d` 100%／0 tags；migration 為既有 32 筆 replay、零新 apply。R15 worker READY、reader v1／registry v3 原值重用。這些發布證據不等於 CAD 自動處理驗收。
@@ -1749,8 +1759,8 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：PR233／main CI通過，A15 prepare DENIED；2項新增Cloud Build唯讀IAM的實際plan為2 create／5 no-op，人類已核准新增scope；接續正常PR／CI／apply／readback及新source正式發布、四工作八CAD，沿用現有測試帳號。B10仍100%、Scheduler PAUSED、佇列保留、v1／v3不重發。
-  - 驗收缺口：082在B08套用一次；B10 RELEASED，B11 NOT_APPLIED中止；A14／R13成功但不能冒充新source或CAD PASS。新正式發布、自動排程／8-CAD UI待驗；F-01F由使用者驗證，供應商回覆停用，整體未驗收。
+  - 下一步：B18限定source QC已通過；依現行SPEC執行B19五產品／三測試的owner reuse契約，再走正常PR／requiredCI及同範圍corrective release。
+  - 驗收缺口：B18 current native24／24與Luna限定QC通過，production取消未重測；B19 RD Implementation Ready但未實作／provider未驗。四組八CAD／UI FAIL、F-01F待使用者正式驗證、supplier停用及7／29 NOT_ACCEPTED保留。
   - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
@@ -5420,6 +5430,8 @@ QC 要求保留的 Supabase stop wording：
 <a id="dev-122-business-defects"></a>
 
 ## DEV-122：AI-PDM 內部功能缺陷集中處理
+
+目前施工與驗證判定以本檔開頭DEV-122 CURRENT及唯一SPEC為準：B18限定source QC通過、B19 RD Implementation Ready；以下2026-10-05正式結果與續點保留為歷史，不取代現行入口。
 
 2026-10-05 現行正式發布結果：R02 已由 app-owned V3 owner run [37262598122](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122) 完成 RELEASED／FINALIZED；正式 ai-pdm-prod-52f421cb8db9 接收 100% 流量、0 candidate tags。官方來源 602413097ef27a203fe1e2beccac3166c6e2351a 來自正常 PR209 合併，PR／main required CI 均 SUCCESS。人類在本機安全頁完成既有 Firebase 帳號重新驗證，own numeric 6→7 與既有 GitHub production smoke Secret 更新成功；候選及 canonical 正常 SSO／authenticated probe 通過，匿名／撤銷 session 回 401。B 配置保留 jenfu-platform-prod 並另核 expected number 9536592944；三項已授權 own Secret／IAM 於 R01 APPLIED，R02 只沿用來源相容回執，沒有 historical workflow rotation apply。079 在 R01 已 forward apply，R02 0 applied／29 replayed／ledger 29。正式設定 UI 因工具限制 NOT_RUN；登入與 provider 證據不替代 key draft/probe/activation 或原生 CAD 屬性。這些由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups、整體 NOT_ACCEPTED。R01 401／UNKNOWN／安全中止證據保留。 [正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)。
 

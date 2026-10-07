@@ -77,10 +77,33 @@ export class OpenSwxMetadataService {
   async enqueue(verified: VerifiedPrincipalRequest, selection: OpenSwxSelection) {
     return this.db.transaction(async db => {
       const i = initiator(verified), decision = await this.authority(db, i);
+      let cancellableRevision = false;
+      if (selection.sourceContextType === "drawing_revision") {
+        const revision = await db.queryOne<{ lifecycle_state: string }>(
+          `SELECT lifecycle_state FROM ai_pdm_core.drawing_revisions
+           WHERE company_id=:companyId AND id=:revisionId${db.kind === "postgres" ? " FOR UPDATE" : ""}`,
+          { companyId: i.companyId, revisionId: selection.sourceContextId }
+        );
+        if (!revision) throw new OpenSwxMetadataError("OPENSWX_CONTEXT_NOT_FOUND", 404);
+        if (revision.lifecycle_state === "cancelled") throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
+        cancellableRevision = ["preparing", "correction_required"].includes(revision.lifecycle_state);
+      }
       const basis = await this.basis(db, i.companyId, selection);
       // Same current resource rules as recognition: Principal owner or published privileged role.
       this.resource(basis.context.ownerPrincipalId, i, decision.roleCode);
-      return new OpenSwxMetadataAsyncRepository(db).insert({ id: crypto.randomUUID(), sourceContextType: selection.sourceContextType, sourceContextId: selection.sourceContextId, sourceSetFingerprint: basis.fingerprint, readerCommit: OPENSWX_READER.commit, initiator: i, sources: basis.sources, now: new Date(this.now()).toISOString() });
+      const candidateId = crypto.randomUUID();
+      const job = await new OpenSwxMetadataAsyncRepository(db).insert({ id: candidateId, sourceContextType: selection.sourceContextType, sourceContextId: selection.sourceContextId, sourceSetFingerprint: basis.fingerprint, readerCommit: OPENSWX_READER.commit, initiator: i, sources: basis.sources, now: new Date(this.now()).toISOString() });
+      if (selection.sourceContextType === "drawing_revision" && !job) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
+      if (db.kind === "postgres" && cancellableRevision && job?.id === candidateId) {
+        // A NEW private job must change the held parent tuple so an older cancellation snapshot retries.
+        const touched = await db.query<{ id: string }>(
+          `UPDATE ai_pdm_core.drawing_revisions SET row_version=row_version
+           WHERE company_id=:companyId AND id=:revisionId AND lifecycle_state IN ('preparing','correction_required') RETURNING id`,
+          { companyId: i.companyId, revisionId: selection.sourceContextId }
+        );
+        if (touched.length !== 1 || touched[0]?.id !== selection.sourceContextId) throw new OpenSwxMetadataError("OPENSWX_SOURCE_DRIFT");
+      }
+      return job;
     }, { serializable: true });
   }
   async humanRead(verified: VerifiedPrincipalRequest, selection: OpenSwxSelection) {

@@ -31,9 +31,10 @@ const suite = process.argv.find(arg => arg.startsWith('--suite='))?.slice(8) ?? 
 const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
 const nativeSelection=process.env.DEV122_NATIVE_SELECTION??'suite';
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['file-route-gaps','file-authority-gaps','recognition-protocol'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['file-route-gaps','file-authority-gaps','recognition-protocol'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
-  ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='foundation-gaps'
+  ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
+  ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
   ?'reads native matrix JSON-|denies the default rd_manager-only|rejects native formal_payload drift':nativeSelection==='authority-gaps'
   ?'no eligible current reviewer|Part reviewer self|legal other-company Principal|Part terminal master|Drawing master .* drift|Drawing current assignment|returns a minor without':nativeSelection==='other-company-scope'
   ?'legal other-company Principal':nativeSelection==='drawing-basis-gaps'
@@ -50,6 +51,18 @@ const previewDiagnosticChild=process.argv.includes('--preview-diagnostic-child')
 const previewImportOnly=process.argv.includes('--preview-import-only');
 if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
 const entries = compileOwnMigrations(root);
+if (nativeSelection === 'openswx-work-cancel') {
+  // 081 is the current normal Principal API's v6 publication prerequisite, not an 082 FK prerequisite.
+  for (const [ordinal,name,expectedHash] of [
+    ['081','081_dev121_principal_role_catalog_v6.sql','c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284'],
+    ['082','082_dev122_openswx_auxiliary_jobs.sql','9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000']
+  ]) {
+    const sourcePath = 'db/postgres/'+name,bytes = fs.readFileSync(path.join(root, sourcePath));
+    if(sha256(bytes)!==expectedHash)throw new Error('DEV122_B18_EXACT_MIGRATION_SOURCE_DRIFT:'+ordinal);
+    const sql = bytes.toString('utf8');
+    entries.push({ ordinal, sourcePath, sourceHash: sha256(bytes), compiledHash: sha256(sql), transforms: [], sql });
+  }
+}
 const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const config = loadSeamAllowlist(root);
 const plan = { project:'AIPDM', suite, sourceHead, fixtureVersion, seamVersion, marker,
@@ -249,6 +262,33 @@ async function run() {
     PDM_DEV087_FAULT_PROFILE:'',PDM_LOCAL_FAKE_PREVIEW_WORKER:'0',PDM_REVIEW_PACKAGE_V2_WRITE:'true',
     DEV122_APP_ORIGIN:`http://127.0.0.1:${nextPort}`,NODE_OPTIONS:`--import=${pathToFileURL(path.join(root,'scripts/lib/dev122-contract-seam-preload.mjs')).href}`};
   for(const name of ['K_SERVICE','GOOGLE_CLOUD_PROJECT','GOOGLE_APPLICATION_CREDENTIALS','PDM_CLOUD_SQL_DATABASE','PDM_SESSION_PREVIOUS_KEY_ID','PDM_SESSION_PREVIOUS_SECRET','DEV122_NEXT_PROJECT_ROOT'])delete env[name];
+  if(nativeSelection==='openswx-work-cancel') {
+    // Observe the exact driver below the existing seam. Never change SQL, parameters, rows or errors.
+    const tracePath=path.join(runtimeRoot,'b18-safe-driver-observer.mjs');
+    const pgModule=pathToFileURL(createRequire(import.meta.url).resolve('pg')).href;
+    const traceOutput=path.join(evidenceRoot,'b18-safe-driver-dependencies.jsonl');
+    const traceSource=`import pg from ${JSON.stringify(pgModule)};
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+const destination=${JSON.stringify(traceOutput)},original=pg.Client.prototype.query;let returned=0,rejected=0;const seen=new Set();
+function record(sql,error,result){const sqlSha256=crypto.createHash('sha256').update(sql.replaceAll('\\r\\n','\\n').trim()).digest('hex');
+ if(error){if(rejected>=512)return;rejected++;}else{if(returned>=256||seen.has(sqlSha256))return;returned++;seen.add(sqlSha256);}
+ const code=typeof error?.code==='string'&&/^[A-Za-z0-9_]{1,100}$/.test(error.code)?error.code:null;
+ const message=typeof error?.message==='string'&&/^[A-Z0-9_:-]{1,180}$/.test(error.message)?error.message:null;
+ const identity=Object.fromEntries(['schema','table','constraint'].map(key=>[key,typeof error?.[key]==='string'&&/^[A-Za-z0-9_]{1,180}$/.test(error[key])?error[key]:null]));
+ fs.appendFileSync(destination,JSON.stringify({layer:'REAL_DRIVER_DELEGATION',sqlSha256,
+  schemas:[...sql.matchAll(/\\b([a-z][a-z0-9_]*_(?:core|contract))\\s*\\./gi)].map(match=>match[1]),status:error?'REJECTED':'RETURNED',code,message,...identity,rowCount:result?.rowCount??null,parameters:'OMITTED',timestamp:new Date().toISOString()})+'\\n');}
+pg.Client.prototype.query=function(query,values,callback){const sql=typeof query==='string'?query:query?.text??'';
+ const cb=typeof values==='function'?values:callback;
+ if(typeof cb==='function'){const observed=(error,result)=>{record(sql,error,result);cb(error,result);};
+  try{return typeof values==='function'?original.call(this,query,observed):original.call(this,query,values,observed);}catch(error){record(sql,error);throw error;}}
+ try{const result=original.call(this,query,values,callback);if(result&&typeof result.then==='function')return result.then(rows=>{record(sql,null,rows);return rows;},error=>{record(sql,error);throw error;});return result;}
+ catch(error){record(sql,error);throw error;}};
+`;
+    fs.writeFileSync(tracePath,traceSource);
+    env.NODE_OPTIONS+=' --import='+pathToFileURL(tracePath).href;
+    manifest.b18DependencyObservation={sourceHash:sha256(traceSource),output:traceOutput,scope:'exact delegated driver query SHA/error code only; parameters and rows omitted',temporaryObserver:tracePath};save();
+  }
   if(['settings','settings-automation'].includes(suite)) {
     // Empty, read-only local settings proof; never inherit a credential/provider or a full-function bypass.
     Object.assign(env,{DEV122_BROWSER_FLOW:suite,DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all',
@@ -354,6 +394,10 @@ async function run() {
     const exactNativeFile=path.join(root,'src/lib/dev122-native-business.postgres-contract.test.ts');
     if(tests.testResults.some(result=>path.resolve(result.name)!==exactNativeFile&&result.assertionResults.some(test=>['passed','failed'].includes(test.status))))throw new Error('DEV122_NATIVE_EXECUTED_SOURCE_PATH_MISMATCH');
     if(expectedDescribe&&completed.some(test=>!(test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ')).includes(expectedDescribe)))throw new Error('DEV122_SUITE_CASE_SCOPE_MISMATCH');
+    if(nativeSelection==='openswx-work-cancel') {
+      const required=assertions.filter(test=>(test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ')).startsWith('DEV122 B18 OpenSWX parent work cancellation '));
+      if(required.length!==24||required.some(test=>!['passed','failed'].includes(test.status))||completed.length!==24)throw new Error('DEV122_B18_REQUIRED_CASES_MISSING_OR_SKIPPED');
+    }
     if(!manifest.executedCases)throw new Error('DEV122_ZERO_NATIVE_CASES');
     if(manifest.executedCases!==tests.numPassedTests+tests.numFailedTests)throw new Error('DEV122_NATIVE_CASE_COUNT_MISMATCH');
     if(nativeExitCode!==0||manifest.nativeBusiness.failed)throw Object.assign(new Error('DEV122_CHILD_FAILED:native-business'),{exitCode:nativeExitCode});
@@ -677,13 +721,13 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
 }
 
 async function seedPrincipals(admin,evidenceRoot) {
-  const catalog=JSON.parse(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v5.json'),'utf8'));
+  const catalog=JSON.parse(fs.readFileSync(path.join(root,nativeSelection==='openswx-work-cancel'?'config/access-control/jenfu-role-catalog.v6.json':'config/access-control/jenfu-role-catalog.v5.json'),'utf8'));
   const now=new Date(Date.now()-60_000).toISOString();
   const ledger=[];
   await admin.query(`INSERT INTO ai_pdm_core.companies(id,company_code,display_name) VALUES
     ('company-jenfu','JENFU','DEV122 isolated Jenfu'),('company-dev122-other','DEV122OTHER','DEV122 isolated other') ON CONFLICT DO NOTHING;
     UPDATE ai_pdm_core.pdm_workbench_state_authority_control SET mode='canonical_only',schema_hash='dev090-v1',expected_commit='local-dev';`);
-  for(const [index,identity] of ((['settings','settings-automation','share-metadata'].includes(suite)||['authority-gaps','other-company-scope'].includes(nativeSelection))?['owner','reviewer','denied','other']:['owner','reviewer','denied']).entries()) {
+  for(const [index,identity] of ((['settings','settings-automation','share-metadata'].includes(suite)||['authority-gaps','other-company-scope','openswx-work-cancel'].includes(nativeSelection))?['owner','reviewer','denied','other']:['owner','reviewer','denied']).entries()) {
     const profile='dev122-profile-'+identity,principal='dev122-principal-'+identity,employee='dev122-employee-'+identity;
     const company=identity==='other'?'company-dev122-other':'company-jenfu';
     await admin.query(`INSERT INTO ai_pdm_core.users(id,display_name,email,role,company_id,account_status,system_role_enabled)
