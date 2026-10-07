@@ -104,6 +104,7 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
     || baselineIntentRef.uri !== `gs://${bucket}/receipts/releases/${intent.releaseId}/release-intent.json`
     || !intent.baselineIntentRef || same(intent.baselineIntentRef, baselineIntentRef)) fail()
   assertImmutableRef(intent.baselineIntentRef, bucket, ['receipts'])
+  if (terminalFacts.databaseDisposition === 'NOT_APPLIED') return readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider })
   const [prepare, migration, candidate, deployment, entry, rollback, anchor] = await Promise.all([
     read(paths.prepare), read(paths.migrate), read(paths.candidate), read(paths.deployment), read(paths.entrypoint), read(paths.rollback),
     transport.readJson(intent.baselineIntentRef, bucket, ['receipts']),
@@ -238,5 +239,131 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
         rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
       controlSha256, inputFingerprint: fingerprint, ownerRunRef: control.ownerRunRef, serviceUid: service.uid,
       previousRevision: intent.previousRevision, retainedArtifactDigest: released.proof.artifactDigest,
+      entrypoint: entrySnapshot(service), scaling: service.scaling, retainedEnvironmentSha256: sha256(canonicalize(retainedEnvironment)) } }
+}
+
+// Only a completed prepare followed by a sealed abort before any completed build
+// can use this basis. It never promotes an aborted capsule into a released one.
+async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider }) {
+  const bucket = profile.artifact.releaseBucket
+  const [prepare, rollback, failedLock, anchor] = await Promise.all([
+    read(paths.prepare), read(paths.rollback), transport.readJson(intent.sourceLockRef, bucket, ['receipts']),
+    transport.readJson(intent.baselineIntentRef, bucket, ['receipts']),
+  ])
+  const prepareFacts = seal(prepare, 'prepare'), rollbackFacts = seal(rollback, 'rollback')
+  const refNames = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef',
+    foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
+  const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId,
+    sourceRevision: intent.sourceRevision, releaseIntentSha256: baselineIntentRef.sha256 }))
+  const keys = ['schemaVersion', 'inputFingerprint', 'ownerApplicationId', 'service', 'controlBucket', 'releaseId', 'sourceRevision',
+    'sourceLockSha256', 'candidateRevision', 'previousRevision', 'ownerRunRef', 'leaseExpiresAt', 'deadlineAt', 'state', 'result', 'controlSha256']
+  const { controlSha256, ...controlCore } = control
+  const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
+  const runId = control.ownerRunRef?.startsWith(runPrefix) ? control.ownerRunRef.slice(runPrefix.length) : ''
+  if (!same(Object.keys(control).sort(), keys.sort()) || controlSha256 !== sha256(canonicalize(controlCore))
+    || control.schemaVersion !== 'jenfu.dev012.owner-control-head.v1' || control.state !== 'FINALIZED'
+    || control.result !== 'PRE_ACTIVATION_ABORTED' || control.inputFingerprint !== fingerprint
+    || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName || control.controlBucket !== bucket
+    || control.releaseId !== intent.releaseId || control.sourceRevision !== intent.sourceRevision || control.sourceLockSha256 !== intent.sourceLockRef.sha256
+    || control.previousRevision !== intent.previousRevision || control.candidateRevision !== null || !/^[1-9][0-9]*$/u.test(runId)
+    || control.deadlineAt !== intent.deadlineAt || !Number.isFinite(Date.parse(control.deadlineAt))
+    || !Number.isFinite(Date.parse(control.leaseExpiresAt)) || Date.parse(control.leaseExpiresAt) >= Date.now()
+    || prepare.value.previousReceiptRef !== null || prepareFacts.previousRevision !== intent.previousRevision
+    || !same(prepareFacts.prerequisiteRefs, Object.fromEntries(Object.entries(refNames).map(([name, field]) => [name, intent[field]])))
+    || rollback.value.previousReceiptRef !== null || !same(terminal.value.previousReceiptRef, rollback.ref)
+    || terminalFacts.previousRevision !== intent.previousRevision || rollbackFacts.previousRevision !== intent.previousRevision
+    || terminalFacts.databaseDisposition !== 'NOT_APPLIED' || rollbackFacts.databaseDisposition !== 'NOT_APPLIED'
+    || rollbackFacts.result !== 'PRE_ACTIVATION_ABORTED'
+    || !same(terminalFacts.entrypointRecovery, rollbackFacts.entrypointRecovery)
+    || !same(rollbackFacts.entrypointRecovery, { changed: false, result: 'NOT_REQUIRED' })
+    || !same(rollbackFacts.recoveryOrder, ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'])
+    || failedLock.ref.sha256 !== intent.sourceLockRef.sha256 || failedLock.value.schemaVersion !== 'jenfu.dev012.owner-source-lock.v1'
+    || failedLock.value.ownerApplicationId !== profile.application.id || failedLock.value.releaseId !== intent.releaseId
+    || failedLock.value.sourceRevision !== intent.sourceRevision || failedLock.value.sourceSha256 !== intent.sourceSha256
+    || failedLock.value.migrationManifestSha256 !== intent.migrationManifestSha256
+    || failedLock.value.status !== 'SOURCE_FROZEN' || failedLock.value.releaseAuthority !== true || failedLock.value.clean !== true) fail()
+  // Only a positively missing object is absence. Timeouts, permission and parse
+  // failures remain blockers, including when an upload completed without a receipt.
+  const absentStages = ['build', 'provenance', 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']
+  for (const stage of absentStages) {
+    try { await read(paths[stage]); fail() } catch (error) { if (error.code !== 'MISSING') throw error }
+  }
+  const run = await transport.readOwnerRun(profile, control.ownerRunRef)
+  if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
+    || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
+  if (!/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(intent.releaseId ?? '')) fail()
+  // Absence is a live prerequisite on every call, including cold and cached
+  // prepare. verifyProvider only controls the released anchor's image proof.
+  const builds = await transport.request(`https://cloudbuild.googleapis.com/v1/projects/${profile.target.projectId}/locations/${profile.target.region}/builds?filter=${encodeURIComponent(`tags=${intent.releaseId.toLowerCase()}`)}&pageSize=1`)
+  if (!builds || typeof builds !== 'object' || Array.isArray(builds)
+    || Object.keys(builds).some(key => !['builds', 'nextPageToken'].includes(key))
+    || (Object.hasOwn(builds, 'builds') && (!Array.isArray(builds.builds) || builds.builds.length !== 0))
+    || (Object.hasOwn(builds, 'nextPageToken') && builds.nextPageToken !== '')) fail()
+  const anchorIntent = anchor.value
+  if (anchorIntent?.ownerApplicationId !== profile.application.id || !/^[a-f0-9]{40}$/u.test(anchorIntent.sourceRevision ?? '')
+    || anchorIntent.schemaVersion !== profile.schemas.releaseIntent
+    || intent.baselineIntentRef.uri !== `gs://${bucket}/receipts/releases/${anchorIntent.releaseId}/release-intent.json`) fail()
+  const anchorPaths = releasePaths(profile, anchorIntent, intent.baselineIntentRef.sha256)
+  const [anchorPrepare, anchorMigration, anchorTerminal, anchorRuntime, anchorVerify, anchorCanonical, anchorLock] = await Promise.all([
+    read(anchorPaths.prepare), read(anchorPaths.migrate), read(anchorPaths.terminal),
+    transport.readJson(anchorIntent.runtimeConfigRef, bucket, ['receipts']), read(anchorPaths.verify), read(anchorPaths.canonical),
+    transport.readJson(anchorIntent.sourceLockRef, bucket, ['receipts']),
+  ])
+  const released = await transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
+    refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider })
+  const proof = released.proof
+  if (proof?.owner !== profile.application.id || proof.sourceRevision !== anchorIntent.sourceRevision
+    || proof.releaseId !== anchorIntent.releaseId || proof.disposition !== 'released'
+    || proof.sourceLock?.ref !== anchorIntent.sourceLockRef.uri || proof.sourceLock.sha256 !== anchorIntent.sourceLockRef.sha256
+    || proof.migrationManifestSha256 !== anchorIntent.migrationManifestSha256
+    || !proof.artifactDigest?.startsWith(`${profile.artifact.uri}@sha256:`) || proof.candidateRevision !== intent.previousRevision
+    || proof.releaseChain?.deployment?.ref !== anchorPaths.deployment
+    || (verifyProvider && (released.provider?.status !== 'BUILD_IMAGE_VERIFIED'
+      || released.provider.sourceRevision !== proof.sourceRevision || released.provider.artifactDigest !== proof.artifactDigest))
+    || anchorLock.value.sourceSha256 !== anchorIntent.sourceSha256
+    || !same(anchorPrepare.value.facts?.prerequisiteRefs?.runtimeConfig, anchorIntent.runtimeConfigRef)
+    || anchorRuntime.value.ownerApplicationId !== profile.application.id || anchorRuntime.value.sourceRevision !== anchorIntent.sourceRevision
+    || anchorRuntime.value.releaseId !== anchorIntent.releaseId || anchorRuntime.value.status !== 'VERIFIED'
+    || anchorRuntime.value.releaseAuthority !== true) fail()
+  const principalModes = { PDM_JENFU_PLATFORM_AUTH_MODE: 'on', PDM_JENFU_ENTITLEMENT_MODE: 'enforce', PDM_JENFU_SSO_HANDOFF_MODE: 'on' }
+  const runtime = anchorRuntime.value.runtimeConfig ?? anchorRuntime.value
+  if (Object.entries(principalModes).some(([name, value]) => runtime.plainEnvironment?.[name] !== value)) fail()
+  for (const row of [anchorVerify, anchorCanonical]) {
+    const smoke = row.value.facts?.smoke, isCandidate = row === anchorVerify
+    if ((isCandidate && (smoke?.schemaVersion !== 'jenfu.dev121.principal-candidate-smoke.v1'
+        || smoke.ownerApplicationId !== profile.application.id || smoke.artifactDigest !== proof.artifactDigest
+        || smoke.candidateRevision !== intent.previousRevision))
+      || (!isCandidate && (row.value.facts?.origin !== profile.target.canonicalOrigin || smoke?.origin !== profile.target.canonicalOrigin))
+      || row.value.facts?.artifactDigest !== proof.artifactDigest || row.value.facts?.candidateRevision !== intent.previousRevision
+      || smoke?.status !== 'PASS'
+      || !['auth-mode', 'platform-session', 'target-session', 'authenticated-probe'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 200))
+      || !['sso-start', 'sso-authorize', 'sso-callback'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 303))
+      || new Set(smoke.observations?.map(observation => observation.id)).size !== smoke.observations?.length
+      || !['unauthenticated-probe', 'session-revoked'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 401))) fail()
+  }
+  service ??= await transport.getService(profile)
+  transport.assertServiceSettled(service, 'DEV121_PREACTIVATION_CONTINUATION_INVALID')
+  const serviceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
+  const entrySnapshot = value => ({ ingress: value.ingress, defaultUriDisabled: value.defaultUriDisabled === true,
+    invokerIamDisabled: value.invokerIamDisabled === true, uri: value.uri, urls: [...(value.urls ?? [])].sort() })
+  if (service.name !== serviceName || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(service.uid ?? '')
+    || service.scaling?.scalingMode !== 'AUTOMATIC' || Number(service.scaling.maxInstanceCount) !== 1
+    || !traffic(service.traffic, intent.previousRevision) || !traffic(service.trafficStatuses, intent.previousRevision)
+    || !same(entrySnapshot(service), entrySnapshot(prepareFacts.entrypointBaseline))) fail()
+  transport.assertCanonicalEntrypoint(profile, service)
+  const retainedRevision = await transport.getRevision(profile, intent.previousRevision)
+  const retainedApp = retainedRevision?.containers?.filter(row => row.name === profile.runtime.containerName)
+  if (retainedRevision?.name !== `${service.name}/revisions/${intent.previousRevision}`
+    || retainedRevision.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED'
+    || retainedApp?.length !== 1 || retainedApp[0].image !== proof.artifactDigest) fail()
+  const retainedEnvironment = retainedApp[0].env ?? []
+  if (new Set(retainedEnvironment.map(row => row.name)).size !== retainedEnvironment.length
+    || Object.entries(principalModes).some(([name, value]) => retainedEnvironment.find(row => row.name === name)?.value !== value)) fail()
+  return { kind: 'PRINCIPAL_ORDINARY_ABORT', currentActiveRevision: intent.previousRevision, result: 'PRE_ACTIVATION_ABORTED',
+    authorityBasis: { schemaVersion: 'ai-pdm.principal-prebuild-abort-basis.v1', failedIntentRef: baselineIntentRef,
+      releasedIntentRef: intent.baselineIntentRef, failedSourceLockRef: failedLock.ref, databaseDisposition: 'NOT_APPLIED', releasedProof: proof,
+      absentStages, failedBuildCount: 0, stageRefs: { prepare: prepare.ref, rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
+      controlSha256, inputFingerprint: fingerprint, ownerRunRef: control.ownerRunRef, serviceUid: service.uid,
+      previousRevision: intent.previousRevision, retainedArtifactDigest: proof.artifactDigest,
       entrypoint: entrySnapshot(service), scaling: service.scaling, retainedEnvironmentSha256: sha256(canonicalize(retainedEnvironment)) } }
 }

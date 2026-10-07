@@ -258,7 +258,7 @@ function ordinaryAbortFixture() {
   control()
   const ownerRun = { id: '42', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: failed.intent.sourceRevision }
   const fetchImpl = async url => {
-    if (url.startsWith('https://cloudbuild.googleapis.com')) { calls.provider++; return Response.json(builds.get(url.split('/').at(-1))) }
+    if (url.startsWith('https://cloudbuild.googleapis.com')) { calls.provider++; return Response.json(url.includes('?filter=') ? { builds: [] } : builds.get(url.split('/').at(-1))) }
     if (url.startsWith('https://artifactregistry.googleapis.com')) { calls.provider++; const digest=decodeURIComponent(url.split('/').at(-1)); return Response.json({ name: 'projects/jenfu-platform-prod/locations/asia-east1/repositories/aipdm-release/dockerImages/'+digest, uri: profile.artifact.uri.split('/').slice(0,-1).join('/')+'/'+digest }) }
     const match = /\/b\/([^/]+)\/o\/([^?]+)/u.exec(url), uri = match && 'gs://'+decodeURIComponent(match[1])+'/'+decodeURIComponent(match[2]), row=objects.get(uri)
     if (!row) return new Response('', { status: 404 })
@@ -357,4 +357,116 @@ test('an unexpired sealed preactivation-abort capsule rejects every normal stage
   assert.equal(h.objects.size,objectCount)
   assert.equal(h.service().traffic.some(row=>row.tag),false)
   assert.equal(h.transport.effectiveRevision(h.service()),previousRevision)
+})
+
+
+function ordinaryPrebuildAbortFixture() {
+  const h = ordinaryAbortFixture()
+  for (const stage of ['build', 'provenance', 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) h.objects.delete(h.failed.paths[stage])
+  const facts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision, databaseDisposition: 'NOT_APPLIED',
+    entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
+  const rollback = h.failed.seal('rollback', facts)
+  h.failed.seal('terminal', facts, rollback.ref)
+  h.controlCore.candidateRevision = null
+  h.control()
+  return h
+}
+
+test('prebuild abort permits a fresh frozen capsule while keeping the aborted capsule and provider state immutable', async () => {
+  const h = ordinaryPrebuildAbortFixture(), originalControl = h.objects.get('gs://' + bucket + '/control/active.json').bytes
+  const basis = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(basis.kind, 'PRINCIPAL_ORDINARY_ABORT')
+  assert.equal(basis.authorityBasis.schemaVersion, 'ai-pdm.principal-prebuild-abort-basis.v1')
+  assert.equal(basis.authorityBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(basis.authorityBasis.failedSourceLockRef.sha256, h.failed.lock.ref.sha256)
+  assert.equal(h.calls.provider, 3, 'failed tag is empty; only the released anchor has Build/Registry proof')
+  assert.equal(h.calls.puts, 0)
+  const next = await ordinaryNextRelease(h)
+  assert.deepEqual(next.values.authorization.preActivationAbortBasis, next.values.readiness.preActivationAbortBasis)
+  const prepare = await executeOwnerStage(next.input)
+  assert.deepEqual(prepare.value.facts.preActivationAbortBasis, basis.authorityBasis)
+  assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepare.ref.sha256)
+  assert.deepEqual(h.objects.get('gs://' + bucket + '/control/active.json').bytes, originalControl)
+  assert.equal(h.objects.get(h.failed.paths.terminal).value.facts.result, 'PRE_ACTIVATION_ABORTED')
+  assert.deepEqual(h.objects.get(h.failed.intentRow.ref.uri).value, h.failed.intent)
+})
+
+test('prebuild abort rejects missing seals, later-stage evidence, unknown reads and failed source/control/provider drift', async () => {
+  const mutateSeal = (h, stage, change) => { const row = h.objects.get(h.failed.paths[stage]); const { receiptSha256, ...core } = structuredClone(row.value); change(core); h.put(row.ref.uri, { ...core, receiptSha256: sha256(canonicalize(core)) }) }
+  const mutations = [
+    ...['build', 'provenance', 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize'].map(stage => h => h.put(h.failed.paths[stage], { arbitrary: 'present' })),
+    ...['prepare', 'rollback', 'terminal'].map(stage => h => h.objects.delete(h.failed.paths[stage])),
+    h => mutateSeal(h, 'prepare', core => { core.previousReceiptRef = h.anchor.lock.ref }),
+    h => mutateSeal(h, 'rollback', core => { core.previousReceiptRef = h.anchor.lock.ref }),
+    h => mutateSeal(h, 'terminal', core => { core.previousReceiptRef = null }),
+    h => mutateSeal(h, 'rollback', core => { core.facts.databaseDisposition = 'FORWARD_APPLIED' }),
+    h => mutateSeal(h, 'rollback', core => { core.facts.entrypointRecovery.changed = true }),
+    h => mutateSeal(h, 'rollback', core => { core.facts.previousRevision = candidateRevision }),
+    h => mutateSeal(h, 'prepare', core => { core.facts.prerequisiteRefs.sourceLock = h.anchor.lock.ref }),
+    h => { const row = h.failed.lock; h.put(row.ref.uri, { ...row.value, clean: false }) },
+    h => { const row = h.failed.lock; const updated = h.put(row.ref.uri, { ...row.value, sourceSha256: 'f'.repeat(64) });
+      h.transport.readJson = async ref => ref.uri === row.ref.uri ? updated : h.objects.get(ref.uri) },
+    h => { h.ownerRun.conclusion = 'cancelled' }, h => { h.ownerRun.headSha = 'f'.repeat(40) },
+    h => { h.controlCore.candidateRevision = candidateRevision; h.control() },
+    h => { h.controlCore.leaseExpiresAt = '2999-01-01T00:00:00Z'; h.control() },
+    h => { h.controlCore.inputFingerprint = 'f'.repeat(64); h.control() },
+    h => { h.service.trafficStatuses.push({ revision: candidateRevision, tag: 'unknown', percent: 0 }) },
+    h => { h.service.scaling.maxInstanceCount = 2 }, h => { h.service.uid = 'invalid' },
+    h => { h.service.invokerIamDisabled = false }, h => { h.service.reconciling = true },
+    h => { h.revisions.get(previousRevision).containers[0].image = h.failed.image },
+    h => { h.revisions.get(previousRevision).containers[0].env.find(row => row.name === 'PDM_JENFU_ENTITLEMENT_MODE').value = 'shadow' },
+    h => h.objects.delete(h.anchor.paths.decision),
+    h => { const original = h.transport.readBytes; h.transport.readBytes = async (uri, options) => {
+      if (uri === h.failed.paths.build) throw Object.assign(new Error('UNKNOWN_READ'), { code: 'OUTCOME_UNKNOWN' }); return original.call(h.transport, uri, options) } },
+  ]
+  for (const mutate of mutations) { const h = ordinaryPrebuildAbortFixture(); mutate(h); await assert.rejects(readPreActivationAbortContinuation(h.helperInput)); assert.equal(h.calls.puts, 0) }
+})
+
+test('prebuild continuation rechecks the frozen authority basis and cached prepare against live provider state', async () => {
+  for (const scenario of ['authorization', 'readiness', 'cached', 'environment']) {
+    const h = ordinaryPrebuildAbortFixture(), next = await ordinaryNextRelease(h), prepare = await executeOwnerStage(next.input)
+    if (scenario === 'environment') h.revisions.get(previousRevision).containers[0].env.push({ name: 'UNREVIEWED_RUNTIME_FIELD', value: 'changed' })
+    else if (scenario === 'cached') { const { receiptSha256, ...core } = structuredClone(prepare.value); delete core.facts.preActivationAbortBasis; h.put(prepare.ref.uri, { ...core, receiptSha256: sha256(canonicalize(core)) }) }
+    else { const key = scenario === 'authorization' ? 'authorizationPolicyRef' : 'readinessReceiptRef'; const ref = next.capsule.value[key], value = structuredClone(h.objects.get(ref.uri).value);
+      if (scenario === 'authorization') delete value.preActivationAbortBasis; else value.preActivationAbortBasis.serviceUid = 'unknown';
+      const updated = h.put(ref.uri, value), capsule = h.put(next.capsule.ref.uri, { ...next.capsule.value, [key]: updated.ref }); next.input.capsuleSha256 = capsule.ref.sha256 }
+    await assert.rejects(executeOwnerStage(next.input), /PREPARE_BASELINE_MISMATCH/)
+  }
+})
+
+
+test('prebuild authority requires a successful exact failed-tag Build list with no unknown or existing build', async () => {
+  for (const response of [{ builds: [{ id: 'unknown-build' }] }, { nextPageToken: 'more' }, { builds: {} }, { builds: null }, { nextPageToken: null }, { nextPageToken: 0 }, { unknown: true }, [], 'not-a-list', true, null]) {
+    const h = ordinaryPrebuildAbortFixture(), original = h.transport.request
+    h.transport.request = async (url, ...args) => { if (url.includes('/builds?filter=')) {
+      if (response === null) throw Object.assign(new Error('UNKNOWN_LIST'), { code: 'OUTCOME_UNKNOWN' }); return response }
+      return original.call(h.transport, url, ...args) }
+    await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }))
+    assert.equal(h.calls.puts, 0)
+  }
+})
+
+test('prebuild prepare re-queries failed-tag Build absence after the producer and on cached replay', async () => {
+  for (const cached of [false, true]) {
+    for (const outcome of ['build-present', 'unknown']) {
+      const h = ordinaryPrebuildAbortFixture(), next = await ordinaryNextRelease(h)
+      if (cached) await executeOwnerStage(next.input)
+      const original = h.transport.request, putsBefore = h.calls.puts, objectsBefore = h.objects.size
+      let queries = 0
+      h.transport.request = async (url, ...args) => {
+        if (url.includes('/builds?filter=')) {
+          queries++
+          assert.equal(new URL(url).searchParams.get('filter'), 'tags=' + h.failed.intent.releaseId.toLowerCase())
+          assert.equal(new URL(url).searchParams.get('pageSize'), '1')
+          if (outcome === 'unknown') throw Object.assign(new Error('UNKNOWN_LIST'), { code: 'OUTCOME_UNKNOWN' })
+          return { builds: [{ id: 'newly-observed-failed-build' }] }
+        }
+        return original.call(h.transport, url, ...args)
+      }
+      await assert.rejects(executeOwnerStage(next.input), outcome === 'unknown' ? /UNKNOWN_LIST/ : /DEV121_PREACTIVATION_CONTINUATION_INVALID/)
+      assert.equal(queries, 1, 'cold and cached prepare both require fresh exact-tag absence')
+      assert.equal(h.calls.puts, putsBefore, 'reject before any new receipt or control write')
+      assert.equal(h.objects.size, objectsBefore)
+    }
+  }
 })

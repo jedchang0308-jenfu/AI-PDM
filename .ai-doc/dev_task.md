@@ -1,14 +1,14 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（2026-10-07；B10 已上線，排程 canonical destination 修正待獨立 QC）
+## DEV-122 CURRENT（2026-10-07；B11 建置前中止，封閉續行修復待獨立 QC）
 
-B12 單次讀鐘修正已經 Luna SOURCE_QC_PASS、正常 PR231 與 PR／main required CI。官方來源 `8bf4211f` 的 A13 build-only、R12 DAILY continuation／bootstrap 與 B10 owner run `37563870047` 全部成功；正式 `ai-pdm-prod-abd7ac77760c` 100%／0 tags，082 只重放。R12 sealed activation READY 後，03:20 UTC 真實 Google Scheduler 請求回 403；已用固定 helper 暫停唯一排程並保留佇列。READY／發布成功不等於 CAD 業務驗證通過。
+B13 canonical destination 修正已經正常 PR232、PR／main required CI及獨立來源 QC，官方來源 `b3a47c88`。A14 build-only／current-image安全讀回及R13 DAILY bootstrap已實際成功；B11 owner run `37571921864` 在來源上傳後、Cloud Build建立前失敗，sealed結果為PRE_ACTIVATION_ABORTED／NOT_APPLIED。正式仍為B10 `ai-pdm-prod-abd7ac77760c` 100%／0 tags；唯一Scheduler PAUSED、durable queue保留。已讀回精確來源generation／size／SHA-256／CRC全部吻合；numeric23與30秒讀回逾時時間相符，但原始逾時endpoint仍UNKNOWN，不宣稱完整根因已證明。
 
-installed Next standalone adapter 以 Docker `0.0.0.0:8080` 重建 Request.url 的失配已用實際 adapter＋local RSA 重現 RED；原正式拒絕分支／container headers 尚未捕捉，不能將機制重現當作正式根因已完全證明。本次僅在 exact internal origin＋固定 Cloud Run 服務／port＋canonical Host＋literal HTTPS 全符合時橋接公開 destination；仍完整驗簽、固定 audience／subject／email、POST／path／no-cookie、token與排程時效。canonical URL 不能遮蔽矛盾 Host／proto，不採 forwarded-host。拒絕日誌只記原因 enum。24 focused、最終 lint與app typecheck通過；首次 fixture typecheck FAIL 保留，own local runtime／暫存已清理。既有兩 CAD UI 因排程拒絕到期失敗，瀏覽器與 session 已清理，工作未取消／未重排；另三對未跑。
+B14只補既有ordinary continuation的封閉pre-build分支：sealed prepare／rollback／terminal、expired finalized control與failed owner等值，後續stage全部確定不存在，provider對exact failed-release tag的Build list必須成功且為合法空清單，再驗原B10 RELEASED Principal source／build／SSO chain與live100%／無tags／auto1／entry／Ready image／principal env。原FORWARD_APPLIED分支及已aborted capsule拒絕重送不變；fresh authority與cached prepare仍deep-equal並重查live basis。RED與首輪fixture assertion FAIL保留；TL發現異常list假empty的P2已補strict shape及負例，r3檢查通過但Luna source QC另發現cold／cached prepare漏查exact failed-tag Build的P2；已只在prebuild分支改為每次查詢，保留anchor verifier與原FORWARD_APPLIED。新增producer空清單後prepare遇到nonempty／unknown必須零寫入拒絕的回歸，RED確實重現，首輪error-name assertion FAIL保留，最終r4b focused12／12、continuous139／139與六項DEV117 checks實際通過，尚待新freeze的Luna QC與新PR／CI。這不證明新正式排程或CAD完成。
 
-下一步是六檔 frozen source 獨立 Luna QC、正常 PR／PR與main CI、fresh A14／R13／B11 保護發布，再驗真實自動排程及四工作八 CAD completed UI。原十二資源與五 IAM只回讀，reader v1／registry v3不重發；完整原生 F-01F由使用者正式驗證，供應商回覆停用延後，7 issues／29 groups與整體 NOT_ACCEPTED不變。
+下一步為本六檔source獨立QC、normal PR／protected-main CI、fresh A15／R14／B12保護發布及四工作八CAD。新source必須有相符build/bootstrap，A14／R13不重標；原十二資源／五IAM只回讀、reader v1／registry v3不重發。native F-01F由使用者正式驗證；供應商回覆停用延後；7 issues／29 groups與整體NOT_ACCEPTED不變。
 
-[實際發布、排程故障與修復證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
+[實際失敗、續行修復與證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
 
 ## DEV-122 CURRENT（2026-10-07；B08 已上線，固定排程身分修正中）
 
@@ -1719,8 +1719,8 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 - ◐ DEV-122 [開發點] [執行中] [P2] [設定入口已部署／待人工驗收] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：B10已正式上線但實際排程403，唯一Scheduler PAUSED／佇列保留；canonical destination六檔修正經Luna QC／normal PR與PR／main CI後續A14／R13／B11及四工作八CAD。原十二資源／五IAM只回讀、v1／v3不重發。
-  - 驗收缺口：B08 已正式上線、082 已套用一次；A12 build／R11 bootstrap 通過，B09 prepare 失敗且未寫入後續階段，Scheduler 保持 PAUSED。新 source 正式發布、正常 scheduled dispatch／8-CAD completed UI 待執行；F-01F 由使用者驗證，供應商回覆停用，整體未驗收。
+  - 下一步：B11建置前中止／NOT_APPLIED，B10仍100%；pre-build封閉續行六檔經Luna QC／normal PR與main CI後，fresh A15／R14／B12及四工作八CAD。Scheduler PAUSED／佇列保留，十二資源／五IAM只回讀、v1／v3不重發。
+  - 驗收缺口：082在B08套用一次；B10 RELEASED，B11 NOT_APPLIED中止；A14／R13成功但不能冒充新source或CAD PASS。新正式發布、自動排程／8-CAD UI待驗；F-01F由使用者驗證，供應商回覆停用，整體未驗收。
   - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
