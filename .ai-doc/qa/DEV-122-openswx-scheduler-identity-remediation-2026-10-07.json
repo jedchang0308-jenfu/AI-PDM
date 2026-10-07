@@ -125,5 +125,297 @@
         "tempRemoved": true
       }
     ]
+  },
+  "sourceHistoryRemediation": {
+    "sourceBase": "195ebbe5a6b5bfe80d793530d4cf824c631d977b",
+    "branch": "codex/dev122-owner-source-history",
+    "state": "LOCAL_HISTORY_REGRESSION_SIX_DEV117_CHECKS_PASS_INDEPENDENT_QC_PR_CI_RELEASE_PENDING",
+    "failedRun": 37550749876,
+    "failedStage": "prepare",
+    "failedCode": "GIT_SOURCE_INSPECTION_FAILED",
+    "historicalIamSource": "312be7e8087677f23e78011c3105a80355c03f55",
+    "cause": "Full DAILY evidence revalidates unchanged historical IAM Git blobs; protected owner checkout depth1 lacks the historical commit. Build-only skips this full join.",
+    "fix": "All eleven full owner-stage checkouts retain own repository history using fetch-depth0; persist-credentialsfalse, exact protected main/provenance/clean source and IAM receipt guards remain.",
+    "acceptance": [
+      "Actual local depth1 Git clone reproduces failure through real readGitBlob and full historical IAM receipt chain",
+      "Same clone unshallow passes exact historical receipt join; historical plan/profile/source tampering rejected",
+      "Six applicable DEV117 required checks pass",
+      "Independent Luna QC and normal protected PR/CI",
+      "Fresh official-source owner release and scheduled eight-CAD normal UI/provider proof"
+    ],
+    "unchanged": [
+      "Original twelve resources readback only",
+      "Five IAM unchanged; no reapply",
+      "Reader v1 and registry v3 reused",
+      "Migration082 unchanged already applied; replay only",
+      "F01F user production pending",
+      "Supplier replies disabled/deferred",
+      "Whole DEV NOT_ACCEPTED"
+    ],
+    "preservedEvidence": [
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B09-prepare-failure.raw.log",
+        "sha256": "c31e42b563382721f320a5d6419ee2fd70f2a70a0e799e6269259b668fea7f47"
+      },
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B09-prepare-failure-provider-readback.json",
+        "sha256": "0c0e55e76fe402e167caecf3cba540bd533b2f3d255e0b90b1a21fc1531c6541"
+      },
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B09-prepare-failure-r2-provider-readback.json",
+        "sha256": "8d176b2b56e78202d22d18d5fc524408329cca65344e612f768da768addd24e6"
+      }
+    ],
+    "localValidation": {
+      "continuousTests": 134,
+      "qcSuiteTests": 174,
+      "overlap": "DO_NOT_ADD_COUNTS;QC_SUITE_INCLUDES_NEW_REAL_GIT_CASE",
+      "sharpImageOnly": {
+        "installed": "0.35.5",
+        "locked": "0.35.5",
+        "passed": 8
+      },
+      "isolatedBuild": "PASS_ARTIFACT_TRUE_PRIMARY_DATABASE_ABSENT_UNCHANGED_CLEANUP_TRUE",
+      "primaryCanonicalSqlite": "ABSENT_BEFORE_AND_AFTER;NOT_A_SCHEMA_OR_FOREIGN_KEY_SNAPSHOT",
+      "runtimes": [
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-r5-history-runtime.json",
+          "sha256": "8a4714a016b918816d8e2d2556001bf947a49f3a496b779bbb83a1f1d5b2cb4d",
+          "exitCode": 0,
+          "processStopped": true,
+          "lifecycleReleased": true,
+          "taskTempRemoved": true,
+          "cleanupErrors": []
+        },
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-continuous-runtime.json",
+          "sha256": "86864855d2016641602994fd9686a5689acb696363a1752b0a9b5ae530b6f3b6",
+          "exitCode": 0,
+          "processStopped": true,
+          "lifecycleReleased": true,
+          "taskTempRemoved": true,
+          "cleanupErrors": []
+        },
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-r6-deps-runtime.json",
+          "sha256": "3fe7e9c7d698f6194232ae4da5b6e5ba1efc050f79cf066b3c45d781b96fb2b0",
+          "exitCode": 0,
+          "processStopped": true,
+          "lifecycleReleased": true,
+          "taskTempRemoved": true,
+          "cleanupErrors": []
+        },
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-r6-qc-runtime.json",
+          "sha256": "1433deb4fa819756c54568685a9a6f9f269be184577c2115423ea2cd623d2020",
+          "exitCode": 0,
+          "processStopped": true,
+          "lifecycleReleased": true,
+          "taskTempRemoved": true,
+          "cleanupErrors": []
+        }
+      ],
+      "environmentFailuresPreserved": [
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-history-runtime.json",
+          "sha256": "73958125d6a8ee253eff622f0566e045cb767c672eddab8b18202c7866dd1806",
+          "state": "FAIL_PRESERVED;OWN_CLEANUP_PASS"
+        },
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-r2-history-runtime.json",
+          "sha256": "ea8647c92cb83760a0289e4c40de2d320065664b47b427e26b620cda203cc697",
+          "state": "FAIL_PRESERVED;OWN_CLEANUP_PASS"
+        },
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-r3-history-runtime.json",
+          "sha256": "66ce221cdada514c1e26e9993c56fa64aaca4e166ead4bafaea71b86b1e17ca1",
+          "state": "FAIL_PRESERVED;OWN_CLEANUP_PASS"
+        },
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-r4-history-runtime.json",
+          "sha256": "41cc4c31e85f8267158bf72cf1c2dd639616a0aea23298685cd6b6c6ed3c035a",
+          "state": "FAIL_PRESERVED;OWN_CLEANUP_PASS"
+        },
+        {
+          "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A12-B09/B10-r5-qc-runtime.json",
+          "sha256": "156977b355a384c850c03586e5d88d6344e21a16063540f917bc3d77e9b2f60b",
+          "state": "FAIL_PRESERVED;OWN_CLEANUP_PASS"
+        }
+      ],
+      "qcSelfResult": "Actual B10-r6-qc-runtime exit0 proves wrapper completion; owner-report SELF preserved unchanged",
+      "sixRequiredCommands": [
+        {
+          "command": "npm run test:dev-117:continuous",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run qc:dev-117:continuous",
+          "result": "SELF"
+        },
+        {
+          "command": "npm run test:dev-117:abort",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run check:db-boundary",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run typecheck:app",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run build:isolated",
+          "result": "PASS"
+        }
+      ],
+      "ownerReport": {
+        "path": "output/dev-117/s1b/DEV117-S1B-20261007T010141419Z-33547B4C/owner-report.json",
+        "sha256": "ef930de36418a149e296f865f8833b0b2ea49c2d92f9966680260b0f7a061400"
+      }
+    },
+    "independentQc": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B10-source-history-independent-qc.json",
+      "sha256": "68bb72728f23cd11397332ecd28c2fa055e4bc884076d33367c9363669f4715c",
+      "scope": "ORIGINAL_SIX_FILE_HISTORY_CANDIDATE_ONLY",
+      "verdict": "SOURCE_QC_PASS",
+      "P0": 0,
+      "P1": 0,
+      "P2": 0
+    }
+  },
+  "successfulDailyBootstrapContinuationRemediation": {
+    "state": "LOCAL_CONTRACT_AND_SIX_REQUIRED_CHECKS_PASS_INDEPENDENT_QC_PR_CI_PRODUCTION_PENDING",
+    "sourceBase": "195ebbe5a6b5bfe80d793530d4cf824c631d977b",
+    "problem": "Successful R11 selftest remains while prior R09 normal-template guard prevents the next daily pause; B09 has no candidate recovery receipt",
+    "contract": "Existing DAILY-only pause accepts three immutable predecessor refs, restores only prior sealed normal template with request latch/fresh-etag/readback, then retains one fresh authenticated drain and strict replay",
+    "actualHistoricalPriorRecovery": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B10-R11-prior-recovery-readback.json",
+      "sha256": "bba956a3597e5c56ae8efeab00ab623020e45716e852c83b77c76a159f3a52cf"
+    },
+    "qaPlan": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B11-recovery-qa-plan.json",
+      "sha256": "d85fc8bd8349a16e91d3aef545fc1b46e9b74759be114fa621f093a2627de081"
+    },
+    "techLead": {
+      "initialFindings": [
+        "P2 historical finite request chain missing",
+        "P2 schema literal drift"
+      ],
+      "findingsClosed": true,
+      "remainingP0P1P2": [
+        0,
+        0,
+        0
+      ],
+      "evidenceScope": "SOURCE_CONTRACT_REVIEW_ONLY"
+    },
+    "localValidation": {
+      "evidenceScope": "LOCAL_RECORDED_PROVIDER_AND_REAL_GIT_REGRESSION_ONLY",
+      "runtimes": [
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-r3-continuation-runtime.json",
+          "sha256": "cb47fd9b7811e822df068428738111e5dc8fccaec73d7a3fa7a913e72059e270",
+          "exitCode": 0,
+          "processStopped": true,
+          "lifecycleReleased": true,
+          "taskTempRemoved": true,
+          "cleanupErrors": []
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-r3-continuous-runtime.json",
+          "sha256": "8798dd2a66f4ee0edb5b211dfe9db3bfeb4b4c3e8b1001217bbcecc16584943e",
+          "exitCode": 0,
+          "processStopped": true,
+          "lifecycleReleased": true,
+          "taskTempRemoved": true,
+          "cleanupErrors": []
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-r3-qc-runtime.json",
+          "sha256": "1eb8370672ed443084e6c086f5383f472422968777730664104f2d333d1bfc99",
+          "exitCode": 0,
+          "processStopped": true,
+          "lifecycleReleased": true,
+          "taskTempRemoved": true,
+          "cleanupErrors": []
+        }
+      ],
+      "continuousTests": 134,
+      "qcSuiteTests": 180,
+      "overlap": "DO_NOT_ADD_COUNTS;CONTINUOUS_EXCLUDES_BOOTSTRAP_TEST_FILE_QC_INCLUDES_IT",
+      "targetedContinuationTests": 6,
+      "namedNegativeCases": 21,
+      "originalSourceHistoryQc": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B10-source-history-independent-qc.json",
+        "sha256": "68bb72728f23cd11397332ecd28c2fa055e4bc884076d33367c9363669f4715c"
+      },
+      "sixRequiredCommands": [
+        {
+          "command": "npm run test:dev-117:continuous",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run qc:dev-117:continuous",
+          "result": "SELF"
+        },
+        {
+          "command": "npm run test:dev-117:abort",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run check:db-boundary",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run typecheck:app",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run build:isolated",
+          "result": "PASS"
+        }
+      ],
+      "ownerReport": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\dev-117\\s1b\\DEV117-S1B-20261007T012833000Z-F2DB8045\\owner-report.json",
+        "sha256": "b29f5407febdbce1f8c1cedc0b69ae7a45e71ed0ca858010947dee493f8f7108"
+      },
+      "qcSelfResult": "Preserved owner-report SELF; actual r3 QC runtime exit 0 and raw logs prove wrapper completion",
+      "preservedPriorAttempts": [
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-r1-continuation-runtime.json",
+          "sha256": "e0968ea24d4b2492ff95e0d2c950d0eb26b3fa2be38bb993066fca5a26d09457"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-r2-continuation-runtime.json",
+          "sha256": "9e47c78bd0106fa6a17e144c449d6812e13a54d14e5ae59e17e18afcdcdebaa1"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-r2-continuous-runtime.json",
+          "sha256": "b72a036ded909a3ad3c65f9461bf0f6dfaf3840faa099e29c6fa99a47a77a679"
+        },
+        {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-r2-qc-runtime.json",
+          "sha256": "a8d5ca7fe0e36d0d98233d932e6467368293bf61142f02c0cb5661f955f32ea4"
+        }
+      ],
+      "capacityLeaseRelease": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A12-B09\\B11-checks-capacity-lease-release.json",
+        "sha256": "3ea80e3ca9d249b8b9430384f344b8fc0079745b70b05be9752d6487c663ab93"
+      },
+      "primarySqlite": "BOTH_WORKTREE_AND_CANONICAL_ABSENT_BEFORE_AFTER;NO_PRAGMA_OR_SCHEMA_SNAPSHOT_CLAIM"
+    },
+    "unchanged": [
+      "Original twelve resources and five IAM READBACK_ONLY",
+      "Numeric reader v1 and registry v3 reused; zero issuance",
+      "No new IAM/resources/traffic authority",
+      "Applied 082 not edited or reapplied",
+      "Scheduler PAUSED until protected release/normal activation",
+      "Eight CAD normal UI/provider completion pending",
+      "F-01F human production validation pending",
+      "Supplier replies disabled/deferred",
+      "Whole DEV NOT_ACCEPTED"
+    ],
+    "next": "Independent frozen-source Luna QC, normal PR/required CI, fresh official-source build, bound prior recovery/daily bootstrap, protected full release and four normal work pairs/eight CAD"
   }
 }

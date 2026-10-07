@@ -2,13 +2,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import os from 'node:os'
+import { spawnSync } from 'node:child_process'
+import { readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE,
   assertReadbackIamTerraformPlan, readbackIamPlan, expectedReadbackJobBindings,
   readReadbackIamReceipt, assertReadbackIamReceipt, executeReleaseReadbackIam } from './lib/dev122-openswx-readback-iam.mjs'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources } from './lib/dev122-openswx-bootstrap.mjs'
-import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite } from './lib/dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
@@ -1253,4 +1256,237 @@ test('both full-worker producer stages reject mismatched supplemental IAM source
       validateIntent: assertDev117ReleaseIntent }), { code: 'OPENSWX_IAM_SOURCE_DRIFT' })
     assert.deepEqual([...fx.h.objects.keys()].sort(), before); assert.equal(fx.h.provider.calls.length, 0); assert.equal(fx.h.iamCalls.length, 0)
   }
+})
+
+test('full owner checkout retains real historical Git bytes for daily IAM receipt joins', async () => {
+  const workflow = readSource('.github/workflows/deploy-ai-pdm-independent-production.yml').toString()
+  const checkouts = [...workflow.matchAll(/uses: actions\/checkout@v4\r?\n\s+with: \{ persist-credentials: false, fetch-depth: (\d+) \}/gu)]
+  assert.equal(checkouts.length, 11)
+  assert.ok(checkouts.every(row => row[1] === '0'), 'Every protected owner stage must retain its own historical source')
+  const tempPrefix = path.join(os.tmpdir(), 'aipdm-h-')
+  const temp = fs.mkdtempSync(tempPrefix), origin = path.join(temp, 'origin'), checkout = path.join(temp, 'checkout')
+  console.log('DEV122_SOURCE_HISTORY_RUNTIME_DECLARED=' + JSON.stringify({ project: 'AI-PDM', purpose: 'Real local shallow Git regression; recorded receipts only', port: null, parentPid: process.pid, PDM_DATA_DIR: path.join(temp, 'unused-data'), PDM_REPOSITORY_DIR: origin, mutationScope: 'OWN_FIXTURE_GIT_ONLY_NO_CLOUD_OR_APP_DB', cleanupCondition: 'Finite local Git children exit and own temp removed' }))
+  const git = (cwd, args) => {
+    const result = spawnSync('git', ['-c', 'core.longpaths=true', ...args], { cwd, encoding: 'utf8', timeout: 30_000, windowsHide: true })
+    assert.equal(result.error, undefined)
+    assert.equal(result.status, 0, result.stderr)
+    return result.stdout.trim()
+  }
+  try {
+    fs.mkdirSync(origin)
+    git(origin, ['init', '--initial-branch=main'])
+    git(origin, ['config', 'core.autocrlf', 'false'])
+    git(origin, ['config', 'core.longpaths', 'true'])
+    for (const repositoryPath of [...READBACK_IAM_PATHS, WORKER_PROFILE_PATH]) {
+      const file = path.join(origin, repositoryPath)
+      fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, readSource(repositoryPath))
+    }
+    git(origin, ['add', '.'])
+    const commit = message => git(origin, ['-c', 'user.name=AI-PDM fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-m', message])
+    commit('historical IAM source'); const historical = git(origin, ['rev-parse', 'HEAD'])
+    fs.writeFileSync(path.join(origin, 'current.txt'), 'current release\n'); git(origin, ['add', 'current.txt']); commit('current source')
+    const current = git(origin, ['rev-parse', 'HEAD'])
+    git(temp, ['clone', '--config', 'core.longpaths=true', '--no-local', '--depth=1', pathToFileURL(origin).href, checkout])
+    assert.equal(git(checkout, ['rev-parse', '--is-shallow-repository']), 'true')
+    const h = memory(), d = descriptor(historical)
+    d.value.resourcePlanRef = ref('recorded-source-plan')
+    const descriptorRef = await h.put('history-descriptor', d.value)
+    const image = `${profile.artifactUri}@sha256:${'b'.repeat(64)}`
+    const sourceHashes = [...WORKER_SOURCE_PATHS.map(repositoryPath => ({ path: repositoryPath, sha256: sha256(readSource(repositoryPath)) })), ...Array.from({ length: 19 }, (_, index) => ({ path: `scripts/lib/openswx-reader/vendor/fixture-${index}`, sha256: 'c'.repeat(64) }))]
+    const build = workerReceipt({ descriptor: d.value, kind: 'build', actor: appProfile.identities.builder, image, template: workerTemplate(profile, image, null, 'selftest'), observedAt: h.transport.now(), facts: { sourceObject: { sha256: d.value.sourceArchiveSha256, generation: '1' }, sourceHashes, scan: { status: 'PASS', blockingVulnerabilityCount: 0, rawHighOrCriticalVulnerabilityCount: 0 }, provenance: ['recorded-only'], sbom: ['recorded-only'] } })
+    const workerBuildRef = await h.put('history-build', build)
+    const iam = await seedReadbackIamReceipt(h, { descriptorValue: d.value, descriptorRef, workerBuildRef, receiptId: 'history-iam' })
+    const resourceReadbackRef = await h.put('history-resources', { resourcesUnchanged: true, supplementalIamReadbackRef: iam.receiptRef })
+    const bootstrap = { facts: { resourceProvenance: { resourceReadbackRef, resourceReadbackSha256: resourceReadbackRef.sha256, supplementalIamReadbackRef: iam.receiptRef } } }
+    const reader = (repositoryPath, revision) => readGitBlob(checkout, repositoryPath, revision)
+    const readsOnly = { readJson: h.transport.readJson, request: () => { throw Error('PROVIDER_CALL_FORBIDDEN') }, putJson: () => { throw Error('MUTATION_FORBIDDEN') } }
+    assert.ok(reader(WORKER_PROFILE_PATH, current).equals(profileBytes))
+    await assert.rejects(readBootstrapSupplementalIam(readsOnly, bootstrap, { sourceRevision: current }, profile, reader), error => error.code === 'GIT_SOURCE_INSPECTION_FAILED' && error.message.includes(READBACK_IAM_PATHS[0]))
+    git(checkout, ['fetch', '--unshallow', 'origin'])
+    assert.equal(git(checkout, ['rev-parse', '--is-shallow-repository']), 'false')
+    const result = await readBootstrapSupplementalIam(readsOnly, bootstrap, { sourceRevision: current }, profile, reader)
+    assert.deepEqual(result, { ref: iam.receiptRef, sourceRevision: historical })
+    assert.ok(reader(WORKER_PROFILE_PATH, historical).equals(profileBytes))
+    const changedPlan = (repositoryPath, revision) => repositoryPath === READBACK_IAM_PATHS[0] && revision === historical ? Buffer.concat([reader(repositoryPath, revision), Buffer.from('# drift\n')]) : reader(repositoryPath, revision)
+    await assert.rejects(readBootstrapSupplementalIam(readsOnly, bootstrap, { sourceRevision: current }, profile, changedPlan), /OPENSWX_IAM_RECEIPT_INVALID/u)
+    const changedProfile = (repositoryPath, revision) => repositoryPath === WORKER_PROFILE_PATH && revision === historical ? Buffer.from('{}') : reader(repositoryPath, revision)
+    await assert.rejects(readBootstrapSupplementalIam(readsOnly, bootstrap, { sourceRevision: current }, profile, changedProfile), /OPENSWX_WORKER_PROFILE_INVALID/u)
+    h.objects.get(iam.receiptRef.uri).value.sourceRevision = 'f'.repeat(40)
+    await assert.rejects(readBootstrapSupplementalIam(readsOnly, bootstrap, { sourceRevision: current }, profile, reader), error => error.code === 'GIT_SOURCE_INSPECTION_FAILED')
+  } finally {
+    assert.ok(path.resolve(temp).startsWith(path.resolve(tempPrefix)))
+    fs.rmSync(temp, { recursive: true, force: true })
+    console.log('DEV122_SOURCE_HISTORY_RUNTIME_CLEANUP=' + JSON.stringify({ taskTempRemoved: !fs.existsSync(temp), port: null }))
+  }
+})
+async function successfulContinuationHarness() {
+  const h = await dailyHarness(), provider = h.transport.request
+  // Keep this recorded-provider fixture's completed times inside the real
+  // request window without the unrelated harness's artificial future skew.
+  h.transport.request = async (url, options = {}) => {
+    const result = await provider(url, options)
+    if (url.endsWith(':run')) {
+      const rows = (await provider(`https://run.googleapis.com/v2/${workerJobName()}/executions?showDeleted=false&pageSize=100`)).executions
+      rows.at(-1).createTime = rows.at(-1).completionTime = new Date().toISOString()
+    }
+    return result
+  }
+  const drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'completed-old-drain')
+  const bootstrap = await h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref }, 'completed-old-bootstrap')
+  const continuation = { bootstrapInputRef: bootstrap.value.previousRefs[0], bootstrapRef: bootstrap.ref, priorRecoveryRef: h.objects.get(ref('completed-old-bootstrap-prior-recovery').uri).ref }
+  const fresh = { ...h.next, sourceRevision: 'c'.repeat(40), sourceArchiveSha256: sha256('c'.repeat(40)) }
+  const freshDescriptorRef = await h.put('fresh-descriptor', fresh)
+  const freshBuildRef = await h.put('fresh-build', workerReceipt({ descriptor: fresh, kind: 'build', actor: appProfile.identities.builder, image: `${profile.artifactUri}@sha256:${'c'.repeat(64)}`, template: workerTemplate(profile, `${profile.artifactUri}@sha256:${'c'.repeat(64)}`, null, 'selftest'), observedAt: h.transport.now(), facts: { ...h.objects.get(h.nextBuildRef.uri).value.facts, sourceObject: { ...h.objects.get(h.nextBuildRef.uri).value.facts.sourceObject, sha256: fresh.sourceArchiveSha256 } } }))
+  const input = { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: freshDescriptorRef, workerBuildRef: freshBuildRef, deadlineAt: deadline(), receiptId: 'fresh-continuation-drain', drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef, bootstrapContinuation: continuation }
+  let inputRef = await h.put('fresh-continuation-input', input)
+  const reseal = (reference, mutate) => {
+    // Explicit fixture mutation: these are unit-test objects, never provider
+    // evidence. Recompute bytes/ref so semantic guards, not stale hashes, fail.
+    const row = h.objects.get(reference.uri), value = structuredClone(row.value)
+    mutate(value); const bytes = Buffer.from(canonicalize(value)), nextRef = { uri: reference.uri, sha256: sha256(bytes) }
+    h.objects.set(reference.uri, { ...row, value, bytes, ref: nextRef }); return nextRef
+  }
+  const saveInput = () => { inputRef = reseal(inputRef, value => Object.assign(value, input)) }
+  const changeBootstrap = mutate => { continuation.bootstrapRef = reseal(continuation.bootstrapRef, mutate); saveInput() }
+  const changeOldInput = mutate => {
+    continuation.bootstrapInputRef = reseal(continuation.bootstrapInputRef, mutate)
+    changeBootstrap(value => { value.previousRefs[0] = continuation.bootstrapInputRef })
+  }
+  const changeCapture = mutate => { continuation.priorRecoveryRef = reseal(continuation.priorRecoveryRef, mutate); saveInput() }
+  const changePreflight = mutate => {
+    const preflightRef = reseal(h.objects.get(continuation.bootstrapRef.uri).value.facts.cloudPreflightRef, mutate)
+    changeBootstrap(value => { value.facts.cloudPreflightRef = preflightRef; value.previousRefs[3] = preflightRef })
+  }
+  const changeFinite = mutate => {
+    const preflight = h.objects.get(h.objects.get(continuation.bootstrapRef.uri).value.facts.cloudPreflightRef.uri).value
+    const finiteRef = reseal(preflight.previousRefs[0], mutate)
+    changePreflight(value => { value.previousRefs[0] = finiteRef })
+  }
+  const changeRequest = mutate => {
+    const preflight = h.objects.get(h.objects.get(continuation.bootstrapRef.uri).value.facts.cloudPreflightRef.uri).value
+    const finite = h.objects.get(preflight.previousRefs[0].uri).value
+    const requestRef = reseal(finite.facts.requestRef, mutate)
+    changeFinite(value => { value.facts.requestRef = requestRef; value.previousRefs = [requestRef] })
+  }
+  const invoke = () => executeOpenSwxBootstrap({ stage: 'pause', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} })
+  h.calls.length = 0
+  return { ...h, input, continuation, bootstrap, invokeContinuation: invoke, saveInput, changeOldInput, changeBootstrap, changeCapture, changePreflight, changeFinite, changeRequest }
+}
+const continuationWrites = h => h.calls.filter(row => row.options.method === 'PATCH' || /:run|:resume|:addVersion/u.test(row.url))
+
+test('successful DAILY continuation restores only sealed prior normal and replays one fresh drain without another PATCH or run', async () => {
+  const h = await successfulContinuationHarness()
+  const oldObservedAt = h.bootstrap.value.observedAt
+  h.changeRequest(value => { value.requestWindowEndsAt = new Date(Date.parse(oldObservedAt) + 1).toISOString() })
+  h.changeOldInput(value => { value.deadlineAt = new Date(Date.parse(oldObservedAt) + 1).toISOString() })
+  await new Promise(resolve => setTimeout(resolve, 5)) // Historical authority is expired, its sealed success remains valid.
+  const result = await h.invokeContinuation(), writes = continuationWrites(h)
+  assert.equal(result.value.facts.drainKind, 'DAILY_DB_VERIFIED'); assert.equal(result.value.image, h.priorImage)
+  assert.equal(result.value.sourceRevision, 'c'.repeat(40)); assert.equal(result.value.facts.dbAdmissionProof.claimProof, 'AUTHENTICATED_204_SOURCE_BOUND')
+  assert.equal(writes.filter(row => row.options.method === 'PATCH').length, 1); assert.equal(writes.filter(row => row.url.endsWith(':run')).length, 1)
+  const patch = JSON.parse(writes.find(row => row.options.method === 'PATCH').options.body)
+  assert.deepEqual(patch.template, workerTemplate(profile, h.priorImage, tokenName)); assert.ok(patch.etag)
+  assert.ok(h.objects.has(ref('fresh-continuation-drain-continuation-request').uri))
+  assert.ok(h.objects.has(ref('fresh-continuation-drain-continuation-restored').uri))
+  const replay = await h.invokeContinuation()
+  assert.deepEqual(replay.ref, result.ref); assert.equal(continuationWrites(h).length, writes.length)
+  assert.ok(h.calls.every(row => !/:addVersion|:resume|setIamPolicy|terraform/u.test(row.url)))
+  assert.equal((await h.transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`)).state, 'PAUSED')
+})
+
+test('DAILY continuation rejects historical chain, captured authority, live app, foreign template and active/unknown execution before writes', async () => {
+  const cases = ['capture-template', 'capture-capsule', 'credential', 'source', 'proof', 'clock', 'old-kind', 'old-extra', 'ref-path', 'ref-hash', 'foreign-job', 'app', 'runtime', 'active', 'unknown', 'request-ref', 'request-hash', 'request-source', 'request-template', 'request-window', 'request-baseline']
+  for (const scenario of cases) {
+    const h = await successfulContinuationHarness(), provider = h.transport.request
+    if (scenario === 'capture-template') h.changeCapture(value => { value.priorTemplate.template.containers[0].image = h.nextImage })
+    if (scenario === 'capture-capsule') h.changeCapture(value => { value.priorCapsuleRef = ref('unrelated-capsule') })
+    if (scenario === 'credential') h.changeBootstrap(value => { value.facts.tokenSecretVersion = tokenName.replace('/7', '/8') })
+    if (scenario === 'source') h.changeBootstrap(value => { value.sourceArchiveSha256 = 'f'.repeat(64) })
+    if (scenario === 'proof') h.changePreflight(value => { value.facts.proof.marker.marker.state = 'empty' })
+    if (scenario === 'clock') h.changeCapture(value => { value.observedAt = 'invalid' })
+    if (scenario === 'old-kind') h.changeOldInput(value => { value.bootstrapKind = 'FIRST_CREATE' })
+    if (scenario === 'old-extra') h.changeOldInput(value => { value.template = workerTemplate(profile, h.nextImage, tokenName) })
+    if (scenario === 'ref-path') { h.continuation.priorRecoveryRef = ref('wrong-prior-recovery'); h.saveInput() }
+    if (scenario === 'ref-hash') { h.continuation.bootstrapRef = { ...h.continuation.bootstrapRef, sha256: 'f'.repeat(64) }; h.saveInput() }
+    if (scenario === 'foreign-job') { await provider(`https://run.googleapis.com/v2/${workerJobName()}`, { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, `${profile.artifactUri}@sha256:${'f'.repeat(64)}`, tokenName) }) }); h.calls.length = 0 }
+    if (scenario === 'app') h.transport.effectiveRevision = () => 'ai-pdm-prod-other'
+    if (scenario === 'runtime') h.transport.getRevision = async () => ({ containers: [{ name: appProfile.runtime.containerName, env: [] }] })
+    if (['active', 'unknown'].includes(scenario)) h.transport.request = async (url, options = {}) => {
+      const result = await provider(url, options)
+      if (url.includes('/executions?')) { const row = structuredClone(result.executions.at(-1)); delete row.completionTime; row.conditions = [{ type: 'Completed', state: scenario === 'active' ? 'CONDITION_RECONCILING' : 'UNKNOWN' }]; return { executions: [row] } }
+      return result
+    }
+    if (scenario === 'request-ref') h.changeFinite(value => { value.facts.requestRef = ref('unrelated-request'); value.previousRefs = [value.facts.requestRef] })
+    if (scenario === 'request-hash') h.changeFinite(value => { value.facts.requestRef.sha256 = 'f'.repeat(64); value.previousRefs = [value.facts.requestRef] })
+    if (scenario === 'request-source') h.changeRequest(value => { value.sourceRevision = 'f'.repeat(40) })
+    if (scenario === 'request-template') h.changeRequest(value => { value.templateSha256 = 'f'.repeat(64) })
+    if (scenario === 'request-window') h.changeRequest(value => { value.requestWindowEndsAt = new Date(Date.parse(value.requestStartedAt) - 1).toISOString() })
+    if (scenario === 'request-baseline') h.changeRequest(value => { value.baselineExecutionNames.push(h.objects.get(h.objects.get(h.bootstrap.value.facts.cloudPreflightRef.uri).value.previousRefs[0].uri).value.facts.executionName) })
+    const expectedCode = { source: 'OPENSWX_RECEIPT_JOIN_INVALID', 'ref-hash': 'ERR_ASSERTION', 'request-hash': 'ERR_ASSERTION', 'foreign-job': 'OPENSWX_CONTINUATION_TEMPLATE_UNKNOWN', app: 'OPENSWX_PRIOR_CANONICAL_INVALID', runtime: 'OPENSWX_PRIOR_RUNTIME_INVALID', active: 'OPENSWX_EXECUTION_NOT_TERMINAL', unknown: 'OPENSWX_EXECUTION_NOT_TERMINAL' }[scenario] ?? 'OPENSWX_CONTINUATION_JOIN_INVALID'
+    await assert.rejects(h.invokeContinuation(), { code: expectedCode }, scenario)
+    assert.equal(continuationWrites(h).length, 0, scenario)
+    assert.ok(!h.objects.has(ref('fresh-continuation-drain').uri), scenario)
+  }
+})
+
+test('continuation fresh GET race rejects foreign template after durable request and before PATCH', async () => {
+  const h = await successfulContinuationHarness(), provider = h.transport.request
+  h.transport.request = async (url, options = {}) => {
+    const result = await provider(url, options)
+    if (url === `https://run.googleapis.com/v2/${workerJobName()}` && !options.method && h.objects.has(ref('fresh-continuation-drain-continuation-request').uri)) return { ...result, template: workerTemplate(profile, `${profile.artifactUri}@sha256:${'f'.repeat(64)}`, tokenName) }
+    return result
+  }
+  await assert.rejects(h.invokeContinuation(), { code: 'OPENSWX_JOB_RECOVERY_SOURCE_DRIFT' })
+  assert.equal(continuationWrites(h).length, 0)
+})
+
+test('continuation lost PATCH reconciles applied result; unmatched outcome and retry never issue a second PATCH', async () => {
+  for (const applied of [true, false]) {
+    const h = await successfulContinuationHarness(), provider = h.transport.request
+    let patches = 0
+    h.transport.request = async (url, options = {}) => {
+      if (options.method === 'PATCH') { patches++; if (applied) await provider(url, options); throw Error('recorded lost PATCH response') }
+      return provider(url, options)
+    }
+    if (applied) {
+      const first = await h.invokeContinuation(), replay = await h.invokeContinuation()
+      assert.deepEqual(replay.ref, first.ref); assert.equal(patches, 1)
+    } else {
+      await assert.rejects(h.invokeContinuation(), { code: 'OPENSWX_JOB_UPDATE_OUTCOME_UNKNOWN' })
+      await assert.rejects(h.invokeContinuation(), { code: 'OPENSWX_JOB_READBACK_MISMATCH' })
+      assert.equal(patches, 1); assert.ok(h.calls.every(row => !row.url.endsWith(':run')))
+    }
+    assert.ok(h.calls.every(row => !/:resume|:addVersion|setIamPolicy/u.test(row.url)))
+  }
+})
+
+test('continuation denies FIRST and bootstrap inputs, altered replay binding and expired fresh proof', async () => {
+  for (const stage of ['FIRST', 'bootstrap']) {
+    const h = await successfulContinuationHarness()
+    await assert.rejects(h.invoke(stage === 'FIRST' ? 'pause' : 'bootstrap', stage === 'FIRST'
+      ? { drainKind: 'FIRST_PROVIDER_ONLY', resourceApplyRef: ref('resource-apply'), bootstrapContinuation: h.continuation }
+      : { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: h.bootstrap.value.facts.pausedDrainedRef, bootstrapContinuation: h.continuation }, 'forbidden-continuation'), { code: 'OPENSWX_BOOTSTRAP_INPUT_INVALID' })
+    assert.equal(continuationWrites(h).length, 0)
+  }
+  const changed = await successfulContinuationHarness(); await changed.invokeContinuation()
+  const writes = continuationWrites(changed).length
+  changed.input.workerBuildRef = ref('unrelated-build'); changed.saveInput()
+  await assert.rejects(changed.invokeContinuation()); assert.equal(continuationWrites(changed).length, writes)
+  const stale = await successfulContinuationHarness(); await stale.invokeContinuation()
+  const count = continuationWrites(stale).length, originalNow = Date.now
+  try {
+    Date.now = () => originalNow() + (profile.bounds.proofFreshnessSeconds + 1) * 1000
+    await assert.rejects(stale.invokeContinuation(), { code: 'OPENSWX_ACTIVATION_PROOF_EXPIRED' })
+  } finally { Date.now = originalNow }
+  assert.equal(continuationWrites(stale).length, count)
+})
+
+test('DAILY continuation already at sealed prior normal performs zero PATCH and exactly one fresh drain', async () => {
+  const h = await successfulContinuationHarness()
+  await h.transport.request(`https://run.googleapis.com/v2/${workerJobName()}`, { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, h.priorImage, tokenName) }) })
+  h.calls.length = 0
+  const first = await h.invokeContinuation(), replay = await h.invokeContinuation()
+  assert.deepEqual(replay.ref, first.ref)
+  assert.equal(continuationWrites(h).filter(row => row.options.method === 'PATCH').length, 0)
+  assert.equal(continuationWrites(h).filter(row => row.url.endsWith(':run')).length, 1)
 })

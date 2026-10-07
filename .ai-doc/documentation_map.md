@@ -1,5 +1,15 @@
 # AI_PDM 文件地圖
 
+## DEV-122 CURRENT（2026-10-07；歷史來源與 successful DAILY continuation 本地通過）
+
+本節優先於下方歷史續點。B09 owner run `37550749876` 在 prepare 因 depth1 checkout 無法讀歷史 IAM source 而失敗；actual 十階段收據均 404，B08 正式 `ai-pdm-prod-7af5f15c8803` 仍 100%／0 tags，R11 A12 selftest Job 與 PAUSED Scheduler 保留，082 未重套。原 source-history 六檔已獨立 Luna SOURCE_QC_PASS；該 PASS 僅涵蓋原凍結包。
+
+本次同範圍修復保留十一處 full owner fetch-depth=0／不保留credentials，補 existing DAILY-only pause 的三 immutable refs 續接，完整驗成功 bootstrap／selftest request／preflight／prior capture，派生 sealed R09 normal template、fresh-GET 漂移拒絕、durable request／unknown readback／無盲重PATCH，再沿原單次 fresh authenticated normal drain與strict replay。6 targeted／21 named negatives、134 continuous及180 QC（重疊不相加）、六項必要 checks與隔離建置通過；TL 兩項 P2 已關閉，own runtime／暫存／capacity lease清理已驗。原fixture FAIL與前次checks保留；recorded provider只證控制行為，未宣稱正式恢復。
+
+下一步為新八檔 candidate 獨立 Luna QC、normal PR／required CI、fresh官方來源 build／capsule、actual bound recovery／DAILY bootstrap／完整發布及四工作八 CAD正常排程／completed UI。原十二資源與五 IAM僅回讀，reader v1／registry v3不重發，無新權限／資源；完整 F-01F由使用者正式驗證，供應商回覆停用延後，整體NOT_ACCEPTED。
+
+[本次失敗／修復與分層證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
+
 ## DEV-122 CURRENT（2026-10-07；B08 已上線，固定排程身分修正中）
 
 本節優先於下方歷史續點。PR228 官方來源 `312be7e8` 的 B08 owner run `37537820569` 全流程 SUCCESS；migration 082 已套用一次、正式 `ai-pdm-prod-7af5f15c8803` 100%／0 tags，原十二資源 readback-only、五 IAM no-op／前後不變、reader v1／registry v3 重用。R09 finite 自測與 sealed activation READY 通過，但第一次實際排程返回 503 `OPENSWX_SCHEDULER_NOT_CONFIGURED`，未派送正常 CAD；READY 不代表排程曾成功。實際 IAM 回讀固定 dispatch 帳號 uniqueId `107606630865191707245`，並確診缺少環境設定。已用原固定 pause helper 暫停唯一 Scheduler，原佇列保留。
