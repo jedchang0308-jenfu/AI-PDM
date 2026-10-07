@@ -1,5 +1,17 @@
 # AI_PDM 文件地圖
 
+## DEV-122 CURRENT（2026-10-07；B16 補權續接相容性修正，正式套用待執行）
+
+本節優先於下方歷史續點。人類已明確核准兩項 prebuild 補權並要求沿用現有測試帳號；PR234 第一輪 exact-head CI 已通過，尚未 merge／apply。套用前確認既有 DAILY fresh IAM 檢查會把新增 binding 算入 unrelated hash，故先補同範圍相容性修正，不把舊 hash 或 receipt 改寫成新結果。
+
+只有 immutable human approval、正式 main source-lock、exact 原四份 IAM source＋新 tf 的 Git hash、恰七項 Terraform 計畫／saved binary／request、實際 before／after provider readback 全部一致才接受續接。原五項必須 no-op，新兩項僅 create／no-op；保留 before／after 原始 policy hash，AFTER 移除完整唯一 verifier 新 role row 後必須回到原 sealed raw hash，其餘 IAM 漂移仍拒。正常 bootstrap／replay 每次 fresh 驗原五項及新 role 的兩項權限；full owner 只沿 sealed chain 驗證，不新增 IAM 讀取權限。
+
+新 ref 僅 DAILY_REFRESH 可顯式輸入，封存於 resource readback／provenance 並沿後續 DAILY／full 繼承；FIRST／pause 注入、explicit 與 inherited 不符、錯來源／approval／binary／policy、額外 member／condition／binding／permission 均拒。補權為 prepare 前置，不依賴尚不存在的新 workerBuild；producer 先讀回 protected main PR／required CI／protection 再 source-freeze，owner prepare 沿既有規則重新驗官方來源。
+
+本次四檔產品 focused 73／73、continuous 139／139 及六項 DEV117 檢查實際通過，task-owned PID／temp／容量 lease 已清理；這只證明本地控制流程。SOURCE_SNAPSHOT：獨立 Luna QC、新 head PR／main CI、fresh Terraform apply／readback、A16／R15／B13 發布與正常排程／四工作八 CAD／動畫 UI 尚待完成，不把第一輪旧 head CI當最終來源證據。
+
+測試沿用既有帳號；原十二資源只讀、reader v1／registry v3不重發，082不重套。native F-01F 仍由使用者正式驗證，供應商回覆停用延後，7 issues／29 groups及整體 NOT_ACCEPTED 不變。[受控修正證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
+
 ## DEV-122 CURRENT（2026-10-07；A15 prepare DENIED；二項補權已獲人類核准，PR／CI與套用待執行）
 
 B14 prebuild continuation已正常PR233、PR／main required CI及Luna來源QC通過；官方來源`018e1369`，focused12／12、continuous139／139及六項DEV117 checks通過。r3 source QC的prepare漏查P2已補cold／cached每次fresh exact-tag Build list；原FORWARD_APPLIED與其他owner guard未變。原QC FAIL／欄位澄清各以新不可覆寫檔保留。

@@ -1,4 +1,4 @@
-import { readReadbackIamReceipt, readbackIamPlan } from './dev122-openswx-readback-iam.mjs'
+import { readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
 import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 
 export const WORKER_PROFILE_PATH = 'config/release/dev122-openswx-worker.json'
@@ -359,8 +359,8 @@ export async function assertPausedDrainReceipt(transport, paused, descriptor, pr
     if (terminal.templateSha256 !== paused.templateSha256 || terminal.facts.executionName !== paused.facts.dbAdmissionProof.executionName) fail('OPENSWX_DAILY_DRAIN_INVALID')
   } else fail('OPENSWX_DRAIN_KIND_INVALID')
 }
-export async function readBootstrapSupplementalIam(transport, bootstrap, descriptor, profile, readSource) {
-  let ref = null
+export async function readBootstrapSupplementalIam(transport, bootstrap, descriptor, profile, readSource, verificationSourceRevision = descriptor.sourceRevision) {
+  let ref = null, prebuildIamContinuationRef = null
   if (bootstrap.facts.completedFirstBootstrap) {
     const applied = (await transport.readJson(bootstrap.facts.resourceApplyRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
     if (applied.schemaVersion !== 'aipdm.openswx-resource-apply.v1' || applied.ownerApplicationId !== 'ai-pdm' || applied.actor !== profile.normalActor
@@ -372,9 +372,12 @@ export async function readBootstrapSupplementalIam(transport, bootstrap, descrip
   } else if (bootstrap.facts.resourceProvenance?.supplementalIamReadbackRef) {
     const row = await transport.readJson(bootstrap.facts.resourceProvenance.resourceReadbackRef, BUCKET, [WORKER_RECEIPT_PREFIX])
     if (row.ref.sha256 !== bootstrap.facts.resourceProvenance.resourceReadbackSha256 || row.value.resourcesUnchanged !== true
-      || canonicalize(row.value.supplementalIamReadbackRef) !== canonicalize(bootstrap.facts.resourceProvenance.supplementalIamReadbackRef)) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
+      || canonicalize(row.value.supplementalIamReadbackRef) !== canonicalize(bootstrap.facts.resourceProvenance.supplementalIamReadbackRef)
+      || canonicalize(row.value.prebuildIamContinuationRef ?? null) !== canonicalize(bootstrap.facts.resourceProvenance.prebuildIamContinuationRef ?? null)) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
     ref = row.value.supplementalIamReadbackRef
+    prebuildIamContinuationRef = row.value.prebuildIamContinuationRef ?? null
   }
+  if (bootstrap.facts.resourceProvenance?.prebuildIamContinuationRef && (!ref || bootstrap.facts.bootstrapKind !== 'DAILY_REFRESH')) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
   if (!ref) return null
   if (typeof readSource !== 'function') fail('OPENSWX_IAM_SOURCE_READER_REQUIRED')
   assertOpenSwxWorkerRef(ref)
@@ -383,7 +386,9 @@ export async function readBootstrapSupplementalIam(transport, bootstrap, descrip
   if (receipt.planSha256 !== sha256(canonicalize(readbackIamPlan(readSource, descriptor.sourceRevision)))) fail('OPENSWX_IAM_SOURCE_DRIFT')
   if (bootstrap.facts.completedFirstBootstrap && receipt.sourceRevision !== descriptor.sourceRevision) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
   await readReadbackIamReceipt({ transport, ref, sourceRevision: receipt.sourceRevision, readSource, normalActor: profile.normalActor })
-  return { ref, sourceRevision: receipt.sourceRevision }
+  if (prebuildIamContinuationRef) await readPrebuildIamContinuation({ transport, ref: prebuildIamContinuationRef, supplementalIamReadbackRef: ref,
+    sourceRevision: verificationSourceRevision, readSource, normalActor: profile.normalActor })
+  return { ref, sourceRevision: receipt.sourceRevision, ...(prebuildIamContinuationRef ? { prebuildIamContinuationRef, verificationSourceRevision } : {}) }
 }
 export async function readWorkerFullEvidence(transport, descriptor, profile, readSource) {
   if (descriptor.purpose !== 'full') fail('OPENSWX_FULL_DESCRIPTOR_REQUIRED')
