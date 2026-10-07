@@ -1,7 +1,7 @@
 {
   "schemaVersion": "aipdm.dev122.scheduler-identity-remediation.v1",
   "project": "AI-PDM",
-  "state": "LOCAL_AUTH_DISPATCH_TESTS_LINT_TYPECHECK_PASS_OFFICIAL_CI_AND_RELEASE_PENDING",
+  "state": "B11_PREBUILD_ABORT_NOT_APPLIED_B14_LOCAL_CHECKS_PASS_SOURCE_QC_AND_OFFICIAL_RELEASE_PENDING",
   "sourceBase": "312be7e8087677f23e78011c3105a80355c03f55",
   "branch": "codex/dev122-scheduler-subject-binding",
   "authorization": "Existing AI-PDM-only production release corrective cycle; no new project/environment/resource/IAM/credentials",
@@ -748,5 +748,261 @@
       "supplierReplies": "DISABLED_DEFERRED",
       "wholeDEV122": "NOT_ACCEPTED"
     }
+  },
+  "prebuildAbortContinuationRemediation": {
+    "sourceBase": "b3a47c88b933bb5d4bc30988cbe24d75f1f5fa4e",
+    "branch": "codex/dev122-prebuild-abort-continuation",
+    "actualB11": {
+      "ownerRun": 37571921864,
+      "sourceRevision": "b3a47c88b933bb5d4bc30988cbe24d75f1f5fa4e",
+      "result": "PRE_ACTIVATION_ABORTED",
+      "databaseDisposition": "NOT_APPLIED",
+      "activeRevision": "ai-pdm-prod-abd7ac77760c",
+      "trafficPercent": 100,
+      "scheduler": "PAUSED",
+      "durableQueue": "RETAINED",
+      "cloudBuilds": 0,
+      "sourceIntegrity": "ACTUAL_PASS",
+      "timeoutEndpoint": "UNKNOWN_TIMING_ONLY_INFERENCE"
+    },
+    "actualEvidence": [
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A14-B11/B11-failure-provider-readback.json",
+        "sha256": "cd2d2c3c6baf20c5a955edf66857fc58a90e326c4b28a73b7b7438d0692a93cc"
+      },
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A14-B11/B11-source-integrity-readback.json",
+        "sha256": "09efac7eb9270e05887d530e72fe7637508d45e30b086d249c74ebab23e3a91a"
+      },
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A14-B11/B11-owner-failed.raw.log",
+        "sha256": "9be58c12e2f71399d9e47131e474a8e0e74eaf667e3bc85c98d4a8d601058923"
+      },
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A14-B11/B11-prerelease-evidence-freeze.json",
+        "sha256": "fe6477204a7953bd863c5f8343edbd4d29a4c3b5e789c48189fd7c968d8a50c2"
+      },
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A14-B11/B11-final-qc-preservation.json",
+        "sha256": "03a3dbba72b85db1b6781bf2231fad6fbce4fb78c1d39924edfee33042d47cdf"
+      },
+      {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A14-B11/B11-prerelease-qc-revision-clarification.json",
+        "sha256": "f7cc027f5a9d5d783d5e1a2913798ab439acc0832e5bd9b00bab72b4cea04147"
+      }
+    ],
+    "qcEvidenceIncident": {
+      "originalIssuedFullBytes": "UNKNOWN_NOT_RECOVERED",
+      "originalQcSha256": "0460196e06e087c663482914b6e85e76d9ff83b897b4120ff5832767820909de",
+      "originalBindingSha256": "403d0f4a31724ed2ef063df3fae7f940491d3b573cbfe122f350fad25acfec94",
+      "issuerClarification": "Admitted same-file rewrite misunderstanding; current exact bytes snapshotted; declared decision/scope unchanged; exact original content diff UNKNOWN",
+      "newQcPolicy": "Never overwrite completed issued evidence; new attempt and exact frozen source required"
+    },
+    "contract": {
+      "basisSchema": "ai-pdm.principal-prebuild-abort-basis.v1",
+      "kind": "PRINCIPAL_ORDINARY_ABORT",
+      "scope": "Exact ordinary NOT_APPLIED after sealed prepare before completed build; no new principal recovery branch",
+      "unchanged": [
+        "FORWARD_APPLIED branch",
+        "Aborted capsule terminal refusal",
+        "Immutable source/ref/control/run/live/Principal guards",
+        "Deep-equal routine authority and cached prepare",
+        "Timeouts",
+        "IAM/resources/Secrets/numeric1&3",
+        "Migrations and business data"
+      ],
+      "failedBuildReadback": "Every prebuild continuation call, including cold/cached prepare with verifyProvider=false, re-queries exact lowercased failed-release tag. Strict plain-object empty-list shape only; unknown/error/nonempty/pagination fails closed. verifyProvider controls only the released anchor Build/Registry proof; generic executor and FORWARD_APPLIED unchanged.",
+      "anchor": "Actually released original Principal source/provider chain; fresh stable retained100%/0tags/auto1/entry baseline/Ready exactimage/principal env"
+    },
+    "validation": {
+      "red": {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-red-check-result.json",
+        "sha256": "2868259a69db4610727b5b34ec7dbcdf0f13e77c66729a04e3952c0f0e7af1c1"
+      },
+      "firstGreenFixtureFail": {
+        "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-focused-check-result.json",
+        "sha256": "646fadec2d3d4c7e0c6a9f6b0588c7b74e69add25029838e22fd3a8986109c56"
+      },
+      "TL_P2": "Malformed Build list false-empty closed with strict shape and 11 response-negative variants",
+      "scope": "Actual local fixture/required commands only; no new production/CAD PASS",
+      "previousR3Final": {
+        "focused": {
+          "result": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-focused-check-result.json",
+            "sha256": "877e8e81650fef41d51fb7271ca2dfee3732debf256e99c36e0bf43ded66f951"
+          },
+          "runtime": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-focused-runtime.json",
+            "sha256": "d50cdb0bc9658b7105a70ed37cd0e7d7ab6e96487381fe115ff35c0fee073446"
+          }
+        },
+        "continuous": {
+          "result": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-continuous-check-result.json",
+            "sha256": "28d8fc9d73e314d8b3bdaae2d3e64c7840efdfbc73faee496dd4ee2a4230a8af"
+          },
+          "runtime": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-continuous-runtime.json",
+            "sha256": "956ef4fcf7964a632a6f32254007b6cd165ae5b756e95152ceb0d5fbac36ccb3"
+          }
+        },
+        "qc": {
+          "result": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-qc-check-result.json",
+            "sha256": "0225330b6f2b217094f136d32ca146bdf663d1b2dfa48ae24098e32b374b13ef"
+          },
+          "runtime": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-qc-runtime.json",
+            "sha256": "3f16d101691604635b80c095ef64e99660b7c2d568d0f05101027b35d6395087"
+          }
+        },
+        "abort": {
+          "result": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-abort-check-result.json",
+            "sha256": "54bf71a7bb91ff7ffdc6aea60c6e0352a9d7e80b8f99910aa76064017cf3d11c"
+          },
+          "runtime": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-abort-runtime.json",
+            "sha256": "4b24f3ef1ec192f51dd262960ac31f5ee9e9276e1f7be0bc2824ed5305cbbe0e"
+          }
+        },
+        "boundary": {
+          "result": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-boundary-check-result.json",
+            "sha256": "8d8d558181e4e387ede09a827a7fc59df243e3aa8d095f66a3ea9b268404e0e5"
+          },
+          "runtime": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-boundary-runtime.json",
+            "sha256": "dcbf9a49cbab27f858eb502cc67e99a18a4575e6ca5dd2b3dde803636eece210"
+          }
+        },
+        "typecheck": {
+          "result": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-typecheck-check-result.json",
+            "sha256": "19f360b1bc8c956bded0a1f11c080793b7f6d8863546c8f8047ab8257def15fc"
+          },
+          "runtime": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-typecheck-runtime.json",
+            "sha256": "75fcabfe013cbc3bc761b468e11ed313a41cbb05a9b3f409f4063c628ac2da78"
+          }
+        },
+        "build": {
+          "result": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-build-check-result.json",
+            "sha256": "8f09169b72962f069e5080a3307422929dca39b013f5f98d4a46ecdf54aeb3d9"
+          },
+          "runtime": {
+            "path": "output/qa/dev-122/openswx-phase2/owner-checks/production/A15-B12/B14-r3-build-runtime.json",
+            "sha256": "561644abc8792f2e06af171707cd19f16fcd1a2b100ca0760c95b7efd76d0880"
+          }
+        }
+      },
+      "sourceQcP2": {
+        "decision": "SOURCE_QC_FAIL",
+        "findingCounts": {
+          "P0": 0,
+          "P1": 0,
+          "P2": 1
+        },
+        "finding": "B14-P2-provider-list-not-rechecked-at-prepare",
+        "report": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-prebuild-independent-qc.json",
+          "sha256": "d8dc1472a6eebce98ad3b49ad6b33758e31259489e54621b91eebb8c4f3766d0"
+        },
+        "hashClarification": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-prebuild-qc-evidence-hash-clarification.json",
+          "sha256": "da29dd3f1c0535958ecf9005d62a296d466fd4335c000135ea1982f2e987eebd"
+        },
+        "closure": "Unconditional exact failed-tag query only inside prebuild branch; producer-empty to cold/cached prepare nonempty/unknown regressions reject with no puts/objects changed"
+      },
+      "raceRed": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4-red-check-result.json",
+        "sha256": "4ffa3bd86e7cd8390bb676ee665a95adda12745d5766ed62b7f28a5adcfbc5f4"
+      },
+      "raceFirstAssertionFail": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4-focused-check-result.json",
+        "sha256": "03079c4ab5e6d0bf977b195385a8589d7349e71e8038420a1ea50ff5a86077cb"
+      },
+      "final": {
+        "focused": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-focused-check-result.json",
+            "sha256": "7950cbd13b30ee6bb263eb642f0fbe25a67fba2d2b1e428bfb5f3f67455b1fa0"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-focused-runtime.json",
+            "sha256": "633737e57817a936724caaa7c1369c8f562712164dd784bad6ec4cafaefdc888"
+          }
+        },
+        "continuous": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-continuous-check-result.json",
+            "sha256": "f8771d38b944340d8ad86ead96dc22e4335e6d4f2af2037a3d6db5c740419f91"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-continuous-runtime.json",
+            "sha256": "4ceb312f6d2cf384944717c8a4d152d947622e293a0af77c63e0c46cbbcd469a"
+          }
+        },
+        "qc": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-qc-check-result.json",
+            "sha256": "b07c5676fd13c143ab6f1237cd7067de705c487260fca6b55d9c13b6409933c0"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-qc-runtime.json",
+            "sha256": "fca6696aeb8473fad6ecc67dfe1f4aecf51c40a3826d8cb46dcd2e325bdf3924"
+          }
+        },
+        "abort": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-abort-check-result.json",
+            "sha256": "61aa9516b43892ffda98353df20d17052d405f4d60638bf457e5088af0edb19a"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-abort-runtime.json",
+            "sha256": "3c13bd7b80d021fe8c43a519ad3fb28e87d7d1dd95553e42b126e9ab8b87a338"
+          }
+        },
+        "boundary": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-boundary-check-result.json",
+            "sha256": "09892a94e2d6fd2b68d432ebb31dc20f90f68a529598e191088eb9e5fdc5ae11"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-boundary-runtime.json",
+            "sha256": "7ec7346abc1c484354f2656b296a4968a2b69db111b32dfd32d1f809d861173e"
+          }
+        },
+        "typecheck": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-typecheck-check-result.json",
+            "sha256": "3b1ffab92e1170e0d8a86d6637febd0f936f1112ad54c356f464e875b909c851"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-typecheck-runtime.json",
+            "sha256": "93d96bf71c73d5a3a1b9e5ff7077588c39142e5446a03303ad0a201d9f0fe609"
+          }
+        },
+        "build": {
+          "result": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-build-check-result.json",
+            "sha256": "a0b286e599f7aff0c84b841b2370ee3b9295071b92d7b9381a762450e4ff1e35"
+          },
+          "runtime": {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A15-B12\\B14-r4b-build-runtime.json",
+            "sha256": "59580ff887ccd32588154f999afda44216778bb624fe2081ff5f4de4f8d5d98d"
+          }
+        }
+      },
+      "focusedCases": 12,
+      "continuousCases": 139
+    },
+    "next": "Independent exact-source QC; normal PR and required main CI; new A15 build/R14 bootstrap/B12 full protected release; natural scheduled fourworks/eightCAD; no oldsource relabel",
+    "wholeDev": "NOT_ACCEPTED",
+    "denominator": "7 issues /29 groups unchanged",
+    "nativeF01F": "PENDING_HUMAN_PRODUCTION_VALIDATION",
+    "supplierReplies": "DISABLED_DEFERRED",
+    "observedAt": "2026-10-07T05:19:54.636030+00:00"
   }
 }

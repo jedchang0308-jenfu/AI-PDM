@@ -1,14 +1,14 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（2026-10-07；B10 已上線，排程 canonical destination 修正待獨立 QC）
+## DEV-122 CURRENT（2026-10-07；B11 建置前中止，封閉續行修復待獨立 QC）
 
-B12 單次讀鐘修正已經 Luna SOURCE_QC_PASS、正常 PR231 與 PR／main required CI。官方來源 `8bf4211f` 的 A13 build-only、R12 DAILY continuation／bootstrap 與 B10 owner run `37563870047` 全部成功；正式 `ai-pdm-prod-abd7ac77760c` 100%／0 tags，082 只重放。R12 sealed activation READY 後，03:20 UTC 真實 Google Scheduler 請求回 403；已用固定 helper 暫停唯一排程並保留佇列。READY／發布成功不等於 CAD 業務驗證通過。
+B13 canonical destination 修正已經正常 PR232、PR／main required CI及獨立來源 QC，官方來源 `b3a47c88`。A14 build-only／current-image安全讀回及R13 DAILY bootstrap已實際成功；B11 owner run `37571921864` 在來源上傳後、Cloud Build建立前失敗，sealed結果為PRE_ACTIVATION_ABORTED／NOT_APPLIED。正式仍為B10 `ai-pdm-prod-abd7ac77760c` 100%／0 tags；唯一Scheduler PAUSED、durable queue保留。已讀回精確來源generation／size／SHA-256／CRC全部吻合；numeric23與30秒讀回逾時時間相符，但原始逾時endpoint仍UNKNOWN，不宣稱完整根因已證明。
 
-installed Next standalone adapter 以 Docker `0.0.0.0:8080` 重建 Request.url 的失配已用實際 adapter＋local RSA 重現 RED；原正式拒絕分支／container headers 尚未捕捉，不能將機制重現當作正式根因已完全證明。本次僅在 exact internal origin＋固定 Cloud Run 服務／port＋canonical Host＋literal HTTPS 全符合時橋接公開 destination；仍完整驗簽、固定 audience／subject／email、POST／path／no-cookie、token與排程時效。canonical URL 不能遮蔽矛盾 Host／proto，不採 forwarded-host。拒絕日誌只記原因 enum。24 focused、最終 lint與app typecheck通過；首次 fixture typecheck FAIL 保留，own local runtime／暫存已清理。既有兩 CAD UI 因排程拒絕到期失敗，瀏覽器與 session 已清理，工作未取消／未重排；另三對未跑。
+B14只補既有ordinary continuation的封閉pre-build分支：sealed prepare／rollback／terminal、expired finalized control與failed owner等值，後續stage全部確定不存在，provider對exact failed-release tag的Build list必須成功且為合法空清單，再驗原B10 RELEASED Principal source／build／SSO chain與live100%／無tags／auto1／entry／Ready image／principal env。原FORWARD_APPLIED分支及已aborted capsule拒絕重送不變；fresh authority與cached prepare仍deep-equal並重查live basis。RED與首輪fixture assertion FAIL保留；TL發現異常list假empty的P2已補strict shape及負例，r3檢查通過但Luna source QC另發現cold／cached prepare漏查exact failed-tag Build的P2；已只在prebuild分支改為每次查詢，保留anchor verifier與原FORWARD_APPLIED。新增producer空清單後prepare遇到nonempty／unknown必須零寫入拒絕的回歸，RED確實重現，首輪error-name assertion FAIL保留，最終r4b focused12／12、continuous139／139與六項DEV117 checks實際通過，尚待新freeze的Luna QC與新PR／CI。這不證明新正式排程或CAD完成。
 
-下一步是六檔 frozen source 獨立 Luna QC、正常 PR／PR與main CI、fresh A14／R13／B11 保護發布，再驗真實自動排程及四工作八 CAD completed UI。原十二資源與五 IAM只回讀，reader v1／registry v3不重發；完整原生 F-01F由使用者正式驗證，供應商回覆停用延後，7 issues／29 groups與整體 NOT_ACCEPTED不變。
+下一步為本六檔source獨立QC、normal PR／protected-main CI、fresh A15／R14／B12保護發布及四工作八CAD。新source必須有相符build/bootstrap，A14／R13不重標；原十二資源／五IAM只回讀、reader v1／registry v3不重發。native F-01F由使用者正式驗證；供應商回覆停用延後；7 issues／29 groups與整體NOT_ACCEPTED不變。
 
-[實際發布、排程故障與修復證據](../qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
+[實際失敗、續行修復與證據](../qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
 
 ### 2026-10-07 HISTORY_ONLY：successful DAILY bootstrap continuation（已隨 PR230／231 上線；以下當時驗證狀態保留）
 
