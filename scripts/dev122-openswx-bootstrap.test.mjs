@@ -811,6 +811,60 @@ async function prebuildIamHarness() {
   return { ...h, iam, proof, readerArgs, assertArgs, iamCalls, allCalls: () => [...h.calls, ...iamCalls] }
 }
 
+test('B22 READY supplemental IAM admits exact own-project policy read', async t => {
+  const h = await prebuildIamHarness(), sourceCalls = []
+  const reader = (repositoryPath, revision) => { sourceCalls.push({ path: repositoryPath, revision }); return readSource(repositoryPath, revision) }
+  const prior = await readPriorWorkerActivation(h.transport, h.activationRef, profile, reader), provider = h.transport.request
+  h.transport.request = async (url, options) => {
+    const body = await provider(url, options)
+    return url.includes('secretmanager.googleapis.com') && url.includes('/versions/') ? { ...body, etag: 'b22-stable-numeric-metadata-etag' } : body
+  }
+  let observer
+  const originalReadJson = h.transport.readJson
+  h.transport.readJson = async function (...args) {
+    if (this !== h.transport && typeof this?.request === 'function') observer = this
+    return originalReadJson(...args)
+  }
+  const supplementalIam = { ref: h.iam.receiptRef, sourceRevision: h.prior.sourceRevision, readSource: reader,
+    prebuildIamContinuationRef: h.proof.continuationRef, verificationSourceRevision: h.next.sourceRevision }
+  const before = new Map([...h.objects].map(([uri, row]) => [uri, Buffer.from(row.bytes)]))
+  let result
+  try { result = await readCurrentReadyWorkerResources({ transport: h.transport, profile, prior, supplementalIam }) }
+  catch (error) {
+    assert.equal(h.objects.size, before.size)
+    assert.ok(!h.allCalls().some(row => row.url === READBACK_IAM_PROJECT_POLICY_URL), 'denied policy POST must stop before the lower transport')
+    t.diagnostic(JSON.stringify({ witness: 'B22_READY_ACTUAL_OBSERVER_FAILURE', name: error.name, code: error.code ?? null, newPublications: h.objects.size - before.size }))
+    throw error
+  }
+  assert.equal(result.schedulerState, 'ENABLED'); assert.equal(result.quiescenceClaimed, false); assert.equal(result.mutationPerformed, false)
+  assert.equal(result.jobEtagBefore, result.jobEtagAfter); assert.equal(h.objects.size, before.size)
+  assert.ok(sourceCalls.some(row => row.revision === h.prior.sourceRevision && READBACK_IAM_PATHS.includes(row.path)))
+  assert.ok(sourceCalls.some(row => row.revision === h.next.sourceRevision && READBACK_IAM_PATHS.includes(row.path)))
+  assert.equal(h.objects.get(h.proof.continuationRef.uri).value.sourceRevision, 'f'.repeat(40))
+  const projectReads = h.allCalls().filter(row => row.url === READBACK_IAM_PROJECT_POLICY_URL)
+  assert.ok(projectReads.length > 0)
+  for (const row of projectReads) { assert.equal(row.options.method, 'POST'); assert.deepEqual(row.options.headers, { 'content-type': 'application/json' }); assert.equal(row.options.body, JSON.stringify({ options: { requestedPolicyVersion: 3 } })) }
+  assert.ok(observer && observer !== h.transport, 'capture the actual READY observer through genuine delegated readJson, without replacing IAM callees')
+  for (const [url, options] of [
+    [READBACK_IAM_PROJECT_POLICY_URL.replace('jenfu-platform-prod', 'sibling-project'), { method: 'POST' }],
+    [READBACK_IAM_PROJECT_POLICY_URL.replace('jenfu-platform-prod', '9536592944'), { method: 'POST' }],
+    [READBACK_IAM_PROJECT_POLICY_URL + '?alternate=1', { method: 'POST' }],
+    [READBACK_IAM_PROJECT_POLICY_URL.replace(':getIamPolicy', ':setIamPolicy'), { method: 'POST' }],
+    [`https://run.googleapis.com/v2/${workerJobName()}:run`, { method: 'POST' }],
+    [`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}:pause`, { method: 'POST' }],
+    [`https://run.googleapis.com/v2/${workerJobName()}`, { method: 'PATCH' }],
+    [READBACK_IAM_PROJECT_POLICY_URL, { method: 'PUT' }],
+    ...[{}, { options: { requestedPolicyVersion: 1 } }, { options: { requestedPolicyVersion: 3 }, unexpected: true }].map(body => [READBACK_IAM_PROJECT_POLICY_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }]),
+    [READBACK_IAM_PROJECT_POLICY_URL, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ options: { requestedPolicyVersion: 3 } }) }],
+  ]) {
+    const count = h.allCalls().length
+    await assert.rejects(observer.request(url, options), { code: 'OPENSWX_READY_MUTATION_DENIED' })
+    assert.equal(h.allCalls().length, count, 'forbidden observer request never reaches underlying provider fixture')
+  }
+  for (const [uri, bytes] of before) assert.ok(h.objects.get(uri).bytes.equals(bytes), uri)
+  assert.ok(h.allCalls().every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  assert.ok(!h.allCalls().some(row => /:run|:pause|:resume|:access|:addVersion|setIamPolicy/u.test(row.url)))
+})
 test('prebuild IAM continuation admits only the approved two additions and five retained no-ops', () => {
   assert.equal(assertPrebuildIamTerraformPlan(prebuildTerraformFixture()).length, 7)
   assert.equal(READBACK_IAM_PATHS.length, 4)
