@@ -3,6 +3,9 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import path from 'node:path'
+import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap } from './lib/dev122-openswx-bootstrap.mjs'
@@ -190,6 +193,42 @@ test('B19-01/02 LOCAL_TEST original v1 identity stays immutable; app-only associ
   for (const [uri, bytes] of originalBytes) assert.ok(h.objects.get(uri).bytes.equals(bytes), uri)
   const replay = await h.invoke(); assert.deepEqual(replay.ref, saved.ref); assert.equal(replay.value.observedAt, saved.value.observedAt)
   noMutation(h)
+})
+test('B21 LOCAL_TEST genuine Git archive preserves raw LF COPY bytes under CRLF host configuration', { concurrency: false }, t => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'ai-pdm-b21-git-archive-'))
+  const envNames = ['GIT_CONFIG_COUNT', 'GIT_CONFIG_KEY_0', 'GIT_CONFIG_VALUE_0', 'GIT_CONFIG_KEY_1', 'GIT_CONFIG_VALUE_1', 'GIT_CONFIG_KEY_2', 'GIT_CONFIG_VALUE_2']
+  const previousEnv = new Map(envNames.map(name => [name, process.env[name]]))
+  const fixtureGit = args => {
+    const result = spawnSync('git', ['-c', 'core.longpaths=true', ...args], { cwd: fixture, encoding: null, windowsHide: true, maxBuffer: 64 * 1024 * 1024 })
+    assert.equal(result.status, 0, result.stderr?.toString('utf8')); return result.stdout
+  }
+  t.diagnostic(JSON.stringify({ project: 'AI-PDM', purpose: 'B21 isolated Git archive byte regression', port: null, owningProcess: process.pid,
+    temporaryPath: fixture, PDM_DATA_DIR: 'UNUSED_NO_APP_IMPORT', PDM_REPOSITORY_DIR: fixture, mutationScope: 'TASK_OWNED_GIT_FIXTURE_ONLY', cleanupCondition: 'finally restores environment and removes exact fixture' }))
+  try {
+    fixtureGit(['init', '--quiet'])
+    for (const row of manifest.entries) {
+      const target = path.join(fixture, row.path); mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, canonicalSource(row.path))
+    }
+    fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'add', '--all'])
+    for (const row of manifest.entries) fixtureGit(['update-index', row.mode === '100755' ? '--chmod=+x' : '--chmod=-x', '--', row.path])
+    fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', '-c', 'user.name=AI-PDM B21 fixture', '-c', 'user.email=b21-fixture@example.invalid', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '-m', 'AI-PDM isolated B21 COPY fixture'])
+    const revision = fixtureGit(['rev-parse', 'HEAD']).toString('utf8').trim()
+    process.env.GIT_CONFIG_COUNT = '3'; process.env.GIT_CONFIG_KEY_0 = 'core.autocrlf'; process.env.GIT_CONFIG_VALUE_0 = 'true'
+    process.env.GIT_CONFIG_KEY_1 = 'core.eol'; process.env.GIT_CONFIG_VALUE_1 = 'crlf'
+    process.env.GIT_CONFIG_KEY_2 = 'core.longpaths'; process.env.GIT_CONFIG_VALUE_2 = 'true'
+    const reader = createWorkerGitReader(fixture, revision), inputs = workerInputManifest(reader.readTree(revision), reader, revision)
+    assert.equal(inputs.entries.length, 37); assert.deepEqual(inputs.entries, manifest.entries)
+    const hostArchive = fixtureGit(['archive', '--format=tar', '--prefix=source/', revision])
+    assert.throws(() => assertWorkerArchive(hostArchive, inputs.entries), { code: 'OPENSWX_REUSE_ARCHIVE_INPUT_MISMATCH' }, 'the real unpinned host archive must reproduce the byte defect')
+    const canonicalArchive = fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision])
+    const actualArchive = reader.readArchive(revision)
+    assert.ok(actualArchive.equals(canonicalArchive), 'reader must return exact canonical Git archive bytes, without normalization')
+    assert.equal(assertWorkerArchive(actualArchive, inputs.entries).inputCount, 37)
+  } finally {
+    for (const [name, value] of previousEnv) { if (value === undefined) delete process.env[name]; else process.env[name] = value }
+    assert.equal(path.dirname(fixture), path.resolve(tmpdir())); assert.ok(path.basename(fixture).startsWith('ai-pdm-b21-git-archive-'))
+    rmSync(fixture, { recursive: true, force: true })
+  }
 })
 test('B19-03/04 LOCAL_TEST complete canonical LF COPY closure rejects extra/missing/mode/CRLF/recipe controls', () => {
   assert.equal(manifest.entries.length, 37)
