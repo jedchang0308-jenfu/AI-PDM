@@ -199,10 +199,15 @@ function workerJobMetadata(job) {
   return Object.fromEntries(['labels', 'annotations', 'client', 'clientVersion', 'launchStage', 'binaryAuthorization']
     .filter(key => Object.hasOwn(job, key)).map(key => [key, structuredClone(job[key])]))
 }
-export async function updateWorkerJob({ transport, profile, template, deadlineAt }) {
+export async function updateWorkerJob({ transport, profile, template, expectedCurrentTemplate = null, deadlineAt }) {
   assertOpenSwxWorkerProfile(profile)
   const before = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
   if (!before.etag || before.reconciling || Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_JOB_UPDATE_NOT_READY')
+  if (expectedCurrentTemplate) {
+    const current = normalizeWorkerTemplate(before.template)
+    if (![canonicalize(expectedCurrentTemplate), canonicalize(template)].includes(canonicalize(current))) fail('OPENSWX_JOB_RECOVERY_SOURCE_DRIFT')
+    assertWorkerJob(before, current)
+  }
   await assertNoActiveExecutions(transport)
   if (canonicalize(normalizeWorkerTemplate(before.template)) === canonicalize(template)) return assertWorkerJob(before, template)
   const metadata = workerJobMetadata(before)

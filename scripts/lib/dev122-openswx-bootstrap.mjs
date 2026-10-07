@@ -649,7 +649,7 @@ function assertFreshProof(execution, profile) {
   const age = Date.now() - Date.parse(execution.completionTime)
   if (!Number.isFinite(age) || age < -5000 || age > profile.bounds.proofFreshnessSeconds * 1000) fail('OPENSWX_ACTIVATION_PROOF_EXPIRED')
 }
-async function verifyPriorLive({ transport, profile, prior, appProfile }) {
+async function verifyPriorCanonicalRuntime({ transport, profile, prior, appProfile }) {
   const intent = assertDev117ReleaseIntent(prior.capsule, appProfile), paths = releasePaths(appProfile, intent, prior.capsuleRef.sha256)
   const canonical = await transport.readBytes(paths.canonical, { prefixes: ['receipts'] }), value = JSON.parse(canonical.bytes)
   if (value.stage !== 'canonical' || value.sourceRevision !== prior.descriptor.sourceRevision || value.facts?.origin !== profile.canonicalOrigin
@@ -664,9 +664,130 @@ async function verifyPriorLive({ transport, profile, prior, appProfile }) {
     || !env?.some(row => row.name === 'PDM_OPENSWX_DISPATCH_ENABLED' && row.value === '1')
     || !env.some(row => row.name === 'PDM_WORKLOAD_AUTH_CREDENTIALS' && row.valueSource?.secretKeyRef?.secret === profile.registrySecretId && String(row.valueSource.secretKeyRef.version) === prior.descriptor.registrySecretVersion.split('/').at(-1))) fail('OPENSWX_PRIOR_RUNTIME_INVALID')
   await verifyExistingReaderCredentials(transport, profile, prior.descriptor)
-  assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), prior.template)
   return { canonicalRef: canonical.ref, priorRevision: value.facts.candidateRevision }
 }
+async function verifyPriorLive({ transport, profile, prior, appProfile }) {
+  const proof = await verifyPriorCanonicalRuntime({ transport, profile, prior, appProfile })
+  assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), prior.template)
+  return proof
+}
+async function readSuccessfulDailyBootstrapContinuation({ transport, continuation, prior, profile, readSource, priorActivationRef }) {
+  if (!continuation || Object.keys(continuation).sort().join(',') !== 'bootstrapInputRef,bootstrapRef,priorRecoveryRef') fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  for (const ref of Object.values(continuation)) assertOpenSwxWorkerRef(ref)
+  const oldInput = (await transport.readJson(continuation.bootstrapInputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  const keys = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId', 'bootstrapKind', 'priorActivationRef', 'pausedDrainedRef']
+  if (!oldInput || Object.keys(oldInput).sort().join(',') !== keys.sort().join(',') || oldInput.schemaVersion !== 'aipdm.openswx-bootstrap-input.v1'
+    || oldInput.bootstrapKind !== 'DAILY_REFRESH' || !/^[A-Za-z0-9-]{6,100}$/u.test(oldInput.receiptId ?? '') || !Number.isFinite(Date.parse(oldInput.deadlineAt))
+    || canonicalize(oldInput.priorActivationRef) !== canonicalize(priorActivationRef)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const oldUri = `${profile.receiptRoot}/${oldInput.receiptId}.json`
+  if (continuation.bootstrapRef.uri !== oldUri || continuation.priorRecoveryRef.uri !== `${oldUri.slice(0, -5)}-prior-recovery.json`) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const raw = (await transport.readJson(oldInput.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+  if (old.value.purpose !== 'build_only' || canonicalize(old.profile) !== canonicalize(profile)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const build = (await transport.readJson(oldInput.workerBuildRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  assertWorkerReceipt(build, old.value, 'build'); assertWorkerBuildSource(build, old.value)
+  const bootstrap = (await transport.readJson(continuation.bootstrapRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  assertWorkerReceipt(bootstrap, old.value, 'bootstrap', { actor: profile.normalActor, image: build.image })
+  const facts = bootstrap.facts, selftest = workerTemplate(profile, build.image, null, 'selftest')
+  if (facts.bootstrapKind !== 'DAILY_REFRESH' || canonicalize(facts.priorActivationRef) !== canonicalize(priorActivationRef)
+    || canonicalize(facts.pausedDrainedRef) !== canonicalize(oldInput.pausedDrainedRef)
+    || facts.tokenSecretVersion !== prior.descriptor.tokenSecretVersion || facts.registrySecretVersion !== prior.descriptor.registrySecretVersion
+    || facts.priorRegistryVersion !== prior.descriptor.registrySecretVersion || facts.resourceProvenance?.resourcesUnchanged !== true
+    || canonicalize(facts.resourceProvenance.priorResourceApplyRef) !== canonicalize(prior.bootstrap.facts.resourceApplyRef ?? prior.bootstrap.facts.resourceProvenance?.priorResourceApplyRef)
+    || bootstrap.templateSha256 !== sha256(canonicalize(selftest)) || facts.selftestTemplateSha256 !== bootstrap.templateSha256
+    || facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, build.image, prior.descriptor.tokenSecretVersion)))) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const paused = (await transport.readJson(oldInput.pausedDrainedRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  assertWorkerReceipt(paused, old.value, 'paused-drained')
+  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile)
+  if (canonicalize(paused.facts.priorActivationRef) !== canonicalize(priorActivationRef)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const captured = (await transport.readJson(continuation.priorRecoveryRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  if (!captured || Object.keys(captured).sort().join(',') !== 'observedAt,priorActivationRef,priorCapsuleRef,priorTemplate,schemaVersion,targetDescriptorRef'
+    || captured.schemaVersion !== 'aipdm.openswx-prior-recovery.v1' || canonicalize(captured.priorActivationRef) !== canonicalize(priorActivationRef)
+    || canonicalize(captured.priorCapsuleRef) !== canonicalize(prior.capsuleRef) || canonicalize(captured.priorTemplate) !== canonicalize(prior.template)
+    || canonicalize(captured.targetDescriptorRef) !== canonicalize(old.ref)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const preflight = await transport.readJson(facts.cloudPreflightRef, BUCKET, [WORKER_RECEIPT_PREFIX])
+  assertWorkerReceipt(preflight.value, old.value, 'cloud-preflight', { actor: profile.normalActor, image: build.image })
+  if (preflight.ref.uri !== `${oldUri.slice(0, -5)}-preflight.json` || preflight.value.templateSha256 !== bootstrap.templateSha256
+    || canonicalize(bootstrap.previousRefs) !== canonicalize([continuation.bootstrapInputRef, old.ref, oldInput.workerBuildRef, preflight.ref])
+    || preflight.value.previousRefs?.length !== 1 || preflight.value.facts.isolationVerified !== true || preflight.value.facts.noCad !== true
+    || preflight.value.facts.normalTemplateSha256 !== facts.normalTemplateSha256 || preflight.value.facts.selftestTemplateSha256 !== facts.selftestTemplateSha256) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const finite = await transport.readJson(preflight.value.previousRefs[0], BUCKET, [WORKER_RECEIPT_PREFIX])
+  assertWorkerReceipt(finite.value, old.value, 'finite-terminal', { actor: profile.normalActor, image: build.image })
+  const execution = assertTerminalExecution(finite.value.facts.execution, finite.value.facts.executionName, { success: true }), proof = preflight.value.facts.proof
+  assertOpenSwxWorkerRef(finite.value.facts.requestRef)
+  if (finite.value.facts.requestRef.uri !== `${oldUri.slice(0, -5)}-selftest-request.json`
+    || canonicalize(finite.value.previousRefs) !== canonicalize([finite.value.facts.requestRef])) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const request = (await transport.readJson(finite.value.facts.requestRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  const requestKeys = ['schemaVersion', 'ownerApplicationId', 'sourceRevision', 'sourceArchiveSha256', 'jobName', 'actor', 'templateSha256', 'requestStartedAt', 'requestWindowEndsAt', 'baselineExecutionNames']
+  const startedAt = Date.parse(request?.requestStartedAt), windowEnd = Date.parse(request?.requestWindowEndsAt)
+  if (!request || Object.keys(request).sort().join(',') !== requestKeys.sort().join(',') || request.schemaVersion !== 'aipdm.openswx-finite-request.v1'
+    || request.ownerApplicationId !== 'ai-pdm' || request.sourceRevision !== old.value.sourceRevision || request.sourceArchiveSha256 !== old.value.sourceArchiveSha256
+    || request.jobName !== workerJobName() || request.actor !== profile.normalActor || request.templateSha256 !== bootstrap.templateSha256
+    || !Number.isFinite(startedAt) || !Number.isFinite(windowEnd) || windowEnd < startedAt || windowEnd - startedAt > 30_000
+    || startedAt < Date.parse(captured.observedAt) || windowEnd > Date.parse(oldInput.deadlineAt)
+    || Date.parse(execution.createTime) < startedAt || Date.parse(execution.createTime) > windowEnd
+    || !Array.isArray(request.baselineExecutionNames) || new Set(request.baselineExecutionNames).size !== request.baselineExecutionNames.length
+    || request.baselineExecutionNames.map(canonicalWorkerExecution).includes(canonicalWorkerExecution(execution.name))) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  if (finite.ref.uri !== `${oldUri.slice(0, -5)}-selftest.json` || finite.value.templateSha256 !== bootstrap.templateSha256 || finite.value.facts.terminalExitZero !== true
+    || canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(selftest.template)
+    || proof?.claimProof !== 'ISOLATION_ONLY_NO_CAD' || proof.executionName !== canonicalWorkerExecution(execution.name)
+    || Object.keys(proof.marker?.marker ?? {}).sort().join(',') !== 'executionName,schemaVersion,state'
+    || proof.marker.marker.schemaVersion !== MARKER || proof.marker.marker.state !== 'isolation_verified' || proof.marker.marker.executionName !== null
+    || proof.markerSha256 !== sha256(canonicalize(proof.marker))) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const clocks = [paused.facts.quiescenceCompletedAt, captured.observedAt, execution.createTime, proof.marker.timestamp, execution.completionTime, preflight.value.observedAt, bootstrap.observedAt, oldInput.deadlineAt].map(Date.parse)
+  if (clocks.some(value => !Number.isFinite(value)) || clocks.some((value, index) => index && value < clocks[index - 1])) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  const actual = await transport.request(`https://run.googleapis.com/v2/${canonicalWorkerExecution(execution.name)}`)
+  assertTerminalExecution(actual, execution.name, { success: true })
+  if (actual.createTime !== execution.createTime || actual.completionTime !== execution.completionTime
+    || canonicalize(normalizeWorkerTemplate(actual.template)) !== canonicalize(selftest.template)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+  await readBootstrapSupplementalIam(transport, bootstrap, old.value, profile, readSource)
+  return { selftest }
+}
+
+async function restoreSuccessfulBootstrapContinuation({ transport, input, inputRef, descriptor, buildRef, prior, profile, appProfile, actor, readSource, uri }) {
+  const continuation = input.bootstrapContinuation
+  const { selftest } = await readSuccessfulDailyBootstrapContinuation({ transport, continuation, prior, profile, readSource, priorActivationRef: input.priorActivationRef })
+  await verifyPriorCanonicalRuntime({ transport, profile, prior, appProfile })
+  assertPausedScheduler(await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`), profile)
+  await assertNoActiveExecutions(transport)
+  const job = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), current = normalizeWorkerTemplate(job.template)
+  if (![canonicalize(selftest), canonicalize(prior.template)].includes(canonicalize(current))) fail('OPENSWX_CONTINUATION_TEMPLATE_UNKNOWN')
+  assertWorkerJob(job, current)
+  if (typeof job.etag !== 'string' || !job.etag) fail('OPENSWX_JOB_UPDATE_NOT_READY')
+  const requestUri = `${uri.slice(0, -5)}-continuation-request.json`, restoredUri = `${uri.slice(0, -5)}-continuation-restored.json`
+  const binding = { ownerApplicationId: 'ai-pdm', sourceRevision: descriptor.value.sourceRevision, sourceArchiveSha256: descriptor.value.sourceArchiveSha256,
+    descriptorRef: descriptor.ref, workerBuildRef: buildRef, inputRef, bootstrapContinuation: continuation, actor: actor.email, jobName: workerJobName(),
+    priorActivationRef: input.priorActivationRef, priorCapsuleRef: prior.capsuleRef, restoreTemplateSha256: sha256(canonicalize(prior.template)) }
+  let request = await optional(transport, requestUri), restored = await optional(transport, restoredUri)
+  if (request) {
+    const { schemaVersion, beforeTemplateSha256, beforeEtag, requestedAt, ...saved } = request.value
+    if (schemaVersion !== 'aipdm.openswx-daily-continuation-request.v1' || canonicalize(saved) !== canonicalize(binding)
+      || ![sha256(canonicalize(selftest)), binding.restoreTemplateSha256].includes(beforeTemplateSha256)
+      || typeof beforeEtag !== 'string' || !beforeEtag || !Number.isFinite(Date.parse(requestedAt)) || Date.parse(requestedAt) > Date.parse(input.deadlineAt)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+    // A committed request may represent a lost PATCH response. Only exact
+    // normal readback proves restoration; never blindly PATCH it a second time.
+    assertWorkerJob(job, prior.template)
+  } else {
+    if (restored) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+    request = await write(transport, requestUri, { schemaVersion: 'aipdm.openswx-daily-continuation-request.v1', ...binding,
+      beforeTemplateSha256: sha256(canonicalize(current)), beforeEtag: job.etag, requestedAt: transport.now() })
+    await updateWorkerJob({ transport, profile, template: prior.template, expectedCurrentTemplate: selftest, deadlineAt: input.deadlineAt })
+  }
+  const after = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
+  assertWorkerJob(after, prior.template)
+  await verifyPriorLive({ transport, profile, prior, appProfile })
+  assertPausedScheduler(await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`), profile)
+  await assertNoActiveExecutions(transport)
+  if (restored) {
+    const { schemaVersion, requestRef, observedAt, providerJob, ...saved } = restored.value
+    if (schemaVersion !== 'aipdm.openswx-daily-continuation-restored.v1' || canonicalize(saved) !== canonicalize(binding)
+      || canonicalize(requestRef) !== canonicalize(request.ref) || !Number.isFinite(Date.parse(observedAt))) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+    assertWorkerJob(providerJob, prior.template)
+  } else restored = await write(transport, restoredUri, { schemaVersion: 'aipdm.openswx-daily-continuation-restored.v1', ...binding,
+    requestRef: request.ref, observedAt: transport.now(), providerJob: after })
+  return { ...continuation, requestRef: request.ref, restoredRef: restored.ref }
+}
+
 async function dailyResourceProvenance({ transport, profile, prior, descriptor, descriptorRef, build, readSource, uri }) {
   const priorResourceApplyRef = prior.bootstrap.facts.resourceApplyRef ?? prior.bootstrap.facts.resourceProvenance?.priorResourceApplyRef
   assertOpenSwxWorkerRef(priorResourceApplyRef)
@@ -693,7 +814,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   const input = (await transport.readJson(inputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const base = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId']
   const allowed = stage === 'activate' ? ['schemaVersion', 'releaseCapsuleRef', 'deadlineAt', 'receiptId'] : stage === 'resources' ? [...base, ...(input?.priorResourceRequestRef ? ['priorResourceRequestRef', 'priorWorkerBuildRef', ...(input?.priorBootstrapInputRef ? ['priorBootstrapInputRef'] : []), ...(input?.completedFirstBootstrapInputRef ? ['completedFirstBootstrapInputRef', 'completedFirstPauseInputRef', 'supplementalIamReadbackRef'] : [])] : [])]
-    : stage === 'pause' ? [...base, 'drainKind', ...(input?.drainKind === 'DAILY_DB_VERIFIED' ? ['priorActivationRef'] : ['resourceApplyRef'])]
+    : stage === 'pause' ? [...base, 'drainKind', ...(input?.drainKind === 'DAILY_DB_VERIFIED' ? ['priorActivationRef', ...(input.bootstrapContinuation ? ['bootstrapContinuation'] : [])] : ['resourceApplyRef'])]
       : [...base, 'bootstrapKind', ...(input?.bootstrapKind === 'DAILY_REFRESH' ? ['priorActivationRef', 'pausedDrainedRef'] : ['resourceApplyRef', 'currentRegistryVersion'])]
   if (!input || (input.priorBootstrapInputRef && input.completedFirstBootstrapInputRef) || Object.keys(input).sort().join(',') !== allowed.sort().join(',') || input.schemaVersion !== `aipdm.openswx-${stage}-input.v1` || !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '')
     || Date.parse(input.deadlineAt) > Date.now() + 600_000) fail('OPENSWX_BOOTSTRAP_INPUT_INVALID')
@@ -804,8 +925,21 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   await sleep(profile.bounds.recoverDeadlineSeconds * 1000); checkDeadline(input.deadlineAt)
   await assertNoActiveExecutions(transport)
   if (stage === 'pause') {
-    const current = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
-    let proof = null
+    let current = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
+    let proof = null, bootstrapContinuation = null, existingPause = null
+    if (input.bootstrapContinuation) {
+      bootstrapContinuation = await restoreSuccessfulBootstrapContinuation({ transport, input, inputRef, descriptor, buildRef: input.workerBuildRef, prior, profile, appProfile, actor, readSource, uri })
+      current = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
+      existingPause = await optional(transport, uri)
+      if (existingPause) {
+        assertWorkerReceipt(existingPause.value, descriptor.value, 'paused-drained', { actor: actor.email, image: prior.build.image })
+        await assertPausedDrainReceipt(transport, existingPause.value, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile)
+        if (canonicalize(existingPause.value.previousRefs) !== canonicalize([inputRef, input.workerBuildRef])
+          || canonicalize(existingPause.value.facts.bootstrapContinuation) !== canonicalize(bootstrapContinuation)
+          || canonicalize(existingPause.value.facts.priorActivationRef) !== canonicalize(input.priorActivationRef)
+          || existingPause.value.facts.drainExecutionRef.uri !== `${uri.slice(0, -5)}-drain-finite.json`) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+      }
+    }
     if (input.drainKind === 'FIRST_PROVIDER_ONLY') assertWorkerJob(current, workerTemplate(profile, build.image, null, 'selftest'))
     else if (input.drainKind === 'DAILY_DB_VERIFIED') {
       await verifyPriorLive({ transport, profile, prior, appProfile })
@@ -815,7 +949,11 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
       proof.drainExecutionRef = terminal.ref
     } else fail('OPENSWX_DRAIN_KIND_INVALID')
     await assertNoActiveExecutions(transport)
-    return write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'paused-drained', actor: actor.email, image: prior ? prior.build.image : build.image, template: normalizeWorkerTemplate(current.template), observedAt: transport.now(), previousRefs: [inputRef, input.workerBuildRef], facts: { ...paused, providerJob: current, schedulerPaused: true, noActiveOrUnknown: true, quiescenceCompletedAt: transport.now(), drainKind: input.drainKind, dbAdmissionProof: proof ?? 'NOT_APPLICABLE_FIRST_BOOTSTRAP', ...(prior ? { priorActivationRef: input.priorActivationRef, priorWorkerBuildRef: prior.descriptor.workerBuildRef, priorSourceRevision: prior.descriptor.sourceRevision, priorSourceArchiveSha256: prior.descriptor.sourceArchiveSha256, priorImage: prior.build.image, priorNormalTemplateSha256: sha256(canonicalize(prior.template)), drainExecutionRef: proof.drainExecutionRef, targetWorkerBuildRef: input.workerBuildRef } : {}) } }))
+    if (existingPause) {
+      if (existingPause.value.facts.dbAdmissionProof.markerSha256 !== proof.markerSha256) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
+      return existingPause
+    }
+    return write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'paused-drained', actor: actor.email, image: prior ? prior.build.image : build.image, template: normalizeWorkerTemplate(current.template), observedAt: transport.now(), previousRefs: [inputRef, input.workerBuildRef], facts: { ...paused, providerJob: current, schedulerPaused: true, noActiveOrUnknown: true, quiescenceCompletedAt: transport.now(), drainKind: input.drainKind, dbAdmissionProof: proof ?? 'NOT_APPLICABLE_FIRST_BOOTSTRAP', ...(bootstrapContinuation ? { bootstrapContinuation } : {}), ...(prior ? { priorActivationRef: input.priorActivationRef, priorWorkerBuildRef: prior.descriptor.workerBuildRef, priorSourceRevision: prior.descriptor.sourceRevision, priorSourceArchiveSha256: prior.descriptor.sourceArchiveSha256, priorImage: prior.build.image, priorNormalTemplateSha256: sha256(canonicalize(prior.template)), drainExecutionRef: proof.drainExecutionRef, targetWorkerBuildRef: input.workerBuildRef } : {}) } }))
   }
   if (!['FIRST_CREATE', 'DAILY_REFRESH'].includes(input.bootstrapKind) || descriptor.value.purpose !== 'build_only') fail('OPENSWX_BOOTSTRAP_MODE_INVALID')
   const existing = await optional(transport, uri)
