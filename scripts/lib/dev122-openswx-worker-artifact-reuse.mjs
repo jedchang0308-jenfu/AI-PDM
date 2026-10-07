@@ -63,7 +63,7 @@ export function createWorkerGitReader(root, sourceRevision) {
     if (git(root, ['rev-parse', 'HEAD']).toString().trim() !== sourceRevision || git(root, ['status', '--porcelain=v1', '--untracked-files=all']).length) fail('SOURCE_CHECKOUT_NOT_FROZEN')
   }
   readSource.readTreeId = revision => { if (!permitted.has(revision)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); return git(root, ['rev-parse', `${revision}^{tree}`]).toString().trim() }
-  readSource.readArchive = revision => { if (revision !== sourceRevision) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); readSource.assertCurrentFrozen(); return git(root, ['archive', '--format=tar', '--prefix=source/', revision]) }
+  readSource.readArchive = revision => { if (revision !== sourceRevision) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); readSource.assertCurrentFrozen(); return git(root, ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision]) }
   return readSource
 }
 export function workerInputManifest(treeBytes, readSource, revision) {
