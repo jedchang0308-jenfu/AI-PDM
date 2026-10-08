@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "jenfu.ai-pdm.dev121.first-login-publication-precision.v1",
+  "devRef": "AIPDM/DEV-121#authorized-first-login",
+  "recordedAt": "2026-10-08T13:22:46.234975+00:00",
+  "baseRevision": "17bc4d416c7af84a2694b2a86830626f8ca32a92",
+  "branch": "codex/dev121-first-login-source-time",
+  "status": "LOCAL_PASS_REQUIRED_CI_PENDING",
+  "rootCause": "Active Principal admission converted authoritative published_at through JavaScript Date; a valid microsecond timestamp was truncated before migration083 exact-source matching. Managed OrgMaster publication may originate from clock_timestamp().",
+  "syntheticRed": {
+    "source": "2026-10-08T00:00:00.123456Z",
+    "consumer": "2026-10-08T00:00:00.123Z",
+    "minimalAssertionExitCode": 1,
+    "unitBeforeFix": {
+      "passed": 3,
+      "failed": 5
+    }
+  },
+  "behavior": "Read authoritative publication as UTC text with PostgreSQL to_char microseconds; validate with existing canonicalPrincipalSourceTimestamp; keep original text through account creation. No Date normalization or timestamp rounding.",
+  "sourceFiles": [
+    {
+      "path": "src/lib/jenfu-principal-admission-repository.ts",
+      "sha256": "42890472147f7513f9c660d28bda57281547f3632ca42fbbe1e927a864e28c64"
+    },
+    {
+      "path": "src/lib/jenfu-principal-admission-repository.test.ts",
+      "sha256": "92ff160588c7201644992e0a5894a4ea16ef8459ca04588cdd98545da75aa317",
+      "localWorkingSha256": "597b6e69b00e43fb5059a9bd37283e25d4d555c272eded8bd917acc7b5308cb6",
+      "checkoutDifference": "CRLF checkout normalized to LF in committed blob; content unchanged"
+    },
+    {
+      "path": "src/lib/jenfu-principal-handoff-session-service.test.ts",
+      "sha256": "893f163357f038086f183ec215e8e407ad42a6669073d726935ac2f1dedac236",
+      "localWorkingSha256": "7441eec4f1a1e5f5f2fc9d66c690da0bd66ca791ef0824d71a54c618a61afd4b",
+      "checkoutDifference": "CRLF checkout normalized to LF in committed blob; content unchanged"
+    },
+    {
+      "path": "scripts/qc-dev-121-first-login-postgres.mjs",
+      "sha256": "5aaeb2bb8715d389f72bdbe9187c16a714ace2e646513040a5a7e6fd5735711b"
+    },
+    {
+      "path": "infra/google-cloud/dev-117-production-release/principal-inventory.Dockerfile",
+      "sha256": "e14de3859adc7867ce0e952249e19524411d97ae6dbb1a03f0776ee883809283",
+      "localWorkingSha256": "77eddeb63d877f5a9e22f394a2068fd320f380256ea60dc15e01803073099118",
+      "checkoutDifference": "CRLF checkout normalized to LF in committed blob; content unchanged"
+    },
+    {
+      "path": "infra/google-cloud/dev-117-production-release/principal-cutover-preview.Dockerfile",
+      "sha256": "dbf9d43ef8f832f4d0bdcb27e0701626b0a8ddddf94b39efe479888f342be387",
+      "localWorkingSha256": "2fb03352854e4e18731bd6c102d026d82ab7bda0e02e951438709829ec7b6d3c",
+      "checkoutDifference": "CRLF checkout normalized to LF in committed blob; content unchanged"
+    }
+  ],
+  "checks": [
+    {
+      "name": "focused authentication unit regression",
+      "result": "PASS",
+      "testFiles": 7,
+      "tests": 67
+    },
+    {
+      "name": "Principal handoff and authEpoch guards",
+      "result": "PASS",
+      "testFiles": 2,
+      "tests": 11
+    },
+    {
+      "name": "disposable PostgreSQL first-login QC",
+      "result": "PASS",
+      "groups": 8,
+      "microseconds": "truncated input rejected with zero profile/account/operation/cutover; exact server-read UTC text creates one complete account"
+    },
+    {
+      "name": "typecheck:app",
+      "result": "PASS"
+    },
+    {
+      "name": "targeted ESLint",
+      "result": "PASS"
+    },
+    {
+      "name": "check:db-boundary",
+      "result": "PASS",
+      "governedFiles": 20
+    },
+    {
+      "name": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "name": "inventory and cutover preview complete runtime import closure",
+      "result": "PASS",
+      "tests": 3
+    },
+    {
+      "name": "qc:dev-121:inventory-runner",
+      "result": "PASS",
+      "tests": 21
+    },
+    {
+      "name": "read-only cutover preview runner and package regression",
+      "result": "PASS",
+      "tests": 11
+    }
+  ],
+  "migration": {
+    "path": "db/postgres/083_dev121_authorized_first_login_account.sql",
+    "sha256": "a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9",
+    "changed": false,
+    "additionalMigrationRequired": false
+  },
+  "preserved": [
+    "Principal revokedBefore <= rule",
+    "authEpoch",
+    "Firebase and email proof validation",
+    "inactive/offboarded account denial",
+    "OrgMaster grant authority",
+    "historical account isolation"
+  ],
+  "cleanup": {
+    "port": 55739,
+    "portReleased": true,
+    "postgresTempRemoved": true,
+    "capacityLeaseReleased": true
+  },
+  "production": {
+    "deployed": false,
+    "migrationAppliedByThisTask": false,
+    "twoFixturesPostFix": "NOT_RUN",
+    "DaniPostFix": "NOT_RUN",
+    "historicalDaniAccountOwnership": "UNKNOWN",
+    "writesFromTheseTests": 0
+  },
+  "releaseHandoff": "DEV-122 owner was asked to wait for this protected source correction before freeze/capsule; its release WIP is preserved",
+  "packagingCorrection": {
+    "failedCiRun": 37781787239,
+    "sourceRevision": "cf5105d03d5bc4d0eee3537453264f3125fbc2d7",
+    "failedJob": "Production Slice QC",
+    "cause": "Both existing Principal operator Dockerfiles omitted the new transitive runtime import jenfu-principal-source-timestamp.ts.",
+    "syntheticRed": {
+      "packageTests": 3,
+      "passed": 1,
+      "failed": 2
+    },
+    "correction": "Add one COPY to each existing recipe; no runner code, IAM, resource, migration or runtime privilege change.",
+    "imageBuildOrProductionExecution": "NOT_RUN",
+    "artifactReuse": "Changed operator recipe/source inputs require fresh immutable artifacts if used; no cross-input artifact reuse."
+  },
+  "validatedSourceRevision": "6d30015f12137cb8de093c91dfcaef610d835601",
+  "sourceFileHashBasis": "sha256 of exact committed Git blob at validatedSourceRevision; localWorkingSha256 retains tested working bytes where checkout line endings differ"
+}

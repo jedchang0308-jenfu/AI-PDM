@@ -1,4 +1,5 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
+import { canonicalPrincipalSourceTimestamp } from "@/lib/jenfu-principal-source-timestamp";
 
 export const JENFU_PLATFORM_AUTH_CONTRACT_VERSION = "jenfu.platform-auth.v1" as const;
 export const JENFU_ACTIVE_PRINCIPAL_CONTRACT_VERSION = "organization.active-principal.v1" as const;
@@ -26,13 +27,15 @@ type ActivePrincipalRow = {
   employee_id: string;
   employee_status: string;
   mapping_version: number | string;
-  published_at: string | Date;
+  published_at: string;
   account_type?: string;
 };
 
 const SELECT_ACTIVE_PRINCIPAL_SQL = `
   SELECT contract_version, principal_issuer, principal_subject, principal_id,
-         employee_id, employee_status, mapping_version, published_at
+         employee_id, employee_status, mapping_version,
+         pg_catalog.to_char(published_at AT TIME ZONE 'UTC',
+           :publishedAtFormat) AS published_at
   FROM orgmaster_contract.v_active_principal_mappings_v1
   WHERE principal_issuer = :identityIssuer
     AND principal_subject = :identitySubject
@@ -42,7 +45,9 @@ const SELECT_ACTIVE_PRINCIPAL_SQL = `
 
 const SELECT_ACTIVE_TYPED_PRINCIPAL_SQL = `
   SELECT contract_version, principal_issuer, principal_subject, principal_id,
-         employee_id, employee_status, mapping_version, published_at, account_type
+         employee_id, employee_status, mapping_version, account_type,
+         pg_catalog.to_char(published_at AT TIME ZONE 'UTC',
+           :publishedAtFormat) AS published_at
   FROM orgmaster_contract.v_active_principal_accounts_v1
   WHERE principal_issuer = :identityIssuer
     AND principal_subject = :identitySubject
@@ -73,7 +78,7 @@ function requiredText(value: unknown) {
 
 function mapPrincipal(row: ActivePrincipalRow, identityIssuer: string, identitySubject: string): CanonicalJenfuPrincipalV1 {
   const mappingVersion = Number(row.mapping_version);
-  const publishedAt = row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at ?? "");
+  const publishedAt = row.published_at;
   const principalId = requiredText(row.principal_id);
   const employeeId = requiredText(row.employee_id);
   if (
@@ -85,7 +90,7 @@ function mapPrincipal(row: ActivePrincipalRow, identityIssuer: string, identityS
     !employeeId ||
     !Number.isSafeInteger(mappingVersion) ||
     mappingVersion < 1 ||
-    !Number.isFinite(Date.parse(publishedAt))
+    canonicalPrincipalSourceTimestamp(publishedAt) === null
   ) {
     throw new JenfuPrincipalAdmissionError("auth_contract_mismatch", 409);
   }
@@ -97,7 +102,7 @@ function mapPrincipal(row: ActivePrincipalRow, identityIssuer: string, identityS
     principalId,
     employeeId,
     mappingVersion,
-    publishedAt: new Date(publishedAt).toISOString()
+    publishedAt
   };
 }
 
@@ -112,7 +117,8 @@ export class JenfuPrincipalAdmissionRepository {
     try {
       rows = await this.client.query<ActivePrincipalRow>(SELECT_ACTIVE_PRINCIPAL_SQL, {
         identityIssuer,
-        identitySubject
+        identitySubject,
+        publishedAtFormat: 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
       });
     } catch (error) {
       if (error instanceof JenfuPrincipalAdmissionError) throw error;
@@ -130,7 +136,8 @@ export class JenfuPrincipalAdmissionRepository {
     let rows: ActivePrincipalRow[];
     try {
       rows = await this.client.query<ActivePrincipalRow>(SELECT_ACTIVE_TYPED_PRINCIPAL_SQL, {
-        identityIssuer, identitySubject
+        identityIssuer, identitySubject,
+        publishedAtFormat: 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
       });
     } catch {
       throw new JenfuPrincipalAdmissionError("principal_directory_unavailable", 503);

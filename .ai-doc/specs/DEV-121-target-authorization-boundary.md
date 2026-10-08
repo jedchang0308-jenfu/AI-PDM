@@ -22,6 +22,8 @@
 
 `083_dev121_authorized_first_login_account.sql` 只建立 AI-PDM 自有的 `users` profile、`principal_accounts` 唯一關聯、append-only provision operation 與 one-way cutover marker；不建立或複製本地角色指派。函式固定 application／company，Principal、Employee、account type、mapping version 及 publication 必須重新符合 OrgMaster published contract，顯示用 email 只能來自已驗 Platform handoff且不寫入唯一 email 欄位。既有 suspended／expired／offboarded／`system_role_enabled=false` 帳戶只讀回，不能被本流程修改或恢復；既有 Principal 關聯不一致、已存在但無完整關聯的 cutover 或 profile 缺失均 fail closed。Email／名稱相似的歷史 profile 不作關聯、更新或刪除依據。
 
+來源 `published_at` 必須以 PostgreSQL UTC 六位微秒文字讀取；重用既有 `canonicalPrincipalSourceTimestamp` 驗證並保留原文送入首次登入函式，不經 JavaScript Date 正規化、截斷或放寬精確比對。三位毫秒只等價六位且末三位為 000；無效日曆與已損失精度的 Date 物件拒絕。
+
 建立、operation receipt 與 cutover 在同一交易提交；Principal 唯一鍵、transaction advisory lock 與 SERIALIZABLE retry 保證重試／並行只留下單一完整帳戶。任何後段失敗回滾全部寫入。現行 Firebase email verified、issuer／subject、authEpoch、Principal revokedBefore、account lifecycle、session barrier 與 published-grant request-time enforcement維持。
 
 <a id="system-admin-capability-batch"></a>

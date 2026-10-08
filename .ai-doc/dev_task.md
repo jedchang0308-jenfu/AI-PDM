@@ -276,7 +276,10 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 - [x] Forward migration 083：同交易建立 profile／Principal link／append-only receipt／cutover，不寫本地角色指派；existing disabled／offboarded 不恢復，identity／historical cutover conflict fail closed，email 相似不作舊 profile 關聯。
 - [x] 本機驗證：聚焦 unit 73／73、app typecheck、targeted ESLint、DB boundary、DEV-117 continuous 142 tests、abort 6 tests、owner QC 與 isolated Production build 均 PASS；task-owned PostgreSQL 7 組 PASS，涵蓋首次建立／重播、雙並行單筆、無 grant、expired grant、inactive identity、身分不符、suspended 不恢復、歷史 email 相似不關聯及後段失敗全回滾；測試 cluster／port／temp 已清理。
 - [x] 完成 source diff、DB boundary、owner release regression 與 isolated build；本機 checkpoint：`qa/DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json`。
-- [ ] 完成 protected PR／required CI、migration apply、candidate／canonical Production verify。
+- [x] 原首次登入實作 PR242 已合併至 protected main `17bc4d4`，required CI 通過；原本機證據保留。
+- [x] 追加精度 RED／GREEN：OrgMaster 六位微秒 publication 被 Date 截斷會使 083 精確身分比對拒絕。active Principal query 改以 UTC microsecond text 讀取及既有 validator 驗證；67＋11 focused tests、8 組 disposable PG、typecheck、targeted lint、DB boundary PASS，測試 port／temp 已清理。[補驗證據](qa/DEV-121-first-login-publication-precision-2026-10-08.json)。
+- [x] PR243 必要 CI 找出兩個 Principal operator recipe 缺少新 timestamp validator import；既有 source-closure tests 重現 2 FAIL，補齊各一行 COPY 後 3／3 與 inventory runner 21／21 PASS，required CI 待重跑。未建立或執行正式 operator image。
+- [ ] 精度修正 protected PR／required CI，以及合併 owner migration083、candidate／canonical Production verify；由正在開發的 DEV-122 release owner 協調，source freeze 等精度補丁，不碰其工作樹。
 - [ ] 測試帳號既有帳戶回歸與 Dani 本人首次登入分層驗證；不得以本機或測試帳號結果替代 Dani。
 
 現行契約：[authorized first login](specs/DEV-121-target-authorization-boundary.md#authorized-first-login)。OrgMaster 現行版唯讀查證顯示張祐豪具 AI-PDM「系統管理員」與「採購」有效指派；此證據只證明發布授權，不替代 Dani 實際登入。`prod-pdm-wave0-dani-001` 實際來源／歸屬仍未確認；本批不以名稱或 Email 推定、不直接關聯或刪除。正式資料與 Production 狀態只按受保護 owner receipt、provider readback 與實際登入結果更新。

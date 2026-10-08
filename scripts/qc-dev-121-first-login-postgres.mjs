@@ -273,6 +273,50 @@ try {
     return { pdmUserId: first.pdmUserId, replayCreated: replay.created }
   })
 
+  await check('microsecond publication rejects truncated input without writes and accepts the exact source timestamp', async () => {
+    const input = { ...fixture('microsecond-source'), publishedAt: '2026-10-08T12:34:56.123456Z' }
+    await addIdentity(input)
+    await addGrant(input)
+
+    const truncated = { ...input, publishedAt: '2026-10-08T12:34:56.123Z' }
+    await assert.rejects(ensure(admin, truncated), (error) => error?.code === '23514' &&
+      /AIPDM_FIRST_LOGIN_IDENTITY_CONFLICT/u.test(error.message))
+    const rejectedState = await admin.query(`SELECT
+      (SELECT count(*)::integer FROM ai_pdm_core.users WHERE display_name=$2) profiles,
+      (SELECT count(*)::integer FROM ai_pdm_core.principal_accounts WHERE principal_id=$1) accounts,
+      (SELECT count(*)::integer FROM ai_pdm_core.principal_identity_operations
+        WHERE result_json->>'principalId'=$1) operations,
+      (SELECT count(*)::integer FROM ai_pdm_core.principal_identity_cutovers
+        WHERE principal_id=$1) cutovers`, [input.principalId, input.verifiedEmail])
+    assert.deepEqual(rejectedState.rows[0], { profiles: 0, accounts: 0, operations: 0, cutovers: 0 })
+
+    const source = await admin.query(`SELECT pg_catalog.to_char(
+      published_at AT TIME ZONE 'UTC',$2) AS published_at
+      FROM orgmaster_contract.v_active_principal_accounts_v1 WHERE principal_id=$1`,
+    [input.principalId,'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'])
+    assert.equal(source.rows[0].published_at, input.publishedAt)
+    const exact = await ensure(admin, { ...input, publishedAt: source.rows[0].published_at })
+    assert.equal(exact.created, true)
+    const account = await admin.query(`SELECT profile.display_name,profile.email,
+      profile.account_status AS profile_status,profile.system_role_enabled AS profile_enabled,
+      account.account_status,account.system_role_enabled,account.employee_id,
+      (SELECT count(*)::integer FROM ai_pdm_core.users WHERE display_name=$2) profiles,
+      (SELECT count(*)::integer FROM ai_pdm_core.principal_accounts WHERE principal_id=$1) accounts,
+      (SELECT count(*)::integer FROM ai_pdm_core.principal_identity_operations
+        WHERE result_json->>'principalId'=$1) operations,
+      (SELECT count(*)::integer FROM ai_pdm_core.principal_identity_cutovers
+        WHERE principal_id=$1) cutovers
+      FROM ai_pdm_core.principal_accounts account
+      JOIN ai_pdm_core.users profile ON profile.id=account.pdm_user_id
+      WHERE account.principal_id=$1`, [input.principalId, input.verifiedEmail])
+    assert.deepEqual(account.rows[0], { display_name: input.verifiedEmail, email: null,
+      profile_status: 'active', profile_enabled: 1, account_status: 'active',
+      system_role_enabled: true, employee_id: input.employeeId,
+      profiles: 1, accounts: 1, operations: 1, cutovers: 1 })
+    return { truncatedInputRejectedWithoutWrites: true, exactInputCreated: exact.created,
+      accounts: account.rows[0].accounts, operations: account.rows[0].operations, cutovers: account.rows[0].cutovers }
+  })
+
   await check('parallel first logins converge to one profile and one principal account', async () => {
     const input = fixture('parallel')
     await addIdentity(input)
