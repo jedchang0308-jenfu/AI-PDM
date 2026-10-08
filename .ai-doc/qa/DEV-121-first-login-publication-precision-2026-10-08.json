@@ -1,7 +1,7 @@
 {
   "schemaVersion": "jenfu.ai-pdm.dev121.first-login-publication-precision.v1",
   "devRef": "AIPDM/DEV-121#authorized-first-login",
-  "recordedAt": "2026-10-08T13:16:36.150930+00:00",
+  "recordedAt": "2026-10-08T13:22:46.234975+00:00",
   "baseRevision": "17bc4d416c7af84a2694b2a86830626f8ca32a92",
   "branch": "codex/dev121-first-login-source-time",
   "status": "LOCAL_PASS_REQUIRED_CI_PENDING",
@@ -23,11 +23,15 @@
     },
     {
       "path": "src/lib/jenfu-principal-admission-repository.test.ts",
-      "sha256": "597b6e69b00e43fb5059a9bd37283e25d4d555c272eded8bd917acc7b5308cb6"
+      "sha256": "92ff160588c7201644992e0a5894a4ea16ef8459ca04588cdd98545da75aa317",
+      "localWorkingSha256": "597b6e69b00e43fb5059a9bd37283e25d4d555c272eded8bd917acc7b5308cb6",
+      "checkoutDifference": "CRLF checkout normalized to LF in committed blob; content unchanged"
     },
     {
       "path": "src/lib/jenfu-principal-handoff-session-service.test.ts",
-      "sha256": "7441eec4f1a1e5f5f2fc9d66c690da0bd66ca791ef0824d71a54c618a61afd4b"
+      "sha256": "893f163357f038086f183ec215e8e407ad42a6669073d726935ac2f1dedac236",
+      "localWorkingSha256": "7441eec4f1a1e5f5f2fc9d66c690da0bd66ca791ef0824d71a54c618a61afd4b",
+      "checkoutDifference": "CRLF checkout normalized to LF in committed blob; content unchanged"
     },
     {
       "path": "scripts/qc-dev-121-first-login-postgres.mjs",
@@ -35,11 +39,15 @@
     },
     {
       "path": "infra/google-cloud/dev-117-production-release/principal-inventory.Dockerfile",
-      "sha256": "77eddeb63d877f5a9e22f394a2068fd320f380256ea60dc15e01803073099118"
+      "sha256": "e14de3859adc7867ce0e952249e19524411d97ae6dbb1a03f0776ee883809283",
+      "localWorkingSha256": "77eddeb63d877f5a9e22f394a2068fd320f380256ea60dc15e01803073099118",
+      "checkoutDifference": "CRLF checkout normalized to LF in committed blob; content unchanged"
     },
     {
       "path": "infra/google-cloud/dev-117-production-release/principal-cutover-preview.Dockerfile",
-      "sha256": "2fb03352854e4e18731bd6c102d026d82ab7bda0e02e951438709829ec7b6d3c"
+      "sha256": "dbf9d43ef8f832f4d0bdcb27e0701626b0a8ddddf94b39efe479888f342be387",
+      "localWorkingSha256": "2fb03352854e4e18731bd6c102d026d82ab7bda0e02e951438709829ec7b6d3c",
+      "checkoutDifference": "CRLF checkout normalized to LF in committed blob; content unchanged"
     }
   ],
   "checks": [
@@ -136,5 +144,7 @@
     "correction": "Add one COPY to each existing recipe; no runner code, IAM, resource, migration or runtime privilege change.",
     "imageBuildOrProductionExecution": "NOT_RUN",
     "artifactReuse": "Changed operator recipe/source inputs require fresh immutable artifacts if used; no cross-input artifact reuse."
-  }
+  },
+  "validatedSourceRevision": "6d30015f12137cb8de093c91dfcaef610d835601",
+  "sourceFileHashBasis": "sha256 of exact committed Git blob at validatedSourceRevision; localWorkingSha256 retains tested working bytes where checkout line endings differ"
 }
