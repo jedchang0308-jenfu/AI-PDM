@@ -562,3 +562,27 @@ test('B27 build verifier wiring rejects actor swap, misplaced token and credenti
   ]) assert.throws(() => assertDev117WorkflowSource(source.replace(block, changed)), { code: 'WORKFLOW_BUILD_READBACK_AUTH_DRIFT' })
   assert.throws(() => assertDev117WorkflowSource(source.replace('  entrypoint:\n', '  entrypoint:\n    env:\n      AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.auth.outputs.access_token }}"\n')), { code: 'WORKFLOW_BUILD_READBACK_AUTH_DRIFT' })
 })
+
+test('B29 migration read wiring is prepare-only and rejects actor swap, misplaced token and credential export', () => {
+  const source = readText('.github/workflows/deploy-ai-pdm-independent-production.yml').replaceAll('\r\n', '\n')
+  const block = source.match(/\n  prepare:\n[\s\S]*?(?=\n  [a-z][a-z-]+:\n|$)/u)?.[0]
+  const auth = block.match(/      - id: migration_execution_read_auth\n[\s\S]*?(?=      - )/u)?.[0]
+  assert.ok(auth); assert.equal(assertDev117WorkflowSource(source), true)
+  for (const changed of [
+    auth.replace('aipdm-prod-deployer@', 'aipdm-prod-verifier@'),
+    auth.replace('create_credentials_file: false', 'create_credentials_file: true'),
+    auth.replace('export_environment_variables: false', 'export_environment_variables: true'),
+    auth.replace('token_format: access_token', 'token_format: id_token'),
+    auth.replace('workload_identity_provider: ${{ env.WIF_PROVIDER }}', 'workload_identity_provider: other'),
+  ]) assert.throws(() => assertDev117WorkflowSource(source.replace(auth, changed)), {code:'WORKFLOW_MIGRATION_READBACK_AUTH_DRIFT'})
+  const binding = 'AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.migration_execution_read_auth.outputs.access_token }}"'
+  for (const changed of [
+    block.replace(binding, 'AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.auth.outputs.access_token }}"'),
+    block.replace(auth, '').trimEnd()+'\n'+auth,
+    block.replace('          '+binding+'\n', '').replace('      - run: npm ci', '      - run: npm ci\n        env:\n          '+binding),
+  ]) assert.throws(() => assertDev117WorkflowSource(source.replace(block, changed)), {code:'WORKFLOW_MIGRATION_READBACK_AUTH_DRIFT'})
+  assert.throws(() => assertDev117WorkflowSource(source.replace('  build:\n', '  build:\n    env:\n      '+binding+'\n')), {code:'WORKFLOW_MIGRATION_READBACK_AUTH_DRIFT'})
+  const cli = readText('scripts/dev117-ai-pdm-continuous-release.mjs')
+  assert.match(cli, /fullOwner && args.stage === 'prepare'/u)
+  assert.match(cli, /args.stage === 'prepare' \? process.env.AIPDM_MIGRATION_EXECUTION_READ_TOKEN/u)
+})

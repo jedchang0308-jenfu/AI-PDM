@@ -1,6 +1,16 @@
 # AI_PDM 文件地圖
 
-## DEV-122 CURRENT（B28 worker 計時與 unpublished-build abort 復原；正式 release 待重試）
+## DEV-122 CURRENT（B29 prepare 遷移查詢身份修正；正式 release 待重試）
+
+B28 PR #247 已正常合併，main `04ed844a853a91d1e13b3419d26f118517accc00`、兩項 required CI PASS；B28 production prepare／build／migration／traffic 全部 NOT_RUN。來源補查發現 prepare 的 exact migration-runner executions list 使用 verifier，但 exact Job provider IAM 的既有 `roles/run.viewer` 綁定 deployer；未證實 verifier 曾回正式 403。一般發布身份查證成功不能抵 WIF consumer 證據。
+
+B29 `RD Implementation Ready`：只在 full owner prepare 借用既有 deployer WIF token，限制 bodyless、no redirect 的 exact `ai-pdm-prod-migration-runner/executions` GET、`pageSize=100` 與至多一個 `pageToken`。其他 URL／method／query 使用原 primary 身份；denied／timeout 不 fallback。Build 與其他階段不 mint、不接收此 token。Workflow source guard 驗證 actor、stage、輸出綁定及禁止 credential file／環境 export；不增加 IAM、資源、Secret 或執行能力。
+
+正式基線仍是 B27 `PRE_ACTIVATION_ABORTED / NOT_APPLIED`、B14 revision `ai-pdm-prod-44984e6018dc` 100%／零 tags、Scheduler PAUSED。沿用人類已授權的 DEV-121 PR #242（含 unchanged migration 083）＋DEV-122 同專案正式合併發布。B29 必須完成本次 source-bound checks、獨立 Luna QC、protected PR／CI、official source 與新 capsule 後再 dispatch；B28 pre-fix continuous receipt 不作本次 final evidence，changedFiles 由實際 PR diff 取得。
+
+發布條件 app RELEASED、worker ACTIVATION_PENDING_NO_EXECUTION、Scheduler PAUSED；native USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED。Whole DEV 仍 NOT_ACCEPTED。下方 B28 歷史保留；其中 verifier route 是待修正來源狀態，舊連續測試只證明當時來源。
+
+## DEV-122 HISTORY_ONLY（B28 worker 計時與 unpublished-build abort 復原；正式 release 待重試）
 
 B27 protected-main PR #246（`93fe480bc758315d6b21003e2a0e2a70ff3ed4d1`）的 owner run [37823241328](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37823241328) prepare PASS、build `OPENSWX_OWNER_DEADLINE`、failure PASS。唯一 app Cloud Build `fa2e0853-1fc6-4682-8c23-2aa64d5a1de5` 已 SUCCESS；provenance／SBOM／scan 已寫，build-stage／deployment-capsule／migration／submission／candidate 不存在。Terminal `PRE_ACTIVATION_ABORTED / NOT_APPLIED`，正式 `ai-pdm-prod-44984e6018dc` 100%、零 tags，Scheduler PAUSED。原始 provider readback：[B27-abort-provider-readback.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A20-B27/release/B27-abort-provider-readback.json>)。
 
