@@ -247,7 +247,7 @@ export async function readPrebuildIamContinuation({ transport, ref, supplemental
   const request = proofs[0], requestedAt = Date.parse(request.requestedAt), deadlineAt = Date.parse(request.deadlineAt)
   if (![requestedAt, deadlineAt, Date.parse(source.observedAt)].every(Number.isFinite) || deadlineAt <= requestedAt || deadlineAt - requestedAt > 600_000
     || Date.parse(source.observedAt) > requestedAt || requestedAt - Date.parse(source.observedAt) > 600_000) fail(PREBUILD_INVALID)
-  assertOpenSwxWorkerRef(request.binaryPlanRef)
+  assertImmutableRef(request.binaryPlanRef, BUCKET, [WORKER_RECEIPT_PREFIX])
   if (request.binaryPlanRef.uri !== ref.uri.replace(/\.json$/u, '-plan.tfplan') || request.binaryPlanRef.sha256 !== value.binaryPlanSha256
     || request.terraformPlanRef?.uri !== ref.uri.replace(/\.json$/u, '-terraform-plan.json')) fail(PREBUILD_INVALID)
   const binary = await transport.readBytes(request.binaryPlanRef.uri, { prefixes: [WORKER_RECEIPT_PREFIX] })

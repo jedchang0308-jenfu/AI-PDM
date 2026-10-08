@@ -1,6 +1,132 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（2026-10-07；B18 本地限定 QC 通過，B19 RD Implementation Ready／架構已定案）
+## DEV-122 CURRENT（B23 r15 實際本地行為驗證／Luna QC 完成；production NOT_RUN）
+
+現行狀態 `B23_LOCAL_BEHAVIOR_QC_PASS`；證據入口 [B23-final-local-qc-binding.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-final-local-qc-binding.json>)（SHA `3f975c5cd11d6e50082ef0ce8932394391bf7dccec33d6d9aa3e86f7c9c56248`）。這是同一 r15 freeze 的本地行為接受，不構成 production release authority。
+
+- 九產品／九既有測試；第九產品維持既有 IAM binary .tfplan ref validator 修正。generic sealed terminal 路徑維持 profile bucket／seal；AI-only ordinary abort 與 branded evidence context 保留。
+- r15 proof-reuse 原命令實際 155／155、完整 ROOT 37／37；fail／cancelled／skip／todo=0。
+- r15 修正 completed-first 時間格式 guard 順序：先驗 raw execution 與 marker timestamp，再保留原 terminal validator；原 continuous 實際 142／142；原 QC 命令 exit0；四項 finally 均 PASS，ROOT 引用同 freeze 的 proof-reuse，未重跑。
+- QC stdout 兩個 isolated-build markers 已綁定；primary invariant `database-absent`，artifact／primary／cleanup=true。
+- Luna final actual behavior verdict：未解 P1／P2=0；static 或 modeled 正例不冒充 provider／production 接受。
+
+實際證據：
+- source-freeze：[B23-r15-source-freeze.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r15-source-freeze.json>)（SHA `c8f02408c022f453830f2843a296d586a921e3f732c72df2893e5a41f5e34896`）
+- proof-reuse：[B23-r15-proof-reuse-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r15-proof-reuse-check-result.json>)（SHA `5b17f15d3f96d6bf1fa9c6d817a79467791bf6d13d4cae2ef45d24a917745ce1`）
+- continuous：[B23-r15-continuous-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r15-continuous-check-result.json>)（SHA `7ec632fbe3ae90bd9c160c3c60f522419999a064a6534069dcdd5476741faf55`）
+- qc：[B23-r15-qc-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r15-qc-check-result.json>)（SHA `39eab5ebfd547d13ee40c4d3f3c3df935e0bbad07b705520b3ea0cb36dde4ec6`）
+- independent-qc：[B23-r15-final-independent-luna-qc-review-r2.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r15-final-independent-luna-qc-review-r2.json>)（SHA `ee70e650ab776e980f25b38f90ac273286258969092b3aa681e0c8d0fba79851`）
+
+九個產品（exact hash 見 final binding）：
+- `scripts/lib/dev012-owner-release-runtime.mjs`
+- `scripts/lib/dev012-owner-stage-executor.mjs`
+- `scripts/lib/dev121-owner-release-proof.mjs`
+- `scripts/lib/dev121-preactivation-abort-continuation.mjs`
+- `scripts/lib/dev122-openswx-bootstrap.mjs`
+- `scripts/lib/dev122-openswx-owner-release.mjs`
+- `scripts/lib/dev122-openswx-readback-iam.mjs`
+- `scripts/lib/dev122-openswx-worker-artifact-reuse.mjs`
+- `src/lib/openswx-metadata-dispatch.ts`
+
+九個既有測試（exact hash 見 final binding）：
+- `scripts/dev012-owner-prerequisite-producer.test.mjs`
+- `scripts/dev012-owner-release-runtime.test.mjs`
+- `scripts/dev012-owner-stage-executor.test.mjs`
+- `scripts/dev121-owner-release-proof.test.mjs`
+- `scripts/dev121-principal-owner-recovery.test.mjs`
+- `scripts/dev122-openswx-bootstrap.test.mjs`
+- `scripts/dev122-openswx-owner-release.test.mjs`
+- `scripts/dev122-openswx-worker-artifact-reuse.test.mjs`
+- `src/lib/openswx-metadata-dispatch.test.ts`
+
+r6–r10 proof-reuse、r12 原 continuous 七個、r13 診斷單一 fixture 及 r14 原 QC 真實 FAIL 均保留。r14 QC 為 205／204／1 的 malformed timestamp guard-order 失敗；四項 finally PASS，aggregate 於此停止，後續 abort／DB boundary／typecheck／isolated build 未執行。下方舊 B23 契約／adoption／partial 狀態為 HISTORY_ONLY，原始證據未覆寫：
+- [B23-r6-proof-reuse-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r6-proof-reuse-check-result.json>)（SHA `4edb16ce804a8eefa51476533935add5f02adf95e2b9e429c79bf8f843a79ced`）
+- [B23-r7-proof-reuse-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r7-proof-reuse-check-result.json>)（SHA `05714ce4e2be0ee9020a964f69513466a85aca15c7f120d12fe36163e58435c8`）
+- [B23-r8-proof-reuse-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r8-proof-reuse-check-result.json>)（SHA `baa5029696b03171e52018292e3f91c5fa2bf752d5ea4465d261f97291ea8a4d`）
+- [B23-r9-proof-reuse-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r9-proof-reuse-check-result.json>)（SHA `243aeba0e4548619f815e15f3d11555319237c68901bb96189358ceef7fb662f`）
+- [B23-r10-proof-reuse-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r10-proof-reuse-check-result.json>)（SHA `ba1489e99dbf1b81f4ee629e345324d2aacb4dd356f0da8b44a13d7be3afc8f0`）
+- [B23-r12-continuous-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r12-continuous-check-result.json>)（SHA `320a91a7327c3a1aa7b30cd25d9934a86393c0be129c2612661919aa40d3b337`）
+- [B23-r13-continuous-diagnostic-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r13-continuous-diagnostic-check-result.json>)（SHA `ee8befe69474682d5596dddd6f658ccfe6fa764e40a7085c3bce82f57ca23b81`）
+- [B23-r14-qc-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r14-qc-check-result.json>)（SHA `e9c8fd11d9cfa63a2526c3ed783750dac67d935306c308ba01c19e556ae7311c`）
+
+r14 full155／ROOT37 與 continuous142 實際 PASS 僅為 HISTORY_ONLY；source 已因 r15 guard-order 修正改變，這些舊 PASS 不構成 current acceptance：
+- [B23-r14-proof-reuse-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r14-proof-reuse-check-result.json>)（SHA `9f5b28578eda3482550a8c8d650d68c03be5dc0470a7a11bf9ad96dedee2ab07`）
+- [B23-r14-continuous-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-r14-continuous-check-result.json>)（SHA `ae60e8218af50a390d3a3c128659c2a487d091ed1bbf97de9edbb238033fdb48`）
+
+Production `NOT_RUN`；current DB `UNKNOWN`。Repair migration 僅歷史輸入等價取證，此變體零 SQL Job。不新增權利、資源、schema、migration、API、CI 或授權模板。
+
+Whole DEV：7 issues／29 groups NOT_ACCEPTED；native USER_PRODUCTION_VALIDATION_PENDING；supplier DISABLED_DEFERRED。Local modeled PASS 不抵正式 8 CAD、正常 API／UI 待驗或既有 FAIL，無 production READY 宣稱。
+
+## DEV-122 HISTORY_ONLY（2026-10-08；B23 PAUSED_APP_REPAIR／架構定案／RD Implementation Ready／Contract QC PASS）
+
+本節是唯一現行施工入口；下方標為 HISTORY_ONLY 的 B18／B19 與歷史 CURRENT 字樣只保存當時判定，不能作新執行指令。B23 r3獨立契約QC已通過，架構定案／RD Implementation Ready；產品部分實作／NOT_FULLY_TESTED／NOT_SOURCE_FROZEN；archive補遺QC PASS／已採納，尚非Release Ready。本次沿用 dev-pm／rd-tech-lead 與 RD 文件責任；工程契約不增加人類核准步驟。
+
+2026-10-07T21:42:20Z 已完成[獨立 Luna r3 契約 QC](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-independent-luna-contract-qc-r3.json>)（SHA `94605db85d2d3db9672cd78bbe3ea33ee1794b5704856fc5ef8da6c2ac082e54`，`CONTRACT_REVIEW_PASS`，無未解finding）及[root adoption](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-contract-adoption.json>)（SHA `997ae9471ce5be1345f2053e593c29804999e9f62ea1f46e6c195ddc91f05d5e`）。現行為 `ARCHITECTURE_FINALIZED / RD_IMPLEMENTATION_READY`；QC僅契約與delta，不是實作或provider行為證據。原r3的凍結metadata與r1／r2失敗不覆寫，成熟度以本adoption為準。Adoption當時的Product `NOT_STARTED`為歷史快照；現為 `IN_PROGRESS_PARTIAL / NOT_FULLY_TESTED / NOT_SOURCE_FROZEN`，production `NOT_RUN`、current DB `UNKNOWN`，尚非Release Ready。單一RD writer已開始獨立parser／schema部分；Archive r3及deadline／context seam的QC／adoption均已完成；依shared reader／context→consumer順序續作，remaining owner graph尚未測試，已驗局部層見下方。
+
+唯一執行缺口補遺為[bounded archive proof r3](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-paused-app-repair-archive-proof-addendum-r3.json>)（SHA `3ee07f650fb1b7430d23e8d0b9d2f3eb51aae65635d451dfb6ca83ccc13892f3`，封存時`RD_CONTRACT_READY / QC_PENDING`，現已`ADOPTED_RD_IMPLEMENTATION_READY`）。既有proof模組內以bounded stream＋記憶體gzip/tar驗固定profile及32 SQL；prepare沿exact Git、build在paid createBuild前驗實際archive，fixed reader只讀已封存capsule與已完成build graph所綁authenticated sourceObject，避免future-ref循環。網路media與解壓各256MiB、metadata64KiB、selected每檔1MiB／合計8MiB；完整PAX／path／hash／generation／CRC與負例見補遺。八產品／九tests、20 schemas／58 refs及零migration Job不變，current DB仍UNKNOWN。2026-10-07T22:10:16Z [補遺r3獨立Luna QC](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-independent-luna-archive-contract-qc-r3.json>)（SHA `7bff67778805e1a57295ef282214492e299d9dae459a847427d6cb929a0b2976`，`CONTRACT_REVIEW_PASS`，P1／P2=0）及[root補遺adoption](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-archive-proof-addendum-adoption.json>)（SHA `45079915e960d8fda7b3979bce1d3c81987f994b688523ef5ca6789c81f12829`）已完成。`DEPENDENT_PROOF_WRITE_GO`僅開放來源實作：先完成closed bounded reader，再整合既有stage／fixed runtime／abort與worker serving-proof consumers，禁止placeholder。產品整體仍IN_PROGRESS_PARTIAL／NOT_FULLY_TESTED／NOT_SOURCE_FROZEN；契約PASS不等於behavior PASS，沒有runtime／provider／release GO。初版補遺SHA `6ec44c17ebf2c63a19959ac4479ee17b5caea0e2ca49934a981a3ac02d9f0c8a`保留，r2只更正B22 metadata的描述路徑。 補遺r2（SHA `60270bbef6c57dd835fc37b8b1f096c82553d968f47db4b0ce0e34440b2dcb12`）的[獨立Luna delta QC](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-independent-luna-archive-contract-qc-r2.json>)（SHA `3bae1b2ce4a942f5d80dcf562c71f0a1bbb9786ad2b02c51599c94ba95f652ca`）發現單一P2：verifyProvider:true的sourceObject read仍可能旁路stream上限；這是static call-chain finding，behavioral repro NOT_RUN，非RD實作失敗。r3僅補明該分支也須重用同一次observation已驗bytes或同一bounded adapter，原始response.arrayBuffer呼叫數必為0，新增under／over-cap向量；Build／Image readback與authority不變。
+
+現行追加限定為[deadline／trusted context seam r2](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-paused-app-repair-deadline-addendum-r2.json>)（SHA `87568673e10140f69121813fa25ff91fa3499b91b017b3e3e5c46c8786f3a6f1`，封存時`RD_CONTRACT_READY / QC_PENDING`，現已`ADOPTED_RD_IMPLEMENTATION_READY`）。原archive r3 QC／adoption保存；新增gap不是RD行為失敗。歷史B14 deadline只驗原證據時序，不能要求現在仍有效；整個readonly graph用單次不可重設600秒budget，當前producer／owner另於觀察前後及動作前驗自己的sealed input／intent期限。既有proof檔窄加Node內建AsyncLocalStorage＋私有WeakMap exact brand，opaque context跨worker→serving→migration共用root hash／path visiting／leaf-only memo及累計max8，拒第9層於provider read前；plain／cloned／prototype／跨root／expired／closed context拒絕，並行branch隔離。固定readOwnerSourceProof仍四參數，沒有public ctx／deadline override、future capsule、npm／新檔／工具／權限。八產品／九tests及20 schemas／58 refs不變。2026-10-07T22:32:53Z 已完成[deadline/context獨立Luna語義QC](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-independent-luna-deadline-context-contract-qc-r2.json>)（SHA `b15af10b34e0e9d5912924bde959788c869b0cf007edbcf7ee6b79bbe81a8198`，`CONTRACT_REVIEW_PASS`，P1／P2=0）與[root採納](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-deadline-context-adoption.json>)（SHA `c75ac8824805d19f209049022607b213abfff5a500e44a7ec339becd14db01dc`）。`DEADLINE_CONTEXT_CONSUMER_WRITE_GO`僅來源實作：先完成branded shared reader／context及fixed observation，再接原stage／runtime／abort／worker consumers，禁止placeholder；此GO不含runtime／provider／release，契約PASS不冒稱behavior PASS。較早deadline-only草案SHA `7236ee23efa918dc88a3384a457f571258d2eb3ea752a54e0f350a48072060a5`留存但未QC／採納。
+
+
+
+
+
+
+[Root實際局部分層證據](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-root-local-layer-results.json>)（SHA `f41ce538fd48ae086c9dc298331718a94ea86c0f5ddbef78439be77622639fc2`）：同test／fixture／clock／REST seam僅換parser的old-red／current-green因果驗證PASS，dispatch TypeScript tests28／28，該層hash未變可重用；pure archive57／57、0skip PASS僅綁原freeze輸入，portable／context變更後尚未測試，未覆蓋完整fixed observation／context／provider verifier。八個primary DB／journal前後ABSENT不變，task-owned PID／temp／governor已清理。Root harness regex誤選及freeze aggregate nullsize修正均保留原證據，不計RD failure。整體為 `IN_PROGRESS_PARTIAL / NOT_FULLY_TESTED / NOT_SOURCE_FROZEN`，完整owner／ROOT replay `NOT_RUN`，本phase未做production mutation；局部85 cases不是7 issues／29 groups的業務接受，完整候選獨立source QC仍未執行。
+
+本次 TL 窄決策僅補錄已採納 r3 的 adapter／QA 執行方式，不新增契約revision、schema、產品scope或人類核准。Cached-build `SOURCE_GO`：固定 `readOwnerSourceProof({profile,sourceRevision,refs,verifyProvider})` 僅於 exact `refs={prepare,migrate:null,terminal:null}` 內部分派既有 `pre_migration`；缺欄／undefined／混用拒絕，非null分支仍strict。於同一live scope透過 `readAiPdmObservationInputs` 驗 current capsule→prepare/source-lock→deployment/build/provenance→bundle→bounded source archive/profile/32 SQL，再由stage比較current Git／prerequisite與historical content；返回前及dependent action前保留current sealed deadline與shared max8。結果只為 `build_only / releaseAuthority=false / migrationVerified=false`，不讀future migrate、不產生歷史migration authority，不新增public mode／source／context override，也不走raw readBytes。verifyProvider仍重用bounded authenticated source。
+
+[Root已採納 serving/control retry interpretation r2](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-serving-control-retry-interpretation-r2.json>)（SHA `2ccdbc3ad379eea1ea78797d7269f2866a68af75893d011cf8ea877d55533f76`）僅落實原r3 recoveryConsumer，author GO不等於behavior PASS。`validateRepairBaseline` 的recorded路徑驗sealed APP_SERVICE／APP_REVISION及真正RELEASED serving graph，不把mutable control當舊capsule身分或execution authority；原protected intent、concurrency、control/CAS及phase-specific fresh guards保留。Live producer只接受原exact `FINALIZED/RELEASED`，或完整既有ordinary abort continuation所驗 `FINALIZED/PRE_ACTIVATION_ABORTED`：從fixed control releaseId取得authenticated failedRef，failed lock/deadline綁failed capsule，releasedIntentRef必等於真正servingCapsuleRef，revision／digest／serviceUID等完整join。55秒PAUSED fence後、發布或replay前重讀control與Service並驗原bytes/hash/generation及serving preimage；drift拒絕。Failed與released歷史共用原max8／deadline，禁止reset、failed冒充serving或active control進producer；普通ENABLED guard不變。routine-authority／prepare仍綁failedRef及完整preActivationAbortBasis，previousRevision仍是actual serving revision。R2於任何RD GO前只更正root原紀錄的contract SHA抄錄，原檔保留；無新authority／schema／helper／scope，source仍partial、behavior NOT_RUN。
+
+QA雙mandatory仍為 `CI_PORTABLE`（當次shallow HEAD之profile／32 SQL/full native archive；selected33僅格式／負例）＋`ROOT_AUTHENTIC_REPLAY`。現行[authentic input manifest r3](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-authentic-B14-input-manifest-r3.json>) SHA `deaab704ad17517af14b13e8f899bb48b07e88b342333de915985fc1dfafc204` 綁68 exact GCS objects／8 actual provider raw／3 native historical Git fixtures；directly-consumed worker、IAM／R15與prepare cutover inputs已閉合。這只是data bindings延伸，仍須consumer驗sealed graph後才admit source；actual input-only不是behavior PASS、current DB或release authority。[舊manifest r2](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-authentic-B14-input-manifest-r2.json>) SHA `cb042bc97c0d52cc62dd02106b859e2c1cb99adde4ca6db8c8138600695243e2` 的17 GCS＋2 provider僅保留immutable reader-input歷史。沒有contract revision、新schema、權限或產品scope變更。
+
+[Root執行層澄清](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-qa-execution-layer-clarification.json>) SHA `41c7b7ab2c74f56f67481b7c0973f0e8e65b3c3238f499993130988eb66bb034` 已採納：ROOT consumer suites集中既有proof.test，以有效SHA-sealed manifest額外註冊；未提供明列NOT_RUN，partial／invalid硬失敗，無network fallback／product hook。`proof-reuse`唯一承擔完整固定expected ROOT IDs全PASS、count>0、skip/todo=0與command exit0；producer／worker／stage／bootstrap／abort實際consumer正負例不縮減。continuous／QC原命令與gates各自實跑，明列 `ROOT_EXECUTION_NOT_IN_COMMAND`，引用同source/tests/inputs freeze的真proof-reuse證據，不冒抵或重跑ROOT，不改workflow／npm／wrapper。`B23-r5-checks.mjs`／launch僅prepared NOT_RUN；[獨立Luna限定prepared-controller QC r5](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-root-controller-limited-qc-r5.json>)（SHA `b0a44afd42801f88cdc8f13dac5d33138c7ed84dba876622b4108a83248408ff`）為 `LIMITED_PREPARED_CONTROLLER_QC_PASS_EXECUTION_BLOCKED`，僅controller準備與既有data review重用。Source freeze及完整expected ROOT set尚未sealed／QC pending，PENDING anchors禁止執行；不是implementation PASS，r3／r4準備歷史保留。完整owner／ROOT behavior全部 `NOT_RUN`；RD仍 `IN_PROGRESS_PARTIAL / NOT_FULLY_TESTED / NOT_SOURCE_FROZEN`，本phase未做production mutation，7 issues／29 groups、native USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED及歷史FAIL保留。
+
+r1 契約（SHA `d85df6ff2486e3a469cdd9d8cea94df6c2c097d9cb25c98edf75f99988d0cb50`）經獨立 Luna 判定 `CONTRACT_REVIEW_CHANGES_NEEDED`／P1：既有 prepare 無 fresh ledger證據，runner可套用pending；原檔與[QC失敗紀錄](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-independent-luna-contract-qc.json>)（SHA `7d8b71eda440871d5f7d4238f6c0a6eedb8d4259362f57a6b7407e5d13ef222b`）保留。r2改為historical32＋本次完整migration輸入相等、零migration Job；不是fresh current DB32證明。Actual AI-PDM minimumLedgerCount為0（非generic default15），更需禁止repair fallback到runner。r2封存時為RD Contract Ready／QC PENDING，此為歷史判定。
+
+r3僅修正r2獨立QC的P2措辭：允許既有allowlist內fixed readonly source-proof dispatch，但runtime configuration／transport authority不變；putJson-only僅指新增migration evidence，原app stages的protected build／provider operations沿既有授權。r2 SHA `43fd82d2b38e57195c693c63674220568459bcb5da0c158df0f390931bc66ec4` 與[QC r2](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-independent-luna-contract-qc-r2.json>)（SHA `4033e5793d3375c7fcddcfb4751f2ddec2468c1802a2d2b0a396fdb232326046`，remainingP1=0）保留。20 closed schemas／58 refs、流程、八產品／九測試及QA門檻完全不變；r3封存時為RD_CONTRACT_READY／QC PENDING；其後已完成獨立delta QC與adoption，現行成熟度見上方。
+
+
+[詳細封閉機器契約](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-paused-app-repair-contract-r3.json>)（SHA-256：`4d0b0f0fecdc8c7e75c41e009cc27998935869d570fd2354ebe0f3da1e57251e`）是本節 schema／joins／QA 的固定附錄；[B22 實際分層結案](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B22/release/B22-root-layer-closure.json>) SHA-256 `82cd2cd55b562228b19280a7d30b6b3f85620bcbffaef87a701fe218366f297c` 保存 PR239／required CI、producer 兩輪 source closure、provider reuse／descriptor-a PASS，以及新 live pause/drain FAIL。B22 full workflow／app build／bootstrap 未執行；B23 是新的失效機制修復，不是第三次 B22 重試，不重置計數。原 QC future createdAt 錯誤由 root binding 限定，原收據不改寫；local ref/value envelope SHA 不冒充 provider object SHA。
+
+### B23 執行邊界與狀態
+
+同一 AI-PDM canonical `C:/VIBE CODING/AI_PDM`，worktree `C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM`、branch `codex/dev122-paused-app-repair`、base `14559fb892fc598194f8e74f5bd50bce0dcb96e7`。人類原有 source／tests／PR-merge／同目標 production corrective 授權延續；單一RD writer已依採納契約開始獨立部分；目前產品IN_PROGRESS_PARTIAL／NOT_FULLY_TESTED／NOT_SOURCE_FROZEN，production NOT_RUN；相依archive proof依已採納deadline／context seam按shared reader／context→consumer順序實作。不得讀 sibling 作 release input，保留其他 DEV121／117 dirty files。
+
+B22 20:25 UTC provider 觀察為 B14 revision `ai-pdm-prod-44984e6018dc` 100%／0 tags、FINALIZED／RELEASED、Scheduler PAUSED、原 R17 normal Job template 與 reader v1／registry v3、無 active execution；這是歷史觀察，執行前必 fresh readback。已證實 REST 省略 boolean default 而 app 嚴格 `reconciling===false` 的 wire defect；global oldest head、十次409完整因果仍 UNKNOWN，不能把 own completed/dispatched job 當已確認全域 blocker。
+
+### B23 唯一設計與 exact contract
+
+1. **App parser**：只在 `OpenSwxJobProvider.validateExecution` 真正 REST 邊界以 `Object.hasOwn` 判斷缺欄位並正規化 false；present 僅 boolean，拒 null／string／number，true 保留，terminal 仍嚴格 false。保留 exact execution／時間／condition／generation CAS；不改 repository、claim API 或手動 DB。
+2. **封閉 v3**：`aipdm.openswx-worker-descriptor.v3` 固定 `purpose=full / artifactMode=REUSE_VERIFIED / releaseVariant=PAUSED_APP_REPAIR`。詳細 JSON Schema 鎖全部 keys；current association、pausedBaselineRef、priorActivationRef、retainedWorkerDescriptorRef 與原 numeric credentials 完整 join。沒有虛構本次 bootstrap／cloudPreflight／pausedDrained refs；dispatch 保持1，generic runtime binding 不變。
+3. **可實際產生的 DAG**：既有 reuse CLI 仍只收 immutable input ref＋SHA。RepairInput v2→request／raw PAUSED baseline→association v2→純 builder 產生固定 `<root>-descriptor-full-repair.json`→既有 runtime／capsule。Producer 以封閉 private proof context 驗新 association，不用假 v2 build_only；public resolver 只允許 full v3 repair。Baseline 不得指向尚未產生的 descriptor／本次 capsule；不增加 CLI／workflow input或observer。
+4. **兩個身分基線**：currently-serving app 的 capsule／canonical／finalized／terminal／runtime／revision，與 last READY worker activation 分開。首次二者 B14；若新 app 已 RELEASED／worker仍 pending，可綁新 serving repair capsule＋原 READY worker，以 immediate predecessor baseline 續接。完整 READY 後下一次 ordinary DAILY／reuse 必能綁最新 canonical。
+5. **保留 worker**：normal actor 以連續55秒（Scheduler30＋app20＋margin5）PAUSED fence驗 Job etag／generation／normal template／image／numeric Secret metadata／IAM／Scheduler policy與完整 execution inventory前後相同，無 active／unknown／額外 execution。不得 PATCH Job、重發 Secret、新增 IAM／resource或重建未變 worker；一般 v1 READY／ENABLED 路徑仍拒 PAUSED。Owner只用原權限讀 fixed Job／Scheduler／executions與sealed source proof，不增加 Secret／IAM／log權限。
+6. **原始來源不可混同**：新 app source、original build_only artifact source、retained legacy full bootstrap source分開。Resolver回傳 bootstrapDescriptor／Ref，歷史 receipt 仍以自己的 descriptor驗；current verificationSourceRevision 另驗 IAM executable equality，沒有 prebuild continuation也不得漏驗current IAM source。所有來源／retained／reuse／pending predecessor鏈共用context，歷史transition最多8、pending續接最多8；拒cycle、同URI異SHA、future／skip predecessor與helper reset，完整verified shared DAG可memoize。
+7. **發布 guard**：原 full_release十階段、唯一capsule／fixed mode／service concurrency不變。Prepare、candidate、pretraffic及finalize重新驗fresh PAUSED／noactive／原Job和階段正確revision。Candidate仍0% general traffic；pretraffic在setTraffic前檢查；finalize在新canonical後沿原request fence跑固定normal finite。未知submission只readback，不重送。Build前以真正B14 sealed migration graph證historical32，並比較新／舊完整ordered entries、SQL bytes、profile與082；current DB ledger維持UNKNOWN。Repair migrate固定零Job提交，發布封閉association，沒有runner fallback或schema／資料重寫。整個app綁reviewed official source／required CI，包含已QC的B18與B19–22，不虛構parser-only整體diff；runner仍守既有rotation／reuse gates。
+8. **完成與恢復**：finite exit1／unknown在finalize前失敗→原workflow exact traffic rollback→tag cleanup→entry baseline，Scheduler仍PAUSED。Exit0只得 `ACTIVATION_PENDING`，不是204／READY。既有normal actor activation須讀actual unique stdout `empty`、60秒freshness、exact source／template／credentials／etag／noactive／enable latch後才resume；unknownresume先readback再pause。App已RELEASED後stdout missing／completed／ambiguous則 `APP_RELEASED_WORKER_PENDING`，保留新版canonical＋PAUSED，沿新repair capsule前向修復；不假稱原workflow自動rollback。新finite未被admit，不取得due工作；requested／unknown仍409，completed marker不能冒充empty。
+
+### B23 r2 migration reuse 與 recovery 封閉範圍
+
+新增兩種資料物件：`aipdm.paused-app-repair-migration-prerequisite.v1`（prepare產生固定`<release-root>/migration-reuse-prerequisite.json`）及`aipdm.paused-app-repair-migration-association.v1`（migrate產生既有`migrate.json`位置）。前者綁實際current capsule／descriptor／baseline與真正B14 graph，不指向未來build／association；後者綁前者、current deployment／bundle，各自保留manifest、source、SHA。完整keys與actor／deadline在current r3 JSON（schema與r2相同）。舊receipt保留原execution、時間、ledger32／applied0／replayed32；新物件不clone migration-v1、不假造current ledger／boundary PASS。
+
+同一shared validator放在既有owner-release-proof模組，供stage executor及限定AI-PDM唯讀reader使用；generic `readOwnerReleaseProof`與preview保留v1-only。Runtime原`readOwnerSourceProof`改接fixed `readAiPdmReleaseObservation`，沒有新caller參數。Historical association完整capsule／full-v3-repair join驗完才可讀；回傳`migrationVerified=false / databaseLiveState=UNKNOWN`，未發布為`migration_evidence_only`、已發布仍`released`並附historical scope。Abort continuation須保留原owner/run/traffic/entry/Principal守門，驗B23 anchor後ordinary abort／retry。Terminal／rollback使用`HISTORICAL_EVIDENCE_REUSED`與實際association ref，不再冒稱`FORWARD_APPLIED`。
+
+此次零migration Job從分支在任何submit前拒絕保證；historical prerequisite只證未變輸入，無live ledger探針。Prepare／cached prepare／build前重驗，錯誤即無paid build且無runner fallback。現有owner prerequisite只要求migrationRunner與controller兩digest及foundation；其Docker executable inputs與worker必證相等。新增proof檔被preview Docker COPY，因此preview的current-source等價證據失效，未來使用須重新走artifact gate；B23未依賴／不執行／不重建preview，不能宣稱所有工具輸入未變。原full十階段與single capsule不變。
+
+### B23 最小 source／QA 邊界
+
+產品精確八檔（r1五檔加必要三個既有proof／recovery consumer）：`src/lib/openswx-metadata-dispatch.ts`、`scripts/lib/dev122-openswx-owner-release.mjs`、`scripts/lib/dev122-openswx-bootstrap.mjs`、`scripts/lib/dev122-openswx-worker-artifact-reuse.mjs`、`scripts/lib/dev012-owner-stage-executor.mjs`、`scripts/lib/dev121-owner-release-proof.mjs`、`scripts/lib/dev121-preactivation-abort-continuation.mjs`、`scripts/lib/dev012-owner-release-runtime.mjs`；無新增helper／CLI／API／workflow。測試只用詳細契約列的九個既有 test檔；prerequisite producer為caller coverage，產品檔不在allowlist。新增runtime改動僅限fixed AI-PDM唯讀source-proof reader銜接；若八檔不足，回送架構審查，不自行擴檔。
+
+必要正反例另含：historical32/current全部ordered SQL equality、錯誤在paid build前拒絕、cold/cache/replay/unknown零migration Job；generic reader／preview拒association與ordinary v1通過；B23 released anchor→ordinary abort→retry與PENDING→新repair。其餘必要正反例：真provider GET／list wire形狀與相同current cases的old-source causal red；全nested drift／graph cycle與第9層拒絕；冷／cached prepare、pretraffic／finalize fresh drift；unknown writes／no duplicate；actual finite204與failed/completed分流；三來源A/B/C；new READY→ordinary DAILY/reuse；APPRELEASED_PENDING→new repair。未執行不標PASS。保留六項DEV117 checks：continuous test／continuous QC／abort／DB boundary／app typecheck／isolated build；依最新人類AGENTS以actual per-input equivalence重用有效證據，aggregate已實際跑到的subchecks不重複。Syntax／diff／JSON parse不是行為證據。
+
+後續runtime必先登記project／purpose／port／PID tree／cleanup／PDM_DATA_DIR／PDM_REPOSITORY_DIR，使用task-isolated資料；isolated build前後驗primary schema／canonical identities／migration residue／global FK不變，fixture seed須先通過unmodified snapshot invariants並留ledger，清理own PID／ports／temp／UI。沒有新UI入口；candidate既有smoke與artifact binding不冒稱live parser／DB proof，真實runtime由canonical finite與normalActor stdout證明。
+
+下一步由單一RD writer完成shared bounded reader／context及相依分支，接續完整owner QA與獨立implementation QC；archive及deadline／context契約已通過並採納，局部層證據按freeze保留。7 issues／29 groups、whole DEV122 NOT_ACCEPTED、F-01F USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED、歷史UI FAIL／四組8CAD NOT_RUN不變。沒有新增人類決策；current provider、RD／QC／release／worker READY與原業務驗收證據仍待取得。
+
+使用思考習慣：#系統描繪、#限制條件、#可驗證性
+
+## DEV-122 HISTORY_ONLY（2026-10-07；B18 本地限定 QC 通過，B19 RD Implementation Ready／架構已定案）
 
 本節是目前唯一施工入口；下方歷史 CURRENT 保留原判定。Canonical repository 為 AI-PDM，執行 worktree 為同 repo 的 `dev122-internal-functions/AI_PDM`，branch `codex/dev122-openswx-work-cancel`、base HEAD `54d3c4c3fab41abf2045b025c90ca03d575e81f6`；本輪 source 是已凍結的 dirty source，不能把 base HEAD 當修復 commit。僅同 AI-PDM 與已授權 `ai-pdm-prod` corrective cycle，不讀 sibling source、不擴資源／IAM／資料權限。
 
@@ -37,7 +163,7 @@ B18／B19不改7 issues／29 groups，整體 `NOT_ACCEPTED`；F-01F `USER_PRODUC
 
 使用思考習慣：#限制條件、#變數控制、#可驗證性
 
-## DEV-122 CURRENT（2026-10-07；B13 已發布，排程時間驗證拒絕，B17 窄修復）
+## DEV-122 HISTORY_ONLY（2026-10-07；B13 已發布，排程時間驗證拒絕，B17 窄修復）
 
 PR234 已合併至 main `fb5dba8269e8f664acae5b69a47a5c58684b28e9`；已核准二項 prebuild IAM 實際套用，計畫恰二 create／五 no-op。B13 owner `37593373429` 十階段成功，正式 `ai-pdm-prod-06cc9e8ba15d` 100%／0 tags；migration 為既有 32 筆 replay、零新 apply。R15 worker READY、reader v1／registry v3 原值重用。這些發布證據不等於 CAD 自動處理驗收。
 
@@ -53,7 +179,7 @@ QA r2 PlanSHA `8123423baee7ec9f689328fe99311611baba2ef9b5bd1f2eddd71cccf533bdc8`
 
 native F-01F 仍由使用者正式驗證，供應商回覆停用延後，原 7 issues／29 groups 與整體 NOT_ACCEPTED 不變。[B17 受控修復與證據](../qa/DEV-122-openswx-schedule-time-remediation-2026-10-07.json)。
 
-## DEV-122 CURRENT（2026-10-07；B16 補權續接相容性修正，正式套用待執行）
+## DEV-122 HISTORY_ONLY（2026-10-07；B16 補權續接相容性修正，正式套用待執行）
 
 本節優先於下方歷史續點。人類已明確核准兩項 prebuild 補權並要求沿用現有測試帳號；PR234 第一輪 exact-head CI 已通過，尚未 merge／apply。套用前確認既有 DAILY fresh IAM 檢查會把新增 binding 算入 unrelated hash，故先補同範圍相容性修正，不把舊 hash 或 receipt 改寫成新結果。
 
@@ -65,7 +191,7 @@ native F-01F 仍由使用者正式驗證，供應商回覆停用延後，原 7 i
 
 測試沿用既有帳號；原十二資源只讀、reader v1／registry v3不重發，082不重套。native F-01F 仍由使用者正式驗證，供應商回覆停用延後，7 issues／29 groups及整體 NOT_ACCEPTED 不變。[受控修正證據](qa/DEV-122-openswx-scheduler-identity-remediation-2026-10-07.json)。
 
-## DEV-122 CURRENT（2026-10-07；A15 prepare DENIED；二項補權已獲人類核准，PR／CI與套用待執行）
+## DEV-122 HISTORY_ONLY（2026-10-07；A15 prepare DENIED；二項補權已獲人類核准，PR／CI與套用待執行）
 
 B14 prebuild continuation已正常PR233、PR／main required CI及Luna來源QC通過；官方來源`018e1369`，focused12／12、continuous139／139及六項DEV117 checks通過。r3 source QC的prepare漏查P2已補cold／cached每次fresh exact-tag Build list；原FORWARD_APPLIED與其他owner guard未變。原QC FAIL／欄位澄清各以新不可覆寫檔保留。
 

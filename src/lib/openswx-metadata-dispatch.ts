@@ -48,7 +48,10 @@ export class OpenSwxJobProvider {
   private validateExecution(value: Execution) {
     const name = canonicalOpenSwxExecution(value?.name);
     if (!Number.isFinite(Date.parse(value.createTime))) throw Error("OPENSWX_PROVIDER_EXECUTION_INVALID");
-    return { ...value, name };
+    // ProtoJSON omits the default false value. Normalize only at the real REST
+    // boundary; an explicit malformed value must never become terminal.
+    if (Object.hasOwn(value, "reconciling") && typeof value.reconciling !== "boolean") throw Error("OPENSWX_PROVIDER_EXECUTION_INVALID");
+    return { ...value, name, reconciling: Object.hasOwn(value, "reconciling") ? value.reconciling : false };
   }
   async readback(job: OpenSwxJob, deadline = Date.now() + 20_000, signal?: AbortSignal): Promise<Execution | null> {
     const fixedJob = await this.request(OPENSWX_JOB_REQUEST, "GET", deadline, signal);

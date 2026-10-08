@@ -3,6 +3,7 @@ import test from 'node:test'
 import { gunzipSync } from 'node:zlib'
 import { buildRuntimeConfig, canonicalize, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
+import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-platform-release'
@@ -157,6 +158,37 @@ test('recorded provider transport executes the ten immutable owner stages withou
   assert.equal(h.transport.effectiveRevision(h.service()), candidateRevision)
 })
 
+test('generic sealed released and rolled-back baselines retain profile-bound continuation reads', async () => {
+  for (const result of ['RELEASED', 'ROLLED_BACK']) {
+    const h = recordedHarness()
+    const { intentResult } = await authorizedRecordedInput(h, `REL-GENERIC-${result.replaceAll('_', '-')}`)
+    const intent = (await h.transport.readJson(intentResult.ref)).value
+    const terminalUri = releasePaths(h.profile, intent, intentResult.ref.sha256).terminal
+    const core = { schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: h.profile.application.id,
+      releaseId: intent.releaseId, sourceRevision: H40, stage: 'terminal', status: 'PASS', facts: { result } }
+    await h.transport.putJson(terminalUri, { ...core, receiptSha256: sha256(canonicalize(core)) }, { bucket, prefix: 'receipts' })
+    const jsonReads = [], byteReads = [], beforeCount = h.objects.size, beforeService = structuredClone(h.service())
+    let providerReads = 0
+    const unexpectedProvider = async () => { providerReads++; throw Error('UNEXPECTED_PROVIDER_READ') }
+    const transport = { ...h.transport,
+      async readJson(ref, ownerBucket, prefixes) { jsonReads.push({ ref, ownerBucket, prefixes }); return h.transport.readJson(ref) },
+      async readBytes(uri, options) { byteReads.push({ uri, options }); return h.transport.readBytes(uri, options) },
+      getService: unexpectedProvider, getRevision: unexpectedProvider, readOwnerRun: unexpectedProvider, readOwnerSourceProof: unexpectedProvider }
+    assert.equal(await readPreActivationAbortContinuation({ profile: h.profile, transport, baselineIntentRef: intentResult.ref }), null)
+    assert.deepEqual(jsonReads, [{ ref: intentResult.ref, ownerBucket: bucket, prefixes: ['receipts'] }])
+    assert.deepEqual(byteReads, [{ uri: terminalUri, options: { prefixes: ['receipts'] } }])
+    assert.equal(providerReads, 0)
+    assert.equal(h.objects.size, beforeCount)
+    assert.deepEqual(h.service(), beforeService)
+    const aiProfile = { ...h.profile, application: { ...h.profile.application, id: 'ai-pdm' },
+      artifact: { ...h.profile.artifact, releaseBucket: 'jenfu-platform-prod-aipdm-release' } }
+    await assert.rejects(readPreActivationAbortContinuation({ profile: aiProfile, transport, baselineIntentRef: intentResult.ref }), /IMMUTABLE_REF_INVALID/u)
+    assert.equal(jsonReads.length, 1)
+    assert.equal(byteReads.length, 1)
+    assert.equal(providerReads, 0)
+  }
+})
+
 test('prepare replay rejects aborted baseline control drift before reusing a cached receipt', async () => {
   const h = recordedHarness()
   const { intentResult, input } = await authorizedRecordedInput(h, 'REL-PREPARE-REPLAY')
@@ -308,4 +340,17 @@ test('build-only continuation revalidates current prerequisites and live baselin
     await assert.rejects(executeOwnerStage({...input,environment:{...h.environment,GITHUB_RUN_ID:'124'},stage:'prepare'}), scenario==='prerequisite'?/AUTHORIZATION_READ_FAILED/:/PREPARE_BASELINE_MISMATCH/)
     assert.equal([...h.objects.keys()].some(uri=>uri.endsWith('/migrate.json')),false)
   }
+})
+
+test('B23 expired current AI capsule stops actual protected build before publication or a paid build', async () => {
+  const h = recordedHarness(), { input } = await authorizedRecordedInput(h, 'REL-B23-EXPIRED')
+  const row = await h.transport.readJson({ uri: input.capsuleRef, sha256: input.capsuleSha256 })
+  const expired = { ...row.value, ownerApplicationId: 'ai-pdm', deadlineAt: new Date(Date.now() - 1).toISOString() }
+  const aiProfile = { ...h.profile, application: { ...h.profile.application, id: 'ai-pdm' } }
+  const saved = await h.transport.putJson(`gs://${bucket}/receipts/intents/REL-B23-EXPIRED-AI.json`, expired)
+  let builds = 0, writes = 0, candidates = 0
+  const transport = { ...h.transport, createBuild: async () => { builds++; throw Error('EXPIRED_BUILD') }, putJson: async () => { writes++; throw Error('EXPIRED_PUBLICATION') },
+    putBytes: async () => { writes++; throw Error('EXPIRED_SOURCE') }, createCandidate: async () => { candidates++; throw Error('EXPIRED_CANDIDATE') } }
+  await assert.rejects(executeOwnerStage({ ...input, profile: aiProfile, capsuleRef: saved.ref.uri, capsuleSha256: saved.ref.sha256, transport, stage: 'build' }), /RELEASE_INTENT_INVALID|OWNER_DEADLINE/u)
+  assert.deepEqual({ builds, writes, candidates }, { builds: 0, writes: 0, candidates: 0 })
 })

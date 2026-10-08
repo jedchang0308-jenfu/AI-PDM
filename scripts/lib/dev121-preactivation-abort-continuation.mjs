@@ -1,5 +1,6 @@
 import { assertImmutableRef, canonicalize, releasePaths, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertPrincipalOnlyRecoveryBinding, assertRecoveryProofReadback } from './dev121-principal-only-release.mjs'
+import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 
 const same = (a, b) => canonicalize(a) === canonicalize(b)
 const fail = () => { throw new Error('DEV121_PREACTIVATION_CONTINUATION_INVALID') }
@@ -10,7 +11,7 @@ const traffic = (rows, revision) => Array.isArray(rows) && rows.length === 1
 // Certify the cleaned, still-stopped original traffic before preparing a retry.
 export async function readPreActivationAbortContinuation({ profile, transport, baselineIntentRef, service = null, control = null, verifyProvider = false }) {
   const bucket = profile.artifact.releaseBucket
-  assertImmutableRef(baselineIntentRef, bucket, ['receipts'])
+  const readContinuation = async () => {
   const baseline = await transport.readJson(baselineIntentRef, bucket, ['receipts'])
   const intent = baseline.value
   if (intent?.ownerApplicationId !== profile.application.id || !/^[a-f0-9]{40}$/u.test(intent.sourceRevision ?? '')) fail()
@@ -90,6 +91,17 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
   try { await read(paths.activate); fail() } catch (error) { if (error.code !== 'MISSING') throw error }
   return { currentActiveRevision: intent.previousRevision, terminalRef: terminal.ref, rollbackRef: rollback.ref,
     migrationRef: migration.ref, candidateRef: candidate.ref, result: 'PRE_ACTIVATION_ABORTED' }
+  }
+  if (profile.application.id !== 'ai-pdm') {
+    assertImmutableRef(baselineIntentRef, bucket, ['receipts'])
+    return readContinuation()
+  }
+  const root = createAiPdmEvidenceContext()
+  return runAiPdmEvidenceContext(root, async () => {
+    assertImmutableRef(baselineIntentRef, bucket, ['receipts'])
+    const failedContext = descendAiPdmEvidenceContext(root, baselineIntentRef, true)
+    return runAiPdmEvidenceContext(failedContext, readContinuation)
+  })
 }
 
 // The retained application must already have a complete Principal-only release.
@@ -111,6 +123,9 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
   ])
   const prepareFacts = seal(prepare, 'prepare'), candidateFacts = seal(candidate, 'candidate')
   const entryFacts = seal(entry, 'entrypoint'), rollbackFacts = seal(rollback, 'rollback')
+  const repair = migration.value?.schemaVersion === 'aipdm.paused-app-repair-migration-association.v1'
+  const databaseDisposition = repair ? 'HISTORICAL_EVIDENCE_REUSED' : 'FORWARD_APPLIED'
+  if (repair && (!same(terminalFacts.migrationEvidenceRef, migration.ref) || !same(rollbackFacts.migrationEvidenceRef, migration.ref))) fail()
   const refNames = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef',
     foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
   const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId,
@@ -143,7 +158,7 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
     || !/^[a-f0-9]{64}$/u.test(entryFacts.templateSha256Before ?? '') || !/^[a-f0-9]{64}$/u.test(entryFacts.trafficSha256Before ?? '')
     || !same(rollback.value.previousReceiptRef, entry.ref) || !same(terminal.value.previousReceiptRef, rollback.ref)
     || terminalFacts.previousRevision !== intent.previousRevision || rollbackFacts.previousRevision !== intent.previousRevision
-    || terminalFacts.databaseDisposition !== 'FORWARD_APPLIED' || rollbackFacts.databaseDisposition !== 'FORWARD_APPLIED'
+    || terminalFacts.databaseDisposition !== databaseDisposition || rollbackFacts.databaseDisposition !== databaseDisposition
     || rollbackFacts.result !== 'PRE_ACTIVATION_ABORTED'
     || !same(terminalFacts.entrypointRecovery, rollbackFacts.entrypointRecovery)
     || !['BASELINE_ALREADY_ACTIVE', 'BASELINE_RESTORED'].includes(rollbackFacts.entrypointRecovery?.result)
@@ -167,8 +182,9 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
   ])
   const failed = await transport.readOwnerSourceProof({ profile, sourceRevision: intent.sourceRevision,
     refs: { prepare: prepare.ref, migrate: migration.ref, terminal: null }, verifyProvider })
-  const released = await transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
-    refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider })
+  const releasedContext = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), intent.baselineIntentRef, true)
+  const released = await runAiPdmEvidenceContext(releasedContext, () => transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
+    refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider }))
   const assertSourceProof = (proof, sourceIntent, sourceRef, disposition) => {
     if (proof?.owner !== profile.application.id || proof.sourceRevision !== sourceIntent.sourceRevision
       || proof.releaseId !== sourceIntent.releaseId || proof.disposition !== disposition
@@ -179,8 +195,17 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
     const sourcePaths = releasePaths(profile, sourceIntent, sourceRef.sha256)
     if (chain?.deployment?.ref !== sourcePaths.deployment) fail()
   }
-  assertSourceProof(failed.proof, intent, baselineIntentRef, 'migration_only')
+  assertSourceProof(failed.proof, intent, baselineIntentRef, repair ? 'migration_evidence_only' : 'migration_only')
   assertSourceProof(released.proof, anchorIntent, intent.baselineIntentRef, 'released')
+  const anchorRepair = anchorMigration.value?.schemaVersion === 'aipdm.paused-app-repair-migration-association.v1'
+  for (const [observation, expectedRepair] of [[failed, repair], [released, anchorRepair]]) {
+    if ((observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') !== expectedRepair) fail()
+  }
+  for (const observation of [failed, released]) if (observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') {
+    if (observation.proof.migrationVerified !== false || observation.proof.databaseLiveState !== 'UNKNOWN' || observation.proof.currentDatabaseReadPerformed !== false || observation.proof.evidenceScope !== 'MIGRATION_INPUT_EQUIVALENT_NO_EXECUTION') fail()
+    const graph = await readAiPdmObservationInputs(observation.proof)
+    if (!graph.repair) fail()
+  }
   if (failed.proof.artifactDigest !== candidateFacts.artifactDigest || released.proof.candidateRevision !== intent.previousRevision
     || (verifyProvider && [failed, released].some(row => row.provider?.status !== 'BUILD_IMAGE_VERIFIED'
       || row.provider.sourceRevision !== row.proof.sourceRevision || row.provider.artifactDigest !== row.proof.artifactDigest))
@@ -309,8 +334,9 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     transport.readJson(anchorIntent.runtimeConfigRef, bucket, ['receipts']), read(anchorPaths.verify), read(anchorPaths.canonical),
     transport.readJson(anchorIntent.sourceLockRef, bucket, ['receipts']),
   ])
-  const released = await transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
-    refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider })
+  const releasedContext = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), intent.baselineIntentRef, true)
+  const released = await runAiPdmEvidenceContext(releasedContext, () => transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
+    refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider }))
   const proof = released.proof
   if (proof?.owner !== profile.application.id || proof.sourceRevision !== anchorIntent.sourceRevision
     || proof.releaseId !== anchorIntent.releaseId || proof.disposition !== 'released'

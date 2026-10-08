@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
+import { assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, assertTerminalExecution, listWorkerExecutions } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
 const profile = JSON.parse(profileBytes)
@@ -17,6 +18,60 @@ export function workerDescriptor(purpose = 'build_only') {
   for (const key of ['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot']) common[key] = profile[key]
   return { ...common, ...(purpose === 'build_only' ? { resourcePlanRef: ref('approved-plan') } : { workerBuildRef: ref('a-build'), bootstrapRef: ref('bootstrap'), cloudPreflightRef: ref('preflight'), pausedDrainedRef: ref('drained'), tokenSecretVersion: token, registrySecretVersion: 'projects/9536592944/secrets/aipdm-prod-workload-auth-credentials/versions/9' }) }
 }
+function b23Baseline() {
+  const retained = workerDescriptor('full'), sourceLockRef = { uri: `gs://jenfu-platform-prod-aipdm-release/receipts/source-lock.json`, sha256: 'a'.repeat(64) }
+  const snapshot = { jobName: workerJobName(), jobEtag: 'provider-etag', jobGeneration: '15', normalTemplateSha256: sha256(canonicalize(workerTemplate(profile, image, token))), image,
+    numericCredentials: { token, registry: retained.registrySecretVersion }, secretMetadata: [{ name: token, state: 'ENABLED', etag: 'token-etag' }, { name: retained.registrySecretVersion, state: 'ENABLED', etag: 'registry-etag' }],
+    schedulerState: 'PAUSED', schedulerPolicySha256: 'a'.repeat(64), schedulerUserUpdateTime: null, iamSha256: 'b'.repeat(64), executions: [] }
+  const releaseRef = name => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-B23-TEST/${name}.json`, sha256: 'c'.repeat(64) })
+  const baseline = { schemaVersion: 'aipdm.openswx-paused-app-repair-baseline.v1', ownerApplicationId: 'ai-pdm', purpose: 'PAUSED_APP_REPAIR', status: 'PASS', evidenceScope: 'PRODUCTION_PROVIDER_READBACK',
+    inputRef: ref('input'), source: { sourceRevision, sourceArchiveSha256: retained.sourceArchiveSha256, sourceLockRef, workerProfileSha256: retained.workerProfileSha256, resourcePlanHash: retained.resourcePlanHash },
+    priorActivationRef: ref('activation'), retainedWorkerDescriptorRef: ref('retained-full'), predecessorBaselineRef: null,
+    servingApp: { capsuleRef: releaseRef('release-intent'), canonicalRef: releaseRef('canonical'), finalizeRef: releaseRef('finalize'), terminalRef: releaseRef('terminal'), runtimeConfigRef: releaseRef('runtime'),
+      workerDescriptorRef: ref('retained-full'), sourceRevision, revision: 'ai-pdm-prod-44984e6018dc', artifactDigest: `${appProfile.artifact.uri}@sha256:${'f'.repeat(64)}`, workerStatus: 'READY', serviceEtag: 'service-etag', generalTrafficPercent: 100, tagCount: 0, canonicalOrigin: profile.canonicalOrigin },
+    actor: profile.normalActor, observationStartedAt: '2026-10-08T00:00:00Z', observationCompletedAt: '2026-10-08T00:00:55Z', observedAt: '2026-10-08T00:00:55Z', pauseFenceSeconds: 55, before: structuredClone(snapshot), after: structuredClone(snapshot),
+    providerReadbackRefs: [{ id: 'job-before', api: 'RUN_JOB', method: 'GET', url: `https://run.googleapis.com/v2/${workerJobName()}`, observedAt: '2026-10-08T00:00:00Z', bodyRef: ref('raw-job') }],
+    resourcesUnchanged: true, mutationPerformed: false, providerQuiescenceProven: true, dbAdmissionProof: 'NOT_YET_PROVEN', continuationDepth: 1 }
+  return { baseline, retained }
+}
+test('B23 Job ProtoJSON omission is settled while explicit malformed reconciling is rejected', () => {
+  const template = workerTemplate(profile, image, token)
+  const job = { name: workerJobName(), generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template }
+  assert.equal(assertWorkerJob(job, template), job)
+  assert.equal(assertWorkerJob({ ...job, reconciling: false }, template).reconciling, false)
+  for (const reconciling of [null, 'false', 0, 1, true]) assert.throws(() => assertWorkerJob({ ...job, reconciling }, template), /OPENSWX_JOB_READBACK_MISMATCH/u)
+})
+test('B23 repair descriptor derives full mode and preserved credentials without a fabricated bootstrap', () => {
+  const { baseline, retained } = b23Baseline(), baselineRef = ref('paused-baseline'), associationRef = ref('association')
+  const association = { ...baseline.source, schemaVersion: 'aipdm.openswx-worker-build-association.v2', resourceBasis: 'PAUSED_APP_REPAIR', resourceAssociation: { readbackRef: baselineRef }, priorActivationRef: baseline.priorActivationRef }
+  const value = buildPausedRepairDescriptor({ profile, association, associationRef, baseline, baselineRef, retainedDescriptor: retained, retainedDescriptorRef: baseline.retainedWorkerDescriptorRef })
+  assert.equal(value.purpose, 'full'); assert.equal(value.tokenSecretVersion, token); assert.equal(value.releaseVariant, 'PAUSED_APP_REPAIR')
+  for (const key of ['bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef']) assert.equal(Object.hasOwn(value, key), false)
+  for (const patch of [{ purpose: 'build_only' }, { releaseVariant: 'DAILY' }, { pausedDrainedRef: ref('forged') }, { bounds: { ...value.bounds, maxExecutionPages: 5 } }, { tokenSecretVersion: token.replace('/7', '/latest') }]) assert.throws(() => assertWorkerDescriptor({ ...value, ...patch }, profile, retained.workerProfileSha256, sourceRevision))
+})
+test('B23 baseline rejects drift, nested excess, short fences and false database admission', () => {
+  const { baseline } = b23Baseline(); assertPausedRepairBaseline(baseline, profile)
+  const mutations = [b => b.after.jobEtag = 'changed', b => b.after.secretMetadata[1].etag = 'changed', b => b.after.numericCredentials.extra = 'x', b => b.source.extra = 'x',
+    b => b.servingApp.tagCount = 1, b => b.observationCompletedAt = '2026-10-08T00:00:54Z', b => b.dbAdmissionProof = 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN', b => b.continuationDepth = 9,
+    b => b.providerReadbackRefs[0].extra = true, b => b.after.executions.push({ name: 'sibling', createTime: baseline.observedAt, completionTime: baseline.observedAt, completedState: 'CONDITION_SUCCEEDED', rawPageRef: ref('raw') })]
+  for (const mutate of mutations) { const changed = structuredClone(baseline); mutate(changed); assert.throws(() => assertPausedRepairBaseline(changed, profile)) }
+  const execution = { name: `${workerJobName().replace('jenfu-platform-prod', '9536592944')}/executions/test`, createTime: baseline.observationStartedAt, completionTime: baseline.observedAt, completedState: 'CONDITION_FAILED', rawPageRef: ref('before-page') }
+  baseline.before.executions = [execution]; baseline.after.executions = [{ ...execution, rawPageRef: ref('after-page') }]
+  assertPausedRepairBaseline(baseline, profile); assert.deepEqual(repairSnapshotProjection(baseline.before), repairSnapshotProjection(baseline.after))
+})
+test('B23 provider terminal inventory permits omitted false and rejects active or malformed explicit values', () => {
+  const row = { name: `${workerJobName()}/executions/terminal`, createTime: '2026-10-08T00:00:00Z', completionTime: '2026-10-08T00:00:01Z', conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }] }
+  assertTerminalExecution(row, row.name); assertTerminalExecution({ ...row, reconciling: false }, row.name)
+  for (const reconciling of [true, null, 'false', 0]) assert.throws(() => assertTerminalExecution({ ...row, reconciling }, row.name))
+  assert.throws(() => assertTerminalExecution({ ...row, conditions: [...row.conditions, ...row.conditions] }, row.name))
+})
+test('B23 current check cannot promote provider quiescence into database admission', () => {
+  const { baseline } = b23Baseline(), check = { schemaVersion: 'aipdm.openswx-paused-app-repair-check.v1', associationRef: ref('association'), pausedBaselineRef: ref('baseline'), actor: profile.normalActor,
+    observedAt: baseline.observedAt, phase: 'PRODUCER_REPLAY', providerReadbackRefs: baseline.providerReadbackRefs, jobEtag: baseline.after.jobEtag, jobGeneration: baseline.after.jobGeneration,
+    normalTemplateSha256: baseline.after.normalTemplateSha256, schedulerState: 'PAUSED', executions: [], servingRevision: baseline.servingApp.revision, dbAdmissionProof: 'NOT_YET_PROVEN' }
+  assertPausedRepairCurrentCheck(check, baseline, profile)
+  for (const patch of [{ actor: 'other@example.com' }, { phase: 'ACTIVATE' }, { schedulerState: 'ENABLED' }, { dbAdmissionProof: 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN' }, { jobEtag: 'changed' }, { migrationVerified: true }]) assert.throws(() => assertPausedRepairCurrentCheck({ ...check, ...patch }, baseline, profile))
+})
 test('B19 fixed ENABLED READY and legacy PAUSED policies remain separate with exact zero retry semantics', () => {
   const ready = { name: workerSchedulerName(), state: 'ENABLED', schedule: profile.bounds.schedule, timeZone: 'Etc/UTC', attemptDeadline: '30s',
     httpTarget: { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } } }
@@ -91,6 +146,31 @@ function recordedProvider({ ambiguous = false, wrongTemplate = false } = {}) {
     } }
   return { transport, template, objects, calls, job, executionName }
 }
+
+test('B23 malformed execution page token cannot complete a finite pre-run inventory', async () => {
+  for (const [index, nextPageToken] of [false, 0, null, 1, [], {}].entries()) {
+    const h = recordedProvider(), request = h.transport.request
+    h.transport.request = async (url, options) => {
+      const result = await request(url, options)
+      return url.includes('/executions?') ? { ...result, nextPageToken } : result
+    }
+    await assert.rejects(runWorkerFinite({ transport: h.transport, descriptor: workerDescriptor('full'), profile, template: h.template,
+      receiptUri: ref(`malformed-page-${index}`).uri, actor: 'fixed-wif', deadlineAt: new Date(Date.now() + 120000).toISOString() }), /OPENSWX_EXECUTIONS_PAGE_LIMIT/u)
+    assert.equal(h.calls.filter(row => row.url.includes('/executions?')).length, 1)
+    assert.equal(h.objects.size, 0, 'rejected inventory cannot publish even the finite request')
+    assert.equal(h.calls.filter(row => row.url.endsWith(':run') || row.url.endsWith(':resume') || row.options.method === 'PATCH' || row.options.method === 'POST').length, 0)
+  }
+})
+test('B23 execution inventory permits absent empty and bounded nonempty page tokens', async () => {
+  for (const tail of [{}, { nextPageToken: '' }]) {
+    let reads = 0
+    assert.deepEqual(await listWorkerExecutions({ request: async () => { reads++; return { executions: [], ...tail } } }), [])
+    assert.equal(reads, 1)
+  }
+  const calls = [], rows = ['first', 'second'].map(name => ({ name: `${workerJobName()}/executions/${name}` }))
+  const inventory = await listWorkerExecutions({ request: async url => { calls.push(url); return calls.length === 1 ? { executions: [rows[0]], nextPageToken: 'closed-next-page' } : { executions: [rows[1]] } } })
+  assert.deepEqual(inventory, rows); assert.equal(calls.length, 2); assert.equal(new URL(calls[1]).searchParams.get('pageToken'), 'closed-next-page')
+})
 test('finite request clock binds a full or deadline-clamped window to one advancing timestamp', async () => {
   for (const limit of [120_000, 15_000]) {
     const h = recordedProvider(), provider = h.transport.request, started = Date.now() + 1000

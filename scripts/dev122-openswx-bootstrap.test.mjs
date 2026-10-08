@@ -12,7 +12,7 @@ import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBAC
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan, readPrebuildIamContinuation } from './lib/dev122-openswx-readback-iam.mjs'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
-import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources, readCurrentReadyWorkerResources } from './lib/dev122-openswx-bootstrap.mjs'
+import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources, readCurrentReadyWorkerResources, readPausedRepairWorkerResources } from './lib/dev122-openswx-bootstrap.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
@@ -194,6 +194,54 @@ test('B19 READY double read rejects state/Job/Secret/Scheduler drift and free po
     await assert.rejects(readCurrentReadyWorkerResources({ transport: h.transport, profile, prior, supplementalIam: null }))
     assert.equal(h.objects.size, size); assert.ok(!h.calls.some(row => /:pause|:run|:resume|:addVersion|:access/u.test(row.url)))
     await assert.rejects(readCurrentReadyWorkerResources({ transport: h.transport, profile, prior, supplementalIam: null, expectedState: 'PAUSED' }), { code: 'OPENSWX_READY_INPUT_INVALID' })
+  }
+})
+
+test('B23 actual normal actor observes two PAUSED snapshots across 55 seconds without credential access or mutation', async () => {
+  const h = await dailyHarness(), prior = await readPriorWorkerActivation(h.transport, h.activationRef, profile, readSource), provider = h.transport.request
+  let elapsed = 0
+  const started = Date.now(), size = h.objects.size
+  h.transport.now = () => new Date(started + elapsed).toISOString()
+  h.transport.request = async (url, options) => {
+    const body = await provider(url, options)
+    if (url.startsWith('https://cloudscheduler.googleapis.com/')) return { ...body, state: 'PAUSED' }
+    if (url.includes('secretmanager') && /\/versions\/[1-9][0-9]*$/u.test(url)) return { ...body, etag: 'sealed-secret-etag' }
+    return body
+  }
+  h.calls.length = 0
+  const result = await readPausedRepairWorkerResources({ transport: h.transport, profile, prior, supplementalIam: null }, async ms => { assert.equal(ms, 55_000); elapsed += ms })
+  assert.equal(result.before.schedulerState, 'PAUSED'); assert.equal(result.after.schedulerState, 'PAUSED')
+  assert.equal(Date.parse(result.observationCompletedAt) - Date.parse(result.observationStartedAt), 55_000)
+  assert.equal(result.raw.filter(row => row.url.includes('/executions?')).length, 2)
+  assert.equal(result.raw.filter(row => /\/versions\/[1-9][0-9]*$/u.test(row.url)).length, 4)
+  assert.equal(h.objects.size, size); assert.ok(h.calls.every(row => !/:access|:run|:pause|:resume|:addVersion|setIamPolicy/u.test(row.url) && row.options.method !== 'PATCH'))
+})
+
+test('B23 PAUSED capture rejects secret drift, active/malformed inventory and a fifth page without publication', async () => {
+  for (const defect of ['secret', 'active', 'malformed', 'duplicate', 'pages', 'repeated-token', 'nonstring-token', 'job-nonboolean']) {
+    const h = await dailyHarness(), prior = await readPriorWorkerActivation(h.transport, h.activationRef, profile, readSource), provider = h.transport.request
+    let elapsed = 0, tokenReads = 0
+    const started = Date.now(), size = h.objects.size
+    h.transport.now = () => new Date(started + elapsed).toISOString()
+    h.transport.request = async (url, options) => {
+      const body = await provider(url, options)
+      if (url.startsWith('https://cloudscheduler.googleapis.com/')) return { ...body, state: 'PAUSED' }
+      if (/\/versions\/[1-9][0-9]*$/u.test(url)) { if (url.includes(profile.tokenSecretId)) tokenReads++; return { ...body, etag: defect === 'secret' && tokenReads > 1 ? 'changed' : 'same' } }
+      if (url === `https://run.googleapis.com/v2/${workerJobName()}` && defect === 'job-nonboolean') return { ...body, reconciling: null }
+      if (url.includes('/executions?')) {
+        const execution = { name: `${workerJobName()}/executions/local`, createTime: new Date(started - 2000).toISOString(), completionTime: new Date(started - 1000).toISOString(), conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
+        if (defect === 'pages') return { executions: [], nextPageToken: String(new URL(url).searchParams.get('pageToken') ?? '0') + 'x' }
+        if (defect === 'repeated-token') return { executions: [], nextPageToken: 'repeated' }
+        if (defect === 'nonstring-token') return { executions: [], nextPageToken: 1 }
+        if (defect === 'active') delete execution.completionTime
+        if (defect === 'malformed') execution.reconciling = null
+        return { executions: defect === 'duplicate' ? [execution, execution] : [execution] }
+      }
+      return body
+    }
+    h.calls.length = 0
+    await assert.rejects(readPausedRepairWorkerResources({ transport: h.transport, profile, prior, supplementalIam: null }, async ms => { elapsed += ms }))
+    assert.equal(h.objects.size, size); assert.ok(h.calls.every(row => !/:access|:run|:pause|:resume|:addVersion|setIamPolicy/u.test(row.url) && row.options.method !== 'PATCH'))
   }
 })
 test('daily target-linked drain retains prior actual image; new source bootstrap reuses numeric credentials with zero issuance/apply', async () => {
