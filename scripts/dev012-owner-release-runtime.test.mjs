@@ -911,3 +911,19 @@ test('B27 verifier denial and timeout fail without a mutation or builder fallbac
     assert.equal(calls[0].token, 'Bearer MODELED-B27-VERIFIER-TOKEN')
   }
 })
+
+test('B28 migration execution readback routes only exact own-job GET lists to verifier', async () => {
+  const builder = 'MODELED-B28-BUILDER-TOKEN', verifier = 'MODELED-B28-VERIFIER-TOKEN', calls = []
+  const own = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions'
+  const transport = createAiPdmBuildReadbackTransport({ token: builder, verifierReadbackToken: verifier, fetchImpl: async (url, options) => {
+    calls.push({ url, options }); return json({})
+  } })
+  for (const url of [own+'?pageSize=100',own+'?pageSize=100&pageToken=next']) {
+    await transport.request(url); assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${verifier}`)
+  }
+  for (const [url, options] of [[own+'?pageSize=100',{method:'POST'}],[own+'?pageSize=100&filter=other',{}],
+    [own+'?pageSize=100&pageSize=100',{}],[own.replace('ai-pdm-prod','platform-prod')+'?pageSize=100',{}],
+    [own.replace('jenfu-platform-prod','other')+'?pageSize=100',{}],[own+'/unbound-execution',{}]]) {
+    await transport.request(url,options); assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${builder}`)
+  }
+})

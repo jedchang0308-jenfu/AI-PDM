@@ -582,9 +582,12 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
 }
 /** Default implementation uses only the existing verified owner transport and frozen Git blobs. */
 export function createOpenSwxOwnerRelease({ transport, readSource, environment }) {
+  // Rebind each worker operation from the stage transport. A previous worker
+  // clock must not survive unrelated application build or verification work.
+  const stageTransport = transport
   async function resolve(intent, appProfile) {
     if (!intent.openswxWorkerRef) return null
-    transport = boundOpenSwxTransport(transport, intent.deadlineAt)
+    transport = boundOpenSwxTransport(stageTransport, intent.deadlineAt)
     if (appProfile.application.id !== 'ai-pdm' || environment.GITHUB_WORKFLOW_REF !== `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`) fail('OPENSWX_FULL_WORKFLOW_REQUIRED')
     const descriptor = await readWorkerDescriptor({ transport, ref: intent.openswxWorkerRef, profileBytes: readSource(WORKER_PROFILE_PATH, intent.sourceRevision), sourceRevision: intent.sourceRevision })
     if ((environment.OWNER_EXECUTION_MODE === 'build_only' ? 'build_only' : environment.OWNER_EXECUTION_MODE === 'full_release' ? 'full' : '') !== descriptor.value.purpose) fail('OPENSWX_EXECUTION_MODE_MISMATCH')

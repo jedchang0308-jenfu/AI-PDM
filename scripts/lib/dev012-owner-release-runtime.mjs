@@ -304,7 +304,7 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
     if (!response.ok) fail('CONTROL_OWNER_RUN_READBACK_FAILED', String(response.status))
     const value = await response.json()
     if (String(value?.id ?? '') !== runId) fail('CONTROL_OWNER_RUN_READBACK_FAILED', 'id')
-    return { id: String(value.id), status: value.status, conclusion: value.conclusion, event: value.event, headSha: value.head_sha }
+    return { id: String(value.id), status: value.status, conclusion: value.conclusion, event: value.event, headSha: value.head_sha, createdAt: value.created_at, updatedAt: value.updated_at }
   }
 
   async function readBytes(uri, { prefixes = ['receipts'], expectedSha256 = null } = {}) {
@@ -1237,6 +1237,7 @@ export function createAiPdmBuildReadbackTransport({ token, verifierReadbackToken
   const observer = createOwnerTransport({ token: verifierReadbackToken, builderReadbackToken: token, fetchImpl: (url, options) => fetchImpl(url, { ...options, redirect: 'error' }), sleep, now })
   const service = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
   const job = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata'
+  const migrationExecutions = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions'
   const scheduler = 'https://cloudscheduler.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch'
   const assertProfile = profile => {
     if (profile?.application?.id !== 'ai-pdm' || profile?.target?.projectId !== 'jenfu-platform-prod'
@@ -1250,7 +1251,7 @@ export function createAiPdmBuildReadbackTransport({ token, verifierReadbackToken
     if (url.startsWith(`${service}/revisions/`) && /^ai-pdm-prod-[a-f0-9]{12}$/u.test(url.slice(`${service}/revisions/`.length))) return true
     if (/^https:\/\/run\.googleapis\.com\/v2\/projects\/(?:jenfu-platform-prod|9536592944)\/locations\/asia-east1\/jobs\/ai-pdm-prod-openswx-metadata\/executions\/[a-z][a-z0-9-]{0,62}$/u.test(url)) return true
     const parsed = new URL(url)
-    return parsed.origin + parsed.pathname === `${job}/executions` && !parsed.username && !parsed.password && !parsed.hash
+    return [`${job}/executions`, migrationExecutions].includes(parsed.origin + parsed.pathname) && !parsed.username && !parsed.password && !parsed.hash
       && parsed.searchParams.get('pageSize') === '100' && [...parsed.searchParams.keys()].every(key => ['pageSize', 'pageToken'].includes(key))
       && parsed.searchParams.getAll('pageSize').length === 1 && parsed.searchParams.getAll('pageToken').length <= 1
   }

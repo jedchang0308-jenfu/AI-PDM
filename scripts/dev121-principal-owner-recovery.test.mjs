@@ -201,11 +201,11 @@ function ordinaryAbortFixture() {
     id, projectId: 'jenfu-platform-prod', status: 'SUCCESS', serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
     options: { requestedVerifyOption: 'VERIFIED' }, sourceProvenance: { resolvedStorageSource: { bucket, object: sourceObject.uri.slice(`gs://${bucket}/`.length), generation: '7' } },
     results: { images: [{ name: `${profile.artifact.uri}:release-${source}`, digest: image.split('@')[1] }] } })
-  function release({ source, releaseId, revision, previous, imageDigit, anchorRef = null, released = false }) {
+  function release({ source, releaseId, revision, previous, imageDigit, anchorRef = null, released = false, preActivationAbortBasis = null }) {
     const lock = put(`gs://${bucket}/receipts/releases/${releaseId}/source-lock.json`, buildSourceFreeze({ profile, releaseId, observedAt: '2026-09-30T00:00:00Z',
       git: { sourceRevision: source, sourceTree: 'f'.repeat(40), branch: 'main', remoteRevision: source, clean: true }, sourceIdentityBytes: h.sourceIdentityBytes, migrationBundle: { bundle: { manifestSha256: h.migrationManifestSha256 } } }))
     const runtimeRow = put(`gs://${bucket}/receipts/releases/${releaseId}/runtime-config.json`, buildRuntimeConfigReceipt({ profile, releaseId, sourceLock: lock.value, plainEnvironment: modes, secretVersions: { SESSION_SECRET: '1' }, observedAt: '2026-09-30T00:00:00Z' }))
-    const dummy = put(`gs://${bucket}/receipts/releases/${releaseId}/authority.json`, { status: 'PASS' })
+    const dummy = put(`gs://${bucket}/receipts/releases/${releaseId}/authority.json`, { status: 'PASS', ...(preActivationAbortBasis ? { preActivationAbortBasis } : {}) })
     const intent = { schemaVersion: profile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId, sourceRevision: source,
       sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef: lock.ref, runtimeConfigRef: runtimeRow.ref,
       authorizationPolicyRef: dummy.ref, readinessReceiptRef: dummy.ref, foundationReceiptRef: dummy.ref, infraReceiptRef: dummy.ref,
@@ -213,7 +213,7 @@ function ordinaryAbortFixture() {
     const intentRow = put(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`, intent), paths = releasePaths(profile, intent, intentRow.ref.sha256)
     const seal = (stage, facts, prev = null) => put(paths[stage], stageReceipt({ profile, intent, stage, previousReceiptRef: prev, facts, observedAt: '2026-09-30T00:00:00Z' }))
     const prerequisiteRefs = { sourceLock: lock.ref, authorization: dummy.ref, readiness: dummy.ref, foundation: dummy.ref, infra: dummy.ref, runtimeConfig: runtimeRow.ref }
-    const prepare = seal('prepare', { prerequisiteRefs, previousRevision: previous, entrypointBaseline: snapshot })
+    const prepare = seal('prepare', { prerequisiteRefs, previousRevision: previous, entrypointBaseline: snapshot, ...(preActivationAbortBasis ? { preActivationAbortBasis } : {}) })
     const image = `${profile.artifact.uri}@sha256:${imageDigit.repeat(64)}`
     const sourceUri = `gs://${bucket}/source/releases/${releaseId}/${intentRow.ref.sha256}/source.tar.gz`
     const archived = Buffer.from('frozen archive '+source), sourceObject = { uri: sourceUri, sha256: sha256(archived), generation: '7', crc32c: crc32cBase64(archived) }
@@ -248,7 +248,7 @@ function ordinaryAbortFixture() {
       const rollback = seal('rollback', facts, entry.ref); seal('terminal', { ...facts }, rollback.ref)
     }
     revisions.set(revision, { name: `${service.name}/revisions/${revision}`, conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: 'ai-pdm', image, env: Object.entries(modes).map(([name,value]) => ({ name,value })) }] })
-    return { intent, intentRow, paths, seal, runtimeRow, lock, image, revision }
+    return { intent, intentRow, paths, seal, runtimeRow, lock, image, revision, cloudBuild, provenance }
   }
   const anchor = release({ source: 'b'.repeat(40), releaseId: 'DEV121-RELEASED-ANCHOR', revision: previousRevision, previous: 'ai-pdm-prod-000000000000', imageDigit: 'b', released: true })
   const failed = release({ source: 'a'.repeat(40), releaseId: 'DEV121-FAILED-CANDIDATE', revision: candidateRevision, previous: previousRevision, imageDigit: 'c', anchorRef: anchor.intentRow.ref })
@@ -368,7 +368,8 @@ function ordinaryPrebuildAbortFixture() {
   const facts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision, databaseDisposition: 'NOT_APPLIED',
     entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
   const rollback = h.failed.seal('rollback', facts)
-  h.failed.seal('terminal', facts, rollback.ref)
+  const { recoveryOrder, ...terminalFacts } = facts
+  h.failed.seal('terminal', terminalFacts, rollback.ref)
   h.controlCore.candidateRevision = null
   h.control()
   return h
@@ -470,5 +471,117 @@ test('prebuild prepare re-queries failed-tag Build absence after the producer an
       assert.equal(h.calls.puts, putsBefore, 'reject before any new receipt or control write')
       assert.equal(h.objects.size, objectsBefore)
     }
+  }
+})
+
+
+async function unpublishedAbortFixture(inherited = false) {
+  const h = ordinaryPrebuildAbortFixture()
+  const prior = h.failed, priorRun = structuredClone(h.ownerRun)
+  if (inherited) {
+    const basis = (await readPreActivationAbortContinuation(h.helperInput)).authorityBasis
+    h.failed = h.release({ source: 'e'.repeat(40), releaseId: 'DEV122-PARTIAL-BUILD-ABORT', revision: candidateRevision,
+      previous: previousRevision, imageDigit: 'e', anchorRef: prior.intentRow.ref, preActivationAbortBasis: basis })
+  }
+  const f = h.failed
+  h.objects.set(f.paths.provenance, f.provenance)
+  for (const stage of ['build', 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) h.objects.delete(f.paths[stage])
+  const facts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision, databaseDisposition: 'NOT_APPLIED',
+    entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
+  const rollback = f.seal('rollback', facts), { recoveryOrder, ...terminalFacts } = facts; f.seal('terminal', terminalFacts, rollback.ref)
+  const build = structuredClone(f.cloudBuild)
+  Object.assign(build, { finishTime: '2026-10-01T00:03:00Z', tags: [f.intent.releaseId.toLowerCase()], source: { storageSource: build.sourceProvenance.resolvedStorageSource } })
+  h.put(f.paths.provenance, { ...f.provenance.value, cloudBuild: build })
+  h.put(f.paths.sbom, { schemaVersion: 'jenfu.dev012.sbom-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: f.intent.sourceRevision,
+    artifactDigest: f.image, resourceUrl: `https://${f.image}`, status: 'PASS' })
+  h.put(f.paths.scan, { schemaVersion: 'jenfu.dev012.scan-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: f.intent.sourceRevision,
+    artifactDigest: f.image, blockingVulnerabilityCount: 0, maximumAllowedSeverity: 'MEDIUM', status: 'PASS' })
+  Object.assign(h.controlCore, { releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, sourceLockSha256: f.lock.ref.sha256,
+    ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/43', candidateRevision: null,
+    inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, releaseIntentSha256: f.intentRow.ref.sha256 })) })
+  h.control()
+  Object.assign(h.ownerRun, { id: '43', headSha: f.intent.sourceRevision, createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-01T00:05:00Z' })
+  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner' }
+  const request = h.transport.request
+  h.transport.request = async (url, ...args) => {
+    if (url.includes('/builds?filter=') && new URL(url).searchParams.get('filter') === `tags=${f.intent.releaseId.toLowerCase()}`) return { builds: [build] }
+    if (url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')) return {}
+    return request.call(h.transport, url, ...args)
+  }
+  h.transport.readOwnerRun = async (_profile, url) => url.endsWith('/42') && inherited ? priorRun : h.ownerRun
+  h.helperInput.baselineIntentRef = f.intentRow.ref
+  return { ...h, partialBuild: build, prior }
+}
+
+for (const inherited of [false, true]) test(`B28 unpublished build abort keeps partial artifact non-authoritative; inherited zero-build anchor=${inherited}`, async () => {
+  const h = await unpublishedAbortFixture(inherited), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
+  const result = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(result.authorityBasis.schemaVersion, 'ai-pdm.principal-unpublished-build-abort-basis.v1')
+  assert.equal(result.authorityBasis.unpublishedBuild.releaseAuthority, false)
+  assert.equal(result.authorityBasis.unpublishedBuild.migrationVerified, false)
+  assert.equal(result.authorityBasis.unpublishedBuild.evidenceScope, 'QUIESCENT_UNPUBLISHED_BUILD_NOT_REUSED')
+  assert.deepEqual(result.authorityBasis.releasedIntentRef, h.anchor.intentRow.ref)
+  assert.equal(result.authorityBasis.retainedArtifactDigest, h.anchor.image)
+  assert.equal(h.calls.puts, 0)
+  const next = await ordinaryNextRelease(h)
+  const prepare = await executeOwnerStage(next.input)
+  assert.deepEqual(prepare.value.facts.preActivationAbortBasis, result.authorityBasis)
+  assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepare.ref.sha256)
+  assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
+  assert.ok(!h.objects.has(h.failed.paths.build)); assert.ok(!h.objects.has(h.failed.paths.deployment))
+})
+
+test('B28 partial abort rejects unknown/cardinality/source/image/build and submission evidence before writes', async () => {
+  const mutations = [
+    h => { h.partialBuild.status = 'WORKING' }, h => { h.partialBuild.id = 'wrong' }, h => { h.partialBuild.tags = ['other'] },
+    h => { h.partialBuild.serviceAccount = 'sibling' }, h => { h.partialBuild.results.images[0].digest = 'sha256:'+'f'.repeat(64) },
+    h => { h.partialBuild.source.storageSource.generation = '99' }, h => { h.partialBuild.options.requestedVerifyOption = 'NOT_VERIFIED' },
+    h => h.objects.delete(h.failed.paths.sbom), h => h.objects.delete(h.failed.paths.scan),
+    h => h.put(h.failed.paths.sbom, { ...h.objects.get(h.failed.paths.sbom).value, sourceRevision: 'f'.repeat(40) }),
+    h => h.put(h.failed.paths.scan, { ...h.objects.get(h.failed.paths.scan).value, artifactDigest: h.anchor.image }),
+    h => h.put(h.failed.paths.migrate.replace('.json','-submission-intent.json'), { status: 'SUBMISSION_INTENT' }),
+    h => { const request = h.transport.request; h.transport.request = (url, ...args) => url.includes('/builds?filter=') ? { builds: [h.partialBuild], nextPageToken: 'more' } : request(url,...args) },
+    h => { const request = h.transport.request; h.transport.request = (url, ...args) => url.includes('/builds?filter=') ? { builds: [h.partialBuild,h.partialBuild] } : request(url,...args) },
+    h => { const request = h.transport.request; h.transport.request = (url, ...args) => url.includes('/builds?filter=') ? Promise.reject(Object.assign(Error('DENIED'),{code:'DENIED'})) : request(url,...args) },
+  ]
+  for (const mutate of mutations) { const h = await unpublishedAbortFixture(); mutate(h); await assert.rejects(readPreActivationAbortContinuation(h.helperInput)); assert.equal(h.calls.puts, 0) }
+})
+
+test('B28 partial abort rechecks migration execution pages and rejects active, new, unknown, matching, duplicate and incomplete results', async () => {
+  const old = { name: 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions/old',
+    createTime: '2026-09-30T00:00:00Z', completionTime: '2026-09-30T00:01:00Z', conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
+  for (const response of [null, { executions: {} }, { executions: [{ ...old, completionTime: null }] },
+    { executions: [{ ...old, createTime: '2026-10-01T00:01:00Z' }] }, { executions: [old,old] },
+    { executions: [old], nextPageToken: 'loop' }, { executions: [{ ...old, name: 'sibling' }] },
+    { executions: [{ ...old, template: { containers: [{ args: ['--source-revision', 'a'.repeat(40)] }] } }] }]) {
+    const h = await unpublishedAbortFixture(), request = h.transport.request
+    h.transport.request = (url,...args) => url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')
+      ? response === null ? Promise.reject(Error('UNKNOWN')) : response : request(url,...args)
+    await assert.rejects(readPreActivationAbortContinuation(h.helperInput)); assert.equal(h.calls.puts, 0)
+  }
+  const h = await unpublishedAbortFixture(), request = h.transport.request
+  let pages = 0
+  h.transport.request = (url,...args) => url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')
+    ? (++pages === 1 ? { executions: [old], nextPageToken: 'last' } : {}) : request(url,...args)
+  await readPreActivationAbortContinuation(h.helperInput); assert.equal(pages, 2)
+  delete h.ownerRun.createdAt
+  await assert.rejects(readPreActivationAbortContinuation(h.helperInput))
+})
+
+test('B28 inherited basis joins exact authorization/readiness and sealed predecessor instead of promoting an aborted anchor', async () => {
+  for (const scenario of ['auth', 'ready', 'prior-seal', 'prior-build', 'prior-run', 'basis-anchor']) {
+    const h = await unpublishedAbortFixture(true)
+    if (scenario === 'auth' || scenario === 'ready') {
+      const key = scenario === 'auth' ? 'authorizationPolicyRef' : 'readinessReceiptRef', ref = h.failed.intent[key]
+      h.put(ref.uri, { status: 'PASS' })
+    } else if (scenario === 'prior-seal') { const row = h.objects.get(h.prior.paths.terminal); h.put(row.ref.uri, { ...row.value, receiptSha256: 'f'.repeat(64) }) }
+    else if (scenario === 'prior-build') h.put(h.prior.paths.provenance, { arbitrary: 'present' })
+    else if (scenario === 'prior-run') h.transport.readOwnerRun = async () => h.ownerRun
+    else {
+      const row = h.objects.get(h.failed.paths.prepare), { receiptSha256, ...core } = structuredClone(row.value)
+      core.facts.preActivationAbortBasis.releasedIntentRef = h.prior.intentRow.ref
+      h.put(row.ref.uri, { ...core, receiptSha256: sha256(canonicalize(core)) })
+    }
+    await assert.rejects(readPreActivationAbortContinuation(h.helperInput)); assert.equal(h.calls.puts, 0)
   }
 })
