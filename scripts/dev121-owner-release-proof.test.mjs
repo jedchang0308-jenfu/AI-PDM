@@ -9,11 +9,11 @@ import { canonicalize, crc32cBase64, sha256 } from
 import { createOwnerTransport, buildRuntimeConfig, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { boundOpenSwxTransport, WORKER_PROFILE_PATH, workerTemplate, workerJobName,
   workerSchedulerName, createOpenSwxOwnerRelease, readWorkerFullEvidence } from './lib/dev122-openswx-owner-release.mjs'
-import { executeWorkerArtifactReuse, resolveWorkerArtifact } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { executeWorkerArtifactReuse, resolveWorkerArtifact, createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 import { executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { executeOpenSwxBootstrap } from './lib/dev122-openswx-bootstrap.mjs'
-import { expectedReadbackJobBindings, READBACK_IAM_PATHS } from './lib/dev122-openswx-readback-iam.mjs'
+import { expectedReadbackJobBindings, READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH, prebuildIamContinuationPlan } from './lib/dev122-openswx-readback-iam.mjs'
 import { assertDev117ReleaseIntent, buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { assertMigration, readOwnerReleaseProof,
@@ -998,6 +998,34 @@ else {
       assert.equal(artifact.pausedBaseline.servingApp.workerStatus, 'READY', 'actual R17 READY identity is distinct from pending finalize')
       assert.deepEqual(artifact.pausedBaseline.after.numericCredentials, { token: rootFull.tokenSecretVersion, registry: rootFull.registrySecretVersion })
     })
+    const native = createWorkerGitReader(fileURLToPath(new URL('..', import.meta.url)), b23Revision), nativeReads = []
+    assert.throws(() => native(PREBUILD_IAM_SOURCE_PATH, rootFull.sourceRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' }, 'fresh native reader must deny the historical prebuild path until the real descriptor chain admits it')
+    const observedNative = (name, revision) => {
+      const bytes = native(name, revision); nativeReads.push({ path: name, revision, sha256: sha256(bytes) }); return bytes
+    }
+    Object.assign(observedNative, native) // Forward the native admission/tree/archive/frozen methods unchanged.
+    const nativeBefore = { publications: h.publications.length, builds: h.controls.appBuilds ?? 0, runs: h.controls.runs ?? 0,
+      traffic: h.controls.traffic ?? 0, resumes: h.controls.resumes ?? 0, providerMutations: h.wire.counts.mutations,
+      job: structuredClone(h.job()), scheduler: structuredClone(h.scheduler()) }
+    const evidence = await readWorkerFullEvidence(h.transport, o.descriptor, h.workerProfile, observedNative)
+    const prebuildRef = rootObject(rootFull.bootstrapRef).facts.resourceProvenance.prebuildIamContinuationRef
+    assert.deepEqual(evidence.supplementalIam.prebuildIamContinuationRef, prebuildRef)
+    assert.equal(evidence.supplementalIam.verificationSourceRevision, b23Revision)
+    const continuation = rootObject(prebuildRef), approved = rootObject(continuation.approvedPlanRef)
+    const prebuildHash = approved.plan.sourceHashes.find(row => row.path === PREBUILD_IAM_SOURCE_PATH).sha256
+    assert.equal(rootFull.sourceRevision, '54d3c4c3fab41abf2045b025c90ca03d575e81f6')
+    assert.equal(prebuildHash, '6d6dfba02c2d227b42b47ee0a79195f8e99ff2dc856634002b91d14c17c61f9f')
+    assert.ok(nativeReads.some(row => row.path === PREBUILD_IAM_SOURCE_PATH && row.revision === rootFull.sourceRevision && row.sha256 === prebuildHash),
+      'actual retained full consumer must read the admitted historical prebuild Git blob')
+    assert.ok(nativeReads.some(row => row.path === PREBUILD_IAM_SOURCE_PATH && row.revision === b23Revision && row.sha256 === prebuildHash),
+      'actual repair full consumer must also verify the current prebuild source')
+    const nativePlan = prebuildIamContinuationPlan(observedNative, rootFull.sourceRevision)
+    assert.equal(nativePlan.sourceHashes.length, 5); assert.deepEqual(nativePlan, approved.plan)
+    assert.equal(sha256(canonicalize(nativePlan)), continuation.planSha256)
+    assert.equal(sha256(historical.get(rootFull.sourceRevision).blobs.get(PREBUILD_IAM_SOURCE_PATH)), prebuildHash)
+    assert.deepEqual({ publications: h.publications.length, builds: h.controls.appBuilds ?? 0, runs: h.controls.runs ?? 0,
+      traffic: h.controls.traffic ?? 0, resumes: h.controls.resumes ?? 0, providerMutations: h.wire.counts.mutations,
+      job: structuredClone(h.job()), scheduler: structuredClone(h.scheduler()) }, nativeBefore)
     assert.deepEqual(h.job(), before); assert.equal(h.scheduler().state, 'PAUSED')
     assert.equal(h.controls.runs ?? 0, 0); assert.equal(h.controls.appBuilds ?? 0, 0); assert.equal(h.controls.traffic ?? 0, 0)
     assert.equal(h.wire.counts.sourceArrayBuffer, 0)

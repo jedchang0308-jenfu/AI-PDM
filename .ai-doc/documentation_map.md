@@ -1,6 +1,34 @@
 # AI_PDM 文件地圖
 
-## DEV-122 CURRENT（B23 r15 實際本地行為驗證／Luna QC 完成；production NOT_RUN）
+## DEV-122 CURRENT（B24 native prebuild source 修正／實際本地 QC 完成；正式 release NOT_RUN）
+
+現行狀態 `B24_LOCAL_BEHAVIOR_QC_PASS`；同一 freeze 的實際 local acceptance：[B24-final-local-qc-binding.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B24/release/B24-final-local-qc-binding.json>)（SHA `c992695b41a78eb454f181376a9c08735453371e80b11a12a4cb1d42fca11de3`）。不構成 production release authority。
+
+- 本輪僅修既有 native reader 的第二 historical path allowlist，加入既有 prebuild-list-readback.tf；第一 revision admission、max8、source/root 與 IAM/resource guards 保留。
+- 兩份既有測試補 genuine native Git 正負向量及 v3 → retained v1 → prebuild consumer；9 產品／9 測試的 18 個 executor inputs 綁定本輪 actual hashes，ROOT 37 IDs 保留。
+- 原 proof-reuse 實際 155／155、完整 ROOT 37／37；原 continuous 實際 142／142；原 QC exit0。三命令同 freeze、四項 finally PASS，fail／cancelled／skip／todo=0。
+- QC 的兩個 isolated-build markers 已綁定；primary invariant `database-absent`，artifact／primary／cleanup=true。
+- Luna final actual behavior 未解 P1／P2=0；static 或 modeled PASS 不抵 provider／production 接受。
+
+本輪實際證據：
+- source-freeze：[B24-r1-source-freeze.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B24/release/B24-r1-source-freeze.json>)（SHA `7660dbe686d86aeb1b97f54d58c285008c0cbae29e4008b5afd1da94c0a90cd3`）
+- proof-reuse：[B24-r3-proof-reuse-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B24/release/B24-r3-proof-reuse-check-result.json>)（SHA `ab4c5a5aaaa0cd13dfb4415e59ba3b85399078c75417214470cdd73ba3c1938a`）
+- continuous：[B24-r3-continuous-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B24/release/B24-r3-continuous-check-result.json>)（SHA `31513cd3d60480620eb4fd282a66a8f00054a730e3184d7d3cdf0a0feff4089d`）
+- qc：[B24-r3-qc-check-result.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B24/release/B24-r3-qc-check-result.json>)（SHA `ce38d48a803bcc0cb676c3b21a092c90548191527e4b8a4f55d3f6f4f2691368`）
+- independent-qc：[B24-r3-final-independent-luna-qc-review-r1.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B24/release/B24-r3-final-independent-luna-qc-review-r1.json>)（SHA `edfba32fe6894980790fd5dcbcb6eaf08c58a752b4aa139c407edaf639d66bb4`）
+
+B23 為不可覆寫的 HISTORY_ONLY：PR240／原 main CI 與 baseline、source-freeze、input-reuse、reuse 實際 PASS，零 worker builds；descriptor-full 實際 exit1，OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID。它們不構成本輪新 source 的 PASS。
+- 原 official/main：[B23-official-source.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/B23-official-source.json>)（SHA `940143c661b5a68c1f90e44526cca6fb5a0482551a8918e6515567754830e600`）
+- 原 reuse：[B23-owner-r1-reuse-owner-readback.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-owner-r1-reuse-owner-readback.json>)（SHA `6bd60b0a162fbd424220376a304a1f37f709773968a0e562c8f62681881fc47c`）
+- descriptor-full FAIL：[B23-owner-r1-descriptor-full-runtime-final.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-owner-r1-descriptor-full-runtime-final.json>)（SHA `96756c270d6ccc17e725b0fa1a9a1588ca5e9467d761e9d43e43753d6e113f45`）
+- 原始 stderr：[B23-owner-r1-descriptor-full-stderr.raw.log](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-owner-r1-descriptor-full-stderr.raw.log>)（SHA `19382ddf3cdfbadd5ff507c14568f2ac1e1de41025d682bb07e35e5f37079531`）
+
+下方舊 B23 CURRENT 改標 HISTORY_ONLY，整段 body 與更早 r6–r15 PASS／FAIL、契約及 adoption 原文、原 receipt 均保留；不改寫歷史結果。
+
+本輪 B24 正式 PR／main／official qualification 待建立；owner release 後續 `NOT_RUN`；current DB `UNKNOWN`。正式 8 CAD／正常 API／UI 尚未驗證。Repair 變體零 SQL Job，不新增 schema、migration、API、CI、權利、資源、IAM 或 Secret。
+Whole DEV：7 issues／29 groups NOT_ACCEPTED；native USER_PRODUCTION_VALIDATION_PENDING；supplier DISABLED_DEFERRED。Local model 不抵正式業務／UI 或 native 使用者驗證。
+
+## DEV-122 HISTORY_ONLY（B23 r15 實際本地行為驗證／Luna QC 完成；production NOT_RUN）
 
 現行狀態 `B23_LOCAL_BEHAVIOR_QC_PASS`；證據入口 [B23-final-local-qc-binding.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B23/release/B23-final-local-qc-binding.json>)（SHA `3f975c5cd11d6e50082ef0ce8932394391bf7dccec33d6d9aa3e86f7c9c56248`）。這是同一 r15 freeze 的本地行為接受，不構成 production release authority。
 
