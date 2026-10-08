@@ -2,7 +2,7 @@ import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repa
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
-import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
+import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, assertMigrationSubmissionIntent, migrationSubmissionIntentUri, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
 import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDataCutoverHandoff, assertDataCutoverImportReceipt, assertDataCutoverTeardownReceipt } from './dev012-production-data-cutover.mjs'
 import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProviderStage } from './dev012-production-data-cutover-provider.mjs'
 import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
@@ -789,8 +789,13 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
   if (migration && repair) await validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef, deployment: await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256), receipt: migration })
   else if (migration && (migration.value?.schemaVersion !== 'jenfu.dev012.migration-receipt.v1' || migration.value.ownerApplicationId !== profile.application.id || migration.value.sourceRevision !== intent.sourceRevision || migration.value.manifestSha256 !== intent.migrationManifestSha256 || migration.value.status !== 'PASS' || migration.value.boundaryStatus !== 'PASS' || (profile.productionData?.required === true && migration.value.productionData?.status !== 'PASS'))) fail('MIGRATION_RECEIPT_INVALID')
-  const databaseDisposition = migration ? repair?.migrationMode ?? 'FORWARD_APPLIED' : 'NOT_APPLIED'
-  const migrationEvidence = migration && repair?.migrationMode === 'HISTORICAL_EVIDENCE_REUSED' ? { migrationEvidenceRef: migration.ref } : {}
+  const submission = migration ? null : await optionalNamedJson(transport, migrationSubmissionIntentUri(profile, paths.migrate), profile)
+  if (submission) {
+    const deployment = await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256)
+    assertMigrationSubmissionIntent(submission.value, { profile, deployment: deployment.value, outputUri: paths.migrate, deadlineAt: intent.deadlineAt, principalOnlyFenceRef: intent.principalOnlyFenceRef ?? null })
+  }
+  const databaseDisposition = migration ? repair?.migrationMode ?? 'FORWARD_APPLIED' : submission ? 'UNKNOWN' : 'NOT_APPLIED'
+  const migrationEvidence = migration && repair?.migrationMode === 'HISTORICAL_EVIDENCE_REUSED' ? { migrationEvidenceRef: migration.ref } : submission ? { migrationSubmissionIntentRef: submission.ref } : {}
   if (candidate) assertStage(candidate.value, profile, intent, 'candidate')
   const workerRecovery = worker ? await worker.recover({ intent, profile, candidate }) : null
   const rollbackRevision = principalOnlyRollbackRevision(intent)

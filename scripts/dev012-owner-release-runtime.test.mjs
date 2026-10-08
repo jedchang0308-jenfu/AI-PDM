@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
-import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
+import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 
 const H40 = 'a'.repeat(40)
 const H64 = 'b'.repeat(64)
@@ -19,6 +19,29 @@ const profile = {
 }
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
+function migrationReceiptStorage(delegate) {
+  const objects = new Map()
+  const fetchImpl = async (url, options = {}) => {
+    const target = new URL(url)
+    if (target.hostname !== 'storage.googleapis.com') return delegate(url, options)
+    if (target.pathname.startsWith('/upload/storage/v1/')) {
+      assert.equal(options.method, 'POST'); assert.equal(target.searchParams.get('ifGenerationMatch'), '0')
+      const name = target.searchParams.get('name')
+      if (objects.has(name)) return json({}, 412)
+      const bytes = Buffer.from(options.body)
+      const row = { bytes, generation: String(objects.size + 1), crc32c: crc32cBase64(bytes) }; objects.set(name, row)
+      if (fetchImpl.raceNextWrite) { fetchImpl.raceNextWrite = false; return json({}, 412) }
+      return json({ generation: row.generation })
+    }
+    assert.equal(options.method ?? 'GET', 'GET')
+    const name = decodeURIComponent(target.pathname.split('/o/')[1]), row = objects.get(name)
+    if (!row) return json({}, 404)
+    if (target.searchParams.get('alt') === 'media') return new Response(row.bytes)
+    return json({ generation: row.generation, crc32c: row.crc32c })
+  }
+  fetchImpl.objects = objects
+  return fetchImpl
+}
 test('B24 secondary proof token never changes generic GET or mutation authorization', async () => {
   const primary = 'MODELED-PRIMARY-VERIFIER-TOKEN', secondary = 'MODELED-SECONDARY-BUILDER-TOKEN', calls = []
   const transport = createOwnerTransport({ token: primary, builderReadbackToken: secondary, fetchImpl: async (url, options) => {
@@ -175,15 +198,15 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
   let listCalls = 0
   const requestedArgs = ['--bundle-ref', `gs://${bucket}/source/migration-bundles/b.json`, '--bundle-sha256', H64, '--source-revision', H40, '--output-ref', `gs://${bucket}/receipts/migrate.json`]
   const executionName = `${jobName}/executions/e1`
-  const execution = { name: executionName, template: { containers: [{ name: 'migration', args: requestedArgs }] }, succeededCount: 1, failedCount: 0, completionTime: '2026-09-08T00:00:00Z', conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
+  const execution = { name: executionName, template: { containers: [{ name: 'migration', args: requestedArgs, env: Object.entries(environment).map(([name, value]) => ({ name, value })) }] }, succeededCount: 1, failedCount: 0, completionTime: '2026-09-08T00:00:00Z', conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
   const requestedUrls = []
-  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: migrationReceiptStorage(async (url, options = {}) => {
     requestedUrls.push(String(url))
     if (options.method === 'POST') { runCalls += 1; return json({ name: 'projects/p/locations/r/operations/run-1', done: true, response: { name: 'projects/p/locations/r/executions/e1' } }) }
     if (String(url).endsWith('/executions?pageSize=100')) return json({ executions: listCalls++ === 0 ? [] : [execution] })
     if (String(url).endsWith('/executions/e1')) return json(execution)
     return json(job)
-  } })
+  }) })
   const deployment = { migrationRunnerDigest: `runner@sha256:${H64}`, migrationBundleRef: { uri: `gs://${bucket}/source/migration-bundles/b.json`, sha256: H64 }, sourceRevision: H40 }
   await transport.runMigrationJob({ profile, deployment, outputUri: `gs://${bucket}/receipts/migrate.json`, deadlineAt: '2999-01-01T00:00:00.000Z' })
   assert.equal(runCalls, 1)
@@ -206,7 +229,7 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
     .map(([name, value]) => ({ name, value }))
   let fencedListCalls = 0
   let fencedRunBody = null
-  const fencedTransport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+  const fencedTransport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: migrationReceiptStorage(async (url, options = {}) => {
     if (options.method === 'POST') {
       fencedRunBody = JSON.parse(options.body)
       return json({ name: 'projects/p/locations/r/operations/run-fenced' })
@@ -215,7 +238,7 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
       return json({ executions: fencedListCalls++ === 0 ? [] : [fencedExecution] })
     if (String(url).endsWith('/executions/e1')) return json(fencedExecution)
     return json(job)
-  } })
+  }) })
   await fencedTransport.runMigrationJob({ profile, deployment, principalOnlyFenceRef,
     outputUri: `gs://${bucket}/receipts/migrate.json`, deadlineAt: '2999-01-01T00:00:00.000Z' })
   assert.deepEqual(fencedRunBody.overrides.containerOverrides[0].env,
@@ -225,15 +248,149 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
   wrongExecution.template.containers[0].env.find((row) =>
     row.name === 'DEV121_MIGRATION_FENCE_SHA256').value = '0'.repeat(64)
   let wrongListCalls = 0
-  const wrongTransport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async (url, options = {}) => {
+  const wrongTransport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: migrationReceiptStorage(async (url, options = {}) => {
     if (options.method === 'POST') return json({ name: 'projects/p/locations/r/operations/run-wrong' })
     if (String(url).endsWith('/executions?pageSize=100'))
       return json({ executions: wrongListCalls++ === 0 ? [] : [wrongExecution] })
     return json(job)
-  } })
+  }) })
   await assert.rejects(() => wrongTransport.runMigrationJob({ profile, deployment,
     principalOnlyFenceRef, outputUri: `gs://${bucket}/receipts/migrate.json`,
     deadlineAt: '2999-01-01T00:00:00.000Z' }), /MIGRATION_EXECUTION_READBACK_MISMATCH/u)
+})
+
+function migrationRetryHarness({ prior = 'active', fenced = false, unknownPost = false, multipleFresh = false, unknownReadback = false } = {}) {
+  const jobName = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
+  const environment = { OWNER_APPLICATION_ID: profile.application.id, RELEASE_BUCKET: bucket, GOOGLE_CLOUD_PROJECT: profile.target.projectId, GOOGLE_CLOUD_REGION: profile.target.region,
+    CLOUD_SQL_INSTANCE_CONNECTION_NAME: 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', POSTGRES_DATABASE: 'jenfu_prod', POSTGRES_IAM_LOGIN: profile.migrations.serviceAccount.replace('.gserviceaccount.com', ''), POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg' }
+  const deployment = { migrationRunnerDigest: `runner@sha256:${H64}`, migrationBundleRef: { uri: `gs://${bucket}/source/migration-bundles/retry.json`, sha256: H64 }, sourceRevision: H40 }
+  const outputUri = `gs://${bucket}/receipts/retry-migrate.json`
+  const principalOnlyFenceRef = fenced ? { uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/retry.json`, sha256: H64 } : null
+  const args = ['--bundle-ref', deployment.migrationBundleRef.uri, '--bundle-sha256', H64, '--source-revision', H40, '--output-ref', outputUri]
+  const fenceEnv = fenced ? { DEV121_MIGRATION_FENCE_REF: principalOnlyFenceRef.uri, DEV121_MIGRATION_FENCE_SHA256: H64 } : {}
+  const container = { name: 'migration', image: deployment.migrationRunnerDigest, env: Object.entries(environment).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }
+  const job = { name: jobName, template: { taskCount: 1, parallelism: 1, template: { serviceAccount: profile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', containers: [container], volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: [environment.CLOUD_SQL_INSTANCE_CONNECTION_NAME] } }] } } }
+  const active = { name: `${jobName}/executions/prior`, createTime: '2026-10-08T00:00:00Z', template: { containers: [{ name: 'migration', args, env: Object.entries({ ...environment, ...fenceEnv }).map(([name, value]) => ({ name, value })) }] }, conditions: [{ type: 'Completed', state: 'CONDITION_PENDING' }] }
+  const completed = { ...structuredClone(active), completionTime: '2026-10-08T00:00:02Z', succeededCount: 1, failedCount: 0, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
+  const failed = { ...structuredClone(completed), succeededCount: 0, failedCount: 1, conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }] }
+  let initial = []
+  if (prior === 'active') initial = [active]
+  if (prior === 'completed') initial = [completed]
+  if (prior === 'failed') initial = [failed]
+  if (prior === 'multiple') initial = [active, { ...structuredClone(completed), name: `${jobName}/executions/prior-other` }]
+  if (prior === 'unrelated-active' || prior === 'unrelated-completed') {
+    const other = structuredClone(prior === 'unrelated-active' ? active : completed)
+    other.template.containers[0].args[7] = `gs://${bucket}/receipts/other-attempt.json`; initial = [other]
+  }
+  if (prior === 'wrong-fence-active') {
+    const other = structuredClone(active); other.template.containers[0].env.find(row => row.name === 'DEV121_MIGRATION_FENCE_SHA256').value = 'f'.repeat(64); initial = [other]
+  }
+  const fresh = { ...structuredClone(completed), name: `${jobName}/executions/new` }
+  let posts = 0, lists = 0, executionReads = 0, polls = 0
+  const fetchImpl = migrationReceiptStorage(async (url, options = {}) => {
+    const target = String(url)
+    if (target === `https://run.googleapis.com/v2/${jobName}:run`) {
+      assert.equal(options.method, 'POST'); posts++
+      const body = JSON.parse(options.body)
+      assert.deepEqual(body.overrides.containerOverrides[0].args, args)
+      if (fenced) assert.deepEqual(body.overrides.containerOverrides[0].env, Object.entries(fenceEnv).map(([name, value]) => ({ name, value })))
+      if (unknownPost) throw Error('MODELED_APPLIED_POST_RESPONSE_LOST')
+      return json({ name: 'projects/jenfu-platform-prod/locations/asia-east1/operations/retry-run' })
+    }
+    assert.ok(!options.method || options.method === 'GET')
+    if (target === `https://run.googleapis.com/v2/${jobName}/executions?pageSize=100`) {
+      lists++
+      if (unknownReadback && posts && lists === 2) throw Error('MODELED_UNKNOWN_EXECUTION_READBACK')
+      return json({ executions: posts && !unknownReadback ? [...initial, fresh, ...(multipleFresh ? [{ ...fresh, name: `${jobName}/executions/new-other` }] : [])] : initial })
+    }
+    if (target === `https://run.googleapis.com/v2/${fresh.name}`) { executionReads++; return json(fresh) }
+    if (target === `https://run.googleapis.com/v2/${active.name}`) {
+      executionReads++; return json(prior === 'failed' ? failed : prior === 'active' && executionReads === 1 ? active : completed)
+    }
+    assert.equal(target, `https://run.googleapis.com/v2/${jobName}`); return json(job)
+  })
+  const transport = createOwnerTransport({ token: 'x'.repeat(32), sleep: async () => { polls++; assert.ok(polls <= 3) }, fetchImpl })
+  return { transport, input: { profile, deployment, principalOnlyFenceRef, outputUri, deadlineAt: new Date(Date.now() + 30000).toISOString() }, active, completed,
+    objects: fetchImpl.objects, counts: () => ({ posts, lists, executionReads, polls }) }
+}
+
+test('B24 migration retry adopts one matching active or completed execution and replay submits zero Jobs', async () => {
+  for (const prior of ['active', 'completed']) {
+    const h = migrationRetryHarness({ prior })
+    const first = await h.transport.runMigrationJob(h.input)
+    assert.equal(first.name, h.active.name)
+    assert.equal(h.counts().posts, 0, prior)
+    const second = await h.transport.runMigrationJob(h.input)
+    assert.equal(first.name, h.active.name)
+    assert.equal(second.name, first.name)
+    assert.equal(first.providerOperationRef, null)
+    assert.equal(h.counts().posts, 0, prior)
+    assert.ok(h.counts().executionReads >= 2)
+    assert.equal(h.counts().polls, prior === 'active' ? 1 : 0)
+  }
+})
+
+test('B24 migration retry rejects multiple matches, unrelated active and wrong fence before POST', async () => {
+  for (const prior of ['multiple', 'unrelated-active', 'wrong-fence-active']) {
+    const h = migrationRetryHarness({ prior, fenced: prior === 'wrong-fence-active' })
+    await assert.rejects(h.transport.runMigrationJob(h.input), prior === 'multiple' ? /MIGRATION_EXECUTION_CARDINALITY_INVALID/u : /MIGRATION_EXECUTION_ACTIVE/u)
+    assert.deepEqual(h.counts(), { posts: 0, lists: 1, executionReads: 0, polls: 0 }, prior)
+  }
+})
+
+test('B24 migration retry observes the matching failure and never submits a replacement', async () => {
+  const h = migrationRetryHarness({ prior: 'failed' })
+  for (let retry = 0; retry < 2; retry++) await assert.rejects(h.transport.runMigrationJob(h.input), /MIGRATION_EXECUTION_FAILED/u)
+  assert.deepEqual(h.counts(), { posts: 0, lists: 2, executionReads: 2, polls: 0 })
+})
+
+test('B24 migration permits a new exact Job after unrelated completed history and retains unknown POST cardinality', async () => {
+  const allowed = migrationRetryHarness({ prior: 'unrelated-completed' })
+  assert.match((await allowed.transport.runMigrationJob(allowed.input)).name, /\/executions\/new$/u)
+  assert.equal(allowed.counts().posts, 1)
+  const unknown = migrationRetryHarness({ prior: 'none', unknownPost: true })
+  const result = await unknown.transport.runMigrationJob(unknown.input)
+  assert.equal(result.providerOperationRef, 'OUTCOME_UNKNOWN_EXECUTION_READBACK')
+  assert.equal(unknown.counts().posts, 1)
+  assert.equal((await unknown.transport.runMigrationJob(unknown.input)).name, result.name)
+  assert.equal(unknown.counts().posts, 1)
+  const ambiguous = migrationRetryHarness({ prior: 'none', unknownPost: true, multipleFresh: true })
+  await assert.rejects(ambiguous.transport.runMigrationJob(ambiguous.input), /MIGRATION_EXECUTION_CARDINALITY_INVALID/u)
+  assert.equal(ambiguous.counts().posts, 1)
+})
+
+test('B24 durable migration submission without a matching execution remains UNKNOWN and cannot POST again', async () => {
+  const h = migrationRetryHarness({ prior: 'none', unknownPost: true, unknownReadback: true })
+  await assert.rejects(h.transport.runMigrationJob(h.input), /OUTCOME_UNKNOWN/u)
+  assert.equal(h.counts().posts, 1)
+  assert.equal(h.objects.size, 1)
+  const value = JSON.parse([...h.objects.values()][0].bytes)
+  assert.equal(value.schemaVersion, 'jenfu.dev012.migration-submission-intent.v1')
+  assert.equal(value.status, 'SUBMISSION_INTENT')
+  assert.equal(value.outputUri, h.input.outputUri)
+  await assert.rejects(h.transport.runMigrationJob(h.input), /MIGRATION_SUBMISSION_UNKNOWN/u)
+  assert.equal(h.counts().posts, 1)
+  assert.equal(h.counts().executionReads, 0)
+})
+
+test('B24 migration submission readback rejects tampered or resealed source, Job, output, arguments and fence', async () => {
+  for (const mutation of ['source', 'job', 'output', 'args', 'bundle', 'fence', 'hash', 'extra']) {
+    const h = migrationRetryHarness({ prior: 'completed' })
+    await h.transport.runMigrationJob(h.input)
+    assert.equal(h.counts().posts, 0)
+    const row = [...h.objects.values()][0], value = JSON.parse(row.bytes)
+    if (mutation === 'source') value.sourceRevision = 'f'.repeat(40)
+    if (mutation === 'job') value.jobName = value.jobName.replace('platform-prod-migration-runner', 'sibling-migration-runner')
+    if (mutation === 'output') value.outputUri = `gs://${bucket}/receipts/different-migrate.json`
+    if (mutation === 'args') value.args[7] = `gs://${bucket}/receipts/different-migrate.json`
+    if (mutation === 'bundle') value.migrationBundleRef.sha256 = 'f'.repeat(64)
+    if (mutation === 'fence') value.principalOnlyFenceRef = { uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/forged.json`, sha256: H64 }
+    if (mutation === 'extra') value.override = true
+    if (mutation !== 'hash') { delete value.receiptSha256; value.receiptSha256 = sha256(canonicalize(value)) } else value.receiptSha256 = 'f'.repeat(64)
+    row.bytes = Buffer.from(`${canonicalize(value)}\n`); row.crc32c = crc32cBase64(row.bytes)
+    await assert.rejects(h.transport.runMigrationJob(h.input), /MIGRATION_SUBMISSION_INTENT_INVALID/u, mutation)
+    assert.deepEqual(h.counts(), { posts: 0, lists: 2, executionReads: 1, polls: 0 }, mutation)
+  }
 })
 
 test('candidate-tag cleanup distinguishes the candidate from the active rollback target', async () => {

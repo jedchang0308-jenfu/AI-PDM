@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
-import { buildRuntimeConfig, canonicalize, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
+import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
@@ -355,6 +355,59 @@ test('rollback reports no database mutation when migrate receipt was never produ
   const value = JSON.parse(terminal[1].bytes.toString())
   assert.equal(value.facts.result, 'PRE_ACTIVATION_ABORTED')
   assert.equal(value.facts.databaseDisposition, 'NOT_APPLIED')
+})
+test('B24 rollback reports UNKNOWN after a durable migration submission and rejects a tampered intent', async () => {
+  const createSubmitted = async (releaseId) => {
+    const h = recordedHarness()
+    h.profile.migrations = { jobName: 'platform-prod-migration-runner', serviceAccount: 'platform-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com' }
+    const { input, intentResult } = await authorizedRecordedInput(h, releaseId)
+    await executeOwnerStage({ ...input, stage: 'prepare' })
+    await executeOwnerStage({ ...input, stage: 'build' })
+    const intent = JSON.parse(h.objects.get(intentResult.ref.uri).bytes.toString())
+    const paths = releasePaths(h.profile, intent, intentResult.ref.sha256)
+    const deployment = JSON.parse(h.objects.get(paths.deployment).bytes.toString())
+    const submissionUri = migrationSubmissionIntentUri(h.profile, paths.migrate)
+    const args = [
+      '--bundle-ref', deployment.migrationBundleRef.uri,
+      '--bundle-sha256', deployment.migrationBundleRef.sha256,
+      '--source-revision', deployment.sourceRevision,
+      '--output-ref', paths.migrate,
+    ]
+    const submission = {
+      schemaVersion: 'jenfu.dev012.migration-submission-intent.v1',
+      ownerApplicationId: h.profile.application.id,
+      sourceRevision: deployment.sourceRevision,
+      jobName: 'projects/' + h.profile.target.projectId + '/locations/' + h.profile.target.region + '/jobs/' + h.profile.migrations.jobName,
+      migrationRunnerDigest: deployment.migrationRunnerDigest,
+      migrationBundleRef: deployment.migrationBundleRef,
+      outputUri: paths.migrate,
+      args,
+      principalOnlyFenceRef: null,
+      deadlineAt: intent.deadlineAt,
+      status: 'SUBMISSION_INTENT',
+      observedAt: h.transport.now(),
+    }
+    submission.receiptSha256 = sha256(canonicalize(submission))
+    const saved = await h.transport.putJson(submissionUri, submission, { bucket, prefix: 'receipts', ifGenerationMatch: '0' })
+    return { h, input, intentResult, saved }
+  }
+
+  const valid = await createSubmitted('REL-RECORDED-UNKNOWN-MIGRATION')
+  await executeOwnerStage({ ...valid.input, stage: 'rollback' })
+  const terminal = [...valid.h.objects.entries()].find(([uri]) => uri.includes(valid.intentResult.ref.sha256) && uri.endsWith('/terminal.json'))
+  const rollback = [...valid.h.objects.entries()].find(([uri]) => uri.includes(valid.intentResult.ref.sha256) && uri.endsWith('/rollback.json'))
+  for (const row of [terminal, rollback]) {
+    assert.ok(row)
+    const value = JSON.parse(row[1].bytes.toString())
+    assert.equal(value.facts.databaseDisposition, 'UNKNOWN')
+    assert.deepEqual(value.facts.migrationSubmissionIntentRef, valid.saved.ref)
+  }
+
+  const tampered = await createSubmitted('REL-RECORDED-TAMPERED-SUBMISSION')
+  const row = tampered.h.objects.get(tampered.saved.ref.uri)
+  const value = JSON.parse(row.bytes.toString()); value.jobName += '-sibling'
+  row.bytes = Buffer.from(canonicalize(value) + '\n')
+  await assert.rejects(executeOwnerStage({ ...tampered.input, stage: 'rollback' }), /MIGRATION_SUBMISSION_INTENT_INVALID/u)
 })
 test('post-activation rollback switches to the previous revision without rebinding the candidate tag', async () => {
   const h = recordedHarness()

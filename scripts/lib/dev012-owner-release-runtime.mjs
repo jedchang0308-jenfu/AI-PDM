@@ -241,6 +241,36 @@ export function releasePaths(profile, intent, intentSha256) {
   }
 }
 
+export function migrationSubmissionIntentUri(profile, outputUri) {
+  parseGsUri(outputUri, profile.artifact.releaseBucket, 'receipts')
+  if (!outputUri.endsWith('.json')) fail('MIGRATION_SUBMISSION_INTENT_INVALID')
+  return `${outputUri.slice(0, -5)}-submission-intent.json`
+}
+function migrationArguments(profile, deployment, outputUri) {
+  assertImmutableRef(deployment.migrationBundleRef, profile.artifact.releaseBucket, ['source/migration-bundles'])
+  migrationSubmissionIntentUri(profile, outputUri)
+  if (!H40.test(deployment.sourceRevision ?? '')) fail('MIGRATION_SUBMISSION_INTENT_INVALID')
+  const args = ['--bundle-ref', deployment.migrationBundleRef.uri, '--bundle-sha256', deployment.migrationBundleRef.sha256, '--source-revision', deployment.sourceRevision, '--output-ref', outputUri]
+  if (profile.productionData?.required === true) {
+    assertImmutableRef(deployment.productionDataRef, profile.artifact.releaseBucket, [profile.productionData.dataObjectPrefix])
+    assertImmutableRef(deployment.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix])
+    args.push('--data-ref', deployment.productionDataRef.uri, '--data-sha256', deployment.productionDataRef.sha256, '--bootstrap-ref', deployment.firstPrincipalBootstrapRef.uri, '--bootstrap-sha256', deployment.firstPrincipalBootstrapRef.sha256)
+  }
+  return args
+}
+export function assertMigrationSubmissionIntent(value, { profile, deployment, outputUri, deadlineAt, principalOnlyFenceRef = null }) {
+  if (principalOnlyFenceRef !== null) assertImmutableRef(principalOnlyFenceRef, profile.artifact.releaseBucket, ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'])
+  const core = { ...value }; delete core.receiptSha256
+  const expected = { schemaVersion: 'jenfu.dev012.migration-submission-intent.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
+    jobName: `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`, migrationRunnerDigest: deployment.migrationRunnerDigest,
+    migrationBundleRef: deployment.migrationBundleRef, outputUri, args: migrationArguments(profile, deployment, outputUri), principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT' }
+  if (canonicalize(Object.keys(value ?? {}).sort()) !== canonicalize([...Object.keys(expected), 'observedAt', 'receiptSha256'].sort()) ||
+      Object.entries(expected).some(([key, actual]) => canonicalize(value[key]) !== canonicalize(actual)) ||
+      typeof value.observedAt !== 'string' || !Number.isFinite(Date.parse(value.observedAt)) || !Number.isFinite(Date.parse(deadlineAt)) || Date.parse(value.observedAt) > Date.parse(deadlineAt) ||
+      !H64.test(value.receiptSha256 ?? '') || sha256(canonicalize(core)) !== value.receiptSha256) fail('MIGRATION_SUBMISSION_INTENT_INVALID')
+  return value
+}
+
 export function createOwnerTransport({ token, builderReadbackToken = process.env.AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN ?? null, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
   if (typeof token !== 'string' || token.length < 20) fail('PROVIDER_TOKEN_INVALID')
   const authHeaders = { authorization: `Bearer ${token}` }
@@ -730,7 +760,7 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
     const volume = job.template?.template?.volumes?.find((item) => item.name === 'cloudsql')
     const mount = container?.volumeMounts?.find((item) => item.name === 'cloudsql')
     if (job.name !== jobName || job.template?.template?.serviceAccount !== profile.migrations.serviceAccount || container?.image !== deployment.migrationRunnerDigest || canonicalize(environment) !== canonicalize(expectedEnvironment) || canonicalize(volume?.cloudSqlInstance?.instances) !== canonicalize([connectionName]) || mount?.mountPath !== '/cloudsql' || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || job.template?.template?.maxRetries !== 0 || job.template?.template?.timeout !== '1800s') fail('MIGRATION_JOB_READBACK_MISMATCH')
-    const args = ['--bundle-ref', deployment.migrationBundleRef.uri, '--bundle-sha256', deployment.migrationBundleRef.sha256, '--source-revision', deployment.sourceRevision, '--output-ref', outputUri]
+    const args = migrationArguments(profile, deployment, outputUri)
     const fenceEnvironment = principalOnlyFenceRef === null ? null : {
       DEV121_MIGRATION_FENCE_REF: assertImmutableRef(principalOnlyFenceRef,
         profile.artifact.releaseBucket,
@@ -739,11 +769,6 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
     }
     const fenceOverride = fenceEnvironment === null ? [] :
       Object.entries(fenceEnvironment).map(([name, value]) => ({ name, value }))
-    if (profile.productionData?.required === true) {
-      assertImmutableRef(deployment.productionDataRef, profile.artifact.releaseBucket, [profile.productionData.dataObjectPrefix])
-      assertImmutableRef(deployment.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix])
-      args.push('--data-ref', deployment.productionDataRef.uri, '--data-sha256', deployment.productionDataRef.sha256, '--bootstrap-ref', deployment.firstPrincipalBootstrapRef.uri, '--bootstrap-sha256', deployment.firstPrincipalBootstrapRef.sha256)
-    }
     const listExecutions = async () => {
       const executions = []
       let pageToken = ''
@@ -751,9 +776,10 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
         const query = new URLSearchParams({ pageSize: '100' })
         if (pageToken) query.set('pageToken', pageToken)
         const value = await request(`https://run.googleapis.com/v2/${jobName}/executions?${query.toString()}`)
-        if (!Array.isArray(value?.executions ?? [])) fail('MIGRATION_EXECUTION_LIST_INVALID')
+        if (!value || typeof value !== 'object' || (Object.hasOwn(value, 'executions') && !Array.isArray(value.executions)) ||
+            (Object.hasOwn(value, 'nextPageToken') && typeof value.nextPageToken !== 'string')) fail('MIGRATION_EXECUTION_LIST_INVALID')
         executions.push(...(value.executions ?? []))
-        pageToken = value?.nextPageToken ?? ''
+        pageToken = Object.hasOwn(value, 'nextPageToken') ? value.nextPageToken : ''
         if (!pageToken) break
         if (page === 9) fail('MIGRATION_EXECUTION_LIST_INCOMPLETE')
       }
@@ -764,27 +790,59 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
     const executionArgsMatch = (execution) => {
       const executionContainer = execution?.template?.containers?.find((item) => item.name === 'migration')
       if (canonicalize(executionContainer?.args) !== canonicalize(args)) return false
-      if (fenceEnvironment === null) return true
+
       const executionEnv = executionContainer?.env
       if (!Array.isArray(executionEnv) || executionEnv.length !==
         Object.keys(expectedEnvironment).length + fenceOverride.length ||
         new Set(executionEnv.map((item) => item?.name)).size !== executionEnv.length) return false
       return canonicalize(Object.fromEntries(executionEnv.map((item) =>
-        [item.name, item.value]))) === canonicalize({ ...expectedEnvironment, ...fenceEnvironment })
+        [item.name, item.value]))) === canonicalize({ ...expectedEnvironment, ...(fenceEnvironment ?? {}) })
     }
-    const beforeNames = new Set((await listExecutions()).map((execution) => execution.name))
-    let operationRef = null
+    const before = await listExecutions()
+    const matching = before.filter(executionArgsMatch)
+    if (matching.length > 1) fail('MIGRATION_EXECUTION_CARDINALITY_INVALID')
+    const beforeNames = new Set(before.map(execution => execution.name))
+    const submissionUri = migrationSubmissionIntentUri(profile, outputUri)
+    let submission = null
     try {
-      const containerOverride = { name: 'migration', args,
-        ...(fenceEnvironment === null ? {} : { env: fenceOverride }) }
-      const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: { containerOverrides: [containerOverride] } }) })
-      if (!operation?.name) fail('PROVIDER_OPERATION_REF_MISSING')
-      operationRef = operation.name
+      const row = await readBytes(submissionUri)
+      try {
+        submission = JSON.parse(row.bytes.toString('utf8'))
+      } catch {
+        fail('MIGRATION_SUBMISSION_INTENT_INVALID')
+      }
+      assertMigrationSubmissionIntent(submission, { profile, deployment, outputUri, deadlineAt, principalOnlyFenceRef })
     } catch (error) {
-      if (error?.code !== 'OUTCOME_UNKNOWN') throw error
-      operationRef = 'OUTCOME_UNKNOWN_EXECUTION_READBACK'
+      if (error?.code !== 'MISSING') throw error
     }
-    let executionName = null
+    let executionName = matching[0]?.name ?? null
+    if (!executionName && before.some(execution => !execution.completionTime || execution.reconciling === true ||
+        !execution.conditions?.some(condition => condition?.type === 'Completed' && ['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(condition.state)))) fail('MIGRATION_EXECUTION_ACTIVE')
+    if (!executionName && submission) fail('MIGRATION_SUBMISSION_UNKNOWN')
+    let operationRef = null
+    if (!submission) {
+      const value = { schemaVersion: 'jenfu.dev012.migration-submission-intent.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
+        jobName, migrationRunnerDigest: deployment.migrationRunnerDigest, migrationBundleRef: deployment.migrationBundleRef, outputUri, args,
+        principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT', observedAt: now() }
+      value.receiptSha256 = sha256(canonicalize(value))
+      assertMigrationSubmissionIntent(value, { profile, deployment, outputUri, deadlineAt, principalOnlyFenceRef })
+      if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
+      const saved = await putJson(submissionUri, value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts', ifGenerationMatch: '0' })
+      if (saved.reused) fail('MIGRATION_SUBMISSION_UNKNOWN')
+      if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
+    }
+    if (!executionName) {
+      try {
+        const containerOverride = { name: 'migration', args,
+          ...(fenceEnvironment === null ? {} : { env: fenceOverride }) }
+        const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: { containerOverrides: [containerOverride] } }) })
+        if (!operation?.name) fail('PROVIDER_OPERATION_REF_MISSING')
+        operationRef = operation.name
+      } catch (error) {
+        if (error?.code !== 'OUTCOME_UNKNOWN') throw error
+        operationRef = 'OUTCOME_UNKNOWN_EXECUTION_READBACK'
+      }
+    }
     while (!executionName) {
       if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
       const fresh = (await listExecutions()).filter((execution) => !beforeNames.has(execution.name))
