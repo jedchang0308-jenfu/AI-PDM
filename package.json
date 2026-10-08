@@ -27,6 +27,7 @@
     "check:dev-121:role-catalog-v4": "node scripts/dev121-build-principal-role-catalog.mjs --check && node scripts/dev121-build-principal-role-catalog-migration.mjs --check && node --test scripts/dev121-build-principal-role-catalog.test.mjs",
     "qc:dev-121:role-catalog-postgres": "node scripts/qc-dev-121-role-catalog-postgres.mjs",
     "qc:dev-121:principal-acl-postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-121-principal-schema-postgres.mjs --AclReadback",
+    "qc:dev-121:first-login-postgres": "node scripts/qc-dev-121-first-login-postgres.mjs",
     "qc:dev-121:transfer-postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-121-transfer-inbox-postgres.mjs",
     "qc:dev-121:preview-worker-postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-121-preview-worker-postgres.mjs",
     "qc:dev-121:recognition-principal-postgres": "node --experimental-transform-types --experimental-loader ./scripts/qc-ts-path-loader.mjs scripts/qc-dev-121-recognition-initiator-postgres.mjs",

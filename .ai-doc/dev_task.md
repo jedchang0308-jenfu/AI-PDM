@@ -265,6 +265,22 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 ## DEV-121 現行交付
 
+<a id="dev-121-authorized-first-login"></a>
+
+### 有效 OrgMaster 授權的首次登入自動開通（2026-10-08，執行中）
+
+沿用 `AIPDM/DEV-121#authorized-first-login`，不新增主任務。人類已確認 OrgMaster 已發布且有效的 AI-PDM role／grant 即為 PDM 開通授權；Platform、OrgMaster 本輪僅唯讀查證。現行 callback 已證實在 grant 驗證前要求本地 `principal_accounts`，所以「active typed Principal＋有效 grant＋無本地帳戶」會先回 `principal_account_missing`／畫面 `principal_not_active`，未進入任何建立流程。
+
+- [x] RED synthetic fixture：有效身分＋有效 grant＋無本地帳戶時，現行 service 直接拒絕；無 grant 也在 grant 判斷前以缺帳戶拒絕。
+- [x] 本機實作：callback 只在精確 missing 分支先驗 v4 published grants，再呼叫 owner-private `ensure_authorized_first_login_account_v1`，讀回 active account 後才簽 session。既有 active account 照常重新驗 grant；inactive account 不呼叫建立函式。
+- [x] Forward migration 083：同交易建立 profile／Principal link／append-only receipt／cutover，不寫本地角色指派；existing disabled／offboarded 不恢復，identity／historical cutover conflict fail closed，email 相似不作舊 profile 關聯。
+- [x] 本機驗證：聚焦 unit 73／73、app typecheck、targeted ESLint、DB boundary、DEV-117 continuous 142 tests、abort 6 tests、owner QC 與 isolated Production build 均 PASS；task-owned PostgreSQL 7 組 PASS，涵蓋首次建立／重播、雙並行單筆、無 grant、expired grant、inactive identity、身分不符、suspended 不恢復、歷史 email 相似不關聯及後段失敗全回滾；測試 cluster／port／temp 已清理。
+- [x] 完成 source diff、DB boundary、owner release regression 與 isolated build；本機 checkpoint：`qa/DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json`。
+- [ ] 完成 protected PR／required CI、migration apply、candidate／canonical Production verify。
+- [ ] 測試帳號既有帳戶回歸與 Dani 本人首次登入分層驗證；不得以本機或測試帳號結果替代 Dani。
+
+現行契約：[authorized first login](specs/DEV-121-target-authorization-boundary.md#authorized-first-login)。OrgMaster 現行版唯讀查證顯示張祐豪具 AI-PDM「系統管理員」與「採購」有效指派；此證據只證明發布授權，不替代 Dani 實際登入。`prod-pdm-wave0-dani-001` 實際來源／歸屬仍未確認；本批不以名稱或 Email 推定、不直接關聯或刪除。正式資料與 Production 狀態只按受保護 owner receipt、provider readback 與實際登入結果更新。
+
 <a id="dev-121-system-admin-follow-up"></a>
 
 ### 最高管理能力批次正式結案（2026-10-06，現行）

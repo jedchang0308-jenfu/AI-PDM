@@ -164,6 +164,7 @@ describe("principal-first SSO callback routing", () => {
 
   it.each([
     [new JenfuPrincipalAccountError("principal_account_inactive"), "principal_not_active"],
+    [new JenfuPrincipalAccountError("principal_account_conflict"), "sso_principal_stale"],
     [new JenfuPrincipalAccountError(), "sso_dependency_unavailable"],
     [new JenfuPrincipalAdmissionError("principal_not_active", 403), "principal_not_active"],
     [new JenfuPrincipalAdmissionError("principal_directory_unavailable", 503), "sso_dependency_unavailable"],

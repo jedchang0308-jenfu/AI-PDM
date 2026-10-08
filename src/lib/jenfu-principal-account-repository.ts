@@ -15,10 +15,32 @@ export type JenfuPrincipalAccount = {
 };
 
 export class JenfuPrincipalAccountError extends Error {
-  constructor(readonly code: "principal_account_unavailable" | "principal_account_inactive" = "principal_account_unavailable") {
+  constructor(readonly code: "principal_account_unavailable" | "principal_account_missing" |
+    "principal_account_inactive" | "principal_account_conflict" = "principal_account_unavailable") {
     super(code);
   }
 }
+
+export type JenfuAuthorizedFirstLoginInput = {
+  identityIssuer: string;
+  identitySubject: string;
+  principalId: string;
+  employeeId: string;
+  accountType: "human_personal" | "human_privileged";
+  mappingVersion: number;
+  publishedAt: string;
+  verifiedEmail: string;
+};
+
+export type JenfuAuthorizedFirstLoginReceipt = {
+  created: boolean;
+  principalId: string;
+  pdmUserId: string;
+  companyId: string;
+  accountStatus: "active" | "suspended" | "expired" | "offboarded";
+  lifecycleVersion: number;
+  profileVersion: number;
+};
 
 type Row = {
   principal_id: string;
@@ -63,10 +85,11 @@ export class JenfuPrincipalAccountRepository {
     } catch {
       throw new JenfuPrincipalAccountError();
     }
+    if (!row) throw new JenfuPrincipalAccountError("principal_account_missing");
     try {
-      const lifecycleVersion = Number(row?.lifecycle_version);
-      const profileVersion = Number(row?.profile_version);
-      if (!row || row.principal_id !== principalId || !validIdentifier(row.pdm_user_id) || !validIdentifier(row.employee_id) ||
+      const lifecycleVersion = Number(row.lifecycle_version);
+      const profileVersion = Number(row.profile_version);
+      if (row.principal_id !== principalId || !validIdentifier(row.pdm_user_id) || !validIdentifier(row.employee_id) ||
         !validIdentifier(row.company_id) || !["active", "suspended", "expired", "offboarded"].includes(row.account_status) ||
         ![true, false, 1, 0].includes(row.system_role_enabled) ||
         !["human_personal", "human_privileged"].includes(row.account_type) ||
@@ -92,5 +115,48 @@ export class JenfuPrincipalAccountRepository {
       if (error instanceof JenfuPrincipalAccountError) throw error;
       throw new JenfuPrincipalAccountError();
     }
+  }
+
+  async ensureFirstLogin(input: JenfuAuthorizedFirstLoginInput): Promise<JenfuAuthorizedFirstLoginReceipt> {
+    if (this.client.kind !== "postgres" || typeof input.identityIssuer !== "string" ||
+      input.identityIssuer.length < 1 || input.identityIssuer.length > 2048 ||
+      input.identityIssuer.trim() !== input.identityIssuer ||
+      !validIdentifier(input.identitySubject) || !validIdentifier(input.principalId) ||
+      !validIdentifier(input.employeeId) || !["human_personal", "human_privileged"].includes(input.accountType) ||
+      !Number.isSafeInteger(input.mappingVersion) || input.mappingVersion < 1 ||
+      !Number.isFinite(Date.parse(input.publishedAt)) || typeof input.verifiedEmail !== "string" ||
+      input.verifiedEmail.length < 3 || input.verifiedEmail.length > 320 ||
+      input.verifiedEmail.trim() !== input.verifiedEmail || !input.verifiedEmail.includes("@")) {
+      throw new JenfuPrincipalAccountError();
+    }
+    let result: unknown;
+    try {
+      const row = await this.client.queryOne<{ receipt: unknown }>(`
+        SELECT ai_pdm_core.ensure_authorized_first_login_account_v1(
+          :identityIssuer,:identitySubject,:principalId,:employeeId,:accountType,
+          :mappingVersion,:publishedAt::timestamptz,:verifiedEmail
+        ) AS receipt
+      `, input);
+      result = row?.receipt;
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error &&
+        (error.code === "40001" || error.code === "40P01")) throw error;
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("AIPDM_FIRST_LOGIN_IDENTITY_CONFLICT")) {
+        throw new JenfuPrincipalAccountError("principal_account_conflict");
+      }
+      throw new JenfuPrincipalAccountError();
+    }
+    if (!result || typeof result !== "object") throw new JenfuPrincipalAccountError();
+    const receipt = result as Partial<JenfuAuthorizedFirstLoginReceipt>;
+    const lifecycleVersion = Number(receipt.lifecycleVersion);
+    const profileVersion = Number(receipt.profileVersion);
+    if (typeof receipt.created !== "boolean" || receipt.principalId !== input.principalId ||
+      !validIdentifier(receipt.pdmUserId) || receipt.companyId !== "company-jenfu" ||
+      !["active", "suspended", "expired", "offboarded"].includes(String(receipt.accountStatus)) ||
+      !validVersion(lifecycleVersion) || !validVersion(profileVersion)) {
+      throw new JenfuPrincipalAccountError();
+    }
+    return { ...receipt, lifecycleVersion, profileVersion } as JenfuAuthorizedFirstLoginReceipt;
   }
 }

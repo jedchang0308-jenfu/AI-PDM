@@ -252,6 +252,10 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 </details>
 
+## DEV-121 有效授權首次登入自動開通（2026-10-08，執行中）
+
+[現行任務](dev_task.md#dev-121-authorized-first-login) → [current contract](specs/DEV-121-target-authorization-boundary.md#authorized-first-login) → [本機 checkpoint](qa/DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json) → migration `083_dev121_authorized_first_login_account.sql`／focused unit 與 task-owned PostgreSQL QC。OrgMaster published v4 grant 是唯一開通授權；AI-PDM 只在 active typed Principal、authEpoch／撤銷與有效 grant 通過後原子建立本地 profile／Principal link／receipt／cutover，不複製角色。無 grant、失效、停用、離職、身分衝突與依賴失敗均零開通副作用；重試／並行只留一筆，歷史 Email 相似不作關聯。Platform／OrgMaster 本輪只讀；本機 PASS 不代表 Production 或 Dani 已修復。
+
 ## DEV-121 最高管理能力批次：正式結案（2026-10-06）
 
 [本批唯一結果](dev_task.md#dev-121-system-admin-follow-up) → [owner正式closure](qa/DEV-121-admin-capabilities-v6-production-closure-2026-10-06.json) → [現行契約](specs/DEV-121-target-authorization-boundary.md#system-admin-capability-batch)。PR216／requiredCI／R4 owner release及fresh正常UI／API通過，system_admin66explicitallow；Org22e81 role workspace200、跨公司403。安全negative沿exact source／current PG／原正式層級，未重標fresh；只讀頁不等於新能力編輯器。私人JENFU封存57raw及独立QA5/5／QC無P1/P2，精確hash在owner closure。

@@ -444,6 +444,11 @@
         "order": 32,
         "path": "db/postgres/082_dev122_openswx_auxiliary_jobs.sql",
         "sha256": "9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000"
+      },
+      {
+        "order": 33,
+        "path": "db/postgres/083_dev121_authorized_first_login_account.sql",
+        "sha256": "a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9"
       }
     ]
   },

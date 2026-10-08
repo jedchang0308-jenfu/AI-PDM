@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "jenfu.ai-pdm.dev121.authorized-first-login.local-checkpoint.v1",
+  "devRef": "AIPDM/DEV-121#authorized-first-login",
+  "recordedAt": "2026-10-08T10:17:22.0401557Z",
+  "branch": "codex/dev121-first-login-auto-provision",
+  "baseCommit": "5b648fe6dcca1408950ca49f89cea2b3c5515794",
+  "status": "LOCAL_PASS",
+  "rootCause": "The SSO handoff required an active local principal_accounts row before validating an effective published OrgMaster AI-PDM grant, so a valid first login was denied before any authorized account creation path.",
+  "behavior": {
+    "authority": "orgmaster_contract.v_ai_pdm_principal_effective_grants_v4",
+    "createWhen": "active typed Principal + current authEpoch/revocation checks + effective published AI-PDM grant + no local account",
+    "denyWithoutSideEffects": [
+      "no grant",
+      "expired grant",
+      "inactive or offboarded identity",
+      "identity conflict",
+      "existing inactive account",
+      "dependency failure"
+    ],
+    "concurrency": "serializable transaction + Principal advisory lock + unique retry; one complete account",
+    "historicalEmailSimilarity": "never linked or deleted"
+  },
+  "verification": [
+    {
+      "name": "focused unit regression",
+      "result": "PASS",
+      "detail": "7 files, 73 tests"
+    },
+    {
+      "name": "task-owned PostgreSQL QC",
+      "result": "PASS",
+      "detail": "7 groups; first create/replay, parallel convergence, denials, inactive preservation, historical-email isolation, rollback; port/temp released"
+    },
+    {
+      "name": "app typecheck",
+      "result": "PASS",
+      "detail": "npm run typecheck:app"
+    },
+    {
+      "name": "targeted ESLint",
+      "result": "PASS",
+      "detail": "changed TypeScript and release/QC scripts"
+    },
+    {
+      "name": "database boundary",
+      "result": "PASS",
+      "detail": "DEV010_DB_RULESET_V1; governedFiles=20"
+    },
+    {
+      "name": "DEV-117 continuous release tests",
+      "result": "PASS",
+      "detail": "142 tests"
+    },
+    {
+      "name": "DEV-117 abort controller",
+      "result": "PASS",
+      "detail": "6 tests"
+    },
+    {
+      "name": "DEV-117 continuous owner QC",
+      "result": "PASS",
+      "detail": "owner QC receipt DEV117-S1B-20261008T101644395Z-8C4E7758"
+    },
+    {
+      "name": "isolated production build",
+      "result": "PASS",
+      "detail": "Next.js 16.3.8; artifact=true; primary=true; cleanup=true"
+    }
+  ],
+  "productionReadOnly": {
+    "orgMasterCurrentVersion": "張祐豪 has effective AI-PDM 系統管理員 and 採購 assignments",
+    "principalId": "principal-managed:642bac3e-ac30-4641-a860-6b7fc9bd5dfc",
+    "employeeId": "employee-youhao",
+    "writes": 0
+  },
+  "unverified": [
+    "migration 083 has not yet been applied to Production",
+    "the application revision has not yet been deployed or promoted",
+    "the two existing test accounts have not yet been replayed against the new revision",
+    "Dani has not yet completed an actual post-release first login",
+    "prod-pdm-wave0-dani-001 ownership remains unknown and was not linked, changed, or deleted"
+  ]
+}
