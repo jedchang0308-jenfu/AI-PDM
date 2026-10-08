@@ -1,6 +1,15 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B24 native prebuild source 修正／實際本地 QC 完成；正式 release NOT_RUN）
+## DEV-122 CURRENT（B27 建置唯讀身份分工修正；正式 release 待重建）
+
+B26 owner run [37814831003](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37814831003) prepare PASS、build `DENIED`、failure PASS。Terminal `PRE_ACTIVATION_ABORTED / databaseDisposition=NOT_APPLIED`，正式 `ai-pdm-prod-44984e6018dc` 100%，Scheduler PAUSED，零本輪 Cloud Build；B26 source archive 已寫入。B25 freshness 修正已由 B26 prepare 驗證。Log 未記錄被拒絕 URL；程式順序及現行 IAM 支持 beforeBuild 即時 GET 誤用 builder 的診斷，實際 403 endpoint UNKNOWN。
+
+B27 `RD Implementation Ready`：只修本 repo full workflow build 的身份路由。Builder 保留 source／receipt 寫入、Cloud Build 與 Artifact Registry；既有 verifier WIF token 僅借給 exact AI-PDM service／revision、OpenSWX Job／execution、Scheduler GET 及已有 source-proof reader。Source-proof reader 的 Build／Image GET 仍以已驗證的 builder read binding 執行；不新增 IAM、資源、Secret、migration、SQL、worker execution 或 Scheduler resume。缺 token／錯誤 target fail closed；POST／PATCH／DELETE 與 sibling URL 不得取得 verifier token。
+
+驗收：固定路由正反案例、denied/timeout 與 zero mutation；workflow primary/secondary token wiring guard；現行六項 DEV-117 required checks；獨立 Luna QC。原本正式合併發布授權持續有效，機器綁定在修正 main 後更新。發布成功條件為 app RELEASED、worker ACTIVATION_PENDING、Scheduler PAUSED；native USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED。Whole DEV 仍 NOT_ACCEPTED；B24／B25／B26 保留原始證據，不冒充新 release PASS。
+
+
+## DEV-122 HISTORY_ONLY（B24 native prebuild source 修正／實際本地 QC 完成；正式 release NOT_RUN）
 
 現行狀態 `B24_LOCAL_BEHAVIOR_QC_PASS`；同一 freeze 的實際 local acceptance：[B24-final-local-qc-binding.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A17-B24/release/B24-final-local-qc-binding.json>)（SHA `c992695b41a78eb454f181376a9c08735453371e80b11a12a4cb1d42fca11de3`）。不構成 production release authority。
 

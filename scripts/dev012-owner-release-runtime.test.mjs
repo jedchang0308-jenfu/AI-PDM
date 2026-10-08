@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
-import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
+import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAiPdmBuildReadbackTransport, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 
 const H40 = 'a'.repeat(40)
 const H64 = 'b'.repeat(64)
@@ -861,4 +861,53 @@ test('aligned-new assessment requires source identity; unrelated or escalated sc
     await assert.rejects(() => make(changed).waitArtifactEvidence({ profile, sourceRevision: H40, artifactDigest: digest, deadlineAt: '2999-01-01T00:00:00.000Z' }), /ARTIFACT_POLICY_FAILED/u)
   }
   assert.equal(writes, 0)
+})
+
+
+test('B27 build readback uses verifier only for fixed live GETs and retains builder mutations', async () => {
+  const builder = 'MODELED-B27-BUILDER-TOKEN', verifier = 'MODELED-B27-VERIFIER-TOKEN', calls = []
+  const service = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
+  const job = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata'
+  const scheduler = 'https://cloudscheduler.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch'
+  const ownProfile = { application: { id: 'ai-pdm' }, target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'ai-pdm-prod' }, artifact: { releaseBucket: 'jenfu-platform-prod-aipdm-release' } }
+  const transport = createAiPdmBuildReadbackTransport({ token: builder, verifierReadbackToken: verifier, fetchImpl: async (url, options) => {
+    calls.push({ url, method: options.method ?? 'GET', token: options.headers.authorization, redirect: options.redirect })
+    if (url.endsWith('/revisions/ai-pdm-prod-0123456789ab')) return json({ name: url.slice('https://run.googleapis.com/v2/'.length), service: 'ai-pdm-prod' })
+    return json({ ok: true })
+  } })
+  for (const url of [scheduler, job, service, `${service}/revisions/ai-pdm-prod-0123456789ab`, `${job}/executions?pageSize=100`, `${job}/executions?pageSize=100&pageToken=next`, `${job}/executions/execution-one`, `${job.replace('jenfu-platform-prod', '9536592944')}/executions/execution-one`]) {
+    await transport.request(url)
+    assert.equal(calls.at(-1).token, `Bearer ${verifier}`)
+    assert.equal(calls.at(-1).redirect, 'error')
+  }
+  await transport.getService(ownProfile)
+  await transport.getRevision(ownProfile, 'ai-pdm-prod-0123456789ab')
+  assert.equal(calls.at(-1).token, `Bearer ${verifier}`)
+  for (const [url, options] of [[scheduler, { method: 'POST' }], [job, { method: 'PATCH', body: '{}' }], [service, { method: 'DELETE' }], [job + ':run', { method: 'POST' }], [scheduler + ':resume', { method: 'POST' }], [job + ':getIamPolicy', {}], [job + '/executions?pageSize=100&filter=other', {}], [job + '/executions?pageSize=100&pageSize=100', {}], [job + '/executions?pageSize=100#fragment', {}], [service.replace('ai-pdm-prod', 'jenfu-platform-prod'), {}], [service.replace('jenfu-platform-prod', 'other-project'), {}], [service.replace('run.googleapis.com', 'runXgoogleapisXcom') + '/revisions/ai-pdm-prod-0123456789ab', {}], [service + '/revisions/latest', {}], ['https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds/own-build', {}], ['https://artifactregistry.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/repositories/aipdm-release', {}], ['https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/own/versions/1:access', {}]]) {
+    await transport.request(url, options)
+    assert.equal(calls.at(-1).token, `Bearer ${builder}`, url)
+  }
+  const before = calls.length
+  for (const changed of [{ ...ownProfile, application: { id: 'platform' } }, { ...ownProfile, target: { ...ownProfile.target, projectId: 'other-project' } }, { ...ownProfile, target: { ...ownProfile.target, serviceName: 'jenfu-platform-prod' } }, { ...ownProfile, artifact: { releaseBucket: 'other-bucket' } }]) {
+    assert.throws(() => transport.getService(changed), { code: 'BUILD_READBACK_TARGET_INVALID' })
+    assert.throws(() => transport.readOwnerSourceProof({ profile: changed }), { code: 'BUILD_READBACK_TARGET_INVALID' })
+  }
+  assert.throws(() => transport.getRevision(ownProfile, 'latest'), { code: 'BUILD_READBACK_TARGET_INVALID' })
+  assert.equal(calls.length, before)
+  for (const value of ['', builder]) assert.throws(() => createAiPdmBuildReadbackTransport({ token: builder, verifierReadbackToken: value }), { code: 'BUILD_READBACK_TOKEN_INVALID' })
+})
+
+test('B27 verifier denial and timeout fail without a mutation or builder fallback', async () => {
+  for (const mode of ['denied', 'timeout']) {
+    const calls = []
+    const transport = createAiPdmBuildReadbackTransport({ token: 'MODELED-B27-BUILDER-TOKEN', verifierReadbackToken: 'MODELED-B27-VERIFIER-TOKEN', fetchImpl: async (url, options) => {
+      calls.push({ url, method: options.method ?? 'GET', token: options.headers.authorization })
+      if (mode === 'timeout') throw Object.assign(new Error('timeout'), { name: 'TimeoutError' })
+      return json({}, 403)
+    } })
+    await assert.rejects(transport.request('https://cloudscheduler.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch'), { code: mode === 'denied' ? 'DENIED' : 'OUTCOME_UNKNOWN' })
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0].method, 'GET')
+    assert.equal(calls[0].token, 'Bearer MODELED-B27-VERIFIER-TOKEN')
+  }
 })

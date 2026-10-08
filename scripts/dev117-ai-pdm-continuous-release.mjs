@@ -5,7 +5,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
-import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
+import { createOwnerTransport, createAiPdmBuildReadbackTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { createGitArchive, createGitSourceIdentity, executeOwnerStage, parseOwnerStageArgs, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -17,7 +17,11 @@ async function main() {
   const profile = JSON.parse(profileBytes.toString('utf8'))
   assertDev117V3Profile(profile, v1, n1c)
   const args = parseOwnerStageArgs(process.argv.slice(2), profile.artifact.releaseBucket)
-  const transport = createOwnerTransport({ token: process.env.GOOGLE_OAUTH_ACCESS_TOKEN ?? '' })
+  const token = process.env.GOOGLE_OAUTH_ACCESS_TOKEN ?? ''
+  const fullBuild = args.stage === 'build' && process.env.GITHUB_WORKFLOW_REF === `${profile.application.repository}/${profile.workflow.path}@refs/heads/main`
+  const transport = fullBuild
+    ? createAiPdmBuildReadbackTransport({ token, verifierReadbackToken: process.env.AIPDM_BUILD_VERIFIER_READ_TOKEN ?? '' })
+    : createOwnerTransport({ token })
   const result = await executeOwnerStage({
     ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig, migrationOnlyWorkflowPath: '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml',
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),

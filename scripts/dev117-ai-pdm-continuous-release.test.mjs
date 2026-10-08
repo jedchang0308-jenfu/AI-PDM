@@ -543,3 +543,22 @@ test('S1B-20 repair stages keep builder proof reads separate from primary releas
     mutateJob('entrypoint', block => block.replace('          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"', '          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"\n          AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.auth.outputs.access_token }}"')),
   ]) assert.throws(() => assertDev117WorkflowSource(changed), {code:'WORKFLOW_PROOF_READBACK_AUTH_DRIFT'})
 })
+
+
+test('B27 build verifier wiring rejects actor swap, misplaced token and credential export', () => {
+  const source = readText('.github/workflows/deploy-ai-pdm-independent-production.yml').replaceAll('\r\n', '\n')
+  const block = source.match(/\n  build:\n[\s\S]*?(?=\n  [a-z][a-z-]+:\n|$)/u)?.[0]
+  assert.ok(block)
+  const auth = block.match(/      - id: build_verifier_read_auth\n[\s\S]*?(?=      - )/u)?.[0]
+  const movedAuth = block.replace(auth, '').trimEnd() + '\n' + auth
+  assert.throws(() => assertDev117WorkflowSource(source.replace(block, movedAuth)), { code: 'WORKFLOW_BUILD_READBACK_AUTH_DRIFT' })
+  assert.equal(assertDev117WorkflowSource(source), true)
+  for (const changed of [
+    block.replace('service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com', 'service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com'),
+    block.replace('service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com', 'service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com'),
+    block.replace('AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.build_verifier_read_auth.outputs.access_token }}"', 'AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.auth.outputs.access_token }}"'),
+    block.replace('          export_environment_variables: false\n', ''),
+    block.replace('          AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.build_verifier_read_auth.outputs.access_token }}"\n', '').replace('      - run: npm ci', '      - run: npm ci\n        env:\n          AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.build_verifier_read_auth.outputs.access_token }}"'),
+  ]) assert.throws(() => assertDev117WorkflowSource(source.replace(block, changed)), { code: 'WORKFLOW_BUILD_READBACK_AUTH_DRIFT' })
+  assert.throws(() => assertDev117WorkflowSource(source.replace('  entrypoint:\n', '  entrypoint:\n    env:\n      AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.auth.outputs.access_token }}"\n')), { code: 'WORKFLOW_BUILD_READBACK_AUTH_DRIFT' })
+})
