@@ -5,7 +5,7 @@ import { parseJenfuPrincipalHandoff } from "@/lib/jenfu-principal-handoff";
 
 const mocks = vi.hoisted(() => ({
   typed: vi.fn(), state: vi.fn(), account: vi.fn(),
-  assignments: vi.fn(), register: vi.fn()
+  ensureFirstLogin: vi.fn(), assignments: vi.fn(), register: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-admission-repository", () => ({
   JenfuPrincipalAdmissionRepository: class { requireActiveTypedPrincipal = mocks.typed; }
@@ -14,7 +14,13 @@ vi.mock("@/lib/jenfu-auth-epoch-repository", () => ({
   JenfuAuthEpochRepository: class { readCanonicalPrincipalState = mocks.state; }
 }));
 vi.mock("@/lib/jenfu-principal-account-repository", () => ({
-  JenfuPrincipalAccountRepository: class { requireActive = mocks.account; }
+  JenfuPrincipalAccountError: class extends Error {
+    constructor(readonly code: string) { super(code); this.name = "JenfuPrincipalAccountError"; }
+  },
+  JenfuPrincipalAccountRepository: class {
+    requireActive = mocks.account;
+    ensureFirstLogin = mocks.ensureFirstLogin;
+  }
 }));
 vi.mock("@/lib/repositories/jenfu-entitlement-repository", () => ({
   JenfuEntitlementRepositoryError: class extends Error {
@@ -29,6 +35,7 @@ vi.mock("@/lib/jenfu-principal-session-registry", () => ({
 }));
 
 import { issueSessionForPrincipalHandoff } from "@/lib/jenfu-principal-handoff-session-service";
+import { JenfuPrincipalAccountError } from "@/lib/jenfu-principal-account-repository";
 
 const nowMs = Date.parse(vectors.clock);
 const handoff = parseJenfuPrincipalHandoff(vectors.valid, vectors.valid.issuer, nowMs);
@@ -56,12 +63,22 @@ const base = { handoff, database, expectedIdentityIssuer: handoff.identity.ident
 describe("DEV-121 principal handoff session issuance", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.typed.mockResolvedValue({ principalId: "principal-one", employeeId: "employee-one", accountType: "human_personal" });
+    mocks.typed.mockReset();
+    mocks.state.mockReset();
+    mocks.account.mockReset();
+    mocks.ensureFirstLogin.mockReset();
+    mocks.assignments.mockReset();
+    mocks.register.mockReset();
+    mocks.typed.mockResolvedValue({ principalId: "principal-one", employeeId: "employee-one",
+      accountType: "human_personal", identityIssuer: handoff.identity.identityIssuer,
+      identitySubject: handoff.identity.identitySubject, mappingVersion: 1,
+      publishedAt: "2026-09-24T00:00:00.000Z" });
     mocks.state.mockResolvedValue({ authEpoch: 0, revokedBefore: null });
     mocks.account.mockResolvedValue({ principalId: "principal-one", pdmUserId: "pdm-user-one",
       employeeId: "employee-one", accountType: "human_personal", companyId: "company-one",
       lifecycleVersion: 3, profileVersion: 2, minimumAssurance: "aal1", sessionInvalidBefore: null });
     mocks.assignments.mockResolvedValue([assignment("rd")]);
+    mocks.ensureFirstLogin.mockResolvedValue({ created: true, pdmUserId: "pdm-user-one" });
     snapshot.queryOne.mockResolvedValue({ id: "pdm-user-one", company_id: "company-one" });
   });
 
@@ -71,7 +88,7 @@ describe("DEV-121 principal handoff session issuance", () => {
       authEpoch: 0, companyId: "company-one", accountLifecycleVersion: 3, profileVersion: 2 });
     expect(result.claims).not.toHaveProperty("pdmUserId");
     expect(mocks.register).toHaveBeenCalledWith(result.claims);
-    expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "repeatable_read" });
+    expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "serializable" });
     expect(mocks.account).toHaveBeenCalledWith(handoff.identity.principalId);
     expect(snapshot.queryOne.mock.calls[0][0]).not.toContain("principal_identity_cutovers");
     expect(snapshot.queryOne.mock.calls[0][0]).toContain("owner.company_id=profile.company_id");
@@ -83,13 +100,53 @@ describe("DEV-121 principal handoff session issuance", () => {
     await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("STALE_HANDOFF");
     mocks.state.mockResolvedValueOnce({ authEpoch: 1, revokedBefore: null });
     await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("STALE_HANDOFF");
+    mocks.state.mockResolvedValueOnce({ authEpoch: 0, revokedBefore: handoff.authentication.authenticatedAt });
+    await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("STALE_HANDOFF");
+    expect(mocks.ensureFirstLogin).not.toHaveBeenCalled();
+    expect(mocks.assignments).not.toHaveBeenCalled();
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
   it("does not read a profile or register a session when the account activation check denies", async () => {
-    mocks.account.mockRejectedValueOnce(new Error("principal_account_unavailable"));
-    await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("principal_account_unavailable");
+    mocks.account.mockRejectedValueOnce(new JenfuPrincipalAccountError("principal_account_inactive"));
+    await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("principal_account_inactive");
     expect(snapshot.queryOne).not.toHaveBeenCalled();
+    expect(mocks.ensureFirstLogin).not.toHaveBeenCalled();
+    expect(mocks.register).not.toHaveBeenCalled();
+  });
+
+  it("creates the missing local account only after a valid published grant, then issues the first session", async () => {
+    mocks.account
+      .mockRejectedValueOnce(new JenfuPrincipalAccountError("principal_account_missing"))
+      .mockResolvedValueOnce({ principalId: "principal-one", pdmUserId: "pdm-user-one",
+        employeeId: "employee-one", accountType: "human_personal", companyId: "company-one",
+        lifecycleVersion: 1, profileVersion: 1, minimumAssurance: "aal1", sessionInvalidBefore: null });
+
+    const result = await issueSessionForPrincipalHandoff(base);
+
+    expect(result.claims).toMatchObject({ principalId: "principal-one", employeeId: "employee-one",
+      accountLifecycleVersion: 1, profileVersion: 1 });
+    expect(mocks.assignments).toHaveBeenCalledOnce();
+    expect(mocks.ensureFirstLogin).toHaveBeenCalledWith(expect.objectContaining({
+      principalId: "principal-one", employeeId: "employee-one",
+      identityIssuer: handoff.identity.identityIssuer,
+      identitySubject: handoff.identity.identitySubject,
+      verifiedEmail: handoff.authentication.email
+    }));
+    expect(mocks.assignments.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.ensureFirstLogin.mock.invocationCallOrder[0]);
+    expect(mocks.account).toHaveBeenCalledTimes(2);
+    expect(mocks.register).toHaveBeenCalledOnce();
+  });
+
+  it("does not create an account when the published PDM grant is absent", async () => {
+    mocks.account.mockRejectedValueOnce(new JenfuPrincipalAccountError("principal_account_missing"));
+    mocks.assignments.mockResolvedValueOnce([]);
+
+    await expect(issueSessionForPrincipalHandoff(base))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+
+    expect(mocks.ensureFirstLogin).not.toHaveBeenCalled();
     expect(mocks.register).not.toHaveBeenCalled();
   });
 

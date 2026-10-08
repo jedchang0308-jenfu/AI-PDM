@@ -55,6 +55,9 @@ function callbackErrorCode(errorValue: unknown) {
     (errorValue instanceof JenfuPrincipalAdmissionError && errorValue.code === "principal_not_active" && errorValue.httpStatus === 403)) {
     return "principal_not_active";
   }
+  if (errorValue instanceof JenfuPrincipalAccountError && errorValue.code === "principal_account_conflict") {
+    return "sso_principal_stale";
+  }
   if (errorValue instanceof JenfuEntitlementRepositoryError && [
     "entitlement_assignment_not_found", "entitlement_role_inactive",
     "entitlement_scope_mismatch", "permission_explicit_deny", "permission_not_granted"

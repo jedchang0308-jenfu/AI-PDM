@@ -1,7 +1,7 @@
 import type { GoogleWorkspaceMfaTrustPolicy } from "@/lib/auth-config";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { JenfuAuthEpochRepository } from "@/lib/jenfu-auth-epoch-repository";
-import { JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
+import { JenfuPrincipalAccountError, JenfuPrincipalAccountRepository } from "@/lib/jenfu-principal-account-repository";
 import { JenfuPrincipalAdmissionRepository } from "@/lib/jenfu-principal-admission-repository";
 import { resolvePrincipalHandoffAssurance } from "@/lib/jenfu-principal-assurance";
 import { validatePrincipalPublishedGrantSnapshot } from "@/lib/jenfu-principal-published-grant-validation";
@@ -37,16 +37,44 @@ export async function issueSessionForPrincipalHandoff(input: {
       .requireActiveTypedPrincipal(handoff.identity.identityIssuer, handoff.identity.identitySubject);
     const state = await new JenfuAuthEpochRepository(snapshot)
       .readCanonicalPrincipalState(handoff.identity.principalId);
-    const account = await new JenfuPrincipalAccountRepository(snapshot)
-      .requireActive(handoff.identity.principalId);
+    const accountRepository = new JenfuPrincipalAccountRepository(snapshot);
     if (typed.principalId !== handoff.identity.principalId ||
       typed.employeeId !== handoff.identity.employeeId ||
-      typed.accountType !== account.accountType ||
-      account.employeeId !== handoff.identity.employeeId ||
       state.authEpoch !== handoff.authState.authEpoch ||
       (state.revokedBefore !== null && authenticatedAt <= Date.parse(state.revokedBefore)) ||
       (handoff.authState.revokedBefore !== null &&
         authenticatedAt <= Date.parse(handoff.authState.revokedBefore))) {
+      throw new Error("STALE_HANDOFF");
+    }
+    let publishedGrantValidated = false;
+    let account;
+    try {
+      account = await accountRepository.requireActive(handoff.identity.principalId);
+    } catch (error) {
+      if (!(error instanceof JenfuPrincipalAccountError) || error.code !== "principal_account_missing") {
+        throw error;
+      }
+      await validatePrincipalPublishedGrantSnapshot(snapshot, {
+        identityIssuer: handoff.identity.identityIssuer,
+        identitySubject: handoff.identity.identitySubject,
+        principalId: handoff.identity.principalId,
+        employeeId: handoff.identity.employeeId
+      });
+      publishedGrantValidated = true;
+      await accountRepository.ensureFirstLogin({
+        identityIssuer: typed.identityIssuer,
+        identitySubject: typed.identitySubject,
+        principalId: typed.principalId,
+        employeeId: typed.employeeId,
+        accountType: typed.accountType,
+        mappingVersion: typed.mappingVersion,
+        publishedAt: typed.publishedAt,
+        verifiedEmail: handoff.authentication.email
+      });
+      account = await accountRepository.requireActive(handoff.identity.principalId);
+    }
+    if (typed.accountType !== account.accountType ||
+      account.employeeId !== handoff.identity.employeeId) {
       throw new Error("STALE_HANDOFF");
     }
     const profile = await snapshot.queryOne<{ id: string; company_id: string }>(`
@@ -61,12 +89,14 @@ export async function issueSessionForPrincipalHandoff(input: {
     if (!profile || profile.id !== account.pdmUserId ||
       profile.company_id !== account.companyId) throw new Error("PRINCIPAL_PROFILE_INVALID");
 
-    await validatePrincipalPublishedGrantSnapshot(snapshot, {
-      identityIssuer: handoff.identity.identityIssuer,
-      identitySubject: handoff.identity.identitySubject,
-      principalId: handoff.identity.principalId,
-      employeeId: handoff.identity.employeeId
-    });
+    if (!publishedGrantValidated) {
+      await validatePrincipalPublishedGrantSnapshot(snapshot, {
+        identityIssuer: handoff.identity.identityIssuer,
+        identitySubject: handoff.identity.identitySubject,
+        principalId: handoff.identity.principalId,
+        employeeId: handoff.identity.employeeId
+      });
+    }
     const assurance = resolvePrincipalHandoffAssurance({
       authentication: handoff.authentication, policy: input.trustPolicy
     });
@@ -99,5 +129,5 @@ export async function issueSessionForPrincipalHandoff(input: {
     const claims = verifyJenfuPrincipalSession(token, input.keyRing, { nowSeconds: actualNowSeconds });
     await new JenfuPrincipalSessionRegistry(snapshot).register(claims);
     return { token, claims };
-  }, { isolationLevel: "repeatable_read" });
+  }, { isolationLevel: "serializable" });
 }

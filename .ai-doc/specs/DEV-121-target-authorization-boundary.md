@@ -14,6 +14,16 @@
 
 [HISTORY_ONLY原文快照](DEV-121-target-authorization-boundary-history-2026-10-03.md)保留Rxx施工、舊bridge／cohort／双軌、AAL2強制與local ACL歷史，不能繼續按它實作。當前續點只維護於 [DEV-121任務](../dev_task.md#dev-121-current-contract)，跨owner流程階段及根因只在 [JENFU既有盤點](../../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)；不把規格頂部快照當新發布狀態。
 
+<a id="authorized-first-login"></a>
+
+## 已授權首次登入自動建立 PDM 帳戶（2026-10-08，CURRENT）
+
+人類已確認新的業務規則：OrgMaster 已發布且生效的 AI-PDM role／grant 就是使用 PDM 的開通授權，不再要求 PDM 管理員另行建立應用帳戶，也不要求員工提供 Principal ID。正常順序固定為：Platform 已驗證 handoff → OrgMaster active typed Principal 與 authEpoch／revokedBefore 核對 → 讀取同一 Principal／Employee 的單一有效 v4 publication 與現行 AI-PDM role catalog → 若本地 `principal_accounts` 缺少才執行 owner-private 原子建立 → 重新讀回 active account／profile → 建立 Principal session。無 grant、失效 grant、inactive identity、Employee／Principal 衝突或依賴失敗均不得寫入帳戶或 session。
+
+`083_dev121_authorized_first_login_account.sql` 只建立 AI-PDM 自有的 `users` profile、`principal_accounts` 唯一關聯、append-only provision operation 與 one-way cutover marker；不建立或複製本地角色指派。函式固定 application／company，Principal、Employee、account type、mapping version 及 publication 必須重新符合 OrgMaster published contract，顯示用 email 只能來自已驗 Platform handoff且不寫入唯一 email 欄位。既有 suspended／expired／offboarded／`system_role_enabled=false` 帳戶只讀回，不能被本流程修改或恢復；既有 Principal 關聯不一致、已存在但無完整關聯的 cutover 或 profile 缺失均 fail closed。Email／名稱相似的歷史 profile 不作關聯、更新或刪除依據。
+
+建立、operation receipt 與 cutover 在同一交易提交；Principal 唯一鍵、transaction advisory lock 與 SERIALIZABLE retry 保證重試／並行只留下單一完整帳戶。任何後段失敗回滾全部寫入。現行 Firebase email verified、issuer／subject、authEpoch、Principal revokedBefore、account lifecycle、session barrier 與 published-grant request-time enforcement維持。
+
 <a id="system-admin-capability-batch"></a>
 
 ## 最高管理能力及 typed caller 修正（2026-10-05／RD Implementation Ready）
@@ -77,7 +87,7 @@ exact provider pair／Principal／Employee／account type先核對active typed p
 
 完整核實的 account owner row 若為 `suspended`／`expired`／`offboarded` 或 `system_role_enabled=false`，屬已知不具登入資格，不是依賴不可用；typed producer 成功讀取但無 active pair 而回既有 `principal_not_active` 亦同：共享 API／命令 guard 以 401 `auth_session_invalid` 拒絕現有 session，正常 SSO 回既有 `principal_not_active` 且不建立 target session。缺少／畸形 account 或 profile association、無效版本／barrier、查詢失敗、歧義及 producer contract mismatch 仍 fail closed，不能降為已知停用；先驗整筆 metadata，再分類 account 停用，不能先用 revoked registry 短路而掩蓋依賴異常。既有 owner lifecycle command 同交易推進版本與 invalid-before 並撤銷 registry；重新啟用不復活舊 session，也不快取先前 allow。
 
-新profile沿既有account-management及exact provision command，create-only輸入已發布target Principal/pair/Employee/type、expected source revision、已驗actor、server-bound company、operation id；accountEnabled省略false，初始沒有複製grant／delegation。callback不auto-enroll，email只contact。enable須producer active及既有顯式命令；停用／profile變版使現有session失效。runtime只授受控函式，不直接改安全state，不用GUC/marker繞過fence。 候選 publishedAt 以 UTC 六位微秒文字保留，禁止經 JavaScript Date 截斷；請求只接受有效 Gregorian UTC 日曆的三位或六位小數，原字串保留於 frozen command／input hash。三位毫秒僅等價六位且末三位為 000，不降低 native exact source CAS。新寫入與同操作重播由既有 owner 函式在目前 actor／permission 核對後先查 exact receipt，再對未成功操作驗 source；不在 receipt 前重查 target publication 阻擋已提交操作核對。
+管理員手動建立 profile 仍沿既有 account-management exact provision command，create-only輸入已發布target Principal/pair/Employee/type、expected source revision、已驗actor、server-bound company、operation id；accountEnabled省略false，初始沒有複製grant／delegation。正常 callback 的缺帳戶分支則只依本節 `authorized-first-login`：有效 published grant 是啟用授權，無需第二次管理員開通；兩條路徑都不複製 grant／delegation。停用／profile變版使現有session失效，且首次登入不得恢復。runtime只授受控函式，不直接改安全state，不用GUC/marker繞過fence。候選 publishedAt 以 UTC 六位微秒文字保留，禁止經 JavaScript Date 截斷；請求只接受有效 Gregorian UTC 日曆的三位或六位小數，原字串保留於 frozen command／input hash。三位毫秒僅等價六位且末三位為 000，不降低 native exact source CAS。新寫入與同操作重播由既有 owner 函式在目前 actor／permission 核對後先查 exact receipt，再對未成功操作驗 source；不在 receipt 前重查 target publication 阻擋已提交操作核對。
 
 正常認證只用Platform handoff v2。token固定header／signature/keyId/type/schema／app/audience，verified pair、principalId、employeeId、sessionId、principal epoch、lifecycle/profile version、company、原authentication time、issued/expiry及assurance facts/policy hash依既有owner parser核對。target session上限為既有8小時及sourceSessionExpiresAt最小值，不取短assertion expiry；token refresh不延長來源或改寫authentication time。cookie/credential不進command/receipt。
 
