@@ -21,6 +21,7 @@ COPY src/lib/access-control-policy.ts src/lib/access-control-policy.ts
 COPY src/lib/jenfu-principal-acl-migration-plan.ts src/lib/jenfu-principal-acl-migration-plan.ts
 COPY src/lib/jenfu-principal-acl-migration-preview.ts src/lib/jenfu-principal-acl-migration-preview.ts
 COPY src/lib/jenfu-principal-admission-repository.ts src/lib/jenfu-principal-admission-repository.ts
+COPY src/lib/jenfu-principal-source-timestamp.ts src/lib/jenfu-principal-source-timestamp.ts
 COPY src/lib/jenfu-principal-cutover-graph-check.ts src/lib/jenfu-principal-cutover-graph-check.ts
 COPY src/lib/jenfu-principal-cutover-local-source.ts src/lib/jenfu-principal-cutover-local-source.ts
 COPY src/lib/jenfu-principal-cutover-locks.ts src/lib/jenfu-principal-cutover-locks.ts

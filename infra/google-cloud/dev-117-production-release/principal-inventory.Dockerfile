@@ -26,6 +26,7 @@ COPY src/lib/jenfu-principal-only-writer-readback.ts src/lib/jenfu-principal-onl
 COPY src/lib/jenfu-principal-inventory-registration.ts src/lib/jenfu-principal-inventory-registration.ts
 COPY src/lib/jenfu-principal-inventory-repository.ts src/lib/jenfu-principal-inventory-repository.ts
 COPY src/lib/jenfu-principal-admission-repository.ts src/lib/jenfu-principal-admission-repository.ts
+COPY src/lib/jenfu-principal-source-timestamp.ts src/lib/jenfu-principal-source-timestamp.ts
 COPY src/lib/jenfu-principal-cutover-locks.ts src/lib/jenfu-principal-cutover-locks.ts
 
 ARG SOURCE_REVISION

@@ -278,6 +278,7 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 - [x] 完成 source diff、DB boundary、owner release regression 與 isolated build；本機 checkpoint：`qa/DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json`。
 - [x] 原首次登入實作 PR242 已合併至 protected main `17bc4d4`，required CI 通過；原本機證據保留。
 - [x] 追加精度 RED／GREEN：OrgMaster 六位微秒 publication 被 Date 截斷會使 083 精確身分比對拒絕。active Principal query 改以 UTC microsecond text 讀取及既有 validator 驗證；67＋11 focused tests、8 組 disposable PG、typecheck、targeted lint、DB boundary PASS，測試 port／temp 已清理。[補驗證據](qa/DEV-121-first-login-publication-precision-2026-10-08.json)。
+- [x] PR243 必要 CI 找出兩個 Principal operator recipe 缺少新 timestamp validator import；既有 source-closure tests 重現 2 FAIL，補齊各一行 COPY 後 3／3 與 inventory runner 21／21 PASS，required CI 待重跑。未建立或執行正式 operator image。
 - [ ] 精度修正 protected PR／required CI，以及合併 owner migration083、candidate／canonical Production verify；由正在開發的 DEV-122 release owner 協調，source freeze 等精度補丁，不碰其工作樹。
 - [ ] 測試帳號既有帳戶回歸與 Dani 本人首次登入分層驗證；不得以本機或測試帳號結果替代 Dani。
 
