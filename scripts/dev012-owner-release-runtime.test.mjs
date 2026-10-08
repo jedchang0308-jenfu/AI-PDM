@@ -20,6 +20,22 @@ const profile = {
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
 
+test('B23 fixed runtime rejects wrong AI target and malformed pre-migration refs before any read', async () => {
+  let reads = 0
+  const transport = createOwnerTransport({ token: 'x'.repeat(25), fetchImpl: async () => { reads++; throw Error('UNEXPECTED_READ') } })
+  const aiProfile = { application: { id: 'ai-pdm' }, artifact: { releaseBucket: 'jenfu-platform-prod-aipdm-release' }, target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'ai-pdm-prod' } }
+  const prepare = { uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-B23-LOCAL/${'c'.repeat(64)}/prepare.json`, sha256: 'd'.repeat(64) }
+  for (const refs of [{ prepare, migrate: null }, { prepare, migrate: undefined, terminal: null }, { prepare, migrate: null, terminal: undefined },
+    { prepare, migrate: null, terminal: prepare }, { prepare, migrate: null, terminal: null, mode: 'pre_migration' }]) {
+    await assert.rejects(transport.readOwnerSourceProof({ profile: aiProfile, sourceRevision: H40, refs, verifyProvider: true }), /DEV121_OWNER_RELEASE_PROOF_(?:INPUT|REF)_INVALID/u)
+    assert.equal(reads, 0)
+  }
+  for (const changed of [{ ...aiProfile, application: { id: 'platform' } }, { ...aiProfile, artifact: { releaseBucket: bucket } }, { ...aiProfile, target: { ...aiProfile.target, serviceName: 'sibling' } }]) {
+    await assert.rejects(transport.readOwnerSourceProof({ profile: changed, sourceRevision: H40, refs: { prepare, migrate: null, terminal: null }, verifyProvider: true }), /OWNER_SOURCE_PROOF_TARGET_INVALID/u)
+    assert.equal(reads, 0)
+  }
+})
+
 test('production runner is pinned, non-root, and removes the unused vulnerable OS zlib', () => {
   const dockerfile = fs.readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8')
   const runtimeImage = 'gcr.io/distroless/nodejs24-debian13:nonroot-amd64@sha256:7924c53f56526359d0f491c22517306d8d92f1b285656a6094398e2c55bbaeca'

@@ -262,7 +262,8 @@ function ordinaryAbortFixture() {
     if (url.startsWith('https://artifactregistry.googleapis.com')) { calls.provider++; const digest=decodeURIComponent(url.split('/').at(-1)); return Response.json({ name: 'projects/jenfu-platform-prod/locations/asia-east1/repositories/aipdm-release/dockerImages/'+digest, uri: profile.artifact.uri.split('/').slice(0,-1).join('/')+'/'+digest }) }
     const match = /\/b\/([^/]+)\/o\/([^?]+)/u.exec(url), uri = match && 'gs://'+decodeURIComponent(match[1])+'/'+decodeURIComponent(match[2]), row=objects.get(uri)
     if (!row) return new Response('', { status: 404 })
-    return url.includes('alt=media') ? new Response(row.bytes) : Response.json(row.metadata)
+    return url.includes('alt=media') ? new Response(row.bytes) : Response.json({ ...row.metadata,
+      bucket: decodeURIComponent(match[1]), name: decodeURIComponent(match[2]), size: String(row.bytes.length) })
   }
   const transport = createOwnerTransport({ token: 'x'.repeat(25), fetchImpl, now: () => '2026-10-03T12:00:00Z' })
   Object.assign(transport, { async readBytes(uri, options={}) { const row=objects.get(uri); if(!row)throw Object.assign(new Error('MISSING'),{code:'MISSING'}); if(options.expectedSha256 && options.expectedSha256!==row.ref.sha256)throw new Error('HASH');return row },

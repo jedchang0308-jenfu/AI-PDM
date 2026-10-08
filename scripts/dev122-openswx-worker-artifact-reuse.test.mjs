@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
-import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease } from './lib/dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap } from './lib/dev122-openswx-bootstrap.mjs'
 import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
@@ -43,6 +43,20 @@ const oldTar = tar(manifest.entries), currentTar = tar(manifest.entries, [{ path
 const currentTree = Buffer.concat([actualTree, Buffer.from(`100644 blob ${'f'.repeat(40)}\tsrc/app/b19-app-only.txt\0`)])
 const now = '2026-10-07T15:00:00.000Z'
 const deadline = () => new Date(Date.now() + 120_000).toISOString()
+test('B23 closed repair input retains the four-argument CLI and pins serving/predecessor refs', () => {
+  const workerRef = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
+  const releaseRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-B23-LOCAL/release-intent.json', sha256: 'b'.repeat(64) }
+  const input = { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2', sourceLockRef: { ...releaseRef, uri: releaseRef.uri.replace('release-intent', 'source-lock') },
+    currentSourceObjectRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-B23-LOCAL/source.tar.gz', sha256: 'c'.repeat(64) }, priorActivationRef: workerRef('last-ready'),
+    servingCapsuleRef: releaseRef, predecessorBaselineRef: null, deadlineAt: deadline(), receiptId: 'DEV122-B23-LOCAL' }
+  assertWorkerReuseInput(input)
+  assert.deepEqual(parseWorkerArtifactReuseArgs(['--input-ref', workerRef('input').uri, '--input-sha256', workerRef('input').sha256]), { inputRef: workerRef('input') })
+  for (const mutation of [row => row.purpose = 'build_only', row => row.releaseVariant = 'DAILY', row => row.servingCapsuleRef.extra = true, row => row.predecessorBaselineRef = { ...workerRef('prior'), uri: workerRef('prior').uri + '?x=1' }, row => delete row.servingCapsuleRef,
+    row => row.deadlineAt = new Date(Date.now() + 601_000).toISOString(), row => row.deadlineAt = new Date(Date.now() - 1).toISOString()]) {
+    const changed = structuredClone(input); mutation(changed); assert.throws(() => assertWorkerReuseInput(changed))
+  }
+  for (const flag of ['--release-variant', '--mode', '--target', '--purpose']) assert.throws(() => parseWorkerArtifactReuseArgs(['--input-ref', workerRef('input').uri, '--input-sha256', workerRef('input').sha256, flag, 'repair']))
+})
 function sourceLock(revision, tree, releaseId) { return { schemaVersion: 'jenfu.dev012.owner-source-lock.v1', ownerApplicationId: 'ai-pdm', repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main', releaseId, sourceRevision: revision, sourceTree: 'e'.repeat(40), sourceSha256: sha256(tree), migrationManifestSha256: 'd'.repeat(64), clean: true, remoteRef: 'refs/heads/main', remoteRevision: revision, status: 'SOURCE_FROZEN', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', observedAt: now } }
 async function harness({ buildMutate = () => {}, lockMutate = () => {} } = {}) {
   const objects = new Map(), calls = [], puts = [], controls = {}, prefix = profile.receiptRoot
@@ -349,8 +363,42 @@ async function seedPrebuildIamContinuation(h, supplementalIamReadbackRef, name =
     }
     return originalRequest(url, options)
   }
-  return { ...h, inputRef, readSource, sourceCalls, iam, proof, iamRevision, prebuildRevision, originalSnapshot: new Map([...h.objects].map(([uri, row]) => [uri, Buffer.from(row.bytes)])) }
+  return { ...h, inputRef, readSource, sourceCalls, iam, proof, iamRevision, prebuildRevision, iamBootstrap: priorBootstrap, iamDescriptor: full,
+    originalSnapshot: new Map([...h.objects].map(([uri, row]) => [uri, Buffer.from(row.bytes)])) }
 }
+
+test('B23 prebuild binary caller keeps own exact path keys and raw hash closed', async () => {
+  for (const [vector, code] of [['bucket', 'IMMUTABLE_REF_INVALID'], ['path', 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID'], ['extra-key', 'IMMUTABLE_REF_INVALID'], ['hash', 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID'], ['raw-bytes', 'OPENSWX_PREBUILD_IAM_CONTINUATION_INVALID']]) {
+    const h = await b22ReuseIamFixture()
+    const admitted = await executeWorkerArtifactReuse({ transport: h.transport, inputRef: h.inputRef, readSource: h.readSource })
+    assert.equal(admitted.value.status, 'PASS', `${vector}: actual READY reuse admits the retained historical source before corruption`)
+    noMutation(h)
+    const bootstrap = structuredClone(h.iamBootstrap)
+    if (vector === 'raw-bytes') {
+      const row = h.objects.get(h.proof.binaryPlanRef.uri)
+      h.objects.set(h.proof.binaryPlanRef.uri, { ...row, bytes: Buffer.concat([row.bytes, Buffer.from('corrupt')]) })
+    } else {
+      const request = JSON.parse(h.objects.get(h.proof.requestRef.uri).bytes)
+      if (vector === 'bucket') request.binaryPlanRef.uri = request.binaryPlanRef.uri.replace('jenfu-platform-prod-aipdm-release', 'jenfu-platform-prod-sibling-release')
+      if (vector === 'path') request.binaryPlanRef.uri = request.binaryPlanRef.uri.replace('-plan.tfplan', '-other.tfplan')
+      if (vector === 'extra-key') request.binaryPlanRef.extra = true
+      if (vector === 'hash') request.binaryPlanRef.sha256 = '0'.repeat(64)
+      const requestRef = await h.put('b22-prebuild-iam-request', request)
+      const binaryPlanReceiptRef = await h.put('b22-prebuild-iam-plan', { ...request, schemaVersion: 'aipdm.openswx-prebuild-readback-iam-plan-binary.v1' })
+      const continuation = JSON.parse(h.objects.get(h.proof.continuationRef.uri).bytes)
+      const continuationRef = await h.put('b22-prebuild-iam', { ...continuation, requestRef, binaryPlanReceiptRef })
+      const resource = JSON.parse(h.objects.get(bootstrap.facts.resourceProvenance.resourceReadbackRef.uri).bytes)
+      const resourceReadbackRef = await h.put('b22-prior-resource-readback', { ...resource, prebuildIamContinuationRef: continuationRef })
+      Object.assign(bootstrap.facts.resourceProvenance, { resourceReadbackRef, resourceReadbackSha256: resourceReadbackRef.sha256, prebuildIamContinuationRef: continuationRef })
+    }
+    const read = h.transport.readBytes; let binaryReads = 0
+    h.transport.readBytes = async (uri, ...args) => { if (uri === h.proof.binaryPlanRef.uri) binaryReads++; return read(uri, ...args) }
+    const writes = h.puts.length, calls = h.calls.length
+    await assert.rejects(readBootstrapSupplementalIam(h.transport, bootstrap, h.iamDescriptor, profile, h.readSource, currentRevision), { code })
+    assert.equal(binaryReads, vector === 'raw-bytes' ? 1 : 0, `${vector}: validation precedes binary GET unless verifying its actual bytes`)
+    assert.equal(h.puts.length, writes); noMutation({ calls: h.calls.slice(calls) }); noMutation(h)
+  }
+})
 test('B22 reuse forwards supplemental IAM readSource through actual READY collection', async t => {
   const h = await b22ReuseIamFixture(), writes = h.puts.length
   let saved
@@ -508,8 +556,14 @@ test('B19-05 LOCAL_TEST sole original build-only edge rejects missing/duplicate/
   for (const mutate of [b => { delete b.previousRefs }, b => { b.previousRefs = [] }, b => { b.previousRefs.push(b.previousRefs[0]) }, (b, refs) => { b.previousRefs = [refs.wrongFullRef] }]) {
     const h = await harness({ buildMutate: mutate }); await assert.rejects(h.invoke()); assert.equal(h.puts.length, 0); noMutation(h)
   }
-  const h = await harness(); h.transport.readJson = async ref => { const row = h.objects.get(ref.uri); if (!row) throw Object.assign(Error('NOT_FOUND'), { code: 'NOT_FOUND' }); return { ...row, bytes: ref.uri === h.fullRef.uri ? Buffer.from('{}') : row.bytes, value: JSON.parse(row.bytes.toString()) } }
-  await assert.rejects(h.invoke(), { code: 'OPENSWX_REUSE_REF_HASH_INVALID' }); assert.equal(h.puts.length, 0)
+  for (const consistentJson of [false, true]) {
+    const h = await harness(); h.transport.readJson = async ref => {
+      const row = h.objects.get(ref.uri); if (!row) throw Object.assign(Error('NOT_FOUND'), { code: 'NOT_FOUND' })
+      const bytes = ref.uri === h.fullRef.uri ? Buffer.from('{}') : row.bytes
+      return { ...row, bytes, value: JSON.parse((consistentJson ? bytes : row.bytes).toString()) }
+    }
+    await assert.rejects(h.invoke(), { code: 'OPENSWX_REUSE_REF_HASH_INVALID' }); assert.equal(h.puts.length, 0); noMutation(h)
+  }
 })
 test('B19-05/10 LOCAL_TEST current official source lock rejects arbitrary PASS-shaped authority', async () => {
   for (const mutation of [{ schemaVersion: 'fake' }, { ownerApplicationId: 'sibling' }, { releaseAuthority: false }, { branch: 'feature' }, { remoteRef: 'refs/heads/feature' }, { remoteRevision: oldRevision }, { sourceTree: 'invalid' }, { clean: false }, { evidenceScope: 'LOCAL_TEST' }, { status: 'PASS' }]) {
@@ -574,8 +628,8 @@ test('B19-09 LOCAL_TEST unknown create-only outcome adopts exact same URI or sto
 })
 test('B19-09 LOCAL_TEST association cycle/depth and nested shape injections reject before any build', async () => {
   const h = await harness(), saved = await h.invoke(), d = h.v2(saved.ref)
-  await assert.rejects(resolveWorkerArtifact({ transport: h.transport, descriptor: d, profile, readSource: h.readSource, ctx: { depth: 8, ancestors: new Set() } }), { code: 'OPENSWX_REUSE_ORIGIN_CYCLE_OR_DEPTH' })
-  await assert.rejects(resolveWorkerArtifact({ transport: h.transport, descriptor: d, profile, readSource: h.readSource, ctx: { depth: 0, ancestors: new Set([saved.ref.uri]) } }), { code: 'OPENSWX_REUSE_ORIGIN_CYCLE_OR_DEPTH' })
+  await assert.rejects(resolveWorkerArtifact({ transport: h.transport, descriptor: d, profile, readSource: h.readSource, ctx: { depth: 8, ancestors: new Set() } }), /DEV121_OWNER_RELEASE_PROOF_CONTEXT_INVALID/u)
+  await assert.rejects(resolveWorkerArtifact({ transport: h.transport, descriptor: d, profile, readSource: h.readSource, ctx: { depth: 0, ancestors: new Set([saved.ref.uri]) } }), /DEV121_OWNER_RELEASE_PROOF_CONTEXT_INVALID/u)
   const injected = structuredClone(saved.value); injected.executableProof.command = 'build'; const badRef = h.seed('injected-association', injected)
   await assert.rejects(resolveWorkerArtifact({ transport: h.transport, descriptor: h.v2(badRef), profile, readSource: h.readSource })); noMutation(h)
 })
