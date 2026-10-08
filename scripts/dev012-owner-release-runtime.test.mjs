@@ -912,18 +912,22 @@ test('B27 verifier denial and timeout fail without a mutation or builder fallbac
   }
 })
 
-test('B28 migration execution readback routes only exact own-job GET lists to verifier', async () => {
-  const builder = 'MODELED-B28-BUILDER-TOKEN', verifier = 'MODELED-B28-VERIFIER-TOKEN', calls = []
-  const own = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions'
-  const transport = createAiPdmBuildReadbackTransport({ token: builder, verifierReadbackToken: verifier, fetchImpl: async (url, options) => {
-    calls.push({ url, options }); return json({})
-  } })
-  for (const url of [own+'?pageSize=100',own+'?pageSize=100&pageToken=next']) {
-    await transport.request(url); assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${verifier}`)
+test('B29 prepare migration read token is restricted to exact GET pages and refuses denial without fallback', async () => {
+  const primary = 'MODELED-B29-VERIFIER-TOKEN', deployer = 'MODELED-B29-DEPLOYER-TOKEN'
+  const own = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions?pageSize=100'
+  for (const mode of ['pass', 'denied', 'timeout']) {
+    const calls=[]
+    const transport = createOwnerTransport({ token: primary, migrationExecutionReadbackToken: deployer, fetchImpl: async (url,options) => {
+      calls.push({url,options}); if (mode==='timeout') throw Object.assign(Error('timeout'),{name:'TimeoutError'}); return json({},mode==='denied'?403:200)
+    } })
+    if (mode==='pass') {
+      await transport.request(own); assert.equal(calls.at(-1).options.headers.authorization,`Bearer ${deployer}`); assert.equal(calls.at(-1).options.redirect,'error')
+      for (const [url,options] of [[own,{method:'POST'}],[own,{method:'PATCH',body:'{}'}],[own,{method:'DELETE'}],
+        [own.replace('ai-pdm-prod-migration-runner','platform-prod-migration-runner'),{}],[own+'&filter=other',{}],
+        [own+'&pageSize=100',{}],[own+'#fragment',{}],[own.replace('jenfu-platform-prod','other'),{}]]) {
+        await transport.request(url,options); assert.equal(calls.at(-1).options.headers.authorization,`Bearer ${primary}`)
+      }
+    } else { await assert.rejects(transport.request(own),{code:mode==='denied'?'DENIED':'OUTCOME_UNKNOWN'}); assert.equal(calls.length,1) }
   }
-  for (const [url, options] of [[own+'?pageSize=100',{method:'POST'}],[own+'?pageSize=100&filter=other',{}],
-    [own+'?pageSize=100&pageSize=100',{}],[own.replace('ai-pdm-prod','platform-prod')+'?pageSize=100',{}],
-    [own.replace('jenfu-platform-prod','other')+'?pageSize=100',{}],[own+'/unbound-execution',{}]]) {
-    await transport.request(url,options); assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${builder}`)
-  }
+  assert.throws(()=>createOwnerTransport({token:primary,migrationExecutionReadbackToken:''}),{code:'MIGRATION_READBACK_TOKEN_INVALID'})
 })

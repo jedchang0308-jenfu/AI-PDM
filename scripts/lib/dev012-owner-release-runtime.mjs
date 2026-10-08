@@ -271,14 +271,17 @@ export function assertMigrationSubmissionIntent(value, { profile, deployment, ou
   return value
 }
 
-export function createOwnerTransport({ token, builderReadbackToken = process.env.AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN ?? null, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
+export function createOwnerTransport({ token, migrationExecutionReadbackToken = null, builderReadbackToken = process.env.AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN ?? null, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
   if (typeof token !== 'string' || token.length < 20) fail('PROVIDER_TOKEN_INVALID')
+  if (migrationExecutionReadbackToken !== null && (typeof migrationExecutionReadbackToken !== 'string' || migrationExecutionReadbackToken.length < 20)) fail('MIGRATION_READBACK_TOKEN_INVALID')
   const authHeaders = { authorization: `Bearer ${token}` }
 
   async function request(url, options = {}) {
+    const migrationRead = migrationExecutionReadbackToken !== null && isAiPdmMigrationExecutionListGet(url, options)
+    const headers = migrationRead ? { ...(options.headers ?? {}), authorization: `Bearer ${migrationExecutionReadbackToken}` } : { ...authHeaders, ...(options.headers ?? {}) }
     let response
     try {
-      response = await fetchImpl(url, { ...options, headers: { ...authHeaders, ...(options.headers ?? {}) }, signal: options.signal ?? AbortSignal.timeout(30_000) })
+      response = await fetchImpl(url, { ...options, ...(migrationRead ? { redirect: 'error' } : {}), headers, signal: options.signal ?? AbortSignal.timeout(30_000) })
     } catch (error) {
       fail('OUTCOME_UNKNOWN', error?.name ?? 'network')
     }
@@ -1230,6 +1233,18 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
   return { request, readOwnerRun, readOwnerSourceProof, readBytes, readJson, putBytes, putJson, deleteBytes, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, activatePrincipalOnly, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
+// The existing deployer's exact-job viewer is borrowed only for these GET pages.
+// Its token never authorizes generic requests, executions.run, or receipt writes.
+function isAiPdmMigrationExecutionListGet(url, options) {
+  if (typeof url !== 'string' || (options.method ?? 'GET') !== 'GET' || options.body != null) return false
+  let parsed
+  try { parsed = new URL(url) } catch { return false }
+  return parsed.origin + parsed.pathname === 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions'
+    && !parsed.username && !parsed.password && !parsed.hash && parsed.searchParams.get('pageSize') === '100'
+    && [...parsed.searchParams.keys()].every(key => ['pageSize', 'pageToken'].includes(key))
+    && parsed.searchParams.getAll('pageSize').length === 1 && parsed.searchParams.getAll('pageToken').length <= 1
+}
+
 /** Build writes retain the builder; only fixed AI-PDM live GETs use the existing verifier. */
 export function createAiPdmBuildReadbackTransport({ token, verifierReadbackToken, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
   if (typeof verifierReadbackToken !== 'string' || verifierReadbackToken.length < 20 || verifierReadbackToken === token) fail('BUILD_READBACK_TOKEN_INVALID')
@@ -1237,7 +1252,6 @@ export function createAiPdmBuildReadbackTransport({ token, verifierReadbackToken
   const observer = createOwnerTransport({ token: verifierReadbackToken, builderReadbackToken: token, fetchImpl: (url, options) => fetchImpl(url, { ...options, redirect: 'error' }), sleep, now })
   const service = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
   const job = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata'
-  const migrationExecutions = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions'
   const scheduler = 'https://cloudscheduler.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch'
   const assertProfile = profile => {
     if (profile?.application?.id !== 'ai-pdm' || profile?.target?.projectId !== 'jenfu-platform-prod'
@@ -1251,7 +1265,7 @@ export function createAiPdmBuildReadbackTransport({ token, verifierReadbackToken
     if (url.startsWith(`${service}/revisions/`) && /^ai-pdm-prod-[a-f0-9]{12}$/u.test(url.slice(`${service}/revisions/`.length))) return true
     if (/^https:\/\/run\.googleapis\.com\/v2\/projects\/(?:jenfu-platform-prod|9536592944)\/locations\/asia-east1\/jobs\/ai-pdm-prod-openswx-metadata\/executions\/[a-z][a-z0-9-]{0,62}$/u.test(url)) return true
     const parsed = new URL(url)
-    return [`${job}/executions`, migrationExecutions].includes(parsed.origin + parsed.pathname) && !parsed.username && !parsed.password && !parsed.hash
+    return parsed.origin + parsed.pathname === `${job}/executions` && !parsed.username && !parsed.password && !parsed.hash
       && parsed.searchParams.get('pageSize') === '100' && [...parsed.searchParams.keys()].every(key => ['pageSize', 'pageToken'].includes(key))
       && parsed.searchParams.getAll('pageSize').length === 1 && parsed.searchParams.getAll('pageToken').length <= 1
   }
