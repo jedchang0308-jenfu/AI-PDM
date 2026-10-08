@@ -96,9 +96,18 @@ jobs:
           service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
+      - id: build_verifier_read_auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+          export_environment_variables: false
       - name: Execute build
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"
+          AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.build_verifier_read_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ needs.prepare.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.prepare.outputs.capsule_sha256 }}"
 
   migrate:

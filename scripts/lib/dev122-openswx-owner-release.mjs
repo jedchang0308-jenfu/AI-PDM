@@ -843,7 +843,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
   }
   async function beforeBuild({ intent, profile }) {
     const descriptor = await resolve(intent, profile)
-    if (descriptor && isPausedAppRepair(descriptor.value)) await repairCurrentGuard(descriptor, intent, profile, 'PREPARE', null, profile.identities.builder)
+    if (descriptor && isPausedAppRepair(descriptor.value)) await repairCurrentGuard(descriptor, intent, profile, 'PREPARE', null, profile.identities.verifier)
   }
   const scoped = callback => (...args) => runAiPdmEvidenceContext(createWorkerEvidenceContext(), () => callback(...args))
   return { prepare: scoped(prepare), beforeBuild: scoped(beforeBuild), build: scoped(build), candidate: scoped(candidate), beforeActivate: scoped(beforeActivate), finalize: scoped(finalize), recover: scoped(recover), resolve: scoped(resolve), pausedAndDrained, write, rootFor }

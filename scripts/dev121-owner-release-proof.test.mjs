@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { canonicalize, crc32cBase64, sha256 } from
   './lib/dev012-production-migration-runner.mjs'
-import { createOwnerTransport, buildRuntimeConfig, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
+import { createOwnerTransport, createAiPdmBuildReadbackTransport, buildRuntimeConfig, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { boundOpenSwxTransport, WORKER_PROFILE_PATH, workerTemplate, workerJobName,
   workerSchedulerName, createOpenSwxOwnerRelease, readWorkerFullEvidence } from './lib/dev122-openswx-owner-release.mjs'
 import { executeWorkerArtifactReuse, resolveWorkerArtifact, createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
@@ -336,7 +336,7 @@ test('B23 content verifies whole migrations graph and raw 082 including newline 
 })
 test('B23 local PAX path is authoritative once and UTF8 byte-length framed', () => {
   const fixture = b23NativeArchive()
-  const longPath = `source/${'a'.repeat(101)}/測試.txt`
+  const longPath = `source/${'a'.repeat(101)}/皜祈岫.txt`
   const bytes = b23SelectedTar([b23TarRecord('pax_local', b23Pax('path', longPath), 'x'), b23TarRecord('fallback', Buffer.from('unrelated'))])
   assert.equal(parseAiPdmMigrationArchive({ bytes, bundle: fixture.bundle, sourceRevision: b23Revision, deadlineAt: b23Deadline() }).files.size, fixture.bundle.entries.length + 1)
 })
@@ -584,6 +584,18 @@ test('B24 secondary builder credential is restricted to authenticated exact Buil
   for (const call of wire.authCalls.filter(call => call.url.startsWith('https://storage.googleapis.com/'))) assert.equal(call.authorization, 'Bearer provider-readback-token')
   assert.equal(JSON.stringify(observed).includes(builderToken), false)
 })
+test('B27 build composite authenticates source with verifier and exact Build/Image with builder', async () => {
+  const builderToken = 'MODELED-BUILDER-READ-TOKEN-ONLY', wire = await b23FixedRuntimeWire({ builderReadbackToken: builderToken })
+  const transport = createAiPdmBuildReadbackTransport({ token: builderToken, verifierReadbackToken: 'provider-readback-token', fetchImpl: wire.fetchImpl })
+  const observed = await transport.readOwnerSourceProof({ profile: wire.profile, sourceRevision: revision, refs: wire.input.refs, verifyProvider: true })
+  assert.equal(observed.provider.status, 'BUILD_IMAGE_VERIFIED')
+  for (const call of wire.authCalls) {
+    assert.equal(call.method, 'GET')
+    assert.equal(call.authorization, `Bearer ${call.url.startsWith('https://storage.googleapis.com/') ? 'provider-readback-token' : builderToken}`)
+  }
+  assert.equal(JSON.stringify(observed).includes(builderToken), false)
+})
+
 test('B24 secondary readback rejects wrong actor, owner, project, region, source, token and copied proof', async () => {
   const wire = await b23FixedRuntimeWire()
   await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
@@ -1264,6 +1276,26 @@ else {
     await assert.rejects(staleOwner.run('prepare'), /OPENSWX_REPAIR_CURRENT_APP_INVALID|OPENSWX_REPAIR_RESOURCE_DRIFT/u)
     assert.equal(delayedLiveRead, true, 'live provider reads remain inside the freshness fence')
     assert.equal(stale.controls.appBuilds ?? 0, 0); assert.equal(stale.controls.migrationJobs ?? 0, 0)
+  }))
+  test('B27_ROOT_PREBUILD_DENIED_HAS_ZERO_BUILD_MIGRATION_AND_WORKER_MUTATIONS', async () => rootModelClock(async clock => {
+    const h = rootConsumerModel(clock), o = await h.ownerInput(await h.produce())
+    await o.run('prepare')
+    const request = h.transport.request
+    let denied = 0
+    h.transport.request = async (url, options) => {
+      if (url.startsWith('https://cloudscheduler.googleapis.com/')) {
+        denied++
+        throw Object.assign(new Error('DENIED'), { code: 'DENIED' })
+      }
+      return request(url, options)
+    }
+    await assert.rejects(o.run('build'), { code: 'DENIED' })
+    assert.equal(denied, 1)
+    assert.equal(h.controls.appBuilds ?? 0, 0)
+    assert.equal(h.controls.migrationJobs ?? 0, 0)
+    assert.equal(h.controls.runs ?? 0, 0)
+    assert.equal(h.controls.resumes ?? 0, 0)
+    assert.equal(h.controls.traffic ?? 0, 0)
   }))
   test('B23_ROOT_STAGE_CACHE_FULL_PRE_MIGRATION_OBSERVATION', async () => rootModelClock(async clock => {
     const h = rootConsumerModel(clock), o = await h.ownerInput(await h.produce())

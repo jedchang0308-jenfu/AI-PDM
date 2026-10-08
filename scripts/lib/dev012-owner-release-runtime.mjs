@@ -1230,6 +1230,44 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
   return { request, readOwnerRun, readOwnerSourceProof, readBytes, readJson, putBytes, putJson, deleteBytes, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, activatePrincipalOnly, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
+/** Build writes retain the builder; only fixed AI-PDM live GETs use the existing verifier. */
+export function createAiPdmBuildReadbackTransport({ token, verifierReadbackToken, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
+  if (typeof verifierReadbackToken !== 'string' || verifierReadbackToken.length < 20 || verifierReadbackToken === token) fail('BUILD_READBACK_TOKEN_INVALID')
+  const primary = createOwnerTransport({ token, builderReadbackToken: null, fetchImpl, sleep, now })
+  const observer = createOwnerTransport({ token: verifierReadbackToken, builderReadbackToken: token, fetchImpl: (url, options) => fetchImpl(url, { ...options, redirect: 'error' }), sleep, now })
+  const service = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
+  const job = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata'
+  const scheduler = 'https://cloudscheduler.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch'
+  const assertProfile = profile => {
+    if (profile?.application?.id !== 'ai-pdm' || profile?.target?.projectId !== 'jenfu-platform-prod'
+      || profile?.target?.region !== 'asia-east1' || profile?.target?.serviceName !== 'ai-pdm-prod'
+      || profile?.artifact?.releaseBucket !== 'jenfu-platform-prod-aipdm-release') fail('BUILD_READBACK_TARGET_INVALID')
+  }
+  const isLiveGet = (url, options) => {
+    if ((options.method ?? 'GET') !== 'GET' || options.body != null) return false
+    if (url === scheduler || url === job || url === service) return true
+    if (typeof url !== 'string') return false
+    if (url.startsWith(`${service}/revisions/`) && /^ai-pdm-prod-[a-f0-9]{12}$/u.test(url.slice(`${service}/revisions/`.length))) return true
+    if (/^https:\/\/run\.googleapis\.com\/v2\/projects\/(?:jenfu-platform-prod|9536592944)\/locations\/asia-east1\/jobs\/ai-pdm-prod-openswx-metadata\/executions\/[a-z][a-z0-9-]{0,62}$/u.test(url)) return true
+    const parsed = new URL(url)
+    return parsed.origin + parsed.pathname === `${job}/executions` && !parsed.username && !parsed.password && !parsed.hash
+      && parsed.searchParams.get('pageSize') === '100' && [...parsed.searchParams.keys()].every(key => ['pageSize', 'pageToken'].includes(key))
+      && parsed.searchParams.getAll('pageSize').length === 1 && parsed.searchParams.getAll('pageToken').length <= 1
+  }
+  return {
+    ...primary,
+    request: (url, options = {}) => isLiveGet(url, options)
+      ? observer.request(url, { ...options, redirect: 'error' }) : primary.request(url, options),
+    getService: profile => { assertProfile(profile); return observer.request(service, { redirect: 'error' }) },
+    getRevision: (profile, revision) => {
+      assertProfile(profile)
+      if (!/^ai-pdm-prod-[a-f0-9]{12}$/u.test(revision ?? '')) fail('BUILD_READBACK_TARGET_INVALID')
+      return observer.getRevision(profile, revision)
+    },
+    readOwnerSourceProof: args => { assertProfile(args?.profile); return observer.readOwnerSourceProof(args) },
+  }
+}
+
 export function stageReceipt({ profile, intent, stage, previousReceiptRef = null, facts, observedAt }) {
   const core = {
     schemaVersion: 'jenfu.dev012.stage-receipt.v1',
