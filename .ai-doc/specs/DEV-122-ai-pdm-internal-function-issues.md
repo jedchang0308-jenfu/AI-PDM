@@ -1,6 +1,18 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B27 建置唯讀身份分工修正；正式 release 待重建）
+## DEV-122 CURRENT（B28 worker 計時與 unpublished-build abort 復原；正式 release 待重試）
+
+B27 protected-main PR #246（`93fe480bc758315d6b21003e2a0e2a70ff3ed4d1`）的 owner run [37823241328](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37823241328) prepare PASS、build `OPENSWX_OWNER_DEADLINE`、failure PASS。唯一 app Cloud Build `fa2e0853-1fc6-4682-8c23-2aa64d5a1de5` 已 SUCCESS；provenance／SBOM／scan 已寫，build-stage／deployment-capsule／migration／submission／candidate 不存在。Terminal `PRE_ACTIVATION_ABORTED / NOT_APPLIED`，正式 `ai-pdm-prod-44984e6018dc` 100%、零 tags，Scheduler PAUSED。原始 provider readback：[B27-abort-provider-readback.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A20-B27/release/B27-abort-provider-readback.json>)。
+
+B28 `RD Implementation Ready`：每次 worker resolve 從原 stage transport 建立新計時 wrapper，保留每一操作累計 600 秒、request 30 秒及 intent 絕對期限；同一操作的內部 GET 不刷新期限。新增嚴格 `ai-pdm.principal-unpublished-build-abort-basis.v1`：sealed prepare／rollback／terminal、finalized expired control、completed failure owner head；build／deployment／migration／submission／candidate 與後續 receipts 正向 404 缺失；三項 partial receipts source/image joins；exact release-tag list 唯一終結 SUCCESS、source archive generation/image/builder joins；完整分頁 own migration Job executions 拒絕 active、owner run 開始後新 execution、source/output 匹配或未知。只證明 `QUIESCENT_UNPUBLISHED_BUILD_NOT_REUSED`，固定 partial `releaseAuthority=false / migrationVerified=false`；不產生完整 build/deployment/released proof，不將 B27 partial artifact 冒充新 source 的 build。
+
+Anchor 只容許一層 sealed zero-build predecessor：B27 prepare basis 與其 authorization／readiness 完全相同，failedIntentRef 對上 B26；重讀 B26 sealed receipts/source lock/run、zero-build/provider absence，releasedIntentRef 由 B26 intent 固定導向 B14。B14 必須通過既有完整 released source/provider proof、Principal environment、service UID、ready image、canonical entrypoint、唯一 100% traffic／零 tag及環境 hash。歷史 B26 mutable control bytes 不做重新查證主張；只保留 sealed inherited basis 的原 control hash。一般 post-migration nested aborted anchor 仍拒絕。Producer、cold/cached prepare與 worker reuse 仍重新查證相同 basis。
+
+驗收：長 app build 後 refresh、單一 await 到 600 秒及較早 intent deadline fail；native terminal 只由 rollback 保存 recoveryOrder；partial/unknown/pagination/source/image/submission/active execution/nested basis tamper negative；exact own migration execution GET-only verifier route，其他 target/method不借 verifier token。79 targeted、165 continuous 已實際通過；真實 B27 read-only consumer 116 GET 通過（[B28-r3-live-B27-abort-consumer-readback.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A20-B28/release/B28-r3-live-B27-abort-consumer-readback.json>)）。獨立 Luna QC、現行六项 DEV-117 required checks與 protected-main/required CI/official source/release proof 仍須收斂。
+
+沿用人類已授權的 DEV-121 PR #242（含 migration 083）＋DEV-122 同專案正式合併發布；不新增 IAM／資源／Secret／SQL、worker execution 或 Scheduler resume。更新 machine source/capsule bindings後再執行新 owner attempt，不能 replay terminal B27。發布條件 app RELEASED、worker ACTIVATION_PENDING_NO_EXECUTION、Scheduler PAUSED；native USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED。Whole DEV 仍 NOT_ACCEPTED，原證據保留。
+
+## DEV-122 HISTORY_ONLY（B27 建置唯讀身份分工修正；正式 release 待重建）
 
 B26 owner run [37814831003](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37814831003) prepare PASS、build `DENIED`、failure PASS。Terminal `PRE_ACTIVATION_ABORTED / databaseDisposition=NOT_APPLIED`，正式 `ai-pdm-prod-44984e6018dc` 100%，Scheduler PAUSED，零本輪 Cloud Build；B26 source archive 已寫入。B25 freshness 修正已由 B26 prepare 驗證。Log 未記錄被拒絕 URL；程式順序及現行 IAM 支持 beforeBuild 即時 GET 誤用 builder 的診斷，實際 403 endpoint UNKNOWN。
 

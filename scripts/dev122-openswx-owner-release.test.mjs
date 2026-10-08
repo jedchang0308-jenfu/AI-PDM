@@ -364,3 +364,44 @@ test('settled Job metadata drift fails without a second PATCH', async () => {
     assert.equal(patches, 1)
   }
 })
+
+
+test('B28 each worker resolve refreshes its operation clock after a long app build while retaining the absolute intent deadline', async () => {
+  const descriptor = workerDescriptor('full'), bytes = Buffer.from(canonicalize(descriptor))
+  const descriptorRef = { ...ref('b28-clock-full'), sha256: sha256(bytes) }
+  const started = Date.parse('2026-10-09T00:00:00Z'), originalNow = Date.now
+  let clock = started, reads = 0
+  Date.now = () => clock
+  try {
+    const owner = createOpenSwxOwnerRelease({ transport: { async readJson(actual) {
+      reads++; assert.deepEqual(actual, descriptorRef); return { value: descriptor, bytes, ref: descriptorRef }
+    } }, readSource(path, revision) {
+      assert.equal(path, 'config/release/dev122-openswx-worker.json'); assert.equal(revision, sourceRevision); return profileBytes
+    }, environment: { GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'full_release' } })
+    const intent = { sourceRevision, openswxWorkerRef: descriptorRef, deadlineAt: new Date(started + 1200000).toISOString() }
+    await owner.resolve(intent, appProfile)
+    clock += 600001 // Real app build work does not consume the next worker operation's budget.
+    await owner.resolve(intent, appProfile)
+    assert.equal(reads, 2)
+    clock = started + 1200000
+    await assert.rejects(owner.resolve(intent, appProfile), { code: 'OPENSWX_OWNER_DEADLINE' })
+    assert.equal(reads, 2, 'expired absolute deadline rejects before a provider read')
+  } finally { Date.now = originalNow }
+})
+
+test('B28 a single worker operation remains bounded by 600 seconds and by the absolute deadline across an await', async () => {
+  const started = Date.parse('2026-10-09T00:00:00Z'), originalNow = Date.now
+  let clock = started, calls = 0, signal
+  Date.now = () => clock
+  try {
+    for (const duration of [600000, 1000]) {
+      clock = started
+      const bounded = boundOpenSwxTransport({ async request(_url, options) {
+        calls++; signal = options.signal; clock += duration; return {}
+      } }, new Date(started + (duration === 1000 ? 1000 : 1200000)).toISOString())
+      await assert.rejects(bounded.request('https://example.invalid'), { code: 'OPENSWX_OWNER_DEADLINE' })
+      assert.ok(signal instanceof AbortSignal)
+    }
+    assert.equal(calls, 2)
+  } finally { Date.now = originalNow }
+})

@@ -1,4 +1,4 @@
-import { assertImmutableRef, canonicalize, releasePaths, sha256 } from './dev012-owner-release-runtime.mjs'
+import { assertImmutableRef, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertPrincipalOnlyRecoveryBinding, assertRecoveryProofReadback } from './dev121-principal-only-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 
@@ -271,7 +271,7 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
 // can use this basis. It never promotes an aborted capsule into a released one.
 async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider }) {
   const bucket = profile.artifact.releaseBucket
-  const [prepare, rollback, failedLock, anchor] = await Promise.all([
+  let [prepare, rollback, failedLock, anchor] = await Promise.all([
     read(paths.prepare), read(paths.rollback), transport.readJson(intent.sourceLockRef, bucket, ['receipts']),
     transport.readJson(intent.baselineIntentRef, bucket, ['receipts']),
   ])
@@ -307,34 +307,34 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     || failedLock.value.sourceRevision !== intent.sourceRevision || failedLock.value.sourceSha256 !== intent.sourceSha256
     || failedLock.value.migrationManifestSha256 !== intent.migrationManifestSha256
     || failedLock.value.status !== 'SOURCE_FROZEN' || failedLock.value.releaseAuthority !== true || failedLock.value.clean !== true) fail()
-  // Only a positively missing object is absence. Timeouts, permission and parse
-  // failures remain blockers, including when an upload completed without a receipt.
-  const absentStages = ['build', 'provenance', 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']
-  for (const stage of absentStages) {
-    try { await read(paths[stage]); fail() } catch (error) { if (error.code !== 'MISSING') throw error }
-  }
+  // Only a positive 404 is absence; partial uploads and unknown reads fail closed.
+  let provenance = null
+  try { provenance = await read(paths.provenance) } catch (error) { if (error.code !== 'MISSING') throw error }
+  const absentStages = ['build', ...(provenance ? [] : ['provenance', 'sbom', 'scan']), 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']
+  await assertAbsentStages(read, paths, absentStages)
+  await assertMissing(read, migrationSubmissionIntentUri(profile, paths.migrate))
   const run = await transport.readOwnerRun(profile, control.ownerRunRef)
   if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
     || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
-  if (!/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(intent.releaseId ?? '')) fail()
-  // Absence is a live prerequisite on every call, including cold and cached
-  // prepare. verifyProvider only controls the released anchor's image proof.
-  const builds = await transport.request(`https://cloudbuild.googleapis.com/v1/projects/${profile.target.projectId}/locations/${profile.target.region}/builds?filter=${encodeURIComponent(`tags=${intent.releaseId.toLowerCase()}`)}&pageSize=1`)
-  if (!builds || typeof builds !== 'object' || Array.isArray(builds)
-    || Object.keys(builds).some(key => !['builds', 'nextPageToken'].includes(key))
-    || (Object.hasOwn(builds, 'builds') && (!Array.isArray(builds.builds) || builds.builds.length !== 0))
-    || (Object.hasOwn(builds, 'nextPageToken') && builds.nextPageToken !== '')) fail()
+  const partial = provenance ? await readUnpublishedBuild({ profile, transport, baselineIntentRef, intent, paths, provenance, read, run }) : null
+  if (!partial) await assertZeroBuilds(profile, transport, intent)
+  let releasedIntentRef = intent.baselineIntentRef, inheritedBasis = null
+  if (partial && prepareFacts.preActivationAbortBasis) {
+    inheritedBasis = prepareFacts.preActivationAbortBasis
+    releasedIntentRef = await readInheritedPrebuildAnchor({ profile, transport, intent, inheritedBasis, anchor, read })
+    anchor = await transport.readJson(releasedIntentRef, bucket, ['receipts'])
+  }
   const anchorIntent = anchor.value
   if (anchorIntent?.ownerApplicationId !== profile.application.id || !/^[a-f0-9]{40}$/u.test(anchorIntent.sourceRevision ?? '')
     || anchorIntent.schemaVersion !== profile.schemas.releaseIntent
-    || intent.baselineIntentRef.uri !== `gs://${bucket}/receipts/releases/${anchorIntent.releaseId}/release-intent.json`) fail()
-  const anchorPaths = releasePaths(profile, anchorIntent, intent.baselineIntentRef.sha256)
+    || releasedIntentRef.uri !== `gs://${bucket}/receipts/releases/${anchorIntent.releaseId}/release-intent.json`) fail()
+  const anchorPaths = releasePaths(profile, anchorIntent, releasedIntentRef.sha256)
   const [anchorPrepare, anchorMigration, anchorTerminal, anchorRuntime, anchorVerify, anchorCanonical, anchorLock] = await Promise.all([
     read(anchorPaths.prepare), read(anchorPaths.migrate), read(anchorPaths.terminal),
     transport.readJson(anchorIntent.runtimeConfigRef, bucket, ['receipts']), read(anchorPaths.verify), read(anchorPaths.canonical),
     transport.readJson(anchorIntent.sourceLockRef, bucket, ['receipts']),
   ])
-  const releasedContext = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), intent.baselineIntentRef, true)
+  const releasedContext = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), releasedIntentRef, true)
   const released = await runAiPdmEvidenceContext(releasedContext, () => transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
     refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider }))
   const proof = released.proof
@@ -385,11 +385,152 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
   const retainedEnvironment = retainedApp[0].env ?? []
   if (new Set(retainedEnvironment.map(row => row.name)).size !== retainedEnvironment.length
     || Object.entries(principalModes).some(([name, value]) => retainedEnvironment.find(row => row.name === name)?.value !== value)) fail()
+  if (inheritedBasis && (inheritedBasis.serviceUid !== service.uid || inheritedBasis.previousRevision !== intent.previousRevision
+    || inheritedBasis.retainedArtifactDigest !== proof.artifactDigest || !same(inheritedBasis.releasedProof, proof)
+    || !same(inheritedBasis.entrypoint, entrySnapshot(service)) || !same(inheritedBasis.scaling, service.scaling)
+    || inheritedBasis.retainedEnvironmentSha256 !== sha256(canonicalize(retainedEnvironment)))) fail()
   return { kind: 'PRINCIPAL_ORDINARY_ABORT', currentActiveRevision: intent.previousRevision, result: 'PRE_ACTIVATION_ABORTED',
-    authorityBasis: { schemaVersion: 'ai-pdm.principal-prebuild-abort-basis.v1', failedIntentRef: baselineIntentRef,
-      releasedIntentRef: intent.baselineIntentRef, failedSourceLockRef: failedLock.ref, databaseDisposition: 'NOT_APPLIED', releasedProof: proof,
-      absentStages, failedBuildCount: 0, stageRefs: { prepare: prepare.ref, rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
+    authorityBasis: { schemaVersion: partial ? 'ai-pdm.principal-unpublished-build-abort-basis.v1' : 'ai-pdm.principal-prebuild-abort-basis.v1', failedIntentRef: baselineIntentRef,
+      releasedIntentRef, failedSourceLockRef: failedLock.ref, databaseDisposition: 'NOT_APPLIED', releasedProof: proof,
+      absentStages: absentStages.filter(stage => !['sbom', 'scan'].includes(stage)), failedBuildCount: partial ? 1 : 0, ...(partial ? { unpublishedBuild: partial, inheritedBasis } : {}), stageRefs: { prepare: prepare.ref, rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
       controlSha256, inputFingerprint: fingerprint, ownerRunRef: control.ownerRunRef, serviceUid: service.uid,
       previousRevision: intent.previousRevision, retainedArtifactDigest: proof.artifactDigest,
       entrypoint: entrySnapshot(service), scaling: service.scaling, retainedEnvironmentSha256: sha256(canonicalize(retainedEnvironment)) } }
+}
+
+async function assertMissing(read, uri) {
+  try { await read(uri); fail() } catch (error) { if (error.code !== 'MISSING') throw error }
+}
+async function assertAbsentStages(read, paths, stages) {
+  for (const stage of stages) await assertMissing(read, paths[stage])
+}
+async function readFailedBuilds(profile, transport, intent, pageSize) {
+  if (!/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(intent.releaseId ?? '')) fail()
+  const list = await transport.request(`https://cloudbuild.googleapis.com/v1/projects/${profile.target.projectId}/locations/${profile.target.region}/builds?filter=${encodeURIComponent(`tags=${intent.releaseId.toLowerCase()}`)}&pageSize=${pageSize}`)
+  if (!list || typeof list !== 'object' || Array.isArray(list)
+    || Object.keys(list).some(key => !['builds', 'nextPageToken'].includes(key))
+    || (Object.hasOwn(list, 'builds') && !Array.isArray(list.builds))
+    || (Object.hasOwn(list, 'nextPageToken') && list.nextPageToken !== '')) fail()
+  return list.builds ?? []
+}
+async function assertZeroBuilds(profile, transport, intent) {
+  if ((await readFailedBuilds(profile, transport, intent, 1)).length !== 0) fail()
+}
+
+// This is only quiescence/source association evidence for an unpublished build.
+// It supplies no image reuse, deployment, migration, or release authority.
+async function readUnpublishedBuild({ profile, transport, baselineIntentRef, intent, paths, provenance, read, run }) {
+  const [sbom, scan] = await Promise.all([read(paths.sbom), read(paths.scan)])
+  const p = provenance.value, image = p.artifactDigest, source = p.sourceObject, recorded = p.cloudBuild
+  const list = await readFailedBuilds(profile, transport, intent, 2)
+  const live = list[0], project = profile.target.projectId, region = profile.target.region
+  const buildNames = [project, profile.target.projectNumber].map(id => `projects/${id}/locations/${region}/builds/${recorded?.id}`)
+  const sourceUri = `gs://${profile.artifact.releaseBucket}/source/releases/${intent.releaseId}/${baselineIntentRef.sha256}/source.tar.gz`
+  if (list.length !== 1 || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(recorded?.id ?? '')
+    || !image?.startsWith(`${profile.artifact.uri}@sha256:`) || !/^[a-f0-9]{64}$/u.test(image?.split('@sha256:')[1] ?? '')
+    || source?.uri !== sourceUri || !/^[a-f0-9]{64}$/u.test(source?.sha256 ?? '') || !/^[1-9][0-9]*$/u.test(source?.generation ?? '')
+    || typeof source.crc32c !== 'string' || !source.crc32c || p.artifactRegistry?.uri !== image) fail()
+  for (const [row, schema] of [[provenance, 'jenfu.dev012.build-provenance-receipt.v1'], [sbom, 'jenfu.dev012.sbom-receipt.v1'], [scan, 'jenfu.dev012.scan-receipt.v1']]) {
+    if (row.value.schemaVersion !== schema || row.value.ownerApplicationId !== profile.application.id
+      || row.value.sourceRevision !== intent.sourceRevision || row.value.artifactDigest !== image || row.value.status !== 'PASS') fail()
+  }
+  const expectedStorage = { bucket: profile.artifact.releaseBucket, object: sourceUri.slice(`gs://${profile.artifact.releaseBucket}/`.length), generation: source.generation }
+  for (const build of [recorded, live]) {
+    const images = build?.results?.images
+    if (build?.id !== recorded.id || !buildNames.includes(build.name) || build.projectId !== project
+      || build.status !== 'SUCCESS' || build.serviceAccount !== `projects/${project}/serviceAccounts/${profile.identities.builder}`
+      || build.options?.requestedVerifyOption !== 'VERIFIED' || !same(build.sourceProvenance?.resolvedStorageSource, expectedStorage)
+      || !Array.isArray(images) || images.length !== 1 || images[0].name !== `${profile.artifact.uri}:release-${intent.sourceRevision}`
+      || images[0].digest !== image.split('@')[1] || !Number.isFinite(Date.parse(build.finishTime))) fail()
+  }
+  if (!live.tags?.includes(intent.releaseId.toLowerCase()) || !same(live.source?.storageSource, expectedStorage)
+    || !same(recorded.finishTime, live.finishTime) || sbom.value.resourceUrl !== `https://${image}`
+    || scan.value.blockingVulnerabilityCount !== 0 || scan.value.maximumAllowedSeverity !== profile.build.maximumAllowedSeverity) fail()
+  await assertNoMigrationExecution(profile, transport, intent, paths, run)
+  return { evidenceScope: 'QUIESCENT_UNPUBLISHED_BUILD_NOT_REUSED', releaseAuthority: false, migrationVerified: false,
+    buildId: live.id, artifactDigest: image, sourceObject: source, provenanceRef: provenance.ref, sbomRef: sbom.ref, scanRef: scan.ref }
+}
+
+// One sealed zero-build predecessor may lead to the still-serving RELEASED
+// anchor. Do not recursively promote an arbitrary aborted lineage.
+async function readInheritedPrebuildAnchor({ profile, transport, intent, inheritedBasis: basis, anchor, read }) {
+  if (basis.schemaVersion !== 'ai-pdm.principal-prebuild-abort-basis.v1' || basis.databaseDisposition !== 'NOT_APPLIED'
+    || basis.failedBuildCount !== 0 || !same(basis.failedIntentRef, intent.baselineIntentRef)
+    || basis.previousRevision !== intent.previousRevision || !/^[a-f0-9]{64}$/u.test(basis.controlSha256 ?? '')) fail()
+  const prior = anchor.value, ref = anchor.ref, bucket = profile.artifact.releaseBucket
+  if (prior.schemaVersion !== profile.schemas.releaseIntent || prior.ownerApplicationId !== profile.application.id
+    || !/^[a-f0-9]{40}$/u.test(prior.sourceRevision ?? '') || prior.previousRevision !== intent.previousRevision
+    || ref.uri !== `gs://${bucket}/receipts/releases/${prior.releaseId}/release-intent.json`
+    || Object.hasOwn(prior, 'principalOnlyRecovery') || Object.hasOwn(prior, 'principalOnlyFenceRef')
+    || !same(prior.baselineIntentRef, basis.releasedIntentRef) || same(ref, basis.releasedIntentRef)) fail()
+  assertImmutableRef(basis.releasedIntentRef, bucket, ['receipts'])
+  const priorPaths = releasePaths(profile, prior, ref.sha256)
+  const [prepare, rollback, terminal, lock, authorization, readiness] = await Promise.all([
+    read(priorPaths.prepare), read(priorPaths.rollback), read(priorPaths.terminal), transport.readJson(prior.sourceLockRef, bucket, ['receipts']),
+    transport.readJson(intent.authorizationPolicyRef, bucket, ['receipts']), transport.readJson(intent.readinessReceiptRef, bucket, ['receipts']),
+  ])
+  if (!same(authorization.value.preActivationAbortBasis, basis) || !same(readiness.value.preActivationAbortBasis, basis)
+    || !same(basis.failedSourceLockRef, lock.ref)
+    || !same(basis.stageRefs?.prepare, prepare.ref) || !same(basis.stageRefs?.rollback, rollback.ref) || !same(basis.stageRefs?.terminal, terminal.ref)
+    || lock.value.ownerApplicationId !== profile.application.id || lock.value.releaseId !== prior.releaseId
+    || lock.value.sourceRevision !== prior.sourceRevision || lock.value.sourceSha256 !== prior.sourceSha256
+    || lock.value.migrationManifestSha256 !== prior.migrationManifestSha256 || lock.value.status !== 'SOURCE_FROZEN'
+    || lock.value.clean !== true || lock.value.releaseAuthority !== true) fail()
+  for (const [row, stage] of [[prepare, 'prepare'], [rollback, 'rollback'], [terminal, 'terminal']]) {
+    const { receiptSha256, ...core } = row.value
+    if (receiptSha256 !== sha256(canonicalize(core)) || core.schemaVersion !== 'jenfu.dev012.stage-receipt.v1'
+      || core.ownerApplicationId !== profile.application.id || core.releaseId !== prior.releaseId || core.sourceRevision !== prior.sourceRevision
+      || core.status !== 'PASS' || core.stage !== stage || core.facts.previousRevision !== prior.previousRevision) fail()
+    if (stage !== 'prepare' && (core.facts.result !== 'PRE_ACTIVATION_ABORTED' || core.facts.databaseDisposition !== 'NOT_APPLIED'
+      || !same(core.facts.entrypointRecovery, { changed: false, result: 'NOT_REQUIRED' })
+      || (stage === 'rollback' && !same(core.facts.recoveryOrder, ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'])))) fail()
+  }
+  const refs = { sourceLock: prior.sourceLockRef, authorization: prior.authorizationPolicyRef, readiness: prior.readinessReceiptRef,
+    foundation: prior.foundationReceiptRef, infra: prior.infraReceiptRef, runtimeConfig: prior.runtimeConfigRef }
+  if (prepare.value.previousReceiptRef !== null || rollback.value.previousReceiptRef !== null || !same(terminal.value.previousReceiptRef, rollback.ref)
+    || !same(prepare.value.facts.prerequisiteRefs, refs) || prepare.value.facts.preActivationAbortBasis
+    || basis.inputFingerprint !== sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: prior.releaseId,
+      sourceRevision: prior.sourceRevision, releaseIntentSha256: ref.sha256 }))) fail()
+  const stages = ['build', 'provenance', 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']
+  if (!same(basis.absentStages, stages)) fail()
+  await assertAbsentStages(read, priorPaths, [...stages, 'sbom', 'scan'])
+  await assertMissing(read, migrationSubmissionIntentUri(profile, priorPaths.migrate))
+  await assertZeroBuilds(profile, transport, prior)
+  const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
+  const runId = basis.ownerRunRef?.startsWith(runPrefix) ? basis.ownerRunRef.slice(runPrefix.length) : ''
+  if (!/^[1-9][0-9]*$/u.test(runId)) fail()
+  const run = await transport.readOwnerRun(profile, basis.ownerRunRef)
+  if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
+    || run.event !== 'workflow_dispatch' || run.headSha !== prior.sourceRevision) fail()
+  return basis.releasedIntentRef
+}
+
+async function assertNoMigrationExecution(profile, transport, intent, paths, run) {
+  const started = Date.parse(run.createdAt), ended = Date.parse(run.updatedAt)
+  if (!Number.isFinite(started) || !Number.isFinite(ended) || ended < started || ended > Date.now()
+    || profile.migrations?.jobName !== 'ai-pdm-prod-migration-runner') fail()
+  const job = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
+  const names = new Set(), tokens = new Set()
+  let token = ''
+  for (let page = 0; page < 10; page++) {
+    const query = new URLSearchParams({ pageSize: '100' }); if (token) query.set('pageToken', token)
+    const list = await transport.request(`https://run.googleapis.com/v2/${job}/executions?${query}`)
+    if (!list || typeof list !== 'object' || Array.isArray(list)
+      || Object.keys(list).some(key => !['executions', 'nextPageToken'].includes(key))
+      || (Object.hasOwn(list, 'executions') && !Array.isArray(list.executions))
+      || (Object.hasOwn(list, 'nextPageToken') && typeof list.nextPageToken !== 'string')) fail()
+    for (const execution of list.executions ?? []) {
+      const created = Date.parse(execution.createTime)
+      if (typeof execution.name !== 'string' || !execution.name.startsWith(`${job}/executions/`)
+        || names.has(execution.name) || !Number.isFinite(created) || !execution.completionTime || execution.reconciling === true
+        || !execution.conditions?.some(condition => condition.type === 'Completed' && ['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(condition.state))
+        || created >= started || execution.template?.containers?.some(container => container.args?.includes(paths.migrate)
+          || container.args?.includes(intent.sourceRevision))) fail()
+      names.add(execution.name)
+    }
+    token = list.nextPageToken ?? ''
+    if (!token) return
+    if (tokens.has(token)) fail(); tokens.add(token)
+  }
+  fail()
 }
