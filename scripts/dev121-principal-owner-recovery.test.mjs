@@ -7,8 +7,8 @@ import { buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, execu
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-aipdm-release'
-const previousRevision = 'ai-pdm-prod-previous'
-const candidateRevision = 'ai-pdm-prod-candidate'
+const previousRevision = 'ai-pdm-prod-111111111111'
+const candidateRevision = 'ai-pdm-prod-222222222222'
 const candidateTag = 'candidate-0123456789ab'
 const canonicalOrigin = 'https://ai-pdm-prod-9536592944.asia-east1.run.app'
 const candidateOrigin = `https://${candidateTag}---ai-pdm-prod-9536592944.asia-east1.run.app`
@@ -182,6 +182,7 @@ for (const watchdogRecovered of [false, true]) test(`owner Principal-only releas
 function ordinaryAbortFixture() {
   const h = recordedHarness(), objects = new Map(), builds = new Map()
   const profile = { ...h.profile, application: { ...h.profile.application, repository: 'jedchang0308-jenfu/AI-PDM' },
+    schemas: { releaseIntent: 'jenfu.dev117.ai-pdm-release-intent.v2', deploymentCapsule: 'jenfu.dev117.ai-pdm-deployment-capsule.v2' },
     environment: { ...h.profile.environment, requiredPlainEnvironmentNames: ['NODE_ENV', 'PDM_JENFU_PLATFORM_AUTH_MODE', 'PDM_JENFU_ENTITLEMENT_MODE', 'PDM_JENFU_SSO_HANDOFF_MODE'],
       controlledValues: { PDM_JENFU_SSO_HANDOFF_MODE: { defaultValue: 'on', allowedValues: ['on'] } } } }
   const modes = { NODE_ENV: 'production', PDM_JENFU_PLATFORM_AUTH_MODE: 'on', PDM_JENFU_ENTITLEMENT_MODE: 'enforce', PDM_JENFU_SSO_HANDOFF_MODE: 'on' }
@@ -249,7 +250,7 @@ function ordinaryAbortFixture() {
     revisions.set(revision, { name: `${service.name}/revisions/${revision}`, conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: 'ai-pdm', image, env: Object.entries(modes).map(([name,value]) => ({ name,value })) }] })
     return { intent, intentRow, paths, seal, runtimeRow, lock, image, revision }
   }
-  const anchor = release({ source: 'b'.repeat(40), releaseId: 'DEV121-RELEASED-ANCHOR', revision: previousRevision, previous: 'ai-pdm-prod-prior', imageDigit: 'b', released: true })
+  const anchor = release({ source: 'b'.repeat(40), releaseId: 'DEV121-RELEASED-ANCHOR', revision: previousRevision, previous: 'ai-pdm-prod-000000000000', imageDigit: 'b', released: true })
   const failed = release({ source: 'a'.repeat(40), releaseId: 'DEV121-FAILED-CANDIDATE', revision: candidateRevision, previous: previousRevision, imageDigit: 'c', anchorRef: anchor.intentRow.ref })
   const controlCore = { schemaVersion: 'jenfu.dev012.owner-control-head.v1', inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId: failed.intent.releaseId, sourceRevision: failed.intent.sourceRevision, releaseIntentSha256: failed.intentRow.ref.sha256 })),
     ownerApplicationId: 'ai-pdm', service: 'ai-pdm-prod', controlBucket: bucket, releaseId: failed.intent.releaseId, sourceRevision: failed.intent.sourceRevision,
@@ -332,7 +333,7 @@ test('ordinary continuation refuses missing/unequal frozen basis, including cach
 
 test('a subsequent ordinary abort remains fail closed instead of treating an aborted predecessor as RELEASED',async()=>{
   const h=ordinaryAbortFixture()
-  const second=h.release({ source:'d'.repeat(40),releaseId:'DEV121-SECOND-ABORT',revision:'ai-pdm-prod-second-abort',previous:previousRevision,imageDigit:'d',anchorRef:h.failed.intentRow.ref })
+  const second=h.release({ source:'d'.repeat(40),releaseId:'DEV121-SECOND-ABORT',revision:'ai-pdm-prod-333333333333',previous:previousRevision,imageDigit:'d',anchorRef:h.failed.intentRow.ref })
   Object.assign(h.controlCore,{releaseId:second.intent.releaseId,sourceRevision:second.intent.sourceRevision,
     sourceLockSha256:second.intent.sourceLockRef.sha256,candidateRevision:second.revision,
     inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:second.intent.releaseId,sourceRevision:second.intent.sourceRevision,releaseIntentSha256:second.intentRow.ref.sha256}))})

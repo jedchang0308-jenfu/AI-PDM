@@ -285,6 +285,9 @@ function migrationRetryHarness({ prior = 'active', fenced = false, unknownPost =
   if (prior === 'wrong-fence-active') {
     const other = structuredClone(active); other.template.containers[0].env.find(row => row.name === 'DEV121_MIGRATION_FENCE_SHA256').value = 'f'.repeat(64); initial = [other]
   }
+  if (prior === 'wrong-base-env-active') {
+    const other = structuredClone(active); other.template.containers[0].env.find(row => row.name === 'POSTGRES_DATABASE').value = 'sibling_prod'; initial = [other]
+  }
   const fresh = { ...structuredClone(completed), name: `${jobName}/executions/new` }
   let posts = 0, lists = 0, executionReads = 0, polls = 0
   const fetchImpl = migrationReceiptStorage(async (url, options = {}) => {
@@ -330,8 +333,8 @@ test('B24 migration retry adopts one matching active or completed execution and 
   }
 })
 
-test('B24 migration retry rejects multiple matches, unrelated active and wrong fence before POST', async () => {
-  for (const prior of ['multiple', 'unrelated-active', 'wrong-fence-active']) {
+test('B24 migration retry rejects multiple matches, unrelated active, wrong fence and base env before POST', async () => {
+  for (const prior of ['multiple', 'unrelated-active', 'wrong-fence-active', 'wrong-base-env-active']) {
     const h = migrationRetryHarness({ prior, fenced: prior === 'wrong-fence-active' })
     await assert.rejects(h.transport.runMigrationJob(h.input), prior === 'multiple' ? /MIGRATION_EXECUTION_CARDINALITY_INVALID/u : /MIGRATION_EXECUTION_ACTIVE/u)
     assert.deepEqual(h.counts(), { posts: 0, lists: 1, executionReads: 0, polls: 0 }, prior)
