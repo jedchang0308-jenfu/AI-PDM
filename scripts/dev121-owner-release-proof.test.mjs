@@ -517,6 +517,65 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
   }
   return { refs: { prepare, migrate, terminal }, fetchImpl, objects }
 }
+test('B30 receipt metadata survives warm opaque-context proof reads', async () => {
+  const input = fixture({ ai: true, includeTerminal: true }), calls = []
+  const read = () => readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision: revision,
+    refs: input.refs, token: 'local-proof-token', fetchImpl: async (url, options) => { calls.push(url); return input.fetchImpl(url, options) } })
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    const cold = await read(), count = calls.length, warm = await read()
+    assert.deepEqual(warm, cold)
+    assert.equal(calls.length, count, 'verified receipts reuse their bytes and provider metadata together')
+    for (const row of [warm.prepare, warm.sourceLock, warm.migrate, warm.terminal, ...Object.values(warm.releaseChain)]) {
+      assert.equal(row.generation, '7'); assert.match(row.crc32c, /^[A-Za-z0-9+/]{6}==$/u)
+    }
+  })
+})
+test('B30 byte-only receipt memo requires an exact provider metadata read', async () => {
+  const input = fixture({ ai: true, includeTerminal: true }), calls = []
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    await readAiPdmEvidenceLeaf({ ref: input.refs.prepare, read: async () => input.objects.get(input.refs.prepare.uri) })
+    const proof = await readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision: revision, refs: input.refs, token: 'local-proof-token',
+      fetchImpl: async (url, options) => { calls.push(url); return input.fetchImpl(url, options) } })
+    assert.equal(proof.prepare.generation, '7')
+    assert.equal(calls.filter(url => url.includes(encodeURIComponent(input.refs.prepare.uri.split('/').slice(3).join('/')))).length, 2)
+  })
+})
+test('B30 conflicting fixed receipt generation fails without weakening the proof', async () => {
+  const input = fixture({ ai: true, includeTerminal: true }); let replaced = false, deploymentUri
+  const fetchImpl = async (url, options) => {
+    const response = await input.fetchImpl(url, options)
+    if (replaced && !url.includes('alt=media') && url.endsWith(encodeURIComponent(deploymentUri.split('/').slice(3).join('/')))) {
+      return new Response(JSON.stringify({ ...await response.json(), generation: '8' }))
+    }
+    return response
+  }
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    const proof = await readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision: revision, refs: input.refs, token: 'local-proof-token', fetchImpl })
+    deploymentUri = proof.releaseChain.deployment.ref; replaced = true
+    await assert.rejects(readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision: revision,
+      refs: { prepare: input.refs.prepare, migrate: null, terminal: null }, mode: 'pre_migration', token: 'local-proof-token', fetchImpl }), /CONTEXT_RECEIPT_METADATA_CONFLICT/u)
+  })
+})
+for (const [name, corrupt, expected] of [
+  ['CRC', async response => new Response(JSON.stringify({ ...await response.json(), crc32c: 'AAAAAA==' })), /MIGRATION_GCS_CRC32C_MISMATCH/u],
+  ['hash', async response => new Response(Buffer.concat([Buffer.from(await response.arrayBuffer()), Buffer.from(' ')])), /OBJECT_HASH_MISMATCH/u],
+]) test(`B30 byte-only memo cannot bypass provider ${name} verification`, async () => {
+  const input = fixture({ ai: true, includeTerminal: true })
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    await readAiPdmEvidenceLeaf({ ref: input.refs.prepare, read: async () => input.objects.get(input.refs.prepare.uri) })
+    const fetchImpl = async (url, options) => {
+      const response = await input.fetchImpl(url, options), prepare = url.includes(encodeURIComponent(input.refs.prepare.uri.split('/').slice(3).join('/')))
+      if (!prepare) return response
+      if (name === 'CRC' && !url.includes('alt=media')) return corrupt(response)
+      if (name === 'hash') {
+        const bytes = Buffer.concat([input.objects.get(input.refs.prepare.uri), Buffer.from(' ')])
+        return url.includes('alt=media') ? corrupt(response) : new Response(JSON.stringify({ generation: '7', crc32c: crc32cBase64(bytes) }))
+      }
+      return response
+    }
+    await assert.rejects(readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision: revision, refs: input.refs, token: 'local-proof-token', fetchImpl }), expected)
+  })
+})
 async function verify(input = fixture()) {
   return readOwnerReleaseProof({ owner: 'platform', sourceRevision: revision,
     refs: input.refs, token: 'x'.repeat(25), fetchImpl: input.fetchImpl })
@@ -1074,6 +1133,19 @@ else {
     const wire = rootWire(), observed = await wire.transport.readOwnerSourceProof({ profile: rootProfile, sourceRevision: capsule.sourceRevision, refs: rootRefs, verifyProvider: false })
     assert.equal(observed.proof.disposition, 'released'); assert.equal(observed.proof.candidateRevision, 'ai-pdm-prod-44984e6018dc')
     assert.equal(wire.counts.sourceArrayBuffer, 0); assert.equal(wire.counts.sourceMedia, 1); assert.equal(wire.counts.mutations, 0)
+  })
+  test('B30_ROOT_AUTHENTIC_B14_COLD_WARM_PROOF_PRESERVES_SEALED_MIGRATION_SHAPE', async () => {
+    const wire = rootWire()
+    await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+      const read = () => wire.transport.readOwnerSourceProof({ profile: rootProfile, sourceRevision: capsule.sourceRevision, refs: rootRefs, verifyProvider: true })
+      const cold = await read(), warm = await read()
+      assert.deepEqual(warm.proof, cold.proof)
+      assert.equal(warm.proof.migrate.generation, null); assert.equal(warm.proof.migrate.crc32c, null)
+      for (const row of [warm.proof.prepare, warm.proof.sourceLock, warm.proof.terminal, ...Object.values(warm.proof.releaseChain)]) {
+        assert.match(row.generation, /^[1-9][0-9]*$/u); assert.match(row.crc32c, /^[A-Za-z0-9+/]{6}==$/u)
+      }
+    })
+    assert.equal(wire.counts.sourceMedia, 1); assert.equal(wire.counts.sourceArrayBuffer, 0); assert.equal(wire.counts.mutations, 0)
   })
   test('B23_ROOT_AUTHENTIC_B14_FULL_PROFILE_SQL', async () => {
     const wire = rootWire()
