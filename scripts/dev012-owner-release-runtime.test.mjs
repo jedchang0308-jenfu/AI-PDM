@@ -198,7 +198,7 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
   let listCalls = 0
   const requestedArgs = ['--bundle-ref', `gs://${bucket}/source/migration-bundles/b.json`, '--bundle-sha256', H64, '--source-revision', H40, '--output-ref', `gs://${bucket}/receipts/migrate.json`]
   const executionName = `${jobName}/executions/e1`
-  const execution = { name: executionName, template: { containers: [{ name: 'migration', args: requestedArgs, env: Object.entries(environment).map(([name, value]) => ({ name, value })) }] }, succeededCount: 1, failedCount: 0, completionTime: '2026-09-08T00:00:00Z', conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
+  const execution = { name: executionName, template: { containers: [{ name: 'migration', image: 'runner@sha256:' + H64, args: requestedArgs, env: Object.entries(environment).map(([name, value]) => ({ name, value })) }] }, succeededCount: 1, failedCount: 0, completionTime: '2026-09-08T00:00:00Z', conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
   const requestedUrls = []
   const transport = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: migrationReceiptStorage(async (url, options = {}) => {
     requestedUrls.push(String(url))
@@ -270,7 +270,7 @@ function migrationRetryHarness({ prior = 'active', fenced = false, unknownPost =
   const fenceEnv = fenced ? { DEV121_MIGRATION_FENCE_REF: principalOnlyFenceRef.uri, DEV121_MIGRATION_FENCE_SHA256: H64 } : {}
   const container = { name: 'migration', image: deployment.migrationRunnerDigest, env: Object.entries(environment).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }
   const job = { name: jobName, template: { taskCount: 1, parallelism: 1, template: { serviceAccount: profile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', containers: [container], volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: [environment.CLOUD_SQL_INSTANCE_CONNECTION_NAME] } }] } } }
-  const active = { name: `${jobName}/executions/prior`, createTime: '2026-10-08T00:00:00Z', template: { containers: [{ name: 'migration', args, env: Object.entries({ ...environment, ...fenceEnv }).map(([name, value]) => ({ name, value })) }] }, conditions: [{ type: 'Completed', state: 'CONDITION_PENDING' }] }
+  const active = { name: `${jobName}/executions/prior`, createTime: '2026-10-08T00:00:00Z', template: { containers: [{ name: 'migration', image: deployment.migrationRunnerDigest, args, env: Object.entries({ ...environment, ...fenceEnv }).map(([name, value]) => ({ name, value })) }] }, conditions: [{ type: 'Completed', state: 'CONDITION_PENDING' }] }
   const completed = { ...structuredClone(active), completionTime: '2026-10-08T00:00:02Z', succeededCount: 1, failedCount: 0, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
   const failed = { ...structuredClone(completed), succeededCount: 0, failedCount: 1, conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }] }
   let initial = []
@@ -287,6 +287,9 @@ function migrationRetryHarness({ prior = 'active', fenced = false, unknownPost =
   }
   if (prior === 'wrong-base-env-active') {
     const other = structuredClone(active); other.template.containers[0].env.find(row => row.name === 'POSTGRES_DATABASE').value = 'sibling_prod'; initial = [other]
+  }
+  if (prior === 'wrong-image-active') {
+    const other = structuredClone(active); other.template.containers[0].image = 'runner@sha256:' + 'f'.repeat(64); initial = [other]
   }
   const fresh = { ...structuredClone(completed), name: `${jobName}/executions/new` }
   let posts = 0, lists = 0, executionReads = 0, polls = 0
@@ -333,11 +336,20 @@ test('B24 migration retry adopts one matching active or completed execution and 
   }
 })
 
-test('B24 migration retry rejects multiple matches, unrelated active, wrong fence and base env before POST', async () => {
-  for (const prior of ['multiple', 'unrelated-active', 'wrong-fence-active', 'wrong-base-env-active']) {
+test('B24 migration retry rejects multiple matches, unrelated active, wrong fence, base env and image before POST', async () => {
+  for (const prior of ['multiple', 'unrelated-active', 'wrong-fence-active', 'wrong-base-env-active', 'wrong-image-active']) {
     const h = migrationRetryHarness({ prior, fenced: prior === 'wrong-fence-active' })
-    await assert.rejects(h.transport.runMigrationJob(h.input), prior === 'multiple' ? /MIGRATION_EXECUTION_CARDINALITY_INVALID/u : /MIGRATION_EXECUTION_ACTIVE/u)
-    assert.deepEqual(h.counts(), { posts: 0, lists: 1, executionReads: 0, polls: 0 }, prior)
+    const attempts = prior === 'wrong-image-active' ? 2 : 1
+    for (let attempt = 0; attempt < attempts; attempt += 1)
+      await assert.rejects(h.transport.runMigrationJob(h.input), prior === 'multiple' ? /MIGRATION_EXECUTION_CARDINALITY_INVALID/u : /MIGRATION_EXECUTION_ACTIVE/u)
+    assert.deepEqual(h.counts(), { posts: 0, lists: attempts, executionReads: 0, polls: 0 }, prior)
+    assert.equal(h.objects.size, prior === 'multiple' ? 1 : 0, prior)
+    if (prior === 'multiple') {
+      const submission = JSON.parse([...h.objects.values()][0].bytes)
+      assert.equal(submission.status, 'SUBMISSION_INTENT')
+      assert.equal(submission.migrationRunnerDigest, h.input.deployment.migrationRunnerDigest)
+      assert.equal(submission.outputUri, h.input.outputUri)
+    }
   }
 })
 

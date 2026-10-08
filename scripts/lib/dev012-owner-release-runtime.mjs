@@ -789,7 +789,7 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
     }
     const executionArgsMatch = (execution) => {
       const executionContainer = execution?.template?.containers?.find((item) => item.name === 'migration')
-      if (canonicalize(executionContainer?.args) !== canonicalize(args)) return false
+      if (executionContainer?.image !== deployment.migrationRunnerDigest || canonicalize(executionContainer?.args) !== canonicalize(args)) return false
 
       const executionEnv = executionContainer?.env
       if (!Array.isArray(executionEnv) || executionEnv.length !==
@@ -800,7 +800,7 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
     }
     const before = await listExecutions()
     const matching = before.filter(executionArgsMatch)
-    if (matching.length > 1) fail('MIGRATION_EXECUTION_CARDINALITY_INVALID')
+    const matchingNames = new Set(matching.map(execution => execution.name))
     const beforeNames = new Set(before.map(execution => execution.name))
     const submissionUri = migrationSubmissionIntentUri(profile, outputUri)
     let submission = null
@@ -815,12 +815,8 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
     } catch (error) {
       if (error?.code !== 'MISSING') throw error
     }
-    let executionName = matching[0]?.name ?? null
-    if (!executionName && before.some(execution => !execution.completionTime || execution.reconciling === true ||
-        !execution.conditions?.some(condition => condition?.type === 'Completed' && ['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(condition.state)))) fail('MIGRATION_EXECUTION_ACTIVE')
-    if (!executionName && submission) fail('MIGRATION_SUBMISSION_UNKNOWN')
-    let operationRef = null
-    if (!submission) {
+    const ensureSubmissionIntent = async () => {
+      if (submission) return
       const value = { schemaVersion: 'jenfu.dev012.migration-submission-intent.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
         jobName, migrationRunnerDigest: deployment.migrationRunnerDigest, migrationBundleRef: deployment.migrationBundleRef, outputUri, args,
         principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT', observedAt: now() }
@@ -829,8 +825,18 @@ export function createOwnerTransport({ token, builderReadbackToken = process.env
       if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
       const saved = await putJson(submissionUri, value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts', ifGenerationMatch: '0' })
       if (saved.reused) fail('MIGRATION_SUBMISSION_UNKNOWN')
+      submission = value
       if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
     }
+    const isActive = execution => !execution.completionTime || execution.reconciling === true ||
+      !execution.conditions?.some(condition => condition?.type === 'Completed' && ['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(condition.state))
+    if (matching.length > 0) await ensureSubmissionIntent()
+    if (matching.length > 1) fail('MIGRATION_EXECUTION_CARDINALITY_INVALID')
+    if (before.some(execution => !matchingNames.has(execution.name) && isActive(execution))) fail('MIGRATION_EXECUTION_ACTIVE')
+    let executionName = matching[0]?.name ?? null
+    if (!executionName && submission) fail('MIGRATION_SUBMISSION_UNKNOWN')
+    let operationRef = null
+    if (!submission) await ensureSubmissionIntent()
     if (!executionName) {
       try {
         const containerOverride = { name: 'migration', args,
