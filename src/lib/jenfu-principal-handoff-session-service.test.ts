@@ -116,6 +116,10 @@ describe("DEV-121 principal handoff session issuance", () => {
   });
 
   it("creates the missing local account only after a valid published grant, then issues the first session", async () => {
+    const publishedAt = "2026-10-08T12:34:56.123456Z";
+    mocks.typed.mockResolvedValueOnce({ principalId: "principal-one", employeeId: "employee-one",
+      accountType: "human_personal", identityIssuer: handoff.identity.identityIssuer,
+      identitySubject: handoff.identity.identitySubject, mappingVersion: 1, publishedAt });
     mocks.account
       .mockRejectedValueOnce(new JenfuPrincipalAccountError("principal_account_missing"))
       .mockResolvedValueOnce({ principalId: "principal-one", pdmUserId: "pdm-user-one",
@@ -131,6 +135,7 @@ describe("DEV-121 principal handoff session issuance", () => {
       principalId: "principal-one", employeeId: "employee-one",
       identityIssuer: handoff.identity.identityIssuer,
       identitySubject: handoff.identity.identitySubject,
+      publishedAt,
       verifiedEmail: handoff.authentication.email
     }));
     expect(mocks.assignments.mock.invocationCallOrder[0])
