@@ -241,7 +241,7 @@ export function releasePaths(profile, intent, intentSha256) {
   }
 }
 
-export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
+export function createOwnerTransport({ token, builderReadbackToken = process.env.AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN ?? null, fetchImpl = fetch, sleep = sleepDefault, now = () => new Date().toISOString() }) {
   if (typeof token !== 'string' || token.length < 20) fail('PROVIDER_TOKEN_INVALID')
   const authHeaders = { authorization: `Bearer ${token}` }
 
@@ -1146,15 +1146,19 @@ export function createOwnerTransport({ token, fetchImpl = fetch, sleep = sleepDe
     return request(`https://pubsub.googleapis.com/v1/projects/${profile.target.projectId}/topics/${topic}:publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: [{ data: Buffer.from(canonicalize(event)).toString('base64'), attributes: { ownerApplicationId: profile.application.id } }] }) })
   }
 
-  // Source/build evidence is observation only. Only the operator producer asks
-  // for live Build/Registry readback; prepare uses its own GCS/Run permissions.
+  // Source/build evidence is observation only. Optional builder authentication
+  // is isolated to the proof reader's exact Build/Registry GETs; request stays primary.
   async function readOwnerSourceProof({ profile, sourceRevision, refs, verifyProvider = false }) {
     if (profile.application.id !== 'ai-pdm' || profile.artifact.releaseBucket !== 'jenfu-platform-prod-aipdm-release'
       || profile.target.projectId !== 'jenfu-platform-prod' || profile.target.region !== 'asia-east1'
       || profile.target.serviceName !== 'ai-pdm-prod') fail('OWNER_SOURCE_PROOF_TARGET_INVALID')
     return runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
       const proof = await readAiPdmReleaseObservation({ sourceRevision, refs, token, fetchImpl })
-      const provider = verifyProvider ? await verifyOwnerProviderReadback({ proof, token, fetchImpl }) : null
+      const builderReadback = builderReadbackToken === null ? null : {
+        token: builderReadbackToken, actor: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
+        ownerApplicationId: profile.application.id, projectId: profile.target.projectId, region: profile.target.region, sourceRevision,
+      }
+      const provider = verifyProvider ? await verifyOwnerProviderReadback({ proof, token, fetchImpl, builderReadback }) : null
       return { proof, provider }
     })
   }

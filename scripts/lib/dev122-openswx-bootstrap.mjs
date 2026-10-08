@@ -693,12 +693,16 @@ async function activateWorker({ transport, profile, descriptor, descriptorRef, i
   if (finalization.stage !== 'finalize' || finalization.ownerApplicationId !== 'ai-pdm' || finalization.sourceRevision !== intent.sourceRevision || finalization.facts?.result !== 'RELEASED'
     || finalization.facts.openswxWorker?.status !== 'ACTIVATION_PENDING' || canonicalValue.stage !== 'canonical' || canonicalValue.sourceRevision !== intent.sourceRevision
     || canonicalValue.facts?.origin !== profile.canonicalOrigin || canonicalize(finalization.previousReceiptRef) !== canonicalize(canonical.ref)) fail('OPENSWX_FINALIZATION_JOIN_INVALID')
+  let migrationMode = null
   if (isPausedAppRepair(descriptor)) {
     const records = await Promise.all([paths.prepare, paths.migrate, paths.terminal].map(path => transport.readBytes(path, { prefixes: ['receipts'] })))
     const observed = await transport.readOwnerSourceProof({ profile: appProfile, sourceRevision: intent.sourceRevision,
       refs: { prepare: records[0].ref, migrate: records[1].ref, terminal: records[2].ref }, verifyProvider: true })
     const graph = await readAiPdmObservationInputs(observed.proof)
-    if (!graph.repair || observed.proof.disposition !== 'released' || observed.provider?.status !== 'BUILD_IMAGE_VERIFIED'
+    migrationMode = graph.migrationMode
+    if (!graph.repair || !['HISTORICAL_EVIDENCE_REUSED', 'FORWARD_APPLIED'].includes(graph.migrationMode)
+      || graph.terminal.value.facts.databaseDisposition !== graph.migrationMode
+      || observed.proof.disposition !== 'released' || observed.provider?.status !== 'BUILD_IMAGE_VERIFIED'
       || canonicalize(graph.intentRef) !== canonicalize(capsuleRef) || canonicalize(graph.chain.finalize.ref) !== canonicalize(finalized.ref)
       || canonicalize(graph.chain.canonical.ref) !== canonicalize(canonical.ref) || canonicalize(graph.intent.openswxWorkerRef) !== canonicalize(descriptorRef)) fail('OPENSWX_FINALIZATION_JOIN_INVALID')
   }
@@ -728,11 +732,18 @@ async function activateWorker({ transport, profile, descriptor, descriptorRef, i
   }
   assertPausedScheduler(await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`), profile)
   await assertNoActiveExecutions(transport)
-  const smoke = await transport.readJson(finalization.facts.openswxWorker.finiteSmokeRef, BUCKET, [WORKER_RECEIPT_PREFIX])
-  assertWorkerReceipt(smoke.value, descriptor, 'finite-terminal', { image: evidence.image })
-  let finite = smoke
-  if (Date.now() - Date.parse(smoke.value.facts.execution.completionTime) > profile.bounds.proofFreshnessSeconds * 1000) {
+  const smokeRef = finalization.facts.openswxWorker.finiteSmokeRef
+  let finite
+  if (migrationMode === 'FORWARD_APPLIED') {
+    if (smokeRef !== undefined) fail('OPENSWX_FORWARD_PENDING_EXECUTION_INVALID')
     finite = await runWorkerFinite({ transport, descriptor, profile, template, receiptUri: `${uri.slice(0, -5)}-fresh-finite.json`, actor: actor.email, deadlineAt })
+  } else {
+    const smoke = await transport.readJson(smokeRef, BUCKET, [WORKER_RECEIPT_PREFIX])
+    assertWorkerReceipt(smoke.value, descriptor, 'finite-terminal', { image: evidence.image })
+    finite = smoke
+    if (Date.now() - Date.parse(smoke.value.facts.execution.completionTime) > profile.bounds.proofFreshnessSeconds * 1000) {
+      finite = await runWorkerFinite({ transport, descriptor, profile, template, receiptUri: `${uri.slice(0, -5)}-fresh-finite.json`, actor: actor.email, deadlineAt })
+    }
   }
   const executionName = canonicalWorkerExecution(finite.value.facts.executionName)
   const execution = await transport.request(`https://run.googleapis.com/v2/${executionName}`)

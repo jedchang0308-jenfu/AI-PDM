@@ -19,6 +19,17 @@ const profile = {
 }
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } })
+test('B24 secondary proof token never changes generic GET or mutation authorization', async () => {
+  const primary = 'MODELED-PRIMARY-VERIFIER-TOKEN', secondary = 'MODELED-SECONDARY-BUILDER-TOKEN', calls = []
+  const transport = createOwnerTransport({ token: primary, builderReadbackToken: secondary, fetchImpl: async (url, options) => {
+    calls.push({ url, ...options }); return json({ status: 'MODELED' })
+  } })
+  const url = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
+  for (const method of ['GET', 'POST', 'PATCH']) await transport.request(url, { method, ...(method === 'GET' ? {} : { body: '{}' }) })
+  assert.equal(calls.length, 3)
+  for (const call of calls) assert.equal(call.headers.authorization, `Bearer ${primary}`)
+  assert.equal(JSON.stringify(Object.keys(transport)).includes(secondary), false)
+})
 
 test('B23 fixed runtime rejects wrong AI target and malformed pre-migration refs before any read', async () => {
   let reads = 0

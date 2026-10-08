@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
 import { buildRuntimeConfig, canonicalize, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
+import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
+import { assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
 
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-platform-release'
@@ -13,6 +16,78 @@ const candidateTag = 'candidate-0123456789ab'
 const canonicalOrigin = 'https://jenfu-platform-prod-9536592944.asia-east1.run.app'
 const candidateOrigin = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
 const migrationRunnerDigest = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform-migration-runner@sha256:' + 'c'.repeat(64)
+
+function repairMigrationContentFixture() {
+  const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
+  const currentProfile = JSON.parse(readFileSync(new URL(`../${profilePath}`, import.meta.url)))
+  const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
+  assert.equal(currentProfile.migrations.entries.length, 33)
+  const historicalProfile = structuredClone(currentProfile)
+  historicalProfile.migrations.entries = historicalProfile.migrations.entries.slice(0, 32)
+  const materialize = profile => {
+    const { bundle } = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), H40)
+    const files = new Map([[profilePath, Buffer.from(`${canonicalize(profile)}\n`)], ...profile.migrations.entries.map(row => [row.path, readFileSync(new URL(`../${row.path}`, import.meta.url))])])
+    return { profile, bundle, files }
+  }
+  const validate = input => assertAiPdmMigrationContent({ files: input.files, bundle: input.bundle, sourceRevision: H40, deadlineAt: '2999-01-01T00:00:00.000Z' })
+  const reseal = input => {
+    input.files.set(profilePath, Buffer.from(`${canonicalize(input.profile)}\n`))
+    const core = { ...input.bundle }; delete core.manifestSha256
+    input.bundle.manifestSha256 = sha256(canonicalize(core))
+    return input
+  }
+  return { historical: materialize(historicalProfile), current: materialize(currentProfile), validate, reseal }
+}
+
+test('B24 paused worker migration classification preserves exact32 and admits only authentic appended083', () => {
+  const fixture = repairMigrationContentFixture()
+  const before = fixture.validate(fixture.historical), after = fixture.validate(fixture.current)
+  assert.equal(assertAiPdmRepairMigrationMode(before, fixture.validate(fixture.historical)), 'HISTORICAL_EVIDENCE_REUSED')
+  assert.equal(assertAiPdmRepairMigrationMode(before, after), 'FORWARD_APPLIED')
+  assert.equal(fixture.current.bundle.entries[32].path, 'db/postgres/083_dev121_authorized_first_login_account.sql')
+  assert.equal(fixture.current.bundle.entries[32].sourceSha256, 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9')
+  assert.deepEqual(fixture.current.bundle.entries.slice(0, 32), fixture.historical.bundle.entries)
+  assert.throws(() => assertAiPdmMigrationEquivalent(before, after), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+  assert.throws(() => assertAiPdmRepairMigrationMode({ ...before }, after), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+  const originalHashes = [before.orderedEntriesSha256, before.profileMigrationsSha256]
+  assertAiPdmRepairMigrationMode(before, after)
+  assert.deepEqual([before.orderedEntriesSha256, before.profileMigrationsSha256], originalHashes)
+})
+
+test('B24 authenticated current bundle rejects historical source and derived SQL drift, deletion and reorder', () => {
+  for (const mutation of ['source', 'derived', 'delete', 'reorder']) {
+    const fixture = repairMigrationContentFixture(), before = fixture.validate(fixture.historical), next = fixture.current
+    if (mutation === 'source') {
+      const row = next.bundle.entries[0], changed = Buffer.concat([next.files.get(row.path), Buffer.from('\n-- changed frozen source\n')])
+      next.files.set(row.path, changed); row.sourceSha256 = sha256(changed); next.profile.migrations.entries[0].sha256 = row.sourceSha256
+    } else if (mutation === 'derived') {
+      const row = next.bundle.entries[0], changed = Buffer.concat([Buffer.from(row.sqlBase64, 'base64'), Buffer.from('\n-- changed derived SQL\n')])
+      row.sqlBase64 = changed.toString('base64'); row.appliedSha256 = sha256(changed)
+    } else if (mutation === 'delete') {
+      const removed = next.bundle.entries.shift(); next.profile.migrations.entries.shift(); next.files.delete(removed.path)
+      next.bundle.entries.forEach((row, index) => { row.order = index + 1 }); next.profile.migrations.entries.forEach((row, index) => { row.order = index + 1 })
+    } else {
+      [next.bundle.entries[0], next.bundle.entries[1]] = [next.bundle.entries[1], next.bundle.entries[0]];
+      [next.profile.migrations.entries[0], next.profile.migrations.entries[1]] = [next.profile.migrations.entries[1], next.profile.migrations.entries[0]]
+      next.bundle.entries.forEach((row, index) => { row.order = index + 1 }); next.profile.migrations.entries.forEach((row, index) => { row.order = index + 1 })
+    }
+    const content = fixture.validate(fixture.reseal(next))
+    assert.throws(() => assertAiPdmRepairMigrationMode(before, content), mutation === 'delete' ? /MIGRATION_INPUT_NOT_EQUIVALENT/u : /MIGRATION_HISTORICAL_PREFIX_INVALID/u, mutation)
+  }
+})
+
+test('B24 current append rejects a different ordinal, wrong083 bytes, extra entries and mutated branded content', () => {
+  for (const mutation of ['path', 'hash', 'extra']) {
+    const fixture = repairMigrationContentFixture(), next = fixture.current
+    if (mutation === 'path') next.bundle.entries[32].path = 'db/postgres/084_unapproved_forward.sql'
+    else if (mutation === 'hash') next.bundle.entries[32].sourceSha256 = 'f'.repeat(64)
+    else next.bundle.entries.push({ ...next.bundle.entries[32], order: 34 })
+    assert.throws(() => fixture.validate(fixture.reseal(next)), /ARCHIVE_BUNDLE_INVALID/u, mutation)
+  }
+  const fixture = repairMigrationContentFixture(), before = fixture.validate(fixture.historical), after = fixture.validate(fixture.current)
+  after.files.get(fixture.current.bundle.entries[0].path)[0] ^= 1
+  assert.throws(() => assertAiPdmRepairMigrationMode(before, after), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+})
 
 function recordedHarness() {
   const objects = new Map()
@@ -340,6 +415,44 @@ test('build-only continuation revalidates current prerequisites and live baselin
     await assert.rejects(executeOwnerStage({...input,environment:{...h.environment,GITHUB_RUN_ID:'124'},stage:'prepare'}), scenario==='prerequisite'?/AUTHORIZATION_READ_FAILED/:/PREPARE_BASELINE_MISMATCH/)
     assert.equal([...h.objects.keys()].some(uri=>uri.endsWith('/migrate.json')),false)
   }
+})
+
+test('B24 normal migration executor submits once and replays the same immutable receipt without a second Job', async () => {
+  const h = recordedHarness(), { input } = await authorizedRecordedInput(h, 'REL-B24-MIGRATION-REPLAY')
+  let submissions = 0
+  const run = h.transport.runMigrationJob
+  h.transport.runMigrationJob = async args => { submissions++; return run(args) }
+  await executeOwnerStage({ ...input, stage: 'prepare' })
+  await executeOwnerStage({ ...input, stage: 'build' })
+  const first = await executeOwnerStage({ ...input, stage: 'migrate' })
+  const count = h.objects.size, baseline = structuredClone(h.service())
+  const second = await executeOwnerStage({ ...input, stage: 'migrate' })
+  assert.equal(first.value.schemaVersion, 'jenfu.dev012.migration-receipt.v1')
+  assert.equal(first.value.status, 'PASS')
+  assert.deepEqual(second.ref, first.ref)
+  assert.equal(submissions, 1)
+  assert.equal(h.objects.size, count)
+  assert.deepEqual(h.service(), baseline)
+  const terminal = await executeOwnerStage({ ...input, stage: 'rollback' })
+  assert.equal(JSON.parse(terminal.bytes).facts.databaseDisposition, 'FORWARD_APPLIED')
+  assert.equal(submissions, 1)
+})
+
+test('B24 malformed standard migration readback is denied without resubmitting an existing Job receipt', async () => {
+  const h = recordedHarness(), { input } = await authorizedRecordedInput(h, 'REL-B24-MIGRATION-DENIED')
+  let submissions = 0
+  const run = h.transport.runMigrationJob
+  h.transport.runMigrationJob = async args => { submissions++; return run(args) }
+  await executeOwnerStage({ ...input, stage: 'prepare' })
+  await executeOwnerStage({ ...input, stage: 'build' })
+  const first = await executeOwnerStage({ ...input, stage: 'migrate' })
+  const original = h.objects.get(first.ref.uri)
+  original.bytes = Buffer.from(`${canonicalize({ ...first.value, manifestSha256: 'f'.repeat(64) })}\n`)
+  const count = h.objects.size
+  await assert.rejects(executeOwnerStage({ ...input, stage: 'migrate' }), /MIGRATION_RECEIPT_INVALID/u)
+  assert.equal(submissions, 1)
+  assert.equal(h.objects.size, count)
+  assert.equal([...h.objects.keys()].some(uri => uri.endsWith('/candidate.json')), false)
 })
 
 test('B23 expired current AI capsule stops actual protected build before publication or a paid build', async () => {
