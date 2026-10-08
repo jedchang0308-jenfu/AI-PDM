@@ -496,18 +496,46 @@ test('B21 LOCAL_TEST genuine Git archive preserves raw LF COPY bytes under CRLF 
     temporaryPath: fixture, PDM_DATA_DIR: 'UNUSED_NO_APP_IMPORT', PDM_REPOSITORY_DIR: fixture, mutationScope: 'TASK_OWNED_GIT_FIXTURE_ONLY', cleanupCondition: 'finally restores environment and removes exact fixture' }))
   try {
     fixtureGit(['init', '--quiet'])
+    const iamPaths = [...READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH]
+    const deniedHistoryPaths = ['infra/google-cloud/dev-122-openswx-release-readback-sibling/prebuild-list-readback.tf',
+      `${path.posix.dirname(PREBUILD_IAM_SOURCE_PATH)}/different-readback.tf`]
+    for (const name of [...iamPaths, ...deniedHistoryPaths]) {
+      const target = path.join(fixture, name); mkdirSync(path.dirname(target), { recursive: true })
+      writeFileSync(target, iamPaths.includes(name) ? canonicalSource(name) : Buffer.from('AI-PDM isolated denied historical path fixture\n'))
+    }
     for (const row of manifest.entries) {
       const target = path.join(fixture, row.path); mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, canonicalSource(row.path))
     }
     fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'add', '--all'])
     for (const row of manifest.entries) fixtureGit(['update-index', row.mode === '100755' ? '--chmod=+x' : '--chmod=-x', '--', row.path])
     fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', '-c', 'user.name=AI-PDM B21 fixture', '-c', 'user.email=b21-fixture@example.invalid', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '-m', 'AI-PDM isolated B21 COPY fixture'])
+    const historicalRevision = fixtureGit(['rev-parse', 'HEAD']).toString('utf8').trim()
+    const currentMarker = path.join(fixture, 'src/app/b23-native-reader-fixture.txt')
+    mkdirSync(path.dirname(currentMarker), { recursive: true }); writeFileSync(currentMarker, 'AI-PDM isolated current revision fixture\n')
+    fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'add', '--all'])
+    fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', '-c', 'user.name=AI-PDM B21 fixture', '-c', 'user.email=b21-fixture@example.invalid', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '-m', 'AI-PDM isolated B23 historical reader fixture'])
     const revision = fixtureGit(['rev-parse', 'HEAD']).toString('utf8').trim()
     process.env.GIT_CONFIG_COUNT = '3'; process.env.GIT_CONFIG_KEY_0 = 'core.autocrlf'; process.env.GIT_CONFIG_VALUE_0 = 'true'
     process.env.GIT_CONFIG_KEY_1 = 'core.eol'; process.env.GIT_CONFIG_VALUE_1 = 'crlf'
     process.env.GIT_CONFIG_KEY_2 = 'core.longpaths'; process.env.GIT_CONFIG_VALUE_2 = 'true'
     const reader = createWorkerGitReader(fixture, revision), inputs = workerInputManifest(reader.readTree(revision), reader, revision)
     assert.equal(inputs.entries.length, 37); assert.deepEqual(inputs.entries, manifest.entries)
+    assert.notEqual(historicalRevision, revision)
+    assert.throws(() => reader(PREBUILD_IAM_SOURCE_PATH, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+    assert.throws(() => prebuildIamContinuationPlan(reader, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+    reader.authorizeOrigin(historicalRevision)
+    const nativePrebuild = reader(PREBUILD_IAM_SOURCE_PATH, historicalRevision)
+    assert.ok(nativePrebuild.equals(canonicalSource(PREBUILD_IAM_SOURCE_PATH)), 'admitted prebuild source must preserve genuine Git blob bytes')
+    const nativePlan = prebuildIamContinuationPlan(reader, historicalRevision)
+    assert.deepEqual(nativePlan, prebuildIamContinuationPlan(canonicalSource, historicalRevision), 'actual prebuild callee must consume the exact admitted five-file closure')
+    assert.equal(nativePlan.sourceHashes.length, 5)
+    assert.equal(nativePlan.sourceHashes.find(row => row.path === PREBUILD_IAM_SOURCE_PATH).sha256, sha256(nativePrebuild))
+    for (const name of deniedHistoryPaths) {
+      assert.ok(fixtureGit(['show', `${historicalRevision}:${name}`]).length > 0, 'denied path must exist as a genuine historical Git blob')
+      assert.throws(() => reader(name, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+    }
+    const unadmittedReader = createWorkerGitReader(fixture, revision)
+    assert.throws(() => unadmittedReader(PREBUILD_IAM_SOURCE_PATH, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
     const hostArchive = fixtureGit(['archive', '--format=tar', '--prefix=source/', revision])
     assert.throws(() => assertWorkerArchive(hostArchive, inputs.entries), { code: 'OPENSWX_REUSE_ARCHIVE_INPUT_MISMATCH' }, 'the real unpinned host archive must reproduce the byte defect')
     const canonicalArchive = fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision])

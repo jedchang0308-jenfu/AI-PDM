@@ -5,7 +5,7 @@ import { assertImmutableRef, canonicalize, sha256, releasePaths } from './dev012
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertWorkerDescriptor, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyWorkerResources, readPausedRepairWorkerResources, verifyNormalActor } from './dev122-openswx-bootstrap.mjs'
-import { READBACK_IAM_PATHS } from './dev122-openswx-readback-iam.mjs'
+import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-readback-iam.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmEvidenceLeaf, admitAiPdmEvidenceSource, readAiPdmObservationInputs, assertAiPdmPausedRepairReadbacks } from './dev121-owner-release-proof.mjs'
 
@@ -64,7 +64,7 @@ export function createWorkerGitReader(root, sourceRevision) {
   const permitted = new Set([sourceRevision])
   const readSource = (name, revision) => {
     if (!safePath(name) || !H40.test(revision ?? '') || (!permitted.has(revision) && ![...READBACK_IAM_PATHS, WORKER_PROFILE_PATH].includes(name))) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
-    if (revision !== sourceRevision && !proofPath(name) && ![APP_PROFILE, ...READBACK_IAM_PATHS, ...OPENSWX_TERRAFORM_PATHS].includes(name)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
+    if (revision !== sourceRevision && !proofPath(name) && ![APP_PROFILE, ...READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH, ...OPENSWX_TERRAFORM_PATHS].includes(name)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
     return git(root, ['show', `${revision}:${name}`])
   }
   readSource.authorizeOrigin = revision => { if (!H40.test(revision ?? '') || (!permitted.has(revision) && permitted.size >= 9)) fail('OPENSWX_REUSE_ORIGIN_DEPTH'); permitted.add(revision) }
