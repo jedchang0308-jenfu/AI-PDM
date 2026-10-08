@@ -1233,6 +1233,38 @@ else {
     assert.deepEqual(replay.ref, migration.ref); assert.equal(h.publications.length, publications)
     assert.equal(h.wire.counts.sourceArrayBuffer, 0)
   }))
+  test('B25_ROOT_REPAIR_FRESHNESS_EXCLUDES_IMMUTABLE_EVIDENCE_LOADING', async () => rootModelClock(async clock => {
+    const h = rootConsumerModel(clock), o = await h.ownerInput(await h.produce())
+    const readJson = h.transport.readJson
+    let associationReads = 0, delayed = false
+    h.transport.readJson = async (ref, ...args) => {
+      const row = await readJson(ref, ...args)
+      if (ref?.uri === o.descriptor.workerBuildRef.uri && ++associationReads === 2) {
+        clock.advance(61_000)
+        delayed = true
+      }
+      return row
+    }
+    const prepared = await o.run('prepare')
+    assert.equal(delayed, true, 'modeled immutable evidence load exceeds the live freshness window')
+    assert.equal(prepared.value.stage, 'prepare')
+    assert.equal(h.controls.appBuilds ?? 0, 0); assert.equal(h.controls.migrationJobs ?? 0, 0)
+
+    const stale = rootConsumerModel(clock), staleOwner = await stale.ownerInput(await stale.produce())
+    const request = stale.transport.request
+    let delayedLiveRead = false
+    stale.transport.request = async (url, options) => {
+      const row = await request(url, options)
+      if (!delayedLiveRead && url.startsWith('https://cloudscheduler.googleapis.com/')) {
+        clock.advance(61_000)
+        delayedLiveRead = true
+      }
+      return row
+    }
+    await assert.rejects(staleOwner.run('prepare'), /OPENSWX_REPAIR_CURRENT_APP_INVALID|OPENSWX_REPAIR_RESOURCE_DRIFT/u)
+    assert.equal(delayedLiveRead, true, 'live provider reads remain inside the freshness fence')
+    assert.equal(stale.controls.appBuilds ?? 0, 0); assert.equal(stale.controls.migrationJobs ?? 0, 0)
+  }))
   test('B23_ROOT_STAGE_CACHE_FULL_PRE_MIGRATION_OBSERVATION', async () => rootModelClock(async clock => {
     const h = rootConsumerModel(clock), o = await h.ownerInput(await h.produce())
     await o.run('prepare'); const built = await o.run('build'), media = h.wire.counts.sourceMedia

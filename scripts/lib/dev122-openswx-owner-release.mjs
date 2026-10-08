@@ -615,8 +615,10 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
   }
   async function repairCurrentGuard(descriptor, intent, appProfile, phase, canonical, actor = null) {
     if (!intent || !appProfile) fail('OPENSWX_REPAIR_CURRENT_INTENT_REQUIRED')
-    const started = Date.parse(transport.now())
     const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource), baseline = evidence.pausedBaseline
+    // Historical evidence is immutable and may require many authenticated reads. The freshness
+    // window starts with the live provider observations that it is intended to fence.
+    const started = Date.parse(transport.now())
     const raw = []
     const observed = { ...transport, request: async (url, options) => {
       if ((options?.method ?? 'GET') !== 'GET') fail('OPENSWX_REPAIR_MUTATION_DENIED')
