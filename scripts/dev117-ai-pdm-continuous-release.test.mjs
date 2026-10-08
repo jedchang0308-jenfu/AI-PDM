@@ -525,3 +525,21 @@ test('S1B-20 build-only mode retains protected owner path and cannot reach mutat
     source.replace('case "$EXECUTION_MODE" in full_release|build_only) ;; *) exit 1 ;; esac', 'true'),
   ]) assert.throws(() => assertDev117WorkflowSource(changed), {code:'WORKFLOW_BUILD_ONLY_BOUNDARY_DRIFT'})
 })
+
+test('S1B-20 repair stages keep builder proof reads separate from primary release authority', () => {
+  const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-independent-production.yml', import.meta.url), 'utf8').replaceAll('\r\n', '\n')
+  const mutateJob = (name, mutate) => {
+    const block = source.match(new RegExp(`\\n  ${name}:\\n[\\s\\S]*?(?=\\n  [a-z][a-z-]+:\\n|$)`, 'u'))?.[0]
+    assert.ok(block, `missing ${name} job fixture`)
+    return source.replace(block, mutate(block))
+  }
+  for (const changed of [
+    source.replace('service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com', 'service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com'),
+    source.replace('AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"', 'AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.auth.outputs.access_token }}"'),
+    source.replace('          export_environment_variables: false\n', ''),
+    mutateJob('candidate', block => block
+      .replace(/\n\s+AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN:.*$/mu, '')
+      .replace('      - run: npm ci', '      - run: npm ci\n        env:\n          AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"')),
+    mutateJob('entrypoint', block => block.replace('          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"', '          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"\n          AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.auth.outputs.access_token }}"')),
+  ]) assert.throws(() => assertDev117WorkflowSource(changed), {code:'WORKFLOW_PROOF_READBACK_AUTH_DRIFT'})
+})

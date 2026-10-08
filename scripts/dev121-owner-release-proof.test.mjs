@@ -18,7 +18,7 @@ import { assertDev117ReleaseIntent, buildDev117MigrationPackage, buildDev117Migr
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { assertMigration, readOwnerReleaseProof,
   verifyOwnerProviderReadback, readAiPdmSourceArchive, parseAiPdmMigrationArchive,
-  assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, createAiPdmEvidenceContext,
+  assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, createAiPdmEvidenceContext,
   runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmEvidenceLeaf,
   readAiPdmObservationInputs, assertAiPdmHistoricalMigration } from './lib/dev121-owner-release-proof.mjs'
 
@@ -38,27 +38,71 @@ const b23Revision = execFileSync('git', ['rev-parse', 'HEAD'], {
 }).toString('utf8').trim()
 assert.match(b23Revision, /^[a-f0-9]{40}$/u)
 const b23ProfilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
-let b23Native
-function b23NativeArchive() {
-  if (b23Native) return b23Native
+const b23Native = new Map()
+function b23ArchiveAt(sourceRevision) {
+  if (b23Native.has(sourceRevision)) return b23Native.get(sourceRevision)
   const cwd = fileURLToPath(new URL('..', import.meta.url))
   const git = args => execFileSync('git', args, { cwd, windowsHide: true,
     timeout: 30000, maxBuffer: 268435456 })
-  const profileBytes = git(['show', `${b23Revision}:${b23ProfilePath}`])
+  const profileBytes = git(['show', `${sourceRevision}:${b23ProfilePath}`])
   const profile = JSON.parse(profileBytes)
   const files = new Map([[b23ProfilePath, profileBytes]])
   for (const row of profile.migrations.entries) {
-    const bytes = git(['show', `${b23Revision}:${row.path}`]); files.set(row.path, bytes)
+    const bytes = git(['show', `${sourceRevision}:${row.path}`]); files.set(row.path, bytes)
     assert.equal(sha256(bytes), row.sha256)
   }
-  const n1c = JSON.parse(git(['show', `${b23Revision}:config/platform/dev-010-n1c-ai-pdm.json`]))
-  const { bundle } = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), b23Revision)
+  const n1c = JSON.parse(git(['show', `${sourceRevision}:config/platform/dev-010-n1c-ai-pdm.json`]))
+  const { bundle } = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision)
   for (const entry of bundle.entries) assert.equal(entry.sourceSha256, sha256(files.get(entry.path)), 'actual package retains the exact frozen raw Git SQL binding')
-  const tar = git(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', b23Revision])
-  b23Native = { tar, files, bundle }
-  return b23Native
+  const tar = git(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', sourceRevision])
+  const result = { tar, files, bundle }
+  b23Native.set(sourceRevision, result)
+  return result
 }
+function b23NativeArchive() { return b23ArchiveAt(b23Revision) }
 function b23Deadline() { return new Date(Date.now() + 120000).toISOString() }
+test('B24 LOCAL_TEST branded migration mode preserves 32 and admits only exact 083 append', () => {
+  const fixture = b23NativeArchive(), deadlineAt = b23Deadline()
+  const current = assertAiPdmMigrationContent({ ...fixture, sourceRevision: b23Revision, deadlineAt })
+  const historicalFiles = new Map(fixture.files), historicalProfile = JSON.parse(historicalFiles.get(b23ProfilePath))
+  historicalProfile.migrations.entries = historicalProfile.migrations.entries.slice(0, 32)
+  historicalFiles.set(b23ProfilePath, Buffer.from(canonicalize(historicalProfile)))
+  for (const entry of fixture.bundle.entries.slice(32)) historicalFiles.delete(entry.path)
+  const { manifestSha256: _manifest, ...core } = fixture.bundle
+  const historicalCore = { ...core, entries: core.entries.slice(0, 32) }
+  const historicalBundle = { ...historicalCore, manifestSha256: sha256(canonicalize(historicalCore)) }
+  const historical = assertAiPdmMigrationContent({ files: historicalFiles, bundle: historicalBundle, sourceRevision: b23Revision, deadlineAt })
+  assert.equal(assertAiPdmRepairMigrationMode(historical, historical), 'HISTORICAL_EVIDENCE_REUSED')
+  assert.equal(assertAiPdmRepairMigrationMode(historical, current), 'FORWARD_APPLIED')
+  assert.throws(() => assertAiPdmRepairMigrationMode(current, current), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
+  assert.throws(() => assertAiPdmRepairMigrationMode({ ...historical }, current), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+  const changedFiles = new Map(fixture.files), changedProfile = JSON.parse(changedFiles.get(b23ProfilePath)), changedEntries = structuredClone(fixture.bundle.entries)
+  const prefix = changedEntries[31], changedSql = Buffer.concat([changedFiles.get(prefix.path), Buffer.from('\n-- LOCAL_TEST prefix drift\n')])
+  changedFiles.set(prefix.path, changedSql); prefix.sourceSha256 = sha256(changedSql)
+  prefix.sqlBase64 = changedSql.toString('base64'); prefix.appliedSha256 = sha256(changedSql)
+  changedProfile.migrations.entries[31].sha256 = prefix.sourceSha256
+  changedFiles.set(b23ProfilePath, Buffer.from(canonicalize(changedProfile)))
+  const changedCore = { ...core, entries: changedEntries }, changedBundle = { ...changedCore, manifestSha256: sha256(canonicalize(changedCore)) }
+  const changed = assertAiPdmMigrationContent({ files: changedFiles, bundle: changedBundle, sourceRevision: b23Revision, deadlineAt })
+  assert.throws(() => assertAiPdmRepairMigrationMode(historical, changed), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
+  for (const mutate of [
+    entries => { entries[32].path = 'db/postgres/084_forged_append.sql' },
+    entries => { entries[32].sourceSha256 = '0'.repeat(64) },
+    entries => { entries[32].version = 'ai-pdm-084' },
+    entries => { entries[32].name = 'forged_append' },
+    entries => {
+      const forged = Buffer.from('SELECT 1;\n')
+      entries[32].sqlBase64 = forged.toString('base64'); entries[32].appliedSha256 = sha256(forged)
+    },
+  ]) {
+    const entries = structuredClone(core.entries); mutate(entries)
+    const badCore = { ...core, entries }, bundle = { ...badCore, manifestSha256: sha256(canonicalize(badCore)) }
+    assert.throws(() => assertAiPdmMigrationContent({ files: fixture.files, bundle, sourceRevision: b23Revision, deadlineAt }), /ARCHIVE_BUNDLE_INVALID/u)
+  }
+  assert.throws(() => assertAiPdmMigrationContent({ ...fixture, sourceRevision: '0'.repeat(40), deadlineAt }), /ARCHIVE_BUNDLE_INVALID/u)
+  current.files.set(fixture.bundle.entries[0].path, Buffer.from('tampered'))
+  assert.throws(() => assertAiPdmRepairMigrationMode(historical, current), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+})
 const b23ContextRef = (name, bytes = Buffer.from(name)) => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/${name}.json`, sha256: sha256(bytes) })
 test('B23 opaque context closes permanently and rejects copied, inherited, proxy and foreign handles', async () => {
   const handle = createAiPdmEvidenceContext(), foreign = createAiPdmEvidenceContext()
@@ -199,17 +243,17 @@ function b23Wire(bytes, change = {}) {
   return { source, fetchImpl, calls, unboundedCalls: () => originalArrayBufferCalls }
 }
 
-test('B23 native exact Git source archive authenticates commit/profile/all32 raw SQL with variable padding', () => {
+test('B24 native exact Git source archive authenticates current commit/profile/all raw SQL with variable padding', () => {
   const fixture = b23NativeArchive(), deadlineAt = b23Deadline()
   const parsed = parseAiPdmMigrationArchive({ bytes: fixture.tar, bundle: fixture.bundle, sourceRevision: b23Revision, deadlineAt })
   const git = assertAiPdmMigrationContent({ files: fixture.files, bundle: fixture.bundle, sourceRevision: b23Revision, deadlineAt })
-  assert.equal(parsed.files.size, 33)
+  assert.equal(parsed.files.size, fixture.bundle.entries.length + 1)
   assert.deepEqual(assertAiPdmMigrationEquivalent(git, parsed), { orderedEntriesSha256: git.orderedEntriesSha256, profileMigrationsSha256: git.profileMigrationsSha256 })
   for (const [path, bytes] of parsed.files) { assert.ok(bytes.equals(fixture.files.get(path))); assert.notEqual(bytes.buffer, fixture.tar.buffer) }
   const padded = Buffer.concat([fixture.tar, Buffer.alloc(2048)])
   assert.deepEqual(parseAiPdmMigrationArchive({ bytes: padded, bundle: fixture.bundle, sourceRevision: b23Revision, deadlineAt }).migrations, parsed.migrations)
   const gzip = gzipSync(fixture.tar)
-  assert.equal(parseAiPdmMigrationArchive({ bytes: gzip, gzip: true, bundle: fixture.bundle, sourceRevision: b23Revision, deadlineAt }).files.size, 33)
+  assert.equal(parseAiPdmMigrationArchive({ bytes: gzip, gzip: true, bundle: fixture.bundle, sourceRevision: b23Revision, deadlineAt }).files.size, fixture.bundle.entries.length + 1)
 })
 test('B23 archive wire adapter uses only exact metadata/sealed GET with raw arrayBuffer zero', async () => {
   const fixture = b23NativeArchive(), bytes = gzipSync(fixture.tar), wire = b23Wire(bytes)
@@ -294,7 +338,7 @@ test('B23 local PAX path is authoritative once and UTF8 byte-length framed', () 
   const fixture = b23NativeArchive()
   const longPath = `source/${'a'.repeat(101)}/測試.txt`
   const bytes = b23SelectedTar([b23TarRecord('pax_local', b23Pax('path', longPath), 'x'), b23TarRecord('fallback', Buffer.from('unrelated'))])
-  assert.equal(parseAiPdmMigrationArchive({ bytes, bundle: fixture.bundle, sourceRevision: b23Revision, deadlineAt: b23Deadline() }).files.size, 33)
+  assert.equal(parseAiPdmMigrationArchive({ bytes, bundle: fixture.bundle, sourceRevision: b23Revision, deadlineAt: b23Deadline() }).files.size, fixture.bundle.entries.length + 1)
 })
 for (const [name, records] of [
   ['duplicate logical name', () => [b23TarRecord('source/', Buffer.alloc(0), '5')]],
@@ -364,7 +408,7 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
   buildProject = 'jenfu-platform-prod', ai = false } = {}) {
   const owner = ai ? 'ai-pdm' : 'platform'
   const bucket = ai ? 'jenfu-platform-prod-aipdm-release' : 'jenfu-platform-prod-platform-release'
-  const root = `gs://${bucket}/receipts/releases/${releaseId}/${'c'.repeat(64)}`
+  let root = `gs://${bucket}/receipts/releases/${releaseId}/${'c'.repeat(64)}`
   const objects = new Map()
   function put(uri, value) {
     const bytes = Buffer.from(`${canonicalize(value)}\n`)
@@ -383,6 +427,15 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
   })
   const prerequisites = { sourceLock, authorization: null, readiness: null,
     foundation: null, infra: null, runtimeConfig: null }
+  if (ai) {
+    const intentRef = put(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`, {
+      schemaVersion: 'jenfu.dev117.ai-pdm-release-intent.v2', ownerApplicationId: owner, releaseId, sourceRevision: revision,
+      sourceSha256: 'e'.repeat(64), sourceLockRef: sourceLock, authorizationPolicyRef: sourceLock, readinessReceiptRef: sourceLock,
+      foundationReceiptRef: sourceLock, infraReceiptRef: sourceLock, runtimeConfigRef: sourceLock, migrationManifestSha256: manifest,
+      previousRevision: 'ai-pdm-prod-aaaaaaaaaaaa', deadlineAt: '2026-09-26T01:00:00.000Z',
+    })
+    root = `gs://${bucket}/receipts/releases/${releaseId}/${intentRef.sha256}`
+  }
   const prepare = put(`${root}/prepare.json`, sealed({
     schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: owner,
     releaseId, sourceRevision: revision, stage: 'prepare', previousReceiptRef: null,
@@ -412,7 +465,7 @@ function fixture({ sourceLockChange = {}, migrationChange = {}, terminalChange =
     observedAt: '2026-09-26T00:04:00.000Z', status: 'PASS',
   }))
   const common = { candidateRevision, artifactDigest }
-  const sourceObject = { uri: `gs://${bucket}/source/releases/${releaseId}/${'c'.repeat(64)}/source.tar.gz`,
+  const sourceObject = { uri: `gs://${bucket}/source/releases/${releaseId}/${root.split('/').at(-1)}/source.tar.gz`,
     sha256: sha256(archivedSource), generation: '7',
     crc32c: crc32cBase64(archivedSource) }
   const imageUri = artifactDigest.split('@')[0]
@@ -470,12 +523,12 @@ async function verify(input = fixture()) {
 }
 async function b23FixedRuntimeWire({ sourceSize = archivedSource.length, missingStream = false, missingMetadataStream = false,
   metadataContentLength = null, mediaContentLength = null, metadataOverflow = false, mediaOverflow = false,
-  afterSourceFetch = null, afterSourceRead = null, lateProvider = false, lateProviderNth = 1 } = {}) {
+  afterSourceFetch = null, afterSourceRead = null, lateProvider = false, lateProviderNth = 1, builderReadbackToken = null } = {}) {
   const input = fixture({ ai: true })
   const claim = await readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision: revision, refs: input.refs, token: 'provider-readback-token', fetchImpl: input.fetchImpl })
   const source = claim.providerClaim.sourceObject, object = source.uri.split('/').slice(3).join('/')
   const base = `https://storage.googleapis.com/storage/v1/b/jenfu-platform-prod-aipdm-release/o/${encodeURIComponent(object)}`
-  const counters = { sourceMetadata: 0, sourceMedia: 0, sourceArrayBuffer: 0, provider: 0 }, provider = providerFetch(claim)
+  const counters = { sourceMetadata: 0, sourceMedia: 0, sourceArrayBuffer: 0, provider: 0 }, provider = providerFetch(claim, { providerToken: builderReadbackToken ?? 'provider-readback-token' }), authCalls = []
   const streamCounters = { metadataReads: 0, mediaReads: 0, cancels: 0, allocatedBytes: 0 }
   const responseFor = (bytes, kind, declared, missing, overflow) => {
     const response = new Response(bytes, { headers: declared === null ? {} : { 'content-length': String(declared) } })
@@ -500,6 +553,7 @@ async function b23FixedRuntimeWire({ sourceSize = archivedSource.length, missing
     return response
   }
   const fetchImpl = async (url, options) => {
+    authCalls.push({ url, method: options.method ?? 'GET', authorization: options.headers?.authorization })
     if (url === base) {
       counters.sourceMetadata++
       const response = responseFor(JSON.stringify({ bucket: 'jenfu-platform-prod-aipdm-release', name: object, generation: source.generation, crc32c: source.crc32c, size: String(sourceSize) }), 'metadata', metadataContentLength, missingMetadataStream, metadataOverflow)
@@ -516,8 +570,54 @@ async function b23FixedRuntimeWire({ sourceSize = archivedSource.length, missing
     return provider(url, options)
   }
   const profile = { application: { id: 'ai-pdm' }, artifact: { releaseBucket: 'jenfu-platform-prod-aipdm-release' }, target: { projectId: 'jenfu-platform-prod', region: 'asia-east1', serviceName: 'ai-pdm-prod' } }
-  return { profile, input, claim, counters, streamCounters, transport: createOwnerTransport({ token: 'provider-readback-token', fetchImpl }), fetchImpl }
+  return { profile, input, claim, counters, streamCounters, authCalls, transport: createOwnerTransport({ token: 'provider-readback-token', builderReadbackToken, fetchImpl }), fetchImpl }
 }
+test('B24 secondary builder credential is restricted to authenticated exact Build and encoded image GETs', async () => {
+  const builderToken = 'MODELED-BUILDER-READ-TOKEN-ONLY', wire = await b23FixedRuntimeWire({ builderReadbackToken: builderToken })
+  const observed = await wire.transport.readOwnerSourceProof({ profile: wire.profile, sourceRevision: revision, refs: wire.input.refs, verifyProvider: true })
+  assert.equal(observed.provider.status, 'BUILD_IMAGE_VERIFIED')
+  const providerCalls = wire.authCalls.filter(call => !call.url.startsWith('https://storage.googleapis.com/'))
+  assert.equal(providerCalls.length, 2)
+  assert.equal(providerCalls[0].url, `https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`)
+  assert.equal(providerCalls[1].url, `https://artifactregistry.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/repositories/aipdm-release/dockerImages/${encodeURIComponent(`ai-pdm@sha256:${'1'.repeat(64)}`)}`)
+  for (const call of providerCalls) { assert.equal(call.method, 'GET'); assert.equal(call.authorization, `Bearer ${builderToken}`) }
+  for (const call of wire.authCalls.filter(call => call.url.startsWith('https://storage.googleapis.com/'))) assert.equal(call.authorization, 'Bearer provider-readback-token')
+  assert.equal(JSON.stringify(observed).includes(builderToken), false)
+})
+test('B24 secondary readback rejects wrong actor, owner, project, region, source, token and copied proof', async () => {
+  const wire = await b23FixedRuntimeWire()
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    const { proof } = await wire.transport.readOwnerSourceProof({ profile: wire.profile, sourceRevision: revision, refs: wire.input.refs })
+    const binding = { token: 'MODELED-BUILDER-READ-TOKEN-ONLY', actor: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com', ownerApplicationId: 'ai-pdm', projectId: 'jenfu-platform-prod', region: 'asia-east1', sourceRevision: revision }
+    for (const mutation of [{ actor: 'aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com' }, { ownerApplicationId: 'platform' }, { projectId: 'foreign' }, { region: 'us-central1' }, { sourceRevision: '0'.repeat(40) }, { token: '' }, { token: 'x'.repeat(20) + '\r\n' }, { method: 'POST' }, { resource: 'foreign' }]) {
+      await assert.rejects(verifyOwnerProviderReadback({ proof, token: 'provider-readback-token', fetchImpl: wire.fetchImpl, builderReadback: { ...binding, ...mutation } }), /SECONDARY_READBACK_BINDING_INVALID/u)
+      assert.equal(wire.counters.provider, 0)
+    }
+    await assert.rejects(verifyOwnerProviderReadback({ proof: { ...proof }, token: 'provider-readback-token', fetchImpl: wire.fetchImpl, builderReadback: binding }), /PROVIDER_SOURCE_MISMATCH/u)
+    assert.equal(wire.counters.provider, 0)
+  })
+})
+test('B24 secondary GET rejects redirects and provider resource drift without credential fallback', async () => {
+  for (const kind of ['redirect', 'build-project', 'build-region', 'build-id', 'image-name', 'denied']) {
+    const wire = await b23FixedRuntimeWire({ builderReadbackToken: 'MODELED-BUILDER-READ-TOKEN-ONLY' })
+    const fetchImpl = async (url, options) => {
+      const response = await wire.fetchImpl(url, options)
+      if (!url.startsWith('https://cloudbuild.googleapis.com/') && !url.startsWith('https://artifactregistry.googleapis.com/')) return response
+      if (kind === 'redirect') return new Response('', { status: 302, headers: { location: 'https://foreign.example' } })
+      if (kind === 'denied') return new Response('', { status: 403 })
+      const body = await response.json()
+      if (url.startsWith('https://cloudbuild.googleapis.com/')) {
+        if (kind === 'build-project') body.projectId = 'foreign'
+        if (kind === 'build-region') body.name = body.name.replace('asia-east1', 'us-central1')
+        if (kind === 'build-id') body.id = '00000000-0000-0000-0000-000000000000'
+      } else if (kind === 'image-name') body.name = body.name.replace('/ai-pdm@', '/foreign@')
+      return new Response(JSON.stringify(body))
+    }
+    const transport = createOwnerTransport({ token: 'provider-readback-token', builderReadbackToken: 'MODELED-BUILDER-READ-TOKEN-ONLY', fetchImpl })
+    await assert.rejects(transport.readOwnerSourceProof({ profile: wire.profile, sourceRevision: revision, refs: wire.input.refs, verifyProvider: true }), /PROVIDER_(?:READBACK_FAILED|BUILD_MISMATCH|IMAGE_MISMATCH)/u, kind)
+    assert.ok(wire.authCalls.filter(call => !call.url.startsWith('https://storage.googleapis.com/')).every(call => call.authorization === 'Bearer MODELED-BUILDER-READ-TOKEN-ONLY' && call.method === 'GET'))
+  }
+})
 test('B23 actual fixed four-argument source proof shares bounded source authentication through verifyProvider', async () => {
   const wire = await b23FixedRuntimeWire()
   const result = await wire.transport.readOwnerSourceProof({ profile: wire.profile, sourceRevision: revision, refs: wire.input.refs, verifyProvider: true })
@@ -603,8 +703,14 @@ test('B23 completed historical migration chronology remains strict', async () =>
 // Default CI reports its absence and runs portable behavior/negative cases above.
 const b23RootManifestPath = process.env.DEV122_B23_AUTHENTIC_INPUT_MANIFEST
 const b23RootManifestHash = process.env.DEV122_B23_AUTHENTIC_INPUT_SHA256
+const b24HeadRevision = b23Revision
 if (b23RootManifestPath === undefined && b23RootManifestHash === undefined) console.info('B23_ROOT_AUTHENTIC_REPLAY_NOT_RUN: default CI portable layer; root authentic evidence is a separate mandatory gate')
 else {
+  // Replay the unchanged no-execution contract with an actual own Git source
+  // preceding 083. Forward tests explicitly select the current exact HEAD.
+  const currentHeadRevision = b24HeadRevision
+  const b23Revision = '02fb8c33976d0409c539f8e2c0153e3b5b504257'
+  const b23NativeArchive = () => b23ArchiveAt(b23Revision)
   if (!b23RootManifestPath || !/^[a-f0-9]{64}$/u.test(b23RootManifestHash ?? '')) throw Error('B23_ROOT_MANIFEST_BINDING_INVALID')
   const manifestBytes = readFileSync(b23RootManifestPath)
   assert.equal(sha256(manifestBytes), b23RootManifestHash, 'root controller sealed manifest SHA')
@@ -652,8 +758,11 @@ else {
   const nativeGit = args => execFileSync('git', args, { cwd: fileURLToPath(new URL('..', import.meta.url)), windowsHide: true, timeout: 30000, maxBuffer: 268435456 })
   const currentTree = nativeGit(['ls-tree', '-r', '-z', '--full-tree', b23Revision])
   const currentTreeId = nativeGit(['rev-parse', `${b23Revision}^{tree}`]).toString().trim()
-  const currentBlobs = new Map()
-  function rootSourceReader() {
+  function rootSourceReader(sourceRevision = b23Revision) {
+    const b23Revision = sourceRevision
+    const currentTree = nativeGit(['ls-tree', '-r', '-z', '--full-tree', b23Revision])
+    const currentTreeId = nativeGit(['rev-parse', `${b23Revision}^{tree}`]).toString().trim()
+    const currentBlobs = new Map()
     const permitted = new Set([b23Revision]), calls = []
     const read = (path, revision) => {
       assert.match(path, /^[A-Za-z0-9._/-]+$/u); assert.ok(!path.split('/').some(part => !part || part === '.' || part === '..'))
@@ -669,8 +778,8 @@ else {
     read.authorizeOrigin = revision => { assert.ok(historical.has(revision) || revision === b23Revision); assert.ok(permitted.has(revision) || permitted.size < 9); permitted.add(revision) }
     read.readTree = revision => { assert.ok(permitted.has(revision), `chain tree admission before ${revision}`); return Buffer.from(revision === b23Revision ? currentTree : historical.get(revision).tree) }
     read.readTreeId = revision => { assert.ok(permitted.has(revision), `chain tree-id admission before ${revision}`); return revision === b23Revision ? currentTreeId : historical.get(revision).treeId }
-    read.readArchive = revision => { assert.equal(revision, b23Revision); return Buffer.from(b23NativeArchive().tar) }
-    read.assertCurrentFrozen = () => assert.equal(nativeGit(['rev-parse', 'HEAD']).toString().trim(), b23Revision)
+    read.readArchive = revision => { assert.equal(revision, b23Revision); return Buffer.from(b23ArchiveAt(b23Revision).tar) }
+    read.assertCurrentFrozen = () => assert.equal(nativeGit(['rev-parse', 'HEAD']).toString().trim(), currentHeadRevision, 'fixture selects immutable own Git bytes without changing the executing checkout')
     read.calls = calls
     return read
   }
@@ -686,8 +795,11 @@ else {
     try { return await callback(model) }
     finally { Date.now = originalNow; globalThis.setTimeout = originalTimeout }
   }
-  function rootConsumerModel(clock) {
-    const store = new Map(objects), providerStore = new Map(providers), source = rootSourceReader()
+  function rootConsumerModel(clock, sourceRevision = b23Revision) {
+    const b23Revision = sourceRevision, b23NativeArchive = () => b23ArchiveAt(sourceRevision)
+    const currentTree = nativeGit(['ls-tree', '-r', '-z', '--full-tree', b23Revision])
+    const currentTreeId = nativeGit(['rev-parse', `${b23Revision}^{tree}`]).toString().trim()
+    const store = new Map(objects), providerStore = new Map(providers), source = rootSourceReader(sourceRevision)
     const appProfile = JSON.parse(source(b23ProfilePath, b23Revision)), workerProfile = JSON.parse(source(WORKER_PROFILE_PATH, b23Revision))
     const calls = [], publications = [], sequence = [], controls = {}
     let generation = 9000000000000000
@@ -866,7 +978,16 @@ else {
         providerStore.set(normalizeProvider(`https://artifactregistry.googleapis.com/v1/${image.name}`), Buffer.from(JSON.stringify(image))); return image
       }
       transport.waitArtifactEvidence = async () => ({ resourceUrl: `https://${modelImage}`, buildOccurrenceNames: ['MODELED-B23-BUILD'], discoveryOccurrenceNames: ['MODELED-B23-DISCOVERY'], sbomOccurrenceNames: ['MODELED-B23-SBOM'], vulnerabilityCount: 0, blockingVulnerabilityCount: 0, sbomExport: { resourceUrl: `https://${modelImage}` }, observedAt: clock.now(), status: 'PASS' })
-      transport.runMigrationJob = async () => { controls.migrationJobs = (controls.migrationJobs ?? 0) + 1; throw Error('B23_REPAIR_MUST_NOT_SUBMIT_MIGRATION_JOB') }
+      transport.runMigrationJob = async ({ deployment, outputUri }) => {
+        controls.migrationJobs = (controls.migrationJobs ?? 0) + 1
+        assert.equal(migration.entries.length, 33, 'the equivalent historical mode must never submit a Job')
+        assert.deepEqual(deployment.migrationBundleRef, (await readBytes(deployment.migrationBundleRef.uri)).ref)
+        const historicalMigration = rootObject(rootRefs.migrate)
+        const { receiptSha256: _oldHash, ...core } = historicalMigration
+        const receipt = seal({ ...core, sourceRevision: b23Revision, manifestSha256: migration.manifestSha256,
+          ledgerCount: 33, applied: 1, replayed: 32, executionName: 'ai-pdm-prod-migration-runner-modeled-083', startedAt: clock.now(), completedAt: clock.now() })
+        await putJson(outputUri, receipt, { bucket: 'jenfu-platform-prod-aipdm-release', prefix: 'receipts' })
+      }
       transport.createCandidate = async ({ artifactDigest, runtimeConfig, fingerprint }) => {
         assert.equal(artifactDigest, modelImage); controls.candidates = (controls.candidates ?? 0) + 1
         const tag = `candidate-${fingerprint.slice(0, 12)}`, name = `ai-pdm-prod-${fingerprint.slice(0, 12)}`, tagUri = `https://${tag}---ai-pdm-prod-9536592944.asia-east1.run.app`
@@ -1177,6 +1298,51 @@ else {
     const inputRef = h.seed(`gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/${receiptId}-input.json`, input)
     return executeOpenSwxBootstrap({ stage: 'activate', inputRef, transport: h.transport, readSource: h.source, appProfile: h.appProfile })
   }
+  test('B24_ROOT_FORWARD_083_PAUSED_WORKER_CURRENT_SOURCE_JOB_REPLAY_TERMINAL_READY', async () => rootModelClock(async clock => {
+    const h = rootConsumerModel(clock, currentHeadRevision), o = await h.ownerInput(await h.produce())
+    assert.equal(h.appProfile.migrations.entries.length, 33)
+    const prepared = await o.run('prepare')
+    assert.equal(Object.hasOwn(prepared.value.facts, 'migrationReusePrerequisiteRef'), false)
+    await o.run('prepare'); await o.run('build'); await o.run('build')
+    const migration = await o.run('migrate'), replay = await o.run('migrate')
+    assert.equal(migration.value.schemaVersion, 'jenfu.dev012.migration-receipt.v1')
+    assert.equal(migration.value.ledgerCount, 33); assert.equal(migration.value.applied, 1); assert.equal(migration.value.replayed, 32)
+    assert.deepEqual(replay.ref, migration.ref); assert.equal(h.controls.migrationJobs, 1); assert.equal(h.controls.appBuilds, 1)
+    const before = h.publications.length
+    for (const [field, value] of [['sourceRevision', capsule.sourceRevision], ['manifestSha256', '0'.repeat(64)], ['ledgerCount', 32]]) {
+      const original = h.store.get(o.paths.migrate), { receiptSha256: _seal, ...core } = JSON.parse(original.bytes)
+      const changed = { ...core, [field]: value }
+      const changedRef = h.seed(o.paths.migrate, { ...changed, receiptSha256: sha256(canonicalize(changed)) })
+      await assert.rejects(h.transport.readOwnerSourceProof({ profile: h.appProfile, sourceRevision: currentHeadRevision,
+        refs: { prepare: prepared.ref, migrate: changedRef, terminal: null }, verifyProvider: true }), /MIGRATION_INVALID|REPAIR_FORWARD_MIGRATION_INVALID/u, field)
+      h.store.set(o.paths.migrate, original)
+    }
+    assert.equal(h.publications.length, before); assert.equal(h.controls.migrationJobs, 1)
+    for (const stage of ['candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical']) await o.run(stage)
+    const terminal = await o.run('finalize')
+    assert.equal(terminal.value.facts.databaseDisposition, 'FORWARD_APPLIED')
+    assert.equal(Object.hasOwn(terminal.value.facts, 'migrationEvidenceRef'), false)
+    assert.equal(Object.hasOwn(terminal.value.facts.openswxWorker, 'finiteSmokeRef'), false)
+    assert.equal(h.controls.runs ?? 0, 0); assert.equal(h.controls.resumes ?? 0, 0); assert.equal(h.scheduler().state, 'PAUSED')
+    await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+      const observed = await h.transport.readOwnerSourceProof({ profile: h.appProfile, sourceRevision: currentHeadRevision,
+        refs: { prepare: prepared.ref, migrate: migration.ref, terminal: terminal.ref }, verifyProvider: true })
+      const graph = await readAiPdmObservationInputs(observed.proof)
+      assert.equal(graph.repair, true); assert.equal(graph.migrationMode, 'FORWARD_APPLIED')
+      assert.equal(graph.content.files.size, 34); assertAiPdmHistoricalMigration(graph.original)
+      assert.equal(observed.proof.disposition, 'released'); assert.equal(Object.hasOwn(observed.proof, 'migrationEvidenceRef'), false)
+    })
+    const original = h.store.get(o.paths.terminal), { receiptSha256: _seal, ...core } = JSON.parse(original.bytes)
+    const changed = { ...core, facts: { ...core.facts, databaseDisposition: 'HISTORICAL_EVIDENCE_REUSED', migrationEvidenceRef: migration.ref } }
+    const changedRef = h.seed(o.paths.terminal, { ...changed, receiptSha256: sha256(canonicalize(changed)) })
+    await assert.rejects(h.transport.readOwnerSourceProof({ profile: h.appProfile, sourceRevision: currentHeadRevision,
+      refs: { prepare: prepared.ref, migrate: migration.ref, terminal: changedRef }, verifyProvider: true }), /TERMINAL_INVALID/u)
+    h.store.set(o.paths.terminal, original)
+    const activation = await rootActivate(h, o, 'B24-MODELED-FORWARD-ACTIVATION')
+    assert.equal(activation.value.facts.workerStatus, 'READY'); assert.equal(h.scheduler().state, 'ENABLED')
+    assert.equal(h.controls.runs, 1); assert.equal(h.controls.resumes, 1)
+    assert.equal(h.controls.migrationJobs, 1)
+  }))
   test('B23_ROOT_NORMAL_ACTOR_STDOUT_READY_AND_DAILY_REUSE', async () => rootModelClock(async clock => {
     const { h, o } = await rootReleased(clock), activation = await rootActivate(h, o)
     assert.equal(activation.value.facts.workerStatus, 'READY'); assert.equal(activation.value.facts.schedulerState, 'ENABLED')
@@ -1834,7 +2000,7 @@ test('build provenance must bind the source object, builder and registry digest'
 })
 
 function providerFetch(proof, { buildChange = {}, imageChange = {}, imageStatus = 200,
-  sourceBytes = archivedSource, buildProject = 'jenfu-platform-prod' } = {}) {
+  sourceBytes = archivedSource, buildProject = 'jenfu-platform-prod', providerToken = 'provider-readback-token' } = {}) {
   const ai = proof.owner === 'ai-pdm'
   const bucket = ai ? 'jenfu-platform-prod-aipdm-release' : 'jenfu-platform-prod-platform-release'
   const artifactPath = ai ? 'aipdm-release/ai-pdm' : 'platform-release/platform'
@@ -1854,7 +2020,7 @@ function providerFetch(proof, { buildChange = {}, imageChange = {}, imageStatus 
   const image = { name: `projects/jenfu-platform-prod/locations/asia-east1/repositories/${ai ? 'aipdm-release' : 'platform-release'}/dockerImages/${ai ? 'ai-pdm' : 'platform'}@${digest}`,
     uri: proof.artifactDigest, ...imageChange }
   return async (url, options) => {
-    assert.equal(options.headers.authorization, 'Bearer provider-readback-token')
+    assert.equal(options.headers.authorization, `Bearer ${url.startsWith('https://storage.googleapis.com/') ? 'provider-readback-token' : providerToken}`)
     if (url.startsWith('https://storage.googleapis.com/storage/v1/')) {
       if (url.includes('alt=media')) return new Response(sourceBytes)
       return new Response(JSON.stringify({ generation: source.generation,

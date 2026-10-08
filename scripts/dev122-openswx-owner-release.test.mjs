@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
-import { assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, assertTerminalExecution, listWorkerExecutions } from './lib/dev122-openswx-owner-release.mjs'
+import { assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, assertTerminalExecution, listWorkerExecutions, createOpenSwxOwnerRelease } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
 const profile = JSON.parse(profileBytes)
@@ -48,6 +48,31 @@ test('B23 repair descriptor derives full mode and preserved credentials without 
   assert.equal(value.purpose, 'full'); assert.equal(value.tokenSecretVersion, token); assert.equal(value.releaseVariant, 'PAUSED_APP_REPAIR')
   for (const key of ['bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef']) assert.equal(Object.hasOwn(value, key), false)
   for (const patch of [{ purpose: 'build_only' }, { releaseVariant: 'DAILY' }, { pausedDrainedRef: ref('forged') }, { bounds: { ...value.bounds, maxExecutionPages: 5 } }, { tokenSecretVersion: token.replace('/7', '/latest') }]) assert.throws(() => assertWorkerDescriptor({ ...value, ...patch }, profile, retained.workerProfileSha256, sourceRevision))
+})
+
+test('B24 finalize cannot use forward pending-only mode for an ordinary worker or an unbound migration profile', async () => {
+  const { baseline, retained } = b23Baseline(), baselineRef = ref('paused-baseline'), associationRef = ref('association')
+  const association = { ...baseline.source, schemaVersion: 'aipdm.openswx-worker-build-association.v2', resourceBasis: 'PAUSED_APP_REPAIR', resourceAssociation: { readbackRef: baselineRef }, priorActivationRef: baseline.priorActivationRef }
+  const repair = buildPausedRepairDescriptor({ profile, association, associationRef, baseline, baselineRef, retainedDescriptor: retained, retainedDescriptorRef: baseline.retainedWorkerDescriptorRef })
+  for (const scenario of ['ordinary', 'wrong-mode', 'wrong-count', 'wrong-083']) {
+    const descriptor = scenario === 'ordinary' ? workerDescriptor('full') : repair
+    const currentProfile = structuredClone(appProfile), descriptorBytes = Buffer.from(canonicalize(descriptor))
+    if (scenario === 'wrong-count') currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 32)
+    if (scenario === 'wrong-083') currentProfile.migrations.entries[32].sha256 = 'f'.repeat(64)
+    const descriptorRef = { ...ref('current-full'), sha256: sha256(descriptorBytes) }
+    let reads = 0, providerReads = 0, writes = 0
+    const transport = {
+      async readJson(actual) { reads++; assert.deepEqual(actual, descriptorRef); return { value: descriptor, bytes: descriptorBytes, ref: descriptorRef } },
+      async request() { providerReads++; throw Error('UNEXPECTED_PROVIDER_READ') },
+      async putJson() { writes++; throw Error('UNEXPECTED_PUBLICATION') },
+    }
+    const owner = createOpenSwxOwnerRelease({ transport, readSource(path, actualRevision) {
+      assert.equal(path, 'config/release/dev122-openswx-worker.json'); assert.equal(actualRevision, sourceRevision); return profileBytes
+    }, environment: { GITHUB_WORKFLOW_REF: `${currentProfile.application.repository}/${currentProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'full_release' } })
+    await assert.rejects(owner.finalize({ intent: { sourceRevision, openswxWorkerRef: descriptorRef, deadlineAt: '2999-01-01T00:00:00Z' }, profile: currentProfile,
+      canonical: null, migrationMode: scenario === 'wrong-mode' ? 'arbitrary' : 'FORWARD_APPLIED' }), /OPENSWX_FINALIZE_MIGRATION_MODE_INVALID/u)
+    assert.deepEqual({ reads, providerReads, writes }, { reads: 1, providerReads: 0, writes: 0 }, scenario)
+  }
 })
 test('B23 baseline rejects drift, nested excess, short fences and false database admission', () => {
   const { baseline } = b23Baseline(); assertPausedRepairBaseline(baseline, profile)

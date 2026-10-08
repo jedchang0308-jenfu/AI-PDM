@@ -142,6 +142,9 @@ export function buildDev117MigrationBundle(profile, packageValue, sourceRevision
 
 export function assertDev117WorkflowSource(source) {
   source = source.replaceAll('\r\n', '\n')
+  const jobBlocks = Object.fromEntries([...source.matchAll(/\n  ([a-z][a-z-]+):\n([\s\S]*?)(?=\n  [a-z][a-z-]+:\n|$)/gu)].map((match) => [match[1], match[2]]))
+  const proofReaderStages = { prepare: { actor: 'verifier', stage: 'prepare' }, migrate: { actor: 'deployer', stage: 'migrate' }, candidate: { actor: 'deployer', stage: 'candidate' }, verify: { actor: 'verifier', stage: 'verify' }, finalize: { actor: 'deployer', stage: 'finalize' }, failure: { actor: 'deployer', stage: 'rollback' } }
+  const builderReadTokenBinding = 'AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"'
   const inputBlock = source.match(/workflow_dispatch:[^\S\r\n]*\r?\n\s*inputs:[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\s*concurrency:/)?.[1] || ''
   const keys = [...inputBlock.matchAll(/^\s{6}([A-Za-z0-9_-]+):/gm)].map((match) => match[1])
   if (JSON.stringify(keys) !== JSON.stringify(['releaseCapsuleRef', 'executionMode'])) fail('WORKFLOW_INPUT_DRIFT', 'Workflow accepts one capsule and a bounded execution mode')
@@ -155,6 +158,28 @@ export function assertDev117WorkflowSource(source) {
   if (!/\n  failure:[\s\S]*?needs:\s*\[prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical, finalize\]/u.test(source)) fail('OPENSWX_FINALIZE_FAILURE_WIRING_MISSING')
   if (/CAPSULE_PROVIDER_FETCH_REQUIRED|run:\s*echo\s/iu.test(source)) fail('PROVIDER_PLACEHOLDER_ACTIVE', 'Workflow contains a provider placeholder')
   if ((source.match(/^    environment: production$/gmu) ?? []).length !== 11 || (source.match(/DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:/gu) ?? []).length !== 2 || (source.match(/DEV012_AIPDM_FIREBASE_API_KEY:/gu) ?? []).length !== 2 || source.includes('DEV012_AIPDM_FIREBASE_ID_TOKEN')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', 'Protected environment or refresh-token smoke binding drifted')
+  for (const [job, { actor, stage }] of Object.entries(proofReaderStages)) {
+    const block = jobBlocks[job] ?? ''
+    const steps = block.split(/\n      - /u).slice(1).map((value) => `\n      - ${value}`)
+    const executeSteps = steps.filter((value) => value.includes(`run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage ${stage} `))
+    const primaryAuthBlock = block.match(/\n      - id: auth\n([\s\S]*?)(?=\n      - )/u)?.[1] ?? ''
+    const builderReadAuthBlock = block.match(/\n      - id: proof_builder_read_auth\n([\s\S]*?)(?=\n      - )/u)?.[1] ?? ''
+    if ((block.match(/google-github-actions\/auth@v3/gu) ?? []).length !== 2
+      || executeSteps.length !== 1
+      || !primaryAuthBlock.includes(`service_account: aipdm-prod-${actor}@jenfu-platform-prod.iam.gserviceaccount.com`)
+      || !builderReadAuthBlock.includes('service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com')
+      || !builderReadAuthBlock.includes('export_environment_variables: false')
+      || !executeSteps[0]?.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"')
+      || !executeSteps[0]?.includes(builderReadTokenBinding)
+      || steps.filter((value) => value.includes(builderReadTokenBinding)).length !== 1) fail('WORKFLOW_PROOF_READBACK_AUTH_DRIFT', `Protected ${job} proof reader must keep primary authority separate and pass its exact builder GET token only to stage ${stage}`)
+  }
+  for (const job of ['build', 'entrypoint', 'decision', 'activate', 'canonical']) {
+    const block = jobBlocks[job] ?? ''
+    if (block.includes('proof_builder_read_auth') || block.includes('AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN:')) fail('WORKFLOW_PROOF_READBACK_AUTH_DRIFT', `Protected ${job} must not receive a secondary builder token`)
+  }
+  if ((source.match(/AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN:/gu) ?? []).length !== 6
+    || (source.match(/proof_builder_read_auth/gu) ?? []).length !== 12
+    || (source.match(/export_environment_variables: false/gu) ?? []).length !== 6) fail('WORKFLOW_PROOF_READBACK_AUTH_DRIFT', 'Secondary builder proof authority must be limited to the six stages that revalidate Build/Image evidence')
   for (const block of source.split(/^  (?=[a-z][a-z-]+:)/gmu).filter((value) => value.includes('google-github-actions/auth@v3'))) if (block.indexOf('actions/checkout@v4') < 0 || block.indexOf('actions/checkout@v4') > block.indexOf('google-github-actions/auth@v3')) fail('WORKFLOW_AUTH_ORDER_DRIFT', 'Checkout must precede WIF authentication')
   if (/\.\.\/Jenfu-Platform|\.\.\/OrgMaster|checkout[^\n]+repository:/i.test(source)) fail('SIBLING_CHECKOUT_DENIED', 'Workflow references sibling source')
   return true

@@ -785,13 +785,21 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     const saved = await write(uri, workerReceipt({ descriptor: descriptor.value, kind: 'normal-job', actor: 'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', image: evidence.image, template, observedAt: transport.now(), previousRefs: [prior.ref, descriptor.value.pausedDrainedRef], facts: { tokenSecretVersion: assertNumericSecret(descriptor.value.tokenSecretVersion, descriptor.profile.tokenSecretId), priorJobRef: prior.ref } }))
     return saved.ref
   }
-  async function finalize({ intent, profile, canonical }) {
+  async function finalize({ intent, profile, canonical, migrationMode = null }) {
     const descriptor = await resolve(intent, profile); if (!descriptor) return null
+    if (![null, 'HISTORICAL_EVIDENCE_REUSED', 'FORWARD_APPLIED'].includes(migrationMode) ||
+        (migrationMode === 'FORWARD_APPLIED' && (!isPausedAppRepair(descriptor.value) || profile.migrations?.entries?.length !== 33 ||
+          profile.migrations.entries[32].path !== 'db/postgres/083_dev121_authorized_first_login_account.sql' ||
+          profile.migrations.entries[32].sha256 !== 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9'))) fail('OPENSWX_FINALIZE_MIGRATION_MODE_INVALID')
     const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
     await pausedAndDrained(descriptor, { intent, appProfile: profile, phase: 'FINALIZE', canonical })
     const template = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion)
+    const pending = { status: 'ACTIVATION_PENDING', claimProof: 'PENDING_NORMAL_ACTOR_STDOUT_READBACK', descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: evidence.image, normalTemplateSha256: sha256(canonicalize(template)), sourceEntryRef: evidence.artifact.sourceEntryProof }
+    // A forward migration releases the app while retaining the paused worker.
+    // Its separately authorized input-activate consumer owns finite execution/ACK.
+    if (migrationMode === 'FORWARD_APPLIED') return pending
     const terminal = await runWorkerFinite({ transport, descriptor: descriptor.value, profile: descriptor.profile, template, receiptUri: `${rootFor(intent)}/finite-smoke.json`, actor: 'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', deadlineAt: intent.deadlineAt })
-    return { finiteSmokeRef: terminal.ref, status: 'ACTIVATION_PENDING', claimProof: 'PENDING_NORMAL_ACTOR_STDOUT_READBACK', descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: evidence.image, normalTemplateSha256: sha256(canonicalize(template)), sourceEntryRef: evidence.artifact.sourceEntryProof }
+    return { finiteSmokeRef: terminal.ref, ...pending }
   }
   async function recover({ intent, profile, candidate = null }) {
     const descriptor = await resolve(intent, profile); if (!descriptor) return null

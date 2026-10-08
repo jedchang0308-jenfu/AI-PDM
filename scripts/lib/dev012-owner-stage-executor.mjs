@@ -2,14 +2,14 @@ import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repa
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
-import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
+import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, assertMigrationSubmissionIntent, migrationSubmissionIntentUri, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt } from './dev012-owner-release-runtime.mjs'
 import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDataCutoverHandoff, assertDataCutoverImportReceipt, assertDataCutoverTeardownReceipt } from './dev012-production-data-cutover.mjs'
 import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProviderStage } from './dev012-production-data-cutover-provider.mjs'
 import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
 import { buildDev014ConsumerConformance } from './dev014-consumer-conformance.mjs'
 import { assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
 import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease, isPausedAppRepair, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
-import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, assertAiPdmHistoricalMigration, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmMigrationBundleBytes, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
+import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, assertAiPdmHistoricalMigration, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
@@ -426,32 +426,35 @@ async function readRepairStageBasis({ worker, intent, intentRef, profile, transp
     const content = assertAiPdmMigrationContent({ files, bundle: current.bundle, sourceRevision: intent.sourceRevision, deadlineAt: intent.deadlineAt })
     const frozenProfile = JSON.parse(files.get(profilePath).toString('utf8'))
     if (canonicalize(frozenProfile.migrations) !== canonicalize(profile.migrations)) fail('REPAIR_PROFILE_MISMATCH')
-    const equivalent = assertAiPdmMigrationEquivalent(original.content, content)
+    const migrationMode = assertAiPdmRepairMigrationMode(original.content, content)
+    const equivalent = migrationMode === 'HISTORICAL_EVIDENCE_REUSED' ? assertAiPdmMigrationEquivalent(original.content, content) : null
     if (currentDeployment) {
       if (!currentPrepare) fail('REPAIR_PREBUILD_PREPARE_REQUIRED')
+      if (migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(currentPrepare.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
       const observed = await transport.readOwnerSourceProof({ profile, sourceRevision: intent.sourceRevision, refs: { prepare: currentPrepare.ref, migrate: null, terminal: null }, verifyProvider: true })
       if (observed.proof.disposition !== 'build_only' || observed.proof.releaseAuthority !== false || observed.proof.migrationVerified !== false || observed.provider?.status !== 'BUILD_IMAGE_VERIFIED'
         || Object.hasOwn(observed.proof, 'migrate') || Object.hasOwn(observed.proof, 'terminal')) fail('REPAIR_PREBUILD_SOURCE_INVALID')
       const graph = await readAiPdmObservationInputs(observed.proof)
       if (graph.migrate !== null || graph.terminal !== null || graph.original !== null || graph.repair || canonicalize(graph.intentRef) !== canonicalize(intentRef) || canonicalize(graph.chain.deployment.ref) !== canonicalize(currentDeployment.ref)) fail('REPAIR_PREBUILD_SOURCE_INVALID')
-      assertAiPdmMigrationEquivalent(content, graph.content); assertAiPdmMigrationEquivalent(original.content, graph.content)
+      assertAiPdmMigrationEquivalent(content, graph.content)
+      if (assertAiPdmRepairMigrationMode(original.content, graph.content) !== migrationMode) fail('REPAIR_PREBUILD_BUNDLE_INVALID')
       if (graph.bundle.ref.sha256 !== current.bundleSha256 || canonicalize(graph.bundle.ref) !== canonicalize(currentDeployment.value.migrationBundleRef)) fail('REPAIR_PREBUILD_BUNDLE_INVALID')
     }
     currentExecutionDeadline(intent)
-    return { descriptor, baseline: evidence.pausedBaseline, original, current, content, equivalent,
-      prerequisite: sealRepairEvidence({ schemaVersion: 'aipdm.paused-app-repair-migration-prerequisite.v1', ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, sourceRevision: intent.sourceRevision,
+    return { descriptor, baseline: evidence.pausedBaseline, original, current, content, equivalent, migrationMode,
+      prerequisite: equivalent ? sealRepairEvidence({ schemaVersion: 'aipdm.paused-app-repair-migration-prerequisite.v1', ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, sourceRevision: intent.sourceRevision,
         releaseCapsuleRef: intentRef, sourceLockRef: intent.sourceLockRef, workerDescriptorRef: intent.openswxWorkerRef, pausedBaselineRef: descriptor.value.pausedBaselineRef,
         servingCapsuleRef: evidence.pausedBaseline.servingApp.capsuleRef, historicalCapsuleRef: original.intentRef, historicalDeploymentRef: original.deploymentRef, historicalCandidateRef: original.candidateRef,
         historicalMigrationReceiptRef: original.migrationRef, historicalMigrationBundleRef: original.bundleRef, currentMigrationBundleSha256: current.bundleSha256,
         currentMigrationManifestSha256: current.bundle.manifestSha256, historicalMigrationManifestSha256: original.bundle.manifestSha256, ...equivalent, entryCount: 32, baselineCount: 15,
         historicalLedgerCount: original.migration.ledgerCount, historicalCompletedAt: original.migration.completedAt, status: 'KNOWN_HISTORICAL_PREREQUISITE', databaseLiveState: 'UNKNOWN', migrationExecutionPolicy: 'NO_JOB_SUBMISSION',
-        observedAt: transport.now(), deadlineAt: intent.deadlineAt, actor: profile.identities.verifier, ownerRunRef: `https://api.github.com/repos/${profile.application.repository}/actions/runs/${environment.GITHUB_RUN_ID}` }) }
+        observedAt: transport.now(), deadlineAt: intent.deadlineAt, actor: profile.identities.verifier, ownerRunRef: `https://api.github.com/repos/${profile.application.repository}/actions/runs/${environment.GITHUB_RUN_ID}` }) : null }
   })
   currentExecutionDeadline(intent)
   return result
 }
 async function repairPrerequisite({ basis, transport, paths, profile, intent, intentRef, publish = false }) {
-  if (!basis) return null
+  if (!basis || basis.migrationMode === 'FORWARD_APPLIED') return null
   const uri = `gs://${profile.artifact.releaseBucket}/${paths.root}/migration-reuse-prerequisite.json`
   let row = await optionalNamedJson(transport, uri, profile)
   if (!row && publish) {
@@ -466,6 +469,15 @@ async function repairPrerequisite({ basis, transport, paths, profile, intent, in
   return row
 }
 async function validateRepairMigration({ basis, transport, paths, profile, intent, intentRef, deployment, receipt }) {
+  if (basis.migrationMode === 'FORWARD_APPLIED') {
+    assertMigration(receipt.value, 'ai-pdm', { ledger: profile.migrations.ledger, migrationBootstrap: true, principalContractLedgerFloor: 20 }, intent.sourceRevision, intent.migrationManifestSha256)
+    if (receipt.value.ledgerCount !== basis.current.bundle.entries.length || receipt.value.baselineCount !== basis.current.bundle.baselineCount ||
+        Date.parse(receipt.value.completedAt) > Date.parse(intent.deadlineAt)) fail('MIGRATION_RECEIPT_INVALID')
+    const bundle = await transport.readBytes(deployment.value.migrationBundleRef.uri, { prefixes: ['source/migration-bundles'], expectedSha256: deployment.value.migrationBundleRef.sha256 })
+    assertAiPdmMigrationBundleBytes({ bytes: bundle.bytes, bundle: basis.current.bundle, sourceRevision: intent.sourceRevision, ref: deployment.value.migrationBundleRef })
+    currentExecutionDeadline(intent)
+    return receipt
+  }
   const prerequisite = await repairPrerequisite({ basis, transport, paths, profile, intent, intentRef })
   assertPausedMigrationAssociation(receipt.value, { intent, intentRef, prerequisite: prerequisite.value, prerequisiteRef: prerequisite.ref, deployment: deployment.value, deploymentRef: deployment.ref })
   currentExecutionDeadline(intent)
@@ -557,6 +569,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       // prerequisites and the live baseline before reusing its prepare receipt.
       if (canonicalize(existing.value.facts.entrypointBaseline) !== canonicalize(transport.entrypointSnapshot(service))) fail('PREPARE_BASELINE_MISMATCH')
       if (prerequisite && canonicalize(existing.value.facts.migrationReusePrerequisiteRef) !== canonicalize(prerequisite.ref)) fail('REPAIR_PREREQUISITE_MISMATCH')
+      if (repair?.migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(existing.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
       return existing
     }
     return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(continuation?.kind === 'PRINCIPAL_ORDINARY_ABORT' ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
@@ -570,6 +583,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (repair && prepare.value.facts.dataCutover?.status !== 'NEUTRAL_AUTHORITY_LIVE') fail('REPAIR_DATA_CUTOVER_BASIS_INVALID')
     const prerequisite = await repairPrerequisite({ basis: repair, transport, paths, profile, intent, intentRef })
     if (prerequisite && canonicalize(prepare.value.facts.migrationReusePrerequisiteRef) !== canonicalize(prerequisite.ref)) fail('REPAIR_PREREQUISITE_MISMATCH')
+    if (repair?.migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(prepare.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
     if (existing) {
       assertDeployment(existing.value, profile, intent, intentRef, capsuleSha256)
       await readStage(transport, paths, profile, intent, 'build')
@@ -587,7 +601,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (repair) {
       const archived = parseAiPdmMigrationArchive({ bytes: sourceBytes, sourceRevision: intent.sourceRevision, bundle: repair.current.bundle, deadlineAt: intent.deadlineAt })
       assertAiPdmMigrationEquivalent(repair.content, archived)
-      assertAiPdmMigrationEquivalent(repair.original.content, archived)
+      if (assertAiPdmRepairMigrationMode(repair.original.content, archived) !== repair.migrationMode) fail('REPAIR_PREBUILD_BUNDLE_INVALID')
     }
     const sourceUri = `gs://${profile.artifact.releaseBucket}/source/releases/${intent.releaseId}/${capsuleSha256}/source.tar.gz`
     const sourceArchive = gzipSync(sourceBytes, { level: 9 })
@@ -616,7 +630,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const deployment = await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256)
     const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
     const existing = await optionalNamedJson(transport, paths.migrate, profile)
-    if (repair) {
+    if (repair?.migrationMode === 'HISTORICAL_EVIDENCE_REUSED') {
       const prerequisite = await repairPrerequisite({ basis: repair, transport, paths, profile, intent, intentRef })
       const bundle = await transport.readBytes(deployment.value.migrationBundleRef.uri, { prefixes: ['source/migration-bundles'], expectedSha256: deployment.value.migrationBundleRef.sha256 })
       assertAiPdmMigrationBundleBytes({ bytes: bundle.bytes, bundle: repair.current.bundle, sourceRevision: intent.sourceRevision, ref: deployment.value.migrationBundleRef })
@@ -633,10 +647,17 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       }
       return validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef, deployment, receipt })
     }
+    if (repair) {
+      const prepare = await readStage(transport, paths, profile, intent, 'prepare')
+      if (Object.hasOwn(prepare.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
+      const bundle = await transport.readBytes(deployment.value.migrationBundleRef.uri, { prefixes: ['source/migration-bundles'], expectedSha256: deployment.value.migrationBundleRef.sha256 })
+      assertAiPdmMigrationBundleBytes({ bytes: bundle.bytes, bundle: repair.current.bundle, sourceRevision: intent.sourceRevision, ref: deployment.value.migrationBundleRef })
+    }
     if (!existing) await transport.runMigrationJob({ profile, deployment: deployment.value,
       principalOnlyFenceRef: intent.principalOnlyFenceRef ?? null,
       outputUri: paths.migrate, deadlineAt: intent.deadlineAt })
     const receipt = existing ?? await readNamedJson(transport, paths.migrate, profile)
+    if (repair) return validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef, deployment, receipt })
     if (receipt.value?.schemaVersion !== 'jenfu.dev012.migration-receipt.v1' || receipt.value.ownerApplicationId !== profile.application.id || receipt.value.sourceRevision !== intent.sourceRevision || receipt.value.manifestSha256 !== intent.migrationManifestSha256 || receipt.value.status !== 'PASS' || receipt.value.boundaryStatus !== 'PASS' || (profile.productionData?.required === true && receipt.value.productionData?.status !== 'PASS')) fail('MIGRATION_RECEIPT_INVALID')
     return receipt
   }
@@ -670,6 +691,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
 
   if (stage === 'verify') {
     const candidate = await readStage(transport, paths, profile, intent, 'candidate')
+    const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
+    if (repair) await validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef,
+      deployment: await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256), receipt: await readNamedJson(transport, paths.migrate, profile) })
     const entrypoint = await readStage(transport, paths, profile, intent, 'entrypoint')
     if (entrypoint.value.previousReceiptRef?.uri !== candidate.ref.uri || entrypoint.value.previousReceiptRef?.sha256 !== candidate.ref.sha256 || entrypoint.value.facts.profileSha256 !== profileSha256) fail('ENTRYPOINT_RECEIPT_JOIN_INVALID')
     const service = await transport.getService(profile)
@@ -735,14 +759,14 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
     const migration = repair ? await readNamedJson(transport, paths.migrate, profile) : null
     if (repair) await validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef, deployment: await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256), receipt: migration })
-    const workerFinalization = worker ? await worker.finalize({ intent, profile, canonical }) : null
+    const workerFinalization = worker ? await worker.finalize({ intent, profile, canonical, migrationMode: repair?.migrationMode ?? null }) : null
     await transport.removeCandidateTag({ profile, tag: candidate.value.facts.tag, candidateRevision: candidate.value.facts.candidateRevision, expectedActiveRevision: candidate.value.facts.candidateRevision, deadlineAt: intent.deadlineAt })
     const finalized = await writeStage(transport, paths, profile, intent, 'finalize', canonical.ref, { canonicalReceiptRef: canonical.ref, candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, temporaryCandidateTags: 0, result: 'RELEASED', ...(workerFinalization ? { openswxWorker: workerFinalization } : {}) })
     const conformance = buildDev014ConsumerConformance({ appId: profile.application.id, sourceRevision: intent.sourceRevision, artifactDigest: candidate.value.facts.artifactDigest.split('@').at(-1), failSeekingEvidenceRef: canonical.ref.uri, verifiedAt: transport.now() })
     const conformanceResult = await transport.putJson(`gs://${profile.artifact.releaseBucket}/${paths.root}/dev014-consumer-conformance.json`, conformance, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const readiness = await readNamedJson(transport, intent.readinessReceiptRef.uri, profile, intent.readinessReceiptRef.sha256, ['receipts'])
     const dev013Transition = dev013TerminalTransitionFact(readiness.value, intent)
-    const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: finalized.ref, facts: { result: 'RELEASED', candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, databaseDisposition: repair ? 'HISTORICAL_EVIDENCE_REUSED' : 'FORWARD_APPLIED', ...(repair ? { migrationEvidenceRef: migration.ref } : {}), remainingHumanAction: 0, dev014ConsumerConformanceRef: conformanceResult.ref, ...(workerFinalization ? { openswxWorker: workerFinalization } : {}), ...(dev013Transition ? { dev013Transition } : {}) }, observedAt: transport.now() })
+    const terminal = stageReceipt({ profile, intent, stage: 'terminal', previousReceiptRef: finalized.ref, facts: { result: 'RELEASED', candidateRevision: candidate.value.facts.candidateRevision, artifactDigest: candidate.value.facts.artifactDigest, databaseDisposition: repair?.migrationMode ?? 'FORWARD_APPLIED', ...(repair?.migrationMode === 'HISTORICAL_EVIDENCE_REUSED' ? { migrationEvidenceRef: migration.ref } : {}), remainingHumanAction: 0, dev014ConsumerConformanceRef: conformanceResult.ref, ...(workerFinalization ? { openswxWorker: workerFinalization } : {}), ...(dev013Transition ? { dev013Transition } : {}) }, observedAt: transport.now() })
     const terminalResult = await transport.putJson(paths.terminal, terminal, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
     const prepare = await readStage(transport, paths, profile, intent, 'prepare')
     if (profile.dataCutover?.postLiveCleanupRequired === true && prepare.value.facts?.dataCutover?.status === 'DATA_READY_FOR_CANDIDATE') {
@@ -765,8 +789,13 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
   if (migration && repair) await validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef, deployment: await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256), receipt: migration })
   else if (migration && (migration.value?.schemaVersion !== 'jenfu.dev012.migration-receipt.v1' || migration.value.ownerApplicationId !== profile.application.id || migration.value.sourceRevision !== intent.sourceRevision || migration.value.manifestSha256 !== intent.migrationManifestSha256 || migration.value.status !== 'PASS' || migration.value.boundaryStatus !== 'PASS' || (profile.productionData?.required === true && migration.value.productionData?.status !== 'PASS'))) fail('MIGRATION_RECEIPT_INVALID')
-  const databaseDisposition = migration ? repair ? 'HISTORICAL_EVIDENCE_REUSED' : 'FORWARD_APPLIED' : 'NOT_APPLIED'
-  const migrationEvidence = migration && repair ? { migrationEvidenceRef: migration.ref } : {}
+  const submission = migration ? null : await optionalNamedJson(transport, migrationSubmissionIntentUri(profile, paths.migrate), profile)
+  if (submission) {
+    const deployment = await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256)
+    assertMigrationSubmissionIntent(submission.value, { profile, deployment: deployment.value, outputUri: paths.migrate, deadlineAt: intent.deadlineAt, principalOnlyFenceRef: intent.principalOnlyFenceRef ?? null })
+  }
+  const databaseDisposition = migration ? repair?.migrationMode ?? 'FORWARD_APPLIED' : submission ? 'UNKNOWN' : 'NOT_APPLIED'
+  const migrationEvidence = migration && repair?.migrationMode === 'HISTORICAL_EVIDENCE_REUSED' ? { migrationEvidenceRef: migration.ref } : submission ? { migrationSubmissionIntentRef: submission.ref } : {}
   if (candidate) assertStage(candidate.value, profile, intent, 'candidate')
   const workerRecovery = worker ? await worker.recover({ intent, profile, candidate }) : null
   const rollbackRevision = principalOnlyRollbackRevision(intent)
