@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { canonicalize, crc32cBase64, sha256 } from
   './lib/dev012-production-migration-runner.mjs'
-import { createOwnerTransport, createAiPdmBuildReadbackTransport, buildRuntimeConfig, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
+import { createOwnerTransport, createAiPdmBuildReadbackTransport, buildRuntimeConfig, releasePaths, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 import { boundOpenSwxTransport, WORKER_PROFILE_PATH, workerTemplate, workerJobName,
   workerSchedulerName, createOpenSwxOwnerRelease, readWorkerFullEvidence } from './lib/dev122-openswx-owner-release.mjs'
 import { executeWorkerArtifactReuse, resolveWorkerArtifact, createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
@@ -1947,6 +1947,80 @@ else {
     assert.deepEqual((await h.transport.readJson(retry.descriptor.pausedBaselineRef)).value.servingApp.capsuleRef, rootManifest.capsuleRef)
     assert.equal(h.controls.appBuilds, 1); assert.equal(h.controls.migrationJobs ?? 0, 0); assert.equal(h.controls.traffic ?? 0, 0); assert.equal(h.controls.runs ?? 0, 0)
   }))
+
+  test('B31_ROOT_AUTHENTIC_INHERITED_FORWARD_ABORT_COLD_WARM_NEXT_PREPARE', async () => rootModelClock(async clock => {
+    const b23Revision = currentHeadRevision
+    const h = rootConsumerModel(clock, b23Revision), bucket = 'jenfu-platform-prod-aipdm-release', runs = new Map(), buildLists = new Map()
+    const request = h.transport.request, currentStart = Date.now()-100000
+    let currentExecution = null
+    h.transport.request = (url, options) => url.includes('/builds?filter=') ? { builds: buildLists.get(new URL(url).searchParams.get('filter')) ?? [] }
+      : url.includes('/jobs/ai-pdm-prod-migration-runner/executions?') ? { executions: currentExecution ? [currentExecution] : [] } : request(url, options)
+    h.transport.readOwnerRun = async (_p, url) => runs.get(url.split('/').at(-1)) ?? { id: '123', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: b23Revision, createdAt: new Date(currentStart).toISOString(), updatedAt: clock.now() }
+    const previous = (await h.transport.getService()).traffic[0].revision
+    const facts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision: previous, databaseDisposition: 'NOT_APPLIED', entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
+    const history = async (releaseId, sourceRevision, ownerId, baselineIntentRef, basis, offset) => {
+      const seed = (name, value) => h.seed(`gs://${bucket}/receipts/releases/${releaseId}/${name}.json`, value)
+      const lockRef = seed('source-lock', { ...rootObject(capsule.sourceLockRef), releaseId, sourceRevision, remoteRevision: sourceRevision })
+      const runtimeRef = seed('runtime-config', { ...rootObject(capsule.runtimeConfigRef), releaseId, sourceRevision })
+      const authRef = seed('authorization', { ...rootObject(capsule.authorizationPolicyRef), releaseId, sourceRevision, ...(basis ? { preActivationAbortBasis: basis } : {}) })
+      const readyRef = seed('readiness', { ...rootObject(capsule.readinessReceiptRef), releaseId, sourceRevision, ...(basis ? { preActivationAbortBasis: basis } : {}) })
+      const intent = { ...capsule, releaseId, sourceRevision, sourceLockRef: lockRef, runtimeConfigRef: runtimeRef, authorizationPolicyRef: authRef, readinessReceiptRef: readyRef, baselineIntentRef, previousRevision: previous }
+      delete intent.openswxWorkerRef
+      const intentRef = seed('release-intent', intent), paths = releasePaths(h.appProfile, intent, intentRef.sha256)
+      const seal = (stage, f, prev=null) => h.seed(paths[stage], stageReceipt({ profile: h.appProfile, intent, stage, facts: f, previousReceiptRef: prev, observedAt: clock.now() }))
+      seal('prepare', { previousRevision: previous, entrypointBaseline: h.transport.entrypointSnapshot(await h.transport.getService()), prerequisiteRefs: { sourceLock: lockRef, authorization: authRef, readiness: readyRef, foundation: intent.foundationReceiptRef, infra: intent.infraReceiptRef, runtimeConfig: runtimeRef }, ...(basis ? { preActivationAbortBasis: basis } : {}) })
+      const rollback = seal('rollback', facts), { recoveryOrder: _order, ...terminalFacts } = facts
+      seal('terminal', terminalFacts, rollback)
+      const start = Date.now()-offset, end = start+10000, ownerRunRef = `https://api.github.com/repos/${h.appProfile.application.repository}/actions/runs/${ownerId}`
+      runs.set(ownerId, { id: ownerId, status: 'completed', conclusion: 'failure', event: 'workflow_dispatch', headSha: sourceRevision, createdAt: new Date(start).toISOString(), updatedAt: new Date(end).toISOString() })
+      const core = { schemaVersion: 'jenfu.dev012.owner-control-head.v1', inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId, sourceRevision, releaseIntentSha256: intentRef.sha256 })), ownerApplicationId: 'ai-pdm', service: 'ai-pdm-prod', controlBucket: bucket, releaseId, sourceRevision, sourceLockSha256: lockRef.sha256, candidateRevision: null, previousRevision: previous, ownerRunRef, leaseExpiresAt: new Date(end).toISOString(), deadlineAt: intent.deadlineAt, state: 'FINALIZED', result: 'PRE_ACTIVATION_ABORTED' }
+      h.seed(paths.control, { ...core, controlSha256: sha256(canonicalize(core)) })
+      return { intent, intentRef, paths, end }
+    }
+    const zero = await history('DEV122-B31-MODELED-ZERO', 'a'.repeat(40), '201', rootManifest.capsuleRef, null, 300000)
+    const zeroBasis = (await readPreActivationAbortContinuation({ profile: h.appProfile, transport: h.transport, baselineIntentRef: zero.intentRef, verifyProvider: true })).authorityBasis
+    const partial = await history('DEV122-B31-MODELED-PARTIAL', 'b'.repeat(40), '202', zero.intentRef, zeroBasis, 200000)
+    const archive = h.seedBytes(`gs://${bucket}/source/releases/${partial.intent.releaseId}/${partial.intentRef.sha256}/source.tar.gz`, Buffer.from('model unpublished bytes'))
+    const sourceRow = h.store.get(archive.uri), sourceObject = { ...archive, generation: sourceRow.generation, crc32c: sourceRow.crc32c }, image = `${h.appProfile.artifact.uri}@sha256:${'d'.repeat(64)}`
+    const storage = { bucket, object: archive.uri.split('/').slice(3).join('/'), generation: sourceRow.generation }
+    const build = { name: 'projects/jenfu-platform-prod/locations/asia-east1/builds/11111111-2222-3333-4444-555555555555', id: '11111111-2222-3333-4444-555555555555', projectId: 'jenfu-platform-prod', status: 'SUCCESS', serviceAccount: `projects/jenfu-platform-prod/serviceAccounts/${h.appProfile.identities.builder}`, options: { requestedVerifyOption: 'VERIFIED' }, tags: [partial.intent.releaseId.toLowerCase()], finishTime: new Date(partial.end-1000).toISOString(), source: { storageSource: storage }, sourceProvenance: { resolvedStorageSource: storage }, results: { images: [{ name: `${h.appProfile.artifact.uri}:release-${partial.intent.sourceRevision}`, digest: image.split('@')[1] }] } }
+    buildLists.set(`tags=${partial.intent.releaseId.toLowerCase()}`, [build])
+    for (const [stage, schema, extra] of [['provenance', 'jenfu.dev012.build-provenance-receipt.v1', { cloudBuild: build, sourceObject, artifactRegistry: { uri: image } }], ['sbom', 'jenfu.dev012.sbom-receipt.v1', { resourceUrl: `https://${image}` }], ['scan', 'jenfu.dev012.scan-receipt.v1', { blockingVulnerabilityCount: 0, maximumAllowedSeverity: h.appProfile.build.maximumAllowedSeverity }]]) h.seed(partial.paths[stage], { schemaVersion: schema, ownerApplicationId: 'ai-pdm', sourceRevision: partial.intent.sourceRevision, artifactDigest: image, status: 'PASS', ...extra })
+    const partialBasis = (await readPreActivationAbortContinuation({ profile: h.appProfile, transport: h.transport, baselineIntentRef: partial.intentRef, verifyProvider: true })).authorityBasis
+    const o = await h.ownerInput(await h.produce(), { authorityBaselineRef: partial.intentRef })
+    for (const stage of ['prepare', 'build']) await o.run(stage)
+    h.transport.runMigrationJob = async ({ deployment, outputUri }) => {
+      const { receiptSha256: _seal, ...original } = rootObject(rootRefs.migrate)
+      const core = { ...original, sourceRevision: b23Revision, manifestSha256: o.intent.migrationManifestSha256, ledgerCount: 33, applied: 1, replayed: 32, executionName: 'ai-pdm-prod-migration-runner-model083', startedAt: clock.now(), completedAt: clock.now() }
+      h.seed(outputUri, { ...core, receiptSha256: sha256(canonicalize(core)) })
+      currentExecution = { name: 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions/'+core.executionName, createTime: new Date(Date.now()-1).toISOString(), completionTime: new Date(Date.now()+1).toISOString(), succeededCount: 1, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: { containers: [{ name: 'migration', image: deployment.migrationRunnerDigest, args: ['--bundle-ref', deployment.migrationBundleRef.uri, '--bundle-sha256', deployment.migrationBundleRef.sha256, '--source-revision', b23Revision, '--output-ref', outputUri] }] } }
+      clock.advance(2)
+    }
+    for (const stage of ['migrate', 'candidate', 'entrypoint']) await o.run(stage)
+    await o.run('rollback')
+    const { controlSha256: _seal, ...core } = JSON.parse((await h.transport.readBytes(o.paths.control)).bytes), closed = { ...core, leaseExpiresAt: new Date(Date.now()-1).toISOString() }
+    h.seed(o.paths.control, { ...closed, controlSha256: sha256(canonicalize(closed)) })
+    const publications = h.publications.length, reads = h.wire.counts.sourceMedia
+    await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+      const cold = await readPreActivationAbortContinuation({ profile: h.appProfile, transport: h.transport, baselineIntentRef: o.intentRef, verifyProvider: true })
+      const warm = await readPreActivationAbortContinuation({ profile: h.appProfile, transport: h.transport, baselineIntentRef: o.intentRef, verifyProvider: true })
+      assert.deepEqual(warm, cold); assert.deepEqual(cold.authorityBasis.releasedIntentRef, rootManifest.capsuleRef); assert.deepEqual(cold.authorityBasis.releasedProof, partialBasis.releasedProof); assert.equal(cold.authorityBasis.failedProof.disposition, 'migration_only')
+    })
+    assert.equal(h.publications.length, publications); assert.equal(h.wire.counts.sourceMedia-reads, 2)
+    const originalProof = h.transport.readOwnerSourceProof
+    h.transport.readOwnerSourceProof = async input => {
+      const observed = await originalProof(input)
+      return observed.proof.disposition === 'migration_only' ? { ...observed, proof: { ...observed.proof } } : observed
+    }
+    await assert.rejects(readPreActivationAbortContinuation({ profile: h.appProfile, transport: h.transport, baselineIntentRef: o.intentRef, verifyProvider: true }), /OBSERVATION_IDENTITY_INVALID/)
+    h.transport.readOwnerSourceProof = originalProof
+    assert.equal(h.publications.length, publications)
+    const next = await h.nextRepair(o, 31, { predecessorBaselineRef: null, baselineIntentRef: rootManifest.capsuleRef, authorityBaselineRef: o.intentRef })
+    const prepare = await next.run('prepare'); assert.deepEqual((await next.run('prepare')).ref, prepare.ref)
+    assert.deepEqual(prepare.value.facts.preActivationAbortBasis.releasedIntentRef, rootManifest.capsuleRef)
+    assert.equal(h.controls.traffic ?? 0, 0); assert.equal(h.controls.runs ?? 0, 0); assert.equal(h.scheduler().state, 'PAUSED'); assert.equal(h.wire.counts.sourceArrayBuffer, 0)
+  }))
+
   test('B23_ROOT_ABORT_COPIED_PROOF_CANNOT_CLAIM_HISTORICAL_AUTHENTICATION', async () => rootModelClock(async clock => {
     const h = rootConsumerModel(clock), o = await h.ownerInput(await h.produce())
     for (const stage of ['prepare', 'build', 'migrate', 'candidate', 'entrypoint']) await o.run(stage)
