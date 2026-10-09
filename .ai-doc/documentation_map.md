@@ -1,6 +1,16 @@
 # AI_PDM 文件地圖
 
-## DEV-122 CURRENT（B31 migration 後 abort 的已驗祖先承接；正式 release 待重試）
+## DEV-122 CURRENT（B32 切流前證據讀取與 sealed GO 中止承接；正式 release 待重試）
+
+B31 PR #250 已正常合併至 main `0e9c4b573c37c32e35ef165589a7f32c4bdf255e`，required PR／main CI PASS。Owner [37882486573](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37882486573) prepare／build／migrate／candidate／entrypoint／verify／decision PASS；activate 在 traffic mutation 前以 `DEV121_OWNER_RELEASE_PROOF_PROVIDER_READBACK_FAILED` 中止，failure recovery SUCCESS。實際 HTTP status／內部原因 UNKNOWN；來源確認 activate 缺既有 builder secondary metadata-read token。canonical 無此 proof hook，不增加該 token。原 B31 capsule 已 terminal，不重播或覆寫。
+
+GET-only sealed receipts／provider 回讀 PASS：migration 0 applied／33 replayed／ledger33，execution `ai-pdm-prod-migration-runner-zfh29`；verify smoke PASS、sealed decision GO；activate／canonical／finalize 正向404 absence。正式 `ai-pdm-prod-44984e6018dc` 100%／零 tags，candidate `ai-pdm-prod-18e86ee54d48` ready但未接流量，Scheduler PAUSED／零新增 worker execution，terminal PRE_ACTIVATION_ABORTED／FORWARD_APPLIED。證據 [B31 abort readback](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A23-B31/release/B31-abort-r1-provider-readback.json>)（SHA `2213f9ed45a03139e8a809a9e7cb85d38460de4ddba85441749d1c881916e2d8`）。未修改來源 actual consumer 32 GET／零 mutation，因 decision 存在而拒絕；[原拒絕](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A24-B32/release/B32-unmodified-current-B31-r1-cold-provider-readback.json>)（SHA `7acc9f66e6b6eeec7a572ecc3dd9f07d5546a54c5fab2434c0bc27b6e242d9da`），process cleanup PASS。
+
+B32 RD Implementation Ready／架構定案。唯一implementation contract讀 [DEV-122 SPEC 的 B32 CURRENT](specs/DEV-122-ai-pdm-internal-function-issues.md)：只補activate既有metadata-read token、sealed verify／GO合法中止、固定一ordinary祖先與兩個native migration binding；同ROOT／depth8／一般prebuild guard保留。下一步root實作及targeted／native ROOT／actual cold-warm回歸，獨立Luna QC與六項requiredchecks、protected PR／CI及fresh capsule後發布。contract PASS不代表source／provider／release PASS。
+
+沿用已授權 DEV-121 PR #242（unchanged migration083）＋DEV-122、AI-PDM／jenfu-platform-prod／ai-pdm-prod 同一正式發布與 corrective cycle，SHA／capsule 為機器 binding。來源 package 33項、最高083；不包含其他 task 的084。禁止 SQL edits／手動 DB、IAM／資源／Secret scope 擴張、worker execution、Scheduler resume 或 sibling mutation。成功出口 app RELEASED；worker ACTIVATION_PENDING_NO_EXECUTION、Scheduler PAUSED、native USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED，Whole DEV NOT_ACCEPTED。人類「已驗證」只確認既有 Firebase reauth完成；不作 CAD驗收。
+
+## DEV-122 HISTORY_ONLY（B31 migration 後 abort 的已驗祖先承接；正式 release 待重試）
 
 B30 PR #249 正常合併至 main `f80531d91298ebf73a59e1f07a5ba03f2e5dbd66`，required PR／main CI PASS。Owner [37868751105](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37868751105) prepare／build／migrate／candidate／entrypoint PASS，verify 因 Portal session HTTP 401 失敗，failure recovery PASS。唯一 app Cloud Build `fde45f99-c87e-4dd4-948f-bd1f14adc08a` SUCCESS；migration 083 已 forward applied，1 applied／32 replayed／ledger 33，boundary PASS。Terminal `PRE_ACTIVATION_ABORTED / FORWARD_APPLIED`，正式 `ai-pdm-prod-44984e6018dc` 100%／零 tags；candidate `ai-pdm-prod-6774ca0fceb8` 未啟用，Scheduler PAUSED／worker 無新 execution。原 capsule 不重播、sealed receipt 不覆寫、已套用 migration 不修改。正式回讀：[B30-abort-r1-provider-readback.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A22-B30/release/B30-abort-r1-provider-readback.json>)。
 
