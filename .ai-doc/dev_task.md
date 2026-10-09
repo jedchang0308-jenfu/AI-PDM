@@ -1,6 +1,16 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（B29 prepare 遷移查詢身份修正；正式 release 待重試）
+## DEV-122 CURRENT（B30 證據快取版本資訊修正；正式 release 待重試）
+
+B29 PR #248 已正常合併，main `04d3fa365b90724955f9e8b22c1da4ebfca2e87b`，兩項 required PR／main CI PASS。B29 baseline／source-freeze／input-reuse PASS，但 worker reuse 在完整 inherited releasedProof 比對失敗；新 capsule、full owner dispatch、app build、migration、traffic 全部 NOT_RUN。保留 B29 原失敗與正向 404 absence 證據。
+
+B30 `RD Implementation Ready`：同一 opaque evidence root 的 receipt byte memo 命中後遺漏 generation／crc32c；warm B27 continuation 只因這些欄位由已驗值變 null 而失敗。修正只增加 private、verified GCS metadata memo，與既有 receipt URI／SHA key 同生命週期；byte-only memo 必須重新驗 generation-pinned media、CRC／SHA，版本衝突 fail closed。祖先／depth／hash／時限／closed／source admission 與完整 releasedProof 比對不放寬；generic owner v1 shape 不變。僅 AI-PDM observation serialization 保留歷史 prefetched migrate 的 generation／crc32c null shape，migration URI／SHA／內容仍完整驗證，private metadata 不序列化也不宣稱 live DB authority。
+
+本次只改 proof adapter、直接回歸 tests 及三份受控索引；fresh local checks、ROOT authentic cold／warm regression、GET-only actual consumer、獨立 Luna QC、protected PR／CI、official source、全新 capsule 後續綁定本次來源。原 sealed receipt／B29 attempt 不覆寫、不重播過期 input，不新增 IAM／資源／Secret／執行能力。正式基線仍 B27 PRE_ACTIVATION_ABORTED／NOT_APPLIED、B14 `ai-pdm-prod-44984e6018dc` 100%／零 tags、Scheduler PAUSED。
+
+沿用人類已授權 DEV-121 PR #242（含 unchanged migration 083）＋DEV-122、AI-PDM only 正式合併發布。發布條件 app RELEASED、worker ACTIVATION_PENDING_NO_EXECUTION、Scheduler PAUSED；native USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED，Whole DEV 仍 NOT_ACCEPTED。下方歷史不作現行執行指令。
+
+## DEV-122 HISTORY_ONLY（B29 prepare 遷移查詢身份修正；正式 release 待重試）
 
 B28 PR #247 已正常合併，main `04ed844a853a91d1e13b3419d26f118517accc00`、兩項 required CI PASS；B28 production prepare／build／migration／traffic 全部 NOT_RUN。來源補查發現 prepare 的 exact migration-runner executions list 使用 verifier，但 exact Job provider IAM 的既有 `roles/run.viewer` 綁定 deployer；未證實 verifier 曾回正式 403。一般發布身份查證成功不能抵 WIF consumer 證據。
 

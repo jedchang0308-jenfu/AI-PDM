@@ -83,7 +83,7 @@ function evidenceState(handle) {
   if (!Number.isFinite(now) || !Number.isFinite(monotonic) || now < state.root.lastWallMs ||
       now >= state.root.expiresAtMs || monotonic < state.root.startedMonotonicMs ||
       monotonic - state.root.startedMonotonicMs >= 600000) {
-    state.root.closed = true; state.root.memo.clear(); state.root.sourceAdmissions.clear()
+    state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear()
     fail('OBSERVATION_EXPIRED')
   }
   state.root.lastWallMs = now
@@ -106,7 +106,7 @@ export function createAiPdmEvidenceContext() {
   const now = Date.now(), monotonic = performance.now()
   if (!Number.isFinite(now) || !Number.isFinite(monotonic)) fail('CONTEXT_INVALID')
   const root = { startedAtMs: now, startedMonotonicMs: monotonic, expiresAtMs: now + 600000,
-    lastWallMs: now, closed: false, hashes: new Map(), memo: new Map(), sourceAdmissions: new Set() }
+    lastWallMs: now, closed: false, hashes: new Map(), memo: new Map(), receiptMetadata: new Map(), sourceAdmissions: new Set() }
   return mintEvidenceHandle({ root, depth: 0, ancestors: new Set(), parent: null })
 }
 export async function runAiPdmEvidenceContext(handle, callback) {
@@ -123,7 +123,7 @@ export async function runAiPdmEvidenceContext(handle, callback) {
       return result
     })
   } finally {
-    if (owns) { state.root.closed = true; state.root.memo.clear(); state.root.sourceAdmissions.clear() }
+    if (owns) { state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear() }
   }
 }
 export function descendAiPdmEvidenceContext(handle, ref, transition = false) {
@@ -882,6 +882,9 @@ export async function readAiPdmReleaseObservation({ sourceRevision, refs, token,
           read: async () => (await readAiPdmSourceArchive({ source, sourceRevision, deadlineAt: observationDeadline(), token, fetchImpl })).bytes })
         return { identity: sourceIdentity(source), sourceRevision, generation: source.generation, crc32c: source.crc32c, sha256: sha256(bytes) }
       })
+      // Established AI-PDM observations did not serialize prefetched migration metadata.
+      // Preserve that sealed v1 shape; exact migration bytes and private metadata stay verified.
+      if (Object.hasOwn(proof, 'migrate')) proof.migrate = { ...proof.migrate, generation: null, crc32c: null }
       authenticatedObservations.set(proof, { root: evidenceState(handle).root, proofSha256: sha256(canonicalize(proof)), sourceAuthentication: authentication,
         input: { sourceRevision, refs: structuredClone(refs), token, fetchImpl, preMigration } })
       activeEvidence()
@@ -892,7 +895,7 @@ export async function readAiPdmReleaseObservation({ sourceRevision, refs, token,
     const object = row => ({ ref: row.ref.uri, sha256: row.ref.sha256, generation: row.generation, crc32c: row.crc32c })
     const proof = { owner: 'ai-pdm', sourceRevision, releaseId: graph.intent.releaseId,
       disposition: graph.terminal ? 'released' : historicalMigrationReuse ? 'migration_evidence_only' : 'migration_only',
-      migrationManifestSha256: graph.intent.migrationManifestSha256, prepare: object(graph.prepare), sourceLock: object(graph.sourceLock), migrate: object(graph.migrate),
+      migrationManifestSha256: graph.intent.migrationManifestSha256, prepare: object(graph.prepare), sourceLock: object(graph.sourceLock), migrate: { ...object(graph.migrate), generation: null, crc32c: null },
       artifactDigest: graph.chain.deployment.value.artifactDigest, releaseCapsuleRef: graph.intentRef,
       providerClaim: { buildId: graph.chain.provenance.value.cloudBuild.id, sourceObject: graph.chain.provenance.value.sourceObject },
       ...(graph.terminal ? { terminal: object(graph.terminal), candidateRevision: graph.terminal.value.facts.candidateRevision,
@@ -920,6 +923,20 @@ function assertRef(value, bucket, expectedUri = null) {
       (expectedUri !== null && value.uri !== expectedUri)) fail('REF_INVALID')
   return value
 }
+// Provider metadata is private to the same live root, alongside its exact byte key.
+// Only a generation-pinned, CRC-checked GCS read may populate this memo.
+function receiptMetadataKey(ref) {
+  return canonicalize(['receipt', ref.uri, ref.sha256, null, null, null])
+}
+function rememberReceiptMetadata(ref, object) {
+  const handle = activeEvidence()
+  if (handle === undefined) return
+  if (sha256(object.bytes) !== ref.sha256) fail('OBJECT_HASH_MISMATCH')
+  const metadata = Object.freeze({ generation: object.generation, crc32c: object.crc32c })
+  const memo = evidenceState(handle).root.receiptMetadata, key = receiptMetadataKey(ref)
+  if (memo.has(key) && canonicalize(memo.get(key)) !== canonicalize(metadata)) fail('CONTEXT_RECEIPT_METADATA_CONFLICT')
+  memo.set(key, metadata)
+}
 async function readRef(ref, bucket, token, fetchImpl) {
   assertRef(ref, bucket)
   let object
@@ -927,9 +944,15 @@ async function readRef(ref, bucket, token, fetchImpl) {
     object = await readGcsObject({ uri: ref.uri, expectedBucket: bucket,
       expectedPrefix: 'receipts', token, fetchImpl: scopeFetch(fetchImpl) })
     activeEvidence()
+    rememberReceiptMetadata(ref, object)
     return object.bytes
   }
-  const bytes = activeEvidence() === undefined ? await load() : await readAiPdmEvidenceLeaf({ ref, read: load })
+  const handle = activeEvidence()
+  const bytes = handle === undefined ? await load() : await readAiPdmEvidenceLeaf({ ref, read: load })
+  if (handle !== undefined && !object) {
+    object = evidenceState(handle).root.receiptMetadata.get(receiptMetadataKey(ref))
+    if (!object && !(await load()).equals(bytes)) fail('OBJECT_HASH_MISMATCH')
+  }
   if (sha256(bytes) !== ref.sha256) fail('OBJECT_HASH_MISMATCH')
   let value
   try { value = JSON.parse(strictUtf8(bytes)) }
@@ -946,6 +969,7 @@ async function readFixedJson(uri, bucket, token, fetchImpl) {
   let value
   try { value = JSON.parse(object.bytes.toString('utf8')) }
   catch { fail('JSON_INVALID') }
+  rememberReceiptMetadata(ref, object)
   return { value, bytes: object.bytes, ref,
     generation: object.generation, crc32c: object.crc32c }
 }
