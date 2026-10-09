@@ -108,6 +108,7 @@ try {
     const context=await browser.newContext({viewport:{width:fixture.width,height:fixture.height},acceptDownloads:true});
     const page=await context.newPage(),errors=[],requests=[],alerts=[],apiChecks=[],overflowMetrics=[],navigationRoutes=[],frameworkAnnouncements=[],observedPageTitles=[],consoleReadbacks=[];
     const previewContexts=new Map(fixture.terminalAssetIds.map(id=>[id,[fixture.drawingWorkId]]));
+    const observedPartWorkspaceRoots=new Map();
     const progress=(step,data)=>{receipt.progress??=[];receipt.progress.push({viewport:fixture.width,step,data,navigationRoutes:[...navigationRoutes]});save();};
     const waitResponse=predicate=>{const pending=page.waitForResponse(predicate);void pending.catch(error=>{
       receipt.responseWaitFailures??=[];receipt.responseWaitFailures.push({observedAt:Date.now(),viewport:fixture.width,
@@ -184,6 +185,8 @@ try {
     }});
     await context.addCookies([{name:'__session',value:sessions.owner,url:origin,httpOnly:true,sameSite:'Lax'}]);
     const navigate=async name=>{
+      // Fresh isolated Next compilation may finish auth after the initial shell.
+      await page.locator('nav[aria-label="主導覽"] a[title$="，登出 AI PDM"]').waitFor({state:'attached',timeout:30000});
       const link=page.getByRole('navigation',{name:'主導覽',exact:true}).getByRole('link',{name,exact:true});
       try{await link.waitFor({state:'visible',timeout:5000});}
       catch(error){const desktop=page.getByRole('button',{name:'展開左側導覽',exact:true});
@@ -245,10 +248,13 @@ try {
       }));
       for(const item of liveAlerts.filter(item=>item.isNext)) {
         for(const source of ['title','h1'])if(item[source])observedPageTitles.push({title:item[source],source,pathname:new URL(page.url()).pathname});
-        const accepted=!item.text||observedPageTitles.some(observed=>observed.title===item.text);
+        const pathname=new URL(page.url()).pathname;
+        const nativePartRoot=observedPartWorkspaceRoots.get(pathname);
+        const partLoadingHeading=item.text==='料號資料總表'&&typeof nativePartRoot==='string'&&item.h1===nativePartRoot;
+        const accepted=!item.text||observedPageTitles.some(observed=>observed.title===item.text)||partLoadingHeading;
         frameworkAnnouncements.push({...item,accepted});
         receipt.alertReadbacks??=[];receipt.alertReadbacks.push({viewport:fixture.width,pathname:new URL(page.url()).pathname,
-          item,accepted,observedPageTitles:[...observedPageTitles]});save();
+          item,accepted,partLoadingHeading,nativePartRoot:nativePartRoot??null,observedPageTitles:[...observedPageTitles]});save();
         assert.ok(accepted,'UNEXPECTED_NEXT_ROUTE_ANNOUNCEMENT');
       }
       assert.deepEqual(liveAlerts.filter(item=>!item.isNext&&item.text&&!(flowSelection==='settings-automation'&&settingsReadFailureEvidence.length&&item.text==='無法取得最新狀態，請重試。')).map(item=>item.text),[],'UNEXPECTED_PRODUCT_ALERT');
@@ -482,7 +488,7 @@ try {
           entry:['normal home','sidebar 系統設定','settings 安全 keyboard Enter'],signedPrincipal:true,
           allowedSummary:summary,allowedSecretStatus:statuses,denied:settingsDeniedProof,otherReadbacks,
           passwordEmpty:true,passwordFilled:false,secretMutationRequests,providerConnection:'NOT_RUN_LOCAL_GATES_CLOSED',
-          nativeProperties:'PENDING_HUMAN_PRODUCTION_VALIDATION',summaryOnlyRole:'UNIT_LAYER_ONLY_NO_LEGAL_V5_ROLE',
+          nativeProperties:'PENDING_HUMAN_PRODUCTION_VALIDATION',summaryOnlyRole:'UNIT_LAYER_ONLY_NO_LEGAL_COMMITTED_CATALOG_ROLE',
           keyboard:true,overflowMetrics,navigationRoutes,requests});save();continue;
       }
       await navigate('料號工作台');
@@ -667,6 +673,9 @@ try {
       const initialMatrixResponse=await initialMatrix;await initialMatrixResponse.finished();
       assert.equal(initialMatrixResponse.status(),200,await initialMatrixResponse.text());
       const initialMatrixBody=await initialMatrixResponse.json();
+      assert.equal(typeof initialMatrixBody.data.root.code,'string');
+      assert.ok(initialMatrixBody.data.root.code.trim(),'NATIVE_PART_ROOT_EMPTY');
+      observedPartWorkspaceRoots.set('/parts/'+(normalCreation?.partId??fixture.partId)+'/workspace',initialMatrixBody.data.root.code);
       if(preflight) {
         fs.writeFileSync(path.join(output,`${fixture.width}-matrix-dom.html`),await page.content());
         fs.writeFileSync(path.join(output,`${fixture.width}-matrix-accessibility.yml`),await page.locator('body').ariaSnapshot());

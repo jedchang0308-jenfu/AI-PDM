@@ -78,6 +78,8 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
   const conflictsRef = useRef(conflicts);
   const dataRef = useRef(data);
   const tokenRef = useRef(token);
+  const loadSequenceRef = useRef(0);
+  const activeLoadEndpointRef = useRef<string | null>(null);
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const flightRef = useRef(new Set<string>());
   const commandKeysRef = useRef(new Map<string, string>());
@@ -94,11 +96,14 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
   useEffect(() => { tokenRef.current = token; }, [token]);
 
   const load = useCallback(async (preserveDraft = false): Promise<string | null> => {
+    if (activeLoadEndpointRef.current !== endpoint) return null;
+    const sequence = ++loadSequenceRef.current;
     setStatus("loading");
     setError("");
     try {
       const response = await fetch(endpoint, { cache: "no-store" });
       const body = await response.json().catch(() => null) as MatrixResponse | { error?: unknown } | null;
+      if (sequence !== loadSequenceRef.current) return null;
       if (response.status === 403) { setStatus("restricted"); return null; }
       if (response.status === 404) { setStatus("not_found"); return null; }
       if (!response.ok) { setError(errorMessage(body, "料號矩陣目前無法載入。")); setStatus(response.status === 409 ? "conflict" : "error"); return null; }
@@ -121,12 +126,20 @@ export function PartNumberMatrixWorkspace({ partId, workId, returnTo, initialTab
       setStatus("ready");
       return result.meta.contractToken;
     } catch {
+      if (sequence !== loadSequenceRef.current) return null;
       setError("料號矩陣目前無法載入，請重試。");
       setStatus("error");
       return null;
     }
   }, [endpoint]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    activeLoadEndpointRef.current = endpoint;
+    void load();
+    return () => {
+      activeLoadEndpointRef.current = null;
+      loadSequenceRef.current += 1;
+    };
+  }, [endpoint, load]);
 
   function releasePool() {
     activePoolRef.current = Math.max(0, activePoolRef.current - 1);

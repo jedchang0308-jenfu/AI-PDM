@@ -1,0 +1,295 @@
+{
+  "schemaVersion": "aipdm.dev122.b32.worker-and-matrix-verification.v1",
+  "project": "AI-PDM",
+  "observedAt": "2026-10-09T13:32:27.678059+00:00",
+  "result": "B32_APP_RELEASED_WORKER_READY_MATRIX_FIX_LOCAL_PASS_NOT_DEPLOYED_WHOLE_DEV_NOT_ACCEPTED",
+  "productionSource": "74116271d3917a21f11d8a2c785635f84a2b7705",
+  "candidateBaseHead": "f8ee43ece57ce5c7bb753669e0f80563eae35807",
+  "candidateBranch": "codex/dev122-current-native-qc",
+  "candidateFiles": [
+    {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/config/local/dev122-native-postgres.v1.json",
+      "sha256": "c825a70295d4c709ac362f8081403619eb8f88402429518b47ce5ec98430f42b"
+    },
+    {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/scripts/lib/dev122-contract-seam.mjs",
+      "sha256": "0c585c994290e2fba74cd7be69dcfd17154ce9e522ee3fedfbc38746908fc803"
+    },
+    {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/scripts/qc-dev-122-native-postgres.mjs",
+      "sha256": "e6dcead82edf270cbc7b7662c514990b544e1b9d8e702973691fb6361d8a3e34"
+    },
+    {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/scripts/qc-dev-122-native-browser.mjs",
+      "sha256": "a7a4529cf5d3f5d9598e0c4267f5b4ffb5f158ced23e8112e94fd1d2ea813895"
+    },
+    {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/src/components/part-number-matrix-workspace.tsx",
+      "sha256": "4d8f120a2505afb71c8f89614b6e937751b88d3e8eeb470b2c7d40798fa50ad6"
+    }
+  ],
+  "productDiff": [
+    "src/components/part-number-matrix-workspace.tsx"
+  ],
+  "sqlDependencyWorkflowDiff": [],
+  "matrixFix": {
+    "status": "LOCAL_PASS_NOT_DEPLOYED",
+    "problem": "Late initial matrix GET overwrote a newly entered value during the actual local normal UI flow.",
+    "scope": "Only latest active endpoint load may write client state; cleanup invalidates older loads.",
+    "productionReproduced": false,
+    "productSha256": "4d8f120a2505afb71c8f89614b6e937751b88d3e8eeb470b2c7d40798fa50ad6",
+    "limit": "Does not claim cancellation of all pending save/retry commands; backend permission/contract guards unchanged."
+  },
+  "authorization": {
+    "approvalPlan": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/cloud-resource-production-approval-plan-2026-10-06.md",
+      "sha256": "a8920a8655a9934bd916023a3a016711b0156006f4b7102c492894791e80557b"
+    },
+    "scope": "Existing AI-PDM / jenfu-platform-prod resources and release corrective cycle; approved finite empty claim and Scheduler resume. No new IAM/resource/Secret/schema ownership.",
+    "continuity": "Prior paused/no-execution wording was historical attempt binding; original human twelve-resource plan step5 governs activation."
+  },
+  "worker": {
+    "statusAtReadback": "READY",
+    "schedulerAtReadback": "ENABLED",
+    "finiteExecution": {
+      "name": "projects/9536592944/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata/executions/ai-pdm-prod-openswx-metadata-rkm58",
+      "uid": "e1b05608-6862-4f78-83da-657641974f23",
+      "createTime": "2026-10-09T08:27:03.001189Z",
+      "startTime": "2026-10-09T08:27:05.585121Z",
+      "completionTime": "2026-10-09T08:27:19.816561Z",
+      "succeededCount": 1,
+      "failedCount": 0,
+      "cancelledCount": 0,
+      "retriedCount": 0,
+      "completionState": "CONDITION_SUCCEEDED"
+    },
+    "claimProof": {
+      "claimProof": "AUTHENTICATED_204_SOURCE_BOUND",
+      "executionName": "projects/9536592944/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata/executions/ai-pdm-prod-openswx-metadata-rkm58",
+      "filterSha256": "00c2d6d63ad552d740a78e14bd771b4c41f2f85a6be4463be89900eaf3a324f7",
+      "marker": {
+        "insertId": "6ac8a563000b47bb95652221",
+        "marker": {
+          "executionName": "projects/9536592944/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata/executions/ai-pdm-prod-openswx-metadata-rkm58",
+          "schemaVersion": "aipdm.openswx-finite-terminal.v1",
+          "state": "empty"
+        },
+        "timestamp": "2026-10-09T08:27:15.739259Z"
+      },
+      "markerSha256": "5f851cbfda9bc7659bb7f811f0540afcebd6010869ab50209443fbd067c3ebb0",
+      "observedAt": "2026-10-09T08:27:22.377Z"
+    },
+    "executionCountAtReadback": 28,
+    "activeCountAtReadback": 0,
+    "postreadback": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A24-B32/release/B32-worker-activation-postreadback-r1.json",
+      "sha256": "465dae358776aca1f5edb81531f8f76866652a6a242b1befeaf8600a6bd4e911"
+    },
+    "independentQc": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A24-B32/release/B32-worker-activation-independent-luna-qc-r1.json",
+      "sha256": "380d7d95c6c5c96e7f32921a01a8c30093013614b53ba895b97a50271f6029bd"
+    },
+    "cleanup": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A24-B32/release/B32-worker-activation-runtime-cleanup-r1.json",
+      "sha256": "44f4ac8ad788f302911772d020c9a262f74af6a202dc7694d58bd9d90ca6ac4f"
+    },
+    "limit": "Empty authenticated204 proves worker readiness only; later scheduled executions can change counts; no CAD task result inferred."
+  },
+  "selectedNative": [
+    {
+      "suite": "root",
+      "passed": 8,
+      "failed": 0,
+      "overallStatus": "PARTIAL_NOT_ACCEPTED",
+      "manifest": {
+        "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/22b2b9c2be776303/manifest.json",
+        "sha256": "d26b2f521a3c271a6ee924d44b1f80e960ae384d9546670c111781a6624d507c"
+      },
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true
+      },
+      "applicability": "Selected API/native behavior; later client component and harness metadata/UI edits are separate, not byte-identical final-runner coverage."
+    },
+    {
+      "suite": "files",
+      "passed": 7,
+      "failed": 0,
+      "overallStatus": "PARTIAL_NOT_ACCEPTED",
+      "manifest": {
+        "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/d3cceb271d5f38b1/manifest.json",
+        "sha256": "ec5c560736b61ec41d3d42d25435d5fc68ff7d6ef7cedc0e7edeb9967426eb2b"
+      },
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true
+      },
+      "applicability": "Selected API/native behavior; later client component and harness metadata/UI edits are separate, not byte-identical final-runner coverage."
+    },
+    {
+      "suite": "procurement",
+      "passed": 10,
+      "failed": 0,
+      "overallStatus": "PARTIAL_NOT_ACCEPTED",
+      "manifest": {
+        "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/0723225b530dfba4/manifest.json",
+        "sha256": "ba04022ecf98a6a94aee6a1b8c3c08a5a162a416fa740e34ee473bf0fa027c7e"
+      },
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true
+      },
+      "applicability": "Selected API/native behavior; later client component and harness metadata/UI edits are separate, not byte-identical final-runner coverage."
+    },
+    {
+      "suite": "cancel",
+      "passed": 24,
+      "failed": 0,
+      "overallStatus": "PARTIAL_NOT_ACCEPTED",
+      "manifest": {
+        "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/6514fdddd26ff33b/manifest.json",
+        "sha256": "88352b0ee33a05f1065c232a75c684375f1c8c065c8bd5c77e90a7ca50fe85ea"
+      },
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true
+      },
+      "applicability": "Selected API/native behavior; later client component and harness metadata/UI edits are separate, not byte-identical final-runner coverage."
+    }
+  ],
+  "selectedNativePassed": 49,
+  "ui": [
+    {
+      "run": "7f9a7e5594b616da",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "caseStatus": "PASS",
+      "overallStatus": "FAIL",
+      "browserExitCode": 1,
+      "manifest": {
+        "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/7f9a7e5594b616da/manifest.json",
+        "sha256": "fb2b25b1ccc225eb58d6ae343f4729fe6e8af68c89c038942518c0f824ba5d33"
+      },
+      "browserReceipt": {
+        "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/playwright/dev122/7f9a7e5594b616da/receipt.json",
+        "sha256": "9f9245792ba886361bfe527114dff7a4ea7462be9b8eda2e18f0deccf6bf38a5"
+      },
+      "productSha256": "4d8f120a2505afb71c8f89614b6e937751b88d3e8eeb470b2c7d40798fa50ad6",
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true
+      },
+      "limit": "Separate case receipts. Desktop overall FAIL preserves subsequent mobile signed-in selector timeout; mobile-only rerun PARTIAL_NOT_ACCEPTED."
+    },
+    {
+      "run": "377c28aaf5286435",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "caseStatus": "PASS",
+      "overallStatus": "PARTIAL_NOT_ACCEPTED",
+      "browserExitCode": 0,
+      "manifest": {
+        "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/377c28aaf5286435/manifest.json",
+        "sha256": "afce8b19dd887c263290b839beb217fe9230bbbead679d212590e6f2fc898d1f"
+      },
+      "browserReceipt": {
+        "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/playwright/dev122/377c28aaf5286435/receipt.json",
+        "sha256": "02090b3edc5f8f5dfec32e5a171a8cd92161a55a2e5f27a6fa062ffceb5e3932"
+      },
+      "productSha256": "4d8f120a2505afb71c8f89614b6e937751b88d3e8eeb470b2c7d40798fa50ad6",
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true
+      },
+      "limit": "Separate case receipts. Desktop overall FAIL preserves subsequent mobile signed-in selector timeout; mobile-only rerun PARTIAL_NOT_ACCEPTED."
+    }
+  ],
+  "localChecks": {
+    "typecheck": {
+      "result": "PASS",
+      "receipt": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-matrix-typecheck-r3-final.json",
+        "sha256": "a8579434b9262ab6b5edc5bdc33e9d035f221d6c12b4e431bc7e08a5ab965c56"
+      }
+    },
+    "build": {
+      "result": "PASS",
+      "receipt": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-matrix-build-r4-final.json",
+        "sha256": "3c0b2954418dc08a131ac6a9cb5a5d5ced417fd8bf7df7fd891b70128e611c84"
+      },
+      "nativeCleanupReadback": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-matrix-build-r4-native-cleanup-readback.json",
+        "sha256": "4c588a33ab8a3016d777a25e817cf344deca800f5e42449ba3403d09dcd5c039"
+      },
+      "stdout": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-matrix-build-r4-stdout.log",
+        "sha256": "2484c41e5091ea67803fe42389463c0221b9857b3be4962ff98e8086390e52e0"
+      },
+      "artifactReady": true,
+      "isolatedBuildFinalLine": "Isolated build result: PASS; artifact=true; primary=true; cleanup=true"
+    }
+  },
+  "primaryBefore": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-current-ui-primary-before-r1.json",
+    "sha256": "17821e285cbdcfe354c1c80891633ff41a7dba827572611f2f105127145ab713"
+  },
+  "independentQc": [
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-current-native-harness-independent-luna-qc-r2.json",
+      "sha256": "34431cd127156c7df1a4d4401f75ff08560ae7eab550d1adcdc15605d09f55ad"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-matrix-late-load-independent-luna-qc-r1.json",
+      "sha256": "b01a95e6668cb5b5fda3325b548a8e5733a35b7d824f85ae5b727a0f4dd69476"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-current-native-ui-independent-luna-qc-r3.json",
+      "sha256": "bb0c72fadad04e68a65e72feaec9aba867367e27a3b82fc36e07a5b3ba9c2b0d"
+    }
+  ],
+  "preservedFailures": [
+    "DEV122_SEAM_SOURCE_DRIFT",
+    "04cfccc070a47d4e",
+    "9b544a6e922d3d24",
+    "eae3e000c7a43aa1",
+    "d2fd57e22f759200",
+    "c83a4c59402c4103",
+    "022df52ef555b78f",
+    "a8b0cd5177e69b6d",
+    "7f9a7e5594b616da: overallFAIL/casePASS",
+    "typecheck-r1/r2 wrapper cleanup failures",
+    "build-r2 UTC expiry misread",
+    "build-r3 GOVERNOR_RUNTIME_FAILED"
+  ],
+  "acceptance": {
+    "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+    "supplier": "DISABLED_DEFERRED",
+    "productionCadNormalFlow": "WAITING_SITE_LOGIN_AND_BROWSER_SSO_AUTHORIZATION",
+    "wholeDev": "NOT_ACCEPTED",
+    "issues": 7,
+    "groups": 29,
+    "countsAsDelivery": false
+  },
+  "next": "Protected PR/required CI/official source for bounded matrix fix; fresh authorized app release package, never replay B32 capsule; full CAD properties remain human validation.",
+  "primaryAfter": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-current-ui-primary-after-r2.json",
+    "sha256": "e3a1eaa05614115b47f431219c10940420161b331f334473bc50498f096ff3f9"
+  }
+}

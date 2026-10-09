@@ -2,23 +2,23 @@
   "seamVersion": "ai-pdm.dev122.local-contract-seam.v1",
   "sources": [
     {
-      "sha256": "d329b27a61dcc33b0d15c9fe84614821784a6f07434dac5e4122f28f92e150fb",
+      "sha256": "42890472147f7513f9c660d28bda57281547f3632ca42fbbe1e927a864e28c64",
       "path": "src/lib/jenfu-principal-admission-repository.ts"
     },
     {
-      "sha256": "4333410ac4ad15730168e45512616ca9d3d6ef57e11d24071acfedbb5b6182ac",
+      "sha256": "5c6e6d626ea13967dfeee14a0f00b482d4a1c7d5dc489131bc6d4b02a25e9fc8",
       "path": "src/lib/jenfu-principal-candidate-repository.ts"
     },
     {
-      "sha256": "8e1cc1cf18b801cf2ed798f23078f9567dc480093a1d14c21341e7e8f08fa266",
+      "sha256": "e9cb4649665bc29e1a5aba742c7c68346309b2a7dbca0af4f36e332c1f3e2868",
       "path": "src/lib/jenfu-auth-epoch-repository.ts"
     },
     {
-      "sha256": "c4444702351a70b2125f4302bda0e364a52e667ef780eb3538cc04117b40fb03",
+      "sha256": "2c5cc593c468e35d88d5267c91411ac2c4dda1d94861f681ca5e8e3e81fcf019",
       "path": "src/lib/repositories/jenfu-entitlement-repository.ts"
     },
     {
-      "sha256": "e11a045450b9b102f3448d6873eb6038e391e5047f6a56f23f91e39b1841064e",
+      "sha256": "d0666723841feb225bef08b721d7add6b4ef30d55506963d099087c14b7ff33e",
       "path": "src/lib/repositories/pdm-principal-reviewer-selector.ts"
     }
   ],
@@ -26,15 +26,15 @@
   "templates": [
     {
       "source": "src/lib/jenfu-principal-admission-repository.ts",
-      "sql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, published_at\n  FROM orgmaster_contract.v_active_principal_mappings_v1\n  WHERE principal_issuer = $1\n    AND principal_subject = $2\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY",
-      "sha256": "709b2840bcaf1f66d8092668e64c6afe9aec43bbccfbffaf759fd029992996d1",
-      "mappedSql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, published_at\n  FROM ai_pdm_contract.dev122_fixture_active_principal_mappings_v1\n  WHERE principal_issuer = $1\n    AND principal_subject = $2\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY"
+      "sql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version,\n         pg_catalog.to_char(published_at AT TIME ZONE 'UTC',\n           $1) AS published_at\n  FROM orgmaster_contract.v_active_principal_mappings_v1\n  WHERE principal_issuer = $2\n    AND principal_subject = $3\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY",
+      "sha256": "463bd6875d10b877f46dee5bad7b2cfbeb1b18116649591a01dd5c3ff50cac18",
+      "mappedSql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version,\n         pg_catalog.to_char(published_at AT TIME ZONE 'UTC',\n           $1) AS published_at\n  FROM ai_pdm_contract.dev122_fixture_active_principal_mappings_v1\n  WHERE principal_issuer = $2\n    AND principal_subject = $3\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY"
     },
     {
       "source": "src/lib/jenfu-principal-admission-repository.ts",
-      "sql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, published_at, account_type\n  FROM orgmaster_contract.v_active_principal_accounts_v1\n  WHERE principal_issuer = $1\n    AND principal_subject = $2\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY",
-      "sha256": "0107e0e01633b0ffbfbf56dd8af5713eda62ae1a8974ac2c3fc313249870c6c9",
-      "mappedSql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, published_at, account_type\n  FROM ai_pdm_contract.dev122_fixture_active_principal_accounts_v1\n  WHERE principal_issuer = $1\n    AND principal_subject = $2\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY"
+      "sql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, account_type,\n         pg_catalog.to_char(published_at AT TIME ZONE 'UTC',\n           $1) AS published_at\n  FROM orgmaster_contract.v_active_principal_accounts_v1\n  WHERE principal_issuer = $2\n    AND principal_subject = $3\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY",
+      "sha256": "f7c89ddd1731d8f56ea7b20f6fa4236b36f6ca9c363de7f523384538d651f05c",
+      "mappedSql": "SELECT contract_version, principal_issuer, principal_subject, principal_id,\n         employee_id, employee_status, mapping_version, account_type,\n         pg_catalog.to_char(published_at AT TIME ZONE 'UTC',\n           $1) AS published_at\n  FROM ai_pdm_contract.dev122_fixture_active_principal_accounts_v1\n  WHERE principal_issuer = $2\n    AND principal_subject = $3\n  ORDER BY principal_id, employee_id\n  FETCH FIRST 2 ROWS ONLY"
     },
     {
       "source": "src/lib/jenfu-principal-candidate-repository.ts",
@@ -66,5 +66,6 @@
       "sha256": "683b41cbec2fc9b3064c4d6381dccca1205893b0e04b3725984f1ac16d5b148a",
       "mappedSql": "SELECT account.principal_id, account.pdm_user_id, account.employee_id,\n           typed.principal_issuer AS identity_issuer,\n           typed.principal_subject AS identity_subject\n    FROM ai_pdm_core.principal_accounts account\n    JOIN ai_pdm_contract.dev122_fixture_active_principal_accounts_v1 typed\n      ON typed.principal_id = account.principal_id\n     AND typed.employee_id = account.employee_id\n     AND typed.account_type = account.account_type\n     AND typed.contract_version = 'organization.active-principal.v1'\n     AND typed.employee_status = 'active'\n    WHERE account.company_id = $1\n      AND account.account_status = 'active'\n      AND account.system_role_enabled\n    ORDER BY account.principal_id, typed.principal_issuer, typed.principal_subject\n    LIMIT 65"
     }
-  ]
+  ],
+  "sourceHashEncoding": "utf8-lf"
 }

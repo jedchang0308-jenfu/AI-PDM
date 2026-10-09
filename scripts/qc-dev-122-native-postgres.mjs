@@ -51,14 +51,15 @@ const previewDiagnosticChild=process.argv.includes('--preview-diagnostic-child')
 const previewImportOnly=process.argv.includes('--preview-import-only');
 if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
 const entries = compileOwnMigrations(root);
-if (nativeSelection === 'openswx-work-cancel') {
-  // 081 is the current normal Principal API's v6 publication prerequisite, not an 082 FK prerequisite.
+{
+  // All current-source cases require the normal Principal API's v6 publication.
+  // 082 is required by current Drawing cancellation; 081 is not its FK prerequisite.
   for (const [ordinal,name,expectedHash] of [
     ['081','081_dev121_principal_role_catalog_v6.sql','c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284'],
     ['082','082_dev122_openswx_auxiliary_jobs.sql','9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000']
   ]) {
     const sourcePath = 'db/postgres/'+name,bytes = fs.readFileSync(path.join(root, sourcePath));
-    if(sha256(bytes)!==expectedHash)throw new Error('DEV122_B18_EXACT_MIGRATION_SOURCE_DRIFT:'+ordinal);
+    if(sha256(bytes)!==expectedHash)throw new Error('DEV122_CURRENT_EXACT_MIGRATION_SOURCE_DRIFT:'+ordinal);
     const sql = bytes.toString('utf8');
     entries.push({ ordinal, sourcePath, sourceHash: sha256(bytes), compiledHash: sha256(sql), transforms: [], sql });
   }
@@ -167,7 +168,7 @@ function nextCapacityAdmission(evidenceRoot) {
   catch(error){bytes=Buffer.from(error.stdout??'');fs.writeFileSync(file,bytes);throw error;}
   fs.writeFileSync(file,bytes);
   const receipt=JSON.parse(bytes),lease=receipt.data?.lease;
-  if(receipt.exit_code!==0||!['OK','WARNING'].includes(receipt.status)||lease?.status!=='active'||
+  if(receipt.exit_code!==0||receipt.status!=='ALLOW'||lease?.status!=='active'||
     lease.development_operation_id!=='dev122-next-ui-bounded2g-20261004'||lease.operation_kind!=='lint_test'||
     lease.reserved_bytes!==2*1024*1024*1024||Date.parse(lease.expires_at)<=Date.now())throw new Error('DEV122_NEXT_CAPACITY_ADMISSION_INVALID_OR_EXPIRED');
   return {file,hash:sha256(bytes),status:receipt.status,lease};
@@ -300,7 +301,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       'PDM_WORKER_SERVICE_TOKEN','PDM_WORKLOAD_CREDENTIAL','PDM_BREAK_GLASS_CHANGE_ID','PDM_WINDOWS_DPAPI_SECRET_DIR'])delete env[name];
     manifest.settingsBoundary={flow:'settings',slice:'official-numbering-draft',provider:'google_secret_manager',
       readEnabled:false,writeEnabled:false,credentialInput:'NOT_RUN',nativeProperties:'PENDING_HUMAN_PRODUCTION_VALIDATION',
-      summaryOnlyRole:'UNREACHABLE_UNDER_COMMITTED_CATALOG_V5_UNIT_LAYER_ONLY',resultSeeded:false};save();
+      summaryOnlyRole:'UNREACHABLE_UNDER_COMMITTED_CATALOG_V6_UNIT_LAYER_ONLY',resultSeeded:false};save();
   }
   manifest.authorizationModes={inherited:Object.fromEntries(['PDM_AUTH_MODE','PDM_JENFU_PLATFORM_AUTH_MODE','PDM_JENFU_ENTITLEMENT_MODE'].map(name=>[name,process.env[name]??null])),
     effective:{PDM_AUTH_MODE:env.PDM_AUTH_MODE,PDM_JENFU_PLATFORM_AUTH_MODE:env.PDM_JENFU_PLATFORM_AUTH_MODE,PDM_JENFU_ENTITLEMENT_MODE:env.PDM_JENFU_ENTITLEMENT_MODE}};
@@ -318,7 +319,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     processChild.dev122Identity=declaration;
     const log=fs.createWriteStream(path.join(evidenceRoot,label+'.log'));
     processChild.stdout.pipe(log);processChild.stderr.pipe(log);
-    const done=new Promise((resolve,reject)=>{processChild.once('error',reject);processChild.once('exit',code=>{log.end();resolve(code);});});
+    const done=new Promise((resolve,reject)=>{processChild.once('error',reject);processChild.once('exit',(code,signal)=>{Object.assign(declaration,{exitCode:code,exitSignal:signal,exitedAt:new Date().toISOString()});log.end();save();resolve(code);});});
     done.catch(()=>{}); // Attach immediately; the controller still awaits the original outcome.
     processChild.dev122Done=done;
     if(processChild.pid)Object.assign(declaration,processIdentity(processChild.pid));
@@ -721,7 +722,7 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
 }
 
 async function seedPrincipals(admin,evidenceRoot) {
-  const catalog=JSON.parse(fs.readFileSync(path.join(root,nativeSelection==='openswx-work-cancel'?'config/access-control/jenfu-role-catalog.v6.json':'config/access-control/jenfu-role-catalog.v5.json'),'utf8'));
+  const catalog=JSON.parse(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v6.json'),'utf8'));
   const now=new Date(Date.now()-60_000).toISOString();
   const ledger=[];
   await admin.query(`INSERT INTO ai_pdm_core.companies(id,company_code,display_name) VALUES
@@ -774,7 +775,7 @@ async function seedPrincipals(admin,evidenceRoot) {
           row.scope_kind!=='workspace'||row.scope_key!=='company-jenfu'||row.catalog_version!==catalog.catalogVersion||
           new Date(row.published_at).toISOString()!==now))throw new Error('DEV122_UI_MULTI_ROLE_READBACK_INVALID');
       ledger.push({reason:'UI-only lawful committed role union before sessions or commands',producerBoundary:'FIXTURE',
-        catalogHash:sha256(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v5.json'))),
+        catalogHash:sha256(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v6.json'))),
         consumerCardinality:'listEffectiveAssignments loops rows; duplicate role/scope rejected; published snapshot requires same version/id/time',
         consumerSources:['src/lib/repositories/jenfu-entitlement-repository.ts','src/lib/jenfu-principal-published-grant-validation.ts',
           'src/lib/jenfu-entitlement-contract.ts'],sql,values,inserted,readback,outcomeSeeded:false});
