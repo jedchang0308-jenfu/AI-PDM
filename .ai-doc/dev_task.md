@@ -1,6 +1,20 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（B30 證據快取版本資訊修正；正式 release 待重試）
+## DEV-122 CURRENT（B31 migration 後 abort 的已驗祖先承接；正式 release 待重試）
+
+B30 PR #249 正常合併至 main `f80531d91298ebf73a59e1f07a5ba03f2e5dbd66`，required PR／main CI PASS。Owner [37868751105](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37868751105) prepare／build／migrate／candidate／entrypoint PASS，verify 因 Portal session HTTP 401 失敗，failure recovery PASS。唯一 app Cloud Build `fde45f99-c87e-4dd4-948f-bd1f14adc08a` SUCCESS；migration 083 已 forward applied，1 applied／32 replayed／ledger 33，boundary PASS。Terminal `PRE_ACTIVATION_ABORTED / FORWARD_APPLIED`，正式 `ai-pdm-prod-44984e6018dc` 100%／零 tags；candidate `ai-pdm-prod-6774ca0fceb8` 未啟用，Scheduler PAUSED／worker 無新 execution。原 capsule 不重播、sealed receipt 不覆寫、已套用 migration 不修改。正式回讀：[B30-abort-r1-provider-readback.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A22-B30/release/B30-abort-r1-provider-readback.json>)。
+
+人類完成既有 Firebase 密碼驗證；同一 AI-PDM smoke Secret numeric 7→8 及同一 GitHub production 欄位已更新。原 issuer／subject／Principal／employee 相符，Portal session、兩次 me、logout revocation PASS，GET-only metadata 回讀 PASS。此回執只證明憑證重驗，不作 release authority；原 401 內部原因仍 UNKNOWN。安全頁 process tree、port 與本次暫存已清理；Chrome 工具尚無法接回本次 tab，UI cleanup obligation 由 root 持有。
+
+B31 `RD Implementation Ready`；架構定案已定案，TL Contract Gate PASS（2026-10-09）。唯一 implementation contract 是 [DEV-122 SPEC 的 B31 CURRENT](specs/DEV-122-ai-pdm-internal-function-issues.md)。此 slice 為開發點／High，不計入產品完成；corrected source、provider consumer 與 production release 尚未通過。
+
+下一步由唯一產品寫入者 RD 依固定 resolver 契約修改 `scripts/lib/dev121-preactivation-abort-continuation.mjs` 與直接回歸 tests；三份受控 docs 由 TL／root 同步。B30→B27 unpublished→B26 zero-build→B14 released 必須在同一 opaque root 的 nested callback 完整驗證，depth8／native source／metadata 與 current traffic guards 保留。原 `assertNoMigrationExecution` 不改；歷史 closed-window 只允許 current B30 sealed migrate 所綁定且 exact Job 完整 executions LIST GET 回讀證實完成的 exact execution。current binding 必須來自已驗 migrate／deployment／control owner run，不接受 caller 或 synthetic evidence。
+
+Acceptance：B30 cold／同 root warm actual consumer、native ROOT authentic 模型與下一輪 producer／cold/cached prepare承接；basis／ref／owner／build／absence／execution／source／root／depth／metadata／current traffic負向均 fail closed 且零 mutation。targeted tests、六項 DEV-117 required checks、獨立 Luna QC、protected PR／CI、fresh official source／新 immutable capsule 必須完成後才可 full owner dispatch，新 runner replay unchanged 083。禁止 SQL edits／手動 SQL、IAM／資源／Secret scope 擴張、worker execution、Scheduler resume 與 sibling mutation。原 [27 GET／零 mutation failure](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A22-B30/release/B31-unmodified-continuation-r1-provider-readback.json>) 與 [Luna 原始 P1／P2](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A22-B30/release/B31-unmodified-continuation-luna-qc-r1.json>) 不覆寫。
+
+沿用人類已授權 DEV-121 PR #242（unchanged migration 083）＋DEV-122、AI-PDM only 正式合併發布；機器 binding 變動不新增人類決策。發布條件 app RELEASED、worker ACTIVATION_PENDING_NO_EXECUTION、Scheduler PAUSED；native USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED，Whole DEV 仍 NOT_ACCEPTED。下方歷史不作現行執行指令。
+
+## DEV-122 HISTORY_ONLY（B30 證據快取版本資訊修正；正式 release 待重試）
 
 B29 PR #248 已正常合併，main `04d3fa365b90724955f9e8b22c1da4ebfca2e87b`，兩項 required PR／main CI PASS。B29 baseline／source-freeze／input-reuse PASS，但 worker reuse 在完整 inherited releasedProof 比對失敗；新 capsule、full owner dispatch、app build、migration、traffic 全部 NOT_RUN。保留 B29 原失敗與正向 404 absence 證據。
 
@@ -1939,11 +1953,11 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ◇ DEV-122 [開發點] [部分實作／NOT_FULLY_TESTED] [P2] [B23 RD Implementation Ready] AI-PDM 內部功能缺陷集中處理
+- ◇ DEV-122 [開發點] [部分實作／NOT_FULLY_TESTED] [P2] [B31 RD Implementation Ready／架構定案] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：B23 r3／archive／deadline-context均已QC PASS與採納；先完成shared reader／context再相依proof，接續完整owner QA／獨立implementation QC；NOT_SOURCE_FROZEN。
-  - 驗收缺口：B22 producer兩輪／PR239 CI／reuse PASS，live pause FAIL；B23 IN_PROGRESS_PARTIAL／NOT_FULLY_TESTED／NOT_SOURCE_FROZEN／未發布；dispatch因果＋28／28及pure archive57／57局部PASS，remaining owner graph NOT_TESTED，deadline-context已採納。四組八CAD／UI FAIL、F-01F待使用者正式驗證、supplier停用及7／29 NOT_ACCEPTED保留。
+  - 下一步：RD 依唯一 B31 CURRENT 完成固定歷史 resolver、targeted／ROOT authentic／cold-warm 回歸，再交獨立 QC；尚未 release ready。
+  - 驗收缺口：B30 PRE_ACTIVATION_ABORTED／FORWARD_APPLIED；B31 原 consumer FAIL／零 mutation，corrected source／provider／release 尚未通過；四組八 CAD／UI、F-01F 使用者正式驗證、supplier停用及7／29 NOT_ACCEPTED保留。
   - 證據：[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
@@ -5614,7 +5628,7 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-122：AI-PDM 內部功能缺陷集中處理
 
-目前施工與驗證判定以本檔開頭 DEV-122 CURRENT 與唯一 SPEC 的 B23 為準：架構定案／RD Implementation Ready，r3獨立契約 QC PASS，產品IN_PROGRESS_PARTIAL／NOT_FULLY_TESTED／NOT_SOURCE_FROZEN、archive補遺QC PASS／已採納／production NOT_RUN；B22 producer source closure PASS／live pause FAIL 分層保存。以下結果與續點為歷史，不取代現行入口。
+目前施工與驗證判定以本檔開頭 DEV-122 CURRENT 與唯一 SPEC 的 B31 CURRENT 為準：架構定案／RD Implementation Ready，TL Contract Gate PASS；B31 corrected source／provider consumer／release 尚未通過，Whole DEV NOT_ACCEPTED。下方 B23／B24 與更早結果及續點為 HISTORY_ONLY，不取代現行入口。
 
 2026-10-05 現行正式發布結果：R02 已由 app-owned V3 owner run [37262598122](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122) 完成 RELEASED／FINALIZED；正式 ai-pdm-prod-52f421cb8db9 接收 100% 流量、0 candidate tags。官方來源 602413097ef27a203fe1e2beccac3166c6e2351a 來自正常 PR209 合併，PR／main required CI 均 SUCCESS。人類在本機安全頁完成既有 Firebase 帳號重新驗證，own numeric 6→7 與既有 GitHub production smoke Secret 更新成功；候選及 canonical 正常 SSO／authenticated probe 通過，匿名／撤銷 session 回 401。B 配置保留 jenfu-platform-prod 並另核 expected number 9536592944；三項已授權 own Secret／IAM 於 R01 APPLIED，R02 只沿用來源相容回執，沒有 historical workflow rotation apply。079 在 R01 已 forward apply，R02 0 applied／29 replayed／ledger 29。正式設定 UI 因工具限制 NOT_RUN；登入與 provider 證據不替代 key draft/probe/activation 或原生 CAD 屬性。這些由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups、整體 NOT_ACCEPTED。R01 401／UNKNOWN／安全中止證據保留。 [正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)。
 

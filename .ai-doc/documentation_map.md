@@ -1,6 +1,18 @@
 # AI_PDM 文件地圖
 
-## DEV-122 CURRENT（B30 證據快取版本資訊修正；正式 release 待重試）
+## DEV-122 CURRENT（B31 migration 後 abort 的已驗祖先承接；正式 release 待重試）
+
+B30 PR #249 正常合併至 main `f80531d91298ebf73a59e1f07a5ba03f2e5dbd66`，required PR／main CI PASS。Owner [37868751105](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37868751105) prepare／build／migrate／candidate／entrypoint PASS，verify 因 Portal session HTTP 401 失敗，failure recovery PASS。唯一 app Cloud Build `fde45f99-c87e-4dd4-948f-bd1f14adc08a` SUCCESS；migration 083 已 forward applied，1 applied／32 replayed／ledger 33，boundary PASS。Terminal `PRE_ACTIVATION_ABORTED / FORWARD_APPLIED`，正式 `ai-pdm-prod-44984e6018dc` 100%／零 tags；candidate `ai-pdm-prod-6774ca0fceb8` 未啟用，Scheduler PAUSED／worker 無新 execution。原 capsule 不重播、sealed receipt 不覆寫、已套用 migration 不修改。正式回讀：[B30-abort-r1-provider-readback.json](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A22-B30/release/B30-abort-r1-provider-readback.json>)。
+
+人類完成既有 Firebase 密碼驗證；同一 AI-PDM smoke Secret numeric 7→8 及同一 GitHub production 欄位已更新。原 issuer／subject／Principal／employee 相符，Portal session、兩次 me、logout revocation PASS，GET-only metadata 回讀 PASS。此回執只證明憑證重驗，不作 release authority；原 401 內部原因仍 UNKNOWN。安全頁 process tree、port 與本次暫存已清理；Chrome 工具尚無法接回本次 tab，UI cleanup obligation 由 root 持有。
+
+B31 `RD Implementation Ready`；架構定案已定案，TL Contract Gate PASS（2026-10-09）。本 map 只路由；唯一施工規則讀 [DEV-122 SPEC 的 B31 CURRENT](specs/DEV-122-ai-pdm-internal-function-issues.md)，進度與下一步讀 [DEV-122 任務索引](dev_task.md)。RD 下一步只改 abort continuation adapter 及直接回歸 tests，依封存 joins 與同 root nested callback 承接 B30→B27→B26→B14；一般 prebuild quiescence 不變，歷史 execution 只接受 current sealed migrate／deployment／owner window 並經 exact Job 完整 executions LIST GET 回讀證實的唯一完成 binding。
+
+Contract PASS 不代表 corrected source／provider consumer／release PASS。必要出口為 B30 cold／warm actual consumer、native ROOT authentic模型、下一輪 producer／prepare、負向零 mutation、六項 required checks／獨立 Luna QC，再經 protected PR／CI／fresh official source 與新 capsule。證據：[原 consumer 27 GET／零 mutation FAIL](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A22-B30/release/B31-unmodified-continuation-r1-provider-readback.json>)、[原 Luna P1／P2](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A22-B30/release/B31-unmodified-continuation-luna-qc-r1.json>)。禁止 SQL edits、IAM／資源／Secret scope 擴張、worker execution、Scheduler resume 與 sibling mutation。
+
+沿用人類已授權 DEV-121 PR #242（unchanged migration 083）＋DEV-122、AI-PDM only 正式合併發布；機器 binding 變動不新增人類決策。發布條件 app RELEASED、worker ACTIVATION_PENDING_NO_EXECUTION、Scheduler PAUSED；native USER_PRODUCTION_VALIDATION_PENDING、supplier DISABLED_DEFERRED，Whole DEV 仍 NOT_ACCEPTED。下方歷史不作現行執行指令。
+
+## DEV-122 HISTORY_ONLY（B30 證據快取版本資訊修正；正式 release 待重試）
 
 B29 PR #248 已正常合併，main `04d3fa365b90724955f9e8b22c1da4ebfca2e87b`，兩項 required PR／main CI PASS。B29 baseline／source-freeze／input-reuse PASS，但 worker reuse 在完整 inherited releasedProof 比對失敗；新 capsule、full owner dispatch、app build、migration、traffic 全部 NOT_RUN。保留 B29 原失敗與正向 404 absence 證據。
 
