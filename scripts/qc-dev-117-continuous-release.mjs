@@ -72,6 +72,7 @@ const files = [
   'scripts/lib/dev121-principal-recovery-operator.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs',
   'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs',
   'scripts/dev117-production-migration-runner.mjs', 'scripts/dev117-production-migration-runner.test.mjs',
+  'scripts/lib/dev121-unlinked-profile-cleanup.mjs', 'scripts/lib/dev121-unlinked-profile-cleanup.test.mjs',
   'src/lib/firebase-client-auth.ts', 'src/app/login/page.tsx', 'src/app/globals.css',
   '.github/workflows/deploy-ai-pdm-independent-production.yml',
   '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml',

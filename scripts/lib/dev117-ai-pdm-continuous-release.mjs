@@ -11,6 +11,7 @@ import {
 import { assertDev116R02Receipt } from './dev116-r02-receipt.mjs'
 import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
+import { assertUnlinkedProfileCleanupRef } from './dev121-unlinked-profile-cleanup.mjs'
 import { assertOpenSwxWorkerRef } from './dev122-openswx-owner-release.mjs'
 import { buildAiPdmPackage, deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 
@@ -28,6 +29,11 @@ export function assertDev117ReleaseIntent(value, profile) {
   if (value?.principalOnlyFenceRef) expected.push('principalOnlyFenceRef')
   if (value?.principalOnlyRecovery) expected.push('principalOnlyRecovery')
   if (Object.hasOwn(value ?? {}, 'openswxWorkerRef')) { expected.push('openswxWorkerRef'); assertOpenSwxWorkerRef(value.openswxWorkerRef) }
+  if (Object.hasOwn(value ?? {}, 'unlinkedProfileCleanupRef')) {
+    expected.push('unlinkedProfileCleanupRef')
+    assertUnlinkedProfileCleanupRef(value.unlinkedProfileCleanupRef, profile.artifact.releaseBucket)
+    if (value.principalOnlyFenceRef || value.principalOnlyRecovery) fail('RELEASE_INTENT_INVALID', 'Cleanup cannot mix recovery modes')
+  }
   expected.sort()
   if (!value || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(expected) || value.schemaVersion !== profile.schemas.releaseIntent || value.ownerApplicationId !== 'ai-pdm' || !/^[A-Z0-9][A-Z0-9-]{5,63}$/.test(value.releaseId ?? '') || !H40.test(value.sourceRevision ?? '') || !H64.test(value.sourceSha256 ?? '') || !H64.test(value.migrationManifestSha256 ?? '') || !value.previousRevision || value.previousRevision === 'latest' || !Number.isFinite(Date.parse(value.deadlineAt))) fail('RELEASE_INTENT_INVALID', 'AI-PDM release intent invalid')
   for (const name of ['sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef']) if (!new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/[A-Za-z0-9._/-]+\\.json$`).test(value[name]?.uri ?? '') || !H64.test(value[name]?.sha256 ?? '') || JSON.stringify(Object.keys(value[name] ?? {}).sort()) !== JSON.stringify(['sha256', 'uri'])) fail('RELEASE_INTENT_REF_INVALID', name)
@@ -130,14 +136,16 @@ export function buildDev117MigrationPackage(profile, n1c) {
   return { entries: [...baseline.entries, ...additions] }
 }
 
-export function buildDev117MigrationBundle(profile, packageValue, sourceRevision) {
+export function buildDev117MigrationBundle(profile, packageValue, sourceRevision, context = {}) {
+  if (!context || Object.keys(context).some(key => key !== 'unlinkedProfileCleanupRef')) fail('MIGRATION_PACKAGE_INVALID', 'Unsupported bundle context')
+  if (Object.hasOwn(context, 'unlinkedProfileCleanupRef')) assertUnlinkedProfileCleanupRef(context.unlinkedProfileCleanupRef, profile.artifact.releaseBucket)
   if (!Array.isArray(packageValue?.entries) || packageValue.entries.length !== profile.migrations.entries.length) fail('MIGRATION_PACKAGE_INVALID', 'AI-PDM package entries invalid')
   const entries = profile.migrations.entries.map((authority, index) => {
     const item = packageValue.entries[index]
     if (item.sourcePath !== authority.path || item.sourceSha256 !== authority.sha256 || !H64.test(item.outputSha256 ?? '') || typeof item.sql !== 'string' || sha256(item.sql) !== item.outputSha256) fail('MIGRATION_PACKAGE_INVALID', authority.path)
     return { order: authority.order, version: item.version, name: item.name, path: authority.path, sourceSha256: item.sourceSha256, appliedSha256: item.outputSha256, sqlBase64: Buffer.from(item.sql, 'utf8').toString('base64') }
   })
-  return createMigrationBundle({ target: { ownerApplicationId: 'ai-pdm', ledger: profile.migrations.ledger, baselineCount: profile.migrations.baselineCount }, sourceRevision, entries })
+  return createMigrationBundle({ target: { ownerApplicationId: 'ai-pdm', ledger: profile.migrations.ledger, baselineCount: profile.migrations.baselineCount }, sourceRevision, entries, ...(Object.hasOwn(context, 'unlinkedProfileCleanupRef') ? { unlinkedProfileCleanupRef: context.unlinkedProfileCleanupRef } : {}) })
 }
 
 export function assertDev117WorkflowSource(source) {

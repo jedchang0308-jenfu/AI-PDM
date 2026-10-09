@@ -7,6 +7,8 @@ import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwner
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
+import { createMigrationBundle } from './lib/dev012-production-migration-runner.mjs'
+import { UNLINKED_PROFILE_CLEANUP_PREFIX, UNLINKED_PROFILE_CLEANUP_PATH } from './lib/dev121-unlinked-profile-cleanup.mjs'
 
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-platform-release'
@@ -21,7 +23,10 @@ function repairMigrationContentFixture() {
   const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
   const currentProfile = JSON.parse(readFileSync(new URL(`../${profilePath}`, import.meta.url)))
   const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
-  assert.equal(currentProfile.migrations.entries.length, 33)
+  assert.equal(currentProfile.migrations.entries.length, 34)
+  // B24 remains the historical exact 32 -> 33 append contract. Ordinary 084
+  // is covered separately and is never admitted into that paused repair gate.
+  currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 33)
   const historicalProfile = structuredClone(currentProfile)
   historicalProfile.migrations.entries = historicalProfile.migrations.entries.slice(0, 32)
   const materialize = profile => {
@@ -519,4 +524,164 @@ test('B23 expired current AI capsule stops actual protected build before publica
     putBytes: async () => { writes++; throw Error('EXPIRED_SOURCE') }, createCandidate: async () => { candidates++; throw Error('EXPIRED_CANDIDATE') } }
   await assert.rejects(executeOwnerStage({ ...input, profile: aiProfile, capsuleRef: saved.ref.uri, capsuleSha256: saved.ref.sha256, transport, stage: 'build' }), /RELEASE_INTENT_INVALID|OWNER_DEADLINE/u)
   assert.deepEqual({ builds, writes, candidates }, { builds: 0, writes: 0, candidates: 0 })
+})
+
+async function privateCleanupOwnerFixture() {
+  const h = recordedHarness()
+  const ownBucket = 'jenfu-platform-prod-aipdm-release'
+  h.profile = { ...h.profile, application: { ...h.profile.application, id: 'ai-pdm' },
+    artifact: { ...h.profile.artifact, releaseBucket: ownBucket } }
+  const sqlBytes = Buffer.from('SELECT 34;\n')
+  const operationId = '33333333-3333-4333-8333-333333333333'
+  const operation = { schemaVersion: 'ai-pdm.unlinked-profile-cleanup-operation.v1', ownerApplicationId: 'ai-pdm', sourceRevision: H40,
+    migrationSourceSha256: sha256(sqlBytes), operationId, targetProfileId: 'synthetic-unused-profile', targetCompanyId: 'synthetic-company' }
+  const privateObject = await h.transport.putJson(`gs://${ownBucket}/${UNLINKED_PROFILE_CLEANUP_PREFIX}/${operationId}.json`, operation)
+  const operationRef = { ...privateObject.ref, generation: String(privateObject.metadata.generation) }
+  const entries = Array.from({ length: 34 }, (_, index) => {
+    const bytes = Buffer.from(`SELECT ${index + 1};\n`)
+    return { order: index + 1, version: `ai-pdm-${String(index + 1).padStart(3, '0')}`, name: `synthetic_${index + 1}`,
+      path: `db/postgres/${String(index + 1).padStart(3, '0')}_synthetic.sql`, sourceSha256: sha256(bytes), appliedSha256: sha256(bytes), sqlBase64: bytes.toString('base64') }
+  })
+  Object.assign(entries.at(-1), { version: 'ai-pdm-084', name: 'dev121_unlinked_legacy_profile_cleanup', path: UNLINKED_PROFILE_CLEANUP_PATH })
+  h.profile.migrations = { ledger: 'ai_pdm_core.schema_migrations', baselineCount: 15,
+    entries: entries.map(entry => ({ order: entry.order, path: entry.path, sha256: entry.sourceSha256 })) }
+  const bundleInput = { target: { ownerApplicationId: 'ai-pdm', ledger: 'ai_pdm_core.schema_migrations', baselineCount: 15 }, sourceRevision: H40, entries, unlinkedProfileCleanupRef: operationRef }
+  const migration = createMigrationBundle(bundleInput)
+  const baseInput = { ...bundleInput }; delete baseInput.unlinkedProfileCleanupRef
+  const baseline = createMigrationBundle(baseInput)
+  const refFor = async (name, value) => (await h.transport.putJson(`gs://${ownBucket}/receipts/prerequisites/private-${name}.json`, value)).ref
+  const common = { releaseAuthority: true, evidenceScope: 'PROVIDER' }
+  const sourceLockRef = await refFor('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, clean: true,
+    sourceSha256: sha256(h.sourceIdentityBytes), migrationManifestSha256: baseline.bundle.manifestSha256 })
+  const authorizationPolicyRef = await refFor('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
+  const readinessReceiptRef = await refFor('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: h.profile.target.projectId })
+  const foundationReceiptRef = await refFor('foundation', { ...common, status: 'APPLIED', projectId: h.profile.target.projectId })
+  const infraReceiptRef = await refFor('infra', { ...common, status: 'APPLIED', projectId: h.profile.target.projectId, migrationRunnerDigest })
+  const runtimeConfigRef = await refFor('runtime', { ...common, status: 'VERIFIED', projectId: h.profile.target.projectId, ...buildRuntimeConfig(h.profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } }) })
+  const intent = { schemaVersion: 'owner.intent.v2', ownerApplicationId: 'ai-pdm', releaseId: 'REL-PRIVATE-CLEANUP-SYNTHETIC', sourceRevision: H40,
+    sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef, authorizationPolicyRef, readinessReceiptRef, foundationReceiptRef, infraReceiptRef, runtimeConfigRef,
+    migrationManifestSha256: migration.bundle.manifestSha256, previousRevision, deadlineAt: '2999-01-01T00:00:00.000Z', unlinkedProfileCleanupRef: operationRef }
+  const capsule = await h.transport.putJson(`gs://${ownBucket}/receipts/intents/private-synthetic.json`, intent)
+  const input = { capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256, profile: h.profile, transport: h.transport, environment: h.environment,
+    validateIntent: value => value, createSourceIdentity: async () => h.sourceIdentityBytes, createSourceArchive: async () => h.sourceArchiveBytes,
+    readWorkerSource: (path, revision) => { assert.equal(path, UNLINKED_PROFILE_CLEANUP_PATH); assert.equal(revision, H40); return sqlBytes },
+    buildMigrationBundle: async (revision, context) => {
+      assert.equal(revision, H40)
+      if (context === undefined) return baseline
+      assert.deepEqual(context, { unlinkedProfileCleanupRef: operationRef })
+      return migration
+    } }
+  let submissions = 0
+  h.transport.runMigrationJob = async ({ profile, deployment, outputUri }) => {
+    submissions++
+    return h.transport.putJson(outputUri, { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: profile.application.id,
+      sourceRevision: deployment.sourceRevision, manifestSha256: migration.bundle.manifestSha256, boundaryStatus: 'PASS', status: 'PASS',
+      unlinkedProfileCleanup: { operationRef, result: { status: 'DELETED', auditId: 'dev121-unlinked-profile-cleanup-v2-' + 'c'.repeat(64), priorRowSha256: 'd'.repeat(64) } } })
+  }
+  return { h, input, intent, capsule, operationRef, migration, baseline, bundleInput, submissions: () => submissions }
+}
+
+test('private cleanup owner keeps protected context, immutable binding and exact build/migrate replay without target overrides', async () => {
+  const f = await privateCleanupOwnerFixture()
+  await assert.rejects(executeOwnerStage({ ...f.input, stage: 'prepare', environment: { ...f.input.environment, GITHUB_SHA: 'e'.repeat(40) } }), /GITHUB_SOURCE_AUTHORITY_MISMATCH/u)
+  const writes = f.h.objects.size
+  await assert.rejects(executeOwnerStage({ ...f.input, stage: 'prepare', readWorkerSource: () => Buffer.from('changed SQL') }), /UNLINKED_PROFILE_CLEANUP_SOURCE_INVALID/u)
+  assert.equal(f.h.objects.size, writes)
+  for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...f.input, stage })
+  const first = await executeOwnerStage({ ...f.input, stage: 'migrate' })
+  assert.equal(first.value.unlinkedProfileCleanup.result.status, 'DELETED')
+  assert.equal(f.submissions(), 1)
+  const privateReads = []
+  const read = f.h.transport.readBytes
+  f.h.transport.readBytes = async (uri, options) => { privateReads.push({ uri, options }); return read(uri, options) }
+  await executeOwnerStage({ ...f.input, stage: 'build' })
+  assert.ok(privateReads.some(row => row.uri === f.operationRef.uri && row.options.expectedGeneration === f.operationRef.generation))
+  assert.equal(f.submissions(), 1)
+})
+
+test('private cleanup owner rejects a mismatched migration bundle before Job submission', async () => {
+  const f = await privateCleanupOwnerFixture()
+  await executeOwnerStage({ ...f.input, stage: 'prepare' })
+  await executeOwnerStage({ ...f.input, stage: 'build' })
+  const deploymentPath = releasePaths(f.h.profile, f.intent, f.capsule.ref.sha256).deployment
+  const deployment = JSON.parse(f.h.objects.get(deploymentPath).bytes.toString())
+  const bundleRow = f.h.objects.get(deployment.migrationBundleRef.uri)
+  const wrong = JSON.parse(bundleRow.bytes.toString())
+  wrong.unlinkedProfileCleanupRef.generation = '999999'
+  const core = { ...wrong }; delete core.manifestSha256
+  wrong.manifestSha256 = sha256(canonicalize(core))
+  bundleRow.bytes = Buffer.from(canonicalize(wrong) + '\n')
+  // A coherent malicious deployment hash must still fail the frozen intent join.
+  deployment.migrationBundleRef.sha256 = sha256(bundleRow.bytes)
+  f.h.objects.get(deploymentPath).bytes = Buffer.from(canonicalize(deployment) + '\n')
+  await assert.rejects(executeOwnerStage({ ...f.input, stage: 'migrate' }), /UNLINKED_PROFILE_CLEANUP_BUNDLE_MISMATCH/u)
+  assert.equal(f.submissions(), 0)
+})
+
+test('private cleanup owner rejects an absent or wrong private result without a duplicate Job', async () => {
+  for (const scenario of ['absent', 'wrong-ref']) {
+    const f = await privateCleanupOwnerFixture()
+    for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...f.input, stage })
+    const migratePath = releasePaths(f.h.profile, f.intent, f.capsule.ref.sha256).migrate
+    const row = f.h.objects.get(migratePath)
+    const receipt = JSON.parse(row.bytes.toString())
+    if (scenario === 'absent') delete receipt.unlinkedProfileCleanup
+    else receipt.unlinkedProfileCleanup.operationRef.generation = '999999'
+    row.bytes = Buffer.from(canonicalize(receipt) + '\n')
+    await assert.rejects(executeOwnerStage({ ...f.input, stage: 'migrate' }), /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u)
+    await assert.rejects(executeOwnerStage({ ...f.input, stage: 'candidate' }), /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u)
+    assert.equal(f.submissions(), 1)
+  }
+})
+
+test('every private cleanup stage rejects coherently hashed invalid BASE source locks before provider effects', async () => {
+  const scenarios = ['missing-base', 'wrong-base', 'missing-source-sha', 'wrong-source-sha', 'wrong-source-revision', 'dirty-source']
+  for (const stage of ['prepare', 'build', 'migrate']) {
+    for (const scenario of scenarios) {
+      const f = await privateCleanupOwnerFixture()
+      if (stage !== 'prepare') await executeOwnerStage({ ...f.input, stage: 'prepare' })
+      if (stage === 'migrate') await executeOwnerStage({ ...f.input, stage: 'build' })
+      const sourceLockRow = f.h.objects.get(f.intent.sourceLockRef.uri)
+      const lock = JSON.parse(sourceLockRow.bytes.toString())
+      if (scenario === 'missing-base') delete lock.migrationManifestSha256
+      if (scenario === 'wrong-base') lock.migrationManifestSha256 = 'f'.repeat(64)
+      if (scenario === 'missing-source-sha') delete lock.sourceSha256
+      if (scenario === 'wrong-source-sha') lock.sourceSha256 = 'f'.repeat(64)
+      if (scenario === 'wrong-source-revision') lock.sourceRevision = 'f'.repeat(40)
+      if (scenario === 'dirty-source') lock.clean = false
+      sourceLockRow.bytes = Buffer.from(canonicalize(lock) + '\n')
+      const intent = structuredClone(f.intent)
+      intent.sourceLockRef.sha256 = sha256(sourceLockRow.bytes)
+      const capsuleRow = f.h.objects.get(f.capsule.ref.uri)
+      capsuleRow.bytes = Buffer.from(canonicalize(intent) + '\n')
+      const capsuleSha256 = sha256(capsuleRow.bytes)
+      let writes = 0, builds = 0, jobs = 0
+      const transport = { ...f.h.transport,
+        putBytes: async () => { writes++; throw Error('UNEXPECTED_PRIVATE_STAGE_WRITE') },
+        putJson: async () => { writes++; throw Error('UNEXPECTED_PRIVATE_STAGE_WRITE') },
+        createBuild: async () => { builds++; throw Error('UNEXPECTED_PAID_BUILD') },
+        runMigrationJob: async () => { jobs++; throw Error('UNEXPECTED_MIGRATION_JOB') } }
+      await assert.rejects(executeOwnerStage({ ...f.input, stage, capsuleSha256, transport }),
+        { code: 'UNLINKED_PROFILE_CLEANUP_SOURCE_LOCK_INVALID' }, `${stage}/${scenario}`)
+      assert.deepEqual({ writes, builds, jobs }, { writes: 0, builds: 0, jobs: 0 }, `${stage}/${scenario}`)
+    }
+  }
+})
+
+test('every private cleanup stage rejects a coherent intent BOUND manifest mismatch before provider effects', async () => {
+  for (const stage of ['prepare', 'build', 'migrate']) {
+    const f = await privateCleanupOwnerFixture()
+    const intent = { ...f.intent, migrationManifestSha256: 'f'.repeat(64) }
+    const row = f.h.objects.get(f.capsule.ref.uri)
+    row.bytes = Buffer.from(canonicalize(intent) + '\n')
+    let writes = 0, builds = 0, jobs = 0
+    const transport = { ...f.h.transport,
+      putBytes: async () => { writes++; throw Error('UNEXPECTED_PRIVATE_STAGE_WRITE') },
+      putJson: async () => { writes++; throw Error('UNEXPECTED_PRIVATE_STAGE_WRITE') },
+      createBuild: async () => { builds++; throw Error('UNEXPECTED_PAID_BUILD') },
+      runMigrationJob: async () => { jobs++; throw Error('UNEXPECTED_MIGRATION_JOB') } }
+    await assert.rejects(executeOwnerStage({ ...f.input, stage, capsuleSha256: sha256(row.bytes), transport }),
+      { code: 'UNLINKED_PROFILE_CLEANUP_SOURCE_LOCK_INVALID' })
+    assert.deepEqual({ writes, builds, jobs }, { writes: 0, builds: 0, jobs: 0 })
+  }
 })

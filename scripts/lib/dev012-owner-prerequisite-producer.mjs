@@ -1,3 +1,4 @@
+import { assertUnlinkedProfileCleanupRef, assertUnlinkedProfileCleanupBundleBinding, readUnlinkedProfileCleanupOperation } from './dev121-unlinked-profile-cleanup.mjs'
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
@@ -196,7 +197,7 @@ export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock,
   return { authorization, readiness }
 }
 
-export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent, workerDescriptor = null }) {
+export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent, workerDescriptor = null, cleanupMigrationBundle = null }) {
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id) fail('RELEASE_INTENT_INPUT_INVALID')
   const intent = {
     schemaVersion: profile.schemas.releaseIntent,
@@ -214,6 +215,15 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     previousRevision: input.previousRevision,
     deadlineAt: input.deadlineAt,
   }
+  if (Object.hasOwn(input, 'unlinkedProfileCleanupRef')) {
+    assertUnlinkedProfileCleanupRef(input.unlinkedProfileCleanupRef, profile.artifact.releaseBucket)
+    const entry = assertUnlinkedProfileCleanupBundleBinding(cleanupMigrationBundle, input.unlinkedProfileCleanupRef)
+    if (!entry || cleanupMigrationBundle.sourceRevision !== sourceLock.sourceRevision) fail('CLEANUP_SOURCE_LOCK_MISMATCH')
+    const core = { ...cleanupMigrationBundle }; delete core.manifestSha256; delete core.unlinkedProfileCleanupRef
+    if (sha256(canonicalize(core)) !== sourceLock.migrationManifestSha256 || sha256(canonicalize({ ...core, unlinkedProfileCleanupRef: input.unlinkedProfileCleanupRef })) !== cleanupMigrationBundle.manifestSha256) fail('CLEANUP_SOURCE_LOCK_MISMATCH')
+    intent.unlinkedProfileCleanupRef = input.unlinkedProfileCleanupRef
+    intent.migrationManifestSha256 = cleanupMigrationBundle.manifestSha256
+  } else if (cleanupMigrationBundle !== null) fail('CLEANUP_SOURCE_LOCK_MISMATCH')
   if (input.baselineIntentRef) intent.baselineIntentRef = exactRef(input.baselineIntentRef, profile)
   if (Object.hasOwn(input, 'openswxWorkerRef')) intent.openswxWorkerRef = exactRef(input.openswxWorkerRef, profile)
   if (Object.hasOwn(input, 'principalOnlyFenceRef') || Object.hasOwn(input, 'principalOnlyRecovery')) {
@@ -364,7 +374,21 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       workerDescriptor = descriptor.value
       if (workerDescriptor.purpose === 'full') await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource)
     }
-    const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent, workerDescriptor })
+    let cleanupMigrationBundle = null
+    if (Object.hasOwn(input, 'unlinkedProfileCleanupRef')) {
+      assertUnlinkedProfileCleanupRef(input.unlinkedProfileCleanupRef, profile.artifact.releaseBucket)
+      if (profile.application.id !== 'ai-pdm' || input.principalOnlyFenceRef || input.principalOnlyRecovery || workerDescriptor?.releaseVariant === 'PAUSED_APP_REPAIR') fail('CLEANUP_SOURCE_LOCK_MISMATCH')
+      const sourceRevision = prerequisiteValues.sourceLock.sourceRevision
+      const baseline = await buildMigrationBundle(sourceRevision)
+      if (baseline.bundle.manifestSha256 !== prerequisiteValues.sourceLock.migrationManifestSha256) fail('CLEANUP_SOURCE_LOCK_MISMATCH')
+      const bound = await buildMigrationBundle(sourceRevision, { unlinkedProfileCleanupRef: input.unlinkedProfileCleanupRef })
+      const entry = assertUnlinkedProfileCleanupBundleBinding(bound.bundle, input.unlinkedProfileCleanupRef)
+      await readUnlinkedProfileCleanupOperation({ ref: input.unlinkedProfileCleanupRef, sourceRevision,
+        migrationSourceSha256: entry.sourceSha256,
+        readObject: ref => transport.readBytes(ref.uri, { prefixes: ['source/migration-bundles/dev121/unlinked-profile-cleanup'], expectedSha256: ref.sha256, expectedGeneration: ref.generation }) })
+      cleanupMigrationBundle = bound.bundle
+    }
+    const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent, workerDescriptor, cleanupMigrationBundle })
     return transport.putJson(uri('release-intent'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   fail('STAGE_DENIED')

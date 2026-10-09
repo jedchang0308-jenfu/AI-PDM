@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 
-import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildInfraReuseReceipt, buildReleaseIntent, buildRoutineAuthority, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath, resolveProtectedReleaseRef } from './lib/dev012-owner-prerequisite-producer.mjs'
+import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildInfraReuseReceipt, buildReleaseIntent, buildRoutineAuthority, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath, resolveProtectedReleaseRef, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { DEV013_L4_FORWARD_STEPS, dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 
@@ -193,3 +195,75 @@ test('AI-PDM intent producer preserves the migration fence and maintenance recov
     { principalOnlyRecovery: { ...input.principalOnlyRecovery, receiptRef: { ...input.principalOnlyRecovery.receiptRef, uri: 'gs://sibling/receipts/proof.json' } } },
   ]) assert.throws(() => produce(changed))
 })
+
+// Synthetic payloads exercise the actual producer seam; operational data stays private.
+function genericCleanupProducerFixture() {
+  const nativeProfile = JSON.parse(readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v3.json', import.meta.url)))
+  const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
+  const packageValue = buildDev117MigrationPackage(nativeProfile, n1c)
+  const base = buildDev117MigrationBundle(nativeProfile, packageValue, H40)
+  const payload = { schemaVersion: 'ai-pdm.unlinked-profile-cleanup-operation.v1', ownerApplicationId: 'ai-pdm',
+    sourceRevision: H40, migrationSourceSha256: base.bundle.entries[33].sourceSha256,
+    operationId: '00000000-0000-4000-8000-000000000001', targetProfileId: 'fixture-profile', targetCompanyId: 'fixture-company' }
+  const bytes = Buffer.from(JSON.stringify(payload))
+  const cleanupRef = { uri: `gs://${nativeProfile.artifact.releaseBucket}/source/migration-bundles/dev121/unlinked-profile-cleanup/fixture.json`, generation: '7', sha256: sha256(bytes) }
+  const p = { ...profile, application: { ...profile.application, id: 'ai-pdm' },
+    artifact: { ...profile.artifact, releaseBucket: nativeProfile.artifact.releaseBucket }, schemas: nativeProfile.schemas }
+  const lock = { ...sourceLock, ownerApplicationId: 'ai-pdm', migrationManifestSha256: base.bundle.manifestSha256 }
+  const ref = name => ({ uri: `gs://${p.artifact.releaseBucket}/receipts/releases/REL-001/${name}.json`, sha256: H64 })
+  const input = { sourceLockRef: ref('source-lock'), authorizationPolicyRef: ref('authorization'), readinessReceiptRef: ref('readiness'),
+    foundationReceiptRef: ref('foundation'), infraReceiptRef: ref('infra'), runtimeConfigRef: ref('runtime'),
+    previousRevision: 'ai-pdm-prod-old', deadlineAt: '2999-01-01T00:00:00.000Z', unlinkedProfileCleanupRef: cleanupRef }
+  const common = { releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', status: 'PASS', projectId: 'project' }
+  const authority = { ...common, environment: 'production', remainingHumanAction: 0, expiresAt: input.deadlineAt }
+  const values = { sourceLock: lock, authorization: authority, readiness: authority,
+    foundation: { ...common, ownerApplicationId: 'shared-foundation', sourceRevision: 'f'.repeat(40) },
+    infra: { ...common, migrationRunnerDigest: p.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64) },
+    runtimeConfig: buildRuntimeConfigReceipt({ profile: p, releaseId: 'REL-001', sourceLock: lock,
+      plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '7' }, observedAt: NOW }) }
+  const build = (source, context) => { assert.equal(source, H40); return buildDev117MigrationBundle(nativeProfile, packageValue, source, context) }
+  const fields = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
+  const map = new Map(Object.entries(fields).map(([name, field]) => [input[field].uri, values[name]]))
+  const writes = [], reads = []
+  const transport = { readJson: async ref => ({ value: map.get(ref.uri) }),
+    readBytes: async (uri, options) => { reads.push({ uri, options }); return { bytes, metadata: { generation: '7' } } },
+    putJson: async (uri, value) => { writes.push({ uri, value }); return { ref: { uri, sha256: sha256(canonicalize(value)) }, value } } }
+  const run = changed => executePrerequisiteProducer({ stage: 'release-intent', releaseId: 'REL-001', input, profile: p,
+    transport, buildMigrationBundle: build, validateIntent: assertDev117ReleaseIntent, ...changed })
+  return { run, input, lock, transport, writes, reads, base, bytes, payload, build }
+}
+test('generic cleanup producer derives a bound manifest without changing the frozen source lock', async () => {
+  const f = genericCleanupProducerFixture(), original = structuredClone(f.lock)
+  const result = await f.run()
+  assert.deepEqual(f.lock, original)
+  assert.notEqual(result.value.migrationManifestSha256, f.lock.migrationManifestSha256)
+  assert.deepEqual(result.value.unlinkedProfileCleanupRef, f.input.unlinkedProfileCleanupRef)
+  assert.equal(f.reads[0].options.expectedGeneration, '7')
+  assert.equal(f.writes.length, 1)
+  assert.equal(JSON.stringify(f.writes).includes('fixture-profile'), false)
+  const { unlinkedProfileCleanupRef: _, ...plain } = f.input
+  const ordinary = await f.run({ input: plain })
+  assert.equal(ordinary.value.migrationManifestSha256, original.migrationManifestSha256)
+  assert.equal(Object.hasOwn(ordinary.value, 'unlinkedProfileCleanupRef'), false)
+})
+for (const mutation of ['source-lock', 'generation', 'hash', 'payload-source', 'migration-source', 'bundle-ref', 'bundle-source']) {
+  test(`generic cleanup producer rejects ${mutation} before publishing an intent`, async () => {
+    const f = genericCleanupProducerFixture(), changed = {}
+    if (mutation === 'source-lock') f.lock.migrationManifestSha256 = 'e'.repeat(64)
+    else if (mutation === 'generation') f.transport.readBytes = async () => ({ bytes: f.bytes, generation: '8' })
+    else if (mutation === 'hash') f.transport.readBytes = async () => ({ bytes: Buffer.from('changed'), generation: '7' })
+    else if (mutation === 'payload-source' || mutation === 'migration-source') {
+      const payload = { ...f.payload, [mutation === 'payload-source' ? 'sourceRevision' : 'migrationSourceSha256']: 'e'.repeat(mutation === 'payload-source' ? 40 : 64) }
+      const bytes = Buffer.from(JSON.stringify(payload)); f.input.unlinkedProfileCleanupRef.sha256 = sha256(bytes)
+      f.transport.readBytes = async () => ({ bytes, generation: '7' })
+    } else changed.buildMigrationBundle = async (source, context) => {
+      const result = f.build(source, context)
+      if (context) {
+        if (mutation === 'bundle-ref') result.bundle.unlinkedProfileCleanupRef = { ...context.unlinkedProfileCleanupRef, generation: '8' }
+        else result.bundle.sourceRevision = 'e'.repeat(40)
+      }
+      return result
+    }
+    await assert.rejects(f.run(changed)); assert.equal(f.writes.length, 0)
+  })
+}

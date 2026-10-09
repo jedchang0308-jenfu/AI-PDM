@@ -9,6 +9,7 @@ RUN npm ci --omit=dev --ignore-scripts \
     && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
 COPY scripts/lib/dev012-production-migration-runner.mjs scripts/lib/dev012-production-migration-runner.mjs
+COPY scripts/lib/dev121-unlinked-profile-cleanup.mjs scripts/lib/dev121-unlinked-profile-cleanup.mjs
 COPY scripts/lib/dev121-ai-pdm-quiescence.mjs scripts/lib/dev121-ai-pdm-quiescence.mjs
 COPY scripts/lib/dev121-migration-fence.mjs scripts/lib/dev121-migration-fence.mjs
 COPY scripts/lib/dev121-principal-inventory-runner.mjs scripts/lib/dev121-principal-inventory-runner.mjs

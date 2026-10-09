@@ -343,6 +343,10 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 </details>
 
+## DEV-121 generic 歷史 profile 清理（2026-10-10，執行中）
+
+[現行任務](dev_task.md#dev-121-unlinked-profile-cleanup) → [current contract](specs/DEV-121-target-authorization-boundary.md#unlinked-profile-cleanup) → migrator-only `084_dev121_unlinked_legacy_profile_cleanup.sql` → synthetic PostgreSQL／owner producer／runner／source-proof 回歸。公開內容僅可重用程式與合成驗證；Production 單筆目標、處置、native snapshot 與 provider evidence 私存。 本地證據入口：[local validation](qa/qa-dev-121-generic-unlinked-profile-cleanup-2026-10-10.md)。受保護 owner capsule／exact generation/hash/source 控制執行，不新增角色、IAM 或資源，不改 065／083，引用或資料漂移拒絕；本機 PASS 不等於正式資料刪除或本人登入成功。
+
 ## DEV-121 有效授權首次登入自動開通（2026-10-08，執行中）
 
 [現行任務](dev_task.md#dev-121-authorized-first-login) → [current contract](specs/DEV-121-target-authorization-boundary.md#authorized-first-login) → [本機 checkpoint](qa/DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json) → [publication 微秒补驗](qa/DEV-121-first-login-publication-precision-2026-10-08.json) → migration `083_dev121_authorized_first_login_account.sql`／focused unit 與 task-owned PostgreSQL QC。OrgMaster published v4 grant 是唯一開通授權；AI-PDM 只在 active typed Principal、authEpoch／撤銷與有效 grant 通過後原子建立本地 profile／Principal link／receipt／cutover，不複製角色。無 grant、失效、停用、離職、身分衝突與依賴失敗均零開通副作用；重試／並行只留一筆，歷史 Email 相似不作關聯。Platform／OrgMaster 本輪只讀；本機 PASS 不代表 Production 或 Dani 已修復。

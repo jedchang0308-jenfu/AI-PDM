@@ -1,3 +1,5 @@
+import { assertMigrationBundle } from './dev012-production-migration-runner.mjs'
+import { UNLINKED_PROFILE_CLEANUP_PREFIX, assertUnlinkedProfileCleanupRef, assertUnlinkedProfileCleanupEntry, assertUnlinkedProfileCleanupBundleBinding, readUnlinkedProfileCleanupOperation, assertUnlinkedProfileCleanupReceipt } from './dev121-unlinked-profile-cleanup.mjs'
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { spawnSync } from 'node:child_process'
@@ -81,6 +83,11 @@ function assertIntentBase(intent, profile, intentRef, intentSha256) {
   if (Object.hasOwn(intent ?? {}, 'openswxWorkerRef')) {
     if (profile.application.id !== 'ai-pdm') fail('OPENSWX_OWNER_MISMATCH')
     exact.push('openswxWorkerRef'); exact.sort(); assertOpenSwxWorkerRef(intent.openswxWorkerRef)
+  }
+  if (Object.hasOwn(intent ?? {}, 'unlinkedProfileCleanupRef')) {
+    if (profile.application.id !== 'ai-pdm' || intent.principalOnlyRecovery || intent.principalOnlyFenceRef) fail('UNLINKED_PROFILE_CLEANUP_INTENT_INVALID')
+    exact.push('unlinkedProfileCleanupRef'); exact.sort()
+    assertUnlinkedProfileCleanupRef(intent.unlinkedProfileCleanupRef, profile.artifact.releaseBucket)
   }
   if (!intent || JSON.stringify(Object.keys(intent).sort()) !== JSON.stringify(exact) || intent.schemaVersion !== profile.schemas.releaseIntent || intent.ownerApplicationId !== profile.application.id || !/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(intent.releaseId ?? '') || !H40.test(intent.sourceRevision ?? '') || !H64.test(intent.sourceSha256 ?? '') || !H64.test(intent.migrationManifestSha256 ?? '') || !intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INVALID')
   assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
@@ -418,6 +425,7 @@ async function readRepairStageBasis({ worker, intent, intentRef, profile, transp
     if (profile.application.id !== 'ai-pdm' || intent.principalOnlyRecovery || intent.principalOnlyFenceRef || typeof buildMigrationBundle !== 'function') fail('REPAIR_CAPSULE_INVALID')
     const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource)
     const original = assertAiPdmHistoricalMigration(evidence.artifact.servingGraph.original)
+    if (intent.unlinkedProfileCleanupRef) fail('UNLINKED_PROFILE_CLEANUP_REPAIR_MIX_DENIED')
     const current = await buildMigrationBundle(intent.sourceRevision)
     const checked = assertAiPdmMigrationBundleBytes({ bytes: current.bytes, bundle: current.bundle, sourceRevision: intent.sourceRevision })
     if (checked.bundleSha256 !== current.bundleSha256 || current.bundle.manifestSha256 !== intent.migrationManifestSha256) fail('MIGRATION_MANIFEST_MISMATCH')
@@ -484,6 +492,54 @@ async function validateRepairMigration({ basis, transport, paths, profile, inten
   return receipt
 }
 
+async function readOwnerCleanupBinding({ intent, profile, transport, readWorkerSource, buildMigrationBundle }) {
+  if (!Object.hasOwn(intent, 'unlinkedProfileCleanupRef')) return null
+  if (typeof readWorkerSource !== 'function' || typeof buildMigrationBundle !== 'function') fail('UNLINKED_PROFILE_CLEANUP_FROZEN_SOURCE_REQUIRED')
+  let sourceLock
+  try { sourceLock = (await transport.readJson(intent.sourceLockRef, profile.artifact.releaseBucket, ['receipts'])).value }
+  catch { fail('UNLINKED_PROFILE_CLEANUP_SOURCE_LOCK_INVALID') }
+  if (!acceptedStatus(sourceLock, ['PASS', 'SOURCE_FROZEN']) || sourceLock.sourceRevision !== intent.sourceRevision
+    || sourceLock.clean !== true || sourceLock.sourceSha256 !== intent.sourceSha256
+    || !H64.test(sourceLock.migrationManifestSha256 ?? '')) fail('UNLINKED_PROFILE_CLEANUP_SOURCE_LOCK_INVALID')
+  const target = { ownerApplicationId: profile.application.id, ledger: profile.migrations.ledger, baselineCount: profile.migrations.baselineCount }
+  const baseline = await buildMigrationBundle(intent.sourceRevision)
+  assertMigrationBundle(baseline.bundle, { target, sourceRevision: intent.sourceRevision, bytes: baseline.bytes, bundleSha256: baseline.bundleSha256 })
+  assertUnlinkedProfileCleanupBundleBinding(baseline.bundle, undefined)
+  if (baseline.bundle.manifestSha256 !== sourceLock.migrationManifestSha256) fail('UNLINKED_PROFILE_CLEANUP_SOURCE_LOCK_INVALID')
+  const bound = await buildMigrationBundle(intent.sourceRevision, { unlinkedProfileCleanupRef: intent.unlinkedProfileCleanupRef })
+  assertMigrationBundle(bound.bundle, { target, sourceRevision: intent.sourceRevision, bytes: bound.bytes, bundleSha256: bound.bundleSha256 })
+  assertUnlinkedProfileCleanupBundleBinding(bound.bundle, intent.unlinkedProfileCleanupRef)
+  const baseCore = { ...bound.bundle }; delete baseCore.manifestSha256; delete baseCore.unlinkedProfileCleanupRef
+  if (bound.bundle.manifestSha256 !== intent.migrationManifestSha256
+    || sha256(canonicalize(baseCore)) !== sourceLock.migrationManifestSha256) fail('UNLINKED_PROFILE_CLEANUP_SOURCE_LOCK_INVALID')
+  const entries = profile.migrations?.entries?.map(row => ({ ...row, sourceSha256: row.sha256,
+    version: `ai-pdm-${row.path?.split('/').at(-1)?.slice(0, 3)}`,
+    name: row.path?.split('/').at(-1)?.slice(4, -4) }))
+  const entry = assertUnlinkedProfileCleanupEntry(entries)
+  let bytes
+  try { bytes = readWorkerSource(entry.path, intent.sourceRevision) } catch { fail('UNLINKED_PROFILE_CLEANUP_SOURCE_INVALID') }
+  if (!Buffer.isBuffer(bytes) || sha256(bytes) !== entry.sourceSha256) fail('UNLINKED_PROFILE_CLEANUP_SOURCE_INVALID')
+  return readUnlinkedProfileCleanupOperation({ ref: intent.unlinkedProfileCleanupRef,
+    sourceRevision: intent.sourceRevision, migrationSourceSha256: entry.sourceSha256,
+    readObject: ref => transport.readBytes(ref.uri, { prefixes: [UNLINKED_PROFILE_CLEANUP_PREFIX],
+      expectedSha256: ref.sha256, expectedGeneration: ref.generation }) })
+}
+
+async function readCleanupMigrationBundle({ transport, deployment, intent, profile }) {
+  const ref = deployment.migrationBundleRef
+  const readback = await transport.readBytes(ref.uri, { prefixes: ['source/migration-bundles'], expectedSha256: ref.sha256 })
+  if (!Buffer.isBuffer(readback?.bytes) || sha256(readback.bytes) !== ref.sha256) fail('UNLINKED_PROFILE_CLEANUP_BUNDLE_MISMATCH')
+  let bundle
+  try { bundle = JSON.parse(readback.bytes.toString('utf8')) } catch { fail('UNLINKED_PROFILE_CLEANUP_BUNDLE_MISMATCH') }
+  const core = { ...bundle }; delete core.manifestSha256
+  if (bundle.sourceRevision !== intent.sourceRevision || bundle.ownerApplicationId !== profile.application.id
+    || bundle.manifestSha256 !== intent.migrationManifestSha256 || sha256(canonicalize(core)) !== bundle.manifestSha256) fail('UNLINKED_PROFILE_CLEANUP_BUNDLE_MISMATCH')
+  const entry = assertUnlinkedProfileCleanupBundleBinding(bundle, intent.unlinkedProfileCleanupRef)
+  const authority = profile.migrations.entries.find(row => row.path === entry.path)
+  if (!authority || authority.order !== entry.order || authority.sha256 !== entry.sourceSha256) fail('UNLINKED_PROFILE_CLEANUP_BUNDLE_MISMATCH')
+  return bundle
+}
+
 export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, readWorkerSource, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
   const { intent, intentRef, paths } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent })
@@ -514,6 +570,9 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       if (completed.value.facts?.result === 'PRE_ACTIVATION_ABORTED') fail('RELEASE_ALREADY_PREACTIVATION_ABORTED')
     }
   }
+
+  const cleanup = ['prepare', 'build', 'migrate'].includes(stage)
+    ? await readOwnerCleanupBinding({ intent, profile, transport, readWorkerSource, buildMigrationBundle }) : null
 
   if (stage === 'prepare') {
     const service = await transport.getService(profile)
@@ -586,6 +645,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (repair?.migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(prepare.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
     if (existing) {
       assertDeployment(existing.value, profile, intent, intentRef, capsuleSha256)
+      if (cleanup) await readCleanupMigrationBundle({ transport, deployment: existing.value, intent, profile })
       await readStage(transport, paths, profile, intent, 'build')
       if (worker) {
         const frozen = await worker.build({ intent, profile, sourceObject: { ref: existing.value.sourceObject } })
@@ -606,8 +666,10 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const sourceUri = `gs://${profile.artifact.releaseBucket}/source/releases/${intent.releaseId}/${capsuleSha256}/source.tar.gz`
     const sourceArchive = gzipSync(sourceBytes, { level: 9 })
     const source = await transport.putBytes(sourceUri, sourceArchive, { bucket: profile.artifact.releaseBucket, prefix: 'source', contentType: 'application/gzip' })
-    const migration = repair?.current ?? await buildMigrationBundle(intent.sourceRevision)
+    const migration = repair?.current ?? await buildMigrationBundle(intent.sourceRevision,
+      cleanup ? { unlinkedProfileCleanupRef: intent.unlinkedProfileCleanupRef } : undefined)
     if (migration.bundle?.manifestSha256 !== intent.migrationManifestSha256 || sha256(migration.bytes) !== migration.bundleSha256) fail('MIGRATION_MANIFEST_MISMATCH')
+    if (cleanup) assertUnlinkedProfileCleanupBundleBinding(migration.bundle, intent.unlinkedProfileCleanupRef)
     const bundleUri = `gs://${profile.artifact.releaseBucket}/${profile.artifact.migrationBundlePrefix}/${intent.sourceRevision}/${migration.bundle.manifestSha256}.json`
     const bundle = await transport.putBytes(bundleUri, migration.bytes, { bucket: profile.artifact.releaseBucket, prefix: profile.artifact.migrationBundlePrefix, contentType: 'application/json' })
     if (repair) await worker.beforeBuild({ intent, profile })
@@ -628,6 +690,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
 
   if (stage === 'migrate') {
     const deployment = await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256)
+    if (cleanup) await readCleanupMigrationBundle({ transport, deployment: deployment.value, intent, profile })
     const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
     const existing = await optionalNamedJson(transport, paths.migrate, profile)
     if (repair?.migrationMode === 'HISTORICAL_EVIDENCE_REUSED') {
@@ -658,6 +721,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       outputUri: paths.migrate, deadlineAt: intent.deadlineAt })
     const receipt = existing ?? await readNamedJson(transport, paths.migrate, profile)
     if (repair) return validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef, deployment, receipt })
+    assertUnlinkedProfileCleanupReceipt(receipt.value?.unlinkedProfileCleanup, intent.unlinkedProfileCleanupRef)
     if (receipt.value?.schemaVersion !== 'jenfu.dev012.migration-receipt.v1' || receipt.value.ownerApplicationId !== profile.application.id || receipt.value.sourceRevision !== intent.sourceRevision || receipt.value.manifestSha256 !== intent.migrationManifestSha256 || receipt.value.status !== 'PASS' || receipt.value.boundaryStatus !== 'PASS' || (profile.productionData?.required === true && receipt.value.productionData?.status !== 'PASS')) fail('MIGRATION_RECEIPT_INVALID')
     return receipt
   }
@@ -665,6 +729,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
   if (stage === 'candidate') {
     const deployment = await readDeployment(transport, paths, profile, intent, intentRef, capsuleSha256)
     const migration = await readNamedJson(transport, paths.migrate, profile)
+    assertUnlinkedProfileCleanupReceipt(migration.value?.unlinkedProfileCleanup, intent.unlinkedProfileCleanupRef)
     const repair = await readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment })
     if (repair) await validateRepairMigration({ basis: repair, transport, paths, profile, intent, intentRef, deployment, receipt: migration })
     else if (migration.value?.status !== 'PASS' || migration.value?.sourceRevision !== intent.sourceRevision) fail('MIGRATION_RECEIPT_INVALID')

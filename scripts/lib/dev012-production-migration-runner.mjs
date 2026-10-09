@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 
+import { assertUnlinkedProfileCleanupBundleBinding } from './dev121-unlinked-profile-cleanup.mjs'
+
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const SAFE_SEGMENT = /^[A-Za-z0-9._/-]+$/u
@@ -77,14 +79,17 @@ async function responseBytes(response, code) {
   return Buffer.from(await response.arrayBuffer())
 }
 
-export async function readGcsObject({ uri, expectedBucket, expectedPrefix, token, fetchImpl = fetch }) {
+export async function readGcsObject({ uri, expectedBucket, expectedPrefix, expectedGeneration = null, token, fetchImpl = fetch }) {
   const ref = parseGsUri(uri, expectedBucket, expectedPrefix)
   const base = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(ref.bucket)}/o/${encodeURIComponent(ref.object)}`
   const headers = { authorization: `Bearer ${token}` }
-  const metadataResponse = await fetchImpl(base, { headers, signal: AbortSignal.timeout(20_000) })
+  if (expectedGeneration !== null && (typeof expectedGeneration !== 'string' || !/^[1-9][0-9]{0,31}$/u.test(expectedGeneration))) fail('MIGRATION_GCS_GENERATION_INVALID')
+  const metadataUrl = expectedGeneration === null ? base : `${base}?generation=${encodeURIComponent(expectedGeneration)}`
+  const metadataResponse = await fetchImpl(metadataUrl, { headers, signal: AbortSignal.timeout(20_000) })
   if (!metadataResponse.ok) fail('MIGRATION_GCS_METADATA_FAILED', String(metadataResponse.status))
   const metadata = await metadataResponse.json()
   if (!/^[1-9][0-9]*$/u.test(String(metadata.generation ?? '')) || typeof metadata.crc32c !== 'string') fail('MIGRATION_GCS_METADATA_INVALID')
+  if (expectedGeneration !== null && String(metadata.generation) !== expectedGeneration) fail('MIGRATION_GCS_GENERATION_MISMATCH')
   const media = await responseBytes(await fetchImpl(`${base}?alt=media&generation=${encodeURIComponent(metadata.generation)}`, { headers, signal: AbortSignal.timeout(30_000) }), 'MIGRATION_GCS_MEDIA_FAILED')
   if (crc32cBase64(media) !== metadata.crc32c) fail('MIGRATION_GCS_CRC32C_MISMATCH')
   return { bytes: media, generation: String(metadata.generation), crc32c: metadata.crc32c, ref }
@@ -148,6 +153,7 @@ export function assertRunnerTarget(environment, target) {
 export function assertMigrationBundle(value, { target, sourceRevision, bundleSha256, bytes }) {
   if (!Buffer.isBuffer(bytes) || sha256(bytes) !== bundleSha256) fail('MIGRATION_BUNDLE_SHA256_MISMATCH')
   const keys = ['schemaVersion', 'ownerApplicationId', 'sourceRevision', 'projectId', 'region', 'database', 'ledger', 'baselineCount', 'entries', 'manifestSha256']
+  if (Object.hasOwn(value ?? {}, 'unlinkedProfileCleanupRef')) keys.push('unlinkedProfileCleanupRef')
   if (!value || canonicalize(Object.keys(value).sort()) !== canonicalize(keys.sort())) fail('MIGRATION_BUNDLE_KEYS_INVALID')
   if (value.schemaVersion !== 'jenfu.dev012.migration-bundle.v1' || value.ownerApplicationId !== target.ownerApplicationId || value.sourceRevision !== sourceRevision || value.projectId !== 'jenfu-platform-prod' || value.region !== 'asia-east1' || value.database !== 'jenfu_prod' || value.ledger !== target.ledger || value.baselineCount !== target.baselineCount) fail('MIGRATION_BUNDLE_TARGET_MISMATCH')
   if (!Array.isArray(value.entries) || value.entries.length < value.baselineCount) fail('MIGRATION_BUNDLE_ENTRIES_INVALID')
@@ -163,10 +169,11 @@ export function assertMigrationBundle(value, { target, sourceRevision, bundleSha
     if (sql.length === 0 || sha256(sql) !== entry.appliedSha256) fail('MIGRATION_BUNDLE_SQL_HASH_MISMATCH', entry.version)
     versions.add(entry.version)
   }
+  assertUnlinkedProfileCleanupBundleBinding(value)
   return value
 }
 
-export function createMigrationBundle({ target, sourceRevision, entries }) {
+export function createMigrationBundle({ target, sourceRevision, entries, unlinkedProfileCleanupRef }) {
   if (!H40.test(sourceRevision ?? '') || !Array.isArray(entries)) fail('MIGRATION_BUNDLE_BUILD_INPUT_INVALID')
   const core = {
     schemaVersion: 'jenfu.dev012.migration-bundle.v1',
@@ -179,6 +186,7 @@ export function createMigrationBundle({ target, sourceRevision, entries }) {
     baselineCount: target.baselineCount,
     entries,
   }
+  if (unlinkedProfileCleanupRef !== undefined) core.unlinkedProfileCleanupRef = unlinkedProfileCleanupRef
   const bundle = { ...core, manifestSha256: sha256(canonicalize(core)) }
   const bytes = Buffer.from(`${canonicalize(bundle)}\n`, 'utf8')
   assertMigrationBundle(bundle, { target, sourceRevision, bundleSha256: sha256(bytes), bytes })
@@ -243,7 +251,7 @@ async function readDatabaseBoundary(database, target) {
   return { ...identity, siblingCore: sibling }
 }
 
-export async function executeProductionMigration({ bundle, database, target, sourceRevision, denyDatabaseConnect, beforePending = async () => undefined, now = () => new Date().toISOString() }) {
+export async function executeProductionMigration({ bundle, database, target, sourceRevision, denyDatabaseConnect, beforePending = async () => undefined, afterEntry = async () => undefined, afterPending = async () => undefined, now = () => new Date().toISOString() }) {
   const startedAt = now()
   await readDatabaseBoundary(database, target)
   await database.query("SELECT pg_advisory_lock(hashtext($1), hashtext(current_database()))", [`dev012-${target.ownerApplicationId}`])
@@ -261,6 +269,7 @@ export async function executeProductionMigration({ bundle, database, target, sou
       await database.query('BEGIN')
       try {
         await database.query(Buffer.from(entry.sqlBase64, 'base64').toString('utf8'))
+        await afterEntry(entry)
         await database.query(`INSERT INTO ${target.ledger}(version,name,checksum_sha256,source_revision) VALUES ($1,$2,$3,$4)`, [entry.version, entry.name, entry.appliedSha256, sourceRevision])
         await database.query('COMMIT')
         applied += 1
@@ -272,6 +281,7 @@ export async function executeProductionMigration({ bundle, database, target, sou
     ledger = await readLedger(database, target.ledger)
     if (ledger.length !== bundle.entries.length) fail('MIGRATION_LEDGER_READBACK_LENGTH_MISMATCH')
     planMigration(bundle, ledger, { minimumLedgerCount })
+    await afterPending({ pending, ledger })
   } finally {
     await database.query("SELECT pg_advisory_unlock(hashtext($1), hashtext(current_database()))", [`dev012-${target.ownerApplicationId}`]).catch(() => undefined)
   }

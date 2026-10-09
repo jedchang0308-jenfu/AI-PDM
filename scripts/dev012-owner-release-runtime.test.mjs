@@ -931,3 +931,20 @@ test('B29 prepare migration read token is restricted to exact GET pages and refu
   }
   assert.throws(()=>createOwnerTransport({token:primary,migrationExecutionReadbackToken:''}),{code:'MIGRATION_READBACK_TOKEN_INVALID'})
 })
+
+
+test('owner private-object reads pin metadata and media to the exact requested generation', async () => {
+  const bytes = Buffer.from('synthetic private operation'), seen = []
+  const transport = createOwnerTransport({ token: 'fixture-token-with-enough-length', fetchImpl: async url => {
+    seen.push(String(url))
+    return String(url).includes('alt=media') ? new Response(bytes)
+      : json({ generation: '7', crc32c: crc32cBase64(bytes) })
+  } })
+  const uri = `gs://${bucket}/source/migration-bundles/fixture.json`
+  const result = await transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: '7', expectedSha256: sha256(bytes) })
+  assert.equal(result.metadata.generation, '7')
+  assert.equal(new URL(seen[0]).searchParams.get('generation'), '7')
+  assert.equal(new URL(seen[1]).searchParams.get('generation'), '7')
+  await assert.rejects(transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: '8' }), /GCS_GENERATION_MISMATCH/u)
+  await assert.rejects(transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: 7 }), /GCS_GENERATION_INVALID/u)
+})
