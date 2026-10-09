@@ -1,6 +1,14 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B32 app 正式發布完成；背景解析待啟用／整體未驗收）
+## DEV-122 CURRENT（B32 app／背景解析已啟用；料號載入修正本地通過、尚未發布）
+
+B32 正式 app `ai-pdm-prod-e9612df3e9bc`／來源 `74116271d3917a21f11d8a2c785635f84a2b7705` 已 RELEASED／FINALIZED、100%／零 tags。依人類原核准12項資源方案第5步，未修改來源的固定 CLI 完成一次 finite empty claim（`ai-pdm-prod-openswx-metadata-rkm58`，authenticated204）；背景 worker READY、Scheduler ENABLED。實際 provider 回讀與獨立 Luna QC PASS；當次28 executions／0 active僅為該時快照，不代替 CAD 結果。保留原 B32 發布收尾與啟用前快照。
+
+現行隔離 native 根號8／附件權限7／採購10／取消24，共49個選定案例通過。正常 UI 桌面1440×900與手機390×844各自case PASS；桌面整體FAIL保留後續手機登入定位逾時，手機單獨重跑為PARTIAL_NOT_ACCEPTED，兩次不是整體29組驗收。實際本地流程發現舊載入覆蓋輸入；唯一產品修正為料號矩陣 latest active load guard，已通過上述操作、型別與隔離建置，尚未合併／發布。另四個 test-only檔刷新LF-only來源pin、精確SQL fixture、既有081／082＋v6先決條件、ALLOW容量枚舉與正常UI定位；SQL／依賴／workflow無更動。原失敗、非byte-identical runner與pending save限制保留。
+
+完整綁定與證據見 [worker與料號驗證](../qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)。下一步限定修正的 protected PR／required CI／fresh official-source app release，不重播B32 capsule。7 issues／29 groups仍NOT_ACCEPTED；原生CAD完整屬性由人類正式驗證，supplier停用延期。人類「已驗證」僅確認發布登入；正式CAD正常網站操作仍等待登入與限定SSO授權。自動核准審查拒絕不同origin的公司登入頁讀取，root未繞過；本次CAD Chrome分頁暫留等待人類，root持有清理責任。
+
+## DEV-122 HISTORY_ONLY（B32 app 初次發布後、worker啟用前的快照）
 
 PR #251 已正常合併至官方 main `74116271d3917a21f11d8a2c785635f84a2b7705`，required PR／main CI PASS；本地 targeted 221／221、authentic ROOT 8／8、continuous 175／175及六項 required checks PASS，獨立 Luna source QC PASS。Owner [37893968135](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37893968135) 十階段 SUCCESS；11 sealed receipts 與實際 GET-only provider 回讀已核對，app `RELEASED`／control `FINALIZED`。
 

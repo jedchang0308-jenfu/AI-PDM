@@ -1,6 +1,14 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（B32 app 正式發布完成；背景解析待啟用／整體未驗收）
+## DEV-122 CURRENT（B32 app／背景解析已啟用；料號載入修正本地通過、尚未發布）
+
+B32 正式 app `ai-pdm-prod-e9612df3e9bc`／來源 `74116271d3917a21f11d8a2c785635f84a2b7705` 已 RELEASED／FINALIZED、100%／零 tags。依人類原核准12項資源方案第5步，未修改來源的固定 CLI 完成一次 finite empty claim（`ai-pdm-prod-openswx-metadata-rkm58`，authenticated204）；背景 worker READY、Scheduler ENABLED。實際 provider 回讀與獨立 Luna QC PASS；當次28 executions／0 active僅為該時快照，不代替 CAD 結果。保留原 B32 發布收尾與啟用前快照。
+
+現行隔離 native 根號8／附件權限7／採購10／取消24，共49個選定案例通過。正常 UI 桌面1440×900與手機390×844各自case PASS；桌面整體FAIL保留後續手機登入定位逾時，手機單獨重跑為PARTIAL_NOT_ACCEPTED，兩次不是整體29組驗收。實際本地流程發現舊載入覆蓋輸入；唯一產品修正為料號矩陣 latest active load guard，已通過上述操作、型別與隔離建置，尚未合併／發布。另四個 test-only檔刷新LF-only來源pin、精確SQL fixture、既有081／082＋v6先決條件、ALLOW容量枚舉與正常UI定位；SQL／依賴／workflow無更動。原失敗、非byte-identical runner與pending save限制保留。
+
+完整綁定與證據見 [worker與料號驗證](qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)。下一步限定修正的 protected PR／required CI／fresh official-source app release，不重播B32 capsule。7 issues／29 groups仍NOT_ACCEPTED；原生CAD完整屬性由人類正式驗證，supplier停用延期。人類「已驗證」僅確認發布登入；正式CAD正常網站操作仍等待登入與限定SSO授權。自動核准審查拒絕不同origin的公司登入頁讀取，root未繞過；本次CAD Chrome分頁暫留等待人類，root持有清理責任。
+
+## DEV-122 HISTORY_ONLY（B32 app 初次發布後、worker啟用前的快照）
 
 PR #251 已正常合併至官方 main `74116271d3917a21f11d8a2c785635f84a2b7705`，required PR／main CI PASS；本地 targeted 221／221、authentic ROOT 8／8、continuous 175／175及六項 required checks PASS，獨立 Luna source QC PASS。Owner [37893968135](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37893968135) 十階段 SUCCESS；11 sealed receipts 與實際 GET-only provider 回讀已核對，app `RELEASED`／control `FINALIZED`。
 
@@ -1973,12 +1981,12 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ◇ DEV-122 [開發點] [部分實作／NOT_FULLY_TESTED] [P2] [B32 app 已發布／剩餘驗收] AI-PDM 內部功能缺陷集中處理
+- ◇ DEV-122 [開發點] [部分實作／NOT_FULLY_TESTED] [P2] [背景解析已啟用／料號修正待發布] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：沿原契約完成剩餘 CAD／正常 UI／業務驗收；背景解析啟用另循既有授權邊界。B32 app 發布已完成，不重開舊 retry queue。
-  - 驗收缺口：B32 app RELEASED／FINALIZED；worker待啟用、Scheduler PAUSED。F-01F使用者正式 CAD 驗證、正常 UI／業務驗收待完成；supplier停用及7／29 NOT_ACCEPTED保留，B31及原始FAIL只作歷史。
-  - 證據：[B32 正式發布收尾](qa/DEV-122-B32-production-release-closure-2026-10-09.json)、[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
+  - 下一步：限定料號矩陣載入修正的 protected PR／required CI／fresh app release；原生 CAD 由人類正式驗證，其他業務驗收沿原契約。背景解析已啟用，不重播 B32 capsule 或舊 retry queue。
+  - 驗收缺口：B32 app RELEASED／FINALIZED；worker READY、Scheduler ENABLED。選定native49與兩尺寸UI各自case PASS，料號修正尚未發布；F-01F使用者正式 CAD、正式正常網站／業務驗收待完成。supplier停用及7／29 NOT_ACCEPTED保留，原始FAIL只作歷史。
+  - 證據：[worker與料號驗證](qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)、[B32 正式發布收尾](qa/DEV-122-B32-production-release-closure-2026-10-09.json)、[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
 - ✓ DEV-121 [開發點] [本批最高管理能力正式結案／其他子項原判定] [P0] [Principal-only owner release] 目標端授權邊界重構
@@ -5648,7 +5656,7 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-122：AI-PDM 內部功能缺陷集中處理
 
-目前判定以本檔開頭DEV-122 CURRENT及[B32正式發布收尾](qa/DEV-122-B32-production-release-closure-2026-10-09.json)為準：corrected source／provider consumer及app RELEASED／FINALIZED已通過；worker待啟用、native使用者正式驗證與其他業務驗收未完成，Whole DEV NOT_ACCEPTED。B32施工契約、B31及更早結果／retry queue皆為HISTORY_ONLY，不重開舊發布步驟。
+目前判定以本檔開頭DEV-122 CURRENT及[worker與料號驗證](qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)為準：B32 app RELEASED／FINALIZED、worker READY／Scheduler ENABLED；料號載入修正本地PASS尚未發布，原生CAD由人類正式驗證，Whole DEV NOT_ACCEPTED。B32舊施工契約與retry queue為HISTORY_ONLY，不重播。
 
 2026-10-05 現行正式發布結果：R02 已由 app-owned V3 owner run [37262598122](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122) 完成 RELEASED／FINALIZED；正式 ai-pdm-prod-52f421cb8db9 接收 100% 流量、0 candidate tags。官方來源 602413097ef27a203fe1e2beccac3166c6e2351a 來自正常 PR209 合併，PR／main required CI 均 SUCCESS。人類在本機安全頁完成既有 Firebase 帳號重新驗證，own numeric 6→7 與既有 GitHub production smoke Secret 更新成功；候選及 canonical 正常 SSO／authenticated probe 通過，匿名／撤銷 session 回 401。B 配置保留 jenfu-platform-prod 並另核 expected number 9536592944；三項已授權 own Secret／IAM 於 R01 APPLIED，R02 只沿用來源相容回執，沒有 historical workflow rotation apply。079 在 R01 已 forward apply，R02 0 applied／29 replayed／ledger 29。正式設定 UI 因工具限制 NOT_RUN；登入與 provider 證據不替代 key draft/probe/activation 或原生 CAD 屬性。這些由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups、整體 NOT_ACCEPTED。R01 401／UNKNOWN／安全中止證據保留。 [正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)。
 

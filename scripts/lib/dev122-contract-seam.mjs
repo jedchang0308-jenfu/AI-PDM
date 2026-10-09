@@ -31,8 +31,8 @@ export function assertLocalSeamEnvironment(env, root) {
 
 export function loadSeamAllowlist(root) {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'config/local/dev122-native-postgres.v1.json'), 'utf8'));
-  if (config.seamVersion !== seamVersion || config.marker !== marker || config.templates.length < 1) throw new Error('DEV122_SEAM_CONFIG_INVALID');
-  for (const source of config.sources) if (sha256(fs.readFileSync(path.join(root, source.path))) !== source.sha256) throw new Error(`DEV122_SEAM_SOURCE_DRIFT:${source.path}`);
+  if (config.seamVersion !== seamVersion || config.marker !== marker || config.sourceHashEncoding !== 'utf8-lf' || config.templates.length < 1) throw new Error('DEV122_SEAM_CONFIG_INVALID');
+  for (const source of config.sources) if (sha256(fs.readFileSync(path.join(root, source.path), 'utf8').replaceAll('\r\n', '\n')) !== source.sha256) throw new Error(`DEV122_SEAM_SOURCE_DRIFT:${source.path}`);
   for (const template of config.templates) if (sha256(template.sql) !== template.sha256 || !/^SELECT\b/u.test(template.sql)) throw new Error('DEV122_SEAM_TEMPLATE_INVALID');
   return config;
 }
