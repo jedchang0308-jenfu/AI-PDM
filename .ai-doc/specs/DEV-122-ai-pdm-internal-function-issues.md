@@ -1,6 +1,16 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B32 app／背景解析已啟用；料號載入修正本地通過、尚未發布）
+## DEV-122 CURRENT（B33 料號載入修正已上線；Cloud Run 背景解析已恢復）
+
+PR #253 正常合併來源 `e2e7aaa69d7ca3600203874e0a63d288ac8a1a51`，required PR／main CI SUCCESS；owner [37948779825](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37948779825) 十階段 SUCCESS。正式 `ai-pdm-prod-b96191914c5d` 已 RELEASED／FINALIZED、100%／零 tags，映像 `sha256:64ccd0b4d44ac81d10a3ec3220bf322dec7e055b980577e01d97b262a4884bf8`。11 sealed receipts、source／build／image／serving provider join 已實際回讀；來源 package33／最高083／不含084，本次0 applied／33 replayed／ledger33。沒有新增 SQL、IAM、資源或 Secret 版本。
+
+料號矩陣 latest active load guard 已隨本次版本發布；本地根號8／附件7／採購10／取消24共49個選定 native cases，以及桌面／手機 UI 個別case、typecheck與isolated build沿用已驗同byte來源，不重跑未改產品。正常網站上的正式料號行為仍 NORMAL_UI_VALIDATION_PENDING；candidate／canonical authentication smoke不代替業務驗收。
+
+原核准12項方案第5步已完成：worker READY、Scheduler ENABLED，numeric token1／registry3沿用。兩次啟用因首次 stdout查詢 NOT_UNIQUE停止，後續 exact execution均有唯一empty標記；原FAIL與原始query未捕捉／原因UNKNOWN保留。新唯一R2輸入在第一次exact日誌查詢前等待15秒，原provider回應未加工，固定唯一性／window／60秒freshness／deadline檢查保留；`ai-pdm-prod-openswx-metadata-q4lq4` authenticated204，啟用回執與fresh provider回讀相符。這是空工作驗證，不是CAD屬性PASS。24個本次有限runtime的native程序／ports／自有暫存清理已核對，失敗receipt不覆寫。
+
+完整證據見 [B33 正式發布收尾](../qa/DEV-122-B33-production-release-closure-2026-10-10.json)，先前 [worker與料號本地驗證](../qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)保留。下一步只剩各原契約的正式正常網站／業務驗收；原生CAD完整屬性由使用者正式驗證，supplier停用延期，7 issues／29 groups與whole DEV仍NOT_ACCEPTED。人類「已驗證」只確認發布登入。公司登入頁不同origin的UI讀取曾遭自動核准審查拒絕，未繞過；本次CAD Chrome分頁暫留供人類立即續驗，root保留清理責任。文件收尾不重播B33或舊capsule，不因文件更新重部署未改runtime。
+
+## DEV-122 HISTORY_ONLY（B32 app／背景解析已啟用；料號載入修正本地通過、尚未發布的快照）
 
 B32 正式 app `ai-pdm-prod-e9612df3e9bc`／來源 `74116271d3917a21f11d8a2c785635f84a2b7705` 已 RELEASED／FINALIZED、100%／零 tags。依人類原核准12項資源方案第5步，未修改來源的固定 CLI 完成一次 finite empty claim（`ai-pdm-prod-openswx-metadata-rkm58`，authenticated204）；背景 worker READY、Scheduler ENABLED。實際 provider 回讀與獨立 Luna QC PASS；當次28 executions／0 active僅為該時快照，不代替 CAD 結果。保留原 B32 發布收尾與啟用前快照。
 
