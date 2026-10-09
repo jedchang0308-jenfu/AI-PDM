@@ -642,12 +642,14 @@ function historicalExecutionArguments(execution) {
   const containers = execution.template?.containers
   if (!Array.isArray(containers) || containers.length !== 1 || containers[0].name !== 'migration'
     || !Array.isArray(containers[0].args) || containers[0].args.length === 0) fail()
+  const allowed = new Set(['--bundle-ref', '--bundle-sha256', '--source-revision', '--output-ref',
+    '--data-ref', '--data-sha256', '--bootstrap-ref', '--bootstrap-sha256'])
   const values = new Map(), args = containers[0].args
   for (let i = 0; i < args.length; i++) {
     const item = args[i]
     if (typeof item !== 'string') fail()
     const match = /^(--[a-z][a-z0-9-]*)(?:=(.+))?$/u.exec(item)
-    if (!match || values.has(match[1])) fail()
+    if (!match || !allowed.has(match[1]) || values.has(match[1])) fail()
     const value = match[2] ?? args[++i]
     if (typeof value !== 'string' || !value || value.startsWith('--')) fail()
     values.set(match[1], value)

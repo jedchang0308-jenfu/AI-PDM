@@ -729,6 +729,12 @@ test('B31 historical LIST requires the exact sealed current execution and reject
     await assert.rejects(readPreActivationAbortContinuation(h.helperInput))
     delete old[field]
   }
+  for (const args of [['--unknown-migration-option', 'unused'], ['--unknown-migration-option=unused']]) {
+    old.template.containers[0].args.push(...args)
+    await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /CONTINUATION_INVALID/)
+    old.template.containers[0].args.splice(-args.length)
+  }
+  assert.equal(h.calls.puts, 0)
 })
 
 test('B31 fixed inherited opaque branch retains depth-eight and cycle rejection', async () => {
