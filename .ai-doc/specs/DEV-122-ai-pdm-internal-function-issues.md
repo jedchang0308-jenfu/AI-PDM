@@ -1,6 +1,16 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B32 切流前證據讀取與 sealed GO 中止承接；正式 release 待重試）
+## DEV-122 CURRENT（B32 app 正式發布完成；背景解析待啟用／整體未驗收）
+
+PR #251 已正常合併至官方 main `74116271d3917a21f11d8a2c785635f84a2b7705`，required PR／main CI PASS；本地 targeted 221／221、authentic ROOT 8／8、continuous 175／175及六項 required checks PASS，獨立 Luna source QC PASS。Owner [37893968135](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37893968135) 十階段 SUCCESS；11 sealed receipts 與實際 GET-only provider 回讀已核對，app `RELEASED`／control `FINALIZED`。
+
+正式 `ai-pdm-prod-e9612df3e9bc` 接收 100% 流量、零候選 tags，映像 `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:5a1327afceba597bdb140c4b37eafe0f8ee496d5bfc8d45d3916dfbc7d6d6174`；candidate／canonical 登入與拒絕存取 smoke PASS。Cloud Build `69786f5d-7838-438c-9dd1-d2df98e82d59` SUCCESS，source identity 與 app／worker 壓縮 archive 分別驗證，解壓內容精確相符於官方 Git archive。Migration package33／最高083／不含084，本次0 applied／33 replayed／ledger33，execution `ai-pdm-prod-migration-runner-pj6h7`；unchanged083 未重複套用。
+
+結果與可回查綁定見 [B32 正式發布收尾](../qa/DEV-122-B32-production-release-closure-2026-10-09.json)；[實際 final provider 回讀](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A24-B32/release/B32-final-r6-provider-readback.json>) SHA `2d2acac27a56f4694bd9999055dfd5c238b2568d641c1ba7d485de34991c2dbc`，觀測 `2026-10-09T07:20:39.149162+00:00`。Root 已以 native CIM 確認本次 collector／SDK 已退出，沒有留下監聽 port；歷史失敗保留。
+
+本次授權的 app 發布出口已完成，舊 B32／B31 retry queue 不再執行。Worker `ACTIVATION_PENDING_NO_EXECUTION`、Scheduler `PAUSED`、既有27 execution／新增0；native `USER_PRODUCTION_VALIDATION_PENDING`、supplier `DISABLED_DEFERRED`、whole DEV `NOT_ACCEPTED`。7 issues／29 groups及不計入交付判定不變；剩餘 CAD／正常 UI／業務驗收依各原契約處理，不推定已通過，也不自動恢復排程。人類「已驗證」只確認登入驗證完成。
+
+## DEV-122 HISTORY_ONLY（B32 切流前證據讀取與 sealed GO 中止承接；發布前施工契約）
 
 B31 PR #250 已正常合併至 main `0e9c4b573c37c32e35ef165589a7f32c4bdf255e`，required PR／main CI PASS。Owner [37882486573](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37882486573) prepare／build／migrate／candidate／entrypoint／verify／decision PASS；activate 在 traffic mutation 前以 `DEV121_OWNER_RELEASE_PROOF_PROVIDER_READBACK_FAILED` 中止，failure recovery SUCCESS。實際 HTTP status／內部原因 UNKNOWN；來源確認 activate 缺既有 builder secondary metadata-read token。canonical 無此 proof hook，不增加該 token。原 B31 capsule 已 terminal，不重播或覆寫。
 

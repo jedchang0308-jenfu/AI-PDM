@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "aipdm.dev122.b32.production-release-closure.v1",
+  "project": "AI-PDM",
+  "result": "APP_RELEASED_WHOLE_DEV_NOT_ACCEPTED",
+  "sourceRevision": "74116271d3917a21f11d8a2c785635f84a2b7705",
+  "sourceTree": "a48087e94e307ddfa6de650981c34471cc17d4a6",
+  "testedSourceRevision": "71dc29308e7e8bd43bf48cf0166af8e99b45ef0d",
+  "pullRequest": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/251",
+  "ownerRun": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37893968135",
+  "ownerStageCount": 10,
+  "sealedStageCount": 11,
+  "nativeProviderReadback": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A24-B32/release/B32-final-r6-provider-readback.json",
+    "sha256": "2d2acac27a56f4694bd9999055dfd5c238b2568d641c1ba7d485de34991c2dbc"
+  },
+  "readbackObservedAt": "2026-10-09T07:20:39.149162+00:00",
+  "providerReadbackMutationCount": 0,
+  "appResult": "RELEASED",
+  "controlState": "FINALIZED",
+  "canonicalOrigin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+  "servingRevision": "ai-pdm-prod-e9612df3e9bc",
+  "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:5a1327afceba597bdb140c4b37eafe0f8ee496d5bfc8d45d3916dfbc7d6d6174",
+  "trafficPercent": 100,
+  "temporaryCandidateTags": 0,
+  "capsule": {
+    "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/release-intent.json",
+    "sha256": "11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6",
+    "generation": "1791526924710149"
+  },
+  "sealedReceipts": {
+    "prepare": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/prepare.json",
+      "sha256": "d4213e211dca40c34f594fd4f42bb053930ec2d3e6317ab587f6f55f541c3e8c",
+      "generation": "1791527978123114",
+      "crc32c": "87IumA=="
+    },
+    "build": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/build.json",
+      "sha256": "8417652c468f8f7e3a8914a2ae1998ff02d028ef6b8840d2d07eafa261456b64",
+      "generation": "1791528777222461",
+      "crc32c": "O0Xurw=="
+    },
+    "migrate": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/migrate.json",
+      "sha256": "6dd9dd344e0609d6d10673c1eb5d4c079d1388404158bd0c02d7ae4430a64a5d",
+      "generation": "1791528958935074",
+      "crc32c": "98dcbA=="
+    },
+    "candidate": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/candidate.json",
+      "sha256": "79f86a486a003b2839847d4e5b85a17f5dfb37093a2af265478ea812c72b664e",
+      "generation": "1791529391488191",
+      "crc32c": "epH1DA=="
+    },
+    "entrypoint": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/entrypoint.json",
+      "sha256": "1b7fdead03e0d11596f030a233fa6c69ca79fa11d0ec88fa177d22889972f410",
+      "generation": "1791529458066508",
+      "crc32c": "R2bkIw=="
+    },
+    "verify": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/verify.json",
+      "sha256": "788aa648adbc209d22d180cee8949cafe2c5b79bf1ab7d584e7084e29c807b51",
+      "generation": "1791529609267802",
+      "crc32c": "fNjQLQ=="
+    },
+    "decision": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/decision.json",
+      "sha256": "94614eeb43ebe84efdcd3260322c8976f494b19cc30f7254fee46437a709c0a2",
+      "generation": "1791529673075941",
+      "crc32c": "5SsRWw=="
+    },
+    "activate": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/activate.json",
+      "sha256": "db1042a3995a43845c40c93c06ca0787d9273f34a8fce0cb5598defa052e8c7c",
+      "generation": "1791529866319681",
+      "crc32c": "4sDC7w=="
+    },
+    "canonical": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/canonical.json",
+      "sha256": "01ff1eb6ae8fb218b82ca376cf1c3fec6b5a6f8bd783a84c42d61e7c8cef3470",
+      "generation": "1791529940030804",
+      "crc32c": "3TDslw=="
+    },
+    "finalize": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/finalize.json",
+      "sha256": "62900d33f197feca7232c59bacbfce7e87cdaeb44fa9daa99a21dfe53fb5ba55",
+      "generation": "1791530247381630",
+      "crc32c": "Tj7EIQ=="
+    },
+    "terminal": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/terminal.json",
+      "sha256": "aa77774f917023abcc68638276874bca589bca9f031c467c384c217713a1a1ee",
+      "generation": "1791530250045524",
+      "crc32c": "G5rBKQ=="
+    }
+  },
+  "buildSourceProof": {
+    "sourceRevision": "74116271d3917a21f11d8a2c785635f84a2b7705",
+    "sourceTree": "a48087e94e307ddfa6de650981c34471cc17d4a6",
+    "sourceObject": {
+      "crc32c": "YCqYkg==",
+      "generation": "1791528143996797",
+      "sha256": "699e8b9e9d535bc90e8bd587f85d80ad49dc6e111d1793b6e92aff141e3cc150",
+      "uri": "gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-OPENSWX-20261009-B32/11c032f0eb0cd98137f456d8422499b6c54346dfb71f93b6277cdb2ec30166e6/source.tar.gz"
+    },
+    "buildId": "69786f5d-7838-438c-9dd1-d2df98e82d59",
+    "buildName": "projects/jenfu-platform-prod/locations/asia-east1/builds/69786f5d-7838-438c-9dd1-d2df98e82d59",
+    "buildStatus": "SUCCESS",
+    "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:5a1327afceba597bdb140c4b37eafe0f8ee496d5bfc8d45d3916dfbc7d6d6174",
+    "sourceArchiveSha256": "699e8b9e9d535bc90e8bd587f85d80ad49dc6e111d1793b6e92aff141e3cc150",
+    "sourceIdentitySha256": "dfb2a00746c4d5de8efec1516c29f7bae9464ad568e0d7782ae1fd847efbf595",
+    "appArchiveSha256": "699e8b9e9d535bc90e8bd587f85d80ad49dc6e111d1793b6e92aff141e3cc150",
+    "workerArchiveSha256": "699e8b9e9d535bc90e8bd587f85d80ad49dc6e111d1793b6e92aff141e3cc150",
+    "tarExactGitArchiveComparison": true,
+    "sourceArchiveBytesPersisted": false,
+    "providerMutationCount": 0
+  },
+  "migration": {
+    "applied": 0,
+    "replayed": 33,
+    "ledgerCount": 33,
+    "manifestSha256": "20d8713e9d909505f55a198b0e0ec54a84babec876cfdba1117460a43bc0dabc",
+    "executionName": "ai-pdm-prod-migration-runner-pj6h7",
+    "packageEntries": 33,
+    "maximumOrdinal": "083",
+    "includes084": false,
+    "sql083Sha256": "a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9"
+  },
+  "workerStatus": "ACTIVATION_PENDING_NO_EXECUTION",
+  "scheduler": "PAUSED",
+  "workerExecutionCount": 27,
+  "newWorkerExecutionCount": 0,
+  "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+  "supplier": "DISABLED_DEFERRED",
+  "wholeDev": "NOT_ACCEPTED",
+  "issueCount": 7,
+  "groupCount": 29,
+  "countsAsProductDelivery": false,
+  "rootRuntimeCleanup": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A24-B32/release/B32-final-root-runtime-cleanup-r1.json",
+    "sha256": "b860ab377fb418b3d0bdcfce281f2f3ecd17ada5ec5467c6a1aa7f5608e5459a"
+  },
+  "limitations": [
+    "Production native CAD acceptance remains with the user; no UI or full business acceptance inferred from sealed login smoke.",
+    "Worker execution and Scheduler resume were not performed.",
+    "Historical failed attempts and readback/static-QC failures are preserved.",
+    "Expired task-owned authentication tab has a separately recorded browser-connection cleanup limitation; no user tabs were disturbed."
+  ]
+}
