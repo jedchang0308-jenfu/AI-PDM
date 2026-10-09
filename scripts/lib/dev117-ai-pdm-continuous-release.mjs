@@ -184,7 +184,7 @@ export function assertDev117WorkflowSource(source) {
       || !builderReadAuthBlock.includes('workload_identity_provider: ${{ env.WIF_PROVIDER }}')
       || !builderReadAuthBlock.includes('token_format: access_token')
       || !builderReadAuthBlock.includes('create_credentials_file: false')
-      || block.indexOf('- id: proof_builder_read_auth\n') > block.indexOf(`- name: Execute ${stage}\n`)
+      || block.indexOf('- id: proof_builder_read_auth\n') > block.indexOf(executeSteps[0])
       || !builderReadAuthBlock.includes('export_environment_variables: false')
       || !executeSteps[0]?.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"')
       || !executeSteps[0]?.includes(builderReadTokenBinding)
