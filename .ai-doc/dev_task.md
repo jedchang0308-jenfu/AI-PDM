@@ -1,6 +1,16 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（B32 app／背景解析已啟用；料號載入修正本地通過、尚未發布）
+## DEV-122 CURRENT（B33 料號載入修正已上線；Cloud Run 背景解析已恢復）
+
+PR #253 正常合併來源 `e2e7aaa69d7ca3600203874e0a63d288ac8a1a51`，required PR／main CI SUCCESS；owner [37948779825](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37948779825) 十階段 SUCCESS。正式 `ai-pdm-prod-b96191914c5d` 已 RELEASED／FINALIZED、100%／零 tags，映像 `sha256:64ccd0b4d44ac81d10a3ec3220bf322dec7e055b980577e01d97b262a4884bf8`。11 sealed receipts、source／build／image／serving provider join 已實際回讀；來源 package33／最高083／不含084，本次0 applied／33 replayed／ledger33。沒有新增 SQL、IAM、資源或 Secret 版本。
+
+料號矩陣 latest active load guard 已隨本次版本發布；本地根號8／附件7／採購10／取消24共49個選定 native cases，以及桌面／手機 UI 個別case、typecheck與isolated build沿用已驗同byte來源，不重跑未改產品。正常網站上的正式料號行為仍 NORMAL_UI_VALIDATION_PENDING；candidate／canonical authentication smoke不代替業務驗收。
+
+原核准12項方案第5步已完成：worker READY、Scheduler ENABLED，numeric token1／registry3沿用。兩次啟用因首次 stdout查詢 NOT_UNIQUE停止，後續 exact execution均有唯一empty標記；原FAIL與原始query未捕捉／原因UNKNOWN保留。新唯一R2輸入在第一次exact日誌查詢前等待15秒，原provider回應未加工，固定唯一性／window／60秒freshness／deadline檢查保留；`ai-pdm-prod-openswx-metadata-q4lq4` authenticated204，啟用回執與fresh provider回讀相符。這是空工作驗證，不是CAD屬性PASS。24個本次有限runtime的native程序／ports／自有暫存清理已核對，失敗receipt不覆寫。
+
+完整證據見 [B33 正式發布收尾](qa/DEV-122-B33-production-release-closure-2026-10-10.json)，先前 [worker與料號本地驗證](qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)保留。下一步只剩各原契約的正式正常網站／業務驗收；原生CAD完整屬性由使用者正式驗證，supplier停用延期，7 issues／29 groups與whole DEV仍NOT_ACCEPTED。人類「已驗證」只確認發布登入。公司登入頁不同origin的UI讀取曾遭自動核准審查拒絕，未繞過；本次CAD Chrome分頁暫留供人類立即續驗，root保留清理責任。文件收尾不重播B33或舊capsule，不因文件更新重部署未改runtime。
+
+## DEV-122 HISTORY_ONLY（B32 app／背景解析已啟用；料號載入修正本地通過、尚未發布的快照）
 
 B32 正式 app `ai-pdm-prod-e9612df3e9bc`／來源 `74116271d3917a21f11d8a2c785635f84a2b7705` 已 RELEASED／FINALIZED、100%／零 tags。依人類原核准12項資源方案第5步，未修改來源的固定 CLI 完成一次 finite empty claim（`ai-pdm-prod-openswx-metadata-rkm58`，authenticated204）；背景 worker READY、Scheduler ENABLED。實際 provider 回讀與獨立 Luna QC PASS；當次28 executions／0 active僅為該時快照，不代替 CAD 結果。保留原 B32 發布收尾與啟用前快照。
 
@@ -1981,12 +1991,12 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ◇ DEV-122 [開發點] [部分實作／NOT_FULLY_TESTED] [P2] [背景解析已啟用／料號修正待發布] AI-PDM 內部功能缺陷集中處理
+- ◇ DEV-122 [開發點] [部分實作／NOT_FULLY_TESTED] [P2] [B33 已上線／正式業務驗收待完成] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
-  - 下一步：限定料號矩陣載入修正的 protected PR／required CI／fresh app release；原生 CAD 由人類正式驗證，其他業務驗收沿原契約。背景解析已啟用，不重播 B32 capsule 或舊 retry queue。
-  - 驗收缺口：B32 app RELEASED／FINALIZED；worker READY、Scheduler ENABLED。選定native49與兩尺寸UI各自case PASS，料號修正尚未發布；F-01F使用者正式 CAD、正式正常網站／業務驗收待完成。supplier停用及7／29 NOT_ACCEPTED保留，原始FAIL只作歷史。
-  - 證據：[worker與料號驗證](qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)、[B32 正式發布收尾](qa/DEV-122-B32-production-release-closure-2026-10-09.json)、[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
+  - 下一步：原生 CAD 由人類在正式環境驗證，正常網站料號操作與其他業務沿原契約驗收；B33 app／背景解析已上線，不重播舊 capsule，也不因文件更新重部署。
+  - 驗收缺口：B33 app RELEASED／FINALIZED、100%／零 tags；worker READY、Scheduler ENABLED。選定native49與兩尺寸UI各自case PASS，料號修正已發布；F-01F使用者正式 CAD、正式正常網站／業務驗收待完成。supplier停用及7／29 NOT_ACCEPTED保留，原始FAIL只作歷史。
+  - 證據：[B33 正式發布收尾](qa/DEV-122-B33-production-release-closure-2026-10-10.json)、[worker與料號驗證](qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)、[B32 正式發布收尾](qa/DEV-122-B32-production-release-closure-2026-10-09.json)、[Cloud Run 相容性續點](qa/DEV-122-cloud-run-worker-feasibility-2026-10-05.json)、[D122-08 本地修復](qa/DEV-122-share-metadata-local-closure-2026-10-05.json)、[R03 一次提交正式結案](qa/DEV-122-secret-workflow-production-closure-2026-10-05.json)、[R02 正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)、[移交紀錄](reports/pm/DEV-122-worktree-transfer-2026-10-04.md)、[本地續接收據／最後獨立 QC](../output/qa/dev-122/DEV-122-local-rd-checkpoint-2026-10-04.json)。原始 FAIL／UNKNOWN 保留。
   - 計入交付：否；不增加 DEV-121 或共同 grant 分母；本地證據不推定 Production PASS。
 
 - ✓ DEV-121 [開發點] [本批最高管理能力正式結案／其他子項原判定] [P0] [Principal-only owner release] 目標端授權邊界重構
@@ -5656,7 +5666,7 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-122：AI-PDM 內部功能缺陷集中處理
 
-目前判定以本檔開頭DEV-122 CURRENT及[worker與料號驗證](qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json)為準：B32 app RELEASED／FINALIZED、worker READY／Scheduler ENABLED；料號載入修正本地PASS尚未發布，原生CAD由人類正式驗證，Whole DEV NOT_ACCEPTED。B32舊施工契約與retry queue為HISTORY_ONLY，不重播。
+目前判定以本檔開頭DEV-122 CURRENT及[B33 正式發布收尾](qa/DEV-122-B33-production-release-closure-2026-10-10.json)為準：B33 app RELEASED／FINALIZED、worker READY／Scheduler ENABLED；料號載入修正已發布，原生CAD由使用者正式驗證、正常網站業務驗收待完成，Whole DEV NOT_ACCEPTED。下方發布與施工原文為HISTORY_ONLY，不重播舊 capsule 或 retry queue。
 
 2026-10-05 現行正式發布結果：R02 已由 app-owned V3 owner run [37262598122](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122) 完成 RELEASED／FINALIZED；正式 ai-pdm-prod-52f421cb8db9 接收 100% 流量、0 candidate tags。官方來源 602413097ef27a203fe1e2beccac3166c6e2351a 來自正常 PR209 合併，PR／main required CI 均 SUCCESS。人類在本機安全頁完成既有 Firebase 帳號重新驗證，own numeric 6→7 與既有 GitHub production smoke Secret 更新成功；候選及 canonical 正常 SSO／authenticated probe 通過，匿名／撤銷 session 回 401。B 配置保留 jenfu-platform-prod 並另核 expected number 9536592944；三項已授權 own Secret／IAM 於 R01 APPLIED，R02 只沿用來源相容回執，沒有 historical workflow rotation apply。079 在 R01 已 forward apply，R02 0 applied／29 replayed／ledger 29。正式設定 UI 因工具限制 NOT_RUN；登入與 provider 證據不替代 key draft/probe/activation 或原生 CAD 屬性。這些由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups、整體 NOT_ACCEPTED。R01 401／UNKNOWN／安全中止證據保留。 [正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)。
 

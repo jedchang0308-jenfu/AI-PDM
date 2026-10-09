@@ -1,0 +1,274 @@
+{
+  "schemaVersion": "aipdm.dev122.b33.production-release-closure.v1",
+  "project": "AI-PDM",
+  "releaseId": "DEV122-MATRIX-20261009-B33",
+  "result": "APP_RELEASED_WORKER_READY_WHOLE_DEV_NOT_ACCEPTED",
+  "sourceRevision": "e2e7aaa69d7ca3600203874e0a63d288ac8a1a51",
+  "sourceTree": "cd4804ee57c2ff3cb13ac9d60c76cc9008ebcfa2",
+  "testedContentRevision": "a445c695cb4a9b920aafe85f55a1e100a7448ac0",
+  "pullRequest": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/253",
+  "requiredCi": {
+    "pullRequestRun": 37939854490,
+    "mainRun": 37941151419,
+    "result": "SUCCESS"
+  },
+  "ownerRun": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37948779825",
+  "ownerStageCount": 10,
+  "sealedStageCount": 11,
+  "officialSource": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/B33-official-source.json",
+    "sha256": "c4210c1567b9223049733de97b4414b653dc78acde8adf0d470175d42078551d"
+  },
+  "nativeProviderReadback": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-provider-readback-r4.json",
+    "sha256": "b6e5696185c9b0b664f528376a023a25c863e084e5a880f30c99b93af964d6af"
+  },
+  "readbackObservedAt": "2026-10-09T15:59:16.534Z",
+  "providerReadbackMutationCount": 0,
+  "canonicalOrigin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+  "appResult": "RELEASED",
+  "controlState": "FINALIZED",
+  "servingRevision": "ai-pdm-prod-b96191914c5d",
+  "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:64ccd0b4d44ac81d10a3ec3220bf322dec7e055b980577e01d97b262a4884bf8",
+  "trafficPercent": 100,
+  "temporaryCandidateTags": 0,
+  "releaseCapsuleRef": {
+    "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/release-intent.json",
+    "sha256": "ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec"
+  },
+  "sealedReceipts": {
+    "prepare": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/prepare.json",
+        "sha256": "247ac1cf3daad4685aaad09fcd8b44de71cd48231219f9d66f15bfab9eea00a6"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-prepare.raw.json",
+        "sha256": "247ac1cf3daad4685aaad09fcd8b44de71cd48231219f9d66f15bfab9eea00a6"
+      }
+    },
+    "build": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/build.json",
+        "sha256": "d109d30c742d9c09af693521a01c028e6020343e1686ea50118822fbedf50d50"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-build.raw.json",
+        "sha256": "d109d30c742d9c09af693521a01c028e6020343e1686ea50118822fbedf50d50"
+      }
+    },
+    "migrate": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/migrate.json",
+        "sha256": "f9e10d043928ec84fb896dbd01ab361685b68251050809a8a3d044d9364752b2"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-migrate.raw.json",
+        "sha256": "f9e10d043928ec84fb896dbd01ab361685b68251050809a8a3d044d9364752b2"
+      }
+    },
+    "candidate": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/candidate.json",
+        "sha256": "518cba426e1823f860a2cb75854ac8760cfceb10832379cf5b74a5e3c3928d7a"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-candidate.raw.json",
+        "sha256": "518cba426e1823f860a2cb75854ac8760cfceb10832379cf5b74a5e3c3928d7a"
+      }
+    },
+    "entrypoint": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/entrypoint.json",
+        "sha256": "1d4cfe3a787689145f13e02a88e7e04a45a17bc3b8ef856dd820b8c23ac64ed1"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-entrypoint.raw.json",
+        "sha256": "1d4cfe3a787689145f13e02a88e7e04a45a17bc3b8ef856dd820b8c23ac64ed1"
+      }
+    },
+    "verify": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/verify.json",
+        "sha256": "ee8dbb11c648d144047255b600f63c451d27c2bf09e254f9e3164584a74211c3"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-verify.raw.json",
+        "sha256": "ee8dbb11c648d144047255b600f63c451d27c2bf09e254f9e3164584a74211c3"
+      }
+    },
+    "decision": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/decision.json",
+        "sha256": "e5ff916c8f90d91e8bbb597122f54d8029e410bc636746e112fcccc3343d8b39"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-decision.raw.json",
+        "sha256": "e5ff916c8f90d91e8bbb597122f54d8029e410bc636746e112fcccc3343d8b39"
+      }
+    },
+    "activate": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/activate.json",
+        "sha256": "72a696d3305d4f92ff9c6527258e9c75893902a1ef7d99de9240fa7a2393f10f"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-activate.raw.json",
+        "sha256": "72a696d3305d4f92ff9c6527258e9c75893902a1ef7d99de9240fa7a2393f10f"
+      }
+    },
+    "canonical": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/canonical.json",
+        "sha256": "0bd0d48f34c7552531fe56c71534531a8d1f454c7a74e2ca098eac6fb60b3066"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-canonical.raw.json",
+        "sha256": "0bd0d48f34c7552531fe56c71534531a8d1f454c7a74e2ca098eac6fb60b3066"
+      }
+    },
+    "finalize": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/finalize.json",
+        "sha256": "ed976a5039e12a37e4a7fb0fbc5c5536b0e350f1da6dd5ab0eef2377adc74ff9"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-finalize.raw.json",
+        "sha256": "ed976a5039e12a37e4a7fb0fbc5c5536b0e350f1da6dd5ab0eef2377adc74ff9"
+      }
+    },
+    "terminal": {
+      "ref": {
+        "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/terminal.json",
+        "sha256": "4147cc11751187ea95eb3b1341378700cd875403fa7b0d3023d2912bffb5258e"
+      },
+      "local": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-final-terminal.raw.json",
+        "sha256": "4147cc11751187ea95eb3b1341378700cd875403fa7b0d3023d2912bffb5258e"
+      }
+    }
+  },
+  "build": {
+    "id": "efba1f3b-a6fc-4596-af45-d58762c6025d",
+    "status": "BUILD_IMAGE_VERIFIED",
+    "sourceObject": {
+      "crc32c": "injB0A==",
+      "generation": "1791558495292609",
+      "sha256": "dff5978645b970f845baf9a8be85fae6d40e54f02b5f2b8ee3a056b6276c6e6f",
+      "uri": "gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-MATRIX-20261009-B33/ffe4566acab58beedb6d1ff0b83859d7e4c905dca94693bd2b0204bdcc4587ec/source.tar.gz"
+    },
+    "archiveSha256": "dff5978645b970f845baf9a8be85fae6d40e54f02b5f2b8ee3a056b6276c6e6f"
+  },
+  "migration": {
+    "applied": 0,
+    "replayed": 33,
+    "ledgerCount": 33,
+    "ledgerBootstrapCreated": false,
+    "executionName": "ai-pdm-prod-migration-runner-f6fg5",
+    "manifestSha256": "16b798e0adf16e7701326ef590c812fc81e578f595989b3a3061970e1d4a251c",
+    "packageCount": 33,
+    "highestOrdinal": 83,
+    "includes084": false,
+    "newSqlApplied": false,
+    "sqlBytesChanged": false
+  },
+  "worker": {
+    "status": "READY",
+    "schedulerState": "ENABLED",
+    "jobGeneration": "17",
+    "activationRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-MATRIX-ACTIVATE-20261009-B33-R2.json",
+      "sha256": "c4196376d6cb4e0f722e337fb6032b1be620e6c66d52f98ea1fb729c46f2ff96"
+    },
+    "activationLocal": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/activate-result-r2.json",
+      "sha256": "d7a8ca716a42a67af7dcd89461e21740c55b3a6e14c18bce9daa75dda83956ba"
+    },
+    "finiteExecution": "projects/9536592944/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata/executions/ai-pdm-prod-openswx-metadata-q4lq4",
+    "claimProof": "AUTHENTICATED_204_SOURCE_BOUND",
+    "dbAdmissionProof": "AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN",
+    "numericCredentials": {
+      "token": "projects/9536592944/secrets/aipdm-prod-openswx-reader-token/versions/1",
+      "registry": "projects/9536592944/secrets/aipdm-prod-workload-auth-credentials/versions/3"
+    },
+    "stdoutQuery": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-activation-r2-stdout-query-1.json",
+      "sha256": "4e6bc8cc6a808c42c8501a52329c9247ab3e4a79dab70557cf5afc18aba26680"
+    },
+    "firstQueryWaitMilliseconds": 15000,
+    "originalProviderResponseReturnedUnmodified": true,
+    "proofFreshnessSeconds": 60,
+    "originalFailedAttempts": [
+      {
+        "error": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-owner-r2-activate-stderr.raw.log",
+          "sha256": "ae5b08bcc29ee4f315b1e44c3ca320aaa33e8aa0677d0227119f89609e83cc7d"
+        },
+        "providerReadback": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-activation-failure-provider-readback-r2.json",
+          "sha256": "bb99ecc78b8ff2cb0fcb4fd190e0d4ad4774f538f4f730beffd35101e5907027"
+        },
+        "result": "FIRST_QUERY_NOT_UNIQUE_LATER_EXACT_UNIQUE_EMPTY_PROOF",
+        "originalQueryBody": "NOT_CAPTURED",
+        "initialCause": "UNKNOWN",
+        "laterProofDoesNotOverrideFailure": true
+      },
+      {
+        "error": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-owner-activation-r1-activate-stderr.raw.log",
+          "sha256": "fea90eea0d3c8cf9a23141dd66636d81eed7878319a04a14a8d62611916b73c9"
+        },
+        "providerReadback": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-activation-failure-provider-readback-r3.json",
+          "sha256": "bbbf39a55a80f39b8bb18d2f2ca347cd4ff92ebd47d53ec9d8ec17da33701047"
+        },
+        "result": "FIRST_QUERY_NOT_UNIQUE_LATER_EXACT_UNIQUE_EMPTY_PROOF",
+        "originalQueryBody": "NOT_CAPTURED",
+        "initialCause": "UNKNOWN",
+        "laterProofDoesNotOverrideFailure": true
+      }
+    ],
+    "loggingDeliveryLag": "INFERENCE_ONLY_NOT_ESTABLISHED_ROOT_CAUSE"
+  },
+  "verification": {
+    "priorControlledEvidence": {
+      "path": ".ai-doc/qa/DEV-122-B32-worker-and-matrix-verification-2026-10-09.json",
+      "gitBlobSha256": "44affc759605200861ddae6689b7df95e85c5b9c9dcaa6cfeb718b67ac75aa23"
+    },
+    "selectedNativeCaseCount": 49,
+    "selectedNativeCaseGroups": {
+      "root": 8,
+      "files": 7,
+      "procurement": 10,
+      "cancel": 24
+    },
+    "localUi": "SELECTED_DESKTOP_AND_NARROW_CASES_PASS_SEPARATE_RECEIPTS_NOT_AGGREGATE_PASS",
+    "localTypecheck": "PASS",
+    "localIsolatedBuild": "PASS",
+    "productionAuthenticationSmoke": "PASS_CANDIDATE_AND_CANONICAL_FROM_SEALED_OWNER_CHAIN",
+    "changedFeatureProduction": "NORMAL_UI_VALIDATION_PENDING",
+    "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+    "supplier": "DISABLED_DEFERRED",
+    "wholeDev": "NOT_ACCEPTED",
+    "issueCount": 7,
+    "acceptanceGroupCount": 29
+  },
+  "runtimeCleanup": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A25-B33/release/B33-native-runtime-cleanup-readback-r1.json",
+    "sha256": "2f455905d2406d9ea8ca0ee34db16d7b8bb0be3eb297919ec34a9dd202cf8133"
+  },
+  "runtimeCount": 24,
+  "primaryDataMutated": false,
+  "cloudScopeExpanded": false,
+  "normalUiBlock": {
+    "state": "PENDING_NORMAL_LOGIN_AND_EXPLICIT_SSO_UI_SCOPE",
+    "autoReviewRejected": "Reading company login UI on a different origin was rejected because authorization ownership was unclear",
+    "bypassPerformed": false,
+    "taskOwnedChromeTab": 1200846597,
+    "taskOwnedChromePurpose": "DEV122 CAD normal website verification awaits human",
+    "cleanupOwner": "root",
+    "userOwnedAmbientTabDisturbed": false
+  },
+  "nextAction": "Human production CAD verification and normal website feature acceptance; no B33 capsule replay or docs-only redeployment",
+  "documentedAt": "2026-10-09T16:03:42.730Z"
+}
