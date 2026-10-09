@@ -106,45 +106,46 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
 
 // The retained application must already have a complete Principal-only release.
 // Its anchor is taken solely from the sealed failed intent, never a caller hint.
-async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider }) {
-  const bucket = profile.artifact.releaseBucket
-  if (profile.application.id !== 'ai-pdm' || bucket !== 'jenfu-platform-prod-aipdm-release'
-    || profile.target.projectId !== 'jenfu-platform-prod' || profile.target.region !== 'asia-east1'
-    || profile.target.serviceName !== 'ai-pdm-prod'
-    || intent.schemaVersion !== profile.schemas.releaseIntent
-    || Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')
-    || baselineIntentRef.uri !== `gs://${bucket}/receipts/releases/${intent.releaseId}/release-intent.json`
-    || !intent.baselineIntentRef || same(intent.baselineIntentRef, baselineIntentRef)) fail()
-  assertImmutableRef(intent.baselineIntentRef, bucket, ['receipts'])
-  if (terminalFacts.databaseDisposition === 'NOT_APPLIED') return readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider })
-  const [prepare, migration, candidate, deployment, entry, rollback, anchor] = await Promise.all([
+function sealOrdinaryStage(row, stage, intent, profile) {
+  const { receiptSha256, ...core } = row.value ?? {}
+  if (receiptSha256 !== sha256(canonicalize(core)) || core.schemaVersion !== 'jenfu.dev012.stage-receipt.v1'
+    || core.ownerApplicationId !== profile.application.id || core.releaseId !== intent.releaseId
+    || core.sourceRevision !== intent.sourceRevision || core.stage !== stage || core.status !== 'PASS') fail()
+  return core.facts
+}
+function assertOrdinarySourceProof(proof, sourceIntent, sourceRef, disposition, profile) {
+  if (proof?.owner !== profile.application.id || proof.sourceRevision !== sourceIntent.sourceRevision
+    || proof.releaseId !== sourceIntent.releaseId || proof.disposition !== disposition
+    || proof.sourceLock?.ref !== sourceIntent.sourceLockRef.uri || proof.sourceLock.sha256 !== sourceIntent.sourceLockRef.sha256
+    || proof.migrationManifestSha256 !== sourceIntent.migrationManifestSha256
+    || !proof.artifactDigest?.startsWith(`${profile.artifact.uri}@sha256:`)) fail()
+  const chain = proof.releaseChain ?? proof.buildChain
+  const sourcePaths = releasePaths(profile, sourceIntent, sourceRef.sha256)
+  if (chain?.deployment?.ref !== sourcePaths.deployment) fail()
+}
+async function optionalOrdinaryStage(read, uri) {
+  try { return await read(uri) } catch (error) { if (error.code !== 'MISSING') throw error; return null }
+}
+// The same immutable ordinary stages are checked for the current abort and
+// the one allowed historical ordinary predecessor. Control is never an input.
+async function readOrdinaryAbortEvidence({ profile, baselineIntentRef, intent, paths, terminal, read }) {
+  const [prepare, migration, candidate, deployment, entry, rollback] = await Promise.all([
     read(paths.prepare), read(paths.migrate), read(paths.candidate), read(paths.deployment), read(paths.entrypoint), read(paths.rollback),
-    transport.readJson(intent.baselineIntentRef, bucket, ['receipts']),
   ])
-  const prepareFacts = seal(prepare, 'prepare'), candidateFacts = seal(candidate, 'candidate')
-  const entryFacts = seal(entry, 'entrypoint'), rollbackFacts = seal(rollback, 'rollback')
+  const prepareFacts = sealOrdinaryStage(prepare, 'prepare', intent, profile)
+  const candidateFacts = sealOrdinaryStage(candidate, 'candidate', intent, profile)
+  const entryFacts = sealOrdinaryStage(entry, 'entrypoint', intent, profile)
+  const rollbackFacts = sealOrdinaryStage(rollback, 'rollback', intent, profile)
+  const terminalFacts = sealOrdinaryStage(terminal, 'terminal', intent, profile)
   const repair = migration.value?.schemaVersion === 'aipdm.paused-app-repair-migration-association.v1'
   const databaseDisposition = repair ? 'HISTORICAL_EVIDENCE_REUSED' : 'FORWARD_APPLIED'
-  if (repair && (!same(terminalFacts.migrationEvidenceRef, migration.ref) || !same(rollbackFacts.migrationEvidenceRef, migration.ref))) fail()
+  if (terminalFacts.result !== 'PRE_ACTIVATION_ABORTED'
+    || (repair && (!same(terminalFacts.migrationEvidenceRef, migration.ref) || !same(rollbackFacts.migrationEvidenceRef, migration.ref)))) fail()
   const refNames = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef',
     foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
   const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId,
     sourceRevision: intent.sourceRevision, releaseIntentSha256: baselineIntentRef.sha256 }))
-  const keys = ['schemaVersion', 'inputFingerprint', 'ownerApplicationId', 'service', 'controlBucket', 'releaseId', 'sourceRevision',
-    'sourceLockSha256', 'candidateRevision', 'previousRevision', 'ownerRunRef', 'leaseExpiresAt', 'deadlineAt', 'state', 'result', 'controlSha256']
-  const { controlSha256, ...controlCore } = control
-  const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
-  const runId = control.ownerRunRef?.startsWith(runPrefix) ? control.ownerRunRef.slice(runPrefix.length) : ''
-  if (!same(Object.keys(control).sort(), keys.sort()) || controlSha256 !== sha256(canonicalize(controlCore))
-    || control.schemaVersion !== 'jenfu.dev012.owner-control-head.v1' || control.state !== 'FINALIZED'
-    || control.result !== 'PRE_ACTIVATION_ABORTED' || control.inputFingerprint !== fingerprint
-    || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName || control.controlBucket !== bucket
-    || control.releaseId !== intent.releaseId || control.sourceRevision !== intent.sourceRevision || control.sourceLockSha256 !== intent.sourceLockRef.sha256
-    || control.previousRevision !== intent.previousRevision || control.candidateRevision !== candidateFacts.candidateRevision
-    || control.candidateRevision === intent.previousRevision || !/^[1-9][0-9]*$/u.test(runId)
-    || control.deadlineAt !== intent.deadlineAt || !Number.isFinite(Date.parse(control.deadlineAt))
-    || !Number.isFinite(Date.parse(control.leaseExpiresAt)) || Date.parse(control.leaseExpiresAt) >= Date.now()
-    || prepare.value.previousReceiptRef !== null || prepareFacts.previousRevision !== intent.previousRevision
+  if (prepare.value.previousReceiptRef !== null || prepareFacts.previousRevision !== intent.previousRevision
     || !same(prepareFacts.prerequisiteRefs, Object.fromEntries(Object.entries(refNames).map(([name, field]) => [name, intent[field]])))
     || !same(candidate.value.previousReceiptRef, migration.ref) || !same(candidateFacts.migrationReceiptRef, migration.ref)
     || !same(candidateFacts.deploymentCapsuleRef, deployment.ref) || candidateFacts.previousRevision !== intent.previousRevision
@@ -164,114 +165,182 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
     || !['BASELINE_ALREADY_ACTIVE', 'BASELINE_RESTORED'].includes(rollbackFacts.entrypointRecovery?.result)
     || rollbackFacts.entrypointRecovery.changed !== (rollbackFacts.entrypointRecovery.result === 'BASELINE_RESTORED')
     || !same(rollbackFacts.recoveryOrder, ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'])) fail()
-  for (const stage of ['activate', 'canonical', 'finalize', 'decision']) {
-    try { await read(paths[stage]); fail() } catch (error) { if (error.code !== 'MISSING') throw error }
+  await assertAbsentStages(read, paths, ['activate', 'canonical', 'finalize'])
+  const verify = await optionalOrdinaryStage(read, paths.verify)
+  const decision = await optionalOrdinaryStage(read, paths.decision)
+  const optionalRefs = {}
+  if (verify) {
+    const facts = sealOrdinaryStage(verify, 'verify', intent, profile), smoke = facts.smoke
+    if (!same(verify.value.previousReceiptRef, entry.ref) || !same(facts.entrypointReceiptRef, entry.ref)
+      || !same(facts.candidateReceiptRef, candidate.ref) || facts.candidateRevision !== candidateFacts.candidateRevision
+      || facts.artifactDigest !== candidateFacts.artifactDigest || facts.tagUri !== candidateFacts.tagUri
+      || !same(facts.sideEffects, profile.sideEffects) || Object.values(profile.sideEffects).some(value => !String(value).startsWith('DISABLED'))
+      || smoke?.schemaVersion !== 'jenfu.dev121.principal-candidate-smoke.v1' || smoke.ownerApplicationId !== profile.application.id
+      || smoke.candidateRevision !== candidateFacts.candidateRevision || smoke.artifactDigest !== candidateFacts.artifactDigest
+      || smoke.origin !== facts.tagUri || smoke.status !== 'PASS' || !Array.isArray(smoke.observations)
+      || !['auth-mode', 'platform-session', 'target-session', 'authenticated-probe'].every(id => smoke.observations.some(row => row.id === id && row.status === 200))
+      || !['sso-start', 'sso-authorize', 'sso-callback'].every(id => smoke.observations.some(row => row.id === id && row.status === 303))
+      || !['unauthenticated-probe', 'session-revoked'].every(id => smoke.observations.some(row => row.id === id && row.status === 401))
+      || new Set(smoke.observations.map(row => row.id)).size !== smoke.observations.length) fail()
+    optionalRefs.verify = verify.ref
   }
+  if (decision) {
+    const facts = sealOrdinaryStage(decision, 'decision', intent, profile)
+    if (!verify || !same(decision.value.previousReceiptRef, verify.ref) || !same(facts.verifyReceiptRef, verify.ref)
+      || facts.decision !== 'GO' || facts.remainingHumanAction !== 0
+      || facts.candidateRevision !== candidateFacts.candidateRevision || facts.artifactDigest !== candidateFacts.artifactDigest) fail()
+    optionalRefs.decision = decision.ref
+  }
+  return { prepare, migration, candidate, deployment, entry, rollback, terminal, prepareFacts, candidateFacts,
+    terminalFacts, repair, databaseDisposition, fingerprint, verify, decision, optionalRefs }
+}
+function assertOrdinaryOwnerWindow(evidence, run) {
+  if (!evidence.verify && !evidence.decision) return
+  const window = closedOwnerWindow(run)
+  let prior = window.start
+  for (const row of [evidence.verify, evidence.decision]) {
+    if (!row) continue
+    const observed = Date.parse(row.value.observedAt)
+    if (!Number.isFinite(observed) || observed < prior || observed > window.end) fail()
+    prior = observed
+  }
+}
+async function readOrdinaryAbortObservation({ profile, transport, baselineIntentRef, intent, evidence, verifyProvider }) {
+  const failed = await transport.readOwnerSourceProof({ profile, sourceRevision: intent.sourceRevision,
+    refs: { prepare: evidence.prepare.ref, migrate: evidence.migration.ref, terminal: null }, verifyProvider })
+  assertOrdinarySourceProof(failed.proof, intent, baselineIntentRef, evidence.repair ? 'migration_evidence_only' : 'migration_only', profile)
+  if (failed.proof.artifactDigest !== evidence.candidateFacts.artifactDigest
+    || failed.proof.prepare?.ref !== evidence.prepare.ref.uri || failed.proof.prepare.sha256 !== evidence.prepare.ref.sha256
+    || failed.proof.migrate?.ref !== evidence.migration.ref.uri || failed.proof.migrate.sha256 !== evidence.migration.ref.sha256
+    || (verifyProvider && (failed.provider?.status !== 'BUILD_IMAGE_VERIFIED'
+      || failed.provider.sourceRevision !== failed.proof.sourceRevision || failed.provider.artifactDigest !== failed.proof.artifactDigest))) fail()
+  return failed
+}
+
+async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider }) {
+  const bucket = profile.artifact.releaseBucket
+  if (profile.application.id !== 'ai-pdm' || bucket !== 'jenfu-platform-prod-aipdm-release'
+    || profile.target.projectId !== 'jenfu-platform-prod' || profile.target.region !== 'asia-east1'
+    || profile.target.serviceName !== 'ai-pdm-prod'
+    || intent.schemaVersion !== profile.schemas.releaseIntent
+    || Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')
+    || baselineIntentRef.uri !== `gs://${bucket}/receipts/releases/${intent.releaseId}/release-intent.json`
+    || !intent.baselineIntentRef || same(intent.baselineIntentRef, baselineIntentRef)) fail()
+  assertImmutableRef(intent.baselineIntentRef, bucket, ['receipts'])
+  if (terminalFacts.databaseDisposition === 'NOT_APPLIED') return readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider })
+  const evidence = await readOrdinaryAbortEvidence({ profile, baselineIntentRef, intent, paths, terminal, read })
+  const { prepare, migration, candidate, deployment, entry, rollback, prepareFacts, candidateFacts, repair, fingerprint, optionalRefs } = evidence
+  const anchor = await transport.readJson(intent.baselineIntentRef, bucket, ['receipts'])
+  const keys = ['schemaVersion', 'inputFingerprint', 'ownerApplicationId', 'service', 'controlBucket', 'releaseId', 'sourceRevision',
+    'sourceLockSha256', 'candidateRevision', 'previousRevision', 'ownerRunRef', 'leaseExpiresAt', 'deadlineAt', 'state', 'result', 'controlSha256']
+  const { controlSha256, ...controlCore } = control
+  const runPrefix = `https://api.github.com/repos/${profile.application.repository}/actions/runs/`
+  const runId = control.ownerRunRef?.startsWith(runPrefix) ? control.ownerRunRef.slice(runPrefix.length) : ''
+  if (!same(Object.keys(control).sort(), keys.sort()) || controlSha256 !== sha256(canonicalize(controlCore))
+    || control.schemaVersion !== 'jenfu.dev012.owner-control-head.v1' || control.state !== 'FINALIZED'
+    || control.result !== 'PRE_ACTIVATION_ABORTED' || control.inputFingerprint !== fingerprint
+    || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName || control.controlBucket !== bucket
+    || control.releaseId !== intent.releaseId || control.sourceRevision !== intent.sourceRevision || control.sourceLockSha256 !== intent.sourceLockRef.sha256
+    || control.previousRevision !== intent.previousRevision || control.candidateRevision !== candidateFacts.candidateRevision
+    || control.candidateRevision === intent.previousRevision || !/^[1-9][0-9]*$/u.test(runId)
+    || control.deadlineAt !== intent.deadlineAt || !Number.isFinite(Date.parse(control.deadlineAt))
+    || !Number.isFinite(Date.parse(control.leaseExpiresAt)) || Date.parse(control.leaseExpiresAt) >= Date.now()) fail()
   const run = await transport.readOwnerRun(profile, control.ownerRunRef)
   if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
     || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
-  const failed = await transport.readOwnerSourceProof({ profile, sourceRevision: intent.sourceRevision,
-    refs: { prepare: prepare.ref, migrate: migration.ref, terminal: null }, verifyProvider })
-  const assertSourceProof = (proof, sourceIntent, sourceRef, disposition) => {
-    if (proof?.owner !== profile.application.id || proof.sourceRevision !== sourceIntent.sourceRevision
-      || proof.releaseId !== sourceIntent.releaseId || proof.disposition !== disposition
-      || proof.sourceLock?.ref !== sourceIntent.sourceLockRef.uri || proof.sourceLock.sha256 !== sourceIntent.sourceLockRef.sha256
-      || proof.migrationManifestSha256 !== sourceIntent.migrationManifestSha256
-      || !proof.artifactDigest?.startsWith(`${profile.artifact.uri}@sha256:`)) fail()
-    const chain = proof.releaseChain ?? proof.buildChain
-    const sourcePaths = releasePaths(profile, sourceIntent, sourceRef.sha256)
-    if (chain?.deployment?.ref !== sourcePaths.deployment) fail()
-  }
-  assertSourceProof(failed.proof, intent, baselineIntentRef, repair ? 'migration_evidence_only' : 'migration_only')
-  const consumeAnchor = async (anchor, releasedIntentRef, inheritedBasis = null) => {
+  assertOrdinaryOwnerWindow(evidence, run)
+  const failed = await readOrdinaryAbortObservation({ profile, transport, baselineIntentRef, intent, evidence, verifyProvider })
+  const consumeAnchor = async (anchor, releasedIntentRef, retainedBases = []) => {
     const anchorIntent = anchor.value
     if (anchorIntent?.ownerApplicationId !== profile.application.id || !/^[a-f0-9]{40}$/u.test(anchorIntent.sourceRevision ?? '')
       || anchorIntent.schemaVersion !== profile.schemas.releaseIntent
       || releasedIntentRef.uri !== `gs://${bucket}/receipts/releases/${anchorIntent.releaseId}/release-intent.json`) fail()
-    const anchorPaths = releasePaths(profile, anchorIntent, releasedIntentRef.sha256)
-    const anchorRead = async (stage) => read(anchorPaths[stage])
-    const [anchorPrepare, anchorMigration, anchorTerminal, anchorRuntime, anchorVerify, anchorCanonical] = await Promise.all([
-      anchorRead('prepare'), anchorRead('migrate'), anchorRead('terminal'),
-      transport.readJson(anchorIntent.runtimeConfigRef, bucket, ['receipts']), anchorRead('verify'), anchorRead('canonical'),
-    ])
     const releasedContext = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), releasedIntentRef, true)
-    const released = await runAiPdmEvidenceContext(releasedContext, () => transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
-      refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider }))
-    assertSourceProof(released.proof, anchorIntent, releasedIntentRef, 'released')
-    const anchorRepair = anchorMigration.value?.schemaVersion === 'aipdm.paused-app-repair-migration-association.v1'
-    for (const [observation, expectedRepair] of [[failed, repair], [released, anchorRepair]]) {
-      if ((observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') !== expectedRepair) fail()
-    }
-    for (const observation of [failed, released]) if (observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') {
-      if (observation.proof.migrationVerified !== false || observation.proof.databaseLiveState !== 'UNKNOWN' || observation.proof.currentDatabaseReadPerformed !== false || observation.proof.evidenceScope !== 'MIGRATION_INPUT_EQUIVALENT_NO_EXECUTION') fail()
-      const graph = await readAiPdmObservationInputs(observation.proof)
-      if (!graph.repair) fail()
-    }
-    if (failed.proof.artifactDigest !== candidateFacts.artifactDigest || released.proof.candidateRevision !== intent.previousRevision
-      || (verifyProvider && [failed, released].some(row => row.provider?.status !== 'BUILD_IMAGE_VERIFIED'
-        || row.provider.sourceRevision !== row.proof.sourceRevision || row.provider.artifactDigest !== row.proof.artifactDigest))
-      || !same(anchorPrepare.value.facts?.prerequisiteRefs?.runtimeConfig, anchorIntent.runtimeConfigRef)
-      || anchorRuntime.value.ownerApplicationId !== profile.application.id || anchorRuntime.value.sourceRevision !== anchorIntent.sourceRevision
-      || anchorRuntime.value.releaseId !== anchorIntent.releaseId || anchorRuntime.value.status !== 'VERIFIED'
-      || anchorRuntime.value.releaseAuthority !== true) fail()
-    const [failedLock, anchorLock] = await Promise.all([
-      transport.readJson(intent.sourceLockRef, bucket, ['receipts']), transport.readJson(anchorIntent.sourceLockRef, bucket, ['receipts']),
-    ])
-    if (failedLock.value.sourceSha256 !== intent.sourceSha256 || anchorLock.value.sourceSha256 !== anchorIntent.sourceSha256) fail()
-    const runtime = anchorRuntime.value.runtimeConfig ?? anchorRuntime.value
-    const principalModes = { PDM_JENFU_PLATFORM_AUTH_MODE: 'on', PDM_JENFU_ENTITLEMENT_MODE: 'enforce', PDM_JENFU_SSO_HANDOFF_MODE: 'on' }
-    if (Object.entries(principalModes).some(([name, value]) => runtime.plainEnvironment?.[name] !== value)) fail()
-    for (const row of [anchorVerify, anchorCanonical]) {
-      const smoke = row.value.facts?.smoke
-      const isCandidate = row === anchorVerify
-      if ((isCandidate && (smoke?.schemaVersion !== 'jenfu.dev121.principal-candidate-smoke.v1'
-          || smoke.ownerApplicationId !== profile.application.id || smoke.artifactDigest !== released.proof.artifactDigest
-          || smoke.candidateRevision !== intent.previousRevision))
-        || (!isCandidate && (row.value.facts?.origin !== profile.target.canonicalOrigin
-          || smoke?.origin !== profile.target.canonicalOrigin))
-        || row.value.facts?.artifactDigest !== released.proof.artifactDigest || row.value.facts?.candidateRevision !== intent.previousRevision
-        || smoke?.status !== 'PASS'
-        || !['auth-mode', 'platform-session', 'target-session', 'authenticated-probe'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 200))
-        || !['sso-start', 'sso-authorize', 'sso-callback'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 303))
-        || new Set(smoke.observations?.map(observation => observation.id)).size !== smoke.observations?.length
-        || !['unauthenticated-probe', 'session-revoked'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 401))) fail()
-    }
-    service ??= await transport.getService(profile)
-    transport.assertServiceSettled(service, 'DEV121_PREACTIVATION_CONTINUATION_INVALID')
-    const serviceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
-    if (service.name !== serviceName || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(service.uid ?? '')
-      || service.scaling?.scalingMode !== 'AUTOMATIC' || Number(service.scaling.maxInstanceCount) !== 1
-      || !traffic(service.traffic, intent.previousRevision) || !traffic(service.trafficStatuses, intent.previousRevision)) fail()
-    const entrySnapshot = value => ({ ingress: value.ingress, defaultUriDisabled: value.defaultUriDisabled === true,
-      invokerIamDisabled: value.invokerIamDisabled === true, uri: value.uri, urls: [...(value.urls ?? [])].sort() })
-    if (!same(entrySnapshot(service), entrySnapshot(prepareFacts.entrypointBaseline))) fail()
-    transport.assertCanonicalEntrypoint(profile, service)
-    const [retainedRevision, candidateRevision] = await Promise.all([
-      transport.getRevision(profile, intent.previousRevision), transport.getRevision(profile, candidateFacts.candidateRevision),
-    ])
-    const readyImage = (revision, name, image) => revision?.name === `${service.name}/revisions/${name}`
-      && revision.conditions?.find(row => row.type === 'Ready')?.state === 'CONDITION_SUCCEEDED'
-      && revision.containers?.filter(row => row.name === profile.runtime.containerName).length === 1
-      && revision.containers.find(row => row.name === profile.runtime.containerName).image === image
-    if (!readyImage(retainedRevision, intent.previousRevision, released.proof.artifactDigest)
-      || !readyImage(candidateRevision, candidateFacts.candidateRevision, failed.proof.artifactDigest)) fail()
-    const retainedEnvironment = retainedRevision.containers.find(row => row.name === profile.runtime.containerName).env ?? []
-    if (new Set(retainedEnvironment.map(row => row.name)).size !== retainedEnvironment.length
-      || Object.entries(principalModes).some(([name, value]) => retainedEnvironment.find(row => row.name === name)?.value !== value)) fail()
-    if (inheritedBasis) for (const basis of [inheritedBasis, inheritedBasis.inheritedBasis]) {
-      if (!same(basis.releasedProof, released.proof) || !same(basis.stageRefs?.runtimeConfig, anchorRuntime.ref)
-        || basis.serviceUid !== service.uid || basis.previousRevision !== intent.previousRevision
-        || basis.retainedArtifactDigest !== released.proof.artifactDigest || !same(basis.entrypoint, entrySnapshot(service))
-        || !same(basis.scaling, service.scaling) || basis.retainedEnvironmentSha256 !== sha256(canonicalize(retainedEnvironment))) fail()
-    }
-    return { kind: 'PRINCIPAL_ORDINARY_ABORT', currentActiveRevision: intent.previousRevision, result: 'PRE_ACTIVATION_ABORTED',
-      authorityBasis: { schemaVersion: 'ai-pdm.principal-ordinary-abort-basis.v1', failedIntentRef: baselineIntentRef,
-        releasedIntentRef, failedProof: failed.proof, releasedProof: released.proof,
-        stageRefs: { prepare: prepare.ref, migration: migration.ref, candidate: candidate.ref, deployment: deployment.ref, entrypoint: entry.ref,
-          rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
-        controlSha256, inputFingerprint: fingerprint, ownerRunRef: control.ownerRunRef, serviceUid: service.uid,
-        previousRevision: intent.previousRevision, retainedArtifactDigest: released.proof.artifactDigest,
-        entrypoint: entrySnapshot(service), scaling: service.scaling, retainedEnvironmentSha256: sha256(canonicalize(retainedEnvironment)) } }
+    return runAiPdmEvidenceContext(releasedContext, async () => {
+      const anchorPaths = releasePaths(profile, anchorIntent, releasedIntentRef.sha256)
+      const anchorRead = async (stage) => read(anchorPaths[stage])
+      const [anchorPrepare, anchorMigration, anchorTerminal, anchorRuntime, anchorVerify, anchorCanonical] = await Promise.all([
+        anchorRead('prepare'), anchorRead('migrate'), anchorRead('terminal'),
+        transport.readJson(anchorIntent.runtimeConfigRef, bucket, ['receipts']), anchorRead('verify'), anchorRead('canonical'),
+      ])
+      const released = await transport.readOwnerSourceProof({ profile, sourceRevision: anchorIntent.sourceRevision,
+        refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider })
+      assertOrdinarySourceProof(released.proof, anchorIntent, releasedIntentRef, 'released', profile)
+      const anchorRepair = anchorMigration.value?.schemaVersion === 'aipdm.paused-app-repair-migration-association.v1'
+      for (const [observation, expectedRepair] of [[failed, repair], [released, anchorRepair]]) {
+        if ((observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') !== expectedRepair) fail()
+      }
+      for (const observation of [failed, released]) if (observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') {
+        if (observation.proof.migrationVerified !== false || observation.proof.databaseLiveState !== 'UNKNOWN' || observation.proof.currentDatabaseReadPerformed !== false || observation.proof.evidenceScope !== 'MIGRATION_INPUT_EQUIVALENT_NO_EXECUTION') fail()
+        const graph = await readAiPdmObservationInputs(observation.proof)
+        if (!graph.repair) fail()
+      }
+      if (failed.proof.artifactDigest !== candidateFacts.artifactDigest || released.proof.candidateRevision !== intent.previousRevision
+        || (verifyProvider && [failed, released].some(row => row.provider?.status !== 'BUILD_IMAGE_VERIFIED'
+          || row.provider.sourceRevision !== row.proof.sourceRevision || row.provider.artifactDigest !== row.proof.artifactDigest))
+        || !same(anchorPrepare.value.facts?.prerequisiteRefs?.runtimeConfig, anchorIntent.runtimeConfigRef)
+        || anchorRuntime.value.ownerApplicationId !== profile.application.id || anchorRuntime.value.sourceRevision !== anchorIntent.sourceRevision
+        || anchorRuntime.value.releaseId !== anchorIntent.releaseId || anchorRuntime.value.status !== 'VERIFIED'
+        || anchorRuntime.value.releaseAuthority !== true) fail()
+      const [failedLock, anchorLock] = await Promise.all([
+        transport.readJson(intent.sourceLockRef, bucket, ['receipts']), transport.readJson(anchorIntent.sourceLockRef, bucket, ['receipts']),
+      ])
+      if (failedLock.value.sourceSha256 !== intent.sourceSha256 || anchorLock.value.sourceSha256 !== anchorIntent.sourceSha256) fail()
+      const runtime = anchorRuntime.value.runtimeConfig ?? anchorRuntime.value
+      const principalModes = { PDM_JENFU_PLATFORM_AUTH_MODE: 'on', PDM_JENFU_ENTITLEMENT_MODE: 'enforce', PDM_JENFU_SSO_HANDOFF_MODE: 'on' }
+      if (Object.entries(principalModes).some(([name, value]) => runtime.plainEnvironment?.[name] !== value)) fail()
+      for (const row of [anchorVerify, anchorCanonical]) {
+        const smoke = row.value.facts?.smoke
+        const isCandidate = row === anchorVerify
+        if ((isCandidate && (smoke?.schemaVersion !== 'jenfu.dev121.principal-candidate-smoke.v1'
+            || smoke.ownerApplicationId !== profile.application.id || smoke.artifactDigest !== released.proof.artifactDigest
+            || smoke.candidateRevision !== intent.previousRevision))
+          || (!isCandidate && (row.value.facts?.origin !== profile.target.canonicalOrigin
+            || smoke?.origin !== profile.target.canonicalOrigin))
+          || row.value.facts?.artifactDigest !== released.proof.artifactDigest || row.value.facts?.candidateRevision !== intent.previousRevision
+          || smoke?.status !== 'PASS'
+          || !['auth-mode', 'platform-session', 'target-session', 'authenticated-probe'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 200))
+          || !['sso-start', 'sso-authorize', 'sso-callback'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 303))
+          || new Set(smoke.observations?.map(observation => observation.id)).size !== smoke.observations?.length
+          || !['unauthenticated-probe', 'session-revoked'].every(id => smoke.observations?.some(observation => observation.id === id && observation.status === 401))) fail()
+      }
+      service ??= await transport.getService(profile)
+      transport.assertServiceSettled(service, 'DEV121_PREACTIVATION_CONTINUATION_INVALID')
+      const serviceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
+      if (service.name !== serviceName || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(service.uid ?? '')
+        || service.scaling?.scalingMode !== 'AUTOMATIC' || Number(service.scaling.maxInstanceCount) !== 1
+        || !traffic(service.traffic, intent.previousRevision) || !traffic(service.trafficStatuses, intent.previousRevision)) fail()
+      const entrySnapshot = value => ({ ingress: value.ingress, defaultUriDisabled: value.defaultUriDisabled === true,
+        invokerIamDisabled: value.invokerIamDisabled === true, uri: value.uri, urls: [...(value.urls ?? [])].sort() })
+      if (!same(entrySnapshot(service), entrySnapshot(prepareFacts.entrypointBaseline))) fail()
+      transport.assertCanonicalEntrypoint(profile, service)
+      const [retainedRevision, candidateRevision] = await Promise.all([
+        transport.getRevision(profile, intent.previousRevision), transport.getRevision(profile, candidateFacts.candidateRevision),
+      ])
+      const readyImage = (revision, name, image) => revision?.name === `${service.name}/revisions/${name}`
+        && revision.conditions?.find(row => row.type === 'Ready')?.state === 'CONDITION_SUCCEEDED'
+        && revision.containers?.filter(row => row.name === profile.runtime.containerName).length === 1
+        && revision.containers.find(row => row.name === profile.runtime.containerName).image === image
+      if (!readyImage(retainedRevision, intent.previousRevision, released.proof.artifactDigest)
+        || !readyImage(candidateRevision, candidateFacts.candidateRevision, failed.proof.artifactDigest)) fail()
+      const retainedEnvironment = retainedRevision.containers.find(row => row.name === profile.runtime.containerName).env ?? []
+      if (new Set(retainedEnvironment.map(row => row.name)).size !== retainedEnvironment.length
+        || Object.entries(principalModes).some(([name, value]) => retainedEnvironment.find(row => row.name === name)?.value !== value)) fail()
+      for (const basis of retainedBases) {
+        if (!same(basis.releasedProof, released.proof) || !same(basis.stageRefs?.runtimeConfig, anchorRuntime.ref)
+          || basis.serviceUid !== service.uid || basis.previousRevision !== intent.previousRevision
+          || basis.retainedArtifactDigest !== released.proof.artifactDigest || !same(basis.entrypoint, entrySnapshot(service))
+          || !same(basis.scaling, service.scaling) || basis.retainedEnvironmentSha256 !== sha256(canonicalize(retainedEnvironment))) fail()
+      }
+      return { kind: 'PRINCIPAL_ORDINARY_ABORT', currentActiveRevision: intent.previousRevision, result: 'PRE_ACTIVATION_ABORTED',
+        authorityBasis: { schemaVersion: 'ai-pdm.principal-ordinary-abort-basis.v1', failedIntentRef: baselineIntentRef,
+          releasedIntentRef, failedProof: failed.proof, releasedProof: released.proof,
+          stageRefs: { prepare: prepare.ref, migration: migration.ref, candidate: candidate.ref, deployment: deployment.ref, entrypoint: entry.ref,
+            rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref, ...optionalRefs },
+          controlSha256, inputFingerprint: fingerprint, ownerRunRef: control.ownerRunRef, serviceUid: service.uid,
+          previousRevision: intent.previousRevision, retainedArtifactDigest: released.proof.artifactDigest,
+          entrypoint: entrySnapshot(service), scaling: service.scaling, retainedEnvironmentSha256: sha256(canonicalize(retainedEnvironment)) } }
+    })
   }
   if (prepareFacts.preActivationAbortBasis) {
     if (repair || terminalFacts.databaseDisposition !== 'FORWARD_APPLIED') fail()
@@ -280,7 +349,10 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
       if (graph.migrationMode !== 'FORWARD_APPLIED' || !same(graph.intentRef, baselineIntentRef)) fail()
     }
     const binding = currentMigrationBinding({ profile, intent, paths, migration, deployment, run, failed })
-    return readHistoricalOrdinaryAnchor({ profile, transport, intent, basis: prepareFacts.preActivationAbortBasis, anchor, read, binding, consume: consumeAnchor })
+    if (prepareFacts.preActivationAbortBasis.schemaVersion === 'ai-pdm.principal-ordinary-abort-basis.v1') {
+      return readHistoricalOrdinaryPredecessor({ profile, transport, intent, basis: prepareFacts.preActivationAbortBasis, anchor, read, binding, verifyProvider, consume: consumeAnchor })
+    }
+    return readHistoricalOrdinaryAnchor({ profile, transport, intent, basis: prepareFacts.preActivationAbortBasis, anchor, read, bindings: [binding], consume: consumeAnchor })
   }
   return consumeAnchor(anchor, intent.baselineIntentRef)
 }
@@ -568,9 +640,84 @@ async function readHistoricalOwnerRun(profile, transport, basis, prior) {
   closedOwnerWindow(run)
   return run
 }
+// Exactly one immutable ordinary predecessor may precede the existing fixed
+// unpublished -> zero-build -> released tail. Never read historical control.
+async function readHistoricalOrdinaryPredecessor({ profile, transport, intent, basis, anchor, read, binding, verifyProvider, consume }) {
+  const bucket = profile.artifact.releaseBucket
+  const basisKeys = ['schemaVersion', 'failedIntentRef', 'releasedIntentRef', 'failedProof', 'releasedProof', 'stageRefs',
+    'controlSha256', 'inputFingerprint', 'ownerRunRef', 'serviceUid', 'previousRevision', 'retainedArtifactDigest',
+    'entrypoint', 'scaling', 'retainedEnvironmentSha256']
+  if (basis.schemaVersion !== 'ai-pdm.principal-ordinary-abort-basis.v1'
+    || !same(Object.keys(basis).sort(), basisKeys.sort()) || !same(basis.failedIntentRef, intent.baselineIntentRef)
+    || basis.previousRevision !== intent.previousRevision || !/^[a-f0-9]{64}$/u.test(basis.controlSha256 ?? '')) fail()
+  assertImmutableRef(basis.releasedIntentRef, bucket, ['receipts'])
+  const [authorization, readiness] = await Promise.all([
+    transport.readJson(intent.authorizationPolicyRef, bucket, ['receipts']), transport.readJson(intent.readinessReceiptRef, bucket, ['receipts']),
+  ])
+  if (!same(authorization.value.preActivationAbortBasis, basis) || !same(readiness.value.preActivationAbortBasis, basis)) fail()
+  const child = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), basis.failedIntentRef, true)
+  return runAiPdmEvidenceContext(child, async () => {
+    const prior = anchor.value, ref = anchor.ref
+    if (prior.schemaVersion !== profile.schemas.releaseIntent || prior.ownerApplicationId !== profile.application.id
+      || !/^[a-f0-9]{40}$/u.test(prior.sourceRevision ?? '') || prior.previousRevision !== intent.previousRevision
+      || ref.uri !== `gs://${bucket}/receipts/releases/${prior.releaseId}/release-intent.json` || !same(ref, basis.failedIntentRef)
+      || Object.hasOwn(prior, 'principalOnlyRecovery') || Object.hasOwn(prior, 'principalOnlyFenceRef')
+      || !prior.baselineIntentRef || same(prior.baselineIntentRef, ref)) fail()
+    assertImmutableRef(prior.baselineIntentRef, bucket, ['receipts'])
+    const paths = releasePaths(profile, prior, ref.sha256)
+    const terminal = await read(paths.terminal)
+    const evidence = await readOrdinaryAbortEvidence({ profile, baselineIntentRef: ref, intent: prior, paths, terminal, read })
+    if (evidence.repair || evidence.terminalFacts.databaseDisposition !== 'FORWARD_APPLIED'
+      || basis.inputFingerprint !== evidence.fingerprint) fail()
+    const inherited = evidence.prepareFacts.preActivationAbortBasis
+    if (inherited?.schemaVersion !== 'ai-pdm.principal-unpublished-build-abort-basis.v1'
+      || inherited.inheritedBasis?.schemaVersion !== 'ai-pdm.principal-prebuild-abort-basis.v1'
+      || !same(prior.baselineIntentRef, inherited.failedIntentRef) || !same(basis.releasedIntentRef, inherited.releasedIntentRef)) fail()
+    const refs = { prepare: evidence.prepare.ref, migration: evidence.migration.ref, candidate: evidence.candidate.ref,
+      deployment: evidence.deployment.ref, entrypoint: evidence.entry.ref, rollback: evidence.rollback.ref,
+      terminal: terminal.ref, runtimeConfig: basis.stageRefs?.runtimeConfig, ...evidence.optionalRefs }
+    assertImmutableRef(refs.runtimeConfig, bucket, ['receipts'])
+    if (!same(basis.stageRefs, refs)) fail()
+    const run = await readHistoricalOwnerRun(profile, transport, basis, prior), window = closedOwnerWindow(run)
+    if (window.end >= binding.window.start) fail()
+    assertOrdinaryOwnerWindow(evidence, run)
+    const failed = await readOrdinaryAbortObservation({ profile, transport, baselineIntentRef: ref, intent: prior, evidence, verifyProvider })
+    if (!same(failed.proof, basis.failedProof)) fail()
+    if (prior.openswxWorkerRef) {
+      const graph = await readAiPdmObservationInputs(failed.proof)
+      if (graph.migrationMode !== 'FORWARD_APPLIED' || !same(graph.intentRef, ref)) fail()
+    }
+    const lock = await transport.readJson(prior.sourceLockRef, bucket, ['receipts'])
+    if (lock.value.schemaVersion !== 'jenfu.dev012.owner-source-lock.v1'
+      || lock.value.ownerApplicationId !== profile.application.id || lock.value.releaseId !== prior.releaseId
+      || lock.value.sourceRevision !== prior.sourceRevision || lock.value.sourceSha256 !== prior.sourceSha256
+      || lock.value.migrationManifestSha256 !== prior.migrationManifestSha256
+      || lock.value.status !== 'SOURCE_FROZEN' || lock.value.clean !== true || lock.value.releaseAuthority !== true) fail()
+    const entrypoint = value => ({ ingress: value.ingress, defaultUriDisabled: value.defaultUriDisabled === true,
+      invokerIamDisabled: value.invokerIamDisabled === true, uri: value.uri, urls: [...(value.urls ?? [])].sort() })
+    if (!same(basis.entrypoint, entrypoint(evidence.prepareFacts.entrypointBaseline))) fail()
+    const candidateRevision = evidence.candidateFacts.candidateRevision
+    const revision = await transport.getRevision(profile, candidateRevision)
+    const serviceName = `projects/${profile.target.projectId}/locations/${profile.target.region}/services/${profile.target.serviceName}`
+    if (revision?.name !== `${serviceName}/revisions/${candidateRevision}`
+      || revision.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED'
+      || revision.containers?.filter(row => row.name === profile.runtime.containerName).length !== 1
+      || revision.containers.find(row => row.name === profile.runtime.containerName).image !== failed.proof.artifactDigest) fail()
+    const priorBinding = currentMigrationBinding({ profile, intent: prior, paths, migration: evidence.migration,
+      deployment: evidence.deployment, run, failed })
+    const consumeReleased = (released, releasedRef, retainedBases) => {
+      if (retainedBases.length !== 2 || !same(releasedRef, basis.releasedIntentRef)) fail()
+      return consume(released, releasedRef, [basis, ...retainedBases])
+    }
+    return readHistoricalOrdinaryAnchor({ profile, transport, intent: prior, basis: inherited,
+      anchor: await transport.readJson(prior.baselineIntentRef, bucket, ['receipts']), read,
+      bindings: [priorBinding, binding], consume: consumeReleased })
+  })
+}
+
 // Fixed unpublished -> zero-build -> released scopes. No historical mutable
 // control, synthetic terminal, caller anchor or partial artifact reuse.
-async function readHistoricalOrdinaryAnchor({ profile, transport, intent, basis, anchor, read, binding, consume }) {
+async function readHistoricalOrdinaryAnchor({ profile, transport, intent, basis, anchor, read, bindings, consume }) {
   const bucket = profile.artifact.releaseBucket
   if (basis.schemaVersion !== 'ai-pdm.principal-unpublished-build-abort-basis.v1' || basis.databaseDisposition !== 'NOT_APPLIED'
     || basis.failedBuildCount !== 1 || !same(basis.failedIntentRef, intent.baselineIntentRef)
@@ -622,7 +769,7 @@ async function readHistoricalOrdinaryAnchor({ profile, transport, intent, basis,
     const partial = await readUnpublishedBuildEvidence({ profile, transport, baselineIntentRef: ref, intent: prior, paths, provenance, read })
     const finish = Date.parse(provenance.value.cloudBuild.finishTime)
     if (!same(partial, basis.unpublishedBuild) || finish < window.start || finish > window.end) fail()
-    const executions = await assertHistoricalMigrationAbsence(profile, transport, prior, paths, run, binding)
+    const executions = await assertHistoricalMigrationAbsence(profile, transport, prior, paths, run, bindings)
     const zeroRef = basis.inheritedBasis.failedIntentRef
     assertImmutableRef(zeroRef, bucket, ['receipts'])
     const zeroChild = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), zeroRef, true)
@@ -632,9 +779,10 @@ async function readHistoricalOrdinaryAnchor({ profile, transport, intent, basis,
       const zeroLock = await transport.readJson(zero.value.sourceLockRef, bucket, ['receipts'])
       if (zeroLock.value.schemaVersion !== 'jenfu.dev012.owner-source-lock.v1') fail()
       const zeroRun = await readHistoricalOwnerRun(profile, transport, basis.inheritedBasis, zero.value)
-      const zeroExecutions = await assertHistoricalMigrationAbsence(profile, transport, zero.value, releasePaths(profile, zero.value, zeroRef.sha256), zeroRun, binding)
+      if (closedOwnerWindow(zeroRun).end >= window.start) fail()
+      const zeroExecutions = await assertHistoricalMigrationAbsence(profile, transport, zero.value, releasePaths(profile, zero.value, zeroRef.sha256), zeroRun, bindings)
       if (!same(executions, zeroExecutions) || !same(releasedRef, basis.releasedIntentRef)) fail()
-      return consume(await transport.readJson(releasedRef, bucket, ['receipts']), releasedRef, basis)
+      return consume(await transport.readJson(releasedRef, bucket, ['receipts']), releasedRef, [basis, basis.inheritedBasis])
     })
   })
 }
@@ -659,12 +807,20 @@ function historicalExecutionArguments(execution) {
     || values.get('--output-ref').split('/').slice(3).some(part => !part || part === '.' || part === '..')) fail()
   return { container: containers[0], values }
 }
-async function assertHistoricalMigrationAbsence(profile, transport, intent, paths, run, binding) {
+async function assertHistoricalMigrationAbsence(profile, transport, intent, paths, run, bindings) {
   const window = closedOwnerWindow(run)
-  if (window.end >= binding.window.start) fail()
+  // Bindings are constructed only by the fixed current/prior native proof
+  // readers above, never by caller input or an arbitrary historical allowlist.
+  if (!Array.isArray(bindings) || ![1, 2].includes(bindings.length)
+    || new Set(bindings.map(row => row.name)).size !== bindings.length
+    || new Set(bindings.map(row => row.args[5])).size !== bindings.length
+    || new Set(bindings.map(row => row.args[7])).size !== bindings.length
+    || bindings.some(row => window.end >= row.window.start)) fail()
+  if (bindings.length === 2 && bindings[0].window.end >= bindings[1].window.start) fail()
+  const expected = new Map(bindings.map(row => [row.name, row])), counts = new Map(bindings.map(row => [row.name, 0]))
   const job = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
   const names = new Set(), tokens = new Set()
-  let token = '', currentCount = 0
+  let token = ''
   const inventory = []
   for (let page = 0; page < 10; page++) {
     const query = new URLSearchParams({ pageSize: '100' }); if (token) query.set('pageToken', token)
@@ -689,7 +845,9 @@ async function assertHistoricalMigrationAbsence(profile, transport, intent, path
       const { container, values } = historicalExecutionArguments(execution)
       if ((created <= window.end && completed >= window.start) || values.get('--source-revision') === intent.sourceRevision || values.get('--output-ref') === paths.migrate) fail()
       if (created >= window.start) {
-        currentCount++
+        const binding = expected.get(execution.name)
+        if (!binding) fail()
+        counts.set(binding.name, counts.get(binding.name) + 1)
         if (execution.name !== binding.name || !same(container.args, binding.args) || container.image !== binding.image
           || created < binding.window.start || completed > binding.window.end || created > binding.started || completed < binding.completed
           || terminal[0].state !== 'CONDITION_SUCCEEDED') fail()
@@ -701,7 +859,7 @@ async function assertHistoricalMigrationAbsence(profile, transport, intent, path
       }
     }
     token = list.nextPageToken ?? ''
-    if (!token) { if (currentCount !== 1) fail(); return inventory.sort((a, b) => a.name.localeCompare(b.name)) }
+    if (!token) { if ([...counts.values()].some(count => count !== 1)) fail(); return inventory.sort((a, b) => a.name.localeCompare(b.name)) }
     if (tokens.has(token)) fail(); tokens.add(token)
   }
   fail()

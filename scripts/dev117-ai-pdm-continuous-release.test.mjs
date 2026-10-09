@@ -586,3 +586,30 @@ test('B29 migration read wiring is prepare-only and rejects actor swap, misplace
   assert.match(cli, /fullOwner && args.stage === 'prepare'/u)
   assert.match(cli, /args.stage === 'prepare' \? process.env.AIPDM_MIGRATION_EXECUTION_READ_TOKEN/u)
 })
+
+test('B32 activate keeps deployer traffic authority and exact builder proof token while canonical rejects it', () => {
+  const source = readText('.github/workflows/deploy-ai-pdm-independent-production.yml').replaceAll('\r\n', '\n')
+  const block = source.match(/\n  activate:\n[\s\S]*?(?=\n  [a-z][a-z-]+:\n|$)/u)?.[0]
+  assert.ok(block)
+  assert.equal(assertDev117WorkflowSource(source), true)
+  const auth = block.match(/      - id: proof_builder_read_auth\n[\s\S]*?(?=      - )/u)?.[0]
+  assert.ok(auth)
+  const token = '          AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"\n'
+  const mutations = [
+    block.replace(auth, ''),
+    block.replace(token, ''),
+    block.replace('service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', 'service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com'),
+    block.replace('service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com', 'service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com'),
+    block.replace('steps.proof_builder_read_auth.outputs.access_token', 'steps.auth.outputs.access_token'),
+    block.replace('          export_environment_variables: false', '          export_environment_variables: true'),
+    block.replace(auth, auth.replace('create_credentials_file: false', 'create_credentials_file: true')),
+    block.replace(auth, auth.replace('token_format: access_token', 'token_format: id_token')),
+    block.replace(auth, auth.replace('${{ env.WIF_PROVIDER }}', '${{ env.UNKNOWN_PROVIDER }}')),
+    block.replace(token, '').replace('      - run: npm ci', '      - run: npm ci\n        env:\n' + token),
+    block.replace(auth, '').trimEnd() + '\n' + auth,
+  ]
+  for (const changed of mutations) assert.throws(() => assertDev117WorkflowSource(source.replace(block, changed)), { code: 'WORKFLOW_PROOF_READBACK_AUTH_DRIFT' })
+  const canonical = source.match(/\n  canonical:\n[\s\S]*?(?=\n  [a-z][a-z-]+:\n|$)/u)?.[0]
+  assert.ok(canonical)
+  assert.throws(() => assertDev117WorkflowSource(source.replace(canonical, canonical.replace('      - name: Execute canonical', auth + '      - name: Execute canonical').replace('          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"\n', '          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"\n' + token))), { code: 'WORKFLOW_PROOF_READBACK_AUTH_DRIFT' })
+})

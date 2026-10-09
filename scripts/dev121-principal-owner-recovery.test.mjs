@@ -219,7 +219,7 @@ function ordinaryAbortFixture() {
     const sourceUri = `gs://${bucket}/source/releases/${releaseId}/${intentRow.ref.sha256}/source.tar.gz`
     const archived = Buffer.from('frozen archive '+source), sourceObject = { uri: sourceUri, sha256: sha256(archived), generation: '7', crc32c: crc32cBase64(archived) }
     objects.set(sourceUri, { bytes: archived, metadata: { generation: '7', crc32c: sourceObject.crc32c } })
-    const buildId = released ? '11111111-2222-3333-4444-555555555555' : '66666666-7777-8888-9999-aaaaaaaaaaaa'
+    const buildId = released ? '11111111-2222-3333-4444-555555555555' : `66666666-7777-8888-9999-${source.slice(0, 12)}`
     const cloudBuild = buildRecord(source, buildId, sourceObject, image); builds.set(buildId, cloudBuild)
     const provenance = put(paths.provenance, { schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: source, sourceObject, artifactDigest: image, cloudBuild, artifactRegistry: { uri: image }, status: 'PASS' })
     const build = seal('build', { artifactDigest: image, sourceObject, provenanceReceiptRef: provenance.ref }, prepare.ref)
@@ -748,6 +748,137 @@ test('B31 fixed inherited opaque branch retains depth-eight and cycle rejection'
   await assert.rejects(readAtDepth(5), /GRAPH_DEPTH_INVALID/)
   await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
     const child = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), h.unpublished.intentRow.ref, true)
+    await runAiPdmEvidenceContext(child, () => assert.rejects(readPreActivationAbortContinuation(h.helperInput), /GRAPH_CYCLE_OR_HASH_CONFLICT/))
+  })
+  assert.equal(h.calls.puts, 0)
+})
+
+// Two distinct completed owner attempts retain their own Build and migration
+// evidence; neither failed capsule becomes the serving RELEASED anchor.
+async function decisionOrdinaryAbortFixture() {
+  const h = await inheritedOrdinaryAbortFixture()
+  const ordinary = h.failed, ordinaryRun = h.currentRun, ordinaryExecution = h.execution
+  const ordinaryBasis = (await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })).authorityBasis
+  const f = h.release({ source: 'c'.repeat(40), releaseId: 'DEV122-B32-DECISION-ABORT', revision: 'ai-pdm-prod-444444444444',
+    previous: previousRevision, imageDigit: '1', anchorRef: ordinary.intentRow.ref, preActivationAbortBasis: ordinaryBasis })
+  const bundle = h.put(`gs://${bucket}/source/migration-bundles/${f.intent.sourceRevision}/${f.intent.migrationManifestSha256}.json`, { bundle: 'second-native-attempt' })
+  const deployment = h.put(f.paths.deployment, { ...h.objects.get(f.paths.deployment).value, migrationRunnerDigest, migrationBundleRef: bundle.ref })
+  const { receiptSha256: _seal, ...originalMigration } = h.objects.get(f.paths.migrate).value
+  const core = { ...originalMigration, executionName: 'ai-pdm-prod-migration-runner-second', startedAt: '2026-10-03T00:02:00Z', completedAt: '2026-10-03T00:03:00Z' }
+  const migration = h.put(f.paths.migrate, { ...core, receiptSha256: sha256(canonicalize(core)) })
+  const candidate = f.seal('candidate', { ...h.objects.get(f.paths.candidate).value.facts, migrationReceiptRef: migration.ref,
+    deploymentCapsuleRef: deployment.ref, tagUri: candidateOrigin, tag: candidateTag }, migration.ref)
+  const entry = f.seal('entrypoint', h.objects.get(f.paths.entrypoint).value.facts, candidate.ref)
+  const smoke = { ...structuredClone(h.objects.get(h.anchor.paths.verify).value.facts.smoke), candidateRevision: f.revision,
+    artifactDigest: f.image, origin: candidateOrigin }
+  const optionalSeal = (stage, facts, previousReceiptRef) => h.put(f.paths[stage], stageReceipt({ profile: h.profile, intent: f.intent, stage, facts, previousReceiptRef, observedAt: '2026-10-03T00:04:00Z' }))
+  const verify = optionalSeal('verify', { candidateRevision: f.revision, artifactDigest: f.image, candidateReceiptRef: candidate.ref,
+    entrypointReceiptRef: entry.ref, tagUri: candidateOrigin, providerTagUri: candidateOrigin, sideEffects: h.profile.sideEffects, smoke }, entry.ref)
+  const decision = optionalSeal('decision', { candidateRevision: f.revision, artifactDigest: f.image, decision: 'GO', remainingHumanAction: 0, verifyReceiptRef: verify.ref }, verify.ref)
+  const rollback = f.seal('rollback', h.objects.get(f.paths.rollback).value.facts, entry.ref)
+  f.seal('terminal', h.objects.get(f.paths.terminal).value.facts, rollback.ref)
+  const currentRun = { ...ordinaryRun, id: '45', headSha: f.intent.sourceRevision, createdAt: '2026-10-03T00:00:00Z', updatedAt: '2026-10-03T00:05:00Z' }
+  Object.assign(h.controlCore, { releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, sourceLockSha256: f.lock.ref.sha256,
+    ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/45', candidateRevision: f.revision,
+    inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, releaseIntentSha256: f.intentRow.ref.sha256 })) })
+  h.control()
+  h.transport.readOwnerRun = async (_p, ref) => ref.endsWith('/42') ? h.priorRun : ref.endsWith('/43') ? h.unpublishedRun : ref.endsWith('/44') ? ordinaryRun : currentRun
+  const execution = { name: 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions/'+core.executionName,
+    createTime: '2026-10-03T00:01:00Z', completionTime: '2026-10-03T00:04:00Z', succeededCount: 1,
+    conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: { containers: [{ name: 'migration', image: migrationRunnerDigest,
+      args: ['--bundle-ref', bundle.ref.uri, '--bundle-sha256', bundle.ref.sha256, '--source-revision', f.intent.sourceRevision, '--output-ref', f.paths.migrate] }] } }
+  const request = h.transport.request, executions = [ordinaryExecution, execution]
+  h.transport.request = (url, ...args) => url.includes('/jobs/ai-pdm-prod-migration-runner/executions?') ? { executions } : request(url, ...args)
+  h.failed = f; h.helperInput.baselineIntentRef = f.intentRow.ref
+  return { ...h, ordinary, ordinaryRun, ordinaryBasis, ordinaryExecution, currentRun, execution, executions, verify, decision }
+}
+
+test('B32 fixed ordinary predecessor retains native released anchor, sealed GO and two completed migrations cold/warm/next prepare', async () => {
+  const h = await decisionOrdinaryAbortFixture(), control = h.objects.get(`gs://${bucket}/control/active.json`).bytes
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    const cold = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+    const warm = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+    assert.deepEqual(warm, cold)
+    assert.deepEqual(cold.authorityBasis.releasedIntentRef, h.anchor.intentRow.ref)
+    assert.deepEqual(cold.authorityBasis.releasedProof, h.ordinaryBasis.releasedProof)
+    assert.equal(cold.authorityBasis.failedProof.disposition, 'migration_only')
+    assert.deepEqual(cold.authorityBasis.stageRefs.verify, h.verify.ref)
+    assert.deepEqual(cold.authorityBasis.stageRefs.decision, h.decision.ref)
+    assert.deepEqual(cold.authorityBasis.failedIntentRef, h.failed.intentRow.ref)
+  })
+  assert.equal(h.calls.puts, 0)
+  const next = await ordinaryNextRelease(h), prepared = await executeOwnerStage(next.input)
+  assert.deepEqual((await executeOwnerStage(next.input)).ref, prepared.ref)
+  assert.deepEqual(prepared.value.facts.preActivationAbortBasis.stageRefs.decision, h.decision.ref)
+  assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, control)
+})
+
+test('B32 fixed ordinary predecessor rejects verified GO, native history and retained boundary drift without publication', async () => {
+  const reseal = (h, stage, mutate) => { const row = h.objects.get(h.failed.paths[stage]); const { receiptSha256, ...core } = structuredClone(row.value); mutate(core); h.put(row.ref.uri, { ...core, receiptSha256: sha256(canonicalize(core)) }) }
+  const cases = [
+    ['missing verify', h => h.objects.delete(h.failed.paths.verify)],
+    ['bad verify seal', h => h.put(h.failed.paths.verify, { ...h.verify.value, receiptSha256: '0'.repeat(64) })],
+    ['bad decision seal', h => h.put(h.failed.paths.decision, { ...h.decision.value, receiptSha256: '0'.repeat(64) })],
+    ['decision non-GO', h => reseal(h, 'decision', c => { c.facts.decision = 'NO_GO' })],
+    ['human action', h => reseal(h, 'decision', c => { c.facts.remainingHumanAction = 1 })],
+    ['decision wrong prior', h => reseal(h, 'decision', c => { c.previousReceiptRef = h.verify.ref.uri })],
+    ['decision wrong verify', h => reseal(h, 'decision', c => { c.facts.verifyReceiptRef = h.decision.ref })],
+    ['decision wrong candidate', h => reseal(h, 'decision', c => { c.facts.candidateRevision = h.ordinary.revision })],
+    ['verify non-PASS', h => reseal(h, 'verify', c => { c.facts.smoke.status = 'FAIL' })],
+    ['verify source', h => reseal(h, 'verify', c => { c.sourceRevision = h.ordinary.intent.sourceRevision })],
+    ['verify artifact', h => reseal(h, 'verify', c => { c.facts.artifactDigest = h.anchor.image })],
+    ['verify entry', h => reseal(h, 'verify', c => { c.facts.entrypointReceiptRef = h.verify.ref })],
+    ['verify observations', h => reseal(h, 'verify', c => { c.facts.smoke.observations.find(x => x.id === 'session-revoked').status = 200 })],
+    ['enabled effects', h => { h.profile.sideEffects = { email: 'ENABLED' } }],
+    ['activated capsule', h => h.put(h.failed.paths.activate, { unexpected: true })],
+    ['canonical capsule', h => h.put(h.failed.paths.canonical, { unexpected: true })],
+    ['unknown decision', h => { const read = h.transport.readBytes; h.transport.readBytes = (uri, opts) => uri === h.failed.paths.decision ? Promise.reject(Object.assign(Error('UNKNOWN'), { code: 'OUTCOME_UNKNOWN' })) : read.call(h.transport, uri, opts) }],
+    ['prior source lock', h => h.put(h.ordinary.lock.ref.uri, { ...h.ordinary.lock.value, clean: false })],
+    ['prior authorization', h => h.put(h.ordinary.intent.authorizationPolicyRef.uri, { status: 'PASS' })],
+    ['prior native migrate', h => h.put(h.ordinary.paths.migrate, { ...h.objects.get(h.ordinary.paths.migrate).value, sourceRevision: h.failed.intent.sourceRevision })],
+    ['prior native candidate', h => h.put(h.ordinary.paths.candidate, { unexpected: true })],
+    ['prior activated', h => h.put(h.ordinary.paths.activate, { unexpected: true })],
+    ['prior owner head', h => { h.ordinaryRun.headSha = '0'.repeat(40) }],
+    ['overlap owners', h => { h.ordinaryRun.updatedAt = h.currentRun.createdAt }],
+    ['retained tag', h => { h.service.traffic[0].tag = 'unexpected' }],
+  ]
+  for (const [name, mutate] of cases) { const h = await decisionOrdinaryAbortFixture(); mutate(h); await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }), undefined, name); assert.equal(h.calls.puts, 0, name) }
+})
+
+test('B32 fixed ordinary predecessor requires both exact executions and rejects every unbound later migration', async () => {
+  const cases = [
+    ['missing prior', h => [h.execution]], ['missing current', h => [h.ordinaryExecution]],
+    ['duplicate', h => [...h.executions, h.execution]], ['unbound third', h => [...h.executions, { ...h.execution, name: h.execution.name+'x' }]],
+    ...['source','output','image','time','count','active'].map(kind => [kind, h => { const rows = structuredClone(h.executions), row = rows[0];
+      if (kind === 'source') row.template.containers[0].args[5] = h.failed.intent.sourceRevision
+      if (kind === 'output') row.template.containers[0].args[7] = h.failed.paths.migrate
+      if (kind === 'image') row.template.containers[0].image = h.anchor.image
+      if (kind === 'time') row.completionTime = h.currentRun.createdAt
+      if (kind === 'count') row.failedCount = 1
+      if (kind === 'active') row.reconciling = true
+      return rows
+    }]),
+  ]
+  for (const [name, rows] of cases) { const h = await decisionOrdinaryAbortFixture(), request = h.transport.request;
+    h.transport.request = (url, ...args) => url.includes('/jobs/ai-pdm-prod-migration-runner/executions?') ? { executions: rows(h) } : request(url, ...args)
+    await assert.rejects(readPreActivationAbortContinuation(h.helperInput), undefined, name); assert.equal(h.calls.puts, 0, name)
+  }
+  const h = await decisionOrdinaryAbortFixture(), request = h.transport.request
+  let reads = 0
+  h.transport.request = (url, ...args) => url.includes('/jobs/ai-pdm-prod-migration-runner/executions?') ? { executions: ++reads === 1 ? h.executions : [h.execution] } : request(url, ...args)
+  await assert.rejects(readPreActivationAbortContinuation(h.helperInput)); assert.equal(h.calls.puts, 0)
+})
+
+test('B32 fixed ordinary predecessor retains depth-eight, ninth-depth and cycle rejection', async () => {
+  const h = await decisionOrdinaryAbortFixture()
+  const atDepth = depth => runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    const walk = (handle, n) => runAiPdmEvidenceContext(handle, () => n === depth ? readPreActivationAbortContinuation(h.helperInput)
+      : walk(descendAiPdmEvidenceContext(handle, { uri: `gs://${bucket}/receipts/B32-prefix-${n}.json`, sha256: 'a'.repeat(64) }, true), n+1))
+    return walk(createAiPdmEvidenceContext(), 0)
+  })
+  await atDepth(3); await assert.rejects(atDepth(4), /GRAPH_DEPTH_INVALID/)
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    const child = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), h.ordinary.intentRow.ref, true)
     await runAiPdmEvidenceContext(child, () => assert.rejects(readPreActivationAbortContinuation(h.helperInput), /GRAPH_CYCLE_OR_HASH_CONFLICT/))
   })
   assert.equal(h.calls.puts, 0)
