@@ -237,7 +237,13 @@
       "nativeCleanupReadback": {
         "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-matrix-build-r4-native-cleanup-readback.json",
         "sha256": "4c588a33ab8a3016d777a25e817cf344deca800f5e42449ba3403d09dcd5c039"
-      }
+      },
+      "stdout": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B32-matrix-build-r4-stdout.log",
+        "sha256": "2484c41e5091ea67803fe42389463c0221b9857b3be4962ff98e8086390e52e0"
+      },
+      "artifactReady": true,
+      "isolatedBuildFinalLine": "Isolated build result: PASS; artifact=true; primary=true; cleanup=true"
     }
   },
   "primaryBefore": {
