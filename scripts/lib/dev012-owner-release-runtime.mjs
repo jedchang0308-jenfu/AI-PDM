@@ -310,7 +310,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     return { id: String(value.id), status: value.status, conclusion: value.conclusion, event: value.event, headSha: value.head_sha, createdAt: value.created_at, updatedAt: value.updated_at }
   }
 
-  async function readBytes(uri, { prefixes = ['receipts'], expectedSha256 = null } = {}) {
+  async function readBytes(uri, { prefixes = ['receipts'], expectedSha256 = null, expectedGeneration = null } = {}) {
     const bucket = profileBucket(uri)
     const matchingPrefix = prefixes.find((prefix) => {
       try { return parseGsUri(uri, bucket, prefix).object.startsWith(`${prefix}/`) } catch { return false }
@@ -318,8 +318,10 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     if (!matchingPrefix) fail('GCS_PREFIX_DENIED')
     const parsed = parseGsUri(uri, bucket, matchingPrefix)
     const base = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(parsed.bucket)}/o/${encodeURIComponent(parsed.object)}`
-    const metadata = await request(base)
+    if (expectedGeneration !== null && (typeof expectedGeneration !== 'string' || !/^[1-9][0-9]{0,31}$/u.test(expectedGeneration))) fail('GCS_GENERATION_INVALID')
+    const metadata = await request(expectedGeneration === null ? base : `${base}?generation=${encodeURIComponent(expectedGeneration)}`)
     if (!/^[1-9][0-9]*$/u.test(String(metadata?.generation ?? '')) || typeof metadata?.crc32c !== 'string') fail('GCS_METADATA_INVALID')
+    if (expectedGeneration !== null && String(metadata.generation) !== expectedGeneration) fail('GCS_GENERATION_MISMATCH')
     let mediaResponse
     try {
       mediaResponse = await fetchImpl(`${base}?alt=media&generation=${encodeURIComponent(metadata.generation)}`, { headers: authHeaders, signal: AbortSignal.timeout(30_000) })

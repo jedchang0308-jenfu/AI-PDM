@@ -23,6 +23,14 @@ import {
   PRINCIPAL_ONLY_MIGRATION_ORDERS,
 } from './lib/dev121-migration-fence.mjs'
 
+import {
+  UNLINKED_PROFILE_CLEANUP_PREFIX,
+  assertUnlinkedProfileCleanupBundleBinding,
+  readUnlinkedProfileCleanupOperation,
+  executeUnlinkedProfileCleanup,
+  unlinkedProfileCleanupReceipt,
+} from './lib/dev121-unlinked-profile-cleanup.mjs'
+
 const FENCE_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'
 
 export const TARGET = Object.freeze({
@@ -64,10 +72,18 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   let value
   try { value = JSON.parse(object.bytes.toString('utf8')) } catch { throw new Error('MIGRATION_BUNDLE_JSON_INVALID') }
   const bundle = assertMigrationBundle(value, { target: TARGET, sourceRevision: args.sourceRevision, bundleSha256: args.bundleSha256, bytes: object.bytes })
+  const cleanupEntry = assertUnlinkedProfileCleanupBundleBinding(bundle)
+  const cleanup = cleanupEntry ? await readUnlinkedProfileCleanupOperation({
+    ref: bundle.unlinkedProfileCleanupRef, sourceRevision: args.sourceRevision,
+    migrationSourceSha256: cleanupEntry.sourceSha256,
+    readObject: ref => readGcsObject({ uri: ref.uri, expectedBucket: TARGET.releaseBucket,
+      expectedPrefix: UNLINKED_PROFILE_CLEANUP_PREFIX, expectedGeneration: ref.generation, token, fetchImpl }),
+  }) : null
   const database = new Client(databaseOptions(environment, token))
   await database.connect()
   try {
     let principalOnlyFence = null
+    let cleanupResult = null
     const receipt = await executeProductionMigration({
       bundle,
       database,
@@ -98,6 +114,22 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
         principalOnlyFence = { ref: fenceRef, sha256: sha256(fenceObject.bytes),
           generation: fenceObject.generation, ...state, ...writers }
       },
+      afterEntry: async entry => {
+        if (cleanup && entry.path === cleanupEntry.path) {
+          cleanupResult = await executeUnlinkedProfileCleanup({ database, operation: cleanup })
+        }
+      },
+      afterPending: async () => {
+        if (!cleanup || cleanupResult) return
+        await database.query('BEGIN')
+        try {
+          cleanupResult = await executeUnlinkedProfileCleanup({ database, operation: cleanup })
+          await database.query('COMMIT')
+        } catch (error) {
+          await database.query('ROLLBACK').catch(() => undefined)
+          throw error
+        }
+      },
       denyDatabaseConnect: async (databaseName) => {
         const denied = new Client(databaseOptions(environment, token, databaseName))
         try {
@@ -113,6 +145,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     const receiptCore = { ...receipt }
     delete receiptCore.receiptSha256
     if (principalOnlyFence) receiptCore.principalOnlyFence = principalOnlyFence
+    if (cleanup) receiptCore.unlinkedProfileCleanup = unlinkedProfileCleanupReceipt(cleanup, cleanupResult)
     const publishedReceipt = { ...receiptCore,
       receiptSha256: sha256(canonicalize(receiptCore)) }
     const publication = await publishGcsJson({ uri: args.outputRef, expectedBucket: TARGET.releaseBucket, expectedPrefix: 'receipts', value: publishedReceipt, token, fetchImpl })
@@ -123,7 +156,13 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  runMain().then((value) => process.stdout.write(`${JSON.stringify(value)}\n`)).catch((error) => {
+  runMain().then((value) => {
+    const summary = value.unlinkedProfileCleanup
+      ? { status: value.status, ownerApplicationId: value.ownerApplicationId, sourceRevision: value.sourceRevision,
+        outputRef: value.outputRef, outputGeneration: value.outputGeneration, outputSha256: value.outputSha256, receiptSha256: value.receiptSha256 }
+      : value
+    process.stdout.write(`${JSON.stringify(summary)}\n`)
+  }).catch((error) => {
     process.stderr.write(`${error.code || error.message}\n`)
     process.exitCode = 1
   })

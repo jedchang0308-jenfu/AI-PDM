@@ -377,6 +377,22 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 現行契約：[authorized first login](specs/DEV-121-target-authorization-boundary.md#authorized-first-login)。OrgMaster 現行版唯讀查證顯示張祐豪具 AI-PDM「系統管理員」與「採購」有效指派；此證據只證明發布授權，不替代 Dani 實際登入。`prod-pdm-wave0-dani-001` 實際來源／歸屬仍未確認；本批不以名稱或 Email 推定、不直接關聯或刪除。正式資料與 Production 狀態只按受保護 owner receipt、provider readback 與實際登入結果更新。
 
+<a id="dev-121-unlinked-profile-cleanup"></a>
+
+### Generic 清理程式公開／Production 證據私存（2026-10-10，執行中）
+
+沿用 AIPDM/DEV-121#unlinked-profile-cleanup；最新人類決策取代完整清理包的公開方案。新分支从 current main 開始，原私有歷史保留，不帶入公開 Git ancestry。範圍為 AI-PDM 自有程式與既有受保護 Production 流程內的單筆處置；Platform／OrgMaster 只讀，無其他帳號、引用資料、IAM、schema ownership 或新資源授權。
+
+- [x] 核對 AI-PDM 適用 AGENTS、branch／HEAD／dirty status、本地 DEV 索引，保留其他 owner 工作。
+- [x] 契約改為 generic DDL／單筆 parameterized capability；實際目標、處置與原始證據只留私有位置。
+- [x] synthetic PostgreSQL 72/72 PASS：安裝零 DELETE、單筆 snapshot／delete／replay／並行、後段回滾及所有拒絕案例；task-owned cluster／port／temp 已清理。
+- [x] required continuous 200/200、synthetic owner transport 10/10 PASS；producer／runner binding、generation/hash、receipt 私存與 stdout redaction 回歸及 typecheck／DB boundary／owner QC／abort／isolated build PASS。僅本機證據；完整 authentic historical owner proof 183/183 PASS，非當前 Production 呼叫。
+- [ ] 新增公開 diff 及 Git ancestry 審查；protected PR／required CI／exact merged source，runner executable 變更使用 owner image rotation。
+- [ ] 既有私有 bucket prefix provider 權限及不可公開讀取核對；source-bound 私有 input 再由 own workflow 執行 exact 單筆處置，target absence／audit／ledger／副作用 readback。
+- [ ] 本人正常 SSO 登入另驗；歷史 profile 清理不作身分歸屬或登入成功證據。
+
+依[generic cleanup current contract](specs/DEV-121-target-authorization-boundary.md#unlinked-profile-cleanup)及[local validation](qa/qa-dev-121-generic-unlinked-profile-cleanup-2026-10-10.md)執行。公開驗證只使用合成資料與 bounded 結果；完整 prior-row snapshot 在 native audit、provider/readback 存私有 evidence，未驗不得認列 Production PASS。保留本工作樹供此次 protected merge/release；root 負責本次 dependency junction／task-owned runtime／UI 清理，其他 owner 環境保留。
+
 <a id="dev-121-system-admin-follow-up"></a>
 
 ### 最高管理能力批次正式結案（2026-10-06，現行）

@@ -60,9 +60,25 @@ function b23ArchiveAt(sourceRevision) {
   return result
 }
 function b23NativeArchive() { return b23ArchiveAt(b23Revision) }
+function b23ContentPrefix(fixture, count) {
+  assert.ok(fixture.bundle.entries.length >= count)
+  if (count >= 33) assert.deepEqual(fixture.bundle.entries[32], {
+    ...fixture.bundle.entries[32], order: 33, version: 'ai-pdm-083', name: 'dev121_authorized_first_login_account',
+    path: 'db/postgres/083_dev121_authorized_first_login_account.sql',
+    sourceSha256: 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9',
+    appliedSha256: '8f6ed9bafe7af906bcae7a94df59a07bbb98cab27402e75ea9162b85a3ec9b8a',
+  })
+  const files = new Map(fixture.files), profile = JSON.parse(files.get(b23ProfilePath))
+  profile.migrations.entries = profile.migrations.entries.slice(0, count)
+  files.set(b23ProfilePath, Buffer.from(canonicalize(profile)))
+  for (const row of fixture.bundle.entries.slice(count)) files.delete(row.path)
+  const { manifestSha256: _manifest, ...original } = fixture.bundle
+  const core = { ...original, entries: structuredClone(original.entries.slice(0, count)) }
+  return { files, bundle: { ...core, manifestSha256: sha256(canonicalize(core)) } }
+}
 function b23Deadline() { return new Date(Date.now() + 120000).toISOString() }
 test('B24 LOCAL_TEST branded migration mode preserves 32 and admits only exact 083 append', () => {
-  const fixture = b23NativeArchive(), deadlineAt = b23Deadline()
+  const fixture = b23ContentPrefix(b23NativeArchive(), 33), deadlineAt = b23Deadline()
   const current = assertAiPdmMigrationContent({ ...fixture, sourceRevision: b23Revision, deadlineAt })
   const historicalFiles = new Map(fixture.files), historicalProfile = JSON.parse(historicalFiles.get(b23ProfilePath))
   historicalProfile.migrations.entries = historicalProfile.migrations.entries.slice(0, 32)
@@ -221,6 +237,98 @@ function b23SelectedTar(extra = []) {
     ...[...fixture.files].map(([name, bytes]) => b23TarRecord(`source/${name}`, bytes)),
     ...extra, Buffer.alloc(2048)])
 }
+
+function cleanup34Fixture() {
+  const profile = JSON.parse(readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v3.json', import.meta.url)))
+  assert.equal(profile.migrations.entries.length, 34)
+  const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
+  const { bundle } = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), revision)
+  const files = new Map([[b23ProfilePath, Buffer.from(canonicalize(profile))],
+    ...profile.migrations.entries.map(row => [row.path, readFileSync(new URL('../' + row.path, import.meta.url))])])
+  return { profile, bundle, files }
+}
+function cleanup34Reseal(input) {
+  input.files.set(b23ProfilePath, Buffer.from(canonicalize(input.profile)))
+  const core = { ...input.bundle }; delete core.manifestSha256
+  input.bundle.manifestSha256 = sha256(canonicalize(core))
+  return input
+}
+function cleanup34Tar(files) {
+  return Buffer.concat([b23TarRecord('pax_global_header', b23Pax('comment', revision), 'g'),
+    b23TarRecord('source/', Buffer.alloc(0), '5'),
+    ...[...files].map(([name, bytes]) => b23TarRecord('source/' + name, bytes)), Buffer.alloc(2048)])
+}
+function cleanup34Validate(input, archive = false) {
+  const options = { ...input, sourceRevision: revision, deadlineAt: b23Deadline() }
+  return archive ? parseAiPdmMigrationArchive({ ...options, bytes: cleanup34Tar(input.files) })
+    : assertAiPdmMigrationContent(options)
+}
+test('DEV121 LOCAL_TEST native34 package authenticates exact084 profile, raw SQL and archive bytes', () => {
+  const input = cleanup34Fixture(), entry = input.bundle.entries[33]
+  assert.deepEqual(entry, {
+    ...entry, order: 34, path: 'db/postgres/084_dev121_unlinked_legacy_profile_cleanup.sql',
+    version: 'ai-pdm-084', name: 'dev121_unlinked_legacy_profile_cleanup',
+    sourceSha256: '6be6eb8cdc4ffb6f83883a17220066d4f91efd0f374b32cee0b50d299eb991e1',
+    appliedSha256: '6be6eb8cdc4ffb6f83883a17220066d4f91efd0f374b32cee0b50d299eb991e1',
+  })
+  assert.ok(Buffer.from(entry.sqlBase64, 'base64').equals(input.files.get(entry.path)))
+  const parsed = cleanup34Validate(input, true), direct = cleanup34Validate(input)
+  assert.equal(parsed.files.size, 35)
+  assertAiPdmMigrationEquivalent(parsed, direct)
+  for (const [path, bytes] of input.files) assert.ok(parsed.files.get(path).equals(bytes))
+})
+for (const field of ['path', 'version', 'name', 'sourceSha256', 'appliedSha256', 'bytes']) {
+  test('DEV121 native34 rejects wrong084 ' + field + ' after bundle reseal', () => {
+    const input = cleanup34Fixture(), entry = input.bundle.entries[33]
+    if (field === 'path') entry.path = 'db/postgres/084_unreviewed_cleanup.sql'
+    else if (field === 'version') entry.version = 'ai-pdm-085'
+    else if (field === 'name') entry.name = 'unreviewed_cleanup'
+    else if (field === 'bytes') {
+      const bytes = Buffer.concat([Buffer.from(entry.sqlBase64, 'base64'), Buffer.from('\n-- forged SQL\n')])
+      entry.sqlBase64 = bytes.toString('base64'); entry.appliedSha256 = sha256(bytes)
+    } else entry[field] = 'f'.repeat(64)
+    assert.throws(() => cleanup34Validate(cleanup34Reseal(input), true), /ARCHIVE_BUNDLE_INVALID/u)
+  })
+}
+for (const field of ['path', 'version', 'name', 'sourceSha256', 'appliedSha256']) {
+  test('DEV121 native34 retains exact083 binding for ' + field, () => {
+    const input = cleanup34Fixture(), entry = input.bundle.entries[32]
+    entry[field] = field === 'path' ? 'db/postgres/083_unreviewed_login.sql'
+      : field === 'version' ? 'ai-pdm-083-forged' : field === 'name' ? 'unreviewed_login' : 'f'.repeat(64)
+    assert.throws(() => cleanup34Validate(cleanup34Reseal(input), true), /ARCHIVE_BUNDLE_INVALID/u)
+  })
+}
+for (const mutation of ['raw-bytes', 'missing-file', 'missing-profile-entry', 'missing-bundle-entry', 'reorder', 'duplicate', '35']) {
+  test('DEV121 native34 rejects ' + mutation, () => {
+    const input = cleanup34Fixture(), entry = input.bundle.entries[33]
+    let expected = /ARCHIVE_BUNDLE_INVALID/u
+    if (mutation === 'raw-bytes') {
+      input.files.set(entry.path, Buffer.concat([input.files.get(entry.path), Buffer.from('\n-- raw source drift\n')]))
+      expected = /ARCHIVE_SQL_MISMATCH/u
+    } else if (mutation === 'missing-file') {
+      input.files.delete(entry.path); expected = /ARCHIVE_SELECTED_MISSING/u
+    } else if (mutation === 'missing-profile-entry') {
+      input.profile.migrations.entries.pop(); expected = /ARCHIVE_PROFILE_INVALID/u
+    } else if (mutation === 'missing-bundle-entry') {
+      input.bundle.entries.pop(); expected = /ARCHIVE_PROFILE_INVALID/u
+    } else if (mutation === 'reorder') {
+      [input.bundle.entries[32], input.bundle.entries[33]] = [input.bundle.entries[33], input.bundle.entries[32]]
+      input.bundle.entries.forEach((row, index) => { row.order = index + 1 })
+    } else if (mutation === 'duplicate') input.bundle.entries[33] = { ...input.bundle.entries[32], order: 34 }
+    else input.bundle.entries.push({ ...entry, order: 35, path: 'db/postgres/085_unapproved.sql', version: 'ai-pdm-085' })
+    assert.throws(() => cleanup34Validate(cleanup34Reseal(input), true), expected)
+  })
+}
+test('DEV121 ordinary34 content remains rejected by paused32-to33 migration classifier', () => {
+  const input = cleanup34Fixture(), current = cleanup34Validate(input, true)
+  const historical = b23ContentPrefix(input, 32), appended083 = b23ContentPrefix(input, 33)
+  const before = assertAiPdmMigrationContent({ ...historical, sourceRevision: revision, deadlineAt: b23Deadline() })
+  const after083 = assertAiPdmMigrationContent({ ...appended083, sourceRevision: revision, deadlineAt: b23Deadline() })
+  assert.equal(assertAiPdmRepairMigrationMode(before, after083), 'FORWARD_APPLIED')
+  assert.throws(() => assertAiPdmRepairMigrationMode(before, current), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
+  assert.throws(() => assertAiPdmRepairMigrationMode(after083, current), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
+})
+
 function b23Wire(bytes, change = {}) {
   const uri = `gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-B23-ARCHIVE/${'c'.repeat(64)}/source.tar.gz`
   const object = uri.split('/').slice(3).join('/')
@@ -778,8 +886,8 @@ const b24HeadRevision = b23Revision
 if (b23RootManifestPath === undefined && b23RootManifestHash === undefined) console.info('B23_ROOT_AUTHENTIC_REPLAY_NOT_RUN: default CI portable layer; root authentic evidence is a separate mandatory gate')
 else {
   // Replay the unchanged no-execution contract with an actual own Git source
-  // preceding 083. Forward tests explicitly select the current exact HEAD.
-  const currentHeadRevision = b24HeadRevision
+  // preceding 083. Forward models pin the exact historical 33-entry source; ordinary archive tests above read the actual HEAD.
+  const currentHeadRevision = '5c07105962345cf099a1fb43750482bfc210ba5e'
   const b23Revision = '02fb8c33976d0409c539f8e2c0153e3b5b504257'
   const b23NativeArchive = () => b23ArchiveAt(b23Revision)
   if (!b23RootManifestPath || !/^[a-f0-9]{64}$/u.test(b23RootManifestHash ?? '')) throw Error('B23_ROOT_MANIFEST_BINDING_INVALID')
@@ -850,7 +958,7 @@ else {
     read.readTree = revision => { assert.ok(permitted.has(revision), `chain tree admission before ${revision}`); return Buffer.from(revision === b23Revision ? currentTree : historical.get(revision).tree) }
     read.readTreeId = revision => { assert.ok(permitted.has(revision), `chain tree-id admission before ${revision}`); return revision === b23Revision ? currentTreeId : historical.get(revision).treeId }
     read.readArchive = revision => { assert.equal(revision, b23Revision); return Buffer.from(b23ArchiveAt(b23Revision).tar) }
-    read.assertCurrentFrozen = () => assert.equal(nativeGit(['rev-parse', 'HEAD']).toString().trim(), currentHeadRevision, 'fixture selects immutable own Git bytes without changing the executing checkout')
+    read.assertCurrentFrozen = () => assert.equal(nativeGit(['rev-parse', 'HEAD']).toString().trim(), b24HeadRevision, 'fixture selects immutable own Git bytes without changing the executing checkout')
     read.calls = calls
     return read
   }
@@ -2386,3 +2494,134 @@ test('build-only provider readback preserves non-release scope and rejects autho
   }
   await assert.rejects(verifyOwnerProviderReadback({proof,token:'provider-readback-token',fetchImpl:providerFetch(proof,{imageStatus:403})}),/PROVIDER_READBACK_FAILED/u);
 });
+
+// All claims below are synthetic; this tests the actual owner observation adapter.
+function cleanup34OwnerWire({ lockChange = {}, receiptRefChange = {}, omitReceipt = false,
+  bundleRefChange = {}, sourceHashMismatch = false } = {}) {
+  const input = cleanup34Fixture(), objects = new Map(), calls = []
+  const ownBucket = 'jenfu-platform-prod-aipdm-release'
+  const put = (uri, value) => {
+    const bytes = Buffer.from(canonicalize(JSON.parse(JSON.stringify(value))) + '\n'); objects.set(uri, bytes)
+    return { uri, sha256: sha256(bytes) }
+  }
+  const operationRef = { uri: `gs://${ownBucket}/source/migration-bundles/dev121/unlinked-profile-cleanup/fixture.json`,
+    generation: '7', sha256: '9'.repeat(64) }
+  const baseManifest = input.bundle.manifestSha256
+  input.bundle.unlinkedProfileCleanupRef = { ...operationRef, ...bundleRefChange }
+  cleanup34Reseal(input)
+  const archive = gzipSync(cleanup34Tar(input.files)), sourceHash = sha256(archive)
+  const sourceLock = put(`gs://${ownBucket}/receipts/fixture-source-lock.json`, {
+    schemaVersion: 'jenfu.dev012.owner-source-lock.v1', ownerApplicationId: 'ai-pdm',
+    repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main', releaseId,
+    sourceRevision: revision, sourceTree: 'd'.repeat(40), sourceSha256: sourceHash,
+    migrationManifestSha256: baseManifest, clean: true, remoteRef: 'refs/heads/main',
+    remoteRevision: revision, status: 'SOURCE_FROZEN', releaseAuthority: true,
+    evidenceScope: 'PRODUCTION_BOUND', observedAt: '2026-09-26T00:00:00.000Z', ...lockChange,
+  })
+  const intent = {
+    schemaVersion: 'jenfu.dev117.ai-pdm-release-intent.v2', ownerApplicationId: 'ai-pdm',
+    releaseId, sourceRevision: revision, sourceSha256: sourceHashMismatch ? 'f'.repeat(64) : sourceHash,
+    sourceLockRef: sourceLock, authorizationPolicyRef: sourceLock, readinessReceiptRef: sourceLock,
+    foundationReceiptRef: sourceLock, infraReceiptRef: sourceLock, runtimeConfigRef: sourceLock,
+    migrationManifestSha256: input.bundle.manifestSha256, unlinkedProfileCleanupRef: operationRef,
+    previousRevision: 'ai-pdm-prod-aaaaaaaaaaaa', deadlineAt: '2026-09-26T01:00:00.000Z',
+  }
+  const intentRef = put(`gs://${ownBucket}/receipts/releases/${releaseId}/release-intent.json`, intent)
+  const root = `gs://${ownBucket}/receipts/releases/${releaseId}/${intentRef.sha256}`
+  const prerequisites = Object.fromEntries(['sourceLock', 'authorization', 'readiness', 'foundation', 'infra', 'runtimeConfig'].map(key => [key, sourceLock]))
+  const stage = (name, previousReceiptRef, facts, observedAt) => put(`${root}/${name}.json`, sealed({
+    schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'ai-pdm', releaseId,
+    sourceRevision: revision, stage: name, previousReceiptRef, facts, observedAt, status: 'PASS',
+  }))
+  const prepare = stage('prepare', null, { prerequisiteRefs: prerequisites }, '2026-09-26T00:01:00.000Z')
+  const artifactDigest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:${'1'.repeat(64)}`
+  const sourceObject = { uri: `gs://${ownBucket}/source/releases/${releaseId}/${intentRef.sha256}/source.tar.gz`,
+    sha256: sourceHash, generation: '7', crc32c: crc32cBase64(archive) }
+  objects.set(sourceObject.uri, archive)
+  const migrationBundleRef = put(`gs://${ownBucket}/source/migration-bundles/${revision}/${input.bundle.manifestSha256}.json`, input.bundle)
+  const provenance = put(`${root}/provenance.json`, {
+    schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1', ownerApplicationId: 'ai-pdm',
+    sourceRevision: revision, sourceObject, artifactDigest, status: 'PASS',
+    cloudBuild: { name: `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,
+      id: buildId, status: 'SUCCESS', projectId: 'jenfu-platform-prod',
+      serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
+      options: { requestedVerifyOption: 'VERIFIED' },
+      sourceProvenance: { resolvedStorageSource: { bucket: ownBucket,
+        object: sourceObject.uri.slice(`gs://${ownBucket}/`.length), generation: '7' } },
+      results: { images: [{ name: `${artifactDigest.split('@')[0]}:release-${revision}`, digest: artifactDigest.split('@')[1] }] } },
+    artifactRegistry: { uri: artifactDigest },
+  })
+  const build = stage('build', prepare, { artifactDigest, sourceObject, migrationBundleRef,
+    provenanceReceiptRef: provenance }, '2026-09-26T00:02:00.000Z')
+  put(`${root}/deployment-capsule.json`, {
+    schemaVersion: 'jenfu.dev117.ai-pdm-deployment-capsule.v2', ownerApplicationId: 'ai-pdm',
+    sourceRevision: revision, artifactDigest, buildReceiptRef: build, sourceObject, migrationBundleRef,
+    releaseIntentRef: intentRef, releaseIntentSha256: intentRef.sha256, deadlineAt: intent.deadlineAt,
+  })
+  const cleanupReceipt = { operationRef: { ...operationRef, ...receiptRefChange },
+    result: { status: 'DELETED', auditId: 'dev121-unlinked-profile-cleanup-v2-' + '8'.repeat(64), priorRowSha256: '7'.repeat(64) } }
+  const migrate = put(`${root}/migrate.json`, sealed({
+    schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm',
+    sourceRevision: revision, database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations',
+    manifestSha256: input.bundle.manifestSha256, baselineCount: input.bundle.baselineCount,
+    minimumLedgerCount: input.bundle.baselineCount, ledgerBootstrap: { enabled: false, created: false },
+    ledgerCount: 34, applied: 1, replayed: 33,
+    crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
+    boundaryStatus: 'PASS', executionName: 'jobs/migrate/executions/fixture',
+    startedAt: '2026-09-26T00:03:00.000Z', completedAt: '2026-09-26T00:04:00.000Z', status: 'PASS',
+    ...(omitReceipt ? {} : { unlinkedProfileCleanup: cleanupReceipt }),
+  }))
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, method: options?.method ?? 'GET' })
+    const match = /\/b\/([^/]+)\/o\/([^?]+)/u.exec(url)
+    const uri = match && `gs://${decodeURIComponent(match[1])}/${decodeURIComponent(match[2])}`
+    const bytes = objects.get(uri)
+    if (!bytes) return new Response('', { status: 404 })
+    if (url.includes('alt=media')) return new Response(bytes)
+    return new Response(JSON.stringify({ bucket: ownBucket, name: uri.slice(`gs://${ownBucket}/`.length),
+      generation: '7', crc32c: crc32cBase64(bytes), size: String(bytes.length) }))
+  }
+  const transport = createOwnerTransport({ token: 'synthetic-owner-read-token-only', fetchImpl })
+  const read = (pre = false) => transport.readOwnerSourceProof({ profile: input.profile, sourceRevision: revision,
+    refs: { prepare, migrate: pre ? null : migrate, terminal: null }, verifyProvider: false })
+  return { read, calls, migrate, cleanupReceipt, baseManifest, boundManifest: input.bundle.manifestSha256 }
+}
+
+test('DEV121 LOCAL_TEST actual owner transport observes ordinary bound cleanup migration', async () => {
+  const wire = cleanup34OwnerWire(), { proof, provider } = await wire.read()
+  assert.notEqual(wire.boundManifest, wire.baseManifest)
+  assert.equal(proof.disposition, 'migration_only')
+  assert.equal(proof.migrationManifestSha256, wire.boundManifest)
+  assert.equal(proof.migrate.ref, wire.migrate.uri)
+  assert.equal(provider, null)
+  assert.equal(Object.hasOwn(proof, 'terminal'), false)
+  assert.ok(wire.calls.every(call => call.method === 'GET'))
+})
+test('DEV121 LOCAL_TEST bound cleanup pre-migration owner observation is build-only with no migration read', async () => {
+  const wire = cleanup34OwnerWire(), { proof } = await wire.read(true)
+  assert.equal(proof.disposition, 'build_only')
+  assert.equal(proof.releaseAuthority, false); assert.equal(proof.migrationVerified, false)
+  assert.equal(Object.hasOwn(proof, 'migrate'), false)
+  assert.equal(Object.hasOwn(proof, 'terminal'), false)
+  assert.ok(!wire.calls.some(call => call.url.includes(encodeURIComponent(wire.migrate.uri.split('/').slice(3).join('/')))))
+  assert.ok(wire.calls.every(call => call.method === 'GET'))
+})
+for (const [name, options, expected] of [
+  ['coherently resealed wrong BASE lock', { lockChange: { migrationManifestSha256: 'f'.repeat(64) } }, /SOURCE_LOCK_INVALID/u],
+  ['missing BASE lock', { lockChange: { migrationManifestSha256: undefined } }, /SOURCE_LOCK_INVALID/u],
+  ['source SHA mismatch', { sourceHashMismatch: true }, /SOURCE_LOCK_INVALID/u],
+  ['missing cleanup receipt', { omitReceipt: true }, /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u],
+  ['receipt generation mismatch', { receiptRefChange: { generation: '8' } }, /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u],
+  ['receipt hash mismatch', { receiptRefChange: { sha256: '6'.repeat(64) } }, /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u],
+  ['coherently resealed bundle generation mismatch', { bundleRefChange: { generation: '8' } }, /UNLINKED_PROFILE_CLEANUP_BUNDLE_MISMATCH/u],
+]) test('DEV121 actual owner observation rejects ' + name, async () => {
+  const wire = cleanup34OwnerWire(options)
+  await assert.rejects(wire.read(), expected)
+  assert.ok(wire.calls.every(call => call.method === 'GET'))
+})
+test('DEV121 generic unbound v1 migration proof rejects a coherently sealed cleanup receipt', async () => {
+  const cleanup = cleanup34OwnerWire().cleanupReceipt
+  const input = fixture({ ai: true, migrationChange: { unlinkedProfileCleanup: cleanup } })
+  await assert.rejects(readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision: revision,
+    refs: input.refs, token: 'synthetic-owner-read-token-only', fetchImpl: input.fetchImpl }), /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u)
+})

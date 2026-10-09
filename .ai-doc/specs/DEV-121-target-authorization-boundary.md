@@ -26,6 +26,22 @@
 
 建立、operation receipt 與 cutover 在同一交易提交；Principal 唯一鍵、transaction advisory lock 與 SERIALIZABLE retry 保證重試／並行只留下單一完整帳戶。任何後段失敗回滾全部寫入。現行 Firebase email verified、issuer／subject、authEpoch、Principal revokedBefore、account lifecycle、session barrier 與 published-grant request-time enforcement維持。
 
+<a id="unlinked-profile-cleanup"></a>
+
+## 未關聯歷史 profile 的 generic 清理能力（2026-10-10，RD Implementation Ready）
+
+沿用 AIPDM/DEV-121，這是對先前清理方案的 intentional replacement。公開來源只包含可重用程式、synthetic tests 與本契約；實際 Production 目標、操作者處置、私有 input、刪除前快照及執行 readback 分開保存在 owner 私有位置，不提交 Git 或公開 CI／PR。歷史 profile 的名稱與 Email 不構成已驗證身分、關聯或歸屬依據，清理也不證明首次登入問題已修復。
+
+`084_dev121_unlinked_legacy_profile_cleanup.sql` 只安裝 migrator-only INVOKER 函式及固定 v2 snapshot guard；不含操作目標、不自行刪資料、不改 065／083 或 OrgMaster 授權。Runtime／PUBLIC 不得執行清理函式。既有 owner workflow 保留唯一 capsule，runner 保留既有四個參數；optional `unlinkedProfileCleanupRef` 只能是本 owner 私有 migration-bundle 子 prefix 的 exact URI／generation／SHA。私有 payload 是單一 bounded profile／company、UUID operation、owner、sourceRevision 與 reviewed 084 source hash；拒絕額外 key、SQL、schema／table、列表或 command override。
+
+Source lock 保留無操作綁定的原 migration manifest；producer 從同一 protected source／profile／SQL 重算基線並驗證私有物件，才產生帶 ref 的 bundle manifest。prepare／build／migrate 及 runner 重新核對 bytes、generation、source、migration hash 與 capsule／bundle join；依賴失敗或漂移不得送出 Job。既有 bucket prefix 權限須 provider 回讀，不新增 IAM／資源。runner 可執行的 DB 函式固定，實際參數只從驗證後私有 payload 取得，DB 失敗訊息不輸出 target 或 snapshot。
+
+首次 084 的 operation 和 ledger insert 共用既有 migration transaction；已套用 084 的重試在原 migration advisory lane 內另開短交易。每次最多 DELETE 一筆，完整 prior-row snapshot／UTC 微秒文字／hash 與 DELETE 同交易；v2 snapshot append-only。same target replay 必須吻合公司、operation、source／input hash、snapshot shape/hash 及目標已不存在；復原資料、receipt 竄改、異公司或異操作均 fail closed。無目標且無 receipt 僅回 ABSENT，不能據此認列刪除。
+
+執行前核對 migrator、READ COMMITTED、schema／table／column／RLS／owner／catalog、065 guard hash、所有實際 FK 及已知 scalar／JSON encoded 業務引用，並以 task-owned transaction／table locks 防並行漂移。存在 Principal 關聯、cutover、lifecycle operation、password、引用或未知 schema／guard 時拒絕；不 cascade、不刪 child、不自動建立／恢復帳戶。標準私有 migration receipt 只含 ref/hash/generation、DELETED／REPLAYED／ABSENT、audit ID 與 prior hash，完整快照仍在 native audit。snapshot 供既有 owner 人工審查恢復路徑使用，不自動復原、不執行 down migration。
+
+固定驗收：純安裝零 DELETE；單筆完整 snapshot/delete；重試與並行一致；transaction late failure 全回滾；參數／來源／generation／hash 不符、FK／scalar／JSON／跨 schema metadata 引用、schema／guard／receipt 漂移、PUBLIC/runtime 呼叫均拒絕且零副作用；公開新增內容不含實際 Production target／人員／處置／provider payload。聚焦 PG、runner／producer／owner proof 回歸及六項 release-adapter gates 通過後，走 protected source／CI／image rotation／owner migration；私有 target readback 與本人正常登入分開驗收。
+
 <a id="system-admin-capability-batch"></a>
 
 ## 最高管理能力及 typed caller 修正（2026-10-05／RD Implementation Ready）

@@ -13,6 +13,7 @@ RUN npm ci --omit=dev --ignore-scripts \
 COPY config/access-control/jenfu-role-catalog.v1.json config/access-control/jenfu-role-catalog.v1.json
 COPY scripts/lib/jms-dev-005-role-catalog.mjs scripts/lib/jms-dev-005-role-catalog.mjs
 COPY scripts/lib/dev012-production-migration-runner.mjs scripts/lib/dev012-production-migration-runner.mjs
+COPY scripts/lib/dev121-unlinked-profile-cleanup.mjs scripts/lib/dev121-unlinked-profile-cleanup.mjs
 COPY scripts/lib/dev013-production-role-catalog-publisher.mjs scripts/lib/dev013-production-role-catalog-publisher.mjs
 COPY scripts/dev013-production-role-catalog-publisher.mjs scripts/dev013-production-role-catalog-publisher.mjs
 USER node
