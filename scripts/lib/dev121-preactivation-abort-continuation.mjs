@@ -250,6 +250,12 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
     || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
   assertOrdinaryOwnerWindow(evidence, run)
   const failed = await readOrdinaryAbortObservation({ profile, transport, baselineIntentRef, intent, evidence, verifyProvider })
+  if ((failed.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') !== repair) fail()
+  if (repair) {
+    if (failed.proof.migrationVerified !== false || failed.proof.databaseLiveState !== 'UNKNOWN' || failed.proof.currentDatabaseReadPerformed !== false || failed.proof.evidenceScope !== 'MIGRATION_INPUT_EQUIVALENT_NO_EXECUTION') fail()
+    const graph = await readAiPdmObservationInputs(failed.proof)
+    if (!graph.repair) fail()
+  }
   const consumeAnchor = async (anchor, releasedIntentRef, retainedBases = []) => {
     const anchorIntent = anchor.value
     if (anchorIntent?.ownerApplicationId !== profile.application.id || !/^[a-f0-9]{40}$/u.test(anchorIntent.sourceRevision ?? '')
@@ -267,10 +273,10 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
         refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider })
       assertOrdinarySourceProof(released.proof, anchorIntent, releasedIntentRef, 'released', profile)
       const anchorRepair = anchorMigration.value?.schemaVersion === 'aipdm.paused-app-repair-migration-association.v1'
-      for (const [observation, expectedRepair] of [[failed, repair], [released, anchorRepair]]) {
+      for (const [observation, expectedRepair] of [[released, anchorRepair]]) {
         if ((observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') !== expectedRepair) fail()
       }
-      for (const observation of [failed, released]) if (observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') {
+      for (const observation of [released]) if (observation.proof?.databaseDisposition === 'HISTORICAL_EVIDENCE_REUSED') {
         if (observation.proof.migrationVerified !== false || observation.proof.databaseLiveState !== 'UNKNOWN' || observation.proof.currentDatabaseReadPerformed !== false || observation.proof.evidenceScope !== 'MIGRATION_INPUT_EQUIVALENT_NO_EXECUTION') fail()
         const graph = await readAiPdmObservationInputs(observation.proof)
         if (!graph.repair) fail()
