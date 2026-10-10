@@ -1,10 +1,40 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B35 TARGETED_FIXTURE_PASS／CI_RETRY_PENDING；NOT_DEPLOYED）
+## DEV-122 CURRENT（B35 PREPARE_FAILED／接線修復LOCAL_QC_PASS；NOT_DEPLOYED）
 
-`CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1`；成熟度 `RD Implementation Ready`／`Architecture Finalized` 保持；B35 checkpoint=`IMPLEMENTED / TARGETED_FIXTURE_PASS / CI_RETRY_PENDING / NOT_DEPLOYED`（2026-10-10）。Root已於原凍結輸入完成本地實作與六項required checks，該歷史Independent Luna QC在local gate為PASS／P0=0／P1=0；本段仍是唯一施工及後續正式發布契約。Protected official-source新規則、fresh production DB／provider execution與owner workflow／release驗證仍 `NOT_RUN`，不把本地PASS當production authority。DEV-122 維持開發點、不計入交付，7 issues／29 groups 與 whole `NOT_ACCEPTED`。
+`CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1`；原成熟度 `RD Implementation Ready / Architecture Finalized` 保持。B35 checkpoint=`SOURCE_MERGED / REQUIRED_CI_PASS / PRODUCTION_PREPARE_FAILED / LOCAL_ROUTING_FIX_QC_PASS / METADATA_PERMISSION_DECISION_PENDING / NOT_DEPLOYED`（2026-10-10）。此CURRENT仍是唯一續接契約；限定補權尚未核准，不改既有不新增IAM邊界。
 
-CI補驗（2026-10-10）：PR [#259](https://github.com/jedchang0308-jenfu/AI-PDM/pull/259) 原受測HEAD `b5783c233e48924c406d0dbe0dace08363015f7b` 的 [CI38048476227](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38048476227) 為cutover SUCCESS／Production Slice QC FAILURE（238/239），原因是既有B21 genuine Git archive fixture使用Windows temp 8.3 alias，而Git傳回canonical long root，觸發原repository guard；原FAIL與紀錄保留。Root僅將test fixture的temp parent／created root以 `fs.realpathSync.native` canonicalize並同步cleanup parent檢查，產品guard不變；同Windows8.3 alias actual Git補驗RED1FAIL／GREEN1PASS，自有child／temp已清理。本次 `TARGETED_FIXTURE_PASS / CI_RETRY_PENDING`，獨立Luna supplement LOCAL_QC_PASS（已證實產品P0/P1=0），provider CI retry待執行；受控[CI shortpath fixture補驗收據](../qa/DEV-122-B35-ci-shortpath-fixture-2026-10-10.json)由Root建立，另綁fixture新hash。原19-input aggregate PASS屬歷史tested inputs，未改產品證據只沿用其原scope；不重跑無變動app build／native DB，不新增schema／API／state policy。Protected official-source／owner workflow／production仍未完成，B35 `NOT_DEPLOYED`、whole `NOT_ACCEPTED`。
+程式與固定發布規則已隨 PR [#259](https://github.com/jedchang0308-jenfu/AI-PDM/pull/259) 正常合併至 `71df57ff2ffc05a8a8cb18d1956758f360d3e138`；[PR CI38049694935](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38049694935) 與 [main CI38050180230](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38050180230) 兩項 required checks SUCCESS，fresh official-source／ruleset／admin enforcement 回讀 PASS。原 CI38048476227 的238/239 FAIL、8.3 alias RED／GREEN與 fixture-only 修正保留歷史範圍，不回寫原收據。
+
+九項 normal-actor 有限準備 PASS，已建立新 immutable capsule `DEV122-PROGRAM-20261010-B35`；實際 protected owner [38051021115](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38051021115) 在 prepare 回 `DENIED` 而 FAILURE，後續 build／migrate／candidate／traffic 等全部 SKIPPED。本輪 fresh production DB／native PG17 `NOT_RUN`，B34／B35仍 `NOT_DEPLOYED`。錯誤未記錄 exact endpoint，限定 audit 查詢0筆，原因不可宣稱已精確定位。
+
+失敗後 provider 回讀：B33 `ai-pdm-prod-b96191914c5d` 100%／零tags，template及traffic與發布前基線相同；control仍 `FINALIZED / RELEASED / DEV122-MATRIX-20261009-B33`，worker READY／generation17、Scheduler ENABLED；本輪 prepare／build／migrate／candidate／terminal 收據 provider404。Project及兩個 exact Secret 的 direct-binding角色讀回未提供三個release SA `secretmanager.versions.get`；未完成繼承／group effective-IAM全盤查，亦不將此已確認能力缺口等同exact403 endpoint。Local QC歷史PASS保留，新增actor capability wiring `P1_OPEN`。
+
+### 限定provider補權提案（PENDING_HUMAN；Terraform未實作／套用）
+
+最新人類核准仍是「同意，只更新程式（建議）」及不新增 IAM／Secret／資源。以下五項 provider IAM 超出其中 IAM 邊界，只有明確核准後才實作Terraform／plan／apply；不是再次核准既有 source SHA 或發布動作。建置的source接線修復屬既有同任務corrective cycle，可先完成，沒有新增任何provider權限；先前將source一併列待核准的Agent提案範圍過廣，於此更正。
+
+| 提議新增設定 | 限定範圍 |
+| --- | --- |
+| 1 custom role `aipdmOpenswxSecretVersionReadback` | `jenfu-platform-prod`；唯一permission `secretmanager.versions.get` |
+| 1 Verifier binding | 既有 `aipdm-prod-openswx-reader-token` Secret |
+| 1 Deployer binding | 同一 reader-token Secret |
+| 1 Verifier binding | 既有 `aipdm-prod-workload-auth-credentials` Secret |
+| 1 Deployer binding | 同一 workload-credentials Secret |
+
+共5個 additive IAM resources，放在既有 AI-PDM `infra/google-cloud/dev-122-openswx-release-readback`；不做project-wide role grant，不增Builder／runtime權限、金鑰payload access／版本修改或新Secret。Secret-level IAM涵蓋上述兩個Secret各版本的metadata；程式仍只讀capsule sealed numeric版本。metadata GET與payload access是不同permission，依[Google API](https://docs.cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions/get)。
+
+唯一對應source接線修正：build使用既有Verifier observer/token讀這兩個exact numeric metadata GET，固定Verifier、拒絕Authorization覆寫／body／非GET／latest／query／其他project或Secret／`:access`；不fallback Builder。prepare用Verifier，candidate／activate／finalize／recover用Deployer。現有snapshot／source／recovery guards全部保留；proposal TechLead PASS不代表capability P1已解除。source接線已完成、focused5 PASS，六項required checks及Independent Luna source QC已PASS／P0=0／P1=0；新source仍須protected PR／CI。provider補權核准後才做fresh provider與實際WIF驗證，保留原084排除與FULL34/effective33只讀規則。
+
+[實際prepare失敗／補權提案收據](../qa/DEV-122-B35-program-only-prepare-failure-2026-10-10.json)綁定source、CI、owner原始log、fresh provider readbacks、五項exact資源與有限runtime cleanup；原[本地QC](../qa/DEV-122-B35-program-only-local-qc-2026-10-10.json)與[fixture補驗](../qa/DEV-122-B35-ci-shortpath-fixture-2026-10-10.json)沿用各自歷史scope。
+
+DEV-122維持開發點與 `NOT_ACCEPTED`，7 issues／29 groups分母不變。原生 CAD 正式驗證由使用者執行；normal UI與業務驗證仍待本輪發布後取得，supplier `DISABLED_DEFERRED`。Root保留既有task-owned login tab供後續驗證與清理責任，canonical checkout及其他owner工作樹不動。
+
+### B35 接線修復與正式唯讀UI subset（2026-10-10）
+
+[本輪接線／UI證據](../qa/DEV-122-B35-build-readback-routing-and-ui-2026-10-10.json)記錄source-only修復及focused5、continuous242、aggregate281與六項required checks PASS；Independent Luna source QC P0=0／P1=0。集合有重疊，不相加成7／29完成率；本地modeled token/fetch stub不代表實際WIF權限PASS。自有程序、隔離build、sharp暫存與容量lease已核對清理；aggregate原snapshot保留closure前文件bytes，產品／測試SHA未變。新增IAM五項仍PENDING_HUMAN／NOT_APPLIED；084禁止執行。新source仍未合併／發布，原PR259／CI與ownerFAIL保持其歷史binding。
+
+本輪實際正式UI：B33／Free Number DEV014，在1521×695的正常料號工作台讀取既有A0061、快速篩選、開啟既有明細、清除篩選與重新載入，已觀測儲存名稱及製造關係維持；06 settled圖／DOM為reload終態，05 loading圖只保留觀測。未證實network overlap，不代替mobile、編輯／提交／核准／附件／CAD或未部署B34/B35驗收。新task-owned tab1200846886已close並list核對，既有使用者tabs不動；舊task login surface清理義務仍由root追蹤，未宣稱已關閉。
 
 ### 人類決策、來源與真正問題
 
