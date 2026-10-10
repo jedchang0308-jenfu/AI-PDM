@@ -1007,3 +1007,22 @@ test('owner private-object reads pin metadata and media to the exact requested g
   await assert.rejects(transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: '8' }), /GCS_GENERATION_MISMATCH/u)
   await assert.rejects(transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: 7 }), /GCS_GENERATION_INVALID/u)
 })
+
+test('R7 migration read token covers exact fixed Job and Execution GETs without borrowing for other routes', async () => {
+  const primary = 'MODELED-R7-VERIFIER-TOKEN', deployer = 'MODELED-R7-DEPLOYER-TOKEN', calls = []
+  const job = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner'
+  const transport = createOwnerTransport({ token: primary, migrationExecutionReadbackToken: deployer, fetchImpl: async (url, options) => { calls.push({ url, options }); return json({}) } })
+  for (const url of [job, job + '/executions/ai-pdm-prod-migration-runner-dwfdc', job + '/executions?pageSize=100&pageToken=recorded']) {
+    await transport.request(url); assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${deployer}`); assert.equal(calls.at(-1).options.redirect, 'error')
+  }
+  for (const [url, options] of [
+    [job, { method: 'POST' }], [job, { method: 'PATCH', body: '{}' }], [job, { method: 'DELETE' }], [job, { body: '{}' }],
+    [job + '?alt=json', {}], [job + '#fragment', {}], [job.replace('ai-pdm-prod-migration-runner', 'sibling'), {}],
+    [job + '/executions/bad_name', {}], [job + '/executions/ok?alt=json', {}], [job + '/executions/ok/tasks', {}],
+  ]) { await transport.request(url, options); assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${primary}`) }
+  for (const status of [403, 500]) {
+    let count = 0
+    const denied = createOwnerTransport({ token: primary, migrationExecutionReadbackToken: deployer, fetchImpl: async () => { count++; return json({}, status) } })
+    await assert.rejects(denied.request(job)); assert.equal(count, 1)
+  }
+})

@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "aipdm.dev122.b35.execution-recovery-checkpoint.v1",
+  "project": "AI-PDM",
+  "status": "LOCAL_QC_PASS_OFFICIAL_SOURCE_AND_PRODUCTION_PENDING",
+  "sourceParent": "94173727eb8f963809e892b475874220d4072b7f",
+  "branch": "codex/dev122-readonly-execution-recovery-r7",
+  "sourceBindings": {
+    "scripts/lib/dev117-ai-pdm-program-only-baseline.mjs": "8a33d002a86a342fff281eab4199b8da2e8c00a0750226dbd4cb2804fe34c92a",
+    "scripts/lib/dev012-owner-release-runtime.mjs": "5768e2026f28c48c4842e36feb8fce3d3d862e1fa18ce1f25d34a44aa83b79c2",
+    "scripts/lib/dev121-preactivation-abort-continuation.mjs": "b0ea126557a0070f41ca9c92ab17019fadcc8cac2949da572d85a85f020b36ae",
+    "scripts/dev117-ai-pdm-program-only-baseline.test.mjs": "674f4a53900a930858addfb2e1f84d6ce9cea9333fd01bfd4c1575daa1ed3564",
+    "scripts/dev012-owner-release-runtime.test.mjs": "8c15aef24f527da23a84b8eddfafe7cbf642a6f61e68a98dc5efec6c87138833",
+    "scripts/dev122-openswx-worker-artifact-reuse.test.mjs": "8bcbc2b225e1f82c46fbe83143486bd79bf1f3e5ae654b8a3979e5e584f4d52e"
+  },
+  "humanAuthorization": "Existing AI-PDM program-only corrective release in jenfu-platform-prod/ai-pdm-prod; NO084; no new resource or IAM authority",
+  "failedAttempt": {
+    "releaseId": "DEV122-PROGRAM-20261011-B35-R6",
+    "ownerRun": 38076494472,
+    "result": "PRE_ACTIVATION_ABORTED",
+    "databaseDisposition": "UNKNOWN",
+    "currentDatabaseReadPerformed": false,
+    "nativeObservation": {
+      "status": "PASS",
+      "applied": 0,
+      "replayed": 33,
+      "ledgerCount": 33,
+      "postgresVersion": "NOT_PRESENT_IN_NATIVE_RECEIPT"
+    },
+    "originalTerminalPreserved": true,
+    "resubmissionAllowed": false
+  },
+  "changes": [
+    "Both omitted Execution Cloud SQL fields require exact independently validated static Job; partial/explicit malformed fields rejected",
+    "GET credential route limited to fixed migration Job/exact Execution/paginated inventory, without fallback",
+    "Closed completed unassociated abort readback; optional one authentic preexecution ancestor; ordinary RELEASED33 anchor; retained service/control/complete stable inventory",
+    "Job update versus Execution creation uses Run provider clock; native time independently bounded to source-lock window"
+  ],
+  "validation": {
+    "focused": {
+      "pass": 6,
+      "fail": 0
+    },
+    "continuous": {
+      "pass": 259,
+      "fail": 0
+    },
+    "requiredChecks": [
+      {
+        "name": "continuous",
+        "command": "npm run test:dev-117:continuous",
+        "pid": 38304,
+        "exitCode": 0,
+        "signal": null,
+        "error": null
+      },
+      {
+        "name": "aggregate",
+        "command": "npm run qc:dev-117:continuous",
+        "pid": 29812,
+        "exitCode": 0,
+        "signal": null,
+        "error": null
+      },
+      {
+        "name": "abort",
+        "command": "npm run test:dev-117:abort",
+        "pid": 32016,
+        "exitCode": 0,
+        "signal": null,
+        "error": null
+      },
+      {
+        "name": "db-boundary",
+        "command": "npm run check:db-boundary",
+        "pid": 39644,
+        "exitCode": 0,
+        "signal": null,
+        "error": null
+      },
+      {
+        "name": "typecheck",
+        "command": "npm run typecheck:app",
+        "pid": 35904,
+        "exitCode": 0,
+        "signal": null,
+        "error": null
+      },
+      {
+        "name": "isolated-build",
+        "command": "npm run build:isolated",
+        "pid": 21748,
+        "exitCode": 0,
+        "signal": null,
+        "error": null
+      }
+    ],
+    "independentSourceQc": {
+      "p0": 0,
+      "p1": 0
+    },
+    "actualPriorHashGet": {
+      "status": "PASS",
+      "getCount": 1170,
+      "providerMutationPerformed": false,
+      "coldWarm": true,
+      "verifyProvider": true,
+      "scope": "PRE_CLOCK_FIX_HASH_ONLY;NOT_CURRENT_R7_PROVIDER_PROOF"
+    },
+    "inheritedR4Negatives": "STATIC_GUARD_QC_ONLY",
+    "inheritedPortableFixture": "NOT_ESTABLISHED",
+    "newKindProducerToPrepareEndToEnd": "NOT_ESTABLISHED;UNCHANGED_P08_WHOLEBASIS_JOIN_PREVIOUS_PASS",
+    "freshOfficialPreflight": "REQUIRED_BEFORE_RELEASE"
+  },
+  "retainedProduction": {
+    "revision": "ai-pdm-prod-b96191914c5d",
+    "trafficPercent": 100,
+    "tagCount": 0,
+    "workerGeneration": "17",
+    "worker": "READY_RETAINED",
+    "scheduler": "ENABLED",
+    "migrationJobGeneration": "22",
+    "scope": "R6_FAILURE_PROVIDER_READBACK;NOT_R7_RELEASE_PROOF"
+  },
+  "boundaries": {
+    "migration084": "FORBIDDEN",
+    "fullManifestCount": 34,
+    "effectiveReadonlyCount": 33,
+    "newIamResources": false,
+    "secretPayloadOrVersionMutation": false,
+    "supplier": "DISABLED_DEFERRED",
+    "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+    "wholeDev": "NOT_ACCEPTED",
+    "issueFamilies": 7,
+    "groups": 29
+  },
+  "evidenceHashes": {
+    "B35-r7-required/required-final.json": "51440cc660cf849c3a3b061a577c25555e5c3514e82f3573396b57f23a7c3dd4",
+    "B35-preexecution-qc-draft/r7-source-diff-qc.json": "a86d25afa67d01b6f8b0a303334c9a313e43f47199a9dafd5cfe20f9eeccd9b0",
+    "B35-r7-required/native-cleanup-readback-r2.json": "8d83ba21e05801146a415ccdce1a156219028e548952d6261a9b3be947c978b1",
+    "production/A31-B35-R6/release/R6-failure-actual-format-diagnostic.json": "aaa79ea694f99c90684d5fb125cc0cb880541ff57d2d68d6c1492fadad4f24c5",
+    "production/A31-B35-R6/release/R6-failure-provider-capture-r3.json": "3023cd8c5ff249b278b74b4e1a8f82ee12864c87f247b36fa401d7a1732b1712",
+    "production/A31-B35-R6/release/R7-actual-get-preflight-result.json": "4bfab9b24db447d196e857f2041cda9b0b8f5906cfe8da9abbdf39b1613fe901",
+    "B35-r7-actual-get-preflight.mjs": "90b66c7c2c75d34165a8e52ca8fa67985e72bfc578bf3e01dd25e5197794f576",
+    "production/A31-B35-R6/release/R7-format-focused-r2.stdout.raw.log": "0444bcebfaa13da0797aaebea9a2d6948661f76165f7689384134aaacaeb7afc",
+    "production/A31-B35-R6/release/R7-preflight-focused-native-closure.json": "0b4cbf92b25c5b47a50e79e590e06f4aa23b6320a02e955ae7514689a2d1a766"
+  },
+  "releaseAuthority": false,
+  "productionExecutedForR7": false,
+  "observedAt": "2026-10-10T19:38:42.167265+00:00"
+}
