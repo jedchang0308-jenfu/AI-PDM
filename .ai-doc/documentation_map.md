@@ -349,7 +349,7 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 ## DEV-121 有效授權首次登入自動開通（2026-10-08，執行中）
 
-[現行任務](dev_task.md#dev-121-authorized-first-login) → [current contract](specs/DEV-121-target-authorization-boundary.md#authorized-first-login) → [本機 checkpoint](qa/DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json) → [publication 微秒补驗](qa/DEV-121-first-login-publication-precision-2026-10-08.json) → migration `083_dev121_authorized_first_login_account.sql`／focused unit 與 task-owned PostgreSQL QC。OrgMaster published v4 grant 是唯一開通授權；AI-PDM 只在 active typed Principal、authEpoch／撤銷與有效 grant 通過後原子建立本地 profile／Principal link／receipt／cutover，不複製角色。無 grant、失效、停用、離職、身分衝突與依賴失敗均零開通副作用；重試／並行只留一筆，歷史 Email 相似不作關聯。Platform／OrgMaster 本輪只讀；本機 PASS 不代表 Production 或 Dani 已修復。
+[現行任務](dev_task.md#dev-121-authorized-first-login) → [current contract](specs/DEV-121-target-authorization-boundary.md#authorized-first-login) → [本機 checkpoint](qa/DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json) → [publication 微秒补驗](qa/DEV-121-first-login-publication-precision-2026-10-08.json) → [分層驗證現況](qa/DEV-121-first-login-layered-status-2026-10-10.json) → migration `083_dev121_authorized_first_login_account.sql`／focused unit 與 task-owned PostgreSQL QC。OrgMaster published v4 grant 是唯一開通授權；AI-PDM 只在 active typed Principal、authEpoch／撤銷與有效 grant 通過後原子建立本地 profile／Principal link／receipt／cutover，不複製角色。無 grant、失效、停用、離職、身分衝突與依賴失敗均零開通副作用；重試／並行只留一筆，歷史 Email 相似不作關聯。Platform／OrgMaster 本輪只讀；本機 PASS 不代表 Production 或 Dani 已修復。
 
 ## DEV-121 最高管理能力批次：正式結案（2026-10-06）
 
