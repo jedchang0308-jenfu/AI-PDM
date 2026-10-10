@@ -589,6 +589,22 @@ export async function verifyWorkerArtifactReuse({ transport, artifact, profile, 
   // own PAUSED/drain leases and must never substitute an ENABLED observation.
   return { security, supplementalIam }
 }
+export function buildProgramOnlyReadyWorkerDescriptor({ artifact, profile }) {
+  const association = artifact.currentAssociation, prior = artifact.origin?.prior, owner = prior?.bootstrapDescriptor ?? prior?.descriptor
+  if (!association || association.schemaVersion !== 'aipdm.openswx-worker-build-association.v1' || association.status !== 'PASS'
+    || prior?.activation?.facts?.workerStatus !== 'READY' || prior.activation.facts.schedulerState !== 'ENABLED'
+    || !owner || isPausedAppRepair(owner) || owner.purpose !== 'full' || artifact.image !== prior.build.image) fail('OPENSWX_PROGRAM_ONLY_DESCRIPTOR_ORIGIN_INVALID')
+  const descriptor = { ...owner, schemaVersion: 'aipdm.openswx-worker-descriptor.v2', artifactMode: 'REUSE_VERIFIED', purpose: 'full',
+    sourceRevision: association.sourceRevision, sourceArchiveSha256: association.sourceArchiveSha256,
+    workerProfileSha256: association.workerProfileSha256, resourcePlanHash: association.resourcePlanHash, workerBuildRef: artifact.associationRef }
+  assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision)
+  return descriptor
+}
+async function publishProgramOnlyReadyDescriptor({ transport, artifact, profile, root }) {
+  const descriptor = buildProgramOnlyReadyWorkerDescriptor({ artifact, profile })
+  const saved = await publishWorkerReuseJson(transport, `${root}-descriptor-full-program-only.json`, descriptor)
+  return saved.ref
+}
 /** Evidence producer: no build/run/resource/credential mutation is available here. */
 export async function executeWorkerArtifactReuse({ transport, inputRef, readSource }) {
   const ctx = createAiPdmEvidenceContext()
@@ -661,6 +677,10 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
       assertPausedRepairCurrentCheck(check, artifact.pausedBaseline, profile)
     }
     await publishWorkerReuseJson(transport, `${root}-current-check-${sha256(canonicalize(check)).slice(0, 24)}.json`, check)
+    if (!repair) {
+      const fullRef = await publishProgramOnlyReadyDescriptor({ transport, artifact, profile, root })
+      return { ...existing, refs: { programOnlyFullDescriptorRef: fullRef } }
+    }
     return existing
   }
   const requestUri = `${root}-request.json`, oldRequest = await optional(transport, requestUri)
@@ -708,7 +728,11 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
     await assertRepairAdmissionFresh()
     const published = await publishWorkerReuseJson(transport, repairDescriptorUri, full)
     await resolveWorkerArtifact({ transport, descriptor: published.value, profile, readSource, ctx })
-  } else await resolveWorkerArtifact({ transport, descriptor: { ...descriptor, workerBuildRef: saved.ref }, profile, readSource, ctx })
+  } else {
+    const artifact = await resolveWorkerArtifact({ transport, descriptor: { ...descriptor, workerBuildRef: saved.ref }, profile, readSource, ctx })
+    const fullRef = await publishProgramOnlyReadyDescriptor({ transport, artifact, profile, root })
+    return { ...saved, refs: { programOnlyFullDescriptorRef: fullRef } }
+  }
   return saved
   })
 }

@@ -16,6 +16,6 @@ async function main() {
   const lock = (await transport.readJson(input.sourceLockRef, 'jenfu-platform-prod-aipdm-release', ['receipts'])).value
   const readSource = createWorkerGitReader(root, lock.sourceRevision ?? lock.headRevision ?? lock.head)
   const result = await executeWorkerArtifactReuse({ transport, inputRef, readSource })
-  process.stdout.write(`${JSON.stringify({ ref: result.ref, status: result.value.status, evidenceScope: result.value.evidenceScope, image: result.value.image })}\n`)
+  process.stdout.write(`${JSON.stringify({ ref: result.ref, refs: result.refs ?? null, status: result.value.status, evidenceScope: result.value.evidenceScope, image: result.value.image })}\n`)
 }
 main().catch(error => { process.stderr.write(`${error.code ?? 'OPENSWX_REUSE_FAILED'}\n`); process.exitCode = 1 })

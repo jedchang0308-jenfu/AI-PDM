@@ -1,0 +1,288 @@
+{
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "slice": "B35 fixed program-only release rule",
+  "date": "2026-10-10",
+  "status": "LOCAL_QC_PASS_RELEASE_PENDING",
+  "wholeDev": "NOT_ACCEPTED",
+  "production": "NOT_RUN",
+  "source": {
+    "baseHead": "472ddf4536ddae432efe0451989193336f1a16b8",
+    "branch": "codex/dev122-b33-release-closure",
+    "files": {
+      "scripts/qc-dev-117-continuous-release.mjs": {
+        "testedWorkingCopySha256": "c5acc4b9574f5401e2016d0014b774bd0bb203a38b3f682ab09af4319d28592d",
+        "lfNormalizedSha256": "c5acc4b9574f5401e2016d0014b774bd0bb203a38b3f682ab09af4319d28592d",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/lib/dev117-ai-pdm-program-only-baseline.mjs": {
+        "testedWorkingCopySha256": "9ee26a4e68f01d7a14489388e9a960933b84312a12f3d5299dbc0ad0633bdcd9",
+        "lfNormalizedSha256": "9ee26a4e68f01d7a14489388e9a960933b84312a12f3d5299dbc0ad0633bdcd9",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/lib/dev122-openswx-owner-release.mjs": {
+        "testedWorkingCopySha256": "89ba93df90077d64108a82abefc8c2198b507a1f668b1db22d44e18741aadd27",
+        "lfNormalizedSha256": "89ba93df90077d64108a82abefc8c2198b507a1f668b1db22d44e18741aadd27",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "AGENTS.md": {
+        "testedWorkingCopySha256": "16ec79407255ded7f2e6d4071e62a817716c15989890b1e3f1f22c6788e53c93",
+        "lfNormalizedSha256": "1ee2f2bd8b9d2e80d085ec50f67a3def8b25ac3589b1f375b390f7e62f8d4c84",
+        "scope": "HISTORICAL_TEST_INPUT"
+      },
+      ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md": {
+        "testedWorkingCopySha256": "e3080672013768ee6a0592a7f4cbd707480bd4334f5a876e036e1cb5efa912f3",
+        "lfNormalizedSha256": "6f55a68bf09c56b92c1c029fa0b0f0fadc41b727ff76cc399adcd6113268a1b5",
+        "scope": "HISTORICAL_TEST_INPUT"
+      },
+      "scripts/lib/dev012-owner-release-runtime.mjs": {
+        "testedWorkingCopySha256": "365a27bb9826c15d262f68eb3723e7f79e6081304744bd1779d90578dbab98a8",
+        "lfNormalizedSha256": "365a27bb9826c15d262f68eb3723e7f79e6081304744bd1779d90578dbab98a8",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/lib/dev122-openswx-worker-artifact-reuse.mjs": {
+        "testedWorkingCopySha256": "961f8adcfaa08b6af0f17ccba0beec27696eb269f372906e4266ffe77fda8794",
+        "lfNormalizedSha256": "961f8adcfaa08b6af0f17ccba0beec27696eb269f372906e4266ffe77fda8794",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/dev122-openswx-worker-artifact-reuse.mjs": {
+        "testedWorkingCopySha256": "b5ea2379b0e937ba1680396128f9101b95f813fd0811299fa3bb4ba45956d76b",
+        "lfNormalizedSha256": "b5ea2379b0e937ba1680396128f9101b95f813fd0811299fa3bb4ba45956d76b",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/lib/dev121-owner-release-proof.mjs": {
+        "testedWorkingCopySha256": "8b4bf4ac7d5238850c4c8ef1efa3b52f3c64c37bfe6e34965857a40b9359e07f",
+        "lfNormalizedSha256": "8b4bf4ac7d5238850c4c8ef1efa3b52f3c64c37bfe6e34965857a40b9359e07f",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "package.json": {
+        "testedWorkingCopySha256": "0bbb8161cee9d8fe9f6a741d5d8a602e5275bcab4ce01591436765d837d84922",
+        "lfNormalizedSha256": "0bbb8161cee9d8fe9f6a741d5d8a602e5275bcab4ce01591436765d837d84922",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/lib/dev012-owner-stage-executor.mjs": {
+        "testedWorkingCopySha256": "f634655fa6dec4fc841a3aed8a31c2e44cbeb9df1efe2e81af20a1c658ecea0c",
+        "lfNormalizedSha256": "f634655fa6dec4fc841a3aed8a31c2e44cbeb9df1efe2e81af20a1c658ecea0c",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      ".ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md": {
+        "testedWorkingCopySha256": "72570af34ebe15c4a3a2173128bf41b7184cefa6d7aa39fdfc366d55e7aa075d",
+        "lfNormalizedSha256": "9dd036d9ab349a1adaa51cd5e0442fd35e07fa7a629e5b64b985b94a87a23df4",
+        "scope": "HISTORICAL_TEST_INPUT"
+      },
+      "scripts/lib/dev012-owner-prerequisite-producer.mjs": {
+        "testedWorkingCopySha256": "b54e8e63e16a307d3dfd90d68b22ab80eee8445c9fd4b8e63b83d2f2d034dd75",
+        "lfNormalizedSha256": "b54e8e63e16a307d3dfd90d68b22ab80eee8445c9fd4b8e63b83d2f2d034dd75",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      ".ai-doc/dev_task.md": {
+        "testedWorkingCopySha256": "84e4d7d3db3a3cff8c31e2708ec6abf1aa0abe34806f1d01a31063cf4f6a37f8",
+        "lfNormalizedSha256": "7766b93055f936a87ec1cba5834f6cf3cfb0230ac659975d0782a3b23aceb9ba",
+        "scope": "HISTORICAL_TEST_INPUT"
+      },
+      "scripts/dev117-ai-pdm-program-only-baseline.test.mjs": {
+        "testedWorkingCopySha256": "3f0b773f244f31c464b5617fc923b7518eb001ffdb1ecab647977b574431be54",
+        "lfNormalizedSha256": "3f0b773f244f31c464b5617fc923b7518eb001ffdb1ecab647977b574431be54",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/lib/dev121-preactivation-abort-continuation.mjs": {
+        "testedWorkingCopySha256": "2e746f5a8e6b1537a393878e280ebb956417e41d7e3c12012570500e573390c4",
+        "lfNormalizedSha256": "2e746f5a8e6b1537a393878e280ebb956417e41d7e3c12012570500e573390c4",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/lib/dev117-ai-pdm-continuous-release.mjs": {
+        "testedWorkingCopySha256": "c091ed5877148fe39b1fc9ab00da30fb94139e5b33cbda6e0c0bde9475695771",
+        "lfNormalizedSha256": "c091ed5877148fe39b1fc9ab00da30fb94139e5b33cbda6e0c0bde9475695771",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      "scripts/dev122-openswx-worker-artifact-reuse.test.mjs": {
+        "testedWorkingCopySha256": "716261b09025ba1e2d9f2cb95ba1f1fce5a075a02e6e4dac82e0796bdd9102f3",
+        "lfNormalizedSha256": "716261b09025ba1e2d9f2cb95ba1f1fce5a075a02e6e4dac82e0796bdd9102f3",
+        "scope": "TESTED_PRODUCT_OR_TEST_INPUT"
+      },
+      ".ai-doc/documentation_map.md": {
+        "testedWorkingCopySha256": "c5f82d7a0a85480f37f52355ebd6623816752e3f66febb784f231daa103fa193",
+        "lfNormalizedSha256": "bdd77d6011e1bea14454764ab658ba002fa716c7ba6bfe5166a1d3490e636b4d",
+        "scope": "HISTORICAL_TEST_INPUT"
+      }
+    }
+  },
+  "authorization": {
+    "humanDecision": "同意，只更新程式（建議）",
+    "target": "jenfu-platform-prod / asia-east1 / ai-pdm-prod",
+    "database": "READ_ONLY_CURRENT_BASELINE; no 084 execution",
+    "excluded": [
+      "new IAM",
+      "new Secret",
+      "new cloud resources",
+      "cross-project development"
+    ]
+  },
+  "contract": "DEV122_PROGRAM_ONLY_RELEASE_V1",
+  "change": [
+    "Preserve the full 34-entry source proof; derive and bind exact 33-entry readonly execution bundle.",
+    "Execute the existing verified migration runner with fixed PGOPTIONS; native receipt remains unchanged and is bound to a sealed association.",
+    "Retain native READY worker / ENABLED Scheduler with current source and provider readback; no worker mutation.",
+    "Reject adoption of a pre-existing matching execution when no prior sealed submission intent exists.",
+    "Preserve protected main, required CI, immutable capsule, source proof, recovery and canonical smoke."
+  ],
+  "verification": {
+    "checks": [
+      {
+        "name": "test:dev-117:continuous",
+        "status": "PASS",
+        "passed": 239,
+        "failed": 0,
+        "skipped": 0,
+        "evidence": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-continuous-r1.log",
+          "sha256": "44b9d9b4ddb51870ac5ffd8905fe414e2b83a640c79b39834382195592ac8edd"
+        }
+      },
+      {
+        "name": "existing regression",
+        "status": "PASS",
+        "passed": 310,
+        "failed": 0,
+        "skipped": 0,
+        "evidence": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-existing-regression-r1.log",
+          "sha256": "119a53ac52b0326b56e003f179094d5783167a08be8760d5fdd03ceeb5a62793"
+        }
+      },
+      {
+        "name": "authentic-root ordinary-path regression",
+        "status": "PASS",
+        "passed": 208,
+        "failed": 0,
+        "skipped": 0,
+        "evidence": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-authentic-root-regression-r1.log",
+          "sha256": "4ef6b36c0a5857c285244077465b55070cc749ec8763210108c3dded49a355cd"
+        }
+      },
+      {
+        "name": "focused program-only runtime",
+        "status": "PASS",
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "evidence": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-runtime-focused-r5.log",
+          "sha256": "d714e3c1225f8f83c86d3af02e6e1c0ffad56ea8c21ade91e67ee5a5eb4e40a4"
+        }
+      },
+      {
+        "name": "program-only source-proof / abort / baseline qualification",
+        "status": "PASS",
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "evidence": {
+          "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-program-source-abort-r3.log",
+          "sha256": "a4ce9b185433daacc0f19143e6dfc168ffe608a08481b60c7a54593ccadd7f74"
+        }
+      }
+    ],
+    "mandatoryOwnerChecks": {
+      "status": "PASS",
+      "aggregateTestCount": 278,
+      "receipt": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-owner-checks-e2b2ea72f0ed4d6aa2bfa2c26c8e5408.receipt.json",
+        "sha256": "188a2c4745238a4b96f8daacd0cdec78676c1d2cd8a11de8e1f07b0b49d4ac62"
+      },
+      "stdout": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-owner-checks-e2b2ea72f0ed4d6aa2bfa2c26c8e5408.stdout.log",
+        "sha256": "c53c499f423075d9aeea75caeb09e3623b7d58f7686967bdf51a86c4c8c72da6"
+      },
+      "stderr": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-owner-checks-e2b2ea72f0ed4d6aa2bfa2c26c8e5408.stderr.log",
+        "sha256": "57b325338ca128dbb3f75a7b4fe6932330d2a503bb3d31669e9734a57448db52"
+      },
+      "includes": [
+        "qc:dev-117:continuous",
+        "test:dev-117:abort (6/6)",
+        "check:db-boundary",
+        "typecheck:app",
+        "build:isolated"
+      ],
+      "buildArtifact": "REMOVED_BY_ISOLATED_BUILD_CLEANUP"
+    },
+    "nativeReadonly": {
+      "status": "PASS",
+      "assertions": 5,
+      "evidence": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-native-readonly-r2.json",
+        "sha256": "1478f9478040110c3f2e4205fa4fa269942abbd0b7ca5d066021d1b6e292cb9b"
+      },
+      "scope": "LOCAL_POSTGRESQL_18_PGOPTIONS_STARTUP",
+      "productionPostgresql17Runner": "NOT_RUN",
+      "cleanup": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-native-cleanup-r2.json",
+        "sha256": "d8f86dc26a385f7979cdf824c9f68dcc6a25a5688318ef11f44aeba9bcf7f656"
+      },
+      "firstFailedFixtureCleanupPreserved": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-native-cleanup-r1.json",
+        "sha256": "46dccf5456fa5348380d052070e8f5f00c2d1abedb2628167d4052e5cc431002"
+      }
+    },
+    "modelledGraphScope": {
+      "status": "PASS_LOCAL_MODELLED",
+      "realProductApis": [
+        "readProgramOnlyReleasedBaseline",
+        "readAiPdmReleaseObservation",
+        "readAiPdmObservationInputs",
+        "readPreActivationAbortContinuation",
+        "createOwnerTransport service validators"
+      ],
+      "inputs": "HEAD SQL / worker bytes, hash-pinned B33 profile, synthetic revision / capsules / native receipts and mocked provider responses",
+      "sourceProofPath": "CALLBACK_WITH_BRANDED_GRAPH",
+      "newProgramOnlyB23AuthenticReplay": "NOT_RUN",
+      "newProgramOnlyDefaultActualGitHistoryProof": "NOT_RUN"
+    },
+    "b34UiEvidenceReuse": {
+      "ref": ".ai-doc/qa/DEV-122-B34-local-navigation-verification-2026-10-10.json",
+      "scope": "UNCHANGED_TESTED_LOCAL_UI_INPUTS_ONLY",
+      "production": "NOT_RUN"
+    }
+  },
+  "independentReview": {
+    "runtimeQc": {
+      "agent": "/root/dev122_program_only_runtime_qc_luna",
+      "model": "gpt-6-luna",
+      "reasoning": "max",
+      "status": "PASS_LOCAL_GATE",
+      "p0": 0,
+      "p1": 0,
+      "action": "READ_ONLY; no product / test / provider mutation",
+      "inputChecks": "All 19 tested input SHA values matched the aggregate receipt before documentation closure",
+      "headBoundary": "Compared receipt with root-provided HEAD; Git metadata not independently readable"
+    },
+    "proofQa": {
+      "agent": "/root/dev122_b35_proof_qa_luna",
+      "model": "gpt-6-luna",
+      "reasoning": "max",
+      "status": "NO_NEW_SOURCE_PROOF_OR_ABORT_DEFECT",
+      "limits": "Modelled graphs do not substitute for B23-authentic replay, native PG17 runner or production."
+    }
+  },
+  "lifecycle": {
+    "activeOwned": [],
+    "tempRemoved": true,
+    "capacityReleased": true,
+    "primaryBefore": "Both primary SQLite paths absent; schema/master/root/residue/FK inventory absent",
+    "primaryAfter": {
+      "canonicalAbsent": true,
+      "worktreeAbsent": true
+    },
+    "sourceUnchangedDuringAggregate": true,
+    "portsReleased": true
+  },
+  "remaining": [
+    "Protected PR / required CI / clean official main source",
+    "Authorized owner workflow with actual Git/provider/native readonly evidence",
+    "Production canonical and changed-feature validation",
+    "User-owned native CAD property acceptance"
+  ],
+  "supplierReplies": "DISABLED_DEFERRED"
+}

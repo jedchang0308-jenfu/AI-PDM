@@ -1,0 +1,105 @@
+{
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "slice": "B35 PR259 Windows shortpath fixture supplement",
+  "date": "2026-10-10",
+  "status": "LOCAL_QC_PASS_PROVIDER_CI_RETRY_PENDING",
+  "wholeDev": "NOT_ACCEPTED",
+  "production": "NOT_RUN",
+  "source": {
+    "baseHead": "b5783c233e48924c406d0dbe0dace08363015f7b",
+    "testPath": "scripts/dev122-openswx-worker-artifact-reuse.test.mjs",
+    "oldTestSha256": "716261b09025ba1e2d9f2cb95ba1f1fce5a075a02e6e4dac82e0796bdd9102f3",
+    "newTestSha256": "d197009576eecbae81ecb39301f287e5131de9be63dbd1ebfca27878fea79c40",
+    "unchangedNonDocumentationInputs": {
+      "scripts/qc-dev-117-continuous-release.mjs": "c5acc4b9574f5401e2016d0014b774bd0bb203a38b3f682ab09af4319d28592d",
+      "scripts/lib/dev117-ai-pdm-program-only-baseline.mjs": "9ee26a4e68f01d7a14489388e9a960933b84312a12f3d5299dbc0ad0633bdcd9",
+      "scripts/lib/dev122-openswx-owner-release.mjs": "89ba93df90077d64108a82abefc8c2198b507a1f668b1db22d44e18741aadd27",
+      "scripts/lib/dev012-owner-release-runtime.mjs": "365a27bb9826c15d262f68eb3723e7f79e6081304744bd1779d90578dbab98a8",
+      "scripts/lib/dev122-openswx-worker-artifact-reuse.mjs": "961f8adcfaa08b6af0f17ccba0beec27696eb269f372906e4266ffe77fda8794",
+      "scripts/dev122-openswx-worker-artifact-reuse.mjs": "b5ea2379b0e937ba1680396128f9101b95f813fd0811299fa3bb4ba45956d76b",
+      "scripts/lib/dev121-owner-release-proof.mjs": "8b4bf4ac7d5238850c4c8ef1efa3b52f3c64c37bfe6e34965857a40b9359e07f",
+      "package.json": "0bbb8161cee9d8fe9f6a741d5d8a602e5275bcab4ce01591436765d837d84922",
+      "scripts/lib/dev012-owner-stage-executor.mjs": "f634655fa6dec4fc841a3aed8a31c2e44cbeb9df1efe2e81af20a1c658ecea0c",
+      "scripts/lib/dev012-owner-prerequisite-producer.mjs": "b54e8e63e16a307d3dfd90d68b22ab80eee8445c9fd4b8e63b83d2f2d034dd75",
+      "scripts/dev117-ai-pdm-program-only-baseline.test.mjs": "3f0b773f244f31c464b5617fc923b7518eb001ffdb1ecab647977b574431be54",
+      "scripts/lib/dev121-preactivation-abort-continuation.mjs": "2e746f5a8e6b1537a393878e280ebb956417e41d7e3c12012570500e573390c4",
+      "scripts/lib/dev117-ai-pdm-continuous-release.mjs": "c091ed5877148fe39b1fc9ab00da30fb94139e5b33cbda6e0c0bde9475695771"
+    }
+  },
+  "firstProviderCi": {
+    "runId": 38048476227,
+    "cutover": "SUCCESS",
+    "productionSliceQc": "FAILURE",
+    "tests": 239,
+    "pass": 238,
+    "fail": 1,
+    "failureCase": "B21 LOCAL_TEST genuine Git archive preserves raw LF COPY bytes under CRLF host configuration"
+  },
+  "cause": "Windows tmpdir 8.3 alias and Git canonical long root differed under the unchanged repository guard.",
+  "change": "Fixture-only realpathSync.native for temp parent and created Git root, with matching cleanup assertion; product guard unchanged.",
+  "reproduction": {
+    "boundary": "Actual Windows 8.3 alias with actual Git archive; finite isolated task-owned fixture",
+    "cases": {
+      "red": {
+        "receipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-shortpath-red-r1.json",
+        "sha256": "569c1a19937b424ce0368c896584d058e01b195d0b0d65ecfedf1d02e98d50d3",
+        "exitCode": 1,
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      "green": {
+        "receipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-shortpath-green-r1.json",
+        "sha256": "17711a22f7522f8e3dbefafe1a5c3f20414eff27241b2e04249ae6d4061a6d06",
+        "exitCode": 0,
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      }
+    }
+  },
+  "logs": {
+    "B35-pr259-ci-r1-failed.log": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-pr259-ci-r1-failed.log",
+      "sha256": "65be8e6d8d991fa9060a2a54716e390f7c8241a326e3960de91bc0a02b6b15c7"
+    },
+    "B35-shortpath-red-r1.log": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-shortpath-red-r1.log",
+      "sha256": "0703ec170ee21f3fa84637d87bb3bee54247cc309e23f79aa37e8c5631c0acaa"
+    },
+    "B35-shortpath-green-r1.log": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-shortpath-green-r1.log",
+      "sha256": "57f3f2f2723447bceccc17e2673a9d5ba1768e0b9268e32dc33f5a94d5eb71a7"
+    }
+  },
+  "independentQc": {
+    "agent": "/root/dev122_program_only_runtime_qc_luna",
+    "model": "gpt-6-luna",
+    "status": "LOCAL_QC_PASS",
+    "confirmedProductP0P1": 0,
+    "scope": "Readonly diff, bound evidence, unchanged product SHA and cleanup verification; no product modification"
+  },
+  "evidenceReuse": {
+    "originalReceipt": ".ai-doc/qa/DEV-122-B35-program-only-local-qc-2026-10-10.json",
+    "disposition": "Historical exact tested inputs retained; unchanged product evidence reused and B21 case supplemented by new green. No claim of a new aggregate covering current inputs."
+  },
+  "pending": [
+    "Corrected provider CI",
+    "Protected official merged source",
+    "Production program-only release and live readonly baseline",
+    "Default actual-history source proof",
+    "User-owned native CAD validation"
+  ],
+  "standingBoundaries": [
+    "AI-PDM only",
+    "No migration 084 execution",
+    "No new IAM, Secret or cloud resources",
+    "Keep worker READY and Scheduler ENABLED",
+    "Supplier reply DISABLED_DEFERRED"
+  ]
+}
