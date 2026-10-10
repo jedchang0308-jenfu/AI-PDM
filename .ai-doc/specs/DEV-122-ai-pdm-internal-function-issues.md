@@ -12,6 +12,8 @@
 
 限定 metadata IAM 實作及 consumer 接線已完成本地驗證：9 個定向案例、4 個 producer/resolver/Git 整合案例、continuous 246、aggregate 294、abort 6、DB boundary 21、typecheck 與 isolated build 均 PASS；建置確認 artifact／primary invariant／cleanup，原生回讀確認本次 PID 與三個任務暫存已消失。獨立 Luna source QC P0=0／P1=0，13/13 frozen hashes 相符；僅證本地 source/modelled/native-Git 層，single normal-actor finite writer，不宣稱 concurrent apply、實際 IAM APPLIED 或 WIF capability PASS。詳見 [補權本地 QC checkpoint](../qa/DEV-122-B35-secret-version-iam-local-qc-2026-10-10.json)。PR260 將以修正後來源重新取得 required CI；實際 plan/apply/fresh owner release 仍 NOT_RUN，NO084／NOT_ACCEPTED／7/29 不變。
 
+PR260 新 CI38057619292 的 continuous 245/246 FAIL：新增 B35 Git fixture 使用 RUNNER~1 短 TEMP，嚴格 repository-root comparison 正確拒絕。只修正此測試的 native realpath parent／fixture 與 cleanup guard，產品／Terraform／權限 guard 不變；實際短 TEMP 原 test body RED→修正 GREEN及獨立 Luna test-hunk QC PASS見 [CI fixture checkpoint](../qa/DEV-122-B35-ci-native-temp-fixture-2026-10-10.json)。兩次 local setup FAIL 原始證據保留，僅第三次採納為 RED/GREEN；先前六項 PASS 保留原 tested-input scope，新 CI 尚 pending，不冒稱 current CI PASS。
+
 ### 限定provider metadata補權（APPROVED；continuation NOT_APPLIED）
 
 2026-10-10人類在同一任務明確核准AI-PDM／jenfu-platform-prod PRODUCTION的下述exact五項metadata IAM並繼續發布（[受控人類決策](../qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json)，SHA-256 `2ee35efc065f621999b1c337b1a2c00dc8447d9f433e451c2969af0396fe37f7`）；本節為此新增infra slice的前向契約，不是第三次source correction或再次核准source SHA／capsule。只對先前不新增IAM邊界增加這五項例外，NO084、payload access／版本修改、新SA／Secret、其他IAM／cloud resource及跨專案範圍仍排除。Source接線修復原已在同任務corrective cycle內授權；先前把source一併列待批准的Agent提案範圍過廣，不作人類gate。

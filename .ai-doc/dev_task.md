@@ -2,6 +2,8 @@
 
 ## DEV-122 CURRENT（B35 限定 metadata IAM 已核准；R2 接線 QC PASS；NOT_APPLIED／NOT_DEPLOYED）
 
+PR260 新 CI38057619292 的 continuous 245/246 FAIL：新增 B35 Git fixture 使用 RUNNER~1 短 TEMP，嚴格 repository-root comparison 正確拒絕。只修正此測試的 native realpath parent／fixture 與 cleanup guard，產品／Terraform／權限 guard 不變；實際短 TEMP 原 test body RED→修正 GREEN及獨立 Luna test-hunk QC PASS見 [CI fixture checkpoint](qa/DEV-122-B35-ci-native-temp-fixture-2026-10-10.json)。兩次 local setup FAIL 原始證據保留，僅第三次採納為 RED/GREEN；先前六項 PASS 保留原 tested-input scope，新 CI 尚 pending，不冒稱 current CI PASS。
+
 限定 metadata IAM 實作及 consumer 接線已完成本地驗證：9 個定向案例、4 個 producer/resolver/Git 整合案例、continuous 246、aggregate 294、abort 6、DB boundary 21、typecheck 與 isolated build 均 PASS；建置確認 artifact／primary invariant／cleanup，原生回讀確認本次 PID 與三個任務暫存已消失。獨立 Luna source QC P0=0／P1=0，13/13 frozen hashes 相符；僅證本地 source/modelled/native-Git 層，single normal-actor finite writer，不宣稱 concurrent apply、實際 IAM APPLIED 或 WIF capability PASS。詳見 [補權本地 QC checkpoint](qa/DEV-122-B35-secret-version-iam-local-qc-2026-10-10.json)。PR260 將以修正後來源重新取得 required CI；實際 plan/apply/fresh owner release 仍 NOT_RUN，NO084／NOT_ACCEPTED／7/29 不變。
 
 人類已回覆「核准 5 項限定補權並繼續（建議）」；最新授權允許 AI-PDM 在 jenfu-platform-prod 正式環境新增 1 個唯讀角色與 4 個 exact Secret-level 綁定。角色只含 secretmanager.versions.get；兩個既有 Secret 各綁既有 Verifier／Deployer，不新增 payload access、Builder／runtime grant、其他 IAM 或資源。migration 084 仍禁止執行。唯一施工契約讀 [DEV-122 CURRENT](specs/DEV-122-ai-pdm-internal-function-issues.md)，[人類限定授權記錄](qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json)可追溯原始回答；不要求人類重複核准 source／capsule 機器綁定。

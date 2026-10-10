@@ -1081,7 +1081,8 @@ test('B35 producer rejects malformed refs and live workload policy drift; pure r
 })
 
 test('B35 actual Git reader admits only the four exact metadata source paths after sealed origin admission',()=>{
-  const temporary=realpathSync(mkdtempSync(path.join(tmpdir(),'aipdm-b35-git-metadata-')))
+  const fixtureParent=realpathSync.native(tmpdir())
+  const temporary=realpathSync.native(mkdtempSync(path.join(fixtureParent,'aipdm-b35-git-metadata-')))
   console.log(JSON.stringify({project:'AI-PDM',purpose:'Metadata continuation actual Git reader scope regression',port:null,owningProcess:process.pid,temporaryPath:temporary,PDM_DATA_DIR:'UNUSED_NO_APP_IMPORT',PDM_REPOSITORY_DIR:temporary,mutationScope:'TASK_OWNED_GIT_FIXTURE_ONLY',cleanupCondition:'finally removes exact task-owned Git fixture'}))
   const run=(args)=>{const row=spawnSync('git',args,{cwd:temporary,windowsHide:true,encoding:'utf8'});assert.equal(row.status,0,row.stderr);return row.stdout.trim()}
   const paths=[SECRET_VERSION_IAM_SOURCE_PATH,SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH,'scripts/lib/dev122-openswx-secret-version-iam.mjs','scripts/dev122-openswx-secret-version-iam.mjs']
@@ -1097,7 +1098,7 @@ test('B35 actual Git reader admits only the four exact metadata source paths aft
     for(const name of paths)assert.equal(reader(name,historical).toString(),name+'\n')
     assert.throws(()=>reader('scripts/not-admitted.mjs',historical),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
   }finally{
-    assert.equal(path.dirname(temporary),realpathSync(tmpdir()))
+    assert.equal(path.dirname(temporary),fixtureParent)
     assert.ok(path.basename(temporary).startsWith('aipdm-b35-git-metadata-'))
     rmSync(temporary,{recursive:true,force:true})
   }
