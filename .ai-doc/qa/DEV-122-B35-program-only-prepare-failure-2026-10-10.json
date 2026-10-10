@@ -1,0 +1,334 @@
+{
+  "schemaVersion": "aipdm.dev122.b35.program-only-prepare-failure.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "date": "2026-10-10",
+  "status": "SOURCE_MERGED_REQUIRED_CI_PASS_PRODUCTION_PREPARE_FAILED_PERMISSION_DECISION_PENDING",
+  "wholeDev": "NOT_ACCEPTED",
+  "production": "NOT_DEPLOYED",
+  "source": {
+    "revision": "71df57ff2ffc05a8a8cb18d1956758f360d3e138",
+    "tree": "61a26a5417ade9ad66e1d5e8bd939ec12205ab14",
+    "pullRequest": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/259",
+    "prRequiredCi": 38049694935,
+    "mainRequiredCi": 38050180230,
+    "requiredChecks": "SUCCESS",
+    "officialSourceEvidence": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-official-source.json",
+      "sha256": "09375d9226ed9180375b09c7e89f3d511ed8e81b272db19febf75af51e5b9907"
+    }
+  },
+  "attempt": {
+    "releaseId": "DEV122-PROGRAM-20261010-B35",
+    "ownerRunId": 38051021115,
+    "ownerRunUrl": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38051021115",
+    "capsuleUri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261010-B35/release-intent.json",
+    "capsuleSha256": "f2d35c5cf939ca891c6c1de700ae827d647f11c8f00e51e85edc5131c738138e",
+    "prepare": "FAILURE_DENIED",
+    "downstream": {
+      "build": "SKIPPED",
+      "candidate": "SKIPPED",
+      "migrate": "SKIPPED",
+      "entrypoint": "SKIPPED",
+      "verify": "SKIPPED",
+      "decision": "SKIPPED",
+      "activate": "SKIPPED",
+      "canonical": "SKIPPED",
+      "finalize": "SKIPPED",
+      "failure": "SKIPPED"
+    },
+    "originalErrorClassification": "DENIED",
+    "deniedEndpoint": "UNKNOWN",
+    "auditDeniedEntries": 0,
+    "freshProductionDb": "NOT_RUN",
+    "nativePg17": "NOT_RUN",
+    "normalActorPreparation": "9_FINITE_STEPS_PASS_NOT_WIF_PERMISSION_PROOF"
+  },
+  "providerEvidence": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-owner-run-r1-provider.json",
+      "sha256": "27a5d0fb6ff525e13dad29fe98fd0948373e095e31759c0ba95902814c795de4"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-owner-run-r1-jobs.json",
+      "sha256": "bc4bf347bca44917d4547e7a9447e21e13fcb485a2828dd2b91b05a36955ac30"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-owner-run-r1-failed.log",
+      "sha256": "5b0daf1ded5060b284af677d582d07080fda154d9089a458e5d3b453a9f2e1cf"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\baseline-provider.json",
+      "sha256": "d1f017eaed5f4fc3049b40ac5d32825940278885bbbf79e2abb240c0c0eec54c"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-prepare-failure-provider-readback-r1.json",
+      "sha256": "a960bdd7c1c73b8d67b17165ef310f2ef9c725bbb5f2bd66fc4fa9ff980aa4eb"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-prepare-failure-provider-readback-r2.json",
+      "sha256": "52d68d21930bcc796ea3d22fa28e5df4c48464509d6aea8a2376fe1e685888bc"
+    }
+  ],
+  "productionReadback": {
+    "observedAt": "2026-10-10T12:23:33.555Z",
+    "serviceRevision": "ai-pdm-prod-b96191914c5d",
+    "serviceGeneration": "186",
+    "trafficPercent": 100,
+    "trafficTags": 0,
+    "templateEqualsPreAttemptBaseline": true,
+    "trafficEqualsPreAttemptBaseline": true,
+    "controlState": "FINALIZED",
+    "controlResult": "RELEASED",
+    "controlRelease": "DEV122-MATRIX-20261009-B33",
+    "workerGeneration": "17",
+    "workerReady": "CONDITION_SUCCEEDED",
+    "scheduler": "ENABLED",
+    "ownAttemptReceipts": {
+      "prepare": "PROVIDER_404_ABSENT",
+      "build": "PROVIDER_404_ABSENT",
+      "migrate": "PROVIDER_404_ABSENT",
+      "candidate": "PROVIDER_404_ABSENT",
+      "terminal": "PROVIDER_404_ABSENT"
+    },
+    "failureReadbackProviderMutationCount": 0
+  },
+  "permissionFinding": {
+    "status": "P1_OPEN_ACTOR_CAPABILITY_WIRING_GAP",
+    "observedScope": "Project policy and the two exact Secret policies, including role definitions for direct bindings of the three release SAs.",
+    "actors": [
+      {
+        "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+        "secretId": "aipdm-prod-openswx-reader-token",
+        "observedMetadataGetRoles": []
+      },
+      {
+        "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+        "secretId": "aipdm-prod-workload-auth-credentials",
+        "observedMetadataGetRoles": []
+      },
+      {
+        "member": "serviceAccount:aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com",
+        "secretId": "aipdm-prod-openswx-reader-token",
+        "observedMetadataGetRoles": []
+      },
+      {
+        "member": "serviceAccount:aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com",
+        "secretId": "aipdm-prod-workload-auth-credentials",
+        "observedMetadataGetRoles": []
+      },
+      {
+        "member": "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+        "secretId": "aipdm-prod-openswx-reader-token",
+        "observedMetadataGetRoles": []
+      },
+      {
+        "member": "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+        "secretId": "aipdm-prod-workload-auth-credentials",
+        "observedMetadataGetRoles": []
+      }
+    ],
+    "limitations": [
+      "Not an exhaustive organization/folder/group/deny-policy effective-IAM analysis.",
+      "The denied endpoint was not captured in the owner error or audit query. This confirmed capability gap is not proof of the exact 403 cause.",
+      "Normal-actor provider PASS and callback mocks do not prove release WIF capability."
+    ]
+  },
+  "proposal": {
+    "status": "PENDING_HUMAN_NOT_APPLIED",
+    "managedResourceCount": 5,
+    "terraformRoot": "infra/google-cloud/dev-122-openswx-release-readback",
+    "resources": [
+      {
+        "address": "google_project_iam_custom_role.release_secret_version_readback",
+        "project": "jenfu-platform-prod",
+        "roleId": "aipdmOpenswxSecretVersionReadback",
+        "permissions": [
+          "secretmanager.versions.get"
+        ],
+        "action": "CREATE_PROPOSED"
+      },
+      {
+        "address": "google_secret_manager_secret_iam_member.verifier_reader_token_version_readback",
+        "project": "jenfu-platform-prod",
+        "secretId": "aipdm-prod-openswx-reader-token",
+        "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSecretVersionReadback",
+        "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+        "action": "CREATE_PROPOSED_ADDITIVE_MEMBER"
+      },
+      {
+        "address": "google_secret_manager_secret_iam_member.verifier_workload_credentials_version_readback",
+        "project": "jenfu-platform-prod",
+        "secretId": "aipdm-prod-workload-auth-credentials",
+        "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSecretVersionReadback",
+        "member": "serviceAccount:aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com",
+        "action": "CREATE_PROPOSED_ADDITIVE_MEMBER"
+      },
+      {
+        "address": "google_secret_manager_secret_iam_member.deployer_reader_token_version_readback",
+        "project": "jenfu-platform-prod",
+        "secretId": "aipdm-prod-openswx-reader-token",
+        "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSecretVersionReadback",
+        "member": "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+        "action": "CREATE_PROPOSED_ADDITIVE_MEMBER"
+      },
+      {
+        "address": "google_secret_manager_secret_iam_member.deployer_workload_credentials_version_readback",
+        "project": "jenfu-platform-prod",
+        "secretId": "aipdm-prod-workload-auth-credentials",
+        "role": "projects/jenfu-platform-prod/roles/aipdmOpenswxSecretVersionReadback",
+        "member": "serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com",
+        "action": "CREATE_PROPOSED_ADDITIVE_MEMBER"
+      }
+    ],
+    "iamScope": "Secret-level metadata permission for all versions of only the two exact existing Secrets; numeric sealed-version restriction is enforced by source, not IAM.",
+    "payloadPermissionAdded": false,
+    "builderPermissionAdded": false,
+    "runtimePermissionAdded": false,
+    "sourceFix": "Route only exact numeric metadata GET of these two Secrets through the existing build Verifier observer. Pin the Verifier token, reject caller Authorization override, body, other method/project/Secret, latest, query and access suffix; no Builder fallback.",
+    "sourceFixStatus": "DESIGN_ONLY_NOT_IMPLEMENTED",
+    "techLead": {
+      "agent": "/root/dev122_program_only_techlead",
+      "model": "gpt-6.1-sol",
+      "proposal": "PASS",
+      "actualCapabilityFinding": "P1_OPEN"
+    },
+    "officialReferences": [
+      "https://docs.cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions/get",
+      "https://docs.cloud.google.com/secret-manager/docs/access-control"
+    ],
+    "approvalReason": "The latest human-approved program-only scope expressly excluded new IAM. This proposed five-resource expansion needs a separate human decision.",
+    "approvalReceived": false,
+    "terraformPlanExecuted": false,
+    "terraformApplyExecuted": false,
+    "acceptanceAfterApproval": [
+      "Exact additive 5-address Terraform plan; no unrelated update/delete/replace.",
+      "Focused positive and fail-closed observer token-routing tests.",
+      "Provider readback of exact custom-role permissions and four Secret-level bindings.",
+      "Protected official source, required CI and fresh immutable owner capsule.",
+      "Actual WIF owner stages plus production readonly DB and retained-worker evidence before traffic activation.",
+      "Changed normal UI behavior verified in production; user-owned native CAD remains pending."
+    ]
+  },
+  "historicalEvidence": {
+    "localQc": ".ai-doc/qa/DEV-122-B35-program-only-local-qc-2026-10-10.json",
+    "fixtureSupplement": ".ai-doc/qa/DEV-122-B35-ci-shortpath-fixture-2026-10-10.json",
+    "disposition": "Retain historical exact input scope; neither receipt is rewritten as WIF/production permission PASS."
+  },
+  "cleanup": {
+    "finiteSteps": [
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-baseline-runtime-final.json",
+        "sha256": "c488806b524ea938c7e17959eba7f91c570cd08b659e7be97bfd0774dcd8cc86",
+        "stage": "baseline",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-infra-reuse-runtime-final.json",
+        "sha256": "2c8eee6476a3edcc933f8e5aead188740e2743b2bea66a141a83aad02f1e8398",
+        "stage": "infra-reuse",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-input-reuse-runtime-final.json",
+        "sha256": "20f6ad58810014d97a65ca95b6e812cc6d129e6fab5e837a7f78006ae73c8d39",
+        "stage": "input-reuse",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-policy-runtime-final.json",
+        "sha256": "dbb6a40615f93f971daa2987973b23d2944f4be03c3cc949e36acba87cb8e7a3",
+        "stage": "policy",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-release-intent-runtime-final.json",
+        "sha256": "5f0c8a6b42580547d41a6b414f3972349c91e701a6018ee111d0dfeec26076bc",
+        "stage": "release-intent",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-reuse-runtime-final.json",
+        "sha256": "63c92f808890bb963cf9c4cd8e9f300c98536f72810f5f0fb70d2e1b2f460b33",
+        "stage": "reuse",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-routine-authority-runtime-final.json",
+        "sha256": "7c5752731fd03875d7705ea69fdecfb9d1d88db1be39d41d627065643bb79af8",
+        "stage": "routine-authority",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-runtime-config-runtime-final.json",
+        "sha256": "667aa887c8f08c8a1f9db1f3210a1a4ecb1ebd3f2e5ab37971c236667501202e",
+        "stage": "runtime-config",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-owner-r1-source-freeze-runtime-final.json",
+        "sha256": "11b3d316b0154731812ebb4be1725f7783326a3c7fd6ed90621832974c02351f",
+        "stage": "source-freeze",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-prepare-failure-r1-failure-readback-runtime-final.json",
+        "sha256": "0bbd69c6584ebc4f4fd16037b4c7e6313a14681ff1e5d8d3a413c73d8b870ea9",
+        "stage": "failure-readback",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A26-B35\\release\\B35-prepare-failure-r2-failure-readback-runtime-final.json",
+        "sha256": "786167b67618ce8c5b946c472a6c09381e4ac8a6803b7be897d3b6f8f82e3eae",
+        "stage": "failure-readback",
+        "status": "PASS",
+        "processExited": true,
+        "taskOwnedTempRemoved": true
+      }
+    ],
+    "persistentLocalRuntimeStarted": false,
+    "temporaryUiOpenedThisCheckpoint": false,
+    "remainingTaskOwnedUi": "Existing task login tab retained for ongoing authorized production UI validation; root owns cleanup. User-owned tabs untouched."
+  },
+  "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+  "supplier": "DISABLED_DEFERRED",
+  "standingBoundaries": [
+    "AI-PDM only; no sibling checkout or provider resource mutation.",
+    "No migration 084 execution, schema rewrite or manual DB edits.",
+    "Until new approval: no new IAM, Secret or cloud resources.",
+    "After proposed approval: only the five exact metadata IAM resources; no Secret value access or version creation.",
+    "Keep existing worker READY and Scheduler ENABLED; no worker lifecycle mutation."
+  ],
+  "independentDocumentQc": {
+    "agent": "/root/dev122_program_only_runtime_qc_luna",
+    "model": "gpt-6-luna",
+    "status": "CHECKPOINT_FACTS_PASS",
+    "documentP0": 0,
+    "documentP1": 0,
+    "actualReleaseCapabilityP1": "OPEN",
+    "reviewedReceiptSha256": "f718b6f380d98c6c7fad83c5dfeb6bd7e98a0878599d57ebdcc726ebe0b4e997",
+    "reviewedAt": "2026-10-10T12:35:57Z",
+    "scope": "Readonly source/CI vs actual owner outcome, raw provider SHA, five-resource proposal scope and eleven finite cleanup receipts. No product or provider mutations.",
+    "limitation": "Document QC PASS does not mean release PASS or authorization for IAM."
+  }
+}

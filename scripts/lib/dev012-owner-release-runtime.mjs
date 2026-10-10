@@ -1306,8 +1306,16 @@ export function createAiPdmBuildReadbackTransport({ token, verifierReadbackToken
   }
   return {
     ...primary,
-    request: (url, options = {}) => isLiveGet(url, options)
-      ? observer.request(url, { ...options, redirect: 'error' }) : primary.request(url, options),
+    request: (url, options = {}) => {
+      if (new URL(url).hostname === 'secretmanager.googleapis.com') {
+        if (typeof url !== 'string' || !/^https:\/\/secretmanager\.googleapis\.com\/v1\/projects\/(?:jenfu-platform-prod|9536592944)\/secrets\/(?:aipdm-prod-openswx-reader-token|aipdm-prod-workload-auth-credentials)\/versions\/[1-9][0-9]*$/u.test(url)
+          || (options.method ?? 'GET') !== 'GET' || options.body != null) fail('BUILD_READBACK_SECRET_METADATA_INVALID')
+        if (new Headers(options.headers).has('authorization')) fail('BUILD_READBACK_AUTHORIZATION_INVALID')
+        return observer.request(url, { ...options, redirect: 'error' })
+      }
+      return isLiveGet(url, options)
+        ? observer.request(url, { ...options, redirect: 'error' }) : primary.request(url, options)
+    },
     getService: profile => { assertProfile(profile); return observer.request(service, { redirect: 'error' }) },
     getRevision: (profile, revision) => {
       assertProfile(profile)
