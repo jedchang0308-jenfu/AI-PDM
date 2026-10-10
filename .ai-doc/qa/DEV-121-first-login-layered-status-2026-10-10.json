@@ -42,7 +42,7 @@
   "implementation": {
     "identityAuthority": "orgmaster_contract.v_active_principal_accounts_v1",
     "authorizationAuthority": "orgmaster_contract.v_ai_pdm_principal_effective_grants_v4",
-    "firstLogin": "Verify active typed identity, authEpoch/revocation and effective grants; atomically create missing own profile/account/link/receipt/cutover, then register session.",
+    "firstLogin": "In one serializable transaction, verify active typed identity, authEpoch/revocation and effective grants; atomically create missing own profile/account/link/receipt/cutover and register the session. Return login state after commit.",
     "roleAssignmentsCopied": false,
     "inactiveAccountAutomaticallyRestored": false,
     "historicalEmailMatching": false,
@@ -82,12 +82,16 @@
     "servingRevision": "ai-pdm-prod-b96191914c5d",
     "trafficPercent": 100,
     "evidence": "DEV-122-B33-production-release-closure-2026-10-10.json",
-    "meaning": "Protected release/aggregate ledger and canonical provider readback; not proof of a fresh account creation or a specific employee login."
+    "meaning": "Protected release/aggregate ledger and canonical provider readback; not proof of a fresh account creation or a specific employee login.",
+    "migrationAppliedThisRelease": 0,
+    "migrationReplayed": 33,
+    "ledgerEvidenceScope": "Aggregate package replay; not a per-row ledger export or a claim that B33 initially applied migration083."
   },
   "actualBrowserVerification": {
     "fixtureGoogle": {
-      "existingAccountNormalPlatformToPdm": "PASS",
+      "alreadyAuthenticatedPlatformToNormalPdmEntry": "PASS",
       "reload": "PASS",
+      "freshGoogleChallengeOrPostGlobalLogoutLogin": "UNVERIFIED",
       "freshProvision": "NOT_TESTED"
     },
     "fixtureNumber": {
