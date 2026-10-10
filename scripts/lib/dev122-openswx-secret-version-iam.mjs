@@ -31,9 +31,32 @@ const exact = (value, keys) => value && typeof value === 'object' && !Array.isAr
 const unknown = value => value === true || (Array.isArray(value) ? value.some(unknown) : value && typeof value === 'object' ? Object.values(value).some(unknown) : value != null && value !== false)
 const canonicalSecret = secret => `projects/${PROJECT}/secrets/${secret}`
 function secretEquals(value, expected) { return [expected, canonicalSecret(expected), `projects/${NUMBER}/secrets/${expected}`].includes(value) }
+const ETAG_DRIFT_ADDRESSES = Object.freeze(['google_project_iam_member.deployer_scheduler_readback', 'google_project_iam_member.verifier_scheduler_readback'])
+function assertRetainedSchedulerEtagDrift(value) {
+  const drift = value.resource_drift ?? []
+  if (!Array.isArray(drift) || drift.length > 2) fail()
+  const seen = new Set()
+  for (const row of drift) {
+    const matches = value.resource_changes.filter(change => change.address === row.address)
+    if (!ETAG_DRIFT_ADDRESSES.includes(row.address) || seen.has(row.address) || matches.length !== 1
+      || row.mode !== 'managed' || row.type !== 'google_project_iam_member' || row.provider_name !== 'registry.terraform.io/hashicorp/google'
+      || row.previous_address || row.change?.importing || !same(row.change?.actions, ['update']) || unknown(row.change?.after_unknown)) fail()
+    seen.add(row.address)
+    const change = matches[0]
+    if (change.mode !== row.mode || change.type !== row.type || change.provider_name !== row.provider_name
+      || !same(change.change?.actions, ['no-op']) || unknown(change.change?.after_unknown)) fail()
+    const before = row.change?.before, after = row.change?.after
+    if (!before || !after || Array.isArray(before) || Array.isArray(after)
+      || typeof before.etag !== 'string' || !before.etag.trim() || typeof after.etag !== 'string' || !after.etag.trim() || before.etag === after.etag) fail()
+    const beforeFields = { ...before }, afterFields = { ...after }
+    delete beforeFields.etag; delete afterFields.etag
+    if (!same(beforeFields, afterFields) || !same(after, change.change.before) || !same(after, change.change.after)) fail()
+  }
+}
 export function assertSecretVersionIamTerraformPlan(value) {
   if (!Array.isArray(value?.resource_changes) || value.resource_changes.length !== 12 || value.resource_changes.some(row => row.change?.importing || row.previous_address)
-    || value.deferred_changes?.length || value.resource_drift?.length) fail()
+    || value.deferred_changes?.length) fail()
+  assertRetainedSchedulerEtagDrift(value)
   const retained = value.resource_changes.filter(row => [...READBACK_IAM_ADDRESSES, ...PREBUILD_IAM_ADDRESSES].includes(row.address))
   assertPrebuildIamTerraformPlan({ resource_changes: retained })
   if (retained.some(row => !same(row.change.actions, ['no-op']))) fail()

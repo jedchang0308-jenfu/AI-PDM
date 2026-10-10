@@ -1,6 +1,18 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（B35 限定 metadata IAM 已核准；R2 接線 QC PASS；NOT_APPLIED／NOT_DEPLOYED）
+## DEV-122 CURRENT（B35 原生 etag 修正 LOCAL_QC_PASS；NOT_APPLIED／NOT_DEPLOYED）
+
+PR [#260](https://github.com/jedchang0308-jenfu/AI-PDM/pull/260) 已合併至 af72165c962c0eaa609929df8291a48ffa7cc494；PR CI38058554315／main CI38059082047 required checks SUCCESS。B35-R2 在歷史來源 admission 失敗；R3 修正 admission 後 native Terraform init／validate／plan／show 成功，但新 gate 拒絕兩筆 etag-only resource_drift。原生計畫為舊7 no-op／新5 create，沒有 apply；失敗與診斷原始證據保留，task-owned runtime／temp／lease 已釋放。
+
+最新 source 修正僅容許兩個既有 Scheduler IAM member 的 etag metadata refresh：before／after 移除 etag 後完整相同，且 drift.after == matching no-op before == matching no-op after；地址各最多一次，拒絕其他 drift／unknown／import／move／duplicate。原 5／7 項 validator、完整 project／Secret policy、saved binary、單次 apply 與 unknown outcome readback 保護不變；新權限範圍仍只有已核准五項。
+
+本次定向11、continuous246、aggregate296、abort6、DB21、typecheck與isolated build均PASS；獨立Luna source QC P0=0／P1=0。此證據是本地 source及native-plan診斷，不是IAM APPLIED或fresh WIF PASS。此修正仍須新protected PR／required CI／fresh source-lock／saved plan／provider readback與owner發布；舊R2／R3 input及失敗capsule不重播。
+
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1；Architecture Finalized／RD Implementation Ready。NO084、FULL34／effective33／native PG17只讀、worker READY／Scheduler ENABLED及原發布回復機制不變。DEV-122仍NOT_ACCEPTED、7 issues／29 groups；完整原生CAD正式驗證由使用者執行，supplier DISABLED_DEFERRED。Root唯一writer與cleanup owner，沿用同repo工作樹，canonical及其他任務不動。
+
+[唯一施工契約](specs/DEV-122-ai-pdm-internal-function-issues.md)；[原生etag修正checkpoint](qa/DEV-122-B35-native-etag-checkpoint-2026-10-10.json)。
+
+## DEV-122 HISTORY_ONLY（B35 限定 metadata IAM 已核准；R2 接線 QC PASS；NOT_APPLIED／NOT_DEPLOYED）
 
 PR260 新 CI38057619292 的 continuous 245/246 FAIL：新增 B35 Git fixture 使用 RUNNER~1 短 TEMP，嚴格 repository-root comparison 正確拒絕。只修正此測試的 native realpath parent／fixture 與 cleanup guard，產品／Terraform／權限 guard 不變；實際短 TEMP 原 test body RED→修正 GREEN及獨立 Luna test-hunk QC PASS見 [CI fixture checkpoint](qa/DEV-122-B35-ci-native-temp-fixture-2026-10-10.json)。兩次 local setup FAIL 原始證據保留，僅第三次採納為 RED/GREEN；先前六項 PASS 保留原 tested-input scope，新 CI 尚 pending，不冒稱 current CI PASS。
 

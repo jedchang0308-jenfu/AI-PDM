@@ -143,3 +143,53 @@ test('fresh finite executor applies only validated saved binary once and removes
     await executeSecretVersionIamContinuation(executeArgs(h)); assert.equal(applyCount, 1)
   }
 })
+
+
+const nativeEtagPlan = async () => JSON.parse(await fs.readFile(new URL('../qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json', import.meta.url), 'utf8'))
+test('native retained Scheduler etag-only refresh admits the actual seven no-ops and five approved creates', async () => {
+  const plan = await nativeEtagPlan()
+  assert.equal(assertSecretVersionIamTerraformPlan(plan).length, 12)
+  assert.equal(plan.resource_drift.length, 2)
+  for (const drift of plan.resource_drift) {
+    const retained = plan.resource_changes.find(row => row.address === drift.address)
+    assert.deepEqual(retained.change.actions, ['no-op'])
+    assert.deepEqual(drift.change.after, retained.change.before)
+    assert.deepEqual(retained.change.before, retained.change.after)
+  }
+})
+test('native retained etag exception rejects policy changes, unknowns and inconsistent no-op joins', async () => {
+  const match = p => p.resource_changes.find(row => row.address === p.resource_drift[0].address)
+  const mutations = [
+    p => p.resource_drift.push(clone(p.resource_drift[0])),
+    p => p.resource_drift[1] = clone(p.resource_drift[0]),
+    p => p.resource_drift = {},
+    p => p.resource_drift[0].address = 'google_project_iam_member.verifier_prebuild_list_readback',
+    p => p.resource_drift[0].address = SECRET_VERSION_IAM_ADDRESSES[0],
+    p => p.resource_drift[0].provider_name = 'foreign/provider',
+    p => p.resource_drift[0].type = 'google_project_iam_binding',
+    p => p.resource_drift[0].mode = 'data',
+    p => p.resource_drift[0].change.actions = ['no-op'],
+    p => p.resource_drift[0].change.importing = { id: 'foreign' },
+    p => p.resource_drift[0].previous_address = 'moved',
+    p => p.resource_drift[0].change.after_unknown = { etag: true },
+    p => match(p).change.after_unknown = { member: true },
+    p => match(p).provider_name = 'foreign/provider',
+    p => match(p).type = 'google_project_iam_binding',
+    p => match(p).mode = 'data',
+    p => match(p).change.actions = ['update'],
+    p => p.resource_drift[0].change.before.etag = '',
+    p => p.resource_drift[0].change.after.etag = ' ',
+    p => p.resource_drift[0].change.before.etag = p.resource_drift[0].change.after.etag,
+    p => p.resource_drift[0].change.after.member = 'user:unapproved@example.invalid',
+    p => p.resource_drift[0].change.after.role = 'roles/owner',
+    p => p.resource_drift[0].change.after.project = 'another-project',
+    p => p.resource_drift[0].change.after.condition = [{ expression: 'true' }],
+    p => p.resource_drift[0].change.after.extra = 'unapproved',
+    p => match(p).change.before.etag = 'other-known-etag',
+    p => match(p).change.after.etag = 'other-known-etag',
+  ]
+  for (const mutate of mutations) {
+    const plan = await nativeEtagPlan(); mutate(plan)
+    assert.throws(() => assertSecretVersionIamTerraformPlan(plan))
+  }
+})
