@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { seedSecretVersionIamContinuation } from '../qa/dev-122/fixtures/secret-version-iam-fixture.mjs'
+import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_SECRETS } from './lib/dev122-openswx-secret-version-iam.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
@@ -1006,5 +1009,96 @@ test('P07 program-only abort applies native service settled, traffic, entrypoint
     if(mutation==='entrypoint')f.service.invokerIamDisabled=false
     if(mutation==='image'){const read=f.transport.getRevision;f.transport.getRevision=async()=>{const row=await read();row.containers[0].image+='bad';return row}}
     await assert.rejects(f.read());assert.ok(f.calls.every(row=>row.method==='GET'));noMutation(f.h)
+  }
+})
+
+async function b35MetadataReuseFixture() {
+  const h = await b22ReuseIamFixture(), originalReader = h.readSource
+  const metadataPaths = [SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, 'scripts/lib/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.mjs']
+  h.readSource = (name, revision) => metadataPaths.includes(name) ? readFileSync(path.join(root, name)) : originalReader(name, revision)
+  Object.assign(h.readSource, originalReader)
+  h.transport.now = () => new Date().toISOString()
+  const lock = { ...h.lock, observedAt: new Date(Date.now()-2000).toISOString() }
+  const sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json', Buffer.from(canonicalize(lock)+'\n'))
+  const secretPolicies = {
+    [profile.tokenSecretId]: {bindings:[{role:'roles/secretmanager.secretAccessor',members:['serviceAccount:'+profile.readerServiceAccount]}]},
+    [profile.registrySecretId]: {bindings:[{role:'roles/secretmanager.secretAccessor',members:['serviceAccount:aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com'],condition:{title:'existing',expression:'true'}}]},
+  }
+  const metadata = await seedSecretVersionIamContinuation(h, {sourceRevision: currentRevision, sourceLockRef, supplementalIamReadbackRef:h.iam.receiptRef,
+    prebuildIamContinuationRef:h.proof.continuationRef,reader:h.readSource,name:'b35-secret-version-iam',secretPolicies})
+  const previousInput = JSON.parse(h.objects.get(h.inputRef.uri).bytes)
+  const input = {...previousInput,sourceLockRef,secretVersionIamContinuationRef:metadata.continuationRef}
+  h.inputRef = await h.put('b35-metadata-reuse-input',input)
+  const originalRequest=h.transport.request
+  h.transport.request=async(url,options={})=>{
+    if(url==='https://iam.googleapis.com/v1/'+SECRET_VERSION_IAM_ROLE){h.calls.push({url,options});return structuredClone(metadata.after.secretVersionRole)}
+    for(const secret of SECRET_VERSION_IAM_SECRETS) if(url==='https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/'+secret+':getIamPolicy?options.requestedPolicyVersion=3'
+      ||url==='https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/'+secret+':getIamPolicy'){
+      h.calls.push({url,options});return structuredClone(metadata.after.secretPolicies[secret])
+    }
+    return originalRequest(url,options)
+  }
+  return {...h,input,metadata}
+}
+test('B35 actual READY producer and pure resolver admit only the source-joined metadata continuation',async()=>{
+  const h=await b35MetadataReuseFixture()
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:h.readSource})
+  assert.equal(saved.value.status,'PASS')
+  assert.ok(saved.refs.programOnlyFullDescriptorRef)
+  const ready=JSON.parse(h.objects.get(saved.value.resourceAssociation.readbackRef.uri).bytes)
+  assert.equal(ready.resourcesUnchanged,true);assert.equal(ready.mutationPerformed,false)
+  assert.equal(ready.image,h.build.image);assert.equal(ready.schedulerState,'ENABLED')
+  const tokenPolicyCall=h.calls.find(row=>row.url.includes('/secrets/'+profile.tokenSecretId+':getIamPolicy?options.requestedPolicyVersion=3'))
+  assert.ok(tokenPolicyCall)
+  const calls=h.calls.length, publications=h.puts.length
+  const artifact=await resolveWorkerArtifact({transport:h.transport,descriptor:h.v2(saved.ref),profile,readSource:h.readSource})
+  assert.deepEqual(artifact.input.secretVersionIamContinuationRef,h.metadata.continuationRef)
+  assert.equal(h.calls.length,calls,'protected resolver consumes sealed refs without IAM provider calls')
+  assert.equal(h.puts.length,publications);noMutation(h)
+})
+test('B35 missing metadata continuation retains strict original Secret policy and publishes no READY proof',async()=>{
+  const h=await b35MetadataReuseFixture(), input={...h.input};delete input.secretVersionIamContinuationRef
+  const inputRef=await h.put('b35-no-metadata-ref',input), count=h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:h.readSource}),{code:'OPENSWX_RESOURCE_READBACK_INVALID'})
+  assert.equal(h.puts.length,count);noMutation(h)
+})
+test('B35 producer rejects malformed refs and live workload policy drift; pure resolver rejects hash-correct forged input join',async()=>{
+  const h=await b35MetadataReuseFixture(), ref={...h.metadata.continuationRef,sha256:'0'.repeat(64)}
+  const badRef=await h.put('b35-wrong-metadata-hash',{...h.input,secretVersionIamContinuationRef:ref}), before=h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef:badRef,readSource:h.readSource}))
+  assert.equal(h.puts.length,before)
+  h.metadata.after.secretPolicies[profile.registrySecretId].bindings[0].condition.expression='false'
+  await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:h.readSource}),{code:'OPENSWX_SECRET_VERSION_IAM_SECRET_POLICY_DRIFT'})
+  assert.equal(h.puts.length,before)
+  h.metadata.after.secretPolicies[profile.registrySecretId].bindings[0].condition.expression='true'
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:h.readSource})
+  const request=JSON.parse(h.objects.get(saved.value.requestRef.uri).bytes)
+  const inputRef=await h.put('b35-forged-input-join',{...h.input,secretVersionIamContinuationRef:ref})
+  const requestRef=await h.put('b35-forged-request',{...request,inputRef})
+  const associationRef=await h.put('b35-forged-association',{...saved.value,requestRef}), calls=h.calls.length, count=h.puts.length
+  await assert.rejects(resolveWorkerArtifact({transport:h.transport,descriptor:h.v2(associationRef),profile,readSource:h.readSource}))
+  assert.equal(h.calls.length,calls);assert.equal(h.puts.length,count);noMutation(h)
+})
+
+test('B35 actual Git reader admits only the four exact metadata source paths after sealed origin admission',()=>{
+  const temporary=realpathSync(mkdtempSync(path.join(tmpdir(),'aipdm-b35-git-metadata-')))
+  console.log(JSON.stringify({project:'AI-PDM',purpose:'Metadata continuation actual Git reader scope regression',port:null,owningProcess:process.pid,temporaryPath:temporary,PDM_DATA_DIR:'UNUSED_NO_APP_IMPORT',PDM_REPOSITORY_DIR:temporary,mutationScope:'TASK_OWNED_GIT_FIXTURE_ONLY',cleanupCondition:'finally removes exact task-owned Git fixture'}))
+  const run=(args)=>{const row=spawnSync('git',args,{cwd:temporary,windowsHide:true,encoding:'utf8'});assert.equal(row.status,0,row.stderr);return row.stdout.trim()}
+  const paths=[SECRET_VERSION_IAM_SOURCE_PATH,SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH,'scripts/lib/dev122-openswx-secret-version-iam.mjs','scripts/dev122-openswx-secret-version-iam.mjs']
+  try {
+    run(['init','--quiet']);run(['config','user.email','local-fixture@example.invalid']);run(['config','user.name','AI-PDM local fixture']);run(['config','core.autocrlf','false'])
+    for(const name of [...paths,'scripts/not-admitted.mjs']){const absolute=path.join(temporary,name);mkdirSync(path.dirname(absolute),{recursive:true});writeFileSync(absolute,name+'\n')}
+    run(['add','.']);run(['commit','--quiet','-m','historical metadata source fixture'])
+    const historical=run(['rev-parse','HEAD'])
+    writeFileSync(path.join(temporary,'current-fixture.txt'),'current\n');run(['add','.']);run(['commit','--quiet','-m','current source fixture'])
+    const current=run(['rev-parse','HEAD']), reader=createWorkerGitReader(temporary,current)
+    for(const name of paths)assert.throws(()=>reader(name,historical),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
+    reader.authorizeOrigin(historical)
+    for(const name of paths)assert.equal(reader(name,historical).toString(),name+'\n')
+    assert.throws(()=>reader('scripts/not-admitted.mjs',historical),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
+  }finally{
+    assert.equal(path.dirname(temporary),realpathSync(tmpdir()))
+    assert.ok(path.basename(temporary).startsWith('aipdm-b35-git-metadata-'))
+    rmSync(temporary,{recursive:true,force:true})
   }
 })

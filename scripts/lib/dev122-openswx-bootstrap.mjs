@@ -10,6 +10,7 @@ import { resolveWorkerArtifact } from './dev122-openswx-worker-artifact-reuse.mj
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 
 import { assertReadbackIamReceipt, expectedReadbackJobBindings } from './dev122-openswx-readback-iam.mjs'
+import { SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_MEMBERS, assertSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
 
 const BUCKET = 'jenfu-platform-prod-aipdm-release'
 const MARKER = 'aipdm.openswx-finite-terminal.v1'
@@ -33,7 +34,7 @@ export function assertWorkerTerraformPlan(value) {
   }
   return value.resource_changes.map(row => ({ address: row.address, actions: row.change.actions })).sort((a, b) => a.address.localeCompare(b.address))
 }
-async function collectWorkerResourcePolicy(transport, profile, image, expectedTemplate, supplementalIam) {
+async function collectWorkerResourcePolicy(transport, profile, image, expectedTemplate, supplementalIam, secretVersionIam = null) {
   for (const email of [profile.readerServiceAccount, profile.dispatchServiceAccount]) {
     const identity = await transport.request(`https://iam.googleapis.com/v1/projects/${profile.projectId}/serviceAccounts/${email}`)
     if (identity.email !== email || identity.disabled === true) fail('OPENSWX_RESOURCE_READBACK_INVALID')
@@ -56,8 +57,14 @@ async function collectWorkerResourcePolicy(transport, profile, image, expectedTe
   }
   const policy = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}:getIamPolicy`)
   if (canonicalize((policy.bindings ?? []).sort((a, b) => a.role.localeCompare(b.role))) !== canonicalize(bindings.sort((a, b) => a.role.localeCompare(b.role)))) fail('OPENSWX_RESOURCE_READBACK_INVALID')
-  const access = await transport.request(`https://secretmanager.googleapis.com/v1/projects/${profile.projectId}/secrets/${profile.tokenSecretId}:getIamPolicy`)
-  if (canonicalize(access.bindings) !== canonicalize([{ role: 'roles/secretmanager.secretAccessor', members: [`serviceAccount:${profile.readerServiceAccount}`] }])) fail('OPENSWX_RESOURCE_READBACK_INVALID')
+  if (secretVersionIam) await assertSecretVersionIamContinuation({ transport, ...secretVersionIam, normalActor: profile.normalActor })
+  const access = await transport.request(`https://secretmanager.googleapis.com/v1/projects/${profile.projectId}/secrets/${profile.tokenSecretId}:getIamPolicy${secretVersionIam ? '?options.requestedPolicyVersion=3' : ''}`)
+  const accessBindings = secretVersionIam ? (access.bindings ?? []).filter(row => row.role !== SECRET_VERSION_IAM_ROLE) : access.bindings
+  if (secretVersionIam) {
+    const additions = (access.bindings ?? []).filter(row => row.role === SECRET_VERSION_IAM_ROLE).map(row => ({ ...row, members: [...(row.members ?? [])].sort() }))
+    if (canonicalize(additions) !== canonicalize([{ role: SECRET_VERSION_IAM_ROLE, members: [...SECRET_VERSION_IAM_MEMBERS].sort() }])) fail('OPENSWX_RESOURCE_READBACK_INVALID')
+  }
+  if (canonicalize(accessBindings) !== canonicalize([{ role: 'roles/secretmanager.secretAccessor', members: [`serviceAccount:${profile.readerServiceAccount}`] }])) fail('OPENSWX_RESOURCE_READBACK_INVALID')
   const actAs = await transport.request(`https://iam.googleapis.com/v1/projects/${profile.projectId}/serviceAccounts/${profile.readerServiceAccount}:getIamPolicy`, { method: 'POST' })
   if (canonicalize(actAs.bindings) !== canonicalize([{ role: 'roles/iam.serviceAccountUser', members: ['serviceAccount:aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com'] }])) fail('OPENSWX_RESOURCE_READBACK_INVALID')
   const job = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
@@ -71,8 +78,9 @@ async function readWorkerResources(transport, profile, image, expectedTemplate =
 }
 /** This observation is ENABLED/normal only. It is never a pause or quiescence lease. */
 export async function readCurrentReadyWorkerResources(options) {
-  if (!options || Object.keys(options).sort().join(',') !== 'prior,profile,supplementalIam,transport') fail('OPENSWX_READY_INPUT_INVALID')
-  const { transport, profile, prior, supplementalIam } = options
+  if (!options || !['prior,profile,supplementalIam,transport', 'prior,profile,secretVersionIam,supplementalIam,transport'].includes(Object.keys(options).sort().join(','))
+    || Object.hasOwn(options, 'secretVersionIam') && !options.secretVersionIam) fail('OPENSWX_READY_INPUT_INVALID')
+  const { transport, profile, prior, supplementalIam, secretVersionIam = null } = options
   assertOpenSwxWorkerProfile(profile)
   const actor = await verifyNormalActor(transport, profile)
   if (prior?.activation?.facts?.workerStatus !== 'READY' || prior.activation.facts.schedulerState !== 'ENABLED'
@@ -103,7 +111,7 @@ export async function readCurrentReadyWorkerResources(options) {
     const schedulerPolicy = { name: scheduler.name, state: scheduler.state, schedule: scheduler.schedule, timeZone: scheduler.timeZone, attemptDeadline: scheduler.attemptDeadline, httpTarget: scheduler.httpTarget, retryConfig: scheduler.retryConfig ?? {}, userUpdateTime: scheduler.userUpdateTime ?? null }
     return { jobEtag: job.etag, jobGeneration: String(job.generation), templateSha256: sha256(canonicalize(normalizeWorkerTemplate(job.template))), schedulerPolicy, secrets }
   }
-  const before = await snapshot(), resources = await collectWorkerResourcePolicy(observed, profile, prior.build.image, template, supplementalIam), after = await snapshot()
+  const before = await snapshot(), resources = await collectWorkerResourcePolicy(observed, profile, prior.build.image, template, supplementalIam, secretVersionIam), after = await snapshot()
   if (canonicalize(before) !== canonicalize(after) || resources.etag !== before.jobEtag) fail('OPENSWX_READY_RESOURCE_DRIFT')
   return { actor: actor.email, observationStartedAt, observationCompletedAt: transport.now(), image: prior.build.image, numericCredentials: credentials,
     normalTemplateSha256: before.templateSha256, schedulerPolicySha256: sha256(canonicalize(before.schedulerPolicy)), schedulerState: 'ENABLED', jobName: workerJobName(),

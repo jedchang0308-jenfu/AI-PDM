@@ -1,6 +1,18 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（B35 PREPARE_FAILED／接線修復LOCAL_QC_PASS；NOT_DEPLOYED）
+## DEV-122 CURRENT（B35 限定 metadata IAM 已核准；R2 接線 QC PASS；NOT_APPLIED／NOT_DEPLOYED）
+
+限定 metadata IAM 實作及 consumer 接線已完成本地驗證：9 個定向案例、4 個 producer/resolver/Git 整合案例、continuous 246、aggregate 294、abort 6、DB boundary 21、typecheck 與 isolated build 均 PASS；建置確認 artifact／primary invariant／cleanup，原生回讀確認本次 PID 與三個任務暫存已消失。獨立 Luna source QC P0=0／P1=0，13/13 frozen hashes 相符；僅證本地 source/modelled/native-Git 層，single normal-actor finite writer，不宣稱 concurrent apply、實際 IAM APPLIED 或 WIF capability PASS。詳見 [補權本地 QC checkpoint](qa/DEV-122-B35-secret-version-iam-local-qc-2026-10-10.json)。PR260 將以修正後來源重新取得 required CI；實際 plan/apply/fresh owner release 仍 NOT_RUN，NO084／NOT_ACCEPTED／7/29 不變。
+
+人類已回覆「核准 5 項限定補權並繼續（建議）」；最新授權允許 AI-PDM 在 jenfu-platform-prod 正式環境新增 1 個唯讀角色與 4 個 exact Secret-level 綁定。角色只含 secretmanager.versions.get；兩個既有 Secret 各綁既有 Verifier／Deployer，不新增 payload access、Builder／runtime grant、其他 IAM 或資源。migration 084 仍禁止執行。唯一施工契約讀 [DEV-122 CURRENT](specs/DEV-122-ai-pdm-internal-function-issues.md)，[人類限定授權記錄](qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json)可追溯原始回答；不要求人類重複核准 source／capsule 機器綁定。
+
+[R2 實際 caller 接線證據](qa/DEV-122-B35-numeric-routing-r2-checkpoint-2026-10-10.json)：R1 source QC 的窄範圍 PASS 保留，但 root 發現真實 assertNumericSecret 會輸出專案編號，原 transport 拒絕合法 URL，補驗 RED 4/5。R2 只允許相同專案的文字 ID／編號形式，真實 helper 到 transport 的 focused 5/5、continuous 242、aggregate 281 及六項 required checks PASS，獨立 Luna QC P0=0／P1=0。這是本地 source/mock 證據，未證實實際 WIF 權限；PR260 舊 head 8a937 的 CI PASS 不能替代 R2 source CI。
+
+限定補權施工：新 TF 檔保留舊四份來源及 prebuild TF bytes；計畫須恰 12 addresses，舊 7 全 no-op，新 5 create／no-op。正常發布帳號依 official source-lock、原 supplemental／prebuild refs、人類授權、saved binary 與 request／before-after 進行一次 apply，unknown outcome 先 readback，不重套舊計畫。fresh READY producer 僅在新 immutable continuation 驗證後接受核准的 metadata row；Secret policy version 3、剝除 exact 差異後其他政策與 project IAM 保持相同。實際 plan／apply／fresh owner release 尚 NOT_RUN。
+
+B33 正式基線 ai-pdm-prod-b96191914c5d 100%／零 tags、worker READY／Scheduler ENABLED；原 B35 owner prepare FAIL 與 terminal capsule 保留，禁止重 dispatch。DEV-122 維持 NOT_ACCEPTED、7 issues／29 groups；原生 CAD 完整屬性由使用者正式驗證，supplier DISABLED_DEFERRED。唯一產品 writer 及 cleanup owner 為 root／當次明確交棒 RD，沿用既有同 repo worktree，canonical／其他 task 不動。
+
+## DEV-122 HISTORY_ONLY（B35 PREPARE_FAILED／接線修復LOCAL_QC_PASS；NOT_DEPLOYED）
 
 人類已選擇「同意，只更新程式（建議）」；固定 `DEV122_PROGRAM_ONLY_RELEASE_V1`已合併，最新checkpoint為 `SOURCE_MERGED / REQUIRED_CI_PASS / PRODUCTION_PREPARE_FAILED / LOCAL_ROUTING_FIX_QC_PASS / METADATA_PERMISSION_DECISION_PENDING / NOT_DEPLOYED`。唯一契約讀[DEV-122 CURRENT](specs/DEV-122-ai-pdm-internal-function-issues.md)，固定規則讀[release spec §26.1](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md)。此入口只路由，不另定規則或擴張人類授權。
 
@@ -2028,7 +2040,7 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ◐ DEV-122 [開發點] [B35 SOURCE_MERGED／REQUIRED_CI_PASS／PREPARE_FAILED／PERMISSION_DECISION_PENDING] [P2] [NOT_DEPLOYED／NOT_ACCEPTED] AI-PDM 內部功能缺陷集中處理
+- ◐ DEV-122 [開發點] [B35 R2_LOCAL_QC_PASS／FIVE_IAM_APPROVED／NOT_APPLIED] [P2] [NOT_DEPLOYED／NOT_ACCEPTED] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，本 DEV 同步收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中後續問題，2026-10-04 授權 AI-PDM 獨立移交與本地開發；發現來源 AIPDM/DEV-121。
   - 下一步：等待5項限定metadata IAM擴張的人類決策；核准後完成窄Verifier observer接線、exact additive plan／readback與fresh protected owner發布，不重播失敗capsule、不執行084。
@@ -5703,7 +5715,7 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-122：AI-PDM 內部功能缺陷集中處理
 
-目前施工以本檔開頭DEV-122 CURRENT與[DEV122_PROGRAM_ONLY_RELEASE_V1契約](specs/DEV-122-ai-pdm-internal-function-issues.md)為準：PR259已合併／PR與main required CI通過；owner38051021115 prepare失敗／後續SKIPPED，metadata能力P1_OPEN、exact403 endpoint UNKNOWN。5項限定IAM提案PENDING_HUMAN，原不新增IAM邊界仍有效，見[B35實際失敗收據](qa/DEV-122-B35-program-only-prepare-failure-2026-10-10.json)。B33仍RELEASED、100%／零tags、workerREADY／SchedulerENABLED；B34／B35 NOT_DEPLOYED，fresh只讀DB尚NOT_RUN。原生CAD使用者正式驗證、正常網站／業務驗收、supplier延期與Whole DEV NOT_ACCEPTED保留。下方發布與施工原文為HISTORY_ONLY，不重播舊capsule或retry queue。
+目前施工以本檔開頭 DEV-122 CURRENT 與 SPEC 最新限定補權契約為準：人類已核准 5 項 metadata IAM，R2 source local QC PASS；實際 plan／apply／新 source CI／owner release 尚 NOT_RUN。保留原 B35 prepare FAIL，NO084、B33 serving 基線、user-owned native CAD 與 Whole DEV NOT_ACCEPTED。下方為 HISTORY_ONLY。
 
 2026-10-05 現行正式發布結果：R02 已由 app-owned V3 owner run [37262598122](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122) 完成 RELEASED／FINALIZED；正式 ai-pdm-prod-52f421cb8db9 接收 100% 流量、0 candidate tags。官方來源 602413097ef27a203fe1e2beccac3166c6e2351a 來自正常 PR209 合併，PR／main required CI 均 SUCCESS。人類在本機安全頁完成既有 Firebase 帳號重新驗證，own numeric 6→7 與既有 GitHub production smoke Secret 更新成功；候選及 canonical 正常 SSO／authenticated probe 通過，匿名／撤銷 session 回 401。B 配置保留 jenfu-platform-prod 並另核 expected number 9536592944；三項已授權 own Secret／IAM 於 R01 APPLIED，R02 只沿用來源相容回執，沒有 historical workflow rotation apply。079 在 R01 已 forward apply，R02 0 applied／29 replayed／ledger 29。正式設定 UI 因工具限制 NOT_RUN；登入與 provider 證據不替代 key draft/probe/activation 或原生 CAD 屬性。這些由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups、整體 NOT_ACCEPTED。R01 401／UNKNOWN／安全中止證據保留。 [正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)。
 

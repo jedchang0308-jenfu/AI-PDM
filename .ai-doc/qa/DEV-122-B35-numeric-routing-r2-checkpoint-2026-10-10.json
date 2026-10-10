@@ -1,0 +1,259 @@
+{
+  "schemaVersion": "ai-pdm.dev122.b35-numeric-routing-r2-checkpoint.v1",
+  "task": "DEV-122",
+  "recordedAt": "2026-10-10T13:26:29.794Z",
+  "branch": "codex/dev122-b33-release-closure",
+  "baseSourceRevision": "71df57ff2ffc05a8a8cb18d1956758f360d3e138",
+  "parentCommit": "8a9371ee23964c9600b5f058ebaa3deaba423225",
+  "status": "R2_LOCAL_QC_PASS_METADATA_IAM_APPROVED_NOT_APPLIED_NOT_DEPLOYED",
+  "wholeAcceptance": "NOT_ACCEPTED",
+  "issues": 7,
+  "groups": 29,
+  "humanApproval": {
+    "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\.ai-doc\\qa\\DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json",
+    "sha256": "2ee35efc065f621999b1c337b1a2c00dc8447d9f433e451c2969af0396fe37f7"
+  },
+  "defect": {
+    "priority": "P1",
+    "actualCaller": "assertNumericSecret returns projects/9536592944/... and snapshot sends it to the build transport",
+    "originalR1Scope": "R1 narrow tests passed but did not cover the real helper output; original evidence remains unchanged and superseded for deployment",
+    "red": {
+      "tests": 5,
+      "pass": 4,
+      "fail": 1,
+      "error": "BUILD_READBACK_SECRET_METADATA_INVALID",
+      "log": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-source-routing-r1/numeric-red.log",
+        "sha256": "6f05f558a3c4b98142bba508c07919a0a1b67d0d325de25a5fa701e869b3382f"
+      }
+    },
+    "correction": "Allow only the same fixed project text ID or numeric number on the exact two Secrets and positive numeric version GET; no payload/latest/body/header/redirect/Builder fallback",
+    "boundedCycle": 2
+  },
+  "sourceFiles": [
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\lib\\dev012-owner-release-runtime.mjs",
+      "sha256": "f001d75cb4c03f1016c8760e4b47735086b65e9bdd54d19c572e7943d6137ea5"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\dev012-owner-release-runtime.test.mjs",
+      "sha256": "d643a370c6bb7233ebd5a7b70feff7706c0ae2036f461b791f474e1fb61e447f"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\lib\\dev122-openswx-owner-release.mjs",
+      "sha256": "89ba93df90077d64108a82abefc8c2198b507a1f668b1db22d44e18741aadd27"
+    }
+  ],
+  "checks": {
+    "focused": {
+      "pass": 5,
+      "fail": 0,
+      "log": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-source-routing-r2/focused.log",
+        "sha256": "af8e2ba5116bf2a346920c07a5f74642553b415f0157ee23bf44b23f3b463462"
+      }
+    },
+    "requiredSix": "PASS",
+    "continuous": {
+      "pass": 242,
+      "fail": 0,
+      "log": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-source-routing-r2/continuous.log",
+        "sha256": "2561ef0f49159a7d53fa0465f87d93cbbbb71f603a2d7440b7c4bb0a0a49a0cc"
+      }
+    },
+    "aggregate": {
+      "pass": 281,
+      "fail": 0,
+      "log": {
+        "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-source-routing-r2/aggregate.log",
+        "sha256": "f0fb4654611ec4df330722489c66197fc8cffea34957adf7671fe9295474c487"
+      },
+      "report": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\dev-117\\s1b\\DEV117-S1B-20261010T131742308Z-0D3C588A\\owner-report.json",
+        "sha256": "ab5214bbbfaa67cfddd0a2986bd98e1f7d2334b432da0f8c68720ec9ed0698fd"
+      },
+      "result": {
+        "schemaVersion": "jenfu.dev117.s1b-owner-report.v2",
+        "runId": "DEV117-S1B-20261010T131742308Z-0D3C588A",
+        "ownerApplicationId": "ai-pdm",
+        "caseId": "S1B-20",
+        "result": "PASS",
+        "sourceFiles": [
+          ".ai-doc/dev_task.md",
+          ".ai-doc/documentation_map.md",
+          ".ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md",
+          ".ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md",
+          ".gitattributes",
+          ".github/workflows/deploy-ai-pdm-independent-production.yml",
+          ".github/workflows/deploy-ai-pdm-principal-migrations-production.yml",
+          "AGENTS.md",
+          "config/platform/dev-010-n1c-ai-pdm.json",
+          "config/release/dev012-ai-pdm-production-data-cutover.json",
+          "config/release/dev015-gcc-aligned-new-applicability.json",
+          "config/release/dev015-gcc-pbds-applicability.json",
+          "config/release/dev117-ai-pdm-independent-production-v2.json",
+          "config/release/dev117-ai-pdm-independent-production-v3.json",
+          "config/release/dev117-production-release-infra-plan.json",
+          "config/release/dev122-openswx-worker.json",
+          "db/postgres/064_release_cancelled_drawing_number_claims.sql",
+          "infra/google-cloud/dev-117-production-release/.terraform.lock.hcl",
+          "infra/google-cloud/dev-117-production-release/README.md",
+          "infra/google-cloud/dev-117-production-release/artifact.tf",
+          "infra/google-cloud/dev-117-production-release/backend.production.hcl.example",
+          "infra/google-cloud/dev-117-production-release/candidate-smoke-v2.tf",
+          "infra/google-cloud/dev-117-production-release/candidate-smoke.tf",
+          "infra/google-cloud/dev-117-production-release/controller-secret.tf",
+          "infra/google-cloud/dev-117-production-release/identity.tf",
+          "infra/google-cloud/dev-117-production-release/incident.tf",
+          "infra/google-cloud/dev-117-production-release/locals.tf",
+          "infra/google-cloud/dev-117-production-release/migration-runner.Dockerfile",
+          "infra/google-cloud/dev-117-production-release/migration.tf",
+          "infra/google-cloud/dev-117-production-release/outputs.tf",
+          "infra/google-cloud/dev-117-production-release/principal-cutover-preview-cloudbuild.yaml",
+          "infra/google-cloud/dev-117-production-release/principal-cutover-preview.Dockerfile",
+          "infra/google-cloud/dev-117-production-release/principal-inventory-cloudbuild.yaml",
+          "infra/google-cloud/dev-117-production-release/principal-inventory.Dockerfile",
+          "infra/google-cloud/dev-117-production-release/principal-only-recovery-cloudbuild.yaml",
+          "infra/google-cloud/dev-117-production-release/principal-only-recovery.Dockerfile",
+          "infra/google-cloud/dev-117-production-release/role-catalog-publisher-cloudbuild.yaml",
+          "infra/google-cloud/dev-117-production-release/role-catalog-publisher.Dockerfile",
+          "infra/google-cloud/dev-117-production-release/service-bindings.tf",
+          "infra/google-cloud/dev-117-production-release/solidworks-document-manager-secret.tf",
+          "infra/google-cloud/dev-117-production-release/storage.tf",
+          "infra/google-cloud/dev-117-production-release/terraform.tfvars.example",
+          "infra/google-cloud/dev-117-production-release/variables.tf",
+          "infra/google-cloud/dev-117-production-release/versions.tf",
+          "infra/google-cloud/dev-117-production-release/workload-auth.tf",
+          "infra/google-cloud/dev-117-production-release/workload-identity.tf",
+          "infra/google-cloud/dev-122-openswx-worker/README.md",
+          "infra/google-cloud/dev-122-openswx-worker/backend.tf",
+          "infra/google-cloud/dev-122-openswx-worker/main.tf",
+          "infra/google-cloud/dev-122-openswx-worker/versions.tf",
+          "package.json",
+          "qa/dev-010/n1c/fixtures/ai-pdm-staging-v1.json",
+          "scripts/dev010-n1c-ai-pdm-package.mjs",
+          "scripts/dev010-n1c-ai-pdm-package.test.mjs",
+          "scripts/dev012-owner-release-runtime.test.mjs",
+          "scripts/dev012-owner-stage-executor.test.mjs",
+          "scripts/dev015-aligned-new-loader-inspection.cjs",
+          "scripts/dev015-aligned-new-loader-inspection.test.mjs",
+          "scripts/dev015-gcc-aligned-new-applicability.test.mjs",
+          "scripts/dev015-gcc-applicability.test.mjs",
+          "scripts/dev015-native-image-inventory.cjs",
+          "scripts/dev117-ai-pdm-continuous-release.mjs",
+          "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+          "scripts/dev117-ai-pdm-program-only-baseline.test.mjs",
+          "scripts/dev117-production-migration-runner.mjs",
+          "scripts/dev117-production-migration-runner.test.mjs",
+          "scripts/dev121-principal-candidate-smoke.test.mjs",
+          "scripts/dev121-principal-only-recovery-server.mjs",
+          "scripts/dev121-principal-only-recovery-server.test.mjs",
+          "scripts/dev121-principal-recovery-operator.mjs",
+          "scripts/dev121-principal-recovery-operator.test.mjs",
+          "scripts/dev122-openswx-bootstrap.mjs",
+          "scripts/dev122-openswx-bootstrap.test.mjs",
+          "scripts/dev122-openswx-owner-release.test.mjs",
+          "scripts/dev122-openswx-worker-artifact-reuse.test.mjs",
+          "scripts/lib/dev012-owner-release-runtime.mjs",
+          "scripts/lib/dev012-owner-stage-executor.mjs",
+          "scripts/lib/dev012-production-data-cutover.mjs",
+          "scripts/lib/dev012-production-migration-runner.mjs",
+          "scripts/lib/dev015-gcc-aligned-new-applicability.mjs",
+          "scripts/lib/dev015-gcc-applicability.mjs",
+          "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+          "scripts/lib/dev117-ai-pdm-program-only-baseline.mjs",
+          "scripts/lib/dev121-principal-candidate-smoke.mjs",
+          "scripts/lib/dev121-principal-only-release.mjs",
+          "scripts/lib/dev121-principal-only-release.test.mjs",
+          "scripts/lib/dev121-principal-recovery-operator.mjs",
+          "scripts/lib/dev121-principal-recovery-operator.test.mjs",
+          "scripts/lib/dev121-unlinked-profile-cleanup.mjs",
+          "scripts/lib/dev121-unlinked-profile-cleanup.test.mjs",
+          "scripts/lib/dev122-openswx-bootstrap.mjs",
+          "scripts/lib/dev122-openswx-owner-release.mjs",
+          "scripts/lib/dev122-openswx-worker-artifact-reuse.mjs",
+          "scripts/qc-dev-117-continuous-release.mjs",
+          "src/app/globals.css",
+          "src/app/login/page.tsx",
+          "src/lib/firebase-client-auth.ts",
+          "tools/dev-117/abort-controller/Dockerfile",
+          "tools/dev-117/abort-controller/package-lock.json",
+          "tools/dev-117/abort-controller/package.json",
+          "tools/dev-117/abort-controller/server.mjs",
+          "tools/dev-117/abort-controller/server.test.mjs"
+        ],
+        "sourceSnapshotAlgorithm": "sha256(file-null-sha256-bytes)",
+        "sourceSnapshotSha256": "11ffad7ce337269d6999b9a765ee800bab76d3531df814dbfd3fe8698e878074",
+        "contractSha256": "857f8a94ab13f63071156f85e76e5c675b348588b1126c147e0e54b431b6e8c5",
+        "contractVersion": "CONTINUOUS_NO_DWELL_V3_DIRECT_RUN_APP",
+        "evidenceScope": "LOCAL_CONTRACT",
+        "releaseAuthority": false,
+        "ownerExitCommands": [
+          {
+            "command": "npm run test:dev-117:continuous",
+            "result": "PASS"
+          },
+          {
+            "command": "npm run qc:dev-117:continuous",
+            "result": "SELF"
+          },
+          {
+            "command": "npm run test:dev-117:abort",
+            "result": "PASS"
+          },
+          {
+            "command": "npm run check:db-boundary",
+            "result": "PASS"
+          },
+          {
+            "command": "npm run typecheck:app",
+            "result": "PASS"
+          },
+          {
+            "command": "npm run build:isolated",
+            "result": "PASS"
+          }
+        ],
+        "providerMutationSummary": {
+          "cloud": 0,
+          "database": 0,
+          "traffic": 0,
+          "credentials": 0,
+          "sibling": 0
+        },
+        "cleanup": {
+          "runtime": 0,
+          "ports": 0,
+          "containers": 0,
+          "temporaryFiles": 0
+        },
+        "createdAt": "2026-10-10T13:17:42.352Z",
+        "evidenceSha256": "beb70a6a7c9b13ba5456267eff0e5a766cfacb5ce6b97ab1692915d980c1af55"
+      }
+    },
+    "final": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-source-routing-r2/required-final.json",
+      "sha256": "193cb233d816b6d1a46782e2eb7df8fc3bc1f2d4daee9c64aa592903882ba6ce"
+    },
+    "capacityRelease": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-source-routing-r2/capacity-release.json",
+      "sha256": "35093400b21f994e97de1f9e2125230202984104abb9609fbfa321386590f7a7"
+    }
+  },
+  "independentQc": {
+    "actor": "/root/dev122_program_only_runtime_qc_luna",
+    "model": "gpt-6-luna",
+    "result": "PASS",
+    "p0": 0,
+    "p1": 0,
+    "scope": "SOURCE_AND_MODELED_FETCH_ACTUAL_HELPER_TO_TRANSPORT_CHAIN",
+    "realWifCapability": "NOT_RUN"
+  },
+  "providerIamApply": "NOT_RUN",
+  "newSourceCi": "NOT_RUN",
+  "productionRelease": "NOT_RUN",
+  "userNativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+  "supplier": "DISABLED_DEFERRED",
+  "priorFailureCapsule": "DEV122-PROGRAM-20261010-B35_DO_NOT_REDISPATCH"
+}

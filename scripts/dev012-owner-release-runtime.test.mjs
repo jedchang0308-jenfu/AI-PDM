@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAiPdmBuildReadbackTransport, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
+import { assertNumericSecret } from './lib/dev122-openswx-owner-release.mjs'
 
 const H40 = 'a'.repeat(40)
 const H64 = 'b'.repeat(64)
@@ -919,14 +920,19 @@ test('B35 exact Secret version metadata GETs use the verifier with redirects dis
   } })
   for (const secret of ['aipdm-prod-openswx-reader-token', 'aipdm-prod-workload-auth-credentials']) {
     for (const [version, options] of [['1', {}], ['123', { method: 'GET', redirect: 'follow', headers: { accept: 'application/json' } }]]) {
-      const url = `https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/${secret}/versions/${version}`
-      assert.deepEqual(await transport.request(url, options), { state: 'ENABLED' })
-      assert.equal(calls.at(-1).url, url)
-      assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${verifier}`)
-      assert.equal(calls.at(-1).options.redirect, 'error')
+      const requestedName = `projects/jenfu-platform-prod/secrets/${secret}/versions/${version}`
+      const canonicalName = assertNumericSecret(requestedName, secret)
+      assert.equal(canonicalName, `projects/9536592944/secrets/${secret}/versions/${version}`)
+      for (const name of [requestedName, canonicalName]) {
+        const url = `https://secretmanager.googleapis.com/v1/${name}`
+        assert.deepEqual(await transport.request(url, options), { state: 'ENABLED' })
+        assert.equal(calls.at(-1).url, url)
+        assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${verifier}`)
+        assert.equal(calls.at(-1).options.redirect, 'error')
+      }
     }
   }
-  assert.equal(calls.length, 4)
+  assert.equal(calls.length, 8)
 })
 
 test('B35 invalid Secret requests and caller Authorization overrides fail before fetch', () => {
@@ -936,7 +942,7 @@ test('B35 invalid Secret requests and caller Authorization overrides fail before
   for (const [changed, options] of [
     [url.replace('/1', '/latest'), {}], [url.replace('/1', '/0'), {}], [url.replace('/1', '/01'), {}],
     [url + '?alt=json', {}], [url + '#fragment', {}], [url + ':access', {}], [url + '/', {}],
-    [url.replace('jenfu-platform-prod', 'other-project'), {}], [url.replace('jenfu-platform-prod', '9536592944'), {}],
+    [url.replace('jenfu-platform-prod', 'other-project'), {}], [url.replace('jenfu-platform-prod', '9536592945'), {}],
     [url.replace('aipdm-prod-openswx-reader-token', 'own'), {}], [url.replace('https:', 'http:'), {}],
     [url.replace('https://', 'https://user@'), {}], [url.replace('.com/', '.com:443/'), {}], [new URL(url), {}],
     [url, { method: 'POST' }], [url, { method: 'PATCH' }], [url, { method: 'DELETE' }], [url, { method: 'HEAD' }],
