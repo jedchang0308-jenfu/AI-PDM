@@ -45,7 +45,7 @@ describe("DEV-121 exact typed principal admission", () => {
       .rejects.toMatchObject({ code: "principal_ambiguous" });
     await expect(reader([{ ...row, account_type: null }]).requireActiveTypedPrincipal(row.principal_issuer, row.principal_subject))
       .rejects.toMatchObject({ code: "auth_contract_mismatch" });
-    await expect(reader([{ ...row, employee_status: "offboarded" }]).requireActiveTypedPrincipal(row.principal_issuer, row.principal_subject))
+    await expect(reader([{ ...row, employee_status: "inactive" }]).requireActiveTypedPrincipal(row.principal_issuer, row.principal_subject))
       .rejects.toMatchObject({ code: "auth_contract_mismatch" });
     await expect(reader([{ ...row, principal_id: " principal-one " }]).requireActiveTypedPrincipal(row.principal_issuer, row.principal_subject))
       .rejects.toMatchObject({ code: "auth_contract_mismatch" });

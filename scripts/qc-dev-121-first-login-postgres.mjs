@@ -355,10 +355,28 @@ try {
     return state.rows[0]
   })
 
+  await check('inactive Employee absent from active Principal contract cannot be provisioned despite a valid grant', async () => {
+    const input = fixture('inactive-employee-absent')
+    await addGrant(input, { assignmentId: 'assignment-inactive-employee-absent' })
+    const readProductCounts = async () => {
+      const result = await admin.query(`SELECT
+        (SELECT count(*)::integer FROM ai_pdm_core.users) profiles,
+        (SELECT count(*)::integer FROM ai_pdm_core.principal_accounts) accounts,
+        (SELECT count(*)::integer FROM ai_pdm_core.principal_identity_operations) operations,
+        (SELECT count(*)::integer FROM ai_pdm_core.principal_identity_cutovers) cutovers`)
+      return result.rows[0]
+    }
+    const before = await readProductCounts()
+    await assert.rejects(ensure(admin, input), (error) => error?.code === '23514' &&
+      /AIPDM_FIRST_LOGIN_IDENTITY_CONFLICT/u.test(error.message))
+    const after = await readProductCounts()
+    assert.deepEqual(after, before)
+    return { before, after }
+  })
   await check('inactive identity, expired grant and identity mismatch create no account', async () => {
-    const inactive = fixture('offboarded')
-    await addIdentity(inactive, 'offboarded')
-    await addGrant(inactive, { assignmentId: 'assignment-offboarded' })
+    const inactive = fixture('inactive-employee-row')
+    await addIdentity(inactive, 'inactive')
+    await addGrant(inactive, { assignmentId: 'assignment-inactive-employee-row' })
     await assert.rejects(ensure(admin, inactive), /AIPDM_FIRST_LOGIN_IDENTITY_CONFLICT/u)
     const expired = fixture('expired-grant')
     await addIdentity(expired)
