@@ -1,6 +1,18 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B35 原生 etag 修正 LOCAL_QC_PASS；NOT_APPLIED／NOT_DEPLOYED）
+## DEV-122 CURRENT（B35 限定 IAM APPLIED；發布前中止接續修正中；NOT_DEPLOYED）
+
+PR [#262](https://github.com/jedchang0308-jenfu/AI-PDM/pull/262) 正常合併至 66911937e2a17c7348bdcefbec84f3a4b987a949，PR／main required CI SUCCESS。已核准的 1 個 metadata-only role＋4 個 Secret-level bindings 已實際 APPLIED，完整 provider readback PASS；没有新 payload access。Protected owner [38063373523](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38063373523) prepare／build SUCCESS，migrate 在提交 Job 前因既有 runner image 與封存基線不同而停止。R4 FINALIZED／PRE_ACTIVATION_ABORTED、NOT_APPLIED／currentDatabaseReadPerformed=false；native PG17 NOT_RUN，candidate／traffic SKIPPED。不得重播 terminal capsule 或 saved apply binary。
+
+同一 AI-PDM 正式發布 corrective cycle 已僅還原既有 migration Job 的 image 至已驗 B33 runner；generation21→22，其餘 writable fields／50 筆執行紀錄／Job IAM／service／control／worker／metadata IAM 保持。單次 PATCH 後 guard GET 連線中斷，原始 UNKNOWN 保留；專用 readonly recovery 驗 sealed request／plan／全部 guards，RESTORED_READBACK_ONLY／cleanup PASS，沒有第二次 PATCH、Job run、SQL、IAM、service／traffic／worker 寫入。
+
+最新窄 source 契約為 Architecture Finalized／TL PASS：只對已建置但尚未提交 DB 工作的 program-only 中止加入同 kind PROGRAM_ONLY_ABORT 接續。須 authentic build_only／FULL34／effective33、所有 migrate/native/submission/provider/downstream 收據 positive MISSING、兩次完整相同 inventory／零 matching／所有舊 execution 嚴格早於 sourceLock 下界、direct genuine RELEASED33 prefix／runner joins、舊 service 100%／零 tags與完整 control。NOT_APPLIED／false 照實，不冒稱當前 DB 已驗；UNKNOWN 或部分執行拒絕，新 capsule仍須 fresh native PG17 readonly33。已完成唯讀的既有 branch 保留。
+
+Root 於同 repo worktree 為唯一產品 writer；窄 source 獨立 QC P0=0／P1=0，focused9／continuous250／aggregate300／abort6／DB21／typecheck／isolated build PASS，artifact／primary invariant／cleanup 已核對。R1 focused8/9 的唯一 fixture 未來時間錯誤保留，產品 future guard 保留；新增 true producer→prepare/replay 接線測試3/3 PASS及獨立 Luna增量QC P0=0／P1=0；LOCAL_TEST consumer seam明訂CUTOVER_OMITTED，不冒稱R78或正式prepare全鏈驗證，原profile及production CLI guards保持。Consumer R1缺mode、R2缺無關cutover圖的0/3失敗保留，兩者僅修fixture／限定測試範圍；未新合併或發布。084 禁止執行、不清理正式資料；supplier DISABLED_DEFERRED，完整原生 CAD 正式驗證由使用者執行，Whole DEV NOT_ACCEPTED／7 issues／29 groups不變。
+
+[恢復與接續契約 checkpoint](../qa/DEV-122-B35-preexecution-recovery-checkpoint-2026-10-11.json)。
+
+## DEV-122 HISTORY_ONLY（B35 原生 etag 修正 LOCAL_QC_PASS；NOT_APPLIED／NOT_DEPLOYED）
 
 PR [#260](https://github.com/jedchang0308-jenfu/AI-PDM/pull/260) 已合併至 af72165c962c0eaa609929df8291a48ffa7cc494；PR CI38058554315／main CI38059082047 required checks SUCCESS。B35-R2 在歷史來源 admission 失敗；R3 修正 admission 後 native Terraform init／validate／plan／show 成功，但新 gate 拒絕兩筆 etag-only resource_drift。原生計畫為舊7 no-op／新5 create，沒有 apply；失敗與診斷原始證據保留，task-owned runtime／temp／lease 已釋放。
 

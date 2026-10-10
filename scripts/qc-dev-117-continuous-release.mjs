@@ -51,6 +51,7 @@ const files = [
   'qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json',
   'scripts/lib/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.test.mjs',
   'infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf', '.ai-doc/qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json',
+  'scripts/lib/dev121-preactivation-abort-continuation.mjs',
   'scripts/lib/dev117-ai-pdm-program-only-baseline.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs',
   'scripts/lib/dev122-openswx-worker-artifact-reuse.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
   'config/release/dev122-openswx-worker.json', 'scripts/lib/dev122-openswx-owner-release.mjs', 'scripts/dev122-openswx-owner-release.test.mjs',
