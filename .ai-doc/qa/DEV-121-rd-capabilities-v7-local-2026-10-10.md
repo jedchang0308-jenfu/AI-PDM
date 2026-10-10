@@ -22,6 +22,8 @@
 
 所有PG cluster及port（最終54726）已停止/釋放，task temp已清除；隔離build自有runtime temp已移除，Root在交付前移除本輪dependency junction並讀回自有程序退出，不動其他人的runtime。Primary DB未作seed/cleanup。
 
+已提交來源的真實 Git archive source-proof補驗152/152 PASS；受影響 TypeScript ESLint PASS。新RD policy regression已接入既有Production Slice QC，官方CI結果仍待讀回，不能以本地PASS代替。
+
 ## 正式與剩餘阻擋
 
 本次v7 migration、Production部署與切流：NOT_RUN。兩fixture本次v7圖號／edit／submit／approval-negative驗證：NOT_RUN；先前使用者回報login/reload/logout只屬HUMAN_REPORTED結果，不能證明本次能力。本人驗證：UNVERIFIED。
