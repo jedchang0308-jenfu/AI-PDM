@@ -1250,12 +1250,12 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
 
   // Source/build evidence is observation only. Optional builder authentication
   // is isolated to the proof reader's exact Build/Registry GETs; request stays primary.
-  async function readOwnerSourceProof({ profile, sourceRevision, refs, verifyProvider = false }) {
+  async function readOwnerSourceProof({ profile, sourceRevision, refs, verifyProvider = false, readSource = null }) {
     if (profile.application.id !== 'ai-pdm' || profile.artifact.releaseBucket !== 'jenfu-platform-prod-aipdm-release'
       || profile.target.projectId !== 'jenfu-platform-prod' || profile.target.region !== 'asia-east1'
       || profile.target.serviceName !== 'ai-pdm-prod') fail('OWNER_SOURCE_PROOF_TARGET_INVALID')
     return runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
-      const proof = await readAiPdmReleaseObservation({ sourceRevision, refs, token, fetchImpl })
+      const proof = await readAiPdmReleaseObservation({ sourceRevision, refs, token, fetchImpl, readSource, readOwnerSourceProof })
       const builderReadback = builderReadbackToken === null ? null : {
         token: builderReadbackToken, actor: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
         ownerApplicationId: profile.application.id, projectId: profile.target.projectId, region: profile.target.region, sourceRevision,

@@ -173,7 +173,7 @@ export function admitAiPdmEvidenceSource({ bytes, ref }) {
   return value.sourceRevision
 }
 /** Fixed same-checkout reader: admissions come only from sealed source locks. */
-function programOnlyProofSourceReader(internalReadSource = null) {
+function programOnlyProofSourceReader(internalReadSource = null, historicalReadbackPaths = []) {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
   const run = args => {
     const state = evidenceState(activeEvidence())
@@ -187,7 +187,7 @@ function programOnlyProofSourceReader(internalReadSource = null) {
   let repositoryVerified = false
   const reader = (name, revision) => {
     const state = evidenceState(activeEvidence())
-    if (!H40.test(revision ?? '') || !state.root.sourceAdmissions.has(revision) || typeof name !== 'string'
+    if (!H40.test(revision ?? '') || (!state.root.sourceAdmissions.has(revision) && !historicalReadbackPaths.includes(name)) || typeof name !== 'string'
       || !/^[A-Za-z0-9._/-]+$/u.test(name) || name.split('/').some(part => !part || part === '.' || part === '..')) fail('PROGRAM_ONLY_GIT_SOURCE_INVALID')
     if (internalReadSource === null && !repositoryVerified) {
       if (path.resolve(run(['rev-parse', '--show-toplevel']).toString('utf8').trim()).toLowerCase() !== repositoryRoot.toLowerCase()) fail('PROGRAM_ONLY_GIT_REPOSITORY_INVALID')
@@ -719,7 +719,7 @@ async function observeArchiveContent({ source, revision, bundle, token, fetchImp
       crc32c: source.crc32c, sha256: sha256(bytes) } }
   })
 }
-async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl, preMigration = false, readSource = null }) {
+async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl, preMigration = false, readSource = null, readOwnerSourceProof: observeOwnerSource = null }) {
   const config = OWNERS['ai-pdm']
   const { releaseId, root } = assertOwnerReleaseRefSet('ai-pdm', refs, preMigration ? 'pre_migration' : 'post_migration')
   const intentRef = { uri: `gs://${AI_BUCKET}/receipts/releases/${releaseId}/release-intent.json`, sha256: root.split('/').at(-1) }
@@ -822,7 +822,7 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
           const preparePrior = await readFixedJson(`${priorRoot}/prepare.json`, AI_BUCKET, token, fetchImpl)
           const migratePrior = await readFixedJson(`${priorRoot}/migrate.json`, AI_BUCKET, token, fetchImpl)
           const terminalPrior = await readFixedJson(`${priorRoot}/terminal.json`, AI_BUCKET, token, fetchImpl)
-          return readObservedCapsuleGraph({ sourceRevision: priorIntent.sourceRevision, refs: { prepare: preparePrior.ref, migrate: migratePrior.ref, terminal: terminalPrior.ref }, token, fetchImpl, readSource })
+          return readObservedCapsuleGraph({ sourceRevision: priorIntent.sourceRevision, refs: { prepare: preparePrior.ref, migrate: migratePrior.ref, terminal: terminalPrior.ref }, token, fetchImpl, readSource, readOwnerSourceProof: observeOwnerSource })
         })
         if (!historical.terminal) fail('REPAIR_HISTORY_NOT_RELEASED')
         for (const [key, actual] of Object.entries({ capsuleRef: historical.intentRef, canonicalRef: historical.chain.canonical.ref, finalizeRef: historical.chain.finalize.ref, terminalRef: historical.terminal.ref, runtimeConfigRef: historical.intent.runtimeConfigRef, workerDescriptorRef: historical.intent.openswxWorkerRef,
@@ -889,9 +889,15 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         if (!bundle.bytes.equals(bundles.effective.bytes)) fail('PROGRAM_ONLY_BUNDLE_INVALID')
         sameProof(chain.build.value.facts.programOnlyBaseline, intent.programOnlyBaseline)
         sameProof(chain.build.value.facts.sourceMigrationBundleRef, sourceBundle.ref)
-        const assertProgramEvidenceRead = (ref, bucket, prefixes) => {
-          assertAiReleaseRef(ref)
+        const assertProgramEvidenceRead = (ref, bucket, prefixes, raw = false) => {
           if (bucket !== AI_BUCKET || !Array.isArray(prefixes)) fail('PROGRAM_ONLY_REF_INVALID')
+          if (raw && typeof ref?.uri === 'string' && ref.uri.endsWith('-plan.tfplan')) {
+            assertRef(ref, AI_BUCKET)
+            const prefix = 'receipts/dev-122/openswx-worker'
+            const parsed = parseGsUri(ref.uri, AI_BUCKET, prefix)
+            if (canonicalize(prefixes) !== canonicalize([prefix]) ||
+                !/^[A-Za-z0-9._-]+-plan\.tfplan$/u.test(parsed.object.slice(`${prefix}/`.length))) fail('PROGRAM_ONLY_REF_INVALID')
+          } else assertAiReleaseRef(ref)
           // These are the existing resolver's fixed read scopes, not caller input.
           // A historical capacity receipt lives in own receipts, so that exact
           // two-prefix tuple uses the same own-receipts boundary as readRef.
@@ -900,22 +906,67 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
           if (prefixes.length !== 1 || !['receipts', 'receipts/releases', 'receipts/dev-122/openswx-worker'].includes(prefixes[0])
             || !ref.uri.startsWith(`gs://${AI_BUCKET}/${prefixes[0]}/`)) fail('PROGRAM_ONLY_REF_INVALID')
         }
+        // Only pure recorded-resource guards are retained from the owner runtime.
+        // No general request, live provider read or mutation method reaches this adapter.
+        const { createOwnerTransport } = await import('./dev012-owner-release-runtime.mjs')
+        const guards = createOwnerTransport({ token, builderReadbackToken: null,
+          fetchImpl: async () => { fail('PROGRAM_ONLY_TRANSPORT_NETWORK_DENIED') } })
         const transport = {
           readJson: (ref, bucket, prefixes) => {
             assertProgramEvidenceRead(ref, bucket, prefixes)
             return readRef(ref, AI_BUCKET, token, fetchImpl)
           },
-          readBytes: async (uri, { expectedSha256, prefixes }) => {
-            if (!prefixes.every(prefix => uri.startsWith(`gs://${AI_BUCKET}/${prefix}/`))) fail('PROGRAM_ONLY_REF_INVALID')
-            const selected = await readObservationBundle({ ref: { uri, sha256: expectedSha256 }, revision: sourceRevision, token, fetchImpl })
-            return { bytes: selected.bytes, ref: selected.ref }
+          readBytes: async (uri, { expectedSha256 = null, expectedGeneration = null, prefixes } = {}) => {
+            if (!Array.isArray(prefixes) || (expectedSha256 !== null && !H64.test(expectedSha256))) fail('PROGRAM_ONLY_REF_INVALID')
+            if (canonicalize(prefixes) === canonicalize(['source/migration-bundles'])) {
+              if (expectedGeneration !== null) fail('PROGRAM_ONLY_REF_INVALID')
+              const selected = await readObservationBundle({ ref: { uri, sha256: expectedSha256 }, revision: sourceRevision, token, fetchImpl })
+              return { bytes: selected.bytes, ref: selected.ref }
+            }
+            assertProgramEvidenceRead({ uri, sha256: expectedSha256 ?? '0'.repeat(64) }, AI_BUCKET, prefixes, true)
+            parseGsUri(uri, AI_BUCKET, 'receipts')
+            // Named receipts and historical binary tfplans both need raw bytes.
+            // Authenticate provider metadata before deriving an unpinned hash.
+            const object = await readGcsObject({ uri, expectedBucket: AI_BUCKET, expectedPrefix: 'receipts',
+              expectedGeneration, token, fetchImpl: scopeFetch(fetchImpl) })
+            activeEvidence()
+            const ref = { uri, sha256: expectedSha256 ?? sha256(object.bytes) }
+            const bytes = await readAiPdmEvidenceLeaf({ ref, read: async () => object.bytes })
+            rememberReceiptMetadata(ref, object)
+            return { bytes, ref, metadata: { generation: object.generation, crc32c: object.crc32c } }
           },
+          readOwnerSourceProof: async args => {
+            const nestedProfile = args?.profile
+            if (!exactKeys(args, ['profile', 'sourceRevision', 'refs', 'verifyProvider']) || args.verifyProvider !== true || !H40.test(args.sourceRevision ?? '')
+              || nestedProfile?.application?.id !== 'ai-pdm' || nestedProfile.artifact?.releaseBucket !== AI_BUCKET
+              || nestedProfile.target?.projectId !== PROJECT_ID || nestedProfile.target?.region !== 'asia-east1'
+              || nestedProfile.target?.serviceName !== 'ai-pdm-prod') fail('PROGRAM_ONLY_SOURCE_PROOF_INVALID')
+            activeEvidence()
+            if (observeOwnerSource !== null) {
+              const observed = await observeOwnerSource({ ...args, readSource })
+              activeEvidence()
+              return observed
+            }
+            const proof = await readAiPdmReleaseObservation({ sourceRevision: args.sourceRevision, refs: args.refs, token, fetchImpl, readSource })
+            const provider = await verifyOwnerProviderReadback({ proof, token, fetchImpl, builderReadback: null })
+            activeEvidence()
+            return { proof, provider }
+          },
+          now: () => { activeEvidence(); return new Date().toISOString() },
+          assertServiceSettled: guards.assertServiceSettled,
+          assertCanonicalEntrypoint: guards.assertCanonicalEntrypoint,
+          effectiveRevision: guards.effectiveRevision,
+          assertRevisionReady: guards.assertRevisionReady,
         }
         if (migrate) programMigration = await readProgramOnlyAssociation({ transport, profile, intent, intentRef,
           deployment: deployment.value, deploymentRef: deployment.ref, receipt: migrate, associationUri: `${root}/migrate.json` })
         const worker = await import('./dev122-openswx-owner-release.mjs')
         const reuse = await import('./dev122-openswx-worker-artifact-reuse.mjs')
-        const sourceReader = programOnlyProofSourceReader(readSource)
+        const { READBACK_IAM_PATHS } = await import('./dev122-openswx-readback-iam.mjs')
+        // Match the existing worker Git reader's five-file historical readback
+        // closure. This never admits that revision for other source/blob reads;
+        // the IAM reader still authenticates plan, profile and build joins.
+        const sourceReader = programOnlyProofSourceReader(readSource, [...READBACK_IAM_PATHS, worker.WORKER_PROFILE_PATH])
         const workerRow = await readRef(intent.openswxWorkerRef, AI_BUCKET, token, fetchImpl)
         const workerProfile = JSON.parse(sourceReader(worker.WORKER_PROFILE_PATH, sourceRevision))
         const retained = await worker.readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile,
@@ -964,7 +1015,8 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
   })
 }
 /** Fixed AI-PDM readonly source observation; generic v1 proof stays isolated. */
-export async function readAiPdmReleaseObservation({ sourceRevision, refs, token, fetchImpl = fetch, readSource = null }) {
+export async function readAiPdmReleaseObservation({ sourceRevision, refs, token, fetchImpl = fetch, readSource = null, readOwnerSourceProof: observeOwnerSource = null }) {
+  if (observeOwnerSource !== null && typeof observeOwnerSource !== 'function') fail('PROGRAM_ONLY_SOURCE_PROOF_INVALID')
   const handle = createAiPdmEvidenceContext()
   return runAiPdmEvidenceContext(handle, async () => {
     const preMigration = refs?.migrate === null && refs?.terminal === null
@@ -995,11 +1047,11 @@ export async function readAiPdmReleaseObservation({ sourceRevision, refs, token,
       // Preserve that sealed v1 shape; exact migration bytes and private metadata stay verified.
       if (Object.hasOwn(proof, 'migrate')) proof.migrate = { ...proof.migrate, generation: null, crc32c: null }
       authenticatedObservations.set(proof, { root: evidenceState(handle).root, proofSha256: sha256(canonicalize(proof)), sourceAuthentication: authentication,
-        input: { sourceRevision, refs: structuredClone(refs), token, fetchImpl, preMigration, readSource } })
+        input: { sourceRevision, refs: structuredClone(refs), token, fetchImpl, preMigration, readSource, readOwnerSourceProof: observeOwnerSource } })
       activeEvidence()
       return proof
     }
-    const graph = await readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl, preMigration, readSource })
+    const graph = await readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl, preMigration, readSource, readOwnerSourceProof: observeOwnerSource })
     const historicalMigrationReuse = graph.migrationMode === 'HISTORICAL_EVIDENCE_REUSED'
     const object = row => ({ ref: row.ref.uri, sha256: row.ref.sha256, generation: row.generation, crc32c: row.crc32c })
     const proof = { owner: 'ai-pdm', sourceRevision, releaseId: graph.intent.releaseId,
@@ -1014,7 +1066,7 @@ export async function readAiPdmReleaseObservation({ sourceRevision, refs, token,
       ...(graph.programMigration ? { databaseDisposition: PROGRAM_ONLY_DISPOSITION, currentDatabaseReadPerformed: true, migrationVerified: true, migrationEvidenceRef: graph.migrate.ref } : {}),
       ...(historicalMigrationReuse ? { releaseAuthority: false, migrationVerified: false, currentDatabaseReadPerformed: false, databaseLiveState: 'UNKNOWN', evidenceScope: 'MIGRATION_INPUT_EQUIVALENT_NO_EXECUTION', databaseDisposition: 'HISTORICAL_EVIDENCE_REUSED', migrationEvidenceRef: graph.migrate.ref } : {}) }
     authenticatedObservations.set(proof, { root: evidenceState(handle).root, proofSha256: sha256(canonicalize(proof)), sourceAuthentication: graph.sourceAuthentication,
-      input: { sourceRevision, refs: structuredClone(refs), token, fetchImpl, preMigration, readSource } })
+      input: { sourceRevision, refs: structuredClone(refs), token, fetchImpl, preMigration, readSource, readOwnerSourceProof: observeOwnerSource } })
     activeEvidence()
     return proof
   })
