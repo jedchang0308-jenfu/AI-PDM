@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "jenfu.ai-pdm.dev121.first-login.layered-status.v1",
+  "devRef": "AIPDM/DEV-121#authorized-first-login",
+  "recordedAt": "2026-10-10T05:19:35.742Z",
+  "status": "IMPLEMENTATION_RELEASED_USER_VALIDATION_PENDING",
+  "rootCauses": [
+    "The old callback required an active local Principal account before effective OrgMaster grant validation and did not provision authorized first login.",
+    "Authoritative publication microseconds were truncated by JavaScript Date and failed exact source matching."
+  ],
+  "source": {
+    "validatedRevision": "6d30015f12137cb8de093c91dfcaef610d835601",
+    "deployedRevision": "e2e7aaa69d7ca3600203874e0a63d288ac8a1a51",
+    "reviewedWorkingBase": "b26dd83822163f8d33c3b5e06dc52adceb83111d",
+    "files": [
+      {
+        "path": "src/lib/jenfu-principal-handoff-session-service.ts",
+        "sha256": "4c56992860cbd1c68a2bf486651d19061e78db8527c4c6deb734108f57caafca",
+        "validatedToDeployedToCurrent": "BYTE_EQUIVALENT"
+      },
+      {
+        "path": "src/lib/jenfu-principal-account-repository.ts",
+        "sha256": "ff7c36fbb15ccda2a8cc71b21d8ec5f8aa55c4840936444b54e2b9d84e6c22fe",
+        "validatedToDeployedToCurrent": "BYTE_EQUIVALENT"
+      },
+      {
+        "path": "src/lib/jenfu-principal-admission-repository.ts",
+        "sha256": "42890472147f7513f9c660d28bda57281547f3632ca42fbbe1e927a864e28c64",
+        "validatedToDeployedToCurrent": "BYTE_EQUIVALENT"
+      },
+      {
+        "path": "src/lib/jenfu-principal-source-timestamp.ts",
+        "sha256": "0f6becc882aefdc1f6967e0f14a6a6225848cd3cf281f620b59e184f59c91a56",
+        "validatedToDeployedToCurrent": "BYTE_EQUIVALENT"
+      },
+      {
+        "path": "db/postgres/083_dev121_authorized_first_login_account.sql",
+        "sha256": "a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9",
+        "validatedToDeployedToCurrent": "BYTE_EQUIVALENT"
+      }
+    ]
+  },
+  "implementation": {
+    "identityAuthority": "orgmaster_contract.v_active_principal_accounts_v1",
+    "authorizationAuthority": "orgmaster_contract.v_ai_pdm_principal_effective_grants_v4",
+    "firstLogin": "In one serializable transaction, verify active typed identity, authEpoch/revocation and effective grants; atomically create missing own profile/account/link/receipt/cutover and register the session. Return login state after commit.",
+    "roleAssignmentsCopied": false,
+    "inactiveAccountAutomaticallyRestored": false,
+    "historicalEmailMatching": false,
+    "concurrency": "serializable transaction + Principal advisory lock + bounded retries",
+    "revocationRulesChanged": false
+  },
+  "local": {
+    "status": "PASS_ON_VALIDATED_SOURCE",
+    "evidence": [
+      "DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json",
+      "DEV-121-first-login-publication-precision-2026-10-08.json"
+    ],
+    "latestFocusedUnit": {
+      "files": 7,
+      "tests": 67
+    },
+    "additionalPrincipalAuthEpoch": {
+      "files": 2,
+      "tests": 11,
+      "countsAreNotSummed": true
+    },
+    "disposablePostgres": {
+      "groups": 8,
+      "productionWrites": false
+    },
+    "typecheck": "PASS",
+    "dbBoundary": "PASS",
+    "originalDenominatorRetained": "The original 73 tests/7 PostgreSQL groups and later 67+11 tests/8 groups are different snapshots, not additive totals."
+  },
+  "productionRelease": {
+    "status": "RELEASED",
+    "release": "DEV122-MATRIX-20261009-B33",
+    "sourceRevision": "e2e7aaa69d7ca3600203874e0a63d288ac8a1a51",
+    "migrationPackageIncludes083": true,
+    "nativeMigrationStatus": "PASS",
+    "migrationLedgerEntries": 33,
+    "servingRevision": "ai-pdm-prod-b96191914c5d",
+    "trafficPercent": 100,
+    "evidence": "DEV-122-B33-production-release-closure-2026-10-10.json",
+    "meaning": "Protected release/aggregate ledger and canonical provider readback; not proof of a fresh account creation or a specific employee login.",
+    "migrationAppliedThisRelease": 0,
+    "migrationReplayed": 33,
+    "ledgerEvidenceScope": "Aggregate package replay; not a per-row ledger export or a claim that B33 initially applied migration083."
+  },
+  "actualBrowserVerification": {
+    "fixtureGoogle": {
+      "alreadyAuthenticatedPlatformToNormalPdmEntry": "PASS",
+      "reload": "PASS",
+      "freshGoogleChallengeOrPostGlobalLogoutLogin": "UNVERIFIED",
+      "freshProvision": "NOT_TESTED"
+    },
+    "fixtureNumber": {
+      "currentRound": "PENDING"
+    },
+    "employeeSelfLogin": "UNVERIFIED",
+    "evidencePolicy": "Screenshots and account-specific evidence remain private; fixture names are generic aliases."
+  },
+  "cleanupBoundary": {
+    "publicContent": "Reusable generic code and synthetic evidence only.",
+    "productionEvidence": "PRIVATE_ONLY",
+    "dispositionAccepted": false,
+    "meaning": "No data-deletion or ownership claim is made by this first-login status."
+  },
+  "remaining": [
+    "Complete the second existing fixture normal browser SSO and reload.",
+    "Verify the affected employee actual post-release login independently.",
+    "Resolve the separately authorized historical-data disposition only within its data and ownership boundary."
+  ],
+  "notCompletion": "Implementation/local checks and protected deployment do not establish the full requested end state."
+}
