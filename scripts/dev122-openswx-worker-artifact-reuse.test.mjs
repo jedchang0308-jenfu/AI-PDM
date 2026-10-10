@@ -1474,3 +1474,66 @@ test('B35 actual Git reader admits only the four exact metadata source paths aft
     rmSync(temporary,{recursive:true,force:true})
   }
 })
+
+async function b35UnassociatedAbortFixture() {
+  const f = await b35ProgramAbortFixture()
+  for (const index of [0, 3, 4]) f.h.objects.delete(f.absentUris[index])
+  delete f.wire.execution.template.volumes; delete f.wire.execution.template.containers[0].volumeMounts
+  Object.assign(f.wire.job, { uid: '24968e73-b3be-46f8-8e7d-1ab8464e5297', generation: '22', updateTime: now })
+  const submissionRef = f.h.objects.get(f.absentUris[2]).ref
+  const sealStage = (name, value) => f.wire.put(releasePaths(appProfile, f.wire.capsule, f.wire.intentRef.sha256)[name], sealProgramOnlyEvidence(value))
+  const rollback = JSON.parse(f.h.objects.get(f.rollback.uri).bytes)
+  Object.assign(rollback.facts, { databaseDisposition: 'UNKNOWN', currentDatabaseReadPerformed: false, entrypointRecovery: { result: 'NOT_REQUIRED', changed: false }, migrationSubmissionIntentRef: submissionRef })
+  delete rollback.facts.migrationEvidenceRef; rollback.previousReceiptRef = null
+  f.rollback = sealStage('rollback', rollback)
+  const terminal = JSON.parse(f.h.objects.get(f.terminal.uri).bytes)
+  Object.assign(terminal.facts, rollback.facts); delete terminal.facts.migrationEvidenceRef; terminal.previousReceiptRef = f.rollback
+  f.terminal = sealStage('terminal', terminal)
+  const original = f.transport.request
+  f.transport.request = async (url, options = {}) => {
+    if (url === `https://run.googleapis.com/v2/${f.wire.job.name}`) { f.calls.push({ url, method: options.method ?? 'GET' }); return structuredClone(f.wire.job) }
+    if (url === `https://run.googleapis.com/v2/${f.wire.execution.name}`) { f.calls.push({ url, method: options.method ?? 'GET' }); return structuredClone(f.wire.execution) }
+    return original(url, options)
+  }
+  return f
+}
+
+test('P09 completed unassociated native read preserves UNKNOWN and admits only fresh GET evidence cold/warm/provider', async () => {
+  const f = await b35UnassociatedAbortFixture(), terminalBytes = Buffer.from(f.h.objects.get(f.terminal.uri).bytes)
+  const cold = await f.read(true), warm = await f.read(true); assert.deepEqual(cold, warm)
+  assert.equal(cold.authorityBasis.schemaVersion, 'aipdm.program-only-completed-unassociated-abort-basis.v1')
+  assert.equal(cold.authorityBasis.databaseDisposition, 'UNKNOWN'); assert.equal(cold.authorityBasis.currentDatabaseReadPerformed, false)
+  assert.equal(cold.authorityBasis.releaseAuthority, false); assert.equal(cold.authorityBasis.failedProof.disposition, 'build_only')
+  assert.equal(cold.authorityBasis.completedNative.resubmissionAllowed, false)
+  assert.ok(f.h.objects.get(f.terminal.uri).bytes.equals(terminalBytes))
+  for (const index of [0, 3, 4]) assert.ok(!f.h.objects.has(f.absentUris[index]))
+  assert.ok(f.calls.every(row => row.method === 'GET')); noMutation(f.h)
+})
+
+test('P09 Run provider clock admits native clock skew but rejects Job updates after Execution creation', async () => {
+  const f = await b35UnassociatedAbortFixture()
+  f.wire.job.updateTime = new Date(Date.parse(now) + 500).toISOString()
+  f.wire.execution.createTime = new Date(Date.parse(now) + 1000).toISOString()
+  f.wire.execution.completionTime = new Date(Date.parse(now) + 2000).toISOString()
+  const cold = await f.read(true), warm = await f.read(true); assert.deepEqual(cold, warm)
+  assert.equal(cold.authorityBasis.databaseDisposition, 'UNKNOWN')
+  f.wire.job.updateTime = new Date(Date.parse(f.wire.execution.createTime) + 1).toISOString()
+  await assert.rejects(f.read(true))
+  assert.ok(f.calls.every(row => row.method === 'GET')); noMutation(f.h)
+})
+
+test('P09 unassociated abort rejects missing/sealed children, native drift, extra execution and Job drift', async () => {
+  for (const kind of ['missing-native', 'missing-submission', 'association', 'execution-child', 'job-child', 'native-count', 'readonly-env', 'duplicate', 'active', 'job-volume', 'job-after']) {
+    const f = await b35UnassociatedAbortFixture()
+    if (kind === 'missing-native') f.h.objects.delete(f.absentUris[1])
+    if (kind === 'missing-submission') f.h.objects.delete(f.absentUris[2])
+    if (['association', 'execution-child', 'job-child'].includes(kind)) f.wire.put(f.absentUris[{ association: 0, 'execution-child': 3, 'job-child': 4 }[kind]], { status: 'UNEXPECTED' })
+    if (kind === 'native-count') { const value = JSON.parse(f.h.objects.get(f.absentUris[1]).bytes); value.ledgerCount = 34; f.wire.put(f.absentUris[1], sealProgramOnlyEvidence(value)) }
+    if (kind === 'readonly-env') f.wire.execution.template.containers[0].env.at(-1).value = '-c default_transaction_read_only=off'
+    if (kind === 'duplicate') f.inventory.push(structuredClone(f.wire.execution))
+    if (kind === 'active') f.wire.execution.runningCount = 1
+    if (kind === 'job-volume') delete f.wire.job.template.template.volumes
+    if (kind === 'job-after') f.wire.job.updateTime = '2026-10-08T00:00:00Z'
+    await assert.rejects(f.read(true), undefined, kind); assert.ok(f.calls.every(row => row.method === 'GET')); noMutation(f.h)
+  }
+})

@@ -1,6 +1,18 @@
 # AI_PDM 文件地圖
 
-## DEV-122 CURRENT（B35 限定 IAM APPLIED；R5 唯讀接線 LOCAL_QC_PASS；NOT_DEPLOYED）
+## DEV-122 CURRENT（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
+
+PR [#264](https://github.com/jedchang0308-jenfu/AI-PDM/pull/264) 已合併至 94173727eb8f963809e892b475874220d4072b7f，PR／main required CI 與 provider branch-protection readback PASS。R6 protected owner [38076494472](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38076494472) prepare／build SUCCESS；migrate 對 Cloud Run Execution 回傳省略的兩個 Cloud SQL mount 欄位誤判而停止，candidate／traffic SKIPPED。實際唯一 native execution 已完成只讀 PASS：applied0／replayed33／ledger33，沒有084；此 native 收據沒有 PostgreSQL 版本欄位。原 terminal 的 UNKNOWN／currentDatabaseReadPerformed=false 保持原樣，沒有 migrate association，不將後續觀察回填成原發布成功，也不重送 R6 capsule。Provider 回讀確認 B33 舊服務100%／零tag、worker generation17 READY與Scheduler ENABLED維持。
+
+R7 僅修三個 release libraries及三個定向測試：Execution 同時省略 volumes與volumeMounts時，必須由 exact static Job 補足；部分省略、null／空陣列／錯值仍拒絕。Migration read token只借給固定Job、exact Execution及有界inventory GET，拒絕後不fallback。新增封閉的completed-unassociated-abort唯讀接續，驗原封存UNKNOWN、唯一完成execution、兩次完整穩定inventory、同Run provider時間、retained service/control與普通RELEASED33 anchor；只允許最多一個authentic preexecution ancestor，不擴張發布或資料權限。
+
+Focused6／continuous259／aggregate、abort6／DB21／typecheck／isolated build PASS；artifact、primary invariant與native cleanup已核對。獨立Luna source QC P0=0／P1=0。實際R6→R4→B33 memory-only GET cold/warm／verifyProvider=true預檢1170 GET PASS／0writes，綁定clock修正前SHA，不能冒稱目前R7的provider驗證；R4負例只屬STATIC_GUARD_QC，inherited portable fixture與新kind producer→prepare端到端未建立。TL接受targeted QA，fresh exact official owner preflight仍必須，未使用合成證據代替。
+
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1。新normal PR／required main CI／fresh official source與R7 owner release尚pending；FULL34／effective33／fresh readonly33、NO084、worker READY／Scheduler ENABLED及既有回復機制保持。不新增IAM／Secret／cloud resource權限。Root唯一產品writer與cleanup owner；同repo既有worktree，canonical及其他任務不動。Whole DEV NOT_ACCEPTED／7 issues／29 groups；supplier DISABLED_DEFERRED，完整原生CAD正式驗證由使用者執行。
+
+[執行回讀修正 checkpoint](qa/DEV-122-B35-execution-recovery-checkpoint-2026-10-11.json)。
+
+## DEV-122 HISTORY_ONLY（B35 限定 IAM APPLIED；R5 唯讀接線 LOCAL_QC_PASS；NOT_DEPLOYED）
 
 PR [#263](https://github.com/jedchang0308-jenfu/AI-PDM/pull/263) 已正常合併為 bc7bf2a4b29b5758fbd866c7e143632c388ed579；PR CI38069358388／main CI38069771172 required checks SUCCESS，official-source／branch protection provider readback PASS。先前五項 metadata IAM APPLIED／provider readback PASS、既有 migration Job image generation22 還原 readback PASS 保持有效。新 R5 只執行 baseline GET，未 source-freeze／plan／apply／dispatch／build／Job run／SQL／candidate／traffic，runtime／temp cleanup PASS。
 

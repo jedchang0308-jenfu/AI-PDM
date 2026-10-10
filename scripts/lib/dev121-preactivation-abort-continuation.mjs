@@ -1,4 +1,4 @@
-import { assertProgramOnlyPolicy, assertProgramOnlyExecution, programOnlyNativeUri, readProgramOnlyReleaseWindow, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
+import { assertProgramOnlyPolicy, assertProgramOnlyExecution, assertProgramOnlyStaticJob, assertProgramOnlyNative, assertProgramOnlySubmission, readProgramOnlyBundles, programOnlyNativeUri, readProgramOnlyReleaseWindow, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { assertImmutableRef, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertPrincipalOnlyRecoveryBinding, assertRecoveryProofReadback } from './dev121-principal-only-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
@@ -109,6 +109,9 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
 /** One closed program-only abort, immediately anchored to a genuine released app. */
 async function readProgramOnlyAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider }) {
   assertProgramOnlyPolicy(intent.programOnlyBaseline, { profile, intent })
+  if (terminalFacts.databaseDisposition === 'UNKNOWN' && terminalFacts.currentDatabaseReadPerformed === false) {
+    return readProgramOnlyUnassociatedAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider })
+  }
   const preExecution = terminalFacts.databaseDisposition === 'NOT_APPLIED' && terminalFacts.currentDatabaseReadPerformed === false
   if (!preExecution && (terminalFacts.databaseDisposition !== PROGRAM_ONLY_DISPOSITION || terminalFacts.currentDatabaseReadPerformed !== true)) fail()
   const [prepare, migration, deployment, rollback, candidate, entry] = await Promise.all([
@@ -212,7 +215,7 @@ async function readProgramOnlyAbort({ profile, transport, baselineIntentRef, int
           || !['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(conditions[0].state) || Number(execution.runningCount ?? 0) !== 0) fail()
         names.add(execution.name); rows.push(execution)
         if (!preExecution && execution.name === binding.execution.value.name) {
-          assertProgramOnlyExecution(execution, { profile, deployment: deployment.value, outputUri: programOnlyNativeUri(paths.migrate), submission: binding.submission.value, window: releaseWindow })
+          assertProgramOnlyExecution(execution, { profile, deployment: deployment.value, outputUri: programOnlyNativeUri(paths.migrate), submission: binding.submission.value, window: releaseWindow, staticJob: binding.job.value })
           for (const key of ['name', 'createTime', 'completionTime', 'template', 'taskCount', 'parallelism']) if (!same(execution[key], binding.execution.value[key])) fail()
           matched += 1
         } else if (created >= releaseWindow.start || completed >= releaseWindow.start || (execution.startTime !== undefined && Date.parse(execution.startTime) >= releaseWindow.start)
@@ -263,6 +266,181 @@ async function readProgramOnlyAbort({ profile, transport, baselineIntentRef, int
       ...(preExecution ? { databaseDisposition: 'NOT_APPLIED', currentDatabaseReadPerformed: false, migrationJobSubmitted: false, releaseAuthority: false } : {}), failedIntentRef: baselineIntentRef, releasedIntentRef: intent.baselineIntentRef,
       failedProof: failed.proof, releasedProof: released.proof, stageRefs, controlSha256, ownerRunRef: control.ownerRunRef,
       previousRevision: intent.previousRevision, inputFingerprint: fingerprint, inventorySha256: sha256(canonicalize(before)) } }
+}
+
+/** A completed native read is observed without rewriting its aborted capsule. */
+async function readProgramOnlyUnassociatedAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider }) {
+  const bucket = profile.artifact.releaseBucket
+  const [prepare, deployment, rollback] = await Promise.all([read(paths.prepare), read(paths.deployment), read(paths.rollback)])
+  const prepareFacts = seal(prepare, 'prepare'), rollbackFacts = seal(rollback, 'rollback')
+  const prerequisiteRefs = Object.fromEntries(Object.entries({ sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }).map(([name, key]) => [name, intent[key]]))
+  if (prepare.value.previousReceiptRef !== null || prepareFacts.previousRevision !== intent.previousRevision
+    || !same(prepareFacts.prerequisiteRefs, prerequisiteRefs) || rollback.value.previousReceiptRef !== null
+    || !same(terminal.value.previousReceiptRef, rollback.ref)
+    || !same(rollbackFacts.recoveryOrder, ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'])) fail()
+  for (const facts of [terminalFacts, rollbackFacts]) {
+    if (facts.result !== 'PRE_ACTIVATION_ABORTED' || facts.databaseDisposition !== 'UNKNOWN' || facts.currentDatabaseReadPerformed !== false
+      || facts.previousRevision !== intent.previousRevision || Object.hasOwn(facts, 'migrationEvidenceRef')
+      || !same(facts.entrypointRecovery, { result: 'NOT_REQUIRED', changed: false })) fail()
+  }
+  assertProgramOnlyPolicy(intent.programOnlyBaseline, { profile, intent, deployment: deployment.value })
+  if (!same(deployment.value.releaseIntentRef, baselineIntentRef)) fail()
+  await assertAbsentStages(read, paths, ['migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize'])
+  const outputUri = programOnlyNativeUri(paths.migrate), submissionUri = migrationSubmissionIntentUri(profile, outputUri)
+  await assertMissing(read, outputUri.replace(/\.json$/u, '-execution-readback.json'))
+  await assertMissing(read, outputUri.replace(/\.json$/u, '-job-readback.json'))
+  const [native, submission] = await Promise.all([read(outputUri), read(submissionUri)])
+  if (!same(terminalFacts.migrationSubmissionIntentRef, submission.ref) || !same(rollbackFacts.migrationSubmissionIntentRef, submission.ref)) fail()
+  assertProgramOnlySubmission(submission.value, { profile, deployment: deployment.value, outputUri, deadlineAt: intent.deadlineAt })
+  const bundles = await readProgramOnlyBundles({ transport, profile, policy: intent.programOnlyBaseline })
+  const window = await readProgramOnlyReleaseWindow({ transport, profile, deployment: deployment.value, deadlineAt: intent.deadlineAt, intent })
+  const fingerprint = sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, releaseIntentSha256: baselineIntentRef.sha256 }))
+  const controlKeys = ['schemaVersion', 'inputFingerprint', 'ownerApplicationId', 'service', 'controlBucket', 'releaseId', 'sourceRevision', 'sourceLockSha256', 'candidateRevision', 'previousRevision', 'ownerRunRef', 'leaseExpiresAt', 'deadlineAt', 'state', 'result', 'controlSha256']
+  const { controlSha256, ...controlCore } = control
+  if (!same(Object.keys(control).sort(), controlKeys.sort()) || controlSha256 !== sha256(canonicalize(controlCore))
+    || control.schemaVersion !== 'jenfu.dev012.owner-control-head.v1' || control.ownerApplicationId !== profile.application.id
+    || control.service !== profile.target.serviceName || control.controlBucket !== bucket || control.releaseId !== intent.releaseId
+    || control.sourceRevision !== intent.sourceRevision || control.sourceLockSha256 !== intent.sourceLockRef.sha256
+    || control.inputFingerprint !== fingerprint || control.previousRevision !== intent.previousRevision || control.candidateRevision !== null
+    || control.state !== 'FINALIZED' || control.result !== 'PRE_ACTIVATION_ABORTED' || control.deadlineAt !== intent.deadlineAt
+    || !Number.isFinite(Date.parse(control.leaseExpiresAt)) || Date.parse(control.leaseExpiresAt) >= Date.now()) fail()
+  await readHistoricalOwnerRun(profile, transport, { ownerRunRef: control.ownerRunRef }, intent)
+  for (const row of [prepare, rollback, terminal]) {
+    const observed = Date.parse(row.value.observedAt)
+    if (!Number.isFinite(observed) || observed < window.start || observed > window.end) fail()
+  }
+  const failed = await transport.readOwnerSourceProof({ profile, sourceRevision: intent.sourceRevision, refs: { prepare: prepare.ref, migrate: null, terminal: null }, verifyProvider })
+  assertOrdinarySourceProof(failed.proof, intent, baselineIntentRef, 'build_only', profile)
+  if (failed.proof.releaseAuthority !== false || failed.proof.migrationVerified !== false
+    || Object.hasOwn(failed.proof, 'databaseDisposition') || Object.hasOwn(failed.proof, 'currentDatabaseReadPerformed')
+    || failed.proof.artifactDigest !== deployment.value.artifactDigest || (verifyProvider && failed.provider?.status !== 'BUILD_IMAGE_VERIFIED')) fail()
+  const graph = await readAiPdmObservationInputs(failed.proof)
+  if (graph.programMigration !== null || !same(graph.intentRef, baselineIntentRef) || !same(graph.chain.deployment.ref, deployment.ref)) fail()
+
+  let releasedIntentRef = intent.baselineIntentRef, ancestor = null
+  const inherited = prepareFacts.preActivationAbortBasis
+  if (inherited) {
+    const keys = ['schemaVersion', 'databaseDisposition', 'currentDatabaseReadPerformed', 'migrationJobSubmitted', 'releaseAuthority', 'failedIntentRef', 'releasedIntentRef', 'failedProof', 'releasedProof', 'stageRefs', 'controlSha256', 'ownerRunRef', 'previousRevision', 'inputFingerprint', 'inventorySha256']
+    if (!same(Object.keys(inherited).sort(), keys.sort()) || inherited.schemaVersion !== 'aipdm.program-only-preexecution-abort-basis.v1'
+      || inherited.databaseDisposition !== 'NOT_APPLIED' || inherited.currentDatabaseReadPerformed !== false
+      || inherited.migrationJobSubmitted !== false || inherited.releaseAuthority !== false || !same(inherited.failedIntentRef, intent.baselineIntentRef)
+      || inherited.previousRevision !== intent.previousRevision || !/^[a-f0-9]{64}$/u.test(inherited.controlSha256 ?? '')
+      || !/^[a-f0-9]{64}$/u.test(inherited.inventorySha256 ?? '')) fail()
+    const [authorization, readiness] = await Promise.all([transport.readJson(intent.authorizationPolicyRef, bucket, ['receipts']), transport.readJson(intent.readinessReceiptRef, bucket, ['receipts'])])
+    if (!same(authorization.value.preActivationAbortBasis, inherited) || !same(readiness.value.preActivationAbortBasis, inherited)) fail()
+    const child = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), inherited.failedIntentRef, true)
+    ancestor = await runAiPdmEvidenceContext(child, async () => {
+      const prior = await transport.readJson(inherited.failedIntentRef, bucket, ['receipts'])
+      const priorPaths = releasePaths(profile, prior.value, inherited.failedIntentRef.sha256)
+      const [p, d, r, t] = await Promise.all([read(priorPaths.prepare), read(priorPaths.deployment), read(priorPaths.rollback), read(priorPaths.terminal)])
+      const pFacts = sealOrdinaryStage(p, 'prepare', prior.value, profile), rFacts = sealOrdinaryStage(r, 'rollback', prior.value, profile), tFacts = sealOrdinaryStage(t, 'terminal', prior.value, profile)
+      assertProgramOnlyPolicy(prior.value.programOnlyBaseline, { profile, intent: prior.value, deployment: d.value })
+      const priorPrerequisites = Object.fromEntries(Object.entries({ sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }).map(([name, key]) => [name, prior.value[key]]))
+      if (pFacts.preActivationAbortBasis || p.value.previousReceiptRef !== null || pFacts.previousRevision !== intent.previousRevision
+        || !same(pFacts.prerequisiteRefs, priorPrerequisites) || !same(d.value.releaseIntentRef, inherited.failedIntentRef)
+        || r.value.previousReceiptRef !== null || !same(t.value.previousReceiptRef, r.ref)
+        || !same(rFacts.recoveryOrder, ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'])
+        || !same(inherited.stageRefs, { prepare: p.ref, deployment: d.ref, rollback: r.ref, terminal: t.ref })
+        || !same(inherited.releasedIntentRef, prior.value.baselineIntentRef)
+        || inherited.inputFingerprint !== sha256(canonicalize({ ownerApplicationId: profile.application.id, releaseId: prior.value.releaseId, sourceRevision: prior.value.sourceRevision, releaseIntentSha256: inherited.failedIntentRef.sha256 }))) fail()
+      for (const facts of [rFacts, tFacts]) {
+        if (facts.result !== 'PRE_ACTIVATION_ABORTED' || facts.databaseDisposition !== 'NOT_APPLIED' || facts.currentDatabaseReadPerformed !== false
+          || facts.previousRevision !== intent.previousRevision || Object.hasOwn(facts, 'migrationEvidenceRef') || Object.hasOwn(facts, 'migrationSubmissionIntentRef')
+          || !same(facts.entrypointRecovery, { result: 'NOT_REQUIRED', changed: false })) fail()
+      }
+      await assertAbsentStages(read, priorPaths, ['migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize'])
+      const priorOutput = programOnlyNativeUri(priorPaths.migrate)
+      for (const uri of [priorOutput, migrationSubmissionIntentUri(profile, priorOutput), priorOutput.replace(/\.json$/u, '-execution-readback.json'), priorOutput.replace(/\.json$/u, '-job-readback.json')]) await assertMissing(read, uri)
+      await readHistoricalOwnerRun(profile, transport, inherited, prior.value)
+      const observed = await transport.readOwnerSourceProof({ profile, sourceRevision: prior.value.sourceRevision, refs: { prepare: p.ref, migrate: null, terminal: null }, verifyProvider })
+      if (!same(observed.proof, inherited.failedProof) || (verifyProvider && observed.provider?.status !== 'BUILD_IMAGE_VERIFIED')) fail()
+      const priorGraph = await readAiPdmObservationInputs(observed.proof)
+      if (priorGraph.programMigration !== null || !same(priorGraph.bundle.bundle.entries, bundles.effective.bundle.entries)
+        || d.value.migrationRunnerDigest !== deployment.value.migrationRunnerDigest) fail()
+      const priorWindow = await readProgramOnlyReleaseWindow({ transport, profile, deployment: d.value, deadlineAt: prior.value.deadlineAt, intent: prior.value })
+      for (const row of [p, r, t]) if (!Number.isFinite(Date.parse(row.value.observedAt)) || Date.parse(row.value.observedAt) < priorWindow.start || Date.parse(row.value.observedAt) > priorWindow.end) fail()
+      return { intent: prior.value, outputUri: priorOutput, basis: inherited }
+    })
+    releasedIntentRef = inherited.releasedIntentRef
+  }
+  const jobName = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
+  const job = await transport.request(`https://run.googleapis.com/v2/${jobName}`)
+  assertProgramOnlyStaticJob(job, { profile, deployment: deployment.value })
+  if (!/^[a-f0-9-]{36}$/u.test(job.uid ?? '') || !/^[1-9][0-9]*$/u.test(job.generation ?? '') || job.reconciling === true
+    || !Number.isFinite(Date.parse(job.updateTime))) fail()
+  if (!/^[a-z][a-z0-9-]{0,62}$/u.test(native.value.executionName ?? '')) fail()
+  const executionName = `${jobName}/executions/${native.value.executionName}`
+  const execution = await transport.request(`https://run.googleapis.com/v2/${executionName}`)
+  // Job and Execution timestamps share the Run provider clock; native runner time is bounded separately.
+  if (execution.name !== executionName || Date.parse(job.updateTime) > Date.parse(execution.createTime)) fail()
+  assertProgramOnlyExecution(execution, { profile, deployment: deployment.value, outputUri, submission: submission.value, window, staticJob: job })
+  assertProgramOnlyNative(native.value, { policy: intent.programOnlyBaseline, submission: submission.value, execution, outputUri, deadlineAt: intent.deadlineAt, window })
+  const inventory = async () => {
+    const rows = [], names = new Set(), tokens = new Set(); let pageToken = '', matched = 0
+    for (let page = 0; page < 10; page++) {
+      const query = new URLSearchParams({ pageSize: '100' }); if (pageToken) query.set('pageToken', pageToken)
+      const response = await transport.request(`https://run.googleapis.com/v2/${jobName}/executions?${query}`)
+      if (!response || typeof response !== 'object' || Array.isArray(response) || Object.keys(response).some(key => !['executions', 'nextPageToken'].includes(key))
+        || (Object.hasOwn(response, 'executions') && !Array.isArray(response.executions)) || (Object.hasOwn(response, 'nextPageToken') && typeof response.nextPageToken !== 'string')) fail()
+      for (const row of response.executions ?? []) {
+        const created = Date.parse(row.createTime), completed = Date.parse(row.completionTime), condition = row.conditions?.filter(c => c.type === 'Completed')
+        if (!row.name?.startsWith(`${jobName}/executions/`) || names.has(row.name) || !Number.isFinite(created) || !Number.isFinite(completed)
+          || completed < created || row.reconciling === true || Number(row.runningCount ?? 0) !== 0 || condition?.length !== 1
+          || !['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(condition[0].state)
+          || (row.startTime !== undefined && !Number.isFinite(Date.parse(row.startTime)))) fail()
+        names.add(row.name); rows.push(row)
+        if (row.name === executionName) {
+          assertProgramOnlyExecution(row, { profile, deployment: deployment.value, outputUri, submission: submission.value, window, staticJob: job })
+          if (!same(row, execution)) fail(); matched++
+        } else if (created >= window.start || completed >= window.start || (row.startTime !== undefined && Date.parse(row.startTime) >= window.start)
+          || row.template?.containers?.some(c => c.args?.includes(intent.sourceRevision) || c.args?.includes(outputUri))) fail()
+        if (ancestor && row.template?.containers?.some(c => c.args?.includes(ancestor.intent.sourceRevision) || c.args?.includes(ancestor.outputUri))) fail()
+      }
+      pageToken = response.nextPageToken ?? ''
+      if (!pageToken) { if (matched !== 1) fail(); return rows.sort((a, b) => a.name.localeCompare(b.name)) }
+      if (tokens.has(pageToken)) fail(); tokens.add(pageToken)
+    }
+    fail()
+  }
+  const before = await inventory(), after = await inventory()
+  if (!same(before, after)) fail()
+  const jobAfter = await transport.request(`https://run.googleapis.com/v2/${jobName}`)
+  assertProgramOnlyStaticJob(jobAfter, { profile, deployment: deployment.value })
+  const jobProjection = j => ({ name: j.name, uid: j.uid, generation: j.generation, template: j.template, updateTime: j.updateTime })
+  if (!same(jobProjection(job), jobProjection(jobAfter))) fail()
+  const anchor = await transport.readJson(releasedIntentRef, bucket, ['receipts']), anchorPaths = releasePaths(profile, anchor.value, releasedIntentRef.sha256)
+  const [anchorPrepare, anchorMigration, anchorTerminal] = await Promise.all([read(anchorPaths.prepare), read(anchorPaths.migrate), read(anchorPaths.terminal)])
+  if (sealOrdinaryStage(anchorTerminal, 'terminal', anchor.value, profile).result !== 'RELEASED') fail()
+  const child = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), releasedIntentRef, true)
+  const released = await runAiPdmEvidenceContext(child, async () => {
+    const observed = await transport.readOwnerSourceProof({ profile, sourceRevision: anchor.value.sourceRevision, refs: { prepare: anchorPrepare.ref, migrate: anchorMigration.ref, terminal: anchorTerminal.ref }, verifyProvider })
+    const anchorGraph = await readAiPdmObservationInputs(observed.proof), n = anchorGraph.migrate.value
+    if (anchor.value.programOnlyBaseline || n.status !== 'PASS' || n.boundaryStatus !== 'PASS' || n.ledgerCount !== 33 || n.baselineCount !== 15
+      || n.applied + n.replayed !== 33 || n.ledgerBootstrap?.created !== false || !same(anchorGraph.bundle.bundle.entries, bundles.effective.bundle.entries)
+      || anchorGraph.chain.deployment.value.migrationRunnerDigest !== deployment.value.migrationRunnerDigest
+      || (inherited && !same(observed.proof, inherited.releasedProof))) fail()
+    return observed
+  })
+  if (released.proof.disposition !== 'released' || released.proof.candidateRevision !== intent.previousRevision
+    || (verifyProvider && released.provider?.status !== 'BUILD_IMAGE_VERIFIED')) fail()
+  service ??= await transport.getService(profile)
+  transport.assertServiceSettled(service, 'DEV121_PREACTIVATION_CONTINUATION_INVALID')
+  if (!traffic(service.traffic, intent.previousRevision) || !traffic(service.trafficStatuses, intent.previousRevision)
+    || service.scaling?.scalingMode !== 'AUTOMATIC' || Number(service.scaling.maxInstanceCount) !== 1
+    || !same(transport.entrypointSnapshot(service), prepareFacts.entrypointBaseline)) fail()
+  transport.assertCanonicalEntrypoint(profile, service)
+  const retained = await transport.getRevision(profile, intent.previousRevision)
+  if (retained?.name !== `${service.name}/revisions/${intent.previousRevision}` || retained.conditions?.find(c => c.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED'
+    || retained.containers?.filter(c => c.name === profile.runtime.containerName).length !== 1
+    || retained.containers.find(c => c.name === profile.runtime.containerName).image !== released.proof.artifactDigest) fail()
+  return { kind: 'PROGRAM_ONLY_ABORT', currentActiveRevision: intent.previousRevision, result: 'PRE_ACTIVATION_ABORTED', authorityBasis: {
+    schemaVersion: 'aipdm.program-only-completed-unassociated-abort-basis.v1', databaseDisposition: 'UNKNOWN', currentDatabaseReadPerformed: false,
+    migrationJobSubmitted: true, releaseAuthority: false, failedIntentRef: baselineIntentRef, releasedIntentRef, failedProof: failed.proof, releasedProof: released.proof,
+    stageRefs: { prepare: prepare.ref, deployment: deployment.ref, rollback: rollback.ref, terminal: terminal.ref }, controlSha256,
+    ownerRunRef: control.ownerRunRef, previousRevision: intent.previousRevision, inputFingerprint: fingerprint, inventorySha256: sha256(canonicalize(before)),
+    completedNative: { nativeReceiptRef: native.ref, submissionIntentRef: submission.ref, executionName, jobProjectionSha256: sha256(canonicalize(jobProjection(job))), executionSha256: sha256(canonicalize(execution)), disposition: 'OBSERVED_COMPLETED_READONLY_NO_RELEASE_ASSOCIATION', resubmissionAllowed: false },
+    ...(inherited ? { retainedPreexecutionAncestor: inherited } : {})
+  } }
 }
 
 // The retained application must already have a complete Principal-only release.

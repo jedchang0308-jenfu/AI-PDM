@@ -153,7 +153,7 @@ export function assertProgramOnlyStaticJob(job, { profile, deployment }) {
   same(container.volumeMounts, [{ name: 'cloudsql', mountPath: '/cloudsql' }], 'job-mount')
   return job
 }
-export function assertProgramOnlyExecutionTemplate(execution, { profile, deployment, outputUri }) {
+export function assertProgramOnlyExecutionTemplate(execution, { profile, deployment, outputUri, staticJob = null }) {
   const policy = assertProgramOnlyPolicy(deployment.programOnlyBaseline, { profile, deployment })
   const prefix = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}/executions/`
   if (!execution?.name?.startsWith(prefix) || !/^[a-z][a-z0-9-]{0,62}$/u.test(execution.name.slice(prefix.length))) fail('execution-name')
@@ -161,16 +161,23 @@ export function assertProgramOnlyExecutionTemplate(execution, { profile, deploym
   if (execution.taskCount !== 1 || execution.parallelism !== 1 || template?.serviceAccount !== profile.migrations.serviceAccount || template?.maxRetries !== 0 || template?.timeout !== '1800s' || template?.containers?.length !== 1) fail('execution-template')
   const container = template.containers[0]
   if (container.name !== 'migration' || container.image !== policy.migrationRunnerDigest || Object.hasOwn(container, 'command')) fail('execution-image')
-  same(template.volumes, [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }], 'execution-volume')
-  same(container.volumeMounts, [{ name: 'cloudsql', mountPath: '/cloudsql' }], 'execution-mount')
+  // Cloud Run may omit both inherited Cloud SQL fields from an Execution.
+  // Only an independently validated fixed Job can supply those bindings.
+  if (!Object.hasOwn(template, 'volumes') && !Object.hasOwn(container, 'volumeMounts')) {
+    if (!staticJob) fail('execution-volume')
+    assertProgramOnlyStaticJob(staticJob, { profile, deployment })
+  } else {
+    same(template.volumes, [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }], 'execution-volume')
+    same(container.volumeMounts, [{ name: 'cloudsql', mountPath: '/cloudsql' }], 'execution-mount')
+  }
   same(container.args, programOnlyMigrationArguments(deployment, outputUri), 'execution-args')
   const environment = container.env
   if (!Array.isArray(environment) || environment.length !== 9 || new Set(environment.map(row => row.name)).size !== 9 || environment.some(row => Object.keys(row).sort().join(',') !== 'name,value')) fail('execution-env')
   same(Object.fromEntries(environment.map(row => [row.name, row.value])), programOnlyExecutionEnvironment(profile), 'execution-env')
   return execution
 }
-export function assertProgramOnlyExecution(execution, { profile, deployment, outputUri, submission, window }) {
-  assertProgramOnlyExecutionTemplate(execution, { profile, deployment, outputUri })
+export function assertProgramOnlyExecution(execution, { profile, deployment, outputUri, submission, window, staticJob = null }) {
+  assertProgramOnlyExecutionTemplate(execution, { profile, deployment, outputUri, staticJob })
   if (execution.reconciling === true || Number(execution.failedCount ?? 0) !== 0 || Number(execution.succeededCount) !== 1 || Number(execution.cancelledCount ?? 0) !== 0 || Number(execution.runningCount ?? 0) !== 0 || !execution.completionTime || execution.conditions?.filter(row => row.type === 'Completed').length !== 1 || execution.conditions.find(row => row.type === 'Completed').state !== 'CONDITION_SUCCEEDED') fail('execution-terminal')
   withinWindow(window, [submission.observedAt, execution.createTime, execution.completionTime, ...(execution.startTime === undefined ? [] : [execution.startTime])])
   if (window.end !== Date.parse(submission.deadlineAt)) fail('execution-window')
@@ -186,7 +193,7 @@ export function assertProgramOnlyAssociation(value, { profile, intent, intentRef
   const outputUri = programOnlyNativeUri(associationUri)
   for (const field of ['nativeReceiptRef', 'submissionIntentRef', 'executionReadbackRef', 'jobReadbackRef']) ref(value[field])
   if (value.nativeReceiptRef.uri !== outputUri || value.submissionIntentRef.uri !== `${outputUri.slice(0, -5)}-submission-intent.json` || value.executionReadbackRef.uri !== `${outputUri.slice(0, -5)}-execution-readback.json` || value.jobReadbackRef.uri !== `${outputUri.slice(0, -5)}-job-readback.json`) fail('association-ref-path')
-  assertProgramOnlyExecution(execution, { profile, deployment, outputUri, submission, window })
+  assertProgramOnlyExecution(execution, { profile, deployment, outputUri, submission, window, staticJob: job })
   assertProgramOnlyNative(native, { policy, submission, execution, outputUri, deadlineAt: intent.deadlineAt, window })
   withinWindow(window, [value.observedAt])
   if (value.executionName !== native.executionName || Date.parse(value.observedAt) < Date.parse(submission.observedAt)) fail('association-window')
