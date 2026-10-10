@@ -1,0 +1,197 @@
+{
+  "project": "AI-PDM",
+  "devId": "DEV-122",
+  "currentContract": "DEV122_PROGRAM_ONLY_RELEASE_V1",
+  "correctiveSlice": "ASSOCIATED_ABORT_SEALED_PREDECESSOR",
+  "architecture": "FINALIZED",
+  "maturity": "RD Implementation Ready",
+  "sourceBeforeCorrection": "4e0c7b3d3a40eb34d55d27b15f3b7ece010978f7",
+  "pr265": "MERGED_REQUIRED_CI_PASS",
+  "r8": {
+    "ownerRunId": "38083507736",
+    "conclusion": "FAILURE",
+    "prepareBuildMigrateCandidateEntrypoint": "SUCCESS",
+    "verify": "PRINCIPAL_SMOKE_PORTAL_LOGIN_FAILED",
+    "recovery": "SUCCESS_PRE_ACTIVATION_ABORTED",
+    "currentDatabaseReadPerformed": true,
+    "databaseDisposition": "READ_ONLY_BASELINE_VERIFIED",
+    "applied": 0,
+    "replayed": 33,
+    "ledgerCount": 33,
+    "bootstrapCreated": false,
+    "postgresVersionFromNativeReceipt": null,
+    "servingRevision": "ai-pdm-prod-b96191914c5d",
+    "trafficPercent": 100,
+    "trafficTags": 0,
+    "workerGeneration": "17",
+    "schedulerState": "ENABLED"
+  },
+  "credentials": {
+    "existingVersion": "8",
+    "oldRefreshPortalHttpStatus": 401,
+    "oldRefreshPortalCode": "auth_token_invalid",
+    "sameIdentityFreshPasswordPortalHttpStatus": 200,
+    "validation": "VALIDATE_ONLY_PASS",
+    "ownSessionRevocation": "VERIFIED",
+    "credentialPersistenceWrites": 0,
+    "rotation": "NOT_RUN",
+    "credentialMaterialInEvidence": false
+  },
+  "scope": {
+    "library": "scripts/lib/dev121-preactivation-abort-continuation.mjs",
+    "tests": "scripts/dev122-openswx-worker-artifact-reuse.test.mjs",
+    "onlyOneCompletedUnassociatedParent": true,
+    "atMostOneExistingPreexecutionAncestor": true,
+    "noGenericRetryRecursion": true,
+    "opaqueContextDepthLimit": 8,
+    "currentR8ControlRequired": true,
+    "olderMutableControlNotReadOrSynthesized": true,
+    "oldUnknownTerminalUnmodified": true,
+    "threeSealedBasisJoins": [
+      "prepare",
+      "authorization",
+      "readiness"
+    ],
+    "successorCurrentStableInventoryValidatesBothExactExecutions": true,
+    "no084": true,
+    "noSqlOrNewIamSecretResourceAuthority": true,
+    "completedAssociatedRecoveryEntrypointComparison": {
+      "fields": [
+        "ingress",
+        "defaultUriDisabled",
+        "invokerIamDisabled",
+        "uri",
+        "urls"
+      ],
+      "requiresPresentTypedSemanticFields": true,
+      "sealedOriginalSnapshotUnmodified": true,
+      "preexecutionAndStandaloneUnassociatedWholeSnapshotEqualityUnchanged": true,
+      "currentSettledCanonicalTrafficScalingAndImageGuardsUnchanged": true
+    }
+  },
+  "qa": {
+    "actualFixedSourceRed": "REPRODUCED",
+    "candidateGreen": "ACTUAL_R8_ASSOCIATED_ABORT_GET_PREFLIGHT_PASS",
+    "portableInheritedFixture": "NOT_ESTABLISHED",
+    "sixRequiredChecks": "PASS_FOR_EXACT_CORRECTIVE_SOURCE",
+    "independentSourceQc": "LOCAL_QC_PASS_P0_0_P1_0",
+    "freshOfficialSource": "PENDING_PROTECTED_PR_AND_REQUIRED_CI",
+    "nextOwnerRelease": "NOT_RUN",
+    "getCount": 1094,
+    "coldGetCount": 757,
+    "warmGetCount": 337,
+    "sharedOpaqueContext": true,
+    "verifyProvider": true,
+    "providerMutationCount": 0,
+    "focused": {
+      "passed": 18,
+      "failed": 0,
+      "admissionNegativeVariants": 15,
+      "semanticDriftNegativeVariants": 5
+    },
+    "continuous": {
+      "passed": 262,
+      "failed": 0
+    },
+    "aggregate": {
+      "passed": 312,
+      "failed": 0
+    },
+    "abort": {
+      "passed": 6,
+      "failed": 0
+    },
+    "primarySqlite": "DATABASE_ABSENT_BEFORE_AFTER_UNCHANGED",
+    "isolatedBuildArtifact": true,
+    "isolatedBuildTempRemoved": true,
+    "runtimeCleanup": "NATIVE_R3_PASS_ZERO_PROCESS_STOPS",
+    "sourceOnlyCompletion": "READY_FOR_PROTECTED_PR_NOT_DEPLOYED",
+    "preservedVerificationToolFailures": [
+      "R1 redirect and cold-repeat review findings; unexecuted",
+      "R2 CRLF-vs-LF prestart guard rejection; no SDK/Node/provider start",
+      "Required-check PID-only descendant capture included two pre-task HP utilities; no process stops",
+      "R2 native evidence DateTime-to-string coercion falsely excluded candidates; R3 DateKind String correction retained original UTC identity proof"
+    ]
+  },
+  "wholeDev": {
+    "status": "NOT_ACCEPTED",
+    "issues": 7,
+    "groups": 29,
+    "supplier": "DISABLED_DEFERRED",
+    "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING"
+  },
+  "evidence": {
+    "r8FailureReadback": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A33-B35-R8\\release\\failure-readback-result.json",
+      "sha256": "2629f0ba2729967f4108b07752038ec8e5b5f4e76c9fd65cd4de23f6de8ffc6f"
+    },
+    "existingAccountValidation": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A33-B35-R8\\release\\firebase-validation-r3-result.json",
+      "sha256": "1af9374d771c5f8b33867091d538ed6f2f7395d163b9ff03d7d2b82b31cd89e0"
+    },
+    "accountValidationNativeCleanup": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A33-B35-R8\\release\\R8-firebase-validation-r3-native-closure.json",
+      "sha256": "a43255857316e6c224d5a168afbfced6bddf2de525b098d7619de0d881f2376a"
+    },
+    "r8ObserversNativeCleanup": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A33-B35-R8\\release\\R8-observer-native-closure.json",
+      "sha256": "7f69f8b972fb216c787ca085e1e1dfe5c0032675c1b8aec53226ec9bf65e1923"
+    },
+    "architectureDiagnostic": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\r9-associated-abort-baseline-readiness.json",
+      "sha256": "6bf988e77e4f1830eb97a5c69e9ae5e1eff3ef534db3c7747cdcbd865faa518d"
+    },
+    "actualFixedSourceRed": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A34-B35-R9\\release\\r9-red-get-result.json",
+      "sha256": "f27018d5fac2d37421911e19bdb8ead5a2b51da38f5c988e23b8aeff39f67647"
+    },
+    "actualCandidateGreen": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A34-B35-R9\\release\\r9-green-get-result.json",
+      "sha256": "a49bfccce0dcdbdf655ad7d15347b7738a1a5a1bc49f96b4dc0c8f72dac4485c"
+    },
+    "actualGetCallLog": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A34-B35-R9\\release\\R9-green-get-calls.json",
+      "sha256": "1732a84d52b0f6f77d8710fce312f8af0e8b089f65f0ad894571eb5566d075a0"
+    },
+    "greenRuntimeOwnerReadback": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A34-B35-R9\\release\\B35-owner-r9-r9-green-get-owner-readback.json",
+      "sha256": "29851e51ffd4bb4821b95945840f3e169d7b2e580a1dd673ef98966c50628e00"
+    },
+    "greenNativeCleanup": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A34-B35-R9\\release\\R9-green-get-native-closure.json",
+      "sha256": "adf3e1697951c0a80353f89148c1844721490b72b3b2f3823861b22067fa44cd"
+    },
+    "requiredChecks": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-r9-required\\required-final.json",
+      "sha256": "22c64ada6db1f8e67a4f24c30bb6adf80f11a67c070a7a7db51abf570912fd40"
+    },
+    "requiredNativeCleanup": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-r9-required\\required-native-closure-r3.json",
+      "sha256": "2514e2a8b4d7103b542eab4e28f6f5b553403fe39d128057145dc8bcd8302499"
+    },
+    "independentFactualQc": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\r9-corrective-source-factual-qc.json",
+      "sha256": "700e06b3c058cbc0c8521275d613e69263c76dc38ed72ca8d134d900e5e43a70"
+    },
+    "independentHelperQc": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\r9-associated-abort-r2-green-get-qc-r3.json",
+      "sha256": "f20c58b89f6afebc5121991a1c3607fa8d314366b63b849bfcaf498442f40c50"
+    },
+    "preservedOriginalContract": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A34-B35-R9\\release\\r9-contract-before-qc.raw.json",
+      "sha256": "4e0b5ec6644919f08644cd7614a641215fe6016e7766ecabff3c1d56acaa700b"
+    },
+    "machineBindingInventory": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\r9-machine-binding-inventory-r2.json",
+      "sha256": "197159cee3fd331a602dfa761f877b41db75ebd2a59519bd14c5ead902644693"
+    }
+  },
+  "recordedAtUtc": "2026-10-10T21:55:38.289775+00:00",
+  "sourceAfterCorrection": {
+    "librarySha256": "d78d172f04d5afc79c4c9f95f674267af2efc32ec26b3dfe810d69610186eaf8",
+    "testsSha256": "4347e0fae129c117326081036dcb876d98d9600a336aab2d0a9a1875467ac933",
+    "parentRevision": "4e0c7b3d3a40eb34d55d27b15f3b7ece010978f7",
+    "branch": "codex/dev122-associated-abort-continuation",
+    "officialRevision": null
+  }
+}
