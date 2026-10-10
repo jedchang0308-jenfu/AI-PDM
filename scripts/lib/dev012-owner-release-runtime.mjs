@@ -1,3 +1,4 @@
+import { assertProgramOnlyPolicy, assertProgramOnlyExecution, assertProgramOnlyExecutionTemplate, assertProgramOnlyStaticJob, readProgramOnlyReleaseWindow, programOnlyExecutionEnvironment, programOnlySubmissionFields } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-production-migration-runner.mjs'
 import { GCC_PBDS_CVE, readNativeInventoryProgram, gccPbdsOccurrenceMatches, readGccApplicabilityPolicy, assertGccApplicabilityAssessment } from './dev015-gcc-applicability.mjs'
 import { GCC_ALIGNED_NEW_CVE, readAlignedNewInspectionProgram, gccAlignedNewOccurrenceMatches, readAlignedNewApplicabilityPolicy, assertAlignedNewApplicabilityAssessment } from './dev015-gcc-aligned-new-applicability.mjs'
@@ -263,7 +264,7 @@ export function assertMigrationSubmissionIntent(value, { profile, deployment, ou
   const core = { ...value }; delete core.receiptSha256
   const expected = { schemaVersion: 'jenfu.dev012.migration-submission-intent.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
     jobName: `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`, migrationRunnerDigest: deployment.migrationRunnerDigest,
-    migrationBundleRef: deployment.migrationBundleRef, outputUri, args: migrationArguments(profile, deployment, outputUri), principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT' }
+    migrationBundleRef: deployment.migrationBundleRef, outputUri, args: migrationArguments(profile, deployment, outputUri), principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT', ...programOnlySubmissionFields(profile, deployment) }
   if (canonicalize(Object.keys(value ?? {}).sort()) !== canonicalize([...Object.keys(expected), 'observedAt', 'receiptSha256'].sort()) ||
       Object.entries(expected).some(([key, actual]) => canonicalize(value[key]) !== canonicalize(actual)) ||
       typeof value.observedAt !== 'string' || !Number.isFinite(Date.parse(value.observedAt)) || !Number.isFinite(Date.parse(deadlineAt)) || Date.parse(value.observedAt) > Date.parse(deadlineAt) ||
@@ -747,6 +748,9 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
   }
 
   async function runMigrationJob({ profile, deployment, principalOnlyFenceRef = null, outputUri, deadlineAt }) {
+    const programPolicy = deployment.programOnlyBaseline ? assertProgramOnlyPolicy(deployment.programOnlyBaseline, { profile, deployment }) : null
+    if (programPolicy && (principalOnlyFenceRef !== null || profile.productionData?.required === true)) fail('PROGRAM_ONLY_BASELINE_INVALID')
+    const programWindow = programPolicy ? await readProgramOnlyReleaseWindow({ transport: { readJson }, profile, deployment, deadlineAt }) : null
     const jobName = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
     const job = await request(`https://run.googleapis.com/v2/${jobName}`)
     const container = job.template?.template?.containers?.find((item) => item.name === 'migration')
@@ -765,6 +769,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     const volume = job.template?.template?.volumes?.find((item) => item.name === 'cloudsql')
     const mount = container?.volumeMounts?.find((item) => item.name === 'cloudsql')
     if (job.name !== jobName || job.template?.template?.serviceAccount !== profile.migrations.serviceAccount || container?.image !== deployment.migrationRunnerDigest || canonicalize(environment) !== canonicalize(expectedEnvironment) || canonicalize(volume?.cloudSqlInstance?.instances) !== canonicalize([connectionName]) || mount?.mountPath !== '/cloudsql' || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || job.template?.template?.maxRetries !== 0 || job.template?.template?.timeout !== '1800s') fail('MIGRATION_JOB_READBACK_MISMATCH')
+    if (programPolicy) assertProgramOnlyStaticJob(job, { profile, deployment })
     const args = migrationArguments(profile, deployment, outputUri)
     const fenceEnvironment = principalOnlyFenceRef === null ? null : {
       DEV121_MIGRATION_FENCE_REF: assertImmutableRef(principalOnlyFenceRef,
@@ -774,6 +779,8 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     }
     const fenceOverride = fenceEnvironment === null ? [] :
       Object.entries(fenceEnvironment).map(([name, value]) => ({ name, value }))
+    const executionOverride = programPolicy ? [{ name: 'PGOPTIONS', value: programPolicy.pgOptions }] : fenceOverride
+    const completeExecutionEnvironment = programPolicy ? programOnlyExecutionEnvironment(profile) : { ...expectedEnvironment, ...(fenceEnvironment ?? {}) }
     const listExecutions = async () => {
       const executions = []
       let pageToken = ''
@@ -793,15 +800,18 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
       return executions
     }
     const executionArgsMatch = (execution) => {
+      if (programPolicy) {
+        try { assertProgramOnlyExecutionTemplate(execution, { profile, deployment, outputUri }) } catch { return false }
+      }
       const executionContainer = execution?.template?.containers?.find((item) => item.name === 'migration')
       if (executionContainer?.image !== deployment.migrationRunnerDigest || canonicalize(executionContainer?.args) !== canonicalize(args)) return false
 
       const executionEnv = executionContainer?.env
       if (!Array.isArray(executionEnv) || executionEnv.length !==
-        Object.keys(expectedEnvironment).length + fenceOverride.length ||
+        Object.keys(expectedEnvironment).length + executionOverride.length ||
         new Set(executionEnv.map((item) => item?.name)).size !== executionEnv.length) return false
       return canonicalize(Object.fromEntries(executionEnv.map((item) =>
-        [item.name, item.value]))) === canonicalize({ ...expectedEnvironment, ...(fenceEnvironment ?? {}) })
+        [item.name, item.value]))) === canonicalize(completeExecutionEnvironment)
     }
     const before = await listExecutions()
     const matching = before.filter(executionArgsMatch)
@@ -824,7 +834,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
       if (submission) return
       const value = { schemaVersion: 'jenfu.dev012.migration-submission-intent.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
         jobName, migrationRunnerDigest: deployment.migrationRunnerDigest, migrationBundleRef: deployment.migrationBundleRef, outputUri, args,
-        principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT', observedAt: now() }
+        principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT', observedAt: now(), ...programOnlySubmissionFields(profile, deployment) }
       value.receiptSha256 = sha256(canonicalize(value))
       assertMigrationSubmissionIntent(value, { profile, deployment, outputUri, deadlineAt, principalOnlyFenceRef })
       if (Date.now() >= Date.parse(deadlineAt)) fail('OPERATION_TIMEOUT')
@@ -835,6 +845,8 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     }
     const isActive = execution => !execution.completionTime || execution.reconciling === true ||
       !execution.conditions?.some(condition => condition?.type === 'Completed' && ['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(condition.state))
+    // A previously existing execution cannot acquire owner provenance afterward.
+    if (programPolicy && matching.length > 0 && !submission) fail('MIGRATION_SUBMISSION_UNKNOWN')
     if (matching.length > 0) await ensureSubmissionIntent()
     if (matching.length > 1) fail('MIGRATION_EXECUTION_CARDINALITY_INVALID')
     if (before.some(execution => !matchingNames.has(execution.name) && isActive(execution))) fail('MIGRATION_EXECUTION_ACTIVE')
@@ -845,8 +857,8 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     if (!executionName) {
       try {
         const containerOverride = { name: 'migration', args,
-          ...(fenceEnvironment === null ? {} : { env: fenceOverride }) }
-        const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ overrides: { containerOverrides: [containerOverride] } }) })
+          ...(executionOverride.length === 0 ? {} : { env: executionOverride }) }
+        const operation = await request(`https://run.googleapis.com/v2/${jobName}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...(programPolicy ? { etag: job.etag } : {}), overrides: { containerOverrides: [containerOverride] } }) })
         if (!operation?.name) fail('PROVIDER_OPERATION_REF_MISSING')
         operationRef = operation.name
       } catch (error) {
@@ -877,6 +889,27 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
         continue
       }
       if (Number(readback.failedCount ?? 0) !== 0 || Number(readback.succeededCount ?? 0) !== 1 || readback.completionTime == null || completedState !== 'CONDITION_SUCCEEDED') fail('MIGRATION_EXECUTION_FAILED')
+      if (programPolicy) {
+        assertProgramOnlyExecution(readback, { profile, deployment, outputUri, submission, window: programWindow })
+        const prefix = outputUri.slice(0, -5)
+        const retainReadback = async (uri, body, validate, projection) => {
+          let prior = null
+          try { prior = await readBytes(uri, { prefixes: ['receipts'] }) } catch (error) { if (error?.code !== 'MISSING') throw error }
+          if (prior) {
+            if (prior.ref.uri !== uri || sha256(prior.bytes) !== prior.ref.sha256) fail('MIGRATION_EXECUTION_READBACK_MISMATCH')
+            const value = JSON.parse(prior.bytes.toString('utf8'))
+            validate(value)
+            if (canonicalize(projection(value)) !== canonicalize(projection(body))) fail('MIGRATION_EXECUTION_READBACK_MISMATCH')
+            return
+          }
+          await putJson(uri, body, { bucket: profile.artifact.releaseBucket, prefix: 'receipts', ifGenerationMatch: '0' })
+        }
+        // Job metadata such as latestCreatedExecution may advance. Its original raw
+        // receipt stays immutable; only the verified execution template may replay.
+        await retainReadback(`${prefix}-job-readback.json`, job, value => assertProgramOnlyStaticJob(value, { profile, deployment }), value => ({ name: value.name, template: value.template }))
+        await retainReadback(`${prefix}-execution-readback.json`, readback, value => assertProgramOnlyExecution(value, { profile, deployment, outputUri, submission, window: programWindow }),
+          value => ({ name: value.name, createTime: value.createTime, completionTime: value.completionTime, taskCount: value.taskCount, parallelism: value.parallelism, template: value.template, succeededCount: value.succeededCount, failedCount: value.failedCount ?? 0, conditions: value.conditions }))
+      }
       return { ...readback, providerOperationRef: operationRef }
     }
   }

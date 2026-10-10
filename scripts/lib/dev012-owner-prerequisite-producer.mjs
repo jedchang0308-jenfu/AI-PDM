@@ -1,3 +1,4 @@
+import { assertProgramOnlyPolicy, buildProgramOnlyPolicy, deriveProgramOnlyBundles, readProgramOnlyReleasedBaseline } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { assertUnlinkedProfileCleanupRef, assertUnlinkedProfileCleanupBundleBinding, readUnlinkedProfileCleanupOperation } from './dev121-unlinked-profile-cleanup.mjs'
 import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repair.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
@@ -8,7 +9,7 @@ import path from 'node:path'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites } from './dev012-owner-stage-executor.mjs'
 import { assertDev013L4Predecessor, dev013L4SequenceStep } from './dev013-l4-transition-sequence.mjs'
-import { WORKER_PROFILE_PATH, assertWorkerRuntimeJoin, readWorkerDescriptor, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, assertWorkerRuntimeJoin, readWorkerDescriptor, readWorkerFullEvidence, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -197,7 +198,7 @@ export function buildDev013TransitionAuthority({ profile, releaseId, sourceLock,
   return { authorization, readiness }
 }
 
-export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent, workerDescriptor = null, cleanupMigrationBundle = null }) {
+export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prerequisiteValues, validateIntent, workerDescriptor = null, cleanupMigrationBundle = null, programOnlyPolicy = null }) {
   if (!RELEASE_ID.test(releaseId ?? '') || sourceLock?.releaseId !== releaseId || sourceLock?.ownerApplicationId !== profile.application.id) fail('RELEASE_INTENT_INPUT_INVALID')
   const intent = {
     schemaVersion: profile.schemas.releaseIntent,
@@ -231,6 +232,11 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     intent.principalOnlyRecovery = structuredClone(input.principalOnlyRecovery)
     assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
   }
+  if (Object.hasOwn(input, 'programOnlyBaseline')) {
+    if (programOnlyPolicy === null) fail('PROGRAM_ONLY_BASELINE_INVALID')
+    intent.programOnlyBaseline = programOnlyPolicy
+    assertProgramOnlyPolicy(programOnlyPolicy, { profile, intent, sourceLock })
+  } else if (programOnlyPolicy !== null) fail('PROGRAM_ONLY_BASELINE_INVALID')
   if (!intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INPUT_INVALID')
   for (const [name, value] of Object.entries(prerequisiteValues)) {
     if (name !== 'foundation' && value?.ownerApplicationId && value.ownerApplicationId !== profile.application.id) fail('PREREQUISITE_OWNER_MISMATCH', name)
@@ -284,7 +290,16 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     if (input.openswxWorkerRef) {
       if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
       const descriptor = await readWorkerDescriptor({ transport, ref: input.openswxWorkerRef, profileBytes: readWorkerSource(WORKER_PROFILE_PATH, sourceLock.sourceRevision), sourceRevision: sourceLock.sourceRevision })
-      if (descriptor.value.purpose === 'full') { await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource); enabled = '1' }
+      if (descriptor.value.purpose === 'full') {
+        if (input.programOnlyBaseline) {
+          assertProgramOnlyPolicy(input.programOnlyBaseline, { profile, sourceLock })
+          const intent = { releaseId, sourceRevision: sourceLock.sourceRevision, sourceSha256: sourceLock.sourceSha256,
+            sourceLockRef: input.sourceLockRef, migrationManifestSha256: sourceLock.migrationManifestSha256,
+            baselineIntentRef: input.programOnlyBaseline.baselineIntentRef, openswxWorkerRef: input.openswxWorkerRef, programOnlyBaseline: input.programOnlyBaseline }
+          await readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile, descriptor: descriptor.value, profile: descriptor.profile, readSource: readWorkerSource, currentReadback: true })
+        } else await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource)
+        enabled = '1'
+      }
       openswxWorker = { descriptorRef: descriptor.ref, sourceRevision: sourceLock.sourceRevision, workerProfileSha256: descriptor.value.workerProfileSha256, purpose: descriptor.value.purpose }
     }
     if (input.plainEnvironment?.PDM_OPENSWX_DISPATCH_ENABLED != null && input.plainEnvironment.PDM_OPENSWX_DISPATCH_ENABLED !== enabled) fail('OPENSWX_RUNTIME_BINDING_INVALID')
@@ -331,7 +346,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const expectedBaselineUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${control.releaseId}/release-intent.json`
     if (input.baselineIntentRef.uri !== expectedBaselineUri) fail('ROUTINE_CONTROL_INVALID')
     const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: input.baselineIntentRef, dataCutoverCompletionRef: input.dataCutoverCompletionRef ?? null, previousRevision, observedAt, expiresAt: input.expiresAt })
-    if (continuation?.kind === 'PRINCIPAL_ORDINARY_ABORT') {
+    if (['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation?.kind)) {
       values.authorization.preActivationAbortBasis = continuation.authorityBasis
       values.readiness.preActivationAbortBasis = continuation.authorityBasis
     }
@@ -367,12 +382,12 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const fields = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const rows = await Promise.all(Object.entries(fields).map(async ([name, field]) => [name, await readRef(transport, input[field], profile)]))
     const prerequisiteValues = Object.fromEntries(rows)
-    let workerDescriptor = null
+    let workerDescriptor = null, workerProfile = null
     if (input.openswxWorkerRef) {
       if (typeof readWorkerSource !== 'function') fail('OPENSWX_FROZEN_SOURCE_READER_REQUIRED')
       const descriptor = await readWorkerDescriptor({ transport, ref: input.openswxWorkerRef, profileBytes: readWorkerSource(WORKER_PROFILE_PATH, prerequisiteValues.sourceLock.sourceRevision), sourceRevision: prerequisiteValues.sourceLock.sourceRevision })
-      workerDescriptor = descriptor.value
-      if (workerDescriptor.purpose === 'full') await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource)
+      workerDescriptor = descriptor.value; workerProfile = descriptor.profile
+      if (!input.programOnlyBaseline && workerDescriptor.purpose === 'full') await readWorkerFullEvidence(transport, workerDescriptor, descriptor.profile, readWorkerSource)
     }
     let cleanupMigrationBundle = null
     if (Object.hasOwn(input, 'unlinkedProfileCleanupRef')) {
@@ -388,7 +403,23 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
         readObject: ref => transport.readBytes(ref.uri, { prefixes: ['source/migration-bundles/dev121/unlinked-profile-cleanup'], expectedSha256: ref.sha256, expectedGeneration: ref.generation }) })
       cleanupMigrationBundle = bound.bundle
     }
-    const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent, workerDescriptor, cleanupMigrationBundle })
+    let programOnlyPolicy = null
+    if (Object.hasOwn(input, 'programOnlyBaseline')) {
+      const sourceLock = prerequisiteValues.sourceLock
+      const bundles = deriveProgramOnlyBundles({ profile, full: await buildMigrationBundle(sourceLock.sourceRevision) })
+      const intent = { ...input, releaseId, sourceRevision: sourceLock.sourceRevision, sourceSha256: sourceLock.sourceSha256, migrationManifestSha256: sourceLock.migrationManifestSha256 }
+      assertProgramOnlyPolicy(input.programOnlyBaseline, { profile, intent, sourceLock, bundles })
+      const baseline = await readProgramOnlyReleasedBaseline({ transport, profile, baselineIntentRef: input.baselineIntentRef, previousRevision: input.previousRevision, bundles })
+      const retained = await readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile, descriptor: workerDescriptor, profile: workerProfile, readSource: readWorkerSource, currentReadback: true })
+      if ((canonicalize(retained.prior.capsuleRef) !== canonicalize(baseline.releasedIntentRef) && canonicalize(baseline.graph.intent.programOnlyBaseline?.retainedWorker.priorActivationRef) !== canonicalize(retained.prior.activationRef))
+        || prerequisiteValues.infra.migrationRunnerDigest !== baseline.migrationRunnerDigest) fail('PROGRAM_ONLY_BASELINE_INVALID')
+      programOnlyPolicy = buildProgramOnlyPolicy({ profile, sourceLock, bundles, baselineIntentRef: input.baselineIntentRef,
+        baselineEntries: baseline.baselineEntries, migrationRunnerDigest: baseline.migrationRunnerDigest,
+        retainedWorker: { descriptorRef: input.openswxWorkerRef, priorActivationRef: retained.prior.activationRef,
+          currentAssociationRef: retained.artifact.associationRef, readyResourceReadbackRef: retained.artifact.currentAssociation.resourceAssociation.readbackRef } })
+      if (canonicalize(programOnlyPolicy) !== canonicalize(input.programOnlyBaseline)) fail('PROGRAM_ONLY_BASELINE_INVALID')
+    }
+    const value = buildReleaseIntent({ profile, releaseId, input, sourceLock: prerequisiteValues.sourceLock, prerequisiteValues, validateIntent, workerDescriptor, cleanupMigrationBundle, programOnlyPolicy })
     return transport.putJson(uri('release-intent'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   fail('STAGE_DENIED')
