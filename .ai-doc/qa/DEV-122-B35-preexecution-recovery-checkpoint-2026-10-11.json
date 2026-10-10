@@ -1,0 +1,233 @@
+{
+  "schemaVersion": "aipdm.dev122.b35.preexecution-recovery-checkpoint.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "recordedAt": "2026-10-10T16:50:46.117336+00:00",
+  "sourceParent": "66911937e2a17c7348bdcefbec84f3a4b987a949",
+  "branch": "codex/dev122-b35-preexecution-abort",
+  "status": "LOCAL_QC_PASS_NOT_MERGED_NOT_DEPLOYED",
+  "contract": "DEV122_PROGRAM_ONLY_RELEASE_V1",
+  "architecture": "FINALIZED_TL_PASS",
+  "iam": {
+    "status": "APPLIED",
+    "scope": "Approved metadata-only role and four exact Secret-level bindings",
+    "receiptRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-SECRET-VERSION-IAM-20261010-B35-R4.json",
+      "sha256": "f216e746864b55af3c76c60dfe57b27e2479c542a7a604f2132a3c6748d626cf"
+    },
+    "newPayloadAccess": false
+  },
+  "failedRelease": {
+    "releaseId": "DEV122-PROGRAM-20261010-B35-R4",
+    "ownerRunId": "38063373523",
+    "prepare": "SUCCESS",
+    "build": "SUCCESS",
+    "migrate": "MIGRATION_JOB_READBACK_MISMATCH_BEFORE_SUBMISSION",
+    "databaseDisposition": "NOT_APPLIED",
+    "currentDatabaseReadPerformed": false,
+    "candidateAndTraffic": "SKIPPED",
+    "terminal": "PRE_ACTIVATION_ABORTED_FINALIZED",
+    "artifactDeployed": false
+  },
+  "correctiveJobRestore": {
+    "authorization": "Same AI-PDM production corrective cycle, exact existing Job image only",
+    "jobName": "projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner",
+    "jobUid": "24968e73-b3be-46f8-8e7d-1ab8464e5297",
+    "requestRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261010-B35-R4/migration-image-restore/request.json",
+      "sha256": "caa99627b5f839b448fcad65cf59fc028d2b88d2287a278c7cc49e81c2bca138"
+    },
+    "planSha256": "f8ad4ac33d46e9897f53aae869120d216598bc96464acb1a66b411dce6f7f81e",
+    "change": {
+      "field": "template.template.containers[name=migration].image",
+      "before": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:d7f5bd8b6a880a448e4ced9a9ff56cd0284c1abb379658d603dd12e3922e626a",
+      "after": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:7319441134334d511074c9cbaf133456d2190b38cb1a9ecbeef408df813c05a3"
+    },
+    "beforeGeneration": "21",
+    "afterGeneration": "22",
+    "patchSubmissions": 1,
+    "recoveryPatchSubmissions": 0,
+    "executionSubmissions": 0,
+    "sqlMutations": 0,
+    "iamMutations": 0,
+    "serviceTrafficWorkerMutations": 0,
+    "status": "RESTORED_READBACK_ONLY",
+    "unknownOutcome": "First post-PATCH guard GET interrupted; preserved, not retried as PATCH",
+    "allOtherWritableFieldsAndGuardState": "UNCHANGED",
+    "runtimeCleanup": "PASS"
+  },
+  "preExecutionContract": {
+    "kind": "PROGRAM_ONLY_ABORT",
+    "basis": "aipdm.program-only-preexecution-abort-basis.v1",
+    "databaseDisposition": "NOT_APPLIED",
+    "currentDatabaseReadPerformed": false,
+    "sourceProof": "Authentic build_only/full34/effective33, no DB or release authority",
+    "absence": "Positive MISSING only for migrate, native, submission, execution/job readback and all candidate/downstream receipts",
+    "inventory": "Two identical complete inventories, zero current matching, all historical terminal before sealed sourceLock lower bound",
+    "anchor": "Direct genuine ordinary RELEASED33, exact installed prefix and runner digest",
+    "service": "Unchanged retained revision, settled 100%, zero tags, canonical entrypoint",
+    "retry": "New official source and capsule, fresh native PG17 readonly33 still required"
+  },
+  "validation": {
+    "firstFocused": {
+      "pass": 8,
+      "fail": 1,
+      "failure": "Fixture GitHub updatedAt was in future; existing closedOwnerWindow correctly rejected",
+      "productGuardsWeakened": false
+    },
+    "correctedFixture": "Past valid run timestamps retaining cross-provider ordering difference",
+    "currentRequiredChecks": {
+      "focused": {
+        "pass": 9,
+        "fail": 0
+      },
+      "continuous": {
+        "pass": 250,
+        "fail": 0
+      },
+      "aggregate": {
+        "pass": 300,
+        "fail": 0
+      },
+      "abort": {
+        "pass": 6,
+        "fail": 0
+      },
+      "dbBoundary": {
+        "status": "PASS",
+        "governedFiles": 21
+      },
+      "typecheck": "PASS",
+      "isolatedBuild": "PASS_ARTIFACT_PRIMARY_INVARIANT_CLEANUP",
+      "scope": "Three frozen source/test inputs before additive consumer test draft",
+      "runtimeCleanup": "PASS",
+      "production": "NOT_RUN"
+    },
+    "independentQc": {
+      "agent": "/root/dev122_b35_metadata_integration_qc_luna",
+      "model": "gpt-6-luna",
+      "scope": "Frozen product/source review plus added consumer fixture and three targeted cases; original six checks reused within unchanged-product scope",
+      "sourceP0": 0,
+      "sourceP1": 0,
+      "status": "LOCAL_QC_PASS",
+      "qcExecutedTests": false,
+      "qcUsedProvider": false,
+      "qcWroteProduct": false
+    },
+    "consumerJoin": {
+      "pass": 3,
+      "fail": 0,
+      "scope": "LOCAL_TEST_CONSUMER_JOIN_CUTOVER_OMITTED",
+      "productionPrepareFullChain": false,
+      "originalProfileUnchanged": true,
+      "earlierFailures": [
+        {
+          "attempt": "R1",
+          "pass": 0,
+          "fail": 3,
+          "mechanism": "Missing fixture OWNER_EXECUTION_MODE"
+        },
+        {
+          "attempt": "R2",
+          "pass": 0,
+          "fail": 3,
+          "mechanism": "Dedicated fixture lacks unrelated R78 cutover graph"
+        }
+      ],
+      "correction": "Test-only full_release mode; true new source-lock reuse association; TL-approved copy omits unrelated cutover graph only for consumer seam",
+      "productGuardsWeakened": false,
+      "runtimeCleanup": "PASS",
+      "testedTestSha256": "3097841b07fa35481a77a07eef8cbdcb78e8f4c3d81a554459f61a912d603220",
+      "postTestEdit": "Removed exactly two trailing spaces from one blank line; executable tokens unchanged; final protected CI pending"
+    }
+  },
+  "evidence": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A29-B35-R4\\release\\metadata-iam-result.json",
+      "sha256": "ac9ab2110361051d2e2dc1376f399a26e2094dc6985ed926b70bc50b8f62672d"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A29-B35-R4\\release\\B35-R4-failure-terminal.raw.json",
+      "sha256": "e59dd175cfb4e7eaf4758d86eee0b8314962e3b330ae916158fb136e47b16690"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A29-B35-R4\\release\\migration-restore-plan-r3-result.json",
+      "sha256": "fb0905afa6cb3ba0aecdd10511e40a3759400fa619bc936bbedd0ab88bd08ba7"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A29-B35-R4\\release\\migration-restore-sealed-request.json",
+      "sha256": "b116c5079ce47b1ed0ae2e9822f4a3f5055defc54aa7e7e3098987e461dac979"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A29-B35-R4\\release\\migration-restore-readback-result.json",
+      "sha256": "a5f91ff4f4ca09e48cca6196b40f63af0283c6dc514b682f6f57b29e82289569"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A29-B35-R4\\release\\B35-owner-r4-migration-restore-readback-runtime-final.json",
+      "sha256": "4dab89af8fcf022d75be455ce8698d33c05488b4ca1a0d94d71aeba14930bfa7"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-required-r2\\focused.log",
+      "sha256": "89eec6013dbc13e62ae0c39601ed54d9a2158b3d3d04dec3f6fbf92977afed87"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-required-r2\\continuous.log",
+      "sha256": "debb5187d98b60a238e03b17e93364a7fa92980da4dbccc6e4efc0dd88c0a1bd"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-required-r2\\aggregate.log",
+      "sha256": "39996123d5e527fad874c172b37f512ecfced62b760f4834b183f705919c0886"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-required-r2\\required-final.json",
+      "sha256": "604906b0bf0b6389faf5efda4d2f428c6081f375578083fbf7dab69f1925df1c"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-required-r2\\runtime-final.json",
+      "sha256": "f56b4dd424ebf28237bbeeb0ab4622f43719a7d9264c5c12126bd1bb35fe7377"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\consumer-final-qc.json",
+      "sha256": "2944c1c222363c1241b71df344abf27e9e2cebf5f92e90f7bad3be6466297e3f"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\consumer-final-qc.md",
+      "sha256": "937375740729677050474ebb85e69bea407c1768c4442a26968a36332f03f3ed"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-consumer-r3\\focused.log",
+      "sha256": "8b613eb1862039020acd16e65a7259e7f68ad3db53ee81f34804b64f67ecadfa"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-consumer-r3\\focused-final.json",
+      "sha256": "18c57fe86e1c1621dcb6b2eb3113976cdbf860c29bdd70cd74ca65ca0c5fecd0"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-consumer-r3\\runtime-final.json",
+      "sha256": "2e3b01fcd7a94357111d01e08ee280ecf98534291b7102740615ba25611dbcc3"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-consumer-r3\\native-cleanup-readback.json",
+      "sha256": "efab56c7bf9f4445dfe6fbfc4361ef8b9e8a3ce5977cdb84fad7043dadb95b7e"
+    }
+  ],
+  "production": {
+    "servingRevision": "ai-pdm-prod-b96191914c5d",
+    "trafficPercent": 100,
+    "candidateTags": 0,
+    "worker": "READY_RETAINED_GENERATION17",
+    "scheduler": "ENABLED",
+    "freshNativePg17": "NOT_RUN",
+    "migration084": "PROHIBITED",
+    "nativeCad": "USER_OWNED_PENDING",
+    "supplier": "DISABLED_DEFERRED"
+  },
+  "wholeDevStatus": "NOT_ACCEPTED",
+  "issueDenominator": 7,
+  "groupDenominator": 29,
+  "sourceSha256": {
+    "scripts/lib/dev121-preactivation-abort-continuation.mjs": "0f6ed7cefc800c9b4a9b31a41ff24f94acec2c1da386eca6ba35e0b06bbc9274",
+    "scripts/dev122-openswx-worker-artifact-reuse.test.mjs": "d391c6faf269a14eeaed005aed7206037185671f869f6f77c781ebda8b97a2f5",
+    "scripts/qc-dev-117-continuous-release.mjs": "1d2bc4855689b7f03cde08f5543fdf6fc9378eab0cbd4661445732f05813cb28"
+  }
+}
