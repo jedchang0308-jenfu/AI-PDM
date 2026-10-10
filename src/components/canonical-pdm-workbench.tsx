@@ -425,6 +425,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const config = DOMAIN_CONFIG[entityType];
   const searchId = useId();
   const listRef = useRef<HTMLDivElement>(null);
+  const filterTimerRef = useRef<number | null>(null);
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: DRAWER_WIDTH_STORAGE_KEYS[entityType] });
   const [query, setQuery] = useState("");
   const [layer, setLayer] = useState<LayerSelection>({ mode: "all" });
@@ -721,6 +722,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      filterTimerRef.current = null;
       const restoredPage = restoredPageRef.current;
       restoredPageRef.current = null;
       if (restoredPage) {
@@ -731,7 +733,11 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       replaceLocation({ query, layer, handling, purposeFilter: entityType === "drawing" ? purposeFilter : undefined, itemKindFilter: entityType === "part" ? itemKindFilter : undefined, seriesFilter, materialFilter, colorFilter, sortBy, sort, pageIndex: 0 });
       void load();
     }, 250);
-    return () => window.clearTimeout(timer);
+    filterTimerRef.current = timer;
+    return () => {
+      window.clearTimeout(timer);
+      if (filterTimerRef.current === timer) filterTimerRef.current = null;
+    };
   }, [colorFilter, entityType, handling, itemKindFilter, layer, load, materialFilter, purposeFilter, query, seriesFilter, sort, sortBy]);
 
   const previewPollState = useMemo<"pending" | "delayed" | null>(() => {
@@ -986,7 +992,15 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (tab) destination.searchParams.set("tab", tab);
       return `${destination.pathname}${destination.search}${destination.hash}`;
     };
-    if (action.key === "edit" || action.key === "review") { router.push(destinationWithReturn(action.href, row.entityType === "part" ? "data" : undefined)); return; }
+    if (action.key === "edit" || action.key === "review") {
+      // An old filter URL update must not supersede the destination navigation.
+      if (filterTimerRef.current !== null) {
+        window.clearTimeout(filterTimerRef.current);
+        filterTimerRef.current = null;
+      }
+      router.push(destinationWithReturn(action.href, row.entityType === "part" ? "data" : undefined));
+      return;
+    }
     if (action.key === "advance" || action.key === "restart_from_current_production") {
       candidateTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setCandidateRow(row); setCandidateSourceRowKey(row.rowKey); setCandidateSourceRowVersion(row.rowVersion); setCandidates([]); setCandidateError(""); setCandidateRecovery(null); setManualRule(null); setCandidateMode("recommended"); setCandidateKind("rd"); setManualMinor(""); setBusy(true);

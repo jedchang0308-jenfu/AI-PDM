@@ -1,0 +1,172 @@
+{
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "slice": "B34 local review/edit navigation correction",
+  "date": "2026-10-10",
+  "status": "LOCAL_CHECKS_PASS_RELEASE_PENDING",
+  "wholeDev": "NOT_ACCEPTED",
+  "production": "NOT_RUN",
+  "producerBoundary": "FIXTURE",
+  "source": {
+    "baseHead": "2c0e6c68bf1c5f431a34765bc8228240f414b5ec",
+    "branch": "codex/dev122-b33-release-closure",
+    "files": {
+      "scripts/qc-dev-122-native-browser.mjs": {
+        "testedWorkingCopySha256": "f6cf8c510126acfc680af5821144f99f4be9aa483b62f6b7425f09c169b144a6",
+        "lfNormalizedSha256": "f6cf8c510126acfc680af5821144f99f4be9aa483b62f6b7425f09c169b144a6",
+        "lineEndingBinding": "LF_UNCHANGED"
+      },
+      "src/components/canonical-pdm-workbench.tsx": {
+        "testedWorkingCopySha256": "423163bff5932994685582f9eda3917247b997a6279f75b0c05689902170fe5a",
+        "lfNormalizedSha256": "e701aff1c57eb94090a0a652ed6bdd1f7fc0713ece13cba6dc7392415c73b0d2",
+        "lineEndingBinding": "CRLF_TO_LF_ONLY"
+      }
+    }
+  },
+  "change": {
+    "product": "Track the existing 250 ms filter timer and cancel it before existing edit/review router.push; preserve busy/href guards and destination construction.",
+    "testHarness": "Wait for normal /parts navigation and update exact own-table catalog count from 163 to 165 for existing migrations 080 and 082.",
+    "excluded": [
+      "API/auth/grant changes",
+      "SQL/migration changes",
+      "dependencies",
+      "release executor changes",
+      "IAM/resources/Secret changes"
+    ]
+  },
+  "firstFailuresPreserved": [
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B33-lifecycle-ui-first-failure-2026-10-10-r1.json",
+      "sha256": "37de8bfad334c3b94e3549932fdcc05f8e511624e70fcfb91fbc4bfa55c06c77"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B33-lifecycle-ui-second-failure-2026-10-10-r2.json",
+      "sha256": "81a91ea019b0f4017b7196207f190303eed29b7dd670d7bb38213315fdab9750"
+    }
+  ],
+  "failureAnalysis": {
+    "catalog": "2f08: exact catalog assertion 165 != 163 before any complete UI case.",
+    "navigation": "e526: desktop complete PASS; mobile timed out at subsequent-major reviewerEntry. Expected approvals GET 200 was followed by old workbench request; browser remained on /parts.",
+    "inference": "Pending filter history.replaceState can supersede edit/review navigation. Exact client timing is unproven; first bounded timer cancellation repair passed both viewports."
+  },
+  "verification": {
+    "nativeManifest": {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/93704ca465bf24bc/manifest.json",
+      "sha256": "6b7967218dfeb033c538ffeccc283b85685c3b06879e2bb9d970f866bd42989a"
+    },
+    "browserReceipt": {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/playwright/dev122/93704ca465bf24bc/receipt.json",
+      "sha256": "4ad6533119976e5beb3220cc812416184b21620857d600e740575f3d5950db56"
+    },
+    "nativePrerequisite": {
+      "passed": 1,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "uiCases": [
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "status": "PASS"
+      },
+      {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "status": "PASS"
+      }
+    ],
+    "uiAssertions": "Each viewport: ordinary Part edits and remains Draft; initial minor/major and two released rounds return, create distinct fresh packages, then approve. Minor preserves production pointer; major advances it. Normal navigation and keyboard paths used.",
+    "overflow": {
+      "checkpointsPerViewport": 10,
+      "outerOverflowFailures": 0
+    },
+    "visibleErrors": {
+      "acceptedAlertReadbacks": 20,
+      "expectedTerminalPreview409": 4,
+      "unexpectedErrors": 0
+    },
+    "controlledSource": {
+      "aggregateBeforeAndAfter": "ad35739e89c1246c7a42fdcaf988c9e4bcc5b62428a357c63c2e814fc66894f9",
+      "bindings": 1096,
+      "unchanged": true
+    },
+    "typecheck": {
+      "command": "node node_modules/typescript/bin/tsc -p tsconfig.app.json --noEmit --pretty false",
+      "exitCode": 0,
+      "scope": "Static compiler, frozen two-file source"
+    },
+    "isolatedBuild": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B33-navigation-isolated-build-cd25be26d230461d95d331c3242ab967.receipt.json",
+      "sha256": "0ce2c9564be46c065d339a0ef4c4463e95faf657b6bdb7aed8f3b86117af51e6"
+    },
+    "buildResult": {
+      "status": "PASS",
+      "exitCode": 0,
+      "artifact": true,
+      "primaryInvariant": "Both primary SQLite files absent before/after; isolated build invariant PASS",
+      "cleanup": true
+    },
+    "unaffectedNativeChecks": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B33-native-mapping-part-link-current-qc-2026-10-10-r1.json",
+      "sha256": "f22fb7d0388b6090dad4a42b36816c432101b23b7bdbf03619bc74df30c43c86"
+    },
+    "nativeApplicability": "4/4 mapping/part-root-link cases and three historical bindings remain scoped to unchanged native inputs; they do not prove new UI or production acceptance.",
+    "independentQc": {
+      "agent": "dev122_ui_case_rebind_luna",
+      "model": "gpt-6-luna",
+      "reasoning": "max",
+      "result": "PASS_LOCAL_FIXTURE_SCOPE",
+      "productWrites": false,
+      "newRuntime": false
+    }
+  },
+  "cleanup": {
+    "uiProcessesConfirmedAbsent": [
+      30756,
+      3188,
+      46804,
+      28192,
+      46076,
+      37696
+    ],
+    "uiPortsConfirmedReleased": [
+      64136,
+      64137,
+      63589
+    ],
+    "uiTempRemoved": true,
+    "buildActiveOwned": [],
+    "buildTempRemoved": true,
+    "capacityLeasesReleased": true,
+    "websiteLoginTab": "Kept for immediate human follow-up; root owns cleanup. Other user/task tabs untouched."
+  },
+  "productionBaseline": {
+    "receipt": ".ai-doc/qa/DEV-122-B33-production-release-closure-2026-10-10.json",
+    "lastProviderReadback": "2026-10-09T15:59:16.534Z",
+    "freshReadbackThisSlice": false
+  },
+  "pending": [
+    "Protected PR and required CI",
+    "Fresh official-source release using own app scope; exclude unrelated migration 084",
+    "Normal production website feature validation",
+    "User production validation of complete native CAD semantics"
+  ],
+  "supplier": "DISABLED_DEFERRED",
+  "acceptanceDenominator": {
+    "issues": 7,
+    "groups": 29,
+    "changed": false
+  },
+  "nextAction": "Commit bounded correction, protected PR/required CI, refresh machine release bindings; do not replay B33/old disabled capsule. Recheck live app, worker and Scheduler before any new release.",
+  "officialMainCompatibility": {
+    "observedMain": "62cecbfe61d5a49dedfafa6ea1dd40f5418aef96",
+    "profileAddsUnrelated084": true,
+    "084ExecutionAuthorizedInThisSlice": false,
+    "existingAppOnlyPath": "READ_ONLY_ASSESSMENT_PENDING",
+    "fullOwnerDispatch": "NOT_RUN_PENDING_SCOPE_RESOLUTION"
+  }
+}
