@@ -355,6 +355,9 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 </details>
 
+## DEV-121 RD 圖／料號能力（2026-10-10，LOCAL_CANDIDATE）
+
+[任務](dev_task.md#dev-121-rd-capabilities) → [唯一施工契約](specs/DEV-121-target-authorization-boundary.md#rd-capabilities) → [本機證據](qa/DEV-121-rd-capabilities-v7-local-2026-10-10.md)。v6有效RD grant缺drawing view已重現；v7只增RD drawing page，編輯與送審保留、核准仍deny。085／exact35 source pin／maintenance fence維持fail closed，program-only34/33不放寬。OrgMaster目前仍只讀，新v7相容及owner发布需原始人類明確授權；維護窗口proof尚未取得。Local focused/native PASS不代表正式發布或本人驗證。保留原first-login與cleanup歷史。
 ## DEV-121 generic 歷史 profile 清理（2026-10-10，執行中）
 
 [現行任務](dev_task.md#dev-121-unlinked-profile-cleanup) → [current contract](specs/DEV-121-target-authorization-boundary.md#unlinked-profile-cleanup) → migrator-only `084_dev121_unlinked_legacy_profile_cleanup.sql` → synthetic PostgreSQL／owner producer／runner／source-proof 回歸。公開內容僅可重用程式與合成驗證；Production 單筆目標、處置、native snapshot 與 provider evidence 私存。 本地證據入口：[local validation](qa/qa-dev-121-generic-unlinked-profile-cleanup-2026-10-10.md)。受保護 owner capsule／exact generation/hash/source 控制執行，不新增角色、IAM 或資源，不改 065／083，引用或資料漂移拒絕；本機 PASS 不等於正式資料刪除或本人登入成功。

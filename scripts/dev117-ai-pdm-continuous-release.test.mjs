@@ -303,25 +303,28 @@ test('S1B-20 AI-PDM historical migration prefix and forward-only owner additions
   const bundle = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), 'a'.repeat(40))
   assert.equal(bundle.bundle.entries.length, profile.migrations.entries.length)
   assert.equal(bundle.bundle.baselineCount, 15)
-  assert.deepEqual(bundle.bundle.entries.slice(-17).map((entry) => entry.version),
-    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084'])
-  assert.deepEqual(profile.migrations.entries.at(-5), { order: 30,
+  assert.deepEqual(bundle.bundle.entries.slice(-18).map((entry) => entry.version),
+    ['ai-pdm-067', 'ai-pdm-068', 'ai-pdm-069', 'ai-pdm-070', 'ai-pdm-071', 'ai-pdm-072', 'ai-pdm-073', 'ai-pdm-074', 'ai-pdm-075', 'ai-pdm-076', 'ai-pdm-078', 'ai-pdm-079', 'ai-pdm-080', 'ai-pdm-081', 'ai-pdm-082', 'ai-pdm-083', 'ai-pdm-084', 'ai-pdm-085'])
+  assert.deepEqual(profile.migrations.entries[29], { order: 30,
     path: 'db/postgres/080_dev122_settings_secret_activation_intents.sql',
     sha256: '5584b7f933f61b59331f5aeb87a5fe647f52d6cb30c462c63549d017522a9713' })
-  assert.deepEqual(profile.migrations.entries.at(-4), { order: 31,
+  assert.deepEqual(profile.migrations.entries[30], { order: 31,
     path: 'db/postgres/081_dev121_principal_role_catalog_v6.sql',
     sha256: 'c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284' })
-  assert.deepEqual(profile.migrations.entries.at(-3), { order: 32,
+  assert.deepEqual(profile.migrations.entries[31], { order: 32,
     path: 'db/postgres/082_dev122_openswx_auxiliary_jobs.sql',
     sha256: '9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000' })
-  assert.deepEqual(profile.migrations.entries.at(-2), { order: 33,
+  assert.deepEqual(profile.migrations.entries[32], { order: 33,
     path: 'db/postgres/083_dev121_authorized_first_login_account.sql',
     sha256: 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9' })
-  assert.deepEqual(profile.migrations.entries.at(-1), { order: 34,
+  assert.deepEqual(profile.migrations.entries[33], { order: 34,
     path: 'db/postgres/084_dev121_unlinked_legacy_profile_cleanup.sql',
     sha256: '6be6eb8cdc4ffb6f83883a17220066d4f91efd0f374b32cee0b50d299eb991e1' })
-  assert.equal(bundle.bundle.entries.at(-1).sourceSha256, '6be6eb8cdc4ffb6f83883a17220066d4f91efd0f374b32cee0b50d299eb991e1')
-  assert.equal(bundle.bundle.entries.at(-1).appliedSha256, sha256(Buffer.from(bundle.bundle.entries.at(-1).sqlBase64, 'base64')))
+  assert.equal(bundle.bundle.entries[33].sourceSha256, '6be6eb8cdc4ffb6f83883a17220066d4f91efd0f374b32cee0b50d299eb991e1')
+  assert.equal(bundle.bundle.entries[33].appliedSha256, sha256(Buffer.from(bundle.bundle.entries[33].sqlBase64, 'base64')))
+  assert.deepEqual(profile.migrations.entries[34], { order: 35,
+    path: 'db/postgres/085_dev121_principal_role_catalog_v7.sql',
+    sha256: '308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba' })
   const insertedBeforeApplied = structuredClone(profile)
   insertedBeforeApplied.migrations.entries.splice(27, 0, insertedBeforeApplied.migrations.entries.pop())
   assert.throws(() => assertDev117V3Profile(insertedBeforeApplied, v1, n1c), { code: 'MIGRATION_MANIFEST_DRIFT' })

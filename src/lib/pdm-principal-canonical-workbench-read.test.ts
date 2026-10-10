@@ -23,6 +23,7 @@ vi.mock("@/lib/pdm-canonical-workbench", () => ({
 }));
 vi.mock("@/lib/pdm-dev087-route", () => ({ dev087RouteError: mocks.legacyError }));
 
+import { principalCatalog } from "@/lib/jenfu-principal-role-catalog";
 import { principalCanonicalWorkbenchResponse } from "@/lib/pdm-principal-canonical-workbench-read";
 
 const partRoute = "src/app/api/parts/workbench/route.ts";
@@ -111,5 +112,19 @@ describe("Principal canonical workbench read", () => {
     expect(response?.status).toBe(503);
     expect(mocks.principalRead).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
+  });
+  it.each(["drawing", "part"] as const)("projects published RD edit/submit and approval-deny for %s", async entityType => {
+    const rd = principalCatalog.roles.find(role => role.roleCode === "rd")!;
+    allowCodes(...rd.permissions.filter(permission => permission.kind === "action" && permission.allowed)
+      .map(permission => permission.code));
+    const request = new Request("https://example.test" + (entityType === "drawing"
+      ? "/api/numbering/drawings/workbench" : "/api/parts/workbench"));
+    const response = await principalCanonicalWorkbenchResponse(request,
+      entityType === "drawing" ? drawingRoute : partRoute, entityType,
+      (service, actor) => service.list(new URL(request.url), entityType, actor));
+    expect(response.status).toBe(200);
+    expect(mocks.list).toHaveBeenCalledWith(snapshot, expect.any(URL), entityType,
+      expect.objectContaining({ canEditNonOwned: false, permissions: expect.objectContaining({
+        createWork: true, updateWork: true, submitWork: true, decideReview: false }) }));
   });
 });

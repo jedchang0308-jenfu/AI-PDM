@@ -13,7 +13,9 @@ import {
 
 // LOCAL_TEST: actual repository SQL bytes, recorded HTTP, and isolated in-memory ledger.
 // These tests make no production readback, credential, or native PostgreSQL claim.
-const profile = JSON.parse(fs.readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v3.json', import.meta.url)))
+const currentProfile = JSON.parse(fs.readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v3.json', import.meta.url)))
+// Preserve the closed B35 historical34 policy fixture; future migrations remain denied.
+const profile = structuredClone(currentProfile); profile.migrations.entries = profile.migrations.entries.slice(0, 34)
 const n1c = JSON.parse(fs.readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
 const revision = 'b'.repeat(40), bucket = profile.artifact.releaseBucket
 const base = `gs://${bucket}/receipts/releases/DEV122-PROGRAM-LOCAL`
@@ -210,4 +212,10 @@ test('P03 pre-existing matching execution without sealed prior submission cannot
   assert.equal(h.counts().posts, 0)
   assert.ok(h.calls.every(row => row.method === 'GET'))
   assert.ok(![...h.objects.keys()].some(name => name.endsWith('-submission-intent.json')))
+})
+
+test('current v7 source with migration085 cannot enter the closed program-only baseline path', () => {
+  const currentFull = buildDev117MigrationBundle(currentProfile, buildDev117MigrationPackage(currentProfile, n1c), revision)
+  assert.equal(currentFull.bundle.entries.length, 35)
+  assert.throws(() => deriveProgramOnlyBundles({ profile: currentProfile, full: currentFull }), /PROGRAM_ONLY/u)
 })

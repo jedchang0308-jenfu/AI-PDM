@@ -240,6 +240,8 @@ function b23SelectedTar(extra = []) {
 
 function cleanup34Fixture() {
   const profile = JSON.parse(readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v3.json', import.meta.url)))
+  // LOCAL_TEST historical34; keep the immutable084 fixture separate from new085.
+  profile.migrations.entries = profile.migrations.entries.slice(0, 34)
   assert.equal(profile.migrations.entries.length, 34)
   const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
   const { bundle } = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), revision)
@@ -2625,3 +2627,24 @@ test('DEV121 generic unbound v1 migration proof rejects a coherently sealed clea
   await assert.rejects(readOwnerReleaseProof({ owner: 'ai-pdm', sourceRevision: revision,
     refs: input.refs, token: 'synthetic-owner-read-token-only', fetchImpl: input.fetchImpl }), /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u)
 })
+
+function rd35Fixture() {
+  const profile = JSON.parse(readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v3.json', import.meta.url)))
+  const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
+  const { bundle } = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), revision)
+  const files = new Map([[b23ProfilePath, Buffer.from(canonicalize(profile))],
+    ...profile.migrations.entries.map(row => [row.path, readFileSync(new URL('../'+row.path, import.meta.url))])])
+  return { profile, bundle, files }
+}
+test('LOCAL_TEST native35 authenticates exact085 SQL/profile/archive while preserving084 pin', () => {
+  const input = rd35Fixture()
+  assert.equal(input.bundle.entries[34].path, 'db/postgres/085_dev121_principal_role_catalog_v7.sql')
+  assert.equal(input.bundle.entries[34].sourceSha256, '308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba')
+  assertAiPdmMigrationEquivalent(cleanup34Validate(input, true), cleanup34Validate(input))
+})
+for (const index of [33, 34]) for (const field of ['path', 'version', 'name', 'sourceSha256', 'appliedSha256']) {
+  test(`native35 rejects forged ordinal${index+1} ${field} even after reseal`, () => {
+    const input = rd35Fixture(); input.bundle.entries[index][field] = field.includes('Sha256') ? '0'.repeat(64) : 'forged'
+    assert.throws(() => cleanup34Validate(cleanup34Reseal(input)), /ARCHIVE_BUNDLE_INVALID/u)
+  })
+}

@@ -36,6 +36,7 @@ vi.mock("@/lib/pdm-dev087-route", async (importOriginal) => ({
   resolveDev087RouteActor: mocks.legacyActor
 }));
 
+import { principalCatalog as catalog } from "@/lib/jenfu-principal-role-catalog";
 import { POST } from "@/app/api/pdm/review-requests/[requestId]/decisions/route";
 
 const verified = {
@@ -136,5 +137,21 @@ describe("principal DEV-087 decision route", () => {
       expect.objectContaining({ expectedRowVersion: 1, idempotencyKey: "decision-one" }));
     expect(mocks.decidePart).not.toHaveBeenCalled();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
+  });
+  it("denies RD approval before review lookup, receipt replay or any writer", async () => {
+    const rd = catalog.roles.find(role => role.roleCode === "rd")!;
+    mocks.evaluate.mockImplementation(async (_tx, _verified, permissions) => permissions.map(
+      ({ permissionCode, permissionKind }: { permissionCode: string; permissionKind: string }) => {
+        const allowed = rd.permissions.some(permission => permission.code === permissionCode &&
+          permission.kind === permissionKind && permission.allowed);
+        return { allowed, decisionCode: allowed ? "allowed" : "permission_not_granted" };
+      }));
+    const response = await POST(request(), params);
+    expect(response.status).toBe(403);
+    expect(mocks.getReview).not.toHaveBeenCalled();
+    expect(mocks.verifyContract).not.toHaveBeenCalled();
+    expect(mocks.replay).not.toHaveBeenCalled();
+    expect(mocks.decidePart).not.toHaveBeenCalled();
+    expect(mocks.decideDrawing).not.toHaveBeenCalled();
   });
 });

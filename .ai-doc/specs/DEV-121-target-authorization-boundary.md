@@ -14,6 +14,21 @@
 
 [HISTORY_ONLY原文快照](DEV-121-target-authorization-boundary-history-2026-10-03.md)保留Rxx施工、舊bridge／cohort／双軌、AAL2強制與local ACL歷史，不能繼續按它實作。當前續點只維護於 [DEV-121任務](../dev_task.md#dev-121-current-contract)，跨owner流程階段及根因只在 [JENFU既有盤點](../../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)；不把規格頂部快照當新發布狀態。
 
+<a id="rd-capabilities"></a>
+
+## RD 圖號能力修正（2026-10-10，CURRENT）
+
+人類明確確認 RD 應能查看與編輯圖號、料號及送審，不能核准。沿用 `AIPDM/DEV-121#rd-capabilities`，不新增主 DEV。AI-PDM 定義角色能力；OrgMaster 發布人員的角色指派與有效期，仍是唯一指派來源。OrgMaster 本輪目前只讀；新版本相容讀取與其受保護 Production 發布正在等待新的明確跨專案授權，不從整合需要推定。
+
+已證實：正常圖號 workbench 的 GET/list/detail 要求 `page:numbering.drawings.view`，v6 RD 缺少此項，雖有 active typed identity 與有效 RD grant 仍拒絕。料號要求 `page:numbering.search`，RD 原有。圖／料 work 的 `numbering.workspace.create/view/update`、圖號 draft 的 `numbering.draft.update` 及送審 `numbering.candidate.review.submit` 原本已存在；核准 route 要求 `action:approval.request.decide`，RD 沒有，不能將 approval request/batch create 當成 decision 能力。
+
+最小來源變更：保留不可變 v6，新增 `config/access-control/jenfu-role-catalog.v7.json`（`ai-pdm.role-catalog.2026-10-10.v7`，SHA `4d624b16a58299a78bc3bac4b7f39f261ec2ba34ae604f06ed7cdb7a078e01f9`）。只有 RD 增加精確 `page:numbering.drawings.view`；其 31 個既有 permission 與其他八個角色、身分／scope／推薦／委派 metadata 均不變。核准、發行、管理、未知能力仍不能從 RD 推定。consumer 精確 pin v7；不接受 stale v6 producer，不做 page/action fallback、帳號特判或本地角色複製。
+
+新增 forward-only `085_dev121_principal_role_catalog_v7.sql`，owner profile order35；raw SHA `308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba`，既有 owner compiler 去除 BEGIN/COMMIT 後 applied SHA `80e7085085a3bf8d220917a4790224b52a54cc2af788a0775d7aaedd629ce65b`。沿用081的精確 baseline/full-row、publication CAS、single-active、原子 transaction、replay/readback guard。只在 own schema 發布 catalog，不重寫任何 OrgMaster assignment、既有 migration 或應用帳戶。來源/archive驗證精確加入085，同時保留083/084的釘選；085沿081維護窗口 writer fence，不能與單筆歷史 cleanup operationRef 捆成同一 intent。
+
+發布先後與阻擋：OrgMaster reader 必須先支援相同 immutable v7 artifact，保留v5/v6與所有 exact metadata/hash/tamper guards，再於AI-PDM受保護 owner 流程的完整維護窗口發布085與v7 consumer。目前可證的 repository 一般 prepare 只消費 optional recovery binding，fence bytes/live quiescence 在pending migration前由runner驗證，沒有已證的085 fence producer/readiness evidence。發布操作者須在 paid build 前確認同source的既有完整 recovery/fence 取得流程；不得假造收據或等到build後才發現缺proof。v6 binary在v7 publication後會fail closed，回復目標為既有無DB maintenance revision，不能降migration或將舊binary假裝相容。B35 program-only policy保留closed34/deferred084/read-only33，明確拒絕35-entry v7 package；不以program-only receipt宣稱085已發布。
+
+驗收：合成有效 RD grant＋v6 重現 drawing denial；v7 同assignment允許drawing/search、edit/submit，核准HTTP403且無writer/receipt副作用；其他roles不變，錯kind/unknown/scope/identity/expiry/撤權拒絕。task-owned disposable PG驗 compiled085 baseline漂移rollback、兩個並行publication、精確replay、完整九roles及tampered metadata/role拒絕，所有runtime/port收尾。正式登入與編輯結果另驗，不以本地PASS替代兩fixture或本人驗證。證據入口：[本機驗證](../qa/DEV-121-rd-capabilities-v7-local-2026-10-10.md)。
 <a id="authorized-first-login"></a>
 
 ## 已授權首次登入自動建立 PDM 帳戶（2026-10-08，CURRENT）

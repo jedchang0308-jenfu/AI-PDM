@@ -91,3 +91,5 @@ Start each new shared PostgreSQL migration with:
 List both owned schemas when needed. For a contract change, replace `none` with the versioned contract identifier and use `additive` or `new-version`. A destructive contract retirement additionally requires `-- governance-review: DEV-NNN` or `ADR-NNN`.
 
 Run `npm run check:db-boundary` before completing the change. The default check validates future migration files and staged migration changes; CI can compare committed changes with `npm run check:db-boundary -- --base=<base-ref>`.
+
+- DEV-121 RD capability v7 is forward-only `085_dev121_principal_role_catalog_v7.sql` (owner order35): exact v6 baseline, atomic v7 publication, immutable history and replay guards. Only RD gains page `numbering.drawings.view`; existing editing/submission remains and approval stays denied. Run `check:dev-121:role-catalog-v7` and `qc:dev-121:rd-capabilities-postgres`. Production requires OrgMaster exact-v7 compatibility and the same full maintenance fence as081; closed program-only34/33 cannot publish085.

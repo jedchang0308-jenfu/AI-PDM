@@ -352,7 +352,7 @@ function assertContentBundle(bundle, sourceRevision) {
   const core = { ...bundle }; delete core.manifestSha256
   if (!exactKeys(bundle, keys) || bundle.schemaVersion !== 'jenfu.dev012.migration-bundle.v1' || bundle.ownerApplicationId !== 'ai-pdm' || bundle.sourceRevision !== sourceRevision ||
       bundle.projectId !== PROJECT_ID || bundle.region !== 'asia-east1' || bundle.database !== 'jenfu_prod' || bundle.ledger !== 'ai_pdm_core.schema_migrations' || bundle.baselineCount !== 15 ||
-      !H64.test(bundle.manifestSha256 ?? '') || sha256(canonicalize(core)) !== bundle.manifestSha256 || !Array.isArray(bundle.entries) || ![32, 33, 34].includes(bundle.entries.length)) fail('ARCHIVE_BUNDLE_INVALID')
+      !H64.test(bundle.manifestSha256 ?? '') || sha256(canonicalize(core)) !== bundle.manifestSha256 || !Array.isArray(bundle.entries) || ![32, 33, 34, 35].includes(bundle.entries.length)) fail('ARCHIVE_BUNDLE_INVALID')
   const paths = new Set(), versions = new Set()
   for (const [index, entry] of bundle.entries.entries()) {
     if (!exactKeys(entry, ['order', 'version', 'name', 'path', 'sourceSha256', 'appliedSha256', 'sqlBase64']) || entry.order !== index + 1 ||
@@ -367,10 +367,14 @@ function assertContentBundle(bundle, sourceRevision) {
       bundle.entries[32].sourceSha256 !== 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9' ||
       bundle.entries[32].version !== 'ai-pdm-083' || bundle.entries[32].name !== 'dev121_authorized_first_login_account' ||
       bundle.entries[32].appliedSha256 !== '8f6ed9bafe7af906bcae7a94df59a07bbb98cab27402e75ea9162b85a3ec9b8a')) fail('ARCHIVE_BUNDLE_INVALID')
-  if (bundle.entries.length === 34 && (bundle.entries[33].path !== 'db/postgres/084_dev121_unlinked_legacy_profile_cleanup.sql' ||
+  if (bundle.entries.length >= 34 && (bundle.entries[33].path !== 'db/postgres/084_dev121_unlinked_legacy_profile_cleanup.sql' ||
       bundle.entries[33].version !== 'ai-pdm-084' || bundle.entries[33].name !== 'dev121_unlinked_legacy_profile_cleanup' ||
       bundle.entries[33].sourceSha256 !== '6be6eb8cdc4ffb6f83883a17220066d4f91efd0f374b32cee0b50d299eb991e1' ||
       bundle.entries[33].appliedSha256 !== '6be6eb8cdc4ffb6f83883a17220066d4f91efd0f374b32cee0b50d299eb991e1')) fail('ARCHIVE_BUNDLE_INVALID')
+  if (bundle.entries.length === 35 && (bundle.entries[34].path !== 'db/postgres/085_dev121_principal_role_catalog_v7.sql' ||
+      bundle.entries[34].version !== 'ai-pdm-085' || bundle.entries[34].name !== 'dev121_principal_role_catalog_v7' ||
+      bundle.entries[34].sourceSha256 !== '308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba' ||
+      bundle.entries[34].appliedSha256 !== '80e7085085a3bf8d220917a4790224b52a54cc2af788a0775d7aaedd629ce65b')) fail('ARCHIVE_BUNDLE_INVALID')
   assertUnlinkedProfileCleanupBundleBinding(bundle)
   return paths
 }
