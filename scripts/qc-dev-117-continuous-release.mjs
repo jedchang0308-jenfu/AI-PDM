@@ -48,6 +48,7 @@ const ownerExitCommands = [
 const runId = `DEV117-S1B-${new Date().toISOString().replace(/[-:.]/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`; const dir = path.join(root, 'output', 'dev-117', 's1b', runId); fs.mkdirSync(dir, { recursive: true })
 const files = [
   'qa/dev-122/fixtures/secret-version-iam-fixture.mjs',
+  'qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json',
   'scripts/lib/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.test.mjs',
   'infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf', '.ai-doc/qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json',
   'scripts/lib/dev117-ai-pdm-program-only-baseline.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs',
