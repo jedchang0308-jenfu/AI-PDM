@@ -378,7 +378,7 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 - [x] source最小角色delta、合成RED→GREEN、110項focused policy/route/revocation回歸及7組compiled PostgreSQL publication回歸。
 - [x] 本輪typecheck PASS；native PG精確停止與port/temp清理PASS。
-- [ ] owner完整required QC與isolated build收斂（不以局部PASS替代）。
+- [x] owner本機required QC／build收斂：原continuous240與QC279 PASS；官方CI暴露Git HEAD35的historical fixture衝突後，修正並補驗continuous241/241、owner280/280、source-proof152/152及B35定向29/29 PASS。原FAIL保存，分母重疊不相加；typecheck／abort6／isolated artifact/primary/cleanup有效證據沿用，官方CI待補驗。
 - [ ] OrgMaster相同v7 artifact的相容讀取及受保護發布：目前既有邊界只讀，待新明確授權；正式指派不改。
 - [ ] 取得同source的完整maintenance recovery/fence及prebuild readiness證據，再依own protected流程發布；不提交未知或缺proof的paid build。
 - [ ] Production migration／部署／切流與兩fixture正常圖/料workbench讀取、編輯/送審/核准拒絕、刷新結果，均NOT_RUN；本人驗證不由fixture替代。

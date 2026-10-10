@@ -15,14 +15,20 @@
 - 原生 disposable PostgreSQL：7 groups PASS；使用實際owner compiler的085 applied bytes，v6 readback拒絕、baseline漂移rollback、parallel出版只有九筆完整新roles、exact replay只有一筆active publication／18 historical+new entries、RD edit/submit保持與approval deny、publication metadata／role tamper拒絕。不是Production DB或實際OrgMaster producer驗收。四次harness過程中的setup view順序／SQL NULL fixture修正有原FAIL紀錄；最終正確raw與compiled驗證PASS，未放寬產品guard。
 - `typecheck:app` PASS。
 - `check:db-boundary` PASS（22 governed files）。
-- `test:dev-117:continuous`：240/240 PASS；source-proof 定向回歸152/152 PASS（與continuous分母部分重疊，不相加）。最初source-proof正向fixture錯把raw SHA當applied SHA，修正成實際owner compiler的80e…後PASS；拒絕guard未放寬。
-- `qc:dev-117:continuous`：279/279 PASS；Sharp canonical preview 7案／image-only 8案、abort 6/6、v7 builder 3/3、DB boundary、app typecheck及isolated build均PASS。原筆數fixture失敗紀錄保留，僅更新測試的current35／historic33或34分支；B24及B35產品policy仍拒絕35。既有B35 program-only的測試仍為LOCAL_TEST／MODELED，不變成正式證據。
+- 原precommit `test:dev-117:continuous`：240/240 PASS（當時HEAD34）；CI補修後以已提交v7目錄Git HEAD重跑241/241 PASS；source-proof 定向回歸152/152 PASS（與continuous分母部分重疊，不相加）。最初source-proof正向fixture錯把raw SHA當applied SHA，修正成實際owner compiler的80e…後PASS；拒絕guard未放寬。
+- 原precommit `qc:dev-117:continuous`：279/279 PASS（當時HEAD34）；CI補修後重跑相同17檔owner regression集合280/280 PASS；Sharp canonical preview 7案／image-only 8案、abort 6/6、v7 builder 3/3、DB boundary、app typecheck及isolated build均PASS。原筆數fixture失敗紀錄保留，僅更新測試的current35／historic33或34分支；B24及B35產品policy仍拒絕35。既有B35 program-only的測試仍為LOCAL_TEST／MODELED，不變成正式證據。
 - owner LOCAL_CONTRACT receipt：`output/dev-117/s1b/DEV117-S1B-20261010T134811849Z-3003BDC5/owner-report.json`；本輪紀錄回填只改文件，不改其不可變收據。build證明artifact=true／primary=true／cleanup=true；該worktree沒有primary SQLite（database-absent），不是對正式資料庫的內容驗證。沿用的Next依賴有Edge Runtime warning，build exit0；沒有改依賴或忽略error。
 - 獨立gpt-6-luna xhigh唯讀來源review：RD單項新增、八角色／原31項完全不变、edit/submit與approval HTTP403零副作用及保留撤銷檢查，未发现權限slice明確功能缺陷。review未執行測試或Production，與Root的RD驗證分開。
 
 所有PG cluster及port（最終54726）已停止/釋放，task temp已清除；隔離build自有runtime temp已移除，Root在交付前移除本輪dependency junction並讀回自有程序退出，不動其他人的runtime。Primary DB未作seed/cleanup。
 
 已提交來源的真實 Git archive source-proof補驗152/152 PASS；受影響 TypeScript ESLint PASS。新RD policy regression已接入既有Production Slice QC，官方CI結果仍待讀回，不能以本地PASS代替。
+
+## 官方CI補修（沿用有效建置證據）
+
+[CI38057541266](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38057541266)／HEAD13aa7a0b：Isolated PostgreSQL Cutover SUCCESS，Production Slice QC FAILURE（212/213；worker artifact test module top-level失敗）。第一失敗是歷史B35 test從Git HEAD取得current35 profile後呼叫closed34政策，`PROGRAM_ONLY_BASELINE_INVALID:profile`；先前precommit本機測試的Git HEAD仍34，漏了此execution binding。原FAIL log保存於私有output，沒有重送相同source。
+
+修正只改fixture：依獨立Luna只讀review縮小scope，普通worker/build測試保留genuine current35 appProfile，只有B35段使用獨立b35AppProfile34；genuine current35拒絕另測；B35 modeled34 appProfile、archive與callback bytes一致，歷史RELEASED33 hash保持3faf…，真Git PAX與raw SQL/worker blobs沿用。整個historical graph仍MODELED／LOCAL_TEST，不宣稱整份current35 production archive或provider PASS。新單檔29/29、continuous241/241、owner280/280 PASS；補修過程中的缺少已收尾依賴、fixture序列化與archive版本衝突本機FAIL保留。產品guard、SQL、catalog、依賴及應用build inputs未再改，沿用既有app typecheck／isolated build，不重复無變動的應用建置。官方新來源CI待讀回。
 
 ## 正式與剩餘阻擋
 
