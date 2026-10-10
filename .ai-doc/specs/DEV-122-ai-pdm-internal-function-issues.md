@@ -1,8 +1,10 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B35 程式更新規則已實作／LOCAL_QC_PASS；NOT_DEPLOYED）
+## DEV-122 CURRENT（B35 TARGETED_FIXTURE_PASS／CI_RETRY_PENDING；NOT_DEPLOYED）
 
-`CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1`；成熟度 `RD Implementation Ready`／`Architecture Finalized` 保持；B35 checkpoint=`IMPLEMENTED / LOCAL_QC_PASS / NOT_DEPLOYED`（2026-10-10）。Root完成本地實作與六項required checks，Independent Luna QC在local gate為PASS／P0=0／P1=0；本段仍是唯一施工及後續正式發布契約。Protected official-source新規則、fresh production DB／provider execution與owner workflow／release驗證仍 `NOT_RUN`，不把本地PASS當production authority。DEV-122 維持開發點、不計入交付，7 issues／29 groups 與 whole `NOT_ACCEPTED`。
+`CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1`；成熟度 `RD Implementation Ready`／`Architecture Finalized` 保持；B35 checkpoint=`IMPLEMENTED / TARGETED_FIXTURE_PASS / CI_RETRY_PENDING / NOT_DEPLOYED`（2026-10-10）。Root已於原凍結輸入完成本地實作與六項required checks，該歷史Independent Luna QC在local gate為PASS／P0=0／P1=0；本段仍是唯一施工及後續正式發布契約。Protected official-source新規則、fresh production DB／provider execution與owner workflow／release驗證仍 `NOT_RUN`，不把本地PASS當production authority。DEV-122 維持開發點、不計入交付，7 issues／29 groups 與 whole `NOT_ACCEPTED`。
+
+CI補驗（2026-10-10）：PR [#259](https://github.com/jedchang0308-jenfu/AI-PDM/pull/259) 原受測HEAD `b5783c233e48924c406d0dbe0dace08363015f7b` 的 [CI38048476227](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38048476227) 為cutover SUCCESS／Production Slice QC FAILURE（238/239），原因是既有B21 genuine Git archive fixture使用Windows temp 8.3 alias，而Git傳回canonical long root，觸發原repository guard；原FAIL與紀錄保留。Root僅將test fixture的temp parent／created root以 `fs.realpathSync.native` canonicalize並同步cleanup parent檢查，產品guard不變；同Windows8.3 alias actual Git補驗RED1FAIL／GREEN1PASS，自有child／temp已清理。本次 `TARGETED_FIXTURE_PASS / CI_RETRY_PENDING`，獨立Luna supplement LOCAL_QC_PASS（已證實產品P0/P1=0），provider CI retry待執行；受控[CI shortpath fixture補驗收據](../qa/DEV-122-B35-ci-shortpath-fixture-2026-10-10.json)由Root建立，另綁fixture新hash。原19-input aggregate PASS屬歷史tested inputs，未改產品證據只沿用其原scope；不重跑無變動app build／native DB，不新增schema／API／state policy。Protected official-source／owner workflow／production仍未完成，B35 `NOT_DEPLOYED`、whole `NOT_ACCEPTED`。
 
 ### 人類決策、來源與真正問題
 

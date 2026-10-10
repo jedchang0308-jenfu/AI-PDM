@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
@@ -487,7 +487,9 @@ test('B19-01/02 LOCAL_TEST original v1 identity stays immutable; app-only associ
   noMutation(h)
 })
 test('B21 LOCAL_TEST genuine Git archive preserves raw LF COPY bytes under CRLF host configuration', { concurrency: false }, t => {
-  const fixture = mkdtempSync(path.join(tmpdir(), 'ai-pdm-b21-git-archive-'))
+  // Windows CI may expose tmpdir through an 8.3 alias; bind the actual fixture root used by Git.
+  const fixtureParent = realpathSync.native(tmpdir())
+  const fixture = realpathSync.native(mkdtempSync(path.join(fixtureParent, 'ai-pdm-b21-git-archive-')))
   const envNames = ['GIT_CONFIG_COUNT', 'GIT_CONFIG_KEY_0', 'GIT_CONFIG_VALUE_0', 'GIT_CONFIG_KEY_1', 'GIT_CONFIG_VALUE_1', 'GIT_CONFIG_KEY_2', 'GIT_CONFIG_VALUE_2']
   const previousEnv = new Map(envNames.map(name => [name, process.env[name]]))
   const fixtureGit = args => {
@@ -546,7 +548,7 @@ test('B21 LOCAL_TEST genuine Git archive preserves raw LF COPY bytes under CRLF 
     assert.equal(assertWorkerArchive(actualArchive, inputs.entries).inputCount, 37)
   } finally {
     for (const [name, value] of previousEnv) { if (value === undefined) delete process.env[name]; else process.env[name] = value }
-    assert.equal(path.dirname(fixture), path.resolve(tmpdir())); assert.ok(path.basename(fixture).startsWith('ai-pdm-b21-git-archive-'))
+    assert.equal(path.dirname(fixture), fixtureParent); assert.ok(path.basename(fixture).startsWith('ai-pdm-b21-git-archive-'))
     rmSync(fixture, { recursive: true, force: true })
   }
 })
