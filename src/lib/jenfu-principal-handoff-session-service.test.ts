@@ -107,6 +107,22 @@ describe("DEV-121 principal handoff session issuance", () => {
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
+  it.each(["principal_not_active", "principal_directory_unavailable"])(
+    "does not provision or issue a session when the published identity lookup rejects with %s",
+    async (code) => {
+      mocks.typed.mockRejectedValueOnce(Object.assign(new Error(code), { code }));
+
+      await expect(issueSessionForPrincipalHandoff(base)).rejects.toMatchObject({ code });
+
+      expect(mocks.state).not.toHaveBeenCalled();
+      expect(mocks.account).not.toHaveBeenCalled();
+      expect(mocks.assignments).not.toHaveBeenCalled();
+      expect(mocks.ensureFirstLogin).not.toHaveBeenCalled();
+      expect(snapshot.queryOne).not.toHaveBeenCalled();
+      expect(mocks.register).not.toHaveBeenCalled();
+    }
+  );
+
   it("does not read a profile or register a session when the account activation check denies", async () => {
     mocks.account.mockRejectedValueOnce(new JenfuPrincipalAccountError("principal_account_inactive"));
     await expect(issueSessionForPrincipalHandoff(base)).rejects.toThrow("principal_account_inactive");
