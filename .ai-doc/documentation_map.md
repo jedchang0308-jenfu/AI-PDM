@@ -1,6 +1,18 @@
 # AI_PDM 文件地圖
 
-## DEV-122 CURRENT（B35 限定 IAM APPLIED；發布前中止接續修正中；NOT_DEPLOYED）
+## DEV-122 CURRENT（B35 限定 IAM APPLIED；R5 唯讀接線 LOCAL_QC_PASS；NOT_DEPLOYED）
+
+PR [#263](https://github.com/jedchang0308-jenfu/AI-PDM/pull/263) 已正常合併為 bc7bf2a4b29b5758fbd866c7e143632c388ed579；PR CI38069358388／main CI38069771172 required checks SUCCESS，official-source／branch protection provider readback PASS。先前五項 metadata IAM APPLIED／provider readback PASS、既有 migration Job image generation22 還原 readback PASS 保持有效。新 R5 只執行 baseline GET，未 source-freeze／plan／apply／dispatch／build／Job run／SQL／candidate／traffic，runtime／temp cleanup PASS。
+
+R5 實際失敗為 program-only proof transport 把 nested paused worker history 的 terminal receipt 當成 current migration bundle；來源 corrective contract 採 closed raw receipt／binary readBytes（own prefix／hash／generation／CRC／same-root memo）、內部 authenticated nested source/provider proof closure（沿用原 factory primary／secondary、forward readSource）、now及四個純 recorded service/revision validators。沒有 general request、live service/revision、control/source prefix transport、CLI/capsule identity或新權限。遞迴也保留同一 closure；depth8／cycle／hash-conflict／admission／期限不放寬。
+
+歷史 IAM 僅放行既有四個 READBACK_IAM_PATHS 加 WORKER_PROFILE_PATH 的固定五檔，不將該 revision 加入一般 sourceAdmissions；profile／plan／descriptor／build／request hashes仍逐項驗證。JSON 規則保持，raw readBytes 只額外接受 own worker prefix 下平坦的 *-plan.tfplan，caller 必驗 request-derived exact URI／binary hash，generation／CRC／same-root memo不變。Source QC 原 P1（二進位檔套 JSON suffix）保留；修正後 Luna 增量 QC P0=0／P1=0。實際 memory-only GET diagnostic R5 已驗 genuine R4 abort→B33 RELEASED／nested paused worker history及 BUILD_IMAGE_VERIFIED：440 GET、含12次歷史 binary plan GET，沒有 cloud writes／SQL／Job run／原始回應或 request headers保存，runtime／temp cleanup PASS；此 dirty-source 診斷不作發布權限。R2 source admission與R4 suffix失敗保留。新 portable P06A+B22 fixture兩次2/3 FAIL照實保留：simple READY graph沒有進入 nested PAUSED supplemental IAM／binary branch，未以弱化 assertions冒稱 PASS；僅回復本次 test edits。TL 接受 targeted QA 採同 exact R4abort／B33 immutable歷史鏈的 actual GET RED→GREEN＋TL／Luna source QC＋既有 mandatory checks，portable legacy/binary regression NOT_ESTABLISHED；fresh exact official owner preflight仍必須。Local19／continuous253／aggregate303、abort6／DB21／typecheck／isolated build PASS（artifact／primary database-absent invariant／cleanup PASS），native CIM9個自有PID皆不存在、無port。Source QC TL／Luna P0=0／P1=0；LOCAL_QC_PASS。新 normal PR／required main CI與 fresh official preflight／owner release仍 pending；舊 R4 terminal capsule及 saved apply binary不重播。
+
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1。只更新程式，FULL34／effective33／fresh native PG17 readonly33／NO084／worker READY／Scheduler ENABLED及原回復機制保持；不新增 IAM／Secret／資源或正式資料清理。Root唯一writer／cleanup owner，同repo既有 worktree；canonical與其他任務不動。Whole DEV NOT_ACCEPTED／7 issues／29 groups；supplier DISABLED_DEFERRED；完整原生CAD正式驗證由使用者執行。
+
+[唯讀證據接線 checkpoint](qa/DEV-122-B35-observation-transport-checkpoint-2026-10-11.json)。
+
+## DEV-122 HISTORY_ONLY（B35 限定 IAM APPLIED；發布前中止接續修正中；NOT_DEPLOYED）
 
 PR [#262](https://github.com/jedchang0308-jenfu/AI-PDM/pull/262) 正常合併至 66911937e2a17c7348bdcefbec84f3a4b987a949，PR／main required CI SUCCESS。已核准的 1 個 metadata-only role＋4 個 Secret-level bindings 已實際 APPLIED，完整 provider readback PASS；没有新 payload access。Protected owner [38063373523](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38063373523) prepare／build SUCCESS，migrate 在提交 Job 前因既有 runner image 與封存基線不同而停止。R4 FINALIZED／PRE_ACTIVATION_ABORTED、NOT_APPLIED／currentDatabaseReadPerformed=false；native PG17 NOT_RUN，candidate／traffic SKIPPED。不得重播 terminal capsule 或 saved apply binary。
 

@@ -1,0 +1,103 @@
+{
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "status": "LOCAL_QC_PASS_NOT_DEPLOYED",
+  "sourceParent": "bc7bf2a4b29b5758fbd866c7e143632c388ed579",
+  "mergedPriorPullRequest": 263,
+  "humanAuthorization": "Same AI-PDM program-only jenfu-platform-prod production corrective cycle; latest approved five metadata IAM applied; no084; no additional authority",
+  "r5Baseline": "GET_FAILED_BEFORE_MUTATIONS",
+  "r5Error": "DEV121_OWNER_RELEASE_PROOF_MIGRATION_BUNDLE_REF_INVALID",
+  "diagnosticR2": "GET_ONLY_CROSSED_BUNDLE_FAILURE_THEN_PROGRAM_ONLY_GIT_SOURCE_INVALID_IN_HISTORICAL_SUPPLEMENTAL_IAM",
+  "contract": "CLOSED_HISTORICAL_RAW_BYTES_NESTED_AUTHENTICATED_PROOF_AND_PURE_RECORDED_GUARDS",
+  "sourceReview": "TL_AND_LUNA_SOURCE_QC_P0_0_P1_0",
+  "localSimpleReadyTests": {
+    "passed": 2,
+    "scope": "P06A_SIMPLE_READY_ORIGIN_ONLY"
+  },
+  "nestedGraphTests": "ACTUAL_GENUINE_IMMUTABLE_NESTED_HISTORY_READONLY_RED_TO_GREEN_PASS",
+  "sixRequiredChecks": {
+    "status": "PASS",
+    "focused": 19,
+    "continuous": 253,
+    "aggregate": 303,
+    "abort": 6,
+    "dbGovernedFiles": 21,
+    "typecheck": "PASS",
+    "isolatedBuild": {
+      "status": "PASS",
+      "artifact": true,
+      "primary": "database-absent-unchanged",
+      "cleanup": true
+    },
+    "commands": [
+      "test:dev-117:continuous",
+      "qc:dev-117:continuous",
+      "test:dev-117:abort",
+      "check:db-boundary",
+      "typecheck:app",
+      "build:isolated"
+    ],
+    "focusedActualCommand": "node --test --test-name-pattern=P06A|P07|P08|B24 scripts/dev122-openswx-worker-artifact-reuse.test.mjs scripts/dev121-owner-release-proof.test.mjs",
+    "runnerReportedFocusedCommandOmittedSecondFile": true
+  },
+  "productionRelease": "NOT_COMPLETED",
+  "currentDatabaseReadPerformed": false,
+  "nativePG17": "NOT_RUN",
+  "migration084": "FORBIDDEN",
+  "cloudMutationsThisR5Attempt": false,
+  "taskRuntimeCleanup": {
+    "status": "PASS",
+    "nativeCimVerifiedAbsentPids": 9,
+    "portsOpened": 0,
+    "lease": "RELEASED"
+  },
+  "wholeDev": "NOT_ACCEPTED",
+  "issueCount": 7,
+  "acceptanceGroupCount": 29,
+  "supplier": "DISABLED_DEFERRED",
+  "nativeCadAcceptanceOwner": "HUMAN_USER",
+  "evidenceRoot": "output/qa/dev-122/openswx-phase2/owner-checks",
+  "historicalSourceScope": "EXACT_FOUR_READBACK_IAM_PATHS_PLUS_WORKER_PROFILE_ONLY_NO_GENERAL_ADMISSION",
+  "rawBinaryScope": "FLAT_OWN_WORKER_PLAN_TFPLAN_ONLY_JSON_UNCHANGED",
+  "diagnosticR4": "JSON_ONLY_SUFFIX_P1_PRESERVED",
+  "diagnosticR5": {
+    "status": "ACTUAL_IMMUTABLE_HISTORY_READBACK_PASS",
+    "provider": "BUILD_IMAGE_VERIFIED",
+    "requests": 440,
+    "binaryPlanGets": 12,
+    "rawBodiesPersisted": false,
+    "currentDatabaseReadPerformed": false,
+    "mutationPerformed": false,
+    "cleanup": "PASS",
+    "evidenceScope": "DIRTY_SOURCE_READONLY_DIAGNOSTIC_NOT_RELEASE_AUTHORITY"
+  },
+  "autoReviewRejectedAction": {
+    "action": "R3 raw provider response playback capture",
+    "executed": false,
+    "reason": "Potential sensitive IAM/source raw response persistence",
+    "saferAlternative": "R5 memory-only GET with minimized hashes/counts succeeded"
+  },
+  "productSha256": {
+    "scripts/lib/dev121-owner-release-proof.mjs": "85e54fd41c8e5cf99e6cd844cc766336c33a497e3e74308a211d904c4972514f",
+    "scripts/lib/dev012-owner-release-runtime.mjs": "1680df604cd1942e90fbee533fc924d179077ed7446f3d97cfe422717d0da8aa"
+  },
+  "sourceQcReceiptSha256": "d307eb9fb53feadd135327cd3213283e6353347b67fb4208e8aae47b5ee5d8e4",
+  "diagnosticReceiptSha256": "e29af7e0712e5e8bb8ff14299a4f1e783e115beb42ab8b84aef49f1d7597fe2a",
+  "portableLegacyIamBinaryRegression": "NOT_ESTABLISHED_SIMPLE_READY_DID_NOT_TRAVERSE_NESTED_IAM_BRANCH",
+  "failedFixtureAttempts": [
+    "B35-observation-focused-r2",
+    "B35-observation-focused-r3"
+  ],
+  "testProductChangesRestored": true,
+  "qaDecisionSha256": "f239d829e93755816dfe7213c04e6eac738ef7626f1299eb02d8be7b7edab8d6",
+  "evidenceSha256": {
+    "B35-observation-diagnostic-r5/diagnostic-result.json": "e29af7e0712e5e8bb8ff14299a4f1e783e115beb42ab8b84aef49f1d7597fe2a",
+    "B35-observation-required-r3/required-final.json": "3a3dd3d34d27b4c5224f09c8018c7769b843934e1238d4a674c7064955f1742f",
+    "B35-observation-required-r3/focused.log": "53628df26c5ead0d87f0e89dc3330cee880082c760a7833399bae3400db6d925",
+    "B35-observation-required-r3/continuous.log": "9bffedab7c0237902781ad4ce71393a024439621b7acd611c1650487f5b6643d",
+    "B35-observation-required-r3/aggregate.log": "35098a0043d78380120b498409e434461cfe0d38d94af59fefd29b1c5ebda432",
+    "B35-observation-required-r3/native-cleanup-readback.json": "ac98773ef9e197d34cd9214ad6cff6e284e17d884e5c785d92df60a92e4b3a7a",
+    "B35-preexecution-qc-draft/observation-transport-source-qc.json": "a1879ec7ae02da9963def0007f090abf36b511639d8c8c7a241d50a570c3b465",
+    "B35-preexecution-qc-draft/observation-transport-source-qc-r2.json": "d307eb9fb53feadd135327cd3213283e6353347b67fb4208e8aae47b5ee5d8e4"
+  }
+}
