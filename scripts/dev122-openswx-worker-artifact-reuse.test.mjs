@@ -1537,3 +1537,114 @@ test('P09 unassociated abort rejects missing/sealed children, native drift, extr
     await assert.rejects(f.read(true), undefined, kind); assert.ok(f.calls.every(row => row.method === 'GET')); noMutation(f.h)
   }
 })
+
+// PRIVATE QA PROPOSAL ONLY — append to scripts/dev122-openswx-worker-artifact-reuse.test.mjs.
+// Uses the existing explicitly MODELED associated graph only for admission negatives.
+// It does not establish a portable inherited positive or represent genuine R8 history.
+test('P10 associated abort rejects invalid claimed historical basis at admission before historical reads', async () => {
+  const cases = [
+    ['schema', basis => { basis.schemaVersion = 'aipdm.program-only-abort-basis.v1' }],
+    ['extra-key', basis => { basis.unapprovedField = true }],
+    ['readonly-disposition', basis => { basis.databaseDisposition = 'READ_ONLY_BASELINE_VERIFIED' }],
+    ['new-database-read', basis => { basis.currentDatabaseReadPerformed = true }],
+    ['not-submitted', basis => { basis.migrationJobSubmitted = false }],
+    ['release-authority', basis => { basis.releaseAuthority = true }],
+    ['wrong-prior-ref', basis => { basis.failedIntentRef = { ...basis.failedIntentRef, sha256: '0'.repeat(64) } }],
+    ['missing-completed', basis => { delete basis.completedNative }],
+    ['missing-native-ref', basis => { delete basis.completedNative.nativeReceiptRef }],
+    ['missing-submission-ref', basis => { delete basis.completedNative.submissionIntentRef }],
+    ['bad-projection-hash', basis => { basis.completedNative.jobProjectionSha256 = 'invalid' }],
+    ['bad-execution-hash', basis => { basis.completedNative.executionSha256 = 'invalid' }],
+    ['resubmission', basis => { basis.completedNative.resubmissionAllowed = true }],
+    ['extra-recursion', basis => { basis.retainedUnassociatedAncestor = structuredClone(basis.completedNative) }],
+    ['wrong-tail-type', basis => { basis.retainedPreexecutionAncestor = { schemaVersion: 'aipdm.program-only-completed-unassociated-abort-basis.v1' } }],
+  ]
+  for (const [kind, mutate] of cases) {
+    const f = await b35ProgramAbortFixture()
+    // Deliberately claimed, never a valid historical proof or positive fixture.
+    const alias = { ...f.wire.capsule.baselineIntentRef }
+    const basis = {
+      schemaVersion: 'aipdm.program-only-completed-unassociated-abort-basis.v1',
+      databaseDisposition: 'UNKNOWN', currentDatabaseReadPerformed: false,
+      migrationJobSubmitted: true, releaseAuthority: false,
+      failedIntentRef: alias, releasedIntentRef: alias, failedProof: {}, releasedProof: {},
+      stageRefs: { prepare: alias, deployment: alias, rollback: alias, terminal: alias },
+      controlSha256: '1'.repeat(64), ownerRunRef: f.control.ownerRunRef,
+      previousRevision: f.wire.capsule.previousRevision, inputFingerprint: '2'.repeat(64),
+      inventorySha256: '3'.repeat(64),
+      completedNative: {
+        nativeReceiptRef: alias, submissionIntentRef: alias, executionName: f.wire.execution.name,
+        jobProjectionSha256: '4'.repeat(64), executionSha256: '5'.repeat(64),
+        disposition: 'OBSERVED_COMPLETED_READONLY_NO_RELEASE_ASSOCIATION', resubmissionAllowed: false,
+      },
+    }
+    mutate(basis)
+    const object = ref => JSON.parse(f.h.objects.get(ref.uri).bytes)
+    const putSealed = (ref, value) => f.wire.put(ref.uri, sealProgramOnlyEvidence(value))
+    const prepare = object(f.prepare)
+    prepare.facts.preActivationAbortBasis = basis
+    f.prepare = putSealed(f.prepare, prepare)
+    const buildUri = f.wire.base + '/build.json'
+    const build = JSON.parse(f.h.objects.get(buildUri).bytes)
+    build.previousReceiptRef = f.prepare
+    const buildRef = f.wire.put(buildUri, sealProgramOnlyEvidence(build))
+    const deployment = object(f.wire.deploymentRef)
+    deployment.buildReceiptRef = buildRef
+    f.wire.deploymentRef = f.wire.put(f.wire.deploymentRef.uri, deployment)
+    const migration = object(f.migrate)
+    migration.deploymentCapsuleRef = f.wire.deploymentRef
+    f.migrate = putSealed(f.migrate, migration)
+    const rollback = object(f.rollback)
+    rollback.previousReceiptRef = f.migrate
+    rollback.facts.migrationEvidenceRef = f.migrate
+    f.rollback = putSealed(f.rollback, rollback)
+    const terminal = object(f.terminal)
+    terminal.previousReceiptRef = f.rollback
+    terminal.facts.migrationEvidenceRef = f.migrate
+    f.terminal = putSealed(f.terminal, terminal)
+
+    let currentSourceProofReads = 0, historicalReads = 0
+    const sourceProof = f.transport.readOwnerSourceProof.bind(f.transport)
+    f.transport.readOwnerSourceProof = async request => {
+      if (request.sourceRevision === f.wire.capsule.sourceRevision) currentSourceProofReads++
+      return sourceProof(request)
+    }
+    const readJson = f.transport.readJson.bind(f.transport)
+    f.transport.readJson = async (ref, ...args) => {
+      if ((typeof ref === 'string' ? ref : ref?.uri) === alias.uri) historicalReads++
+      return readJson(ref, ...args)
+    }
+    await assert.rejects(f.read(), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u, kind)
+    // The original unconditional guard rejects before this read; therefore these
+    // assertions prevent a generic early failure from masquerading as coverage.
+    assert.equal(currentSourceProofReads, 1, kind + ': new admission guard was reached')
+    assert.equal(historicalReads, 0, kind + ': historical capsule was not read')
+    assert.equal(f.calls.length, 0, kind + ': inventory/provider requests were not reached')
+    assert.ok(f.wire.calls.every(row => row.method === 'GET'), kind)
+    noMutation(f.h)
+  }
+})
+
+
+test('P10A associated readonly recovery tolerates provider generation and etag drift', async () => {
+  const f = await b35ProgramAbortFixture()
+  f.service.etag = 'LOCAL_RECOVERED_SERVICE_ETAG'
+  f.service.generation = f.service.observedGeneration = '19'
+  const result = await f.read(true)
+  assert.equal(result.authorityBasis.schemaVersion, 'aipdm.program-only-abort-basis.v1')
+  assert.ok(f.calls.every(row => row.method === 'GET'))
+  noMutation(f.h)
+})
+
+test('P10A associated readonly recovery rejects drift in each entrypoint semantic field', async () => {
+  for (const [key, value] of [
+    ['ingress', 'INGRESS_TRAFFIC_INTERNAL_ONLY'], ['defaultUriDisabled', true],
+    ['invokerIamDisabled', false], ['uri', 'https://unexpected.invalid'],
+    ['urls', ['https://unexpected.invalid']],
+  ]) {
+    const f = await b35ProgramAbortFixture()
+    f.service[key] = value
+    await assert.rejects(f.read(), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u, key)
+    noMutation(f.h)
+  }
+})
