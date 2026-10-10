@@ -54,16 +54,17 @@ test('B24 finalize cannot use forward pending-only mode for an ordinary worker o
   const { baseline, retained } = b23Baseline(), baselineRef = ref('paused-baseline'), associationRef = ref('association')
   const association = { ...baseline.source, schemaVersion: 'aipdm.openswx-worker-build-association.v2', resourceBasis: 'PAUSED_APP_REPAIR', resourceAssociation: { readbackRef: baselineRef }, priorActivationRef: baseline.priorActivationRef }
   const repair = buildPausedRepairDescriptor({ profile, association, associationRef, baseline, baselineRef, retainedDescriptor: retained, retainedDescriptorRef: baseline.retainedWorkerDescriptorRef })
-  for (const scenario of ['ordinary', 'wrong-mode', 'wrong-count', 'wrong-083', 'ordinary-34']) {
+  for (const scenario of ['ordinary', 'wrong-mode', 'wrong-count', 'wrong-083', 'ordinary-34', 'ordinary-35']) {
     const descriptor = scenario === 'ordinary' ? workerDescriptor('full') : repair
     const currentProfile = structuredClone(appProfile), descriptorBytes = Buffer.from(canonicalize(descriptor))
-    assert.ok([33, 34].includes(currentProfile.migrations.entries.length))
+    assert.equal(currentProfile.migrations.entries.length, 35)
     assert.deepEqual(currentProfile.migrations.entries[32], {
       order: 33, path: 'db/postgres/083_dev121_authorized_first_login_account.sql',
       sha256: 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9',
     })
-    if (scenario === 'ordinary-34') assert.equal(currentProfile.migrations.entries.length, 34)
-    else currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 33)
+    // Keep B24's historical 34-entry negative fixture; the new 35-entry package must also fail closed.
+    if (scenario === 'ordinary-34') currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 34)
+    else if (scenario !== 'ordinary-35') currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 33)
     if (scenario === 'wrong-count') currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 32)
     if (scenario === 'wrong-083') currentProfile.migrations.entries[32].sha256 = 'f'.repeat(64)
     const descriptorRef = { ...ref('current-full'), sha256: sha256(descriptorBytes) }

@@ -370,6 +370,20 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 ## DEV-121 現行交付
 
+<a id="dev-121-rd-capabilities"></a>
+
+### RD 能力修正（2026-10-10，LOCAL_CANDIDATE／Production 未發布）
+
+沿用 DEV-121。人類規則：RD 可以查看／編輯圖號與料號及送審，不能核准。已以 synthetic 有效typed identity/published RD grant重現v6缺drawing view；新immutable v7只增加RD的 `page:numbering.drawings.view`，編輯／送審既有能力與八角色保持，approval decision deny不變。085 forward-only／order35及source/archive exact pins／081同等maintenance fence已加入；B35 closed34/read-only33不得承載v7。根因、diff、分層證據與剩餘發布前提見[契約](specs/DEV-121-target-authorization-boundary.md#rd-capabilities)及[本機驗證](qa/DEV-121-rd-capabilities-v7-local-2026-10-10.md)。
+
+- [x] source最小角色delta、合成RED→GREEN、110項focused policy/route/revocation回歸及7組compiled PostgreSQL publication回歸。
+- [x] 本輪typecheck PASS；native PG精確停止與port/temp清理PASS。
+- [x] owner本機required QC／build收斂：原continuous240與QC279 PASS；官方CI暴露Git HEAD35的historical fixture衝突後，修正並補驗continuous241/241、owner280/280、source-proof152/152及B35定向29/29 PASS。原FAIL保存，分母重疊不相加；typecheck／abort6／isolated artifact/primary/cleanup有效證據沿用，官方CI待補驗。
+- [ ] OrgMaster相同v7 artifact的相容讀取及受保護發布：目前既有邊界只讀，待新明確授權；正式指派不改。
+- [ ] 取得同source的完整maintenance recovery/fence及prebuild readiness證據，再依own protected流程發布；不提交未知或缺proof的paid build。
+- [ ] Production migration／部署／切流與兩fixture正常圖/料workbench讀取、編輯/送審/核准拒絕、刷新結果，均NOT_RUN；本人驗證不由fixture替代。
+
+保存位置為本工作樹的code/report与private output；保留本worktree供review/owner continuation，root負責dependency junction／本次runtime cleanup，其他owner既有private證據不改。
 <a id="dev-121-authorized-first-login"></a>
 
 ### 有效 OrgMaster 授權的首次登入自動開通（2026-10-08，執行中）

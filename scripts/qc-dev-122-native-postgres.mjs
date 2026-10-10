@@ -52,11 +52,13 @@ const previewImportOnly=process.argv.includes('--preview-import-only');
 if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
 const entries = compileOwnMigrations(root);
 {
-  // All current-source cases require the normal Principal API's v6 publication.
+  // All current-source cases require the normal Principal API's v7 publication.
   // 082 is required by current Drawing cancellation; 081 is not its FK prerequisite.
   for (const [ordinal,name,expectedHash] of [
     ['081','081_dev121_principal_role_catalog_v6.sql','c3f4d0465e39cd54a8c8b9a676811b4c3e158aa5a1b2c7945981c05bdeef7284'],
-    ['082','082_dev122_openswx_auxiliary_jobs.sql','9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000']
+    ['085','085_dev121_principal_role_catalog_v7.sql','308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba'],
+    ['082','082_dev122_openswx_auxiliary_jobs.sql','9f4ff68fc4401d1c1ed6920014e841d33647aaa6a4cbdbac60573ca9b22c8000'],
+    ['085','085_dev121_principal_role_catalog_v7.sql','308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba']
   ]) {
     const sourcePath = 'db/postgres/'+name,bytes = fs.readFileSync(path.join(root, sourcePath));
     if(sha256(bytes)!==expectedHash)throw new Error('DEV122_CURRENT_EXACT_MIGRATION_SOURCE_DRIFT:'+ordinal);
@@ -722,7 +724,7 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
 }
 
 async function seedPrincipals(admin,evidenceRoot) {
-  const catalog=JSON.parse(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v6.json'),'utf8'));
+  const catalog=JSON.parse(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v7.json'),'utf8'));
   const now=new Date(Date.now()-60_000).toISOString();
   const ledger=[];
   await admin.query(`INSERT INTO ai_pdm_core.companies(id,company_code,display_name) VALUES
@@ -775,7 +777,7 @@ async function seedPrincipals(admin,evidenceRoot) {
           row.scope_kind!=='workspace'||row.scope_key!=='company-jenfu'||row.catalog_version!==catalog.catalogVersion||
           new Date(row.published_at).toISOString()!==now))throw new Error('DEV122_UI_MULTI_ROLE_READBACK_INVALID');
       ledger.push({reason:'UI-only lawful committed role union before sessions or commands',producerBoundary:'FIXTURE',
-        catalogHash:sha256(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v6.json'))),
+        catalogHash:sha256(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v7.json'))),
         consumerCardinality:'listEffectiveAssignments loops rows; duplicate role/scope rejected; published snapshot requires same version/id/time',
         consumerSources:['src/lib/repositories/jenfu-entitlement-repository.ts','src/lib/jenfu-principal-published-grant-validation.ts',
           'src/lib/jenfu-entitlement-contract.ts'],sql,values,inserted,readback,outcomeSeeded:false});

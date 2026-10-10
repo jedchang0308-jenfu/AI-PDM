@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import catalog from '../../config/access-control/jenfu-role-catalog.v6.json'
+import catalog from '../../config/access-control/jenfu-role-catalog.v7.json'
 const mocks = vi.hoisted(() => ({ workspace: vi.fn(), privileged: vi.fn(), get: vi.fn(), save: vi.fn() }))
 vi.mock('@/lib/repositories/ai-pdm-role-capability-repository', () => ({
   getRoleCapabilityWorkspace: mocks.workspace, getPrivilegedAssignmentWorkspace: mocks.privileged,

@@ -20,7 +20,9 @@ const root = fileURLToPath(new URL('..', import.meta.url)), oldRevision = 'a'.re
 function git(args) { const row = spawnSync('git', args, { cwd: root, encoding: null, windowsHide: true, maxBuffer: 64 * 1024 * 1024 }); assert.equal(row.status, 0); return row.stdout }
 const actualTree = git(['ls-tree', '-r', '-z', '--full-tree', 'HEAD']), cache = new Map()
 function canonicalSource(name) { if (!cache.has(name)) cache.set(name, git(['show', `HEAD:${name}`])); return cache.get(name) }
-const profileBytes = canonicalSource(WORKER_PROFILE_PATH), profile = JSON.parse(profileBytes), appProfile = JSON.parse(canonicalSource('config/release/dev117-ai-pdm-independent-production-v3.json'))
+const profileBytes = canonicalSource(WORKER_PROFILE_PATH), profile = JSON.parse(profileBytes)
+const currentAppProfile = JSON.parse(canonicalSource('config/release/dev117-ai-pdm-independent-production-v3.json'))
+const appProfile = currentAppProfile
 const image = `${profile.artifactUri}@sha256:${'c'.repeat(64)}`, token = `projects/9536592944/secrets/${profile.tokenSecretId}/versions/7`, registry = `projects/9536592944/secrets/${profile.registrySecretId}/versions/9`
 const sourceReader = name => canonicalSource(name)
 const manifest = workerInputManifest(actualTree, sourceReader, oldRevision)
@@ -744,30 +746,41 @@ test('B19-11/12 LOCAL_TEST static reuse gate needs full current operational evid
 import { buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { deriveProgramOnlyBundles, buildProgramOnlyPolicy } from './lib/dev117-ai-pdm-program-only-baseline.mjs'
 import { readProgramOnlyWorkerEvidence } from './lib/dev122-openswx-owner-release.mjs'
-const b35FullBundle = buildDev117MigrationBundle(appProfile, buildDev117MigrationPackage(appProfile, JSON.parse(canonicalSource('config/platform/dev-010-n1c-ai-pdm.json'))), currentRevision)
-const b35Bundles = deriveProgramOnlyBundles({ profile: appProfile, full: b35FullBundle })
+// Only B35's historical modeled graph uses closed34/read-only33.
+// Generic worker/build tests above retain the genuine current35 profile.
+const b35AppProfile = structuredClone(currentAppProfile)
+b35AppProfile.migrations.entries = b35AppProfile.migrations.entries.slice(0, 34)
+const b35AppProfileBytes = Buffer.from(JSON.stringify(b35AppProfile, null, 2) + String.fromCharCode(10))
+const b35FullBundle = buildDev117MigrationBundle(b35AppProfile, buildDev117MigrationPackage(b35AppProfile, JSON.parse(canonicalSource('config/platform/dev-010-n1c-ai-pdm.json'))), currentRevision)
+const b35Bundles = deriveProgramOnlyBundles({ profile: b35AppProfile, full: b35FullBundle })
+test('current genuine Git v7 profile cannot borrow the historical B35 program-only fixture', () => {
+  const full = buildDev117MigrationBundle(currentAppProfile, buildDev117MigrationPackage(currentAppProfile,
+    JSON.parse(canonicalSource('config/platform/dev-010-n1c-ai-pdm.json'))), currentRevision)
+  assert.equal(full.bundle.entries.length, 35)
+  assert.throws(() => deriveProgramOnlyBundles({ profile: currentAppProfile, full }), /PROGRAM_ONLY/u)
+})
 async function b35ReadyProgramFixture(options = {}) {
   const h = await harness({ ...options, lockMutate: lock => { lock.migrationManifestSha256 = b35FullBundle.bundle.manifestSha256 } })
   const saved = await h.invoke(), descriptorRef = saved.refs.programOnlyFullDescriptorRef
   const descriptor = (await h.transport.readJson(descriptorRef)).value
   const retainedWorker = { descriptorRef, priorActivationRef: h.priorActivationRef, currentAssociationRef: saved.ref, readyResourceReadbackRef: saved.value.resourceAssociation.readbackRef }
-  const policy = buildProgramOnlyPolicy({ profile: appProfile, sourceLock: h.lock, bundles: b35Bundles,
+  const policy = buildProgramOnlyPolicy({ profile: b35AppProfile, sourceLock: h.lock, bundles: b35Bundles,
     baselineIntentRef: h.capsuleRef, baselineEntries: b35Bundles.effective.bundle.entries,
-    migrationRunnerDigest: `${appProfile.artifact.migrationRunnerUri}@sha256:${'e'.repeat(64)}`, retainedWorker })
+    migrationRunnerDigest: `${b35AppProfile.artifact.migrationRunnerUri}@sha256:${'e'.repeat(64)}`, retainedWorker })
   const intent = { ...h.lock, sourceLockRef: h.sourceLockRef, openswxWorkerRef: descriptorRef, baselineIntentRef: h.capsuleRef, programOnlyBaseline: policy, deadlineAt: deadline() }
-  const args = { transport: h.transport, intent, appProfile, descriptor, profile, readSource: h.readSource, currentReadback: true }
+  const args = { transport: h.transport, intent, appProfile: b35AppProfile, descriptor, profile, readSource: h.readSource, currentReadback: true }
   const worker = createOpenSwxOwnerRelease({ transport: h.transport, readSource: h.readSource,
-    environment: { GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'full_release' } })
+    environment: { GITHUB_WORKFLOW_REF: `${b35AppProfile.application.repository}/${b35AppProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'full_release' } })
   return { h, saved, descriptor, intent, args, worker }
 }
 
 test('P06 program-only keeps current READY worker through prepare, candidate, activation guard and finalize with GET only', async () => {
   const f = await b35ReadyProgramFixture(), evidence = await readProgramOnlyWorkerEvidence(f.args)
   assert.equal(evidence.image, image)
-  await f.worker.prepare({ intent: f.intent, profile: appProfile, runtimeConfig: { plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '1' }, secretVersions: { PDM_WORKLOAD_AUTH_CREDENTIALS: registry.split('/').at(-1) }, openswxWorker: { purpose: 'full', sourceRevision: currentRevision, workerProfileSha256: f.descriptor.workerProfileSha256, descriptorRef: f.intent.openswxWorkerRef } } })
-  await f.worker.candidate({ intent: f.intent, profile: appProfile, deployment: { sourceObject: f.h.currentSourceRef, openswxWorker: { image } } })
-  await f.worker.beforeActivate({ intent: f.intent, profile: appProfile })
-  const result = await f.worker.finalize({ intent: f.intent, profile: appProfile, canonical: {}, migrationMode: 'READ_ONLY_BASELINE_VERIFIED' })
+  await f.worker.prepare({ intent: f.intent, profile: b35AppProfile, runtimeConfig: { plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '1' }, secretVersions: { PDM_WORKLOAD_AUTH_CREDENTIALS: registry.split('/').at(-1) }, openswxWorker: { purpose: 'full', sourceRevision: currentRevision, workerProfileSha256: f.descriptor.workerProfileSha256, descriptorRef: f.intent.openswxWorkerRef } } })
+  await f.worker.candidate({ intent: f.intent, profile: b35AppProfile, deployment: { sourceObject: f.h.currentSourceRef, openswxWorker: { image } } })
+  await f.worker.beforeActivate({ intent: f.intent, profile: b35AppProfile })
+  const result = await f.worker.finalize({ intent: f.intent, profile: b35AppProfile, canonical: {}, migrationMode: 'READ_ONLY_BASELINE_VERIFIED' })
   assert.equal(result.status, 'READY'); assert.equal(result.retained, true); assert.equal(result.schedulerEnabled, true); assert.equal(result.workerJobMutationPerformed, false)
   noMutation(f.h)
   const current = await f.h.transport.readJson(f.h.priorActivationRef)
@@ -785,7 +798,7 @@ test('P06 program-only rejects changed Secret metadata, Job generation, Schedule
 test('P07 failed program-only descriptor read reports recovery needed without blocking application rollback or mutating worker', async () => {
   const f = await b35ReadyProgramFixture()
   f.h.transport.readJson = async () => { throw Error('LOCAL_DESCRIPTOR_READ_FAILURE') }
-  const result = await f.worker.recover({ intent: f.intent, profile: appProfile })
+  const result = await f.worker.recover({ intent: f.intent, profile: b35AppProfile })
   assert.equal(result.status, 'RECOVERY_REQUIRED'); assert.equal(result.schedulerEnabled, null)
   assert.equal(result.workerJobMutationPerformed, false); assert.equal(result.durableQueue, 'RETAINED'); noMutation(f.h)
 })
@@ -795,17 +808,12 @@ import { programOnlyHash, sealProgramOnlyEvidence, programOnlyStaticEnvironment,
 import { readAiPdmReleaseObservation, readAiPdmObservationInputs, createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 
 async function b35ProgramProofFixture({releasedBaseline=false}={}) {
-  // Actual Git tar; the recorded graph's source revision is a synthetic identity.
-  const archivePaths = [...new Set(['config/release/dev117-ai-pdm-independent-production-v3.json',
-    ...b35FullBundle.bundle.entries.map(row => row.path), ...manifest.entries.map(row => row.path)])]
-  const head = git(['rev-parse', 'HEAD']).toString().trim()
-  const archive = git(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', 'HEAD', '--', ...archivePaths])
-  const marker = Buffer.from('comment=' + head), at = archive.indexOf(marker)
-  assert.ok(at >= 0); archive.write('comment=' + currentRevision, at, marker.length)
+  // Historical modeled34 archive: real Git PAX, immutable SQL/worker blobs, explicit profile bytes.
+  const archive = b35GitArchive(currentRevision, b35FullBundle.bundle.entries, b35AppProfileBytes)
   const f = await b35ReadyProgramFixture({ currentArchive: archive, proofMetadata: true, releasedBaseline }), h = f.h
   const put = (uri, value) => h.seedBytes(uri, Buffer.from(canonicalize(value) + '\n'))
   const seal = sealProgramOnlyEvidence, policy = f.intent.programOnlyBaseline
-  const capsule = { schemaVersion: appProfile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId: h.lock.releaseId,
+  const capsule = { schemaVersion: b35AppProfile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId: h.lock.releaseId,
     sourceRevision: currentRevision, sourceSha256: h.lock.sourceSha256, sourceLockRef: h.sourceLockRef,
     authorizationPolicyRef: h.sourceLockRef, readinessReceiptRef: h.sourceLockRef, foundationReceiptRef: h.sourceLockRef, infraReceiptRef: h.sourceLockRef, runtimeConfigRef: h.sourceLockRef,
     migrationManifestSha256: b35FullBundle.bundle.manifestSha256, previousRevision: 'ai-pdm-prod-' + '2'.repeat(12), deadlineAt: f.intent.deadlineAt,
@@ -817,29 +825,29 @@ async function b35ProgramProofFixture({releasedBaseline=false}={}) {
   const prepare = stage('prepare', null, { prerequisiteRefs })
   const sourceObject = { ...h.currentSourceRef, uri: `gs://jenfu-platform-prod-aipdm-release/source/releases/${capsule.releaseId}/${intentRef.sha256}/source.tar.gz`, generation: '17', crc32c: crc32cBase64(h.objects.get(h.currentSourceRef.uri).bytes) }
   h.seedBytes(sourceObject.uri, h.objects.get(h.currentSourceRef.uri).bytes)
-  const artifactDigest = `${appProfile.artifact.uri}@sha256:${'1'.repeat(64)}`, buildId = '22222222-2222-2222-2222-222222222222'
+  const artifactDigest = `${b35AppProfile.artifact.uri}@sha256:${'1'.repeat(64)}`, buildId = '22222222-2222-2222-2222-222222222222'
   const provenance = put(`${base}/provenance.json`, { schemaVersion: 'jenfu.dev012.build-provenance-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: currentRevision,
     sourceObject, artifactDigest, status: 'PASS', cloudBuild: { name: `projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`, id: buildId, status: 'SUCCESS', projectId: 'jenfu-platform-prod',
-      serviceAccount: `projects/jenfu-platform-prod/serviceAccounts/${appProfile.identities.builder}`, options: { requestedVerifyOption: 'VERIFIED' },
+      serviceAccount: `projects/jenfu-platform-prod/serviceAccounts/${b35AppProfile.identities.builder}`, options: { requestedVerifyOption: 'VERIFIED' },
       sourceProvenance: { resolvedStorageSource: { bucket: 'jenfu-platform-prod-aipdm-release', object: sourceObject.uri.split('/').slice(3).join('/'), generation: '17' } },
-      results: { images: [{ name: `${appProfile.artifact.uri}:release-${currentRevision}`, digest: artifactDigest.split('@')[1] }] } }, artifactRegistry: { uri: artifactDigest } })
+      results: { images: [{ name: `${b35AppProfile.artifact.uri}:release-${currentRevision}`, digest: artifactDigest.split('@')[1] }] } }, artifactRegistry: { uri: artifactDigest } })
   h.seedBytes(b35Bundles.sourceMigrationBundleRef.uri, b35FullBundle.bytes); h.seedBytes(b35Bundles.effectiveMigrationBundleRef.uri, b35Bundles.effective.bytes)
   const build = stage('build', prepare, { artifactDigest, sourceObject, migrationBundleRef: b35Bundles.effectiveMigrationBundleRef,
     sourceMigrationBundleRef: b35Bundles.sourceMigrationBundleRef, programOnlyBaseline: policy, provenanceReceiptRef: provenance })
-  const deployment = { schemaVersion: appProfile.schemas.deploymentCapsule, ownerApplicationId: 'ai-pdm', sourceRevision: currentRevision, artifactDigest, buildReceiptRef: build,
+  const deployment = { schemaVersion: b35AppProfile.schemas.deploymentCapsule, ownerApplicationId: 'ai-pdm', sourceRevision: currentRevision, artifactDigest, buildReceiptRef: build,
     sourceObject, migrationBundleRef: b35Bundles.effectiveMigrationBundleRef, sourceMigrationBundleRef: b35Bundles.sourceMigrationBundleRef, programOnlyBaseline: policy,
     migrationRunnerDigest: policy.migrationRunnerDigest, releaseIntentRef: intentRef, releaseIntentSha256: intentRef.sha256, deadlineAt: capsule.deadlineAt,
     openswxWorker: { descriptorRef: capsule.openswxWorkerRef, workerBuildRef: f.saved.ref, image } }
   const deploymentRef = put(`${base}/deployment-capsule.json`, deployment), outputUri = `${base}/migration-readonly-native.json`
-  const task = { serviceAccount: appProfile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }],
-    containers: [{ name: 'migration', image: policy.migrationRunnerDigest, args: ['--bundle-ref-required'], env: Object.entries(programOnlyStaticEnvironment(appProfile)).map(([name,value]) => ({name,value})), volumeMounts: [{name:'cloudsql',mountPath:'/cloudsql'}] }] }
+  const task = { serviceAccount: b35AppProfile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }],
+    containers: [{ name: 'migration', image: policy.migrationRunnerDigest, args: ['--bundle-ref-required'], env: Object.entries(programOnlyStaticEnvironment(b35AppProfile)).map(([name,value]) => ({name,value})), volumeMounts: [{name:'cloudsql',mountPath:'/cloudsql'}] }] }
   const jobName = 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner', executionName = 'program-proof-local'
   const job = { name: jobName, etag: 'LOCAL_ETAG', template: { taskCount: 1, parallelism: 1, template: task } }
   const execution = { name: `${jobName}/executions/${executionName}`, createTime: now, completionTime: now, taskCount:1, parallelism:1, succeededCount:1, conditions:[{type:'Completed',state:'CONDITION_SUCCEEDED'}], template:structuredClone(task) }
-  execution.template.containers[0].args=programOnlyMigrationArguments(deployment,outputUri); execution.template.containers[0].env=Object.entries(programOnlyExecutionEnvironment(appProfile)).map(([name,value])=>({name,value}))
+  execution.template.containers[0].args=programOnlyMigrationArguments(deployment,outputUri); execution.template.containers[0].env=Object.entries(programOnlyExecutionEnvironment(b35AppProfile)).map(([name,value])=>({name,value}))
   const jobRef=put(outputUri.replace(/\.json$/u,'-job-readback.json'),job),executionRef=put(outputUri.replace(/\.json$/u,'-execution-readback.json'),execution)
   const submissionRef=put(outputUri.replace(/\.json$/u,'-submission-intent.json'),seal({schemaVersion:'jenfu.dev012.migration-submission-intent.v1',ownerApplicationId:'ai-pdm',sourceRevision:currentRevision,
-    jobName,migrationRunnerDigest:policy.migrationRunnerDigest,migrationBundleRef:deployment.migrationBundleRef,outputUri,args:programOnlyMigrationArguments(deployment,outputUri),principalOnlyFenceRef:null,deadlineAt:capsule.deadlineAt,status:'SUBMISSION_INTENT',observedAt:now,...programOnlySubmissionFields(appProfile,deployment)}))
+    jobName,migrationRunnerDigest:policy.migrationRunnerDigest,migrationBundleRef:deployment.migrationBundleRef,outputUri,args:programOnlyMigrationArguments(deployment,outputUri),principalOnlyFenceRef:null,deadlineAt:capsule.deadlineAt,status:'SUBMISSION_INTENT',observedAt:now,...programOnlySubmissionFields(b35AppProfile,deployment)}))
   const nativeRef=put(outputUri,seal({schemaVersion:'jenfu.dev012.migration-receipt.v1',ownerApplicationId:'ai-pdm',sourceRevision:currentRevision,database:'jenfu_prod',ledger:'ai_pdm_core.schema_migrations',manifestSha256:b35Bundles.effective.bundle.manifestSha256,
     baselineCount:15,minimumLedgerCount:0,ledgerBootstrap:{enabled:true,created:false},ledgerCount:33,applied:0,replayed:33,crossDatabaseDenials:[{database:'jenfu_dev',denied:true},{database:'jenfu_stg',denied:true}],boundaryStatus:'PASS',executionName,startedAt:now,completedAt:now,status:'PASS'}))
   const migrate=put(`${base}/migrate.json`,seal({schemaVersion:'aipdm.program-only-baseline-association.v1',ownerApplicationId:'ai-pdm',releaseId:capsule.releaseId,sourceRevision:currentRevision,releaseCapsuleRef:intentRef,deploymentCapsuleRef:deploymentRef,policySha256:programOnlyHash(policy),sourceMigrationBundleRef:b35Bundles.sourceMigrationBundleRef,effectiveMigrationBundleRef:b35Bundles.effectiveMigrationBundleRef,nativeReceiptRef:nativeRef,submissionIntentRef:submissionRef,executionReadbackRef:executionRef,jobReadbackRef:jobRef,executionName,status:'PASS',databaseDisposition:'READ_ONLY_BASELINE_VERIFIED',migrationJobSubmitted:true,migrationJobSubmissions:1,currentDatabaseReadPerformed:true,observedAt:now,deadlineAt:capsule.deadlineAt}))
@@ -851,7 +859,7 @@ async function b35ProgramProofFixture({releasedBaseline=false}={}) {
     const match=/\/b\/([^/]+)\/o\/([^?]+)/u.exec(url),uri=match&&`gs://${decodeURIComponent(match[1])}/${decodeURIComponent(match[2])}`,row=h.objects.get(uri)
     if(!row)return Response.json({}, {status:404});return url.includes('alt=media')?new Response(row.bytes):Response.json({bucket:decodeURIComponent(match[1]),name:decodeURIComponent(match[2]),generation:'17',crc32c:crc32cBase64(row.bytes),size:String(row.bytes.length)})}
   const sourceCalls=[]
-  const readSource=(name,revision)=>{sourceCalls.push({name,revision});assert.ok([oldRevision,currentRevision].includes(revision));return releasedBaseline&&revision===oldRevision&&name==='config/release/dev117-ai-pdm-independent-production-v3.json'?b35HistoricalProfileBytes:canonicalSource(name)}
+  const readSource=(name,revision)=>{sourceCalls.push({name,revision});assert.ok([oldRevision,currentRevision].includes(revision));return name==='config/release/dev117-ai-pdm-independent-production-v3.json'?(releasedBaseline&&revision===oldRevision?b35HistoricalProfileBytes:b35AppProfileBytes):canonicalSource(name)}
   return { f,h,capsule,intentRef,prepare,migrate,deploymentRef,execution,job,base,put,calls,sourceCalls,fetchImpl,readSource,
     read:callback=>readAiPdmReleaseObservation({sourceRevision:currentRevision,refs:{prepare,migrate,terminal:null},token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl,readSource:callback??readSource}) }
 }
@@ -877,7 +885,7 @@ test('P06A complete program-only source observation rejects wrong callback blob 
 
 // LOCAL_TEST sealed RELEASED-33 anchor. Raw SQL/worker blobs and the pinned historical profile are real;
 // identities, provider responses and receipts are explicitly modeled.
-const b35HistoricalProfileValue = structuredClone(appProfile)
+const b35HistoricalProfileValue = structuredClone(b35AppProfile)
 b35HistoricalProfileValue.migrations.entries.pop()
 // Preserve the exact old blob formatting; its hash is recorded from B33 Git.
 const b35HistoricalProfileBytes = Buffer.from((JSON.stringify(b35HistoricalProfileValue,null,2)+'\n').replace(
@@ -888,7 +896,7 @@ const b35HistoricalProfile = JSON.parse(b35HistoricalProfileBytes)
 const b35HistoricalBundle = buildDev117MigrationBundle(b35HistoricalProfile, buildDev117MigrationPackage(b35HistoricalProfile,
   JSON.parse(canonicalSource('config/platform/dev-010-n1c-ai-pdm.json'))), oldRevision)
 assert.equal(b35HistoricalBundle.bundle.entries.length, 33)
-function b35GitArchive(identity, entries) {
+function b35GitArchive(identity, entries, appProfileBytes = b35HistoricalProfileBytes) {
   const paths = [...new Set(['config/release/dev117-ai-pdm-independent-production-v3.json', ...entries.map(row => row.path), ...manifest.entries.map(row => row.path)])]
   const head=git(['rev-parse','HEAD']).toString().trim()
   // Portable even in required CI's shallow checkout: raw unchanged SQL/worker
@@ -896,7 +904,7 @@ function b35GitArchive(identity, entries) {
   const headArchive=git(['-c','core.autocrlf=false','-c','core.eol=lf','archive','--format=tar','--prefix=source/','HEAD','--',...paths])
   const paxSize=parseInt(headArchive.subarray(124,136).toString().replace(/\0.*$/su,''),8)
   const pax=headArchive.subarray(0,512+Math.ceil(paxSize/512)*512)
-  const modeled=tar([...manifest.entries,...entries.map(row=>({path:row.path,mode:'100644'})),{path:'config/release/dev117-ai-pdm-independent-production-v3.json',mode:'100644',bytes:b35HistoricalProfileBytes}])
+  const modeled=tar([...manifest.entries,...entries.map(row=>({path:row.path,mode:'100644'})),{path:'config/release/dev117-ai-pdm-independent-production-v3.json',mode:'100644',bytes:appProfileBytes}])
   const bytes=Buffer.concat([pax,modeled])
   const marker = Buffer.from('comment=' + head), at = bytes.indexOf(marker)
   assert.ok(at >= 0); bytes.write('comment=' + identity, at, marker.length); return bytes
@@ -908,12 +916,12 @@ function b35ReleasedAnchor({ capsule, capsuleRef, seedBytes }) {
   const archive = gzipSync(b35GitArchive(oldRevision,b35HistoricalBundle.bundle.entries),{level:9})
   const sourceObject = {...seedBytes(`gs://jenfu-platform-prod-aipdm-release/source/releases/${capsule.releaseId}/${capsuleRef.sha256}/source.tar.gz`,archive),generation:'17',crc32c:crc32cBase64(archive)}
   const migrationBundleRef=seedBytes(`gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/${oldRevision}/${b35HistoricalBundle.bundle.manifestSha256}.json`,b35HistoricalBundle.bytes)
-  const artifactDigest=`${appProfile.artifact.uri}@sha256:${'3'.repeat(64)}`,buildId='33333333-3333-3333-3333-333333333333',candidateRevision='ai-pdm-prod-'+'2'.repeat(12)
-  const cloudBuild={name:`projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,id:buildId,status:'SUCCESS',projectId:'jenfu-platform-prod',serviceAccount:`projects/jenfu-platform-prod/serviceAccounts/${appProfile.identities.builder}`,options:{requestedVerifyOption:'VERIFIED'},sourceProvenance:{resolvedStorageSource:{bucket:'jenfu-platform-prod-aipdm-release',object:sourceObject.uri.split('/').slice(3).join('/'),generation:'17'}},results:{images:[{name:`${appProfile.artifact.uri}:release-${oldRevision}`,digest:artifactDigest.split('@')[1]}]}}
+  const artifactDigest=`${b35AppProfile.artifact.uri}@sha256:${'3'.repeat(64)}`,buildId='33333333-3333-3333-3333-333333333333',candidateRevision='ai-pdm-prod-'+'2'.repeat(12)
+  const cloudBuild={name:`projects/jenfu-platform-prod/locations/asia-east1/builds/${buildId}`,id:buildId,status:'SUCCESS',projectId:'jenfu-platform-prod',serviceAccount:`projects/jenfu-platform-prod/serviceAccounts/${b35AppProfile.identities.builder}`,options:{requestedVerifyOption:'VERIFIED'},sourceProvenance:{resolvedStorageSource:{bucket:'jenfu-platform-prod-aipdm-release',object:sourceObject.uri.split('/').slice(3).join('/'),generation:'17'}},results:{images:[{name:`${b35AppProfile.artifact.uri}:release-${oldRevision}`,digest:artifactDigest.split('@')[1]}]}}
   const provenanceReceiptRef=put(`${base}/provenance.json`,{schemaVersion:'jenfu.dev012.build-provenance-receipt.v1',ownerApplicationId:'ai-pdm',sourceRevision:oldRevision,sourceObject,artifactDigest,status:'PASS',cloudBuild,artifactRegistry:{uri:artifactDigest}})
   const prerequisiteRefs=Object.fromEntries(Object.entries({sourceLock:'sourceLockRef',authorization:'authorizationPolicyRef',readiness:'readinessReceiptRef',foundation:'foundationReceiptRef',infra:'infraReceiptRef',runtimeConfig:'runtimeConfigRef'}).map(([name,key])=>[name,capsule[key]]))
   const prepare=stage('prepare',null,{prerequisiteRefs}),build=stage('build',prepare,{artifactDigest,sourceObject,migrationBundleRef,provenanceReceiptRef})
-  const deployment=put(`${base}/deployment-capsule.json`,{schemaVersion:appProfile.schemas.deploymentCapsule,ownerApplicationId:'ai-pdm',sourceRevision:oldRevision,artifactDigest,buildReceiptRef:build,sourceObject,migrationBundleRef,migrationRunnerDigest:`${appProfile.artifact.migrationRunnerUri}@sha256:${'e'.repeat(64)}`,releaseIntentRef:capsuleRef,releaseIntentSha256:capsuleRef.sha256,deadlineAt:capsule.deadlineAt})
+  const deployment=put(`${base}/deployment-capsule.json`,{schemaVersion:b35AppProfile.schemas.deploymentCapsule,ownerApplicationId:'ai-pdm',sourceRevision:oldRevision,artifactDigest,buildReceiptRef:build,sourceObject,migrationBundleRef,migrationRunnerDigest:`${b35AppProfile.artifact.migrationRunnerUri}@sha256:${'e'.repeat(64)}`,releaseIntentRef:capsuleRef,releaseIntentSha256:capsuleRef.sha256,deadlineAt:capsule.deadlineAt})
   const migrate=put(`${base}/migrate.json`,sealProgramOnlyEvidence({schemaVersion:'jenfu.dev012.migration-receipt.v1',ownerApplicationId:'ai-pdm',sourceRevision:oldRevision,database:'jenfu_prod',ledger:'ai_pdm_core.schema_migrations',manifestSha256:b35HistoricalBundle.bundle.manifestSha256,baselineCount:15,minimumLedgerCount:0,ledgerBootstrap:{enabled:true,created:false},ledgerCount:33,applied:0,replayed:33,crossDatabaseDenials:[{database:'jenfu_dev',denied:true},{database:'jenfu_stg',denied:true}],boundaryStatus:'PASS',executionName:'ai-pdm-prod-migration-runner-local33',startedAt:now,completedAt:now,status:'PASS'}))
   let previous=stage('candidate',migrate,{candidateRevision,artifactDigest,migrationReceiptRef:migrate,deploymentCapsuleRef:deployment})
   const candidate=previous;previous=stage('entrypoint',previous,{})
@@ -932,7 +940,7 @@ import {verifyOwnerProviderReadback} from './lib/dev121-owner-release-proof.mjs'
 async function b35ProgramAbortFixture() {
   const wire=await b35ProgramProofFixture({releasedBaseline:true}),h=wire.h,anchor=h.modeledReleasedAnchor
   const validators=createOwnerTransport({token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl})
-  const paths=releasePaths(appProfile,wire.capsule,wire.intentRef.sha256),entrypoint={ingress:'INGRESS_TRAFFIC_ALL',defaultUriDisabled:false,invokerIamDisabled:true,uri:appProfile.target.canonicalOrigin,urls:[appProfile.target.canonicalOrigin],serviceEtag:'LOCAL_SERVICE_ETAG',generation:'17'}
+  const paths=releasePaths(b35AppProfile,wire.capsule,wire.intentRef.sha256),entrypoint={ingress:'INGRESS_TRAFFIC_ALL',defaultUriDisabled:false,invokerIamDisabled:true,uri:b35AppProfile.target.canonicalOrigin,urls:[b35AppProfile.target.canonicalOrigin],serviceEtag:'LOCAL_SERVICE_ETAG',generation:'17'}
   const stage=(name,previousReceiptRef,facts)=>wire.put(paths[name],sealProgramOnlyEvidence({schemaVersion:'jenfu.dev012.stage-receipt.v1',ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,stage:name,previousReceiptRef,facts,observedAt:now,status:'PASS'}))
   const prepareValue=JSON.parse(h.objects.get(wire.prepare.uri).bytes);prepareValue.facts.previousRevision=wire.capsule.previousRevision;prepareValue.facts.entrypointBaseline=entrypoint
   const prepare=stage('prepare',null,prepareValue.facts)
@@ -945,16 +953,16 @@ async function b35ProgramAbortFixture() {
   const migrate=wire.put(wire.migrate.uri,sealProgramOnlyEvidence(migration))
   const facts={result:'PRE_ACTIVATION_ABORTED',databaseDisposition:'READ_ONLY_BASELINE_VERIFIED',currentDatabaseReadPerformed:true,previousRevision:wire.capsule.previousRevision,migrationEvidenceRef:migrate,recoveryOrder:['TRAFFIC_ROLLBACK','TAG_CLEANUP','ENTRYPOINT_BASELINE_RESTORE'],entrypointRecovery:{result:'BASELINE_ALREADY_ACTIVE',changed:false}}
   const rollback=stage('rollback',migrate,facts),terminal=stage('terminal',rollback,facts)
-  const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,releaseIntentSha256:wire.intentRef.sha256})),ownerApplicationId:'ai-pdm',service:appProfile.target.serviceName,controlBucket:appProfile.artifact.releaseBucket,releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,sourceLockSha256:wire.capsule.sourceLockRef.sha256,candidateRevision:null,previousRevision:wire.capsule.previousRevision,ownerRunRef:`https://api.github.com/repos/${appProfile.application.repository}/actions/runs/351`,leaseExpiresAt:now,deadlineAt:wire.capsule.deadlineAt,state:'FINALIZED',result:'PRE_ACTIVATION_ABORTED'}
+  const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,releaseIntentSha256:wire.intentRef.sha256})),ownerApplicationId:'ai-pdm',service:b35AppProfile.target.serviceName,controlBucket:b35AppProfile.artifact.releaseBucket,releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,sourceLockSha256:wire.capsule.sourceLockRef.sha256,candidateRevision:null,previousRevision:wire.capsule.previousRevision,ownerRunRef:`https://api.github.com/repos/${b35AppProfile.application.repository}/actions/runs/351`,leaseExpiresAt:now,deadlineAt:wire.capsule.deadlineAt,state:'FINALIZED',result:'PRE_ACTIVATION_ABORTED'}
   const control={...controlCore,controlSha256:sha256(canonicalize(controlCore))},calls=[],inventory=[wire.execution]
-  wire.put(`gs://${appProfile.artifact.releaseBucket}/control/active.json`,control)
+  wire.put(`gs://${b35AppProfile.artifact.releaseBucket}/control/active.json`,control)
   const transport={...h.transport,readOwnerRun:async()=>({id:'351',status:'completed',conclusion:'failure',event:'workflow_dispatch',headSha:currentRevision,createdAt:now,updatedAt:now}),request:async(url,options={})=>{calls.push({url,method:options.method??'GET'});assert.ok(url.startsWith(`https://run.googleapis.com/v2/${wire.job.name}/executions?`));return {executions:structuredClone(inventory)}},
     readOwnerSourceProof:async({sourceRevision,refs,verifyProvider})=>{const proof=await readAiPdmReleaseObservation({sourceRevision,refs,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl,readSource:wire.readSource});return {proof,provider:verifyProvider?await verifyOwnerProviderReadback({proof,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl}):null}},
-    assertServiceSettled:validators.assertServiceSettled,assertCanonicalEntrypoint:validators.assertCanonicalEntrypoint,entrypointSnapshot:validators.entrypointSnapshot,getRevision:async()=>({name:`projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod/revisions/${wire.capsule.previousRevision}`,conditions:[{type:'Ready',state:'CONDITION_SUCCEEDED'}],containers:[{name:appProfile.runtime.containerName,image:anchor.artifactDigest}]})}
+    assertServiceSettled:validators.assertServiceSettled,assertCanonicalEntrypoint:validators.assertCanonicalEntrypoint,entrypointSnapshot:validators.entrypointSnapshot,getRevision:async()=>({name:`projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod/revisions/${wire.capsule.previousRevision}`,conditions:[{type:'Ready',state:'CONDITION_SUCCEEDED'}],containers:[{name:b35AppProfile.runtime.containerName,image:anchor.artifactDigest}]})}
   const service={...entrypoint,etag:entrypoint.serviceEtag,generation:'17',observedGeneration:'17',reconciling:false,terminalCondition:{state:'CONDITION_SUCCEEDED'},name:'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod',traffic:[{revision:wire.capsule.previousRevision,percent:100}],trafficStatuses:[{revision:wire.capsule.previousRevision,percent:100}],scaling:{scalingMode:'AUTOMATIC',maxInstanceCount:1}}
   transport.getService=async()=>{calls.push({url:`https://run.googleapis.com/v2/${service.name}`,method:'GET'});return service}
   return {wire,h,transport,calls,inventory,control,service,prepare,migrate,terminal,
-    read:()=>readPreActivationAbortContinuation({profile:appProfile,transport,baselineIntentRef:wire.intentRef})}
+    read:()=>readPreActivationAbortContinuation({profile:b35AppProfile,transport,baselineIntentRef:wire.intentRef})}
 }
 test('P07 sealed program-only abort consumes genuine modeled RELEASED33 source graph and exact stable execution inventory cold/warm',async()=>{
   const f=await b35ProgramAbortFixture()
@@ -982,7 +990,7 @@ test('P07 NOT_APPLIED and UNKNOWN stay truthful and reject completed-readonly co
 
 test('P00 program-only baseline qualification consumes full authenticated RELEASED33 graph and exact provider GETs',async()=>{
   const f=await b35ProgramAbortFixture()
-  const result=await readProgramOnlyReleasedBaseline({transport:f.transport,profile:appProfile,baselineIntentRef:f.wire.capsule.baselineIntentRef,previousRevision:f.wire.capsule.previousRevision,bundles:b35Bundles})
+  const result=await readProgramOnlyReleasedBaseline({transport:f.transport,profile:b35AppProfile,baselineIntentRef:f.wire.capsule.baselineIntentRef,previousRevision:f.wire.capsule.previousRevision,bundles:b35Bundles})
   assert.equal(result.graph.bundle.bundle.entries.length,33);assert.equal(result.observed.provider.status,'BUILD_IMAGE_VERIFIED')
   assert.deepEqual(result.baselineEntries,b35Bundles.effective.bundle.entries);assert.equal(result.migrationRunnerDigest,f.wire.capsule.programOnlyBaseline.migrationRunnerDigest)
   assert.ok(f.wire.calls.some(row=>row.url.startsWith('https://cloudbuild.googleapis.com/')))
@@ -992,7 +1000,7 @@ test('P00 program-only baseline qualification consumes full authenticated RELEAS
 test('P00 program-only baseline qualification rejects a different installed prefix after genuine source/provider verification',async()=>{
   const f=await b35ProgramAbortFixture(),bundles=structuredClone(b35Bundles)
   bundles.effective.bundle.entries[0].appliedSha256='0'.repeat(64)
-  await assert.rejects(readProgramOnlyReleasedBaseline({transport:f.transport,profile:appProfile,baselineIntentRef:f.wire.capsule.baselineIntentRef,previousRevision:f.wire.capsule.previousRevision,bundles}),/installed-prefix/u)
+  await assert.rejects(readProgramOnlyReleasedBaseline({transport:f.transport,profile:b35AppProfile,baselineIntentRef:f.wire.capsule.baselineIntentRef,previousRevision:f.wire.capsule.previousRevision,bundles}),/installed-prefix/u)
   assert.ok(f.wire.calls.every(row=>row.method==='GET'));noMutation(f.h)
 })
 

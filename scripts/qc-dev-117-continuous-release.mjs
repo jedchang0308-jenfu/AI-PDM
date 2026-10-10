@@ -34,6 +34,7 @@ try {
 const npmCli = process.env.npm_execpath
 if (!npmCli) throw new Error('NPM_EXEC_PATH_REQUIRED')
 const ownerExitCommands = [
+  ['npm run check:dev-121:role-catalog-v7', ['run', 'check:dev-121:role-catalog-v7']],
   ['npm run test:dev-117:abort', ['run', 'test:dev-117:abort']],
   ['npm run check:db-boundary', ['run', 'check:db-boundary']],
   ['npm run typecheck:app', ['run', 'typecheck:app']],
@@ -52,6 +53,9 @@ const files = [
   'config/release/dev122-openswx-worker.json', 'scripts/lib/dev122-openswx-owner-release.mjs', 'scripts/dev122-openswx-owner-release.test.mjs',
   'scripts/dev122-openswx-bootstrap.mjs', 'scripts/lib/dev122-openswx-bootstrap.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs',
   ...['main.tf', 'backend.tf', 'versions.tf', 'README.md'].map(name => `infra/google-cloud/dev-122-openswx-worker/${name}`),
+  'config/access-control/jenfu-role-catalog.v7.json', 'db/postgres/085_dev121_principal_role_catalog_v7.sql',
+  'scripts/dev121-build-principal-role-catalog-v7.mjs', 'scripts/dev121-build-principal-role-catalog-v7.test.mjs',
+  'scripts/qc-dev-121-rd-capabilities-postgres.mjs',
   '.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md',
   '.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md',
   '.ai-doc/dev_task.md', '.ai-doc/documentation_map.md', '.gitattributes', 'AGENTS.md', 'package.json',
