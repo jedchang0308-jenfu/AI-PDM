@@ -1,6 +1,14 @@
 # AI_PDM 開發任務
 
-## DEV-122 CURRENT（B33 料號載入修正已上線；Cloud Run 背景解析已恢復）
+## DEV-122 CURRENT（B34 審核／編輯跳轉修正本地通過；尚未合併／發布）
+
+既有 250ms 篩選 URL 更新可能覆蓋審核／編輯跳轉；Root 只補 timer 追蹤與跳轉前取消，保留原 busy／href guard、目的地與回程參數。精確 client timing 未證實。自有 UI runner 補正常 /parts 等待，並將既有 080／082 的完整 own catalog 預期163改為165；不移除斷言、不加等待規避產品失敗。
+
+凍結修正已通過 native 先決1／1、桌面1440×900與手機390×844完整 lifecycle各1 case、型別及隔離建置；每視窗包含一般Part、初始minor／major及兩個Released後續輪次的退回／fresh package／核准。20個外框overflow檢查均通過，獨立Luna QC PASS_LOCAL_FIXTURE_SCOPE。原2f08 catalog FAIL與e526手機跳轉 FAIL保留；所有本輪自有程序／ports／暫存及容量lease已清理。完整來源、換行綁定與證據見 [B34 本地跳轉驗證](qa/DEV-122-B34-local-navigation-verification-2026-10-10.json)。
+
+下一步為本修正的 protected PR／required CI及fresh official-source app發布；不重播B33／關閉讀取的舊capsule，不包含其他任務的084。下方B33為最後正式回讀快照，本輪未改live service／worker／排程，尚未重新回讀。正式正常網站與原生CAD完整屬性驗收仍待完成，原生CAD由使用者驗證；supplier停用延期，7 issues／29 groups及whole DEV仍NOT_ACCEPTED。Fixture PASS不作Production PASS；沒有新增API／SQL／依賴／IAM／資源／Secret。
+
+## DEV-122 DEPLOYED_BASELINE（B33；2026-10-09正式回讀快照）
 
 PR #253 正常合併來源 `e2e7aaa69d7ca3600203874e0a63d288ac8a1a51`，required PR／main CI SUCCESS；owner [37948779825](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37948779825) 十階段 SUCCESS。正式 `ai-pdm-prod-b96191914c5d` 已 RELEASED／FINALIZED、100%／零 tags，映像 `sha256:64ccd0b4d44ac81d10a3ec3220bf322dec7e055b980577e01d97b262a4884bf8`。11 sealed receipts、source／build／image／serving provider join 已實際回讀；來源 package33／最高083／不含084，本次0 applied／33 replayed／ledger33。沒有新增 SQL、IAM、資源或 Secret 版本。
 

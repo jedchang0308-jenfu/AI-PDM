@@ -493,12 +493,15 @@ try {
       }
       await navigate('料號工作台');
       if(flowSelection==='lifecycle') {
+        await page.waitForURL(location=>location.pathname==='/parts');
         const snapshot=async()=>{
           const nonce=crypto.randomUUID(),requestPath=path.join(runtime,'grant-fixture-request.json'),resultPath=path.join(runtime,'grant-fixture-result.json');
           fs.rmSync(resultPath,{force:true});fs.writeFileSync(requestPath+'.tmp',JSON.stringify({action:'owned-lifecycle-snapshot',nonce}));fs.renameSync(requestPath+'.tmp',requestPath);
           const deadline=Date.now()+15000;while(Date.now()<deadline){if(fs.existsSync(resultPath)){const result=JSON.parse(fs.readFileSync(resultPath,'utf8'));
             if(result.nonce===nonce){assert.equal(result.status,'APPLIED');assert.equal(result.readOnly,true);
-              assert.equal(result.isolation,'repeatable read');assert.equal(result.tableCount,163);assert.equal(Object.keys(result.rows).length,163);
+              assert.equal(result.isolation,'repeatable read');
+              // Migrations 080 and 082 add activation intents and auxiliary metadata jobs.
+              assert.equal(result.tableCount,165);assert.equal(Object.keys(result.rows).length,165);
               return Object.fromEntries(Object.entries(result.rows).map(([table,rows])=>[table,rows.map(value=>{
                 assert.deepEqual(Object.keys(value),['row'],'OWNED_SNAPSHOT_RECORD_SHAPE');assert.ok(value.row&&typeof value.row==='object');return value.row;
               })]));}}
