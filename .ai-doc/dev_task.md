@@ -372,20 +372,21 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 ### 有效 OrgMaster 授權的首次登入自動開通（2026-10-08，執行中）
 
-沿用 `AIPDM/DEV-121#authorized-first-login`，不新增主任務。人類已確認 OrgMaster 已發布且有效的 AI-PDM role／grant 即為 PDM 開通授權；Platform、OrgMaster 本輪僅唯讀查證。現行 callback 已證實在 grant 驗證前要求本地 `principal_accounts`，所以「active typed Principal＋有效 grant＋無本地帳戶」會先回 `principal_account_missing`／畫面 `principal_not_active`，未進入任何建立流程。
+沿用 `AIPDM/DEV-121#authorized-first-login`，不新增主任務。人類已確認 OrgMaster 已發布且有效的 AI-PDM role／grant 即為 PDM 開通授權；Platform、OrgMaster 本輪僅唯讀查證。修正前 callback 已證實在 grant 驗證前要求本地 `principal_accounts`，所以「active typed Principal＋有效 grant＋無本地帳戶」會先回 `principal_account_missing`／畫面 `principal_not_active`，未進入任何建立流程。
 
-- [x] RED synthetic fixture：有效身分＋有效 grant＋無本地帳戶時，現行 service 直接拒絕；無 grant 也在 grant 判斷前以缺帳戶拒絕。
+- [x] HISTORY_ONLY RED baseline synthetic fixture（實作前）：有效身分＋有效 grant＋無本地帳戶時，當時 service 直接拒絕；無 grant 也在 grant 判斷前以缺帳戶拒絕。
 - [x] 本機實作：callback 只在精確 missing 分支先驗 v4 published grants，再呼叫 owner-private `ensure_authorized_first_login_account_v1`，讀回 active account 後才簽 session。既有 active account 照常重新驗 grant；inactive account 不呼叫建立函式。
 - [x] Forward migration 083：同交易建立 profile／Principal link／append-only receipt／cutover，不寫本地角色指派；existing disabled／offboarded 不恢復，identity／historical cutover conflict fail closed，email 相似不作舊 profile 關聯。
-- [x] 本機驗證：聚焦 unit 73／73、app typecheck、targeted ESLint、DB boundary、DEV-117 continuous 142 tests、abort 6 tests、owner QC 與 isolated Production build 均 PASS；task-owned PostgreSQL 7 組 PASS，涵蓋首次建立／重播、雙並行單筆、無 grant、expired grant、inactive identity、身分不符、suspended 不恢復、歷史 email 相似不關聯及後段失敗全回滾；測試 cluster／port／temp 已清理。
+- [x] HISTORY_ONLY 原本機驗證 checkpoint：聚焦 unit 73／73、app typecheck、targeted ESLint、DB boundary、DEV-117 continuous 142 tests、abort 6 tests、owner QC 與 isolated Production build 均 PASS；task-owned PostgreSQL 7 組 PASS，涵蓋首次建立／重播、雙並行單筆、無 grant、expired grant、inactive identity、身分不符、suspended 不恢復、歷史 email 相似不關聯及後段失敗全回滾。這是原快照，不與後續或本輪分母相加。
 - [x] 完成 source diff、DB boundary、owner release regression 與 isolated build；本機 checkpoint：`qa/DEV-121-authorized-first-login-local-checkpoint-2026-10-08.json`。
 - [x] 原首次登入實作 PR242 已合併至 protected main `17bc4d4`，required CI 通過；原本機證據保留。
 - [x] 追加精度 RED／GREEN：OrgMaster 六位微秒 publication 被 Date 截斷會使 083 精確身分比對拒絕。active Principal query 改以 UTC microsecond text 讀取及既有 validator 驗證；focused auth 67／67、另份 Principal／authEpoch 11／11（各報表分母分列，不相加）、8 組 disposable PG、typecheck、targeted lint、DB boundary PASS，測試 port／temp 已清理。[補驗證據](qa/DEV-121-first-login-publication-precision-2026-10-08.json)。
+- [x] 2026-10-10 r5 聚焦補驗證據：[分層現況](qa/DEV-121-first-login-layered-status-2026-10-10.json)記錄 result PASS（四項 checks 與 diff check 完成後寫入）、focused unit 7 files／62 tests、disposable PostgreSQL 9 組、typecheck PASS（stdout 空白，run.ps1 有 nonzero-exit throw guard）、DB boundary 21 files PASS。synthetic Employee fixture 使用權威 literal inactive（PDM-local account offboarded／suspended fixtures 保持分開）；有效 grant 但 inactive Employee 不在 active Principal contract 的案例只比較四張產品表前後 counts、不驗 session；兩個 callback denial unit cases 驗證不呼叫 profile provisioning／session registration。既有 atomicity 15／15 保持舊分母、不併入本輪。清理確認 port 62413 released、temp removed、dependency junction removed、canonical dependencies preserved、runtime PID 29140 exited；wrapper finally 首次因 PowerShell Remove-Item junction NullReferenceException 以 1 結束，fingerprint 核對後以 Directory.Delete(recursive=false) 移除，未重跑測試。
 - [x] HISTORY_ONLY／原本機時點：PR243 必要 CI 找出兩個 Principal operator recipe 缺少新 timestamp validator import；既有 source-closure tests 重現 2 FAIL，補齊各一行 COPY 後 3／3 與 inventory runner 21／21 PASS。原時點 required CI 待重跑且未建立或執行正式 operator image；後續 protected source／發布現況依下一項。
-- [x] 精度修正已進 protected main 並由 B33 own owner 完成發布；原生 migration PASS／33 項 replay ledger、package 最高 083 與 canonical 100% provider readback 已核對。[分層現況](qa/DEV-121-first-login-layered-status-2026-10-10.json)綁定受測／正式／本工作樹五個核心檔案的相同 Git blob；此項只證明發布，不作首次建立或本人登入證據。
-- [ ] 測試帳號既有帳戶回歸與本人首次登入分層驗證：本輪 Google fixture 以既有 Platform session 經 PDM 正常入口進工作台及 reload PASS；Google 登出後重新登入未驗，第二 fixture 本輪待驗、本人 UNVERIFIED。既有帳戶成功不作 fresh provisioning 證據，不以本機或測試帳號結果替代本人。
+- [x] 精度修正已進 protected main 並由 B33 own owner 完成發布；原生 migration PASS，applied 0／replayed 33；ledger 是 aggregate replay evidence，非逐列匯出，package 最高 083，canonical 100% provider readback 已核對。[分層現況](qa/DEV-121-first-login-layered-status-2026-10-10.json)綁定受測／正式／本工作樹五個核心檔案的相同 Git blob；此項只證明發布，不作首次建立或本人登入證據。
+- [ ] 使用者驗證仍待完成：舊 Google fixture 以既有 Platform session 經正常 PDM 入口進工作台並 reload PASS；fresh Google challenge／global logout 後登入 UNVERIFIED。第二 fixture：R4 後既有 Platform session 正常載入／reload 並顯示同一 Employee PASS（非 fresh Google challenge），正常 PDM link 已 OPENED；但瀏覽器 saved-deny 阻擋，PDM entry/reload UNVERIFIED，不重試；本人實際登入 UNVERIFIED。既有 session／fixture 結果不代表 fresh provisioning 或本人登入。
 
-現行契約：[authorized first login](specs/DEV-121-target-authorization-boundary.md#authorized-first-login)。OrgMaster 現行版唯讀查證顯示張祐豪具 AI-PDM「系統管理員」與「採購」有效指派；此證據只證明發布授權，不替代 Dani 實際登入。`prod-pdm-wave0-dani-001` 實際來源／歸屬仍未確認；本批不以名稱或 Email 推定、不直接關聯或刪除。正式資料與 Production 狀態只按受保護 owner receipt、provider readback 與實際登入結果更新。
+現行契約：[authorized first login](specs/DEV-121-target-authorization-boundary.md#authorized-first-login)。OrgMaster published state 的唯讀查證只作授權來源證據，不證明任何特定員工的發布後登入；歷史目標來源／歸屬仍未確認，精確處置證據保持私有，disposition 尚未完成。不以名稱或 Email 推定關聯或刪除。正式資料與 Production 狀態只按受保護 owner receipt、provider readback 與實際登入結果更新。原首次登入授權範圍內 Platform／OrgMaster 仍僅唯讀；後續另行明確授權的 Platform Google popup timeout 小修只沿 Platform/DEV-015#Google-popup，不擴張 OrgMaster。
 
 <a id="dev-121-unlinked-profile-cleanup"></a>
 

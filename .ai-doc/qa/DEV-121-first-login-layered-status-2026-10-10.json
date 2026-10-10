@@ -1,7 +1,7 @@
 {
   "schemaVersion": "jenfu.ai-pdm.dev121.first-login.layered-status.v1",
   "devRef": "AIPDM/DEV-121#authorized-first-login",
-  "recordedAt": "2026-10-10T05:19:35.742Z",
+  "recordedAt": "2026-10-10T10:20:56Z",
   "status": "IMPLEMENTATION_RELEASED_USER_VALIDATION_PENDING",
   "rootCauses": [
     "The old callback required an active local Principal account before effective OrgMaster grant validation and did not provision authorized first login.",
@@ -70,7 +70,50 @@
     },
     "typecheck": "PASS",
     "dbBoundary": "PASS",
-    "originalDenominatorRetained": "The original 73 tests/7 PostgreSQL groups and later 67+11 tests/8 groups are different snapshots, not additive totals."
+    "latestSupplement": {
+      "evidenceRoot": "output/qc-runtime/dev121-boundary-r5/",
+      "result": "PASS_AFTER_FOUR_CHECKS_AND_DIFF_CHECK",
+      "focusedUnit": {
+        "files": 7,
+        "tests": 62,
+        "separateSnapshot": true
+      },
+      "employeeFixtureStatus": "Authoritative Employee literal inactive; PDM-local account offboarded/suspended fixtures remain separate.",
+      "disposablePostgres": {
+        "groups": 9,
+        "inactiveEmployeeAbsentFromActivePrincipalContract": {
+          "validGrant": true,
+          "fourProductTableCountsUnchanged": true,
+          "sessionAssertion": false
+        }
+      },
+      "callbackUnitDenials": {
+        "cases": [
+          "principal_not_active",
+          "principal_directory_unavailable"
+        ],
+        "profileProvisionAndSessionRegistrationNotCalled": true
+      },
+      "typecheck": "PASS; stdout empty; run.ps1 throws on nonzero exit",
+      "dbBoundary": {
+        "status": "PASS",
+        "files": 21
+      },
+      "cleanup": {
+        "port62413Released": true,
+        "temporaryDirectoriesRemoved": true,
+        "dependencyJunctionRemoved": true,
+        "canonicalDependenciesPreserved": true,
+        "runtimePid29140Exited": true,
+        "wrapperFinallyInitialExitCode": 1,
+        "cause": "PowerShell Remove-Item NullReferenceException on the verified task junction",
+        "recovery": "After fingerprint verification, Directory.Delete(recursive=false) removed the junction; tests were not rerun."
+      },
+      "existingAtomicityEvidence": "Previously recorded 15/15 remains a separate denominator and is not added to this r5 snapshot.",
+      "independentQc": "Read-only source and root receipt review; zero P1/P2; the reviewer did not rerun tests."
+    },
+    "originalDenominatorRetained": "The original 73 tests/7 PostgreSQL groups and later 67+11 tests/8 groups are different snapshots, not additive totals.",
+    "historicalSnapshotScope": "latestFocusedUnit67 and disposablePostgres8 above belong to the 2026-10-08 publication precision snapshot. The current 2026-10-10 supplement below is 62 tests/9 groups with a different selected denominator."
   },
   "productionRelease": {
     "status": "RELEASED",
@@ -95,7 +138,13 @@
       "freshProvision": "NOT_TESTED"
     },
     "fixtureNumber": {
-      "currentRound": "PENDING"
+      "currentRound": "PARTIAL_UNVERIFIED",
+      "platformSession": "PASS_EXISTING_SESSION_LOAD_AND_RELOAD_AFTER_PLATFORM_R4",
+      "normalPdmLink": "OPENED",
+      "pdmEntryAndReload": "UNVERIFIED_BROWSER_SAVED_DENY",
+      "reason": "Browser saved-deny blocked PDM verification; no retry.",
+      "freshProvision": "NOT_TESTED",
+      "platformScope": "Same rendered employee before and after reload; no fresh Google challenge; PDM remains unverified"
     },
     "employeeSelfLogin": "UNVERIFIED",
     "evidencePolicy": "Screenshots and account-specific evidence remain private; fixture names are generic aliases."
@@ -103,13 +152,14 @@
   "cleanupBoundary": {
     "publicContent": "Reusable generic code and synthetic evidence only.",
     "productionEvidence": "PRIVATE_ONLY",
+    "historicalDisposition": "INCOMPLETE_PRIVATE_EVIDENCE_ONLY",
     "dispositionAccepted": false,
-    "meaning": "No data-deletion or ownership claim is made by this first-login status."
+    "meaning": "No data-deletion or ownership claim is made by this first-login status; exact target and Production evidence remain private."
   },
   "remaining": [
-    "Complete the second existing fixture normal browser SSO and reload.",
-    "Verify the affected employee actual post-release login independently.",
-    "Resolve the separately authorized historical-data disposition only within its data and ownership boundary."
+    "Second fixture: existing Platform session load and reload passed after R4; normal PDM link previously opened, but browser saved-deny still blocks PDM entry/reload verification; no retry.",
+    "Affected employee actual login remains UNVERIFIED; existing-session fixture results are not proof of fresh provisioning or that login.",
+    "Resolve the separately authorized historical-data disposition only within its data and ownership boundary; disposition remains incomplete and evidence private."
   ],
   "notCompletion": "Implementation/local checks and protected deployment do not establish the full requested end state."
 }
