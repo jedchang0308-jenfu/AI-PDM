@@ -1,20 +1,18 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B35-R9 已正式發布；業務驗收繼續）
+## DEV-122 CURRENT（B36-R10 已正式發布；B37 部分 UI 補驗，整體未驗收）
 
-PR [#266](https://github.com/jedchang0308-jenfu/AI-PDM/pull/266) 的官方來源 `2600ba2ada8d2adb106ad616c6020d1339328f0e` 已通過 required PR／main CI 與 provider 來源保護核對。R9 owner [38092446021](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021) 十階段 SUCCESS；正式 `ai-pdm-prod-99f16f79d877` 承接 100% 流量、零 candidate tags，control 為 FINALIZED／RELEASED。候選及正式入口的 authenticated smoke PASS；不代替正常業務或 CAD 驗收。
+本任務最新發布為官方來源 `0d0235d348bf129ef7207c1dfa04f55d18f82567`（PR #269）的 R10 owner [38125246874](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38125246874)。十階段 SUCCESS；2026-10-11 09:11Z provider 讀回 `ai-pdm-prod-1be8986b68ce` 100%、零 tags、FINALIZED／RELEASED。資料庫 applied0／replayed33／ledger33、NO084；worker generation17 READY、Scheduler ENABLED且資源未修改。本次限定 IAM 計畫0 create／12 no-op，Terraform apply／readback已執行，不將可能的state writes稱為全程唯讀。[R10 發布讀回](../qa/DEV-122-B36-R10-production-release-closure-2026-10-11.json)。
 
-本次 native 資料庫只讀核對 PASS：applied 0／replayed 33／ledger 33／bootstrap-created false，沒有執行 084；native 收據未提供 PostgreSQL 版本欄位。保留完整來源 manifest 34 與實際 installed prefix 33 的固定 program-only 契約。既有 worker generation 17 READY、Scheduler ENABLED，worker／排程資源沒有修改。本輪限定 IAM 的原生計畫為 0 create／12 no-op，fresh policy readback PASS；不新增授權範圍。
+B36 原 F01C／D05／UI01 的有限輪詢修復已發布：每個 foreground episode 最多30次 background list GET starts，保留單一timer／generation、hidden pause與停止提示。兩個唯一測試檔25 PASS及required PR／main CI PASS；R9兩個正常原檔下載的provider200／大小／SHA證據沿用未改責任面。正式Jed清單reload顯示50 rows；既有正式profile未啟用gallery，因此不聲稱正式gallery或動畫已驗收。
 
-已完成同一既有帳號的憑證重新驗證與兩個既有儲存位置更新，numeric version 8→9；自有 session 撤銷及程序／暫存清理 PASS。沒有公開憑證內容或建立帳號。R8 的 Portal 401／PRE_ACTIVATION_ABORTED、R6 原 UNKNOWN 及各次失敗收據保留；不重送舊 terminal capsule，也不改寫歷史結果。
+B37 僅新增隔離CUA handoff及fixture，不改產品或雲端。實際桌面／窄版、鍵盤、延遲／失敗卡片、旋轉動畫、layout退出及停止提示已有部分證據；R3 reload後提示清除且server GET completions由31增至38。這些logs只記完成、狀態與耗時，browser start／concurrency未觀察。queued輸入超過30秒會投影為delayed，fixture名稱pending不代表畫面已驗證pending。R1 SQL失敗、R2 deadline失敗與部分下載保留；R3／R4固定finish已接受但wrapper仍PARTIAL_NOT_ACCEPTED，四次自有runtime／ports／temp／primary absence與lease清理均確認。[B37 部分補驗](../qa/DEV-122-B37-mounted-preview-cua-checkpoint-2026-10-11.json)。
 
-CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1；Architecture Finalized／RD Implementation Ready。唯一產品 writer 與 cleanup owner 為 root，沿用同 repo DEV-122 worktree，canonical checkout 與其他專案不動。NO084、無正式資料清理、無新增 IAM／Secret／雲端資源範圍維持。Whole DEV NOT_ACCEPTED，原 7 issues／29 groups 不變；supplier DISABLED_DEFERRED，F-01F 完整原生 CAD 正式驗證由使用者執行。
+下一步收斂仍缺的原契約正常UI／API／native變體；不因test/docs SHA變更重跑未改產品證據或重新部署。Whole DEV NOT_ACCEPTED、7 issues／29 groups維持；F-01F完整原生CAD由使用者正式驗證、supplier DISABLED_DEFERRED、NO084、A0061已完成工作不重排。唯一施工規則讀[DEV-122契約](DEV-122-ai-pdm-internal-function-issues.md)。R9／R8／R6與原FAIL／UNKNOWN保留為歷史來源。
 
-本次補驗完成：本機原生 PostgreSQL 的五個 canonical GET 逾時邊界案例 PASS（146 skipped 不計通過），獨立證據 QC P0=0／P1=0，自有程序／埠／暫存清理 PASS。這是 imported route＋signed Principal＋隔離資料庫與 producer fixture，未建立 mounted HTTP／正式 CAD 證據。新正式分頁已登入並可展開既有 A0061 輔助屬性；2D／3D 預覽仍失敗，進行中動畫未觀察。只新增封閉測試 selector 與驗收紀錄，產品程式未改、不重新部署；詳見 [R9 業務補驗證據](../qa/DEV-122-B35-R9-business-verification-2026-10-11.json)。
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1；Architecture Finalized／RD Implementation Ready。Root唯一產品writer與cleanup owner；沿用同repo DEV122 worktree。NO084、無正式資料清理、無新增IAM／Secret／雲端資源範圍。B37兩個新增QA-only seam不擴張release或product contract；固定CLI組合、唯一localhost run host、一用本機fixture session、20分鐘deadline及exact finish identity，finish不授予UI PASS。原primary SQLite與sidecars八路徑前後均ABSENT，不宣稱有實際PRAGMA snapshot。
 
-下一步先核對既有業務證據對目前產品來源的適用性，再補原契約尚缺的正常 UI／API／native 變體；不因 Git SHA 變更重跑未改責任面。已完成的 A0061 輔助解析工作不得重排。詳見 [R9 正式發布與唯讀核對證據](../qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)。先前 CURRENT 原文與 local QC provenance 保留於官方來源 `2600ba2ada8d2adb106ad616c6020d1339328f0e` 及 [接續修復契約](../qa/DEV-122-B35-associated-abort-contract-2026-10-11.json)，不再作未執行發布指令。
-
-### 2026-10-11 CURRENT：F-01C／D05／UI-01 清單預覽有限輪詢修復（Architecture Finalized／LOCAL_TARGETED_QC_PASS；尚未發布／實際 UI 驗收）
+### 2026-10-11 CURRENT：F-01C／D05／UI-01 清單預覽有限輪詢修復（Architecture Finalized／R10 RELEASED；B37 ACTUAL_UI_PARTIAL_NOT_ACCEPTED）
 
 同一 AI-PDM 原 7 issues／29 groups 內的 source P1：`canonical-pdm-workbench.tsx:743–778` 在 `list_3d`／`preview` 存在 pending／delayed 時，遞迴刷新 list GET 沒有上限；visibility return 在舊 request 等待中可另建 timer 鏈，覆蓋單一 timer handle 而遺留未追蹤的排程。`CanonicalPreviewMedia` 的 30 次是另一個 asset GET 的重試，不能證明 workbench list 有限。此契約只補原 F-01C 的 finite polling／gallery 與 UI-01，保留歷史 FAIL、原 acceptance、source applicability 及正常下載；不增加 case 分母或改 server job 狀態。
 
@@ -24,7 +22,7 @@ Root 為唯一產品 writer，TL 只寫本 spec。精確新增產品責任面為
 
 **局部 QA／證據**：先對未修 source 保存有意義 RED，再驗同 source-bound effect 的 pending／delayed 各 30-start ceiling（初始 foreground 另計）、等價回應與 effect replay 不重置、hidden 不計／visible 不復活已耗盡 budget、未完成 GET 中多次 visibility 切換只一條 timer 鏈、filter／cursor／direction 的新 foreground request 拒舊 completion、layout exit／terminal／error／unmount cleanup，以及明示 reload 可以新一輪。focused 命令只需新增 workbench test＋既有 `canonical-preview-media.dev122.test.tsx`；型別／選定 lint／isolated build 按 changed responsibility 與既有 app release checks執行，不因本 spec 或 PR268 的 test/docs-only SHA 重新部署或否定未改來源證據。實際正常入口以 desktop1440×900、narrow390×844 與鍵盤驗 `list_3d`／gallery、短回饋及下載，保存清單 endpoint 和 asset endpoint 分開的 request counts／timing／maximum concurrency、30 次後 quiet 與 visibility/layout/unmount cleanup；captured-hooks／fake-time 證据只稱 component lifetime 層，不冒充 mounted HTTP／production UI／native CAD。Production 只用既有正常路徑與授權，observe 不 enqueue／regenerate／重排 A0061；當前 source review 未查 provider image，不宣稱修復已部署或圖片成功。
 
-局部實作完成：清單元件的 30-start budget、單一 timer／in-flight／generation、foreground batched reload 與停止提示均已補齊。原 RED／QC P1 保留；唯一兩個 src 測試檔 25 PASS（workbench12＋media13），歷史副本不計數，source／evidence QC、typecheck、selected lint、diff check PASS。這只證明 component lifetime unit；normal mounted UI／HTTP timing／production corrective release 待執行。R9 既有 2D／3D 原檔正常下載均 provider HTTP200，大小／SHA與授權CAD原檔一致，preview失敗仍保留；詳見 [B36局部checkpoint](../qa/DEV-122-B36-bounded-preview-polling-checkpoint-2026-10-11.json)。
+局部實作完成：清單元件的 30-start budget、單一 timer／in-flight／generation、foreground batched reload 與停止提示均已補齊。原 RED／QC P1 保留；唯一兩個 src 測試檔 25 PASS（workbench12＋media13），歷史副本不計數，source／evidence QC、typecheck、selected lint、diff check PASS。此25-case證據仍只屬component lifetime unit。R10正式發布已完成；B37另外建立actual mounted UI部分觀察與server GET completion logs，但browser starts／concurrency、real visibility及pending畫面未驗證，不升級整體驗收。R9 既有 2D／3D 原檔正常下載均 provider HTTP200，大小／SHA與授權CAD原檔一致，preview失敗仍保留；詳見 [B36局部checkpoint](../qa/DEV-122-B36-bounded-preview-polling-checkpoint-2026-10-11.json)。
 
 **Stop／re-entry**：若局部修復需要 allowlist 外產品檔、API／schema／worker／permission／job-state 改變，或正常入口／來源綁定無法驗證，回 TL 收斂具體必要 seam；不得放寬原 terminal／授權 guard 或造 PASS。source edits／focused tests／normal PR／protected CI／必要的同任務 corrective release 沿用既有人類授權，不把新 SHA 或本 Agent 契約當新人類 gate。歷史原失敗與所有未完成 acceptance 原樣保留。
 
