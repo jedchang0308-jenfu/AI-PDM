@@ -2457,3 +2457,6 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 
 - [DEV-121 RD v7 ordinary worker evidence checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)：reuse→DAILY_REFRESH→full owner原生descriptor續接、Windows frozen-input LF checkout及單byte拒絕回歸、synthetic重試、local/Production分界；沿DEV-121#rd-capabilities，依賴DEV-122既有daily worker，非新DEV或B35擴權。
   - 同checkpoint的 Daily metadata evidence propagation corrective：source-joined continuation接至ordinary pre-read／selftest／replay，錯full descriptor停寫前拒絕；synthetic focused5/5與完整required QC PASS，來源獨立審查P0=0/P1=0；Production待證。
+
+  - 同checkpoint的 Current program-only serving and retained READY worker：native只讀版本分離、source-bound serving／worker雙鏈核對及停寫前穩定readback，positive／drift／replay／recovery回歸；local與Production分界。
+  - 上述 current-serving checkpoint 最終分類相容 focused10/10、native QC350/350／typecheck／isolated build PASS；本地證據與085／RD正式驗收分開。

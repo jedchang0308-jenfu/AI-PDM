@@ -38,3 +38,21 @@ Runtime 為有限 memory-only Node tests；port=null、無 primary seed。完整
 
 
 最終四檔來源 native QC343/343、test:dev-117:continuous287/287 PASS，均零skip、重疊分母不相加；v7 catalog3/3、abort6/6、DB boundary22檔、typecheck與isolated build PASS（artifact／primary／cleanup=true），原Edge警告保持。LOCAL_CONTRACT report DEV117-S1B-20261011T150810528Z-9C4DC145 的source snapshot eb21fcd704d0dfe91667a2d8c0e4922e4b69b89b7ec6553379dd59bb160844ea；本QA結果及路由索引為執行後後記，四個程式／測試檔未再改動。source QC與新增consumer增量review均gpt-6-luna xhigh只讀，P0=0/P1=0；未把 review 當 provider實測。finite runtime／自身temp cleanup PASS，無port／primary seed；正式085／RD驗收仍pending。
+
+
+## Current program-only serving and retained READY worker checkpoint
+
+沿用 AI-PDM/DEV-121#rd-capabilities／DEV-122 daily dependency，base protected main 5a5d6cf694a7762c6c49cc49c2bcc2b216b76d0f；branch codex/dev121-daily-serving-continuation。開始 tracked clean、AGENTS已完整閱讀，保留原分支、canonical與其他task修改。Platform／OrgMaster來源未修改，正式證據只在private bucket／ignored output。
+
+已證實只讀觀察：原生current artifact resolver→prior activation後，live service revision與prior capsule canonical revision不同，current runtime使用program-only wrapper，prior仍為原READY worker。獨立直接讀prior的早期source-scope拒絕是未先解析current association的helper前置依賴，不當作正常bootstrap根因。正式未pause、未bootstrap、未執行085。Synthetic true RED：有效current RELEASED app＋retained READY worker被舊strict app equality拒絕；無證據的changed serving在拒絕前先產生Scheduler pause。
+
+最小source diff只在bootstrap owner boundary：原strict prior-canonical／repair行為保留，另以source-lock-bound歷史profile、原生完整RELEASED observation＋provider、exact control fingerprint、canonical/current 100%無tag revision及runtime核對program-only serving；readProgramOnlyWorkerEvidence獨立連回原prior activation／image／template／numeric credentials，pre-pause雙重Job／Scheduler policy／Secret metadata readback。雙preflight在第一個lifecycle write前；pause後bootstrap／continuation／recovery再核對current serving。未新增owner輸入schema、角色或帳戶規則，未把genuine current35 profile借用historical34／effective33。
+
+Focused 8/8 PASS、零skip（7個新增＋1個既有相關metadata案例）：positive current-serving pause→bootstrap→full evidence→same-input replay零publication／lifecycle writes、selftest觀察失敗恢復exact prior Job並保持PAUSED、不resume；14類control/runtime/resource drift及缺證據／wrong prior先拒絕且零修改。完整continuous294/294 PASS、零skip。獨立gpt-6-luna xhigh source QC P0=0/P1=0；它是source review，不是獨立provider實測。native QC與typecheck／isolated build仍待結果讀回，本段不宣稱Production PASS。
+
+正式metadata／原生reuse已PASS但ordinary full35 release仍未執行，085未套用，RD v7未上線，舊版仍100%。兩fixture新RD正式驗收NOT_RUN、Dani本人DEFERRED_UNVERIFIED，Google延遲正式情境及指定歷史資料刪除仍未證；不擴大FK引用清理。ownerRunRef只核對本repo numeric run URL形狀，主要source／release證據由封存RELEASED graph、provider build和live runtime核對；未把URL形狀稱作GitHub run provider實測。
+
+Runtime：memory-only finite Node tests，port=null／無primary seed；nativeQC driver負責自己的隔離temp及process cleanup。task-owned dependency junction cleanup owner Root；來源與private evidence留作受保護發布續接。
+
+
+最終分類相容回歸：native QC 原350項有1項既有 app negative 因固定 active control 缺少時傳出 MISSING 而非既有 OPENSWX_PRIOR_CANONICAL_INVALID。最小修正只對該精確讀取的 MISSING 映射拒絕碼，其他依賴錯誤原樣拋出；新增測試精確 assert code。受影響 focused10/10與最終 native QC350/350 PASS、零skip；完整continuous294/294為分類修正前證據，最終native涵蓋該分母及追加owner案例，不相加。v7 catalog3/3、abort6/6、DB boundary22檔、typecheck:app與isolated build PASS（artifact／primary／cleanup=true），sharp image-only與task temp cleanup PASS。LOCAL_CONTRACT report DEV117-S1B-20261011T160326617Z-BBFE6D68，source snapshot ea7447baca86190dd6ff52e5328bf494829a99254eba8db97d83a882031d5b46。QA結果及路由索引為驗證後後記，兩個程式／測試檔未再變更。增量獨立source QC P0=0/P1=0；保留依賴不可讀及未知版本零寫入拒絕。正式部署及085仍未執行，本機PASS不替代Production驗收。
