@@ -1,0 +1,135 @@
+{
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "releaseId": "DEV122-PROGRAM-20261011-B36-R10",
+  "status": "RELEASED_WHOLE_DEV_NOT_ACCEPTED",
+  "providerObservedAt": "2026-10-11T09:11:55.621Z",
+  "source": {
+    "revision": "0d0235d348bf129ef7207c1dfa04f55d18f82567",
+    "pr": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/269",
+    "requiredPrCi": 38122779115,
+    "requiredMainCi": 38123411895,
+    "status": "PASS"
+  },
+  "ownerWorkflow": {
+    "id": "38125246874",
+    "status": "completed",
+    "conclusion": "success",
+    "event": "workflow_dispatch",
+    "headSha": "0d0235d348bf129ef7207c1dfa04f55d18f82567",
+    "createdAt": "2026-10-11T08:33:54Z",
+    "updatedAt": "2026-10-11T09:07:29Z"
+  },
+  "ownerUrl": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38125246874",
+  "capsule": {
+    "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B36-R10/release-intent.json",
+    "sha256": "d341f18071f926fa7ff378135c2cf81d59657054721067535f230f879f40546f"
+  },
+  "provider": {
+    "revision": "ai-pdm-prod-1be8986b68ce",
+    "generation": "197",
+    "traffic": [
+      {
+        "type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+        "revision": "ai-pdm-prod-1be8986b68ce",
+        "percent": 100
+      }
+    ],
+    "tagCount": 0,
+    "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:81ab4c5a3f14e56a18b0187c5af71d174568c6b9367b92b074c5977a39093de4",
+    "controlState": "FINALIZED",
+    "controlResult": "RELEASED"
+  },
+  "database": {
+    "associationRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B36-R10/d341f18071f926fa7ff378135c2cf81d59657054721067535f230f879f40546f/migrate.json",
+      "sha256": "c3af26b3c62602fcae60f26600e6b8221f77822e3efc97dd76c352149fa4e79e"
+    },
+    "nativeRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B36-R10/d341f18071f926fa7ff378135c2cf81d59657054721067535f230f879f40546f/migration-readonly-native.json",
+      "sha256": "aff28adc0445d9c446c66617ccef47cbd2b3b67c49e17ccec872d7802130550f"
+    },
+    "status": "PASS",
+    "applied": 0,
+    "replayed": 33,
+    "ledgerCount": 33,
+    "ledgerBootstrapCreated": false,
+    "disposition": "READ_ONLY_BASELINE_VERIFIED",
+    "currentDatabaseReadPerformed": true,
+    "pgoptions": "-c default_transaction_read_only=on",
+    "migration084Executed": false
+  },
+  "worker": {
+    "status": "READY",
+    "schedulerState": "ENABLED",
+    "jobGeneration": "17",
+    "image": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-openswx-worker@sha256:330b56d74d6e56f2a789f2f9a18f0ca29960cdebe2954b898bbe5c9f5e4bc601",
+    "resourcesUnchanged": true,
+    "mutationPerformed": false,
+    "readyResourceReadbackRef": {
+      "sha256": "3ad9c15a093ef77a2447fed524ab2793f7460668b4b5548612394600a43fa01e",
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-PROGRAM-REUSE-20261011-B36-R10-9f077271a305ffe3-ready-a5fad11ae174237005d4b97f.json"
+    }
+  },
+  "metadataIam": {
+    "ref": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-SECRET-VERSION-IAM-20261011-B36-R10.json",
+      "sha256": "6daf067c409cfbfcb1664cb5a2745111d835c66b14f2c5ac91eb472e182aeac7"
+    },
+    "status": "APPLIED",
+    "mutation": "APPLY_THEN_READBACK",
+    "freshPolicyPair": "PASS",
+    "nativePlanSummary": {
+      "path": "metadata-iam-native-plan-summary.json",
+      "sha256": "b7a260199676d5d860176eb422451f8bfbe15bd239d3ed78bdcfb98b3b2d8fd4",
+      "createCount": 0,
+      "noOpCount": 12
+    }
+  },
+  "metadataMutationQualification": "Terraform no-op apply/readback executed; state writes are possible; not an all-stages read-only claim",
+  "candidateSmoke": "PASS",
+  "canonicalAuthenticatedSmoke": "PASS",
+  "finalProviderEvidence": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A35-B36-R10\\release\\final-readback-result.json",
+    "sha256": "3ccd11024bfb0ee06aa5c7ebc7b69233753f7a9225bc7ef542a4cbcb7c7f5200"
+  },
+  "workflowEvidence": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A35-B36-R10\\release\\B36-owner-workflow-run-r10-final.json",
+    "sha256": "496a716324b0ccfbe8780b3a695e778068e30aa08d902a1849a0d5210a6ad855"
+  },
+  "runtimeCleanup": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A35-B36-R10\\release\\B36-owner-r10r1-final-readback-runtime-final.json",
+    "sha256": "3e2f131dda173e1955a513f1212723a18984c99344ad639e46d9c864263ba632"
+  },
+  "independentQc": {
+    "evidence": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\r10-final-evidence-qc-r1.json",
+      "sha256": "d438ec1df755917974cf9568c9e65d9aee8cb07c709bcb879f2ec5626300fa1f"
+    },
+    "layer": "READONLY_LOCAL_RECEIPT_JOINS_NOT_INDEPENDENT_FRESH_PROVIDER"
+  },
+  "formalUi": {
+    "evidence": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A35-B36-R10\\release\\post-activation-drawing-list-cua.json",
+      "sha256": "f356e3cccd4d00bd53ee7d4ba19b31ff959ec1f28cd4ad171283a5f728780784"
+    },
+    "screenshot": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A35-B36-R10\\release\\post-activation-drawing-list.jpg",
+      "sha256": "cd7cd9aa57ce1dcf7ba15ee610cf388f85ac40ed7c09175fb6e9d840962189db"
+    },
+    "observedAt": "2026-10-11T09:04:20.4783979Z",
+    "actor": "[鉦富]張仕杰 Jed",
+    "rows": 50,
+    "gallery": "NOT_ENABLED_NOT_EXERCISED",
+    "sourceAssociation": "Separate sealed provider receipt; DOM itself does not establish source"
+  },
+  "remaining": {
+    "issues": 7,
+    "groups": 29,
+    "wholeDev": "NOT_ACCEPTED",
+    "nativeCadF01F": "USER_OWNED_PENDING",
+    "supplier": "DISABLED_DEFERRED",
+    "no084": true,
+    "newResourcesOrPermissionScope": false
+  }
+}

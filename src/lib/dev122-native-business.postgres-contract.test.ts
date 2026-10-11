@@ -2246,6 +2246,68 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (process.env.DEV122_NATIVE_SELECTION === "preview-ui-handoff") {
+      const inputs: Array<Record<string, unknown>> = [];
+      for (const state of ["pending", "delayed", "terminal"] as const) {
+        const label = "CUA-" + state;
+        const drawing = await ok<{ drawingNumber: { id: string; drawingNumber: string } }>(await createRecord(
+          request("/api/numbering/records", ownerToken, "POST", {
+            coreName: "DEV122 " + label + " Drawing", itemKind: "manufactured", structureType: "single_part",
+            drawingRequested: true, drawingPurposeCode: "M"
+          }, 1, "", label + "-drawing")), 201);
+        const work = await db!.queryOne<{ id: string; drawing_id: string }>(
+          "SELECT work.id,work.drawing_id FROM drawing_revision_works work JOIN drawings drawing ON drawing.id=work.drawing_id " +
+          "WHERE drawing.formal_drawing_number_id=:id AND work.company_id='company-jenfu'", { id: drawing.drawingNumber.id });
+        expect(work).toBeTruthy();
+        await uploadNativeProtocolPair(work!.id, label);
+        const readJobs = () => db!.query<Record<string, unknown>>(
+          "SELECT job.* FROM preview_jobs job JOIN drawing_revision_files file ON file.source_file_asset_id=job.source_file_asset_id " +
+          "JOIN drawing_revision_work_files binding ON binding.file_binding_id=file.id " +
+          "WHERE binding.work_id=:workId AND job.company_id='company-jenfu' ORDER BY job.id", { workId: work!.id });
+        const before = await readJobs();
+        expect(before.length).toBeGreaterThanOrEqual(2);
+        expect(before.every(job => job.status === "queued" && Number(job.attempt_count) === 0)).toBe(true);
+        if (state !== "pending") {
+          const heartbeat = new Date(Date.now() - 10*60*1000).toISOString();
+          const sql = state === "delayed"
+            ? "UPDATE preview_jobs SET status='running',locked_by='dev122-cua-delayed-fixture',locked_at=:heartbeat," +
+              "error_code=NULL,error_summary=NULL,completed_at=NULL WHERE id=:id AND company_id='company-jenfu'"
+            : "UPDATE preview_jobs SET status='failed',error_code='dev122_terminal_worker_fault'," +
+              "error_summary='DEV122 task-owned terminal fixture',completed_at=:heartbeat WHERE id=:id AND company_id='company-jenfu'";
+          for (const job of before) {
+            await fixtureMutation("CUA " + state + " input; exact own job; no worker output seeded", sql,
+              { id: String(job.id), heartbeat });
+          }
+        }
+        const after = await readJobs();
+        expect(after.map(job => job.id)).toEqual(before.map(job => job.id));
+        expect(after.every(job => job.status === (state === "pending" ? "queued" : state === "delayed" ? "running" : "failed"))).toBe(true);
+        if (state === "pending") expect(after).toEqual(before);
+        const sources = await db!.query<{ id: string; content_hash: string; original_path: string; file_name: string }>(
+          "SELECT DISTINCT asset.id,asset.content_hash,asset.original_path,asset.file_name " +
+          "FROM file_assets asset JOIN drawing_revision_files file ON file.source_file_asset_id=asset.id " +
+          "JOIN drawing_revision_work_files binding ON binding.file_binding_id=file.id " +
+          "JOIN drawing_revision_works work ON work.id=binding.work_id " +
+          "WHERE work.id=:workId AND work.company_id='company-jenfu' ORDER BY asset.id", { workId: work!.id });
+        const sourceReadbacks = [];
+        for (const source of sources) {
+          const filename = path.resolve(source.original_path), repository = path.resolve(process.env.PDM_REPOSITORY_DIR!);
+          expect(filename.startsWith(repository + path.sep)).toBe(true);
+          const bytes = await fs.readFile(filename), sha256 = createHash("sha256").update(bytes).digest("hex");
+          expect(sha256).toBe(source.content_hash);
+          sourceReadbacks.push({ fileAssetId: source.id, sourceContentHash: source.content_hash,
+            fileName: source.file_name, originalPath: filename, bytes: bytes.length, sha256 });
+        }
+        expect(sourceReadbacks.length).toBe(2);
+        inputs.push({ state, label, drawingId: work!.drawing_id, drawingWorkId: work!.id,
+          drawingNumber: drawing.drawingNumber.drawingNumber, sourceReadbacks, previewJobsBefore: before, previewJobsAfter: after,
+          producerBoundary: "FIXTURE", nativeCadOutput: "NOT_RUN", previewJobStateSeeded: state !== "pending", workerOutputSeeded: false });
+      }
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "cua-preview-fixture-ledger.json"), JSON.stringify(inputs, null, 2));
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(
+        [1440, 390].map(width => ({ width, height: width === 1440 ? 900 : 844, flow: "preview-ui-handoff", previewInputs: inputs }))));
+      return;
+    }
     const fixtures = [];
     for (const width of [1440, 390]) {
       const label = "UI" + width;

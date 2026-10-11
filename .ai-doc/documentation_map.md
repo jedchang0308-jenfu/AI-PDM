@@ -8,13 +8,15 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 施工契約：[DEV-121 target boundary／RD v7 producer](specs/DEV-121-target-authorization-boundary.md)。來源入口：`scripts/dev121-principal-fence-operator.mjs`、`scripts/lib/dev121-principal-fence-operator.mjs`；synthetic驗證：`scripts/lib/dev121-principal-fence-operator.test.mjs`。Production receipts只存own private release bucket／ignored output，不把Production baseline、cleanup證據或密碼帶入public Git。Dani本人延期驗證、RD兩fixture新能力及Google延遲完成實測仍未證；Browser saved permission拒絕及歷史FK阻擋保持，未繞過或擴大刪除。
 
 
-## DEV-122 CURRENT（B35-R9 已正式發布；業務驗收繼續）
+## DEV-122 CURRENT（B36-R10 已正式發布；B37 部分 UI 補驗，整體未驗收）
 
-官方來源 2600ba2（PR #266）的 R9 owner [38092446021](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021) 十階段 SUCCESS；正式 ai-pdm-prod-99f16f79d877 承接 100% 流量、零 tags，FINALIZED／RELEASED。正式唯讀核對為 applied 0／replayed 33／ledger 33／NO084；worker generation 17 READY、Scheduler ENABLED。本輪 IAM 計畫 0 create／12 no-op；自有程序與暫存清理 PASS。
+本任務最新發布為官方來源 `0d0235d348bf129ef7207c1dfa04f55d18f82567`（PR #269）的 R10 owner [38125246874](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38125246874)。十階段 SUCCESS；2026-10-11 09:11Z provider 讀回 `ai-pdm-prod-1be8986b68ce` 100%、零 tags、FINALIZED／RELEASED。資料庫 applied0／replayed33／ledger33、NO084；worker generation17 READY、Scheduler ENABLED且資源未修改。本次限定 IAM 計畫0 create／12 no-op，Terraform apply／readback已執行，不將可能的state writes稱為全程唯讀。[R10 發布讀回](qa/DEV-122-B36-R10-production-release-closure-2026-10-11.json)。
 
-補驗進度：五個本機原生 PostgreSQL canonical GET 逾時邊界案例 PASS、獨立 QC 與清理 PASS（146 skipped 不計通過）；正式登入及既有 A0061 輔助屬性展開可讀。2D／3D 預覽仍失敗，進行中動畫未觀察；未改產品程式或再次部署，完整驗收不變。詳見 [R9 業務補驗證據](qa/DEV-122-B35-R9-business-verification-2026-10-11.json)。
+B36 原 F01C／D05／UI01 的有限輪詢修復已發布：每個 foreground episode 最多30次 background list GET starts，保留單一timer／generation、hidden pause與停止提示。兩個唯一測試檔25 PASS及required PR／main CI PASS；R9兩個正常原檔下載的provider200／大小／SHA證據沿用未改責任面。正式Jed清單reload顯示50 rows；既有正式profile未啟用gallery，因此不聲稱正式gallery或動畫已驗收。
 
-下一步核對既有業務證據的來源適用性，補原契約尚缺的正常 UI／API／native 變體。Whole DEV NOT_ACCEPTED、7 issues／29 groups不變；F-01F 原生 CAD 正式驗證由使用者執行，supplier 停用延期，已完成 A0061 輔助工作不重排。唯一施工規則讀 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md)，本段僅維護進度與路由。詳見 [R9 正式發布與唯讀核對](qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)；原 local QC、R8 401／中止及 R6 UNKNOWN 依 [封存接續證據](qa/DEV-122-B35-associated-abort-contract-2026-10-11.json) 與原官方來源保存。
+B37 僅新增隔離CUA handoff及fixture，不改產品或雲端。實際桌面／窄版、鍵盤、延遲／失敗卡片、旋轉動畫、layout退出及停止提示已有部分證據；R3 reload後提示清除且server GET completions由31增至38。這些logs只記完成、狀態與耗時，browser start／concurrency未觀察。queued輸入超過30秒會投影為delayed，fixture名稱pending不代表畫面已驗證pending。R1 SQL失敗、R2 deadline失敗與部分下載保留；R3／R4固定finish已接受但wrapper仍PARTIAL_NOT_ACCEPTED，四次自有runtime／ports／temp／primary absence與lease清理均確認。[B37 部分補驗](qa/DEV-122-B37-mounted-preview-cua-checkpoint-2026-10-11.json)；接續來源的獨立靜態 QC 未發現 P0／P1，[來源審查原文](qa/DEV-122-B37-cua-handoff-source-qc-2026-10-11.json)。
+
+下一步收斂仍缺的原契約正常UI／API／native變體；不因test/docs SHA變更重跑未改產品證據或重新部署。Whole DEV NOT_ACCEPTED、7 issues／29 groups維持；F-01F完整原生CAD由使用者正式驗證、supplier DISABLED_DEFERRED、NO084、A0061已完成工作不重排。唯一施工規則讀[DEV-122契約](specs/DEV-122-ai-pdm-internal-function-issues.md)。R9／R8／R6與原FAIL／UNKNOWN保留為歷史來源。
 
 ## DEV-122 HISTORY_ONLY（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
 

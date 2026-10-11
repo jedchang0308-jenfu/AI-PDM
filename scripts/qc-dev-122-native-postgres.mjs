@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import net from 'node:net';
+import http from 'node:http';
 import crypto from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -28,16 +29,28 @@ const previewDiagnosticInputs=[
   {id:'unsupported-kind',status:'running',age:30001,attempt:2,requestedKind:'drawing_pdf'}
 ].map(input=>({requestedKind:'native_thumbnail_png',...input}));
 const suite = process.argv.find(arg => arg.startsWith('--suite='))?.slice(8) ?? 'all';
+const uiMode = process.argv.find(arg => arg.startsWith('--ui-mode='))?.slice(10) ?? 'automatic';
+const cuaHandoff = uiMode === 'cua-handoff';
 const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
 const nativeSelection=process.env.DEV122_NATIVE_SELECTION??'suite';
+if (!['automatic','cua-handoff'].includes(uiMode) ||
+    cuaHandoff !== (nativeSelection === 'preview-ui-handoff') ||
+    cuaHandoff && (suite !== 'ui' || runRecognition || process.argv.includes('--diagnostic-only'))) {
+  throw new Error('DEV122_CUA_HANDOFF_ARGUMENT_REJECTED');
+}
+if (cuaHandoff && (process.argv.filter(arg=>arg.startsWith('--suite=')).length !== 1 ||
+    process.argv.filter(arg=>arg.startsWith('--ui-mode=')).length !== 1 ||
+    process.argv.slice(2).some(arg=>!['--suite=ui','--ui-mode=cua-handoff','--plan-only'].includes(arg)))) {
+  throw new Error('DEV122_CUA_EXACT_ARGUMENTS_REQUIRED');
+}
 // This finite slice excludes CAD credential/extractor cases and does not establish F-01D acceptance.
 const previewGetCaseNames=[
   'running age=29999 attempt=2','running age=30001 attempt=2','running age=30001 attempt=3',
   'queued age=119999 attempt=2','queued age=120001 attempt=2'
 ].map(name=>'DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded '+name);
 const previewGetPattern='^('+previewGetCaseNames.join('|')+')$';
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['file-route-gaps','file-authority-gaps','recognition-protocol','preview-get-boundaries'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-ui-handoff'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(nativeSelection==='preview-ui-handoff'?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','preview-get-boundaries'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
   ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
@@ -56,7 +69,7 @@ const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share met
 const diagnosticOnly=process.argv.includes('--diagnostic-only');
 const previewDiagnosticChild=process.argv.includes('--preview-diagnostic-child');
 const previewImportOnly=process.argv.includes('--preview-import-only');
-if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
+if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only','--ui-mode=automatic','--ui-mode=cua-handoff'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
 const entries = compileOwnMigrations(root);
 {
   // All current-source cases require the normal Principal API's v7 publication.
@@ -105,6 +118,114 @@ function processIdentity(pid) {
 function sameProcess(expected) {
   try{const current=processIdentity(expected.pid);return current.startToken===expected.startToken&&
     path.resolve(current.executable).toLowerCase()===path.resolve(expected.executable).toLowerCase();}catch{return false;}
+}
+function primaryAbsenceInventory() {
+  if (process.platform !== 'win32') throw new Error('DEV122_CUA_WINDOWS_ONLY');
+  const canonical = path.resolve('C:/VIBE CODING/AI_PDM');
+  const common = execFileSync('git',['rev-parse','--path-format=absolute','--git-common-dir'],{cwd:root,encoding:'utf8',windowsHide:true}).trim();
+  if (path.resolve(common).toLowerCase() !== path.join(canonical,'.git').toLowerCase()) {
+    throw new Error('DEV122_CUA_CANONICAL_REPOSITORY_MISMATCH');
+  }
+  return [...new Set([canonical,root])].flatMap(directory =>
+    ['', '-wal', '-shm', '-journal'].map(suffix => {
+      const filename = path.join(directory,'data','ai-pdm.sqlite' + suffix);
+      try { fs.lstatSync(filename); return {path:filename,exists:true}; }
+      catch (error) { if (error.code !== 'ENOENT') throw error; return {path:filename,exists:false}; }
+    }));
+}
+function observeNextListCompletions(stream, evidenceRoot) {
+  let pending = '', count = 0;
+  stream.on('data', chunk => {
+    pending += chunk.toString('utf8').replace(/\u001b\[[0-9;]*m/g,'');
+    const lines = pending.split(/\r?\n/); pending = lines.pop();
+    if (pending.length > 16384) pending = '';
+    for (const line of lines) {
+      const match = line.trim().match(/^GET (\/(?:api\/numbering\/drawings\/workbench|api\/parts\/workbench)(?:\?[^\s]*)?) (\d{3}) in ([\d.]+)(ms|s)(?: .*)?$/);
+      if (!match || count >= 512) continue;
+      count++;
+      fs.appendFileSync(path.join(evidenceRoot,'next-list-completions.jsonl'),JSON.stringify({
+        layer:'ACTUAL_NEXT_SERVER_COMPLETION_LOG',observedAt:new Date().toISOString(),
+        route:match[1],status:Number(match[2]),reportedDurationMs:Number(match[3])*(match[4]==='s'?1000:1),
+        browserFetchStart:'NOT_OBSERVED',browserConcurrency:'NOT_OBSERVED'
+      }) + '\n');
+    }
+  });
+}
+async function serveCuaPreviewHandoff({runtimeRoot,evidenceRoot,manifest,save,nextPort,capacityLease}) {
+  if (fs.readFileSync(path.join(runtimeRoot,'owner-marker'),'utf8') !== marker ||
+      path.dirname(runtimeRoot) !== path.join(root,'.tmp','dev122')) throw new Error('DEV122_CUA_RUNTIME_SCOPE_INVALID');
+  const owner = processIdentity(process.pid), runId = manifest.runId;
+  const hostname = 'aipdm-dev122-' + runId + '.localhost';
+  const origin = 'http://' + hostname + ':' + nextPort;
+  const bootstrapPort = await freePort(), deadline = Date.now() + 20*60*1000;
+  if (Date.parse(capacityLease.expires_at) <= deadline) throw new Error('DEV122_CUA_CAPACITY_LEASE_TOO_SHORT');
+  const sourceBindingHash = manifest.controlledSourceBefore.hash;
+  const requestPath = path.join(runtimeRoot,'cua-finish-request.json');
+  const readyPath = path.join(evidenceRoot,'cua-ready.json');
+  let cookie = JSON.parse(fs.readFileSync(path.join(runtimeRoot,'signed-sessions.json'),'utf8')).owner;
+  if (typeof cookie !== 'string' || !cookie || /[\r\n;]/.test(cookie)) throw new Error('DEV122_CUA_SESSION_INVALID');
+  const expectedHost = hostname + ':' + bootstrapPort;
+  const bootstrapPath = '/dev122-bootstrap';
+  let consumed = false, closed = false;
+  const server = http.createServer((request,response) => {
+    const host = request.headers.host, remote = request.socket.remoteAddress;
+    response.setHeader('Cache-Control','no-store');
+    if (consumed || Date.now() >= deadline || request.method !== 'GET' || request.url !== bootstrapPath ||
+        host !== expectedHost || remote !== '127.0.0.1') {
+      response.writeHead(404); response.end(); return;
+    }
+    consumed = true;
+    response.writeHead(302,{
+      'Set-Cookie':'__session=' + cookie + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + Math.max(1,Math.floor((deadline-Date.now())/1000)),
+      Location:origin + '/numbering/drawings'
+    });
+    cookie = null;
+    response.once('finish',()=>{ server.close(()=>{closed=true;}); });
+    response.end();
+  });
+  server.requestTimeout = 5000; server.headersTimeout = 5000; server.keepAliveTimeout = 1000;
+  const declaration = {project:'AI-PDM',purpose:'One-use isolated fixture session bootstrap for root CUA',
+    port:bootstrapPort,host:'127.0.0.1',cookieHost:hostname,owner,sourceRevision:sourceHead,sourceBindingHash,
+    PDM_DATA_DIR:manifest.runtimeDeclaration.PDM_DATA_DIR,PDM_REPOSITORY_DIR:manifest.runtimeDeclaration.PDM_REPOSITORY_DIR,
+    mutationScope:'Own loopback response cookie on unique run host; own fixed finish file; no product route or production credential',
+    cleanupCondition:'Close only this server; original finally stops owned Next/PG and checks all ports; 20-minute hard deadline',
+    declaredBeforeListen:true};
+  manifest.cuaHandoff={declaration,status:'DECLARED_BEFORE_LISTEN',deadlineAt:new Date(deadline).toISOString()};save();
+  const close = async () => {
+    cookie = null;
+    if (!closed) { server.closeAllConnections(); await new Promise(resolve=>server.close(()=>{closed=true;resolve();})); }
+    if (!await portReleased(bootstrapPort)) throw new Error('DEV122_CUA_BOOTSTRAP_PORT_NOT_RELEASED');
+  };
+  try {
+    await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(bootstrapPort,'127.0.0.1',resolve);});
+    const ready = {project:'AI-PDM',runId,sourceRevision:sourceHead,sourceBindingHash,ownerPid:owner.pid,
+      ownerStartToken:owner.startToken,origin,bootstrapUrl:'http://' + expectedHost + bootstrapPath,
+      finishRequestPath:requestPath,deadlineAt:new Date(deadline).toISOString(),
+      fixturesPath:path.join(runtimeRoot,'browser-fixtures.json'),status:'READY_FOR_CUA',uiValidation:'NOT_RUN'};
+    fs.writeFileSync(readyPath,JSON.stringify(ready,null,2),{flag:'wx'});
+    manifest.cuaHandoff.status='READY_FOR_CUA';manifest.cuaHandoff.readyPath=readyPath;save();
+    process.stdout.write(JSON.stringify({status:'READY_FOR_CUA',readyPath}) + '\n');
+    return {bootstrapPort,close,wait:async checkRuntime=>{
+      while (Date.now() < deadline) {
+        checkRuntime();
+        if (fs.existsSync(requestPath)) {
+          const input = JSON.parse(fs.readFileSync(requestPath,'utf8'));
+          const keys = ['action','runId','sourceRevision','sourceBindingHash','ownerPid','ownerStartToken','browserTabsClosed'].sort();
+          if (JSON.stringify(Object.keys(input).sort()) !== JSON.stringify(keys) ||
+              !['finish','abort'].includes(input.action) || input.runId !== runId || input.sourceRevision !== sourceHead ||
+              input.sourceBindingHash !== sourceBindingHash || input.ownerPid !== owner.pid ||
+              input.ownerStartToken !== owner.startToken || input.browserTabsClosed !== true) {
+            throw new Error('DEV122_CUA_FINISH_IDENTITY_INVALID');
+          }
+          manifest.cuaHandoff.finish={action:input.action,acceptedAt:new Date().toISOString(),uiValidation:'PENDING_INDEPENDENT_QC'};save();
+          if (input.action !== 'finish' || !consumed) throw new Error('DEV122_CUA_ABORT_OR_BOOTSTRAP_NOT_USED');
+          return;
+        }
+        await new Promise(resolve=>setTimeout(resolve,250));
+      }
+      throw new Error('DEV122_CUA_HARD_DEADLINE');
+    }};
+  } catch (error) { await close(); throw error; }
 }
 function governorRuntime(action,identity,port=null) {
   const {DEV122_GOVERNOR_SESSION:session,DEV122_GOVERNOR_SCRIPT:script,DEV122_GOVERNOR_PYTHON:python}=process.env;
@@ -243,6 +364,8 @@ function captureControlledSource() {
     bindings,hash:sha256(Buffer.from(JSON.stringify(bindings)))};
 }
 async function run() {
+  const primaryBefore = cuaHandoff ? primaryAbsenceInventory() : null;
+  if (primaryBefore?.some(item => item.exists)) throw new Error('DEV122_CUA_PRIMARY_PRESENT_STOP_NO_REPAIR');
   const runId=crypto.randomBytes(8).toString('hex'),database='dev122_'+runId;
   const runtimeRoot=path.join(root,'.tmp','dev122',runId),evidenceRoot=path.join(root,'output','qa','dev-122',runId);
   const pgPort=await freePort(),nextPort=await freePort();
@@ -261,7 +384,8 @@ async function run() {
   manifest.controlledSourceBefore=captureControlledSource();
   fs.writeFileSync(path.join(evidenceRoot,'source-binding-before.json'),JSON.stringify(manifest.controlledSourceBefore,null,2));
   save(); // Persist before every runtime starts.
-  const children=[];let pgStarted=false,admin=null,bootstrap=null,bin,grantFixtureChannel=null,secretAutomationChannel=null,nextCopy=null,nextCapTimer=null,nextCapFailure=null;
+  if (cuaHandoff) { manifest.primaryBefore = primaryBefore; save(); }
+  const children=[];let pgStarted=false,admin=null,bootstrap=null,bin,grantFixtureChannel=null,secretAutomationChannel=null,nextCopy=null,nextCapTimer=null,nextCapFailure=null,cuaChannel=null;
   const env={...process.env,DEV122_SOURCE_ROOT:root,DEV122_RUNTIME_ROOT:runtimeRoot,DEV122_EVIDENCE_ROOT:evidenceRoot,
     DEV122_NATIVE_SUITE:suite,DEV122_LOCAL_CONTRACT_SEAM:seamVersion,PDM_DEPLOYMENT_ENV:'local',
     PDM_DB_PROVIDER:'postgres',PDM_POSTGRES_URL:`postgresql://dev122_runtime@127.0.0.1:${pgPort}/${database}`,
@@ -330,6 +454,10 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     processChild.dev122Identity=declaration;
     const log=fs.createWriteStream(path.join(evidenceRoot,label+'.log'));
     processChild.stdout.pipe(log);processChild.stderr.pipe(log);
+    if (cuaHandoff && label === 'next') {
+      observeNextListCompletions(processChild.stdout,evidenceRoot);
+      observeNextListCompletions(processChild.stderr,evidenceRoot);
+    }
     const done=new Promise((resolve,reject)=>{processChild.once('error',reject);processChild.once('exit',(code,signal)=>{Object.assign(declaration,{exitCode:code,exitSignal:signal,exitedAt:new Date().toISOString()});log.end();save();resolve(code);});});
     done.catch(()=>{}); // Attach immediately; the controller still awaits the original outcome.
     processChild.dev122Done=done;
@@ -426,6 +554,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       manifest.nextCapacityAdmission=nextCapacityAdmission(evidenceRoot);save();
       nextCopy=prepareNextCopy(runtimeRoot,evidenceRoot);manifest.nextSourceCopy=nextCopy;save();
       const nextEnv={...env,DEV122_NEXT_PROJECT_ROOT:nextCopy.copyRoot,PDM_NEXT_DIST_DIR:'.tmp/next-dist',PDM_NEXT_TSCONFIG_PATH:'tsconfig.next.json'};
+      if (cuaHandoff) nextEnv.PDM_PUBLIC_BASE_URL = 'http://aipdm-dev122-' + runId + '.localhost:' + nextPort;
       const uiGalleryFlags={PDM_WORKBENCH_PREVIEW_GALLERY_V1:'true',PDM_UNIFIED_DRAWING_WORKBENCH_V1:'true',
         PDM_NUMBER_LIFECYCLE_V2:'true',PDM_NUMBER_STATE_FLOW_V1:'true'};
       if(!['settings','settings-automation'].includes(suite))Object.assign(nextEnv,uiGalleryFlags);manifest.nextGalleryFlags={scope:'own Next child only',values:uiGalleryFlags,
@@ -467,6 +596,14 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       while(Date.now()<deadline){if(nextCapFailure)throw nextCapFailure;try{const response=await fetch(env.DEV122_APP_ORIGIN+'/api/health/ready',{signal:AbortSignal.timeout(5000)});if(response.ok){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,500));}
       if(!ready)throw new Error('DEV122_NEXT_STARTUP_FAILED');
       manifest.beforeUiOwnedReadback=await grantFixtureChannel.readOwnedSnapshot();save();
+      if (cuaHandoff) {
+        cuaChannel = await serveCuaPreviewHandoff({runtimeRoot,evidenceRoot,manifest,save,nextPort,capacityLease:manifest.nextCapacityAdmission.lease});
+        await cuaChannel.wait(()=>{if(nextCapFailure)throw nextCapFailure;if(nextChild.exitCode!==null||nextChild.signalCode!==null)throw new Error('DEV122_CUA_NEXT_EXITED');});
+        manifest.afterUiOwnedReadback=await grantFixtureChannel.readOwnedSnapshot();
+        manifest.browser={mode:'cua-handoff',status:'CONTROLLER_FINISHED_PENDING_QC',executedCases:0,
+          proof:'Root CUA artifacts and completed server GET logs require separate QC; finish does not establish UI PASS'};
+        save();
+      } else {
       const browserExitCode=await child('normal-browser',['scripts/qc-dev-122-native-browser.mjs'],{childEnv:{...env,NODE_OPTIONS:''},allowNonzero:true});
       manifest.afterUiOwnedReadback=await grantFixtureChannel.readOwnedSnapshot();
       if(suite==='settings')manifest.settingsOwnedRowsUnchanged=
@@ -550,6 +687,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
         manifest.afterRecognitionOwnedReadback=await grantFixtureChannel.readOwnedSnapshot();save();
       }
       if(nextCapFailure)throw nextCapFailure;
+      }
     }
     manifest.status='PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:['P-01','P-02A','P-02B','P-02C','P-03A','P-03B','P-04A','P-04B','G-01','G-02','TX-01A','TX-01B','TX-01C'],
@@ -564,6 +702,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       fixtureMigration:error.fixtureMigration??null,fixtureSourceHash:error.fixtureSourceHash??null,fixtureCompiledHash:error.fixtureCompiledHash??null};
   } finally {
     clearInterval(nextCapTimer);
+    try { await cuaChannel?.close(); } catch(error) {manifest.status='FAIL';manifest.cleanup.cuaBootstrapError=error.message;}
     try{await secretAutomationChannel?.close();}catch(error){manifest.status='FAIL';manifest.secretAutomationCleanupFailure={message:error.message};}
     try{await grantFixtureChannel?.close();}catch(error){manifest.status='FAIL';manifest.fixtureRecoveryFailure={message:error.message};}
     await admin?.end().catch(()=>{});await bootstrap?.end().catch(()=>{});
@@ -586,7 +725,8 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       execFileSync(bin('pg_ctl'),['-D',path.join(runtimeRoot,'cluster'),'-m','fast','-t','30','-w','stop'],{windowsHide:true,stdio:'ignore',timeout:40000});manifest.cleanup.pgStopped=true;
     }catch(error){manifest.cleanup.pgError=error.message;}}
     else manifest.cleanup.pgStopped=true;
-    manifest.cleanup.portsReleased=await portReleased(pgPort)&&await portReleased(nextPort);
+    manifest.cleanup.portsReleased=await portReleased(pgPort)&&await portReleased(nextPort)&&
+      (!manifest.cuaHandoff || await portReleased(manifest.cuaHandoff.declaration.port));
     if(nextCopy) {
       try {
         manifest.nextSourceCopy.sourceConfigAfter=nextCopyFiles.map(relative=>({path:relative,hash:sha256(fs.readFileSync(path.join(root,relative)))}));
@@ -605,6 +745,15 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       fs.rmSync(runtimeRoot,{recursive:true});manifest.cleanup.tempRemoved=!fs.existsSync(runtimeRoot);
     }
     manifest.controlledSourceAfter=captureControlledSource();
+    if (cuaHandoff) {
+      try {
+        manifest.primaryAfter=primaryAbsenceInventory();
+        manifest.cleanup.primaryUnchanged=JSON.stringify(primaryBefore)===JSON.stringify(manifest.primaryAfter) &&
+          manifest.primaryAfter.every(item=>!item.exists);
+        manifest.primaryInvariant={layer:'ACTUAL_BEFORE_AFTER_ABSENCE_INVENTORY',
+          schemaRootsMastersMigrationResidueForeignKeys:'NO_PRIMARY_DATABASE_OR_SIDECAR_PRESENT_BEFORE_OR_AFTER'};
+      } catch(error) {manifest.cleanup.primaryUnchanged=false;manifest.primaryInventoryFailure=error.message;}
+    }
     manifest.sourceUnchanged=manifest.controlledSourceBefore.hash===manifest.controlledSourceAfter.hash;
     fs.writeFileSync(path.join(evidenceRoot,'source-binding-after.json'),JSON.stringify(manifest.controlledSourceAfter,null,2));
     if(!manifest.sourceUnchanged){manifest.status='FAIL';manifest.firstFailure??={message:'DEV122_CONTROLLED_SOURCE_CHANGED'};}

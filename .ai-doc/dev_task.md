@@ -14,15 +14,15 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 施工契約：[DEV-121 target boundary／RD v7 producer](specs/DEV-121-target-authorization-boundary.md)。來源入口：`scripts/dev121-principal-fence-operator.mjs`、`scripts/lib/dev121-principal-fence-operator.mjs`；synthetic驗證：`scripts/lib/dev121-principal-fence-operator.test.mjs`。Production receipts只存own private release bucket／ignored output，不把Production baseline、cleanup證據或密碼帶入public Git。Dani本人延期驗證、RD兩fixture新能力及Google延遲完成實測仍未證；Browser saved permission拒絕及歷史FK阻擋保持，未繞過或擴大刪除。
 
 
-## DEV-122 CURRENT（B35-R9 已正式發布；業務驗收繼續）
+## DEV-122 CURRENT（B36-R10 已正式發布；B37 部分 UI 補驗，整體未驗收）
 
-官方來源 2600ba2（PR #266）的 R9 owner [38092446021](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021) 十階段 SUCCESS；正式 ai-pdm-prod-99f16f79d877 承接 100% 流量、零 tags，FINALIZED／RELEASED。正式唯讀核對為 applied 0／replayed 33／ledger 33／NO084；worker generation 17 READY、Scheduler ENABLED。本輪 IAM 計畫 0 create／12 no-op；自有程序與暫存清理 PASS。
+本任務最新發布為官方來源 `0d0235d348bf129ef7207c1dfa04f55d18f82567`（PR #269）的 R10 owner [38125246874](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38125246874)。十階段 SUCCESS；2026-10-11 09:11Z provider 讀回 `ai-pdm-prod-1be8986b68ce` 100%、零 tags、FINALIZED／RELEASED。資料庫 applied0／replayed33／ledger33、NO084；worker generation17 READY、Scheduler ENABLED且資源未修改。本次限定 IAM 計畫0 create／12 no-op，Terraform apply／readback已執行，不將可能的state writes稱為全程唯讀。[R10 發布讀回](qa/DEV-122-B36-R10-production-release-closure-2026-10-11.json)。
 
-補驗進度：五個本機原生 PostgreSQL canonical GET 逾時邊界案例 PASS、獨立 QC 與清理 PASS（146 skipped 不計通過）；正式登入及既有 A0061 輔助屬性展開可讀。2D／3D 預覽仍失敗，進行中動畫未觀察；未改產品程式或再次部署，完整驗收不變。詳見 [R9 業務補驗證據](qa/DEV-122-B35-R9-business-verification-2026-10-11.json)。
+B36 原 F01C／D05／UI01 的有限輪詢修復已發布：每個 foreground episode 最多30次 background list GET starts，保留單一timer／generation、hidden pause與停止提示。兩個唯一測試檔25 PASS及required PR／main CI PASS；R9兩個正常原檔下載的provider200／大小／SHA證據沿用未改責任面。正式Jed清單reload顯示50 rows；既有正式profile未啟用gallery，因此不聲稱正式gallery或動畫已驗收。
 
-B36 局部進度：修正原 F01C 清單無限輪詢與 visibility 雙 timer；foreground 批次換頁、30th abort 停止提示回歸已補。兩個唯一測試檔 25 PASS／source及evidence QC PASS，型別與選定lint PASS；尚未發布或建立 actual UI／HTTP timing 證據。R9 兩個原檔下載 provider200、hash／size與授權來源一致；preview失敗仍保留。[B36checkpoint](qa/DEV-122-B36-bounded-preview-polling-checkpoint-2026-10-11.json)。
+B37 僅新增隔離CUA handoff及fixture，不改產品或雲端。實際桌面／窄版、鍵盤、延遲／失敗卡片、旋轉動畫、layout退出及停止提示已有部分證據；R3 reload後提示清除且server GET completions由31增至38。這些logs只記完成、狀態與耗時，browser start／concurrency未觀察。queued輸入超過30秒會投影為delayed，fixture名稱pending不代表畫面已驗證pending。R1 SQL失敗、R2 deadline失敗與部分下載保留；R3／R4固定finish已接受但wrapper仍PARTIAL_NOT_ACCEPTED，四次自有runtime／ports／temp／primary absence與lease清理均確認。[B37 部分補驗](qa/DEV-122-B37-mounted-preview-cua-checkpoint-2026-10-11.json)；接續來源的獨立靜態 QC 未發現 P0／P1，[來源審查原文](qa/DEV-122-B37-cua-handoff-source-qc-2026-10-11.json)。
 
-下一步核對既有業務證據的來源適用性，補原契約尚缺的正常 UI／API／native 變體。Whole DEV NOT_ACCEPTED、7 issues／29 groups不變；F-01F 原生 CAD 正式驗證由使用者執行，supplier 停用延期，已完成 A0061 輔助工作不重排。唯一施工規則讀 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md)，本段僅維護進度與路由。詳見 [R9 正式發布與唯讀核對](qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)；原 local QC、R8 401／中止及 R6 UNKNOWN 依 [封存接續證據](qa/DEV-122-B35-associated-abort-contract-2026-10-11.json) 與原官方來源保存。
+下一步收斂仍缺的原契約正常UI／API／native變體；不因test/docs SHA變更重跑未改產品證據或重新部署。Whole DEV NOT_ACCEPTED、7 issues／29 groups維持；F-01F完整原生CAD由使用者正式驗證、supplier DISABLED_DEFERRED、NO084、A0061已完成工作不重排。唯一施工規則讀[DEV-122契約](specs/DEV-122-ai-pdm-internal-function-issues.md)。R9／R8／R6與原FAIL／UNKNOWN保留為歷史來源。
 
 ## DEV-122 HISTORY_ONLY（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
 
@@ -2128,12 +2128,12 @@ R79 後的本機 smoke producer 修正讓操作者明確傳入 --previous-versio
 
 以下保留每個 DEV 的摘要、來源 ID、證據、歸檔位置、批次發版指向與計入交付判定；使用者可直接用 `DEV-005` 這類短碼指定任務。
 
-- ◐ DEV-122 [開發點] [B35-R9 RELEASED] [P2] [業務驗收中／NOT_ACCEPTED] AI-PDM 內部功能缺陷集中處理
+- ◐ DEV-122 [開發點] [B36-R10 RELEASED／B37 PARTIAL] [P2] [業務驗收中／NOT_ACCEPTED] AI-PDM 內部功能缺陷集中處理
   - 摘要：完成首次發行與 Drawing master lifecycle，收斂附件／worker 與 procurement 列表缺口。
   - 來源 ID：使用者 2026-10-03 集中問題、2026-10-04 授權 AI-PDM 獨立開發與後續正式發布；來源 AIPDM/DEV-121。
   - 下一步：核對既有業務證據的來源適用性，補尚缺的正常 UI／API／native 變體。
   - 阻塞 / 恢復條件：發布十階段及正式讀回 PASS；F-01F 完整原生 CAD 正式驗證由使用者執行，supplier 維持停用延期。NO084、7 issues／29 groups、整體 NOT_ACCEPTED 不變。
-  - 證據：[R9 正式發布讀回](qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)、[接續修復契約與 local QC](qa/DEV-122-B35-associated-abort-contract-2026-10-11.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)。R8／R6 及原始 FAIL／UNKNOWN 保留。
+  - 證據：[R10 正式發布讀回](qa/DEV-122-B36-R10-production-release-closure-2026-10-11.json)、[B37 部分 mounted CUA](qa/DEV-122-B37-mounted-preview-cua-checkpoint-2026-10-11.json)、[現行契約](specs/DEV-122-ai-pdm-internal-function-issues.md)。R9／R8／R6及原始FAIL／UNKNOWN保留。
   - 計入交付：否；發布 smoke 不推定業務或 CAD 驗收 PASS。
 
 - ✓ DEV-121 [開發點] [本批最高管理能力正式結案／其他子項原判定] [P0] [Principal-only owner release] 目標端授權邊界重構
@@ -5803,7 +5803,7 @@ QC 要求保留的 Supabase stop wording：
 
 ## DEV-122：AI-PDM 內部功能缺陷集中處理
 
-目前施工以本檔開頭 DEV-122 CURRENT 與 SPEC 為準：B35-R9 已正式發布並完成唯讀核對；下一步補既有業務驗收缺口。NO084、user-owned native CAD、supplier 停用延期與 Whole DEV NOT_ACCEPTED 維持。下方為 HISTORY_ONLY。
+目前施工以本檔開頭 DEV-122 CURRENT 與 SPEC 為準：B36-R10 已正式發布，B37 mounted CUA 部分補驗已記錄；下一步補既有業務驗收缺口。NO084、user-owned native CAD、supplier 停用延期與 Whole DEV NOT_ACCEPTED 維持。下方為 HISTORY_ONLY。
 
 2026-10-05 現行正式發布結果：R02 已由 app-owned V3 owner run [37262598122](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37262598122) 完成 RELEASED／FINALIZED；正式 ai-pdm-prod-52f421cb8db9 接收 100% 流量、0 candidate tags。官方來源 602413097ef27a203fe1e2beccac3166c6e2351a 來自正常 PR209 合併，PR／main required CI 均 SUCCESS。人類在本機安全頁完成既有 Firebase 帳號重新驗證，own numeric 6→7 與既有 GitHub production smoke Secret 更新成功；候選及 canonical 正常 SSO／authenticated probe 通過，匿名／撤銷 session 回 401。B 配置保留 jenfu-platform-prod 並另核 expected number 9536592944；三項已授權 own Secret／IAM 於 R01 APPLIED，R02 只沿用來源相容回執，沒有 historical workflow rotation apply。079 在 R01 已 forward apply，R02 0 applied／29 replayed／ledger 29。正式設定 UI 因工具限制 NOT_RUN；登入與 provider 證據不替代 key draft/probe/activation 或原生 CAD 屬性。這些由使用者正式驗證；F-01F NOT_RUN，7 issues／29 groups、整體 NOT_ACCEPTED。R01 401／UNKNOWN／安全中止證據保留。 [正式結案](qa/DEV-122-settings-production-closure-2026-10-05.json)。
 

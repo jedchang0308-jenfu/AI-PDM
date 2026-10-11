@@ -1,0 +1,378 @@
+{
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "slice": "F01C/D05/UI01 real mounted CUA supplementary evidence",
+  "status": "PARTIAL_NOT_ACCEPTED",
+  "collectedAt": "2026-10-11T13:57:33.166288+00:00",
+  "source": {
+    "revision": "0d0235d348bf129ef7207c1dfa04f55d18f82567",
+    "branch": "codex/dev122-b37-cua-preview-qc",
+    "qaOnlyChanges": {
+      "scripts/qc-dev-122-native-postgres.mjs": "646cd04eadaf609d84cf733ed4376db42714991048b7c786bc4d9ac97870ad18",
+      "src/lib/dev122-native-business.postgres-contract.test.ts": "90c1fd74613fff6ba0e9b213c803c61a9c70ca7ea169307bc416cb68af15d98f"
+    },
+    "productBindings": {
+      "src/components/canonical-pdm-workbench.tsx": "92144cc3b8e0e411cc23067ec614f12456a59e76443433bb2f10a3c3d9e2b1ec",
+      "src/components/canonical-preview-media.tsx": "416dccb96cff8aa479ed92d172155f64d366b1ebcd8c74383336e53ca20181a3"
+    },
+    "localFlags": "Isolated child only; production runtime profile unchanged"
+  },
+  "attempts": [
+    {
+      "runId": "10408832f059752d",
+      "manifest": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\10408832f059752d\\manifest.json",
+        "sha256": "fb1bbdba9adb9414d3678de95618e98c93b57c5fdebfd74b24734e9078939654"
+      },
+      "launcher": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-cua-preview-r1-d65b70f950b943fcb88bd95baec9323b.launcher.json",
+        "sha256": "f78d57eb9cf80da3013665082cc6c964c17a2bc75b5e6041fc21e0be4f597ce4"
+      },
+      "status": "FAIL",
+      "failure": null,
+      "nativeBusiness": {
+        "passed": 0,
+        "failed": 1,
+        "exitCode": 1
+      },
+      "browser": null,
+      "finish": null,
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true,
+        "primaryUnchanged": true
+      },
+      "primaryInvariant": {
+        "layer": "ACTUAL_BEFORE_AFTER_ABSENCE_INVENTORY",
+        "schemaRootsMastersMigrationResidueForeignKeys": "NO_PRIMARY_DATABASE_OR_SIDECAR_PRESENT_BEFORE_OR_AFTER"
+      },
+      "primaryPathsBeforeAndAfter": 8,
+      "sourceUnchanged": true,
+      "controlledSourceHash": "e1f93915ae85729ba7305661532d7f417610ed97851b57db18a9d69b86aab740",
+      "capacityAndGovernorReleased": true
+    },
+    {
+      "runId": "eae20c5bcbbc2188",
+      "manifest": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\eae20c5bcbbc2188\\manifest.json",
+        "sha256": "1827c7fe8b4752076f9ccedb3643f13451d0722ca618b7d8f85a3995cb21cc35"
+      },
+      "launcher": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-cua-preview-r2-8edca80f43ed458dbf834d12ede9dcb6.launcher.json",
+        "sha256": "9d415ba00bd69e6325514ca573e96b899cb5df342e04822919a0720f9af6f10e"
+      },
+      "status": "FAIL",
+      "failure": null,
+      "nativeBusiness": {
+        "passed": 1,
+        "failed": 0,
+        "exitCode": 0
+      },
+      "browser": null,
+      "finish": null,
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true,
+        "primaryUnchanged": true
+      },
+      "primaryInvariant": {
+        "layer": "ACTUAL_BEFORE_AFTER_ABSENCE_INVENTORY",
+        "schemaRootsMastersMigrationResidueForeignKeys": "NO_PRIMARY_DATABASE_OR_SIDECAR_PRESENT_BEFORE_OR_AFTER"
+      },
+      "primaryPathsBeforeAndAfter": 8,
+      "sourceUnchanged": true,
+      "controlledSourceHash": "1fc74dfad4bd0d8dc70f7c5be420f2d6cec6768d03df22027a17c311427b972d",
+      "capacityAndGovernorReleased": true
+    },
+    {
+      "runId": "6c9f9c24127b649b",
+      "manifest": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\6c9f9c24127b649b\\manifest.json",
+        "sha256": "9c92af171206891a86e3069ff7b6deede7a36c76f09f390fc9a341952f9e07e2"
+      },
+      "launcher": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-cua-preview-r3-1c2310c8b4574abbb367be4e2953bb73.launcher.json",
+        "sha256": "2f93c504cb00a11adcd65ce1c4743ccd9969563f4b3901fa6746fe5ff11e9a59"
+      },
+      "status": "PARTIAL_NOT_ACCEPTED",
+      "failure": null,
+      "nativeBusiness": {
+        "passed": 1,
+        "failed": 0,
+        "exitCode": 0
+      },
+      "browser": {
+        "mode": "cua-handoff",
+        "status": "CONTROLLER_FINISHED_PENDING_QC",
+        "executedCases": 0,
+        "proof": "Root CUA artifacts and completed server GET logs require separate QC; finish does not establish UI PASS"
+      },
+      "finish": {
+        "action": "finish",
+        "acceptedAt": "2026-10-11T13:48:20.199Z",
+        "uiValidation": "PENDING_INDEPENDENT_QC"
+      },
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true,
+        "primaryUnchanged": true
+      },
+      "primaryInvariant": {
+        "layer": "ACTUAL_BEFORE_AFTER_ABSENCE_INVENTORY",
+        "schemaRootsMastersMigrationResidueForeignKeys": "NO_PRIMARY_DATABASE_OR_SIDECAR_PRESENT_BEFORE_OR_AFTER"
+      },
+      "primaryPathsBeforeAndAfter": 8,
+      "sourceUnchanged": true,
+      "controlledSourceHash": "1fc74dfad4bd0d8dc70f7c5be420f2d6cec6768d03df22027a17c311427b972d",
+      "capacityAndGovernorReleased": true
+    },
+    {
+      "runId": "2cabc63c1646dfdd",
+      "manifest": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\2cabc63c1646dfdd\\manifest.json",
+        "sha256": "c2fbb73c16c9c706dca1abfb74af5a6a1049991b4092a819e5bde667775d4442"
+      },
+      "launcher": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-cua-preview-r4-d3dcf5265f7a46c3b9baab212fd63a81.launcher.json",
+        "sha256": "d935d7af26aec6e2dc6f9ceec6850dd08963279e41dbb131245096e012f99fe2"
+      },
+      "status": "PARTIAL_NOT_ACCEPTED",
+      "failure": null,
+      "nativeBusiness": {
+        "passed": 1,
+        "failed": 0,
+        "exitCode": 0
+      },
+      "browser": {
+        "mode": "cua-handoff",
+        "status": "CONTROLLER_FINISHED_PENDING_QC",
+        "executedCases": 0,
+        "proof": "Root CUA artifacts and completed server GET logs require separate QC; finish does not establish UI PASS"
+      },
+      "finish": {
+        "action": "finish",
+        "acceptedAt": "2026-10-11T13:52:33.778Z",
+        "uiValidation": "PENDING_INDEPENDENT_QC"
+      },
+      "cleanup": {
+        "childrenStopped": true,
+        "pgStopped": true,
+        "portsReleased": true,
+        "tempRemoved": true,
+        "primaryUnchanged": true
+      },
+      "primaryInvariant": {
+        "layer": "ACTUAL_BEFORE_AFTER_ABSENCE_INVENTORY",
+        "schemaRootsMastersMigrationResidueForeignKeys": "NO_PRIMARY_DATABASE_OR_SIDECAR_PRESENT_BEFORE_OR_AFTER"
+      },
+      "primaryPathsBeforeAndAfter": 8,
+      "sourceUnchanged": true,
+      "controlledSourceHash": "1fc74dfad4bd0d8dc70f7c5be420f2d6cec6768d03df22027a17c311427b972d",
+      "capacityAndGovernorReleased": true
+    }
+  ],
+  "nativeCounts": "One existing fixture case repeated; repetitions do not increase 29-group denominator",
+  "failuresPreserved": {
+    "r1": "Actual asset.company_id query failure before browser; fixture hash bb34fdaf928ca8569e57dab41f00d376f229fd65c29081dfa673e918ef90e4c2 corrected to 90c1fd74613fff6ba0e9b213c803c61a9c70ca7ea169307bc416cb68af15d98f; root tool operation history establishes correction, not current line numbers",
+    "r2": "Hard deadline expired while CUA download tool stalled; retains FAIL despite useful partial UI observations",
+    "r3r4": "Fixed finish accepted; wrapper intentionally remains PARTIAL_NOT_ACCEPTED and exit1 pending independent UI QC"
+  },
+  "actualUi": {
+    "r2Events": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\events.json",
+      "sha256": "acbe8be79531a80cb020d0a5214141799c791714ae7e8140c2017613757761d3"
+    },
+    "r3Events": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r3\\events.json",
+      "sha256": "4f1e73ce878773003f34cb36b1f7dd660abb1bff66e910fff382a15d6c4d7672"
+    },
+    "r4Events": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r4\\events.json",
+      "sha256": "fb254d8f08aa1d273e7576612fdebf7937a6e58d21dec0a1fdd8596c4e899a30"
+    },
+    "observed": "Delayed/failed cards, actual running spinner with changing transforms, desktop/narrow, keyboard and layout exit/return",
+    "steadyScreenshots": [
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\desktop-delayed-steady-r2.jpg",
+        "sha256": "e0aac5f42c22e86ac3657f66a726869368c1c92172f936b09b954ff4cbb780cc"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\desktop-keyboard-card-r3.jpg",
+        "sha256": "2989d4ca0ef57059e03033a6fc181ec30ef1b12f5eee3b0e544ba76dbc5fe231"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\desktop-layout-exit-r4.jpg",
+        "sha256": "0ab684e90e7383bbe724ffe594340d8266f21b5bb2d5334aec6a19e5b1e0f6b9"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\desktop-layout-return-r5.jpg",
+        "sha256": "97b044135467801ac396c6e3590a451c77c2e1ed3e8dd653e14728af2239c395"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\narrow-steady-r7.jpg",
+        "sha256": "3230b3093a6ddb175bbf85d6df3c030a3f9f42fa9685cd92d1717d35f118433d"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\narrow-auto-refresh-stopped-r8.jpg",
+        "sha256": "677316cea47ab1151dd6ceb3f9caff6471cf4373207d9bba5087cd8a6fbcb2ec"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\desktop-auto-refresh-stopped-r9.jpg",
+        "sha256": "23b153706a65492a49baf4a739b949a1f40a724b9a00827650f3336be35d8506"
+      }
+    ],
+    "transitionalNotSteadyProof": [
+      "desktop-working-r1.jpg",
+      "narrow-delayed-r6.jpg"
+    ],
+    "stopAndReload": {
+      "stoppedAt": "2026-10-11T13:46:56.250Z",
+      "reloadResumedAt": "2026-10-11T13:47:42.985Z",
+      "hintCleared": true,
+      "completedGetsBeforeReload": 31,
+      "completedGetsAfterReload": 38,
+      "before": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r3\\before-reload-list-completions.jsonl",
+        "sha256": "621d6081da9d11685ba1ab3bfe3493d916b5a62d40ce8ef70d0d6cea4a4e3414"
+      },
+      "after": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r3\\after-reload-list-completions.jsonl",
+        "sha256": "0e520c1543d2db4f95161ab3aebeb3d41dc46fcf6af976dc8577bd8e64f9696a"
+      },
+      "stoppedScreenshot": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r3\\auto-refresh-stopped-r2.jpg",
+        "sha256": "0590024ee41ab8f056fa4246b4ea2254138d0f46788735b38b03d6cc8d3cfe39"
+      },
+      "resumedScreenshot": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r3\\reload-resumed-r3.jpg",
+        "sha256": "e407cfb49a92f6a08417ca13bb6513bc34bb98ce047fc13b2b730e2b48320201"
+      }
+    },
+    "layoutExit": {
+      "completedGetCount": 16,
+      "unchangedCompletionSnapshots": true,
+      "start": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\layout-exit-start-list-completions.jsonl",
+        "sha256": "676cee6a04f44f23817071aa45035674f1924be8575516b36ce0dcaecf7dafdf"
+      },
+      "quiet": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\layout-exit-quiet-list-completions.jsonl",
+        "sha256": "676cee6a04f44f23817071aa45035674f1924be8575516b36ce0dcaecf7dafdf"
+      }
+    },
+    "logLayer": "Actual Next server GET completion, status and reported duration; not browser fetch starts/concurrency or response-body capture",
+    "pending": "NOT_OBSERVED: queued fixture labels do not prove pending rendered",
+    "pendingExplanation": {
+      "rule": "queued/running stale after 30000ms from COALESCE(locked_at,updated_at); no worker-readiness gate",
+      "resolver": "src/lib/pdm-canonical-preview.ts:151",
+      "repository": "src/lib/repositories/pdm-canonical-workbench-async-repository.ts:389",
+      "r4QueuedUpdatedAt": "2026-10-11T13:49:59.110Z",
+      "r4ObservedAt": "2026-10-11T13:50:50.336Z",
+      "workerOutputSeeded": false
+    },
+    "realVisibilityPauseResume": "NOT_RUN; existing source-bound unit evidence only",
+    "maximumBrowserConcurrency": "NOT_OBSERVED",
+    "browserFetchStarts": "NOT_OBSERVED"
+  },
+  "download": {
+    "evidence": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\download-partial-readback.json",
+      "sha256": "3efd7ccaa20a14c3538926325e89f402569352399b50e890593da3788f7b7035"
+    },
+    "cleanup": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r2\\download-cleanup.json",
+      "sha256": "698301367e20ce5cf963345017f03693a02b8aa62759b5c6af3f90f8379f160d"
+    },
+    "status": "PARTIAL_SECOND_DOWNLOAD_BROWSER_TIMEOUT",
+    "nativeCad": "NOT_RUN",
+    "qualification": "One 43-byte synthetic protocol download matches fixture hash; download tool stalled about four hours, HTTP/request timing not independently observed, second file not completed"
+  },
+  "uiCleanup": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r3\\ui-cleanup.json",
+      "sha256": "42579a5ea3c14d7ce6020d45af01e9200ebaf00ac29302b187c4c29302a9ef70"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-mounted-cua-r4\\ui-cleanup.json",
+      "sha256": "0672a97d24b26ce82e89fa757c7e1fab450721d7cbf8944ad1a6cec200835f4f"
+    }
+  ],
+  "remaining": {
+    "issues": 7,
+    "groups": 29,
+    "wholeDev": "NOT_ACCEPTED",
+    "nativeCadF01F": "USER_OWNED_PENDING",
+    "supplier": "DISABLED_DEFERRED",
+    "no084": true,
+    "newCloudMutationsThisSlice": false
+  },
+  "independentQc": {
+    "status": "NO_P0_P1_IN_PARTIAL_CHECKPOINTS",
+    "layer": "READONLY_LOCAL_SOURCE_AND_RECEIPT_HASH_JOINS",
+    "evidence": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\b37-checkpoint-evidence-qc-r1.json",
+      "sha256": "5cf9b013c8de25c7f332b4e2a62b60af5d0e6acd1076319690625fed14a4deba"
+    },
+    "reviewedPriorCheckpointSha256": "ce7542ec942f17cb3d70fa0460ccf7278694e078577fc606796b39adde4a95f6",
+    "wholeUiAcceptance": "NOT_ACCEPTED",
+    "nativeCad": "USER_OWNED_PENDING"
+  },
+  "currentSourceIntegration": {
+    "base": "d3fc1bf72b3630f8a748746c40584e595d396dac",
+    "reviewedRevision": "ad8c4e0f2561fb751fb5824f2af645b2f0aeeff2",
+    "sourceQc": {
+      "path": ".ai-doc/qa/DEV-122-B37-cua-handoff-source-qc-2026-10-11.json",
+      "sha256": "3b9afa4e3a5a20ff8ea9cc6a6a8189d3428b41380602b8d5847fa982546e197b"
+    },
+    "productBindingsUnchanged": true,
+    "fixtureNormalizedSha256": "90c1fd74613fff6ba0e9b213c803c61a9c70ca7ea169307bc416cb68af15d98f",
+    "qualification": "Latest main role-catalog v7 migration/source guards preserved; old runtime/CUA evidence stays on 0d, not a new native execution or product release"
+  },
+  "typeCorrection": {
+    "failedCi": {
+      "runId": "38146208831",
+      "sourceRevision": "02678d34045789685ade3f2c8e80fb155e2ca8f0",
+      "requiredJob": "Production Slice QC",
+      "errors": [
+        "TS7034 at line 2250",
+        "TS7005 at line 2308"
+      ],
+      "log": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-ci-38146208831-failed.log",
+        "sha256": "cddd1f08f83dd41e7c2834ef233bc15c4c159508304d8d2fac9f48f2074add88"
+      }
+    },
+    "change": "One explicit Array<Record<string, unknown>> type annotation; runtime payload, SQL, session and cleanup behavior unchanged",
+    "fixtureSha256": "1a44325a2d2bf61cdea45b74173077d3be8ad61797ab808971145de9c323511a",
+    "independentDeltaQc": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-type-correction-delta-qc-r1.json",
+      "sha256": "53a19c233bbfdc002a4e686c2e5528bb62bb9251ce6fbefc32a7e5644b0c3f8d"
+    },
+    "localStrictTypecheck": {
+      "command": "node node_modules/typescript/bin/tsc -p tsconfig.app.json --noEmit --pretty false --incremental false",
+      "tscExitCode": 0,
+      "evidence": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-typecheck-r1-final.failed-cleanup-args.json",
+        "sha256": "b6b0410d5961cbbac813aea4245eb875bbb90cafaa317ffd20009a22e438154d"
+      },
+      "cleanupCorrection": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-typecheck-r1-cleanup-correction.json",
+        "sha256": "e58cda05c6aa923cea99b437f5e30818d629bc194ed5ad574d497b056e8d455b"
+      },
+      "processExited": true,
+      "tempRemoved": true,
+      "runtimeRegistrationReleased": true,
+      "capacityLeaseReleased": true
+    },
+    "qualification": "Original launcher exited 1 only because release CLI arguments were wrong; tsc exited 0. Correct release calls and exact owned identity were verified separately. Existing CUA/native evidence is preserved, not reclassified as current-source runtime PASS.",
+    "productSourceChanged": false,
+    "productionMutation": false,
+    "wholeDevAccepted": false
+  }
+}
