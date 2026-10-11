@@ -155,9 +155,68 @@
     "cloudResourceMutation": false,
     "formalPreviewGetDatabaseEffects": "UNKNOWN_POSSIBLE_ENQUEUE_OR_STALE_RECOVERY_NOT_READ_BACK"
   },
-  "next": "Continue original remaining evidence gaps; clarify stored-thumbnail/full-readable-drawing requirement and validate OpenSWX embedded PNG compatibility before product integration. Local QA only during other owner source/cloud freeze.",
+  "next": "Formal CAD preview FAIL retained. B39 exact eight-file offline saved-PNG probe found14 valid640x480 images, original sources unchanged; compiled OpenSWX/product integration/deploy NOT_RUN. Resolve thumbnail/full-readable-drawing target and continue only missing original acceptance evidence; no production queue/release action during other owner freeze.",
   "receiptCorrection": {
     "supersedes": "8083c0c8b QA boundary productionMutation:false",
     "reason": "Narrow administrative/cloud-resource mutation claims; browser preview GET can have application DB effects. Original observation/FAIL and private receipts remain preserved."
+  },
+  "savedPreviewCompatibility": {
+    "slice": "B39",
+    "sourceCommit": "159a412d85d286729817b24da99742735d420aef",
+    "status": "OFFLINE_ACTUAL_SAVED_PNG_COMPATIBILITY_ONLY",
+    "method": "bounded diagnostic port of modern stream extraction; NOT compiled OpenSWX execution",
+    "inputFiles": 8,
+    "validSavedPngs": 14,
+    "dimensions": "640x480",
+    "allOriginalSourcesUnchanged": true,
+    "actualCompiledOpenSwxExecution": "NOT_RUN",
+    "productIntegration": "NOT_IMPLEMENTED",
+    "deployment": "NOT_RUN",
+    "geometryRendering": "NOT_RUN",
+    "formalPreviewFailure": "PRESERVED_NOT_FIXED",
+    "formalUploadedSourceByteBinding": "NOT_REVALIDATED_BY_THIS_PROBE",
+    "independentQc": {
+      "model": "gpt-6-luna",
+      "reasoningEffort": "xhigh",
+      "verdict": "PASS_NARROW_OFFLINE_EVIDENCE_ONLY",
+      "readback": "Independently rehashed the exact8 original CAD files, manifest/declaration/helper/report and14 output PNGs; names/sizes/SHA match, all640x480 decode/CRC PASS and PID44172 absent. No product edit or rerun.",
+      "limits": "Diagnostic inflation cap is stricter and malformed-marker rescan differs; sheet indices are not mapped to sheet names. No compiled/public adapter, Cloud Run or formal UI acceptance. Root visually viewed only3 images."
+    },
+    "visualInspection": {
+      "viewedFiles": [
+        "D-0007-MA1.SLDDRW.Images_Sheet_0.png",
+        "D-0007-MA1.SLDDRW.Images_Sheet_1.png",
+        "D-0007-MA1.SLDPRT.PreviewPNG.png"
+      ],
+      "result": "Real saved drawings/part image visible; low-resolution title block and small text. No full readable-dimension or native property acceptance claim."
+    },
+    "processCleanup": {
+      "oneShotExitCode": 0,
+      "pid": 44172,
+      "freshPidPresent": false,
+      "ports": [],
+      "persistentRuntimeStarted": false
+    },
+    "evidence": [
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B39-saved-png-offline\\report.json",
+        "sha256": "abaf77e6003d8517655b2fe2bbfbbb992e61bf2cfbc6f7dc1772401e789b0029"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B39-inspect-saved-png.py",
+        "sha256": "16bb27263309afe04f32183baa05b3b021f4cccde22394fdff4c0a9f9966773b"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B39-saved-png-offline\\declaration.json",
+        "sha256": "f2582cf95a70636924e81dcdbe2d66599dba457ee19d3b187d31aa1fe96b5e78"
+      }
+    ],
+    "limitations": [
+      "Diagnostic port, not the compiled/public OpenSWX adapter.",
+      "Only known modern-format samples, not all CAD files.",
+      "Saved preview can be low resolution, missing or stale; does not render geometry.",
+      "Cloud Run adapter/result/UI currently omit saved images."
+    ],
+    "next": "Use the actual saved-image sample to resolve thumbnail versus full-readable-drawing target; product/worker contract and compiled Linux validation are still needed before integration. Local work only during another owner release freeze."
   }
 }
