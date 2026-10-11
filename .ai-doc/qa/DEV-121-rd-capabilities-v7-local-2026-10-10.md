@@ -35,3 +35,16 @@
 本次v7 migration、Production部署與切流：NOT_RUN。兩fixture本次v7圖號／edit／submit／approval-negative驗證：NOT_RUN；先前使用者回報login/reload/logout只屬HUMAN_REPORTED結果，不能證明本次能力。本人驗證：UNVERIFIED。
 
 OrgMaster現行精確只接受v5/v6；需先取得該repo相容reader+artifact+必要test及own protected release明確授權，才能safe發布v7。一般prepare缺少已證的085 maintenance fence acquisition/readiness證據；runner會在SQL前fail closed，不能paid build後才靠失敗發現缺receipt。先完成此prebuild readiness及compatibility，依既有完整維護窗口流程發布，不使用closed B35 program-only path、不帶single cleanup operationRef，也不手改正式DB。085為additive forward publication，不能down migration或路由不相容v6 binary作回復。
+
+
+## 2026-10-11 maintenance source 續接（本地證據）
+
+整合official main c690d30的DEV-122 provider recovery修正，P08 historical fixture維持獨立closed34 alias；初次46案42 PASS／4 FAIL因fixture引用current35，定向修正後P08 4/4 PASS，產品B3534/effective33與35拒絕保持。
+
+新增最小own維護fence producer：clean protected source／same-source Ready recovery、create-only獨占submission、fresh-etag scaling-only mutation、真實active timeout＋30秒monotonic drain及既有consumer guard；未知POST/PATCH只读回、不重送，drift不自動恢復。Recovery保留實際服務timeout並在paid build前封存submission，未知Build提交不重複。沒有Production fence、build、migration或service mutation。
+
+- 聚焦原28/28 PASS；最後exclusive unknown-readback分類補修新增兩種conflict案例後29/29 PASS（fence17＋recovery12，零skip）。並行claim失敗時PATCH／SQL writer皆0。
+- 分類補修前continuous283/283及aggregate owner regression PASS；v7 generator、abort6、DB boundary22、app typecheck與isolated build全部PASS，artifact／primary database-absent invariant／cleanup=true。原immutable LOCAL_CONTRACT receipt：`output/dev-117/s1b/DEV117-S1B-20261011T071104870Z-E0F91191/owner-report.json`，不回填為新source證據。
+- 最後分類補修只影響operator錯誤路徑；app typecheck／build inputs未再改，沿用有效證據，最新source仍須required CI。獨立Luna review及最後測試分開記錄，不宣稱Production。
+
+OrgMaster v7 PR #128已合併，但own候選驗證在憑證v9的Platform session exchange 401／auth_token_invalid中止；正式舊版100%維持。原因更細分尚未證實。AI-PDM085 NOT_APPLIED，RD v7 NOT_DEPLOYED；新兩帳號RD驗收與Google延遲正式情境未取得證據，Dani本人DEFERRED_UNVERIFIED，歷史清理FK阻擋且引用刪除不在授權中。
