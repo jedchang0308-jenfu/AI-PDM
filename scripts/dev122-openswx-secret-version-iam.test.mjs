@@ -193,3 +193,102 @@ test('native retained etag exception rejects policy changes, unknowns and incons
     assert.throws(() => assertSecretVersionIamTerraformPlan(plan))
   }
 })
+
+test('reviewed release input attributes preserve Git blob bytes under Windows checkout settings', async () => {
+  const { spawnSync } = await import('node:child_process')
+  const { default: os } = await import('node:os')
+  const { fileURLToPath } = await import('node:url')
+  const { secretVersionIamContinuationPlan } = await import('./lib/dev122-openswx-secret-version-iam.mjs')
+  const { sha256 } = await import('./lib/dev012-owner-release-runtime.mjs')
+  const sourceRoot = fileURLToPath(new URL('../', import.meta.url))
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'aipdm-release-input-checkout-'))
+  const origin = path.join(temporary, 'origin'), checkout = path.join(temporary, 'checkout'), reviewedCheckout = path.join(temporary, 'reviewed-checkout'), hooks = path.join(temporary, 'empty-hooks')
+  const git = (root, args) => {
+    const row = spawnSync('git', ['-C', root, '-c', 'core.autocrlf=true', '-c', 'core.eol=crlf',
+      '-c', 'core.hooksPath=' + hooks, '-c', 'commit.gpgsign=false', ...args], { windowsHide: true, maxBuffer: 8 * 1024 * 1024 })
+    assert.equal(row.status, 0, row.stderr?.toString() || row.error?.message)
+    return row.stdout
+  }
+  try {
+    await fs.mkdir(origin); await fs.mkdir(hooks)
+    const readBlob = p => {
+      const row = spawnSync('git', ['-C', sourceRoot, 'show', 'HEAD:' + p], { windowsHide: true, maxBuffer: 8 * 1024 * 1024 })
+      assert.equal(row.status, 0, row.stderr?.toString() || row.error?.message)
+      return row.stdout
+    }
+    const sourceHashes = secretVersionIamContinuationPlan(readBlob, 'f'.repeat(40)).sourceHashes
+    assert.equal(sourceHashes.length, 9)
+    for (const row of sourceHashes) {
+      const target = path.join(origin, row.path)
+      await fs.mkdir(path.dirname(target), { recursive: true })
+      const bytes = readBlob(row.path)
+      assert.ok(!bytes.includes(Buffer.from('\r\n')), row.path)
+      await fs.writeFile(target, bytes)
+    }
+    await fs.writeFile(path.join(origin, 'unrelated.txt'), 'ordinary text\nsecond line\n')
+    await fs.writeFile(path.join(origin, '.gitattributes'), '/output export-ignore\n')
+    git(origin, ['init', '--initial-branch=main'])
+    const commit = message => {
+      git(origin, ['add', '.'])
+      git(origin, ['-c', 'user.name=Synthetic fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', message])
+    }
+    commit('baseline without release input attributes')
+    const baseline = git(origin, ['rev-parse', 'HEAD']).toString().trim()
+    await fs.writeFile(path.join(origin, '.gitattributes'), await fs.readFile(path.join(sourceRoot, '.gitattributes')))
+    commit('reviewed release input LF attributes')
+    const reviewed = git(origin, ['rev-parse', 'HEAD']).toString().trim()
+    git(temporary, ['clone', '--no-hardlinks', '--no-checkout', origin, checkout])
+    git(checkout, ['checkout', '--detach', baseline])
+    for (const row of sourceHashes) {
+      const bytes = await fs.readFile(path.join(checkout, row.path))
+      assert.ok(bytes.includes(Buffer.from('\r\n')), row.path)
+      assert.notEqual(sha256(bytes), row.sha256, row.path)
+    }
+    git(temporary, ['clone', '--no-hardlinks', '--no-checkout', origin, reviewedCheckout])
+    git(reviewedCheckout, ['checkout', '--detach', reviewed])
+    for (const row of sourceHashes) {
+      assert.match(git(reviewedCheckout, ['check-attr', 'eol', '--', row.path]).toString().trim(), /: eol: lf$/u, row.path)
+      assert.match(git(reviewedCheckout, ['ls-files', '--eol', '--', row.path]).toString(), /i\/lf\s+w\/lf\s+attr\/text eol=lf/u, row.path)
+      assert.equal(sha256(await fs.readFile(path.join(reviewedCheckout, row.path))), row.sha256, row.path)
+    }
+    assert.ok((await fs.readFile(path.join(reviewedCheckout, 'unrelated.txt'))).includes(Buffer.from('\r\n')))
+  } finally {
+    assert.equal(path.dirname(temporary), path.resolve(os.tmpdir()))
+    assert.ok(path.basename(temporary).startsWith('aipdm-release-input-checkout-'))
+    await fs.rm(temporary, { recursive: true, force: true })
+  }
+  await assert.rejects(fs.stat(temporary), { code: 'ENOENT' })
+})
+
+test('a changed source byte still refuses fresh IAM execution before Terraform, provider calls or immutable writes', async () => {
+  const { default: os } = await import('node:os')
+  const h = await secretVersionIamHarness()
+  for (const key of ['continuationRef', 'requestRef', 'binaryPlanReceiptRef', 'beforeReadbackRef', 'afterReadbackRef', 'binaryPlanRef', 'terraformPlanRef']) h.objects.delete(h.proof[key].uri)
+  const plan = h.objects.get(h.proof.approvedPlanRef.uri).value.plan
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'aipdm-release-input-tamper-'))
+  let terraformCalls = 0, immutableWrites = 0
+  for (const method of ['putBytes', 'putJson']) {
+    const original = h.transport[method]
+    h.transport[method] = (...args) => { immutableWrites++; return original(...args) }
+  }
+  const count = h.objects.size
+  try {
+    for (const row of plan.sourceHashes) {
+      const target = path.join(temporary, row.path)
+      await fs.mkdir(path.dirname(target), { recursive: true })
+      await fs.writeFile(target, h.args.readSource(row.path))
+    }
+    await fs.appendFile(path.join(temporary, plan.sourceHashes.at(-1).path), ' ')
+    await assert.rejects(executeSecretVersionIamContinuation({ ...executeArgs(h), root: temporary,
+      terraformRunner: () => { terraformCalls++; throw Error('TERRAFORM_FORBIDDEN') } }), { code: 'OPENSWX_SECRET_VERSION_IAM_SOURCE_NOT_FROZEN' })
+    assert.equal(terraformCalls, 0)
+    assert.equal(immutableWrites, 0)
+    assert.equal(h.calls.length, 0)
+    assert.equal(h.objects.size, count)
+  } finally {
+    assert.equal(path.dirname(temporary), path.resolve(os.tmpdir()))
+    assert.ok(path.basename(temporary).startsWith('aipdm-release-input-tamper-'))
+    await fs.rm(temporary, { recursive: true, force: true })
+  }
+  await assert.rejects(fs.stat(temporary), { code: 'ENOENT' })
+})
