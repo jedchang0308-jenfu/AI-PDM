@@ -31,7 +31,13 @@ const suite = process.argv.find(arg => arg.startsWith('--suite='))?.slice(8) ?? 
 const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
 const nativeSelection=process.env.DEV122_NATIVE_SELECTION??'suite';
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['file-route-gaps','file-authority-gaps','recognition-protocol'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+// This finite slice excludes CAD credential/extractor cases and does not establish F-01D acceptance.
+const previewGetCaseNames=[
+  'running age=29999 attempt=2','running age=30001 attempt=2','running age=30001 attempt=3',
+  'queued age=119999 attempt=2','queued age=120001 attempt=2'
+].map(name=>'DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded '+name);
+const previewGetPattern='^('+previewGetCaseNames.join('|')+')$';
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['file-route-gaps','file-authority-gaps','recognition-protocol','preview-get-boundaries'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
   ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
@@ -42,7 +48,8 @@ const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share met
   ?'Part attachment normal|worker claim excludes native|claimed content rejects native':nativeSelection==='recognition-protocol'
   ?'recognition real-source signed session':nativeSelection==='drawing-identity-gaps'
   ?'Drawing actual frozen|Drawing malformed root|Drawing cross-company master|Drawing immutable assigned':nativeSelection==='drawing-revision-identity'
-  ?'Drawing actual frozen revision identity':nativeSelection==='legacy-compatibility'?'historical v1 .* nonrelease basis':nativeSelection==='legacy-part'?'historical v1 part nonrelease basis':nativeSelection==='file-route-gaps'
+  ?'Drawing actual frozen revision identity':nativeSelection==='legacy-compatibility'?'historical v1 .* nonrelease basis':nativeSelection==='legacy-part'?'historical v1 part nonrelease basis':nativeSelection==='preview-get-boundaries'
+  ?previewGetPattern:nativeSelection==='file-route-gaps'
   ?'canonical preview rejects stale derivative|review package immutable file bytes|no-job canonical preview|canonical recovery races actual':nativeSelection==='mapping-constraints'
   ?'Drawing nonnull master label mismatch|Drawing mapping native unique':nativeSelection==='part-root-link'?'Part real samecompany root drift|Part wrongroot relation link':nativeSelection==='part-root-only'?'Part real samecompany root drift':nativeSelection==='drawing-root-only'?'Drawing real samecompany root drift':nativeSelection==='root-guard-regression'
   ?'Part real samecompany root drift|Drawing real samecompany root drift|historical v1 .* nonrelease basis|creates, edits, submits and approves a part|uses normal Draft creation and release-only|keeps a minor master Draft, then atomically releases|rolls back a post-formalize failure':null;
@@ -67,6 +74,8 @@ const entries = compileOwnMigrations(root);
 const sourceHead = execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const config = loadSeamAllowlist(root);
 const plan = { project:'AIPDM', suite, sourceHead, fixtureVersion, seamVersion, marker,
+  nativeSelection:{name:nativeSelection,testNamePattern:nativeTestPattern,
+    expectedCaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:undefined},
   evidenceScope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM', producerBoundary:'FIXTURE',
   producerIntegration:'NOT_RUN', production:'NOT_RUN', migrations:entries.map(({sql,...entry})=>entry),
   templates:config.templates.map(({sql,mappedSql,...entry})=>entry),
@@ -371,6 +380,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
+      expectedCaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:undefined,
       sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
@@ -398,6 +408,14 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     if(nativeSelection==='openswx-work-cancel') {
       const required=assertions.filter(test=>(test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ')).startsWith('DEV122 B18 OpenSWX parent work cancellation '));
       if(required.length!==24||required.some(test=>!['passed','failed'].includes(test.status))||completed.length!==24)throw new Error('DEV122_B18_REQUIRED_CASES_MISSING_OR_SKIPPED');
+    }
+    if(nativeSelection==='preview-get-boundaries') {
+      const nameOf=test=>test.fullName||[...(test.ancestorTitles||[]),test.title].join(' ');
+      const required=assertions.filter(test=>previewGetCaseNames.includes(nameOf(test)));
+      if(required.length!==5||required.some(test=>!['passed','failed'].includes(test.status))||completed.length!==5||
+        new Set(completed.map(nameOf)).size!==5||completed.some(test=>!previewGetCaseNames.includes(nameOf(test)))) {
+        throw new Error('DEV122_PREVIEW_GET_REQUIRED_CASES_MISSING_SKIPPED_OR_UNEXPECTED');
+      }
     }
     if(!manifest.executedCases)throw new Error('DEV122_ZERO_NATIVE_CASES');
     if(manifest.executedCases!==tests.numPassedTests+tests.numFailedTests)throw new Error('DEV122_NATIVE_CASE_COUNT_MISMATCH');
@@ -534,7 +552,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.status='PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:['P-01','P-02A','P-02B','P-02C','P-03A','P-03B','P-04A','P-04B','G-01','G-02','TX-01A','TX-01B','TX-01C'],
       files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
-    manifest.coverage={partial:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
+    manifest.coverage={partial:nativeSelection==='preview-get-boundaries'?['F-01D']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
       notRun:['remaining exact variants in all 29 QA groups','automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
     }
