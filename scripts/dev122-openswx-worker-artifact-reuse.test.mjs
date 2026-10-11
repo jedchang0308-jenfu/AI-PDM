@@ -1435,6 +1435,84 @@ test('B35 actual READY producer and pure resolver admit only the source-joined m
   assert.equal(h.calls.length,calls,'protected resolver consumes sealed refs without IAM provider calls')
   assert.equal(h.puts.length,publications);noMutation(h)
 })
+async function rdDailyMetadataFixture() {
+  const h = await b35MetadataReuseFixture()
+  const activation = structuredClone((await h.transport.readJson(h.input.priorActivationRef)).value)
+  const capsule = structuredClone((await h.transport.readJson(activation.previousRefs[0])).value)
+  const runtime = structuredClone((await h.transport.readJson(capsule.runtimeConfigRef)).value)
+  runtime.runtimeConfig.openswxWorker.descriptorRef = capsule.openswxWorkerRef
+  capsule.runtimeConfigRef = await h.put('rd-prior-runtime', runtime)
+  const capsuleRef = h.seedBytes(activation.previousRefs[0].uri, Buffer.from(canonicalize(capsule)+'\n'))
+  const canonical = (await h.transport.readJson(activation.previousRefs[2])).value
+  const canonicalRef = h.seedBytes(releasePaths(appProfile, capsule, capsuleRef.sha256).canonical, Buffer.from(canonicalize(canonical)+'\n'))
+  activation.previousRefs[0] = capsuleRef; activation.previousRefs[2] = canonicalRef
+  const priorActivationRef = await h.put('rd-prior-activation', activation)
+  h.input = {...h.input, priorActivationRef}
+  h.inputRef = await h.put('rd-metadata-reuse-input', h.input)
+  return h
+}
+
+test('RD daily metadata continuation reaches pre-read, selftest, full descriptor and zero-write replay', async () => {
+  const h = await rdDailyMetadataFixture()
+  const reused = await executeWorkerArtifactReuse({ transport: h.transport, inputRef: h.inputRef, readSource: h.readSource })
+  const descriptorRef = reused.refs.dailyBuildOnlyDescriptorRef
+  h.lifecycle()
+  const pauseInputRef = h.seed('RD-METADATA-PAUSE-input', { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef,
+    workerBuildRef: reused.ref, deadlineAt: deadline(), receiptId: 'RD-METADATA-PAUSE', drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.input.priorActivationRef })
+  const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseInputRef, transport: h.transport, readSource: h.readSource, appProfile, sleep: async () => {} })
+  const inputRef = h.seed('RD-METADATA-BOOTSTRAP-input', { schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef,
+    workerBuildRef: reused.ref, deadlineAt: deadline(), receiptId: 'RD-METADATA-BOOTSTRAP', bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.input.priorActivationRef, pausedDrainedRef: paused.ref })
+  const run = () => executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource: h.readSource, appProfile, sleep: async () => {} })
+  const bootstrap = await run()
+  const provenance = bootstrap.value.facts.resourceProvenance
+  assert.deepEqual(provenance.secretVersionIamContinuationRef, h.metadata.continuationRef)
+  assert.deepEqual(provenance.secretVersionIamSourceLockRef, h.input.sourceLockRef)
+  const readback = (await h.transport.readJson(provenance.resourceReadbackRef)).value
+  assert.deepEqual(readback.secretVersionIamContinuationRef, h.metadata.continuationRef)
+  assert.deepEqual(readback.secretVersionIamSourceLockRef, h.input.sourceLockRef)
+  const full = (await h.transport.readJson(bootstrap.refs.fullDescriptorRef)).value
+  const evidence = await readWorkerFullEvidence(h.transport, full, profile, h.readSource)
+  assert.deepEqual(evidence.artifact.secretVersionIam.ref, h.metadata.continuationRef)
+  assert.equal(evidence.artifact.originBuild.image, h.build.image)
+  for (const field of ['secretVersionIamContinuationRef', 'secretVersionIamSourceLockRef']) {
+    const changed = structuredClone(readback), poisoned = structuredClone(bootstrap.value)
+    changed[field].sha256 = '0'.repeat(64)
+    const resourceReadbackRef = h.seed('RD-WRONG-'+field, changed)
+    Object.assign(poisoned.facts.resourceProvenance, { [field]: changed[field], resourceReadbackRef, resourceReadbackSha256: resourceReadbackRef.sha256 })
+    const bootstrapRef = h.seed('RD-WRONG-BOOTSTRAP-'+field, poisoned)
+    await assert.rejects(readWorkerFullEvidence(h.transport, { ...full, bootstrapRef }, profile, h.readSource), { code: 'OPENSWX_DAILY_RESOURCE_DELTA' })
+  }
+  const calls = h.calls.length, publications = h.puts.length
+  const replay = await run()
+  assert.deepEqual(replay.ref, bootstrap.ref)
+  assert.deepEqual(replay.refs.fullDescriptorRef, bootstrap.refs.fullDescriptorRef)
+  assert.equal(h.puts.length, publications, 'replay adopts sealed evidence')
+  assert.ok(h.calls.slice(calls).every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')), 'replay performs no lifecycle writes')
+  const request = h.transport.request
+  h.transport.request = async (url, options) => {
+    const result = await request(url, options)
+    if (url.includes('/secrets/'+profile.tokenSecretId+':getIamPolicy')) result.bindings.find(row => row.role === SECRET_VERSION_IAM_ROLE).members.push('serviceAccount:unapproved@jenfu-platform-prod.iam.gserviceaccount.com')
+    return result
+  }
+  const rejectedCalls = h.calls.length
+  await assert.rejects(run())
+  assert.equal(h.puts.length, publications)
+  assert.ok(h.calls.slice(rejectedCalls).every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+  assert.ok(!h.calls.some(row => /:addVersion|terraform|cloudbuild.*POST/u.test(row.url)))
+})
+
+test('RD rejects reuse full or program-only descriptor before any daily pause mutation', async () => {
+  const h = await rdDailyMetadataFixture()
+  const reused = await executeWorkerArtifactReuse({ transport: h.transport, inputRef: h.inputRef, readSource: h.readSource })
+  h.lifecycle()
+  const inputRef = h.seed('RD-WRONG-PURPOSE-input', { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: reused.refs.programOnlyFullDescriptorRef,
+    workerBuildRef: reused.ref, deadlineAt: deadline(), receiptId: 'RD-WRONG-PURPOSE', drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.input.priorActivationRef })
+  const calls = h.calls.length, publications = h.puts.length
+  await assert.rejects(executeOpenSwxBootstrap({ stage: 'pause', inputRef, transport: h.transport, readSource: h.readSource, appProfile, sleep: async () => {} }), { code: 'OPENSWX_REUSE_DAILY_ONLY' })
+  assert.equal(h.puts.length, publications)
+  assert.ok(h.calls.slice(calls).every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
+})
+
 test('B35 missing metadata continuation retains strict original Secret policy and publishes no READY proof',async()=>{
   const h=await b35MetadataReuseFixture(), input={...h.input};delete input.secretVersionIamContinuationRef
   const inputRef=await h.put('b35-no-metadata-ref',input), count=h.puts.length

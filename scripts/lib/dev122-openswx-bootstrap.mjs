@@ -94,8 +94,8 @@ async function collectWorkerResourcePolicy(transport, profile, image, expectedTe
   assertWorkerJob(job, expectedTemplate)
   return { jobName: job.name, etag: job.etag, iamSha256: sha256(canonicalize({ job: policy, readerSecret: access, readerActAs: actAs })), image, providerJob: job }
 }
-async function readWorkerResources(transport, profile, image, expectedTemplate = workerTemplate(profile, image, null, 'selftest'), supplementalIam = null) {
-  const result = await collectWorkerResourcePolicy(transport, profile, image, expectedTemplate, supplementalIam)
+async function readWorkerResources(transport, profile, image, expectedTemplate = workerTemplate(profile, image, null, 'selftest'), supplementalIam = null, secretVersionIam = null) {
+  const result = await collectWorkerResourcePolicy(transport, profile, image, expectedTemplate, supplementalIam, secretVersionIam)
   assertPausedScheduler(await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`), profile)
   return result
 }
@@ -991,10 +991,12 @@ async function dailyResourceProvenance({ transport, profile, prior, descriptor, 
   // Fixed code/permission sources must also be unchanged, not merely address counts.
   for (const entry of sourceHashes.filter(row => row.path.endsWith('.tf'))) if (oldHashes.find(row => row.path === entry.path)?.sha256 !== entry.sha256) fail('OPENSWX_DAILY_RESOURCE_DELTA')
   const supplementalIam = await dailySupplementalIam({ transport, profile, prior, descriptor, readSource, prebuildIamContinuationRef })
-  const readback = await readWorkerResources(transport, profile, prior.build.image, prior.template, supplementalIam)
+  const secretVersionIam = artifact?.secretVersionIam ?? null
+  const readback = await readWorkerResources(transport, profile, prior.build.image, prior.template, supplementalIam, secretVersionIam)
+  const metadataBinding = secretVersionIam ? { secretVersionIamContinuationRef: secretVersionIam.ref, secretVersionIamSourceLockRef: secretVersionIam.sourceLockRef } : {}
   const continuation = supplementalIam?.prebuildIamContinuationRef ? { prebuildIamContinuationRef: supplementalIam.prebuildIamContinuationRef } : {}
-  const saved = await write(transport, `${uri.slice(0, -5)}-resource-readback.json`, { schemaVersion: 'aipdm.openswx-resource-readback.v1', observedAt: transport.now(), targetDescriptorRef: descriptorRef, targetWorkerBuildRef: build.ref, priorResourceApplyRef, resourcesUnchanged: true, readback, payloadStored: false, ...(supplementalIam ? { supplementalIamReadbackRef: supplementalIam.ref, ...continuation } : {}) })
-  return { priorResourceApplyRef, resourceReadbackRef: saved.ref, resourceReadbackSha256: saved.ref.sha256, resourcesUnchanged: true, ...(supplementalIam ? { supplementalIamReadbackRef: supplementalIam.ref, supplementalIamSourceRevision: supplementalIam.sourceRevision, ...continuation } : {}) }
+  const saved = await write(transport, `${uri.slice(0, -5)}-resource-readback.json`, { schemaVersion: 'aipdm.openswx-resource-readback.v1', observedAt: transport.now(), targetDescriptorRef: descriptorRef, targetWorkerBuildRef: build.ref, priorResourceApplyRef, resourcesUnchanged: true, readback, payloadStored: false, ...metadataBinding, ...(supplementalIam ? { supplementalIamReadbackRef: supplementalIam.ref, ...continuation } : {}) })
+  return { priorResourceApplyRef, resourceReadbackRef: saved.ref, resourceReadbackSha256: saved.ref.sha256, resourcesUnchanged: true, ...metadataBinding, ...(supplementalIam ? { supplementalIamReadbackRef: supplementalIam.ref, supplementalIamSourceRevision: supplementalIam.sourceRevision, ...continuation } : {}) }
 }
 export async function executeOpenSwxBootstrap({ stage, inputRef, transport, readSource, appProfile, root, oauthToken, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
   return runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
@@ -1020,7 +1022,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   const profile = descriptor.profile, actor = await verifyNormalActor(transport, profile)
   const uri = `${profile.receiptRoot}/${input.receiptId}.json`
   if (stage === 'activate') return activateWorker({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, intent, capsuleRef: input.releaseCapsuleRef, uri, deadlineAt: input.deadlineAt, actor, appProfile, readSource })
-  if (descriptor.value.artifactMode === 'REUSE_VERIFIED' && (stage === 'resources' || input.bootstrapKind === 'FIRST_CREATE' || input.drainKind === 'FIRST_PROVIDER_ONLY')) fail('OPENSWX_REUSE_DAILY_ONLY')
+  if (descriptor.value.artifactMode === 'REUSE_VERIFIED' && (descriptor.value.purpose !== 'build_only' || stage === 'resources' || input.bootstrapKind === 'FIRST_CREATE' || input.drainKind === 'FIRST_PROVIDER_ONLY')) fail('OPENSWX_REUSE_DAILY_ONLY')
   const artifact = await resolveWorkerArtifact({ transport, descriptor: descriptor.value, profile, readSource, buildRef: input.workerBuildRef })
   const build = artifact.originBuild, buildRow = { ref: input.workerBuildRef, value: build }
   if (stage === 'resources') return executeOpenSwxResources({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, build, root, readSource, oauthToken, uri, deadlineAt: input.deadlineAt, actor, firstReconciliation: input.priorResourceRequestRef ? { priorResourceRequestRef: input.priorResourceRequestRef, priorWorkerBuildRef: input.priorWorkerBuildRef, ...(input.priorBootstrapInputRef ? { priorBootstrapInputRef: input.priorBootstrapInputRef } : {}), ...(input.completedFirstBootstrapInputRef ? { completedFirstBootstrapInputRef: input.completedFirstBootstrapInputRef, completedFirstPauseInputRef: input.completedFirstPauseInputRef, supplementalIamReadbackRef: input.supplementalIamReadbackRef } : {}) } : null })
@@ -1154,11 +1156,15 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
       const saved = await readBootstrapSupplementalIam(transport, existing.value, descriptor.value, profile, readSource)
       if (canonicalize(inherited?.prebuildIamContinuationRef ?? null) !== canonicalize(saved?.prebuildIamContinuationRef ?? null)
         || canonicalize(inherited?.ref ?? null) !== canonicalize(saved?.ref ?? null)) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
+      const metadata = artifact.secretVersionIam
+      const provenance = existing.value.facts.resourceProvenance
+      if (canonicalize(provenance?.secretVersionIamContinuationRef ?? null) !== canonicalize(metadata?.ref ?? null)
+        || canonicalize(provenance?.secretVersionIamSourceLockRef ?? null) !== canonicalize(metadata?.sourceLockRef ?? null)) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
       if (saved) {
         if (existing.value.facts.bootstrapKind !== 'DAILY_REFRESH' || canonicalize(existing.value.facts.priorActivationRef) !== canonicalize(input.priorActivationRef)
           || canonicalize(existing.value.facts.pausedDrainedRef) !== canonicalize(input.pausedDrainedRef)
           || canonicalize(existing.value.previousRefs) !== canonicalize([inputRef, descriptor.ref, input.workerBuildRef, existing.value.facts.cloudPreflightRef])) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
-        await readWorkerResources(transport, profile, build.image, workerTemplate(profile, build.image, null, 'selftest'), { ...saved, readSource })
+        await readWorkerResources(transport, profile, build.image, workerTemplate(profile, build.image, null, 'selftest'), { ...saved, readSource }, artifact.secretVersionIam)
       }
     }
     return daily ? publishDailyFullDescriptor({ transport, input, inputRef, descriptor, profile, bootstrap: existing, readSource }) : existing
@@ -1207,7 +1213,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
       || saved.proof.claimProof !== 'ISOLATION_ONLY_NO_CAD') fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
   } else preflight = await write(transport, preflightUri, workerReceipt({ descriptor: descriptor.value, kind: 'cloud-preflight', actor: actor.email, image: build.image, template: selftest, observedAt: transport.now(), previousRefs: [finite.ref], facts: { isolationVerified: true, noCad: true, proof, normalTemplateSha256: sha256(canonicalize(normal)), selftestTemplateSha256: sha256(canonicalize(selftest)) } }))
   await assertNoActiveExecutions(transport)
-  await readWorkerResources(transport, profile, build.image, selftest, supplementalIam)
+  await readWorkerResources(transport, profile, build.image, selftest, supplementalIam, artifact.secretVersionIam)
   completedBootstrap = await write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'bootstrap', actor: actor.email, image: build.image, template: selftest, observedAt: transport.now(), previousRefs: [inputRef, descriptor.ref, input.workerBuildRef, preflight.ref], facts: { bootstrapKind: input.bootstrapKind, tokenSecretVersion, registrySecretVersion: newRegistryVersion, priorRegistryVersion: registryVersion, normalTemplateSha256: sha256(canonicalize(normal)), selftestTemplateSha256: sha256(canonicalize(selftest)), cloudPreflightRef: preflight.ref, ...(resourceProvenance ? { resourceProvenance, priorActivationRef: input.priorActivationRef, pausedDrainedRef: input.pausedDrainedRef } : { resourceApplyRef: input.resourceApplyRef, ...(completedFirstBootstrap ? { completedFirstBootstrap } : partialFirstBootstrap ? { partialFirstBootstrap } : {}) }) } }))
   } catch (error) {
     let priorJobRestored = false, priorEmptyProof = null
