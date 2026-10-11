@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "ai-pdm.dev122.b38-targeted-qa.v1",
+  "status": "LOCAL_NATIVE_13_PASS_FORMAL_CAD_PREVIEW_FAIL_WHOLE_NOT_ACCEPTED",
+  "source": {
+    "baseCommit": "b79ace00edbde3caf962ab26d415157966fee527",
+    "branch": "codex/dev122-b38-native-gap-qc",
+    "qaOnlyCandidate": true,
+    "files": [
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\qc-dev-122-native-postgres.mjs",
+        "sha256": "8ff03708b1f82405c6339e476681cd04c9f16946c28321639b9029adfcb4b7be"
+      },
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\src\\lib\\dev122-native-business.postgres-contract.test.ts",
+        "sha256": "2e2c642f7e088e339050f6fd93d9497875c6b468159bc3188206e6659bcaf045"
+      }
+    ]
+  },
+  "native": {
+    "selected": 13,
+    "executed": 13,
+    "passed": 13,
+    "failed": 0,
+    "unselected": 138,
+    "caseNames": [
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol no-job canonical preview normal has actual enqueue readback or safe500 without false202",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded running age=29999 attempt=2",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded running age=30001 attempt=2",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded running age=30001 attempt=3",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded queued age=119999 attempt=2",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded queued age=120001 attempt=2",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol worker claim excludes native company source input without effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol worker claim excludes native kind source input without effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol worker claim excludes native extension source input without effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol worker claim excludes native source_hash source input without effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol claimed content rejects native holder mismatch without storage or DB effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol claimed content rejects native provenance mismatch without storage or DB effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol claims once under actual workload authentication, heartbeats and reads source bytes, then completes protocol-only PNG"
+    ],
+    "receiptStatus": "PARTIAL_NOT_ACCEPTED",
+    "firstFailure": null,
+    "header202ObservedReplies": 4,
+    "protocolOutputBoundary": "PROTOCOL_FIXTURE_ACTUAL_CAD_NOT_RUN",
+    "coverage": {
+      "partial": [
+        "F-01C",
+        "F-01D",
+        "F-01E"
+      ],
+      "notRun": [
+        "remaining exact variants in all 29 QA groups",
+        "automatic integrated CAD worker daemon",
+        "recognition source/output boundary"
+      ],
+      "acceptanceComplete": false,
+      "workerOutputBoundary": "PROTOCOL_FIXTURE unless exact actual extractor evidence is attached"
+    }
+  },
+  "typecheck": {
+    "status": "PASS",
+    "command": "node tsc -p tsconfig.app.json --noEmit --pretty false --incremental false",
+    "exitCode": 0,
+    "applicationExecuted": false
+  },
+  "corrections": [
+    "Remove inherited duplicate 085 fixture entry without changing any migration SQL or adding084",
+    "Exact source/company local preview-job teardown only after preserving original no-job route readback; not route rollback"
+  ],
+  "firstFailurePreserved": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-native-r1-failure-preserved-r2.json",
+    "sha256": "9b2693237a7a4b383c932338552c9cfbd7b3d454b778fda81545fd20d7809c62"
+  },
+  "formalUserFeedback": {
+    "status": "PREVIEW_FAILURE_REPRODUCED",
+    "auxiliaryProperties": "PARTIAL_VISIBLE_HUMAN_GROUND_TRUTH_PENDING",
+    "nativeTwoDWorker": "NOT_ONLINE_SETTINGS_UI_READBACK",
+    "exactBackendErrorCode": "NOT_OBTAINED",
+    "privateReceipt": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-user-cad-preview-feedback.json",
+      "sha256": "a41604bfba1857d2e340a750e39493404d479beebe56bf248201e82fc4156c9d"
+    }
+  },
+  "evidence": [
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\manifest.json",
+      "sha256": "67c50245d227e653ce23090732fdbcd3237f85cb7a2331879e34007c5779c3ca"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\vitest.json",
+      "sha256": "f8fc8a6b625d2443d755a601982e0f05b4c7bb3b20e7897f115752bdcca36f5b"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\no-job-normal.json",
+      "sha256": "b3dbfb2ceb721d3298a615fa3e5f0d3d05e4267508aee8fdd0439dbf2ef26c91"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\no-job-normal-fixture-teardown.json",
+      "sha256": "dfd702f5f3d5576d74895ad7e1ddfba6b0ffdf83f9ae71d006dd16510f231bb4"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\canonical-get-202-headers.jsonl",
+      "sha256": "2980fe33c2a9ff350a900b56780045fe93bb5f29d2ea3ce5abd1c3ef714c73cc"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\worker-negative-readbacks.jsonl",
+      "sha256": "b8f361c9592febf8dfe853c9d9ce59ca329be889ef2257fe291c8cd11e1878c7"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\worker-source-readback.json",
+      "sha256": "6c43829d2b4437e4dec5e5211d0bc24e62c0f4bf9ad07749a4f1872961c5096d"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\worker-output-boundaries.jsonl",
+      "sha256": "2ce9835f3682e5a8209b5bb076f7436c9ba57c3c46f4da26c777ca7e685c3cbd"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-preview-protocol-r2-c0bfd2a907444a9db0777193ebf7780b.launcher.json",
+      "sha256": "f2ff26924d4ed9000ff56c9b614499a8e08414a20c9b14bd9824efb7c0bc8602"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-typecheck-r1-816111c1a073453faaeea29e40fbf112.launcher.json",
+      "sha256": "4040585124aa650cb43892273a102310b49e7e80fc1151f29bfa6e21d9f7c033"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-native-r2-and-typecheck-fresh-cleanup.json",
+      "sha256": "7fda4fcc6ea167f1d1fcfe7a45922ac1555b1af8ddf4ca091d48720d6c483589"
+    }
+  ],
+  "independentQc": {
+    "sourceReview": "Luna independent static QC: P0=0/P1=0; fixed files suite and exact 13 names; original headers/guards retained. Duplicate inherited 085 entry removed, leaving 081/082/085 and no084. Exact local asset/company teardown follows preserved raw route readback and does not weaken negative assertions.",
+    "executionReview": "Luna independently read R2 artifacts: 13 pass/138 unselected; source and primary unchanged; all cleanup true. Original no-job plus three bounded 202 replies carry Retry-After:2 and pending. Four claim and two content negative cases preserve effects; workload claim/heartbeat/source bytes/protocol PNG pass. Protocol fixture does not prove actual CAD or integrated worker. Runner exit1 intentionally retains PARTIAL_NOT_ACCEPTED; all Governor releases succeed."
+  },
+  "cleanup": {
+    "nativeManifest": {
+      "childrenStopped": true,
+      "pgStopped": true,
+      "portsReleased": true,
+      "tempRemoved": true
+    },
+    "freshReadbackConfirmed": true,
+    "governorRuntimeReleased": true,
+    "capacityLeaseReleased": true,
+    "ownDiagnosticTabsClosed": true
+  },
+  "boundaries": {
+    "productionMutation": false,
+    "cloudMutation": false,
+    "mainMerge": false,
+    "migration084": "NOT_RUN",
+    "fullNativeCad": "USER_OWNED_NOT_PASS",
+    "supplier": "DISABLED_DEFERRED",
+    "issues": 7,
+    "groups": 29,
+    "wholeAcceptance": false
+  },
+  "next": "Continue original remaining evidence gaps; clarify stored-thumbnail/full-readable-drawing requirement and validate OpenSWX embedded PNG compatibility before product integration. Local QA only during other owner source/cloud freeze."
+}

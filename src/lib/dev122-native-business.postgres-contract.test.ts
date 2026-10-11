@@ -545,13 +545,26 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       try {response=await fileResponse(fixture,true);}finally{spy.mockRestore();expect(reached).toBe(1);expect(completed).toBe(1);}
     }else response=await fileResponse(fixture,true);
     const body=await response.json(), jobs=await db!.query("SELECT * FROM preview_jobs WHERE source_file_asset_id=:id",{id:fixture.assetId});
-    if(variant==="normal"){expect(response.status).toBe(202);expect(jobs).toHaveLength(1);expect(jobs[0]).toMatchObject({status:"queued",attempt_count:0,source_content_hash:fixture.asset.content_hash});}
+    if(variant==="normal"){
+      expect(response.status).toBe(202);
+      expect(response.headers.get("retry-after")).toBe("2");
+      expect(response.headers.get("x-pdm-preview-state")).toBe("pending");
+      expect(jobs).toHaveLength(1);expect(jobs[0]).toMatchObject({status:"queued",attempt_count:0,source_content_hash:fixture.asset.content_hash});
+    }
     else {expect(response.status).toBe(500);expect(body).toMatchObject({error:{code:"WORKBENCH_INTERNAL_ERROR",message:"操作失敗，請稍後再試"}});
       expect(response.headers.get("cache-control")).toBe("private, no-store");expect(JSON.stringify(body)).not.toMatch(/NO_JOB|SELECT|stack/u);
       if(variant==="read-fault"){expect(jobs).toHaveLength(0);expect(await ownedLifecycleSnapshot()).toEqual(before);}else expect(jobs).toHaveLength(1);
     }
     await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"no-job-"+variant+".json"),JSON.stringify({variant,status:response.status,body,reached,completed,jobs,
+      selectedHeaders:variant==="normal"?{"retry-after":response.headers.get("retry-after"),"x-pdm-preview-state":response.headers.get("x-pdm-preview-state")}:null,
       callbackBoundary:variant==="enqueue-fault"?"AFTER_ACTUAL_AUTOCOMMIT_INSERT_NOT_A_ROLLBACK_CLAIM":null}));
+    await fixtureMutation("F01 local fixture teardown after original route/readback evidence; not route rollback",
+      "DELETE FROM preview_jobs WHERE source_file_asset_id=:id AND company_id=:companyId",{id:fixture.assetId,companyId:"company-jenfu"});
+    const remainingSourceJobs=await db!.query<{id:string;company_id:string}>("SELECT id,company_id FROM preview_jobs WHERE source_file_asset_id=:id",{id:fixture.assetId});
+    expect(remainingSourceJobs).toHaveLength(0);
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"no-job-"+variant+"-fixture-teardown.json"),JSON.stringify({
+      layer:"ACTUAL_NATIVE_POSTGRES_LOCAL_FIXTURE_TEARDOWN",producerBoundary:"FIXTURE",variant,sourceFileAssetId:fixture.assetId,
+      deletionCompanyId:"company-jenfu",remainingSourceJobs,remainingSourceJobCount:remainingSourceJobs.length,exactSourceJobCountZero:remainingSourceJobs.length===0}));
   });
   it.each(["heartbeat", "claim"] as const)("canonical recovery races actual %s with native timestamp CAS and cannot overwrite fresh actor",async variant=>{
     const fixture=await normalDrawingFile("route-race-"+variant);await resetFileJob(fixture,"queued",0);
@@ -765,7 +778,13 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       const response = await fileResponse(fixture, true); expect(response.status).toBe(http);
       expect(await currentFileJob(fixture)).toMatchObject({ status: expected, attempt_count: attempt });
       expect(await currentFileJob(other)).toEqual(untouched);
-      if (http === 202) expect(await response.json()).toMatchObject({ error: { code: "PREVIEW_NOT_READY", retryable: true } });
+      if (http === 202) {
+        const selectedHeaders={"retry-after":response.headers.get("retry-after"),"x-pdm-preview-state":response.headers.get("x-pdm-preview-state")};
+        expect(selectedHeaders).toEqual({"retry-after":"2","x-pdm-preview-state":"pending"});
+        expect(await response.json()).toMatchObject({ error: { code: "PREVIEW_NOT_READY", retryable: true } });
+        await fs.appendFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"canonical-get-202-headers.jsonl"),
+          JSON.stringify({case:{status,age,attempt},httpStatus:response.status,selectedHeaders})+"\n");
+      }
     } finally { time.mockRestore(); }
   });
   it("returns unknown dependency safe500 and known missing storage503 after real authorization/native reads", async () => {
