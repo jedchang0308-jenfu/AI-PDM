@@ -1894,3 +1894,232 @@ test('RD daily refuses missing serving proofs and unbound current prior before l
     assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')),kind)
   }
 })
+
+test('FAILED DAILY closed input admits only immutable failed attempt refs beside the metadata continuation', () => {
+  const own = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
+  const input = { schemaVersion: 'aipdm.openswx-worker-reuse-input.v1', sourceLockRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-FAILED-LOCAL/source-lock.json', sha256: 'b'.repeat(64) },
+    currentSourceObjectRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/source/releases/DEV121-FAILED-LOCAL/source.tar.gz', sha256: 'c'.repeat(64) }, priorActivationRef: own('prior-ready'),
+    deadlineAt: deadline(), receiptId: 'DEV121-FAILED-LOCAL', secretVersionIamContinuationRef: own('metadata'),
+    failedDailyContinuation: { bootstrapInputRef: own('failed-input'), recoveryRequiredRef: own('failed-recovery-required'), priorRecoveryRef: own('failed-prior-recovery') } }
+  assertWorkerReuseInput(input)
+  for (const mutate of [row => row.failedDailyContinuation.extra = true, row => delete row.failedDailyContinuation.recoveryRequiredRef,
+    row => row.failedDailyContinuation.bootstrapInputRef.uri = 'gs://sibling/receipts/x.json', row => row.bootstrapContinuation = {}, row => row.failedDailyContinuation = null]) {
+    const bad = structuredClone(input); mutate(bad); assert.throws(() => assertWorkerReuseInput(bad))
+  }
+})
+
+async function failedDailyFixture({programOnly=false}={}) {
+  const serving=programOnly?await rdProgramOnlyServingFixture():null,h=serving?.h??await rdDailyMetadataFixture()
+  const reader=serving?(name,revision)=>[oldRevision,currentRevision].includes(revision)?serving.wire.readSource(name,revision):h.readSource(name,revision):h.readSource
+  Object.assign(reader,h.readSource)
+  const saved=serving?.wire.f.saved??await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:reader})
+  h.put??=async(name,value)=>h.seed(name,value)
+  h.lifecycle()
+  const paused=serving?await serving.run():await executeOpenSwxBootstrap({stage:'pause',inputRef:h.seed('FAILED-OLD-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'FAILED-OLD-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.input.priorActivationRef}),transport:h.transport,readSource:reader,appProfile,sleep:async()=>{}})
+  const oldDeadline=new Date(Date.now()+3000).toISOString()
+  const oldInputRef=h.seed('FAILED-OLD-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:oldDeadline,receiptId:'FAILED-OLD-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:h.input.priorActivationRef,pausedDrainedRef:paused.ref})
+  const originalRequest=h.transport.request;let failObservation=true
+  h.transport.request=async(url,options={})=>{
+    if(failObservation&&url.includes('logging.googleapis.com')&&JSON.parse(options.body).filter.includes('local-1')) {failObservation=false;throw Object.assign(Error('LOCAL_ZERO_MARKER_OBSERVATION'),{code:'OPENSWX_STDOUT_NOT_UNIQUE'})}
+    return originalRequest(url,options)
+  }
+  await assert.rejects(executeOpenSwxBootstrap({stage:'bootstrap',inputRef:oldInputRef,transport:h.transport,readSource:reader,appProfile,sleep:async()=>{}}),{code:'OPENSWX_STDOUT_NOT_UNIQUE'})
+  const ref=suffix=>h.objects.get(profile.receiptRoot+'/FAILED-OLD-BOOTSTRAP'+suffix+'.json').ref
+  const failedDailyContinuation={bootstrapInputRef:oldInputRef,priorRecoveryRef:ref('-prior-recovery'),recoveryRequiredRef:ref('-recovery-required')}
+  const next=h.nextAttempt(81,h.input.priorActivationRef)
+  const lock={...next.lock,observedAt:new Date(Date.now()-2000).toISOString()}
+  next.input.sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json',Buffer.from(canonicalize(lock)+'\n'))
+  const metadata=h.metadata?await seedSecretVersionIamContinuation(h,{sourceRevision:next.lock.sourceRevision,sourceLockRef:next.input.sourceLockRef,supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader,name:'failed-current-metadata',secretPolicies:h.metadata.before.secretPolicies}):null
+  const input={...next.input,failedDailyContinuation,...(metadata?{secretVersionIamContinuationRef:metadata.continuationRef}:{})}
+  const inputRef=await h.put('failed-current-reuse-input',input)
+  await new Promise(resolve=>setTimeout(resolve,Math.max(0,Date.parse(oldDeadline)-Date.now()+5)))
+  const reuse=()=>executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:reader})
+  return {h,reader,input,inputRef,reuse,failedDailyContinuation,oldInputRef,ref}
+}
+
+for(const programOnly of [false,true]) test('FAILED DAILY native '+(programOnly?'program-only serving':'metadata')+' continuation preserves isolation, ordinary full and next READY origin',async()=>{
+  const f=await failedDailyFixture({programOnly}),saved=await f.reuse(),h=f.h
+  assert.equal(saved.refs.programOnlyFullDescriptorRef,undefined,'PAUSED failed association cannot publish a fake READY wrapper')
+  const pauseInputRef=h.seed('FAILED-NEW-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'FAILED-NEW-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
+  const runPause=()=>executeOpenSwxBootstrap({stage:'pause',inputRef:pauseInputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  const before=h.calls.length,paused=await runPause()
+  assert.deepEqual((await runPause()).ref,paused.ref)
+  const inputRef=h.seed('FAILED-NEW-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'FAILED-NEW-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.input.priorActivationRef,pausedDrainedRef:paused.ref,failedDailyContinuation:f.failedDailyContinuation})
+  const run=()=>executeOpenSwxBootstrap({stage:'bootstrap',inputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  const completed=await run(),full=(await h.transport.readJson(completed.refs.fullDescriptorRef)).value
+  assert.equal(full.schemaVersion,'aipdm.openswx-worker-descriptor.v2');assert.equal(full.purpose,'full')
+  const evidence=await readWorkerFullEvidence(h.transport,full,profile,f.reader)
+  assert.deepEqual(evidence.receipts.cloudPreflightRef.previousRefs,[f.ref('-selftest')])
+  assert.equal(evidence.receipts.cloudPreflightRef.facts.proof.marker.timestamp,(await h.transport.readJson(f.ref('-selftest'))).value.facts.execution.completionTime)
+  const mutations=h.calls.slice(before).filter(row=>row.options.method&&row.options.method!=='GET'&&!row.url.endsWith(':getIamPolicy'))
+  assert.equal(mutations.filter(row=>row.url.endsWith(':run')).length,1)
+  assert.equal(mutations.filter(row=>row.options.method==='PATCH').length,1)
+  const calls=h.calls.length,puts=h.puts.length
+  assert.deepEqual((await run()).refs.fullDescriptorRef,completed.refs.fullDescriptorRef)
+  assert.equal(h.puts.length,puts)
+  assert.ok(h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')))
+  // Model the later READY activation and changed provider generation. Historical
+  // failed evidence must continue to resolve after the serving state advances.
+  await h.transport.request('https://run.googleapis.com/v2/'+workerJobName(),{method:'PATCH',body:JSON.stringify({template:workerTemplate(profile,image,full.tokenSecretVersion)})})
+  await h.transport.request('https://cloudscheduler.googleapis.com/v1/'+workerSchedulerName()+':resume',{method:'POST'})
+  h.controls.job={generation:'27',observedGeneration:'27'}
+  const historicCalls=h.calls.length
+  await readWorkerFullEvidence(h.transport,full,profile,f.reader)
+  assert.equal(h.calls.length,historicCalls,'historical graph uses immutable provider bodies, not current PAUSED state')
+  const source=(await h.transport.readJson(f.input.sourceLockRef)).value,oldCapsule=(await h.transport.readJson((await h.transport.readJson(f.input.priorActivationRef)).value.previousRefs[0])).value
+  const capsule={...oldCapsule,sourceRevision:full.sourceRevision,releaseId:source.releaseId,sourceSha256:source.sourceSha256,migrationManifestSha256:source.migrationManifestSha256,sourceLockRef:f.input.sourceLockRef,openswxWorkerRef:completed.refs.fullDescriptorRef}
+  const capsuleRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+capsule.releaseId+'/release-intent.json',Buffer.from(canonicalize(capsule)+'\n'))
+  const dummy=h.seed('FAILED-READY-dummy',{})
+  const activationRef=h.seed('FAILED-READY-activation',workerReceipt({descriptor:full,kind:'activation',actor:profile.normalActor,image,template:workerTemplate(profile,image,full.tokenSecretVersion),observedAt:h.transport.now(),previousRefs:[capsuleRef,dummy,dummy,dummy,dummy],facts:{workerStatus:'READY',schedulerState:'ENABLED',claimProof:{claimProof:'AUTHENTICATED_204_SOURCE_BOUND'},dbAdmissionProof:'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN',sourceEntryRef:h.build.facts.sourceHashes.find(row=>row.path==='scripts/run-openswx-metadata-job.mjs'),numericCredentials:{token:full.tokenSecretVersion,registry:full.registrySecretVersion}}}))
+  const next=h.nextAttempt(82,activationRef),lock={...next.lock,observedAt:new Date(Date.now()-2000).toISOString()}
+  next.input.sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json',Buffer.from(canonicalize(lock)+'\n'))
+  const metadata=h.metadata?await seedSecretVersionIamContinuation(h,{sourceRevision:next.lock.sourceRevision,sourceLockRef:next.input.sourceLockRef,supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:f.reader,name:'failed-next-metadata',secretPolicies:h.metadata.before.secretPolicies}):null
+  const nextRef=await h.put('failed-next-ordinary-input',{...next.input,...(metadata?{secretVersionIamContinuationRef:metadata.continuationRef}:{})})
+  const nextSaved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:nextRef,readSource:f.reader})
+  assert.ok(nextSaved.refs.programOnlyFullDescriptorRef,'successful continuation is a valid next ordinary READY origin')
+
+})
+
+
+test('FAILED DAILY rejects ambiguous recovery, changed provider state and unrelated terminal executions before publications',async()=>{
+  const f=await failedDailyFixture(),h=f.h,baseline=new Map(h.objects),request=h.transport.request
+  for(const kind of ['restored-false','wrong-error','duplicate-markers','extra-readback-field','null-readback','not-expired','missing-selftest','worker-drift','extra-terminal','changed-provider-selftest','disabled-secret']) {
+    h.objects.clear();for(const [uri,row] of baseline)h.objects.set(uri,row)
+    h.transport.request=request;h.controls.inputDrift=null;h.controls.secretState=null
+    const input=structuredClone(f.input),recovery=(await h.transport.readJson(f.failedDailyContinuation.recoveryRequiredRef)).value
+    if(kind==='restored-false')recovery.priorJobRestored=false
+    if(kind==='wrong-error')recovery.errorCode='OPENSWX_STDOUT_CONFLICT'
+    if(kind==='duplicate-markers')recovery.stdoutReadback={executionName:'projects/9536592944/locations/asia-east1/jobs/ai-pdm-prod-openswx-metadata/executions/local-1',filterSha256:'a'.repeat(64),markerCount:2,observations:1,elapsedMilliseconds:10}
+    if(kind==='extra-readback-field')recovery.stdoutReadback={markerCount:0,extra:true}
+    if(kind==='null-readback')recovery.stdoutReadback=null
+    if(['restored-false','wrong-error','duplicate-markers','extra-readback-field','null-readback'].includes(kind))input.failedDailyContinuation.recoveryRequiredRef=h.seedBytes(f.failedDailyContinuation.recoveryRequiredRef.uri,Buffer.from(canonicalize(recovery)))
+    if(kind==='not-expired') {
+      const old=(await h.transport.readJson(f.oldInputRef)).value;old.deadlineAt=deadline()
+      input.failedDailyContinuation.bootstrapInputRef=h.seedBytes(f.oldInputRef.uri,Buffer.from(canonicalize(old)))
+    }
+    if(kind==='missing-selftest')h.objects.delete(f.ref('-selftest').uri)
+    if(kind==='worker-drift')h.controls.inputDrift=WORKER_SOURCE_PATHS[0]
+    if(kind==='disabled-secret')h.controls.secretState='DISABLED'
+    if(kind==='extra-terminal'||kind==='changed-provider-selftest')h.transport.request=async(url,opts={})=>{
+      const body=await request(url,opts)
+      if(kind==='extra-terminal'&&url.includes('/executions?')) {
+        const row=structuredClone(body.executions[0]);row.name=row.name.replace(/local-0$/u,'unrelated');body.executions.push(row)
+      }
+      if(kind==='changed-provider-selftest'&&url.endsWith('/executions/local-1'))body.template.containers[0].args=['unreviewed']
+      return body
+    }
+    input.receiptId='FAILED-DENIED-'+kind
+    const inputRef=await h.put('failed-denied-'+kind,input),calls=h.calls.length,puts=h.puts.length
+    await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader}),undefined,kind)
+    assert.equal(h.puts.length,puts,kind+' cannot create association/proof')
+    assert.ok(h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')||row.url.includes('logging.googleapis.com')),kind+' no lifecycle mutation')
+  }
+})
+
+
+async function failedDailyReadyToBootstrap(name='UNKNOWN') {
+  const f=await failedDailyFixture(),h=f.h,saved=await f.reuse()
+  const pauseInputRef=h.seed(name+'-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:name+'-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
+  const runPause=()=>executeOpenSwxBootstrap({stage:'pause',inputRef:pauseInputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  const paused=await runPause()
+  const input={schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:name+'-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.input.priorActivationRef,pausedDrainedRef:paused.ref,failedDailyContinuation:f.failedDailyContinuation}
+  const inputRef=h.seed(name+'-BOOTSTRAP-input',input),run=()=>executeOpenSwxBootstrap({stage:'bootstrap',inputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  return {...f,saved,paused,runPause,input,inputRef,run,root:profile.receiptRoot+'/'+input.receiptId}
+}
+
+test('FAILED DAILY unknown run and PATCH responses adopt exact native readback without another submission',async()=>{
+  const f=await failedDailyReadyToBootstrap(),h=f.h
+  // Native finite request survives a crash after the provider accepted :run.
+  const finiteUri=f.paused.ref.uri.slice(0,-5)+'-drain-finite.json'
+  h.objects.delete(finiteUri);h.objects.delete(f.paused.ref.uri)
+  const calls=h.calls.length
+  const repaused=await f.runPause()
+  assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')))
+  const inputRef=h.seed('UNKNOWN-recovered-bootstrap-input',{...f.input,pausedDrainedRef:repaused.ref})
+  const run=()=>executeOpenSwxBootstrap({stage:'bootstrap',inputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  const request=h.transport.request;let lost=true
+  h.transport.request=async(url,opts={})=>{
+    const value=await request(url,opts)
+    if(lost&&opts.method==='PATCH') {lost=false;throw Object.assign(Error('LOCAL_LOST_PATCH_RESPONSE'),{code:'OUTCOME_UNKNOWN'})}
+    return value
+  }
+  const before=h.calls.length,completed=await run()
+  assert.equal(h.calls.slice(before).filter(row=>row.options.method==='PATCH').length,1)
+  assert.equal(h.calls.slice(before).filter(row=>row.url.endsWith(':run')).length,0)
+  assert.ok(!h.objects.has(f.root+'-recovery-required.json'),'exact PATCH readback keeps successful checkpoint')
+  assert.ok(completed.refs.fullDescriptorRef)
+  const after=h.calls.length,puts=h.puts.length
+  assert.deepEqual((await run()).ref,completed.ref)
+  assert.equal(h.puts.length,puts)
+  assert.ok(!h.calls.slice(after).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+})
+
+test('FAILED DAILY unknown object responses preserve committed preflight/bootstrap/full checkpoints',async()=>{
+  const f=await failedDailyReadyToBootstrap('OBJECT'),h=f.h,put=h.transport.putJson
+  const lost=new Set([f.root+'-selftest-patch-request.json',f.root+'-preflight.json',f.root+'.json',f.root+'-descriptor-full.json'])
+  h.transport.putJson=async(uri,value,options)=>{
+    const row=await put(uri,value,options)
+    if(lost.delete(uri))throw Object.assign(Error('LOCAL_LOST_GCS_RESPONSE'),{code:'OUTCOME_UNKNOWN'})
+    return row
+  }
+  const before=h.calls.length,puts=h.puts.length,completed=await f.run()
+  assert.equal(lost.size,0)
+  assert.equal(h.calls.slice(before).filter(row=>row.options.method==='PATCH').length,1)
+  assert.equal(h.calls.slice(before).filter(row=>row.url.endsWith(':run')).length,0)
+  for(const uri of [f.root+'-selftest-patch-request.json',f.root+'-preflight.json',f.root+'.json',f.root+'-descriptor-full.json'])assert.equal(h.puts.slice(puts).filter(row=>row===uri).length,1)
+  assert.ok(!h.objects.has(f.root+'-recovery-required.json'))
+  const replayCalls=h.calls.length,replayPuts=h.puts.length
+  assert.deepEqual((await f.run()).refs.fullDescriptorRef,completed.refs.fullDescriptorRef)
+  assert.equal(h.puts.length,replayPuts)
+  assert.ok(!h.calls.slice(replayCalls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+})
+
+test('FAILED DAILY durable PATCH replay is input-bound and refuses normal or drifted readback without resubmission',async()=>{
+  const f=await failedDailyReadyToBootstrap('PATCH-BOUND'),h=f.h,completed=await f.run()
+  const postUris=[f.root+'-preflight.json',f.root+'.json',f.root+'-descriptor-full.json']
+  for(const uri of postUris)h.objects.delete(uri)
+  const before=h.calls.length
+  const replay=await f.run()
+  assert.equal((await h.transport.readJson(replay.refs.fullDescriptorRef)).value.sourceRevision,f.saved.value.sourceRevision)
+  assert.ok(!h.calls.slice(before).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  const patchUri=f.root+'-selftest-patch-request.json',original=h.objects.get(patchUri)
+  for(const kind of ['input-ref','too-early','extra-key','normal-readback','metadata-drift']) {
+    h.objects.set(patchUri,original);h.controls.job={}
+    const row=JSON.parse(original.bytes)
+    if(kind==='input-ref')row.inputRef=f.oldInputRef
+    if(kind==='too-early')row.requestedAt=new Date(Date.parse(f.paused.value.facts.quiescenceCompletedAt)-1).toISOString()
+    if(kind==='extra-key')row.extra=true
+    if(kind==='normal-readback')h.controls.job={template:workerTemplate(profile,image,token)}
+    if(kind==='metadata-drift')h.controls.job={labels:{unrelated:'change'}}
+    if(['input-ref','too-early','extra-key'].includes(kind))h.seedBytes(patchUri,Buffer.from(canonicalize(row)))
+    const calls=h.calls.length,puts=h.puts.length
+    await assert.rejects(f.run(),undefined,kind)
+    assert.equal(h.puts.length,puts)
+    assert.ok(!h.calls.slice(calls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  }
+})
+
+
+test('FAILED DAILY sealed historical resolver reconstructs raw IAM, Secret metadata and inventory rather than trusting snapshot hashes',async()=>{
+  const f=await failedDailyFixture(),h=f.h,saved=await f.reuse(),descriptor=(await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value
+  const proof=(await h.transport.readJson(saved.value.resourceAssociation.readbackRef)).value
+  for(const kind of ['iam-hash','job-policy','secret-metadata','inventory','proof-clock','metadata-labels']) {
+    const value=structuredClone(proof)
+    if(kind==='iam-hash')value.snapshot.iamSha256='0'.repeat(64)
+    if(kind==='inventory')value.snapshot.executions[0].completionTime=new Date(Date.parse(value.snapshot.executions[0].completionTime)+1).toISOString()
+    if(kind==='proof-clock')value.isolationProof.observedAt=new Date(Date.parse(value.observationStartedAt)+1).toISOString()
+    if(['job-policy','secret-metadata','metadata-labels'].includes(kind)) {
+      const raw=value.providerReadbackRefs.find(row=>kind==='job-policy'?row.url==='https://run.googleapis.com/v2/'+workerJobName()+':getIamPolicy':kind==='secret-metadata'?row.url==='https://secretmanager.googleapis.com/v1/'+token:row.url==='https://run.googleapis.com/v2/'+workerJobName())
+      const body=(await h.transport.readJson(raw.ref)).value
+      if(kind==='job-policy')body.bindings.push({role:'roles/owner',members:['serviceAccount:unrelated@example.invalid']})
+      if(kind==='secret-metadata')body.state='DISABLED'
+      if(kind==='metadata-labels')body.labels={unexpected:'label'}
+      raw.ref=h.seed('failed-poisoned-body-'+kind,body)
+    }
+    const readbackRef=h.seed('failed-poisoned-proof-'+kind,value),associationRef=h.seed('failed-poisoned-association-'+kind,{...saved.value,resourceAssociation:{...saved.value.resourceAssociation,readbackRef}})
+    const calls=h.calls.length,puts=h.puts.length
+    await assert.rejects(resolveWorkerArtifact({transport:h.transport,descriptor:{...descriptor,workerBuildRef:associationRef},profile,readSource:f.reader}),undefined,kind)
+    assert.equal(h.calls.length,calls,'historical '+kind+' uses zero live provider calls')
+    assert.equal(h.puts.length,puts)
+  }
+})

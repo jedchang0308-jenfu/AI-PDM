@@ -244,3 +244,20 @@ Unknown PATCH先讀回且不重送。Immutable POST未知也只讀回一次，�
 Recovery operator另外沿用readGitAuthority拒絕dirty／wrong ref，paid build前讀back active timeout，並先封存 source-bound build-submission；部分/未知提交沒有final recovery receipt時停止，不自動重複POST。有效同source final recovery receipt仍按原live readback重用。新的operator檔與測試需一起受protected-source CI審查；本節是source契約，不是正式停寫／migration／RD驗收PASS。
 
 最後readback分類補修：exclusive submission的未知POST後若讀到另一claim的hash／immutable conflict，統一拒絕為PRIOR_SUBMISSION_REQUIRES_READBACK，未執行Service PATCH或SQL writer；普通fence receipt仍保留原bytes／URI／SHA／generation guard。
+
+
+<a id="failed-daily-continuation"></a>
+
+## FAILED DAILY 發布接續契約（2026-10-12，沿用 DEV-121#rd-capabilities）
+
+本節限定原 ordinary DAILY_REFRESH 自我測試及 recovery execution 均已完成、stdout 證據讀回失敗、prior normal Job 已恢復且 Scheduler 維持 PAUSED 的 corrective cycle。沿用既有人類 AI-PDM Production owner release 授權，不授權新資源、IAM、Secret、帳戶、資料或 OrgMaster／Platform 來源修改；B35 closed34/effective33 不是 ordinary full35 的別名。
+
+新的 ordinary reuse／pause／bootstrap input 可使用 closed failedDailyContinuation，只有 bootstrapInputRef、recoveryRequiredRef、priorRecoveryRef 三個 immutable own-bucket refs。原 input、原 deadline、finite request／terminal、recovery receipt、source 與 provider evidence 保持原樣；舊 attempt 必須過期且未產成功 bootstrap／preflight。只有指定 stdout-not-unique 失敗、exact prior restore、PAUSED／queue retained 合法，已記錄多筆 marker 的歧義拒絕。初查筆數未保留時不能改稱零筆；接續要重新核对 exact successful execution 及 scoped 唯一 isolation marker。
+
+Worker recipe、完整 executable inputs、profile、resource plan、template、numeric credentials 均須以 source bytes 和封存原圖核對相等。PAUSED failed baseline 是新的 provider readback，不是 READY，不聲稱 quiescence 或 DB admission，不用舊 READY etag／generation 代替現在狀態。Producer 雙讀回目前 normal Job、PAUSED Scheduler、Secret metadata、IAM 及固定 execution inventory，核對現行 RELEASED serving app 與 retained prior READY worker 的不同 source binding。consumer 解析 immutable provider body，不能接受僅自述 hash。任何 source、policy、metadata、身分、active／unknown execution、額外 execution 或 serving drift 在 lifecycle write 前拒絕。
+
+新的 pause 執行一個 request-bound normal drain，以新的完成時間維持原 freshness gate；舊成功 normal recovery 不宣稱本次 fresh empty。新的 bootstrap 以 create-only intent 核對 guarded normal-to-selftest PATCH，沿用既有 successful selftest execution 的 isolation-only proof，不另送 selftest run。後續 full descriptor 綁定新的 source／association／pause／bootstrap／preflight 與原 finite proof。已成功 activation 的圖作未來歷史 origin 時只核對封存圖；live PAUSED guard 只在本次 producer 和 mutation boundaries 使用。
+
+相同 immutable input replay 與未知提交先讀回並核對 bytes／hash／generation／provider state，不重送 PATCH、run 或 object POST。失敗保留 recovery-required 與既有 owner recovery 路徑；不手動 resume，不跳過 actual drain、selftest isolation、own static recovery、MANUAL0 fence、writer census、085 或 owner activation gates。
+
+本節為 source implementation contract，Production 接續與兩個 RD fixture 驗收尚未完成。詳細 Production input／body／receipt／log 保存在 private bucket 及私下本地 output，不進 public repo；部分本地 output 目前是 untracked，並非 ignored，必須 explicit-path stage，不能 blanket add。先前文件中 ignored output 的概括描述不適用目前這些路徑。
