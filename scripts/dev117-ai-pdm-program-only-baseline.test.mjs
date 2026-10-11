@@ -138,6 +138,34 @@ test('P03 provider execution must retain read-only env, fixed args and one succe
   }
 })
 
+test('P03B omitted execution Cloud SQL fields require an exact static Job and replay one submission', async () => {
+  const h = fixture({ executionMutate: e => { delete e.template.volumes; delete e.template.containers[0].volumeMounts } })
+  const row = await h.receipt(), result = await h.read(row)
+  assert.equal(Object.hasOwn(result.execution.value.template, 'volumes'), false)
+  assert.equal(Object.hasOwn(result.execution.value.template.containers[0], 'volumeMounts'), false)
+  await h.run(); await h.read(row); assert.equal(h.counts().posts, 1)
+  const { assertProgramOnlyExecutionTemplate } = await import('./lib/dev117-ai-pdm-program-only-baseline.mjs')
+  assert.throws(() => assertProgramOnlyExecutionTemplate(h.execution, { profile, deployment: h.deployment, outputUri: h.outputUri }))
+  const bad = structuredClone(h.job); delete bad.template.template.volumes
+  assert.throws(() => assertProgramOnlyExecutionTemplate(h.execution, { profile, deployment: h.deployment, outputUri: h.outputUri, staticJob: bad }))
+})
+
+test('P03B explicit empty, null, one-sided, incorrect and extra execution Cloud SQL fields fail closed', async () => {
+  for (const mutate of [
+    e => delete e.template.volumes,
+    e => delete e.template.containers[0].volumeMounts,
+    e => e.template.volumes = null,
+    e => e.template.volumes = [],
+    e => e.template.containers[0].volumeMounts = null,
+    e => e.template.containers[0].volumeMounts = [],
+    e => e.template.volumes[0].cloudSqlInstance.instances[0] = 'sibling',
+    e => e.template.containers[0].volumeMounts[0].mountPath = '/wrong',
+    e => e.template.containers[0].volumeMounts.push({ name: 'extra', mountPath: '/extra' }),
+  ]) {
+    const h = fixture({ executionMutate: mutate }); await assert.rejects(h.run()); assert.equal(h.counts().posts, 1)
+  }
+})
+
 test('P04 association rejects resealed source, capsule, policy, child-ref, timestamp, native applied or ledger drift', async () => {
   for (const mutate of [r => r.sourceRevision = 'a'.repeat(40), r => r.releaseCapsuleRef.sha256 = 'f'.repeat(64), r => r.policySha256 = 'f'.repeat(64),
     r => r.nativeReceiptRef.uri += '.json', r => r.currentDatabaseReadPerformed = false, r => r.migrationJobSubmissions = 0,

@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "aipdm.dev122.b35-ci-native-temp-fixture.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "sourceParent": "4da4ca200cbc4e34d5e5e0a54c6b775e813110cc",
+  "status": "TEST_ONLY_CORRECTION_LOCAL_QC_PASS_REQUIRED_CI_PENDING",
+  "failedCi": {
+    "runId": 38057619292,
+    "sourceRevision": "4da4ca200cbc4e34d5e5e0a54c6b775e813110cc",
+    "result": "FAIL",
+    "continuous": {
+      "tests": 246,
+      "pass": 245,
+      "fail": 1
+    },
+    "case": "B35 actual Git reader admits only the four exact metadata source paths after sealed origin admission",
+    "temporaryPath": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\aipdm-b35-git-metadata-hrjoKm",
+    "code": "OPENSWX_REUSE_REPOSITORY_INVALID"
+  },
+  "change": {
+    "path": "scripts/dev122-openswx-worker-artifact-reuse.test.mjs",
+    "sha256": "e9277bab22aff8399f22c4f48ce18a2d53c69501978dd17c529ae134698b445b",
+    "insertions": 3,
+    "deletions": 2,
+    "purpose": "Use existing native Windows realpath for both TEMP parent and created fixture; keep strict product Git-root comparison and cleanup boundary"
+  },
+  "nativeProof": {
+    "project": "AI-PDM",
+    "sourceParent": "4da4ca200cbc4e34d5e5e0a54c6b775e813110cc",
+    "testPath": "scripts/dev122-openswx-worker-artifact-reuse.test.mjs",
+    "testSha256": "e9277bab22aff8399f22c4f48ce18a2d53c69501978dd17c529ae134698b445b",
+    "evidenceScope": "NATIVE_TASK_OWNED_GIT_TEMP_ALIAS_ACTUAL_TEST_BODY",
+    "tempEnvironment": "C:\\Users\\user\\AppData\\Local\\Temp\\AIPDM-~2",
+    "nativeParent": "C:\\Users\\user\\AppData\\Local\\Temp\\aipdm-b35-short-ci-6dcb26b08def4c678f80b4a383074573",
+    "aliasAvailable": true,
+    "red": {
+      "result": "EXPECTED_FAIL",
+      "code": "OPENSWX_REUSE_REPOSITORY_INVALID",
+      "message": "OPENSWX_REUSE_REPOSITORY_INVALID"
+    },
+    "green": "PASS",
+    "port": null,
+    "mutationScope": "TASK_OWNED_GIT_FIXTURE_ONLY_NO_PRODUCT_OR_PROVIDER_MUTATION",
+    "finishedAt": "2026-10-10T14:08:05.012Z"
+  },
+  "setupAttempts": {
+    "first": "FAILED_SETUP_NO_RESULT_JSON_CHILD_EXIT1_CLEANUP_COMPLETE",
+    "second": "RED_EXPECTED_FAILURE_THEN_GREEN_GIT_READ_SETUP_FAILURE_NOT_PASS",
+    "third": "ACTUAL_SHORT_TEMP_TEST_BODY_RED_GREEN_PASS"
+  },
+  "evidence": [
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/pr260-ci-failure.log",
+      "sha256": "9b682f35ed14eac3c92ffc963970500be8505076d394449a3ee483f40c7558a4"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-boundary.json",
+      "sha256": "ce0cf2cf826c800362ed4d610d006d7c8da138955e56c95534e89e3b746a0319"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-cleanup.json",
+      "sha256": "f92144ac7fe1fafbee5b27d02be1a50e63506d04a87bc6b8b1f34a68767c6ae3"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-runtime-release.json",
+      "sha256": "2e1626074167a2f61cac0858b1fdee9274bb8c4777807537471dc088656fe476"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r2-boundary.json",
+      "sha256": "0e8b69fc197a956d0045b5273bb94f745647fe18f0a2852753b9fa0e50807861"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r2-cleanup.json",
+      "sha256": "f92144ac7fe1fafbee5b27d02be1a50e63506d04a87bc6b8b1f34a68767c6ae3"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r2-stdout.log",
+      "sha256": "1d71a28204b955395421d1e1080929062104cc6880ccd478066587b949474759"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r2-stderr.log",
+      "sha256": "9fcbbbf4140c0de62184bbb04c4757a3610a791f0ba7ad152d248b5ee61d4790"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r2-runtime-release.json",
+      "sha256": "e71bdaad97a9dd7f177c257a0ff7ea66c2d25a13425a5dd9439eb051ae28868e"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-red-green-r3.json",
+      "sha256": "ebc3ec1dc77080c5a027a01066b697a7c5300152a21511c31bc7402a5767efbd"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r3-boundary.json",
+      "sha256": "699e1845c50a189e9cd8246ee5d5ad2abf9c72f438e4a03f2fdf0bfbe28a5667"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r3-cleanup.json",
+      "sha256": "f92144ac7fe1fafbee5b27d02be1a50e63506d04a87bc6b8b1f34a68767c6ae3"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r3-stdout.log",
+      "sha256": "f18904aa50e27401972c64e32782c42492e0e9c12e18884388e2fa577eef9c0d"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r3-stderr.log",
+      "sha256": "fd6c1173e455e4c3e9e7ee72e2864251aa276d182fab569dfbb9b03ce9199152"
+    },
+    {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-metadata-required-r1/shortpath-r3-runtime-release.json",
+      "sha256": "502c1715e1a075e4dbb61bc3bc4214c800bc307e4e36d8041dbac341ab689810"
+    }
+  ],
+  "independentQc": {
+    "agent": "/root/dev122_b35_metadata_integration_qc_luna",
+    "dispatchModel": "gpt-6-luna",
+    "reasoningEffort": "xhigh",
+    "writeScope": [],
+    "result": "PASS_TEST_HUNK_ONLY",
+    "P0": 0,
+    "P1": 0,
+    "sourceDiffVerified": true,
+    "productScopeChanged": false,
+    "gitReaderGuardsChanged": false,
+    "summary": "Native parent/fixture canonicalization and same-parent cleanup guard only; R3 test body/native Git receipt and hash verified. Diagnostic wrapper logs then rethrows the real reader rejection. Preserve prior setup failures."
+  },
+  "priorProductQc": {
+    "ref": ".ai-doc/qa/DEV-122-B35-secret-version-iam-local-qc-2026-10-10.json",
+    "status": "RETAINED_ORIGINAL_TESTED_INPUT_SCOPE",
+    "fullSixRerun": "NOT_RUN_TEST_ONLY_FIX"
+  },
+  "providerIamApply": "NOT_RUN",
+  "freshWifMetadataGet": "NOT_RUN",
+  "productionRelease": "NOT_DEPLOYED",
+  "migration084": "FORBIDDEN",
+  "wholeDev": "NOT_ACCEPTED",
+  "recordedAt": "2026-10-10T14:10:13.022Z"
+}

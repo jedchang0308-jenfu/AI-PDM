@@ -1,14 +1,135 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B35 TARGETED_FIXTURE_PASS／CI_RETRY_PENDING；NOT_DEPLOYED）
+## DEV-122 CURRENT（B35-R9 已正式發布；業務驗收繼續）
 
-`CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1`；成熟度 `RD Implementation Ready`／`Architecture Finalized` 保持；B35 checkpoint=`IMPLEMENTED / TARGETED_FIXTURE_PASS / CI_RETRY_PENDING / NOT_DEPLOYED`（2026-10-10）。Root已於原凍結輸入完成本地實作與六項required checks，該歷史Independent Luna QC在local gate為PASS／P0=0／P1=0；本段仍是唯一施工及後續正式發布契約。Protected official-source新規則、fresh production DB／provider execution與owner workflow／release驗證仍 `NOT_RUN`，不把本地PASS當production authority。DEV-122 維持開發點、不計入交付，7 issues／29 groups 與 whole `NOT_ACCEPTED`。
+PR [#266](https://github.com/jedchang0308-jenfu/AI-PDM/pull/266) 的官方來源 `2600ba2ada8d2adb106ad616c6020d1339328f0e` 已通過 required PR／main CI 與 provider 來源保護核對。R9 owner [38092446021](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021) 十階段 SUCCESS；正式 `ai-pdm-prod-99f16f79d877` 承接 100% 流量、零 candidate tags，control 為 FINALIZED／RELEASED。候選及正式入口的 authenticated smoke PASS；不代替正常業務或 CAD 驗收。
 
-CI補驗（2026-10-10）：PR [#259](https://github.com/jedchang0308-jenfu/AI-PDM/pull/259) 原受測HEAD `b5783c233e48924c406d0dbe0dace08363015f7b` 的 [CI38048476227](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38048476227) 為cutover SUCCESS／Production Slice QC FAILURE（238/239），原因是既有B21 genuine Git archive fixture使用Windows temp 8.3 alias，而Git傳回canonical long root，觸發原repository guard；原FAIL與紀錄保留。Root僅將test fixture的temp parent／created root以 `fs.realpathSync.native` canonicalize並同步cleanup parent檢查，產品guard不變；同Windows8.3 alias actual Git補驗RED1FAIL／GREEN1PASS，自有child／temp已清理。本次 `TARGETED_FIXTURE_PASS / CI_RETRY_PENDING`，獨立Luna supplement LOCAL_QC_PASS（已證實產品P0/P1=0），provider CI retry待執行；受控[CI shortpath fixture補驗收據](../qa/DEV-122-B35-ci-shortpath-fixture-2026-10-10.json)由Root建立，另綁fixture新hash。原19-input aggregate PASS屬歷史tested inputs，未改產品證據只沿用其原scope；不重跑無變動app build／native DB，不新增schema／API／state policy。Protected official-source／owner workflow／production仍未完成，B35 `NOT_DEPLOYED`、whole `NOT_ACCEPTED`。
+本次 native 資料庫只讀核對 PASS：applied 0／replayed 33／ledger 33／bootstrap-created false，沒有執行 084；native 收據未提供 PostgreSQL 版本欄位。保留完整來源 manifest 34 與實際 installed prefix 33 的固定 program-only 契約。既有 worker generation 17 READY、Scheduler ENABLED，worker／排程資源沒有修改。本輪限定 IAM 的原生計畫為 0 create／12 no-op，fresh policy readback PASS；不新增授權範圍。
+
+已完成同一既有帳號的憑證重新驗證與兩個既有儲存位置更新，numeric version 8→9；自有 session 撤銷及程序／暫存清理 PASS。沒有公開憑證內容或建立帳號。R8 的 Portal 401／PRE_ACTIVATION_ABORTED、R6 原 UNKNOWN 及各次失敗收據保留；不重送舊 terminal capsule，也不改寫歷史結果。
+
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1；Architecture Finalized／RD Implementation Ready。唯一產品 writer 與 cleanup owner 為 root，沿用同 repo DEV-122 worktree，canonical checkout 與其他專案不動。NO084、無正式資料清理、無新增 IAM／Secret／雲端資源範圍維持。Whole DEV NOT_ACCEPTED，原 7 issues／29 groups 不變；supplier DISABLED_DEFERRED，F-01F 完整原生 CAD 正式驗證由使用者執行。
+
+下一步先核對既有業務證據對目前產品來源的適用性，再補原契約尚缺的正常 UI／API／native 變體；不因 Git SHA 變更重跑未改責任面。已完成的 A0061 輔助解析工作不得重排。詳見 [R9 正式發布與唯讀核對證據](../qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)。先前 CURRENT 原文與 local QC provenance 保留於官方來源 `2600ba2ada8d2adb106ad616c6020d1339328f0e` 及 [接續修復契約](../qa/DEV-122-B35-associated-abort-contract-2026-10-11.json)，不再作未執行發布指令。
+
+## DEV-122 HISTORY_ONLY（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
+
+PR [#264](https://github.com/jedchang0308-jenfu/AI-PDM/pull/264) 已合併至 94173727eb8f963809e892b475874220d4072b7f，PR／main required CI 與 provider branch-protection readback PASS。R6 protected owner [38076494472](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38076494472) prepare／build SUCCESS；migrate 對 Cloud Run Execution 回傳省略的兩個 Cloud SQL mount 欄位誤判而停止，candidate／traffic SKIPPED。實際唯一 native execution 已完成只讀 PASS：applied0／replayed33／ledger33，沒有084；此 native 收據沒有 PostgreSQL 版本欄位。原 terminal 的 UNKNOWN／currentDatabaseReadPerformed=false 保持原樣，沒有 migrate association，不將後續觀察回填成原發布成功，也不重送 R6 capsule。Provider 回讀確認 B33 舊服務100%／零tag、worker generation17 READY與Scheduler ENABLED維持。
+
+R7 僅修三個 release libraries及三個定向測試：Execution 同時省略 volumes與volumeMounts時，必須由 exact static Job 補足；部分省略、null／空陣列／錯值仍拒絕。Migration read token只借給固定Job、exact Execution及有界inventory GET，拒絕後不fallback。新增封閉的completed-unassociated-abort唯讀接續，驗原封存UNKNOWN、唯一完成execution、兩次完整穩定inventory、同Run provider時間、retained service/control與普通RELEASED33 anchor；只允許最多一個authentic preexecution ancestor，不擴張發布或資料權限。
+
+Focused6／continuous259／aggregate、abort6／DB21／typecheck／isolated build PASS；artifact、primary invariant與native cleanup已核對。獨立Luna source QC P0=0／P1=0。實際R6→R4→B33 memory-only GET cold/warm／verifyProvider=true預檢1170 GET PASS／0writes，綁定clock修正前SHA，不能冒稱目前R7的provider驗證；R4負例只屬STATIC_GUARD_QC，inherited portable fixture與新kind producer→prepare端到端未建立。TL接受targeted QA，fresh exact official owner preflight仍必須，未使用合成證據代替。
+
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1。新normal PR／required main CI／fresh official source與R7 owner release尚pending；FULL34／effective33／fresh readonly33、NO084、worker READY／Scheduler ENABLED及既有回復機制保持。不新增IAM／Secret／cloud resource權限。Root唯一產品writer與cleanup owner；同repo既有worktree，canonical及其他任務不動。Whole DEV NOT_ACCEPTED／7 issues／29 groups；supplier DISABLED_DEFERRED，完整原生CAD正式驗證由使用者執行。
+
+[執行回讀修正 checkpoint](../qa/DEV-122-B35-execution-recovery-checkpoint-2026-10-11.json)。
+
+## DEV-122 HISTORY_ONLY（B35 限定 IAM APPLIED；R5 唯讀接線 LOCAL_QC_PASS；NOT_DEPLOYED）
+
+PR [#263](https://github.com/jedchang0308-jenfu/AI-PDM/pull/263) 已正常合併為 bc7bf2a4b29b5758fbd866c7e143632c388ed579；PR CI38069358388／main CI38069771172 required checks SUCCESS，official-source／branch protection provider readback PASS。先前五項 metadata IAM APPLIED／provider readback PASS、既有 migration Job image generation22 還原 readback PASS 保持有效。新 R5 只執行 baseline GET，未 source-freeze／plan／apply／dispatch／build／Job run／SQL／candidate／traffic，runtime／temp cleanup PASS。
+
+R5 實際失敗為 program-only proof transport 把 nested paused worker history 的 terminal receipt 當成 current migration bundle；來源 corrective contract 採 closed raw receipt／binary readBytes（own prefix／hash／generation／CRC／same-root memo）、內部 authenticated nested source/provider proof closure（沿用原 factory primary／secondary、forward readSource）、now及四個純 recorded service/revision validators。沒有 general request、live service/revision、control/source prefix transport、CLI/capsule identity或新權限。遞迴也保留同一 closure；depth8／cycle／hash-conflict／admission／期限不放寬。
+
+歷史 IAM 僅放行既有四個 READBACK_IAM_PATHS 加 WORKER_PROFILE_PATH 的固定五檔，不將該 revision 加入一般 sourceAdmissions；profile／plan／descriptor／build／request hashes仍逐項驗證。JSON 規則保持，raw readBytes 只額外接受 own worker prefix 下平坦的 *-plan.tfplan，caller 必驗 request-derived exact URI／binary hash，generation／CRC／same-root memo不變。Source QC 原 P1（二進位檔套 JSON suffix）保留；修正後 Luna 增量 QC P0=0／P1=0。實際 memory-only GET diagnostic R5 已驗 genuine R4 abort→B33 RELEASED／nested paused worker history及 BUILD_IMAGE_VERIFIED：440 GET、含12次歷史 binary plan GET，沒有 cloud writes／SQL／Job run／原始回應或 request headers保存，runtime／temp cleanup PASS；此 dirty-source 診斷不作發布權限。R2 source admission與R4 suffix失敗保留。新 portable P06A+B22 fixture兩次2/3 FAIL照實保留：simple READY graph沒有進入 nested PAUSED supplemental IAM／binary branch，未以弱化 assertions冒稱 PASS；僅回復本次 test edits。TL 接受 targeted QA 採同 exact R4abort／B33 immutable歷史鏈的 actual GET RED→GREEN＋TL／Luna source QC＋既有 mandatory checks，portable legacy/binary regression NOT_ESTABLISHED；fresh exact official owner preflight仍必須。Local19／continuous253／aggregate303、abort6／DB21／typecheck／isolated build PASS（artifact／primary database-absent invariant／cleanup PASS），native CIM9個自有PID皆不存在、無port。Source QC TL／Luna P0=0／P1=0；LOCAL_QC_PASS。新 normal PR／required main CI與 fresh official preflight／owner release仍 pending；舊 R4 terminal capsule及 saved apply binary不重播。
+
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1。只更新程式，FULL34／effective33／fresh native PG17 readonly33／NO084／worker READY／Scheduler ENABLED及原回復機制保持；不新增 IAM／Secret／資源或正式資料清理。Root唯一writer／cleanup owner，同repo既有 worktree；canonical與其他任務不動。Whole DEV NOT_ACCEPTED／7 issues／29 groups；supplier DISABLED_DEFERRED；完整原生CAD正式驗證由使用者執行。
+
+[唯讀證據接線 checkpoint](../qa/DEV-122-B35-observation-transport-checkpoint-2026-10-11.json)。
+
+## DEV-122 HISTORY_ONLY（B35 限定 IAM APPLIED；發布前中止接續修正中；NOT_DEPLOYED）
+
+PR [#262](https://github.com/jedchang0308-jenfu/AI-PDM/pull/262) 正常合併至 66911937e2a17c7348bdcefbec84f3a4b987a949，PR／main required CI SUCCESS。已核准的 1 個 metadata-only role＋4 個 Secret-level bindings 已實際 APPLIED，完整 provider readback PASS；没有新 payload access。Protected owner [38063373523](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38063373523) prepare／build SUCCESS，migrate 在提交 Job 前因既有 runner image 與封存基線不同而停止。R4 FINALIZED／PRE_ACTIVATION_ABORTED、NOT_APPLIED／currentDatabaseReadPerformed=false；native PG17 NOT_RUN，candidate／traffic SKIPPED。不得重播 terminal capsule 或 saved apply binary。
+
+同一 AI-PDM 正式發布 corrective cycle 已僅還原既有 migration Job 的 image 至已驗 B33 runner；generation21→22，其餘 writable fields／50 筆執行紀錄／Job IAM／service／control／worker／metadata IAM 保持。單次 PATCH 後 guard GET 連線中斷，原始 UNKNOWN 保留；專用 readonly recovery 驗 sealed request／plan／全部 guards，RESTORED_READBACK_ONLY／cleanup PASS，沒有第二次 PATCH、Job run、SQL、IAM、service／traffic／worker 寫入。
+
+最新窄 source 契約為 Architecture Finalized／TL PASS：只對已建置但尚未提交 DB 工作的 program-only 中止加入同 kind PROGRAM_ONLY_ABORT 接續。須 authentic build_only／FULL34／effective33、所有 migrate/native/submission/provider/downstream 收據 positive MISSING、兩次完整相同 inventory／零 matching／所有舊 execution 嚴格早於 sourceLock 下界、direct genuine RELEASED33 prefix／runner joins、舊 service 100%／零 tags與完整 control。NOT_APPLIED／false 照實，不冒稱當前 DB 已驗；UNKNOWN 或部分執行拒絕，新 capsule仍須 fresh native PG17 readonly33。已完成唯讀的既有 branch 保留。
+
+Root 於同 repo worktree 為唯一產品 writer；窄 source 獨立 QC P0=0／P1=0，focused9／continuous250／aggregate300／abort6／DB21／typecheck／isolated build PASS，artifact／primary invariant／cleanup 已核對。R1 focused8/9 的唯一 fixture 未來時間錯誤保留，產品 future guard 保留；新增 true producer→prepare/replay 接線測試3/3 PASS及獨立 Luna增量QC P0=0／P1=0；LOCAL_TEST consumer seam明訂CUTOVER_OMITTED，不冒稱R78或正式prepare全鏈驗證，原profile及production CLI guards保持。Consumer R1缺mode、R2缺無關cutover圖的0/3失敗保留，兩者僅修fixture／限定測試範圍；未新合併或發布。084 禁止執行、不清理正式資料；supplier DISABLED_DEFERRED，完整原生 CAD 正式驗證由使用者執行，Whole DEV NOT_ACCEPTED／7 issues／29 groups不變。
+
+[恢復與接續契約 checkpoint](../qa/DEV-122-B35-preexecution-recovery-checkpoint-2026-10-11.json)。
+
+## DEV-122 HISTORY_ONLY（B35 原生 etag 修正 LOCAL_QC_PASS；NOT_APPLIED／NOT_DEPLOYED）
+
+PR [#260](https://github.com/jedchang0308-jenfu/AI-PDM/pull/260) 已合併至 af72165c962c0eaa609929df8291a48ffa7cc494；PR CI38058554315／main CI38059082047 required checks SUCCESS。B35-R2 在歷史來源 admission 失敗；R3 修正 admission 後 native Terraform init／validate／plan／show 成功，但新 gate 拒絕兩筆 etag-only resource_drift。原生計畫為舊7 no-op／新5 create，沒有 apply；失敗與診斷原始證據保留，task-owned runtime／temp／lease 已釋放。
+
+最新 source 修正僅容許兩個既有 Scheduler IAM member 的 etag metadata refresh：before／after 移除 etag 後完整相同，且 drift.after == matching no-op before == matching no-op after；地址各最多一次，拒絕其他 drift／unknown／import／move／duplicate。原 5／7 項 validator、完整 project／Secret policy、saved binary、單次 apply 與 unknown outcome readback 保護不變；新權限範圍仍只有已核准五項。
+
+本次定向11、continuous246、aggregate296、abort6、DB21、typecheck與isolated build均PASS；獨立Luna source QC P0=0／P1=0。此證據是本地 source及native-plan診斷，不是IAM APPLIED或fresh WIF PASS。此修正仍須新protected PR／required CI／fresh source-lock／saved plan／provider readback與owner發布；舊R2／R3 input及失敗capsule不重播。
+
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1；Architecture Finalized／RD Implementation Ready。NO084、FULL34／effective33／native PG17只讀、worker READY／Scheduler ENABLED及原發布回復機制不變。DEV-122仍NOT_ACCEPTED、7 issues／29 groups；完整原生CAD正式驗證由使用者執行，supplier DISABLED_DEFERRED。Root唯一writer與cleanup owner，沿用同repo工作樹，canonical及其他任務不動。
+
+詳見[原生etag修正checkpoint](../qa/DEV-122-B35-native-etag-checkpoint-2026-10-10.json)。以下先前checkpoint只保留其歷史tested-input scope；後續限定補權及program-only契約仍適用。
+
+### B35 先前 checkpoint（HISTORY_ONLY）
+
+`CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1`；成熟度 `RD Implementation Ready / Architecture Finalized` 保持。B35 checkpoint=`SOURCE_MERGED / REQUIRED_CI_PASS / PRODUCTION_PREPARE_FAILED / METADATA_IAM_APPROVED / METADATA_CONTINUATION_ARCHITECTURE_FINALIZED / NOT_APPLIED / NOT_DEPLOYED`（2026-10-10）。SOURCE_MERGED／REQUIRED_CI_PASS指下述PR259原來源，既有接線LOCAL_QC_PASS保留原tested-input scope；新增infra continuation已完成下述本地驗證，正式plan/apply/freshWIF仍NOT_RUN。此CURRENT仍是唯一續接契約；人類已明確核准下述exact五項metadata IAM，其餘IAM／Secret／資源邊界不變。
+
+程式與固定發布規則已隨 PR [#259](https://github.com/jedchang0308-jenfu/AI-PDM/pull/259) 正常合併至 `71df57ff2ffc05a8a8cb18d1956758f360d3e138`；[PR CI38049694935](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38049694935) 與 [main CI38050180230](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38050180230) 兩項 required checks SUCCESS，fresh official-source／ruleset／admin enforcement 回讀 PASS。原 CI38048476227 的238/239 FAIL、8.3 alias RED／GREEN與 fixture-only 修正保留歷史範圍，不回寫原收據。
+
+九項 normal-actor 有限準備 PASS，已建立新 immutable capsule `DEV122-PROGRAM-20261010-B35`；實際 protected owner [38051021115](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38051021115) 在 prepare 回 `DENIED` 而 FAILURE，後續 build／migrate／candidate／traffic 等全部 SKIPPED。本輪 fresh production DB／native PG17 `NOT_RUN`，B34／B35仍 `NOT_DEPLOYED`。錯誤未記錄 exact endpoint，限定 audit 查詢0筆，原因不可宣稱已精確定位。
+
+失敗後 provider 回讀：B33 `ai-pdm-prod-b96191914c5d` 100%／零tags，template及traffic與發布前基線相同；control仍 `FINALIZED / RELEASED / DEV122-MATRIX-20261009-B33`，worker READY／generation17、Scheduler ENABLED；本輪 prepare／build／migrate／candidate／terminal 收據 provider404。Project及兩個 exact Secret 的 direct-binding角色讀回未提供三個release SA `secretmanager.versions.get`；未完成繼承／group effective-IAM全盤查，亦不將此已確認能力缺口等同exact403 endpoint。Local QC歷史PASS保留，新增actor capability wiring `P1_OPEN`。
+
+限定 metadata IAM 實作及 consumer 接線已完成本地驗證：9 個定向案例、4 個 producer/resolver/Git 整合案例、continuous 246、aggregate 294、abort 6、DB boundary 21、typecheck 與 isolated build 均 PASS；建置確認 artifact／primary invariant／cleanup，原生回讀確認本次 PID 與三個任務暫存已消失。獨立 Luna source QC P0=0／P1=0，13/13 frozen hashes 相符；僅證本地 source/modelled/native-Git 層，single normal-actor finite writer，不宣稱 concurrent apply、實際 IAM APPLIED 或 WIF capability PASS。詳見 [補權本地 QC checkpoint](../qa/DEV-122-B35-secret-version-iam-local-qc-2026-10-10.json)。PR260 將以修正後來源重新取得 required CI；實際 plan/apply/fresh owner release 仍 NOT_RUN，NO084／NOT_ACCEPTED／7/29 不變。
+
+PR260 新 CI38057619292 的 continuous 245/246 FAIL：新增 B35 Git fixture 使用 RUNNER~1 短 TEMP，嚴格 repository-root comparison 正確拒絕。只修正此測試的 native realpath parent／fixture 與 cleanup guard，產品／Terraform／權限 guard 不變；實際短 TEMP 原 test body RED→修正 GREEN及獨立 Luna test-hunk QC PASS見 [CI fixture checkpoint](../qa/DEV-122-B35-ci-native-temp-fixture-2026-10-10.json)。兩次 local setup FAIL 原始證據保留，僅第三次採納為 RED/GREEN；先前六項 PASS 保留原 tested-input scope，新 CI 尚 pending，不冒稱 current CI PASS。
+
+### 限定provider metadata補權（APPROVED；continuation NOT_APPLIED）
+
+2026-10-10人類在同一任務明確核准AI-PDM／jenfu-platform-prod PRODUCTION的下述exact五項metadata IAM並繼續發布（[受控人類決策](../qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json)，SHA-256 `2ee35efc065f621999b1c337b1a2c00dc8447d9f433e451c2969af0396fe37f7`）；本節為此新增infra slice的前向契約，不是第三次source correction或再次核准source SHA／capsule。只對先前不新增IAM邊界增加這五項例外，NO084、payload access／版本修改、新SA／Secret、其他IAM／cloud resource及跨專案範圍仍排除。Source接線修復原已在同任務corrective cycle內授權；先前把source一併列待批准的Agent提案範圍過廣，不作人類gate。
+
+| 已核准新增設定 | 限定範圍 |
+| --- | --- |
+| 1 custom role `aipdmOpenswxSecretVersionReadback` | `jenfu-platform-prod`；唯一permission `secretmanager.versions.get` |
+| 1 Verifier binding | 既有 `aipdm-prod-openswx-reader-token` Secret |
+| 1 Deployer binding | 同一 reader-token Secret |
+| 1 Verifier binding | 既有 `aipdm-prod-workload-auth-credentials` Secret |
+| 1 Deployer binding | 同一 workload-credentials Secret |
+
+共5個 additive IAM resources，放在既有 AI-PDM `infra/google-cloud/dev-122-openswx-release-readback`；不做project-wide role grant，不增Builder／runtime權限、金鑰payload access／版本修改或新Secret。Secret-level IAM涵蓋上述兩個Secret各版本的metadata；程式仍只讀capsule sealed numeric版本。metadata GET與payload access是不同permission，依[Google API](https://docs.cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions/get)。
+
+對應source接線：build使用既有Verifier observer/token讀這兩個exact numeric metadata GET，固定同一project的 `jenfu-platform-prod|9536592944` full name、兩Secret及正整數version；拒絕Authorization覆寫／body／非GET／alias／query／hash／其他project或Secret／`:access`，zeroFetch且不fallback Builder。prepare用Verifier，candidate／activate／finalize／recover用Deployer。原R1 focused5／六項required checks／Independent Luna source QC PASS保留原scope；實際 `assertNumericSecret` canonical-number caller暴露P1後已重開，R2 test-only RED→focused5 GREEN；[R2受控checkpoint](../qa/DEV-122-B35-numeric-routing-r2-checkpoint-2026-10-10.json)已記continuous242／aggregate281／六項required checks與Independent Luna source QC PASS／P0=0／P1=0，runtime/test SHA與當前bytes一致。這只證R2 source及modeled actual-helper→transport chain，未證新增infra／實際WIF；不把R1 PASS改寫為R2或infra PASS，新contract文件bytes不冒稱已在先前aggregate受測。新source仍須protected PR／CI；補權APPROVED不等於APPLIED或capability P1解除，須fresh provider及後續owner prepare/build實際WIF GET，保留NO084與FULL34/effective33只讀規則。
+
+[實際prepare失敗／補權提案收據](../qa/DEV-122-B35-program-only-prepare-failure-2026-10-10.json)綁定source、CI、owner原始log、fresh provider readbacks、五項exact資源與有限runtime cleanup；原[本地QC](../qa/DEV-122-B35-program-only-local-qc-2026-10-10.json)與[fixture補驗](../qa/DEV-122-B35-ci-shortpath-fixture-2026-10-10.json)沿用各自歷史scope。
+
+DEV-122維持開發點與 `NOT_ACCEPTED`，7 issues／29 groups分母不變。原生 CAD 正式驗證由使用者執行；normal UI與業務驗證仍待本輪發布後取得，supplier `DISABLED_DEFERRED`。Root保留既有task-owned login tab供後續驗證與清理責任，canonical checkout及其他owner工作樹不動。
+
+### 已核准 metadata IAM continuation：Architecture Finalized／RD Implementation Ready（2026-10-10）
+
+本節只增量接入已核准五項IAM；原program-only policy／十階段／single capsule／FULL34/effective33／PGOPTIONS／native receipt／recovery契約不變。下方一般program-only禁止infra／IAM修改的語句，僅由本節對exact五項infra slice前向覆蓋；protected owner workflow仍不得apply IAM。Root為唯一product／infra／finite executor writer，TL本輪只更新此CURRENT。Doc-review WT `C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM`、branch `codex/dev122-b33-release-closure`、HEAD `8a9371ee23964c9600b5f058ebaa3deaba423225`；進入本doc工作前dirty僅runtime及其直接test兩檔R2。Canonical／其他工作樹不改。
+
+1. **來源與12-address plan gate**：Terraform來源只新增 `infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf`，定義1個 `aipdmOpenswxSecretVersionReadback` custom role及上述4個Secret-level additive IAM members；role permissions恰 `[secretmanager.versions.get]`，不授權Builder／runtime、不加project IAM binding。新continuation的sourceHashes在原集合之外恰增加四條exact paths：此TF、`.ai-doc/qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json`、`scripts/lib/dev122-openswx-secret-version-iam.mjs`、`scripts/dev122-openswx-secret-version-iam.mjs`；四者均讀取同一official revision bytes並封存hash，executor執行前逐檔比對同一clean source，不以working bytes代替historical source。舊 `main.tf,backend.tf,versions.tf,README.md` 及 `prebuild-list-readback.tf` bytes不改；`readbackIamPlan` 原四檔hash、原5-address gate及prebuild7-address gate原樣保留，歷史APPLIED收據不重綁或重套。新增closed continuation plan將舊5＋prebuild2＋新5的source hashes/specs/address集合綁同一official source-lock，backend固定 `tfstate-jenfu-platform-prod / dev-122/openswx-release-readback`。Terraform plan恰12個managed addresses：舊7全部no-op，新5僅create/no-op；resource_drift只接受上方兩個Scheduler地址各最多一次的已知非空且不同etag-only metadata refresh；managed／Google provider／member type、update drift及唯一同地址no-op三方join須完整相符，移除etag以外全部before/after欄位必須canonical相等；其他drift全拒絕。禁止extra／duplicate／update／delete／replace／import及scope/permission/member等關鍵欄位unknown。Secret `secret_id`只接受已知project配對下上述兩Secret的exact literal short ID，或同project text ID／number的canonical full name；project固定 `jenfu-platform-prod` 或同一numeric `9536592944`，其他short name／wrong project／alias／模糊prefix均拒絕，不能用短名省略project驗證。原worker12-resource state及其binary不重套。
+2. **有限normal-actor executor與immutable證據**：沿既有A16 source-bound finite normal-human-actor provisioning骨架／readback-iam primitives，新增專用closed reader/gate/executor，不擴架通用bootstrap。Normal actor固定 `jedchang0308@jenfu.com.tw`；RAM OAuth、NO_ADC、same-repo clean exact official source／PR／required CI／protection、fresh capacity／deadline、隔離temp／no-port及verified cleanup保留。Source直接綁同一official source-lock，不新增worker build／bootstrap依賴。Immutable human approvalRef從實際人類訊息封存，source/approved-plan/request/binary-plan/原始Terraform JSON與saved binary／before/after/final收據同source/ref/hash join；new continuation另綁原supplemental IAM及prebuild continuation refs。先驗 `init → plan -out → show -json` 的12-address gate並seal request，再只apply同一saved binary一次；無target／backend／command override。403/network不作不存在；只有確認MISSING可支持create。既有request或unknown apply outcome只fresh provider readback，不盲目重套binary；exact complete readback才可採納APPLIED，不完整／drift／UNKNOWN即停止。Immutable object寫入unknown先同URI/hash讀回；原失敗與實際mutation classification保留。
+3. **policy delta與fresh provider readback**：BEFORE／AFTER完整project IAM bindings（含members／conditions）canonical hash相等；role definition新增不等於project binding變化，原project-policy hash及舊7角色／Job／Scheduler保護仍fresh核對。新role readback須GA／未deleted且permissions恰唯一metadata GET。對exact兩Secret各用GET `:getIamPolicy?options.requestedPolicyVersion=3` 保留conditions；新role row僅Verifier＋Deployer、無condition／其他principal。按已核准exact差異投影BEFORE及AFTER，其他bindings／members／conditions完整相等；policy etag自然變動不能當作bindings hash或被省略的漂移證據。Replay/create-no-op均須驗既存row與role完全相符；原始policy bytes、role及前後hash封存，不以fixture或历史receipt冒新provider證據。只讀sealed numeric metadata，零payload access／add/enable/disable/destroy/list；actual WIF capability由後續fresh owner prepare/build GET驗證。
+4. **最小reuse／READY consumer seam**：只在non-repair reuse v1 input加入可選immutable `secretVersionIamContinuationRef`，由既有request.inputRef封入current association；producer／resolveAssociation讀並驗其human/source-lock／plan/binary/native policy證據及current source/ref joins，不把caller ref當通過權限。原無ref input／historical schemas與default guards不放寬。`collectWorkerResourcePolicy`原reader Secret only-accessor檢查，在已驗continuation分支才允許唯一exact metadata-role row，並以fresh normal-actor role／兩Secret政策讀回核對；剝除批准差異後原reader accessor及其他policy完整保留。無ref仍按原規則拒絕新增row。Fresh READY proof的iamSha256記錄實際新policy；只宣稱本producer觀察窗及核准差異之外無變更，不重用舊IAM hash或冒稱全IAM未變。READY/full descriptor、programOnlyBaseline policy與worker lifecycle不加欄／不變；owner／source-proof只驗sealed continuation chain並使用現有metadata GET，不增其IAM-policy讀權。Historical source reader只對既有sealed source admission已成立的revision，在第二層historical path whitelist准入上述四條exact paths：`SECRET_VERSION_IAM_SOURCE_PATH`、`SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH`及`...SECRET_VERSION_IAM_EXECUTION_PATHS`。前兩條已存在時僅補module／CLI兩條；第一層未admitted revision仍僅准原READBACK4／worker profile，safe path／H40／same-repo Git blob、authorizeOrigin及max8不變，不新增revision admission或sibling scope。
+
+| 必要責任／bounded hunk | 實作surface |
+| --- | --- |
+| 新5資源／12-address plan與native continuation | 新 `infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf`；專用module `scripts/lib/dev122-openswx-secret-version-iam.mjs`與CLI `scripts/dev122-openswx-secret-version-iam.mjs`沿A16 source-bound模式，只接新immutable input，無新actor target/stage權限；舊 `scripts/lib/dev122-openswx-readback-iam.mjs`完全不改，只讀沿用原5／7-address primitives |
+| 已驗ref下的fresh policy／READY接線 | `scripts/lib/dev122-openswx-bootstrap.mjs` 的readonly resource-policy reader；`scripts/lib/dev122-openswx-worker-artifact-reuse.mjs` 的optional input／producer／resolver joins；不重跑bootstrap／pause／activate，不改artifact closure |
+| 直接回歸 | `scripts/dev122-openswx-secret-version-iam.test.mjs`／`scripts/dev122-openswx-bootstrap.test.mjs`／`scripts/dev122-openswx-worker-artifact-reuse.test.mjs`，僅新增下列受影響case；runtime/test兩檔R2受測bytes本slice不改 |
+
+| Case／acceptance | 固定預期及必收證據 |
+| --- | --- |
+| M-01 exact plan／replay | 舊7no-op＋新5create/no-op及新5全no-op通過；恰12 addresses／兩project表示法同identity；原5／7gate歷史回歸仍通過；raw plan／source hash／binary binding |
+| M-02 scope／unknown | 其他project/Secret／Builder/member／access/add/list等extra permissions、condition、extra/duplicate address、old7create、任何update/delete/replace/import或關鍵unknown拒絕，0 apply |
+| M-03 immutable source／human／binary | wrong source-lock/ref/hash、偽造human approval／stale capacity或deadline、approved plan／binary／Terraform JSON／request mismatch拒絕；不以變更SHA重問普通發布授權 |
+| M-04 unknown／paired evidence | apply unknown僅readback；exact complete採納、partial/unknown/drift停止；sealed receipt replay零apply，缺paired evidence不得新apply；immutable write unknown先exact readback，無盲重送 |
+| M-05 policy preservation | GA exactrole及兩Secret exactrow通過；project IAM change、unrelated member/condition漂移、錯role scope／多principal／原accessor遺失拒絕；policy v3原始BEFORE/AFTER及delta/hash |
+| M-06 producer／resolver join | genuine continuation＋fresh政策下READY producer通過，original activation／digest／template／numeric credentials保留；missing/forged/wrongsource/ref及無ref新增row拒絕；原無ref／historical鏈仍有效；0 newworkerbuild/run/pause/activate/ACK/Scheduler/credential mutation |
+| M-07 closure／WIF scope | Local/modelled PASS與IAM APPLIED分開；finite helper cleanup／ownstate／0 payload calls；後續protected officialsource及owner fresh prepare/build實際Verifier/Deployer metadata GET才可記capability PASS，無normalActor token fallback |
+
+驗證順序固定：受影響plan／receipt／READY consumer focused tests→獨立source QC→既有required source/CI gates→same officialsource finite IAM plan/apply/readback→新fresh capsule的正常owner流程。既有六項required checks保留；不為此slice重跑未變UI、nativePG或全bootstrap，R2既有證據沿exact tested hashes使用。CURRENT closure為 `METADATA_IAM_APPROVED / ARCHITECTURE_FINALIZED / RD_IMPLEMENTATION_READY / NOT_APPLIED / NOT_DEPLOYED`；實際12-resource plan、provider apply／after readback及WIF GET均尚UNKNOWN／NOT_RUN，capability P1未解除。Whole DEV `NOT_ACCEPTED`、supplier `DISABLED_DEFERRED`、user-owned native CAD及normal UI/business驗收pending，7 issues／29 groups分母不變。原B35 ownerFAIL及所有HISTORY_ONLY不回寫。
+
+### B35 接線修復與正式唯讀UI subset（2026-10-10）
+
+[本輪接線／UI證據](../qa/DEV-122-B35-build-readback-routing-and-ui-2026-10-10.json)記錄source-only修復及focused5、continuous242、aggregate281與六項required checks PASS；Independent Luna source QC P0=0／P1=0。集合有重疊，不相加成7／29完成率；本地modeled token/fetch stub不代表實際WIF權限PASS。自有程序、隔離build、sharp暫存與容量lease已核對清理；aggregate原snapshot保留closure前文件bytes，產品／測試SHA未變。新增IAM五項現已APPROVED，continuation仍待實作／NOT_APPLIED；原收據的當時決策及測試scope不回寫，084禁止執行。新source仍未合併／發布，原PR259／CI與ownerFAIL保持其歷史binding。
+
+本輪實際正式UI：B33／Free Number DEV014，在1521×695的正常料號工作台讀取既有A0061、快速篩選、開啟既有明細、清除篩選與重新載入，已觀測儲存名稱及製造關係維持；06 settled圖／DOM為reload終態，05 loading圖只保留觀測。未證實network overlap，不代替mobile、編輯／提交／核准／附件／CAD或未部署B34/B35驗收。新task-owned tab1200846886已close並list核對，既有使用者tabs不動；舊task login surface清理義務仍由root追蹤，未宣稱已關閉。
 
 ### 人類決策、來源與真正問題
 
-人類明確選擇「同意，只更新程式（建議）」：建立固定 AI-PDM 程式更新發布規則，並將已合併 PR #257 的審核／編輯跳轉修正發布至既有 `jenfu-platform-prod / asia-east1 / ai-pdm-prod`。沿用同一專案與正式發布授權；新的 source SHA、capsule、digest、execution／receipt ref 是機器 binding，不逐一重問。禁止無關 084 執行、手動 DB、SQL／schema／Auth 政策改動、新 IAM／Secret／雲端資源、跨專案開發與 sibling input。此前 proposal／checkpoint 中「零 Job」是被此人類決策及本實際 transport 審查取代的機器提案，保留其原文與歷史；本契約允許既有 exact Job 的固定唯讀 execution，沒有任意環境／SQL／target override。
+人類明確選擇「同意，只更新程式（建議）」：建立固定 AI-PDM 程式更新發布規則，並將已合併 PR #257 的審核／編輯跳轉修正發布至既有 `jenfu-platform-prod / asia-east1 / ai-pdm-prod`。沿用同一專案與正式發布授權；新的 source SHA、capsule、digest、execution／receipt ref 是機器 binding，不逐一重問。禁止無關 084 執行、手動 DB、SQL／schema／Auth 政策改動、上述exact五項以外的新 IAM，以及新Secret／雲端資源、跨專案開發與 sibling input。此前 proposal／checkpoint 中「零 Job」是被此人類決策及本實際 transport 審查取代的機器提案，保留其原文與歷史；本契約允許既有 exact Job 的固定唯讀 execution，沒有任意環境／SQL／target override。
 
 PR [#257](https://github.com/jedchang0308-jenfu/AI-PDM/pull/257) 已於 `2026-10-10T06:17:16Z` 正常合併至 `472ddf4536ddae432efe0451989193336f1a16b8`；PR CI [38029982551](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38029982551) 及 exact main CI [38030409586](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38030409586) 的兩項 required checks SUCCESS，main CI 完成 `2026-10-10T06:23:43Z`。[來源 checkpoint](<C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B34-source-merged-checkpoint-2026-10-10.json>) 保留當時 `DEPLOYMENT_PENDING_CONTRACT_DECISION` 狀態，不回寫。B34 client LF binding `e701aff1c57eb94090a0a652ed6bdd1f7fc0713ece13cba6dc7392415c73b0d2` 與已測正常 lifecycle 證據仍適用；規則實作若不改其相關輸入，毋須重跑這批 UI。
 
@@ -93,7 +214,7 @@ Architecture Closure Review已对照兩reader audit、runner／pg及producer/run
 
 B34 source `SOURCE_MERGED / NOT_DEPLOYED`；B35 program-only V1 `IMPLEMENTED / LOCAL_QC_PASS / NOT_DEPLOYED`。下一步依本CURRENT完成protected official source／required CI與fresh capsule發布；不重播B33／已terminal或關閉讀取的舊capsule。下方B33保留原正式收尾，不改其native receipts。正式正常網站與原生CAD完整屬性驗收仍待完成，原生CAD由使用者驗證；supplier停用延期，7 issues／29 groups及whole DEV仍NOT_ACCEPTED。Fixture PASS不作Production PASS。
 
-## DEV-122 DEPLOYED_BASELINE（B33；2026-10-09正式回讀快照）
+## DEV-122 HISTORY_ONLY（B33；2026-10-09正式回讀快照）
 
 PR #253 正常合併來源 `e2e7aaa69d7ca3600203874e0a63d288ac8a1a51`，required PR／main CI SUCCESS；owner [37948779825](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37948779825) 十階段 SUCCESS。正式 `ai-pdm-prod-b96191914c5d` 已 RELEASED／FINALIZED、100%／零 tags，映像 `sha256:64ccd0b4d44ac81d10a3ec3220bf322dec7e055b980577e01d97b262a4884bf8`。11 sealed receipts、source／build／image／serving provider join 已實際回讀；來源 package33／最高083／不含084，本次0 applied／33 replayed／ledger33。沒有新增 SQL、IAM、資源或 Secret 版本。
 

@@ -1,3 +1,10 @@
+import { buildReleaseIntent, buildRuntimeConfigReceipt, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
+import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
+import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
+
+import { readFileSync } from 'node:fs'
+import { seedSecretVersionIamContinuation } from '../qa/dev-122/fixtures/secret-version-iam-fixture.mjs'
+import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_SECRETS } from './lib/dev122-openswx-secret-version-iam.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
@@ -855,7 +862,12 @@ async function b35ProgramProofFixture({releasedBaseline=false}={}) {
   const fetchImpl=async(url,options={})=>{calls.push({url,method:options.method??'GET'});
     const anchor=h.modeledReleasedAnchor
     if(anchor&&url===`https://cloudbuild.googleapis.com/v1/${anchor.cloudBuild.name}`)return Response.json(anchor.cloudBuild)
-    if(anchor&&url.startsWith('https://artifactregistry.googleapis.com/v1/'))return Response.json({name:`projects/jenfu-platform-prod/locations/asia-east1/repositories/aipdm-release/dockerImages/ai-pdm@${anchor.artifactDigest.split('@')[1]}`,uri:anchor.artifactDigest})
+    const currentProvenance=JSON.parse(h.objects.get(provenance.uri).bytes)
+    if(url===`https://cloudbuild.googleapis.com/v1/${currentProvenance.cloudBuild.name}`)return Response.json(currentProvenance.cloudBuild)
+    if(url.startsWith('https://artifactregistry.googleapis.com/v1/')){
+      const digest=[artifactDigest,anchor?.artifactDigest].find(value=>value&&decodeURIComponent(url).includes(value.split('@')[1]))
+      if(digest)return Response.json({name:`projects/jenfu-platform-prod/locations/asia-east1/repositories/aipdm-release/dockerImages/ai-pdm@${digest.split('@')[1]}`,uri:digest})
+    }
     const match=/\/b\/([^/]+)\/o\/([^?]+)/u.exec(url),uri=match&&`gs://${decodeURIComponent(match[1])}/${decodeURIComponent(match[2])}`,row=h.objects.get(uri)
     if(!row)return Response.json({}, {status:404});return url.includes('alt=media')?new Response(row.bytes):Response.json({bucket:decodeURIComponent(match[1]),name:decodeURIComponent(match[2]),generation:'17',crc32c:crc32cBase64(row.bytes),size:String(row.bytes.length)})}
   const sourceCalls=[]
@@ -937,7 +949,7 @@ function b35ReleasedAnchor({ capsule, capsuleRef, seedBytes }) {
 import {readPreActivationAbortContinuation} from './lib/dev121-preactivation-abort-continuation.mjs'
 import {readProgramOnlyReleasedBaseline} from './lib/dev117-ai-pdm-program-only-baseline.mjs'
 import {verifyOwnerProviderReadback} from './lib/dev121-owner-release-proof.mjs'
-async function b35ProgramAbortFixture() {
+async function b35ProgramAbortFixture({preExecution=false}={}) {
   const wire=await b35ProgramProofFixture({releasedBaseline:true}),h=wire.h,anchor=h.modeledReleasedAnchor
   const validators=createOwnerTransport({token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl})
   const paths=releasePaths(b35AppProfile,wire.capsule,wire.intentRef.sha256),entrypoint={ingress:'INGRESS_TRAFFIC_ALL',defaultUriDisabled:false,invokerIamDisabled:true,uri:b35AppProfile.target.canonicalOrigin,urls:[b35AppProfile.target.canonicalOrigin],serviceEtag:'LOCAL_SERVICE_ETAG',generation:'17'}
@@ -951,18 +963,20 @@ async function b35ProgramAbortFixture() {
   const deploymentRef=wire.put(wire.deploymentRef.uri,deployment)
   const migration=JSON.parse(h.objects.get(wire.migrate.uri).bytes);migration.deploymentCapsuleRef=deploymentRef
   const migrate=wire.put(wire.migrate.uri,sealProgramOnlyEvidence(migration))
-  const facts={result:'PRE_ACTIVATION_ABORTED',databaseDisposition:'READ_ONLY_BASELINE_VERIFIED',currentDatabaseReadPerformed:true,previousRevision:wire.capsule.previousRevision,migrationEvidenceRef:migrate,recoveryOrder:['TRAFFIC_ROLLBACK','TAG_CLEANUP','ENTRYPOINT_BASELINE_RESTORE'],entrypointRecovery:{result:'BASELINE_ALREADY_ACTIVE',changed:false}}
-  const rollback=stage('rollback',migrate,facts),terminal=stage('terminal',rollback,facts)
+  const absentUris=[migrate.uri,...['nativeReceiptRef','submissionIntentRef','executionReadbackRef','jobReadbackRef'].map(key=>migration[key].uri)]
+  if(preExecution)for(const uri of absentUris)h.objects.delete(uri)
+  const facts={result:'PRE_ACTIVATION_ABORTED',databaseDisposition:preExecution?'NOT_APPLIED':'READ_ONLY_BASELINE_VERIFIED',currentDatabaseReadPerformed:!preExecution,previousRevision:wire.capsule.previousRevision,...(preExecution?{}:{migrationEvidenceRef:migrate}),recoveryOrder:['TRAFFIC_ROLLBACK','TAG_CLEANUP','ENTRYPOINT_BASELINE_RESTORE'],entrypointRecovery:{result:preExecution?'NOT_REQUIRED':'BASELINE_ALREADY_ACTIVE',changed:false}}
+  const rollback=stage('rollback',preExecution?null:migrate,facts),terminal=stage('terminal',rollback,facts)
   const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,releaseIntentSha256:wire.intentRef.sha256})),ownerApplicationId:'ai-pdm',service:b35AppProfile.target.serviceName,controlBucket:b35AppProfile.artifact.releaseBucket,releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,sourceLockSha256:wire.capsule.sourceLockRef.sha256,candidateRevision:null,previousRevision:wire.capsule.previousRevision,ownerRunRef:`https://api.github.com/repos/${b35AppProfile.application.repository}/actions/runs/351`,leaseExpiresAt:now,deadlineAt:wire.capsule.deadlineAt,state:'FINALIZED',result:'PRE_ACTIVATION_ABORTED'}
-  const control={...controlCore,controlSha256:sha256(canonicalize(controlCore))},calls=[],inventory=[wire.execution]
+  const control={...controlCore,controlSha256:sha256(canonicalize(controlCore))},calls=[],inventory=preExecution?[]:[wire.execution]
   wire.put(`gs://${b35AppProfile.artifact.releaseBucket}/control/active.json`,control)
   const transport={...h.transport,readOwnerRun:async()=>({id:'351',status:'completed',conclusion:'failure',event:'workflow_dispatch',headSha:currentRevision,createdAt:now,updatedAt:now}),request:async(url,options={})=>{calls.push({url,method:options.method??'GET'});assert.ok(url.startsWith(`https://run.googleapis.com/v2/${wire.job.name}/executions?`));return {executions:structuredClone(inventory)}},
     readOwnerSourceProof:async({sourceRevision,refs,verifyProvider})=>{const proof=await readAiPdmReleaseObservation({sourceRevision,refs,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl,readSource:wire.readSource});return {proof,provider:verifyProvider?await verifyOwnerProviderReadback({proof,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl}):null}},
     assertServiceSettled:validators.assertServiceSettled,assertCanonicalEntrypoint:validators.assertCanonicalEntrypoint,entrypointSnapshot:validators.entrypointSnapshot,getRevision:async()=>({name:`projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod/revisions/${wire.capsule.previousRevision}`,conditions:[{type:'Ready',state:'CONDITION_SUCCEEDED'}],containers:[{name:b35AppProfile.runtime.containerName,image:anchor.artifactDigest}]})}
   const service={...entrypoint,etag:entrypoint.serviceEtag,generation:'17',observedGeneration:'17',reconciling:false,terminalCondition:{state:'CONDITION_SUCCEEDED'},name:'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod',traffic:[{revision:wire.capsule.previousRevision,percent:100}],trafficStatuses:[{revision:wire.capsule.previousRevision,percent:100}],scaling:{scalingMode:'AUTOMATIC',maxInstanceCount:1}}
   transport.getService=async()=>{calls.push({url:`https://run.googleapis.com/v2/${service.name}`,method:'GET'});return service}
-  return {wire,h,transport,calls,inventory,control,service,prepare,migrate,terminal,
-    read:()=>readPreActivationAbortContinuation({profile:b35AppProfile,transport,baselineIntentRef:wire.intentRef})}
+  return {wire,h,transport,calls,inventory,control,service,prepare,migrate,terminal,absentUris,rollback,
+    read:(verifyProvider=false)=>readPreActivationAbortContinuation({profile:b35AppProfile,transport,baselineIntentRef:wire.intentRef,verifyProvider})}
 }
 test('P07 sealed program-only abort consumes genuine modeled RELEASED33 source graph and exact stable execution inventory cold/warm',async()=>{
   const f=await b35ProgramAbortFixture()
@@ -986,6 +1000,366 @@ test('P07 program-only abort rejects duplicate, active, unmatched-current and un
 test('P07 NOT_APPLIED and UNKNOWN stay truthful and reject completed-readonly continuation',async()=>{
   for(const disposition of ['NOT_APPLIED','UNKNOWN']){const f=await b35ProgramAbortFixture(),value=JSON.parse(f.h.objects.get(f.terminal.uri).bytes);value.facts.databaseDisposition=disposition;value.facts.currentDatabaseReadPerformed=false
     f.wire.put(f.terminal.uri,sealProgramOnlyEvidence(value));await assert.rejects(f.read(),/DEV121_PREACTIVATION_CONTINUATION_INVALID/u);assert.equal(f.calls.length,0);noMutation(f.h)}
+})
+
+
+test('P08 preexecution abort preserves build-only truth and admits cold/warm/provider and baseline consumers',async()=>{
+  const f=await b35ProgramAbortFixture({preExecution:true})
+  const cold=await f.read(),warm=await f.read();assert.deepEqual(cold,warm)
+  assert.equal(cold.kind,'PROGRAM_ONLY_ABORT');assert.equal(cold.authorityBasis.schemaVersion,'aipdm.program-only-preexecution-abort-basis.v1')
+  assert.equal(cold.authorityBasis.databaseDisposition,'NOT_APPLIED');assert.equal(cold.authorityBasis.currentDatabaseReadPerformed,false)
+  assert.equal(cold.authorityBasis.failedProof.disposition,'build_only');assert.equal(cold.authorityBasis.failedProof.migrationVerified,false)
+  assert.ok(!Object.hasOwn(cold.authorityBasis.stageRefs,'migration'))
+  const verified=await f.read(true);assert.deepEqual(verified,cold)
+  const baseline=await readProgramOnlyReleasedBaseline({transport:f.transport,profile:b35AppProfile,baselineIntentRef:f.wire.intentRef,previousRevision:f.wire.capsule.previousRevision,bundles:b35Bundles})
+  assert.deepEqual(baseline.releasedIntentRef,f.wire.capsule.baselineIntentRef);assert.equal(baseline.baselineEntries.length,33)
+  assert.ok(f.calls.every(row=>row.method==='GET'));assert.ok(f.wire.calls.every(row=>row.method==='GET'));noMutation(f.h)
+})
+
+test('P08 preexecution abort rejects any migrate/native/submission/readback or downstream evidence',async()=>{
+  for(const kind of ['migrate','native','submission','execution','job','candidate','entrypoint','verify','decision','activate','canonical','finalize']){
+    const f=await b35ProgramAbortFixture({preExecution:true}),index=['migrate','native','submission','execution','job'].indexOf(kind)
+    const uri=index>=0?f.absentUris[index]:releasePaths(b35AppProfile,f.wire.capsule,f.wire.intentRef.sha256)[kind]
+    f.wire.put(uri,{schemaVersion:'LOCAL_TEST_UNEXPECTED_EVIDENCE'})
+    await assert.rejects(f.read());assert.ok(f.calls.every(row=>row.method==='GET'));noMutation(f.h)
+  }
+})
+
+test('P08 preexecution abort rejects denied/unknown absence and non-quiescent execution inventories',async()=>{
+  for(const kind of ['DENIED','OUTCOME_UNKNOWN','duplicate','active','current','source-match','output-match','incomplete-pages']){
+    const f=await b35ProgramAbortFixture({preExecution:true})
+    const old=structuredClone(f.wire.execution);old.name+='-historic';old.createTime=old.startTime=old.completionTime='2026-10-06T15:00:00.000Z';old.template.containers[0].args=['--historic']
+    if(['DENIED','OUTCOME_UNKNOWN'].includes(kind)){const original=f.transport.readBytes;f.transport.readBytes=async(uri,options)=>{if(uri===f.absentUris[2])throw Object.assign(new Error(kind),{code:kind});return original(uri,options)}}
+    else if(kind==='incomplete-pages')f.transport.request=async()=>({executions:[],nextPageToken:'LOCAL_TEST_REPEAT_TOKEN'})
+    else{f.inventory.push(old);if(kind==='duplicate')f.inventory.push(structuredClone(old));if(kind==='active')old.runningCount=1;if(kind==='current')old.createTime=f.wire.execution.createTime;if(kind==='source-match')old.template.containers[0].args=[currentRevision];if(kind==='output-match')old.template.containers[0].args=[f.absentUris[1]]}
+    await assert.rejects(f.read());assert.ok(f.calls.every(row=>row.method==='GET'));noMutation(f.h)
+  }
+})
+
+test('P08 preexecution abort rejects false database/recovery/control/provider claims with zero writes',async()=>{
+  for(const kind of ['rollback-db','migration-claim','recovery','control','provider','missing-build','missing-deployment','provider-time-order']){
+    const f=await b35ProgramAbortFixture({preExecution:true})
+    if(kind==='control'){f.control.candidateRevision='ai-pdm-prod-local-unexpected';f.wire.put(`gs://${b35AppProfile.artifact.releaseBucket}/control/active.json`,f.control)}
+    else if(kind==='provider')f.transport.getRevision=async()=>({name:'UNEXPECTED_REVISION'})
+    else if(kind==='missing-build')f.h.objects.delete(`${f.wire.base}/build.json`)
+    else if(kind==='missing-deployment')f.h.objects.delete(f.wire.deploymentRef.uri)
+    else if(kind==='provider-time-order'){
+      // Cross-provider clock ordering is not authority. The sealed capsule L..D remains authoritative.
+      const original=f.transport.readOwnerRun;f.transport.readOwnerRun=async(...args)=>({...await original(...args),createdAt:'2026-10-07T16:00:00.000Z',updatedAt:'2026-10-07T16:01:00.000Z'})
+      const result=await f.read();assert.equal(result.authorityBasis.currentDatabaseReadPerformed,false);noMutation(f.h);continue
+    }else{const value=JSON.parse(f.h.objects.get(f.rollback.uri).bytes);if(kind==='rollback-db')value.facts.currentDatabaseReadPerformed=true;if(kind==='migration-claim')value.facts.migrationEvidenceRef=f.migrate;if(kind==='recovery')value.facts.entrypointRecovery.result='BASELINE_ALREADY_ACTIVE';f.wire.put(f.rollback.uri,sealProgramOnlyEvidence(value))}
+    await assert.rejects(f.read());assert.ok(f.calls.every(row=>row.method==='GET'));noMutation(f.h)
+  }
+})
+
+// B35 authentic modeled RELEASED33 source, with a fresh source-bound consumer capsule.
+// All provider observations and owner receipts remain LOCAL_TEST fixture evidence.
+function b35ConsumerPlainEnvironment() {
+  const environment = b35AppProfile.environment
+  const result = Object.fromEntries(environment.requiredPlainEnvironmentNames.map(name => [
+    name,
+    environment.fixedValues?.[name] ?? environment.controlledValues?.[name]?.defaultValue ?? 'LOCAL_TEST',
+  ]))
+  result.PDM_OPENSWX_DISPATCH_ENABLED = '1'
+  return result
+}
+
+function b35ConsumerTransport(fixture, plainEnvironment, nativeMutations) {
+  const transport = { ...fixture.transport }
+  const providerRequest = fixture.wire.h.transport.request
+  const continuationRequest = fixture.transport.request
+  const migrationExecutionsPrefix = 'https://run.googleapis.com/v2/' + fixture.wire.job.name + '/executions?'
+  transport.effectiveRevision = service => {
+    const active = (service.traffic ?? []).find(row => Number(row.percent) === 100)
+    return active?.revision ?? null
+  }
+  transport.request = async (url, options = {}) => {
+    const method = options.method ?? 'GET'
+    if (url.startsWith(migrationExecutionsPrefix)) return continuationRequest(url, options)
+    if (url.endsWith(':access')) {
+      nativeMutations.push('SECRET_ACCESS')
+      throw Error('LOCAL_TEST_SECRET_ACCESS_FORBIDDEN')
+    }
+    if (method !== 'GET' && !(method === 'POST' && url.endsWith(':getIamPolicy'))) {
+      nativeMutations.push(method + ' ' + url)
+      throw Error('LOCAL_TEST_NATIVE_MUTATION_FORBIDDEN')
+    }
+    return providerRequest(url, options)
+  }
+  const originalGetRevision = transport.getRevision
+  transport.getRevision = async (...args) => {
+    const revision = await originalGetRevision(...args)
+    const app = revision.containers.find(row => row.name === b35AppProfile.runtime.containerName)
+    app.env = Object.entries(plainEnvironment).map(([name, value]) => ({ name, value }))
+    return revision
+  }
+  for (const name of [
+    'createBuild', 'exportSbom', 'runMigrationJob', 'createCandidate', 'configureEntrypoint',
+    'runAuthenticatedSmoke', 'runInternalCandidateSmoke', 'setTraffic', 'activatePrincipalOnly',
+    'removeCandidateTag', 'restoreEntrypoint', 'prepareProductionStorage',
+  ]) {
+    if (typeof transport[name] !== 'function') continue
+    transport[name] = async () => {
+      nativeMutations.push(name)
+      throw Error('LOCAL_TEST_NATIVE_MUTATION_FORBIDDEN')
+    }
+  }
+  return transport
+}
+
+async function b35PreexecutionConsumerFixture(label = 'PASS') {
+  const fixture = await b35ProgramAbortFixture({ preExecution: true })
+  const releaseId = 'DEV122-B35-PREEXEC-CONSUMER-' + label
+  const observedAt = fixture.wire.h.transport.now()
+  const expiresAt = '2999-01-01T00:00:00.000Z'
+  const deadlineAt = deadline()
+  const plainEnvironment = b35ConsumerPlainEnvironment()
+  const sourceLock = { ...structuredClone(fixture.wire.h.lock), releaseId }
+  const sourceLockRef = fixture.wire.h.seedBytes(
+    `gs://${b35AppProfile.artifact.releaseBucket}/receipts/releases/${releaseId}/source-lock.json`,
+    Buffer.from(`${canonicalize(sourceLock)}\n`),
+  )
+  const currentSourceObjectRef = fixture.wire.h.seedBytes(
+    `gs://${b35AppProfile.artifact.releaseBucket}/source/releases/${releaseId}/current-source.tar.gz`,
+    Buffer.from(fixture.wire.h.objects.get(fixture.wire.h.currentSourceRef.uri).bytes),
+  )
+  const reuseInput = {
+    ...fixture.wire.h.input,
+    sourceLockRef,
+    currentSourceObjectRef,
+    receiptId: `LOCAL-B35-CONSUMER-${label}`,
+  }
+  const reuseInputRef = fixture.wire.h.seed(`b35-consumer-reuse-input-${label}`, reuseInput)
+  const currentReuse = await executeWorkerArtifactReuse({
+    transport: fixture.wire.h.transport,
+    inputRef: reuseInputRef,
+    readSource: fixture.wire.h.readSource,
+  })
+  const workerRef = currentReuse.refs.programOnlyFullDescriptorRef
+  const descriptor = (await fixture.wire.h.transport.readJson(workerRef)).value
+  const retainedWorker = {
+    descriptorRef: workerRef,
+    priorActivationRef: currentReuse.value.priorActivationRef,
+    currentAssociationRef: currentReuse.ref,
+    readyResourceReadbackRef: currentReuse.value.resourceAssociation.readbackRef,
+  }
+
+  const policy = buildProgramOnlyPolicy({
+    profile: b35AppProfile,
+    sourceLock,
+    bundles: b35Bundles,
+    baselineIntentRef: fixture.wire.intentRef,
+    baselineEntries: b35Bundles.effective.bundle.entries,
+    migrationRunnerDigest: fixture.wire.capsule.programOnlyBaseline.migrationRunnerDigest,
+    retainedWorker,
+  })
+  const openswxWorker = {
+    purpose: 'full',
+    sourceRevision: currentRevision,
+    workerProfileSha256: descriptor.workerProfileSha256,
+    descriptorRef: workerRef,
+  }
+  const secretVersions = Object.fromEntries(b35AppProfile.environment.requiredSecretNames.map(name => [
+    name,
+    name === 'PDM_WORKLOAD_AUTH_CREDENTIALS'
+      ? descriptor.registrySecretVersion.split('/').at(-1)
+      : '1',
+  ]))
+  const runtimeConfig = buildRuntimeConfigReceipt({
+    profile: b35AppProfile, releaseId, sourceLock, plainEnvironment, secretVersions, openswxWorker, observedAt,
+  })
+  runtimeConfig.evidenceScope = 'LOCAL_TEST'
+  const runtimeConfigRef = fixture.wire.put(
+    'gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + releaseId + '/runtime-config.json',
+    runtimeConfig,
+  )
+  const foundation = {
+    ownerApplicationId: 'ai-pdm', projectId: b35AppProfile.target.projectId, releaseId,
+    status: 'APPLIED', releaseAuthority: true, evidenceScope: 'LOCAL_TEST',
+    foundationManifestSha256: 'f'.repeat(64),
+  }
+  const foundationReceiptRef = fixture.wire.put(
+    'gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + releaseId + '/foundation.json',
+    foundation,
+  )
+  const infra = {
+    ownerApplicationId: 'ai-pdm', projectId: b35AppProfile.target.projectId, releaseId,
+    status: 'APPLIED', releaseAuthority: true, evidenceScope: 'LOCAL_TEST',
+    migrationRunnerDigest: policy.migrationRunnerDigest,
+  }
+  const infraReceiptRef = fixture.wire.put(
+    'gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + releaseId + '/infra.json',
+    infra,
+  )
+  const nativeMutations = []
+  const transport = b35ConsumerTransport(fixture, plainEnvironment, nativeMutations)
+  const authority = await executePrerequisiteProducer({
+    stage: 'routine-authority',
+    releaseId,
+    input: {
+      schemaVersion: 'jenfu.dev012.routine-owner-authority-input.v1',
+      sourceLockRef, runtimeConfigRef, baselineIntentRef: fixture.wire.intentRef, expiresAt,
+    },
+    profile: b35AppProfile,
+    transport,
+    validateIntent: assertDev117ReleaseIntent,
+    observedAt,
+  })
+  const readValue = async ref => (await transport.readJson(ref, b35AppProfile.artifact.releaseBucket, ['receipts'])).value
+  const authorization = await readValue(authority.refs.authorizationPolicyRef)
+  const readiness = await readValue(authority.refs.readinessReceiptRef)
+  const input = {
+    sourceLockRef, runtimeConfigRef,
+    ...authority.refs,
+    foundationReceiptRef, infraReceiptRef,
+    baselineIntentRef: fixture.wire.intentRef,
+    openswxWorkerRef: workerRef,
+    programOnlyBaseline: policy,
+    previousRevision: fixture.wire.capsule.previousRevision,
+    deadlineAt,
+  }
+  const values = { sourceLock, authorization, readiness, foundation, infra, runtimeConfig }
+  const intent = buildReleaseIntent({
+    profile: b35AppProfile, releaseId, input, sourceLock, prerequisiteValues: values,
+    validateIntent: assertDev117ReleaseIntent, workerDescriptor: descriptor, programOnlyPolicy: policy,
+  })
+  const capsuleRef = fixture.wire.put(
+    'gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + releaseId + '/release-intent.json',
+    intent,
+  )
+  const environment = {
+    OWNER_EXECUTION_MODE: 'full_release',
+    GITHUB_ACTIONS: 'true',
+    GITHUB_REPOSITORY: b35AppProfile.application.repository,
+    GITHUB_REPOSITORY_ID: '1234',
+    GITHUB_REPOSITORY_OWNER_ID: '5678',
+    GITHUB_SHA: currentRevision,
+    GITHUB_WORKFLOW_SHA: currentRevision,
+    GITHUB_WORKFLOW_REF: b35AppProfile.application.repository + '/' + b35AppProfile.workflow.path + '@refs/heads/main',
+    GITHUB_REF: 'refs/heads/main',
+    GITHUB_EVENT_NAME: 'workflow_dispatch',
+    ACTIONS_ID_TOKEN_REQUEST_URL: 'https://token.actions.example',
+    GOOGLE_OAUTH_ACCESS_TOKEN: 'LOCAL_TEST_ONLY_NOT_A_CREDENTIAL',
+    GITHUB_RUN_ID: '123',
+    GITHUB_RUN_ATTEMPT: '1',
+  }
+  const buildMigrationBundle = revision => {
+    assert.equal(revision, currentRevision)
+    return b35FullBundle
+  }
+  const execute = (overrides = {}) => executeOwnerStage({
+    stage: 'prepare',
+    capsuleRef: capsuleRef.uri,
+    capsuleSha256: capsuleRef.sha256,
+    // LOCAL_TEST consumer seam only: the unrelated R78 cutover graph is omitted.
+    // Production CLI assertDev117V3Profile rejects this gate; b35AppProfile stays unchanged.
+    profile: { ...b35AppProfile, dataCutover: { ...b35AppProfile.dataCutover, gateMode: 'LOCAL_TEST_UNRELATED_CUTOVER_OMITTED' } },
+    transport,
+    environment,
+    validateIntent: assertDev117ReleaseIntent,
+    buildMigrationBundle,
+    readWorkerSource: fixture.wire.f.h.readSource,
+    ...overrides,
+  })
+  return {
+    fixture, releaseId, sourceLock, policy, authorization, readiness, intent, capsuleRef,
+    transport, nativeMutations, environment, buildMigrationBundle, execute,
+  }
+}
+
+function b35RebindConsumerCapsule(consumer, intent, name, cachedPrepare) {
+  const capsuleRef = consumer.fixture.wire.put(
+    'gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + consumer.releaseId + '/release-intent-' + name + '.json',
+    intent,
+  )
+  const paths = releasePaths(b35AppProfile, intent, capsuleRef.sha256)
+  if (cachedPrepare) consumer.fixture.wire.put(paths.prepare, cachedPrepare)
+  return { capsuleRef, paths }
+}
+
+test('LOCAL_TEST P08 consumer binds fresh routine authorization and cached prepare to one PROGRAM_ONLY_ABORT basis', async () => {
+  const consumer = await b35PreexecutionConsumerFixture()
+  const controlUri = 'gs://jenfu-platform-prod-aipdm-release/control/active.json'
+  const originalControl = Buffer.from(consumer.fixture.wire.h.objects.get(controlUri).bytes)
+  const prepare = await consumer.execute()
+  const replay = await consumer.execute()
+  assert.equal(replay.ref.sha256, prepare.ref.sha256)
+  assert.deepEqual(consumer.authorization.preActivationAbortBasis, consumer.readiness.preActivationAbortBasis)
+  assert.deepEqual(prepare.value.facts.preActivationAbortBasis, consumer.authorization.preActivationAbortBasis)
+  assert.equal(consumer.authorization.preActivationAbortBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(consumer.authorization.preActivationAbortBasis.currentDatabaseReadPerformed, false)
+  assert.equal(consumer.authorization.preActivationAbortBasis.releasedIntentRef.uri, consumer.fixture.wire.capsule.baselineIntentRef.uri)
+  assert.deepEqual(consumer.fixture.wire.h.objects.get(controlUri).bytes, originalControl)
+  assert.deepEqual(consumer.nativeMutations, [])
+  assert.ok(consumer.fixture.calls.every(row => row.method === 'GET'))
+  assert.ok(consumer.fixture.wire.calls.every(row => row.method === 'GET'))
+  noMutation(consumer.fixture.h)
+})
+
+test('LOCAL_TEST P08 consumer rejects authorization/readiness basis tamper and hash-correct cached basis tamper', async () => {
+  for (const kind of ['authorization', 'readiness']) {
+    const consumer = await b35PreexecutionConsumerFixture(kind.toUpperCase())
+    const prepare = await consumer.execute()
+    await consumer.execute()
+    const wrongBasis = { ...consumer.authorization.preActivationAbortBasis, inventorySha256: '0'.repeat(64) }
+    const changed = kind === 'authorization'
+      ? { ...consumer.authorization, preActivationAbortBasis: wrongBasis }
+      : { ...consumer.readiness, preActivationAbortBasis: wrongBasis }
+    const changedRef = consumer.fixture.wire.put(
+      'gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + consumer.releaseId + '/' + kind + '-basis-tampered.json',
+      changed,
+    )
+    const changedIntent = {
+      ...consumer.intent,
+      [kind === 'authorization' ? 'authorizationPolicyRef' : 'readinessReceiptRef']: changedRef,
+    }
+    b35RebindConsumerCapsule(consumer, changedIntent, kind, prepare.value)
+    const variant = consumer.fixture.wire.h.objects.get(
+      'gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + consumer.releaseId + '/release-intent-' + kind + '.json',
+    ).ref
+    await assert.rejects(consumer.execute({ capsuleRef: variant.uri, capsuleSha256: variant.sha256 }), /PREPARE_BASELINE_MISMATCH/u)
+    assert.deepEqual(consumer.nativeMutations, [])
+    noMutation(consumer.fixture.h)
+  }
+
+  const consumer = await b35PreexecutionConsumerFixture('CACHED')
+  const prepare = await consumer.execute()
+  await consumer.execute()
+  const { receiptSha256, ...core } = structuredClone(prepare.value)
+  delete core.facts.preActivationAbortBasis
+  consumer.fixture.wire.put(prepare.ref.uri, { ...core, receiptSha256: sha256(canonicalize(core)) })
+  await assert.rejects(consumer.execute(), /PREPARE_BASELINE_MISMATCH/u)
+  assert.deepEqual(consumer.nativeMutations, [])
+  noMutation(consumer.fixture.h)
+})
+
+test('LOCAL_TEST P08 cached prepare replay rechecks control, retained image, and execution inventory drift', async () => {
+  for (const kind of ['control', 'image', 'inventory']) {
+    const consumer = await b35PreexecutionConsumerFixture(kind.toUpperCase())
+    await consumer.execute()
+    await consumer.execute() // Establish a successful cached replay before injecting new drift.
+
+    if (kind === 'control') {
+      const controlUri = 'gs://jenfu-platform-prod-aipdm-release/control/active.json'
+      const { controlSha256, ...controlCore } = structuredClone(consumer.fixture.control)
+      controlCore.candidateRevision = consumer.fixture.wire.capsule.previousRevision
+      consumer.fixture.wire.put(controlUri, { ...controlCore, controlSha256: sha256(canonicalize(controlCore)) })
+    } else if (kind === 'image') {
+      const original = consumer.transport.getRevision
+      consumer.transport.getRevision = async (...args) => {
+        const revision = await original(...args)
+        revision.containers.find(row => row.name === b35AppProfile.runtime.containerName).image =
+          b35AppProfile.artifact.uri + '@sha256:' + 'f'.repeat(64)
+        return revision
+      }
+    } else {
+      consumer.fixture.inventory.push(structuredClone(consumer.fixture.wire.execution))
+    }
+
+    await assert.rejects(consumer.execute())
+    assert.deepEqual(consumer.nativeMutations, [])
+    noMutation(consumer.fixture.h)
+  }
 })
 
 test('P00 program-only baseline qualification consumes full authenticated RELEASED33 graph and exact provider GETs',async()=>{
@@ -1014,5 +1388,271 @@ test('P07 program-only abort applies native service settled, traffic, entrypoint
     if(mutation==='entrypoint')f.service.invokerIamDisabled=false
     if(mutation==='image'){const read=f.transport.getRevision;f.transport.getRevision=async()=>{const row=await read();row.containers[0].image+='bad';return row}}
     await assert.rejects(f.read());assert.ok(f.calls.every(row=>row.method==='GET'));noMutation(f.h)
+  }
+})
+
+async function b35MetadataReuseFixture() {
+  const h = await b22ReuseIamFixture(), originalReader = h.readSource
+  const metadataPaths = [SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, 'scripts/lib/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.mjs']
+  h.readSource = (name, revision) => metadataPaths.includes(name) ? readFileSync(path.join(root, name)) : originalReader(name, revision)
+  Object.assign(h.readSource, originalReader)
+  h.transport.now = () => new Date().toISOString()
+  const lock = { ...h.lock, observedAt: new Date(Date.now()-2000).toISOString() }
+  const sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json', Buffer.from(canonicalize(lock)+'\n'))
+  const secretPolicies = {
+    [profile.tokenSecretId]: {bindings:[{role:'roles/secretmanager.secretAccessor',members:['serviceAccount:'+profile.readerServiceAccount]}]},
+    [profile.registrySecretId]: {bindings:[{role:'roles/secretmanager.secretAccessor',members:['serviceAccount:aipdm-prod-runtime@jenfu-platform-prod.iam.gserviceaccount.com'],condition:{title:'existing',expression:'true'}}]},
+  }
+  const metadata = await seedSecretVersionIamContinuation(h, {sourceRevision: currentRevision, sourceLockRef, supplementalIamReadbackRef:h.iam.receiptRef,
+    prebuildIamContinuationRef:h.proof.continuationRef,reader:h.readSource,name:'b35-secret-version-iam',secretPolicies})
+  const previousInput = JSON.parse(h.objects.get(h.inputRef.uri).bytes)
+  const input = {...previousInput,sourceLockRef,secretVersionIamContinuationRef:metadata.continuationRef}
+  h.inputRef = await h.put('b35-metadata-reuse-input',input)
+  const originalRequest=h.transport.request
+  h.transport.request=async(url,options={})=>{
+    if(url==='https://iam.googleapis.com/v1/'+SECRET_VERSION_IAM_ROLE){h.calls.push({url,options});return structuredClone(metadata.after.secretVersionRole)}
+    for(const secret of SECRET_VERSION_IAM_SECRETS) if(url==='https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/'+secret+':getIamPolicy?options.requestedPolicyVersion=3'
+      ||url==='https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/'+secret+':getIamPolicy'){
+      h.calls.push({url,options});return structuredClone(metadata.after.secretPolicies[secret])
+    }
+    return originalRequest(url,options)
+  }
+  return {...h,input,metadata}
+}
+test('B35 actual READY producer and pure resolver admit only the source-joined metadata continuation',async()=>{
+  const h=await b35MetadataReuseFixture()
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:h.readSource})
+  assert.equal(saved.value.status,'PASS')
+  assert.ok(saved.refs.programOnlyFullDescriptorRef)
+  const ready=JSON.parse(h.objects.get(saved.value.resourceAssociation.readbackRef.uri).bytes)
+  assert.equal(ready.resourcesUnchanged,true);assert.equal(ready.mutationPerformed,false)
+  assert.equal(ready.image,h.build.image);assert.equal(ready.schedulerState,'ENABLED')
+  const tokenPolicyCall=h.calls.find(row=>row.url.includes('/secrets/'+profile.tokenSecretId+':getIamPolicy?options.requestedPolicyVersion=3'))
+  assert.ok(tokenPolicyCall)
+  const calls=h.calls.length, publications=h.puts.length
+  const artifact=await resolveWorkerArtifact({transport:h.transport,descriptor:h.v2(saved.ref),profile,readSource:h.readSource})
+  assert.deepEqual(artifact.input.secretVersionIamContinuationRef,h.metadata.continuationRef)
+  assert.equal(h.calls.length,calls,'protected resolver consumes sealed refs without IAM provider calls')
+  assert.equal(h.puts.length,publications);noMutation(h)
+})
+test('B35 missing metadata continuation retains strict original Secret policy and publishes no READY proof',async()=>{
+  const h=await b35MetadataReuseFixture(), input={...h.input};delete input.secretVersionIamContinuationRef
+  const inputRef=await h.put('b35-no-metadata-ref',input), count=h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:h.readSource}),{code:'OPENSWX_RESOURCE_READBACK_INVALID'})
+  assert.equal(h.puts.length,count);noMutation(h)
+})
+test('B35 producer rejects malformed refs and live workload policy drift; pure resolver rejects hash-correct forged input join',async()=>{
+  const h=await b35MetadataReuseFixture(), ref={...h.metadata.continuationRef,sha256:'0'.repeat(64)}
+  const badRef=await h.put('b35-wrong-metadata-hash',{...h.input,secretVersionIamContinuationRef:ref}), before=h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef:badRef,readSource:h.readSource}))
+  assert.equal(h.puts.length,before)
+  h.metadata.after.secretPolicies[profile.registrySecretId].bindings[0].condition.expression='false'
+  await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:h.readSource}),{code:'OPENSWX_SECRET_VERSION_IAM_SECRET_POLICY_DRIFT'})
+  assert.equal(h.puts.length,before)
+  h.metadata.after.secretPolicies[profile.registrySecretId].bindings[0].condition.expression='true'
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:h.readSource})
+  const request=JSON.parse(h.objects.get(saved.value.requestRef.uri).bytes)
+  const inputRef=await h.put('b35-forged-input-join',{...h.input,secretVersionIamContinuationRef:ref})
+  const requestRef=await h.put('b35-forged-request',{...request,inputRef})
+  const associationRef=await h.put('b35-forged-association',{...saved.value,requestRef}), calls=h.calls.length, count=h.puts.length
+  await assert.rejects(resolveWorkerArtifact({transport:h.transport,descriptor:h.v2(associationRef),profile,readSource:h.readSource}))
+  assert.equal(h.calls.length,calls);assert.equal(h.puts.length,count);noMutation(h)
+})
+
+test('B35 actual Git reader admits only the four exact metadata source paths after sealed origin admission',()=>{
+  const fixtureParent=realpathSync.native(tmpdir())
+  const temporary=realpathSync.native(mkdtempSync(path.join(fixtureParent,'aipdm-b35-git-metadata-')))
+  console.log(JSON.stringify({project:'AI-PDM',purpose:'Metadata continuation actual Git reader scope regression',port:null,owningProcess:process.pid,temporaryPath:temporary,PDM_DATA_DIR:'UNUSED_NO_APP_IMPORT',PDM_REPOSITORY_DIR:temporary,mutationScope:'TASK_OWNED_GIT_FIXTURE_ONLY',cleanupCondition:'finally removes exact task-owned Git fixture'}))
+  const run=(args)=>{const row=spawnSync('git',args,{cwd:temporary,windowsHide:true,encoding:'utf8'});assert.equal(row.status,0,row.stderr);return row.stdout.trim()}
+  const paths=[SECRET_VERSION_IAM_SOURCE_PATH,SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH,'scripts/lib/dev122-openswx-secret-version-iam.mjs','scripts/dev122-openswx-secret-version-iam.mjs']
+  try {
+    run(['init','--quiet']);run(['config','user.email','local-fixture@example.invalid']);run(['config','user.name','AI-PDM local fixture']);run(['config','core.autocrlf','false'])
+    for(const name of [...paths,'scripts/not-admitted.mjs']){const absolute=path.join(temporary,name);mkdirSync(path.dirname(absolute),{recursive:true});writeFileSync(absolute,name+'\n')}
+    run(['add','.']);run(['commit','--quiet','-m','historical metadata source fixture'])
+    const historical=run(['rev-parse','HEAD'])
+    writeFileSync(path.join(temporary,'current-fixture.txt'),'current\n');run(['add','.']);run(['commit','--quiet','-m','current source fixture'])
+    const current=run(['rev-parse','HEAD']), reader=createWorkerGitReader(temporary,current)
+    for(const name of paths)assert.throws(()=>reader(name,historical),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
+    reader.authorizeOrigin(historical)
+    for(const name of paths)assert.equal(reader(name,historical).toString(),name+'\n')
+    assert.throws(()=>reader('scripts/not-admitted.mjs',historical),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
+  }finally{
+    assert.equal(path.dirname(temporary),fixtureParent)
+    assert.ok(path.basename(temporary).startsWith('aipdm-b35-git-metadata-'))
+    rmSync(temporary,{recursive:true,force:true})
+  }
+})
+
+async function b35UnassociatedAbortFixture() {
+  const f = await b35ProgramAbortFixture()
+  for (const index of [0, 3, 4]) f.h.objects.delete(f.absentUris[index])
+  delete f.wire.execution.template.volumes; delete f.wire.execution.template.containers[0].volumeMounts
+  Object.assign(f.wire.job, { uid: '24968e73-b3be-46f8-8e7d-1ab8464e5297', generation: '22', updateTime: now })
+  const submissionRef = f.h.objects.get(f.absentUris[2]).ref
+  const sealStage = (name, value) => f.wire.put(releasePaths(appProfile, f.wire.capsule, f.wire.intentRef.sha256)[name], sealProgramOnlyEvidence(value))
+  const rollback = JSON.parse(f.h.objects.get(f.rollback.uri).bytes)
+  Object.assign(rollback.facts, { databaseDisposition: 'UNKNOWN', currentDatabaseReadPerformed: false, entrypointRecovery: { result: 'NOT_REQUIRED', changed: false }, migrationSubmissionIntentRef: submissionRef })
+  delete rollback.facts.migrationEvidenceRef; rollback.previousReceiptRef = null
+  f.rollback = sealStage('rollback', rollback)
+  const terminal = JSON.parse(f.h.objects.get(f.terminal.uri).bytes)
+  Object.assign(terminal.facts, rollback.facts); delete terminal.facts.migrationEvidenceRef; terminal.previousReceiptRef = f.rollback
+  f.terminal = sealStage('terminal', terminal)
+  const original = f.transport.request
+  f.transport.request = async (url, options = {}) => {
+    if (url === `https://run.googleapis.com/v2/${f.wire.job.name}`) { f.calls.push({ url, method: options.method ?? 'GET' }); return structuredClone(f.wire.job) }
+    if (url === `https://run.googleapis.com/v2/${f.wire.execution.name}`) { f.calls.push({ url, method: options.method ?? 'GET' }); return structuredClone(f.wire.execution) }
+    return original(url, options)
+  }
+  return f
+}
+
+test('P09 completed unassociated native read preserves UNKNOWN and admits only fresh GET evidence cold/warm/provider', async () => {
+  const f = await b35UnassociatedAbortFixture(), terminalBytes = Buffer.from(f.h.objects.get(f.terminal.uri).bytes)
+  const cold = await f.read(true), warm = await f.read(true); assert.deepEqual(cold, warm)
+  assert.equal(cold.authorityBasis.schemaVersion, 'aipdm.program-only-completed-unassociated-abort-basis.v1')
+  assert.equal(cold.authorityBasis.databaseDisposition, 'UNKNOWN'); assert.equal(cold.authorityBasis.currentDatabaseReadPerformed, false)
+  assert.equal(cold.authorityBasis.releaseAuthority, false); assert.equal(cold.authorityBasis.failedProof.disposition, 'build_only')
+  assert.equal(cold.authorityBasis.completedNative.resubmissionAllowed, false)
+  assert.ok(f.h.objects.get(f.terminal.uri).bytes.equals(terminalBytes))
+  for (const index of [0, 3, 4]) assert.ok(!f.h.objects.has(f.absentUris[index]))
+  assert.ok(f.calls.every(row => row.method === 'GET')); noMutation(f.h)
+})
+
+test('P09 Run provider clock admits native clock skew but rejects Job updates after Execution creation', async () => {
+  const f = await b35UnassociatedAbortFixture()
+  f.wire.job.updateTime = new Date(Date.parse(now) + 500).toISOString()
+  f.wire.execution.createTime = new Date(Date.parse(now) + 1000).toISOString()
+  f.wire.execution.completionTime = new Date(Date.parse(now) + 2000).toISOString()
+  const cold = await f.read(true), warm = await f.read(true); assert.deepEqual(cold, warm)
+  assert.equal(cold.authorityBasis.databaseDisposition, 'UNKNOWN')
+  f.wire.job.updateTime = new Date(Date.parse(f.wire.execution.createTime) + 1).toISOString()
+  await assert.rejects(f.read(true))
+  assert.ok(f.calls.every(row => row.method === 'GET')); noMutation(f.h)
+})
+
+test('P09 unassociated abort rejects missing/sealed children, native drift, extra execution and Job drift', async () => {
+  for (const kind of ['missing-native', 'missing-submission', 'association', 'execution-child', 'job-child', 'native-count', 'readonly-env', 'duplicate', 'active', 'job-volume', 'job-after']) {
+    const f = await b35UnassociatedAbortFixture()
+    if (kind === 'missing-native') f.h.objects.delete(f.absentUris[1])
+    if (kind === 'missing-submission') f.h.objects.delete(f.absentUris[2])
+    if (['association', 'execution-child', 'job-child'].includes(kind)) f.wire.put(f.absentUris[{ association: 0, 'execution-child': 3, 'job-child': 4 }[kind]], { status: 'UNEXPECTED' })
+    if (kind === 'native-count') { const value = JSON.parse(f.h.objects.get(f.absentUris[1]).bytes); value.ledgerCount = 34; f.wire.put(f.absentUris[1], sealProgramOnlyEvidence(value)) }
+    if (kind === 'readonly-env') f.wire.execution.template.containers[0].env.at(-1).value = '-c default_transaction_read_only=off'
+    if (kind === 'duplicate') f.inventory.push(structuredClone(f.wire.execution))
+    if (kind === 'active') f.wire.execution.runningCount = 1
+    if (kind === 'job-volume') delete f.wire.job.template.template.volumes
+    if (kind === 'job-after') f.wire.job.updateTime = '2026-10-08T00:00:00Z'
+    await assert.rejects(f.read(true), undefined, kind); assert.ok(f.calls.every(row => row.method === 'GET')); noMutation(f.h)
+  }
+})
+
+// PRIVATE QA PROPOSAL ONLY — append to scripts/dev122-openswx-worker-artifact-reuse.test.mjs.
+// Uses the existing explicitly MODELED associated graph only for admission negatives.
+// It does not establish a portable inherited positive or represent genuine R8 history.
+test('P10 associated abort rejects invalid claimed historical basis at admission before historical reads', async () => {
+  const cases = [
+    ['schema', basis => { basis.schemaVersion = 'aipdm.program-only-abort-basis.v1' }],
+    ['extra-key', basis => { basis.unapprovedField = true }],
+    ['readonly-disposition', basis => { basis.databaseDisposition = 'READ_ONLY_BASELINE_VERIFIED' }],
+    ['new-database-read', basis => { basis.currentDatabaseReadPerformed = true }],
+    ['not-submitted', basis => { basis.migrationJobSubmitted = false }],
+    ['release-authority', basis => { basis.releaseAuthority = true }],
+    ['wrong-prior-ref', basis => { basis.failedIntentRef = { ...basis.failedIntentRef, sha256: '0'.repeat(64) } }],
+    ['missing-completed', basis => { delete basis.completedNative }],
+    ['missing-native-ref', basis => { delete basis.completedNative.nativeReceiptRef }],
+    ['missing-submission-ref', basis => { delete basis.completedNative.submissionIntentRef }],
+    ['bad-projection-hash', basis => { basis.completedNative.jobProjectionSha256 = 'invalid' }],
+    ['bad-execution-hash', basis => { basis.completedNative.executionSha256 = 'invalid' }],
+    ['resubmission', basis => { basis.completedNative.resubmissionAllowed = true }],
+    ['extra-recursion', basis => { basis.retainedUnassociatedAncestor = structuredClone(basis.completedNative) }],
+    ['wrong-tail-type', basis => { basis.retainedPreexecutionAncestor = { schemaVersion: 'aipdm.program-only-completed-unassociated-abort-basis.v1' } }],
+  ]
+  for (const [kind, mutate] of cases) {
+    const f = await b35ProgramAbortFixture()
+    // Deliberately claimed, never a valid historical proof or positive fixture.
+    const alias = { ...f.wire.capsule.baselineIntentRef }
+    const basis = {
+      schemaVersion: 'aipdm.program-only-completed-unassociated-abort-basis.v1',
+      databaseDisposition: 'UNKNOWN', currentDatabaseReadPerformed: false,
+      migrationJobSubmitted: true, releaseAuthority: false,
+      failedIntentRef: alias, releasedIntentRef: alias, failedProof: {}, releasedProof: {},
+      stageRefs: { prepare: alias, deployment: alias, rollback: alias, terminal: alias },
+      controlSha256: '1'.repeat(64), ownerRunRef: f.control.ownerRunRef,
+      previousRevision: f.wire.capsule.previousRevision, inputFingerprint: '2'.repeat(64),
+      inventorySha256: '3'.repeat(64),
+      completedNative: {
+        nativeReceiptRef: alias, submissionIntentRef: alias, executionName: f.wire.execution.name,
+        jobProjectionSha256: '4'.repeat(64), executionSha256: '5'.repeat(64),
+        disposition: 'OBSERVED_COMPLETED_READONLY_NO_RELEASE_ASSOCIATION', resubmissionAllowed: false,
+      },
+    }
+    mutate(basis)
+    const object = ref => JSON.parse(f.h.objects.get(ref.uri).bytes)
+    const putSealed = (ref, value) => f.wire.put(ref.uri, sealProgramOnlyEvidence(value))
+    const prepare = object(f.prepare)
+    prepare.facts.preActivationAbortBasis = basis
+    f.prepare = putSealed(f.prepare, prepare)
+    const buildUri = f.wire.base + '/build.json'
+    const build = JSON.parse(f.h.objects.get(buildUri).bytes)
+    build.previousReceiptRef = f.prepare
+    const buildRef = f.wire.put(buildUri, sealProgramOnlyEvidence(build))
+    const deployment = object(f.wire.deploymentRef)
+    deployment.buildReceiptRef = buildRef
+    f.wire.deploymentRef = f.wire.put(f.wire.deploymentRef.uri, deployment)
+    const migration = object(f.migrate)
+    migration.deploymentCapsuleRef = f.wire.deploymentRef
+    f.migrate = putSealed(f.migrate, migration)
+    const rollback = object(f.rollback)
+    rollback.previousReceiptRef = f.migrate
+    rollback.facts.migrationEvidenceRef = f.migrate
+    f.rollback = putSealed(f.rollback, rollback)
+    const terminal = object(f.terminal)
+    terminal.previousReceiptRef = f.rollback
+    terminal.facts.migrationEvidenceRef = f.migrate
+    f.terminal = putSealed(f.terminal, terminal)
+
+    let currentSourceProofReads = 0, historicalReads = 0
+    const sourceProof = f.transport.readOwnerSourceProof.bind(f.transport)
+    f.transport.readOwnerSourceProof = async request => {
+      if (request.sourceRevision === f.wire.capsule.sourceRevision) currentSourceProofReads++
+      return sourceProof(request)
+    }
+    const readJson = f.transport.readJson.bind(f.transport)
+    f.transport.readJson = async (ref, ...args) => {
+      if ((typeof ref === 'string' ? ref : ref?.uri) === alias.uri) historicalReads++
+      return readJson(ref, ...args)
+    }
+    await assert.rejects(f.read(), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u, kind)
+    // The original unconditional guard rejects before this read; therefore these
+    // assertions prevent a generic early failure from masquerading as coverage.
+    assert.equal(currentSourceProofReads, 1, kind + ': new admission guard was reached')
+    assert.equal(historicalReads, 0, kind + ': historical capsule was not read')
+    assert.equal(f.calls.length, 0, kind + ': inventory/provider requests were not reached')
+    assert.ok(f.wire.calls.every(row => row.method === 'GET'), kind)
+    noMutation(f.h)
+  }
+})
+
+
+test('P10A associated readonly recovery tolerates provider generation and etag drift', async () => {
+  const f = await b35ProgramAbortFixture()
+  f.service.etag = 'LOCAL_RECOVERED_SERVICE_ETAG'
+  f.service.generation = f.service.observedGeneration = '19'
+  const result = await f.read(true)
+  assert.equal(result.authorityBasis.schemaVersion, 'aipdm.program-only-abort-basis.v1')
+  assert.ok(f.calls.every(row => row.method === 'GET'))
+  noMutation(f.h)
+})
+
+test('P10A associated readonly recovery rejects drift in each entrypoint semantic field', async () => {
+  for (const [key, value] of [
+    ['ingress', 'INGRESS_TRAFFIC_INTERNAL_ONLY'], ['defaultUriDisabled', true],
+    ['invokerIamDisabled', false], ['uri', 'https://unexpected.invalid'],
+    ['urls', ['https://unexpected.invalid']],
+  ]) {
+    const f = await b35ProgramAbortFixture()
+    f.service[key] = value
+    await assert.rejects(f.read(), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u, key)
+    noMutation(f.h)
   }
 })

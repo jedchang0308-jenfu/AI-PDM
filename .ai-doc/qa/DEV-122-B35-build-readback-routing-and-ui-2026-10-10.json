@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "ai-pdm.dev122.b35-routing-ui-checkpoint.v1",
+  "task": "DEV-122",
+  "recordedAt": "2026-10-10T12:58:51.999331+00:00",
+  "status": "ROUTING_LOCAL_QC_PASS_IAM_DECISION_PENDING_NOT_DEPLOYED",
+  "baseSourceRevision": "71df57ff2ffc05a8a8cb18d1956758f360d3e138",
+  "branch": "codex/dev122-b33-release-closure",
+  "wholeAcceptance": "NOT_ACCEPTED",
+  "issues": 7,
+  "groups": 29,
+  "authorization": {
+    "humanDecision": "同意，只更新程式（建議）",
+    "sourceCorrection": "AUTHORIZED_EXISTING_SAME_TASK_CORRECTIVE_CYCLE",
+    "newIam": "PENDING_HUMAN_NOT_APPLIED",
+    "terraformChanged": false,
+    "providerMutationsThisCheckpoint": 0,
+    "migration084": "FORBIDDEN",
+    "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+    "supplier": "DISABLED_DEFERRED",
+    "clarification": "Earlier Agent proposal incorrectly gated the source wiring fix on IAM approval. Only provider IAM expansion requires a new decision. Source work grants no provider permission."
+  },
+  "routing": {
+    "scope": "Exact numeric metadata GETs of aipdm-prod-openswx-reader-token and aipdm-prod-workload-auth-credentials in jenfu-platform-prod use the existing Verifier token. Other SecretManager request forms fail before fetch; no Builder fallback. Existing non-Secret routing retained.",
+    "files": [
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\lib\\dev012-owner-release-runtime.mjs",
+        "sha256": "0570efbf535ada2aa80b7d805b37661a2f7a6a4bbe3d5e6de5c8754fa4747c9d"
+      },
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\dev012-owner-release-runtime.test.mjs",
+        "sha256": "5c4e29d55864bb22def12deb765ad2fbfa572d25b5588ac991993e3202b0f610"
+      }
+    ],
+    "focused": {
+      "command": "node --test --test-name-pattern 'B27|B35' scripts/dev012-owner-release-runtime.test.mjs",
+      "pass": 5,
+      "fail": 0,
+      "boundary": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\focused-boundary.json",
+        "sha256": "8d3c5dd0d02aef860a5c8e00a322432f040205e8b1962b76224b069364eb4552"
+      },
+      "log": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\focused.log",
+        "sha256": "0fc68d8babf680238fd23449121636d231f4ff4dee3415db6ec922deb408f28f"
+      },
+      "final": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\focused-final.json",
+        "sha256": "049ced8abb9ff754bd1e694b226b154d6e94f9fde43c0d7683f244fa43bebe1f"
+      },
+      "layer": "LOCAL_FETCH_STUB_MODELED_TOKENS_NOT_REAL_WIF_PERMISSION_PROOF"
+    },
+    "requiredChecks": {
+      "status": "SIX_REQUIRED_CHECKS_PASS",
+      "continuousPass": 242,
+      "aggregateNativeTestsPass": 281,
+      "abortPass": 6,
+      "boundaryGovernedFiles": 21,
+      "commands": [
+        {
+          "command": "npm run test:dev-117:continuous",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run qc:dev-117:continuous",
+          "result": "SELF"
+        },
+        {
+          "command": "npm run test:dev-117:abort",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run check:db-boundary",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run typecheck:app",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run build:isolated",
+          "result": "PASS"
+        }
+      ],
+      "ownerReport": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\dev-117\\s1b\\DEV117-S1B-20261010T130348770Z-31047A4C\\owner-report.json",
+        "sha256": "ab540b223c725072352a73ae7a3d4d6c28de61457295c6d46114f6bbf5b2ff7f"
+      },
+      "continuousLog": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\continuous.log",
+        "sha256": "0231b833baf47719366c8fef7d1a37a9558f91cbd88d98b6bb91b02d7c3754a9"
+      },
+      "aggregateLog": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\aggregate.log",
+        "sha256": "3150cf35fca5f82aee377544caa666e4fb04205ec3f7077824e2d7953f8e4b77"
+      },
+      "final": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\required-final.json",
+        "sha256": "16b76dd474ac0024f843bcc930323d8c549bdb8cfb53a2f34819a13a1c945de2"
+      },
+      "boundary": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\required-boundary.json",
+        "sha256": "c408cb583d5c4739624c800e140c8e0130cfd34ec539a83a5d1b2a8c3df41a54"
+      },
+      "scope": "Actual local checks. Aggregate also executed abort, database boundary, typecheck and isolated build, so those checks were not run again. Do not add overlapping test counts to DEV issue/group acceptance.",
+      "build": "PASS_ARTIFACT_PRIMARY_INVARIANT_CLEANUP",
+      "warnings": "Next build emitted Edge Runtime API warnings; build exit 0.",
+      "sourceSnapshotSha256": "7e9c9562a951ca9850db7960f5fc9da79fecf2c861f4bff3fa24888d77525328",
+      "documentClosure": "The aggregate snapshot records docs before this status/evidence closure. Product/test bytes remain equal to the independently reviewed frozen hashes; original receipt is not rewritten."
+    },
+    "independentQc": {
+      "agent": "/root/dev122_program_only_runtime_qc_luna",
+      "model": "gpt-6-luna",
+      "status": "PASS_LOCAL_SOURCE_SCOPE",
+      "P0": 0,
+      "P1": 0,
+      "reviewedHashes": [
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\lib\\dev012-owner-release-runtime.mjs",
+          "sha256": "0570efbf535ada2aa80b7d805b37661a2f7a6a4bbe3d5e6de5c8754fa4747c9d"
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\dev012-owner-release-runtime.test.mjs",
+          "sha256": "5c4e29d55864bb22def12deb765ad2fbfa572d25b5588ac991993e3202b0f610"
+        }
+      ],
+      "scope": "Readonly base commit blob vs frozen two-file candidate, actual focused log/final/boundary; no second runtime, no provider permission proof.",
+      "limitation": "Reviewer could not run linked worktree git status/diff in its sandbox; used base blobs and exact files. Root separately checked whole dirty boundary."
+    },
+    "providerCapability": "P1_OPEN_PENDING_NEW_IAM_DECISION_AND_ACTUAL_WIF"
+  },
+  "productionUi": {
+    "status": "READONLY_B33_LOAD_FILTER_DETAIL_RELOAD_SUBSET_OBSERVED",
+    "baselineSourceRevision": "e2e7aaa69d7ca3600203874e0a63d288ac8a1a51",
+    "servingRevision": "ai-pdm-prod-b96191914c5d",
+    "actor": "Free Number DEV014 (JFS9015)",
+    "route": "/parts",
+    "fixture": "Existing A0061-P01 / A0061-M01 manufacturing relation",
+    "viewport": {
+      "width": 1521,
+      "height": 695,
+      "override": false
+    },
+    "layer": "ACTUAL_PRODUCTION_BROWSER_UI",
+    "observations": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\observations.json",
+      "sha256": "5c50c783bb6880ea773db72e15b7d9f0c0d05310b6c2e8898841e94e74cd2adf"
+    },
+    "artifacts": [
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\01-matrix-loaded.dom.txt",
+        "sha256": "6c716e1d05c9e0cfbeb4b552f0d5377ee9b912cf2c1f6e9d21b403dae340cd96"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\01-matrix-loaded.png",
+        "sha256": "923ca4263555b0f96452057237dc2929f21263337d5a7439fc1a3a43e1c1706e"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\02-filtered.dom.txt",
+        "sha256": "84db550cba950fb1ede503480c35d86b78bd317d7f31af0db868c52792d88c0b"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\02-filtered.png",
+        "sha256": "2e033eb37440962a6ea1a00a5cebd17cbf030bb5c9dba9db26a0fd59480ae099"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\03-existing-detail.dom.txt",
+        "sha256": "190861f4142db8eb4ced0befa2ffb2b74d02af17aa85f52b8e4c55fb1a1f9368"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\03-existing-detail.png",
+        "sha256": "6a0f4ebd742a65b3a9251979f2544b685d78d1fec442144a61ed91c8423c2b2d"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\04-cleared-detail.dom.txt",
+        "sha256": "6387156329517055fd285d6caa03f9f31ea4b26c7fafc81ca62a64d4e3c869ce"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\05-reloaded-detail.dom.txt",
+        "sha256": "174dd22d5c2de1bbb4fbb057ed8e30538acf705c65322e1cad46ea191e23c066"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\05-reloaded-detail.png",
+        "sha256": "b9e761010ca41e8871b6a5b41a580155b94d16c8183456c1e51fa2b3178d2988"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\06-reloaded-settled.dom.txt",
+        "sha256": "174dd22d5c2de1bbb4fbb057ed8e30538acf705c65322e1cad46ea191e23c066"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\06-reloaded-settled.png",
+        "sha256": "f1ecde554e09a913f6ed3db21dd830aad1f5cc99b8ca1d4844a04619e552a062"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\service-provider.stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "provider": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\service-provider.json",
+      "sha256": "775b7a7356b7a43388b340bc21fdffbcc5e61a2a91200506a9c218bb1f19e95f"
+    },
+    "providerTraffic": [
+      {
+        "percent": 100,
+        "revisionName": "ai-pdm-prod-b96191914c5d"
+      }
+    ],
+    "cleanup": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\B35-readonly-ui-r1\\cleanup.json",
+      "sha256": "0490ff52fd826f4c740c20c5e016d2ae7c508a6e82295604ba72a5010ac253e1"
+    },
+    "limitations": [
+      "05 screenshot captures loading, not final proof; 06 settled screenshot/DOM is final reload evidence.",
+      "No demonstrated overlapping network requests or forced response race.",
+      "No mobile/exact 1440 viewport, edit/save/submit/approve/upload/worker/native CAD operations run.",
+      "No submitted business mutations; this is not an absolute provider DB zero-write audit.",
+      "This cannot prove B34/B35 fixes, which are not deployed, or close all D122-01 or 29 acceptance groups.",
+      "04 clear-filter state has DOM evidence only; no corresponding PNG exists.",
+      "05 observation says retained name/relation but 05 screenshot is loading; 05 DOM equals settled06 DOM. Keep original artifacts unchanged, assign final-state proof only to06."
+    ],
+    "independentQc": {
+      "agent": "/root/dev122_program_only_runtime_qc_luna",
+      "model": "gpt-6-luna",
+      "status": "READONLY_B33_SUBSET_FACTS_PASS",
+      "productP0": 0,
+      "productP1": 0,
+      "scope": "Actual observations/DOM/screenshots, provider join and new task tab cleanup; not complete D122-01 or full DEV acceptance."
+    }
+  },
+  "failureHistory": {
+    "receipt": {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\.ai-doc\\qa\\DEV-122-B35-program-only-prepare-failure-2026-10-10.json",
+      "sha256": "898970e6e96ac4863325f78fe0b11d0408a907ab7955bf5812b23ddf76940f21"
+    },
+    "originalOwnerRun": "38051021115",
+    "status": "FAILURE_PREPARE_DENIED_ALL_LATER_STAGES_SKIPPED",
+    "exactDeniedEndpoint": "UNKNOWN",
+    "replay": "DO_NOT_REDISPATCH_TERMINAL_FAILED_CAPSULE"
+  },
+  "cleanup": {
+    "newTaskUiTab": "1200846886",
+    "newTaskUiTabClosed": true,
+    "existingTabsUntouched": true,
+    "persistentAppRuntimeStarted": false,
+    "priorTaskUiObligation": "Prior retained task login surface is not proven closed; root retains its original cleanup obligation. No unrelated tab may be disturbed.",
+    "localChecks": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\cleanup-verification.json",
+      "sha256": "a21907d1e893ff9749800e05751f4e2bd35ab16ceb5db00a66ba99a30da537ef"
+    },
+    "capacityLeaseRelease": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-source-routing-r1\\capacity-release.json",
+      "sha256": "8e9e0c10a28f9a3717a708fa7581e8a6e2201861e695c045d0038cf87062ba76"
+    }
+  },
+  "closedLocalAt": "2026-10-10T13:06:39.063891+00:00"
+}

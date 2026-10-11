@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "aipdm.dev122.b35.native-etag-checkpoint.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "recordedAt": "2026-10-10T14:57:51.811552+00:00",
+  "scope": "LOCAL_SCOPED_ETAG_SOURCE_QC;NATIVE_PLAN_NO_APPLY",
+  "branch": "codex/dev122-b35-native-etag",
+  "sourceParent": "af72165c962c0eaa609929df8291a48ffa7cc494",
+  "sourceSha256": {
+    "scripts/lib/dev122-openswx-secret-version-iam.mjs": "0e727756d952c31398309cdd0a913d305659d575e9a80db29ed3de38bed10136",
+    "scripts/dev122-openswx-secret-version-iam.test.mjs": "49853b0301b29071e1251a8825714e11ef6d605ad56fc61e62a6dc8fa38988e9",
+    "scripts/qc-dev-117-continuous-release.mjs": "49a8b6575a7dc4a3316b0acd3dbfcbbc273874bf3c749886c04eefd2030a0b49",
+    "qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json": "b72d7662dc92b4b86a94b09e12813c337260141a9db94a19ad77ce4206c2b126"
+  },
+  "retainedSourceSha256": {
+    "infra/google-cloud/dev-122-openswx-release-readback/main.tf": "9f6f04af03afd1b031b477cf0d063d2feeae6b5ce412982357c3e95ed52851fc",
+    "infra/google-cloud/dev-122-openswx-release-readback/backend.tf": "e244eeacf45dc8d0017ecbf0b1c53e88398da946fcbd1ae7929edfba2bf729ce",
+    "infra/google-cloud/dev-122-openswx-release-readback/versions.tf": "e28a63e089b4f5143e20b96fb6ec7f15a4d84c5b3306cda745d63879eabd5c51",
+    "infra/google-cloud/dev-122-openswx-release-readback/README.md": "b0ae01675175bf2288a727033f2a01d702d807bd714648387396486fa1aef6e9",
+    "infra/google-cloud/dev-122-openswx-release-readback/prebuild-list-readback.tf": "6d6dfba02c2d227b42b47ee0a79195f8e99ff2dc856634002b91d14c17c61f9f"
+  },
+  "officialPredecessor": {
+    "pullRequest": 260,
+    "sourceRevision": "af72165c962c0eaa609929df8291a48ffa7cc494",
+    "pullRequestCi": 38058554315,
+    "mainCi": 38059082047,
+    "requiredChecks": "SUCCESS"
+  },
+  "actualFailures": [
+    {
+      "attempt": "B35-R2",
+      "code": "OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID",
+      "phase": "BEFORE_IAM_INPUT_OR_TERRAFORM",
+      "applyExecuted": false
+    },
+    {
+      "attempt": "B35-R3",
+      "code": "OPENSWX_SECRET_VERSION_IAM_INVALID",
+      "phase": "NATIVE_SHOW_PLAN_GATE",
+      "applyExecuted": false
+    }
+  ],
+  "nativePlan": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A28-B35-R3\\plan-diagnostic-r1\\native-terraform-plan.json",
+    "sha256": "4c737e5f4daca84d0d232549f7467275cbb99a41ec890b9f3efec1df6ecc56fe",
+    "nativeCommands": [
+      "init",
+      "validate",
+      "plan",
+      "show"
+    ],
+    "nativeExitCodes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "applyExecuted": false,
+    "resourceChanges": 12,
+    "retainedNoops": 7,
+    "approvedCreates": 5,
+    "driftRows": 2,
+    "driftOnlyField": "etag",
+    "fixtureSha256": "b72d7662dc92b4b86a94b09e12813c337260141a9db94a19ad77ce4206c2b126"
+  },
+  "contract": {
+    "driftAddresses": [
+      "google_project_iam_member.deployer_scheduler_readback",
+      "google_project_iam_member.verifier_scheduler_readback"
+    ],
+    "driftLimit": 2,
+    "driftAction": "update",
+    "matchingAction": "no-op",
+    "join": "drift.after == matching.before == matching.after",
+    "comparison": "complete canonical equality after removing only etag",
+    "oldValidators": "UNCHANGED",
+    "policySavedBinaryAndUnknownApplyGuards": "UNCHANGED",
+    "additionalAuthority": false
+  },
+  "validation": {
+    "focused": {
+      "pass": 11,
+      "fail": 0,
+      "negativeMutations": 27
+    },
+    "continuous": {
+      "pass": 246,
+      "fail": 0
+    },
+    "aggregate": {
+      "pass": 296,
+      "fail": 0
+    },
+    "abort": {
+      "pass": 6,
+      "fail": 0
+    },
+    "dbBoundary": {
+      "governedFiles": 21,
+      "status": "PASS"
+    },
+    "typecheck": "PASS",
+    "isolatedBuild": "PASS_WITH_PRIMARY_INVARIANTS_AND_TEMP_CLEANUP",
+    "independentQc": {
+      "schemaVersion": "aipdm.dev122.source-qc.v1",
+      "status": "LOCAL_SOURCE_QC_PASS",
+      "agent": "/root/dev122_b35_metadata_integration_qc_luna",
+      "model": "gpt-6-luna",
+      "scope": "Four frozen source/test files; root-produced finite local checks and native-plan NO_APPLY evidence",
+      "p0": 0,
+      "p1": 0,
+      "sourceFindings": {
+        "p0": 0,
+        "p1": 0
+      },
+      "deliveryCondition": {
+        "initialSeverity": "P1",
+        "finding": "Fixture excluded by local /qa/ rule; must stage explicitly",
+        "status": "CLOSED_ROOT_NATIVE_INDEX_READBACK",
+        "receiptPath": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-native-etag-required-r1/fixture-index-readback.json",
+        "trackedInIndex": true,
+        "blobEqualsFrozenPhysical": true
+      },
+      "sourceSha256": {
+        "scripts/lib/dev122-openswx-secret-version-iam.mjs": "0e727756d952c31398309cdd0a913d305659d575e9a80db29ed3de38bed10136",
+        "scripts/dev122-openswx-secret-version-iam.test.mjs": "49853b0301b29071e1251a8825714e11ef6d605ad56fc61e62a6dc8fa38988e9",
+        "scripts/qc-dev-117-continuous-release.mjs": "49a8b6575a7dc4a3316b0acd3dbfcbbc273874bf3c749886c04eefd2030a0b49",
+        "qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json": "b72d7662dc92b4b86a94b09e12813c337260141a9db94a19ad77ce4206c2b126"
+      },
+      "ownerReportSnapshotSha256": "1e40764fc9e65d60d8fc1b1051dee555120fc9d8bcad8e4d033719802fe30a7a",
+      "reviewedEvidence": {
+        "focused": 11,
+        "continuous": 246,
+        "aggregate": 296,
+        "abort": 6,
+        "dbBoundary": "PASS",
+        "typecheck": "PASS",
+        "isolatedBuild": "PASS",
+        "nativePlanApplyCount": 0
+      },
+      "excluded": "Final documentation/checkpoint bytes require new protected PR CI; actual IAM apply/WIF/production release not proven",
+      "qcWroteProduct": false,
+      "qcExecutedTests": false,
+      "qcUsedProvider": false
+    },
+    "runtime": {
+      "processExited": true,
+      "result": "PASS",
+      "port": null,
+      "finishedAt": "2026-10-10T14:53:35.6938995Z"
+    }
+  },
+  "evidenceFiles": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-native-etag-required-r1\\focused.log",
+      "sha256": "3177508c1eefb416988078edebfab5352df7a9cc3ba7f5fbdc6eafe26a633656"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-native-etag-required-r1\\continuous.log",
+      "sha256": "eea5d1d864e64ffcdf33dad0bf4dc64886b52eaaf11ce3271f0c01cc6d4ac5e3"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-native-etag-required-r1\\aggregate.log",
+      "sha256": "1747e2e7e2c73ffc33b61c3104a68fb96ca95ee49cf7e0b840ec6a6023d7f440"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-native-etag-required-r1\\required-final.json",
+      "sha256": "47a55eaf1f5055a9eab07844b31c75f22c1b89947cfcaf4ce9ed3ac7378c5425"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-native-etag-required-r1\\runtime-final.json",
+      "sha256": "eea01ce962375d7ec124e85ffbef8424305cd0d8d3e176c79fd33be59a0ff178"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-native-etag-required-r1\\independent-qc.json",
+      "sha256": "395167383c93c17b4d55268bfd22a7ba1548a7405b58d57bf0282e05a4a49b5c"
+    }
+  ],
+  "production": {
+    "iam": "NOT_APPLIED",
+    "newRelease": "NOT_DEPLOYED",
+    "servingBaseline": "ai-pdm-prod-b96191914c5d",
+    "newOfficialSourceAndFreshCapsule": "PENDING",
+    "nativePg17": "NOT_RUN",
+    "migration084": "PROHIBITED",
+    "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+    "supplier": "DISABLED_DEFERRED"
+  },
+  "devStatus": "NOT_ACCEPTED",
+  "issueDenominator": 7,
+  "groupDenominator": 29
+}

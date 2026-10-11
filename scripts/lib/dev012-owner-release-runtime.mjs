@@ -801,7 +801,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     }
     const executionArgsMatch = (execution) => {
       if (programPolicy) {
-        try { assertProgramOnlyExecutionTemplate(execution, { profile, deployment, outputUri }) } catch { return false }
+        try { assertProgramOnlyExecutionTemplate(execution, { profile, deployment, outputUri, staticJob: job }) } catch { return false }
       }
       const executionContainer = execution?.template?.containers?.find((item) => item.name === 'migration')
       if (executionContainer?.image !== deployment.migrationRunnerDigest || canonicalize(executionContainer?.args) !== canonicalize(args)) return false
@@ -890,7 +890,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
       }
       if (Number(readback.failedCount ?? 0) !== 0 || Number(readback.succeededCount ?? 0) !== 1 || readback.completionTime == null || completedState !== 'CONDITION_SUCCEEDED') fail('MIGRATION_EXECUTION_FAILED')
       if (programPolicy) {
-        assertProgramOnlyExecution(readback, { profile, deployment, outputUri, submission, window: programWindow })
+        assertProgramOnlyExecution(readback, { profile, deployment, outputUri, submission, window: programWindow, staticJob: job })
         const prefix = outputUri.slice(0, -5)
         const retainReadback = async (uri, body, validate, projection) => {
           let prior = null
@@ -907,7 +907,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
         // Job metadata such as latestCreatedExecution may advance. Its original raw
         // receipt stays immutable; only the verified execution template may replay.
         await retainReadback(`${prefix}-job-readback.json`, job, value => assertProgramOnlyStaticJob(value, { profile, deployment }), value => ({ name: value.name, template: value.template }))
-        await retainReadback(`${prefix}-execution-readback.json`, readback, value => assertProgramOnlyExecution(value, { profile, deployment, outputUri, submission, window: programWindow }),
+        await retainReadback(`${prefix}-execution-readback.json`, readback, value => assertProgramOnlyExecution(value, { profile, deployment, outputUri, submission, window: programWindow, staticJob: job }),
           value => ({ name: value.name, createTime: value.createTime, completionTime: value.completionTime, taskCount: value.taskCount, parallelism: value.parallelism, template: value.template, succeededCount: value.succeededCount, failedCount: value.failedCount ?? 0, conditions: value.conditions }))
       }
       return { ...readback, providerOperationRef: operationRef }
@@ -1250,12 +1250,12 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
 
   // Source/build evidence is observation only. Optional builder authentication
   // is isolated to the proof reader's exact Build/Registry GETs; request stays primary.
-  async function readOwnerSourceProof({ profile, sourceRevision, refs, verifyProvider = false }) {
+  async function readOwnerSourceProof({ profile, sourceRevision, refs, verifyProvider = false, readSource = null }) {
     if (profile.application.id !== 'ai-pdm' || profile.artifact.releaseBucket !== 'jenfu-platform-prod-aipdm-release'
       || profile.target.projectId !== 'jenfu-platform-prod' || profile.target.region !== 'asia-east1'
       || profile.target.serviceName !== 'ai-pdm-prod') fail('OWNER_SOURCE_PROOF_TARGET_INVALID')
     return runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
-      const proof = await readAiPdmReleaseObservation({ sourceRevision, refs, token, fetchImpl })
+      const proof = await readAiPdmReleaseObservation({ sourceRevision, refs, token, fetchImpl, readSource, readOwnerSourceProof })
       const builderReadback = builderReadbackToken === null ? null : {
         token: builderReadbackToken, actor: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
         ownerApplicationId: profile.application.id, projectId: profile.target.projectId, region: profile.target.region, sourceRevision,
@@ -1268,14 +1268,18 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
   return { request, readOwnerRun, readOwnerSourceProof, readBytes, readJson, putBytes, putJson, deleteBytes, waitBuild, getService, assertServiceSettled, getRevision, assertRevisionReady, patchService, createCandidate, candidateOrigin, entrypointSnapshot, assertCanonicalEntrypoint, configureEntrypoint, restoreEntrypoint, effectiveRevision, setTraffic, activatePrincipalOnly, removeCandidateTag, runMigrationJob, createBuild, readArtifactImage, listOccurrences, exportSbom, waitArtifactEvidence, runHttpSuite, runAuthenticatedSmoke, runInternalCandidateSmoke, publishIncident, now }
 }
 
-// The existing deployer's exact-job viewer is borrowed only for these GET pages.
+// The existing deployer's exact-job viewer is borrowed only for fixed Job, Execution and inventory GETs.
 // Its token never authorizes generic requests, executions.run, or receipt writes.
 function isAiPdmMigrationExecutionListGet(url, options) {
   if (typeof url !== 'string' || (options.method ?? 'GET') !== 'GET' || options.body != null) return false
   let parsed
   try { parsed = new URL(url) } catch { return false }
-  return parsed.origin + parsed.pathname === 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions'
-    && !parsed.username && !parsed.password && !parsed.hash && parsed.searchParams.get('pageSize') === '100'
+  if (parsed.username || parsed.password || parsed.hash) return false
+  const job = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner'
+  const target = parsed.origin + parsed.pathname
+  if (target === job || (target.startsWith(`${job}/executions/`) && /^[a-z][a-z0-9-]{0,62}$/u.test(target.slice(`${job}/executions/`.length)))) return parsed.search === ''
+  return target === `${job}/executions`
+    && parsed.searchParams.get('pageSize') === '100'
     && [...parsed.searchParams.keys()].every(key => ['pageSize', 'pageToken'].includes(key))
     && parsed.searchParams.getAll('pageSize').length === 1 && parsed.searchParams.getAll('pageToken').length <= 1
 }
@@ -1306,8 +1310,16 @@ export function createAiPdmBuildReadbackTransport({ token, verifierReadbackToken
   }
   return {
     ...primary,
-    request: (url, options = {}) => isLiveGet(url, options)
-      ? observer.request(url, { ...options, redirect: 'error' }) : primary.request(url, options),
+    request: (url, options = {}) => {
+      if (new URL(url).hostname === 'secretmanager.googleapis.com') {
+        if (typeof url !== 'string' || !/^https:\/\/secretmanager\.googleapis\.com\/v1\/projects\/(?:jenfu-platform-prod|9536592944)\/secrets\/(?:aipdm-prod-openswx-reader-token|aipdm-prod-workload-auth-credentials)\/versions\/[1-9][0-9]*$/u.test(url)
+          || (options.method ?? 'GET') !== 'GET' || options.body != null) fail('BUILD_READBACK_SECRET_METADATA_INVALID')
+        if (new Headers(options.headers).has('authorization')) fail('BUILD_READBACK_AUTHORIZATION_INVALID')
+        return observer.request(url, { ...options, redirect: 'error' })
+      }
+      return isLiveGet(url, options)
+        ? observer.request(url, { ...options, redirect: 'error' }) : primary.request(url, options)
+    },
     getService: profile => { assertProfile(profile); return observer.request(service, { redirect: 'error' }) },
     getRevision: (profile, revision) => {
       assertProfile(profile)

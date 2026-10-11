@@ -1,0 +1,221 @@
+{
+  "schemaVersion": "aipdm.dev122.b35.r9.production-release-closure.v1",
+  "project": "AI-PDM",
+  "devId": "DEV-122",
+  "result": "APP_RELEASED_METADATA_IAM_APPLIED_READONLY_DB33_WORKER_RETAINED_WHOLE_DEV_NOT_ACCEPTED",
+  "observedAt": "2026-10-11T05:32:39.959Z",
+  "sourceRevision": "2600ba2ada8d2adb106ad616c6020d1339328f0e",
+  "sourceTree": "03acba67c5e39872b5b697e07268695d25d06fda",
+  "testedContentRevision": "135b56565998a0ae7525668a1b8e3204cf8598d9",
+  "pullRequest": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/266",
+  "requiredCi": {
+    "pullRequestRun": 38089691741,
+    "mainRun": 38090388975,
+    "result": "SUCCESS"
+  },
+  "officialSource": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/B35-R9-official-source.json",
+    "sha256": "cc7bae0ae224051deb4fdd431511c1bd5fd0f500372d8841374086b83f017d83"
+  },
+  "officialProviderQualification": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/B35-R9-official-source-provider-readback-r3.json",
+    "sha256": "9214241943cf1724cfe150f70f2081baf80e4b56fbed79efd94129eef44d795a"
+  },
+  "ownerRun": "https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021",
+  "ownerAttempt": 1,
+  "ownerFinalObservation": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/B35-owner-workflow-run-r9-final.json",
+    "sha256": "8b5d7a4c09d4c01d6baedcc1e9050a5e420c11da12da18f8098a250dd41b1a11"
+  },
+  "ownerStages": [
+    "prepare",
+    "build",
+    "migrate",
+    "candidate",
+    "entrypoint",
+    "verify",
+    "decision",
+    "activate",
+    "canonical",
+    "finalize"
+  ],
+  "releaseCapsuleRef": {
+    "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/release-intent.json",
+    "sha256": "553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3"
+  },
+  "providerReadback": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/final-readback-result.json",
+    "sha256": "5cedc689ea51295b0a0e30e423c67e52688cb9df8dd1ce5e37b512c89a82a763"
+  },
+  "providerReadbackMutationCount": 0,
+  "independentEvidenceQc": {
+    "receipt": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-preexecution-qc-draft/r9-final-production-evidence-independent-qc-r1-compact.json",
+      "sha256": "e4d3d15595b2613ee9d6a5d80f25d9b309b3abccb4723abb182c5dccb0eb729e"
+    },
+    "status": "LOCAL_QC_PASS_RELEASE_READBACK_ONLY",
+    "findings": {
+      "p0": 0,
+      "p1": 0
+    },
+    "scope": "LOCAL_FACTUAL_REVIEW_OF_ROOT_ACTUAL_PROVIDER_READBACK_NOT_A_SECOND_PROVIDER_EXECUTION"
+  },
+  "sealedStageRefs": {
+    "prepare": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/prepare.json",
+      "sha256": "331b090083b016a9a985e5673efdbcb7040a4d5904d840f99da0613bdedc0c7e"
+    },
+    "build": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/build.json",
+      "sha256": "04ddf9d9f427c6e9f61072c7baa3837a8f99962adfb85da496c6a07040b57c8d"
+    },
+    "migrate": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/migrate.json",
+      "sha256": "dc06d54e5a940424991972a885f8930d540e6c9c65de9f9205fb68c4367bdd01"
+    },
+    "candidate": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/candidate.json",
+      "sha256": "3ddb8b442cd40eb0a498805a46fc06d1e8e8487e8abbfa13eeb8450dce2c0fda"
+    },
+    "entrypoint": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/entrypoint.json",
+      "sha256": "fdc4dbe172d3426b2ff4379175c88ebbd6d05dd7b0609e1253fd5a13c2751ccc"
+    },
+    "verify": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/verify.json",
+      "sha256": "65b8bf568af9a1921ebd4d6c74add71f76d867c4c488754d30f8164eabe80d6d"
+    },
+    "decision": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/decision.json",
+      "sha256": "fc925f04b3529727427b8e232d68f8b19ffbd37072150cb2a8f07df1d31b9b3f"
+    },
+    "activate": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/activate.json",
+      "sha256": "fc2bdb7d21f037b3ea34852d03215f5be1e3e0718d4eddc56dc179adc53d237d"
+    },
+    "canonical": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/canonical.json",
+      "sha256": "c7e5aa3ab0618faeddb4cdb797d346a13032812b04a19a89b664763c69aa49be"
+    },
+    "finalize": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/finalize.json",
+      "sha256": "24ca97409c7384b29d0e877ace2c0d9aab6cf394b688f7460ba941b3962253a1"
+    },
+    "terminal": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/terminal.json",
+      "sha256": "cde10464573de74eeaf5dc8cc3c0069394da0b49afb295512b7d49f52bcfb2b9"
+    }
+  },
+  "controlRef": {
+    "uri": "gs://jenfu-platform-prod-aipdm-release/control/active.json",
+    "sha256": "a768e51a0ae60c7e9b95ce47e71b01f5705eb0daa6b7a7c14b358f3f227f8874"
+  },
+  "canonicalOrigin": "https://ai-pdm-prod-9536592944.asia-east1.run.app",
+  "servingRevision": "ai-pdm-prod-99f16f79d877",
+  "serviceGeneration": "193",
+  "artifactDigest": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm@sha256:4196da74d4eddc458f7ac5007f3dd96f2d2c4abcdfe01f8d4856e7eeb88c1123",
+  "trafficPercent": 100,
+  "candidateTags": 0,
+  "controlState": "FINALIZED",
+  "appResult": "RELEASED",
+  "nativeReadonly": {
+    "associationRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/migrate.json",
+      "sha256": "dc06d54e5a940424991972a885f8930d540e6c9c65de9f9205fb68c4367bdd01"
+    },
+    "nativeRef": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-PROGRAM-20261011-B35-R9/553cd4788b237cb925f7829a25466715a20ec35202317fa8e4434b618f78afd3/migration-readonly-native.json",
+      "sha256": "590eed5a2805958e7fbc6943a319db267b3a3580fa0cfcee61f421795460696c"
+    },
+    "status": "PASS",
+    "applied": 0,
+    "replayed": 33,
+    "ledgerCount": 33,
+    "ledgerBootstrapCreated": false,
+    "disposition": "READ_ONLY_BASELINE_VERIFIED",
+    "currentDatabaseReadPerformed": true,
+    "pgoptions": "-c default_transaction_read_only=on",
+    "migration084Executed": false
+  },
+  "nativeDetailedEvidence": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/B35-R9-final-native-readonly.json",
+    "sha256": "16ce19313ee71cefc7d05c12ed35403a5c0d7235d8342f7d23bca6641687802b"
+  },
+  "nativePostgresqlVersion": "NOT_REPORTED_BY_NATIVE_RECEIPT",
+  "metadataIam": {
+    "ref": {
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-SECRET-VERSION-IAM-20261011-B35-R9.json",
+      "sha256": "448fb4ed3a7f4bf8ce37319f898aa832295b616f22b999585b7d3fa04b6f54d8"
+    },
+    "status": "APPLIED",
+    "mutation": "APPLY_THEN_READBACK",
+    "freshPolicyPair": "PASS",
+    "nativePlanSummary": {
+      "path": "metadata-iam-native-plan-summary.json",
+      "sha256": "65f3e046d3de9b63210d217dbfd9ce843b7c5c1785802cfbf0486eeb01fbf71a",
+      "createCount": 0,
+      "noOpCount": 12
+    }
+  },
+  "nativeIamPlan": {
+    "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/metadata-iam-native-plan-summary.json",
+    "sha256": "65f3e046d3de9b63210d217dbfd9ce843b7c5c1785802cfbf0486eeb01fbf71a"
+  },
+  "worker": {
+    "status": "READY",
+    "schedulerState": "ENABLED",
+    "jobGeneration": "17",
+    "image": "asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-openswx-worker@sha256:330b56d74d6e56f2a789f2f9a18f0ca29960cdebe2954b898bbe5c9f5e4bc601",
+    "resourcesUnchanged": true,
+    "mutationPerformed": false,
+    "readyResourceReadbackRef": {
+      "sha256": "4d7c79d95a73df97bafe19c1030c07308ae55e9f5e894a305bd5415bf73ed414",
+      "uri": "gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/DEV122-PROGRAM-REUSE-20261011-B35-R9-84d9fac900354243-ready-620b13becc38f39639b8a50a.json"
+    }
+  },
+  "candidateSmoke": "PASS",
+  "canonicalAuthenticatedSmoke": "PASS",
+  "credentialRenewal": {
+    "resultEvidence": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/firebase-renewal-r1-result.json",
+      "sha256": "8c13b102ae2ecc5a2838a93c9c2d6a2a8031d759c651365b7f29be76a2a3f14e"
+    },
+    "scope": "SAME_EXISTING_ACCOUNT_AND_EXISTING_SECRET_CONTAINERS",
+    "existingNumericVersion": "8_TO_9",
+    "existingStoreUpdates": 2,
+    "newAccountOrGrant": false,
+    "credentialPayloadIncluded": false,
+    "ownSessionCleanup": "VERIFIED"
+  },
+  "cleanup": {
+    "final-readback-native-closure-r2.json": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/final-readback-native-closure-r2.json",
+      "sha256": "aae9881ec9a135ede55e0556f5457250fd9ff127c548a881ef5ca1a8c4baed00"
+    },
+    "observer-and-dispatch-native-closure-r1.json": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/observer-and-dispatch-native-closure-r1.json",
+      "sha256": "79e1ad0129097a7a6ea3daabbc8f983b7bde0aa3ba68d0c774b5fbf36349088d"
+    },
+    "firebase-renewal-r1-native-closure-r2.json": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/firebase-renewal-r1-native-closure-r2.json",
+      "sha256": "4cb2e88198759fd965a017efc8d32c0c79bf643ee12c39d31cdc2932e00fe756"
+    }
+  },
+  "acceptance": {
+    "wholeDev": "NOT_ACCEPTED",
+    "issueCount": 7,
+    "groupCount": 29,
+    "nativeCad": "USER_PRODUCTION_VALIDATION_PENDING",
+    "supplier": "DISABLED_DEFERRED",
+    "normalBusinessUi": "PENDING_SOURCE_APPLICABILITY_AND_MISSING_CASE_VALIDATION",
+    "releaseSmokeIsBusinessAcceptance": false,
+    "completedA0061AuxiliaryJobRequeued": false
+  },
+  "historyPreservation": {
+    "R8": "PRE_ACTIVATION_ABORTED_PORTAL_401_ORIGINAL_RECEIPTS_PRESERVED",
+    "R6": "ORIGINAL_UNKNOWN_PRESERVED",
+    "terminalCapsuleRedispatch": false,
+    "previousCurrentTextSource": "2600ba2ada8d2adb106ad616c6020d1339328f0e"
+  },
+  "scope": "STATUS_AND_EVIDENCE_ONLY_NO_PRODUCT_SQL_IAM_RESOURCE_OR_DEPLOYMENT_CHANGE"
+}
