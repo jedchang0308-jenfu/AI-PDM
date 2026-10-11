@@ -70,3 +70,18 @@ Synthetic true RED：provider 首次查無 marker、下一次同 scope／window 
 Production inputs／request／receipt／execution log證據只在private bucket／ignored output；不提交公開repo。本slice runtime為有限memory-only Node tests，port=null，QC／build沿用native primary／temp cleanup；node_modules暫時junction及Governor lease由Root於使用結束後精確清理。worktree保留供reviewed owner release續接。
 
 最終 source-only independent QC：gpt-6-luna xhigh 唯讀，P0=0/P1=0；不是provider實測。LOCAL_CONTRACT report DEV117-S1B-20261011T170919280Z-D37FE82F，sourceSnapshotSha256=ee40ffb7ea492edacaa1a5fe9eb3596dd584b74f9cd90806cf9366aa8a8a4415；兩個程式／測試檔於QC後未再修改，本QA及索引結果為執行後後記。Production PAUSED／085與新RD尚未完成的狀態不升格。
+
+
+## FAILED DAILY guarded continuation checkpoint（2026-10-12）
+
+沿用 AI-PDM/DEV-121#rd-capabilities／DEV-122 DAILY dependency；branch codex/dev121-failed-daily-continuation，開發 HEAD 3a6e031c4fdfd01a7a625c404fe6039e194fa84f，與官方 main 2f04c56f2ca531b90584439f2953e415eda0e19d 的 tree byte-equivalent。完整適用 AGENTS 已讀，保留其他 task、canonical dependencies 與私下證據。
+
+實際舊 DAILY attempt 在 selftest 成功後 stdout proof 拒絕，failure recovery 已恢复 exact normal Job，Scheduler PAUSED，原 deadline 過期。完成的 selftest／recovery execution 不能當成新的完整 ordinary bootstrap，也不能借用舊 READY generation。最小修正新增封閉三-ref FAILED continuation：重建 sealed 原 input／failure／prior recovery 證據與 byte-equivalent executable，驗 current PAUSED、精確執行清單及 provider metadata；新 normal drain 提供當下空佇列與60秒quiescence proof，再以 fresh etag／generation及immutable request做一次 selftest PATCH。只沿用原隔離結果，零新selftest run；FAILED association不產生READY、DB admission或quiescence假證據。两个full consumers await同一sealed join；activation後的歷史origin只讀sealed圖，下次ordinary origin synthetic已驗。
+
+聚焦28/28 PASS，含metadata與program-only實際consumer、11類prewrite拒絕、unknown有限run／PATCH／四項GCS寫入adopt、重播零writes及provider／IAM／Secret／execution／時間／metadata篡改拒絕。首次consumer漏傳transport／未await曾真實失敗，修正後通過；未繞過產品guards。activation在fixture為synthetic model，不是實際Cloud owner activation。獨立gpt-6-luna xhigh唯讀QC P0=0/P1=0。
+
+原生QC363/363、另一份test:dev-117:continuous 302/302 PASS，均零skip；重疊分母不相加。catalog3/3、abort6/6、DB boundary22檔、app型別與isolated build PASS（artifact／primary／cleanup=true），原middleware／Edge警告保持。LOCAL_CONTRACT報告 DEV117-S1B-20261011T180319282Z-0ABEE533；sourceSnapshotSha256=5c1812443b3bdfdc0313377b08c6e258ab692bafbb10509407c40eaa7d4d050c。本QA／索引結果為執行後後記，五個程式／測試檔未再修改。本slice不新增migration；RD085仍待原受保護維護發布。
+
+原事故訂閱ACTIVE，OrgMaster RELEASED100%；AI-PDM舊版100%、085 NOT_APPLIED／RD v7 NOT_DEPLOYED，新的pause／bootstrap／fence／migration／candidate／traffic待官方clean source與既有owner續接。兩fixture旧正常login／reload／logout為HUMAN_REPORTED_PASS；新RD能力NOT_RUN，Dani本人DEFERRED_UNVERIFIED，Google正式延遲情境未證，指定parent未刪、不擴張FK清理。Production inputs、payload、logs與readbacks只存private bucket／private本地output；Platform output可能UNTRACKED而非ignored，必須逐檔stage、不得把output加入Git。browser action遭automatic approval拒絕，沒有可讀設定證據支持歸責使用者封鎖。
+
+finite synthetic tests port=null；nativeQC／isolated build本身temp cleanup PASS。Root清理交接的精確node_modules junction與Governor lease，canonical dependencies保留；來源worktree保留供protected release，無app server或本task UI。

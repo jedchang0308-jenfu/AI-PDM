@@ -13,7 +13,7 @@ import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBAC
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan, readPrebuildIamContinuation } from './lib/dev122-openswx-readback-iam.mjs'
 import { canonicalize, sha256, releasePaths } from './lib/dev012-owner-release-runtime.mjs'
 import { OPENSWX_TERRAFORM_ADDRESSES, OPENSWX_TERRAFORM_PATHS, assertWorkerTerraformPlan, parseOpenSwxBootstrapArgs, parseWorkerStdoutMarker, readWorkerStdoutProof, appendReaderCredential, addCredentialVersion, verifyExistingReaderCredentials, executeOpenSwxBootstrap, executeOpenSwxResources, readCurrentReadyWorkerResources, readPausedRepairWorkerResources } from './lib/dev122-openswx-bootstrap.mjs'
-import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, normalizeWorkerTemplate, workerTemplate, workerTemplatePolicy, workerReceipt, workerJobName, workerSchedulerName, readWorkerFullEvidence, readPriorWorkerActivation, runWorkerFinite, updateWorkerJob, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
@@ -2028,3 +2028,20 @@ test('unknown daily descriptor checkpoint retains verified selftest and later ad
   const adopted = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} });
   assert.ok(adopted.refs.fullDescriptorRef); assert.equal(attempts, 1); assert.equal(mutations(), count);
 });
+
+
+test('FAILED DAILY selftest PATCH fences the exact observed normal etag and generation',async()=>{
+  const image=profile.artifactUri+'@sha256:'+'a'.repeat(64),normal=workerTemplate(profile,image,tokenName),selftest=workerTemplate(profile,image,null,'selftest')
+  for(const kind of ['etag','generation','exact']) {
+    const calls=[],job={name:workerJobName(),etag:kind==='etag'?'changed':'expected',generation:kind==='generation'?'20':'19',observedGeneration:kind==='generation'?'20':'19',terminalCondition:{state:'CONDITION_SUCCEEDED'},template:normal,labels:{preserved:'value'}}
+    const transport={request:async(url,options={})=>{
+      calls.push({url,options})
+      if(url.includes('/executions?'))return {executions:[]}
+      if(options.method==='PATCH'){assert.equal(JSON.parse(options.body).etag,'expected');assert.deepEqual(JSON.parse(options.body).labels,{preserved:'value'});job.template=selftest;job.etag='after'}
+      return structuredClone(job)
+    }}
+    const run=()=>updateWorkerJob({transport,profile,template:selftest,expectedCurrentTemplate:normal,expectedCurrentEtag:'expected',expectedCurrentGeneration:'19',deadlineAt:deadline()})
+    if(kind==='exact'){await run();assert.equal(calls.filter(row=>row.options.method==='PATCH').length,1)}
+    else{await assert.rejects(run(),{code:'OPENSWX_JOB_RECOVERY_SOURCE_DRIFT'});assert.ok(calls.every(row=>!row.options.method))}
+  }
+})

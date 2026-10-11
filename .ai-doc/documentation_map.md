@@ -1,5 +1,12 @@
 # AI_PDM 文件地圖
 
+## DEV-121#rd-capabilities — 2026-10-12 FAILED DAILY 接續（本地 QC 通過，未發布）
+
+原 AI-PDM 事故通知訂閱已按指定授權恢復且最新讀回 ACTIVE；不重複建立。PR275 日誌 zero-only bounded readback 已正常合併至官方 main，PR／main required CI PASS。實際前一 DAILY selftest 與 recovery execution 成功、normal Job 已恢復但 Scheduler PAUSED；原 input deadline 已過，沒有新的 bootstrap full／085／RD v7 deployment。已沿原 owner 邊界完成 closed FAILED continuation；聚焦28/28、native QC363/363、另一份continuous 302/302、catalog3/3、abort6/6、DB boundary、app型別與isolated build PASS，分母重疊不相加。獨立Luna source QC P0=0/P1=0。後記與private原生報告見既有驗證入口；required CI、正常merge與Production新input仍待完成，本地PASS不等於Production驗收。契約：[FAILED DAILY](specs/DEV-121-target-authorization-boundary.md#failed-daily-continuation)；驗證入口：[ordinary worker checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)。
+
+兩 fixture 的舊正常登入／Ctrl+R／登出只有 HUMAN_REPORTED_PASS，新的 RD 編輯／送審／核准拒絕仍 NOT_RUN。Dani本人 DEFERRED_UNVERIFIED，Google延遲完成正式情境未證；browser 工具 action 遭 automatic review 拒絕，未獨立讀到設定的持久拒絕狀態，不能把工具拒絕歸責於使用者封鎖。指定歷史 parent 尚未刪除，引用／來源與 read-only 權限阻擋保留，不清 child／cascade／擴權。以下較舊狀態段落保留為歷史，不推定是現在的 worker／發布狀態。
+
+
 
 ## DEV-121#rd-capabilities — 2026-10-11 v7 維護 producer 續接
 
