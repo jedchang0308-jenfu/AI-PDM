@@ -82,6 +82,7 @@ const HANDLING_OPTIONS: Array<{ value: CanonicalHandling; label: string }> = [
 
 type Detail = CanonicalWorkbenchDetailDto;
 type Candidate = { kind: "production" | "rd"; label: string; target: { major: number; minor: number; label: string }; enabled: boolean; reason: string | null; candidateToken: string | null };
+const MAX_PREVIEW_LIST_POLLS = 30;
 const CANONICAL_PREVIEW_STATES = new Set<CanonicalPreviewProjection["state"]>(["ready", "pending", "delayed", "missing", "failed", "unavailable"]);
 
 function validatePreviewMapContract(
@@ -481,6 +482,9 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const [previewByRowKey, setPreviewByRowKey] = useState<Record<string, CanonicalPreviewProjection>>({});
   const [previewCapability, setPreviewCapability] = useState(false);
   const [canManageAttachments, setCanManageAttachments] = useState(false);
+  const [previewPollingStopped, setPreviewPollingStopped] = useState(false);
+  const [previewPollGeneration, setPreviewPollGeneration] = useState(0);
+  const previewPollRef = useRef({ starts: 0, generation: 0, timer: null as number | null });
   const listAbortRef = useRef<AbortController | null>(null);
   const listRequestRef = useRef(0);
   const listPageRef = useRef<{ cursor: string | null; direction: "after" | "before" }>({ cursor: null, direction: "after" });
@@ -675,9 +679,19 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
 
   const load = useCallback(async (cursor?: string | null, direction: "after" | "before" = "after", options?: { background?: boolean }) => {
     const background = options?.background === true;
-    if (background && listAbortRef.current) return;
+    if (background && (listAbortRef.current || previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS)) return;
+    if (!background) {
+      // Only a foreground load opens a fresh budget; payload/effect changes do not.
+      previewPollRef.current.generation += 1;
+      setPreviewPollGeneration(previewPollRef.current.generation);
+      previewPollRef.current.starts = 0;
+      if (previewPollRef.current.timer !== null) window.clearTimeout(previewPollRef.current.timer);
+      previewPollRef.current.timer = null;
+      setPreviewPollingStopped(false);
+      listAbortRef.current?.abort();
+    }
+    const generation = previewPollRef.current.generation;
     const requestId = ++listRequestRef.current;
-    if (!background) listAbortRef.current?.abort();
     const controller = new AbortController();
     listAbortRef.current = controller;
     if (!background) { setLoading(true); setError(""); }
@@ -688,9 +702,10 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     }
     const separator = listUrl.includes("?") ? "&" : "?";
     try {
+      if (background) previewPollRef.current.starts += 1;
       const response = await fetch(cursor ? `${listUrl}${separator}cursor=${encodeURIComponent(cursor)}&direction=${direction}` : listUrl, { cache: "no-store", signal: controller.signal });
       const body = await readJson(response);
-      if (requestId !== listRequestRef.current) return;
+      if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation) return;
       if (!response.ok) {
         const message = errorMessage(body, "清單載入失敗");
         setError(message);
@@ -712,13 +727,26 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (!hasPreviewCapability) { setLayout("list"); replaceLocation({ layout: null }); }
       setNextCursor(result.data.nextCursor); setPreviousCursor(result.data.previousCursor); setContractToken(result.meta.contractToken); setLoading(false);
     } catch (requestError) {
-      if (requestId !== listRequestRef.current || (requestError instanceof Error && requestError.name === "AbortError")) return;
+      if (requestId !== listRequestRef.current || controller.signal.aborted || generation !== previewPollRef.current.generation || (requestError instanceof Error && requestError.name === "AbortError")) return;
       setError("清單載入失敗");
       if (!background) { setGroups([]); setNextCursor(null); setPreviousCursor(null); setPreviewByRowKey({}); setLoading(false); }
     } finally {
-      if (requestId === listRequestRef.current) listAbortRef.current = null;
+      if (requestId === listRequestRef.current) {
+        listAbortRef.current = null;
+        if (background && generation === previewPollRef.current.generation && previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS) setPreviewPollingStopped(true);
+      }
     }
   }, [listUrl, retiredQuery]);
+
+  useEffect(() => () => {
+    // Query replacement/unmount invalidates late results without reopening budget.
+    listRequestRef.current += 1;
+    previewPollRef.current.generation += 1;
+    if (previewPollRef.current.timer !== null) window.clearTimeout(previewPollRef.current.timer);
+    previewPollRef.current.timer = null;
+    listAbortRef.current?.abort();
+    listAbortRef.current = null;
+  }, [load]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -751,31 +779,47 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     return hasPending ? "pending" : hasDelayed ? "delayed" : null;
   }, [groups, previewByRowKey]);
   useEffect(() => {
-    if (!previewCapability || (layout !== "list_3d" && layout !== "preview") || loading || error || !previewPollState) return;
+    if (!previewCapability || (layout !== "list_3d" && layout !== "preview") || loading || error || !previewPollState || previewPollRef.current.starts >= MAX_PREVIEW_LIST_POLLS) return;
+    const generation = previewPollRef.current.generation;
     let active = true;
-    let timer: number | null = null;
+    let inFlight = false;
+    let ownedController: AbortController | null = null;
+    const canPoll = () => active && generation === previewPollRef.current.generation && document.visibilityState === "visible" && previewPollRef.current.starts < MAX_PREVIEW_LIST_POLLS;
     const clearTimer = () => {
-      if (timer !== null) window.clearTimeout(timer);
-      timer = null;
+      if (previewPollRef.current.timer !== null) window.clearTimeout(previewPollRef.current.timer);
+      previewPollRef.current.timer = null;
+    };
+    const schedule = () => {
+      if (!canPoll() || inFlight) return;
+      clearTimer();
+      previewPollRef.current.timer = window.setTimeout(runPoll, previewPollState === "pending" ? 2500 : 5000);
     };
     const runPoll = async () => {
-      if (!active || document.visibilityState !== "visible") return;
-      await load(listPageRef.current.cursor, listPageRef.current.direction, { background: true });
-      if (!active || document.visibilityState !== "visible") return;
-      timer = window.setTimeout(runPoll, previewPollState === "pending" ? 2500 : 5000);
+      clearTimer();
+      if (!canPoll() || inFlight || listAbortRef.current) return;
+      inFlight = true;
+      const request = load(listPageRef.current.cursor, listPageRef.current.direction, { background: true });
+      ownedController = listAbortRef.current;
+      try { await request; }
+      finally {
+        inFlight = false;
+        ownedController = null;
+        if (canPoll()) schedule();
+      }
     };
     const handleVisibilityChange = () => {
       clearTimer();
-      if (document.visibilityState === "visible") void runPoll();
+      if (document.visibilityState === "visible" && !inFlight) void runPoll();
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    timer = window.setTimeout(runPoll, previewPollState === "pending" ? 2500 : 5000);
+    schedule();
     return () => {
       active = false;
       clearTimer();
+      if (ownedController && listAbortRef.current === ownedController) ownedController.abort();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [error, layout, load, loading, previewCapability, previewPollState]);
+  }, [error, layout, load, loading, previewCapability, previewPollGeneration, previewPollingStopped, previewPollState]);
 
   useEffect(() => {
     const handlePopState = () => restoreLocationState();
@@ -1089,6 +1133,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     {error ? <div className="canonical-error" role="alert"><span>{error}</span>{error === "此篩選網址已失效" ? <button type="button" className="secondary-button" onClick={resetRetiredUrl}>清除舊篩選</button> : null}</div> : null}
     <section className="canonical-list" aria-busy={loading}>
       {loading ? <div className="canonical-list-meta" role="status">更新中…</div> : null}
+      {!loading && !error && previewCapability && previewPollState && previewPollingStopped && (layout === "list_3d" || layout === "preview") ? <div className="canonical-list-meta" role="status">預覽尚未就緒，自動刷新已停止；重新載入清單可再查看進度。</div> : null}
       {previewCapability ? <div className="canonical-result-display-bar" data-canonical-result-display-bar><span className="canonical-result-display-label">顯示方式</span><PdmWorkbenchLayoutSwitch value={layout} onChange={changeLayout} disabled={busy} /></div> : null}
       {previewCapability && layout === "preview" ? <CanonicalEntityPreviewGallery
         rows={flatRows}

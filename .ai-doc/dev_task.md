@@ -14,6 +14,8 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 
 補驗進度：五個本機原生 PostgreSQL canonical GET 逾時邊界案例 PASS、獨立 QC 與清理 PASS（146 skipped 不計通過）；正式登入及既有 A0061 輔助屬性展開可讀。2D／3D 預覽仍失敗，進行中動畫未觀察；未改產品程式或再次部署，完整驗收不變。詳見 [R9 業務補驗證據](qa/DEV-122-B35-R9-business-verification-2026-10-11.json)。
 
+B36 局部進度：修正原 F01C 清單無限輪詢與 visibility 雙 timer；foreground 批次換頁、30th abort 停止提示回歸已補。兩個唯一測試檔 25 PASS／source及evidence QC PASS，型別與選定lint PASS；尚未發布或建立 actual UI／HTTP timing 證據。R9 兩個原檔下載 provider200、hash／size與授權來源一致；preview失敗仍保留。[B36checkpoint](qa/DEV-122-B36-bounded-preview-polling-checkpoint-2026-10-11.json)。
+
 下一步核對既有業務證據的來源適用性，補原契約尚缺的正常 UI／API／native 變體。Whole DEV NOT_ACCEPTED、7 issues／29 groups不變；F-01F 原生 CAD 正式驗證由使用者執行，supplier 停用延期，已完成 A0061 輔助工作不重排。唯一施工規則讀 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md)，本段僅維護進度與路由。詳見 [R9 正式發布與唯讀核對](qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)；原 local QC、R8 401／中止及 R6 UNKNOWN 依 [封存接續證據](qa/DEV-122-B35-associated-abort-contract-2026-10-11.json) 與原官方來源保存。
 
 ## DEV-122 HISTORY_ONLY（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
