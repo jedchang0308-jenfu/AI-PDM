@@ -1,0 +1,149 @@
+{
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "slice": "F01C/D05/UI01 bounded list preview polling",
+  "observedAt": "2026-10-11T07:45:28.409250+00:00",
+  "source": {
+    "branch": "codex/dev122-bounded-preview-list",
+    "base": "0f0246c1000862c5b4dd79a6ff27686d95b244c5",
+    "layer": "LOCAL_WORKTREE_SOURCE",
+    "bindings": {
+      "src/components/canonical-pdm-workbench.tsx": "92144cc3b8e0e411cc23067ec614f12456a59e76443433bb2f10a3c3d9e2b1ec",
+      "src/components/canonical-preview-media.dev122.test.tsx": "74dd09c1984aeb2987b8eb654bac8f803f58aad8f4a5197ff267ae24cec69896",
+      "src/components/canonical-pdm-workbench.preview-poll.test.tsx": "91347c7961deff6cca5fda4e4f31882242dcde1b77a1d140ed53c9f9481297fb",
+      "src/components/canonical-preview-media.tsx": "416dccb96cff8aa479ed92d172155f64d366b1ebcd8c74383336e53ca20181a3"
+    }
+  },
+  "behavior": [
+    "30 actual background list GET starts per foreground load episode",
+    "budget survives equivalent payload/visibility/layout/effect replay",
+    "one owned timer and in-flight guard",
+    "foreground generation reopens polling even with batched loading updates",
+    "late response rejection and owned background abort",
+    "stopped feedback after exhausted/aborted thirtieth request"
+  ],
+  "focused": {
+    "status": "PASS",
+    "layer": "IMPORTED_COMPONENT_CAPTURED_HOOK_LIFETIME_UNIT",
+    "passed": 25,
+    "failed": 0,
+    "skipped": 0,
+    "workbenchCases": 12,
+    "mediaCases": 13,
+    "historicalCopyCasesNotCounted": true,
+    "report": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-green-unique-r6.json",
+      "sha256": "4864ac9596b4a7d99c6b65502b43e40321dd82618965f8fd4e7d8ef8d779c321"
+    },
+    "runtimeDeclaration": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-unique-runtime-declared.json",
+      "sha256": "9f85523ab8370aba9f419b28bb20796682b64f25362dbdfdbab0dad7a013968a"
+    },
+    "executionFinal": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-unique-final.json",
+      "sha256": "e3a38cfbd5467b626522e49cee0783525ef2c2c44d021d1584201ec50a7f8bf7"
+    }
+  },
+  "failuresPreserved": [
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-red.json",
+      "sha256": "0b7e1b272234f9d37c0151e5678ffb3b485ed0c115d0bdea0fd373d8ef180c84"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-qc-feedback-red.json",
+      "sha256": "0528be65a8a6fa38af5d943a7a5b90b34e95803becc212315fb3be637e4d33fc"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-foreground-red.json",
+      "sha256": "ed44403e2c07027a209133b66673b3d5f69d761f0018a29a9d361206e9ab90cc"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-green-r1.json",
+      "sha256": "d2689570232087847964cef8700f98c43c8a80df92905d10b1cd619ced382b3b"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-green-r2.json",
+      "sha256": "d63e4b9a90daec9046cf3ceb65e42dbf0344819c0ecec48daeb6adc8a762125b"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B36-poll-green-r5.json",
+      "sha256": "8483a3ad6238caafc416edb1a0679b62a93861604fb40cda1f1da8756ca96f44"
+    }
+  ],
+  "independentQc": {
+    "source": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\b36-poll-source-qc-r3.json",
+      "sha256": "905e92a0256497b419156288d22f598836bdbd2de20d558437f19e948520d092"
+    },
+    "uniqueEvidence": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\b36-poll-unique-evidence-qc-r1.json",
+      "sha256": "8aaaee0edbc3f6806cb2ed6856346874acfcafc24b46e7ba432a673eb64dd07c"
+    },
+    "priorP1": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\b36-poll-source-qc-r1.json",
+      "sha256": "141f959d17d08f41724871c18a022232c054753adec6c67f59b2b0d03bb42c9e"
+    },
+    "priorFixedVersion": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B35-preexecution-qc-draft\\b36-poll-source-qc-r2.json",
+      "sha256": "80544facf9fb5dce2ad38467e31894bc64f7fba7408795129f7e908d51a0fd48"
+    }
+  },
+  "localChecks": {
+    "typecheckApp": "PASS",
+    "selectedLint": {
+      "errors": 0,
+      "warnings": 1,
+      "warning": "Existing internal window.location.assign outside changed responsibility"
+    },
+    "diffCheck": "PASS",
+    "isolatedBuild": "NOT_RUN_LOCAL"
+  },
+  "productionOriginalDownloads": {
+    "source": "2600ba2ada8d2adb106ad616c6020d1339328f0e",
+    "revision": "ai-pdm-prod-99f16f79d877",
+    "layer": "CUA_NORMAL_EXISTING_WORKSPACE_LINKS_PLUS_NATIVE_CLOUD_RUN_REQUEST_LOGS_AND_FILE_HASHES",
+    "actor": "Existing [鉦富]張仕杰 Jed session",
+    "drawing": "A0061-M01",
+    "workId": "bab5c49a-b93f-4f3c-b6c3-abe10df610fa",
+    "files": [
+      {
+        "name": "D-0007-MA1.SLDDRW",
+        "bytes": 145826,
+        "sha256": "4e39ce88825ae14948353b79455daa2bc35c8b97f1c5706810f1ad926c301d09",
+        "httpStatus": 200,
+        "providerTimestamp": "2026-10-11T07:21:03.968547Z",
+        "providerLatency": "0.524528017s",
+        "providerResponseSizeIncludesEnvelope": 146350
+      },
+      {
+        "name": "D-0007-MA1.SLDPRT",
+        "bytes": 193353,
+        "sha256": "695ecccd9f4a6425faef1196b319579a8a5011de26d655baa0509a4f61bfc3e2",
+        "httpStatus": 200,
+        "providerTimestamp": "2026-10-11T07:21:45.934794Z",
+        "providerLatency": "0.552865011s",
+        "providerResponseSizeIncludesEnvelope": 193877
+      }
+    ],
+    "comparison": "Both exact downloaded files match the human-authorized J-folder CAD originals in byte length and SHA256",
+    "responseDisposition": "NOT_INDEPENDENTLY_CAPTURED",
+    "browserScreenshot": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\production\\A34-B35-R9\\release\\r9-original-download-observation.jpg",
+      "sha256": "f6d9d01e3999be85ae020178d146380db287285f0394ce03f7a795e8bdc87ecc"
+    },
+    "previewJobsRequeued": false,
+    "businessMutation": "Original download route performs StorageAccessed audit by design; not a zero-write proof",
+    "previewFailure": "Observed and retained; not converted to ready/terminal API proof"
+  },
+  "remaining": {
+    "newFixProductionDeployment": "NOT_RUN",
+    "newFixMountedUiAndHttpTiming": "NOT_RUN",
+    "nativeCadF01F": "USER_OWNED_PENDING",
+    "supplier": "DISABLED_DEFERRED",
+    "wholeDev": "NOT_ACCEPTED",
+    "issues": 7,
+    "groups": 29,
+    "no084": true,
+    "newIamSecretCloudResources": false
+  }
+}
