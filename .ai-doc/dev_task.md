@@ -3,7 +3,7 @@
 
 ## DEV-121#rd-capabilities — 2026-10-11 v7 維護 producer 續接
 
-OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429在候選驗證失敗，failure handler完成、activate未執行、正式舊版100%維持。第一個實際失敗是候選smoke使用既有憑證v9向Platform建立session，收到401／auth_token_invalid；尚未證明是哪一項token或撤銷規則導致。憑證重新驗證及own Secret相鄰版本續接等待人類範圍確認；不重送失敗capsule、不重建有效inputs。AI-PDM PR #261已整合official main c690d30（integration commit132826391），下一步整合0f0246c的驗收文件／測試更新；fixed B35 fixture只用34-entry alias，普通RD package保持35。新停寫／recovery修正聚焦29/29 PASS，085尚未套用、RD尚未部署及正式驗收。
+OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429在候選驗證失敗，failure handler完成、activate未執行、正式舊版100%維持。第一個實際失敗是候選smoke使用既有憑證v9向Platform建立session，收到401／auth_token_invalid；尚未證明是哪一項token或撤銷規則導致。憑證重新驗證及own Secret相鄰版本續接等待人類範圍確認；不重送失敗capsule、不重建有效inputs。AI-PDM PR #261已整合official main c690d30與0f0246c的DEV-122驗收文件／測試更新；fixed B35 fixture只用34-entry alias，普通RD package保持35。新停寫／recovery修正聚焦29/29 PASS，085尚未套用、RD尚未部署及正式驗收。
 
 施工契約：[DEV-121 target boundary／RD v7 producer](specs/DEV-121-target-authorization-boundary.md)。來源入口：`scripts/dev121-principal-fence-operator.mjs`、`scripts/lib/dev121-principal-fence-operator.mjs`；synthetic驗證：`scripts/lib/dev121-principal-fence-operator.test.mjs`。Production receipts只存own private release bucket／ignored output，不把Production baseline、cleanup證據或密碼帶入public Git。Dani本人延期驗證、RD兩fixture新能力及Google延遲完成實測仍未證；Browser saved permission拒絕及歷史FK阻擋保持，未繞過或擴大刪除。
 
@@ -11,6 +11,8 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 ## DEV-122 CURRENT（B35-R9 已正式發布；業務驗收繼續）
 
 官方來源 2600ba2（PR #266）的 R9 owner [38092446021](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021) 十階段 SUCCESS；正式 ai-pdm-prod-99f16f79d877 承接 100% 流量、零 tags，FINALIZED／RELEASED。正式唯讀核對為 applied 0／replayed 33／ledger 33／NO084；worker generation 17 READY、Scheduler ENABLED。本輪 IAM 計畫 0 create／12 no-op；自有程序與暫存清理 PASS。
+
+補驗進度：五個本機原生 PostgreSQL canonical GET 逾時邊界案例 PASS、獨立 QC 與清理 PASS（146 skipped 不計通過）；正式登入及既有 A0061 輔助屬性展開可讀。2D／3D 預覽仍失敗，進行中動畫未觀察；未改產品程式或再次部署，完整驗收不變。詳見 [R9 業務補驗證據](qa/DEV-122-B35-R9-business-verification-2026-10-11.json)。
 
 下一步核對既有業務證據的來源適用性，補原契約尚缺的正常 UI／API／native 變體。Whole DEV NOT_ACCEPTED、7 issues／29 groups不變；F-01F 原生 CAD 正式驗證由使用者執行，supplier 停用延期，已完成 A0061 輔助工作不重排。唯一施工規則讀 [DEV-122 契約](specs/DEV-122-ai-pdm-internal-function-issues.md)，本段僅維護進度與路由。詳見 [R9 正式發布與唯讀核對](qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)；原 local QC、R8 401／中止及 R6 UNKNOWN 依 [封存接續證據](qa/DEV-122-B35-associated-abort-contract-2026-10-11.json) 與原官方來源保存。
 

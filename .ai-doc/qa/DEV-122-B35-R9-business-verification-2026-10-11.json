@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "aipdm.dev122.b35.r9.business-verification.v1",
+  "project": "AI-PDM",
+  "devId": "DEV-122",
+  "result": "LOCAL_NATIVE_GET_5_PASS_PRODUCTION_AUXILIARY_UI_READABLE_PREVIEW_FAIL_WHOLE_DEV_NOT_ACCEPTED",
+  "releaseSourceAssociation": "2600ba2ada8d2adb106ad616c6020d1339328f0e",
+  "testedHarnessRevision": "88d3b7920e684486dcb10a160dbc2702d796101a",
+  "sourceScope": {
+    "productCodeUnchangedFromRelease": true,
+    "productTestBodiesUnchanged": true,
+    "changedExecutable": "scripts/qc-dev-122-native-postgres.mjs",
+    "harnessSha256": "9890ce4433c6387567ce8ffdfa1cd9d6cadf7bd9f74067dc84d83ce756d091b6",
+    "change": "Closed preview-get-boundaries selector; exactly five required full assertion names; partial F-01D only.",
+    "rootGitReadback": {
+      "head": "88d3b7920e684486dcb10a160dbc2702d796101a",
+      "dirty": false,
+      "canonicalCommonDir": "C:/VIBE CODING/AI_PDM/.git"
+    },
+    "newProductionDeployment": false,
+    "newProviderOrProductionMutation": false
+  },
+  "localNativeGet": {
+    "layer": "Imported canonical GET + signed Principal + disposable native PostgreSQL + local versioned producer seam fixture; not mounted HTTP/browser.",
+    "caseInputs": [
+      [
+        "running",
+        29999,
+        2
+      ],
+      [
+        "running",
+        30001,
+        2
+      ],
+      [
+        "running",
+        30001,
+        3
+      ],
+      [
+        "queued",
+        119999,
+        2
+      ],
+      [
+        "queued",
+        120001,
+        2
+      ]
+    ],
+    "passed": 5,
+    "failed": 0,
+    "skipped": 146,
+    "nativeBusinessExit": 0,
+    "innerHarnessExit": 1,
+    "innerExitMeaning": "PARTIAL_NOT_ACCEPTED because whole DEV acceptance is incomplete; not a native case failure.",
+    "launchProcessExit": 0,
+    "launchExitObservation": "Root exec session 98709, not independently re-executed by QC.",
+    "coverage": "PARTIAL_F-01D",
+    "acceptanceComplete": false,
+    "authorizationMode": [
+      "firebase_bff",
+      "jenfuPlatform=on",
+      "entitlement=enforce"
+    ],
+    "sourceUnchangedDuringRun": true,
+    "manifest": {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/2ddd8695974e80dd/manifest.json",
+      "sha256": "46ddd10cda68f3ef18c80e334b14c2b8a5f701879a70eed3e8e8979335fa2c33"
+    },
+    "vitest": {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/2ddd8695974e80dd/vitest.json",
+      "sha256": "f04dc8626344da31e572382fb5899909dd181cbbf4d1f7ec3be89f5f0548f837"
+    },
+    "wrapperFinal": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-r9-preview-get-r1/final.json",
+      "sha256": "8866b26b6c7de19cb9bfb1285c21171bcff55d8904a347c2002d6ca3246a186a"
+    },
+    "sourceQc": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-preexecution-qc-draft/r9-preview-get-selector-source-qc-r1.json",
+      "sha256": "86b4581aa86f4ed9dc6b0804a7a8face32c466d8f309320fc248c859e93e13b1"
+    },
+    "actualQc": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-preexecution-qc-draft/r9-preview-get-actual-native-qc-r2.json",
+      "sha256": "0ff359e7e6fd124c5d98021b846dbb7ff23d9513890d886d415f6ae742203542"
+    },
+    "qcP0": 0,
+    "qcP1": 0,
+    "qcLimit": "QC checked persisted bytes and joins. Current Git HEAD and launch process exit were owner observations; QC Git read was denied."
+  },
+  "runtimeClosure": {
+    "freshOsReadback": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-r9-preview-get-r1/native-closure-fresh-readback-r1.json",
+      "sha256": "4335b7563ccc2379ee06ed48b26037e44deedb45e36ab2e9d59f6c89c5dac3fc"
+    },
+    "capturedProcessIdentitiesAbsent": 5,
+    "ports": [
+      49539,
+      49540
+    ],
+    "listeners": 0,
+    "directChildrenRemaining": 0,
+    "ownedTempsAbsent": true,
+    "eightPrimarySqlitePathsAbsentBeforeAfter": true,
+    "stopCount": 0,
+    "testsRerunForClosure": false,
+    "credentialEnvironmentInherited": false,
+    "sdkFileCredentialDiscovery": "UNVERIFIED; OS profile paths remain available."
+  },
+  "helperDiagnostic": {
+    "passedAssertions": 5,
+    "acceptanceCases": 0,
+    "layer": "HELPER_DIAGNOSTIC_ONLY",
+    "manifest": {
+      "path": "C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/output/qa/dev-122/3083044e81952242/manifest.json",
+      "sha256": "8160530d194fb5f89b09c78a247252ee1acdafa1c5344f7fe1f2bc0a839762f1"
+    },
+    "actualQc": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-preexecution-qc-draft/r9-preview-diagnostic-actual-qc-r1.json",
+      "sha256": "3ea325ed01137935c2c7ecdb62ec60745c1efac3570a681ea51006c160c9c14c"
+    },
+    "originalClosureFailurePreserved": true,
+    "closure": "Additive exact process/port/source/temp readback passed without rerunning tests; original short TCP-wait failure retained.",
+    "executedLauncherHash": "NOT_RECORDED; later launcher hash/static review is not execution proof."
+  },
+  "productionUi": {
+    "observedAt": "2026-10-11T06:28:56.4107081Z",
+    "actor": "Existing Jed account",
+    "passedStates": [
+      "Visible website login",
+      "Part A0061-P01 detail -> manufacturing matrix A0061-M01 -> Drawing workspace",
+      "Terminal partial auxiliary result expands to stored and effective merged configuration values"
+    ],
+    "preview": "FAIL_OBSERVED: 3D service did not respond; 2D generation failed.",
+    "runningAnimation": "NOT_OBSERVED_TERMINAL_ONLY",
+    "recognitionVerificationPermission": false,
+    "freshProviderReadbackDuringUi": false,
+    "businessWrites": 0,
+    "uploads": 0,
+    "workerDispatches": 0,
+    "ownerReceipt": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/r9-post-login-readonly-ui-verification-r2.json",
+      "sha256": "44445e416242eb3a7ac3a61ad6b64d52ab0337dcf3db5981332db582d38770aa"
+    },
+    "independentEvidenceQc": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/B35-preexecution-qc-draft/r9-post-login-readonly-ui-qc-r1.json",
+      "sha256": "a98768fa57cb5ccd601b27de6aa03d5e5cc611608d72cb685afbc0902ffe1215"
+    },
+    "valuesScreenshot": {
+      "path": "C:/VIBE CODING/AI_PDM/output/qa/dev-122/openswx-phase2/owner-checks/production/A34-B35-R9/release/r9-fresh-workspace-auxiliary-values.jpg",
+      "sha256": "e6be74777a806d305653809e827b8559e094e15edba15d6b981923b48eab8f21"
+    },
+    "uiCleanup": "Fresh verification tab retained for immediate user CAD verification; original workspace retained due possible unsaved state. Root owns eventual cleanup when safe."
+  },
+  "acceptanceLimits": {
+    "wholeDev": "NOT_ACCEPTED",
+    "originalIssues": 7,
+    "originalGroups": 29,
+    "formalGroupAcceptanceAdvanced": false,
+    "F01F": "NOT_RUN_USER_OWNED_PRODUCTION_VALIDATION",
+    "supplier": "DISABLED_DEFERRED",
+    "cadSemantics": "Stored values only; evaluated values, types, linked formulas, pure configuration scope, stream integrity and ground truth not established.",
+    "productionPostgresVersion": "NOT_ESTABLISHED_BY_THIS_LOCAL_POSTGRESQL18_RUN",
+    "producerIntegration": "FIXTURE_NOT_RUN",
+    "migration084Executed": false,
+    "completedA0061AuxiliaryReadRequeued": false
+  },
+  "preservation": "R9 published release/provider receipts, original helper closure failure, UI r1 formatting failure and native QC r1 exit-label evidence remain unchanged. This is additive business evidence only.",
+  "next": "Continue missing original normal UI/API/native variants and preview failure investigation; user performs F-01F production CAD validation. No redundant release of test/document-only changes."
+}
