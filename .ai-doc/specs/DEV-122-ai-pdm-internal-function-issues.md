@@ -1,16 +1,16 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（接續修正 LOCAL_QC_PASS；新官方來源與 R9 正式發布尚待執行）
+## DEV-122 CURRENT（B35-R9 已正式發布；業務驗收繼續）
 
-PR [#265](https://github.com/jedchang0308-jenfu/AI-PDM/pull/265) 已合併至 4e0c7b3d3a40eb34d55d27b15f3b7ece010978f7，required CI／provider source protection PASS。R8 owner [38083507736](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38083507736) prepare／build／migrate／candidate／entrypoint SUCCESS，verify 因 Portal 登入 401／auth_token_invalid 失敗；恢復 SUCCESS，原 B33 服務100%／零tags、worker generation17／Scheduler ENABLED維持。新 native readonly 收據與 association 真正存在：applied0／replayed33／ledger33／bootstrap-created=false，沒有084；native未提供PG版本欄位。R8 PRE_ACTIVATION_ABORTED及R6 UNKNOWN均保留，不重送R8。
+PR [#266](https://github.com/jedchang0308-jenfu/AI-PDM/pull/266) 的官方來源 `2600ba2ada8d2adb106ad616c6020d1339328f0e` 已通過 required PR／main CI 與 provider 來源保護核對。R9 owner [38092446021](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021) 十階段 SUCCESS；正式 `ai-pdm-prod-99f16f79d877` 承接 100% 流量、零 candidate tags，control 為 FINALIZED／RELEASED。候選及正式入口的 authenticated smoke PASS；不代替正常業務或 CAD 驗收。
 
-使用人類已授權的既有本機測試帳號作有限 validate-only：version8刷新 token可驗簽且帳號有效，Portal仍401；同issuer/subject重新密碼登入、兩次stable Principal讀取、own local logout及401撤銷均PASS。沒有更新Secret／GitHub憑證，沒有公開email／password／token／cookie；不是CAD或DEV接受。下一次既有憑證renewal仍使用同帳號、同Secret容器與GitHub environment Secret，不建立帳號、重設密碼或新增grant。
+本次 native 資料庫只讀核對 PASS：applied 0／replayed 33／ledger 33／bootstrap-created false，沒有執行 084；native 收據未提供 PostgreSQL 版本欄位。保留完整來源 manifest 34 與實際 installed prefix 33 的固定 program-only 契約。既有 worker generation 17 READY、Scheduler ENABLED，worker／排程資源沒有修改。本輪限定 IAM 的原生計畫為 0 create／12 no-op，fresh policy readback PASS；不新增授權範圍。
 
-CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1；Architecture Finalized／RD Implementation Ready。只修associated-abort reader與直接回歸tests：current R8 control＋sealed native association原guard保持；只接受一個sealed completed-unassociated R6basis，prepare／authorization／readiness三處全canonical一致，再有限重驗R6→既有一個R4 preexecution祖先→普通B33 RELEASED。歷史control不讀／不合成，原UNKNOWN不改；R8當前兩次完整穩定inventory驗唯一自身execution與exact早於R8下界的R6execution，拒偽造、額外／active／重複execution、祖先source/output漂移及更多遞迴。固定root／depth8／cycle／hash-conflict／source admission保持；source修復與新capsule屬原同任務corrective cycle，不新增人類gate。完成associated READ_ONLY recovery的current入口比較只使用五個必要、型別嚴格核對的語意欄位（ingress／defaultUriDisabled／invokerIamDisabled／uri／sorted urls）；原完整snapshot封存、preexecution與standalone unassociated全值比較，以及current settled／canonical／traffic／scaling／retained-image guards維持。
+已完成同一既有帳號的憑證重新驗證與兩個既有儲存位置更新，numeric version 8→9；自有 session 撤銷及程序／暫存清理 PASS。沒有公開憑證內容或建立帳號。R8 的 Portal 401／PRE_ACTIVATION_ABORTED、R6 原 UNKNOWN 及各次失敗收據保留；不重送舊 terminal capsule，也不改寫歷史結果。
 
-實際exact4e／R8 GET-only RED已重現，修正後真正冷／暖共享opaquecontext／providertrue GREEN PASS：1094GET（757／337）、零providerwrites。Focused18／18（含15個admission負例及入口metadata漂移與五語意欄位漂移）、continuous262／262、aggregate312／312、abort6／6及六項requiredchecks全PASS；isolatedbuild確認原SQLite前後absent不變、artifact／cleanup PASS。獨立Luna事實QC為LOCAL_QC_PASS／P0=0／P1=0。Native cleanup R3 PASS；原PID-only false capture及R2日期coercion錯誤保留，兩個pre-task HP程序未停止，exact finite processes與兩buildtemp均不在。Portable inheritedpositive fixture仍NOT_ESTABLISHED；此正向證據來自真正sealed紀錄。新officialsource／requiredCI、既有8→9憑證renewal及R9 owner發布尚未执行，不能以此local／GET證據宣稱正式發布或wholeDEV PASS。Root唯一產品writer與cleanup owner；同repo DEV-122 worktree，canonical及其他專案不動。FULL34／effective33／fresh readonly33／NO084／worker與Scheduler維持，禁止正式data cleanup或擴張IAM／Secret／雲端資源。Whole DEV NOT_ACCEPTED／7 issues／29 groups；supplier DISABLED_DEFERRED，完整原生CAD正式驗證由使用者執行。
+CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1；Architecture Finalized／RD Implementation Ready。唯一產品 writer 與 cleanup owner 為 root，沿用同 repo DEV-122 worktree，canonical checkout 與其他專案不動。NO084、無正式資料清理、無新增 IAM／Secret／雲端資源範圍維持。Whole DEV NOT_ACCEPTED，原 7 issues／29 groups 不變；supplier DISABLED_DEFERRED，F-01F 完整原生 CAD 正式驗證由使用者執行。
 
-[封存接續修復契約與實際證據](../qa/DEV-122-B35-associated-abort-contract-2026-10-11.json)。
+下一步先核對既有業務證據對目前產品來源的適用性，再補原契約尚缺的正常 UI／API／native 變體；不因 Git SHA 變更重跑未改責任面。已完成的 A0061 輔助解析工作不得重排。詳見 [R9 正式發布與唯讀核對證據](../qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)。先前 CURRENT 原文與 local QC provenance 保留於官方來源 `2600ba2ada8d2adb106ad616c6020d1339328f0e` 及 [接續修復契約](../qa/DEV-122-B35-associated-abort-contract-2026-10-11.json)，不再作未執行發布指令。
 
 ## DEV-122 HISTORY_ONLY（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
 
@@ -214,7 +214,7 @@ Architecture Closure Review已对照兩reader audit、runner／pg及producer/run
 
 B34 source `SOURCE_MERGED / NOT_DEPLOYED`；B35 program-only V1 `IMPLEMENTED / LOCAL_QC_PASS / NOT_DEPLOYED`。下一步依本CURRENT完成protected official source／required CI與fresh capsule發布；不重播B33／已terminal或關閉讀取的舊capsule。下方B33保留原正式收尾，不改其native receipts。正式正常網站與原生CAD完整屬性驗收仍待完成，原生CAD由使用者驗證；supplier停用延期，7 issues／29 groups及whole DEV仍NOT_ACCEPTED。Fixture PASS不作Production PASS。
 
-## DEV-122 DEPLOYED_BASELINE（B33；2026-10-09正式回讀快照）
+## DEV-122 HISTORY_ONLY（B33；2026-10-09正式回讀快照）
 
 PR #253 正常合併來源 `e2e7aaa69d7ca3600203874e0a63d288ac8a1a51`，required PR／main CI SUCCESS；owner [37948779825](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/37948779825) 十階段 SUCCESS。正式 `ai-pdm-prod-b96191914c5d` 已 RELEASED／FINALIZED、100%／零 tags，映像 `sha256:64ccd0b4d44ac81d10a3ec3220bf322dec7e055b980577e01d97b262a4884bf8`。11 sealed receipts、source／build／image／serving provider join 已實際回讀；來源 package33／最高083／不含084，本次0 applied／33 replayed／ledger33。沒有新增 SQL、IAM、資源或 Secret 版本。
 
