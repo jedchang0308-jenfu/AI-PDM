@@ -23,6 +23,6 @@ async function main() {
   const result = await executeOpenSwxBootstrap({ ...args, root, oauthToken, appProfile, transport,
     readSource,
   })
-  process.stdout.write(`${JSON.stringify({ stage: args.stage, ref: result.ref, status: result.value?.facts?.workerStatus ?? result.value?.status })}\n`)
+  process.stdout.write(`${JSON.stringify({ stage: args.stage, ref: result.ref, ...(result.refs ? { refs: result.refs } : {}), status: result.value?.facts?.workerStatus ?? result.value?.status })}\n`)
 }
 main().catch(error => { process.stderr.write(`${error.code ?? 'OPENSWX_OWNER_FAILED'}\n`); process.exitCode = 1 })

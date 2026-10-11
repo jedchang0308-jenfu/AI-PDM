@@ -2452,3 +2452,5 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 ### 2026-10-06 保存草稿收斂（HISTORY_ONLY）
 
 [DEV-121 主線收斂／原稿保存](qa/DEV-121-preserved-workspace-drafts-2026-10-06.md)：RECONCILED_HISTORY_ONLY。相關 runtime 已在 main 或已確認不採用；原始文件與程式 patch 保存供追溯，不是新的待開發或發布指令。本批不改變 DEV-121 正式結案，DEV-122 延期與其他工作樹原稿保留；必要 CI／review 以本文件 PR 精確來源為準。
+
+- [DEV-121 RD v7 ordinary worker evidence checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)：reuse→DAILY_REFRESH→full owner原生descriptor續接、synthetic拒絕與重試、local/Production分界；沿DEV-121#rd-capabilities，依賴DEV-122既有daily worker，非新DEV或B35擴權。

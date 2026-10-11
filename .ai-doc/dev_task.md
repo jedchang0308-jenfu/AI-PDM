@@ -1,6 +1,12 @@
 # AI_PDM 開發任務
 
 
+## DEV-121#rd-capabilities — 2026-10-11 ordinary worker evidence 續接
+
+沿用既有DEV-121，與DEV-122原生daily worker邊界協作；不新增主DEV。相同worker可重用映像時，既有producer只產B35 wrapper，ordinary full35需要的build-only/full descriptor尚未產出。synthetic RED已重現兩個接縫；新增原生current-source daily build-only輸出及DAILY_REFRESH完成後的完整descriptor，保留new pause/drain/bootstrap/preflight、PAUSED／all-terminal／actual selftest與普通owner檢查。B35 closed34/effective33、FIRST及085 fence不放寬。未知descriptor寫入不回退已完成bootstrap；same URI可讀後精確adopt，零重送POST/Job操作。五項新增test＋一項原pipeline聚焦6/6 PASS；獨立Luna只讀review最後P0=0/P1=0，完整gates尚待本輪讀回。
+
+指定OrgMaster事故訂閱已依人類授權原設定native apply＋provider readback完成，numeric smoke v10已APPLIED；OrgMaster後續owner十階段SUCCESS，但fresh sealed canonical/terminal/traffic readback因指定SDK目前reauth失效待續。AI-PDM085尚未APPLIED／RD v7未DEPLOYED；已完成runner及0% static recovery證據私下保存，沒有停寫、重複build或重送owner。完整結果與來源適用性見[ordinary worker checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)。worktree沿用原task-owned checkout與private output，cleanup owner本對話Root；Next step為required CI/official source及原受保護owner續接，兩fixtureRD與本人驗收分開。
+
 ## DEV-121#rd-capabilities — 2026-10-11 v7 維護 producer 續接
 
 OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429在候選驗證失敗，failure handler完成、activate未執行、正式舊版100%維持。第一個實際失敗是候選smoke使用既有憑證v9向Platform建立session，收到401／auth_token_invalid；尚未證明是哪一項token或撤銷規則導致。人類已明確授權OrgMaster既有憑證重新驗證及版本續接；原生流程完成own相鄰v9→v10、GitHub同步、Platform身分reload及局部logout，暫時runtime與port已關閉。候選smoke numeric rotation在apply前因既有事故Pub/Sub訂閱不存在、plan要求create而被保護擋下；獨立APP_INFRA_B診斷通過75地址、僅原訂閱create，其餘read/no-op，實際恢復仍等待明確資源範圍確認。未重送失敗capsule或重建有效inputs。AI-PDM PR #261已整合official main c690d30／0f0246c／0d0235d的DEV-122更新；fixed B35 fixture只用34-entry alias，普通RD package保持35。新停寫／recovery修正聚焦29/29 PASS，085尚未套用、RD尚未部署及正式驗收。
