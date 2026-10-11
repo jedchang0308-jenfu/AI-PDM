@@ -18,7 +18,7 @@
 
 ## RD 圖號能力修正（2026-10-10，CURRENT）
 
-人類明確確認 RD 應能查看與編輯圖號、料號及送審，不能核准。沿用 `AIPDM/DEV-121#rd-capabilities`，不新增主 DEV。AI-PDM 定義角色能力；OrgMaster 發布人員的角色指派與有效期，仍是唯一指派來源。2026-10-11人類圈選相容修改／發布待辦並指示繼續完成，已授權OrgMaster v7 reader/artifact/tests及own protected Production發布。其最新候選驗證在既有憑證v9的Platform session exchange收到401／auth_token_invalid，正式舊版100%維持；own Secret續接另依明確範圍確認，不從跨專案開發授權推定。
+人類明確確認 RD 應能查看與編輯圖號、料號及送審，不能核准。沿用 `AIPDM/DEV-121#rd-capabilities`，不新增主 DEV。AI-PDM 定義角色能力；OrgMaster 發布人員的角色指派與有效期，仍是唯一指派來源。2026-10-11人類圈選相容修改／發布待辦並指示繼續完成，已授權OrgMaster v7 reader/artifact/tests及own protected Production發布。其最新候選驗證在既有憑證v9的Platform session exchange收到401／auth_token_invalid，正式舊版100%維持；人類已另行明確授權own既有發布憑證重新驗證及版本續接；原生v9→v10完成，但候選smoke版本尚未更新，既有事故訂閱缺失使numeric-only plan拒絕create。獨立恢復原訂閱的protected計畫已準備並等待明確資源範圍確認，不從憑證或跨專案開發授權推定其他資源動作。
 
 已證實：正常圖號 workbench 的 GET/list/detail 要求 `page:numbering.drawings.view`，v6 RD 缺少此項，雖有 active typed identity 與有效 RD grant 仍拒絕。料號要求 `page:numbering.search`，RD 原有。圖／料 work 的 `numbering.workspace.create/view/update`、圖號 draft 的 `numbering.draft.update` 及送審 `numbering.candidate.review.submit` 原本已存在；核准 route 要求 `action:approval.request.decide`，RD 沒有，不能將 approval request/batch create 當成 decision 能力。
 

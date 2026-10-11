@@ -48,3 +48,14 @@ OrgMaster現行精確只接受v5/v6；需先取得該repo相容reader+artifact+�
 - 最後分類補修只影響operator錯誤路徑；app typecheck／build inputs未再改，沿用有效證據，最新source仍須required CI。獨立Luna review及最後測試分開記錄，不宣稱Production。
 
 OrgMaster v7 PR #128已合併，但own候選驗證在憑證v9的Platform session exchange 401／auth_token_invalid中止；正式舊版100%維持。原因更細分尚未證實。AI-PDM085 NOT_APPLIED，RD v7 NOT_DEPLOYED；新兩帳號RD驗收與Google延遲正式情境未取得證據，Dani本人DEFERRED_UNVERIFIED，歷史清理FK阻擋且引用刪除不在授權中。
+
+
+## 2026-10-11 reauth 與 latest main 續接
+
+OrgMaster own 原生重新驗證已完成相鄰 v9→v10、既有 GitHub credential 同步、正常 Platform session／兩次 me／局部 logout 後 401；不重設密碼或新建身分。Temporary runtime process／port 已確認關閉。這只證明發布憑證續接，不是 OrgMaster v7 部署或兩個 RD fixture 驗收。
+
+Numeric-only rotation native gate 在 apply 前因既有事故訂閱缺失、計畫要求 create 而拒絕。另一份 readonly APP_INFRA_B diagnostic saved plan 經原生 gate PASS：完整75地址，僅既有訂閱 create，其他 read/no-op；NOT_APPLIED，等待明確資源範圍確認。原始失敗／計畫與 Production readback 留在未提交的私下本機 output，未改寫 sealed receipts；候選仍 pin v9、正式舊版未切流。
+
+PR #261 已無衝突整合 official main 0d0235d 的 preview polling 修正。既有 b0fb092 required CI38120970158 兩項 SUCCESS 保留其原來源範圍；本次整合後 source 另執行 focused regression 與 app typecheck，新 exact head required CI 必須讀回。AI-PDM 085、RD v7部署與本次fixture正常 UI驗收仍 NOT_RUN。
+
+整合後本機驗證：fence17＋recovery library4＋recovery CLI8合計29/29，零skip；merged preview兩檔25/25，零skip；app typecheck PASS。補驗CLI第一次在dependency junction已收尾後啟動，因pg套件無法解析而module-load FAIL；原始log保留，恢復task-owned junction後8/8 PASS，沒有放寬產品guard。測試只用task-owned隔離路徑，dependency junction已移除且canonical依賴保留。這些是本機source回歸，不能替代正式瀏覽器／migration／traffic結果。

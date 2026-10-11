@@ -3,7 +3,7 @@
 
 ## DEV-121#rd-capabilities — 2026-10-11 v7 維護 producer 續接
 
-OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429在候選驗證失敗，failure handler完成、activate未執行、正式舊版100%維持。第一個實際失敗是候選smoke使用既有憑證v9向Platform建立session，收到401／auth_token_invalid；尚未證明是哪一項token或撤銷規則導致。憑證重新驗證及own Secret相鄰版本續接等待人類範圍確認；不重送失敗capsule、不重建有效inputs。AI-PDM PR #261已整合official main c690d30與0f0246c的DEV-122驗收文件／測試更新；fixed B35 fixture只用34-entry alias，普通RD package保持35。新停寫／recovery修正聚焦29/29 PASS，085尚未套用、RD尚未部署及正式驗收。
+OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429在候選驗證失敗，failure handler完成、activate未執行、正式舊版100%維持。第一個實際失敗是候選smoke使用既有憑證v9向Platform建立session，收到401／auth_token_invalid；尚未證明是哪一項token或撤銷規則導致。人類已明確授權OrgMaster既有憑證重新驗證及版本續接；原生流程完成own相鄰v9→v10、GitHub同步、Platform身分reload及局部logout，暫時runtime與port已關閉。候選smoke numeric rotation在apply前因既有事故Pub/Sub訂閱不存在、plan要求create而被保護擋下；獨立APP_INFRA_B診斷通過75地址、僅原訂閱create，其餘read/no-op，實際恢復仍等待明確資源範圍確認。未重送失敗capsule或重建有效inputs。AI-PDM PR #261已整合official main c690d30／0f0246c／0d0235d的DEV-122更新；fixed B35 fixture只用34-entry alias，普通RD package保持35。新停寫／recovery修正聚焦29/29 PASS，085尚未套用、RD尚未部署及正式驗收。
 
 施工契約：[DEV-121 target boundary／RD v7 producer](specs/DEV-121-target-authorization-boundary.md)。來源入口：`scripts/dev121-principal-fence-operator.mjs`、`scripts/lib/dev121-principal-fence-operator.mjs`；synthetic驗證：`scripts/lib/dev121-principal-fence-operator.test.mjs`。Production receipts只存own private release bucket／ignored output，不把Production baseline、cleanup證據或密碼帶入public Git。Dani本人延期驗證、RD兩fixture新能力及Google延遲完成實測仍未證；Browser saved permission拒絕及歷史FK阻擋保持，未繞過或擴大刪除。
 
