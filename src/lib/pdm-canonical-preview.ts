@@ -82,12 +82,60 @@ export function selectCanonicalTwoDSource(
   revisionId: string,
   derivatives: readonly CanonicalTwoDDerivativeReference[] = []
 ) {
-  return rows
-    .filter((row) => row.revisionId === revisionId && (TWO_D_ROLES.includes(row.role as (typeof TWO_D_ROLES)[number]) || TWO_D_EXTENSIONS.has(row.fileExt)))
+  const candidates = rows.filter((row) => row.revisionId === revisionId
+    && (TWO_D_ROLES.includes(row.role as (typeof TWO_D_ROLES)[number]) || TWO_D_EXTENSIONS.has(row.fileExt)));
+  const pdfs = candidates.filter(isCanonicalPdfSource);
+  const primaryPdfs = pdfs.filter((row) => Boolean(row.isPrimary));
+  const preferredPdf = pdfs.length === 1 ? pdfs[0] : primaryPdfs.length === 1 ? primaryPdfs[0] : null;
+  if (preferredPdf) return preferredPdf;
+  // A stable sort is not evidence that one of several PDFs is the main drawing.
+  return candidates
+    .filter((row) => !isCanonicalPdfSource(row))
     .sort((left, right) => twoDSourcePriority(left, derivatives) - twoDSourcePriority(right, derivatives)
       || Number(right.isPrimary) - Number(left.isPrimary)
       || Number(left.sortOrder) - Number(right.sortOrder)
       || left.bindingId.localeCompare(right.bindingId))[0] ?? null;
+}
+
+function isCanonicalPdfSource(source: CanonicalPreviewSourceRow) {
+  return source.fileExt === "pdf" && source.mimeType === "application/pdf";
+}
+
+export type WorkspacePreviewFile = {
+  id: string;
+  role?: string;
+  file_ext?: string;
+  file_name?: string;
+  display_name?: string;
+  mime_type?: string;
+  is_primary?: boolean | number;
+  current_revision_upload?: boolean | number;
+};
+
+export function isWorkspacePdf(file: WorkspacePreviewFile) {
+  const mime = file.mime_type?.split(";", 1)[0].trim().toLowerCase();
+  if (mime) return mime === "application/pdf";
+  return file.file_ext?.toLowerCase().replace(/^\./u, "") === "pdf"
+    || /\.pdf$/iu.test(file.file_name || file.display_name || "");
+}
+
+export function selectWorkspacePreviewSource<T extends WorkspacePreviewFile>(
+  files: readonly T[], kind: "three-d" | "two-d", selectedBindingId?: string
+) {
+  const matchesKind = (file: T) => kind === "three-d"
+    ? file.role === "cad_3d"
+    : file.role !== "cad_3d" && (file.role === "drawing_2d" || file.role === "pdf" || isWorkspacePdf(file));
+  const candidates = files.filter(matchesKind);
+  const current = candidates.filter((file) => Boolean(file.current_revision_upload));
+  const pdfs = kind === "two-d" ? current.filter(isWorkspacePdf) : [];
+  const primaries = pdfs.filter((file) => Boolean(file.is_primary));
+  const requiresChoice = pdfs.length > 1 && primaries.length !== 1;
+  const selected = requiresChoice ? pdfs.find((file) => file.id === selectedBindingId) : null;
+  const preferredPdf = selected ?? (pdfs.length === 1 ? pdfs[0] : primaries.length === 1 ? primaries[0] : null);
+  // Previous-revision files remain references; never label a previous PDF as
+  // the full drawing for the current CAD. Keep the original non-PDF fallback.
+  const fallback = (current.length ? current : candidates).find((file) => !isWorkspacePdf(file)) ?? null;
+  return { file: requiresChoice ? selected ?? null : preferredPdf ?? fallback, pdfs, requiresChoice };
 }
 
 export function resolveCanonicalDrawingPreview(input: {
@@ -212,7 +260,6 @@ function twoDSourcePriority(
     && READY_TWO_D_DERIVATIVE_KINDS.has(derivative.derivativeKind ?? "")
     && !isFakePreview(derivative));
   if (hasCurrentDerivative) return 0;
-  if (source.fileExt === "pdf" && source.mimeType === "application/pdf") return 1;
   const rolePriority = TWO_D_ROLES.indexOf(source.role as (typeof TWO_D_ROLES)[number]);
   return rolePriority >= 0 ? rolePriority + 2 : 5;
 }

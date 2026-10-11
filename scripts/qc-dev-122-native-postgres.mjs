@@ -12,7 +12,7 @@ import { serveSettingsAutomationFixture } from './lib/dev122-settings-automation
 import { loadSeamAllowlist, mapContractQuery, seamVersion } from './lib/dev122-contract-seam.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const nextCopyFiles=['package.json','next.config.mjs','tsconfig.json','tsconfig.app.json','tsconfig.next.json','next-env.d.ts'];
+const nextCopyFiles=['scripts/prepare-dev-082-ocr-assets.mjs','package.json','next.config.mjs','tsconfig.json','tsconfig.app.json','tsconfig.next.json','next-env.d.ts'];
 const nextCopyDirectories=['src','public','db','config','contracts'];
 const previewDiagnosticClock=Date.parse('2026-10-04T05:00:00.000Z');
 const previewDiagnosticInputs=[
@@ -60,7 +60,7 @@ const exactCasePattern=names=>'^('+names.join('|')+')$';
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
 if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-ui-handoff','preview-polling-ui'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','preview-get-boundaries','preview-protocol-gaps'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','preview-get-boundaries','preview-protocol-gaps'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
 const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
@@ -436,6 +436,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.b18DependencyObservation={sourceHash:sha256(traceSource),output:traceOutput,scope:'exact delegated driver query SHA/error code only; parameters and rows omitted',temporaryObserver:tracePath};save();
   }
   if(nativeSelection==='preview-polling-ui')Object.assign(env,{DEV122_BROWSER_FLOW:'preview-polling',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
+  if(nativeSelection==='drawing-pdf-ui')Object.assign(env,{DEV122_BROWSER_FLOW:'drawing-pdf-viewer',DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all'});
   if(['settings','settings-automation'].includes(suite)) {
     // Empty, read-only local settings proof; never inherit a credential/provider or a full-function bypass.
     Object.assign(env,{DEV122_BROWSER_FLOW:suite,DEV122_BROWSER_PREFLIGHT:'0',DEV122_BROWSER_VIEWPORT:'all',
@@ -598,6 +599,11 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
         nextEnv.PDM_WORKLOAD_AUTH_CREDENTIALS=JSON.stringify({schemaVersion:'ai-pdm.workload-credentials.v1',workloads:[{id:workerId,token,purposes:['settings_secret_probe','recognition_heartbeat'],capabilities:['solidworks_document_manager']}]});
         secretAutomationChannel=await serveSettingsAutomationFixture({admin,runtimeRoot,evidenceRoot,origin:env.DEV122_APP_ORIGIN,workerId,token});
         manifest.settingsAutomationBoundary={layer:'ACTUAL_LOCAL_API_NATIVE_PG_CONTROL_FLOW',nativeResult:'SYNTHETIC_FIXTURE_ONLY',keyPayload:'NOT_READ',credentialEndpoint:'NOT_CALLED',nativeCad:'NOT_RUN',workloadCredential:'PARENT_MEMORY_AND_OWN_NEXT_ENV_ONLY'};save();
+      }
+      if(nativeSelection==='drawing-pdf-ui') {
+        const wrapper=path.join(runtimeRoot,'pdf-assets-gated.mjs');
+        fs.writeFileSync(wrapper,`import fs from 'node:fs';import path from 'node:path';const ready=path.join(process.env.DEV122_RUNTIME_ROOT,'governor-child-'+process.pid+'.ready');const deadline=Date.now()+15000;while(!fs.existsSync(ready)){if(Date.now()>deadline)throw new Error('DEV122_PDF_ASSET_GOVERNOR_HANDSHAKE_TIMEOUT');await new Promise(r=>setTimeout(r,50));}if(fs.readFileSync(ready,'utf8')!=='${marker}')throw new Error('DEV122_PDF_ASSET_OWNER_MARKER_MISMATCH');await import(${JSON.stringify(pathToFileURL(path.join(nextCopy.copyRoot,'scripts/prepare-dev-082-ocr-assets.mjs')).href)});`);
+        await child('pdf-assets',[wrapper],{childCwd:nextCopy.copyRoot,childEnv:nextEnv});
       }
       let nextChild=await child('next',[path.join(root,'node_modules/next/dist/bin/next'),'dev','--webpack','--hostname','127.0.0.1','--port',String(nextPort)],
         {wait:false,childCwd:nextCopy.copyRoot,childEnv:nextEnv});

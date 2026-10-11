@@ -12,6 +12,11 @@ export type DrawingPreviewSlotModel = {
   stateTitle: string;
   stateText: string;
   mediaHref: string | null;
+  mediaMimeType?: string | null;
   downloadHref: string | null;
   retryCommandRef: string | null;
 };
+
+export function isPdfPreviewSlot(slot: Pick<DrawingPreviewSlotModel, "kind" | "mediaMimeType" | "fileName">) {
+  return slot.kind === "two-d" && slot.mediaMimeType === "application/pdf";
+}

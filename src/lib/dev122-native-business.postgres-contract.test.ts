@@ -2265,6 +2265,58 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
+    if (process.env.DEV122_NATIVE_SELECTION === "drawing-pdf-ui") {
+      // Two-page protocol PDF proves viewer operation; real sample separately
+      // proves readability. Neither fixture establishes CAD/PDM version pairing.
+      const objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>", "",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>", "",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+      ];
+      for (const [index, page] of [[3, 1], [5, 2]]) {
+        const content = `BT /F1 32 Tf 100 400 Td (PROTOCOL PDF PAGE ${page}) Tj ET\n`;
+        objects[index] = `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}endstream`;
+      }
+      let protocol = "%PDF-1.4\n"; const offsets = [0];
+      objects.forEach((object, index) => { offsets.push(Buffer.byteLength(protocol)); protocol += `${index + 1} 0 obj\n${object}\nendobj\n`; });
+      const xref = Buffer.byteLength(protocol);
+      protocol += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n` + offsets.slice(1).map(offset => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")
+        + `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+      const protocolBytes = Buffer.from(protocol), protocolHash = createHash("sha256").update(protocolBytes).digest("hex");
+      const samplePath = "J:/我的雲端硬碟/02_工作/00_雜項任務(進行中)/20260703 PDM開發/D-0007-MA1.pdf";
+      const sample = await fs.readFile(samplePath), sampleHash = createHash("sha256").update(sample).digest("hex");
+      expect(sampleHash).toBe("82ca40e3583184cf54a071b7e317f306547e86a468949d50c9a8ca471c90b4a0");
+      const sampleCopy = path.join(process.env.DEV122_RUNTIME_ROOT!, "B42-readability.pdf"); await fs.writeFile(sampleCopy, sample);
+      const fixtures = [];
+      for (const width of [1440, 390]) {
+        const label = "PDF" + width;
+        const drawing = await ok<{ drawingNumber: { id: string; drawingNumber: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+          { coreName: "DEV122 " + label + " Drawing", itemKind: "manufactured", structureType: "single_part", drawingRequested: true, drawingPurposeCode: "M" }, 1, "", label + "-drawing")), 201);
+        const work = await db!.queryOne<{ id: string; drawing_id: string }>("SELECT work.id,work.drawing_id FROM drawing_revision_works work JOIN drawings drawing ON drawing.id=work.drawing_id WHERE drawing.formal_drawing_number_id=:id", { id: drawing.drawingNumber.id });
+        expect(work).toBeTruthy(); await uploadNativeProtocolPair(work!.id, label);
+        const jobs = await db!.query<{ id: string; source_file_asset_id: string }>("SELECT job.id,job.source_file_asset_id FROM preview_jobs job JOIN drawing_revision_files file ON file.source_file_asset_id=job.source_file_asset_id JOIN drawing_revision_work_files binding ON binding.file_binding_id=file.id WHERE binding.work_id=:workId ORDER BY job.id", { workId: work!.id });
+        for (const job of jobs) await fixtureMutation("B42 exact protocol CAD terminal input; no CAD renderer", "UPDATE preview_jobs SET status='failed',error_code='dev122_terminal_worker_fault',error_summary='B42 protocol fixture',completed_at=:now WHERE id=:id", { id: job.id, now: new Date().toISOString() });
+        const params = { params: Promise.resolve({ workId: work!.id }) };
+        const before = await db!.query("SELECT * FROM preview_jobs ORDER BY id");
+        const state = await ok<Work>(await readDrawingWork(request("/api/pdm/drawing-revision-works/" + work!.id), params));
+        const form = new FormData(); form.set("file", new File([new Uint8Array(protocolBytes)], "B42-protocol.pdf", { type: "application/pdf" }));
+        const uploaded = await ok<{ data: { file: { id: string; sourceFileAssetId: string } } }>(await uploadDrawingFile(new Request("https://ai-pdm.test/api/pdm/drawing-revision-works/" + work!.id + "/files", {
+          method: "POST", headers: { cookie: "__session=" + ownerToken, "if-match": String(state.data.rowVersion), "x-pdm-workbench-contract": state.meta.contractToken, "idempotency-key": label + "-pdf" }, body: form }), params));
+        const assetId = uploaded.data.file.sourceFileAssetId, bindingId = uploaded.data.file.id;
+        const response = await readCanonicalFile(request(`/api/pdm/file-assets/${assetId}?context=drawing_revision_work&contextId=${work!.id}&bindingId=${bindingId}&preview=1`), { params: Promise.resolve({ fileAssetId: assetId }) });
+        expect(response.status).toBe(200); expect(response.headers.get("content-type")).toBe("application/pdf"); expect(response.headers.get("cache-control")).toMatch(/private.*no-store/u);
+        expect(createHash("sha256").update(Buffer.from(await response.arrayBuffer())).digest("hex")).toBe(protocolHash);
+        expect(await db!.query("SELECT * FROM preview_jobs ORDER BY id")).toEqual(before);
+        fixtures.push({ width, height: width === 1440 ? 900 : 844, flow: "drawing-pdf-viewer", drawingId: work!.drawing_id, drawingWorkId: work!.id, drawingNumber: drawing.drawingNumber.drawingNumber,
+          terminalAssetIds: jobs.map(job => job.source_file_asset_id), pdf: { assetId, bindingId, hash: protocolHash, bytes: protocolBytes.length, pages: 2, producerBoundary: "PROTOCOL_PDF_FIXTURE" },
+          readability: { path: sampleCopy, hash: sampleHash, bytes: sample.length, pages: 1, cadVersionPairing: "NOT_PROVEN" } });
+      }
+      expect(createHash("sha256").update(await fs.readFile(samplePath)).digest("hex")).toBe(sampleHash);
+      await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(fixtures));
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "B42-native-pdf-inputs.json"), JSON.stringify({ fixtures, sampleUnchanged: true, pdfGetEnqueues: 0, production: "NOT_RUN" }, null, 2));
+      return;
+    }
     if (["preview-ui-handoff", "preview-polling-ui"].includes(process.env.DEV122_NATIVE_SELECTION!)) {
       const inputs: Array<Record<string, unknown>> = [];
       for (const state of ["pending", "delayed", "terminal"] as const) {

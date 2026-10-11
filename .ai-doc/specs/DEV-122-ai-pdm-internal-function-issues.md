@@ -28,6 +28,18 @@ Root 為唯一產品 writer，TL 只寫本 spec。精確新增產品責任面為
 
 使用思考習慣：#問題拆解、#可驗證性、#證據品質
 
+### 2026-10-12 B42：CAD＋同版本 PDF 完整圖面（RD Implementation Ready；LOCAL_QC_PASS_PENDING_OFFICIAL_RELEASE）
+
+人類已接受「CAD＋同版本 PDF，系統自動優先顯示 PDF」，要求尺寸與註記可讀。Root 唯一產品 writer，Luna readonly QA／QC；同 repo 工作樹 codex/dev122-b42-full-pdf 從 58dc449a 起步。B41 儲存 PNG 候選另存本地 WIP db22018d，不納入本階段；其 Linux 編譯因套件下載逾時仍 NOT_RUN，不算完整圖面。
+
+最小責任面：既有 pdm-canonical-preview.ts 的當前 revision PDF 優先序與純 workspace chooser；canonical-drawing-change-workspace.tsx 的 current_revision_upload 限制、context-scoped PDF 選擇；canonical-preview-media.tsx 的 fullPdf MIME/header guard、自有 fetch／bytes 清理及新 pdf-document-viewport.tsx；後者不 fetch，僅持有自己的 PDF loading/render/resize task，DPR≤2、單 canvas edge≤8192/pixels≤16Mi，超限降低 backing resolution 保留完整 CSS 頁面，stopAtErrors=true，舊 RenderTask cancel並settle後才重用 canvas；canonical-pdm-workbench.tsx 的 fullPdf 標記，以及既有 pdm-canonical-workbench.ts／pdm-entity-detail-contract.ts 的 optional mediaMimeType（綁定選定 source／derivative，不使用 displayName 副檔名），以及 globals.css 的 PDF 工具列與內部捲動。直接相關 tests 與既有 DEV122 QA runner 可窄補；不改 API 授權／路由、資料庫、queue、worker、dependencies、IAM、Secret、雲端資源或 release policy。source PDF 的 preview=1 已由 actual resolver 直接回原檔，仍保留 Principal/context/binding/hash/storage audit；不把檔名視為 CAD 配對證明。
+
+驗收：同一 revision 的單一 source PDF／唯一 primary PDF 優先於 PNG 縮圖；canonical 多 PDF 無唯一 primary 不猜配對，回退既有非 PDF/CAD 來源；workspace 只自動選 current_revision_upload 的 PDF，不借前版 PDF。單一 PDF／唯一 primary PDF 自動選；多 PDF 且無唯一 primary 才提供一次可鍵盤操作的選擇，選擇只在目前 work/revision/review context 有效，不改 CAD primary 角色。一般 PDF 使用既有 pdfjs-dist／worker 的 PdfDocumentViewport，所有真實 numPages 可達，頁碼／換頁／縮放／符合寬度控制在窄版也可見，當頁 canvas 與內部 scroll，不被外層 link 攔截；已知 fullPdf 不接受 PNG 降級成完整圖面。辨識證據保持原精確單頁／定位。unmount／source switch abort 自有 fetch、拒舊完成、回收自有 blob URL，既有 30 次 retry 上限維持。
+
+證據分層：純 source chooser、captured React hooks、型別／lint；isolated native Next／PG 的受保護 PDF bytes/binding/job inventory；desktop1440×900／narrow390×844 實際 PDF 控制、鍵盤、錯誤、切換／cleanup。B42 iframe R1清單selector FAIL、R2桌面頁2與zoom已有實證但390原生controls隱藏FAIL，均保存原始證據／cleanup，不重判PASS；因此採既有PDF引擎做同範圍修復。兩頁 protocol PDF 只證多頁操作；授權 D-0007-MA1.pdf 是一頁可讀性樣本，SHA82ca40e3583184cf54a071b7e317f306547e86a468949d50c9a8ca471c90b4a0，尚未證 CAD/PDM 同版配對。不能以 iframe 存在、unit PASS 或 PDF 缩圖宣稱 actual full viewer／CAD 驗收 PASS。owner 正式 freeze 期間僅本地施工，無 push/main merge/prod requests。原 B38 formal FAIL／B40 FAIL 保留；NO084、supplier DISABLED_DEFERRED、F-01F USER_OWNED_FORMAL_PENDING_NOT_PASS、7 issues／29 groups及 whole NOT_ACCEPTED 不變。
+
+本地收斂：[B42 checkpoint](../qa/DEV-122-B42-full-pdf-local-checkpoint-2026-10-12.json)綁定 59／59 聚焦、typecheck／lint／isolated build、R6 native1／browser2與Root實際像素可讀性，獨立Luna P0=0／P1=0／P2=0。R6後僅兩產品timer清理與兩tests修改，其他15路徑保持；正常render證據適用，失敗路徑另由fake timers覆蓋。原始pending可讀性收據不回填；新的Root review只證授權sample，未證CAD同版配對或native CAD。全頁單canvas完整、窄版內捲動與尺寸／中文註記可讀；原 FAIL、primary absence與task-owned cleanup證據均保留。正式owner freeze仍遵守；尚未push、合併或部署。本地程式完成不替代whole DEV或使用者正式驗收。
+
 ## DEV-122 HISTORY_ONLY（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
 
 PR [#264](https://github.com/jedchang0308-jenfu/AI-PDM/pull/264) 已合併至 94173727eb8f963809e892b475874220d4072b7f，PR／main required CI 與 provider branch-protection readback PASS。R6 protected owner [38076494472](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38076494472) prepare／build SUCCESS；migrate 對 Cloud Run Execution 回傳省略的兩個 Cloud SQL mount 欄位誤判而停止，candidate／traffic SKIPPED。實際唯一 native execution 已完成只讀 PASS：applied0／replayed33／ledger33，沒有084；此 native 收據沒有 PostgreSQL 版本欄位。原 terminal 的 UNKNOWN／currentDatabaseReadPerformed=false 保持原樣，沒有 migrate association，不將後續觀察回填成原發布成功，也不重送 R6 capsule。Provider 回讀確認 B33 舊服務100%／零tag、worker generation17 READY與Scheduler ENABLED維持。

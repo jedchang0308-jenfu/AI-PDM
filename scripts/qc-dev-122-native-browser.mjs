@@ -19,9 +19,10 @@ const fixtures=JSON.parse(fs.readFileSync(path.join(runtime,'browser-fixtures.js
 assert.deepEqual(fixtures.map(item=>item.width),[1440,390]);
 const viewportSelection=process.env.DEV122_BROWSER_VIEWPORT??'all';assert.ok(['all','390'].includes(viewportSelection),'DEV122_BROWSER_VIEWPORT_REJECTED');
 const selectedFixtures=fixtures.filter(item=>viewportSelection==='all'||item.width===390);
-const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
+const flowSelection=process.env.DEV122_BROWSER_FLOW??'full';assert.ok(['full','attachments','lifecycle','settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection),'DEV122_BROWSER_FLOW_REJECTED');
 const automationPhase=process.env.DEV122_SETTINGS_AUTOMATION_PHASE??'submit';assert.ok(['submit','readback'].includes(automationPhase));
-const boundedSettingsFlow=['settings','settings-automation','preview-polling'].includes(flowSelection);
+const boundedSettingsFlow=['settings','settings-automation','preview-polling','drawing-pdf-viewer'].includes(flowSelection);
+const installedChromeFlow=['preview-polling','drawing-pdf-viewer'].includes(flowSelection);
 const output=path.join(root,'output','playwright','dev122',path.basename(runtime));fs.mkdirSync(output,{recursive:true});
 const receipt={project:'AIPDM',scope:'REAL_BUSINESS_NATIVE_PG_WITH_LOCAL_VERSIONED_CONTRACT_SEAM',producerBoundary:'FIXTURE',
   production:'NOT_RUN',selection:{requested:viewportSelection,flow:flowSelection,skippedFlows:flowSelection!=='full'?['previous creation/matrix/first-release/terminal-gallery/attachment receipts require source applicability review']:[],selectedWidths:selectedFixtures.map(item=>item.width),skippedWidths:fixtures.filter(item=>!selectedFixtures.includes(item)).map(item=>item.width)},runtime:{origin,taskRoot:runtime,purpose:'DEV122 actual Next normal UI',port:Number(url.port),
@@ -89,11 +90,11 @@ async function settingsAwait(stage,operation,viewport=null) {
 try {
   const browserTemp=path.join(runtime,flowSelection==='settings-automation'?'browser-temp-'+automationPhase:'browser-temp');fs.mkdirSync(browserTemp);
   process.env.TEMP=browserTemp;process.env.TMP=browserTemp;
-  receipt.browserDeclaration={project:'AIPDM',purpose:'DEV122 task-owned browser and local Playwright websocket',headless:flowSelection!=='preview-polling',channel:flowSelection==='preview-polling'?'chrome':'bundled-chromium',windowPosition:flowSelection==='preview-polling'?'-32000,-32000':null,
+  receipt.browserDeclaration={project:'AIPDM',purpose:'DEV122 task-owned browser and local Playwright websocket',headless:!installedChromeFlow,channel:installedChromeFlow?'chrome':'bundled-chromium',windowPosition:installedChromeFlow?'-32000,-32000':null,
     port:await freePort(),TEMP:browserTemp,PDM_DATA_DIR:process.env.PDM_DATA_DIR,PDM_REPOSITORY_DIR:process.env.PDM_REPOSITORY_DIR,
     owningProcessTree:{parent:process.pid,chromium:null},websocketController:identity(process.pid),
     cleanupCondition:'Close own contexts/browserServer; verify fingerprint dead and port released'};save();
-  browserServer=await chromium.launchServer({headless:flowSelection!=='preview-polling',channel:flowSelection==='preview-polling'?'chrome':undefined,args:flowSelection==='preview-polling'?['--window-position=-32000,-32000']:[],host:'127.0.0.1',port:receipt.browserDeclaration.port});
+  browserServer=await chromium.launchServer({headless:!installedChromeFlow,channel:installedChromeFlow?'chrome':undefined,args:installedChromeFlow?['--window-position=-32000,-32000']:[],host:'127.0.0.1',port:receipt.browserDeclaration.port});
   const alias=identity(browserServer.process().pid);receipt.browserDeclaration.powerShellAlias=alias;save();
   const native=nativeProcessState(alias.pid);receipt.browserDeclaration.nativeFingerprint=native;save();
   assert.equal(native.state,'running','NATIVE_BROWSER_NOT_RUNNING');
@@ -264,7 +265,7 @@ try {
         bodyWidth:document.body.scrollWidth,matrix:document.querySelector('.part-number-matrix-scroll')?
           {clientWidth:document.querySelector('.part-number-matrix-scroll').clientWidth,scrollWidth:document.querySelector('.part-number-matrix-scroll').scrollWidth}:null}));
       overflowMetrics.push({name,...metrics});assert.ok(metrics.documentWidth<=metrics.viewport+1,'UNEXPECTED_OUTER_HORIZONTAL_OVERFLOW');
-      await page.screenshot({path:path.join(output,`${fixture.width}-${name}.png`),fullPage:true});};
+      await page.screenshot({path:path.join(output,`${fixture.width}-${name}.png`),fullPage:!name.startsWith("PDF-")});};
     const exercisePartAttachments=async(partNumber,partId)=>{
       await page.waitForURL(location=>location.pathname==='/parts/'+partNumber+'/attachments');
       const attachmentBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aSf8AAAAASUVORK5CYII=','base64');
@@ -300,6 +301,52 @@ try {
     try {
       if(boundedSettingsFlow)await settingsAwait('normal home',()=>page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:30000}),fixture.width);
       else await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+      if(flowSelection==='drawing-pdf-viewer') {
+        assert.equal(fixture.flow,'drawing-pdf-viewer');
+        const evidence={viewport:fixture.width,layer:'ACTUAL_NATIVE_NEXT_PG_AND_PDFJS_CANVAS',pdf:fixture.pdf,readability:fixture.readability,operations:[],status:'RUNNING'};
+        receipt.fullPdfReadbacks??=[];receipt.fullPdfReadbacks.push(evidence);save();
+        await page.locator('.clean-workbench-list').getByRole('link',{name:'圖號工作台',exact:true}).click();
+        await page.waitForURL(location=>location.pathname==='/numbering/drawings');
+        await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.drawingNumber);
+        const row=page.locator('tr[data-canonical-workbench-row="true"].is-rd').filter({hasText:fixture.drawingNumber});await row.waitFor({state:'visible'});
+        await row.getByRole('button',{name:fixture.drawingNumber,exact:true}).click();
+        const pdfResponse=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/file-assets/'+fixture.pdf.assetId&&new URL(response.url()).searchParams.get('bindingId')===fixture.pdf.bindingId&&new URL(response.url()).searchParams.get('context')==='drawing_revision_work'&&new URL(response.url()).searchParams.get('contextId')===fixture.drawingWorkId);
+        await page.getByRole('button',{name:'進行編輯',exact:true}).click();await page.waitForURL('**/numbering/drawings/**/workspace?**');
+        const response=await pdfResponse,bytes=await response.body();assert.equal(response.status(),200);assert.equal(response.headers()['content-type'],'application/pdf');assert.match(response.headers()['cache-control'],/private.*no-store/u);assert.equal(createHash('sha256').update(bytes).digest('hex'),fixture.pdf.hash);
+        evidence.protectedGet={url:response.url(),status:response.status(),mime:response.headers()['content-type'],cacheControl:response.headers()['cache-control'],bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};save();
+        const viewer=page.locator('[data-preview-full-pdf="true"] .dev122-pdf-document');
+        const ready=async(expectedPage,count=2)=>{await viewer.locator('canvas').waitFor({state:'visible'});await page.waitForFunction(({number,total})=>{const node=document.querySelector('[data-preview-full-pdf="true"] .dev122-pdf-document');return node?.getAttribute('data-pdf-render-state')==='ready'&&node.getAttribute('data-pdf-page')===String(number)&&node.getAttribute('data-pdf-page-count')===String(total);},{number:expectedPage,total:count},{timeout:60000});};
+        await ready(1);assert.equal(await page.locator('[data-preview-full-pdf="true"]>a canvas').count(),0);
+        evidence.canvas=await viewer.locator('canvas').evaluate(node=>({width:node.width,height:node.height,cssWidth:node.clientWidth,cssHeight:node.clientHeight}));assert.ok(evidence.canvas.width>100&&evidence.canvas.height>100);await screenshot('PDF-protocol-full-viewer');save();
+        const selector=viewer.getByRole('spinbutton',{name:'PDF 頁碼',exact:true});await selector.waitFor({state:'visible'});
+        await viewer.getByRole('button',{name:'下一頁',exact:true}).focus();await page.keyboard.press('Enter');await ready(2);assert.equal(await selector.inputValue(),'2');evidence.operations.push({operation:'last-page',value:2,actualCanvasControl:true});await screenshot('PDF-protocol-page-2');
+        const zoom=viewer.getByRole('button',{name:'放大',exact:true});await zoom.focus();await zoom.press('Enter');await page.waitForFunction(()=>document.querySelector('.dev122-pdf-document')?.getAttribute('data-pdf-zoom')==='1.25');await ready(2);evidence.operations.push({operation:'zoom-in',value:1.25,actualKeyboardControl:true});await screenshot('PDF-protocol-zoom');
+        await selector.fill('1');await selector.fill('2');await selector.fill('1');await ready(1);evidence.operations.push({operation:'rapid-page-switch',finalPage:1});
+        await viewer.getByRole('button',{name:'符合寬度',exact:true}).click();await ready(1);assert.equal(await viewer.getAttribute('data-pdf-zoom'),'1');evidence.operations.push({operation:'fit-width',value:1});save();
+        // Upload the authorized one-page sample through the ordinary workspace.
+        const sample=fs.readFileSync(fixture.readability.path);assert.equal(createHash('sha256').update(sample).digest('hex'),fixture.readability.hash);
+        await page.locator('.dev079-workspace-file-upload input[type="file"]').setInputFiles({name:'D-0007-MA1.pdf',mimeType:'application/pdf',buffer:sample});
+        const upload=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/drawing-revision-works/'+fixture.drawingWorkId+'/files'&&response.request().method()==='POST');
+        await page.getByRole('button',{name:'上傳所選檔案',exact:true}).focus();await page.keyboard.press('Enter');const uploadResponse=await upload,uploadBody=await uploadResponse.json();assert.equal(uploadResponse.status(),200,JSON.stringify(uploadBody));
+        const selected=page.getByRole('combobox',{name:'本版次 PDF 圖面',exact:true});await selected.waitFor({state:'visible'});assert.equal(await selected.inputValue(),'');
+        const sampleAsset=uploadBody.data.file.sourceFileAssetId,sampleBinding=uploadBody.data.file.id;assert.ok(sampleAsset&&sampleBinding);
+        const sampleResponse=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/file-assets/'+sampleAsset&&new URL(response.url()).searchParams.get('bindingId')===sampleBinding&&new URL(response.url()).searchParams.get('context')==='drawing_revision_work'&&new URL(response.url()).searchParams.get('contextId')===fixture.drawingWorkId);
+        assert.equal(await viewer.count(),0,'AMBIGUOUS_PDF_MUST_UNMOUNT_PREVIOUS_RENDERER');
+        await selected.focus();await selected.selectOption(sampleBinding);const sampleRead=await sampleResponse,sampleBytes=await sampleRead.body();assert.equal(sampleRead.status(),200);assert.equal(createHash('sha256').update(sampleBytes).digest('hex'),fixture.readability.hash);
+        await ready(1,1);await screenshot('PDF-readable-sample-fit');
+        const targetZoom=fixture.width<600?4:2;for(let zoomValue=1;zoomValue<targetZoom;zoomValue+=0.25)await viewer.getByRole('button',{name:'放大',exact:true}).click();
+        await page.waitForFunction(value=>document.querySelector('[data-preview-full-pdf="true"] .dev122-pdf-document')?.getAttribute('data-pdf-zoom')===String(value),targetZoom);await ready(1,1);
+        await screenshot('PDF-readable-sample');await ready(1,1);
+        const canvasPixels=await viewer.locator('canvas').evaluate(node=>({png:node.toDataURL('image/png'),width:node.width,height:node.height,cssWidth:node.clientWidth,cssHeight:node.clientHeight}));
+        assert.ok(canvasPixels.width<=8192&&canvasPixels.height<=8192&&canvasPixels.width*canvasPixels.height<=16*1024*1024);
+        const renderedPng=Buffer.from(canvasPixels.png.split(',',2)[1],'base64');fs.writeFileSync(path.join(output,`${fixture.width}-PDF-readable-canvas.png`),renderedPng);
+        evidence.renderedSample={width:canvasPixels.width,height:canvasPixels.height,cssWidth:canvasPixels.cssWidth,cssHeight:canvasPixels.cssHeight,pngSha256:createHash('sha256').update(renderedPng).digest('hex'),layer:'ACTUAL_PDFJS_CANVAS_PIXELS'};
+        const scroll=viewer.locator('.dev122-pdf-scroll');await scroll.evaluate(node=>{node.scrollLeft=node.scrollWidth*0.22;node.scrollTop=node.scrollHeight*0.22;});
+        await screenshot('PDF-readable-sample-pan');evidence.operations.push({operation:'sample-pan',...(await scroll.evaluate(node=>({left:node.scrollLeft,top:node.scrollTop,scrollWidth:node.scrollWidth,scrollHeight:node.scrollHeight,clientWidth:node.clientWidth,clientHeight:node.clientHeight})))});
+        await viewer.getByRole('button',{name:'符合寬度',exact:true}).click();await ready(1,1);await screenshot('PDF-readable-sample-final-fit');evidence.readabilityGet={url:sampleRead.url(),sha256:createHash('sha256').update(sampleBytes).digest('hex'),bindingId:sampleBinding,cadPairing:'NOT_PROVEN'};
+        evidence.status='PARTIAL_PENDING_VISUAL_READABILITY_REVIEW';save();
+        receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'drawing-pdf-viewer',layer:'NATIVE_PDFJS_VIEWER_CONTROLS',nativeCad:'NOT_RUN',readability:'MANUAL_VISUAL_REVIEW_PENDING',requests,overflowMetrics,navigationRoutes});save();continue;
+      }
       if(flowSelection==='settings-automation') {
         assert.equal(fixture.flow,'settings-automation');
         const control=async action=>{

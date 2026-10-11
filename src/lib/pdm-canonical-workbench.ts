@@ -581,12 +581,12 @@ function canonicalPreviewSlot(
     return { kind, title, fileName: resolved.media?.fileName ?? (source.displayName || source.fileName), state, stateTitle: state === "ready" ? "預覽已就緒" : state === "queued" ? "等待預覽服務" : state === "delayed" ? "預覽服務未回應" : state === "failed" ? "預覽產生失敗" : state === "missing" ? "預覽尚未建立" : "預覽暫時無法顯示", stateText: text, mediaHref: resolved.media?.href ?? null, downloadHref: readHref, retryCommandRef: null };
   }
   if (kind === "two-d" && source.fileExt === "pdf" && source.mimeType === "application/pdf") {
-    return { kind, title, fileName: displayName, state: "ready", stateTitle: "PDF 預覽已就緒", stateText: "直接使用受控 PDF 原檔顯示。", mediaHref: appendQuery(readHref, "preview", "1"), downloadHref: readHref, retryCommandRef: null };
+    return { kind, title, fileName: displayName, state: "ready", mediaMimeType: source.mimeType, stateTitle: "PDF 預覽已就緒", stateText: "直接使用受控 PDF 原檔顯示。", mediaHref: appendQuery(readHref, "preview", "1"), downloadHref: readHref, retryCommandRef: null };
   }
   const accepted = new Set(["drawing_pdf", "sheet_png", "thumbnail_png"]);
   const derivative = derivatives.find((item) => item.sourceFileAssetId === source.assetId && item.sourceContentHash === source.contentHash && accepted.has(item.derivativeKind));
   if (derivative) {
-    return { kind, title, fileName: displayName, state: "ready", stateTitle: "預覽已就緒", stateText: "可直接開啟預覽。", mediaHref: appendQuery(readHref, "previewDerivative", derivative.id), downloadHref: readHref, retryCommandRef: null };
+    return { kind, title, fileName: displayName, state: "ready", stateTitle: "預覽已就緒", stateText: "可直接開啟預覽。", mediaHref: appendQuery(readHref, "previewDerivative", derivative.id), mediaMimeType: derivative.mimeType, downloadHref: readHref, retryCommandRef: null };
   }
   const job = jobs.find((item) => item.sourceFileAssetId === source.assetId && item.sourceContentHash === source.contentHash);
   if (job?.status === "running") {

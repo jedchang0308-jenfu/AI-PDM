@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "DEV122.B42.local-checkpoint.v1",
+  "project": "AI-PDM",
+  "task": "DEV-122",
+  "date": "2026-10-12",
+  "status": "LOCAL_QC_PASS_PENDING_OFFICIAL_RELEASE",
+  "wholeDevStatus": "NOT_ACCEPTED",
+  "source": {
+    "branch": "codex/dev122-b42-full-pdf",
+    "baseHead": "58dc449a0c771a33f6d17188ae1a9a5dda276ff0",
+    "ownedCodeHashes": {
+      "scripts/qc-dev-122-native-browser.mjs": "acd51b72bfafde1dd5af59c4b28fca40c7d042ba33b1e447931e5b78b99fa6ae",
+      "scripts/qc-dev-122-native-postgres.mjs": "dfe4849d331f984c33be0a829be3cdf26e2eabe90fed9a5219f2defd8bc012cc",
+      "src/app/globals.css": "0f9f629bb3a10d5b6cd0173af8503b013cecf0ef3e6128b2b35d229a32cbee7a",
+      "src/components/canonical-drawing-change-workspace.tsx": "43ba8523f8ac01f39c3cc55144b0032918b7d86edd33c1e77a91a5d528fd8d64",
+      "src/components/canonical-pdm-workbench.tsx": "be64f9adf146e530a14d6cda31d094c89e5890e55e30f5f4c36c14d3b2b12050",
+      "src/components/canonical-preview-media.dev122.test.tsx": "70d25a4b530516bce55d8041515bb7ae6373b566728e9d55ef4aa71249636cdb",
+      "src/components/canonical-preview-media.pdf.test.tsx": "54704008087df3060b774c75120cf47ccc1b0b4c59a0c5e7c953b5fcd23378f0",
+      "src/components/canonical-preview-media.tsx": "a5036b09dc17a977fbe4f8393f6e06a6203d149ed1e8457c03a5af05225df6bf",
+      "src/components/pdf-document-viewport.lifecycle.test.tsx": "37c75c3e543a4baf745ac501621502947eccf7f9930c33e2b2a79863f27bae2d",
+      "src/components/pdf-document-viewport.test.ts": "6a5cfcfb2016f0baff08b80a4e05933fae0c2470a03914407b23568b10d0f3d8",
+      "src/components/pdf-document-viewport.tsx": "19d1f547d2696e695cca2d9f78d6322e0e4df86857c5387e9a6d3132c693d2d6",
+      "src/lib/dev122-native-business.postgres-contract.test.ts": "c7c1e6a0b47e5ac765987a32d57f8d9e75cbad7f29242cb8d1a8354246a7006d",
+      "src/lib/pdm-canonical-preview.pdf.test.ts": "c728439c1e6ffdf024c3f2ea63ece8e1d60c72fa41afaffd25ccc3dcf68c4b30",
+      "src/lib/pdm-canonical-preview.ts": "389bd5127057dfe90ed1482c7f9f5cb8b8b537709a591bd9fd871442e45cee5d",
+      "src/lib/pdm-canonical-workbench.ts": "0e4eaf6e073778fb125c743fb1a313abd07aa331be6512dcdffabb8d5d6e1175",
+      "src/lib/pdm-entity-detail-contract.ts": "c0fd0014e93420cd8fbc232957872132701e36ef4a58dc9df2eee0e02c71873a"
+    },
+    "postNativeChangedPaths": [
+      "src/components/canonical-preview-media.pdf.test.tsx",
+      "src/components/canonical-preview-media.tsx",
+      "src/components/pdf-document-viewport.lifecycle.test.tsx",
+      "src/components/pdf-document-viewport.tsx"
+    ],
+    "postNativeChangeScope": "terminal read/render deadline cleanup and focused regression tests; other 15 frozen paths unchanged before documentation closeout"
+  },
+  "implementation": {
+    "sourcePolicy": "current revision PDF or unique primary PDF; no previous revision auto-selection; workspace ambiguous current PDFs require one explicit binding choice",
+    "content": "protected application/pdf bytes with %PDF- header; no PNG substitution for fullPdf",
+    "viewer": "existing locked pdfjs-dist 6.2.108; actual page count, keyboard page/zoom controls, fit and internal scroll; exact evidence-page viewer preserved",
+    "lifetime": "owned abort/load/render/observer/RAF cancellation, late source/completion guards, finite 60-second PDF read/load/render deadlines; terminal failures clear timers",
+    "resourceBounds": "single canvas, DPR <= 2, edge <= 8192, backing pixels <= 16 Mi; downscaled backing preserves complete CSS page",
+    "noChanges": [
+      "dependencies",
+      "API authorization",
+      "schema",
+      "queue",
+      "worker",
+      "IAM",
+      "Secrets",
+      "cloud resources",
+      "release policy"
+    ]
+  },
+  "verification": {
+    "unit": {
+      "files": 6,
+      "passed": 59,
+      "failed": 0,
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B42-green-r6-unit-report.json",
+      "scope": "pure source chooser, captured React hooks and fake PDF.js lifecycle; not native rendering"
+    },
+    "static": {
+      "typecheck": "PASS",
+      "lint": "PASS_WITH_ONE_EXISTING_WARNING",
+      "existingWarning": "canonical-pdm-workbench.tsx:900 window.location.assign",
+      "phase": "static-r6"
+    },
+    "isolatedBuild": {
+      "status": "PASS",
+      "artifact": true,
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B42-full-pdf-build-r1-final.json",
+      "sourceUnchanged": true,
+      "primarySqlite": "ABSENT_BEFORE_AND_AFTER_AT_BOTH_ROOTS",
+      "preparedAssets": "existing versioned generator; worker SHA checked against locked dependency; owned generated root removed after build"
+    },
+    "native": {
+      "runId": "daea459111880417",
+      "passedCases": 1,
+      "rawStatus": "PARTIAL_NOT_ACCEPTED",
+      "firstFailure": null,
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\daea459111880417\\manifest.json",
+      "scope": "isolated PostgreSQL fixture and actual protected PDF endpoint; exact context/binding/hash/private no-store; no PDF preview job added"
+    },
+    "browser": {
+      "passedCases": 2,
+      "viewports": [
+        "1440x900",
+        "390x844"
+      ],
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\daea459111880417\\receipt.json",
+      "scope": "actual mounted Next/PG and PDF.js canvas; last page 2, keyboard zoom, rapid page changes, fit width, current-binding selection, sample pan; no outer horizontal overflow",
+      "normalRenderApplicability": "native source unchanged except terminal-only cleanup after R6; focused fake-timer tests cover changed failure paths"
+    },
+    "rootVisualReadability": {
+      "status": "PASS_FOR_AUTHORIZED_SAMPLE_ONLY",
+      "sample": "D-0007-MA1.pdf",
+      "pdfSha256": "82ca40e3583184cf54a071b7e317f306547e86a468949d50c9a8ca471c90b4a0",
+      "observed": [
+        "complete border and title block",
+        "dimensions 140/130/212/252/10/20/45 degrees",
+        "Chinese bend and drilling annotations",
+        "narrow 400 percent pan with visible controls"
+      ],
+      "artifacts": [
+        {
+          "name": "1440-PDF-readable-canvas.png",
+          "sha256": "1ea3f3162f079855e89338d233950ef3ca1d7a0d7ded476bfbd0acb1b85eebc4"
+        },
+        {
+          "name": "390-PDF-readable-canvas.png",
+          "sha256": "7ed5cdc57dfeacb96df786d2797c50c8140534cdd10d897780f480319d38d69f"
+        },
+        {
+          "name": "390-PDF-readable-sample-pan.png",
+          "sha256": "52f520311484cd59060ba139429dea78acc873e1f8232909d54b66ba7f8694b4"
+        }
+      ],
+      "rawReceipt": "original MANUAL_VISUAL_REVIEW_PENDING preserved; this separate review closes sample readability only"
+    },
+    "independentQc": {
+      "reviewer": "gpt-6-luna",
+      "reasoning": "xhigh",
+      "task": "/root/b42_final_viewer_qc",
+      "status": "LOCAL_CODE_QC_PASS",
+      "P0": 0,
+      "P1": 0,
+      "P2": 0,
+      "conclusion": "terminal timers clear; initial timeout cancels observer/RAF/render; four expected changed files, other fifteen byte-identical; normal-render browser evidence remains applicable; no acceptance inflation"
+    },
+    "independentCleanup": {
+      "reviewer": "gpt-6-luna",
+      "task": "/root/b42_r6_cleanup_audit",
+      "nativePidsAbsent": [
+        440,
+        14664,
+        27148,
+        29652,
+        25336
+      ],
+      "nativePortsReleased": [
+        60208,
+        60209
+      ],
+      "governorMatchingRows": "released",
+      "primarySqliteAndSidecars": "8 paths absent",
+      "nativeTemp": "removed",
+      "buildCleanup": "own processes/controller, temp, inner source copy and generated assets removed"
+    }
+  },
+  "historyPreserved": {
+    "R1": "native PASS / browser list selector FAIL",
+    "R2": "native PASS / desktop controls observed / narrow native iframe controls FAIL",
+    "R3": "native PASS / asset child registration race, no UI completion",
+    "R4": "native PASS / controls PASS / screenshot readability proof invalid",
+    "R5": "native PASS / two browser controls PASS / root sample readability PASS",
+    "R6": "native PASS / two browser controls PASS / raw whole PARTIAL_NOT_ACCEPTED",
+    "staticR3": "FAIL unsupported PDF.js argument; corrected using installed type definition"
+  },
+  "limitations": {
+    "cadVersionPairing": "NOT_PROVEN",
+    "nativeCadFullDrawing": "NOT_RUN",
+    "F01F": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "supplier": "DISABLED_DEFERRED",
+    "issues": 7,
+    "qaGroups": 29,
+    "production": "NOT_DEPLOYED; existing DEV-121 owner release freeze remains",
+    "permissionBug": "B43 actual admin rejection reason still under readonly diagnosis; no grant or bypass change"
+  },
+  "next": "Local commit only, no push/main merge/production request during DEV-121 owner freeze; continue admin permission diagnosis and existing remaining acceptance; refresh official merged bindings before already-authorized program-only release. NO084."
+}

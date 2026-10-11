@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import { RETIRED_WORKBENCH_QUERY_KEYS } from "@/lib/pdm-canonical-workbench-contract";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard } from "@/components/drawing-detail-preview";
-import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
+import { isPdfPreviewSlot, type DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
@@ -304,7 +304,8 @@ function DrawingCanonicalPreview({ previews }: { previews: [DrawingPreviewSlotMo
       href: preview.mediaHref,
       mode: preview.kind === "three-d" ? "image" : "document",
       title: preview.title,
-      alt: preview.fileName ?? preview.title
+      alt: preview.fileName ?? preview.title,
+      fullPdf: isPdfPreviewSlot(preview)
     } : undefined
   }));
   return <DrawingDetailPreview cards={cards} title={null} showHeader={false} dataSection="canonical-drawing-preview" />;

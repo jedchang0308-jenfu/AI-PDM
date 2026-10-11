@@ -17057,3 +17057,25 @@ select.dropdown-select:focus-visible,
     min-height: 96px;
   }
 }
+
+/* DEV122: the full PDF viewer owns scrolling and its native controls. */
+.canonical-preview-media .drawing-preview-media-link.is-full-pdf,
+.drawing-preview-media-link.is-full-pdf { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; cursor: auto; min-width: 0; min-height: 0; }
+.drawing-preview-media-link.is-full-pdf iframe { pointer-events: auto; width: 100%; height: 100%; min-height: 0; border: 0; }
+.dev122-pdf-open { justify-self: end; padding: 2px 8px; font-size: 13px; }
+.dev122-pdf-source-choice { display: flex; align-items: center; gap: 8px; padding: 6px 12px; min-width: 0; }
+.dev122-pdf-source-choice select { min-width: 0; max-width: 100%; flex: 1; }
+.dev079-workspace-visual:has(.dev122-pdf-source-choice) { display: flex; flex-direction: column; min-height: 0; }
+.dev079-workspace-visual:has(.dev122-pdf-source-choice) > .dev079-visual-panel { flex: 1; min-height: 0; }
+
+.dev122-pdf-document { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100%; height: 100%; min-width: 0; min-height: 0; position: relative; }
+.dev122-pdf-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; padding: 4px; background: #fff; border-bottom: 1px solid #dbe2e8; }
+.dev122-pdf-controls label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.dev122-pdf-controls input { width: 46px; padding: 3px; }
+.dev122-pdf-controls output { min-width: 42px; text-align: center; font-size: 13px; }
+.dev122-pdf-controls .icon-button { min-width: 28px; width: 28px; height: 28px; padding: 3px; }
+.dev122-pdf-controls .ghost-button { padding: 4px; font-size: 12px; }
+.dev122-pdf-scroll { min-width: 0; min-height: 0; overflow: auto; padding: 8px; background: #e5e7eb; }
+.dev122-pdf-scroll canvas { display: block; margin: 0 auto; max-width: none; background: #fff; }
+.dev122-pdf-render-status { position: absolute; inset: 45px 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; pointer-events: none; }
+.dev122-pdf-document:not(:has(.dev122-pdf-controls)) { grid-template-rows: minmax(0, 1fr); }
