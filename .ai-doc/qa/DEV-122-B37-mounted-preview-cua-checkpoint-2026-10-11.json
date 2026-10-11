@@ -322,5 +322,16 @@
     "reviewedPriorCheckpointSha256": "ce7542ec942f17cb3d70fa0460ccf7278694e078577fc606796b39adde4a95f6",
     "wholeUiAcceptance": "NOT_ACCEPTED",
     "nativeCad": "USER_OWNED_PENDING"
+  },
+  "currentSourceIntegration": {
+    "base": "d3fc1bf72b3630f8a748746c40584e595d396dac",
+    "reviewedRevision": "ad8c4e0f2561fb751fb5824f2af645b2f0aeeff2",
+    "sourceQc": {
+      "path": ".ai-doc/qa/DEV-122-B37-cua-handoff-source-qc-2026-10-11.json",
+      "sha256": "3b9afa4e3a5a20ff8ea9cc6a6a8189d3428b41380602b8d5847fa982546e197b"
+    },
+    "productBindingsUnchanged": true,
+    "fixtureNormalizedSha256": "90c1fd74613fff6ba0e9b213c803c61a9c70ca7ea169307bc416cb68af15d98f",
+    "qualification": "Latest main role-catalog v7 migration/source guards preserved; old runtime/CUA evidence stays on 0d, not a new native execution or product release"
   }
 }

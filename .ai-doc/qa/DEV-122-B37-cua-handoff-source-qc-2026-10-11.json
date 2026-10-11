@@ -1,0 +1,16 @@
+{
+  "project": "AI-PDM",
+  "dev": "DEV-122",
+  "reviewer": "/root/dev122_cua_fixture_contract_luna",
+  "layer": "READONLY_STATIC_SOURCE_QC",
+  "reviewedRevision": "ad8c4e0f2561fb751fb5824f2af645b2f0aeeff2",
+  "reviewedBase": "d3fc1bf72b3630f8a748746c40584e595d396dac",
+  "result": "NO_P0_P1",
+  "bindings": {
+    "scripts/qc-dev-122-native-postgres.mjs": "6d7c63320cb7bbe9c53c999c56e4d77fdb0901868a9b5f63d94f70ce556ea615",
+    "src/lib/dev122-native-business.postgres-contract.test.ts": "45fc4f529c27f5d137e34885fdc2f675be47113945ae7c3aaf5b2318d0e81d91"
+  },
+  "reportVerbatim": "最新檔案 hash 與指定值一致：\n\n- Runner：`6D7C63320CB7BBE9C53C999C56E4D77FDB0901868A9B5F63D94F70CE556EA615`\n- Fixture：`45FC4F529C27F5D137E34885FDC2F675BE47113945AE7C3AAF5B2318D0E81D91`\n\n我從 canonical repo 的 Git object store 唯讀檢視了 `d3fc1bf72..ad8c4e0f2` 這兩檔差異。Worktree 路徑的 Git 命令因 `Permission denied` 無法讀取；檔案內容 hash 則與指定值吻合。靜態審查未發現 P0/P1：CUA selector 有固定組合與唯一性限制；session 綁定一次性 unique `.localhost` host；finish 核對精確 run/source/hash/PID/start identity；20 分鐘 deadline、primary 八個檔案的前後缺席檢查及 finally cleanup 都有明確閘門。Fixture 使用正常 own-company API 與 exact work/job，並明確標示 `producerBoundary=FIXTURE`、`nativeCadOutput=NOT_RUN`、`workerOutputSeeded=false`。\n\n`pending` 僅表示 fixture 建立時 job 為 queued，不能當成 mounted UI 的 pending 通過證據；30 秒投影規則可能使畫面顯示 delayed。新 HEAD `ad8c4e0f2` 尚無對應的 mounted UI 驗證，本次未執行測試或 runtime。",
+  "recordedBy": "Root copied the delivered reviewer report; reviewer did not write this file",
+  "limitations": ["No runtime/test execution in this review", "Mounted UI evidence remains bound to tested 0d source", "Whole DEV remains NOT_ACCEPTED"]
+}
