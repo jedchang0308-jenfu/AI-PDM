@@ -6,7 +6,7 @@
 
 B36 原 F01C／D05／UI01 的有限輪詢修復已發布：每個 foreground episode 最多30次 background list GET starts，保留單一timer／generation、hidden pause與停止提示。兩個唯一測試檔25 PASS及required PR／main CI PASS；R9兩個正常原檔下載的provider200／大小／SHA證據沿用未改責任面。正式Jed清單reload顯示50 rows；既有正式profile未啟用gallery，因此不聲稱正式gallery或動畫已驗收。
 
-B37 僅新增隔離CUA handoff及fixture，不改產品或雲端。實際桌面／窄版、鍵盤、延遲／失敗卡片、旋轉動畫、layout退出及停止提示已有部分證據；R3 reload後提示清除且server GET completions由31增至38。這些logs只記完成、狀態與耗時，browser start／concurrency未觀察。queued輸入超過30秒會投影為delayed，fixture名稱pending不代表畫面已驗證pending。R1 SQL失敗、R2 deadline失敗與部分下載保留；R3／R4固定finish已接受但wrapper仍PARTIAL_NOT_ACCEPTED，四次自有runtime／ports／temp／primary absence與lease清理均確認。[B37 部分補驗](../qa/DEV-122-B37-mounted-preview-cua-checkpoint-2026-10-11.json)。
+B37 僅新增隔離CUA handoff及fixture，不改產品或雲端。實際桌面／窄版、鍵盤、延遲／失敗卡片、旋轉動畫、layout退出及停止提示已有部分證據；R3 reload後提示清除且server GET completions由31增至38。這些logs只記完成、狀態與耗時，browser start／concurrency未觀察。queued輸入超過30秒會投影為delayed，fixture名稱pending不代表畫面已驗證pending。R1 SQL失敗、R2 deadline失敗與部分下載保留；R3／R4固定finish已接受但wrapper仍PARTIAL_NOT_ACCEPTED，四次自有runtime／ports／temp／primary absence與lease清理均確認。[B37 部分補驗](../qa/DEV-122-B37-mounted-preview-cua-checkpoint-2026-10-11.json)；接續來源的獨立靜態 QC 未發現 P0／P1，[來源審查原文](../qa/DEV-122-B37-cua-handoff-source-qc-2026-10-11.json)。
 
 下一步收斂仍缺的原契約正常UI／API／native變體；不因test/docs SHA變更重跑未改產品證據或重新部署。Whole DEV NOT_ACCEPTED、7 issues／29 groups維持；F-01F完整原生CAD由使用者正式驗證、supplier DISABLED_DEFERRED、NO084、A0061已完成工作不重排。唯一施工規則讀[DEV-122契約](DEV-122-ai-pdm-internal-function-issues.md)。R9／R8／R6與原FAIL／UNKNOWN保留為歷史來源。
 
