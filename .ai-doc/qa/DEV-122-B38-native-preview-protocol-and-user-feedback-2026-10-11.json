@@ -78,7 +78,8 @@
     "privateReceipt": {
       "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-user-cad-preview-feedback.json",
       "sha256": "a41604bfba1857d2e340a750e39493404d479beebe56bf248201e82fc4156c9d"
-    }
+    },
+    "browserScope": "Opened workspace and switched preview tabs. Existing canonical preview GET may mutate preview queue; this is not proof of no formal business writes. Completed OpenSWX auxiliary job was not requeued."
   },
   "evidence": [
     {
@@ -143,15 +144,20 @@
     "ownDiagnosticTabsClosed": true
   },
   "boundaries": {
-    "productionMutation": false,
-    "cloudMutation": false,
     "mainMerge": false,
     "migration084": "NOT_RUN",
     "fullNativeCad": "USER_OWNED_NOT_PASS",
     "supplier": "DISABLED_DEFERRED",
     "issues": 7,
     "groups": 29,
-    "wholeAcceptance": false
+    "wholeAcceptance": false,
+    "productionAdministrativeMutation": false,
+    "cloudResourceMutation": false,
+    "formalPreviewGetDatabaseEffects": "UNKNOWN_POSSIBLE_ENQUEUE_OR_STALE_RECOVERY_NOT_READ_BACK"
   },
-  "next": "Continue original remaining evidence gaps; clarify stored-thumbnail/full-readable-drawing requirement and validate OpenSWX embedded PNG compatibility before product integration. Local QA only during other owner source/cloud freeze."
+  "next": "Continue original remaining evidence gaps; clarify stored-thumbnail/full-readable-drawing requirement and validate OpenSWX embedded PNG compatibility before product integration. Local QA only during other owner source/cloud freeze.",
+  "receiptCorrection": {
+    "supersedes": "8083c0c8b QA boundary productionMutation:false",
+    "reason": "Narrow administrative/cloud-resource mutation claims; browser preview GET can have application DB effects. Original observation/FAIL and private receipts remain preserved."
+  }
 }
