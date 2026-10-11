@@ -10,6 +10,8 @@ PR [#266](https://github.com/jedchang0308-jenfu/AI-PDM/pull/266) 的官方來源
 
 CURRENT_CONTRACT=DEV122_PROGRAM_ONLY_RELEASE_V1；Architecture Finalized／RD Implementation Ready。唯一產品 writer 與 cleanup owner 為 root，沿用同 repo DEV-122 worktree，canonical checkout 與其他專案不動。NO084、無正式資料清理、無新增 IAM／Secret／雲端資源範圍維持。Whole DEV NOT_ACCEPTED，原 7 issues／29 groups 不變；supplier DISABLED_DEFERRED，F-01F 完整原生 CAD 正式驗證由使用者執行。
 
+本次補驗完成：本機原生 PostgreSQL 的五個 canonical GET 逾時邊界案例 PASS（146 skipped 不計通過），獨立證據 QC P0=0／P1=0，自有程序／埠／暫存清理 PASS。這是 imported route＋signed Principal＋隔離資料庫與 producer fixture，未建立 mounted HTTP／正式 CAD 證據。新正式分頁已登入並可展開既有 A0061 輔助屬性；2D／3D 預覽仍失敗，進行中動畫未觀察。只新增封閉測試 selector 與驗收紀錄，產品程式未改、不重新部署；詳見 [R9 業務補驗證據](../qa/DEV-122-B35-R9-business-verification-2026-10-11.json)。
+
 下一步先核對既有業務證據對目前產品來源的適用性，再補原契約尚缺的正常 UI／API／native 變體；不因 Git SHA 變更重跑未改責任面。已完成的 A0061 輔助解析工作不得重排。詳見 [R9 正式發布與唯讀核對證據](../qa/DEV-122-B35-R9-production-release-closure-2026-10-11.json)。先前 CURRENT 原文與 local QC provenance 保留於官方來源 `2600ba2ada8d2adb106ad616c6020d1339328f0e` 及 [接續修復契約](../qa/DEV-122-B35-associated-abort-contract-2026-10-11.json)，不再作未執行發布指令。
 
 ## DEV-122 HISTORY_ONLY（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
