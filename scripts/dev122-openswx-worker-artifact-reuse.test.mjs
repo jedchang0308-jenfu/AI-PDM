@@ -13,7 +13,7 @@ import { gzipSync } from 'node:zlib'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { canonicalize, sha256, releasePaths, createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
+import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap } from './lib/dev122-openswx-bootstrap.mjs'
 import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
@@ -814,21 +814,23 @@ import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { programOnlyHash, sealProgramOnlyEvidence, programOnlyStaticEnvironment, programOnlyExecutionEnvironment, programOnlyMigrationArguments, programOnlySubmissionFields } from './lib/dev117-ai-pdm-program-only-baseline.mjs'
 import { readAiPdmReleaseObservation, readAiPdmObservationInputs, createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 
-async function b35ProgramProofFixture({releasedBaseline=false}={}) {
+async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false}={}) {
   // Historical modeled34 archive: real Git PAX, immutable SQL/worker blobs, explicit profile bytes.
   const archive = b35GitArchive(currentRevision, b35FullBundle.bundle.entries, b35AppProfileBytes)
   const f = await b35ReadyProgramFixture({ currentArchive: archive, proofMetadata: true, releasedBaseline }), h = f.h
   const put = (uri, value) => h.seedBytes(uri, Buffer.from(canonicalize(value) + '\n'))
   const seal = sealProgramOnlyEvidence, policy = f.intent.programOnlyBaseline
+  const runtime = dailyServing ? buildRuntimeConfig(b35AppProfile, {plainEnvironment:{...Object.fromEntries(b35AppProfile.environment.requiredPlainEnvironmentNames.map(name=>[name,b35AppProfile.environment.fixedValues?.[name]??b35AppProfile.environment.controlledValues?.[name]?.defaultValue??'LOCAL_TEST_VALUE'])),PDM_OPENSWX_DISPATCH_ENABLED:'1'},secretVersions:Object.fromEntries(b35AppProfile.environment.requiredSecretNames.map(name=>[name,'9'])),openswxWorker:{descriptorRef:f.intent.openswxWorkerRef,purpose:'full',sourceRevision:currentRevision,workerProfileSha256:f.descriptor.workerProfileSha256}}) : null
+  const runtimeRef = runtime ? put(profile.receiptRoot+'/local-daily-serving-runtime.json',{runtimeConfig:runtime}) : h.sourceLockRef
   const capsule = { schemaVersion: b35AppProfile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId: h.lock.releaseId,
     sourceRevision: currentRevision, sourceSha256: h.lock.sourceSha256, sourceLockRef: h.sourceLockRef,
-    authorizationPolicyRef: h.sourceLockRef, readinessReceiptRef: h.sourceLockRef, foundationReceiptRef: h.sourceLockRef, infraReceiptRef: h.sourceLockRef, runtimeConfigRef: h.sourceLockRef,
+    authorizationPolicyRef: h.sourceLockRef, readinessReceiptRef: h.sourceLockRef, foundationReceiptRef: h.sourceLockRef, infraReceiptRef: h.sourceLockRef, runtimeConfigRef: runtimeRef,
     migrationManifestSha256: b35FullBundle.bundle.manifestSha256, previousRevision: 'ai-pdm-prod-' + '2'.repeat(12), deadlineAt: f.intent.deadlineAt,
     openswxWorkerRef: f.intent.openswxWorkerRef, baselineIntentRef: policy.baselineIntentRef, programOnlyBaseline: policy }
   const intentRef = put(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${capsule.releaseId}/release-intent.json`, capsule)
   const base = `gs://jenfu-platform-prod-aipdm-release/receipts/releases/${capsule.releaseId}/${intentRef.sha256}`
   const stage = (name, previousReceiptRef, facts) => put(`${base}/${name}.json`, seal({ schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'ai-pdm', releaseId: capsule.releaseId, sourceRevision: currentRevision, stage: name, previousReceiptRef, facts, observedAt: now, status: 'PASS' }))
-  const prerequisiteRefs = Object.fromEntries(['sourceLock','authorization','readiness','foundation','infra','runtimeConfig'].map(name => [name, h.sourceLockRef]))
+  const prerequisiteRefs = Object.fromEntries(['sourceLock','authorization','readiness','foundation','infra','runtimeConfig'].map(name => [name, name==='runtimeConfig'?runtimeRef:h.sourceLockRef]))
   const prepare = stage('prepare', null, { prerequisiteRefs })
   const sourceObject = { ...h.currentSourceRef, uri: `gs://jenfu-platform-prod-aipdm-release/source/releases/${capsule.releaseId}/${intentRef.sha256}/source.tar.gz`, generation: '17', crc32c: crc32cBase64(h.objects.get(h.currentSourceRef.uri).bytes) }
   h.seedBytes(sourceObject.uri, h.objects.get(h.currentSourceRef.uri).bytes)
@@ -872,7 +874,7 @@ async function b35ProgramProofFixture({releasedBaseline=false}={}) {
     if(!row)return Response.json({}, {status:404});return url.includes('alt=media')?new Response(row.bytes):Response.json({bucket:decodeURIComponent(match[1]),name:decodeURIComponent(match[2]),generation:'17',crc32c:crc32cBase64(row.bytes),size:String(row.bytes.length)})}
   const sourceCalls=[]
   const readSource=(name,revision)=>{sourceCalls.push({name,revision});assert.ok([oldRevision,currentRevision].includes(revision));return name==='config/release/dev117-ai-pdm-independent-production-v3.json'?(releasedBaseline&&revision===oldRevision?b35HistoricalProfileBytes:b35AppProfileBytes):canonicalSource(name)}
-  return { f,h,capsule,intentRef,prepare,migrate,deploymentRef,execution,job,base,put,calls,sourceCalls,fetchImpl,readSource,
+  return { f,h,capsule,intentRef,prepare,migrate,deploymentRef,execution,job,base,put,calls,sourceCalls,fetchImpl,readSource,runtime,artifactDigest,
     read:callback=>readAiPdmReleaseObservation({sourceRevision:currentRevision,refs:{prepare,migrate,terminal:null},token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl,readSource:callback??readSource}) }
 }
 
@@ -940,7 +942,7 @@ function b35ReleasedAnchor({ capsule, capsuleRef, seedBytes }) {
   previous=stage('verify',previous,{candidateRevision,artifactDigest,smoke:{status:'PASS'}})
   previous=stage('decision',previous,{candidateRevision,artifactDigest,decision:'GO'})
   previous=stage('activate',previous,{candidateRevision,artifactDigest,effectiveRevision:candidateRevision})
-  const canonical=stage('canonical',previous,{candidateRevision,artifactDigest,smoke:{status:'PASS'}})
+  const canonical=stage('canonical',previous,{candidateRevision,artifactDigest,origin:profile.canonicalOrigin,smoke:{status:'PASS'}})
   previous=stage('finalize',canonical,{candidateRevision,artifactDigest,result:'RELEASED',temporaryCandidateTags:0})
   const terminal=stage('terminal',previous,{candidateRevision,artifactDigest,result:'RELEASED',databaseDisposition:'FORWARD_APPLIED',remainingHumanAction:0})
   return {canonical,prepare,migrate,terminal,deployment,candidate,artifactDigest,cloudBuild,candidateRevision}
@@ -1745,3 +1747,150 @@ test('daily release gets a current-source build-only reuse descriptor without a 
   for (const key of ['resourcePlanRef', 'bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef', 'tokenSecretVersion', 'registrySecretVersion']) assert.equal(Object.hasOwn(d, key), false);
   assert.deepEqual((await h.invoke()).refs.dailyBuildOnlyDescriptorRef, row.ref); noMutation(h);
 });
+
+test('RD daily rejects an unproven changed serving app before Scheduler pause', async () => {
+  const h = await rdDailyMetadataFixture()
+  const reused = await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:h.readSource})
+  h.lifecycle()
+  h.transport.effectiveRevision = () => 'ai-pdm-prod-current-app'
+  const inputRef = h.seed('RD-SERVING-UNKNOWN-input', {schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:reused.refs.dailyBuildOnlyDescriptorRef,
+    workerBuildRef:reused.ref,deadlineAt:deadline(),receiptId:'RD-SERVING-UNKNOWN',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.input.priorActivationRef})
+  const calls=h.calls.length, publications=h.puts.length
+  await assert.rejects(executeOpenSwxBootstrap({stage:'pause',inputRef,transport:h.transport,readSource:h.readSource,appProfile,sleep:async()=>{}}), {code:'OPENSWX_PRIOR_CANONICAL_INVALID'})
+  assert.equal(h.puts.length,publications)
+  assert.ok(h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')), 'unproven serving must reject before any lifecycle write')
+})
+
+
+async function rdProgramOnlyServingFixture() {
+  const wire=await b35ProgramProofFixture({releasedBaseline:true,dailyServing:true}),h=wire.h
+  const validators=createOwnerTransport({token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl})
+  const paths=releasePaths(b35AppProfile,wire.capsule,wire.intentRef.sha256),candidateRevision='ai-pdm-prod-'+'5'.repeat(12)
+  const tagUri='https://candidate-'+'5'.repeat(12)+'---'+new URL(profile.canonicalOrigin).hostname
+  const stage=(name,previousReceiptRef,facts)=>wire.put(paths[name],sealProgramOnlyEvidence({schemaVersion:'jenfu.dev012.stage-receipt.v1',ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,stage:name,previousReceiptRef,facts,observedAt:now,status:'PASS'}))
+  let previous=stage('candidate',wire.migrate,{candidateRevision,artifactDigest:wire.artifactDigest,migrationReceiptRef:wire.migrate,deploymentCapsuleRef:wire.deploymentRef,tagUri,cloudSqlProxyResolvedImage:b35AppProfile.runtime.cloudSqlProxyImage})
+  previous=stage('entrypoint',previous,{})
+  previous=stage('verify',previous,{candidateRevision,artifactDigest:wire.artifactDigest,smoke:{status:'PASS'}})
+  previous=stage('decision',previous,{candidateRevision,artifactDigest:wire.artifactDigest,decision:'GO'})
+  previous=stage('activate',previous,{candidateRevision,artifactDigest:wire.artifactDigest,effectiveRevision:candidateRevision})
+  const canonical=stage('canonical',previous,{candidateRevision,artifactDigest:wire.artifactDigest,origin:profile.canonicalOrigin,smoke:{status:'PASS'}})
+  previous=stage('finalize',canonical,{candidateRevision,artifactDigest:wire.artifactDigest,result:'RELEASED',temporaryCandidateTags:0,openswxWorker:{status:'READY',retained:true,priorActivationRef:h.priorActivationRef}})
+  const terminal=stage('terminal',previous,{candidateRevision,artifactDigest:wire.artifactDigest,result:'RELEASED',databaseDisposition:'READ_ONLY_BASELINE_VERIFIED',currentDatabaseReadPerformed:true,migrationEvidenceRef:wire.migrate,remainingHumanAction:0})
+  const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,releaseIntentSha256:wire.intentRef.sha256})),ownerApplicationId:'ai-pdm',service:b35AppProfile.target.serviceName,controlBucket:b35AppProfile.artifact.releaseBucket,releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,sourceLockSha256:wire.capsule.sourceLockRef.sha256,candidateRevision,previousRevision:wire.capsule.previousRevision,ownerRunRef:'https://api.github.com/repos/'+b35AppProfile.application.repository+'/actions/runs/351',leaseExpiresAt:now,deadlineAt:wire.capsule.deadlineAt,state:'FINALIZED',result:'RELEASED'}
+  const control={...controlCore,controlSha256:sha256(canonicalize(controlCore))}
+  wire.put(paths.control,control)
+  const service={name:'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod',etag:'LOCAL_SERVING_ETAG',generation:'17',observedGeneration:'17',terminalCondition:{state:'CONDITION_SUCCEEDED'},ingress:'INGRESS_TRAFFIC_ALL',defaultUriDisabled:false,invokerIamDisabled:true,uri:profile.canonicalOrigin,urls:[profile.canonicalOrigin],traffic:[{revision:candidateRevision,percent:100}],trafficStatuses:[{revision:candidateRevision,percent:100}]}
+  const revision={...structuredClone(wire.runtime.template),conditions:[{type:'Ready',state:'CONDITION_SUCCEEDED'}]}
+  const app=revision.containers.find(row=>row.name===b35AppProfile.runtime.containerName)
+  app.image=wire.artifactDigest
+  app.env.push({name:b35AppProfile.environment.candidateOriginEnvironmentName,value:tagUri})
+  Object.assign(wire.readSource,h.readSource)
+  h.transport.readOwnerSourceProof=async({sourceRevision,refs,verifyProvider})=>{const proof=await readAiPdmReleaseObservation({sourceRevision,refs,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl,readSource:wire.readSource});return {proof,provider:verifyProvider?await verifyOwnerProviderReadback({proof,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl}):null}}
+  Object.assign(h.transport,{getService:async()=>structuredClone(service),getRevision:async()=>structuredClone(revision),effectiveRevision:validators.effectiveRevision,assertRevisionReady:validators.assertRevisionReady,assertServiceSettled:validators.assertServiceSettled,assertCanonicalEntrypoint:validators.assertCanonicalEntrypoint})
+  h.lifecycle()
+  const inputRef=h.seed('RD-SERVING-PROGRAM-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:wire.f.saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:wire.f.saved.ref,deadlineAt:deadline(),receiptId:'RD-SERVING-PROGRAM',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.priorActivationRef})
+  const run=()=>executeOpenSwxBootstrap({stage:'pause',inputRef,transport:h.transport,readSource:wire.readSource,appProfile,sleep:async()=>{}})
+  return {wire,h,service,revision,control,terminal,canonical,run}
+}
+
+test('RD daily accepts current RELEASED program-only app with the retained READY worker',async()=>{
+  const f=await rdProgramOnlyServingFixture()
+  const paused=await f.run()
+  assert.equal(paused.value.facts.drainKind,'DAILY_DB_VERIFIED')
+  assert.deepEqual(paused.value.facts.priorActivationRef,f.h.priorActivationRef)
+  assert.ok(f.h.calls.some(row=>row.url.endsWith(':pause')))
+  assert.ok(!f.h.calls.some(row=>/:addVersion|cloudbuild.*POST/u.test(row.url)))
+})
+
+test('RD daily rejects changed program-only serving or retained resources before any write',async()=>{
+  for(const kind of ['control-fingerprint','control-run','control-state','control-source','traffic','tag','app-image','runtime-registry','secret-disabled','job-generation','job-etag','scheduler-policy','control-drift','service-drift']) {
+    const f=await rdProgramOnlyServingFixture(),calls=f.h.calls.length,publications=f.h.puts.length
+    if(kind.startsWith('control-') && kind!=='control-drift') {
+      const head=structuredClone(f.control)
+      if(kind==='control-fingerprint') head.inputFingerprint='0'.repeat(64)
+      if(kind==='control-run') head.ownerRunRef='https://api.github.com/repos/unapproved/repository/actions/runs/1'
+      if(kind==='control-state') head.state='ACTIVE'
+      if(kind==='control-source') head.sourceRevision='f'.repeat(40)
+      delete head.controlSha256;head.controlSha256=sha256(canonicalize(head));f.wire.put('gs://jenfu-platform-prod-aipdm-release/control/active.json',head)
+    }
+    if(kind==='traffic') f.service.traffic[0].percent=99
+    if(kind==='tag') f.service.traffic.push({revision:f.service.traffic[0].revision,percent:0,tag:'unexpected'})
+    if(kind==='app-image') f.revision.containers[0].image+='bad'
+    if(kind==='runtime-registry') f.revision.containers[0].env.find(row=>row.name==='PDM_WORKLOAD_AUTH_CREDENTIALS').valueSource.secretKeyRef.version='8'
+    if(kind==='secret-disabled') f.h.controls.secretState='DISABLED'
+    if(kind==='job-generation') f.h.controls.job={generation:'99'}
+    if(kind==='job-etag') f.h.controls.job={etag:'UNRELATED_JOB_ETAG'}
+    if(kind==='scheduler-policy') f.h.controls.scheduler={schedule:'* * * * *'}
+    if(kind==='control-drift') {
+      const original=f.h.transport.readBytes;let reads=0
+      f.h.transport.readBytes=async(...args)=>{const row=await original(...args);return args[0].endsWith('/control/active.json')&&++reads>1?{...row,metadata:{...row.metadata,generation:'18'}}:row}
+    }
+    if(kind==='service-drift') {let reads=0;f.h.transport.getService=async()=>({...structuredClone(f.service),etag:++reads>1?'DRIFTED_ETAG':f.service.etag})}
+    await assert.rejects(f.run(),undefined,kind)
+    assert.equal(f.h.puts.length,publications,kind)
+    assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')),kind+': zero lifecycle writes')
+  }
+})
+
+test('RD current program-only serving continues daily bootstrap, full evidence and zero-write replay',async()=>{
+  const f=await rdProgramOnlyServingFixture(),paused=await f.run()
+  const inputRef=f.h.seed('RD-SERVING-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:f.wire.f.saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:f.wire.f.saved.ref,deadlineAt:deadline(),receiptId:'RD-SERVING-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.h.priorActivationRef,pausedDrainedRef:paused.ref})
+  const run=()=>executeOpenSwxBootstrap({stage:'bootstrap',inputRef,transport:f.h.transport,readSource:f.wire.readSource,appProfile,sleep:async()=>{}})
+  const completed=await run()
+  assert.equal(completed.value.facts.bootstrapKind,'DAILY_REFRESH')
+  const full=(await f.h.transport.readJson(completed.refs.fullDescriptorRef)).value
+  assert.equal(full.purpose,'full')
+  const evidence=await readWorkerFullEvidence(f.h.transport,full,profile,f.wire.readSource)
+  assert.equal(evidence.image,image)
+  const calls=f.h.calls.length,publications=f.h.puts.length
+  const replay=await run()
+  assert.deepEqual(replay.refs.fullDescriptorRef,completed.refs.fullDescriptorRef)
+  assert.equal(f.h.puts.length,publications)
+  assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')))
+  assert.ok(!f.h.calls.some(row=>/:addVersion|cloudbuild.*POST/u.test(row.url)))
+})
+
+test('RD daily keeps historical program-only 34 separate from genuine current 35 source',async()=>{
+  const f=await rdProgramOnlyServingFixture(),original=f.wire.readSource
+  const reader=(name,revision)=>name==='config/release/dev117-ai-pdm-independent-production-v3.json'&&revision===currentRevision?Buffer.from(JSON.stringify(appProfile)+'\n'):original(name,revision)
+  Object.assign(reader,original)
+  const calls=f.h.calls.length,publications=f.h.puts.length
+  await assert.rejects(executeOpenSwxBootstrap({stage:'pause',inputRef:f.h.objects.get(profile.receiptRoot+'/local-test-RD-SERVING-PROGRAM-input.json').ref,transport:f.h.transport,readSource:reader,appProfile,sleep:async()=>{}}))
+  assert.equal(f.h.puts.length,publications)
+  assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')))
+})
+
+test('RD daily current serving recovery restores only the verified prior Job and keeps Scheduler paused',async()=>{
+  const f=await rdProgramOnlyServingFixture(),paused=await f.run()
+  const inputRef=f.h.seed('RD-SERVING-RECOVERY-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:f.wire.f.saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:f.wire.f.saved.ref,deadlineAt:deadline(),receiptId:'RD-SERVING-RECOVERY',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.h.priorActivationRef,pausedDrainedRef:paused.ref})
+  const request=f.h.transport.request
+  let failed=false
+  f.h.transport.request=async(url,options={})=>{
+    if(!failed&&url.includes('logging.googleapis.com')&&JSON.parse(options.body).filter.includes('local-1')) {failed=true;throw Error('LOCAL_SELFTEST_OBSERVATION_FAILURE')}
+    return request(url,options)
+  }
+  await assert.rejects(executeOpenSwxBootstrap({stage:'bootstrap',inputRef,transport:f.h.transport,readSource:f.wire.readSource,appProfile,sleep:async()=>{}}))
+  const recovery=JSON.parse(f.h.objects.get(profile.receiptRoot+'/RD-SERVING-RECOVERY-recovery-required.json').bytes)
+  assert.equal(recovery.priorJobRestored,true)
+  assert.equal(recovery.priorEmptyProof.claimProof,'AUTHENTICATED_204_SOURCE_BOUND')
+  assert.equal(recovery.schedulerState,'PAUSED')
+  assert.equal(recovery.schedulerEnabled,false)
+  assert.ok(!f.h.calls.some(row=>/:resume|:addVersion|cloudbuild.*POST/u.test(row.url)))
+})
+
+test('RD daily refuses missing serving proofs and unbound current prior before lifecycle writes',async()=>{
+  for(const kind of ['missing-terminal','missing-canonical','missing-prepare','wrong-prior']) {
+    const f=await rdProgramOnlyServingFixture(),calls=f.h.calls.length,publications=f.h.puts.length
+    const paths=releasePaths(b35AppProfile,f.wire.capsule,f.wire.intentRef.sha256)
+    if(kind.startsWith('missing-')) f.h.objects.delete(paths[kind.slice(8)])
+    let inputRef=f.h.objects.get(profile.receiptRoot+'/local-test-RD-SERVING-PROGRAM-input.json').ref
+    if(kind==='wrong-prior') {
+      const input=JSON.parse(f.h.objects.get(inputRef.uri).bytes)
+      input.priorActivationRef={...input.priorActivationRef,sha256:'0'.repeat(64)}
+      inputRef=f.h.seed('RD-SERVING-WRONG-PRIOR-input',input)
+    }
+    await assert.rejects(executeOpenSwxBootstrap({stage:'pause',inputRef,transport:f.h.transport,readSource:f.wire.readSource,appProfile,sleep:async()=>{}}),undefined,kind)
+    assert.equal(f.h.puts.length,publications)
+    assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')),kind)
+  }
+})
