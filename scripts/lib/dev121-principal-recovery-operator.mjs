@@ -68,7 +68,9 @@ export function assertRecoveryBaseline({ profile, service, oldRevision, sourceRe
     !trafficIsOldOnly(service, oldRevision) ||
     (service.scaling?.scalingMode === 'MANUAL' &&
       ![0, '0'].includes(service.scaling.manualInstanceCount)) ||
-    !profile?.target?.runtimeServiceAccount || !profile?.runtime?.containerName) fail('REVISION_INPUT_INVALID')
+    !profile?.target?.runtimeServiceAccount || !profile?.runtime?.containerName ||
+    !/^([1-9][0-9]?)s$/u.test(service.template?.timeout ?? '') ||
+    Number(service.template.timeout.slice(0, -1)) > 60) fail('REVISION_INPUT_INVALID')
   return service
 }
 
@@ -83,7 +85,7 @@ export function recoveryRevisionRequest({ profile, service, oldRevision, sourceR
       ports: [{ containerPort: 8080 }],
       startupProbe: { httpGet: { path: '/login', port: 8080 },
         initialDelaySeconds: 0, timeoutSeconds: 3, periodSeconds: 10, failureThreshold: 12 } }],
-    maxInstanceRequestConcurrency: 10, timeout: '15s',
+    maxInstanceRequestConcurrency: 10, timeout: service.template.timeout,
   } }
 }
 
@@ -102,6 +104,7 @@ export function assertRecoveryRevisionReadback({ before, after, revision, reques
     revision?.name !== name ||
     revision.conditions?.find((row) => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED' ||
     revision.serviceAccount !== request.template.serviceAccount ||
+    revision.timeout !== request.template.timeout || after.template?.timeout !== request.template.timeout ||
     !Array.isArray(revision.containers) || revision.containers.length !== 1 ||
     container?.image !== imageDigest ||
     container?.startupProbe?.httpGet?.path !== '/login' ||

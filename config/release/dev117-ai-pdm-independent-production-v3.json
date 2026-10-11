@@ -459,6 +459,11 @@
         "order": 34,
         "path": "db/postgres/084_dev121_unlinked_legacy_profile_cleanup.sql",
         "sha256": "6be6eb8cdc4ffb6f83883a17220066d4f91efd0f374b32cee0b50d299eb991e1"
+      },
+      {
+        "order": 35,
+        "path": "db/postgres/085_dev121_principal_role_catalog_v7.sql",
+        "sha256": "308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba"
       }
     ]
   },

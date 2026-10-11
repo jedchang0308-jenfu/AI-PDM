@@ -19,6 +19,7 @@ const before = { name: 'projects/jenfu-platform-prod/locations/asia-east1/servic
   uid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5', etag: 'etag-one',
   generation: '10', observedGeneration: '10', reconciling: false,
   terminalCondition: { state: 'CONDITION_SUCCEEDED' },
+  template: { timeout: '60s' },
   scaling: { scalingMode: 'AUTOMATIC' },
   traffic: [oldTraffic], trafficStatuses: [oldTraffic] }
 
@@ -49,10 +50,11 @@ test('recovery revision is isolated and keeps old traffic pinned at zero tag exp
   assert.equal(request.template.containers[0].image, imageDigest)
   assert.equal(request.template.containers[0].env, undefined)
   assert.equal(request.template.volumes, undefined)
+  assert.equal(request.template.timeout, '60s')
   const after = { ...before, etag: 'etag-two', generation: '11', observedGeneration: '11',
     latestCreatedRevision: request.template.revision }
   const revision = { name: `${before.name}/revisions/${request.template.revision}`,
-    serviceAccount: request.template.serviceAccount,
+    serviceAccount: request.template.serviceAccount, timeout: request.template.timeout,
     conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }],
     containers: [{ name: 'ai-pdm', image: imageDigest,
       startupProbe: { httpGet: { path: '/login', port: 8080 } } }] }
@@ -79,4 +81,11 @@ test('immutable proof joins the only safe rollback revision to the service UID',
   assert.throws(() => recoveryProof({ sourceRevision, serviceUid: before.uid,
     oldRevision, recoveryRevision: oldRevision, imageDigest }),
   /DEV121_RECOVERY_OPERATOR_PROOF_INPUT_INVALID/u)
+})
+
+test('recovery preserves the serving request timeout and rejects absent or unbounded values', () => {
+  for (const timeout of [undefined, '0s', '61s', '120s']) {
+    assert.throws(() => recoveryRevisionRequest({ profile, sourceRevision, oldRevision, imageDigest,
+      service: { ...before, template: { timeout } } }), /REVISION_INPUT_INVALID/u)
+  }
 })

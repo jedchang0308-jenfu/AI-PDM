@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import roleCatalog from "../../config/access-control/jenfu-role-catalog.v6.json" with { type: "json" };
+import roleCatalog from "../../config/access-control/jenfu-role-catalog.v7.json" with { type: "json" };
 
 const mocks = vi.hoisted(() => ({ workspace: vi.fn(), save: vi.fn() }));
 vi.mock("@/lib/repositories/ai-pdm-role-capability-repository", () => ({
@@ -24,7 +24,7 @@ describe("Principal-only role governance display", () => {
     mocks.save.mockReturnValue({ snapshotStoredAt: "2026-09-28T00:01:00.000Z" });
   });
 
-  it("pins the v6 source catalog and never offers AI-PDM mutation", async () => {
+  it("pins the v7 source catalog and never offers AI-PDM mutation", async () => {
     mocks.workspace.mockResolvedValue({
       contractVersion: "ai-pdm.role-capability-workspace.v2", applicationId: "ai-pdm",
       catalogVersion: roleCatalog.catalogVersion, catalogPayloadHash: roleCatalog.catalogSha256,
@@ -45,7 +45,7 @@ describe("Principal-only role governance display", () => {
 
     const result = await readRoleCapabilityWorkspace();
 
-    expect(result.catalogVersion).toBe("ai-pdm.role-catalog.2026-10-05.v6");
+    expect(result.catalogVersion).toBe("ai-pdm.role-catalog.2026-10-10.v7");
     expect(result.dataState).toBe("current");
     expect(result.mutationAllowed).toBe(false);
     expect(result.managementSurface?.href).toBe(

@@ -9,7 +9,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 if (!/^\/output export-ignore$/mu.test(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'))) throw new Error('PRODUCTION_SOURCE_ARCHIVE_OUTPUT_BOUNDARY_MISSING')
-const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'scripts/dev122-openswx-secret-version-iam.test.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs', 'scripts/lib/dev122-sharp-ci-evidence.test.mjs', 'scripts/dev122-openswx-owner-release.test.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
+const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'scripts/lib/dev121-principal-fence-operator.test.mjs', 'scripts/dev122-openswx-secret-version-iam.test.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs', 'scripts/lib/dev122-sharp-ci-evidence.test.mjs', 'scripts/dev122-openswx-owner-release.test.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
 const imageTempPrefix = path.resolve(os.tmpdir(), 'aipdm-dev122-sharp-');
 const imageTemp = fs.mkdtempSync(imageTempPrefix);
 const imageScope = { project: 'AI-PDM', purpose: 'DEV122 patched sharp converter and static preview contract CI', port: null, parentPid: process.pid, executable: process.execPath, PDM_DATA_DIR: path.join(imageTemp, 'unused-data'), PDM_REPOSITORY_DIR: path.join(imageTemp, 'unused-repository'), mutationScope: 'IMAGE_ONLY_NO_SCHEMA_OR_FIXTURES', cleanupCondition: 'Finite own Node CLI exits; own temp removed' };
@@ -34,6 +34,7 @@ try {
 const npmCli = process.env.npm_execpath
 if (!npmCli) throw new Error('NPM_EXEC_PATH_REQUIRED')
 const ownerExitCommands = [
+  ['npm run check:dev-121:role-catalog-v7', ['run', 'check:dev-121:role-catalog-v7']],
   ['npm run test:dev-117:abort', ['run', 'test:dev-117:abort']],
   ['npm run check:db-boundary', ['run', 'check:db-boundary']],
   ['npm run typecheck:app', ['run', 'typecheck:app']],
@@ -57,6 +58,9 @@ const files = [
   'config/release/dev122-openswx-worker.json', 'scripts/lib/dev122-openswx-owner-release.mjs', 'scripts/dev122-openswx-owner-release.test.mjs',
   'scripts/dev122-openswx-bootstrap.mjs', 'scripts/lib/dev122-openswx-bootstrap.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs',
   ...['main.tf', 'backend.tf', 'versions.tf', 'README.md'].map(name => `infra/google-cloud/dev-122-openswx-worker/${name}`),
+  'config/access-control/jenfu-role-catalog.v7.json', 'db/postgres/085_dev121_principal_role_catalog_v7.sql',
+  'scripts/dev121-build-principal-role-catalog-v7.mjs', 'scripts/dev121-build-principal-role-catalog-v7.test.mjs',
+  'scripts/qc-dev-121-rd-capabilities-postgres.mjs',
   '.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md',
   '.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md',
   '.ai-doc/dev_task.md', '.ai-doc/documentation_map.md', '.gitattributes', 'AGENTS.md', 'package.json',
@@ -75,6 +79,7 @@ const files = [
   'scripts/lib/dev121-principal-candidate-smoke.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs',
   'scripts/dev121-principal-only-recovery-server.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs',
   'scripts/lib/dev121-principal-only-release.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs',
+  'scripts/dev121-principal-fence-operator.mjs', 'scripts/lib/dev121-principal-fence-operator.mjs', 'scripts/lib/dev121-principal-fence-operator.test.mjs',
   'scripts/dev121-principal-recovery-operator.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs',
   'scripts/lib/dev121-principal-recovery-operator.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs',
   'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs',

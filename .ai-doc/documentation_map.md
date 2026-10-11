@@ -1,5 +1,13 @@
 # AI_PDM 文件地圖
 
+
+## DEV-121#rd-capabilities — 2026-10-11 v7 維護 producer 續接
+
+OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429在候選驗證失敗，failure handler完成、activate未執行、正式舊版100%維持。第一個實際失敗是候選smoke使用既有憑證v9向Platform建立session，收到401／auth_token_invalid；尚未證明是哪一項token或撤銷規則導致。人類已明確授權OrgMaster既有憑證重新驗證及版本續接；原生流程完成own相鄰v9→v10、GitHub同步、Platform身分reload及局部logout，暫時runtime與port已關閉。候選smoke numeric rotation在apply前因既有事故Pub/Sub訂閱不存在、plan要求create而被保護擋下；獨立APP_INFRA_B診斷通過75地址、僅原訂閱create，其餘read/no-op，實際恢復仍等待明確資源範圍確認。未重送失敗capsule或重建有效inputs。AI-PDM PR #261已整合official main c690d30／0f0246c／0d0235d的DEV-122更新；fixed B35 fixture只用34-entry alias，普通RD package保持35。新停寫／recovery修正聚焦29/29 PASS，085尚未套用、RD尚未部署及正式驗收。
+
+施工契約：[DEV-121 target boundary／RD v7 producer](specs/DEV-121-target-authorization-boundary.md)。來源入口：`scripts/dev121-principal-fence-operator.mjs`、`scripts/lib/dev121-principal-fence-operator.mjs`；synthetic驗證：`scripts/lib/dev121-principal-fence-operator.test.mjs`。Production receipts只存own private release bucket／ignored output，不把Production baseline、cleanup證據或密碼帶入public Git。Dani本人延期驗證、RD兩fixture新能力及Google延遲完成實測仍未證；Browser saved permission拒絕及歷史FK阻擋保持，未繞過或擴大刪除。
+
+
 ## DEV-122 CURRENT（B35-R9 已正式發布；業務驗收繼續）
 
 官方來源 2600ba2（PR #266）的 R9 owner [38092446021](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021) 十階段 SUCCESS；正式 ai-pdm-prod-99f16f79d877 承接 100% 流量、零 tags，FINALIZED／RELEASED。正式唯讀核對為 applied 0／replayed 33／ledger 33／NO084；worker generation 17 READY、Scheduler ENABLED。本輪 IAM 計畫 0 create／12 no-op；自有程序與暫存清理 PASS。
@@ -433,6 +441,9 @@ HISTORY_ONLY／corrective-batch2前SQL切片：[Context-owned新版原生SQL證�
 
 </details>
 
+## DEV-121 RD 圖／料號能力（2026-10-10，LOCAL_CANDIDATE）
+
+[任務](dev_task.md#dev-121-rd-capabilities) → [唯一施工契約](specs/DEV-121-target-authorization-boundary.md#rd-capabilities) → [本機證據](qa/DEV-121-rd-capabilities-v7-local-2026-10-10.md)。v6有效RD grant缺drawing view已重現；v7只增RD drawing page，編輯與送審保留、核准仍deny。085／exact35 source pin／maintenance fence維持fail closed，program-only34/33不放寬。OrgMaster目前仍只讀，新v7相容及owner发布需原始人類明確授權；維護窗口proof尚未取得。Local focused/native PASS不代表正式發布或本人驗證。保留原first-login與cleanup歷史。
 ## DEV-121 generic 歷史 profile 清理（2026-10-10，執行中）
 
 [現行任務](dev_task.md#dev-121-unlinked-profile-cleanup) → [current contract](specs/DEV-121-target-authorization-boundary.md#unlinked-profile-cleanup) → migrator-only `084_dev121_unlinked_legacy_profile_cleanup.sql` → synthetic PostgreSQL／owner producer／runner／source-proof 回歸。公開內容僅可重用程式與合成驗證；Production 單筆目標、處置、native snapshot 與 provider evidence 私存。 本地證據入口：[local validation](qa/qa-dev-121-generic-unlinked-profile-cleanup-2026-10-10.md)。受保護 owner capsule／exact generation/hash/source 控制執行，不新增角色、IAM 或資源，不改 065／083，引用或資料漂移拒絕；本機 PASS 不等於正式資料刪除或本人登入成功。

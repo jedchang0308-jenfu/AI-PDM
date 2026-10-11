@@ -23,9 +23,9 @@ function repairMigrationContentFixture() {
   const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
   const currentProfile = JSON.parse(readFileSync(new URL(`../${profilePath}`, import.meta.url)))
   const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
-  assert.equal(currentProfile.migrations.entries.length, 34)
+  assert.equal(currentProfile.migrations.entries.length, 35)
   // B24 remains the historical exact 32 -> 33 append contract. Ordinary 084
-  // is covered separately and is never admitted into that paused repair gate.
+  // and catalog085 are covered separately; neither enters the paused repair gate.
   currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 33)
   const historicalProfile = structuredClone(currentProfile)
   historicalProfile.migrations.entries = historicalProfile.migrations.entries.slice(0, 32)

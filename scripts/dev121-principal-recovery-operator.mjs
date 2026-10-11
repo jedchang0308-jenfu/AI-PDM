@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import { gzipSync } from 'node:zlib'
 import path from 'node:path'
@@ -7,6 +7,7 @@ import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { createGitArchive } from './lib/dev012-owner-stage-executor.mjs'
+import { readGitAuthority } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { verifyOfficialMergedSource } from './lib/dev012-official-source-review.mjs'
 import { assertRecoveryProofReadback } from './lib/dev121-principal-only-release.mjs'
 import { assertRecoveryBaseline, recoveryBuildRequest, assertRecoveryBuildReadback,
@@ -71,6 +72,17 @@ export async function executeRecoveryOperation({ profile, sourceRevision, archiv
   const before = await transport.getService(profile)
   const oldRevision = transport.effectiveRevision(before)
   assertRecoveryBaseline({ profile, service: before, oldRevision, sourceRevision })
+  const active = await transport.getRevision(profile, oldRevision)
+  if (active?.name !== before.name + '/revisions/' + oldRevision ||
+    active.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED' ||
+    !/^([1-9][0-9]?)s$/u.test(active.timeout ?? '') ||
+    Number(active.timeout.slice(0, -1)) > Number(before.template.timeout.slice(0, -1))) {
+    throw new Error('DEV121_RECOVERY_ACTIVE_TIMEOUT_INVALID')
+  }
+  const buildSubmissionUri = `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${sourceRevision}-build-submission.json`
+  if (await optionalReceipt(transport, buildSubmissionUri)) {
+    throw new Error('DEV121_RECOVERY_BUILD_SUBMISSION_REQUIRES_READBACK')
+  }
   const plannedRevision = `ai-pdm-prod-recovery-${sourceRevision.slice(0, 12)}`
   if ([plannedRevision, `${before.name}/revisions/${plannedRevision}`].includes(before.latestCreatedRevision)) {
     throw new Error('DEV121_RECOVERY_PARTIAL_REVISION_REQUIRES_READBACK')
@@ -80,6 +92,11 @@ export async function executeRecoveryOperation({ profile, sourceRevision, archiv
     { bucket, prefix: 'source', contentType: 'application/gzip' })
   const buildRequest = recoveryBuildRequest({ profile, sourceRevision, sourceObject })
   const deadlineAt = new Date(Date.now() + 40 * 60_000).toISOString()
+  const buildClaim = await transport.putJson(buildSubmissionUri, {
+    schemaVersion: 'ai-pdm.principal-only-recovery-build-submission.v1',
+    sourceRevision, claimId: randomUUID(), sourceProof, buildRequest,
+  }, { bucket, prefix: 'receipts' })
+  if (buildClaim.reused === true) throw new Error('DEV121_RECOVERY_BUILD_SUBMISSION_REQUIRES_READBACK')
   const operation = await transport.request('https://cloudbuild.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/builds',
     { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(buildRequest) })
   const build = await transport.waitBuild(operation, deadlineAt, 'jenfu-platform-prod', 'asia-east1')
@@ -115,9 +132,7 @@ async function main(environment = process.env) {
   }
   const profile = JSON.parse(await fs.readFile(path.join(root,
     'config/release/dev117-ai-pdm-independent-production-v3.json'), 'utf8'))
-  const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true }).trim()
-  const sourceRevision = git(['rev-parse', 'HEAD'])
-  const sourceTree = git(['rev-parse', 'HEAD^{tree}'])
+  const { sourceRevision, sourceTree } = readGitAuthority(root, profile)
   const archive = createGitArchive(root, sourceRevision)
   const sourceProof = await verifyOfficialMergedSource({ repository, branch: 'main',
     revision: sourceRevision, sourceTree, token: environment.GITHUB_TOKEN, rulesetId: 24077878 })
