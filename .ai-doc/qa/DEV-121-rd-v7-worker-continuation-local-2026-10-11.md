@@ -56,3 +56,17 @@ Runtime：memory-only finite Node tests，port=null／無primary seed；nativeQC
 
 
 最終分類相容回歸：native QC 原350項有1項既有 app negative 因固定 active control 缺少時傳出 MISSING 而非既有 OPENSWX_PRIOR_CANONICAL_INVALID。最小修正只對該精確讀取的 MISSING 映射拒絕碼，其他依賴錯誤原樣拋出；新增測試精確 assert code。受影響 focused10/10與最終 native QC350/350 PASS、零skip；完整continuous294/294為分類修正前證據，最終native涵蓋該分母及追加owner案例，不相加。v7 catalog3/3、abort6/6、DB boundary22檔、typecheck:app與isolated build PASS（artifact／primary／cleanup=true），sharp image-only與task temp cleanup PASS。LOCAL_CONTRACT report DEV117-S1B-20261011T160326617Z-BBFE6D68，source snapshot ea7447baca86190dd6ff52e5328bf494829a99254eba8db97d83a882031d5b46。QA結果及路由索引為驗證後後記，兩個程式／測試檔未再變更。增量獨立source QC P0=0/P1=0；保留依賴不可讀及未知版本零寫入拒絕。正式部署及085仍未執行，本機PASS不替代Production驗收。
+
+## Bounded stdout evidence readback corrective checkpoint
+
+沿用 AI-PDM/DEV-121#rd-capabilities／DEV-122 DAILY dependency；base protected main cbe55f681ae7173ae01087ca13d8ce385ecde298，branch codex/dev121-worker-log-readback。開始 tracked clean，AGENTS 已完整閱讀，保留其他 task、canonical 與 private output。僅修改 AI-PDM 自有 bootstrap 日誌證據邊界及 synthetic tests；Platform／OrgMaster 來源、授權與帳戶規則均未修改。
+
+實際發布已完成原事故訂閱恢復、native metadata、current worker artifact association、source-bound infrastructure reuse 與正式 pause。Selftest execution 成功，但首次 stdout proof read 以 OPENSWX_STDOUT_NOT_UNIQUE 拒絕；native failure recovery 已恢復 exact prior normal Job，normal recovery execution 亦成功，Scheduler 保持 PAUSED、durable queue 保留。之後只讀到兩個 execution 各一筆合法 marker，receiveTimestamp 都早於 execution completion。初次查詢的筆數未保留，不能把這次失敗斷言為零筆或日誌傳輸延遲；查詢／索引可見性延遲仍是假說。失敗 input deadline 已過，不重送舊 input、不重寫封存收據、不重複 run。
+
+Synthetic true RED：provider 首次查無 marker、下一次同 scope／window 可見唯一合法 marker時，原 single-query reader立即拒絕。最小修正只對完整分頁查詢後零筆 marker做短暫、有界讀回：沿用 profile 的 recovery budget、poll interval、max pages／entries 及原 absolute deadline；monotonic／wall clock 與 observation count 共同限制重試。最多 20 次 observation，interval 1 秒；單一 provider request 的原 transport timeout 不變。合法唯一 marker proof shape不變；多筆、同 insertId 衝突、錯 scope／window、pagination overflow及 provider dependency error皆即時拒絕。失敗證據只加 executionName、filter hash、marker count、observation count與elapsed milliseconds，不保存日誌 payload、token或Production身份。
+
+本地聚焦 stdout／scoped logs 7/7 PASS、零skip；另 native DAILY 多筆拒絕整合 1/1 PASS、零skip，核對 single immutable recovery receipt 的五項 primitive、必要 prior-normal proof、PAUSED 及零重複 selftest／resume／Secret版本寫入。native完整 regression 354/354 PASS、零skip，v7 catalog3/3、abort6/6、DB boundary22檔、typecheck:app及isolated build PASS（artifact／primary／cleanup=true）；另一份test:dev-117:continuous 294/294 PASS、零skip，分母有重疊不相加。本機合成測試只證明zero→visible的安全接續，不證明先前Production首查為零筆。FAILED DAILY partial continuation仍需原生 immutable-request／completed execution及目前實際Job／Scheduler狀態的封存核對，不能借用historical READY etag、手動resume或跳過source guard。085仍未套用，RD v7未部署，舊版100%流量；兩fixture新RD能力未驗收，Dani本人DEFERRED_UNVERIFIED，Google延遲正式情境及指定歷史資料刪除仍未證。
+
+Production inputs／request／receipt／execution log證據只在private bucket／ignored output；不提交公開repo。本slice runtime為有限memory-only Node tests，port=null，QC／build沿用native primary／temp cleanup；node_modules暫時junction及Governor lease由Root於使用結束後精確清理。worktree保留供reviewed owner release續接。
+
+最終 source-only independent QC：gpt-6-luna xhigh 唯讀，P0=0/P1=0；不是provider實測。LOCAL_CONTRACT report DEV117-S1B-20261011T170919280Z-D37FE82F，sourceSnapshotSha256=ee40ffb7ea492edacaa1a5fe9eb3596dd584b74f9cd90806cf9366aa8a8a4415；兩個程式／測試檔於QC後未再修改，本QA及索引結果為執行後後記。Production PAUSED／085與新RD尚未完成的狀態不升格。

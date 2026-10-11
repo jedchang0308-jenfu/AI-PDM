@@ -559,30 +559,53 @@ export function parseWorkerStdoutMarker(row, executionName, expectedState = 'emp
     || (expectedState === 'empty' ? marker.executionName !== canonical : expectedState !== 'isolation_verified' || marker.executionName !== null)) fail('OPENSWX_STDOUT_MARKER_INVALID')
   return { insertId: row.insertId, timestamp: row.timestamp, marker }
 }
-export async function readWorkerStdoutProof({ transport, profile, execution, expectedState = 'empty', deadlineAt }) {
+export async function readWorkerStdoutProof({ transport, profile, execution, expectedState = 'empty', deadlineAt,
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), monotonic = () => performance.now() }) {
   assertOpenSwxWorkerProfile(profile); checkDeadline(deadlineAt)
   const executionName = canonicalWorkerExecution(execution.name), executionId = executionName.split('/').at(-1)
   if ([execution.createTime, execution.completionTime].some(value => typeof value !== 'string' || !Number.isFinite(Date.parse(value)))
     || Date.parse(execution.createTime) > Date.parse(execution.completionTime)) fail('OPENSWX_STDOUT_WINDOW_INVALID')
   const filter = [`resource.type="cloud_run_job"`, `resource.labels.project_id="${profile.projectId}"`, `resource.labels.location="${profile.location}"`, `resource.labels.job_name="${profile.jobId}"`, `labels."run.googleapis.com/execution_name"="${executionId}"`, 'logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Fstdout"', `timestamp>="${execution.createTime}"`, `timestamp<="${execution.completionTime}"`].join(' AND ')
-  const markers = new Map(); let pageToken = ''
-  for (let page = 0; page < profile.bounds.maxLogPages; page += 1) {
-    checkDeadline(deadlineAt)
-    const result = await transport.request('https://logging.googleapis.com/v2/entries:list', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ resourceNames: [`projects/${profile.projectId}`], filter, pageSize: profile.bounds.maxLogEntries, orderBy: 'timestamp asc', ...(pageToken ? { pageToken } : {}) }) })
-    checkDeadline(deadlineAt)
-    for (const entry of result.entries ?? []) {
-      if (entry.jsonPayload?.schemaVersion !== MARKER && !entry.textPayload?.includes(MARKER)) continue
-      const marker = parseWorkerStdoutMarker(entry, executionName, expectedState)
-      if (Date.parse(marker.timestamp) < Date.parse(execution.createTime) || Date.parse(marker.timestamp) > Date.parse(execution.completionTime)) fail('OPENSWX_STDOUT_WINDOW_INVALID')
-      if (markers.has(marker.insertId) && canonicalize(markers.get(marker.insertId)) !== canonicalize(marker)) fail('OPENSWX_STDOUT_CONFLICT')
-      markers.set(marker.insertId, marker)
-    }
-    pageToken = result.nextPageToken ?? ''; if (!pageToken) break
-    if (page + 1 === profile.bounds.maxLogPages) fail('OPENSWX_STDOUT_PAGE_LIMIT')
+  const started = monotonic(), budget = profile.bounds.recoverDeadlineSeconds * 1000
+  const wallLimit = Math.min(Date.parse(deadlineAt), Date.now() + budget)
+  let observations = 0
+  const elapsed = () => {
+    const current = monotonic()
+    if (!Number.isFinite(started) || !Number.isFinite(current) || current < started) fail('OPENSWX_STDOUT_READBACK_CLOCK_INVALID')
+    return current - started
   }
-  if (markers.size !== 1) fail('OPENSWX_STDOUT_NOT_UNIQUE')
-  const marker = [...markers.values()][0]
-  return { executionName, marker, markerSha256: sha256(canonicalize(marker)), filterSha256: sha256(filter), observedAt: transport.now(), claimProof: expectedState === 'empty' ? 'AUTHENTICATED_204_SOURCE_BOUND' : 'ISOLATION_ONLY_NO_CAD' }
+  const notUnique = markerCount => {
+    throw Object.assign(new Error('OPENSWX_STDOUT_NOT_UNIQUE'), { code: 'OPENSWX_STDOUT_NOT_UNIQUE',
+      stdoutReadback: { executionName, filterSha256: sha256(filter), markerCount, observations, elapsedMilliseconds: Math.floor(elapsed()) } })
+  }
+  for (;;) {
+    checkDeadline(deadlineAt)
+    if (observations > 0 && (elapsed() >= budget || Date.now() >= wallLimit)) notUnique(0)
+    elapsed(); observations++
+    const markers = new Map(); let pageToken = ''
+    for (let page = 0; page < profile.bounds.maxLogPages; page += 1) {
+      checkDeadline(deadlineAt)
+      const result = await transport.request('https://logging.googleapis.com/v2/entries:list', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ resourceNames: [`projects/${profile.projectId}`], filter, pageSize: profile.bounds.maxLogEntries, orderBy: 'timestamp asc', ...(pageToken ? { pageToken } : {}) }) })
+      checkDeadline(deadlineAt)
+      for (const entry of result.entries ?? []) {
+        if (entry.jsonPayload?.schemaVersion !== MARKER && !entry.textPayload?.includes(MARKER)) continue
+        const marker = parseWorkerStdoutMarker(entry, executionName, expectedState)
+        if (Date.parse(marker.timestamp) < Date.parse(execution.createTime) || Date.parse(marker.timestamp) > Date.parse(execution.completionTime)) fail('OPENSWX_STDOUT_WINDOW_INVALID')
+        if (markers.has(marker.insertId) && canonicalize(markers.get(marker.insertId)) !== canonicalize(marker)) fail('OPENSWX_STDOUT_CONFLICT')
+        markers.set(marker.insertId, marker)
+        if (markers.size > 1) notUnique(markers.size)
+      }
+      pageToken = result.nextPageToken ?? ''; if (!pageToken) break
+      if (page + 1 === profile.bounds.maxLogPages) fail('OPENSWX_STDOUT_PAGE_LIMIT')
+    }
+    if (markers.size === 1) {
+      const marker = [...markers.values()][0]
+      return { executionName, marker, markerSha256: sha256(canonicalize(marker)), filterSha256: sha256(filter), observedAt: transport.now(), claimProof: expectedState === 'empty' ? 'AUTHENTICATED_204_SOURCE_BOUND' : 'ISOLATION_ONLY_NO_CAD' }
+    }
+    const remaining = Math.min(budget - elapsed(), wallLimit - Date.now())
+    if (remaining <= 0 || observations >= Math.ceil(budget / profile.bounds.pollMilliseconds)) notUnique(0)
+    await sleep(Math.min(profile.bounds.pollMilliseconds, remaining))
+  }
 }
 export async function verifyNormalActor(transport, profile) {
   const identity = await transport.request('https://openidconnect.googleapis.com/v1/userinfo')
@@ -1323,7 +1346,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
         assertFreshProof(terminal.value.facts.execution, profile); await assertNoActiveExecutions(transport)
       } catch { /* Pending/unknown execution or authority cannot authorize restoration. */ }
     }
-    await write(transport, `${uri.slice(0, -5)}-recovery-required.json`, { schemaVersion: 'aipdm.openswx-bootstrap-recovery.v1', targetDescriptorRef: descriptor.ref, sourceRevision: descriptor.value.sourceRevision, priorActivationRef: input.priorActivationRef ?? null, observedAt: transport.now(), status: 'RECOVERY_REQUIRED', schedulerState: 'PAUSED', durableQueue: 'RETAINED', priorJobRestored, priorEmptyProof, errorCode: error.code ?? 'OPENSWX_BOOTSTRAP_FAILED', schedulerEnabled: false })
+    await write(transport, `${uri.slice(0, -5)}-recovery-required.json`, { schemaVersion: 'aipdm.openswx-bootstrap-recovery.v1', targetDescriptorRef: descriptor.ref, sourceRevision: descriptor.value.sourceRevision, priorActivationRef: input.priorActivationRef ?? null, observedAt: transport.now(), status: 'RECOVERY_REQUIRED', schedulerState: 'PAUSED', durableQueue: 'RETAINED', priorJobRestored, priorEmptyProof, errorCode: error.code ?? 'OPENSWX_BOOTSTRAP_FAILED', ...(error.code === 'OPENSWX_STDOUT_NOT_UNIQUE' && error.stdoutReadback ? { stdoutReadback: error.stdoutReadback } : {}), schedulerEnabled: false })
     throw error
   }
   // Once bootstrap is sealed, a descriptor upload failure must leave its verified

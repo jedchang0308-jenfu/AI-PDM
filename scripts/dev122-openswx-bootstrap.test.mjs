@@ -97,7 +97,63 @@ test('exact scoped logs deduplicate identical insertId and reject ambiguity, mis
   const args = { transport, profile, execution, deadlineAt: deadline() }
   assert.equal((await readWorkerStdoutProof(args)).claimProof, 'AUTHENTICATED_204_SOURCE_BOUND')
   assert.deepEqual(body.resourceNames, [`projects/${profile.projectId}`]); assert.match(body.filter, /execution_name/); assert.match(body.filter, /stdout/); assert.doesNotMatch(body.filter, /jobs\/\*|region/)
-  for (const result of [{ entries: [] }, { entries: [row, { ...row, insertId: 'second' }] }, { entries: [row, { ...row, jsonPayload: { ...row.jsonPayload, state: 'completed' } }] }, { entries: [row], nextPageToken: 'keep-going' }]) await assert.rejects(readWorkerStdoutProof({ ...args, transport: { ...transport, request: async () => result } }))
+  for (const result of [{ entries: [] }, { entries: [row, { ...row, insertId: 'second' }] }, { entries: [row, { ...row, jsonPayload: { ...row.jsonPayload, state: 'completed' } }] }, { entries: [row], nextPageToken: 'keep-going' }]) {
+    let monotonicTime = 0
+    await assert.rejects(readWorkerStdoutProof({ ...args, monotonic: () => monotonicTime, sleep: async milliseconds => { monotonicTime += milliseconds }, transport: { ...transport, request: async () => result } }))
+  }
+})
+test('stdout proof polls an initially empty Logging read and accepts one marker once visible in the same execution window', async () => {
+  const row = marker(), execution = { name: executionName, createTime: new Date(Date.now() - 5000).toISOString(), completionTime: new Date(Date.now() + 5000).toISOString() }
+  const requestBodies = [], sleeps = []; let calls = 0, monotonicTime = 0
+  const transport = { now: () => new Date().toISOString(), request: async (_url, options) => {
+    requestBodies.push(JSON.parse(options.body)); calls += 1
+    return calls === 1 ? { entries: [] } : { entries: [row] }
+  } }
+  const proof = await readWorkerStdoutProof({ transport, profile, execution, deadlineAt: deadline(),
+    monotonic: () => monotonicTime, sleep: async milliseconds => { sleeps.push(milliseconds); monotonicTime += milliseconds } })
+  assert.equal(proof.claimProof, 'AUTHENTICATED_204_SOURCE_BOUND')
+  assert.equal(calls, 2)
+  assert.deepEqual(requestBodies[1], requestBodies[0])
+  assert.ok(requestBodies[0].filter.includes(`timestamp>=\"${execution.createTime}\"`))
+  assert.ok(requestBodies[0].filter.includes(`timestamp<=\"${execution.completionTime}\"`))
+  assert.deepEqual(sleeps, [profile.bounds.pollMilliseconds])
+  assert.equal(proof.marker.marker.executionName, execution.name)
+})
+test('stdout proof bounds persistent empty reads and retains the existing non-unique failure code', async () => {
+  const execution = { name: executionName, createTime: new Date(Date.now() - 5000).toISOString(), completionTime: new Date(Date.now() + 5000).toISOString() }
+  const sleeps = []; let calls = 0, monotonicTime = 0
+  await assert.rejects(readWorkerStdoutProof({ transport: { now: () => new Date().toISOString(), request: async () => { calls++; return { entries: [] } } },
+    profile, execution, deadlineAt: deadline(), monotonic: () => monotonicTime,
+    sleep: async milliseconds => { sleeps.push(milliseconds); monotonicTime += milliseconds } }), { code: 'OPENSWX_STDOUT_NOT_UNIQUE' })
+  const boundMilliseconds = profile.bounds.recoverDeadlineSeconds * 1000
+  assert.ok(calls > 1 && calls <= Math.ceil(boundMilliseconds / profile.bounds.pollMilliseconds))
+  assert.ok(monotonicTime <= boundMilliseconds && monotonicTime >= boundMilliseconds - profile.bounds.pollMilliseconds)
+  assert.ok(sleeps.length > 0 && sleeps.every(milliseconds => milliseconds === profile.bounds.pollMilliseconds))
+})
+test('stdout proof rejects non-empty invalid results and Logging errors without polling retries', async () => {
+  const execution = { name: executionName, createTime: new Date(Date.now() - 5000).toISOString(), completionTime: new Date(Date.now() + 5000).toISOString() }
+  const run = async ({ response, expectedCode, expectedMessage, maximumCalls = 1 }) => {
+    let calls = 0, monotonicTime = 0; const sleeps = [], bodies = []
+    await assert.rejects(readWorkerStdoutProof({ transport: { now: () => new Date().toISOString(), request: async (_url, options) => {
+      calls++; bodies.push(JSON.parse(options.body))
+      if (response instanceof Error) throw response
+      return typeof response === 'function' ? response(calls) : response
+    } }, profile, execution, deadlineAt: deadline(), monotonic: () => monotonicTime,
+    sleep: async milliseconds => { sleeps.push(milliseconds); monotonicTime += milliseconds } }),
+    expectedCode ? { code: expectedCode } : new RegExp(expectedMessage))
+    assert.ok(calls <= maximumCalls)
+    assert.equal(sleeps.length, 0)
+    assert.equal(monotonicTime, 0)
+    assert.ok(bodies.every(body => body.filter === bodies[0].filter && JSON.stringify(body.resourceNames) === JSON.stringify(bodies[0].resourceNames)))
+    return calls
+  }
+  const row = marker()
+  assert.equal(await run({ response: { entries: [row, { ...row, insertId: 'second' }] }, expectedCode: 'OPENSWX_STDOUT_NOT_UNIQUE' }), 1)
+  assert.equal(await run({ response: { entries: [row, { ...row, timestamp: new Date(Date.parse(row.timestamp) + 1000).toISOString() }] }, expectedCode: 'OPENSWX_STDOUT_CONFLICT' }), 1)
+  assert.equal(await run({ response: { entries: [{ ...row, logName: 'projects/sibling/logs/run.googleapis.com%2Fstdout' }] }, expectedCode: 'OPENSWX_STDOUT_SCOPE_INVALID' }), 1)
+  assert.equal(await run({ response: { entries: [{ ...row, timestamp: new Date(Date.parse(execution.createTime) - 1000).toISOString() }] }, expectedCode: 'OPENSWX_STDOUT_WINDOW_INVALID' }), 1)
+  assert.equal(await run({ response: () => ({ entries: [row], nextPageToken: 'continue' }), expectedCode: 'OPENSWX_STDOUT_PAGE_LIMIT', maximumCalls: profile.bounds.maxLogPages }), profile.bounds.maxLogPages)
+  assert.equal(await run({ response: Error('UNAUTHORIZED_LOG_QUERY'), expectedMessage: 'UNAUTHORIZED_LOG_QUERY' }), 1)
 })
 test('reader append preserves existing registry entries and has one exact purpose/capability', () => {
   const old = { schemaVersion: registry.schemaVersion, workloads: [{ id: 'legacy-worker', token: 'L'.repeat(43), purposes: ['recognition_jobs'], capabilities: ['solidworks_document_manager'] }] }
@@ -274,6 +330,60 @@ test('daily selftest failure restores only a terminal verified prior normal Job 
   const recovery = await h.transport.readBytes(ref('failed-bootstrap-recovery-required').uri)
   assert.equal(recovery.value.status, 'RECOVERY_REQUIRED'); assert.equal(recovery.value.priorJobRestored, true); assert.equal(recovery.value.schedulerEnabled, false)
   assert.ok(h.calls.every(row => !row.url.endsWith(':resume') && !row.url.endsWith(':addVersion')))
+})
+test('daily duplicate selftest stdout seals bounded recovery evidence, restores prior Job, and never repeats the target run or resumes Scheduler', async () => {
+  const h = await dailyHarness(), drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'duplicate-stdout-drain')
+  const recoveryUri = ref('duplicate-stdout-bootstrap-recovery-required').uri
+  const originalRequest = h.transport.request, originalPutJson = h.transport.putJson
+  const filters = []; let recoveryWrites = 0
+  h.calls.length = 0
+  h.transport.putJson = async (uri, value) => { if (uri === recoveryUri) recoveryWrites++; return originalPutJson(uri, value) }
+  h.transport.request = async (url, options = {}) => {
+    const result = await originalRequest(url, options)
+    if (!url.includes('logging.googleapis.com')) return result
+    filters.push(JSON.parse(options.body).filter)
+    if (filters.length !== 1) return result
+    assert.equal(result.entries.length, 1)
+    return { ...result, entries: [result.entries[0], { ...result.entries[0], insertId: 'second-distinct-marker' }] }
+  }
+
+  await assert.rejects(h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref }, 'duplicate-stdout-bootstrap'), { code: 'OPENSWX_STDOUT_NOT_UNIQUE' })
+
+  const recovery = await h.transport.readBytes(recoveryUri)
+  assert.equal(recovery.value.status, 'RECOVERY_REQUIRED')
+  assert.equal(recovery.value.errorCode, 'OPENSWX_STDOUT_NOT_UNIQUE')
+  assert.equal(recovery.value.priorJobRestored, true)
+  assert.equal(recovery.value.priorEmptyProof.claimProof, 'AUTHENTICATED_204_SOURCE_BOUND')
+  assert.equal(recovery.value.schedulerState, 'PAUSED')
+  assert.equal(recovery.value.schedulerEnabled, false)
+  assert.equal(recovery.value.durableQueue, 'RETAINED')
+  assert.equal(recoveryWrites, 1)
+  assert.equal(recovery.metadata.generation, '1')
+  assert.equal(recovery.ref.sha256, sha256(recovery.bytes))
+  const stdout = recovery.value.stdoutReadback
+  assert.deepEqual(Object.keys(stdout).sort(), ['elapsedMilliseconds', 'executionName', 'filterSha256', 'markerCount', 'observations'].sort())
+  assert.equal(typeof stdout.executionName, 'string')
+  assert.match(stdout.filterSha256, /^[a-f0-9]{64}$/u)
+  assert.equal(stdout.markerCount, 2)
+  assert.equal(stdout.observations, 1)
+  assert.ok(Number.isInteger(stdout.elapsedMilliseconds) && stdout.elapsedMilliseconds >= 0)
+  assert.equal(filters.length, 2) // one ambiguous selftest query, then one distinct prior-normal proof query
+  assert.equal(stdout.filterSha256, sha256(filters[0]))
+  const executionId = filters[0].split(' AND ').find(part => part.startsWith('labels."run.googleapis.com/execution_name"='))?.match(/="([^"]+)"$/u)?.[1]
+  assert.ok(executionId)
+  assert.equal(stdout.executionName, `${workerJobName().replace(profile.projectId, profile.projectNumber)}/executions/${executionId}`)
+
+  const runs = h.calls.filter(row => row.url.endsWith(':run'))
+  const patches = h.calls.filter(row => row.options.method === 'PATCH')
+  assert.equal(runs.length, 2) // the rejected selftest plus the single prior-normal recovery proof
+  assert.equal(patches.length, 2)
+  assert.deepEqual(normalizeWorkerTemplate(JSON.parse(patches[0].options.body).template), workerTemplate(profile, h.nextImage, null, 'selftest'))
+  assert.deepEqual(normalizeWorkerTemplate(JSON.parse(patches[1].options.body).template), workerTemplate(profile, h.priorImage, tokenName))
+  assert.ok(h.calls.every(row => !row.url.endsWith(':resume') && !row.url.endsWith(':addVersion')))
+  const job = await h.transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
+  const scheduler = await h.transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`)
+  assert.deepEqual(normalizeWorkerTemplate(job.template), workerTemplate(profile, h.priorImage, tokenName))
+  assert.equal(scheduler.state, 'PAUSED')
 })
 async function activationHarness() {
   const h = await dailyHarness(), drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'daily-drain')
