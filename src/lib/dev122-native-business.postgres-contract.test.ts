@@ -2247,7 +2247,7 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
     if (process.env.DEV122_NATIVE_SELECTION === "preview-ui-handoff") {
-      const inputs = [];
+      const inputs: Array<Record<string, unknown>> = [];
       for (const state of ["pending", "delayed", "terminal"] as const) {
         const label = "CUA-" + state;
         const drawing = await ok<{ drawingNumber: { id: string; drawingNumber: string } }>(await createRecord(

@@ -333,5 +333,46 @@
     "productBindingsUnchanged": true,
     "fixtureNormalizedSha256": "90c1fd74613fff6ba0e9b213c803c61a9c70ca7ea169307bc416cb68af15d98f",
     "qualification": "Latest main role-catalog v7 migration/source guards preserved; old runtime/CUA evidence stays on 0d, not a new native execution or product release"
+  },
+  "typeCorrection": {
+    "failedCi": {
+      "runId": "38146208831",
+      "sourceRevision": "02678d34045789685ade3f2c8e80fb155e2ca8f0",
+      "requiredJob": "Production Slice QC",
+      "errors": [
+        "TS7034 at line 2250",
+        "TS7005 at line 2308"
+      ],
+      "log": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-ci-38146208831-failed.log",
+        "sha256": "cddd1f08f83dd41e7c2834ef233bc15c4c159508304d8d2fac9f48f2074add88"
+      }
+    },
+    "change": "One explicit Array<Record<string, unknown>> type annotation; runtime payload, SQL, session and cleanup behavior unchanged",
+    "fixtureSha256": "1a44325a2d2bf61cdea45b74173077d3be8ad61797ab808971145de9c323511a",
+    "independentDeltaQc": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-type-correction-delta-qc-r1.json",
+      "sha256": "53a19c233bbfdc002a4e686c2e5528bb62bb9251ce6fbefc32a7e5644b0c3f8d"
+    },
+    "localStrictTypecheck": {
+      "command": "node node_modules/typescript/bin/tsc -p tsconfig.app.json --noEmit --pretty false --incremental false",
+      "tscExitCode": 0,
+      "evidence": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-typecheck-r1-final.failed-cleanup-args.json",
+        "sha256": "b6b0410d5961cbbac813aea4245eb875bbb90cafaa317ffd20009a22e438154d"
+      },
+      "cleanupCorrection": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B37-typecheck-r1-cleanup-correction.json",
+        "sha256": "e58cda05c6aa923cea99b437f5e30818d629bc194ed5ad574d497b056e8d455b"
+      },
+      "processExited": true,
+      "tempRemoved": true,
+      "runtimeRegistrationReleased": true,
+      "capacityLeaseReleased": true
+    },
+    "qualification": "Original launcher exited 1 only because release CLI arguments were wrong; tsc exited 0. Correct release calls and exact owned identity were verified separately. Existing CUA/native evidence is preserved, not reclassified as current-source runtime PASS.",
+    "productSourceChanged": false,
+    "productionMutation": false,
+    "wholeDevAccepted": false
   }
 }
