@@ -2265,7 +2265,7 @@ describe.runIf(b18Enabled)("DEV122 B18 OpenSWX parent work cancellation", () => 
 
 describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!))("DEV122 actual Next UI prerequisites", () => {
   it("creates owner work through normal APIs and records explicit terminal-job fault fixtures", async () => {
-    if (process.env.DEV122_NATIVE_SELECTION === "preview-ui-handoff") {
+    if (["preview-ui-handoff", "preview-polling-ui"].includes(process.env.DEV122_NATIVE_SELECTION!)) {
       const inputs: Array<Record<string, unknown>> = [];
       for (const state of ["pending", "delayed", "terminal"] as const) {
         const label = "CUA-" + state;
@@ -2324,7 +2324,7 @@ describe.runIf(enabled && ["ui", "all"].includes(process.env.DEV122_NATIVE_SUITE
       }
       await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!, "cua-preview-fixture-ledger.json"), JSON.stringify(inputs, null, 2));
       await fs.writeFile(path.join(process.env.DEV122_RUNTIME_ROOT!, "browser-fixtures.json"), JSON.stringify(
-        [1440, 390].map(width => ({ width, height: width === 1440 ? 900 : 844, flow: "preview-ui-handoff", previewInputs: inputs }))));
+        [1440, 390].map(width => ({ width, height: width === 1440 ? 900 : 844, flow: process.env.DEV122_NATIVE_SELECTION === "preview-polling-ui" ? "preview-polling" : "preview-ui-handoff", previewInputs: inputs }))));
       return;
     }
     const fixtures = [];

@@ -14,9 +14,11 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 施工契約：[DEV-121 target boundary／RD v7 producer](specs/DEV-121-target-authorization-boundary.md)。來源入口：`scripts/dev121-principal-fence-operator.mjs`、`scripts/lib/dev121-principal-fence-operator.mjs`；synthetic驗證：`scripts/lib/dev121-principal-fence-operator.test.mjs`。Production receipts只存own private release bucket／ignored output，不把Production baseline、cleanup證據或密碼帶入public Git。Dani本人延期驗證、RD兩fixture新能力及Google延遲完成實測仍未證；Browser saved permission拒絕及歷史FK阻擋保持，未繞過或擴大刪除。
 
 
-## DEV-122 CURRENT（B36-R10 已正式發布；B38 協定補驗／B39 縮圖相容性，正式 CAD 預覽未通過）
+## DEV-122 CURRENT（B36-R10 已正式發布；B38 協定／B39 縮圖／B40 瀏覽器診斷，正式 CAD 預覽未通過）
 
 B38 的固定13個既有原生協定案例已補驗13/13 PASS，包含actual202 headers、claim／content負例及protocol PNG；TypeScript與獨立Luna QC通過。首輪12 PASS／1 FAIL為前例合法queued job污染，保留FAIL，僅在原route回條後精確清理本機fixture；另移除runner既有重複085，未改SQL且NO084。正式使用者回報預覽無法顯示並已重現；設定頁顯示原生2D worker未在線、金鑰尚未啟用，輔助屬性可見但尚未由人類比對。B39以vendored格式的有界診斷抽取，8個授權CAD原檔共讀出14張640×480儲存PNG，CRC／實際解碼與原檔前後SHA通過，已查看D-0007兩圖面及零件縮圖；這是offline相容性，compiled OpenSWX／產品接線／部署均NOT_RUN，不冒充完整CAD渲染或清晰尺寸驗收。runtime／ports／temp／primary absence及Governor清理讀回確認。[B38補驗與正式失敗](qa/DEV-122-B38-native-preview-protocol-and-user-feedback-2026-10-11.json)。
+
+B40新增限定QA selector，重用既有1個native UI fixture案例；4次fixture均1 PASS，瀏覽器均FAIL且完成案例0。已透過正常mounted上傳46-byte protocol檔取得1440×900新pending畫面與spinner；R4保存6次background starts與max in-flight1，但hidden前提逾時，不能推定30次上限、hidden/visible、reload、layout/unmount或390窄版通過。移除Playwright預設forced-focus後仍逾時，唯一原因未知；同類重試已停止。四次FAIL與source hash保留，獨立Luna QC確認屬FAIL／部分觀察，未誤計PASS，fresh讀回確認自有PID／ports／temp已清理、8個primarySQLite／sidecar路徑仍ABSENT。僅本地QA候選，產品／Cloud Run／正式來源未變更，原生CAD與whole仍NOT_ACCEPTED。
 
 本任務最新發布為官方來源 `0d0235d348bf129ef7207c1dfa04f55d18f82567`（PR #269）的 R10 owner [38125246874](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38125246874)。十階段 SUCCESS；2026-10-11 09:11Z provider 讀回 `ai-pdm-prod-1be8986b68ce` 100%、零 tags、FINALIZED／RELEASED。資料庫 applied0／replayed33／ledger33、NO084；worker generation17 READY、Scheduler ENABLED且資源未修改。本次限定 IAM 計畫0 create／12 no-op，Terraform apply／readback已執行，不將可能的state writes稱為全程唯讀。[R10 發布讀回](qa/DEV-122-B36-R10-production-release-closure-2026-10-11.json)。
 
