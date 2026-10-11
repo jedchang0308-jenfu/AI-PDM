@@ -29,6 +29,17 @@
 發布先後與阻擋：OrgMaster reader 必須先支援相同 immutable v7 artifact，保留v5/v6與所有 exact metadata/hash/tamper guards，再於AI-PDM受保護 owner 流程的完整維護窗口發布085與v7 consumer。一般 prepare 消費 optional recovery binding，fence bytes/live quiescence 在pending migration前由runner驗證；本輪新增原生producer與聚焦驗證，但actual source-bound recovery/fence及維護readiness仍未取得。發布操作者須在 paid build 前確認同source的既有完整 recovery/fence 取得流程；不得假造收據或等到build後才發現缺proof。v6 binary在v7 publication後會fail closed，回復目標為既有無DB maintenance revision，不能降migration或將舊binary假裝相容。B35 program-only policy保留closed34/deferred084/read-only33，明確拒絕35-entry v7 package；不以program-only receipt宣稱085已發布。
 
 驗收：合成有效 RD grant＋v6 重現 drawing denial；v7 同assignment允許drawing/search、edit/submit，核准HTTP403且無writer/receipt副作用；其他roles不變，錯kind/unknown/scope/identity/expiry/撤權拒絕。task-owned disposable PG驗 compiled085 baseline漂移rollback、兩個並行publication、精確replay、完整九roles及tampered metadata/role拒絕，所有runtime/port收尾。正式登入與編輯結果另驗，不以本地PASS替代兩fixture或本人驗證。證據入口：[本機驗證](../qa/DEV-121-rd-capabilities-v7-local-2026-10-10.md)。
+
+### RD v7 ordinary daily worker evidence（2026-10-11）
+
+完整35-entry／085維護發布沿用DEV-122普通daily流程，不能把B35 READY retained例外當成停寫證據。既有reuse producer驗完整current source lock/archive、原始worker executable manifest、既有resource plan、fresh READY provider與security後，另發布V2 `build_only/REUSE_VERIFIED` descriptor，僅綁current association，不攜歷史bootstrap／preflight／pause或憑證。它不執行worker build、資源bootstrap或任何lifecycle。
+
+原生pause `DAILY_DB_VERIFIED` 與bootstrap `DAILY_REFRESH`保持封閉輸入、normal actor、既有數字憑證、empty claim、source-bound排空與有限selftest。成功bootstrap由實際new receipts產出普通full descriptor；重新驗完整evidence、PAUSED、all-terminal及actual selftest template後create-only封存，CLI輸出immutable ref。cached replay驗同一input及來源；evidence、來源、Scheduler或Job漂移不得發布。
+
+Descriptor publication是已完成bootstrap之後的獨立evidence checkpoint；未知寫入保持已證selftest/PAUSED並回報失敗，不重做bootstrap或恢復prior template。same URI存在時透過原生wire bytes/hash/generation驗證adopt，零POST；未知readback不得宣稱成功。真正bootstrap失敗仍沿原有recovery保持PAUSED。ordinary prepare/candidate/finalize/activation與Principal fence、085 guard不變。
+
+此generic修正不新增資源、Secret版本、IAM或角色規則。正式操作依人類原始same-project/owner-release授權及actual source/provider receipts；local fixture不作Production權威。
+
 <a id="authorized-first-login"></a>
 
 ## 已授權首次登入自動建立 PDM 帳戶（2026-10-08，CURRENT）

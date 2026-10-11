@@ -32,7 +32,7 @@ function marker(state = 'empty', name = executionName) {
 }
 function memory() {
   const objects = new Map(), calls = []
-  const putJson = async (uri, value) => { const bytes = Buffer.from(canonicalize(value)), row = { bytes, value, ref: { uri, sha256: sha256(bytes) }, metadata: { generation: '1' } }; if (objects.has(uri)) assert.deepEqual(objects.get(uri).value, value); objects.set(uri, row); return { bytes: row.bytes, ref: row.ref, metadata: row.metadata } }
+  const putJson = async (uri, value) => { const bytes = Buffer.from(canonicalize(value) + "\n"), row = { bytes, value, ref: { uri, sha256: sha256(bytes) }, metadata: { generation: '1' } }; if (objects.has(uri)) assert.deepEqual(objects.get(uri).value, value); objects.set(uri, row); return { bytes: row.bytes, ref: row.ref, metadata: row.metadata } }
   const readBytes = async uri => { if (!objects.has(uri)) throw Object.assign(Error('MISSING'), { code: 'MISSING' }); return objects.get(uri) }
   const readJson = async reference => { const row = await readBytes(reference.uri); assert.equal(row.ref.sha256, reference.sha256); return row }
   return { objects, calls, transport: { putJson, readBytes, readJson, now: () => new Date().toISOString() }, put: async (name, value) => (await putJson(ref(name).uri, value)).ref }
@@ -1836,3 +1836,85 @@ test('DAILY continuation already at sealed prior normal performs zero PATCH and 
   assert.equal(continuationWrites(h).filter(row => row.options.method === 'PATCH').length, 0)
   assert.equal(continuationWrites(h).filter(row => row.url.endsWith(':run')).length, 1)
 })
+
+test('daily bootstrap publishes the complete current-source full descriptor and replay does not repeat Job/selftest', async () => {
+  const h = await dailyHarness(), drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'daily-publish-drain');
+  const args = { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref };
+  const bootstrap = await h.invoke('bootstrap', args, 'daily-publish-bootstrap');
+  assert.ok(bootstrap.refs?.fullDescriptorRef, 'completed daily evidence must have an ordinary owner entry descriptor');
+  const full = (await h.transport.readJson(bootstrap.refs.fullDescriptorRef)).value;
+  assert.equal(full.purpose, 'full'); assert.equal(full.sourceRevision, h.next.sourceRevision);
+  assert.deepEqual(full.workerBuildRef, h.nextBuildRef); assert.deepEqual(full.bootstrapRef, bootstrap.ref); assert.deepEqual(full.pausedDrainedRef, drained.ref);
+  assert.equal((await readWorkerFullEvidence(h.transport, full, profile, readSource)).image, h.nextImage);
+  const mutations = () => h.calls.filter(row => row.url.endsWith(':run') || row.options.method === 'PATCH').length;
+  const count = mutations(), inputRef = h.objects.get(ref('daily-publish-bootstrap-input').uri).ref;
+  const replay = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} });
+  assert.deepEqual(replay.refs.fullDescriptorRef, bootstrap.refs.fullDescriptorRef); assert.equal(mutations(), count);
+  assert.ok(h.calls.every(row => !/:addVersion|:resume|terraform/u.test(row.url)));
+});
+
+test('daily descriptor publication adopts an unknown applied write once without repeating bootstrap work', async () => {
+  const h = await dailyHarness(), drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'daily-unknown-drain');
+  const original = h.transport.putJson; let attempts = 0;
+  h.transport.putJson = async (uri, value, options) => {
+    const row = await original(uri, value, options);
+    if (uri.endsWith('-descriptor-full.json')) { attempts++; throw Object.assign(Error('applied outcome unknown'), { code: 'OUTCOME_UNKNOWN' }); }
+    return row;
+  };
+  const result = await h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref }, 'daily-unknown-bootstrap');
+  assert.equal(attempts, 1); assert.ok(result.refs.fullDescriptorRef);
+  const full = (await h.transport.readJson(result.refs.fullDescriptorRef)).value;
+  assert.equal((await readWorkerFullEvidence(h.transport, full, profile, readSource)).image, h.nextImage);
+  assert.ok(h.calls.every(row => !/:addVersion|:resume|terraform/u.test(row.url)));
+});
+test('completed daily descriptor replay rejects stale identity, altered evidence, enabled Scheduler and Job drift before publication', async () => {
+  for (const defect of ['source', 'prior', 'preflight', 'scheduler', 'job']) {
+    const h = await dailyHarness(), drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'daily-deny-drain');
+    const result = await h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref }, 'daily-deny-bootstrap');
+    const inputRef = h.objects.get(ref('daily-deny-bootstrap-input').uri).ref, provider = h.transport.request;
+    const stored = h.objects.get(result.ref.uri), value = structuredClone(stored.value);
+    if (defect === 'source') value.sourceRevision = 'f'.repeat(40);
+    if (defect === 'prior') value.facts.priorActivationRef = ref('foreign-prior');
+    if (defect === 'preflight') value.facts.cloudPreflightRef = h.prior.cloudPreflightRef;
+    if (['source', 'prior', 'preflight'].includes(defect)) {
+      delete value.receiptSha256; value.receiptSha256 = sha256(canonicalize(value));
+      const bytes = Buffer.from(canonicalize(value) + '\n');
+      h.objects.set(result.ref.uri, { ...stored, value, bytes, ref: { uri: result.ref.uri, sha256: sha256(bytes) } });
+    }
+    h.transport.request = async (url, options = {}) => {
+      const row = await provider(url, options);
+      if (defect === 'scheduler' && url === 'https://cloudscheduler.googleapis.com/v1/' + workerSchedulerName()) return { ...row, state: 'ENABLED' };
+      if (defect === 'job' && url === 'https://run.googleapis.com/v2/' + workerJobName() && !options.method) { const changed = structuredClone(row); changed.template.template.containers[0].image = profile.artifactUri + '@sha256:' + 'f'.repeat(64); return changed; }
+      return row;
+    };
+    let publications = 0; const put = h.transport.putJson;
+    h.transport.putJson = async (uri, ...args) => { if (uri.endsWith('-descriptor-full.json')) publications++; return put(uri, ...args); };
+    const writes = () => h.calls.filter(row => row.options.method === 'PATCH' || row.url.endsWith(':run') || row.url.endsWith(':resume') || row.url.endsWith(':addVersion')).length;
+    const priorWrites = writes();
+    await assert.rejects(executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} }));
+    assert.equal(publications, 0, defect); assert.equal(writes(), priorWrites, defect);
+  }
+});
+
+test('unknown daily descriptor checkpoint retains verified selftest and later adopts it with zero duplicate POST or Job work', async () => {
+  const h = await dailyHarness(), drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'daily-hidden-drain');
+  const put = h.transport.putJson, readBytes = h.transport.readBytes; let attempts = 0, hidden = true;
+  h.transport.putJson = async (uri, value, options) => {
+    const row = await put(uri, value, options);
+    if (uri.endsWith('-descriptor-full.json')) { attempts++; throw Object.assign(Error('unknown applied write'), { code: 'OUTCOME_UNKNOWN' }); }
+    return row;
+  };
+  h.transport.readBytes = async (uri, ...args) => {
+    if (hidden && uri.endsWith('-descriptor-full.json')) throw Object.assign(Error('temporarily not visible'), { code: 'MISSING' });
+    return readBytes(uri, ...args);
+  };
+  await assert.rejects(h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref }, 'daily-hidden-bootstrap'), { code: 'OPENSWX_REUSE_RECOVERY_REQUIRED' });
+  assert.equal(attempts, 1); assert.equal(h.objects.has(ref('daily-hidden-bootstrap-recovery-required').uri), false);
+  const job = await h.transport.request('https://run.googleapis.com/v2/' + workerJobName());
+  assert.deepEqual(normalizeWorkerTemplate(job.template), workerTemplate(profile, h.nextImage, null, 'selftest'));
+  const inputRef = h.objects.get(ref('daily-hidden-bootstrap-input').uri).ref;
+  const mutations = () => h.calls.filter(row => row.options.method === 'PATCH' || row.url.endsWith(':run') || row.url.endsWith(':resume') || row.url.endsWith(':addVersion')).length;
+  const count = mutations(); hidden = false;
+  const adopted = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} });
+  assert.ok(adopted.refs.fullDescriptorRef); assert.equal(attempts, 1); assert.equal(mutations(), count);
+});

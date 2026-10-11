@@ -699,7 +699,7 @@ test('B19-08/09 LOCAL_TEST repeated v2 validates immediate READY envelopes throu
   assert.equal(h.puts.length, count, 'candidate9 must fail before request/proof/final publication'); noMutation(h)
 })
 test('B19-08/11 LOCAL_TEST same-source single release DAILY/full consumes association, exact lock; replay/continuation preserve original leaf', async () => {
-  const h = await harness(), saved = await h.invoke(), d = h.v2(saved.ref), descriptorRef = h.seed('single-source-build-only', d)
+  const h = await harness(), saved = await h.invoke(), descriptorRef = saved.refs.dailyBuildOnlyDescriptorRef, d = (await h.transport.readJson(descriptorRef)).value
   const producerCalls = h.calls.slice(); noMutation(h); h.lifecycle()
   const invoke = async (stage, name, extra) => {
     const inputRef = h.seed(name + '-input', { schemaVersion: `aipdm.openswx-${stage}-input.v1`, descriptorRef, workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: name, ...extra })
@@ -714,10 +714,10 @@ test('B19-08/11 LOCAL_TEST same-source single release DAILY/full consumes associ
   assert.ok(Date.parse(preflightRow.value.observedAt) <= Date.parse(bootstrap.value.observedAt))
   const observedClock = h.transport.now(); assert.ok(Date.parse(observedClock) >= Date.parse(bootstrap.value.observedAt))
   assert.ok(Date.parse(h.transport.now()) >= Date.parse(observedClock))
-  const full = { ...d, purpose: 'full', bootstrapRef: bootstrap.ref, cloudPreflightRef: bootstrap.value.facts.cloudPreflightRef, pausedDrainedRef: paused.ref, tokenSecretVersion: token, registrySecretVersion: registry }
+  const fullRef = bootstrap.refs.fullDescriptorRef, full = (await h.transport.readJson(fullRef)).value
   const evidence = await readWorkerFullEvidence(h.transport, full, profile, h.readSource)
   assert.equal(evidence.artifact.currentAssociation.sourceRevision, currentRevision); assert.deepEqual(evidence.artifact.originBuild, h.build)
-  const fullRef = h.seed('single-source-full', full), worker = createOpenSwxOwnerRelease({ transport: h.transport, readSource: h.readSource, environment: { GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'full_release' } })
+  const worker = createOpenSwxOwnerRelease({ transport: h.transport, readSource: h.readSource, environment: { GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'full_release' } })
   const intent = { sourceRevision: currentRevision, sourceLockRef: h.sourceLockRef, openswxWorkerRef: fullRef, deadlineAt: deadline() }
   const built = await worker.build({ intent, profile: appProfile, sourceObject: { ref: h.currentSourceRef } })
   assert.deepEqual(built.workerBuildRef, saved.ref); assert.equal(built.image, image)
@@ -1656,3 +1656,14 @@ test('P10A associated readonly recovery rejects drift in each entrypoint semanti
     noMutation(f.h)
   }
 })
+
+test('daily release gets a current-source build-only reuse descriptor without a worker build or lifecycle write', async () => {
+  const h = await harness(), saved = await h.invoke();
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef, 'reuse must produce the ordinary daily entry descriptor');
+  const row = await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef), d = row.value;
+  assertWorkerDescriptor(d, profile, d.workerProfileSha256, currentRevision);
+  assert.equal(d.purpose, 'build_only'); assert.equal(d.artifactMode, 'REUSE_VERIFIED');
+  assert.deepEqual(d.workerBuildRef, saved.ref);
+  for (const key of ['resourcePlanRef', 'bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef', 'tokenSecretVersion', 'registrySecretVersion']) assert.equal(Object.hasOwn(d, key), false);
+  assert.deepEqual((await h.invoke()).refs.dailyBuildOnlyDescriptorRef, row.ref); noMutation(h);
+});

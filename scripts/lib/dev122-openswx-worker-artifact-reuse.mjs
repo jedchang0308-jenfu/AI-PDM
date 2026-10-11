@@ -614,6 +614,16 @@ export function buildProgramOnlyReadyWorkerDescriptor({ artifact, profile }) {
   assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision)
   return descriptor
 }
+export function buildDailyReuseWorkerDescriptor({ artifact, profile }) {
+  const descriptor = buildProgramOnlyReadyWorkerDescriptor({ artifact, profile });
+  descriptor.purpose = 'build_only';
+  for (const key of ['bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef', 'tokenSecretVersion', 'registrySecretVersion']) delete descriptor[key];
+  return assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision);
+}
+async function publishDailyReuseDescriptor({ transport, artifact, profile, root }) {
+  const saved = await publishWorkerReuseJson(transport, root + '-descriptor-build-only-daily.json', buildDailyReuseWorkerDescriptor({ artifact, profile }));
+  return saved.ref;
+}
 async function publishProgramOnlyReadyDescriptor({ transport, artifact, profile, root }) {
   const descriptor = buildProgramOnlyReadyWorkerDescriptor({ artifact, profile })
   const saved = await publishWorkerReuseJson(transport, `${root}-descriptor-full-program-only.json`, descriptor)
@@ -694,7 +704,8 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
     await publishWorkerReuseJson(transport, `${root}-current-check-${sha256(canonicalize(check)).slice(0, 24)}.json`, check)
     if (!repair) {
       const fullRef = await publishProgramOnlyReadyDescriptor({ transport, artifact, profile, root })
-      return { ...existing, refs: { programOnlyFullDescriptorRef: fullRef } }
+      const dailyRef = await publishDailyReuseDescriptor({ transport, artifact, profile, root })
+      return { ...existing, refs: { programOnlyFullDescriptorRef: fullRef, dailyBuildOnlyDescriptorRef: dailyRef } }
     }
     return existing
   }
@@ -746,7 +757,8 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   } else {
     const artifact = await resolveWorkerArtifact({ transport, descriptor: { ...descriptor, workerBuildRef: saved.ref }, profile, readSource, ctx })
     const fullRef = await publishProgramOnlyReadyDescriptor({ transport, artifact, profile, root })
-    return { ...saved, refs: { programOnlyFullDescriptorRef: fullRef } }
+    const dailyRef = await publishDailyReuseDescriptor({ transport, artifact, profile, root })
+    return { ...saved, refs: { programOnlyFullDescriptorRef: fullRef, dailyBuildOnlyDescriptorRef: dailyRef } }
   }
   return saved
   })

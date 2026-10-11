@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair } from './dev122-openswx-owner-release.mjs'
-import { resolveWorkerArtifact } from './dev122-openswx-worker-artifact-reuse.mjs'
+import { resolveWorkerArtifact, publishWorkerReuseJson } from './dev122-openswx-worker-artifact-reuse.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 
 import { assertReadbackIamReceipt, expectedReadbackJobBindings } from './dev122-openswx-readback-iam.mjs'
@@ -14,6 +14,29 @@ import { SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_MEMBERS, assertSecretVersio
 
 const BUCKET = 'jenfu-platform-prod-aipdm-release'
 const MARKER = 'aipdm.openswx-finite-terminal.v1'
+async function publishDailyFullDescriptor({ transport, input, inputRef, descriptor, profile, bootstrap, readSource }) {
+  const base = descriptor.value, facts = bootstrap.value.facts;
+  assertWorkerReceipt(bootstrap.value, base, 'bootstrap', { actor: profile.normalActor });
+  if (input.bootstrapKind !== 'DAILY_REFRESH' || base.purpose !== 'build_only'
+    || facts.bootstrapKind !== 'DAILY_REFRESH' || canonicalize(facts.priorActivationRef) !== canonicalize(input.priorActivationRef)
+    || canonicalize(facts.pausedDrainedRef) !== canonicalize(input.pausedDrainedRef)
+    || canonicalize(bootstrap.value.previousRefs) !== canonicalize([inputRef, descriptor.ref, input.workerBuildRef, facts.cloudPreflightRef])) fail('OPENSWX_DAILY_DESCRIPTOR_JOIN_INVALID');
+  const full = { ...base, purpose: 'full', workerBuildRef: input.workerBuildRef, bootstrapRef: bootstrap.ref,
+    cloudPreflightRef: facts.cloudPreflightRef, pausedDrainedRef: input.pausedDrainedRef,
+    tokenSecretVersion: facts.tokenSecretVersion, registrySecretVersion: facts.registrySecretVersion };
+  delete full.resourcePlanRef;
+  assertWorkerDescriptor(full, profile, base.workerProfileSha256, base.sourceRevision);
+  const evidence = await readWorkerFullEvidence(transport, full, profile, readSource);
+  if (evidence.image !== bootstrap.value.image) fail('OPENSWX_DAILY_DESCRIPTOR_JOIN_INVALID');
+  assertPausedScheduler(await transport.request('https://cloudscheduler.googleapis.com/v1/' + workerSchedulerName()), profile);
+  await assertNoActiveExecutions(transport);
+  assertWorkerJob(await transport.request('https://run.googleapis.com/v2/' + workerJobName()), workerTemplate(profile, evidence.image, null, 'selftest'));
+  const uri = bootstrap.ref.uri.slice(0, -5) + '-descriptor-full.json';
+  const existing = await optional(transport, uri);
+  const publication = existing ? { ...transport, putJson: async () => existing } : transport;
+  const saved = await publishWorkerReuseJson(publication, uri, full);
+  return { ...bootstrap, refs: { fullDescriptorRef: saved.ref } };
+}
 export const OPENSWX_TERRAFORM_PATHS = Object.freeze(['main.tf', 'backend.tf', 'versions.tf', 'README.md'].map(name => `infra/google-cloud/dev-122-openswx-worker/${name}`))
 export const OPENSWX_TERRAFORM_ADDRESSES = Object.freeze([
   'google_service_account.reader', 'google_service_account.dispatch', 'google_secret_manager_secret.reader_token', 'google_secret_manager_secret_iam_member.reader_token_access',
@@ -1138,7 +1161,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
         await readWorkerResources(transport, profile, build.image, workerTemplate(profile, build.image, null, 'selftest'), { ...saved, readSource })
       }
     }
-    return existing
+    return daily ? publishDailyFullDescriptor({ transport, input, inputRef, descriptor, profile, bootstrap: existing, readSource }) : existing
   }
   let tokenSecretVersion, newRegistryVersion, registryVersion, resourceProvenance = null
   if (daily) {
@@ -1167,6 +1190,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   }
   const selftest = workerTemplate(profile, build.image, null, 'selftest'), normal = workerTemplate(profile, build.image, tokenSecretVersion)
   if (prior) await write(transport, `${uri.slice(0, -5)}-prior-recovery.json`, { schemaVersion: 'aipdm.openswx-prior-recovery.v1', priorActivationRef: input.priorActivationRef, priorTemplate: prior.template, priorCapsuleRef: prior.capsuleRef, targetDescriptorRef: descriptor.ref, observedAt: transport.now() })
+  let completedBootstrap
   try {
   await updateWorkerJob({ transport, profile, template: selftest, deadlineAt: input.deadlineAt })
   const finite = await runWorkerFinite({ transport, descriptor: descriptor.value, profile, template: selftest, receiptUri: `${uri.slice(0, -5)}-selftest.json`, actor: actor.email, deadlineAt: input.deadlineAt })
@@ -1184,7 +1208,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   } else preflight = await write(transport, preflightUri, workerReceipt({ descriptor: descriptor.value, kind: 'cloud-preflight', actor: actor.email, image: build.image, template: selftest, observedAt: transport.now(), previousRefs: [finite.ref], facts: { isolationVerified: true, noCad: true, proof, normalTemplateSha256: sha256(canonicalize(normal)), selftestTemplateSha256: sha256(canonicalize(selftest)) } }))
   await assertNoActiveExecutions(transport)
   await readWorkerResources(transport, profile, build.image, selftest, supplementalIam)
-  return write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'bootstrap', actor: actor.email, image: build.image, template: selftest, observedAt: transport.now(), previousRefs: [inputRef, descriptor.ref, input.workerBuildRef, preflight.ref], facts: { bootstrapKind: input.bootstrapKind, tokenSecretVersion, registrySecretVersion: newRegistryVersion, priorRegistryVersion: registryVersion, normalTemplateSha256: sha256(canonicalize(normal)), selftestTemplateSha256: sha256(canonicalize(selftest)), cloudPreflightRef: preflight.ref, ...(resourceProvenance ? { resourceProvenance, priorActivationRef: input.priorActivationRef, pausedDrainedRef: input.pausedDrainedRef } : { resourceApplyRef: input.resourceApplyRef, ...(completedFirstBootstrap ? { completedFirstBootstrap } : partialFirstBootstrap ? { partialFirstBootstrap } : {}) }) } }))
+  completedBootstrap = await write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'bootstrap', actor: actor.email, image: build.image, template: selftest, observedAt: transport.now(), previousRefs: [inputRef, descriptor.ref, input.workerBuildRef, preflight.ref], facts: { bootstrapKind: input.bootstrapKind, tokenSecretVersion, registrySecretVersion: newRegistryVersion, priorRegistryVersion: registryVersion, normalTemplateSha256: sha256(canonicalize(normal)), selftestTemplateSha256: sha256(canonicalize(selftest)), cloudPreflightRef: preflight.ref, ...(resourceProvenance ? { resourceProvenance, priorActivationRef: input.priorActivationRef, pausedDrainedRef: input.pausedDrainedRef } : { resourceApplyRef: input.resourceApplyRef, ...(completedFirstBootstrap ? { completedFirstBootstrap } : partialFirstBootstrap ? { partialFirstBootstrap } : {}) }) } }))
   } catch (error) {
     let priorJobRestored = false, priorEmptyProof = null
     if (prior) {
@@ -1204,5 +1228,8 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
     await write(transport, `${uri.slice(0, -5)}-recovery-required.json`, { schemaVersion: 'aipdm.openswx-bootstrap-recovery.v1', targetDescriptorRef: descriptor.ref, sourceRevision: descriptor.value.sourceRevision, priorActivationRef: input.priorActivationRef ?? null, observedAt: transport.now(), status: 'RECOVERY_REQUIRED', schedulerState: 'PAUSED', durableQueue: 'RETAINED', priorJobRestored, priorEmptyProof, errorCode: error.code ?? 'OPENSWX_BOOTSTRAP_FAILED', schedulerEnabled: false })
     throw error
   }
+  // Once bootstrap is sealed, a descriptor upload failure must leave its verified
+  // selftest Job paused for exact same-input readback, rather than undo the stage.
+  return daily ? await publishDailyFullDescriptor({ transport, input, inputRef, descriptor, profile, bootstrap: completedBootstrap, readSource }) : completedBootstrap
   })
 }
