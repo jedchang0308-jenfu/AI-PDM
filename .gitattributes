@@ -9,3 +9,10 @@ supabase/migrations/manifest.json text eol=lf
 # Exact historical drafts are data, never release inputs.
 .ai-doc/qa/evidence/DEV121-WORKSPACE-SAVE-20261006/*.original.txt -text whitespace=cr-at-eol
 .ai-doc/qa/evidence/DEV121-WORKSPACE-SAVE-20261006/*.patch -text -diff
+
+# Native release IAM guards compare checkout bytes with the frozen Git blobs.
+/infra/google-cloud/dev-122-openswx-release-readback/*.tf text eol=lf
+/infra/google-cloud/dev-122-openswx-release-readback/README.md text eol=lf
+/.ai-doc/qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json text eol=lf
+/scripts/lib/dev122-openswx-secret-version-iam.mjs text eol=lf
+/scripts/dev122-openswx-secret-version-iam.mjs text eol=lf
