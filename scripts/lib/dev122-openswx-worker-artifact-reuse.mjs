@@ -305,9 +305,10 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
   if ((input.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2') !== repair) fail('OPENSWX_REUSE_REQUEST_INVALID')
   same(input.sourceLockRef, request.sourceLockRef); same(input.priorActivationRef, request.priorActivationRef)
   if (input.currentSourceObjectRef.sha256 !== request.sourceArchiveSha256) fail('OPENSWX_REUSE_REQUEST_INVALID')
+  let secretVersionIam = null
   if (input.secretVersionIamContinuationRef) {
     const supplemental = await readBootstrapSupplementalIam(transport, origin.prior.bootstrap, origin.prior.bootstrapDescriptor, profile, readSource, descriptor.sourceRevision)
-    await readSecretVersionIamForReuse({ transport, input, supplemental, sourceRevision: descriptor.sourceRevision, profile, readSource })
+    secretVersionIam = await readSecretVersionIamForReuse({ transport, input, supplemental, sourceRevision: descriptor.sourceRevision, profile, readSource })
   }
   const original = (await read(transport, association.executableProof.originalManifestRef)).value, current = (await read(transport, association.executableProof.currentManifestRef)).value
   manifestEqual(original, current)
@@ -329,6 +330,7 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
   for (const name of ['buildId', 'createTime', 'startTime', 'finishTime']) same(association.artifactOrigin[name], name === 'buildId' ? security.build.id : security.build[name])
   return { currentAssociation: association, associationRef: buildRef, originBuild: origin.build, originBuildRef: origin.buildRef, originDescriptor: origin.buildOnly,
     image: origin.build.image, sourceEntryProof: assertWorkerBuildSource(origin.build, origin.buildOnly), origin, originalManifest: original, currentManifest: current, input,
+    ...(secretVersionIam ? { secretVersionIam } : {}),
     bootstrapDescriptor: origin.prior.bootstrapDescriptor ?? origin.prior.descriptor, bootstrapDescriptorRef: origin.prior.bootstrapDescriptorRef ?? origin.prior.descriptorRef,
     ...(repair ? { pausedBaseline: resource, pausedBaselineRef: association.resourceAssociation.readbackRef, servingGraph: serving.graph } : {}), graphContext: next }
   })

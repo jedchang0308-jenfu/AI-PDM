@@ -575,6 +575,11 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
     assertOpenSwxWorkerRef(provenance.priorResourceApplyRef)
     const readback = (await transport.readJson(provenance.resourceReadbackRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
     if (readback.resourcesUnchanged !== true || canonicalize(readback.targetWorkerBuildRef) !== canonicalize(descriptor.workerBuildRef)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
+    const metadata = artifact.secretVersionIam
+    for (const [field, expected] of [['secretVersionIamContinuationRef', metadata?.ref], ['secretVersionIamSourceLockRef', metadata?.sourceLockRef]]) {
+      if (canonicalize(provenance[field] ?? null) !== canonicalize(expected ?? null)
+        || canonicalize(readback[field] ?? null) !== canonicalize(expected ?? null)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
+    }
   }
   if (results.pausedDrainedRef.facts.drainKind === 'FIRST_PROVIDER_ONLY' && results.pausedDrainedRef.image !== image) fail('OPENSWX_RECEIPT_JOIN_INVALID')
   const supplementalIam = await readBootstrapSupplementalIam(transport, results.bootstrapRef, descriptor, profile, readSource)
