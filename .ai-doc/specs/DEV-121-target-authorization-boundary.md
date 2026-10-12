@@ -265,3 +265,7 @@ Worker recipe、完整 executable inputs、profile、resource plan、template、
 ## Sealed source media read continuation（2026-10-12）
 
 DEV-121 corrective owner cycle僅重讀同一經metadata驗證的numeric generation來源檔，最多兩次media GET，單次60秒且不越過原context／absolute deadline。metadata單次；只有明確的request timeout或指定transport reset可重讀，必須丟棄partial bytes、cancel原reader並對新完整內容驗size／CRC／SHA及256MiB。HTTP拒絕、內容不符、未知error及整體期限耗盡立即拒絕。原context／depth與source／graph guards不變，domain拒絕維持原message並提供同code。此規則不產生build／release／DB admission／quiescence權限，不改發布順序或identity／revocation／role規則；完成舊artifact不等於本次source-bound receipt已產生。
+
+### MANUAL0 scaling mode boundary (2026-10-12)
+
+The fence operator sends exactly the MANUAL0 mode/count, not automatic min/max values that the provider omits in manual mode. The durable submission retains the complete original automatic baseline for exact recovery. No normalization may waive a nonzero manual count, UID/etag/generation, traffic/template drift, source authority, monotonic drain or fence hash. This correction does not authorize migration or activation without their existing guards. Generic local evidence: [MANUAL0 readback correction](../qa/DEV-121-manual-fence-readback-local-2026-10-12.md); Production wire evidence remains private.

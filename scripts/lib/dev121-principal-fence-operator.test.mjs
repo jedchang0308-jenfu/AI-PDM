@@ -65,7 +65,8 @@ function makeHarness(options = {}) {
     reconciling: false, updateTime: new Date(baseTime - 60_000).toISOString(),
     terminalCondition: { state: 'CONDITION_SUCCEEDED' },
     template: { timeout: options.templateTimeout ?? '60s', containers: [{ name: 'ai-pdm', image: 'app@sha256:old' }] },
-    scaling: { scalingMode: 'AUTOMATIC', minInstanceCount: 1, maxInstanceCount: 4 },
+    scaling: structuredClone(options.baselineScaling ??
+      { scalingMode: 'AUTOMATIC', minInstanceCount: 1, maxInstanceCount: 4 }),
     traffic: [{ ...oldTraffic }], trafficStatuses: [{ ...oldTraffic }],
   }
   let service = structuredClone(initialService)
@@ -124,6 +125,7 @@ function makeHarness(options = {}) {
     },
     async putJson(uri, value, writeOptions = {}) {
       calls.puts.push({ uri, value: structuredClone(value), options: { ...writeOptions } })
+      if (options.failFenceWrite && uri.includes('/fence-')) throw codedError('FENCE_WRITE_FAILED')
       if (uri === submissionUri && options.unknownSubmissionWrite) {
         store(uri, Buffer.from('another durable claim\n'))
         throw codedError('OUTCOME_UNKNOWN')
@@ -177,7 +179,11 @@ function makeHarness(options = {}) {
         const operationError = options.operationErrorPatch === patchNumber
         const applyPatch = !(operationError && options.applyPatchOnOperationError === false)
         if (applyPatch) {
-          const changed = { ...service, scaling: structuredClone(body.scaling),
+          const providerScaling = options.providerOmitsAutomaticBoundsInManual &&
+            body.scaling.scalingMode === 'MANUAL'
+            ? { scalingMode: 'MANUAL', manualInstanceCount: body.scaling.manualInstanceCount }
+            : structuredClone(body.scaling)
+          const changed = { ...service, scaling: providerScaling,
             etag: 'etag-' + (10 + patchNumber), generation: String(Number(service.generation) + 1),
             observedGeneration: String(Number(service.generation) + 1),
             updateTime: new Date(baseTime).toISOString(), reconciling: false }
@@ -269,10 +275,18 @@ test('a 60-second active revision is rejected when the service drain bound is 15
   assert.equal(h.calls.puts.length, 0)
 })
 
-test('acquire patches only scaling with fresh etag and preserves other fields', async () => {
-  const h = makeHarness()
+test('a pre-existing nonzero manual count is rejected without a scaling mutation', async () => {
+  const h = makeHarness({ baselineScaling: { scalingMode: 'MANUAL', manualInstanceCount: 1 } })
+  await assert.rejects(executeFenceOperation(input(h)), error =>
+    error.code === 'DEV121_FENCE_OPERATOR_BASELINE_NOT_AUTOMATIC')
+  assert.equal(h.calls.patches.length, 0)
+  assert.equal(h.calls.puts.length, 0)
+})
+
+test('quiesce accepts provider manual scaling without automatic bounds and retains the full baseline', async () => {
+  const h = makeHarness({ providerOmitsAutomaticBoundsInManual: true })
   const result = await executeFenceOperation(input(h))
-  const stoppedScaling = { ...h.initialService.scaling, scalingMode: 'MANUAL', manualInstanceCount: 0 }
+  const stoppedScaling = { scalingMode: 'MANUAL', manualInstanceCount: 0 }
   assert.equal(result.status, 'QUIESCED')
   assert.equal(h.calls.patches.length, 1)
   assertScalingOnly(h.calls.patches[0], stoppedScaling, 'etag-10')
@@ -281,6 +295,8 @@ test('acquire patches only scaling with fresh etag and preserves other fields', 
   assert.deepEqual(h.currentService().traffic, h.initialService.traffic)
   assert.deepEqual(h.currentService().trafficStatuses, h.initialService.trafficStatuses)
   assert.deepEqual(h.currentService().scaling, stoppedScaling)
+  const submission = JSON.parse(h.records.get(submissionUri).bytes.toString('utf8'))
+  assert.deepEqual(submission.baseline.scaling, h.initialService.scaling)
 })
 
 test('a fast local wall clock cannot shorten the monotonic drain', async () => {
@@ -346,28 +362,44 @@ test('operation error without a changed service remains failed and does not comp
   assert.deepEqual(h.currentService().scaling, h.initialService.scaling)
 })
 
-test('operation failure restores only baseline scaling when the stop PATCH took effect', async () => {
-  const h = makeHarness({ operationErrorPatch: 1 })
+test('operation failure restores the full baseline after provider omits automatic bounds in manual mode', async () => {
+  const h = makeHarness({ operationErrorPatch: 1, providerOmitsAutomaticBoundsInManual: true })
   await assert.rejects(executeFenceOperation(input(h)), error =>
     error.code === 'DEV121_FENCE_OPERATOR_OPERATION_FAILED' &&
     error.recoveryDisposition === 'BASELINE_SCALING_RESTORED')
   assert.equal(h.calls.patches.length, 2)
   assertScalingOnly(h.calls.patches[0],
-    { ...h.initialService.scaling, scalingMode: 'MANUAL', manualInstanceCount: 0 }, 'etag-10')
+    { scalingMode: 'MANUAL', manualInstanceCount: 0 }, 'etag-10')
   assertScalingOnly(h.calls.patches[1], h.initialService.scaling, 'etag-11')
   assert.deepEqual(h.currentService().scaling, h.initialService.scaling)
   assert.deepEqual(h.currentService().template, h.initialService.template)
   assert.deepEqual(h.currentService().traffic, h.initialService.traffic)
 })
 
+test('fence receipt write failure after drain restores the full baseline with provider-omitted manual bounds', async () => {
+  const h = makeHarness({ providerOmitsAutomaticBoundsInManual: true, failFenceWrite: true })
+  await assert.rejects(executeFenceOperation(input(h)), error =>
+    error.code === 'FENCE_WRITE_FAILED' &&
+    error.recoveryDisposition === 'BASELINE_SCALING_RESTORED')
+  assert.equal(h.calls.sleepMs, 90_000)
+  assert.equal(h.calls.patches.length, 2)
+  assertScalingOnly(h.calls.patches[0],
+    { scalingMode: 'MANUAL', manualInstanceCount: 0 }, 'etag-10')
+  assertScalingOnly(h.calls.patches[1], h.initialService.scaling, 'etag-11')
+  assert.deepEqual(h.currentService().scaling, h.initialService.scaling)
+  assert.deepEqual(h.currentService().scaling, {
+    scalingMode: 'AUTOMATIC', minInstanceCount: 1, maxInstanceCount: 4,
+  })
+})
+
 test('drain drift fails closed and is never rolled back over the changed service', async () => {
-  const h = makeHarness({ drainDrift: true })
+  const h = makeHarness({ drainDrift: true, providerOmitsAutomaticBoundsInManual: true })
   await assert.rejects(executeFenceOperation(input(h)), error =>
     error.code === 'DEV121_FENCE_OPERATOR_DRAIN_DRIFT' &&
     error.recoveryDisposition === 'READBACK_REQUIRED_NO_FURTHER_MUTATION')
   assert.equal(h.calls.patches.length, 1)
   assert.deepEqual(h.calls.patches[0].body.scaling,
-    { ...h.initialService.scaling, scalingMode: 'MANUAL', manualInstanceCount: 0 })
+    { scalingMode: 'MANUAL', manualInstanceCount: 0 })
   assert.equal(h.currentService().traffic[0].revision, 'ai-pdm-prod-unexpected')
 })
 
