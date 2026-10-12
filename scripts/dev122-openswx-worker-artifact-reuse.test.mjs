@@ -2402,3 +2402,23 @@ test('FAILED DAILY pause receipt observes quiescence atomically when the clock a
   assert.equal(h.puts.length,puts)
   assert.ok(!h.calls.slice(after).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
 })
+
+test('partial FAILED DAILY metadata preserves remaining association depth',async()=>{
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h
+  const input=(await h.transport.readJson(f.partialInputRef)).value
+  const descriptor=(await h.transport.readJson(input.descriptorRef)).value
+  f.reader.authorizeOrigin(descriptor.sourceRevision)
+  const artifact=await resolveWorkerArtifact({transport:h.transport,descriptor,profile,readSource:f.reader})
+  const calls=h.calls.length,puts=h.puts.length,ctx=createAiPdmEvidenceContext()
+  const withinAncestors=async(handle,index,limit,callback)=>runAiPdmEvidenceContext(handle,async()=>{
+    if(index===limit)return callback()
+    const ref={uri:profile.receiptRoot+'/LOCAL-PRIOR-ASSOCIATION-'+index+'.json',sha256:(String(index+1)).repeat(64)}
+    return withinAncestors(descendAiPdmEvidenceContext(handle,ref,true),index+1,limit,callback)
+  })
+  const admitted=await withinAncestors(ctx,0,3,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest}))
+  assert.deepEqual(admitted.partialPause.inputRef,f.partialInputRef)
+  assert.ok(!admitted.expectedExecutionNames.includes(f.partialName),'input alone cannot attest its execution')
+  await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,4,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
+  assert.equal(h.puts.length,puts,'metadata traversal cannot publish evidence')
+  assert.ok(h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')||row.url.includes('logging.googleapis.com')),'metadata traversal cannot mutate lifecycle')
+})

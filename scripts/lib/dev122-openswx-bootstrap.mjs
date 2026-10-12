@@ -1123,7 +1123,9 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
   assertOpenSwxWorkerRef(inputRef)
   const ctx = createAiPdmEvidenceContext()
   return runAiPdmEvidenceContext(ctx, async () => {
-    const inputCtx = descendAiPdmEvidenceContext(ctx, inputRef, true)
+    // The pause envelope stays in ancestry/hash guards; only its descriptor
+    // and resolved associations consume source-transition depth.
+    const inputCtx = descendAiPdmEvidenceContext(ctx, inputRef, false)
     return runAiPdmEvidenceContext(inputCtx, async () => {
       const row = await transport.readJson(inputRef, BUCKET, [WORKER_RECEIPT_PREFIX]), input = row.value
       if (!input || Object.keys(input).sort().join(',') !== 'deadlineAt,descriptorRef,drainKind,failedDailyContinuation,priorActivationRef,receiptId,schemaVersion,workerBuildRef'

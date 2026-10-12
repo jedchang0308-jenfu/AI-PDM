@@ -288,3 +288,10 @@ Consumer 沿 opaque context 的 transition、depth／cycle／hash guards 解析 
 下一source仍要double PAUSED normal Job／IAM／numeric Secret metadata／exact all-terminal inventory，再執行唯一fresh normal drain、原isolation-only proof及native完整preflight/bootstrap/full descriptor。每個繼承partial execution另保留精確successful execution/template/time投影並在每份provider inventory核對。未知／額外／active／篡改／source衝突／cycle／hash conflict／depth超限在publication或lifecycle effect前拒絕；不新增Secret、IAM、schema或cleanup authority。
 
 Pause producer 在最後的無active execution讀回完成後只捕捉一次quiescenceCompletedAt，並同時用於paused receipt的observedAt；避免argument evaluation的兩次取時反序。所有execution／marker／terminal／proof／quiescence／paused／bootstrap時間守門保持不變。
+
+
+### DEV-121 partial pause envelope transition accounting — 2026-10-12
+
+A sealed partial pause input is a metadata envelope with no sourceRevision. It stays in the same opaque evidence root and in the full ancestor/hash registry, with transition=false. Its verified descriptor remains transition=true; resolved worker associations and serving-source capsules retain their existing true edges. The depth ceiling stays eight, and a ninth actual counted edge must fail. This does not clear context ancestry, bypass cycle/hash conflicts, relax failed-only admission, change provider identity or clocks, or substitute history for a fresh drain.
+
+The synthetic regression supplies three declared outer source edges and the real sealed partial-history reader: the valid remainder must resolve, a fourth outer edge must trigger the unchanged depth guard, and an existing descriptor ancestor must still trigger the cycle guard. The input alone cannot attest an execution. Production acceptance remains a separate native, source-bound release gate.
