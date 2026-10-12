@@ -108,6 +108,25 @@ try {
   for(const fixture of selectedFixtures) {
     const context=await browser.newContext({viewport:{width:fixture.width,height:fixture.height},acceptDownloads:true});
     const page=await context.newPage(),errors=[],requests=[],alerts=[],apiChecks=[],overflowMetrics=[],navigationRoutes=[],frameworkAnnouncements=[],observedPageTitles=[],consoleReadbacks=[];
+    const workbenchQueryState=[];
+    // Passive observation begins before any workbench input; no timer/response/click is changed.
+    await page.addInitScript(()=>{
+      const events=[];window.__dev122FilterNavigation=events;
+      const record=(kind,extra={})=>{if(events.length<128)events.push({kind,at:performance.now(),pathname:location.pathname,search:location.search,input:document.querySelector('.canonical-search input')?.value??null,...extra});};
+      for(const method of ['pushState','replaceState']){
+        const original=history[method];history[method]=function(...args){const before={pathname:location.pathname,search:location.search};const result=Reflect.apply(original,this,args);record('history',{method,before});return result;};
+      }
+      document.addEventListener('input',event=>{if(event.target instanceof Element&&event.target.matches('.canonical-search input'))record('input',{isTrusted:event.isTrusted});},{capture:true});
+      document.addEventListener('click',event=>{if(event.target instanceof Element&&event.target.closest('.canonical-row-open'))record('row-click',{isTrusted:event.isTrusted});},{capture:true});
+    });
+    const queryState=async(label,expectedQuery,expectedDetail)=>{
+      const state=await page.evaluate(()=>({pathname:location.pathname,search:location.search,input:document.querySelector('.canonical-search input')?.value??null,events:window.__dev122FilterNavigation??[]}));
+      const url=new URL(state.pathname+state.search,origin);
+      assert.equal(url.searchParams.get('query'),expectedQuery,'WORKBENCH_QUERY_URL_LOST');
+      if(expectedDetail)assert.equal(url.searchParams.get('detail'),expectedDetail,'WORKBENCH_DETAIL_URL_DRIFT');
+      assert.equal(state.input,expectedQuery,'WORKBENCH_QUERY_INPUT_LOST');
+      workbenchQueryState.push({label,expectedQuery,expectedDetail:expectedDetail??null,...state});progress('actual workbench filter URL/input/history',{label,...state});return state;
+    };
     const previewContexts=new Map(fixture.previewInputs?fixture.previewInputs.flatMap(input=>input.sourceReadbacks.map(source=>[source.fileAssetId,[input.drawingWorkId,input.drawingId]])):fixture.terminalAssetIds.map(id=>[id,[fixture.drawingWorkId]]));
     const observedPartWorkspaceRoots=new Map();
     const progress=(step,data)=>{receipt.progress??=[];receipt.progress.push({viewport:fixture.width,step,data,navigationRoutes:[...navigationRoutes]});save();};
@@ -695,7 +714,8 @@ try {
         };
         const reviewerEntry=async(requestId,entityType,entityId,search)=>{
           await asActor('reviewer');await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await navigate('料號工作台');
-          await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.partNumber);await partRow().getByRole('button',{name:fixture.partNumber,exact:true}).click();
+          await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.partNumber);const anchorRowKey=await partRow().getAttribute('data-row-key');await partRow().getByRole('button',{name:fixture.partNumber,exact:true}).click();
+          await queryState('review anchor selected before navigation',fixture.partNumber,anchorRowKey);
           const anchorTarget=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/review-requests/${anchorRequestId}/targets/part/${fixture.partId}`);
           // Observe the real click/history without changing navigation, waiting out the search timer, or retrying a failed click.
           await page.evaluate(()=>{
@@ -719,7 +739,8 @@ try {
           catch(error){receipt.reviewNavigationFailure={anchorRequestId,requestedRequestId:requestId,
             events:await page.evaluate(()=>window.__dev122ReviewNavigation??[]),pathname:new URL(page.url()).pathname,
             clientErrors:[...errors]};save();throw error;}
-          progress('review entry actual destination',{anchorRequestId,events:await page.evaluate(()=>window.__dev122ReviewNavigation??[]),pathname:new URL(page.url()).pathname});
+          const anchorReturnTo=new URL(new URL(page.url()).searchParams.get('returnTo'),origin);assert.equal(anchorReturnTo.searchParams.get('query'),fixture.partNumber);assert.equal(anchorReturnTo.searchParams.get('detail'),anchorRowKey);
+          progress('review entry actual destination',{anchorRequestId,returnTo:anchorReturnTo.pathname+anchorReturnTo.search,events:await page.evaluate(()=>window.__dev122ReviewNavigation??[]),filterEvents:await page.evaluate(()=>window.__dev122FilterNavigation??[]),pathname:new URL(page.url()).pathname});
           await readTarget(anchorTarget,fixture.partId);
           if(requestId!==anchorRequestId){await page.getByRole('button',{name:'返回審核清單',exact:true}).click();await page.waitForURL(location=>location.pathname==='/approvals');
             await page.getByRole('textbox',{name:'搜尋圖號、料號、品名或送審者',exact:true}).fill(search);
@@ -857,13 +878,15 @@ try {
         await productionRow.getByRole('button',{name:fixture.drawingNumber,exact:true}).click();const ownerDrawingOpened=await readDrawingDetail(opened);
         const expectedLayer='量產版 '+currentRevision.revision,layerLabel=page.locator('.canonical-status-pair .canonical-layer');
         await page.locator('.canonical-drawer-body').waitFor();assert.equal((await layerLabel.textContent()).trim(),expectedLayer);
+        await queryState('Drawing owner production selected',fixture.drawingNumber,productionRowKey);
         const reloaded=waitResponse(response=>new URL(response.url()).pathname===detailPath&&response.request().method()==='GET');
         await page.reload({waitUntil:'domcontentloaded'});const ownerDrawingReloaded=await readDrawingDetail(reloaded);
         await page.locator('.canonical-drawer-body').waitFor();assert.equal((await layerLabel.textContent()).trim(),expectedLayer);
         const afterDrawingOwnerRead=await snapshot();assert.deepEqual(afterDrawingOwnerRead,beforeDrawingOwnerRead,'OWNER_DRAWING_READ_MUTATED_OWNED_ROWS');
         page.off('request',observeOwnerRead);assert.equal(ownerReadMutationCount,0,'OWNER_DRAWING_READ_CREATED_BUSINESS_WORK');
         assert.deepEqual(ownerReadMutationRequests,[],'OWNER_DRAWING_READ_CREATED_BUSINESS_WORK');
-        const drawingOwnerReload={status:'PASS',normalNavigation:true,expectedProductionRevisionId:currentProduction.revision_id,
+        const drawingReloadQuery=await queryState('Drawing owner production reload',fixture.drawingNumber,ownerDrawingReloaded.row.rowKey);
+        const drawingOwnerReload={queryState:drawingReloadQuery,status:'PASS',normalNavigation:true,expectedProductionRevisionId:currentProduction.revision_id,
           expectedRevision:currentRevision.revision,displayedLayer:expectedLayer,master:masterOf(afterDrawingOwnerRead),
           beforeReload:ownerDrawingOpened,afterReload:ownerDrawingReloaded,ownedSnapshotUnchanged:true,
           beforeSnapshotSha256:createHash('sha256').update(JSON.stringify(beforeDrawingOwnerRead)).digest('hex'),
@@ -887,7 +910,7 @@ try {
         await page.getByRole('button',{name:'編輯料號',exact:true}).click();await page.waitForURL('**/parts/**/workspace?**');
         await page.reload({waitUntil:'domcontentloaded'});await name.waitFor();assert.equal(await name.inputValue(),correctedName);assert.equal(await release.count(),0);await page.getByText('已發布',{exact:true}).waitFor();
         progress('Part UI approval native exact Released snapshot receipt then owner reload',{partId:fixture.partId,initialPartRequestId,anchorRequestId,finalPart,approvedSnapshots,terminal,releaseControls:await release.count()});
-        await screenshot('first-release-Part-and-paired-Drawing-completed');receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'lifecycle',
+        await screenshot('first-release-Part-and-paired-Drawing-completed');receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'lifecycle',workbenchQueryState,
           firstReleasePart:{partId:fixture.partId,initialPartRequestId,anchorRequestId,ordinaryDraft:ordinaryRows.part_numbers.find(item=>item.id===fixture.partId),finalPart,approvedSnapshots,terminal,ownerReload:true,firstReleaseControlsHidden:true},minor:{requestId:minorRequest,master:masterOf(afterMinor),production:productionOf(afterMinor)},
           major:{workId:majorWorkId,requestId:majorRequest,master:masterOf(afterMajor),production:productionOf(afterMajor)},releasedRounds,drawingOwnerReload,normalNavigation:true,signedPrincipal:true,keyboard:true,
           overflowMetrics,navigationRoutes,requests});save();continue;
@@ -1006,9 +1029,12 @@ try {
       await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await navigate('料號工作台');
       await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(partNumber);
       const submittedPart=page.locator('tr[data-canonical-workbench-row="true"].is-work').filter({hasText:partNumber});
-      await submittedPart.getByRole('button',{name:partNumber,exact:true}).click();
+      const submittedPartRowKey=await submittedPart.getAttribute('data-row-key');await submittedPart.getByRole('button',{name:partNumber,exact:true}).click();
+      await queryState('full flow submitted Part selected',partNumber,submittedPartRowKey);
       const firstTarget=partTargetResponse();await page.getByRole('button',{name:'前往審核',exact:true}).click();
       await page.waitForURL(location=>location.pathname==='/approvals/'+requestId);
+      const fullReturnTo=new URL(new URL(page.url()).searchParams.get('returnTo'),origin);assert.equal(fullReturnTo.searchParams.get('query'),partNumber);assert.equal(fullReturnTo.searchParams.get('detail'),submittedPartRowKey);
+      progress('full flow review URL retains selected filter',{returnTo:fullReturnTo.pathname+fullReturnTo.search,events:await page.evaluate(()=>window.__dev122FilterNavigation??[])});
       await readPartTarget(firstTarget);
       progress('normal Part workbench reviewer entry to immutable package',{requestId});
       await page.getByRole('button',{name:'返回審核清單',exact:true}).click();
@@ -1097,7 +1123,7 @@ try {
       assert.equal(await page.locator('[data-preview-state="pending"]').count(),0,'TERMINAL_GALLERY_PENDING');
       await screenshot('terminal-gallery');
       receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',requestId,
-        normalNavigation:true,normalCreation,matrixRoundTrip,signedPrincipal:true,keyboard:true,terminalTwoPeriods:true,download:true,gallery:true,overflowMetrics,navigationRoutes,
+        normalNavigation:true,normalCreation,matrixRoundTrip,workbenchQueryState,signedPrincipal:true,keyboard:true,terminalTwoPeriods:true,download:true,gallery:true,overflowMetrics,navigationRoutes,
         reviewerEntry:['normal Part workbench submitted row','前往審核','返回審核清單','normal approvals list search/Enter'],drawingEntry:'actual homepage Link',frameworkAnnouncements,observedPageTitles,requests});save();
     } catch(error) {
       if(boundedSettingsFlow) {

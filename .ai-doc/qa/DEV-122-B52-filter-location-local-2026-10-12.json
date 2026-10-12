@@ -1,0 +1,622 @@
+{
+  "schemaVersion": "aipdm.dev122.b52.filter-location.v1",
+  "task": "DEV-122",
+  "status": "LOCAL_SELECTED_FILTER_LOCATION_ASSERTIONS_PASS_QC_OPEN",
+  "executionBaseHead": "38bf526d46930b883e47fa55cb6c576996a6b688",
+  "sourceBindings": {
+    "src/components/canonical-pdm-workbench.tsx": "0fbb76211fae470a5b3fc3067d813a277ad14d23e52aadef5404c881c9fe6b5a",
+    "src/components/canonical-pdm-workbench.preview-poll.test.tsx": "9a1b6874a114efc6dd8c16ea7d6904642f0a4806cb2f1496ebb3c232d8dfd7a5",
+    "scripts/qc-dev-122-native-browser.mjs": "41c34a4138e71b28a27caac5f9250c194918f48b7d6ecce359865117aecabe4d"
+  },
+  "unchangedNativeTestSha256": "5446561dd48dd4102d8ccb41d4c0f6508a9b006cc234e115fd354d1496e80aed",
+  "change": "Synchronize actual changed filters before row selection and edit/review navigation; preserve unchanged deep-link pagination and cancel stale debounce on popstate. No navigation lock or permission/schema/release change.",
+  "focusedUnit": {
+    "red": {
+      "passed": 14,
+      "failed": 3,
+      "source": "be64f9adf146e530a14d6cda31d094c89e5890e55e30f5f4c36c14d3b2b12050"
+    },
+    "green": {
+      "passed": 17,
+      "failed": 0,
+      "newLocationCases": 5,
+      "existingPollCases": 12,
+      "checks": [
+        {
+          "name": "unit",
+          "argv": [
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "src/components/canonical-pdm-workbench.preview-poll.test.tsx",
+            "--pool=threads",
+            "--maxWorkers=1",
+            "--fileParallelism=false",
+            "--reporter=json",
+            "--outputFile=C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-location-green-tests.json"
+          ],
+          "pid": 32912,
+          "ownsProcessTree": true,
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "lint",
+          "argv": [
+            "node_modules/eslint/bin/eslint.js",
+            "src/components/canonical-pdm-workbench.tsx",
+            "src/components/canonical-pdm-workbench.preview-poll.test.tsx",
+            "scripts/qc-dev-122-native-browser.mjs"
+          ],
+          "pid": 19372,
+          "ownsProcessTree": true,
+          "exitCode": 0,
+          "timedOut": false
+        },
+        {
+          "name": "typecheck",
+          "argv": [
+            "node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.app.json",
+            "--noEmit",
+            "--pretty",
+            "false",
+            "--incremental",
+            "false"
+          ],
+          "pid": 11060,
+          "ownsProcessTree": true,
+          "exitCode": 0,
+          "timedOut": false
+        }
+      ]
+    },
+    "layer": "ACTUAL_COMPONENT_CAPTURED_HOOK_FAKE_CLOCK_NOT_MOUNTED_PAGINATION"
+  },
+  "changedBrowserLint": "ESLint API zero errors/fatal in both UI runs; prior green CLI lint covered browser418, not current41c",
+  "lifecycleUi": {
+    "sourceRevision": "38bf526d46930b883e47fa55cb6c576996a6b688",
+    "actualCasesPassed": 1,
+    "actualCasesFailed": 0,
+    "skippedOtherCases": 151,
+    "rawNativeStatus": "PARTIAL_NOT_ACCEPTED",
+    "rawRunnerExit": 1,
+    "rawLauncherStatus": "CHECKS_FAILED",
+    "rawLauncherExit": 1,
+    "baselineUnmodifiedBeforeSeed": {
+      "passed": true,
+      "foreignKeyCount": 505
+    },
+    "sourceBeforeAfterUnchanged": true,
+    "primaryAbsenceUnchanged": true,
+    "allOwnProcessesAbsent": true,
+    "controllerReleased": true,
+    "allOwnTempRemoved": true,
+    "portsReleased": [
+      62428,
+      62429,
+      62200
+    ],
+    "capacityReleased": true,
+    "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\3385b56a4e022d88\\manifest.json",
+    "nativeEvidenceSha256": "df095109872a54c4a728011db053f20360573b37cce035a0d6d8334d4893eab5",
+    "browserEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\3385b56a4e022d88\\receipt.json",
+    "browserEvidenceSha256": "eb2b0ba3881b0d2002bc31e1c7548e56ab7b6d5b5ee5dbd2865f5d9da35ce3cc",
+    "firstFailure": null,
+    "reviewNavigationFailure": null,
+    "actualUiCases": 2,
+    "actualUiWidths": [
+      1440,
+      390
+    ],
+    "status": "CURRENT_LIFECYCLE_QUERY_ASSERTIONS_PASS_PARTIAL",
+    "scope": "Two existing lifecycle viewport cases; query/input/detail/returnTo plus Drawing owner reload and exact current revision/files. Preview queued, not ready.",
+    "ownerReadSnapshots": [
+      {
+        "width": 1440,
+        "beforeSha256": "98b4db785c3b07b5553ad7474e1f7795f146bd29f271241355d475e583e0be41",
+        "afterSha256": "98b4db785c3b07b5553ad7474e1f7795f146bd29f271241355d475e583e0be41",
+        "ownedSnapshotUnchanged": true,
+        "mutationCount": 0
+      },
+      {
+        "width": 390,
+        "beforeSha256": "e3dd06ad65ce0accc9dc26e9eaf9639c44af5445866f4a03c81a490880ef51e3",
+        "afterSha256": "e3dd06ad65ce0accc9dc26e9eaf9639c44af5445866f4a03c81a490880ef51e3",
+        "ownedSnapshotUnchanged": true,
+        "mutationCount": 0
+      }
+    ]
+  },
+  "fullUi": {
+    "sourceRevision": "38bf526d46930b883e47fa55cb6c576996a6b688",
+    "actualCasesPassed": 1,
+    "actualCasesFailed": 0,
+    "skippedOtherCases": 151,
+    "rawNativeStatus": "PARTIAL_NOT_ACCEPTED",
+    "rawRunnerExit": 1,
+    "rawLauncherStatus": "CHECKS_FAILED",
+    "rawLauncherExit": 1,
+    "baselineUnmodifiedBeforeSeed": {
+      "passed": true,
+      "foreignKeyCount": 505
+    },
+    "sourceBeforeAfterUnchanged": true,
+    "primaryAbsenceUnchanged": true,
+    "allOwnProcessesAbsent": true,
+    "controllerReleased": true,
+    "allOwnTempRemoved": true,
+    "portsReleased": [
+      64437,
+      64438,
+      61036
+    ],
+    "capacityReleased": true,
+    "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\9c076e50e300000c\\manifest.json",
+    "nativeEvidenceSha256": "ed6eab95a8c4c95dc535e16e770d6acc78dd2b3069e2df407b239a6456f0c56f",
+    "browserEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\receipt.json",
+    "browserEvidenceSha256": "9bbac46a3fe5d49ab37d406f0cdd8709811370d06cf56491b4fa60daeeedf66a",
+    "firstFailure": null,
+    "reviewNavigationFailure": null,
+    "actualUiCases": 2,
+    "actualUiWidths": [
+      1440,
+      390
+    ],
+    "status": "CURRENT_FULL_QUERY_ASSERTIONS_PASS_PARTIAL",
+    "scope": "Two existing full-flow viewport cases: actual201 normal creation, savedB/restoredA/reloadA/real401 save recovery, review query/detail returnTo, normal attachments, expected terminal error gallery/download/two quiet periods.",
+    "classificationCorrection": {
+      "task": "DEV-122",
+      "slice": "B52",
+      "status": "CURRENT_FULL_QUERY_ASSERTIONS_PASS_PARTIAL",
+      "scope": "Correction of private derived summary classification only; original browser/native/runtime evidence retained unchanged. No tests or browser operations rerun.",
+      "originalSummary": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-full-ui-r1-summary.json",
+        "sha256": "05a227ad3ab08ba1fb29367493915c2ff8f1238cbf50ef9edc6c0488136caa43",
+        "status": "CURRENT_MOUNTED_LIFECYCLE_FAILURE_REQUIRES_RD"
+      },
+      "classificationError": {
+        "predicate": "normalCreation.status == 200",
+        "actualCreatedHttpStatus": [
+          201,
+          201
+        ],
+        "executorExpectedCreatedHttpStatus": 201
+      },
+      "browserEvidence": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\receipt.json",
+        "sha256": "9bbac46a3fe5d49ab37d406f0cdd8709811370d06cf56491b4fa60daeeedf66a",
+        "status": "PARTIAL_NOT_ACCEPTED",
+        "cases": [
+          {
+            "width": 1440,
+            "status": "PASS",
+            "normalCreationStatus": 201,
+            "matrixChecks": {
+              "idleSavedB": true,
+              "blurRestoredA": true,
+              "reloadA": true,
+              "actualMissingSessionSave401": true,
+              "failureRestoresLastSavedA": true
+            },
+            "terminalTwoPeriods": true,
+            "download": true,
+            "gallery": true,
+            "queryStateCount": 1
+          },
+          {
+            "width": 390,
+            "status": "PASS",
+            "normalCreationStatus": 201,
+            "matrixChecks": {
+              "idleSavedB": true,
+              "blurRestoredA": true,
+              "reloadA": true,
+              "actualMissingSessionSave401": true,
+              "failureRestoresLastSavedA": true
+            },
+            "terminalTwoPeriods": true,
+            "download": true,
+            "gallery": true,
+            "queryStateCount": 1
+          }
+        ]
+      },
+      "nativeEvidence": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\9c076e50e300000c\\manifest.json",
+        "sha256": "ed6eab95a8c4c95dc535e16e770d6acc78dd2b3069e2df407b239a6456f0c56f",
+        "prerequisitePassed": 1,
+        "failed": 0,
+        "skipped": 151,
+        "rawStatus": "PARTIAL_NOT_ACCEPTED",
+        "rawRunnerExit": 1,
+        "rawLauncherExit": 1
+      },
+      "sourceRevision": "38bf526d46930b883e47fa55cb6c576996a6b688",
+      "sourceUnchanged": true,
+      "primaryAbsenceUnchanged": true,
+      "cleanup": {
+        "processesAbsent": true,
+        "controllerReleased": true,
+        "temporaryPathsRemoved": true,
+        "capacityReleased": true,
+        "portsReleased": [
+          64437,
+          64438,
+          61036
+        ]
+      },
+      "limits": {
+        "terminalGallery": "EXPECTED_TERMINAL_FAILURE_FIXTURE_NOT_CAD_OR_PDF_RENDER_SUCCESS",
+        "B50NavigationP1": "OPEN_CAUSE_UNKNOWN",
+        "originalJed403Cause": "UNKNOWN",
+        "production": "NOT_RUN",
+        "wholeDev": "NOT_ACCEPTED"
+      },
+      "recordedAt": "2026-10-12T05:14:47.645145+00:00"
+    }
+  },
+  "rootScreenshotReview": [
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\3385b56a4e022d88\\1440-Drawing-owner-production-reload.png",
+      "sha256": "8c3265d2decf35739a4814a7d56322e42f40c698edebb51bb9083b5564e2f66d",
+      "rootActuallyViewed": true
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\3385b56a4e022d88\\390-Drawing-owner-production-reload.png",
+      "sha256": "0c22bbe58da38f7949cf4e3327aa09825ba051c4d38fb7ca620d4ca6750c0f51",
+      "rootActuallyViewed": true
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\1440-matrix-round-trip.png",
+      "sha256": "37d68a17b3bca0b8ded586a0e3442f7f826166c2e24b6ab833ecf516160fea93",
+      "rootActuallyViewed": true
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\390-matrix-round-trip.png",
+      "sha256": "52cfd2557e7ee071fd8fc3a5610bc00cfe13297c92e8366f551d407593f881b6",
+      "rootActuallyViewed": true
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\1440-terminal-gallery.png",
+      "sha256": "3e626c9bcc5bc483fcb41e959f8b1db9b07a3cf3b60e9190f2adfc5bed169709",
+      "rootActuallyViewed": true
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\390-terminal-gallery.png",
+      "sha256": "b5213e6f6f109bf0933b8021b035a443fb709fdca7008cfce86520fd7cf3005b",
+      "rootActuallyViewed": true
+    }
+  ],
+  "independentQc": {
+    "task": "DEV-122",
+    "slice": "B52",
+    "reviewer": "gpt-6-luna / xhigh",
+    "testsRerun": false,
+    "status": "NEW_IMPLEMENTATION_FINDINGS_ZERO_CARRIED_P1_OPEN",
+    "reviewerRawCompletedReport": {
+      "task": "DEV-122 B52 final read-only QC",
+      "findings": {
+        "newP0": 0,
+        "newP1": 0,
+        "classificationDefect": "The full-run summary used normalCreation.status == 200 although the browser runner expects HTTP 201. A hash-bound sidecar reconciles this classification while retaining the original summary unchanged.",
+        "carriedOpenP1": {
+          "status": "OPEN_CAUSE_UNKNOWN",
+          "finding": "B50 review-navigation failure",
+          "closedByB52": false
+        }
+      },
+      "sourceBindings": {
+        "sourceHead": "38bf526d46930b883e47fa55cb6c576996a6b688",
+        "product": {
+          "path": "src/components/canonical-pdm-workbench.tsx",
+          "sha256": "0fbb76211fae470a5b3fc3067d813a277ad14d23e52aadef5404c881c9fe6b5a"
+        },
+        "unitTest": {
+          "path": "src/components/canonical-pdm-workbench.preview-poll.test.tsx",
+          "sha256": "9a1b6874a114efc6dd8c16ea7d6904642f0a4806cb2f1496ebb3c232d8dfd7a5"
+        },
+        "browserExecutor": {
+          "path": "scripts/qc-dev-122-native-browser.mjs",
+          "sha256": "41c34a4138e71b28a27caac5f9250c194918f48b7d6ecce359865117aecabe4d",
+          "previousSha256": "418203fbaa95996c913a4e3574fdf87e7d140eb3bd2c9c84015b70ccb0beb5ca",
+          "assertsNormalCreationStatus": 201
+        },
+        "browserSourceReceipt": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-location-browser-source.json",
+        "sourceUnchangedAcrossBothRuns": true,
+        "changedExecutorLint": {
+          "lifecycleRun": "0 errors, 0 warnings",
+          "fullRun": "0 errors, 0 warnings"
+        }
+      },
+      "redGreenEvidence": {
+        "red": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-location-red-checks-r2-summary.json",
+          "result": "14 passed, 3 failed; the three intended pre-fix filter/location assertions failed."
+        },
+        "green": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-location-green-checks-r1-summary.json",
+          "result": "17 passed, 0 failed; lint and typecheck passed.",
+          "lintBinding": "Green lint covered executor SHA 418203f…b5ca. The later executor SHA 41c34a…be4d was linted separately by both UI runs."
+        }
+      },
+      "runs": [
+        {
+          "runId": "3385b56a4e022d88",
+          "scope": "Lifecycle UI",
+          "native": {
+            "manifest": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\3385b56a4e022d88\\manifest.json",
+            "status": "PARTIAL_NOT_ACCEPTED",
+            "passed": 1,
+            "failed": 0,
+            "skipped": 151,
+            "runnerExit": 1,
+            "launcherExit": 1
+          },
+          "browser": {
+            "receipt": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\3385b56a4e022d88\\receipt.json",
+            "receiptStatus": "PARTIAL_NOT_ACCEPTED",
+            "viewportCases": {
+              "390": "PASS",
+              "1440": "PASS"
+            },
+            "reviewNavigationFailure": null
+          },
+          "cleanup": {
+            "ownedProcessesAbsent": true,
+            "controllerReleased": true,
+            "temporaryPathsRemoved": true,
+            "capacityReleased": true,
+            "portsReleased": [
+              62428,
+              62429,
+              62200
+            ],
+            "portsCurrentlyListening": false,
+            "primaryAbsenceUnchanged": true
+          }
+        },
+        {
+          "runId": "9c076e50e300000c",
+          "scope": "Full UI",
+          "native": {
+            "manifest": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\9c076e50e300000c\\manifest.json",
+            "status": "PARTIAL_NOT_ACCEPTED",
+            "passed": 1,
+            "failed": 0,
+            "skipped": 151,
+            "runnerExit": 1,
+            "launcherExit": 1
+          },
+          "browser": {
+            "receipt": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\receipt.json",
+            "receiptStatus": "PARTIAL_NOT_ACCEPTED",
+            "viewportCases": {
+              "390": {
+                "status": "PASS",
+                "normalCreationStatus": 201,
+                "matrixRoundTripAssertions": "5/5 passed"
+              },
+              "1440": {
+                "status": "PASS",
+                "normalCreationStatus": 201,
+                "matrixRoundTripAssertions": "5/5 passed"
+              }
+            },
+            "terminalGallery": "Expected terminal-failure fixture; not evidence of successful CAD/PDF rendering."
+          },
+          "cleanup": {
+            "ownedProcessesAbsent": true,
+            "controllerReleased": true,
+            "temporaryPathsRemoved": true,
+            "capacityReleased": true,
+            "portsReleased": [
+              64437,
+              64438,
+              61036
+            ],
+            "portsCurrentlyListening": false,
+            "primaryAbsenceUnchanged": true
+          }
+        }
+      ],
+      "classificationCorrection": {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-full-ui-r1-classification-correction.json",
+        "sha256": "9612282f06d1de214093893157c3a116e4015c174adf050ff7f6e0a042d0a091",
+        "status": "CURRENT_FULL_QUERY_ASSERTIONS_PASS_PARTIAL",
+        "originalSummaryRetained": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-full-ui-r1-summary.json",
+          "sha256": "05a227ad3ab08ba1fb29367493915c2ff8f1238cbf50ef9edc6c0488136caa43",
+          "originalStatus": "CURRENT_MOUNTED_LIFECYCLE_FAILURE_REQUIRES_RD",
+          "hashVerified": true
+        },
+        "reconciliation": "Both actual viewport receipts report PASS and HTTP 201. The native PARTIAL_NOT_ACCEPTED status, runner/launcher exit codes, skips, and original summary were not changed.",
+        "browserEvidence": {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\receipt.json",
+          "sha256": "9bbac46a3fe5d49ab37d406f0cdd8709811370d06cf56491b4fa60daeeedf66a"
+        },
+        "nativeEvidence": {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\9c076e50e300000c\\manifest.json",
+          "sha256": "ed6eab95a8c4c95dc535e16e770d6acc78dd2b3069e2df407b239a6456f0c56f"
+        }
+      },
+      "screenshotReview": [
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\3385b56a4e022d88\\1440-Drawing-owner-production-reload.png",
+          "sha256": "8c3265d2decf35739a4814a7d56322e42f40c698edebb51bb9083b5564e2f66d",
+          "review": "Desktop owner reload shows the production drawing row and bound file names; preview cards remain queued.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\3385b56a4e022d88\\390-Drawing-owner-production-reload.png",
+          "sha256": "0c22bbe58da38f7949cf4e3327aa09825ba051c4d38fb7ca620d4ca6750c0f51",
+          "review": "Mobile owner reload shows the production drawing and file context; preview remains queued, so this is not render-success evidence.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\3385b56a4e022d88\\1440-first-release-Part-and-paired-Drawing-completed.png",
+          "sha256": "8fece78fcbff56cc142290c3663e5d8ba7fdf842a0f55e18f56757b852ed464e",
+          "review": "Desktop first-release Part state is visible.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\3385b56a4e022d88\\390-first-release-Part-and-paired-Drawing-completed.png",
+          "sha256": "a48b5d325fbef9ecc3c01a57ca24e83d27fb6a5a0024eb34c683e09f762bc66a",
+          "review": "Mobile first-release Part state is visible; the long name is clipped in the narrow table.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\1440-normal-created.png",
+          "sha256": "302871658b78167fd34a0ffe7b90ba59259f07debe63f09a86f5283d7d469e93",
+          "review": "Desktop shows the normal creation success result for A0005-P01.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\390-normal-created.png",
+          "sha256": "15443ac80a187076c1f2ef83ed29767479da35ad5dc2ca042aec0df9ef78cb69",
+          "review": "Mobile shows the normal creation success result for A0006-P01.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\1440-matrix-round-trip.png",
+          "sha256": "37d68a17b3bca0b8ded586a0e3442f7f826166c2e24b6ab833ecf516160fea93",
+          "review": "Desktop matrix view shows the saved Part data and review action.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\390-matrix-round-trip.png",
+          "sha256": "52cfd2557e7ee071fd8fc3a5610bc00cfe13297c92e8366f551d407593f881b6",
+          "review": "Mobile matrix view is visible; long field text is clipped at the narrow viewport.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\1440-immutable-review.png",
+          "sha256": "9a0176fe976bac111ee9a10ff769ddb1602739d8157b22159dee5552015cd503",
+          "review": "Desktop reviewer screen and approval controls are visible.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\390-immutable-review.png",
+          "sha256": "e28f5ad8524e94c4d93a79e5c7eb502ba715de58a9d9654a69f6a48feeb8d63d",
+          "review": "Mobile reviewer screen is visible; lower content continues below the viewport.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\1440-terminal-gallery.png",
+          "sha256": "3e626c9bcc5bc483fcb41e959f8b1db9b07a3cf3b60e9190f2adfc5bed169709",
+          "review": "Desktop gallery shows the expected terminal preview-unavailable fixture; it does not prove CAD/PDF rendering.",
+          "viewed": true
+        },
+        {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9c076e50e300000c\\390-terminal-gallery.png",
+          "sha256": "b5213e6f6f109bf0933b8021b035a443fb709fdca7008cfce86520fd7cf3005b",
+          "review": "Mobile gallery shows the expected terminal preview-unavailable fixture; it does not prove CAD/PDF rendering.",
+          "viewed": true
+        }
+      ],
+      "remainingLimits": {
+        "originalJed403Cause": "UNKNOWN",
+        "084": "EXCLUDED",
+        "producerIntegration": "NOT_PROVEN",
+        "production": "NOT_RUN",
+        "wholeDev": "NOT_ACCEPTED",
+        "wholeDevScope": "Original 7 issues / 29 groups remain incomplete."
+      },
+      "testsRerun": false,
+      "hashCorrection": {
+        "previousReport": "Three screenshot SHA-256 values in the preceding QC message were transcribed incorrectly. I recomputed all 12 directly from the image files; the values below are the corrected hashes.",
+        "all12Recomputed": true,
+        "all12ViewedWithViewImage": true
+      },
+      "runtimeStarted": false
+    },
+    "priorReport": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-final-local-qc-r1-raw-transcription-defects.json",
+      "status": "PRESERVED_NOT_ACCEPTED_AS_FINAL",
+      "parentHashMismatchObservation": "Five screenshot hashes differ from native file SHA256; reviewer correction narrative says three. All twelve corrected values are verified at checkpoint gate."
+    }
+  },
+  "historicalFailuresPreserved": [
+    "red r1 launcher failed before tests; red r2 is actual14/3",
+    "full derived finisher erroneously expected200 instead of executor201; original failure-classification summary retained with separate correction",
+    "first final QC report had screenshot-hash transcription defects, retained privately but not accepted; corrected report recomputed all12 and root matched native bytes",
+    "B50 UI r1 review-navigation timeout OPEN_CAUSE_UNKNOWN"
+  ],
+  "requiredCi": {
+    "precedingSource": "38bf526d46930b883e47fa55cb6c576996a6b688",
+    "precedingRun": 38205114973,
+    "precedingBothRequiredChecks": "SUCCESS",
+    "currentB52": "PENDING_FRESH_SAME_PR"
+  },
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "wholeDev": "NOT_ACCEPTED",
+  "production": "NOT_RUN",
+  "producerIntegration": "NOT_PROVEN",
+  "originalJed403Cause": "UNKNOWN",
+  "standingBoundaries": {
+    "084": "EXCLUDED",
+    "A0061Requeue": "PROHIBITED",
+    "supplier": "DISABLED_DEFERRED",
+    "nativeCad": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "unknownNextRuntime": "UNTOUCHED",
+    "nextEnv": "PRESERVED_EXCLUDED_FROM_COMMIT"
+  },
+  "limits": [
+    "Raw native/browser PARTIAL_NOT_ACCEPTED and exit1 retained; selected assertions only. Four viewport executions are two existing flows, not added DEV groups.",
+    "Cursor/popstate tests are hook-layer only; fixture provides no genuine nextCursor.",
+    "165-table snapshot equality applies only to each Drawing owner-read interval. Lifecycle/full fixtures intentionally write. Primary SQLite eight paths remained ABSENT unchanged.",
+    "Gallery screenshot is expected terminal failure fixture, not CAD/PDF rendering success.",
+    "B50 navigation cause and original Jed403 still unknown; successful replays and URL-state repair do not close them.",
+    "FULL35/v7 versus fixed program-only FULL34/prefix33 release seam unresolved; no main merge or root production writer."
+  ],
+  "privateEvidence": {
+    "B52-filter-location-source.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-filter-location-source.json",
+      "sha256": "29029b8a2353fa225f902a20283b8a17102d4cae7566727f5d479aba732ff7b5"
+    },
+    "B52-location-tests-source.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-location-tests-source.json",
+      "sha256": "b3d63ba530719b3fb64d48bee6de9715ef3e09d3be17c3c6556939b0b7472b79"
+    },
+    "B52-location-browser-source.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-location-browser-source.json",
+      "sha256": "e4b6a03daf75dae229ae9fd9a46eecc9d543f1c8594909aa709c367da8c2cd46"
+    },
+    "B52-location-red-checks-r2-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-location-red-checks-r2-summary.json",
+      "sha256": "85ab3ad09a1e01d3c99c522ae32ccdedb29391e3ecea5302a952a6c6b9c091d5"
+    },
+    "B52-location-green-checks-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-location-green-checks-r1-summary.json",
+      "sha256": "0c2267b518b4b35d762d614fb5fdd3829db412009e0683b654a8cc3aaccead85"
+    },
+    "B52-lifecycle-ui-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-lifecycle-ui-r1-summary.json",
+      "sha256": "36cfc314ab81dd576a01c56b99773e3ed74d0f9a46fc279332eb4cef41c613a1"
+    },
+    "B52-full-ui-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-full-ui-r1-summary.json",
+      "sha256": "05a227ad3ab08ba1fb29367493915c2ff8f1238cbf50ef9edc6c0488136caa43"
+    },
+    "B52-full-ui-r1-classification-correction.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-full-ui-r1-classification-correction.json",
+      "sha256": "9612282f06d1de214093893157c3a116e4015c174adf050ff7f6e0a042d0a091"
+    },
+    "B52-final-local-qc-r1-raw-transcription-defects.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-final-local-qc-r1-raw-transcription-defects.json",
+      "sha256": "62a1f3f189fab017304e09c1fa7199c5064ec4bd6cc1ea986a7e549df599260b"
+    },
+    "B52-final-local-qc.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B52-final-local-qc.json",
+      "sha256": "7d866b7f4341c352688b39dac9c1b807c9a4bbb696f5f586a27ffd50b833775e"
+    },
+    "B51-source-ci-terminal-readback.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B51-source-ci-terminal-readback.json",
+      "sha256": "a6fdfb91d4b7fb20241f059ba6f0ecab10c7ce21a9bb7744ae17843a6eb03943"
+    }
+  },
+  "recordedAt": "2026-10-12T05:25:42.957556+00:00"
+}
