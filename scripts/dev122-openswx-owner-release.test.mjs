@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
@@ -373,6 +374,53 @@ test('settled Job metadata drift fails without a second PATCH', async () => {
   }
 })
 
+
+function nativeReceiptMemoFixture() {
+  const descriptor = workerDescriptor(), plan = { schemaVersion: 'aipdm.openswx-approved-resource-plan.v1', ownerApplicationId: 'ai-pdm', sourceRevision,
+    resourcePlanHash: descriptor.resourcePlanHash, status: 'APPROVED', releaseAuthority: true, evidenceScope: 'HUMAN_APPROVED_RESOURCE_PLAN', authorizationStatementSha256: 'f'.repeat(64) }
+  const planBytes = Buffer.from(canonicalize(plan))
+  descriptor.resourcePlanRef = { ...ref('memo-plan'), sha256: sha256(planBytes) }
+  const descriptorBytes = Buffer.from(canonicalize(descriptor)), descriptorRef = { ...ref('memo-descriptor'), sha256: sha256(descriptorBytes) }
+  const rows = new Map([[descriptorRef.uri, { ref: descriptorRef, bytes: descriptorBytes, value: descriptor }], [descriptor.resourcePlanRef.uri, { ref: descriptor.resourcePlanRef, bytes: planBytes, value: plan }]])
+  const counts = new Map()
+  const owner = createOpenSwxOwnerRelease({ transport: { async readJson(actual, bucket, prefixes) {
+    assert.equal(bucket, 'jenfu-platform-prod-aipdm-release'); assert.deepEqual(prefixes, ['receipts/dev-122/openswx-worker'])
+    counts.set(actual.uri, (counts.get(actual.uri) ?? 0) + 1)
+    const row = rows.get(actual.uri)
+    return { ref: { ...row.ref }, bytes: Buffer.from(row.bytes), value: structuredClone(row.value) }
+  } }, readSource(path, revision) {
+    assert.equal(path, 'config/release/dev122-openswx-worker.json'); assert.equal(revision, sourceRevision); return profileBytes
+  }, environment: { GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'build_only' } })
+  const intent = { sourceRevision, openswxWorkerRef: descriptorRef, deadlineAt: new Date(Date.now() + 120000).toISOString() }
+  const runtimeConfig = { plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '0' }, openswxWorker: { descriptorRef, purpose: 'build_only', sourceRevision, workerProfileSha256: descriptor.workerProfileSha256 } }
+  return { owner, intent, runtimeConfig, counts, rows, descriptorRef, planRef: descriptor.resourcePlanRef }
+}
+test('DEV121 native owner prepare shares pinned receipts only within one active observation', async () => {
+  const h = nativeReceiptMemoFixture(), input = { intent: h.intent, profile: appProfile, runtimeConfig: h.runtimeConfig }
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    await h.owner.prepare(input); await h.owner.prepare(input)
+    for (const ref of [h.descriptorRef, h.planRef]) assert.equal(h.counts.get(ref.uri), 1, 'same pinned policy gets one native read inside the observation')
+  })
+  await h.owner.prepare(input)
+  for (const ref of [h.descriptorRef, h.planRef]) assert.equal(h.counts.get(ref.uri), 2, 'fresh observation must read the provider again')
+  h.rows.get(h.planRef.uri).bytes[0] ^= 1
+  await assert.rejects(h.owner.prepare(input), /OPENSWX_REUSE_REF_HASH_INVALID/u)
+})
+
+test('DEV121 native memo hits cannot renew an expired evidence observation', async () => {
+  const h = nativeReceiptMemoFixture(), input = { intent: h.intent, profile: appProfile, runtimeConfig: h.runtimeConfig }
+  const originalNow = Date.now
+  let clock = originalNow()
+  Date.now = () => clock
+  try {
+    await assert.rejects(runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+      await h.owner.prepare(input)
+      clock += 600000
+      await h.owner.prepare(input)
+    }), { code: 'DEV121_OWNER_RELEASE_PROOF_OBSERVATION_EXPIRED' })
+    for (const ref of [h.descriptorRef, h.planRef]) assert.equal(h.counts.get(ref.uri), 1, 'expired observation rejects before another native read')
+  } finally { Date.now = originalNow }
+})
 
 test('B28 each worker resolve refreshes its operation clock after a long app build while retaining the absolute intent deadline', async () => {
   const descriptor = workerDescriptor('full'), bytes = Buffer.from(canonicalize(descriptor))

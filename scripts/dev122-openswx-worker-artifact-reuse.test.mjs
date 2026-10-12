@@ -724,8 +724,31 @@ test('B19-08/11 LOCAL_TEST same-source single release DAILY/full consumes associ
   const fullRef = bootstrap.refs.fullDescriptorRef, full = (await h.transport.readJson(fullRef)).value
   const evidence = await readWorkerFullEvidence(h.transport, full, profile, h.readSource)
   assert.equal(evidence.artifact.currentAssociation.sourceRevision, currentRevision); assert.deepEqual(evidence.artifact.originBuild, h.build)
+  const readJson = h.transport.readJson, nativeReads = new Map()
+  h.transport.readJson = async (reference, bucket, prefixes) => {
+    const key = canonicalize([reference, bucket, prefixes])
+    nativeReads.set(key, (nativeReads.get(key) ?? 0) + 1)
+    return readJson(reference, bucket, prefixes)
+  }
   const worker = createOpenSwxOwnerRelease({ transport: h.transport, readSource: h.readSource, environment: { GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'full_release' } })
   const intent = { sourceRevision: currentRevision, sourceLockRef: h.sourceLockRef, openswxWorkerRef: fullRef, deadlineAt: deadline() }
+  const runtimeConfig = { plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '1' }, secretVersions: { PDM_WORKLOAD_AUTH_CREDENTIALS: registry.split('/').at(-1) },
+    openswxWorker: { descriptorRef: fullRef, purpose: 'full', sourceRevision: currentRevision, workerProfileSha256: full.workerProfileSha256 } }
+  const associationKey = canonicalize([full.workerBuildRef, 'jenfu-platform-prod-aipdm-release', ['receipts/dev-122/openswx-worker']])
+  const liveSchedulerReads = () => h.calls.filter(row => row.url === `https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`).length
+  const liveBefore = liveSchedulerReads(), publicationsBefore = h.puts.length
+  await worker.prepare({ intent, profile: appProfile, runtimeConfig })
+  assert.equal(nativeReads.get(associationKey), 1, 'one full prepare rewalks both graph consumers but reads the pinned association once')
+  assert.ok([...nativeReads.values()].every(count => count === 1), 'each same-policy pinned receipt is read once inside the operation')
+  assert.ok(liveSchedulerReads() > liveBefore, 'prepare still observes the live Scheduler')
+  const firstLive = liveSchedulerReads()
+  await worker.prepare({ intent, profile: appProfile, runtimeConfig })
+  assert.equal(nativeReads.get(associationKey), 2, 'a new full prepare must reauthenticate the same immutable association')
+  assert.ok(liveSchedulerReads() > firstLive, 'a new prepare must reread live provider state')
+  h.controls.scheduler = { state: 'ENABLED' }
+  await assert.rejects(worker.prepare({ intent, profile: appProfile, runtimeConfig }), /OPENSWX_SCHEDULER_NOT_PAUSED/u)
+  delete h.controls.scheduler
+  assert.equal(h.puts.length, publicationsBefore, 'prepare and live-state refusal have no publication side effect')
   const built = await worker.build({ intent, profile: appProfile, sourceObject: { ref: h.currentSourceRef } })
   assert.deepEqual(built.workerBuildRef, saved.ref); assert.equal(built.image, image)
   const otherLockRef = h.seed('different-attempt-lock', { ...h.lock, releaseId: 'DEV122-LOCAL-OTHER' })

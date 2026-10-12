@@ -1732,9 +1732,11 @@ else {
     const staleAdmissionBefore = { scheduler: structuredClone(stale.scheduler()), resumes: stale.controls.resumes ?? 0 }
     assert.equal(staleAdmissionBefore.scheduler.state, 'ENABLED')
     stale.controls.daily = true
+    // The current full release cannot serve as a program-only fallback for this old READY prior.
+    // The earlier serving-authority guard rejects it before the old canonical comparison.
     await assert.rejects(executeOpenSwxBootstrap({ stage: 'pause', inputRef: stalePauseRef, transport: stale.transport, readSource: stale.source,
-      appProfile: stale.appProfile, sleep: async ms => clock.advance(ms) }), /OPENSWX_PRIOR_CANONICAL_INVALID/u)
-    assert.equal(stale.scheduler().state, 'PAUSED')
+      appProfile: stale.appProfile, sleep: async ms => clock.advance(ms) }), /OPENSWX_DAILY_SERVING_INVALID/u)
+    assert.deepEqual(stale.scheduler(), staleAdmissionBefore.scheduler)
     assert.equal(stale.controls.resumes ?? 0, staleAdmissionBefore.resumes)
     assert.deepEqual({ publications: stale.publications.length, builds: stale.controls.appBuilds, runs: stale.controls.runs,
       secretPublications: stale.calls.filter(row => row.url.endsWith(':addVersion')).length }, staleBefore)
