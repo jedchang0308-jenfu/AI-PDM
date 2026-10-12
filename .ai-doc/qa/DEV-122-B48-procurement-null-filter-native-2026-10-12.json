@@ -1,7 +1,7 @@
 {
   "schemaVersion": "aipdm.dev122.b48.procurement-null-filter-native.v1",
   "task": "DEV-122",
-  "status": "TARGETED_NATIVE_QA_PASS_REQUIRED_CI_PENDING",
+  "status": "TARGETED_NATIVE_QA_AND_REQUIRED_CI_PASS_PRODUCTION_PENDING",
   "sourceParent": "66d3ab4dc805ec8e1a11347e332c02b74bf2563b",
   "testBlobSha256": "8613617cb49ee7064844a27165eeb229613659797d584ed1d89a0e6e2b23e814",
   "scope": [
@@ -74,7 +74,12 @@
     "priorSource": "66d3ab4dc805ec8e1a11347e332c02b74bf2563b",
     "priorSourceRunId": 38195819316,
     "priorSourceBothChecks": "SUCCESS",
-    "newTestAndCheckpointSource": "PENDING_AFTER_PUSH; prior source CI does not cover this changed test blob"
+    "newTestAndCheckpointSource": {
+      "head": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+      "runId": 38198072885,
+      "bothChecks": "SUCCESS",
+      "privateReadbackSha256": "f4e7312fec537765c8ef2da33aa1f7de3312e78d15bff743a6563fa586d3a48a"
+    }
   },
   "sourceApplicability": "Actual signed current routes and native PostgreSQL with a local versioned issuer/effective-grant contract fixture. This is local consumer evidence, not producer integration or serving-source proof.",
   "local085": "Exact committed current v7 fixture prerequisite only; NOT_PRODUCTION",

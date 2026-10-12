@@ -1747,6 +1747,19 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
     await uploadNativeProtocolPair(initial!.id, "minor");
     await completeReview(await submitNativeDrawing(initial!.id), "approve");
     expect(await db!.queryOne("SELECT record_status FROM drawing_numbers WHERE id=:id", { id: created.drawingNumber.id })).toMatchObject({ record_status: "Draft" });
+    const intake = await ok<{workbench:{id:string;rowVersion:number}}>(await createTransfer(request("/api/transfer-packages", ownerToken, "POST",
+      {title:"DEV122 normal Drawing readiness",caseType:"development_case",caseReason:"Native minor/major acceptance",
+        sourceReferenceStatus:"not_available",sourceReferenceReason:"Task-owned synthetic Drawing intake"},1,"","drawing-readiness-package")),201);
+    const transferPackageId = intake.workbench.id;
+    await ok(await addTransferItem(request("/api/transfer-packages/"+transferPackageId+"/items",ownerToken,"POST",
+      {expectedRowVersion:intake.workbench.rowVersion,entityType:"drawing_number",entityId:created.drawingNumber.id},1,"","drawing-readiness-item"),
+      {params:Promise.resolve({id:transferPackageId})}));
+    const readReadiness = () => db!.transaction(tx => buildTransferPackageReadiness(transferPackageId,"company-jenfu",tx),
+      {readOnly:true,isolationLevel:"repeatable_read"});
+    const beforeDraftRead = await ownedLifecycleSnapshot(), draftReadiness = await readReadiness();
+    expect(draftReadiness.ready).toBe(false);
+    expect(draftReadiness.blockers.map(value=>value.code)).toContain("transfer_official_item_invalid");
+    expect(await ownedLifecycleSnapshot()).toEqual(beforeDraftRead);
     const source = await db!.queryOne<{ id: string }>(`SELECT id FROM canonical_workbench_states
       WHERE canonical_entity_id=:id AND data_layer='drawing_rd' AND handling='none' AND work_id IS NULL`, { id: initial!.drawing_id });
     expect(source).toBeTruthy();
@@ -1792,6 +1805,15 @@ describe.runIf(lifecycleEnabled)("DEV122 D03/D04 native canonical lifecycle",()=
     expect(await db!.queryOne<{ count: number }>(`SELECT count(*)::int AS count FROM canonical_workbench_states state
       JOIN drawing_revisions revision ON revision.id=state.revision_id
       WHERE state.canonical_entity_id=:id AND state.data_layer='drawing_production' AND revision.lifecycle_state='released'`, { id: initial!.drawing_id })).toMatchObject({ count: 1 });
+    const pointer = await db!.queryOne<{revision_id:string}>("SELECT revision_id FROM canonical_workbench_states WHERE canonical_entity_id=:id AND data_layer='drawing_production'",{id:initial!.drawing_id});
+    expect(pointer).toBeTruthy();
+    const beforeReleasedRead = await ownedLifecycleSnapshot(), releasedReadiness = await readReadiness();
+    expect(releasedReadiness.ready,JSON.stringify(releasedReadiness.blockers)).toBe(true);
+    expect(releasedReadiness.snapshot.authorityFacts.officialItems).toEqual([expect.objectContaining({
+      entityType:"drawing_number",entityId:created.drawingNumber.id,recordStatus:"Released",
+      currentControlledVersionId:pointer!.revision_id,currentControlledVersionStatus:"released"
+    })]);
+    expect(await ownedLifecycleSnapshot()).toEqual(beforeReleasedRead);
   });
   it("uses normal Draft creation and release-only review before a real transfer can be submitted and approved",async()=>{
     const fixture=await draftReleaseFixture("transfer");

@@ -671,9 +671,21 @@ try {
         const saved=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/part-change-works/'+fixture.partWorkId&&response.request().method()==='PATCH');
         await name.fill(ordinaryName);await name.press('Tab');const savedResponse=await saved,savedBody=await savedResponse.json();assert.equal(savedResponse.status(),200,JSON.stringify(savedBody));
         assert.equal(savedBody.data.payload.partName,ordinaryName);assert.equal(await page.getByRole('checkbox',{name:fixture.partNumber+' 申請首次發行',exact:true}).isChecked(),false);
+        const ordinaryRows=await snapshot();
+        assert.equal(ordinaryRows.part_numbers.find(item=>item.id===fixture.partId).record_status,'Draft');
+        assert.equal(ordinaryRows.part_approved_change_snapshots.filter(item=>item.part_id===fixture.partId).length,0);
+        const release=page.getByRole('checkbox',{name:fixture.partNumber+' 申請首次發行',exact:true});
+        const intentSaved=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/part-change-works/'+fixture.partWorkId&&response.request().method()==='PATCH');
+        await release.focus();await page.keyboard.press('Space');
+        const intentResponse=await intentSaved,intentBody=await intentResponse.json();assert.equal(intentResponse.status(),200,JSON.stringify(intentBody));
+        assert.equal(intentBody.data.lifecycleIntent,'first_release');
+        await page.reload({waitUntil:'domcontentloaded'});await release.waitFor();assert.equal(await release.isChecked(),true);
+        const intentRows=await snapshot();assert.equal(intentRows.part_numbers.find(item=>item.id===fixture.partId).record_status,'Draft');
+        assert.equal(intentRows.part_change_works.find(item=>item.id===fixture.partWorkId).lifecycle_intent,'first_release');
+        progress('ordinary Part stays Draft before explicit persisted first-release UI intent',{partId:fixture.partId,workId:fixture.partWorkId,intentBody});
         const submittedPart=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/part-change-works/'+fixture.partWorkId+'/submit');
         await page.getByRole('button',{name:/^送出審核/u}).click();const partSubmission=await submittedPart,partSubmissionBody=await partSubmission.json();assert.equal(partSubmission.status(),200,JSON.stringify(partSubmissionBody));
-        const anchorRequestId=partSubmissionBody.data.requestId;progress('ordinary Part nonrelease UI submission',{partId:fixture.partId,workId:fixture.partWorkId,anchorRequestId,savedBody});
+        const initialPartRequestId=partSubmissionBody.data.requestId;let anchorRequestId=initialPartRequestId;progress('explicit Part first-release UI submission',{partId:fixture.partId,workId:fixture.partWorkId,anchorRequestId,savedBody});
         const readTarget=async(pending,entityId)=>{
           const response=await pending,body=await response.json(),pathname=new URL(response.url()).pathname,segments=pathname.split('/');
           progress('actual immutable UI target bytes',{status:response.status(),pathname,cacheControl:response.headers()['cache-control'],contentType:response.headers()['content-type'],body});
@@ -685,7 +697,30 @@ try {
           await asActor('reviewer');await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await navigate('料號工作台');
           await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.partNumber);await partRow().getByRole('button',{name:fixture.partNumber,exact:true}).click();
           const anchorTarget=waitResponse(response=>new URL(response.url()).pathname===`/api/pdm/review-requests/${anchorRequestId}/targets/part/${fixture.partId}`);
-          await page.getByRole('button',{name:'前往審核',exact:true}).click();await page.waitForURL(location=>location.pathname==='/approvals/'+anchorRequestId);await readTarget(anchorTarget,fixture.partId);
+          // Observe the real click/history without changing navigation, waiting out the search timer, or retrying a failed click.
+          await page.evaluate(()=>{
+            const events=[];window.__dev122ReviewNavigation=events;
+            const record=value=>{if(events.length<32)events.push(value);};
+            for(const method of ['pushState','replaceState']){
+              const original=window.history[method];window.history[method]=function(...args){
+                const result=Reflect.apply(original,this,args),url=new URL(window.location.href);
+                record({kind:'history',method,pathname:url.pathname,search:url.search});return result;
+              };
+            }
+            document.addEventListener('click',event=>{
+              const button=event.target instanceof Element?event.target.closest('button'):null;
+              if(button?.textContent?.trim()==='前往審核')record({kind:'click',isTrusted:event.isTrusted,disabled:button.disabled,defaultPrevented:event.defaultPrevented});
+            },{capture:true});
+          });
+          const reviewEntry=page.getByRole('button',{name:'前往審核',exact:true});
+          progress('review entry before actual click',{anchorRequestId,requestedRequestId:requestId,buttonEnabled:await reviewEntry.isEnabled(),pathname:new URL(page.url()).pathname});
+          await reviewEntry.click();
+          try{await page.waitForURL(location=>location.pathname==='/approvals/'+anchorRequestId);}
+          catch(error){receipt.reviewNavigationFailure={anchorRequestId,requestedRequestId:requestId,
+            events:await page.evaluate(()=>window.__dev122ReviewNavigation??[]),pathname:new URL(page.url()).pathname,
+            clientErrors:[...errors]};save();throw error;}
+          progress('review entry actual destination',{anchorRequestId,events:await page.evaluate(()=>window.__dev122ReviewNavigation??[]),pathname:new URL(page.url()).pathname});
+          await readTarget(anchorTarget,fixture.partId);
           if(requestId!==anchorRequestId){await page.getByRole('button',{name:'返回審核清單',exact:true}).click();await page.waitForURL(location=>location.pathname==='/approvals');
             await page.getByRole('textbox',{name:'搜尋圖號、料號、品名或送審者',exact:true}).fill(search);
             const row=page.locator('[data-approval-workbench-row="true"]').filter({hasText:search});await row.waitFor({state:'visible'});await row.focus();
@@ -734,6 +769,24 @@ try {
           const submit=page.getByRole('button',{name:'送出審核',exact:true});await submit.waitFor();assert.equal(await submit.isEnabled(),true);await submit.focus();await page.keyboard.press('Enter');
           const response=await pending,body=await response.json();assert.equal(response.status(),200,JSON.stringify(body));await page.waitForURL(location=>location.pathname==='/numbering/drawings');return body.data.requestId;
         };
+        await reviewerEntry(anchorRequestId,'part',fixture.partId,fixture.partNumber);await page.getByText('首次發行核准',{exact:true}).waitFor();
+        await decide(anchorRequestId,'return');const returnedPartRows=await snapshot();
+        assert.equal(returnedPartRows.part_numbers.find(item=>item.id===fixture.partId).record_status,'Draft');
+        assert.equal(returnedPartRows.part_approved_change_snapshots.filter(item=>item.part_id===fixture.partId).length,0);
+        assert.equal(returnedPartRows.pdm_work_review_terminal_receipts.filter(item=>item.request_id===initialPartRequestId).length,1);
+        await asActor('owner');await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await navigate('料號工作台');
+        await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.partNumber);await partRow().getByRole('button',{name:fixture.partNumber,exact:true}).click();
+        await page.getByRole('button',{name:'繼續編輯',exact:true}).click();await page.waitForURL('**/parts/**/workspace?**');await name.waitFor();assert.equal(await release.isChecked(),true);
+        await name.click();await page.locator('.part-number-matrix-cell.is-focused').filter({has:name}).waitFor();
+        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        const correctedName=ordinaryName+' returned',correctionSaved=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/part-change-works/'+fixture.partWorkId&&response.request().method()==='PATCH');
+        await name.fill(correctedName);await name.press('Tab');const correctionResponse=await correctionSaved,correctionBody=await correctionResponse.json();assert.equal(correctionResponse.status(),200,JSON.stringify(correctionBody));
+        assert.equal(correctionBody.data.payload.partName,correctedName);assert.equal(correctionBody.data.lifecycleIntent,'first_release');
+        await page.reload({waitUntil:'domcontentloaded'});await name.waitFor();assert.equal(await name.inputValue(),correctedName);assert.equal(await release.isChecked(),true);
+        const resubmitted=waitResponse(response=>new URL(response.url()).pathname==='/api/pdm/part-change-works/'+fixture.partWorkId+'/submit');
+        await page.getByRole('button',{name:/^送出審核/u}).click();const resubmitResponse=await resubmitted,resubmitBody=await resubmitResponse.json();assert.equal(resubmitResponse.status(),200,JSON.stringify(resubmitBody));
+        anchorRequestId=resubmitBody.data.requestId;assert.notEqual(anchorRequestId,initialPartRequestId);
+        progress('returned Part first-release UI correction reload and fresh submission',{initialPartRequestId,anchorRequestId,correctionBody});
         await openDrawing(fixture.drawingWorkId);await uploadPair(fixture.drawingWorkId,'minor-initial-'+fixture.width);
         let minorRequest=await submitDrawingUi(fixture.drawingWorkId),firstMinorRequest=minorRequest;await reviewerEntry(minorRequest,'drawing',fixture.drawingId,fixture.drawingNumber);await decide(minorRequest,'return');
         await openDrawing(fixture.drawingWorkId);minorRequest=await submitDrawingUi(fixture.drawingWorkId);assert.notEqual(minorRequest,firstMinorRequest);await reviewerEntry(minorRequest,'drawing',fixture.drawingId,fixture.drawingNumber);await decide(minorRequest,'approve');
@@ -773,10 +826,25 @@ try {
           const result={variant:variant.name,workId,returnedId,freshId,masterBefore:masterOf(beforeRound),masterAfter:masterOf(afterRound),productionBeforeCreation:productionBefore,productionBeforeReview:productionAfterCreation,productionAfter:productionOf(afterRound)};
           releasedRounds.push(result);progress('normal paired '+variant.name+' return fresh approval and native readback',result);
         }
-        await reviewerEntry(anchorRequestId,'part',fixture.partId,fixture.partNumber);await decide(anchorRequestId,'approve');const finalRows=await snapshot();
-        const finalPart=finalRows.part_numbers.find(item=>item.id===fixture.partId);assert.equal(finalPart.record_status,'Draft');assert.equal(finalPart.part_name,ordinaryName);
-        await screenshot('ordinary-Part-and-paired-Drawing-completed');receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'lifecycle',
-          ordinaryPart:{partId:fixture.partId,anchorRequestId,finalPart},minor:{requestId:minorRequest,master:masterOf(afterMinor),production:productionOf(afterMinor)},
+        await reviewerEntry(anchorRequestId,'part',fixture.partId,fixture.partNumber);await page.getByText('首次發行核准',{exact:true}).waitFor();
+        await page.locator('.canonical-review-package input').first().waitFor();
+        const freshValues=await page.locator('.canonical-review-package input').evaluateAll(elements=>elements.map(item=>item.value));assert.ok(freshValues.includes(correctedName),'FRESH_PART_CORRECTION_MISSING');
+        await decide(anchorRequestId,'approve');const finalRows=await snapshot();
+        const finalPart=finalRows.part_numbers.find(item=>item.id===fixture.partId);assert.equal(finalPart.record_status,'Released');assert.equal(finalPart.part_name,correctedName);
+        const approvedSnapshots=finalRows.part_approved_change_snapshots.filter(item=>item.part_id===fixture.partId);assert.equal(approvedSnapshots.length,1);
+        const approvalContext=approvedSnapshots[0].approval_context;assert.equal(approvalContext.version,1);assert.equal(approvalContext.lifecycle.intent,'first_release');
+        assert.equal(approvalContext.recordStatusAfter,'Released');assert.equal(approvalContext.reviewerPrincipalId,'dev122-principal-reviewer');
+        const terminal=finalRows.pdm_work_review_terminal_receipts.filter(item=>item.request_id===anchorRequestId);assert.equal(terminal.length,1);
+        assert.equal(terminal[0].company_id,'company-jenfu');assert.equal(typeof terminal[0].decided_at,'string');
+        assert.equal(finalRows.part_change_works.filter(item=>item.id===fixture.partWorkId).length,0);
+        await asActor('owner');await page.goto(origin+'/',{waitUntil:'domcontentloaded'});await navigate('料號工作台');
+        await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.partNumber);
+        await page.locator('tr[data-canonical-workbench-row="true"].is-formal').filter({hasText:fixture.partNumber}).getByRole('button',{name:fixture.partNumber,exact:true}).click();
+        await page.getByRole('button',{name:'編輯料號',exact:true}).click();await page.waitForURL('**/parts/**/workspace?**');
+        await page.reload({waitUntil:'domcontentloaded'});await name.waitFor();assert.equal(await name.inputValue(),correctedName);assert.equal(await release.count(),0);await page.getByText('已發布',{exact:true}).waitFor();
+        progress('Part UI approval native exact Released snapshot receipt then owner reload',{partId:fixture.partId,initialPartRequestId,anchorRequestId,finalPart,approvedSnapshots,terminal,releaseControls:await release.count()});
+        await screenshot('first-release-Part-and-paired-Drawing-completed');receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'lifecycle',
+          firstReleasePart:{partId:fixture.partId,initialPartRequestId,anchorRequestId,ordinaryDraft:ordinaryRows.part_numbers.find(item=>item.id===fixture.partId),finalPart,approvedSnapshots,terminal,ownerReload:true,firstReleaseControlsHidden:true},minor:{requestId:minorRequest,master:masterOf(afterMinor),production:productionOf(afterMinor)},
           major:{workId:majorWorkId,requestId:majorRequest,master:masterOf(afterMajor),production:productionOf(afterMajor)},releasedRounds,normalNavigation:true,signedPrincipal:true,keyboard:true,
           overflowMetrics,navigationRoutes,requests});save();continue;
       }
@@ -1013,7 +1081,7 @@ try {
     }
   }
   receipt.status=preflight?'DIAGNOSTIC_ONLY':'PARTIAL_NOT_ACCEPTED';
-  receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?['prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
+  receipt.coverage={partial:preflight?[]:flowSelection==='preview-polling'?['F-01C','UI-01']:flowSelection==='settings-automation'?['UI-01','SW_CONTROL_FLOW']:flowSelection==='settings'?['UI-01','F-01F']:flowSelection==='lifecycle'?['P-01','P-02A','P-03A','G-01','G-02','G-03A','UI-01']:flowSelection==='attachments'?['F-01A','UI-01']:['R-01B','P-01','P-02A','UI-01','F-01C'],notRun:[...(flowSelection!=='full'?[flowSelection==='lifecycle'?'UI initial creation/matrix saved-A restoration/terminal-gallery/attachments require independent source applicability review':'prior creation/matrix/first-release/terminal-gallery/attachments require independent source applicability review']:[]),...(preflight?['D01 normal creation through /numbering/create','D02 edit B then restore A idle/blur/reload']:[]),
     'actual CAD output','remaining QA plan groups'],acceptanceComplete:false};
 } catch(error) {receipt.status='FAIL';if(boundedSettingsFlow){receipt.firstFailure??={message:error.message,stack:error.stack};save();}else receipt.firstFailure={message:error.message,stack:error.stack};}
 finally {
