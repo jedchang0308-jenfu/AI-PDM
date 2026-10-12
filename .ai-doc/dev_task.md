@@ -1,12 +1,14 @@
 # AI_PDM 開發任務
 
-## DEV-121#rd-capabilities — 2026-10-12 FAILED DAILY 接續（本地 QC 通過，未發布）
+## DEV-121#rd-capabilities — 2026-10-12 sealed archive 接續補修（本地驗證，未發布）
 
-原 AI-PDM 事故通知訂閱已按指定授權恢復且最新讀回 ACTIVE；不重複建立。PR275 日誌 zero-only bounded readback 已正常合併至官方 main，PR／main required CI PASS。實際前一 DAILY selftest 與 recovery execution 成功、normal Job 已恢復但 Scheduler PAUSED；原 input deadline 已過，沒有新的 bootstrap full／085／RD v7 deployment。已沿原 owner 邊界完成 closed FAILED continuation；聚焦28/28、native QC363/363、另一份continuous 302/302、catalog3/3、abort6/6、DB boundary、app型別與isolated build PASS，分母重疊不相加。獨立Luna source QC P0=0/P1=0。後記與private原生報告見既有驗證入口；required CI、正常merge與Production新input仍待完成，本地PASS不等於Production驗收。契約：[FAILED DAILY](specs/DEV-121-target-authorization-boundary.md#failed-daily-continuation)；驗證入口：[ordinary worker checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)。
+沿用既有 DEV-121 與人類 AI-PDM own protected Production 授權，不新增主 DEV／專案／帳戶／資源操作。PR276 已正常合併至官方 main，PR 與 main required CI PASS；原事故通知訂閱已恢復 ACTIVE，OrgMaster v7 已 RELEASED／100%。最新 native source freeze、metadata read/no-op、worker artifact association、source-bound app-infra reuse 已 PASS，保留既有工具映像；ordinary pause 尚未完成，沒有新的 bootstrap full、fence、085、candidate 或切流。
 
-兩 fixture 的舊正常登入／Ctrl+R／登出只有 HUMAN_REPORTED_PASS，新的 RD 編輯／送審／核准拒絕仍 NOT_RUN。Dani本人 DEFERRED_UNVERIFIED，Google延遲完成正式情境未證；browser 工具 action 遭 automatic review 拒絕，未獨立讀到設定的持久拒絕狀態，不能把工具拒絕歸責於使用者封鎖。指定歷史 parent 尚未刪除，引用／來源與 read-only 權限阻擋保留，不清 child／cascade／擴權。以下較舊狀態段落保留為歷史，不推定是現在的 worker／發布狀態。
+已證實的新失敗點是 sealed historical source archive 的單次 media stream timeout；完整只讀 native pause 診斷在 lifecycle write 前拒絕，serving observer 與 observer→graph 獨立 PASS。這不證明先前所有 generic failure 都同一根因。最小補修僅固定 numeric generation 的 media GET：單次60秒、明確 timeout／指定 transport reset 最多完整重讀一次，partial bytes丟棄/cancel；metadata仍單次，原 context／absolute deadline、depth、256MiB、size／CRC／SHA guard不變。HTTP拒絕、內容不符、未知錯誤與整體過期不得重試；domain message原樣並加同值code。
 
+Synthetic true RED 0/1、新增13/13及含其的archive/context44/44 PASS；完整owner-proof165/165、另一份continuous302/302 PASS，分母重疊不相加。獨立6-luna極高唯讀source QC P0=0/P1=0，不是provider實測。本輪原生QC363/363、catalog3/3、abort6/6、DB boundary22檔、app型別與isolated build PASS（artifact／primary／cleanup=true）；原middleware／Edge警告保持。正常commit／required CI／protected merge與新official-source發布仍待完成。兩檔不在既有18-path controller／migration-runner closure或finite-worker recipe，舊工具artifact仍需新source-bound native association及provider readback，不能直接借舊receipt。契約：[FAILED DAILY](specs/DEV-121-target-authorization-boundary.md#failed-daily-continuation)；驗證入口：[ordinary worker checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)。
 
+085 NOT_APPLIED／RD v7 NOT_DEPLOYED。兩fixture舊登入／Ctrl+R／登出只有HUMAN_REPORTED_PASS；新RD編輯／送審／核准拒絕仍NOT_RUN。Dani本人DEFERRED_UNVERIFIED，Google正式延遲情境未證；browser action的automatic review拒絕不等於已查證使用者設定封鎖。指定歷史parent未刪，不清child／cascade／擴權。Production清理與發布inputs／payload／logs／readbacks只存私下；以下舊狀態是歷史，不能當current。
 
 ## DEV-121#rd-capabilities — 2026-10-11 ordinary worker evidence 續接
 
