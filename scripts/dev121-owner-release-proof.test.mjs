@@ -171,14 +171,29 @@ test('B23 observation expiry, wall regression and leaked callbacks never mint a 
       leaked = () => createAiPdmEvidenceContext()
       clock = started + 600000
       createAiPdmEvidenceContext()
-    }), /OBSERVATION_EXPIRED/u)
+    }), error => {
+      assert.equal(error.code, 'DEV121_OWNER_RELEASE_PROOF_OBSERVATION_EXPIRED')
+      assert.equal(error.observationDiagnostic.reasons.wallExpired, true)
+      assert.equal(error.observationDiagnostic.reasons.wallRegressed, false)
+      assert.equal(error.observationDiagnostic.wallCurrentMs, started + 600000)
+      assert.equal(error.observationDiagnostic.wallExpiresMs, started + 600000)
+      assert.ok(error.observationDiagnostic.elapsedMonotonicMs >= 0)
+      return true
+    })
     await assert.rejects(runAiPdmEvidenceContext(rootHandle, () => 1), /CONTEXT_INVALID/u)
     assert.ok(leaked)
     clock = started
     await assert.rejects(runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
       clock--
       await readAiPdmEvidenceLeaf({ ref: b23ContextRef('late'), read: async () => Buffer.from('late') })
-    }), /OBSERVATION_EXPIRED/u)
+    }), error => {
+      assert.equal(error.code, 'DEV121_OWNER_RELEASE_PROOF_OBSERVATION_EXPIRED')
+      assert.equal(error.observationDiagnostic.reasons.wallRegressed, true)
+      assert.equal(error.observationDiagnostic.reasons.wallExpired, false)
+      assert.equal(error.observationDiagnostic.wallCurrentMs, started - 1)
+      assert.equal(error.observationDiagnostic.wallLastMs, started)
+      return true
+    })
     clock = started
     let callback
     const handle = createAiPdmEvidenceContext()
