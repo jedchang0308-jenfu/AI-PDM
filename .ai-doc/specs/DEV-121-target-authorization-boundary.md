@@ -261,3 +261,7 @@ Worker recipe、完整 executable inputs、profile、resource plan、template、
 相同 immutable input replay 與未知提交先讀回並核對 bytes／hash／generation／provider state，不重送 PATCH、run 或 object POST。失敗保留 recovery-required 與既有 owner recovery 路徑；不手動 resume，不跳過 actual drain、selftest isolation、own static recovery、MANUAL0 fence、writer census、085 或 owner activation gates。
 
 本節為 source implementation contract，Production 接續與兩個 RD fixture 驗收尚未完成。詳細 Production input／body／receipt／log 保存在 private bucket 及私下本地 output，不進 public repo；部分本地 output 目前是 untracked，並非 ignored，必須 explicit-path stage，不能 blanket add。先前文件中 ignored output 的概括描述不適用目前這些路徑。
+
+## Sealed source media read continuation（2026-10-12）
+
+DEV-121 corrective owner cycle僅重讀同一經metadata驗證的numeric generation來源檔，最多兩次media GET，單次60秒且不越過原context／absolute deadline。metadata單次；只有明確的request timeout或指定transport reset可重讀，必須丟棄partial bytes、cancel原reader並對新完整內容驗size／CRC／SHA及256MiB。HTTP拒絕、內容不符、未知error及整體期限耗盡立即拒絕。原context／depth與source／graph guards不變，domain拒絕維持原message並提供同code。此規則不產生build／release／DB admission／quiescence權限，不改發布順序或identity／revocation／role規則；完成舊artifact不等於本次source-bound receipt已產生。

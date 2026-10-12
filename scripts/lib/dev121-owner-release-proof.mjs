@@ -44,7 +44,11 @@ const OWNERS = Object.freeze({
     builder: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }),
 })
 
-function fail(code) { throw new Error(`DEV121_OWNER_RELEASE_PROOF_${code}`) }
+function proofError(code) {
+  const message = `DEV121_OWNER_RELEASE_PROOF_${code}`
+  return Object.assign(new Error(message), { code: message })
+}
+function fail(code) { throw proofError(code) }
 function exactKeys(value, keys) {
   return value && typeof value === 'object' && !Array.isArray(value) &&
     canonicalize(Object.keys(value).sort()) === canonicalize([...keys].sort())
@@ -255,7 +259,7 @@ async function boundedResponse(response, cap, signal) {
       // Abort also interrupts a stalled custom stream, not only native fetch.
       let abort
       const aborted = new Promise((_, reject) => {
-        abort = () => reject(new Error('DEV121_OWNER_RELEASE_PROOF_ARCHIVE_DEADLINE'))
+        abort = () => reject(proofError('ARCHIVE_DEADLINE'))
         signal.addEventListener('abort', abort, { once: true })
       })
       let part
@@ -269,6 +273,7 @@ async function boundedResponse(response, cap, signal) {
     }
     return Buffer.concat(chunks, length)
   } catch (error) {
+    chunks.length = 0 // A fresh sealed read must never retain or concatenate a partial attempt.
     try { void reader.cancel(error).catch(() => {}) } catch { /* retain original failure */ }
     throw error
   } finally { try { reader.releaseLock() } catch { /* canceled pending stream */ } }
@@ -283,13 +288,25 @@ export async function readAiPdmSourceArchive({ source, sourceRevision, deadlineA
   const ref = parseGsUri(source.uri, AI_BUCKET, 'source/releases')
   const base = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(ref.bucket)}/o/${encodeURIComponent(ref.object)}`
   const headers = { authorization: `Bearer ${token}` }
-  const request = async (url, cap, timeout) => {
-    archiveDeadline(deadlineAt)
-    const signal = AbortSignal.timeout(Math.max(1, Math.min(timeout, Date.parse(deadlineAt) - Date.now())))
-    const response = await scopeFetch(fetchImpl)(url, { method: 'GET', headers, redirect: 'error', signal })
-    const bytes = await boundedResponse(response, cap, signal)
-    archiveDeadline(deadlineAt)
-    return bytes
+  const request = async (url, cap, timeout, attempts = 1) => {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      archiveDeadline(deadlineAt)
+      const signal = AbortSignal.timeout(Math.max(1, Math.min(timeout, Date.parse(deadlineAt) - Date.now())))
+      try {
+        const response = await scopeFetch(fetchImpl)(url, { method: 'GET', headers, redirect: 'error', signal })
+        const bytes = await boundedResponse(response, cap, signal)
+        archiveDeadline(deadlineAt)
+        return bytes
+      } catch (error) {
+        // Retry only media transport failures, inside the original live root and
+        // deadline. Domain denials, HTTP failures and byte mismatches stay final.
+        archiveDeadline(deadlineAt)
+        const timedOut = signal.aborted && signal.reason?.name === 'TimeoutError'
+          && (error === signal.reason || error.name === 'AbortError' || error.code === 'DEV121_OWNER_RELEASE_PROOF_ARCHIVE_DEADLINE')
+        const disconnected = ['ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'EAI_AGAIN', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_SOCKET'].includes(error.cause?.code ?? error.code)
+        if (attempt + 1 >= attempts || (!timedOut && !disconnected)) throw error
+      }
+    }
   }
   let metadata
   try { metadata = JSON.parse(strictUtf8(await request(base, 65536, 20000))) }
@@ -298,7 +315,7 @@ export async function readAiPdmSourceArchive({ source, sourceRevision, deadlineA
       String(metadata.generation) !== source.generation || metadata.crc32c !== source.crc32c ||
       !/^[1-9][0-9]*$/u.test(String(metadata.size ?? '')) ||
       !Number.isSafeInteger(Number(metadata.size)) || Number(metadata.size) > ARCHIVE_LIMIT) fail('ARCHIVE_METADATA_INVALID')
-  const bytes = await request(`${base}?alt=media&generation=${encodeURIComponent(source.generation)}`, Number(metadata.size), 30000)
+  const bytes = await request(`${base}?alt=media&generation=${encodeURIComponent(source.generation)}`, Number(metadata.size), 60000, 2)
   if (bytes.length !== Number(metadata.size) || crc32cBase64(bytes) !== source.crc32c || sha256(bytes) !== source.sha256) fail('ARCHIVE_SOURCE_MISMATCH')
   const result = { bytes, sourceRevision, source: { ...source }, generation: source.generation, crc32c: source.crc32c }
   authenticatedSources.set(result, { identity, sourceRevision })
