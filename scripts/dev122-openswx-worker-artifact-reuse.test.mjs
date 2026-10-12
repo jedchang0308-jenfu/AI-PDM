@@ -15,7 +15,7 @@ import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
-import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap } from './lib/dev122-openswx-bootstrap.mjs'
+import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, readPartialFailedDailyPause } from './lib/dev122-openswx-bootstrap.mjs'
 import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
@@ -159,8 +159,8 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentA
     if (url.endsWith(':getIamPolicy')) return { bindings: [{ role: 'roles/run.invoker', members: [`serviceAccount:aipdm-prod-runtime@${profile.projectId}.iam.gserviceaccount.com`] }, { role: 'projects/jenfu-platform-prod/roles/aipdmOpenswxJobReadback', members: [`serviceAccount:aipdm-prod-runtime@${profile.projectId}.iam.gserviceaccount.com`] }, { role: 'projects/jenfu-platform-prod/roles/aipdmOpenswxJobLifecycle', members: [`serviceAccount:aipdm-prod-deployer@${profile.projectId}.iam.gserviceaccount.com`] }] }
     if (url.endsWith(':run')) {
       assert.ok(controls.lifecycle); const date = Date.parse(transport.now()), name = `${workerJobName().replace(profile.projectId, profile.projectNumber)}/executions/local-${executions.length}`
-      executions.push({ name, createTime: new Date(date + 10).toISOString(), completionTime: new Date(date + 20).toISOString(), succeededCount: 1, failedCount: 0, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: structuredClone(job.template.template) })
-      return { name: 'projects/9536592944/locations/asia-east1/operations/local-op' }
+      executions.push({ name, uid: 'local-execution-'+executions.length, creator: profile.normalActor, createTime: new Date(date + 10).toISOString(), completionTime: new Date(date + 20).toISOString(), succeededCount: 1, failedCount: 0, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: structuredClone(job.template.template) })
+      return { name: 'projects/9536592944/locations/asia-east1/operations/local-op-'+executions.length, metadata: { '@type':'type.googleapis.com/google.cloud.run.v2.Execution', ...structuredClone(executions.at(-1)) } }
     }
     if (url.includes('/executions?')) return { executions: observeTerminal(executions) }
     if (url.includes('/executions/')) return observeTerminal([executions.find(row => row.name === url.replace('https://run.googleapis.com/v2/', ''))])[0]
@@ -812,7 +812,7 @@ test('P07 failed program-only descriptor read reports recovery needed without bl
 
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { programOnlyHash, sealProgramOnlyEvidence, programOnlyStaticEnvironment, programOnlyExecutionEnvironment, programOnlyMigrationArguments, programOnlySubmissionFields } from './lib/dev117-ai-pdm-program-only-baseline.mjs'
-import { readAiPdmReleaseObservation, readAiPdmObservationInputs, createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
+import { readAiPdmReleaseObservation, readAiPdmObservationInputs, createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 
 async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false}={}) {
   // Historical modeled34 archive: real Git PAX, immutable SQL/worker blobs, explicit profile bytes.
@@ -2239,4 +2239,166 @@ test('completed FAILED DAILY checkpoint input stays own-bucket and failed-only',
     row => row.schemaVersion = 'aipdm.openswx-worker-reuse-input.v2']) {
     const bad = structuredClone(input); mutate(bad); assert.throws(() => assertWorkerReuseInput(bad))
   }
+})
+
+
+async function partialFailedDailyNextSourceFixture() {
+  const f=await completedFailedDailyNextSourceFixture(),h=f.h
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:await h.put('partial-basis-reuse-input',f.input),readSource:f.reader})
+  const oldDeadline=new Date(Date.now()+3000).toISOString(),root=profile.receiptRoot+'/PARTIAL-OLD-PAUSE'
+  const partialInputRef=h.seed('PARTIAL-OLD-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:oldDeadline,receiptId:'PARTIAL-OLD-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
+  const original=h.transport.request;let submitted=false,operationBody,partialName
+  h.transport.request=async(url,opts={})=>{
+    if(url.endsWith(':run')) {const result=await original(url,opts);submitted=true;operationBody=result;partialName=result.metadata.name;return result}
+    if(submitted&&url.includes('/executions?'))throw Object.assign(Error('lost authentication after submission'),{code:'AUTH_REQUIRED'})
+    return original(url,opts)
+  }
+  await assert.rejects(executeOpenSwxBootstrap({stage:'pause',inputRef:partialInputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}}),{code:'AUTH_REQUIRED'})
+  const requestRow=await h.transport.readJson(h.objects.get(root+'-drain-finite-request.json').ref)
+  const execution={...operationBody.metadata};delete execution['@type']
+  execution.createTime=new Date(Date.parse(requestRow.value.requestStartedAt)-120).toISOString()
+  operationBody={name:operationBody.name,done:true,metadata:{'@type':'type.googleapis.com/google.cloud.run.v2.Execution',...execution},response:{'@type':'type.googleapis.com/google.cloud.run.v2.Execution',...execution}}
+  h.seedBytes(root+'-drain-finite-operation.json',Buffer.from(canonicalize({schemaVersion:'aipdm.openswx-finite-operation.v1',requestRef:requestRow.ref,providerOperationName:operationBody.name})))
+  h.transport.request=async(url,opts={})=>{
+    if(url==='https://run.googleapis.com/v2/'+operationBody.name){h.calls.push({url,options:opts});return structuredClone(operationBody)}
+    const body=await original(url,opts)
+    if(url.includes('/executions?'))body.executions=body.executions.map(row=>row.name===partialName?structuredClone(execution):row)
+    if(url==='https://run.googleapis.com/v2/'+partialName)return structuredClone(execution)
+    return body
+  }
+  const next=h.nextAttempt(84,f.input.priorActivationRef),lock={...next.lock,observedAt:new Date(Date.now()-2000).toISOString()}
+  next.input.sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json',Buffer.from(canonicalize(lock)+'\n'))
+  const metadata=await seedSecretVersionIamContinuation(h,{sourceRevision:next.lock.sourceRevision,sourceLockRef:next.input.sourceLockRef,supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:f.reader,name:'partial-next-metadata',secretPolicies:h.metadata.before.secretPolicies})
+  const input={...next.input,failedDailyContinuation:f.failedDailyContinuation,secretVersionIamContinuationRef:metadata.continuationRef,completedFailedDailyCheckpointRef:f.completed.refs.fullDescriptorRef,partialFailedDailyPauseInputRef:partialInputRef}
+  await new Promise(resolve=>setTimeout(resolve,Math.max(0,Date.parse(oldDeadline)-Date.now()+5)))
+  return {...f,h,input,partialInputRef,partialName,operationBody,execution,partialRoot:root}
+}
+
+test('partial FAILED DAILY pause admits only attested expired history and still requires a fresh drain',async()=>{
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h,inputRef=await h.put('partial-next-reuse-input',f.input),calls=h.calls.length
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader})
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+  assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'))
+  assert.equal(h.objects.has(f.partialRoot+'.json'),false)
+  assert.equal(h.objects.has(f.partialRoot+'-drain-finite.json'),false)
+  const descriptor=(await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value,readCalls=h.calls.length
+  const historical=await resolveWorkerArtifact({transport:h.transport,descriptor,profile,readSource:f.reader})
+  assert.equal(h.calls.length,readCalls,'partial provider evidence replays only sealed bodies')
+  assert.ok(historical.failedDaily.failed.expectedExecutionNames.includes(f.partialName))
+  const pauseRef=h.seed('PARTIAL-NEXT-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'PARTIAL-NEXT-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
+  const pauseCalls=h.calls.length,paused=await executeOpenSwxBootstrap({stage:'pause',inputRef:pauseRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  assert.equal(h.calls.slice(pauseCalls).filter(row=>row.url.endsWith(':run')).length,1,'history never replaces the fresh normal drain')
+  assert.notEqual(paused.value.facts.dbAdmissionProof.executionName,f.partialName)
+  const bootstrapRef=h.seed('PARTIAL-NEXT-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'PARTIAL-NEXT-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.input.priorActivationRef,pausedDrainedRef:paused.ref,failedDailyContinuation:f.failedDailyContinuation})
+  const bootstrapCalls=h.calls.length,completed=await executeOpenSwxBootstrap({stage:'bootstrap',inputRef:bootstrapRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  assert.equal(h.calls.slice(bootstrapCalls).filter(row=>row.url.endsWith(':run')).length,0)
+  const full=(await h.transport.readJson(completed.refs.fullDescriptorRef)).value,fullCalls=h.calls.length
+  await readWorkerFullEvidence(h.transport,full,profile,f.reader)
+  assert.equal(h.calls.length,fullCalls)
+})
+
+
+test('partial FAILED DAILY pause rejects unbound evidence and unknown inventory before publication',async()=>{
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h,objects=new Map(h.objects),provider=h.transport.request
+  for(const kind of ['missing-input','hash-mismatch','wrong-actor','wrong-baseline','expired-window','wrong-request-ref','wrong-operation','not-done','operation-error','wrong-type','different-response','wrong-uid','wrong-creator','wrong-template','extra-execution','missing-execution','already-completed','cycle']) {
+    h.objects.clear();for(const [uri,row]of objects)h.objects.set(uri,row)
+    const input=structuredClone(f.input),operation=structuredClone(f.operationBody)
+    if(kind==='missing-input')h.objects.delete(input.partialFailedDailyPauseInputRef.uri)
+    if(kind==='hash-mismatch')input.partialFailedDailyPauseInputRef.sha256='a'.repeat(64)
+    if(['wrong-actor','wrong-baseline','expired-window'].includes(kind)) {
+      const row=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-request.json').ref),request=structuredClone(row.value)
+      if(kind==='wrong-actor')request.actor='unauthorized@example.invalid'
+      if(kind==='wrong-baseline')request.baselineExecutionNames.push(f.partialName)
+      if(kind==='expired-window')request.requestWindowEndsAt=new Date(Date.parse(request.requestStartedAt)+40_000).toISOString()
+      const ref=h.seedBytes(row.ref.uri,Buffer.from(canonicalize(request)))
+      const latch=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-operation.json').ref)
+      h.seedBytes(latch.ref.uri,Buffer.from(canonicalize({...latch.value,requestRef:ref})))
+    }
+    if(kind==='wrong-request-ref'){
+      const latch=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-operation.json').ref)
+      h.seedBytes(latch.ref.uri,Buffer.from(canonicalize({...latch.value,requestRef:{...latch.value.requestRef,sha256:'b'.repeat(64)}})))
+    }
+    if(kind==='wrong-operation')operation.name=operation.name.replace('asia-east1','us-east1')
+    if(kind==='not-done')operation.done=false
+    if(kind==='operation-error')operation.error={code:13,message:'unavailable'}
+    if(kind==='wrong-type')operation.metadata['@type']='type.googleapis.com/google.cloud.run.v2.Job'
+    if(kind==='different-response')operation.response.name=operation.response.name+'-other'
+    if(kind==='wrong-uid')operation.response.uid='different-provider-uid'
+    if(kind==='wrong-creator')operation.metadata.creator='unauthorized@example.invalid'
+    if(kind==='wrong-template')operation.response.template.containers[0].args=['--unexpected']
+    if(kind==='already-completed')h.seedBytes(f.partialRoot+'.json',Buffer.from('{}'))
+    if(kind==='cycle'){
+      const row=await h.transport.readJson(input.partialFailedDailyPauseInputRef)
+      input.partialFailedDailyPauseInputRef=h.seedBytes(row.ref.uri,Buffer.from(canonicalize({...row.value,workerBuildRef:input.partialFailedDailyPauseInputRef})))
+    }
+    h.transport.request=async(url,opts={})=>{
+      if(url==='https://run.googleapis.com/v2/'+f.operationBody.name){h.calls.push({url,options:opts});return structuredClone(operation)}
+      const body=await provider(url,opts)
+      if(url.includes('/executions?')){
+        if(kind==='extra-execution')body.executions.push({...f.execution,name:f.partialName+'-unknown'})
+        if(kind==='missing-execution')body.executions=body.executions.filter(row=>row.name!==f.partialName)
+      }
+      return body
+    }
+    input.receiptId='PARTIAL-DENIED-'+kind
+    const inputRef=await h.put('partial-denied-'+kind,input),puts=h.puts.length,calls=h.calls.length
+    await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader}),undefined,kind)
+    assert.equal(h.puts.length,puts,kind+' cannot publish authority')
+    assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')),kind+' cannot mutate lifecycle')
+  }
+})
+
+test('partial FAILED DAILY input is own-bucket and unavailable outside failed v1 reuse',()=>{
+  const own=name=>({uri:profile.receiptRoot+'/'+name+'.json',sha256:'a'.repeat(64)})
+  const input={schemaVersion:'aipdm.openswx-worker-reuse-input.v1',sourceLockRef:{uri:'gs://jenfu-platform-prod-aipdm-release/receipts/releases/LOCAL-PARTIAL/source-lock.json',sha256:'b'.repeat(64)},currentSourceObjectRef:{uri:'gs://jenfu-platform-prod-aipdm-release/source/releases/LOCAL-PARTIAL/source.tar.gz',sha256:'c'.repeat(64)},priorActivationRef:own('prior-ready'),deadlineAt:deadline(),receiptId:'LOCAL-PARTIAL',failedDailyContinuation:{bootstrapInputRef:own('failed-input'),recoveryRequiredRef:own('failed-recovery-required'),priorRecoveryRef:own('failed-prior-recovery')},partialFailedDailyPauseInputRef:own('partial-pause-input')}
+  assertWorkerReuseInput(input)
+  for(const mutate of [row=>delete row.failedDailyContinuation,row=>row.partialFailedDailyPauseInputRef=null,row=>row.partialFailedDailyPauseInputRef.uri='gs://sibling/receipts/partial.json',row=>row.partialFailedDailyPauseInputRef.extra=true,row=>row.schemaVersion='aipdm.openswx-worker-reuse-input.v2']){
+    const bad=structuredClone(input);mutate(bad);assert.throws(()=>assertWorkerReuseInput(bad))
+  }
+})
+
+
+test('partial FAILED DAILY pause preserves descriptor ancestry and rejects a real evidence graph cycle',async()=>{
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h
+  const input=(await h.transport.readJson(f.partialInputRef)).value
+  const descriptor=(await h.transport.readJson(input.descriptorRef)).value
+  f.reader.authorizeOrigin(descriptor.sourceRevision)
+  const artifact=await resolveWorkerArtifact({transport:h.transport,descriptor,profile,readSource:f.reader})
+  const calls=h.calls.length,puts=h.puts.length,ctx=createAiPdmEvidenceContext()
+  await assert.rejects(runAiPdmEvidenceContext(ctx,async()=>runAiPdmEvidenceContext(descendAiPdmEvidenceContext(ctx,input.descriptorRef,true),async()=>{
+    await readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest})
+  })),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_CYCLE_OR_HASH_CONFLICT'})
+  assert.equal(h.puts.length,puts,'cycle cannot publish evidence')
+  assert.equal(h.calls.length,calls,'cycle fails before live provider observations')
+})
+
+
+test('FAILED DAILY pause receipt observes quiescence atomically when the clock advances between reads',async()=>{
+  const f=await failedDailyReadyToBootstrap(),h=f.h
+  const nativeNow=h.transport.now;let clock=Date.parse(nativeNow())
+  h.transport.now=()=>new Date(clock=Math.max(clock+1,Date.parse(nativeNow()))).toISOString()
+  // Native finite request survives a crash after the provider accepted :run.
+  const finiteUri=f.paused.ref.uri.slice(0,-5)+'-drain-finite.json'
+  h.objects.delete(finiteUri);h.objects.delete(f.paused.ref.uri)
+  const calls=h.calls.length
+  const repaused=await f.runPause()
+  assert.equal(repaused.value.observedAt,repaused.value.facts.quiescenceCompletedAt)
+  assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')))
+  const inputRef=h.seed('UNKNOWN-recovered-bootstrap-input',{...f.input,pausedDrainedRef:repaused.ref})
+  const run=()=>executeOpenSwxBootstrap({stage:'bootstrap',inputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  const request=h.transport.request;let lost=true
+  h.transport.request=async(url,opts={})=>{
+    const value=await request(url,opts)
+    if(lost&&opts.method==='PATCH') {lost=false;throw Object.assign(Error('LOCAL_LOST_PATCH_RESPONSE'),{code:'OUTCOME_UNKNOWN'})}
+    return value
+  }
+  const before=h.calls.length,completed=await run()
+  assert.equal(h.calls.slice(before).filter(row=>row.options.method==='PATCH').length,1)
+  assert.equal(h.calls.slice(before).filter(row=>row.url.endsWith(':run')).length,0)
+  assert.ok(!h.objects.has(f.root+'-recovery-required.json'),'exact PATCH readback keeps successful checkpoint')
+  assert.ok(completed.refs.fullDescriptorRef)
+  const after=h.calls.length,puts=h.puts.length
+  assert.deepEqual((await run()).ref,completed.ref)
+  assert.equal(h.puts.length,puts)
+  assert.ok(!h.calls.slice(after).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
 })

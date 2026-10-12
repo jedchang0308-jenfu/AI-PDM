@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
+import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
 import { assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, assertTerminalExecution, listWorkerExecutions, createOpenSwxOwnerRelease } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
@@ -412,4 +412,96 @@ test('B28 a single worker operation remains bounded by 600 seconds and by the ab
     }
     assert.equal(calls, 2)
   } finally { Date.now = originalNow }
+})
+
+
+test('finite operation attestation joins successful provider execution despite client clock skew', async () => {
+  const h = recordedProvider(), original = h.transport.request, started = Date.now(), operationName = 'projects/jenfu-platform-prod/locations/asia-east1/operations/finite-clock-join'
+  const execution = { name: h.executionName, uid: 'provider-execution-uid', creator: 'fixed-wif', createTime: new Date(started - 120).toISOString(), completionTime: new Date(started + 100).toISOString(), succeededCount: 1, failedCount: 0, template: h.template.template, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
+  let lists = 0
+  h.transport.now = () => new Date(started).toISOString()
+  h.transport.request = async (url, options) => {
+    if (url.endsWith(':run')) { try { await original(url, options) } catch {} return { name: operationName, metadata: { '@type': 'type.googleapis.com/google.cloud.run.v2.Execution', ...execution } } }
+    if (url.includes('/operations/')) { h.calls.push({ url, options }); return { name: operationName, done: true, metadata: { '@type': 'type.googleapis.com/google.cloud.run.v2.Execution', ...execution }, response: { '@type': 'type.googleapis.com/google.cloud.run.v2.Execution', ...execution } } }
+    const value = await original(url, options)
+    if (url.includes('/executions?')) {
+      if (value.executions.length && ++lists > 1) throw Object.assign(Error('provider operation was ignored'), { code: 'SYNTHETIC_OPERATION_NOT_JOINED' })
+      return { executions: value.executions.length ? [execution] : [] }
+    }
+    if (url.includes('/executions/')) return execution
+    return value
+  }
+  const args = { transport: h.transport, descriptor: workerDescriptor('full'), profile, template: h.template, receiptUri: ref('operation-clock-join').uri, actor: 'fixed-wif', deadlineAt: new Date(started + 60_000).toISOString() }
+  const terminal = await runWorkerFinite(args)
+  assert.equal(terminal.value.facts.executionName, h.executionName)
+  assert.ok(terminal.value.facts.operationRef, 'immutable operation latch is retained as the join authority')
+  assert.deepEqual((await runWorkerFinite(args)).ref, terminal.ref)
+  assert.equal(h.calls.filter(row => row.url.endsWith(':run')).length, 1)
+})
+
+
+test('finite operation binding rejects wrong identity, template, scope and baseline without lifecycle effects',async()=>{
+  const h=recordedProvider(),time=Date.now(),name=h.executionName
+  const execution={name,uid:'provider-uid',creator:'fixed-wif',createTime:new Date(time-120).toISOString(),completionTime:new Date(time+20).toISOString(),succeededCount:1,failedCount:0,template:h.template.template,conditions:[{type:'Completed',state:'CONDITION_SUCCEEDED'}]}
+  const request={requestStartedAt:new Date(time).toISOString(),requestWindowEndsAt:new Date(time+30000).toISOString(),baselineExecutionNames:[]}
+  const operation={name:'projects/9536592944/locations/asia-east1/operations/strict-join',done:true,metadata:{'@type':'type.googleapis.com/google.cloud.run.v2.Execution',...execution},response:{'@type':'type.googleapis.com/google.cloud.run.v2.Execution',...execution}}
+  const args={request,execution,actor:'fixed-wif',template:h.template,deadlineAt:new Date(time+60000).toISOString(),operation}
+  assertFiniteExecutionRequestBinding(args)
+  for(const kind of ['no-attestation','wrong-uid','wrong-creator','wrong-type','wrong-name','wrong-template','operation-error','baseline-replay','outside-window','late-completion','terminal-count-mismatch']){
+    const bad=JSON.parse(JSON.stringify(args))
+    if(kind==='no-attestation')bad.operation=null
+    if(kind==='wrong-uid')bad.operation.metadata.uid='other'
+    if(kind==='wrong-creator')bad.operation.metadata.creator='other'
+    if(kind==='wrong-type')bad.operation.metadata['@type']='type.googleapis.com/google.cloud.run.v2.Job'
+    if(kind==='wrong-name')bad.operation.response.name=name+'-other'
+    if(kind==='wrong-template')bad.operation.response.template.containers[0].command=['unexpected']
+    if(kind==='operation-error')bad.operation.error={code:13}
+    if(kind==='baseline-replay')bad.request.baselineExecutionNames=[name]
+    if(kind==='outside-window')bad.execution.createTime=new Date(time+31000).toISOString()
+    if(kind==='late-completion')bad.deadlineAt=new Date(time+10).toISOString()
+    if(kind==='terminal-count-mismatch')bad.operation.response.succeededCount=0
+    assert.throws(()=>assertFiniteExecutionRequestBinding(bad),undefined,kind)
+  }
+  const requestUri=ref('strict-native-request').uri.replace(/\.json$/u,'-request.json')
+  const written=await h.transport.putJson(requestUri,request),requestRow={...written,value:request}
+  const latchUri=requestUri.replace(/-request\.json$/u,'-operation.json'),latch={schemaVersion:'aipdm.openswx-finite-operation.v1',requestRef:requestRow.ref,providerOperationName:operation.name,providerOperationReadback:operation}
+  await h.transport.putJson(latchUri,latch)
+  await readFiniteOperation(h.transport,requestRow)
+  assert.equal(h.calls.length,0,'captured POST attestation requires no extra operation IAM or requests')
+  for(const kind of ['request-hash','wrong-project','wrong-ref-hash','changed-readback','unsealed-readback']){
+    const bad=structuredClone(latch),options={}
+    if(kind==='request-hash')bad.requestRef.sha256='a'.repeat(64)
+    if(kind==='wrong-project')bad.providerOperationName=bad.providerOperationName.replace('9536592944','sibling')
+    if(kind==='wrong-ref-hash')options.operationRef={uri:latchUri,sha256:'b'.repeat(64)}
+    if(kind==='changed-readback')options.readback={...operation,done:false}
+    if(kind==='unsealed-readback'){delete bad.providerOperationReadback;options.readback=operation}
+    const bytes=Buffer.from(canonicalize(bad));h.objects.set(latchUri,{value:bad,bytes,ref:{uri:latchUri,sha256:sha256(bytes)},metadata:{generation:'1'}})
+    await assert.rejects(readFiniteOperation(h.transport,requestRow,options),undefined,kind)
+  }
+  assert.equal(h.calls.length,0)
+})
+
+
+test('finite pending POST attestation joins its later successful execution without equating progress counters', async () => {
+  const h = recordedProvider(), original = h.transport.request, started = Date.now(), operationName = 'projects/jenfu-platform-prod/locations/asia-east1/operations/finite-clock-join'
+  const execution = { name: h.executionName, uid: 'provider-execution-uid', creator: 'fixed-wif', createTime: new Date(started - 120).toISOString(), completionTime: new Date(started + 100).toISOString(), succeededCount: 1, failedCount: 0, template: h.template.template, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }] }
+  let lists = 0
+  h.transport.now = () => new Date(started).toISOString()
+  h.transport.request = async (url, options) => {
+    if (url.endsWith(':run')) { try { await original(url, options) } catch {} const pending={...execution,succeededCount:0,conditions:[{type:'Completed',state:'CONDITION_PENDING'}]};delete pending.completionTime; return { name: operationName, done:false, metadata: { '@type': 'type.googleapis.com/google.cloud.run.v2.Execution', ...pending } } }
+    if (url.includes('/operations/')) { h.calls.push({ url, options }); return { name: operationName, done: true, metadata: { '@type': 'type.googleapis.com/google.cloud.run.v2.Execution', ...execution }, response: { '@type': 'type.googleapis.com/google.cloud.run.v2.Execution', ...execution } } }
+    const value = await original(url, options)
+    if (url.includes('/executions?')) {
+      if (value.executions.length && ++lists > 1) throw Object.assign(Error('provider operation was ignored'), { code: 'SYNTHETIC_OPERATION_NOT_JOINED' })
+      return { executions: value.executions.length ? [execution] : [] }
+    }
+    if (url.includes('/executions/')) return execution
+    return value
+  }
+  const args = { transport: h.transport, descriptor: workerDescriptor('full'), profile, template: h.template, receiptUri: ref('operation-clock-join').uri, actor: 'fixed-wif', deadlineAt: new Date(started + 60_000).toISOString() }
+  const terminal = await runWorkerFinite(args)
+  assert.equal(terminal.value.facts.executionName, h.executionName)
+  assert.ok(terminal.value.facts.operationRef, 'immutable operation latch is retained as the join authority')
+  assert.deepEqual((await runWorkerFinite(args)).ref, terminal.ref)
+  assert.equal(h.calls.filter(row => row.url.endsWith(':run')).length, 1)
 })
