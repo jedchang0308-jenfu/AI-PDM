@@ -24,7 +24,7 @@ Production remains outside this local acceptance: 085 NOT_APPLIED; RD v7 NOT_DEP
 Runtime cleanup owner: Root. Finite test processes exit; isolated QC owns its temporary directories and cleanup. The task dependency junction is removed at closeout while canonical dependencies remain intact. Worktree and source edits are retained for the reviewed PR/owner release, with no other worktree or main-data cleanup.
 
 
-### Partial pause envelope depth follow-up
+### Partial pause envelope depth follow-up (historical standalone evidence; superseded by full producer)
 
 Status: LOCAL_PASS, releaseAuthority=false. The protected continuation stopped before new worker association publication at the unchanged evidence depth guard. A private read-only diagnostic captured the first failing serving-capsule descent with zero mutations. It does not contain a complete source/ref depth trace and does not prove all historical edges; no such claim is made.
 
@@ -34,3 +34,17 @@ Production migration 085, RD capability traffic and fixture acceptance remain NO
 
 
 Native local owner report: `DEV117-S1B-20261012T091310162Z-FFCB5D22`, result PASS, LOCAL_CONTRACT, releaseAuthority=false; cleanup runtime/ports/containers/temporaryFiles all zero. Source snapshot SHA256 `a09a067c8fc8afd6982793884426c147dc0cc5a3f313a1b788a4b4635e02690c`; evidence SHA256 `86989d1849dfd091d9d3186737c5f6c53e5f1939c32cb3284ab24a5d51be683c`; report file SHA256 `d184ff78e8a02d1216b80ee648366ec4a6b718a27b02cacebd72af101f655bcc`. These hashes retain the actual QC-time source snapshot and do not claim to bind subsequent status-only document bytes. The installed Next Edge-runtime warning remains nonblocking and no Next source was changed.
+
+
+### Full producer depth follow-up — PR282 corrective cycle
+
+Status: LOCAL_PASS / PRODUCTION_PENDING, releaseAuthority=false. Follow-up read-only review found a P1 coverage gap in the previous one-edge result: the newly published association adds a true ancestry transition during resource-proof replay. A full producer fixture reproduced GRAPH_DEPTH_INVALID with three declared outer source edges. After descriptor metadata accounting was corrected, the legitimate producer and sealed consumer completed, but an additional fourth source edge initially failed only after association publication; this second RED required a prepublication child-ancestry check.
+
+Final minimal implementation keeps partial input and descriptor refs in the original root's cycle/hash ancestry, counts their source binding at the real association edge, and preserves serving-capsule true transitions and the ceiling of eight. The failed-mode producer now validates resource proof under the exact prospective association URI and canonical LF-terminated byte hash before publishing that association. Postpublication resolver and existing retry validation remain active. No root reset, guard override, provider identity weakening, stale deadline extension or history-as-fresh-drain substitution is used.
+
+Focused final 3/3 PASS: standalone valid metadata budget and actual ninth edge refusal; real descriptor cycle refusal; complete producer pre/post-publication plus separate sealed consumer replay at three outer true edges; fourth outer true edge refuses without association/dependent-descriptor authority publication or lifecycle mutation. Production diagnostic has no complete ref/depth trace, so synthetic declared edges do not claim to be the actual full Production graph. Final new-byte required continuous 314/314 and native QC 378/378 PASS; catalog 3/3, abort 6/6, DB boundary 22 governed files, app typecheck PASS and isolated build PASS with artifact/primary/cleanup=true. Independent 6-luna xhigh source QC found no P0/P1; its sandbox could not independently read Git status, so parent checked the seven changed paths and diff boundary. Previous local 313/377 evidence is retained as historical support, not current complete acceptance.
+
+Temporary runtime ownership: Root; finite node test processes, no server or port. Only the verified task dependency junction may be removed; canonical dependencies, unrelated worktrees and primary data remain intact. Production 085 and RD cutover are still NOT_COMPLETED; browser policy mismatch is unresolved, fixture agent UI acceptance NOT_RUN, Dani/Peter login/reload HUMAN_REPORTED_PASS.
+
+
+Final native local report: `DEV117-S1B-20261012T094837557Z-F72BAFBC`, result PASS, LOCAL_CONTRACT, releaseAuthority=false; runtime/ports/containers/temporaryFiles all zero. Source snapshot SHA256 `97e582bce2fa453d6d49465b0ff93dfe96482a32447b5c85fa32e172dd0b8c5c`; evidence SHA256 `e924515789ba98c89b0b7ce377eec600564d84f5f44a989ade2296aec067d1ab`; report file SHA256 `b9cb3ba505bcae6e1f6cd88e3c7120369257e04cc4e61a1f424b639dcf007699`. These identify the actual QC snapshot, before subsequent status-only documentation; implementation/test bytes are unchanged. The existing installed Next Edge-runtime warning remains nonblocking. Production release, migration and new RD fixture UI acceptance remain separate pending outcomes.

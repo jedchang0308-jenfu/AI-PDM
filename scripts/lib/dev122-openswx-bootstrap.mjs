@@ -1123,8 +1123,8 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
   assertOpenSwxWorkerRef(inputRef)
   const ctx = createAiPdmEvidenceContext()
   return runAiPdmEvidenceContext(ctx, async () => {
-    // The pause envelope stays in ancestry/hash guards; only its descriptor
-    // and resolved associations consume source-transition depth.
+    // Pause and descriptor envelopes retain ancestry/hash guards. Their source
+    // binding is counted by the resolved association, as in readOrigin.
     const inputCtx = descendAiPdmEvidenceContext(ctx, inputRef, false)
     return runAiPdmEvidenceContext(inputCtx, async () => {
       const row = await transport.readJson(inputRef, BUCKET, [WORKER_RECEIPT_PREFIX]), input = row.value
@@ -1133,7 +1133,7 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
         || !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '')) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
       failedDailyTime(input.deadlineAt)
       failedDailySame(input.failedDailyContinuation, failed.continuation); failedDailySame(input.priorActivationRef, prior.activationRef)
-      const descriptorCtx = descendAiPdmEvidenceContext(inputCtx, input.descriptorRef, true)
+      const descriptorCtx = descendAiPdmEvidenceContext(inputCtx, input.descriptorRef, false)
       return runAiPdmEvidenceContext(descriptorCtx, async () => {
         const raw = (await transport.readJson(input.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
         readSource.authorizeOrigin?.(raw.sourceRevision)

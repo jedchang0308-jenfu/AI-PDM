@@ -1,6 +1,6 @@
-## DEV-121#rd-capabilities — 2026-10-12 partial pause 封裝深度補修（本地 PASS，待受保護發布）
+## DEV-121#rd-capabilities — 2026-10-12 partial pause 完整 producer 深度補修（本地 PASS，待受保護發布）
 
-受保護續接首次停於 `DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID`；只讀診斷零 mutation，stack 位於 PAUSED_APP_REPAIR serving capsule descent。partial pause input 不含 sourceRevision，只封裝 descriptorRef，原本 input 與 descriptor 各消耗一次 transition。最小修正只將 input envelope edge 設為 false；descriptor／association／serving capsule 的 true、上限8、ancestry／cycle／hash guard與所有 provider checks不變。合成 RED 重現拒絕，聚焦2/2 GREEN覆蓋有效剩餘預算、真正第9 edge拒絕及descriptor ancestor cycle；新implementation bytes完整回歸313/313、native QC377/377、catalog3/3、abort6/6、DB boundary22檔、app型別與隔離建置PASS，artifact／primary／cleanup=true；獨立6-luna source QC P0=0／P1=0。本段為目前狀態，以下312/376摘要僅為先前source歷史。沿用原DEV與已核准owner發布範圍，無新DEV／資源／資料清理授權。085、RD Production與fixture頁面驗收仍未完成；已成功舊Job不重送，過期input不重播。
+完整 producer 回歸證實 one-edge 補修仍在新 association 發布後撞到深度上限，PR282 因 P1 暫停合併；先前 standalone 313/377 PASS 僅為歷史支援。partial input 與 descriptor 是同一 source binding 的 metadata envelopes，均保留同 root／ancestry／hash但不額外計深度，真正 association／serving capsule true與上限8不变。failed-mode producer 以 exact future association URI／wire hash及true edge，在發布association前驗resource proof，避免下游重播才拒絕。完整synthetic RED已重現原拒絕與第二階段先發布才拒絕；focused3/3 GREEN驗證合法3outer pre/post-publication＋sealed consumer、非法4outer拒絕且無authority publication、metadata第9與cycle拒絕，provider lifecycle mutation=0。新bytes完整回歸314/314、native QC378/378、catalog3/3、abort6/6、DB boundary22檔、app型別與隔離build PASS，artifact/primary/cleanup=true；獨立6-luna來源審查P0/P1=0（其Git status存取受限，parent已核對7個範圍内修改）；085、RD正式切流及fixture頁面驗收尚未完成。沿用DEV-121#rd-capabilities與原授權，不重送舊Job、不延長過期input、不改其他帳號或清理範圍。
 
 # AI_PDM 開發任務
 

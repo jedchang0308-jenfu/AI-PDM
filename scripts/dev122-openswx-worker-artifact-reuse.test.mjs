@@ -2415,10 +2415,33 @@ test('partial FAILED DAILY metadata preserves remaining association depth',async
     const ref={uri:profile.receiptRoot+'/LOCAL-PRIOR-ASSOCIATION-'+index+'.json',sha256:(String(index+1)).repeat(64)}
     return withinAncestors(descendAiPdmEvidenceContext(handle,ref,true),index+1,limit,callback)
   })
-  const admitted=await withinAncestors(ctx,0,3,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest}))
+  const admitted=await withinAncestors(ctx,0,4,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest}))
   assert.deepEqual(admitted.partialPause.inputRef,f.partialInputRef)
   assert.ok(!admitted.expectedExecutionNames.includes(f.partialName),'input alone cannot attest its execution')
-  await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,4,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
+  await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,5,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
   assert.equal(h.puts.length,puts,'metadata traversal cannot publish evidence')
   assert.ok(h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')||row.url.includes('logging.googleapis.com')),'metadata traversal cannot mutate lifecycle')
+})
+
+test('partial FAILED DAILY producer validates prepublication and published association within remaining depth',async()=>{
+  const withinAncestors=async(handle,index,limit,callback)=>runAiPdmEvidenceContext(handle,async()=>{
+    if(index===limit)return callback()
+    const ref={uri:profile.receiptRoot+'/LOCAL-PRODUCER-ANCESTOR-'+index+'.json',sha256:String(index+1).repeat(64)}
+    return withinAncestors(descendAiPdmEvidenceContext(handle,ref,true),index+1,limit,callback)
+  })
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h
+  const inputRef=await h.put('partial-producer-depth-input',f.input),calls=h.calls.length
+  const saved=await withinAncestors(createAiPdmEvidenceContext(),0,3,()=>executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader}))
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef,'complete producer includes published-association replay')
+  assert.equal(h.objects.has(f.partialRoot+'.json'),false)
+  assert.equal(h.objects.has(f.partialRoot+'-drain-finite.json'),false)
+  assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
+  const descriptor=(await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value,reads=h.calls.length
+  const artifact=await withinAncestors(createAiPdmEvidenceContext(),0,3,()=>resolveWorkerArtifact({transport:h.transport,descriptor,profile,readSource:f.reader}))
+  assert.ok(artifact.failedDaily.failed.expectedExecutionNames.includes(f.partialName))
+  assert.equal(h.calls.length,reads,'sealed consumer replay must not reread provider state')
+  const bad=await partialFailedDailyNextSourceFixture(),b=bad.h,badInputRef=await b.put('partial-producer-ninth-input',bad.input),before=b.calls.length,puts=b.puts.length
+  await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,4,()=>executeWorkerArtifactReuse({transport:b.transport,inputRef:badInputRef,readSource:bad.reader})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
+  assert.ok(!b.puts.slice(puts).some(uri=>uri.endsWith('-association.json')||uri.endsWith('-descriptor-build-only.json')),'depth refusal cannot publish authority')
+  assert.ok(!b.calls.slice(before).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
 })

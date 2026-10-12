@@ -832,7 +832,14 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
     resourceAssociation: { infraManifestRef, readbackRef, originalApprovedResourcePlanRef: origin.approvedRef, originalResourceApplyRef: origin.applyRef, resourcePlanHash: descriptor.resourcePlanHash, resourcesUnchanged: true },
     securityEvidence: { readbackRef: securityRef, policySha256: security.policySha256, observedAt: security.observedAt, image: origin.build.image, rawHighOrCriticalVulnerabilityCount: 0, blockingVulnerabilityCount: 0 } }
   assertAssociation(association, descriptor, profile, repair)
-  if (repair) assertPausedRepairBaseline(readyProof, profile); else if (failedMode) await validateFailedDailyResourceProof({ transport, value: readyProof, association, origin, input, profile, readSource, currentManifest: current }); else assertReadyProof(readyProof, association, origin, profile)
+  if (repair) assertPausedRepairBaseline(readyProof, profile)
+  else if (failedMode) {
+    // Replay under the exact future association ancestry before publishing it.
+    // This reserves its real source transition without opening a new context.
+    const proposedRef = { uri: associationUri, sha256: sha256(Buffer.from(`${canonicalize(association)}\n`)) }
+    const proposedContext = descend(ctx, proposedRef)
+    await runAiPdmEvidenceContext(proposedContext, () => validateFailedDailyResourceProof({ transport, value: readyProof, association, origin, input, profile, readSource, currentManifest: current }))
+  } else assertReadyProof(readyProof, association, origin, profile)
   await assertRepairAdmissionFresh()
   const saved = await publishWorkerReuseJson(transport, associationUri, association)
   if (repair) {
