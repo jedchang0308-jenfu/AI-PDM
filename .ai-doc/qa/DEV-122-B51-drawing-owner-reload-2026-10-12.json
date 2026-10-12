@@ -1,0 +1,503 @@
+{
+  "schemaVersion": "aipdm.dev122.b51.drawing-owner-reload.v1",
+  "task": "DEV-122",
+  "status": "LOCAL_SELECTED_DRAWING_OWNER_RELOAD_ASSERTIONS_PASS_QC_OPEN",
+  "executionBaseHead": "a69da49ca71f0744eefbcb4554f141a385cf95a2",
+  "changedExecutorBindings": [
+    {
+      "path": "scripts/qc-dev-122-native-browser.mjs",
+      "beforeSha256": "9d5ea7bdaca8d14bf7f02aa4280f2226a0f30b216062ad8fb9138e52e68a9179",
+      "afterSha256": "418203fbaa95996c913a4e3574fdf87e7d140eb3bd2c9c84015b70ccb0beb5ca"
+    }
+  ],
+  "unchangedNativeTestSha256": "5446561dd48dd4102d8ccb41d4c0f6508a9b006cc234e115fd354d1496e80aed",
+  "mountedUi": {
+    "task": "DEV-122",
+    "slice": "B51",
+    "status": "CURRENT_DRAWING_OWNER_RELOAD_ASSERTIONS_PASS_PARTIAL",
+    "sourceRevision": "a69da49ca71f0744eefbcb4554f141a385cf95a2",
+    "actualCasesPassed": 1,
+    "actualCasesFailed": 0,
+    "skippedOtherCases": 151,
+    "rawNativeStatus": "PARTIAL_NOT_ACCEPTED",
+    "rawRunnerExit": 1,
+    "rawLauncherStatus": "CHECKS_FAILED",
+    "rawLauncherExit": 1,
+    "baselineUnmodifiedBeforeSeed": {
+      "passed": true,
+      "foreignKeyCount": 505
+    },
+    "sourceBeforeAfterUnchanged": true,
+    "primaryAbsenceUnchanged": true,
+    "allOwnProcessesAbsent": true,
+    "controllerReleased": true,
+    "allOwnTempRemoved": true,
+    "portsReleased": [
+      60040,
+      60041,
+      52364
+    ],
+    "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\9dfb5e5b6afb52c3\\manifest.json",
+    "nativeEvidenceSha256": "0a39cc3734cfa47c3996813ab265e324ec00705d4255730e9520dbe7ea33ff21",
+    "failedCaseNames": [],
+    "layer": "ACTUAL_LOCAL_NEXT_UI_API_NATIVE_PG_WITH_VERSIONED_V7_FIXTURE",
+    "changedExecutorLintExit": "CHANGED_BROWSER_API_ESLINT_ZERO_NATIVE_TEST_R2_UNCHANGED",
+    "normalUi": "PASS_SELECTED_TWO_VIEWPORTS",
+    "browserStatus": "PARTIAL_NOT_ACCEPTED",
+    "actualUiCases": 2,
+    "actualUiWidths": [
+      1440,
+      390
+    ],
+    "browserEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9dfb5e5b6afb52c3\\receipt.json",
+    "browserEvidenceSha256": "2cf4d6c04b13312114f45c5781452fb1e7e5543eed1b6de69a20db3684f94a9e",
+    "firstFailure": null,
+    "reviewNavigationFailure": null,
+    "progressCount": 142,
+    "capacityReleased": true,
+    "producerIntegration": "NOT_PROVEN",
+    "production": "NOT_RUN",
+    "drawingOwnerReload": [
+      {
+        "width": 1440,
+        "proof": {
+          "status": "PASS",
+          "normalNavigation": true,
+          "expectedProductionRevisionId": "c301d31f-0e3e-49aa-818d-6c32b8f9a5e2",
+          "expectedRevision": "2",
+          "displayedLayer": "量產版 2",
+          "master": {
+            "id": "0c8aa774-cce1-4e16-9884-17da85d8a284",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T12:27:28.131+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T12:30:02.436198+08:00",
+            "sequence_no": 1,
+            "part_root_id": "8919153c-14e7-4819-a060-60e400034495",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0002-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "beforeReload": {
+            "status": 200,
+            "row": {
+              "rowKey": "cw_5c6bd67e-66fb-4c86-924b-2fad5b63d9b0",
+              "entityType": "drawing",
+              "entityId": "drawing-formal-0c8aa774-cce1-4e16-9884-17da85d8a284",
+              "code": "A0002-M01",
+              "name": "DEV122 UI1440 Drawing",
+              "layer": "production",
+              "layerLabel": "量產版 2",
+              "revision": "2",
+              "dataState": "available",
+              "dataStateLabel": "可使用",
+              "handling": "none",
+              "handlingLabel": "無須處理",
+              "blockerReason": null,
+              "detailHref": "/numbering/drawings?detail=cw_5c6bd67e-66fb-4c86-924b-2fad5b63d9b0",
+              "rowVersion": 3,
+              "basisState": "current",
+              "actions": [
+                {
+                  "key": "advance",
+                  "label": "進版",
+                  "href": "/api/pdm/drawings/drawing-formal-0c8aa774-cce1-4e16-9884-17da85d8a284/revision-targets?sourceRowKey=cw_5c6bd67e-66fb-4c86-924b-2fad5b63d9b0"
+                },
+                {
+                  "key": "edit_relation_matrix",
+                  "label": "編輯關聯矩陣"
+                }
+              ]
+            },
+            "files": [
+              {
+                "id": "f7814662-1018-4e4f-9db9-cfb3ba424748",
+                "name": "Released-subsequent-major-1440.SLDDRW",
+                "role": "drawing_2d",
+                "downloadHref": "/api/pdm/file-assets/FA-4db33b198d9da9806bb3d7791be9f3279c99f82fc57f5665ad8c4097f400fab4?context=drawing_revision&contextId=c301d31f-0e3e-49aa-818d-6c32b8f9a5e2&bindingId=f7814662-1018-4e4f-9db9-cfb3ba424748"
+              },
+              {
+                "id": "d1940756-d01d-4931-bda9-c9ac6ad4bd79",
+                "name": "Released-subsequent-major-1440.SLDPRT",
+                "role": "cad_3d",
+                "downloadHref": "/api/pdm/file-assets/FA-7383dfc4b2dbaf987d20b0ebc175819377262c9e6ea4fb404ab9deafa416d66f?context=drawing_revision&contextId=c301d31f-0e3e-49aa-818d-6c32b8f9a5e2&bindingId=d1940756-d01d-4931-bda9-c9ac6ad4bd79"
+              }
+            ]
+          },
+          "afterReload": {
+            "status": 200,
+            "row": {
+              "rowKey": "cw_5c6bd67e-66fb-4c86-924b-2fad5b63d9b0",
+              "entityType": "drawing",
+              "entityId": "drawing-formal-0c8aa774-cce1-4e16-9884-17da85d8a284",
+              "code": "A0002-M01",
+              "name": "DEV122 UI1440 Drawing",
+              "layer": "production",
+              "layerLabel": "量產版 2",
+              "revision": "2",
+              "dataState": "available",
+              "dataStateLabel": "可使用",
+              "handling": "none",
+              "handlingLabel": "無須處理",
+              "blockerReason": null,
+              "detailHref": "/numbering/drawings?detail=cw_5c6bd67e-66fb-4c86-924b-2fad5b63d9b0",
+              "rowVersion": 3,
+              "basisState": "current",
+              "actions": [
+                {
+                  "key": "advance",
+                  "label": "進版",
+                  "href": "/api/pdm/drawings/drawing-formal-0c8aa774-cce1-4e16-9884-17da85d8a284/revision-targets?sourceRowKey=cw_5c6bd67e-66fb-4c86-924b-2fad5b63d9b0"
+                },
+                {
+                  "key": "edit_relation_matrix",
+                  "label": "編輯關聯矩陣"
+                }
+              ]
+            },
+            "files": [
+              {
+                "id": "f7814662-1018-4e4f-9db9-cfb3ba424748",
+                "name": "Released-subsequent-major-1440.SLDDRW",
+                "role": "drawing_2d",
+                "downloadHref": "/api/pdm/file-assets/FA-4db33b198d9da9806bb3d7791be9f3279c99f82fc57f5665ad8c4097f400fab4?context=drawing_revision&contextId=c301d31f-0e3e-49aa-818d-6c32b8f9a5e2&bindingId=f7814662-1018-4e4f-9db9-cfb3ba424748"
+              },
+              {
+                "id": "d1940756-d01d-4931-bda9-c9ac6ad4bd79",
+                "name": "Released-subsequent-major-1440.SLDPRT",
+                "role": "cad_3d",
+                "downloadHref": "/api/pdm/file-assets/FA-7383dfc4b2dbaf987d20b0ebc175819377262c9e6ea4fb404ab9deafa416d66f?context=drawing_revision&contextId=c301d31f-0e3e-49aa-818d-6c32b8f9a5e2&bindingId=d1940756-d01d-4931-bda9-c9ac6ad4bd79"
+              }
+            ]
+          },
+          "ownedSnapshotUnchanged": true,
+          "beforeSnapshotSha256": "e86400e8be369a3e3cedd68eb633ee7186a2079589710909759b82c4c9e15634",
+          "afterSnapshotSha256": "e86400e8be369a3e3cedd68eb633ee7186a2079589710909759b82c4c9e15634",
+          "ownerReadMutationCount": 0,
+          "ownerReadMutationRequests": []
+        }
+      },
+      {
+        "width": 390,
+        "proof": {
+          "status": "PASS",
+          "normalNavigation": true,
+          "expectedProductionRevisionId": "3c788abb-b679-4a30-a1a7-5833ba7a7581",
+          "expectedRevision": "2",
+          "displayedLayer": "量產版 2",
+          "master": {
+            "id": "6d5d57ba-8cb2-4741-b159-6605bd542bb5",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T12:27:28.367+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T12:32:27.777532+08:00",
+            "sequence_no": 1,
+            "part_root_id": "be77a2ea-edb7-4663-b8f9-6d7d90139f2e",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0004-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "beforeReload": {
+            "status": 200,
+            "row": {
+              "rowKey": "cw_518f46c8-6ba5-47f2-afde-8176a2f559a1",
+              "entityType": "drawing",
+              "entityId": "drawing-formal-6d5d57ba-8cb2-4741-b159-6605bd542bb5",
+              "code": "A0004-M01",
+              "name": "DEV122 UI390 Drawing",
+              "layer": "production",
+              "layerLabel": "量產版 2",
+              "revision": "2",
+              "dataState": "available",
+              "dataStateLabel": "可使用",
+              "handling": "none",
+              "handlingLabel": "無須處理",
+              "blockerReason": null,
+              "detailHref": "/numbering/drawings?detail=cw_518f46c8-6ba5-47f2-afde-8176a2f559a1",
+              "rowVersion": 3,
+              "basisState": "current",
+              "actions": [
+                {
+                  "key": "advance",
+                  "label": "進版",
+                  "href": "/api/pdm/drawings/drawing-formal-6d5d57ba-8cb2-4741-b159-6605bd542bb5/revision-targets?sourceRowKey=cw_518f46c8-6ba5-47f2-afde-8176a2f559a1"
+                },
+                {
+                  "key": "edit_relation_matrix",
+                  "label": "編輯關聯矩陣"
+                }
+              ]
+            },
+            "files": [
+              {
+                "id": "288e8ea0-5c42-4639-ad5e-722c47cf960b",
+                "name": "Released-subsequent-major-390.SLDDRW",
+                "role": "drawing_2d",
+                "downloadHref": "/api/pdm/file-assets/FA-371001e225f298ddae5ba77a6e730abf8dffd44721c1626308f4d9a237d9653f?context=drawing_revision&contextId=3c788abb-b679-4a30-a1a7-5833ba7a7581&bindingId=288e8ea0-5c42-4639-ad5e-722c47cf960b"
+              },
+              {
+                "id": "a38a2781-03f3-4456-8456-8e09eddb7db3",
+                "name": "Released-subsequent-major-390.SLDPRT",
+                "role": "cad_3d",
+                "downloadHref": "/api/pdm/file-assets/FA-b73019bcc0035af28b1f9ac55d28fb85fc35f7a4803a7c6fa15f2712c92fbb6d?context=drawing_revision&contextId=3c788abb-b679-4a30-a1a7-5833ba7a7581&bindingId=a38a2781-03f3-4456-8456-8e09eddb7db3"
+              }
+            ]
+          },
+          "afterReload": {
+            "status": 200,
+            "row": {
+              "rowKey": "cw_518f46c8-6ba5-47f2-afde-8176a2f559a1",
+              "entityType": "drawing",
+              "entityId": "drawing-formal-6d5d57ba-8cb2-4741-b159-6605bd542bb5",
+              "code": "A0004-M01",
+              "name": "DEV122 UI390 Drawing",
+              "layer": "production",
+              "layerLabel": "量產版 2",
+              "revision": "2",
+              "dataState": "available",
+              "dataStateLabel": "可使用",
+              "handling": "none",
+              "handlingLabel": "無須處理",
+              "blockerReason": null,
+              "detailHref": "/numbering/drawings?detail=cw_518f46c8-6ba5-47f2-afde-8176a2f559a1",
+              "rowVersion": 3,
+              "basisState": "current",
+              "actions": [
+                {
+                  "key": "advance",
+                  "label": "進版",
+                  "href": "/api/pdm/drawings/drawing-formal-6d5d57ba-8cb2-4741-b159-6605bd542bb5/revision-targets?sourceRowKey=cw_518f46c8-6ba5-47f2-afde-8176a2f559a1"
+                },
+                {
+                  "key": "edit_relation_matrix",
+                  "label": "編輯關聯矩陣"
+                }
+              ]
+            },
+            "files": [
+              {
+                "id": "288e8ea0-5c42-4639-ad5e-722c47cf960b",
+                "name": "Released-subsequent-major-390.SLDDRW",
+                "role": "drawing_2d",
+                "downloadHref": "/api/pdm/file-assets/FA-371001e225f298ddae5ba77a6e730abf8dffd44721c1626308f4d9a237d9653f?context=drawing_revision&contextId=3c788abb-b679-4a30-a1a7-5833ba7a7581&bindingId=288e8ea0-5c42-4639-ad5e-722c47cf960b"
+              },
+              {
+                "id": "a38a2781-03f3-4456-8456-8e09eddb7db3",
+                "name": "Released-subsequent-major-390.SLDPRT",
+                "role": "cad_3d",
+                "downloadHref": "/api/pdm/file-assets/FA-b73019bcc0035af28b1f9ac55d28fb85fc35f7a4803a7c6fa15f2712c92fbb6d?context=drawing_revision&contextId=3c788abb-b679-4a30-a1a7-5833ba7a7581&bindingId=a38a2781-03f3-4456-8456-8e09eddb7db3"
+              }
+            ]
+          },
+          "ownedSnapshotUnchanged": true,
+          "beforeSnapshotSha256": "43be1ce56cd0941257f81a954f0ab014d898c390df1b061104a2cdc8d9b81e64",
+          "afterSnapshotSha256": "43be1ce56cd0941257f81a954f0ab014d898c390df1b061104a2cdc8d9b81e64",
+          "ownerReadMutationCount": 0,
+          "ownerReadMutationRequests": []
+        }
+      }
+    ],
+    "carriedReviewShortcutP1": 1,
+    "originalJedIncidentCause": "UNKNOWN",
+    "084": "EXCLUDED",
+    "wholeDev": "NOT_ACCEPTED"
+  },
+  "independentQc": {
+    "reviewer": "b42_final_viewer_qc / gpt-6-luna xhigh",
+    "method": "READ_ONLY_CURRENT_SOURCE_ACTUAL_TERMINAL_EVIDENCE_AND_SCREENSHOTS",
+    "recordedAt": "2026-10-12T04:39:02.749Z",
+    "testsRerun": false,
+    "reviewerRawCompletedReport": {
+      "task": "DEV-122",
+      "slice": "B51",
+      "qcStatus": "LOCAL_VIEWPORT_ASSERTIONS_PASS_PARTIAL",
+      "findings": {
+        "newP0": 0,
+        "newP1": 0,
+        "carriedOpenP1": {
+          "status": "OPEN_CAUSE_UNKNOWN",
+          "issue": "B50 r1 review-navigation failure",
+          "closedByThisReplay": false
+        }
+      },
+      "source": {
+        "baseHead": "a69da49ca71f0744eefbcb4554f141a385cf95a2",
+        "runner": "scripts/qc-dev-122-native-browser.mjs",
+        "runnerSha256": "418203fbaa95996c913a4e3574fdf87e7d140eb3bd2c9c84015b70ccb0beb5ca",
+        "controlledHashBeforeAfterEqual": true,
+        "sourceUnchangedDuringRun": true,
+        "b50CiCoversB51DirtyRunner": false
+      },
+      "evidence": {
+        "summary": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B51-lifecycle-ui-r1-summary.json",
+          "sha256": "9372a86b2b5d266e0b4f223e084a70e033f624cb51507c7a541c35a256079a18",
+          "status": "CURRENT_DRAWING_OWNER_RELOAD_ASSERTIONS_PASS_PARTIAL"
+        },
+        "native": {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\9dfb5e5b6afb52c3\\manifest.json",
+          "sha256": "0a39cc3734cfa47c3996813ab265e324ec00705d4255730e9520dbe7ea33ff21",
+          "status": "PARTIAL_NOT_ACCEPTED",
+          "selected": 1,
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "skipped": 151,
+          "vitestExitCode": 0,
+          "rawRunnerExitCode": 1,
+          "rawLauncherStatus": "CHECKS_FAILED",
+          "rawLauncherExitCode": 1
+        },
+        "browser": {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\9dfb5e5b6afb52c3\\receipt.json",
+          "sha256": "2cf4d6c04b13312114f45c5781452fb1e7e5543eed1b6de69a20db3684f94a9e",
+          "status": "PARTIAL_NOT_ACCEPTED",
+          "progressCount": 142,
+          "firstFailure": null,
+          "reviewNavigationFailure": null,
+          "cases": [
+            {
+              "viewport": "1440x900",
+              "status": "PASS",
+              "drawing": "A0002-M01",
+              "detailGetStatus": 200,
+              "reloadGetStatus": 200,
+              "productionRevision": "2",
+              "rowVersion": 3,
+              "officialFileBindingsMatched": 2,
+              "sourceAssetBindingContextMatched": true,
+              "displayedLayer": "量產版 2",
+              "ownerReloadSnapshotBeforeSha256": "e86400e8be369a3e3cedd68eb633ee7186a2079589710909759b82c4c9e15634",
+              "ownerReloadSnapshotAfterSha256": "e86400e8be369a3e3cedd68eb633ee7186a2079589710909759b82c4c9e15634",
+              "businessMutationRequestCount": 0
+            },
+            {
+              "viewport": "390x844",
+              "status": "PASS",
+              "drawing": "A0004-M01",
+              "detailGetStatus": 200,
+              "reloadGetStatus": 200,
+              "productionRevision": "2",
+              "rowVersion": 3,
+              "officialFileBindingsMatched": 2,
+              "sourceAssetBindingContextMatched": true,
+              "displayedLayer": "量產版 2",
+              "ownerReloadSnapshotBeforeSha256": "43be1ce56cd0941257f81a954f0ab014d898c390df1b061104a2cdc8d9b81e64",
+              "ownerReloadSnapshotAfterSha256": "43be1ce56cd0941257f81a954f0ab014d898c390df1b061104a2cdc8d9b81e64",
+              "businessMutationRequestCount": 0
+            }
+          ]
+        }
+      },
+      "screenshots": [
+        {
+          "path": "output/playwright/dev122/9dfb5e5b6afb52c3/1440-Drawing-owner-production-reload.png",
+          "sha256": "459e479babbf48ecb4d655d4833fe597fbde9a2b424ac28952a58ac4f474191a",
+          "visualReview": "Owner drawing detail shows production revision 2 and two file rows; preview remains queued."
+        },
+        {
+          "path": "output/playwright/dev122/9dfb5e5b6afb52c3/390-Drawing-owner-production-reload.png",
+          "sha256": "0c22bbe58da38f7949cf4e3327aa09825ba051c4d38fb7ca620d4ca6750c0f51",
+          "visualReview": "Mobile owner detail shows production revision 2; preview remains queued."
+        }
+      ],
+      "cleanup": {
+        "nativeChildrenStopped": true,
+        "postgresStopped": true,
+        "browserCleanup": true,
+        "ownProcessesAbsent": true,
+        "controllerReleased": true,
+        "portsReleased": [
+          60040,
+          60041,
+          52364
+        ],
+        "ownTempRemoved": true,
+        "capacityLeaseReleased": true,
+        "sourceUnchanged": true,
+        "primaryAbsenceUnchanged": true,
+        "primaryDatabaseMutation": false
+      },
+      "limits": {
+        "producerIntegration": "NOT_PROVEN",
+        "production": "NOT_RUN",
+        "wholeDev": "NOT_ACCEPTED",
+        "originalIssueCount": 7,
+        "originalGroupCount": 29,
+        "084": "EXCLUDED",
+        "actualCadOutput": "NOT_RUN",
+        "previewReadinessProven": false,
+        "b51RequiredCi": "NOT_COVERED_BY_B50_CI"
+      },
+      "snapshotScopeNote": "The two owner-reload-scoped 165-table snapshots match within each viewport. The overall lifecycle fixture run's initial and final 165-table snapshots differ; that is separate from the owner-read-only assertion, and the evidence reports primaryDatabaseMutation=false."
+    }
+  },
+  "snapshotScope": "165-table snapshots are equal only within each Drawing owner-read interval. The overall lifecycle fixture intentionally writes and its initial/final snapshots differ. Primary SQLite paths remained absent unchanged.",
+  "scope": "Existing lifecycle browser executor only; two existing viewports/cases. No product/schema/catalog/grants/release/dependency/cloud change.",
+  "reviewShortcutIncident": {
+    "P1": 1,
+    "status": "OPEN_CAUSE_UNKNOWN",
+    "origin": "B50 UI r1",
+    "replayedWithoutReproduction": true,
+    "claimedFixed": false
+  },
+  "searchObservation": {
+    "desktopReloadSearch": "EMPTY_WITH_EXACT_DETAIL_RETAINED",
+    "cause": "SOURCE_EXPLANATION_CONSISTENT_TIMING_NOT_PROVEN",
+    "originalReviewNavigationCause": "UNKNOWN"
+  },
+  "requiredCi": {
+    "precedingSource": "a69da49ca71f0744eefbcb4554f141a385cf95a2",
+    "precedingRun": 38202825584,
+    "precedingBothRequiredChecks": "SUCCESS",
+    "currentB51": "PENDING_FRESH_SAME_PR"
+  },
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "wholeDev": "NOT_ACCEPTED",
+  "production": "NOT_RUN",
+  "producerIntegration": "NOT_PROVEN",
+  "originalJed403Cause": "UNKNOWN",
+  "standingBoundaries": {
+    "084": "EXCLUDED",
+    "A0061Requeue": "PROHIBITED",
+    "supplier": "DISABLED_DEFERRED",
+    "nativeCad": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "unknownNextRuntime": "UNTOUCHED",
+    "nextEnv": "PRESERVED_EXCLUDED_FROM_COMMIT"
+  },
+  "limits": [
+    "Raw native/browser PARTIAL_NOT_ACCEPTED and runner/launcher exit1 retained; selected assertions only.",
+    "Preview remained queued; actual CAD output/readiness not proven.",
+    "Current UI initial creation/matrix saved-A restore and integrated terminal gallery need targeted source rebind; unchanged attachment core evidence remains applicable only at its recorded layer.",
+    "FULL35/v7 versus program-only FULL34/prefix33 release seam unresolved; no main merge or production writer.",
+    "Original B50 navigation timeout remains open; successful replay and search source explanation do not establish its cause."
+  ],
+  "privateEvidence": {
+    "B51-drawing-owner-reload-executor-source.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B51-drawing-owner-reload-executor-source.json",
+      "sha256": "559d3b0b0d360b9cee8b0f43a00bca1890538b5dc525a60d1035b62fae162c22"
+    },
+    "B51-lifecycle-ui-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B51-lifecycle-ui-r1-summary.json",
+      "sha256": "9372a86b2b5d266e0b4f223e084a70e033f624cb51507c7a541c35a256079a18"
+    },
+    "B51-source-only-qc.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B51-source-only-qc.json",
+      "sha256": "3e6d1cacd97f0dea4d846106811cd81db5a7552f4a4ff45392824d61091e16f5"
+    },
+    "B51-final-local-qc.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B51-final-local-qc.json",
+      "sha256": "e50abe7006e9364030a02573d20367a6c56e131ca393aa6a8d8fe043dd8dae07"
+    }
+  },
+  "recordedAt": "2026-10-12T04:45:36.183486+00:00"
+}

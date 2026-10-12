@@ -826,6 +826,50 @@ try {
           const result={variant:variant.name,workId,returnedId,freshId,masterBefore:masterOf(beforeRound),masterAfter:masterOf(afterRound),productionBeforeCreation:productionBefore,productionBeforeReview:productionAfterCreation,productionAfter:productionOf(afterRound)};
           releasedRounds.push(result);progress('normal paired '+variant.name+' return fresh approval and native readback',result);
         }
+        const beforeDrawingOwnerRead=await snapshot(),finalProduction=productionOf(beforeDrawingOwnerRead);
+        assert.equal(finalProduction.length,1);assert.equal(masterOf(beforeDrawingOwnerRead).record_status,'Released');
+        const currentProduction=finalProduction[0],currentRevision=beforeDrawingOwnerRead.drawing_revisions.find(item=>item.id===currentProduction.revision_id);
+        assert.ok(currentRevision);assert.equal(currentRevision.lifecycle_state,'released');assert.equal(currentProduction.work_id,null);
+        const currentBindings=beforeDrawingOwnerRead.drawing_revision_files.filter(item=>item.drawing_revision_id===currentProduction.revision_id&&item.removed_at===null);
+        assert.equal(currentBindings.length,2);const ownerReadMutationRequests=[];let ownerReadMutationCount=0;
+        const observeOwnerRead=request=>{const url=new URL(request.url());
+          if(url.origin===origin&&url.pathname.startsWith('/api/')&&['POST','PATCH','PUT','DELETE'].includes(request.method())){
+            ownerReadMutationCount+=1;if(ownerReadMutationRequests.length<32)ownerReadMutationRequests.push({pathname:url.pathname,method:request.method()});}};
+        page.on('request',observeOwnerRead);
+        await asActor('owner');await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+        await page.locator('.clean-workbench-list').getByRole('link',{name:'圖號工作台',exact:true}).click();await page.waitForURL(location=>location.pathname==='/numbering/drawings');
+        await page.getByRole('textbox',{name:'搜尋',exact:true}).fill(fixture.drawingNumber);
+        const productionRowKey='cw_'+currentProduction.id,detailPath='/api/numbering/drawings/workbench/'+productionRowKey;
+        const readDrawingDetail=async pending=>{
+          const response=await pending,body=await response.json();assert.equal(response.status(),200,JSON.stringify(body));
+          assert.equal(body.data.row.rowKey,productionRowKey);assert.equal(body.data.row.entityId,fixture.drawingId);
+          assert.equal(body.data.row.code,fixture.drawingNumber);assert.equal(body.data.row.layer,'production');
+          assert.equal(body.data.row.revision,currentRevision.revision);assert.equal(body.data.row.rowVersion,currentProduction.row_version);
+          assert.equal(body.data.row.handling,'none');assert.equal(body.data.presentation.kind,'drawing');
+          assert.deepEqual(body.data.presentation.files.map(item=>item.id).sort(),currentBindings.map(item=>item.id).sort());
+          for(const file of body.data.presentation.files){const binding=currentBindings.find(item=>item.id===file.id),url=new URL(file.downloadHref,origin);
+            assert.equal(url.pathname,'/api/pdm/file-assets/'+binding.source_file_asset_id);assert.equal(url.searchParams.get('bindingId'),binding.id);
+            assert.equal(url.searchParams.get('context'),'drawing_revision');assert.equal(url.searchParams.get('contextId'),currentProduction.revision_id);}
+          return {status:response.status(),row:body.data.row,files:body.data.presentation.files};
+        };
+        const opened=waitResponse(response=>new URL(response.url()).pathname===detailPath&&response.request().method()==='GET');
+        const productionRow=page.locator(`tr[data-row-key="${productionRowKey}"]`);await productionRow.waitFor({state:'visible'});
+        await productionRow.getByRole('button',{name:fixture.drawingNumber,exact:true}).click();const ownerDrawingOpened=await readDrawingDetail(opened);
+        const expectedLayer='量產版 '+currentRevision.revision,layerLabel=page.locator('.canonical-status-pair .canonical-layer');
+        await page.locator('.canonical-drawer-body').waitFor();assert.equal((await layerLabel.textContent()).trim(),expectedLayer);
+        const reloaded=waitResponse(response=>new URL(response.url()).pathname===detailPath&&response.request().method()==='GET');
+        await page.reload({waitUntil:'domcontentloaded'});const ownerDrawingReloaded=await readDrawingDetail(reloaded);
+        await page.locator('.canonical-drawer-body').waitFor();assert.equal((await layerLabel.textContent()).trim(),expectedLayer);
+        const afterDrawingOwnerRead=await snapshot();assert.deepEqual(afterDrawingOwnerRead,beforeDrawingOwnerRead,'OWNER_DRAWING_READ_MUTATED_OWNED_ROWS');
+        page.off('request',observeOwnerRead);assert.equal(ownerReadMutationCount,0,'OWNER_DRAWING_READ_CREATED_BUSINESS_WORK');
+        assert.deepEqual(ownerReadMutationRequests,[],'OWNER_DRAWING_READ_CREATED_BUSINESS_WORK');
+        const drawingOwnerReload={status:'PASS',normalNavigation:true,expectedProductionRevisionId:currentProduction.revision_id,
+          expectedRevision:currentRevision.revision,displayedLayer:expectedLayer,master:masterOf(afterDrawingOwnerRead),
+          beforeReload:ownerDrawingOpened,afterReload:ownerDrawingReloaded,ownedSnapshotUnchanged:true,
+          beforeSnapshotSha256:createHash('sha256').update(JSON.stringify(beforeDrawingOwnerRead)).digest('hex'),
+          afterSnapshotSha256:createHash('sha256').update(JSON.stringify(afterDrawingOwnerRead)).digest('hex'),ownerReadMutationCount,ownerReadMutationRequests};
+        progress('Drawing owner normal production detail reload exact pointer files and unchanged native snapshot',drawingOwnerReload);
+        await screenshot('Drawing-owner-production-reload');
         await reviewerEntry(anchorRequestId,'part',fixture.partId,fixture.partNumber);await page.getByText('首次發行核准',{exact:true}).waitFor();
         await page.locator('.canonical-review-package input').first().waitFor();
         const freshValues=await page.locator('.canonical-review-package input').evaluateAll(elements=>elements.map(item=>item.value));assert.ok(freshValues.includes(correctedName),'FRESH_PART_CORRECTION_MISSING');
@@ -845,7 +889,7 @@ try {
         progress('Part UI approval native exact Released snapshot receipt then owner reload',{partId:fixture.partId,initialPartRequestId,anchorRequestId,finalPart,approvedSnapshots,terminal,releaseControls:await release.count()});
         await screenshot('first-release-Part-and-paired-Drawing-completed');receipt.cases.push({viewport:{width:fixture.width,height:fixture.height},status:'PASS',flow:'lifecycle',
           firstReleasePart:{partId:fixture.partId,initialPartRequestId,anchorRequestId,ordinaryDraft:ordinaryRows.part_numbers.find(item=>item.id===fixture.partId),finalPart,approvedSnapshots,terminal,ownerReload:true,firstReleaseControlsHidden:true},minor:{requestId:minorRequest,master:masterOf(afterMinor),production:productionOf(afterMinor)},
-          major:{workId:majorWorkId,requestId:majorRequest,master:masterOf(afterMajor),production:productionOf(afterMajor)},releasedRounds,normalNavigation:true,signedPrincipal:true,keyboard:true,
+          major:{workId:majorWorkId,requestId:majorRequest,master:masterOf(afterMajor),production:productionOf(afterMajor)},releasedRounds,drawingOwnerReload,normalNavigation:true,signedPrincipal:true,keyboard:true,
           overflowMetrics,navigationRoutes,requests});save();continue;
       }
       if(flowSelection==='attachments') {
