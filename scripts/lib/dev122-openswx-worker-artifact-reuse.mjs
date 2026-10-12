@@ -4,7 +4,7 @@ import { gunzipSync } from 'node:zlib'
 import { assertImmutableRef, canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
-import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyWorkerResources, readPausedRepairWorkerResources, verifyNormalActor, assertFailedDailyContinuation, readFailedDailyContinuation, readFailedDailyCurrentResources, assertFailedDailyIsolationProof, assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
+import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyWorkerResources, readPausedRepairWorkerResources, verifyNormalActor, assertFailedDailyContinuation, readFailedDailyContinuation, readCompletedFailedDailyCheckpoint, readFailedDailyCurrentResources, assertFailedDailyIsolationProof, assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_EXECUTION_PATHS, readSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
@@ -554,7 +554,7 @@ function assertReadyProof(value, association, origin, profile) {
 async function validateFailedDailyResourceProof({ transport, value, association, origin, input, profile, readSource, currentManifest }) {
   const keys = ['schemaVersion','ownerApplicationId','purpose','status','evidenceScope','sourceRevision','sourceArchiveSha256','sourceLockRef','workerProfileSha256','resourcePlanHash',
     'priorActivationRef','priorReadyFullDescriptorRef','originalApprovedResourcePlanRef','failedDailyContinuation','actor','observedAt','observationStartedAt','observationCompletedAt',
-    'snapshot','providerReadbackRefs','isolationProof','isolationProviderExecutionRef','recoveryProviderExecutionRef','resourcesUnchanged','mutationPerformed','quiescenceClaimed']
+    'snapshot','providerReadbackRefs','isolationProof','isolationProviderExecutionRef','recoveryProviderExecutionRef','resourcesUnchanged','mutationPerformed','quiescenceClaimed', ...(input.completedFailedDailyCheckpointRef ? ['completedFailedDailyCheckpointRef'] : [])]
   exact(value, keys)
   if (value.schemaVersion !== 'aipdm.openswx-failed-daily-resource-readback.v1' || value.ownerApplicationId !== 'ai-pdm' || value.purpose !== 'FAILED_DAILY_PAUSED_READBACK'
     || value.status !== 'PASS' || value.evidenceScope !== 'PRODUCTION_PROVIDER_READBACK' || value.actor !== profile.normalActor
@@ -563,7 +563,11 @@ async function validateFailedDailyResourceProof({ transport, value, association,
   same(value.failedDailyContinuation, input.failedDailyContinuation); assertFailedDailyContinuation(value.failedDailyContinuation)
   same(value.priorReadyFullDescriptorRef, origin.prior.descriptorRef); same(value.originalApprovedResourcePlanRef, origin.approvedRef)
   if (time(value.observationCompletedAt) < time(value.observationStartedAt) || time(value.observedAt) < time(value.observationCompletedAt)) fail('OPENSWX_FAILED_DAILY_RESOURCE_INVALID')
-  const failed = await readFailedDailyContinuation({ transport, continuation: value.failedDailyContinuation, prior: origin.prior, profile, readSource, currentManifest })
+  same(value.completedFailedDailyCheckpointRef ?? null, input.completedFailedDailyCheckpointRef ?? null)
+  const originalFailed = await readFailedDailyContinuation({ transport, continuation: value.failedDailyContinuation, prior: origin.prior, profile, readSource, currentManifest })
+  const failed = await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef,
+    failed: originalFailed, prior: origin.prior, profile, readSource, currentManifest })
+  if (failed.completedCheckpointObservedAt && time(value.observationStartedAt) < time(failed.completedCheckpointObservedAt)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
   const snapshot = value.snapshot
   exact(snapshot, ['jobName','jobEtag','jobGeneration','normalTemplateSha256','image','numericCredentials','secretMetadata','schedulerState','schedulerPolicySha256','schedulerUserUpdateTime','iamSha256','executions'])
   if (snapshot.jobName !== workerJobName() || !snapshot.jobEtag || !/^[1-9][0-9]*$/u.test(snapshot.jobGeneration) || snapshot.image !== association.image
@@ -609,9 +613,13 @@ async function validateFailedDailyResourceProof({ transport, value, association,
 }
 export function assertWorkerReuseInput(value, { historical = false } = {}) {
   const repair = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2'
-  exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', ...(repair ? ['servingCapsuleRef', 'predecessorBaselineRef'] : [...(Object.hasOwn(value ?? {}, 'secretVersionIamContinuationRef') ? ['secretVersionIamContinuationRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : [])])], 'OPENSWX_REUSE_INPUT_INVALID')
+  exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', ...(repair ? ['servingCapsuleRef', 'predecessorBaselineRef'] : [...(Object.hasOwn(value ?? {}, 'secretVersionIamContinuationRef') ? ['secretVersionIamContinuationRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : []), ...(Object.hasOwn(value ?? {}, 'completedFailedDailyCheckpointRef') ? ['completedFailedDailyCheckpointRef'] : [])])], 'OPENSWX_REUSE_INPUT_INVALID')
   if (!repair && Object.hasOwn(value, 'secretVersionIamContinuationRef')) ownRef(value.secretVersionIamContinuationRef)
   if (!repair && Object.hasOwn(value, 'failedDailyContinuation')) assertFailedDailyContinuation(value.failedDailyContinuation)
+  if (!repair && Object.hasOwn(value, 'completedFailedDailyCheckpointRef')) {
+    if (!value.failedDailyContinuation) fail('OPENSWX_REUSE_INPUT_INVALID')
+    ownRef(value.completedFailedDailyCheckpointRef)
+  }
   if ((!repair && value.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v1') || !/^[A-Za-z0-9-]{6,100}$/u.test(value.receiptId ?? '')) fail('OPENSWX_REUSE_INPUT_INVALID')
   if (repair) { releaseCapsuleRef(value.servingCapsuleRef); if (value.predecessorBaselineRef !== null) ownRef(value.predecessorBaselineRef) }
   assertImmutableRef(value.sourceLockRef, BUCKET, ['receipts']); assertImmutableRef(value.currentSourceObjectRef, BUCKET, ['source']); ownRef(value.priorActivationRef)
@@ -731,7 +739,9 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   const serving = repair ? await readServingRepairBasis({ transport, servingCapsuleRef: input.servingCapsuleRef, origin, profile, readSource, ctx }) : null
   if (repair) same(input.predecessorBaselineRef, serving.predecessorBaselineRef)
   const secretVersionIam = repair ? null : await readSecretVersionIamForReuse({ transport, input, supplemental: supplementalIam, sourceRevision: revision, profile, readSource })
-  const failed = failedMode ? await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource, currentManifest: current, verifyProvider: true, deadlineAt: input.deadlineAt }) : null
+  const originalFailed = failedMode ? await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource, currentManifest: current, verifyProvider: true, deadlineAt: input.deadlineAt }) : null
+  const failed = failedMode ? await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef,
+    failed: originalFailed, prior: origin.prior, profile, readSource, currentManifest: current }) : null
   const ready = failedMode ? await readFailedDailyCurrentResources({ transport, profile, prior: origin.prior, supplementalIam: supplementalIam ? { ...supplementalIam, readSource } : null, secretVersionIam, failed })
     : await (repair ? readPausedRepairWorkerResources : readCurrentReadyWorkerResources)({ transport, profile, prior: origin.prior, supplementalIam: supplementalIam ? { ...supplementalIam, readSource } : null, ...(secretVersionIam ? { secretVersionIam } : {}) })
   const assertRepairAdmissionFresh = async () => {
@@ -795,7 +805,7 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   const failedProviderRefs = failedMode ? { isolationProviderExecutionRef: (await publishWorkerReuseJson(transport, `${root}-isolation-execution.json`, ready.isolationProviderExecution)).ref,
     recoveryProviderExecutionRef: (await publishWorkerReuseJson(transport, `${root}-recovery-execution.json`, ready.recoveryProviderExecution)).ref } : null
   const readyProof = failedMode ? { schemaVersion: 'aipdm.openswx-failed-daily-resource-readback.v1', ownerApplicationId: 'ai-pdm', purpose: 'FAILED_DAILY_PAUSED_READBACK', status: 'PASS', evidenceScope: 'PRODUCTION_PROVIDER_READBACK',
-    ...binding, sourceLockRef: input.sourceLockRef, priorActivationRef: input.priorActivationRef, priorReadyFullDescriptorRef: origin.prior.descriptorRef, originalApprovedResourcePlanRef: origin.approvedRef, failedDailyContinuation: input.failedDailyContinuation,
+    ...binding, sourceLockRef: input.sourceLockRef, priorActivationRef: input.priorActivationRef, priorReadyFullDescriptorRef: origin.prior.descriptorRef, originalApprovedResourcePlanRef: origin.approvedRef, failedDailyContinuation: input.failedDailyContinuation, ...(input.completedFailedDailyCheckpointRef ? { completedFailedDailyCheckpointRef: input.completedFailedDailyCheckpointRef } : {}),
     actor: actor.email, observedAt: transport.now(), observationStartedAt: ready.observationStartedAt, observationCompletedAt: ready.observationCompletedAt, snapshot: ready.snapshot, providerReadbackRefs, isolationProof: ready.isolationProof, ...failedProviderRefs,
     resourcesUnchanged: true, mutationPerformed: false, quiescenceClaimed: false } : repair ? { schemaVersion: 'aipdm.openswx-paused-app-repair-baseline.v1', ownerApplicationId: 'ai-pdm', purpose: 'PAUSED_APP_REPAIR', status: 'PASS', evidenceScope: 'PRODUCTION_PROVIDER_READBACK',
     inputRef, source: { ...binding, sourceLockRef: input.sourceLockRef }, priorActivationRef: input.priorActivationRef, retainedWorkerDescriptorRef: origin.prior.bootstrapDescriptorRef,

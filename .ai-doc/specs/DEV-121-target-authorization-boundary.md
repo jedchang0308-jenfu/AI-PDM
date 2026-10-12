@@ -269,3 +269,12 @@ DEV-121 corrective owner cycle僅重讀同一經metadata驗證的numeric generat
 ### MANUAL0 scaling mode boundary (2026-10-12)
 
 The fence operator sends exactly the MANUAL0 mode/count, not automatic min/max values that the provider omits in manual mode. The durable submission retains the complete original automatic baseline for exact recovery. No normalization may waive a nonzero manual count, UID/etag/generation, traffic/template drift, source authority, monotonic drain or fence hash. This correction does not authorize migration or activation without their existing guards. Generic local evidence: [MANUAL0 readback correction](../qa/DEV-121-manual-fence-readback-local-2026-10-12.md); Production wire evidence remains private.
+
+
+### Completed FAILED DAILY checkpoint handoff（2026-10-12）
+
+僅 ordinary FAILED DAILY reuse input 可額外攜 completedFailedDailyCheckpointRef，值為 immutable own-bucket full descriptor；沒有原三-ref failedDailyContinuation、PAUSED_APP_REPAIR、FIRST 或 program-only 路徑不得使用。resource readback 必須攜同一 ref，association 的 immutable request/input 綁定它，不重寫既有收據或增加 caller 指定 execution allowlist。
+
+Consumer 沿 opaque context 的 transition、depth／cycle／hash guards 解析 native readWorkerDescriptor 與 readWorkerFullEvidence。checkpoint 必須為完整 REUSE_VERIFIED／FAILED DAILY 圖，綁相同 original failure、prior READY activation、worker executable manifest、image、numeric credentials、來源 archive／request／resource proof。native full join 逐項證明 normal drain request window、模板、actor、successful terminal、marker 與時間鏈；只有它推導的唯一 drain 才加到精確 execution 集合。累積 checkpoint 必須逐層驗證，舊 ref 不能代替較新完成圖、不可接受重複或未知執行。
+
+新 association 前目前 normal Job、PAUSED Scheduler、IAM、Secret metadata 及完整 execution inventory 雙讀回相符；每份封存 provider inventory 對 checkpoint execution 的 successful terminal、template 與時間投影也必須精確相符。歷史 replay 用 immutable captured bodies，不詢問已改變的現在狀態。checkpoint 的完成時間必須早於本次觀察；它不供目前 DB admission，也不免除下一次 source 的 fresh drain／preflight／bootstrap／full descriptor。保留原 selftest isolation-only reuse、零額外 selftest run 和所有 release／migration／traffic gates。
