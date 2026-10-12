@@ -7,7 +7,7 @@ import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runti
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { resolveWorkerArtifact, publishWorkerReuseJson, assertReuseSourceLock } from './dev122-openswx-worker-artifact-reuse.mjs'
-import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource } from './dev121-owner-release-proof.mjs'
+import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource } from './dev121-owner-release-proof.mjs'
 
 import { assertReadbackIamReceipt, expectedReadbackJobBindings } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_MEMBERS, assertSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
@@ -1077,7 +1077,43 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
     proof = await readWorkerStdoutProof({ transport, profile, execution: providerExecutions[0], expectedState: 'isolation_verified', deadlineAt })
     assertFailedDailyIsolationProof(proof, isolation.execution, profile)
   }
-  return { old, artifact, isolation, restored, expectedExecutionNames, selftest, proof, providerExecutions, paused }
+  return { old, artifact, isolation, restored, expectedExecutionNames, selftest, proof, providerExecutions, paused, continuation }
+}
+/** Carry only a fully authenticated completed FAILED DAILY drain into the next
+ * source attempt. Its old proof is history, never current database admission. */
+export async function readCompletedFailedDailyCheckpoint({ transport, checkpointRef, failed, prior, profile, readSource, currentManifest }) {
+  if (!checkpointRef) return failed
+  assertOpenSwxWorkerRef(checkpointRef)
+  const ctx = createAiPdmEvidenceContext()
+  return runAiPdmEvidenceContext(ctx, async () => {
+    const child = descendAiPdmEvidenceContext(ctx, checkpointRef, true)
+    return runAiPdmEvidenceContext(child, async () => {
+      const raw = (await transport.readJson(checkpointRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+      readSource.authorizeOrigin?.(raw.sourceRevision)
+      const checkpoint = await readWorkerDescriptor({ transport, ref: checkpointRef,
+        profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+      if (checkpoint.value.purpose !== 'full' || checkpoint.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+      failedDailySame(checkpoint.profile, profile)
+      failedDailySame(checkpoint.value.tokenSecretVersion, prior.descriptor.tokenSecretVersion)
+      failedDailySame(checkpoint.value.registrySecretVersion, prior.descriptor.registrySecretVersion)
+      const evidence = await readWorkerFullEvidence(transport, checkpoint.value, profile, readSource, child)
+      const ancestor = evidence.artifact.failedDaily
+      if (!ancestor || evidence.image !== prior.build.image) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+      failedDailySame(evidence.artifact.input.failedDailyContinuation, failed.continuation)
+      failedDailySame(evidence.artifact.input.priorActivationRef, prior.activationRef)
+      failedDailySame(evidence.artifact.currentManifest.entries, currentManifest.entries)
+      const paused = evidence.receipts.pausedDrainedRef
+      const terminal = (await transport.readJson(paused.facts.drainExecutionRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+      const execution = assertTerminalExecution(terminal.facts.execution, terminal.facts.executionName, { success: true })
+      const names = [...ancestor.failed.expectedExecutionNames]
+      const name = canonicalWorkerExecution(execution.name)
+      if (names.includes(name) || failed.expectedExecutionNames.some(value => !names.includes(value))) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+      const executions = [...(ancestor.failed.completedCheckpointExecutions ?? []), execution]
+      if (new Set(executions.map(row => canonicalWorkerExecution(row.name))).size !== executions.length) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+      return { ...failed, expectedExecutionNames: [...names, name].sort(), completedCheckpointExecutions: executions,
+        completedCheckpointObservedAt: evidence.receipts.bootstrapRef.observedAt }
+    })
+  })
 }
 /** A paused failed attempt is not READY and never supplies current DB admission. */
 export async function readFailedDailyCurrentResources({ transport, profile, prior, supplementalIam, secretVersionIam, failed }) {
@@ -1089,6 +1125,21 @@ export async function readFailedDailyCurrentResources({ transport, profile, prio
   const job = before.raw.find(row => row.url === 'https://run.googleapis.com/v2/' + workerJobName()).body
   failedDailySame(preservedJobMetadata(job), preservedJobMetadata(failed.paused.facts.providerJob))
   const raw = [...before.raw, ...after.raw]
+  if (failed.completedCheckpointObservedAt && failedDailyTime(observationStartedAt) < failedDailyTime(failed.completedCheckpointObservedAt)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  // Every captured inventory body must retain each authenticated checkpoint
+  // execution exactly, including its successful terminal state and template.
+  for (const expected of failed.completedCheckpointExecutions ?? []) {
+    for (const capture of [before, after]) {
+      const matches = capture.raw.filter(row => row.url.includes('/executions?')).flatMap(row => row.body.executions ?? []).filter(row => canonicalWorkerExecution(row.name) === canonicalWorkerExecution(expected.name))
+      // Each capture must contain exactly one matching execution.
+      if (matches.length !== 1) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+      for (const actual of matches) {
+        assertTerminalExecution(actual, expected.name, { success: true })
+        failedDailySame(executionProjection(actual), executionProjection(expected))
+        failedDailySame(normalizeWorkerTemplate(actual.template), prior.template.template)
+      }
+    }
+  }
   return { actor: profile.normalActor, observationStartedAt, observationCompletedAt: transport.now(), snapshot: projection(before.snapshot), raw,
     isolationProof: failed.proof, isolationProviderExecution: failed.providerExecutions?.[0], recoveryProviderExecution: failed.providerExecutions?.[1] }
 }

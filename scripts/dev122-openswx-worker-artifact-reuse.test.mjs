@@ -2123,3 +2123,120 @@ test('FAILED DAILY sealed historical resolver reconstructs raw IAM, Secret metad
     assert.equal(h.puts.length,puts)
   }
 })
+
+async function completedFailedDailyNextSourceFixture() {
+  const f = await failedDailyReadyToBootstrap('COMPLETED'), h = f.h, completed = await f.run()
+  const full = (await h.transport.readJson(completed.refs.fullDescriptorRef)).value
+  // Model the exact verified normal restoration after the sealed checkpoint;
+  // scheduler remains PAUSED and no execution is added by restoration.
+  await h.transport.request('https://run.googleapis.com/v2/' + workerJobName(), {
+    method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image, full.tokenSecretVersion) })
+  })
+  const next = h.nextAttempt(83, f.input.priorActivationRef)
+  const lock = { ...next.lock, observedAt: new Date(Date.now() - 2000).toISOString() }
+  next.input.sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + lock.releaseId + '/source-lock.json', Buffer.from(canonicalize(lock) + '\n'))
+  const metadata = await seedSecretVersionIamContinuation(h, { sourceRevision: next.lock.sourceRevision, sourceLockRef: next.input.sourceLockRef,
+    supplementalIamReadbackRef: h.iam.receiptRef, prebuildIamContinuationRef: h.proof.continuationRef, reader: f.reader,
+    name: 'completed-next-metadata', secretPolicies: h.metadata.before.secretPolicies })
+  const input = { ...next.input, failedDailyContinuation: f.failedDailyContinuation,
+    secretVersionIamContinuationRef: metadata.continuationRef, completedFailedDailyCheckpointRef: completed.refs.fullDescriptorRef }
+  return { ...f, h, completed, full, input }
+}
+
+test('completed FAILED DAILY checkpoint permits the next source while requiring a fresh drain', async () => {
+  const f = await completedFailedDailyNextSourceFixture(), h = f.h
+  const without = { ...f.input }; delete without.completedFailedDailyCheckpointRef
+  const refusedRef = await h.put('completed-next-missing-checkpoint-input', without), refusedPuts = h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef: refusedRef, readSource: f.reader }), { code: 'OPENSWX_FAILED_DAILY_JOIN_INVALID' })
+  assert.equal(h.puts.length, refusedPuts, 'unexplained terminal execution cannot publish association')
+  const inputRef = await h.put('completed-next-reuse-input', f.input), before = h.calls.length
+  const saved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef, readSource: f.reader })
+  assert.equal(saved.refs.programOnlyFullDescriptorRef, undefined)
+  assert.ok(h.calls.slice(before).every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy') || row.url.includes('logging.googleapis.com')))
+  const pauseRef = h.seed('COMPLETED-NEXT-PAUSE-input', { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: saved.refs.dailyBuildOnlyDescriptorRef,
+    workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'COMPLETED-NEXT-PAUSE', drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: f.input.priorActivationRef,
+    failedDailyContinuation: f.failedDailyContinuation })
+  const pauseCalls = h.calls.length
+  const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseRef, transport: h.transport, readSource: f.reader, appProfile, sleep: async () => {} })
+  assert.equal(h.calls.slice(pauseCalls).filter(row => row.url.endsWith(':run')).length, 1, 'old checkpoint cannot replace fresh normal drain')
+  const bootstrapRef = h.seed('COMPLETED-NEXT-BOOTSTRAP-input', { schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef: saved.refs.dailyBuildOnlyDescriptorRef,
+    workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'COMPLETED-NEXT-BOOTSTRAP', bootstrapKind: 'DAILY_REFRESH', priorActivationRef: f.input.priorActivationRef,
+    pausedDrainedRef: paused.ref, failedDailyContinuation: f.failedDailyContinuation })
+  const bootstrapCalls = h.calls.length
+  const completed = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapRef, transport: h.transport, readSource: f.reader, appProfile, sleep: async () => {} })
+  assert.equal(h.calls.slice(bootstrapCalls).filter(row => row.url.endsWith(':run')).length, 0, 'original isolated selftest is reused without another run')
+  const full = (await h.transport.readJson(completed.refs.fullDescriptorRef)).value, historicalCalls = h.calls.length
+  await readWorkerFullEvidence(h.transport, full, profile, f.reader)
+  assert.equal(h.calls.length, historicalCalls, 'full historical graph reconstructs the checkpoint from sealed bodies')
+  // A second completed checkpoint carries its authenticated ancestor drain too.
+  await h.transport.request('https://run.googleapis.com/v2/' + workerJobName(), {
+    method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image, full.tokenSecretVersion) })
+  })
+  const third = h.nextAttempt(84, f.input.priorActivationRef)
+  const lock = { ...third.lock, observedAt: new Date(Date.now() - 2000).toISOString() }
+  third.input.sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + lock.releaseId + '/source-lock.json', Buffer.from(canonicalize(lock) + '\n'))
+  const metadata = await seedSecretVersionIamContinuation(h, { sourceRevision: third.lock.sourceRevision, sourceLockRef: third.input.sourceLockRef,
+    supplementalIamReadbackRef: h.iam.receiptRef, prebuildIamContinuationRef: h.proof.continuationRef, reader: f.reader,
+    name: 'completed-third-metadata', secretPolicies: h.metadata.before.secretPolicies })
+  const thirdInput = { ...third.input, failedDailyContinuation: f.failedDailyContinuation, secretVersionIamContinuationRef: metadata.continuationRef,
+    completedFailedDailyCheckpointRef: completed.refs.fullDescriptorRef }
+  const thirdRef = await h.put('completed-third-reuse-input', thirdInput), thirdCalls = h.calls.length
+  const thirdSaved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef: thirdRef, readSource: f.reader })
+  assert.ok(thirdSaved.refs.dailyBuildOnlyDescriptorRef)
+  assert.ok(!h.calls.slice(thirdCalls).some(row => row.options.method === 'PATCH' || row.url.endsWith(':run')))
+  const incomplete = await h.put('completed-third-stale-checkpoint-input', { ...thirdInput, receiptId: 'COMPLETED-THIRD-STALE', completedFailedDailyCheckpointRef: f.completed.refs.fullDescriptorRef })
+  const incompletePuts = h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef: incomplete, readSource: f.reader }), { code: 'OPENSWX_FAILED_DAILY_JOIN_INVALID' })
+  assert.equal(h.puts.length, incompletePuts)
+})
+
+test('completed FAILED DAILY checkpoint rejects unbound, partial, tampered and unknown execution histories before publication', async () => {
+  const f = await completedFailedDailyNextSourceFixture(), h = f.h, objects = new Map(h.objects), request = h.transport.request
+  const drainRef = (await h.transport.readJson(f.full.pausedDrainedRef)).value.facts.drainExecutionRef
+  const drainName = (await h.transport.readJson(drainRef)).value.facts.executionName
+  for (const kind of ['missing-ref', 'hash-mismatch', 'partial-descriptor', 'unrelated-full', 'wrong-credentials', 'different-failure', 'extra-terminal', 'missing-terminal', 'changed-terminal-template', 'changed-terminal-status']) {
+    h.objects.clear(); for (const [uri, row] of objects) h.objects.set(uri, row)
+    h.transport.request = request
+    const input = structuredClone(f.input)
+    if (kind === 'missing-ref') h.objects.delete(input.completedFailedDailyCheckpointRef.uri)
+    if (kind === 'hash-mismatch') input.completedFailedDailyCheckpointRef.sha256 = 'a'.repeat(64)
+    if (kind === 'partial-descriptor') input.completedFailedDailyCheckpointRef = f.saved.refs.dailyBuildOnlyDescriptorRef
+    if (kind === 'unrelated-full') input.completedFailedDailyCheckpointRef = h.fullRef
+    if (kind === 'wrong-credentials') {
+      const full = { ...f.full, tokenSecretVersion: f.full.tokenSecretVersion.replace(/7$/u, '8') }
+      input.completedFailedDailyCheckpointRef = h.seedBytes(input.completedFailedDailyCheckpointRef.uri, Buffer.from(canonicalize(full)))
+    }
+    if (kind === 'different-failure') input.failedDailyContinuation.recoveryRequiredRef = f.ref('-prior-recovery')
+    if (['extra-terminal', 'missing-terminal', 'changed-terminal-template', 'changed-terminal-status'].includes(kind)) h.transport.request = async (url, options = {}) => {
+      const body = await request(url, options)
+      if (url.includes('/executions?')) {
+        if (kind === 'extra-terminal') { const row = structuredClone(body.executions[0]); row.name = row.name.replace(/[^/]+$/u, 'unrelated-completed'); body.executions.push(row) }
+        if (kind === 'missing-terminal') body.executions = body.executions.filter(row => row.name !== drainName)
+        for (const row of body.executions.filter(row => row.name === drainName)) {
+          if (kind === 'changed-terminal-template') row.template.containers[0].args = ['unreviewed']
+          if (kind === 'changed-terminal-status') { row.succeededCount = 0; row.failedCount = 1; row.conditions[0].state = 'CONDITION_FAILED' }
+        }
+      }
+      return body
+    }
+    input.receiptId = 'COMPLETED-DENIED-' + kind
+    const inputRef = await h.put('completed-denied-' + kind, input), puts = h.puts.length, calls = h.calls.length
+    await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef, readSource: f.reader }), undefined, kind)
+    assert.equal(h.puts.length, puts, kind + ' cannot publish an association or resource proof')
+    assert.ok(h.calls.slice(calls).every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy') || row.url.includes('logging.googleapis.com')), kind + ' cannot mutate lifecycle')
+  }
+})
+
+
+test('completed FAILED DAILY checkpoint input stays own-bucket and failed-only', () => {
+  const own = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
+  const input = { schemaVersion: 'aipdm.openswx-worker-reuse-input.v1', sourceLockRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/LOCAL-COMPLETED/source-lock.json', sha256: 'b'.repeat(64) },
+    currentSourceObjectRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/source/releases/LOCAL-COMPLETED/source.tar.gz', sha256: 'c'.repeat(64) }, priorActivationRef: own('prior-ready'), deadlineAt: deadline(), receiptId: 'LOCAL-COMPLETED',
+    failedDailyContinuation: { bootstrapInputRef: own('failed-input'), recoveryRequiredRef: own('failed-recovery-required'), priorRecoveryRef: own('failed-prior-recovery') }, completedFailedDailyCheckpointRef: own('completed-full') }
+  assertWorkerReuseInput(input)
+  for (const mutate of [row => delete row.failedDailyContinuation, row => row.completedFailedDailyCheckpointRef = null,
+    row => row.completedFailedDailyCheckpointRef.uri = 'gs://sibling/receipts/completed.json', row => row.completedFailedDailyCheckpointRef.extra = true,
+    row => row.schemaVersion = 'aipdm.openswx-worker-reuse-input.v2']) {
+    const bad = structuredClone(input); mutate(bad); assert.throws(() => assertWorkerReuseInput(bad))
+  }
+})
