@@ -1,6 +1,6 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
-## DEV-122 CURRENT（B36-R10 已正式發布；B37 部分 UI 補驗，整體未驗收）
+## DEV-122 CURRENT（正式 R10；B45 本地 QC 通過，PR #278 required CI／發布待續）
 
 本任務最新發布為官方來源 `0d0235d348bf129ef7207c1dfa04f55d18f82567`（PR #269）的 R10 owner [38125246874](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38125246874)。十階段 SUCCESS；2026-10-11 09:11Z provider 讀回 `ai-pdm-prod-1be8986b68ce` 100%、零 tags、FINALIZED／RELEASED。資料庫 applied0／replayed33／ledger33、NO084；worker generation17 READY、Scheduler ENABLED且資源未修改。本次限定 IAM 計畫0 create／12 no-op，Terraform apply／readback已執行，不將可能的state writes稱為全程唯讀。[R10 發布讀回](../qa/DEV-122-B36-R10-production-release-closure-2026-10-11.json)。
 
@@ -55,6 +55,8 @@ Root 為唯一產品 writer，TL 只寫本 spec。精確新增產品責任面為
 ### 2026-10-12 B44：正式本人權限只讀查證與來源整合
 
 B44 ACTUAL_SELF_PERMISSION_READ／SOURCE_RECONCILIATION：正常授權帳號登入後，正式self GET 200，辨識review／run與workspace.view均true；本人Principal／員工／Firebase identity／公司一致，既有A0061 review GET 200但沒有session。這只證目前新登入的讀取決策，不證原403或POST write snapshot；零recognition POST／零已完成job重排。兩站logout200＋self401，自有runtime／temp及錯誤空白分頁已清理。已無GitHub nonterminal owner，main093133b65 required CI PASS；最新main11檔完整保留、B41排除，獨立source QC P0=0／P1=0。舊owner freeze為歷史紀錄，不把它當新的人類禁令；source PR可續接。另一DEV-121 owner仍續接RD v7，FULL35含未套用085而現有program-only僅接受FULL34／prefix33，沒有source34 alias入口；本任務沒有修改gate、啟動capsule或正式infra mutation。source／owner相容性解決前不切流。[B44查證](../qa/DEV-122-B44-self-permission-source-reconciliation-2026-10-12.json)。NO084／7 issues／29 groups／whole NOT_ACCEPTED與原生CAD使用者驗收保持。
+
+B45 LOCAL_QC_PASS_REQUIRED_CI_PENDING：PR #278 的 CI38192747700 已保留實際 FAIL；DEV-012 Isolated PostgreSQL Cutover SUCCESS，Production Slice QC 在 DEV-079 contract 停下。舊檢查把所有 PDF 強制要求隱藏工具列，與已授權完整圖面翻頁／縮放需求不符。本 slice 僅更新 scripts/qc-dev-079-contract.mjs 的 PDF 分流責任，並將既有 B42／B43 聚焦測試接入 .github/workflows/ci.yml；保留 compact iframe 工具列隱藏、原檔定位／開啟、PDF evidence page 及其他 QC。無產品程式、schema、release adapter、worker 或雲端變更。驗證為修正前既有 CI FAIL、修正後 focused source QC＋既有 behavior tests＋獨立 Luna QC，再沿同一 PR 取得新 required CI。Source35／DEV-121 owner 接縫仍須核對，NO084、A0061 不重排、native CAD 使用者驗證、supplier DISABLED_DEFERRED 與 7 issues／29 groups／whole NOT_ACCEPTED 維持。 [B45 CI契約](../qa/DEV-122-B45-full-pdf-ci-contract-2026-10-12.json)。本地既有8檔78 tests／0 FAIL、DEV-079 contract59／0 FAIL與changed script lint PASS；獨立Luna只讀QC P0=0／P1=0。這些不冒充新required CI或原403正式修復。五個自有PID皆native absent、登記released、tempremoved；未知Next runtime及其next-env.d.ts不動且不提交。
 
 R1以不存在的public session.companyId作guard、R2將workspace.view誤放pages，utility原FAIL保持；R3依正式API契約完成self與既有review讀取。密碼／token／cookie未存檔，只在正常auth程序記憶體；既有瀏覽器session未讀，未跳過任何grant／身分／company檢查。HTTP登入登出是人類已明確授權的既有應用流程，不是瀏覽器封鎖繞行。唯讀holder capability不替代exact v4 rows；該drawing沒有latest，原UI後續create只能列為inference，尚未判定403是哪一層。
 

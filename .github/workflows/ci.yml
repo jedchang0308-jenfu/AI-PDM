@@ -113,6 +113,7 @@ jobs:
           npm run qc:pdm-principal-account-boundary
           npm run qc:pdm-production-slice-numbering-draft
           npm run qc:dev-032-production-iac-package
+          npm exec vitest run src/lib/pdm-canonical-preview.pdf.test.ts src/components/canonical-preview-media.dev122.test.tsx src/components/canonical-preview-media.pdf.test.tsx src/components/pdf-document-viewport.test.ts src/components/pdf-document-viewport.lifecycle.test.tsx src/lib/drawing-recognition-principal-mutation.test.ts src/app/api/numbering/recognition-sessions/principal-create.test.ts src/components/drawing-recognition-workspace-panel.permission.test.tsx
           npm run qc:dev-079:contract
           npm run qc:dev-079:owner-invariant
           npm run qc:dev-101:contract
