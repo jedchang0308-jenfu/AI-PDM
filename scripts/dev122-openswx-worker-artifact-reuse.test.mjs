@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, readPartialFailedDailyPause } from './lib/dev122-openswx-bootstrap.mjs'
-import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan } from './lib/dev122-openswx-readback-iam.mjs'
@@ -555,6 +555,13 @@ test('B21 LOCAL_TEST genuine Git archive preserves raw LF COPY bytes under CRLF 
     const actualArchive = reader.readArchive(revision)
     assert.ok(actualArchive.equals(canonicalArchive), 'reader must return exact canonical Git archive bytes, without normalization')
     assert.equal(assertWorkerArchive(actualArchive, inputs.entries).inputCount, 37)
+    const originalMarker = reader('src/app/b23-native-reader-fixture.txt', revision)
+    const changedCopy = reader('src/app/b23-native-reader-fixture.txt', revision); changedCopy.fill(0)
+    assert.ok(reader('src/app/b23-native-reader-fixture.txt', revision).equals(originalMarker), 'cached blobs return independent bytes')
+    writeFileSync(currentMarker, 'LOCAL dirty fixture after blob was cached\n')
+    assert.throws(() => reader.readArchive(revision), { code: 'SOURCE_CHECKOUT_NOT_FROZEN' }, 'blob reuse cannot bypass fresh checkout checks')
+    writeFileSync(currentMarker, originalMarker)
+    reader.assertCurrentFrozen()
   } finally {
     for (const [name, value] of previousEnv) { if (value === undefined) delete process.env[name]; else process.env[name] = value }
     assert.equal(path.dirname(fixture), fixtureParent); assert.ok(path.basename(fixture).startsWith('ai-pdm-b21-git-archive-'))
@@ -2444,4 +2451,61 @@ test('partial FAILED DAILY producer validates prepublication and published assoc
   await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,4,()=>executeWorkerArtifactReuse({transport:b.transport,inputRef:badInputRef,readSource:bad.reader})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
   assert.ok(!b.puts.slice(puts).some(uri=>uri.endsWith('-association.json')||uri.endsWith('-descriptor-build-only.json')),'depth refusal cannot publish authority')
   assert.ok(!b.calls.slice(before).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
+})
+
+test('partial FAILED DAILY producer reads each pinned receipt policy once per operation',async()=>{
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h,inputRef=await h.put('partial-receipt-memo-input',f.input)
+  const nativeRead=h.transport.readJson,counts=new Map()
+  h.transport.readJson=async(ref,bucket,prefixes)=>{const key=canonicalize([ref,bucket,prefixes]);counts.set(key,(counts.get(key)??0)+1);return nativeRead(ref,bucket,prefixes)}
+  const before=h.calls.length,saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader})
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+  assert.equal(Math.max(...counts.values()),1,'repeated hash-pinned history retains validators while avoiding duplicate receipt reads')
+  const requests=h.calls.slice(before)
+  assert.ok(requests.filter(row=>row.url==='https://run.googleapis.com/v2/'+workerJobName()).length>=2,'live current Job observations stay fresh')
+  assert.ok(!requests.some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
+  counts.clear();const puts=h.puts.length,replayed=await executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader})
+  assert.deepEqual(replayed.ref,saved.ref)
+  assert.ok(counts.size>0,'a new operation must authenticate immutable history again')
+  assert.equal(Math.max(...counts.values()),1)
+  assert.ok(!h.puts.slice(puts).some(uri=>uri.endsWith('-association.json')))
+})
+
+test('worker pinned receipt bytes retain policy, copy isolation and observation ownership',async()=>{
+  const bucket='jenfu-platform-prod-aipdm-release',prefixes=['receipts/dev-122/openswx-worker'],bytes=Buffer.from('{"field":"original"}\n')
+  const ref={uri:'gs://'+bucket+'/'+prefixes[0]+'/LOCAL-MEMO.json',sha256:sha256(bytes)}
+  let reads=0;const transport={readJson:async()=>{reads++;return {ref:{...ref},bytes:Buffer.from(bytes),value:JSON.parse(bytes),metadata:{generation:'17',crc32c:'AAAAAA=='}}},readBytes:async()=>{},request:async()=>{}}
+  const memo=createWorkerReceiptReadTransport(transport),ctx=createAiPdmEvidenceContext()
+  assert.equal(memo.readBytes,transport.readBytes);assert.equal(memo.request,transport.request)
+  await runAiPdmEvidenceContext(ctx,async()=>{
+    const a=await memo.readJson(ref,bucket,prefixes);a.bytes.fill(0);a.value.field='mutated';a.metadata.generation='99';a.ref.sha256='0'.repeat(64)
+    const b=await memo.readJson(ref,bucket,prefixes)
+    assert.ok(b.bytes.equals(bytes));assert.deepEqual(b.value,{field:'original'});assert.deepEqual(b.ref,ref);assert.equal(b.metadata.generation,'17');assert.equal(reads,1)
+    await assert.rejects(memo.readJson(ref,bucket,['receipts/releases']),{code:'IMMUTABLE_REF_INVALID'})
+    await assert.rejects(memo.readJson({...ref,sha256:'f'.repeat(64)},bucket,prefixes),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_CYCLE_OR_HASH_CONFLICT'})
+    const ancestor=descendAiPdmEvidenceContext(ctx,ref,true)
+    await runAiPdmEvidenceContext(ancestor,async()=>{
+      const child=descendAiPdmEvidenceContext(ancestor,{uri:'gs://'+bucket+'/'+prefixes[0]+'/LOCAL-MEMO-CHILD.json',sha256:'a'.repeat(64)})
+      await runAiPdmEvidenceContext(child,()=>assert.rejects(memo.readJson(ref,bucket,prefixes),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_CYCLE_OR_HASH_CONFLICT'}))
+    })
+    assert.equal(reads,1,'cached bytes never bypass policy/hash/ancestry refusal')
+    const independentMemo=createWorkerReceiptReadTransport(transport)
+    assert.deepEqual((await independentMemo.readJson(ref,bucket,prefixes)).value,{field:'original'})
+    assert.equal(reads,2,'separate adapters cannot borrow each other metadata inside a shared root')
+  })
+  await assert.rejects(runAiPdmEvidenceContext(ctx,()=>memo.readJson(ref,bucket,prefixes)),{code:'DEV121_OWNER_RELEASE_PROOF_CONTEXT_INVALID'})
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(),()=>memo.readJson(ref,bucket,prefixes))
+  assert.equal(reads,3,'closed observation cannot lend cached bytes to a new one')
+})
+
+test('worker pinned receipt memo rejects corrupt provider bytes and JSON without caching them',async()=>{
+  const bucket='jenfu-platform-prod-aipdm-release',prefixes=['receipts/dev-122/openswx-worker'],bytes=Buffer.from('{"field":"original"}\n')
+  const ref={uri:'gs://'+bucket+'/'+prefixes[0]+'/LOCAL-MEMO-CORRUPT.json',sha256:sha256(bytes)}
+  for(const mode of ['bytes','json']){
+    let reads=0;const memo=createWorkerReceiptReadTransport({readJson:async()=>{reads++;return {ref,bytes:mode==='bytes'&&reads===1?Buffer.from('{}'):bytes,value:mode==='json'&&reads===1?{}:JSON.parse(bytes)}}})
+    await runAiPdmEvidenceContext(createAiPdmEvidenceContext(),async()=>{
+      await assert.rejects(memo.readJson(ref,bucket,prefixes),{code:mode==='bytes'?'OPENSWX_REUSE_REF_HASH_INVALID':'OPENSWX_REUSE_REF_JSON_INVALID'})
+      assert.deepEqual((await memo.readJson(ref,bucket,prefixes)).value,{field:'original'})
+      assert.equal(reads,2,'a rejected receipt does not become memoized authority')
+    })
+  }
 })

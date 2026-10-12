@@ -92,8 +92,21 @@ function evidenceState(handle) {
   if (!Number.isFinite(now) || !Number.isFinite(monotonic) || now < state.root.lastWallMs ||
       now >= state.root.expiresAtMs || monotonic < state.root.startedMonotonicMs ||
       monotonic - state.root.startedMonotonicMs >= 600000) {
+    const finite = value => Number.isFinite(value) ? value : null
+    const observationDiagnostic = {
+      reasons: {
+        wallNonfinite: !Number.isFinite(now), monotonicNonfinite: !Number.isFinite(monotonic),
+        wallRegressed: now < state.root.lastWallMs, wallExpired: now >= state.root.expiresAtMs,
+        monotonicRegressed: monotonic < state.root.startedMonotonicMs,
+        monotonicExpired: monotonic - state.root.startedMonotonicMs >= 600000,
+      },
+      wallCurrentMs: finite(now), wallLastMs: finite(state.root.lastWallMs),
+      wallStartedMs: finite(state.root.startedAtMs), wallExpiresMs: finite(state.root.expiresAtMs),
+      monotonicCurrentMs: finite(monotonic), monotonicStartedMs: finite(state.root.startedMonotonicMs),
+      elapsedMonotonicMs: finite(monotonic - state.root.startedMonotonicMs),
+    }
     state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear()
-    fail('OBSERVATION_EXPIRED')
+    throw Object.assign(proofError('OBSERVATION_EXPIRED'), { observationDiagnostic })
   }
   state.root.lastWallMs = now
   return state

@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { assertImmutableRef, canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
@@ -54,6 +55,25 @@ async function read(transport, ref, prefixes = [WORKER_RECEIPT_PREFIX]) {
     return { ...result, bytes, value, ref }
   })
 }
+/** Reuse only hash-pinned bytes inside the active opaque observation. Each
+ * caller still traverses its own graph and receives independent parsed data. */
+export function createWorkerReceiptReadTransport(transport) {
+  const metadata = new Map(), readScope = randomUUID()
+  return { ...transport, readJson: async (ref, bucket, prefixes = ['receipts']) => {
+    assertImmutableRef(ref, bucket, prefixes)
+    const kind = `worker-json:${readScope}:${canonicalize([bucket, prefixes])}`, key = canonicalize([kind, ref])
+    const bytes = await readAiPdmEvidenceLeaf({ ref, kind, read: async () => {
+      const row = await transport.readJson(ref, bucket, prefixes)
+      if (!Buffer.isBuffer(row.bytes) || row.ref?.uri !== ref.uri || row.ref?.sha256 !== ref.sha256 || sha256(row.bytes) !== ref.sha256) fail('OPENSWX_REUSE_REF_HASH_INVALID')
+      same(JSON.parse(row.bytes.toString('utf8')), row.value, 'OPENSWX_REUSE_REF_JSON_INVALID')
+      const { bytes: _bytes, value: _value, ...rest } = row
+      metadata.set(key, structuredClone(rest))
+      return row.bytes
+    } })
+    if (!metadata.has(key)) fail('OPENSWX_REUSE_RECEIPT_MEMO_INVALID')
+    return { ...structuredClone(metadata.get(key)), bytes: Buffer.from(bytes), value: JSON.parse(bytes.toString('utf8')) }
+  } }
+}
 function git(root, args) {
   const result = spawnSync('git', args, { cwd: root, encoding: null, windowsHide: true, maxBuffer: 256 * 1024 * 1024 })
   if (result.error || result.status !== 0 || !Buffer.isBuffer(result.stdout)) fail('OPENSWX_REUSE_GIT_READ_FAILED')
@@ -62,11 +82,13 @@ function git(root, args) {
 /** Historical revisions are admitted only by the hash-validated descriptor chain. */
 export function createWorkerGitReader(root, sourceRevision) {
   if (!H40.test(sourceRevision ?? '') || path.resolve(git(root, ['rev-parse', '--show-toplevel']).toString().trim()).toLowerCase() !== path.resolve(root).toLowerCase()) fail('OPENSWX_REUSE_REPOSITORY_INVALID')
-  const permitted = new Set([sourceRevision])
+  const permitted = new Set([sourceRevision]), blobs = new Map()
   const readSource = (name, revision) => {
     if (!safePath(name) || !H40.test(revision ?? '') || (!permitted.has(revision) && ![...READBACK_IAM_PATHS, WORKER_PROFILE_PATH].includes(name))) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
     if (revision !== sourceRevision && !proofPath(name) && ![APP_PROFILE, ...READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH, SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, ...SECRET_VERSION_IAM_EXECUTION_PATHS, ...OPENSWX_TERRAFORM_PATHS].includes(name)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
-    return git(root, ['show', `${revision}:${name}`])
+    const key = `${revision}:${name}`
+    if (!blobs.has(key)) blobs.set(key, git(root, ['show', key]))
+    return Buffer.from(blobs.get(key))
   }
   readSource.authorizeOrigin = revision => { if (!H40.test(revision ?? '') || (!permitted.has(revision) && permitted.size >= 9)) fail('OPENSWX_REUSE_ORIGIN_DEPTH'); permitted.add(revision) }
   readSource.readTree = revision => { if (!permitted.has(revision)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); return git(root, ['ls-tree', '-r', '-z', '--full-tree', revision]) }
@@ -712,6 +734,7 @@ async function publishProgramOnlyReadyDescriptor({ transport, artifact, profile,
 export async function executeWorkerArtifactReuse({ transport, inputRef, readSource }) {
   const ctx = createAiPdmEvidenceContext()
   return runAiPdmEvidenceContext(ctx, async () => {
+  transport = createWorkerReceiptReadTransport(transport)
   const input = assertWorkerReuseInput((await read(transport, inputRef)).value)
   const repair = input.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2', failedMode = !repair && !!input.failedDailyContinuation
   transport = boundOpenSwxTransport(transport, input.deadlineAt)
@@ -769,7 +792,8 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
     if (repair && !priorDescriptor) fail('OPENSWX_REUSE_REPAIR_DESCRIPTOR_MISSING')
     const artifact = await resolveWorkerArtifact({ transport, descriptor: repair ? priorDescriptor.value : { ...descriptor, workerBuildRef: existing.ref }, profile, readSource, ctx })
     same(artifact.currentAssociation.requestRef, { uri: `${root}-request.json`, sha256: artifact.currentAssociation.requestRef.sha256 })
-    let check = { schemaVersion: 'aipdm.openswx-worker-reuse-current-check.v1', associationRef: existing.ref, security, ready: { ...ready, raw: ready.raw.map(row => ({ url: row.url, sha256: sha256(canonicalize(row.body)) })) } }
+    const { admittedFailed: _admittedFailed, ...readySnapshot } = ready
+    let check = { schemaVersion: 'aipdm.openswx-worker-reuse-current-check.v1', associationRef: existing.ref, security, ready: { ...readySnapshot, raw: ready.raw.map(row => ({ url: row.url, sha256: sha256(canonicalize(row.body)) })) } }
     if (repair && canonicalize(projectCapturedSnapshot(ready.after)) !== canonicalize(repairSnapshotProjection(artifact.pausedBaseline.after))) fail('OPENSWX_REPAIR_RESOURCE_DRIFT')
     if (repair) {
       same(serving.servingApp, artifact.pausedBaseline.servingApp, 'OPENSWX_REPAIR_SERVING_INVALID')
