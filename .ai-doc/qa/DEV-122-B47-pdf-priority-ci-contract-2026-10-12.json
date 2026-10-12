@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "aipdm.dev122.b47.pdf-priority-ci-contract.v1",
+  "task": "DEV-122",
+  "status": "REQUIRED_CI_PASS_PRODUCTION_PENDING",
+  "sourceParent": "6bbe54b160618d686758dadea7ddb8ba132f2442",
+  "wholeDev": "NOT_ACCEPTED",
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "scope": [
+    "scripts/qc-dev-065-canonical-preview-contract.mjs"
+  ],
+  "priorCi": {
+    "runId": 38194284044,
+    "productionSliceChecks": "PASSED_PREVIOUS_FAILED_STEP",
+    "isolatedPostgres": "SUCCESS",
+    "wholeProductionSliceQc": "FAILURE",
+    "failedStep": "Verify owner release adapter and isolated production artifact",
+    "failedCheck": "CPG-FALLBACK-002 current native derivative outranks the PDF fallback"
+  },
+  "contract": "Use the approved current-revision PDF before native thumbnails. Without a current PDF, preserve ready native derivative ordering and ignore PDFs bound to another revision. Existing hash/fake-generator/revision and all unrelated checks remain.",
+  "checks": {
+    "local": {
+      "status": "PASS",
+      "contractPassed": 33,
+      "contractFailed": 0,
+      "lintExit": 0,
+      "controllerReleased": true,
+      "allRecordedPidsAbsent": true,
+      "tempRemoved": true,
+      "ports": []
+    },
+    "independentSourceQc": {
+      "P0": 0,
+      "P1": 0,
+      "method": "READ_ONLY_SOURCE_REVIEW",
+      "runtimeExecutedByReviewer": false
+    },
+    "newRequiredCi": {
+      "source": "66d3ab4dc805ec8e1a11347e332c02b74bf2563b",
+      "runId": 38195819316,
+      "productionSliceQc": "SUCCESS",
+      "isolatedPostgres": "SUCCESS",
+      "readbackPath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B47-source-ci-terminal-readback.json",
+      "sha256": "f7e6bd137d5691f082cc242655957a192110660c35469fd4d2b791ee25dcc5c3",
+      "productionMutation": false
+    },
+    "reusedEvidence": "B45 eight existing test files / 78 tests and B42/B43 typecheck/build evidence; B47 changes no product or TypeScript source."
+  },
+  "productSourceChanged": false,
+  "standingBoundaries": {
+    "migration084": "PROHIBITED",
+    "A0061Requeue": "PROHIBITED",
+    "nativeCad": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "supplier": "DISABLED_DEFERRED",
+    "productionMutation": false,
+    "workerSchedulerLifecycleMutation": false
+  },
+  "sourceHashesAtFinalization": {
+    "scripts/qc-dev-065-canonical-preview-contract.mjs": "24af60e20ec4547a5f35e64c2eae1db5449314c346f07a0b9ee1db5d0a7ae137"
+  },
+  "privateEvidence": {
+    "B47-checks-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B47-checks-r1-summary.json",
+      "sha256": "1e04c166dd65d472603bdbb80604d3db48c73dcfd6392c72d784c2a8651ace0d"
+    },
+    "B47-checks-r1-result.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B47-checks-r1-result.json",
+      "sha256": "19e89c3c7647d8301b00f9ebd8f3176e2cbcc3d2e9cc69a2d002c0f968e8f0eb"
+    },
+    "B47-checks-r1-runtime.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B47-checks-r1-runtime.json",
+      "sha256": "7ed8f8861a63124e20abb729d01d152df8e54aa1f662a3d290880b807ebf7cb7"
+    },
+    "B47-independent-source-qc.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B47-independent-source-qc.json",
+      "sha256": "93cb07d69fb3f5e40875cd14546129b25123336c0af8d7ca212361dc75f5f7b1"
+    }
+  },
+  "unknownRuntime": "External Next process ownership/data scope unknown. Not started, stopped or used by this root; next-env.d.ts preserved and excluded. All own B47 processes absent/released; no ports.",
+  "nextSource": "B48 changed-test candidate requires its own fresh CI; B47 success applies to source66d3ab4 only."
+}

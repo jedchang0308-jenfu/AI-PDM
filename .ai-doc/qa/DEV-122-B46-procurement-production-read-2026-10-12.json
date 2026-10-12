@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "aipdm.dev122.b46.procurement-production-read.v1",
+  "task": "DEV-122",
+  "status": "ACTUAL_GET_200_EMPTY_PARTIAL_NOT_ACCEPTED",
+  "observedAt": "2026-10-12T02:11:01.453Z",
+  "wholeDev": "NOT_ACCEPTED",
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "request": {
+    "method": "GET",
+    "canonicalHost": "ai-pdm-prod-9536592944.asia-east1.run.app",
+    "route": "/api/integrations/procurement/releases",
+    "limit": 1,
+    "companyOverride": false
+  },
+  "actual": {
+    "status": 200,
+    "count": 0,
+    "identityAndCompanyProofAllTrue": true,
+    "rawBusinessBodyPersisted": false,
+    "credentialsPersisted": false
+  },
+  "cleanup": {
+    "pdm": {
+      "logoutStatus": 200,
+      "selfAfterLogout": 401,
+      "revoked": true
+    },
+    "portal": {
+      "logoutStatus": 200,
+      "selfAfterLogout": 401,
+      "revoked": true
+    }
+  },
+  "ownProcessesAbsentReleased": true,
+  "ownTempRemoved": true,
+  "ownPorts": [],
+  "limits": {
+    "servingSource": "NOT_PROVIDER_VERIFIED_THIS_REQUEST",
+    "originalIncidentCause": "NOT_PROVEN",
+    "hydrationCoverage": "EMPTY_RESULT_NO_ENTRY_HYDRATION_PROOF",
+    "fullI01Acceptance": "NOT_ACCEPTED"
+  },
+  "priorFailure": {
+    "attempt": "r1",
+    "status": "FAILED_CLOSED",
+    "failureCode": "UNCLASSIFIED_TRANSPORT_OR_PARSE_FAILURE",
+    "httpResponsesObserved": 0,
+    "sessionIssuanceAttempts": 0,
+    "rootCause": "UNKNOWN; retained, not rewritten",
+    "ownProcessesReleased": true
+  },
+  "sourceComparison": "Published 0d0235d and WT have the same route/handoff/repository/error-helper source including CAST(:submittedBy AS text); this is historical source comparison, not fresh provider serving proof.",
+  "privateEvidence": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B46-procurement-read-r2-readback.json",
+    "sha256": "e3c67a6bde65f693b03bb0d0c55f8ca80eb083263968a947fedad441e269ea22"
+  },
+  "next": "Retain successful empty-list read; null/company-drift hydration and original incident cause remain unproven."
+}

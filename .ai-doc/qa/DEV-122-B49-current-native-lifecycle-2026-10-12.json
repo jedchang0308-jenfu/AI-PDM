@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "aipdm.dev122.b49.current-native-lifecycle.v1",
+  "task": "DEV-122",
+  "status": "CURRENT_NATIVE_LIFECYCLE_ASSERTIONS_PASS_UI_PENDING",
+  "sourceRevision": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+  "testBlobSha256": "8613617cb49ee7064844a27165eeb229613659797d584ed1d89a0e6e2b23e814",
+  "actual": {
+    "task": "DEV-122",
+    "slice": "B49",
+    "status": "CURRENT_NATIVE_LIFECYCLE_ASSERTIONS_PASS_UI_PENDING",
+    "sourceRevision": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+    "actualCasesPassed": 64,
+    "actualCasesFailed": 0,
+    "skippedOtherCases": 88,
+    "rawNativeStatus": "PARTIAL_NOT_ACCEPTED",
+    "rawRunnerExit": 1,
+    "rawLauncherStatus": "CHECKS_FAILED",
+    "rawLauncherExit": 1,
+    "baselineUnmodifiedBeforeSeed": {
+      "passed": true,
+      "foreignKeyCount": 505
+    },
+    "sourceBeforeAfterUnchanged": true,
+    "primaryAbsenceUnchanged": true,
+    "allOwnProcessesAbsent": true,
+    "controllerReleased": true,
+    "allOwnTempRemoved": true,
+    "portsReleased": [
+      51389,
+      51390
+    ],
+    "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\bb1670a4fe81de8e\\manifest.json",
+    "nativeEvidenceSha256": "86265d026832d34862317e65b0042f0480abe21ccfdc4ace8442eecad9950fc6",
+    "failedCaseNames": [],
+    "layer": "CURRENT_SIGNED_LOCAL_NATIVE_CONSUMER_WITH_VERSIONED_V7_FIXTURE",
+    "normalUi": "NOT_RUN",
+    "producerIntegration": "NOT_PROVEN",
+    "production": "NOT_RUN",
+    "originalJedIncidentCause": "UNKNOWN",
+    "084": "EXCLUDED",
+    "wholeDev": "NOT_ACCEPTED"
+  },
+  "independentQc": {
+    "reviewer": "Independent gpt-6-luna xhigh b42_final_viewer_qc",
+    "method": "READ_ONLY_ACTUAL_NATIVE_EVIDENCE_REVIEW",
+    "recordedAt": "2026-10-12T03:17:20.223490+00:00",
+    "P0": 0,
+    "P1": 0,
+    "testsRerun": false,
+    "verified": [
+      "manifest/source/test blob bindings",
+      "64pass/0fail/88skip",
+      "rawpartial and both exit1 retained",
+      "505FK baseline",
+      "own processes/ports/temp clean; primary absence unchanged",
+      "local fixture only; no UI/producer/production/Jed rootcause acceptance"
+    ]
+  },
+  "sourceRequiredCi": {
+    "runId": 38198072885,
+    "head": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+    "bothChecks": "SUCCESS",
+    "productionMutation": false
+  },
+  "scope": "Existing D03/D04 native lifecycle suite; no product/test source edited for this run and no lint/build rerun.",
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "wholeDev": "NOT_ACCEPTED",
+  "limits": [
+    "Normal mounted UI chain still pending",
+    "Local v7 catalog and versioned issuer/grants fixture are not producer or production proof",
+    "Prior test-file hash-bound receipts remain historical; current64 evidence binds the actual current blob",
+    "Original Jed403 remains UNKNOWN",
+    "FULL35/source34 release compatibility alone would not prove runtime v7/database readiness"
+  ],
+  "standingBoundaries": {
+    "084": "EXCLUDED",
+    "A0061Requeue": "PROHIBITED",
+    "nativeCad": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "supplier": "DISABLED_DEFERRED"
+  },
+  "privateEvidence": {
+    "B49-lifecycle-native-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B49-lifecycle-native-r1-summary.json",
+      "sha256": "b742bb3f8f239dc6c92008989041fe440759e0045ceb287ba7f9941ad46ea549"
+    },
+    "B49-lifecycle-native-r1-runtime.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B49-lifecycle-native-r1-runtime.json",
+      "sha256": "dac52859bb0ad68321b0885f548aafb62b72d34f33ab83db2832ea59e315c2f7"
+    },
+    "B49-independent-native-evidence-qc.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B49-independent-native-evidence-qc.json",
+      "sha256": "64d8cd83f6205673cd4f68497b68b8aeafdc221a2e4e72a6125d0221f83925cf"
+    },
+    "B48-source-ci-terminal-readback.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B48-source-ci-terminal-readback.json",
+      "sha256": "f4e7312fec537765c8ef2da33aa1f7de3312e78d15bff743a6563fa586d3a48a"
+    }
+  }
+}

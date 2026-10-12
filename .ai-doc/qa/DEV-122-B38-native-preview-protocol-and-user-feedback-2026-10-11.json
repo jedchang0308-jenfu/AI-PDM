@@ -1,0 +1,467 @@
+{
+  "schemaVersion": "ai-pdm.dev122.b38-targeted-qa.v1",
+  "status": "LOCAL_NATIVE_13_PASS_FORMAL_CAD_PREVIEW_FAIL_WHOLE_NOT_ACCEPTED",
+  "source": {
+    "baseCommit": "b79ace00edbde3caf962ab26d415157966fee527",
+    "branch": "codex/dev122-b38-native-gap-qc",
+    "qaOnlyCandidate": true,
+    "files": [
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\qc-dev-122-native-postgres.mjs",
+        "sha256": "8ff03708b1f82405c6339e476681cd04c9f16946c28321639b9029adfcb4b7be"
+      },
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\src\\lib\\dev122-native-business.postgres-contract.test.ts",
+        "sha256": "2e2c642f7e088e339050f6fd93d9497875c6b468159bc3188206e6659bcaf045"
+      }
+    ]
+  },
+  "native": {
+    "selected": 13,
+    "executed": 13,
+    "passed": 13,
+    "failed": 0,
+    "unselected": 138,
+    "caseNames": [
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol no-job canonical preview normal has actual enqueue readback or safe500 without false202",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded running age=29999 attempt=2",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded running age=30001 attempt=2",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded running age=30001 attempt=3",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded queued age=119999 attempt=2",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol canonical GET recovers only bounded queued age=120001 attempt=2",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol worker claim excludes native company source input without effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol worker claim excludes native kind source input without effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol worker claim excludes native extension source input without effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol worker claim excludes native source_hash source input without effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol claimed content rejects native holder mismatch without storage or DB effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol claimed content rejects native provenance mismatch without storage or DB effects",
+      "DEV122 F01 actual signed canonical file routes, storage and native worker protocol claims once under actual workload authentication, heartbeats and reads source bytes, then completes protocol-only PNG"
+    ],
+    "receiptStatus": "PARTIAL_NOT_ACCEPTED",
+    "firstFailure": null,
+    "header202ObservedReplies": 4,
+    "protocolOutputBoundary": "PROTOCOL_FIXTURE_ACTUAL_CAD_NOT_RUN",
+    "coverage": {
+      "partial": [
+        "F-01C",
+        "F-01D",
+        "F-01E"
+      ],
+      "notRun": [
+        "remaining exact variants in all 29 QA groups",
+        "automatic integrated CAD worker daemon",
+        "recognition source/output boundary"
+      ],
+      "acceptanceComplete": false,
+      "workerOutputBoundary": "PROTOCOL_FIXTURE unless exact actual extractor evidence is attached"
+    }
+  },
+  "typecheck": {
+    "status": "PASS",
+    "command": "node tsc -p tsconfig.app.json --noEmit --pretty false --incremental false",
+    "exitCode": 0,
+    "applicationExecuted": false
+  },
+  "corrections": [
+    "Remove inherited duplicate 085 fixture entry without changing any migration SQL or adding084",
+    "Exact source/company local preview-job teardown only after preserving original no-job route readback; not route rollback"
+  ],
+  "firstFailurePreserved": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-native-r1-failure-preserved-r2.json",
+    "sha256": "9b2693237a7a4b383c932338552c9cfbd7b3d454b778fda81545fd20d7809c62"
+  },
+  "formalUserFeedback": {
+    "status": "PREVIEW_FAILURE_REPRODUCED",
+    "auxiliaryProperties": "PARTIAL_VISIBLE_HUMAN_GROUND_TRUTH_PENDING",
+    "nativeTwoDWorker": "NOT_ONLINE_SETTINGS_UI_READBACK",
+    "exactBackendErrorCode": "NOT_OBTAINED",
+    "privateReceipt": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-user-cad-preview-feedback.json",
+      "sha256": "a41604bfba1857d2e340a750e39493404d479beebe56bf248201e82fc4156c9d"
+    },
+    "browserScope": "Opened workspace and switched preview tabs. Existing canonical preview GET may mutate preview queue; this is not proof of no formal business writes. Completed OpenSWX auxiliary job was not requeued."
+  },
+  "evidence": [
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\manifest.json",
+      "sha256": "67c50245d227e653ce23090732fdbcd3237f85cb7a2331879e34007c5779c3ca"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\vitest.json",
+      "sha256": "f8fc8a6b625d2443d755a601982e0f05b4c7bb3b20e7897f115752bdcca36f5b"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\no-job-normal.json",
+      "sha256": "b3dbfb2ceb721d3298a615fa3e5f0d3d05e4267508aee8fdd0439dbf2ef26c91"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\no-job-normal-fixture-teardown.json",
+      "sha256": "dfd702f5f3d5576d74895ad7e1ddfba6b0ffdf83f9ae71d006dd16510f231bb4"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\canonical-get-202-headers.jsonl",
+      "sha256": "2980fe33c2a9ff350a900b56780045fe93bb5f29d2ea3ce5abd1c3ef714c73cc"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\worker-negative-readbacks.jsonl",
+      "sha256": "b8f361c9592febf8dfe853c9d9ce59ca329be889ef2257fe291c8cd11e1878c7"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\worker-source-readback.json",
+      "sha256": "6c43829d2b4437e4dec5e5211d0bc24e62c0f4bf9ad07749a4f1872961c5096d"
+    },
+    {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f9b953ddd36ae480\\worker-output-boundaries.jsonl",
+      "sha256": "2ce9835f3682e5a8209b5bb076f7436c9ba57c3c46f4da26c777ca7e685c3cbd"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-preview-protocol-r2-c0bfd2a907444a9db0777193ebf7780b.launcher.json",
+      "sha256": "f2ff26924d4ed9000ff56c9b614499a8e08414a20c9b14bd9824efb7c0bc8602"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-typecheck-r1-816111c1a073453faaeea29e40fbf112.launcher.json",
+      "sha256": "4040585124aa650cb43892273a102310b49e7e80fc1151f29bfa6e21d9f7c033"
+    },
+    {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B38-native-r2-and-typecheck-fresh-cleanup.json",
+      "sha256": "7fda4fcc6ea167f1d1fcfe7a45922ac1555b1af8ddf4ca091d48720d6c483589"
+    }
+  ],
+  "independentQc": {
+    "sourceReview": "Luna independent static QC: P0=0/P1=0; fixed files suite and exact 13 names; original headers/guards retained. Duplicate inherited 085 entry removed, leaving 081/082/085 and no084. Exact local asset/company teardown follows preserved raw route readback and does not weaken negative assertions.",
+    "executionReview": "Luna independently read R2 artifacts: 13 pass/138 unselected; source and primary unchanged; all cleanup true. Original no-job plus three bounded 202 replies carry Retry-After:2 and pending. Four claim and two content negative cases preserve effects; workload claim/heartbeat/source bytes/protocol PNG pass. Protocol fixture does not prove actual CAD or integrated worker. Runner exit1 intentionally retains PARTIAL_NOT_ACCEPTED; all Governor releases succeed."
+  },
+  "cleanup": {
+    "nativeManifest": {
+      "childrenStopped": true,
+      "pgStopped": true,
+      "portsReleased": true,
+      "tempRemoved": true
+    },
+    "freshReadbackConfirmed": true,
+    "governorRuntimeReleased": true,
+    "capacityLeaseReleased": true,
+    "ownDiagnosticTabsClosed": true
+  },
+  "boundaries": {
+    "mainMerge": false,
+    "migration084": "NOT_RUN",
+    "fullNativeCad": "USER_OWNED_NOT_PASS",
+    "supplier": "DISABLED_DEFERRED",
+    "issues": 7,
+    "groups": 29,
+    "wholeAcceptance": false,
+    "productionAdministrativeMutation": false,
+    "cloudResourceMutation": false,
+    "formalPreviewGetDatabaseEffects": "UNKNOWN_POSSIBLE_ENQUEUE_OR_STALE_RECOVERY_NOT_READ_BACK"
+  },
+  "next": "Formal CAD preview FAIL retained. B39 exact eight-file offline saved-PNG probe found14 valid640x480 images, original sources unchanged; compiled OpenSWX/product integration/deploy NOT_RUN. Resolve thumbnail/full-readable-drawing target and continue only missing original acceptance evidence; no production queue/release action during other owner freeze.",
+  "receiptCorrection": {
+    "supersedes": "8083c0c8b QA boundary productionMutation:false",
+    "reason": "Narrow administrative/cloud-resource mutation claims; browser preview GET can have application DB effects. Original observation/FAIL and private receipts remain preserved."
+  },
+  "savedPreviewCompatibility": {
+    "slice": "B39",
+    "sourceCommit": "159a412d85d286729817b24da99742735d420aef",
+    "status": "OFFLINE_ACTUAL_SAVED_PNG_COMPATIBILITY_ONLY",
+    "method": "bounded diagnostic port of modern stream extraction; NOT compiled OpenSWX execution",
+    "inputFiles": 8,
+    "validSavedPngs": 14,
+    "dimensions": "640x480",
+    "allOriginalSourcesUnchanged": true,
+    "actualCompiledOpenSwxExecution": "NOT_RUN",
+    "productIntegration": "NOT_IMPLEMENTED",
+    "deployment": "NOT_RUN",
+    "geometryRendering": "NOT_RUN",
+    "formalPreviewFailure": "PRESERVED_NOT_FIXED",
+    "formalUploadedSourceByteBinding": "NOT_REVALIDATED_BY_THIS_PROBE",
+    "independentQc": {
+      "model": "gpt-6-luna",
+      "reasoningEffort": "xhigh",
+      "verdict": "PASS_NARROW_OFFLINE_EVIDENCE_ONLY",
+      "readback": "Independently rehashed the exact8 original CAD files, manifest/declaration/helper/report and14 output PNGs; names/sizes/SHA match, all640x480 decode/CRC PASS and PID44172 absent. No product edit or rerun.",
+      "limits": "Diagnostic inflation cap is stricter and malformed-marker rescan differs; sheet indices are not mapped to sheet names. No compiled/public adapter, Cloud Run or formal UI acceptance. Root visually viewed only3 images."
+    },
+    "visualInspection": {
+      "viewedFiles": [
+        "D-0007-MA1.SLDDRW.Images_Sheet_0.png",
+        "D-0007-MA1.SLDDRW.Images_Sheet_1.png",
+        "D-0007-MA1.SLDPRT.PreviewPNG.png"
+      ],
+      "result": "Real saved drawings/part image visible; low-resolution title block and small text. No full readable-dimension or native property acceptance claim."
+    },
+    "processCleanup": {
+      "oneShotExitCode": 0,
+      "pid": 44172,
+      "freshPidPresent": false,
+      "ports": [],
+      "persistentRuntimeStarted": false
+    },
+    "evidence": [
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B39-saved-png-offline\\report.json",
+        "sha256": "abaf77e6003d8517655b2fe2bbfbbb992e61bf2cfbc6f7dc1772401e789b0029"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B39-inspect-saved-png.py",
+        "sha256": "16bb27263309afe04f32183baa05b3b021f4cccde22394fdff4c0a9f9966773b"
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B39-saved-png-offline\\declaration.json",
+        "sha256": "f2582cf95a70636924e81dcdbe2d66599dba457ee19d3b187d31aa1fe96b5e78"
+      }
+    ],
+    "limitations": [
+      "Diagnostic port, not the compiled/public OpenSWX adapter.",
+      "Only known modern-format samples, not all CAD files.",
+      "Saved preview can be low resolution, missing or stale; does not render geometry.",
+      "Cloud Run adapter/result/UI currently omit saved images."
+    ],
+    "next": "Use the actual saved-image sample to resolve thumbnail versus full-readable-drawing target; product/worker contract and compiled Linux validation are still needed before integration. Local work only during another owner release freeze."
+  },
+  "mountedListPollingDiagnostics": {
+    "schemaVersion": "aipdm.dev122.b40.mounted-list-diagnostics.v1",
+    "status": "PARTIAL_OBSERVATION_BROWSER_VISIBILITY_FAIL_NOT_ACCEPTED",
+    "sourceBase": "f3677d22707f297eecbbd70c1de012d65b047f61",
+    "scope": "QA-only opt-in selector reuses one existing native UI fixture case; no new original QA-plan denominator. No product, DB migration, worker or release changes.",
+    "candidateFiles": [
+      {
+        "path": "scripts/qc-dev-122-native-browser.mjs",
+        "sha256": "b8966fd1e7d55b46d31adfc7678dd94e61625ad3551f5144dd99f0f4a611896b"
+      },
+      {
+        "path": "scripts/qc-dev-122-native-postgres.mjs",
+        "sha256": "df99ccea4b2983529389bd0fd0f217e7d4676a2289ecf1099ca099f96354f276"
+      },
+      {
+        "path": "src/lib/dev122-native-business.postgres-contract.test.ts",
+        "sha256": "e72a175154d804812342e721d93bc295912a5329265d575135dee2cfb5e4e74f"
+      }
+    ],
+    "attempts": [
+      {
+        "attempt": 1,
+        "runId": "206bf6a844cb072c",
+        "status": "FAIL",
+        "nativeFixtureCases": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 150
+        },
+        "browserCompletedCases": 0,
+        "firstFailure": "spawn UNKNOWN Failed to launch browser.",
+        "sourceUnchanged": true,
+        "cleanup": {
+          "childrenStopped": true,
+          "pgStopped": true,
+          "portsReleased": true,
+          "tempRemoved": true
+        },
+        "browserCleanup": true,
+        "observedRequestStarts": 0,
+        "observedBackgroundStarts": 0,
+        "observedMaxInFlight": null,
+        "visibilityReadbacks": [],
+        "evidence": [
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\206bf6a844cb072c\\manifest.json",
+            "sha256": "ec7986576ef0409cc04829c721ff40b03294dcef6ee42f4b3eea2ed744e1ee71"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\206bf6a844cb072c\\receipt.json",
+            "sha256": "263d9842810ec5b605454f2a33dd26877b978b55e7731d1cb054fb4afbdeab21"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\206bf6a844cb072c\\vitest.json",
+            "sha256": "5cb66df95516361d30ce6fd111ade0c2082bafd58529a44aea03109d88ed21bb"
+          },
+          {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B40-preview-polling-r1-182459805eca4e0c8d3f7302f8e70dc6.launcher.json",
+            "sha256": "bafa33f795ebce9439bf05abb45da73be3145aa8f9bcc0b970a98bd69fd03687"
+          }
+        ]
+      },
+      {
+        "attempt": 2,
+        "runId": "cb95cf72b40195df",
+        "status": "FAIL",
+        "nativeFixtureCases": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 150
+        },
+        "browserCompletedCases": 0,
+        "firstFailure": "PREVIEW_POLLING_TIMEOUT:actual hidden",
+        "sourceUnchanged": true,
+        "cleanup": {
+          "childrenStopped": true,
+          "pgStopped": true,
+          "portsReleased": true,
+          "tempRemoved": true
+        },
+        "browserCleanup": true,
+        "observedRequestStarts": 0,
+        "observedBackgroundStarts": 0,
+        "observedMaxInFlight": null,
+        "visibilityReadbacks": [],
+        "evidence": [
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\cb95cf72b40195df\\manifest.json",
+            "sha256": "2371ea2240ebb467a3aa46c782161e61a3b4cee895a0ee2bd36176a04c2dc57c"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\cb95cf72b40195df\\receipt.json",
+            "sha256": "9dcf01a08bbf451067e47b4f4b1550b1950861b04d41e61f74d90e9483177894"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\cb95cf72b40195df\\vitest.json",
+            "sha256": "4e17e909fae3fb9f1e2befd1a0da69d4907c5fbe20d86448d6f00f921dd611c6"
+          },
+          {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B40-preview-polling-r2-5e9a29fe47814859bcd71f74519fbe76.launcher.json",
+            "sha256": "b9944992875e97c4219cfd5f2e6d64d2bfaa97927a694c2e08b5eb7055a0cfa1"
+          }
+        ]
+      },
+      {
+        "attempt": 3,
+        "runId": "4246d3b2ee1c9706",
+        "status": "FAIL",
+        "nativeFixtureCases": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 150
+        },
+        "browserCompletedCases": 0,
+        "firstFailure": "PREVIEW_POLLING_TIMEOUT:actual hidden",
+        "sourceUnchanged": true,
+        "cleanup": {
+          "childrenStopped": true,
+          "pgStopped": true,
+          "portsReleased": true,
+          "tempRemoved": true
+        },
+        "browserCleanup": true,
+        "observedRequestStarts": 7,
+        "observedBackgroundStarts": 5,
+        "observedMaxInFlight": 1,
+        "visibilityReadbacks": [],
+        "evidence": [
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\4246d3b2ee1c9706\\manifest.json",
+            "sha256": "8e0d4ab8385715a7d35b3167579d8bbaeb9b725a310e81d16b595e52456c1d72"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\4246d3b2ee1c9706\\receipt.json",
+            "sha256": "bcc5b87011f9723c96003500bb33efef0ce29197de92a010388cce853c9b7bf6"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\4246d3b2ee1c9706\\vitest.json",
+            "sha256": "e00808c00012f899f6a2de9908f9a530585b6b5c932e42587c76dfd471de2ddd"
+          },
+          {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B40-preview-polling-r3-640e777fb4024e89a2afe1577f99bb19.launcher.json",
+            "sha256": "de478bd52c2d69732ce761d83e712a8e98fd52b6b69da4763c7e4d54198bb538"
+          }
+        ]
+      },
+      {
+        "attempt": 4,
+        "runId": "e28e025bf4373f59",
+        "status": "FAIL",
+        "nativeFixtureCases": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 150
+        },
+        "browserCompletedCases": 0,
+        "firstFailure": "PREVIEW_POLLING_TIMEOUT:actual hidden",
+        "sourceUnchanged": true,
+        "cleanup": {
+          "childrenStopped": true,
+          "pgStopped": true,
+          "portsReleased": true,
+          "tempRemoved": true
+        },
+        "browserCleanup": true,
+        "observedRequestStarts": 8,
+        "observedBackgroundStarts": 6,
+        "observedMaxInFlight": 1,
+        "visibilityReadbacks": [],
+        "evidence": [
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\e28e025bf4373f59\\manifest.json",
+            "sha256": "bb62396a9d247645453d017e176d3e8dd93358c18d03023b38f34a010258b6de"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\e28e025bf4373f59\\receipt.json",
+            "sha256": "cde0ee8d6da6f579f4c7367b8baa21d6eca0a9f8755807225211a34458f07370"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\e28e025bf4373f59\\vitest.json",
+            "sha256": "852407cfc6114dce8a7c61667c8b22947ead2094ffb5e31ec37ad24397f54a2d"
+          },
+          {
+            "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B40-preview-polling-r4-cff8a9d609b44f09bc57c1b2a1bbab2b.launcher.json",
+            "sha256": "ba9c2af2580c5b0941dcb289b29ffb259a8d6294819430596b94414aafd46c4e"
+          }
+        ]
+      }
+    ],
+    "freshPendingObservation": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "normalUiUpload": true,
+      "inputType": "46-byte protocol text files, not real CAD",
+      "visualResult": "Root viewed real fresh-pending gallery with spinner and no outer overflow; partial observation only, not completed browser case.",
+      "computedAnimationReadback": "Assertions executed before screenshot and later visibility failure; raw computed value was not retained in FAIL receipt.",
+      "picture": {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\e28e025bf4373f59\\1440-fresh-pending-gallery.png",
+        "sha256": "71f04fc9e38e8641ef61677f7c5741eb9b14ab5fabc33d39e3672f2a49146b1b"
+      },
+      "latestAttemptBackgroundStarts": 6,
+      "latestAttemptObservedMaxInFlight": 1
+    },
+    "visibility": {
+      "status": "FAIL_NOT_VERIFIED",
+      "tabSwitch": "NOT_VERIFIED",
+      "windowMinimize": "Provider windowState minimized readback observed; document hidden precondition timed out.",
+      "playwrightDefaultFocus": "Bundled source enables forced focus. Removing it still timed out; unique cause remains UNKNOWN.",
+      "emulationDisclosure": "R4 disabled default focus override on own page; no visibility property stub or synthetic visibilitychange event."
+    },
+    "notRun": [
+      "30-start budget ceiling and quiet period",
+      "hidden/visible resume and same-budget assertion",
+      "reload new-budget assertion",
+      "layout/unmount quiet assertions",
+      "390x844 viewport in this slice",
+      "actual CAD renderer or saved-image product integration"
+    ],
+    "independentQc": {
+      "model": "gpt-6-luna",
+      "reasoning": "xhigh",
+      "status": "REVIEWED_FAIL_WITH_PARTIAL_OBSERVATION",
+      "static": "No P0/P1 or deterministic flow blocker found. Native upload replaces current primary3D source; cleanup/first-failure paths retained.",
+      "terminal": "R1 launch failure; R2-R4 hidden precondition failure. Browser completed cases0; no polling acceptance. Raw computed animation and hidden-state/event readbacks not retained.",
+      "nativeReadback": "R4 one selected fixture case PASS/150 skipped; read-only repeatable-read snapshots165tables. Four table counts +2 match two normal mounted uploads; current drawing_2d/cad_3d bindings and queued attempt0 jobs present.",
+      "requestReadback": "R4 eight matching list GET starts: warmup1, foreground1, background6; observed maximum1. First held response about4063ms. Thirty ceiling/quiet, visibility resume, layout/unmount/reload, tab switching and390 NOT_RUN.",
+      "cleanup": "Four runs and four controller PIDs independently checked absent;12 recorded ports free, four task temp paths absent, eight primary SQLite/sidecar paths absent; sourceUnchangedtrue. Formal/whole NOT_ACCEPTED."
+    },
+    "freshCleanup": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B40-fresh-cleanup-readback.json",
+      "sha256": "95039dd5ada76bdd2e7e43a6f595a09ef9cfbbf5944bed229b8a336006711cf3"
+    },
+    "boundaries": {
+      "productionRequests": false,
+      "productionWriter": false,
+      "mainMerge": false,
+      "newCloudResources": false,
+      "supplier": "DISABLED_DEFERRED",
+      "nativeCadProperties": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+      "wholeDev122": "PARTIAL_NOT_ACCEPTED"
+    },
+    "next": "Stop repeating the same visibility failure. Preserve strict opt-in diagnostic failure. Continue local compiled saved-PNG adapter/worker contract feasibility for the reported formal CAD preview defect; source/cloud release freeze remains in force."
+  }
+}

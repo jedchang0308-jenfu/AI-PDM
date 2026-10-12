@@ -1,0 +1,1256 @@
+{
+  "schemaVersion": "aipdm.dev122.b50.lifecycle-ui-native.v1",
+  "task": "DEV-122",
+  "status": "LOCAL_SELECTED_UI_NATIVE_ASSERTIONS_PASS_QC_OPEN",
+  "executionBaseHead": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+  "changedExecutorBindings": [
+    {
+      "path": "scripts/qc-dev-122-native-browser.mjs",
+      "beforeSha256": "acd51b72bfafde1dd5af59c4b28fca40c7d042ba33b1e447931e5b78b99fa6ae",
+      "afterSha256": "9d5ea7bdaca8d14bf7f02aa4280f2226a0f30b216062ad8fb9138e52e68a9179"
+    },
+    {
+      "path": "src/lib/dev122-native-business.postgres-contract.test.ts",
+      "beforeSha256": "8613617cb49ee7064844a27165eeb229613659797d584ed1d89a0e6e2b23e814",
+      "afterSha256": "5446561dd48dd4102d8ccb41d4c0f6508a9b006cc234e115fd354d1496e80aed"
+    }
+  ],
+  "native": {
+    "task": "DEV-122",
+    "slice": "B50",
+    "status": "CURRENT_NATIVE_LIFECYCLE_ASSERTIONS_PASS_UI_PENDING",
+    "sourceRevision": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+    "actualCasesPassed": 8,
+    "actualCasesFailed": 0,
+    "skippedOtherCases": 144,
+    "rawNativeStatus": "PARTIAL_NOT_ACCEPTED",
+    "rawRunnerExit": 1,
+    "rawLauncherStatus": "CHECKS_FAILED",
+    "rawLauncherExit": 1,
+    "baselineUnmodifiedBeforeSeed": {
+      "passed": true,
+      "foreignKeyCount": 505
+    },
+    "sourceBeforeAfterUnchanged": true,
+    "primaryAbsenceUnchanged": true,
+    "allOwnProcessesAbsent": true,
+    "controllerReleased": true,
+    "allOwnTempRemoved": true,
+    "portsReleased": [
+      65043,
+      65044
+    ],
+    "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\ac987bcf8aa04efa\\manifest.json",
+    "nativeEvidenceSha256": "3fe16a850bd5ea8f7ffbace0230ba78166f53e7dd2568e2dd1fdf64d77b6081c",
+    "failedCaseNames": [],
+    "layer": "CURRENT_SIGNED_LOCAL_NATIVE_CONSUMER_WITH_VERSIONED_V7_FIXTURE",
+    "changedExecutorLintExit": 0,
+    "normalUi": "NOT_RUN",
+    "producerIntegration": "NOT_PROVEN",
+    "production": "NOT_RUN",
+    "originalJedIncidentCause": "UNKNOWN",
+    "084": "EXCLUDED",
+    "wholeDev": "NOT_ACCEPTED"
+  },
+  "mountedUi": {
+    "task": "DEV-122",
+    "slice": "B50",
+    "status": "CURRENT_MOUNTED_LIFECYCLE_ASSERTIONS_PASS_PARTIAL",
+    "sourceRevision": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+    "actualCasesPassed": 1,
+    "actualCasesFailed": 0,
+    "skippedOtherCases": 151,
+    "rawNativeStatus": "PARTIAL_NOT_ACCEPTED",
+    "rawRunnerExit": 1,
+    "rawLauncherStatus": "CHECKS_FAILED",
+    "rawLauncherExit": 1,
+    "baselineUnmodifiedBeforeSeed": {
+      "passed": true,
+      "foreignKeyCount": 505
+    },
+    "sourceBeforeAfterUnchanged": true,
+    "primaryAbsenceUnchanged": true,
+    "allOwnProcessesAbsent": true,
+    "controllerReleased": true,
+    "allOwnTempRemoved": true,
+    "portsReleased": [
+      53953,
+      53954,
+      65532
+    ],
+    "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\aae14230c2813b5c\\manifest.json",
+    "nativeEvidenceSha256": "dea2fc197d0be3472ad22afdb2ef212ffb4699eafb971ba99ad5e188ebf52b9a",
+    "failedCaseNames": [],
+    "layer": "ACTUAL_LOCAL_NEXT_UI_API_NATIVE_PG_WITH_VERSIONED_V7_FIXTURE",
+    "changedExecutorLintExit": "CHANGED_BROWSER_API_ESLINT_ZERO_NATIVE_TEST_R2_UNCHANGED",
+    "normalUi": "PASS_SELECTED_TWO_VIEWPORTS",
+    "browserStatus": "PARTIAL_NOT_ACCEPTED",
+    "actualUiCases": 2,
+    "actualUiWidths": [
+      1440,
+      390
+    ],
+    "browserEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\aae14230c2813b5c\\receipt.json",
+    "browserEvidenceSha256": "8cbcf54cb25de047997b849471c7dbb5552fcfc278c593cb1fe61376199639b4",
+    "firstFailure": null,
+    "reviewNavigationFailure": null,
+    "progressCount": 140,
+    "capacityReleased": true,
+    "producerIntegration": "NOT_PROVEN",
+    "production": "NOT_RUN",
+    "originalJedIncidentCause": "UNKNOWN",
+    "084": "EXCLUDED",
+    "wholeDev": "NOT_ACCEPTED"
+  },
+  "selectedUiProof": [
+    {
+      "width": 1440,
+      "status": "PASS",
+      "firstReleasePart": {
+        "partId": "6827a768-ffed-44ad-bf4f-5f45ebf135de",
+        "initialPartRequestId": "8e27592e-f2be-45da-adb5-45c2af470e01",
+        "anchorRequestId": "c6aa2257-d9ff-4b01-9ff8-9e8b7aca1231",
+        "ordinaryDraft": {
+          "id": "6827a768-ffed-44ad-bf4f-5f45ebf135de",
+          "item_kind": "purchased",
+          "part_name": "DEV122 UI1440 Part",
+          "company_id": "company-jenfu",
+          "created_at": "2026-10-12T11:49:59.976+08:00",
+          "created_by": "dev122-profile-owner",
+          "updated_at": "2026-10-12T11:49:59.976+08:00",
+          "part_number": "A0001-P01",
+          "sequence_no": 1,
+          "series_code": null,
+          "is_universal": 0,
+          "part_root_id": "746f58d1-8a23-44fe-a24a-ed38ab25be50",
+          "record_status": "Draft",
+          "sequence_code": "01",
+          "structure_type": "single_part",
+          "rule_version_id": "numbering-rule-v3-alpha-root",
+          "universal_reason": null,
+          "custom_specification": null
+        },
+        "finalPart": {
+          "id": "6827a768-ffed-44ad-bf4f-5f45ebf135de",
+          "item_kind": "purchased",
+          "part_name": "DEV122 ordinary UI 1440 returned",
+          "company_id": "company-jenfu",
+          "created_at": "2026-10-12T11:49:59.976+08:00",
+          "created_by": "dev122-profile-owner",
+          "updated_at": "2026-10-12T11:52:55.332252+08:00",
+          "part_number": "A0001-P01",
+          "sequence_no": 1,
+          "series_code": null,
+          "is_universal": 0,
+          "part_root_id": "746f58d1-8a23-44fe-a24a-ed38ab25be50",
+          "record_status": "Released",
+          "sequence_code": "01",
+          "structure_type": "single_part",
+          "rule_version_id": "numbering-rule-v3-alpha-root",
+          "universal_reason": null,
+          "custom_specification": null
+        },
+        "approvedSnapshots": [
+          {
+            "id": "d1bfd5d7-6c7c-497a-b164-a3cb1a42f8e6",
+            "part_id": "6827a768-ffed-44ad-bf4f-5f45ebf135de",
+            "company_id": "company-jenfu",
+            "content_hash": "a9918bc0b7320034364bbc5cde7310d67b3d08a40cc3b7337088cf08ef470cb1",
+            "after_payload": {
+              "itemKind": "purchased",
+              "partName": "DEV122 ordinary UI 1440 returned",
+              "colorCode": null,
+              "colorLabel": null,
+              "isUniversal": false,
+              "variantNote": null,
+              "materialCode": null,
+              "materialLabel": null,
+              "surfaceTreatment": null,
+              "customSpecification": null
+            },
+            "formalized_at": "2026-10-12T11:52:55.332252+08:00",
+            "before_payload": {
+              "itemKind": "purchased",
+              "partName": "DEV122 UI1440 Part",
+              "colorCode": null,
+              "colorLabel": null,
+              "isUniversal": false,
+              "variantNote": null,
+              "materialCode": null,
+              "materialLabel": null,
+              "surfaceTreatment": null,
+              "customSpecification": null
+            },
+            "approval_context": {
+              "version": 1,
+              "lifecycle": {
+                "intent": "first_release",
+                "masterId": "6827a768-ffed-44ad-bf4f-5f45ebf135de",
+                "masterHash": "9b32e8acb070009d196c61b506a6cca3503daf771a62e2615046b5d04b424a62",
+                "masterStatus": "Draft",
+                "formalRowVersion": 1
+              },
+              "requestId": "c6aa2257-d9ff-4b01-9ff8-9e8b7aca1231",
+              "packageHash": "9863ddfba3e71b8b9c7e15d93601b3861ab7207d392a54785e02b10ef407894b",
+              "reviewCycleId": "f98a8bfb-5190-4185-8b04-ab9096b01adc",
+              "recordStatusAfter": "Released",
+              "reviewerProfileId": "dev122-profile-reviewer",
+              "reviewerPrincipalId": "dev122-principal-reviewer",
+              "formalRowVersionAfter": 2
+            }
+          }
+        ],
+        "terminal": [
+          {
+            "company_id": "company-jenfu",
+            "decided_at": "2026-10-12T11:52:55.332252+08:00",
+            "request_id": "c6aa2257-d9ff-4b01-9ff8-9e8b7aca1231"
+          }
+        ],
+        "ownerReload": true,
+        "firstReleaseControlsHidden": true
+      },
+      "drawingMinor": {
+        "requestId": "517ba1b5-df89-479a-8bcd-8ddb82928ba3",
+        "master": {
+          "id": "457daba1-af47-4030-8ad3-4b725ea2ccac",
+          "company_id": "company-jenfu",
+          "created_at": "2026-10-12T11:50:00.091+08:00",
+          "created_by": "dev122-profile-owner",
+          "updated_at": "2026-10-12T11:50:00.091+08:00",
+          "sequence_no": 1,
+          "part_root_id": "2d0ad985-f5db-4f29-9512-b6787fe1c7e6",
+          "purpose_code": "M",
+          "record_status": "Draft",
+          "drawing_number": "A0002-M01",
+          "rule_version_id": "numbering-rule-v3-alpha-root",
+          "purpose_description": "Manufacturing drawing",
+          "is_primary_manufacturing": 1
+        },
+        "production": []
+      },
+      "drawingMajor": {
+        "workId": "1b7d608c-6bb5-47e2-9783-1e411e45dfca",
+        "requestId": "edc986ed-0be5-4f03-a732-69b75b208e55",
+        "master": {
+          "id": "457daba1-af47-4030-8ad3-4b725ea2ccac",
+          "company_id": "company-jenfu",
+          "created_at": "2026-10-12T11:50:00.091+08:00",
+          "created_by": "dev122-profile-owner",
+          "updated_at": "2026-10-12T11:52:11.416362+08:00",
+          "sequence_no": 1,
+          "part_root_id": "2d0ad985-f5db-4f29-9512-b6787fe1c7e6",
+          "purpose_code": "M",
+          "record_status": "Released",
+          "drawing_number": "A0002-M01",
+          "rule_version_id": "numbering-rule-v3-alpha-root",
+          "purpose_description": "Manufacturing drawing",
+          "is_primary_manufacturing": 1
+        },
+        "production": [
+          {
+            "id": "d7933f0b-7eeb-4929-bae2-4c01ecd76951",
+            "work_id": null,
+            "handling": "none",
+            "branch_id": null,
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:52:11.416362+08:00",
+            "data_layer": "drawing_production",
+            "updated_at": "2026-10-12T11:52:11.416362+08:00",
+            "entity_type": "drawing",
+            "revision_id": "ea7ed1ad-6258-4cab-92df-aed74cec1623",
+            "row_version": 1,
+            "blocker_reason": null,
+            "canonical_entity_id": "drawing-formal-457daba1-af47-4030-8ad3-4b725ea2ccac"
+          }
+        ]
+      },
+      "releasedRounds": [
+        {
+          "variant": "Released-minor",
+          "workId": "a3017d64-be90-4583-95df-f9eb486c7d20",
+          "returnedId": "b5ba47dd-d073-4ce7-b3fe-a84172bf1ee5",
+          "freshId": "ca8e590d-e4d1-43f1-959e-e0a74fd784b6",
+          "masterBefore": {
+            "id": "457daba1-af47-4030-8ad3-4b725ea2ccac",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:50:00.091+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T11:52:11.416362+08:00",
+            "sequence_no": 1,
+            "part_root_id": "2d0ad985-f5db-4f29-9512-b6787fe1c7e6",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0002-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "masterAfter": {
+            "id": "457daba1-af47-4030-8ad3-4b725ea2ccac",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:50:00.091+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T11:52:11.416362+08:00",
+            "sequence_no": 1,
+            "part_root_id": "2d0ad985-f5db-4f29-9512-b6787fe1c7e6",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0002-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "productionBeforeCreation": [
+            {
+              "id": "d7933f0b-7eeb-4929-bae2-4c01ecd76951",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:52:11.416362+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:52:11.416362+08:00",
+              "entity_type": "drawing",
+              "revision_id": "ea7ed1ad-6258-4cab-92df-aed74cec1623",
+              "row_version": 1,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-457daba1-af47-4030-8ad3-4b725ea2ccac"
+            }
+          ],
+          "productionBeforeReview": [
+            {
+              "id": "d7933f0b-7eeb-4929-bae2-4c01ecd76951",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:52:11.416362+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:52:14.519974+08:00",
+              "entity_type": "drawing",
+              "revision_id": "ea7ed1ad-6258-4cab-92df-aed74cec1623",
+              "row_version": 2,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-457daba1-af47-4030-8ad3-4b725ea2ccac"
+            }
+          ],
+          "productionAfter": [
+            {
+              "id": "d7933f0b-7eeb-4929-bae2-4c01ecd76951",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:52:11.416362+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:52:14.519974+08:00",
+              "entity_type": "drawing",
+              "revision_id": "ea7ed1ad-6258-4cab-92df-aed74cec1623",
+              "row_version": 2,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-457daba1-af47-4030-8ad3-4b725ea2ccac"
+            }
+          ]
+        },
+        {
+          "variant": "Released-subsequent-major",
+          "workId": "f97729c3-353a-40ec-8ee1-36627df51912",
+          "returnedId": "f0bb15cb-5c61-436e-8057-560db435b1af",
+          "freshId": "108bc97d-a939-41fe-ac61-ab9cd943742f",
+          "masterBefore": {
+            "id": "457daba1-af47-4030-8ad3-4b725ea2ccac",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:50:00.091+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T11:52:11.416362+08:00",
+            "sequence_no": 1,
+            "part_root_id": "2d0ad985-f5db-4f29-9512-b6787fe1c7e6",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0002-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "masterAfter": {
+            "id": "457daba1-af47-4030-8ad3-4b725ea2ccac",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:50:00.091+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T11:52:48.528068+08:00",
+            "sequence_no": 1,
+            "part_root_id": "2d0ad985-f5db-4f29-9512-b6787fe1c7e6",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0002-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "productionBeforeCreation": [
+            {
+              "id": "d7933f0b-7eeb-4929-bae2-4c01ecd76951",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:52:11.416362+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:52:14.519974+08:00",
+              "entity_type": "drawing",
+              "revision_id": "ea7ed1ad-6258-4cab-92df-aed74cec1623",
+              "row_version": 2,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-457daba1-af47-4030-8ad3-4b725ea2ccac"
+            }
+          ],
+          "productionBeforeReview": [
+            {
+              "id": "d7933f0b-7eeb-4929-bae2-4c01ecd76951",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:52:11.416362+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:52:14.519974+08:00",
+              "entity_type": "drawing",
+              "revision_id": "ea7ed1ad-6258-4cab-92df-aed74cec1623",
+              "row_version": 2,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-457daba1-af47-4030-8ad3-4b725ea2ccac"
+            }
+          ],
+          "productionAfter": [
+            {
+              "id": "d7933f0b-7eeb-4929-bae2-4c01ecd76951",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:52:11.416362+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:52:48.528068+08:00",
+              "entity_type": "drawing",
+              "revision_id": "bdd7cfe0-7192-46c2-a983-d9946524ab3d",
+              "row_version": 3,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-457daba1-af47-4030-8ad3-4b725ea2ccac"
+            }
+          ]
+        }
+      ],
+      "overflowMetrics": [
+        {
+          "name": "immutable-part-8e27592e-f2be-45da-adb5-45c2af470e01",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-415bc181-51db-4855-8bba-6647662d87be",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-517ba1b5-df89-479a-8bcd-8ddb82928ba3",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-9d3f6a10-178c-40e5-b1ff-2ce65483f979",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-edc986ed-0be5-4f03-a732-69b75b208e55",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-b5ba47dd-d073-4ce7-b3fe-a84172bf1ee5",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-ca8e590d-e4d1-43f1-959e-e0a74fd784b6",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-f0bb15cb-5c61-436e-8057-560db435b1af",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-108bc97d-a939-41fe-ac61-ab9cd943742f",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "immutable-part-c6aa2257-d9ff-4b01-9ff8-9e8b7aca1231",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": null
+        },
+        {
+          "name": "first-release-Part-and-paired-Drawing-completed",
+          "viewport": 1440,
+          "documentWidth": 1440,
+          "bodyWidth": 1440,
+          "matrix": {
+            "clientWidth": 1122,
+            "scrollWidth": 1122
+          }
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "status": "PASS",
+      "firstReleasePart": {
+        "partId": "2c722284-3b05-490d-8f69-7a229b602034",
+        "initialPartRequestId": "ac24100a-5017-46c8-a07a-12deaca697aa",
+        "anchorRequestId": "87531ff2-13db-4357-9164-8d30e7e152d8",
+        "ordinaryDraft": {
+          "id": "2c722284-3b05-490d-8f69-7a229b602034",
+          "item_kind": "purchased",
+          "part_name": "DEV122 UI390 Part",
+          "company_id": "company-jenfu",
+          "created_at": "2026-10-12T11:50:00.38+08:00",
+          "created_by": "dev122-profile-owner",
+          "updated_at": "2026-10-12T11:50:00.38+08:00",
+          "part_number": "A0003-P01",
+          "sequence_no": 1,
+          "series_code": null,
+          "is_universal": 0,
+          "part_root_id": "223146b9-ba00-4487-98d1-f4d3594650a4",
+          "record_status": "Draft",
+          "sequence_code": "01",
+          "structure_type": "single_part",
+          "rule_version_id": "numbering-rule-v3-alpha-root",
+          "universal_reason": null,
+          "custom_specification": null
+        },
+        "finalPart": {
+          "id": "2c722284-3b05-490d-8f69-7a229b602034",
+          "item_kind": "purchased",
+          "part_name": "DEV122 ordinary UI 390 returned",
+          "company_id": "company-jenfu",
+          "created_at": "2026-10-12T11:50:00.38+08:00",
+          "created_by": "dev122-profile-owner",
+          "updated_at": "2026-10-12T11:56:15.372292+08:00",
+          "part_number": "A0003-P01",
+          "sequence_no": 1,
+          "series_code": null,
+          "is_universal": 0,
+          "part_root_id": "223146b9-ba00-4487-98d1-f4d3594650a4",
+          "record_status": "Released",
+          "sequence_code": "01",
+          "structure_type": "single_part",
+          "rule_version_id": "numbering-rule-v3-alpha-root",
+          "universal_reason": null,
+          "custom_specification": null
+        },
+        "approvedSnapshots": [
+          {
+            "id": "05250b3d-79e3-4680-b2c7-e92ddf487bc2",
+            "part_id": "2c722284-3b05-490d-8f69-7a229b602034",
+            "company_id": "company-jenfu",
+            "content_hash": "e3ffb4ec4c2bcee2de1646087fa7cfa1f183b27e6490759ccedb01f32532e6b5",
+            "after_payload": {
+              "itemKind": "purchased",
+              "partName": "DEV122 ordinary UI 390 returned",
+              "colorCode": null,
+              "colorLabel": null,
+              "isUniversal": false,
+              "variantNote": null,
+              "materialCode": null,
+              "materialLabel": null,
+              "surfaceTreatment": null,
+              "customSpecification": null
+            },
+            "formalized_at": "2026-10-12T11:56:15.372292+08:00",
+            "before_payload": {
+              "itemKind": "purchased",
+              "partName": "DEV122 UI390 Part",
+              "colorCode": null,
+              "colorLabel": null,
+              "isUniversal": false,
+              "variantNote": null,
+              "materialCode": null,
+              "materialLabel": null,
+              "surfaceTreatment": null,
+              "customSpecification": null
+            },
+            "approval_context": {
+              "version": 1,
+              "lifecycle": {
+                "intent": "first_release",
+                "masterId": "2c722284-3b05-490d-8f69-7a229b602034",
+                "masterHash": "7ed5a948a1291f0c85496a0c9599e5eb329b2fbf6220a21843555d460fb32f80",
+                "masterStatus": "Draft",
+                "formalRowVersion": 1
+              },
+              "requestId": "87531ff2-13db-4357-9164-8d30e7e152d8",
+              "packageHash": "e75d0f81992230810cbba7bf228ea23d2c0ea28fc70d89de248d7beac89fdc8e",
+              "reviewCycleId": "30bb49c5-0a0d-4cbb-aaea-43f5e7adaf96",
+              "recordStatusAfter": "Released",
+              "reviewerProfileId": "dev122-profile-reviewer",
+              "reviewerPrincipalId": "dev122-principal-reviewer",
+              "formalRowVersionAfter": 2
+            }
+          }
+        ],
+        "terminal": [
+          {
+            "company_id": "company-jenfu",
+            "decided_at": "2026-10-12T11:56:15.372292+08:00",
+            "request_id": "87531ff2-13db-4357-9164-8d30e7e152d8"
+          }
+        ],
+        "ownerReload": true,
+        "firstReleaseControlsHidden": true
+      },
+      "drawingMinor": {
+        "requestId": "b767b5b8-0fcc-44ff-b9ea-2ad8bd8dc50a",
+        "master": {
+          "id": "36928b90-b174-4b68-a728-87a8be3411de",
+          "company_id": "company-jenfu",
+          "created_at": "2026-10-12T11:50:00.43+08:00",
+          "created_by": "dev122-profile-owner",
+          "updated_at": "2026-10-12T11:50:00.43+08:00",
+          "sequence_no": 1,
+          "part_root_id": "339593f7-856c-406e-a3d0-70f66940aab8",
+          "purpose_code": "M",
+          "record_status": "Draft",
+          "drawing_number": "A0004-M01",
+          "rule_version_id": "numbering-rule-v3-alpha-root",
+          "purpose_description": "Manufacturing drawing",
+          "is_primary_manufacturing": 1
+        },
+        "production": []
+      },
+      "drawingMajor": {
+        "workId": "79e836dd-b4a9-40f3-9733-a9c0e215ba77",
+        "requestId": "f0a98e50-c06d-43d7-b542-369f7cf2697e",
+        "master": {
+          "id": "36928b90-b174-4b68-a728-87a8be3411de",
+          "company_id": "company-jenfu",
+          "created_at": "2026-10-12T11:50:00.43+08:00",
+          "created_by": "dev122-profile-owner",
+          "updated_at": "2026-10-12T11:55:03.865954+08:00",
+          "sequence_no": 1,
+          "part_root_id": "339593f7-856c-406e-a3d0-70f66940aab8",
+          "purpose_code": "M",
+          "record_status": "Released",
+          "drawing_number": "A0004-M01",
+          "rule_version_id": "numbering-rule-v3-alpha-root",
+          "purpose_description": "Manufacturing drawing",
+          "is_primary_manufacturing": 1
+        },
+        "production": [
+          {
+            "id": "fb11ffc2-9c68-4e69-8fc4-52a262182962",
+            "work_id": null,
+            "handling": "none",
+            "branch_id": null,
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:55:03.865954+08:00",
+            "data_layer": "drawing_production",
+            "updated_at": "2026-10-12T11:55:03.865954+08:00",
+            "entity_type": "drawing",
+            "revision_id": "f700197b-b599-46ee-bdc2-3c5b5534e4cc",
+            "row_version": 1,
+            "blocker_reason": null,
+            "canonical_entity_id": "drawing-formal-36928b90-b174-4b68-a728-87a8be3411de"
+          }
+        ]
+      },
+      "releasedRounds": [
+        {
+          "variant": "Released-minor",
+          "workId": "62ad78fa-ac00-4193-81be-095fff65b54c",
+          "returnedId": "6b729b3a-0beb-41fc-888c-fe9c7da0dac0",
+          "freshId": "ebcfabbb-62cc-4e6a-83ff-dddf4ccaf2e6",
+          "masterBefore": {
+            "id": "36928b90-b174-4b68-a728-87a8be3411de",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:50:00.43+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T11:55:03.865954+08:00",
+            "sequence_no": 1,
+            "part_root_id": "339593f7-856c-406e-a3d0-70f66940aab8",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0004-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "masterAfter": {
+            "id": "36928b90-b174-4b68-a728-87a8be3411de",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:50:00.43+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T11:55:03.865954+08:00",
+            "sequence_no": 1,
+            "part_root_id": "339593f7-856c-406e-a3d0-70f66940aab8",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0004-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "productionBeforeCreation": [
+            {
+              "id": "fb11ffc2-9c68-4e69-8fc4-52a262182962",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:55:03.865954+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:55:03.865954+08:00",
+              "entity_type": "drawing",
+              "revision_id": "f700197b-b599-46ee-bdc2-3c5b5534e4cc",
+              "row_version": 1,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-36928b90-b174-4b68-a728-87a8be3411de"
+            }
+          ],
+          "productionBeforeReview": [
+            {
+              "id": "fb11ffc2-9c68-4e69-8fc4-52a262182962",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:55:03.865954+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:55:07.14561+08:00",
+              "entity_type": "drawing",
+              "revision_id": "f700197b-b599-46ee-bdc2-3c5b5534e4cc",
+              "row_version": 2,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-36928b90-b174-4b68-a728-87a8be3411de"
+            }
+          ],
+          "productionAfter": [
+            {
+              "id": "fb11ffc2-9c68-4e69-8fc4-52a262182962",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:55:03.865954+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:55:07.14561+08:00",
+              "entity_type": "drawing",
+              "revision_id": "f700197b-b599-46ee-bdc2-3c5b5534e4cc",
+              "row_version": 2,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-36928b90-b174-4b68-a728-87a8be3411de"
+            }
+          ]
+        },
+        {
+          "variant": "Released-subsequent-major",
+          "workId": "439f1eab-dd9a-4a9b-a592-7cbb5dc8647a",
+          "returnedId": "6f8c5a67-068a-44aa-8192-afbc1d16699b",
+          "freshId": "127321f5-9f8b-4525-881c-00a28413ee77",
+          "masterBefore": {
+            "id": "36928b90-b174-4b68-a728-87a8be3411de",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:50:00.43+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T11:55:03.865954+08:00",
+            "sequence_no": 1,
+            "part_root_id": "339593f7-856c-406e-a3d0-70f66940aab8",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0004-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "masterAfter": {
+            "id": "36928b90-b174-4b68-a728-87a8be3411de",
+            "company_id": "company-jenfu",
+            "created_at": "2026-10-12T11:50:00.43+08:00",
+            "created_by": "dev122-profile-owner",
+            "updated_at": "2026-10-12T11:56:06.42991+08:00",
+            "sequence_no": 1,
+            "part_root_id": "339593f7-856c-406e-a3d0-70f66940aab8",
+            "purpose_code": "M",
+            "record_status": "Released",
+            "drawing_number": "A0004-M01",
+            "rule_version_id": "numbering-rule-v3-alpha-root",
+            "purpose_description": "Manufacturing drawing",
+            "is_primary_manufacturing": 1
+          },
+          "productionBeforeCreation": [
+            {
+              "id": "fb11ffc2-9c68-4e69-8fc4-52a262182962",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:55:03.865954+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:55:07.14561+08:00",
+              "entity_type": "drawing",
+              "revision_id": "f700197b-b599-46ee-bdc2-3c5b5534e4cc",
+              "row_version": 2,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-36928b90-b174-4b68-a728-87a8be3411de"
+            }
+          ],
+          "productionBeforeReview": [
+            {
+              "id": "fb11ffc2-9c68-4e69-8fc4-52a262182962",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:55:03.865954+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:55:07.14561+08:00",
+              "entity_type": "drawing",
+              "revision_id": "f700197b-b599-46ee-bdc2-3c5b5534e4cc",
+              "row_version": 2,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-36928b90-b174-4b68-a728-87a8be3411de"
+            }
+          ],
+          "productionAfter": [
+            {
+              "id": "fb11ffc2-9c68-4e69-8fc4-52a262182962",
+              "work_id": null,
+              "handling": "none",
+              "branch_id": null,
+              "company_id": "company-jenfu",
+              "created_at": "2026-10-12T11:55:03.865954+08:00",
+              "data_layer": "drawing_production",
+              "updated_at": "2026-10-12T11:56:06.42991+08:00",
+              "entity_type": "drawing",
+              "revision_id": "fe1c74ac-3d0f-405b-b495-5130717f14d1",
+              "row_version": 3,
+              "blocker_reason": null,
+              "canonical_entity_id": "drawing-formal-36928b90-b174-4b68-a728-87a8be3411de"
+            }
+          ]
+        }
+      ],
+      "overflowMetrics": [
+        {
+          "name": "immutable-part-ac24100a-5017-46c8-a07a-12deaca697aa",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-00b4bc0e-84a9-4000-b63f-b4df94abbe67",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-b767b5b8-0fcc-44ff-b9ea-2ad8bd8dc50a",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-c85e713e-8360-4394-96b8-81f510c72911",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-f0a98e50-c06d-43d7-b542-369f7cf2697e",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-6b729b3a-0beb-41fc-888c-fe9c7da0dac0",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-ebcfabbb-62cc-4e6a-83ff-dddf4ccaf2e6",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-6f8c5a67-068a-44aa-8192-afbc1d16699b",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-drawing-127321f5-9f8b-4525-881c-00a28413ee77",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "immutable-part-87531ff2-13db-4357-9164-8d30e7e152d8",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": null
+        },
+        {
+          "name": "first-release-Part-and-paired-Drawing-completed",
+          "viewport": 390,
+          "documentWidth": 390,
+          "bodyWidth": 390,
+          "matrix": {
+            "clientWidth": 336,
+            "scrollWidth": 381
+          }
+        }
+      ]
+    }
+  ],
+  "independentQc": {
+    "task": "DEV-122",
+    "slice": "B50",
+    "reviewer": "b42_final_viewer_qc / gpt-6-luna xhigh",
+    "method": "READ_ONLY_CURRENT_SOURCE_AND_ACTUAL_TERMINAL_EVIDENCE",
+    "recordedAt": "2026-10-12T04:10:44.555Z",
+    "testsRerun": false,
+    "newSourceAndEvidence": {
+      "P0": 0,
+      "P1": 0
+    },
+    "openReviewShortcutIncident": {
+      "status": "OPEN_CAUSE_UNKNOWN",
+      "P0": 0,
+      "P1": 1,
+      "rawStatus": "OPEN_NOT_REPRODUCED_WITH_DIAGNOSTIC_REPLAY"
+    },
+    "overallLocalAcceptance": "NOT_ACCEPTED",
+    "reviewerRawCompletedReport": {
+      "task": "DEV-122 B50 R2 final read-only QC",
+      "runId": "aae14230c2813b5c",
+      "sourceRevision": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+      "qc": {
+        "newR2SourceEvidenceP0": 0,
+        "newR2SourceEvidenceP1": 0,
+        "carriedOpenP0": 0,
+        "carriedOpenP1": 1,
+        "overallLocalAcceptance": "NOT_ACCEPTED"
+      },
+      "evidence": {
+        "summary": {
+          "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-lifecycle-ui-r2-summary.json",
+          "sha256": "e14dc6fc6a3b2200ec501d4309b757c330ec47071a923ca29fbeb9302688efc2",
+          "status": "CURRENT_MOUNTED_LIFECYCLE_ASSERTIONS_PASS_PARTIAL"
+        },
+        "nativeManifest": {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\aae14230c2813b5c\\manifest.json",
+          "sha256": "dea2fc197d0be3472ad22afdb2ef212ffb4699eafb971ba99ad5e188ebf52b9a",
+          "status": "PARTIAL_NOT_ACCEPTED"
+        },
+        "browserReceipt": {
+          "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\aae14230c2813b5c\\receipt.json",
+          "sha256": "8cbcf54cb25de047997b849471c7dbb5552fcfc278c593cb1fe61376199639b4",
+          "status": "PARTIAL_NOT_ACCEPTED"
+        },
+        "currentBrowserExecutorSha256": "9d5ea7bdaca8d14bf7f02aa4280f2226a0f30b216062ad8fb9138e52e68a9179",
+        "controlledSourceCapture": {
+          "beforeHash": "8461fafefaade0c98ea9fc89979a6ead0bd9e1884ea20eed1043aa5f2eb69bc0",
+          "afterHash": "8461fafefaade0c98ea9fc89979a6ead0bd9e1884ea20eed1043aa5f2eb69bc0",
+          "sourceUnchanged": true,
+          "currentExecutorMatchesBinding": true,
+          "currentProductSourceBindingsMatch": true
+        }
+      },
+      "r2Results": {
+        "native": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 151,
+          "rawStatus": "PARTIAL_NOT_ACCEPTED",
+          "runnerExitCode": 1,
+          "launcherStatus": "CHECKS_FAILED",
+          "launcherExitCode": 1
+        },
+        "browser": {
+          "1440x900": {
+            "status": "PASS",
+            "normalNavigation": true,
+            "signedPrincipal": true,
+            "keyboard": true
+          },
+          "390x844": {
+            "status": "PASS",
+            "normalNavigation": true,
+            "signedPrincipal": true,
+            "keyboard": true
+          },
+          "executedCases": 2,
+          "reviewNavigationFailure": null
+        },
+        "verifiedFlows": {
+          "part": "Draft, persisted first-release intent, return, correction and reload, fresh submission, Released record, one approval snapshot and terminal receipt, owner reload, first-release control hidden",
+          "drawing": "Both later Released drawing rounds used a new submission after return and passed approval/readback; Released-minor kept the production pointer, subsequent-major changed it",
+          "viewportOverflow": "No recorded document/body width exceeded its viewport. The mobile Part matrix had an intentional internal scroll area of 336px client width and 381px scroll width; its one-line input value is partly clipped in the screenshot."
+        },
+        "previewLimit": {
+          "terminalPreview409PerViewport": 1,
+          "classification": "exact terminal preview",
+          "previewReadyProven": false,
+          "note": "Drawing review screenshots show a preparing placeholder. This lifecycle run does not establish preview readiness."
+        },
+        "cleanup": {
+          "nativeChildrenStopped": true,
+          "postgresStopped": true,
+          "portsReleased": true,
+          "temporaryFilesRemoved": true,
+          "browserProcessDead": true,
+          "browserPortReleased": true,
+          "controllerReleased": true,
+          "capacityLeaseReleased": true,
+          "allOwnProcessesAbsent": true,
+          "summaryPortsReleased": [
+            53953,
+            53954,
+            65532
+          ],
+          "primaryMutation": false,
+          "primaryAbsenceGuardUnchanged": true
+        },
+        "screenshots": [
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\aae14230c2813b5c\\1440-first-release-Part-and-paired-Drawing-completed.png",
+            "sha256": "8fece78fcf6ff56cc142290c3663e5d8ba7fdf842a0f55e18f56757b852ed464e"
+          },
+          {
+            "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\aae14230c2813b5c\\390-first-release-Part-and-paired-Drawing-completed.png",
+            "sha256": "a48b5d325fbeef9ecc3c01a57ca24e83d27fb6a5a0024eb34c683e09f762bc66a"
+          }
+        ]
+      },
+      "openFinding": {
+        "id": "B50-R1-mounted-lifecycle-navigation",
+        "severity": "P1",
+        "status": "OPEN_NOT_REPRODUCED_WITH_DIAGNOSTIC_REPLAY",
+        "rootCause": "UNKNOWN",
+        "evidence": "R1 timed out waiting for /parts to navigate to /approvals after a visible review-entry click; the expected target GET was not observed. R2 passed with bounded click/history diagnostics, but does not identify the R1 cause or establish a fix."
+      },
+      "releaseAndWholeAcceptanceLimits": {
+        "wholeDev": "NOT_ACCEPTED",
+        "production": "NOT_RUN",
+        "producerIntegration": "NOT_PROVEN",
+        "nativeCadPairing": "NOT_PROVEN",
+        "migration084": "EXCLUDED",
+        "originalJed403Cause": "UNKNOWN",
+        "releaseDecision": "NOT_READY"
+      }
+    }
+  },
+  "scope": "Only existing lifecycle UI executor and existing native major rollback/replay test extended. Product/schema/catalog/grants/release adapter/dependencies/cloud unchanged.",
+  "retainedFailures": {
+    "nativeR1": {
+      "task": "DEV-122",
+      "slice": "B50",
+      "status": "CURRENT_NATIVE_LIFECYCLE_FAILURE_REQUIRES_RD",
+      "sourceRevision": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+      "actualCasesPassed": 7,
+      "actualCasesFailed": 1,
+      "skippedOtherCases": 144,
+      "rawNativeStatus": "FAIL",
+      "rawRunnerExit": 1,
+      "rawLauncherStatus": "CHECKS_FAILED",
+      "rawLauncherExit": 1,
+      "baselineUnmodifiedBeforeSeed": {
+        "passed": true,
+        "foreignKeyCount": 505
+      },
+      "sourceBeforeAfterUnchanged": true,
+      "primaryAbsenceUnchanged": true,
+      "allOwnProcessesAbsent": true,
+      "controllerReleased": true,
+      "allOwnTempRemoved": true,
+      "portsReleased": [
+        52311,
+        52312
+      ],
+      "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\28a19bf8ae2dde8b\\manifest.json",
+      "nativeEvidenceSha256": "50ef4c3c403f4485e870b61a1b861dee778f8f34b8b355971374a9935d15fc66",
+      "failedCaseNames": [
+        "DEV122 D03/D04 native canonical lifecycle keeps a minor master Draft, then atomically releases the exact major master after post-formalize rollback and replay"
+      ],
+      "layer": "CURRENT_SIGNED_LOCAL_NATIVE_CONSUMER_WITH_VERSIONED_V7_FIXTURE",
+      "changedExecutorLintExit": 0,
+      "normalUi": "NOT_RUN",
+      "producerIntegration": "NOT_PROVEN",
+      "production": "NOT_RUN",
+      "originalJedIncidentCause": "UNKNOWN",
+      "084": "EXCLUDED",
+      "wholeDev": "NOT_ACCEPTED"
+    },
+    "uiR1": {
+      "task": "DEV-122",
+      "slice": "B50",
+      "status": "CURRENT_MOUNTED_LIFECYCLE_FAILURE_REQUIRES_RD",
+      "sourceRevision": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+      "actualCasesPassed": 1,
+      "actualCasesFailed": 0,
+      "skippedOtherCases": 151,
+      "rawNativeStatus": "FAIL",
+      "rawRunnerExit": 1,
+      "rawLauncherStatus": "CHECKS_FAILED",
+      "rawLauncherExit": 1,
+      "baselineUnmodifiedBeforeSeed": {
+        "passed": true,
+        "foreignKeyCount": 505
+      },
+      "sourceBeforeAfterUnchanged": true,
+      "primaryAbsenceUnchanged": true,
+      "allOwnProcessesAbsent": true,
+      "controllerReleased": true,
+      "allOwnTempRemoved": true,
+      "portsReleased": [
+        62802,
+        62805,
+        52585
+      ],
+      "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\2c7946de62ba6036\\manifest.json",
+      "nativeEvidenceSha256": "2dbb3abfc11951678e561b2b931247028f51298fd42f9db8b471ba577e86f5f4",
+      "failedCaseNames": [],
+      "layer": "ACTUAL_LOCAL_NEXT_UI_API_NATIVE_PG_WITH_VERSIONED_V7_FIXTURE",
+      "changedExecutorLintExit": "VALID_UNCHANGED_R2_LINT_ZERO",
+      "normalUi": "FAIL_OR_NOT_RUN",
+      "browserStatus": "FAIL",
+      "actualUiCases": 0,
+      "actualUiWidths": [],
+      "browserEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\playwright\\dev122\\2c7946de62ba6036\\receipt.json",
+      "browserEvidenceSha256": "35ff3da3dfe7a1fbc352f54f97d263d579cac258dfcd162d5cd2776f9a22ce3e",
+      "firstFailure": {
+        "message": "page.waitForURL: Timeout 30000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n  navigated to \"http://127.0.0.1:62805/parts?detail=cw_653cec8c-5efc-471b-a16f-75609acb6dc0&query=A0001-P01\"\n============================================================",
+        "stack": "page.waitForURL: Timeout 30000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n  navigated to \"http://127.0.0.1:62805/parts?detail=cw_653cec8c-5efc-471b-a16f-75609acb6dc0&query=A0001-P01\"\n============================================================\n    at reviewerEntry (C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\scripts\\qc-dev-122-native-browser.mjs:700:86)\n    at async file:///C:/Users/user/.codex/worktrees/dev122-internal-functions/AI_PDM/scripts/qc-dev-122-native-browser.mjs:796:58"
+      },
+      "progressCount": 40,
+      "capacityReleased": true,
+      "producerIntegration": "NOT_PROVEN",
+      "production": "NOT_RUN",
+      "originalJedIncidentCause": "UNKNOWN",
+      "084": "EXCLUDED",
+      "wholeDev": "NOT_ACCEPTED"
+    }
+  },
+  "reviewShortcutIncident": {
+    "observed": "One real desktop navigation timeout in UI r1; no target GET in captured requests",
+    "r2": "Selected desktop/mobile lifecycle replay with bounded click/history diagnostics; incident not reproduced",
+    "status": "OPEN_CAUSE_UNKNOWN",
+    "P1": 1,
+    "productChanged": false,
+    "exactCause": "UNKNOWN",
+    "claimedFixed": false
+  },
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "wholeDev": "NOT_ACCEPTED",
+  "requiredCi": {
+    "priorSource6b": 38198072885,
+    "newCheckpointAndExecutor": "PENDING_FRESH_SAME_PR"
+  },
+  "production": "NOT_RUN",
+  "producerIntegration": "NOT_PROVEN",
+  "originalJed403Cause": "UNKNOWN",
+  "standingBoundaries": {
+    "084": "EXCLUDED",
+    "A0061Requeue": "PROHIBITED",
+    "supplier": "DISABLED_DEFERRED",
+    "nativeCad": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "unknownNextRuntime": "UNTOUCHED",
+    "nextEnv": "PRESERVED_EXCLUDED_FROM_COMMIT"
+  },
+  "limits": [
+    "Local v7 catalog/issuer/grants fixtures are not producer or production evidence",
+    "Readiness builder uses actual PG readonly transaction; HTTP readiness-summary GET/auth combination NOT_PROVEN",
+    "Initial Part created through normal signed fixture API, not UI creation",
+    "Final Drawing production pointer proven by native readback; no claim of final Drawing owner reload",
+    "Each viewport retains one explicitly classified exact terminal preview409; review screen preview preparing is not preview-ready verification",
+    "Mobile matrix scrolls internally; all field contents are not simultaneously visible",
+    "Remaining exact variants of original29 groups, UI initial creation/matrix/gallery/attachments need independent source applicability review",
+    "Source FULL35/v7 and program-only FULL34/prefix33 release compatibility still unresolved",
+    "Current Jed user reported workbench shown; CUA readonly binding timed out, no new session permission proof inferred"
+  ],
+  "privateEvidence": {
+    "B50-lifecycle-executor-source.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-lifecycle-executor-source.json",
+      "sha256": "99789fd0936fe9c6ef56713593b6982f4ffae20703da736ab4fce3031909ea61"
+    },
+    "B50-lifecycle-executor-source-r1.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-lifecycle-executor-source-r1.json",
+      "sha256": "877e9502b8b37c30f3ce3de05a11b8ffca7bac171e0778e40bed4d2c8ff92479"
+    },
+    "B50-lifecycle-executor-source-before-ui-diagnostic.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-lifecycle-executor-source-before-ui-diagnostic.json",
+      "sha256": "c0df30df456cef0cc56da573f86abcb399df05d01f9701a1370602735728a51d"
+    },
+    "B50-lifecycle-native-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-lifecycle-native-r1-summary.json",
+      "sha256": "1ca24b3cae51f98a08fd70c627828afa8fcc9c45b3f671af48b74eeec8f9dbe8"
+    },
+    "B50-lifecycle-native-r2-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-lifecycle-native-r2-summary.json",
+      "sha256": "e384af724d8ea049acfe619fc2c172b13d5e1296dc9075e17da53d951439085f"
+    },
+    "B50-lifecycle-ui-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-lifecycle-ui-r1-summary.json",
+      "sha256": "f4bb2c9f0c234a7b7287c6c8b7e9da53316dfb9ac69e151c76305a42a35d38f8"
+    },
+    "B50-lifecycle-ui-r2-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-lifecycle-ui-r2-summary.json",
+      "sha256": "e14dc6fc6a3b2200ec501d4309b757c330ec47071a923ca29fbeb9302688efc2"
+    },
+    "B50-independent-native-and-owner-readback.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-independent-native-and-owner-readback.json",
+      "sha256": "00c137cf925c08c4f20e3fd01d9d3cf65ef531f2917c459856bcd00a6f9cc66c"
+    },
+    "B50-final-local-qc.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B50-final-local-qc.json",
+      "sha256": "ca41707f8d88dca92dceddaa8deb5410649a631e37cb86e46ca962f0189b53d5"
+    }
+  }
+}

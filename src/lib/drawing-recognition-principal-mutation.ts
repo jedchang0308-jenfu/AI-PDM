@@ -10,8 +10,9 @@ import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { principalCommandRouteMatches } from "@/lib/principal-command-route-proof";
 import type { PdmCommandMetadata } from "@/lib/platform-command";
 
-function denied() {
-  return new DrawingRecognitionError("RECOGNITION_PERMISSION_DENIED", "目前帳號沒有此辨識操作權限。", 403);
+function denied(code = "RECOGNITION_PERMISSION_DENIED") {
+  return new DrawingRecognitionError(code, code === "RECOGNITION_PERMISSION_DENIED"
+    ? "目前帳號沒有此辨識操作權限。" : "辨識驗證未通過，請重新載入後再試。", 403);
 }
 
 /** For recognition writes without an outbox command, keep revocation, grant and resource checks in one write snapshot. */
@@ -31,7 +32,7 @@ export async function withPrincipalDrawingRecognitionMutation<T>(input: {
       !principalCommandRouteMatches(route.request, route.routePath, route.method) ||
       principalSessionTokenFromRequest(route.request) !== principalRequest.token ||
       input.metadata.actor.authorizationActor?.sessionSchemaVersion !== 2) {
-    throw denied();
+    throw denied("RECOGNITION_REQUEST_PROOF_INVALID");
   }
   const policy = resolveJenfuRoutePolicy(route.routePath, route.method,
     { expectedPermissionCode: input.permissionCode });
@@ -47,7 +48,7 @@ export async function withPrincipalDrawingRecognitionMutation<T>(input: {
             verified.profile.pdmUserId !== actor.pdmUserId ||
             verified.profile.pdmUserId !== input.actorId ||
             verified.profile.companyId !== actor.organizationId ||
-            verified.profile.companyId !== input.companyId) throw denied();
+            verified.profile.companyId !== input.companyId) throw denied("RECOGNITION_VERIFIED_ACTOR_MISMATCH");
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
           [{ permissionKind: "action", permissionCode: input.permissionCode }]);
         const decision = decisions[0];

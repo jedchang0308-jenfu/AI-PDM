@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import { RETIRED_WORKBENCH_QUERY_KEYS } from "@/lib/pdm-canonical-workbench-contract";
 import { DrawingDetailPreview, type DrawingDetailPreviewCard } from "@/components/drawing-detail-preview";
-import type { DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
+import { isPdfPreviewSlot, type DrawingPreviewSlotModel } from "@/lib/pdm-entity-detail-contract";
 import { useRememberedDrawerWidth } from "@/components/pdm-detail-drawer";
 import { PdmEntityDetailDrawer } from "@/components/pdm-entity-detail-drawer";
 import { useListKeyboardShortcuts } from "@/components/use-list-keyboard-shortcuts";
@@ -304,7 +304,8 @@ function DrawingCanonicalPreview({ previews }: { previews: [DrawingPreviewSlotMo
       href: preview.mediaHref,
       mode: preview.kind === "three-d" ? "image" : "document",
       title: preview.title,
-      alt: preview.fileName ?? preview.title
+      alt: preview.fileName ?? preview.title,
+      fullPdf: isPdfPreviewSlot(preview)
     } : undefined
   }));
   return <DrawingDetailPreview cards={cards} title={null} showHeader={false} dataSection="canonical-drawing-preview" />;
@@ -427,6 +428,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const searchId = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const filterTimerRef = useRef<number | null>(null);
+  const filtersDirtyRef = useRef(false);
   const { drawerWidth, startDrawerResize } = useRememberedDrawerWidth({ storageKey: DRAWER_WIDTH_STORAGE_KEYS[entityType] });
   const [query, setQuery] = useState("");
   const [layer, setLayer] = useState<LayerSelection>({ mode: "all" });
@@ -491,7 +493,23 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const restoredPageRef = useRef<{ cursor: string | null; direction: "after" | "before" } | null>(null);
   const entryCommandKeysRef = useRef(new Map<string, string>());
 
+  const changeFilter = useCallback((current: string | PdmWorkbenchFilterSelection, next: string | PdmWorkbenchFilterSelection, apply: () => void) => {
+    const key = (value: string | PdmWorkbenchFilterSelection) => {
+      if (typeof value === "string") return value;
+      const params = new URLSearchParams();
+      serializePdmWorkbenchFilterSelection(params, "filter", value);
+      return params.toString();
+    };
+    if (key(current) === key(next)) return;
+    restoredPageRef.current = null;
+    filtersDirtyRef.current = true;
+    apply();
+  }, []);
+
   const restoreLocationState = useCallback(() => {
+    if (filterTimerRef.current !== null) window.clearTimeout(filterTimerRef.current);
+    filterTimerRef.current = null;
+    filtersDirtyRef.current = false;
     const url = new URL(window.location.href);
     setQuery(url.searchParams.get("query") ?? "");
     setLayer(parsePdmWorkbenchFilterSelectionForBrowser(url.searchParams, "layer", { allowedValues: config.layerOptions.map((option) => option.value) }));
@@ -748,6 +766,13 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
     listAbortRef.current = null;
   }, [load]);
 
+  const syncFilterLocation = useCallback(() => {
+    if (!filtersDirtyRef.current) return;
+    replaceLocation({ query, layer, handling, purposeFilter: entityType === "drawing" ? purposeFilter : undefined, itemKindFilter: entityType === "part" ? itemKindFilter : undefined, seriesFilter, materialFilter, colorFilter, sortBy, sort, pageIndex: 0 });
+    filtersDirtyRef.current = false;
+    setPageIndex(0);
+  }, [colorFilter, entityType, handling, itemKindFilter, layer, materialFilter, purposeFilter, query, seriesFilter, sort, sortBy]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       filterTimerRef.current = null;
@@ -757,8 +782,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
         void load(restoredPage.cursor, restoredPage.direction);
         return;
       }
-      setPageIndex(0);
-      replaceLocation({ query, layer, handling, purposeFilter: entityType === "drawing" ? purposeFilter : undefined, itemKindFilter: entityType === "part" ? itemKindFilter : undefined, seriesFilter, materialFilter, colorFilter, sortBy, sort, pageIndex: 0 });
+      syncFilterLocation();
       void load();
     }, 250);
     filterTimerRef.current = timer;
@@ -766,7 +790,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       window.clearTimeout(timer);
       if (filterTimerRef.current === timer) filterTimerRef.current = null;
     };
-  }, [colorFilter, entityType, handling, itemKindFilter, layer, load, materialFilter, purposeFilter, query, seriesFilter, sort, sortBy]);
+  }, [colorFilter, entityType, handling, itemKindFilter, layer, load, materialFilter, purposeFilter, query, seriesFilter, sort, sortBy, syncFilterLocation]);
 
   const previewPollState = useMemo<"pending" | "delayed" | null>(() => {
     let hasPending = false;
@@ -857,10 +881,11 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   const selectDetail = useCallback((rowKey: string) => {
     if (rowKey !== selectedRowKey && !confirmDiscardMatrix()) return;
     setMatrixDirty(false);
+    syncFilterLocation();
     const historyMode = detailKey ? "replace" : "push";
     setHistoryRevisionId(null);
     setSelectedRowKey(rowKey); setDetailKey(rowKey); replaceLocation({ detail: rowKey, historyRevision: null, historyMode });
-  }, [confirmDiscardMatrix, detailKey, selectedRowKey]);
+  }, [confirmDiscardMatrix, detailKey, selectedRowKey, syncFilterLocation]);
 
   useEffect(() => { if (detailKey) void openDetail(detailKey); }, [detailKey, openDetail]);
   const changeLayout = useCallback((next: CanonicalWorkbenchLayout) => {
@@ -1028,6 +1053,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       setCancelWorkTarget({ row, action }); setCancelWorkError("");
       return;
     }
+    if (action.key === "edit" || action.key === "review") syncFilterLocation();
     const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     const safeReturnTo = row.entityType === "part" ? normalizePdmPartReturnTo(currentPath) : normalizePdmDrawingReturnTo(currentPath);
     const destinationWithReturn = (href: string, tab?: "data") => {
@@ -1064,7 +1090,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
       if (workId && row.entityType === "drawing") router.push(`/numbering/drawings/${encodeURIComponent(row.entityId)}/workspace?workId=${encodeURIComponent(workId)}`);
       if (!workId && row.entityType === "part") setError("修改工作已建立，料號資料尚未變更；請重新整理清單確認目前狀態。");
     }
-  }, [busy, command, confirmDiscardMatrix, loadObsoleteImpact, router]);
+  }, [busy, command, confirmDiscardMatrix, loadObsoleteImpact, router, syncFilterLocation]);
 
   const cancelWork = useCallback(async () => {
     const target = cancelWorkTarget;
@@ -1121,14 +1147,14 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
   return <div className="canonical-workbench">
     <header className="canonical-workbench-header"><h1>{config.title}</h1><div className="canonical-workbench-header-actions"><CanonicalNumberingCreateAction surface={entityType} /></div></header>
     <section className="canonical-toolbar" aria-label="清單篩選">
-      <label className="canonical-search" htmlFor={searchId}><span>搜尋</span><input id={searchId} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={config.searchPlaceholder} /></label>
-      <PdmWorkbenchMultiSelectFilter label={config.layerFilterLabel} value={layer} options={config.layerOptions} onApply={(value) => setLayer(value)} />
-      <PdmWorkbenchMultiSelectFilter label="處理" value={handling} options={HANDLING_OPTIONS} onApply={(value) => setHandling(value)} />
-      {entityType === "drawing" ? <PdmWorkbenchMultiSelectFilter label="用途" value={purposeFilter} options={DRAWING_PURPOSE_OPTIONS} onApply={(value) => setPurposeFilter(value)} /> : null}
-      {entityType === "part" ? <PdmWorkbenchMultiSelectFilter label="料件類型" value={itemKindFilter} options={CANONICAL_NUMBERING_ITEM_KIND_OPTIONS} onApply={(value) => setItemKindFilter(value)} /> : null}
-      <PdmWorkbenchMultiSelectFilter label="系列" value={seriesFilter} options={seriesFilterOptions} searchable disabled={seriesOptionsLoading || seriesFilterOptions.length === 0} onApply={(value) => setSeriesFilter(value)} />
-      {entityType === "part" ? <label className="canonical-domain-filter"><span>材質</span><input value={materialFilter} onChange={(event) => setMaterialFilter(event.target.value)} placeholder="代碼或名稱" /></label> : null}
-      {entityType === "part" ? <label className="canonical-domain-filter"><span>顏色</span><input value={colorFilter} onChange={(event) => setColorFilter(event.target.value)} placeholder="代碼或名稱" /></label> : null}
+      <label className="canonical-search" htmlFor={searchId}><span>搜尋</span><input id={searchId} value={query} onChange={(event) => changeFilter(query, event.target.value, () => setQuery(event.target.value))} placeholder={config.searchPlaceholder} /></label>
+      <PdmWorkbenchMultiSelectFilter label={config.layerFilterLabel} value={layer} options={config.layerOptions} onApply={(value) => changeFilter(layer, value, () => setLayer(value))} />
+      <PdmWorkbenchMultiSelectFilter label="處理" value={handling} options={HANDLING_OPTIONS} onApply={(value) => changeFilter(handling, value, () => setHandling(value))} />
+      {entityType === "drawing" ? <PdmWorkbenchMultiSelectFilter label="用途" value={purposeFilter} options={DRAWING_PURPOSE_OPTIONS} onApply={(value) => changeFilter(purposeFilter, value, () => setPurposeFilter(value))} /> : null}
+      {entityType === "part" ? <PdmWorkbenchMultiSelectFilter label="料件類型" value={itemKindFilter} options={CANONICAL_NUMBERING_ITEM_KIND_OPTIONS} onApply={(value) => changeFilter(itemKindFilter, value, () => setItemKindFilter(value))} /> : null}
+      <PdmWorkbenchMultiSelectFilter label="系列" value={seriesFilter} options={seriesFilterOptions} searchable disabled={seriesOptionsLoading || seriesFilterOptions.length === 0} onApply={(value) => changeFilter(seriesFilter, value, () => setSeriesFilter(value))} />
+      {entityType === "part" ? <label className="canonical-domain-filter"><span>材質</span><input value={materialFilter} onChange={(event) => changeFilter(materialFilter, event.target.value, () => setMaterialFilter(event.target.value))} placeholder="代碼或名稱" /></label> : null}
+      {entityType === "part" ? <label className="canonical-domain-filter"><span>顏色</span><input value={colorFilter} onChange={(event) => changeFilter(colorFilter, event.target.value, () => setColorFilter(event.target.value))} placeholder="代碼或名稱" /></label> : null}
     </section>
     {error ? <div className="canonical-error" role="alert"><span>{error}</span>{error === "此篩選網址已失效" ? <button type="button" className="secondary-button" onClick={resetRetiredUrl}>清除舊篩選</button> : null}</div> : null}
     <section className="canonical-list" aria-busy={loading}>
@@ -1143,7 +1169,7 @@ export function CanonicalPdmWorkbench({ entityType }: { entityType: "drawing" | 
         onSelect={(row) => setSelectedRowKey(row.rowKey)}
         onOpen={(row) => selectDetail(row.rowKey)}
         onCloseDetail={closeDetail}
-      /> : <div ref={listRef} className="canonical-table-wrap" role="region" aria-label="工作台資料清單" tabIndex={0} aria-keyshortcuts={listKeyboard.shortcuts} onKeyDown={listKeyboard.handleKeyDown}><table><thead><tr><th aria-sort={sortBy === "code" ? sort === "asc" ? "ascending" : "descending" : undefined}><NumberSortHeader label="編號" direction={sort} active={sortBy === "code"} onToggle={() => { if (sortBy === "code") setSort((current) => current === "asc" ? "desc" : "asc"); else { setSortBy("code"); setSort("asc"); } }} /></th><th aria-sort={sortBy === "name" ? sort === "asc" ? "ascending" : "descending" : undefined}><NumberSortHeader label="品名" direction={sort} active={sortBy === "name"} onToggle={() => { if (sortBy === "name") setSort((current) => current === "asc" ? "desc" : "asc"); else { setSortBy("name"); setSort("asc"); } }} /></th><th>版本</th><th>資料狀態</th><th>處理</th></tr></thead><tbody>
+      /> : <div ref={listRef} className="canonical-table-wrap" role="region" aria-label="工作台資料清單" tabIndex={0} aria-keyshortcuts={listKeyboard.shortcuts} onKeyDown={listKeyboard.handleKeyDown}><table><thead><tr><th aria-sort={sortBy === "code" ? sort === "asc" ? "ascending" : "descending" : undefined}><NumberSortHeader label="編號" direction={sort} active={sortBy === "code"} onToggle={() => { if (sortBy === "code") changeFilter(sort, sort === "asc" ? "desc" : "asc", () => setSort(sort === "asc" ? "desc" : "asc")); else changeFilter(sortBy, "code", () => { setSortBy("code"); setSort("asc"); }) }} /></th><th aria-sort={sortBy === "name" ? sort === "asc" ? "ascending" : "descending" : undefined}><NumberSortHeader label="品名" direction={sort} active={sortBy === "name"} onToggle={() => { if (sortBy === "name") changeFilter(sort, sort === "asc" ? "desc" : "asc", () => setSort(sort === "asc" ? "desc" : "asc")); else changeFilter(sortBy, "name", () => { setSortBy("name"); setSort("asc"); }) }} /></th><th>版本</th><th>資料狀態</th><th>處理</th></tr></thead><tbody>
          {groups.map((group) => group.rows.map((row, index) => <tr key={row.rowKey} data-canonical-workbench-row="true" data-row-key={row.rowKey} tabIndex={0} aria-selected={selectedRowKey === row.rowKey} className={`${index === 0 ? "is-group-first" : ""} is-${row.layer}${selectedRowKey === row.rowKey ? " is-selected" : ""}`} onClick={() => selectDetail(row.rowKey)}>
            <td><span className={`canonical-code-cell${layout === "list_3d" ? " has-inline-preview" : ""}`}>{layout === "list_3d" && previewByRowKey[row.rowKey] ? <CanonicalPreviewThumbnail preview={previewByRowKey[row.rowKey]} density="inline" /> : null}<button type="button" className="canonical-row-open" onClick={(event) => { event.stopPropagation(); selectDetail(row.rowKey); }}>{row.code}</button>{index === 0 ? null : <span className="canonical-branch-mark" aria-label="同一編號的另一資料列">↳</span>}</span></td><td title={row.name || undefined}>{row.name || "—"}</td><td><span className={`canonical-layer is-${row.layer}`}>{row.layerLabel}</span></td><td><span className={`canonical-data-state is-${row.dataState}`}>{row.dataStateLabel}</span></td><td><span className={`canonical-handling is-${row.handling}`}>{row.handlingLabel}</span></td>
         </tr>))}

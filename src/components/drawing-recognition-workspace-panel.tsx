@@ -239,6 +239,30 @@ function messageFrom(body: unknown, fallback: string) {
   return record.message || (typeof record.error === "object" ? record.error.message : record.error) || fallback;
 }
 
+type RecognitionAccessFailure = { title: string; description: string };
+const recognitionGrantDenials = new Set([
+  "permission_not_granted", "permission_explicit_deny", "entitlement_assignment_not_found",
+  "entitlement_role_inactive", "RECOGNITION_PERMISSION_DENIED"
+]);
+
+function recognitionAccessFailure(body: unknown, stage: "review" | "run"): RecognitionAccessFailure {
+  const record = body && typeof body === "object" ? body as { code?: unknown; error?: unknown } : null;
+  const error = record?.error;
+  const code = record?.code ?? (typeof error === "string" ? error :
+    error && typeof error === "object" ? (error as { code?: unknown }).code : null);
+  if (code === "RECOGNITION_REQUEST_PROOF_INVALID" || code === "RECOGNITION_VERIFIED_ACTOR_MISMATCH" || code === "platform_actor_company_mismatch") {
+    return { title: "辨識驗證未通過", description: "請重新載入；若持續發生，請聯絡管理員。" };
+  }
+  if (typeof code === "string" && recognitionGrantDenials.has(code)) {
+    return stage === "run"
+      ? { title: "目前無法啟動智慧辨識", description: "請管理員確認此工作區的辨識執行權限。" }
+      : { title: "目前無辨識核對權限", description: "請管理員確認此工作區的辨識核對權限。" };
+  }
+  // Unknown and resource-scope denials do not establish a missing role or expose a session.
+  return { title: stage === "run" ? "目前無法啟動智慧辨識" : "目前無法讀取辨識結果",
+    description: "請重新載入；若持續發生，請聯絡管理員。" };
+}
+
 function sameSourceSet(expected: string[], actual: string[]) {
   const left = [...expected].filter(Boolean).sort();
   const right = [...actual].filter(Boolean).sort();
@@ -415,7 +439,7 @@ export function DrawingRecognitionWorkspacePanel({
   const [loading, setLoading] = useState(!snapshotMode);
   const [busy, setBusy] = useState(false);
   const [cancelArmed, setCancelArmed] = useState(false);
-  const [restricted, setRestricted] = useState(false);
+  const [restricted, setRestricted] = useState<RecognitionAccessFailure | null>(null);
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -538,7 +562,7 @@ export function DrawingRecognitionWorkspacePanel({
         const response = await fetch(`/api/numbering/recognition-sessions/${encodeURIComponent(currentSessionId)}`, { cache: "no-store" });
         const body = await response.json().catch(() => ({}));
         if (response.status === 403) {
-          setRestricted(true);
+          setRestricted(recognitionAccessFailure(body, "review"));
           setSession(null);
           return;
         }
@@ -569,7 +593,7 @@ export function DrawingRecognitionWorkspacePanel({
           currentSessionId = String(rerunBody.session.id);
           continue;
         }
-        setRestricted(false);
+        setRestricted(null);
         setProjection(next);
         return;
       }
@@ -585,6 +609,7 @@ export function DrawingRecognitionWorkspacePanel({
     const controller = new AbortController();
     latestLoadAbortRef.current = controller;
     setLoading(true);
+    setRestricted(null);
     setError("");
     try {
       const response = await fetch(`/api/numbering/drawings/${encodeURIComponent(drawingNumber)}/recognition-session`, {
@@ -592,13 +617,14 @@ export function DrawingRecognitionWorkspacePanel({
         signal: controller.signal
       });
       const body = await response.json().catch(() => ({}));
+      if (controller.signal.aborted) return;
       if (response.status === 403) {
-        setRestricted(true);
+        setRestricted(recognitionAccessFailure(body, "review"));
         setSession(null);
         return;
       }
       if (!response.ok) throw new Error(messageFrom(body, "辨識狀態目前無法載入。"));
-      setRestricted(false);
+      setRestricted(null);
       const enabled = body?.feature?.enabled !== false;
       setFeatureEnabled(enabled);
       if (!enabled) {
@@ -616,8 +642,9 @@ export function DrawingRecognitionWorkspacePanel({
           signal: controller.signal
         });
         const startBody = await startResponse.json().catch(() => ({}));
+        if (controller.signal.aborted) return;
         if (startResponse.status === 403) {
-          setRestricted(true);
+          setRestricted(recognitionAccessFailure(startBody, "run"));
           setSession(null);
           return;
         }
@@ -845,7 +872,7 @@ export function DrawingRecognitionWorkspacePanel({
     <div className={`${styles.panelStyles} dev079-recognition-panel`} data-dev079-recognition={snapshotMode ? "immutable-review" : "embedded"}>
       {snapshotMode && session ? <div className="canonical-note" role="status"><strong>辨識送審快照</strong><span>投影 {snapshotProjection?.projectionHash.slice(0, 12)} · {session.sources.length} 個來源</span></div> : null}
       {!snapshotMode ? <OpenSwxAuxiliaryPanel key={`${sourceContextType}:${sourceContextId}:${JSON.stringify(auxiliarySourceAssetIds)}`} sourceContextType={sourceContextType} sourceContextId={sourceContextId} sourceAssetIds={auxiliarySourceAssetIds} disabled={disabled} /> : null}
-      {restricted ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>目前無辨識核對權限</strong><span>不影響既有版次權限或送審資格。</span></div> : null}
+      {restricted ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>{restricted.title}</strong><span>{restricted.description}</span></div> : null}
       {!restricted && !featureEnabled ? <div className="dev079-recognition-state"><ScanSearch size={18} /><strong>智慧辨識尚未啟用</strong><span>版次與檔案功能仍可正常使用。</span></div> : null}
       {!restricted && featureEnabled && loading ? <div className="dev079-recognition-state"><LoaderCircle className="spin" size={18} />正在讀取辨識結果…</div> : null}
       {error ? <div className="dev079-recognition-alert is-error" role="alert"><AlertTriangle size={15} />{error}<button type="button" className="link-button" onClick={() => void loadLatest()}><RefreshCcw size={14} />重試</button></div> : null}

@@ -11,6 +11,7 @@ import {
 } from "@/components/drawing-recognition-workspace-panel";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 import { pdmFileReadHref, type PdmFileReadContext } from "@/lib/pdm-file-read-contract";
+import { isWorkspacePdf, selectWorkspacePreviewSource } from "@/lib/pdm-canonical-preview";
 import { isReviewPackageRecognitionProjection } from "@/lib/pdm-review-package-contract";
 import type { DrawingRecognitionReviewProjection } from "@/lib/drawing-recognition-review-projection";
 
@@ -73,11 +74,6 @@ function apiMessage(body: unknown, fallback: string) {
 function apiCode(body: unknown) {
   const error = body && typeof body === "object" ? (body as { error?: unknown }).error : null;
   return error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string" ? String((error as { code: string }).code) : null;
-}
-function fileKind(file: FileRow): DrawingDetailPreviewKind | null {
-  if (file.role === "cad_3d") return "three-d";
-  if (file.role === "drawing_2d" || file.role === "pdf" || file.mime_type === "application/pdf") return "two-d";
-  return null;
 }
 function fileRoleLabel(file: FileRow) {
   if (file.role === "cad_3d") return "3D 模型";
@@ -144,6 +140,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
   const [showEvidenceFocus, setShowEvidenceFocus] = useState(false);
   const [evidenceLocationNotice, setEvidenceLocationNotice] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [pdfSelection, setPdfSelection] = useState<{ contextKey: string; bindingId: string } | null>(null);
   const [uploadEntries, setUploadEntries] = useState<UploadEntry[]>([]);
   const loadSequenceRef = useRef(0);
   const loadControllerRef = useRef<AbortController | null>(null);
@@ -437,6 +434,9 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
 
   const files = useMemo(() => data?.files ?? [], [data?.files]);
   const currentFiles = useMemo(() => files.filter((file) => Boolean(file.current_revision_upload)), [files]);
+  const pdfContextKey = JSON.stringify([fileReadContext, data?.entityId, data?.workId, data?.revisionId, reviewRequestId]);
+  const selectedPdfBindingId = pdfSelection?.contextKey === pdfContextKey ? pdfSelection.bindingId : undefined;
+  const twoDSelection = useMemo(() => selectWorkspacePreviewSource(files, "two-d", selectedPdfBindingId), [files, selectedPdfBindingId]);
   const hasCurrent2d = currentFiles.some((file) => file.role === "drawing_2d" && Boolean(file.is_primary));
   const hasCurrent3d = currentFiles.some((file) => file.role === "cad_3d" && Boolean(file.is_primary));
   const filesReady = hasCurrent2d && hasCurrent3d;
@@ -467,8 +467,8 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           overlay: evidenceLocationNotice ? <div className="dev079-evidence-flash" role="status" aria-live="polite"><FileText size={15} aria-hidden="true" />{evidenceLocationNotice}</div> : undefined
         };
       }
-      const file = files.find((candidate) => Boolean(candidate.current_revision_upload) && fileKind(candidate) === kind)
-        ?? files.find((candidate) => fileKind(candidate) === kind);
+      const file = kind === "two-d" ? twoDSelection.file : selectWorkspacePreviewSource(files, kind).file;
+      if (kind === "two-d" && twoDSelection.requiresChoice && !file) return { kind, title: "2D 圖面", fileName: null, state: "missing", stateTitle: "選擇 PDF 圖面", stateText: "本版次有多份 PDF。" };
       const readContextId = fileReadContext === "review_package" ? data?.entityId : data?.workId;
       if (!file || !readContextId || !file.source_file_asset_id) return { kind, title: kind === "three-d" ? "3D 模型" : "2D 圖面", fileName: null, state: "missing", stateTitle: "尚無檔案", stateText: "目前工作資料沒有這類檔案。" };
       const href = pdmFileReadHref({
@@ -490,13 +490,13 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
           mode: kind === "three-d" ? "image" : "document",
           title: file.display_name || file.file_name || "圖面檔案",
           alt: file.display_name || file.file_name || "圖面檔案",
-          renderPdfPage: kind === "two-d" && (file.mime_type === "application/pdf" || /\.pdf$/iu.test(file.display_name || file.file_name || "")),
+          fullPdf: kind === "two-d" && isWorkspacePdf(file),
           openInNewTab: true
         },
         overlay: evidenceLocationNotice ? <div className="dev079-evidence-flash" role="status" aria-live="polite"><FileText size={15} aria-hidden="true" />{evidenceLocationNotice}</div> : undefined
       };
     });
-  }, [data, evidenceLocationNotice, fileReadContext, files, reviewRequestId, selectedEvidence, showEvidenceFocus]);
+  }, [data, evidenceLocationNotice, fileReadContext, files, reviewRequestId, selectedEvidence, showEvidenceFocus, twoDSelection]);
   const sourceAssetIds = useMemo(() => files.map((file) => file.source_file_asset_id).filter((id): id is string => Boolean(id)), [files]);
   const auxiliarySourceAssetIds = useMemo(() => files.filter(file => ["sldprt", "sldasm", "slddrw"].includes((file.file_ext ?? "").toLowerCase().replace(/^\./u, ""))).map(file => file.source_file_asset_id).filter((id): id is string => Boolean(id)), [files]);
   const replacementWarnings = useMemo(() => primaryReplacementWarnings(selectedFiles), [selectedFiles]);
@@ -534,7 +534,7 @@ export function CanonicalDrawingChangeWorkspace({ drawingId, workId, reviewReque
     {error ? <div className="dev079-workspace-notice is-error" role="alert"><span>{error}</span>{reloadAvailable ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void load()}>重新載入資料</button> : null}</div> : null}
     {!canMutateContent ? <div className="dev079-workspace-notice is-readonly" role="status">{stale ? "量產基準已更新，目前工作已凍結；此頁保留原預覽與證據，僅提供可恢復的清理動作。" : "目前為唯讀；欄位、檔案、預覽與智慧辨識位置和編輯者相同。"}</div> : null}
     <div className="dev079-workspace-grid">
-      <section className="dev079-workspace-visual" aria-label="圖面主視覺"><div className="dev079-visual-panel"><DrawingDetailPreview cards={previewCards} title={null} showHeader={false} showTabs={embedded} showTabFileNames showCardHeader={false} showFileName={false} layout="tabs" activeKind={visualKind} onActiveKindChange={selectVisualKind} /></div></section>
+      <section className="dev079-workspace-visual" aria-label="圖面主視覺">{visualKind === "two-d" && !selectedEvidence && twoDSelection.requiresChoice ? <label className="dev122-pdf-source-choice"><span>PDF 圖面</span><select aria-label="本版次 PDF 圖面" value={twoDSelection.file?.id ?? ""} onChange={(event) => setPdfSelection({ contextKey: pdfContextKey, bindingId: event.target.value })}><option value="">請選擇</option>{twoDSelection.pdfs.map((file) => <option key={file.id} value={file.id}>{file.display_name || file.file_name || file.id}</option>)}</select></label> : null}<div className="dev079-visual-panel"><DrawingDetailPreview cards={previewCards} title={null} showHeader={false} showTabs={embedded} showTabFileNames showCardHeader={false} showFileName={false} layout="tabs" activeKind={visualKind} onActiveKindChange={selectVisualKind} /></div></section>
       <aside className="dev079-workspace-detail" aria-label="版次、檔案與智慧辨識"><div className="dev079-task-panel"><div className="dev079-unified-task-content">
         <section className="dev079-unified-task-section dev079-workspace-editor dev079-workspace-file-editor" aria-labelledby="dev079-files-heading">
           <h2 id="dev079-files-heading" className="dev079-unified-task-heading"><Files size={16} aria-hidden="true" /><span>版次與檔案</span><small className="dev079-workspace-revision">版次 {revisionLabel}</small></h2>

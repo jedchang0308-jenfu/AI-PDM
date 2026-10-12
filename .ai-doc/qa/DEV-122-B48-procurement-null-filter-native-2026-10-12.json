@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "aipdm.dev122.b48.procurement-null-filter-native.v1",
+  "task": "DEV-122",
+  "status": "TARGETED_NATIVE_QA_AND_REQUIRED_CI_PASS_PRODUCTION_PENDING",
+  "sourceParent": "66d3ab4dc805ec8e1a11347e332c02b74bf2563b",
+  "testBlobSha256": "8613617cb49ee7064844a27165eeb229613659797d584ed1d89a0e6e2b23e814",
+  "scope": [
+    "src/lib/dev122-native-business.postgres-contract.test.ts"
+  ],
+  "productSourceChanged": false,
+  "wholeDev": "NOT_ACCEPTED",
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "change": "Add a different lawful same-company submitter Released history row so null/no submitter filter includes it, explicit owner filter excludes it, reviewer filter returns the exact singleton and the normal signed GET hydrates it. submitted_by remains NOT NULL.",
+  "actual": {
+    "task": "DEV-122",
+    "slice": "B48",
+    "status": "TARGETED_ASSERTIONS_PASS_WHOLE_NOT_ACCEPTED",
+    "actualCasesPassed": 10,
+    "actualCasesFailed": 0,
+    "skippedOtherCases": 142,
+    "rawNativeStatus": "PARTIAL_NOT_ACCEPTED",
+    "rawRunnerExit": 1,
+    "rawLauncherStatus": "CHECKS_FAILED",
+    "rawLauncherExit": 1,
+    "lintExit": 0,
+    "baselineUnmodifiedBeforeSeed": {
+      "masterCountsZero": true,
+      "rootViolations": 0,
+      "foreignKeyViolations": 0,
+      "foreignKeyCount": 505,
+      "migrationResidue": 0
+    },
+    "hydrationVariants": [
+      {
+        "variant": "missing",
+        "actualListQueries": 1,
+        "actualDetailQueries": 1,
+        "routeStatus": 500,
+        "errorCode": "number_state_internal"
+      },
+      {
+        "variant": "company_drift",
+        "actualListQueries": 1,
+        "actualDetailQueries": 1,
+        "routeStatus": 500,
+        "errorCode": "number_state_internal"
+      }
+    ],
+    "sourceBeforeAfterUnchanged": true,
+    "primaryAbsenceUnchanged": true,
+    "allOwnProcessesAbsent": true,
+    "controllerReleased": true,
+    "allOwnTempRemoved": true,
+    "portsReleased": [
+      56835,
+      56836
+    ],
+    "nativeEvidencePath": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\919e7683c4a0296f\\manifest.json",
+    "nativeEvidenceSha256": "dec8261495cd49339f77b1dc67d921191b1ba9d99a7b6ffe8309dc16ac7f5295",
+    "production": "NOT_RUN",
+    "originalIncidentCause": "UNKNOWN",
+    "wholeDev": "NOT_ACCEPTED"
+  },
+  "independentQc": {
+    "P0": 0,
+    "P1": 0,
+    "method": "READ_ONLY_SOURCE_AND_ACTUAL_EVIDENCE_REVIEW",
+    "rerun": false
+  },
+  "requiredCi": {
+    "priorSource": "66d3ab4dc805ec8e1a11347e332c02b74bf2563b",
+    "priorSourceRunId": 38195819316,
+    "priorSourceBothChecks": "SUCCESS",
+    "newTestAndCheckpointSource": {
+      "head": "6b0f90f92a8f6667db8c1004679fb3e03987447d",
+      "runId": 38198072885,
+      "bothChecks": "SUCCESS",
+      "privateReadbackSha256": "f4e7312fec537765c8ef2da33aa1f7de3312e78d15bff743a6563fa586d3a48a"
+    }
+  },
+  "sourceApplicability": "Actual signed current routes and native PostgreSQL with a local versioned issuer/effective-grant contract fixture. This is local consumer evidence, not producer integration or serving-source proof.",
+  "local085": "Exact committed current v7 fixture prerequisite only; NOT_PRODUCTION",
+  "limits": [
+    "142 unrelated cases skipped, never counted as passed",
+    "raw runner PARTIAL_NOT_ACCEPTED/exit1 and raw launcher CHECKS_FAILED/exit1 remain; only selected assertions and lint pass",
+    "B46 production GET200/count0 does not prove nonempty hydration or original incident cause",
+    "Unknown Next process not used/stopped; next-env only included in before/after drift fingerprint and excluded from commits",
+    "Original Jed 403 remains UNKNOWN; browser did not retrieve original failure response"
+  ],
+  "standingBoundaries": {
+    "084": "EXCLUDED",
+    "A0061Requeue": "PROHIBITED",
+    "nativeCad": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "supplier": "DISABLED_DEFERRED",
+    "productionMutation": false,
+    "workerSchedulerLifecycleMutation": false
+  },
+  "privateEvidence": {
+    "B48-procurement-native-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B48-procurement-native-r1-summary.json",
+      "sha256": "34f5f88a659dd6c1d0d34a615467db3339dce91482953ba31482a8fa2e66f5bd"
+    },
+    "B48-procurement-native-r1-runtime.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B48-procurement-native-r1-runtime.json",
+      "sha256": "6705484b647eecedc2b2cc495b6db5cd4f99550107a06358ae9df485f75531bd"
+    },
+    "B48-null-filter-test-source.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B48-null-filter-test-source.json",
+      "sha256": "b922cfdc2f9e9b7d9558c9cd0a31b12a44fd65b339421b4f3568fa93ec171a03"
+    },
+    "B48-independent-source-evidence-qc.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B48-independent-source-evidence-qc.json",
+      "sha256": "5fe58c3f35f08aed57bdfa685083eea4b0e003c0174b27c81edef4ffc6891cd0"
+    },
+    "B47-source-ci-terminal-readback.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B47-source-ci-terminal-readback.json",
+      "sha256": "f7e6bd137d5691f082cc242655957a192110660c35469fd4d2b791ee25dcc5c3"
+    }
+  }
+}

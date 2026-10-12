@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "aipdm.dev122.b44.self-permission-source-reconciliation.v1",
+  "task": "DEV-122",
+  "status": "ACTUAL_SELF_PERMISSION_READ_SOURCE_PR_PENDING",
+  "wholeDev": "NOT_ACCEPTED",
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "source": {
+    "dev122LocalHead": "494c9f5d1d893cb7f48b1a0cf9b872466218eded",
+    "incomingMain": "093133b656abe087f62e4545af1723e4ff876fce",
+    "merge": "No conflicts; 11 incoming main files preserved. Independent source QC P0=0/P1=0. B41 candidate excluded.",
+    "productChecks": "Reuse exact B42 59/59 + native1/browser2 and B43 38/38 + native1 and isolated builds; B44 changes no product code."
+  },
+  "actualRead": {
+    "observedAt": "2026-10-12T01:31:43.428Z",
+    "method": "Normal authorized password authentication to Portal, normal AI-PDM SSO, self GET, exact existing-drawing review GET, logout",
+    "browserSessionRead": false,
+    "secretsPersisted": false,
+    "identityProof": "Verified Firebase signature/email/issuer/subject; same Portal and AI-PDM principal/employee; company-jenfu/JENFU",
+    "selfGetStatus": 200,
+    "actions": {
+      "numbering.recognition.review": true,
+      "numbering.recognition.run": true,
+      "numbering.workspace.view": true
+    },
+    "existingReviewGet": {
+      "status": 200,
+      "sessionPresent": false,
+      "featureEnabled": true
+    },
+    "conclusion": "Current fresh-session workspace recognition permissions are allowed. Existing-drawing review GET is allowed. This is not a write-snapshot decision or proof of the original UI failure cause.",
+    "inference": "For the checked drawing, the current UI can proceed from successful GET with null session to automatic create POST. No create POST was sent by this diagnostic.",
+    "originalReported403Cause": "UNKNOWN; original browser session and failing POST response not captured",
+    "exactV4AssignmentRows": "NOT_READ"
+  },
+  "privateEvidence": {
+    "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B44-jed-self-permission-r3-readback.json",
+    "sha256": "c9445ff13537d168e2bdda6b4afa183ae9db1409babcb6db808bbd2b16e64fbf",
+    "priorFailures": "r1 misread public session company field; r2 misclassified workspace.view map. Original failures retained, not rewritten. r2 recognition booleans already read true; r3 includes exact review GET."
+  },
+  "cleanup": {
+    "pdmLogout": 200,
+    "pdmSelfAfterLogout": 401,
+    "portalLogout": 200,
+    "portalSelfAfterLogout": 401,
+    "ownProcessesExitedAndReleased": true,
+    "ownTempRemoved": true,
+    "ownIabBlankErrorTabClosed": true,
+    "recognitionCreatePosts": 0,
+    "completedA0061JobRequeues": 0,
+    "providerInfrastructureMutations": 0,
+    "grantMutations": 0
+  },
+  "releaseCoordination": {
+    "asOf": "2026-10-12T01:17:10Z",
+    "githubOwnerLane": "No nonterminal production owner workflow found; R10 terminal success, migration-only terminal failure",
+    "mainCi": {
+      "runId": 38190561133,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "documentFreeze": "Historical agent task note is not a standing human prohibition. Source reconciliation/PR can continue; do not infer provider readiness.",
+    "otherOwnerTask": "Active DEV-121 RD v7 continuation exists; normal metadata preparation completed and artifact reuse stopped. No coordination message was sent from this task.",
+    "productionReleaseGate": "Current main source profile is FULL35 including unapplied085. Existing program-only producer accepts only FULL34/effective33 and has no closed source34 alias entry. No release producer or owner mutation invoked.",
+    "catalogCompatibility": "The fresh self GET observed currently serving behavior, not new v7 source compatibility. Do not deploy v7 against an unverified v6 catalog or relax source guards.",
+    "next": "Open protected source PR with B42/B43 and this readback. Reconcile the active DEV-121 owner/source35 compatibility before main activation or any new production capsule."
+  },
+  "standingBoundaries": {
+    "migration084": "PROHIBITED",
+    "supplier": "DISABLED_DEFERRED",
+    "nativeCad": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "workerSchedulerLifecycle": "NO_MUTATION_BY_THIS_TASK",
+    "fullDevAcceptance": "NOT_ACCEPTED"
+  }
+}

@@ -11,7 +11,7 @@ vi.mock("react", () => ({
   useEffect: (fn: unknown, deps: unknown[]) => runtime.current.effects.push({ fn, deps }),
   useId: () => "dev122-poll-fixture",
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: runtime.current.push }) }));
 vi.mock("@/components/pdm-detail-drawer", () => ({ useRememberedDrawerWidth: () => ({ drawerWidth: 480, startDrawerResize: vi.fn() }) }));
 vi.mock("@/components/use-list-keyboard-shortcuts", () => ({ useListKeyboardShortcuts: () => ({ shortcuts: "", handleKeyDown: vi.fn() }) }));
 // Children are not mounted in this hook-layer test; keep their server imports out.
@@ -38,16 +38,18 @@ function findNode(node: any, test: (props: any) => boolean): any {
   return findNode(node.props?.children, test);
 }
 
-function harness() {
+function harness(locationMode = false) {
   const values: any[] = [], refs: any[] = [], memos: any[] = [], callbacks: any[] = [];
   let s = 0, r = 0, m = 0, c = 0;
-  let poll: any, lifetime: any, tree: any;
+  let poll: any, lifetime: any, filters: any, tree: any;
   const listeners = new Set<() => void>();
   const document = { visibilityState: "visible", addEventListener: (_: string, fn: () => void) => listeners.add(fn), removeEventListener: (_: string, fn: () => void) => listeners.delete(fn) };
   vi.stubGlobal("document", document);
-  vi.stubGlobal("window", { setTimeout, clearTimeout, location: { href: "https://dev122.invalid/numbering/drawings" }, history: { replaceState: vi.fn(), pushState: vi.fn() }, localStorage: { setItem: vi.fn(), getItem: () => null } });
+  const location = new URL("https://dev122.invalid/numbering/drawings");
+  const history = { replaceState: vi.fn((_state, _unused, url) => { location.href = new URL(url, location).href; }), pushState: vi.fn((_state, _unused, url) => { location.href = new URL(url, location).href; }) };
+  vi.stubGlobal("window", { setTimeout, clearTimeout, location, history, localStorage: { setItem: vi.fn(), getItem: () => null } });
   const h: any = {
-    effects: [] as any[], load: null,
+    effects: [] as any[], load: null, push: vi.fn(), history, location,
     state(initial: unknown) { const i = s++; if (!(i in values)) values[i] = initial; return [values[i], (v: any) => { values[i] = typeof v === "function" ? v(values[i]) : v; }]; },
     ref(initial: unknown) { const i = r++; return refs[i] ??= { current: initial }; },
     memo(fn: () => unknown, deps: unknown[]) { const i = m++; if (!same(memos[i]?.deps, deps)) memos[i] = { deps, value: fn() }; return memos[i].value; },
@@ -59,11 +61,20 @@ function harness() {
       const nextPoll = h.effects.find((e: any) => [6, 7, 8].includes(e.deps?.length) && e.deps[2] === h.load);
       if (nextLifetime && (!same(lifetime?.deps, nextLifetime.deps) || replay)) { lifetime?.cleanup?.(); lifetime = { ...nextLifetime, cleanup: nextLifetime.fn() }; }
       if (!same(poll?.deps, nextPoll.deps) || replay) { poll?.cleanup?.(); poll = { ...nextPoll, cleanup: nextPoll.fn() }; }
+      if (locationMode) {
+        const nextFilters = h.effects.find((e: any) => e.deps?.length > 8 && e.deps.includes(h.load));
+        if (!same(filters?.deps, nextFilters.deps) || replay) { filters?.cleanup?.(); filters = { ...nextFilters, cleanup: nextFilters.fn() }; }
+      }
       return tree;
     },
     layout(value: string) { findNode(tree, p => typeof p.onChange === "function" && ["list", "list_3d", "preview"].includes(p.value)).props.onChange(value); h.render(); },
     visibility(value: string) { document.visibilityState = value; for (const fn of [...listeners]) fn(); },
-    unmount() { poll?.cleanup?.(); lifetime?.cleanup?.(); },
+    restore(url?: string) { if (url) location.href = new URL(url, location).href; h.effects[0].fn(); h.render(); },
+    query(value: string) { findNode(tree, p => p.placeholder === "搜尋圖號、品名或料號").props.onChange({ target: { value } }); h.render(); },
+    select() { findNode(tree, p => p.className === "canonical-row-open").props.onClick({ stopPropagation() {} }); h.render(); },
+    action() { return findNode(tree, p => typeof p.onAction === "function").props.onAction(row, { key: "review", href: "/approvals/dev122-owned-request" }); },
+    applyLayer(value: any) { findNode(tree, p => p.label === "版本" && typeof p.onApply === "function").props.onApply(value); h.render(); },
+    unmount() { filters?.cleanup?.(); poll?.cleanup?.(); lifetime?.cleanup?.(); },
     text() { return JSON.stringify(tree, (_, v) => typeof v === "function" ? undefined : v); },
     listeners,
   };
@@ -178,5 +189,78 @@ describe("DEV122 imported workbench list polling lifetime (captured hooks)", () 
     h.unmount(); expect(signal.aborted).toBe(true); expect(vi.getTimerCount()).toBe(0); expect(h.listeners.size).toBe(0);
     resolve(response("pending", "AFTER_UNMOUNT")); await vi.advanceTimersByTimeAsync(0);
     expect(h.text()).not.toContain("AFTER_UNMOUNT"); expect(vi.getTimerCount()).toBe(0); expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+
+describe("DEV122 workbench URL restoration and pending filters (captured hooks, not mounted UI)", () => {
+  async function locationStart(url = "/numbering/drawings") {
+    vi.useFakeTimers();
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => response("missing")); vi.stubGlobal("fetch", fetch);
+    const h = harness(true); h.restore(url);
+    return { h, fetch };
+  }
+
+  it("typing before the first restore debounce persists query and loads the first page", async () => {
+    const { h, fetch } = await locationStart();
+    await vi.advanceTimersByTimeAsync(10); h.query("DEV122 changed");
+    await vi.advanceTimersByTimeAsync(249); expect(fetch).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(new URL(h.location.href).searchParams.get("query")).toBe("DEV122 changed");
+    expect(fetch.mock.calls[0][0]).toContain("query=DEV122+changed");
+    expect(h.history.pushState).not.toHaveBeenCalled();
+  });
+
+  it("an unchanged restored filter retains its cursor, direction and page", async () => {
+    const { h, fetch } = await locationStart("/numbering/drawings?query=DEV122&layer=rd&cursor=owned-cursor&direction=before&page=3");
+    h.applyLayer({ mode: "some", values: ["rd"] });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(fetch.mock.calls[0][0]).toContain("cursor=owned-cursor&direction=before");
+    expect(new URL(h.location.href).searchParams.get("page")).toBe("3");
+    h.render(); h.select(); await h.action();
+    const returnTo = new URL(h.push.mock.calls[0][0], h.location).searchParams.get("returnTo")!;
+    expect(new URL(returnTo, h.location).searchParams.get("cursor")).toBe("owned-cursor");
+  });
+
+  it("a changed filter invalidates the restored cursor and resets pagination", async () => {
+    const { h, fetch } = await locationStart("/numbering/drawings?query=old&cursor=owned-cursor&direction=before&page=3");
+    h.query("new"); await vi.advanceTimersByTimeAsync(250);
+    const url = new URL(h.location.href);
+    expect(url.searchParams.get("query")).toBe("new");
+    for (const key of ["cursor", "direction", "page"]) expect(url.searchParams.has(key)).toBe(false);
+    expect(fetch.mock.calls[0][0]).not.toContain("cursor=");
+  });
+
+  it("opening detail and review before debounce flushes query into returnTo and cancels the timer", async () => {
+    const { h, fetch } = await locationStart();
+    await h.load(); h.render(); fetch.mockClear();
+    h.query("DEV122 immediate"); h.select();
+    const selected = new URL(h.location.href);
+    expect(selected.searchParams.get("query")).toBe("DEV122 immediate");
+    expect(selected.searchParams.get("detail")).toBe(row.rowKey);
+    await h.action();
+    const destination = new URL(h.push.mock.calls[0][0], h.location);
+    expect(destination.pathname).toBe("/approvals/dev122-owned-request");
+    const returnTo = new URL(destination.searchParams.get("returnTo")!, h.location);
+    expect(returnTo.searchParams.get("query")).toBe("DEV122 immediate");
+    expect(returnTo.searchParams.get("detail")).toBe(row.rowKey);
+    const historyCalls = h.history.replaceState.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.history.replaceState).toHaveBeenCalledTimes(historyCalls);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("Back restoration cancels a pending old query and reloads the restored cursor", async () => {
+    const { h, fetch } = await locationStart();
+    h.query("discard on Back"); await vi.advanceTimersByTimeAsync(100);
+    h.restore("/numbering/drawings?query=restored&cursor=back-cursor&direction=before&page=2&detail=restored-detail&historyRevision=old-revision");
+    await vi.advanceTimersByTimeAsync(250);
+    const url = new URL(h.location.href);
+    expect(url.searchParams.get("query")).toBe("restored");
+    expect(url.searchParams.get("detail")).toBe("restored-detail");
+    expect(url.searchParams.get("historyRevision")).toBe("old-revision");
+    expect(url.searchParams.get("page")).toBe("2");
+    expect(fetch.mock.calls[0][0]).toContain("cursor=back-cursor&direction=before");
+    expect(h.text()).not.toContain("discard on Back");
   });
 });

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "aipdm.dev122.b45.full-pdf-ci-contract.v1",
+  "task": "DEV-122",
+  "status": "LOCAL_QC_PASS_REQUIRED_CI_PENDING",
+  "wholeDev": "NOT_ACCEPTED",
+  "sourceParent": "a8b6f2c7c5e59d883b3e5a905b0f728a3c78c941",
+  "originalScope": {
+    "issues": 7,
+    "groups": 29
+  },
+  "pullRequest": "https://github.com/jedchang0308-jenfu/AI-PDM/pull/278",
+  "originalCi": {
+    "runId": 38192747700,
+    "isolatedPostgres": "SUCCESS",
+    "productionSliceQc": "FAILURE",
+    "failedStep": "Verify current production slice",
+    "failedCheck": "embedded browser PDF previews hide the toolbar and thumbnail navigation while source links remain locatable"
+  },
+  "scope": [
+    "scripts/qc-dev-079-contract.mjs",
+    ".github/workflows/ci.yml"
+  ],
+  "contract": "Compact previews hide native PDF controls; full document previews retain page and zoom controls with source links; same-page evidence behavior remains unchanged. Existing behavioral tests become required CI inputs.",
+  "checks": {
+    "local": {
+      "status": "PASS",
+      "unitPassed": 78,
+      "unitFailed": 0,
+      "testFiles": 8,
+      "contractPassed": 59,
+      "contractFailed": 0,
+      "lintExit": 0,
+      "controllerReleased": true,
+      "allRecordedPidsAbsent": true,
+      "tempRemoved": true,
+      "testSuites": 17
+    },
+    "independentSourceQc": {
+      "P0": 0,
+      "P1": 0,
+      "method": "READ_ONLY_SOURCE_REVIEW"
+    },
+    "newRequiredCi": "PENDING_AFTER_PUSH",
+    "typecheckBuild": "B42/B43 product evidence reused; B45 changes no product or TypeScript source"
+  },
+  "productSourceChanged": false,
+  "standingBoundaries": {
+    "migration084": "PROHIBITED",
+    "A0061Requeue": "PROHIBITED",
+    "nativeCad": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "supplier": "DISABLED_DEFERRED",
+    "productionMutation": false,
+    "workerSchedulerLifecycleMutation": false
+  },
+  "sourceHashes": {
+    "scripts/qc-dev-079-contract.mjs": "bbcf704d186c528361c315ba00125adb36742fe05eb7adb5a8c7da3c7bac1cb9",
+    ".github/workflows/ci.yml": "6bfdb9792af50379a0b97e349aef46f281733ea6a9db3e7e137402a2074e99bd"
+  },
+  "privateEvidence": {
+    "B45-checks-r1-summary.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B45-checks-r1-summary.json",
+      "sha256": "60340cf2be0909079839b3a0c1af00149a9430930db84d33a862c2a83046ad83"
+    },
+    "B45-checks-r1-result.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B45-checks-r1-result.json",
+      "sha256": "50344a530b6f6ba9fa79e06bf35eb8573c2d8973a3a8aad34041ad7a80b43c28"
+    },
+    "B45-checks-r1-runtime.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B45-checks-r1-runtime.json",
+      "sha256": "7703e44b813e7c2d4964716ed3086c947b2d43e9e4319348461ab8c1e89dcaec"
+    },
+    "B45-checks-r1-unit-report.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B45-checks-r1-unit-report.json",
+      "sha256": "900d393595299f8d371d9a31529fdcb9e6d57466823ad52776312424913836fb"
+    },
+    "B45-independent-source-qc.json": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B45-independent-source-qc.json",
+      "sha256": "1b488d08958c0531c0772dd46fc945567b39588d9028651abcc17bfe19b240da"
+    }
+  },
+  "unknownRuntime": "External Next process ownership/data scope unknown; not started or used by this root. next-env.d.ts preserved and excluded. Own B45 processes exited/released with no ports."
+}
