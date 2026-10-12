@@ -1,3 +1,11 @@
+## DEV-121#rd-capabilities — 2026-10-12 native worker owner receipt memo（本地完整檢查 PASS，待受保護發布）
+
+沿用 AI-PDM own RD／085 授權與既有 DEV；base protected main f2bada2，branch codex/dev121-native-owner-receipt-memo，保留其他工作樹修改。實際 owner prepare 在 evidence observation expiry 拒絕；build/migration/candidate/traffic 均未執行。原服務已依既有 fence 的精確 scaling baseline 恢復，Production 操作與原失敗證據私下保存，不重送原 capsule、不將失敗改判 PASS。
+
+既有 immutable receipt adapter 僅在上游 artifact producer 使用，native worker owner scoped operations 尚未接續。synthetic native prepare RED 重現同一 active opaque observation 相同 pinned receipt GET 兩次；最小修正將現有 adapter 接到 worker owner transport，公開 pausedAndDrained 也沿用 scope。35/35 聚焦、165/165 portable owner proof PASS。新 operation/provider readback、hash/JSON/source join、cycle/depth/clock/expiry及 live provider guard 保留；不宣稱跨整個 owner stage 快取，paused-app-repair stage basis 仍自行 fresh 觀察。最終 continuous317/317、nativeQC383/383、catalog3/3、abort6/6、DB boundary22檔、app型別與隔離build PASS（artifact/primary/cleanup=true）；portable165/165 PASS。authentic replay原206/207唯一舊期望失敗保留，修正後該聚焦case1/1 PASS，未宣稱整套207重跑；提前serving guard拒絕且完整Scheduler snapshot／publication／build／run／Secret不變。独立6-luna來源QC P0/P1=0。受保護來源發布、085、RD100%與兩fixture UI仍待實際證據。
+
+[既有 finite continuation QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md)。
+
 ## DEV-121#rd-capabilities — 2026-10-12 immutable receipt/blob reuse（本地 PASS，待受保護發布）
 
 沿用 AI-PDM own protected RD／085 corrective cycle 與既有 DEV；base protected main c239bf6，branch codex/dev121-worker-receipt-memo，保留其他 checkout 修改。native collector 逾時前已發布 association、尚未完成 daily descriptor；只讀完整 sealed replay 通過，但不能把原逾時改判 PASS。封存結果與 Production 證據私下保存；不延長舊 input 或重送 Job。

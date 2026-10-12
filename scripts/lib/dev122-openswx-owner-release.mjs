@@ -2,7 +2,7 @@ import { assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { assertProgramOnlyPolicy, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
 import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
-import { resolveWorkerArtifact, verifyWorkerArtifactReuse, createWorkerEvidenceContext } from './dev122-openswx-worker-artifact-reuse.mjs'
+import { resolveWorkerArtifact, verifyWorkerArtifactReuse, createWorkerEvidenceContext, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
 import { runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './dev121-owner-release-proof.mjs'
 
 export const WORKER_PROFILE_PATH = 'config/release/dev122-openswx-worker.json'
@@ -694,6 +694,7 @@ export async function readProgramOnlyWorkerEvidence({ transport, intent, appProf
 export function createOpenSwxOwnerRelease({ transport, readSource, environment }) {
   // Rebind each worker operation from the stage transport. A previous worker
   // clock must not survive unrelated application build or verification work.
+  transport = createWorkerReceiptReadTransport(transport)
   const stageTransport = transport
   async function resolve(intent, appProfile) {
     if (!intent.openswxWorkerRef) return null
@@ -988,5 +989,5 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     if (descriptor && isPausedAppRepair(descriptor.value)) await repairCurrentGuard(descriptor, intent, profile, 'PREPARE', null, profile.identities.verifier)
   }
   const scoped = callback => (...args) => runAiPdmEvidenceContext(createWorkerEvidenceContext(), () => callback(...args))
-  return { prepare: scoped(prepare), beforeBuild: scoped(beforeBuild), build: scoped(build), candidate: scoped(candidate), beforeActivate: scoped(beforeActivate), finalize: scoped(finalize), recover: scoped(recover), resolve: scoped(resolve), pausedAndDrained, write, rootFor }
+  return { prepare: scoped(prepare), beforeBuild: scoped(beforeBuild), build: scoped(build), candidate: scoped(candidate), beforeActivate: scoped(beforeActivate), finalize: scoped(finalize), recover: scoped(recover), resolve: scoped(resolve), pausedAndDrained: scoped(pausedAndDrained), write, rootFor }
 }
