@@ -204,7 +204,9 @@ export async function executeFenceOperation({ profile, git, sourceProof, recover
   if (!acquire) return { status: 'READINESS_PASS', sourceRevision,
     previousRevision: oldRevision, requestTimeoutSeconds: timeout,
     principalOnlyRecovery: binding, mutationCount: 0 }
-  const stoppedScaling = { ...(baseline.scaling ?? {}), scalingMode: 'MANUAL', manualInstanceCount: 0 }
+  // Manual mode has its own count; Cloud Run omits automatic min/max fields.
+  // Keep the exact automatic baseline in the submission for recovery.
+  const stoppedScaling = { scalingMode: 'MANUAL', manualInstanceCount: 0 }
   const deadline = Date.parse(now()) + 10 * 60_000
   const deadlineTick = monotonic() + 10 * 60_000
   if (!Number.isFinite(deadline) || !Number.isFinite(deadlineTick)) fail('CLOCK_INVALID')

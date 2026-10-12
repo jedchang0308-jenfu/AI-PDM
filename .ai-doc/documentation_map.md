@@ -1,5 +1,9 @@
 # AI_PDM 文件地圖
 
+## DEV-121#rd-capabilities — 2026-10-12 MANUAL0 provider 判讀補修（驗證中，未發布）
+
+沿用 AI-PDM 原 RD／085 protected release 授權與既有 DEV；branch codex/dev121-manual-fence-readback、base main 093133b。原生 worker descriptor／runtime／routine-authority 前置已完成，保留原始來源、期限與工具映像。首個新失敗點是維護請求複製 AUTOMATIC max 到 MANUAL0，但 Cloud Run settled 回應省略 max；非 scaling invariant 一致。已一次恢復保存的 AUTOMATIC baseline，舊版100%，085未執行，不冒造 fence 或重送 failed submission。最小 source 只讓 MANUAL0 請求攜 manual count，完整 baseline／drain／source／service／traffic／recovery guards保留。[本輪證據與界線](qa/DEV-121-manual-fence-readback-local-2026-10-12.md)。本地true RED、focused19/19、continuous304/304、nativeQC365/365、catalog3/3、abort6/6、DB boundary22檔、app型別與isolated build PASS（artifact/primary/cleanup=true）；獨立Luna source QC P0=0/P1=0，native報告LOCAL_CONTRACT／releaseAuthority=false。新官方來源CI／發布仍待完成；085 NOT_APPLIED、兩fixture RD能力 NOT_RUN。兩位指定正式使用者的登入／Ctrl+R／身分一致已取得 HUMAN_REPORTED_PASS，私下保存原回報，不替代 agent或RD驗收。Google延遲正式情境與指定parent刪除仍未證。以下紀錄保留為歷史。
+
 ## DEV-121#rd-capabilities — 2026-10-12 sealed archive 接續補修（本地驗證，未發布）
 
 沿用既有 DEV-121 與人類 AI-PDM own protected Production 授權，不新增主 DEV／專案／帳戶／資源操作。PR276 已正常合併至官方 main，PR 與 main required CI PASS；原事故通知訂閱已恢復 ACTIVE，OrgMaster v7 已 RELEASED／100%。最新 native source freeze、metadata read/no-op、worker artifact association、source-bound app-infra reuse 已 PASS，保留既有工具映像；ordinary pause 尚未完成，沒有新的 bootstrap full、fence、085、candidate 或切流。
