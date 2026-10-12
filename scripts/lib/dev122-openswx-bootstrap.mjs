@@ -1087,7 +1087,9 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
   assertOpenSwxWorkerRef(checkpointRef)
   const ctx = createAiPdmEvidenceContext()
   return runAiPdmEvidenceContext(ctx, async () => {
-    const child = descendAiPdmEvidenceContext(ctx, checkpointRef, true)
+    // The full descriptor is an envelope of its resolved association source.
+    // Preserve ancestry/hash guards; resolveWorkerArtifact counts the association.
+    const child = descendAiPdmEvidenceContext(ctx, checkpointRef, false)
     return runAiPdmEvidenceContext(child, async () => {
       const raw = (await transport.readJson(checkpointRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
       readSource.authorizeOrigin?.(raw.sourceRevision)

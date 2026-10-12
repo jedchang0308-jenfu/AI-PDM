@@ -15,7 +15,7 @@ import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
-import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, readPartialFailedDailyPause } from './lib/dev122-openswx-bootstrap.mjs'
+import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
 import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
@@ -2220,11 +2220,60 @@ test('completed FAILED DAILY checkpoint permits the next source while requiring 
   assert.equal(h.puts.length, incompletePuts)
 })
 
+test('completed FAILED DAILY checkpoint envelopes admit eight genuine association transitions and reject the ninth before authority', async () => {
+  const f = await partialFailedDailyNextSourceFixture(), h = f.h
+  let input = f.input, saved, completed, full
+  // Each step uses the real producer, fresh normal drain and completed bootstrap.
+  // History includes a failed isolated run, completed checkpoint and expired
+  // partial pause; no fabricated context ancestors or depth numbers are used.
+  for (const index of [84, 85, 86, 87, 88]) {
+    const inputRef = await h.put('checkpoint-depth-reuse-' + index, input), calls = h.calls.length
+    saved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef, readSource: f.reader })
+    assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+    assert.ok(!h.calls.slice(calls).some(row => row.url.endsWith(':run') || row.options.method === 'PATCH' || row.url.endsWith(':resume')))
+    const descriptor = (await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value, replayCalls = h.calls.length
+    const artifact = await resolveWorkerArtifact({ transport: h.transport, descriptor, profile, readSource: f.reader })
+    assert.ok(artifact.failedDaily.failed.expectedExecutionNames.includes(f.partialName))
+    assert.equal(h.calls.length, replayCalls, 'independent consumer authenticates sealed history without provider reads')
+    const pauseRef = h.seed('CHECKPOINT-DEPTH-PAUSE-' + index + '-input', { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: saved.refs.dailyBuildOnlyDescriptorRef,
+      workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'CHECKPOINT-DEPTH-PAUSE-' + index, drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: input.priorActivationRef,
+      failedDailyContinuation: f.failedDailyContinuation })
+    const pauseCalls = h.calls.length
+    const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseRef, transport: h.transport, readSource: f.reader, appProfile, sleep: async () => {} })
+    assert.equal(h.calls.slice(pauseCalls).filter(row => row.url.endsWith(':run')).length, 1, 'each source still needs a fresh drain')
+    const bootstrapRef = h.seed('CHECKPOINT-DEPTH-BOOTSTRAP-' + index + '-input', { schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef: saved.refs.dailyBuildOnlyDescriptorRef,
+      workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'CHECKPOINT-DEPTH-BOOTSTRAP-' + index, bootstrapKind: 'DAILY_REFRESH', priorActivationRef: input.priorActivationRef,
+      pausedDrainedRef: paused.ref, failedDailyContinuation: f.failedDailyContinuation })
+    const bootstrapCalls = h.calls.length
+    completed = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapRef, transport: h.transport, readSource: f.reader, appProfile, sleep: async () => {} })
+    assert.equal(h.calls.slice(bootstrapCalls).filter(row => row.url.endsWith(':run')).length, 0, 'completed isolation is retained')
+    full = (await h.transport.readJson(completed.refs.fullDescriptorRef)).value
+    const fullCalls = h.calls.length
+    await readWorkerFullEvidence(h.transport, full, profile, f.reader)
+    assert.equal(h.calls.length, fullCalls)
+    await h.transport.request('https://run.googleapis.com/v2/' + workerJobName(), { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image, full.tokenSecretVersion) }) })
+    const next = h.nextAttempt(index + 1, input.priorActivationRef), lock = { ...next.lock, observedAt: new Date(Date.now() - 2000).toISOString() }
+    next.input.sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + lock.releaseId + '/source-lock.json', Buffer.from(canonicalize(lock) + '\n'))
+    const metadata = await seedSecretVersionIamContinuation(h, { sourceRevision: lock.sourceRevision, sourceLockRef: next.input.sourceLockRef,
+      supplementalIamReadbackRef: h.iam.receiptRef, prebuildIamContinuationRef: h.proof.continuationRef, reader: f.reader,
+      name: 'checkpoint-depth-metadata-' + index, secretPolicies: h.metadata.before.secretPolicies })
+    input = { ...next.input, failedDailyContinuation: f.failedDailyContinuation, secretVersionIamContinuationRef: metadata.continuationRef,
+      completedFailedDailyCheckpointRef: completed.refs.fullDescriptorRef }
+    assert.equal(input.partialFailedDailyPauseInputRef, undefined, 'latest complete checkpoint carries partial history itself')
+  }
+  // The path is 88 -> 87 -> 86 -> 85 -> 84 -> partial 83 -> completed 81
+  // -> original association. Source 89 adds the ninth real association.
+  const refusedRef = await h.put('checkpoint-depth-ninth-input', input), calls = h.calls.length, puts = h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef: refusedRef, readSource: f.reader }), { code: 'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID' })
+  assert.ok(!h.puts.slice(puts).some(uri => uri.endsWith('-association.json') || uri.endsWith('-descriptor-build-only.json')))
+  assert.ok(!h.calls.slice(calls).some(row => row.url.endsWith(':run') || row.options.method === 'PATCH' || row.url.endsWith(':resume')))
+})
+
 test('completed FAILED DAILY checkpoint rejects unbound, partial, tampered and unknown execution histories before publication', async () => {
   const f = await completedFailedDailyNextSourceFixture(), h = f.h, objects = new Map(h.objects), request = h.transport.request
   const drainRef = (await h.transport.readJson(f.full.pausedDrainedRef)).value.facts.drainExecutionRef
   const drainName = (await h.transport.readJson(drainRef)).value.facts.executionName
-  for (const kind of ['missing-ref', 'hash-mismatch', 'partial-descriptor', 'unrelated-full', 'wrong-credentials', 'different-failure', 'extra-terminal', 'missing-terminal', 'changed-terminal-template', 'changed-terminal-status']) {
+  for (const kind of ['missing-ref', 'hash-mismatch', 'partial-descriptor', 'unrelated-full', 'wrong-credentials', 'wrong-source', 'wrong-archive', 'wrong-lock', 'different-failure', 'extra-terminal', 'missing-terminal', 'changed-terminal-template', 'changed-terminal-status']) {
     h.objects.clear(); for (const [uri, row] of objects) h.objects.set(uri, row)
     h.transport.request = request
     const input = structuredClone(f.input)
@@ -2234,6 +2283,16 @@ test('completed FAILED DAILY checkpoint rejects unbound, partial, tampered and u
     if (kind === 'unrelated-full') input.completedFailedDailyCheckpointRef = h.fullRef
     if (kind === 'wrong-credentials') {
       const full = { ...f.full, tokenSecretVersion: f.full.tokenSecretVersion.replace(/7$/u, '8') }
+      input.completedFailedDailyCheckpointRef = h.seedBytes(input.completedFailedDailyCheckpointRef.uri, Buffer.from(canonicalize(full)))
+    }
+    if (['wrong-source', 'wrong-archive', 'wrong-lock'].includes(kind)) {
+      const full = structuredClone(f.full)
+      if (kind === 'wrong-source') full.sourceRevision = '0'.repeat(40)
+      if (kind === 'wrong-archive') full.sourceArchiveSha256 = '0'.repeat(64)
+      if (kind === 'wrong-lock') {
+        const association = (await h.transport.readJson(full.workerBuildRef)).value
+        full.workerBuildRef = h.seed('completed-wrong-lock-association', { ...association, sourceLockRef: f.input.sourceLockRef })
+      }
       input.completedFailedDailyCheckpointRef = h.seedBytes(input.completedFailedDailyCheckpointRef.uri, Buffer.from(canonicalize(full)))
     }
     if (kind === 'different-failure') input.failedDailyContinuation.recoveryRequiredRef = f.ref('-prior-recovery')
@@ -2257,6 +2316,22 @@ test('completed FAILED DAILY checkpoint rejects unbound, partial, tampered and u
   }
 })
 
+
+test('completed FAILED DAILY metadata keeps descriptor cycle and same-URI hash-conflict guards', async () => {
+  const f = await completedFailedDailyNextSourceFixture(), h = f.h
+  f.reader.authorizeOrigin(f.full.sourceRevision)
+  const artifact = await resolveWorkerArtifact({ transport: h.transport, descriptor: f.full, profile, readSource: f.reader })
+  const calls = h.calls.length, puts = h.puts.length
+  for (const hashConflict of [false, true]) {
+    const ctx = createAiPdmEvidenceContext()
+    const ref = hashConflict ? { ...f.completed.refs.fullDescriptorRef, sha256: '0'.repeat(64) } : f.completed.refs.fullDescriptorRef
+    await assert.rejects(runAiPdmEvidenceContext(ctx, () => runAiPdmEvidenceContext(descendAiPdmEvidenceContext(ctx, f.completed.refs.fullDescriptorRef, false), () =>
+      readCompletedFailedDailyCheckpoint({ transport: h.transport, checkpointRef: ref, failed: artifact.failedDaily.failed, prior: artifact.origin.prior,
+        profile, readSource: f.reader, currentManifest: artifact.currentManifest }))), { code: 'DEV121_OWNER_RELEASE_PROOF_GRAPH_CYCLE_OR_HASH_CONFLICT' })
+  }
+  assert.equal(h.calls.length, calls, 'metadata guard rejects before provider observation')
+  assert.equal(h.puts.length, puts)
+})
 
 test('completed FAILED DAILY checkpoint input stays own-bucket and failed-only', () => {
   const own = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
@@ -2445,10 +2520,10 @@ test('partial FAILED DAILY metadata preserves remaining association depth',async
     const ref={uri:profile.receiptRoot+'/LOCAL-PRIOR-ASSOCIATION-'+index+'.json',sha256:(String(index+1)).repeat(64)}
     return withinAncestors(descendAiPdmEvidenceContext(handle,ref,true),index+1,limit,callback)
   })
-  const admitted=await withinAncestors(ctx,0,4,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest}))
+  const admitted=await withinAncestors(ctx,0,5,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest}))
   assert.deepEqual(admitted.partialPause.inputRef,f.partialInputRef)
   assert.ok(!admitted.expectedExecutionNames.includes(f.partialName),'input alone cannot attest its execution')
-  await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,5,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
+  await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,6,()=>readPartialFailedDailyPause({transport:h.transport,inputRef:f.partialInputRef,failed:artifact.failedDaily.failed,prior:artifact.origin.prior,profile,readSource:f.reader,currentManifest:artifact.currentManifest})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
   assert.equal(h.puts.length,puts,'metadata traversal cannot publish evidence')
   assert.ok(h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')||row.url.includes('logging.googleapis.com')),'metadata traversal cannot mutate lifecycle')
 })
@@ -2461,17 +2536,17 @@ test('partial FAILED DAILY producer validates prepublication and published assoc
   })
   const f=await partialFailedDailyNextSourceFixture(),h=f.h
   const inputRef=await h.put('partial-producer-depth-input',f.input),calls=h.calls.length
-  const saved=await withinAncestors(createAiPdmEvidenceContext(),0,3,()=>executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader}))
+  const saved=await withinAncestors(createAiPdmEvidenceContext(),0,4,()=>executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader}))
   assert.ok(saved.refs.dailyBuildOnlyDescriptorRef,'complete producer includes published-association replay')
   assert.equal(h.objects.has(f.partialRoot+'.json'),false)
   assert.equal(h.objects.has(f.partialRoot+'-drain-finite.json'),false)
   assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
   const descriptor=(await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value,reads=h.calls.length
-  const artifact=await withinAncestors(createAiPdmEvidenceContext(),0,3,()=>resolveWorkerArtifact({transport:h.transport,descriptor,profile,readSource:f.reader}))
+  const artifact=await withinAncestors(createAiPdmEvidenceContext(),0,4,()=>resolveWorkerArtifact({transport:h.transport,descriptor,profile,readSource:f.reader}))
   assert.ok(artifact.failedDaily.failed.expectedExecutionNames.includes(f.partialName))
   assert.equal(h.calls.length,reads,'sealed consumer replay must not reread provider state')
   const bad=await partialFailedDailyNextSourceFixture(),b=bad.h,badInputRef=await b.put('partial-producer-ninth-input',bad.input),before=b.calls.length,puts=b.puts.length
-  await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,4,()=>executeWorkerArtifactReuse({transport:b.transport,inputRef:badInputRef,readSource:bad.reader})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
+  await assert.rejects(withinAncestors(createAiPdmEvidenceContext(),0,5,()=>executeWorkerArtifactReuse({transport:b.transport,inputRef:badInputRef,readSource:bad.reader})),{code:'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID'})
   assert.ok(!b.puts.slice(puts).some(uri=>uri.endsWith('-association.json')||uri.endsWith('-descriptor-build-only.json')),'depth refusal cannot publish authority')
   assert.ok(!b.calls.slice(before).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
 })
