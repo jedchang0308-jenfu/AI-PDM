@@ -5,7 +5,7 @@ import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-releas
 import { readFileSync } from 'node:fs'
 import { seedSecretVersionIamContinuation } from '../qa/dev-122/fixtures/secret-version-iam-fixture.mjs'
 import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_SECRETS } from './lib/dev122-openswx-secret-version-iam.mjs'
-import test from 'node:test'
+import test, { beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -23,6 +23,13 @@ import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBAC
 
 // LOCAL_TEST recorded transports. No provider/production/efficiency claim.
 // Git reads use raw canonical blobs, never Windows CRLF normalization.
+// Synthetic observation time advances with the monotonic timer, independently of
+// host wall-clock corrections. Each test owns and automatically restores its mock;
+// production clock refusal is exercised separately in owner-release-proof tests.
+beforeEach(context => {
+  const wallStarted = Date.now(), monotonicStarted = performance.now()
+  context.mock.method(Date, 'now', () => wallStarted + Math.floor(performance.now() - monotonicStarted))
+})
 const root = fileURLToPath(new URL('..', import.meta.url)), oldRevision = 'a'.repeat(40), currentRevision = 'b'.repeat(40)
 function git(args) { const row = spawnSync('git', args, { cwd: root, encoding: null, windowsHide: true, maxBuffer: 64 * 1024 * 1024 }); assert.equal(row.status, 0); return row.stdout }
 const actualTree = git(['ls-tree', '-r', '-z', '--full-tree', 'HEAD']), cache = new Map()
@@ -1428,7 +1435,7 @@ async function b35MetadataReuseFixture() {
   const metadataPaths = [SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, 'scripts/lib/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.mjs']
   h.readSource = (name, revision) => metadataPaths.includes(name) ? readFileSync(path.join(root, name)) : originalReader(name, revision)
   Object.assign(h.readSource, originalReader)
-  h.transport.now = () => new Date().toISOString()
+  h.transport.now = () => new Date(Date.now()).toISOString()
   const lock = { ...h.lock, observedAt: new Date(Date.now()-2000).toISOString() }
   const sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json', Buffer.from(canonicalize(lock)+'\n'))
   const secretPolicies = {

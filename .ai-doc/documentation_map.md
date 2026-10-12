@@ -1,5 +1,10 @@
 ## DEV-121#rd-capabilities — 2026-10-12 completed checkpoint source-depth correction（本地完整檢查 PASS，待受保護發布）
 
+## DEV-121#rd-capabilities — 2026-10-13 synthetic worker clock correction（本地完整檢查 PASS，待必要 CI／發布）
+
+PR285 required CI 384/385，首個失敗是合成 completed checkpoint 測試中 host wall clock 倒退1ms，非十分鐘到期；先前 main partial producer 亦獨立觸發相同保護。僅 worker graph test 以每 test context 的 advancing monotonic-derived Date.now 及同源 transport clock 排除主機校時，Production clock／期限／context closure／撤銷與權限不改。該檔不驗獨立 wall regression／expiry；既有 owner-proof／owner-release strict guard 維持原樣，聚焦graph/history8/8、獨立strict clock4/4 PASS，獨立6-luna只讀P0/P1=0；新bytescontinuous319/319、nativeQC385/385、catalog3/3、abort6/6、DB boundary22檔、app型別／隔離build PASS（artifact/primary/cleanup=true）。沿用既有DEV／PR，R18僅私下未綁定準備，085、RD部署／切流及fixture驗收仍待真正證據。原CI失敗與本地歷史PASS分開保留；Production證據私存。[既有QA與限制](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md)。
+
+
 沿用 AI-PDM own RD／085 protected corrective cycle；base protected main bd5fe90，branch codex/dev121-checkpoint-source-depth，保留其他工作樹修改。新 worker reuse 在歷史圖深度守門拒絕，未發布 association；不重送過期 input、不執行 migration 或 traffic。私下唯讀 checkpoint boundary 重建同一深度拒絕於 serving-basis descent，未取得原提交的完整 edge trace；修正後同一完整歷史圖唯讀 replay PASS，無 mutation/publication，不能當新 release authority。
 
 synthetic genuine failed→completed→partial→completed chain 在原程式 true RED。單點修正將 full checkpoint descriptor envelope 計為 false，仍加入同 root ancestry/hash；實際 association 仍 true，精確 descriptor/source/archive/profile/plan、source-lock、manifest、全部歷史 execution、provider inventory 與 clock/expiry 守門不變。第八個真 association 完整 producer／sealed consumer／fresh drain／bootstrap PASS；第九個在 authority publication 前拒絕。wrong source/archive/lock、descriptor cycle/hash 與未知 execution 拒絕保留；聚焦 5/5 PASS。最終 continuous319/319、nativeQC385/385、catalog3/3、abort6/6、DB boundary22檔、app型別與隔離build PASS（artifact／primary／cleanup=true）；獨立6-luna QC P0=0/P1=0，完整 historical reader支援不等於original producer trace。先前 exact-main CI 觀察到 1ms wall regression 的拒絕獨立保留，不放寬時鐘規則。
