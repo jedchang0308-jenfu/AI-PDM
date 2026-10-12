@@ -372,6 +372,102 @@ test('B23 archive wire adapter uses only exact metadata/sealed GET with raw arra
   assert.equal(wire.calls.length, 2); assert.ok(wire.calls.every(row => row.method === 'GET'))
   assert.ok(wire.calls[1].url.endsWith('?alt=media&generation=7'))
 })
+async function b39ArchiveSignals(run) {
+  const originalTimeout = AbortSignal.timeout, signals = []
+  AbortSignal.timeout = milliseconds => { const controller = new AbortController(); signals.push({ milliseconds, controller }); return controller.signal }
+  try { return await run(signals) }
+  finally { AbortSignal.timeout = originalTimeout; for (const row of signals) row.controller.abort() }
+}
+function b39ArchiveWire(signals, failures, failure = 'timeout', onFailure = () => {}) {
+  const bytes = Buffer.from('complete sealed archive bytes after interrupted partial source'), wire = b23Wire(bytes)
+  const mediaUrls = [], counters = { metadata: 0, cancels: 0, releases: 0, partialReads: 0 }
+  return { ...wire, bytes, mediaUrls, counters, fetchImpl: async (url, options) => {
+    if (!url.includes('?alt=media')) { counters.metadata++; return wire.fetchImpl(url, options) }
+    mediaUrls.push(url)
+    if (mediaUrls.length > failures) {
+      assert.equal(counters.cancels, failures, 'all partial readers were canceled before another sealed GET')
+      return wire.fetchImpl(url, options)
+    }
+    const timer = signals.filter(row => row.milliseconds <= 60000).at(-1).controller
+    let reads = 0
+    return { ok: true, headers: new Headers(), body: { getReader: () => ({
+      read: async () => {
+        if (++reads === 1) { counters.partialReads++; return { done: false, value: Buffer.from('discard this incomplete attempt') } }
+        onFailure()
+        if (failure === 'network') throw Object.assign(new TypeError('stream disconnected'), { cause: { code: 'UND_ERR_SOCKET' } })
+        queueMicrotask(() => timer.abort(new DOMException('single media request timed out', 'TimeoutError')))
+        return new Promise(() => {})
+      },
+      cancel: async () => { counters.cancels++ }, releaseLock: () => { counters.releases++ },
+    }) } }
+  } }
+}
+const b39ArchiveRead = wire => readAiPdmSourceArchive({ ...wire, token: 'recorded-local-token-long-enough', sourceRevision: b23Revision, deadlineAt: b23Deadline() })
+
+test('B39 archive partial media timeout retries one full sealed GET inside the original live context', async () => {
+  await b39ArchiveSignals(async signals => {
+    const wire = b39ArchiveWire(signals, 1)
+    await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+      const result = await b39ArchiveRead(wire)
+      assert.ok(result.bytes.equals(wire.bytes), 'partial bytes are discarded rather than concatenated')
+      assert.equal(result.generation, '7'); assert.equal(result.crc32c, wire.source.crc32c)
+    })
+    assert.equal(wire.counters.metadata, 1); assert.equal(wire.mediaUrls.length, 2)
+    assert.equal(new Set(wire.mediaUrls).size, 1); assert.ok(wire.mediaUrls.every(url => url.endsWith('?alt=media&generation=7')))
+    assert.equal(wire.counters.partialReads, 1); assert.equal(wire.counters.cancels, 1); assert.equal(wire.counters.releases, 1)
+    assert.equal(signals.filter(row => row.milliseconds === 60000).length, 2)
+    assert.equal(wire.unboundedCalls(), 0)
+  })
+})
+test('B39 archive two partial media timeouts stop after exactly two sealed GETs with the domain code', async () => {
+  await b39ArchiveSignals(async signals => {
+    const wire = b39ArchiveWire(signals, 2)
+    await assert.rejects(b39ArchiveRead(wire), { message: 'DEV121_OWNER_RELEASE_PROOF_ARCHIVE_DEADLINE', code: 'DEV121_OWNER_RELEASE_PROOF_ARCHIVE_DEADLINE' })
+    assert.equal(wire.counters.metadata, 1); assert.equal(wire.mediaUrls.length, 2)
+    assert.equal(wire.counters.cancels, 2); assert.equal(wire.counters.releases, 2)
+  })
+})
+test('B39 archive partial typed network interruption retries a fresh complete body once', async () => {
+  await b39ArchiveSignals(async signals => {
+    const wire = b39ArchiveWire(signals, 1, 'network'), result = await b39ArchiveRead(wire)
+    assert.ok(result.bytes.equals(wire.bytes)); assert.equal(wire.mediaUrls.length, 2); assert.equal(wire.counters.cancels, 1)
+  })
+})
+for (const status of [403, 503]) test('B39 archive HTTP '+status+' is a permanent rejection without a media retry', async () => {
+  const wire = b23Wire(Buffer.from('sealed source')), fetchImpl = wire.fetchImpl; let media = 0
+  wire.fetchImpl = (url, options) => url.includes('?alt=media') ? (++media, Promise.resolve(new Response('', { status }))) : fetchImpl(url, options)
+  await assert.rejects(b39ArchiveRead(wire), { message: 'DEV121_OWNER_RELEASE_PROOF_ARCHIVE_STREAM_INVALID', code: 'DEV121_OWNER_RELEASE_PROOF_ARCHIVE_STREAM_INVALID' })
+  assert.equal(media, 1)
+})
+for (const [name, change, code, expectedMedia] of [
+  ['hash', { media: Buffer.from('different sealed bytes') }, 'ARCHIVE_SOURCE_MISMATCH', 1],
+  ['short size', { media: Buffer.from('short') }, 'ARCHIVE_SOURCE_MISMATCH', 1],
+  ['cumulative size', { media: Buffer.alloc(23) }, 'ARCHIVE_STREAM_LIMIT', 1],
+  ['generation', { metadata: { generation: '8' } }, 'ARCHIVE_METADATA_INVALID', 0],
+  ['CRC metadata', { metadata: { crc32c: 'AAAAAA==' } }, 'ARCHIVE_METADATA_INVALID', 0],
+]) test('B39 archive '+name+' mismatch never retries', async () => {
+  const wire = b23Wire(Buffer.from('original sealed bytes!'), change)
+  await assert.rejects(b39ArchiveRead(wire), { message: 'DEV121_OWNER_RELEASE_PROOF_'+code, code: 'DEV121_OWNER_RELEASE_PROOF_'+code })
+  assert.equal(wire.calls.filter(row => row.url.includes('?alt=media')).length, expectedMedia)
+})
+for (const kind of ['deadline', 'context']) test('B39 archive '+kind+' expiry after partial media forbids a second GET', async () => {
+  const originalNow = Date.now, started = originalNow(); let clock = started
+  Date.now = () => clock
+  try {
+    await b39ArchiveSignals(async signals => {
+      const wire = b39ArchiveWire(signals, 1, 'timeout', () => { clock = started + (kind === 'context' ? 600000 : 1000) })
+      await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+        await assert.rejects(readAiPdmSourceArchive({ ...wire, token: 'recorded-local-token-long-enough', sourceRevision: b23Revision, deadlineAt: new Date(started + (kind === 'context' ? 700000 : 1000)).toISOString() }), /ARCHIVE_DEADLINE|OBSERVATION_EXPIRED|CONTEXT_INVALID/u)
+      }).catch(error => { assert.match(error.message, /OBSERVATION_EXPIRED|CONTEXT_INVALID/u) })
+      assert.equal(wire.mediaUrls.length, 1); assert.equal(wire.counters.cancels, 1)
+    })
+  } finally { Date.now = originalNow }
+})
+test('B39 archive unclassified fetch failure is not sufficient evidence for a retry', async () => {
+  const wire = b23Wire(Buffer.from('sealed source')), fetchImpl = wire.fetchImpl; let media = 0
+  wire.fetchImpl = (url, options) => { if (url.includes('?alt=media')) { media++; throw new TypeError('fetch failed') } return fetchImpl(url, options) }
+  await assert.rejects(b39ArchiveRead(wire), /fetch failed/u); assert.equal(media, 1)
+})
 test('B23 metadata and media signals clip to the same remaining observation deadline', async () => {
   const originalNow = Date.now, originalTimeout = AbortSignal.timeout, started = originalNow(), delays = []
   let clock = started; Date.now = () => clock

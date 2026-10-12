@@ -52,6 +52,12 @@ Root 為唯一產品 writer，TL 只寫本 spec。精確新增產品責任面為
 
 正式驗收仍待查：已授權Jed網站登入後回到本次own分頁；Chrome兩次直接self GET被CLIENT封鎖，未取得HTTP grant結果。不得繞過瀏覽器封鎖、讀cookie或重送create當診斷。OrgMaster僅既有登入／登出與只讀驗證授權，不能改指派或跨專案開發。DEV-121 owner freeze期間零push／main merge／正式資料寫入；NO084、A0061已完成job不重排、supplier DISABLED_DEFERRED、F-01F user-owned formal pending、7 issues／29 groups與whole NOT_ACCEPTED不變。需要正式權限或跨專案repair時先取得具體原因與新範圍授權；機器綁定變更不重問既有授權。
 
+### 2026-10-12 B44：正式本人權限只讀查證與來源整合
+
+B44 ACTUAL_SELF_PERMISSION_READ／SOURCE_RECONCILIATION：正常授權帳號登入後，正式self GET 200，辨識review／run與workspace.view均true；本人Principal／員工／Firebase identity／公司一致，既有A0061 review GET 200但沒有session。這只證目前新登入的讀取決策，不證原403或POST write snapshot；零recognition POST／零已完成job重排。兩站logout200＋self401，自有runtime／temp及錯誤空白分頁已清理。已無GitHub nonterminal owner，main093133b65 required CI PASS；最新main11檔完整保留、B41排除，獨立source QC P0=0／P1=0。舊owner freeze為歷史紀錄，不把它當新的人類禁令；source PR可續接。另一DEV-121 owner仍續接RD v7，FULL35含未套用085而現有program-only僅接受FULL34／prefix33，沒有source34 alias入口；本任務沒有修改gate、啟動capsule或正式infra mutation。source／owner相容性解決前不切流。[B44查證](../qa/DEV-122-B44-self-permission-source-reconciliation-2026-10-12.json)。NO084／7 issues／29 groups／whole NOT_ACCEPTED與原生CAD使用者驗收保持。
+
+R1以不存在的public session.companyId作guard、R2將workspace.view誤放pages，utility原FAIL保持；R3依正式API契約完成self與既有review讀取。密碼／token／cookie未存檔，只在正常auth程序記憶體；既有瀏覽器session未讀，未跳過任何grant／身分／company檢查。HTTP登入登出是人類已明確授權的既有應用流程，不是瀏覽器封鎖繞行。唯讀holder capability不替代exact v4 rows；該drawing沒有latest，原UI後續create只能列為inference，尚未判定403是哪一層。
+
 ## DEV-122 HISTORY_ONLY（R6 發布前中止；R7 執行回讀修正 LOCAL_QC_PASS；NOT_DEPLOYED）
 
 PR [#264](https://github.com/jedchang0308-jenfu/AI-PDM/pull/264) 已合併至 94173727eb8f963809e892b475874220d4072b7f，PR／main required CI 與 provider branch-protection readback PASS。R6 protected owner [38076494472](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38076494472) prepare／build SUCCESS；migrate 對 Cloud Run Execution 回傳省略的兩個 Cloud SQL mount 欄位誤判而停止，candidate／traffic SKIPPED。實際唯一 native execution 已完成只讀 PASS：applied0／replayed33／ledger33，沒有084；此 native 收據沒有 PostgreSQL 版本欄位。原 terminal 的 UNKNOWN／currentDatabaseReadPerformed=false 保持原樣，沒有 migrate association，不將後續觀察回填成原發布成功，也不重送 R6 capsule。Provider 回讀確認 B33 舊服務100%／零tag、worker generation17 READY與Scheduler ENABLED維持。

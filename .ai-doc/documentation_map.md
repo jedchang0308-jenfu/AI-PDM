@@ -1,5 +1,14 @@
 # AI_PDM 文件地圖
 
+## DEV-121#rd-capabilities — 2026-10-12 sealed archive 接續補修（本地驗證，未發布）
+
+沿用既有 DEV-121 與人類 AI-PDM own protected Production 授權，不新增主 DEV／專案／帳戶／資源操作。PR276 已正常合併至官方 main，PR 與 main required CI PASS；原事故通知訂閱已恢復 ACTIVE，OrgMaster v7 已 RELEASED／100%。最新 native source freeze、metadata read/no-op、worker artifact association、source-bound app-infra reuse 已 PASS，保留既有工具映像；ordinary pause 尚未完成，沒有新的 bootstrap full、fence、085、candidate 或切流。
+
+已證實的新失敗點是 sealed historical source archive 的單次 media stream timeout；完整只讀 native pause 診斷在 lifecycle write 前拒絕，serving observer 與 observer→graph 獨立 PASS。這不證明先前所有 generic failure 都同一根因。最小補修僅固定 numeric generation 的 media GET：單次60秒、明確 timeout／指定 transport reset 最多完整重讀一次，partial bytes丟棄/cancel；metadata仍單次，原 context／absolute deadline、depth、256MiB、size／CRC／SHA guard不變。HTTP拒絕、內容不符、未知錯誤與整體過期不得重試；domain message原樣並加同值code。
+
+Synthetic true RED 0/1、新增13/13及含其的archive/context44/44 PASS；完整owner-proof165/165、另一份continuous302/302 PASS，分母重疊不相加。獨立6-luna極高唯讀source QC P0=0/P1=0，不是provider實測。本輪原生QC363/363、catalog3/3、abort6/6、DB boundary22檔、app型別與isolated build PASS（artifact／primary／cleanup=true）；原middleware／Edge警告保持。正常commit／required CI／protected merge與新official-source發布仍待完成。兩檔不在既有18-path controller／migration-runner closure或finite-worker recipe，舊工具artifact仍需新source-bound native association及provider readback，不能直接借舊receipt。契約：[FAILED DAILY](specs/DEV-121-target-authorization-boundary.md#failed-daily-continuation)；驗證入口：[ordinary worker checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)。
+
+085 NOT_APPLIED／RD v7 NOT_DEPLOYED。兩fixture舊登入／Ctrl+R／登出只有HUMAN_REPORTED_PASS；新RD編輯／送審／核准拒絕仍NOT_RUN。Dani本人DEFERRED_UNVERIFIED，Google正式延遲情境未證；browser action的automatic review拒絕不等於已查證使用者設定封鎖。指定歷史parent未刪，不清child／cascade／擴權。Production清理與發布inputs／payload／logs／readbacks只存私下；以下舊狀態是歷史，不能當current。
 
 ## DEV-121#rd-capabilities — 2026-10-11 v7 維護 producer 續接
 
@@ -9,6 +18,8 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 
 
 ## DEV-122 CURRENT（B36-R10 已正式發布；B38 協定／B39 縮圖／B40 瀏覽器診斷，正式 CAD 預覽未通過）
+
+B44 ACTUAL_SELF_PERMISSION_READ／SOURCE_RECONCILIATION：正常授權帳號登入後，正式self GET 200，辨識review／run與workspace.view均true；本人Principal／員工／Firebase identity／公司一致，既有A0061 review GET 200但沒有session。這只證目前新登入的讀取決策，不證原403或POST write snapshot；零recognition POST／零已完成job重排。兩站logout200＋self401，自有runtime／temp及錯誤空白分頁已清理。已無GitHub nonterminal owner，main093133b65 required CI PASS；最新main11檔完整保留、B41排除，獨立source QC P0=0／P1=0。舊owner freeze為歷史紀錄，不把它當新的人類禁令；source PR可續接。另一DEV-121 owner仍續接RD v7，FULL35含未套用085而現有program-only僅接受FULL34／prefix33，沒有source34 alias入口；本任務沒有修改gate、啟動capsule或正式infra mutation。source／owner相容性解決前不切流。[B44查證](qa/DEV-122-B44-self-permission-source-reconciliation-2026-10-12.json)。NO084／7 issues／29 groups／whole NOT_ACCEPTED與原生CAD使用者驗收保持。
 
 B43 LOCAL_DIAGNOSTIC_QC_PASS_PENDING_OFFICIAL_RELEASE：review GET／run POST403 文案與封閉診斷已修正；38/38 unit、typecheck／lint／隔離build及1個真實native v4 fixture案例PASS，管理員雙次run檢查create一次，3負例403／零queue。Jed正式effective grant／根因與mounted UI仍未證，不宣稱正式問題修復。原r1 fixture FAIL、r2 launcher registration FAIL及恢復讀回、raw PARTIAL_NOT_ACCEPTED保留；所有自有runtime／UI／assets已清理。既有owner freeze／NO084／7 issues／29 groups／whole NOT_ACCEPTED保持。[B43本地證據](qa/DEV-122-B43-recognition-denial-local-checkpoint-2026-10-12.json)。
 
@@ -2463,4 +2474,8 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 
 [DEV-121 主線收斂／原稿保存](qa/DEV-121-preserved-workspace-drafts-2026-10-06.md)：RECONCILED_HISTORY_ONLY。相關 runtime 已在 main 或已確認不採用；原始文件與程式 patch 保存供追溯，不是新的待開發或發布指令。本批不改變 DEV-121 正式結案，DEV-122 延期與其他工作樹原稿保留；必要 CI／review 以本文件 PR 精確來源為準。
 
-- [DEV-121 RD v7 ordinary worker evidence checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)：reuse→DAILY_REFRESH→full owner原生descriptor續接、Windows frozen-input LF checkout及單byte拒絕回歸、synthetic重試、local/Production分界；沿DEV-121#rd-capabilities，依賴DEV-122既有daily worker，非新DEV或B35擴權。
+- [DEV-121 RD v7 ordinary worker evidence checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)：reuse→DAILY_REFRESH→full owner原生descriptor續接、Windows frozen-input LF checkout及單byte拒絕回歸、synthetic重試、bounded zero-only stdout readback與failure count證據、FAILED partial continuation及local/Production分界；沿DEV-121#rd-capabilities，依賴DEV-122既有daily worker，非新DEV或B35擴權。
+  - 同checkpoint的 Daily metadata evidence propagation corrective：source-joined continuation接至ordinary pre-read／selftest／replay，錯full descriptor停寫前拒絕；synthetic focused5/5與完整required QC PASS，來源獨立審查P0=0/P1=0；Production待證。
+
+  - 同checkpoint的 Current program-only serving and retained READY worker：native只讀版本分離、source-bound serving／worker雙鏈核對及停寫前穩定readback，positive／drift／replay／recovery回歸；local與Production分界。
+  - 上述 current-serving checkpoint 最終分類相容 focused10/10、native QC350/350／typecheck／isolated build PASS；本地證據與085／RD正式驗收分開。

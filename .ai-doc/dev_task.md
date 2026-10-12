@@ -1,11 +1,20 @@
 # AI_PDM 開發任務
 
+## DEV-121#rd-capabilities — 2026-10-12 sealed archive 接續補修（本地驗證，未發布）
+
+沿用既有 DEV-121 與人類 AI-PDM own protected Production 授權，不新增主 DEV／專案／帳戶／資源操作。PR276 已正常合併至官方 main，PR 與 main required CI PASS；原事故通知訂閱已恢復 ACTIVE，OrgMaster v7 已 RELEASED／100%。最新 native source freeze、metadata read/no-op、worker artifact association、source-bound app-infra reuse 已 PASS，保留既有工具映像；ordinary pause 尚未完成，沒有新的 bootstrap full、fence、085、candidate 或切流。
+
+已證實的新失敗點是 sealed historical source archive 的單次 media stream timeout；完整只讀 native pause 診斷在 lifecycle write 前拒絕，serving observer 與 observer→graph 獨立 PASS。這不證明先前所有 generic failure 都同一根因。最小補修僅固定 numeric generation 的 media GET：單次60秒、明確 timeout／指定 transport reset 最多完整重讀一次，partial bytes丟棄/cancel；metadata仍單次，原 context／absolute deadline、depth、256MiB、size／CRC／SHA guard不變。HTTP拒絕、內容不符、未知錯誤與整體過期不得重試；domain message原樣並加同值code。
+
+Synthetic true RED 0/1、新增13/13及含其的archive/context44/44 PASS；完整owner-proof165/165、另一份continuous302/302 PASS，分母重疊不相加。獨立6-luna極高唯讀source QC P0=0/P1=0，不是provider實測。本輪原生QC363/363、catalog3/3、abort6/6、DB boundary22檔、app型別與isolated build PASS（artifact／primary／cleanup=true）；原middleware／Edge警告保持。正常commit／required CI／protected merge與新official-source發布仍待完成。兩檔不在既有18-path controller／migration-runner closure或finite-worker recipe，舊工具artifact仍需新source-bound native association及provider readback，不能直接借舊receipt。契約：[FAILED DAILY](specs/DEV-121-target-authorization-boundary.md#failed-daily-continuation)；驗證入口：[ordinary worker checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)。
+
+085 NOT_APPLIED／RD v7 NOT_DEPLOYED。兩fixture舊登入／Ctrl+R／登出只有HUMAN_REPORTED_PASS；新RD編輯／送審／核准拒絕仍NOT_RUN。Dani本人DEFERRED_UNVERIFIED，Google正式延遲情境未證；browser action的automatic review拒絕不等於已查證使用者設定封鎖。指定歷史parent未刪，不清child／cascade／擴權。Production清理與發布inputs／payload／logs／readbacks只存私下；以下舊狀態是歷史，不能當current。
 
 ## DEV-121#rd-capabilities — 2026-10-11 ordinary worker evidence 續接
 
 沿用既有DEV-121，與DEV-122原生daily worker邊界協作；不新增主DEV。相同worker可重用映像時，既有producer只產B35 wrapper，ordinary full35需要的build-only/full descriptor尚未產出。synthetic RED已重現兩個接縫；新增原生current-source daily build-only輸出及DAILY_REFRESH完成後的完整descriptor，保留new pause/drain/bootstrap/preflight、PAUSED／all-terminal／actual selftest與普通owner檢查。B35 closed34/effective33、FIRST及085 fence不放寬。未知descriptor寫入不回退已完成bootstrap；same URI可讀後精確adopt，零重送POST/Job操作。五項新增test＋一項原pipeline聚焦6/6 PASS；獨立Luna只讀review最後P0=0/P1=0，完整gates尚待本輪讀回。
 
-指定SDK已重新驗證；OrgMaster sealed terminal／canonical與provider流量已讀回RELEASED／100%，numeric smoke v10生效。AI-PDM原事故通知訂閱在獨立受保護計畫及指定人類授權後按原設定恢復ACTIVE；image-only runner rotation已APPLIED，沿用既有provider驗證映像、零重建。AI-PDM085仍未APPLIED／RD v7未DEPLOYED，worker未停写，正式舊版100%。下一個實際阻擋為metadata IAM executor的checkout CRLF與frozen Git LF不符；正式補上九個精確輸入的Git LF規則與Windows synthetic checkout／單byte篡改回歸，保留source guards，完成review後用新乾淨官方checkout續接。完整結果與來源適用性見[ordinary worker checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)。worktree沿用原task-owned checkout與private output，cleanup owner本對話Root；Next step為required CI/official source及原受保護owner續接，兩fixtureRD與本人驗收分開。
+指定SDK已重新驗證；OrgMaster sealed terminal／canonical與provider流量已讀回RELEASED／100%，numeric smoke v10生效。AI-PDM原事故通知訂閱在獨立受保護計畫及指定人類授權後按原設定恢復ACTIVE；image-only runner rotation已APPLIED，沿用既有provider驗證映像、零重建。AI-PDM085仍未APPLIED／RD v7未DEPLOYED，worker未停写，正式舊版100%。下一個實際阻擋為metadata IAM executor的checkout CRLF與frozen Git LF不符；正式補上九個精確輸入的Git LF規則與Windows synthetic checkout／單byte篡改回歸，保留source guards，完成review後用新乾淨官方checkout續接。LF正式修正已PR272合併，native metadata／reuse通過但下游context漏傳；synthetic確認daily政策拒絕及錯誤program-only descriptor會先pause。最小接線／early guard／full-evidence equality修正聚焦5/5、native QC343/343、continuous287/287及required gates PASS，獨立Luna QC P0=0/P1=0；正式worker仍未pause／085未套用。PR273已正常合併；R5 native metadata／reuse PASS後只讀確認program-only current serving與retained READY worker為兩個版本，daily舊檢查先pause再拒絕。最小closed serving preflight修正最終focused10/10、native QC350/350、typecheck／isolated build PASS；continuous294/294為分類相容修正前證據，最終native包含全部受影響案例。獨立source及增量QC P0=0/P1=0，官方source續接待完成，尚未改worker或流量。PR274已正常合併；原生pause後selftest完成但首次stdout讀回拒絕，normal Job已恢復且Scheduler保持PAUSED。初查筆數未知、後續marker唯一且receive早於completion；不斷言傳輸延遲。zero→visible synthetic true RED確認single-query限制，最小bounded zero-only讀回與failure count證據聚焦7/7 PASS，native QC354/354、catalog3/3／abort6/6／DB boundary／typecheck與isolated build PASS，Luna source QC P0=0/P1=0；FAILED partial continuation待完成，085未套用／RD未部署。完整結果與來源適用性見[ordinary worker checkpoint](qa/DEV-121-rd-v7-worker-continuation-local-2026-10-11.md)。worktree沿用原task-owned checkout與private output，cleanup owner本對話Root；Next step為required CI/official source及原受保護owner續接，兩fixtureRD與本人驗收分開。
 
 ## DEV-121#rd-capabilities — 2026-10-11 v7 維護 producer 續接
 
@@ -15,6 +24,8 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 
 
 ## DEV-122 CURRENT（B36-R10 已正式發布；B38 協定／B39 縮圖／B40 瀏覽器診斷，正式 CAD 預覽未通過）
+
+B44 ACTUAL_SELF_PERMISSION_READ／SOURCE_RECONCILIATION：正常授權帳號登入後，正式self GET 200，辨識review／run與workspace.view均true；本人Principal／員工／Firebase identity／公司一致，既有A0061 review GET 200但沒有session。這只證目前新登入的讀取決策，不證原403或POST write snapshot；零recognition POST／零已完成job重排。兩站logout200＋self401，自有runtime／temp及錯誤空白分頁已清理。已無GitHub nonterminal owner，main093133b65 required CI PASS；最新main11檔完整保留、B41排除，獨立source QC P0=0／P1=0。舊owner freeze為歷史紀錄，不把它當新的人類禁令；source PR可續接。另一DEV-121 owner仍續接RD v7，FULL35含未套用085而現有program-only僅接受FULL34／prefix33，沒有source34 alias入口；本任務沒有修改gate、啟動capsule或正式infra mutation。source／owner相容性解決前不切流。[B44查證](qa/DEV-122-B44-self-permission-source-reconciliation-2026-10-12.json)。NO084／7 issues／29 groups／whole NOT_ACCEPTED與原生CAD使用者驗收保持。
 
 B43 LOCAL_DIAGNOSTIC_QC_PASS_PENDING_OFFICIAL_RELEASE：review GET／run POST403 文案與封閉診斷已修正；38/38 unit、typecheck／lint／隔離build及1個真實native v4 fixture案例PASS，管理員雙次run檢查create一次，3負例403／零queue。Jed正式effective grant／根因與mounted UI仍未證，不宣稱正式問題修復。原r1 fixture FAIL、r2 launcher registration FAIL及恢復讀回、raw PARTIAL_NOT_ACCEPTED保留；所有自有runtime／UI／assets已清理。既有owner freeze／NO084／7 issues／29 groups／whole NOT_ACCEPTED保持。[B43本地證據](qa/DEV-122-B43-recognition-denial-local-checkpoint-2026-10-12.json)。
 

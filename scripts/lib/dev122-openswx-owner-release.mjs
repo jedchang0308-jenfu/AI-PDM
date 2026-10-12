@@ -1,3 +1,4 @@
+import { assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { assertProgramOnlyPolicy, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
 import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
@@ -341,10 +342,12 @@ function workerJobMetadata(job) {
   return Object.fromEntries(['labels', 'annotations', 'client', 'clientVersion', 'launchStage', 'binaryAuthorization']
     .filter(key => Object.hasOwn(job, key)).map(key => [key, structuredClone(job[key])]))
 }
-export async function updateWorkerJob({ transport, profile, template, expectedCurrentTemplate = null, deadlineAt }) {
+export async function updateWorkerJob({ transport, profile, template, expectedCurrentTemplate = null, expectedCurrentEtag = null, expectedCurrentGeneration = null, deadlineAt }) {
   assertOpenSwxWorkerProfile(profile)
   const before = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
   if (!before.etag || before.reconciling || Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_JOB_UPDATE_NOT_READY')
+  if ((expectedCurrentEtag!==null&&before.etag!==expectedCurrentEtag)
+    || (expectedCurrentGeneration!==null&&String(before.generation)!==String(expectedCurrentGeneration))) fail('OPENSWX_JOB_RECOVERY_SOURCE_DRIFT')
   if (expectedCurrentTemplate) {
     const current = normalizeWorkerTemplate(before.template)
     if (![canonicalize(expectedCurrentTemplate), canonicalize(template)].includes(canonicalize(current))) fail('OPENSWX_JOB_RECOVERY_SOURCE_DRIFT')
@@ -575,8 +578,14 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
     assertOpenSwxWorkerRef(provenance.priorResourceApplyRef)
     const readback = (await transport.readJson(provenance.resourceReadbackRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
     if (readback.resourcesUnchanged !== true || canonicalize(readback.targetWorkerBuildRef) !== canonicalize(descriptor.workerBuildRef)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
+    const metadata = artifact.secretVersionIam
+    for (const [field, expected] of [['secretVersionIamContinuationRef', metadata?.ref], ['secretVersionIamSourceLockRef', metadata?.sourceLockRef]]) {
+      if (canonicalize(provenance[field] ?? null) !== canonicalize(expected ?? null)
+        || canonicalize(readback[field] ?? null) !== canonicalize(expected ?? null)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
+    }
   }
   if (results.pausedDrainedRef.facts.drainKind === 'FIRST_PROVIDER_ONLY' && results.pausedDrainedRef.image !== image) fail('OPENSWX_RECEIPT_JOIN_INVALID')
+  await assertFailedDailyFullJoin({transport,profile,artifact,descriptor,bootstrap:results.bootstrapRef,preflight:results.cloudPreflightRef,paused:results.pausedDrainedRef})
   const supplementalIam = await readBootstrapSupplementalIam(transport, results.bootstrapRef, descriptor, profile, readSource)
   return { image, receipts: results, artifact, ...(supplementalIam ? { supplementalIam } : {}) }
   })
