@@ -60,7 +60,7 @@ const exactCasePattern=names=>'^('+names.join('|')+')$';
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
 if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','preview-get-boundaries','preview-protocol-gaps'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
 const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
@@ -70,7 +70,8 @@ const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share met
   ?'legal other-company Principal':nativeSelection==='drawing-basis-gaps'
   ?'minor with another numbering|subsequent major after actual production pointer':nativeSelection==='file-authority-gaps'
   ?'Part attachment normal|worker claim excludes native|claimed content rejects native':nativeSelection==='recognition-protocol'
-  ?'recognition real-source signed session':nativeSelection==='drawing-identity-gaps'
+  ?'recognition real-source signed session':nativeSelection==='recognition-access'
+  ?'B43 recognition Admin access':nativeSelection==='drawing-identity-gaps'
   ?'Drawing actual frozen|Drawing malformed root|Drawing cross-company master|Drawing immutable assigned':nativeSelection==='drawing-revision-identity'
   ?'Drawing actual frozen revision identity':nativeSelection==='legacy-compatibility'?'historical v1 .* nonrelease basis':nativeSelection==='legacy-part'?'historical v1 part nonrelease basis':nativeSelection==='preview-protocol-gaps'
   ?previewProtocolGapPattern:nativeSelection==='preview-get-boundaries'?previewGetPattern:nativeSelection==='file-route-gaps'
@@ -934,20 +935,27 @@ async function seedPrincipals(admin,evidenceRoot) {
       VALUES ('organization.active-principal.v1',$1,$2,$3,$4,'active',1,$5,'human_personal')`,
       ['https://securetoken.google.com/dev122-local-fixture','dev122-subject-'+identity,principal,employee,now]);
     await admin.query(`INSERT INTO ai_pdm_contract.dev122_fixture_principal_auth_state_v3 VALUES ($1,1,NULL)`,[principal]);
-    const role=catalog.roles.find(role=>role.roleCode===(identity==='denied'?'qa':['settings','settings-automation'].includes(suite)&&['owner','other'].includes(identity)?'pdm_admin':'rd_manager'));
+    const role=catalog.roles.find(role=>role.roleCode===(identity==='denied'?'qa':(nativeSelection==='recognition-access'&&identity==='owner'||['settings','settings-automation'].includes(suite)&&['owner','other'].includes(identity))?'pdm_admin':'rd_manager'));
     if(['settings','settings-automation'].includes(suite)&&['owner','other'].includes(identity)&&(!role?.assignable||role.subjectKind!=='employee'||
       !role.allowedScopeKinds.includes('workspace')||!['settings.manage','settings.secret.manage'].every(code=>
         role.permissions.some(permission=>permission.code===code&&permission.kind==='action'&&permission.allowed))))
       throw new Error('DEV122_SETTINGS_INITIAL_CATALOG_ROLE_INVALID');
+    const recognitionAdminFixture=nativeSelection==='recognition-access'&&identity==='owner';
+    if(recognitionAdminFixture&&(!role?.assignable||role.subjectKind!=='employee'||
+      !role.allowedScopeKinds.includes('workspace')||!['numbering.recognition.run','numbering.recognition.review'].every(code=>
+        role.permissions.some(permission=>permission.code===code&&permission.kind==='action'&&permission.allowed))))
+      throw new Error('DEV122_RECOGNITION_ADMIN_CATALOG_ROLE_INVALID');
+    const assignmentCatalogVersion=recognitionAdminFixture?'ai-pdm.role-catalog.2026-09-03.v3':catalog.catalogVersion;
+    const assignmentScope=recognitionAdminFixture?'current':company;
     await admin.query(`INSERT INTO ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4 VALUES
       ('jenfu.orgmaster.ai-pdm-principal-grants.v4',$1,1,$2,'direct',NULL,'ai-pdm',$3,$4,'employee',NULL,$5,$6,$7,'workspace',$9,$8,NULL,$8)`,
-      ['dev122-grant-version-'+identity,'dev122-assignment-'+identity,principal,employee,role.stableRoleId,role.roleCode,catalog.catalogVersion,now,company]);
+      ['dev122-grant-version-'+identity,'dev122-assignment-'+identity,principal,employee,role.stableRoleId,role.roleCode,assignmentCatalogVersion,now,assignmentScope]);
     const identityReadback=(await admin.query(`SELECT account.principal_id,account.company_id,account.employee_id,account.pdm_user_id,
       grants.assignment_id,grants.assignment_version_id,grants.assignment_version,grants.published_at,grants.role_code,grants.catalog_version,grants.scope_kind,grants.scope_key,
       typed.principal_issuer,typed.principal_subject,typed.account_type
       FROM ai_pdm_core.principal_accounts account JOIN ai_pdm_contract.dev122_fixture_principal_effective_grants_rows_v4 grants USING(principal_id,employee_id)
       JOIN ai_pdm_contract.dev122_fixture_active_principal_accounts_v1 typed USING(principal_id,employee_id) WHERE account.principal_id=$1`,[principal])).rows;
-    if(identityReadback.length!==1||identityReadback[0].company_id!==company||identityReadback[0].scope_key!==company||identityReadback[0].role_code!==role.roleCode)
+    if(identityReadback.length!==1||identityReadback[0].company_id!==company||identityReadback[0].scope_key!==assignmentScope||identityReadback[0].role_code!==role.roleCode||identityReadback[0].catalog_version!==assignmentCatalogVersion)
       throw new Error('DEV122_INITIAL_IDENTITY_SCOPE_READBACK_FAILED');
     ledger.push({profile,principal,employee,roleCode:role.roleCode,company,identityReadback,producerBoundary:'FIXTURE',
       reason:'legal initial Principal identity/grant fixture before sessions and commands',outcomeSeeded:false});

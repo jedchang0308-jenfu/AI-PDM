@@ -28,6 +28,7 @@ import { GET as readWorkerContent } from "@/app/api/preview-jobs/[jobId]/content
 import { POST as heartbeatWorkerJob } from "@/app/api/preview-jobs/[jobId]/heartbeat/route";
 import { POST as completeWorkerJob } from "@/app/api/preview-jobs/[jobId]/complete/route";
 import { POST as createRecognition } from "@/app/api/numbering/recognition-sessions/route";
+import { GET as readRecognitionPermissions } from "@/app/api/numbering/permissions/route";
 import { POST as claimRecognition } from "@/app/api/recognition-jobs/claim/route";
 import { POST as heartbeatRecognition } from "@/app/api/recognition-jobs/[sessionId]/heartbeat/route";
 import { GET as readRecognitionContent } from "@/app/api/recognition-jobs/[sessionId]/sources/[sourceId]/content/route";
@@ -351,18 +352,18 @@ describe.runIf(procurementEnabled)("DEV122 I01 actual signed procurement route/s
 
 type FileFixture = { workId: string; bindingId: string; assetId: string; bytes: Buffer; url: string;
   asset: { id: string; content_hash: string; file_size: number | string; storage_key: string; original_path: string } };
-async function normalDrawingFile(label: string, extension = "SLDDRW", actualSourceBytes?: Buffer): Promise<FileFixture> {
-  const created = await ok<{ drawingNumber: { id: string } }>(await createRecord(request("/api/numbering/records", ownerToken, "POST",
+async function normalDrawingFile(label: string, extension = "SLDDRW", actualSourceBytes?: Buffer, fixtureToken = ownerToken): Promise<FileFixture> {
+  const created = await ok<{ drawingNumber: { id: string } }>(await createRecord(request("/api/numbering/records", fixtureToken, "POST",
     { coreName: "DEV122 file " + label, itemKind: "manufactured", structureType: "single_part", drawingRequested: true, drawingPurposeCode: "M" }, 1, "", "file-number-" + label)), 201);
   const row = await db!.queryOne<{ id: string }>(`SELECT work.id FROM drawing_revision_works work JOIN drawings drawing ON drawing.id=work.drawing_id
     WHERE drawing.formal_drawing_number_id=:id`, { id: created.drawingNumber.id });
   expect(row).toBeTruthy(); const workId = row!.id, params = { params: Promise.resolve({ workId }) };
-  const work = await ok<Work>(await readDrawingWork(request("/api/pdm/drawing-revision-works/" + workId), params));
+  const work = await ok<Work>(await readDrawingWork(request("/api/pdm/drawing-revision-works/" + workId, fixtureToken), params));
   const bytes = actualSourceBytes ?? Buffer.from("DEV122 normal uploaded protocol bytes " + label + "." + extension);
   const form = new FormData(); form.set("file", new File([new Uint8Array(bytes)], label + "." + extension, { type: "application/octet-stream" }));
   const uploaded = await ok<{ data: { file: { id: string; sourceFileAssetId: string } } }>(await uploadDrawingFile(new Request(
     "https://ai-pdm.test/api/pdm/drawing-revision-works/" + workId + "/files", { method: "POST", headers: {
-      cookie: "__session=" + ownerToken, "if-match": String(work.data.rowVersion), "x-pdm-workbench-contract": work.meta.contractToken,
+      cookie: "__session=" + fixtureToken, "if-match": String(work.data.rowVersion), "x-pdm-workbench-contract": work.meta.contractToken,
       "idempotency-key": label + "-file-upload" }, body: form }), params));
   const bindingId = uploaded.data.file.id, assetId = uploaded.data.file.sourceFileAssetId;
   const asset = await db!.queryOne<FileFixture["asset"]>("SELECT id,content_hash,file_size,storage_key,original_path FROM file_assets WHERE id=:id", { id: assetId });
@@ -592,6 +593,61 @@ describe.runIf(filesEnabled)("DEV122 F01 actual signed canonical file routes, st
       expect(await currentFileJob(fixture)).toEqual(fresh);expect(fresh).toMatchObject({status:"running",locked_by:worker,attempt_count:variant==="heartbeat"?1:2});
       await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"canonical-route-race-"+variant+".json"),JSON.stringify({variant,jobId,stale,fresh,selected,casRows,status:response.status,body,layer:"ACTUAL_SIGNED_CANONICAL_GET_AND_ACTUAL_WORKLOAD_ROUTE"}));
     }finally{restoreObserver?.();if(previous===undefined)delete process.env.PDM_WORKLOAD_AUTH_CREDENTIALS;else process.env.PDM_WORKLOAD_AUTH_CREDENTIALS=previous;}
+  });
+  it("B43 recognition Admin access uses real v4 pdm_admin grants for initial and write checks, with zero-queue negatives", async () => {
+    const flags={PDM_DRAWING_RECOGNITION_V1:"true",PDM_UNIFIED_DRAWING_WORKBENCH_V1:"true",PDM_NUMBER_LIFECYCLE_V2:"true"};
+    const previous=Object.fromEntries(Object.keys(flags).map(name=>[name,process.env[name]]));
+    let restoreObserver:(()=>void)|undefined;
+    const evidence:{[key:string]:unknown}={layer:"ACTUAL_SIGNED_ROUTES_NATIVE_POSTGRES_V4_FIXTURE",
+      producerBoundary:"FIXTURE",formalJedCauseProven:false,sourceRenderingProven:false};
+    const count=async()=>Number((await db!.queryOne<{count:string|number}>("SELECT COUNT(*) AS count FROM drawing_recognition_sessions"))!.count);
+    try {
+      Object.assign(process.env,flags);
+      const owner=await ok<{actions:Record<string,boolean>}>(await readRecognitionPermissions(request("/api/numbering/permissions")));
+      expect(owner.actions["numbering.recognition.run"]).toBe(true);
+      expect(owner.actions["numbering.recognition.review"]).toBe(true);
+      const denied=await ok<{actions:Record<string,boolean>}>(await readRecognitionPermissions(request("/api/numbering/permissions",deniedToken)));
+      expect(denied.actions["numbering.recognition.run"]).toBe(false);
+      expect(denied.actions["numbering.recognition.review"]).toBe(false);
+      const fixture=await normalDrawingFile("b43-recognition-access", "SLDDRW", undefined, reviewerToken);
+      const basis=await db!.queryOne<{revision_id:string}>("SELECT revision_id FROM canonical_workbench_states WHERE work_id=:id AND company_id='company-jenfu'",{id:fixture.workId});
+      expect(basis).toBeTruthy();
+      const body={sourceContextType:"drawing_revision",sourceContextId:basis!.revision_id,sourceAssetIds:[fixture.assetId]};
+      const before=await count();
+      const observer=vi.spyOn(JenfuEntitlementRepository.prototype,"evaluatePermissions");
+      restoreObserver=()=>observer.mockRestore();
+      const response=await createRecognition(request("/api/numbering/recognition-sessions",ownerToken,"POST",body));
+      const created=await ok<{session:{id:string;status:string;initiatorPrincipalId:string}}>(response,201);
+      const runCalls=observer.mock.calls.map((args,index)=>({args,result:observer.mock.results[index]}))
+        .filter(({args})=>args[0].length===1&&args[0][0].permissionCode==="numbering.recognition.run");
+      expect(runCalls).toHaveLength(2);
+      for(const call of runCalls){expect(call.result.type).toBe("return");expect(await call.result.value).toEqual([
+        expect.objectContaining({decisionCode:"allowed",assignment:expect.objectContaining({
+          roleCode:"pdm_admin",catalogVersion:"ai-pdm.role-catalog.2026-09-03.v3",scopeKey:"current"})})]);}
+      restoreObserver();restoreObserver=undefined;
+      expect(await count()).toBe(before+1);
+      const saved=await db!.queryOne("SELECT id,company_id,initiator_principal_id,status FROM drawing_recognition_sessions WHERE id=:id",{id:created.session.id});
+      expect(saved).toMatchObject({id:created.session.id,company_id:"company-jenfu",initiator_principal_id:"dev122-principal-owner",status:"queued"});
+      expect(response.headers.get("x-recognition-request-id")).toBeNull();
+      const negatives=[];
+      for(const variant of ["qa","historical-admin-label","requested-company-mismatch"]){
+        if(variant==="historical-admin-label")await fixtureMutation("B43 historical user Admin label cannot substitute for a published Principal grant",
+          "UPDATE users SET role='Admin' WHERE id=:id",{id:"dev122-profile-denied"});
+        const deniedResponse=await createRecognition(request("/api/numbering/recognition-sessions",
+          variant==="requested-company-mismatch"?ownerToken:deniedToken,"POST",variant==="requested-company-mismatch"?{...body,companyCode:"MAXIMA"}:body));
+        expect(deniedResponse.status,await deniedResponse.clone().text()).toBe(403);
+        expect(deniedResponse.headers.get("x-recognition-request-id")).toMatch(/^[0-9a-f-]{36}$/u);
+        expect(await count()).toBe(before+1);
+        negatives.push({variant,status:deniedResponse.status,body:await deniedResponse.json(),queueDelta:0});
+      }
+      evidence.permissions={owner:owner.actions,denied:denied.actions};
+      evidence.create={status:201,runEvaluations:runCalls.length,session:saved,queueDelta:1};evidence.negatives=negatives;
+      await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"B43-recognition-access-native.json"),JSON.stringify(evidence,null,2));
+    } finally {
+      restoreObserver?.();
+      await fixtureMutation("Restore B43 historical Admin label fixture", "UPDATE users SET role='Engineer' WHERE id=:id",{id:"dev122-profile-denied"});
+      for(const [name,value] of Object.entries(previous)){if(value===undefined)delete process.env[name];else process.env[name]=value;}
+    }
   });
   it("recognition real-source signed session and workload protocol preserve filename output with isolated broker boundary", async () => {
     const flags={PDM_DRAWING_RECOGNITION_V1:"true",PDM_UNIFIED_DRAWING_WORKBENCH_V1:"true",PDM_NUMBER_LIFECYCLE_V2:"true",

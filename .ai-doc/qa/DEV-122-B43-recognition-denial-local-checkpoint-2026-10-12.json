@@ -1,0 +1,201 @@
+{
+  "schemaVersion": "ai-pdm.dev122-local-checkpoint.v1",
+  "slice": "B43 recognition denial classification and bounded diagnostics",
+  "recordedAt": "2026-10-12T00:58:58.379773+00:00",
+  "status": "LOCAL_DIAGNOSTIC_QC_PASS_PENDING_OFFICIAL_RELEASE",
+  "sourceHead": "6100a577f0dc517f9839381ab7f1835a411246d1",
+  "branch": "codex/dev122-b42-full-pdf",
+  "primaryWriter": "root",
+  "mainModel": "current-session; actual model name not verified",
+  "routingMode": "balanced",
+  "scope": "AI-PDM only; existing same-repo worktree; no production mutation, new IAM/Secret/resource, permission grant, role catalog or migration",
+  "authorization": "Existing DEV-122 local corrective cycle; website login/logout and read-only OrgMaster verification; standing release coordination freeze",
+  "changedBehavior": [
+    "Separate review-read vs run/create denial copy",
+    "Proof and verified-actor mismatch retain 403 with stable closed codes",
+    "One sanitized 403 event with enum stage/reason and server UUID; original response status/body/cache preserved"
+  ],
+  "testedSourceHashes": {
+    "scripts/qc-dev-122-native-postgres.mjs": "38344839861adbe0f60129160b9e6166c7055d53be7770b7ad827bb1835f046e",
+    "src/app/api/numbering/recognition-sessions/principal-create.test.ts": "dca87b21174f450aff29d645a10336022035c2b1b92dcb72659b3e58c4d81e6a",
+    "src/app/api/numbering/recognition-sessions/route.ts": "771752ab738613e5bdc73dd75a6b74d1c616ead7ad4afe691b05519cdaf7c436",
+    "src/components/drawing-recognition-workspace-panel.permission.test.tsx": "02ae3ce8626df782f21a101e696f702ded4d64eb63d1b0ce2dd65d4533e89d35",
+    "src/components/drawing-recognition-workspace-panel.tsx": "bd70de389d4bdae016c20f8d77fceb7d0271fe2b214261765b28db511acbd20e",
+    "src/lib/dev122-native-business.postgres-contract.test.ts": "be0d12dbf53beafa1822a0618884ab0164e24746d0b04f7ffb85337d6b06b628",
+    "src/lib/drawing-recognition-principal-mutation.test.ts": "edc6ff0ffdb522557e89de86a696a3ddfc797a691acd4b04543344a2dd4ba416",
+    "src/lib/drawing-recognition-principal-mutation.ts": "00fc8854287cf3c8b130d566698eef77ed2c7f75b276e3fbd57d9caad6f0d57a"
+  },
+  "unit": {
+    "red": {
+      "total": 28,
+      "passed": 15,
+      "failed": 13,
+      "setupFailure": false
+    },
+    "latest": {
+      "total": 38,
+      "passed": 38,
+      "failed": 0,
+      "layer": "real source with mocks and captured hooks; not mounted UI"
+    },
+    "redArtifact": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B43-red-unit-report.json",
+      "sha256": "f7dc7fa7b3af0da58758f7405deb2e4583a6d7a85ebe9e2cda22acf16e250646"
+    },
+    "latestArtifact": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B43-green-r3-unit-report.json",
+      "sha256": "8dac24eab27397fff3c528f283c64ce66bae2cd0cc512c008c462558a3514d51"
+    }
+  },
+  "static": {
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "artifact": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B43-static-r2-checks.json",
+      "sha256": "1670f958398fc1a9f3db6ada3cd20aed3e77bec350b3f5d47c3309257298b90c"
+    },
+    "nativeRunnerAndTestLint": "PASS",
+    "extraFiniteWrapperFailure": "Post-lint registration of short-lived node --check child failed; separate syntax result not recorded; do not replace failure with native PASS",
+    "extraAuditArtifact": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B43-final-resource-and-extra-check-audit.json",
+      "sha256": "a9fc70590edcb2bc185e3213fb20f614fb180cea0fb0bc5cfb91943f93b2ad92"
+    }
+  },
+  "native": {
+    "selectedPassed": 1,
+    "selectedFailed": 0,
+    "skipped": 151,
+    "rawStatus": "PARTIAL_NOT_ACCEPTED",
+    "rawExitCode": 1,
+    "firstFailure": null,
+    "layer": "Actual signed route handlers and disposable native PostgreSQL; synthetic v4 producer fixture; no browser/OrgMaster/production proof",
+    "fixture": "single pdm_admin; v3 assignment provenance/current scope mapped through active v7 catalog; source prepared by rd_manager",
+    "selfGet": {
+      "run": true,
+      "review": true,
+      "qaRun": false,
+      "qaReview": false
+    },
+    "write": {
+      "actualRunEvaluations": 2,
+      "createdSessionCountDelta": 1,
+      "status": "queued"
+    },
+    "negatives": [
+      {
+        "variant": "qa",
+        "status": 403,
+        "queueDelta": 0
+      },
+      {
+        "variant": "historical-admin-label",
+        "status": 403,
+        "queueDelta": 0
+      },
+      {
+        "variant": "requested-company-mismatch",
+        "status": 403,
+        "queueDelta": 0
+      }
+    ],
+    "r1Failure": "Fixture preparation GET work 403 before recognition POST; product source hashes unchanged in r2",
+    "r1Artifact": {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\f82448205677ad11\\manifest.json",
+      "sha256": "24de112961828a38a3acd59bfc2921c8e545a40834d8b72a47a5331097e60d08"
+    },
+    "r2Artifact": {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\b9fa0dd1f65b42b2\\manifest.json",
+      "sha256": "6dd62fc08db2e7436a4c387f9bbead7d4aece9d37de61156175689841c517210"
+    },
+    "readbackArtifact": {
+      "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\output\\qa\\dev-122\\b9fa0dd1f65b42b2\\B43-recognition-access-native.json",
+      "sha256": "6d6c316d1552931b4cdcedf19b5d0f61fe1ee64a13bc6ea6b93871862d44baee"
+    },
+    "launcherRecoveryArtifact": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B43-native-r2-launcher-recovery-readback.json",
+      "sha256": "c3e3984f1d32919986c74f5fded8fef155a1e33ca4e4d83f622eb7e00bc38a5c"
+    }
+  },
+  "build": {
+    "result": "PASS",
+    "artifact": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B43-recognition-build-r1-final.json",
+      "sha256": "32f4ea1440dbf251094b1d7b4ae2a3949513b8c570dbcdf510e6c7cdc4d1d864"
+    },
+    "sourceUnchanged": true,
+    "primaryUnchanged": true,
+    "taskCleanup": "PASS"
+  },
+  "independentQc": {
+    "configuredModel": "gpt-6-luna",
+    "reasoning": "xhigh",
+    "implementationP0": 0,
+    "implementationP1": 0,
+    "formalAcceptanceGap": true,
+    "artifact": {
+      "path": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B43-independent-luna-qc-final.json",
+      "sha256": "63c539d0e193a4763260629340504f7851a2187581ec48cf6161c36fac414433"
+    }
+  },
+  "formal": {
+    "jedCause": "UNKNOWN",
+    "jedEffectiveV4Grant": "NOT_OBTAINED",
+    "orgmasterUiAssignment": "Displayed active/included; does not prove consumer decision",
+    "selfGetAttempts": "Two own Chrome top-level self GET attempts blocked by client; no HTTP grant response obtained",
+    "httpLogs": "Bounded own-service readback: 12 collection POST 403 requests; actor/code absent; cannot attribute to Jed",
+    "mountedUi": "NOT_RUN_B43",
+    "productionDeployment": "NOT_RUN_B43",
+    "productionIssueSolved": false
+  },
+  "cleanup": {
+    "primarySqliteAndSidecarsAbsent": 8,
+    "ownedUiTabsClosed": true,
+    "nativeProcessesPortsTempRemoved": true,
+    "buildProcessesTempAssetsRemoved": true,
+    "primaryReadback": [
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\data\\ai-pdm.sqlite",
+        "exists": false
+      },
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\data\\ai-pdm.sqlite-wal",
+        "exists": false
+      },
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\data\\ai-pdm.sqlite-shm",
+        "exists": false
+      },
+      {
+        "path": "C:\\Users\\user\\.codex\\worktrees\\dev122-internal-functions\\AI_PDM\\data\\ai-pdm.sqlite-journal",
+        "exists": false
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite",
+        "exists": false
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite-wal",
+        "exists": false
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite-shm",
+        "exists": false
+      },
+      {
+        "path": "C:\\VIBE CODING\\AI_PDM\\data\\ai-pdm.sqlite-journal",
+        "exists": false
+      }
+    ],
+    "activeGovernorProcessRows": 0
+  },
+  "standingBoundaries": {
+    "NO084": true,
+    "A0061CompletedJobNotRequeued": true,
+    "supplier": "DISABLED_DEFERRED",
+    "F01F": "USER_OWNED_FORMAL_PENDING_NOT_PASS",
+    "originalIssues": 7,
+    "originalGroups": 29,
+    "wholeDev": "NOT_ACCEPTED"
+  },
+  "next": "Reconcile existing DEV-121 owner release coordination before official source/release; then capture Jed same-session self GET and correlated diagnosis without grant bypass"
+}

@@ -10,6 +10,8 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 
 ## DEV-122 CURRENT（B36-R10 已正式發布；B38 協定／B39 縮圖／B40 瀏覽器診斷，正式 CAD 預覽未通過）
 
+B43 LOCAL_DIAGNOSTIC_QC_PASS_PENDING_OFFICIAL_RELEASE：review GET／run POST403 文案與封閉診斷已修正；38/38 unit、typecheck／lint／隔離build及1個真實native v4 fixture案例PASS，管理員雙次run檢查create一次，3負例403／零queue。Jed正式effective grant／根因與mounted UI仍未證，不宣稱正式問題修復。原r1 fixture FAIL、r2 launcher registration FAIL及恢復讀回、raw PARTIAL_NOT_ACCEPTED保留；所有自有runtime／UI／assets已清理。既有owner freeze／NO084／7 issues／29 groups／whole NOT_ACCEPTED保持。[B43本地證據](qa/DEV-122-B43-recognition-denial-local-checkpoint-2026-10-12.json)。
+
 B42 LOCAL_QC_PASS_PENDING_OFFICIAL_RELEASE：同版本 PDF 自動優先、完整 PDF.js 換頁／縮放／符合寬度、多檔歧義一次選擇與逾時清理已實作。6 個聚焦檔案 59／59、型別／lint／隔離建置通過；1 個 native fixture 與 1440／390 兩個實際瀏覽器案例通過，Root 查看授權 PDF 的全頁 canvas、尺寸與中文註記可讀。獨立 Luna QC P0=0／P1=0／P2=0，自有程序／ports／暫存／generated assets 已清理，兩 root primary SQLite／sidecars 仍 ABSENT。[B42 本地證據](qa/DEV-122-B42-full-pdf-local-checkpoint-2026-10-12.json)。兩頁 protocol PDF 只證操作，CAD 同版配對 NOT_PROVEN；F-01F 仍由使用者正式驗證。B41 WIP db22018d 不納入，原 FAIL／29 groups／whole NOT_ACCEPTED／NO084 不變。既有 DEV-121 正式 owner freeze 期間僅本地提交，不 push/main merge/prod mutation；管理員辨識拒絕另由 B43 繼續查證。
 
 B38 的固定13個既有原生協定案例已補驗13/13 PASS，包含actual202 headers、claim／content負例及protocol PNG；TypeScript與獨立Luna QC通過。首輪12 PASS／1 FAIL為前例合法queued job污染，保留FAIL，僅在原route回條後精確清理本機fixture；另移除runner既有重複085，未改SQL且NO084。正式使用者回報預覽無法顯示並已重現；設定頁顯示原生2D worker未在線、金鑰尚未啟用，輔助屬性可見但尚未由人類比對。B39以vendored格式的有界診斷抽取，8個授權CAD原檔共讀出14張640×480儲存PNG，CRC／實際解碼與原檔前後SHA通過，已查看D-0007兩圖面及零件縮圖；這是offline相容性，compiled OpenSWX／產品接線／部署均NOT_RUN，不冒充完整CAD渲染或清晰尺寸驗收。runtime／ports／temp／primary absence及Governor清理讀回確認。[B38補驗與正式失敗](qa/DEV-122-B38-native-preview-protocol-and-user-feedback-2026-10-11.json)。

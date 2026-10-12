@@ -42,9 +42,9 @@ const metadata: PdmCommandMetadata = {
   }
 };
 
-function run(execute = vi.fn(async () => "written")) {
+function run(execute = vi.fn(async () => "written"), suppliedMetadata = metadata) {
   return { execute, result: withPrincipalDrawingRecognitionMutation({
-    metadata, permissionCode, actorId, companyId, client: snapshot, execute
+    metadata: suppliedMetadata, permissionCode, actorId, companyId, client: snapshot, execute
   }) };
 }
 
@@ -82,7 +82,7 @@ describe("direct recognition writes share the verified Principal write snapshot"
       ...verified, profile: { ...verified.profile, pdmUserId: "other-profile" }
     }));
     const { execute, result } = run();
-    await expect(result).rejects.toMatchObject({ code: "RECOGNITION_PERMISSION_DENIED" });
+    await expect(result).rejects.toMatchObject({ code: "RECOGNITION_VERIFIED_ACTOR_MISMATCH", status: 403 });
     expect(mocks.evaluate).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
   });
@@ -90,8 +90,42 @@ describe("direct recognition writes share the verified Principal write snapshot"
   it("rejects route or session-token substitution before opening the write snapshot", async () => {
     mocks.token.mockReturnValueOnce("other-token");
     const { execute, result } = run();
-    await expect(result).rejects.toMatchObject({ code: "RECOGNITION_PERMISSION_DENIED" });
+    await expect(result).rejects.toMatchObject({ code: "RECOGNITION_REQUEST_PROOF_INVALID", status: 403 });
     expect(mocks.verify).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
   });
+  it.each(["pdm_admin","system_admin"])("admits %s with an intact v2 actor and exact collection POST proof",async roleCode=>{
+    const permissionCode="numbering.recognition.run";
+    const adminActor=createPlatformActorContext({pdmUserId:actorId,organizationId:companyId,
+      roles:[roleCode],authorizationActor:actor.authorizationActor});
+    expect(Object.keys(adminActor)).not.toContain("authorizationActor");
+    expect(adminActor.authorizationActor?.sessionSchemaVersion).toBe(2);
+    const adminMetadata={...metadata,actor:adminActor,principalAuthorization:{
+      request:new Request("https://ai-pdm.test/api/numbering/recognition-sessions",{method:"POST"}),
+      routePath:"src/app/api/numbering/recognition-sessions/route.ts",method:"POST",permissionCode}};
+    mocks.evaluate.mockResolvedValueOnce([{allowed:true,principalId,permissionCode,roleCode}]);
+    const execute=vi.fn(async()=>"written");
+    await expect(withPrincipalDrawingRecognitionMutation({metadata:adminMetadata,permissionCode,actorId,companyId,client:snapshot,execute})).resolves.toBe("written");
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(mocks.verify).toHaveBeenCalledWith(expect.objectContaining({database:snapshot}),expect.any(Function),
+      {readOnly:false,isolationLevel:"repeatable_read"});
+  });
+  it.each(["route","method","missing_actor_proof"])("rejects %s before opening a write snapshot",async variant=>{
+    const copy={...metadata,principalAuthorization:{...metadata.principalAuthorization!}};
+    if(variant==="route") copy.principalAuthorization.request=new Request("https://ai-pdm.test/api/numbering/recognition-sessions/recognition-one/reruns",{method:"PATCH"});
+    if(variant==="method") copy.principalAuthorization.method="DELETE";
+    if(variant==="missing_actor_proof") copy.actor={...actor};
+    const {execute,result}=run(vi.fn(async()=>"written"),copy);
+    await expect(result).rejects.toMatchObject({code:"RECOGNITION_REQUEST_PROOF_INVALID",status:403});
+    expect(mocks.verify).not.toHaveBeenCalled();expect(execute).not.toHaveBeenCalled();
+  });
+  it("does not authorize a legacy Admin role label without a current published grant",async()=>{
+    const legacyMetadata={...metadata,actor:createPlatformActorContext({pdmUserId:actorId,
+      organizationId:companyId,roles:["Admin"],authorizationActor:actor.authorizationActor})};
+    mocks.evaluate.mockResolvedValueOnce([{allowed:false,principalId,permissionCode,roleCode:null}]);
+    const {execute,result}=run(vi.fn(async()=>"written"),legacyMetadata);
+    await expect(result).rejects.toMatchObject({code:"RECOGNITION_PERMISSION_DENIED",status:403});
+    expect(execute).not.toHaveBeenCalled();
+  });
+
 });
