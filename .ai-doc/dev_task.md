@@ -1,5 +1,12 @@
 # AI_PDM 開發任務
 
+## DEV-121#rd-capabilities — 2026-10-12 finite operation / partial pause 承接補修（本地 PASS，待受保護發布）
+
+沿用既有 AI-PDM RD／085 與 own protected Production corrective cycle，base official main 7ea17f2，branch codex/dev121-finite-operation-reconcile。已證實 collector 未使用持久化 operation，僅以 client-clock window 篩 provider execution，synthetic old-source RED 重現。最小 shared join 核對原 request／native operation／精確 UID、creator、template 與 successful execution；新 native POST metadata 封存入 latch，普通 owner 不擴張 operation-read IAM，legacy/name-only 仍 strict window。另以 failed-v1-only partialFailedDailyPauseInputRef 驗證過期 partial 的原 sealed graph／request／operation，僅承接已知歷史 inventory，不補造 finite／paused PASS、不延長舊期限、不重送工作。保留 opaque depth／cycle／hash、double PAUSED normal/IAM/Secret/inventory、fresh normal drain／original isolation／完整 bootstrap。
+
+最新聚焦10/10 PASS（finite16＋partial18拒絕variants、真實descriptor-ancestor cycle、pending→terminal進度、sealed replay／zero old run、fresh drain1、新selftest0）；獨立6-luna xhigh source QC P0=0／P1=0。新增固定+1ms時鐘RED證實pause收據兩次取樣反序，改為同一觀察時間並保留原clock guards。最終actual continuous312/312、native QC376/376、catalog3/3、abort6/6、DB boundary22檔、app型別／隔離建置PASS；artifact／primary／cleanup=true。[本地證據與限制](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md)。085 NOT_APPLIED、RD未DEPLOYED、兩fixture新RD驗收NOT_RUN；兩位指定正式使用者登入／reload為HUMAN_REPORTED_PASS。AUTH_REQUIRED與Google延遲、browser tool/UI不同步及歷史parent處置各自保留未知，不推定共同根因、不擴大清理。以下舊狀態為歷史。
+
+
 ## DEV-121#rd-capabilities — 2026-10-12 completed worker checkpoint 承接補修（本地 PASS，待受保護發布）
 
 沿用原 AI-PDM RD／085 與 own protected Production corrective cycle；base official main 1f4f567，branch codex/dev121-completed-worker-checkpoint。首個新拒絕是舊 FAILED DAILY 精確 execution 集合未承接後續已封存成功 bootstrap 的 normal drain。已完成的 checkpoint 保留原來源、期限與 timestamps；不重送相同失敗 input，不把它當目前停寫或 DB admission。公開 source 只新增 failed-only 的 immutable completedFailedDailyCheckpointRef，原三-ref continuation 不變；完整 native full join／source／recipe／actor／credentials／模板／hash／時間／opaque depth／cycle guards 驗證後，才推導唯一已知 drain 集合。新 source 仍需 fresh normal drain、original isolation proof、目前 normal Job／PAUSED Scheduler／IAM／Secret metadata 的雙讀回；未知 execution、篡改或不完整 checkpoint 在 publication／lifecycle write 前拒絕。

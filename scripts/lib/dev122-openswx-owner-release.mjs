@@ -327,6 +327,62 @@ function assertFiniteRequest(value, descriptor, template, actor, deadlineAt) {
   for (const name of value.baselineExecutionNames) if (canonicalWorkerExecution(name) !== name) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
   return value
 }
+/** A sealed :run operation binds the provider execution without comparing
+ * independent client/provider clocks. A missing latch retains the strict window. */
+export async function readFiniteOperation(transport, requestRow, { operationRef = null, readback = null } = {}) {
+  const uri = requestRow.ref.uri.replace(/-request\.json$/u, '-operation.json')
+  if (uri === requestRow.ref.uri) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
+  const row = await optionalReceipt(transport, uri)
+  if (!row) { if (operationRef || readback) fail('OPENSWX_OPERATION_JOIN_INVALID'); return null }
+  exact(row.value, ['schemaVersion', 'requestRef', 'providerOperationName', ...(Object.hasOwn(row.value, 'providerOperationReadback') ? ['providerOperationReadback'] : [])], 'OPENSWX_OPERATION_JOIN_INVALID')
+  if (row.value.schemaVersion !== 'aipdm.openswx-finite-operation.v1'
+    || canonicalize(row.value.requestRef) !== canonicalize(requestRow.ref)
+    || !new RegExp(`^projects/(?:${PROJECT}|${NUMBER})/locations/${REGION}/operations/[^/]+$`, 'u').test(row.value.providerOperationName ?? '')
+    || (operationRef && canonicalize(operationRef) !== canonicalize(row.ref))) fail('OPENSWX_OPERATION_JOIN_INVALID')
+  if (readback && (!row.value.providerOperationReadback || canonicalize(readback) !== canonicalize(row.value.providerOperationReadback))) fail('OPENSWX_OPERATION_JOIN_INVALID')
+  // Latches without execution attestation keep the strict window and need no new
+  // operation read permission. Partial-history admission explicitly binds its
+  // verified latch; new native POST metadata is already sealed in that latch.
+  if (!readback && !row.value.providerOperationReadback && !operationRef) return null
+  const value = readback ?? row.value.providerOperationReadback ?? await transport.request('https://run.googleapis.com/v2/' + row.value.providerOperationName)
+  if (!operationRef && !readback && !value.metadata && !value.response) return null
+  if (value?.name !== row.value.providerOperationName || (Object.hasOwn(value, 'done') && typeof value.done !== 'boolean') || value.error) fail('OPENSWX_OPERATION_JOIN_INVALID')
+  return { ref: row.ref, value }
+}
+export function assertFiniteExecutionRequestBinding({ request, execution, actor, template, deadlineAt, operation = null }) {
+  const name = canonicalWorkerExecution(execution.name), start = Date.parse(request.requestStartedAt), end = Date.parse(request.requestWindowEndsAt)
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start || end - start > 30_000 || end > Date.parse(deadlineAt)
+    || request.baselineExecutionNames.includes(name) || Date.parse(execution.createTime) > end
+    || canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(template.template)) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
+  if (!operation) {
+    if (Date.parse(execution.createTime) < start) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
+    return
+  }
+  if (operation.error || (Object.hasOwn(operation, 'done') && typeof operation.done !== 'boolean') || (operation.done === true && !operation.response)) fail('OPENSWX_OPERATION_JOIN_INVALID')
+  for (const body of [operation.metadata, ...(operation.response ? [operation.response] : [])]) {
+    if (body?.['@type'] !== 'type.googleapis.com/google.cloud.run.v2.Execution' || canonicalWorkerExecution(body.name) !== name
+      || !execution.uid || body.uid !== execution.uid || body.creator !== actor || execution.creator !== actor || body.createTime !== execution.createTime) fail('OPENSWX_OPERATION_JOIN_INVALID')
+    if (operation.done === true) assertTerminalExecution(body, name, { success: true })
+    // Pending POST metadata is a stable identity binding, not a final progress snapshot.
+    if (operation.done === true) for (const field of ['completionTime', 'succeededCount']) if (Object.hasOwn(body, field) && body[field] !== execution[field]) fail('OPENSWX_OPERATION_JOIN_INVALID')
+    if (canonicalize(normalizeWorkerTemplate(body.template)) !== canonicalize(template.template)) fail('OPENSWX_OPERATION_JOIN_INVALID')
+  }
+  if (Date.parse(execution.completionTime) > Date.parse(deadlineAt)) fail('OPENSWX_OPERATION_JOIN_INVALID')
+}
+function finiteRequestCandidates(executions, request, operation) {
+  const extra = executions.filter(row => !request.baselineExecutionNames.includes(canonicalWorkerExecution(row.name)))
+  if (!operation) return extra.filter(row => Date.parse(row.createTime) >= Date.parse(request.requestStartedAt) && Date.parse(row.createTime) <= Date.parse(request.requestWindowEndsAt))
+  if (extra.length > 1) fail('OPENSWX_EXECUTION_AMBIGUOUS')
+  const candidates = extra.filter(row => canonicalWorkerExecution(row.name) === canonicalWorkerExecution(operation.metadata?.name))
+  if (extra.length && candidates.length !== 1) fail('OPENSWX_OPERATION_JOIN_INVALID')
+  return candidates
+}
+export async function assertFiniteReceiptRequestBinding({ transport, requestRow, terminal, execution = terminal.facts.execution, actor, template, deadlineAt }) {
+  const operation = terminal.facts.operationRef
+    ? await readFiniteOperation(transport, requestRow, { operationRef: terminal.facts.operationRef, readback: terminal.facts.operationReadback }) : null
+  if (!!terminal.facts.operationRef !== !!terminal.facts.operationReadback) fail('OPENSWX_OPERATION_JOIN_INVALID')
+  assertFiniteExecutionRequestBinding({ request: requestRow.value, execution, actor, template, deadlineAt, operation: operation?.value })
+}
 function sameFiniteBaseline(actual, expected) {
   if (canonicalize([...actual].sort()) !== canonicalize([...expected].sort())) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
 }
@@ -387,7 +443,11 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
   if (terminal) {
     assertWorkerReceipt(terminal.value, descriptor, 'finite-terminal', { actor, image: template.template.containers[0].image })
     const exactName = canonicalWorkerExecution(terminal.value.facts.executionName)
-    assertTerminalExecution(await transport.request(`https://run.googleapis.com/v2/${exactName}`), exactName, { success: true })
+    const execution = assertTerminalExecution(await transport.request(`https://run.googleapis.com/v2/${exactName}`), exactName, { success: true })
+    const requestRow = await optionalReceipt(transport, terminal.value.facts.requestRef.uri)
+    if (!requestRow || canonicalize(requestRow.ref) !== canonicalize(terminal.value.facts.requestRef)) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
+    assertFiniteRequest(requestRow.value, descriptor, template, actor, deadlineAt)
+    await assertFiniteReceiptRequestBinding({ transport, requestRow, terminal: terminal.value, execution, actor, template, deadlineAt })
     assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), template)
     return terminal
   }
@@ -411,15 +471,15 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
     try {
       const operation = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
       if (!new RegExp(`^projects/(?:${PROJECT}|${NUMBER})/locations/${REGION}/operations/[^/]+$`, 'u').test(operation?.name ?? '')) fail('OPENSWX_OPERATION_SCOPE_INVALID')
-      await write(`${receiptUri.slice(0, -5)}-operation.json`, { schemaVersion: 'aipdm.openswx-finite-operation.v1', requestRef: request.ref, providerOperationName: operation.name })
+      await write(`${receiptUri.slice(0, -5)}-operation.json`, { schemaVersion: 'aipdm.openswx-finite-operation.v1', requestRef: request.ref, providerOperationName: operation.name, providerOperationReadback: operation })
     } catch { /* Reconcile exact Job executions even after an unknown POST response. */ }
   }
   assertRequestJoin(request)
   for (let attempt = 0; attempt < 300; attempt += 1) {
     if (Date.now() >= Date.parse(deadlineAt)) fail('OPENSWX_EXECUTION_OUTCOME_UNKNOWN')
     const executions = await listWorkerExecutions(transport)
-    const candidates = executions.filter(row => !request.value.baselineExecutionNames.includes(canonicalWorkerExecution(row.name))
-      && Date.parse(row.createTime) >= Date.parse(request.value.requestStartedAt) && Date.parse(row.createTime) <= Date.parse(request.value.requestWindowEndsAt))
+    const operation = await readFiniteOperation(transport, request)
+    const candidates = finiteRequestCandidates(executions, request.value, operation?.value)
     if (candidates.length > 1) fail('OPENSWX_EXECUTION_AMBIGUOUS')
     if (candidates.length === 1) {
       const executionName = canonicalWorkerExecution(candidates[0].name)
@@ -427,9 +487,10 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
       if (execution.completionTime) {
         assertTerminalExecution(execution, executionName, { success: true })
         if (canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(template.template)) fail('OPENSWX_EXECUTION_TEMPLATE_MISMATCH')
+        assertFiniteExecutionRequestBinding({ request: request.value, execution, actor, template, deadlineAt, operation: operation?.value })
         assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), template)
         const receipt = workerReceipt({ descriptor, kind: 'finite-terminal', actor, image: template.template.containers[0].image, template, observedAt: transport.now(), previousRefs: [request.ref],
-          facts: { executionName, execution, requestRef: request.ref, terminalExitZero: true, claimProof: 'PENDING_NORMAL_ACTOR_STDOUT_READBACK', workerStatus: 'ACTIVATION_PENDING' } })
+          facts: { executionName, execution, requestRef: request.ref, ...(operation ? { operationRef: operation.ref, operationReadback: operation.value } : {}), terminalExitZero: true, claimProof: 'PENDING_NORMAL_ACTOR_STDOUT_READBACK', workerStatus: 'ACTIVATION_PENDING' } })
         return write(receiptUri, receipt)
       }
     }
@@ -699,16 +760,16 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
         || finite.value.facts.terminalExitZero !== true || Date.parse(value.requestWindowEndsAt) - Date.parse(value.requestStartedAt) < 0
         || Date.parse(value.requestWindowEndsAt) - Date.parse(value.requestStartedAt) > 30_000 || Date.parse(value.requestWindowEndsAt) > Date.parse(intent.deadlineAt)) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
       const execution = assertTerminalExecution(await observed.request(`https://run.googleapis.com/v2/${name}`), name, { success: true })
-      if (Date.parse(execution.createTime) < Date.parse(value.requestStartedAt) || Date.parse(execution.createTime) > Date.parse(value.requestWindowEndsAt)
-        || canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(expected.template)
-        || canonicalize(finite.value.facts.execution) !== canonicalize(execution)) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
+      await assertFiniteReceiptRequestBinding({ transport, requestRow: request, terminal: finite.value, execution, actor: appProfile.identities.deployer, template: expected, deadlineAt: intent.deadlineAt })
+      if (canonicalize(finite.value.facts.execution) !== canonicalize(execution)) fail('OPENSWX_EXECUTION_REQUEST_JOIN_INVALID')
     }
     let allowed = finite?.value.facts?.executionName
     if (!finite && phase === 'RECOVERY' && finiteRequest) {
       sameFiniteBaseline(finiteRequest.value.baselineExecutionNames, baseline.after.executions.map(row => row.name))
-      const own = executions.filter(row => !finiteRequest.value.baselineExecutionNames.includes(canonicalWorkerExecution(row.name))
-        && Date.parse(row.createTime) >= Date.parse(finiteRequest.value.requestStartedAt) && Date.parse(row.createTime) <= Date.parse(finiteRequest.value.requestWindowEndsAt))
+      const operation = await readFiniteOperation(transport, finiteRequest)
+      const own = finiteRequestCandidates(executions, finiteRequest.value, operation?.value)
       if (own.length !== 1 || canonicalize(normalizeWorkerTemplate(own[0].template)) !== canonicalize(expected.template)) fail('OPENSWX_EXECUTION_OUTCOME_UNKNOWN')
+      assertFiniteExecutionRequestBinding({request:finiteRequest.value,execution:own[0],actor:appProfile.identities.deployer,template:expected,deadlineAt:intent.deadlineAt,operation:operation?.value})
       allowed = canonicalWorkerExecution(own[0].name)
     }
     if (new Set(executions.map(row => canonicalWorkerExecution(row.name))).size !== executions.length) fail('OPENSWX_DRAIN_EXECUTION_UNKNOWN')
@@ -891,8 +952,10 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
         const template = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion)
         assertFiniteRequest(request.value, descriptor.value, template, profile.identities.deployer, intent.deadlineAt)
         const rows = await listWorkerExecutions(transport)
-        const own = rows.filter(row => !request.value.baselineExecutionNames.includes(canonicalWorkerExecution(row.name)) && Date.parse(row.createTime) >= Date.parse(request.value.requestStartedAt) && Date.parse(row.createTime) <= Date.parse(request.value.requestWindowEndsAt))
+        const operation = await readFiniteOperation(transport, request)
+        const own = finiteRequestCandidates(rows, request.value, operation?.value)
         if (own.length !== 1) fail('OPENSWX_EXECUTION_OUTCOME_UNKNOWN')
+        assertFiniteExecutionRequestBinding({request:request.value,execution:own[0],actor:profile.identities.deployer,template,deadlineAt:intent.deadlineAt,operation:operation?.value})
         const name = canonicalWorkerExecution(own[0].name)
         if (!own[0].completionTime) await transport.request(`https://run.googleapis.com/v2/${name}:cancel`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
         const execution = assertTerminalExecution(await transport.request(`https://run.googleapis.com/v2/${name}`), name)
