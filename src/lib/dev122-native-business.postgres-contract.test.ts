@@ -230,6 +230,14 @@ async function seedProcurementReadHistory() {
   for (const row of records) await fixtureMutation("I01 explicit historical Released read input; not a lifecycle outcome", `INSERT INTO submissions
     (id,company_id,item_id,drawing_number,revision,material,surface_finish,document_type,change_description,status,submitted_by,released_at)
     VALUES(:id,:company,:item,:id,'1.0','SUS304','none','part','historical read fixture','Released','dev122-profile-owner',:released)`, row);
+  // A different lawful submitter makes the null/no-filter predicate observable.
+  // submitted_by itself stays NOT NULL; only the optional query bind is null.
+  await fixtureMutation("I01 distinct submitter historical item prerequisite", `INSERT INTO items(id,company_id,part_number,part_name)
+    VALUES('dev122-i-reviewer-item','company-jenfu','DEV122-I-REVIEWER','Different submitter history')`, {});
+  await fixtureMutation("I01 different lawful submitter Released read input; not a lifecycle outcome", `INSERT INTO submissions
+    (id,company_id,item_id,drawing_number,revision,material,surface_finish,document_type,change_description,status,submitted_by,released_at)
+    VALUES('dev122-i-reviewer-release','company-jenfu','dev122-i-reviewer-item','DEV122-I-REVIEWER','1.0','SUS304','none','part',
+      'Different submitter historical input','Released','dev122-profile-reviewer','2026-09-06T00:00:00Z')`, {});
   const stored = await createReleasePackageStorageService().putObject({ key: "dev122/i01/history.zip", bytes: procurementArchive, contentType: "application/zip" });
   await fixtureMutation("I01 lawful stored historical package read input", `INSERT INTO release_packages
     (id,submission_id,package_filename,local_path,storage_key,sha256,file_size,manifest_json,created_by)
@@ -315,7 +323,16 @@ describe.runIf(procurementEnabled)("DEV122 I01 actual signed procurement route/s
     const ids = await repo.listManufacturingHandoffSubmissionIds({ companyId: "company-jenfu", limit: 1000 });
     expect(ids).toHaveLength(200); expect(ids).toContain(procurementTarget);
     expect(ids).not.toContain("dev122-i-target-old"); expect(ids).not.toContain("dev122-i-other-newer");
-    expect(await repo.listManufacturingHandoffSubmissionIds({ companyId: "company-jenfu", submittedBy: "dev122-profile-owner", limit: 1000 })).toEqual(ids);
+    expect(ids).toContain("dev122-i-reviewer-release");
+    const ownerIds = await repo.listManufacturingHandoffSubmissionIds({ companyId: "company-jenfu", submittedBy: "dev122-profile-owner", limit: 1000 });
+    expect(ownerIds).toHaveLength(200); expect(ownerIds).toContain(procurementTarget);
+    expect(ownerIds).not.toContain("dev122-i-reviewer-release");
+    expect(await repo.listManufacturingHandoffSubmissionIds({ companyId: "company-jenfu", submittedBy: "dev122-profile-reviewer", limit: 1000 }))
+      .toEqual(["dev122-i-reviewer-release"]);
+    const differentSubmitter = await ok<ProcurementBody>(await readProcurement(request("/api/integrations/procurement/releases?partNumber=DEV122-I-REVIEWER")));
+    expect(differentSubmitter).toMatchObject({ integration: "procurement", count: 1, entries: [
+      { submission_id: "dev122-i-reviewer-release", part_number: "DEV122-I-REVIEWER", files: [], approvals: [], package: null }
+    ] });
     expect(await repo.listManufacturingHandoffSubmissionIds({ companyId: "company-jenfu", submittedBy: "not-a-submitter" })).toEqual([]);
     for (const [limit, count] of [["0", 1], ["1", 1], ["2", 2], ["1000", 200], ["invalid", 100]] as const) {
       expect((await ok<ProcurementBody>(await readProcurement(request("/api/integrations/procurement/releases?limit=" + limit)))).count).toBe(count);

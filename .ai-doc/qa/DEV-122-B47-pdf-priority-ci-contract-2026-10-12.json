@@ -1,7 +1,7 @@
 {
   "schemaVersion": "aipdm.dev122.b47.pdf-priority-ci-contract.v1",
   "task": "DEV-122",
-  "status": "LOCAL_QC_PASS_REQUIRED_CI_PENDING",
+  "status": "REQUIRED_CI_PASS_PRODUCTION_PENDING",
   "sourceParent": "6bbe54b160618d686758dadea7ddb8ba132f2442",
   "wholeDev": "NOT_ACCEPTED",
   "originalScope": {
@@ -37,7 +37,15 @@
       "method": "READ_ONLY_SOURCE_REVIEW",
       "runtimeExecutedByReviewer": false
     },
-    "newRequiredCi": "PENDING_AFTER_PUSH",
+    "newRequiredCi": {
+      "source": "66d3ab4dc805ec8e1a11347e332c02b74bf2563b",
+      "runId": 38195819316,
+      "productionSliceQc": "SUCCESS",
+      "isolatedPostgres": "SUCCESS",
+      "readbackPath": "C:\\VIBE CODING\\AI_PDM\\output\\qa\\dev-122\\openswx-phase2\\owner-checks\\B47-source-ci-terminal-readback.json",
+      "sha256": "f7e6bd137d5691f082cc242655957a192110660c35469fd4d2b791ee25dcc5c3",
+      "productionMutation": false
+    },
     "reusedEvidence": "B45 eight existing test files / 78 tests and B42/B43 typecheck/build evidence; B47 changes no product or TypeScript source."
   },
   "productSourceChanged": false,
@@ -70,5 +78,6 @@
       "sha256": "93cb07d69fb3f5e40875cd14546129b25123336c0af8d7ca212361dc75f5f7b1"
     }
   },
-  "unknownRuntime": "External Next process ownership/data scope unknown. Not started, stopped or used by this root; next-env.d.ts preserved and excluded. All own B47 processes absent/released; no ports."
+  "unknownRuntime": "External Next process ownership/data scope unknown. Not started, stopped or used by this root; next-env.d.ts preserved and excluded. All own B47 processes absent/released; no ports.",
+  "nextSource": "B48 changed-test candidate requires its own fresh CI; B47 success applies to source66d3ab4 only."
 }
