@@ -2744,3 +2744,113 @@ test('legacy failed daily v1 sealed normal proof stays historical and uses no li
   const artifact=await resolveWorkerArtifact({transport:h.transport,descriptor:{...descriptor,workerBuildRef:associationRef},profile,readSource:f.reader})
   assert.equal(artifact.failedDaily.failed.currentTemplateMode,'NORMAL');assert.equal(h.calls.length,calls);assert.equal(h.puts.length,puts)
 })
+
+test('native bootstrap memo authenticates pinned bytes once while mutable observations remain fresh',async()=>{
+  const f=await nativeCheckpointPauseFixture('BOOTSTRAP-RECEIPT-MEMO'),h=f.h,nativeRead=h.transport.readJson,counts=new Map()
+  h.transport.readJson=async(ref,bucket,prefixes)=>{const key=canonicalize([ref,bucket,prefixes]);counts.set(key,(counts.get(key)??0)+1);return nativeRead(ref,bucket,prefixes)}
+  const before=h.calls.length,paused=await f.runPause()
+  assert.ok(paused.value.facts.dbAdmissionProof)
+  assert.equal(Math.max(...counts.values()),1,'native bootstrap installs the existing opaque-observation pinned receipt memo')
+  assert.ok(h.calls.slice(before).filter(row=>row.url==='https://run.googleapis.com/v2/'+workerJobName()).length>=2,'live Job reads still occur before and after restoration')
+  counts.clear();const again=h.calls.length,replayed=await f.runPause()
+  assert.deepEqual(replayed.ref,paused.ref)
+  assert.ok(counts.size>0,'a new operation reauthenticates immutable history')
+  assert.equal(Math.max(...counts.values()),1)
+  assert.ok(!h.calls.slice(again).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+})
+
+async function restoredOnlyFailedDailyNextSourceFixture({expire=true}={}) {
+  const f=await nativeCheckpointPauseFixture('RESTORE-ONLY-OLD-PAUSE'),h=f.h,original=h.transport.request
+  syntheticClock.hold()
+  const oldDeadline=new Date(Date.now()+3000).toISOString(),partialInput={...f.pauseInput,deadlineAt:oldDeadline}
+  const partialInputRef=h.seedBytes(f.pauseRef.uri,Buffer.from(canonicalize(partialInput)+'\n'))
+  h.transport.request=async(url,opts={})=>{
+    if(h.objects.has(f.root+'-checkpoint-restored.json'))throw Object.assign(Error('LOCAL_STOP_AFTER_SEALED_RESTORE'),{code:'LOCAL_STOP_AFTER_SEALED_RESTORE'})
+    return original(url,opts)
+  }
+  const before=h.calls.length
+  await assert.rejects(executeOpenSwxBootstrap({stage:'pause',inputRef:partialInputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}}),{code:'LOCAL_STOP_AFTER_SEALED_RESTORE'})
+  h.transport.request=original
+  assert.equal(h.calls.slice(before).filter(row=>row.options.method==='PATCH').length,1)
+  assert.equal(h.calls.slice(before).filter(row=>row.url.endsWith(':run')).length,0)
+  assert.ok(h.objects.has(f.root+'-checkpoint-restore-request.json'));assert.ok(h.objects.has(f.root+'-checkpoint-restored.json'))
+  assert.equal(h.objects.has(f.root+'-drain-finite-request.json'),false);assert.equal(h.objects.has(f.root+'-drain-finite-operation.json'),false)
+  const next=h.nextAttempt(84,f.input.priorActivationRef),lock={...next.lock,observedAt:new Date(Date.now()-2000).toISOString()}
+  next.input.sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json',Buffer.from(canonicalize(lock)+'\n'))
+  const metadata=await seedSecretVersionIamContinuation(h,{sourceRevision:next.lock.sourceRevision,sourceLockRef:next.input.sourceLockRef,supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:f.reader,name:'restore-only-next-metadata',secretPolicies:h.metadata.before.secretPolicies})
+  const input={...next.input,failedDailyContinuation:f.failedDailyContinuation,secretVersionIamContinuationRef:metadata.continuationRef,completedFailedDailyCheckpointRef:f.completed.refs.fullDescriptorRef,partialFailedDailyPauseInputRef:partialInputRef}
+  if(expire) syntheticClock.expireAfter(oldDeadline)
+  return {...f,h,input,partialInputRef,partialInput,partialRoot:f.root,oldDeadline}
+}
+
+test('restore-only expired partial pause carries sealed normal restoration and still requires a fresh drain',async()=>{
+  const f=await restoredOnlyFailedDailyNextSourceFixture(),h=f.h,inputRef=await h.put('restore-only-next-reuse-input',f.input),calls=h.calls.length
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader})
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+  assert.ok(!h.calls.slice(calls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  const descriptor=(await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value,historicalCalls=h.calls.length
+  const historical=await resolveWorkerArtifact({transport:h.transport,descriptor,profile,readSource:f.reader})
+  assert.equal(historical.failedDaily.failed.currentTemplateMode,'NORMAL')
+  assert.ok(historical.failedDaily.failed.currentJobRestoration)
+  assert.equal(historical.failedDaily.failed.partialPause,undefined,'restoration is not a drain operation or DB admission')
+  assert.equal(h.calls.length,historicalCalls,'sealed consumer uses no mutable provider requests')
+  const pauseRef=h.seed('RESTORE-ONLY-NEXT-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'RESTORE-ONLY-NEXT-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
+  const runPause=()=>executeOpenSwxBootstrap({stage:'pause',inputRef:pauseRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  const pauseCalls=h.calls.length,paused=await runPause()
+  assert.equal(h.calls.slice(pauseCalls).filter(row=>row.options.method==='PATCH').length,0,'a sealed normal restore is not repeated')
+  assert.equal(h.calls.slice(pauseCalls).filter(row=>row.url.endsWith(':run')).length,1,'new pause needs its own normal drain')
+  assert.equal(paused.value.facts.completedCheckpointRestoreRef,undefined)
+  const replayCalls=h.calls.length;assert.deepEqual((await runPause()).ref,paused.ref)
+  assert.ok(!h.calls.slice(replayCalls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  const bootstrapRef=h.seed('RESTORE-ONLY-NEXT-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'RESTORE-ONLY-NEXT-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.input.priorActivationRef,pausedDrainedRef:paused.ref,failedDailyContinuation:f.failedDailyContinuation})
+  const bootstrapCalls=h.calls.length,completed=await executeOpenSwxBootstrap({stage:'bootstrap',inputRef:bootstrapRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  assert.equal(h.calls.slice(bootstrapCalls).filter(row=>row.options.method==='PATCH').length,1)
+  assert.equal(h.calls.slice(bootstrapCalls).filter(row=>row.url.endsWith(':run')).length,0)
+  const full=(await h.transport.readJson(completed.refs.fullDescriptorRef)).value,fullCalls=h.calls.length
+  await readWorkerFullEvidence(h.transport,full,profile,f.reader);assert.equal(h.calls.length,fullCalls)
+})
+
+test('restore-only partial pause rejects incomplete, unbound or drifted restoration before authority publication',async()=>{
+  const f=await restoredOnlyFailedDailyNextSourceFixture(),h=f.h,objects=new Map(h.objects)
+  const restoredUri=f.partialRoot+'-checkpoint-restored.json',requestUri=f.partialRoot+'-checkpoint-restore-request.json'
+  const pristineRestored=JSON.parse(objects.get(restoredUri).bytes),pristineRequest=JSON.parse(objects.get(requestUri).bytes)
+  for(const kind of ['missing-request','missing-restored','wrong-request-ref','wrong-actor','wrong-source','wrong-checkpoint','before-etag','before-generation','late-request','late-restored','half-drain-request','half-drain-latch','completed-pause','completed-terminal','live-etag','live-generation','live-template','provider-generation','extra-restore-key']) {
+    h.objects.clear();for(const [uri,row] of objects)h.objects.set(uri,row)
+    h.controls.job={};const restored=structuredClone(pristineRestored),request=structuredClone(pristineRequest)
+    if(kind==='missing-request')h.objects.delete(requestUri)
+    if(kind==='missing-restored')h.objects.delete(restoredUri)
+    if(kind==='wrong-request-ref')restored.requestRef={...restored.requestRef,sha256:'0'.repeat(64)}
+    if(kind==='wrong-actor'){request.actor='foreign@example.invalid';restored.actor=request.actor}
+    if(kind==='wrong-source'){request.sourceRevision='0'.repeat(40);restored.sourceRevision=request.sourceRevision}
+    if(kind==='wrong-checkpoint'){request.completedCheckpointRef=f.h.fullRef;restored.completedCheckpointRef=request.completedCheckpointRef}
+    if(kind==='before-etag'){request.beforeEtag='unbound-before-etag';restored.beforeEtag=request.beforeEtag}
+    if(kind==='before-generation'){request.beforeGeneration='99';restored.beforeGeneration=request.beforeGeneration}
+    if(kind==='late-request')request.requestedAt=new Date(Date.parse(f.oldDeadline)+1).toISOString()
+    if(kind==='late-restored')restored.observedAt=new Date(Date.parse(f.oldDeadline)+1).toISOString()
+    if(kind==='half-drain-request')h.seedBytes(f.partialRoot+'-drain-finite-request.json',Buffer.from('{}'))
+    if(kind==='half-drain-latch')h.seedBytes(f.partialRoot+'-drain-finite-operation.json',Buffer.from('{}'))
+    if(kind==='completed-pause')h.seedBytes(f.partialRoot+'.json',Buffer.from('{}'))
+    if(kind==='completed-terminal')h.seedBytes(f.partialRoot+'-drain-finite.json',Buffer.from('{}'))
+    if(kind==='live-etag')h.controls.job={etag:'unbound-current-etag'}
+    if(kind==='live-generation')h.controls.job={generation:'99'}
+    if(kind==='live-template')h.controls.job={template:workerTemplate(profile,image,null,'selftest')}
+    if(kind==='provider-generation')restored.providerJob.generation='99'
+    if(kind==='extra-restore-key')restored.extra=true
+    if(['wrong-actor','wrong-source','wrong-checkpoint','before-etag','before-generation','late-request'].includes(kind))restored.requestRef=h.seedBytes(requestUri,Buffer.from(canonicalize(request)))
+    if(!['missing-request','missing-restored','half-drain-request','half-drain-latch','completed-pause','completed-terminal','live-etag','live-generation','live-template'].includes(kind))h.seedBytes(restoredUri,Buffer.from(canonicalize(restored)))
+    const inputRef=h.seed('restore-only-negative-reuse-input',f.input),calls=h.calls.length,puts=h.puts.length
+    await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader}),undefined,kind)
+    assert.equal(h.puts.length,puts,kind+' publishes no authority')
+    assert.ok(!h.calls.slice(calls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')),kind+' mutates no lifecycle')
+  }
+})
+
+test('restore-only partial pause refuses a still-live old writer without extending its deadline',async()=>{
+  const f=await restoredOnlyFailedDailyNextSourceFixture({expire:false}),h=f.h,inputRef=h.seed('restore-only-unexpired-reuse-input',f.input),calls=h.calls.length,puts=h.puts.length
+  try {
+    assert.ok(Date.now()<Date.parse(f.oldDeadline))
+    await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader}),{code:'OPENSWX_PARTIAL_DAILY_JOIN_INVALID'})
+    assert.equal(h.puts.length,puts)
+    assert.ok(!h.calls.slice(calls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  } finally {syntheticClock.expireAfter(f.oldDeadline)}
+})

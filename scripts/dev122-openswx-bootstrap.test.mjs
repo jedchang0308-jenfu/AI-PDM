@@ -37,6 +37,56 @@ function memory() {
   const readJson = async reference => { const row = await readBytes(reference.uri); assert.equal(row.ref.sha256, reference.sha256); return row }
   return { objects, calls, transport: { putJson, readBytes, readJson, now: () => new Date().toISOString() }, put: async (name, value) => (await putJson(ref(name).uri, value)).ref }
 }
+
+// Test setup only: construct a new internally pinned synthetic DAG before an
+// observation. Production immutable objects are never rewritten this way.
+function resealSyntheticFixture(h, ...roots) {
+  const relink = value => {
+    if (!value || typeof value !== 'object' || Buffer.isBuffer(value)) return
+    if (typeof value.uri === 'string' && typeof value.sha256 === 'string' && h.objects.has(value.uri))
+      value.sha256 = h.objects.get(value.uri).ref.sha256
+    for (const [key, child] of Object.entries(value)) {
+      relink(child)
+      const sibling = key.endsWith('Ref') ? key.slice(0, -3) + 'Sha256' : null
+      if (sibling && Object.hasOwn(value, sibling) && child?.uri && h.objects.has(child.uri))
+        value[sibling] = child.sha256
+    }
+  }
+  for (let pass = 0; pass <= h.objects.size; pass++) {
+    for (const row of h.objects.values()) relink(row.value)
+    for (const root of roots) relink(root)
+    let changed = false
+    for (const row of h.objects.values()) {
+      if (!row.value) continue
+      // Preserve untouched byte-bound artifacts, including recorded CRLFs.
+      if (canonicalize(JSON.parse(row.bytes.toString())) !== canonicalize(row.value)) {
+        const bytes = Buffer.from(canonicalize(row.value) + '\n')
+        row.bytes = bytes; row.ref.sha256 = sha256(bytes); changed = true
+      }
+    }
+    if (!changed) {
+      if (h.priorCapsule) {
+        const activation = h.objects.get(h.activationRef.uri).value
+        const canonicalRef = activation.previousRefs[2]
+        const canonicalUri = releasePaths(appProfile, h.priorCapsule, activation.previousRefs[0].sha256).canonical
+        if (canonicalRef.uri !== canonicalUri) {
+          const row = h.objects.get(canonicalRef.uri)
+          h.objects.delete(canonicalRef.uri); canonicalRef.uri = canonicalUri
+          row.ref.uri = canonicalUri; h.objects.set(canonicalUri, row)
+          continue
+        }
+      }
+      for (const row of h.objects.values()) {
+        if (!row.value) continue
+        assert.equal(sha256(row.bytes), row.ref.sha256)
+        assert.deepEqual(JSON.parse(row.bytes.toString()), row.value)
+      }
+      return
+    }
+  }
+  assert.fail('Synthetic fixture must be an acyclic pinned graph')
+}
+
 test('CLI admits only closed stages and immutable own refs', () => {
   assert.equal(parseOpenSwxBootstrapArgs(['--stage', 'resources', '--input-ref', ref('input').uri, '--input-sha256', ref('input').sha256]).stage, 'resources')
   for (const argv of [['--stage', 'apply'], ['--stage', 'activate', '--input-ref', ref('input').uri, '--input-sha256', ref('input').sha256, '--command', 'anything'], ['--stage', 'bootstrap', '--input-ref', 'gs://sibling/receipts/x.json', '--input-sha256', 'a'.repeat(64)]]) assert.throws(() => parseOpenSwxBootstrapArgs(argv))
@@ -953,6 +1003,7 @@ async function prebuildIamHarness() {
   const bootstrap = h.objects.get(h.prior.bootstrapRef.uri).value
   bootstrap.facts.resourceProvenance = { priorResourceApplyRef: bootstrap.facts.resourceApplyRef, resourceReadbackRef, resourceReadbackSha256: resourceReadbackRef.sha256,
     resourcesUnchanged: true, supplementalIamReadbackRef: iam.receiptRef, supplementalIamSourceRevision: h.prior.sourceRevision }
+  resealSyntheticFixture(h)
   const proof = await seedPrebuildIamContinuation(h, iam.receiptRef)
   h.controls.prebuildBindings = structuredClone(proof.afterPolicy.bindings)
   h.controls.prebuildRole = structuredClone(proof.role)
@@ -1142,6 +1193,7 @@ test('DAILY prebuild IAM ref seals into full evidence and replay rechecks live I
   assert.ok(h.allCalls().every(row => !/:addVersion$|:resume$|terraform/u.test(row.url)))
   const malformed = structuredClone(resource.value); delete malformed.prebuildIamContinuationRef
   h.objects.get(resource.ref.uri).value = malformed
+  resealSyntheticFixture(h, full)
   await assert.rejects(readWorkerFullEvidence(h.transport, full, profile, readSource), { code: 'OPENSWX_IAM_AUTHORITY_CHAIN_INVALID' })
 })
 
@@ -1153,6 +1205,7 @@ test('prebuild IAM ref is DAILY bootstrap only and explicit refs cannot replace 
   const readbackRef = await h.put('prebuild-inherited-resources', { resourcesUnchanged: true, supplementalIamReadbackRef: h.iam.receiptRef, prebuildIamContinuationRef: h.proof.continuationRef })
   prior.facts.bootstrapKind = 'DAILY_REFRESH'
   Object.assign(prior.facts.resourceProvenance, { prebuildIamContinuationRef: h.proof.continuationRef, resourceReadbackRef: readbackRef, resourceReadbackSha256: readbackRef.sha256 })
+  resealSyntheticFixture(h)
   const drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'prebuild-inherited-drain')
   await assert.rejects(h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref,
     prebuildIamContinuationRef: ref('different-continuation') }, 'prebuild-conflicting-bootstrap'), { code: 'OPENSWX_IAM_AUTHORITY_CHAIN_INVALID' })
@@ -1640,12 +1693,12 @@ test('completed-FIRST recursive proof rejects a cycle and stops at eight immutab
   const h = await completedFirstHarness()
   let prior = await completeSourceSuccessor(h, h.nextArgs, h.nextDescriptorRef, h.nextBuildRef, 'bounded-r06')
   const r7 = await prepareNextSourceSuccessor(h, prior, 7), row = h.objects.get(prior.resources.ref.uri)
-  const saved = structuredClone(row.value)
+  const saved = structuredClone(row.value), savedBytes = Buffer.from(row.bytes)
   row.value.completedFirstBootstrap.completedFirstBootstrapInputRef = prior.bootstrapInputRef
   row.bytes = Buffer.from(canonicalize(row.value))
   h.provider.calls.length = 0; h.iamCalls.length = 0
   await assert.rejects(executeOpenSwxResources(r7.args), { code: 'OPENSWX_COMPLETED_FIRST_CHAIN_INVALID' }); assertNoSuccessorProviderWrites(h)
-  row.value = saved; row.bytes = Buffer.from(canonicalize(saved))
+  row.value = saved; row.bytes = savedBytes
   // The base anchor plus seven completed successors is the final admissible walk.
   for (let ordinal = 7; ordinal <= 13; ordinal++) {
     const next = ordinal === 7 ? r7 : await prepareNextSourceSuccessor(h, prior, ordinal)
@@ -1684,7 +1737,9 @@ test('same completed-FIRST bootstrap replay refuses malformed create and marker 
       preflightRow.value.facts.proof.marker.timestamp = 'invalid'
       preflightRow.value.facts.proof.markerSha256 = sha256(canonicalize(preflightRow.value.facts.proof.marker))
     }
-    finiteRow.bytes = Buffer.from(canonicalize(finiteRow.value)); preflightRow.bytes = Buffer.from(canonicalize(preflightRow.value))
+    // Re-pin the deliberately invalid semantic value and its parents so the
+    // replay reaches clock validation rather than stopping at a stale hash.
+    resealSyntheticFixture(h)
     h.provider.calls.length = 0; h.iamCalls.length = 0
     const before = [...h.objects.keys()].sort()
     await assert.rejects(executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: r6.bootstrapInputRef,
