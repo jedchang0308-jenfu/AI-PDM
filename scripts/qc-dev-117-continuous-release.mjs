@@ -48,6 +48,7 @@ const ownerExitCommands = [
 })
 const runId = `DEV117-S1B-${new Date().toISOString().replace(/[-:.]/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`; const dir = path.join(root, 'output', 'dev-117', 's1b', runId); fs.mkdirSync(dir, { recursive: true })
 const files = [
+  'scripts/dev122-openswx-history-basis.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/dev121-owner-release-proof.test.mjs', 'qa/dev-122/fixtures/secret-version-iam-fixture.mjs', '.ai-doc/specs/DEV-121-target-authorization-boundary.md',
   'qa/dev-122/fixtures/secret-version-iam-fixture.mjs',
   'qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json',
   'scripts/lib/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.test.mjs',

@@ -2761,3 +2761,31 @@ for (const index of [33, 34]) for (const field of ['path', 'version', 'name', 's
     assert.throws(() => cleanup34Validate(cleanup34Reseal(input)), /ARCHIVE_BUNDLE_INVALID/u)
   })
 }
+
+test('ordinary evidence keeps metadata conflict checks without the history closure row ceiling', async () => {
+  const bytes = Buffer.from('synthetic ordinary evidence'), hash = sha256(bytes)
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    for (let i = 0; i < 4097; i++) {
+      const ref = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/ordinary-row-'+i+'.json', sha256: hash }
+      await readAiPdmEvidenceLeaf({ ref, generation: '7', read: async () => bytes })
+    }
+    const ref = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/ordinary-row-0.json', sha256: hash }
+    await assert.rejects(readAiPdmEvidenceLeaf({ ref, generation: '8', read: async () => bytes }),
+      { code: 'DEV121_OWNER_RELEASE_PROOF_HISTORY_CLOSURE_CONFLICT' })
+  })
+})
+
+test('native history evidence memo has a 512 MiB cumulative bound and closes on exhaustion', async () => {
+  const handle = createAiPdmEvidenceContext(), bytes = Buffer.alloc(64 * 1024 * 1024, 7), hash = sha256(bytes)
+  let reads = 0
+  await assert.rejects(runAiPdmEvidenceContext(handle, async () => {
+    for (let i = 0; i < 8; i++) {
+      const ref = {uri:'gs://jenfu-platform-prod-aipdm-release/source/memo-bound-'+i+'.bin',sha256:hash}
+      await readAiPdmEvidenceLeaf({ref,read:async()=>{reads++;return bytes}})
+      await readAiPdmEvidenceLeaf({ref,read:async()=>{throw Error('UNCHANGED_MEMO_MUST_REUSE')}})
+    }
+    await readAiPdmEvidenceLeaf({ref:{uri:'gs://jenfu-platform-prod-aipdm-release/source/memo-bound-overflow.bin',sha256:hash},read:async()=>{reads++;return bytes}})
+  }), {code:'DEV121_OWNER_RELEASE_PROOF_EVIDENCE_MEMO_LIMIT'})
+  assert.equal(reads,9)
+  await assert.rejects(runAiPdmEvidenceContext(handle,async()=>{}),{code:'DEV121_OWNER_RELEASE_PROOF_CONTEXT_INVALID'})
+})

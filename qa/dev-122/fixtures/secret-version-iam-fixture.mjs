@@ -181,7 +181,10 @@ export async function seedSecretVersionIamContinuation(h, { sourceRevision = 'f'
   const historical = (await h.transport.readJson(prebuildIamContinuationRef)).value
   const priorPolicy = (await h.transport.readJson(historical.afterReadbackRef)).value.projectPolicy
   const humanBytes = reader(SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, sourceRevision), humanApprovalRef = { uri: ref(name + '-human').uri, sha256: sha256(humanBytes) }
-  h.objects.set(humanApprovalRef.uri, { bytes: humanBytes, value: JSON.parse(humanBytes), ref: humanApprovalRef })
+  // Preserve the recorded provider metadata when the enclosing fixture has a
+  // byte publisher; native and public readers must observe identical objects.
+  if (typeof h.seedBytes === 'function') assert.deepEqual(h.seedBytes(humanApprovalRef.uri, humanBytes), humanApprovalRef)
+  else h.objects.set(humanApprovalRef.uri, { bytes: humanBytes, value: JSON.parse(humanBytes), ref: humanApprovalRef })
   const capacityGateRef = await h.put(name + '-capacity', { project: 'AI-PDM', sourceRevision, status: 'PASS', observedAt: at(-1200) })
   const plan = secretVersionIamContinuationPlan(reader, sourceRevision), planSha256 = sha256(canonicalize(plan))
   const core = { ownerApplicationId: 'ai-pdm', sourceRevision, sourceTree: source.sourceTree, sourceSha256: source.sourceSha256, sourceProofRef: sourceLockRef, supplementalIamReadbackRef, prebuildIamContinuationRef, humanApprovalRef, capacityGateRef, planSha256 }

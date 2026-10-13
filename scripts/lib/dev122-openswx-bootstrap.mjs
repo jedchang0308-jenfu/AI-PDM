@@ -7,7 +7,7 @@ import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runti
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { resolveWorkerArtifact, publishWorkerReuseJson, assertReuseSourceLock, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
-import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource } from './dev121-owner-release-proof.mjs'
+import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource, ensureAiPdmNativeHistoryBasis, assertAiPdmNativeHistoryIngress, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
 
 import { assertReadbackIamReceipt, expectedReadbackJobBindings } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_MEMBERS, assertSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
@@ -537,7 +537,15 @@ export async function executeOpenSwxResources({ transport, profile, descriptor, 
   const readback = await readWorkerResources(transport, profile, build.image)
   return write(transport, uri, { schemaVersion: 'aipdm.openswx-resource-apply.v1', ownerApplicationId: 'ai-pdm', actor: actor.email, resourcePlanHash: descriptor.resourcePlanHash, sourceRevision: descriptor.sourceRevision, descriptorRef, approvedPlanRef: descriptor.resourcePlanRef, requestRef: request.ref, binaryPlanReceiptRef: binaryPlan.ref, binaryPlanSha256: binaryPlan.value.binaryPlanSha256, observedAt: transport.now(), readback, mutation, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER' })
 }
-async function optional(transport, uri) { try { const row = await transport.readBytes(uri, { prefixes: [WORKER_RECEIPT_PREFIX] }); return { ...row, value: JSON.parse(row.bytes) } } catch (error) { if (error.code === 'MISSING') return null; throw error } }
+async function optional(transport, uri) {
+  try {
+    const row = await transport.readBytes(uri, { prefixes: [WORKER_RECEIPT_PREFIX] })
+    const ref = { uri, sha256: sha256(row.bytes) }
+    if (row.ref && canonicalize(row.ref) !== canonicalize(ref)) fail('OPENSWX_NAMED_RECEIPT_INVALID')
+    recordAiPdmHistoryObject({ ref, metadata: row.metadata ?? {}, bytes: row.bytes })
+    return { ...row, value: JSON.parse(row.bytes) }
+  } catch (error) { if (error.code === 'MISSING') return null; throw error }
+}
 const write = writeWorkerJson
 export function parseOpenSwxBootstrapArgs(argv) {
   const options = {}
@@ -1083,7 +1091,12 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
 }
 /** Carry only a fully authenticated completed FAILED DAILY drain into the next
  * source attempt. Its old proof is history, never current database admission. */
-export async function readCompletedFailedDailyCheckpoint({ transport, checkpointRef, failed, prior, profile, readSource, currentManifest }) {
+export async function readCompletedFailedDailyCheckpoint({ transport, checkpointRef, failed, prior, profile, readSource, currentManifest, historyBasisRef = null, historyBindings = null }) {
+  if (historyBasisRef) {
+    if (!checkpointRef) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+    const projection = readAiPdmQualifiedHistoryProjection({ basisRef: historyBasisRef, kind: 'checkpoint', frontierRef: checkpointRef, bindings: historyBindings })
+    return { ...failed, ...projection }
+  }
   if (!checkpointRef) return failed
   assertOpenSwxWorkerRef(checkpointRef)
   const ctx = createAiPdmEvidenceContext()
@@ -1123,7 +1136,11 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
 }
 /** Read only a sealed, incomplete daily pause. Its latched execution is history,
  * not a completed pause/bootstrap and never a fresh database-admission proof. */
-export async function readPartialFailedDailyPause({ transport, inputRef, failed, prior, profile, readSource, currentManifest }) {
+export async function readPartialFailedDailyPause({ transport, inputRef, failed, prior, profile, readSource, currentManifest, historyBasisRef = null, historyBindings = null }) {
+  if (historyBasisRef) {
+    const projection = readAiPdmQualifiedHistoryProjection({ basisRef: historyBasisRef, kind: 'partial', frontierRef: inputRef ?? null, bindings: historyBindings })
+    return inputRef ? { ...failed, ...projection } : failed
+  }
   if (!inputRef) return failed
   assertOpenSwxWorkerRef(inputRef)
   const ctx = createAiPdmEvidenceContext()
@@ -1237,6 +1254,11 @@ export async function assertFailedDailyFullJoin({ transport, profile, artifact, 
     if (bootstrap.facts.failedDailyContinuation || preflight.facts.isolationReuse || paused.facts.failedDailyContinuation) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
     return
   }
+  if (!Array.isArray(paused.previousRefs) || paused.previousRefs.length !== 2) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
+  assertOpenSwxWorkerRef(paused.previousRefs[0]); assertOpenSwxWorkerRef(paused.previousRefs[1])
+  failedDailySame(paused.previousRefs[1],descriptor.workerBuildRef)
+  const pauseInput=await readFailedDailyPauseInputBinding({transport,inputRef:paused.previousRefs[0],descriptor,artifact,profile})
+  if (descriptor.pausedDrainedRef?.uri !== profile.receiptRoot+'/'+pauseInput.receiptId+'.json') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   const continuation = artifact.input.failedDailyContinuation, failed = artifact.failedDaily.failed, reuse = preflight.facts.isolationReuse
   if (!reuse || Object.keys(reuse).sort().join(',') !== 'currentAssociationRef,failedDailyContinuation,originalSelftestFiniteRef') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   for (const value of [bootstrap.facts.failedDailyContinuation,paused.facts.failedDailyContinuation,reuse.failedDailyContinuation]) failedDailySame(value, continuation)
@@ -1256,7 +1278,7 @@ export async function assertFailedDailyFullJoin({ transport, profile, artifact, 
     || request.templateSha256!==sha256(canonicalize(prior.template))||terminal.templateSha256!==request.templateSha256||terminal.facts.terminalExitZero!==true
     || failedDailyTime(request.requestStartedAt)<failedDailyTime(artifact.failedDaily.baseline.observationCompletedAt)
     || failedDailyTime(request.requestWindowEndsAt)<failedDailyTime(request.requestStartedAt)||failedDailyTime(request.requestWindowEndsAt)-failedDailyTime(request.requestStartedAt)>30_000) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
-  await assertFiniteReceiptRequestBinding({ transport, requestRow, terminal, execution, actor: profile.normalActor, template: prior.template, deadlineAt: (await transport.readJson(paused.previousRefs[0],BUCKET,[WORKER_RECEIPT_PREFIX])).value.deadlineAt })
+  await assertFiniteReceiptRequestBinding({ transport, requestRow, terminal, execution, actor: profile.normalActor, template: prior.template, deadlineAt: pauseInput.deadlineAt })
   failedDailySame([...request.baselineExecutionNames].sort(),failed.expectedExecutionNames)
   failedDailySame(terminal.previousRefs,[requestRow.ref]);failedDailySame(normalizeWorkerTemplate(execution.template),prior.template.template)
   failedDailySame(proof.drainExecutionRef,drainRef)
@@ -1273,6 +1295,32 @@ export async function assertFailedDailyFullJoin({ transport, profile, artifact, 
   const clocks=[execution.createTime,proof.marker.timestamp,execution.completionTime,terminal.observedAt,proof.observedAt,paused.facts.quiescenceCompletedAt,paused.observedAt,bootstrap.observedAt].map(failedDailyTime)
   if(clocks.some((value,i)=>i&&value<clocks[i-1])||failedDailyTime(paused.facts.quiescenceCompletedAt)-failedDailyTime(execution.completionTime)>profile.bounds.proofFreshnessSeconds*1000) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
 
+}
+// Every consumer revalidates the original pause input, including NORMAL history.
+// Historical deadlines remain historical; no new writer authority is granted.
+function assertFailedDailyPauseInputBinding(input, descriptor, artifact) {
+  const basisInput = !!descriptor.historyBasisRef
+  const keys = ['schemaVersion','descriptorRef','workerBuildRef','deadlineAt','receiptId','drainKind','priorActivationRef','failedDailyContinuation',...(basisInput ? ['historyBasisRef'] : [])]
+  if (!input || Object.keys(input).sort().join(',') !== keys.sort().join(',') || input.schemaVersion !== `aipdm.openswx-pause-input.v${basisInput ? 2 : 1}`
+    || input.drainKind !== 'DAILY_DB_VERIFIED' || !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '') || !Number.isFinite(Date.parse(input.deadlineAt))) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
+  assertOpenSwxWorkerRef(input.descriptorRef); assertOpenSwxWorkerRef(input.workerBuildRef); assertOpenSwxWorkerRef(input.priorActivationRef)
+  assertFailedDailyContinuation(input.failedDailyContinuation)
+  failedDailySame(input.workerBuildRef,descriptor.workerBuildRef); failedDailySame(input.failedDailyContinuation,artifact.input.failedDailyContinuation); failedDailySame(input.priorActivationRef,artifact.input.priorActivationRef)
+  if (basisInput) {
+    assertOpenSwxWorkerRef(input.historyBasisRef)
+    failedDailySame(input.historyBasisRef,descriptor.historyBasisRef)
+    assertAiPdmNativeHistoryIngress({ basisRef: input.historyBasisRef, sourceRevision: descriptor.sourceRevision })
+  }
+  return input
+}
+async function readFailedDailyPauseInputBinding({ transport, inputRef, input: verifiedInput = null, descriptorRaw = null, descriptor, artifact, profile }) {
+  const input = assertFailedDailyPauseInputBinding(verifiedInput ?? (await transport.readJson(inputRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value,descriptor,artifact)
+  const raw = descriptorRaw ?? (await transport.readJson(input.descriptorRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
+  assertWorkerDescriptor(raw,profile,descriptor.workerProfileSha256,descriptor.sourceRevision)
+  if (raw.purpose !== 'build_only' || raw.sourceArchiveSha256 !== descriptor.sourceArchiveSha256) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
+  failedDailySame(raw.workerBuildRef,descriptor.workerBuildRef)
+  failedDailySame(raw.historyBasisRef ?? null,descriptor.historyBasisRef ?? null)
+  return input
 }
 function failedCheckpointRestoreBinding({ input, inputRef, descriptor, artifact, prior, profile }) {
   const failed = artifact.failedDaily.failed, baseline = artifact.failedDaily.baseline
@@ -1296,14 +1344,8 @@ function assertFailedCheckpointRestoreRows({ request, restored, binding, input, 
   failedDailySame(preservedJobMetadata(providerJob), preservedJobMetadata(failed.paused.facts.providerJob))
 }
 async function readFailedCheckpointRestoreProof({ transport, inputRef, input: verifiedInput = null, descriptorRaw = null, descriptor, artifact, prior, profile, root }) {
-  const input = verifiedInput ?? (await transport.readJson(inputRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
-  if (root !== profile.receiptRoot+'/'+input.receiptId || input.schemaVersion !== 'aipdm.openswx-pause-input.v1' || input.drainKind !== 'DAILY_DB_VERIFIED'
-    || artifact.failedDaily.failed.currentTemplateMode !== 'SELFTEST') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
-  failedDailySame(input.workerBuildRef,descriptor.workerBuildRef); failedDailySame(input.failedDailyContinuation,artifact.input.failedDailyContinuation); failedDailySame(input.priorActivationRef,artifact.input.priorActivationRef)
-  const raw = descriptorRaw ?? (await transport.readJson(input.descriptorRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
-  assertWorkerDescriptor(raw,profile,descriptor.workerProfileSha256,descriptor.sourceRevision)
-  if (raw.purpose !== 'build_only' || raw.sourceArchiveSha256 !== descriptor.sourceArchiveSha256) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
-  failedDailySame(raw.workerBuildRef,descriptor.workerBuildRef)
+  const input = await readFailedDailyPauseInputBinding({transport,inputRef,input:verifiedInput,descriptorRaw,descriptor,artifact,profile})
+  if (root !== profile.receiptRoot+'/'+input.receiptId || artifact.failedDaily.failed.currentTemplateMode !== 'SELFTEST') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
   const row=await optional(transport,root+'-checkpoint-restored.json')
   if (!row) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
   const restored=await transport.readJson(row.ref,BUCKET,[WORKER_RECEIPT_PREFIX])
@@ -1366,7 +1408,12 @@ async function failedDailyLiveGuard({ transport, input, descriptor, artifact, pr
   if (stage === 'pause') drain = await optional(transport, uri.slice(0,-5)+'-drain-finite.json')
   else {
     const paused = (await transport.readJson(input.pausedDrainedRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
+    if (!Array.isArray(paused.previousRefs) || paused.previousRefs.length !== 2) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
+    assertOpenSwxWorkerRef(paused.previousRefs[0]); assertOpenSwxWorkerRef(paused.previousRefs[1])
+    failedDailySame(paused.previousRefs[1],input.workerBuildRef)
     pausedInputRef = paused.previousRefs[0]; pausedInput = (await transport.readJson(pausedInputRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value; pauseUri = input.pausedDrainedRef.uri
+    await readFailedDailyPauseInputBinding({transport,inputRef:paused.previousRefs[0],input:pausedInput,descriptorRaw:descriptor.value,descriptor:descriptor.value,artifact,profile})
+    if (pauseUri !== profile.receiptRoot+'/'+pausedInput.receiptId+'.json') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
     failedDailySame(pausedInput.descriptorRef, descriptor.ref); failedDailySame(pausedInput.workerBuildRef, input.workerBuildRef); failedDailySame(pausedInput.failedDailyContinuation, input.failedDailyContinuation); failedDailySame(pausedInput.priorActivationRef, input.priorActivationRef)
     assertWorkerReceipt(paused,descriptor.value,'paused-drained',{actor:profile.normalActor,image:prior.build.image})
     failedDailySame(paused.facts.failedDailyContinuation,input.failedDailyContinuation)
@@ -1599,12 +1646,18 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   transport = createWorkerReceiptReadTransport(transport)
   assertOpenSwxWorkerRef(inputRef)
   const input = (await transport.readJson(inputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
-  const base = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId']
+  const basisInput = ['pause', 'bootstrap'].includes(stage) && input?.schemaVersion === `aipdm.openswx-${stage}-input.v2`
+  const base = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId', ...(basisInput ? ['historyBasisRef'] : [])]
   const allowed = stage === 'activate' ? ['schemaVersion', 'releaseCapsuleRef', 'deadlineAt', 'receiptId'] : stage === 'resources' ? [...base, ...(input?.priorResourceRequestRef ? ['priorResourceRequestRef', 'priorWorkerBuildRef', ...(input?.priorBootstrapInputRef ? ['priorBootstrapInputRef'] : []), ...(input?.completedFirstBootstrapInputRef ? ['completedFirstBootstrapInputRef', 'completedFirstPauseInputRef', 'supplementalIamReadbackRef'] : [])] : [])]
     : stage === 'pause' ? [...base, 'drainKind', ...(input?.drainKind === 'DAILY_DB_VERIFIED' ? ['priorActivationRef', ...(input.bootstrapContinuation ? ['bootstrapContinuation'] : []), ...(Object.hasOwn(input ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : [])] : ['resourceApplyRef'])]
       : [...base, 'bootstrapKind', ...(input?.bootstrapKind === 'DAILY_REFRESH' ? ['priorActivationRef', 'pausedDrainedRef', ...(input.prebuildIamContinuationRef ? ['prebuildIamContinuationRef'] : []), ...(Object.hasOwn(input ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : [])] : ['resourceApplyRef', 'currentRegistryVersion'])]
-  if (!input || (input.bootstrapContinuation && input.failedDailyContinuation) || (input.priorBootstrapInputRef && input.completedFirstBootstrapInputRef) || Object.keys(input).sort().join(',') !== allowed.sort().join(',') || input.schemaVersion !== `aipdm.openswx-${stage}-input.v1` || !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '')
+  if (!input || (input.bootstrapContinuation && input.failedDailyContinuation) || (input.priorBootstrapInputRef && input.completedFirstBootstrapInputRef) || Object.keys(input).sort().join(',') !== allowed.sort().join(',') || input.schemaVersion !== `aipdm.openswx-${stage}-input.v${basisInput ? 2 : 1}` || !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '')
     || Date.parse(input.deadlineAt) > Date.now() + 600_000) fail('OPENSWX_BOOTSTRAP_INPUT_INVALID')
+  if (basisInput) {
+    assertOpenSwxWorkerRef(input.historyBasisRef)
+    if (!input.failedDailyContinuation || (stage === 'pause' ? input.drainKind !== 'DAILY_DB_VERIFIED' : input.bootstrapKind !== 'DAILY_REFRESH')) fail('OPENSWX_HISTORY_DAILY_ONLY')
+    assertFailedDailyContinuation(input.failedDailyContinuation)
+  }
   checkDeadline(input.deadlineAt)
   transport = boundOpenSwxTransport(transport, input.deadlineAt)
   if (input.failedDailyContinuation) {
@@ -1622,11 +1675,17 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
     const raw = (await transport.readJson(input.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
     descriptor = await readWorkerDescriptor({ transport, ref: input.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
   }
+  if (stage !== 'activate' && (!!descriptor.value.historyBasisRef !== basisInput || (basisInput && canonicalize(input.historyBasisRef) !== canonicalize(descriptor.value.historyBasisRef)))) fail('OPENSWX_HISTORY_INPUT_JOIN_INVALID')
+  if (descriptor.value.historyBasisRef) {
+    if (intent?.programOnlyBaseline || isPausedAppRepair(descriptor.value) || stage === 'resources') fail('OPENSWX_HISTORY_DAILY_ONLY')
+    await ensureAiPdmNativeHistoryBasis({ basisRef: descriptor.value.historyBasisRef, transport, readSource, sourceRevision: descriptor.value.sourceRevision, sourceLockRef: intent?.sourceLockRef ?? null })
+  }
   const profile = descriptor.profile, actor = await verifyNormalActor(transport, profile)
   const uri = `${profile.receiptRoot}/${input.receiptId}.json`
   if (stage === 'activate') return activateWorker({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, intent, capsuleRef: input.releaseCapsuleRef, uri, deadlineAt: input.deadlineAt, actor, appProfile, readSource })
   if (descriptor.value.artifactMode === 'REUSE_VERIFIED' && (descriptor.value.purpose !== 'build_only' || stage === 'resources' || input.bootstrapKind === 'FIRST_CREATE' || input.drainKind === 'FIRST_PROVIDER_ONLY')) fail('OPENSWX_REUSE_DAILY_ONLY')
   const artifact = await resolveWorkerArtifact({ transport, descriptor: descriptor.value, profile, readSource, buildRef: input.workerBuildRef })
+  if (basisInput && (canonicalize(artifact.currentAssociation?.historyBasisRef) !== canonicalize(input.historyBasisRef) || canonicalize(artifact.input?.historyBasisRef) !== canonicalize(input.historyBasisRef))) fail('OPENSWX_HISTORY_INPUT_JOIN_INVALID')
   const build = artifact.originBuild, buildRow = { ref: input.workerBuildRef, value: build }
   if (stage === 'resources') return executeOpenSwxResources({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, build, root, readSource, oauthToken, uri, deadlineAt: input.deadlineAt, actor, firstReconciliation: input.priorResourceRequestRef ? { priorResourceRequestRef: input.priorResourceRequestRef, priorWorkerBuildRef: input.priorWorkerBuildRef, ...(input.priorBootstrapInputRef ? { priorBootstrapInputRef: input.priorBootstrapInputRef } : {}), ...(input.completedFirstBootstrapInputRef ? { completedFirstBootstrapInputRef: input.completedFirstBootstrapInputRef, completedFirstPauseInputRef: input.completedFirstPauseInputRef, supplementalIamReadbackRef: input.supplementalIamReadbackRef } : {}) } : null })
   let partialFirstBootstrap = null, completedFirstBootstrap = null, supplementalIam = null

@@ -3,7 +3,7 @@ import { assertProgramOnlyPolicy, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-p
 import { readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
 import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { resolveWorkerArtifact, verifyWorkerArtifactReuse, createWorkerEvidenceContext, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
-import { runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './dev121-owner-release-proof.mjs'
+import { runAiPdmEvidenceContext, descendAiPdmEvidenceContext, ensureAiPdmNativeHistoryBasis, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
 
 export const WORKER_PROFILE_PATH = 'config/release/dev122-openswx-worker.json'
 const H40 = /^[a-f0-9]{40}$/u
@@ -105,9 +105,11 @@ export function assertWorkerDescriptor(value, profile, profileSha256, sourceRevi
   assertOpenSwxWorkerProfile(profile)
   const common = ['schemaVersion', 'ownerApplicationId', 'purpose', 'sourceRevision', 'sourceArchiveSha256', 'workerProfileSha256', 'projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'resourcePlanHash', 'normalTemplatePolicySha256', 'selftestTemplatePolicySha256', 'dispatchPolicy', 'bounds', 'receiptRoot']
   const repair = value?.schemaVersion === 'aipdm.openswx-worker-descriptor.v3'
-  const reuse = repair || value?.schemaVersion === 'aipdm.openswx-worker-descriptor.v2'
+  const basis = value?.schemaVersion === 'aipdm.openswx-worker-descriptor.v4'
+  const reuse = repair || basis || value?.schemaVersion === 'aipdm.openswx-worker-descriptor.v2'
   const additional = repair ? ['workerBuildRef', 'pausedBaselineRef', 'priorActivationRef', 'retainedWorkerDescriptorRef', 'releaseVariant', 'tokenSecretVersion', 'registrySecretVersion'] : value?.purpose === 'build_only' ? [reuse ? 'workerBuildRef' : 'resourcePlanRef'] : ['workerBuildRef', 'bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef', 'tokenSecretVersion', 'registrySecretVersion']
   if (reuse) additional.push('artifactMode')
+  if (basis) additional.push('historyBasisRef')
   exact(value, [...common, ...additional], 'OPENSWX_DESCRIPTOR_INVALID')
   if ((!reuse && value.schemaVersion !== 'aipdm.openswx-worker-descriptor.v1') || (reuse && value.artifactMode !== 'REUSE_VERIFIED') || value.ownerApplicationId !== 'ai-pdm' || !['build_only', 'full'].includes(value.purpose)
     || (repair && (value.purpose !== 'full' || value.releaseVariant !== 'PAUSED_APP_REPAIR'))
@@ -503,6 +505,9 @@ export async function runWorkerFinite({ transport, descriptor, profile, template
 async function optionalReceipt(transport, uri) {
   try {
     const row = await transport.readBytes(uri, { prefixes: [WORKER_RECEIPT_PREFIX] })
+    const ref = { uri, sha256: sha256(row.bytes) }
+    if (row.ref && canonicalize(row.ref) !== canonicalize(ref)) fail('OPENSWX_NAMED_RECEIPT_INVALID')
+    recordAiPdmHistoryObject({ ref, metadata: row.metadata ?? {}, bytes: row.bytes })
     return { ...row, value: JSON.parse(row.bytes) }
   } catch (error) { if (error.code === 'MISSING') return null; throw error }
 }
@@ -631,6 +636,7 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
   }
   await assertPausedDrainReceipt(transport, results.pausedDrainedRef, descriptor, profile, readSource, artifact.graphContext ?? ctx)
   if (results.bootstrapRef.facts.bootstrapKind !== (results.pausedDrainedRef.facts.drainKind === 'FIRST_PROVIDER_ONLY' ? 'FIRST_CREATE' : 'DAILY_REFRESH')) fail('OPENSWX_BOOTSTRAP_DRAIN_JOIN_INVALID')
+  if (descriptor.historyBasisRef && (results.bootstrapRef.facts.bootstrapKind !== 'DAILY_REFRESH' || results.pausedDrainedRef.facts.drainKind !== 'DAILY_DB_VERIFIED' || !artifact.failedDaily)) fail('OPENSWX_HISTORY_DAILY_ONLY')
   if (results.pausedDrainedRef.facts.drainKind === 'DAILY_DB_VERIFIED') {
     const provenance = results.bootstrapRef.facts.resourceProvenance
     if (provenance?.resourcesUnchanged !== true || provenance.resourceReadbackSha256 !== provenance.resourceReadbackRef?.sha256
@@ -653,6 +659,7 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
 }
 /** A current source association retains the original READY activation, never invents a new one. */
 export async function readProgramOnlyWorkerEvidence({ transport, intent, appProfile, descriptor, profile, readSource, currentReadback = false }) {
+  if (descriptor.historyBasisRef) fail('OPENSWX_PROGRAM_ONLY_DESCRIPTOR_INVALID')
   const policy = assertProgramOnlyPolicy(intent.programOnlyBaseline, { profile: appProfile, intent })
   assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, intent.sourceRevision)
   if (descriptor.schemaVersion !== 'aipdm.openswx-worker-descriptor.v2' || descriptor.purpose !== 'full' || descriptor.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_PROGRAM_ONLY_DESCRIPTOR_INVALID')
@@ -702,6 +709,10 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     if (appProfile.application.id !== 'ai-pdm' || environment.GITHUB_WORKFLOW_REF !== `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`) fail('OPENSWX_FULL_WORKFLOW_REQUIRED')
     const descriptor = await readWorkerDescriptor({ transport, ref: intent.openswxWorkerRef, profileBytes: readSource(WORKER_PROFILE_PATH, intent.sourceRevision), sourceRevision: intent.sourceRevision })
     if ((environment.OWNER_EXECUTION_MODE === 'build_only' ? 'build_only' : environment.OWNER_EXECUTION_MODE === 'full_release' ? 'full' : '') !== descriptor.value.purpose) fail('OPENSWX_EXECUTION_MODE_MISMATCH')
+    if (descriptor.value.historyBasisRef) {
+      if (intent.programOnlyBaseline || isPausedAppRepair(descriptor.value)) fail('OPENSWX_HISTORY_DAILY_ONLY')
+      await ensureAiPdmNativeHistoryBasis({ basisRef: descriptor.value.historyBasisRef, transport, readSource, sourceRevision: descriptor.value.sourceRevision, sourceLockRef: intent.sourceLockRef })
+    }
     return descriptor
   }
   const write = (uri, value) => writeWorkerJson(transport, uri, value)
