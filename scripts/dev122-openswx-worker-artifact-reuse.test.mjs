@@ -26,9 +26,21 @@ import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBAC
 // Synthetic observation time advances with the monotonic timer, independently of
 // host wall-clock corrections. Each test owns and automatically restores its mock;
 // production clock refusal is exercised separately in owner-release-proof tests.
+let syntheticClock
 beforeEach(context => {
   const wallStarted = Date.now(), monotonicStarted = performance.now()
-  context.mock.method(Date, 'now', () => wallStarted + Math.floor(performance.now() - monotonicStarted))
+  let offset = 0, heldAt = null
+  const advancingNow = () => wallStarted + Math.floor(performance.now() - monotonicStarted) + offset
+  syntheticClock = {
+    hold() { assert.equal(heldAt, null); heldAt = advancingNow() },
+    expireAfter(deadlineAt) {
+      assert.notEqual(heldAt, null)
+      assert.ok(Number.isFinite(Date.parse(deadlineAt)))
+      offset += Math.max(0, Date.parse(deadlineAt) + 1 - advancingNow())
+      heldAt = null
+    },
+  }
+  context.mock.method(Date, 'now', () => heldAt ?? advancingNow())
 })
 const root = fileURLToPath(new URL('..', import.meta.url)), oldRevision = 'a'.repeat(40), currentRevision = 'b'.repeat(40)
 function git(args) { const row = spawnSync('git', args, { cwd: root, encoding: null, windowsHide: true, maxBuffer: 64 * 1024 * 1024 }); assert.equal(row.status, 0); return row.stdout }
@@ -1953,6 +1965,8 @@ async function failedDailyFixture({programOnly=false}={}) {
   h.put??=async(name,value)=>h.seed(name,value)
   h.lifecycle()
   const paused=serving?await serving.run():await executeOpenSwxBootstrap({stage:'pause',inputRef:h.seed('FAILED-OLD-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'FAILED-OLD-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.input.priorActivationRef}),transport:h.transport,readSource:reader,appProfile,sleep:async()=>{}})
+  // Freeze only the synthetic fault setup, then explicitly expire its old attempt.
+  syntheticClock.hold()
   const oldDeadline=new Date(Date.now()+3000).toISOString()
   const oldInputRef=h.seed('FAILED-OLD-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:oldDeadline,receiptId:'FAILED-OLD-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:h.input.priorActivationRef,pausedDrainedRef:paused.ref})
   const originalRequest=h.transport.request;let failObservation=true
@@ -1969,7 +1983,7 @@ async function failedDailyFixture({programOnly=false}={}) {
   const metadata=h.metadata?await seedSecretVersionIamContinuation(h,{sourceRevision:next.lock.sourceRevision,sourceLockRef:next.input.sourceLockRef,supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader,name:'failed-current-metadata',secretPolicies:h.metadata.before.secretPolicies}):null
   const input={...next.input,failedDailyContinuation,...(metadata?{secretVersionIamContinuationRef:metadata.continuationRef}:{})}
   const inputRef=await h.put('failed-current-reuse-input',input)
-  await new Promise(resolve=>setTimeout(resolve,Math.max(0,Date.parse(oldDeadline)-Date.now()+5)))
+  syntheticClock.expireAfter(oldDeadline)
   const reuse=()=>executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:reader})
   return {h,reader,input,inputRef,reuse,failedDailyContinuation,oldInputRef,ref}
 }
@@ -2359,6 +2373,8 @@ test('completed FAILED DAILY checkpoint input stays own-bucket and failed-only',
 async function partialFailedDailyNextSourceFixture() {
   const f=await completedFailedDailyNextSourceFixture(),h=f.h
   const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:await h.put('partial-basis-reuse-input',f.input),readSource:f.reader})
+  // Freeze only the synthetic fault setup, then explicitly expire its old attempt.
+  syntheticClock.hold()
   const oldDeadline=new Date(Date.now()+3000).toISOString(),root=profile.receiptRoot+'/PARTIAL-OLD-PAUSE'
   const partialInputRef=h.seed('PARTIAL-OLD-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:oldDeadline,receiptId:'PARTIAL-OLD-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
   const original=h.transport.request;let submitted=false,operationBody,partialName
@@ -2384,7 +2400,7 @@ async function partialFailedDailyNextSourceFixture() {
   next.input.sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json',Buffer.from(canonicalize(lock)+'\n'))
   const metadata=await seedSecretVersionIamContinuation(h,{sourceRevision:next.lock.sourceRevision,sourceLockRef:next.input.sourceLockRef,supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:f.reader,name:'partial-next-metadata',secretPolicies:h.metadata.before.secretPolicies})
   const input={...next.input,failedDailyContinuation:f.failedDailyContinuation,secretVersionIamContinuationRef:metadata.continuationRef,completedFailedDailyCheckpointRef:f.completed.refs.fullDescriptorRef,partialFailedDailyPauseInputRef:partialInputRef}
-  await new Promise(resolve=>setTimeout(resolve,Math.max(0,Date.parse(oldDeadline)-Date.now()+5)))
+  syntheticClock.expireAfter(oldDeadline)
   return {...f,h,input,partialInputRef,partialName,operationBody,execution,partialRoot:root}
 }
 
