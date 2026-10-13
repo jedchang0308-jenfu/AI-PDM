@@ -14,7 +14,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'nod
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
-import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
 import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
@@ -26,9 +26,21 @@ import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBAC
 // Synthetic observation time advances with the monotonic timer, independently of
 // host wall-clock corrections. Each test owns and automatically restores its mock;
 // production clock refusal is exercised separately in owner-release-proof tests.
+let syntheticClock
 beforeEach(context => {
   const wallStarted = Date.now(), monotonicStarted = performance.now()
-  context.mock.method(Date, 'now', () => wallStarted + Math.floor(performance.now() - monotonicStarted))
+  let offset = 0, heldAt = null
+  const advancingNow = () => wallStarted + Math.floor(performance.now() - monotonicStarted) + offset
+  syntheticClock = {
+    hold() { assert.equal(heldAt, null); heldAt = advancingNow() },
+    expireAfter(deadlineAt) {
+      assert.notEqual(heldAt, null)
+      assert.ok(Number.isFinite(Date.parse(deadlineAt)))
+      offset += Math.max(0, Date.parse(deadlineAt) + 1 - advancingNow())
+      heldAt = null
+    },
+  }
+  context.mock.method(Date, 'now', () => heldAt ?? advancingNow())
 })
 const root = fileURLToPath(new URL('..', import.meta.url)), oldRevision = 'a'.repeat(40), currentRevision = 'b'.repeat(40)
 function git(args) { const row = spawnSync('git', args, { cwd: root, encoding: null, windowsHide: true, maxBuffer: 64 * 1024 * 1024 }); assert.equal(row.status, 0); return row.stdout }
@@ -1953,6 +1965,8 @@ async function failedDailyFixture({programOnly=false}={}) {
   h.put??=async(name,value)=>h.seed(name,value)
   h.lifecycle()
   const paused=serving?await serving.run():await executeOpenSwxBootstrap({stage:'pause',inputRef:h.seed('FAILED-OLD-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'FAILED-OLD-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.input.priorActivationRef}),transport:h.transport,readSource:reader,appProfile,sleep:async()=>{}})
+  // Freeze only the synthetic fault setup, then explicitly expire its old attempt.
+  syntheticClock.hold()
   const oldDeadline=new Date(Date.now()+3000).toISOString()
   const oldInputRef=h.seed('FAILED-OLD-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:oldDeadline,receiptId:'FAILED-OLD-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:h.input.priorActivationRef,pausedDrainedRef:paused.ref})
   const originalRequest=h.transport.request;let failObservation=true
@@ -1969,7 +1983,7 @@ async function failedDailyFixture({programOnly=false}={}) {
   const metadata=h.metadata?await seedSecretVersionIamContinuation(h,{sourceRevision:next.lock.sourceRevision,sourceLockRef:next.input.sourceLockRef,supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader,name:'failed-current-metadata',secretPolicies:h.metadata.before.secretPolicies}):null
   const input={...next.input,failedDailyContinuation,...(metadata?{secretVersionIamContinuationRef:metadata.continuationRef}:{})}
   const inputRef=await h.put('failed-current-reuse-input',input)
-  await new Promise(resolve=>setTimeout(resolve,Math.max(0,Date.parse(oldDeadline)-Date.now()+5)))
+  syntheticClock.expireAfter(oldDeadline)
   const reuse=()=>executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:reader})
   return {h,reader,input,inputRef,reuse,failedDailyContinuation,oldInputRef,ref}
 }
@@ -2161,12 +2175,11 @@ test('FAILED DAILY sealed historical resolver reconstructs raw IAM, Secret metad
   }
 })
 
-async function completedFailedDailyNextSourceFixture() {
+async function completedFailedDailyNextSourceFixture(restoreNormal = false) {
   const f = await failedDailyReadyToBootstrap('COMPLETED'), h = f.h, completed = await f.run()
   const full = (await h.transport.readJson(completed.refs.fullDescriptorRef)).value
-  // Model the exact verified normal restoration after the sealed checkpoint;
-  // scheduler remains PAUSED and no execution is added by restoration.
-  await h.transport.request('https://run.googleapis.com/v2/' + workerJobName(), {
+  // Legacy fixture path; the realistic checkpoint preserves the native selftest Job.
+  if (restoreNormal) await h.transport.request('https://run.googleapis.com/v2/' + workerJobName(), {
     method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image, full.tokenSecretVersion) })
   })
   const next = h.nextAttempt(83, f.input.priorActivationRef)
@@ -2184,7 +2197,7 @@ test('completed FAILED DAILY checkpoint permits the next source while requiring 
   const f = await completedFailedDailyNextSourceFixture(), h = f.h
   const without = { ...f.input }; delete without.completedFailedDailyCheckpointRef
   const refusedRef = await h.put('completed-next-missing-checkpoint-input', without), refusedPuts = h.puts.length
-  await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef: refusedRef, readSource: f.reader }), { code: 'OPENSWX_FAILED_DAILY_JOIN_INVALID' })
+  await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef: refusedRef, readSource: f.reader }), { code: 'OPENSWX_JOB_READBACK_MISMATCH' })
   assert.equal(h.puts.length, refusedPuts, 'unexplained terminal execution cannot publish association')
   const inputRef = await h.put('completed-next-reuse-input', f.input), before = h.calls.length
   const saved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef, readSource: f.reader })
@@ -2206,9 +2219,6 @@ test('completed FAILED DAILY checkpoint permits the next source while requiring 
   await readWorkerFullEvidence(h.transport, full, profile, f.reader)
   assert.equal(h.calls.length, historicalCalls, 'full historical graph reconstructs the checkpoint from sealed bodies')
   // A second completed checkpoint carries its authenticated ancestor drain too.
-  await h.transport.request('https://run.googleapis.com/v2/' + workerJobName(), {
-    method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image, full.tokenSecretVersion) })
-  })
   const third = h.nextAttempt(84, f.input.priorActivationRef)
   const lock = { ...third.lock, observedAt: new Date(Date.now() - 2000).toISOString() }
   third.input.sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + lock.releaseId + '/source-lock.json', Buffer.from(canonicalize(lock) + '\n'))
@@ -2258,7 +2268,6 @@ test('completed FAILED DAILY checkpoint envelopes admit eight genuine associatio
     const fullCalls = h.calls.length
     await readWorkerFullEvidence(h.transport, full, profile, f.reader)
     assert.equal(h.calls.length, fullCalls)
-    await h.transport.request('https://run.googleapis.com/v2/' + workerJobName(), { method: 'PATCH', body: JSON.stringify({ template: workerTemplate(profile, image, full.tokenSecretVersion) }) })
     const next = h.nextAttempt(index + 1, input.priorActivationRef), lock = { ...next.lock, observedAt: new Date(Date.now() - 2000).toISOString() }
     next.input.sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + lock.releaseId + '/source-lock.json', Buffer.from(canonicalize(lock) + '\n'))
     const metadata = await seedSecretVersionIamContinuation(h, { sourceRevision: lock.sourceRevision, sourceLockRef: next.input.sourceLockRef,
@@ -2280,7 +2289,7 @@ test('completed FAILED DAILY checkpoint rejects unbound, partial, tampered and u
   const f = await completedFailedDailyNextSourceFixture(), h = f.h, objects = new Map(h.objects), request = h.transport.request
   const drainRef = (await h.transport.readJson(f.full.pausedDrainedRef)).value.facts.drainExecutionRef
   const drainName = (await h.transport.readJson(drainRef)).value.facts.executionName
-  for (const kind of ['missing-ref', 'hash-mismatch', 'partial-descriptor', 'unrelated-full', 'wrong-credentials', 'wrong-source', 'wrong-archive', 'wrong-lock', 'different-failure', 'extra-terminal', 'missing-terminal', 'changed-terminal-template', 'changed-terminal-status']) {
+  for (const kind of ['missing-ref', 'hash-mismatch', 'partial-descriptor', 'unrelated-full', 'wrong-credentials', 'wrong-source', 'wrong-archive', 'wrong-lock', 'different-failure', 'bootstrap-kind', 'bootstrap-template', 'extra-terminal', 'missing-terminal', 'changed-terminal-template', 'changed-terminal-status']) {
     h.objects.clear(); for (const [uri, row] of objects) h.objects.set(uri, row)
     h.transport.request = request
     const input = structuredClone(f.input)
@@ -2301,6 +2310,13 @@ test('completed FAILED DAILY checkpoint rejects unbound, partial, tampered and u
         full.workerBuildRef = h.seed('completed-wrong-lock-association', { ...association, sourceLockRef: f.input.sourceLockRef })
       }
       input.completedFailedDailyCheckpointRef = h.seedBytes(input.completedFailedDailyCheckpointRef.uri, Buffer.from(canonicalize(full)))
+    }
+    if (['bootstrap-kind','bootstrap-template'].includes(kind)) {
+      const full=structuredClone(f.full), bootstrap=(await h.transport.readJson(full.bootstrapRef)).value
+      if(kind==='bootstrap-kind') bootstrap.facts.bootstrapKind='FIRST_CREATE'
+      if(kind==='bootstrap-template') bootstrap.templateSha256=sha256(canonicalize(workerTemplate(profile,image,token)))
+      full.bootstrapRef=h.seedBytes(full.bootstrapRef.uri,Buffer.from(canonicalize(bootstrap)))
+      input.completedFailedDailyCheckpointRef=h.seedBytes(input.completedFailedDailyCheckpointRef.uri,Buffer.from(canonicalize(full)))
     }
     if (kind === 'different-failure') input.failedDailyContinuation.recoveryRequiredRef = f.ref('-prior-recovery')
     if (['extra-terminal', 'missing-terminal', 'changed-terminal-template', 'changed-terminal-status'].includes(kind)) h.transport.request = async (url, options = {}) => {
@@ -2357,6 +2373,8 @@ test('completed FAILED DAILY checkpoint input stays own-bucket and failed-only',
 async function partialFailedDailyNextSourceFixture() {
   const f=await completedFailedDailyNextSourceFixture(),h=f.h
   const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:await h.put('partial-basis-reuse-input',f.input),readSource:f.reader})
+  // Freeze only the synthetic fault setup, then explicitly expire its old attempt.
+  syntheticClock.hold()
   const oldDeadline=new Date(Date.now()+3000).toISOString(),root=profile.receiptRoot+'/PARTIAL-OLD-PAUSE'
   const partialInputRef=h.seed('PARTIAL-OLD-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:oldDeadline,receiptId:'PARTIAL-OLD-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
   const original=h.transport.request;let submitted=false,operationBody,partialName
@@ -2382,7 +2400,7 @@ async function partialFailedDailyNextSourceFixture() {
   next.input.sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+lock.releaseId+'/source-lock.json',Buffer.from(canonicalize(lock)+'\n'))
   const metadata=await seedSecretVersionIamContinuation(h,{sourceRevision:next.lock.sourceRevision,sourceLockRef:next.input.sourceLockRef,supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:f.reader,name:'partial-next-metadata',secretPolicies:h.metadata.before.secretPolicies})
   const input={...next.input,failedDailyContinuation:f.failedDailyContinuation,secretVersionIamContinuationRef:metadata.continuationRef,completedFailedDailyCheckpointRef:f.completed.refs.fullDescriptorRef,partialFailedDailyPauseInputRef:partialInputRef}
-  await new Promise(resolve=>setTimeout(resolve,Math.max(0,Date.parse(oldDeadline)-Date.now()+5)))
+  syntheticClock.expireAfter(oldDeadline)
   return {...f,h,input,partialInputRef,partialName,operationBody,execution,partialRoot:root}
 }
 
@@ -2613,4 +2631,116 @@ test('worker pinned receipt memo rejects corrupt provider bytes and JSON without
       assert.equal(reads,2,'a rejected receipt does not become memoized authority')
     })
   }
+})
+
+
+test('completed FAILED DAILY native selftest Job transfers to the next source without a provider mutation', async () => {
+  const f = await completedFailedDailyNextSourceFixture(false), h = f.h
+  const job = await h.transport.request('https://run.googleapis.com/v2/' + workerJobName())
+  assert.deepEqual(normalizeWorkerTemplate(job.template), workerTemplate(profile, image, null, 'selftest'))
+  const inputRef = await h.put('native-selftest-next-source-input', f.input), calls = h.calls.length
+  const saved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef, readSource: f.reader })
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+  assert.ok(!h.calls.slice(calls).some(row => row.options.method === 'PATCH' || row.url.endsWith(':run')))
+})
+
+async function nativeCheckpointPauseFixture(name) {
+  const f=await completedFailedDailyNextSourceFixture(), h=f.h
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:await h.put(name+'-reuse-input',f.input),readSource:f.reader})
+  const root=profile.receiptRoot+'/'+name
+  const pauseInput={schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,
+    deadlineAt:deadline(),receiptId:name,drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation}
+  const pauseRef=h.seed(name+'-input',pauseInput), runPause=()=>executeOpenSwxBootstrap({stage:'pause',inputRef:pauseRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  return {...f,h,saved,root,pauseRef,pauseInput,runPause}
+}
+
+test('completed checkpoint restore and fresh drain preserve lost responses and replay without another PATCH or run',async()=>{
+  const f=await nativeCheckpointPauseFixture('CHECKPOINT-RESTORE-REPLAY'),h=f.h,request=h.transport.request,put=h.transport.putJson
+  let lostPatch=true; const lostObjects=new Set([f.root+'-checkpoint-restore-request.json',f.root+'-checkpoint-restored.json'])
+  h.transport.request=async(url,opts={})=>{const value=await request(url,opts); if(lostPatch&&opts.method==='PATCH'){lostPatch=false;throw Error('LOCAL_LOST_PATCH_RESPONSE')} return value}
+  h.transport.putJson=async(uri,value,opts)=>{const row=await put(uri,value,opts);if(lostObjects.delete(uri))throw Object.assign(Error('LOCAL_LOST_RECEIPT_RESPONSE'),{code:'OUTCOME_UNKNOWN'});return row}
+  const before=h.calls.length,paused=await f.runPause()
+  assert.equal(lostObjects.size,0); assert.equal(lostPatch,false)
+  assert.equal(h.calls.slice(before).filter(row=>row.options.method==='PATCH').length,1)
+  assert.equal(h.calls.slice(before).filter(row=>row.url.endsWith(':run')).length,1)
+  assert.ok(paused.value.facts.completedCheckpointRestoreRef)
+  const restoredRow=await h.transport.readJson(paused.value.facts.completedCheckpointRestoreRef), restoreRequest=(await h.transport.readJson(restoredRow.value.requestRef)).value
+  const baseline=(await h.transport.readJson(f.saved.value.resourceAssociation.readbackRef)).value
+  assert.deepEqual(restoreRequest.completedCheckpointRef,f.input.completedFailedDailyCheckpointRef)
+  assert.deepEqual(restoreRequest.workerBuildRef,f.saved.ref);assert.deepEqual(restoreRequest.inputRef,f.pauseRef)
+  assert.equal(restoreRequest.beforeEtag,baseline.snapshot.jobEtag);assert.equal(restoreRequest.beforeGeneration,baseline.snapshot.jobGeneration)
+  assert.equal(restoreRequest.sourceRevision,f.saved.value.sourceRevision)
+  assert.deepEqual(restoredRow.value.providerJob.etag,paused.value.facts.providerJob.etag)
+  const replay=h.calls.length; assert.deepEqual((await f.runPause()).ref,paused.ref)
+  assert.ok(!h.calls.slice(replay).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  const bootstrapRef=h.seed('CHECKPOINT-RESTORE-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:f.saved.refs.dailyBuildOnlyDescriptorRef,
+    workerBuildRef:f.saved.ref,deadlineAt:deadline(),receiptId:'CHECKPOINT-RESTORE-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.input.priorActivationRef,pausedDrainedRef:paused.ref,failedDailyContinuation:f.failedDailyContinuation})
+  const run=()=>executeOpenSwxBootstrap({stage:'bootstrap',inputRef:bootstrapRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
+  const bootstrapCalls=h.calls.length,completed=await run()
+  assert.equal(h.calls.slice(bootstrapCalls).filter(row=>row.options.method==='PATCH').length,1)
+  assert.equal(h.calls.slice(bootstrapCalls).filter(row=>row.url.endsWith(':run')).length,0)
+  const again=h.calls.length;assert.deepEqual((await run()).ref,completed.ref)
+  assert.ok(!h.calls.slice(again).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  const full=(await h.transport.readJson(completed.refs.fullDescriptorRef)).value,historical=h.calls.length
+  await readWorkerFullEvidence(h.transport,full,profile,f.reader);assert.equal(h.calls.length,historical)
+  const pristineRestored=(await h.transport.readJson(paused.value.facts.completedCheckpointRestoreRef)).value, pristineBootstrap=(await h.transport.readJson(completed.ref)).value
+  for(const kind of ['checkpoint-ref','before-etag','source','extra-key','late-restored','provider-generation']) {
+    const restored=structuredClone(pristineRestored)
+    if(kind==='checkpoint-ref') restored.completedCheckpointRef=f.h.fullRef
+    if(kind==='before-etag') restored.beforeEtag='unbound-etag'
+    if(kind==='source') restored.sourceRevision='0'.repeat(40)
+    if(kind==='extra-key') restored.extra=true
+    if(kind==='late-restored') restored.observedAt=new Date(Date.parse(paused.value.facts.quiescenceCompletedAt)+1).toISOString()
+    if(kind==='provider-generation') restored.providerJob.generation='99'
+    const ref=h.seedBytes(paused.value.facts.completedCheckpointRestoreRef.uri,Buffer.from(canonicalize(restored)))
+    const poisonedPause={...paused.value,facts:{...paused.value.facts,completedCheckpointRestoreRef:ref}}
+    const pausedRef=h.seedBytes(paused.ref.uri,Buffer.from(canonicalize(poisonedPause)))
+    const bootstrap=structuredClone(pristineBootstrap)
+    bootstrap.facts.pausedDrainedRef=pausedRef
+    const bootstrapRef=h.seedBytes(completed.ref.uri,Buffer.from(canonicalize(bootstrap)))
+    const calls=h.calls.length,puts=h.puts.length
+    await assert.rejects(readWorkerFullEvidence(h.transport,{...full,pausedDrainedRef:pausedRef,bootstrapRef},profile,f.reader),undefined,kind)
+    assert.equal(h.calls.length,calls);assert.equal(h.puts.length,puts)
+    h.seedBytes(paused.value.facts.completedCheckpointRestoreRef.uri,Buffer.from(canonicalize(pristineRestored)))
+    h.seedBytes(paused.ref.uri,Buffer.from(canonicalize(paused.value)))
+    h.seedBytes(completed.ref.uri,Buffer.from(canonicalize(pristineBootstrap)))
+  }
+})
+
+test('completed checkpoint restore durable request refuses an unconfirmed PATCH without resubmission',async()=>{
+  const f=await nativeCheckpointPauseFixture('CHECKPOINT-RESTORE-UNKNOWN'),h=f.h,request=h.transport.request
+  let patches=0
+  h.transport.request=async(url,opts={})=>{if(opts.method==='PATCH'){patches++;throw Error('LOCAL_PATCH_NOT_CONFIRMED')}return request(url,opts)}
+  await assert.rejects(f.runPause(),{code:'OPENSWX_JOB_UPDATE_OUTCOME_UNKNOWN'})
+  assert.equal(patches,1);assert.ok(h.objects.has(f.root+'-checkpoint-restore-request.json'));assert.equal(h.objects.has(f.root+'-checkpoint-restored.json'),false)
+  const calls=h.calls.length,puts=h.puts.length
+  await assert.rejects(f.runPause(),{code:'OPENSWX_JOB_READBACK_MISMATCH'})
+  assert.equal(patches,1);assert.equal(h.puts.length,puts);assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')))
+})
+
+test('completed checkpoint live mode rejects normal or drifted resources before publication and restoration',async()=>{
+  const f=await completedFailedDailyNextSourceFixture(),h=f.h,inputRef=await h.put('checkpoint-live-negative-input',f.input),request=h.transport.request
+  for(const kind of ['normal','third-template','job-generation','job-etag-drift','labels','scheduler','secret']) {
+    h.controls.job={};h.controls.scheduler={};h.controls.secretState='ENABLED';h.controls.jobDrift=false;h.transport.request=request
+    if(kind==='normal') h.controls.job={template:workerTemplate(profile,image,token)}
+    if(kind==='third-template') {const template=workerTemplate(profile,image,null,'selftest');template.template.containers[0].args=['unreviewed'];h.controls.job={template}}
+    if(kind==='job-generation') h.controls.job={generation:'99'}
+    if(kind==='job-etag-drift') {let reads=0;h.transport.request=async(url,opts={})=>{const body=await request(url,opts);if(url==='https://run.googleapis.com/v2/'+workerJobName()&&++reads>1)body.etag+='-drift';return body}}
+    if(kind==='labels') h.controls.job={labels:{foreign:'change'}}
+    if(kind==='scheduler') h.controls.scheduler={state:'ENABLED'}
+    if(kind==='secret') h.controls.secretState='DISABLED'
+    const calls=h.calls.length,puts=h.puts.length
+    await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader}),undefined,kind)
+    assert.equal(h.puts.length,puts);assert.ok(!h.calls.slice(calls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  }
+})
+
+test('legacy failed daily v1 sealed normal proof stays historical and uses no live provider calls',async()=>{
+  const f=await failedDailyFixture(),h=f.h,saved=await f.reuse()
+  const value=(await h.transport.readJson(saved.value.resourceAssociation.readbackRef)).value
+  value.schemaVersion='aipdm.openswx-failed-daily-resource-readback.v1';delete value.currentTemplateSha256
+  const readbackRef=h.seed('legacy-failed-v1-proof',value),associationRef=h.seed('legacy-failed-v1-association',{...saved.value,resourceAssociation:{...saved.value.resourceAssociation,readbackRef}})
+  const descriptor=(await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value,calls=h.calls.length,puts=h.puts.length
+  const artifact=await resolveWorkerArtifact({transport:h.transport,descriptor:{...descriptor,workerBuildRef:associationRef},profile,readSource:f.reader})
+  assert.equal(artifact.failedDaily.failed.currentTemplateMode,'NORMAL');assert.equal(h.calls.length,calls);assert.equal(h.puts.length,puts)
 })

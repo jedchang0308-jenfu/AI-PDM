@@ -142,7 +142,7 @@ export async function readCurrentReadyWorkerResources(options) {
     secretMetadata: before.secrets, iamSha256: resources.iamSha256, raw, resourcesUnchanged: true, mutationPerformed: false, quiescenceClaimed: false }
 }
 /** Fixed normal-actor PAUSED observation. It confers no database admission. */
-export async function readPausedRepairCurrentResources({ transport, profile, descriptor, image, supplementalIam, secretVersionIam = null }) {
+export async function readPausedRepairCurrentResources({ transport, profile, descriptor, image, supplementalIam, secretVersionIam = null, currentTemplate = null }) {
   assertOpenSwxWorkerProfile(profile)
   const raw = []
   const observed = { ...transport, request: async (url, opts) => {
@@ -154,7 +154,8 @@ export async function readPausedRepairCurrentResources({ transport, profile, des
     return body
   } }
   const numericCredentials = { token: assertNumericSecret(descriptor.tokenSecretVersion, profile.tokenSecretId), registry: assertNumericSecret(descriptor.registrySecretVersion, profile.registrySecretId) }
-  const template = workerTemplate(profile, image, numericCredentials.token)
+  const normal = workerTemplate(profile, image, numericCredentials.token)
+  const template = currentTemplate ?? normal
   const metadata = async name => {
     const row = await observed.request(`https://secretmanager.googleapis.com/v1/${name}`)
     if (row?.name !== name || row.state !== 'ENABLED' || typeof row.etag !== 'string' || !row.etag) fail('OPENSWX_REPAIR_SECRET_METADATA_INVALID')
@@ -187,7 +188,7 @@ export async function readPausedRepairCurrentResources({ transport, profile, des
     }
     executions.sort((a, b) => a.name.localeCompare(b.name))
     const schedulerPolicy = { name: scheduler.name, state: scheduler.state, schedule: scheduler.schedule, timeZone: scheduler.timeZone, attemptDeadline: scheduler.attemptDeadline, httpTarget: scheduler.httpTarget, retryConfig: scheduler.retryConfig ?? {}, userUpdateTime: scheduler.userUpdateTime ?? null }
-    return { jobName: workerJobName(), jobEtag: job.etag, jobGeneration: String(job.generation), normalTemplateSha256: sha256(canonicalize(template)), image, numericCredentials,
+    return { jobName: workerJobName(), jobEtag: job.etag, jobGeneration: String(job.generation), normalTemplateSha256: sha256(canonicalize(normal)), image, numericCredentials,
       secretMetadata, schedulerState: 'PAUSED', schedulerPolicySha256: sha256(canonicalize(schedulerPolicy)), schedulerUserUpdateTime: scheduler.userUpdateTime ?? null, iamSha256: policy.iamSha256, executions }
   }
   return { snapshot: await snapshot(), raw }
@@ -1101,6 +1102,8 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
       failedDailySame(checkpoint.value.registrySecretVersion, prior.descriptor.registrySecretVersion)
       const evidence = await readWorkerFullEvidence(transport, checkpoint.value, profile, readSource, child)
       const ancestor = evidence.artifact.failedDaily
+      if (evidence.receipts.bootstrapRef.facts.bootstrapKind !== 'DAILY_REFRESH'
+        || evidence.receipts.bootstrapRef.templateSha256 !== sha256(canonicalize(failed.selftest))) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
       if (!ancestor || evidence.image !== prior.build.image) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
       failedDailySame(evidence.artifact.input.failedDailyContinuation, failed.continuation)
       failedDailySame(evidence.artifact.input.priorActivationRef, prior.activationRef)
@@ -1114,7 +1117,7 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
       const executions = [...(ancestor.failed.completedCheckpointExecutions ?? []), execution]
       if (new Set(executions.map(row => canonicalWorkerExecution(row.name))).size !== executions.length) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
       return { ...failed, expectedExecutionNames: [...names, name].sort(), completedCheckpointExecutions: executions,
-        completedCheckpointObservedAt: evidence.receipts.bootstrapRef.observedAt, partialPauseExecutions: ancestor.failed.partialPauseExecutions ?? [] }
+        completedCheckpointObservedAt: evidence.receipts.bootstrapRef.observedAt, completedCheckpointRef: checkpointRef, currentTemplateMode: 'SELFTEST', currentJobRestoration: null, partialPauseExecutions: ancestor.failed.partialPauseExecutions ?? [] }
     })
   })
 }
@@ -1164,14 +1167,22 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
         failedDailySame(request.baselineExecutionNames, failed.expectedExecutionNames)
         const latch = await optional(transport, uri + '-drain-finite-operation.json')
         if (!latch) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
-        return { ...failed, partialPause: { inputRef, requestRow, operationRef: latch.ref, deadlineAt: input.deadlineAt } }
+        // A partial native pause may already have restored the completed Job.
+        // Admit normal only from that source-bound restoration, never its name.
+        let currentJobRestoration = null
+        if (artifact.failedDaily.failed.currentTemplateMode === 'SELFTEST') {
+          currentJobRestoration = await readFailedCheckpointRestoreProof({transport,inputRef,input,descriptorRaw:descriptor.value,descriptor:descriptor.value,artifact,prior,profile,root:uri})
+          if (failedDailyTime(currentJobRestoration.value.observedAt)>failedDailyTime(request.requestStartedAt)) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
+        }
+        return { ...failed, currentTemplateMode:'NORMAL', currentJobRestoration, partialPause: { inputRef, requestRow, operationRef: latch.ref, deadlineAt: input.deadlineAt } }
       })
     })
   })
 }
 /** A paused failed attempt is not READY and never supplies current DB admission. */
 export async function readFailedDailyCurrentResources({ transport, profile, prior, supplementalIam, secretVersionIam, failed }) {
-  const capture = () => readPausedRepairCurrentResources({ transport, profile, descriptor: prior.descriptor, image: prior.build.image, supplementalIam, secretVersionIam })
+  const currentTemplate = failed.currentTemplateMode === 'SELFTEST' ? failed.selftest : prior.template
+  const capture = () => readPausedRepairCurrentResources({ transport, profile, descriptor: prior.descriptor, image: prior.build.image, supplementalIam, secretVersionIam, currentTemplate })
   const observationStartedAt = transport.now(), partialRaw = []
   let admittedFailed = failed
   if (failed.partialPause) {
@@ -1194,6 +1205,7 @@ export async function readFailedDailyCurrentResources({ transport, profile, prio
   failedDailySame(before.snapshot.executions.map(row => row.name).sort(), admittedFailed.expectedExecutionNames)
   const job = before.raw.find(row => row.url === 'https://run.googleapis.com/v2/' + workerJobName()).body
   failedDailySame(preservedJobMetadata(job), preservedJobMetadata(failed.paused.facts.providerJob))
+  if (failed.currentJobRestoration) failedDailySame({etag:job.etag,generation:String(job.generation)}, {etag:failed.currentJobRestoration.value.providerJob.etag,generation:String(failed.currentJobRestoration.value.providerJob.generation)})
   const raw = [...partialRaw, ...before.raw, ...after.raw]
   if (failed.completedCheckpointObservedAt && failedDailyTime(observationStartedAt) < failedDailyTime(failed.completedCheckpointObservedAt)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
   // Every captured inventory body must retain each authenticated checkpoint
@@ -1248,22 +1260,116 @@ export async function assertFailedDailyFullJoin({ transport, profile, artifact, 
     || Object.keys(proof.marker.marker??{}).sort().join(',')!=='executionName,schemaVersion,state'||proof.marker.marker.schemaVersion!==MARKER||proof.marker.marker.state!=='empty'
     || proof.marker.marker.executionName!==canonicalWorkerExecution(execution.name)||proof.markerSha256!==sha256(canonicalize(proof.marker))
     || proof.filterSha256!==sha256(failedDailyStdoutFilter(profile,execution))) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
+  if (failed.currentTemplateMode === 'SELFTEST') {
+    const restored = await readFailedCheckpointRestoration({transport,paused,descriptor,artifact,prior,profile})
+    if (failedDailyTime(request.requestStartedAt)<failedDailyTime(restored.value.observedAt)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  } else if (paused.facts.completedCheckpointRestoreRef) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
   const clocks=[execution.createTime,proof.marker.timestamp,execution.completionTime,terminal.observedAt,proof.observedAt,paused.facts.quiescenceCompletedAt,paused.observedAt,bootstrap.observedAt].map(failedDailyTime)
   if(clocks.some((value,i)=>i&&value<clocks[i-1])||failedDailyTime(paused.facts.quiescenceCompletedAt)-failedDailyTime(execution.completionTime)>profile.bounds.proofFreshnessSeconds*1000) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
 
 }
+function failedCheckpointRestoreBinding({ input, inputRef, descriptor, artifact, prior, profile }) {
+  const failed = artifact.failedDaily.failed, baseline = artifact.failedDaily.baseline
+  return { ownerApplicationId: 'ai-pdm', sourceRevision: (descriptor.value ?? descriptor).sourceRevision, sourceArchiveSha256: (descriptor.value ?? descriptor).sourceArchiveSha256,
+    inputRef, descriptorRef: input.descriptorRef, workerBuildRef: input.workerBuildRef, completedCheckpointRef: failed.completedCheckpointRef,
+    failedDailyContinuation: input.failedDailyContinuation, priorActivationRef: input.priorActivationRef, actor: profile.normalActor, jobName: workerJobName(),
+    beforeTemplateSha256: sha256(canonicalize(failed.selftest)), beforeEtag: baseline.snapshot.jobEtag, beforeGeneration: baseline.snapshot.jobGeneration,
+    restoreTemplateSha256: sha256(canonicalize(prior.template)) }
+}
+function assertFailedCheckpointRestoreRows({ request, restored, binding, input, prior, failed }) {
+  const { schemaVersion: requestSchema, requestedAt, ...requestBinding } = request.value
+  if (requestSchema !== 'aipdm.openswx-failed-daily-checkpoint-restore-request.v1') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  failedDailySame(requestBinding, binding)
+  if (failedDailyTime(requestedAt) > failedDailyTime(input.deadlineAt)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  const { schemaVersion, requestRef, observedAt, providerJob, ...saved } = restored.value
+  if (schemaVersion !== 'aipdm.openswx-failed-daily-checkpoint-restored.v1') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  failedDailySame(saved, binding); failedDailySame(requestRef, request.ref)
+  if (failedDailyTime(observedAt) < failedDailyTime(requestedAt) || failedDailyTime(observedAt) > failedDailyTime(input.deadlineAt)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  assertWorkerJob(providerJob, prior.template)
+  if (!providerJob.etag || !/^[1-9][0-9]*$/u.test(String(providerJob.generation))) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  failedDailySame(preservedJobMetadata(providerJob), preservedJobMetadata(failed.paused.facts.providerJob))
+}
+async function readFailedCheckpointRestoreProof({ transport, inputRef, input: verifiedInput = null, descriptorRaw = null, descriptor, artifact, prior, profile, root }) {
+  const input = verifiedInput ?? (await transport.readJson(inputRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
+  if (root !== profile.receiptRoot+'/'+input.receiptId || input.schemaVersion !== 'aipdm.openswx-pause-input.v1' || input.drainKind !== 'DAILY_DB_VERIFIED'
+    || artifact.failedDaily.failed.currentTemplateMode !== 'SELFTEST') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  failedDailySame(input.workerBuildRef,descriptor.workerBuildRef); failedDailySame(input.failedDailyContinuation,artifact.input.failedDailyContinuation); failedDailySame(input.priorActivationRef,artifact.input.priorActivationRef)
+  const raw = descriptorRaw ?? (await transport.readJson(input.descriptorRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
+  assertWorkerDescriptor(raw,profile,descriptor.workerProfileSha256,descriptor.sourceRevision)
+  if (raw.purpose !== 'build_only' || raw.sourceArchiveSha256 !== descriptor.sourceArchiveSha256) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  failedDailySame(raw.workerBuildRef,descriptor.workerBuildRef)
+  const row=await optional(transport,root+'-checkpoint-restored.json')
+  if (!row) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  const restored=await transport.readJson(row.ref,BUCKET,[WORKER_RECEIPT_PREFIX])
+  if (restored.value.requestRef?.uri !== root+'-checkpoint-restore-request.json') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  const request=await transport.readJson(restored.value.requestRef,BUCKET,[WORKER_RECEIPT_PREFIX]), binding=failedCheckpointRestoreBinding({input,inputRef,descriptor,artifact,prior,profile})
+  assertFailedCheckpointRestoreRows({request,restored,binding,input,prior,failed:artifact.failedDaily.failed})
+  if (failedDailyTime(request.value.requestedAt)<failedDailyTime(artifact.failedDaily.baseline.observationCompletedAt)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  return restored
+}
+async function readFailedCheckpointRestoration({ transport, paused, descriptor, artifact, prior, profile }) {
+  const root=descriptor.pausedDrainedRef.uri.slice(0,-5)
+  const restored=await readFailedCheckpointRestoreProof({transport,inputRef:paused.previousRefs[0],descriptor,artifact,prior,profile,root})
+  failedDailySame(paused.facts.completedCheckpointRestoreRef,restored.ref)
+  assertWorkerJob(paused.facts.providerJob,prior.template)
+  failedDailySame({etag:paused.facts.providerJob.etag,generation:String(paused.facts.providerJob.generation)}, {etag:restored.value.providerJob.etag,generation:String(restored.value.providerJob.generation)})
+  failedDailySame(preservedJobMetadata(paused.facts.providerJob),preservedJobMetadata(restored.value.providerJob))
+  return restored
+}
+// Only a sealed completed checkpoint can authorize selftest -> normal restoration.
+// The immutable request precedes PATCH; an uncertain result is read back, never resubmitted.
+async function restoreFailedDailyCheckpoint({ transport, input, inputRef, descriptor, artifact, prior, profile, readSource, uri, allowWrite }) {
+  const failed = artifact.failedDaily.failed, baseline = artifact.failedDaily.baseline
+  if (failed.currentTemplateMode !== 'SELFTEST') return null
+  const root = uri.slice(0, -5), requestUri = root + '-checkpoint-restore-request.json', restoredUri = root + '-checkpoint-restored.json'
+  const binding = failedCheckpointRestoreBinding({input,inputRef,descriptor,artifact,prior,profile})
+  let request = await optional(transport, requestUri), restored = await optional(transport, restoredUri)
+  if (request) {
+    const { schemaVersion, requestedAt, ...saved } = request.value
+    if (schemaVersion !== 'aipdm.openswx-failed-daily-checkpoint-restore-request.v1') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+    failedDailySame(saved, binding)
+    if (failedDailyTime(requestedAt) < failedDailyTime(baseline.observationCompletedAt) || failedDailyTime(requestedAt) > failedDailyTime(input.deadlineAt)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  } else {
+    if (!allowWrite || restored) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+    const current = await readFailedDailyCurrentResources({ transport, profile, prior, failed,
+      supplementalIam: await dailySupplementalIam({ transport, profile, prior, descriptor: descriptor.value, readSource, prebuildIamContinuationRef: input.prebuildIamContinuationRef }), secretVersionIam: artifact.secretVersionIam })
+    failedDailySame(current.snapshot, baseline.snapshot)
+    request = await write(transport, requestUri, { schemaVersion: 'aipdm.openswx-failed-daily-checkpoint-restore-request.v1', ...binding, requestedAt: transport.now() })
+    await updateWorkerJob({ transport, profile, template: prior.template, expectedCurrentTemplate: failed.selftest,
+      expectedCurrentEtag: binding.beforeEtag, expectedCurrentGeneration: binding.beforeGeneration, deadlineAt: input.deadlineAt })
+  }
+  const job = assertWorkerJob(await transport.request('https://run.googleapis.com/v2/' + workerJobName()), prior.template)
+  failedDailySame(preservedJobMetadata(job), preservedJobMetadata(failed.paused.facts.providerJob))
+  if (restored) {
+    assertFailedCheckpointRestoreRows({request,restored,binding,input,prior,failed})
+    failedDailySame({etag:job.etag,generation:String(job.generation)}, {etag:restored.value.providerJob.etag,generation:String(restored.value.providerJob.generation)})
+    failedDailySame(preservedJobMetadata(restored.value.providerJob),preservedJobMetadata(job))
+  } else {
+    if (!allowWrite) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+    restored = await write(transport, restoredUri, { schemaVersion: 'aipdm.openswx-failed-daily-checkpoint-restored.v1', ...binding,
+      requestRef: request.ref, observedAt: transport.now(), providerJob: job })
+  }
+  return restored
+}
+
 async function failedDailyLiveGuard({ transport, input, descriptor, artifact, prior, profile, readSource, uri, stage, inputRef, patchRequest }) {
   const failed = artifact.failedDaily.failed, baseline = artifact.failedDaily.baseline
   failedDailySame(input.failedDailyContinuation, artifact.input.failedDailyContinuation)
-  let drain = null
+  let restoreProof = null
+  let drain = null, pausedInputRef = inputRef, pausedInput = input, pauseUri = uri
   if (stage === 'pause') drain = await optional(transport, uri.slice(0,-5)+'-drain-finite.json')
   else {
     const paused = (await transport.readJson(input.pausedDrainedRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
+    pausedInputRef = paused.previousRefs[0]; pausedInput = (await transport.readJson(pausedInputRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value; pauseUri = input.pausedDrainedRef.uri
+    failedDailySame(pausedInput.descriptorRef, descriptor.ref); failedDailySame(pausedInput.workerBuildRef, input.workerBuildRef); failedDailySame(pausedInput.failedDailyContinuation, input.failedDailyContinuation); failedDailySame(pausedInput.priorActivationRef, input.priorActivationRef)
     assertWorkerReceipt(paused,descriptor.value,'paused-drained',{actor:profile.normalActor,image:prior.build.image})
     failedDailySame(paused.facts.failedDailyContinuation,input.failedDailyContinuation)
     if(paused.facts.drainExecutionRef.uri!==input.pausedDrainedRef.uri.slice(0,-5)+'-drain-finite.json') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
     drain = await transport.readJson(paused.facts.drainExecutionRef,BUCKET,[WORKER_RECEIPT_PREFIX])
+    if (failed.currentTemplateMode === 'SELFTEST') restoreProof = await readFailedCheckpointRestoration({transport,paused,descriptor:{...descriptor.value,pausedDrainedRef:input.pausedDrainedRef},artifact,prior,profile})
   }
+  const restoration = patchRequest ? restoreProof : await restoreFailedDailyCheckpoint({ transport, input: pausedInput, inputRef: pausedInputRef, descriptor, artifact, prior, profile, readSource, uri: pauseUri, allowWrite: stage === 'pause' })
+  const restoredJob = restoration?.value.providerJob
   const names = [...failed.expectedExecutionNames]
   const assertDrainRequest = request => {
     const keys=['schemaVersion','ownerApplicationId','sourceRevision','sourceArchiveSha256','jobName','actor','templateSha256','requestStartedAt','requestWindowEndsAt','baselineExecutionNames']
@@ -1302,18 +1408,24 @@ async function failedDailyLiveGuard({ transport, input, descriptor, artifact, pr
   assertPausedScheduler(await transport.request('https://cloudscheduler.googleapis.com/v1/'+workerSchedulerName()),profile)
   failedDailySame((await assertNoActiveExecutions(transport)).map(row=>canonicalWorkerExecution(row.name)).sort(),names.sort())
   if (patchRequest) {
+    const patchBaseline = failed.currentTemplateMode === 'SELFTEST' ? (await transport.readJson(input.pausedDrainedRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value.facts.providerJob : null
+    if (patchBaseline) assertWorkerJob(patchBaseline, prior.template)
     const binding = {schemaVersion:'aipdm.openswx-failed-daily-selftest-patch.v1',inputRef,descriptorRef:descriptor.ref,workerBuildRef:input.workerBuildRef,failedDailyContinuation:input.failedDailyContinuation,pausedDrainedRef:input.pausedDrainedRef,actor:profile.normalActor,
-      beforeEtag:baseline.snapshot.jobEtag,beforeGeneration:baseline.snapshot.jobGeneration,selftestTemplateSha256:sha256(canonicalize(failed.selftest)),requestedAt:patchRequest.requestedAt}
+      beforeEtag:patchBaseline?.etag ?? baseline.snapshot.jobEtag,beforeGeneration:patchBaseline ? String(patchBaseline.generation) : baseline.snapshot.jobGeneration,selftestTemplateSha256:sha256(canonicalize(failed.selftest)),requestedAt:patchRequest.requestedAt}
     failedDailySame(patchRequest,binding); failedDailyTime(patchRequest.requestedAt)
     const paused=(await transport.readJson(input.pausedDrainedRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
     if (failedDailyTime(patchRequest.requestedAt)<failedDailyTime(paused.facts.quiescenceCompletedAt)||failedDailyTime(patchRequest.requestedAt)>failedDailyTime(input.deadlineAt)) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
     const job=assertWorkerJob(await transport.request('https://run.googleapis.com/v2/'+workerJobName()),failed.selftest)
     failedDailySame(preservedJobMetadata(job),preservedJobMetadata(failed.paused.facts.providerJob))
     await readWorkerResources(transport,profile,prior.build.image,failed.selftest,await dailySupplementalIam({transport,profile,prior,descriptor:descriptor.value,readSource,prebuildIamContinuationRef:input.prebuildIamContinuationRef}),artifact.secretVersionIam)
-    return
+    return restoration?.ref ?? null
   }
-  const current=await readFailedDailyCurrentResources({transport,profile,prior,supplementalIam:await dailySupplementalIam({transport,profile,prior,descriptor:descriptor.value,readSource,prebuildIamContinuationRef:input.prebuildIamContinuationRef}),secretVersionIam:artifact.secretVersionIam,failed:{...failed,expectedExecutionNames:names}})
-  failedDailySame({...current.snapshot,executions:[]},{...baseline.snapshot,executions:[]})
+  const current=await readFailedDailyCurrentResources({transport,profile,prior,supplementalIam:await dailySupplementalIam({transport,profile,prior,descriptor:descriptor.value,readSource,prebuildIamContinuationRef:input.prebuildIamContinuationRef}),secretVersionIam:artifact.secretVersionIam,failed:{...failed,expectedExecutionNames:names,...(restoredJob ? {currentTemplateMode:'NORMAL'} : {})}})
+  if (restoredJob) {
+    failedDailySame({etag:current.snapshot.jobEtag,generation:current.snapshot.jobGeneration},{etag:restoredJob.etag,generation:String(restoredJob.generation)})
+    failedDailySame({...current.snapshot,executions:[],jobEtag:null,jobGeneration:null},{...baseline.snapshot,executions:[],jobEtag:null,jobGeneration:null})
+  } else failedDailySame({...current.snapshot,executions:[]},{...baseline.snapshot,executions:[]})
+  return restoration?.ref ?? null
 }
 
 async function readSuccessfulDailyBootstrapContinuation({ transport, continuation, prior, profile, readSource, priorActivationRef, verificationSourceRevision }) {
@@ -1606,9 +1718,9 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
     const before = await verifyPriorCanonicalRuntime({transport,profile,prior,appProfile,readSource,requireReadyResources:stage==='pause'&&!input.bootstrapContinuation&&!input.failedDailyContinuation})
     const after = await verifyPriorCanonicalRuntime({transport,profile,prior,appProfile,readSource,requireReadyResources:stage==='pause'&&!input.bootstrapContinuation&&!input.failedDailyContinuation})
     if (canonicalize(before)!==canonicalize(after)) fail('OPENSWX_DAILY_SERVING_DRIFT')
-    if (stage==='pause' && !input.bootstrapContinuation) assertWorkerJob(await transport.request('https://run.googleapis.com/v2/'+workerJobName()),prior.template)
+    if (stage==='pause' && !input.bootstrapContinuation && !artifact.failedDaily) assertWorkerJob(await transport.request('https://run.googleapis.com/v2/'+workerJobName()),prior.template)
   }
-  if (artifact.failedDaily) await failedDailyLiveGuard({transport,input,descriptor,artifact,prior,profile,readSource,uri,stage,inputRef,patchRequest:failedPatchRow?.value})
+  const checkpointRestoreRef = artifact.failedDaily ? await failedDailyLiveGuard({transport,input,descriptor,artifact,prior,profile,readSource,uri,stage,inputRef,patchRequest:failedPatchRow?.value}) : null
   const paused = await pauseWorkerScheduler({ transport, profile, deadlineAt: input.deadlineAt })
   await sleep(profile.bounds.recoverDeadlineSeconds * 1000); checkDeadline(input.deadlineAt)
   await assertNoActiveExecutions(transport)
@@ -1643,7 +1755,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
       return existingPause
     }
     const quiescenceCompletedAt = transport.now()
-    return write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'paused-drained', actor: actor.email, image: prior ? prior.build.image : build.image, template: normalizeWorkerTemplate(current.template), observedAt: quiescenceCompletedAt, previousRefs: [inputRef, input.workerBuildRef], facts: { ...paused, providerJob: current, schedulerPaused: true, noActiveOrUnknown: true, quiescenceCompletedAt, drainKind: input.drainKind, dbAdmissionProof: proof ?? 'NOT_APPLICABLE_FIRST_BOOTSTRAP', ...(bootstrapContinuation ? { bootstrapContinuation } : {}), ...(input.failedDailyContinuation ? {failedDailyContinuation:input.failedDailyContinuation} : {}), ...(prior ? { priorActivationRef: input.priorActivationRef, priorWorkerBuildRef: prior.descriptor.workerBuildRef, priorSourceRevision: prior.descriptor.sourceRevision, priorSourceArchiveSha256: prior.descriptor.sourceArchiveSha256, priorImage: prior.build.image, priorNormalTemplateSha256: sha256(canonicalize(prior.template)), drainExecutionRef: proof.drainExecutionRef, targetWorkerBuildRef: input.workerBuildRef } : {}) } }))
+    return write(transport, uri, workerReceipt({ descriptor: descriptor.value, kind: 'paused-drained', actor: actor.email, image: prior ? prior.build.image : build.image, template: normalizeWorkerTemplate(current.template), observedAt: quiescenceCompletedAt, previousRefs: [inputRef, input.workerBuildRef], facts: { ...paused, providerJob: current, schedulerPaused: true, noActiveOrUnknown: true, quiescenceCompletedAt, drainKind: input.drainKind, dbAdmissionProof: proof ?? 'NOT_APPLICABLE_FIRST_BOOTSTRAP', ...(bootstrapContinuation ? { bootstrapContinuation } : {}), ...(checkpointRestoreRef ? {completedCheckpointRestoreRef:checkpointRestoreRef} : {}), ...(input.failedDailyContinuation ? {failedDailyContinuation:input.failedDailyContinuation} : {}), ...(prior ? { priorActivationRef: input.priorActivationRef, priorWorkerBuildRef: prior.descriptor.workerBuildRef, priorSourceRevision: prior.descriptor.sourceRevision, priorSourceArchiveSha256: prior.descriptor.sourceArchiveSha256, priorImage: prior.build.image, priorNormalTemplateSha256: sha256(canonicalize(prior.template)), drainExecutionRef: proof.drainExecutionRef, targetWorkerBuildRef: input.workerBuildRef } : {}) } }))
   }
   if (!['FIRST_CREATE', 'DAILY_REFRESH'].includes(input.bootstrapKind) || descriptor.value.purpose !== 'build_only') fail('OPENSWX_BOOTSTRAP_MODE_INVALID')
   const existing = await optional(transport, uri)
@@ -1699,13 +1811,15 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
     if (captured) {failedDailySame(captured.value.priorActivationRef,input.priorActivationRef);failedDailySame(captured.value.priorTemplate,prior.template);failedDailySame(captured.value.priorCapsuleRef,prior.capsuleRef);failedDailySame(captured.value.targetDescriptorRef,descriptor.ref)}
     else await write(transport, capturedUri, { schemaVersion: 'aipdm.openswx-prior-recovery.v1', priorActivationRef: input.priorActivationRef, priorTemplate: prior.template, priorCapsuleRef: prior.capsuleRef, targetDescriptorRef: descriptor.ref, observedAt: transport.now() })
   }
+  const patchBaseline = artifact.failedDaily?.failed.currentTemplateMode === 'SELFTEST' ? (await transport.readJson(input.pausedDrainedRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value.facts.providerJob : null
+  if (patchBaseline) assertWorkerJob(patchBaseline, prior.template)
   let completedBootstrap
   try {
   if (artifact.failedDaily && !failedPatchRow) {
     await write(transport,uri.slice(0,-5)+'-selftest-patch-request.json',{schemaVersion:'aipdm.openswx-failed-daily-selftest-patch.v1',inputRef,descriptorRef:descriptor.ref,workerBuildRef:input.workerBuildRef,failedDailyContinuation:input.failedDailyContinuation,pausedDrainedRef:input.pausedDrainedRef,actor:actor.email,
-      beforeEtag:artifact.failedDaily.baseline.snapshot.jobEtag,beforeGeneration:artifact.failedDaily.baseline.snapshot.jobGeneration,selftestTemplateSha256:sha256(canonicalize(selftest)),requestedAt:transport.now()})
+      beforeEtag:patchBaseline?.etag ?? artifact.failedDaily.baseline.snapshot.jobEtag,beforeGeneration:patchBaseline ? String(patchBaseline.generation) : artifact.failedDaily.baseline.snapshot.jobGeneration,selftestTemplateSha256:sha256(canonicalize(selftest)),requestedAt:transport.now()})
   }
-  if (!failedPatchRow) await updateWorkerJob({ transport, profile, template: selftest, ...(artifact.failedDaily ? {expectedCurrentTemplate:prior.template,expectedCurrentEtag:artifact.failedDaily.baseline.snapshot.jobEtag,expectedCurrentGeneration:artifact.failedDaily.baseline.snapshot.jobGeneration} : {}), deadlineAt: input.deadlineAt })
+  if (!failedPatchRow) await updateWorkerJob({ transport, profile, template: selftest, ...(artifact.failedDaily ? {expectedCurrentTemplate:prior.template,expectedCurrentEtag:patchBaseline?.etag ?? artifact.failedDaily.baseline.snapshot.jobEtag,expectedCurrentGeneration:patchBaseline ? String(patchBaseline.generation) : artifact.failedDaily.baseline.snapshot.jobGeneration} : {}), deadlineAt: input.deadlineAt })
   const finite = artifact.failedDaily ? artifact.failedDaily.failed.isolation.row : await runWorkerFinite({ transport, descriptor: descriptor.value, profile, template: selftest, receiptUri: `${uri.slice(0, -5)}-selftest.json`, actor: actor.email, deadlineAt: input.deadlineAt })
   const proof = artifact.failedDaily ? artifact.failedDaily.baseline.isolationProof : await readWorkerStdoutProof({ transport, profile, execution: finite.value.facts.execution, expectedState: 'isolation_verified', deadlineAt: input.deadlineAt })
   const preflightUri = `${uri.slice(0, -5)}-preflight.json`

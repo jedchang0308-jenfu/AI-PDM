@@ -1,3 +1,6 @@
+## DEV-121#rd-capabilities — 2026-10-13 completed checkpoint Job mode handoff（本地驗證中，未發布）
+
+沿用 AI_PDM 原 RD／085 protected corrective cycle，base official main799cb3，branch codex/dev121-checkpoint-job-mode。原生 source／metadata no-op／infra reuse 已通過，但 worker 在 association 發布前因 current selftest／expected normal 模板不符拒絕；上一個 completed DAILY_REFRESH 封存 selftest。synthetic true RED 已重現，舊fixture直接手動PATCHnormal造成盲點。最小修正由完整checkpoint推導exact mode、新v2 current-template proof、歷史v1 sealed replay相容；native pause以source/checkpoint/association/prior/actor/etag/gen durable request恢復normal，封存後fresh drain，後續PATCH綁本輪pause讀回，partial restore沿原生證據承接。聚焦正向／lost response／重播／拒絕／partial與v1回放已有PASS，獨立來源QC P0/P1=0；完整回歸發現合成舊attempt三秒期限早於預定fault，僅test加入每案hold／expireAfter，聚焦program-only／partial／v1三案PASS，app型別PASS；最終完整回歸及必要CI待完成。085／RD正式切流／兩fixture RD驗收仍未完成；Dani/Peter login/reload HUMAN_REPORTED_PASS分開保留。Production bodies私存，不改sibling、不重送未知操作、不擴大清理。[既有QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md)。
 ## DEV-121#rd-capabilities — 2026-10-12 completed checkpoint source-depth correction（本地完整檢查 PASS，待受保護發布）
 
 ## DEV-121#rd-capabilities — 2026-10-13 synthetic worker clock correction（本地完整檢查 PASS，待必要 CI／發布）
