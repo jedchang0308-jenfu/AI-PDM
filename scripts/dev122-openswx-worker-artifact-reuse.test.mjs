@@ -1,3 +1,6 @@
+import { createContinuousReleaseSourceReader } from './dev117-ai-pdm-continuous-release.mjs'
+import { createPrerequisiteSourceReader } from './dev117-ai-pdm-prerequisite-producer.mjs'
+import { createBootstrapSourceReader } from './dev122-openswx-bootstrap.mjs'
 import { buildReleaseIntent, buildRuntimeConfigReceipt, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
@@ -561,37 +564,49 @@ test('B21 LOCAL_TEST genuine Git archive preserves raw LF COPY bytes under CRLF 
     process.env.GIT_CONFIG_COUNT = '3'; process.env.GIT_CONFIG_KEY_0 = 'core.autocrlf'; process.env.GIT_CONFIG_VALUE_0 = 'true'
     process.env.GIT_CONFIG_KEY_1 = 'core.eol'; process.env.GIT_CONFIG_VALUE_1 = 'crlf'
     process.env.GIT_CONFIG_KEY_2 = 'core.longpaths'; process.env.GIT_CONFIG_VALUE_2 = 'true'
-    const reader = createWorkerGitReader(fixture, revision), inputs = workerInputManifest(reader.readTree(revision), reader, revision)
-    assert.equal(inputs.entries.length, 37); assert.deepEqual(inputs.entries, manifest.entries)
-    assert.notEqual(historicalRevision, revision)
-    assert.throws(() => reader(PREBUILD_IAM_SOURCE_PATH, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
-    assert.throws(() => prebuildIamContinuationPlan(reader, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
-    reader.authorizeOrigin(historicalRevision)
-    const nativePrebuild = reader(PREBUILD_IAM_SOURCE_PATH, historicalRevision)
-    assert.ok(nativePrebuild.equals(canonicalSource(PREBUILD_IAM_SOURCE_PATH)), 'admitted prebuild source must preserve genuine Git blob bytes')
-    const nativePlan = prebuildIamContinuationPlan(reader, historicalRevision)
-    assert.deepEqual(nativePlan, prebuildIamContinuationPlan(canonicalSource, historicalRevision), 'actual prebuild callee must consume the exact admitted five-file closure')
-    assert.equal(nativePlan.sourceHashes.length, 5)
-    assert.equal(nativePlan.sourceHashes.find(row => row.path === PREBUILD_IAM_SOURCE_PATH).sha256, sha256(nativePrebuild))
-    for (const name of deniedHistoryPaths) {
-      assert.ok(fixtureGit(['show', `${historicalRevision}:${name}`]).length > 0, 'denied path must exist as a genuine historical Git blob')
-      assert.throws(() => reader(name, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+    for (const createReader of [createContinuousReleaseSourceReader, createPrerequisiteSourceReader, createBootstrapSourceReader]) {
+      t.diagnostic('Native source ingress: ' + createReader.name)
+      assert.throws(() => createReader(fixture)(WORKER_PROFILE_PATH, historicalRevision), { code: 'SOURCE_CHECKOUT_NOT_FROZEN' }, 'first source cannot silently bind a historical checkout')
+      const reader = createReader(fixture)
+      assert.ok(reader(WORKER_PROFILE_PATH, revision).equals(canonicalSource(WORKER_PROFILE_PATH)), 'native bootstrap first read must bind the frozen current source')
+      reader.assertCurrentFrozen()
+      const inputs = workerInputManifest(reader.readTree(revision), reader, revision)
+      assert.equal(inputs.entries.length, 37); assert.deepEqual(inputs.entries, manifest.entries)
+      assert.notEqual(historicalRevision, revision)
+      assert.throws(() => reader(PREBUILD_IAM_SOURCE_PATH, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+      assert.throws(() => prebuildIamContinuationPlan(reader, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+      reader.authorizeOrigin(historicalRevision)
+      assert.equal(reader.readTreeId(revision), fixtureGit(['rev-parse', revision + '^{tree}']).toString().trim())
+      const historicalReader = reader.createHistoricalReader(historicalRevision)
+      assert.ok(historicalReader(WORKER_PROFILE_PATH, historicalRevision).equals(canonicalSource(WORKER_PROFILE_PATH)))
+      assert.ok(reader.readImmutableArchive(historicalRevision).equals(fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', historicalRevision])))
+      assert.throws(() => historicalReader.assertCurrentFrozen(), { code: 'SOURCE_CHECKOUT_NOT_FROZEN' })
+      const nativePrebuild = reader(PREBUILD_IAM_SOURCE_PATH, historicalRevision)
+      assert.ok(nativePrebuild.equals(canonicalSource(PREBUILD_IAM_SOURCE_PATH)), 'admitted prebuild source must preserve genuine Git blob bytes')
+      const nativePlan = prebuildIamContinuationPlan(reader, historicalRevision)
+      assert.deepEqual(nativePlan, prebuildIamContinuationPlan(canonicalSource, historicalRevision), 'actual prebuild callee must consume the exact admitted five-file closure')
+      assert.equal(nativePlan.sourceHashes.length, 5)
+      assert.equal(nativePlan.sourceHashes.find(row => row.path === PREBUILD_IAM_SOURCE_PATH).sha256, sha256(nativePrebuild))
+      for (const name of deniedHistoryPaths) {
+        assert.ok(fixtureGit(['show', `${historicalRevision}:${name}`]).length > 0, 'denied path must exist as a genuine historical Git blob')
+        assert.throws(() => reader(name, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+      }
+      const unadmittedReader = createWorkerGitReader(fixture, revision)
+      assert.throws(() => unadmittedReader(PREBUILD_IAM_SOURCE_PATH, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+      const hostArchive = fixtureGit(['archive', '--format=tar', '--prefix=source/', revision])
+      assert.throws(() => assertWorkerArchive(hostArchive, inputs.entries), { code: 'OPENSWX_REUSE_ARCHIVE_INPUT_MISMATCH' }, 'the real unpinned host archive must reproduce the byte defect')
+      const canonicalArchive = fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision])
+      const actualArchive = reader.readArchive(revision)
+      assert.ok(actualArchive.equals(canonicalArchive), 'reader must return exact canonical Git archive bytes, without normalization')
+      assert.equal(assertWorkerArchive(actualArchive, inputs.entries).inputCount, 37)
+      const originalMarker = reader('src/app/b23-native-reader-fixture.txt', revision)
+      const changedCopy = reader('src/app/b23-native-reader-fixture.txt', revision); changedCopy.fill(0)
+      assert.ok(reader('src/app/b23-native-reader-fixture.txt', revision).equals(originalMarker), 'cached blobs return independent bytes')
+      writeFileSync(currentMarker, 'LOCAL dirty fixture after blob was cached\n')
+      assert.throws(() => reader.readArchive(revision), { code: 'SOURCE_CHECKOUT_NOT_FROZEN' }, 'blob reuse cannot bypass fresh checkout checks')
+      writeFileSync(currentMarker, originalMarker)
+      reader.assertCurrentFrozen()
     }
-    const unadmittedReader = createWorkerGitReader(fixture, revision)
-    assert.throws(() => unadmittedReader(PREBUILD_IAM_SOURCE_PATH, historicalRevision), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
-    const hostArchive = fixtureGit(['archive', '--format=tar', '--prefix=source/', revision])
-    assert.throws(() => assertWorkerArchive(hostArchive, inputs.entries), { code: 'OPENSWX_REUSE_ARCHIVE_INPUT_MISMATCH' }, 'the real unpinned host archive must reproduce the byte defect')
-    const canonicalArchive = fixtureGit(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision])
-    const actualArchive = reader.readArchive(revision)
-    assert.ok(actualArchive.equals(canonicalArchive), 'reader must return exact canonical Git archive bytes, without normalization')
-    assert.equal(assertWorkerArchive(actualArchive, inputs.entries).inputCount, 37)
-    const originalMarker = reader('src/app/b23-native-reader-fixture.txt', revision)
-    const changedCopy = reader('src/app/b23-native-reader-fixture.txt', revision); changedCopy.fill(0)
-    assert.ok(reader('src/app/b23-native-reader-fixture.txt', revision).equals(originalMarker), 'cached blobs return independent bytes')
-    writeFileSync(currentMarker, 'LOCAL dirty fixture after blob was cached\n')
-    assert.throws(() => reader.readArchive(revision), { code: 'SOURCE_CHECKOUT_NOT_FROZEN' }, 'blob reuse cannot bypass fresh checkout checks')
-    writeFileSync(currentMarker, originalMarker)
-    reader.assertCurrentFrozen()
   } finally {
     for (const [name, value] of previousEnv) { if (value === undefined) delete process.env[name]; else process.env[name] = value }
     assert.equal(path.dirname(fixture), fixtureParent); assert.ok(path.basename(fixture).startsWith('ai-pdm-b21-git-archive-'))

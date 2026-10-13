@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url'
 
 import { assertDev117ReleaseIntent, assertDev117V3Profile, buildDev117MigrationBundle, buildDev117MigrationPackage } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
-import { createGitSourceIdentity, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
+import { createGitSourceIdentity } from './lib/dev012-owner-stage-executor.mjs'
 import { executePrerequisiteProducer, parsePrerequisiteProducerArgs, resolveOwnerInputPath } from './lib/dev012-owner-prerequisite-producer.mjs'
+
+import { createFrozenWorkerSourceReader } from './lib/dev122-openswx-native-source-reader.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -21,6 +23,8 @@ async function readInput(inputPath) {
   return JSON.parse(await fs.readFile(realInput, 'utf8'))
 }
 
+export const createPrerequisiteSourceReader = createFrozenWorkerSourceReader
+
 async function main() {
   const args = parsePrerequisiteProducerArgs(process.argv.slice(2))
   const [profile, v1, n1c] = await Promise.all(['config/release/dev117-ai-pdm-independent-production-v3.json', 'config/release/dev117-ai-pdm-independent-production.json', 'config/platform/dev-010-n1c-ai-pdm.json'].map((file) => fs.readFile(path.join(root, file), 'utf8').then(JSON.parse)))
@@ -31,10 +35,10 @@ async function main() {
     ...args, input, profile, root, transport,
     validateIntent: assertDev117ReleaseIntent,
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
-    readWorkerSource: (repositoryPath, sourceRevision) => readGitBlob(root, repositoryPath, sourceRevision),
+    readWorkerSource: createPrerequisiteSourceReader(root),
     buildMigrationBundle: async (sourceRevision, context) => buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision, context),
   })
   process.stdout.write(`${JSON.stringify({ stage: args.stage, releaseId: args.releaseId, ref: result.ref, refs: result.refs ?? null, previousRevision: result.previousRevision ?? null, generation: String(result.metadata.generation), status: 'PASS' })}\n`)
 }
 
-main().catch((error) => { process.stderr.write(`${error.code ?? error.message}\n`); process.exitCode = 1 })
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((error) => { process.stderr.write(`${error.code ?? error.message}\n`); process.exitCode = 1 })
