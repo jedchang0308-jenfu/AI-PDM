@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
-import { resolveWorkerArtifact, publishWorkerReuseJson, assertReuseSourceLock } from './dev122-openswx-worker-artifact-reuse.mjs'
+import { resolveWorkerArtifact, publishWorkerReuseJson, assertReuseSourceLock, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource } from './dev121-owner-release-proof.mjs'
 
 import { assertReadbackIamReceipt, expectedReadbackJobBindings } from './dev122-openswx-readback-iam.mjs'
@@ -1156,7 +1156,15 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
         // create or overwrite either receipt while admitting incomplete history.
         if (await optional(transport, uri + '.json') || await optional(transport, uri + '-drain-finite.json')) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
         const requestRow = await optional(transport, uri + '-drain-finite-request.json')
-        if (!requestRow) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
+        const latch = await optional(transport, uri + '-drain-finite-operation.json')
+        if (!requestRow && !latch) {
+          // A prior writer must be expired. A sealed restore is not a submitted
+          // drain or DB admission; the next pause still needs its own execution.
+          if (Date.now() < failedDailyTime(input.deadlineAt)) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
+          const currentJobRestoration = await readFailedCheckpointRestoreProof({transport,inputRef,input,descriptorRaw:descriptor.value,descriptor:descriptor.value,artifact,prior,profile,root:uri})
+          return { ...failed, currentTemplateMode:'NORMAL', currentJobRestoration }
+        }
+        if (!requestRow || !latch) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
         const request = requestRow.value
         if (!request || Object.keys(request).sort().join(',') !== 'actor,baselineExecutionNames,jobName,ownerApplicationId,requestStartedAt,requestWindowEndsAt,schemaVersion,sourceArchiveSha256,sourceRevision,templateSha256'
           || request.schemaVersion !== 'aipdm.openswx-finite-request.v1' || request.ownerApplicationId !== 'ai-pdm' || request.jobName !== workerJobName() || request.actor !== profile.normalActor
@@ -1165,8 +1173,6 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
           || failedDailyTime(request.requestWindowEndsAt) < failedDailyTime(request.requestStartedAt) || failedDailyTime(request.requestWindowEndsAt)-failedDailyTime(request.requestStartedAt) > 30_000
           || failedDailyTime(request.requestWindowEndsAt) > failedDailyTime(input.deadlineAt)) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
         failedDailySame(request.baselineExecutionNames, failed.expectedExecutionNames)
-        const latch = await optional(transport, uri + '-drain-finite-operation.json')
-        if (!latch) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
         // A partial native pause may already have restored the completed Job.
         // Admit normal only from that source-bound restoration, never its name.
         let currentJobRestoration = null
@@ -1590,6 +1596,7 @@ async function dailyResourceProvenance({ transport, profile, prior, descriptor, 
 }
 export async function executeOpenSwxBootstrap({ stage, inputRef, transport, readSource, appProfile, root, oauthToken, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
   return runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+  transport = createWorkerReceiptReadTransport(transport)
   assertOpenSwxWorkerRef(inputRef)
   const input = (await transport.readJson(inputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const base = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId']
