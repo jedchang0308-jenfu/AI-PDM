@@ -60,6 +60,7 @@ function receiptHash(value) {
 }
 
 const ARCHIVE_LIMIT = 268435456
+const EVIDENCE_MEMO_LIMIT = 512 * 1024 * 1024
 const PROFILE_PATH = 'config/release/dev117-ai-pdm-independent-production-v3.json'
 const AI_BUCKET = 'jenfu-platform-prod-aipdm-release'
 const authenticatedSources = new WeakMap()
@@ -105,7 +106,7 @@ function evidenceState(handle) {
       monotonicCurrentMs: finite(monotonic), monotonicStartedMs: finite(state.root.startedMonotonicMs),
       elapsedMonotonicMs: finite(monotonic - state.root.startedMonotonicMs),
     }
-    state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear()
+    state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear(); state.root.historyBasis = null; state.root.historyCollection = null; state.root.historyObjectMetadata.clear()
     throw Object.assign(proofError('OBSERVATION_EXPIRED'), { observationDiagnostic })
   }
   state.root.lastWallMs = now
@@ -128,7 +129,7 @@ export function createAiPdmEvidenceContext() {
   const now = Date.now(), monotonic = performance.now()
   if (!Number.isFinite(now) || !Number.isFinite(monotonic)) fail('CONTEXT_INVALID')
   const root = { startedAtMs: now, startedMonotonicMs: monotonic, expiresAtMs: now + 600000,
-    lastWallMs: now, closed: false, hashes: new Map(), memo: new Map(), receiptMetadata: new Map(), sourceAdmissions: new Set() }
+    lastWallMs: now, closed: false, hashes: new Map(), memo: new Map(), memoBytes: 0, receiptMetadata: new Map(), sourceAdmissions: new Set(), historyBasis: null, historyCollection: null, historyObjectMetadata: new Map() }
   return mintEvidenceHandle({ root, depth: 0, ancestors: new Set(), parent: null })
 }
 export async function runAiPdmEvidenceContext(handle, callback) {
@@ -145,7 +146,7 @@ export async function runAiPdmEvidenceContext(handle, callback) {
       return result
     })
   } finally {
-    if (owns) { state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear() }
+    if (owns) { state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear(); state.root.historyBasis = null; state.root.historyCollection = null; state.root.historyObjectMetadata.clear() }
   }
 }
 export function descendAiPdmEvidenceContext(handle, ref, transition = false) {
@@ -156,6 +157,7 @@ export function descendAiPdmEvidenceContext(handle, ref, transition = false) {
   if ((state.root.hashes.has(ref.uri) && state.root.hashes.get(ref.uri) !== ref.sha256) || state.ancestors.has(ref.uri)) fail('GRAPH_CYCLE_OR_HASH_CONFLICT')
   if (typeof transition !== 'boolean' || state.depth + Number(transition) > 8) fail('GRAPH_DEPTH_INVALID')
   state.root.hashes.set(ref.uri, ref.sha256)
+  recordHistoryObject(state.root, ref)
   return mintEvidenceHandle({ root: state.root, parent: handle, nodeRef: { ...ref }, depth: state.depth + Number(transition), ancestors: new Set([...state.ancestors, ref.uri]) })
 }
 export async function readAiPdmEvidenceLeaf({ ref, kind = 'receipt', generation = null, crc32c = null, sourceRevision = null, read }) {
@@ -165,17 +167,27 @@ export async function readAiPdmEvidenceLeaf({ ref, kind = 'receipt', generation 
   const child = canonicalize(parentState.nodeRef) === canonicalize(ref) ? parent : descendAiPdmEvidenceContext(parent, ref)
   return runAiPdmEvidenceContext(child, async () => {
     const state = evidenceState(child)
+    recordHistoryObject(state.root, ref, { generation, crc32c, sourceRevision })
     const key = canonicalize([kind, ref.uri, ref.sha256, generation, crc32c, sourceRevision])
     if (state.root.memo.has(key)) {
       const bytes = Buffer.from(state.root.memo.get(key))
       if (sha256(bytes) !== ref.sha256) fail('OBJECT_HASH_MISMATCH')
+      rejectHistoryBasisRecursion(state.root, bytes)
       evidenceState(child)
       return bytes
     }
     const bytes = await read()
     evidenceState(child)
     if (!Buffer.isBuffer(bytes) || sha256(bytes) !== ref.sha256) fail('OBJECT_HASH_MISMATCH')
-    state.root.memo.set(key, Buffer.from(bytes))
+    rejectHistoryBasisRecursion(state.root, bytes)
+    if (!state.root.memo.has(key)) {
+      if (bytes.length > EVIDENCE_MEMO_LIMIT - state.root.memoBytes) {
+        state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear(); state.root.historyBasis = null; state.root.historyCollection = null; state.root.historyObjectMetadata.clear()
+        fail('EVIDENCE_MEMO_LIMIT')
+      }
+      state.root.memoBytes += bytes.length
+      state.root.memo.set(key, Buffer.from(bytes))
+    }
     return Buffer.from(bytes)
   })
 }
@@ -188,6 +200,145 @@ export function admitAiPdmEvidenceSource({ bytes, ref }) {
   assertSourceLock(value, 'ai-pdm', OWNERS['ai-pdm'], value.sourceRevision, value.releaseId)
   evidenceState(handle).root.sourceAdmissions.add(value.sourceRevision)
   return value.sourceRevision
+}
+/** Native history qualification is deliberately separate from ordinary descent.
+ * It runs once at this observation's root and never grants a new context/clock. */
+function rejectHistoryBasisRecursion(root, bytes) {
+  if (!root.historyCollection || bytes[0] !== 123) return
+  let value; try { value = JSON.parse(bytes.toString('utf8')) } catch { return }
+  if (Object.hasOwn(value ?? {}, 'historyBasisRef') || value?.schemaVersion === 'aipdm.openswx-history-basis.v1') fail('HISTORY_BASIS_RECURSION')
+}
+function recordHistoryObject(root, ref, metadata = {}) {
+  const key = `object:${ref.uri}`
+  const row = { kind: 'object', uri: ref.uri, sha256: ref.sha256,
+    generation: metadata.generation == null ? null : String(metadata.generation),
+    crc32c: metadata.crc32c ?? null, sourceRevision: metadata.sourceRevision ?? null }
+  const old = root.historyObjectMetadata.get(key)
+  if (old) {
+    if (old.sha256 !== row.sha256) fail('HISTORY_CLOSURE_CONFLICT')
+    for (const field of ['generation', 'crc32c', 'sourceRevision']) {
+      if (old[field] !== null && row[field] !== null && old[field] !== row[field]) fail('HISTORY_CLOSURE_CONFLICT')
+      row[field] ??= old[field]
+    }
+  }
+  root.historyObjectMetadata.set(key, row)
+  if (root.historyCollection) {
+    root.historyCollection.set(key, row)
+    if (root.historyCollection.size > 4096) fail('HISTORY_CLOSURE_LIMIT')
+  }
+}
+export function recordAiPdmHistoryObject({ ref, metadata = {}, bytes = null }) {
+  const handle = activeEvidence()
+  if (handle === undefined) return
+  const state = evidenceState(handle)
+  if (!rootSafeHistoryRef(ref)) { if (state.root.historyCollection || state.root.historyBasis) fail('HISTORY_SOURCE_INVALID'); return }
+  if (bytes !== null) { if (!Buffer.isBuffer(bytes) || sha256(bytes) !== ref.sha256) fail('OBJECT_HASH_MISMATCH'); rejectHistoryBasisRecursion(state.root, bytes) }
+  if ( (state.root.hashes.has(ref.uri) && state.root.hashes.get(ref.uri) !== ref.sha256)) fail('GRAPH_CYCLE_OR_HASH_CONFLICT')
+  state.root.hashes.set(ref.uri, ref.sha256)
+  recordHistoryObject(state.root, ref, metadata)
+}
+function rootSafeHistoryRef(ref) {
+  return exactKeys(ref, ['uri', 'sha256']) && H64.test(ref.sha256 ?? '') &&
+    typeof ref.uri === 'string' && /^gs:\/\/jenfu-platform-prod-aipdm-release\/(?:receipts|source)\/[A-Za-z0-9._/-]+$/u.test(ref.uri) &&
+    !ref.uri.split('/').slice(3).some(part => !part || part === '.' || part === '..')
+}
+export function recordAiPdmHistorySourceBlob({ sourceRevision, path: name, bytes }) {
+  const handle = activeEvidence()
+  if (handle === undefined) return
+  const state = evidenceState(handle)
+  if (!state.root.historyCollection) return
+  if (!H40.test(sourceRevision ?? '') ||
+      typeof name !== 'string' || !/^[A-Za-z0-9._/-]+$/u.test(name) || name.split('/').some(part => !part || part === '.' || part === '..') || !Buffer.isBuffer(bytes)) fail('HISTORY_SOURCE_INVALID')
+  const row = { kind: 'source_blob', sourceRevision, path: name, sha256: sha256(bytes) }, key = `source:${sourceRevision}:${name}`
+  const old = state.root.historyCollection.get(key)
+  if (old && old.sha256 !== row.sha256) fail('HISTORY_CLOSURE_CONFLICT')
+  state.root.historyCollection.set(key, row)
+  if (state.root.historyCollection.size > 4096) fail('HISTORY_CLOSURE_LIMIT')
+}
+function historyRoot() {
+  const handle = activeEvidence(), state = evidenceState(handle)
+  if (state.parent !== null || state.depth !== 0 || state.ancestors.size !== 0 || state.root.historyCollection) fail('HISTORY_QUALIFICATION_NOT_AT_ROOT')
+  return { handle, state }
+}
+function assertHistoryClosureUse(state, capability) {
+  if (state.root.historyCollection) fail('HISTORY_BASIS_RECURSION')
+  for (const row of capability.closure) if (row.kind === 'object') {
+    if (state.ancestors.has(row.uri)) fail('GRAPH_CYCLE_OR_HASH_CONFLICT')
+    if (state.root.hashes.has(row.uri) && state.root.hashes.get(row.uri) !== row.sha256) fail('GRAPH_CYCLE_OR_HASH_CONFLICT')
+  }
+}
+async function deriveNativeHistory(inputRef, transport, readSource) {
+  const { state } = historyRoot(), startedAt = new Date(Date.now()).toISOString()
+  if (state.root.historyBasis) fail('HISTORY_BASIS_ALREADY_QUALIFIED')
+  state.root.historyCollection = new Map()
+  try {
+    // Fixed native implementation, never a caller-supplied validator/facts hook.
+    const { replayOpenSwxHistoryBasis } = await import('./dev122-openswx-worker-artifact-reuse.mjs')
+    const result = await replayOpenSwxHistoryBasis({ inputRef, transport, readSource })
+    evidenceState(activeEvidence())
+    const closure = [...state.root.historyCollection.values()].sort((a, b) => canonicalize(a) < canonicalize(b) ? -1 : canonicalize(a) > canonicalize(b) ? 1 : 0)
+    return { ...result, closure, semanticClosureSha256: sha256(canonicalize(closure)), historicalFactsSha256: sha256(canonicalize(result.facts)),
+      observationStartedAt: startedAt, observationCompletedAt: new Date(Date.now()).toISOString() }
+  } finally { state.root.historyCollection = null }
+}
+export async function deriveAiPdmNativeHistoryBasis({ inputRef, transport, readSource }) {
+  const result = await deriveNativeHistory(inputRef, transport, readSource)
+  return { ...result.basis, historicalFactsSha256: result.historicalFactsSha256, semanticClosureSha256: result.semanticClosureSha256,
+    observationStartedAt: result.observationStartedAt, observationCompletedAt: result.observationCompletedAt }
+}
+export async function qualifyAiPdmNativeHistoryBasis({ ref, transport, readSource }) {
+  const { state } = historyRoot()
+  if (!rootSafeHistoryRef(ref)) fail('HISTORY_BASIS_REF_INVALID')
+  if (state.root.historyBasis) {
+    if (canonicalize(state.root.historyBasis.ref) !== canonicalize(ref)) fail('HISTORY_BASIS_CONFLICT')
+    assertHistoryClosureUse(state, state.root.historyBasis)
+    return structuredClone(state.root.historyBasis.bindings)
+  }
+  let row
+  const bytes = await readAiPdmEvidenceLeaf({ ref, read: async () => { row = await transport.readJson(ref, AI_BUCKET, ['receipts/dev-122/openswx-worker']); return row.bytes } })
+  const basis = JSON.parse(strictUtf8(bytes))
+  const { assertOpenSwxHistoryBasis } = await import('./dev122-openswx-worker-artifact-reuse.mjs')
+  assertOpenSwxHistoryBasis(basis)
+  const result = await deriveNativeHistory(basis.qualificationInputRef, transport, readSource)
+  const expected = { ...result.basis, historicalFactsSha256: result.historicalFactsSha256, semanticClosureSha256: result.semanticClosureSha256,
+    observationStartedAt: basis.observationStartedAt, observationCompletedAt: basis.observationCompletedAt }
+  if (canonicalize(basis) !== canonicalize(expected)) {
+    const error = proofError('HISTORY_BASIS_JOIN_INVALID')
+    // Field names identify the failed binding without disclosing private evidence.
+    error.mismatchedFields = Object.keys(expected).filter(key => canonicalize(basis[key]) !== canonicalize(expected[key]))
+    throw error
+  }
+  if (ref.uri !== result.basisUri ||
+      Date.parse(basis.observationCompletedAt) > Date.parse(result.qualificationDeadlineAt) ||
+      Date.parse(basis.observationStartedAt) < Date.parse(result.issuerObservedAt) ||
+      Date.parse(basis.observationCompletedAt) > Date.now() ||
+      Date.parse(basis.observationCompletedAt) - Date.parse(basis.observationStartedAt) > 600000 ||
+      result.closure.some(value => value.kind === 'object' && value.uri === ref.uri)) fail('HISTORY_BASIS_JOIN_INVALID')
+  state.root.historyBasis = { ref: { ...ref }, closure: structuredClone(result.closure), bindings: structuredClone(result.bindings),
+    checkpoint: structuredClone(result.checkpoint), partial: structuredClone(result.partial) }
+  assertHistoryClosureUse(evidenceState(activeEvidence()), state.root.historyBasis)
+  return structuredClone(result.bindings)
+}
+/** No caller may provide a capability; only this root's native replay installs it. */
+export function readAiPdmQualifiedHistoryProjection({ basisRef, kind, frontierRef, bindings }) {
+  if (!basisRef) return null
+  const state = evidenceState(activeEvidence()), capability = state.root.historyBasis
+  if (!capability || canonicalize(capability.ref) !== canonicalize(basisRef) || !['checkpoint', 'partial'].includes(kind)) fail('HISTORY_BASIS_CAPABILITY_MISSING')
+  assertHistoryClosureUse(state, capability)
+  const expectedRef = capability.bindings[kind === 'checkpoint' ? 'completedCheckpointRef' : 'partialPauseInputRef']
+  if (canonicalize(expectedRef) !== canonicalize(frontierRef) || canonicalize(bindings) !== canonicalize(capability.bindings)) fail('HISTORY_BASIS_FRONTIER_INVALID')
+  return structuredClone(capability[kind])
+}
+export async function ensureAiPdmNativeHistoryBasis({ basisRef, transport, readSource, sourceRevision, sourceLockRef = null }) {
+  const state = evidenceState(activeEvidence())
+  if (state.parent === null && !state.root.historyBasis) await qualifyAiPdmNativeHistoryBasis({ ref: basisRef, transport, readSource })
+  assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision, sourceLockRef })
+}
+export function assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision, sourceLockRef = null }) {
+  const state = evidenceState(activeEvidence()), cap = state.root.historyBasis
+  if (!cap || canonicalize(cap.ref) !== canonicalize(basisRef) || cap.bindings.issuerSourceRevision !== sourceRevision ||
+      (sourceLockRef && canonicalize(cap.bindings.issuerSourceLockRef) !== canonicalize(sourceLockRef))) fail('HISTORY_BASIS_ISSUER_INVALID')
+  assertHistoryClosureUse(state, cap)
 }
 /** Fixed same-checkout reader: admissions come only from sealed source locks. */
 function programOnlyProofSourceReader(internalReadSource = null, historicalReadbackPaths = []) {
@@ -213,6 +364,7 @@ function programOnlyProofSourceReader(internalReadSource = null, historicalReadb
     const bytes = internalReadSource === null ? run(['show', `${revision}:${name}`]) : internalReadSource(name, revision)
     evidenceState(activeEvidence())
     if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 32 * 1024 * 1024) fail('PROGRAM_ONLY_GIT_SOURCE_INVALID')
+    recordAiPdmHistorySourceBlob({ sourceRevision: revision, path: name, bytes })
     return bytes
   }
   reader.authorizeOrigin = revision => {
@@ -257,6 +409,7 @@ function registerLeaf(context, ref) {
   if (activeEvidence() !== context || state.ancestors.has(ref.uri) ||
       (state.root.hashes.has(ref.uri) && state.root.hashes.get(ref.uri) !== ref.sha256)) fail('GRAPH_INVALID')
   state.root.hashes.set(ref.uri, ref.sha256)
+  recordHistoryObject(state.root, ref, ref)
 }
 async function boundedResponse(response, cap, signal) {
   if (!response.ok || !response.body || typeof response.body.getReader !== 'function') fail('ARCHIVE_STREAM_INVALID')
@@ -1048,6 +1201,27 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
     })
   })
 }
+/** Qualify at the public native root before the current capsule is descended.
+ * Nested observers may only consume the capability already owned by that root. */
+async function prepareHistoryObservationIngress({ workerDescriptor, intent, token, fetchImpl, readSource }) {
+  if (!Object.hasOwn(workerDescriptor ?? {}, 'historyBasisRef')) return
+  if (Object.hasOwn(intent, 'programOnlyBaseline') || workerDescriptor.schemaVersion !== 'aipdm.openswx-worker-descriptor.v4') fail('HISTORY_INGRESS_INVALID')
+  const state = evidenceState(activeEvidence())
+  if (state.root.historyBasis || state.parent !== null) {
+    assertAiPdmNativeHistoryIngress({ basisRef: workerDescriptor.historyBasisRef, sourceRevision: intent.sourceRevision, sourceLockRef: intent.sourceLockRef })
+    return
+  }
+  const reuse = await import('./dev122-openswx-worker-artifact-reuse.mjs')
+  const worker = await import('./dev122-openswx-owner-release.mjs')
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+  const reader = readSource ?? reuse.createWorkerGitReader(repositoryRoot, intent.sourceRevision)
+  const profileBytes = reader(worker.WORKER_PROFILE_PATH, intent.sourceRevision)
+  worker.assertWorkerDescriptor(workerDescriptor, JSON.parse(profileBytes), sha256(profileBytes), intent.sourceRevision)
+  const { createOwnerTransport } = await import('./dev012-owner-release-runtime.mjs')
+  const transport = createOwnerTransport({ token, builderReadbackToken: null, fetchImpl: scopeFetch(fetchImpl) })
+  await ensureAiPdmNativeHistoryBasis({ basisRef: workerDescriptor.historyBasisRef, transport, readSource: reader,
+    sourceRevision: intent.sourceRevision, sourceLockRef: intent.sourceLockRef })
+}
 /** Fixed AI-PDM readonly source observation; generic v1 proof stays isolated. */
 export async function readAiPdmReleaseObservation({ sourceRevision, refs, token, fetchImpl = fetch, readSource = null, readOwnerSourceProof: observeOwnerSource = null }) {
   if (observeOwnerSource !== null && typeof observeOwnerSource !== 'function') fail('PROGRAM_ONLY_SOURCE_PROOF_INVALID')
@@ -1062,8 +1236,9 @@ export async function readAiPdmReleaseObservation({ sourceRevision, refs, token,
       const intent = assertObservedCapsule((await readRef(capsuleRef, AI_BUCKET, token, fetchImpl)).value, capsuleRef, sourceRevision)
       cleanupBound = Object.hasOwn(intent, 'unlinkedProfileCleanupRef')
       programOnlyBound = Object.hasOwn(intent, 'programOnlyBaseline')
-      if (!preMigration && intent.openswxWorkerRef) {
+      if (intent.openswxWorkerRef) {
         const worker = (await readRef(intent.openswxWorkerRef, AI_BUCKET, token, fetchImpl)).value
+        await prepareHistoryObservationIngress({ workerDescriptor: worker, intent, token, fetchImpl, readSource })
         pausedForward = worker.schemaVersion === 'aipdm.openswx-worker-descriptor.v3' && worker.releaseVariant === 'PAUSED_APP_REPAIR'
       }
     }
@@ -1134,6 +1309,7 @@ function rememberReceiptMetadata(ref, object) {
   const memo = evidenceState(handle).root.receiptMetadata, key = receiptMetadataKey(ref)
   if (memo.has(key) && canonicalize(memo.get(key)) !== canonicalize(metadata)) fail('CONTEXT_RECEIPT_METADATA_CONFLICT')
   memo.set(key, metadata)
+  recordHistoryObject(evidenceState(handle).root, ref, metadata)
 }
 async function readRef(ref, bucket, token, fetchImpl) {
   assertRef(ref, bucket)
@@ -1152,6 +1328,7 @@ async function readRef(ref, bucket, token, fetchImpl) {
     if (!object && !(await load()).equals(bytes)) fail('OBJECT_HASH_MISMATCH')
   }
   if (sha256(bytes) !== ref.sha256) fail('OBJECT_HASH_MISMATCH')
+  if (handle !== undefined) recordHistoryObject(evidenceState(handle).root, ref, object ?? {})
   let value
   try { value = JSON.parse(strictUtf8(bytes)) }
   catch { fail('JSON_INVALID') }

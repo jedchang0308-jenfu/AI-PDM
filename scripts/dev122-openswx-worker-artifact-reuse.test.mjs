@@ -15,8 +15,9 @@ import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
-import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
-import { assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, assertFailedDailyFullJoin, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
+import { qualifyAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
+import { buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan } from './lib/dev122-openswx-readback-iam.mjs'
@@ -24,7 +25,7 @@ import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBAC
 // LOCAL_TEST recorded transports. No provider/production/efficiency claim.
 // Git reads use raw canonical blobs, never Windows CRLF normalization.
 // Synthetic observation time advances with the monotonic timer, independently of
-// host wall-clock corrections. Each test owns and automatically restores its mock;
+// host wall-clock corrections. Each serial test owns and automatically restores its clock;
 // production clock refusal is exercised separately in owner-release-proof tests.
 let syntheticClock
 beforeEach(context => {
@@ -40,7 +41,15 @@ beforeEach(context => {
       heldAt = null
     },
   }
-  context.mock.method(Date, 'now', () => heldAt ?? advancingNow())
+  // Node's mock.method retains an Error stack for every call. Native traversal
+  // performs many clock checks; this fixture needs a clock, not a call history.
+  const originalNow = Date.now
+  let clockCalls = 0
+  Date.now = () => { clockCalls++; return heldAt ?? advancingNow() }
+  context.after(() => {
+    Date.now = originalNow
+    if (clockCalls > 100000) console.log('LOCAL_TEST_SYNTHETIC_CLOCK_CALLS '+clockCalls)
+  })
 })
 const root = fileURLToPath(new URL('..', import.meta.url)), oldRevision = 'a'.repeat(40), currentRevision = 'b'.repeat(40)
 function git(args) { const row = spawnSync('git', args, { cwd: root, encoding: null, windowsHide: true, maxBuffer: 64 * 1024 * 1024 }); assert.equal(row.status, 0); return row.stdout }
@@ -140,6 +149,8 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentA
   readSource.readTreeId = revision => { assert.ok(permitted.has(revision)); return 'e'.repeat(40) }
   readSource.assertCurrentFrozen = () => assert.ok(sourceInputs.has(frozenRevision))
   readSource.readArchive = revision => { assert.equal(revision, frozenRevision); return sourceInputs.get(revision).archive }
+  readSource.readImmutableArchive = revision => { assert.ok(permitted.has(revision)); return sourceInputs.get(revision).archive }
+  readSource.createHistoricalReader = () => readSource
   readSource.authorizeOrigin = revision => { assert.ok(sourceInputs.has(revision), 'source must come from a registered immutable fixture'); permitted.add(revision) }
   const occurrences = [{ name: provenance[0], kind: 'BUILD', resourceUri: `https://${image}` }, { name: sbom[0], kind: 'SBOM_REFERENCE', resourceUri: `https://${image}` }, { name: 'projects/jenfu-platform-prod/occurrences/discovery-local', kind: 'DISCOVERY', resourceUri: `https://${image}`, discovery: { analysisStatus: 'FINISHED_SUCCESS', continuousAnalysis: 'ACTIVE', lastScanTime: '2026-10-07T14:59:00Z' } }]
   const job = { name: workerJobName(), etag: 'opaque-job-etag', generation: '15', observedGeneration: '15', reconciling: false, terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: workerTemplate(profile, image, token) }
@@ -215,8 +226,8 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentA
 }
 function noMutation(h) { assert.ok(h.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy'))); assert.ok(!h.calls.some(row => /:run|:pause|:resume|:addVersion|:access|:exportSBOM/u.test(row.url))) }
 
-async function b22ReuseIamFixture() {
-  const h = await harness(), iamRevision = 'd'.repeat(40), prebuildRevision = 'f'.repeat(40), sourceCalls = []
+async function b22ReuseIamFixture(options={}) {
+  const h = await harness(options), iamRevision = 'd'.repeat(40), prebuildRevision = 'f'.repeat(40), sourceCalls = []
   const readSource = (repositoryPath, revision) => {
     sourceCalls.push({ path: repositoryPath, revision })
     if (revision === iamRevision || revision === prebuildRevision) {
@@ -1442,8 +1453,8 @@ test('P07 program-only abort applies native service settled, traffic, entrypoint
   }
 })
 
-async function b35MetadataReuseFixture() {
-  const h = await b22ReuseIamFixture(), originalReader = h.readSource
+async function b35MetadataReuseFixture(options={}) {
+  const h = await b22ReuseIamFixture(options), originalReader = h.readSource
   const metadataPaths = [SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, 'scripts/lib/dev122-openswx-secret-version-iam.mjs', 'scripts/dev122-openswx-secret-version-iam.mjs']
   h.readSource = (name, revision) => metadataPaths.includes(name) ? readFileSync(path.join(root, name)) : originalReader(name, revision)
   Object.assign(h.readSource, originalReader)
@@ -1486,8 +1497,8 @@ test('B35 actual READY producer and pure resolver admit only the source-joined m
   assert.equal(h.calls.length,calls,'protected resolver consumes sealed refs without IAM provider calls')
   assert.equal(h.puts.length,publications);noMutation(h)
 })
-async function rdDailyMetadataFixture() {
-  const h = await b35MetadataReuseFixture()
+async function rdDailyMetadataFixture(options={}) {
+  const h = await b35MetadataReuseFixture(options)
   const activation = structuredClone((await h.transport.readJson(h.input.priorActivationRef)).value)
   const capsule = structuredClone((await h.transport.readJson(activation.previousRefs[0])).value)
   const runtime = structuredClone((await h.transport.readJson(capsule.runtimeConfigRef)).value)
@@ -1957,8 +1968,8 @@ test('FAILED DAILY closed input admits only immutable failed attempt refs beside
   }
 })
 
-async function failedDailyFixture({programOnly=false}={}) {
-  const serving=programOnly?await rdProgramOnlyServingFixture():null,h=serving?.h??await rdDailyMetadataFixture()
+async function failedDailyFixture({programOnly=false,proofMetadata=false}={}) {
+  const serving=programOnly?await rdProgramOnlyServingFixture():null,h=serving?.h??await rdDailyMetadataFixture({proofMetadata})
   const reader=serving?(name,revision)=>[oldRevision,currentRevision].includes(revision)?serving.wire.readSource(name,revision):h.readSource(name,revision):h.readSource
   Object.assign(reader,h.readSource)
   const saved=serving?.wire.f.saved??await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:reader})
@@ -2068,8 +2079,8 @@ test('FAILED DAILY rejects ambiguous recovery, changed provider state and unrela
 })
 
 
-async function failedDailyReadyToBootstrap(name='UNKNOWN') {
-  const f=await failedDailyFixture(),h=f.h,saved=await f.reuse()
+async function failedDailyReadyToBootstrap(name='UNKNOWN',options={}) {
+  const f=await failedDailyFixture(options),h=f.h,saved=await f.reuse()
   const pauseInputRef=h.seed(name+'-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:name+'-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:f.input.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
   const runPause=()=>executeOpenSwxBootstrap({stage:'pause',inputRef:pauseInputRef,transport:h.transport,readSource:f.reader,appProfile,sleep:async()=>{}})
   const paused=await runPause()
@@ -2175,8 +2186,8 @@ test('FAILED DAILY sealed historical resolver reconstructs raw IAM, Secret metad
   }
 })
 
-async function completedFailedDailyNextSourceFixture(restoreNormal = false) {
-  const f = await failedDailyReadyToBootstrap('COMPLETED'), h = f.h, completed = await f.run()
+async function completedFailedDailyNextSourceFixture(restoreNormal = false,options={}) {
+  const f = await failedDailyReadyToBootstrap('COMPLETED',options), h = f.h, completed = await f.run()
   const full = (await h.transport.readJson(completed.refs.fullDescriptorRef)).value
   // Legacy fixture path; the realistic checkpoint preserves the native selftest Job.
   if (restoreNormal) await h.transport.request('https://run.googleapis.com/v2/' + workerJobName(), {
@@ -2285,6 +2296,229 @@ test('completed FAILED DAILY checkpoint envelopes admit eight genuine associatio
   assert.ok(!h.calls.slice(calls).some(row => row.url.endsWith(':run') || row.options.method === 'PATCH' || row.url.endsWith(':resume')))
 })
 
+// LOCAL_TEST complete frozen source model. All tracked paths plus the new
+// native entrypoint carry actual executable bytes from this working checkout.
+// Synthetic identity is never protected-main/provider evidence.
+function historyIssuerFixture(h, legacyReader, predecessorInput, predecessorInputRef) {
+  const revision=sha256('LOCAL_TEST_NATIVE_HISTORY_ISSUER').slice(0,40),files=new Map(),exportIgnored=[]
+  assert.match(canonicalSource('.gitattributes').toString('utf8'),/^\/output export-ignore$/mu)
+  for(const row of actualTree.toString('utf8').split('\0').filter(Boolean)){
+    const match=/^([0-9]{6}) blob ([a-f0-9]{40})\t([\s\S]+)$/u.exec(row)
+    if(!match)continue
+    const name=match[3]
+    if(name.startsWith('output/')){exportIgnored.push(row+'\0');continue}
+    const fixed=name.startsWith('db/postgres/') || name.startsWith('config/') || manifest.entries.find(entry=>entry.path===name) || [...OPENSWX_TERRAFORM_PATHS,...READBACK_IAM_PATHS,PREBUILD_IAM_SOURCE_PATH,SECRET_VERSION_IAM_SOURCE_PATH,SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH].includes(name)
+    files.set(name,{path:name,mode:match[1],bytes:fixed?canonicalSource(name):readFileSync(path.join(root,name))})
+  }
+  const entry='scripts/dev122-openswx-history-basis.mjs'
+  files.set(entry,{path:entry,mode:'100644',bytes:readFileSync(path.join(root,entry))})
+  const rows=[...files.values()].sort((a,b)=>a.path.localeCompare(b.path,'en'))
+  const tree=Buffer.from(rows.map(row=>row.mode+' blob '+sha256(row.bytes).slice(0,40)+'\t'+row.path+'\0').join('')+exportIgnored.join(''))
+  const head=git(['rev-parse','HEAD']).toString().trim(),headArchive=git(['archive','--format=tar','--prefix=source/','HEAD','--','config/release/dev117-ai-pdm-independent-production-v3.json'])
+  const paxSize=parseInt(headArchive.subarray(124,136).toString().replace(/\0.*$/su,''),8),pax=Buffer.from(headArchive.subarray(0,512+Math.ceil(paxSize/512)*512))
+  const marker=Buffer.from('comment='+head),at=pax.indexOf(marker);assert.ok(at>=0);pax.write('comment='+revision,at,marker.length)
+  const archive=Buffer.concat([pax,tar(rows)]),releaseId='DEV121-HISTORY-LOCAL-ISSUER'
+  const issuerAppProfile=JSON.parse(files.get('config/release/dev117-ai-pdm-independent-production-v3.json').bytes)
+  const bundle=buildDev117MigrationBundle(issuerAppProfile,buildDev117MigrationPackage(issuerAppProfile,JSON.parse(files.get('config/platform/dev-010-n1c-ai-pdm.json').bytes)),revision)
+  assert.equal(bundle.bundle.entries.length,35)
+  for(const entry of bundle.bundle.entries)assert.equal(sha256(files.get(entry.path).bytes),entry.sourceSha256)
+  const lock={...sourceLock(revision,tree,releaseId),migrationManifestSha256:bundle.bundle.manifestSha256,observedAt:new Date(Date.now()-2000).toISOString()}
+  const sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+releaseId+'/source-lock.json',Buffer.from(canonicalize(lock)+'\n'))
+  const packed=gzipSync(archive,{level:9})
+  const currentSourceObjectRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/source/releases/'+releaseId+'/'+sha256(packed)+'/source.tar.gz',packed)
+  const reader=(name,rev)=>rev===revision?Buffer.from(files.get(name).bytes):legacyReader(name,rev)
+  Object.assign(reader,legacyReader)
+  reader.authorizeOrigin=rev=>{if(rev!==revision)legacyReader.authorizeOrigin(rev)}
+  reader.readTree=rev=>rev===revision?tree:legacyReader.readTree(rev)
+  reader.readTreeId=rev=>rev===revision?'e'.repeat(40):legacyReader.readTreeId(rev)
+  reader.readArchive=rev=>{assert.equal(rev,revision);return archive}
+  reader.assertCurrentFrozen=()=>{for(const name of files.keys())if(name.endsWith('.mjs')&&!manifest.entries.some(row=>row.path===name))assert.ok(files.get(name).bytes.equals(readFileSync(path.join(root,name))))}
+  reader.createHistoricalReader=()=>legacyReader
+  reader.readImmutableArchive=rev=>rev===revision?archive:legacyReader.readImmutableArchive(rev)
+  const prefix=profile.receiptRoot+'/'+predecessorInput.receiptId+'-'+predecessorInputRef.sha256.slice(0,16)
+  const objectRef=uri=>{assert.ok(h.objects.has(uri),'native predecessor object '+uri);return h.objects.get(uri).ref}
+  const findRef=kind=>{const names=[...h.objects.keys()].filter(uri=>uri.startsWith(prefix+'-'+kind+'-'));assert.equal(names.length,1);return objectRef(names[0])}
+  const input={schemaVersion:'aipdm.openswx-history-basis-input.v1',receiptId:'DEV121-HISTORY-LOCAL-BASIS',sourceLockRef,currentSourceObjectRef,deadlineAt:deadline(),
+    predecessorInputRef,predecessorRequestRef:objectRef(prefix+'-request.json'),predecessorCurrentManifestRef:objectRef(prefix+'-current-inputs.json'),
+    predecessorResourceReadbackRef:findRef('ready'),predecessorSecurityReadbackRef:findRef('security')}
+  return{revision,lock,sourceLockRef,currentSourceObjectRef,reader,input,files,archive,bundle,appProfile:issuerAppProfile}
+}
+
+async function measureHistoryRoot(name,operation) {
+  const started=performance.now(),rssBefore=process.memoryUsage().rss
+  try {return await operation()} finally {console.log('LOCAL_TEST_HISTORY_ROOT '+JSON.stringify({name,elapsedMs:Math.round(performance.now()-started),rssBefore,rssAfter:process.memoryUsage().rss}))}
+}
+
+function historyPublicProofFixture(h,issuer,complete) {
+  const put=(uri,value)=>h.seedBytes(uri,Buffer.from(canonicalize(value)+'\n')), app=issuer.appProfile,stamp=new Date(Date.now()).toISOString()
+  const capsule={schemaVersion:app.schemas.releaseIntent,ownerApplicationId:'ai-pdm',releaseId:issuer.lock.releaseId,sourceRevision:issuer.revision,sourceSha256:issuer.lock.sourceSha256,sourceLockRef:issuer.sourceLockRef,
+    authorizationPolicyRef:issuer.sourceLockRef,readinessReceiptRef:issuer.sourceLockRef,foundationReceiptRef:issuer.sourceLockRef,infraReceiptRef:issuer.sourceLockRef,runtimeConfigRef:issuer.sourceLockRef,
+    migrationManifestSha256:issuer.bundle.bundle.manifestSha256,previousRevision:'ai-pdm-prod-'+ '2'.repeat(12),deadlineAt:deadline(),openswxWorkerRef:complete.refs.fullDescriptorRef}
+  const intentRef=put('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+capsule.releaseId+'/release-intent.json',capsule),base=intentRef.uri.slice(0,-19)+intentRef.sha256
+  const stage=(name,previousReceiptRef,facts)=>put(base+'/'+name+'.json',sealProgramOnlyEvidence({schemaVersion:'jenfu.dev012.stage-receipt.v1',ownerApplicationId:'ai-pdm',releaseId:capsule.releaseId,sourceRevision:issuer.revision,stage:name,previousReceiptRef,facts,observedAt:stamp,status:'PASS'}))
+  const prepare=stage('prepare',null,{prerequisiteRefs:Object.fromEntries(['sourceLock','authorization','readiness','foundation','infra','runtimeConfig'].map(name=>[name,issuer.sourceLockRef]))})
+  const packed=h.objects.get(issuer.currentSourceObjectRef.uri).bytes,sourceUri='gs://jenfu-platform-prod-aipdm-release/source/releases/'+capsule.releaseId+'/'+intentRef.sha256+'/source.tar.gz'
+  const sourceObject={...h.seedBytes(sourceUri,packed),generation:'17',crc32c:crc32cBase64(packed)}
+  const migrationBundleRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/'+issuer.revision+'/'+issuer.bundle.bundle.manifestSha256+'.json',issuer.bundle.bytes)
+  const artifactDigest=app.artifact.uri+'@sha256:'+'1'.repeat(64),buildId='22222222-2222-2222-2222-222222222222'
+  const provenance=put(base+'/provenance.json',{schemaVersion:'jenfu.dev012.build-provenance-receipt.v1',ownerApplicationId:'ai-pdm',sourceRevision:issuer.revision,sourceObject,artifactDigest,status:'PASS',
+    cloudBuild:{name:'projects/jenfu-platform-prod/locations/asia-east1/builds/'+buildId,id:buildId,status:'SUCCESS',projectId:'jenfu-platform-prod',serviceAccount:'projects/jenfu-platform-prod/serviceAccounts/'+app.identities.builder,
+      options:{requestedVerifyOption:'VERIFIED'},sourceProvenance:{resolvedStorageSource:{bucket:'jenfu-platform-prod-aipdm-release',object:sourceUri.split('/').slice(3).join('/'),generation:'17'}},results:{images:[{name:app.artifact.uri+':release-'+issuer.revision,digest:artifactDigest.split('@')[1]}]}},artifactRegistry:{uri:artifactDigest}})
+  const build=stage('build',prepare,{artifactDigest,sourceObject,migrationBundleRef,provenanceReceiptRef:provenance})
+  const worker=(JSON.parse(h.objects.get(complete.refs.fullDescriptorRef.uri).bytes))
+  put(base+'/deployment-capsule.json',{schemaVersion:app.schemas.deploymentCapsule,ownerApplicationId:'ai-pdm',sourceRevision:issuer.revision,artifactDigest,buildReceiptRef:build,sourceObject,migrationBundleRef,
+    migrationRunnerDigest:app.artifact.migrationRunnerUri+'@sha256:'+'e'.repeat(64),releaseIntentRef:intentRef,releaseIntentSha256:intentRef.sha256,deadlineAt:capsule.deadlineAt,openswxWorker:{descriptorRef:capsule.openswxWorkerRef,workerBuildRef:worker.workerBuildRef,image}})
+  const calls=[]
+  const fetchImpl=async(url,options={})=>{
+    assert.ok(!options.method||options.method==='GET','public proof must use readonly pinned fixture requests');calls.push(url)
+    const match=/\/b\/([^/]+)\/o\/([^?]+)/u.exec(url),uri=match&&'gs://'+decodeURIComponent(match[1])+'/'+decodeURIComponent(match[2]),row=h.objects.get(uri)
+    if(!row)return Response.json({},{status:404})
+    if(url.includes('alt=media')){assert.equal(new URL(url).searchParams.get('generation'),'17');return new Response(row.bytes)}
+    return Response.json({bucket:decodeURIComponent(match[1]),name:decodeURIComponent(match[2]),generation:'17',crc32c:crc32cBase64(row.bytes),size:String(row.bytes.length)})
+  }
+  return{prepare,capsule,intentRef,calls,fetchImpl}
+}
+
+test('native history basis qualifies the complete eight-transition predecessor and admits the ninth through native consumers', async () => {
+  const f = await partialFailedDailyNextSourceFixture({proofMetadata:true}), h = f.h
+  let input = f.input, saved, completed, full
+  // Each step uses the real producer, fresh normal drain and completed bootstrap.
+  // History includes a failed isolated run, completed checkpoint and expired
+  // partial pause; no fabricated context ancestors or depth numbers are used.
+  for (const index of [84, 85, 86, 87, 88]) {
+    const inputRef = await h.put('checkpoint-depth-reuse-' + index, input), calls = h.calls.length
+    saved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef, readSource: f.reader })
+    assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+    assert.ok(!h.calls.slice(calls).some(row => row.url.endsWith(':run') || row.options.method === 'PATCH' || row.url.endsWith(':resume')))
+    const descriptor = (await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value, replayCalls = h.calls.length
+    const artifact = await resolveWorkerArtifact({ transport: h.transport, descriptor, profile, readSource: f.reader })
+    assert.ok(artifact.failedDaily.failed.expectedExecutionNames.includes(f.partialName))
+    assert.equal(h.calls.length, replayCalls, 'independent consumer authenticates sealed history without provider reads')
+    const pauseRef = h.seed('CHECKPOINT-DEPTH-PAUSE-' + index + '-input', { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef: saved.refs.dailyBuildOnlyDescriptorRef,
+      workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'CHECKPOINT-DEPTH-PAUSE-' + index, drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: input.priorActivationRef,
+      failedDailyContinuation: f.failedDailyContinuation })
+    const pauseCalls = h.calls.length
+    const paused = await executeOpenSwxBootstrap({ stage: 'pause', inputRef: pauseRef, transport: h.transport, readSource: f.reader, appProfile, sleep: async () => {} })
+    assert.equal(h.calls.slice(pauseCalls).filter(row => row.url.endsWith(':run')).length, 1, 'each source still needs a fresh drain')
+    const bootstrapRef = h.seed('CHECKPOINT-DEPTH-BOOTSTRAP-' + index + '-input', { schemaVersion: 'aipdm.openswx-bootstrap-input.v1', descriptorRef: saved.refs.dailyBuildOnlyDescriptorRef,
+      workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'CHECKPOINT-DEPTH-BOOTSTRAP-' + index, bootstrapKind: 'DAILY_REFRESH', priorActivationRef: input.priorActivationRef,
+      pausedDrainedRef: paused.ref, failedDailyContinuation: f.failedDailyContinuation })
+    const bootstrapCalls = h.calls.length
+    completed = await executeOpenSwxBootstrap({ stage: 'bootstrap', inputRef: bootstrapRef, transport: h.transport, readSource: f.reader, appProfile, sleep: async () => {} })
+    assert.equal(h.calls.slice(bootstrapCalls).filter(row => row.url.endsWith(':run')).length, 0, 'completed isolation is retained')
+    full = (await h.transport.readJson(completed.refs.fullDescriptorRef)).value
+    const fullCalls = h.calls.length
+    await readWorkerFullEvidence(h.transport, full, profile, f.reader)
+    assert.equal(h.calls.length, fullCalls)
+    const next = h.nextAttempt(index + 1, input.priorActivationRef), lock = { ...next.lock, observedAt: new Date(Date.now() - 2000).toISOString() }
+    next.input.sourceLockRef = h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/' + lock.releaseId + '/source-lock.json', Buffer.from(canonicalize(lock) + '\n'))
+    const metadata = await seedSecretVersionIamContinuation(h, { sourceRevision: lock.sourceRevision, sourceLockRef: next.input.sourceLockRef,
+      supplementalIamReadbackRef: h.iam.receiptRef, prebuildIamContinuationRef: h.proof.continuationRef, reader: f.reader,
+      name: 'checkpoint-depth-metadata-' + index, secretPolicies: h.metadata.before.secretPolicies })
+    input = { ...next.input, failedDailyContinuation: f.failedDailyContinuation, secretVersionIamContinuationRef: metadata.continuationRef,
+      completedFailedDailyCheckpointRef: completed.refs.fullDescriptorRef }
+    assert.equal(input.partialFailedDailyPauseInputRef, undefined, 'latest complete checkpoint carries partial history itself')
+  }
+  // The path is 88 -> 87 -> 86 -> 85 -> 84 -> partial 83 -> completed 81
+  // -> original association. Source 89 adds the ninth real association.
+  const refusedRef = await h.put('checkpoint-depth-ninth-input', input), calls = h.calls.length, puts = h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef: refusedRef, readSource: f.reader }), { code: 'DEV121_OWNER_RELEASE_PROOF_GRAPH_DEPTH_INVALID' })
+  assert.ok(!h.puts.slice(puts).some(uri => uri.endsWith('-association.json') || uri.endsWith('-descriptor-build-only.json')))
+  assert.ok(!h.calls.slice(calls).some(row => row.url.endsWith(':run') || row.options.method === 'PATCH' || row.url.endsWith(':resume')))
+  syntheticClock.hold();syntheticClock.expireAfter(input.deadlineAt)
+  const issuer=historyIssuerFixture(h,f.reader,input,refusedRef)
+  assertOpenSwxHistoryBasisInput(issuer.input)
+  const qualificationRef=await h.put('history-basis-qualification-input',issuer.input),basisCalls=h.calls.length,basisPuts=h.puts.length
+  const nativePut=h.transport.putJson
+  let basisWrites=0,basis
+  h.transport.putJson=async(uri,value)=>{const saved=await nativePut(uri,value);if(uri.endsWith('-history-basis.json')){basisWrites++;throw Object.assign(Error('unknown'),{code:'OUTCOME_UNKNOWN'})}return saved}
+  try { basis=await measureHistoryRoot('basis-publication',()=>executeOpenSwxHistoryBasis({transport:h.transport,inputRef:qualificationRef,readSource:issuer.reader})) } finally { h.transport.putJson=nativePut }
+  assert.equal(basisWrites,1,'lost publication response is read back without duplicate POST')
+  assertOpenSwxHistoryBasis(basis.value)
+  assert.deepEqual(basis.value.qualificationInputRef,qualificationRef)
+  assert.equal(basis.value.qualifierSourceTreeSha256,issuer.lock.sourceSha256)
+  assert.equal(h.puts.length-basisPuts,1,'basis producer publishes only its immutable fact receipt')
+  assert.ok(!h.calls.slice(basisCalls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
+  const current={...input,schemaVersion:'aipdm.openswx-worker-reuse-input.v3',historyBasisRef:basis.ref,receiptId:'DEV121-HISTORY-CURRENT',
+    sourceLockRef:issuer.sourceLockRef,currentSourceObjectRef:issuer.currentSourceObjectRef,deadlineAt:deadline()}
+  const metadata=await seedSecretVersionIamContinuation(h,{sourceRevision:issuer.revision,sourceLockRef:issuer.sourceLockRef,
+    supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:issuer.reader,
+    name:'history-basis-current-metadata',secretPolicies:h.metadata.before.secretPolicies})
+  current.secretVersionIamContinuationRef=metadata.continuationRef
+  const currentRef=await h.put('history-basis-current-reuse-input',current),currentCalls=h.calls.length
+  const qualified=await measureHistoryRoot('current-reuse',()=>executeWorkerArtifactReuse({transport:h.transport,inputRef:currentRef,readSource:issuer.reader}))
+  assert.equal(qualified.value.schemaVersion,'aipdm.openswx-worker-build-association.v3')
+  assert.deepEqual(qualified.value.historyBasisRef,basis.ref)
+  assert.ok(!h.calls.slice(currentCalls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
+  const descriptor=(await h.transport.readJson(qualified.refs.dailyBuildOnlyDescriptorRef)).value
+  assert.equal(descriptor.schemaVersion,'aipdm.openswx-worker-descriptor.v4')
+  const replayCalls=h.calls.length
+  const artifact=await measureHistoryRoot('artifact-consumer',()=>resolveWorkerArtifact({transport:h.transport,descriptor,profile,readSource:issuer.reader}))
+  assert.ok(artifact.failedDaily.failed.expectedExecutionNames.includes(f.partialName))
+  assert.equal(h.calls.length,replayCalls,'new independent root recomputes historical closure using only pinned reads')
+  const pauseRef=h.seed('HISTORY-CURRENT-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v2',historyBasisRef:basis.ref,
+    descriptorRef:qualified.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:qualified.ref,deadlineAt:deadline(),receiptId:'HISTORY-CURRENT-PAUSE',
+    drainKind:'DAILY_DB_VERIFIED',priorActivationRef:current.priorActivationRef,failedDailyContinuation:f.failedDailyContinuation})
+  const pauseCalls=h.calls.length
+  const paused=await measureHistoryRoot('pause',()=>executeOpenSwxBootstrap({stage:'pause',inputRef:pauseRef,transport:h.transport,readSource:issuer.reader,appProfile,sleep:async()=>{}}))
+  assert.equal(h.calls.slice(pauseCalls).filter(row=>row.url.endsWith(':run')).length,1,'qualification never replaces fresh authenticated normal drain')
+  const bootstrapRef=h.seed('HISTORY-CURRENT-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v2',historyBasisRef:basis.ref,
+    descriptorRef:qualified.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:qualified.ref,deadlineAt:deadline(),receiptId:'HISTORY-CURRENT-BOOTSTRAP',
+    bootstrapKind:'DAILY_REFRESH',priorActivationRef:current.priorActivationRef,pausedDrainedRef:paused.ref,failedDailyContinuation:f.failedDailyContinuation})
+  const bootstrapCalls=h.calls.length
+  const complete=await measureHistoryRoot('bootstrap',()=>executeOpenSwxBootstrap({stage:'bootstrap',inputRef:bootstrapRef,transport:h.transport,readSource:issuer.reader,appProfile,sleep:async()=>{}}))
+  assert.equal(h.calls.slice(bootstrapCalls).filter(row=>row.url.endsWith(':run')).length,0,'authenticated historical isolation remains reused')
+  const completeDescriptor=(await h.transport.readJson(complete.refs.fullDescriptorRef)).value
+  assert.equal(completeDescriptor.schemaVersion,'aipdm.openswx-worker-descriptor.v4');assert.deepEqual(completeDescriptor.historyBasisRef,basis.ref)
+  const fullCalls=h.calls.length
+  await measureHistoryRoot('full-consumer',()=>readWorkerFullEvidence(h.transport,completeDescriptor,profile,issuer.reader))
+  assert.equal(h.calls.length,fullCalls)
+  const priorCapsule=(await h.transport.readJson((await h.transport.readJson(current.priorActivationRef)).value.previousRefs[0])).value
+  const intent={...priorCapsule,sourceRevision:issuer.revision,sourceSha256:issuer.lock.sourceSha256,sourceLockRef:issuer.sourceLockRef,
+    releaseId:issuer.lock.releaseId,openswxWorkerRef:complete.refs.fullDescriptorRef,deadlineAt:deadline()}
+  const owner=createOpenSwxOwnerRelease({transport:h.transport,readSource:issuer.reader,environment:{OWNER_EXECUTION_MODE:'full_release',GITHUB_WORKFLOW_REF:appProfile.application.repository+'/'+appProfile.workflow.path+'@refs/heads/main'}})
+  const ownerCalls=h.calls.length
+  assert.deepEqual((await measureHistoryRoot('owner-resolve',()=>owner.resolve(intent,appProfile))).ref,complete.refs.fullDescriptorRef)
+  assert.equal(h.calls.length,ownerCalls,'owner root must independently qualify pinned history before current ancestry')
+  const wire=historyPublicProofFixture(h,issuer,complete),publicCalls=h.calls.length
+  await measureHistoryRoot('public-observation',()=>runAiPdmEvidenceContext(createAiPdmEvidenceContext(),async()=>{
+    const proof=await readAiPdmReleaseObservation({sourceRevision:issuer.revision,refs:{prepare:wire.prepare,migrate:null,terminal:null},token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl,readSource:issuer.reader})
+    assert.equal(proof.disposition,'build_only');assert.equal(proof.releaseAuthority,false);assert.equal(proof.migrationVerified,false)
+    const graph=await readAiPdmObservationInputs(proof)
+    assert.equal(graph.intent.migrationManifestSha256,issuer.bundle.bundle.manifestSha256)
+    assert.equal(graph.sourceLock.value.migrationManifestSha256,issuer.bundle.bundle.manifestSha256)
+    assert.equal(graph.bundle.bundle.entries.length,35)
+    for(const entry of graph.bundle.bundle.entries)assert.equal(sha256(graph.content.files.get(entry.path)),entry.sourceSha256)
+    // The same qualified v4 root must reject each poisoned raw v4 descriptor,
+    // not merely reject a legacy v1 pause shape before reaching its reference.
+    const pauseInput=(await h.transport.readJson(pauseRef)).value
+    for (const refs of [[], [pauseRef], [pauseRef,h.fullRef], [pauseRef,completeDescriptor.workerBuildRef,pauseRef]]) {
+      const calls=h.calls.length, puts=h.puts.length
+      await assert.rejects(assertFailedDailyFullJoin({transport:h.transport,profile,artifact,descriptor:completeDescriptor,
+        paused:{previousRefs:refs},bootstrap:{},preflight:{}}),{code:'OPENSWX_FAILED_DAILY_JOIN_INVALID'})
+      assert.equal(h.calls.length,calls);assert.equal(h.puts.length,puts)
+    }
+    const aliasInputRef=h.seed('history-pause-wrong-receipt-root',{...pauseInput,receiptId:'HISTORY-WRONG-ROOT'})
+    await assert.rejects(assertFailedDailyFullJoin({transport:h.transport,profile,artifact,descriptor:completeDescriptor,
+      paused:{previousRefs:[aliasInputRef,completeDescriptor.workerBuildRef]},bootstrap:{},preflight:{}}),
+      {code:'OPENSWX_FAILED_DAILY_JOIN_INVALID'})
+    for(const kind of ['full-purpose','wrong-source','wrong-archive','wrong-build','wrong-basis','malformed']) {
+      const raw=structuredClone(kind==='full-purpose'?completeDescriptor:descriptor)
+      if(kind==='wrong-source')raw.sourceRevision='0'.repeat(40)
+      if(kind==='wrong-archive')raw.sourceArchiveSha256='0'.repeat(64)
+      if(kind==='wrong-build')raw.workerBuildRef=h.fullRef
+      if(kind==='wrong-basis')raw.historyBasisRef={...basis.ref,sha256:'0'.repeat(64)}
+      if(kind==='malformed')raw.extra='caller-PASS'
+      const badDescriptorRef=h.seed('history-v4-raw-'+kind,raw),badPauseRef=h.seed('history-v2-pause-'+kind,{...pauseInput,descriptorRef:badDescriptorRef})
+      await assert.rejects(assertFailedDailyFullJoin({transport:h.transport,profile,artifact,descriptor:completeDescriptor,paused:{previousRefs:[badPauseRef,completeDescriptor.workerBuildRef]},bootstrap:{},preflight:{}}),/OPENSWX_(?:DESCRIPTOR|FAILED_DAILY_JOIN)_INVALID/u,kind)
+    }
+
+  }))
+  assert.equal(h.calls.length,publicCalls,'public root replays history without live provider calls')
+  assert.ok(wire.calls.some(url=>decodeURIComponent(url).includes(basis.ref.uri.split('/').slice(3).join('/'))),'public root must independently read and qualify basis')
+
+})
+
 test('completed FAILED DAILY checkpoint rejects unbound, partial, tampered and unknown execution histories before publication', async () => {
   const f = await completedFailedDailyNextSourceFixture(), h = f.h, objects = new Map(h.objects), request = h.transport.request
   const drainRef = (await h.transport.readJson(f.full.pausedDrainedRef)).value.facts.drainExecutionRef
@@ -2370,8 +2604,8 @@ test('completed FAILED DAILY checkpoint input stays own-bucket and failed-only',
 })
 
 
-async function partialFailedDailyNextSourceFixture() {
-  const f=await completedFailedDailyNextSourceFixture(),h=f.h
+async function partialFailedDailyNextSourceFixture(options={}) {
+  const f=await completedFailedDailyNextSourceFixture(false,options),h=f.h
   const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef:await h.put('partial-basis-reuse-input',f.input),readSource:f.reader})
   // Freeze only the synthetic fault setup, then explicitly expire its old attempt.
   syntheticClock.hold()
@@ -2853,4 +3087,128 @@ test('restore-only partial pause refuses a still-live old writer without extendi
     assert.equal(h.puts.length,puts)
     assert.ok(!h.calls.slice(calls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
   } finally {syntheticClock.expireAfter(f.oldDeadline)}
+})
+
+test('native history basis closed inputs and DAILY descriptor preserve explicit schema/ref boundaries',async()=>{
+  syntheticClock.hold()
+  const h=await harness(),workerRef=name=>({uri:profile.receiptRoot+'/'+name+'.json',sha256:'a'.repeat(64)})
+  const input={schemaVersion:'aipdm.openswx-history-basis-input.v1',receiptId:'HISTORY-CLOSED-INPUT',sourceLockRef:h.sourceLockRef,currentSourceObjectRef:h.currentSourceRef,deadlineAt:deadline(),
+    predecessorInputRef:workerRef('input'),predecessorRequestRef:workerRef('request'),predecessorResourceReadbackRef:workerRef('resource'),predecessorCurrentManifestRef:workerRef('manifest'),predecessorSecurityReadbackRef:workerRef('security')}
+  assertOpenSwxHistoryBasisInput(input)
+  for(const mutate of [row=>row.validator='caller-validator',row=>row.facts={status:'PASS'},row=>row.context={},row=>row.target='other-project',row=>row.receiptId='../unsafe',
+    row=>row.deadlineAt=new Date(Date.now()+600001).toISOString(),row=>row.deadlineAt=new Date(Date.now()-1).toISOString(),row=>delete row.predecessorRequestRef,
+    row=>row.predecessorInputRef={...workerRef('input'),extra:true},row=>row.predecessorInputRef.uri=workerRef('input').uri+'?x=1']){
+    const value=structuredClone(input);mutate(value);assert.throws(()=>assertOpenSwxHistoryBasisInput(value))
+  }
+  const association={sourceRevision:currentRevision,sourceArchiveSha256:h.currentSourceRef.sha256,workerProfileSha256:sha256(profileBytes),resourcePlanHash:h.full.resourcePlanHash,historyBasisRef:workerRef('basis')}
+  const descriptor=buildDailyReuseWorkerDescriptor({profile,artifact:{failedDaily:{},origin:{prior:{descriptor:h.full}},currentAssociation:association,associationRef:workerRef('association')}})
+  assert.equal(descriptor.schemaVersion,'aipdm.openswx-worker-descriptor.v4');assert.deepEqual(descriptor.historyBasisRef,association.historyBasisRef)
+  for(const mutate of [row=>delete row.historyBasisRef,row=>row.schemaVersion='aipdm.openswx-worker-descriptor.v2',row=>row.releaseVariant='PAUSED_APP_REPAIR']){
+    const changed=structuredClone(descriptor);mutate(changed);assert.throws(()=>assertWorkerDescriptor(changed,profile,changed.workerProfileSha256,changed.sourceRevision))
+  }
+})
+test('native history basis full join refuses downgraded NORMAL pause before historical admission',async()=>{
+  const h=await harness(),historyBasisRef=h.seed('history-normal-basis',{}),descriptor={...h.full,schemaVersion:'aipdm.openswx-worker-descriptor.v4',historyBasisRef}
+  const continuation={bootstrapInputRef:h.inputRef,recoveryRequiredRef:h.fullRef,priorRecoveryRef:h.fullRef}
+  const artifact={input:{priorActivationRef:h.priorActivationRef,failedDailyContinuation:continuation},failedDaily:{failed:{currentTemplateMode:'NORMAL'}}}
+  const pause={schemaVersion:'aipdm.openswx-pause-input.v2',historyBasisRef,descriptorRef:h.fullRef,workerBuildRef:descriptor.workerBuildRef,
+    deadlineAt:deadline(),receiptId:'HISTORY-NORMAL-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.priorActivationRef,failedDailyContinuation:continuation}
+  for(const mutate of [row=>{delete row.historyBasisRef;row.schemaVersion='aipdm.openswx-pause-input.v1'},row=>delete row.historyBasisRef,
+    row=>row.extra='unverified',row=>row.historyBasisRef={...historyBasisRef,sha256:'0'.repeat(64)}]){
+    const input=structuredClone(pause);mutate(input);const ref=h.seed('history-normal-downgrade-'+h.puts.length,input)
+    await assert.rejects(runAiPdmEvidenceContext(createAiPdmEvidenceContext(),()=>assertFailedDailyFullJoin({transport:h.transport,profile,artifact,descriptor,
+      paused:{previousRefs:[ref,descriptor.workerBuildRef]},bootstrap:{},preflight:{}})),{code:'OPENSWX_FAILED_DAILY_JOIN_INVALID'})
+  }
+  noMutation(h)
+})
+
+test('native history NORMAL full join dereferences and binds the pause descriptor', async () => {
+  const h=await harness(),descriptor={...h.full,schemaVersion:'aipdm.openswx-worker-descriptor.v2',artifactMode:'REUSE_VERIFIED'}
+  const continuation={bootstrapInputRef:h.inputRef,recoveryRequiredRef:h.fullRef,priorRecoveryRef:h.fullRef}
+  const artifact={input:{priorActivationRef:h.priorActivationRef,failedDailyContinuation:continuation},failedDaily:{failed:{currentTemplateMode:'NORMAL'}}}
+  const raw={...descriptor,purpose:'build_only'}
+  for(const key of ['bootstrapRef','cloudPreflightRef','pausedDrainedRef','tokenSecretVersion','registrySecretVersion'])delete raw[key]
+  const originalRead=h.transport.readJson
+  for(const kind of ['full-purpose','wrong-source','wrong-archive','wrong-build','orphaned-basis','malformed']) {
+    const value=structuredClone(raw)
+    if(kind==='full-purpose')Object.assign(value,descriptor)
+    if(kind==='wrong-source')value.sourceRevision='0'.repeat(40)
+    if(kind==='wrong-archive')value.sourceArchiveSha256='0'.repeat(64)
+    if(kind==='wrong-build')value.workerBuildRef=h.fullRef
+    if(kind==='orphaned-basis')value.historyBasisRef=h.fullRef
+    if(kind==='malformed')value.extra='caller-PASS'
+    const descriptorRef=h.seed('history-normal-alias-'+kind,value),inputRef=h.seed('history-normal-input-'+kind,{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef,workerBuildRef:descriptor.workerBuildRef,
+      deadlineAt:deadline(),receiptId:'HISTORY-NORMAL-ALIAS',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.priorActivationRef,failedDailyContinuation:continuation})
+    const reads=[];h.transport.readJson=async ref=>{reads.push(ref);return originalRead(ref)}
+    await assert.rejects(assertFailedDailyFullJoin({transport:h.transport,profile,artifact,descriptor,paused:{previousRefs:[inputRef,descriptor.workerBuildRef]},bootstrap:{},preflight:{}}),/OPENSWX_(?:DESCRIPTOR|FAILED_DAILY_JOIN)_INVALID/u,kind)
+    assert.deepEqual(reads,[inputRef,descriptorRef],kind+' must authenticate exact pinned descriptor before any later evidence')
+  }
+  h.transport.readJson=originalRead;noMutation(h)
+})
+
+test('native history basis refuses caller capability, alias, forged facts, active writer, recursive basis and executable drift',async()=>{
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h,predecessorRef=await h.put('history-negative-predecessor',f.input)
+  await executeWorkerArtifactReuse({transport:h.transport,inputRef:predecessorRef,readSource:f.reader})
+  syntheticClock.hold();syntheticClock.expireAfter(f.input.deadlineAt)
+  const issuer=historyIssuerFixture(h,f.reader,f.input,predecessorRef),inputRef=await h.put('history-negative-qualification',issuer.input)
+  const basis=await executeOpenSwxHistoryBasis({transport:h.transport,inputRef,readSource:issuer.reader}),basisObject=h.objects.get(basis.ref.uri)
+  const getProjection=bindings=>readAiPdmQualifiedHistoryProjection({basisRef:basis.ref,kind:'checkpoint',frontierRef:f.input.completedFailedDailyCheckpointRef,bindings})
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(),async()=>{
+    assert.throws(()=>getProjection({capability:'caller-PASS'}),/HISTORY_BASIS_CAPABILITY_MISSING/u)
+    const child=descendAiPdmEvidenceContext(createAiPdmEvidenceContext(),h.seed('history-negative-nested',{}))
+    await runAiPdmEvidenceContext(child,async()=>{
+      await assert.rejects(ensureAiPdmNativeHistoryBasis({basisRef:basis.ref,sourceRevision:issuer.revision,readSource:()=>{throw Error('FORBIDDEN_READ')},transport:{}}),/HISTORY_BASIS_ISSUER_INVALID/u)
+    })
+  })
+  const handle=createAiPdmEvidenceContext()
+  await runAiPdmEvidenceContext(handle,async()=>{
+    const bindings=await qualifyAiPdmNativeHistoryBasis({ref:basis.ref,transport:h.transport,readSource:issuer.reader})
+    const projection=getProjection(bindings),expected=[...projection.expectedExecutionNames]
+    projection.expectedExecutionNames.push('forged');assert.deepEqual(getProjection(bindings).expectedExecutionNames,expected)
+    assert.throws(()=>recordAiPdmHistoryObject({ref:issuer.currentSourceObjectRef,metadata:{generation:'999999999999'}}),/HISTORY_CLOSURE_CONFLICT/u)
+    assert.throws(()=>getProjection({...bindings,image:'forged'}),/HISTORY_BASIS_FRONTIER_INVALID/u)
+    const child=descendAiPdmEvidenceContext(handle,issuer.input.predecessorInputRef)
+    await runAiPdmEvidenceContext(child,async()=>assert.throws(()=>getProjection(bindings),/GRAPH_CYCLE_OR_HASH_CONFLICT/u))
+    assert.throws(()=>descendAiPdmEvidenceContext(handle,{...issuer.input.predecessorInputRef,sha256:'0'.repeat(64)}),/GRAPH_CYCLE_OR_HASH_CONFLICT/u)
+  })
+  await assert.rejects(runAiPdmEvidenceContext(handle,()=>getProjection({})),/CONTEXT_INVALID/u)
+  const alias=h.seed('history-negative-alias',basis.value)
+  await assert.rejects(runAiPdmEvidenceContext(createAiPdmEvidenceContext(),()=>qualifyAiPdmNativeHistoryBasis({ref:alias,transport:h.transport,readSource:issuer.reader})),/HISTORY_BASIS_JOIN_INVALID/u)
+  for(const field of ['historicalFactsSha256','semanticClosureSha256','qualifierSourceTreeSha256']){
+    const poisoned=h.seedBytes(basis.ref.uri,Buffer.from(canonicalize({...basis.value,[field]:'0'.repeat(64)})))
+    await assert.rejects(runAiPdmEvidenceContext(createAiPdmEvidenceContext(),()=>qualifyAiPdmNativeHistoryBasis({ref:poisoned,transport:h.transport,readSource:issuer.reader})),/HISTORY_BASIS_JOIN_INVALID/u)
+    h.objects.set(basis.ref.uri,basisObject)
+  }
+  for(const kind of ['active-writer','recursive-basis','executable']){
+    const input={...issuer.input,receiptId:'HISTORY-NEGATIVE-'+kind.toUpperCase()}
+    let reader=issuer.reader
+    if(kind==='active-writer')input.predecessorInputRef=await h.put('history-negative-active',{...f.input,deadlineAt:deadline()})
+    if(kind==='recursive-basis')input.predecessorInputRef=await h.put('history-negative-recursive',{...f.input,schemaVersion:'aipdm.openswx-worker-reuse-input.v3',historyBasisRef:basis.ref})
+    if(kind==='executable'){
+      reader=(name,revision)=>name==='scripts/lib/dev121-owner-release-proof.mjs'&&revision===issuer.revision?Buffer.concat([issuer.reader(name,revision),Buffer.from('\nchanged executable\n')]):issuer.reader(name,revision)
+      Object.assign(reader,issuer.reader)
+    }
+    const ref=await h.put('history-negative-input-'+kind,input),puts=h.puts.length,calls=h.calls.length
+    await assert.rejects(executeOpenSwxHistoryBasis({transport:h.transport,inputRef:ref,readSource:reader}),{code:kind==='active-writer'?'OPENSWX_HISTORY_PREDECESSOR_INVALID':kind==='recursive-basis'?'DEV121_OWNER_RELEASE_PROOF_HISTORY_BASIS_RECURSION':'OPENSWX_HISTORY_EXECUTABLE_INVALID'},kind)
+    assert.equal(h.puts.length,puts,kind+' cannot publish a basis/association')
+    assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
+  }
+  const current={...f.input,schemaVersion:'aipdm.openswx-worker-reuse-input.v3',historyBasisRef:basis.ref,receiptId:'HISTORY-NEGATIVE-CURRENT',
+    sourceLockRef:issuer.sourceLockRef,currentSourceObjectRef:issuer.currentSourceObjectRef,deadlineAt:deadline()}
+  const metadata=await seedSecretVersionIamContinuation(h,{sourceRevision:issuer.revision,sourceLockRef:issuer.sourceLockRef,
+    supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:issuer.reader,
+    name:'history-negative-current-metadata',secretPolicies:h.metadata.before.secretPolicies})
+  current.secretVersionIamContinuationRef=metadata.continuationRef
+  const currentRef=await h.put('history-negative-current-input',current),puts=h.puts.length,calls=h.calls.length
+  h.controls.secretState='DISABLED'
+  try { await assert.rejects(executeWorkerArtifactReuse({transport:h.transport,inputRef:currentRef,readSource:issuer.reader})) } finally { h.controls.secretState='ENABLED' }
+  assert.equal(h.puts.length,puts,'qualified history cannot waive currently disabled credentials')
+  assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
+  const expiredHandle=createAiPdmEvidenceContext()
+  await assert.rejects(runAiPdmEvidenceContext(expiredHandle,async()=>{
+    const bindings=await qualifyAiPdmNativeHistoryBasis({ref:basis.ref,transport:h.transport,readSource:issuer.reader})
+    syntheticClock.hold();syntheticClock.expireAfter(new Date(Date.now()+600000).toISOString())
+    getProjection(bindings)
+  }),{code:'DEV121_OWNER_RELEASE_PROOF_OBSERVATION_EXPIRED'})
+  await assert.rejects(runAiPdmEvidenceContext(expiredHandle,()=>getProjection({})),{code:'DEV121_OWNER_RELEASE_PROOF_CONTEXT_INVALID'})
 })
