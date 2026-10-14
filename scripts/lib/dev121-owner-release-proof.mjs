@@ -426,6 +426,88 @@ export function assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision, sour
   assertHistoryClosureUse(state, cap)
   return structuredClone(cap.bindings)
 }
+export function isAiPdmNativeHistoryCollectionActive() {
+  const active = activeEvidence()
+  return active !== undefined && Boolean(evidenceState(active).root.historyCollection)
+}
+
+function mergeNestedHistoryClosure(state, rows) {
+  if (!state.root.historyCollection || !Array.isArray(rows) || rows.length > 4096) fail('HISTORY_CLOSURE_INVALID')
+  for (const row of rows) {
+    if (row?.kind === 'object') {
+      if (!rootSafeHistoryRef({ uri: row.uri, sha256: row.sha256 }) ||
+          Object.keys(row).sort().join(',') !== 'crc32c,generation,kind,sha256,sourceRevision,uri') fail('HISTORY_CLOSURE_INVALID')
+      if (state.ancestors.has(row.uri)) fail('GRAPH_CYCLE_OR_HASH_CONFLICT')
+      if (state.root.hashes.has(row.uri) && state.root.hashes.get(row.uri) !== row.sha256) fail('GRAPH_CYCLE_OR_HASH_CONFLICT')
+      state.root.hashes.set(row.uri, row.sha256)
+      recordHistoryObject(state.root, { uri: row.uri, sha256: row.sha256 }, row)
+      continue
+    }
+    if (row?.kind === 'source_blob' && Object.keys(row).sort().join(',') === 'kind,path,sha256,sourceRevision' &&
+        H40.test(row.sourceRevision ?? '') && safeSourcePath(row.path) && H64.test(row.sha256 ?? '')) {
+      const key = `source:${row.sourceRevision}:${row.path}`, previous = state.root.historyCollection.get(key)
+      if (previous && canonicalize(previous) !== canonicalize(row)) fail('HISTORY_CLOSURE_CONFLICT')
+      state.root.historyCollection.set(key, { ...row })
+      if (state.root.historyCollection.size > 4096) fail('HISTORY_CLOSURE_LIMIT')
+      continue
+    }
+    fail('HISTORY_CLOSURE_INVALID')
+  }
+}
+
+function safeSourcePath(name) {
+  return typeof name === 'string' && /^[A-Za-z0-9._/-]+$/u.test(name) && !name.split('/').some(part => !part || part === '.' || part === '..')
+}
+
+/**
+ * Replay a hash-pinned v4 checkpoint while an outer native history closure is
+ * being collected. The nested root inherits the outer observation clock and
+ * never exposes its capability to callers; only revalidated closure rows are
+ * imported into the active outer collection.
+ */
+export async function runAiPdmNestedHistoryReplay({ checkpointRef, checkpointDescriptor, basisRef, transport, readSource, sourceRevision, callback }) {
+  const active = activeEvidence()
+  if (active === undefined || typeof callback !== 'function' || !rootSafeHistoryRef(checkpointRef) || !rootSafeHistoryRef(basisRef)
+    || !H40.test(sourceRevision ?? '') || checkpointDescriptor?.schemaVersion !== 'aipdm.openswx-worker-descriptor.v4'
+    || checkpointDescriptor.purpose !== 'full' || checkpointDescriptor.artifactMode !== 'REUSE_VERIFIED'
+    || canonicalize(checkpointDescriptor.historyBasisRef) !== canonicalize(basisRef) || checkpointDescriptor.sourceRevision !== sourceRevision) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  const outer = evidenceState(active)
+  if (!outer.root.historyCollection || outer.root.closed) fail('HISTORY_BASIS_RECURSION')
+  if (typeof readSource?.createHistoricalReader !== 'function' || typeof readSource.assertCurrentFrozen !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  const rawHistorical = readSource.createHistoricalReader(sourceRevision)
+  if (typeof rawHistorical !== 'function' || typeof rawHistorical.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  const historicalReadSource = (name, revision) => rawHistorical(name, revision)
+  Object.assign(historicalReadSource, rawHistorical)
+  historicalReadSource.isHistorical = true
+  historicalReadSource.assertCurrentFrozen = () => readSource.assertCurrentFrozen()
+  historicalReadSource.readArchive = revision => {
+    if (revision !== sourceRevision) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+    readSource.assertCurrentFrozen()
+    return rawHistorical.readImmutableArchive(revision)
+  }
+  const isolated = mintAiPdmEvidenceRoot(outer.root), isolatedState = evidenceState(isolated)
+  try {
+    const nested = await evidenceScope.run(isolated, async () => {
+      evidenceState(isolated)
+      await qualifyAiPdmNativeHistoryBasis({ ref: basisRef, transport, readSource: historicalReadSource })
+      const nestedContext = descendAiPdmEvidenceContext(isolated, checkpointRef, false)
+      const value = await runAiPdmEvidenceContext(nestedContext, () => callback({ context: nestedContext, readSource: historicalReadSource }))
+      evidenceState(isolated)
+      const rows = new Map()
+      for (const row of isolatedState.root.historyBasis?.closure ?? []) {
+        const key = row.kind === 'object' ? `object:${row.uri}` : row.kind === 'source_blob' ? `source:${row.sourceRevision}:${row.path}` : null
+        if (key) rows.set(key, structuredClone(row))
+      }
+      for (const row of isolatedState.root.historyObjectMetadata.values()) rows.set(`object:${row.uri}`, structuredClone(row))
+      return { value, rows: [...rows.values()] }
+    })
+    mergeNestedHistoryClosure(outer, nested.rows)
+    return nested.value
+  } finally {
+    isolatedState.root.closed = true; isolatedState.root.memo.clear(); isolatedState.root.receiptMetadata.clear()
+    isolatedState.root.sourceAdmissions.clear(); isolatedState.root.historyBasis = null; isolatedState.root.historyCollection = null; isolatedState.root.historyObjectMetadata.clear()
+  }
+}
 /** Fixed same-checkout reader: admissions come only from sealed source locks. */
 function programOnlyProofSourceReader(internalReadSource = null, historicalReadbackPaths = []) {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')

@@ -7,7 +7,7 @@ import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runti
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { resolveWorkerArtifact, publishWorkerReuseJson, assertReuseSourceLock, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
-import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, assertAiPdmNativeHistoryIngress, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
+import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, runAiPdmNestedHistoryReplay, isAiPdmNativeHistoryCollectionActive, assertAiPdmNativeHistoryIngress, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
 
 import { assertReadbackIamReceipt, expectedReadbackJobBindings } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_MEMBERS, assertSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
@@ -1132,19 +1132,34 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
     // The full descriptor is an envelope of its resolved association source.
     // Preserve ancestry/hash guards; resolveWorkerArtifact counts the association.
     return runAiPdmEvidenceContext(child, async () => {
-      if (candidate) await ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, checkpointDescriptor: candidate.value,
-        basisRef: candidate.value.historyBasisRef, transport, readSource, sourceRevision: candidate.value.sourceRevision })
-      const raw = (await readCheckpointJson()).value
-      readSource.authorizeOrigin?.(raw.sourceRevision)
-      const checkpoint = await readWorkerDescriptor({ transport, ref: checkpointRef,
-        profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision,
-        nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null })
-      if (candidate && canonicalize(candidate.value) !== canonicalize(checkpoint.value)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+      let checkpoint, evidence
+      if (candidate && isAiPdmNativeHistoryCollectionActive()) {
+        const nested = await runAiPdmNestedHistoryReplay({ checkpointRef, checkpointDescriptor: candidate.value, basisRef: candidate.value.historyBasisRef,
+          transport, readSource, sourceRevision: candidate.value.sourceRevision, callback: async ({ context }) => {
+            const raw = (await readCheckpointJson()).value
+            readSource.authorizeOrigin?.(raw.sourceRevision)
+            const nestedDescriptor = await readWorkerDescriptor({ transport, ref: checkpointRef,
+              profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision,
+              nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null })
+            if (canonicalize(candidate.value) !== canonicalize(nestedDescriptor.value)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+            const nestedEvidence = await readWorkerFullEvidence(transport, nestedDescriptor.value, profile, readSource, context)
+            return { checkpoint: nestedDescriptor, evidence: nestedEvidence }
+          } })
+        checkpoint = nested.checkpoint; evidence = nested.evidence
+      } else {
+        if (candidate) await ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, checkpointDescriptor: candidate.value,
+          basisRef: candidate.value.historyBasisRef, transport, readSource, sourceRevision: candidate.value.sourceRevision })
+        const raw = (await readCheckpointJson()).value
+        readSource.authorizeOrigin?.(raw.sourceRevision)
+        checkpoint = await readWorkerDescriptor({ transport, ref: checkpointRef,
+          profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision,
+          nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null })
+        evidence = await readWorkerFullEvidence(transport, checkpoint.value, profile, readSource, child)
+      }
       if (checkpoint.value.purpose !== 'full' || checkpoint.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
       failedDailySame(checkpoint.profile, profile)
       failedDailySame(checkpoint.value.tokenSecretVersion, prior.descriptor.tokenSecretVersion)
       failedDailySame(checkpoint.value.registrySecretVersion, prior.descriptor.registrySecretVersion)
-      const evidence = await readWorkerFullEvidence(transport, checkpoint.value, profile, readSource, child)
       const ancestor = evidence.artifact.failedDaily
       if (evidence.receipts.bootstrapRef.facts.bootstrapKind !== 'DAILY_REFRESH'
         || evidence.receipts.bootstrapRef.templateSha256 !== sha256(canonicalize(failed.selftest))) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
