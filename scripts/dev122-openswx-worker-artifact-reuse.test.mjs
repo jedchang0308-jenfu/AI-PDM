@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, assertFailedDailyFullJoin, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
-import { qualifyAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
+import { qualifyAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
 import { buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
@@ -2535,14 +2535,38 @@ test('native history basis qualifies the complete eight-transition predecessor a
   // independently frozen and must not become that historical issuer.
   const next=h.nextAttempt(90,current.priorActivationRef),nextLock={...next.lock,observedAt:new Date(Date.now()-2000).toISOString()}
   next.input.sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+nextLock.releaseId+'/source-lock.json',Buffer.from(canonicalize(nextLock)+'\n'))
-  f.reader.authorizeOrigin(input.sourceLockRef?JSON.parse(h.objects.get(input.sourceLockRef.uri).bytes).sourceRevision:issuer.revision)
-  const nextReader=(name,revision)=>revision===nextLock.sourceRevision?f.reader(name,revision):issuer.reader(name,revision)
+  f.reader.authorizeOrigin(JSON.parse(h.objects.get(input.sourceLockRef.uri).bytes).sourceRevision)
+  const nextPermitted=new Set([nextLock.sourceRevision]),historicalReaders=[]
+  let currentFrozenChecks=0,historicalFrozenChecks=0,historicalArchiveChecks=0,historicalImmutableArchiveChecks=0
+  const routedReader=(name,revision)=>revision===nextLock.sourceRevision?f.reader(name,revision):issuer.reader(name,revision)
+  const nextReader=(name,revision)=>{
+    if(!nextPermitted.has(revision)&&![...READBACK_IAM_PATHS,WORKER_PROFILE_PATH].includes(name))throw Object.assign(Error('unvalidated historical source'),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
+    return routedReader(name,revision)
+  }
   Object.assign(nextReader,issuer.reader)
-  nextReader.authorizeOrigin=revision=>revision===nextLock.sourceRevision?f.reader.authorizeOrigin(revision):issuer.reader.authorizeOrigin(revision)
-  nextReader.readTree=revision=>revision===nextLock.sourceRevision?f.reader.readTree(revision):issuer.reader.readTree(revision)
-  nextReader.readTreeId=revision=>revision===nextLock.sourceRevision?f.reader.readTreeId(revision):issuer.reader.readTreeId(revision)
-  nextReader.readArchive=revision=>revision===nextLock.sourceRevision?f.reader.readArchive(revision):issuer.reader.readArchive(revision)
-  nextReader.assertCurrentFrozen=()=>f.reader.assertCurrentFrozen()
+  nextReader.authorizeOrigin=revision=>{
+    if(revision===nextLock.sourceRevision)f.reader.authorizeOrigin(revision);else issuer.reader.authorizeOrigin(revision)
+    nextPermitted.add(revision)
+  }
+  nextReader.readTree=revision=>{assert.ok(nextPermitted.has(revision));return revision===nextLock.sourceRevision?f.reader.readTree(revision):issuer.reader.readTree(revision)}
+  nextReader.readTreeId=revision=>{assert.ok(nextPermitted.has(revision));return revision===nextLock.sourceRevision?f.reader.readTreeId(revision):issuer.reader.readTreeId(revision)}
+  nextReader.readArchive=revision=>{assert.equal(revision,nextLock.sourceRevision);return f.reader.readArchive(revision)}
+  nextReader.assertCurrentFrozen=()=>{currentFrozenChecks++;return f.reader.assertCurrentFrozen()}
+  nextReader.createHistoricalReader=revision=>{
+    historicalReaders.push(revision)
+    assert.equal(revision,issuer.revision)
+    const historical=(name,sourceRevision)=>issuer.reader(name,sourceRevision)
+    Object.assign(historical,issuer.reader)
+    historical.assertCurrentFrozen=()=>{historicalFrozenChecks++;throw Error('HISTORICAL_READER_CANNOT_ASSERT_CURRENT')}
+    historical.readArchive=()=>{historicalArchiveChecks++;historical.assertCurrentFrozen();throw Error('HISTORICAL_CURRENT_ARCHIVE_FORBIDDEN')}
+    historical.readImmutableArchive=sourceRevision=>{
+      historicalImmutableArchiveChecks++
+      assert.equal(sourceRevision,issuer.revision)
+      return issuer.reader.readArchive(sourceRevision)
+    }
+    return historical
+  }
+  assert.throws(()=>nextReader('scripts/lib/dev122-openswx-worker-artifact-reuse.mjs',issuer.revision),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
   const nextMetadata=await seedSecretVersionIamContinuation(h,{sourceRevision:nextLock.sourceRevision,sourceLockRef:next.input.sourceLockRef,
     supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:nextReader,
     name:'history-v4-checkpoint-next-metadata',secretPolicies:h.metadata.before.secretPolicies})
@@ -2552,6 +2576,22 @@ test('native history basis qualifies the complete eight-transition predecessor a
   const carried=await executeWorkerArtifactReuse({transport:h.transport,inputRef:nextRef,readSource:nextReader})
   assert.ok(carried.refs.dailyBuildOnlyDescriptorRef)
   const carriedDescriptor=(await h.transport.readJson(carried.refs.dailyBuildOnlyDescriptorRef)).value
+  assert.deepEqual(historicalReaders,[issuer.revision],'hash-pinned v4 checkpoint opens exactly its own historical source reader')
+  assert.ok(currentFrozenChecks>0,'nested replay retains the current checkout freeze assertion')
+  assert.equal(historicalFrozenChecks,0,'nested replay cannot substitute the historical checkout for the current freeze assertion')
+  assert.equal(historicalArchiveChecks,0,'nested replay cannot call the historical reader current-checkout archive closure')
+  assert.ok(historicalImmutableArchiveChecks>0,'nested replay reads only the admitted immutable historical archive')
+  const readersBeforeDescriptorMismatch=historicalReaders.length
+  const mismatchedCheckpointRef=h.seed('history-v4-checkpoint-byte-mismatch',{...carriedDescriptor,purpose:'build_only'})
+  const mismatchRoot=createAiPdmEvidenceContext()
+  await assert.rejects(runAiPdmEvidenceContext(mismatchRoot,async()=>{
+    const child=descendAiPdmEvidenceContext(mismatchRoot,mismatchedCheckpointRef)
+    return runAiPdmEvidenceContext(child,()=>ensureAiPdmNestedCheckpointHistoryBasis({
+      checkpointRef:mismatchedCheckpointRef,checkpointDescriptor:carriedDescriptor,basisRef:carriedDescriptor.historyBasisRef,
+      transport:h.transport,readSource:nextReader,sourceRevision:carriedDescriptor.sourceRevision,
+    }))
+  }),{code:'DEV121_OWNER_RELEASE_PROOF_HISTORY_BASIS_NESTED_CHECKPOINT_INVALID'})
+  assert.equal(historicalReaders.length,readersBeforeDescriptorMismatch,'descriptor byte mismatch refuses before opening a historical reader')
   const carriedArtifact=await runAiPdmEvidenceContext(createAiPdmEvidenceContext(),()=>resolveWorkerArtifact({
     transport:h.transport,descriptor:carriedDescriptor,profile,readSource:nextReader,
   }))
@@ -2563,6 +2603,19 @@ test('native history basis qualifies the complete eight-transition predecessor a
   }),{code:'DEV121_OWNER_RELEASE_PROOF_HISTORY_CLOSURE_CONFLICT'})
   assert.ok(!h.calls.slice(nextCalls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
   assert.ok(wire.calls.some(url=>decodeURIComponent(url).includes(basis.ref.uri.split('/').slice(3).join('/'))),'public root must independently read and qualify basis')
+  const expiringReader=(name,revision)=>nextReader(name,revision)
+  Object.assign(expiringReader,nextReader)
+  let expiringHistoricalReaders=0
+  expiringReader.createHistoricalReader=revision=>{
+    expiringHistoricalReaders++
+    const historical=nextReader.createHistoricalReader(revision)
+    syntheticClock.hold();syntheticClock.expireAfter(new Date(Date.now()+600000).toISOString())
+    return historical
+  }
+  await assert.rejects(runAiPdmEvidenceContext(createAiPdmEvidenceContext(),()=>resolveWorkerArtifact({
+    transport:h.transport,descriptor:carriedDescriptor,profile,readSource:expiringReader,
+  })),{code:'DEV121_OWNER_RELEASE_PROOF_OBSERVATION_EXPIRED'})
+  assert.equal(expiringHistoricalReaders,1,'nested replay keeps the outer observation deadline after opening the historical reader')
 
 })
 
