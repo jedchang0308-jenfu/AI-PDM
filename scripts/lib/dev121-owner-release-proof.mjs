@@ -167,7 +167,18 @@ export function descendAiPdmEvidenceContext(handle, ref, transition = false) {
   recordHistoryObject(state.root, ref)
   return mintEvidenceHandle({ root: state.root, parent: handle, nodeRef: { ...ref }, depth: state.depth + Number(transition), ancestors: new Set([...state.ancestors, ref.uri]) })
 }
-export async function readAiPdmEvidenceLeaf({ ref, kind = 'receipt', generation = null, crc32c = null, sourceRevision = null, read }) {
+function assertNestedCheckpointDescriptorBytes(root, ref, bytes) {
+  if (!exactKeys(ref, ['uri', 'sha256']) || !Buffer.isBuffer(bytes) || bytes[0] !== 123) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  let value
+  try { value = JSON.parse(strictUtf8(bytes)) } catch { fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID') }
+  // scoped descriptor admission is validated below; no generic capability bypass
+  const basis = value?.historyBasisRef
+  if (value?.schemaVersion !== 'aipdm.openswx-worker-descriptor.v4' || value?.purpose !== 'full'
+    || value?.artifactMode !== 'REUSE_VERIFIED' || !H40.test(value?.sourceRevision ?? '')
+    || !exactKeys(basis, ['uri', 'sha256']) || !H64.test(basis.sha256 ?? '')
+    || typeof basis.uri !== 'string' || !/^gs:\/\/jenfu-platform-prod-aipdm-release\/(?:receipts|source)\/[A-Za-z0-9._/-]+$/u.test(basis.uri)) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+}
+export async function readAiPdmEvidenceLeaf({ ref, kind = 'receipt', generation = null, crc32c = null, sourceRevision = null, read, allowNestedCheckpointDescriptor = false }) {
   const parent = activeEvidence()
   if (parent === undefined || typeof read !== 'function') fail('CONTEXT_INVALID')
   const parentState = evidenceState(parent)
@@ -179,14 +190,16 @@ export async function readAiPdmEvidenceLeaf({ ref, kind = 'receipt', generation 
     if (state.root.memo.has(key)) {
       const bytes = Buffer.from(state.root.memo.get(key))
       if (sha256(bytes) !== ref.sha256) fail('OBJECT_HASH_MISMATCH')
-      rejectHistoryBasisRecursion(state.root, bytes)
+      if (allowNestedCheckpointDescriptor) assertNestedCheckpointDescriptorBytes(state.root, ref, bytes)
+      else rejectHistoryBasisRecursion(state.root, bytes)
       evidenceState(child)
       return bytes
     }
     const bytes = await read()
     evidenceState(child)
     if (!Buffer.isBuffer(bytes) || sha256(bytes) !== ref.sha256) fail('OBJECT_HASH_MISMATCH')
-    rejectHistoryBasisRecursion(state.root, bytes)
+    if (allowNestedCheckpointDescriptor) assertNestedCheckpointDescriptorBytes(state.root, ref, bytes)
+    else rejectHistoryBasisRecursion(state.root, bytes)
     if (!state.root.memo.has(key)) {
       if (bytes.length > EVIDENCE_MEMO_LIMIT - state.root.memoBytes) {
         state.root.closed = true; state.root.memo.clear(); state.root.receiptMetadata.clear(); state.root.sourceAdmissions.clear(); state.root.historyBasis = null; state.root.historyCollection = null; state.root.historyObjectMetadata.clear()
@@ -386,8 +399,11 @@ export async function ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, c
     || canonicalize(checkpointDescriptor.historyBasisRef) !== canonicalize(basisRef)
     || checkpointDescriptor.sourceRevision !== sourceRevision) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
   let providerRow = null
-  const bytes = await readAiPdmEvidenceLeaf({ ref: checkpointRef, read: async () => {
-    providerRow = await transport.readJson(checkpointRef, AI_BUCKET, ['receipts/dev-122/openswx-worker'])
+  const readCheckpointJson = typeof transport.readJsonForNestedCheckpointDescriptor === 'function'
+    ? transport.readJsonForNestedCheckpointDescriptor.bind(transport)
+    : transport.readJson.bind(transport)
+  const bytes = await readAiPdmEvidenceLeaf({ ref: checkpointRef, allowNestedCheckpointDescriptor: true, read: async () => {
+    providerRow = await readCheckpointJson(checkpointRef, AI_BUCKET, ['receipts/dev-122/openswx-worker'])
     return providerRow.bytes
   } })
   let pinned

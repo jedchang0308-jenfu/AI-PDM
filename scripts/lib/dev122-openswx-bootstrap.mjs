@@ -1111,22 +1111,34 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
     // installed before the checkpoint becomes an ancestry node. The child
     // below rereads the same hash-pinned descriptor and retains all graph
     // depth/cycle guards.
-    const candidateRaw = (await transport.readJson(checkpointRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+    let nestedCheckpoint = false
+    const readCheckpointJson = async () => {
+      try { return await transport.readJson(checkpointRef, BUCKET, [WORKER_RECEIPT_PREFIX]) }
+      catch (error) {
+        if (error?.code !== 'DEV121_OWNER_RELEASE_PROOF_HISTORY_BASIS_RECURSION'
+          || typeof transport.readJsonForNestedCheckpointDescriptor !== 'function') throw error
+        nestedCheckpoint = true
+        return transport.readJsonForNestedCheckpointDescriptor(checkpointRef, BUCKET, [WORKER_RECEIPT_PREFIX])
+      }
+    }
+    const candidateRaw = (await readCheckpointJson()).value
     let candidate = null
     if (candidateRaw?.schemaVersion === 'aipdm.openswx-worker-descriptor.v4') {
       readSource.authorizeOrigin?.(candidateRaw.sourceRevision)
       candidate = await readWorkerDescriptor({ transport, ref: checkpointRef,
-        profileBytes: readSource(WORKER_PROFILE_PATH, candidateRaw.sourceRevision), sourceRevision: candidateRaw.sourceRevision })
+        profileBytes: readSource(WORKER_PROFILE_PATH, candidateRaw.sourceRevision), sourceRevision: candidateRaw.sourceRevision,
+        nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null })
     }
     // The full descriptor is an envelope of its resolved association source.
     // Preserve ancestry/hash guards; resolveWorkerArtifact counts the association.
     return runAiPdmEvidenceContext(child, async () => {
       if (candidate) await ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, checkpointDescriptor: candidate.value,
         basisRef: candidate.value.historyBasisRef, transport, readSource, sourceRevision: candidate.value.sourceRevision })
-      const raw = (await transport.readJson(checkpointRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+      const raw = (await readCheckpointJson()).value
       readSource.authorizeOrigin?.(raw.sourceRevision)
       const checkpoint = await readWorkerDescriptor({ transport, ref: checkpointRef,
-        profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+        profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision,
+        nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null })
       if (candidate && canonicalize(candidate.value) !== canonicalize(checkpoint.value)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
       if (checkpoint.value.purpose !== 'full' || checkpoint.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
       failedDailySame(checkpoint.profile, profile)
