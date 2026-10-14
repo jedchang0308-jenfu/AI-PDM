@@ -1,3 +1,9 @@
+## DEV-121#rd-capabilities — 2026-10-14 nested v4 checkpoint basis carry-forward（完整本地 QC PASS，待受保護發布）
+
+R24 新 source 承接 completed v4 DAILY checkpoint 時先因舊 basis issuer 被拒絕，且未發布 association 或觸發 build／migration／traffic。獨立 QC 再證實初版 producer-only GREEN 的輸出無法在下一 evidence root resolve；新 synthetic RED 已覆蓋 source A v4 checkpoint → source B carry → 新 descriptor → 第三個獨立 root resolve。最小修正以乾淨獨立 native observation 完整重驗舊 basis，只將已驗證 opaque capability 接回目前圖形；接回前 join closure 與現有 ancestors／URI hash，checkpoint child 再核 issuer／closure。新 source 不冒充舊 issuer，不改 basis bytes，不放寬 depth／clock／source／hash／cycle、current provider或fresh drain。
+
+最終 focused 3/3、continuous 334/334、Owner QC 401/401、role catalog v7 3/3、abort 6/6、typecheck、DB boundary及 isolated build 全部 PASS；獨立 Luna final-byte QC 判定 P0/P1/P2=0、可合併。required CI、Production受保護發布／085／RD切流及兩 fixture RD驗收仍待完成；Dani／Peter登入與reload維持 HUMAN_REPORTED_PASS。Production原始證據私存，不重送R24失敗input、不手動patch Job。[契約](specs/DEV-121-target-authorization-boundary.md#native-history-basis-v1)／[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#nested-v4-checkpoint-basis-carry-forward--2026-10-14)。
+
 ## DEV-121#rd-capabilities — 2026-10-14 owner repair classification fast-path（完整本地 QC PASS，待受保護發布）
 
 R23 使用已合併 main d0f597e9 的 source-bound 發布，在 prepare 先完成 ordinary DAILY 的完整 native history 驗證，隨後 `readRepairStageBasis` 為判斷「是否為 paused repair」又開新 observation 並呼叫完整 `resolve`，第二次重播同一歷史後於約十分鐘以 `DEV121_OWNER_RELEASE_PROOF_OBSERVATION_EXPIRED` 拒絕。build／migration／candidate／traffic／finalize 均未執行；085 仍 NOT_APPLIED，服務恢復原 AUTOMATIC max1、舊 revision 100%。原失敗與恢復詳細證據私存，不重送 R23。
