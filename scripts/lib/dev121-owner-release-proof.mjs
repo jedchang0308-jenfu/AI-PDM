@@ -123,14 +123,17 @@ function mintEvidenceHandle(state) {
   return handle
 }
 /** Internal source adapter: opaque identity only; no serialized context is admitted. */
-export function createAiPdmEvidenceContext() {
-  const active = activeEvidence()
-  if (active !== undefined) return active
+function mintAiPdmEvidenceRoot() {
   const now = Date.now(), monotonic = performance.now()
   if (!Number.isFinite(now) || !Number.isFinite(monotonic)) fail('CONTEXT_INVALID')
   const root = { startedAtMs: now, startedMonotonicMs: monotonic, expiresAtMs: now + 600000,
     lastWallMs: now, closed: false, hashes: new Map(), memo: new Map(), memoBytes: 0, receiptMetadata: new Map(), sourceAdmissions: new Set(), historyBasis: null, historyCollection: null, historyObjectMetadata: new Map() }
   return mintEvidenceHandle({ root, depth: 0, ancestors: new Set(), parent: null })
+}
+export function createAiPdmEvidenceContext() {
+  const active = activeEvidence()
+  if (active !== undefined) return active
+  return mintAiPdmEvidenceRoot()
 }
 export async function runAiPdmEvidenceContext(handle, callback) {
   const state = evidenceState(handle), active = activeEvidence()
@@ -208,22 +211,25 @@ function rejectHistoryBasisRecursion(root, bytes) {
   let value; try { value = JSON.parse(bytes.toString('utf8')) } catch { return }
   if (Object.hasOwn(value ?? {}, 'historyBasisRef') || value?.schemaVersion === 'aipdm.openswx-history-basis.v1') fail('HISTORY_BASIS_RECURSION')
 }
-function recordHistoryObject(root, ref, metadata = {}) {
-  const key = `object:${ref.uri}`
-  const row = { kind: 'object', uri: ref.uri, sha256: ref.sha256,
-    generation: metadata.generation == null ? null : String(metadata.generation),
-    crc32c: metadata.crc32c ?? null, sourceRevision: metadata.sourceRevision ?? null }
-  const old = root.historyObjectMetadata.get(key)
+function joinedHistoryObjectMetadata(old, row) {
+  const joined = { ...row }
   if (old) {
-    if (old.sha256 !== row.sha256) fail('HISTORY_CLOSURE_CONFLICT')
+    if (old.sha256 !== joined.sha256) fail('HISTORY_CLOSURE_CONFLICT')
     for (const field of ['generation', 'crc32c', 'sourceRevision']) {
-      if (old[field] !== null && row[field] !== null && old[field] !== row[field]) fail('HISTORY_CLOSURE_CONFLICT')
-      row[field] ??= old[field]
+      if (old[field] !== null && joined[field] !== null && old[field] !== joined[field]) fail('HISTORY_CLOSURE_CONFLICT')
+      joined[field] ??= old[field]
     }
   }
-  root.historyObjectMetadata.set(key, row)
+  return joined
+}
+function recordHistoryObject(root, ref, metadata = {}) {
+  const key = `object:${ref.uri}`, row = { kind: 'object', uri: ref.uri, sha256: ref.sha256,
+    generation: metadata.generation == null ? null : String(metadata.generation),
+    crc32c: metadata.crc32c ?? null, sourceRevision: metadata.sourceRevision ?? null }
+  const joined = joinedHistoryObjectMetadata(root.historyObjectMetadata.get(key), row)
+  root.historyObjectMetadata.set(key, joined)
   if (root.historyCollection) {
-    root.historyCollection.set(key, row)
+    root.historyCollection.set(key, joined)
     if (root.historyCollection.size > 4096) fail('HISTORY_CLOSURE_LIMIT')
   }
 }
@@ -329,16 +335,59 @@ export function readAiPdmQualifiedHistoryProjection({ basisRef, kind, frontierRe
   if (canonicalize(expectedRef) !== canonicalize(frontierRef) || canonicalize(bindings) !== canonicalize(capability.bindings)) fail('HISTORY_BASIS_FRONTIER_INVALID')
   return structuredClone(capability[kind])
 }
+async function installNestedHistoryBasis({ state, basisRef, transport, readSource }) {
+  const isolated = mintAiPdmEvidenceRoot(), isolatedState = evidenceState(isolated)
+  try {
+    await evidenceScope.run(isolated, async () => {
+      evidenceState(isolated)
+      await qualifyAiPdmNativeHistoryBasis({ ref: basisRef, transport, readSource })
+      evidenceState(isolated)
+    })
+    const capability = structuredClone(isolatedState.root.historyBasis)
+    if (!capability) fail('HISTORY_BASIS_CAPABILITY_MISSING')
+    assertHistoryClosureUse(state, capability)
+    const joinedObjects = []
+    for (const row of capability.closure) if (row.kind === 'object') {
+      if (state.root.hashes.has(row.uri) && state.root.hashes.get(row.uri) !== row.sha256) fail('GRAPH_CYCLE_OR_HASH_CONFLICT')
+      const key = `object:${row.uri}`
+      joinedObjects.push([key, joinedHistoryObjectMetadata(state.root.historyObjectMetadata.get(key), row)])
+    }
+    for (const [key, row] of joinedObjects) { state.root.hashes.set(row.uri, row.sha256); state.root.historyObjectMetadata.set(key, row) }
+    state.root.historyBasis = capability
+  } finally {
+    isolatedState.root.closed = true; isolatedState.root.memo.clear(); isolatedState.root.receiptMetadata.clear()
+    isolatedState.root.sourceAdmissions.clear(); isolatedState.root.historyBasis = null; isolatedState.root.historyCollection = null; isolatedState.root.historyObjectMetadata.clear()
+  }
+}
+export async function ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, checkpointDescriptor, basisRef, transport, readSource, sourceRevision }) {
+  const state = evidenceState(activeEvidence())
+  if (state.parent === null || canonicalize(state.nodeRef) !== canonicalize(checkpointRef)
+    || checkpointDescriptor?.schemaVersion !== 'aipdm.openswx-worker-descriptor.v4'
+    || checkpointDescriptor.purpose !== 'full' || checkpointDescriptor.artifactMode !== 'REUSE_VERIFIED'
+    || canonicalize(checkpointDescriptor.historyBasisRef) !== canonicalize(basisRef)
+    || checkpointDescriptor.sourceRevision !== sourceRevision) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  let providerRow = null
+  const bytes = await readAiPdmEvidenceLeaf({ ref: checkpointRef, read: async () => {
+    providerRow = await transport.readJson(checkpointRef, AI_BUCKET, ['receipts/dev-122/openswx-worker'])
+    return providerRow.bytes
+  } })
+  let pinned
+  try { pinned = JSON.parse(strictUtf8(bytes)) } catch { fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID') }
+  if (canonicalize(pinned) !== canonicalize(checkpointDescriptor)) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  if (!state.root.historyBasis) await installNestedHistoryBasis({ state, basisRef, transport, readSource })
+  return assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision })
+}
 export async function ensureAiPdmNativeHistoryBasis({ basisRef, transport, readSource, sourceRevision, sourceLockRef = null }) {
   const state = evidenceState(activeEvidence())
   if (state.parent === null && !state.root.historyBasis) await qualifyAiPdmNativeHistoryBasis({ ref: basisRef, transport, readSource })
-  assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision, sourceLockRef })
+  return assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision, sourceLockRef })
 }
 export function assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision, sourceLockRef = null }) {
   const state = evidenceState(activeEvidence()), cap = state.root.historyBasis
   if (!cap || canonicalize(cap.ref) !== canonicalize(basisRef) || cap.bindings.issuerSourceRevision !== sourceRevision ||
       (sourceLockRef && canonicalize(cap.bindings.issuerSourceLockRef) !== canonicalize(sourceLockRef))) fail('HISTORY_BASIS_ISSUER_INVALID')
   assertHistoryClosureUse(state, cap)
+  return structuredClone(cap.bindings)
 }
 /** Fixed same-checkout reader: admissions come only from sealed source locks. */
 function programOnlyProofSourceReader(internalReadSource = null, historicalReadbackPaths = []) {

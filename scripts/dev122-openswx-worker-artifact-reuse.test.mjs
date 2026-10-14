@@ -2530,6 +2530,38 @@ test('native history basis qualifies the complete eight-transition predecessor a
 
   }))
   assert.equal(h.calls.length,publicCalls,'public root replays history without live provider calls')
+  // A later source must be able to carry a completed v4 checkpoint whose own
+  // history basis belongs to the checkpoint source. The current source remains
+  // independently frozen and must not become that historical issuer.
+  const next=h.nextAttempt(90,current.priorActivationRef),nextLock={...next.lock,observedAt:new Date(Date.now()-2000).toISOString()}
+  next.input.sourceLockRef=h.seedBytes('gs://jenfu-platform-prod-aipdm-release/receipts/releases/'+nextLock.releaseId+'/source-lock.json',Buffer.from(canonicalize(nextLock)+'\n'))
+  f.reader.authorizeOrigin(input.sourceLockRef?JSON.parse(h.objects.get(input.sourceLockRef.uri).bytes).sourceRevision:issuer.revision)
+  const nextReader=(name,revision)=>revision===nextLock.sourceRevision?f.reader(name,revision):issuer.reader(name,revision)
+  Object.assign(nextReader,issuer.reader)
+  nextReader.authorizeOrigin=revision=>revision===nextLock.sourceRevision?f.reader.authorizeOrigin(revision):issuer.reader.authorizeOrigin(revision)
+  nextReader.readTree=revision=>revision===nextLock.sourceRevision?f.reader.readTree(revision):issuer.reader.readTree(revision)
+  nextReader.readTreeId=revision=>revision===nextLock.sourceRevision?f.reader.readTreeId(revision):issuer.reader.readTreeId(revision)
+  nextReader.readArchive=revision=>revision===nextLock.sourceRevision?f.reader.readArchive(revision):issuer.reader.readArchive(revision)
+  nextReader.assertCurrentFrozen=()=>f.reader.assertCurrentFrozen()
+  const nextMetadata=await seedSecretVersionIamContinuation(h,{sourceRevision:nextLock.sourceRevision,sourceLockRef:next.input.sourceLockRef,
+    supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:nextReader,
+    name:'history-v4-checkpoint-next-metadata',secretPolicies:h.metadata.before.secretPolicies})
+  const nextInput={...next.input,failedDailyContinuation:f.failedDailyContinuation,secretVersionIamContinuationRef:nextMetadata.continuationRef,
+    completedFailedDailyCheckpointRef:complete.refs.fullDescriptorRef,receiptId:'HISTORY-V4-CHECKPOINT-NEXT'}
+  const nextRef=await h.put('history-v4-checkpoint-next-input',nextInput),nextCalls=h.calls.length
+  const carried=await executeWorkerArtifactReuse({transport:h.transport,inputRef:nextRef,readSource:nextReader})
+  assert.ok(carried.refs.dailyBuildOnlyDescriptorRef)
+  const carriedDescriptor=(await h.transport.readJson(carried.refs.dailyBuildOnlyDescriptorRef)).value
+  const carriedArtifact=await runAiPdmEvidenceContext(createAiPdmEvidenceContext(),()=>resolveWorkerArtifact({
+    transport:h.transport,descriptor:carriedDescriptor,profile,readSource:nextReader,
+  }))
+  assert.deepEqual(carriedArtifact.associationRef,carriedDescriptor.workerBuildRef)
+  const basisValue=(await h.transport.readJson(basis.ref)).value,conflictContext=createAiPdmEvidenceContext()
+  await assert.rejects(runAiPdmEvidenceContext(conflictContext,async()=>{
+    recordAiPdmHistoryObject({ref:basisValue.qualificationInputRef,metadata:{generation:'999999',crc32c:null,sourceRevision:null}})
+    return resolveWorkerArtifact({transport:h.transport,descriptor:carriedDescriptor,profile,readSource:nextReader})
+  }),{code:'DEV121_OWNER_RELEASE_PROOF_HISTORY_CLOSURE_CONFLICT'})
+  assert.ok(!h.calls.slice(nextCalls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
   assert.ok(wire.calls.some(url=>decodeURIComponent(url).includes(basis.ref.uri.split('/').slice(3).join('/'))),'public root must independently read and qualify basis')
 
 })
