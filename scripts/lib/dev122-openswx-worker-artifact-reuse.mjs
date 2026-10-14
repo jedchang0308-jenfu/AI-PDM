@@ -65,7 +65,10 @@ export function createWorkerReceiptReadTransport(transport) {
     assertImmutableRef(ref, bucket, prefixes)
     const kind = `worker-json:${readScope}:${canonicalize([bucket, prefixes, allowNestedCheckpointDescriptor])}`, key = canonicalize([kind, ref])
     const bytes = await readAiPdmEvidenceLeaf({ ref, kind, allowNestedCheckpointDescriptor, read: async () => {
-      const row = await transport.readJson(ref, bucket, prefixes)
+      const readProviderJson = allowNestedCheckpointDescriptor && typeof transport.readJsonForNestedCheckpointDescriptor === 'function'
+        ? transport.readJsonForNestedCheckpointDescriptor.bind(transport)
+        : transport.readJson.bind(transport)
+      const row = await readProviderJson(ref, bucket, prefixes)
       if (!Buffer.isBuffer(row.bytes) || row.ref?.uri !== ref.uri || row.ref?.sha256 !== ref.sha256 || sha256(row.bytes) !== ref.sha256) fail('OPENSWX_REUSE_REF_HASH_INVALID')
       same(JSON.parse(row.bytes.toString('utf8')), row.value, 'OPENSWX_REUSE_REF_JSON_INVALID')
       const { bytes: _bytes, value: _value, ...rest } = row
