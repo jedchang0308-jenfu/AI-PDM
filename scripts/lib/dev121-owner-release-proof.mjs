@@ -346,6 +346,7 @@ async function installNestedHistoryBasis({ state, basisRef, transport, readSourc
   if (typeof rawHistorical !== 'function' || typeof rawHistorical.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
   const historicalReadSource = (name, revision) => rawHistorical(name, revision)
   Object.assign(historicalReadSource, rawHistorical)
+  historicalReadSource.isHistorical = true
   historicalReadSource.assertCurrentFrozen = () => readSource.assertCurrentFrozen()
   historicalReadSource.readArchive = revision => {
     if (revision !== sourceRevision) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
