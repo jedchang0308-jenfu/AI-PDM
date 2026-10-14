@@ -228,10 +228,13 @@ export function buildPausedRepairDescriptor({ profile, association, associationR
     tokenSecretVersion: baseline.after.numericCredentials.token, registrySecretVersion: baseline.after.numericCredentials.registry }
   return assertWorkerDescriptor(value, profile, value.workerProfileSha256, value.sourceRevision)
 }
-export async function readWorkerDescriptor({ transport, ref, profileBytes, sourceRevision }) {
+export async function readWorkerDescriptor({ transport, ref, profileBytes, sourceRevision, nestedCheckpointRef = null }) {
   assertOpenSwxWorkerRef(ref)
   const profile = assertOpenSwxWorkerProfile(JSON.parse(profileBytes))
-  const result = await transport.readJson(ref, BUCKET, [WORKER_RECEIPT_PREFIX])
+  if (nestedCheckpointRef && canonicalize(nestedCheckpointRef) !== canonicalize(ref)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+  const result = nestedCheckpointRef && typeof transport.readJsonForNestedCheckpointDescriptor === 'function'
+    ? await transport.readJsonForNestedCheckpointDescriptor(ref, BUCKET, [WORKER_RECEIPT_PREFIX])
+    : await transport.readJson(ref, BUCKET, [WORKER_RECEIPT_PREFIX])
   assertWorkerDescriptor(result.value, profile, sha256(profileBytes), sourceRevision)
   return { ...result, profile }
 }

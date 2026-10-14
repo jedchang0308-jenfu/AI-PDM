@@ -61,10 +61,10 @@ async function read(transport, ref, prefixes = [WORKER_RECEIPT_PREFIX]) {
  * caller still traverses its own graph and receives independent parsed data. */
 export function createWorkerReceiptReadTransport(transport) {
   const metadata = new Map(), readScope = randomUUID()
-  return { ...transport, readJson: async (ref, bucket, prefixes = ['receipts']) => {
+  const readJson = async (ref, bucket, prefixes = ['receipts'], allowNestedCheckpointDescriptor = false) => {
     assertImmutableRef(ref, bucket, prefixes)
-    const kind = `worker-json:${readScope}:${canonicalize([bucket, prefixes])}`, key = canonicalize([kind, ref])
-    const bytes = await readAiPdmEvidenceLeaf({ ref, kind, read: async () => {
+    const kind = `worker-json:${readScope}:${canonicalize([bucket, prefixes, allowNestedCheckpointDescriptor])}`, key = canonicalize([kind, ref])
+    const bytes = await readAiPdmEvidenceLeaf({ ref, kind, allowNestedCheckpointDescriptor, read: async () => {
       const row = await transport.readJson(ref, bucket, prefixes)
       if (!Buffer.isBuffer(row.bytes) || row.ref?.uri !== ref.uri || row.ref?.sha256 !== ref.sha256 || sha256(row.bytes) !== ref.sha256) fail('OPENSWX_REUSE_REF_HASH_INVALID')
       same(JSON.parse(row.bytes.toString('utf8')), row.value, 'OPENSWX_REUSE_REF_JSON_INVALID')
@@ -75,7 +75,8 @@ export function createWorkerReceiptReadTransport(transport) {
     if (!metadata.has(key)) fail('OPENSWX_REUSE_RECEIPT_MEMO_INVALID')
     recordAiPdmHistoryObject({ ref, metadata: metadata.get(key).metadata ?? metadata.get(key) })
     return { ...structuredClone(metadata.get(key)), bytes: Buffer.from(bytes), value: JSON.parse(bytes.toString('utf8')) }
-  } }
+  }
+  return { ...transport, readJson, readJsonForNestedCheckpointDescriptor: (ref, bucket, prefixes = ['receipts']) => readJson(ref, bucket, prefixes, true) }
 }
 function git(root, args) {
   const result = spawnSync('git', args, { cwd: root, encoding: null, windowsHide: true, maxBuffer: 256 * 1024 * 1024 })
