@@ -2777,6 +2777,39 @@ test('partial FAILED DAILY pause admits only attested expired history and still 
   assert.equal(h.calls.length,fullCalls)
 })
 
+test('partial FAILED DAILY pause admits a sealed failed empty-claim drain and carries it forward',async()=>{
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h
+  const partialInput=(await h.transport.readJson(f.partialInputRef)).value
+  const descriptor=(await h.transport.readJson(partialInput.descriptorRef)).value
+  const requestRow=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-request.json').ref)
+  const latch=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-operation.json').ref)
+  const execution={...f.execution,createTime:new Date(Date.parse(requestRow.value.requestStartedAt)+100).toISOString(),conditions:[{type:'Completed',state:'CONDITION_FAILED'}],succeededCount:0,failedCount:1,
+    completionTime:new Date(Date.parse(requestRow.value.requestStartedAt)+1100).toISOString()}
+  const operation={name:f.operationBody.name,done:true,error:{code:10,message:'execution failed'},metadata:{'@type':'type.googleapis.com/google.cloud.run.v2.Execution',...execution}}
+  const stdoutFilter=['resource.type="cloud_run_job"','resource.labels.project_id="'+profile.projectId+'"','resource.labels.location="'+profile.location+'"','resource.labels.job_name="'+profile.jobId+'"','labels."run.googleapis.com/execution_name="'+f.partialName.split('/').at(-1)+'"','logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Fstdout"','timestamp>="'+execution.createTime+'"','timestamp<="'+execution.completionTime+'"'].join(' AND ')
+  const claimFilter=['resource.type="cloud_run_revision"','resource.labels.project_id="'+profile.projectId+'"','resource.labels.location="'+profile.location+'"','resource.labels.service_name="ai-pdm-prod"','logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Frequests"','timestamp>="'+execution.createTime+'"','timestamp<="'+execution.completionTime+'"','httpRequest.requestUrl="'+profile.canonicalOrigin+'/api/openswx-metadata-jobs/claim"'].join(' AND ')
+  const failure=h.seed('partial-failed-empty-claim-evidence',{schemaVersion:'aipdm.openswx-failed-daily-drain-failure.v1',ownerApplicationId:'ai-pdm',sourceRevision:descriptor.sourceRevision,sourceArchiveSha256:descriptor.sourceArchiveSha256,
+    workerBuildRef:partialInput.workerBuildRef,priorActivationRef:partialInput.priorActivationRef,partialFailedDailyPauseInputRef:f.partialInputRef,requestRef:requestRow.ref,operationRef:latch.ref,operation,execution,
+    claimEvidence:{filter:claimFilter,filterSha256:sha256(claimFilter),entries:[{logName:'projects/jenfu-platform-prod/logs/run.googleapis.com%2Frequests',resource:{type:'cloud_run_revision',labels:{project_id:'jenfu-platform-prod',service_name:'ai-pdm-prod'}},httpRequest:{requestMethod:'POST',status:204,requestUrl:profile.canonicalOrigin+'/api/openswx-metadata-jobs/claim',userAgent:'node'},timestamp:new Date(Date.parse(execution.createTime)+100).toISOString()}],observedAt:execution.completionTime},
+    stdoutEvidence:{filter:stdoutFilter,filterSha256:sha256(stdoutFilter),entries:[],observedAt:execution.completionTime},actor:profile.normalActor,observedAt:execution.completionTime})
+  const input={...f.input,failedDailyPauseFailureRef:failure},inputRef=await h.put('partial-failed-empty-claim-next-input',input),beforeCalls=h.calls.length
+  const original=h.transport.request
+  h.transport.request=async(url,opts={})=>{
+    if(url==='https://run.googleapis.com/v2/'+f.operationBody.name){h.calls.push({url,options:opts});return structuredClone(operation)}
+    const body=await original(url,opts)
+    if(url.includes('/executions?')) body.executions=body.executions.map(row=>row.name===f.partialName?structuredClone(execution):row)
+    if(url==='https://run.googleapis.com/v2/'+f.partialName)return structuredClone(execution)
+    return body
+  }
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader})
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+  assert.ok(!h.calls.slice(beforeCalls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  const descriptorOut=(await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value
+  const artifact=await resolveWorkerArtifact({transport:h.transport,descriptor:descriptorOut,profile,readSource:f.reader})
+  assert.ok(artifact.failedDaily.failed.failedPauseExecutions.some(row=>row.name===f.partialName))
+  assert.equal(artifact.failedDaily.failed.currentTemplateMode,'NORMAL')
+})
+
 
 test('partial FAILED DAILY pause rejects unbound evidence and unknown inventory before publication',async()=>{
   const f=await partialFailedDailyNextSourceFixture(),h=f.h,objects=new Map(h.objects),provider=h.transport.request
