@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
 import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
+import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
@@ -684,4 +684,27 @@ test('every private cleanup stage rejects a coherent intent BOUND manifest misma
       { code: 'UNLINKED_PROFILE_CLEANUP_SOURCE_LOCK_INVALID' })
     assert.deepEqual({ writes, builds, jobs }, { writes: 0, builds: 0, jobs: 0 })
   }
+})
+
+test('R23 repair-stage seam skips full resolution for ordinary descriptors and retains it for repairs', async () => {
+  const intent = { openswxWorkerRef: { uri: 'gs://own/descriptor.json', sha256: 'a'.repeat(64) } }
+  const profile = { application: { id: 'ai-pdm' } }
+  let classifications = 0, resolutions = 0
+  const ordinary = {
+    async classifyRepair(actualIntent, actualProfile) { classifications++; assert.equal(actualIntent, intent); assert.equal(actualProfile, profile); return { descriptorRef: intent.openswxWorkerRef, schemaVersion: 'aipdm.openswx-worker-descriptor.v4', purpose: 'full', repair: false } },
+    async resolve() { resolutions++; throw new Error('ORDINARY_HISTORY_MUST_NOT_REPLAY') },
+  }
+  assert.equal(await resolveRepairStageDescriptor({ worker: ordinary, intent, profile }), null)
+  assert.deepEqual({ classifications, resolutions }, { classifications: 1, resolutions: 0 })
+
+  const repairValue = { schemaVersion: 'aipdm.openswx-worker-descriptor.v3', ownerApplicationId: 'ai-pdm', purpose: 'full', artifactMode: 'REUSE_VERIFIED', releaseVariant: 'PAUSED_APP_REPAIR' }
+  const repair = {
+    async classifyRepair() { classifications++; return { descriptorRef: intent.openswxWorkerRef, schemaVersion: repairValue.schemaVersion, purpose: 'full', repair: true } },
+    async resolve() { resolutions++; return { ref: intent.openswxWorkerRef, value: repairValue } },
+  }
+  assert.deepEqual(await resolveRepairStageDescriptor({ worker: repair, intent, profile }), { ref: intent.openswxWorkerRef, value: repairValue })
+  assert.deepEqual({ classifications, resolutions }, { classifications: 2, resolutions: 1 })
+
+  const divergent = { ...repair, async resolve() { resolutions++; return { ref: { ...intent.openswxWorkerRef, sha256: 'b'.repeat(64) }, value: repairValue } } }
+  await assert.rejects(resolveRepairStageDescriptor({ worker: divergent, intent, profile }), /REPAIR_DESCRIPTOR_CLASSIFICATION_INVALID/u)
 })

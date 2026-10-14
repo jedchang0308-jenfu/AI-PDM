@@ -703,12 +703,23 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
   // clock must not survive unrelated application build or verification work.
   transport = createWorkerReceiptReadTransport(transport)
   const stageTransport = transport
-  async function resolve(intent, appProfile) {
+  async function readDescriptor(intent, appProfile) {
     if (!intent.openswxWorkerRef) return null
     transport = boundOpenSwxTransport(stageTransport, intent.deadlineAt)
     if (appProfile.application.id !== 'ai-pdm' || environment.GITHUB_WORKFLOW_REF !== `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`) fail('OPENSWX_FULL_WORKFLOW_REQUIRED')
     const descriptor = await readWorkerDescriptor({ transport, ref: intent.openswxWorkerRef, profileBytes: readSource(WORKER_PROFILE_PATH, intent.sourceRevision), sourceRevision: intent.sourceRevision })
     if ((environment.OWNER_EXECUTION_MODE === 'build_only' ? 'build_only' : environment.OWNER_EXECUTION_MODE === 'full_release' ? 'full' : '') !== descriptor.value.purpose) fail('OPENSWX_EXECUTION_MODE_MISMATCH')
+    return descriptor
+  }
+  async function classifyRepair(intent, appProfile) {
+    const descriptor = await readDescriptor(intent, appProfile)
+    if (!descriptor) return null
+    return { descriptorRef: descriptor.ref, schemaVersion: descriptor.value.schemaVersion,
+      purpose: descriptor.value.purpose, repair: isPausedAppRepair(descriptor.value) }
+  }
+  async function resolve(intent, appProfile) {
+    const descriptor = await readDescriptor(intent, appProfile)
+    if (!descriptor) return null
     if (descriptor.value.historyBasisRef) {
       if (intent.programOnlyBaseline || isPausedAppRepair(descriptor.value)) fail('OPENSWX_HISTORY_DAILY_ONLY')
       await ensureAiPdmNativeHistoryBasis({ basisRef: descriptor.value.historyBasisRef, transport, readSource, sourceRevision: descriptor.value.sourceRevision, sourceLockRef: intent.sourceLockRef })
@@ -1000,5 +1011,5 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     if (descriptor && isPausedAppRepair(descriptor.value)) await repairCurrentGuard(descriptor, intent, profile, 'PREPARE', null, profile.identities.verifier)
   }
   const scoped = callback => (...args) => runAiPdmEvidenceContext(createWorkerEvidenceContext(), () => callback(...args))
-  return { prepare: scoped(prepare), beforeBuild: scoped(beforeBuild), build: scoped(build), candidate: scoped(candidate), beforeActivate: scoped(beforeActivate), finalize: scoped(finalize), recover: scoped(recover), resolve: scoped(resolve), pausedAndDrained: scoped(pausedAndDrained), write, rootFor }
+  return { prepare: scoped(prepare), beforeBuild: scoped(beforeBuild), build: scoped(build), candidate: scoped(candidate), beforeActivate: scoped(beforeActivate), finalize: scoped(finalize), recover: scoped(recover), classifyRepair: scoped(classifyRepair), resolve: scoped(resolve), pausedAndDrained: scoped(pausedAndDrained), write, rootFor }
 }
