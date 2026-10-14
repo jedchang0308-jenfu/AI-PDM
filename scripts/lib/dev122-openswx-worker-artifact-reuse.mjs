@@ -100,7 +100,11 @@ export function createWorkerGitReader(root, sourceRevision) {
   }
   readSource.readTreeId = revision => { if (!permitted.has(revision)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); return git(root, ['rev-parse', `${revision}^{tree}`]).toString().trim() }
   readSource.readArchive = revision => { if (revision !== sourceRevision) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); readSource.assertCurrentFrozen(); return git(root, ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision]) }
-  readSource.createHistoricalReader = revision => createWorkerGitReader(root, revision)
+  readSource.createHistoricalReader = revision => {
+    const historical = createWorkerGitReader(root, revision)
+    historical.isHistorical = true
+    return historical
+  }
   readSource.readImmutableArchive = revision => { if (!permitted.has(revision)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); return git(root, ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision]) }
   return readSource
 }
@@ -986,9 +990,16 @@ function qualifierExecutableSource(readSource, revision) {
     if (seen.has(name)) continue
     if (!safePath(name) || !name.startsWith('scripts/') || !name.endsWith('.mjs') || seen.size >= 256) fail('OPENSWX_HISTORY_EXECUTABLE_INVALID')
     seen.add(name)
-    const actual = readFileSync(path.join(repo, name)), pinned = readSource(name, revision)
-    if (!actual.equals(pinned)) fail('OPENSWX_HISTORY_EXECUTABLE_INVALID')
-    const text = actual.toString('utf8')
+    const pinned = readSource(name, revision)
+    // A nested historical replay intentionally reads an older immutable source
+    // revision while the current checkout remains frozen at the new release.
+    // The immutable archive/tree checks below prove that historical bytes are
+    // internally consistent; comparing them with the current checkout would
+    // reject every legitimate source transition. The current (non-historical)
+    // path still requires an exact checkout byte match.
+    if (!Buffer.isBuffer(pinned) || (readSource.isHistorical !== true && !readFileSync(path.join(repo, name)).equals(pinned)))
+      fail('OPENSWX_HISTORY_EXECUTABLE_INVALID')
+    const text = pinned.toString('utf8')
     for (const match of text.matchAll(/\b(?:from\s+|import\s*\(\s*|import\s*)(['"])(\.[^'"]+\.mjs)\1/gu)) {
       pending.push(path.posix.normalize(path.posix.join(path.posix.dirname(name), match[2])))
     }
