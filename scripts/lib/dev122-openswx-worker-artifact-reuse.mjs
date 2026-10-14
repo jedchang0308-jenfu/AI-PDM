@@ -618,7 +618,7 @@ async function validateFailedDailyResourceProof({ transport, value, association,
   const originalFailed = await readFailedDailyContinuation({ transport, continuation: value.failedDailyContinuation, prior: origin.prior, profile, readSource, currentManifest })
   let failed = await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef,
     failed: originalFailed, prior: origin.prior, profile, readSource, currentManifest, historyBasisRef: input.historyBasisRef, historyBindings: basisBindings })
-  failed = await readPartialFailedDailyPause({transport,inputRef:input.partialFailedDailyPauseInputRef,failed,prior:origin.prior,profile,readSource,currentManifest,historyBasisRef:input.historyBasisRef,historyBindings:basisBindings,failureRef:input.failedDailyPauseFailureRef})
+  failed = await readPartialFailedDailyPause({transport,inputRef:input.partialFailedDailyPauseInputRef,failed,prior:origin.prior,profile,readSource,currentManifest,historyBasisRef:input.historyBasisRef,historyBindings:basisBindings,failureRef:input.failedDailyPauseFailureRef,frontierRebaseRef:input.frontierRebaseRef,frontierRebaseSourceLockRef:input.sourceLockRef,frontierRebaseDeadlineAt:input.deadlineAt,frontierRebaseCompletedCheckpointRef:input.completedFailedDailyCheckpointRef})
   // v1 historical producers captured normal Jobs. Only immutable sealed replay
   // uses that compatibility path; new live producers always publish v2.
   if (value.schemaVersion === 'aipdm.openswx-failed-daily-resource-readback.v1') failed = {...failed,currentTemplateMode:'NORMAL'}
@@ -671,8 +671,8 @@ async function validateFailedDailyResourceProof({ transport, value, association,
   return { failed: reconstructed.admittedFailed, baseline: value }
 }
 export function assertWorkerReuseInput(value, { historical = false } = {}) {
-  const repair = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2', basis = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v3'
-  exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', ...(basis ? ['historyBasisRef'] : []), ...(repair ? ['servingCapsuleRef', 'predecessorBaselineRef'] : [...(Object.hasOwn(value ?? {}, 'secretVersionIamContinuationRef') ? ['secretVersionIamContinuationRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : []), ...(Object.hasOwn(value ?? {}, 'completedFailedDailyCheckpointRef') ? ['completedFailedDailyCheckpointRef'] : []), ...(Object.hasOwn(value ?? {}, 'partialFailedDailyPauseInputRef') ? ['partialFailedDailyPauseInputRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyPauseFailureRef') ? ['failedDailyPauseFailureRef'] : [])])], 'OPENSWX_REUSE_INPUT_INVALID')
+  const repair = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2', basis = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v3', frontierRebase = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v4'
+  exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', ...(basis ? ['historyBasisRef'] : []), ...(frontierRebase ? ['frontierRebaseRef'] : []), ...(repair ? ['servingCapsuleRef', 'predecessorBaselineRef'] : [...(Object.hasOwn(value ?? {}, 'secretVersionIamContinuationRef') ? ['secretVersionIamContinuationRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : []), ...(Object.hasOwn(value ?? {}, 'completedFailedDailyCheckpointRef') ? ['completedFailedDailyCheckpointRef'] : []), ...(Object.hasOwn(value ?? {}, 'partialFailedDailyPauseInputRef') ? ['partialFailedDailyPauseInputRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyPauseFailureRef') ? ['failedDailyPauseFailureRef'] : [])])], 'OPENSWX_REUSE_INPUT_INVALID')
   if (!repair && Object.hasOwn(value, 'secretVersionIamContinuationRef')) ownRef(value.secretVersionIamContinuationRef)
   if (!repair && Object.hasOwn(value, 'failedDailyContinuation')) assertFailedDailyContinuation(value.failedDailyContinuation)
   if (!repair && Object.hasOwn(value, 'completedFailedDailyCheckpointRef')) {
@@ -688,7 +688,8 @@ export function assertWorkerReuseInput(value, { historical = false } = {}) {
     ownRef(value.failedDailyPauseFailureRef)
   }
   if (basis) { ownRef(value.historyBasisRef); if (!value.failedDailyContinuation || !value.completedFailedDailyCheckpointRef) fail('OPENSWX_REUSE_INPUT_INVALID') }
-  if ((!repair && !basis && value.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v1') || !/^[A-Za-z0-9-]{6,100}$/u.test(value.receiptId ?? '')) fail('OPENSWX_REUSE_INPUT_INVALID')
+  if (frontierRebase) { ownRef(value.frontierRebaseRef); if (!value.failedDailyContinuation || !value.completedFailedDailyCheckpointRef || !value.partialFailedDailyPauseInputRef || !value.failedDailyPauseFailureRef) fail('OPENSWX_REUSE_INPUT_INVALID') }
+  if ((!repair && !basis && !frontierRebase && value.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v1') || !/^[A-Za-z0-9-]{6,100}$/u.test(value.receiptId ?? '')) fail('OPENSWX_REUSE_INPUT_INVALID')
   if (repair) { releaseCapsuleRef(value.servingCapsuleRef); if (value.predecessorBaselineRef !== null) ownRef(value.predecessorBaselineRef) }
   assertImmutableRef(value.sourceLockRef, BUCKET, ['receipts']); assertImmutableRef(value.currentSourceObjectRef, BUCKET, ['source']); ownRef(value.priorActivationRef)
   if (!safePath(value.sourceLockRef.uri.slice(`gs://${BUCKET}/`.length)) || !value.sourceLockRef.uri.endsWith('.json')
@@ -813,7 +814,7 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   const originalFailed = failedMode ? await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource, currentManifest: current, verifyProvider: true, deadlineAt: input.deadlineAt }) : null
   let failed = failedMode ? await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef,
     failed: originalFailed, prior: origin.prior, profile, readSource, currentManifest: current, historyBasisRef: input.historyBasisRef, historyBindings: basisBindings }) : null
-  if (failedMode) failed = await readPartialFailedDailyPause({transport,inputRef:input.partialFailedDailyPauseInputRef,failed,prior:origin.prior,profile,readSource,currentManifest:current,historyBasisRef:input.historyBasisRef,historyBindings:basisBindings,failureRef:input.failedDailyPauseFailureRef})
+  if (failedMode) failed = await readPartialFailedDailyPause({transport,inputRef:input.partialFailedDailyPauseInputRef,failed,prior:origin.prior,profile,readSource,currentManifest:current,historyBasisRef:input.historyBasisRef,historyBindings:basisBindings,failureRef:input.failedDailyPauseFailureRef,frontierRebaseRef:input.frontierRebaseRef,frontierRebaseSourceLockRef:input.sourceLockRef,frontierRebaseDeadlineAt:input.deadlineAt,frontierRebaseCompletedCheckpointRef:input.completedFailedDailyCheckpointRef})
   const ready = failedMode ? await readFailedDailyCurrentResources({ transport, profile, prior: origin.prior, supplementalIam: supplementalIam ? { ...supplementalIam, readSource } : null, secretVersionIam, failed })
     : await (repair ? readPausedRepairWorkerResources : readCurrentReadyWorkerResources)({ transport, profile, prior: origin.prior, supplementalIam: supplementalIam ? { ...supplementalIam, readSource } : null, ...(secretVersionIam ? { secretVersionIam } : {}) })
   const assertRepairAdmissionFresh = async () => {
