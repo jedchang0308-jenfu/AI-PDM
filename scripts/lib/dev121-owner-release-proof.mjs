@@ -409,11 +409,13 @@ export async function ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, c
   let pinned
   try { pinned = JSON.parse(strictUtf8(bytes)) } catch { fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID') }
   if (canonicalize(pinned) !== canonicalize(checkpointDescriptor)) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  if (state.root.historyCollection) fail('HISTORY_BASIS_RECURSION')
   if (!state.root.historyBasis) await installNestedHistoryBasis({ state, basisRef, transport, readSource, sourceRevision })
   return assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision })
 }
 export async function ensureAiPdmNativeHistoryBasis({ basisRef, transport, readSource, sourceRevision, sourceLockRef = null }) {
   const state = evidenceState(activeEvidence())
+  if (state.root.historyCollection) fail('HISTORY_BASIS_RECURSION')
   if (state.parent === null && !state.root.historyBasis) await qualifyAiPdmNativeHistoryBasis({ ref: basisRef, transport, readSource })
   return assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision, sourceLockRef })
 }
