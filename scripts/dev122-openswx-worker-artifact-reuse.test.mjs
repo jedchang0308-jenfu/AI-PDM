@@ -2783,7 +2783,7 @@ test('partial FAILED DAILY pause admits a sealed failed empty-claim drain and ca
   const descriptor=(await h.transport.readJson(partialInput.descriptorRef)).value
   const requestRow=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-request.json').ref)
   const latch=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-operation.json').ref)
-  const execution={...f.execution,createTime:new Date(Date.parse(requestRow.value.requestStartedAt)+100).toISOString(),conditions:[{type:'Completed',state:'CONDITION_FAILED'}],succeededCount:0,failedCount:1,
+  const execution={...f.execution,createTime:new Date(Date.parse(requestRow.value.requestStartedAt)+100).toISOString(),conditions:[{type:'Started',state:'CONDITION_SUCCEEDED'},{type:'Completed',state:'CONDITION_FAILED'}],succeededCount:0,failedCount:1,
     completionTime:new Date(Date.parse(requestRow.value.requestStartedAt)+1100).toISOString()}
   const operation={name:f.operationBody.name,done:true,error:{code:10,message:'execution failed'},metadata:{'@type':'type.googleapis.com/google.cloud.run.v2.Execution',...execution}}
   const stdoutFilter=['resource.type="cloud_run_job"','resource.labels.project_id="'+profile.projectId+'"','resource.labels.location="'+profile.location+'"','resource.labels.job_name="'+profile.jobId+'"','labels."run.googleapis.com/execution_name="'+f.partialName.split('/').at(-1)+'"','logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Fstdout"','timestamp>="'+execution.createTime+'"','timestamp<="'+execution.completionTime+'"'].join(' AND ')

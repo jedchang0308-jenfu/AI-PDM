@@ -1208,7 +1208,7 @@ async function readFailedDailyDrainFailure({ transport, failureRef, inputRef, in
   const execution = assertTerminalExecution(value.execution, value.execution.name)
   if (execution.name !== operation.metadata.name || execution.uid !== operation.metadata.uid || execution.creator !== profile.normalActor
     || operation.metadata.creator !== profile.normalActor || execution.createTime !== operation.metadata.createTime
-    || operation.metadata.completionTime !== execution.completionTime || operation.metadata.conditions?.[0]?.state !== 'CONDITION_FAILED'
+    || operation.metadata.completionTime !== execution.completionTime || operation.metadata.conditions?.find(condition => condition.type === 'Completed')?.state !== 'CONDITION_FAILED'
     || operation.metadata.failedCount !== execution.failedCount || operation.metadata.succeededCount !== execution.succeededCount
     || canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(prior.template.template)
     || Date.parse(execution.createTime) < Date.parse(request.requestStartedAt) || Date.parse(execution.createTime) > Date.parse(request.requestWindowEndsAt)
