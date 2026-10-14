@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, assertFailedDailyFullJoin, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
-import { qualifyAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
+import { qualifyAiPdmNativeHistoryBasis, deriveAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
 import { buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
@@ -3260,6 +3260,43 @@ test('native history NORMAL full join dereferences and binds the pause descripto
     assert.deepEqual(reads,[inputRef,descriptorRef],kind+' must authenticate exact pinned descriptor before any later evidence')
   }
   h.transport.readJson=originalRead;noMutation(h)
+})
+
+test('native history qualification refuses generic and checkpoint basis ingress while the outer closure is active', async () => {
+  const f = await partialFailedDailyNextSourceFixture(), h = f.h
+  const inputRef = await h.put('history-active-input', f.input)
+  const basisRef = h.sourceLockRef
+  const descriptor = { schemaVersion: 'aipdm.openswx-worker-descriptor.v4', purpose: 'full', artifactMode: 'REUSE_VERIFIED',
+    sourceRevision: currentRevision, historyBasisRef: basisRef }
+  const descriptorBytes = Buffer.from(canonicalize(descriptor)), checkpointRef = {
+    uri: profile.receiptRoot + '/history-active-checkpoint.json', sha256: sha256(descriptorBytes)
+  }
+  const nestedReads = [], basisReads = [], guardedTransport = {
+    readJson: async () => { basisReads.push(true); throw Error('BASIS_READ_FORBIDDEN') },
+    readJsonForNestedCheckpointDescriptor: async () => { nestedReads.push(true); return { bytes: descriptorBytes } },
+  }
+  const handle = createAiPdmEvidenceContext(), originalRead = h.transport.readJson
+  let guarded = false
+  const wrappedTransport = { ...h.transport, readJson: async (...args) => {
+    if (!guarded) {
+      guarded = true
+      await assert.rejects(ensureAiPdmNativeHistoryBasis({ basisRef, transport: guardedTransport, readSource: f.reader,
+        sourceRevision: currentRevision }), { code: 'DEV121_OWNER_RELEASE_PROOF_HISTORY_BASIS_RECURSION' })
+      const child = descendAiPdmEvidenceContext(createAiPdmEvidenceContext(), checkpointRef, true)
+      await assert.rejects(runAiPdmEvidenceContext(child, () => ensureAiPdmNestedCheckpointHistoryBasis({
+        checkpointRef, checkpointDescriptor: descriptor, basisRef, transport: guardedTransport,
+        readSource: f.reader, sourceRevision: currentRevision,
+      })), { code: 'DEV121_OWNER_RELEASE_PROOF_HISTORY_BASIS_RECURSION' })
+    }
+    return originalRead(...args)
+  } }
+  try {
+    await assert.rejects(runAiPdmEvidenceContext(handle, () => deriveAiPdmNativeHistoryBasis({ inputRef,
+      transport: wrappedTransport, readSource: f.reader })))
+  } finally { wrappedTransport.readJson = originalRead }
+  assert.equal(guarded, true, 'history basis replay reached its first pinned input read')
+  assert.deepEqual(nestedReads, [true], 'checkpoint descriptor is the final allowed read before recursion refusal')
+  assert.deepEqual(basisReads, [], 'recursive qualification never reads a Q4 basis or association')
 })
 
 test('native history basis refuses caller capability, alias, forged facts, active writer, recursive basis and executable drift',async()=>{
