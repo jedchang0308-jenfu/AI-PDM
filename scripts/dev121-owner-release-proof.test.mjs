@@ -540,7 +540,7 @@ for (const [name, mutate] of [
   ['magic', tar => { tar[257] = 88 }],
   ['version', tar => { tar[263] = 49 }],
   ['base256 size', tar => { tar[124] = 128 }],
-  ['commit mismatch', tar => { tar[512 + 11] = 98 }],
+  ['commit mismatch', tar => { tar[512 + 11] ^= 1 }],
   ['nonzero trailing', tar => { tar[tar.length - 1] = 1 }],
 ]) test(`B23 native archive rejects ${name}`, () => {
   const fixture = b23NativeArchive(), bytes = Buffer.from(fixture.tar); mutate(bytes)

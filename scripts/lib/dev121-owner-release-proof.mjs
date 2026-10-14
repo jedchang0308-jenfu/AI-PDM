@@ -123,11 +123,15 @@ function mintEvidenceHandle(state) {
   return handle
 }
 /** Internal source adapter: opaque identity only; no serialized context is admitted. */
-function mintAiPdmEvidenceRoot() {
+function mintAiPdmEvidenceRoot(inheritClockFrom = null) {
   const now = Date.now(), monotonic = performance.now()
   if (!Number.isFinite(now) || !Number.isFinite(monotonic)) fail('CONTEXT_INVALID')
-  const root = { startedAtMs: now, startedMonotonicMs: monotonic, expiresAtMs: now + 600000,
-    lastWallMs: now, closed: false, hashes: new Map(), memo: new Map(), memoBytes: 0, receiptMetadata: new Map(), sourceAdmissions: new Set(), historyBasis: null, historyCollection: null, historyObjectMetadata: new Map() }
+  const timing = inheritClockFrom === null
+    ? { startedAtMs: now, startedMonotonicMs: monotonic, expiresAtMs: now + 600000, lastWallMs: now }
+    : { startedAtMs: inheritClockFrom.startedAtMs, startedMonotonicMs: inheritClockFrom.startedMonotonicMs,
+        expiresAtMs: inheritClockFrom.expiresAtMs, lastWallMs: inheritClockFrom.lastWallMs }
+  if (![timing.startedAtMs, timing.startedMonotonicMs, timing.expiresAtMs, timing.lastWallMs].every(Number.isFinite)) fail('CONTEXT_INVALID')
+  const root = { ...timing, closed: false, hashes: new Map(), memo: new Map(), memoBytes: 0, receiptMetadata: new Map(), sourceAdmissions: new Set(), historyBasis: null, historyCollection: null, historyObjectMetadata: new Map() }
   return mintEvidenceHandle({ root, depth: 0, ancestors: new Set(), parent: null })
 }
 export function createAiPdmEvidenceContext() {
@@ -335,12 +339,26 @@ export function readAiPdmQualifiedHistoryProjection({ basisRef, kind, frontierRe
   if (canonicalize(expectedRef) !== canonicalize(frontierRef) || canonicalize(bindings) !== canonicalize(capability.bindings)) fail('HISTORY_BASIS_FRONTIER_INVALID')
   return structuredClone(capability[kind])
 }
-async function installNestedHistoryBasis({ state, basisRef, transport, readSource }) {
-  const isolated = mintAiPdmEvidenceRoot(), isolatedState = evidenceState(isolated)
+async function installNestedHistoryBasis({ state, basisRef, transport, readSource, sourceRevision }) {
+  if (!H40.test(sourceRevision ?? '') || typeof readSource?.createHistoricalReader !== 'function'
+    || typeof readSource.assertCurrentFrozen !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  const rawHistorical = readSource.createHistoricalReader(sourceRevision)
+  if (typeof rawHistorical !== 'function' || typeof rawHistorical.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+  const historicalReadSource = (name, revision) => rawHistorical(name, revision)
+  Object.assign(historicalReadSource, rawHistorical)
+  historicalReadSource.assertCurrentFrozen = () => readSource.assertCurrentFrozen()
+  historicalReadSource.readArchive = revision => {
+    if (revision !== sourceRevision) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+    readSource.assertCurrentFrozen()
+    return rawHistorical.readImmutableArchive(revision)
+  }
+  // Keep the outer observation's original wall/monotonic budget. Isolation is
+  // for capability and memo state only; it must never mint more observation time.
+  const isolated = mintAiPdmEvidenceRoot(state.root), isolatedState = evidenceState(isolated)
   try {
     await evidenceScope.run(isolated, async () => {
       evidenceState(isolated)
-      await qualifyAiPdmNativeHistoryBasis({ ref: basisRef, transport, readSource })
+      await qualifyAiPdmNativeHistoryBasis({ ref: basisRef, transport, readSource: historicalReadSource })
       evidenceState(isolated)
     })
     const capability = structuredClone(isolatedState.root.historyBasis)
@@ -362,7 +380,7 @@ async function installNestedHistoryBasis({ state, basisRef, transport, readSourc
 export async function ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, checkpointDescriptor, basisRef, transport, readSource, sourceRevision }) {
   const state = evidenceState(activeEvidence())
   if (state.parent === null || canonicalize(state.nodeRef) !== canonicalize(checkpointRef)
-    || checkpointDescriptor?.schemaVersion !== 'aipdm.openswx-worker-descriptor.v4'
+    || !H40.test(sourceRevision ?? '') || checkpointDescriptor?.schemaVersion !== 'aipdm.openswx-worker-descriptor.v4'
     || checkpointDescriptor.purpose !== 'full' || checkpointDescriptor.artifactMode !== 'REUSE_VERIFIED'
     || canonicalize(checkpointDescriptor.historyBasisRef) !== canonicalize(basisRef)
     || checkpointDescriptor.sourceRevision !== sourceRevision) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
@@ -374,7 +392,7 @@ export async function ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, c
   let pinned
   try { pinned = JSON.parse(strictUtf8(bytes)) } catch { fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID') }
   if (canonicalize(pinned) !== canonicalize(checkpointDescriptor)) fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
-  if (!state.root.historyBasis) await installNestedHistoryBasis({ state, basisRef, transport, readSource })
+  if (!state.root.historyBasis) await installNestedHistoryBasis({ state, basisRef, transport, readSource, sourceRevision })
   return assertAiPdmNativeHistoryIngress({ basisRef, sourceRevision })
 }
 export async function ensureAiPdmNativeHistoryBasis({ basisRef, transport, readSource, sourceRevision, sourceLockRef = null }) {
