@@ -97,6 +97,22 @@ test('B23 closed repair input retains the four-argument CLI and pins serving/pre
   }
   for (const flag of ['--release-variant', '--mode', '--target', '--purpose']) assert.throws(() => parseWorkerArtifactReuseArgs(['--input-ref', workerRef('input').uri, '--input-sha256', workerRef('input').sha256, flag, 'repair']))
 })
+test('nested checkpoint reader propagates through repeated transport wrappers', async () => {
+  const bucket = 'jenfu-platform-prod-aipdm-release'
+  const prefix = 'receipts/dev-122/openswx-worker'
+  const basisRef = { uri: `gs://${bucket}/${prefix}/nested-basis.json`, sha256: 'b'.repeat(64) }
+  const value = { schemaVersion: 'aipdm.openswx-worker-descriptor.v4', purpose: 'full', artifactMode: 'REUSE_VERIFIED', sourceRevision: 'a'.repeat(40), historyBasisRef: basisRef }
+  const bytes = Buffer.from(canonicalize(value))
+  const ref = { uri: `gs://${bucket}/${prefix}/nested-checkpoint.json`, sha256: sha256(bytes) }
+  const row = { bytes, ref, value, metadata: { generation: '1', crc32c: 'LOCAL_TEST_CRC' } }
+  const recursion = () => { throw Object.assign(new Error('DEV121_OWNER_RELEASE_PROOF_HISTORY_BASIS_RECURSION'), { code: 'DEV121_OWNER_RELEASE_PROOF_HISTORY_BASIS_RECURSION' }) }
+  const base = { readJson: async () => recursion(), readJsonForNestedCheckpointDescriptor: async () => row }
+  const transport = createWorkerReceiptReadTransport(createWorkerReceiptReadTransport(base))
+  await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    const actual = await transport.readJsonForNestedCheckpointDescriptor(ref, bucket, [prefix])
+    assert.deepEqual(actual.value, value)
+  })
+})
 function sourceLock(revision, tree, releaseId) { return { schemaVersion: 'jenfu.dev012.owner-source-lock.v1', ownerApplicationId: 'ai-pdm', repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main', releaseId, sourceRevision: revision, sourceTree: 'e'.repeat(40), sourceSha256: sha256(tree), migrationManifestSha256: 'd'.repeat(64), clean: true, remoteRef: 'refs/heads/main', remoteRevision: revision, status: 'SOURCE_FROZEN', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', observedAt: now } }
 async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentArchive = null, proofMetadata = false, releasedBaseline = false } = {}) {
   const objects = new Map(), calls = [], puts = [], controls = {}, prefix = profile.receiptRoot
