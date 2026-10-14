@@ -1209,7 +1209,8 @@ async function readFailedDailyDrainFailure({ transport, failureRef, inputRef, in
   if (execution.name !== operation.metadata.name || execution.uid !== operation.metadata.uid || execution.creator !== profile.normalActor
     || operation.metadata.creator !== profile.normalActor || execution.createTime !== operation.metadata.createTime
     || operation.metadata.completionTime !== execution.completionTime || operation.metadata.conditions?.find(condition => condition.type === 'Completed')?.state !== 'CONDITION_FAILED'
-    || operation.metadata.failedCount !== execution.failedCount || operation.metadata.succeededCount !== execution.succeededCount
+    || (operation.metadata.failedCount != null && operation.metadata.failedCount !== execution.failedCount)
+    || (operation.metadata.succeededCount != null && operation.metadata.succeededCount !== execution.succeededCount)
     || canonicalize(normalizeWorkerTemplate(execution.template)) !== canonicalize(prior.template.template)
     || Date.parse(execution.createTime) < Date.parse(request.requestStartedAt) || Date.parse(execution.createTime) > Date.parse(request.requestWindowEndsAt)
     || Date.parse(execution.completionTime) < Date.parse(execution.createTime) || Date.parse(execution.completionTime) > Date.parse(input.deadlineAt)) fail('OPENSWX_FAILED_DAILY_FAILURE_INVALID')
