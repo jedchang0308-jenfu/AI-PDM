@@ -2814,6 +2814,67 @@ test('partial FAILED DAILY pause admits a sealed failed empty-claim drain and ca
   assert.equal(artifact.failedDaily.failed.currentTemplateMode,'NORMAL')
 })
 
+test('partial FAILED DAILY frontier rebase admits only source-bound sealed extra executions', async () => {
+  const f = await partialFailedDailyNextSourceFixture(), h = f.h
+  const baseInputRef = await h.put('frontier-rebase-base-input', { ...f.input, receiptId: 'FRONTIER-REBASE-BASE' })
+  const baseSaved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef: baseInputRef, readSource: f.reader })
+  const baseDescriptor = (await h.transport.readJson(baseSaved.refs.dailyBuildOnlyDescriptorRef)).value
+  const baseArtifact = await resolveWorkerArtifact({ transport: h.transport, descriptor: baseDescriptor, profile, readSource: f.reader })
+  const baseExpectedExecutionNames = [...baseArtifact.failedDaily.failed.expectedExecutionNames].filter(name => name !== f.partialName).sort()
+  const partialInput = (await h.transport.readJson(f.partialInputRef)).value
+  const descriptor = (await h.transport.readJson(partialInput.descriptorRef)).value
+  const requestRow = await h.transport.readJson(h.objects.get(f.partialRoot + '-drain-finite-request.json').ref)
+  const latch = await h.transport.readJson(h.objects.get(f.partialRoot + '-drain-finite-operation.json').ref)
+  const failureExecution = { ...f.execution, createTime: new Date(Date.parse(requestRow.value.requestStartedAt) + 100).toISOString(),
+    conditions: [{ type: 'Started', state: 'CONDITION_SUCCEEDED' }, { type: 'Completed', state: 'CONDITION_FAILED' }], succeededCount: 0, failedCount: 1,
+    completionTime: new Date(Date.parse(requestRow.value.requestStartedAt) + 1100).toISOString() }
+  const operation = { name: f.operationBody.name, done: true, error: { code: 10, message: 'execution failed' }, metadata: { '@type': 'type.googleapis.com/google.cloud.run.v2.Execution', ...failureExecution } }
+  delete operation.metadata.failedCount
+  delete operation.metadata.succeededCount
+  const extraName = f.partialName.replace(/[^/]+$/u, 'frontier-extra')
+  const extraExecution = { ...f.execution, name: extraName, uid: 'frontier-extra-uid', creator: profile.normalActor,
+    createTime: new Date(Date.parse(requestRow.value.requestStartedAt) - 500).toISOString(), completionTime: new Date(Date.parse(requestRow.value.requestStartedAt) - 400).toISOString(),
+    conditions: [{ type: 'Started', state: 'CONDITION_SUCCEEDED' }, { type: 'Completed', state: 'CONDITION_SUCCEEDED' }], succeededCount: 1, failedCount: 0 }
+  const extraBodyRef = h.seed('frontier-extra-execution-body', extraExecution)
+  const request = { ...requestRow.value, baselineExecutionNames: [...baseExpectedExecutionNames, extraName].sort() }
+  const requestRef = h.seedBytes(requestRow.ref.uri, Buffer.from(canonicalize(request)))
+  const stdoutFilter = ['resource.type="cloud_run_job"', 'resource.labels.project_id="' + profile.projectId + '"', 'resource.labels.location="' + profile.location + '"', 'resource.labels.job_name="' + profile.jobId + '"', 'labels."run.googleapis.com/execution_name="' + f.partialName.split('/').at(-1) + '"', 'logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Fstdout"', 'timestamp>="' + failureExecution.createTime + '"', 'timestamp<="' + failureExecution.completionTime + '"'].join(' AND ')
+  const claimFilter = ['resource.type="cloud_run_revision"', 'resource.labels.project_id="' + profile.projectId + '"', 'resource.labels.location="' + profile.location + '"', 'resource.labels.service_name="ai-pdm-prod"', 'logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Frequests"', 'timestamp>="' + failureExecution.createTime + '"', 'timestamp<="' + failureExecution.completionTime + '"', 'httpRequest.requestUrl="' + profile.canonicalOrigin + '/api/openswx-metadata-jobs/claim"'].join(' AND ')
+  const failure = h.seed('frontier-rebase-failure', { schemaVersion: 'aipdm.openswx-failed-daily-drain-failure.v1', ownerApplicationId: 'ai-pdm', sourceRevision: descriptor.sourceRevision, sourceArchiveSha256: descriptor.sourceArchiveSha256,
+    workerBuildRef: partialInput.workerBuildRef, priorActivationRef: partialInput.priorActivationRef, partialFailedDailyPauseInputRef: f.partialInputRef, requestRef, operationRef: latch.ref, operation, execution: failureExecution,
+    claimEvidence: { filter: claimFilter, filterSha256: sha256(claimFilter), entries: [{ logName: 'projects/jenfu-platform-prod/logs/run.googleapis.com%2Frequests', resource: { type: 'cloud_run_revision', labels: { project_id: 'jenfu-platform-prod', service_name: 'ai-pdm-prod' } }, httpRequest: { requestMethod: 'POST', status: 204, requestUrl: profile.canonicalOrigin + '/api/openswx-metadata-jobs/claim', userAgent: 'node' }, timestamp: new Date(Date.parse(failureExecution.createTime) + 100).toISOString() }], observedAt: failureExecution.completionTime },
+    stdoutEvidence: { filter: stdoutFilter, filterSha256: sha256(stdoutFilter), entries: [], observedAt: failureExecution.completionTime }, actor: profile.normalActor, observedAt: failureExecution.completionTime })
+  const extraMeta = { name: extraName, bodyRef: extraBodyRef, uid: extraExecution.uid, creator: extraExecution.creator, createTime: extraExecution.createTime, completionTime: extraExecution.completionTime,
+    succeededCount: extraExecution.succeededCount, templateSha256: sha256(canonicalize(normalizeWorkerTemplate(extraExecution.template))), bodySha256: sha256(canonicalize(extraExecution)) }
+  const frontierBinding = { priorActivationRef: f.input.priorActivationRef, completedFailedDailyCheckpointRef: f.input.completedFailedDailyCheckpointRef, partialFailedDailyPauseInputRef: f.partialInputRef, failedDailyPauseFailureRef: failure }
+  const frontier = h.seed('frontier-rebase-evidence', { schemaVersion: 'aipdm.openswx-frontier-rebase.v1', ownerApplicationId: 'ai-pdm', purpose: 'FAILED_DAILY_FRONTIER_REBASE', sourceRevision: descriptor.sourceRevision,
+    sourceArchiveSha256: descriptor.sourceArchiveSha256, sourceLockRef: f.input.sourceLockRef, priorActivationRef: f.input.priorActivationRef, completedFailedDailyCheckpointRef: f.input.completedFailedDailyCheckpointRef,
+    partialFailedDailyPauseInputRef: f.partialInputRef, failedDailyPauseFailureRef: failure, baseExpectedExecutionNames, baseExpectedExecutionNamesSha256: sha256(canonicalize(baseExpectedExecutionNames)),
+    extraExecutions: [extraMeta], extraExecutionNamesSha256: sha256(canonicalize([extraName])), frontierBindingSha256: sha256(canonicalize(frontierBinding)), observedAt: failureExecution.completionTime, deadlineAt: f.input.deadlineAt })
+  const input = { ...f.input, schemaVersion: 'aipdm.openswx-worker-reuse-input.v4', receiptId: 'FRONTIER-REBASE-CURRENT', failedDailyPauseFailureRef: failure, frontierRebaseRef: frontier }
+  const inputRef = await h.put('frontier-rebase-current-input', input)
+  const original = h.transport.request
+  h.transport.request = async (url, opts = {}) => {
+    if (url === 'https://run.googleapis.com/v2/' + f.operationBody.name) { h.calls.push({ url, options: opts }); return structuredClone(operation) }
+    const body = await original(url, opts)
+    if (url.includes('/executions?')) body.executions = [...body.executions, structuredClone(extraExecution)].map(row => row.name === f.partialName ? structuredClone(failureExecution) : row)
+    if (url === 'https://run.googleapis.com/v2/' + f.partialName) return structuredClone(failureExecution)
+    if (url === 'https://run.googleapis.com/v2/' + extraName) return structuredClone(extraExecution)
+    return body
+  }
+  const saved = await executeWorkerArtifactReuse({ transport: h.transport, inputRef, readSource: f.reader })
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+  const descriptorOut = (await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value
+  const artifact = await resolveWorkerArtifact({ transport: h.transport, descriptor: descriptorOut, profile, readSource: f.reader })
+  assert.ok(artifact.failedDaily.failed.expectedExecutionNames.includes(extraName))
+  const poisoned = structuredClone((await h.transport.readJson(frontier)).value); poisoned.extraExecutionNamesSha256 = '0'.repeat(64)
+  const poisonedRef = h.seed('frontier-rebase-poisoned', poisoned)
+  const poisonedInputRef = await h.put('frontier-rebase-poisoned-input', { ...input, receiptId: 'FRONTIER-REBASE-POISONED', frontierRebaseRef: poisonedRef })
+  const puts = h.puts.length
+  await assert.rejects(executeWorkerArtifactReuse({ transport: h.transport, inputRef: poisonedInputRef, readSource: f.reader }), { code: 'OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID' })
+  assert.equal(h.puts.length, puts)
+})
+
 
 test('partial FAILED DAILY pause rejects unbound evidence and unknown inventory before publication',async()=>{
   const f=await partialFailedDailyNextSourceFixture(),h=f.h,objects=new Map(h.objects),provider=h.transport.request

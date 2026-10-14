@@ -14,6 +14,7 @@ import { SECRET_VERSION_IAM_ROLE, SECRET_VERSION_IAM_MEMBERS, assertSecretVersio
 
 const BUCKET = 'jenfu-platform-prod-aipdm-release'
 const MARKER = 'aipdm.openswx-finite-terminal.v1'
+const H64 = /^[a-f0-9]{64}$/u
 async function publishDailyFullDescriptor({ transport, input, inputRef, descriptor, profile, bootstrap, readSource }) {
   const base = descriptor.value, facts = bootstrap.value.facts;
   assertWorkerReceipt(bootstrap.value, base, 'bootstrap', { actor: profile.normalActor });
@@ -1180,7 +1181,52 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
     })
   })
 }
-async function readFailedDailyDrainFailure({ transport, failureRef, inputRef, input, requestRow, latch, descriptor, artifact, prior, profile }) {
+async function readFailedDailyFrontierRebase({ transport, frontierRebaseRef, sourceLockRef = null, frontierRebaseDeadlineAt = null, frontierRebaseCompletedCheckpointRef = null, inputRef, failureRef, input, requestRow, descriptor, artifact, prior, profile }) {
+  if (!frontierRebaseRef) return null
+  assertOpenSwxWorkerRef(frontierRebaseRef)
+  const row = await transport.readJson(frontierRebaseRef, BUCKET, [WORKER_RECEIPT_PREFIX]), value = row.value
+  const keys = ['schemaVersion','ownerApplicationId','purpose','sourceRevision','sourceArchiveSha256','sourceLockRef','priorActivationRef','completedFailedDailyCheckpointRef','partialFailedDailyPauseInputRef','failedDailyPauseFailureRef','baseExpectedExecutionNames','baseExpectedExecutionNamesSha256','extraExecutions','extraExecutionNamesSha256','frontierBindingSha256','observedAt','deadlineAt']
+  if (!value || Object.keys(value).sort().join(',') !== keys.sort().join(',') || value.schemaVersion !== 'aipdm.openswx-frontier-rebase.v1'
+    || value.ownerApplicationId !== 'ai-pdm' || value.purpose !== 'FAILED_DAILY_FRONTIER_REBASE' || value.sourceRevision !== descriptor.sourceRevision
+    || value.sourceArchiveSha256 !== descriptor.sourceArchiveSha256 || (sourceLockRef && canonicalize(value.sourceLockRef) !== canonicalize(sourceLockRef))
+    || canonicalize(value.priorActivationRef) !== canonicalize(input.priorActivationRef) || canonicalize(value.partialFailedDailyPauseInputRef) !== canonicalize(inputRef)
+    || canonicalize(value.failedDailyPauseFailureRef) !== canonicalize(failureRef) || canonicalize(value.completedFailedDailyCheckpointRef ?? null) !== canonicalize(frontierRebaseCompletedCheckpointRef ?? null)
+    || !Number.isFinite(Date.parse(value.observedAt)) || !Number.isFinite(Date.parse(value.deadlineAt)) || Date.parse(value.observedAt) > Date.parse(value.deadlineAt)
+    || Date.parse(value.deadlineAt) > Date.parse(frontierRebaseDeadlineAt ?? input.deadlineAt)) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+  if (!value.sourceLockRef || typeof value.sourceLockRef.uri !== 'string' || !value.sourceLockRef.uri.startsWith(`gs://${BUCKET}/receipts/`) || !H64.test(value.sourceLockRef.sha256 ?? '')) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+  if (frontierRebaseCompletedCheckpointRef) assertOpenSwxWorkerRef(value.completedFailedDailyCheckpointRef)
+  const base = value.baseExpectedExecutionNames
+  if (!Array.isArray(base) || base.length > 400 || new Set(base).size !== base.length || [...base].sort().join('\n') !== base.join('\n')
+    || base.some(name => canonicalWorkerExecution(name) !== name) || sha256(canonicalize(base)) !== value.baseExpectedExecutionNamesSha256
+    || canonicalize(base) !== canonicalize(artifact.failedDaily.failed.expectedExecutionNames)) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+  const binding = { priorActivationRef: value.priorActivationRef, completedFailedDailyCheckpointRef: value.completedFailedDailyCheckpointRef ?? null,
+    partialFailedDailyPauseInputRef: value.partialFailedDailyPauseInputRef, failedDailyPauseFailureRef: value.failedDailyPauseFailureRef }
+  if (value.frontierBindingSha256 !== sha256(canonicalize(binding))) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+  if (!Array.isArray(value.extraExecutions) || value.extraExecutions.length > 400) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+  const extras = [], names = new Set(base)
+  for (const extra of value.extraExecutions) {
+    const extraKeys = ['name','bodyRef','uid','creator','createTime','completionTime','succeededCount','templateSha256','bodySha256']
+    if (!extra || Object.keys(extra).sort().join(',') !== extraKeys.sort().join(',') || canonicalWorkerExecution(extra.name) !== extra.name
+      || names.has(extra.name) || !Number.isFinite(Date.parse(extra.createTime)) || !Number.isFinite(Date.parse(extra.completionTime))
+      || Date.parse(extra.completionTime) < Date.parse(extra.createTime) || extra.creator !== profile.normalActor
+      || !H64.test(extra.templateSha256 ?? '') || !H64.test(extra.bodySha256 ?? '')) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+    assertOpenSwxWorkerRef(extra.bodyRef)
+    const body = (await transport.readJson(extra.bodyRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+    const execution = assertTerminalExecution(body, extra.name, { success: true })
+    if (execution.uid !== extra.uid || execution.creator !== extra.creator || execution.createTime !== extra.createTime
+      || execution.completionTime !== extra.completionTime || execution.succeededCount !== extra.succeededCount
+      || sha256(canonicalize(normalizeWorkerTemplate(execution.template))) !== extra.templateSha256 || sha256(canonicalize(body)) !== extra.bodySha256
+      || sha256(canonicalize(normalizeWorkerTemplate(execution.template))) !== sha256(canonicalize(prior.template.template))
+      || Date.parse(execution.completionTime) > Date.parse(requestRow.value.requestStartedAt)) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+    names.add(extra.name); extras.push(execution)
+  }
+  if (sha256(canonicalize(extras.map(row => row.name).sort())) !== value.extraExecutionNamesSha256) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+  const expectedExecutionNames = [...names].sort()
+  if (canonicalize(requestRow.value.baselineExecutionNames) !== canonicalize(expectedExecutionNames)) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+  return { expectedExecutionNames, extraExecutions: extras }
+}
+
+async function readFailedDailyDrainFailure({ transport, failureRef, inputRef, input, requestRow, latch, descriptor, artifact, prior, profile, expectedExecutionNames = null }) {
   const appServiceName = 'ai-pdm-prod'
   assertOpenSwxWorkerRef(failureRef)
   const row = await transport.readJson(failureRef, BUCKET, [WORKER_RECEIPT_PREFIX])
@@ -1231,7 +1277,7 @@ async function readFailedDailyDrainFailure({ transport, failureRef, inputRef, in
   const expectedStdoutFilter = ['resource.type="cloud_run_job"','resource.labels.project_id="' + profile.projectId + '"','resource.labels.location="' + profile.location + '"','resource.labels.job_name="' + profile.jobId + '"','labels."run.googleapis.com/execution_name="' + executionId + '"','logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Fstdout"','timestamp>="' + execution.createTime + '"','timestamp<="' + execution.completionTime + '"'].join(' AND ')
   const expectedClaimFilter = ['resource.type="cloud_run_revision"','resource.labels.project_id="' + profile.projectId + '"','resource.labels.location="' + profile.location + '"','resource.labels.service_name="' + appServiceName + '"','logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Frequests"','timestamp>="' + execution.createTime + '"','timestamp<="' + execution.completionTime + '"','httpRequest.requestUrl="' + profile.canonicalOrigin + '/api/openswx-metadata-jobs/claim"'].join(' AND ')
   if (stdout.filter !== expectedStdoutFilter || claim.filter !== expectedClaimFilter) fail('OPENSWX_FAILED_DAILY_FAILURE_INVALID')
-  const expectedNames = artifact.failedDaily.failed.expectedExecutionNames
+  const expectedNames = expectedExecutionNames ?? artifact.failedDaily.failed.expectedExecutionNames
   if (request.baselineExecutionNames.some(name => !expectedNames.includes(name)) || expectedNames.some(name => !request.baselineExecutionNames.includes(name))) fail('OPENSWX_FAILED_DAILY_FAILURE_INVALID')
   // Retain the provider execution envelope internally.  Current-resource
   // admission replays the terminal template and identity fields before it
@@ -1242,7 +1288,7 @@ async function readFailedDailyDrainFailure({ transport, failureRef, inputRef, in
 
 /** Read only a sealed, incomplete daily pause. Its latched execution is history,
  * not a completed pause/bootstrap and never a fresh database-admission proof. */
-export async function readPartialFailedDailyPause({ transport, inputRef, failed, prior, profile, readSource, currentManifest, historyBasisRef = null, historyBindings = null, failureRef = null }) {
+export async function readPartialFailedDailyPause({ transport, inputRef, failed, prior, profile, readSource, currentManifest, historyBasisRef = null, historyBindings = null, failureRef = null, frontierRebaseRef = null, frontierRebaseSourceLockRef = null, frontierRebaseDeadlineAt = null, frontierRebaseCompletedCheckpointRef = null }) {
   if (historyBasisRef) {
     const projection = readAiPdmQualifiedHistoryProjection({ basisRef: historyBasisRef, kind: 'partial', frontierRef: inputRef ?? null, bindings: historyBindings })
     return inputRef ? { ...failed, ...projection } : failed
@@ -1289,13 +1335,16 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
         }
         if (!requestRow || !latch) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
         const request = requestRow.value
+        const frontier = frontierRebaseRef ? await readFailedDailyFrontierRebase({ transport, frontierRebaseRef, sourceLockRef: frontierRebaseSourceLockRef, frontierRebaseDeadlineAt, frontierRebaseCompletedCheckpointRef,
+          inputRef, failureRef, input, requestRow, descriptor: descriptor.value, artifact, prior, profile }) : null
+        const expectedExecutionNames = frontier?.expectedExecutionNames ?? failed.expectedExecutionNames
         if (!request || Object.keys(request).sort().join(',') !== 'actor,baselineExecutionNames,jobName,ownerApplicationId,requestStartedAt,requestWindowEndsAt,schemaVersion,sourceArchiveSha256,sourceRevision,templateSha256'
           || request.schemaVersion !== 'aipdm.openswx-finite-request.v1' || request.ownerApplicationId !== 'ai-pdm' || request.jobName !== workerJobName() || request.actor !== profile.normalActor
           || request.sourceRevision !== prior.descriptor.sourceRevision || request.sourceArchiveSha256 !== prior.descriptor.sourceArchiveSha256
           || request.templateSha256 !== sha256(canonicalize(prior.template)) || failedDailyTime(request.requestStartedAt) < failedDailyTime(artifact.failedDaily.baseline.observationCompletedAt)
           || failedDailyTime(request.requestWindowEndsAt) < failedDailyTime(request.requestStartedAt) || failedDailyTime(request.requestWindowEndsAt)-failedDailyTime(request.requestStartedAt) > 30_000
           || failedDailyTime(request.requestWindowEndsAt) > failedDailyTime(input.deadlineAt)) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
-        failedDailySame(request.baselineExecutionNames, failed.expectedExecutionNames)
+        failedDailySame(request.baselineExecutionNames, expectedExecutionNames)
         // A partial native pause may already have restored the completed Job.
         // Admit normal only from that source-bound restoration, never its name.
         let currentJobRestoration = null
@@ -1304,8 +1353,9 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
           if (failedDailyTime(currentJobRestoration.value.observedAt)>failedDailyTime(request.requestStartedAt)) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
         }
         if (failureRef) {
-          const failedAttempt = await readFailedDailyDrainFailure({ transport, failureRef, inputRef, input, requestRow, latch, descriptor: descriptor.value, artifact, prior, profile, currentManifest })
-          return { ...failed, currentTemplateMode: 'NORMAL', currentJobRestoration, failedPauseExecutions: [...(failed.failedPauseExecutions ?? []), failedAttempt.executionProjection] }
+          const failedAttempt = await readFailedDailyDrainFailure({ transport, failureRef, inputRef, input, requestRow, latch, descriptor: descriptor.value, artifact, prior, profile, expectedExecutionNames })
+          return { ...failed, expectedExecutionNames, currentTemplateMode: 'NORMAL', currentJobRestoration,
+            failedPauseExecutions: [...(failed.failedPauseExecutions ?? []), failedAttempt.executionProjection] }
         }
         return { ...failed, currentTemplateMode:'NORMAL', currentJobRestoration, partialPause: { inputRef, requestRow, operationRef: latch.ref, deadlineAt: input.deadlineAt } }
       })
