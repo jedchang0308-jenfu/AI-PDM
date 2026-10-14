@@ -1,3 +1,23 @@
+<a id="r23-prepare-duplicate-history-replay-and-owner-repair-classification--2026-10-14"></a>
+
+### R23 prepare duplicate history replay and owner repair classification — 2026-10-14
+
+Status: LOCAL_PASS / PRODUCTION_PENDING / releaseAuthority=false.
+
+R23 used official merged main `d0f597e9cbfebef627e5db2cad02f5f9c0f0946c`. Owner prepare completed the ordinary DAILY native history path, then the unconditional repair-stage-basis probe opened a fresh evidence root and called the full worker resolver again. The second complete replay ended with `DEV121_OWNER_RELEASE_PROOF_OBSERVATION_EXPIRED` after approximately ten minutes. The first effective failure was prepare; build, migration, candidate, entrypoint, verify, decision, activate, canonical and finalize did not run. Migration 085 therefore remained unapplied and no candidate or traffic change occurred. The exact captured fence was restored only to its previous AUTOMATIC/max1 scaling state with a fresh service etag; the prior production revision remained at 100%. Production request/readback bodies and the private recovery result remain outside the repository.
+
+The correction separates authenticated descriptor reading from full worker resolution. `classifyRepair` uses the original strict descriptor reader and workflow/execution-mode checks, then returns only the existing paused-repair predicate and descriptor identity. The stage executor returns immediately for an ordinary descriptor. For a repair descriptor it still calls the original full resolver, rechecks paused-repair semantics and requires canonical descriptor-ref equality before continuing. No history qualification, source/archive, depth, clock, hash/cycle, provider-current, migration, credential, IAM, traffic or recovery predicate was relaxed.
+
+Synthetic acceptance on the final implementation bytes:
+- ordinary `aipdm.openswx-worker-descriptor.v4` with `historyBasisRef`: non-repair after one exact own-bucket descriptor read and no history traversal;
+- paused repair v2 descriptor: repair classification true, followed by the unchanged full repair path in existing suites;
+- focused owner/stage/proof: 226/226 PASS;
+- final changed owner-release test file: 36/36 PASS;
+- `test:dev-117:continuous`: 334/334 PASS;
+- `qc:dev-117:continuous`: aggregate 401/401 PASS, role catalog 3/3, abort 6/6, database boundary 22 governed files, application typecheck and isolated build PASS with artifact/primary/cleanup=true;
+- native local report: `DEV117-S1B-20261014T030721516Z-23DDD67D`.
+
+Required protected CI, new Production source freeze/release, migration 085, 100% RD v7 traffic and the two designated fixture accounts' drawing/part edit, submit and approve-denied UI results remain pending. Dani and Peter normal login/reload/same-identity are HUMAN_REPORTED_PASS and are reported separately.
 # DEV-121 finite operation / incomplete daily pause continuation
 
 Status: LOCAL_PASS / releaseAuthority=false.

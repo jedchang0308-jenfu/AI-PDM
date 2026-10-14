@@ -421,11 +421,19 @@ async function publishRepairEvidence({ transport, uri, value, profile, intent })
     fail('REPAIR_PUBLICATION_RECOVERY_REQUIRED')
   }
 }
+export async function resolveRepairStageDescriptor({ worker, intent, profile }) {
+  const classification = worker ? await worker.classifyRepair(intent, profile) : null
+  if (!classification?.repair) return null
+  const descriptor = await worker.resolve(intent, profile)
+  if (!descriptor || !isPausedAppRepair(descriptor.value)
+    || canonicalize(descriptor.ref) !== canonicalize(classification.descriptorRef)) fail('REPAIR_DESCRIPTOR_CLASSIFICATION_INVALID')
+  return descriptor
+}
 async function readRepairStageBasis({ worker, intent, intentRef, profile, transport, readWorkerSource, buildMigrationBundle, environment, currentDeployment = null, currentPrepare = null }) {
   currentExecutionDeadline(intent)
   const result = await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
-    const descriptor = worker ? await worker.resolve(intent, profile) : null
-    if (!descriptor || !isPausedAppRepair(descriptor.value)) return null
+    const descriptor = await resolveRepairStageDescriptor({ worker, intent, profile })
+    if (!descriptor) return null
     if (profile.application.id !== 'ai-pdm' || intent.principalOnlyRecovery || intent.principalOnlyFenceRef || typeof buildMigrationBundle !== 'function') fail('REPAIR_CAPSULE_INVALID')
     const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource)
     const original = assertAiPdmHistoricalMigration(evidence.artifact.servingGraph.original)

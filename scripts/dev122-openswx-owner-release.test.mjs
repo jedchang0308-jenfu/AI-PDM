@@ -51,6 +51,34 @@ test('B23 repair descriptor derives full mode and preserved credentials without 
   for (const patch of [{ purpose: 'build_only' }, { releaseVariant: 'DAILY' }, { pausedDrainedRef: ref('forged') }, { bounds: { ...value.bounds, maxExecutionPages: 5 } }, { tokenSecretVersion: token.replace('/7', '/latest') }]) assert.throws(() => assertWorkerDescriptor({ ...value, ...patch }, profile, retained.workerProfileSha256, sourceRevision))
 })
 
+test('repair classification validates only the pinned descriptor before choosing the full repair path', async () => {
+  const { baseline, retained } = b23Baseline(), baselineRef = ref('classification-baseline'), associationRef = ref('classification-association')
+  const association = { ...baseline.source, schemaVersion: 'aipdm.openswx-worker-build-association.v2', resourceBasis: 'PAUSED_APP_REPAIR', resourceAssociation: { readbackRef: baselineRef }, priorActivationRef: baseline.priorActivationRef }
+  const repair = buildPausedRepairDescriptor({ profile, association, associationRef, baseline, baselineRef, retainedDescriptor: retained, retainedDescriptorRef: baseline.retainedWorkerDescriptorRef })
+  const daily = { ...workerDescriptor('full'), schemaVersion: 'aipdm.openswx-worker-descriptor.v4', artifactMode: 'REUSE_VERIFIED', historyBasisRef: ref('classification-history-basis') }
+  for (const [name, descriptor, expected] of [['daily-v4', daily, false], ['repair', repair, true]]) {
+    const bytes = Buffer.from(canonicalize(descriptor)), descriptorRef = { ...ref(`classification-${name}`), sha256: sha256(bytes) }
+    let reads = 0
+    const owner = createOpenSwxOwnerRelease({
+      transport: { async readJson(actual, actualBucket, prefixes) {
+        reads++
+        assert.deepEqual(actual, descriptorRef)
+        assert.equal(actualBucket, 'jenfu-platform-prod-aipdm-release')
+        assert.deepEqual(prefixes, ['receipts/dev-122/openswx-worker'])
+        return { value: descriptor, bytes, ref: descriptorRef }
+      } },
+      readSource(path, actualRevision) {
+        assert.equal(path, 'config/release/dev122-openswx-worker.json')
+        assert.equal(actualRevision, sourceRevision)
+        return profileBytes
+      },
+      environment: { GITHUB_WORKFLOW_REF: `${appProfile.application.repository}/${appProfile.workflow.path}@refs/heads/main`, OWNER_EXECUTION_MODE: 'full_release' },
+    })
+    const classified = await owner.classifyRepair({ sourceRevision, openswxWorkerRef: descriptorRef, deadlineAt: '2999-01-01T00:00:00Z' }, appProfile)
+    assert.deepEqual(classified, { descriptorRef, schemaVersion: descriptor.schemaVersion, purpose: 'full', repair: expected })
+    assert.equal(reads, 1, `${name} classification must not traverse worker history or full evidence`)
+  }
+})
 test('B24 finalize cannot use forward pending-only mode for an ordinary worker or an unbound migration profile', async () => {
   const { baseline, retained } = b23Baseline(), baselineRef = ref('paused-baseline'), associationRef = ref('association')
   const association = { ...baseline.source, schemaVersion: 'aipdm.openswx-worker-build-association.v2', resourceBasis: 'PAUSED_APP_REPAIR', resourceAssociation: { readbackRef: baselineRef }, priorActivationRef: baseline.priorActivationRef }
