@@ -1,5 +1,11 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
+## 2026-10-16 CURRENT：優先項目 2 RD 圖號工作台權限獨立切片
+
+狀態為 `LOCAL_RD_PERMISSION_PASS / REQUIRED_CI_PENDING / PRODUCTION_NOT_RUN`。v7 `rd` capability、forward-only 085、Principal guard、effective grant、workbench API 與 UI capability vector 已依共同失效路徑核對；新增唯一 native PostgreSQL case，以同一 signed RD actor／grant／catalog 驗 permissions、實際圖號 read／submit，並驗同 actor approval 403、QA workbench 403 與拒絕前後零 lifecycle side effect。這是 fixture/local contract，不是正式 actor 或 provider readback。
+
+本輪沒有修改產品授權程式、catalog、085 或其他 repository。正式 085 applied、active catalog、實際 RD grant/session 與真實 UI/API 結果仍未知。若 085 未套用，只能準備正常 app-owned full35 migration release；program-only／closed34／prefix33 不適用。若 085 已套用則不得修改，必要修正須下一個可用本地 ID 的 forward-only migration。正式 migration／deploy／traffic／rollback／IAM／Secret／worker／Scheduler／資料修改未授權且未執行。[B53 證據](../qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)。管理員辨識、PDF、supplier、完整原生 CAD 與其餘 DEV-122 項目維持暫停；7 issues／29 groups 與 whole DEV `NOT_ACCEPTED` 不變。
+
 ## DEV-122 CURRENT（正式R10；B52搜尋網址修復通過，審核跳轉P1仍開）
 
 本任務最新發布為官方來源 `0d0235d348bf129ef7207c1dfa04f55d18f82567`（PR #269）的 R10 owner [38125246874](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38125246874)。十階段 SUCCESS；2026-10-11 09:11Z provider 讀回 `ai-pdm-prod-1be8986b68ce` 100%、零 tags、FINALIZED／RELEASED。資料庫 applied0／replayed33／ledger33、NO084；worker generation17 READY、Scheduler ENABLED且資源未修改。本次限定 IAM 計畫0 create／12 no-op，Terraform apply／readback已執行，不將可能的state writes稱為全程唯讀。[R10 發布讀回](../qa/DEV-122-B36-R10-production-release-closure-2026-10-11.json)。

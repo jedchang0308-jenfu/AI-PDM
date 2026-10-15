@@ -5978,3 +5978,8 @@ DEV-121 仍維護 verified Principal、scope／撤權、existing effect publish�
 ### 2026-10-06 保存草稿收斂（HISTORY_ONLY）
 
 [DEV-121 主線收斂／原稿保存](qa/DEV-121-preserved-workspace-drafts-2026-10-06.md)：RECONCILED_HISTORY_ONLY。相關 runtime 已在 main 或已確認不採用；原始文件與程式 patch 保存供追溯，不是新的待開發或發布指令。本批不改變 DEV-121 正式結案，DEV-122 延期與其他工作樹原稿保留；必要 CI／review 以本文件 PR 精確來源為準。
+## DEV-122#rd-permission — 2026-10-16 RD 圖號工作台權限獨立切片（LOCAL PASS，CI／Production 待完成）
+
+本切片只處理優先項目 2。已證實 v7 `rd` 角色包含 `page:numbering.drawings.view` 與既有 create／update／submit，仍拒絕 approval；085 是未修改的 forward-only v6→v7 publication。新增 exact native selector 後，隔離 PostgreSQL 以同一 signed RD actor／grant／catalog 完成 permissions GET、實際 drawing workbench data 與 submit，approval POST 403 且零 lifecycle side effect；QA 圖號列表 GET 403 且零 side effect。專用案例 1/1 為 `LOCAL_RD_PERMISSION_PASS`，既有 catalog／migration、70-case Principal／workbench、DB boundary、route classification、current35 fixture、final-byte typecheck／isolated build 均已通過；required CI 尚待 PR。
+
+產品共同失效機制位於 active catalog publication→effective grant→session→Principal evaluator，不在 UI 加例外。本輪沒有產品權限碼、catalog 或 migration 變更。正式 085 applied、active v7、真實 RD grant/session 與正式 UI/API 結果仍未知；不得由 local fixture 推定。若 085 未套用，需正常 app-owned full35 migration release，program-only／closed34／prefix33 不適用；若 v7 已 active 而 grant/session 失效，分別回到 OrgMaster assignment 或 Platform session 責任邊界，需另授權寫入。正式 migration／deploy／traffic／IAM／Secret／worker／Scheduler／資料修改均未執行。詳見 [B53 本機證據](qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)。管理員辨識、PDF、supplier、原生 CAD 與其餘 DEV-122 工作保持暫停；whole DEV 仍 `NOT_ACCEPTED`。
