@@ -53,8 +53,8 @@ export function assertOpenSwxWorkerRef(ref) {
   if (!/^[A-Za-z0-9._/-]+\.json$/u.test(name) || name.split('/').some(part => !part || part === '.' || part === '..')) fail('IMMUTABLE_REF_INVALID')
   return ref
 }
-export function assertOpenSwxWorkerProfile(value) {
-  const fixed = {
+function fixedOpenSwxWorkerProfile(ownerDeadlineSeconds) {
+  return {
     schemaVersion: 'aipdm.openswx-worker-profile.v1', ownerApplicationId: 'ai-pdm',
     projectId: PROJECT, projectNumber: NUMBER, location: REGION, jobId: JOB,
     readerServiceAccount: `aipdm-prod-openswx-reader@${PROJECT}.iam.gserviceaccount.com`,
@@ -67,9 +67,17 @@ export function assertOpenSwxWorkerProfile(value) {
     receiptRoot: `gs://${BUCKET}/${WORKER_RECEIPT_PREFIX}`, backendBucket: 'tfstate-jenfu-platform-prod', backendPrefix: 'dev-122/openswx-worker',
     dockerfile: 'scripts/lib/openswx-reader/Dockerfile', dockerTarget: 'finite-worker', readerSource: 'scripts/lib/openswx-reader',
     dispatchPolicy: 'scheduler_only.v1',
-    bounds: { cpu: '1', memory: '1Gi', taskCount: 1, parallelism: 1, timeoutSeconds: 300, maxRetries: 0, schedule: '*/5 * * * *', schedulerRetryCount: 0, schedulerAttemptDeadlineSeconds: 30, recoverDeadlineSeconds: 20, ownerDeadlineSeconds: OWNER_DEADLINE_SECONDS, pollMilliseconds: 1000, maxExecutionPages: 4, maxLogPages: 4, maxLogEntries: 100, proofFreshnessSeconds: 60 },
+    bounds: { cpu: '1', memory: '1Gi', taskCount: 1, parallelism: 1, timeoutSeconds: 300, maxRetries: 0, schedule: '*/5 * * * *', schedulerRetryCount: 0, schedulerAttemptDeadlineSeconds: 30, recoverDeadlineSeconds: 20, ownerDeadlineSeconds, pollMilliseconds: 1000, maxExecutionPages: 4, maxLogPages: 4, maxLogEntries: 100, proofFreshnessSeconds: 60 },
   }
+}
+export function assertOpenSwxWorkerProfile(value) {
+  const fixed = fixedOpenSwxWorkerProfile(OWNER_DEADLINE_SECONDS)
   if (canonicalize(value) !== canonicalize(fixed)) fail('OPENSWX_WORKER_PROFILE_INVALID')
+  return value
+}
+export function assertHistoricalOpenSwxWorkerProfile(value) {
+  const accepted = [OWNER_DEADLINE_SECONDS, 600].map(fixedOpenSwxWorkerProfile)
+  if (!accepted.some(fixed => canonicalize(value) === canonicalize(fixed))) fail('OPENSWX_WORKER_PROFILE_INVALID')
   return value
 }
 export function canonicalWorkerExecution(name) {
@@ -102,8 +110,9 @@ export function workerTemplatePolicy(profile, mode) {
   for (const env of template.template.containers[0].env) if (env.valueSource) env.valueSource.secretKeyRef.version = 'TOKEN_NUMERIC_VERSION'
   return { schemaVersion: 'aipdm.openswx-template-policy.v1', mode, template }
 }
-export function assertWorkerDescriptor(value, profile, profileSha256, sourceRevision) {
-  assertOpenSwxWorkerProfile(profile)
+export function assertWorkerDescriptor(value, profile, profileSha256, sourceRevision, { historicalProfile = false } = {}) {
+  const validateProfile = historicalProfile ? assertHistoricalOpenSwxWorkerProfile : assertOpenSwxWorkerProfile
+  validateProfile(profile)
   const common = ['schemaVersion', 'ownerApplicationId', 'purpose', 'sourceRevision', 'sourceArchiveSha256', 'workerProfileSha256', 'projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'resourcePlanHash', 'normalTemplatePolicySha256', 'selftestTemplatePolicySha256', 'dispatchPolicy', 'bounds', 'receiptRoot']
   const repair = value?.schemaVersion === 'aipdm.openswx-worker-descriptor.v3'
   const basis = value?.schemaVersion === 'aipdm.openswx-worker-descriptor.v4'
@@ -229,14 +238,14 @@ export function buildPausedRepairDescriptor({ profile, association, associationR
     tokenSecretVersion: baseline.after.numericCredentials.token, registrySecretVersion: baseline.after.numericCredentials.registry }
   return assertWorkerDescriptor(value, profile, value.workerProfileSha256, value.sourceRevision)
 }
-export async function readWorkerDescriptor({ transport, ref, profileBytes, sourceRevision, nestedCheckpointRef = null }) {
+export async function readWorkerDescriptor({ transport, ref, profileBytes, sourceRevision, nestedCheckpointRef = null, historicalProfile = false }) {
   assertOpenSwxWorkerRef(ref)
-  const profile = assertOpenSwxWorkerProfile(JSON.parse(profileBytes))
+  const profile = (historicalProfile ? assertHistoricalOpenSwxWorkerProfile : assertOpenSwxWorkerProfile)(JSON.parse(profileBytes))
   if (nestedCheckpointRef && canonicalize(nestedCheckpointRef) !== canonicalize(ref)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
   const result = nestedCheckpointRef && typeof transport.readJsonForNestedCheckpointDescriptor === 'function'
     ? await transport.readJsonForNestedCheckpointDescriptor(ref, BUCKET, [WORKER_RECEIPT_PREFIX])
     : await transport.readJson(ref, BUCKET, [WORKER_RECEIPT_PREFIX])
-  assertWorkerDescriptor(result.value, profile, sha256(profileBytes), sourceRevision)
+  assertWorkerDescriptor(result.value, profile, sha256(profileBytes), sourceRevision, { historicalProfile })
   return { ...result, profile }
 }
 export function assertWorkerRuntimeJoin(runtimeConfig, intent, descriptor = null) {
