@@ -167,6 +167,8 @@ test('historical worker profiles accept the retired 600-second deadline only on 
   assertHistoricalOpenSwxWorkerProfile(profile)
   assertHistoricalOpenSwxWorkerProfile(historical)
   assert.throws(() => assertOpenSwxWorkerProfile(historical), /OPENSWX_WORKER_PROFILE_INVALID/u)
+  assert.throws(() => workerTemplatePolicy(historical, 'normal'), /OPENSWX_WORKER_PROFILE_INVALID/u)
+  assert.doesNotThrow(() => workerTemplatePolicy(historical, 'normal', { historicalProfile: true }))
   for (const deadline of [599, 601]) {
     const invalid = structuredClone(historical)
     invalid.bounds.ownerDeadlineSeconds = deadline

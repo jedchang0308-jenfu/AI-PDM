@@ -91,8 +91,8 @@ export function assertNumericSecret(name, secretId) {
   if (!new RegExp(`^projects/(?:${PROJECT}|${NUMBER})/secrets/${secretId}/versions/[1-9][0-9]*$`, 'u').test(name ?? '')) fail('OPENSWX_NUMERIC_SECRET_INVALID')
   return name.replace(`projects/${PROJECT}/`, `projects/${NUMBER}/`)
 }
-export function workerTemplate(profile, image, tokenVersion, mode = 'normal') {
-  assertOpenSwxWorkerProfile(profile)
+export function workerTemplate(profile, image, tokenVersion, mode = 'normal', { historicalProfile = false } = {}) {
+  (historicalProfile ? assertHistoricalOpenSwxWorkerProfile : assertOpenSwxWorkerProfile)(profile)
   if (!image?.startsWith(`${profile.artifactUri}@sha256:`) || !H64.test(image.split('@sha256:')[1] ?? '') || !['normal', 'selftest'].includes(mode)) fail('OPENSWX_TEMPLATE_INVALID')
   const secret = mode === 'normal' ? assertNumericSecret(tokenVersion, profile.tokenSecretId) : null
   const env = mode === 'normal' ? [
@@ -104,8 +104,8 @@ export function workerTemplate(profile, image, tokenVersion, mode = 'normal') {
 }
 // Policy hashes have a separate schema and literal placeholders. They never
 // certify an actual provider template, image or credential version.
-export function workerTemplatePolicy(profile, mode) {
-  const template = workerTemplate(profile, `${profile.artifactUri}@sha256:${'0'.repeat(64)}`, `projects/${NUMBER}/secrets/${profile.tokenSecretId}/versions/1`, mode)
+export function workerTemplatePolicy(profile, mode, { historicalProfile = false } = {}) {
+  const template = workerTemplate(profile, `${profile.artifactUri}@sha256:${'0'.repeat(64)}`, `projects/${NUMBER}/secrets/${profile.tokenSecretId}/versions/1`, mode, { historicalProfile })
   template.template.containers[0].image = 'WORKER_IMAGE_DIGEST'
   for (const env of template.template.containers[0].env) if (env.valueSource) env.valueSource.secretKeyRef.version = 'TOKEN_NUMERIC_VERSION'
   return { schemaVersion: 'aipdm.openswx-template-policy.v1', mode, template }
@@ -125,8 +125,8 @@ export function assertWorkerDescriptor(value, profile, profileSha256, sourceRevi
     || (repair && (value.purpose !== 'full' || value.releaseVariant !== 'PAUSED_APP_REPAIR'))
     || !H40.test(sourceRevision ?? '') || value.sourceRevision !== sourceRevision || value.workerProfileSha256 !== profileSha256
     || !H64.test(profileSha256 ?? '') || ['sourceArchiveSha256', 'resourcePlanHash'].some(key => !H64.test(value[key] ?? ''))
-    || value.normalTemplatePolicySha256 !== sha256(canonicalize(workerTemplatePolicy(profile, 'normal')))
-    || value.selftestTemplatePolicySha256 !== sha256(canonicalize(workerTemplatePolicy(profile, 'selftest')))) fail('OPENSWX_DESCRIPTOR_INVALID')
+    || value.normalTemplatePolicySha256 !== sha256(canonicalize(workerTemplatePolicy(profile, 'normal', { historicalProfile })))
+    || value.selftestTemplatePolicySha256 !== sha256(canonicalize(workerTemplatePolicy(profile, 'selftest', { historicalProfile })))) fail('OPENSWX_DESCRIPTOR_INVALID')
   for (const key of ['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot']) if (canonicalize(value[key]) !== canonicalize(profile[key])) fail('OPENSWX_DESCRIPTOR_INVALID')
   for (const key of additional.filter(key => key.endsWith('Ref'))) assertOpenSwxWorkerRef(value[key])
   if (value.purpose === 'full') { assertNumericSecret(value.tokenSecretVersion, profile.tokenSecretId); assertNumericSecret(value.registrySecretVersion, profile.registrySecretId) }
