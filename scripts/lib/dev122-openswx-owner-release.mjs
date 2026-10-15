@@ -1,6 +1,6 @@
 import { assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { assertProgramOnlyPolicy, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
-import { readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
+import { READBACK_IAM_PATHS, readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
 import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { resolveWorkerArtifact, verifyWorkerArtifactReuse, createWorkerEvidenceContext, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
 import { runAiPdmEvidenceContext, descendAiPdmEvidenceContext, ensureAiPdmNativeHistoryBasis, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
@@ -585,7 +585,7 @@ export async function assertPausedDrainReceipt(transport, paused, descriptor, pr
   } else fail('OPENSWX_DRAIN_KIND_INVALID')
   })
 }
-export async function readBootstrapSupplementalIam(transport, bootstrap, descriptor, profile, readSource, verificationSourceRevision = descriptor.sourceRevision) {
+export async function readBootstrapSupplementalIam(transport, bootstrap, descriptor, profile, readSource, verificationSourceRevision = descriptor.sourceRevision, historicalReadSource = null) {
   let ref = null, prebuildIamContinuationRef = null
   if (bootstrap.facts.completedFirstBootstrap) {
     const applied = (await transport.readJson(bootstrap.facts.resourceApplyRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
@@ -608,25 +608,43 @@ export async function readBootstrapSupplementalIam(transport, bootstrap, descrip
   if (typeof readSource !== 'function') fail('OPENSWX_IAM_SOURCE_READER_REQUIRED')
   assertOpenSwxWorkerRef(ref)
   const receipt = (await transport.readJson(ref, BUCKET, [WORKER_RECEIPT_PREFIX])).value
+  const readerFor = revision => {
+    if (readSource.sourceRevision === revision) return readSource
+    if (historicalReadSource?.isHistorical === true
+      && (historicalReadSource.sourceRevision === revision || historicalReadSource.historicalReadRevisions?.has?.(revision))) return historicalReadSource
+    try { readSource.readArchive?.(revision); return readSource } catch { /* historical source below */ }
+    // A reader may already expose the exact immutable IAM closure for a
+    // historical revision without exposing a full archive (for example, a
+    // nested checkpoint reader). Probe one admitted closure path before
+    // asking it to authorize a new origin. This keeps the source hash-bound
+    // while avoiding duplicate/unsupported origin authorization.
+    try { readSource(READBACK_IAM_PATHS[0], revision); return readSource } catch { /* historical source below */ }
+    readSource.authorizeOrigin?.(revision)
+    if (typeof readSource.createHistoricalReader !== 'function') fail('OPENSWX_IAM_SOURCE_READER_REQUIRED')
+    return readSource.createHistoricalReader(revision)
+  }
+  const descriptorReader = readerFor(descriptor.sourceRevision)
+  const verificationReader = readerFor(verificationSourceRevision)
+  const receiptReader = readerFor(receipt.sourceRevision)
   // Subsequent DAILY releases may retain the exact unchanged IAM source package.
-  if (receipt.planSha256 !== sha256(canonicalize(readbackIamPlan(readSource, descriptor.sourceRevision)))
-    || receipt.planSha256 !== sha256(canonicalize(readbackIamPlan(readSource, verificationSourceRevision)))) fail('OPENSWX_IAM_SOURCE_DRIFT')
+  if (receipt.planSha256 !== sha256(canonicalize(readbackIamPlan(descriptorReader, descriptor.sourceRevision)))
+    || receipt.planSha256 !== sha256(canonicalize(readbackIamPlan(verificationReader, verificationSourceRevision)))) fail('OPENSWX_IAM_SOURCE_DRIFT')
   if (bootstrap.facts.completedFirstBootstrap && receipt.sourceRevision !== descriptor.sourceRevision) fail('OPENSWX_IAM_AUTHORITY_CHAIN_INVALID')
-  await readReadbackIamReceipt({ transport, ref, sourceRevision: receipt.sourceRevision, readSource, normalActor: profile.normalActor })
+  await readReadbackIamReceipt({ transport, ref, sourceRevision: receipt.sourceRevision, readSource: receiptReader, normalActor: profile.normalActor })
   if (prebuildIamContinuationRef) await readPrebuildIamContinuation({ transport, ref: prebuildIamContinuationRef, supplementalIamReadbackRef: ref,
-    sourceRevision: verificationSourceRevision, readSource, normalActor: profile.normalActor })
+    sourceRevision: verificationSourceRevision, readSource: verificationReader, normalActor: profile.normalActor })
   return { ref, sourceRevision: receipt.sourceRevision, ...(prebuildIamContinuationRef ? { prebuildIamContinuationRef, verificationSourceRevision } : {}) }
 }
-export async function readWorkerFullEvidence(transport, descriptor, profile, readSource, ctx = createWorkerEvidenceContext()) {
+export async function readWorkerFullEvidence(transport, descriptor, profile, readSource, ctx = createWorkerEvidenceContext(), historicalReadSource = null) {
   return runAiPdmEvidenceContext(ctx, async () => {
   if (descriptor.purpose !== 'full') fail('OPENSWX_FULL_DESCRIPTOR_REQUIRED')
   const results = {};
-  const artifact = await resolveWorkerArtifact({ transport, descriptor, profile, readSource, ctx })
+  const artifact = await resolveWorkerArtifact({ transport, descriptor, profile, readSource, historicalReadSource, ctx })
   if (isPausedAppRepair(descriptor)) {
     const owner = artifact.bootstrapDescriptor
     if (!owner || isPausedAppRepair(owner) || owner.purpose !== 'full' || canonicalize(artifact.bootstrapDescriptorRef) !== canonicalize(descriptor.retainedWorkerDescriptorRef)) fail('OPENSWX_REPAIR_BOOTSTRAP_OWNER_INVALID')
     const retained = await runAiPdmEvidenceContext(artifact.graphContext, () =>
-      readWorkerFullEvidence(transport, owner, profile, readSource, descendAiPdmEvidenceContext(artifact.graphContext, artifact.bootstrapDescriptorRef, true)))
+      readWorkerFullEvidence(transport, owner, profile, readSource, descendAiPdmEvidenceContext(artifact.graphContext, artifact.bootstrapDescriptorRef, true), historicalReadSource))
     const supplementalIam = await readBootstrapSupplementalIam(transport, retained.receipts.bootstrapRef, owner, profile, readSource, descriptor.sourceRevision)
     return { image: artifact.image, receipts: retained.receipts, artifact, bootstrapDescriptor: owner, bootstrapDescriptorRef: artifact.bootstrapDescriptorRef, pausedBaseline: artifact.pausedBaseline,
       ...(supplementalIam ? { supplementalIam } : {}) }
@@ -647,7 +665,7 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
     if (results[field].facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, descriptor.tokenSecretVersion)))
       || results[field].facts.selftestTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, null, 'selftest')))) fail('OPENSWX_ACTUAL_TEMPLATE_JOIN_INVALID')
   }
-  await assertPausedDrainReceipt(transport, results.pausedDrainedRef, descriptor, profile, readSource, artifact.graphContext ?? ctx)
+  await assertPausedDrainReceipt(transport, results.pausedDrainedRef, descriptor, profile, historicalReadSource ?? readSource, artifact.graphContext ?? ctx)
   if (results.bootstrapRef.facts.bootstrapKind !== (results.pausedDrainedRef.facts.drainKind === 'FIRST_PROVIDER_ONLY' ? 'FIRST_CREATE' : 'DAILY_REFRESH')) fail('OPENSWX_BOOTSTRAP_DRAIN_JOIN_INVALID')
   if (descriptor.historyBasisRef && (results.bootstrapRef.facts.bootstrapKind !== 'DAILY_REFRESH' || results.pausedDrainedRef.facts.drainKind !== 'DAILY_DB_VERIFIED' || !artifact.failedDaily)) fail('OPENSWX_HISTORY_DAILY_ONLY')
   if (results.pausedDrainedRef.facts.drainKind === 'DAILY_DB_VERIFIED') {

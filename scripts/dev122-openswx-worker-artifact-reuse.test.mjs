@@ -256,6 +256,13 @@ async function b22ReuseIamFixture(options={}) {
     return h.readSource(repositoryPath, revision)
   }
   Object.assign(readSource, h.readSource)
+  readSource.createHistoricalReader = revision => {
+    const historical = (repositoryPath, sourceRevision) => readSource(repositoryPath, sourceRevision)
+    Object.assign(historical, readSource)
+    historical.sourceRevision = revision
+    historical.isHistorical = true
+    return historical
+  }
   const ref = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
   h.put = async (name, value) => h.seedBytes(ref(name).uri, Buffer.from(`${canonicalize(value)}\n`))
 const READBACK_IAM_PROJECT = 'jenfu-platform-prod'
@@ -1876,6 +1883,13 @@ async function rdProgramOnlyServingFixture() {
   app.image=wire.artifactDigest
   app.env.push({name:b35AppProfile.environment.candidateOriginEnvironmentName,value:tagUri})
   Object.assign(wire.readSource,h.readSource)
+   wire.readSource.createHistoricalReader=revision=>{
+     const historical=(name,sourceRevision)=>wire.readSource(name,sourceRevision)
+     Object.assign(historical,wire.readSource)
+     historical.sourceRevision=revision
+     historical.isHistorical=true
+     return historical
+   }
   h.transport.readOwnerSourceProof=async({sourceRevision,refs,verifyProvider})=>{const proof=await readAiPdmReleaseObservation({sourceRevision,refs,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl,readSource:wire.readSource});return {proof,provider:verifyProvider?await verifyOwnerProviderReadback({proof,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl}):null}}
   Object.assign(h.transport,{getService:async()=>structuredClone(service),getRevision:async()=>structuredClone(revision),effectiveRevision:validators.effectiveRevision,assertRevisionReady:validators.assertRevisionReady,assertServiceSettled:validators.assertServiceSettled,assertCanonicalEntrypoint:validators.assertCanonicalEntrypoint})
   h.lifecycle()
@@ -2003,6 +2017,13 @@ async function failedDailyFixture({programOnly=false,proofMetadata=false}={}) {
   const serving=programOnly?await rdProgramOnlyServingFixture():null,h=serving?.h??await rdDailyMetadataFixture({proofMetadata})
   const reader=serving?(name,revision)=>[oldRevision,currentRevision].includes(revision)?serving.wire.readSource(name,revision):h.readSource(name,revision):h.readSource
   Object.assign(reader,h.readSource)
+  if (serving) reader.createHistoricalReader=revision=>{
+    const historical=(name,sourceRevision)=>reader(name,sourceRevision)
+    Object.assign(historical,reader)
+    historical.sourceRevision=revision
+    historical.isHistorical=true
+    return historical
+  }
   const saved=serving?.wire.f.saved??await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:reader})
   h.put??=async(name,value)=>h.seed(name,value)
   h.lifecycle()
@@ -2573,6 +2594,7 @@ test('native history basis qualifies the complete eight-transition predecessor a
     assert.equal(revision,issuer.revision)
     const historical=(name,sourceRevision)=>issuer.reader(name,sourceRevision)
     Object.assign(historical,issuer.reader)
+    historical.historicalReadRevisions=new Set([issuer.revision,oldRevision])
     historical.assertCurrentFrozen=()=>{historicalFrozenChecks++;throw Error('HISTORICAL_READER_CANNOT_ASSERT_CURRENT')}
     historical.readArchive=()=>{historicalArchiveChecks++;historical.assertCurrentFrozen();throw Error('HISTORICAL_CURRENT_ARCHIVE_FORBIDDEN')}
     historical.readImmutableArchive=sourceRevision=>{
