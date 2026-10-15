@@ -20,7 +20,7 @@ import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeC
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, assertFailedDailyFullJoin, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
 import { qualifyAiPdmNativeHistoryBasis, deriveAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
-import { buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { assertHistoricalCheckpointDescriptor, buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan } from './lib/dev122-openswx-readback-iam.mjs'
@@ -59,6 +59,8 @@ function git(args) { const row = spawnSync('git', args, { cwd: root, encoding: n
 const actualTree = git(['ls-tree', '-r', '-z', '--full-tree', 'HEAD']), cache = new Map()
 function canonicalSource(name) { if (!cache.has(name)) cache.set(name, git(['show', `HEAD:${name}`])); return cache.get(name) }
 const profileBytes = canonicalSource(WORKER_PROFILE_PATH), profile = JSON.parse(profileBytes)
+const historicalProfileBytes = Buffer.from(profileBytes.toString('utf8').replace('"ownerDeadlineSeconds": 1200', '"ownerDeadlineSeconds": 600'))
+const historicalProfile = JSON.parse(historicalProfileBytes)
 const currentAppProfile = JSON.parse(canonicalSource('config/release/dev117-ai-pdm-independent-production-v3.json'))
 const appProfile = currentAppProfile
 const image = `${profile.artifactUri}@sha256:${'c'.repeat(64)}`, token = `projects/9536592944/secrets/${profile.tokenSecretId}/versions/7`, registry = `projects/9536592944/secrets/${profile.registrySecretId}/versions/9`
@@ -83,6 +85,35 @@ const oldTar = tar(manifest.entries), currentTar = tar(manifest.entries, [{ path
 const currentTree = Buffer.concat([actualTree, Buffer.from(`100644 blob ${'f'.repeat(40)}\tsrc/app/b19-app-only.txt\0`)])
 const now = '2026-10-07T15:00:00.000Z'
 const deadline = () => new Date(Date.now() + 120_000).toISOString()
+test('historical checkpoint validation uses its admitted 600 second profile instead of the current 1200 second profile', async () => {
+  const h = await harness()
+  assert.equal(sha256(historicalProfileBytes), '65d6530a0f1e713c7936bdb0889bb529742334a530b20b6e8bf18ea81a7461dc')
+  const checkpoint = {
+    ...h.full,
+    schemaVersion: 'aipdm.openswx-worker-descriptor.v4',
+    artifactMode: 'REUSE_VERIFIED',
+    historyBasisRef: h.fullRef,
+    workerProfileSha256: sha256(historicalProfileBytes),
+    bounds: historicalProfile.bounds,
+    normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'normal', { historicalProfile: true }))),
+    selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'selftest', { historicalProfile: true }))),
+  }
+  const historicalReader = (name, revision) => {
+    assert.equal(name, WORKER_PROFILE_PATH)
+    assert.equal(revision, checkpoint.sourceRevision)
+    return historicalProfileBytes
+  }
+  assert.doesNotThrow(() => assertHistoricalCheckpointDescriptor(checkpoint, profile, historicalReader))
+  const incompatibleBytes = Buffer.from(historicalProfileBytes.toString('utf8').replace('"maxLogPages": 4', '"maxLogPages": 5'))
+  assert.throws(
+    () => assertHistoricalCheckpointDescriptor(checkpoint, profile, () => incompatibleBytes),
+    { code: 'OPENSWX_WORKER_PROFILE_INVALID' },
+  )
+  assert.throws(
+    () => assertHistoricalCheckpointDescriptor(checkpoint, profile, () => Buffer.from('{')),
+    { code: 'OPENSWX_WORKER_PROFILE_INVALID' },
+  )
+})
 test('B23 closed repair input retains the four-argument CLI and pins serving/predecessor refs', () => {
   const workerRef = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
   const releaseRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-B23-LOCAL/release-intent.json', sha256: 'b'.repeat(64) }

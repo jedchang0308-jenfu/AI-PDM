@@ -43,6 +43,16 @@ function assertHistoricalProfileCompatibility(currentProfile, historicalProfile)
   }
   same(normalize(historicalProfile), normalize(currentProfile), 'OPENSWX_REUSE_HISTORICAL_PROFILE_DRIFT')
 }
+export function assertHistoricalCheckpointDescriptor(checkpoint, currentProfile, historicalReadSource) {
+  if (typeof historicalReadSource !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
+  const historicalProfileBytes = historicalReadSource(WORKER_PROFILE_PATH, checkpoint.sourceRevision)
+  let historicalProfile
+  try { historicalProfile = assertHistoricalOpenSwxWorkerProfile(JSON.parse(historicalProfileBytes)) }
+  catch (error) { if (error?.code) throw error; fail('OPENSWX_WORKER_PROFILE_INVALID') }
+  assertHistoricalProfileCompatibility(currentProfile, historicalProfile)
+  assertWorkerDescriptor(checkpoint, historicalProfile, sha256(historicalProfileBytes), checkpoint.sourceRevision, { historicalProfile: true })
+  return historicalProfile
+}
 function sourceReaderForRevision(readSource, revision) {
   if (readSource?.sourceRevision === revision) return readSource
   if (readSource?.isHistorical !== true && readSource?.supportsAdmittedHistoricalRevisions === true) return readSource
@@ -896,7 +906,6 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
    if (!effectiveHistoryBasisRef && input.completedFailedDailyCheckpointRef) {
      checkpoint = (await read(transport, input.completedFailedDailyCheckpointRef)).value
      if (checkpoint.schemaVersion === 'aipdm.openswx-worker-descriptor.v4') {
-       assertWorkerDescriptor(checkpoint, profile, checkpoint.workerProfileSha256, checkpoint.sourceRevision, { historicalProfile: true })
        const checkpointContext = descend(ctx, input.completedFailedDailyCheckpointRef, false)
        const nestedBindings = await runAiPdmEvidenceContext(checkpointContext, () => ensureAiPdmNestedCheckpointHistoryBasis({
          checkpointRef: input.completedFailedDailyCheckpointRef, checkpointDescriptor: checkpoint, basisRef: checkpoint.historyBasisRef,
@@ -907,6 +916,7 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
          const { historicalReadSource: _historicalReadSource, ...capabilityBindings } = nestedBindings
          historyBindings = capabilityBindings
        }
+        assertHistoricalCheckpointDescriptor(checkpoint, profile, historicalReadSource)
        effectiveHistoryBasisRef = checkpoint.historyBasisRef
      }
    }
@@ -917,7 +927,7 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
    if (!originReaderRevision && input.completedFailedDailyCheckpointRef) {
       checkpoint ??= (await read(transport, input.completedFailedDailyCheckpointRef)).value
      if (checkpoint.schemaVersion === 'aipdm.openswx-worker-descriptor.v4') {
-       assertWorkerDescriptor(checkpoint, profile, checkpoint.workerProfileSha256, checkpoint.sourceRevision, { historicalProfile: true })
+        assertHistoricalCheckpointDescriptor(checkpoint, profile, historicalReadSource)
         originReaderRevision = await readHistoryBasisIssuerRevision(transport, checkpoint.historyBasisRef)
      }
    }
