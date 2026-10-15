@@ -3,7 +3,7 @@ import { createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './lib/dev12
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { OWNER_DEADLINE_SECONDS, assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
+import { OWNER_DEADLINE_SECONDS, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
 import { assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, assertTerminalExecution, listWorkerExecutions, createOpenSwxOwnerRelease } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
@@ -159,6 +159,19 @@ test('fixed profile and descriptor reject arbitrary authority, mutable refs and 
   for (const extra of [{ projectId: 'sibling' }, { secretVersion: 'latest' }, { normalTemplateSha256: 'f'.repeat(64) }, { normalTemplatePolicySha256: '0'.repeat(64) }]) assert.throws(() => assertWorkerDescriptor({ ...workerDescriptor(), ...extra }, profile, sha256(profileBytes), sourceRevision))
   assert.throws(() => assertOpenSwxWorkerRef({ uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/sibling.json', sha256: 'a'.repeat(64) }))
   assert.throws(() => assertWorkerDescriptor(workerDescriptor('full'), profile, 'f'.repeat(64), sourceRevision))
+})
+test('historical worker profiles accept the retired 600-second deadline only on historical reads', () => {
+  const historical = structuredClone(profile)
+  historical.bounds.ownerDeadlineSeconds = 600
+  assertOpenSwxWorkerProfile(profile)
+  assertHistoricalOpenSwxWorkerProfile(profile)
+  assertHistoricalOpenSwxWorkerProfile(historical)
+  assert.throws(() => assertOpenSwxWorkerProfile(historical), /OPENSWX_WORKER_PROFILE_INVALID/u)
+  for (const deadline of [599, 601]) {
+    const invalid = structuredClone(historical)
+    invalid.bounds.ownerDeadlineSeconds = deadline
+    assert.throws(() => assertHistoricalOpenSwxWorkerProfile(invalid), /OPENSWX_WORKER_PROFILE_INVALID/u)
+  }
 })
 test('actual normal/selftest templates expose only the intended singleton numeric credential', () => {
   const normal = workerTemplate(profile, image, token), selftest = workerTemplate(profile, image, null, 'selftest')

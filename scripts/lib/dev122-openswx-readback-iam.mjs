@@ -282,7 +282,7 @@ function assertApplyProof(value, schema, binding) {
 }
 async function readIamSourceBinding(transport, input, readSource) {
   for (const ref of [input.descriptorRef, input.workerBuildRef]) assertOpenSwxWorkerRef(ref)
-  const descriptor = await readWorkerDescriptor({ transport, ref: input.descriptorRef, sourceRevision: input.sourceRevision, profileBytes: readSource(WORKER_PROFILE_PATH, input.sourceRevision) })
+  const descriptor = await readWorkerDescriptor({ transport, ref: input.descriptorRef, sourceRevision: input.sourceRevision, profileBytes: readSource(WORKER_PROFILE_PATH, input.sourceRevision), historicalProfile: true })
   if (descriptor.value.purpose !== 'build_only') fail('OPENSWX_IAM_SOURCE_INVALID')
   const build = (await transport.readJson(input.workerBuildRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   assertWorkerReceipt(build, descriptor.value, 'build', { actor: `aipdm-prod-builder@${PROJECT}.iam.gserviceaccount.com` })
