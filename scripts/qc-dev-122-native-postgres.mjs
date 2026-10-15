@@ -33,7 +33,8 @@ const uiMode = process.argv.find(arg => arg.startsWith('--ui-mode='))?.slice(10)
 const cuaHandoff = uiMode === 'cua-handoff';
 const runRecognition=process.env.DEV122_RUN_RECOGNITION==='1';
 if(process.env.DEV122_RUN_RECOGNITION&&!['0','1'].includes(process.env.DEV122_RUN_RECOGNITION)||runRecognition&&suite!=='ui')throw new Error('DEV122_RECOGNITION_EXECUTOR_REJECTED');
-const nativeSelection=process.env.DEV122_NATIVE_SELECTION??'suite';
+const nativeSelection=process.argv.find(arg=>arg.startsWith('--native-selection='))?.slice('--native-selection='.length)??process.env.DEV122_NATIVE_SELECTION??'suite';
+const rdPermissionCaseName='DEV122 RD permission repair uses v7 page grant with approval deny and QA list deny';
 if (!['automatic','cua-handoff'].includes(uiMode) ||
     cuaHandoff !== (nativeSelection === 'preview-ui-handoff') ||
     cuaHandoff && (suite !== 'ui' || runRecognition || process.argv.includes('--diagnostic-only'))) {
@@ -60,9 +61,10 @@ const exactCasePattern=names=>'^('+names.join('|')+')$';
 const previewGetPattern=exactCasePattern(previewGetCaseNames);
 const previewProtocolGapPattern=exactCasePattern(previewProtocolGapCaseNames);
 if(previewProtocolGapCaseNames.length!==13)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_SELECTOR_DRIFT');
-if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
+if(!['suite','root-guard-regression','drawing-root-only','part-root-only','part-root-link','mapping-constraints','file-route-gaps','legacy-compatibility','legacy-part','drawing-old-basis','foundation-gaps','authority-gaps','other-company-scope','drawing-basis-gaps','file-authority-gaps','recognition-protocol','recognition-access','drawing-identity-gaps','drawing-revision-identity','openswx-work-cancel','preview-get-boundaries','preview-protocol-gaps','preview-ui-handoff','preview-polling-ui','drawing-pdf-ui','rd-permission'].includes(nativeSelection)||nativeSelection!=='suite'&&suite!==(['preview-ui-handoff','preview-polling-ui','drawing-pdf-ui'].includes(nativeSelection)?'ui':['file-route-gaps','file-authority-gaps','recognition-protocol','recognition-access','preview-get-boundaries','preview-protocol-gaps'].includes(nativeSelection)?'files':'lifecycle'))throw new Error('DEV122_NATIVE_SELECTION_REJECTED');
 if(nativeSelection==='preview-protocol-gaps'&&process.argv.filter(arg=>arg.startsWith('--suite=')).length!==1)throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_EXACT_SUITE_REQUIRED');
-const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='drawing-old-basis'
+const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share metadata':suite==='settings-automation'?'DEV122 actual Next settings automation prerequisites':suite==='settings'?'DEV122 actual Next settings prerequisites':suite==='ui'?'DEV122 actual Next UI prerequisites':nativeSelection==='rd-permission'
+  ?rdPermissionCaseName:nativeSelection==='drawing-old-basis'
   ?'rejects old major basis missing|approves minor with legal Released|approves a subsequent major':nativeSelection==='openswx-work-cancel'
   ?'^DEV122 B18 OpenSWX parent work cancellation ':nativeSelection==='foundation-gaps'
   ?'reads native matrix JSON-|denies the default rd_manager-only|rejects native formal_payload drift':nativeSelection==='authority-gaps'
@@ -81,7 +83,7 @@ const nativeTestPattern=suite==='share-metadata'?'DEV122 D12208 actual share met
 const diagnosticOnly=process.argv.includes('--diagnostic-only');
 const previewDiagnosticChild=process.argv.includes('--preview-diagnostic-child');
 const previewImportOnly=process.argv.includes('--preview-import-only');
-if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only','--ui-mode=automatic','--ui-mode=cua-handoff'].includes(arg) && !arg.startsWith('--suite=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
+if (!['lifecycle','files','procurement','ui','settings','settings-automation','share-metadata','all'].includes(suite) || process.argv.slice(2).some(arg => !['--plan-only','--diagnostic-only','--preview-diagnostic-child','--preview-import-only','--ui-mode=automatic','--ui-mode=cua-handoff'].includes(arg) && !arg.startsWith('--suite=') && !arg.startsWith('--native-selection=')) || diagnosticOnly && !['procurement','files'].includes(suite)) throw new Error('DEV122_ARGUMENT_REJECTED');
 const entries = compileOwnMigrations(root);
 {
   // All current-source cases require the normal Principal API's v7 publication.
@@ -398,7 +400,7 @@ async function run() {
   if (cuaHandoff) { manifest.primaryBefore = primaryBefore; save(); }
   const children=[];let pgStarted=false,admin=null,bootstrap=null,bin,grantFixtureChannel=null,secretAutomationChannel=null,nextCopy=null,nextCapTimer=null,nextCapFailure=null,cuaChannel=null;
   const env={...process.env,DEV122_SOURCE_ROOT:root,DEV122_RUNTIME_ROOT:runtimeRoot,DEV122_EVIDENCE_ROOT:evidenceRoot,
-    DEV122_NATIVE_SUITE:suite,DEV122_LOCAL_CONTRACT_SEAM:seamVersion,PDM_DEPLOYMENT_ENV:'local',
+    DEV122_NATIVE_SUITE:suite,DEV122_NATIVE_SELECTION:nativeSelection,DEV122_LOCAL_CONTRACT_SEAM:seamVersion,PDM_DEPLOYMENT_ENV:'local',
     PDM_DB_PROVIDER:'postgres',PDM_POSTGRES_URL:`postgresql://dev122_runtime@127.0.0.1:${pgPort}/${database}`,
     DEV010_N2_DATABASE_BOUNDARY:'required',PDM_DATA_DIR:dataDir,PDM_REPOSITORY_DIR:repositoryDir,
     PDM_NEXT_DIST_DIR:path.relative(root,distDir).replaceAll('\\','/'),PDM_NEXT_TSCONFIG_PATH:path.relative(root,path.join(runtimeRoot,'next-tsconfig.json')).replaceAll('\\','/'),
@@ -523,7 +525,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     manifest.executedCases=null;save(); // Unknown until the actual Vitest report is read.
     manifest.nativeSelection={suite,source:'src/lib/dev122-native-business.postgres-contract.test.ts',
       testNamePattern:nativeTestPattern,
-      expectedCaseNames:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
+      expectedCaseNames:nativeSelection==='rd-permission'?[rdPermissionCaseName]:nativeSelection==='preview-get-boundaries'?previewGetCaseNames:nativeSelection==='preview-protocol-gaps'?previewProtocolGapCaseNames:undefined,
       sourceApplicability:['ui','settings','settings-automation'].includes(suite)?'Only actual Next prerequisites selected; P/G receipts require separate source applicability review':'Selected native suite'};save();
     const nativeExitCode=await child('native-business',['node_modules/vitest/vitest.mjs','run','src/lib/dev122-native-business.postgres-contract.test.ts',
       ...(nativeTestPattern?['--testNamePattern',nativeTestPattern]:[]),
@@ -566,6 +568,12 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       if(required.length!==13||required.some(test=>!['passed','failed'].includes(test.status))||completed.length!==13||
         new Set(completed.map(nameOf)).size!==13||completed.some(test=>!previewProtocolGapCaseNames.includes(nameOf(test)))) {
         throw new Error('DEV122_PREVIEW_PROTOCOL_GAP_CASES_MISSING_SKIPPED_OR_UNEXPECTED');
+      }
+    }
+    if(nativeSelection==='rd-permission') {
+      const required=assertions.filter(test=>test.title===rdPermissionCaseName);
+      if(required.length!==1||required[0].status!=='passed'||completed.length!==1||completed[0].title!==rdPermissionCaseName) {
+        throw new Error('DEV122_RD_PERMISSION_REQUIRED_CASE_MISSING_SKIPPED_FAILED_OR_UNEXPECTED');
       }
     }
     if(!manifest.executedCases)throw new Error('DEV122_ZERO_NATIVE_CASES');
@@ -715,10 +723,10 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
       if(nextCapFailure)throw nextCapFailure;
       }
     }
-    manifest.status='PARTIAL_NOT_ACCEPTED';
+    manifest.status=nativeSelection==='rd-permission'?'LOCAL_RD_PERMISSION_PASS':'PARTIAL_NOT_ACCEPTED';
     const implementedCoverage={lifecycle:['P-01','P-02A','P-02B','P-02C','P-03A','P-03B','P-04A','P-04B','G-01','G-02','TX-01A','TX-01B','TX-01C'],
       files:['F-01A','F-01B','F-01C','F-01D','F-01E','F-01F'],procurement:['I-01A','I-01B','I-01C','I-01D'],'share-metadata':['D122-08']};
-    manifest.coverage={partial:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
+    manifest.coverage={partial:nativeSelection==='rd-permission'?['DEV-122 priority 2 RD drawing workbench permission repair']:nativeSelection==='preview-get-boundaries'?['F-01D']:nativeSelection==='preview-protocol-gaps'?['F-01C','F-01D','F-01E']:suite==='settings-automation'?['UI-01','SW01','SW02','SW03','SW04','SW06','SW09','SW10','SW11','SW12','SW13']:suite==='settings'?['UI-01','F-01F']:suite==='all'?[...Object.values(implementedCoverage).flat(),'UI-01']:suite==='ui'?['UI-01','F-01C']:implementedCoverage[suite],
       notRun:['remaining exact variants in all 29 QA groups','automatic integrated CAD worker daemon','recognition source/output boundary'],
       acceptanceComplete:false,workerOutputBoundary:'PROTOCOL_FIXTURE unless exact actual extractor evidence is attached'};
     }
@@ -795,7 +803,7 @@ pg.Client.prototype.query=function(query,values,callback){const sql=typeof query
     }
   }
   process.stdout.write(JSON.stringify({status:manifest.status,evidence:path.join(evidenceRoot,'manifest.json'),executedCases:manifest.executedCases,firstFailure:manifest.firstFailure,cleanup:manifest.cleanup})+'\n');
-  process.exitCode=['PASS','DIAGNOSTIC_ONLY'].includes(manifest.status)?0:1;
+  process.exitCode=['PASS','DIAGNOSTIC_ONLY','LOCAL_RD_PERMISSION_PASS'].includes(manifest.status)?0:1;
 }
 
 async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
@@ -918,6 +926,16 @@ async function serveGrantFixtureChannel(admin,runtimeRoot,evidenceRoot) {
 
 async function seedPrincipals(admin,evidenceRoot) {
   const catalog=JSON.parse(fs.readFileSync(path.join(root,'config/access-control/jenfu-role-catalog.v7.json'),'utf8'));
+  if(nativeSelection==='rd-permission') {
+    const role=catalog.roles.find(role=>role.roleCode==='rd');
+    const requiredPages=['numbering.drawings.view'];
+    const requiredActions=['numbering.workspace.create','numbering.workspace.update','numbering.candidate.review.submit'];
+    if(catalog.catalogVersion!=='ai-pdm.role-catalog.2026-10-10.v7'||!role?.assignable||role.subjectKind!=='employee'||!role.allowedScopeKinds.includes('workspace')||
+      requiredPages.some(code=>!role.permissions.some(permission=>permission.code===code&&permission.kind==='page'&&permission.allowed))||
+      requiredActions.some(code=>!role.permissions.some(permission=>permission.code===code&&permission.kind==='action'&&permission.allowed))||
+      role.permissions.some(permission=>permission.code==='approval.request.decide'&&permission.allowed))
+      throw new Error('DEV122_RD_PERMISSION_CATALOG_PRECONDITION_INVALID');
+  }
   const now=new Date(Date.now()-60_000).toISOString();
   const ledger=[];
   await admin.query(`INSERT INTO ai_pdm_core.companies(id,company_code,display_name) VALUES
@@ -935,7 +953,9 @@ async function seedPrincipals(admin,evidenceRoot) {
       VALUES ('organization.active-principal.v1',$1,$2,$3,$4,'active',1,$5,'human_personal')`,
       ['https://securetoken.google.com/dev122-local-fixture','dev122-subject-'+identity,principal,employee,now]);
     await admin.query(`INSERT INTO ai_pdm_contract.dev122_fixture_principal_auth_state_v3 VALUES ($1,1,NULL)`,[principal]);
-    const role=catalog.roles.find(role=>role.roleCode===(identity==='denied'?'qa':(nativeSelection==='recognition-access'&&identity==='owner'||['settings','settings-automation'].includes(suite)&&['owner','other'].includes(identity))?'pdm_admin':'rd_manager'));
+    const role=catalog.roles.find(role=>role.roleCode===
+      (identity==='denied'?'qa':nativeSelection==='rd-permission'&&identity==='owner'?'rd':
+        (nativeSelection==='recognition-access'&&identity==='owner'||['settings','settings-automation'].includes(suite)&&['owner','other'].includes(identity))?'pdm_admin':'rd_manager'));
     if(['settings','settings-automation'].includes(suite)&&['owner','other'].includes(identity)&&(!role?.assignable||role.subjectKind!=='employee'||
       !role.allowedScopeKinds.includes('workspace')||!['settings.manage','settings.secret.manage'].every(code=>
         role.permissions.some(permission=>permission.code===code&&permission.kind==='action'&&permission.allowed))))

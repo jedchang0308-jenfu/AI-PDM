@@ -79,6 +79,7 @@ import type { ReviewPackageEnvelope } from "@/lib/pdm-review-package-contract";
 import { sanitizeDrawingRevisionWorkPayload } from "@/lib/drawing-revision-work-payload";
 const enabled = Boolean(process.env.DEV122_NATIVE_SUITE);
 const lifecycleEnabled = enabled && ["lifecycle", "ui", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
+const rdPermissionEnabled = lifecycleEnabled && process.env.DEV122_NATIVE_SELECTION === "rd-permission";
 const filesEnabled = enabled && ["files", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
 const procurementEnabled = enabled && ["procurement", "all"].includes(process.env.DEV122_NATIVE_SUITE!);
 const db=enabled?getAsyncDatabaseClient():null;
@@ -1002,6 +1003,75 @@ describe.runIf(lifecycleEnabled)("Signed Principal session + real request guard 
     expect(await ownedLifecycleSnapshot()).toEqual(before);
     await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"default-drawing-page-denial.json"),JSON.stringify({status:response.status,body,
       fixtureRole:"rd_manager",uiMultiRoleFixture:false,cacheControl:response.headers.get("cache-control"),contentType:response.headers.get("content-type")}));
+  });
+  it.runIf(rdPermissionEnabled)("DEV122 RD permission repair uses v7 page grant with approval deny and QA list deny",async()=>{
+    const ownerClaims=verifyJenfuPrincipalSession(ownerToken,getPlatformSessionKeyRing());
+    const deniedClaims=verifyJenfuPrincipalSession(deniedToken,getPlatformSessionKeyRing());
+    expect(ownerClaims.companyId).toBe("company-jenfu");
+    const principalReadback=await db!.transaction(async tx=>{
+      await validatePrincipalPublishedGrantSnapshot(tx,ownerClaims);
+      await validatePrincipalPublishedGrantSnapshot(tx,deniedClaims);
+      const account=await tx.queryOne<{principal_id:string;employee_id:string;company_id:string}>(
+        "SELECT principal_id,employee_id,company_id FROM ai_pdm_core.principal_accounts WHERE principal_id=:principalId AND employee_id=:employeeId",
+        {principalId:ownerClaims.principalId,employeeId:ownerClaims.employeeId});
+      const catalog=await requirePublishedPrincipalCatalog(tx);
+      const grants=await new JenfuEntitlementRepository(tx,catalog).listEffectiveAssignments(ownerClaims);
+      const deniedGrants=await new JenfuEntitlementRepository(tx,catalog).listEffectiveAssignments(deniedClaims);
+      return {account,grants,deniedGrants,catalog:{catalogVersion:catalog.catalogVersion,catalogSha256:catalog.catalogSha256,contractVersion:catalog.contractVersion}};
+    },{readOnly:true});
+    expect(principalReadback.account).toMatchObject({principal_id:ownerClaims.principalId,employee_id:ownerClaims.employeeId,company_id:ownerClaims.companyId});
+    expect(principalReadback.grants).toHaveLength(1);
+    expect(principalReadback.grants[0]).toMatchObject({assignmentId:"dev122-assignment-owner",principalId:ownerClaims.principalId,
+      employeeId:ownerClaims.employeeId,roleCode:"rd",catalogVersion:principalCatalog.catalogVersion,scopeKind:"workspace",scopeKey:"company-jenfu"});
+    expect(principalReadback.deniedGrants).toHaveLength(1);
+    expect(principalReadback.deniedGrants[0]).toMatchObject({assignmentId:"dev122-assignment-denied",principalId:deniedClaims.principalId,
+      employeeId:deniedClaims.employeeId,roleCode:"qa",catalogVersion:principalCatalog.catalogVersion,scopeKind:"workspace",scopeKey:"company-jenfu"});
+    expect(principalReadback.catalog).toMatchObject({catalogVersion:principalCatalog.catalogVersion,catalogSha256:principalCatalog.catalogSha256,
+      contractVersion:principalCatalog.contractVersion});
+
+    const permissions=await ok<{pages:Record<string,boolean>;actions:Record<string,boolean>}>(await readRecognitionPermissions(request("/api/numbering/permissions",ownerToken)));
+    expect(permissions.pages["numbering.drawings.view"]).toBe(true);
+    expect(permissions.actions["numbering.workspace.create"]).toBe(true);
+    expect(permissions.actions["numbering.workspace.update"]).toBe(true);
+    expect(permissions.actions["numbering.candidate.review.submit"]).toBe(true);
+
+    const fixture=await initialDrawingFixture("rd-permission");
+    const workbench=await ok<{data:{groups:Array<{rows:Array<{rowKey:string;entityType:string;entityId:string}>}>}}>(
+      await readDrawingWorkbench(request("/api/numbering/drawings/workbench?limit=100",ownerToken)));
+    const drawingRows=workbench.data.groups.flatMap(group=>group.rows);
+    expect(drawingRows).toEqual(expect.arrayContaining([expect.objectContaining({entityType:"drawing",entityId:fixture.drawingId})]));
+
+    const submission=await submitNativeDrawing(fixture.workId,"rd-permission");
+    const effectsBefore=await ownedLifecycleSnapshot();
+    const requestId=submission.data.requestId;
+    const ownerDecision=await decideReview(request("/api/pdm/review-requests/"+requestId+"/decisions",ownerToken,"POST",{decision:"approve"},
+      submission.data.rowVersion,await contract("dev122-profile-owner"),"rd-permission-owner-decision"),{params:Promise.resolve({requestId})});
+    const ownerDecisionBody=await ownerDecision.json();
+    const effectsAfter=await ownedLifecycleSnapshot();
+    expect(ownerDecision.status).toBe(403);
+    expect(ownerDecisionBody).toEqual({error:"permission_not_granted"});
+    expect(effectsAfter).toEqual(effectsBefore);
+
+    const deniedBefore=await ownedLifecycleSnapshot();
+    const deniedList=await readDrawingWorkbench(request("/api/numbering/drawings/workbench?limit=100",deniedToken));
+    const deniedListBody=await deniedList.json();
+    const deniedAfter=await ownedLifecycleSnapshot();
+    expect(deniedList.status).toBe(403);
+    expect(deniedListBody).toEqual({error:"permission_not_granted"});
+    expect(deniedAfter).toEqual(deniedBefore);
+    await fs.writeFile(path.join(process.env.DEV122_EVIDENCE_ROOT!,"rd-permission-repair.json"),JSON.stringify({
+      layer:"ACTUAL_NATIVE_PG_SIGNED_PRINCIPAL_RD_PERMISSION",selector:"rd-permission",producerBoundary:"FIXTURE",
+      actor:{principalId:ownerClaims.principalId,employeeId:ownerClaims.employeeId,companyId:ownerClaims.companyId,role:"rd"},
+      grantReadback:principalReadback.grants,catalog:principalReadback.catalog,
+      deniedActor:{principalId:deniedClaims.principalId,employeeId:deniedClaims.employeeId,companyId:deniedClaims.companyId,role:"qa",
+        grantReadback:principalReadback.deniedGrants},
+      permissions:{status:200,pages:{"numbering.drawings.view":permissions.pages["numbering.drawings.view"]},actions:{
+        "numbering.workspace.create":permissions.actions["numbering.workspace.create"],"numbering.workspace.update":permissions.actions["numbering.workspace.update"],
+        "numbering.candidate.review.submit":permissions.actions["numbering.candidate.review.submit"]}},
+      drawing:{drawingId:fixture.drawingId,workId:fixture.workId,listStatus:200,matched:true,rowKeys:drawingRows.filter(row=>row.entityId===fixture.drawingId).map(row=>row.rowKey)},
+      approvalDeny:{requestId,status:ownerDecision.status,code:"permission_not_granted",zeroEffects:JSON.stringify(effectsAfter)===JSON.stringify(effectsBefore)},
+      deniedQaList:{status:deniedList.status,code:"permission_not_granted",zeroEffects:JSON.stringify(deniedAfter)===JSON.stringify(deniedBefore)}
+    },null,2));
   });
   it("rejects a tampered signature, an unregistered signed session, and a Principal without creation permission", async () => {
     const payload = { coreName: "DEV122 denied creation", itemKind: "purchased", structureType: "single_part", drawingRequested: false };

@@ -2599,3 +2599,6 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 
   - 同checkpoint的 Current program-only serving and retained READY worker：native只讀版本分離、source-bound serving／worker雙鏈核對及停寫前穩定readback，positive／drift／replay／recovery回歸；local與Production分界。
   - 上述 current-serving checkpoint 最終分類相容 focused10/10、native QC350/350／typecheck／isolated build PASS；本地證據與085／RD正式驗收分開。
+## DEV-122 RD 圖號工作台權限獨立切片（2026-10-16）
+
+[B53 本機證據與因果邊界](qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)：v7 catalog／085／Principal request guard／workbench API 與 UI capability vector 的共同路徑已核對；新增 exact native selector，以 signed RD actor 驗圖號 read／submit 正向、同 actor approval 403、QA workbench 403 與拒絕前後零 side effect，結果 `LOCAL_RD_PERMISSION_PASS`。產品碼、catalog、085 與其他 repository 均未修改。正式 085 applied、active catalog、實際 grant/session、真實 UI/API 與 release 仍未證，required CI 待 PR；不升格為 production acceptance 或 whole DEV-122 PASS。
