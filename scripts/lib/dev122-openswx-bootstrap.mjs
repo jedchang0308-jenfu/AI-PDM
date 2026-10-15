@@ -1044,7 +1044,7 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
   assertWorkerReceipt(paused, old.value, 'paused-drained', { actor: profile.normalActor, image: prior.build.image })
   await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource, undefined, historicalProfile)
   failedDailySame(paused.facts.priorActivationRef, prior.activationRef)
-  const selftest = workerTemplate(profile, artifact.image, null, 'selftest')
+  const selftest = workerTemplate(profile, artifact.image, null, 'selftest', { historicalProfile })
   const readFinite = async (suffix, owner, template) => {
     const row = await optional(transport, uri + suffix + '.json'); if (!row) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
     assertWorkerReceipt(row.value, owner, 'finite-terminal', { actor: profile.normalActor, image: artifact.image })
