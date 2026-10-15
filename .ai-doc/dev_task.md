@@ -1,3 +1,9 @@
+## DEV-121#rd-capabilities — 2026-10-15 historical checkpoint profile handoff（完整本地 QC PASS，待受保護發布）
+
+R57 沿既有 Q5R3 native history basis 承接 source `d0f597e9cbfebef627e5db2cad02f5f9c0f0946c` 的 completed v4 checkpoint；descriptor 與歷史 profile 同為合法 600 秒，但 worker reuse 在安裝該 source 的 historical reader 前先用目前 1200 秒 profile 驗證，因此以 `OPENSWX_DESCRIPTOR_INVALID` 拒絕。失敗發生在 association 發布前；未 owner dispatch、未 build／migration085／service／traffic／正式資料 mutation，R57 input 不重送。
+
+最小修正先沿既有 nested checkpoint boundary 重讀 exact bytes、hash、sourceRevision 與 history basis，取得 admitted historical reader後，再以該來源的 profile bytes/hash驗 descriptor；相容比較仍只忽略既有允許的 `ownerDeadlineSeconds`，其他 profile drift、畸形 JSON與 descriptor mismatch皆 fail closed。v4 synthetic fixture精確重現歷史 profile SHA `65d653...` 與目前 1200 秒差異。聚焦 99/99、final-byte Owner QC 408/408、role catalog v7 3/3、abort 6/6、DB boundary、typecheck及 isolated build全部 PASS；獨立 Luna 未見 P0/P1，其 v4 fixture與錯誤碼建議已補。required CI、全新 source-bound Production attempt、085／切流及兩 fixture RD UI仍待完成。[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r26-historical-checkpoint-profile-handoff--2026-10-15)。
+
 ## DEV-121#rd-capabilities — 2026-10-14 nested checkpoint historical-source admission（完整本地 QC PASS，待受保護發布）
 
 R25 先完成新 source freeze、infra closure、metadata／app prerequisites、infra reuse、predecessor readback及 Q5R3 native history basis；bridge 隨後在 association 發布前以 `OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID` 拒絕。第一個實際失敗點是 successor current reader 嘗試以 checkpoint 歷史 source `d0f597e9cbfebef627e5db2cad02f5f9c0f0946c` 讀取 `scripts/lib/dev122-openswx-worker-artifact-reuse.mjs`，而不是使用綁定該 checkpoint source 的 historical reader。該次未 owner dispatch、未 build／migration085／service／traffic／data mutation；R25 失敗 input 不重送。
