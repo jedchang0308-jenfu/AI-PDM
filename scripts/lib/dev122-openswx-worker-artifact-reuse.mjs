@@ -733,7 +733,7 @@ async function validateFailedDailyResourceProof({ transport, value, association,
       ? assertAiPdmNativeHistoryIngress({ basisRef: input.historyBasisRef, sourceRevision: activeIssuerRevision })
       : qualifiedHistoryBindings({ sourceRevision: association.sourceRevision, sourceLockRef: association.sourceLockRef, input, prior: origin.prior, profile, currentManifest }))
     : null
-  const originalFailed = await readFailedDailyContinuation({ transport, continuation: value.failedDailyContinuation, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest })
+  const originalFailed = await readFailedDailyContinuation({ transport, continuation: value.failedDailyContinuation, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest, historicalProfile: carryHistory })
   let failed = await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef,
     failed: originalFailed, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest, historyBasisRef: input.historyBasisRef, historyBindings: basisBindings, replayNestedCheckpoint: carryHistory })
   failed = await readPartialFailedDailyPause({transport,inputRef:input.partialFailedDailyPauseInputRef,failed,prior:origin.prior,profile,readSource,historicalReadSource,currentManifest,historyBasisRef:input.historyBasisRef,historyBindings:basisBindings,replayNestedPause:carryHistory,failureRef:input.failedDailyPauseFailureRef,frontierRebaseRef:input.frontierRebaseRef,frontierRebaseSourceLockRef:input.sourceLockRef,frontierRebaseDeadlineAt:input.deadlineAt,frontierRebaseCompletedCheckpointRef:input.completedFailedDailyCheckpointRef})
