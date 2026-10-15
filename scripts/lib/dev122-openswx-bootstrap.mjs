@@ -1220,7 +1220,11 @@ async function readFailedDailyFrontierRebase({ transport, frontierRebaseRef, sou
       || Date.parse(execution.completionTime) > Date.parse(requestRow.value.requestStartedAt)) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
     names.add(extra.name); extras.push(execution)
   }
-  if (sha256(canonicalize(extras.map(row => row.name).sort())) !== value.extraExecutionNamesSha256) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
+  // Hash the sealed metadata names, which are the canonical execution identity
+  // bound by the frontier. Provider response bodies may retain the project's
+  // symbolic ID (`jenfu-platform-prod`) while canonicalWorkerExecution already
+  // validated that they refer to the same execution.
+  if (sha256(canonicalize(value.extraExecutions.map(row => row.name).sort())) !== value.extraExecutionNamesSha256) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
   const expectedExecutionNames = [...names].sort()
   if (canonicalize(requestRow.value.baselineExecutionNames) !== canonicalize(expectedExecutionNames)) fail('OPENSWX_FAILED_DAILY_FRONTIER_REBASE_INVALID')
   return { expectedExecutionNames, extraExecutions: extras }

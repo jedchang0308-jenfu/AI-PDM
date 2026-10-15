@@ -2832,7 +2832,7 @@ test('partial FAILED DAILY frontier rebase admits only source-bound sealed extra
   delete operation.metadata.failedCount
   delete operation.metadata.succeededCount
   const extraName = f.partialName.replace(/[^/]+$/u, 'frontier-extra')
-  const extraExecution = { ...f.execution, name: extraName, uid: 'frontier-extra-uid', creator: profile.normalActor,
+  const extraExecution = { ...f.execution, name: extraName.replace('/projects/9536592944/', '/projects/jenfu-platform-prod/'), uid: 'frontier-extra-uid', creator: profile.normalActor,
     createTime: new Date(Date.parse(requestRow.value.requestStartedAt) - 500).toISOString(), completionTime: new Date(Date.parse(requestRow.value.requestStartedAt) - 400).toISOString(),
     conditions: [{ type: 'Started', state: 'CONDITION_SUCCEEDED' }, { type: 'Completed', state: 'CONDITION_SUCCEEDED' }], succeededCount: 1, failedCount: 0 }
   const extraBodyRef = h.seed('frontier-extra-execution-body', extraExecution)
