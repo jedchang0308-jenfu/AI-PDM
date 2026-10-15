@@ -299,7 +299,7 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   return runAiPdmEvidenceContext(bootstrapContext, async () => {
   const bootstrap = (await read(transport, bootstrapDescriptor.bootstrapRef)).value
   assertWorkerReceipt(bootstrap, bootstrapDescriptor, 'bootstrap', { actor: profile.normalActor, image: resolved.image })
-  const template = workerTemplate(profile, resolved.image, full.tokenSecretVersion), entry = resolved.sourceEntryProof
+   const template = workerTemplate(profile, resolved.image, full.tokenSecretVersion, 'normal', { historicalProfile: true }), entry = resolved.sourceEntryProof
   if (activation.templateSha256 !== sha256(canonicalize(template))) fail('OPENSWX_REUSE_PRIOR_TEMPLATE_INVALID')
   same(activation.facts.sourceEntryRef, entry)
   same(activation.facts.numericCredentials, { token: full.tokenSecretVersion, registry: full.registrySecretVersion })
@@ -308,7 +308,7 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   assertWorkerReceipt(preflight, bootstrapDescriptor, 'cloud-preflight', { actor: profile.normalActor, image: resolved.image })
   assertWorkerReceipt(drained, bootstrapDescriptor, 'paused-drained', { actor: profile.normalActor })
   await assertFailedDailyFullJoin({transport,profile,artifact:resolved,descriptor:full,bootstrap,preflight,paused:drained})
-  const normalSha = sha256(canonicalize(template)), selftestSha = sha256(canonicalize(workerTemplate(profile, resolved.image, null, 'selftest')))
+   const normalSha = sha256(canonicalize(template)), selftestSha = sha256(canonicalize(workerTemplate(profile, resolved.image, null, 'selftest', { historicalProfile: true })))
   if (preflight.facts.isolationVerified !== true || preflight.facts.noCad !== true || preflight.facts.normalTemplateSha256 !== normalSha || preflight.facts.selftestTemplateSha256 !== selftestSha
     || bootstrap.facts.normalTemplateSha256 !== normalSha || bootstrap.facts.selftestTemplateSha256 !== selftestSha
     || drained.facts.schedulerPaused !== true || drained.facts.noActiveOrUnknown !== true || !Number.isFinite(Date.parse(drained.facts.quiescenceCompletedAt))) fail('OPENSWX_REUSE_PRIOR_OPERATIONAL_CHAIN_INVALID')
