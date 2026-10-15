@@ -2814,6 +2814,44 @@ test('partial FAILED DAILY pause admits a sealed failed empty-claim drain and ca
   assert.equal(artifact.failedDaily.failed.currentTemplateMode,'NORMAL')
 })
 
+test('partial FAILED DAILY failure joins symbolic provider project IDs to canonical execution inventory',async()=>{
+  const f=await partialFailedDailyNextSourceFixture(),h=f.h
+  const partialInput=(await h.transport.readJson(f.partialInputRef)).value
+  const descriptor=(await h.transport.readJson(partialInput.descriptorRef)).value
+  const requestRow=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-request.json').ref)
+  const latch=await h.transport.readJson(h.objects.get(f.partialRoot+'-drain-finite-operation.json').ref)
+  const canonicalExecution={...f.execution,createTime:new Date(Date.parse(requestRow.value.requestStartedAt)+100).toISOString(),conditions:[{type:'Started',state:'CONDITION_SUCCEEDED'},{type:'Completed',state:'CONDITION_FAILED'}],succeededCount:0,failedCount:1,
+    completionTime:new Date(Date.parse(requestRow.value.requestStartedAt)+1100).toISOString()}
+  const symbolicName=canonicalExecution.name.replace('/projects/9536592944/','/projects/jenfu-platform-prod/')
+  const failureExecution={...canonicalExecution,name:symbolicName}
+  const operation={name:f.operationBody.name,done:true,error:{code:10,message:'execution failed'},metadata:{'@type':'type.googleapis.com/google.cloud.run.v2.Execution',...failureExecution}}
+  delete operation.metadata.failedCount
+  delete operation.metadata.succeededCount
+  const stdoutFilter=['resource.type="cloud_run_job"','resource.labels.project_id="'+profile.projectId+'"','resource.labels.location="'+profile.location+'"','resource.labels.job_name="'+profile.jobId+'"','labels."run.googleapis.com/execution_name"="'+f.partialName.split('/').at(-1)+'"','logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Fstdout"','timestamp>="'+canonicalExecution.createTime+'"','timestamp<="'+canonicalExecution.completionTime+'"'].join(' AND ')
+  const claimFilter=['resource.type="cloud_run_revision"','resource.labels.project_id="'+profile.projectId+'"','resource.labels.location="'+profile.location+'"','resource.labels.service_name="ai-pdm-prod"','logName="projects/jenfu-platform-prod/logs/run.googleapis.com%2Frequests"','timestamp>="'+canonicalExecution.createTime+'"','timestamp<="'+canonicalExecution.completionTime+'"','httpRequest.requestUrl="'+profile.canonicalOrigin+'/api/openswx-metadata-jobs/claim"'].join(' AND ')
+  const failure=h.seed('partial-failed-symbolic-project-evidence',{schemaVersion:'aipdm.openswx-failed-daily-drain-failure.v1',ownerApplicationId:'ai-pdm',sourceRevision:descriptor.sourceRevision,sourceArchiveSha256:descriptor.sourceArchiveSha256,
+    workerBuildRef:partialInput.workerBuildRef,priorActivationRef:partialInput.priorActivationRef,partialFailedDailyPauseInputRef:f.partialInputRef,requestRef:requestRow.ref,operationRef:latch.ref,operation,execution:failureExecution,
+    claimEvidence:{filter:claimFilter,filterSha256:sha256(claimFilter),entries:[{logName:'projects/jenfu-platform-prod/logs/run.googleapis.com%2Frequests',resource:{type:'cloud_run_revision',labels:{project_id:'jenfu-platform-prod',service_name:'ai-pdm-prod'}},httpRequest:{requestMethod:'POST',status:204,requestUrl:profile.canonicalOrigin+'/api/openswx-metadata-jobs/claim',userAgent:'node'},timestamp:new Date(Date.parse(canonicalExecution.createTime)+100).toISOString()}],observedAt:canonicalExecution.completionTime},
+    stdoutEvidence:{filter:stdoutFilter,filterSha256:sha256(stdoutFilter),entries:[],observedAt:canonicalExecution.completionTime},actor:profile.normalActor,observedAt:canonicalExecution.completionTime})
+  const input={...f.input,failedDailyPauseFailureRef:failure},inputRef=await h.put('partial-failed-symbolic-project-input',input),beforeCalls=h.calls.length
+  const original=h.transport.request
+  h.transport.request=async(url,opts={})=>{
+    if(url==='https://run.googleapis.com/v2/'+f.operationBody.name){h.calls.push({url,options:opts});return structuredClone(operation)}
+    const body=await original(url,opts)
+    if(url.includes('/executions?')) body.executions=body.executions.map(row=>row.name===f.partialName?structuredClone(canonicalExecution):row)
+    if(url==='https://run.googleapis.com/v2/'+f.partialName)return structuredClone(canonicalExecution)
+    return body
+  }
+  const saved=await executeWorkerArtifactReuse({transport:h.transport,inputRef,readSource:f.reader})
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+  assert.ok(!h.calls.slice(beforeCalls).some(row=>row.options.method==='PATCH'||row.url.endsWith(':run')))
+  const descriptorOut=(await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value
+  const artifact=await resolveWorkerArtifact({transport:h.transport,descriptor:descriptorOut,profile,readSource:f.reader})
+  assert.ok(artifact.failedDaily.failed.failedPauseExecutions.some(row=>row.name===symbolicName))
+  assert.ok(artifact.failedDaily.failed.expectedExecutionNames.includes(f.partialName))
+  assert.equal(artifact.failedDaily.failed.currentTemplateMode,'NORMAL')
+})
+
 test('partial FAILED DAILY frontier rebase admits only source-bound sealed extra executions', async () => {
   const f = await partialFailedDailyNextSourceFixture(), h = f.h
   const baseInputRef = await h.put('frontier-rebase-base-input', { ...f.input, receiptId: 'FRONTIER-REBASE-BASE' })

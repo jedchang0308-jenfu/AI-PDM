@@ -1386,7 +1386,7 @@ export async function readFailedDailyCurrentResources({ transport, profile, prio
     if (existing) failedDailySame(executionProjection(existing),executionProjection(execution)); else history.push(execution)
     admittedFailed = { ...admittedFailed, expectedExecutionNames:[...new Set([...admittedFailed.expectedExecutionNames,name])].sort(), partialPauseExecutions:history }
   }
-  if (failed.failedPauseExecutions) admittedFailed = { ...admittedFailed, expectedExecutionNames:[...new Set([...admittedFailed.expectedExecutionNames, ...failed.failedPauseExecutions.map(row => row.name)])].sort() }
+  if (failed.failedPauseExecutions) admittedFailed = { ...admittedFailed, expectedExecutionNames:[...new Set([...admittedFailed.expectedExecutionNames, ...failed.failedPauseExecutions.map(row => canonicalWorkerExecution(row.name))])].sort() }
   const before = await capture(), after = await capture()
   const projection = value => ({ ...value, executions: value.executions.map(({ rawIndex: _index, ...row }) => row) })
   failedDailySame(projection(before.snapshot), projection(after.snapshot))
