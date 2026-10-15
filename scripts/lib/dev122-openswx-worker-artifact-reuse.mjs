@@ -6,7 +6,7 @@ import path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { assertImmutableRef, canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
-import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyWorkerResources, readPausedRepairWorkerResources, verifyNormalActor, assertFailedDailyContinuation, readFailedDailyContinuation, readCompletedFailedDailyCheckpoint, readPartialFailedDailyPause, readFailedDailyCurrentResources, assertFailedDailyIsolationProof, assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_EXECUTION_PATHS, readSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
@@ -207,7 +207,10 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   const fullContext = descend(capsuleContext, fullRef, false)
   return runAiPdmEvidenceContext(fullContext, async () => {
   const profileBytes = readSource(WORKER_PROFILE_PATH, capsule.sourceRevision)
-  assertOpenSwxWorkerProfile(JSON.parse(profileBytes)); same(JSON.parse(profileBytes), profile)
+  const priorProfile = JSON.parse(profileBytes)
+  if (readSource.isHistorical === true) assertHistoricalOpenSwxWorkerProfile(priorProfile)
+  else assertOpenSwxWorkerProfile(priorProfile)
+  same(priorProfile, profile)
   assertWorkerDescriptor(full, profile, sha256(profileBytes), capsule.sourceRevision)
   if (full.purpose !== 'full') fail('OPENSWX_REUSE_PRIOR_FULL_REQUIRED')
   assertWorkerReceipt(activation, full, 'activation', { actor: profile.normalActor })
