@@ -336,6 +336,12 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
   const lockRow = await read(transport, association.sourceLockRef, ['receipts']), lock = lockRow.value
   assertReuseSourceLock(lock, descriptor.sourceRevision)
   admitAiPdmEvidenceSource(lockRow)
+  // The descriptor's own immutable source lock is the authority for the
+  // historical source revision used by the nested association reads below.
+  // Admit it only after the lock has been read back and matched to the
+  // descriptor; this preserves the depth and path fences in the reader while
+  // allowing a valid historical chain to continue.
+  readSource.authorizeOrigin?.(descriptor.sourceRevision)
   const origin = await readOrigin({ transport, priorActivationRef: association.priorActivationRef, profile, readSource, ctx: next })
   for (const [key, ref] of Object.entries(origin.originalRefs)) same(association.artifactOrigin[key], ref)
   for (const name of ['sourceRevision', 'sourceArchiveSha256', 'workerProfileSha256', 'image']) same(association.artifactOrigin[name], origin.build[name])
