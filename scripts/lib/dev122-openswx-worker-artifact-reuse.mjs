@@ -202,7 +202,7 @@ export function workerInputManifest(treeBytes, readSource, revision) {
   assertManifest(entries)
   return { schemaVersion: 'aipdm.openswx-worker-input-manifest.v1', sourceRevision: revision, entries }
 }
-function assertManifest(entries) {
+function assertManifest(entries, { workerProfileSha256 = PROFILE_SHA } = {}) {
   rows(entries, 512)
   const seen = new Set()
   for (const row of entries) {
@@ -210,7 +210,7 @@ function assertManifest(entries) {
     if (!safePath(row.path) || !proofPath(row.path) || seen.has(row.path) || !['100644', '100755'].includes(row.mode) || !Number.isSafeInteger(row.size) || row.size < 0 || !H64.test(row.sha256)) fail('OPENSWX_REUSE_MANIFEST_INVALID')
     seen.add(row.path)
   }
-  for (const [name, hash] of [[`${READER}/Dockerfile`, DOCKER_SHA], ['.dockerignore', IGNORE_SHA], [WORKER_PROFILE_PATH, PROFILE_SHA]]) {
+  for (const [name, hash] of [[`${READER}/Dockerfile`, DOCKER_SHA], ['.dockerignore', IGNORE_SHA], [WORKER_PROFILE_PATH, workerProfileSha256]]) {
     if (entries.find(row => row.path === name)?.sha256 !== hash) fail('OPENSWX_REUSE_RECIPE_DRIFT')
   }
   if (!seen.has(ENTRY) || entries.filter(row => row.path.startsWith(`${READER}/vendor/`)).length !== 19) fail('OPENSWX_REUSE_MANIFEST_INVALID')
@@ -249,8 +249,8 @@ export function assertWorkerArchive(archive, entries) {
   same(found, entries, 'OPENSWX_REUSE_ARCHIVE_INPUT_MISMATCH')
   return { archiveSha256: sha256(archive), manifestSha256: sha256(canonicalize(entries)), inputCount: found.length }
 }
-function manifestEqual(original, current) {
-  for (const manifest of [original, current]) { exact(manifest, ['schemaVersion', 'sourceRevision', 'entries']); if (manifest.schemaVersion !== 'aipdm.openswx-worker-input-manifest.v1' || !H40.test(manifest.sourceRevision)) fail('OPENSWX_REUSE_MANIFEST_INVALID'); assertManifest(manifest.entries) }
+function manifestEqual(original, current, { originalProfileSha256 = PROFILE_SHA, currentProfileSha256 = PROFILE_SHA } = {}) {
+  for (const [manifest, workerProfileSha256] of [[original, originalProfileSha256], [current, currentProfileSha256]]) { exact(manifest, ['schemaVersion', 'sourceRevision', 'entries']); if (manifest.schemaVersion !== 'aipdm.openswx-worker-input-manifest.v1' || !H40.test(manifest.sourceRevision)) fail('OPENSWX_REUSE_MANIFEST_INVALID'); assertManifest(manifest.entries, { workerProfileSha256 }) }
   same(original.entries, current.entries, 'OPENSWX_REUSE_EXECUTABLE_DRIFT')
 }
 export function createWorkerEvidenceContext() { return createAiPdmEvidenceContext() }
@@ -471,7 +471,7 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
     secretVersionIam = await readSecretVersionIamForReuse({ transport, input, supplemental, sourceRevision: descriptor.sourceRevision, profile, readSource })
   }
   const original = (await read(transport, association.executableProof.originalManifestRef)).value, current = (await read(transport, association.executableProof.currentManifestRef)).value
-  manifestEqual(original, current)
+   manifestEqual(original, current, { originalProfileSha256: origin.build.workerProfileSha256 })
   if (original.sourceRevision !== origin.build.sourceRevision || current.sourceRevision !== descriptor.sourceRevision) fail('OPENSWX_REUSE_MANIFEST_INVALID')
   const infra = (await read(transport, association.resourceAssociation.infraManifestRef)).value
   exact(infra, ['schemaVersion', 'sourceRevision', 'sourceHashes', 'plan', 'resourcePlanHash', 'originalApprovedResourcePlanRef', 'originalResourceApplyRef'])
