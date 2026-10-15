@@ -1042,7 +1042,7 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
   }
   const paused = (await transport.readJson(oldInput.pausedDrainedRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   assertWorkerReceipt(paused, old.value, 'paused-drained', { actor: profile.normalActor, image: prior.build.image })
-  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource)
+  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource, undefined, historicalProfile)
   failedDailySame(paused.facts.priorActivationRef, prior.activationRef)
   const selftest = workerTemplate(profile, artifact.image, null, 'selftest')
   const readFinite = async (suffix, owner, template) => {
