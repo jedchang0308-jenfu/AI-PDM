@@ -538,7 +538,7 @@ export function assertWorkerBuildSource(build, descriptor) {
   return hashes.find(row => row.path === 'scripts/run-openswx-metadata-job.mjs')
 }
 /** A READY receipt binds its prior capsule and actual source, never the caller's current template. */
-export async function readPriorWorkerActivation(transport, ref, profile, readSource, ctx = createWorkerEvidenceContext()) {
+export async function readPriorWorkerActivation(transport, ref, profile, readSource, ctx = createWorkerEvidenceContext(), historicalProfile = false) {
   return runAiPdmEvidenceContext(ctx, async () => {
   assertOpenSwxWorkerRef(ref)
   const saved = await transport.readJson(ref, BUCKET, [WORKER_RECEIPT_PREFIX]), activation = saved.value
@@ -550,7 +550,7 @@ export async function readPriorWorkerActivation(transport, ref, profile, readSou
   const capsule = await transport.readJson(capsuleRef, BUCKET, ['receipts'])
   const descriptorRef = capsule.value.openswxWorkerRef; assertOpenSwxWorkerRef(descriptorRef)
   const descriptor = (await transport.readJson(descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
-  assertWorkerDescriptor(descriptor, profile, activation.workerProfileSha256, capsule.value.sourceRevision)
+  assertWorkerDescriptor(descriptor, profile, activation.workerProfileSha256, capsule.value.sourceRevision, { historicalProfile })
   assertWorkerReceipt(activation, descriptor, 'activation', { actor: profile.normalActor })
   const artifact = await resolveWorkerArtifact({ transport, descriptor, profile, readSource, ctx })
   const build = artifact.originBuild, entry = artifact.sourceEntryProof
@@ -559,21 +559,21 @@ export async function readPriorWorkerActivation(transport, ref, profile, readSou
   const bootstrapDescriptorRef = isPausedAppRepair(descriptor) ? artifact.bootstrapDescriptorRef : descriptorRef
   const bootstrap = (await transport.readJson(bootstrapDescriptor.bootstrapRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   assertWorkerReceipt(bootstrap, bootstrapDescriptor, 'bootstrap', { actor: profile.normalActor, image: build.image })
-  const template = workerTemplate(profile, build.image, descriptor.tokenSecretVersion)
+  const template = workerTemplate(profile, build.image, descriptor.tokenSecretVersion, 'normal', { historicalProfile })
   if (activation.templateSha256 !== sha256(canonicalize(template)) || canonicalize(activation.facts.sourceEntryRef) !== canonicalize(entry)
     || canonicalize(activation.facts.numericCredentials) !== canonicalize({ token: descriptor.tokenSecretVersion, registry: descriptor.registrySecretVersion })
     || bootstrap.facts.tokenSecretVersion !== descriptor.tokenSecretVersion || bootstrap.facts.registrySecretVersion !== descriptor.registrySecretVersion) fail('OPENSWX_PRIOR_ACTIVATION_INVALID')
   return { activation, activationRef: saved.ref, descriptor, descriptorRef, bootstrapDescriptor, bootstrapDescriptorRef, capsule: capsule.value, capsuleRef, build, artifact, bootstrap, template, entry, graphContext: artifact.graphContext ?? ctx }
   })
 }
-export async function assertPausedDrainReceipt(transport, paused, descriptor, profile, readSource, ctx = createWorkerEvidenceContext()) {
+export async function assertPausedDrainReceipt(transport, paused, descriptor, profile, readSource, ctx = createWorkerEvidenceContext(), historicalProfile = false) {
   return runAiPdmEvidenceContext(ctx, async () => {
   if (paused.actor !== profile.normalActor || paused.facts?.noActiveOrUnknown !== true || paused.facts.schedulerPaused !== true
     || !Number.isFinite(Date.parse(paused.facts.quiescenceCompletedAt))) fail('OPENSWX_RECEIPT_JOIN_INVALID')
   if (paused.facts.drainKind === 'FIRST_PROVIDER_ONLY') {
     if (paused.facts.dbAdmissionProof !== 'NOT_APPLICABLE_FIRST_BOOTSTRAP' || paused.facts.priorActivationRef) fail('OPENSWX_FIRST_DRAIN_INVALID')
   } else if (paused.facts.drainKind === 'DAILY_DB_VERIFIED') {
-    const prior = await readPriorWorkerActivation(transport, paused.facts.priorActivationRef, profile, readSource, ctx)
+    const prior = await readPriorWorkerActivation(transport, paused.facts.priorActivationRef, profile, readSource, ctx, historicalProfile)
     if (canonicalize(paused.facts.targetWorkerBuildRef) !== canonicalize(descriptor.workerBuildRef)
       || canonicalize(paused.facts.priorWorkerBuildRef) !== canonicalize(prior.descriptor.workerBuildRef)
       || paused.facts.priorSourceRevision !== prior.descriptor.sourceRevision || paused.facts.priorSourceArchiveSha256 !== prior.descriptor.sourceArchiveSha256
@@ -662,10 +662,10 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
     || results.bootstrapRef.facts.registrySecretVersion !== assertNumericSecret(descriptor.registrySecretVersion, profile.registrySecretId)
     || results.cloudPreflightRef.facts.isolationVerified !== true || results.cloudPreflightRef.facts.noCad !== true) fail('OPENSWX_RECEIPT_JOIN_INVALID')
   for (const field of ['bootstrapRef', 'cloudPreflightRef']) {
-    if (results[field].facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, descriptor.tokenSecretVersion)))
-      || results[field].facts.selftestTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, null, 'selftest')))) fail('OPENSWX_ACTUAL_TEMPLATE_JOIN_INVALID')
+    if (results[field].facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, descriptor.tokenSecretVersion, 'normal', { historicalProfile: Boolean(historicalReadSource) })))
+      || results[field].facts.selftestTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, null, 'selftest', { historicalProfile: Boolean(historicalReadSource) })))) fail('OPENSWX_ACTUAL_TEMPLATE_JOIN_INVALID')
   }
-  await assertPausedDrainReceipt(transport, results.pausedDrainedRef, descriptor, profile, historicalReadSource ?? readSource, artifact.graphContext ?? ctx)
+  await assertPausedDrainReceipt(transport, results.pausedDrainedRef, descriptor, profile, historicalReadSource ?? readSource, artifact.graphContext ?? ctx, Boolean(historicalReadSource))
   if (results.bootstrapRef.facts.bootstrapKind !== (results.pausedDrainedRef.facts.drainKind === 'FIRST_PROVIDER_ONLY' ? 'FIRST_CREATE' : 'DAILY_REFRESH')) fail('OPENSWX_BOOTSTRAP_DRAIN_JOIN_INVALID')
   if (descriptor.historyBasisRef && (results.bootstrapRef.facts.bootstrapKind !== 'DAILY_REFRESH' || results.pausedDrainedRef.facts.drainKind !== 'DAILY_DB_VERIFIED' || !artifact.failedDaily)) fail('OPENSWX_HISTORY_DAILY_ONLY')
   if (results.pausedDrainedRef.facts.drainKind === 'DAILY_DB_VERIFIED') {
