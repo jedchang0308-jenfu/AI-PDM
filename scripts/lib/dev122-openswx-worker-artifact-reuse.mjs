@@ -185,7 +185,7 @@ export function createWorkerGitReader(root, sourceRevision) {
   readSource.readImmutableArchive = revision => { if (!permitted.has(revision)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); return git(root, ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision]) }
   return readSource
 }
-export function workerInputManifest(treeBytes, readSource, revision) {
+export function workerInputManifest(treeBytes, readSource, revision, options = {}) {
   if (!Buffer.isBuffer(treeBytes) || !H40.test(revision ?? '')) fail('OPENSWX_REUSE_TREE_INVALID')
   const entries = []
   for (const row of treeBytes.toString('utf8').split('\0').filter(Boolean)) {
@@ -199,7 +199,7 @@ export function workerInputManifest(treeBytes, readSource, revision) {
     entries.push({ path: match[4], mode: match[1], size: bytes.length, sha256: sha256(bytes) })
   }
   entries.sort((a, b) => a.path.localeCompare(b.path, 'en'))
-  assertManifest(entries)
+  assertManifest(entries, options)
   return { schemaVersion: 'aipdm.openswx-worker-input-manifest.v1', sourceRevision: revision, entries }
 }
 function assertManifest(entries, { workerProfileSha256 = PROFILE_SHA } = {}) {
@@ -216,8 +216,8 @@ function assertManifest(entries, { workerProfileSha256 = PROFILE_SHA } = {}) {
   if (!seen.has(ENTRY) || entries.filter(row => row.path.startsWith(`${READER}/vendor/`)).length !== 19) fail('OPENSWX_REUSE_MANIFEST_INVALID')
 }
 /** Compare actual Linux archive bytes/modes. Never normalize CRLF or provider bytes. */
-export function assertWorkerArchive(archive, entries) {
-  assertManifest(entries)
+export function assertWorkerArchive(archive, entries, options = {}) {
+  assertManifest(entries, options)
   if (!Buffer.isBuffer(archive) || archive.length > 256 * 1024 * 1024) fail('OPENSWX_REUSE_ARCHIVE_INVALID')
   let bytes = archive
   if (archive[0] === 0x1f && archive[1] === 0x8b) { try { bytes = gunzipSync(archive, { maxOutputLength: 256 * 1024 * 1024 }) } catch { fail('OPENSWX_REUSE_ARCHIVE_INVALID') } }
@@ -1240,12 +1240,13 @@ export async function replayOpenSwxHistoryBasis({ inputRef, transport, readSourc
   const { bytes: profileBytes, profile } = readHistoricalWorkerProfile(legacy, predecessorLock.sourceRevision)
   const origin = await readOrigin({ transport, priorActivationRef: input.priorActivationRef, profile, readSource: legacy, sourceRevision: predecessorLock.sourceRevision })
   const currentManifest = (await read(transport, qualificationInput.predecessorCurrentManifestRef)).value
-  const originalManifest = workerInputManifest(legacy.readTree(origin.build.sourceRevision), legacy, origin.build.sourceRevision)
-  const derivedManifest = workerInputManifest(legacy.readTree(predecessorLock.sourceRevision), legacy, predecessorLock.sourceRevision)
-  same(currentManifest, derivedManifest, 'OPENSWX_HISTORY_MANIFEST_INVALID'); manifestEqual(originalManifest, currentManifest)
+   const historicalProfileSha256 = sha256(profileBytes)
+   const originalManifest = workerInputManifest(legacy.readTree(origin.build.sourceRevision), legacy, origin.build.sourceRevision, { workerProfileSha256: historicalProfileSha256 })
+   const derivedManifest = workerInputManifest(legacy.readTree(predecessorLock.sourceRevision), legacy, predecessorLock.sourceRevision, { workerProfileSha256: historicalProfileSha256 })
+   same(currentManifest, derivedManifest, 'OPENSWX_HISTORY_MANIFEST_INVALID'); manifestEqual(originalManifest, currentManifest, { originalProfileSha256: historicalProfileSha256, currentProfileSha256: historicalProfileSha256 })
   const originalObject = await sourceObject(transport, { uri: origin.build.facts.sourceObject.uri, sha256: origin.build.facts.sourceObject.sha256 }, origin.build.facts.sourceObject)
-  assertWorkerArchive(originalObject.bytes, originalManifest.entries)
-  assertWorkerArchive(predecessorObject.bytes, currentManifest.entries)
+   assertWorkerArchive(originalObject.bytes, originalManifest.entries, { workerProfileSha256: historicalProfileSha256 })
+   assertWorkerArchive(predecessorObject.bytes, currentManifest.entries, { workerProfileSha256: historicalProfileSha256 })
   const root = `${profile.receiptRoot}/${input.receiptId}-${qualificationInput.predecessorInputRef.sha256.slice(0, 16)}`
   if (qualificationInput.predecessorRequestRef.uri !== `${root}-request.json` || qualificationInput.predecessorCurrentManifestRef.uri !== `${root}-current-inputs.json` ||
       !qualificationInput.predecessorResourceReadbackRef.uri.startsWith(`${root}-ready-`) || !qualificationInput.predecessorSecurityReadbackRef.uri.startsWith(`${root}-security-`)) fail('OPENSWX_HISTORY_ATTEMPT_INVALID')
