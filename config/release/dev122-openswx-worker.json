@@ -25,5 +25,5 @@
   "dockerTarget": "finite-worker",
   "readerSource": "scripts/lib/openswx-reader",
   "dispatchPolicy": "scheduler_only.v1",
-  "bounds": { "cpu": "1", "memory": "1Gi", "taskCount": 1, "parallelism": 1, "timeoutSeconds": 300, "maxRetries": 0, "schedule": "*/5 * * * *", "schedulerRetryCount": 0, "schedulerAttemptDeadlineSeconds": 30, "recoverDeadlineSeconds": 20, "ownerDeadlineSeconds": 600, "pollMilliseconds": 1000, "maxExecutionPages": 4, "maxLogPages": 4, "maxLogEntries": 100, "proofFreshnessSeconds": 60 }
+  "bounds": { "cpu": "1", "memory": "1Gi", "taskCount": 1, "parallelism": 1, "timeoutSeconds": 300, "maxRetries": 0, "schedule": "*/5 * * * *", "schedulerRetryCount": 0, "schedulerAttemptDeadlineSeconds": 30, "recoverDeadlineSeconds": 20, "ownerDeadlineSeconds": 1200, "pollMilliseconds": 1000, "maxExecutionPages": 4, "maxLogPages": 4, "maxLogEntries": 100, "proofFreshnessSeconds": 60 }
 }
