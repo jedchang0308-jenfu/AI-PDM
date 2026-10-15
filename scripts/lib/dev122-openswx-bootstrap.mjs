@@ -5,7 +5,7 @@ import os from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
-import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, OWNER_DEADLINE_SECONDS, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { resolveWorkerArtifact, publishWorkerReuseJson, assertReuseSourceLock, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, runAiPdmNestedHistoryReplay, isAiPdmNativeHistoryCollectionActive, assertAiPdmNativeHistoryIngress, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
 
@@ -1829,7 +1829,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
     : stage === 'pause' ? [...base, 'drainKind', ...(input?.drainKind === 'DAILY_DB_VERIFIED' ? ['priorActivationRef', ...(input.bootstrapContinuation ? ['bootstrapContinuation'] : []), ...(Object.hasOwn(input ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : [])] : ['resourceApplyRef'])]
       : [...base, 'bootstrapKind', ...(input?.bootstrapKind === 'DAILY_REFRESH' ? ['priorActivationRef', 'pausedDrainedRef', ...(input.prebuildIamContinuationRef ? ['prebuildIamContinuationRef'] : []), ...(Object.hasOwn(input ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : [])] : ['resourceApplyRef', 'currentRegistryVersion'])]
   if (!input || (input.bootstrapContinuation && input.failedDailyContinuation) || (input.priorBootstrapInputRef && input.completedFirstBootstrapInputRef) || Object.keys(input).sort().join(',') !== allowed.sort().join(',') || input.schemaVersion !== `aipdm.openswx-${stage}-input.v${basisInput ? 2 : 1}` || !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '')
-    || Date.parse(input.deadlineAt) > Date.now() + 600_000) fail('OPENSWX_BOOTSTRAP_INPUT_INVALID')
+    || Date.parse(input.deadlineAt) > Date.now() + OWNER_DEADLINE_SECONDS * 1000) fail('OPENSWX_BOOTSTRAP_INPUT_INVALID')
   if (basisInput) {
     assertOpenSwxWorkerRef(input.historyBasisRef)
     if (!input.failedDailyContinuation || (stage === 'pause' ? input.drainKind !== 'DAILY_DB_VERIFIED' : input.bootstrapKind !== 'DAILY_REFRESH')) fail('OPENSWX_HISTORY_DAILY_ONLY')
@@ -1857,7 +1857,9 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
     if (intent?.programOnlyBaseline || isPausedAppRepair(descriptor.value) || stage === 'resources') fail('OPENSWX_HISTORY_DAILY_ONLY')
     await ensureAiPdmNativeHistoryBasis({ basisRef: descriptor.value.historyBasisRef, transport, readSource, sourceRevision: descriptor.value.sourceRevision, sourceLockRef: intent?.sourceLockRef ?? null })
   }
-  const profile = descriptor.profile, actor = await verifyNormalActor(transport, profile)
+  const profile = descriptor.profile
+  transport = boundOpenSwxTransport(transport, input.deadlineAt, profile.bounds.ownerDeadlineSeconds)
+  const actor = await verifyNormalActor(transport, profile)
   const uri = `${profile.receiptRoot}/${input.receiptId}.json`
   if (stage === 'activate') return activateWorker({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, intent, capsuleRef: input.releaseCapsuleRef, uri, deadlineAt: input.deadlineAt, actor, appProfile, readSource })
   if (descriptor.value.artifactMode === 'REUSE_VERIFIED' && (descriptor.value.purpose !== 'build_only' || stage === 'resources' || input.bootstrapKind === 'FIRST_CREATE' || input.drainKind === 'FIRST_PROVIDER_ONLY')) fail('OPENSWX_REUSE_DAILY_ONLY')

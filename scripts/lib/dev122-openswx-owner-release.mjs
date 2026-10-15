@@ -22,8 +22,9 @@ function fail(code) { const error = new Error(code); error.code = code; throw er
 function exact(value, keys, code) {
   if (!value || Array.isArray(value) || Object.keys(value).sort().join(',') !== [...keys].sort().join(',')) fail(code)
 }
-export function boundOpenSwxTransport(transport, deadlineAt) {
-  const limit = Math.min(Date.parse(deadlineAt), Date.now() + 600_000)
+export const OWNER_DEADLINE_SECONDS = 1_200
+export function boundOpenSwxTransport(transport, deadlineAt, ownerDeadlineSeconds = OWNER_DEADLINE_SECONDS) {
+  const limit = Math.min(Date.parse(deadlineAt), Date.now() + ownerDeadlineSeconds * 1000)
   if (!Number.isFinite(limit) || Date.now() >= limit) fail('OPENSWX_OWNER_DEADLINE')
   const check = () => { if (Date.now() >= limit) fail('OPENSWX_OWNER_DEADLINE') }
   const bounded = { ...transport }
@@ -66,7 +67,7 @@ export function assertOpenSwxWorkerProfile(value) {
     receiptRoot: `gs://${BUCKET}/${WORKER_RECEIPT_PREFIX}`, backendBucket: 'tfstate-jenfu-platform-prod', backendPrefix: 'dev-122/openswx-worker',
     dockerfile: 'scripts/lib/openswx-reader/Dockerfile', dockerTarget: 'finite-worker', readerSource: 'scripts/lib/openswx-reader',
     dispatchPolicy: 'scheduler_only.v1',
-    bounds: { cpu: '1', memory: '1Gi', taskCount: 1, parallelism: 1, timeoutSeconds: 300, maxRetries: 0, schedule: '*/5 * * * *', schedulerRetryCount: 0, schedulerAttemptDeadlineSeconds: 30, recoverDeadlineSeconds: 20, ownerDeadlineSeconds: 600, pollMilliseconds: 1000, maxExecutionPages: 4, maxLogPages: 4, maxLogEntries: 100, proofFreshnessSeconds: 60 },
+    bounds: { cpu: '1', memory: '1Gi', taskCount: 1, parallelism: 1, timeoutSeconds: 300, maxRetries: 0, schedule: '*/5 * * * *', schedulerRetryCount: 0, schedulerAttemptDeadlineSeconds: 30, recoverDeadlineSeconds: 20, ownerDeadlineSeconds: OWNER_DEADLINE_SECONDS, pollMilliseconds: 1000, maxExecutionPages: 4, maxLogPages: 4, maxLogEntries: 100, proofFreshnessSeconds: 60 },
   }
   if (canonicalize(value) !== canonicalize(fixed)) fail('OPENSWX_WORKER_PROFILE_INVALID')
   return value
@@ -442,7 +443,7 @@ export async function updateWorkerJob({ transport, profile, template, expectedCu
 export async function runWorkerFinite({ transport, descriptor, profile, template, receiptUri, actor, deadlineAt }) {
   assertOpenSwxWorkerProfile(profile)
   deadlineAt = new Date(Math.min(Date.parse(deadlineAt), Date.now() + profile.bounds.ownerDeadlineSeconds * 1000)).toISOString()
-  transport = boundOpenSwxTransport(transport, deadlineAt)
+  transport = boundOpenSwxTransport(transport, deadlineAt, profile.bounds.ownerDeadlineSeconds)
   const write = (uri, value) => writeWorkerJson(transport, uri, value)
   const terminal = await optionalReceipt(transport, receiptUri)
   if (terminal) {

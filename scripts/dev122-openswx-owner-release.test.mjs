@@ -3,7 +3,7 @@ import { createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './lib/dev12
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
+import { OWNER_DEADLINE_SECONDS, assertOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, updateWorkerJob, boundOpenSwxTransport } from './lib/dev122-openswx-owner-release.mjs'
 import { assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, assertTerminalExecution, listWorkerExecutions, createOpenSwxOwnerRelease } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
@@ -473,16 +473,16 @@ test('B28 each worker resolve refreshes its operation clock after a long app bui
   } finally { Date.now = originalNow }
 })
 
-test('B28 a single worker operation remains bounded by 600 seconds and by the absolute deadline across an await', async () => {
+test('B28 a single worker operation remains bounded by 1200 seconds and by the absolute deadline across an await', async () => {
   const started = Date.parse('2026-10-09T00:00:00Z'), originalNow = Date.now
   let clock = started, calls = 0, signal
   Date.now = () => clock
   try {
-    for (const duration of [600000, 1000]) {
+    for (const duration of [OWNER_DEADLINE_SECONDS * 1000, 1000]) {
       clock = started
       const bounded = boundOpenSwxTransport({ async request(_url, options) {
         calls++; signal = options.signal; clock += duration; return {}
-      } }, new Date(started + (duration === 1000 ? 1000 : 1200000)).toISOString())
+      } }, new Date(started + (duration === 1000 ? 1000 : OWNER_DEADLINE_SECONDS * 2 * 1000)).toISOString())
       await assert.rejects(bounded.request('https://example.invalid'), { code: 'OPENSWX_OWNER_DEADLINE' })
       assert.ok(signal instanceof AbortSignal)
     }
