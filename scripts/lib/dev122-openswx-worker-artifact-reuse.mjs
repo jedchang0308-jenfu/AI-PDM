@@ -536,7 +536,7 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
     same(worker.priorActivationRef, origin.prior.activationRef); same(worker.retainedWorkerDescriptorRef, origin.prior.bootstrapDescriptorRef)
     predecessorBaselineRef = worker.pausedBaselineRef
     const predecessor = await read(transport, predecessorBaselineRef)
-    assertPausedRepairBaseline(predecessor.value, profile)
+     assertPausedRepairBaseline(predecessor.value, origin.historicalProfile ?? profile, { historicalProfile: !!origin.historicalProfile })
     continuationDepth = predecessor.value.continuationDepth + 1
     if (continuationDepth > 8) fail('OPENSWX_REPAIR_CONTINUATION_DEPTH')
   }
@@ -582,7 +582,7 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
     sourceRevision: intent.sourceRevision, revision: revisionName, artifactDigest: graph.chain.deployment.value.artifactDigest, workerStatus, serviceEtag: service.etag, generalTrafficPercent: 100, tagCount: 0, canonicalOrigin: profile.canonicalOrigin }, predecessorBaselineRef, continuationDepth, raw, observedAt, graph, admission }
 }
 async function validateRepairBaseline({ transport, baseline, baselineRef, association, descriptor, input, inputRef, origin, profile, readSource, ctx }) {
-  assertPausedRepairBaseline(baseline, profile)
+  assertPausedRepairBaseline(baseline, origin.historicalProfile ?? profile, { historicalProfile: !!origin.historicalProfile })
   same(baseline.inputRef, inputRef); same(baseline.priorActivationRef, input.priorActivationRef); same(baseline.predecessorBaselineRef, input.predecessorBaselineRef)
   same(baseline.servingApp.capsuleRef, input.servingCapsuleRef); same(baseline.retainedWorkerDescriptorRef, origin.prior.bootstrapDescriptorRef)
   same(baseline.source, Object.fromEntries(SOURCE_BINDING_KEYS.map(key => [key, association[key]])))

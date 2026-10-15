@@ -155,13 +155,13 @@ function assertRepairSource(value) {
   if (!H40.test(value.sourceRevision) || ['sourceArchiveSha256', 'workerProfileSha256', 'resourcePlanHash'].some(key => !H64.test(value[key]))) fail('OPENSWX_REPAIR_SOURCE_INVALID')
   assertRepairReleaseRef(value.sourceLockRef)
 }
-export function assertRepairSnapshot(value, profile) {
+export function assertRepairSnapshot(value, profile, { historicalProfile = false } = {}) {
   exact(value, SNAPSHOT_KEYS, 'OPENSWX_REPAIR_SNAPSHOT_INVALID')
   exact(value.numericCredentials, ['token', 'registry'], 'OPENSWX_REPAIR_SNAPSHOT_INVALID')
   const token = assertNumericSecret(value.numericCredentials.token, profile.tokenSecretId), registry = assertNumericSecret(value.numericCredentials.registry, profile.registrySecretId)
   if (token !== value.numericCredentials.token || registry !== value.numericCredentials.registry || value.jobName !== workerJobName() || !nonempty(value.jobEtag) || !/^[1-9][0-9]*$/u.test(value.jobGeneration)
     || value.schedulerState !== 'PAUSED' || ['normalTemplateSha256', 'schedulerPolicySha256', 'iamSha256'].some(key => !H64.test(value[key]))
-    || value.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, value.image, token)))) fail('OPENSWX_REPAIR_SNAPSHOT_INVALID')
+     || value.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, value.image, token, 'normal', { historicalProfile })))) fail('OPENSWX_REPAIR_SNAPSHOT_INVALID')
   if (value.schedulerUserUpdateTime !== null) repairTime(value.schedulerUserUpdateTime)
   if (!Array.isArray(value.secretMetadata) || value.secretMetadata.length !== 2) fail('OPENSWX_REPAIR_SNAPSHOT_INVALID')
   for (const [index, row] of value.secretMetadata.entries()) {
@@ -180,7 +180,7 @@ export function assertRepairSnapshot(value, profile) {
 export function repairSnapshotProjection(value) {
   return { ...value, executions: value.executions.map(({ rawPageRef: _ref, ...row }) => row).sort((a, b) => a.name.localeCompare(b.name)) }
 }
-export function assertPausedRepairBaseline(value, profile) {
+export function assertPausedRepairBaseline(value, profile, options = {}) {
   exact(value, BASELINE_KEYS, 'OPENSWX_REPAIR_BASELINE_INVALID')
   if (value.schemaVersion !== 'aipdm.openswx-paused-app-repair-baseline.v1' || value.ownerApplicationId !== 'ai-pdm' || value.purpose !== 'PAUSED_APP_REPAIR' || value.status !== 'PASS'
     || value.evidenceScope !== 'PRODUCTION_PROVIDER_READBACK' || value.actor !== profile.normalActor || value.pauseFenceSeconds !== 55 || value.resourcesUnchanged !== true || value.mutationPerformed !== false
@@ -196,7 +196,7 @@ export function assertPausedRepairBaseline(value, profile) {
     || (value.servingApp.workerStatus === 'READY' ? value.predecessorBaselineRef !== null || value.continuationDepth !== 1 : value.predecessorBaselineRef === null)) fail('OPENSWX_REPAIR_SERVING_INVALID')
   const started = repairTime(value.observationStartedAt), completed = repairTime(value.observationCompletedAt), observed = repairTime(value.observedAt)
   if (completed - started < 55_000 || completed - started > 600_000 || observed < completed || observed - started > 600_000) fail('OPENSWX_REPAIR_FENCE_INVALID')
-  assertRepairSnapshot(value.before, profile); assertRepairSnapshot(value.after, profile)
+  assertRepairSnapshot(value.before, profile, options); assertRepairSnapshot(value.after, profile, options)
   if (canonicalize(repairSnapshotProjection(value.before)) !== canonicalize(repairSnapshotProjection(value.after))) fail('OPENSWX_REPAIR_RESOURCE_DRIFT')
   if (!Array.isArray(value.providerReadbackRefs) || !value.providerReadbackRefs.length || value.providerReadbackRefs.length > 64) fail('OPENSWX_REPAIR_BASELINE_INVALID')
   const ids = new Set()
