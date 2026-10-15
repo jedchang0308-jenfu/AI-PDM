@@ -1258,7 +1258,7 @@ export async function replayOpenSwxHistoryBasis({ inputRef, transport, readSourc
   if (time(resource.observedAt) > time(input.deadlineAt) || time(resource.observationCompletedAt) > time(request.requestedAt)) fail('OPENSWX_HISTORY_ATTEMPT_INVALID')
   const associationBinding = { sourceRevision: predecessorLock.sourceRevision, sourceArchiveSha256: input.currentSourceObjectRef.sha256, sourceLockRef: input.sourceLockRef,
     workerProfileSha256: sha256(profileBytes), resourcePlanHash: origin.buildOnly.resourcePlanHash, priorActivationRef: input.priorActivationRef, image: origin.build.image }
-  const originalFailed = await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource: legacy, currentManifest })
+  const originalFailed = await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource: legacy, currentManifest, historicalProfile: true })
   const completed = await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef, failed: originalFailed, prior: origin.prior, profile, readSource: legacy, currentManifest })
   const qualified = await validateFailedDailyResourceProof({ transport, value: resource, association: associationBinding, origin, input, profile, readSource: legacy, currentManifest })
   if (qualified.failed.partialPause && Date.now() <= time(qualified.failed.partialPause.deadlineAt)) fail('OPENSWX_HISTORY_WRITER_ACTIVE')

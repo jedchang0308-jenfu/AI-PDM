@@ -998,7 +998,7 @@ export function assertFailedDailyIsolationProof(proof, execution, profile) {
   return proof
 }
 /** Historical validation is sealed-only. Live checks are explicit at mutation boundaries. */
-export async function readFailedDailyContinuation({ transport, continuation, prior, profile, readSource, historicalReadSource = null, currentManifest, verifyProvider = false, deadlineAt }) {
+export async function readFailedDailyContinuation({ transport, continuation, prior, profile, readSource, historicalReadSource = null, currentManifest, verifyProvider = false, deadlineAt, historicalProfile = false }) {
   assertFailedDailyContinuation(continuation)
   const oldInput = (await transport.readJson(continuation.bootstrapInputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const inputKeys = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId', 'bootstrapKind', 'priorActivationRef', 'pausedDrainedRef', ...(oldInput?.prebuildIamContinuationRef ? ['prebuildIamContinuationRef'] : [])]
@@ -1011,7 +1011,7 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
   if (await optional(transport, uri + '.json') || await optional(transport, uri + '-preflight.json')) fail('OPENSWX_FAILED_DAILY_ALREADY_COMPLETED')
   const raw = (await transport.readJson(oldInput.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const historical = historicalReadSource ?? readSource
-  const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: historical(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+  const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: historical(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision, historicalProfile })
   if (old.value.purpose !== 'build_only' || old.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   failedDailySame(old.profile, profile)
   historical.authorizeOrigin?.(old.value.sourceRevision)
