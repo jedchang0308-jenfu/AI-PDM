@@ -26,7 +26,7 @@ async function publishDailyFullDescriptor({ transport, input, inputRef, descript
     cloudPreflightRef: facts.cloudPreflightRef, pausedDrainedRef: input.pausedDrainedRef,
     tokenSecretVersion: facts.tokenSecretVersion, registrySecretVersion: facts.registrySecretVersion };
   delete full.resourcePlanRef;
-  assertWorkerDescriptor(full, profile, base.workerProfileSha256, base.sourceRevision);
+  assertWorkerDescriptor(full, profile, base.workerProfileSha256, base.sourceRevision, { historicalProfile: true });
   const evidence = await readWorkerFullEvidence(transport, full, profile, readSource);
   if (evidence.image !== bootstrap.value.image) fail('OPENSWX_DAILY_DESCRIPTOR_JOIN_INVALID');
   assertPausedScheduler(await transport.request('https://cloudscheduler.googleapis.com/v1/' + workerSchedulerName()), profile);
@@ -216,7 +216,7 @@ async function firstResourceBasis({ transport, profile, descriptor, plan, build,
   const old = request.value
   const binary = await transport.readJson(old.binaryPlanReceiptRef, BUCKET, [WORKER_RECEIPT_PREFIX])
   const priorDescriptor = await transport.readJson(old.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])
-  const d = assertWorkerDescriptor(priorDescriptor.value, profile, descriptor.workerProfileSha256, old.sourceRevision)
+  const d = assertWorkerDescriptor(priorDescriptor.value, profile, descriptor.workerProfileSha256, old.sourceRevision, { historicalProfile: true })
   const priorBuild = await transport.readJson(priorWorkerBuildRef, BUCKET, [WORKER_RECEIPT_PREFIX])
   assertWorkerReceipt(priorBuild.value, d, 'build', { image: old.workerImage }); assertWorkerBuildSource(priorBuild.value, d); assertWorkerBuildSource(build, descriptor)
   const approved = await transport.readJson(old.approvedPlanRef, BUCKET, [WORKER_RECEIPT_PREFIX])
@@ -261,7 +261,7 @@ async function readPartialFirstCredentialProof({ transport, profile, descriptor,
     || oldInput.schemaVersion !== 'aipdm.openswx-bootstrap-input.v1' || oldInput.bootstrapKind !== 'FIRST_CREATE'
     || !/^[A-Za-z0-9-]{6,100}$/u.test(oldInput.receiptId ?? '') || !Number.isFinite(Date.parse(oldInput.deadlineAt))) fail('OPENSWX_PARTIAL_FIRST_JOIN_INVALID')
   const oldDescriptorRow = await transport.readJson(oldInput.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])
-  const oldDescriptor = assertWorkerDescriptor(oldDescriptorRow.value, profile, descriptor.workerProfileSha256, oldDescriptorRow.value.sourceRevision)
+  const oldDescriptor = assertWorkerDescriptor(oldDescriptorRow.value, profile, descriptor.workerProfileSha256, oldDescriptorRow.value.sourceRevision, { historicalProfile: true })
   const oldBuildRow = await transport.readJson(oldInput.workerBuildRef, BUCKET, [WORKER_RECEIPT_PREFIX])
   assertWorkerReceipt(oldBuildRow.value, oldDescriptor, 'build'); assertWorkerBuildSource(oldBuildRow.value, oldDescriptor)
   const oldApply = (await transport.readJson(oldInput.resourceApplyRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
@@ -344,7 +344,7 @@ async function readCompletedFirstProof({ transport, profile, descriptor, plan, b
     || [oldInput, oldPauseInput].some(row => !/^[A-Za-z0-9-]{6,100}$/u.test(row.receiptId ?? '') || !Number.isFinite(Date.parse(row.deadlineAt)))
     || ['descriptorRef', 'workerBuildRef', 'resourceApplyRef'].some(key => canonicalize(oldInput[key]) !== canonicalize(oldPauseInput[key]))) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
   const oldDescriptorRow = await transport.readJson(oldInput.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])
-  const oldDescriptor = assertWorkerDescriptor(oldDescriptorRow.value, profile, descriptor.workerProfileSha256, oldDescriptorRow.value.sourceRevision)
+  const oldDescriptor = assertWorkerDescriptor(oldDescriptorRow.value, profile, descriptor.workerProfileSha256, oldDescriptorRow.value.sourceRevision, { historicalProfile: true })
   const oldBuildRow = await transport.readJson(oldInput.workerBuildRef, BUCKET, [WORKER_RECEIPT_PREFIX]), oldBuild = oldBuildRow.value
   assertWorkerReceipt(oldBuild, oldDescriptor, 'build'); assertWorkerBuildSource(oldBuild, oldDescriptor)
   if (oldDescriptor.purpose !== 'build_only' || oldDescriptor.sourceRevision === descriptor.sourceRevision || oldDescriptor.resourcePlanHash !== descriptor.resourcePlanHash
@@ -902,7 +902,7 @@ async function verifyProgramOnlyServingRuntime({transport, profile, prior, appPr
     || canonicalize(graph.chain.finalize.ref)!==canonicalize(finalized.ref) || !graph.programMigration || graph.bundle.bundle.entries.length!==33
     || terminal.value.facts.result!=='RELEASED' || finalized.value.facts.openswxWorker?.status!=='READY' || finalized.value.facts.openswxWorker.retained!==true
     || canonical.value.facts.origin!==profile.canonicalOrigin) fail('OPENSWX_DAILY_SERVING_INVALID')
-  const descriptor=await readWorkerDescriptor({transport,ref:intent.openswxWorkerRef,profileBytes:readSource(WORKER_PROFILE_PATH,intent.sourceRevision),sourceRevision:intent.sourceRevision})
+   const descriptor=await readWorkerDescriptor({transport,ref:intent.openswxWorkerRef,profileBytes:readSource(WORKER_PROFILE_PATH,intent.sourceRevision),sourceRevision:intent.sourceRevision,historicalProfile:true})
   const retained=await readProgramOnlyWorkerEvidence({transport,intent,appProfile:historicalProfile,descriptor:descriptor.value,profile,readSource})
   if(canonicalize(retained.prior.activationRef)!==canonicalize(prior.activationRef) || canonicalize(retained.prior.descriptorRef)!==canonicalize(prior.descriptorRef)
     || canonicalize(retained.template)!==canonicalize(prior.template) || retained.image!==prior.build.image) fail('OPENSWX_DAILY_SERVING_INVALID')
@@ -998,7 +998,7 @@ export function assertFailedDailyIsolationProof(proof, execution, profile) {
   return proof
 }
 /** Historical validation is sealed-only. Live checks are explicit at mutation boundaries. */
-export async function readFailedDailyContinuation({ transport, continuation, prior, profile, readSource, currentManifest, verifyProvider = false, deadlineAt }) {
+export async function readFailedDailyContinuation({ transport, continuation, prior, profile, readSource, historicalReadSource = null, currentManifest, verifyProvider = false, deadlineAt }) {
   assertFailedDailyContinuation(continuation)
   const oldInput = (await transport.readJson(continuation.bootstrapInputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const inputKeys = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId', 'bootstrapKind', 'priorActivationRef', 'pausedDrainedRef', ...(oldInput?.prebuildIamContinuationRef ? ['prebuildIamContinuationRef'] : [])]
@@ -1010,11 +1010,12 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
   if (continuation.recoveryRequiredRef.uri !== uri + '-recovery-required.json' || continuation.priorRecoveryRef.uri !== uri + '-prior-recovery.json') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   if (await optional(transport, uri + '.json') || await optional(transport, uri + '-preflight.json')) fail('OPENSWX_FAILED_DAILY_ALREADY_COMPLETED')
   const raw = (await transport.readJson(oldInput.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
-  const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+  const historical = historicalReadSource ?? readSource
+  const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: historical(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
   if (old.value.purpose !== 'build_only' || old.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   failedDailySame(old.profile, profile)
-  readSource.authorizeOrigin?.(old.value.sourceRevision)
-  const artifact = await resolveWorkerArtifact({ transport, descriptor: old.value, profile, readSource, buildRef: oldInput.workerBuildRef })
+  historical.authorizeOrigin?.(old.value.sourceRevision)
+  const artifact = await resolveWorkerArtifact({ transport, descriptor: old.value, profile, readSource, historicalReadSource, buildRef: oldInput.workerBuildRef })
   if (artifact.input.failedDailyContinuation || artifact.image !== prior.build.image || !currentManifest) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   failedDailySame(artifact.currentManifest.entries, currentManifest.entries)
   for (const manifest of [artifact.currentManifest, currentManifest]) for (const entry of manifest.entries) {
@@ -1092,11 +1093,15 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
 }
 /** Carry only a fully authenticated completed FAILED DAILY drain into the next
  * source attempt. Its old proof is history, never current database admission. */
-export async function readCompletedFailedDailyCheckpoint({ transport, checkpointRef, failed, prior, profile, readSource, currentManifest, historyBasisRef = null, historyBindings = null }) {
-  if (historyBasisRef) {
+export async function readCompletedFailedDailyCheckpoint({ transport, checkpointRef, failed, prior, profile, readSource, historicalReadSource = null, currentManifest, historyBasisRef = null, historyBindings = null, replayNestedCheckpoint = false }) {
+  if (historyBasisRef && !replayNestedCheckpoint) {
     if (!checkpointRef) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
     const projection = readAiPdmQualifiedHistoryProjection({ basisRef: historyBasisRef, kind: 'checkpoint', frontierRef: checkpointRef, bindings: historyBindings })
     return { ...failed, ...projection }
+  }
+  if (historyBasisRef && replayNestedCheckpoint) {
+    if (!historyBindings?.issuerSourceRevision || !historyBindings?.issuerSourceLockRef) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
+    assertAiPdmNativeHistoryIngress({ basisRef: historyBasisRef, sourceRevision: historyBindings.issuerSourceRevision, sourceLockRef: historyBindings.issuerSourceLockRef })
   }
   if (!checkpointRef) return failed
   assertOpenSwxWorkerRef(checkpointRef)
@@ -1128,7 +1133,7 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
       readSource.authorizeOrigin?.(candidateRaw.sourceRevision)
       candidate = await readWorkerDescriptor({ transport, ref: checkpointRef,
         profileBytes: readSource(WORKER_PROFILE_PATH, candidateRaw.sourceRevision), sourceRevision: candidateRaw.sourceRevision,
-        nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null })
+        nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null, historicalProfile: true })
     }
     // The full descriptor is an envelope of its resolved association source.
     // Preserve ancestry/hash guards; resolveWorkerArtifact counts the association.
@@ -1136,26 +1141,27 @@ export async function readCompletedFailedDailyCheckpoint({ transport, checkpoint
       let checkpoint, evidence
       if (candidate && isAiPdmNativeHistoryCollectionActive()) {
         const nested = await runAiPdmNestedHistoryReplay({ checkpointRef, checkpointDescriptor: candidate.value, basisRef: candidate.value.historyBasisRef,
-          transport, readSource, sourceRevision: candidate.value.sourceRevision, callback: async ({ context }) => {
+          transport, readSource, sourceRevision: candidate.value.sourceRevision, historicalReadSource, callback: async ({ context, readSource: nestedReadSource }) => {
             const raw = (await readCheckpointJson()).value
-            readSource.authorizeOrigin?.(raw.sourceRevision)
+            nestedReadSource.authorizeOrigin?.(raw.sourceRevision)
             const nestedDescriptor = await readWorkerDescriptor({ transport, ref: checkpointRef,
-              profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision,
-              nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null })
+              profileBytes: nestedReadSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision,
+              nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null, historicalProfile: true })
             if (canonicalize(candidate.value) !== canonicalize(nestedDescriptor.value)) fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
-            const nestedEvidence = await readWorkerFullEvidence(transport, nestedDescriptor.value, profile, readSource, context)
+            const nestedEvidence = await readWorkerFullEvidence(transport, nestedDescriptor.value, profile, nestedReadSource, context, nestedReadSource)
             return { checkpoint: nestedDescriptor, evidence: nestedEvidence }
           } })
         checkpoint = nested.checkpoint; evidence = nested.evidence
       } else {
-        if (candidate) await ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, checkpointDescriptor: candidate.value,
-          basisRef: candidate.value.historyBasisRef, transport, readSource, sourceRevision: candidate.value.sourceRevision })
+        const nestedHistory = candidate ? await ensureAiPdmNestedCheckpointHistoryBasis({ checkpointRef, checkpointDescriptor: candidate.value,
+           basisRef: candidate.value.historyBasisRef, transport, readSource, sourceRevision: candidate.value.sourceRevision, historicalReadSource })
+          : null
         const raw = (await readCheckpointJson()).value
         readSource.authorizeOrigin?.(raw.sourceRevision)
         checkpoint = await readWorkerDescriptor({ transport, ref: checkpointRef,
           profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision,
-          nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null })
-        evidence = await readWorkerFullEvidence(transport, checkpoint.value, profile, readSource, child)
+          nestedCheckpointRef: nestedCheckpoint ? checkpointRef : null, historicalProfile: true })
+        evidence = await readWorkerFullEvidence(transport, checkpoint.value, profile, nestedHistory?.historicalReadSource ?? historicalReadSource ?? readSource, child, nestedHistory?.historicalReadSource ?? historicalReadSource)
       }
       if (checkpoint.value.purpose !== 'full' || checkpoint.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_FAILED_DAILY_CHECKPOINT_INVALID')
       failedDailySame(checkpoint.profile, profile)
@@ -1292,10 +1298,14 @@ async function readFailedDailyDrainFailure({ transport, failureRef, inputRef, in
 
 /** Read only a sealed, incomplete daily pause. Its latched execution is history,
  * not a completed pause/bootstrap and never a fresh database-admission proof. */
-export async function readPartialFailedDailyPause({ transport, inputRef, failed, prior, profile, readSource, currentManifest, historyBasisRef = null, historyBindings = null, failureRef = null, frontierRebaseRef = null, frontierRebaseSourceLockRef = null, frontierRebaseDeadlineAt = null, frontierRebaseCompletedCheckpointRef = null }) {
-  if (historyBasisRef) {
+export async function readPartialFailedDailyPause({ transport, inputRef, failed, prior, profile, readSource, historicalReadSource = null, currentManifest, historyBasisRef = null, historyBindings = null, replayNestedPause = false, failureRef = null, frontierRebaseRef = null, frontierRebaseSourceLockRef = null, frontierRebaseDeadlineAt = null, frontierRebaseCompletedCheckpointRef = null }) {
+  if (historyBasisRef && !replayNestedPause) {
     const projection = readAiPdmQualifiedHistoryProjection({ basisRef: historyBasisRef, kind: 'partial', frontierRef: inputRef ?? null, bindings: historyBindings })
     return inputRef ? { ...failed, ...projection } : failed
+  }
+  if (historyBasisRef && replayNestedPause) {
+    if (!historyBindings?.issuerSourceRevision || !historyBindings?.issuerSourceLockRef) fail('OPENSWX_PARTIAL_DAILY_CHECKPOINT_INVALID')
+    assertAiPdmNativeHistoryIngress({ basisRef: historyBasisRef, sourceRevision: historyBindings.issuerSourceRevision, sourceLockRef: historyBindings.issuerSourceLockRef })
   }
   if (!inputRef) return failed
   assertOpenSwxWorkerRef(inputRef)
@@ -1315,10 +1325,10 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
       return runAiPdmEvidenceContext(descriptorCtx, async () => {
         const raw = (await transport.readJson(input.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
         readSource.authorizeOrigin?.(raw.sourceRevision)
-        const descriptor = await readWorkerDescriptor({ transport, ref: input.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+        const descriptor = await readWorkerDescriptor({ transport, ref: input.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision, historicalProfile: true })
         if (descriptor.value.purpose !== 'build_only' || descriptor.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
         failedDailySame(descriptor.profile, profile); failedDailySame(descriptor.value.workerBuildRef, input.workerBuildRef)
-        const artifact = await resolveWorkerArtifact({ transport, descriptor: descriptor.value, profile, readSource, ctx: descriptorCtx })
+          const artifact = await resolveWorkerArtifact({ transport, descriptor: descriptor.value, profile, readSource, historicalReadSource, ctx: descriptorCtx })
         if (!artifact.failedDaily || artifact.image !== prior.build.image) fail('OPENSWX_PARTIAL_DAILY_JOIN_INVALID')
         failedDailySame(artifact.input.failedDailyContinuation, failed.continuation)
         failedDailySame(artifact.input.priorActivationRef, prior.activationRef)
@@ -1493,7 +1503,7 @@ function assertFailedDailyPauseInputBinding(input, descriptor, artifact) {
 async function readFailedDailyPauseInputBinding({ transport, inputRef, input: verifiedInput = null, descriptorRaw = null, descriptor, artifact, profile }) {
   const input = assertFailedDailyPauseInputBinding(verifiedInput ?? (await transport.readJson(inputRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value,descriptor,artifact)
   const raw = descriptorRaw ?? (await transport.readJson(input.descriptorRef,BUCKET,[WORKER_RECEIPT_PREFIX])).value
-  assertWorkerDescriptor(raw,profile,descriptor.workerProfileSha256,descriptor.sourceRevision)
+  assertWorkerDescriptor(raw,profile,descriptor.workerProfileSha256,descriptor.sourceRevision, { historicalProfile: true })
   if (raw.purpose !== 'build_only' || raw.sourceArchiveSha256 !== descriptor.sourceArchiveSha256) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   failedDailySame(raw.workerBuildRef,descriptor.workerBuildRef)
   failedDailySame(raw.historyBasisRef ?? null,descriptor.historyBasisRef ?? null)
@@ -1669,7 +1679,7 @@ async function readSuccessfulDailyBootstrapContinuation({ transport, continuatio
   const oldUri = `${profile.receiptRoot}/${oldInput.receiptId}.json`
   if (continuation.bootstrapRef.uri !== oldUri || continuation.priorRecoveryRef.uri !== `${oldUri.slice(0, -5)}-prior-recovery.json`) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
   const raw = (await transport.readJson(oldInput.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
-  const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+   const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision, historicalProfile: true })
   if (old.value.purpose !== 'build_only' || canonicalize(old.profile) !== canonicalize(profile)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
   const artifact = await resolveWorkerArtifact({ transport, descriptor: old.value, profile, readSource, buildRef: oldInput.workerBuildRef })
   const build = artifact.originBuild
@@ -1850,7 +1860,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
     descriptor = await readWorkerDescriptor({ transport, ref: intent.openswxWorkerRef, profileBytes: readSource(WORKER_PROFILE_PATH, intent.sourceRevision), sourceRevision: intent.sourceRevision })
   } else {
     const raw = (await transport.readJson(input.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
-    descriptor = await readWorkerDescriptor({ transport, ref: input.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+     descriptor = await readWorkerDescriptor({ transport, ref: input.descriptorRef, profileBytes: readSource(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision, historicalProfile: true })
   }
   if (stage !== 'activate' && (!!descriptor.value.historyBasisRef !== basisInput || (basisInput && canonicalize(input.historyBasisRef) !== canonicalize(descriptor.value.historyBasisRef)))) fail('OPENSWX_HISTORY_INPUT_JOIN_INVALID')
   if (descriptor.value.historyBasisRef) {
