@@ -1,3 +1,9 @@
+## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
+
+PR #312 required CI PASS並合併為官方 `main` commit `b42458b3cd05924be566ea05e536454f6751c883`。R60 新 source freeze及source-bound metadata readback完成，provider仍為12個 `no-op/read`，IAM／worker resource changes與new images皆0；worker replay已越過historical reader scope，隨後在讀取合法舊600秒profile時仍套用目前1200秒validator及固定SHA，以 `OPENSWX_WORKER_PROFILE_INVALID` 拒絕。失敗發生於association發布前；未owner dispatch、build、migration085、service／traffic或正式資料mutation，R60 immutable input不重送。
+
+最小修正讓replay沿用既有historical profile validator，只允許目前1200秒或已承認舊600秒的完整固定profile；其他欄位漂移及畸形JSON仍拒絕。移除該點的current-only固定SHA後，後續 `readOrigin` 仍以descriptor的 `workerProfileSha256` 綁定exact bytes，並執行current／historical相容檢查，不放寬source、archive、depth、clock、hash／cycle或provider fence。[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r28-historical-replay-profile-binding--2026-10-16)。
+
 ## DEV-121#rd-capabilities — 2026-10-15 nested history predecessor reader admission（聚焦回歸 PASS，待受保護發布）
 
 R58 以 PR #311 合併後的官方 source `e0f223e6470341872c9cb942d7b821e7fee546e3` 完成新 source freeze 與 source-bound metadata provider readback（12 個資源皆 `no-op/read`，IAM／worker resource changes=0，new images=0）。worker reuse 已越過 R57 的 `OPENSWX_DESCRIPTOR_INVALID`，隨後在 association 發布前以 `OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID` 拒絕：nested native-history replay 只將 predecessor revision 授權給 current archive reader，實際執行 `readTree`／`readTreeId` 的 historical issuer reader仍維持獨立、未授權的 scope。未 owner dispatch、build、migration085、service／traffic或正式資料 mutation；R58 immutable input 不重送。

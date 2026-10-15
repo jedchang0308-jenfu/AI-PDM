@@ -43,12 +43,16 @@ function assertHistoricalProfileCompatibility(currentProfile, historicalProfile)
   }
   same(normalize(historicalProfile), normalize(currentProfile), 'OPENSWX_REUSE_HISTORICAL_PROFILE_DRIFT')
 }
+export function readHistoricalWorkerProfile(readSource, sourceRevision) {
+  const bytes = readSource(WORKER_PROFILE_PATH, sourceRevision)
+  let profile
+  try { profile = assertHistoricalOpenSwxWorkerProfile(JSON.parse(bytes)) }
+  catch (error) { if (error?.code) throw error; fail('OPENSWX_WORKER_PROFILE_INVALID') }
+  return { bytes, profile }
+}
 export function assertHistoricalCheckpointDescriptor(checkpoint, currentProfile, historicalReadSource) {
   if (typeof historicalReadSource !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-  const historicalProfileBytes = historicalReadSource(WORKER_PROFILE_PATH, checkpoint.sourceRevision)
-  let historicalProfile
-  try { historicalProfile = assertHistoricalOpenSwxWorkerProfile(JSON.parse(historicalProfileBytes)) }
-  catch (error) { if (error?.code) throw error; fail('OPENSWX_WORKER_PROFILE_INVALID') }
+  const { bytes: historicalProfileBytes, profile: historicalProfile } = readHistoricalWorkerProfile(historicalReadSource, checkpoint.sourceRevision)
   assertHistoricalProfileCompatibility(currentProfile, historicalProfile)
   assertWorkerDescriptor(checkpoint, historicalProfile, sha256(historicalProfileBytes), checkpoint.sourceRevision, { historicalProfile: true })
   return historicalProfile
@@ -1233,9 +1237,8 @@ export async function replayOpenSwxHistoryBasis({ inputRef, transport, readSourc
     ? predecessorArchiveSource.readImmutableArchive(predecessorLock.sourceRevision)
     : predecessorArchiveSource.readArchive(predecessorLock.sourceRevision)
   if (!input.currentSourceObjectRef.uri.startsWith(`gs://${BUCKET}/source/releases/${predecessorLock.releaseId}/`) || !predecessorTar.equals(predecessorArchive)) fail('OPENSWX_HISTORY_PREDECESSOR_ARCHIVE_INVALID')
-  const profileBytes = legacy(WORKER_PROFILE_PATH, predecessorLock.sourceRevision), profile = assertOpenSwxWorkerProfile(JSON.parse(profileBytes))
-  if (sha256(profileBytes) !== PROFILE_SHA) fail('OPENSWX_REUSE_PROFILE_DRIFT')
-   const origin = await readOrigin({ transport, priorActivationRef: input.priorActivationRef, profile, readSource: legacy, sourceRevision: predecessorLock.sourceRevision })
+  const { bytes: profileBytes, profile } = readHistoricalWorkerProfile(legacy, predecessorLock.sourceRevision)
+  const origin = await readOrigin({ transport, priorActivationRef: input.priorActivationRef, profile, readSource: legacy, sourceRevision: predecessorLock.sourceRevision })
   const currentManifest = (await read(transport, qualificationInput.predecessorCurrentManifestRef)).value
   const originalManifest = workerInputManifest(legacy.readTree(origin.build.sourceRevision), legacy, origin.build.sourceRevision)
   const derivedManifest = workerInputManifest(legacy.readTree(predecessorLock.sourceRevision), legacy, predecessorLock.sourceRevision)

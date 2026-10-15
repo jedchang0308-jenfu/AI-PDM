@@ -1,3 +1,7 @@
+## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
+
+PR #312 required CI PASS並合併為官方main `b42458b3cd05924be566ea05e536454f6751c883`；R60 source freeze及12-row metadata no-op/read完成，worker越過reader-scope修正後，於舊600秒profile仍被current-only 1200秒validator／固定SHA拒絕。新最小修正改用既有historical validator，僅允許完整固定的1200或600秒profile；exact bytes仍由下游descriptor SHA及origin相容檢查綁定，其他歷史、來源與provider fence不變。R60 association／owner dispatch／build／migration／service／traffic／正式資料皆未變更，舊input不重送。[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r28-historical-replay-profile-binding--2026-10-16)。
+
 ## DEV-121#rd-capabilities — 2026-10-15 nested history predecessor reader admission（聚焦回歸 PASS，待受保護發布）
 
 R58 以 PR #311 merged main完成新 source freeze及 source-bound metadata zero-change readback；worker reuse已越過舊 profile錯誤，但 nested replay僅授權 current archive reader，真正讀 predecessor tree的historical issuer reader因獨立scope而以 `OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID` 拒絕。新最小修正只在 predecessor lock及來源admission完成後，把同一exact revision交給實際reader；outer immutable archive授權與原path／depth／clock／hash／cycle／profile／provider fence全數保留。獨立許可集合fixture與完整worker回歸1/1、99/99 PASS。PR #312 required CI兩次在非產品 local-workload contract的Windows PowerShell外層45秒timeout穩定拒絕，停止原狀重試後將外層上限改120秒，三個child各10秒及原隔離斷言不變；R58 input不重送，後續仍走新source-bound受保護attempt。[契約](specs/DEV-121-target-authorization-boundary.md#native-history-basis-v1)／[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r27-nested-history-predecessor-reader-admission--2026-10-15)。
