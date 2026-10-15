@@ -5,7 +5,7 @@ import os from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
-import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, OWNER_DEADLINE_SECONDS, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, OWNER_DEADLINE_SECONDS, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { resolveWorkerArtifact, publishWorkerReuseJson, assertReuseSourceLock, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, runAiPdmNestedHistoryReplay, isAiPdmNativeHistoryCollectionActive, assertAiPdmNativeHistoryIngress, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
 
@@ -143,8 +143,8 @@ export async function readCurrentReadyWorkerResources(options) {
     secretMetadata: before.secrets, iamSha256: resources.iamSha256, raw, resourcesUnchanged: true, mutationPerformed: false, quiescenceClaimed: false }
 }
 /** Fixed normal-actor PAUSED observation. It confers no database admission. */
-export async function readPausedRepairCurrentResources({ transport, profile, descriptor, image, supplementalIam, secretVersionIam = null, currentTemplate = null }) {
-  assertOpenSwxWorkerProfile(profile)
+export async function readPausedRepairCurrentResources({ transport, profile, descriptor, image, supplementalIam, secretVersionIam = null, currentTemplate = null, historicalProfile = false }) {
+  ;(historicalProfile ? assertHistoricalOpenSwxWorkerProfile : assertOpenSwxWorkerProfile)(profile)
   const raw = []
   const observed = { ...transport, request: async (url, opts) => {
     const method = opts?.method ?? 'GET'
@@ -1377,9 +1377,9 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
   })
 }
 /** A paused failed attempt is not READY and never supplies current DB admission. */
-export async function readFailedDailyCurrentResources({ transport, profile, prior, supplementalIam, secretVersionIam, failed }) {
+export async function readFailedDailyCurrentResources({ transport, profile, prior, supplementalIam, secretVersionIam, failed, historicalProfile = false }) {
   const currentTemplate = failed.currentTemplateMode === 'SELFTEST' ? failed.selftest : prior.template
-  const capture = () => readPausedRepairCurrentResources({ transport, profile, descriptor: prior.descriptor, image: prior.build.image, supplementalIam, secretVersionIam, currentTemplate })
+  const capture = () => readPausedRepairCurrentResources({ transport, profile, descriptor: prior.descriptor, image: prior.build.image, supplementalIam, secretVersionIam, currentTemplate, historicalProfile })
   const observationStartedAt = transport.now(), partialRaw = []
   let admittedFailed = failed
   if (failed.partialPause) {

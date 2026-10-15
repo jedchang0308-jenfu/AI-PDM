@@ -775,7 +775,7 @@ async function validateFailedDailyResourceProof({ transport, value, association,
   } }
   const supplementalIam = await readBootstrapSupplementalIam(transport, origin.prior.bootstrap, origin.prior.bootstrapDescriptor, profile, readSource, association.sourceRevision, historicalReadSource)
   const secretVersionIam = await readSecretVersionIamForReuse({transport,input,supplemental:supplementalIam,sourceRevision:association.sourceRevision,profile,readSource})
-  const reconstructed = await readFailedDailyCurrentResources({transport:sealed,profile,prior:origin.prior,supplementalIam:supplementalIam?{...supplementalIam,readSource}:null,secretVersionIam,failed})
+  const reconstructed = await readFailedDailyCurrentResources({transport:sealed,profile,prior:origin.prior,supplementalIam:supplementalIam?{...supplementalIam,readSource}:null,secretVersionIam,failed,historicalProfile:true})
   same(reconstructed.snapshot,snapshot,'OPENSWX_FAILED_DAILY_RESOURCE_INVALID')
   if (cursor!==bodies.length) fail('OPENSWX_FAILED_DAILY_RESOURCE_INVALID')
   const actualIsolation = (await read(transport,value.isolationProviderExecutionRef)).value, actualRecovery = (await read(transport,value.recoveryProviderExecutionRef)).value
