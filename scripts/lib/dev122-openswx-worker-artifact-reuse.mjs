@@ -471,7 +471,7 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
     secretVersionIam = await readSecretVersionIamForReuse({ transport, input, supplemental, sourceRevision: descriptor.sourceRevision, profile, readSource })
   }
   const original = (await read(transport, association.executableProof.originalManifestRef)).value, current = (await read(transport, association.executableProof.currentManifestRef)).value
-   manifestEqual(original, current, { originalProfileSha256: origin.build.workerProfileSha256 })
+   manifestEqual(original, current, { originalProfileSha256: origin.build.workerProfileSha256, currentProfileSha256: origin.build.workerProfileSha256 })
   if (original.sourceRevision !== origin.build.sourceRevision || current.sourceRevision !== descriptor.sourceRevision) fail('OPENSWX_REUSE_MANIFEST_INVALID')
   const infra = (await read(transport, association.resourceAssociation.infraManifestRef)).value
   exact(infra, ['schemaVersion', 'sourceRevision', 'sourceHashes', 'plan', 'resourcePlanHash', 'originalApprovedResourcePlanRef', 'originalResourceApplyRef'])
