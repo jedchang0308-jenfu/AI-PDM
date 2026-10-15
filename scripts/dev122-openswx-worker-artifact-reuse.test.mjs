@@ -20,7 +20,7 @@ import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeC
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, assertFailedDailyFullJoin, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
 import { qualifyAiPdmNativeHistoryBasis, deriveAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
-import { assertHistoricalCheckpointDescriptor, buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { assertHistoricalCheckpointDescriptor, readHistoricalWorkerProfile, buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan } from './lib/dev122-openswx-readback-iam.mjs'
@@ -85,7 +85,7 @@ const oldTar = tar(manifest.entries), currentTar = tar(manifest.entries, [{ path
 const currentTree = Buffer.concat([actualTree, Buffer.from(`100644 blob ${'f'.repeat(40)}\tsrc/app/b19-app-only.txt\0`)])
 const now = '2026-10-07T15:00:00.000Z'
 const deadline = () => new Date(Date.now() + 120_000).toISOString()
-test('historical checkpoint validation uses its admitted 600 second profile instead of the current 1200 second profile', async () => {
+test('historical profile reader shared by checkpoint and replay accepts the admitted 600 second profile', async () => {
   const h = await harness()
   assert.equal(sha256(historicalProfileBytes), '65d6530a0f1e713c7936bdb0889bb529742334a530b20b6e8bf18ea81a7461dc')
   const checkpoint = {
@@ -103,6 +103,9 @@ test('historical checkpoint validation uses its admitted 600 second profile inst
     assert.equal(revision, checkpoint.sourceRevision)
     return historicalProfileBytes
   }
+  const historical = readHistoricalWorkerProfile(historicalReader, checkpoint.sourceRevision)
+  assert.equal(sha256(historical.bytes), checkpoint.workerProfileSha256)
+  assert.deepEqual(historical.profile, historicalProfile)
   assert.doesNotThrow(() => assertHistoricalCheckpointDescriptor(checkpoint, profile, historicalReader))
   const incompatibleBytes = Buffer.from(historicalProfileBytes.toString('utf8').replace('"maxLogPages": 4', '"maxLogPages": 5'))
   assert.throws(
