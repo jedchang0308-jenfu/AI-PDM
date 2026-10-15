@@ -106,6 +106,10 @@ test('historical profile reader shared by checkpoint and replay accepts the admi
   const historical = readHistoricalWorkerProfile(historicalReader, checkpoint.sourceRevision)
   assert.equal(sha256(historical.bytes), checkpoint.workerProfileSha256)
   assert.deepEqual(historical.profile, historicalProfile)
+  const historicalImage = `${historicalProfile.artifactUri}@sha256:${'a'.repeat(64)}`
+  const historicalToken = `projects/${historicalProfile.projectNumber}/secrets/${historicalProfile.tokenSecretId}/versions/7`
+  assert.doesNotThrow(() => workerTemplate(historicalProfile, historicalImage, historicalToken, 'normal', { historicalProfile: true }))
+  assert.throws(() => workerTemplate(historicalProfile, historicalImage, historicalToken), /OPENSWX_WORKER_PROFILE_INVALID/u)
   assert.doesNotThrow(() => assertHistoricalCheckpointDescriptor(checkpoint, profile, historicalReader))
   const incompatibleBytes = Buffer.from(historicalProfileBytes.toString('utf8').replace('"maxLogPages": 4', '"maxLogPages": 5'))
   assert.throws(
