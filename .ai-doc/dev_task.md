@@ -1,3 +1,9 @@
+## DEV-121#rd-capabilities — 2026-10-15 nested history predecessor reader admission（聚焦回歸 PASS，待受保護發布）
+
+R58 以 PR #311 合併後的官方 source `e0f223e6470341872c9cb942d7b821e7fee546e3` 完成新 source freeze 與 source-bound metadata provider readback（12 個資源皆 `no-op/read`，IAM／worker resource changes=0，new images=0）。worker reuse 已越過 R57 的 `OPENSWX_DESCRIPTOR_INVALID`，隨後在 association 發布前以 `OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID` 拒絕：nested native-history replay 只將 predecessor revision 授權給 current archive reader，實際執行 `readTree`／`readTreeId` 的 historical issuer reader仍維持獨立、未授權的 scope。未 owner dispatch、build、migration085、service／traffic或正式資料 mutation；R58 immutable input 不重送。
+
+最小修正保留 current reader 的 exact predecessor授權供 immutable archive readback，並在 predecessor source lock已驗證、evidence source已admit後，將同一個精確 revision授權給實際讀取歷史 tree的reader。path、九層 depth、clock、source、hash／cycle、profile、archive及provider mutation fence不變。Production-shaped nested v4 fixture現在讓 current／historical reader使用獨立許可集合，會在缺少該 handoff時真實拒絕；聚焦 nested案例1/1與完整 worker 99/99 PASS。PR #312 的 Production Slice QC 兩次皆在同一個非產品 contract test 以 `spawnSync powershell.exe ETIMEDOUT` 於45秒拒絕，其他同批測試通過；停止重試後只將外層 runner 上限調為120秒，三個 task-owned child 各自10秒上限與憑證／環境隔離斷言不變。final-byte owner QC、required CI、全新 source-bound attempt、migration085／切流與兩 fixture RD UI仍依既有受保護流程完成。[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r27-nested-history-predecessor-reader-admission--2026-10-15)。
+
 ## DEV-121#rd-capabilities — 2026-10-15 historical checkpoint profile handoff（完整本地 QC PASS，待受保護發布）
 
 R57 沿既有 Q5R3 native history basis 承接 source `d0f597e9cbfebef627e5db2cad02f5f9c0f0946c` 的 completed v4 checkpoint；descriptor 與歷史 profile 同為合法 600 秒，但 worker reuse 在安裝該 source 的 historical reader 前先用目前 1200 秒 profile 驗證，因此以 `OPENSWX_DESCRIPTOR_INVALID` 拒絕。失敗發生在 association 發布前；未 owner dispatch、未 build／migration085／service／traffic／正式資料 mutation，R57 input 不重送。

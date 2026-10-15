@@ -14,7 +14,10 @@ test('local workload bootstrap isolates child credentials, preserves scope, and 
     const childEnvironment = { ...process.env };
     // PowerShell 7's module path must not override Windows PowerShell 5's native modules.
     delete childEnvironment.PSModulePath;
-    const result = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', driver, '-TestDirectory', directory], { encoding: 'utf8', timeout: 45000, windowsHide: true, env: childEnvironment });
+    // The contract keeps each of its three task-owned child processes bounded to
+    // 10 seconds. Leave enough outer time for Windows PowerShell startup and
+    // DPAPI work on a loaded CI runner without weakening those child limits.
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', driver, '-TestDirectory', directory], { encoding: 'utf8', timeout: 120000, windowsHide: true, env: childEnvironment });
     assert.equal(result.status, 0, result.stderr || result.error?.message || 'PowerShell contract failed');
     const observed = JSON.parse(result.stdout.trim());
     assert.equal(observed.passed, true);

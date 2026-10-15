@@ -1224,6 +1224,7 @@ export async function replayOpenSwxHistoryBasis({ inputRef, transport, readSourc
   const legacy = archiveReadSource
     ? issuerReadSource
     : historySourceReader(readSource.createHistoricalReader(predecessorLock.sourceRevision))
+  legacy.authorizeOrigin?.(predecessorLock.sourceRevision)
   if (sha256(legacy.readTree(predecessorLock.sourceRevision)) !== predecessorLock.sourceSha256 || legacy.readTreeId(predecessorLock.sourceRevision) !== predecessorLock.sourceTree) fail('SOURCE_IDENTITY_HASH_MISMATCH')
   const predecessorObject = await sourceObject(transport, input.currentSourceObjectRef)
   let predecessorTar; try { predecessorTar = gunzipSync(predecessorObject.bytes, { maxOutputLength: 256 * 1024 * 1024 }) } catch { fail('OPENSWX_REUSE_ARCHIVE_INVALID') }

@@ -2623,13 +2623,21 @@ test('native history basis qualifies the complete eight-transition predecessor a
   nextReader.createHistoricalReader=revision=>{
     historicalReaders.push(revision)
     assert.equal(revision,issuer.revision)
-    const historical=(name,sourceRevision)=>issuer.reader(name,sourceRevision)
+    const historicalPermitted=new Set([issuer.revision])
+    const historical=(name,sourceRevision)=>{
+      if(!historicalPermitted.has(sourceRevision)&&![...READBACK_IAM_PATHS,WORKER_PROFILE_PATH].includes(name))throw Object.assign(Error('unvalidated historical source'),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
+      return issuer.reader(name,sourceRevision)
+    }
     Object.assign(historical,issuer.reader)
+    historical.authorizeOrigin=sourceRevision=>{issuer.reader.authorizeOrigin(sourceRevision);historicalPermitted.add(sourceRevision)}
+    historical.readTree=sourceRevision=>{assert.ok(historicalPermitted.has(sourceRevision),'nested replay must authorize the predecessor on the historical reader');return issuer.reader.readTree(sourceRevision)}
+    historical.readTreeId=sourceRevision=>{assert.ok(historicalPermitted.has(sourceRevision),'nested replay must authorize the predecessor tree id on the historical reader');return issuer.reader.readTreeId(sourceRevision)}
     historical.historicalReadRevisions=new Set([issuer.revision,oldRevision])
     historical.assertCurrentFrozen=()=>{historicalFrozenChecks++;throw Error('HISTORICAL_READER_CANNOT_ASSERT_CURRENT')}
     historical.readArchive=()=>{historicalArchiveChecks++;historical.assertCurrentFrozen();throw Error('HISTORICAL_CURRENT_ARCHIVE_FORBIDDEN')}
     historical.readImmutableArchive=sourceRevision=>{
       historicalImmutableArchiveChecks++
+      assert.ok(historicalPermitted.has(sourceRevision),'nested replay must authorize immutable archive reads on the historical reader')
       assert.equal(sourceRevision,issuer.revision)
       return issuer.reader.readArchive(sourceRevision)
     }
