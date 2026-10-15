@@ -1015,7 +1015,7 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
   if (old.value.purpose !== 'build_only' || old.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   failedDailySame(old.profile, profile)
   historical.authorizeOrigin?.(old.value.sourceRevision)
-  const artifact = await resolveWorkerArtifact({ transport, descriptor: old.value, profile, readSource, historicalReadSource, buildRef: oldInput.workerBuildRef })
+  const artifact = await resolveWorkerArtifact({ transport, descriptor: old.value, profile, readSource, historicalReadSource: historical === readSource ? null : historical, buildRef: oldInput.workerBuildRef })
   if (artifact.input.failedDailyContinuation || artifact.image !== prior.build.image || !currentManifest) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   failedDailySame(artifact.currentManifest.entries, currentManifest.entries)
   for (const manifest of [artifact.currentManifest, currentManifest]) for (const entry of manifest.entries) {
