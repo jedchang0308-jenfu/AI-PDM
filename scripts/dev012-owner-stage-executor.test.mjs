@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
+import { assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
+import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
@@ -18,6 +21,15 @@ const candidateTag = 'candidate-0123456789ab'
 const canonicalOrigin = 'https://jenfu-platform-prod-9536592944.asia-east1.run.app'
 const candidateOrigin = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
 const migrationRunnerDigest = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform-migration-runner@sha256:' + 'c'.repeat(64)
+
+test('owner source archive uses the worker reader canonical LF recipe', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const revision = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim()
+  assert.match(revision, /^[a-f0-9]{40}$/u)
+  const ownerArchive = createGitArchive(root, revision)
+  const workerArchive = createWorkerGitReader(root, revision).readArchive(revision)
+  assert.deepEqual(ownerArchive, workerArchive)
+})
 
 function repairMigrationContentFixture() {
   const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
