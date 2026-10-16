@@ -28,6 +28,11 @@ export function rdReadbackSha256(value) {
   return createHash('sha256').update(Buffer.isBuffer(value) ? value : canonicalize(value)).digest('hex')
 }
 
+export function rdReadbackProfileSha256(profile) {
+  if (!profile || typeof profile !== 'object' || Array.isArray(profile)) fail('RD_READBACK_PROFILE_INVALID')
+  return rdReadbackSha256(profile)
+}
+
 function exact(value, keys, code) {
   if (!value || canonicalize(Object.keys(value).sort()) !== canonicalize([...keys].sort())) fail(code)
 }
