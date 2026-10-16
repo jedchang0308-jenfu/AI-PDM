@@ -412,7 +412,20 @@ export async function resolveWorkerArtifact({ transport, descriptor, profile, re
     const descriptorProfileSource = historicalReadSource?.sourceRevision === descriptor.sourceRevision
       ? historicalReadSource
       : readSource
-    assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision, historicalProfileOptions(descriptorProfileSource))
+    // A paused-repair descriptor is an admitted predecessor artifact.  Its
+    // profile must be read from the same source revision as the descriptor;
+    // validating it with the caller's (possibly current) profile can reject
+    // a valid historical descriptor or, worse, validate the wrong policy.
+    const { bytes: descriptorProfileBytes, profile: descriptorProfile } =
+      readHistoricalWorkerProfile(descriptorProfileSource, descriptor.sourceRevision)
+    if (sha256(descriptorProfileBytes) !== descriptor.workerProfileSha256) fail('OPENSWX_WORKER_PROFILE_INVALID')
+    assertWorkerDescriptor(
+      descriptor,
+      descriptorProfile,
+      sha256(descriptorProfileBytes),
+      descriptor.sourceRevision,
+      historicalProfileOptions(descriptorProfileSource),
+    )
   }
   if (descriptor.schemaVersion === 'aipdm.openswx-worker-descriptor.v4') {
     assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision, historicalProfileOptions(readSource))
