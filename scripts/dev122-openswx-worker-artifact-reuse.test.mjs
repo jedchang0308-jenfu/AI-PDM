@@ -1052,6 +1052,8 @@ test('program-only validation treats an admitted predecessor revision as histori
   assert.equal(programOnlyHistoricalProfileRequired({ intentSourceRevision: currentRevision, descriptorSourceRevision: oldRevision, currentProfile: profile, descriptorProfile: profile }), true)
   assert.equal(programOnlyHistoricalProfileRequired({ intentSourceRevision: currentRevision, descriptorSourceRevision: currentRevision, currentProfile: profile, descriptorProfile: profile }), false)
   assert.equal(programOnlyHistoricalProfileRequired({ intentSourceRevision: currentRevision, descriptorSourceRevision: currentRevision, currentProfile: profile, descriptorProfile: historicalProfile }), true)
+  assert.equal(programOnlyHistoricalProfileRequired({ intentSourceRevision: currentRevision, descriptorSourceRevision: currentRevision,
+    currentProfile: historicalProfile, descriptorProfile: historicalProfile, currentProfileValid: false }), true)
 })
 async function b35ReadyProgramFixture(options = {}) {
   const h = await harness({ ...options, lockMutate: lock => { lock.migrationManifestSha256 = b35FullBundle.bundle.manifestSha256 } })
