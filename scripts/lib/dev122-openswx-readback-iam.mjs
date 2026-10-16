@@ -100,10 +100,10 @@ async function optional(transport, uri) {
   try { const row = await transport.readBytes(uri, { prefixes: [WORKER_RECEIPT_PREFIX] }); return { ...row, value: JSON.parse(row.bytes) } }
   catch (error) { if (error.code === 'MISSING') return null; throw error }
 }
-export async function readReadbackIamReceipt({ transport, ref, sourceRevision, readSource, normalActor }) {
+export async function readReadbackIamReceipt({ transport, ref, sourceRevision, planSourceRevision = sourceRevision, readSource, normalActor }) {
   assertOpenSwxWorkerRef(ref)
   const row = await transport.readJson(ref, BUCKET, [WORKER_RECEIPT_PREFIX]), value = row.value
-  const plan = readbackIamPlan(readSource, sourceRevision)
+  const plan = readbackIamPlan(readSource, planSourceRevision)
   if (value?.schemaVersion !== 'aipdm.openswx-release-readback-iam.v1' || value.status !== 'APPLIED' || value.evidenceScope !== 'PRODUCTION_PROVIDER'
     || value.ownerApplicationId !== 'ai-pdm' || value.actor !== normalActor || value.sourceRevision !== sourceRevision || value.planSha256 !== sha256(canonicalize(plan))
     || !/^[a-f0-9]{64}$/u.test(value.sourceArchiveSha256 ?? '')) fail('OPENSWX_IAM_RECEIPT_INVALID')
@@ -205,18 +205,6 @@ export async function readPrebuildIamContinuation({ transport, ref, supplemental
     || !['APPLY_THEN_READBACK', 'UNKNOWN_APPLY_THEN_READBACK', 'READBACK_ONLY'].includes(value.mutation)
     || typeof readSource !== 'function' || !/^[a-f0-9]{40}$/u.test(sourceRevision ?? '')) fail(PREBUILD_INVALID)
   const read = async reference => { assertOpenSwxWorkerRef(reference); return transport.readJson(reference, BUCKET, [WORKER_RECEIPT_PREFIX]) }
-  const old = (await read(supplementalIamReadbackRef)).value
-  await readReadbackIamReceipt({ transport, ref: supplementalIamReadbackRef, sourceRevision: old?.sourceRevision, readSource, normalActor })
-  if (old.planSha256 !== sha256(canonicalize(readbackIamPlan(readSource, sourceRevision)))) fail('OPENSWX_IAM_SOURCE_DRIFT')
-  assertOpenSwxWorkerRef(value.humanApprovalRef)
-  if (value.humanApprovalRef.sha256 !== PREBUILD_IAM_HUMAN_APPROVAL_SHA256) fail(PREBUILD_INVALID)
-  const approvalRow = await transport.readBytes(value.humanApprovalRef.uri, { prefixes: [WORKER_RECEIPT_PREFIX] })
-  if (sha256(approvalRow.bytes) !== PREBUILD_IAM_HUMAN_APPROVAL_SHA256) fail(PREBUILD_INVALID)
-  const human = JSON.parse(approvalRow.bytes)
-  if (human.schemaVersion !== 'aipdm.dev122.b15-human-iam-approval.v1' || human.project !== 'AI-PDM' || human.status !== 'APPROVED'
-    || human.authorizationSource !== 'HUMAN_USER_MESSAGE_IN_CURRENT_THREAD' || human.environment !== 'PRODUCTION' || human.projectId !== PROJECT
-    || human.projectNumber !== '9536592944' || human.principal !== VERIFIER || human.roleId !== 'aipdmDev122PrebuildList'
-    || !same(human.permissions, PREBUILD_IAM_PERMISSIONS) || !same(human.resources, PREBUILD_IAM_ADDRESSES)) fail(PREBUILD_INVALID)
   assertImmutableRef(value.sourceProofRef, BUCKET, ['receipts/releases'])
   const source = (await transport.readJson(value.sourceProofRef, BUCKET, ['receipts/releases'])).value
   const sourceKeys = ['schemaVersion', 'ownerApplicationId', 'repository', 'branch', 'releaseId', 'sourceRevision', 'sourceTree', 'sourceSha256', 'migrationManifestSha256', 'clean', 'remoteRef', 'remoteRevision', 'status', 'releaseAuthority', 'evidenceScope', 'observedAt']
@@ -229,9 +217,22 @@ export async function readPrebuildIamContinuation({ transport, ref, supplemental
     || value.sourceProofRef.uri !== `gs://${BUCKET}/receipts/releases/${source.releaseId}/source-lock.json`) fail(PREBUILD_INVALID)
   // The immutable source lock is the admission boundary for this historical
   // Terraform closure.  The current reader intentionally denies historical
-  // paths until that boundary is proven; admit only this exact revision after
-  // the lock/readback joins above have validated its repository and tree.
+  // paths until that boundary is proven; the caller's current source lock has
+  // already been joined by its outer input, so admit that exact revision before
+  // reading the retained supplemental readback receipt.
   readSource.authorizeOrigin?.(sourceRevision)
+  const old = (await read(supplementalIamReadbackRef)).value
+  await readReadbackIamReceipt({ transport, ref: supplementalIamReadbackRef, sourceRevision: old?.sourceRevision, planSourceRevision: sourceRevision, readSource, normalActor })
+  if (old.planSha256 !== sha256(canonicalize(readbackIamPlan(readSource, sourceRevision)))) fail('OPENSWX_IAM_SOURCE_DRIFT')
+  assertOpenSwxWorkerRef(value.humanApprovalRef)
+  if (value.humanApprovalRef.sha256 !== PREBUILD_IAM_HUMAN_APPROVAL_SHA256) fail(PREBUILD_INVALID)
+  const approvalRow = await transport.readBytes(value.humanApprovalRef.uri, { prefixes: [WORKER_RECEIPT_PREFIX] })
+  if (sha256(approvalRow.bytes) !== PREBUILD_IAM_HUMAN_APPROVAL_SHA256) fail(PREBUILD_INVALID)
+  const human = JSON.parse(approvalRow.bytes)
+  if (human.schemaVersion !== 'aipdm.dev122.b15-human-iam-approval.v1' || human.project !== 'AI-PDM' || human.status !== 'APPROVED'
+    || human.authorizationSource !== 'HUMAN_USER_MESSAGE_IN_CURRENT_THREAD' || human.environment !== 'PRODUCTION' || human.projectId !== PROJECT
+    || human.projectNumber !== '9536592944' || human.principal !== VERIFIER || human.roleId !== 'aipdmDev122PrebuildList'
+    || !same(human.permissions, PREBUILD_IAM_PERMISSIONS) || !same(human.resources, PREBUILD_IAM_ADDRESSES)) fail(PREBUILD_INVALID)
   const plan = prebuildIamContinuationPlan(readSource, sourceRevision), planSha256 = sha256(canonicalize(plan))
   const approved = (await read(value.approvedPlanRef)).value
   const planBindingKeys = ['ownerApplicationId', 'sourceRevision', 'sourceTree', 'sourceSha256', 'sourceProofRef', 'supplementalIamReadbackRef', 'humanApprovalRef']
