@@ -545,6 +545,14 @@ PROGRAM_ONLY 的 authenticated source observation adapter只讀 own receipt JSON
 
 此項明確前向取代本spec與AGENTS的「fullsource manifest必等於execution bundle／一概禁止env override」在合格program-onlybranch中的部分。其餘流程無此例外，所有新policy/source須正常受保護PR／CI／exactmain後才具執行效力。SHA／digest／ref等正常machinebinding更新及同scopecorrectivecycle不重新要求人類批准；只有新project/environment/resource/authority/dataownership、destructive或其他不可逆scope才重入人類。效率條件為零新增人工步驟、零unchangedtoolimages；沒有可比正常發布時長，時長維持UNVERIFIED。
 
+### 26.2 DEV-122 RD 權限 ledger readback gate（2026-10-16）
+
+當人類將 full35／085 正式發布明確綁定於「先證明 085 尚未套用」時，不得以歷史 ledger receipt、active catalog v6、無後續 Job execution或 program-only prefix33 單獨取代 current ledger readback。既有 `deploy-ai-pdm-principal-migrations-production.yml` 保持唯一 `releaseCapsuleRef`、protected main、production environment與 service-wide concurrency；它可依 immutable capsule schema 在原 `prepare→build→migrate` 與本 readback-only path之間 fail closed 分流。release capsule 的既有語意與三階段不變；readback capsule 不進入 build或 migrate stage。
+
+Readback capsule 必由 exact protected main 派生並綁 source tree／identity、current full35 profile、existing static Job etag/template hash、固定 migration runner digest及 descending exact35／exact34／exact33 bundle refs。Owner只可對既有 `ai-pdm-prod-migration-runner` 提交三種固定 per-execution override：current-source bundle args與 `PGOPTIONS=-c default_transaction_read_only=on`；不得接受 target、project、region、job、stage、command、SQL或任意 environment。每個 probe 在 submission 前確認全 Job inventory 無 active execution，寫 immutable submission intent；POST outcome unknown 時只讀 provider inventory找唯一 exact execution，存在 submission 而無 execution或 cardinality不唯一時停止，不重送。
+
+Probe以第一個 native PASS 為 ledger readback：必須 `applied=0`、`ledgerBootstrap.created=false`、`replayed=ledgerCount`、exact manifest/version/name/checksum、cross-database denial與固定 Job/execution template。35 PASS 表示085存在，後續須比對active catalog/hash；不一致時停止 production mutation並走下一個 forward-only corrective migration。34或33 PASS才證明085不存在；34表示084已套用，33表示084亦未套用。其後 full35仍使用既有完整 owner workflow與同一正式授權，且084沒有 `unlinkedProfileCleanupRef`時只安裝函式、不執行資料清理。三個 probe皆未PASS則狀態UNKNOWN並停止。所有 failure execution、Job projection、native與terminal result保存在own release prefix；readback成功不代表candidate、traffic或DEV-122整體PASS。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。

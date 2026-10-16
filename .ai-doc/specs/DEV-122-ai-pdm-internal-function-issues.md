@@ -6,6 +6,14 @@
 
 本輪沒有修改產品授權程式、catalog、085 或其他 repository。正式 085 applied、active catalog、實際 RD grant/session 與真實 UI/API 結果仍未知。若 085 未套用，只能準備正常 app-owned full35 migration release；program-only／closed34／prefix33 不適用。若 085 已套用則不得修改，必要修正須下一個可用本地 ID 的 forward-only migration。正式 migration／deploy／traffic／rollback／IAM／Secret／worker／Scheduler／資料修改未授權且未執行。[B53 證據](../qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)。管理員辨識、PDF、supplier、完整原生 CAD 與其餘 DEV-122 項目維持暫停；7 issues／29 groups 與 whole DEV `NOT_ACCEPTED` 不變。
 
+### 2026-10-16 production readback gate corrective slice
+
+PR #315 已合併為 `d9e7f07ba244b47928b4a0e8a77426109919c937`；其後 protected `main` 前進至 `bde28d89ff401491274e5d55e37b548bc3fef8b7`，full35／085 內容未變。正式服務唯讀 API 證明 active catalog 仍為 v6 `bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af`，真實 RD session 的 workspace read/create/update/cancel 為 allow、drawing workbench page 為 deny、approval/publish/admin 仍為 deny。這是同一 application DB snapshot 的 effective active-assignment capability 證據，但 endpoint 未公開 assignment row，不能冒稱 exact grant row readback。最新可追溯 native migration receipt 為 2026-10-11 ledger33，且 provider inventory 無後續 execution；這強烈支持 085 未套用，但不能排除「ledger 已有 085、catalog 發布不一致」的異常，所以 full35 尚未 dispatch。
+
+本 corrective slice 新增 source-controlled readback capsule，僅由既有 protected migration-only workflow 分流執行。它固定既有 generation23 Job／runner digest `c4f88763e568554bb2c35b5622f6b5d3f82506ccc20f2b849ce06e0d70aa2d4a`、target／identity／args／environment，並以 `PGOPTIONS=-c default_transaction_read_only=on` 依序執行 current source 的 exact35／exact34／exact33 bundles。唯一 native PASS 的 `applied=0`、`ledgerBootstrap.created=false` 與精確 prefix 證明 ledger cardinality：35 表示 085 已套用，必須停止並處理 catalog 不一致；34 或 33 表示 085 未套用，才可進入既有 full35 owner release。失敗 probe 保存 execution readback；既有 submission 而無 execution 一律 UNKNOWN 並停止，不盲目重送。此路徑不 build runner、不改 Job template／IAM／Secret／worker／Scheduler／service／traffic，不接受 target、stage、SQL、command 或 environment override；program-only 既有封閉規則不變。
+
+目前狀態為 `READBACK_PREFLIGHT_LOCAL_QC_PASS / PR_REQUIRED_CI_PENDING / PRODUCTION_READBACK_PENDING`。[B54 本地證據](../qa/DEV-122-B54-rd-permission-ledger-readback-preflight-local-2026-10-16.md)。本機／CI PASS 只證 source contract；production ledger receipt、catalog/grant/UI/API 正負驗證及 full35 release 仍須依使用者已授權條件逐步取得。其餘 DEV-122 項目持續暫停，whole DEV 仍 `NOT_ACCEPTED`。
+
 ## DEV-122 CURRENT（正式R10；B52搜尋網址修復通過，審核跳轉P1仍開）
 
 本任務最新發布為官方來源 `0d0235d348bf129ef7207c1dfa04f55d18f82567`（PR #269）的 R10 owner [38125246874](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38125246874)。十階段 SUCCESS；2026-10-11 09:11Z provider 讀回 `ai-pdm-prod-1be8986b68ce` 100%、零 tags、FINALIZED／RELEASED。資料庫 applied0／replayed33／ledger33、NO084；worker generation17 READY、Scheduler ENABLED且資源未修改。本次限定 IAM 計畫0 create／12 no-op，Terraform apply／readback已執行，不將可能的state writes稱為全程唯讀。[R10 發布讀回](../qa/DEV-122-B36-R10-production-release-closure-2026-10-11.json)。
