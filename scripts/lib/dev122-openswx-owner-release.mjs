@@ -707,8 +707,8 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
   return { image, receipts: results, artifact, ...(supplementalIam ? { supplementalIam } : {}) }
   })
 }
-export function programOnlyHistoricalProfileRequired({ intentSourceRevision, descriptorSourceRevision, currentProfile, descriptorProfile }) {
-  return descriptorSourceRevision !== intentSourceRevision || canonicalize(currentProfile) !== canonicalize(descriptorProfile)
+export function programOnlyHistoricalProfileRequired({ intentSourceRevision, descriptorSourceRevision, currentProfile, descriptorProfile, currentProfileValid = true }) {
+  return !currentProfileValid || descriptorSourceRevision !== intentSourceRevision || canonicalize(currentProfile) !== canonicalize(descriptorProfile)
 }
 /** A current source association retains the original READY activation, never invents a new one. */
 export async function readProgramOnlyWorkerEvidence({ transport, intent, appProfile, descriptor, profile, readSource, currentReadback = false }) {
@@ -722,8 +722,10 @@ export async function readProgramOnlyWorkerEvidence({ transport, intent, appProf
   // The descriptor revision is the authoritative boundary.  A current-mode
   // reader may still be admitted to an immutable predecessor revision, so
   // profile-byte equality alone must not select current validation rules.
+  let currentProfileValid = true
+  try { assertOpenSwxWorkerProfile(profile) } catch { currentProfileValid = false }
   const historicalProfile = programOnlyHistoricalProfileRequired({ intentSourceRevision: intent.sourceRevision,
-    descriptorSourceRevision: descriptor.sourceRevision, currentProfile: profile, descriptorProfile: descriptorProfile.profile })
+    descriptorSourceRevision: descriptor.sourceRevision, currentProfile: profile, descriptorProfile: descriptorProfile.profile, currentProfileValid })
   const workerProfile = historicalProfile ? descriptorProfile.profile : profile
   if (sha256(descriptorProfile.bytes) !== descriptor.workerProfileSha256) fail('OPENSWX_WORKER_PROFILE_INVALID')
   if (historicalProfile) assertHistoricalProfileCompatibility(profile, workerProfile)
