@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
+import { join } from 'node:path'
 import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { assertStaleControlSafeToSupersede, candidateTagUriMatches, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
+import { assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
+import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
@@ -18,6 +22,28 @@ const candidateTag = 'candidate-0123456789ab'
 const canonicalOrigin = 'https://jenfu-platform-prod-9536592944.asia-east1.run.app'
 const candidateOrigin = `https://${candidateTag}---jenfu-platform-prod-9536592944.asia-east1.run.app`
 const migrationRunnerDigest = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform-migration-runner@sha256:' + 'c'.repeat(64)
+
+test('owner source archive uses the worker reader canonical LF recipe', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const revision = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim()
+  assert.match(revision, /^[a-f0-9]{40}$/u)
+  // The full CI job runs this suite after commands that may leave generated
+  // files in the checkout. Keep the production frozen-source guard intact and
+  // exercise both readers from a clean, task-owned worktree instead.
+  const frozenRoot = mkdtempSync(join(root, '.tmp-owner-archive-'))
+  try {
+    const checkout = spawnSync('git', ['worktree', 'add', '--detach', frozenRoot, revision], {
+      cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
+    })
+    assert.equal(checkout.status, 0, checkout.stderr || checkout.stdout)
+    const ownerArchive = createGitArchive(frozenRoot, revision)
+    const workerArchive = createWorkerGitReader(frozenRoot, revision).readArchive(revision)
+    assert.deepEqual(ownerArchive, workerArchive)
+  } finally {
+    spawnSync('git', ['worktree', 'remove', '--force', frozenRoot], { cwd: root, encoding: 'utf8', windowsHide: true })
+    rmSync(frozenRoot, { recursive: true, force: true })
+  }
+})
 
 function repairMigrationContentFixture() {
   const profilePath = 'config/release/dev117-ai-pdm-independent-production-v3.json'
