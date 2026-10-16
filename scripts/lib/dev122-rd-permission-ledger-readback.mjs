@@ -144,7 +144,13 @@ export function rdReadbackIntentUri(releaseId) {
 
 export function rdReadbackProbeArguments(intent, probe, outputUri) {
   assertRdLedgerReadbackIntent(intent)
-  if (!intent.probes.some((row) => canonicalize(row) === canonicalize(probe)) || !new RegExp(`^gs://${BUCKET}/receipts/releases/${intent.releaseId}/[a-f0-9]{64}/ledger-probe-${probe.ledgerCount}\\.json$`, 'u').test(outputUri ?? '')) fail('RD_READBACK_PROBE_INVALID')
+  const sealedProbe = probe && {
+    ledgerCount: probe.ledgerCount,
+    terminalVersion: probe.terminalVersion,
+    manifestSha256: probe.manifestSha256,
+    migrationBundleRef: probe.migrationBundleRef,
+  }
+  if (!intent.probes.some((row) => canonicalize(row) === canonicalize(sealedProbe)) || !new RegExp(`^gs://${BUCKET}/receipts/releases/${intent.releaseId}/[a-f0-9]{64}/ledger-probe-${probe.ledgerCount}\\.json$`, 'u').test(outputUri ?? '')) fail('RD_READBACK_PROBE_INVALID')
   return ['--bundle-ref', probe.migrationBundleRef.uri, '--bundle-sha256', probe.migrationBundleRef.sha256, '--source-revision', intent.sourceRevision, '--output-ref', outputUri]
 }
 
