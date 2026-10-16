@@ -60,12 +60,12 @@ export function assertHistoricalCheckpointDescriptor(checkpoint, currentProfile,
   assertWorkerDescriptor(checkpoint, historicalProfile, sha256(historicalProfileBytes), checkpoint.sourceRevision, { historicalProfile: true })
   return historicalProfile
 }
-function historicalReaderView(readSource, revision, { historical = true } = {}) {
+function historicalReaderView(readSource, revision, { historical = true, sourceHistorical = historical } = {}) {
   if (typeof readSource !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
   const view = (name, sourceRevision) => readSource(name, sourceRevision)
   Object.assign(view, readSource)
   view.sourceRevision = revision
-  view.isHistorical = historical
+  view.isHistorical = sourceHistorical
   if (historical) view.readerRevisionMode = 'historical'
   view.historicalReadRevisions = new Set([...(readSource.historicalReadRevisions ?? []), revision])
   for (const name of ['authorizeOrigin', 'readTree', 'readTreeId']) {
@@ -109,7 +109,7 @@ function sourceReaderForRevision(readSource, revision, { forceHistorical = false
   if (admitted) {
     // Admission of a predecessor is enough to select historical validation
     // mode, even when the reader keeps its legacy isHistorical=false marker.
-    const historical = historicalReaderView(readSource, revision, { historical: true })
+    const historical = historicalReaderView(readSource, revision, { historical: true, sourceHistorical: false })
     const byRevision = historicalReaderCache.get(readSource) ?? new Map()
     byRevision.set(revision, historical)
     historicalReaderCache.set(readSource, byRevision)

@@ -5,7 +5,7 @@ const H40 = /^[a-f0-9]{40}$/u
  * separate from the capability to read an admitted predecessor revision.
  */
 export function isHistoricalReaderMode(reader) {
-  return reader?.isHistorical === true || reader?.readerRevisionMode === 'historical'
+  return reader?.isHistorical === true
 }
 
 /**
@@ -27,7 +27,7 @@ export function hasAdmittedHistoricalRevision(reader, revision) {
  * that need to classify a capability-admitted reader before it is wrapped.
  */
 export function isHistoricalReaderFor(reader, revision, currentReader = null) {
-  if (isHistoricalReaderMode(reader)) return true
+  if (isHistoricalReaderMode(reader) || reader?.readerRevisionMode === 'historical') return true
   if (reader?.historicalReadRevisions instanceof Set && reader.historicalReadRevisions.has(revision)) return true
   if (hasAdmittedHistoricalRevision(reader, revision)) return true
   if (H40.test(revision ?? '') && H40.test(reader?.sourceRevision ?? '') && reader.sourceRevision !== revision) return true
