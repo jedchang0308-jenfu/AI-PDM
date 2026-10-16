@@ -20,6 +20,7 @@ import { buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-own
 
 // Recorded provider control tests: no real Principal, OAuth, Cloud, Terraform or CAD proof.
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url)), profile = JSON.parse(profileBytes)
+const historicalProfileBytes = Buffer.from(profileBytes.toString('utf8').replace('"ownerDeadlineSeconds": 1200', '"ownerDeadlineSeconds": 600')), historicalProfile = JSON.parse(historicalProfileBytes)
 const appProfile = JSON.parse(fs.readFileSync(new URL('../config/release/dev117-ai-pdm-independent-production-v3.json', import.meta.url)))
 const readSource = path => fs.readFileSync(new URL(`../${path}`, import.meta.url))
 const tokenName = `projects/9536592944/secrets/${profile.tokenSecretId}/versions/7`, registryName = `projects/9536592944/secrets/${profile.registrySecretId}/versions/9`
@@ -218,31 +219,33 @@ test('lost numeric credential response reads exact secret hash once; replay neve
   assert.equal(await addCredentialVersion(args), tokenName); assert.equal(await addCredentialVersion(args), tokenName); assert.equal(additions, 1)
   assert.ok([...h.objects.values()].every(row => !row.bytes.includes(token) && !row.bytes.includes(Buffer.from(token).toString('base64'))))
 })
-function descriptor(sourceRevision, purpose = 'build_only') {
-  const plan = { ownerApplicationId: 'ai-pdm', projectId: profile.projectId, backendBucket: profile.backendBucket, backendPrefix: profile.backendPrefix, sourceHashes: OPENSWX_TERRAFORM_PATHS.map(path => ({ path, sha256: sha256(readSource(path)) })), resourceAddresses: OPENSWX_TERRAFORM_ADDRESSES, allowedActions: ['create', 'no-op'] }
-  const value = { schemaVersion: 'aipdm.openswx-worker-descriptor.v1', ownerApplicationId: 'ai-pdm', purpose, sourceRevision, sourceArchiveSha256: sha256(sourceRevision), workerProfileSha256: sha256(profileBytes), resourcePlanHash: sha256(canonicalize(plan)), normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(profile, 'normal'))), selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(profile, 'selftest'))) }
-  for (const key of ['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot']) value[key] = profile[key]
+function descriptor(sourceRevision, purpose = 'build_only', selectedProfile = profile) {
+  const selectedProfileBytes = selectedProfile === historicalProfile ? historicalProfileBytes : profileBytes
+  const plan = { ownerApplicationId: 'ai-pdm', projectId: selectedProfile.projectId, backendBucket: selectedProfile.backendBucket, backendPrefix: selectedProfile.backendPrefix, sourceHashes: OPENSWX_TERRAFORM_PATHS.map(path => ({ path, sha256: sha256(readSource(path)) })), resourceAddresses: OPENSWX_TERRAFORM_ADDRESSES, allowedActions: ['create', 'no-op'] }
+  const value = { schemaVersion: 'aipdm.openswx-worker-descriptor.v1', ownerApplicationId: 'ai-pdm', purpose, sourceRevision, sourceArchiveSha256: sha256(sourceRevision), workerProfileSha256: sha256(selectedProfileBytes), resourcePlanHash: sha256(canonicalize(plan)), normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(selectedProfile, 'normal', { historicalProfile: selectedProfile === historicalProfile }))), selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(selectedProfile, 'selftest', { historicalProfile: selectedProfile === historicalProfile }))) }
+  for (const key of ['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot']) value[key] = selectedProfile[key]
   return { value, plan }
 }
-async function dailyHarness({ markerState = null, wrongPriorImage = false } = {}) {
+async function dailyHarness({ markerState = null, wrongPriorImage = false, historicalPriorProfile = false } = {}) {
   const controls = { markerState, resumeUnknown: false }
-  const h = memory(), priorSource = 'a'.repeat(40), nextSource = 'b'.repeat(40), priorImage = `${profile.artifactUri}@sha256:${'a'.repeat(64)}`, nextImage = `${profile.artifactUri}@sha256:${'b'.repeat(64)}`
-  const p = descriptor(priorSource, 'full'), n = descriptor(nextSource)
+  const priorProfile = historicalPriorProfile ? historicalProfile : profile
+  const h = memory(), priorSource = 'a'.repeat(40), nextSource = 'b'.repeat(40), priorImage = `${priorProfile.artifactUri}@sha256:${'a'.repeat(64)}`, nextImage = `${profile.artifactUri}@sha256:${'b'.repeat(64)}`
+  const p = descriptor(priorSource, 'full', priorProfile), n = descriptor(nextSource)
   const oldPlan = await h.put('approved-old-plan', { resourcePlanHash: p.value.resourcePlanHash, plan: p.plan })
   const newPlan = await h.put('approved-new-plan', { resourcePlanHash: n.value.resourcePlanHash, plan: n.plan })
-  const applied = await h.put('resource-apply', { schemaVersion: 'aipdm.openswx-resource-apply.v1', actor: profile.normalActor, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER', approvedPlanRef: oldPlan, sourceRevision: priorSource, resourcePlanHash: p.value.resourcePlanHash })
+  const applied = await h.put('resource-apply', { schemaVersion: 'aipdm.openswx-resource-apply.v1', actor: priorProfile.normalActor, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER', approvedPlanRef: oldPlan, sourceRevision: priorSource, resourcePlanHash: p.value.resourcePlanHash })
   const sourceHashes = [...WORKER_SOURCE_PATHS.map(path => ({ path, sha256: sha256(readSource(path)) })), ...Array.from({ length: 19 }, (_, i) => ({ path: `scripts/lib/openswx-reader/vendor/fixture-${i}`, sha256: 'c'.repeat(64) }))]
-  const build = async (name, d, image) => h.put(name, workerReceipt({ descriptor: d, kind: 'build', actor: appProfile.identities.builder, image, template: workerTemplate(profile, image, null, 'selftest'), observedAt: h.transport.now(), facts: { sourceObject: { sha256: d.sourceArchiveSha256, generation: '1' }, sourceHashes, scan: { status: 'PASS', blockingVulnerabilityCount: 0 }, provenance: ['recorded-provenance'], sbom: ['recorded-sbom'] } }))
-  p.value.workerBuildRef = await build('prior-build', p.value, priorImage); p.value.tokenSecretVersion = tokenName; p.value.registrySecretVersion = registryName
-  const actual = { tokenSecretVersion: tokenName, registrySecretVersion: registryName, resourceApplyRef: applied, normalTemplateSha256: sha256(canonicalize(workerTemplate(profile, priorImage, tokenName))), selftestTemplateSha256: sha256(canonicalize(workerTemplate(profile, priorImage, null, 'selftest'))) }
-  p.value.bootstrapRef = await h.put('prior-bootstrap', workerReceipt({ descriptor: p.value, kind: 'bootstrap', actor: profile.normalActor, image: priorImage, template: workerTemplate(profile, priorImage, null, 'selftest'), observedAt: h.transport.now(), facts: actual })); p.value.cloudPreflightRef = ref('unused-preflight'); p.value.pausedDrainedRef = ref('unused-drain')
+  const build = async (name, d, image, buildProfile = profile) => h.put(name, workerReceipt({ descriptor: d, kind: 'build', actor: appProfile.identities.builder, image, template: workerTemplate(buildProfile, image, null, 'selftest', { historicalProfile: buildProfile === historicalProfile }), observedAt: h.transport.now(), facts: { sourceObject: { sha256: d.sourceArchiveSha256, generation: '1' }, sourceHashes, scan: { status: 'PASS', blockingVulnerabilityCount: 0 }, provenance: ['recorded-provenance'], sbom: ['recorded-sbom'] } }))
+  p.value.workerBuildRef = await build('prior-build', p.value, priorImage, priorProfile); p.value.tokenSecretVersion = tokenName; p.value.registrySecretVersion = registryName
+  const actual = { tokenSecretVersion: tokenName, registrySecretVersion: registryName, resourceApplyRef: applied, normalTemplateSha256: sha256(canonicalize(workerTemplate(priorProfile, priorImage, tokenName, 'normal', { historicalProfile: historicalPriorProfile }))), selftestTemplateSha256: sha256(canonicalize(workerTemplate(priorProfile, priorImage, null, 'selftest', { historicalProfile: historicalPriorProfile }))) }
+  p.value.bootstrapRef = await h.put('prior-bootstrap', workerReceipt({ descriptor: p.value, kind: 'bootstrap', actor: priorProfile.normalActor, image: priorImage, template: workerTemplate(priorProfile, priorImage, null, 'selftest', { historicalProfile: historicalPriorProfile }), observedAt: h.transport.now(), facts: actual })); p.value.cloudPreflightRef = ref('unused-preflight'); p.value.pausedDrainedRef = ref('unused-drain')
   const priorDescriptorRef = await h.put('prior-descriptor', p.value)
   const runtimeRef = await h.put('prior-runtime', { runtimeConfig: { plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '1' }, secretVersions: { PDM_WORKLOAD_AUTH_CREDENTIALS: '9' }, openswxWorker: { descriptorRef: priorDescriptorRef } } })
   const capsule = { schemaVersion: appProfile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId: 'DEV122-PRIOR-001', sourceRevision: priorSource, sourceSha256: 'd'.repeat(64), migrationManifestSha256: 'd'.repeat(64), previousRevision: 'ai-pdm-prod-previous', deadlineAt: deadline(), sourceLockRef: ref('lock'), authorizationPolicyRef: ref('auth'), readinessReceiptRef: ref('ready'), foundationReceiptRef: ref('foundation'), infraReceiptRef: ref('infra'), runtimeConfigRef: runtimeRef, openswxWorkerRef: priorDescriptorRef }
   const capsuleRef = await h.put('prior-capsule', capsule), paths = releasePaths(appProfile, capsule, capsuleRef.sha256)
-  const canonical = await h.transport.putJson(paths.canonical, { stage: 'canonical', sourceRevision: priorSource, facts: { origin: profile.canonicalOrigin, candidateRevision: 'ai-pdm-prod-prior' } })
-  const priorTemplate = workerTemplate(profile, priorImage, tokenName)
-  const activationRef = await h.put('prior-activation', workerReceipt({ descriptor: p.value, kind: 'activation', actor: profile.normalActor, image: priorImage, template: priorTemplate, observedAt: h.transport.now(), previousRefs: [capsuleRef, ref('final'), canonical.ref], facts: { workerStatus: 'READY', schedulerState: 'ENABLED', dbAdmissionProof: 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN', claimProof: { claimProof: 'AUTHENTICATED_204_SOURCE_BOUND' }, sourceEntryRef: sourceHashes.find(row => row.path === 'scripts/run-openswx-metadata-job.mjs'), numericCredentials: { token: tokenName, registry: registryName } } }))
+  const canonical = await h.transport.putJson(paths.canonical, { stage: 'canonical', sourceRevision: priorSource, facts: { origin: priorProfile.canonicalOrigin, candidateRevision: 'ai-pdm-prod-prior' } })
+  const priorTemplate = workerTemplate(priorProfile, priorImage, tokenName, 'normal', { historicalProfile: historicalPriorProfile })
+  const activationRef = await h.put('prior-activation', workerReceipt({ descriptor: p.value, kind: 'activation', actor: priorProfile.normalActor, image: priorImage, template: priorTemplate, observedAt: h.transport.now(), previousRefs: [capsuleRef, ref('final'), canonical.ref], facts: { workerStatus: 'READY', schedulerState: 'ENABLED', dbAdmissionProof: 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN', claimProof: { claimProof: 'AUTHENTICATED_204_SOURCE_BOUND' }, sourceEntryRef: sourceHashes.find(row => row.path === 'scripts/run-openswx-metadata-job.mjs'), numericCredentials: { token: tokenName, registry: registryName } } }))
   n.value.resourcePlanRef = newPlan; const nextDescriptorRef = await h.put('next-descriptor', n.value), nextBuildRef = await build('next-build', n.value, nextImage)
   let job = { name: workerJobName(), etag: 'e1', generation: '1', observedGeneration: '1', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: wrongPriorImage ? workerTemplate(profile, nextImage, tokenName) : priorTemplate }, state = 'ENABLED', executions = []
   const target = { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } }
@@ -267,7 +270,12 @@ async function dailyHarness({ markerState = null, wrongPriorImage = false } = {}
     if (options.method === 'PATCH') { assert.equal(url, `https://run.googleapis.com/v2/${workerJobName()}`); job = { ...job, etag: job.etag + 'x', template: JSON.parse(options.body).template }; return {} }
     return job
   }
-  const invoke = async (stage, extra, name) => { const inputRef = await h.put(name + '-input', { schemaVersion: `aipdm.openswx-${stage}-input.v1`, descriptorRef: nextDescriptorRef, workerBuildRef: nextBuildRef, deadlineAt: deadline(), receiptId: name, ...extra }); return executeOpenSwxBootstrap({ stage, inputRef, transport: h.transport, readSource, appProfile, sleep: async () => {} }) }
+  const sourceReader = historicalPriorProfile ? Object.assign((name, revision) => name === WORKER_PROFILE_PATH && revision === priorSource ? historicalProfileBytes : readSource(name, revision), {
+    sourceRevision: nextSource,
+    supportsAdmittedHistoricalRevisions: true,
+    historicalReadRevisions: new Set([priorSource]),
+  }) : readSource
+  const invoke = async (stage, extra, name) => { const inputRef = await h.put(name + '-input', { schemaVersion: `aipdm.openswx-${stage}-input.v1`, descriptorRef: nextDescriptorRef, workerBuildRef: nextBuildRef, deadlineAt: deadline(), receiptId: name, ...extra }); return executeOpenSwxBootstrap({ stage, inputRef, transport: h.transport, readSource: sourceReader, appProfile, sleep: async () => {} }) }
   return { ...h, invoke, controls, priorCapsule: capsule, prior: p.value, next: n.value, nextDescriptorRef, nextBuildRef, activationRef, priorImage, nextImage }
 }
 test('B19 READY resource wrapper observes actual ENABLED normal Job, metadata only, with no lifecycle or evidence writes', async () => {
@@ -284,6 +292,15 @@ test('B19 READY resource wrapper observes actual ENABLED normal Job, metadata on
   assert.equal(result.schedulerUserUpdateTime, null); assert.equal(result.secretMetadata.length, 2)
   assert.ok(h.calls.every(row => !row.options.method || row.options.method === 'GET' || row.url.endsWith(':getIamPolicy')))
   assert.ok(h.calls.every(row => !/:access|:run|:pause|:resume|:addVersion/u.test(row.url)))
+})
+test('daily pause/bootstrap admits a historical predecessor profile through the shared historical reader mode', async () => {
+  const h = await dailyHarness({ historicalPriorProfile: true })
+  const drained = await h.invoke('pause', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.activationRef }, 'historical-profile-daily-drain')
+  const bootstrap = await h.invoke('bootstrap', { bootstrapKind: 'DAILY_REFRESH', priorActivationRef: h.activationRef, pausedDrainedRef: drained.ref }, 'historical-profile-daily-bootstrap')
+  assert.equal(drained.value.kind, 'paused-drained')
+  assert.equal(bootstrap.value.kind, 'bootstrap')
+  assert.deepEqual(bootstrap.value.facts.priorActivationRef, h.activationRef)
+  assert.equal(bootstrap.value.facts.bootstrapKind, 'DAILY_REFRESH')
 })
 test('B19 READY double read rejects state/Job/Secret/Scheduler drift and free policy overrides without writes', async () => {
   for (const defect of ['PAUSED', 'job-etag', 'secret-etag', 'scheduler-policy']) {
