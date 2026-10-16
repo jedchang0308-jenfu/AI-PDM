@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
+import { join } from 'node:path'
 import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
 import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
@@ -26,9 +27,25 @@ test('owner source archive uses the worker reader canonical LF recipe', () => {
   const root = fileURLToPath(new URL('..', import.meta.url))
   const revision = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim()
   assert.match(revision, /^[a-f0-9]{40}$/u)
-  const ownerArchive = createGitArchive(root, revision)
-  const workerArchive = createWorkerGitReader(root, revision).readArchive(revision)
-  assert.deepEqual(ownerArchive, workerArchive)
+  // The full CI job runs this suite after commands that may leave generated
+  // files in the checkout. Keep the production frozen-source guard intact and
+  // exercise both readers from a clean, task-owned worktree instead.
+  const frozenRoot = mkdtempSync(join(root, '.tmp-owner-archive-'))
+  try {
+    const checkout = spawnSync('git', ['clone', '--local', '--shared', '--no-checkout', root, frozenRoot], {
+      cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
+    })
+    assert.equal(checkout.status, 0, checkout.stderr || checkout.stdout)
+    const detached = spawnSync('git', ['checkout', '--detach', revision], {
+      cwd: frozenRoot, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
+    })
+    assert.equal(detached.status, 0, detached.stderr || detached.stdout)
+    const ownerArchive = createGitArchive(frozenRoot, revision)
+    const workerArchive = createWorkerGitReader(frozenRoot, revision).readArchive(revision)
+    assert.deepEqual(ownerArchive, workerArchive)
+  } finally {
+    rmSync(frozenRoot, { recursive: true, force: true })
+  }
 })
 
 function repairMigrationContentFixture() {
