@@ -1083,6 +1083,16 @@ test('P06 program-only keeps current READY worker through prepare, candidate, ac
   assert.equal(current.value.facts.workerStatus, 'READY'); assert.equal(f.descriptor.bootstrapRef.uri, f.h.full.bootstrapRef.uri)
 })
 
+test('P06 full evidence validates reused READY receipts against their retained historical descriptor', async () => {
+  const h = await harness(), saved = await h.invoke(), descriptor = (await h.transport.readJson(saved.refs.programOnlyFullDescriptorRef)).value
+  const evidence = await readWorkerFullEvidence(h.transport, descriptor, profile, h.readSource)
+  assert.equal(evidence.artifact.currentAssociation.sourceRevision, currentRevision)
+  assert.equal(evidence.receipts.bootstrapRef.sourceRevision, oldRevision)
+  assert.equal(evidence.receipts.cloudPreflightRef.sourceRevision, oldRevision)
+  assert.equal(evidence.receipts.pausedDrainedRef.sourceRevision, oldRevision)
+  noMutation(h)
+})
+
 test('P06 program-only rejects changed Secret metadata, Job generation, Scheduler state or source association', async () => {
   for (const mutation of [f => f.h.controls.secretState = 'DISABLED', f => f.h.controls.job = { generation: '99' },
     f => f.h.controls.scheduler = { state: 'PAUSED' }, f => f.intent.sourceLockRef = f.h.fullRef,
