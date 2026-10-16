@@ -711,14 +711,23 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
 export async function readProgramOnlyWorkerEvidence({ transport, intent, appProfile, descriptor, profile, readSource, currentReadback = false }) {
   if (descriptor.historyBasisRef) fail('OPENSWX_PROGRAM_ONLY_DESCRIPTOR_INVALID')
   const policy = assertProgramOnlyPolicy(intent.programOnlyBaseline, { profile: appProfile, intent })
-  assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, intent.sourceRevision)
+  // A retained program-only descriptor can be admitted from an earlier source
+  // revision while the caller validates a current-source continuation. Bind
+  // validation to the descriptor's own immutable profile bytes first.
+  const descriptorProfileSource = sourceReaderForRevision(readSource, descriptor.sourceRevision, { forceHistorical: true })
+  const descriptorProfile = readHistoricalWorkerProfile(descriptorProfileSource, descriptor.sourceRevision)
+  const historicalProfile = canonicalize(profile) !== canonicalize(descriptorProfile.profile)
+  const workerProfile = historicalProfile ? descriptorProfile.profile : profile
+  if (sha256(descriptorProfile.bytes) !== descriptor.workerProfileSha256) fail('OPENSWX_WORKER_PROFILE_INVALID')
+  if (historicalProfile) assertHistoricalProfileCompatibility(profile, workerProfile)
+  assertWorkerDescriptor(descriptor, workerProfile, descriptor.workerProfileSha256, intent.sourceRevision, { historicalProfile })
   if (descriptor.schemaVersion !== 'aipdm.openswx-worker-descriptor.v2' || descriptor.purpose !== 'full' || descriptor.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_PROGRAM_ONLY_DESCRIPTOR_INVALID')
-  const artifact = await resolveWorkerArtifact({ transport, descriptor, profile, readSource })
+  const artifact = await resolveWorkerArtifact({ transport, descriptor, profile: workerProfile, readSource, historicalReadSource: historicalProfile ? descriptorProfileSource : null })
   if (canonicalize(artifact.associationRef) !== canonicalize(policy.retainedWorker.currentAssociationRef)
     || canonicalize(artifact.currentAssociation.sourceLockRef) !== canonicalize(intent.sourceLockRef)
     || canonicalize(artifact.currentAssociation.priorActivationRef) !== canonicalize(policy.retainedWorker.priorActivationRef)
     || canonicalize(artifact.currentAssociation.resourceAssociation.readbackRef) !== canonicalize(policy.retainedWorker.readyResourceReadbackRef)) fail('OPENSWX_PROGRAM_ONLY_SOURCE_JOIN_INVALID')
-  const prior = await readPriorWorkerActivation(transport, policy.retainedWorker.priorActivationRef, profile, readSource, undefined, false, { currentSourceRevision: intent.sourceRevision })
+  const prior = await readPriorWorkerActivation(transport, policy.retainedWorker.priorActivationRef, workerProfile, readSource, undefined, historicalProfile, { currentSourceRevision: intent.sourceRevision })
   const owner = prior.bootstrapDescriptor
   if (isPausedAppRepair(owner) || owner.purpose !== 'full' || prior.build.image !== artifact.image) fail('OPENSWX_PROGRAM_ONLY_ORIGIN_INVALID')
   for (const key of ['bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef', 'tokenSecretVersion', 'registrySecretVersion', 'resourcePlanHash']) {
@@ -731,10 +740,10 @@ export async function readProgramOnlyWorkerEvidence({ transport, intent, appProf
   if (currentReadback) {
     const snapshot = async () => {
       const job = assertWorkerJob(await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`), prior.template)
-      const scheduler = assertCurrentReadyScheduler(await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`), profile)
+      const scheduler = assertCurrentReadyScheduler(await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`), workerProfile)
       const schedulerPolicy = { name: scheduler.name, state: scheduler.state, schedule: scheduler.schedule, timeZone: scheduler.timeZone, attemptDeadline: scheduler.attemptDeadline, httpTarget: scheduler.httpTarget, retryConfig: scheduler.retryConfig ?? {}, userUpdateTime: scheduler.userUpdateTime ?? null }
       const secrets = []
-      for (const name of [assertNumericSecret(descriptor.tokenSecretVersion, profile.tokenSecretId), assertNumericSecret(descriptor.registrySecretVersion, profile.registrySecretId)]) {
+      for (const name of [assertNumericSecret(descriptor.tokenSecretVersion, workerProfile.tokenSecretId), assertNumericSecret(descriptor.registrySecretVersion, workerProfile.registrySecretId)]) {
         const row = await transport.request(`https://secretmanager.googleapis.com/v1/${name}`)
         if (row.name !== name || row.state !== 'ENABLED' || !row.etag) fail('OPENSWX_PROGRAM_ONLY_SECRET_DRIFT')
         secrets.push({ name: row.name, state: row.state, etag: row.etag })
