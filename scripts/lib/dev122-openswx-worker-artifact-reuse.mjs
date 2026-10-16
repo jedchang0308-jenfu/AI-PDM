@@ -12,7 +12,7 @@ import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-r
 import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_EXECUTION_PATHS, readSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmEvidenceLeaf, admitAiPdmEvidenceSource, readAiPdmObservationInputs, assertAiPdmPausedRepairReadbacks, recordAiPdmHistoryObject, recordAiPdmHistorySourceBlob, deriveAiPdmNativeHistoryBasis, qualifyAiPdmNativeHistoryBasis, assertAiPdmNativeHistoryIngress, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmActiveHistoryIssuerRevision } from './dev121-owner-release-proof.mjs'
-import { isHistoricalReaderFor, isHistoricalReaderMode, bindHistoricalReader } from './dev122-historical-reader.mjs'
+import { isHistoricalReaderFor, isHistoricalReaderMode } from './dev122-historical-reader.mjs'
 
 const BUCKET = 'jenfu-platform-prod-aipdm-release', H40 = /^[a-f0-9]{40}$/u, H64 = /^[a-f0-9]{64}$/u
 const historicalReaderCache = new WeakMap()
