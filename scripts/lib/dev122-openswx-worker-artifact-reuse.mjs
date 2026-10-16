@@ -323,8 +323,13 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   }
   const build = resolved.originBuild, buildRef = resolved.originBuildRef
   if (!Array.isArray(build.previousRefs) || build.previousRefs.length !== 1) fail('OPENSWX_REUSE_BUILD_ORIGIN_REF_INVALID')
+  const originReadSource = sourceReaderForRevision(historical, build.sourceRevision)
   const buildOnlyRef = ownRef(build.previousRefs[0]), buildOnly = (await read(transport, buildOnlyRef)).value
-  assertWorkerDescriptor(buildOnly, profile, build.workerProfileSha256, build.sourceRevision, historicalProfileOptions(readSource))
+  // The original build-only descriptor is bound to the origin build's source
+  // revision. Validate it with that revision's admitted historical profile;
+  // the current release profile may have a source-bound contract change (for
+  // example the owner deadline) even when the worker artifact is reusable.
+  assertWorkerDescriptor(buildOnly, priorProfile, build.workerProfileSha256, build.sourceRevision, historicalProfileOptions(originReadSource))
   if (buildOnly.schemaVersion !== 'aipdm.openswx-worker-descriptor.v1' || buildOnly.purpose !== 'build_only') fail('OPENSWX_REUSE_ORIGINAL_BUILD_ONLY_REQUIRED')
   assertWorkerReceipt(build, buildOnly, 'build', { actor: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com', image: activation.image })
   assertWorkerBuildSource(build, buildOnly)
@@ -335,7 +340,6 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   assertImmutableRef(approved.capacityGateRef, BUCKET, [WORKER_RECEIPT_PREFIX, 'receipts'])
   await read(transport, approved.capacityGateRef, [WORKER_RECEIPT_PREFIX, 'receipts']) // historical qualification, never current lease
   readSource.authorizeOrigin?.(build.sourceRevision)
-  const originReadSource = sourceReaderForRevision(historical, build.sourceRevision)
   const originalProfile = originReadSource(WORKER_PROFILE_PATH, build.sourceRevision)
   const originalProfileValue = JSON.parse(originalProfile)
   if (originReadSource.isHistorical === true) assertHistoricalOpenSwxWorkerProfile(originalProfileValue)
