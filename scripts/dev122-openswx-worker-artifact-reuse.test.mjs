@@ -156,7 +156,7 @@ test('paused repair descriptor uses historical profile only for its exact source
   wrongRevisionReader.isHistorical = true
   await assert.rejects(
     resolveWorkerArtifact({ transport: guardedTransport, descriptor, profile: historicalProfile, readSource: h.readSource, historicalReadSource: wrongRevisionReader }),
-    { code: 'OPENSWX_WORKER_PROFILE_INVALID' },
+    { code: 'OPENSWX_HISTORY_SOURCE_REQUIRED' },
   )
   await assert.rejects(
     resolveWorkerArtifact({ transport: guardedTransport, descriptor, profile: historicalProfile, readSource: h.readSource, historicalReadSource: historicalReader }),
@@ -191,6 +191,67 @@ test('nested production-shaped reader separates admitted historical source from 
   }
   admittedReader.sourceRevision = currentRevision
   admittedReader.supportsAdmittedHistoricalRevisions = true
+  const guardedTransport = { ...h.transport, readJson: async () => { throw Error('AFTER_PROFILE_ADMISSION') } }
+  await assert.rejects(
+    resolveWorkerArtifact({ transport: guardedTransport, descriptor, profile, readSource: h.readSource, historicalReadSource: admittedReader }),
+    /AFTER_PROFILE_ADMISSION/u,
+  )
+})
+test('paused repair never falls back to the current reader for an unadmitted historical revision', async () => {
+  const h = await harness()
+  const descriptor = {
+    ...h.full,
+    schemaVersion: 'aipdm.openswx-worker-descriptor.v3',
+    artifactMode: 'REUSE_VERIFIED',
+    releaseVariant: 'PAUSED_APP_REPAIR',
+    workerProfileSha256: sha256(historicalProfileBytes),
+    bounds: historicalProfile.bounds,
+    normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'normal', { historicalProfile: true }))),
+    selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'selftest', { historicalProfile: true }))),
+    pausedBaselineRef: h.fullRef,
+    priorActivationRef: h.priorActivationRef,
+    retainedWorkerDescriptorRef: h.fullRef,
+  }
+  delete descriptor.bootstrapRef
+  delete descriptor.cloudPreflightRef
+  delete descriptor.pausedDrainedRef
+  const currentOnlyReader = (name, revision) => {
+    assert.equal(name, WORKER_PROFILE_PATH)
+    assert.equal(revision, descriptor.sourceRevision)
+    return profileBytes
+  }
+  currentOnlyReader.sourceRevision = currentRevision
+  await assert.rejects(
+    resolveWorkerArtifact({ transport: h.transport, descriptor, profile, readSource: currentOnlyReader }),
+    { code: 'OPENSWX_HISTORY_SOURCE_REQUIRED' },
+  )
+})
+test('legacy admitted reader metadata still selects historical validation across descriptor revisions', async () => {
+  const h = await harness()
+  const descriptor = {
+    ...h.full,
+    schemaVersion: 'aipdm.openswx-worker-descriptor.v3',
+    artifactMode: 'REUSE_VERIFIED',
+    releaseVariant: 'PAUSED_APP_REPAIR',
+    workerProfileSha256: sha256(historicalProfileBytes),
+    bounds: historicalProfile.bounds,
+    normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'normal', { historicalProfile: true }))),
+    selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'selftest', { historicalProfile: true }))),
+    pausedBaselineRef: h.fullRef,
+    priorActivationRef: h.priorActivationRef,
+    retainedWorkerDescriptorRef: h.fullRef,
+  }
+  delete descriptor.bootstrapRef
+  delete descriptor.cloudPreflightRef
+  delete descriptor.pausedDrainedRef
+  const admittedReader = (name, revision) => {
+    assert.equal(name, WORKER_PROFILE_PATH)
+    return revision === descriptor.sourceRevision ? historicalProfileBytes : profileBytes
+  }
+  // Production-shaped legacy reader: readArchive proves admission, but the
+  // reader keeps a non-hash source label and no isHistorical flag.
+  admittedReader.sourceRevision = 'current-reader'
+  admittedReader.readArchive = () => Buffer.from('admitted immutable archive')
   const guardedTransport = { ...h.transport, readJson: async () => { throw Error('AFTER_PROFILE_ADMISSION') } }
   await assert.rejects(
     resolveWorkerArtifact({ transport: guardedTransport, descriptor, profile, readSource: h.readSource, historicalReadSource: admittedReader }),

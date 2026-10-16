@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { canonicalize, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
+import { bindHistoricalReader } from './dev122-historical-reader.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -374,11 +375,11 @@ export function readAiPdmQualifiedHistoryProjection({ basisRef, kind, frontierRe
 async function installNestedHistoryBasis({ state, basisRef, transport, readSource, sourceRevision, suppliedHistoricalReadSource = null }) {
   if (!H40.test(sourceRevision ?? '') || typeof readSource?.createHistoricalReader !== 'function'
     || typeof readSource.assertCurrentFrozen !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
-   let historicalReadSource = suppliedHistoricalReadSource
-   if (historicalReadSource) {
-     if (historicalReadSource.isHistorical !== true || historicalReadSource.sourceRevision !== sourceRevision
-       || typeof historicalReadSource !== 'function' || typeof historicalReadSource.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
-   } else {
+    let historicalReadSource = suppliedHistoricalReadSource
+    if (historicalReadSource) {
+      historicalReadSource = bindHistoricalReader(historicalReadSource, sourceRevision, 'HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+      if (typeof historicalReadSource.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+    } else {
      const rawHistorical = readSource.createHistoricalReader(sourceRevision)
      if (typeof rawHistorical !== 'function' || typeof rawHistorical.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
      historicalReadSource = (name, revision) => rawHistorical(name, revision)
@@ -517,8 +518,8 @@ export async function runAiPdmNestedHistoryReplay({ checkpointRef, checkpointDes
    const readerSourceRevision = await readAiPdmNativeHistoryIssuerRevision({ basisRef, transport })
   let historicalReadSource = suppliedHistoricalReadSource
   if (historicalReadSource) {
-    if (historicalReadSource.isHistorical !== true || historicalReadSource.sourceRevision !== readerSourceRevision
-      || typeof historicalReadSource !== 'function' || typeof historicalReadSource.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+    historicalReadSource = bindHistoricalReader(historicalReadSource, readerSourceRevision, 'HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+    if (typeof historicalReadSource.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
   } else {
     const rawHistorical = readSource.createHistoricalReader(readerSourceRevision)
     if (typeof rawHistorical !== 'function' || typeof rawHistorical.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')

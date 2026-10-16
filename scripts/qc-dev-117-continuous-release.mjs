@@ -56,7 +56,7 @@ const files = [
   'scripts/lib/dev121-preactivation-abort-continuation.mjs',
   'scripts/lib/dev117-ai-pdm-program-only-baseline.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs',
   'scripts/lib/dev122-rd-permission-ledger-readback.mjs', 'scripts/dev122-rd-permission-ledger-readback.mjs', 'scripts/dev122-rd-permission-ledger-readback.test.mjs',
-  'scripts/lib/dev122-openswx-worker-artifact-reuse.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
+  'scripts/lib/dev122-historical-reader.mjs', 'scripts/lib/dev122-openswx-worker-artifact-reuse.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
   'scripts/lib/dev122-openswx-native-source-reader.mjs',
   'scripts/dev117-ai-pdm-prerequisite-producer.mjs',
   'config/release/dev122-openswx-worker.json', 'scripts/lib/dev122-openswx-owner-release.mjs', 'scripts/dev122-openswx-owner-release.test.mjs',
