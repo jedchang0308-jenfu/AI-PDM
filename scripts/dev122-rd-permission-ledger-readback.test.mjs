@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 
+import { main as rdLedgerReadbackMain } from './dev122-rd-permission-ledger-readback.mjs'
 import { buildDev117MigrationBundle, buildDev117MigrationPackage, assertDev117V3Profile } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { canonicalize } from './lib/dev012-production-migration-runner.mjs'
 import {
@@ -159,6 +160,7 @@ test('RD06 native receipt rejects applied writes, bootstrap, wrong ledger, manif
 })
 
 test('RD07 owner path reads back unknown submissions and cannot reach service, traffic, IAM, Secret, worker or Scheduler mutations', () => {
+  assert.equal(typeof rdLedgerReadbackMain, 'function')
   const source = fs.readFileSync(new URL('./dev122-rd-permission-ledger-readback.mjs', import.meta.url), 'utf8')
   const workflow = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-principal-migrations-production.yml', import.meta.url), 'utf8')
   assert.equal(source.split('RD_LEDGER_READBACK_CONSTANTS.jobName}:run').length - 1, 1)
