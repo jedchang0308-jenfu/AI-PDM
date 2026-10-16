@@ -1107,6 +1107,18 @@ test('prebuild IAM immutable proof needs no new worker build and preserves both 
   await assert.rejects(assertReadbackIamReceipt({ ...h.assertArgs, prebuildIamContinuationRef: undefined }), { code: 'OPENSWX_IAM_READBACK_DRIFT' })
 })
 
+test('prebuild IAM continuation admits its historical Terraform source only after the immutable source lock is joined', async () => {
+  const h = await prebuildIamHarness(), admitted = new Set(), gatedReadSource = (repositoryPath, revision) => {
+    if (repositoryPath === PREBUILD_IAM_SOURCE_PATH && revision !== h.next.sourceRevision && !admitted.has(revision))
+      throw Object.assign(Error('historical source was not admitted'), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
+    return readSource(repositoryPath)
+  }
+  gatedReadSource.authorizeOrigin = revision => admitted.add(revision)
+  const historicalRevision = h.objects.get(h.proof.continuationRef.uri).value.sourceRevision
+  await readPrebuildIamContinuation({ ...h.readerArgs, sourceRevision: historicalRevision, readSource: gatedReadSource })
+  assert.ok(admitted.has(historicalRevision))
+})
+
 test('prebuild IAM proof rejects unapproved or unjoined source, plan, request and policy artifacts without mutation', async () => {
   const mutations = [
     ['proof', value => { value.status = 'UNKNOWN' }],

@@ -227,6 +227,11 @@ export async function readPrebuildIamContinuation({ transport, ref, supplemental
     || source.status !== 'SOURCE_FROZEN' || source.releaseAuthority !== true || source.evidenceScope !== 'PRODUCTION_BOUND'
     || !/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(source.releaseId ?? '')
     || value.sourceProofRef.uri !== `gs://${BUCKET}/receipts/releases/${source.releaseId}/source-lock.json`) fail(PREBUILD_INVALID)
+  // The immutable source lock is the admission boundary for this historical
+  // Terraform closure.  The current reader intentionally denies historical
+  // paths until that boundary is proven; admit only this exact revision after
+  // the lock/readback joins above have validated its repository and tree.
+  readSource.authorizeOrigin?.(sourceRevision)
   const plan = prebuildIamContinuationPlan(readSource, sourceRevision), planSha256 = sha256(canonicalize(plan))
   const approved = (await read(value.approvedPlanRef)).value
   const planBindingKeys = ['ownerApplicationId', 'sourceRevision', 'sourceTree', 'sourceSha256', 'sourceProofRef', 'supplementalIamReadbackRef', 'humanApprovalRef']
