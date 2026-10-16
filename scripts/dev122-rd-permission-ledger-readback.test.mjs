@@ -113,12 +113,13 @@ test('RD03 readback Job contract rejects target, image, args, environment and te
   }
 })
 
-test('RD04 every probe has fixed read-only environment and no caller-selected target, command or SQL', () => {
+test('RD04 sealed and source-enriched probes produce the same fixed read-only arguments with no caller-selected target, command or SQL', () => {
   const value = intent()
-  for (const probe of value.probes) {
+  for (const [index, probe] of value.probes.entries()) {
     const output = `gs://jenfu-platform-prod-aipdm-release/receipts/releases/${value.releaseId}/${value.receiptSha256}/ledger-probe-${probe.ledgerCount}.json`
     const args = rdReadbackProbeArguments(value, probe, output)
     assert.deepEqual(args, ['--bundle-ref', probe.migrationBundleRef.uri, '--bundle-sha256', probe.migrationBundleRef.sha256, '--source-revision', sourceRevision, '--output-ref', output])
+    assert.deepEqual(rdReadbackProbeArguments(value, probes[index], output), args)
     assert.ok(!canonicalize(args).match(/--sql|--target|--job|--project|--region/iu))
   }
   assert.equal(RD_LEDGER_READBACK_PGOPTIONS, '-c default_transaction_read_only=on')
