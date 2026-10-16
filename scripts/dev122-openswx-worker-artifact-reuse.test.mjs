@@ -289,8 +289,10 @@ test('nested checkpoint reader propagates through repeated transport wrappers', 
   })
 })
 function sourceLock(revision, tree, releaseId) { return { schemaVersion: 'jenfu.dev012.owner-source-lock.v1', ownerApplicationId: 'ai-pdm', repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main', releaseId, sourceRevision: revision, sourceTree: 'e'.repeat(40), sourceSha256: sha256(tree), migrationManifestSha256: 'd'.repeat(64), clean: true, remoteRef: 'refs/heads/main', remoteRevision: revision, status: 'SOURCE_FROZEN', releaseAuthority: true, evidenceScope: 'PRODUCTION_BOUND', observedAt: now } }
-async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentArchive = null, proofMetadata = false, releasedBaseline = false } = {}) {
+async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentArchive = null, proofMetadata = false, releasedBaseline = false, historicalOriginProfile = false } = {}) {
   const objects = new Map(), calls = [], puts = [], controls = {}, prefix = profile.receiptRoot
+  const originProfileBytes = historicalOriginProfile ? historicalProfileBytes : profileBytes
+  const originProfile = historicalOriginProfile ? historicalProfile : profile
   const uri = name => `${prefix}/local-test-${name}.json`
   const seedBytes = (location, bytes) => { const row = { bytes, ref: { uri: location, sha256: sha256(bytes) }, metadata: { generation: '17', crc32c: proofMetadata ? crc32cBase64(bytes) : 'LOCAL_TEST_CRC' } }; objects.set(location, row); return row.ref }
   const seed = (name, value) => seedBytes(uri(name), Buffer.from(canonicalize(value)))
@@ -299,7 +301,13 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentA
   const transport = { now: () => now, readBytes, readJson,
     putJson: async (location, value) => { puts.push(location); const bytes = Buffer.from(`${canonicalize(value)}\n`); if (objects.has(location)) { assert.ok(objects.get(location).bytes.equals(bytes), 'create-only conflicting bytes'); return objects.get(location) }; const ref = seedBytes(location, bytes); return objects.get(ref.uri) },
     createBuild: async () => { throw Error('FORBIDDEN_BUILD') }, exportSbom: async () => { throw Error('FORBIDDEN_EXPORT') } }
-  const oldSourceRef = seedBytes(`gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-LOCAL-BUILD/${proofMetadata ? 'f'.repeat(64) : 'frozen'}/source.tar.gz`, gzipSync(oldTar, { level: 9 }))
+  const originManifest = historicalOriginProfile
+    ? workerInputManifest(actualTree, (name) => name === WORKER_PROFILE_PATH ? historicalProfileBytes : canonicalSource(name), oldRevision, { workerProfileSha256: sha256(historicalProfileBytes) })
+    : manifest
+  const originTar = historicalOriginProfile
+    ? tar(originManifest.entries.map(row => ({ ...row, bytes: row.path === WORKER_PROFILE_PATH ? historicalProfileBytes : canonicalSource(row.path) })))
+    : oldTar
+  const oldSourceRef = seedBytes(`gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-LOCAL-BUILD/${proofMetadata ? 'f'.repeat(64) : 'frozen'}/source.tar.gz`, gzipSync(originTar, { level: 9 }))
   const currentSourceRef = seedBytes('gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-LOCAL-CURRENT/frozen/source.tar.gz', gzipSync(currentArchive ?? currentTar, { level: 9 }))
   const oldLock = sourceLock(oldRevision, actualTree, 'DEV122-LOCAL-READY'), lock = sourceLock(currentRevision, currentTree, 'DEV122-LOCAL-CURRENT'); lockMutate(lock)
   if(releasedBaseline) oldLock.migrationManifestSha256=b35HistoricalBundle.bundle.manifestSha256
@@ -308,9 +316,9 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentA
   const plan = { ownerApplicationId: 'ai-pdm', projectId: profile.projectId, backendBucket: profile.backendBucket, backendPrefix: profile.backendPrefix, sourceHashes, resourceAddresses: OPENSWX_TERRAFORM_ADDRESSES, allowedActions: ['create', 'no-op'] }, resourcePlanHash = sha256(canonicalize(plan))
   const capacityRef = seed('historical-capacity', { observedAt: '2026-10-01T00:00:00Z', status: 'PASS', qualifiedHistorical: true })
   const approvedRef = seed('original-approved', { schemaVersion: 'aipdm.openswx-approved-resource-plan.v1', ownerApplicationId: 'ai-pdm', sourceRevision: oldRevision, resourcePlanHash, status: 'APPROVED', releaseAuthority: true, evidenceScope: 'HUMAN_APPROVED_RESOURCE_PLAN', authorizationStatementSha256: 'a'.repeat(64), capacityGateRef: capacityRef, plan })
-  const common = { schemaVersion: 'aipdm.openswx-worker-descriptor.v1', ownerApplicationId: 'ai-pdm', sourceRevision: oldRevision, sourceArchiveSha256: oldSourceRef.sha256, workerProfileSha256: sha256(profileBytes), resourcePlanHash,
-    normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(profile, 'normal'))), selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(profile, 'selftest'))) }
-  for (const key of ['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot']) common[key] = profile[key]
+  const common = { schemaVersion: 'aipdm.openswx-worker-descriptor.v1', ownerApplicationId: 'ai-pdm', sourceRevision: oldRevision, sourceArchiveSha256: oldSourceRef.sha256, workerProfileSha256: sha256(originProfileBytes), resourcePlanHash,
+    normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(originProfile, 'normal', { historicalProfile: historicalOriginProfile }))), selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(originProfile, 'selftest', { historicalProfile: historicalOriginProfile }))) }
+  for (const key of ['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot']) common[key] = originProfile[key]
   const buildOnly = { ...common, purpose: 'build_only', resourcePlanRef: approvedRef }, buildOnlyRef = seed('build-only', buildOnly)
   const dummy = { uri: uri('unused'), sha256: 'a'.repeat(64) }
   const wrongFullRef = seed('wrong-full', { ...common, purpose: 'full', workerBuildRef: dummy, bootstrapRef: dummy, cloudPreflightRef: dummy, pausedDrainedRef: dummy, tokenSecretVersion: token, registrySecretVersion: registry })
@@ -319,25 +327,26 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentA
   const storage = { bucket: 'jenfu-platform-prod-aipdm-release', object: oldSourceRef.uri.split('/').slice(3).join('/'), generation: '17' }
   const providerBuild = { id: '11111111-1111-1111-1111-111111111111', projectId: profile.projectId, status: 'SUCCESS', serviceAccount: `projects/${profile.projectId}/serviceAccounts/${appProfile.identities.builder}`, createTime: '2026-10-01T01:00:00Z', startTime: '2026-10-01T01:01:00Z', finishTime: '2026-10-01T01:02:00Z', source: { storageSource: storage }, sourceProvenance: { resolvedStorageSource: storage, fileHashes: { [`${oldSourceRef.uri}#17`]: { fileHash: [{ type: 'SHA256', value: Buffer.from(oldSourceRef.sha256, 'hex').toString('base64') }] } } }, steps: [{ name: builder, dir: 'source', args: submittedArgs }], images: [tag], results: { images: [{ name: tag, digest: image.split('@')[1] }] }, options: { logging: 'GCS_ONLY', logStreamingOption: 'STREAM_OFF', requestedVerifyOption: 'VERIFIED' }, timeout: '1800s', queueTtl: '300s', logsBucket: 'gs://jenfu-platform-prod-aipdm-release/logs/cloud-build', tags: ['dev-012', 'ai-pdm', 'dev122-local-build'] }
   const provenance = ['projects/jenfu-platform-prod/occurrences/build-local'], sbom = ['projects/jenfu-platform-prod/occurrences/sbom-local']
-  const build = workerReceipt({ descriptor: buildOnly, kind: 'build', actor: appProfile.identities.builder, image, template: workerTemplate(profile, image, null, 'selftest'), observedAt: '2026-10-01T01:03:00Z', previousRefs: [buildOnlyRef], facts: { sourceObject: { ...oldSourceRef, generation: '17', crc32c: objects.get(oldSourceRef.uri).metadata.crc32c }, sourceHashes: manifest.entries.filter(row => WORKER_SOURCE_PATHS.includes(row.path) || row.path.startsWith('scripts/lib/openswx-reader/vendor/')).map(({ path, sha256 }) => ({ path, sha256 })), cloudBuild: providerBuild, scan: { status: 'PASS', blockingVulnerabilityCount: 0 }, provenance, sbom } })
+  const build = workerReceipt({ descriptor: buildOnly, kind: 'build', actor: appProfile.identities.builder, image, template: workerTemplate(originProfile, image, null, 'selftest', { historicalProfile: historicalOriginProfile }), observedAt: '2026-10-01T01:03:00Z', previousRefs: [buildOnlyRef], facts: { sourceObject: { ...oldSourceRef, generation: '17', crc32c: objects.get(oldSourceRef.uri).metadata.crc32c }, sourceHashes: originManifest.entries.filter(row => WORKER_SOURCE_PATHS.includes(row.path) || row.path.startsWith('scripts/lib/openswx-reader/vendor/')).map(({ path, sha256 }) => ({ path, sha256 })), cloudBuild: providerBuild, scan: { status: 'PASS', blockingVulnerabilityCount: 0 }, provenance, sbom } })
   buildMutate(build, { buildOnlyRef, wrongFullRef }); const buildRef = seed('original-build', build)
   const applyRef = seed('original-apply', { schemaVersion: 'aipdm.openswx-resource-apply.v1', ownerApplicationId: 'ai-pdm', actor: profile.normalActor, status: 'APPLIED', evidenceScope: 'PRODUCTION_PROVIDER', approvedPlanRef: approvedRef, resourcePlanHash, sourceRevision: oldRevision })
   const normalSha = sha256(canonicalize(workerTemplate(profile, image, token))), selftestSha = sha256(canonicalize(workerTemplate(profile, image, null, 'selftest')))
-  const bootstrapRef = seed('prior-bootstrap', workerReceipt({ descriptor: common, kind: 'bootstrap', actor: profile.normalActor, image, template: workerTemplate(profile, image, null, 'selftest'), observedAt: now, facts: { bootstrapKind: 'FIRST_CREATE', resourceApplyRef: applyRef, tokenSecretVersion: token, registrySecretVersion: registry, normalTemplateSha256: normalSha, selftestTemplateSha256: selftestSha } }))
-  const preflightRef = seed('prior-preflight', workerReceipt({ descriptor: common, kind: 'cloud-preflight', actor: profile.normalActor, image, template: workerTemplate(profile, image, null, 'selftest'), observedAt: now, facts: { isolationVerified: true, noCad: true, normalTemplateSha256: normalSha, selftestTemplateSha256: selftestSha } }))
-  const pausedRef = seed('prior-drained', workerReceipt({ descriptor: common, kind: 'paused-drained', actor: profile.normalActor, image, template: workerTemplate(profile, image, null, 'selftest'), observedAt: now, facts: { schedulerPaused: true, noActiveOrUnknown: true, quiescenceCompletedAt: now, drainKind: 'FIRST_PROVIDER_ONLY', dbAdmissionProof: 'NOT_APPLICABLE_FIRST_BOOTSTRAP' } }))
+  const bootstrapRef = seed('prior-bootstrap', workerReceipt({ descriptor: common, kind: 'bootstrap', actor: profile.normalActor, image, template: workerTemplate(originProfile, image, null, 'selftest', { historicalProfile: historicalOriginProfile }), observedAt: now, facts: { bootstrapKind: 'FIRST_CREATE', resourceApplyRef: applyRef, tokenSecretVersion: token, registrySecretVersion: registry, normalTemplateSha256: normalSha, selftestTemplateSha256: selftestSha } }))
+  const preflightRef = seed('prior-preflight', workerReceipt({ descriptor: common, kind: 'cloud-preflight', actor: profile.normalActor, image, template: workerTemplate(originProfile, image, null, 'selftest', { historicalProfile: historicalOriginProfile }), observedAt: now, facts: { isolationVerified: true, noCad: true, normalTemplateSha256: normalSha, selftestTemplateSha256: selftestSha } }))
+  const pausedRef = seed('prior-drained', workerReceipt({ descriptor: common, kind: 'paused-drained', actor: profile.normalActor, image, template: workerTemplate(originProfile, image, null, 'selftest', { historicalProfile: historicalOriginProfile }), observedAt: now, facts: { schedulerPaused: true, noActiveOrUnknown: true, quiescenceCompletedAt: now, drainKind: 'FIRST_PROVIDER_ONLY', dbAdmissionProof: 'NOT_APPLICABLE_FIRST_BOOTSTRAP' } }))
   const full = { ...common, purpose: 'full', workerBuildRef: buildRef, bootstrapRef, cloudPreflightRef: preflightRef, pausedDrainedRef: pausedRef, tokenSecretVersion: token, registrySecretVersion: registry }, fullRef = seed('prior-full', full)
   const runtimeRef = seed('prior-runtime', { runtimeConfig: { openswxWorker: { descriptorRef: fullRef }, plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '1' }, secretVersions: { PDM_WORKLOAD_AUTH_CREDENTIALS: '9' } } })
   const capsule = { schemaVersion: appProfile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId: oldLock.releaseId, sourceRevision: oldRevision, sourceSha256: oldLock.sourceSha256, sourceLockRef: oldLockRef, authorizationPolicyRef: dummy, readinessReceiptRef: dummy, foundationReceiptRef: dummy, infraReceiptRef: dummy, runtimeConfigRef: runtimeRef, migrationManifestSha256: oldLock.migrationManifestSha256, previousRevision: releasedBaseline ? 'ai-pdm-prod-'+'4'.repeat(12) : 'ai-pdm-prod-local-prior', deadlineAt: '2026-10-07T15:00:00Z', openswxWorkerRef: fullRef }, capsuleRef = seedBytes(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${capsule.releaseId}/release-intent.json`, Buffer.from(`${canonicalize(capsule)}\n`))
   const modeledReleasedAnchor=releasedBaseline?b35ReleasedAnchor({capsule,capsuleRef,seedBytes}):null
   const canonicalRef = modeledReleasedAnchor?.canonical ?? seedBytes(releasePaths(appProfile, capsule, capsuleRef.sha256).canonical, Buffer.from(canonicalize({ stage: 'canonical', sourceRevision: oldRevision, facts: { origin: profile.canonicalOrigin, candidateRevision: 'ai-pdm-prod-local-prior' } })))
-  const priorActivationRef = seed('prior-activation', workerReceipt({ descriptor: full, kind: 'activation', actor: profile.normalActor, image, template: workerTemplate(profile, image, token), observedAt: now, previousRefs: [capsuleRef, dummy, canonicalRef, dummy, dummy], facts: { workerStatus: 'READY', schedulerState: 'ENABLED', claimProof: { claimProof: 'AUTHENTICATED_204_SOURCE_BOUND' }, dbAdmissionProof: 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN', sourceEntryRef: build.facts.sourceHashes.find(row => row.path === 'scripts/run-openswx-metadata-job.mjs'), numericCredentials: { token, registry } } }))
+  const priorActivationRef = seed('prior-activation', workerReceipt({ descriptor: full, kind: 'activation', actor: profile.normalActor, image, template: workerTemplate(originProfile, image, token, 'normal', { historicalProfile: historicalOriginProfile }), observedAt: now, previousRefs: [capsuleRef, dummy, canonicalRef, dummy, dummy], facts: { workerStatus: 'READY', schedulerState: 'ENABLED', claimProof: { claimProof: 'AUTHENTICATED_204_SOURCE_BOUND' }, dbAdmissionProof: 'AUTHENTICATED_EMPTY_CLAIM_NO_ACTIVE_OR_UNKNOWN', sourceEntryRef: build.facts.sourceHashes.find(row => row.path === 'scripts/run-openswx-metadata-job.mjs'), numericCredentials: { token, registry } } }))
   const input = { schemaVersion: 'aipdm.openswx-worker-reuse-input.v1', sourceLockRef, currentSourceObjectRef: currentSourceRef, priorActivationRef, deadlineAt: deadline(), receiptId: 'LOCAL-B19-REUSE' }, inputRef = seed('input', input)
-  const sourceInputs = new Map([[oldRevision, { tree: actualTree, archive: oldTar }], [currentRevision, { tree: currentTree, archive: currentArchive ?? currentTar }]])
+  const sourceInputs = new Map([[oldRevision, { tree: actualTree, archive: originTar }], [currentRevision, { tree: currentTree, archive: currentArchive ?? currentTar }]])
   const permitted = new Set([currentRevision]); let frozenRevision = currentRevision
   const readSource = (name, revision) => {
     if (!permitted.has(revision) && name !== WORKER_PROFILE_PATH) throw Object.assign(Error('unvalidated historical source'), { code: 'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID' })
-    if (controls.inputDrift === name && revision === frozenRevision) return Buffer.concat([canonicalSource(name), Buffer.from('\nchanged\n')]); return canonicalSource(name)
+    const source = historicalOriginProfile && revision === oldRevision && name === WORKER_PROFILE_PATH ? historicalProfileBytes : canonicalSource(name)
+    if (controls.inputDrift === name && revision === frozenRevision) return Buffer.concat([source, Buffer.from('\nchanged\n')]); return source
   }
   readSource.readTree = revision => { assert.ok(permitted.has(revision)); return sourceInputs.get(revision).tree }
   readSource.readTreeId = revision => { assert.ok(permitted.has(revision)); return 'e'.repeat(40) }
@@ -2020,6 +2029,16 @@ test('daily release gets a current-source build-only reuse descriptor without a 
   for (const key of ['resourcePlanRef', 'bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef', 'tokenSecretVersion', 'registrySecretVersion']) assert.equal(Object.hasOwn(d, key), false);
   assert.deepEqual((await h.invoke()).refs.dailyBuildOnlyDescriptorRef, row.ref); noMutation(h);
 });
+
+test('current-source reuse accepts the admitted historical worker profile when only owner deadline changed', async () => {
+  const h = await harness({ historicalOriginProfile: true }), saved = await h.invoke()
+  assert.ok(saved.refs.dailyBuildOnlyDescriptorRef)
+  const descriptor = (await h.transport.readJson(saved.refs.dailyBuildOnlyDescriptorRef)).value
+  assert.equal(descriptor.workerProfileSha256, sha256(profileBytes))
+  assert.equal(descriptor.sourceRevision, currentRevision)
+  assert.equal(descriptor.purpose, 'build_only')
+  noMutation(h)
+})
 
 test('RD daily rejects an unproven changed serving app before Scheduler pause', async () => {
   const h = await rdDailyMetadataFixture()
