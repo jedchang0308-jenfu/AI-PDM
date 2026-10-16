@@ -3,7 +3,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
-import { createGitSourceIdentity, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
+import { createFrozenWorkerSourceReader } from './lib/dev122-openswx-native-source-reader.mjs'
 import { assertOpenSwxWorkerRef } from './lib/dev122-openswx-owner-release.mjs'
 import { verifyNormalActor } from './lib/dev122-openswx-bootstrap.mjs'
 import { executeSecretVersionIamContinuation } from './lib/dev122-openswx-secret-version-iam.mjs'
@@ -16,9 +16,10 @@ async function main() {
   assertOpenSwxWorkerRef(inputRef)
   const token = process.env.GOOGLE_OAUTH_ACCESS_TOKEN ?? ''
   const profile = JSON.parse(await fs.readFile(path.join(root, 'config/release/dev122-openswx-worker.json'), 'utf8'))
+  const readSource = createFrozenWorkerSourceReader(root)
   const result = await executeSecretVersionIamContinuation({ inputRef, root, oauthToken: token, transport: createOwnerTransport({ token }),
     verifyActor: transport => verifyNormalActor(transport, profile),
-    readSource(repositoryPath, sourceRevision) { createGitSourceIdentity(root, sourceRevision); return readGitBlob(root, repositoryPath, sourceRevision) },
+    readSource,
   })
   process.stdout.write(JSON.stringify({ ref: result.ref, status: result.value.status }) + '\n')
 }
