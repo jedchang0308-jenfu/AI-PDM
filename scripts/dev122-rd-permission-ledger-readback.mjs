@@ -13,7 +13,7 @@ import {
   RD_LEDGER_READBACK_CONSTANTS,
   RD_LEDGER_READBACK_PGOPTIONS,
   RD_LEDGER_READBACK_RESULT_SCHEMA,
-  assertRdLedgerReadbackGitHubContext,
+  assertRdReadbackGitHubContext,
   assertRdLedgerReadbackIntent,
   assertRdReadbackJob,
   assertRdReadbackNativeReceipt,
@@ -241,7 +241,7 @@ async function readback({ args, transport }) {
   const { profile, profileSha256, probes } = await loadSource()
   const capsule = await readCapsule(transport, args)
   const intent = assertRdLedgerReadbackIntent(capsule.value, { profileSha256, probes })
-  assertRdLedgerReadbackGitHubContext(intent, process.env, root)
+  assertRdReadbackGitHubContext(intent, process.env, root)
   if (Date.now() >= Date.parse(intent.deadlineAt)) fail('RD_READBACK_TIMEOUT')
   const sourceIdentity = createGitSourceIdentity(root, intent.sourceRevision)
   if (rdReadbackSha256(sourceIdentity) !== intent.sourceIdentitySha256) fail('RD_READBACK_SOURCE_AUTHORITY_MISMATCH')

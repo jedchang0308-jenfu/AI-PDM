@@ -33,6 +33,7 @@
 - `npm run qc:dev-117:continuous`：PASS；owner report `DEV117-S1B-20261016T022605955Z-0D102419`，source snapshot `ff009a097821833fca1963642e3c252dd8fa488888b92d26713eabadd8c5f9f0`，evidence `59485eadd4ba2869861a43a78b4ede7906cb906cb2af72a96ba3c4a2452c3d29`。
 - Aggregate continuous tests：415/415 PASS；catalog v7／085 contract、abort 6/6、`npm run check:db-boundary`、`npm run typecheck:app`、`npm run build:isolated` 全部 PASS。隔離建置的 artifact、primary database-absent invariant 與 cleanup 均為 true。
 - Owner report 明確記錄 provider mutation：cloud 0、database 0、traffic 0、credentials 0、sibling 0。
+- PR #330 required CI 兩項皆 PASS 後，第一次 exact-main publish 在 Node 載入階段因 CLI import/export 名稱不一致而失敗；此失敗發生於 `main()` 與任何 provider write 前，所以 GCS／Job／database／service／traffic mutation 均為 0。後續 corrective commit 統一名稱，並把實際 entrypoint module import 納入 RD07，避免只以 source text 測試而漏掉 ESM linkage。
 - 本地摘要保存在 `output/qa/dev-122/rd-permission-repair/readback-preflight-local-qc-2026-10-16.json`；正式先前 readback保存在同目錄的 `production-readback-gate-2026-10-16.json` 與 `production-readback-partial-2026-10-16.json`。
 
 ## 下一個 gate
