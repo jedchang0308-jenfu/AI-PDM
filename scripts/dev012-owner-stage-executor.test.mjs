@@ -32,18 +32,15 @@ test('owner source archive uses the worker reader canonical LF recipe', () => {
   // exercise both readers from a clean, task-owned worktree instead.
   const frozenRoot = mkdtempSync(join(root, '.tmp-owner-archive-'))
   try {
-    const checkout = spawnSync('git', ['clone', '--local', '--shared', '--no-checkout', root, frozenRoot], {
+    const checkout = spawnSync('git', ['worktree', 'add', '--detach', frozenRoot, revision], {
       cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
     })
     assert.equal(checkout.status, 0, checkout.stderr || checkout.stdout)
-    const detached = spawnSync('git', ['checkout', '--detach', revision], {
-      cwd: frozenRoot, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
-    })
-    assert.equal(detached.status, 0, detached.stderr || detached.stdout)
     const ownerArchive = createGitArchive(frozenRoot, revision)
     const workerArchive = createWorkerGitReader(frozenRoot, revision).readArchive(revision)
     assert.deepEqual(ownerArchive, workerArchive)
   } finally {
+    spawnSync('git', ['worktree', 'remove', '--force', frozenRoot], { cwd: root, encoding: 'utf8', windowsHide: true })
     rmSync(frozenRoot, { recursive: true, force: true })
   }
 })
