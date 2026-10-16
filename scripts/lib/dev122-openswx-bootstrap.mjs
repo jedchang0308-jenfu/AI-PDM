@@ -384,7 +384,7 @@ async function readCompletedFirstProof({ transport, profile, descriptor, plan, b
   const credentials = inherited ? { partial: inherited.partial } : await readPartialFirstCredentialProof({ transport, profile, descriptor, plan, build, basis, priorBootstrapInputRef: partial.priorBootstrapInputRef,
     allowCredentialProgress: true, registryAuthority: { deadlineAt: oldInput.deadlineAt, completedAt: bootstrap.value.observedAt } })
   if (canonicalize(credentials.partial) !== canonicalize(partial)) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
-  await assertPausedDrainReceipt(transport, paused.value, oldDescriptor, profile)
+  await assertPausedDrainReceipt(transport, paused.value, oldDescriptor, profile, undefined, undefined, false, { currentSourceRevision: oldDescriptor.sourceRevision })
   const facts = bootstrap.value.facts, selftest = workerTemplate(profile, oldBuild.image, null, 'selftest')
   if (facts.bootstrapKind !== 'FIRST_CREATE' || canonicalize(facts.resourceApplyRef) !== canonicalize(oldInput.resourceApplyRef)
     || (inherited ? canonicalize(facts.completedFirstBootstrap) !== canonicalize(inherited.completed) || facts.partialFirstBootstrap != null
@@ -1042,7 +1042,7 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
   }
   const paused = (await transport.readJson(oldInput.pausedDrainedRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   assertWorkerReceipt(paused, old.value, 'paused-drained', { actor: profile.normalActor, image: prior.build.image })
-  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource, undefined, historicalProfile)
+  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, historical, undefined, historicalProfile, { currentSourceRevision: old.value.sourceRevision })
   failedDailySame(paused.facts.priorActivationRef, prior.activationRef)
   const selftest = workerTemplate(profile, artifact.image, null, 'selftest', { historicalProfile })
   const readFinite = async (suffix, owner, template) => {
@@ -1695,7 +1695,7 @@ async function readSuccessfulDailyBootstrapContinuation({ transport, continuatio
     || facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, build.image, prior.descriptor.tokenSecretVersion)))) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
   const paused = (await transport.readJson(oldInput.pausedDrainedRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   assertWorkerReceipt(paused, old.value, 'paused-drained')
-  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource)
+  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource, undefined, false, { currentSourceRevision: old.value.sourceRevision })
   if (canonicalize(paused.facts.priorActivationRef) !== canonicalize(priorActivationRef)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
   const captured = (await transport.readJson(continuation.priorRecoveryRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   if (!captured || Object.keys(captured).sort().join(',') !== 'observedAt,priorActivationRef,priorCapsuleRef,priorTemplate,schemaVersion,targetDescriptorRef'
@@ -1879,7 +1879,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   if (stage === 'resources') return executeOpenSwxResources({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, build, root, readSource, oauthToken, uri, deadlineAt: input.deadlineAt, actor, firstReconciliation: input.priorResourceRequestRef ? { priorResourceRequestRef: input.priorResourceRequestRef, priorWorkerBuildRef: input.priorWorkerBuildRef, ...(input.priorBootstrapInputRef ? { priorBootstrapInputRef: input.priorBootstrapInputRef } : {}), ...(input.completedFirstBootstrapInputRef ? { completedFirstBootstrapInputRef: input.completedFirstBootstrapInputRef, completedFirstPauseInputRef: input.completedFirstPauseInputRef, supplementalIamReadbackRef: input.supplementalIamReadbackRef } : {}) } : null })
   let partialFirstBootstrap = null, completedFirstBootstrap = null, supplementalIam = null
   const daily = input.drainKind === 'DAILY_DB_VERIFIED' || input.bootstrapKind === 'DAILY_REFRESH'
-  const prior = daily ? await readPriorWorkerActivation(transport, input.priorActivationRef, profile, readSource) : null
+  const prior = daily ? await readPriorWorkerActivation(transport, input.priorActivationRef, profile, readSource, undefined, false, { currentSourceRevision: descriptor.value.sourceRevision }) : null
   if (daily && artifact.currentAssociation && canonicalize(input.priorActivationRef) !== canonicalize(artifact.currentAssociation.priorActivationRef)) fail('OPENSWX_REUSE_PRIOR_ACTIVATION_JOIN_INVALID')
   if (!!input.failedDailyContinuation !== !!artifact.failedDaily) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   if (input.failedDailyContinuation) { assertFailedDailyContinuation(input.failedDailyContinuation); failedDailySame(input.failedDailyContinuation,artifact.input.failedDailyContinuation) }
@@ -1989,7 +1989,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
       existingPause = await optional(transport, uri)
       if (existingPause) {
         assertWorkerReceipt(existingPause.value, descriptor.value, 'paused-drained', { actor: actor.email, image: prior.build.image })
-        await assertPausedDrainReceipt(transport, existingPause.value, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile, readSource)
+        await assertPausedDrainReceipt(transport, existingPause.value, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile, readSource, undefined, false, { currentSourceRevision: descriptor.value.sourceRevision })
         if (canonicalize(existingPause.value.previousRefs) !== canonicalize([inputRef, input.workerBuildRef])
           || canonicalize(existingPause.value.facts.bootstrapContinuation) !== canonicalize(bootstrapContinuation)
           || canonicalize(existingPause.value.facts.priorActivationRef) !== canonicalize(input.priorActivationRef)
@@ -2038,7 +2038,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   if (daily) {
     const drained = (await transport.readJson(input.pausedDrainedRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
     assertWorkerReceipt(drained, descriptor.value, 'paused-drained')
-    await assertPausedDrainReceipt(transport, drained, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile, readSource)
+    await assertPausedDrainReceipt(transport, drained, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile, readSource, undefined, false, { currentSourceRevision: descriptor.value.sourceRevision })
     if (canonicalize(drained.facts.priorActivationRef) !== canonicalize(input.priorActivationRef)) fail('OPENSWX_DAILY_DRAIN_INVALID')
     if (failedPatchRow) await verifyPriorCanonicalRuntime({ transport, profile, prior, appProfile, readSource })
     else await verifyPriorLive({ transport, profile, prior, appProfile, readSource })

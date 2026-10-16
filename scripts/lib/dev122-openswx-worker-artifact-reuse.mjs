@@ -35,10 +35,10 @@ function exact(value, keys, code = 'OPENSWX_REUSE_SCHEMA_INVALID') {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join(',') !== [...keys].sort().join(',')) fail(code)
 }
 function same(a, b, code = 'OPENSWX_REUSE_JOIN_INVALID') { if (canonicalize(a) !== canonicalize(b)) fail(code) }
-function historicalProfileOptions(readSource, revision = null, currentReadSource = null) {
+export function historicalProfileOptions(readSource, revision = null, currentReadSource = null) {
   return { historicalProfile: isHistoricalReaderFor(readSource, revision, currentReadSource) }
 }
-function assertHistoricalProfileCompatibility(currentProfile, historicalProfile) {
+export function assertHistoricalProfileCompatibility(currentProfile, historicalProfile) {
   const normalize = value => {
     const copy = structuredClone(value)
     copy.bounds = { ...copy.bounds, ownerDeadlineSeconds: null }
@@ -85,7 +85,7 @@ function historicalReaderView(readSource, revision, { historical = true, sourceH
   }
   return view
 }
-function sourceReaderForRevision(readSource, revision, { forceHistorical = false } = {}) {
+export function sourceReaderForRevision(readSource, revision, { forceHistorical = false } = {}) {
   if (readSource?.sourceRevision === revision && !forceHistorical) return readSource
   if (typeof readSource !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
   if (readSource?.sourceRevision === revision) return historicalReaderView(readSource, revision)
