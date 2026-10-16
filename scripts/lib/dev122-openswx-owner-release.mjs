@@ -669,10 +669,33 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
       ...(supplementalIam ? { supplementalIam } : {}) }
   }
   results.workerBuildRef = artifact.originBuild
-  for (const [field, kind] of [['bootstrapRef', 'bootstrap'], ['cloudPreflightRef', 'cloud-preflight'], ['pausedDrainedRef', 'paused-drained']]) {
-    const row = await transport.readJson(descriptor[field], BUCKET, [WORKER_RECEIPT_PREFIX])
-    results[field] = assertWorkerReceipt(row.value, descriptor, kind)
+  // A reused current association carries the new source binding, while its
+  // immutable bootstrap/preflight/drain receipts remain bound to the READY
+  // descriptor that originally produced the retained image.  Validate those
+  // receipts against that admitted historical descriptor/source; the
+  // association and descriptor joins below still bind the current release to
+  // the new source revision.
+  const retainedDescriptor = descriptor.artifactMode === 'REUSE_VERIFIED' && artifact.origin?.prior?.bootstrapDescriptor
+    ? artifact.origin.prior.bootstrapDescriptor : null
+  const validationDescriptorFor = value => retainedDescriptor && value?.sourceRevision === retainedDescriptor.sourceRevision
+    ? retainedDescriptor : descriptor
+  const validationSourceFor = validationDescriptor => {
+    if (validationDescriptor.sourceRevision === descriptor.sourceRevision) return historicalReadSource ?? readSource
+    if (historicalReadSource?.isHistorical === true
+      && (historicalReadSource.sourceRevision === validationDescriptor.sourceRevision
+        || historicalReadSource.historicalReadRevisions?.has?.(validationDescriptor.sourceRevision))) return historicalReadSource
+    return sourceReaderForRevision(readSource, validationDescriptor.sourceRevision, { forceHistorical: true })
   }
+  const receiptRows = {}
+  for (const [field, kind] of [['bootstrapRef', 'bootstrap'], ['cloudPreflightRef', 'cloud-preflight'], ['pausedDrainedRef', 'paused-drained']]) {
+    receiptRows[field] = await transport.readJson(descriptor[field], BUCKET, [WORKER_RECEIPT_PREFIX])
+    const validationDescriptor = validationDescriptorFor(receiptRows[field].value)
+    results[field] = assertWorkerReceipt(receiptRows[field].value, validationDescriptor, kind)
+  }
+  const bootstrapEvidenceDescriptor = validationDescriptorFor(receiptRows.bootstrapRef.value)
+  const pausedEvidenceDescriptor = validationDescriptorFor(receiptRows.pausedDrainedRef.value)
+  const retainedEvidenceSource = validationSourceFor(pausedEvidenceDescriptor)
+  const retainedEvidenceHistorical = bootstrapEvidenceDescriptor.sourceRevision !== descriptor.sourceRevision || Boolean(historicalReadSource)
   const image = results.workerBuildRef.image
   for (const field of ['bootstrapRef', 'cloudPreflightRef']) {
     if (results[field].image !== image || results[field].actor !== profile.normalActor) fail('OPENSWX_RECEIPT_JOIN_INVALID')
@@ -681,10 +704,11 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
     || results.bootstrapRef.facts.registrySecretVersion !== assertNumericSecret(descriptor.registrySecretVersion, profile.registrySecretId)
     || results.cloudPreflightRef.facts.isolationVerified !== true || results.cloudPreflightRef.facts.noCad !== true) fail('OPENSWX_RECEIPT_JOIN_INVALID')
   for (const field of ['bootstrapRef', 'cloudPreflightRef']) {
-    if (results[field].facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, descriptor.tokenSecretVersion, 'normal', { historicalProfile: Boolean(historicalReadSource) })))
-      || results[field].facts.selftestTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, null, 'selftest', { historicalProfile: Boolean(historicalReadSource) })))) fail('OPENSWX_ACTUAL_TEMPLATE_JOIN_INVALID')
+    if (results[field].facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, descriptor.tokenSecretVersion, 'normal', { historicalProfile: retainedEvidenceHistorical })))
+      || results[field].facts.selftestTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, image, null, 'selftest', { historicalProfile: retainedEvidenceHistorical })))) fail('OPENSWX_ACTUAL_TEMPLATE_JOIN_INVALID')
   }
-  await assertPausedDrainReceipt(transport, results.pausedDrainedRef, descriptor, profile, historicalReadSource ?? readSource, artifact.graphContext ?? ctx, Boolean(historicalReadSource), { currentSourceRevision: descriptor.sourceRevision })
+  await assertPausedDrainReceipt(transport, results.pausedDrainedRef, pausedEvidenceDescriptor, profile, retainedEvidenceSource, artifact.graphContext ?? ctx,
+    pausedEvidenceDescriptor.sourceRevision !== descriptor.sourceRevision || Boolean(historicalReadSource), { currentSourceRevision: descriptor.sourceRevision })
   if (results.bootstrapRef.facts.bootstrapKind !== (results.pausedDrainedRef.facts.drainKind === 'FIRST_PROVIDER_ONLY' ? 'FIRST_CREATE' : 'DAILY_REFRESH')) fail('OPENSWX_BOOTSTRAP_DRAIN_JOIN_INVALID')
   if (descriptor.historyBasisRef && (results.bootstrapRef.facts.bootstrapKind !== 'DAILY_REFRESH' || results.pausedDrainedRef.facts.drainKind !== 'DAILY_DB_VERIFIED' || !artifact.failedDaily)) fail('OPENSWX_HISTORY_DAILY_ONLY')
   if (results.pausedDrainedRef.facts.drainKind === 'DAILY_DB_VERIFIED') {
