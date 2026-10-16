@@ -1775,6 +1775,7 @@ test('RD daily metadata continuation reaches pre-read, selftest, full descriptor
   const evidence = await readWorkerFullEvidence(h.transport, full, profile, h.readSource)
   assert.deepEqual(evidence.artifact.secretVersionIam.ref, h.metadata.continuationRef)
   assert.equal(evidence.artifact.originBuild.image, h.build.image)
+  assert.notDeepEqual(full.workerBuildRef, evidence.artifact.origin.prior.bootstrapDescriptor.workerBuildRef)
   for (const field of ['secretVersionIamContinuationRef', 'secretVersionIamSourceLockRef']) {
     const changed = structuredClone(readback), poisoned = structuredClone(bootstrap.value)
     changed[field].sha256 = '0'.repeat(64)

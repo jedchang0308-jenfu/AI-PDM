@@ -718,7 +718,11 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
       || canonicalize(results.bootstrapRef.facts.pausedDrainedRef) !== canonicalize(descriptor.pausedDrainedRef)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
     assertOpenSwxWorkerRef(provenance.priorResourceApplyRef)
     const readback = (await transport.readJson(provenance.resourceReadbackRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
-    if (readback.resourcesUnchanged !== true || canonicalize(readback.targetWorkerBuildRef) !== canonicalize(descriptor.workerBuildRef)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
+    // A reused current association points at the new source-bound association,
+    // while the retained daily resource readback still names the historical
+    // worker association that produced the immutable drain evidence.
+    const retainedWorkerBuildRef = pausedEvidenceDescriptor.workerBuildRef ?? descriptor.workerBuildRef
+    if (readback.resourcesUnchanged !== true || canonicalize(readback.targetWorkerBuildRef) !== canonicalize(retainedWorkerBuildRef)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
     const metadata = artifact.secretVersionIam
     for (const [field, expected] of [['secretVersionIamContinuationRef', metadata?.ref], ['secretVersionIamSourceLockRef', metadata?.sourceLockRef]]) {
       if (canonicalize(provenance[field] ?? null) !== canonicalize(expected ?? null)
