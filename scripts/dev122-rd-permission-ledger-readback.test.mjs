@@ -16,6 +16,7 @@ import {
   buildRdReadbackResult,
   classifyRdReadbackCapsule,
   rdReadbackJobEnvironment,
+  rdReadbackProfileSha256,
   rdReadbackProbeArguments,
   rdReadbackSha256,
 } from './lib/dev122-rd-permission-ledger-readback.mjs'
@@ -79,6 +80,10 @@ test('RD01 derives sealed current-main ledger probes in descending 35/34/33 orde
 
 test('RD02 intent binds exact source, provider Job etag/template, runner and three immutable bundles', () => {
   const value = intent()
+  const lfProfile = `${JSON.stringify(profile, null, 2)}\n`
+  const crlfProfile = lfProfile.replaceAll('\n', '\r\n')
+  assert.notEqual(rdReadbackSha256(Buffer.from(lfProfile)), rdReadbackSha256(Buffer.from(crlfProfile)))
+  assert.equal(rdReadbackProfileSha256(JSON.parse(lfProfile)), rdReadbackProfileSha256(JSON.parse(crlfProfile)))
   assert.equal(assertRdLedgerReadbackIntent(value), value)
   assert.equal(assertRdReadbackJob(job(), profile, value).etag, value.jobEtag)
   assert.equal(classifyRdReadbackCapsule(value), 'rd_readback')

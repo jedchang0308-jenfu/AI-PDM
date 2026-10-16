@@ -34,6 +34,7 @@
 - Aggregate continuous tests：415/415 PASS；catalog v7／085 contract、abort 6/6、`npm run check:db-boundary`、`npm run typecheck:app`、`npm run build:isolated` 全部 PASS。隔離建置的 artifact、primary database-absent invariant 與 cleanup 均為 true。
 - Owner report 明確記錄 provider mutation：cloud 0、database 0、traffic 0、credentials 0、sibling 0。
 - PR #330 required CI 兩項皆 PASS 後，第一次 exact-main publish 在 Node 載入階段因 CLI import/export 名稱不一致而失敗；此失敗發生於 `main()` 與任何 provider write 前，所以 GCS／Job／database／service／traffic mutation 均為 0。後續 corrective commit 統一名稱，並把實際 entrypoint module import 納入 RD07，避免只以 source text 測試而漏掉 ESM linkage。
+- PR #331 合併後，R2 capsule 成功發布；protected workflow通過 source tests、official-source與 capsule classification，readback stage 隨即以 `RD_READBACK_PROFILE_DRIFT` fail closed。直接比對證實同一 profile 的 Windows working-tree raw SHA-256 為 `7eb3d437b13a9a2ce6ad21ef96517bbb190316b533fcebf0a6f6a118bdcd2c6a`，Git canonical bytes 為 `b8d39e0e519f5a88e67f068ce20eb611953af6ed20dd199f93a4c3551c45f4c4`；根因是 CRLF/LF，不是 profile semantics 漂移。失敗在 Job readback/submission前，沒有 migration execution或 DB mutation。corrective source改綁 canonical parsed profile semantic hash，仍由 exact source tree另行綁定 byte identity，並新增 LF/CRLF 等價測試。
 - 本地摘要保存在 `output/qa/dev-122/rd-permission-repair/readback-preflight-local-qc-2026-10-16.json`；正式先前 readback保存在同目錄的 `production-readback-gate-2026-10-16.json` 與 `production-readback-partial-2026-10-16.json`。
 
 ## 下一個 gate

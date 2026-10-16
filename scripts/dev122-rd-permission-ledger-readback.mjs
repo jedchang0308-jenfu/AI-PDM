@@ -25,6 +25,7 @@ import {
   rdReadbackJobEnvironment,
   rdReadbackJobProjection,
   rdReadbackProbeArguments,
+  rdReadbackProfileSha256,
   rdReadbackSha256,
 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 
@@ -61,7 +62,7 @@ async function loadSource() {
   assertDev117V3Profile(profile, v1, n1c)
   const sourceRevision = String((await git(['rev-parse', 'HEAD']))).trim()
   const full = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision)
-  return { profile, profileSha256: rdReadbackSha256(bytes[0]), probes: buildRdLedgerProbeBundles(full) }
+  return { profile, profileSha256: rdReadbackProfileSha256(profile), probes: buildRdLedgerProbeBundles(full) }
 }
 
 async function git(args, encoding = 'utf8') {
