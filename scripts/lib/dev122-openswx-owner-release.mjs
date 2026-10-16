@@ -707,6 +707,9 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
   return { image, receipts: results, artifact, ...(supplementalIam ? { supplementalIam } : {}) }
   })
 }
+export function programOnlyHistoricalProfileRequired({ intentSourceRevision, descriptorSourceRevision, currentProfile, descriptorProfile }) {
+  return descriptorSourceRevision !== intentSourceRevision || canonicalize(currentProfile) !== canonicalize(descriptorProfile)
+}
 /** A current source association retains the original READY activation, never invents a new one. */
 export async function readProgramOnlyWorkerEvidence({ transport, intent, appProfile, descriptor, profile, readSource, currentReadback = false }) {
   if (descriptor.historyBasisRef) fail('OPENSWX_PROGRAM_ONLY_DESCRIPTOR_INVALID')
@@ -716,11 +719,15 @@ export async function readProgramOnlyWorkerEvidence({ transport, intent, appProf
   // validation to the descriptor's own immutable profile bytes first.
   const descriptorProfileSource = sourceReaderForRevision(readSource, descriptor.sourceRevision, { forceHistorical: true })
   const descriptorProfile = readHistoricalWorkerProfile(descriptorProfileSource, descriptor.sourceRevision)
-  const historicalProfile = canonicalize(profile) !== canonicalize(descriptorProfile.profile)
+  // The descriptor revision is the authoritative boundary.  A current-mode
+  // reader may still be admitted to an immutable predecessor revision, so
+  // profile-byte equality alone must not select current validation rules.
+  const historicalProfile = programOnlyHistoricalProfileRequired({ intentSourceRevision: intent.sourceRevision,
+    descriptorSourceRevision: descriptor.sourceRevision, currentProfile: profile, descriptorProfile: descriptorProfile.profile })
   const workerProfile = historicalProfile ? descriptorProfile.profile : profile
   if (sha256(descriptorProfile.bytes) !== descriptor.workerProfileSha256) fail('OPENSWX_WORKER_PROFILE_INVALID')
   if (historicalProfile) assertHistoricalProfileCompatibility(profile, workerProfile)
-  assertWorkerDescriptor(descriptor, workerProfile, descriptor.workerProfileSha256, intent.sourceRevision, { historicalProfile })
+  assertWorkerDescriptor(descriptor, workerProfile, descriptor.workerProfileSha256, descriptor.sourceRevision, { historicalProfile })
   if (descriptor.schemaVersion !== 'aipdm.openswx-worker-descriptor.v2' || descriptor.purpose !== 'full' || descriptor.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_PROGRAM_ONLY_DESCRIPTOR_INVALID')
   const artifact = await resolveWorkerArtifact({ transport, descriptor, profile: workerProfile, readSource, historicalReadSource: historicalProfile ? descriptorProfileSource : null })
   if (canonicalize(artifact.associationRef) !== canonicalize(policy.retainedWorker.currentAssociationRef)

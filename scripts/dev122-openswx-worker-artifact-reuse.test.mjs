@@ -17,7 +17,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'nod
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeConfig } from './lib/dev012-owner-release-runtime.mjs'
-import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam } from './lib/dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam, programOnlyHistoricalProfileRequired } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, assertFailedDailyFullJoin, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
 import { qualifyAiPdmNativeHistoryBasis, deriveAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
 import { assertHistoricalCheckpointDescriptor, readHistoricalWorkerProfile, buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
@@ -1047,6 +1047,11 @@ test('current genuine Git v7 profile cannot borrow the historical B35 program-on
     JSON.parse(canonicalSource('config/platform/dev-010-n1c-ai-pdm.json'))), currentRevision)
   assert.equal(full.bundle.entries.length, 35)
   assert.throws(() => deriveProgramOnlyBundles({ profile: currentAppProfile, full }), /PROGRAM_ONLY/u)
+})
+test('program-only validation treats an admitted predecessor revision as historical even when profile bytes match', () => {
+  assert.equal(programOnlyHistoricalProfileRequired({ intentSourceRevision: currentRevision, descriptorSourceRevision: oldRevision, currentProfile: profile, descriptorProfile: profile }), true)
+  assert.equal(programOnlyHistoricalProfileRequired({ intentSourceRevision: currentRevision, descriptorSourceRevision: currentRevision, currentProfile: profile, descriptorProfile: profile }), false)
+  assert.equal(programOnlyHistoricalProfileRequired({ intentSourceRevision: currentRevision, descriptorSourceRevision: currentRevision, currentProfile: profile, descriptorProfile: historicalProfile }), true)
 })
 async function b35ReadyProgramFixture(options = {}) {
   const h = await harness({ ...options, lockMutate: lock => { lock.migrationManifestSha256 = b35FullBundle.bundle.manifestSha256 } })
