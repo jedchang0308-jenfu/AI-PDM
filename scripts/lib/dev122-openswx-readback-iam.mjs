@@ -217,11 +217,12 @@ export async function readPrebuildIamContinuation({ transport, ref, supplemental
     || value.sourceProofRef.uri !== `gs://${BUCKET}/receipts/releases/${source.releaseId}/source-lock.json`) fail(PREBUILD_INVALID)
   // The immutable source lock is the admission boundary for this historical
   // Terraform closure.  The current reader intentionally denies historical
-  // paths until that boundary is proven; admit it before reading the retained
-  // supplemental readback receipt that uses the same source revision.
-  readSource.authorizeOrigin?.(value.sourceRevision)
+  // paths until that boundary is proven; the caller's current source lock has
+  // already been joined by its outer input, so admit that exact revision before
+  // reading the retained supplemental readback receipt.
+  readSource.authorizeOrigin?.(sourceRevision)
   const old = (await read(supplementalIamReadbackRef)).value
-  await readReadbackIamReceipt({ transport, ref: supplementalIamReadbackRef, sourceRevision: old?.sourceRevision, planSourceRevision: value.sourceRevision, readSource, normalActor })
+  await readReadbackIamReceipt({ transport, ref: supplementalIamReadbackRef, sourceRevision: old?.sourceRevision, planSourceRevision: sourceRevision, readSource, normalActor })
   if (old.planSha256 !== sha256(canonicalize(readbackIamPlan(readSource, sourceRevision)))) fail('OPENSWX_IAM_SOURCE_DRIFT')
   assertOpenSwxWorkerRef(value.humanApprovalRef)
   if (value.humanApprovalRef.sha256 !== PREBUILD_IAM_HUMAN_APPROVAL_SHA256) fail(PREBUILD_INVALID)
