@@ -404,7 +404,12 @@ export async function resolveWorkerArtifact({ transport, descriptor, profile, re
     return { currentAssociation: null, originBuild: build, originBuildRef: buildRef, originDescriptor: descriptor, image: build.image, sourceEntryProof: assertWorkerBuildSource(build, descriptor), graphContext: ctx }
   }
   if ((!isPausedAppRepair(descriptor) && !['aipdm.openswx-worker-descriptor.v2','aipdm.openswx-worker-descriptor.v4'].includes(descriptor.schemaVersion)) || descriptor.artifactMode !== 'REUSE_VERIFIED' || typeof readSource !== 'function') fail('OPENSWX_REUSE_RESOLVER_INVALID')
-  if (isPausedAppRepair(descriptor)) assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision, historicalProfileOptions(readSource))
+  if (isPausedAppRepair(descriptor)) {
+    const descriptorProfileSource = historicalReadSource?.sourceRevision === descriptor.sourceRevision
+      ? historicalReadSource
+      : readSource
+    assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision, historicalProfileOptions(descriptorProfileSource))
+  }
   if (descriptor.schemaVersion === 'aipdm.openswx-worker-descriptor.v4') {
     assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision, historicalProfileOptions(readSource))
     const activeIssuerRevision = readAiPdmActiveHistoryIssuerRevision()
