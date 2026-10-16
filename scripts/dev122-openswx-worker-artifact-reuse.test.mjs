@@ -121,6 +121,48 @@ test('historical profile reader shared by checkpoint and replay accepts the admi
     { code: 'OPENSWX_WORKER_PROFILE_INVALID' },
   )
 })
+test('paused repair descriptor uses historical profile only for its exact source revision', async () => {
+  const h = await harness()
+  const historicalReader = (name, revision) => {
+    assert.equal(name, WORKER_PROFILE_PATH)
+    assert.equal(revision, h.full.sourceRevision)
+    return historicalProfileBytes
+  }
+  historicalReader.sourceRevision = h.full.sourceRevision
+  historicalReader.isHistorical = true
+  const descriptor = {
+    ...h.full,
+    schemaVersion: 'aipdm.openswx-worker-descriptor.v3',
+    artifactMode: 'REUSE_VERIFIED',
+    releaseVariant: 'PAUSED_APP_REPAIR',
+    workerProfileSha256: sha256(historicalProfileBytes),
+    bounds: historicalProfile.bounds,
+    normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'normal', { historicalProfile: true }))),
+    selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'selftest', { historicalProfile: true }))),
+    pausedBaselineRef: h.fullRef,
+    priorActivationRef: h.priorActivationRef,
+    retainedWorkerDescriptorRef: h.fullRef,
+  }
+  delete descriptor.bootstrapRef
+  delete descriptor.cloudPreflightRef
+  delete descriptor.pausedDrainedRef
+  const guardedTransport = { ...h.transport, readJson: async () => { throw Error('AFTER_PROFILE_ADMISSION') } }
+  await assert.rejects(
+    resolveWorkerArtifact({ transport: guardedTransport, descriptor, profile, readSource: h.readSource }),
+    /OPENSWX_(?:WORKER_PROFILE|DESCRIPTOR)_INVALID/u,
+  )
+  const wrongRevisionReader = (name, revision) => historicalReader(name, revision)
+  wrongRevisionReader.sourceRevision = currentRevision
+  wrongRevisionReader.isHistorical = true
+  await assert.rejects(
+    resolveWorkerArtifact({ transport: guardedTransport, descriptor, profile: historicalProfile, readSource: h.readSource, historicalReadSource: wrongRevisionReader }),
+    { code: 'OPENSWX_WORKER_PROFILE_INVALID' },
+  )
+  await assert.rejects(
+    resolveWorkerArtifact({ transport: guardedTransport, descriptor, profile: historicalProfile, readSource: h.readSource, historicalReadSource: historicalReader }),
+    /AFTER_PROFILE_ADMISSION/u,
+  )
+})
 test('B23 closed repair input retains the four-argument CLI and pins serving/predecessor refs', () => {
   const workerRef = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
   const releaseRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-B23-LOCAL/release-intent.json', sha256: 'b'.repeat(64) }
