@@ -66,7 +66,9 @@ afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("CanonicalNumberingCreateAction permission projection", () => {
   it("shows the create action only when the shared permission endpoint allows it", async () => {
-    const tree = await load(vi.fn(async () => reply(200, { actions: { "numbering.create": true } })));
+    const fetcher = vi.fn(async () => reply(200, { actions: { "numbering.create": true } }));
+    const tree = await load(fetcher);
+    expect(fetcher).toHaveBeenCalledWith("/api/numbering/permissions", { cache: "no-store" });
     expect(find(tree, (props) => props["data-canonical-numbering-create"] === "true")).toBeTruthy();
     expect(text(tree)).toContain("建立編號");
   });
