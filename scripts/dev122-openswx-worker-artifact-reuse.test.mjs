@@ -163,6 +163,40 @@ test('paused repair descriptor uses historical profile only for its exact source
     /AFTER_PROFILE_ADMISSION/u,
   )
 })
+test('nested production-shaped reader separates admitted historical source from validation mode', async () => {
+  const h = await harness()
+  const descriptor = {
+    ...h.full,
+    schemaVersion: 'aipdm.openswx-worker-descriptor.v3',
+    artifactMode: 'REUSE_VERIFIED',
+    releaseVariant: 'PAUSED_APP_REPAIR',
+    workerProfileSha256: sha256(historicalProfileBytes),
+    bounds: historicalProfile.bounds,
+    normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'normal', { historicalProfile: true }))),
+    selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(historicalProfile, 'selftest', { historicalProfile: true }))),
+    pausedBaselineRef: h.fullRef,
+    priorActivationRef: h.priorActivationRef,
+    retainedWorkerDescriptorRef: h.fullRef,
+  }
+  delete descriptor.bootstrapRef
+  delete descriptor.cloudPreflightRef
+  delete descriptor.pausedDrainedRef
+  // This reader is production-shaped: it is anchored at the current source,
+  // can read an admitted predecessor revision, but carries no historical flag.
+  // The resolver must derive the validation mode from the requested revision
+  // and bind the profile bytes to that same revision.
+  const admittedReader = (name, revision) => {
+    assert.equal(name, WORKER_PROFILE_PATH)
+    return revision === descriptor.sourceRevision ? historicalProfileBytes : profileBytes
+  }
+  admittedReader.sourceRevision = currentRevision
+  admittedReader.supportsAdmittedHistoricalRevisions = true
+  const guardedTransport = { ...h.transport, readJson: async () => { throw Error('AFTER_PROFILE_ADMISSION') } }
+  await assert.rejects(
+    resolveWorkerArtifact({ transport: guardedTransport, descriptor, profile, readSource: h.readSource, historicalReadSource: admittedReader }),
+    /AFTER_PROFILE_ADMISSION/u,
+  )
+})
 test('B23 closed repair input retains the four-argument CLI and pins serving/predecessor refs', () => {
   const workerRef = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
   const releaseRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-B23-LOCAL/release-intent.json', sha256: 'b'.repeat(64) }
