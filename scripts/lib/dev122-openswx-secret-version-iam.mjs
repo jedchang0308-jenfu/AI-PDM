@@ -142,6 +142,11 @@ async function validateInputs({ transport, inputRef, readSource, normalActor }) 
     || !hash(source.sourceSha256) || !hash(source.migrationManifestSha256) || source.clean !== true || source.status !== 'SOURCE_FROZEN'
     || source.releaseAuthority !== true || source.evidenceScope !== 'PRODUCTION_BOUND'
     || !/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(source.releaseId ?? '') || input.sourceProofRef.uri !== `gs://${BUCKET}/receipts/releases/${source.releaseId}/source-lock.json`) fail()
+  // Freeze the current exact-main reader before the retained supplemental
+  // receipt admits its historical source revision.  The native reader must
+  // never switch the checkout identity to that predecessor while validating
+  // the current Secret-IAM input.
+  readSource(SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, input.sourceRevision)
   await readPrebuildIamContinuation({ transport, ref: input.prebuildIamContinuationRef, supplementalIamReadbackRef: input.supplementalIamReadbackRef,
     sourceRevision: input.sourceRevision, readSource, normalActor })
   const approval = await read(transport, input.humanApprovalRef), officialHuman = readSource(SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, input.sourceRevision)
