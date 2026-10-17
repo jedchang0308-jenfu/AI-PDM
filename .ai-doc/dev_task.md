@@ -5995,3 +5995,7 @@ DEV-121 仍維護 verified Principal、scope／撤權、existing effect publish�
 導入 project-wide changed-responsibility planner、affected test runner與 owner/CI routing；shared/unknown inputs保留 legacy full fail-closed。worker current/historical profile判定集中至單一 context，歷史 evidence仍綁 exact revision/profile bytes，不以 current HEAD隱式覆蓋。單一交付切片在 merge 前於同一 branch/PR 收斂 caller graph及 production-shaped fixtures，避免以反覆 merge/PR作為本機可發現缺陷的除錯迴圈。此項不執行production mutation，不改 DEV-122原分母；正式 RD、approval與未授權角色驗收仍 pending。
 
 本機 checkpoint 見 `.ai-doc/qa/DEV-122-CAPA-002-change-scoped-validation-local-2026-10-17.md`；shared aggregate、DB boundary、typecheck、isolated build、lint及 upstream historical-mode 交集均已通過。此為 RD 自驗，不是獨立 QC 或 provider-required CI；PR checks 尚待執行。
+
+### 2026-10-17 bounded release checkpoint corrective slice
+
+同一CAPA-002追加修正：routine `REUSE_VERIFIED` owner path不再把sealed ancestor graph的完整重播當成每次發布的current safety gate。新增bounded checkpoint只阻擋exact current source lock/archive/manifest/infra、immutable association、retained digest、current resource/security receipt、fresh provider digest/security與live paused/no-active-execution drift；歷史basis仍保存為`ARCHIVE_AUDIT_ONLY`，沒有被改寫或宣稱重新PASS。Recursive resolver保留於producer、repair/frontier、program-only、worker input change及explicit audit。此切片不修改產品權限、migration、資料、IAM、Secret、worker/Scheduler資源或production traffic；whole DEV-122仍`NOT_ACCEPTED`。

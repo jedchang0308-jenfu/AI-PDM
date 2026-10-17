@@ -411,6 +411,75 @@ export async function resolveWorkerArtifact({ transport, descriptor, profile, re
    return resolveAssociation({ transport, descriptor, profile: resolvedProfile, readSource, readerSourceRevision, historicalReadSource, buildRef, ctx, repair: isPausedAppRepair(descriptor) })
   })
 }
+
+/**
+ * Bounded admission for an already-produced immutable reuse association.
+ *
+ * Routine application releases need to prove the current source/archive,
+ * retained digest, current resource observation and current security result.
+ * They do not need to replay every ancestor that originally produced the
+ * association.  The recursive resolver above remains the deep-audit and
+ * producer authority; this checkpoint reader deliberately cannot publish a
+ * new association or recover a failed historical frontier.
+ */
+export async function resolveWorkerReleaseCheckpoint({ transport, descriptor, profile, readSource, buildRef = descriptor.workerBuildRef }) {
+  return runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
+    if (!['aipdm.openswx-worker-descriptor.v2', 'aipdm.openswx-worker-descriptor.v4'].includes(descriptor?.schemaVersion)
+      || descriptor.artifactMode !== 'REUSE_VERIFIED' || isPausedAppRepair(descriptor) || typeof readSource !== 'function') fail('OPENSWX_RELEASE_CHECKPOINT_INVALID')
+    assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision)
+    same(buildRef, descriptor.workerBuildRef)
+    const association = assertAssociation((await read(transport, buildRef)).value, descriptor, profile, false)
+    const lockRow = await read(transport, association.sourceLockRef, ['receipts'])
+    const lock = assertReuseSourceLock(lockRow.value, descriptor.sourceRevision)
+    admitAiPdmEvidenceSource(lockRow)
+    if (!association.requestRef || canonicalize(association.sourceLockRef) !== canonicalize(lockRow.ref)) fail('OPENSWX_RELEASE_CHECKPOINT_INVALID')
+
+    const request = (await read(transport, association.requestRef)).value
+    exact(request, ['schemaVersion', 'inputRef', 'sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'priorActivationRef', 'actor', 'requestedAt', ...(association.historyBasisRef ? ['historyBasisRef'] : [])])
+    if (request.schemaVersion !== `aipdm.openswx-worker-reuse-request.v${association.historyBasisRef ? 3 : 1}`
+      || request.actor !== profile.normalActor || request.sourceRevision !== descriptor.sourceRevision
+      || request.sourceArchiveSha256 !== descriptor.sourceArchiveSha256) fail('OPENSWX_REUSE_REQUEST_INVALID')
+    same(request.sourceLockRef, association.sourceLockRef); same(request.priorActivationRef, association.priorActivationRef); time(request.requestedAt)
+    const input = assertWorkerReuseInput((await read(transport, request.inputRef)).value, { historical: true })
+    if (![association.historyBasisRef ? 'aipdm.openswx-worker-reuse-input.v3' : 'aipdm.openswx-worker-reuse-input.v1', 'aipdm.openswx-worker-reuse-input.v4'].includes(input.schemaVersion)) fail('OPENSWX_REUSE_REQUEST_INVALID')
+    same(input.sourceLockRef, association.sourceLockRef); same(input.priorActivationRef, association.priorActivationRef)
+    if (input.currentSourceObjectRef.sha256 !== descriptor.sourceArchiveSha256
+      || !input.currentSourceObjectRef.uri.startsWith(`gs://${BUCKET}/source/releases/${lock.releaseId}/`)) fail('OPENSWX_REUSE_REQUEST_INVALID')
+    if (association.historyBasisRef) {
+      same(input.historyBasisRef ?? input.frontierRebaseRef, association.historyBasisRef)
+      same(request.historyBasisRef, association.historyBasisRef)
+      const basis = assertOpenSwxHistoryBasis((await read(transport, association.historyBasisRef)).value)
+      const issuerLockRow = await read(transport, basis.issuerSourceLockRef, ['receipts'])
+      const issuerLock = assertReuseSourceLock(issuerLockRow.value, issuerLockRow.value.sourceRevision)
+      admitAiPdmEvidenceSource(issuerLockRow)
+      if (basis.qualifierSourceTreeSha256 !== issuerLock.sourceSha256) fail('OPENSWX_HISTORY_BASIS_ISSUER_INVALID')
+    } else if (input.historyBasisRef || input.frontierRebaseRef) fail('OPENSWX_REUSE_REQUEST_INVALID')
+
+    const currentManifest = (await read(transport, association.executableProof.currentManifestRef)).value
+    exact(currentManifest, ['schemaVersion', 'sourceRevision', 'entries'])
+    if (currentManifest.schemaVersion !== 'aipdm.openswx-worker-input-manifest.v1' || currentManifest.sourceRevision !== descriptor.sourceRevision) fail('OPENSWX_REUSE_MANIFEST_INVALID')
+    assertManifest(currentManifest.entries, { workerProfileSha256: descriptor.workerProfileSha256 })
+    for (const row of currentManifest.entries) if (sha256(readSource(row.path, descriptor.sourceRevision)) !== row.sha256) fail('OPENSWX_REUSE_GIT_INPUT_MISMATCH')
+
+    const infra = (await read(transport, association.resourceAssociation.infraManifestRef)).value
+    exact(infra, ['schemaVersion', 'sourceRevision', 'sourceHashes', 'plan', 'resourcePlanHash', 'originalApprovedResourcePlanRef', 'originalResourceApplyRef'])
+    if (infra.schemaVersion !== 'aipdm.openswx-reuse-infra-manifest.v1' || infra.sourceRevision !== descriptor.sourceRevision
+      || infra.resourcePlanHash !== descriptor.resourcePlanHash || sha256(canonicalize(infra.plan)) !== descriptor.resourcePlanHash) fail('OPENSWX_REUSE_INFRA_INVALID')
+    same(infra.sourceHashes, OPENSWX_TERRAFORM_PATHS.map(name => ({ path: name, sha256: sha256(readSource(name, descriptor.sourceRevision)) })))
+    same(infra.plan, infraPlan(profile, infra.sourceHashes)); same(infra.originalApprovedResourcePlanRef, association.artifactOrigin.originalApprovedResourcePlanRef)
+    same(infra.originalResourceApplyRef, association.resourceAssociation.originalResourceApplyRef)
+
+    const resource = (await read(transport, association.resourceAssociation.readbackRef)).value
+    assertReleaseCheckpointResource(resource, association, descriptor, profile)
+    const security = (await read(transport, association.securityEvidence.readbackRef)).value
+    const origin = checkpointOrigin(association, security)
+    assertReleaseCheckpointSecurity(security, association, origin, profile)
+    const sourceEntryProof = currentManifest.entries.find(row => row.path === ENTRY)
+    if (!sourceEntryProof) fail('OPENSWX_RELEASE_CHECKPOINT_INVALID')
+    return { currentAssociation: association, associationRef: buildRef, image: association.image, input, currentManifest, infra, resource, security,
+      origin, sourceEntryProof, historicalAudit: association.historyBasisRef ? 'ARCHIVED_NOT_REPLAYED' : 'NOT_APPLICABLE' }
+  })
+}
 async function resolveAssociation({ transport, descriptor, profile, readSource, readerSourceRevision = null, historicalReadSource = null, buildRef, ctx, repair }) {
   const next = descend(ctx, buildRef)
   return runAiPdmEvidenceContext(next, async () => {
@@ -698,6 +767,64 @@ function assertReadyProof(value, association, origin, profile) {
   }
   for (const row of rows(value.providerReadbackRefs, 64)) { exact(row, ['url', 'ref']); ownRef(row.ref); if (typeof row.url !== 'string' || (!/^https:\/\/(?:run|iam|secretmanager|cloudscheduler)\.googleapis\.com\/v[12]\//u.test(row.url) && row.url !== `https://cloudresourcemanager.googleapis.com/v1/projects/${profile.projectId}:getIamPolicy`)) fail('OPENSWX_REUSE_READY_PROOF_INVALID') }
 }
+
+function checkpointOrigin(association, security) {
+  const row = association.artifactOrigin
+  return {
+    originalCapsule: { sourceSha256: security.build?.steps?.[0]?.args?.find(value => value.startsWith('SOURCE_TREE='))?.slice('SOURCE_TREE='.length) },
+    build: {
+      sourceRevision: row.sourceRevision,
+      sourceArchiveSha256: row.sourceArchiveSha256,
+      workerProfileSha256: row.workerProfileSha256,
+      image: association.image,
+      facts: {
+        sourceObject: row.sourceObject,
+        cloudBuild: { id: row.buildId, steps: [{ args: security.build?.steps?.[0]?.args }], createTime: row.createTime, startTime: row.startTime, finishTime: row.finishTime },
+        provenance: row.provenance,
+        sbom: row.sbom,
+      },
+    },
+  }
+}
+
+function assertReleaseCheckpointResource(value, association, descriptor, profile) {
+  const common = value && value.ownerApplicationId === 'ai-pdm' && value.status === 'PASS'
+    && value.evidenceScope === 'PRODUCTION_PROVIDER_READBACK' && value.actor === profile.normalActor
+    && value.resourcesUnchanged === true && value.mutationPerformed === false && value.quiescenceClaimed === false
+  if (!common) fail('OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+  for (const name of [...SOURCE_BINDING_KEYS, 'priorActivationRef']) same(value[name], association[name], 'OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+  same(value.priorReadyFullDescriptorRef, association.artifactOrigin.priorReadyFullDescriptorRef, 'OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+  same(value.originalApprovedResourcePlanRef, association.artifactOrigin.originalApprovedResourcePlanRef, 'OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+  time(value.observedAt); time(value.observationStartedAt); time(value.observationCompletedAt)
+  if (time(value.observationStartedAt) > time(value.observationCompletedAt) || time(value.observationCompletedAt) > time(value.observedAt)) fail('OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+  if (!Array.isArray(value.providerReadbackRefs) || !value.providerReadbackRefs.length || value.providerReadbackRefs.length > 64) fail('OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+  for (const row of value.providerReadbackRefs) {
+    if (!row || typeof row.url !== 'string') fail('OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+    ownRef(row.ref)
+  }
+  if (value.schemaVersion === 'aipdm.openswx-current-ready-resource-readback.v1') {
+    if (value.purpose !== 'CURRENT_READY_PRE_REUSE_READBACK' || value.image !== association.image || value.schedulerState !== 'ENABLED'
+      || value.jobName !== workerJobName()) fail('OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+    if (descriptor.purpose === 'full' && (value.numericCredentials?.token !== descriptor.tokenSecretVersion
+      || value.numericCredentials?.registry !== descriptor.registrySecretVersion
+      || value.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, association.image, descriptor.tokenSecretVersion))))) fail('OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+  } else if (!['aipdm.openswx-failed-daily-resource-readback.v1', 'aipdm.openswx-failed-daily-resource-readback.v2'].includes(value.schemaVersion)
+    || value.purpose !== 'FAILED_DAILY_PAUSED_READBACK' || canonicalize(value.failedDailyContinuation) !== canonicalize(assertFailedDailyContinuation(value.failedDailyContinuation))) {
+    fail('OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID')
+  }
+  return value
+}
+
+function assertReleaseCheckpointSecurity(security, association, origin, profile, { joinStoredObservation = true } = {}) {
+  exact(security, ['schemaVersion', 'image', 'observedAt', 'policySha256', 'build', 'artifactRegistry', 'occurrences', 'rawHighOrCriticalVulnerabilityCount', 'blockingVulnerabilityCount'])
+  if (security.schemaVersion !== 'aipdm.openswx-reuse-security-readback.v1' || security.image !== association.image
+    || security.policySha256 !== association.securityEvidence.policySha256
+    || (joinStoredObservation && security.observedAt !== association.securityEvidence.observedAt)) fail('OPENSWX_RELEASE_CHECKPOINT_SECURITY_INVALID')
+  assertSecurity(security, origin, profile)
+  same(association.artifactOrigin.buildRequestSha256, sha256(canonicalize(buildRequest(security.build, origin, profile))), 'OPENSWX_RELEASE_CHECKPOINT_SECURITY_INVALID')
+  for (const name of ['buildId', 'createTime', 'startTime', 'finishTime']) same(association.artifactOrigin[name], name === 'buildId' ? security.build.id : security.build[name], 'OPENSWX_RELEASE_CHECKPOINT_SECURITY_INVALID')
+  return security
+}
 async function validateFailedDailyResourceProof({ transport, value, association, origin, input, profile, readSource, historicalReadSource = null, currentManifest }) {
   const keys = ['schemaVersion','ownerApplicationId','purpose','status','evidenceScope','sourceRevision','sourceArchiveSha256','sourceLockRef','workerProfileSha256','resourcePlanHash',
     ...(value.schemaVersion === 'aipdm.openswx-failed-daily-resource-readback.v2' ? ['currentTemplateSha256'] : []), 'priorActivationRef','priorReadyFullDescriptorRef','originalApprovedResourcePlanRef','failedDailyContinuation','actor','observedAt','observationStartedAt','observationCompletedAt',
@@ -845,6 +972,18 @@ export async function verifyWorkerArtifactReuse({ transport, artifact, profile, 
   // Before DAILY pause this is actual READY. Protected full stages have their
   // own PAUSED/drain leases and must never substitute an ENABLED observation.
   return { security, supplementalIam }
+}
+
+/** Fresh provider verification for the bounded current-release checkpoint. */
+export async function verifyWorkerReleaseCheckpoint({ transport, artifact, profile, readSource, deadlineAt }) {
+  transport = boundOpenSwxTransport(transport, deadlineAt)
+  if (!artifact.currentAssociation || !artifact.input || !artifact.currentManifest || !artifact.origin) fail('OPENSWX_RELEASE_CHECKPOINT_INVALID')
+  for (const row of artifact.currentManifest.entries) if (sha256(readSource(row.path, artifact.currentManifest.sourceRevision)) !== row.sha256) fail('OPENSWX_REUSE_GIT_INPUT_MISMATCH')
+  const current = await sourceObject(transport, artifact.input.currentSourceObjectRef)
+  assertWorkerArchive(current.bytes, artifact.currentManifest.entries, { workerProfileSha256: artifact.currentAssociation.workerProfileSha256 })
+  const security = await providerSecurity(transport, artifact.origin, profile)
+  assertReleaseCheckpointSecurity(security, artifact.currentAssociation, artifact.origin, profile, { joinStoredObservation: false })
+  return { security, historicalAudit: artifact.historicalAudit }
 }
 function descriptorProfileFields(profile) {
   return Object.fromEntries(['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot'].map(key => [key, profile[key]]))

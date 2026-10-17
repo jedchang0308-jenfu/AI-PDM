@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "aipdm.dev122.bounded-release-checkpoint-local-evidence.v1",
+  "createdAt": "2026-10-17T14:56:03.6124656Z",
+  "scope": "LOCAL_RD_SELF_VERIFICATION",
+  "releaseAuthority": false,
+  "productionAcceptance": false,
+  "branch": "codex/dev122-bounded-release-checkpoint",
+  "baseRevision": "775bf36d5dcb16cd708d91193ce732315b15b7de",
+  "testedImplementationCommit": "bdc1914316a88b1675eb44123214e114cafb1028",
+  "testedImplementationTree": "51215bf09e611ddebf09b3875cbdfff322056e7a",
+  "problem": "Routine REUSE_VERIFIED owner stages recursively replayed sealed historical worker ancestry, so archive readability/completeness could block an otherwise unchanged current release even when current execution and recovery state were valid.",
+  "decision": {
+    "blockingEvidence": [
+      "CURRENT_EXECUTION_CRITICAL",
+      "CURRENT_RECOVERY_CRITICAL"
+    ],
+    "nonBlockingRetainedEvidence": [
+      "ARCHIVE_AUDIT_ONLY"
+    ],
+    "boundedRoute": "Non-repair REUSE_VERIFIED routine owner stages",
+    "deepRouteRetainedFor": [
+      "association producer qualification",
+      "paused repair and failed-frontier recovery",
+      "program-only exception",
+      "worker executable or recipe input change",
+      "explicit historical audit"
+    ]
+  },
+  "facts": [
+    "Bounded checkpoint validates the exact current source lock, current archive and manifest, infrastructure manifest, immutable association, retained image digest, current resource/security evidence, fresh provider digest/security, and live paused/no-active-execution worker state.",
+    "The bounded checkpoint does not publish a new association, repair a historical frontier, or claim that sealed ancestors were replayed successfully.",
+    "A production-shaped test deletes the original historical build receipt and proves routine admission still succeeds while current association, resource, and security tampering remain rejected.",
+    "The recursive resolver and its existing deep-history tests remain present.",
+    "No production API, database, IAM, Secret, worker, Scheduler, service, or traffic mutation was performed."
+  ],
+  "inferences": [
+    "This removes the identified archive-completeness false blocker from routine release without weakening current execution or recovery drift checks.",
+    "The separation should reduce repeated corrective PRs caused only by inaccessible historical ancestors."
+  ],
+  "unknowns": [
+    "Provider-required PR CI result until the branch is pushed and checks complete.",
+    "Production behavior until a separately authorized release and real-actor acceptance are performed."
+  ],
+  "validation": [
+    {
+      "command": "npm run test:dev-117:continuous",
+      "result": "PASS",
+      "tests": 358,
+      "failed": 0
+    },
+    {
+      "command": "npm run qc:dev-117:continuous",
+      "result": "PASS",
+      "runId": "DEV117-S1B-20261017T145427814Z-6A65931F",
+      "ownerReport": "output/dev-117/s1b/DEV117-S1B-20261017T145427814Z-6A65931F/owner-report.json",
+      "ownerReportSha256": "a0c0fc2cc91458aeaebc79694a4851f6e5245eee9a811dca93a1caeb423c76d1",
+      "sourceSnapshotSha256": "d5d0f1fe501068be675a61953c2a785fbcf60fe38199e3432bdbf52dfc7fe525"
+    },
+    {
+      "command": "npm run check:dev-121:role-catalog-v7",
+      "result": "PASS",
+      "tests": 3,
+      "catalogVersion": "ai-pdm.role-catalog.2026-10-10.v7",
+      "catalogSha256": "4d624b16a58299a78bc3bac4b7f39f261ec2ba34ae604f06ed7cdb7a078e01f9",
+      "migrationSha256": "308fad28b4abfe1bc2106b79c1f410fad2cf2f6c2a0b3559517362f4ba6e7cba"
+    },
+    {
+      "command": "npm run test:dev-117:abort",
+      "result": "PASS",
+      "tests": 6
+    },
+    {
+      "command": "npm run check:db-boundary",
+      "result": "PASS",
+      "ruleset": "DEV010_DB_RULESET_V1",
+      "governedFiles": 22
+    },
+    {
+      "command": "npm run typecheck:app",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build:isolated",
+      "result": "PASS",
+      "artifact": true,
+      "primaryInvariant": true,
+      "cleanup": true
+    },
+    {
+      "command": "eslint changed release files",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "environmentNotes": [
+    "An earlier sandboxed aggregate attempt reported only Windows sandbox EPERM/EACCES/symlink limitations; no product assertion was treated as failed.",
+    "The complete aggregate gate was rerun outside that sandbox boundary and passed with zero production mutations."
+  ],
+  "deliveryBoundary": {
+    "productPermissionLogicChanged": false,
+    "migrationChanged": false,
+    "databaseDataChanged": false,
+    "productionChanged": false,
+    "wholeDev122Accepted": false
+  }
+}

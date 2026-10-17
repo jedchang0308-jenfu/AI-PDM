@@ -46,11 +46,11 @@
 |---|---|
 | CAPA ID | `CAPA-002` |
 | 顯示名稱 | `[CAPA-002] 發布驗證解耦與單一 PR 收斂` |
-| 狀態 | `Local RD Implemented / Required CI Pending` |
+| 狀態 | `Corrective Slice Implemented Locally / Required CI Pending` |
 | 建立日期 | `2026-10-17` |
 | Owner / route | RD Tech Lead → RD → provider-required CI；production mutation 不在本 CAPA 實作範圍 |
 | Canonical record | `AGENTS.md` 的 `CAPA002_RELEASE_DECOUPLING_V1` 與 release spec §26.3 |
 | 關聯 DEV | `DEV-122#rd-permission`；規則適用整個 AI-PDM |
-| 根因 | Required CI、owner prepare 與歷史 worker fixture 以單一全量命令耦合；profile/current-historical 判定散落於多個 caller；PR 在完整 caller graph 收斂前過早合併，造成同一切片重複 corrective PR。 |
-| 矯正／預防 | 以 source-controlled planner 將變更分類至 application／authorization／database／preview／recognition／worker／infrastructure；shared/unknown fail closed；owner workflow 與 CI 依 plan 執行；worker profile context 單一化；一個切片維持一個 PR 並於 merge 前完成 source convergence。 |
-| 效果驗證 | Planner/profile contracts、完整 shared worker/release regression、DB boundary、typecheck、isolated build及兩個 provider-required checks；正式 RD 驗收仍依 DEV-122 production acceptance，不能由 local PASS 取代。 |
+| 根因 | Required CI、owner prepare 與歷史 worker fixture 以單一全量命令耦合；profile/current-historical 判定散落於多個 caller；routine release又把sealed historical ancestor完整重播等同current release safety，導致archive completeness可反覆阻擋未改worker的一般發布；PR 在完整 caller graph 收斂前過早合併，造成同一切片重複 corrective PR。 |
+| 矯正／預防 | 以 source-controlled planner 將變更分類至 application／authorization／database／preview／recognition／worker／infrastructure；shared/unknown fail closed；owner workflow 與 CI 依 plan 執行；worker profile context 單一化；證據再分為current execution、current recovery及archive/audit，非repair reuse以bounded current checkpoint阻擋current drift但不遞迴重播祖先；deep resolver保留給producer、repair/frontier、program-only、worker-input change及明確audit；一個切片維持一個 PR並於merge前完成source convergence。 |
+| 效果驗證 | Production-shaped fixture必證明historical build/full descriptor不可讀時bounded checkpoint仍可驗current source/image/resource/security，且current association/digest/profile/resource drift仍拒絕；deep audit原測試保留。另執行shared worker/release regression、DB boundary及provider-required checks；正式 RD 驗收仍依 DEV-122 production acceptance，不能由 local PASS取代。 |
