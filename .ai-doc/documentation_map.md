@@ -81,6 +81,8 @@ synthetic genuine failed→completed→partial→completed chain 在原程式 tr
 
 # AI_PDM 文件地圖
 
+規則入口（2026-10-18）：[AGENTS.md](../AGENTS.md) 保留專案資料／發布邊界與按需文件路由；一般修復不新增治理文件或重跑無關驗證。這次僅規範精簡，不改 release executor、required CI 或任何業務驗收狀態。
+
 ## DEV-121#rd-capabilities — 2026-10-12 finite operation / partial pause 承接補修（本地 PASS，待受保護發布）
 
 沿用既有 AI-PDM RD／085 與 own protected Production corrective cycle，base official main 7ea17f2，branch codex/dev121-finite-operation-reconcile。已證實 collector 未使用持久化 operation，僅以 client-clock window 篩 provider execution，synthetic old-source RED 重現。最小 shared join 核對原 request／native operation／精確 UID、creator、template 與 successful execution；新 native POST metadata 封存入 latch，普通 owner 不擴張 operation-read IAM，legacy/name-only 仍 strict window。另以 failed-v1-only partialFailedDailyPauseInputRef 驗證過期 partial 的原 sealed graph／request／operation，僅承接已知歷史 inventory，不補造 finite／paused PASS、不延長舊期限、不重送工作。保留 opaque depth／cycle／hash、double PAUSED normal/IAM/Secret/inventory、fresh normal drain／original isolation／完整 bootstrap。
