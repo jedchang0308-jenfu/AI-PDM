@@ -40,7 +40,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - run: npm run test:dev-117:continuous
+      - name: Verify affected production slice
+        run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner
       - name: Verify official merged source
         env: { GITHUB_TOKEN: "${{ github.token }}" }
         run: node scripts/dev012-verify-official-source.mjs

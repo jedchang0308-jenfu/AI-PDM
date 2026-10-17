@@ -2615,6 +2615,8 @@ function historyIssuerFixture(h, legacyReader, predecessorInput, predecessorInpu
   }
   const entry='scripts/dev122-openswx-history-basis.mjs'
   files.set(entry,{path:entry,mode:'100644',bytes:readFileSync(path.join(root,entry))})
+  const profileContext='scripts/lib/dev122-openswx-profile-context.mjs'
+  files.set(profileContext,{path:profileContext,mode:'100644',bytes:readFileSync(path.join(root,profileContext))})
   const rows=[...files.values()].sort((a,b)=>a.path.localeCompare(b.path,'en'))
   const tree=Buffer.from(rows.map(row=>row.mode+' blob '+sha256(row.bytes).slice(0,40)+'\t'+row.path+'\0').join('')+exportIgnored.join(''))
   const head=git(['rev-parse','HEAD']).toString().trim(),headArchive=git(['archive','--format=tar','--prefix=source/','HEAD','--','config/release/dev117-ai-pdm-independent-production-v3.json'])

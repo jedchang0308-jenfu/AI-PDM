@@ -239,7 +239,8 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
       JSON.stringify(jobs) !== JSON.stringify(['migrate']) ||
       JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate']) ||
       JSON.stringify(readbackStages) !== JSON.stringify(['classify', 'readback']) ||
-      (source.match(/^      - run:/gm) ?? []).length !== 2 ||
+      (source.match(/^      - run:/gm) ?? []).length !== 1 ||
+      !source.includes('run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner') ||
       !source.includes('permissions: { contents: read, pull-requests: read, id-token: write }') ||
       !source.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       (source.match(/^    environment: production$/gm) ?? []).length !== 1 ||

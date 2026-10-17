@@ -1,5 +1,13 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
+## 2026-10-17 CURRENT：CAPA-002 全面導入變更責任驗證與獨立切片交付
+
+DEV-122 的管理員辨識、真實 RD 圖號工作台、完整 PDF 預覽是三個可獨立關閉的交付切片；互不以對方尚未完成為本切片 source／CI blocker，也不因任一切片完成而縮小原 7 issues／29 groups 分母或將 whole DEV 改為 PASS。真實 RD 工作台維持第一優先。
+
+Required CI 名稱與 branch protection 不變，由 source-controlled planner 依 changed responsibility 選擇實際 executor。RD catalog／grant／Principal／085 變更必跑 authorization、database、allow/deny、consumer與 DB boundary；未改 worker／preview／recognition 時不匯入其歷史 queue。shared release-control 或未知路徑一律回退 legacy full gate。closed33/34 fixture 必顯式綁來源、profile/catalog、manifest cardinality及 policy mode，禁止隱式讀 current35／HEAD。
+
+同一獨立切片預設維持一個 branch／PR，在合併前完成 caller graph、原始失敗、共享入口與 production-shaped fixture 收斂；fail-fast 只停止下游 mutation，不停止同 branch 安全診斷與修復。Local／synthetic／API PASS 仍不是真實 RD production acceptance；085 receipt、active catalog、真實 actor active grant、同 actor UI/API 正向與 approval／未授權負向仍須正式證據。
+
 ## 2026-10-16 CURRENT：優先項目 2 RD 圖號工作台權限獨立切片
 
 狀態為 `LOCAL_RD_PERMISSION_PASS / REQUIRED_CI_PENDING / PRODUCTION_NOT_RUN`。v7 `rd` capability、forward-only 085、Principal guard、effective grant、workbench API 與 UI capability vector 已依共同失效路徑核對；新增唯一 native PostgreSQL case，以同一 signed RD actor／grant／catalog 驗 permissions、實際圖號 read／submit，並驗同 actor approval 403、QA workbench 403 與拒絕前後零 lifecycle side effect。這是 fixture/local contract，不是正式 actor 或 provider readback。

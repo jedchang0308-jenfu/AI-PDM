@@ -2602,3 +2602,10 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 ## DEV-122 RD 圖號工作台權限獨立切片（2026-10-16）
 
 [B53 本機證據與因果邊界](qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)：v7 catalog／085／Principal request guard／workbench API 與 UI capability vector 的共同路徑已核對；新增 exact native selector，以 signed RD actor 驗圖號 read／submit 正向、同 actor approval 403、QA workbench 403 與拒絕前後零 side effect，結果 `LOCAL_RD_PERMISSION_PASS`。產品碼、catalog、085 與其他 repository 均未修改。正式 085 applied、active catalog、實際 grant/session、真實 UI/API 與 release 仍未證，required CI 待 PR；不升格為 production acceptance 或 whole DEV-122 PASS。
+## 2026-10-17 current delivery and validation routing
+
+- Project rule: [`AGENTS.md`](../AGENTS.md), sections `Pull request convergence` and `CAPA002_RELEASE_DECOUPLING_V1`.
+- CAPA authority: [`CAPA-002`](capa-register.md#capa-002).
+- Release execution contract: [DEV-117 release spec §26.3](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md#263-change-scoped-validation-executor-capa-002).
+- DEV-122 application: [DEV-122 current contract](specs/DEV-122-ai-pdm-internal-function-issues.md#2026-10-17-currentcapa-002-全面導入變更責任驗證與獨立切片交付).
+- Executable source: `scripts/plan-production-slice.mjs`, `scripts/run-production-slice-tests.mjs`, `.github/workflows/ci.yml`; shared or unknown inputs deliberately route to the legacy full gate.
