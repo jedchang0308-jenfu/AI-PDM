@@ -190,3 +190,14 @@ test('RD08 accepts a workflow-file commit that is an ancestor of exact protected
   assert.equal(assertDev122GitSourceAuthority({ environment, sourceRevision: head, sourceTree: tree, workflowRef, root: '.', code: 'TEST_SOURCE_AUTHORITY', gitRunner, ancestorRunner }), true)
   assert.throws(() => assertDev122GitSourceAuthority({ environment: { ...environment, GITHUB_WORKFLOW_SHA: 'f'.repeat(40) }, sourceRevision: head, sourceTree: tree, workflowRef, root: '.', code: 'TEST_SOURCE_AUTHORITY', gitRunner, ancestorRunner }), { code: 'TEST_SOURCE_AUTHORITY' })
 })
+
+test('RD09 permits only production-slice evidence residue after the gate', () => {
+  const head = 'a'.repeat(40), parent = 'b'.repeat(40), tree = 'c'.repeat(40)
+  const workflowRef = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main'
+  const environment = { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'jedchang0308-jenfu/AI-PDM', GITHUB_SHA: head, GITHUB_WORKFLOW_SHA: parent, GITHUB_WORKFLOW_REF: workflowRef, GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch' }
+  const status = '?? output/qa/release-efficiency/checkpoints/run.json'
+  const gitRunner = (args) => args.join(' ') === 'rev-parse HEAD' ? head : args.join(' ') === 'rev-parse HEAD^{tree}' ? tree : args[0] === 'status' ? status : ''
+  const ancestorRunner = (workflowSha, sourceSha) => workflowSha === parent && sourceSha === head
+  assert.equal(assertDev122GitSourceAuthority({ environment, sourceRevision: head, sourceTree: tree, workflowRef, root: '.', code: 'TEST_SOURCE_AUTHORITY', gitRunner, ancestorRunner }), true)
+  assert.throws(() => assertDev122GitSourceAuthority({ environment, sourceRevision: head, sourceTree: tree, workflowRef, root: '.', code: 'TEST_SOURCE_AUTHORITY', gitRunner: (args) => args[0] === 'status' ? '?? scripts/tampered.mjs' : gitRunner(args), ancestorRunner }), { code: 'TEST_SOURCE_AUTHORITY' })
+})

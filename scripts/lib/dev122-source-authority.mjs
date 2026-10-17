@@ -8,6 +8,17 @@ function fail(code) {
   throw error
 }
 
+function sourceStatusIsClean(status) {
+  if (status === '') return true
+  return status.split('\n').every((row) => {
+    // The protected production-slice gate deliberately leaves its immutable
+    // task evidence in the checkout before the subsequent readback stage.
+    // Permit only that untracked evidence root; tracked edits and every other
+    // untracked path remain a source-authority failure.
+    return row.startsWith('?? output/qa/release-efficiency/')
+  })
+}
+
 /**
  * Validate the protected-main source binding used by DEV-122 owner readbacks.
  * GitHub's workflow SHA identifies the workflow-file revision and may be an
@@ -28,7 +39,7 @@ export function assertDev122GitSourceAuthority({ environment, sourceRevision, so
   })
   if (git(['rev-parse', 'HEAD']) !== sourceRevision ||
       (sourceTree !== null && git(['rev-parse', 'HEAD^{tree}']) !== sourceTree) ||
-      git(['status', '--porcelain=v1', '--untracked-files=all']) !== '') mismatch()
+      !sourceStatusIsClean(git(['status', '--porcelain=v1', '--untracked-files=all']))) mismatch()
 
   if (ancestorRunner) {
     if (!ancestorRunner(environment.GITHUB_WORKFLOW_SHA, sourceRevision)) mismatch()
