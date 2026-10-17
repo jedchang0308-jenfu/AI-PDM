@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { verifyOfficialMergedSource } from './lib/dev012-official-source-review.mjs'
+import { assertOfficialSourceWorkflow, OFFICIAL_SOURCE_WORKFLOW_REFS } from './dev012-verify-official-source.mjs'
 
 const repository = 'jedchang0308-jenfu/AI-PDM'
 const branch = 'main'
@@ -8,6 +9,12 @@ const revision = 'a'.repeat(40)
 const sourceTree = 'b'.repeat(40)
 const input = { repository, branch, revision, sourceTree, token: 'x'.repeat(25),
   rulesetId: 24077878 }
+
+test('official source gate accepts the RD permission readback workflow ref', () => {
+  assert.equal(OFFICIAL_SOURCE_WORKFLOW_REFS.size, 3)
+  assert.doesNotThrow(() => assertOfficialSourceWorkflow({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REPOSITORY: repository, GITHUB_REF: 'refs/heads/main', GITHUB_WORKFLOW_REF: `${repository}/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main` }))
+  assert.throws(() => assertOfficialSourceWorkflow({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REPOSITORY: repository, GITHUB_REF: 'refs/heads/main', GITHUB_WORKFLOW_REF: `${repository}/.github/workflows/unknown.yml@refs/heads/main` }), /WORKFLOW_INVALID/u)
+})
 
 function provider({ officialChange = {}, rulesChange = null, commitChange = {}, pullsChange = null,
   status = 200 } = {}) {
