@@ -27,8 +27,8 @@ function fail(code) {
   throw error
 }
 
-function parseArgs(argv) {
-  if (!Array.isArray(argv) || argv.length !== 8 || argv[0] !== '--stage' || argv[1] !== 'readback') fail('RD_PERMISSION_STATE_ARGUMENTS_INVALID')
+export function parseArgs(argv) {
+  if (!Array.isArray(argv) || argv.length !== 10 || argv[0] !== '--stage' || argv[1] !== 'readback') fail('RD_PERMISSION_STATE_ARGUMENTS_INVALID')
   const parsed = parsePermissionStateArgs(argv.slice(2))
   return { stage: 'readback', ...parsed }
 }
