@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { parseArgs as parseReadbackArgs } from '../dev122-rd-permission-state-readback.mjs'
 import {
   RD_PERMISSION_STATE_PGOPTIONS,
   RD_PERMISSION_STATE_SCHEMA,
@@ -36,6 +37,12 @@ const operation = {
 }
 
 function operationBytes() { return Buffer.from(`${canonicalize(operation)}\n`) }
+
+test('RD permission readback CLI accepts the workflow stage plus its eight fixed arguments', () => {
+  const argv = ['--stage', 'readback', '--permission-operation-ref', 'gs://jenfu-platform-prod-aipdm-release/source/rd-permission-readback/op.json', '--permission-operation-sha256', 'b'.repeat(64), '--source-revision', sourceRevision, '--permission-output-ref', 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-PERMISSION-READBACK/state.json']
+  assert.equal(parseReadbackArgs(argv).stage, 'readback')
+  assert.throws(() => parseReadbackArgs(argv.slice(0, 8)), /ARGUMENTS_INVALID/u)
+})
 
 test('RD permission readback rejects target drift and preserves fixed permission set', () => {
   assertPermissionStateTarget({ OWNER_APPLICATION_ID: 'ai-pdm', RELEASE_BUCKET: 'jenfu-platform-prod-aipdm-release', GOOGLE_CLOUD_PROJECT: 'jenfu-platform-prod', GOOGLE_CLOUD_REGION: 'asia-east1', POSTGRES_DATABASE: 'jenfu_prod', CLOUD_SQL_INSTANCE_CONNECTION_NAME: 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS })
