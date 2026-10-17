@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { parseArgs as parseReadbackArgs } from '../dev122-rd-permission-state-readback.mjs'
+import { parseArgs as parseReadbackArgs, readbackObjectGeneration } from '../dev122-rd-permission-state-readback.mjs'
 import {
   RD_PERMISSION_STATE_PGOPTIONS,
   RD_PERMISSION_STATE_SCHEMA,
@@ -35,6 +35,12 @@ const operation = {
   migrationRunnerDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'d'.repeat(64)}`,
   actor, permissions: permissionStatePermissions(),
 }
+
+test('RD permission readback binds GCS generations from the owner transport metadata shape', () => {
+  assert.equal(readbackObjectGeneration({ metadata: { generation: '17' } }), '17')
+  assert.throws(() => readbackObjectGeneration({ generation: '17' }), /OBJECT_GENERATION_INVALID/u)
+  assert.throws(() => readbackObjectGeneration({ metadata: { generation: undefined } }), /OBJECT_GENERATION_INVALID/u)
+})
 
 function operationBytes() { return Buffer.from(`${canonicalize(operation)}\n`) }
 
