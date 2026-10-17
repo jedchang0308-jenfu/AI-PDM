@@ -1402,12 +1402,20 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         for (const manifest of [retained.artifact.originalManifest, retained.artifact.currentManifest]) {
           for (const entry of manifest.entries) if (sha256(sourceReader(entry.path, manifest.sourceRevision)) !== entry.sha256) fail('PROGRAM_ONLY_WORKER_INPUT_DRIFT')
         }
-        reuse.assertWorkerArchive(archived.bytes, retained.artifact.currentManifest.entries)
+        // Program-only observations may replay an admitted historical worker
+        // profile.  The manifest itself carries the source-bound profile hash;
+        // using the current global profile constant here rejects a valid
+        // historical archive as OPENSWX_REUSE_RECIPE_DRIFT.
+        reuse.assertWorkerArchive(archived.bytes, retained.artifact.currentManifest.entries, {
+          workerProfileSha256: retained.artifact.currentAssociation.workerProfileSha256,
+        })
         const origin = retained.artifact.originBuild, source = origin.facts.sourceObject
         const originalBytes = await readAiPdmEvidenceLeaf({ ref: { uri: source.uri, sha256: source.sha256 }, kind: 'source',
           generation: source.generation, crc32c: source.crc32c, sourceRevision: origin.sourceRevision,
           read: async () => (await readAiPdmSourceArchive({ source, sourceRevision: origin.sourceRevision, deadlineAt: observationDeadline(), token, fetchImpl })).bytes })
-        reuse.assertWorkerArchive(originalBytes, retained.artifact.originalManifest.entries)
+        reuse.assertWorkerArchive(originalBytes, retained.artifact.originalManifest.entries, {
+          workerProfileSha256: retained.artifact.originBuild.workerProfileSha256,
+        })
       }
       let migrationMode = migrate ? programOnly ? PROGRAM_ONLY_DISPOSITION : 'FORWARD_APPLIED' : null
       if (repair) {
