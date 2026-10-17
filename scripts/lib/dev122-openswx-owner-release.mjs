@@ -552,19 +552,33 @@ export async function readPriorWorkerActivation(transport, ref, profile, readSou
   const descriptor = (await transport.readJson(descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const profileShapeKeys = ['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot']
   const profileShapeMismatch = profileShapeKeys.some(key => canonicalize(descriptor[key]) !== canonicalize(profile[key]))
-  const historicalMode = typeof readSource === 'function' && profileShapeMismatch && (historicalProfile || readSource?.isHistorical === true || readSource?.readerRevisionMode === 'historical'
+  // An explicit historical validation request is authoritative even when the
+  // historical profile has the same provider shape as the current profile.
+  // Shape/revision capability detection remains the fallback for callers that
+  // do not pass the mode explicitly.  Prefer a directly readable, hash-matched
+  // admitted profile before opening a nested historical reader; some replay
+  // wrappers can serve that exact immutable predecessor without exposing a
+  // createHistoricalReader entry point for every ancestor.
+  const historicalMode = typeof readSource === 'function' && (historicalProfile || (profileShapeMismatch && (readSource?.isHistorical === true || readSource?.readerRevisionMode === 'historical'
     || (typeof readSource?.sourceRevision === 'string' && readSource.sourceRevision !== capsule.value.sourceRevision)
-    || readSource?.supportsAdmittedHistoricalRevisions === true)
+    || readSource?.supportsAdmittedHistoricalRevisions === true)))
+  let directHistoricalProfile = null
+  if (historicalMode && historicalProfile && typeof readSource === 'function') {
+    try {
+      const candidate = readHistoricalWorkerProfile(readSource, capsule.value.sourceRevision)
+      if (sha256(candidate.bytes) === activation.workerProfileSha256) directHistoricalProfile = candidate
+    } catch { /* fall through to the explicit historical-reader capability gate */ }
+  }
   const currentProfileBytes = !historicalMode && !historicalProfile && typeof readSource === 'function'
     ? readSource(WORKER_PROFILE_PATH, currentSourceRevision ?? readSource?.sourceRevision ?? capsule.value.sourceRevision)
     : null
   const alreadyHistorical = readSource?.isHistorical === true || readSource?.readerRevisionMode === 'historical'
     || (readSource?.historicalReadRevisions instanceof Set && readSource.historicalReadRevisions.has(capsule.value.sourceRevision))
   const descriptorSource = historicalMode
-    ? (alreadyHistorical ? readSource : sourceReaderForRevision(readSource, capsule.value.sourceRevision, { forceHistorical: true }))
+    ? (directHistoricalProfile || alreadyHistorical ? readSource : sourceReaderForRevision(readSource, capsule.value.sourceRevision, { forceHistorical: true }))
     : readSource
   const descriptorProfile = historicalMode
-    ? readHistoricalWorkerProfile(descriptorSource, capsule.value.sourceRevision)
+    ? (directHistoricalProfile ?? readHistoricalWorkerProfile(descriptorSource, capsule.value.sourceRevision))
     : { bytes: currentProfileBytes, profile }
   if (historicalMode) assertHistoricalProfileCompatibility(profile, descriptorProfile.profile)
   const descriptorProfileSha256 = descriptorProfile.bytes ? sha256(descriptorProfile.bytes) : activation.workerProfileSha256

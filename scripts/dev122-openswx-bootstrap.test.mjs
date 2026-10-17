@@ -276,7 +276,7 @@ async function dailyHarness({ markerState = null, wrongPriorImage = false, histo
     historicalReadRevisions: new Set([priorSource]),
   }) : readSource
   const invoke = async (stage, extra, name) => { const inputRef = await h.put(name + '-input', { schemaVersion: `aipdm.openswx-${stage}-input.v1`, descriptorRef: nextDescriptorRef, workerBuildRef: nextBuildRef, deadlineAt: deadline(), receiptId: name, ...extra }); return executeOpenSwxBootstrap({ stage, inputRef, transport: h.transport, readSource: sourceReader, appProfile, sleep: async () => {} }) }
-  return { ...h, invoke, controls, priorCapsule: capsule, prior: p.value, next: n.value, nextDescriptorRef, nextBuildRef, activationRef, priorImage, nextImage }
+  return { ...h, invoke, controls, sourceReader, priorCapsule: capsule, prior: p.value, next: n.value, nextDescriptorRef, nextBuildRef, activationRef, priorImage, nextImage }
 }
 test('B19 READY resource wrapper observes actual ENABLED normal Job, metadata only, with no lifecycle or evidence writes', async () => {
   const h = await dailyHarness(), prior = await readPriorWorkerActivation(h.transport, h.activationRef, profile, readSource), provider = h.transport.request
@@ -301,6 +301,12 @@ test('daily pause/bootstrap admits a historical predecessor profile through the 
   assert.equal(bootstrap.value.kind, 'bootstrap')
   assert.deepEqual(bootstrap.value.facts.priorActivationRef, h.activationRef)
   assert.equal(bootstrap.value.facts.bootstrapKind, 'DAILY_REFRESH')
+})
+test('explicit historical validation stays historical when the predecessor profile shape matches', async () => {
+  const h = await dailyHarness({ historicalPriorProfile: true })
+  const prior = await readPriorWorkerActivation(h.transport, h.activationRef, historicalProfile, h.sourceReader, undefined, true, { currentSourceRevision: h.next.sourceRevision })
+  assert.equal(prior.descriptor.sourceRevision, h.prior.sourceRevision)
+  assert.deepEqual(prior.template, workerTemplate(historicalProfile, h.priorImage, tokenName, 'normal', { historicalProfile: true }))
 })
 test('B19 READY double read rejects state/Job/Secret/Scheduler drift and free policy overrides without writes', async () => {
   for (const defect of ['PAUSED', 'job-etag', 'secret-etag', 'scheduler-policy']) {
