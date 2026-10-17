@@ -7,6 +7,12 @@ import { execFileSync } from 'node:child_process'
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const git = (root, args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true }).trim()
 
+export function checkEnvironmentFingerprint(environment) {
+  // Tool tracing changes for every invocation, including an otherwise identical
+  // resumed shell. Keep all actual execution inputs (including TEMP/LOCALAPPDATA).
+  return hash(Object.entries(environment).filter(([name]) => name !== 'CODEX_TOOL_CALL_ID').sort(([a], [b]) => a.localeCompare(b)))
+}
+
 export function localCheckContext(root, environment = process.env) {
   // A cached local PASS is not provider evidence. CI/owner workflows never read it.
   if (environment.CI || environment.GITHUB_ACTIONS) return null
@@ -23,7 +29,7 @@ export function localCheckContext(root, environment = process.env) {
     const sparse = fs.existsSync(path.resolve(root, sparsePath)) ? hash(fs.readFileSync(path.resolve(root, sparsePath))) : null
     return { revision: git(root, ['rev-parse', 'HEAD']), tree: git(root, ['rev-parse', 'HEAD^{tree}']),
       platform: os.platform(), arch: os.arch(), node: process.version, executable: process.execPath, root,
-      dependencyLock, sparse, environmentSha256: hash(Object.entries(environment).sort(([a], [b]) => a.localeCompare(b))) }
+      dependencyLock, sparse, environmentSha256: checkEnvironmentFingerprint(environment) }
   } catch { return null }
 }
 

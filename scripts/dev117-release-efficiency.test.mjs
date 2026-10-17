@@ -9,7 +9,7 @@ import { fetchProviderRead } from './lib/dev012-read-retry.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { canonicalize, sha256 } from './lib/dev012-production-migration-runner.mjs'
 import { bindDiagnosticRef, readServiceDiagnostic } from './dev117-production-diagnostics.mjs'
-import { fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
+import { checkEnvironmentFingerprint, fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
 import { createProductionSlicePlanFromGit } from './lib/production-slice-plan.mjs'
 import { submitPermissionReadbackOnce } from './dev122-rd-permission-state-readback.mjs'
 
@@ -142,6 +142,14 @@ function checkpointFixture(t) {
   let clock = 1000
   return { directory, now: () => ++clock, context: () => ({ revision: 'same-source', environmentSha256: 'same-environment' }) }
 }
+
+test('tool tracing changes do not invalidate identical checks; execution inputs still do', () => {
+  const first = { CODEX_TOOL_CALL_ID: 'first-invocation', PDM_DATA_DIR: 'isolated-one', LOCALAPPDATA: 'environment-one' }
+  const key = checkEnvironmentFingerprint(first)
+  assert.equal(checkEnvironmentFingerprint({ ...first, CODEX_TOOL_CALL_ID: 'resumed-invocation' }), key)
+  assert.notEqual(checkEnvironmentFingerprint({ ...first, PDM_DATA_DIR: 'isolated-two' }), key)
+  assert.notEqual(checkEnvironmentFingerprint({ ...first, LOCALAPPDATA: 'environment-two' }), key)
+})
 
 test('interrupted groups persist first failure and resume only unfinished checks', t => {
   const fixture = checkpointFixture(t)
