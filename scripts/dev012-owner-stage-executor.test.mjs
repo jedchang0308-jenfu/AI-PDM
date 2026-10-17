@@ -38,8 +38,17 @@ test('owner source archive uses the worker reader canonical LF recipe', () => {
       cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
     })
     assert.equal(checkout.status, 0, checkout.stderr || checkout.stdout)
-    const ownerArchive = createGitArchive(frozenRoot, revision)
-    const workerArchive = createWorkerGitReader(frozenRoot, revision).readArchive(revision)
+    // Windows hosted runners can expose tmpdir through an 8.3 alias such as
+    // RUNNER~1 while Git reports the same worktree with its long canonical
+    // path. Bind both readers to Git's own top-level identity so the fixture
+    // tests archive equivalence without weakening the repository-root guard.
+    const topLevel = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: frozenRoot, encoding: 'utf8', windowsHide: true
+    })
+    assert.equal(topLevel.status, 0, topLevel.stderr || topLevel.stdout)
+    const canonicalFrozenRoot = topLevel.stdout.trim()
+    const ownerArchive = createGitArchive(canonicalFrozenRoot, revision)
+    const workerArchive = createWorkerGitReader(canonicalFrozenRoot, revision).readArchive(revision)
     assert.deepEqual(ownerArchive, workerArchive)
   } finally {
     spawnSync('git', ['worktree', 'remove', '--force', frozenRoot], { cwd: root, encoding: 'utf8', windowsHide: true })
