@@ -5,6 +5,7 @@ import { GCC_ALIGNED_NEW_CVE, readAlignedNewInspectionProgram, gccAlignedNewOccu
 import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
 import { assertPrincipalOnlyActivationReadback, principalOnlyActivationRequest } from './dev121-principal-only-release.mjs'
 import { readAiPdmReleaseObservation, verifyOwnerProviderReadback, createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './dev121-owner-release-proof.mjs'
+import { fetchProviderRead } from './dev012-read-retry.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -276,13 +277,15 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
   if (typeof token !== 'string' || token.length < 20) fail('PROVIDER_TOKEN_INVALID')
   if (migrationExecutionReadbackToken !== null && (typeof migrationExecutionReadbackToken !== 'string' || migrationExecutionReadbackToken.length < 20)) fail('MIGRATION_READBACK_TOKEN_INVALID')
   const authHeaders = { authorization: `Bearer ${token}` }
+  const read = (url, options) => fetchProviderRead(url, options, { fetchImpl, sleep })
 
   async function request(url, options = {}) {
     const migrationRead = migrationExecutionReadbackToken !== null && isAiPdmMigrationExecutionListGet(url, options)
     const headers = migrationRead ? { ...(options.headers ?? {}), authorization: `Bearer ${migrationExecutionReadbackToken}` } : { ...authHeaders, ...(options.headers ?? {}) }
     let response
     try {
-      response = await fetchImpl(url, { ...options, ...(migrationRead ? { redirect: 'error' } : {}), headers, signal: options.signal ?? AbortSignal.timeout(30_000) })
+      const send = (options.method ?? 'GET') === 'GET' && options.body == null ? read : fetchImpl
+      response = await send(url, { ...options, ...(migrationRead ? { redirect: 'error' } : {}), headers, signal: options.signal ?? AbortSignal.timeout(30_000) })
     } catch (error) {
       fail('OUTCOME_UNKNOWN', error?.name ?? 'network')
     }
@@ -298,7 +301,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     if (!/^[1-9][0-9]*$/u.test(runId)) fail('CONTROL_OWNER_RUN_REF_INVALID')
     let response
     try {
-      response = await fetchImpl(ownerRunRef, {
+      response = await read(ownerRunRef, {
         headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'jenfu-dev012-owner-control' },
         signal: AbortSignal.timeout(30_000),
       })
@@ -325,7 +328,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     if (expectedGeneration !== null && String(metadata.generation) !== expectedGeneration) fail('GCS_GENERATION_MISMATCH')
     let mediaResponse
     try {
-      mediaResponse = await fetchImpl(`${base}?alt=media&generation=${encodeURIComponent(metadata.generation)}`, { headers: authHeaders, signal: AbortSignal.timeout(30_000) })
+      mediaResponse = await read(`${base}?alt=media&generation=${encodeURIComponent(metadata.generation)}`, { headers: authHeaders, signal: AbortSignal.timeout(30_000) })
     } catch (error) {
       fail('OUTCOME_UNKNOWN', error?.name ?? 'gcs-media')
     }

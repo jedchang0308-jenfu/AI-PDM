@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createProductionSlicePlanFromGit } from './lib/production-slice-plan.mjs'
+import { fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
@@ -25,6 +26,7 @@ const CORE_TESTS = [
   'scripts/dev012-owner-stage-executor.test.mjs',
   'scripts/dev012-owner-prerequisite-producer.test.mjs',
   'scripts/dev012-official-source-review.test.mjs',
+  'scripts/dev117-release-efficiency.test.mjs',
   'scripts/dev015-gcc-applicability.test.mjs',
   'scripts/dev015-gcc-aligned-new-applicability.test.mjs',
   'scripts/dev015-aligned-new-loader-inspection.test.mjs',
@@ -33,6 +35,7 @@ const CORE_TESTS = [
 const AUTHORIZATION_TESTS = [
   'scripts/lib/dev121-principal-fence-operator.test.mjs',
   'scripts/dev122-rd-permission-ledger-readback.test.mjs',
+  'scripts/lib/dev122-rd-permission-state-readback.test.mjs',
   'scripts/dev121-principal-candidate-smoke.test.mjs',
   'scripts/dev121-principal-only-recovery-server.test.mjs',
   'scripts/dev121-principal-owner-recovery.test.mjs',
@@ -54,47 +57,42 @@ const WORKER_TESTS = [
 
 const groups = [{ name: 'planner', tests: ['scripts/production-slice-plan.test.mjs'] }]
 if (plan.gates.full) {
-  groups.push({ name: 'legacy-full-continuous', npmScript: 'test:dev-117:continuous' })
+  groups.push(...fullContinuousGroups(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts['test:dev-117:continuous']))
 } else {
   if (profile === 'owner' || plan.gates.releaseCore) groups.push({ name: 'release-core', tests: CORE_TESTS })
   if (plan.gates.authorization) groups.push({ name: 'authorization', tests: AUTHORIZATION_TESTS })
   if (plan.gates.worker) groups.push({ name: 'worker', tests: WORKER_TESTS })
 }
 
-const npmCli = process.env.npm_execpath
-const commandFor = group => group.npmScript
-  ? { command: process.execPath, args: [npmCli, 'run', group.npmScript] }
-  : { command: process.execPath, args: ['--test', '--test-concurrency=1', ...group.tests] }
-if (groups.some(group => group.npmScript) && !npmCli) throw new Error('NPM_EXEC_PATH_REQUIRED')
-
-const results = []
-for (const group of groups) {
-  const command = commandFor(group)
-  if (dryRun) {
-    results.push({ name: group.name, status: 'PLANNED', command: [command.command, ...command.args] })
-    continue
-  }
-  const result = spawnSync(command.command, command.args, { cwd: root, encoding: 'utf8', windowsHide: true, env: process.env })
-  process.stdout.write(result.stdout ?? '')
-  process.stderr.write(result.stderr ?? '')
-  results.push({ name: group.name, status: result.status === 0 && result.signal === null ? 'PASS' : 'FAIL', exitCode: result.status, signal: result.signal })
-  if (result.error) throw result.error
-  if (result.status !== 0 || result.signal !== null) {
-    process.stderr.write(`PRODUCTION_SLICE_GROUP_FAILED=${group.name}\n`)
-    process.exit(result.status || 1)
-  }
+const commandFor = group => ({ command: process.execPath, args: ['--test', '--test-concurrency=1', ...group.tests] })
+const evidenceRoot = option('--evidence-dir') ?? 'output/qa/release-efficiency'
+const results = dryRun ? groups.map(group => ({ name: group.name, status: 'PLANNED' })) : runCheckpointedGroups({
+  groups, directory: path.resolve(root, evidenceRoot, 'checkpoints'),
+  context: () => localCheckContext(root), reuse: !args.includes('--fresh') && profile !== 'owner',
+  onResult: result => process.stdout.write(`PRODUCTION_SLICE_GROUP=${JSON.stringify(result)}\n`),
+  execute(group) {
+    const command = commandFor(group)
+    const result = spawnSync(command.command, command.args, { cwd: root, encoding: 'utf8', windowsHide: true, env: process.env })
+    process.stdout.write(result.stdout ?? '')
+    process.stderr.write(result.stderr ?? '')
+    return { status: !result.error && result.status === 0 && result.signal === null ? 'PASS' : 'FAIL', exitCode: result.status }
+  },
+})
+const failed = results.find(row => row.status === 'FAIL')
+if (failed) {
+  process.exitCode = failed.exitCode || 1
+  results.push(...groups.slice(results.length).map(group => ({ name: group.name, status: 'NOT_RUN' })))
 }
 
 const evidence = {
   schemaVersion: 'aipdm.production-slice-test-result.v1',
   profile,
-  result: dryRun ? 'PLANNED' : 'PASS',
+  result: dryRun ? 'PLANNED' : failed ? 'FAIL' : 'PASS',
   plan,
   groups: results,
   environment: process.env.CI ? 'CI' : 'LOCAL',
 }
 const evidenceSha256 = createHash('sha256').update(JSON.stringify(evidence)).digest('hex')
-const evidenceRoot = option('--evidence-dir')
 if (!dryRun && evidenceRoot) {
   const absoluteRoot = path.resolve(root, evidenceRoot)
   fs.mkdirSync(absoluteRoot, { recursive: true })

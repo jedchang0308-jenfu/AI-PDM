@@ -8,6 +8,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Outcome authorization and uninterrupted delivery
+
+- Human authorization binds the named project, environment, outcome, allowed effects and continuing exclusions. Within that scope, corrections, exact-source rebinding, normal workflow stages and retries do not require another approval merely because SHA, digest, receipt or attempt changed. Reconfirm only a new responsibility/environment, excluded action or unapproved destructive/irreversible effect; source provenance and required CI remain machine-enforced.
+- Keep one active PR per releasable slice through source convergence. Use the affected-slice runner's local checkpoints for interruptions, and existing sealed build/migration receipts for owner continuation; refresh live state before mutations. Never replay an uncertain write or reuse expired/corrupt/mismatched evidence. Required CI and owner workflows ignore local checkpoint reuse.
+- Use the stable production diagnostics workflow for its closed RD-permission-state and service-state operations; do not add workflow-specific WIF grants for another instance of these reads. Service-state uses the existing verifier identity, RD Job readback its existing deployer identity. No arbitrary target/SQL/command or new IAM authority is implied.
+
 ## Shared database boundary — DEV010_DB_RULESET_V1
 
 - DEV-010 shared PostgreSQL DDL must be delivered as a forward-only migration under `db/postgres`; never edit the shared managed database by hand.
@@ -40,7 +46,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Only load release-specific details when changing or executing that workflow. This file grants no production authority and changes no executor, CI or release policy.
 
-- Use the existing app-owned owner workflow with clean exact merged main, recorded review/QC, required `DEV-012 Isolated PostgreSQL Cutover` and `Production Slice QC`, and provider-readback branch protection: PR required, zero human approvals, admin enforcement, zero bypass actors, no force-push/deletion. Owner prepare reads ruleset `24077878`; operator reads the admin-only fields. Keep one slice on one active PR until its known local source defects converge.
+- Use the existing app-owned owner workflow with clean exact merged main, recorded review/QC, required `DEV-012 Isolated PostgreSQL Cutover` and `Production Slice QC`, and provider-readback branch protection: PR required, zero human approvals, admin enforcement, zero bypass actors, no force-push/deletion. Owner prepare reads ruleset `24077878`; operator reads the admin-only fields. Keep one slice on one active PR until its known local source defects converge. After dispatch, keep the workflow/checkout/capsule pinned; a newer main tip does not invalidate that source when provider readback proves it is still a merged ancestor. This is not an arbitrary historical-source or downgrade override; see release spec §26.4.
 - Own only AI-PDM source, `ai-pdm-prod`, `aipdm-release`, `jenfu-platform-prod-aipdm-release`, AI-PDM numeric Secret versions and `ai_pdm_core/ai_pdm_contract`. Never use sibling checkouts as release input or mutate sibling resources/data. Canonical entry is the provider-verified Cloud Run `run.app` URL; retained custom-domain/Hosting/LB assets are not the serving path and must not be deleted or have Billing unlinked.
 - Protected owner execution accepts one immutable `releaseCapsuleRef`, service-wide concurrency and no actor target/stage/environment/SQL/command overrides. Unknown write results require provider readback before retry. Migration-only is `prepare → build → migrate`; full workflow replays the same capsule receipts before candidate/traffic.
 - Ordinary candidate is template-only, zero general traffic, with one exact `PDM_RELEASE_CANDIDATE_ORIGIN`. Entrypoint may patch only `ingress,defaultUriDisabled,invokerIamDisabled` with fresh etag and no template/traffic drift. Activate/rollback name an exact revision and change traffic only; recovery order is traffic, tag, entry baseline. Mutable tags, `latest`, wildcard origins, broad IAM, local ADC, synthetic evidence and actor-entered GO are not release authority.

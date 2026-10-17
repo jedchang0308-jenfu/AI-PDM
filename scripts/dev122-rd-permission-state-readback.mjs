@@ -47,7 +47,7 @@ export function readbackObjectGeneration(value) {
   return String(generation)
 }
 
-function sourceAuthority(environment, sourceRevision) {
+export function sourceAuthority(environment, sourceRevision) {
   if (environment.GITHUB_ACTIONS !== 'true' || environment.GITHUB_REPOSITORY !== 'jedchang0308-jenfu/AI-PDM' ||
       environment.GITHUB_SHA !== sourceRevision || environment.GITHUB_WORKFLOW_SHA !== sourceRevision || environment.GITHUB_WORKFLOW_REF !== 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main' || environment.GITHUB_REF !== 'refs/heads/main' || environment.GITHUB_EVENT_NAME !== 'workflow_dispatch') fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
   const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true })
@@ -97,6 +97,29 @@ async function optionalJson(transport, uri) {
   }
 }
 
+// The immutable intent records its original timestamp. A later process must
+// compare the operation identity, not replace that timestamp with its own now.
+export async function submitPermissionReadbackOnce({ transport, submissionRef, submission, job }) {
+  const prior = await optionalJson(transport, submissionRef)
+  if (prior) {
+    const core = { ...prior.value }; delete core.receiptSha256
+    if (typeof core.observedAt !== 'string' || !Number.isFinite(Date.parse(core.observedAt)) ||
+        prior.value.receiptSha256 !== sha256(Buffer.from(canonicalize(core))) ||
+        canonicalize(core) !== canonicalize({ ...submission, observedAt: core.observedAt })) fail('RD_PERMISSION_STATE_SUBMISSION_INVALID')
+    return { resumed: true }
+  }
+  const sealed = { ...submission, receiptSha256: sha256(Buffer.from(canonicalize(submission))) }
+  await transport.putJson(submissionRef, sealed, { bucket: BUCKET, prefix: 'receipts', ifGenerationMatch: '0' })
+  try {
+    await transport.request(`https://run.googleapis.com/v2/${JOB_NAME}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ etag: job.etag, overrides: { containerOverrides: [{ name: 'migration', args: submission.args, env: [{ name: 'PGOPTIONS', value: RD_PERMISSION_STATE_PGOPTIONS }] }] } }) })
+  } catch (error) {
+    if (error?.code !== 'OUTCOME_UNKNOWN') throw error
+  }
+  // Even an unknown submission outcome flows to provider execution readback;
+  // never resubmit a Job merely because the first HTTP response was lost.
+  return { resumed: false }
+}
+
 export async function runMain({ argv = process.argv.slice(2), environment = process.env, transport = null, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
   const args = parseArgs(argv)
   const ownerTransport = transport ?? createOwnerTransport({ token: environment.GOOGLE_OAUTH_ACCESS_TOKEN ?? '' })
@@ -105,31 +128,20 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   try { operation = JSON.parse(operationObject.bytes.toString('utf8')) } catch { fail('RD_PERMISSION_STATE_OPERATION_JSON_INVALID') }
   assertPermissionStateOperation(operation, { bytes: operationObject.bytes, operationSha256: args.operationSha256, sourceRevision: args.sourceRevision })
   sourceAuthority(environment, operation.sourceRevision)
+  const generation = readbackObjectGeneration(operationObject)
   const outputRef = outputUri(args.operationSha256)
   if (args.outputRef !== outputRef) fail('RD_PERMISSION_STATE_OUTPUT_REF_INVALID')
   const expectedArgs = operationArgs(args.operationRef, args.operationSha256, operation.sourceRevision, outputRef)
   const existing = await optionalJson(ownerTransport, outputRef)
   if (existing) {
-    assertPermissionStateReceipt(existing.value, { operation, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation: readbackObjectGeneration(operationObject) }, outputRef })
+    assertPermissionStateReceipt(existing.value, { operation, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation }, outputRef })
     return { stage: 'readback', outputRef, outputGeneration: readbackObjectGeneration(existing), outputSha256: sha256(existing.bytes), status: 'PASS', reused: true }
   }
   const job = await ownerTransport.request(`https://run.googleapis.com/v2/${JOB_NAME}`)
   if (!jobMatches(job, operation)) fail('RD_PERMISSION_STATE_JOB_MISMATCH')
-  const submission = { schemaVersion: 'aipdm.dev122.rd-permission-state-readback-submission.v1', ownerApplicationId: 'ai-pdm', sourceRevision: operation.sourceRevision, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation: readbackObjectGeneration(operationObject) }, outputRef, operationId: operation.operationId, migrationRunnerDigest: operation.migrationRunnerDigest, args: expectedArgs, executionEnvironment: { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }, observedAt: new Date().toISOString(), status: 'SUBMISSION_INTENT' }
+  const submission = { schemaVersion: 'aipdm.dev122.rd-permission-state-readback-submission.v1', ownerApplicationId: 'ai-pdm', sourceRevision: operation.sourceRevision, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation }, outputRef, operationId: operation.operationId, migrationRunnerDigest: operation.migrationRunnerDigest, args: expectedArgs, executionEnvironment: { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }, observedAt: new Date().toISOString(), status: 'SUBMISSION_INTENT' }
   const submissionRef = submissionUri(args.operationSha256)
-  const prior = await optionalJson(ownerTransport, submissionRef)
-  if (prior) {
-    const core = { ...prior.value }; delete core.receiptSha256
-    if (prior.value.receiptSha256 !== sha256(Buffer.from(canonicalize(core))) || canonicalize(prior.value) !== canonicalize({ ...submission, receiptSha256: prior.value.receiptSha256 })) fail('RD_PERMISSION_STATE_SUBMISSION_INVALID')
-  } else {
-    const sealed = { ...submission, receiptSha256: sha256(Buffer.from(canonicalize(submission))) }
-    await ownerTransport.putJson(submissionRef, sealed, { bucket: BUCKET, prefix: 'receipts', ifGenerationMatch: '0' })
-    try {
-      await ownerTransport.request(`https://run.googleapis.com/v2/${JOB_NAME}:run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ etag: job.etag, overrides: { containerOverrides: [{ name: 'migration', args: expectedArgs, env: [{ name: 'PGOPTIONS', value: RD_PERMISSION_STATE_PGOPTIONS }] }] } }) })
-    } catch (error) {
-      if (error?.code !== 'OUTCOME_UNKNOWN') throw error
-    }
-  }
+  await submitPermissionReadbackOnce({ transport: ownerTransport, submissionRef, submission, job })
   let match = null
   const deadline = Date.now() + 20 * 60 * 1000
   while (!match && Date.now() < deadline) {
@@ -148,7 +160,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   if (!terminal(match) || Number(match.failedCount ?? 0) !== 0 || Number(match.succeededCount ?? 0) !== 1) fail('RD_PERMISSION_STATE_EXECUTION_FAILED')
   const native = await optionalJson(ownerTransport, outputRef)
   if (!native) fail('RD_PERMISSION_STATE_RECEIPT_MISSING')
-  assertPermissionStateReceipt(native.value, { operation, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation: readbackObjectGeneration(operationObject) }, outputRef })
+  assertPermissionStateReceipt(native.value, { operation, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation }, outputRef })
   return { stage: 'readback', outputRef, outputGeneration: readbackObjectGeneration(native), outputSha256: sha256(native.bytes), executionName: match.name, status: 'PASS', reused: false }
 }
 

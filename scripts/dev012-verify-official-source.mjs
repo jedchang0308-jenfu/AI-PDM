@@ -22,16 +22,21 @@ export function assertOfficialSourceWorkflow(environment) {
   }
 }
 
+export async function verifyOfficialWorkflowSource({ environment, revision, sourceTree, ...transport }) {
+  assertOfficialSourceWorkflow(environment)
+  if (revision !== environment.GITHUB_SHA) {
+    throw new Error('DEV012_OFFICIAL_SOURCE_REVIEW_CHECKOUT_MISMATCH')
+  }
+  return verifyOfficialMergedSource({ ...transport, repository, branch,
+    revision, sourceTree, token: environment.GITHUB_TOKEN, rulesetId: 24077878 })
+}
+
 async function main(environment = process.env) {
   assertOfficialSourceWorkflow(environment)
   const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
   const sourceTree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'],
     { encoding: 'utf8' }).trim()
-  if (revision !== environment.GITHUB_SHA) {
-    throw new Error('DEV012_OFFICIAL_SOURCE_REVIEW_CHECKOUT_MISMATCH')
-  }
-  const result = await verifyOfficialMergedSource({ repository, branch,
-    revision, sourceTree, token: environment.GITHUB_TOKEN, rulesetId: 24077878 })
+  const result = await verifyOfficialWorkflowSource({ environment, revision, sourceTree })
   process.stdout.write(`${JSON.stringify(result)}\n`)
 }
 
