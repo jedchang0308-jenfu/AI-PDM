@@ -46,7 +46,7 @@
 |---|---|
 | CAPA ID | `CAPA-002` |
 | 顯示名稱 | `[CAPA-002] 發布驗證解耦與單一 PR 收斂` |
-| 狀態 | `Implementation In Progress / Local Effectiveness Pending Required CI` |
+| 狀態 | `Local RD Implemented / Required CI Pending` |
 | 建立日期 | `2026-10-17` |
 | Owner / route | RD Tech Lead → RD → provider-required CI；production mutation 不在本 CAPA 實作範圍 |
 | Canonical record | `AGENTS.md` 的 `CAPA002_RELEASE_DECOUPLING_V1` 與 release spec §26.3 |

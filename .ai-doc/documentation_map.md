@@ -2609,3 +2609,4 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 - Release execution contract: [DEV-117 release spec §26.3](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md#263-change-scoped-validation-executor-capa-002).
 - DEV-122 application: [DEV-122 current contract](specs/DEV-122-ai-pdm-internal-function-issues.md#2026-10-17-currentcapa-002-全面導入變更責任驗證與獨立切片交付).
 - Executable source: `scripts/plan-production-slice.mjs`, `scripts/run-production-slice-tests.mjs`, `.github/workflows/ci.yml`; shared or unknown inputs deliberately route to the legacy full gate.
+- Local validation checkpoint: [DEV-122 / CAPA-002 changed-responsibility validation](qa/DEV-122-CAPA-002-change-scoped-validation-local-2026-10-17.md).

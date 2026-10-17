@@ -5990,6 +5990,8 @@ DEV-121 仍維護 verified Principal、scope／撤權、existing effect publish�
 
 產品共同失效機制位於 active catalog publication→effective grant→session→Principal evaluator，不在 UI 加例外。本輪沒有產品權限碼、catalog 或 migration 變更。正式 085 applied、active v7、真實 RD grant/session 與正式 UI/API 結果仍未知；不得由 local fixture 推定。若 085 未套用，需正常 app-owned full35 migration release，program-only／closed34／prefix33 不適用；若 v7 已 active 而 grant/session 失效，分別回到 OrgMaster assignment 或 Platform session 責任邊界，需另授權寫入。正式 migration／deploy／traffic／IAM／Secret／worker／Scheduler／資料修改均未執行。詳見 [B53 本機證據](qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)。管理員辨識、PDF、supplier、原生 CAD 與其餘 DEV-122 工作保持暫停；whole DEV 仍 `NOT_ACCEPTED`。
 
-## DEV-122#release-decoupling — 2026-10-17 CAPA-002 project rollout（實作中）
+## DEV-122#release-decoupling — 2026-10-17 CAPA-002 project rollout（本機 RD 完成／required CI 待 PR）
 
 導入 project-wide changed-responsibility planner、affected test runner與 owner/CI routing；shared/unknown inputs保留 legacy full fail-closed。worker current/historical profile判定集中至單一 context，歷史 evidence仍綁 exact revision/profile bytes，不以 current HEAD隱式覆蓋。單一交付切片在 merge 前於同一 branch/PR 收斂 caller graph及 production-shaped fixtures，避免以反覆 merge/PR作為本機可發現缺陷的除錯迴圈。此項不執行production mutation，不改 DEV-122原分母；正式 RD、approval與未授權角色驗收仍 pending。
+
+本機 checkpoint 見 `.ai-doc/qa/DEV-122-CAPA-002-change-scoped-validation-local-2026-10-17.md`；shared aggregate、DB boundary、typecheck、isolated build、lint及 upstream historical-mode 交集均已通過。此為 RD 自驗，不是獨立 QC 或 provider-required CI；PR checks 尚待執行。
