@@ -8,7 +8,7 @@ function fail(code) {
   throw error
 }
 
-function sourceStatusIsClean(status) {
+export function sourceStatusIsClean(status) {
   if (status === '') return true
   return status.split('\n').every((row) => {
     // The protected production-slice gate deliberately leaves its immutable
