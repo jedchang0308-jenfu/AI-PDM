@@ -30,16 +30,6 @@ import {
   executeUnlinkedProfileCleanup,
   unlinkedProfileCleanupReceipt,
 } from './lib/dev121-unlinked-profile-cleanup.mjs'
-import {
-  RD_PERMISSION_STATE_PREFIX,
-  RD_PERMISSION_STATE_RECEIPT_PREFIX,
-  assertPermissionStateOperation,
-  assertPermissionStateTarget,
-  buildPermissionStateReceipt,
-  parsePermissionStateArgs,
-  readPermissionState,
-} from './lib/dev122-rd-permission-state-readback.mjs'
-
 const FENCE_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'
 
 export const TARGET = Object.freeze({
@@ -72,6 +62,15 @@ export function databaseOptions(environment, token, database = 'jenfu_prod') {
 }
 
 async function runPermissionStateReadback({ argv, environment, fetchImpl, Client }) {
+  const {
+    RD_PERMISSION_STATE_PREFIX,
+    RD_PERMISSION_STATE_RECEIPT_PREFIX,
+    assertPermissionStateOperation,
+    assertPermissionStateTarget,
+    buildPermissionStateReceipt,
+    parsePermissionStateArgs,
+    readPermissionState,
+  } = await import('./lib/dev122-rd-permission-state-readback.mjs')
   const args = parsePermissionStateArgs(argv)
   assertRunnerTarget(environment, TARGET)
   assertPermissionStateTarget(environment)
