@@ -14,10 +14,16 @@ import {
 import { canonicalize, sha256 } from './dev012-production-migration-runner.mjs'
 
 const sourceRevision = 'a'.repeat(40)
-const actor = {
+const actorIdentity = {
   principalId: 'principal-rd-001', employeeId: 'employee-rd-001',
   identityIssuer: 'https://securetoken.google.com/jenfu-platform-prod',
   identitySubject: 'subject-rd-001',
+}
+const actor = {
+  principalIdSha256: sha256(Buffer.from(actorIdentity.principalId)),
+  employeeIdSha256: sha256(Buffer.from(actorIdentity.employeeId)),
+  identityIssuer: actorIdentity.identityIssuer,
+  identitySubjectSha256: sha256(Buffer.from(actorIdentity.identitySubject)),
 }
 const operation = {
   schemaVersion: RD_PERMISSION_STATE_SCHEMA,
@@ -50,14 +56,16 @@ test('RD permission readback reads catalog, active account and grants in one rea
       if (text === 'COMMIT') return { rows: [] }
       if (text.includes('current_database()')) return { rows: [{ database: 'jenfu_prod', login: 'aipdm-prod-migrator@jenfu-platform-prod.iam', major: 17, migrator_member: true, runtime_can_create_core: false }] }
       if (text.includes('v_application_role_catalog_v1')) return { rows: [{ contract_version: 'jenfu.platform-entitlement.v1', application_id: 'ai-pdm', catalog_version: RD_PERMISSION_STATE_TARGET.catalogVersion, catalog_sha256: RD_PERMISSION_STATE_TARGET.catalogSha256, display_order: 0, stable_role_id: 'role-rd', role_definition_hash: 'c'.repeat(64) }] }
-      if (text.includes('v_active_principal_accounts_v1')) return { rows: [{ contract_version: 'organization.active-principal.v1', principal_issuer: actor.identityIssuer, principal_subject: actor.identitySubject, principal_id: actor.principalId, employee_id: actor.employeeId, employee_status: 'active', account_type: 'employee', mapping_version: 1, published_at: '2026-10-17T00:00:00.000Z' }] }
-      if (text.includes('v_ai_pdm_principal_effective_grants_v4')) return { rows: [{ contract_version: 'jenfu.orgmaster.ai-pdm-principal-grants.v4', assignment_version_id: 'assignment-version-1', assignment_version: 7, assignment_id: 'grant-rd-001', grant_kind: 'direct', delegation_id: null, application_id: 'ai-pdm', principal_id: actor.principalId, employee_id: actor.employeeId, subject_kind: 'employee', target_principal_id: null, stable_role_id: 'role-rd', role_code: 'rd', catalog_version: RD_PERMISSION_STATE_TARGET.catalogVersion, scope_kind: 'workspace', scope_key: 'jenfu', valid_from: '2026-10-17T00:00:00.000Z', valid_until: null, published_at: '2026-10-17T00:00:00.000Z' }] }
+      if (text.includes('v_active_principal_accounts_v1')) return { rows: [{ contract_version: 'organization.active-principal.v1', principal_issuer: actorIdentity.identityIssuer, principal_subject: actorIdentity.identitySubject, principal_id: actorIdentity.principalId, employee_id: actorIdentity.employeeId, employee_status: 'active', account_type: 'employee', mapping_version: 1, published_at: '2026-10-17T00:00:00.000Z' }] }
+      if (text.includes('v_ai_pdm_principal_effective_grants_v4')) return { rows: [{ contract_version: 'jenfu.orgmaster.ai-pdm-principal-grants.v4', assignment_version_id: 'assignment-version-1', assignment_version: 7, assignment_id: 'grant-rd-001', grant_kind: 'direct', delegation_id: null, application_id: 'ai-pdm', principal_id: actorIdentity.principalId, employee_id: actorIdentity.employeeId, subject_kind: 'employee', target_principal_id: null, stable_role_id: 'role-rd', role_code: 'rd', catalog_version: RD_PERMISSION_STATE_TARGET.catalogVersion, scope_kind: 'workspace', scope_key: 'jenfu', valid_from: '2026-10-17T00:00:00.000Z', valid_until: null, published_at: '2026-10-17T00:00:00.000Z' }] }
       throw new Error(`unexpected query: ${text}`)
     },
   }
   const state = await readPermissionState(database, operation)
   assert.equal(state.catalog.catalogVersion, RD_PERMISSION_STATE_TARGET.catalogVersion)
   assert.equal(state.actor.matchedActiveAccountCount, 1)
+  assert.equal(state.actor.principalId, undefined)
+  assert.equal(state.actor.employeeId, undefined)
   assert.deepEqual(state.activeGrant.roleCodes, ['rd'])
   assert.equal(state.databaseMutationExpected, false)
   assert.equal(statements[0].text, 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
@@ -74,7 +82,7 @@ test('RD permission readback rejects an account alias that is not the bound acto
     if (text.startsWith('BEGIN') || text === 'ROLLBACK') return { rows: [] }
     if (text.includes('current_database()')) return { rows: [{ database: 'jenfu_prod', login: 'aipdm-prod-migrator@jenfu-platform-prod.iam', major: 17, migrator_member: true, runtime_can_create_core: false }] }
     if (text.includes('v_application_role_catalog_v1')) return { rows: [{ contract_version: 'jenfu.platform-entitlement.v1', application_id: 'ai-pdm', catalog_version: RD_PERMISSION_STATE_TARGET.catalogVersion, catalog_sha256: RD_PERMISSION_STATE_TARGET.catalogSha256 }] }
-    if (text.includes('v_active_principal_accounts_v1')) return { rows: [{ contract_version: 'organization.active-principal.v1', principal_issuer: actor.identityIssuer, principal_subject: 'different-subject', principal_id: actor.principalId, employee_id: actor.employeeId, employee_status: 'active' }] }
+    if (text.includes('v_active_principal_accounts_v1')) return { rows: [{ contract_version: 'organization.active-principal.v1', principal_issuer: actorIdentity.identityIssuer, principal_subject: 'different-subject', principal_id: actorIdentity.principalId, employee_id: actorIdentity.employeeId, employee_status: 'active' }] }
     if (text.includes('v_ai_pdm_principal_effective_grants_v4')) return { rows: [] }
     throw new Error('unexpected query')
   } }

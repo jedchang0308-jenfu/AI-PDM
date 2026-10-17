@@ -4,7 +4,7 @@
 
 本切片以正式 `ai-pdm-prod` 的合成測試帳號 `DEV014 Free Google（JFS9014）` 作為 production-shaped actor。此帳號的用途是驗證已發布的 catalog、active account、effective grant、API 與 UI 是否共同遵守 RD 權限契約；不要求真實人員登入，也不對任何真人帳號做 grant 寫入或撤銷。
 
-測試帳號的 actor 綁定只從該次 `/api/auth/me` session 讀取，並以固定 operation hash 綁定至唯讀 production readback。證據不保存 token、cookie、密碼或 callback code；identity subject 只以 hash 出現在公開摘要，受限 receipt 才保存必要的 principal／employee binding。
+測試帳號的 actor 綁定只從該次 `/api/auth/me` session 讀取，並以固定 operation hash 綁定至唯讀 production readback。證據不保存 token、cookie、密碼、callback code 或任何原文 principal／employee／subject；operation 與 receipt 僅保存不可逆的 actor hashes 及 issuer。
 
 ## 正向與負向案例
 
