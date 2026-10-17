@@ -9,7 +9,7 @@ import { canonicalize, crc32cBase64, sha256 } from
 import { createOwnerTransport, createAiPdmBuildReadbackTransport, buildRuntimeConfig, releasePaths, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 import { boundOpenSwxTransport, WORKER_PROFILE_PATH, workerTemplate, workerJobName,
   workerSchedulerName, createOpenSwxOwnerRelease, readWorkerFullEvidence } from './lib/dev122-openswx-owner-release.mjs'
-import { executeWorkerArtifactReuse, resolveWorkerArtifact, createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { executeWorkerArtifactReuse, resolveWorkerArtifact, createWorkerGitReader, workerInputManifest, assertWorkerArchive } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 import { executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { executeOpenSwxBootstrap } from './lib/dev122-openswx-bootstrap.mjs'
@@ -60,6 +60,29 @@ function b23ArchiveAt(sourceRevision) {
   return result
 }
 function b23NativeArchive() { return b23ArchiveAt(b23Revision) }
+test('B36 PROGRAM_ONLY historical worker archive binds the descriptor profile hash', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const reader = createWorkerGitReader(root, b23Revision)
+  const current = workerInputManifest(reader.readTree(b23Revision), reader, b23Revision)
+  const profilePath = WORKER_PROFILE_PATH
+  const currentProfileBytes = reader(profilePath, b23Revision)
+  const historicalProfileBytes = Buffer.from(currentProfileBytes.toString('utf8').replace('"ownerDeadlineSeconds": 1200', '"ownerDeadlineSeconds": 600'))
+  assert.notDeepEqual(historicalProfileBytes, currentProfileBytes)
+  const historicalProfileSha256 = sha256(historicalProfileBytes)
+  const historicalEntries = current.entries.map(row => row.path === profilePath
+    ? { ...row, size: historicalProfileBytes.length, sha256: historicalProfileSha256 }
+    : row)
+  const tar = rows => Buffer.concat([...rows.map(row => {
+    const bytes = row.path === profilePath ? historicalProfileBytes : reader(row.path, b23Revision)
+    const header = Buffer.alloc(512), name = `source/${row.path}`, slash = name.lastIndexOf('/'), prefix = name.slice(0, slash), leaf = name.slice(slash + 1)
+    header.write(leaf, 0); header.write(prefix, 345); header.write((row.mode === '100755' ? '0000755' : '0000644') + '\0', 100)
+    header.write(bytes.length.toString(8).padStart(11, '0') + '\0', 124); header.fill(32, 148, 156); header.write('0', 156); header.write('ustar\0', 257); header.write('00', 263)
+    const sum = [...header].reduce((total, byte) => total + byte, 0); header.write(sum.toString(8).padStart(6, '0') + '\0 ', 148)
+    return Buffer.concat([header, bytes, Buffer.alloc((512 - (bytes.length % 512)) % 512)])
+  }), Buffer.alloc(1024)])
+  assert.throws(() => assertWorkerArchive(gzipSync(tar(historicalEntries)), historicalEntries), { code: 'OPENSWX_REUSE_RECIPE_DRIFT' })
+  assert.equal(assertWorkerArchive(gzipSync(tar(historicalEntries)), historicalEntries, { workerProfileSha256: historicalProfileSha256 }).inputCount, historicalEntries.length)
+})
 function b23ContentPrefix(fixture, count) {
   assert.ok(fixture.bundle.entries.length >= count)
   if (count >= 33) assert.deepEqual(fixture.bundle.entries[32], {
