@@ -20,7 +20,7 @@ import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeC
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam, programOnlyHistoricalProfileRequired } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, assertFailedDailyFullJoin, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
 import { qualifyAiPdmNativeHistoryBasis, deriveAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
-import { assertHistoricalCheckpointDescriptor, readHistoricalWorkerProfile, buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { assertHistoricalCheckpointDescriptor, readHistoricalWorkerProfile, buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, resolveWorkerReleaseCheckpoint, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan } from './lib/dev122-openswx-readback-iam.mjs'
@@ -916,6 +916,42 @@ test('B19-08 LOCAL_TEST protected reuse returns association with fresh metadata,
   assert.deepEqual(built, { descriptorRef, workerBuildRef: saved.ref, image }); noMutation(h)
   const firstInput = h.seed('forbidden-first', { schemaVersion: 'aipdm.openswx-pause-input.v1', descriptorRef, workerBuildRef: saved.ref, deadlineAt: deadline(), receiptId: 'LOCAL-FIRST-DRAIN', drainKind: 'FIRST_PROVIDER_ONLY', resourceApplyRef: h.approvedRef })
   await assert.rejects(executeOpenSwxBootstrap({ stage: 'pause', inputRef: firstInput, transport: h.transport, readSource: h.readSource, appProfile }), { code: 'OPENSWX_REUSE_DAILY_ONLY' })
+})
+test('bounded release checkpoint keeps sealed history auditable without replaying its ancestor graph', async () => {
+  const h = await harness(), saved = await h.invoke(), base = saved.value, baseRequest = (await h.transport.readJson(base.requestRef)).value
+  const basis = {
+    schemaVersion: 'aipdm.openswx-history-basis.v1', ownerApplicationId: 'ai-pdm', purpose: 'QUALIFIED_FAILED_DAILY_HISTORY',
+    target: { projectId: profile.projectId, location: profile.location, jobId: profile.jobId }, qualificationInputRef: h.inputRef,
+    issuerSourceLockRef: h.sourceLockRef, issuerSourceObjectRef: h.currentSourceRef, qualifierSourceTreeSha256: h.lock.sourceSha256,
+    predecessorInputRef: h.inputRef, predecessorRequestRef: base.requestRef, predecessorResourceReadbackRef: base.resourceAssociation.readbackRef,
+    predecessorCurrentManifestRef: base.executableProof.currentManifestRef, predecessorSecurityReadbackRef: base.securityEvidence.readbackRef,
+    historicalFactsSha256: '1'.repeat(64), semanticClosureSha256: '2'.repeat(64), observationStartedAt: now, observationCompletedAt: now,
+  }
+  const historyBasisRef = h.seed('bounded-history-basis', basis)
+  const carriedInputRef = h.seed('bounded-carry-input', { ...h.input, schemaVersion: 'aipdm.openswx-worker-reuse-input.v3', historyBasisRef,
+    failedDailyContinuation: { bootstrapInputRef: h.fullRef, recoveryRequiredRef: h.fullRef, priorRecoveryRef: h.fullRef }, completedFailedDailyCheckpointRef: h.fullRef })
+  const requestRef = h.seed('bounded-request', { ...baseRequest, schemaVersion: 'aipdm.openswx-worker-reuse-request.v3', inputRef: carriedInputRef, historyBasisRef })
+  const associationRef = h.seed('bounded-association', { ...base, schemaVersion: 'aipdm.openswx-worker-build-association.v3', historyBasisRef, requestRef })
+  const descriptor = { ...h.v2(associationRef), schemaVersion: 'aipdm.openswx-worker-descriptor.v4', historyBasisRef }
+  const reads = [], originalReadJson = h.transport.readJson
+  h.transport.readJson = async (...args) => { reads.push(args[0].uri); return originalReadJson(...args) }
+  h.objects.delete(h.buildRef.uri)
+  const checkpoint = await resolveWorkerReleaseCheckpoint({ transport: h.transport, descriptor, profile, readSource: h.readSource })
+  assert.equal(checkpoint.image, image)
+  assert.equal(checkpoint.historicalAudit, 'ARCHIVED_NOT_REPLAYED')
+  assert.ok(!reads.includes(h.buildRef.uri), 'routine release must not reopen the original build receipt')
+  assert.ok(!reads.includes(h.fullRef.uri), 'routine release must not reopen the historical full descriptor')
+  assert.ok(!reads.includes(base.priorActivationRef.uri), 'routine release must not recursively reopen prior activation')
+  const poisoned = h.seed('bounded-current-poison', { ...base, image: `${profile.artifactUri}@sha256:${'0'.repeat(64)}` })
+  await assert.rejects(resolveWorkerReleaseCheckpoint({ transport: h.transport, descriptor: { ...h.v2(poisoned), purpose: 'build_only' }, profile, readSource: h.readSource }))
+  const resource = (await h.transport.readJson(base.resourceAssociation.readbackRef)).value
+  const badResourceRef = h.seed('bounded-resource-poison', { ...resource, resourcesUnchanged: false })
+  const badResourceAssociationRef = h.seed('bounded-resource-association-poison', { ...base, resourceAssociation: { ...base.resourceAssociation, readbackRef: badResourceRef } })
+  await assert.rejects(resolveWorkerReleaseCheckpoint({ transport: h.transport, descriptor: h.v2(badResourceAssociationRef), profile, readSource: h.readSource }), { code: 'OPENSWX_RELEASE_CHECKPOINT_RESOURCE_INVALID' })
+  const security = (await h.transport.readJson(base.securityEvidence.readbackRef)).value
+  const badSecurityRef = h.seed('bounded-security-poison', { ...security, image: `${profile.artifactUri}@sha256:${'0'.repeat(64)}` })
+  const badSecurityAssociationRef = h.seed('bounded-security-association-poison', { ...base, securityEvidence: { ...base.securityEvidence, readbackRef: badSecurityRef } })
+  await assert.rejects(resolveWorkerReleaseCheckpoint({ transport: h.transport, descriptor: h.v2(badSecurityAssociationRef), profile, readSource: h.readSource }), { code: 'OPENSWX_RELEASE_CHECKPOINT_SECURITY_INVALID' })
 })
 test('B19-09 LOCAL_TEST unknown create-only outcome adopts exact same URI or stops, never overwrites/rebuilds', async () => {
   for (const result of ['applied', 'missing', 'conflict']) {

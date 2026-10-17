@@ -2,8 +2,8 @@ import { assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { assertProgramOnlyPolicy, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
 import { READBACK_IAM_PATHS, readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
 import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
-import { resolveWorkerArtifact, verifyWorkerArtifactReuse, createWorkerEvidenceContext, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
-import { runAiPdmEvidenceContext, descendAiPdmEvidenceContext, ensureAiPdmNativeHistoryBasis, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
+import { resolveWorkerArtifact, resolveWorkerReleaseCheckpoint, verifyWorkerArtifactReuse, verifyWorkerReleaseCheckpoint, createWorkerEvidenceContext, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
+import { runAiPdmEvidenceContext, descendAiPdmEvidenceContext, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
 import { OWNER_DEADLINE_SECONDS, WORKER_PROFILE_PATH, assertHistoricalOpenSwxWorkerProfile, assertHistoricalProfileCompatibility, assertOpenSwxWorkerProfile, programOnlyHistoricalProfileRequired, resolveWorkerProfileContext, sourceReaderForRevision, workerProfileValidationMode } from './dev122-openswx-profile-context.mjs'
 
 export { OWNER_DEADLINE_SECONDS, WORKER_PROFILE_PATH, assertHistoricalOpenSwxWorkerProfile, assertOpenSwxWorkerProfile, programOnlyHistoricalProfileRequired } from './dev122-openswx-profile-context.mjs'
@@ -803,19 +803,34 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
   async function resolve(intent, appProfile) {
     const descriptor = await readDescriptor(intent, appProfile)
     if (!descriptor) return null
-    if (descriptor.value.historyBasisRef) {
-      if (intent.programOnlyBaseline || isPausedAppRepair(descriptor.value)) fail('OPENSWX_HISTORY_DAILY_ONLY')
-      await ensureAiPdmNativeHistoryBasis({ basisRef: descriptor.value.historyBasisRef, transport, readSource, sourceRevision: descriptor.value.sourceRevision, sourceLockRef: intent.sourceLockRef })
-    }
+    if (descriptor.value.historyBasisRef && (intent.programOnlyBaseline || isPausedAppRepair(descriptor.value))) fail('OPENSWX_HISTORY_DAILY_ONLY')
     return descriptor
+  }
+  const boundedReuse = descriptor => descriptor.value.artifactMode === 'REUSE_VERIFIED' && !isPausedAppRepair(descriptor.value)
+  async function readReleaseEvidence(descriptor) {
+    if (!boundedReuse(descriptor)) return readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
+    const artifact = await resolveWorkerReleaseCheckpoint({ transport, descriptor: descriptor.value, profile: descriptor.profile, readSource })
+    return { artifact, image: artifact.image, checkpoint: true }
   }
   const write = (uri, value) => writeWorkerJson(transport, uri, value)
   const rootFor = intent => `${intent.openswxWorkerRef.uri.slice(0, -5)}-execution`
   async function pausedAndDrained(descriptor, { intent = null, appProfile = null, phase = 'PREPARE', canonical = null } = {}) {
     if (isPausedAppRepair(descriptor.value)) return repairCurrentGuard(descriptor, intent, appProfile, phase, canonical)
+    if (boundedReuse(descriptor)) {
+      const evidence = await readReleaseEvidence(descriptor)
+      const scheduler = await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`)
+      assertPausedScheduler(scheduler, descriptor.profile)
+      await assertNoActiveExecutions(transport)
+      const job = await transport.request(`https://run.googleapis.com/v2/${workerJobName()}`)
+      const normal = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion)
+      const selftest = workerTemplate(descriptor.profile, evidence.image, null, 'selftest')
+      if (![canonicalize(normal), canonicalize(selftest)].includes(canonicalize(normalizeWorkerTemplate(job.template)))) fail('OPENSWX_DRAIN_JOB_DRIFT')
+      assertWorkerJob(job, normalizeWorkerTemplate(job.template))
+      return scheduler
+    }
     const scheduler = await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`)
     assertPausedScheduler(scheduler, descriptor.profile)
-    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
+    const evidence = await readReleaseEvidence(descriptor)
     const executions = await assertNoActiveExecutions(transport)
     const preflight = evidence.receipts.cloudPreflightRef.facts.proof
     const allowed = [preflight?.executionName]
@@ -935,7 +950,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     }
     if (descriptor.value.purpose === 'build_only') {
       if (descriptor.value.artifactMode === 'REUSE_VERIFIED') {
-        const artifact = await resolveWorkerArtifact({ transport, descriptor: descriptor.value, profile: descriptor.profile, readSource })
+        const artifact = await resolveWorkerReleaseCheckpoint({ transport, descriptor: descriptor.value, profile: descriptor.profile, readSource })
         if (canonicalize(artifact.currentAssociation.sourceLockRef) !== canonicalize(intent.sourceLockRef)) fail('OPENSWX_REUSE_SOURCE_LOCK_JOIN_INVALID')
         return { descriptorRef: descriptor.ref, purpose: 'build_only' }
       }
@@ -945,7 +960,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
         || !H64.test(plan.authorizationStatementSha256 ?? '')) fail('OPENSWX_RESOURCE_PLAN_NOT_APPROVED')
       return { descriptorRef: descriptor.ref, purpose: 'build_only' }
     }
-    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
+    const evidence = await readReleaseEvidence(descriptor)
     if (evidence.artifact.currentAssociation && canonicalize(evidence.artifact.currentAssociation.sourceLockRef) !== canonicalize(intent.sourceLockRef)) fail('OPENSWX_REUSE_SOURCE_LOCK_JOIN_INVALID')
     await pausedAndDrained(descriptor, { intent, appProfile: profile, phase: 'PREPARE' })
     return { descriptorRef: descriptor.ref, purpose: 'full' }
@@ -959,10 +974,13 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
       return { descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: evidence.image }
     }
     if (descriptor.value.artifactMode === 'REUSE_VERIFIED') {
-      const artifact = descriptor.value.purpose === 'full' ? (await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)).artifact
-        : await resolveWorkerArtifact({ transport, descriptor: descriptor.value, profile: descriptor.profile, readSource })
+      const artifact = boundedReuse(descriptor)
+        ? await resolveWorkerReleaseCheckpoint({ transport, descriptor: descriptor.value, profile: descriptor.profile, readSource })
+        : descriptor.value.purpose === 'full' ? (await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)).artifact
+          : await resolveWorkerArtifact({ transport, descriptor: descriptor.value, profile: descriptor.profile, readSource })
       if (canonicalize(artifact.currentAssociation.sourceLockRef) !== canonicalize(intent.sourceLockRef)) fail('OPENSWX_REUSE_SOURCE_LOCK_JOIN_INVALID')
-      await verifyWorkerArtifactReuse({ transport, artifact, profile: descriptor.profile, readSource, deadlineAt: intent.deadlineAt })
+      if (boundedReuse(descriptor)) await verifyWorkerReleaseCheckpoint({ transport, artifact, profile: descriptor.profile, readSource, deadlineAt: intent.deadlineAt })
+      else await verifyWorkerArtifactReuse({ transport, artifact, profile: descriptor.profile, readSource, deadlineAt: intent.deadlineAt })
       return { descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: artifact.image }
     }
     if (descriptor.value.purpose === 'full') {
@@ -998,7 +1016,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
       if (deployment.sourceObject.sha256 !== descriptor.value.sourceArchiveSha256 || deployment.openswxWorker?.image !== evidence.image) fail('OPENSWX_ARCHIVE_JOIN_INVALID')
       return intent.programOnlyBaseline.retainedWorker.readyResourceReadbackRef
     }
-    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
+    const evidence = await readReleaseEvidence(descriptor)
     if (deployment.sourceObject.sha256 !== descriptor.value.sourceArchiveSha256 || deployment.openswxWorker?.image !== evidence.image) fail('OPENSWX_ARCHIVE_JOIN_INVALID')
     await pausedAndDrained(descriptor, { intent, appProfile: profile, phase: 'CANDIDATE' })
     const uri = `${rootFor(intent)}/normal-job.json`, existing = await optionalReceipt(transport, uri)
@@ -1031,7 +1049,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
         (migrationMode === 'FORWARD_APPLIED' && (!isPausedAppRepair(descriptor.value) || profile.migrations?.entries?.length !== 33 ||
           profile.migrations.entries[32].path !== 'db/postgres/083_dev121_authorized_first_login_account.sql' ||
           profile.migrations.entries[32].sha256 !== 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9'))) fail('OPENSWX_FINALIZE_MIGRATION_MODE_INVALID')
-    const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
+    const evidence = await readReleaseEvidence(descriptor)
     await pausedAndDrained(descriptor, { intent, appProfile: profile, phase: 'FINALIZE', canonical })
     const template = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion)
     const pending = { status: 'ACTIVATION_PENDING', claimProof: 'PENDING_NORMAL_ACTOR_STDOUT_READBACK', descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: evidence.image, normalTemplateSha256: sha256(canonicalize(template)), sourceEntryRef: evidence.artifact.sourceEntryProof }
@@ -1054,7 +1072,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
       assertPausedScheduler(await transport.request(`https://cloudscheduler.googleapis.com/v1/${workerSchedulerName()}`), descriptor.profile)
       const request = await optionalReceipt(transport, `${rootFor(intent)}/finite-smoke-request.json`)
       if (request) {
-        const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
+        const evidence = await readReleaseEvidence(descriptor)
         const template = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion)
         assertFiniteRequest(request.value, descriptor.value, template, profile.identities.deployer, intent.deadlineAt)
         const rows = await listWorkerExecutions(transport)
@@ -1074,7 +1092,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
       }
       const prior = await optionalReceipt(transport, `${rootFor(intent)}/prior-job.json`)
       if (prior) {
-        const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
+        const evidence = await readReleaseEvidence(descriptor)
         assertWorkerReceipt(prior.value, descriptor.value, 'prior-job')
         const restore = prior.value.facts.priorRestoreTemplate
         if (canonicalize(restore) !== canonicalize(normalizeWorkerTemplate(prior.value.facts.priorJob.template)) || prior.value.templateSha256 !== sha256(canonicalize(restore))
