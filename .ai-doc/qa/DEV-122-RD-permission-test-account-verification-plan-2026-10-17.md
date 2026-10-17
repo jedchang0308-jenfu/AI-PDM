@@ -1,5 +1,11 @@
 # DEV-122 Priority 2 — RD 圖號工作台測試帳號驗證計畫
 
+## 本輪強制執行決策（2026-10-18）
+
+本輪所有 production-shaped 驗證一律使用既有合成／測試 RD 帳號 `DEV014 Free Google（JFS9014）`。不得要求、等待或代入任何真實 RD 人員登入；不得以真人帳號取代測試帳號，也不得對真人帳號、OrgMaster grant、session 或資料做寫入、撤銷、重設或其他操作。若測試帳號 session 暫時不可用，該案例標記 `NOT_RUN`，不得改用真人補測或宣稱通過。
+
+同一測試帳號必須貫穿唯讀 production readback、API 正向／負向與瀏覽器 UI 正向／負向；readback、API 與 UI 的 actor、issuer、catalog version/hash、grant snapshot 與決策結果必須可互相對照。這是本切片的正式驗證計畫，不以真實人員登入作為完成條件。
+
 ## 驗證對象
 
 本切片以正式 `ai-pdm-prod` 的合成測試帳號 `DEV014 Free Google（JFS9014）` 作為 production-shaped actor。此帳號的用途是驗證已發布的 catalog、active account、effective grant、API 與 UI 是否共同遵守 RD 權限契約；不要求真實人員登入，也不對任何真人帳號做 grant 寫入或撤銷。
@@ -20,5 +26,5 @@
 
 ## 證據分類
 
-測試帳號正向結果屬於「production-shaped synthetic actor verification」，可證明正式部署的共同 evaluator、資料契約與拒絕邊界；它不等同於真實 RD 人員的業務接受。若正式業務仍要求真人簽收，另列為 user-owned acceptance，不阻擋本切片的工程與 synthetic production-shaped gate。
+測試帳號正向結果屬於「production-shaped synthetic actor verification」，可證明正式部署的共同 evaluator、資料契約與拒絕邊界；本輪不執行也不要求真實 RD 人員業務簽收。任何日後獨立的真人業務驗收都必須另開明確授權，不得回寫或改造本輪 evidence，也不影響本切片依測試帳號完成工程驗證的判定。
 
