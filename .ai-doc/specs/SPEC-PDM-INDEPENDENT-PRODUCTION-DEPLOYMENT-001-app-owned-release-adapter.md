@@ -559,6 +559,14 @@ Protected required checks、official-source review、single capsule、recovery�
 
 Planner只能減少 unchanged responsibility 的重跑，不能將 required provider check標為 skipped或把 local evidence升為release authority。每個 plan保存 base/head、changed files、slice reasons與 gates；空集合也視為 unknown/full。Owner workflow只接受 protected exact main，planner不增加actor輸入、target/stage/SQL/env override，也不改 migration／IAM／Secret／traffic authority。
 
+### 26.4 Pinned in-flight source and bounded read recovery（2026-10-18）
+
+長任務的來源以 freeze／dispatch 時已綁定的 exact merge commit／tree 為準，不追逐持續移動的 main。`dev012-verify-official-source` 仍要求允許的 main workflow 與 checkout=`GITHUB_SHA`；owner runtime 的 workflow SHA／capsule equality、期限、service concurrency 及現況驗證不變。當 main 前進，GitHub provider exact SHA compare 必須回傳 `ahead`、`behind_by=0`、正整數 `ahead_by`，且 base／merge-base 皆為原 source；唯一 merged PR、tree、現行 branch protection/ruleset 全部仍須成立。拒絕 divergent、removed、未知來源；不替換 source、不新增舊版發布或 downgrade override。Verifier 結果另記 observed branch revision、HEAD/ANCESTOR 與 read retry 次數，歷史收據不重寫。[GitHub compare API](https://docs.github.com/en/rest/commits/commits#compare-two-commits)
+
+僅 official-source verifier 的固定 GitHub GET 有有限自動重試：每個讀取最多三次，單次 timeout 20 秒；已辨識的暫時網路錯誤及 500/502/503/504 退避 500/1000 毫秒。429 必須有可遵守且不超過 5 秒的 Retry-After；其他回應若要求更久也停止，不提早重送。401/403/404、JSON/契約錯誤與未知故障不重試；沒有 token 刷新、IAM 擴張、寫入 replay 或 owner 階段重跑。成功讀取不因另一讀取重試而重做。短暫失敗可在同一階段恢復，不代表新增跨 run checkpoint resume；已終結或過期 capsule 仍走既有 recovery／重新準備。
+
+變更範圍仍由 §26.3 planner 決定；不取消 required CI、不跳過共享 release-control 的 full gate。既有授權在同任務正常重試中延續，不因 SHA／attempt 改變重問，但不擴張責任面。本修訂不影響正在執行的既有版本，也不宣告正式發布或 DEV-122 驗收。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。

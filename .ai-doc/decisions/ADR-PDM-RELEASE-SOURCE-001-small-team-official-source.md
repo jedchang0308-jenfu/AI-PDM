@@ -6,4 +6,6 @@
 
 AI-PDM 由單一維護者管理，不要求第二位 GitHub 帳號或獨立人工 approval。Production owner 接受的來源必須同時有 clean 的官方 `main` 精確 HEAD／tree、唯一 merged PR、該 PR 的 Codex 審查與 QC 紀錄，以及 GitHub provider 讀回的 branch protection：PR 必經、required approving reviews = 0、`DEV-012 Isolated PostgreSQL Cutover` 與 `Production Slice QC` 均為 required checks、管理者同受約束、force push／刪除停用。Owner prepare 用 metadata-read branch-rules API 驗 active ruleset `24077878`；release operator 用管理權限另驗 classic protection 與 ruleset 零 bypass actors。Verifier 對缺失或 API 拒絕 fail closed；PR／CI／environment／WIF 各自不能單獨證明受保護來源。Codex 紀錄不冒稱人工 review。
 
+2026-10-18 前向修訂：上段的「精確 HEAD」是 freeze／dispatch 時的來源，不要求執行期間持續等於可移動的 main tip。Owner 的 checkout、`GITHUB_SHA`、workflow SHA 與 capsule 仍依既有契約綁同一版本；main 前進時，official-source verifier 以 GitHub exact SHA compare 確認該版本仍是目前受保護 main 的祖先，並保留唯一 merged PR、原始 tree 與當前 ruleset 驗證。不得改用新 tip、允許 divergent／已移出主線的來源、放寬憑證或新設任意舊版本發布入口。新 freeze 仍讀當時 main；已終結／過期 capsule 不因此恢復效力。
+
 此決策只改來源驗證與審查證據，不改 AI-PDM 的資料所有權、migration、runtime、traffic 或既有 release 執行順序。過往 receipt 保留原狀；正式 provider readback 完成前不得宣告新來源 gate PASS。
