@@ -901,15 +901,14 @@ test('B27 build readback uses verifier only for fixed live GETs and retains buil
 test('B27 verifier denial and timeout fail without a mutation or builder fallback', async () => {
   for (const mode of ['denied', 'timeout']) {
     const calls = []
-    const transport = createAiPdmBuildReadbackTransport({ token: 'MODELED-B27-BUILDER-TOKEN', verifierReadbackToken: 'MODELED-B27-VERIFIER-TOKEN', fetchImpl: async (url, options) => {
+    const transport = createAiPdmBuildReadbackTransport({ token: 'MODELED-B27-BUILDER-TOKEN', verifierReadbackToken: 'MODELED-B27-VERIFIER-TOKEN', sleep: async () => {}, fetchImpl: async (url, options) => {
       calls.push({ url, method: options.method ?? 'GET', token: options.headers.authorization })
       if (mode === 'timeout') throw Object.assign(new Error('timeout'), { name: 'TimeoutError' })
       return json({}, 403)
     } })
     await assert.rejects(transport.request('https://cloudscheduler.googleapis.com/v1/projects/jenfu-platform-prod/locations/asia-east1/jobs/aipdm-prod-openswx-dispatch'), { code: mode === 'denied' ? 'DENIED' : 'OUTCOME_UNKNOWN' })
-    assert.equal(calls.length, 1)
-    assert.equal(calls[0].method, 'GET')
-    assert.equal(calls[0].token, 'Bearer MODELED-B27-VERIFIER-TOKEN')
+    assert.equal(calls.length, mode === 'timeout' ? 3 : 1)
+    assert.ok(calls.every(call => call.method === 'GET' && call.token === 'Bearer MODELED-B27-VERIFIER-TOKEN'))
   }
 })
 
@@ -958,15 +957,14 @@ test('B35 Secret metadata verifier denial or timeout has no builder fallback', a
   for (const secret of ['aipdm-prod-openswx-reader-token', 'aipdm-prod-workload-auth-credentials']) {
     for (const mode of ['denied', 'timeout']) {
       const calls = []
-      const transport = createAiPdmBuildReadbackTransport({ token: 'MODELED-B35-BUILDER-TOKEN', verifierReadbackToken: 'MODELED-B35-VERIFIER-TOKEN', fetchImpl: async (url, options) => {
+      const transport = createAiPdmBuildReadbackTransport({ token: 'MODELED-B35-BUILDER-TOKEN', verifierReadbackToken: 'MODELED-B35-VERIFIER-TOKEN', sleep: async () => {}, fetchImpl: async (url, options) => {
         calls.push({ url, options })
         if (mode === 'timeout') throw Object.assign(new Error('timeout'), { name: 'TimeoutError' })
         return json({}, 403)
       } })
       await assert.rejects(transport.request(`https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/${secret}/versions/1`), { code: mode === 'denied' ? 'DENIED' : 'OUTCOME_UNKNOWN' })
-      assert.equal(calls.length, 1)
-      assert.equal(calls[0].options.headers.authorization, 'Bearer MODELED-B35-VERIFIER-TOKEN')
-      assert.equal(calls[0].options.redirect, 'error')
+      assert.equal(calls.length, mode === 'timeout' ? 3 : 1)
+      assert.ok(calls.every(call => call.options.headers.authorization === 'Bearer MODELED-B35-VERIFIER-TOKEN' && call.options.redirect === 'error' && call.options.method === 'GET'))
     }
   }
 })
@@ -976,7 +974,7 @@ test('B29 prepare migration read token is restricted to exact GET pages and refu
   const own = 'https://run.googleapis.com/v2/projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions?pageSize=100'
   for (const mode of ['pass', 'denied', 'timeout']) {
     const calls=[]
-    const transport = createOwnerTransport({ token: primary, migrationExecutionReadbackToken: deployer, fetchImpl: async (url,options) => {
+    const transport = createOwnerTransport({ token: primary, migrationExecutionReadbackToken: deployer, sleep: async () => {}, fetchImpl: async (url,options) => {
       calls.push({url,options}); if (mode==='timeout') throw Object.assign(Error('timeout'),{name:'TimeoutError'}); return json({},mode==='denied'?403:200)
     } })
     if (mode==='pass') {
@@ -986,7 +984,11 @@ test('B29 prepare migration read token is restricted to exact GET pages and refu
         [own+'&pageSize=100',{}],[own+'#fragment',{}],[own.replace('jenfu-platform-prod','other'),{}]]) {
         await transport.request(url,options); assert.equal(calls.at(-1).options.headers.authorization,`Bearer ${primary}`)
       }
-    } else { await assert.rejects(transport.request(own),{code:mode==='denied'?'DENIED':'OUTCOME_UNKNOWN'}); assert.equal(calls.length,1) }
+    } else {
+      await assert.rejects(transport.request(own),{code:mode==='denied'?'DENIED':'OUTCOME_UNKNOWN'})
+      assert.equal(calls.length, mode === 'timeout' ? 3 : 1)
+      assert.ok(calls.every(call => call.options.headers.authorization === `Bearer ${deployer}` && call.options.method === 'GET'))
+    }
   }
   assert.throws(()=>createOwnerTransport({token:primary,migrationExecutionReadbackToken:''}),{code:'MIGRATION_READBACK_TOKEN_INVALID'})
 })
@@ -1022,7 +1024,7 @@ test('R7 migration read token covers exact fixed Job and Execution GETs without 
   ]) { await transport.request(url, options); assert.equal(calls.at(-1).options.headers.authorization, `Bearer ${primary}`) }
   for (const status of [403, 500]) {
     let count = 0
-    const denied = createOwnerTransport({ token: primary, migrationExecutionReadbackToken: deployer, fetchImpl: async () => { count++; return json({}, status) } })
-    await assert.rejects(denied.request(job)); assert.equal(count, 1)
+    const denied = createOwnerTransport({ token: primary, migrationExecutionReadbackToken: deployer, sleep: async () => {}, fetchImpl: async (_url, options) => { count++; assert.equal(options.headers.authorization, `Bearer ${deployer}`); assert.equal(options.method, 'GET'); return json({}, status) } })
+    await assert.rejects(denied.request(job)); assert.equal(count, status === 500 ? 3 : 1)
   }
 })

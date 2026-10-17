@@ -30,7 +30,6 @@ import {
   executeUnlinkedProfileCleanup,
   unlinkedProfileCleanupReceipt,
 } from './lib/dev121-unlinked-profile-cleanup.mjs'
-
 const FENCE_PREFIX = 'receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'
 
 export const TARGET = Object.freeze({
@@ -62,7 +61,47 @@ export function databaseOptions(environment, token, database = 'jenfu_prod') {
   }
 }
 
+async function runPermissionStateReadback({ argv, environment, fetchImpl, Client }) {
+  const {
+    RD_PERMISSION_STATE_PREFIX,
+    RD_PERMISSION_STATE_RECEIPT_PREFIX,
+    assertPermissionStateOperation,
+    assertPermissionStateTarget,
+    buildPermissionStateReceipt,
+    parsePermissionStateArgs,
+    readPermissionState,
+  } = await import('./lib/dev122-rd-permission-state-readback.mjs')
+  const args = parsePermissionStateArgs(argv)
+  assertRunnerTarget(environment, TARGET)
+  assertPermissionStateTarget(environment)
+  if (environment.PDM_SOURCE_REVISION !== args.sourceRevision) throw new Error('RD_PERMISSION_STATE_SOURCE_REVISION_MISMATCH')
+  parseGsUri(args.operationRef, TARGET.releaseBucket, RD_PERMISSION_STATE_PREFIX)
+  parseGsUri(args.outputRef, TARGET.releaseBucket, RD_PERMISSION_STATE_RECEIPT_PREFIX)
+  const token = await metadataAccessToken(fetchImpl)
+  const object = await readGcsObject({ uri: args.operationRef, expectedBucket: TARGET.releaseBucket,
+    expectedPrefix: RD_PERMISSION_STATE_PREFIX, token, fetchImpl })
+  let raw
+  try { raw = JSON.parse(object.bytes.toString('utf8')) } catch { throw new Error('RD_PERMISSION_STATE_OPERATION_JSON_INVALID') }
+  const operation = assertPermissionStateOperation(raw, { bytes: object.bytes,
+    operationSha256: args.operationSha256, sourceRevision: args.sourceRevision })
+  const database = new Client(databaseOptions(environment, token))
+  await database.connect()
+  try {
+    const state = await readPermissionState(database, operation)
+    const receipt = buildPermissionStateReceipt({ operation,
+      operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation: object.generation },
+      outputRef: args.outputRef, observedAt: new Date().toISOString(), state })
+    const publication = await publishGcsJson({ uri: args.outputRef,
+      expectedBucket: TARGET.releaseBucket, expectedPrefix: RD_PERMISSION_STATE_RECEIPT_PREFIX,
+      value: receipt, token, fetchImpl })
+    return { ...receipt, outputGeneration: publication.generation, outputSha256: publication.sha256 }
+  } finally {
+    await database.end()
+  }
+}
+
 export async function runMain({ argv = process.argv.slice(2), environment = process.env, fetchImpl = fetch, Client = pg.Client } = {}) {
+  if (argv[0] === '--permission-operation-ref') return runPermissionStateReadback({ argv, environment, fetchImpl, Client })
   const args = parseRunnerArgs(argv)
   assertRunnerTarget(environment, TARGET)
   parseGsUri(args.bundleRef, TARGET.releaseBucket, 'source/migration-bundles')

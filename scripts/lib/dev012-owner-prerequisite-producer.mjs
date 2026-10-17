@@ -29,6 +29,24 @@ function exactRef(value, profile) {
   return value
 }
 
+export function validateHistoricalBaselineIntent(value, profile, validateIntent) {
+  try {
+    return validateIntent(value, profile)
+  } catch (error) {
+    const entries = profile.migrations?.entries
+    const currentHasDeferred085 = entries?.length === 35
+      && entries.at(-1)?.order === 35
+      && entries.at(-1)?.path === 'db/postgres/085_dev121_principal_role_catalog_v7.sql'
+    if (error?.code !== 'PROGRAM_ONLY_BASELINE_INVALID'
+      || profile.application?.id !== 'ai-pdm'
+      || !value?.programOnlyBaseline
+      || !currentHasDeferred085) throw error
+    const historicalProfile = structuredClone(profile)
+    historicalProfile.migrations.entries = entries.slice(0, 34)
+    return validateIntent(value, historicalProfile)
+  }
+}
+
 function runGit(root, args, encoding = 'utf8') {
   const result = spawnSync('git', args, { cwd: root, encoding, maxBuffer: 256 * 1024 * 1024, windowsHide: true })
   if (result.error || result.status !== 0) fail('SOURCE_GIT_READ_FAILED', args.join(' '))
@@ -324,7 +342,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       transport.readJson(exactRef(input.runtimeConfigRef, profile), profile.artifact.releaseBucket, ['receipts']),
       transport.readJson(exactRef(input.baselineIntentRef, profile), profile.artifact.releaseBucket, ['receipts']),
     ])
-    validateIntent(baselineIntentResult.value, profile)
+    validateHistoricalBaselineIntent(baselineIntentResult.value, profile, validateIntent)
     const service = await transport.getService(profile)
     transport.assertServiceSettled(service, 'ROUTINE_BASELINE_UNSETTLED')
     const previousRevision = transport.effectiveRevision(service)

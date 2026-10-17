@@ -545,6 +545,34 @@ PROGRAM_ONLY 的 authenticated source observation adapter只讀 own receipt JSON
 
 此項明確前向取代本spec與AGENTS的「fullsource manifest必等於execution bundle／一概禁止env override」在合格program-onlybranch中的部分。其餘流程無此例外，所有新policy/source須正常受保護PR／CI／exactmain後才具執行效力。SHA／digest／ref等正常machinebinding更新及同scopecorrectivecycle不重新要求人類批准；只有新project/environment/resource/authority/dataownership、destructive或其他不可逆scope才重入人類。效率條件為零新增人工步驟、零unchangedtoolimages；沒有可比正常發布時長，時長維持UNVERIFIED。
 
+### 26.2 DEV-122 RD 權限 ledger readback gate（2026-10-16）
+
+當人類將 full35／085 正式發布明確綁定於「先證明 085 尚未套用」時，不得以歷史 ledger receipt、active catalog v6、無後續 Job execution或 program-only prefix33 單獨取代 current ledger readback。既有 `deploy-ai-pdm-principal-migrations-production.yml` 保持唯一 `releaseCapsuleRef`、protected main、production environment與 service-wide concurrency；它可依 immutable capsule schema 在原 `prepare→build→migrate` 與本 readback-only path之間 fail closed 分流。release capsule 的既有語意與三階段不變；readback capsule 不進入 build或 migrate stage。
+
+Readback capsule 必由 exact protected main 派生並綁 source tree／identity、current full35 profile、existing static Job etag/template hash、固定 migration runner digest及 descending exact35／exact34／exact33 bundle refs。Owner只可對既有 `ai-pdm-prod-migration-runner` 提交三種固定 per-execution override：current-source bundle args與 `PGOPTIONS=-c default_transaction_read_only=on`；不得接受 target、project、region、job、stage、command、SQL或任意 environment。每個 probe 在 submission 前確認全 Job inventory 無 active execution，寫 immutable submission intent；POST outcome unknown 時只讀 provider inventory找唯一 exact execution，存在 submission 而無 execution或 cardinality不唯一時停止，不重送。
+
+Probe以第一個 native PASS 為 ledger readback：必須 `applied=0`、`ledgerBootstrap.created=false`、`replayed=ledgerCount`、exact manifest/version/name/checksum、cross-database denial與固定 Job/execution template。35 PASS 表示085存在，後續須比對active catalog/hash；不一致時停止 production mutation並走下一個 forward-only corrective migration。34或33 PASS才證明085不存在；34表示084已套用，33表示084亦未套用。其後 full35仍使用既有完整 owner workflow與同一正式授權，且084沒有 `unlinkedProfileCleanupRef`時只安裝函式、不執行資料清理。三個 probe皆未PASS則狀態UNKNOWN並停止。所有 failure execution、Job projection、native與terminal result保存在own release prefix；readback成功不代表candidate、traffic或DEV-122整體PASS。
+
+### 26.3 Change-scoped validation executor（CAPA-002）
+
+Protected required checks、official-source review、single capsule、recovery及production authorization不變。`scripts/plan-production-slice.mjs`以 base/head changed paths產生 versioned plan；owner prepare與 CI 只可依該 plan 執行 `scripts/run-production-slice-tests.mjs` 的 applicable groups。authorization/database slice 不得因未改 worker／preview／recognition而載入其歷史 queue；worker或 shared release/recovery input仍須其完整 evidence。`.github/workflows`、package/build control、planner本身、DEV-012/117共同 release source及任何 unknown path一律 `FULL` fail closed，執行 legacy `test:dev-117:continuous`與既有完整 QC。
+
+Planner只能減少 unchanged responsibility 的重跑，不能將 required provider check標為 skipped或把 local evidence升為release authority。每個 plan保存 base/head、changed files、slice reasons與 gates；空集合也視為 unknown/full。Owner workflow只接受 protected exact main，planner不增加actor輸入、target/stage/SQL/env override，也不改 migration／IAM／Secret／traffic authority。
+
+### 26.4 Pinned in-flight source and bounded read recovery（2026-10-18）
+
+長任務的來源以 freeze／dispatch 時已綁定的 exact merge commit／tree 為準，不追逐持續移動的 main。`dev012-verify-official-source` 仍要求允許的 main workflow 與 checkout=`GITHUB_SHA`；owner runtime 的 workflow SHA／capsule equality、期限、service concurrency 及現況驗證不變。當 main 前進，GitHub provider exact SHA compare 必須回傳 `ahead`、`behind_by=0`、正整數 `ahead_by`，且 base／merge-base 皆為原 source；唯一 merged PR、tree、現行 branch protection/ruleset 全部仍須成立。拒絕 divergent、removed、未知來源；不替換 source、不新增舊版發布或 downgrade override。Verifier 結果另記 observed branch revision、HEAD/ANCESTOR 與 read retry 次數，歷史收據不重寫。[GitHub compare API](https://docs.github.com/en/rest/commits/commits#compare-two-commits)
+
+`dev012-read-retry` 為 official-source 與 owner transport 的共同 GET 復原入口（GitHub run、Cloud Run/provider JSON、固定 generation 的 GCS bytes）。每個讀取最多三次，含退避共用 20 秒（official source）或 30 秒（owner）上限；已辨識暫時網路錯誤及 500/502/503/504 退避 500/1000 毫秒。429 必須有可遵守且不超過 5 秒的 Retry-After；剩餘期限不足也停止，不提前重送。401/403/404、JSON/契約錯誤與未知故障不重試；POST/PATCH/DELETE、token 刷新、IAM 擴張均不在自動重試範圍。未知寫入仍先 provider readback，沒有盲目 Job 重送或延長 capsule 期限。
+
+本機 `npm run test:production-slice:affected` 預設將每個完成群組立即寫入 `output/qa/release-efficiency/checkpoints/` 的 immutable receipt，失敗也保存並停止下游；重啟只重用 24 小時內相同 clean HEAD/tree、測試命令、依賴 lock、Node/OS、sparse scope 與環境 hash 的最近 PASS。dirty／不明輸入、較新 FAIL、損壞、過期、`--fresh` 都重跑；不寫入環境明文。完整 gate 從既有 continuous test manifest 展開，沒有刪減測試。CI/GitHub Actions 與 owner profile 禁止讀本機快取，provider required checks 不減免。本機 checkpoint 不作 production authority，也不聲稱驗證跨來源等價；無關文件依 §26.3 分流，真正與 Git HEAD 綁定的測試不任意跨 SHA 重用。Planner 包含刪除與 rename 的舊責任，避免錯判 docs-only。
+
+Owner 產物沿用既有 immutable build／migration receipts 與 source/profile/live-state 驗證，不另建快取。RD readback submission 續跑保留原 observedAt，只比對相同 operation/source/digest/args 的 sealed intent；重啟先查回既有 execution，不因新時間誤拒或再次提交。原失敗收據保留。已終結或過期 capsule 仍走既有 recovery／重新準備。
+
+固定 `.github/workflows/read-ai-pdm-rd-permission-state-production.yml` 作為兩種 closed diagnostic operation 的共同入口，保留原 WIF filename、main/environment/source gate 與 concurrency。`source/rd-permission-readback` 沿用既有 RD operation 與 deployer；`source/production-diagnostics` 僅接受 `{schemaVersion:"aipdm.production-diagnostic-operation.v1",kind:"service-state",operationId,sourceRevision}`，由現有 verifier GET 固定 `jenfu-platform-prod/asia-east1/ai-pdm-prod`，只輸出 revision/generation/traffic，不讀 DB、執行 Job、輸出 env/Secret 或變更服務。兩者都接受 `gs://jenfu-platform-prod-aipdm-release/source/<namespace>/<name>.json#sha256=<hash>`，禁止任意 target/command/SQL。新的服務狀態快照以 content hash 寫入 own `receipts/diagnostics`，不覆寫舊 readback；沒有新增 IAM/WIF/Secret 資源。新增不同診斷能力仍須同一入口的 source review/CI，不是任意 workflow 放權。
+
+變更範圍仍由 §26.3 planner 決定；不取消 required CI、不跳過共享 release-control 的 full gate。既有授權在同任務正常重試中延續，不因 SHA／attempt 改變重問，但不擴張責任面。本修訂不影響正在執行的既有版本，也不宣告正式發布或 DEV-122 驗收。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。

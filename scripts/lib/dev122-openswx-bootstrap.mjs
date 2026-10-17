@@ -5,7 +5,7 @@ import os from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
-import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, OWNER_DEADLINE_SECONDS, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, OWNER_DEADLINE_SECONDS, assertWorkerDescriptor, normalizeWorkerTemplate, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile, assertNumericSecret, assertWorkerReceipt, assertWorkerJob, assertPausedScheduler, assertCurrentReadyScheduler, assertTerminalExecution, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerReceipt, readWorkerDescriptor, readWorkerFullEvidence, readBootstrapSupplementalIam, readPriorWorkerActivation, assertPausedDrainReceipt, assertWorkerBuildSource, assertNoActiveExecutions, updateWorkerJob, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, assertFiniteReceiptRequestBinding, boundOpenSwxTransport, writeWorkerJson, isPausedAppRepair, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { resolveWorkerArtifact, publishWorkerReuseJson, assertReuseSourceLock, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs, admitAiPdmEvidenceSource, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, runAiPdmNestedHistoryReplay, isAiPdmNativeHistoryCollectionActive, assertAiPdmNativeHistoryIngress, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
 
@@ -143,8 +143,8 @@ export async function readCurrentReadyWorkerResources(options) {
     secretMetadata: before.secrets, iamSha256: resources.iamSha256, raw, resourcesUnchanged: true, mutationPerformed: false, quiescenceClaimed: false }
 }
 /** Fixed normal-actor PAUSED observation. It confers no database admission. */
-export async function readPausedRepairCurrentResources({ transport, profile, descriptor, image, supplementalIam, secretVersionIam = null, currentTemplate = null }) {
-  assertOpenSwxWorkerProfile(profile)
+export async function readPausedRepairCurrentResources({ transport, profile, descriptor, image, supplementalIam, secretVersionIam = null, currentTemplate = null, historicalProfile = false }) {
+  ;(historicalProfile ? assertHistoricalOpenSwxWorkerProfile : assertOpenSwxWorkerProfile)(profile)
   const raw = []
   const observed = { ...transport, request: async (url, opts) => {
     const method = opts?.method ?? 'GET'
@@ -384,7 +384,7 @@ async function readCompletedFirstProof({ transport, profile, descriptor, plan, b
   const credentials = inherited ? { partial: inherited.partial } : await readPartialFirstCredentialProof({ transport, profile, descriptor, plan, build, basis, priorBootstrapInputRef: partial.priorBootstrapInputRef,
     allowCredentialProgress: true, registryAuthority: { deadlineAt: oldInput.deadlineAt, completedAt: bootstrap.value.observedAt } })
   if (canonicalize(credentials.partial) !== canonicalize(partial)) fail('OPENSWX_COMPLETED_FIRST_JOIN_INVALID')
-  await assertPausedDrainReceipt(transport, paused.value, oldDescriptor, profile)
+  await assertPausedDrainReceipt(transport, paused.value, oldDescriptor, profile, undefined, undefined, false, { currentSourceRevision: oldDescriptor.sourceRevision })
   const facts = bootstrap.value.facts, selftest = workerTemplate(profile, oldBuild.image, null, 'selftest')
   if (facts.bootstrapKind !== 'FIRST_CREATE' || canonicalize(facts.resourceApplyRef) !== canonicalize(oldInput.resourceApplyRef)
     || (inherited ? canonicalize(facts.completedFirstBootstrap) !== canonicalize(inherited.completed) || facts.partialFirstBootstrap != null
@@ -998,7 +998,7 @@ export function assertFailedDailyIsolationProof(proof, execution, profile) {
   return proof
 }
 /** Historical validation is sealed-only. Live checks are explicit at mutation boundaries. */
-export async function readFailedDailyContinuation({ transport, continuation, prior, profile, readSource, historicalReadSource = null, currentManifest, verifyProvider = false, deadlineAt }) {
+export async function readFailedDailyContinuation({ transport, continuation, prior, profile, readSource, historicalReadSource = null, currentManifest, verifyProvider = false, deadlineAt, historicalProfile = false }) {
   assertFailedDailyContinuation(continuation)
   const oldInput = (await transport.readJson(continuation.bootstrapInputRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const inputKeys = ['schemaVersion', 'descriptorRef', 'workerBuildRef', 'deadlineAt', 'receiptId', 'bootstrapKind', 'priorActivationRef', 'pausedDrainedRef', ...(oldInput?.prebuildIamContinuationRef ? ['prebuildIamContinuationRef'] : [])]
@@ -1011,11 +1011,11 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
   if (await optional(transport, uri + '.json') || await optional(transport, uri + '-preflight.json')) fail('OPENSWX_FAILED_DAILY_ALREADY_COMPLETED')
   const raw = (await transport.readJson(oldInput.descriptorRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   const historical = historicalReadSource ?? readSource
-  const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: historical(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision })
+  const old = await readWorkerDescriptor({ transport, ref: oldInput.descriptorRef, profileBytes: historical(WORKER_PROFILE_PATH, raw.sourceRevision), sourceRevision: raw.sourceRevision, historicalProfile })
   if (old.value.purpose !== 'build_only' || old.value.artifactMode !== 'REUSE_VERIFIED') fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   failedDailySame(old.profile, profile)
   historical.authorizeOrigin?.(old.value.sourceRevision)
-  const artifact = await resolveWorkerArtifact({ transport, descriptor: old.value, profile, readSource, historicalReadSource, buildRef: oldInput.workerBuildRef })
+  const artifact = await resolveWorkerArtifact({ transport, descriptor: old.value, profile, readSource, historicalReadSource: historical === readSource ? null : historical, buildRef: oldInput.workerBuildRef })
   if (artifact.input.failedDailyContinuation || artifact.image !== prior.build.image || !currentManifest) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   failedDailySame(artifact.currentManifest.entries, currentManifest.entries)
   for (const manifest of [artifact.currentManifest, currentManifest]) for (const entry of manifest.entries) {
@@ -1042,9 +1042,9 @@ export async function readFailedDailyContinuation({ transport, continuation, pri
   }
   const paused = (await transport.readJson(oldInput.pausedDrainedRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   assertWorkerReceipt(paused, old.value, 'paused-drained', { actor: profile.normalActor, image: prior.build.image })
-  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource)
+  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, historical, undefined, historicalProfile, { currentSourceRevision: old.value.sourceRevision })
   failedDailySame(paused.facts.priorActivationRef, prior.activationRef)
-  const selftest = workerTemplate(profile, artifact.image, null, 'selftest')
+  const selftest = workerTemplate(profile, artifact.image, null, 'selftest', { historicalProfile })
   const readFinite = async (suffix, owner, template) => {
     const row = await optional(transport, uri + suffix + '.json'); if (!row) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
     assertWorkerReceipt(row.value, owner, 'finite-terminal', { actor: profile.normalActor, image: artifact.image })
@@ -1377,9 +1377,9 @@ export async function readPartialFailedDailyPause({ transport, inputRef, failed,
   })
 }
 /** A paused failed attempt is not READY and never supplies current DB admission. */
-export async function readFailedDailyCurrentResources({ transport, profile, prior, supplementalIam, secretVersionIam, failed }) {
+export async function readFailedDailyCurrentResources({ transport, profile, prior, supplementalIam, secretVersionIam, failed, historicalProfile = false }) {
   const currentTemplate = failed.currentTemplateMode === 'SELFTEST' ? failed.selftest : prior.template
-  const capture = () => readPausedRepairCurrentResources({ transport, profile, descriptor: prior.descriptor, image: prior.build.image, supplementalIam, secretVersionIam, currentTemplate })
+  const capture = () => readPausedRepairCurrentResources({ transport, profile, descriptor: prior.descriptor, image: prior.build.image, supplementalIam, secretVersionIam, currentTemplate, historicalProfile })
   const observationStartedAt = transport.now(), partialRaw = []
   let admittedFailed = failed
   if (failed.partialPause) {
@@ -1695,7 +1695,7 @@ async function readSuccessfulDailyBootstrapContinuation({ transport, continuatio
     || facts.normalTemplateSha256 !== sha256(canonicalize(workerTemplate(profile, build.image, prior.descriptor.tokenSecretVersion)))) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
   const paused = (await transport.readJson(oldInput.pausedDrainedRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   assertWorkerReceipt(paused, old.value, 'paused-drained')
-  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource)
+  await assertPausedDrainReceipt(transport, paused, { ...old.value, workerBuildRef: oldInput.workerBuildRef }, profile, readSource, undefined, false, { currentSourceRevision: old.value.sourceRevision })
   if (canonicalize(paused.facts.priorActivationRef) !== canonicalize(priorActivationRef)) fail('OPENSWX_CONTINUATION_JOIN_INVALID')
   const captured = (await transport.readJson(continuation.priorRecoveryRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
   if (!captured || Object.keys(captured).sort().join(',') !== 'observedAt,priorActivationRef,priorCapsuleRef,priorTemplate,schemaVersion,targetDescriptorRef'
@@ -1879,7 +1879,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   if (stage === 'resources') return executeOpenSwxResources({ transport, profile, descriptor: descriptor.value, descriptorRef: descriptor.ref, build, root, readSource, oauthToken, uri, deadlineAt: input.deadlineAt, actor, firstReconciliation: input.priorResourceRequestRef ? { priorResourceRequestRef: input.priorResourceRequestRef, priorWorkerBuildRef: input.priorWorkerBuildRef, ...(input.priorBootstrapInputRef ? { priorBootstrapInputRef: input.priorBootstrapInputRef } : {}), ...(input.completedFirstBootstrapInputRef ? { completedFirstBootstrapInputRef: input.completedFirstBootstrapInputRef, completedFirstPauseInputRef: input.completedFirstPauseInputRef, supplementalIamReadbackRef: input.supplementalIamReadbackRef } : {}) } : null })
   let partialFirstBootstrap = null, completedFirstBootstrap = null, supplementalIam = null
   const daily = input.drainKind === 'DAILY_DB_VERIFIED' || input.bootstrapKind === 'DAILY_REFRESH'
-  const prior = daily ? await readPriorWorkerActivation(transport, input.priorActivationRef, profile, readSource) : null
+  const prior = daily ? await readPriorWorkerActivation(transport, input.priorActivationRef, profile, readSource, undefined, false, { currentSourceRevision: descriptor.value.sourceRevision }) : null
   if (daily && artifact.currentAssociation && canonicalize(input.priorActivationRef) !== canonicalize(artifact.currentAssociation.priorActivationRef)) fail('OPENSWX_REUSE_PRIOR_ACTIVATION_JOIN_INVALID')
   if (!!input.failedDailyContinuation !== !!artifact.failedDaily) fail('OPENSWX_FAILED_DAILY_JOIN_INVALID')
   if (input.failedDailyContinuation) { assertFailedDailyContinuation(input.failedDailyContinuation); failedDailySame(input.failedDailyContinuation,artifact.input.failedDailyContinuation) }
@@ -1989,7 +1989,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
       existingPause = await optional(transport, uri)
       if (existingPause) {
         assertWorkerReceipt(existingPause.value, descriptor.value, 'paused-drained', { actor: actor.email, image: prior.build.image })
-        await assertPausedDrainReceipt(transport, existingPause.value, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile, readSource)
+        await assertPausedDrainReceipt(transport, existingPause.value, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile, readSource, undefined, false, { currentSourceRevision: descriptor.value.sourceRevision })
         if (canonicalize(existingPause.value.previousRefs) !== canonicalize([inputRef, input.workerBuildRef])
           || canonicalize(existingPause.value.facts.bootstrapContinuation) !== canonicalize(bootstrapContinuation)
           || canonicalize(existingPause.value.facts.priorActivationRef) !== canonicalize(input.priorActivationRef)
@@ -2038,7 +2038,7 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   if (daily) {
     const drained = (await transport.readJson(input.pausedDrainedRef, BUCKET, [WORKER_RECEIPT_PREFIX])).value
     assertWorkerReceipt(drained, descriptor.value, 'paused-drained')
-    await assertPausedDrainReceipt(transport, drained, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile, readSource)
+    await assertPausedDrainReceipt(transport, drained, { ...descriptor.value, workerBuildRef: input.workerBuildRef }, profile, readSource, undefined, false, { currentSourceRevision: descriptor.value.sourceRevision })
     if (canonicalize(drained.facts.priorActivationRef) !== canonicalize(input.priorActivationRef)) fail('OPENSWX_DAILY_DRAIN_INVALID')
     if (failedPatchRow) await verifyPriorCanonicalRuntime({ transport, profile, prior, appProfile, readSource })
     else await verifyPriorLive({ transport, profile, prior, appProfile, readSource })

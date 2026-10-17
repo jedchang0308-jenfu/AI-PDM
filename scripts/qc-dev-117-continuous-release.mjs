@@ -9,7 +9,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 if (!/^\/output export-ignore$/mu.test(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'))) throw new Error('PRODUCTION_SOURCE_ARCHIVE_OUTPUT_BOUNDARY_MISSING')
-const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'scripts/lib/dev121-principal-fence-operator.test.mjs', 'scripts/dev122-openswx-secret-version-iam.test.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs', 'scripts/lib/dev122-sharp-ci-evidence.test.mjs', 'scripts/dev122-openswx-owner-release.test.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
+const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'scripts/dev117-release-efficiency.test.mjs', 'scripts/lib/dev121-principal-fence-operator.test.mjs', 'scripts/dev122-openswx-secret-version-iam.test.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs', 'scripts/dev122-rd-permission-ledger-readback.test.mjs', 'scripts/lib/dev122-rd-permission-state-readback.test.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs', 'scripts/lib/dev122-sharp-ci-evidence.test.mjs', 'scripts/dev122-openswx-owner-release.test.mjs', 'scripts/dev122-openswx-bootstrap.test.mjs', 'scripts/dev117-ai-pdm-continuous-release.test.mjs', 'scripts/dev117-production-migration-runner.test.mjs', 'scripts/dev012-official-source-review.test.mjs', 'scripts/dev012-owner-release-runtime.test.mjs', 'scripts/dev015-gcc-applicability.test.mjs', 'scripts/dev015-gcc-aligned-new-applicability.test.mjs', 'scripts/dev015-aligned-new-loader-inspection.test.mjs', 'scripts/dev012-owner-stage-executor.test.mjs', 'scripts/dev121-principal-candidate-smoke.test.mjs', 'scripts/dev121-principal-only-recovery-server.test.mjs', 'scripts/lib/dev121-principal-only-release.test.mjs', 'scripts/lib/dev121-principal-recovery-operator.test.mjs', 'scripts/dev121-principal-recovery-operator.test.mjs'], { cwd: root, encoding: 'utf8' }); process.stdout.write(run.stdout); process.stderr.write(run.stderr); if (run.status !== 0 || (run.stdout.match(/S1B-20/g) || []).length < 10) process.exit(run.status || 1)
 const imageTempPrefix = path.resolve(os.tmpdir(), 'aipdm-dev122-sharp-');
 const imageTemp = fs.mkdtempSync(imageTempPrefix);
 const imageScope = { project: 'AI-PDM', purpose: 'DEV122 patched sharp converter and static preview contract CI', port: null, parentPid: process.pid, executable: process.execPath, PDM_DATA_DIR: path.join(imageTemp, 'unused-data'), PDM_REPOSITORY_DIR: path.join(imageTemp, 'unused-repository'), mutationScope: 'IMAGE_ONLY_NO_SCHEMA_OR_FIXTURES', cleanupCondition: 'Finite own Node CLI exits; own temp removed' };
@@ -48,6 +48,9 @@ const ownerExitCommands = [
 })
 const runId = `DEV117-S1B-${new Date().toISOString().replace(/[-:.]/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`; const dir = path.join(root, 'output', 'dev-117', 's1b', runId); fs.mkdirSync(dir, { recursive: true })
 const files = [
+  'scripts/lib/dev012-read-retry.mjs', 'scripts/lib/production-slice-checkpoints.mjs', 'scripts/dev117-production-diagnostics.mjs', 'scripts/dev117-release-efficiency.test.mjs',
+  '.github/workflows/read-ai-pdm-rd-permission-state-production.yml', 'scripts/dev122-rd-permission-state-readback.mjs',
+  'scripts/lib/dev012-official-source-review.mjs', 'scripts/dev012-verify-official-source.mjs', 'scripts/dev012-official-source-review.test.mjs',
   'scripts/dev122-openswx-history-basis.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/dev121-owner-release-proof.test.mjs', 'qa/dev-122/fixtures/secret-version-iam-fixture.mjs', '.ai-doc/specs/DEV-121-target-authorization-boundary.md',
   'qa/dev-122/fixtures/secret-version-iam-fixture.mjs',
   'qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json',
@@ -55,7 +58,10 @@ const files = [
   'infra/google-cloud/dev-122-openswx-release-readback/secret-version-readback.tf', '.ai-doc/qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json',
   'scripts/lib/dev121-preactivation-abort-continuation.mjs',
   'scripts/lib/dev117-ai-pdm-program-only-baseline.mjs', 'scripts/dev117-ai-pdm-program-only-baseline.test.mjs',
-  'scripts/lib/dev122-openswx-worker-artifact-reuse.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
+  'scripts/lib/dev122-rd-permission-ledger-readback.mjs', 'scripts/dev122-rd-permission-ledger-readback.mjs', 'scripts/dev122-rd-permission-ledger-readback.test.mjs',
+  'scripts/lib/dev122-historical-reader.mjs', 'scripts/lib/dev122-openswx-worker-artifact-reuse.mjs', 'scripts/dev122-openswx-worker-artifact-reuse.test.mjs',
+  'scripts/lib/dev122-openswx-profile-context.mjs', 'scripts/lib/dev122-openswx-profile-context.test.mjs',
+  'scripts/lib/production-slice-plan.mjs', 'scripts/plan-production-slice.mjs', 'scripts/run-production-slice-tests.mjs', 'scripts/production-slice-plan.test.mjs',
   'scripts/lib/dev122-openswx-native-source-reader.mjs',
   'scripts/dev117-ai-pdm-prerequisite-producer.mjs',
   'config/release/dev122-openswx-worker.json', 'scripts/lib/dev122-openswx-owner-release.mjs', 'scripts/dev122-openswx-owner-release.test.mjs',
@@ -63,6 +69,9 @@ const files = [
   ...['main.tf', 'backend.tf', 'versions.tf', 'README.md'].map(name => `infra/google-cloud/dev-122-openswx-worker/${name}`),
   'config/access-control/jenfu-role-catalog.v7.json', 'db/postgres/085_dev121_principal_role_catalog_v7.sql',
   'scripts/dev121-build-principal-role-catalog-v7.mjs', 'scripts/dev121-build-principal-role-catalog-v7.test.mjs',
+  'scripts/lib/dev122-rd-permission-state-readback.mjs', 'scripts/lib/dev122-rd-permission-state-readback.test.mjs',
+  'scripts/dev122-rd-permission-state-readback.mjs', '.github/workflows/read-ai-pdm-rd-permission-state-production.yml',
+  '.ai-doc/qa/DEV-122-RD-permission-test-account-verification-plan-2026-10-17.md',
   'scripts/qc-dev-121-rd-capabilities-postgres.mjs',
   '.ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md',
   '.ai-doc/qa/qa-dev-117-ai-pdm-independent-production-deployment-validation-plan-2026-09-07.md',

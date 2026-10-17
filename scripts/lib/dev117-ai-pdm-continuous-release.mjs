@@ -234,23 +234,30 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
   const inputs = [...inputBlock.matchAll(/^\s{6}([A-Za-z0-9_-]+):/gm)].map((match) => match[1])
   const jobs = [...source.matchAll(/^  ([a-z][a-z-]+):\s*$/gm)].map((match) => match[1])
   const stages = [...source.matchAll(/scripts\/dev117-ai-pdm-continuous-release\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.bind\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.bind\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
+  const readbackStages = [...source.matchAll(/scripts\/dev122-rd-permission-ledger-readback\.mjs --stage ([a-z]+) --capsule-ref "\$\{\{ steps\.bind\.outputs\.capsule_uri \}\}" --capsule-sha256 "\$\{\{ steps\.bind\.outputs\.capsule_sha256 \}\}"/g)].map((match) => match[1])
   if (JSON.stringify(inputs) !== JSON.stringify(['releaseCapsuleRef']) ||
       JSON.stringify(jobs) !== JSON.stringify(['migrate']) ||
       JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate']) ||
-      (source.match(/^        run:/gm) ?? []).length !== 5 ||
-      (source.match(/^      - run:/gm) ?? []).length !== 2 ||
+      JSON.stringify(readbackStages) !== JSON.stringify(['classify', 'readback']) ||
+      (source.match(/^      - run:/gm) ?? []).length !== 1 ||
+      !source.includes('run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner') ||
       !source.includes('permissions: { contents: read, pull-requests: read, id-token: write }') ||
       !source.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       (source.match(/^    environment: production$/gm) ?? []).length !== 1 ||
       !source.includes('group: production-release-ai-pdm-prod') ||
       !source.includes('cancel-in-progress: false') ||
+      !source.includes("if: ${{ steps.classify.outputs.kind == 'rd_readback' }}") ||
+      (source.match(/if: \$\{\{ steps\.classify\.outputs\.kind == 'release' \}\}/gu) ?? []).length !== 4 ||
+      !source.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"') ||
+      !source.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"') ||
+      /dev122-rd-permission-ledger-readback\.mjs --stage publish|--release-id|--deadline-at/iu.test(source) ||
       source.includes('continue-on-error:') ||
       /\b(?:gcloud|terraform|psql|curl)\b/iu.test(source)) fail('MIGRATION_ONLY_WORKFLOW_DRIFT', 'Migration-only workflow must stop after migrate')
   for (const [step, identity] of [['verifier_auth', 'verifier'], ['builder_auth', 'builder'], ['deployer_auth', 'deployer']]) {
     if (!source.includes(`- id: ${step}`) || !source.includes(`service_account: aipdm-prod-${identity}@jenfu-platform-prod.iam.gserviceaccount.com`) ||
         !source.includes(`GOOGLE_OAUTH_ACCESS_TOKEN: "\${{ steps.${step}.outputs.access_token }}"`)) fail('MIGRATION_ONLY_IDENTITY_DRIFT', step)
   }
-  const expectedCondition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && (assertion.workflow_ref == '${local.github_workflow_ref}' || assertion.workflow_ref == '${local.github_principal_migration_ref}') && assertion.environment == 'production' && assertion.ref == 'refs/heads/main' && assertion.event_name == 'workflow_dispatch'"
+  const expectedCondition = "assertion.repository_id == '${var.github_repository_id}' && assertion.repository_owner_id == '${var.github_repository_owner_id}' && (assertion.workflow_ref == '${local.github_workflow_ref}' || assertion.workflow_ref == '${local.github_principal_migration_ref}' || assertion.workflow_ref == '${local.github_rd_permission_readback_ref}') && assertion.environment == 'production' && assertion.ref == 'refs/heads/main' && assertion.event_name == 'workflow_dispatch'"
   const observedCondition = workloadIdentitySource.match(/^  attribute_condition = "([^"]+)"$/m)?.[1]
   if (observedCondition !== expectedCondition) fail('MIGRATION_ONLY_WIF_DRIFT', 'Migration-only workflow WIF binding drifted')
   return true

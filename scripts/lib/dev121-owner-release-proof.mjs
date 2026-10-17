@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { canonicalize, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
+import { bindHistoricalReader } from './dev122-historical-reader.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -374,11 +375,11 @@ export function readAiPdmQualifiedHistoryProjection({ basisRef, kind, frontierRe
 async function installNestedHistoryBasis({ state, basisRef, transport, readSource, sourceRevision, suppliedHistoricalReadSource = null }) {
   if (!H40.test(sourceRevision ?? '') || typeof readSource?.createHistoricalReader !== 'function'
     || typeof readSource.assertCurrentFrozen !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
-   let historicalReadSource = suppliedHistoricalReadSource
-   if (historicalReadSource) {
-     if (historicalReadSource.isHistorical !== true || historicalReadSource.sourceRevision !== sourceRevision
-       || typeof historicalReadSource !== 'function' || typeof historicalReadSource.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
-   } else {
+    let historicalReadSource = suppliedHistoricalReadSource
+    if (historicalReadSource) {
+      historicalReadSource = bindHistoricalReader(historicalReadSource, sourceRevision, 'HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+      if (typeof historicalReadSource.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+    } else {
      const rawHistorical = readSource.createHistoricalReader(sourceRevision)
      if (typeof rawHistorical !== 'function' || typeof rawHistorical.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
      historicalReadSource = (name, revision) => rawHistorical(name, revision)
@@ -517,8 +518,8 @@ export async function runAiPdmNestedHistoryReplay({ checkpointRef, checkpointDes
    const readerSourceRevision = await readAiPdmNativeHistoryIssuerRevision({ basisRef, transport })
   let historicalReadSource = suppliedHistoricalReadSource
   if (historicalReadSource) {
-    if (historicalReadSource.isHistorical !== true || historicalReadSource.sourceRevision !== readerSourceRevision
-      || typeof historicalReadSource !== 'function' || typeof historicalReadSource.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+    historicalReadSource = bindHistoricalReader(historicalReadSource, readerSourceRevision, 'HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
+    if (typeof historicalReadSource.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
   } else {
     const rawHistorical = readSource.createHistoricalReader(readerSourceRevision)
     if (typeof rawHistorical !== 'function' || typeof rawHistorical.readImmutableArchive !== 'function') fail('HISTORY_BASIS_NESTED_CHECKPOINT_INVALID')
@@ -1401,12 +1402,20 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         for (const manifest of [retained.artifact.originalManifest, retained.artifact.currentManifest]) {
           for (const entry of manifest.entries) if (sha256(sourceReader(entry.path, manifest.sourceRevision)) !== entry.sha256) fail('PROGRAM_ONLY_WORKER_INPUT_DRIFT')
         }
-        reuse.assertWorkerArchive(archived.bytes, retained.artifact.currentManifest.entries)
+        // Program-only observations may replay an admitted historical worker
+        // profile.  The manifest itself carries the source-bound profile hash;
+        // using the current global profile constant here rejects a valid
+        // historical archive as OPENSWX_REUSE_RECIPE_DRIFT.
+        reuse.assertWorkerArchive(archived.bytes, retained.artifact.currentManifest.entries, {
+          workerProfileSha256: retained.artifact.currentAssociation.workerProfileSha256,
+        })
         const origin = retained.artifact.originBuild, source = origin.facts.sourceObject
         const originalBytes = await readAiPdmEvidenceLeaf({ ref: { uri: source.uri, sha256: source.sha256 }, kind: 'source',
           generation: source.generation, crc32c: source.crc32c, sourceRevision: origin.sourceRevision,
           read: async () => (await readAiPdmSourceArchive({ source, sourceRevision: origin.sourceRevision, deadlineAt: observationDeadline(), token, fetchImpl })).bytes })
-        reuse.assertWorkerArchive(originalBytes, retained.artifact.originalManifest.entries)
+        reuse.assertWorkerArchive(originalBytes, retained.artifact.originalManifest.entries, {
+          workerProfileSha256: retained.artifact.originBuild.workerProfileSha256,
+        })
       }
       let migrationMode = migrate ? programOnly ? PROGRAM_ONLY_DISPOSITION : 'FORWARD_APPLIED' : null
       if (repair) {

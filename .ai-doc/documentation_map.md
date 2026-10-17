@@ -1,3 +1,7 @@
+## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
+
+PR #312 required CI PASS並合併為官方main `b42458b3cd05924be566ea05e536454f6751c883`；R60 source freeze及12-row metadata no-op/read完成，worker越過reader-scope修正後，於舊600秒profile仍被current-only 1200秒validator／固定SHA拒絕。新最小修正改用既有historical validator，僅允許完整固定的1200或600秒profile；exact bytes仍由下游descriptor SHA及origin相容檢查綁定，其他歷史、來源與provider fence不變。R60 association／owner dispatch／build／migration／service／traffic／正式資料皆未變更，舊input不重送。[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r28-historical-replay-profile-binding--2026-10-16)。
+
 ## DEV-121#rd-capabilities — 2026-10-15 nested history predecessor reader admission（聚焦回歸 PASS，待受保護發布）
 
 R58 以 PR #311 merged main完成新 source freeze及 source-bound metadata zero-change readback；worker reuse已越過舊 profile錯誤，但 nested replay僅授權 current archive reader，真正讀 predecessor tree的historical issuer reader因獨立scope而以 `OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID` 拒絕。新最小修正只在 predecessor lock及來源admission完成後，把同一exact revision交給實際reader；outer immutable archive授權與原path／depth／clock／hash／cycle／profile／provider fence全數保留。獨立許可集合fixture與完整worker回歸1/1、99/99 PASS。PR #312 required CI兩次在非產品 local-workload contract的Windows PowerShell外層45秒timeout穩定拒絕，停止原狀重試後將外層上限改120秒，三個child各10秒及原隔離斷言不變；R58 input不重送，後續仍走新source-bound受保護attempt。[契約](specs/DEV-121-target-authorization-boundary.md#native-history-basis-v1)／[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r27-nested-history-predecessor-reader-admission--2026-10-15)。
@@ -76,6 +80,8 @@ synthetic genuine failed→completed→partial→completed chain 在原程式 tr
 完整 producer 回歸證實 one-edge 補修仍在新 association 發布後撞到深度上限，PR282 因 P1 暫停合併；先前 standalone 313/377 PASS 僅為歷史支援。partial input 與 descriptor 是同一 source binding 的 metadata envelopes，均保留同 root／ancestry／hash但不額外計深度，真正 association／serving capsule true與上限8不变。failed-mode producer 以 exact future association URI／wire hash及true edge，在發布association前驗resource proof，避免下游重播才拒絕。完整synthetic RED已重現原拒絕與第二階段先發布才拒絕；focused3/3 GREEN驗證合法3outer pre/post-publication＋sealed consumer、非法4outer拒絕且無authority publication、metadata第9與cycle拒絕，provider lifecycle mutation=0。新bytes完整回歸314/314、native QC378/378、catalog3/3、abort6/6、DB boundary22檔、app型別與隔離build PASS，artifact/primary/cleanup=true；獨立6-luna來源審查P0/P1=0（其Git status存取受限，parent已核對7個範圍内修改）；085、RD正式切流及fixture頁面驗收尚未完成。沿用DEV-121#rd-capabilities與原授權，不重送舊Job、不延長過期input、不改其他帳號或清理範圍。
 
 # AI_PDM 文件地圖
+
+規則入口（2026-10-18）：[AGENTS.md](../AGENTS.md) 保留專案資料／發布邊界與按需文件路由；一般修復不新增治理文件或重跑無關驗證。這次僅規範精簡，不改 release executor、required CI 或任何業務驗收狀態。
 
 ## DEV-121#rd-capabilities — 2026-10-12 finite operation / partial pause 承接補修（本地 PASS，待受保護發布）
 
@@ -2598,3 +2604,12 @@ DEV-109 current local regression checkpoint（2026-09-01 05:44Z）：fresh unifi
 ## DEV-122 RD 圖號工作台權限獨立切片（2026-10-16）
 
 [B53 本機證據與因果邊界](qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)：v7 catalog／085／Principal request guard／workbench API 與 UI capability vector 的共同路徑已核對；新增 exact native selector，以 signed RD actor 驗圖號 read／submit 正向、同 actor approval 403、QA workbench 403 與拒絕前後零 side effect，結果 `LOCAL_RD_PERMISSION_PASS`。產品碼、catalog、085 與其他 repository 均未修改。正式 085 applied、active catalog、實際 grant/session、真實 UI/API 與 release 仍未證，required CI 待 PR；不升格為 production acceptance 或 whole DEV-122 PASS。
+## 2026-10-17 current delivery and validation routing
+
+- Project rule: [`AGENTS.md`](../AGENTS.md), sections `Pull request convergence` and `CAPA002_RELEASE_DECOUPLING_V1`.
+- CAPA authority: [`CAPA-002`](capa-register.md#capa-002).
+- Release execution contract: [DEV-117 release spec §26.3](specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md#263-change-scoped-validation-executor-capa-002).
+- DEV-122 application: [DEV-122 current contract](specs/DEV-122-ai-pdm-internal-function-issues.md#2026-10-17-currentcapa-002-全面導入變更責任驗證與獨立切片交付).
+- Executable source: `scripts/plan-production-slice.mjs`, `scripts/run-production-slice-tests.mjs`, `.github/workflows/ci.yml`; shared or unknown inputs deliberately route to the legacy full gate.
+- Local validation checkpoint: [DEV-122 / CAPA-002 changed-responsibility validation](qa/DEV-122-CAPA-002-change-scoped-validation-local-2026-10-17.md).
+- Corrective readback and test-account verification plan: [DEV-122 RD permission test-account plan](qa/DEV-122-RD-permission-test-account-verification-plan-2026-10-17.md); fixed runner source is `scripts/lib/dev122-rd-permission-state-readback.mjs` with its contract test, and the plan keeps synthetic production-shaped verification separate from real-human acceptance.

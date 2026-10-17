@@ -53,7 +53,11 @@ export function createGitArchive(root, sourceRevision) {
     return result.stdout
   }
   if (String(run(['rev-parse', 'HEAD'])).trim() !== sourceRevision || String(run(['status', '--porcelain=v1', '--untracked-files=all'])).trim() !== '') fail('SOURCE_CHECKOUT_NOT_FROZEN')
-  const bytes = run(['archive', '--format=tar', '--prefix=source/', sourceRevision], null)
+  // Keep the owner archive byte-identical to the worker reader and reuse
+  // verifier on Windows checkouts.  Without the explicit canonical recipe,
+  // core.autocrlf/core.eol can rewrite text entries and fail closed later as
+  // OPENSWX_REUSE_RECIPE_DRIFT.
+  const bytes = run(['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', sourceRevision], null)
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) fail('SOURCE_ARCHIVE_FAILED')
   return bytes
 }

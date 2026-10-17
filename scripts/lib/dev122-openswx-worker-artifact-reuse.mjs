@@ -6,15 +6,19 @@ import path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { assertImmutableRef, canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
-import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
+import { WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile } from './dev122-openswx-profile-context.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyWorkerResources, readPausedRepairWorkerResources, verifyNormalActor, assertFailedDailyContinuation, readFailedDailyContinuation, readCompletedFailedDailyCheckpoint, readPartialFailedDailyPause, readFailedDailyCurrentResources, assertFailedDailyIsolationProof, assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_EXECUTION_PATHS, readSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmEvidenceLeaf, admitAiPdmEvidenceSource, readAiPdmObservationInputs, assertAiPdmPausedRepairReadbacks, recordAiPdmHistoryObject, recordAiPdmHistorySourceBlob, deriveAiPdmNativeHistoryBasis, qualifyAiPdmNativeHistoryBasis, assertAiPdmNativeHistoryIngress, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmActiveHistoryIssuerRevision } from './dev121-owner-release-proof.mjs'
+import { isHistoricalReaderFor, isHistoricalReaderMode } from './dev122-historical-reader.mjs'
+import { assertHistoricalProfileCompatibility, historicalProfileOptions, readHistoricalWorkerProfile, resolveWorkerProfileContext, sourceReaderForRevision } from './dev122-openswx-profile-context.mjs'
+
+export { assertHistoricalProfileCompatibility, historicalProfileOptions, readHistoricalWorkerProfile, sourceReaderForRevision } from './dev122-openswx-profile-context.mjs'
 
 const BUCKET = 'jenfu-platform-prod-aipdm-release', H40 = /^[a-f0-9]{40}$/u, H64 = /^[a-f0-9]{64}$/u
-const historicalReaderCache = new WeakMap()
 const READER = 'scripts/lib/openswx-reader', ENTRY = 'scripts/run-openswx-metadata-job.mjs'
 const APP_PROFILE = 'config/release/dev117-ai-pdm-independent-production-v3.json'
 const SOURCE_BINDING_KEYS = ['sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'workerProfileSha256', 'resourcePlanHash']
@@ -34,51 +38,12 @@ function exact(value, keys, code = 'OPENSWX_REUSE_SCHEMA_INVALID') {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join(',') !== [...keys].sort().join(',')) fail(code)
 }
 function same(a, b, code = 'OPENSWX_REUSE_JOIN_INVALID') { if (canonicalize(a) !== canonicalize(b)) fail(code) }
-function historicalProfileOptions(readSource) { return { historicalProfile: readSource?.isHistorical === true } }
-function assertHistoricalProfileCompatibility(currentProfile, historicalProfile) {
-  const normalize = value => {
-    const copy = structuredClone(value)
-    copy.bounds = { ...copy.bounds, ownerDeadlineSeconds: null }
-    return copy
-  }
-  same(normalize(historicalProfile), normalize(currentProfile), 'OPENSWX_REUSE_HISTORICAL_PROFILE_DRIFT')
-}
 export function assertHistoricalCheckpointDescriptor(checkpoint, currentProfile, historicalReadSource) {
   if (typeof historicalReadSource !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-  const historicalProfileBytes = historicalReadSource(WORKER_PROFILE_PATH, checkpoint.sourceRevision)
-  let historicalProfile
-  try { historicalProfile = assertHistoricalOpenSwxWorkerProfile(JSON.parse(historicalProfileBytes)) }
-  catch (error) { if (error?.code) throw error; fail('OPENSWX_WORKER_PROFILE_INVALID') }
+  const { bytes: historicalProfileBytes, profile: historicalProfile } = readHistoricalWorkerProfile(historicalReadSource, checkpoint.sourceRevision)
   assertHistoricalProfileCompatibility(currentProfile, historicalProfile)
   assertWorkerDescriptor(checkpoint, historicalProfile, sha256(historicalProfileBytes), checkpoint.sourceRevision, { historicalProfile: true })
   return historicalProfile
-}
-function sourceReaderForRevision(readSource, revision) {
-  if (readSource?.sourceRevision === revision) return readSource
-  if (readSource?.isHistorical !== true && readSource?.supportsAdmittedHistoricalRevisions === true) return readSource
-  let current = false
-  if (typeof readSource?.readArchive === 'function') {
-    try { readSource.readArchive(revision); current = true } catch { current = false }
-  }
-  if (current) return readSource
-  // Reuse an already admitted historical reader only when it exposes an
-  // explicit capability for the requested predecessor revision.
-  if (readSource?.isHistorical === true && typeof readSource === 'function'
-    && readSource.historicalReadRevisions instanceof Set && readSource.historicalReadRevisions.has(revision)) return readSource
-  if (typeof readSource === 'function') {
-    const cached = historicalReaderCache.get(readSource)?.get(revision)
-    if (cached) return cached
-  }
-  readSource?.authorizeOrigin?.(revision)
-   if (typeof readSource?.createHistoricalReader !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-   const historical = readSource.createHistoricalReader(revision)
-   if (typeof historical !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-   historical.sourceRevision ??= revision
-   historical.isHistorical = true
-   const byRevision = historicalReaderCache.get(readSource) ?? new Map()
-   byRevision.set(revision, historical)
-   historicalReaderCache.set(readSource, byRevision)
-   return historical
 }
 function canReadArchiveAt(readSource, revision) {
   if (typeof readSource?.readArchive !== 'function') return false
@@ -181,7 +146,7 @@ export function createWorkerGitReader(root, sourceRevision) {
   readSource.readImmutableArchive = revision => { if (!permitted.has(revision)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'); return git(root, ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=tar', '--prefix=source/', revision]) }
   return readSource
 }
-export function workerInputManifest(treeBytes, readSource, revision) {
+export function workerInputManifest(treeBytes, readSource, revision, options = {}) {
   if (!Buffer.isBuffer(treeBytes) || !H40.test(revision ?? '')) fail('OPENSWX_REUSE_TREE_INVALID')
   const entries = []
   for (const row of treeBytes.toString('utf8').split('\0').filter(Boolean)) {
@@ -195,10 +160,10 @@ export function workerInputManifest(treeBytes, readSource, revision) {
     entries.push({ path: match[4], mode: match[1], size: bytes.length, sha256: sha256(bytes) })
   }
   entries.sort((a, b) => a.path.localeCompare(b.path, 'en'))
-  assertManifest(entries)
+  assertManifest(entries, options)
   return { schemaVersion: 'aipdm.openswx-worker-input-manifest.v1', sourceRevision: revision, entries }
 }
-function assertManifest(entries) {
+function assertManifest(entries, { workerProfileSha256 = PROFILE_SHA } = {}) {
   rows(entries, 512)
   const seen = new Set()
   for (const row of entries) {
@@ -206,14 +171,14 @@ function assertManifest(entries) {
     if (!safePath(row.path) || !proofPath(row.path) || seen.has(row.path) || !['100644', '100755'].includes(row.mode) || !Number.isSafeInteger(row.size) || row.size < 0 || !H64.test(row.sha256)) fail('OPENSWX_REUSE_MANIFEST_INVALID')
     seen.add(row.path)
   }
-  for (const [name, hash] of [[`${READER}/Dockerfile`, DOCKER_SHA], ['.dockerignore', IGNORE_SHA], [WORKER_PROFILE_PATH, PROFILE_SHA]]) {
+  for (const [name, hash] of [[`${READER}/Dockerfile`, DOCKER_SHA], ['.dockerignore', IGNORE_SHA], [WORKER_PROFILE_PATH, workerProfileSha256]]) {
     if (entries.find(row => row.path === name)?.sha256 !== hash) fail('OPENSWX_REUSE_RECIPE_DRIFT')
   }
   if (!seen.has(ENTRY) || entries.filter(row => row.path.startsWith(`${READER}/vendor/`)).length !== 19) fail('OPENSWX_REUSE_MANIFEST_INVALID')
 }
 /** Compare actual Linux archive bytes/modes. Never normalize CRLF or provider bytes. */
-export function assertWorkerArchive(archive, entries) {
-  assertManifest(entries)
+export function assertWorkerArchive(archive, entries, options = {}) {
+  assertManifest(entries, options)
   if (!Buffer.isBuffer(archive) || archive.length > 256 * 1024 * 1024) fail('OPENSWX_REUSE_ARCHIVE_INVALID')
   let bytes = archive
   if (archive[0] === 0x1f && archive[1] === 0x8b) { try { bytes = gunzipSync(archive, { maxOutputLength: 256 * 1024 * 1024 }) } catch { fail('OPENSWX_REUSE_ARCHIVE_INVALID') } }
@@ -245,9 +210,13 @@ export function assertWorkerArchive(archive, entries) {
   same(found, entries, 'OPENSWX_REUSE_ARCHIVE_INPUT_MISMATCH')
   return { archiveSha256: sha256(archive), manifestSha256: sha256(canonicalize(entries)), inputCount: found.length }
 }
-function manifestEqual(original, current) {
-  for (const manifest of [original, current]) { exact(manifest, ['schemaVersion', 'sourceRevision', 'entries']); if (manifest.schemaVersion !== 'aipdm.openswx-worker-input-manifest.v1' || !H40.test(manifest.sourceRevision)) fail('OPENSWX_REUSE_MANIFEST_INVALID'); assertManifest(manifest.entries) }
-  same(original.entries, current.entries, 'OPENSWX_REUSE_EXECUTABLE_DRIFT')
+function manifestEqual(original, current, { originalProfileSha256 = PROFILE_SHA, currentProfileSha256 = PROFILE_SHA } = {}) {
+  for (const [manifest, workerProfileSha256] of [[original, originalProfileSha256], [current, currentProfileSha256]]) { exact(manifest, ['schemaVersion', 'sourceRevision', 'entries']); if (manifest.schemaVersion !== 'aipdm.openswx-worker-input-manifest.v1' || !H40.test(manifest.sourceRevision)) fail('OPENSWX_REUSE_MANIFEST_INVALID'); assertManifest(manifest.entries, { workerProfileSha256 }) }
+  // The profile blob is validated against each source revision above. It is
+  // intentionally excluded from executable equality because a compatible
+  // control-plane deadline change produces different profile bytes while the
+  // worker executable and vendor closure remain identical.
+  same(original.entries.filter(row => row.path !== WORKER_PROFILE_PATH), current.entries.filter(row => row.path !== WORKER_PROFILE_PATH), 'OPENSWX_REUSE_EXECUTABLE_DRIFT')
 }
 export function createWorkerEvidenceContext() { return createAiPdmEvidenceContext() }
 function context() { return createWorkerEvidenceContext() }
@@ -272,18 +241,17 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   assertReuseSourceLock(priorLock, capsule.sourceRevision)
   admitAiPdmEvidenceSource(priorLockRow)
   if (priorLock.sourceSha256 !== capsule.sourceSha256 || priorLock.releaseId !== capsule.releaseId || priorLock.migrationManifestSha256 !== capsule.migrationManifestSha256) fail('OPENSWX_REUSE_PRIOR_SOURCE_LOCK_INVALID')
-   const historical = historicalReadSource ?? sourceReaderForRevision(readSource, sourceRevision ?? capsule.sourceRevision)
-   if (historicalReadSource || historical !== readSource) historical.sourceRevision ??= sourceRevision ?? capsule.sourceRevision
-   if (historicalReadSource) historical.isHistorical = true
+    const historicalRevision = sourceRevision ?? capsule.sourceRevision
+    const historical = sourceReaderForRevision(historicalReadSource ?? readSource, historicalRevision, { forceHistorical: historicalReadSource !== null || historicalRevision !== readSource?.sourceRevision })
   const fullRef = ownRef(capsule.openswxWorkerRef), full = (await read(transport, fullRef)).value
   const fullContext = descend(capsuleContext, fullRef, false)
   return runAiPdmEvidenceContext(fullContext, async () => {
   const profileBytes = historical(WORKER_PROFILE_PATH, capsule.sourceRevision)
   const priorProfile = JSON.parse(profileBytes)
-  if (historical.isHistorical === true) assertHistoricalOpenSwxWorkerProfile(priorProfile)
+   if (isHistoricalReaderFor(historical, capsule.sourceRevision, readSource)) assertHistoricalOpenSwxWorkerProfile(priorProfile)
   else assertOpenSwxWorkerProfile(priorProfile)
   assertHistoricalProfileCompatibility(profile, priorProfile)
-  assertWorkerDescriptor(full, priorProfile, sha256(profileBytes), capsule.sourceRevision, historicalProfileOptions(historical))
+   assertWorkerDescriptor(full, priorProfile, sha256(profileBytes), capsule.sourceRevision, historicalProfileOptions(historical, capsule.sourceRevision, readSource))
   if (full.purpose !== 'full') fail('OPENSWX_REUSE_PRIOR_FULL_REQUIRED')
   assertWorkerReceipt(activation, full, 'activation', { actor: profile.normalActor })
   readSource.authorizeOrigin?.(full.sourceRevision)
@@ -295,7 +263,7 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   return runAiPdmEvidenceContext(bootstrapContext, async () => {
   const bootstrap = (await read(transport, bootstrapDescriptor.bootstrapRef)).value
   assertWorkerReceipt(bootstrap, bootstrapDescriptor, 'bootstrap', { actor: profile.normalActor, image: resolved.image })
-  const template = workerTemplate(profile, resolved.image, full.tokenSecretVersion), entry = resolved.sourceEntryProof
+   const template = workerTemplate(profile, resolved.image, full.tokenSecretVersion, 'normal', { historicalProfile: true }), entry = resolved.sourceEntryProof
   if (activation.templateSha256 !== sha256(canonicalize(template))) fail('OPENSWX_REUSE_PRIOR_TEMPLATE_INVALID')
   same(activation.facts.sourceEntryRef, entry)
   same(activation.facts.numericCredentials, { token: full.tokenSecretVersion, registry: full.registrySecretVersion })
@@ -304,7 +272,7 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   assertWorkerReceipt(preflight, bootstrapDescriptor, 'cloud-preflight', { actor: profile.normalActor, image: resolved.image })
   assertWorkerReceipt(drained, bootstrapDescriptor, 'paused-drained', { actor: profile.normalActor })
   await assertFailedDailyFullJoin({transport,profile,artifact:resolved,descriptor:full,bootstrap,preflight,paused:drained})
-  const normalSha = sha256(canonicalize(template)), selftestSha = sha256(canonicalize(workerTemplate(profile, resolved.image, null, 'selftest')))
+   const normalSha = sha256(canonicalize(template)), selftestSha = sha256(canonicalize(workerTemplate(profile, resolved.image, null, 'selftest', { historicalProfile: true })))
   if (preflight.facts.isolationVerified !== true || preflight.facts.noCad !== true || preflight.facts.normalTemplateSha256 !== normalSha || preflight.facts.selftestTemplateSha256 !== selftestSha
     || bootstrap.facts.normalTemplateSha256 !== normalSha || bootstrap.facts.selftestTemplateSha256 !== selftestSha
     || drained.facts.schedulerPaused !== true || drained.facts.noActiveOrUnknown !== true || !Number.isFinite(Date.parse(drained.facts.quiescenceCompletedAt))) fail('OPENSWX_REUSE_PRIOR_OPERATIONAL_CHAIN_INVALID')
@@ -319,8 +287,13 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   }
   const build = resolved.originBuild, buildRef = resolved.originBuildRef
   if (!Array.isArray(build.previousRefs) || build.previousRefs.length !== 1) fail('OPENSWX_REUSE_BUILD_ORIGIN_REF_INVALID')
+   const originReadSource = sourceReaderForRevision(historical, build.sourceRevision, { forceHistorical: build.sourceRevision !== historical.sourceRevision })
   const buildOnlyRef = ownRef(build.previousRefs[0]), buildOnly = (await read(transport, buildOnlyRef)).value
-  assertWorkerDescriptor(buildOnly, profile, build.workerProfileSha256, build.sourceRevision, historicalProfileOptions(readSource))
+  // The original build-only descriptor is bound to the origin build's source
+  // revision. Validate it with that revision's admitted historical profile;
+  // the current release profile may have a source-bound contract change (for
+  // example the owner deadline) even when the worker artifact is reusable.
+   assertWorkerDescriptor(buildOnly, priorProfile, build.workerProfileSha256, build.sourceRevision, historicalProfileOptions(originReadSource, build.sourceRevision, readSource))
   if (buildOnly.schemaVersion !== 'aipdm.openswx-worker-descriptor.v1' || buildOnly.purpose !== 'build_only') fail('OPENSWX_REUSE_ORIGINAL_BUILD_ONLY_REQUIRED')
   assertWorkerReceipt(build, buildOnly, 'build', { actor: 'aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com', image: activation.image })
   assertWorkerBuildSource(build, buildOnly)
@@ -331,12 +304,11 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   assertImmutableRef(approved.capacityGateRef, BUCKET, [WORKER_RECEIPT_PREFIX, 'receipts'])
   await read(transport, approved.capacityGateRef, [WORKER_RECEIPT_PREFIX, 'receipts']) // historical qualification, never current lease
   readSource.authorizeOrigin?.(build.sourceRevision)
-  const originReadSource = sourceReaderForRevision(historical, build.sourceRevision)
   const originalProfile = originReadSource(WORKER_PROFILE_PATH, build.sourceRevision)
   const originalProfileValue = JSON.parse(originalProfile)
-  if (originReadSource.isHistorical === true) assertHistoricalOpenSwxWorkerProfile(originalProfileValue)
+   if (isHistoricalReaderFor(originReadSource, build.sourceRevision, readSource)) assertHistoricalOpenSwxWorkerProfile(originalProfileValue)
   else assertOpenSwxWorkerProfile(originalProfileValue)
-  if (sha256(originalProfile) !== build.workerProfileSha256 || (originReadSource.isHistorical !== true && sha256(originalProfile) !== PROFILE_SHA)) fail('OPENSWX_REUSE_ORIGIN_PROFILE_INVALID')
+   if (sha256(originalProfile) !== build.workerProfileSha256 || (!isHistoricalReaderFor(originReadSource, build.sourceRevision, readSource) && sha256(originalProfile) !== PROFILE_SHA)) fail('OPENSWX_REUSE_ORIGIN_PROFILE_INVALID')
   const applyRef = ownRef(bootstrap.facts.resourceApplyRef ?? bootstrap.facts.resourceProvenance?.priorResourceApplyRef), applied = (await read(transport, applyRef)).value
   if (applied.schemaVersion !== 'aipdm.openswx-resource-apply.v1' || applied.status !== 'APPLIED' || applied.actor !== profile.normalActor || applied.evidenceScope !== 'PRODUCTION_PROVIDER'
     || applied.resourcePlanHash !== approved.resourcePlanHash) fail('OPENSWX_REUSE_ORIGINAL_APPLY_INVALID')
@@ -400,9 +372,28 @@ export async function resolveWorkerArtifact({ transport, descriptor, profile, re
     return { currentAssociation: null, originBuild: build, originBuildRef: buildRef, originDescriptor: descriptor, image: build.image, sourceEntryProof: assertWorkerBuildSource(build, descriptor), graphContext: ctx }
   }
   if ((!isPausedAppRepair(descriptor) && !['aipdm.openswx-worker-descriptor.v2','aipdm.openswx-worker-descriptor.v4'].includes(descriptor.schemaVersion)) || descriptor.artifactMode !== 'REUSE_VERIFIED' || typeof readSource !== 'function') fail('OPENSWX_REUSE_RESOLVER_INVALID')
-  if (isPausedAppRepair(descriptor)) assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision, historicalProfileOptions(readSource))
+  let resolvedProfile = profile
+  if (isPausedAppRepair(descriptor)) {
+    const profileContext = resolveWorkerProfileContext({
+      readSource: historicalReadSource ?? readSource,
+      currentReadSource: readSource,
+      sourceRevision: descriptor.sourceRevision,
+      currentSourceRevision: readSource?.sourceRevision,
+      currentProfile: profile,
+      forceHistorical: historicalReadSource !== null || descriptor.sourceRevision !== readSource?.sourceRevision,
+    })
+    if (profileContext.profileSha256 !== descriptor.workerProfileSha256) fail('OPENSWX_WORKER_PROFILE_INVALID')
+    resolvedProfile = profileContext.profile
+    assertWorkerDescriptor(
+      descriptor,
+      profileContext.profile,
+      profileContext.profileSha256,
+      descriptor.sourceRevision,
+      profileContext.descriptorOptions,
+    )
+  }
   if (descriptor.schemaVersion === 'aipdm.openswx-worker-descriptor.v4') {
-    assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision, historicalProfileOptions(readSource))
+    assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision, historicalProfileOptions(readSource, descriptor.sourceRevision, readSource))
     const activeIssuerRevision = readAiPdmActiveHistoryIssuerRevision()
     let historyReadSource = historicalReadSource ?? readSource
     let historyIssuerRevision = activeIssuerRevision ?? historicalReadSource?.sourceRevision ?? descriptor.sourceRevision
@@ -414,10 +405,10 @@ export async function resolveWorkerArtifact({ transport, descriptor, profile, re
       historyReadSource = sourceReaderForRevision(readSource, historyIssuerRevision)
     }
     await ensureAiPdmNativeHistoryBasis({ basisRef: descriptor.historyBasisRef, transport, readSource: historyReadSource, sourceRevision: historyIssuerRevision, sourceLockRef: historyIssuerLockRef,
-      archiveReadSource: historyReadSource !== readSource && readSource?.isHistorical !== true ? readSource : null })
+       archiveReadSource: historyReadSource !== readSource && !isHistoricalReaderMode(readSource) ? readSource : null })
   }
   same(buildRef, descriptor.workerBuildRef)
-   return resolveAssociation({ transport, descriptor, profile, readSource, readerSourceRevision, historicalReadSource, buildRef, ctx, repair: isPausedAppRepair(descriptor) })
+   return resolveAssociation({ transport, descriptor, profile: resolvedProfile, readSource, readerSourceRevision, historicalReadSource, buildRef, ctx, repair: isPausedAppRepair(descriptor) })
   })
 }
 async function resolveAssociation({ transport, descriptor, profile, readSource, readerSourceRevision = null, historicalReadSource = null, buildRef, ctx, repair }) {
@@ -443,7 +434,7 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
      : null
    const originReaderRevision = historyIssuer
      ? historyIssuer.sourceRevision
-     : (readerSourceRevision ?? readAiPdmActiveHistoryIssuerRevision() ?? (readSource?.isHistorical === true && H40.test(readSource.sourceRevision ?? '') ? readSource.sourceRevision : descriptor.sourceRevision))
+      : (readerSourceRevision ?? readAiPdmActiveHistoryIssuerRevision() ?? (isHistoricalReaderMode(readSource) && H40.test(readSource.sourceRevision ?? '') ? readSource.sourceRevision : descriptor.sourceRevision))
    const origin = await readOrigin({ transport, priorActivationRef: association.priorActivationRef, profile, readSource, historicalReadSource, sourceRevision: originReaderRevision, ctx: next })
   for (const [key, ref] of Object.entries(origin.originalRefs)) same(association.artifactOrigin[key], ref)
   for (const name of ['sourceRevision', 'sourceArchiveSha256', 'workerProfileSha256', 'image']) same(association.artifactOrigin[name], origin.build[name])
@@ -467,7 +458,7 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
     secretVersionIam = await readSecretVersionIamForReuse({ transport, input, supplemental, sourceRevision: descriptor.sourceRevision, profile, readSource })
   }
   const original = (await read(transport, association.executableProof.originalManifestRef)).value, current = (await read(transport, association.executableProof.currentManifestRef)).value
-  manifestEqual(original, current)
+  manifestEqual(original, current, { originalProfileSha256: origin.build.workerProfileSha256, currentProfileSha256: association.workerProfileSha256 })
   if (original.sourceRevision !== origin.build.sourceRevision || current.sourceRevision !== descriptor.sourceRevision) fail('OPENSWX_REUSE_MANIFEST_INVALID')
   const infra = (await read(transport, association.resourceAssociation.infraManifestRef)).value
   exact(infra, ['schemaVersion', 'sourceRevision', 'sourceHashes', 'plan', 'resourcePlanHash', 'originalApprovedResourcePlanRef', 'originalResourceApplyRef'])
@@ -532,7 +523,7 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
     same(worker.priorActivationRef, origin.prior.activationRef); same(worker.retainedWorkerDescriptorRef, origin.prior.bootstrapDescriptorRef)
     predecessorBaselineRef = worker.pausedBaselineRef
     const predecessor = await read(transport, predecessorBaselineRef)
-    assertPausedRepairBaseline(predecessor.value, profile)
+     assertPausedRepairBaseline(predecessor.value, origin.historicalProfile ?? profile, { historicalProfile: !!origin.historicalProfile })
     continuationDepth = predecessor.value.continuationDepth + 1
     if (continuationDepth > 8) fail('OPENSWX_REPAIR_CONTINUATION_DEPTH')
   }
@@ -578,7 +569,7 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
     sourceRevision: intent.sourceRevision, revision: revisionName, artifactDigest: graph.chain.deployment.value.artifactDigest, workerStatus, serviceEtag: service.etag, generalTrafficPercent: 100, tagCount: 0, canonicalOrigin: profile.canonicalOrigin }, predecessorBaselineRef, continuationDepth, raw, observedAt, graph, admission }
 }
 async function validateRepairBaseline({ transport, baseline, baselineRef, association, descriptor, input, inputRef, origin, profile, readSource, ctx }) {
-  assertPausedRepairBaseline(baseline, profile)
+  assertPausedRepairBaseline(baseline, origin.historicalProfile ?? profile, { historicalProfile: !!origin.historicalProfile })
   same(baseline.inputRef, inputRef); same(baseline.priorActivationRef, input.priorActivationRef); same(baseline.predecessorBaselineRef, input.predecessorBaselineRef)
   same(baseline.servingApp.capsuleRef, input.servingCapsuleRef); same(baseline.retainedWorkerDescriptorRef, origin.prior.bootstrapDescriptorRef)
   same(baseline.source, Object.fromEntries(SOURCE_BINDING_KEYS.map(key => [key, association[key]])))
@@ -729,7 +720,7 @@ async function validateFailedDailyResourceProof({ transport, value, association,
       ? assertAiPdmNativeHistoryIngress({ basisRef: input.historyBasisRef, sourceRevision: activeIssuerRevision })
       : qualifiedHistoryBindings({ sourceRevision: association.sourceRevision, sourceLockRef: association.sourceLockRef, input, prior: origin.prior, profile, currentManifest }))
     : null
-  const originalFailed = await readFailedDailyContinuation({ transport, continuation: value.failedDailyContinuation, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest })
+  const originalFailed = await readFailedDailyContinuation({ transport, continuation: value.failedDailyContinuation, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest, historicalProfile: true })
   let failed = await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef,
     failed: originalFailed, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest, historyBasisRef: input.historyBasisRef, historyBindings: basisBindings, replayNestedCheckpoint: carryHistory })
   failed = await readPartialFailedDailyPause({transport,inputRef:input.partialFailedDailyPauseInputRef,failed,prior:origin.prior,profile,readSource,historicalReadSource,currentManifest,historyBasisRef:input.historyBasisRef,historyBindings:basisBindings,replayNestedPause:carryHistory,failureRef:input.failedDailyPauseFailureRef,frontierRebaseRef:input.frontierRebaseRef,frontierRebaseSourceLockRef:input.sourceLockRef,frontierRebaseDeadlineAt:input.deadlineAt,frontierRebaseCompletedCheckpointRef:input.completedFailedDailyCheckpointRef})
@@ -771,7 +762,7 @@ async function validateFailedDailyResourceProof({ transport, value, association,
   } }
   const supplementalIam = await readBootstrapSupplementalIam(transport, origin.prior.bootstrap, origin.prior.bootstrapDescriptor, profile, readSource, association.sourceRevision, historicalReadSource)
   const secretVersionIam = await readSecretVersionIamForReuse({transport,input,supplemental:supplementalIam,sourceRevision:association.sourceRevision,profile,readSource})
-  const reconstructed = await readFailedDailyCurrentResources({transport:sealed,profile,prior:origin.prior,supplementalIam:supplementalIam?{...supplementalIam,readSource}:null,secretVersionIam,failed})
+  const reconstructed = await readFailedDailyCurrentResources({transport:sealed,profile,prior:origin.prior,supplementalIam:supplementalIam?{...supplementalIam,readSource}:null,secretVersionIam,failed,historicalProfile:true})
   same(reconstructed.snapshot,snapshot,'OPENSWX_FAILED_DAILY_RESOURCE_INVALID')
   if (cursor!==bodies.length) fail('OPENSWX_FAILED_DAILY_RESOURCE_INVALID')
   const actualIsolation = (await read(transport,value.isolationProviderExecutionRef)).value, actualRecovery = (await read(transport,value.recoveryProviderExecutionRef)).value
@@ -848,12 +839,15 @@ export async function verifyWorkerArtifactReuse({ transport, artifact, profile, 
   for (const manifest of [artifact.originalManifest, artifact.currentManifest]) for (const row of manifest.entries) if (sha256(readSource(row.path, manifest.sourceRevision)) !== row.sha256) fail('OPENSWX_REUSE_GIT_INPUT_MISMATCH')
   const old = await sourceObject(transport, { uri: artifact.originBuild.facts.sourceObject.uri, sha256: artifact.originBuild.facts.sourceObject.sha256 }, artifact.originBuild.facts.sourceObject)
   const current = await sourceObject(transport, artifact.input.currentSourceObjectRef)
-  assertWorkerArchive(old.bytes, artifact.originalManifest.entries); assertWorkerArchive(current.bytes, artifact.currentManifest.entries)
+  assertWorkerArchive(old.bytes, artifact.originalManifest.entries, { workerProfileSha256: artifact.originBuild.workerProfileSha256 }); assertWorkerArchive(current.bytes, artifact.currentManifest.entries, { workerProfileSha256: artifact.currentAssociation.workerProfileSha256 })
   const security = await providerSecurity(transport, artifact.origin, profile)
   const supplementalIam = await readBootstrapSupplementalIam(transport, artifact.origin.prior.bootstrap, artifact.bootstrapDescriptor, profile, readSource, artifact.currentAssociation.sourceRevision)
   // Before DAILY pause this is actual READY. Protected full stages have their
   // own PAUSED/drain leases and must never substitute an ENABLED observation.
   return { security, supplementalIam }
+}
+function descriptorProfileFields(profile) {
+  return Object.fromEntries(['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot'].map(key => [key, profile[key]]))
 }
 export function buildProgramOnlyReadyWorkerDescriptor({ artifact, profile }) {
   const association = artifact.currentAssociation, prior = artifact.origin?.prior, owner = prior?.bootstrapDescriptor ?? prior?.descriptor
@@ -861,7 +855,7 @@ export function buildProgramOnlyReadyWorkerDescriptor({ artifact, profile }) {
   if (!association || association.schemaVersion !== 'aipdm.openswx-worker-build-association.v1' || association.status !== 'PASS'
     || prior?.activation?.facts?.workerStatus !== 'READY' || prior.activation.facts.schedulerState !== 'ENABLED'
     || !owner || isPausedAppRepair(owner) || owner.purpose !== 'full' || artifact.image !== prior.build.image) fail('OPENSWX_PROGRAM_ONLY_DESCRIPTOR_ORIGIN_INVALID')
-  const descriptor = { ...owner, schemaVersion: 'aipdm.openswx-worker-descriptor.v2', artifactMode: 'REUSE_VERIFIED', purpose: 'full',
+  const descriptor = { ...owner, ...descriptorProfileFields(profile), schemaVersion: 'aipdm.openswx-worker-descriptor.v2', artifactMode: 'REUSE_VERIFIED', purpose: 'full',
     sourceRevision: association.sourceRevision, sourceArchiveSha256: association.sourceArchiveSha256,
     workerProfileSha256: association.workerProfileSha256, resourcePlanHash: association.resourcePlanHash, workerBuildRef: artifact.associationRef }
   assertWorkerDescriptor(descriptor, profile, descriptor.workerProfileSha256, descriptor.sourceRevision)
@@ -870,7 +864,7 @@ export function buildProgramOnlyReadyWorkerDescriptor({ artifact, profile }) {
 export function buildDailyReuseWorkerDescriptor({ artifact, profile }) {
   const owner = artifact.origin?.prior?.bootstrapDescriptor ?? artifact.origin?.prior?.descriptor;
   const association = artifact.currentAssociation;
-  const descriptor = artifact.failedDaily ? { ...owner, schemaVersion: association.historyBasisRef ? 'aipdm.openswx-worker-descriptor.v4' : 'aipdm.openswx-worker-descriptor.v2', ...(association.historyBasisRef ? { historyBasisRef: association.historyBasisRef } : {}), artifactMode: 'REUSE_VERIFIED', purpose: 'full',
+  const descriptor = artifact.failedDaily ? { ...owner, ...descriptorProfileFields(profile), schemaVersion: association.historyBasisRef ? 'aipdm.openswx-worker-descriptor.v4' : 'aipdm.openswx-worker-descriptor.v2', ...(association.historyBasisRef ? { historyBasisRef: association.historyBasisRef } : {}), artifactMode: 'REUSE_VERIFIED', purpose: 'full',
     sourceRevision: association.sourceRevision, sourceArchiveSha256: association.sourceArchiveSha256, workerProfileSha256: association.workerProfileSha256, resourcePlanHash: association.resourcePlanHash, workerBuildRef: artifact.associationRef } : buildProgramOnlyReadyWorkerDescriptor({ artifact, profile });
   descriptor.purpose = 'build_only';
   for (const key of ['bootstrapRef', 'cloudPreflightRef', 'pausedDrainedRef', 'tokenSecretVersion', 'registrySecretVersion']) delete descriptor[key];
@@ -937,14 +931,21 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   const originalReadSource = historicalReadSource ?? readSource
   const originalTree = originalReadSource.readTree(origin.build.sourceRevision)
   if (sha256(originalTree) !== origin.originalCapsule.sourceSha256) fail('OPENSWX_REUSE_ORIGINAL_TREE_INVALID')
-  const original = workerInputManifest(originalTree, originalReadSource, origin.build.sourceRevision), current = workerInputManifest(currentTree, readSource, revision)
-  manifestEqual(original, current)
+  const original = workerInputManifest(originalTree, originalReadSource, origin.build.sourceRevision, { workerProfileSha256: origin.build.workerProfileSha256 }), current = workerInputManifest(currentTree, readSource, revision, { workerProfileSha256: sha256(profileBytes) })
+  // The worker recipe is source-bound, but the owner deadline is a control-plane
+  // bound rather than an executable/artifact input. Validate that any admitted
+  // predecessor profile is compatible with the current profile, then bind each
+  // manifest to the profile bytes that actually produced that source revision.
+  // Using the current hash for both manifests rejects a safe deadline-only
+  // profile change as OPENSWX_REUSE_RECIPE_DRIFT.
+  if (origin.historicalProfile) assertHistoricalProfileCompatibility(profile, origin.historicalProfile)
+  manifestEqual(original, current, { originalProfileSha256: origin.build.workerProfileSha256, currentProfileSha256: sha256(profileBytes) })
   const oldObject = await sourceObject(transport, { uri: origin.build.facts.sourceObject.uri, sha256: origin.build.facts.sourceObject.sha256 }, origin.build.facts.sourceObject)
   const currentObject = await sourceObject(transport, input.currentSourceObjectRef)
   if (!input.currentSourceObjectRef.uri.startsWith(`gs://${BUCKET}/source/releases/${lock.releaseId}/`)) fail('OPENSWX_REUSE_CURRENT_ARCHIVE_SOURCE_INVALID')
   let currentTar; try { currentTar = gunzipSync(currentObject.bytes, { maxOutputLength: 256 * 1024 * 1024 }) } catch { fail('OPENSWX_REUSE_ARCHIVE_INVALID') }
   if (!currentTar.equals(readSource.readArchive(revision))) fail('OPENSWX_REUSE_CURRENT_ARCHIVE_SOURCE_INVALID')
-  assertWorkerArchive(oldObject.bytes, original.entries); assertWorkerArchive(currentObject.bytes, current.entries)
+  assertWorkerArchive(oldObject.bytes, original.entries, { workerProfileSha256: origin.build.workerProfileSha256 }); assertWorkerArchive(currentObject.bytes, current.entries, { workerProfileSha256: sha256(profileBytes) })
   for (const row of origin.build.facts.sourceHashes) if (original.entries.find(input => input.path === row.path)?.sha256 !== row.sha256) fail('OPENSWX_REUSE_ORIGINAL_SOURCE_HASH_INVALID')
   const sourceHashes = OPENSWX_TERRAFORM_PATHS.map(name => ({ path: name, sha256: sha256(readSource(name, revision)) })), plan = infraPlan(profile, sourceHashes)
   same(plan, origin.approved.plan, 'OPENSWX_REUSE_RESOURCE_DRIFT'); same(plan, origin.appliedPlan.plan, 'OPENSWX_REUSE_RESOURCE_DRIFT')
@@ -960,7 +961,7 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
    const checkpointHistoryBasisRef = effectiveHistoryBasisRef
    const checkpointHistoryBindings = basisBindings
    const replayNestedCarry = Boolean(effectiveHistoryBasisRef && !input.historyBasisRef)
-  const originalFailed = failedMode ? await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest: current, verifyProvider: true, deadlineAt: input.deadlineAt }) : null
+  const originalFailed = failedMode ? await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest: current, verifyProvider: true, deadlineAt: input.deadlineAt, historicalProfile: true }) : null
    let failed = failedMode ? await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef,
      failed: originalFailed, prior: origin.prior, profile, readSource, historicalReadSource, currentManifest: current, historyBasisRef: checkpointHistoryBasisRef, historyBindings: checkpointHistoryBindings, replayNestedCheckpoint: replayNestedCarry }) : null
    if (failedMode) failed = await readPartialFailedDailyPause({transport,inputRef:input.partialFailedDailyPauseInputRef,failed,prior:origin.prior,profile,readSource,historicalReadSource,currentManifest:current,historyBasisRef:effectiveHistoryBasisRef,historyBindings:checkpointHistoryBindings,replayNestedPause:replayNestedCarry,failureRef:input.failedDailyPauseFailureRef,frontierRebaseRef:input.frontierRebaseRef,frontierRebaseSourceLockRef:input.sourceLockRef,frontierRebaseDeadlineAt:input.deadlineAt,frontierRebaseCompletedCheckpointRef:input.completedFailedDailyCheckpointRef})
@@ -1167,7 +1168,7 @@ function qualifierExecutableSource(readSource, revision) {
     // internally consistent; comparing them with the current checkout would
     // reject every legitimate source transition. The current (non-historical)
     // path still requires an exact checkout byte match.
-    if (!Buffer.isBuffer(pinned) || (readSource.isHistorical !== true && !readFileSync(path.join(repo, name)).equals(pinned)))
+    if (!Buffer.isBuffer(pinned) || (!isHistoricalReaderMode(readSource) && !readFileSync(path.join(repo, name)).equals(pinned)))
       fail('OPENSWX_HISTORY_EXECUTABLE_INVALID')
     const text = pinned.toString('utf8')
     for (const match of text.matchAll(/\b(?:from\s+|import\s*\(\s*|import\s*)(['"])(\.[^'"]+\.mjs)\1/gu)) {
@@ -1204,9 +1205,9 @@ export async function replayOpenSwxHistoryBasis({ inputRef, transport, readSourc
   admitAiPdmEvidenceSource(issuerRow)
   readSource = historySourceReader(readSource)
   if (typeof readSource.assertCurrentFrozen !== 'function' || typeof readSource.createHistoricalReader !== 'function' || typeof readSource.readImmutableArchive !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-  if (archiveReadSource !== null && (typeof archiveReadSource !== 'function' || archiveReadSource === readSource || archiveReadSource.isHistorical === true
+  if (archiveReadSource !== null && (typeof archiveReadSource !== 'function' || archiveReadSource === readSource || isHistoricalReaderMode(archiveReadSource)
     || typeof archiveReadSource.readImmutableArchive !== 'function' || typeof archiveReadSource.authorizeOrigin !== 'function')) fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-  const currentReadSource = readSource.isHistorical === true ? archiveReadSource : readSource
+  const currentReadSource = isHistoricalReaderMode(readSource) ? archiveReadSource : readSource
   if (typeof currentReadSource?.assertCurrentFrozen !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
   currentReadSource.assertCurrentFrozen()
   const issuerReadSource = historySourceReader(sourceReaderForRevision(readSource, issuer.sourceRevision))
@@ -1214,7 +1215,7 @@ export async function replayOpenSwxHistoryBasis({ inputRef, transport, readSourc
   qualifierExecutableSource(issuerReadSource, issuer.sourceRevision)
   const issuerObject = await sourceObject(transport, qualificationInput.currentSourceObjectRef)
   let issuerTar; try { issuerTar = gunzipSync(issuerObject.bytes, { maxOutputLength: 256 * 1024 * 1024 }) } catch { fail('OPENSWX_REUSE_ARCHIVE_INVALID') }
-  const issuerArchive = issuerReadSource.isHistorical === true ? issuerReadSource.readImmutableArchive(issuer.sourceRevision) : issuerReadSource.readArchive(issuer.sourceRevision)
+  const issuerArchive = isHistoricalReaderMode(issuerReadSource) ? issuerReadSource.readImmutableArchive(issuer.sourceRevision) : issuerReadSource.readArchive(issuer.sourceRevision)
   if (!qualificationInput.currentSourceObjectRef.uri.startsWith(`gs://${BUCKET}/source/releases/${issuer.releaseId}/`) || !issuerTar.equals(issuerArchive)) fail('OPENSWX_HISTORY_ISSUER_ARCHIVE_INVALID')
   const predecessorRow = await read(transport, qualificationInput.predecessorInputRef), input = assertWorkerReuseInput(predecessorRow.value, { historical: true })
   if (input.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v1' || !input.failedDailyContinuation || !input.completedFailedDailyCheckpointRef || Date.now() <= time(input.deadlineAt)) fail('OPENSWX_HISTORY_PREDECESSOR_INVALID')
@@ -1233,16 +1234,16 @@ export async function replayOpenSwxHistoryBasis({ inputRef, transport, readSourc
     ? predecessorArchiveSource.readImmutableArchive(predecessorLock.sourceRevision)
     : predecessorArchiveSource.readArchive(predecessorLock.sourceRevision)
   if (!input.currentSourceObjectRef.uri.startsWith(`gs://${BUCKET}/source/releases/${predecessorLock.releaseId}/`) || !predecessorTar.equals(predecessorArchive)) fail('OPENSWX_HISTORY_PREDECESSOR_ARCHIVE_INVALID')
-  const profileBytes = legacy(WORKER_PROFILE_PATH, predecessorLock.sourceRevision), profile = assertOpenSwxWorkerProfile(JSON.parse(profileBytes))
-  if (sha256(profileBytes) !== PROFILE_SHA) fail('OPENSWX_REUSE_PROFILE_DRIFT')
-   const origin = await readOrigin({ transport, priorActivationRef: input.priorActivationRef, profile, readSource: legacy, sourceRevision: predecessorLock.sourceRevision })
+  const { bytes: profileBytes, profile } = readHistoricalWorkerProfile(legacy, predecessorLock.sourceRevision)
+  const origin = await readOrigin({ transport, priorActivationRef: input.priorActivationRef, profile, readSource: legacy, sourceRevision: predecessorLock.sourceRevision })
   const currentManifest = (await read(transport, qualificationInput.predecessorCurrentManifestRef)).value
-  const originalManifest = workerInputManifest(legacy.readTree(origin.build.sourceRevision), legacy, origin.build.sourceRevision)
-  const derivedManifest = workerInputManifest(legacy.readTree(predecessorLock.sourceRevision), legacy, predecessorLock.sourceRevision)
-  same(currentManifest, derivedManifest, 'OPENSWX_HISTORY_MANIFEST_INVALID'); manifestEqual(originalManifest, currentManifest)
+   const historicalProfileSha256 = sha256(profileBytes)
+   const originalManifest = workerInputManifest(legacy.readTree(origin.build.sourceRevision), legacy, origin.build.sourceRevision, { workerProfileSha256: historicalProfileSha256 })
+   const derivedManifest = workerInputManifest(legacy.readTree(predecessorLock.sourceRevision), legacy, predecessorLock.sourceRevision, { workerProfileSha256: historicalProfileSha256 })
+   same(currentManifest, derivedManifest, 'OPENSWX_HISTORY_MANIFEST_INVALID'); manifestEqual(originalManifest, currentManifest, { originalProfileSha256: historicalProfileSha256, currentProfileSha256: historicalProfileSha256 })
   const originalObject = await sourceObject(transport, { uri: origin.build.facts.sourceObject.uri, sha256: origin.build.facts.sourceObject.sha256 }, origin.build.facts.sourceObject)
-  assertWorkerArchive(originalObject.bytes, originalManifest.entries)
-  assertWorkerArchive(predecessorObject.bytes, currentManifest.entries)
+   assertWorkerArchive(originalObject.bytes, originalManifest.entries, { workerProfileSha256: historicalProfileSha256 })
+   assertWorkerArchive(predecessorObject.bytes, currentManifest.entries, { workerProfileSha256: historicalProfileSha256 })
   const root = `${profile.receiptRoot}/${input.receiptId}-${qualificationInput.predecessorInputRef.sha256.slice(0, 16)}`
   if (qualificationInput.predecessorRequestRef.uri !== `${root}-request.json` || qualificationInput.predecessorCurrentManifestRef.uri !== `${root}-current-inputs.json` ||
       !qualificationInput.predecessorResourceReadbackRef.uri.startsWith(`${root}-ready-`) || !qualificationInput.predecessorSecurityReadbackRef.uri.startsWith(`${root}-security-`)) fail('OPENSWX_HISTORY_ATTEMPT_INVALID')
@@ -1254,7 +1255,7 @@ export async function replayOpenSwxHistoryBasis({ inputRef, transport, readSourc
   if (time(resource.observedAt) > time(input.deadlineAt) || time(resource.observationCompletedAt) > time(request.requestedAt)) fail('OPENSWX_HISTORY_ATTEMPT_INVALID')
   const associationBinding = { sourceRevision: predecessorLock.sourceRevision, sourceArchiveSha256: input.currentSourceObjectRef.sha256, sourceLockRef: input.sourceLockRef,
     workerProfileSha256: sha256(profileBytes), resourcePlanHash: origin.buildOnly.resourcePlanHash, priorActivationRef: input.priorActivationRef, image: origin.build.image }
-  const originalFailed = await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource: legacy, currentManifest })
+  const originalFailed = await readFailedDailyContinuation({ transport, continuation: input.failedDailyContinuation, prior: origin.prior, profile, readSource: legacy, currentManifest, historicalProfile: true })
   const completed = await readCompletedFailedDailyCheckpoint({ transport, checkpointRef: input.completedFailedDailyCheckpointRef, failed: originalFailed, prior: origin.prior, profile, readSource: legacy, currentManifest })
   const qualified = await validateFailedDailyResourceProof({ transport, value: resource, association: associationBinding, origin, input, profile, readSource: legacy, currentManifest })
   if (qualified.failed.partialPause && Date.now() <= time(qualified.failed.partialPause.deadlineAt)) fail('OPENSWX_HISTORY_WRITER_ACTIVE')

@@ -1,3 +1,9 @@
+## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
+
+PR #312 required CI PASS並合併為官方 `main` commit `b42458b3cd05924be566ea05e536454f6751c883`。R60 新 source freeze及source-bound metadata readback完成，provider仍為12個 `no-op/read`，IAM／worker resource changes與new images皆0；worker replay已越過historical reader scope，隨後在讀取合法舊600秒profile時仍套用目前1200秒validator及固定SHA，以 `OPENSWX_WORKER_PROFILE_INVALID` 拒絕。失敗發生於association發布前；未owner dispatch、build、migration085、service／traffic或正式資料mutation，R60 immutable input不重送。
+
+最小修正讓replay沿用既有historical profile validator，只允許目前1200秒或已承認舊600秒的完整固定profile；其他欄位漂移及畸形JSON仍拒絕。移除該點的current-only固定SHA後，後續 `readOrigin` 仍以descriptor的 `workerProfileSha256` 綁定exact bytes，並執行current／historical相容檢查，不放寬source、archive、depth、clock、hash／cycle或provider fence。[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r28-historical-replay-profile-binding--2026-10-16)。
+
 ## DEV-121#rd-capabilities — 2026-10-15 nested history predecessor reader admission（聚焦回歸 PASS，待受保護發布）
 
 R58 以 PR #311 合併後的官方 source `e0f223e6470341872c9cb942d7b821e7fee546e3` 完成新 source freeze 與 source-bound metadata provider readback（12 個資源皆 `no-op/read`，IAM／worker resource changes=0，new images=0）。worker reuse 已越過 R57 的 `OPENSWX_DESCRIPTOR_INVALID`，隨後在 association 發布前以 `OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID` 拒絕：nested native-history replay 只將 predecessor revision 授權給 current archive reader，實際執行 `readTree`／`readTreeId` 的 historical issuer reader仍維持獨立、未授權的 scope。未 owner dispatch、build、migration085、service／traffic或正式資料 mutation；R58 immutable input 不重送。
@@ -82,6 +88,8 @@ synthetic genuine failed→completed→partial→completed chain 在原程式 tr
 完整 producer 回歸證實 one-edge 補修仍在新 association 發布後撞到深度上限，PR282 因 P1 暫停合併；先前 standalone 313/377 PASS 僅為歷史支援。partial input 與 descriptor 是同一 source binding 的 metadata envelopes，均保留同 root／ancestry／hash但不額外計深度，真正 association／serving capsule true與上限8不变。failed-mode producer 以 exact future association URI／wire hash及true edge，在發布association前驗resource proof，避免下游重播才拒絕。完整synthetic RED已重現原拒絕與第二階段先發布才拒絕；focused3/3 GREEN驗證合法3outer pre/post-publication＋sealed consumer、非法4outer拒絕且無authority publication、metadata第9與cycle拒絕，provider lifecycle mutation=0。新bytes完整回歸314/314、native QC378/378、catalog3/3、abort6/6、DB boundary22檔、app型別與隔離build PASS，artifact/primary/cleanup=true；獨立6-luna來源審查P0/P1=0（其Git status存取受限，parent已核對7個範圍内修改）；085、RD正式切流及fixture頁面驗收尚未完成。沿用DEV-121#rd-capabilities與原授權，不重送舊Job、不延長過期input、不改其他帳號或清理範圍。
 
 # AI_PDM 開發任務
+
+維護註記（2026-10-18）：[專案規則](../AGENTS.md) 已精簡為必要限制與任務／發布文件入口。本項為規則維護，不新增產品交付點、不調整 DEV-122 驗收分母，也不代表 RD 功能或正式發布通過；其餘任務依原狀態推進。
 
 ## DEV-121#rd-capabilities — 2026-10-12 finite operation / partial pause 承接補修（本地 PASS，待受保護發布）
 
@@ -5983,3 +5991,9 @@ DEV-121 仍維護 verified Principal、scope／撤權、existing effect publish�
 本切片只處理優先項目 2。已證實 v7 `rd` 角色包含 `page:numbering.drawings.view` 與既有 create／update／submit，仍拒絕 approval；085 是未修改的 forward-only v6→v7 publication。新增 exact native selector 後，隔離 PostgreSQL 以同一 signed RD actor／grant／catalog 完成 permissions GET、實際 drawing workbench data 與 submit，approval POST 403 且零 lifecycle side effect；QA 圖號列表 GET 403 且零 side effect。專用案例 1/1 為 `LOCAL_RD_PERMISSION_PASS`，既有 catalog／migration、70-case Principal／workbench、DB boundary、route classification、current35 fixture、final-byte typecheck／isolated build 均已通過；required CI 尚待 PR。
 
 產品共同失效機制位於 active catalog publication→effective grant→session→Principal evaluator，不在 UI 加例外。本輪沒有產品權限碼、catalog 或 migration 變更。正式 085 applied、active v7、真實 RD grant/session 與正式 UI/API 結果仍未知；不得由 local fixture 推定。若 085 未套用，需正常 app-owned full35 migration release，program-only／closed34／prefix33 不適用；若 v7 已 active 而 grant/session 失效，分別回到 OrgMaster assignment 或 Platform session 責任邊界，需另授權寫入。正式 migration／deploy／traffic／IAM／Secret／worker／Scheduler／資料修改均未執行。詳見 [B53 本機證據](qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)。管理員辨識、PDF、supplier、原生 CAD 與其餘 DEV-122 工作保持暫停；whole DEV 仍 `NOT_ACCEPTED`。
+
+## DEV-122#release-decoupling — 2026-10-17 CAPA-002 project rollout（本機 RD 完成／required CI 待 PR）
+
+導入 project-wide changed-responsibility planner、affected test runner與 owner/CI routing；shared/unknown inputs保留 legacy full fail-closed。worker current/historical profile判定集中至單一 context，歷史 evidence仍綁 exact revision/profile bytes，不以 current HEAD隱式覆蓋。單一交付切片在 merge 前於同一 branch/PR 收斂 caller graph及 production-shaped fixtures，避免以反覆 merge/PR作為本機可發現缺陷的除錯迴圈。此項不執行production mutation，不改 DEV-122原分母；正式 RD、approval與未授權角色驗收仍 pending。
+
+本機 checkpoint 見 `.ai-doc/qa/DEV-122-CAPA-002-change-scoped-validation-local-2026-10-17.md`；shared aggregate、DB boundary、typecheck、isolated build、lint及 upstream historical-mode 交集均已通過。此為 RD 自驗，不是獨立 QC 或 provider-required CI；PR checks 尚待執行。

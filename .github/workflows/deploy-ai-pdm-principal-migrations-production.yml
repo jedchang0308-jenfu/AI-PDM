@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseCapsuleRef:
-        description: Immutable AI-PDM release-intent URI with sha256 fragment
+        description: Immutable AI-PDM release or RD-ledger-readback capsule with sha256 fragment
         required: true
         type: string
 
@@ -25,11 +25,12 @@ jobs:
     permissions: { contents: read, pull-requests: read, id-token: write }
     steps:
       - uses: actions/checkout@v4
-        with: { persist-credentials: false, fetch-depth: 1 }
+        with: { persist-credentials: false, fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - run: npm run test:dev-117:continuous
+      - name: Verify affected production slice
+        run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner
       - name: Verify official merged source
         env: { GITHUB_TOKEN: "${{ github.token }}" }
         run: node scripts/dev012-verify-official-source.mjs
@@ -52,11 +53,19 @@ jobs:
           service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com
           token_format: access_token
           create_credentials_file: false
+      - id: classify
+        name: Classify immutable capsule
+        shell: bash
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
+        run: node scripts/dev122-rd-permission-ledger-readback.mjs --stage classify --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}" >> "$GITHUB_OUTPUT"
       - name: Execute prepare
+        if: ${{ steps.classify.outputs.kind == 'release' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
       - id: builder_auth
+        if: ${{ steps.classify.outputs.kind == 'release' }}
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
@@ -64,6 +73,7 @@ jobs:
           token_format: access_token
           create_credentials_file: false
       - name: Execute build
+        if: ${{ steps.classify.outputs.kind == 'release' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
@@ -75,6 +85,12 @@ jobs:
           token_format: access_token
           create_credentials_file: false
       - name: Execute migrate
+        if: ${{ steps.classify.outputs.kind == 'release' }}
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage migrate --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"
+      - name: Execute RD ledger readback
+        if: ${{ steps.classify.outputs.kind == 'rd_readback' }}
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+        run: node scripts/dev122-rd-permission-ledger-readback.mjs --stage readback --capsule-ref "${{ steps.bind.outputs.capsule_uri }}" --capsule-sha256 "${{ steps.bind.outputs.capsule_sha256 }}"

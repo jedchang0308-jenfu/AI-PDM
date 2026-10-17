@@ -39,3 +39,18 @@
 - Authorized local repair：dry-run=`output/qa/capa-001-formal-data-repair/preflight-20260902-03/manifest.json`；rehearsal=`output/qa/capa-001-formal-data-repair/rehearsal-20260902-02/manifest.json`；apply=`output/qa/capa-001-formal-data-repair/apply-20260902-01/manifest.json`。固定 scope fingerprint=`8197792adce3b44b79f65f8b6de6adde680d53bdb674bc3e872a882e52f269b0`、plan hash=`837159480a5ba86311460b03ba0a40ccf78123e46c1196140f2e196503c68cb4`，4 個 lifecycle changes＋1 筆 append-only CAPA audit，PASS。
 - Recovery／replay：apply backup=`output/qa/capa-001-formal-data-repair/apply-20260902-01/backup/ai-pdm.sqlite`，SHA-256=`d23d1b95671c74d124b9d7c9bc9892c9da108a51fe49c30db88f64a2e7743b15`；replay=`output/qa/capa-001-formal-data-repair/replay-20260902-01/manifest.json`，`NO_OP`。
 - Post-repair evidence：`output/qa/capa-001-approval-outcome/inventory/post-repair-20260902-01/manifest.json` 確認 A0001-P01=`Released`、approval rows仍為 0、FK=0；`output/qa/capa-001-formal-data-repair/ui-readback-20260902.md` 確認清單／詳情顯示「主檔 · 已發布」且「申請作廢」可見但未送出。
+
+### CAPA-002
+
+| 欄位 | 內容 |
+|---|---|
+| CAPA ID | `CAPA-002` |
+| 顯示名稱 | `[CAPA-002] 發布驗證解耦與單一 PR 收斂` |
+| 狀態 | `Local RD Implemented / Required CI Pending` |
+| 建立日期 | `2026-10-17` |
+| Owner / route | RD Tech Lead → RD → provider-required CI；production mutation 不在本 CAPA 實作範圍 |
+| Canonical record | `AGENTS.md` 的 `CAPA002_RELEASE_DECOUPLING_V1` 與 release spec §26.3 |
+| 關聯 DEV | `DEV-122#rd-permission`；規則適用整個 AI-PDM |
+| 根因 | Required CI、owner prepare 與歷史 worker fixture 以單一全量命令耦合；profile/current-historical 判定散落於多個 caller；PR 在完整 caller graph 收斂前過早合併，造成同一切片重複 corrective PR。 |
+| 矯正／預防 | 以 source-controlled planner 將變更分類至 application／authorization／database／preview／recognition／worker／infrastructure；shared/unknown fail closed；owner workflow 與 CI 依 plan 執行；worker profile context 單一化；一個切片維持一個 PR 並於 merge 前完成 source convergence。 |
+| 效果驗證 | Planner/profile contracts、完整 shared worker/release regression、DB boundary、typecheck、isolated build及兩個 provider-required checks；正式 RD 驗收仍依 DEV-122 production acceptance，不能由 local PASS 取代。 |

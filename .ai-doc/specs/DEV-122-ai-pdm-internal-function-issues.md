@@ -1,10 +1,26 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
+## 2026-10-17 CURRENT：CAPA-002 全面導入變更責任驗證與獨立切片交付
+
+DEV-122 的管理員辨識、真實 RD 圖號工作台、完整 PDF 預覽是三個可獨立關閉的交付切片；互不以對方尚未完成為本切片 source／CI blocker，也不因任一切片完成而縮小原 7 issues／29 groups 分母或將 whole DEV 改為 PASS。真實 RD 工作台維持第一優先。
+
+Required CI 名稱與 branch protection 不變，由 source-controlled planner 依 changed responsibility 選擇實際 executor。RD catalog／grant／Principal／085 變更必跑 authorization、database、allow/deny、consumer與 DB boundary；未改 worker／preview／recognition 時不匯入其歷史 queue。shared release-control 或未知路徑一律回退 legacy full gate。closed33/34 fixture 必顯式綁來源、profile/catalog、manifest cardinality及 policy mode，禁止隱式讀 current35／HEAD。
+
+同一獨立切片預設維持一個 branch／PR，在合併前完成 caller graph、原始失敗、共享入口與 production-shaped fixture 收斂；fail-fast 只停止下游 mutation，不停止同 branch 安全診斷與修復。Local／synthetic／API PASS 仍不是真實 RD production acceptance；085 receipt、active catalog、真實 actor active grant、同 actor UI/API 正向與 approval／未授權負向仍須正式證據。
+
 ## 2026-10-16 CURRENT：優先項目 2 RD 圖號工作台權限獨立切片
 
 狀態為 `LOCAL_RD_PERMISSION_PASS / REQUIRED_CI_PENDING / PRODUCTION_NOT_RUN`。v7 `rd` capability、forward-only 085、Principal guard、effective grant、workbench API 與 UI capability vector 已依共同失效路徑核對；新增唯一 native PostgreSQL case，以同一 signed RD actor／grant／catalog 驗 permissions、實際圖號 read／submit，並驗同 actor approval 403、QA workbench 403 與拒絕前後零 lifecycle side effect。這是 fixture/local contract，不是正式 actor 或 provider readback。
 
 本輪沒有修改產品授權程式、catalog、085 或其他 repository。正式 085 applied、active catalog、實際 RD grant/session 與真實 UI/API 結果仍未知。若 085 未套用，只能準備正常 app-owned full35 migration release；program-only／closed34／prefix33 不適用。若 085 已套用則不得修改，必要修正須下一個可用本地 ID 的 forward-only migration。正式 migration／deploy／traffic／rollback／IAM／Secret／worker／Scheduler／資料修改未授權且未執行。[B53 證據](../qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)。管理員辨識、PDF、supplier、完整原生 CAD 與其餘 DEV-122 項目維持暫停；7 issues／29 groups 與 whole DEV `NOT_ACCEPTED` 不變。
+
+### 2026-10-16 production readback gate corrective slice
+
+PR #315 已合併為 `d9e7f07ba244b47928b4a0e8a77426109919c937`；其後 protected `main` 前進至 `bde28d89ff401491274e5d55e37b548bc3fef8b7`，full35／085 內容未變。正式服務唯讀 API 證明 active catalog 仍為 v6 `bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af`，真實 RD session 的 workspace read/create/update/cancel 為 allow、drawing workbench page 為 deny、approval/publish/admin 仍為 deny。這是同一 application DB snapshot 的 effective active-assignment capability 證據，但 endpoint 未公開 assignment row，不能冒稱 exact grant row readback。最新可追溯 native migration receipt 為 2026-10-11 ledger33，且 provider inventory 無後續 execution；這強烈支持 085 未套用，但不能排除「ledger 已有 085、catalog 發布不一致」的異常，所以 full35 尚未 dispatch。
+
+本 corrective slice 新增 source-controlled readback capsule，僅由既有 protected migration-only workflow 分流執行。它固定既有 generation23 Job／runner digest `c4f88763e568554bb2c35b5622f6b5d3f82506ccc20f2b849ce06e0d70aa2d4a`、target／identity／args／environment，並以 `PGOPTIONS=-c default_transaction_read_only=on` 依序執行 current source 的 exact35／exact34／exact33 bundles。唯一 native PASS 的 `applied=0`、`ledgerBootstrap.created=false` 與精確 prefix 證明 ledger cardinality：35 表示 085 已套用，必須停止並處理 catalog 不一致；34 或 33 表示 085 未套用，才可進入既有 full35 owner release。失敗 probe 保存 execution readback；既有 submission 而無 execution 一律 UNKNOWN 並停止，不盲目重送。此路徑不 build runner、不改 Job template／IAM／Secret／worker／Scheduler／service／traffic，不接受 target、stage、SQL、command 或 environment override；program-only 既有封閉規則不變。
+
+目前狀態為 `READBACK_PREFLIGHT_LOCAL_QC_PASS / PR_REQUIRED_CI_PENDING / PRODUCTION_READBACK_PENDING`。[B54 本地證據](../qa/DEV-122-B54-rd-permission-ledger-readback-preflight-local-2026-10-16.md)。本機／CI PASS 只證 source contract；production ledger receipt、catalog/grant/UI/API 正負驗證及 full35 release 仍須依使用者已授權條件逐步取得。其餘 DEV-122 項目持續暫停，whole DEV 仍 `NOT_ACCEPTED`。
 
 ## DEV-122 CURRENT（正式R10；B52搜尋網址修復通過，審核跳轉P1仍開）
 

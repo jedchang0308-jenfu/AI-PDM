@@ -361,6 +361,8 @@ test('S1B-20 principal migration workflow stops before candidate and uses exact 
   const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-principal-migrations-production.yml', import.meta.url), 'utf8')
   const wif = fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/workload-identity.tf', import.meta.url), 'utf8')
   assert.equal(assertDev121MigrationOnlyWorkflowSource(source, wif), true)
+  assert.match(fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/locals.tf', import.meta.url), 'utf8'), /github_rd_permission_readback_ref/u)
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('test:production-slice:affected', 'test:dev-117:continuous'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source, wif.replace("assertion.ref == 'refs/heads/main'", "assertion.ref == 'refs/heads/feature'")), { code: 'MIGRATION_ONLY_WIF_DRIFT' })
 })
