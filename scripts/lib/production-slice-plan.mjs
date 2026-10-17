@@ -167,8 +167,8 @@ export function createProductionSlicePlanFromGit({ root = process.cwd(), base = 
   const resolvedBase = git(root, ['rev-parse', requestedBase])
   const includeWorkingTree = !head && !process.env.PDM_SLICE_HEAD_SHA
   const diffArgs = includeWorkingTree
-    ? ['diff', '--name-only', '--diff-filter=ACMRT', resolvedBase, '--']
-    : ['diff', '--name-only', '--diff-filter=ACMRT', resolvedBase, resolvedHead, '--']
+    ? ['diff', '--name-only', '--no-renames', '--diff-filter=ACDMRT', resolvedBase, '--']
+    : ['diff', '--name-only', '--no-renames', '--diff-filter=ACDMRT', resolvedBase, resolvedHead, '--']
   const changed = git(root, diffArgs).split(/\r?\n/u).filter(Boolean)
   if (includeWorkingTree) {
     changed.push(...git(root, ['ls-files', '--others', '--exclude-standard']).split(/\r?\n/u).filter(Boolean))

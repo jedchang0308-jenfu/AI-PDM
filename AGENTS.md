@@ -8,6 +8,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Outcome authorization and uninterrupted delivery
+
+- Human authorization binds the named project, environment, outcome, allowed effects and continuing exclusions. Within that scope, corrections, exact-source rebinding, normal workflow stages and retries do not require another approval merely because SHA, digest, receipt or attempt changed. Reconfirm only a new responsibility/environment, excluded action or unapproved destructive/irreversible effect; source provenance and required CI remain machine-enforced.
+- Keep one active PR per releasable slice through source convergence. Use the affected-slice runner's local checkpoints for interruptions, and existing sealed build/migration receipts for owner continuation; refresh live state before mutations. Never replay an uncertain write or reuse expired/corrupt/mismatched evidence. Required CI and owner workflows ignore local checkpoint reuse.
+- Use the stable production diagnostics workflow for its closed RD-permission-state and service-state operations; do not add workflow-specific WIF grants for another instance of these reads. Service-state uses the existing verifier identity, RD Job readback its existing deployer identity. No arbitrary target/SQL/command or new IAM authority is implied.
+
 ## Shared database boundary — DEV010_DB_RULESET_V1
 
 - DEV-010 shared PostgreSQL DDL must be delivered as a forward-only migration under `db/postgres`; never edit the shared managed database by hand.
