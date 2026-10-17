@@ -1776,6 +1776,31 @@ test('RD daily metadata continuation reaches pre-read, selftest, full descriptor
   assert.deepEqual(evidence.artifact.secretVersionIam.ref, h.metadata.continuationRef)
   assert.equal(evidence.artifact.originBuild.image, h.build.image)
   assert.notDeepEqual(full.workerBuildRef, evidence.artifact.origin.prior.bootstrapDescriptor.workerBuildRef)
+  // Production daily receipts retain the prior association in the paused
+  // receipt facts while the current descriptor carries a new source-bound
+  // association.  The shared verifier must join resource readback to the
+  // retained receipt, not to the current descriptor association.
+  const retainedAssociation = structuredClone(evidence.artifact.origin.prior.bootstrapDescriptor.workerBuildRef)
+  const pausedValue = structuredClone((await h.transport.readJson(full.pausedDrainedRef)).value)
+  pausedValue.sourceRevision = evidence.artifact.origin.prior.bootstrapDescriptor.sourceRevision
+  pausedValue.sourceArchiveSha256 = evidence.artifact.origin.prior.bootstrapDescriptor.sourceArchiveSha256
+  pausedValue.facts.targetWorkerBuildRef = retainedAssociation
+  const pausedRef = h.seed('RD-HISTORICAL-PAUSED', pausedValue)
+  const bootstrapValue = structuredClone((await h.transport.readJson(full.bootstrapRef)).value)
+  bootstrapValue.sourceRevision = evidence.artifact.origin.prior.bootstrapDescriptor.sourceRevision
+  bootstrapValue.sourceArchiveSha256 = evidence.artifact.origin.prior.bootstrapDescriptor.sourceArchiveSha256
+  bootstrapValue.facts.pausedDrainedRef = pausedRef
+  const readbackValue = structuredClone((await h.transport.readJson(bootstrapValue.facts.resourceProvenance.resourceReadbackRef)).value)
+  readbackValue.targetWorkerBuildRef = retainedAssociation
+  const readbackRef = h.seed('RD-HISTORICAL-RESOURCE-READBACK', readbackValue)
+  bootstrapValue.facts.resourceProvenance.resourceReadbackRef = readbackRef
+  bootstrapValue.facts.resourceProvenance.resourceReadbackSha256 = readbackRef.sha256
+  const bootstrapRef = h.seed('RD-HISTORICAL-BOOTSTRAP', bootstrapValue)
+  const preflightValue = structuredClone((await h.transport.readJson(full.cloudPreflightRef)).value)
+  preflightValue.sourceRevision = evidence.artifact.origin.prior.bootstrapDescriptor.sourceRevision
+  preflightValue.sourceArchiveSha256 = evidence.artifact.origin.prior.bootstrapDescriptor.sourceArchiveSha256
+  const cloudPreflightRef = h.seed('RD-HISTORICAL-PREFLIGHT', preflightValue)
+  await readWorkerFullEvidence(h.transport, { ...full, pausedDrainedRef: pausedRef, bootstrapRef, cloudPreflightRef }, profile, h.readSource)
   for (const field of ['secretVersionIamContinuationRef', 'secretVersionIamSourceLockRef']) {
     const changed = structuredClone(readback), poisoned = structuredClone(bootstrap.value)
     changed[field].sha256 = '0'.repeat(64)
