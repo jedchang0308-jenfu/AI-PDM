@@ -41,6 +41,12 @@ function submissionUri(operationSha256) {
   return `gs://${BUCKET}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${operationSha256}/submission.json`
 }
 
+export function readbackObjectGeneration(value) {
+  const generation = value?.metadata?.generation
+  if (!/^[1-9][0-9]*$/u.test(String(generation ?? ''))) fail('RD_PERMISSION_STATE_OBJECT_GENERATION_INVALID')
+  return String(generation)
+}
+
 export function sourceAuthority(environment, sourceRevision) {
   if (environment.GITHUB_ACTIONS !== 'true' || environment.GITHUB_REPOSITORY !== 'jedchang0308-jenfu/AI-PDM' ||
       environment.GITHUB_SHA !== sourceRevision || environment.GITHUB_WORKFLOW_SHA !== sourceRevision || environment.GITHUB_WORKFLOW_REF !== 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main' || environment.GITHUB_REF !== 'refs/heads/main' || environment.GITHUB_EVENT_NAME !== 'workflow_dispatch') fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
@@ -122,15 +128,14 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   try { operation = JSON.parse(operationObject.bytes.toString('utf8')) } catch { fail('RD_PERMISSION_STATE_OPERATION_JSON_INVALID') }
   assertPermissionStateOperation(operation, { bytes: operationObject.bytes, operationSha256: args.operationSha256, sourceRevision: args.sourceRevision })
   sourceAuthority(environment, operation.sourceRevision)
-  const generation = operationObject.metadata?.generation ?? operationObject.generation
-  if (typeof generation !== 'string' || !/^[1-9][0-9]*$/u.test(generation)) fail('RD_PERMISSION_STATE_OPERATION_GENERATION_INVALID')
+  const generation = readbackObjectGeneration(operationObject)
   const outputRef = outputUri(args.operationSha256)
   if (args.outputRef !== outputRef) fail('RD_PERMISSION_STATE_OUTPUT_REF_INVALID')
   const expectedArgs = operationArgs(args.operationRef, args.operationSha256, operation.sourceRevision, outputRef)
   const existing = await optionalJson(ownerTransport, outputRef)
   if (existing) {
     assertPermissionStateReceipt(existing.value, { operation, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation }, outputRef })
-    return { stage: 'readback', outputRef, outputGeneration: existing.metadata?.generation ?? existing.generation, outputSha256: sha256(existing.bytes), status: 'PASS', reused: true }
+    return { stage: 'readback', outputRef, outputGeneration: readbackObjectGeneration(existing), outputSha256: sha256(existing.bytes), status: 'PASS', reused: true }
   }
   const job = await ownerTransport.request(`https://run.googleapis.com/v2/${JOB_NAME}`)
   if (!jobMatches(job, operation)) fail('RD_PERMISSION_STATE_JOB_MISMATCH')
@@ -156,7 +161,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   const native = await optionalJson(ownerTransport, outputRef)
   if (!native) fail('RD_PERMISSION_STATE_RECEIPT_MISSING')
   assertPermissionStateReceipt(native.value, { operation, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation }, outputRef })
-  return { stage: 'readback', outputRef, outputGeneration: native.metadata?.generation ?? native.generation, outputSha256: sha256(native.bytes), executionName: match.name, status: 'PASS', reused: false }
+  return { stage: 'readback', outputRef, outputGeneration: readbackObjectGeneration(native), outputSha256: sha256(native.bytes), executionName: match.name, status: 'PASS', reused: false }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
