@@ -729,9 +729,19 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
       ?? pausedEvidenceDescriptor.workerBuildRef ?? descriptor.workerBuildRef
     if (readback.resourcesUnchanged !== true || canonicalize(readback.targetWorkerBuildRef) !== canonicalize(retainedWorkerBuildRef)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
     const metadata = artifact.secretVersionIam
+    // Older retained daily resource readbacks predate the source-bound Secret
+    // IAM continuation fields.  They remain valid historical evidence when
+    // the retained provenance and readback both omit those optional fields;
+    // only a retained pair that carries the fields must join to the current
+    // source-bound metadata.  Do not compare current metadata to an older
+    // resource readback that could not have recorded it.
     for (const [field, expected] of [['secretVersionIamContinuationRef', metadata?.ref], ['secretVersionIamSourceLockRef', metadata?.sourceLockRef]]) {
-      if (canonicalize(provenance[field] ?? null) !== canonicalize(expected ?? null)
-        || canonicalize(readback[field] ?? null) !== canonicalize(expected ?? null)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
+      const retainedProvenance = provenance[field] ?? null
+      const retainedReadback = readback[field] ?? null
+      if (retainedProvenance === null && retainedReadback === null) continue
+      if (retainedProvenance === null || retainedReadback === null
+        || canonicalize(retainedProvenance) !== canonicalize(retainedReadback)
+        || canonicalize(retainedReadback) !== canonicalize(expected ?? null)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
     }
   }
   if (results.pausedDrainedRef.facts.drainKind === 'FIRST_PROVIDER_ONLY' && results.pausedDrainedRef.image !== image) fail('OPENSWX_RECEIPT_JOIN_INVALID')

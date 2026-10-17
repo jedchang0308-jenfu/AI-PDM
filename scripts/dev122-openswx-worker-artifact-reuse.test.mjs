@@ -1801,6 +1801,20 @@ test('RD daily metadata continuation reaches pre-read, selftest, full descriptor
   preflightValue.sourceArchiveSha256 = evidence.artifact.origin.prior.bootstrapDescriptor.sourceArchiveSha256
   const cloudPreflightRef = h.seed('RD-HISTORICAL-PREFLIGHT', preflightValue)
   await readWorkerFullEvidence(h.transport, { ...full, pausedDrainedRef: pausedRef, bootstrapRef, cloudPreflightRef }, profile, h.readSource)
+  // B33-shaped retained receipts predate the source-bound Secret IAM fields.
+  // The current association still carries fresh metadata, but the historical
+  // resource boundary must remain valid when both retained records omit it.
+  const legacyBootstrapValue = structuredClone(bootstrapValue)
+  const legacyReadbackValue = structuredClone(readbackValue)
+  delete legacyBootstrapValue.facts.resourceProvenance.secretVersionIamContinuationRef
+  delete legacyBootstrapValue.facts.resourceProvenance.secretVersionIamSourceLockRef
+  delete legacyReadbackValue.secretVersionIamContinuationRef
+  delete legacyReadbackValue.secretVersionIamSourceLockRef
+  const legacyReadbackRef = h.seed('RD-B33-RESOURCE-READBACK', legacyReadbackValue)
+  legacyBootstrapValue.facts.resourceProvenance.resourceReadbackRef = legacyReadbackRef
+  legacyBootstrapValue.facts.resourceProvenance.resourceReadbackSha256 = legacyReadbackRef.sha256
+  const legacyBootstrapRef = h.seed('RD-B33-BOOTSTRAP', legacyBootstrapValue)
+  await readWorkerFullEvidence(h.transport, { ...full, pausedDrainedRef: pausedRef, bootstrapRef: legacyBootstrapRef, cloudPreflightRef }, profile, h.readSource)
   for (const field of ['secretVersionIamContinuationRef', 'secretVersionIamSourceLockRef']) {
     const changed = structuredClone(readback), poisoned = structuredClone(bootstrap.value)
     changed[field].sha256 = '0'.repeat(64)
