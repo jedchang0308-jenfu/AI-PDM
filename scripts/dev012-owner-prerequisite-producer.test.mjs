@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 
-import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildInfraReuseReceipt, buildReleaseIntent, buildRoutineAuthority, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath, resolveProtectedReleaseRef, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
+import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildInfraReuseReceipt, buildReleaseIntent, buildRoutineAuthority, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath, resolveProtectedReleaseRef, executePrerequisiteProducer, validateHistoricalBaselineIntent } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { DEV013_L4_FORWARD_STEPS, dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 
@@ -125,6 +125,31 @@ test('routine authority binds a fresh source to the exact active baseline withou
   assert.deepEqual(result.readiness.dataCutoverCompletionRef, dataCutoverCompletionRef)
   assert.equal(result.readiness.previousRevision, 'ai-pdm-prod-00001-old')
   assert.throws(() => buildRoutineAuthority({ profile, releaseId: 'REL-001', sourceLock, runtimeConfigReceipt: runtime, baselineIntentRef: ref('baseline-intent'), dataCutoverCompletionRef: { ...dataCutoverCompletionRef, uri: 'gs://sibling/receipts/completion.json' }, previousRevision: 'ai-pdm-prod-00001-old', observedAt: NOW, expiresAt: '2999-01-01T00:00:00.000Z' }), /PREREQUISITE_REF_INVALID/)
+})
+
+test('routine authority accepts a valid historical program-only predecessor after current profile adds migration 085', () => {
+  const profile35 = { application: { id: 'ai-pdm' }, migrations: { entries: [
+    ...Array.from({ length: 34 }, (_, index) => ({ order: index + 1, path: index === 33 ? 'db/postgres/084_dev121_unlinked_legacy_profile_cleanup.sql' : `db/postgres/${String(index + 1).padStart(3, '0')}_fixture.sql` })),
+    { order: 35, path: 'db/postgres/085_dev121_principal_role_catalog_v7.sql' },
+  ] } }
+  const historical = { programOnlyBaseline: { releaseId: 'DEV122-PROGRAM-20261011-B36-R10' } }
+  const calls = []
+  const validate = (value, candidateProfile) => {
+    calls.push(candidateProfile.migrations.entries.length)
+    if (candidateProfile.migrations.entries.length === 35) throw Object.assign(new Error('historical baseline requires its original profile'), { code: 'PROGRAM_ONLY_BASELINE_INVALID' })
+    return value
+  }
+  assert.deepEqual(validateHistoricalBaselineIntent(historical, profile35, validate), historical)
+  assert.deepEqual(calls, [35, 34])
+})
+
+test('historical baseline fallback never masks a non-program-only or unrelated validation failure', () => {
+  const profile35 = { application: { id: 'ai-pdm' }, migrations: { entries: [
+    ...Array.from({ length: 34 }, (_, index) => ({ order: index + 1, path: index === 33 ? 'db/postgres/084_dev121_unlinked_legacy_profile_cleanup.sql' : `db/postgres/${String(index + 1).padStart(3, '0')}_fixture.sql` })),
+    { order: 35, path: 'db/postgres/085_dev121_principal_role_catalog_v7.sql' },
+  ] } }
+  assert.throws(() => validateHistoricalBaselineIntent({}, profile35, () => { throw Object.assign(new Error('bad'), { code: 'PROGRAM_ONLY_BASELINE_INVALID' }) }), /bad/u)
+  assert.throws(() => validateHistoricalBaselineIntent({ programOnlyBaseline: {} }, profile35, () => { throw Object.assign(new Error('other'), { code: 'RELEASE_INTENT_INVALID' }) }), /other/u)
 })
 
 test('DEV-013 transition authority binds provider baseline, desired runtime and verified predecessor', () => {
