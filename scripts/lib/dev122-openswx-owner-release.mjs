@@ -721,7 +721,12 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
     // A reused current association points at the new source-bound association,
     // while the retained daily resource readback still names the historical
     // worker association that produced the immutable drain evidence.
-    const retainedWorkerBuildRef = pausedEvidenceDescriptor.workerBuildRef ?? descriptor.workerBuildRef
+    // A retained daily pause receipt stores the association that produced the
+    // immutable drain under facts.targetWorkerBuildRef.  A current source
+    // association may legitimately differ from that historical association;
+    // compare the provider readback with the retained receipt boundary first.
+    const retainedWorkerBuildRef = pausedEvidenceDescriptor.facts?.targetWorkerBuildRef
+      ?? pausedEvidenceDescriptor.workerBuildRef ?? descriptor.workerBuildRef
     if (readback.resourcesUnchanged !== true || canonicalize(readback.targetWorkerBuildRef) !== canonicalize(retainedWorkerBuildRef)) fail('OPENSWX_DAILY_RESOURCE_DELTA')
     const metadata = artifact.secretVersionIam
     for (const [field, expected] of [['secretVersionIamContinuationRef', metadata?.ref], ['secretVersionIamSourceLockRef', metadata?.sourceLockRef]]) {
