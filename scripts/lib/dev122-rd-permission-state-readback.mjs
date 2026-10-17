@@ -19,7 +19,6 @@ export const RD_PERMISSION_STATE_TARGET = Object.freeze({
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$/u
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u
 const PERMISSIONS = Object.freeze([
   ['page', 'numbering.drawings.view'],
@@ -48,8 +47,8 @@ function hashValue(value) {
   return createHash('sha256').update(canonicalize(value)).digest('hex')
 }
 
-function actorHash(actor) {
-  return sha256(Buffer.from(`${actor.identityIssuer}\0${actor.identitySubject}`, 'utf8'))
+function hashText(value) {
+  return sha256(Buffer.from(String(value), 'utf8'))
 }
 
 export function permissionStatePermissions() {
@@ -82,9 +81,9 @@ export function assertPermissionStateOperation(value, { bytes, operationSha256, 
       value.projectId !== RD_PERMISSION_STATE_TARGET.projectId || value.region !== RD_PERMISSION_STATE_TARGET.region || value.database !== RD_PERMISSION_STATE_TARGET.database ||
       value.applicationId !== RD_PERMISSION_STATE_TARGET.applicationId || value.catalogVersion !== RD_PERMISSION_STATE_TARGET.catalogVersion || value.catalogSha256 !== RD_PERMISSION_STATE_TARGET.catalogSha256 ||
       !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-migration-runner@sha256:[a-f0-9]{64}$/u.test(value.migrationRunnerDigest ?? '')) fail('RD_PERMISSION_STATE_OPERATION_INVALID')
-  if (!exact(value.actor, ['principalId', 'employeeId', 'identityIssuer', 'identitySubject']) ||
-      !ID.test(value.actor.principalId ?? '') || !ID.test(value.actor.employeeId ?? '') ||
-      !/^https:\/\/securetoken\.google\.com\/[A-Za-z0-9._-]{1,128}$/u.test(value.actor.identityIssuer ?? '') || !ID.test(value.actor.identitySubject ?? '')) fail('RD_PERMISSION_STATE_ACTOR_INVALID')
+  if (!exact(value.actor, ['principalIdSha256', 'employeeIdSha256', 'identityIssuer', 'identitySubjectSha256']) ||
+      !H64.test(value.actor.principalIdSha256 ?? '') || !H64.test(value.actor.employeeIdSha256 ?? '') ||
+      !/^https:\/\/securetoken\.google\.com\/[A-Za-z0-9._-]{1,128}$/u.test(value.actor.identityIssuer ?? '') || !H64.test(value.actor.identitySubjectSha256 ?? '')) fail('RD_PERMISSION_STATE_ACTOR_INVALID')
   if (!Array.isArray(value.permissions) || canonicalize(value.permissions) !== canonicalize(permissionStatePermissions())) fail('RD_PERMISSION_STATE_PERMISSION_SET_INVALID')
   return value
 }
@@ -157,26 +156,31 @@ export async function readPermissionState(database, operation) {
     const accounts = await run(`SELECT contract_version,principal_issuer,principal_subject,principal_id,
       employee_id,employee_status,account_type,mapping_version,published_at::text
       FROM orgmaster_contract.v_active_principal_accounts_v1
-      WHERE principal_id = $principalId ORDER BY principal_issuer,principal_subject LIMIT 3`, { principalId: operation.actor.principalId })
+      WHERE principal_issuer = $identityIssuer ORDER BY principal_issuer,principal_subject LIMIT 256`, { identityIssuer: operation.actor.identityIssuer })
+    const actorAccounts = accounts.filter(row => hashText(row.principal_id) === operation.actor.principalIdSha256 && hashText(row.employee_id) === operation.actor.employeeIdSha256)
+    const matchedActor = actorAccounts.filter(row => hashText(row.principal_subject) === operation.actor.identitySubjectSha256)
+    if (matchedActor.length !== 1) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
+    const principalId = matchedActor[0].principal_id
+    const employeeId = matchedActor[0].employee_id
     const grants = await run(`SELECT contract_version,assignment_version_id,assignment_version,assignment_id,
       grant_kind,delegation_id,application_id,principal_id,employee_id,subject_kind,target_principal_id,
       stable_role_id,role_code,catalog_version,scope_kind,scope_key,valid_from::text,valid_until::text,published_at::text
       FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
       WHERE application_id = $applicationId AND principal_id = $principalId AND employee_id = $employeeId
-      ORDER BY stable_role_id,assignment_id LIMIT 33`, { applicationId: operation.applicationId, principalId: operation.actor.principalId, employeeId: operation.actor.employeeId })
-    if (accounts.length < 1 || accounts.length > 2) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
+      ORDER BY stable_role_id,assignment_id LIMIT 33`, { applicationId: operation.applicationId, principalId, employeeId })
+    if (actorAccounts.length < 1 || actorAccounts.length > 2) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
     const aliases = new Set()
-    for (const row of accounts) {
-      if (row.contract_version !== 'organization.active-principal.v1' || row.principal_id !== operation.actor.principalId || row.employee_id !== operation.actor.employeeId || row.employee_status !== 'active' || !row.principal_issuer || !row.principal_subject) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
+    for (const row of actorAccounts) {
+      if (row.contract_version !== 'organization.active-principal.v1' || row.employee_id !== employeeId || row.employee_status !== 'active' || !row.principal_issuer || !row.principal_subject) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
       const alias = `${row.principal_issuer}\0${row.principal_subject}`
       if (aliases.has(alias)) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
       aliases.add(alias)
     }
-    if (aliases.has(`${operation.actor.identityIssuer}\0${operation.actor.identitySubject}`) === false) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
+    if (matchedActor[0].principal_issuer !== operation.actor.identityIssuer) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
     if (grants.length > 32) fail('RD_PERMISSION_STATE_GRANT_MISMATCH')
     const grantKeys = new Set()
     for (const row of grants) {
-      if (row.contract_version !== 'jenfu.orgmaster.ai-pdm-principal-grants.v4' || row.application_id !== operation.applicationId || row.principal_id !== operation.actor.principalId || row.employee_id !== operation.actor.employeeId || !row.assignment_id || !row.assignment_version_id || !row.role_code || !row.stable_role_id || !row.scope_kind) fail('RD_PERMISSION_STATE_GRANT_MISMATCH')
+      if (row.contract_version !== 'jenfu.orgmaster.ai-pdm-principal-grants.v4' || row.application_id !== operation.applicationId || row.principal_id !== principalId || row.employee_id !== employeeId || !row.assignment_id || !row.assignment_version_id || !row.role_code || !row.stable_role_id || !row.scope_kind) fail('RD_PERMISSION_STATE_GRANT_MISMATCH')
       const key = `${row.stable_role_id}\0${row.role_code}\0${row.scope_kind}\0${row.scope_key ?? ''}`
       if (grantKeys.has(key)) fail('RD_PERMISSION_STATE_GRANT_MISMATCH')
       grantKeys.add(key)
@@ -184,7 +188,7 @@ export async function readPermissionState(database, operation) {
     return {
       database: identity.database,
       catalog: { contractVersion: catalogRows[0].contract_version, applicationId: RD_PERMISSION_STATE_TARGET.applicationId, catalogVersion: catalogRows[0].catalog_version, catalogSha256: catalogRows[0].catalog_sha256, rowCount: catalogRows.length, rowsSha256: hashValue(catalogRows) },
-      actor: { principalId: operation.actor.principalId, employeeId: operation.actor.employeeId, identityIssuer: operation.actor.identityIssuer, identitySubjectSha256: actorHash(operation.actor), activeAccountCount: accounts.length, matchedActiveAccountCount: 1 },
+      actor: { principalIdSha256: operation.actor.principalIdSha256, employeeIdSha256: operation.actor.employeeIdSha256, identityIssuer: operation.actor.identityIssuer, identitySubjectSha256: operation.actor.identitySubjectSha256, activeAccountCount: actorAccounts.length, matchedActiveAccountCount: 1 },
       activeGrant: { rowCount: grants.length, rowsSha256: hashValue(grants), assignmentVersionIds: [...new Set(grants.map(row => row.assignment_version_id))], assignmentVersions: [...new Set(grants.map(row => Number(row.assignment_version)))], roleCodes: [...new Set(grants.map(row => row.role_code))].sort() },
       permissionSet: operation.permissions,
       databaseMutationExpected: false,
