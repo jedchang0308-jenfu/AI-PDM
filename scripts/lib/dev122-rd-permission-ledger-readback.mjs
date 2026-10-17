@@ -1,18 +1,19 @@
 import { createHash } from 'node:crypto'
-import { spawnSync } from 'node:child_process'
 
 import { canonicalize, createMigrationBundle } from './dev012-production-migration-runner.mjs'
+import { assertDev122GitSourceAuthority } from './dev122-source-authority.mjs'
 
 export const RD_LEDGER_READBACK_SCHEMA = 'aipdm.dev122.rd-permission-ledger-readback-intent.v1'
 export const RD_LEDGER_READBACK_RESULT_SCHEMA = 'aipdm.dev122.rd-permission-ledger-readback-result.v1'
 export const RD_LEDGER_READBACK_PGOPTIONS = '-c default_transaction_read_only=on'
-export const RD_LEDGER_READBACK_RUNNER = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:c4f88763e568554bb2c35b5622f6b5d3f82506ccc20f2b849ce06e0d70aa2d4a'
+export const RD_LEDGER_READBACK_RUNNER_PREFIX = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:'
 
 const BUCKET = 'jenfu-platform-prod-aipdm-release'
 const JOB_NAME = 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner'
 const WORKFLOW_REF = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main'
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
+const RUNNER_DIGEST = new RegExp(`^${RD_LEDGER_READBACK_RUNNER_PREFIX}[a-f0-9]{64}$`, 'u')
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
 const TARGET = Object.freeze({ ownerApplicationId: 'ai-pdm', ledger: 'ai_pdm_core.schema_migrations', baselineCount: 15 })
 const INTENT_KEYS = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'sourceRevision', 'sourceTree', 'sourceIdentitySha256', 'profileSha256', 'migrationRunnerDigest', 'jobEtag', 'jobTemplateSha256', 'probes', 'observedAt', 'deadlineAt', 'status', 'receiptSha256']
@@ -48,6 +49,11 @@ function bundleRef(bundle) {
     uri: `gs://${BUCKET}/source/migration-bundles/${bundle.bundle.sourceRevision}/${bundle.bundle.manifestSha256}.json`,
     sha256: bundle.bundleSha256,
   }
+}
+
+function assertRunnerDigest(value) {
+  if (!RUNNER_DIGEST.test(value ?? '')) fail('RD_READBACK_RUNNER_INVALID')
+  return value
 }
 
 export function buildRdLedgerProbeBundles(full) {
@@ -92,7 +98,7 @@ export function assertRdReadbackJob(job, profile, intent = null) {
   const task = job?.template?.template
   const container = task?.containers?.[0]
   const expectedEnvironment = rdReadbackJobEnvironment(profile)
-  if (job?.name !== JOB_NAME || typeof job.etag !== 'string' || !job.etag || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || task?.serviceAccount !== profile.migrations.serviceAccount || task?.maxRetries !== 0 || task?.timeout !== '1800s' || task?.containers?.length !== 1 || container?.name !== 'migration' || container?.image !== RD_LEDGER_READBACK_RUNNER || Object.hasOwn(container ?? {}, 'command') || canonicalize(container?.args) !== canonicalize(['--bundle-ref-required'])) fail('RD_READBACK_JOB_MISMATCH')
+  if (job?.name !== JOB_NAME || typeof job.etag !== 'string' || !job.etag || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || task?.serviceAccount !== profile.migrations.serviceAccount || task?.maxRetries !== 0 || task?.timeout !== '1800s' || task?.containers?.length !== 1 || container?.name !== 'migration' || !RUNNER_DIGEST.test(container?.image ?? '') || Object.hasOwn(container ?? {}, 'command') || canonicalize(container?.args) !== canonicalize(['--bundle-ref-required'])) fail('RD_READBACK_JOB_MISMATCH')
   if (!Array.isArray(container.env) || container.env.length !== 8 || new Set(container.env.map((row) => row.name)).size !== 8 || canonicalize(Object.fromEntries(container.env.map((row) => [row.name, row.value]))) !== canonicalize(expectedEnvironment)) fail('RD_READBACK_JOB_MISMATCH')
   if (canonicalize(task.volumes) !== canonicalize([{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }]) || canonicalize(container.volumeMounts) !== canonicalize([{ name: 'cloudsql', mountPath: '/cloudsql' }])) fail('RD_READBACK_JOB_MISMATCH')
   if (intent && (job.etag !== intent.jobEtag || rdReadbackSha256(rdReadbackJobProjection(job)) !== intent.jobTemplateSha256 || container.image !== intent.migrationRunnerDigest)) fail('RD_READBACK_JOB_MISMATCH')
@@ -108,7 +114,7 @@ export function buildRdLedgerReadbackIntent({ releaseId, sourceRevision, sourceT
     sourceTree,
     sourceIdentitySha256,
     profileSha256,
-    migrationRunnerDigest: RD_LEDGER_READBACK_RUNNER,
+    migrationRunnerDigest: assertRunnerDigest(job?.template?.template?.containers?.[0]?.image),
     jobEtag: job.etag,
     jobTemplateSha256: rdReadbackSha256(rdReadbackJobProjection(job)),
     probes: probes.map(({ ledgerCount, terminalVersion, manifestSha256, migrationBundleRef }) => ({ ledgerCount, terminalVersion, manifestSha256, migrationBundleRef })),
@@ -123,7 +129,7 @@ export function buildRdLedgerReadbackIntent({ releaseId, sourceRevision, sourceT
 export function assertRdLedgerReadbackIntent(value, { profileSha256 = null, probes = null } = {}) {
   exact(value, INTENT_KEYS, 'RD_READBACK_INTENT_INVALID')
   const core = { ...value }; delete core.receiptSha256
-  if (value.schemaVersion !== RD_LEDGER_READBACK_SCHEMA || value.ownerApplicationId !== 'ai-pdm' || !RELEASE_ID.test(value.releaseId ?? '') || !H40.test(value.sourceRevision ?? '') || !H40.test(value.sourceTree ?? '') || !H64.test(value.sourceIdentitySha256 ?? '') || !H64.test(value.profileSha256 ?? '') || value.migrationRunnerDigest !== RD_LEDGER_READBACK_RUNNER || typeof value.jobEtag !== 'string' || !value.jobEtag || !H64.test(value.jobTemplateSha256 ?? '') || value.status !== 'READY_FOR_READBACK' || !Number.isFinite(Date.parse(value.observedAt)) || !Number.isFinite(Date.parse(value.deadlineAt)) || Date.parse(value.observedAt) >= Date.parse(value.deadlineAt) || value.receiptSha256 !== rdReadbackSha256(core)) fail('RD_READBACK_INTENT_INVALID')
+  if (value.schemaVersion !== RD_LEDGER_READBACK_SCHEMA || value.ownerApplicationId !== 'ai-pdm' || !RELEASE_ID.test(value.releaseId ?? '') || !H40.test(value.sourceRevision ?? '') || !H40.test(value.sourceTree ?? '') || !H64.test(value.sourceIdentitySha256 ?? '') || !H64.test(value.profileSha256 ?? '') || !RUNNER_DIGEST.test(value.migrationRunnerDigest ?? '') || typeof value.jobEtag !== 'string' || !value.jobEtag || !H64.test(value.jobTemplateSha256 ?? '') || value.status !== 'READY_FOR_READBACK' || !Number.isFinite(Date.parse(value.observedAt)) || !Number.isFinite(Date.parse(value.deadlineAt)) || Date.parse(value.observedAt) >= Date.parse(value.deadlineAt) || value.receiptSha256 !== rdReadbackSha256(core)) fail('RD_READBACK_INTENT_INVALID')
   if (profileSha256 && value.profileSha256 !== profileSha256) fail('RD_READBACK_PROFILE_DRIFT')
   if (!Array.isArray(value.probes) || canonicalize(value.probes.map((row) => row.ledgerCount)) !== canonicalize([35, 34, 33])) fail('RD_READBACK_PROBE_ORDER_INVALID')
   const terminal = new Map([[35, 'ai-pdm-085'], [34, 'ai-pdm-084'], [33, 'ai-pdm-083']])
@@ -156,14 +162,7 @@ export function rdReadbackProbeArguments(intent, probe, outputUri) {
 
 export function assertRdReadbackGitHubContext(intent, environment, root) {
   assertRdLedgerReadbackIntent(intent)
-  if (environment.GITHUB_REPOSITORY !== 'jedchang0308-jenfu/AI-PDM' || environment.GITHUB_SHA !== intent.sourceRevision || environment.GITHUB_WORKFLOW_SHA !== intent.sourceRevision || environment.GITHUB_WORKFLOW_REF !== WORKFLOW_REF || environment.GITHUB_REF !== 'refs/heads/main' || environment.GITHUB_EVENT_NAME !== 'workflow_dispatch') fail('RD_READBACK_SOURCE_AUTHORITY_MISMATCH')
-  const git = (args) => {
-    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true })
-    if (result.error || result.status !== 0) fail('RD_READBACK_GIT_INSPECTION_FAILED')
-    return result.stdout.trim()
-  }
-  if (git(['rev-parse', 'HEAD']) !== intent.sourceRevision || git(['rev-parse', 'HEAD^{tree}']) !== intent.sourceTree || git(['status', '--porcelain=v1', '--untracked-files=all']) !== '') fail('RD_READBACK_SOURCE_AUTHORITY_MISMATCH')
-  return true
+  return assertDev122GitSourceAuthority({ environment, sourceRevision: intent.sourceRevision, sourceTree: intent.sourceTree, workflowRef: WORKFLOW_REF, root, code: 'RD_READBACK_SOURCE_AUTHORITY_MISMATCH' })
 }
 
 export function classifyRdReadbackCapsule(value) {

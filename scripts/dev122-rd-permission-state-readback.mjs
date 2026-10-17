@@ -3,7 +3,6 @@
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
 
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { canonicalize, sha256 } from './lib/dev012-production-migration-runner.mjs'
@@ -15,6 +14,7 @@ import {
   assertPermissionStateReceipt,
   parsePermissionStateArgs,
 } from './lib/dev122-rd-permission-state-readback.mjs'
+import { assertDev122GitSourceAuthority } from './lib/dev122-source-authority.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BUCKET = 'jenfu-platform-prod-aipdm-release'
@@ -48,11 +48,7 @@ export function readbackObjectGeneration(value) {
 }
 
 export function sourceAuthority(environment, sourceRevision) {
-  if (environment.GITHUB_ACTIONS !== 'true' || environment.GITHUB_REPOSITORY !== 'jedchang0308-jenfu/AI-PDM' ||
-      environment.GITHUB_SHA !== sourceRevision || environment.GITHUB_WORKFLOW_SHA !== sourceRevision || environment.GITHUB_WORKFLOW_REF !== 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main' || environment.GITHUB_REF !== 'refs/heads/main' || environment.GITHUB_EVENT_NAME !== 'workflow_dispatch') fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
-  const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true })
-  const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: root, encoding: 'utf8', windowsHide: true })
-  if (head.error || head.status !== 0 || head.stdout.trim() !== sourceRevision || status.error || status.status !== 0 || status.stdout.trim() !== '') fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
+  assertDev122GitSourceAuthority({ environment, sourceRevision, workflowRef: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main', root, code: 'RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH' })
 }
 
 function operationArgs(operationRef, operationSha256, sourceRevision, outputRef) {

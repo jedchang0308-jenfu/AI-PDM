@@ -7,7 +7,7 @@ import { buildDev117MigrationBundle, buildDev117MigrationPackage, assertDev117V3
 import { canonicalize } from './lib/dev012-production-migration-runner.mjs'
 import {
   RD_LEDGER_READBACK_PGOPTIONS,
-  RD_LEDGER_READBACK_RUNNER,
+  RD_LEDGER_READBACK_RUNNER_PREFIX,
   assertRdLedgerReadbackIntent,
   assertRdReadbackJob,
   assertRdReadbackNativeReceipt,
@@ -20,6 +20,7 @@ import {
   rdReadbackProbeArguments,
   rdReadbackSha256,
 } from './lib/dev122-rd-permission-ledger-readback.mjs'
+import { assertDev122GitSourceAuthority } from './lib/dev122-source-authority.mjs'
 
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
 const profile = read('config/release/dev117-ai-pdm-independent-production-v3.json')
@@ -28,6 +29,7 @@ const n1c = read('config/platform/dev-010-n1c-ai-pdm.json')
 assertDev117V3Profile(profile, v1, n1c)
 
 const sourceRevision = 'a'.repeat(40)
+const RUNNER_DIGEST = `${RD_LEDGER_READBACK_RUNNER_PREFIX}${'c'.repeat(64)}`
 const full = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), sourceRevision)
 const probes = buildRdLedgerProbeBundles(full)
 const ref = (name) => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-READBACK-TEST/${name}.json`, sha256: 'b'.repeat(64) })
@@ -44,7 +46,7 @@ function job() {
         maxRetries: 0,
         timeout: '1800s',
         volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }],
-        containers: [{ name: 'migration', image: RD_LEDGER_READBACK_RUNNER, args: ['--bundle-ref-required'], env: Object.entries(rdReadbackJobEnvironment(profile)).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }],
+        containers: [{ name: 'migration', image: RUNNER_DIGEST, args: ['--bundle-ref-required'], env: Object.entries(rdReadbackJobEnvironment(profile)).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }],
       },
     },
   }
@@ -90,7 +92,7 @@ test('RD02 intent binds exact source, provider Job etag/template, runner and thr
   assert.equal(classifyRdReadbackCapsule({ schemaVersion: 'jenfu.dev117.ai-pdm-release-intent.v2' }), 'release')
   for (const mutate of [
     (row) => { row.sourceRevision = 'f'.repeat(40) },
-    (row) => { row.migrationRunnerDigest = row.migrationRunnerDigest.replace('c4f887', 'd4f887') },
+    (row) => { row.migrationRunnerDigest = `${RD_LEDGER_READBACK_RUNNER_PREFIX}${'d'.repeat(64)}` },
     (row) => { row.probes.reverse() },
     (row) => { row.probes[0].migrationBundleRef.uri = row.probes[0].migrationBundleRef.uri.replace('source/migration-bundles', 'receipts') },
   ]) {
@@ -103,7 +105,7 @@ test('RD03 readback Job contract rejects target, image, args, environment and te
   const value = intent()
   for (const mutate of [
     (row) => { row.name = row.name.replace('ai-pdm-prod-', 'other-') },
-    (row) => { row.template.template.containers[0].image = row.template.template.containers[0].image.replace('c4f887', 'd4f887') },
+    (row) => { row.template.template.containers[0].image = `${RD_LEDGER_READBACK_RUNNER_PREFIX}${'d'.repeat(64)}` },
     (row) => { row.template.template.containers[0].args = ['--sql', 'SELECT 1'] },
     (row) => { row.template.template.containers[0].env.push({ name: 'PGOPTIONS', value: 'off' }) },
     (row) => { row.template.parallelism = 2 },
@@ -177,4 +179,14 @@ test('RD07 owner path reads back unknown submissions and cannot reach service, t
   assert.deepEqual([...workflow.matchAll(/^      - name: Execute (prepare|build|migrate|RD ledger readback)$/gmu)].map((row) => row[1]), ['prepare', 'build', 'migrate', 'RD ledger readback'])
   assert.equal((workflow.match(/releaseCapsuleRef:/gu) ?? []).length, 1)
   assert.doesNotMatch(workflow, /--stage publish|--release-id|--deadline-at/iu)
+})
+
+test('RD08 accepts a workflow-file commit that is an ancestor of exact protected-main source', () => {
+  const head = 'a'.repeat(40), parent = 'b'.repeat(40), tree = 'c'.repeat(40)
+  const workflowRef = 'jedchang0308-jenfu/AI-PDM/.github/workflows/deploy-ai-pdm-principal-migrations-production.yml@refs/heads/main'
+  const environment = { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'jedchang0308-jenfu/AI-PDM', GITHUB_SHA: head, GITHUB_WORKFLOW_SHA: parent, GITHUB_WORKFLOW_REF: workflowRef, GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch' }
+  const gitRunner = (args) => args.join(' ') === 'rev-parse HEAD' ? head : args.join(' ') === 'rev-parse HEAD^{tree}' ? tree : ''
+  const ancestorRunner = (workflowSha, sourceSha) => workflowSha === parent && sourceSha === head
+  assert.equal(assertDev122GitSourceAuthority({ environment, sourceRevision: head, sourceTree: tree, workflowRef, root: '.', code: 'TEST_SOURCE_AUTHORITY', gitRunner, ancestorRunner }), true)
+  assert.throws(() => assertDev122GitSourceAuthority({ environment: { ...environment, GITHUB_WORKFLOW_SHA: 'f'.repeat(40) }, sourceRevision: head, sourceTree: tree, workflowRef, root: '.', code: 'TEST_SOURCE_AUTHORITY', gitRunner, ancestorRunner }), { code: 'TEST_SOURCE_AUTHORITY' })
 })
