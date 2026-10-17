@@ -1,0 +1,58 @@
+name: Read AI-PDM RD permission state without mutation
+
+on:
+  workflow_dispatch:
+    inputs:
+      operationRef:
+        description: Immutable RD permission-state operation with sha256 fragment
+        required: true
+        type: string
+
+concurrency:
+  group: production-release-ai-pdm-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  WIF_PROVIDER: ${{ vars.AIPDM_PROD_WIF_PROVIDER }}
+
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.11.0", cache: npm }
+      - run: npm ci
+      - name: Verify official merged source
+        env: { GITHUB_TOKEN: "${{ github.token }}" }
+        run: node scripts/dev012-verify-official-source.mjs
+      - id: bind
+        shell: bash
+        env: { OPERATION_REF: "${{ inputs.operationRef }}" }
+        run: |
+          set -euo pipefail
+          operation_uri="${OPERATION_REF%%#sha256=*}"
+          operation_sha256="${OPERATION_REF##*#sha256=}"
+          test "$operation_uri" != "$OPERATION_REF"
+          [[ "$operation_uri" =~ ^gs://jenfu-platform-prod-aipdm-release/source/rd-permission-readback/.+\.json$ ]]
+          [[ "$operation_sha256" =~ ^[a-f0-9]{64}$ ]]
+          echo "operation_uri=$operation_uri" >> "$GITHUB_OUTPUT"
+          echo "operation_sha256=$operation_sha256" >> "$GITHUB_OUTPUT"
+      - id: deployer_auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com
+          token_format: access_token
+          create_credentials_file: false
+      - name: Execute fixed read-only permission state readback
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
+        run: node scripts/dev122-rd-permission-state-readback.mjs --stage readback --permission-operation-ref "${{ steps.bind.outputs.operation_uri }}" --permission-operation-sha256 "${{ steps.bind.outputs.operation_sha256 }}" --source-revision "$GITHUB_SHA" --permission-output-ref "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-PERMISSION-READBACK/${{ steps.bind.outputs.operation_sha256 }}/state.json"
+
