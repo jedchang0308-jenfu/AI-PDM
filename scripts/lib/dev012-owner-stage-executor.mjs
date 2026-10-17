@@ -13,6 +13,7 @@ import { buildDev014ConsumerConformance } from './dev014-consumer-conformance.mj
 import { assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
 import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease, isPausedAppRepair, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, assertAiPdmHistoricalMigration, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
+import { sourceStatusIsClean } from './dev122-source-authority.mjs'
 
 export { candidateTagUriMatches } from './dev012-owner-release-runtime.mjs'
 
@@ -52,7 +53,7 @@ export function createGitArchive(root, sourceRevision) {
     if (result.error || result.status !== 0) fail('GIT_SOURCE_INSPECTION_FAILED', args.join(' '))
     return result.stdout
   }
-  if (String(run(['rev-parse', 'HEAD'])).trim() !== sourceRevision || String(run(['status', '--porcelain=v1', '--untracked-files=all'])).trim() !== '') fail('SOURCE_CHECKOUT_NOT_FROZEN')
+  if (String(run(['rev-parse', 'HEAD'])).trim() !== sourceRevision || !sourceStatusIsClean(String(run(['status', '--porcelain=v1', '--untracked-files=all'])).trim())) fail('SOURCE_CHECKOUT_NOT_FROZEN')
   // Keep the owner archive byte-identical to the worker reader and reuse
   // verifier on Windows checkouts.  Without the explicit canonical recipe,
   // core.autocrlf/core.eol can rewrite text entries and fail closed later as
@@ -69,7 +70,7 @@ export function createGitSourceIdentity(root, sourceRevision) {
     if (result.error || result.status !== 0) fail('GIT_SOURCE_INSPECTION_FAILED', args.join(' '))
     return result.stdout
   }
-  if (String(run(['rev-parse', 'HEAD'])).trim() !== sourceRevision || String(run(['status', '--porcelain=v1', '--untracked-files=all'])).trim() !== '') fail('SOURCE_CHECKOUT_NOT_FROZEN')
+  if (String(run(['rev-parse', 'HEAD'])).trim() !== sourceRevision || !sourceStatusIsClean(String(run(['status', '--porcelain=v1', '--untracked-files=all'])).trim())) fail('SOURCE_CHECKOUT_NOT_FROZEN')
   const bytes = run(['ls-tree', '-r', '-z', '--full-tree', sourceRevision], null)
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) fail('SOURCE_IDENTITY_FAILED')
   return bytes
