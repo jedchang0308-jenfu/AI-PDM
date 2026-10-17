@@ -553,6 +553,12 @@ Readback capsule 必由 exact protected main 派生並綁 source tree／identity
 
 Probe以第一個 native PASS 為 ledger readback：必須 `applied=0`、`ledgerBootstrap.created=false`、`replayed=ledgerCount`、exact manifest/version/name/checksum、cross-database denial與固定 Job/execution template。35 PASS 表示085存在，後續須比對active catalog/hash；不一致時停止 production mutation並走下一個 forward-only corrective migration。34或33 PASS才證明085不存在；34表示084已套用，33表示084亦未套用。其後 full35仍使用既有完整 owner workflow與同一正式授權，且084沒有 `unlinkedProfileCleanupRef`時只安裝函式、不執行資料清理。三個 probe皆未PASS則狀態UNKNOWN並停止。所有 failure execution、Job projection、native與terminal result保存在own release prefix；readback成功不代表candidate、traffic或DEV-122整體PASS。
 
+### 26.3 Change-scoped validation executor（CAPA-002）
+
+Protected required checks、official-source review、single capsule、recovery及production authorization不變。`scripts/plan-production-slice.mjs`以 base/head changed paths產生 versioned plan；owner prepare與 CI 只可依該 plan 執行 `scripts/run-production-slice-tests.mjs` 的 applicable groups。authorization/database slice 不得因未改 worker／preview／recognition而載入其歷史 queue；worker或 shared release/recovery input仍須其完整 evidence。`.github/workflows`、package/build control、planner本身、DEV-012/117共同 release source及任何 unknown path一律 `FULL` fail closed，執行 legacy `test:dev-117:continuous`與既有完整 QC。
+
+Planner只能減少 unchanged responsibility 的重跑，不能將 required provider check標為 skipped或把 local evidence升為release authority。每個 plan保存 base/head、changed files、slice reasons與 gates；空集合也視為 unknown/full。Owner workflow只接受 protected exact main，planner不增加actor輸入、target/stage/SQL/env override，也不改 migration／IAM／Secret／traffic authority。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。

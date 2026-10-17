@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -48,12 +50,25 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Resolve affected production slices
+        id: slice
+        env:
+          PDM_SLICE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PDM_SLICE_HEAD_SHA: ${{ github.sha }}
+        run: node scripts/plan-production-slice.mjs --github-output "$GITHUB_OUTPUT"
+
+      - name: Verify slice routing contract
+        run: node --test scripts/production-slice-plan.test.mjs
+
       - name: Build and verify the patched runtime
+        if: steps.slice.outputs.full == 'true'
         run: docker build --target runtime-smoke --progress=plain .
       - name: Install dependencies without lifecycle scripts
+        if: steps.slice.outputs.database == 'true'
         run: npm ci --ignore-scripts
 
       - name: Verify provider and DEV-012 cutover against disposable PostgreSQL
+        if: steps.slice.outputs.database == 'true'
         env:
           DEV012_ISOLATED_POSTGRES: "1"
           PDM_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
@@ -69,6 +84,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -76,26 +93,48 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Resolve affected production slices
+        id: slice
+        env:
+          PDM_SLICE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PDM_SLICE_HEAD_SHA: ${{ github.sha }}
+        run: node scripts/plan-production-slice.mjs --github-output "$env:GITHUB_OUTPUT"
+
+      - name: Verify slice routing contract
+        run: node --test scripts/production-slice-plan.test.mjs
+
       - name: Install dependencies
+        if: steps.slice.outputs.docs_only != 'true'
         run: npm ci
 
       - name: Install Playwright browser
+        if: steps.slice.outputs.application == 'true'
         run: npx playwright install chromium
 
       - name: Reject high or critical production dependency findings
+        if: steps.slice.outputs.docs_only != 'true'
         run: npm audit --omit=dev --audit-level=high
 
       - name: Lint
+        if: steps.slice.outputs.docs_only != 'true'
         run: npm run lint
 
-      - name: Verify current production slice
+      - name: Verify affected release, authorization, database, and worker contracts
+        if: steps.slice.outputs.full != 'true' && (steps.slice.outputs.release_core == 'true' || steps.slice.outputs.authorization == 'true' || steps.slice.outputs.worker == 'true')
+        env:
+          CI: true
+          PDM_SLICE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PDM_SLICE_HEAD_SHA: ${{ github.sha }}
+        run: npm run test:production-slice:affected -- --profile ci
+
+      - name: Verify release and infrastructure slice
+        if: steps.slice.outputs.release_core == 'true' || steps.slice.outputs.infrastructure == 'true'
         env:
           CI: true
           PDM_QC_PHASE2B_SKIP_STAGING_PREFLIGHT: "true"
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          npm run test:dev-117:continuous
           npm run qc:source-boundary
           npm run qc:dev-121:route-policy-source
           npm run qc:dev-121:route-classification
@@ -103,7 +142,15 @@ jobs:
           node --test scripts/lib/dev121-ai-pdm-quiescence.test.mjs scripts/lib/preview-worker-source.test.mjs scripts/lib/local-workload-auth.test.mjs scripts/lib/dev121-business-storage-plan.test.mjs scripts/lib/dev121-business-storage-readback.test.mjs scripts/lib/dev121-business-storage-saved-plan.test.mjs
           node --test scripts/dev121-principal-candidate-smoke.test.mjs scripts/dev121-smoke-credential-reauth.test.mjs
           npm run qc:dev-046-phase2b
-           npm exec vitest run src/lib/pdm-workbench-authority-control.test.ts src/lib/platform-command-service.test.ts src/lib/principal-readonly-share-command.test.ts src/lib/repositories/release-async-repository.share-audit.test.ts src/lib/repositories/pdm-work-review-async-repository.test.ts src/lib/storage-access-audit.principal.test.ts src/app/api/lifecycle/obsolete-impact/principal-obsolete-impact.test.ts src/app/api/numbering/duplicate-check/principal-duplicate-check.test.ts src/lib/repositories/numbering-async-repository.principal-duplicate-audit.test.ts src/app/api/numbering/series-codes/principal-read.test.ts 'src/app/api/numbering/roots/[rootCode]/append-policy/principal-read.test.ts' 'src/app/api/numbering/roots/[rootCode]/principal-root-detail.test.ts' 'src/app/api/numbering/roots/[rootCode]/principal-append.test.ts' src/app/api/numbering/records/preview/principal-read.test.ts src/app/api/search/principal-search.test.ts src/app/api/submissions/principal-submission-list.test.ts src/app/api/submissions/preflight-lock/route.principal.test.ts src/app/api/submissions/revision-suggestion/retired-revision-suggestion.test.ts src/app/api/submission-rules/active/route.principal.test.ts src/app/api/submission-readiness/resolve/route.principal.test.ts src/lib/jenfu-route-permission-map.test.ts src/lib/jenfu-rd-capabilities.test.ts src/lib/pdm-principal-canonical-workbench-read.test.ts src/components/canonical-numbering-create-action.test.tsx 'src/app/api/submissions/[id]/principal-submission-detail.test.ts' 'src/app/api/submissions/[id]/files/[...filePath]/principal-file-read.test.ts' 'src/app/api/submissions/[id]/release-package/principal-release-package-read.test.ts'
+
+      - name: Verify application and authorization slice
+        if: steps.slice.outputs.application == 'true' || steps.slice.outputs.authorization == 'true'
+        env:
+          CI: true
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm exec vitest run src/lib/pdm-workbench-authority-control.test.ts src/lib/platform-command-service.test.ts src/lib/principal-readonly-share-command.test.ts src/lib/repositories/release-async-repository.share-audit.test.ts src/lib/repositories/pdm-work-review-async-repository.test.ts src/lib/storage-access-audit.principal.test.ts src/app/api/lifecycle/obsolete-impact/principal-obsolete-impact.test.ts src/app/api/numbering/duplicate-check/principal-duplicate-check.test.ts src/lib/repositories/numbering-async-repository.principal-duplicate-audit.test.ts src/app/api/numbering/series-codes/principal-read.test.ts 'src/app/api/numbering/roots/[rootCode]/append-policy/principal-read.test.ts' 'src/app/api/numbering/roots/[rootCode]/principal-root-detail.test.ts' 'src/app/api/numbering/roots/[rootCode]/principal-append.test.ts' src/app/api/numbering/records/preview/principal-read.test.ts src/app/api/search/principal-search.test.ts src/app/api/submissions/principal-submission-list.test.ts src/app/api/submissions/preflight-lock/route.principal.test.ts src/app/api/submissions/revision-suggestion/retired-revision-suggestion.test.ts src/app/api/submission-rules/active/route.principal.test.ts src/app/api/submission-readiness/resolve/route.principal.test.ts src/lib/jenfu-route-permission-map.test.ts src/lib/jenfu-rd-capabilities.test.ts src/lib/pdm-principal-canonical-workbench-read.test.ts src/components/canonical-numbering-create-action.test.tsx 'src/app/api/submissions/[id]/principal-submission-detail.test.ts' 'src/app/api/submissions/[id]/files/[...filePath]/principal-file-read.test.ts' 'src/app/api/submissions/[id]/release-package/principal-release-package-read.test.ts'
           npm exec vitest run src/lib/jenfu-principal-http.test.ts src/lib/jenfu-principal-only-cohort-apply.test.ts src/app/api/admin/account-invitations/principal-enrollment-boundary.test.ts src/lib/platform-principal-command-snapshot.test.ts src/lib/jenfu-principal-acl-migration-plan.test.ts src/lib/jenfu-principal-cutover-local-source.test.ts src/lib/jenfu-principal-cutover-locks.test.ts src/lib/jenfu-principal-cutover-graph-check.test.ts src/lib/jenfu-principal-cutover-workspace-shadow.test.ts src/lib/jenfu-principal-cutover-source-seal.test.ts src/lib/repositories/principal-local-acl-repository.test.ts src/lib/jenfu-principal-permission-service.test.ts src/lib/numbering-permission-guard.principal.test.ts src/lib/numbering-company-context.principal.test.ts src/lib/numbering-company-permission.test.ts src/lib/numbering-permission-async.test.ts src/app/api/numbering/permissions/principal-permissions.test.ts src/lib/permissions.principal.test.ts 'src/app/api/numbering/approval-batches/[batchId]/principal-role-boundary.test.ts' src/app/api/numbering/search/principal-scope.test.ts src/app/api/numbering/drawings/resolve/principal-scope.test.ts src/app/api/numbering/drawings/principal-read.test.ts src/app/api/numbering/drawings/retired-drawing-source-routes.test.ts src/app/api/numbering/drawing-revisions/retired-routes.test.ts 'src/app/api/pdm/drawing-revision-works/[workId]/principal-read.test.ts' src/app/api/numbering/reports-principal-scope.test.ts 'src/app/api/numbering/roots/[rootCode]/submission-readiness/principal-read.test.ts' 'src/app/api/public/shares/[token]/principal-share-access.test.ts'
           npm exec vitest run src/app/api/pdm/part-change-works/principal-part-work-routes.test.ts 'src/app/api/pdm/parts/[partId]/matrix-workspace/principal-matrix-read.test.ts' 'src/app/api/pdm/drawing-rd-branches/[branchId]/void-requests/principal-void.test.ts'
           npm exec vitest run 'src/app/api/pdm/review-requests/[requestId]/principal-review-detail.test.ts' 'src/app/api/pdm/review-requests/[requestId]/decisions/principal-decision.test.ts' 'src/app/api/pdm/review-requests/[requestId]/targets/principal-targets.test.ts'
@@ -112,14 +159,43 @@ jobs:
           npm exec vitest run src/lib/production-slice.principal-workbench.test.ts src/lib/jenfu-principal-provision-service.test.ts src/lib/jenfu-principal-provision-contract.test.ts src/lib/jenfu-principal-candidate-repository.test.ts src/lib/jenfu-principal-account-repository.test.ts src/lib/jenfu-principal-request-guard.test.ts src/lib/jenfu-sso-principal-callback.test.ts src/lib/jenfu-principal-handoff-session-service.test.ts
           npm run qc:pdm-principal-account-boundary
           npm run qc:pdm-production-slice-numbering-draft
+
+      - name: Verify infrastructure package slice
+        if: steps.slice.outputs.infrastructure == 'true' || steps.slice.outputs.full == 'true'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           npm run qc:dev-032-production-iac-package
+
+      - name: Verify preview and recognition slice
+        if: steps.slice.outputs.preview == 'true' || steps.slice.outputs.recognition == 'true'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           npm exec vitest run src/lib/pdm-canonical-preview.pdf.test.ts src/components/canonical-preview-media.dev122.test.tsx src/components/canonical-preview-media.pdf.test.tsx src/components/pdf-document-viewport.test.ts src/components/pdf-document-viewport.lifecycle.test.tsx src/lib/drawing-recognition-principal-mutation.test.ts src/app/api/numbering/recognition-sessions/principal-create.test.ts src/components/drawing-recognition-workspace-panel.permission.test.tsx
           npm run qc:dev-079:contract
           npm run qc:dev-079:owner-invariant
+
+      - name: Verify shared release package contracts
+        if: steps.slice.outputs.release_core == 'true' || steps.slice.outputs.infrastructure == 'true'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           npm run qc:dev-101:contract
           npm run qc:dev-101:package
           npm run qc:dev-101:qa-integrity
           npm run qc:production-deployment-pipeline
 
-      - name: Verify owner release adapter and isolated production artifact
+      - name: Verify affected database boundary
+        if: steps.slice.outputs.full != 'true' && steps.slice.outputs.db_boundary == 'true'
+        run: npm run check:db-boundary
+
+      - name: Verify affected app type and isolated build
+        if: steps.slice.outputs.full != 'true' && steps.slice.outputs.isolated_build == 'true'
+        run: |
+          npm run typecheck:app
+          npm run build:isolated
+
+      - name: Verify full owner release adapter and isolated production artifact
+        if: steps.slice.outputs.full == 'true'
         run: npm run qc:dev-117:continuous

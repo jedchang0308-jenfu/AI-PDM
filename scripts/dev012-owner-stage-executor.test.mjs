@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
 import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
@@ -30,18 +31,29 @@ test('owner source archive uses the worker reader canonical LF recipe', () => {
   // The full CI job runs this suite after commands that may leave generated
   // files in the checkout. Keep the production frozen-source guard intact and
   // exercise both readers from a clean, task-owned worktree instead.
-  const frozenRoot = mkdtempSync(join(root, '.tmp-owner-archive-'))
+  const frozenRoot = mkdtempSync(join(tmpdir(), 'aipdm-oa-'))
+  console.log('DEV012_OWNER_ARCHIVE_RUNTIME_DECLARED=' + JSON.stringify({ project: 'AI-PDM', purpose: 'Owner and worker source archive byte equivalence', port: null, parentPid: process.pid, PDM_DATA_DIR: 'UNUSED', PDM_REPOSITORY_DIR: frozenRoot, mutationScope: 'TASK_OWNED_GIT_WORKTREE_ONLY', cleanupCondition: 'finally removes exact worktree and temporary directory' }))
   try {
     const checkout = spawnSync('git', ['worktree', 'add', '--detach', frozenRoot, revision], {
       cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 16 * 1024 * 1024
     })
     assert.equal(checkout.status, 0, checkout.stderr || checkout.stdout)
-    const ownerArchive = createGitArchive(frozenRoot, revision)
-    const workerArchive = createWorkerGitReader(frozenRoot, revision).readArchive(revision)
+    // Windows hosted runners can expose tmpdir through an 8.3 alias such as
+    // RUNNER~1 while Git reports the same worktree with its long canonical
+    // path. Bind both readers to Git's own top-level identity so the fixture
+    // tests archive equivalence without weakening the repository-root guard.
+    const topLevel = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: frozenRoot, encoding: 'utf8', windowsHide: true
+    })
+    assert.equal(topLevel.status, 0, topLevel.stderr || topLevel.stdout)
+    const canonicalFrozenRoot = topLevel.stdout.trim()
+    const ownerArchive = createGitArchive(canonicalFrozenRoot, revision)
+    const workerArchive = createWorkerGitReader(canonicalFrozenRoot, revision).readArchive(revision)
     assert.deepEqual(ownerArchive, workerArchive)
   } finally {
     spawnSync('git', ['worktree', 'remove', '--force', frozenRoot], { cwd: root, encoding: 'utf8', windowsHide: true })
     rmSync(frozenRoot, { recursive: true, force: true })
+    console.log('DEV012_OWNER_ARCHIVE_RUNTIME_CLEANUP=' + JSON.stringify({ taskTempRemoved: true, port: null }))
   }
 })
 

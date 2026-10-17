@@ -6,16 +6,19 @@ import path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { assertImmutableRef, canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
-import { WORKER_PROFILE_PATH, WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
+import { WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
+import { WORKER_PROFILE_PATH, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile } from './dev122-openswx-profile-context.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyWorkerResources, readPausedRepairWorkerResources, verifyNormalActor, assertFailedDailyContinuation, readFailedDailyContinuation, readCompletedFailedDailyCheckpoint, readPartialFailedDailyPause, readFailedDailyCurrentResources, assertFailedDailyIsolationProof, assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_EXECUTION_PATHS, readSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmEvidenceLeaf, admitAiPdmEvidenceSource, readAiPdmObservationInputs, assertAiPdmPausedRepairReadbacks, recordAiPdmHistoryObject, recordAiPdmHistorySourceBlob, deriveAiPdmNativeHistoryBasis, qualifyAiPdmNativeHistoryBasis, assertAiPdmNativeHistoryIngress, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmActiveHistoryIssuerRevision } from './dev121-owner-release-proof.mjs'
 import { isHistoricalReaderFor, isHistoricalReaderMode } from './dev122-historical-reader.mjs'
+import { assertHistoricalProfileCompatibility, historicalProfileOptions, readHistoricalWorkerProfile, resolveWorkerProfileContext, sourceReaderForRevision } from './dev122-openswx-profile-context.mjs'
+
+export { assertHistoricalProfileCompatibility, historicalProfileOptions, readHistoricalWorkerProfile, sourceReaderForRevision } from './dev122-openswx-profile-context.mjs'
 
 const BUCKET = 'jenfu-platform-prod-aipdm-release', H40 = /^[a-f0-9]{40}$/u, H64 = /^[a-f0-9]{64}$/u
-const historicalReaderCache = new WeakMap()
 const READER = 'scripts/lib/openswx-reader', ENTRY = 'scripts/run-openswx-metadata-job.mjs'
 const APP_PROFILE = 'config/release/dev117-ai-pdm-independent-production-v3.json'
 const SOURCE_BINDING_KEYS = ['sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'workerProfileSha256', 'resourcePlanHash']
@@ -35,24 +38,6 @@ function exact(value, keys, code = 'OPENSWX_REUSE_SCHEMA_INVALID') {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join(',') !== [...keys].sort().join(',')) fail(code)
 }
 function same(a, b, code = 'OPENSWX_REUSE_JOIN_INVALID') { if (canonicalize(a) !== canonicalize(b)) fail(code) }
-export function historicalProfileOptions(readSource, revision = null, currentReadSource = null) {
-  return { historicalProfile: isHistoricalReaderFor(readSource, revision, currentReadSource) }
-}
-export function assertHistoricalProfileCompatibility(currentProfile, historicalProfile) {
-  const normalize = value => {
-    const copy = structuredClone(value)
-    copy.bounds = { ...copy.bounds, ownerDeadlineSeconds: null }
-    return copy
-  }
-  same(normalize(historicalProfile), normalize(currentProfile), 'OPENSWX_REUSE_HISTORICAL_PROFILE_DRIFT')
-}
-export function readHistoricalWorkerProfile(readSource, sourceRevision) {
-  const bytes = readSource(WORKER_PROFILE_PATH, sourceRevision)
-  let profile
-  try { profile = assertHistoricalOpenSwxWorkerProfile(JSON.parse(bytes)) }
-  catch (error) { if (error?.code) throw error; fail('OPENSWX_WORKER_PROFILE_INVALID') }
-  return { bytes, profile }
-}
 export function assertHistoricalCheckpointDescriptor(checkpoint, currentProfile, historicalReadSource) {
   if (typeof historicalReadSource !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
   const { bytes: historicalProfileBytes, profile: historicalProfile } = readHistoricalWorkerProfile(historicalReadSource, checkpoint.sourceRevision)
@@ -60,71 +45,6 @@ export function assertHistoricalCheckpointDescriptor(checkpoint, currentProfile,
   assertWorkerDescriptor(checkpoint, historicalProfile, sha256(historicalProfileBytes), checkpoint.sourceRevision, { historicalProfile: true })
   return historicalProfile
 }
-function historicalReaderView(readSource, revision, { historical = true, sourceHistorical = historical } = {}) {
-  if (typeof readSource !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-  const view = (name, sourceRevision) => readSource(name, sourceRevision)
-  Object.assign(view, readSource)
-  view.sourceRevision = revision
-  view.isHistorical = sourceHistorical
-  if (historical) view.readerRevisionMode = 'historical'
-  view.historicalReadRevisions = new Set([...(readSource.historicalReadRevisions ?? []), revision])
-  for (const name of ['authorizeOrigin', 'readTree', 'readTreeId']) {
-    if (typeof readSource[name] === 'function') view[name] = (...args) => readSource[name](...args)
-  }
-  if (typeof readSource.readImmutableArchive === 'function') {
-    view.readImmutableArchive = revisionValue => readSource.readImmutableArchive(revisionValue)
-    view.readArchive = revisionValue => readSource.readImmutableArchive(revisionValue)
-  } else if (typeof readSource.readArchive === 'function') {
-    view.readArchive = revisionValue => readSource.readArchive(revisionValue)
-  }
-  if (typeof readSource.createHistoricalReader === 'function') {
-    view.createHistoricalReader = revisionValue => {
-      readSource.authorizeOrigin?.(revisionValue)
-      return sourceReaderForRevision(readSource.createHistoricalReader(revisionValue), revisionValue, { forceHistorical: true })
-    }
-  }
-  return view
-}
-export function sourceReaderForRevision(readSource, revision, { forceHistorical = false } = {}) {
-  if (readSource?.sourceRevision === revision && !forceHistorical) return readSource
-  if (typeof readSource !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-  if (readSource?.sourceRevision === revision) return historicalReaderView(readSource, revision)
-  const cached = historicalReaderCache.get(readSource)?.get(revision)
-  if (cached) return cached
-
-  // A reader may be able to read an admitted immutable predecessor while its
-  // legacy metadata still says isHistorical=false.  The explicit capability
-  // marker is the admission contract; wrap it so every downstream validator
-  // receives a historical source/revision pair instead of the current reader
-  // identity.  A profile-path exception alone is not source admission.
-  const explicitlyHistorical = readSource.isHistorical === true || readSource.readerRevisionMode === 'historical'
-  if (explicitlyHistorical && readSource.historicalReadRevisions instanceof Set && readSource.historicalReadRevisions.has(revision)) {
-    return historicalReaderView(readSource, revision)
-  }
-  const admittedByCapability = !explicitlyHistorical && readSource.supportsAdmittedHistoricalRevisions === true
-  let admitted = admittedByCapability
-  if (!admitted && !explicitlyHistorical && typeof readSource.readArchive === 'function') {
-    try { readSource.readArchive(revision); admitted = true } catch { admitted = false }
-  }
-  if (admitted) {
-    // Admission of a predecessor is enough to select historical validation
-    // mode, even when the reader keeps its legacy isHistorical=false marker.
-    const historical = historicalReaderView(readSource, revision, { historical: true, sourceHistorical: false })
-    const byRevision = historicalReaderCache.get(readSource) ?? new Map()
-    byRevision.set(revision, historical)
-    historicalReaderCache.set(readSource, byRevision)
-    return historical
-  }
-  readSource?.authorizeOrigin?.(revision)
-  if (typeof readSource?.createHistoricalReader !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-  const historical = readSource.createHistoricalReader(revision)
-  if (typeof historical !== 'function') fail('OPENSWX_HISTORY_SOURCE_REQUIRED')
-  const normalized = historicalReaderView(historical, revision)
-  const byRevision = historicalReaderCache.get(readSource) ?? new Map()
-  byRevision.set(revision, normalized)
-  historicalReaderCache.set(readSource, byRevision)
-  return normalized
- }
 function canReadArchiveAt(readSource, revision) {
   if (typeof readSource?.readArchive !== 'function') return false
   try { readSource.readArchive(revision); return true } catch { return false }
@@ -452,25 +372,24 @@ export async function resolveWorkerArtifact({ transport, descriptor, profile, re
     return { currentAssociation: null, originBuild: build, originBuildRef: buildRef, originDescriptor: descriptor, image: build.image, sourceEntryProof: assertWorkerBuildSource(build, descriptor), graphContext: ctx }
   }
   if ((!isPausedAppRepair(descriptor) && !['aipdm.openswx-worker-descriptor.v2','aipdm.openswx-worker-descriptor.v4'].includes(descriptor.schemaVersion)) || descriptor.artifactMode !== 'REUSE_VERIFIED' || typeof readSource !== 'function') fail('OPENSWX_REUSE_RESOLVER_INVALID')
+  let resolvedProfile = profile
   if (isPausedAppRepair(descriptor)) {
-    const descriptorProfileSource = sourceReaderForRevision(
-      historicalReadSource ?? readSource,
-      descriptor.sourceRevision,
-      { forceHistorical: historicalReadSource !== null || descriptor.sourceRevision !== readSource?.sourceRevision },
-    )
-    // A paused-repair descriptor is an admitted predecessor artifact.  Its
-    // profile must be read from the same source revision as the descriptor;
-    // validating it with the caller's (possibly current) profile can reject
-    // a valid historical descriptor or, worse, validate the wrong policy.
-    const { bytes: descriptorProfileBytes, profile: descriptorProfile } =
-      readHistoricalWorkerProfile(descriptorProfileSource, descriptor.sourceRevision)
-    if (sha256(descriptorProfileBytes) !== descriptor.workerProfileSha256) fail('OPENSWX_WORKER_PROFILE_INVALID')
+    const profileContext = resolveWorkerProfileContext({
+      readSource: historicalReadSource ?? readSource,
+      currentReadSource: readSource,
+      sourceRevision: descriptor.sourceRevision,
+      currentSourceRevision: readSource?.sourceRevision,
+      currentProfile: profile,
+      forceHistorical: historicalReadSource !== null || descriptor.sourceRevision !== readSource?.sourceRevision,
+    })
+    if (profileContext.profileSha256 !== descriptor.workerProfileSha256) fail('OPENSWX_WORKER_PROFILE_INVALID')
+    resolvedProfile = profileContext.profile
     assertWorkerDescriptor(
       descriptor,
-      descriptorProfile,
-      sha256(descriptorProfileBytes),
+      profileContext.profile,
+      profileContext.profileSha256,
       descriptor.sourceRevision,
-      historicalProfileOptions(descriptorProfileSource, descriptor.sourceRevision, readSource),
+      profileContext.descriptorOptions,
     )
   }
   if (descriptor.schemaVersion === 'aipdm.openswx-worker-descriptor.v4') {
@@ -489,7 +408,7 @@ export async function resolveWorkerArtifact({ transport, descriptor, profile, re
        archiveReadSource: historyReadSource !== readSource && !isHistoricalReaderMode(readSource) ? readSource : null })
   }
   same(buildRef, descriptor.workerBuildRef)
-   return resolveAssociation({ transport, descriptor, profile, readSource, readerSourceRevision, historicalReadSource, buildRef, ctx, repair: isPausedAppRepair(descriptor) })
+   return resolveAssociation({ transport, descriptor, profile: resolvedProfile, readSource, readerSourceRevision, historicalReadSource, buildRef, ctx, repair: isPausedAppRepair(descriptor) })
   })
 }
 async function resolveAssociation({ transport, descriptor, profile, readSource, readerSourceRevision = null, historicalReadSource = null, buildRef, ctx, repair }) {
