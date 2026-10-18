@@ -31,6 +31,8 @@ test('DEV-121 operator provider proof has additive, app-owned read grants only',
   const buildGrant = block(identity, 'google_project_iam_member', 'migrator_build_get')
   const imageGrant = block(artifact, 'google_artifact_registry_repository_iam_member', 'migrator_proof_image_reader')
   const sourceGrant = block(migration, 'google_storage_bucket_iam_member', 'migrator_release_source_viewer')
+  const rdReadbackGrant = block(migration, 'google_storage_bucket_iam_member', 'migrator_rd_permission_readback_viewer')
+  const openswxRecoveryGrant = block(migration, 'google_storage_bucket_iam_member', 'migrator_openswx_dispatch_recovery_viewer')
   assert.match(role, /count\s+= var\.incident_runtime_enabled \? 1 : 0/u)
   assert.match(role, /permissions\s+= \["cloudbuild\.builds\.get", "serviceusage\.services\.use"\]/u)
   assert.doesNotMatch(role, /builds\.(?:create|list|update)|\bdelete\b/u)
@@ -40,11 +42,18 @@ test('DEV-121 operator provider proof has additive, app-owned read grants only',
   assert.match(sourceGrant, /role\s+= "roles\/storage\.objectViewer"[\s\S]*data\.google_service_account\.migrator\.email/u)
   assert.match(sourceGrant, /objects\/source\/releases\//u)
   assert.doesNotMatch(sourceGrant, /orgmaster-release|platform-release|objectAdmin/u)
+  assert.match(rdReadbackGrant, /count\s+= var\.incident_runtime_enabled \? 1 : 0[\s\S]*role\s+= "roles\/storage\.objectViewer"[\s\S]*data\.google_service_account\.migrator\.email/u)
+  assert.match(rdReadbackGrant, /objects\/source\/rd-permission-readback\//u)
+  assert.match(openswxRecoveryGrant, /count\s+= var\.incident_runtime_enabled \? 1 : 0[\s\S]*role\s+= "roles\/storage\.objectViewer"[\s\S]*data\.google_service_account\.migrator\.email/u)
+  assert.match(openswxRecoveryGrant, /objects\/source\/openswx-dispatch-recovery\//u)
+  for (const grant of [rdReadbackGrant, openswxRecoveryGrant]) assert.doesNotMatch(grant, /orgmaster-release|platform-release|objectAdmin|objectUser/u)
   const addresses = [
     'google_project_iam_custom_role.migrator_build_get[0]',
     'google_project_iam_member.migrator_build_get[0]',
     'google_artifact_registry_repository_iam_member.migrator_proof_image_reader[0]',
     'google_storage_bucket_iam_member.migrator_release_source_viewer[0]',
+    'google_storage_bucket_iam_member.migrator_rd_permission_readback_viewer[0]',
+    'google_storage_bucket_iam_member.migrator_openswx_dispatch_recovery_viewer[0]',
   ]
   for (const address of addresses) {
     assert.equal(infraPlan.stageBAdditional.filter((item) => item === address).length, 1)
