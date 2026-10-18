@@ -182,6 +182,12 @@ export async function readPermissionState(database, operation) {
       FROM orgmaster_contract.v_ai_pdm_principal_effective_grants_v4
       WHERE application_id = $applicationId AND principal_id = $principalId AND employee_id = $employeeId
       ORDER BY stable_role_id,assignment_id LIMIT 33`, { applicationId: operation.applicationId, principalId, employeeId })
+    const openswxDispatchRows = await run(`SELECT status,attempt_count,dispatch_state,dispatch_generation,
+      dispatch_requested_at::text,dispatch_request_window_end::text,dispatch_lease_expires_at::text,
+      provider_operation,execution_name,created_at::text,updated_at::text
+      FROM ai_pdm_core.openswx_metadata_jobs
+      WHERE dispatch_state IN ('requested','dispatched','dispatch_unknown')
+      ORDER BY created_at,id LIMIT 2`)
     if (actorAccounts.length < 1 || actorAccounts.length > 2) fail('RD_PERMISSION_STATE_ACTIVE_ACCOUNT_MISMATCH')
     const aliases = new Set()
     for (const row of actorAccounts) {
@@ -199,11 +205,13 @@ export async function readPermissionState(database, operation) {
       if (grantKeys.has(key)) fail('RD_PERMISSION_STATE_GRANT_MISMATCH')
       grantKeys.add(key)
     }
+    if (openswxDispatchRows.length > 1) fail('RD_PERMISSION_STATE_OPENSWX_DISPATCH_INVARIANT')
     return {
       database: identity.database,
       catalog: { contractVersion: catalogRows[0].contract_version, applicationId: RD_PERMISSION_STATE_TARGET.applicationId, catalogVersion: catalogRows[0].catalog_version, catalogSha256: catalogRows[0].catalog_sha256, rowCount: catalogRows.length, rowsSha256: hashValue(catalogRows) },
       actor: { principalIdSha256: operation.actor.principalIdSha256, employeeIdSha256: operation.actor.employeeIdSha256, identityIssuer: operation.actor.identityIssuer, identitySubjectSha256: operation.actor.identitySubjectSha256, activeAccountCount: actorAccounts.length, matchedActiveAccountCount: 1 },
       activeGrant: { rowCount: grants.length, rowsSha256: hashValue(grants), assignmentVersionIds: [...new Set(grants.map(row => row.assignment_version_id))], assignmentVersions: [...new Set(grants.map(row => Number(row.assignment_version)))], roleCodes: [...new Set(grants.map(row => row.role_code))].sort() },
+      openswxDispatch: { rowCount: openswxDispatchRows.length, rowsSha256: hashValue(openswxDispatchRows), rows: openswxDispatchRows },
       permissionSet: operation.permissions,
       databaseMutationExpected: false,
       transactionMode: 'REPEATABLE READ READ ONLY',

@@ -79,6 +79,7 @@ test('RD permission readback reads catalog, active account and grants in one rea
       if (text.includes('v_application_role_catalog_v1')) return { rows: [{ contract_version: 'jenfu.platform-entitlement.v1', application_id: 'ai-pdm', catalog_version: RD_PERMISSION_STATE_TARGET.catalogVersion, catalog_sha256: RD_PERMISSION_STATE_TARGET.catalogSha256, display_order: 0, stable_role_id: 'role-rd', role_definition_hash: 'c'.repeat(64) }] }
       if (text.includes('v_active_principal_accounts_v1')) return { rows: [{ contract_version: 'organization.active-principal.v1', principal_issuer: actorIdentity.identityIssuer, principal_subject: actorIdentity.identitySubject, principal_id: actorIdentity.principalId, employee_id: actorIdentity.employeeId, employee_status: 'active', account_type: 'employee', mapping_version: 1, published_at: '2026-10-17T00:00:00.000Z' }] }
       if (text.includes('v_ai_pdm_principal_effective_grants_v4')) return { rows: [{ contract_version: 'jenfu.orgmaster.ai-pdm-principal-grants.v4', assignment_version_id: 'assignment-version-1', assignment_version: 7, assignment_id: 'grant-rd-001', grant_kind: 'direct', delegation_id: null, application_id: 'ai-pdm', principal_id: actorIdentity.principalId, employee_id: actorIdentity.employeeId, subject_kind: 'employee', target_principal_id: null, stable_role_id: 'role-rd', role_code: 'rd', catalog_version: RD_PERMISSION_STATE_TARGET.catalogVersion, scope_kind: 'workspace', scope_key: 'jenfu', valid_from: '2026-10-17T00:00:00.000Z', valid_until: null, published_at: '2026-10-17T00:00:00.000Z' }] }
+      if (text.includes('ai_pdm_core.openswx_metadata_jobs')) return { rows: [{ status: 'queued', attempt_count: 1, dispatch_state: 'dispatch_unknown', dispatch_generation: 3, dispatch_requested_at: '2026-10-18T07:00:00.000Z', dispatch_request_window_end: '2026-10-18T07:00:30.000Z', dispatch_lease_expires_at: null, provider_operation: 'operations/example', execution_name: null, created_at: '2026-10-18T06:59:00.000Z', updated_at: '2026-10-18T07:00:31.000Z' }] }
       throw new Error(`unexpected query: ${text}`)
     },
   }
@@ -88,6 +89,11 @@ test('RD permission readback reads catalog, active account and grants in one rea
   assert.equal(state.actor.principalId, undefined)
   assert.equal(state.actor.employeeId, undefined)
   assert.deepEqual(state.activeGrant.roleCodes, ['rd'])
+  assert.equal(state.openswxDispatch.rowCount, 1)
+  assert.equal(state.openswxDispatch.rows[0].dispatch_state, 'dispatch_unknown')
+  assert.equal(state.openswxDispatch.rows[0].provider_operation, 'operations/example')
+  assert.equal(state.openswxDispatch.rows[0].id, undefined)
+  assert.equal(state.openswxDispatch.rows[0].company_id, undefined)
   assert.equal(state.databaseMutationExpected, false)
   assert.equal(statements[0].text, 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
   assert.equal(statements.at(-1).text, 'COMMIT')
