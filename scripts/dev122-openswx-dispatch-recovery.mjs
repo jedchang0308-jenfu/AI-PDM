@@ -85,9 +85,10 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     assertOpenSwxDispatchRecoveryReceipt(existing.value, { operation, operationRef, outputRef })
     return { stage: 'recovery', outputRef, outputGeneration: generation(existing), outputSha256: sha256(existing.bytes), status: 'PASS', reused: true }
   }
-  const providerOperation = await ownerTransport.request(`https://run.googleapis.com/v2/${operation.provider.operationName}`)
   const providerExecution = await ownerTransport.request(`https://run.googleapis.com/v2/${operation.provider.executionName}`)
-  const provider = assertOpenSwxDispatchProviderReadback(operation, providerOperation, providerExecution)
+  const executionId = operation.provider.executionName.split('/').at(-1)
+  const providerExecutionV1 = await ownerTransport.request(`https://asia-east1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/9536592944/executions/${executionId}`)
+  const provider = assertOpenSwxDispatchProviderReadback(operation, providerExecutionV1, providerExecution)
   const job = await ownerTransport.request(`https://run.googleapis.com/v2/${JOB_NAME}`)
   if (!jobMatches(job, operation)) fail('OPENSWX_DISPATCH_RECOVERY_JOB_MISMATCH')
   const expectedArgs = operationArgs(args.operationRef, args.operationSha256, operation.sourceRevision, outputRef)

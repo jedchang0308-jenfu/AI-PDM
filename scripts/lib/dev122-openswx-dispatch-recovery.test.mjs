@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import { parseArgs as parseHostArgs } from '../dev122-openswx-dispatch-recovery.mjs'
@@ -41,11 +42,18 @@ function after() { return { ...operation.dispatch, attemptCount: 1, dispatchStat
 test('OpenSWX recovery binds exact operation bytes, fixed target, provider operation and failed execution', () => {
   const raw = bytes()
   assert.equal(assertOpenSwxDispatchRecoveryOperation(operation, { bytes: raw, operationSha256: sha256(raw), sourceRevision }).operationId, operation.operationId)
-  const providerOperation = { name: operationName, done: true, error: { code: 10 }, metadata: { '@type': 'type.googleapis.com/google.cloud.run.v2.Execution', name: executionName } }
+  const executionV1 = { apiVersion: 'run.googleapis.com/v1', kind: 'Execution', metadata: { name: 'test-execution', namespace: '9536592944', creationTimestamp: operation.provider.createTime, annotations: { 'run.googleapis.com/operation-id': 'test-operation' } }, status: { completionTime: operation.provider.completionTime, conditions: [{ type: 'Completed', status: 'False' }] } }
   const execution = { name: executionName, createTime: operation.provider.createTime, completionTime: operation.provider.completionTime, conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }] }
-  assert.equal(assertOpenSwxDispatchProviderReadback(operation, providerOperation, execution).errorCode, 10)
-  assert.throws(() => assertOpenSwxDispatchProviderReadback(operation, providerOperation, { ...execution, completionTime: '2026-10-16T15:15:28Z' }), /PROVIDER_READBACK_INVALID/u)
+  assert.equal(assertOpenSwxDispatchProviderReadback(operation, executionV1, execution).errorCode, 10)
+  assert.throws(() => assertOpenSwxDispatchProviderReadback(operation, executionV1, { ...execution, completionTime: '2026-10-16T15:15:28Z' }), /PROVIDER_READBACK_INVALID/u)
+  assert.throws(() => assertOpenSwxDispatchProviderReadback(operation, { ...executionV1, metadata: { ...executionV1.metadata, annotations: { 'run.googleapis.com/operation-id': 'other-operation' } } }, execution), /PROVIDER_READBACK_INVALID/u)
   assert.throws(() => assertOpenSwxDispatchRecoveryOperation({ ...operation, database: 'other' }, { bytes: raw, operationSha256: sha256(raw), sourceRevision }), /OPERATION_INVALID/u)
+})
+
+test('OpenSWX recovery reuses the existing execution-get authority and does not require generic operation-get IAM', () => {
+  const host = readFileSync(new URL('../dev122-openswx-dispatch-recovery.mjs', import.meta.url), 'utf8')
+  assert.match(host, /asia-east1-run\.googleapis\.com\/apis\/run\.googleapis\.com\/v1\/namespaces\/9536592944\/executions/u)
+  assert.doesNotMatch(host, /run\.googleapis\.com\/v2\/\$\{operation\.provider\.operationName\}/u)
 })
 
 test('OpenSWX recovery host accepts only the fixed stage and eight bound arguments', () => {

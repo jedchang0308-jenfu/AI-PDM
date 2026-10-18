@@ -49,10 +49,15 @@ export function assertOpenSwxDispatchRecoveryOperation(value, { bytes, operation
   return value
 }
 
-export function assertOpenSwxDispatchProviderReadback(operation, operationResponse, execution) {
+export function assertOpenSwxDispatchProviderReadback(operation, executionV1, execution) {
+  const executionId = operation.provider.executionName.split('/').at(-1)
+  const operationId = operation.provider.operationName.split('/').at(-1)
   const completed = (execution?.conditions ?? []).filter(row => row?.type === 'Completed')
-  if (canonicalOperation(operationResponse?.name) !== canonicalOperation(operation.provider.operationName) || operationResponse?.done !== true || Number(operationResponse?.error?.code) !== operation.provider.errorCode ||
-      operationResponse?.metadata?.['@type'] !== 'type.googleapis.com/google.cloud.run.v2.Execution' || canonicalExecution(operationResponse?.metadata?.name) !== canonicalExecution(operation.provider.executionName) ||
+  const legacyCompleted = (executionV1?.status?.conditions ?? []).filter(row => row?.type === 'Completed')
+  if (executionV1?.apiVersion !== 'run.googleapis.com/v1' || executionV1?.kind !== 'Execution' || executionV1?.metadata?.name !== executionId ||
+      String(executionV1?.metadata?.namespace ?? '') !== '9536592944' || executionV1?.metadata?.annotations?.['run.googleapis.com/operation-id'] !== operationId ||
+      executionV1?.metadata?.creationTimestamp !== operation.provider.createTime || executionV1?.status?.completionTime !== operation.provider.completionTime ||
+      legacyCompleted.length !== 1 || legacyCompleted[0].status !== 'False' ||
       canonicalExecution(execution?.name) !== canonicalExecution(operation.provider.executionName) || execution?.createTime !== operation.provider.createTime || execution?.completionTime !== operation.provider.completionTime ||
       (Object.hasOwn(execution ?? {}, 'reconciling') && execution.reconciling !== false) || completed.length !== 1 || completed[0].state !== operation.provider.completedState) fail('OPENSWX_DISPATCH_RECOVERY_PROVIDER_READBACK_INVALID')
   return { operationName: canonicalOperation(operation.provider.operationName), executionName: canonicalExecution(operation.provider.executionName), errorCode: operation.provider.errorCode, completedState: operation.provider.completedState, createTime: operation.provider.createTime, completionTime: operation.provider.completionTime }
