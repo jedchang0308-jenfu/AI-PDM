@@ -9,7 +9,7 @@ import { fetchProviderRead } from './lib/dev012-read-retry.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { canonicalize, sha256 } from './lib/dev012-production-migration-runner.mjs'
 import { buildPermissionStateOperation } from './lib/dev122-rd-permission-state-readback.mjs'
-import { bindDiagnosticRef, readServiceDiagnostic } from './dev117-production-diagnostics.mjs'
+import { bindDiagnosticRef, readServiceDiagnostic, runMain as runProductionDiagnosticMain } from './dev117-production-diagnostics.mjs'
 import { checkEnvironmentFingerprint, fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
 import { createProductionSlicePlanFromGit } from './lib/production-slice-plan.mjs'
 import { bindPermissionReadbackSources, executionMatches as permissionExecutionMatches, jobMatches as permissionJobMatches, sourceAuthority as assertPermissionReadbackSourceAuthority, submitPermissionReadbackOnce } from './dev122-rd-permission-state-readback.mjs'
@@ -108,6 +108,23 @@ test('stable diagnostic entry performs one fixed service GET and immutable sanit
   assert.equal(input.reports[0].options.ifGenerationMatch, '0')
   assert.equal(input.reports[0].value.service.traffic[0].revision, 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-001')
   assert.doesNotMatch(JSON.stringify(input.reports), /must-not-leak|SECRET|template/u)
+})
+
+test('service diagnostic main binds the workflow and operation to the same exact current source', async () => {
+  const input = diagnosticFixture()
+  const environment = {
+    OPERATION_REF: `${input.binding.operation_uri}#sha256=${input.binding.operation_sha256}`,
+    GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'jedchang0308-jenfu/AI-PDM', GITHUB_SHA: input.sourceRevision,
+    GITHUB_WORKFLOW_SHA: input.sourceRevision,
+    GITHUB_WORKFLOW_REF: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main',
+    GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch',
+  }
+  const result = await runProductionDiagnosticMain({ argv: ['--service-state'], environment, transport: input.transport,
+    sourceAuthorityOptions: { gitRunner: args => args[0] === 'rev-parse' ? input.sourceRevision : '', workflowAncestorRunner: () => true,
+      operationAncestorRunner: (ancestor, descendant) => ancestor === input.sourceRevision && descendant === input.sourceRevision } })
+  assert.equal(result.status, 'READBACK_COMPLETE')
+  assert.equal(input.calls.length, 1)
+  assert.equal(input.reports.length, 1)
 })
 
 test('permission diagnostic separates current reviewed workflow source from installed runner ancestor', () => {
