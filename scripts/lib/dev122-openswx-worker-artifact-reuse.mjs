@@ -7,7 +7,7 @@ import { gunzipSync } from 'node:zlib'
 import { assertImmutableRef, canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
-import { WORKER_PROFILE_PATH, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile } from './dev122-openswx-profile-context.mjs'
+import { OWNER_DEADLINE_SECONDS, WORKER_PROFILE_PATH, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile } from './dev122-openswx-profile-context.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyWorkerResources, readPausedRepairWorkerResources, verifyNormalActor, assertFailedDailyContinuation, readFailedDailyContinuation, readCompletedFailedDailyCheckpoint, readPartialFailedDailyPause, readFailedDailyCurrentResources, assertFailedDailyIsolationProof, assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_EXECUTION_PATHS, readSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
@@ -66,6 +66,14 @@ async function readHistoryBasisIssuerRevision(transport, basisRef) {
   return (await readHistoryBasisIssuerBinding(transport, basisRef)).sourceRevision
 }
 function time(value) { if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) fail('OPENSWX_REUSE_TIME_INVALID'); return Date.parse(value) }
+function assertCurrentOwnerDeadline(value, { historical = false } = {}) {
+  const deadline = time(value)
+  if (!historical) {
+    const current = Date.now()
+    if (deadline <= current || deadline > current + OWNER_DEADLINE_SECONDS * 1000) fail('OPENSWX_OWNER_DEADLINE')
+  }
+  return deadline
+}
 function ownRef(ref) { assertOpenSwxWorkerRef(ref); return ref }
 function releaseCapsuleRef(ref) {
   assertImmutableRef(ref, BUCKET, ['receipts/releases'])
@@ -842,8 +850,7 @@ export function assertWorkerReuseInput(value, { historical = false } = {}) {
   assertImmutableRef(value.sourceLockRef, BUCKET, ['receipts']); assertImmutableRef(value.currentSourceObjectRef, BUCKET, ['source']); ownRef(value.priorActivationRef)
   if (!safePath(value.sourceLockRef.uri.slice(`gs://${BUCKET}/`.length)) || !value.sourceLockRef.uri.endsWith('.json')
     || !safePath(value.currentSourceObjectRef.uri.slice(`gs://${BUCKET}/`.length)) || !value.currentSourceObjectRef.uri.endsWith('.tar.gz')) fail('OPENSWX_REUSE_INPUT_INVALID')
-  const deadline = time(value.deadlineAt)
-  if (!historical && (deadline <= Date.now() || deadline > Date.now() + 600_000)) fail('OPENSWX_OWNER_DEADLINE')
+  assertCurrentOwnerDeadline(value.deadlineAt, { historical })
   return value
 }
 async function readSecretVersionIamForReuse({ transport, input, supplemental, sourceRevision, profile, readSource }) {
@@ -1176,8 +1183,7 @@ export function assertOpenSwxHistoryBasisInput(input, { historical = false } = {
   if (input.schemaVersion !== 'aipdm.openswx-history-basis-input.v1' || !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '')) fail('OPENSWX_HISTORY_INPUT_INVALID')
   for (const field of HISTORY_PREDECESSOR_KEYS) ownRef(input[field])
   assertImmutableRef(input.sourceLockRef, BUCKET, ['receipts']); assertImmutableRef(input.currentSourceObjectRef, BUCKET, ['source'])
-  const limit = time(input.deadlineAt)
-  if (!historical && (limit <= Date.now() || limit > Date.now() + 600000)) fail('OPENSWX_OWNER_DEADLINE')
+  assertCurrentOwnerDeadline(input.deadlineAt, { historical })
   return input
 }
 export function assertOpenSwxHistoryBasis(basis) {
