@@ -207,7 +207,18 @@ test('deleted/renamed release inputs cannot disappear into a documentation-only 
   git('-c', 'user.name=Local Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'fixture')
   const base = git('rev-parse', 'HEAD').trim()
   fs.renameSync(path.join(directory, 'scripts/dev012-example.mjs'), path.join(directory, 'example.md'))
-  const plan = createProductionSlicePlanFromGit({ root: directory, base })
+  const previousHead = process.env.PDM_SLICE_HEAD_SHA
+  let plan
+  try {
+    // This fixture intentionally exercises the working-tree rename path. A
+    // provider CI head ref belongs to the real checkout and must not leak into
+    // the disposable fixture repository.
+    delete process.env.PDM_SLICE_HEAD_SHA
+    plan = createProductionSlicePlanFromGit({ root: directory, base })
+  } finally {
+    if (previousHead === undefined) delete process.env.PDM_SLICE_HEAD_SHA
+    else process.env.PDM_SLICE_HEAD_SHA = previousHead
+  }
   assert.equal(plan.classification, 'FULL')
   assert.ok(plan.files.includes('scripts/dev012-example.mjs'))
 })
