@@ -265,9 +265,12 @@ test('B23 closed repair input retains the four-argument CLI and pins serving/pre
     currentSourceObjectRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-B23-LOCAL/source.tar.gz', sha256: 'c'.repeat(64) }, priorActivationRef: workerRef('last-ready'),
     servingCapsuleRef: releaseRef, predecessorBaselineRef: null, deadlineAt: deadline(), receiptId: 'DEV122-B23-LOCAL' }
   assertWorkerReuseInput(input)
+  const currentProfileDeadline = structuredClone(input)
+  currentProfileDeadline.deadlineAt = new Date(Date.now() + profile.bounds.ownerDeadlineSeconds * 1000 - 1000).toISOString()
+  assertWorkerReuseInput(currentProfileDeadline)
   assert.deepEqual(parseWorkerArtifactReuseArgs(['--input-ref', workerRef('input').uri, '--input-sha256', workerRef('input').sha256]), { inputRef: workerRef('input') })
   for (const mutation of [row => row.purpose = 'build_only', row => row.releaseVariant = 'DAILY', row => row.servingCapsuleRef.extra = true, row => row.predecessorBaselineRef = { ...workerRef('prior'), uri: workerRef('prior').uri + '?x=1' }, row => delete row.servingCapsuleRef,
-    row => row.deadlineAt = new Date(Date.now() + 601_000).toISOString(), row => row.deadlineAt = new Date(Date.now() - 1).toISOString()]) {
+    row => row.deadlineAt = new Date(Date.now() + profile.bounds.ownerDeadlineSeconds * 1000 + 1000).toISOString(), row => row.deadlineAt = new Date(Date.now() - 1).toISOString()]) {
     const changed = structuredClone(input); mutation(changed); assert.throws(() => assertWorkerReuseInput(changed))
   }
   for (const flag of ['--release-variant', '--mode', '--target', '--purpose']) assert.throws(() => parseWorkerArtifactReuseArgs(['--input-ref', workerRef('input').uri, '--input-sha256', workerRef('input').sha256, flag, 'repair']))
@@ -2194,7 +2197,6 @@ test('RD daily accepts current RELEASED program-only app with a newer source-bou
 
 test('PAUSED repair accepts the current RELEASED program-only app only through its sealed retained READY worker chain',async()=>{
   const f=await rdProgramOnlyServingFixture({secretVersionIam:true})
-  f.h.lifecycle()
   f.h.controls.scheduler={state:'PAUSED'}
   assert.equal(f.h.objects.get(f.h.capsuleRef.uri).ref.sha256,f.h.capsuleRef.sha256,'fixture retains the original READY capsule before repair')
   const input={schemaVersion:'aipdm.openswx-worker-reuse-input.v2',sourceLockRef:f.h.input.sourceLockRef,currentSourceObjectRef:f.h.input.currentSourceObjectRef,
@@ -3687,7 +3689,7 @@ test('native history basis closed inputs and DAILY descriptor preserve explicit 
     predecessorInputRef:workerRef('input'),predecessorRequestRef:workerRef('request'),predecessorResourceReadbackRef:workerRef('resource'),predecessorCurrentManifestRef:workerRef('manifest'),predecessorSecurityReadbackRef:workerRef('security')}
   assertOpenSwxHistoryBasisInput(input)
   for(const mutate of [row=>row.validator='caller-validator',row=>row.facts={status:'PASS'},row=>row.context={},row=>row.target='other-project',row=>row.receiptId='../unsafe',
-    row=>row.deadlineAt=new Date(Date.now()+600001).toISOString(),row=>row.deadlineAt=new Date(Date.now()-1).toISOString(),row=>delete row.predecessorRequestRef,
+    row=>row.deadlineAt=new Date(Date.now()+profile.bounds.ownerDeadlineSeconds*1000+1).toISOString(),row=>row.deadlineAt=new Date(Date.now()-1).toISOString(),row=>delete row.predecessorRequestRef,
     row=>row.predecessorInputRef={...workerRef('input'),extra:true},row=>row.predecessorInputRef.uri=workerRef('input').uri+'?x=1']){
     const value=structuredClone(input);mutate(value);assert.throws(()=>assertOpenSwxHistoryBasisInput(value))
   }
