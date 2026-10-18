@@ -500,7 +500,8 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
     image: origin.build.image, sourceEntryProof: assertWorkerBuildSource(origin.build, origin.buildOnly), origin, historicalProfile: origin.historicalProfile, historicalReadSource: origin.historicalReadSource, originalManifest: original, currentManifest: current, input,
     ...(secretVersionIam ? { secretVersionIam } : {}), ...(failedDaily ? { failedDaily } : {}),
     bootstrapDescriptor: origin.prior.bootstrapDescriptor ?? origin.prior.descriptor, bootstrapDescriptorRef: origin.prior.bootstrapDescriptorRef ?? origin.prior.descriptorRef,
-    ...(repair ? { pausedBaseline: resource, pausedBaselineRef: association.resourceAssociation.readbackRef, servingGraph: serving.graph } : {}), graphContext: next }
+    ...(repair ? { pausedBaseline: resource, pausedBaselineRef: association.resourceAssociation.readbackRef, servingGraph: serving.graph }
+      : failedDaily ? {} : { currentReady: resource, currentReadyRef: association.resourceAssociation.readbackRef }), graphContext: next }
   })
 }
 function infraPlan(profile, sourceHashes) { return { ownerApplicationId: 'ai-pdm', projectId: profile.projectId, backendBucket: profile.backendBucket, backendPrefix: profile.backendPrefix, sourceHashes, resourceAddresses: OPENSWX_TERRAFORM_ADDRESSES, allowedActions: ['create', 'no-op'] } }
