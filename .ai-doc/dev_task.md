@@ -5996,6 +5996,8 @@ DEV-121 仍維護 verified Principal、scope／撤權、existing effect publish�
 
 同日 C52 正式重試越過 program-only retained-worker 接縫後，下一失敗證實 repair 漏接 serving association 已封存的 numeric Secret-version IAM continuation；live Job/Secret bindings 與 source-owned receipts 一致，無須修改 IAM。corrective source 將該 continuation 從 serving capsule 單向帶入 PAUSED resource readback，v2 input 不可自選，replay 僅接受 legacy 或固定 policy-version-3 URL 的唯一一種。production-shaped fixture 以 distinct prior/current capsule、current lock、numeric Secret IAM 與 live PAUSED 55 秒雙讀通過；仍須新 PR/CI/merge 與 exact-main evidence，未執行 full35 下游 mutation。
 
+PR #378 合併後 C53-R1 已成功發布 PAUSED baseline/security/association，但 descriptor publication 前因 retained READY descriptor 被錯用 current profile 驗證而停止；其歷史 profile 只有 owner deadline 差異，已先由 immutable origin chain 驗證相容。第三個 corrective 將 retained descriptor 與新 repair descriptor 的 profile authority 分離，並把 historical/current 不同 profile 納入完整 PAUSED fixture。C53-R1 保留為第一失敗，不重送；full35 下游仍 `NOT_RUN`。
+
 ## DEV-122#release-decoupling — 2026-10-17 CAPA-002 project rollout（本機 RD 完成／required CI 待 PR）
 
 導入 project-wide changed-responsibility planner、affected test runner與 owner/CI routing；shared/unknown inputs保留 legacy full fail-closed。worker current/historical profile判定集中至單一 context，歷史 evidence仍綁 exact revision/profile bytes，不以 current HEAD隱式覆蓋。單一交付切片在 merge 前於同一 branch/PR 收斂 caller graph及 production-shaped fixtures，避免以反覆 merge/PR作為本機可發現缺陷的除錯迴圈。此項不執行production mutation，不改 DEV-122原分母；正式 RD、approval與未授權角色驗收仍 pending。
