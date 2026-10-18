@@ -18,9 +18,9 @@ import { assertDev117ReleaseIntent, buildDev117MigrationPackage, buildDev117Migr
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { assertMigration, readOwnerReleaseProof,
   verifyOwnerProviderReadback, readAiPdmSourceArchive, parseAiPdmMigrationArchive,
-  assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, createAiPdmEvidenceContext,
+  assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, createAiPdmEvidenceContext,
   runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmEvidenceLeaf,
-  readAiPdmObservationInputs, assertAiPdmHistoricalMigration } from './lib/dev121-owner-release-proof.mjs'
+  readAiPdmObservationInputs } from './lib/dev121-owner-release-proof.mjs'
 
 const revision = 'a'.repeat(40)
 const manifest = 'b'.repeat(64)
@@ -100,7 +100,19 @@ function b23ContentPrefix(fixture, count) {
   return { files, bundle: { ...core, manifestSha256: sha256(canonicalize(core)) } }
 }
 function b23Deadline() { return new Date(Date.now() + 120000).toISOString() }
-test('B24 LOCAL_TEST branded migration mode preserves 32 and admits only exact 083 append', () => {
+function installedHistory(input, content, sourceRevision = b23Revision) {
+  const receiptCore = { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision,
+    database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: input.bundle.manifestSha256,
+    baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: input.bundle.entries.length,
+    applied: 0, replayed: input.bundle.entries.length, crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
+    boundaryStatus: 'PASS', executionName: 'ai-pdm-prod-migration-runner-test', startedAt: '2026-10-01T00:00:00.000Z', completedAt: '2026-10-01T00:00:01.000Z', status: 'PASS' }
+  const receipt = { ...receiptCore, receiptSha256: sha256(canonicalize(receiptCore)) }
+  const ref = name => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/tests/${name}.json`, sha256: '1'.repeat(64) })
+  const bundleBytes = Buffer.from(canonicalize(input.bundle))
+  return createAiPdmMigrationHistory({ sourceRevision, intentRef: ref('intent'), deploymentRef: ref('deployment'), candidateRef: ref('candidate'), content,
+    receiptRef: ref('migration'), receipt, bundleRef: { uri: `gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/${sourceRevision}/${input.bundle.manifestSha256}.json`, sha256: sha256(bundleBytes) }, bundle: input.bundle, bundleBytes })
+}
+test('B24 LOCAL_TEST migration history preserves installed32 and admits authenticated forward prefixes', () => {
   const fixture = b23ContentPrefix(b23NativeArchive(), 33), deadlineAt = b23Deadline()
   const current = assertAiPdmMigrationContent({ ...fixture, sourceRevision: b23Revision, deadlineAt })
   const historicalFiles = new Map(fixture.files), historicalProfile = JSON.parse(historicalFiles.get(b23ProfilePath))
@@ -111,10 +123,10 @@ test('B24 LOCAL_TEST branded migration mode preserves 32 and admits only exact 0
   const historicalCore = { ...core, entries: core.entries.slice(0, 32) }
   const historicalBundle = { ...historicalCore, manifestSha256: sha256(canonicalize(historicalCore)) }
   const historical = assertAiPdmMigrationContent({ files: historicalFiles, bundle: historicalBundle, sourceRevision: b23Revision, deadlineAt })
-  assert.equal(assertAiPdmRepairMigrationMode(historical, historical), 'HISTORICAL_EVIDENCE_REUSED')
-  assert.equal(assertAiPdmRepairMigrationMode(historical, current), 'FORWARD_APPLIED')
-  assert.throws(() => assertAiPdmRepairMigrationMode(current, current), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
-  assert.throws(() => assertAiPdmRepairMigrationMode({ ...historical }, current), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+  const history = installedHistory({ bundle: historicalBundle }, historical)
+  assert.equal(assertAiPdmRepairMigrationMode(history, historical), 'HISTORICAL_EVIDENCE_REUSED')
+  assert.equal(assertAiPdmRepairMigrationMode(history, current), 'FORWARD_APPLIED')
+  assert.throws(() => assertAiPdmRepairMigrationMode({ ...history }, current), /MIGRATION_HISTORY_INVALID/u)
   const changedFiles = new Map(fixture.files), changedProfile = JSON.parse(changedFiles.get(b23ProfilePath)), changedEntries = structuredClone(fixture.bundle.entries)
   const prefix = changedEntries[31], changedSql = Buffer.concat([changedFiles.get(prefix.path), Buffer.from('\n-- LOCAL_TEST prefix drift\n')])
   changedFiles.set(prefix.path, changedSql); prefix.sourceSha256 = sha256(changedSql)
@@ -123,7 +135,7 @@ test('B24 LOCAL_TEST branded migration mode preserves 32 and admits only exact 0
   changedFiles.set(b23ProfilePath, Buffer.from(canonicalize(changedProfile)))
   const changedCore = { ...core, entries: changedEntries }, changedBundle = { ...changedCore, manifestSha256: sha256(canonicalize(changedCore)) }
   const changed = assertAiPdmMigrationContent({ files: changedFiles, bundle: changedBundle, sourceRevision: b23Revision, deadlineAt })
-  assert.throws(() => assertAiPdmRepairMigrationMode(historical, changed), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
+  assert.throws(() => assertAiPdmRepairMigrationMode(history, changed), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
   for (const mutate of [
     entries => { entries[32].path = 'db/postgres/084_forged_append.sql' },
     entries => { entries[32].sourceSha256 = '0'.repeat(64) },
@@ -140,7 +152,7 @@ test('B24 LOCAL_TEST branded migration mode preserves 32 and admits only exact 0
   }
   assert.throws(() => assertAiPdmMigrationContent({ ...fixture, sourceRevision: '0'.repeat(40), deadlineAt }), /ARCHIVE_BUNDLE_INVALID/u)
   current.files.set(fixture.bundle.entries[0].path, Buffer.from('tampered'))
-  assert.throws(() => assertAiPdmRepairMigrationMode(historical, current), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+  assert.throws(() => assertAiPdmRepairMigrationMode(history, current), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
 })
 const b23ContextRef = (name, bytes = Buffer.from(name)) => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/dev-122/openswx-worker/${name}.json`, sha256: sha256(bytes) })
 test('B23 opaque context closes permanently and rejects copied, inherited, proxy and foreign handles', async () => {
@@ -359,14 +371,14 @@ for (const mutation of ['raw-bytes', 'missing-file', 'missing-profile-entry', 'm
     assert.throws(() => cleanup34Validate(cleanup34Reseal(input), true), expected)
   })
 }
-test('DEV121 ordinary34 content remains rejected by paused32-to33 migration classifier', () => {
+test('DEV121 authenticated installed prefixes classify later ordinary content without ordinal ceilings', () => {
   const input = cleanup34Fixture(), current = cleanup34Validate(input, true)
   const historical = b23ContentPrefix(input, 32), appended083 = b23ContentPrefix(input, 33)
   const before = assertAiPdmMigrationContent({ ...historical, sourceRevision: revision, deadlineAt: b23Deadline() })
   const after083 = assertAiPdmMigrationContent({ ...appended083, sourceRevision: revision, deadlineAt: b23Deadline() })
-  assert.equal(assertAiPdmRepairMigrationMode(before, after083), 'FORWARD_APPLIED')
-  assert.throws(() => assertAiPdmRepairMigrationMode(before, current), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
-  assert.throws(() => assertAiPdmRepairMigrationMode(after083, current), /MIGRATION_HISTORICAL_PREFIX_INVALID/u)
+  assert.equal(assertAiPdmRepairMigrationMode(installedHistory(historical, before, revision), after083), 'FORWARD_APPLIED')
+  assert.equal(assertAiPdmRepairMigrationMode(installedHistory(historical, before, revision), current), 'FORWARD_APPLIED')
+  assert.equal(assertAiPdmRepairMigrationMode(installedHistory(appended083, after083, revision), current), 'FORWARD_APPLIED')
 })
 
 function b23Wire(bytes, change = {}) {
@@ -1396,7 +1408,7 @@ else {
     await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
       const observed = await wire.transport.readOwnerSourceProof({ profile: rootProfile, sourceRevision: capsule.sourceRevision, refs: rootRefs, verifyProvider: false })
       const graph = await readAiPdmObservationInputs(observed.proof)
-      assertAiPdmHistoricalMigration(graph.original)
+      assertAiPdmMigrationHistory(graph.migrationHistory)
       assert.equal(graph.content.files.size, 33); assert.equal(graph.bundle.bundle.entries.length, 32)
       for (const entry of graph.bundle.bundle.entries) assert.equal(sha256(graph.content.files.get(entry.path)), entry.sourceSha256)
       assert.equal(graph.content.migrations.entries.at(-1).path, 'db/postgres/082_dev122_openswx_auxiliary_jobs.sql')
@@ -1416,8 +1428,8 @@ else {
       assert.equal(observed.proof.disposition, 'build_only'); assert.equal(observed.proof.releaseAuthority, false); assert.equal(observed.proof.migrationVerified, false)
       assert.equal(Object.hasOwn(observed.proof, 'migrate'), false); assert.equal(Object.hasOwn(observed.proof, 'terminal'), false)
       const graph = await readAiPdmObservationInputs(observed.proof)
-      assert.equal(graph.migrate, null); assert.equal(graph.terminal, null); assert.equal(graph.original, null); assert.equal(graph.content.files.size, 33)
-      assert.throws(() => assertAiPdmHistoricalMigration(graph.original), /REPAIR_ORIGINAL_HISTORY_INVALID/u)
+      assert.equal(graph.migrate, null); assert.equal(graph.terminal, null); assert.equal(graph.migrationHistory, null); assert.equal(graph.repairHistory, null); assert.equal(graph.content.files.size, 33)
+      assert.throws(() => assertAiPdmMigrationHistory(graph.migrationHistory), /MIGRATION_HISTORY_INVALID/u)
     })
     assert.equal(wire.counts.sourceArrayBuffer, 0); assert.equal(wire.counts.sourceMedia, 1)
   })
@@ -1709,7 +1721,7 @@ else {
         refs: { prepare: prepared.ref, migrate: migration.ref, terminal: terminal.ref }, verifyProvider: true })
       const graph = await readAiPdmObservationInputs(observed.proof)
       assert.equal(graph.repair, true); assert.equal(graph.migrationMode, 'FORWARD_APPLIED')
-      assert.equal(graph.content.files.size, 34); assertAiPdmHistoricalMigration(graph.original)
+      assert.equal(graph.content.files.size, 34); assertAiPdmMigrationHistory(graph.migrationHistory); assertAiPdmMigrationHistory(graph.repairHistory)
       assert.equal(observed.proof.disposition, 'released'); assert.equal(Object.hasOwn(observed.proof, 'migrationEvidenceRef'), false)
     })
     const original = h.store.get(o.paths.terminal), { receiptSha256: _seal, ...core } = JSON.parse(original.bytes)
@@ -2772,6 +2784,17 @@ function rd35Fixture() {
     ...profile.migrations.entries.map(row => [row.path, readFileSync(new URL('../'+row.path, import.meta.url))])])
   return { profile, bundle, files }
 }
+test('LOCAL_TEST source34 installed33 history advances to current35 and rejects history mutation', () => {
+  const source = cleanup34Fixture(), sourceContent = cleanup34Validate(source, true)
+  const installed = b23ContentPrefix(cleanup34Fixture(), 33)
+  const history = installedHistory(installed, sourceContent, revision)
+  const current = cleanup34Validate(rd35Fixture())
+  assert.equal(history.source.content.migrations.entries.length, 34)
+  assert.equal(history.installed.bundle.entries.length, 33)
+  assert.equal(assertAiPdmRepairMigrationMode(history, current), 'FORWARD_APPLIED')
+  history.installed.receipt.ledgerCount = 34
+  assert.throws(() => assertAiPdmRepairMigrationMode(history, current), /MIGRATION_HISTORY_INVALID/u)
+})
 test('LOCAL_TEST native35 authenticates exact085 SQL/profile/archive while preserving084 pin', () => {
   const input = rd35Fixture()
   assert.equal(input.bundle.entries[34].path, 'db/postgres/085_dev121_principal_role_catalog_v7.sql')

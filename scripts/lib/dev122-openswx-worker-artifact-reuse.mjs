@@ -345,7 +345,7 @@ async function readOrigin({ transport, priorActivationRef, profile, readSource, 
   const appliedPlan = (await read(transport, applied.approvedPlanRef)).value
   if (appliedPlan.status !== 'APPROVED' || appliedPlan.releaseAuthority !== true || appliedPlan.evidenceScope !== 'HUMAN_APPROVED_RESOURCE_PLAN'
     || appliedPlan.sourceRevision !== applied.sourceRevision || appliedPlan.resourcePlanHash !== applied.resourcePlanHash || sha256(canonicalize(appliedPlan.plan)) !== applied.resourcePlanHash) fail('OPENSWX_REUSE_ORIGINAL_APPLY_INVALID')
-  return { prior: { activation, activationRef: priorActivationRef, capsule, capsuleRef, descriptor: full, descriptorRef: fullRef, bootstrapDescriptor, bootstrapDescriptorRef, build, bootstrap, template, entry },
+  return { prior: { activation, activationRef: priorActivationRef, capsule, capsuleRef, descriptor: full, descriptorRef: fullRef, bootstrapDescriptor, bootstrapDescriptorRef, build, bootstrap, preflight, drained, template, entry },
     historicalProfile: priorProfile, historicalReadSource: originReadSource,
     build, buildRef, buildOnly, buildOnlyRef, approved, approvedRef, applyRef, applied, appliedPlan, originalCapsule: resolved.origin?.originalCapsule ?? capsule,
     originalRefs: { priorReadyCapsuleRef: capsuleRef, priorReadyFullDescriptorRef: fullRef, originalBuildReceiptRef: buildRef, originalBuildOnlyDescriptorRef: buildOnlyRef, originalApprovedResourcePlanRef: approvedRef },

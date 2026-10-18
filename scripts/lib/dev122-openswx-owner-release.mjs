@@ -3,7 +3,7 @@ import { assertProgramOnlyPolicy, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-p
 import { READBACK_IAM_PATHS, readReadbackIamReceipt, readbackIamPlan, readPrebuildIamContinuation } from './dev122-openswx-readback-iam.mjs'
 import { assertImmutableRef, canonicalize, sha256 } from './dev012-owner-release-runtime.mjs'
 import { resolveWorkerArtifact, verifyWorkerArtifactReuse, createWorkerEvidenceContext, createWorkerReceiptReadTransport } from './dev122-openswx-worker-artifact-reuse.mjs'
-import { runAiPdmEvidenceContext, descendAiPdmEvidenceContext, ensureAiPdmNativeHistoryBasis, recordAiPdmHistoryObject } from './dev121-owner-release-proof.mjs'
+import { runAiPdmEvidenceContext, ensureAiPdmNativeHistoryBasis, recordAiPdmHistoryObject, assertAiPdmRepairMigrationMode } from './dev121-owner-release-proof.mjs'
 import { OWNER_DEADLINE_SECONDS, WORKER_PROFILE_PATH, assertHistoricalOpenSwxWorkerProfile, assertHistoricalProfileCompatibility, assertOpenSwxWorkerProfile, programOnlyHistoricalProfileRequired, resolveWorkerProfileContext, sourceReaderForRevision, workerProfileValidationMode } from './dev122-openswx-profile-context.mjs'
 
 export { OWNER_DEADLINE_SECONDS, WORKER_PROFILE_PATH, assertHistoricalOpenSwxWorkerProfile, assertOpenSwxWorkerProfile, programOnlyHistoricalProfileRequired } from './dev122-openswx-profile-context.mjs'
@@ -636,10 +636,15 @@ export async function readWorkerFullEvidence(transport, descriptor, profile, rea
   if (isPausedAppRepair(descriptor)) {
     const owner = artifact.bootstrapDescriptor
     if (!owner || isPausedAppRepair(owner) || owner.purpose !== 'full' || canonicalize(artifact.bootstrapDescriptorRef) !== canonicalize(descriptor.retainedWorkerDescriptorRef)) fail('OPENSWX_REPAIR_BOOTSTRAP_OWNER_INVALID')
-    const retained = await runAiPdmEvidenceContext(artifact.graphContext, () =>
-      readWorkerFullEvidence(transport, owner, profile, readSource, descendAiPdmEvidenceContext(artifact.graphContext, artifact.bootstrapDescriptorRef, true), historicalReadSource))
-    const supplementalIam = await readBootstrapSupplementalIam(transport, retained.receipts.bootstrapRef, owner, profile, readSource, descriptor.sourceRevision)
-    return { image: artifact.image, receipts: retained.receipts, artifact, bootstrapDescriptor: owner, bootstrapDescriptorRef: artifact.bootstrapDescriptorRef, pausedBaseline: artifact.pausedBaseline,
+    const retained = artifact.origin?.prior
+    if (!retained || canonicalize(retained.bootstrapDescriptorRef) !== canonicalize(artifact.bootstrapDescriptorRef) ||
+        !retained.build || !retained.bootstrap || !retained.preflight || !retained.drained) fail('OPENSWX_REPAIR_BOOTSTRAP_OWNER_INVALID')
+    // resolveWorkerArtifact already authenticated this retained READY chain.
+    // Rewalking it here duplicated state and could turn a shared ancestor into a
+    // false graph cycle; project the validated receipts instead.
+    const receipts = { workerBuildRef: retained.build, bootstrapRef: retained.bootstrap, cloudPreflightRef: retained.preflight, pausedDrainedRef: retained.drained }
+    const supplementalIam = await readBootstrapSupplementalIam(transport, receipts.bootstrapRef, owner, profile, readSource, descriptor.sourceRevision)
+    return { image: artifact.image, receipts, artifact, bootstrapDescriptor: owner, bootstrapDescriptorRef: artifact.bootstrapDescriptorRef, pausedBaseline: artifact.pausedBaseline,
       ...(supplementalIam ? { supplementalIam } : {}) }
   }
   results.workerBuildRef = artifact.originBuild
@@ -1026,17 +1031,17 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     const saved = await write(uri, workerReceipt({ descriptor: descriptor.value, kind: 'normal-job', actor: 'aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com', image: evidence.image, template, observedAt: transport.now(), previousRefs: [prior.ref, descriptor.value.pausedDrainedRef], facts: { tokenSecretVersion: assertNumericSecret(descriptor.value.tokenSecretVersion, descriptor.profile.tokenSecretId), priorJobRef: prior.ref } }))
     return saved.ref
   }
-  async function finalize({ intent, profile, canonical, migrationMode = null }) {
+  async function finalize({ intent, profile, canonical, migrationMode = null, migrationHistory = null, migrationContent = null }) {
     const descriptor = await resolve(intent, profile); if (!descriptor) return null
     if (intent.programOnlyBaseline) {
-      if (migrationMode !== PROGRAM_ONLY_DISPOSITION) fail('OPENSWX_FINALIZE_MIGRATION_MODE_INVALID')
+      if (migrationMode !== PROGRAM_ONLY_DISPOSITION || migrationHistory !== null || migrationContent !== null) fail('OPENSWX_FINALIZE_MIGRATION_MODE_INVALID')
       const evidence = await readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile, descriptor: descriptor.value, profile: descriptor.profile, readSource, currentReadback: true })
       return { status: 'READY', retained: true, schedulerEnabled: true, workerJobMutationPerformed: false, descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: evidence.image, normalTemplateSha256: sha256(canonicalize(evidence.template)), priorActivationRef: intent.programOnlyBaseline.retainedWorker.priorActivationRef, readyResourceReadbackRef: intent.programOnlyBaseline.retainedWorker.readyResourceReadbackRef }
     }
     if (![null, 'HISTORICAL_EVIDENCE_REUSED', 'FORWARD_APPLIED'].includes(migrationMode) ||
-        (migrationMode === 'FORWARD_APPLIED' && (!isPausedAppRepair(descriptor.value) || profile.migrations?.entries?.length !== 33 ||
-          profile.migrations.entries[32].path !== 'db/postgres/083_dev121_authorized_first_login_account.sql' ||
-          profile.migrations.entries[32].sha256 !== 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9'))) fail('OPENSWX_FINALIZE_MIGRATION_MODE_INVALID')
+        (migrationMode !== null && !isPausedAppRepair(descriptor.value)) ||
+        (migrationMode === null) !== (migrationHistory === null && migrationContent === null)) fail('OPENSWX_FINALIZE_MIGRATION_MODE_INVALID')
+    if (migrationMode !== null && assertAiPdmRepairMigrationMode(migrationHistory, migrationContent) !== migrationMode) fail('OPENSWX_FINALIZE_MIGRATION_MODE_INVALID')
     const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
     await pausedAndDrained(descriptor, { intent, appProfile: profile, phase: 'FINALIZE', canonical })
     const template = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion)

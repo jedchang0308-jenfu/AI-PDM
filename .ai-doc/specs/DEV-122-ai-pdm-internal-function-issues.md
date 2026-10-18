@@ -24,6 +24,12 @@ PR #377 合併後的 exact-main C52 正式重試已證明上述 retained-worker 
 
 PR #378 合併後的 exact-main C53-R1 已進一步完成 PAUSED baseline、provider body、security 與 association immutable publication，最後在 descriptor publication 前以 `OPENSWX_DESCRIPTOR_INVALID` 停止。直接證據顯示 retained READY descriptor 綁定歷史 owner deadline profile，而 builder 錯用目前 profile 驗它；新 repair descriptor 本身則應使用目前 profile。第三個 corrective 因此把兩個 profile authority 分開：retained descriptor 以 origin 已驗證的 historical profile 檢查，repair descriptor 繼續以 current profile 建立；production-shaped fixture 強制 historical worker profile 與 current profile 不同，避免再次用同 profile 合成資料漏測。
 
+### 2026-10-18 release-chain responsibility simplification
+
+正式 RD 發布在此架構切片期間維持暫停。共用 owner proof 現將 reviewed source、已安裝 migration prefix 及 release attempt 分開：migration history 由 immutable bundle bytes/ref、receipt 與 exact installed prefix 建立，current source 只依該 authenticated prefix 分類為 reuse 或 forward apply，不再以 B14 identity、固定 32→33 或特定 083 作共同判定。worker reader 的「可讀來源 revision」與「本次 current／historical 驗證政策」保持不同責任，禁止 revision 不相符時默默退回 current reader；deadline 仍由當次已驗證 profile 決定，歷史可讀性不延長 deadline。
+
+PAUSED repair 的 retained READY chain 在 artifact resolver 完整驗證後只投影其 receipt，不再由 full-evidence caller 重走相同 DAG。finalize 不接受未綁定的 migration mode 字串，必須以同一 branded history、current content 與 mode 再驗一致；合法 Secret IAM continuation 仍只從 sealed serving association 單向傳遞，缺漏、不同資源或擴權繼續拒絕。換 release attempt 可重用相同 authenticated artifact／history，但不得改寫既有 receipt。這項精簡不移除 protected main、required CI、API 授權、資料完整性、unknown-write readback 或 recovery 邊界；也不構成正式 RD 驗收。原 run `39126743555` 的 prepare `DEV121_OWNER_RELEASE_PROOF_REPAIR_JOIN_INVALID` 保留為最後正式失敗，下游 build／085／candidate／traffic／rollback／recovery 仍未執行。
+
 ### 2026-10-16 production readback gate corrective slice
 
 PR #315 已合併為 `d9e7f07ba244b47928b4a0e8a77426109919c937`；其後 protected `main` 前進至 `bde28d89ff401491274e5d55e37b548bc3fef8b7`，full35／085 內容未變。正式服務唯讀 API 證明 active catalog 仍為 v6 `bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af`，真實 RD session 的 workspace read/create/update/cancel 為 allow、drawing workbench page 為 deny、approval/publish/admin 仍為 deny。這是同一 application DB snapshot 的 effective active-assignment capability 證據，但 endpoint 未公開 assignment row，不能冒稱 exact grant row readback。最新可追溯 native migration receipt 為 2026-10-11 ledger33，且 provider inventory 無後續 execution；這強烈支持 085 未套用，但不能排除「ledger 已有 085、catalog 發布不一致」的異常，所以 full35 尚未 dispatch。

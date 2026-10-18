@@ -66,27 +66,10 @@ const PROFILE_PATH = 'config/release/dev117-ai-pdm-independent-production-v3.jso
 const AI_BUCKET = 'jenfu-platform-prod-aipdm-release'
 const authenticatedSources = new WeakMap()
 const validatedContents = new WeakMap()
+const validatedMigrationHistories = new WeakMap()
 const evidenceScope = new AsyncLocalStorage()
 const evidenceHandles = new WeakMap()
 const authenticatedObservations = new WeakMap()
-const B14_SOURCE = '54d3c4c3fab41abf2045b025c90ca03d575e81f6'
-const B14_CAPSULE_SHA = 'd746fbe757f4e828b15bd5dab0fd93d6507d004d1ae9cc2ed8b141ab2251cddb'
-const B14_ROOT = `gs://${AI_BUCKET}/receipts/releases/DEV122-OPENSWX-20261007-B14/${B14_CAPSULE_SHA}`
-/** These historical identities are evidence pins, never a live deadline or DB claim. */
-export function assertAiPdmHistoricalMigration(original) {
-  if (!original?.intentRef || !original.migrationRef || !original.bundleRef || !original.migration || !original.content) fail('REPAIR_ORIGINAL_HISTORY_INVALID')
-  sameProof(original.intentRef, { uri: `gs://${AI_BUCKET}/receipts/releases/DEV122-OPENSWX-20261007-B14/release-intent.json`, sha256: B14_CAPSULE_SHA })
-  sameProof(original.migrationRef, { uri: `${B14_ROOT}/migrate.json`, sha256: '000780d1b9dcbebe609c15f78ee7f034e97d0f2cbdea86a7b2814be85b3c668b' })
-  sameProof(original.bundleRef, { uri: `gs://${AI_BUCKET}/source/migration-bundles/${B14_SOURCE}/21327bf92896b0112d3a1fd02815efed461577344347cb6e856564da11c15bd3.json`, sha256: '12e3d0983e89fe11a90597da9a2d4b0b19232a31a29b10745f58f4b709c6bb59' })
-  sameProof(original.deploymentRef, { uri: `${B14_ROOT}/deployment-capsule.json`, sha256: '778796767ae7cd592aaacc678d1cd8ce90f3e0967fc01b847f64679ae82fca4c' })
-  sameProof(original.candidateRef, { uri: `${B14_ROOT}/candidate.json`, sha256: 'c643dd42e99bc3ac8803aef7b897109c0bbec45ae8828b48aaba78e46a2c027f' })
-  if (original.intent.sourceRevision !== B14_SOURCE || original.bundle.entries.length !== 32 || original.bundle.baselineCount !== 15 || !original.candidateRef ||
-      original.migration.sourceRevision !== B14_SOURCE || original.migration.ledgerCount !== 32 || original.migration.applied !== 0 || original.migration.replayed !== 32 || original.migration.baselineCount !== 15 ||
-      original.migration.minimumLedgerCount !== 0 || canonicalize(original.migration.ledgerBootstrap) !== canonicalize({ enabled: true, created: false }) ||
-      original.migration.executionName !== 'ai-pdm-prod-migration-runner-bn4tg' || original.migration.startedAt !== '2026-10-07T12:12:31.055Z' || original.migration.completedAt !== '2026-10-07T12:12:31.247Z' ||
-      !validatedContents.has(original.content)) fail('REPAIR_ORIGINAL_HISTORY_INVALID')
-  return original
-}
 function evidenceState(handle) {
   const state = evidenceHandles.get(handle)
   if (!state || state.root.closed) fail('CONTEXT_INVALID')
@@ -887,33 +870,70 @@ export function parseAiPdmMigrationArchive({ bytes, sourceRevision, bundle, dead
   archiveDeadline(deadlineAt)
   return assertAiPdmMigrationContent({ files, bundle, sourceRevision, deadlineAt })
 }
+function assertMigrationContentBrand(value) {
+  const stored = validatedContents.get(value)
+  if (!stored || value.orderedEntriesSha256 !== stored.orderedEntriesSha256 || value.profileMigrationsSha256 !== stored.profileMigrationsSha256 || canonicalize(value.migrations) !== stored.migrations ||
+      !(value.files instanceof Map) || canonicalize([...value.files].map(([name, bytes]) => [name, sha256(bytes)])) !== stored.files) fail('MIGRATION_INPUT_NOT_EQUIVALENT')
+  return stored
+}
 export function assertAiPdmMigrationEquivalent(original, current) {
-  for (const value of [original, current]) {
-    const stored = validatedContents.get(value)
-    if (!stored || value.orderedEntriesSha256 !== stored.orderedEntriesSha256 || value.profileMigrationsSha256 !== stored.profileMigrationsSha256 || canonicalize(value.migrations) !== stored.migrations ||
-        !(value.files instanceof Map) || canonicalize([...value.files].map(([name, bytes]) => [name, sha256(bytes)])) !== stored.files) fail('MIGRATION_INPUT_NOT_EQUIVALENT')
-  }
-  if (!validatedContents.has(original) || !validatedContents.has(current) || original?.orderedEntriesSha256 !== current?.orderedEntriesSha256 || original?.profileMigrationsSha256 !== current?.profileMigrationsSha256 ||
+  assertMigrationContentBrand(original); assertMigrationContentBrand(current)
+  if (original?.orderedEntriesSha256 !== current?.orderedEntriesSha256 || original?.profileMigrationsSha256 !== current?.profileMigrationsSha256 ||
       canonicalize(original?.migrations) !== canonicalize(current?.migrations)) fail('MIGRATION_INPUT_NOT_EQUIVALENT')
   return { orderedEntriesSha256: current.orderedEntriesSha256, profileMigrationsSha256: current.profileMigrationsSha256 }
 }
-/** Classify authenticated content only; a repair worker does not imply migration reuse. */
-export function assertAiPdmRepairMigrationMode(original, current) {
-  // Revalidate both brands and their exposed bytes before considering a prefix.
-  assertAiPdmMigrationEquivalent(original, original)
-  assertAiPdmMigrationEquivalent(current, current)
-  const before = validatedContents.get(original), after = validatedContents.get(current)
-  if (before.entries.length !== 32) fail('MIGRATION_HISTORICAL_PREFIX_INVALID')
-  if (after.entries.length === 32) {
-    assertAiPdmMigrationEquivalent(original, current)
-    return 'HISTORICAL_EVIDENCE_REUSED'
-  }
-  const historicalProfile = { ...original.migrations }; delete historicalProfile.entries
+
+function migrationHistorySnapshot(history) {
+  return canonicalize({ sourceRevision: history.sourceRevision, release: history.release,
+    installed: { receiptRef: history.installed.receiptRef, receipt: history.installed.receipt,
+      bundleRef: history.installed.bundleRef, bundle: history.installed.bundle } })
+}
+function validateMigrationHistoryShape(history) {
+  if (!exactKeys(history, ['sourceRevision', 'release', 'source', 'installed']) || !H40.test(history.sourceRevision ?? '') ||
+      !exactKeys(history.release, ['intentRef', 'deploymentRef', 'candidateRef']) || !exactKeys(history.source, ['content']) ||
+      !exactKeys(history.installed, ['receiptRef', 'receipt', 'bundleRef', 'bundle'])) fail('MIGRATION_HISTORY_INVALID')
+  for (const name of ['intentRef', 'deploymentRef']) assertAiReleaseRef(history.release[name])
+  if (history.release.candidateRef !== null) assertAiReleaseRef(history.release.candidateRef)
+  assertAiReleaseRef(history.installed.receiptRef)
+  const { content } = history.source, contentState = assertMigrationContentBrand(content)
+  if (content.sourceRevision !== history.sourceRevision) fail('MIGRATION_HISTORY_INVALID')
+  const { bundle, bundleRef, receipt } = history.installed
+  assertContentBundle(bundle, history.sourceRevision)
+  if (!exactKeys(bundleRef, ['uri', 'sha256']) || bundleRef.uri !== `gs://${AI_BUCKET}/source/migration-bundles/${history.sourceRevision}/${bundle.manifestSha256}.json` || !H64.test(bundleRef.sha256 ?? '')) fail('MIGRATION_HISTORY_INVALID')
+  assertMigration(receipt, 'ai-pdm', OWNERS['ai-pdm'], history.sourceRevision, bundle.manifestSha256, bundle.unlinkedProfileCleanupRef)
+  if (receipt.ledgerCount !== bundle.entries.length || receipt.baselineCount !== bundle.baselineCount || receipt.ledgerBootstrap?.created !== false ||
+      bundle.entries.length > contentState.entries.length || canonicalize(contentState.entries.slice(0, bundle.entries.length)) !== canonicalize(bundle.entries) ||
+      canonicalize(content.migrations.entries.slice(0, bundle.entries.length)) !== canonicalize(bundle.entries.map(({ order, path, sourceSha256 }) => ({ order, path, sha256: sourceSha256 })))) fail('MIGRATION_HISTORY_INVALID')
+  return { contentState }
+}
+/** Bind reviewed source separately from the exact migration prefix proven installed. */
+export function createAiPdmMigrationHistory({ sourceRevision, intentRef, deploymentRef, candidateRef, content, receiptRef, receipt, bundleRef, bundle, bundleBytes }) {
+  assertAiPdmMigrationBundleBytes({ bytes: bundleBytes, bundle, sourceRevision, ref: bundleRef })
+  const history = { sourceRevision, release: { intentRef, deploymentRef, candidateRef }, source: { content }, installed: { receiptRef, receipt, bundleRef, bundle } }
+  validateMigrationHistoryShape(history)
+  validatedMigrationHistories.set(history, { content, snapshot: migrationHistorySnapshot(history) })
+  return history
+}
+export function assertAiPdmMigrationHistory(history) {
+  const stored = validatedMigrationHistories.get(history)
+  if (!stored || history?.source?.content !== stored.content || migrationHistorySnapshot(history) !== stored.snapshot) fail('MIGRATION_HISTORY_INVALID')
+  validateMigrationHistoryShape(history)
+  return history
+}
+/** Classify the current source against the authenticated installed prefix. */
+export function assertAiPdmRepairMigrationMode(history, current) {
+  assertAiPdmMigrationHistory(history)
+  const after = assertMigrationContentBrand(current), before = history.installed.bundle.entries
+  if (after.entries.length < before.length || canonicalize(after.entries.slice(0, before.length)) !== canonicalize(before) ||
+      canonicalize(current.migrations.entries.slice(0, before.length)) !== canonicalize(history.source.content.migrations.entries.slice(0, before.length))) fail('MIGRATION_HISTORICAL_PREFIX_INVALID')
+  const historicalProfile = { ...history.source.content.migrations }; delete historicalProfile.entries
   const currentProfile = { ...current.migrations }; delete currentProfile.entries
-  if (after.entries.length !== 33 || canonicalize(after.entries.slice(0, 32)) !== canonicalize(before.entries) ||
-      canonicalize(current.migrations.entries.slice(0, 32)) !== canonicalize(original.migrations.entries) ||
-      canonicalize(currentProfile) !== canonicalize(historicalProfile)) fail('MIGRATION_HISTORICAL_PREFIX_INVALID')
-  return 'FORWARD_APPLIED'
+  if (canonicalize(currentProfile) !== canonicalize(historicalProfile)) fail('MIGRATION_HISTORICAL_PREFIX_INVALID')
+  return after.entries.length === before.length ? 'HISTORICAL_EVIDENCE_REUSED' : 'FORWARD_APPLIED'
+}
+export function assertAiPdmInstalledMigrationEquivalent(history, current) {
+  if (assertAiPdmRepairMigrationMode(history, current) !== 'HISTORICAL_EVIDENCE_REUSED') fail('MIGRATION_INPUT_NOT_EQUIVALENT')
+  return { orderedEntriesSha256: current.orderedEntriesSha256, profileMigrationsSha256: current.profileMigrationsSha256 }
 }
 export function assertAiPdmMigrationBundleBytes({ bytes, bundle, sourceRevision, ref = null }) {
   if (!Buffer.isBuffer(bytes)) fail('MIGRATION_BUNDLE_BYTES_INVALID')
@@ -951,7 +971,7 @@ function assertRepairEvidenceBase(value, keys, intent, intentRef, actor) {
 export function assertPausedMigrationPrerequisite(value, { intent, intentRef, descriptor, descriptorRef }) {
   assertRepairEvidenceBase(value, PREREQUISITE_KEYS, intent, intentRef, 'aipdm-prod-verifier')
   if (value.schemaVersion !== 'aipdm.paused-app-repair-migration-prerequisite.v1' || value.status !== 'KNOWN_HISTORICAL_PREREQUISITE' || value.databaseLiveState !== 'UNKNOWN' ||
-      value.migrationExecutionPolicy !== 'NO_JOB_SUBMISSION' || value.entryCount !== 32 || value.baselineCount !== 15 || value.historicalLedgerCount !== 32 ||
+      value.migrationExecutionPolicy !== 'NO_JOB_SUBMISSION' || ![32, 33, 34, 35].includes(value.entryCount) || value.baselineCount !== 15 || value.historicalLedgerCount !== value.entryCount ||
       !Number.isFinite(Date.parse(value.historicalCompletedAt)) || Date.parse(value.historicalCompletedAt) > Date.parse(value.observedAt) ||
       descriptor?.schemaVersion !== 'aipdm.openswx-worker-descriptor.v3' || descriptor.purpose !== 'full' || descriptor.artifactMode !== 'REUSE_VERIFIED' || descriptor.releaseVariant !== 'PAUSED_APP_REPAIR') fail('REPAIR_PREREQUISITE_INVALID')
   for (const name of ['releaseCapsuleRef', 'sourceLockRef', 'servingCapsuleRef', 'historicalCapsuleRef', 'historicalDeploymentRef', 'historicalCandidateRef', 'historicalMigrationReceiptRef']) assertAiReleaseRef(value[name])
@@ -1323,7 +1343,7 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         if (migrate) assertUnlinkedProfileCleanupReceipt(migrate.value.unlinkedProfileCleanup, intent.unlinkedProfileCleanupRef)
       } else if (migrate?.value?.unlinkedProfileCleanup !== undefined) fail('MIGRATION_INVALID')
       const archived = await observeArchiveContent({ source: deployment.value.sourceObject, revision: sourceRevision, bundle: sourceBundle.bundle, token, fetchImpl })
-      const original = repair ? historical.original : preMigration ? null : { intent, intentRef, deploymentRef: deployment.ref, candidateRef: chain.candidate?.ref ?? null, migrationRef: migrate.ref, migration: migrate.value, bundleRef: bundle.ref, bundle: bundle.bundle, content: archived.content }
+      const repairHistory = repair ? assertAiPdmMigrationHistory(historical.migrationHistory) : null
       let programMigration = null
       if (programOnly) {
         if (repair || intent.unlinkedProfileCleanupRef) fail('PROGRAM_ONLY_CAPSULE_INVALID')
@@ -1433,21 +1453,25 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
           workerProfileSha256: retained.artifact.originBuild.workerProfileSha256,
         })
       }
+      const migrationHistory = preMigration ? null : historicalMigrationReuse ? repairHistory : createAiPdmMigrationHistory({
+        sourceRevision, intentRef, deploymentRef: deployment.ref, candidateRef: chain.candidate?.ref ?? null, content: archived.content,
+        receiptRef: programOnly ? programMigration.native.ref : migrate.ref, receipt: programOnly ? programMigration.native.value : migrate.value,
+        bundleRef: bundle.ref, bundle: bundle.bundle, bundleBytes: bundle.bytes,
+      })
       let migrationMode = migrate ? programOnly ? PROGRAM_ONLY_DISPOSITION : 'FORWARD_APPLIED' : null
       if (repair) {
-        assertAiPdmHistoricalMigration(original)
-        migrationMode = assertAiPdmRepairMigrationMode(original.content, archived.content)
+        migrationMode = assertAiPdmRepairMigrationMode(repairHistory, archived.content)
         if ((migrationMode === 'HISTORICAL_EVIDENCE_REUSED') !== historicalMigrationReuse) fail('REPAIR_MIGRATION_MODE_INVALID')
         if (historicalMigrationReuse) {
-        const equivalent = assertAiPdmMigrationEquivalent(original.content, archived.content), p = prerequisite.value
-        for (const [key, value] of Object.entries({ historicalCapsuleRef: original.intentRef, historicalDeploymentRef: original.deploymentRef, historicalCandidateRef: original.candidateRef, historicalMigrationReceiptRef: original.migrationRef,
-          historicalMigrationBundleRef: original.bundleRef, historicalMigrationManifestSha256: original.bundle.manifestSha256, historicalLedgerCount: original.migration.ledgerCount, historicalCompletedAt: original.migration.completedAt,
+        const equivalent = assertAiPdmInstalledMigrationEquivalent(repairHistory, archived.content), p = prerequisite.value
+        for (const [key, value] of Object.entries({ historicalCapsuleRef: repairHistory.release.intentRef, historicalDeploymentRef: repairHistory.release.deploymentRef, historicalCandidateRef: repairHistory.release.candidateRef, historicalMigrationReceiptRef: repairHistory.installed.receiptRef,
+          historicalMigrationBundleRef: repairHistory.installed.bundleRef, historicalMigrationManifestSha256: repairHistory.installed.bundle.manifestSha256, historicalLedgerCount: repairHistory.installed.receipt.ledgerCount, historicalCompletedAt: repairHistory.installed.receipt.completedAt,
           currentMigrationBundleSha256: bundle.ref.sha256, currentMigrationManifestSha256: bundle.bundle.manifestSha256, ...equivalent })) sameProof(p[key], value)
         assertPausedMigrationAssociation(migrate.value, { intent, intentRef, prerequisite: p, prerequisiteRef: prerequisite.ref, deployment: deployment.value, deploymentRef: deployment.ref })
         } else if (migrate.value.ledgerCount !== bundle.bundle.entries.length || migrate.value.baselineCount !== bundle.bundle.baselineCount) fail('REPAIR_FORWARD_MIGRATION_INVALID')
       }
       activeEvidence()
-      return { intent, intentRef, prepare, sourceLock, migrate, terminal, chain, descriptor, baseline, prerequisite, bundle, content: archived.content, sourceAuthentication: archived.sourceAuthentication, original, repair, migrationMode, programMigration }
+      return { intent, intentRef, prepare, sourceLock, migrate, terminal, chain, descriptor, baseline, prerequisite, bundle, content: archived.content, sourceAuthentication: archived.sourceAuthentication, migrationHistory, repairHistory, repair, migrationMode, programMigration }
     }
     if (!repair) return observe(null)
     if (!intent.openswxWorkerRef || Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) fail('REPAIR_CAPSULE_INVALID')

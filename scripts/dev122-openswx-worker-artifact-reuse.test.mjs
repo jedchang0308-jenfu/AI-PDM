@@ -2,7 +2,7 @@ import { createContinuousReleaseSourceReader } from './dev117-ai-pdm-continuous-
 import { createPrerequisiteSourceReader } from './dev117-ai-pdm-prerequisite-producer.mjs'
 import { createBootstrapSourceReader } from './dev122-openswx-bootstrap.mjs'
 import { buildReleaseIntent, buildRuntimeConfigReceipt, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
-import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
+import { executeOwnerStage, readRepairStageBasis } from './lib/dev012-owner-stage-executor.mjs'
 import { assertDev117ReleaseIntent } from './lib/dev117-ai-pdm-continuous-release.mjs'
 
 import { readFileSync } from 'node:fs'
@@ -1122,7 +1122,7 @@ test('P07 failed program-only descriptor read reports recovery needed without bl
 
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { programOnlyHash, sealProgramOnlyEvidence, programOnlyStaticEnvironment, programOnlyExecutionEnvironment, programOnlyMigrationArguments, programOnlySubmissionFields } from './lib/dev117-ai-pdm-program-only-baseline.mjs'
-import { readAiPdmReleaseObservation, readAiPdmObservationInputs, createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
+import { readAiPdmReleaseObservation, readAiPdmObservationInputs, assertAiPdmMigrationHistory, createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 
 async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false,secretVersionIam=false,historicalOriginProfile=false}={}) {
   // Historical modeled34 archive: real Git PAX, immutable SQL/worker blobs, explicit profile bytes.
@@ -1204,6 +1204,10 @@ test('P06A complete program-only source observation verifies full34 archive, eff
     const proof=await wire.read(), graph=await readAiPdmObservationInputs(proof)
     assert.equal(proof.databaseDisposition,'READ_ONLY_BASELINE_VERIFIED');assert.equal(proof.currentDatabaseReadPerformed,true)
     assert.equal(graph.bundle.bundle.entries.length,33);assert.equal(graph.programMigration.native.value.applied,0)
+    assertAiPdmMigrationHistory(graph.migrationHistory)
+    assert.equal(graph.migrationHistory.source.content.migrations.entries.length,34)
+    assert.equal(graph.migrationHistory.installed.bundle.entries.length,33)
+    assert.deepEqual(graph.migrationHistory.installed.receiptRef,graph.programMigration.native.ref)
     const replay=await readAiPdmObservationInputs(proof);assert.equal(replay.intentRef.sha256,wire.intentRef.sha256)
   })
   assert.ok(wire.sourceCalls.length>0);assert.ok(wire.calls.every(c=>c.method==='GET'));noMutation(wire.h)
@@ -2200,10 +2204,25 @@ test('PAUSED repair accepts the current RELEASED program-only app only through i
   const f=await rdProgramOnlyServingFixture({secretVersionIam:true,historicalOriginProfile:true})
   f.h.controls.scheduler={state:'PAUSED'}
   assert.equal(f.h.objects.get(f.h.capsuleRef.uri).ref.sha256,f.h.capsuleRef.sha256,'fixture retains the original READY capsule before repair')
-  const input={schemaVersion:'aipdm.openswx-worker-reuse-input.v2',sourceLockRef:f.h.input.sourceLockRef,currentSourceObjectRef:f.h.input.currentSourceObjectRef,
+  const repairRevision='c'.repeat(40)
+  const full=buildDev117MigrationBundle(currentAppProfile,buildDev117MigrationPackage(currentAppProfile,JSON.parse(canonicalSource('config/platform/dev-010-n1c-ai-pdm.json'))),repairRevision)
+  const sourceLock={...f.h.lock,releaseId:'DEV122-RD-FULL35-REPAIR',sourceRevision:repairRevision,remoteRevision:repairRevision,migrationManifestSha256:full.bundle.manifestSha256,observedAt:new Date(Date.now()-2000).toISOString()}
+  const sourceLockRef=f.h.seedBytes(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${sourceLock.releaseId}/source-lock.json`,Buffer.from(canonicalize(sourceLock)+'\n'))
+  const currentSourceObjectRef=f.h.seedBytes(`gs://jenfu-platform-prod-aipdm-release/source/releases/${sourceLock.releaseId}/current-source.tar.gz`,f.h.objects.get(f.h.input.currentSourceObjectRef.uri).bytes)
+  const readSource=(name,revision)=>revision===repairRevision?canonicalSource(name):f.wire.readSource(name,revision)
+  Object.assign(readSource,f.h.readSource)
+  readSource.sourceRevision=repairRevision
+  readSource.readTree=revision=>revision===repairRevision?currentTree:f.h.readSource.readTree(revision)
+  readSource.readTreeId=revision=>revision===repairRevision?'e'.repeat(40):f.h.readSource.readTreeId(revision)
+  readSource.assertCurrentFrozen=()=>assert.equal(readSource.sourceRevision,repairRevision)
+  readSource.readArchive=revision=>{assert.equal(revision,repairRevision);return f.h.readSource.readArchive(currentRevision)}
+  readSource.readImmutableArchive=revision=>revision===repairRevision?f.h.readSource.readArchive(currentRevision):f.h.readSource.readImmutableArchive(revision)
+  readSource.authorizeOrigin=revision=>{if(revision!==repairRevision)f.h.readSource.authorizeOrigin(revision)}
+  readSource.createHistoricalReader=revision=>f.wire.readSource.createHistoricalReader(revision)
+  const input={schemaVersion:'aipdm.openswx-worker-reuse-input.v2',sourceLockRef,currentSourceObjectRef,
     priorActivationRef:f.h.priorActivationRef,servingCapsuleRef:f.wire.intentRef,predecessorBaselineRef:null,deadlineAt:deadline(),receiptId:'RD-PROGRAM-PAUSED-REPAIR'}
   const inputRef=f.h.seed('RD-PROGRAM-PAUSED-REPAIR-input',input),calls=f.h.calls.length
-  const saved=await executeWorkerArtifactReuse({transport:f.h.transport,inputRef,readSource:f.wire.readSource})
+  const saved=await executeWorkerArtifactReuse({transport:f.h.transport,inputRef,readSource})
   assert.equal(saved.value.schemaVersion,'aipdm.openswx-worker-build-association.v2')
   assert.equal(saved.value.resourceBasis,'PAUSED_APP_REPAIR')
   const root=profile.receiptRoot+'/'+input.receiptId+'-'+inputRef.sha256.slice(0,16)
@@ -2214,6 +2233,16 @@ test('PAUSED repair accepts the current RELEASED program-only app only through i
   assert.deepEqual(descriptor.priorActivationRef,f.h.priorActivationRef)
   assert.ok(f.h.calls.slice(calls).some(row=>row.url.includes('/secrets/'+profile.tokenSecretId+':getIamPolicy?options.requestedPolicyVersion=3')))
   assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')))
+  const descriptorRef=descriptorRow.ref,environment={GITHUB_RUN_ID:'456',OWNER_EXECUTION_MODE:'full_release',GITHUB_WORKFLOW_REF:`${currentAppProfile.application.repository}/${currentAppProfile.workflow.path}@refs/heads/main`}
+  const worker=createOpenSwxOwnerRelease({transport:f.h.transport,readSource,environment})
+  const basis=await readRepairStageBasis({worker,intent:{releaseId:sourceLock.releaseId,sourceRevision:repairRevision,sourceLockRef,openswxWorkerRef:descriptorRef,
+    migrationManifestSha256:full.bundle.manifestSha256,deadlineAt:input.deadlineAt},intentRef:{uri:`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${sourceLock.releaseId}/release-intent.json`,sha256:'9'.repeat(64)},
+    profile:currentAppProfile,transport:f.h.transport,readWorkerSource:readSource,buildMigrationBundle:revision=>{assert.equal(revision,repairRevision);return full},environment})
+  assert.equal(basis.migrationMode,'FORWARD_APPLIED')
+  assert.equal(basis.history.source.content.migrations.entries.length,34)
+  assert.equal(basis.history.installed.bundle.entries.length,33)
+  assert.equal(basis.current.bundle.entries.length,35)
+  assert.equal(basis.prerequisite,null)
   noMutation({...f.h,calls:f.h.calls.slice(calls)})
 })
 
