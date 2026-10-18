@@ -11,7 +11,7 @@ import { canonicalize, sha256 } from './lib/dev012-production-migration-runner.m
 import { bindDiagnosticRef, readServiceDiagnostic } from './dev117-production-diagnostics.mjs'
 import { checkEnvironmentFingerprint, fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
 import { createProductionSlicePlanFromGit } from './lib/production-slice-plan.mjs'
-import { submitPermissionReadbackOnce } from './dev122-rd-permission-state-readback.mjs'
+import { executionMatches as permissionExecutionMatches, jobMatches as permissionJobMatches, sourceAuthority as assertPermissionReadbackSourceAuthority, submitPermissionReadbackOnce } from './dev122-rd-permission-state-readback.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const noWait = async () => {}
@@ -92,7 +92,7 @@ function diagnosticFixture() {
   const calls = [], reports = []
   const transport = {
     async readBytes() { return { bytes } },
-    async request(url, options) { calls.push({ url, options }); return { name: service, generation: '5', latestReadyRevision: `${service}/revisions/ai-pdm-prod-001`, latestCreatedRevision: `${service}/revisions/ai-pdm-prod-001`, trafficStatuses: [{ revision: `${service}/revisions/ai-pdm-prod-001`, percent: 100 }], template: { env: { SECRET: 'must-not-leak' } } } },
+    async request(url, options) { calls.push({ url, options }); return { name: service, generation: '5', latestReadyRevision: `${service}/revisions/ai-pdm-prod-001`, latestCreatedRevision: `${service}/revisions/ai-pdm-prod-001`, trafficStatuses: [{ type: 'TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION', revision: 'ai-pdm-prod-001', percent: 100 }], template: { env: { SECRET: 'must-not-leak' } } } },
     async putJson(uri, value, options) { reports.push({ uri, value, options }) },
   }
   return { binding, sourceRevision: operation.sourceRevision, transport, calls, reports }
@@ -105,7 +105,39 @@ test('stable diagnostic entry performs one fixed service GET and immutable sanit
   assert.equal(input.calls.length, 1); assert.equal(input.calls[0].options.method, 'GET')
   assert.match(input.calls[0].url, /\/services\/ai-pdm-prod$/u)
   assert.equal(input.reports[0].options.ifGenerationMatch, '0')
+  assert.equal(input.reports[0].value.service.traffic[0].revision, 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod/revisions/ai-pdm-prod-001')
   assert.doesNotMatch(JSON.stringify(input.reports), /must-not-leak|SECRET|template/u)
+})
+
+test('permission diagnostic separates current reviewed workflow source from installed runner ancestor', () => {
+  const workflowSource = 'b'.repeat(40)
+  const installedSource = 'a'.repeat(40)
+  const environment = {
+    GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'jedchang0308-jenfu/AI-PDM', GITHUB_SHA: workflowSource,
+    GITHUB_WORKFLOW_SHA: workflowSource,
+    GITHUB_WORKFLOW_REF: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main',
+    GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch',
+  }
+  const gitRunner = args => args[0] === 'rev-parse' ? workflowSource : ''
+  const input = { gitRunner, workflowAncestorRunner: () => true, operationAncestorRunner: (ancestor, descendant) => ancestor === installedSource && descendant === workflowSource }
+  assert.deepEqual(assertPermissionReadbackSourceAuthority(environment, installedSource, input), { workflowSourceRevision: workflowSource, operationSourceRevision: installedSource })
+  assert.throws(() => assertPermissionReadbackSourceAuthority(environment, 'c'.repeat(40), input), /RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH/u)
+})
+
+test('permission diagnostic binds the provider Job and execution to the installed runner source', () => {
+  const sourceRevision = 'a'.repeat(40)
+  const image = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'b'.repeat(64)}`
+  const operation = { sourceRevision, migrationRunnerDigest: image }
+  const container = { name: 'migration', image, env: [{ name: 'PDM_SOURCE_REVISION', value: sourceRevision }] }
+  const job = { name: 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner', etag: 'etag', template: { taskCount: 1, parallelism: 1, template: { serviceAccount: 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com', maxRetries: 0, timeout: '1800s', containers: [container] } } }
+  const args = ['--permission-operation-ref', 'bound']
+  const execution = { name: `${job.name}/executions/exact`, taskCount: 1, parallelism: 1, template: { serviceAccount: job.template.template.serviceAccount, containers: [{ ...container, args, env: [...container.env, { name: 'PGOPTIONS', value: '-c default_transaction_read_only=on' }] }] } }
+  assert.equal(permissionJobMatches(job, operation), true)
+  assert.equal(permissionExecutionMatches(execution, args, operation), true)
+  job.template.template.containers[0].env[0].value = 'c'.repeat(40)
+  execution.template.containers[0].env[0].value = 'c'.repeat(40)
+  assert.equal(permissionJobMatches(job, operation), false)
+  assert.equal(permissionExecutionMatches(execution, args, operation), false)
 })
 
 test('diagnostic refuses arbitrary targets, namespace, source and content hash before provider service reads', async () => {
