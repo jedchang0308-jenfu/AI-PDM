@@ -107,6 +107,28 @@ describe("OpenSWX fixed provider and durable dispatch", () => {
     expect(await recoverOpenSwxDispatch(db, { ...deps(), provider })).toEqual({ state: "dispatch_unknown" });
     expect(posts).toBe(0); expect(await repository.read("job", "company")).toMatchObject({ dispatchState: "dispatch_unknown", dispatchGeneration: 1, executionName: null });
   });
+  it("production-sized execution history uses a bounded field mask and recovers the exact stale dispatch", async () => {
+    const repository = new OpenSwxMetadataAsyncRepository(db), requestedAt = new Date(time).toISOString();
+    await repository.dispatchAdmission(requestedAt, new Date(time + 30_000).toISOString());
+    sql.prepare("UPDATE openswx_metadata_jobs SET dispatch_state='dispatch_unknown'").run();
+    const history = Array.from({ length: 45 }, (_, index) => ({
+      name: `${jobName}/executions/ai-pdm-prod-openswx-metadata-history-${index}`,
+      createTime: new Date(time - 1_000_000 - index * 1000).toISOString(),
+      completionTime: new Date(time - 999_000 - index * 1000).toISOString(),
+      conditions: [{ type: "Completed", state: "CONDITION_FAILED" }],
+    }));
+    const body = { executions: [...history, { name: executionName, createTime: requestedAt, completionTime: new Date(time + 1000).toISOString(), conditions: [{ type: "Completed", state: "CONDITION_FAILED" }] }] };
+    expect(Buffer.byteLength(JSON.stringify({ executions: body.executions.map(row => ({ ...row, template: "x".repeat(3000) })) }))).toBeGreaterThan(128 * 1024);
+    expect(Buffer.byteLength(JSON.stringify(body))).toBeLessThan(128 * 1024);
+    const urls: string[] = [];
+    const provider = new OpenSwxJobProvider({ accessToken: async () => "local-recorded-token", request: async url => {
+      urls.push(String(url));
+      return Response.json(String(url).includes("/executions?") ? body : { name: OPENSWX_JOB_REQUEST });
+    } });
+    expect(await recoverOpenSwxDispatch(db, { ...deps(), provider })).toEqual({ state: "provider_terminal" });
+    expect(urls.find(url => url.includes("/executions?"))).toBe(`https://run.googleapis.com/v2/${OPENSWX_JOB_REQUEST}/executions?pageSize=100&fields=nextPageToken,executions(name,createTime,completionTime,reconciling,conditions(type,state))`);
+    expect(await repository.read("job", "company")).toMatchObject({ dispatchState: "due", attemptCount: 1, executionName: null });
+  });
   it("blocked CAS rejects stale generation/unknown/provider outcome and preserves a concurrent cancellation", async () => {
     const repository = new OpenSwxMetadataAsyncRepository(db), now = new Date(time).toISOString();
     const admission = (await repository.dispatchAdmission(now, new Date(time + 30_000).toISOString()))!.job;
@@ -167,6 +189,7 @@ describe("OpenSWX fixed provider and durable dispatch", () => {
     } });
     expect(await recoverOpenSwxDispatch(db, { ...deps(), provider })).toEqual({ state: "executing" });
     expect(calls[0]).toMatchObject({ url: `https://run.googleapis.com/v2/${OPENSWX_JOB_REQUEST}:run`, init: { method: "POST", body: "{}", redirect: "error" } });
+    expect(calls.find(call => call.url.includes("/executions?"))?.url).toBe(`https://run.googleapis.com/v2/${OPENSWX_JOB_REQUEST}/executions?pageSize=100&fields=nextPageToken,executions(name,createTime,completionTime,reconciling,conditions(type,state))`);
     expect(calls.some(c => c.url.includes("/operations"))).toBe(false);
     expect((await new OpenSwxMetadataAsyncRepository(db).read("job", "company"))?.executionName).toBe(executionName);
   });

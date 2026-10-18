@@ -62,7 +62,12 @@ export class OpenSwxJobProvider {
       if (execution.name !== name) throw Error("OPENSWX_PROVIDER_EXECUTION_INVALID");
       return execution;
     }
-    const list = await this.request(`${OPENSWX_JOB_REQUEST}/executions?pageSize=100`, "GET", deadline, signal);
+    // Keep the provider response below the bounded reader limit even after the
+    // Job has accumulated many executions. The unmasked production response
+    // includes full templates/log URIs and can exceed 128 KiB before the exact
+    // request-window candidate is inspected.
+    const fields = "nextPageToken,executions(name,createTime,completionTime,reconciling,conditions(type,state))";
+    const list = await this.request(`${OPENSWX_JOB_REQUEST}/executions?pageSize=100&fields=${fields}`, "GET", deadline, signal);
     if (list.nextPageToken || !Array.isArray(list.executions ?? []) || (list.executions?.length ?? 0) > 100) return null;
     const candidates = (list.executions ?? []).map((e: Execution) => this.validateExecution(e)).filter((e: Execution) => Date.parse(e.createTime) >= Date.parse(job.dispatchRequestedAt ?? "") && Date.parse(e.createTime) <= Date.parse(job.dispatchRequestWindowEnd ?? ""));
     return candidates.length === 1 ? candidates[0] : null;
