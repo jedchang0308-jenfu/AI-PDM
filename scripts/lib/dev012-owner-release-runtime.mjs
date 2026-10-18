@@ -769,6 +769,7 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
       POSTGRES_IAM_LOGIN: profile.migrations.serviceAccount.replace('.gserviceaccount.com', ''),
       POSTGRES_SOCKET: `/cloudsql/${connectionName}`,
     }
+    if (!programPolicy) expectedEnvironment.PDM_SOURCE_REVISION = deployment.sourceRevision
     const volume = job.template?.template?.volumes?.find((item) => item.name === 'cloudsql')
     const mount = container?.volumeMounts?.find((item) => item.name === 'cloudsql')
     if (job.name !== jobName || job.template?.template?.serviceAccount !== profile.migrations.serviceAccount || container?.image !== deployment.migrationRunnerDigest || canonicalize(environment) !== canonicalize(expectedEnvironment) || canonicalize(volume?.cloudSqlInstance?.instances) !== canonicalize([connectionName]) || mount?.mountPath !== '/cloudsql' || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || job.template?.template?.maxRetries !== 0 || job.template?.template?.timeout !== '1800s') fail('MIGRATION_JOB_READBACK_MISMATCH')

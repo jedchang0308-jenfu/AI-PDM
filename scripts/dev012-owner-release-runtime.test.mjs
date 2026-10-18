@@ -192,7 +192,7 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
   const environment = {
     OWNER_APPLICATION_ID: 'platform', RELEASE_BUCKET: bucket, GOOGLE_CLOUD_PROJECT: 'jenfu-platform-prod', GOOGLE_CLOUD_REGION: 'asia-east1',
     CLOUD_SQL_INSTANCE_CONNECTION_NAME: 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', POSTGRES_DATABASE: 'jenfu_prod',
-    POSTGRES_IAM_LOGIN: 'platform-prod-migrator@jenfu-platform-prod.iam', POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg',
+    POSTGRES_IAM_LOGIN: 'platform-prod-migrator@jenfu-platform-prod.iam', POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', PDM_SOURCE_REVISION: H40,
   }
   const job = { name: jobName, template: { taskCount: 1, parallelism: 1, template: { serviceAccount: profile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', containers: [{ name: 'migration', image: `runner@sha256:${H64}`, env: Object.entries(environment).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }], volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }] } } }
   let runCalls = 0
@@ -263,7 +263,7 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
 function migrationRetryHarness({ prior = 'active', fenced = false, unknownPost = false, multipleFresh = false, unknownReadback = false } = {}) {
   const jobName = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`
   const environment = { OWNER_APPLICATION_ID: profile.application.id, RELEASE_BUCKET: bucket, GOOGLE_CLOUD_PROJECT: profile.target.projectId, GOOGLE_CLOUD_REGION: profile.target.region,
-    CLOUD_SQL_INSTANCE_CONNECTION_NAME: 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', POSTGRES_DATABASE: 'jenfu_prod', POSTGRES_IAM_LOGIN: profile.migrations.serviceAccount.replace('.gserviceaccount.com', ''), POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg' }
+    CLOUD_SQL_INSTANCE_CONNECTION_NAME: 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', POSTGRES_DATABASE: 'jenfu_prod', POSTGRES_IAM_LOGIN: profile.migrations.serviceAccount.replace('.gserviceaccount.com', ''), POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', PDM_SOURCE_REVISION: H40 }
   const deployment = { migrationRunnerDigest: `runner@sha256:${H64}`, migrationBundleRef: { uri: `gs://${bucket}/source/migration-bundles/retry.json`, sha256: H64 }, sourceRevision: H40 }
   const outputUri = `gs://${bucket}/receipts/retry-migrate.json`
   const principalOnlyFenceRef = fenced ? { uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/retry.json`, sha256: H64 } : null
