@@ -197,9 +197,15 @@ export function assertPausedRepairCurrentCheck(value, baseline, profile) {
   }
   return value
 }
-export function buildPausedRepairDescriptor({ profile, association, associationRef, baseline, baselineRef, retainedDescriptor, retainedDescriptorRef }) {
+export function buildPausedRepairDescriptor({ profile, association, associationRef, baseline, baselineRef, retainedDescriptor, retainedDescriptorRef,
+  retainedProfile = profile, retainedHistoricalProfile = false }) {
   assertPausedRepairBaseline(baseline, profile)
-  assertWorkerDescriptor(retainedDescriptor, profile, retainedDescriptor.workerProfileSha256, retainedDescriptor.sourceRevision)
+  // The retained READY descriptor belongs to its own immutable source.  A
+  // later repair descriptor belongs to the current source/profile.  Validate
+  // each against its own profile instead of projecting the current deadline
+  // policy onto historical evidence.
+  assertWorkerDescriptor(retainedDescriptor, retainedProfile, retainedDescriptor.workerProfileSha256, retainedDescriptor.sourceRevision,
+    { historicalProfile: retainedHistoricalProfile })
   if (isPausedAppRepair(retainedDescriptor) || retainedDescriptor.purpose !== 'full' || canonicalize(retainedDescriptorRef) !== canonicalize(baseline.retainedWorkerDescriptorRef)
     || association.schemaVersion !== 'aipdm.openswx-worker-build-association.v2' || association.resourceBasis !== 'PAUSED_APP_REPAIR' || canonicalize(association.resourceAssociation.readbackRef) !== canonicalize(baselineRef)
     || SOURCE_BINDING_KEYS.some(key => canonicalize(association[key]) !== canonicalize(baseline.source[key])) || canonicalize(association.priorActivationRef) !== canonicalize(baseline.priorActivationRef)) fail('OPENSWX_REPAIR_DESCRIPTOR_JOIN_INVALID')

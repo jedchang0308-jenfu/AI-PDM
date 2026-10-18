@@ -51,6 +51,23 @@ test('B23 repair descriptor derives full mode and preserved credentials without 
   for (const patch of [{ purpose: 'build_only' }, { releaseVariant: 'DAILY' }, { pausedDrainedRef: ref('forged') }, { bounds: { ...value.bounds, maxExecutionPages: 5 } }, { tokenSecretVersion: token.replace('/7', '/latest') }]) assert.throws(() => assertWorkerDescriptor({ ...value, ...patch }, profile, retained.workerProfileSha256, sourceRevision))
 })
 
+test('PAUSED repair validates a retained READY descriptor against its own historical profile', () => {
+  const { baseline, retained } = b23Baseline(), baselineRef = ref('historical-paused-baseline'), associationRef = ref('historical-association')
+  const association = { ...baseline.source, schemaVersion: 'aipdm.openswx-worker-build-association.v2', resourceBasis: 'PAUSED_APP_REPAIR', resourceAssociation: { readbackRef: baselineRef }, priorActivationRef: baseline.priorActivationRef }
+  const retainedProfile = structuredClone(profile)
+  retainedProfile.bounds.ownerDeadlineSeconds = 600
+  const historicalRetained = { ...retained, workerProfileSha256: 'f'.repeat(64), bounds: retainedProfile.bounds,
+    normalTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(retainedProfile, 'normal', { historicalProfile: true }))),
+    selftestTemplatePolicySha256: sha256(canonicalize(workerTemplatePolicy(retainedProfile, 'selftest', { historicalProfile: true }))) }
+  assert.throws(() => buildPausedRepairDescriptor({ profile, association, associationRef, baseline, baselineRef,
+    retainedDescriptor: historicalRetained, retainedDescriptorRef: baseline.retainedWorkerDescriptorRef }), /OPENSWX_DESCRIPTOR_INVALID/u)
+  const value = buildPausedRepairDescriptor({ profile, association, associationRef, baseline, baselineRef,
+    retainedDescriptor: historicalRetained, retainedDescriptorRef: baseline.retainedWorkerDescriptorRef,
+    retainedProfile, retainedHistoricalProfile: true })
+  assert.equal(value.workerProfileSha256, baseline.source.workerProfileSha256)
+  assert.deepEqual(value.bounds, profile.bounds)
+})
+
 test('repair classification validates only the pinned descriptor before choosing the full repair path', async () => {
   const { baseline, retained } = b23Baseline(), baselineRef = ref('classification-baseline'), associationRef = ref('classification-association')
   const association = { ...baseline.source, schemaVersion: 'aipdm.openswx-worker-build-association.v2', resourceBasis: 'PAUSED_APP_REPAIR', resourceAssociation: { readbackRef: baselineRef }, priorActivationRef: baseline.priorActivationRef }
