@@ -11,7 +11,7 @@ import { assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArc
 import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
-import { assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode } from './lib/dev121-owner-release-proof.mjs'
+import { assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, createAiPdmMigrationHistory } from './lib/dev121-owner-release-proof.mjs'
 import { createMigrationBundle } from './lib/dev012-production-migration-runner.mjs'
 import { UNLINKED_PROFILE_CLEANUP_PREFIX, UNLINKED_PROFILE_CLEANUP_PATH } from './lib/dev121-unlinked-profile-cleanup.mjs'
 
@@ -62,8 +62,8 @@ function repairMigrationContentFixture() {
   const currentProfile = JSON.parse(readFileSync(new URL(`../${profilePath}`, import.meta.url)))
   const n1c = JSON.parse(readFileSync(new URL('../config/platform/dev-010-n1c-ai-pdm.json', import.meta.url)))
   assert.equal(currentProfile.migrations.entries.length, 35)
-  // B24 remains the historical exact 32 -> 33 append contract. Ordinary 084
-  // and catalog085 are covered separately; neither enters the paused repair gate.
+  // Keep the historical exact 32 -> 33 regression vector. Later authenticated
+  // installed prefixes are exercised by the generic history tests.
   currentProfile.migrations.entries = currentProfile.migrations.entries.slice(0, 33)
   const historicalProfile = structuredClone(currentProfile)
   historicalProfile.migrations.entries = historicalProfile.migrations.entries.slice(0, 32)
@@ -82,24 +82,38 @@ function repairMigrationContentFixture() {
   return { historical: materialize(historicalProfile), current: materialize(currentProfile), validate, reseal }
 }
 
+function installedHistory(input, content) {
+  const receiptCore = { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: H40,
+    database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: input.bundle.manifestSha256,
+    baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: input.bundle.entries.length,
+    applied: 0, replayed: input.bundle.entries.length, crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
+    boundaryStatus: 'PASS', executionName: 'ai-pdm-prod-migration-runner-test', startedAt: '2026-10-01T00:00:00.000Z', completedAt: '2026-10-01T00:00:01.000Z', status: 'PASS' }
+  const receipt = { ...receiptCore, receiptSha256: sha256(canonicalize(receiptCore)) }
+  const ref = name => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/tests/${name}.json`, sha256: '1'.repeat(64) })
+  const bundleBytes = Buffer.from(canonicalize(input.bundle))
+  return createAiPdmMigrationHistory({ sourceRevision: H40, intentRef: ref('intent'), deploymentRef: ref('deployment'), candidateRef: ref('candidate'), content,
+    receiptRef: ref('migration'), receipt, bundleRef: { uri: `gs://jenfu-platform-prod-aipdm-release/source/migration-bundles/${H40}/${input.bundle.manifestSha256}.json`, sha256: sha256(bundleBytes) }, bundle: input.bundle, bundleBytes })
+}
+
 test('B24 paused worker migration classification preserves exact32 and admits only authentic appended083', () => {
   const fixture = repairMigrationContentFixture()
   const before = fixture.validate(fixture.historical), after = fixture.validate(fixture.current)
-  assert.equal(assertAiPdmRepairMigrationMode(before, fixture.validate(fixture.historical)), 'HISTORICAL_EVIDENCE_REUSED')
-  assert.equal(assertAiPdmRepairMigrationMode(before, after), 'FORWARD_APPLIED')
+  const history = installedHistory(fixture.historical, before)
+  assert.equal(assertAiPdmRepairMigrationMode(history, fixture.validate(fixture.historical)), 'HISTORICAL_EVIDENCE_REUSED')
+  assert.equal(assertAiPdmRepairMigrationMode(history, after), 'FORWARD_APPLIED')
   assert.equal(fixture.current.bundle.entries[32].path, 'db/postgres/083_dev121_authorized_first_login_account.sql')
   assert.equal(fixture.current.bundle.entries[32].sourceSha256, 'a99df76b8fc146a916930a05286433568aa432710d2a6eccc1c47f08ba780da9')
   assert.deepEqual(fixture.current.bundle.entries.slice(0, 32), fixture.historical.bundle.entries)
   assert.throws(() => assertAiPdmMigrationEquivalent(before, after), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
-  assert.throws(() => assertAiPdmRepairMigrationMode({ ...before }, after), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+  assert.throws(() => assertAiPdmRepairMigrationMode({ ...history }, after), /MIGRATION_HISTORY_INVALID/u)
   const originalHashes = [before.orderedEntriesSha256, before.profileMigrationsSha256]
-  assertAiPdmRepairMigrationMode(before, after)
+  assertAiPdmRepairMigrationMode(history, after)
   assert.deepEqual([before.orderedEntriesSha256, before.profileMigrationsSha256], originalHashes)
 })
 
 test('B24 authenticated current bundle rejects historical source and derived SQL drift, deletion and reorder', () => {
   for (const mutation of ['source', 'derived', 'delete', 'reorder']) {
-    const fixture = repairMigrationContentFixture(), before = fixture.validate(fixture.historical), next = fixture.current
+    const fixture = repairMigrationContentFixture(), before = fixture.validate(fixture.historical), next = fixture.current, history = installedHistory(fixture.historical, before)
     if (mutation === 'source') {
       const row = next.bundle.entries[0], changed = Buffer.concat([next.files.get(row.path), Buffer.from('\n-- changed frozen source\n')])
       next.files.set(row.path, changed); row.sourceSha256 = sha256(changed); next.profile.migrations.entries[0].sha256 = row.sourceSha256
@@ -115,7 +129,7 @@ test('B24 authenticated current bundle rejects historical source and derived SQL
       next.bundle.entries.forEach((row, index) => { row.order = index + 1 }); next.profile.migrations.entries.forEach((row, index) => { row.order = index + 1 })
     }
     const content = fixture.validate(fixture.reseal(next))
-    assert.throws(() => assertAiPdmRepairMigrationMode(before, content), mutation === 'delete' ? /MIGRATION_INPUT_NOT_EQUIVALENT/u : /MIGRATION_HISTORICAL_PREFIX_INVALID/u, mutation)
+    assert.throws(() => assertAiPdmRepairMigrationMode(history, content), /MIGRATION_HISTORICAL_PREFIX_INVALID/u, mutation)
   }
 })
 
@@ -128,8 +142,9 @@ test('B24 current append rejects a different ordinal, wrong083 bytes, extra entr
     assert.throws(() => fixture.validate(fixture.reseal(next)), /ARCHIVE_BUNDLE_INVALID/u, mutation)
   }
   const fixture = repairMigrationContentFixture(), before = fixture.validate(fixture.historical), after = fixture.validate(fixture.current)
+  const history = installedHistory(fixture.historical, before)
   after.files.get(fixture.current.bundle.entries[0].path)[0] ^= 1
-  assert.throws(() => assertAiPdmRepairMigrationMode(before, after), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
+  assert.throws(() => assertAiPdmRepairMigrationMode(history, after), /MIGRATION_INPUT_NOT_EQUIVALENT/u)
 })
 
 function recordedHarness() {
