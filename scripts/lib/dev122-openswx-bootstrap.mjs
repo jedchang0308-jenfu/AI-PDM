@@ -194,10 +194,10 @@ export async function readPausedRepairCurrentResources({ transport, profile, des
   }
   return { snapshot: await snapshot(), raw }
 }
-export async function readPausedRepairWorkerResources({ transport, profile, prior, supplementalIam }, sleep = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+export async function readPausedRepairWorkerResources({ transport, profile, prior, supplementalIam, secretVersionIam = null }, sleep = ms => new Promise(resolve => setTimeout(resolve, ms))) {
   const actor = await verifyNormalActor(transport, profile), raw = []
   const capture = async () => {
-    const result = await readPausedRepairCurrentResources({ transport, profile, descriptor: prior.descriptor, image: prior.build.image, supplementalIam })
+    const result = await readPausedRepairCurrentResources({ transport, profile, descriptor: prior.descriptor, image: prior.build.image, supplementalIam, secretVersionIam })
     const offset = raw.length
     raw.push(...result.raw)
     return { ...result.snapshot, executions: result.snapshot.executions.map(row => ({ ...row, rawIndex: row.rawIndex + offset })) }

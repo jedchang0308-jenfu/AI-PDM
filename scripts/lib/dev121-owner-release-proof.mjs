@@ -1085,15 +1085,25 @@ export function assertAiPdmPausedRepairReadbacks({ baseline, records }) {
       const { record, body } = byApi(api)[0], sealed = snapshot.secretMetadata[secretIndex]
       if (record.method !== 'GET' || record.url !== `https://secretmanager.googleapis.com/v1/${sealed.name}` || body.name !== sealed.name || body.state !== sealed.state || body.etag !== sealed.etag) fail('REPAIR_BASELINE_RAW_INVALID')
     }
-    const policy = (url, method) => { const matches = byApi('OWN_RESOURCE_POLICY').filter(row => row.record.url === url && row.record.method === method); if (!matches.length || matches.some(row => canonicalize(row.body) !== canonicalize(matches[0].body))) fail('REPAIR_BASELINE_RAW_INVALID'); return matches.at(-1).body }
+    const policy = (urls, method) => {
+      const allowed = Array.isArray(urls) ? urls : [urls]
+      const matches = byApi('OWN_RESOURCE_POLICY').filter(row => allowed.includes(row.record.url) && row.record.method === method)
+      if (!matches.length || new Set(matches.map(row => row.record.url)).size !== 1
+        || matches.some(row => canonicalize(row.body) !== canonicalize(matches[0].body))) fail('REPAIR_BASELINE_RAW_INVALID')
+      return matches.at(-1).body
+    }
     const rawJobPolicy = policy(`https://run.googleapis.com/v2/${jobName}:getIamPolicy`, 'GET')
     // The producer validates and hashes Job bindings in role order, while the
     // sealed provider body intentionally preserves the provider's wire order.
     // Replay the same semantic normalization instead of treating array order
     // as an IAM-policy change.
     const jobPolicy = { ...rawJobPolicy, bindings: [...(rawJobPolicy.bindings ?? [])].sort((a, b) => a.role.localeCompare(b.role)) }
+    const readerSecretPolicyUrl = 'https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/aipdm-prod-openswx-reader-token:getIamPolicy'
     const iam = { job: jobPolicy,
-      readerSecret: policy('https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/aipdm-prod-openswx-reader-token:getIamPolicy', 'GET'),
+      // Numeric-version IAM readback requests policy version 3.  A retained
+      // worker without that source-bound continuation uses the legacy URL;
+      // exactly one form may appear in one captured snapshot.
+      readerSecret: policy([readerSecretPolicyUrl, `${readerSecretPolicyUrl}?options.requestedPolicyVersion=3`], 'GET'),
       readerActAs: policy('https://iam.googleapis.com/v1/projects/jenfu-platform-prod/serviceAccounts/aipdm-prod-openswx-reader@jenfu-platform-prod.iam.gserviceaccount.com:getIamPolicy', 'POST') }
     if (sha256(canonicalize(iam)) !== snapshot.iamSha256) fail('REPAIR_BASELINE_RAW_INVALID')
     const pages = byApi('RUN_EXECUTIONS_PAGE'), inventory = [], seen = new Set(), tokens = new Set(); let expectedToken = ''
