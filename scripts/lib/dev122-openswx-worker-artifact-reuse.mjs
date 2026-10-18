@@ -6,7 +6,7 @@ import path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { assertImmutableRef, canonicalize, sha256, releasePaths } from './dev012-owner-release-runtime.mjs'
 import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
-import { WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution } from './dev122-openswx-owner-release.mjs'
+import { WORKER_RECEIPT_PREFIX, assertOpenSwxWorkerRef, assertWorkerDescriptor, normalizeWorkerTemplate, assertWorkerReceipt, assertWorkerBuildSource, workerJobName, workerTemplate, boundOpenSwxTransport, readBootstrapSupplementalIam, isPausedAppRepair, assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, canonicalWorkerExecution, assertTerminalExecution, readProgramOnlyWorkerEvidence } from './dev122-openswx-owner-release.mjs'
 import { WORKER_PROFILE_PATH, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile } from './dev122-openswx-profile-context.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyWorkerResources, readPausedRepairWorkerResources, verifyNormalActor, assertFailedDailyContinuation, readFailedDailyContinuation, readCompletedFailedDailyCheckpoint, readPartialFailedDailyPause, readFailedDailyCurrentResources, assertFailedDailyIsolationProof, assertFailedDailyFullJoin } from './dev122-openswx-bootstrap.mjs'
 import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-readback-iam.mjs'
@@ -537,7 +537,23 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
   const workerRef = intent.openswxWorkerRef, worker = (await read(transport, workerRef)).value
   let predecessorBaselineRef = null, continuationDepth = 1
   if (workerStatus === 'READY') {
-    same(servingCapsuleRef, origin.prior.capsuleRef); same(workerRef, origin.prior.descriptorRef)
+    if (readyIdentity) {
+      same(servingCapsuleRef, origin.prior.capsuleRef); same(workerRef, origin.prior.descriptorRef)
+    } else {
+      // A program-only release can be the current serving application while
+      // retaining the last native READY worker activation.  Its closed policy,
+      // descriptor, association and READY readback must all resolve back to the
+      // exact origin used by this repair; the live scheduler is intentionally
+      // not required to remain ENABLED after a later failed daily pause.
+      if (!intent.programOnlyBaseline) fail('OPENSWX_REPAIR_SERVING_INVALID')
+      const servingProfile = assertHistoricalOpenSwxWorkerProfile(JSON.parse(readSource(WORKER_PROFILE_PATH, intent.sourceRevision)))
+      assertHistoricalProfileCompatibility(profile, servingProfile)
+      const retained = await readProgramOnlyWorkerEvidence({ transport, intent, appProfile, descriptor: worker, profile: servingProfile, readSource, currentReadback: false })
+      same(intent.programOnlyBaseline.retainedWorker.priorActivationRef, origin.prior.activationRef)
+      same(retained.prior.activationRef, origin.prior.activationRef)
+      same(retained.prior.bootstrapDescriptorRef, origin.prior.bootstrapDescriptorRef)
+      if (retained.image !== origin.build.image) fail('OPENSWX_REPAIR_SERVING_INVALID')
+    }
   } else {
     assertWorkerDescriptor(worker, profile, worker.workerProfileSha256, intent.sourceRevision)
     if (!isPausedAppRepair(worker) || worker.tokenSecretVersion !== origin.prior.descriptor.tokenSecretVersion || worker.registrySecretVersion !== origin.prior.descriptor.registrySecretVersion) fail('OPENSWX_REPAIR_SERVING_INVALID')

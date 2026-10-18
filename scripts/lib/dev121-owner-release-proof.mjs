@@ -1086,7 +1086,13 @@ export function assertAiPdmPausedRepairReadbacks({ baseline, records }) {
       if (record.method !== 'GET' || record.url !== `https://secretmanager.googleapis.com/v1/${sealed.name}` || body.name !== sealed.name || body.state !== sealed.state || body.etag !== sealed.etag) fail('REPAIR_BASELINE_RAW_INVALID')
     }
     const policy = (url, method) => { const matches = byApi('OWN_RESOURCE_POLICY').filter(row => row.record.url === url && row.record.method === method); if (!matches.length || matches.some(row => canonicalize(row.body) !== canonicalize(matches[0].body))) fail('REPAIR_BASELINE_RAW_INVALID'); return matches.at(-1).body }
-    const iam = { job: policy(`https://run.googleapis.com/v2/${jobName}:getIamPolicy`, 'GET'),
+    const rawJobPolicy = policy(`https://run.googleapis.com/v2/${jobName}:getIamPolicy`, 'GET')
+    // The producer validates and hashes Job bindings in role order, while the
+    // sealed provider body intentionally preserves the provider's wire order.
+    // Replay the same semantic normalization instead of treating array order
+    // as an IAM-policy change.
+    const jobPolicy = { ...rawJobPolicy, bindings: [...(rawJobPolicy.bindings ?? [])].sort((a, b) => a.role.localeCompare(b.role)) }
+    const iam = { job: jobPolicy,
       readerSecret: policy('https://secretmanager.googleapis.com/v1/projects/jenfu-platform-prod/secrets/aipdm-prod-openswx-reader-token:getIamPolicy', 'GET'),
       readerActAs: policy('https://iam.googleapis.com/v1/projects/jenfu-platform-prod/serviceAccounts/aipdm-prod-openswx-reader@jenfu-platform-prod.iam.gserviceaccount.com:getIamPolicy', 'POST') }
     if (sha256(canonicalize(iam)) !== snapshot.iamSha256) fail('REPAIR_BASELINE_RAW_INVALID')

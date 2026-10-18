@@ -2174,6 +2174,25 @@ test('RD daily accepts current RELEASED program-only app with a newer source-bou
   assert.ok(!f.h.calls.some(row=>/:addVersion|cloudbuild.*POST/u.test(row.url)))
 })
 
+test('PAUSED repair accepts the current RELEASED program-only app only through its sealed retained READY worker chain',async()=>{
+  const f=await rdProgramOnlyServingFixture()
+  await f.run()
+  const input={schemaVersion:'aipdm.openswx-worker-reuse-input.v2',sourceLockRef:f.h.input.sourceLockRef,currentSourceObjectRef:f.h.input.currentSourceObjectRef,
+    priorActivationRef:f.h.priorActivationRef,servingCapsuleRef:f.wire.intentRef,predecessorBaselineRef:null,deadlineAt:deadline(),receiptId:'RD-PROGRAM-PAUSED-REPAIR'}
+  const inputRef=f.h.seed('RD-PROGRAM-PAUSED-REPAIR-input',input),calls=f.h.calls.length
+  const saved=await executeWorkerArtifactReuse({transport:f.h.transport,inputRef,readSource:f.wire.readSource})
+  assert.equal(saved.value.schemaVersion,'aipdm.openswx-worker-build-association.v2')
+  assert.equal(saved.value.resourceBasis,'PAUSED_APP_REPAIR')
+  const root=profile.receiptRoot+'/'+input.receiptId+'-'+inputRef.sha256.slice(0,16)
+  const descriptorRow=f.h.objects.get(root+'-descriptor-full-repair.json')
+  assert.ok(descriptorRow)
+  const descriptor=JSON.parse(descriptorRow.bytes)
+  assert.equal(descriptor.releaseVariant,'PAUSED_APP_REPAIR')
+  assert.deepEqual(descriptor.priorActivationRef,f.h.priorActivationRef)
+  assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')))
+  noMutation({...f.h,calls:f.h.calls.slice(calls)})
+})
+
 test('RD daily rejects changed program-only serving or retained resources before any write',async()=>{
   for(const kind of ['control-fingerprint','control-run','control-state','control-source','traffic','tag','app-image','runtime-registry','secret-disabled','job-generation','job-etag','scheduler-policy','control-drift','service-drift']) {
     const f=await rdProgramOnlyServingFixture(),calls=f.h.calls.length,publications=f.h.puts.length

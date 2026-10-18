@@ -14,6 +14,12 @@ Required CI 名稱與 branch protection 不變，由 source-controlled planner �
 
 本輪沒有修改產品授權程式、catalog、085 或其他 repository。正式 085 applied、active catalog、實際 RD grant/session 與真實 UI/API 結果仍未知。若 085 未套用，只能準備正常 app-owned full35 migration release；program-only／closed34／prefix33 不適用。若 085 已套用則不得修改，必要修正須下一個可用本地 ID 的 forward-only migration。正式 migration／deploy／traffic／rollback／IAM／Secret／worker／Scheduler／資料修改未授權且未執行。[B53 證據](../qa/DEV-122-B53-rd-permission-repair-local-2026-10-16.md)。管理員辨識、PDF、supplier、完整原生 CAD 與其餘 DEV-122 項目維持暫停；7 issues／29 groups 與 whole DEV `NOT_ACCEPTED` 不變。
 
+### 2026-10-18 full35 worker PAUSED repair corrective slice
+
+正式 ledger readback 已證明 active catalog 仍為 v6、085 尚未套用；測試 RD actor 的 active grant 為有效 v13，故目前 UI `permission_not_granted` 是未發布 v7 capability 的預期結果，不是登入失敗或 grant 缺失。full35 前置 worker daily execution 曾因既有 dispatch row 回 409 而失敗並把 Scheduler 安全暫停；後續 recovery 已清除該 row，但 artifact-reuse 的 `PAUSED_APP_REPAIR` 只接受 serving app 與最後 READY worker 來自同一 capsule，未建模目前正式存在的「RELEASED program-only app 保留較早 READY worker」鏈，因此無法產生恢復所需的 immutable descriptor。
+
+本 corrective slice 在共同 artifact-reuse／readback validator 層修正：只在 current serving intent 為封閉 program-only policy，且其 sealed retained-worker policy、descriptor、association、READY readback、prior activation、bootstrap descriptor、image 與 repair origin 全部精確一致時接受 PAUSED repair；不以目前 Scheduler 為 ENABLED 作為歷史 READY 證據。Job IAM readback 的 bindings 依 producer 相同的 role 次序正規化後再驗 hash，避免 provider wire-order 造成假 drift。新增 production-shaped fixture 覆蓋 multi-layer descriptor、不同 source revision、retained READY worker 與 live PAUSED Scheduler，並斷言 artifact reuse 零 lifecycle mutation。正式 source 合併、exact-main descriptor、full35／085、candidate／verify／activate 及同一測試 RD 帳號的 UI/API 正負驗證仍須依 owner workflow 完成；不得由本機 PASS 提前宣稱正式驗收。
+
 ### 2026-10-16 production readback gate corrective slice
 
 PR #315 已合併為 `d9e7f07ba244b47928b4a0e8a77426109919c937`；其後 protected `main` 前進至 `bde28d89ff401491274e5d55e37b548bc3fef8b7`，full35／085 內容未變。正式服務唯讀 API 證明 active catalog 仍為 v6 `bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af`，真實 RD session 的 workspace read/create/update/cancel 為 allow、drawing workbench page 為 deny、approval/publish/admin 仍為 deny。這是同一 application DB snapshot 的 effective active-assignment capability 證據，但 endpoint 未公開 assignment row，不能冒稱 exact grant row readback。最新可追溯 native migration receipt 為 2026-10-11 ledger33，且 provider inventory 無後續 execution；這強烈支持 085 未套用，但不能排除「ledger 已有 085、catalog 發布不一致」的異常，所以 full35 尚未 dispatch。
