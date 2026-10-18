@@ -8,10 +8,11 @@ import { execFileSync } from 'node:child_process'
 import { fetchProviderRead } from './lib/dev012-read-retry.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { canonicalize, sha256 } from './lib/dev012-production-migration-runner.mjs'
+import { buildPermissionStateOperation } from './lib/dev122-rd-permission-state-readback.mjs'
 import { bindDiagnosticRef, readServiceDiagnostic } from './dev117-production-diagnostics.mjs'
 import { checkEnvironmentFingerprint, fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
 import { createProductionSlicePlanFromGit } from './lib/production-slice-plan.mjs'
-import { executionMatches as permissionExecutionMatches, jobMatches as permissionJobMatches, sourceAuthority as assertPermissionReadbackSourceAuthority, submitPermissionReadbackOnce } from './dev122-rd-permission-state-readback.mjs'
+import { bindPermissionReadbackSources, executionMatches as permissionExecutionMatches, jobMatches as permissionJobMatches, sourceAuthority as assertPermissionReadbackSourceAuthority, submitPermissionReadbackOnce } from './dev122-rd-permission-state-readback.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const noWait = async () => {}
@@ -120,8 +121,14 @@ test('permission diagnostic separates current reviewed workflow source from inst
   }
   const gitRunner = args => args[0] === 'rev-parse' ? workflowSource : ''
   const input = { gitRunner, workflowAncestorRunner: () => true, operationAncestorRunner: (ancestor, descendant) => ancestor === installedSource && descendant === workflowSource }
-  assert.deepEqual(assertPermissionReadbackSourceAuthority(environment, installedSource, input), { workflowSourceRevision: workflowSource, operationSourceRevision: installedSource })
-  assert.throws(() => assertPermissionReadbackSourceAuthority(environment, 'c'.repeat(40), input), /RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH/u)
+  assert.deepEqual(assertPermissionReadbackSourceAuthority(environment, workflowSource, installedSource, input), { workflowSourceRevision: workflowSource, operationSourceRevision: installedSource })
+  assert.throws(() => assertPermissionReadbackSourceAuthority(environment, 'd'.repeat(40), installedSource, input), /RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH/u)
+  assert.throws(() => assertPermissionReadbackSourceAuthority(environment, workflowSource, 'c'.repeat(40), input), /RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH/u)
+  const built = buildPermissionStateOperation({ operationId: 'DEV122-RD-SOURCE-WIRE-TEST', sourceRevision: installedSource,
+    migrationRunnerDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'e'.repeat(64)}`,
+    actor: { principalIdSha256: '1'.repeat(64), employeeIdSha256: '2'.repeat(64), identityIssuer: 'https://securetoken.google.com/jenfu-platform-prod', identitySubjectSha256: '3'.repeat(64) } })
+  assert.deepEqual(bindPermissionReadbackSources({ environment, workflowSourceRevision: workflowSource, operation: built.value,
+    operationBytes: built.bytes, operationSha256: built.sha256 }, input), { workflowSourceRevision: workflowSource, operationSourceRevision: installedSource })
 })
 
 test('permission diagnostic binds the provider Job and execution to the installed runner source', () => {

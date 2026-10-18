@@ -48,8 +48,8 @@ export function readbackObjectGeneration(value) {
   return String(generation)
 }
 
-export function sourceAuthority(environment, operationSourceRevision, { gitRunner = null, workflowAncestorRunner = null, operationAncestorRunner = null } = {}) {
-  const workflowSourceRevision = environment?.GITHUB_SHA
+export function sourceAuthority(environment, workflowSourceRevision, operationSourceRevision, { gitRunner = null, workflowAncestorRunner = null, operationAncestorRunner = null } = {}) {
+  if (workflowSourceRevision !== environment?.GITHUB_SHA) fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
   assertDev122GitSourceAuthority({ environment, sourceRevision: workflowSourceRevision,
     workflowRef: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main',
     root, code: 'RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH', gitRunner, ancestorRunner: workflowAncestorRunner })
@@ -59,6 +59,11 @@ export function sourceAuthority(environment, operationSourceRevision, { gitRunne
   })
   if (!/^[a-f0-9]{40}$/u.test(operationSourceRevision ?? '') || !isAncestor(operationSourceRevision, workflowSourceRevision)) fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
   return { workflowSourceRevision, operationSourceRevision }
+}
+
+export function bindPermissionReadbackSources({ environment, workflowSourceRevision, operation, operationBytes, operationSha256 }, options = {}) {
+  assertPermissionStateOperation(operation, { bytes: operationBytes, operationSha256, sourceRevision: operation?.sourceRevision })
+  return sourceAuthority(environment, workflowSourceRevision, operation.sourceRevision, options)
 }
 
 function operationArgs(operationRef, operationSha256, sourceRevision, outputRef) {
@@ -133,8 +138,8 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   const operationObject = await ownerTransport.readBytes(args.operationRef, { bucket: BUCKET, prefixes: ['source/rd-permission-readback'], expectedSha256: args.operationSha256 })
   let operation
   try { operation = JSON.parse(operationObject.bytes.toString('utf8')) } catch { fail('RD_PERMISSION_STATE_OPERATION_JSON_INVALID') }
-  assertPermissionStateOperation(operation, { bytes: operationObject.bytes, operationSha256: args.operationSha256, sourceRevision: args.sourceRevision })
-  const sourceBinding = sourceAuthority(environment, operation.sourceRevision)
+  const sourceBinding = bindPermissionReadbackSources({ environment, workflowSourceRevision: args.sourceRevision, operation,
+    operationBytes: operationObject.bytes, operationSha256: args.operationSha256 })
   const generation = readbackObjectGeneration(operationObject)
   const outputRef = outputUri(args.operationSha256)
   if (args.outputRef !== outputRef) fail('RD_PERMISSION_STATE_OUTPUT_REF_INVALID')
