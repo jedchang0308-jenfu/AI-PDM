@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "aipdm.dev122.rd-permission-release-chain-refactor-evidence.v1",
+  "recordedAt": "2026-10-18T14:31:11.6395135Z",
+  "evidenceScope": "LOCAL_SOURCE_AND_CONTRACT",
+  "releaseAuthority": false,
+  "productionMutationPerformed": false,
+  "formalRdReleasePaused": true,
+  "source": {
+    "repository": "jedchang0308-jenfu/AI-PDM",
+    "branch": "codex/dev122-release-chain-refactor",
+    "baseRevision": "5293bdeda4121d62bf4fa9997b0e37112cb62230",
+    "validatedExecutableRevision": "87cf3e4941c76ca24b7a1e75ebd698f2955397d8",
+    "validatedTree": "54800674ae8bf0fe42852d17ee0a5954653b0f55",
+    "documentationOnlyPostValidation": [
+      ".ai-doc/dev_task.md",
+      ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md"
+    ],
+    "validationReuseBasis": "The executable and test bytes below did not change after the complete controlled QC. AGENTS.md permits reuse when only unrelated documentation changes. Required CI remains mandatory on the exact PR head."
+  },
+  "executableInputs": [
+    { "path": "scripts/dev012-owner-stage-executor.test.mjs", "sha256": "f40b8cadc1571fd6d19628197cda2c2e822e19d0901e471f2e4e2380d840ea4c" },
+    { "path": "scripts/dev121-owner-release-proof.test.mjs", "sha256": "b5f3dcb90b4de026881a1ffd0e3480c9fc78de516001f5d91d239aa7a8dddf92" },
+    { "path": "scripts/dev122-openswx-worker-artifact-reuse.test.mjs", "sha256": "be6e95e2895d79dbd033d1fc0e06fa7313bad8120e3299b1751993768988101a" },
+    { "path": "scripts/lib/dev012-owner-stage-executor.mjs", "sha256": "a1f831f11e6cf98a447144f84472fb8d48535456d67c2f2a2532faf03c3b80bc" },
+    { "path": "scripts/lib/dev121-owner-release-proof.mjs", "sha256": "b4c17dddee1aae382b3177a6563b557322fb0aaa526b12162205ef541c7c14f2" },
+    { "path": "scripts/lib/dev122-openswx-owner-release.mjs", "sha256": "aa421e29d298ebf0621cc2e481ab267e1477150d9179d28aade58b5a82a229aa" },
+    { "path": "scripts/lib/dev122-openswx-worker-artifact-reuse.mjs", "sha256": "35698c1a09198243eb844e353993b4e7b64bb3de69ec8f8403612cb4a7908b69" }
+  ],
+  "causalModel": [
+    {
+      "classification": "PROVEN_FACT",
+      "statement": "The old repair proof mixed reviewed source, installed migration prefix and release-attempt refs in one historical object, then duplicated B14, exact32-to-33 and migration083 decisions in common callers."
+    },
+    {
+      "classification": "PROVEN_FACT",
+      "statement": "A reader can authenticate an admitted historical revision while isHistorical remains false; source capability and validation policy are different facts."
+    },
+    {
+      "classification": "PROVEN_FACT",
+      "statement": "PAUSED full evidence re-walked a retained READY chain already authenticated by resolveWorkerArtifact, which could create a false DAG cycle and repeated provider-state validation."
+    },
+    {
+      "classification": "INFERENCE",
+      "statement": "These duplicated facts made each new production-shaped descriptor or prefix expose the next call-site assumption instead of one shared failure boundary."
+    },
+    {
+      "classification": "UNKNOWN",
+      "statement": "No production retry was executed in this architecture slice, so it is not yet proven that the last production prepare failure is cleared."
+    }
+  ],
+  "simplification": {
+    "removed": [
+      "B14-specific source, capsule and receipt constants from common migration proof",
+      "common exact32-to-33 and migration083 classification branches",
+      "finalize migration083 and fixed entry-count duplication",
+      "recursive PAUSED full-evidence traversal of an already authenticated retained READY chain",
+      "mixed original object that conflated source content, installed bundle, receipt and release attempt"
+    ],
+    "retained": [
+      "program-only closed33 policy in its dedicated contract",
+      "immutable bundle byte and ref authentication",
+      "forward-only prefix and receipt checks",
+      "current and historical profile/deadline validation",
+      "sealed Secret IAM continuation and resource-drift denial",
+      "unknown-write readback, retry, recovery, required CI and protected-main checks",
+      "API authority and RD grant/catalog/session responsibility boundaries"
+    ],
+    "manualStepChange": "NOT_MEASURED_NO_CLAIM",
+    "performanceChange": "NOT_MEASURED_NO_CLAIM",
+    "observedCheckDuration": {
+      "standaloneContinuousTestMilliseconds": 400670.8809,
+      "beforeRefactorComparableBaseline": null
+    }
+  },
+  "validation": {
+    "plan": {
+      "classification": "FULL",
+      "planSha256": "34e126111537afdb979b69dad449dafaa27a0209607c96cb10e008f85b43a8a3"
+    },
+    "focused": [
+      { "scope": "migration history and native35", "result": "PASS", "tests": 169 },
+      { "scope": "owner stage executor", "result": "PASS", "tests": 24 },
+      { "scope": "worker artifact reuse", "result": "PASS", "tests": 107, "note": "105 sandbox passes plus two controlled EPERM-only reruns before the complete QC" },
+      { "scope": "production-shaped PAUSED repair source34 installed33 to current35", "result": "PASS" },
+      { "scope": "finalize branded history/content/mode boundary and retained READY repair", "result": "PASS", "tests": 2 }
+    ],
+    "continuous": {
+      "command": "npm run test:dev-117:continuous",
+      "result": "PASS",
+      "note": "The first sandbox execution reported five environment-only Git/temp/loopback failures; all five passed in a controlled rerun. The final controlled QC reran the continuous command successfully."
+    },
+    "completeQc": {
+      "command": "npm run qc:dev-117:continuous",
+      "result": "PASS",
+      "runId": "DEV117-S1B-20261018T142730355Z-7D56759A",
+      "ownerReportPath": "output/dev-117/s1b/DEV117-S1B-20261018T142730355Z-7D56759A/owner-report.json",
+      "ownerReportSha256": "9454f0622209cd1ceaced08c2f13c09a559eaf498a74bf1451f79513e6d35174",
+      "ownerReportLength": 10503,
+      "included": [
+        "continuous release tests",
+        "role catalog v7 contract",
+        "abort controller 6 of 6",
+        "DEV010_DB_RULESET_V1",
+        "application typecheck",
+        "isolated Next build with 122 pages and primary database invariant"
+      ]
+    }
+  },
+  "productionCheckpoint": {
+    "lastWorkflowRun": 39126743555,
+    "lastValidFailure": "DEV121_OWNER_RELEASE_PROOF_REPAIR_JOIN_INVALID",
+    "downstream": "NOT_RUN_OR_SKIPPED",
+    "unchangedReadback": {
+      "activeRevision": "ai-pdm-prod-1be8986b68ce",
+      "trafficPercent": 100,
+      "migrationLedgerCount": 33,
+      "activeCatalogVersion": 6,
+      "testRdGrantVersion": 13,
+      "workerScheduler": "PAUSED"
+    },
+    "readbackEvidence": [
+      "output/qa/dev-122/rd-permission-repair/production-readback-gate-2026-10-16.json",
+      "output/qa/dev-122/rd-permission-repair/full35-current-state-readback-2026-10-16.json"
+    ]
+  },
+  "notVerified": [
+    "production execution of the refactored chain",
+    "migration 085 application",
+    "active production catalog v7",
+    "test RD account production UI/API allow and deny acceptance",
+    "production rollback or recovery",
+    "time savings relative to a pre-refactor measured baseline"
+  ],
+  "resumeFirstSafeStep": "After explicit human request to resume the RD task, use the merged exact main to perform read-only migration ledger, active catalog version/hash, test RD active grant, worker and service readback before considering any production mutation.",
+  "wholeDev122Status": "NOT_ACCEPTED",
+  "otherDev122Work": "PAUSED"
+}
