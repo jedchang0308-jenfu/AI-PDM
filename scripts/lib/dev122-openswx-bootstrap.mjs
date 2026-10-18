@@ -858,7 +858,7 @@ function assertFreshProof(execution, profile) {
   if (!Number.isFinite(age) || age < -5000 || age > profile.bounds.proofFreshnessSeconds * 1000) fail('OPENSWX_ACTIVATION_PROOF_EXPIRED')
 }
 /** A program-only app release retains READY worker history; it does not replace it. */
-async function verifyProgramOnlyServingRuntime({transport, profile, prior, appProfile, readSource, service, requireReadyResources}) {
+async function verifyProgramOnlyServingRuntime({transport, profile, prior, appProfile, readSource, service, requireReadyResources, currentReady = null}) {
   const named = async (uri, prefixes=['receipts']) => {
     const row=await transport.readBytes(uri,{prefixes})
     if(row.ref.uri!==uri || sha256(row.bytes)!==row.ref.sha256) fail('OPENSWX_DAILY_SERVING_INVALID')
@@ -921,7 +921,11 @@ async function verifyProgramOnlyServingRuntime({transport, profile, prior, appPr
       }
       return {jobEtag:job.etag,jobGeneration:String(job.generation),schedulerState:scheduler.state,schedulerPolicySha256:sha256(canonicalize(policy)),secrets}
     }
-    const before=await snapshot(),after=await snapshot(),ready=retained.ready
+    // The released program-only receipt proves the serving application and
+    // retained worker lineage.  A later source-bound reuse association may
+    // legitimately observe newer resource generations, so its already
+    // validated READY readback is the authority for current live resources.
+    const before=await snapshot(),after=await snapshot(),ready=currentReady ?? retained.ready
     if(canonicalize(before)!==canonicalize(after) || before.jobEtag!==ready.jobEtagAfter || before.jobGeneration!==ready.jobGeneration
       || before.schedulerPolicySha256!==ready.schedulerPolicySha256 || canonicalize(before.secrets)!==canonicalize(ready.secretMetadata)) fail('OPENSWX_DAILY_SERVING_DRIFT')
   }
@@ -942,13 +946,13 @@ async function verifyProgramOnlyServingRuntime({transport, profile, prior, appPr
   await verifyExistingReaderCredentials(transport,profile,prior.descriptor)
   return {canonicalRef:canonical.ref,priorRevision:candidateRevision}
 }
-async function verifyPriorCanonicalRuntime({ transport, profile, prior, appProfile, readSource, requireReadyResources = false }) {
+async function verifyPriorCanonicalRuntime({ transport, profile, prior, appProfile, readSource, requireReadyResources = false, currentReady = null }) {
   const intent = assertDev117ReleaseIntent(prior.capsule, appProfile), paths = releasePaths(appProfile, intent, prior.capsuleRef.sha256)
   const canonical = await transport.readBytes(paths.canonical, { prefixes: ['receipts'] }), value = JSON.parse(canonical.bytes)
   if (value.stage !== 'canonical' || value.sourceRevision !== prior.descriptor.sourceRevision || value.facts?.origin !== profile.canonicalOrigin
     || canonicalize(prior.activation.previousRefs[2]) !== canonicalize(canonical.ref)) fail('OPENSWX_PRIOR_CANONICAL_INVALID')
   const service = await transport.getService(appProfile); transport.assertServiceSettled(service); transport.assertCanonicalEntrypoint(appProfile, service)
-  if (transport.effectiveRevision(service) !== value.facts.candidateRevision) return verifyProgramOnlyServingRuntime({transport,profile,prior,appProfile,readSource,service,requireReadyResources})
+  if (transport.effectiveRevision(service) !== value.facts.candidateRevision) return verifyProgramOnlyServingRuntime({transport,profile,prior,appProfile,readSource,service,requireReadyResources,currentReady})
   const revision = await transport.getRevision(appProfile, value.facts.candidateRevision)
   const runtime = (await transport.readJson(intent.runtimeConfigRef, BUCKET, ['receipts'])).value.runtimeConfig
   const env = revision.containers?.find(row => row.name === appProfile.runtime.containerName)?.env
@@ -1970,8 +1974,10 @@ export async function executeOpenSwxBootstrap({ stage, inputRef, transport, read
   }
   // Reject missing/current serving authority before the first lifecycle write.
   if (daily) {
-    const before = await verifyPriorCanonicalRuntime({transport,profile,prior,appProfile,readSource,requireReadyResources:stage==='pause'&&!input.bootstrapContinuation&&!input.failedDailyContinuation})
-    const after = await verifyPriorCanonicalRuntime({transport,profile,prior,appProfile,readSource,requireReadyResources:stage==='pause'&&!input.bootstrapContinuation&&!input.failedDailyContinuation})
+    const requireReadyResources=stage==='pause'&&!input.bootstrapContinuation&&!input.failedDailyContinuation
+    const currentReady=requireReadyResources ? artifact.currentReady ?? null : null
+    const before = await verifyPriorCanonicalRuntime({transport,profile,prior,appProfile,readSource,requireReadyResources,currentReady})
+    const after = await verifyPriorCanonicalRuntime({transport,profile,prior,appProfile,readSource,requireReadyResources,currentReady})
     if (canonicalize(before)!==canonicalize(after)) fail('OPENSWX_DAILY_SERVING_DRIFT')
     if (stage==='pause' && !input.bootstrapContinuation && !artifact.failedDaily) assertWorkerJob(await transport.request('https://run.googleapis.com/v2/'+workerJobName()),prior.template)
   }

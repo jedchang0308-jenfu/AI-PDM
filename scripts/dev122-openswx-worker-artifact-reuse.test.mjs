@@ -2147,14 +2147,26 @@ async function rdProgramOnlyServingFixture() {
    }
   h.transport.readOwnerSourceProof=async({sourceRevision,refs,verifyProvider})=>{const proof=await readAiPdmReleaseObservation({sourceRevision,refs,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl,readSource:wire.readSource});return {proof,provider:verifyProvider?await verifyOwnerProviderReadback({proof,token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl}):null}}
   Object.assign(h.transport,{getService:async()=>structuredClone(service),getRevision:async()=>structuredClone(revision),effectiveRevision:validators.effectiveRevision,assertRevisionReady:validators.assertRevisionReady,assertServiceSettled:validators.assertServiceSettled,assertCanonicalEntrypoint:validators.assertCanonicalEntrypoint})
+  // Production-shaped chain: the active program-only release retains its
+  // historical READY snapshot, while a later immutable reuse association
+  // records the current resource generation used by the pause preflight.
+  h.controls.job={etag:'current-job-etag',generation:'25',observedGeneration:'25'}
+  const retainedReady=(await h.transport.readJson(wire.f.saved.value.resourceAssociation.readbackRef)).value
+  const currentReadyRef=h.seed('RD-SERVING-CURRENT-ready',{...retainedReady,jobEtagBefore:'current-job-etag',jobEtagAfter:'current-job-etag',jobGeneration:'25'})
+  const currentAssociationRef=h.seed('RD-SERVING-CURRENT-association',{...wire.f.saved.value,resourceAssociation:{...wire.f.saved.value.resourceAssociation,readbackRef:currentReadyRef}})
+  const currentDescriptor=(await h.transport.readJson(wire.f.saved.refs.dailyBuildOnlyDescriptorRef)).value
+  const currentDescriptorRef=h.seed('RD-SERVING-CURRENT-descriptor',{...currentDescriptor,workerBuildRef:currentAssociationRef})
+  const currentSaved={...wire.f.saved,ref:currentAssociationRef,value:{...wire.f.saved.value,resourceAssociation:{...wire.f.saved.value.resourceAssociation,readbackRef:currentReadyRef}},refs:{...wire.f.saved.refs,dailyBuildOnlyDescriptorRef:currentDescriptorRef}}
   h.lifecycle()
-  const inputRef=h.seed('RD-SERVING-PROGRAM-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:wire.f.saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:wire.f.saved.ref,deadlineAt:deadline(),receiptId:'RD-SERVING-PROGRAM',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.priorActivationRef})
+  const inputRef=h.seed('RD-SERVING-PROGRAM-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:currentDescriptorRef,workerBuildRef:currentAssociationRef,deadlineAt:deadline(),receiptId:'RD-SERVING-PROGRAM',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.priorActivationRef})
   const run=()=>executeOpenSwxBootstrap({stage:'pause',inputRef,transport:h.transport,readSource:wire.readSource,appProfile,sleep:async()=>{}})
-  return {wire,h,service,revision,control,terminal,canonical,run}
+  return {wire,h,service,revision,control,terminal,canonical,retainedReady,currentReadyRef,currentAssociationRef,currentDescriptorRef,currentSaved,run}
 }
 
-test('RD daily accepts current RELEASED program-only app with the retained READY worker',async()=>{
+test('RD daily accepts current RELEASED program-only app with a newer source-bound READY worker snapshot',async()=>{
   const f=await rdProgramOnlyServingFixture()
+  assert.notDeepEqual(f.currentReadyRef,f.wire.f.saved.value.resourceAssociation.readbackRef)
+  assert.equal(f.retainedReady.jobGeneration,'15')
   const paused=await f.run()
   assert.equal(paused.value.facts.drainKind,'DAILY_DB_VERIFIED')
   assert.deepEqual(paused.value.facts.priorActivationRef,f.h.priorActivationRef)
@@ -2194,7 +2206,7 @@ test('RD daily rejects changed program-only serving or retained resources before
 
 test('RD current program-only serving continues daily bootstrap, full evidence and zero-write replay',async()=>{
   const f=await rdProgramOnlyServingFixture(),paused=await f.run()
-  const inputRef=f.h.seed('RD-SERVING-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:f.wire.f.saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:f.wire.f.saved.ref,deadlineAt:deadline(),receiptId:'RD-SERVING-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.h.priorActivationRef,pausedDrainedRef:paused.ref})
+  const inputRef=f.h.seed('RD-SERVING-BOOTSTRAP-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:f.currentDescriptorRef,workerBuildRef:f.currentAssociationRef,deadlineAt:deadline(),receiptId:'RD-SERVING-BOOTSTRAP',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.h.priorActivationRef,pausedDrainedRef:paused.ref})
   const run=()=>executeOpenSwxBootstrap({stage:'bootstrap',inputRef,transport:f.h.transport,readSource:f.wire.readSource,appProfile,sleep:async()=>{}})
   const completed=await run()
   assert.equal(completed.value.facts.bootstrapKind,'DAILY_REFRESH')
@@ -2222,7 +2234,7 @@ test('RD daily keeps historical program-only 34 separate from genuine current 35
 
 test('RD daily current serving recovery restores only the verified prior Job and keeps Scheduler paused',async()=>{
   const f=await rdProgramOnlyServingFixture(),paused=await f.run()
-  const inputRef=f.h.seed('RD-SERVING-RECOVERY-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:f.wire.f.saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:f.wire.f.saved.ref,deadlineAt:deadline(),receiptId:'RD-SERVING-RECOVERY',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.h.priorActivationRef,pausedDrainedRef:paused.ref})
+  const inputRef=f.h.seed('RD-SERVING-RECOVERY-input',{schemaVersion:'aipdm.openswx-bootstrap-input.v1',descriptorRef:f.currentDescriptorRef,workerBuildRef:f.currentAssociationRef,deadlineAt:deadline(),receiptId:'RD-SERVING-RECOVERY',bootstrapKind:'DAILY_REFRESH',priorActivationRef:f.h.priorActivationRef,pausedDrainedRef:paused.ref})
   const request=f.h.transport.request
   let failed=false
   f.h.transport.request=async(url,options={})=>{
@@ -2279,7 +2291,7 @@ async function failedDailyFixture({programOnly=false,proofMetadata=false}={}) {
     historical.isHistorical=true
     return historical
   }
-  const saved=serving?.wire.f.saved??await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:reader})
+  const saved=serving?.currentSaved??await executeWorkerArtifactReuse({transport:h.transport,inputRef:h.inputRef,readSource:reader})
   h.put??=async(name,value)=>h.seed(name,value)
   h.lifecycle()
   const paused=serving?await serving.run():await executeOpenSwxBootstrap({stage:'pause',inputRef:h.seed('FAILED-OLD-PAUSE-input',{schemaVersion:'aipdm.openswx-pause-input.v1',descriptorRef:saved.refs.dailyBuildOnlyDescriptorRef,workerBuildRef:saved.ref,deadlineAt:deadline(),receiptId:'FAILED-OLD-PAUSE',drainKind:'DAILY_DB_VERIFIED',priorActivationRef:h.input.priorActivationRef}),transport:h.transport,readSource:reader,appProfile,sleep:async()=>{}})
