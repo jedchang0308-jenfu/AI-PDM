@@ -297,7 +297,7 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentA
   const seedBytes = (location, bytes) => { const row = { bytes, ref: { uri: location, sha256: sha256(bytes) }, metadata: { generation: '17', crc32c: proofMetadata ? crc32cBase64(bytes) : 'LOCAL_TEST_CRC' } }; objects.set(location, row); return row.ref }
   const seed = (name, value) => seedBytes(uri(name), Buffer.from(canonicalize(value)))
   const readBytes = async location => { if (!objects.has(location)) throw Object.assign(Error('MISSING'), { code: 'MISSING' }); return objects.get(location) }
-  const readJson = async reference => { const row = await readBytes(reference.uri); assert.equal(row.ref.sha256, reference.sha256); return { ...row, value: JSON.parse(row.bytes.toString('utf8')) } }
+  const readJson = async reference => { const row = await readBytes(reference.uri); assert.equal(row.ref.sha256, reference.sha256, reference.uri); return { ...row, value: JSON.parse(row.bytes.toString('utf8')) } }
   const transport = { now: () => now, readBytes, readJson,
     putJson: async (location, value) => { puts.push(location); const bytes = Buffer.from(`${canonicalize(value)}\n`); if (objects.has(location)) { assert.ok(objects.get(location).bytes.equals(bytes), 'create-only conflicting bytes'); return objects.get(location) }; const ref = seedBytes(location, bytes); return objects.get(ref.uri) },
     createBuild: async () => { throw Error('FORBIDDEN_BUILD') }, exportSbom: async () => { throw Error('FORBIDDEN_EXPORT') } }
@@ -354,7 +354,7 @@ async function harness({ buildMutate = () => {}, lockMutate = () => {}, currentA
   readSource.readArchive = revision => { assert.equal(revision, frozenRevision); return sourceInputs.get(revision).archive }
   readSource.readImmutableArchive = revision => { assert.ok(permitted.has(revision)); return sourceInputs.get(revision).archive }
   readSource.createHistoricalReader = () => readSource
-  readSource.authorizeOrigin = revision => { assert.ok(sourceInputs.has(revision), 'source must come from a registered immutable fixture'); permitted.add(revision) }
+  readSource.authorizeOrigin = revision => { assert.ok(sourceInputs.has(revision), `source must come from a registered immutable fixture: ${revision}`); permitted.add(revision) }
   const occurrences = [{ name: provenance[0], kind: 'BUILD', resourceUri: `https://${image}` }, { name: sbom[0], kind: 'SBOM_REFERENCE', resourceUri: `https://${image}` }, { name: 'projects/jenfu-platform-prod/occurrences/discovery-local', kind: 'DISCOVERY', resourceUri: `https://${image}`, discovery: { analysisStatus: 'FINISHED_SUCCESS', continuousAnalysis: 'ACTIVE', lastScanTime: '2026-10-07T14:59:00Z' } }]
   const job = { name: workerJobName(), etag: 'opaque-job-etag', generation: '15', observedGeneration: '15', reconciling: false, terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: workerTemplate(profile, image, token) }
   const scheduler = { name: workerSchedulerName(), state: 'ENABLED', schedule: '*/5 * * * *', timeZone: 'Etc/UTC', attemptDeadline: '30s', userUpdateTime: '2026-10-01T00:00:00Z', httpTarget: { uri: profile.canonicalOrigin + profile.recoverPath, httpMethod: 'POST', body: 'e30=', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Google-Cloud-Scheduler' }, oidcToken: { serviceAccountEmail: profile.dispatchServiceAccount, audience: profile.canonicalOrigin } } }
@@ -599,7 +599,7 @@ async function seedPrebuildIamContinuation(h, supplementalIamReadbackRef, name =
   const capsule = JSON.parse(h.objects.get(h.capsuleRef.uri).bytes); capsule.openswxWorkerRef = fullRef
   const capsuleRef = h.seedBytes(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${capsule.releaseId}/release-intent.json`, Buffer.from(`${canonicalize(capsule)}\n`))
   const activation = JSON.parse(h.objects.get(h.priorActivationRef.uri).bytes); activation.previousRefs[0] = capsuleRef
-  const activationRef = await h.put('b22-prior-activation', activation), inputRef = await h.put('b22-reuse-input', { ...h.input, priorActivationRef: activationRef })
+  const activationRef = await h.put('b22-prior-activation', activation), input = { ...h.input, priorActivationRef: activationRef }, inputRef = await h.put('b22-reuse-input', input)
   const originalRequest = h.transport.request
   h.transport.request = async (url, options = {}) => {
     if ([READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, PREBUILD_IAM_ROLE].some(role => url === `https://iam.googleapis.com/v1/${role}`)) {
@@ -614,7 +614,7 @@ async function seedPrebuildIamContinuation(h, supplementalIamReadbackRef, name =
     }
     return originalRequest(url, options)
   }
-  return { ...h, inputRef, readSource, sourceCalls, iam, proof, iamRevision, prebuildRevision, iamBootstrap: priorBootstrap, iamDescriptor: full,
+  return { ...h, input, inputRef, capsuleRef, priorActivationRef: activationRef, readSource, sourceCalls, iam, proof, iamRevision, prebuildRevision, iamBootstrap: priorBootstrap, iamDescriptor: full,
     originalSnapshot: new Map([...h.objects].map(([uri, row]) => [uri, Buffer.from(row.bytes)])) }
 }
 
@@ -1056,8 +1056,15 @@ test('program-only validation treats an admitted predecessor revision as histori
     currentProfile: historicalProfile, descriptorProfile: historicalProfile, currentProfileValid: false }), true)
 })
 async function b35ReadyProgramFixture(options = {}) {
-  const h = await harness({ ...options, lockMutate: lock => { lock.migrationManifestSha256 = b35FullBundle.bundle.manifestSha256 } })
-  const saved = await h.invoke(), descriptorRef = saved.refs.programOnlyFullDescriptorRef
+  const { secretVersionIam = false, lockMutate, ...harnessOptions } = options
+  const fixtureOptions = { ...harnessOptions, lockMutate: lock => { lockMutate?.(lock); lock.migrationManifestSha256 = b35FullBundle.bundle.manifestSha256 } }
+  const h = secretVersionIam ? await b35MetadataReuseFixture(fixtureOptions) : await harness(fixtureOptions)
+  const retainedCapsuleBytes = Buffer.from(h.objects.get(h.capsuleRef.uri).bytes)
+  const saved = secretVersionIam
+    ? await executeWorkerArtifactReuse({ transport: h.transport, inputRef: h.inputRef, readSource: h.readSource })
+    : await h.invoke()
+  assert.ok(h.objects.get(h.capsuleRef.uri).bytes.equals(retainedCapsuleBytes), 'worker reuse must not replace the retained release capsule')
+  const descriptorRef = saved.refs.programOnlyFullDescriptorRef
   const descriptor = (await h.transport.readJson(descriptorRef)).value
   const retainedWorker = { descriptorRef, priorActivationRef: h.priorActivationRef, currentAssociationRef: saved.ref, readyResourceReadbackRef: saved.value.resourceAssociation.readbackRef }
   const policy = buildProgramOnlyPolicy({ profile: b35AppProfile, sourceLock: h.lock, bundles: b35Bundles,
@@ -1113,10 +1120,11 @@ import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { programOnlyHash, sealProgramOnlyEvidence, programOnlyStaticEnvironment, programOnlyExecutionEnvironment, programOnlyMigrationArguments, programOnlySubmissionFields } from './lib/dev117-ai-pdm-program-only-baseline.mjs'
 import { readAiPdmReleaseObservation, readAiPdmObservationInputs, createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 
-async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false}={}) {
+async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false,secretVersionIam=false}={}) {
   // Historical modeled34 archive: real Git PAX, immutable SQL/worker blobs, explicit profile bytes.
   const archive = b35GitArchive(currentRevision, b35FullBundle.bundle.entries, b35AppProfileBytes)
-  const f = await b35ReadyProgramFixture({ currentArchive: archive, proofMetadata: true, releasedBaseline }), h = f.h
+  const f = await b35ReadyProgramFixture({ currentArchive: archive, proofMetadata: true, releasedBaseline, secretVersionIam }), h = f.h
+  const proofNow=secretVersionIam?h.lock.observedAt:now
   const put = (uri, value) => h.seedBytes(uri, Buffer.from(canonicalize(value) + '\n'))
   const seal = sealProgramOnlyEvidence, policy = f.intent.programOnlyBaseline
   const runtime = dailyServing ? buildRuntimeConfig(b35AppProfile, {plainEnvironment:{...Object.fromEntries(b35AppProfile.environment.requiredPlainEnvironmentNames.map(name=>[name,b35AppProfile.environment.fixedValues?.[name]??b35AppProfile.environment.controlledValues?.[name]?.defaultValue??'LOCAL_TEST_VALUE'])),PDM_OPENSWX_DISPATCH_ENABLED:'1'},secretVersions:Object.fromEntries(b35AppProfile.environment.requiredSecretNames.map(name=>[name,'9'])),openswxWorker:{descriptorRef:f.intent.openswxWorkerRef,purpose:'full',sourceRevision:currentRevision,workerProfileSha256:f.descriptor.workerProfileSha256}}) : null
@@ -1128,7 +1136,7 @@ async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false
     openswxWorkerRef: f.intent.openswxWorkerRef, baselineIntentRef: policy.baselineIntentRef, programOnlyBaseline: policy }
   const intentRef = put(`gs://jenfu-platform-prod-aipdm-release/receipts/releases/${capsule.releaseId}/release-intent.json`, capsule)
   const base = `gs://jenfu-platform-prod-aipdm-release/receipts/releases/${capsule.releaseId}/${intentRef.sha256}`
-  const stage = (name, previousReceiptRef, facts) => put(`${base}/${name}.json`, seal({ schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'ai-pdm', releaseId: capsule.releaseId, sourceRevision: currentRevision, stage: name, previousReceiptRef, facts, observedAt: now, status: 'PASS' }))
+  const stage = (name, previousReceiptRef, facts) => put(`${base}/${name}.json`, seal({ schemaVersion: 'jenfu.dev012.stage-receipt.v1', ownerApplicationId: 'ai-pdm', releaseId: capsule.releaseId, sourceRevision: currentRevision, stage: name, previousReceiptRef, facts, observedAt: proofNow, status: 'PASS' }))
   const prerequisiteRefs = Object.fromEntries(['sourceLock','authorization','readiness','foundation','infra','runtimeConfig'].map(name => [name, name==='runtimeConfig'?runtimeRef:h.sourceLockRef]))
   const prepare = stage('prepare', null, { prerequisiteRefs })
   const sourceObject = { ...h.currentSourceRef, uri: `gs://jenfu-platform-prod-aipdm-release/source/releases/${capsule.releaseId}/${intentRef.sha256}/source.tar.gz`, generation: '17', crc32c: crc32cBase64(h.objects.get(h.currentSourceRef.uri).bytes) }
@@ -1151,14 +1159,14 @@ async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false
     containers: [{ name: 'migration', image: policy.migrationRunnerDigest, args: ['--bundle-ref-required'], env: Object.entries(programOnlyStaticEnvironment(b35AppProfile)).map(([name,value]) => ({name,value})), volumeMounts: [{name:'cloudsql',mountPath:'/cloudsql'}] }] }
   const jobName = 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner', executionName = 'program-proof-local'
   const job = { name: jobName, etag: 'LOCAL_ETAG', template: { taskCount: 1, parallelism: 1, template: task } }
-  const execution = { name: `${jobName}/executions/${executionName}`, createTime: now, completionTime: now, taskCount:1, parallelism:1, succeededCount:1, conditions:[{type:'Completed',state:'CONDITION_SUCCEEDED'}], template:structuredClone(task) }
+  const execution = { name: `${jobName}/executions/${executionName}`, createTime: proofNow, completionTime: proofNow, taskCount:1, parallelism:1, succeededCount:1, conditions:[{type:'Completed',state:'CONDITION_SUCCEEDED'}], template:structuredClone(task) }
   execution.template.containers[0].args=programOnlyMigrationArguments(deployment,outputUri); execution.template.containers[0].env=Object.entries(programOnlyExecutionEnvironment(b35AppProfile)).map(([name,value])=>({name,value}))
   const jobRef=put(outputUri.replace(/\.json$/u,'-job-readback.json'),job),executionRef=put(outputUri.replace(/\.json$/u,'-execution-readback.json'),execution)
   const submissionRef=put(outputUri.replace(/\.json$/u,'-submission-intent.json'),seal({schemaVersion:'jenfu.dev012.migration-submission-intent.v1',ownerApplicationId:'ai-pdm',sourceRevision:currentRevision,
-    jobName,migrationRunnerDigest:policy.migrationRunnerDigest,migrationBundleRef:deployment.migrationBundleRef,outputUri,args:programOnlyMigrationArguments(deployment,outputUri),principalOnlyFenceRef:null,deadlineAt:capsule.deadlineAt,status:'SUBMISSION_INTENT',observedAt:now,...programOnlySubmissionFields(b35AppProfile,deployment)}))
+    jobName,migrationRunnerDigest:policy.migrationRunnerDigest,migrationBundleRef:deployment.migrationBundleRef,outputUri,args:programOnlyMigrationArguments(deployment,outputUri),principalOnlyFenceRef:null,deadlineAt:capsule.deadlineAt,status:'SUBMISSION_INTENT',observedAt:proofNow,...programOnlySubmissionFields(b35AppProfile,deployment)}))
   const nativeRef=put(outputUri,seal({schemaVersion:'jenfu.dev012.migration-receipt.v1',ownerApplicationId:'ai-pdm',sourceRevision:currentRevision,database:'jenfu_prod',ledger:'ai_pdm_core.schema_migrations',manifestSha256:b35Bundles.effective.bundle.manifestSha256,
-    baselineCount:15,minimumLedgerCount:0,ledgerBootstrap:{enabled:true,created:false},ledgerCount:33,applied:0,replayed:33,crossDatabaseDenials:[{database:'jenfu_dev',denied:true},{database:'jenfu_stg',denied:true}],boundaryStatus:'PASS',executionName,startedAt:now,completedAt:now,status:'PASS'}))
-  const migrate=put(`${base}/migrate.json`,seal({schemaVersion:'aipdm.program-only-baseline-association.v1',ownerApplicationId:'ai-pdm',releaseId:capsule.releaseId,sourceRevision:currentRevision,releaseCapsuleRef:intentRef,deploymentCapsuleRef:deploymentRef,policySha256:programOnlyHash(policy),sourceMigrationBundleRef:b35Bundles.sourceMigrationBundleRef,effectiveMigrationBundleRef:b35Bundles.effectiveMigrationBundleRef,nativeReceiptRef:nativeRef,submissionIntentRef:submissionRef,executionReadbackRef:executionRef,jobReadbackRef:jobRef,executionName,status:'PASS',databaseDisposition:'READ_ONLY_BASELINE_VERIFIED',migrationJobSubmitted:true,migrationJobSubmissions:1,currentDatabaseReadPerformed:true,observedAt:now,deadlineAt:capsule.deadlineAt}))
+    baselineCount:15,minimumLedgerCount:0,ledgerBootstrap:{enabled:true,created:false},ledgerCount:33,applied:0,replayed:33,crossDatabaseDenials:[{database:'jenfu_dev',denied:true},{database:'jenfu_stg',denied:true}],boundaryStatus:'PASS',executionName,startedAt:proofNow,completedAt:proofNow,status:'PASS'}))
+  const migrate=put(`${base}/migrate.json`,seal({schemaVersion:'aipdm.program-only-baseline-association.v1',ownerApplicationId:'ai-pdm',releaseId:capsule.releaseId,sourceRevision:currentRevision,releaseCapsuleRef:intentRef,deploymentCapsuleRef:deploymentRef,policySha256:programOnlyHash(policy),sourceMigrationBundleRef:b35Bundles.sourceMigrationBundleRef,effectiveMigrationBundleRef:b35Bundles.effectiveMigrationBundleRef,nativeReceiptRef:nativeRef,submissionIntentRef:submissionRef,executionReadbackRef:executionRef,jobReadbackRef:jobRef,executionName,status:'PASS',databaseDisposition:'READ_ONLY_BASELINE_VERIFIED',migrationJobSubmitted:true,migrationJobSubmissions:1,currentDatabaseReadPerformed:true,observedAt:proofNow,deadlineAt:capsule.deadlineAt}))
   const calls=[]
   const fetchImpl=async(url,options={})=>{calls.push({url,method:options.method??'GET'});
     const anchor=h.modeledReleasedAnchor
@@ -1172,7 +1180,16 @@ async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false
     const match=/\/b\/([^/]+)\/o\/([^?]+)/u.exec(url),uri=match&&`gs://${decodeURIComponent(match[1])}/${decodeURIComponent(match[2])}`,row=h.objects.get(uri)
     if(!row)return Response.json({}, {status:404});return url.includes('alt=media')?new Response(row.bytes):Response.json({bucket:decodeURIComponent(match[1]),name:decodeURIComponent(match[2]),generation:'17',crc32c:crc32cBase64(row.bytes),size:String(row.bytes.length)})}
   const sourceCalls=[]
-  const readSource=(name,revision)=>{sourceCalls.push({name,revision});assert.ok([oldRevision,currentRevision].includes(revision));return name==='config/release/dev117-ai-pdm-independent-production-v3.json'?(releasedBaseline&&revision===oldRevision?b35HistoricalProfileBytes:b35AppProfileBytes):canonicalSource(name)}
+  const readSource=(name,revision)=>{
+    sourceCalls.push({name,revision})
+    if(name==='config/release/dev117-ai-pdm-independent-production-v3.json') {
+      assert.ok([oldRevision,currentRevision].includes(revision))
+      return releasedBaseline&&revision===oldRevision?b35HistoricalProfileBytes:b35AppProfileBytes
+    }
+    if(secretVersionIam) return h.readSource(name,revision)
+    assert.ok([oldRevision,currentRevision].includes(revision))
+    return canonicalSource(name)
+  }
   return { f,h,capsule,intentRef,prepare,migrate,deploymentRef,execution,job,base,put,calls,sourceCalls,fetchImpl,readSource,runtime,artifactDigest,
     read:callback=>readAiPdmReleaseObservation({sourceRevision:currentRevision,refs:{prepare,migrate,terminal:null},token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl,readSource:callback??readSource}) }
 }
@@ -1718,7 +1735,7 @@ async function b35MetadataReuseFixture(options={}) {
     }
     return originalRequest(url,options)
   }
-  return {...h,input,metadata}
+  return {...h,lock,sourceLockRef,input,metadata}
 }
 test('B35 actual READY producer and pure resolver admit only the source-joined metadata continuation',async()=>{
   const h=await b35MetadataReuseFixture()
@@ -2115,12 +2132,13 @@ test('RD daily rejects an unproven changed serving app before Scheduler pause', 
 })
 
 
-async function rdProgramOnlyServingFixture() {
-  const wire=await b35ProgramProofFixture({releasedBaseline:true,dailyServing:true}),h=wire.h
+async function rdProgramOnlyServingFixture({secretVersionIam=false}={}) {
+  const wire=await b35ProgramProofFixture({releasedBaseline:true,dailyServing:true,secretVersionIam}),h=wire.h
+  const servingNow=secretVersionIam?h.lock.observedAt:now
   const validators=createOwnerTransport({token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl})
   const paths=releasePaths(b35AppProfile,wire.capsule,wire.intentRef.sha256),candidateRevision='ai-pdm-prod-'+'5'.repeat(12)
   const tagUri='https://candidate-'+'5'.repeat(12)+'---'+new URL(profile.canonicalOrigin).hostname
-  const stage=(name,previousReceiptRef,facts)=>wire.put(paths[name],sealProgramOnlyEvidence({schemaVersion:'jenfu.dev012.stage-receipt.v1',ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,stage:name,previousReceiptRef,facts,observedAt:now,status:'PASS'}))
+  const stage=(name,previousReceiptRef,facts)=>wire.put(paths[name],sealProgramOnlyEvidence({schemaVersion:'jenfu.dev012.stage-receipt.v1',ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,stage:name,previousReceiptRef,facts,observedAt:servingNow,status:'PASS'}))
   let previous=stage('candidate',wire.migrate,{candidateRevision,artifactDigest:wire.artifactDigest,migrationReceiptRef:wire.migrate,deploymentCapsuleRef:wire.deploymentRef,tagUri,cloudSqlProxyResolvedImage:b35AppProfile.runtime.cloudSqlProxyImage})
   previous=stage('entrypoint',previous,{})
   previous=stage('verify',previous,{candidateRevision,artifactDigest:wire.artifactDigest,smoke:{status:'PASS'}})
@@ -2129,7 +2147,7 @@ async function rdProgramOnlyServingFixture() {
   const canonical=stage('canonical',previous,{candidateRevision,artifactDigest:wire.artifactDigest,origin:profile.canonicalOrigin,smoke:{status:'PASS'}})
   previous=stage('finalize',canonical,{candidateRevision,artifactDigest:wire.artifactDigest,result:'RELEASED',temporaryCandidateTags:0,openswxWorker:{status:'READY',retained:true,priorActivationRef:h.priorActivationRef}})
   const terminal=stage('terminal',previous,{candidateRevision,artifactDigest:wire.artifactDigest,result:'RELEASED',databaseDisposition:'READ_ONLY_BASELINE_VERIFIED',currentDatabaseReadPerformed:true,migrationEvidenceRef:wire.migrate,remainingHumanAction:0})
-  const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,releaseIntentSha256:wire.intentRef.sha256})),ownerApplicationId:'ai-pdm',service:b35AppProfile.target.serviceName,controlBucket:b35AppProfile.artifact.releaseBucket,releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,sourceLockSha256:wire.capsule.sourceLockRef.sha256,candidateRevision,previousRevision:wire.capsule.previousRevision,ownerRunRef:'https://api.github.com/repos/'+b35AppProfile.application.repository+'/actions/runs/351',leaseExpiresAt:now,deadlineAt:wire.capsule.deadlineAt,state:'FINALIZED',result:'RELEASED'}
+  const controlCore={schemaVersion:'jenfu.dev012.owner-control-head.v1',inputFingerprint:sha256(canonicalize({ownerApplicationId:'ai-pdm',releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,releaseIntentSha256:wire.intentRef.sha256})),ownerApplicationId:'ai-pdm',service:b35AppProfile.target.serviceName,controlBucket:b35AppProfile.artifact.releaseBucket,releaseId:wire.capsule.releaseId,sourceRevision:currentRevision,sourceLockSha256:wire.capsule.sourceLockRef.sha256,candidateRevision,previousRevision:wire.capsule.previousRevision,ownerRunRef:'https://api.github.com/repos/'+b35AppProfile.application.repository+'/actions/runs/351',leaseExpiresAt:servingNow,deadlineAt:wire.capsule.deadlineAt,state:'FINALIZED',result:'RELEASED'}
   const control={...controlCore,controlSha256:sha256(canonicalize(controlCore))}
   wire.put(paths.control,control)
   const service={name:'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod',etag:'LOCAL_SERVING_ETAG',generation:'17',observedGeneration:'17',terminalCondition:{state:'CONDITION_SUCCEEDED'},ingress:'INGRESS_TRAFFIC_ALL',defaultUriDisabled:false,invokerIamDisabled:true,uri:profile.canonicalOrigin,urls:[profile.canonicalOrigin],traffic:[{revision:candidateRevision,percent:100}],trafficStatuses:[{revision:candidateRevision,percent:100}]}
@@ -2175,8 +2193,10 @@ test('RD daily accepts current RELEASED program-only app with a newer source-bou
 })
 
 test('PAUSED repair accepts the current RELEASED program-only app only through its sealed retained READY worker chain',async()=>{
-  const f=await rdProgramOnlyServingFixture()
-  await f.run()
+  const f=await rdProgramOnlyServingFixture({secretVersionIam:true})
+  f.h.lifecycle()
+  f.h.controls.scheduler={state:'PAUSED'}
+  assert.equal(f.h.objects.get(f.h.capsuleRef.uri).ref.sha256,f.h.capsuleRef.sha256,'fixture retains the original READY capsule before repair')
   const input={schemaVersion:'aipdm.openswx-worker-reuse-input.v2',sourceLockRef:f.h.input.sourceLockRef,currentSourceObjectRef:f.h.input.currentSourceObjectRef,
     priorActivationRef:f.h.priorActivationRef,servingCapsuleRef:f.wire.intentRef,predecessorBaselineRef:null,deadlineAt:deadline(),receiptId:'RD-PROGRAM-PAUSED-REPAIR'}
   const inputRef=f.h.seed('RD-PROGRAM-PAUSED-REPAIR-input',input),calls=f.h.calls.length
@@ -2189,6 +2209,7 @@ test('PAUSED repair accepts the current RELEASED program-only app only through i
   const descriptor=JSON.parse(descriptorRow.bytes)
   assert.equal(descriptor.releaseVariant,'PAUSED_APP_REPAIR')
   assert.deepEqual(descriptor.priorActivationRef,f.h.priorActivationRef)
+  assert.ok(f.h.calls.slice(calls).some(row=>row.url.includes('/secrets/'+profile.tokenSecretId+':getIamPolicy?options.requestedPolicyVersion=3')))
   assert.ok(f.h.calls.slice(calls).every(row=>!row.options.method||row.options.method==='GET'||row.url.endsWith(':getIamPolicy')))
   noMutation({...f.h,calls:f.h.calls.slice(calls)})
 })

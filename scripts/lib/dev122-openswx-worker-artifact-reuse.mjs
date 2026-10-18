@@ -535,7 +535,7 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
   if (terminal.value.facts.result !== 'RELEASED'
     || !['READY', 'ACTIVATION_PENDING'].includes(workerStatus) || canonical.value.facts.origin !== profile.canonicalOrigin) fail('OPENSWX_REPAIR_SERVING_INVALID')
   const workerRef = intent.openswxWorkerRef, worker = (await read(transport, workerRef)).value
-  let predecessorBaselineRef = null, continuationDepth = 1
+  let predecessorBaselineRef = null, continuationDepth = 1, servingSecretVersionIam = null
   if (workerStatus === 'READY') {
     if (readyIdentity) {
       same(servingCapsuleRef, origin.prior.capsuleRef); same(workerRef, origin.prior.descriptorRef)
@@ -553,6 +553,11 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
       same(retained.prior.activationRef, origin.prior.activationRef)
       same(retained.prior.bootstrapDescriptorRef, origin.prior.bootstrapDescriptorRef)
       if (retained.image !== origin.build.image) fail('OPENSWX_REPAIR_SERVING_INVALID')
+      // The live Secret policies may include the source-owned numeric-version
+      // readback role added after the retained READY activation.  The serving
+      // program-only association is the immutable authority for that exact
+      // continuation; never infer it from the live IAM policy alone.
+      servingSecretVersionIam = retained.artifact.secretVersionIam ?? null
     }
   } else {
     assertWorkerDescriptor(worker, profile, worker.workerProfileSha256, intent.sourceRevision)
@@ -603,7 +608,8 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
     admission = { controlRef: control.ref, controlGeneration: control.metadata.generation, serviceSha256: sha256(canonicalize(service)), appProfile }
   }
   return { servingApp: { capsuleRef: servingCapsuleRef, canonicalRef: canonical.ref, finalizeRef: finalized.ref, terminalRef: terminal.ref, runtimeConfigRef: intent.runtimeConfigRef, workerDescriptorRef: workerRef,
-    sourceRevision: intent.sourceRevision, revision: revisionName, artifactDigest: graph.chain.deployment.value.artifactDigest, workerStatus, serviceEtag: service.etag, generalTrafficPercent: 100, tagCount: 0, canonicalOrigin: profile.canonicalOrigin }, predecessorBaselineRef, continuationDepth, raw, observedAt, graph, admission }
+    sourceRevision: intent.sourceRevision, revision: revisionName, artifactDigest: graph.chain.deployment.value.artifactDigest, workerStatus, serviceEtag: service.etag, generalTrafficPercent: 100, tagCount: 0, canonicalOrigin: profile.canonicalOrigin }, predecessorBaselineRef, continuationDepth, raw, observedAt, graph, admission,
+    ...(servingSecretVersionIam ? { secretVersionIam: servingSecretVersionIam } : {}) }
 }
 async function validateRepairBaseline({ transport, baseline, baselineRef, association, descriptor, input, inputRef, origin, profile, readSource, ctx }) {
   assertPausedRepairBaseline(baseline, origin.historicalProfile ?? profile, { historicalProfile: !!origin.historicalProfile })
@@ -990,7 +996,10 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   const supplementalIam = await readBootstrapSupplementalIam(transport, origin.prior.bootstrap, origin.prior.bootstrapDescriptor, profile, readSource, revision, historicalReadSource)
   const serving = repair ? await readServingRepairBasis({ transport, servingCapsuleRef: input.servingCapsuleRef, origin, profile, readSource, ctx }) : null
   if (repair) same(input.predecessorBaselineRef, serving.predecessorBaselineRef)
-  const secretVersionIam = repair ? null : await readSecretVersionIamForReuse({ transport, input, supplemental: supplementalIam, sourceRevision: revision, profile, readSource })
+  // A v2 repair input must not supply an actor-selected IAM continuation.  Its
+  // only admissible Secret IAM authority comes from the sealed serving capsule
+  // and retained worker association validated above.
+  const secretVersionIam = repair ? (serving?.secretVersionIam ?? null) : await readSecretVersionIamForReuse({ transport, input, supplemental: supplementalIam, sourceRevision: revision, profile, readSource })
    const basisBindings = effectiveHistoryBasisRef ? (historyBindings ?? qualifiedHistoryBindings({
      sourceRevision: input.historyBasisRef ? revision : originReaderRevision,
      sourceLockRef: input.historyBasisRef ? input.sourceLockRef : checkpoint?.historyBasisRef ? (await read(transport, checkpoint.historyBasisRef)).value.issuerSourceLockRef : input.sourceLockRef,
