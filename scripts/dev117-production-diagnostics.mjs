@@ -48,7 +48,7 @@ export async function readServiceDiagnostic({ binding, sourceRevision, transport
   return { status: report.status, outputRef, sourceRevision, releaseAuthority: false }
 }
 
-export async function runMain({ argv = process.argv.slice(2), environment = process.env } = {}) {
+export async function runMain({ argv = process.argv.slice(2), environment = process.env, transport = null, sourceAuthorityOptions = {} } = {}) {
   if (argv.length !== 1 || !['--bind', '--service-state'].includes(argv[0])) fail('ARGUMENTS_INVALID')
   const binding = bindDiagnosticRef(environment.OPERATION_REF)
   if (argv[0] === '--bind') {
@@ -56,8 +56,9 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
     fs.appendFileSync(environment.GITHUB_OUTPUT, Object.entries(binding).map(([key, value]) => `${key}=${value}\n`).join(''))
     return { kind: binding.kind }
   }
-  sourceAuthority(environment, environment.GITHUB_SHA)
-  return readServiceDiagnostic({ binding, sourceRevision: environment.GITHUB_SHA, transport: createOwnerTransport({ token: environment.GOOGLE_OAUTH_ACCESS_TOKEN ?? '' }) })
+  sourceAuthority(environment, environment.GITHUB_SHA, environment.GITHUB_SHA, sourceAuthorityOptions)
+  return readServiceDiagnostic({ binding, sourceRevision: environment.GITHUB_SHA,
+    transport: transport ?? createOwnerTransport({ token: environment.GOOGLE_OAUTH_ACCESS_TOKEN ?? '' }) })
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
