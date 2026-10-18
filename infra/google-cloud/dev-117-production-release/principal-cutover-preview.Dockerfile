@@ -35,6 +35,7 @@ COPY scripts/lib/dev015-gcc-applicability.mjs scripts/lib/dev015-gcc-applicabili
 COPY scripts/lib/dev015-gcc-aligned-new-applicability.mjs scripts/lib/dev015-gcc-aligned-new-applicability.mjs
 COPY scripts/lib/dev121-principal-candidate-smoke.mjs scripts/lib/dev121-principal-candidate-smoke.mjs
 COPY scripts/lib/dev122-rd-permission-state-readback.mjs scripts/lib/dev122-rd-permission-state-readback.mjs
+COPY scripts/lib/dev122-openswx-dispatch-recovery.mjs scripts/lib/dev122-openswx-dispatch-recovery.mjs
 COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-migration-runner.mjs
 COPY scripts/dev121-production-principal-cutover-preview-runner.mjs scripts/dev121-production-principal-cutover-preview-runner.mjs
 COPY scripts/qc-ts-path-loader.mjs scripts/qc-ts-path-loader.mjs
