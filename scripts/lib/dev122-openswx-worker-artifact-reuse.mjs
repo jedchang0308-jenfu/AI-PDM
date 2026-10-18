@@ -122,10 +122,30 @@ function git(root, args) {
 /** Historical revisions are admitted only by the hash-validated descriptor chain. */
 export function createWorkerGitReader(root, sourceRevision) {
   if (!H40.test(sourceRevision ?? '') || path.resolve(git(root, ['rev-parse', '--show-toplevel']).toString().trim()).toLowerCase() !== path.resolve(root).toLowerCase()) fail('OPENSWX_REUSE_REPOSITORY_INVALID')
+  // Keep these sets inside the factory: the bootstrap/readback modules form a
+  // circular import with this reader, and evaluating their constants at module
+  // initialization would fail before any reader is created.
+  const historicalSourcePaths = new Set([
+    APP_PROFILE,
+    ...READBACK_IAM_PATHS,
+    PREBUILD_IAM_SOURCE_PATH,
+    SECRET_VERSION_IAM_SOURCE_PATH,
+    SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH,
+    ...SECRET_VERSION_IAM_EXECUTION_PATHS,
+    ...OPENSWX_TERRAFORM_PATHS,
+    WORKER_PROFILE_PATH,
+  ])
+  const preAdmissionHistoricalSourcePaths = new Set([
+    ...READBACK_IAM_PATHS,
+    SECRET_VERSION_IAM_SOURCE_PATH,
+    SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH,
+    ...SECRET_VERSION_IAM_EXECUTION_PATHS,
+    WORKER_PROFILE_PATH,
+  ])
   const permitted = new Set([sourceRevision]), blobs = new Map()
   const readSource = (name, revision) => {
-    if (!safePath(name) || !H40.test(revision ?? '') || (!permitted.has(revision) && ![...READBACK_IAM_PATHS, WORKER_PROFILE_PATH].includes(name))) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
-    if (revision !== sourceRevision && !proofPath(name) && ![APP_PROFILE, ...READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH, SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, ...SECRET_VERSION_IAM_EXECUTION_PATHS, ...OPENSWX_TERRAFORM_PATHS].includes(name)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
+    if (!safePath(name) || !H40.test(revision ?? '') || (!permitted.has(revision) && !preAdmissionHistoricalSourcePaths.has(name))) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
+    if (revision !== sourceRevision && !proofPath(name) && !historicalSourcePaths.has(name)) fail('OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID')
     const key = `${revision}:${name}`
     if (!blobs.has(key)) blobs.set(key, git(root, ['show', key]))
     return Buffer.from(blobs.get(key))

@@ -1878,7 +1878,7 @@ test('B35 producer rejects malformed refs and live workload policy drift; pure r
   assert.equal(h.calls.length,calls);assert.equal(h.puts.length,count);noMutation(h)
 })
 
-test('B35 actual Git reader admits only the four exact metadata source paths after sealed origin admission',()=>{
+test('B35 actual Git reader admits the fixed metadata closure across distinct historical revisions',()=>{
   const fixtureParent=realpathSync.native(tmpdir())
   const temporary=realpathSync.native(mkdtempSync(path.join(fixtureParent,'aipdm-b35-git-metadata-')))
   console.log(JSON.stringify({project:'AI-PDM',purpose:'Metadata continuation actual Git reader scope regression',port:null,owningProcess:process.pid,temporaryPath:temporary,PDM_DATA_DIR:'UNUSED_NO_APP_IMPORT',PDM_REPOSITORY_DIR:temporary,mutationScope:'TASK_OWNED_GIT_FIXTURE_ONLY',cleanupCondition:'finally removes exact task-owned Git fixture'}))
@@ -1891,10 +1891,14 @@ test('B35 actual Git reader admits only the four exact metadata source paths aft
     const historical=run(['rev-parse','HEAD'])
     writeFileSync(path.join(temporary,'current-fixture.txt'),'current\n');run(['add','.']);run(['commit','--quiet','-m','current source fixture'])
     const current=run(['rev-parse','HEAD']), reader=createWorkerGitReader(temporary,current)
-    for(const name of paths)assert.throws(()=>reader(name,historical),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
-    reader.authorizeOrigin(historical)
+    // The metadata closure is safe to inspect before the historical executable
+    // origin is admitted.  This is the production-shaped seam where the
+    // descriptor revision and the retained Secret/IAM continuation revision
+    // differ.
     for(const name of paths)assert.equal(reader(name,historical).toString(),name+'\n')
     assert.throws(()=>reader('scripts/not-admitted.mjs',historical),{code:'OPENSWX_HISTORICAL_SOURCE_SCOPE_INVALID'})
+    reader.authorizeOrigin(historical)
+    for(const name of paths)assert.equal(reader(name,historical).toString(),name+'\n')
   }finally{
     assert.equal(path.dirname(temporary),fixtureParent)
     assert.ok(path.basename(temporary).startsWith('aipdm-b35-git-metadata-'))
