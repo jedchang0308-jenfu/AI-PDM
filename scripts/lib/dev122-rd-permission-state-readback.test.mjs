@@ -4,10 +4,12 @@ import test from 'node:test'
 import { parseArgs as parseReadbackArgs, readbackObjectGeneration } from '../dev122-rd-permission-state-readback.mjs'
 import {
   RD_PERMISSION_STATE_PGOPTIONS,
+  RD_PERMISSION_STATE_CATALOGS,
   RD_PERMISSION_STATE_SCHEMA,
   RD_PERMISSION_STATE_TARGET,
   assertPermissionStateOperation,
   assertPermissionStateTarget,
+  buildPermissionStateOperation,
   buildPermissionStateReceipt,
   permissionStatePermissions,
   readPermissionState,
@@ -56,6 +58,12 @@ test('RD permission readback rejects target drift and preserves fixed permission
   const bytes = operationBytes()
   assert.equal(assertPermissionStateOperation(operation, { bytes, operationSha256: sha256(bytes), sourceRevision }).operationId, operation.operationId)
   assert.throws(() => assertPermissionStateOperation({ ...operation, permissions: [] }, { bytes, operationSha256: sha256(bytes), sourceRevision }), /PERMISSION_SET_INVALID/u)
+})
+
+test('RD permission readback accepts the pre-085 v6 catalog binding for an authorized preflight', () => {
+  const built = buildPermissionStateOperation({ operationId: 'DEV122-RD-V6-PREFLIGHT', sourceRevision, migrationRunnerDigest: operation.migrationRunnerDigest, actor, ...RD_PERMISSION_STATE_CATALOGS.v6 })
+  assert.equal(built.value.catalogVersion, RD_PERMISSION_STATE_CATALOGS.v6.catalogVersion)
+  assert.equal(assertPermissionStateOperation(built.value, { bytes: built.bytes, operationSha256: built.sha256, sourceRevision }).catalogSha256, RD_PERMISSION_STATE_CATALOGS.v6.catalogSha256)
 })
 
 test('RD permission readback reads catalog, active account and grants in one readonly snapshot', async () => {

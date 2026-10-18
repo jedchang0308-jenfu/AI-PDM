@@ -7,14 +7,23 @@ export const RD_PERMISSION_STATE_RECEIPT_SCHEMA = 'aipdm.dev122.rd-permission-st
 export const RD_PERMISSION_STATE_PGOPTIONS = '-c default_transaction_read_only=on'
 export const RD_PERMISSION_STATE_PREFIX = 'source/rd-permission-readback'
 export const RD_PERMISSION_STATE_RECEIPT_PREFIX = 'receipts/releases/DEV122-RD-PERMISSION-READBACK'
+export const RD_PERMISSION_STATE_CATALOGS = Object.freeze({
+  v6: Object.freeze({
+    catalogVersion: 'ai-pdm.role-catalog.2026-10-05.v6',
+    catalogSha256: 'bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af',
+  }),
+  v7: Object.freeze({
+    catalogVersion: 'ai-pdm.role-catalog.2026-10-10.v7',
+    catalogSha256: '4d624b16a58299a78bc3bac4b7f39f261ec2ba34ae604f06ed7cdb7a078e01f9',
+  }),
+})
 export const RD_PERMISSION_STATE_TARGET = Object.freeze({
   ownerApplicationId: 'ai-pdm',
   projectId: 'jenfu-platform-prod',
   region: 'asia-east1',
   database: 'jenfu_prod',
   applicationId: 'ai-pdm',
-  catalogVersion: 'ai-pdm.role-catalog.2026-10-10.v7',
-  catalogSha256: '4d624b16a58299a78bc3bac4b7f39f261ec2ba34ae604f06ed7cdb7a078e01f9',
+  ...RD_PERMISSION_STATE_CATALOGS.v7,
 })
 
 const H40 = /^[a-f0-9]{40}$/u
@@ -51,6 +60,11 @@ function hashText(value) {
   return sha256(Buffer.from(String(value), 'utf8'))
 }
 
+function catalogBinding(value) {
+  return Object.values(RD_PERMISSION_STATE_CATALOGS).find((catalog) =>
+    value?.catalogVersion === catalog.catalogVersion && value?.catalogSha256 === catalog.catalogSha256) ?? null
+}
+
 export function permissionStatePermissions() {
   return PERMISSIONS.map(([permissionKind, permissionCode]) => ({ permissionKind, permissionCode }))
 }
@@ -79,7 +93,7 @@ export function assertPermissionStateOperation(value, { bytes, operationSha256, 
   if (!exact(value, ['schemaVersion', 'operationId', 'sourceRevision', 'projectId', 'region', 'database', 'applicationId', 'catalogVersion', 'catalogSha256', 'migrationRunnerDigest', 'actor', 'permissions'])) fail('RD_PERMISSION_STATE_OPERATION_INVALID')
   if (value.schemaVersion !== RD_PERMISSION_STATE_SCHEMA || !/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(value.operationId ?? '') || value.sourceRevision !== sourceRevision ||
       value.projectId !== RD_PERMISSION_STATE_TARGET.projectId || value.region !== RD_PERMISSION_STATE_TARGET.region || value.database !== RD_PERMISSION_STATE_TARGET.database ||
-      value.applicationId !== RD_PERMISSION_STATE_TARGET.applicationId || value.catalogVersion !== RD_PERMISSION_STATE_TARGET.catalogVersion || value.catalogSha256 !== RD_PERMISSION_STATE_TARGET.catalogSha256 ||
+      value.applicationId !== RD_PERMISSION_STATE_TARGET.applicationId || !catalogBinding(value) ||
       !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-migration-runner@sha256:[a-f0-9]{64}$/u.test(value.migrationRunnerDigest ?? '')) fail('RD_PERMISSION_STATE_OPERATION_INVALID')
   if (!exact(value.actor, ['principalIdSha256', 'employeeIdSha256', 'identityIssuer', 'identitySubjectSha256']) ||
       !H64.test(value.actor.principalIdSha256 ?? '') || !H64.test(value.actor.employeeIdSha256 ?? '') ||
@@ -88,14 +102,14 @@ export function assertPermissionStateOperation(value, { bytes, operationSha256, 
   return value
 }
 
-export function buildPermissionStateOperation({ operationId, sourceRevision, migrationRunnerDigest, actor }) {
+export function buildPermissionStateOperation({ operationId, sourceRevision, migrationRunnerDigest, actor, catalogVersion = RD_PERMISSION_STATE_TARGET.catalogVersion, catalogSha256 = RD_PERMISSION_STATE_TARGET.catalogSha256 }) {
   const value = {
     schemaVersion: RD_PERMISSION_STATE_SCHEMA,
     operationId, sourceRevision, projectId: RD_PERMISSION_STATE_TARGET.projectId,
     region: RD_PERMISSION_STATE_TARGET.region, database: RD_PERMISSION_STATE_TARGET.database,
     applicationId: RD_PERMISSION_STATE_TARGET.applicationId,
-    catalogVersion: RD_PERMISSION_STATE_TARGET.catalogVersion,
-    catalogSha256: RD_PERMISSION_STATE_TARGET.catalogSha256,
+    catalogVersion,
+    catalogSha256,
     migrationRunnerDigest, actor, permissions: permissionStatePermissions(),
   }
   const bytes = Buffer.from(`${canonicalize(value)}\n`)
@@ -152,7 +166,7 @@ export async function readPermissionState(database, operation) {
     const catalogRows = await run(`SELECT contract_version,application_id,catalog_version,catalog_sha256,
       display_order,stable_role_id,role_definition_hash
       FROM ai_pdm_contract.v_application_role_catalog_v1 ORDER BY display_order`)
-    if (catalogRows.length === 0 || catalogRows.some(row => row.application_id !== RD_PERMISSION_STATE_TARGET.applicationId || row.catalog_version !== RD_PERMISSION_STATE_TARGET.catalogVersion || row.catalog_sha256 !== RD_PERMISSION_STATE_TARGET.catalogSha256)) fail('RD_PERMISSION_STATE_CATALOG_MISMATCH')
+    if (catalogRows.length === 0 || catalogRows.some(row => row.application_id !== RD_PERMISSION_STATE_TARGET.applicationId || row.catalog_version !== operation.catalogVersion || row.catalog_sha256 !== operation.catalogSha256)) fail('RD_PERMISSION_STATE_CATALOG_MISMATCH')
     const accounts = await run(`SELECT contract_version,principal_issuer,principal_subject,principal_id,
       employee_id,employee_status,account_type,mapping_version,published_at::text
       FROM orgmaster_contract.v_active_principal_accounts_v1
@@ -199,7 +213,8 @@ export async function readPermissionState(database, operation) {
 
 export function buildPermissionStateReceipt({ operation, operationRef, outputRef, observedAt, state }) {
   if (!Number.isFinite(Date.parse(observedAt)) || !state || state.database !== RD_PERMISSION_STATE_TARGET.database) fail('RD_PERMISSION_STATE_RECEIPT_INVALID')
-  const core = { schemaVersion: RD_PERMISSION_STATE_RECEIPT_SCHEMA, ownerApplicationId: RD_PERMISSION_STATE_TARGET.ownerApplicationId, operationId: operation.operationId, sourceRevision: operation.sourceRevision, operationRef, outputRef, observedAt, target: RD_PERMISSION_STATE_TARGET, state }
+  const target = { ...RD_PERMISSION_STATE_TARGET, catalogVersion: operation.catalogVersion, catalogSha256: operation.catalogSha256 }
+  const core = { schemaVersion: RD_PERMISSION_STATE_RECEIPT_SCHEMA, ownerApplicationId: RD_PERMISSION_STATE_TARGET.ownerApplicationId, operationId: operation.operationId, sourceRevision: operation.sourceRevision, operationRef, outputRef, observedAt, target, state }
   return { ...core, receiptSha256: sha256(Buffer.from(canonicalize(core))) }
 }
 
@@ -207,7 +222,7 @@ export function assertPermissionStateReceipt(value, { operation, operationRef, o
   if (!exact(value, ['schemaVersion', 'ownerApplicationId', 'operationId', 'sourceRevision', 'operationRef', 'outputRef', 'observedAt', 'target', 'state', 'receiptSha256']) ||
       value.schemaVersion !== RD_PERMISSION_STATE_RECEIPT_SCHEMA || value.ownerApplicationId !== RD_PERMISSION_STATE_TARGET.ownerApplicationId ||
       value.operationId !== operation.operationId || value.sourceRevision !== operation.sourceRevision || canonicalize(value.operationRef) !== canonicalize(operationRef) ||
-      value.outputRef !== outputRef || !Number.isFinite(Date.parse(value.observedAt)) || value.target?.catalogVersion !== RD_PERMISSION_STATE_TARGET.catalogVersion ||
+      value.outputRef !== outputRef || !Number.isFinite(Date.parse(value.observedAt)) || canonicalize(value.target) !== canonicalize({ ...RD_PERMISSION_STATE_TARGET, catalogVersion: operation.catalogVersion, catalogSha256: operation.catalogSha256 }) ||
       value.state?.database !== RD_PERMISSION_STATE_TARGET.database || value.state?.databaseMutationExpected !== false) fail('RD_PERMISSION_STATE_RECEIPT_INVALID')
   const core = { ...value }; delete core.receiptSha256
   if (value.receiptSha256 !== sha256(Buffer.from(canonicalize(core)))) fail('RD_PERMISSION_STATE_RECEIPT_INVALID')
