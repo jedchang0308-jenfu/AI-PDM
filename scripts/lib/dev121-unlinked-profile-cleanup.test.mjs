@@ -110,7 +110,10 @@ test('migration image closure contains the new helper and its imports use only b
   for (const name of ['migration-runner.Dockerfile', 'principal-inventory.Dockerfile', 'principal-cutover-preview.Dockerfile', 'role-catalog-publisher.Dockerfile']) {
     const docker = readFileSync(new URL(`../../infra/google-cloud/dev-117-production-release/${name}`, import.meta.url), 'utf8')
     assert.match(docker, /^COPY scripts\/lib\/dev121-unlinked-profile-cleanup\.mjs scripts\/lib\/dev121-unlinked-profile-cleanup\.mjs$/mu, name)
-    if (name === 'migration-runner.Dockerfile') assert.match(docker, /^COPY scripts\/lib\/dev122-rd-permission-state-readback\.mjs scripts\/lib\/dev122-rd-permission-state-readback\.mjs$/mu, name)
+    if (name === 'migration-runner.Dockerfile') {
+      assert.match(docker, /^COPY scripts\/lib\/dev122-rd-permission-state-readback\.mjs scripts\/lib\/dev122-rd-permission-state-readback\.mjs$/mu, name)
+      assert.match(docker, /^COPY scripts\/lib\/dev122-openswx-dispatch-recovery\.mjs scripts\/lib\/dev122-openswx-dispatch-recovery\.mjs$/mu, name)
+    }
   }
   const helper = readFileSync(new URL('./dev121-unlinked-profile-cleanup.mjs', import.meta.url), 'utf8')
   const imports = [...helper.matchAll(/(?:from\s+|import\s+)['"]([^'"]+)['"]/gu)].map(row => row[1])
