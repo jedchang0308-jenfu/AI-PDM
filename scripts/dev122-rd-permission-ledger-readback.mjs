@@ -95,7 +95,7 @@ async function publish({ args, transport }) {
   const authority = readGitAuthority(root, profile)
   if (Date.parse(args.deadlineAt) <= Date.now() || Date.parse(args.deadlineAt) > Date.now() + 4 * 60 * 60 * 1000) fail('RD_READBACK_DEADLINE_INVALID')
   const sourceIdentity = createGitSourceIdentity(root, authority.sourceRevision)
-  const job = assertRdReadbackJob(await transport.request(`https://run.googleapis.com/v2/${RD_LEDGER_READBACK_CONSTANTS.jobName}`), profile)
+  const job = assertRdReadbackJob(await transport.request(`https://run.googleapis.com/v2/${RD_LEDGER_READBACK_CONSTANTS.jobName}`), profile, null, authority.sourceRevision)
   for (const probe of probes) {
     const saved = await transport.putBytes(probe.migrationBundleRef.uri, probe.bytes, { bucket: RD_LEDGER_READBACK_CONSTANTS.bucket, prefix: 'source/migration-bundles', contentType: 'application/json' })
     if (canonicalize(saved.ref) !== canonicalize(probe.migrationBundleRef)) fail('RD_READBACK_BUNDLE_PUBLICATION_INVALID')
@@ -122,8 +122,8 @@ async function classify({ args, transport }) {
   return { stage: 'classify', kind, sourceRevision: capsule.value.sourceRevision ?? null, status: 'PASS' }
 }
 
-function executionEnvironment(profile) {
-  return { ...rdReadbackJobEnvironment(profile), PGOPTIONS: RD_LEDGER_READBACK_PGOPTIONS }
+function executionEnvironment(profile, sourceRevision) {
+  return { ...rdReadbackJobEnvironment(profile, sourceRevision), PGOPTIONS: RD_LEDGER_READBACK_PGOPTIONS }
 }
 
 function executionMatches(execution, { profile, intent, probe, outputUri, job }) {
@@ -133,8 +133,9 @@ function executionMatches(execution, { profile, intent, probe, outputUri, job })
     const container = task?.containers?.[0]
     if (!execution?.name?.startsWith(prefix) || execution.taskCount !== 1 || execution.parallelism !== 1 || task?.serviceAccount !== profile.migrations.serviceAccount || task?.maxRetries !== 0 || task?.timeout !== '1800s' || task?.containers?.length !== 1 || container?.name !== 'migration' || container.image !== intent.migrationRunnerDigest || Object.hasOwn(container, 'command')) return false
     if (canonicalize(container.args) !== canonicalize(rdReadbackProbeArguments(intent, probe, outputUri))) return false
-    if (!Array.isArray(container.env) || container.env.length !== 9 || new Set(container.env.map((row) => row.name)).size !== 9 || canonicalize(Object.fromEntries(container.env.map((row) => [row.name, row.value]))) !== canonicalize(executionEnvironment(profile))) return false
-    if (!Object.hasOwn(task, 'volumes') && !Object.hasOwn(container, 'volumeMounts')) assertRdReadbackJob(job, profile, intent)
+    const expectedEnvironment = executionEnvironment(profile, intent.sourceRevision)
+    if (!Array.isArray(container.env) || container.env.length !== Object.keys(expectedEnvironment).length || new Set(container.env.map((row) => row.name)).size !== Object.keys(expectedEnvironment).length || canonicalize(Object.fromEntries(container.env.map((row) => [row.name, row.value]))) !== canonicalize(expectedEnvironment)) return false
+    if (!Object.hasOwn(task, 'volumes') && !Object.hasOwn(container, 'volumeMounts')) assertRdReadbackJob(job, profile, intent, intent.sourceRevision)
     return true
   } catch { return false }
 }
@@ -207,7 +208,7 @@ async function runProbe({ transport, profile, intent, intentRef, probe, job }) {
   const priorSubmission = await optionalJson(transport, submissionUri)
   if (matches.length && !priorSubmission) fail('RD_READBACK_EXECUTION_PROVENANCE_UNKNOWN')
   if (!matches.length && priorSubmission) fail('RD_READBACK_SUBMISSION_OUTCOME_UNKNOWN')
-  const submission = seal({ schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-submission.v1', ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, readbackIntentRef: intentRef, ledgerCount: probe.ledgerCount, migrationRunnerDigest: intent.migrationRunnerDigest, migrationBundleRef: probe.migrationBundleRef, manifestSha256: probe.manifestSha256, outputUri, args, executionEnvironment: executionEnvironment(profile), jobEtag: intent.jobEtag, deadlineAt: intent.deadlineAt, observedAt: new Date().toISOString(), status: 'SUBMISSION_INTENT' })
+  const submission = seal({ schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-submission.v1', ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, readbackIntentRef: intentRef, ledgerCount: probe.ledgerCount, migrationRunnerDigest: intent.migrationRunnerDigest, migrationBundleRef: probe.migrationBundleRef, manifestSha256: probe.manifestSha256, outputUri, args, executionEnvironment: executionEnvironment(profile, intent.sourceRevision), jobEtag: intent.jobEtag, deadlineAt: intent.deadlineAt, observedAt: new Date().toISOString(), status: 'SUBMISSION_INTENT' })
   if (priorSubmission) {
     const { observedAt: ignoredPrior, receiptSha256: ignoredPriorHash, ...priorCore } = priorSubmission.value
     const { observedAt: ignoredCurrent, receiptSha256: ignoredCurrentHash, ...currentCore } = submission
@@ -250,7 +251,7 @@ async function readback({ args, transport }) {
     const row = await transport.readBytes(probe.migrationBundleRef.uri, { prefixes: ['source/migration-bundles'], expectedSha256: probe.migrationBundleRef.sha256 })
     if (!row.bytes.equals(probe.bytes)) fail('RD_READBACK_BUNDLE_MISMATCH')
   }
-  const job = assertRdReadbackJob(await transport.request(`https://run.googleapis.com/v2/${RD_LEDGER_READBACK_CONSTANTS.jobName}`), profile, intent)
+  const job = assertRdReadbackJob(await transport.request(`https://run.googleapis.com/v2/${RD_LEDGER_READBACK_CONSTANTS.jobName}`), profile, intent, intent.sourceRevision)
   const base = `gs://${RD_LEDGER_READBACK_CONSTANTS.bucket}/receipts/releases/${intent.releaseId}/${capsule.ref.sha256}`
   const jobReceipt = seal({ schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v1', ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, sourceRevision: intent.sourceRevision, readbackIntentRef: capsule.ref, projection: rdReadbackJobProjection(job), observedAt: job.updateTime ?? intent.observedAt, status: 'PASS' })
   const savedJob = await transport.putJson(`${base}/ledger-job-readback.json`, jobReceipt, { bucket: RD_LEDGER_READBACK_CONSTANTS.bucket, prefix: 'receipts', ifGenerationMatch: '0' })

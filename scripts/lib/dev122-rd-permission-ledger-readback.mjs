@@ -76,9 +76,9 @@ export function buildRdLedgerProbeBundles(full) {
   })
 }
 
-export function rdReadbackJobEnvironment(profile) {
+export function rdReadbackJobEnvironment(profile, sourceRevision = null) {
   const connection = 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'
-  return {
+  const environment = {
     OWNER_APPLICATION_ID: 'ai-pdm',
     RELEASE_BUCKET: BUCKET,
     GOOGLE_CLOUD_PROJECT: 'jenfu-platform-prod',
@@ -88,18 +88,20 @@ export function rdReadbackJobEnvironment(profile) {
     POSTGRES_IAM_LOGIN: profile.migrations.serviceAccount.replace('.gserviceaccount.com', ''),
     POSTGRES_SOCKET: `/cloudsql/${connection}`,
   }
+  if (sourceRevision !== null) environment.PDM_SOURCE_REVISION = sourceRevision
+  return environment
 }
 
 export function rdReadbackJobProjection(job) {
   return { name: job?.name, etag: job?.etag, template: job?.template }
 }
 
-export function assertRdReadbackJob(job, profile, intent = null) {
+export function assertRdReadbackJob(job, profile, intent = null, sourceRevision = null) {
   const task = job?.template?.template
   const container = task?.containers?.[0]
-  const expectedEnvironment = rdReadbackJobEnvironment(profile)
+  const expectedEnvironment = rdReadbackJobEnvironment(profile, sourceRevision)
   if (job?.name !== JOB_NAME || typeof job.etag !== 'string' || !job.etag || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || task?.serviceAccount !== profile.migrations.serviceAccount || task?.maxRetries !== 0 || task?.timeout !== '1800s' || task?.containers?.length !== 1 || container?.name !== 'migration' || !RUNNER_DIGEST.test(container?.image ?? '') || Object.hasOwn(container ?? {}, 'command') || canonicalize(container?.args) !== canonicalize(['--bundle-ref-required'])) fail('RD_READBACK_JOB_MISMATCH')
-  if (!Array.isArray(container.env) || container.env.length !== 8 || new Set(container.env.map((row) => row.name)).size !== 8 || canonicalize(Object.fromEntries(container.env.map((row) => [row.name, row.value]))) !== canonicalize(expectedEnvironment)) fail('RD_READBACK_JOB_MISMATCH')
+  if (!Array.isArray(container.env) || container.env.length !== Object.keys(expectedEnvironment).length || new Set(container.env.map((row) => row.name)).size !== Object.keys(expectedEnvironment).length || canonicalize(Object.fromEntries(container.env.map((row) => [row.name, row.value]))) !== canonicalize(expectedEnvironment)) fail('RD_READBACK_JOB_MISMATCH')
   if (canonicalize(task.volumes) !== canonicalize([{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }]) || canonicalize(container.volumeMounts) !== canonicalize([{ name: 'cloudsql', mountPath: '/cloudsql' }])) fail('RD_READBACK_JOB_MISMATCH')
   if (intent && (job.etag !== intent.jobEtag || rdReadbackSha256(rdReadbackJobProjection(job)) !== intent.jobTemplateSha256 || container.image !== intent.migrationRunnerDigest)) fail('RD_READBACK_JOB_MISMATCH')
   return job
