@@ -2,6 +2,7 @@
 
 import path from 'node:path'
 import process from 'node:process'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
@@ -47,29 +48,39 @@ export function readbackObjectGeneration(value) {
   return String(generation)
 }
 
-export function sourceAuthority(environment, sourceRevision) {
-  assertDev122GitSourceAuthority({ environment, sourceRevision, workflowRef: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main', root, code: 'RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH' })
+export function sourceAuthority(environment, operationSourceRevision, { gitRunner = null, workflowAncestorRunner = null, operationAncestorRunner = null } = {}) {
+  const workflowSourceRevision = environment?.GITHUB_SHA
+  assertDev122GitSourceAuthority({ environment, sourceRevision: workflowSourceRevision,
+    workflowRef: 'jedchang0308-jenfu/AI-PDM/.github/workflows/read-ai-pdm-rd-permission-state-production.yml@refs/heads/main',
+    root, code: 'RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH', gitRunner, ancestorRunner: workflowAncestorRunner })
+  const isAncestor = operationAncestorRunner ?? ((ancestor, descendant) => {
+    const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { cwd: root, encoding: 'utf8', windowsHide: true })
+    return !result.error && result.status === 0
+  })
+  if (!/^[a-f0-9]{40}$/u.test(operationSourceRevision ?? '') || !isAncestor(operationSourceRevision, workflowSourceRevision)) fail('RD_PERMISSION_STATE_SOURCE_AUTHORITY_MISMATCH')
+  return { workflowSourceRevision, operationSourceRevision }
 }
 
 function operationArgs(operationRef, operationSha256, sourceRevision, outputRef) {
   return ['--permission-operation-ref', operationRef, '--permission-operation-sha256', operationSha256, '--source-revision', sourceRevision, '--permission-output-ref', outputRef]
 }
 
-function jobMatches(job, operation) {
+export function jobMatches(job, operation) {
   const task = job?.template?.template
   const container = task?.containers?.[0]
+  const env = Object.fromEntries((container?.env ?? []).map(row => [row.name, row.value]))
   return job?.name === JOB_NAME && typeof job.etag === 'string' && job.etag && job.template?.taskCount === 1 && job.template?.parallelism === 1 &&
     task?.serviceAccount === SERVICE_ACCOUNT && task?.maxRetries === 0 && task?.timeout === '1800s' && task?.containers?.length === 1 &&
-    container?.name === 'migration' && container.image === operation.migrationRunnerDigest && !Object.hasOwn(container, 'command')
+    container?.name === 'migration' && container.image === operation.migrationRunnerDigest && env.PDM_SOURCE_REVISION === operation.sourceRevision && !Object.hasOwn(container, 'command')
 }
 
-function executionMatches(execution, expectedArgs, operation) {
+export function executionMatches(execution, expectedArgs, operation) {
   const task = execution?.template
   const container = task?.containers?.[0]
   const env = Object.fromEntries((container?.env ?? []).map(row => [row.name, row.value]))
   return typeof execution?.name === 'string' && execution.name.startsWith(`${JOB_NAME}/executions/`) && execution.taskCount === 1 && execution.parallelism === 1 &&
     task?.serviceAccount === SERVICE_ACCOUNT && task?.containers?.length === 1 && container?.name === 'migration' && container.image === operation.migrationRunnerDigest &&
-    canonicalize(container.args) === canonicalize(expectedArgs) && env.PGOPTIONS === RD_PERMISSION_STATE_PGOPTIONS
+    canonicalize(container.args) === canonicalize(expectedArgs) && env.PDM_SOURCE_REVISION === operation.sourceRevision && env.PGOPTIONS === RD_PERMISSION_STATE_PGOPTIONS
 }
 
 function terminal(execution) {
@@ -123,7 +134,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   let operation
   try { operation = JSON.parse(operationObject.bytes.toString('utf8')) } catch { fail('RD_PERMISSION_STATE_OPERATION_JSON_INVALID') }
   assertPermissionStateOperation(operation, { bytes: operationObject.bytes, operationSha256: args.operationSha256, sourceRevision: args.sourceRevision })
-  sourceAuthority(environment, operation.sourceRevision)
+  const sourceBinding = sourceAuthority(environment, operation.sourceRevision)
   const generation = readbackObjectGeneration(operationObject)
   const outputRef = outputUri(args.operationSha256)
   if (args.outputRef !== outputRef) fail('RD_PERMISSION_STATE_OUTPUT_REF_INVALID')
@@ -135,7 +146,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
   }
   const job = await ownerTransport.request(`https://run.googleapis.com/v2/${JOB_NAME}`)
   if (!jobMatches(job, operation)) fail('RD_PERMISSION_STATE_JOB_MISMATCH')
-  const submission = { schemaVersion: 'aipdm.dev122.rd-permission-state-readback-submission.v1', ownerApplicationId: 'ai-pdm', sourceRevision: operation.sourceRevision, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation }, outputRef, operationId: operation.operationId, migrationRunnerDigest: operation.migrationRunnerDigest, args: expectedArgs, executionEnvironment: { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }, observedAt: new Date().toISOString(), status: 'SUBMISSION_INTENT' }
+  const submission = { schemaVersion: 'aipdm.dev122.rd-permission-state-readback-submission.v1', ownerApplicationId: 'ai-pdm', workflowSourceRevision: sourceBinding.workflowSourceRevision, sourceRevision: operation.sourceRevision, operationRef: { uri: args.operationRef, sha256: args.operationSha256, generation }, outputRef, operationId: operation.operationId, migrationRunnerDigest: operation.migrationRunnerDigest, args: expectedArgs, executionEnvironment: { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }, observedAt: new Date().toISOString(), status: 'SUBMISSION_INTENT' }
   const submissionRef = submissionUri(args.operationSha256)
   await submitPermissionReadbackOnce({ transport: ownerTransport, submissionRef, submission, job })
   let match = null

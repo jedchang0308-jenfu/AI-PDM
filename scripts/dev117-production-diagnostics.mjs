@@ -29,14 +29,16 @@ export async function readServiceDiagnostic({ binding, sourceRevision, transport
   if (!operation || typeof operation !== 'object' || Array.isArray(operation)) fail('OPERATION_INVALID')
   if (canonicalize(Object.keys(operation).sort()) !== canonicalize(['kind', 'operationId', 'schemaVersion', 'sourceRevision']) || operation.schemaVersion !== SCHEMA || operation.kind !== 'service-state' || operation.sourceRevision !== sourceRevision || !/^[A-Z0-9][A-Z0-9-]{5,63}$/u.test(operation.operationId ?? '')) fail('OPERATION_INVALID')
   const service = await transport.request(`https://run.googleapis.com/v2/${SERVICE}`, { method: 'GET', redirect: 'error' })
-  const revision = value => typeof value === 'string' && value.startsWith(`${SERVICE}/revisions/`) && /^ai-pdm-prod-[a-z0-9-]+$/u.test(value.slice(`${SERVICE}/revisions/`.length))
-  if (service?.name !== SERVICE || !revision(service.latestReadyRevision) || !revision(service.latestCreatedRevision) || !/^[1-9][0-9]*$/u.test(String(service.generation ?? '')) || !Array.isArray(service.trafficStatuses ?? []) || (service.trafficStatuses ?? []).some(row => !revision(row?.revision) || !Number.isInteger(row.percent ?? 0) || (row.percent ?? 0) < 0 || row.percent > 100)) fail('SERVICE_READBACK_INVALID')
+  const revisionName = value => typeof value === 'string' && /^ai-pdm-prod-[a-z0-9-]+$/u.test(value)
+  const fullRevision = value => typeof value === 'string' && value.startsWith(`${SERVICE}/revisions/`) && revisionName(value.slice(`${SERVICE}/revisions/`.length))
+  const normalizeTrafficRevision = value => fullRevision(value) ? value : revisionName(value) ? `${SERVICE}/revisions/${value}` : null
+  const traffic = Array.isArray(service?.trafficStatuses) ? service.trafficStatuses.map(row => ({ revision: normalizeTrafficRevision(row?.revision), percent: row?.percent ?? 0 })) : null
+  if (service?.name !== SERVICE || !fullRevision(service.latestReadyRevision) || !fullRevision(service.latestCreatedRevision) || !/^[1-9][0-9]*$/u.test(String(service.generation ?? '')) || !traffic || traffic.some(row => !row.revision || !Number.isInteger(row.percent) || row.percent < 0 || row.percent > 100)) fail('SERVICE_READBACK_INVALID')
   // Deliberately omit template/env, credential refs, annotations and actor data.
   const report = { schemaVersion: 'aipdm.production-diagnostic-result.v1', operationId: operation.operationId, sourceRevision,
     operationRef: { uri: binding.operation_uri, sha256: binding.operation_sha256 }, observedAt: now(),
     service: { name: service.name, generation: String(service.generation), reconciling: service.reconciling === true,
-      latestReadyRevision: service.latestReadyRevision, latestCreatedRevision: service.latestCreatedRevision,
-      traffic: (service.trafficStatuses ?? []).map(row => ({ revision: row.revision, percent: row.percent ?? 0 })) },
+      latestReadyRevision: service.latestReadyRevision, latestCreatedRevision: service.latestCreatedRevision, traffic },
     status: 'READBACK_COMPLETE', releaseAuthority: false, runtimeMutation: false, databaseMutation: false }
   // New immutable snapshot per observation: a retry does not overwrite or claim
   // old live state is current. GCS create uses the existing receipts-only grant.
