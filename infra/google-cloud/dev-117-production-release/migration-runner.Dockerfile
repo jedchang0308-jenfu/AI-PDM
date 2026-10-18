@@ -1,5 +1,8 @@
 FROM node:24.20.0-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf
 
+ARG SOURCE_REVISION
+RUN echo "$SOURCE_REVISION" | grep -Eq '^[0-9a-f]{40}$'
+
 RUN apk upgrade --no-cache
 WORKDIR /app
 COPY infra/google-cloud/dev-117-production-release/migration-runner/package.json infra/google-cloud/dev-117-production-release/migration-runner/package-lock.json ./
@@ -18,5 +21,6 @@ COPY config/release/dev012-ai-pdm-production-data-cutover.json config/release/de
 COPY scripts/dev117-production-migration-runner.mjs scripts/dev117-production-migration-runner.mjs
 
 USER node
-ENV NODE_ENV=production
+ENV NODE_ENV=production PDM_SOURCE_REVISION=${SOURCE_REVISION}
+LABEL org.opencontainers.image.revision="${SOURCE_REVISION}"
 ENTRYPOINT ["node", "scripts/dev117-production-migration-runner.mjs"]

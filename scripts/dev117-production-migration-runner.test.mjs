@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import fs from 'node:fs'
+import path from 'node:path'
 import {
   assertMigrationBundle,
   assertRunnerTarget,
@@ -48,6 +50,16 @@ test('S1B-20 AI-PDM runner accepts only exact production target and refs', () =>
     assert.throws(() => parseRunnerArgs([forbidden, 'synthetic-selector']), /MIGRATION_ARGUMENT_INVALID/u)
   }
   assert.equal(crc32cBase64(Buffer.from('123456789')), '4waSgw==')
+})
+
+test('S1B-20 migration runner image carries the exact source revision into runtime', () => {
+  const dockerfile = fs.readFileSync(path.join('infra', 'google-cloud', 'dev-117-production-release', 'migration-runner.Dockerfile'), 'utf8')
+  const cloudBuild = fs.readFileSync(path.join('infra', 'google-cloud', 'dev-117-production-release', 'migration-runner-cloudbuild.yaml'), 'utf8')
+  assert.match(dockerfile, /ARG SOURCE_REVISION/u)
+  assert.match(dockerfile, /grep -Eq '\^\[0-9a-f\]\{40\}\$'/u)
+  assert.match(dockerfile, /PDM_SOURCE_REVISION=\$\{SOURCE_REVISION\}/u)
+  assert.match(dockerfile, /org\.opencontainers\.image\.revision="\$\{SOURCE_REVISION\}"/u)
+  assert.match(cloudBuild, /SOURCE_REVISION=\$\{_SOURCE_REVISION\}/u)
 })
 
 test('S1B-20 AI-PDM runner validates bundle, baseline and one forward migration', async () => {
