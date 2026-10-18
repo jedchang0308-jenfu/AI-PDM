@@ -6002,6 +6002,8 @@ PR #378 合併後 C53-R1 已成功發布 PAUSED baseline/security/association，
 
 同一恢復點的本機重構已收斂：共用 migration history 現分離 source／installed prefix／attempt，finalize 以 branded history＋current content 重新驗證 mode；PAUSED full evidence 不再重走已驗證 retained READY DAG。原始 source34／installed33→current35、不同 descriptor revision、deadline、Secret IAM continuation、unknown/retry/recovery 與 fail-closed 負向均由完整 QC 覆蓋；受控 `qc:dev-117:continuous`、catalog v7、abort、DB boundary、typecheck 與 isolated build 已通過。這些仍是 local/source evidence，不改變 run 39126743555、正式 catalog v6／ledger33／grant v13／PAUSED 狀態，也不授權或啟動 production。待本 branch 的 PR／required CI／protected-main handoff 完成後，第一個安全恢復動作仍是以新 exact main 做唯讀 ledger/catalog/test-RD-grant/worker readback，再由人類明示恢復正式 RD 任務。
 
+交付 PR 為 [#381](https://github.com/jedchang0308-jenfu/AI-PDM/pull/381)；可執行來源 commit `87cf3e4941c76ca24b7a1e75ebd698f2955397d8`，本機證據位於 `output/qa/dev-122/rd-permission-repair/release-chain-refactor-local-2026-10-18.json`。required CI 與 protected-main handoff 依 PR provider 狀態決定；這一行不構成 CI 或 merge PASS，也不恢復 production。
+
 ## DEV-122#release-decoupling — 2026-10-17 CAPA-002 project rollout（本機 RD 完成／required CI 待 PR）
 
 導入 project-wide changed-responsibility planner、affected test runner與 owner/CI routing；shared/unknown inputs保留 legacy full fail-closed。worker current/historical profile判定集中至單一 context，歷史 evidence仍綁 exact revision/profile bytes，不以 current HEAD隱式覆蓋。單一交付切片在 merge 前於同一 branch/PR 收斂 caller graph及 production-shaped fixtures，避免以反覆 merge/PR作為本機可發現缺陷的除錯迴圈。此項不執行production mutation，不改 DEV-122原分母；正式 RD、approval與未授權角色驗收仍 pending。

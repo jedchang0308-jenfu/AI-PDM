@@ -5,6 +5,11 @@
   "releaseAuthority": false,
   "productionMutationPerformed": false,
   "formalRdReleasePaused": true,
+  "delivery": {
+    "pullRequest": 381,
+    "requiredCiAtEvidenceWrite": "PENDING",
+    "productionWorkflowDispatch": false
+  },
   "source": {
     "repository": "jedchang0308-jenfu/AI-PDM",
     "branch": "codex/dev122-release-chain-refactor",
