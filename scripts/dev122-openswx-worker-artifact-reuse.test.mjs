@@ -438,11 +438,12 @@ async function b22ReuseIamFixture(options={}) {
     sourceCalls.push({ path: repositoryPath, revision })
     if (revision === iamRevision || revision === prebuildRevision) {
       assert.ok([...READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH, WORKER_PROFILE_PATH, ...WORKER_SOURCE_PATHS].includes(repositoryPath), 'historical fixture reads stay in the IAM closure')
-      return canonicalSource(repositoryPath)
+      return options.historicalOriginProfile && repositoryPath === WORKER_PROFILE_PATH ? historicalProfileBytes : canonicalSource(repositoryPath)
     }
     return h.readSource(repositoryPath, revision)
   }
   Object.assign(readSource, h.readSource)
+  if (options.historicalOriginProfile) readSource.supportsAdmittedHistoricalRevisions = true
   readSource.createHistoricalReader = revision => {
     const historical = (repositoryPath, sourceRevision) => readSource(repositoryPath, sourceRevision)
     Object.assign(historical, readSource)
@@ -1123,10 +1124,10 @@ import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { programOnlyHash, sealProgramOnlyEvidence, programOnlyStaticEnvironment, programOnlyExecutionEnvironment, programOnlyMigrationArguments, programOnlySubmissionFields } from './lib/dev117-ai-pdm-program-only-baseline.mjs'
 import { readAiPdmReleaseObservation, readAiPdmObservationInputs, createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 
-async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false,secretVersionIam=false}={}) {
+async function b35ProgramProofFixture({releasedBaseline=false,dailyServing=false,secretVersionIam=false,historicalOriginProfile=false}={}) {
   // Historical modeled34 archive: real Git PAX, immutable SQL/worker blobs, explicit profile bytes.
   const archive = b35GitArchive(currentRevision, b35FullBundle.bundle.entries, b35AppProfileBytes)
-  const f = await b35ReadyProgramFixture({ currentArchive: archive, proofMetadata: true, releasedBaseline, secretVersionIam }), h = f.h
+  const f = await b35ReadyProgramFixture({ currentArchive: archive, proofMetadata: true, releasedBaseline, secretVersionIam, historicalOriginProfile }), h = f.h
   const proofNow=secretVersionIam?h.lock.observedAt:now
   const put = (uri, value) => h.seedBytes(uri, Buffer.from(canonicalize(value) + '\n'))
   const seal = sealProgramOnlyEvidence, policy = f.intent.programOnlyBaseline
@@ -2135,8 +2136,8 @@ test('RD daily rejects an unproven changed serving app before Scheduler pause', 
 })
 
 
-async function rdProgramOnlyServingFixture({secretVersionIam=false}={}) {
-  const wire=await b35ProgramProofFixture({releasedBaseline:true,dailyServing:true,secretVersionIam}),h=wire.h
+async function rdProgramOnlyServingFixture({secretVersionIam=false,historicalOriginProfile=false}={}) {
+  const wire=await b35ProgramProofFixture({releasedBaseline:true,dailyServing:true,secretVersionIam,historicalOriginProfile}),h=wire.h
   const servingNow=secretVersionIam?h.lock.observedAt:now
   const validators=createOwnerTransport({token:'LOCAL_RECORDED_OWNER_TOKEN',fetchImpl:wire.fetchImpl})
   const paths=releasePaths(b35AppProfile,wire.capsule,wire.intentRef.sha256),candidateRevision='ai-pdm-prod-'+'5'.repeat(12)
@@ -2196,7 +2197,7 @@ test('RD daily accepts current RELEASED program-only app with a newer source-bou
 })
 
 test('PAUSED repair accepts the current RELEASED program-only app only through its sealed retained READY worker chain',async()=>{
-  const f=await rdProgramOnlyServingFixture({secretVersionIam:true})
+  const f=await rdProgramOnlyServingFixture({secretVersionIam:true,historicalOriginProfile:true})
   f.h.controls.scheduler={state:'PAUSED'}
   assert.equal(f.h.objects.get(f.h.capsuleRef.uri).ref.sha256,f.h.capsuleRef.sha256,'fixture retains the original READY capsule before repair')
   const input={schemaVersion:'aipdm.openswx-worker-reuse-input.v2',sourceLockRef:f.h.input.sourceLockRef,currentSourceObjectRef:f.h.input.currentSourceObjectRef,

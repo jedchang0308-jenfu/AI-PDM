@@ -1125,7 +1125,9 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
     const producer = Object.freeze({ inputRef, baselineRef: readbackRef, sourceLockRef: input.sourceLockRef, ...binding })
     producerContexts.add(producer)
     await resolvePausedRepairAssociation({ transport, producer, profile, readSource, buildRef: saved.ref, ctx })
-    const full = buildPausedRepairDescriptor({ profile, association: saved.value, associationRef: saved.ref, baseline: readyProof, baselineRef: readbackRef, retainedDescriptor: origin.prior.bootstrapDescriptor, retainedDescriptorRef: origin.prior.bootstrapDescriptorRef })
+    const full = buildPausedRepairDescriptor({ profile, association: saved.value, associationRef: saved.ref, baseline: readyProof, baselineRef: readbackRef,
+      retainedDescriptor: origin.prior.bootstrapDescriptor, retainedDescriptorRef: origin.prior.bootstrapDescriptorRef,
+      retainedProfile: origin.historicalProfile ?? profile, retainedHistoricalProfile: Boolean(origin.historicalProfile) })
     await assertRepairAdmissionFresh()
     const published = await publishWorkerReuseJson(transport, repairDescriptorUri, full)
     await resolveWorkerArtifact({ transport, descriptor: published.value, profile, readSource, historicalReadSource, ctx })
