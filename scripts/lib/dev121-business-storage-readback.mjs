@@ -161,7 +161,7 @@ export async function collectDev121StoragePlanInputs({intentRef,root,token,fetch
     values.sourceLock.migrationManifestSha256!==intent.migrationManifestSha256)fail('plan_inputs_source_manifest');
   const derived=assertPreparePrerequisites({intent,profile,values});
   const foundation=await collectDev121FoundationReadback({foundationRef:intent.foundationReceiptRef,readObject,observedAt});
-  const reuse=values.infra.schemaVersion==='jenfu.dev012.app-infra-reuse-receipt.v1';
+  const reuse=values.infra.schemaVersion==='jenfu.dev012.app-infra-reuse-receipt.v2';
   const infraRef=reuse?values.infra.reusedInfraReceiptRef:intent.infraReceiptRef;
   const getJson=async url=>{
     const response=await fetchImpl(url,{method:'GET',redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${token}`}});
@@ -171,11 +171,14 @@ export async function collectDev121StoragePlanInputs({intentRef,root,token,fetch
   if(runner.foundationManifestSha256!==foundation.foundationManifestSha256 ||
     runner.migrationRunnerDigest!==derived.migrationRunnerDigest ||
     runner.migrationRunnerDigest!==prepare.facts.migrationRunnerDigest ||
-    runner.infraSourceRevision!==(reuse?values.infra.reusedSourceRevision:intent.sourceRevision))fail('plan_inputs_infra_join');
+    prepare.facts.migrationRunnerSourceRevision!==derived.migrationRunnerSourceRevision ||
+    runner.infraSourceRevision!==derived.migrationRunnerSourceRevision)fail('plan_inputs_infra_join');
   const deploymentRef={uri:proof.buildChain.deployment.ref,sha256:proof.buildChain.deployment.sha256};
   const deployment=(await read(deploymentRef)).value;
   if(canonicalize(deployment.releaseIntentRef)!==canonicalize(intentRef) || deployment.releaseIntentSha256!==intentRef.sha256 ||
-    deployment.migrationRunnerDigest!==runner.migrationRunnerDigest || deployment.deadlineAt!==intent.deadlineAt)fail('plan_inputs_deployment_join');
+    deployment.migrationRunnerDigest!==runner.migrationRunnerDigest ||
+    deployment.migrationRunnerSourceRevision!==derived.migrationRunnerSourceRevision ||
+    deployment.deadlineAt!==intent.deadlineAt)fail('plan_inputs_deployment_join');
   const provider=await verifyOwnerProviderReadback({proof,token,fetchImpl});
   if([intent.deadlineAt,values.authorization.expiresAt,values.readiness.expiresAt].some(value=>Date.parse(value)<=Date.now()))fail('plan_inputs_expired');
   return {schemaVersion:'jenfu.dev121.business-storage-plan-inputs.v1',status:'OWNER_PLAN_INPUTS_VERIFIED',observedAt,

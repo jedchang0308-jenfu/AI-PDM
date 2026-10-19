@@ -126,7 +126,36 @@ export function buildRuntimeConfigReceipt({ profile, releaseId, sourceLock, plai
   }
 }
 
-export function buildInfraReuseReceipt({ profile, releaseId, sourceLock, foundation, existingInfra, existingInfraRef, observedAt }) {
+export function assertInfraReuseProviderJob({ profile, existingInfra, job }) {
+  const jobName = `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations?.jobName}`
+  const task = job?.template?.template
+  const containers = task?.containers
+  const container = Array.isArray(containers) ? containers.find((row) => row?.name === 'migration') : null
+  const environmentRows = container?.env
+  const environment = Array.isArray(environmentRows) && new Set(environmentRows.map((row) => row?.name)).size === environmentRows.length
+    ? Object.fromEntries(environmentRows.map((row) => [row.name, row.value])) : null
+  if (!profile.migrations?.jobName || !profile.migrations?.serviceAccount
+    || job?.name !== jobName || !job.uid || !job.etag || job.generation == null || job.observedGeneration == null
+    || !Number.isFinite(Date.parse(job.updateTime)) || job.reconciling === true
+    || job.terminalCondition?.state !== 'CONDITION_SUCCEEDED'
+    || String(job.generation) !== String(job.observedGeneration)
+    || job.template?.taskCount !== 1 || job.template?.parallelism !== 1
+    || task?.serviceAccount !== profile.migrations.serviceAccount || task?.maxRetries !== 0 || task?.timeout !== '1800s'
+    || containers?.length !== 1 || !container || container.image !== existingInfra?.migrationRunnerDigest
+    || environment?.PDM_SOURCE_REVISION !== existingInfra?.sourceRevision) fail('INFRA_REUSE_PROVIDER_JOB_MISMATCH')
+  return {
+    name: job.name,
+    uid: job.uid,
+    generation: String(job.generation),
+    etag: job.etag,
+    updateTime: job.updateTime,
+    migrationRunnerDigest: container.image,
+    sourceRevision: environment.PDM_SOURCE_REVISION,
+    status: 'READY',
+  }
+}
+
+export function buildInfraReuseReceipt({ profile, releaseId, sourceLock, foundation, existingInfra, existingInfraRef, providerJob, observedAt }) {
   exactRef(existingInfraRef, profile)
   const core = existingInfra && { ...existingInfra }
   if (core) delete core.receiptSha256
@@ -141,12 +170,14 @@ export function buildInfraReuseReceipt({ profile, releaseId, sourceLock, foundat
     || !existingInfra.migrationRunnerDigest?.startsWith(ownerPrefix) || !existingInfra.controllerImageDigest?.startsWith(controllerPrefix) || !existingInfra.controllerImageDigest?.includes('@sha256:')
     || (profile.application.id === 'ai-pdm' && existingInfra.mutationProfile === 'APP_INFRA_AIPDM_PRINCIPAL_MIGRATION_WIF' && !existingInfra.allowedWorkflowRefs?.includes(migrationWorkflowRef))
     || !Number.isFinite(Date.parse(observedAt))) fail('INFRA_REUSE_INPUT_INVALID')
+  const providerJobReadback = assertInfraReuseProviderJob({ profile, existingInfra, job: providerJob })
   const value = {
-    schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v1', ownerApplicationId: profile.application.id,
+    schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', ownerApplicationId: profile.application.id,
     projectId: profile.target.projectId, region: profile.target.region, releaseId,
     sourceRevision: sourceLock.sourceRevision, foundationManifestSha256: foundation.foundationManifestSha256,
     reusedInfraReceiptRef: existingInfraRef, reusedSourceRevision: existingInfra.sourceRevision,
     migrationRunnerDigest: existingInfra.migrationRunnerDigest, controllerImageDigest: existingInfra.controllerImageDigest,
+    providerJobReadback,
     mutationProfile: 'APP_INFRA_REUSE', reuseBasis: 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER_REUSE', observedAt,
   }
@@ -332,7 +363,8 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       transport.readJson(exactRef(input.foundationReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
       transport.readJson(exactRef(input.existingInfraReceiptRef, profile), profile.artifact.releaseBucket, ['receipts']),
     ])
-    const value = buildInfraReuseReceipt({ profile, releaseId, sourceLock: sourceLockResult.value, foundation: foundationResult.value, existingInfra: existingInfraResult.value, existingInfraRef: input.existingInfraReceiptRef, observedAt })
+    const providerJob = await transport.request(`https://run.googleapis.com/v2/projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations?.jobName}`)
+    const value = buildInfraReuseReceipt({ profile, releaseId, sourceLock: sourceLockResult.value, foundation: foundationResult.value, existingInfra: existingInfraResult.value, existingInfraRef: input.existingInfraReceiptRef, providerJob, observedAt })
     return transport.putJson(uri('app-infra-reuse'), value, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })
   }
   if (stage === 'routine-authority') {

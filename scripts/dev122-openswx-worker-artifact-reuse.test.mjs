@@ -3812,7 +3812,12 @@ test('native history basis refuses caller capability, alias, forged facts, activ
   const f=await partialFailedDailyNextSourceFixture(),h=f.h,predecessorRef=await h.put('history-negative-predecessor',f.input)
   await executeWorkerArtifactReuse({transport:h.transport,inputRef:predecessorRef,readSource:f.reader})
   syntheticClock.hold();syntheticClock.expireAfter(f.input.deadlineAt)
-  const issuer=historyIssuerFixture(h,f.reader,f.input,predecessorRef),inputRef=await h.put('history-negative-qualification',issuer.input)
+  // Use the admitted profile bound for fresh owner inputs. This case validates an
+  // active predecessor writer, not whether a slow host consumes a 120-second fixture.
+  const ownerDeadline=()=>new Date(Date.now()+profile.bounds.ownerDeadlineSeconds*1000-1000).toISOString()
+  const issuer=historyIssuerFixture(h,f.reader,f.input,predecessorRef)
+  issuer.input.deadlineAt=ownerDeadline()
+  const inputRef=await h.put('history-negative-qualification',issuer.input)
   const basis=await executeOpenSwxHistoryBasis({transport:h.transport,inputRef,readSource:issuer.reader}),basisObject=h.objects.get(basis.ref.uri)
   const getProjection=bindings=>readAiPdmQualifiedHistoryProjection({basisRef:basis.ref,kind:'checkpoint',frontierRef:f.input.completedFailedDailyCheckpointRef,bindings})
   await runAiPdmEvidenceContext(createAiPdmEvidenceContext(),async()=>{
@@ -3844,7 +3849,7 @@ test('native history basis refuses caller capability, alias, forged facts, activ
   for(const kind of ['active-writer','recursive-basis','executable']){
     const input={...issuer.input,receiptId:'HISTORY-NEGATIVE-'+kind.toUpperCase()}
     let reader=issuer.reader
-    if(kind==='active-writer')input.predecessorInputRef=await h.put('history-negative-active',{...f.input,deadlineAt:deadline()})
+    if(kind==='active-writer')input.predecessorInputRef=await h.put('history-negative-active',{...f.input,deadlineAt:ownerDeadline()})
     if(kind==='recursive-basis')input.predecessorInputRef=await h.put('history-negative-recursive',{...f.input,schemaVersion:'aipdm.openswx-worker-reuse-input.v3',historyBasisRef:basis.ref})
     if(kind==='executable'){
       reader=(name,revision)=>name==='scripts/lib/dev121-owner-release-proof.mjs'&&revision===issuer.revision?Buffer.concat([issuer.reader(name,revision),Buffer.from('\nchanged executable\n')]):issuer.reader(name,revision)
@@ -3856,7 +3861,7 @@ test('native history basis refuses caller capability, alias, forged facts, activ
     assert.ok(!h.calls.slice(calls).some(row=>row.url.endsWith(':run')||row.options.method==='PATCH'||row.url.endsWith(':resume')))
   }
   const current={...f.input,schemaVersion:'aipdm.openswx-worker-reuse-input.v3',historyBasisRef:basis.ref,receiptId:'HISTORY-NEGATIVE-CURRENT',
-    sourceLockRef:issuer.sourceLockRef,currentSourceObjectRef:issuer.currentSourceObjectRef,deadlineAt:deadline()}
+    sourceLockRef:issuer.sourceLockRef,currentSourceObjectRef:issuer.currentSourceObjectRef,deadlineAt:ownerDeadline()}
   const metadata=await seedSecretVersionIamContinuation(h,{sourceRevision:issuer.revision,sourceLockRef:issuer.sourceLockRef,
     supplementalIamReadbackRef:h.iam.receiptRef,prebuildIamContinuationRef:h.proof.continuationRef,reader:issuer.reader,
     name:'history-negative-current-metadata',secretPolicies:h.metadata.before.secretPolicies})

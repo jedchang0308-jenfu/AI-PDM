@@ -514,6 +514,56 @@ async function unpublishedAbortFixture(inherited = false) {
   return { ...h, partialBuild: build, prior }
 }
 
+async function sealedPostbuildAbortFixture() {
+  const h = await unpublishedAbortFixture(false)
+  const prior = h.failed, inheritedBasis = (await readPreActivationAbortContinuation(h.helperInput)).authorityBasis
+  const f = h.release({ source: '9'.repeat(40), releaseId: 'DEV122-SEALED-POSTBUILD-ABORT', revision: candidateRevision,
+    previous: previousRevision, imageDigit: '9', anchorRef: prior.intentRow.ref, preActivationAbortBasis: inheritedBasis })
+  h.failed = f
+  for (const stage of ['migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) h.objects.delete(f.paths[stage])
+  const build = structuredClone(f.cloudBuild)
+  Object.assign(build, { finishTime: '2026-10-02T00:03:00Z', tags: [f.intent.releaseId.toLowerCase()],
+    source: { storageSource: build.sourceProvenance.resolvedStorageSource } })
+  const provenance = h.put(f.paths.provenance, { ...f.provenance.value, cloudBuild: build })
+  const sbom = h.put(f.paths.sbom, { schemaVersion: 'jenfu.dev012.sbom-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: f.intent.sourceRevision,
+    artifactDigest: f.image, resourceUrl: `https://${f.image}`, status: 'PASS' })
+  const scan = h.put(f.paths.scan, { schemaVersion: 'jenfu.dev012.scan-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: f.intent.sourceRevision,
+    artifactDigest: f.image, blockingVulnerabilityCount: 0, maximumAllowedSeverity: h.profile.build.maximumAllowedSeverity, status: 'PASS' })
+  const bundle = h.put(`gs://${bucket}/${h.profile.artifact.migrationBundlePrefix}/${f.intent.sourceRevision}/${f.intent.migrationManifestSha256}.json`, { manifestSha256: f.intent.migrationManifestSha256 })
+  const prepareRow = h.objects.get(f.paths.prepare), { receiptSha256: _prepareSeal, ...prepareCore } = structuredClone(prepareRow.value)
+  prepareCore.facts = { ...prepareCore.facts, migrationRunnerDigest }
+  const sealedPrepare = h.put(f.paths.prepare, { ...prepareCore, receiptSha256: sha256(canonicalize(prepareCore)) })
+  const buildRow = h.objects.get(f.paths.build), { receiptSha256: _buildSeal, ...buildCore } = structuredClone(buildRow.value)
+  buildCore.previousReceiptRef = sealedPrepare.ref
+  buildCore.facts = { ...buildCore.facts, migrationBundleRef: bundle.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref }
+  const sealedBuild = h.put(f.paths.build, { ...buildCore, receiptSha256: sha256(canonicalize(buildCore)) })
+  const deployment = h.put(f.paths.deployment, { ...h.objects.get(f.paths.deployment).value, releaseIntentSha256: f.intentRow.ref.sha256,
+    sourceObject: provenance.value.sourceObject, migrationBundleRef: bundle.ref, migrationRunnerDigest,
+    buildReceiptRef: sealedBuild.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref })
+  const facts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision, databaseDisposition: 'NOT_APPLIED',
+    entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
+  const rollback = f.seal('rollback', facts), { recoveryOrder, ...terminalFacts } = facts; f.seal('terminal', terminalFacts, rollback.ref)
+  Object.assign(h.controlCore, { releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, sourceLockSha256: f.lock.ref.sha256,
+    ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/44', candidateRevision: null,
+    inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, releaseIntentSha256: f.intentRow.ref.sha256 })) })
+  h.control()
+  Object.assign(h.ownerRun, { id: '44', headSha: f.intent.sourceRevision, createdAt: '2026-10-02T00:00:00Z', updatedAt: '2026-10-02T00:05:00Z' })
+  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner' }
+  const job = 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner'
+  const laterDiagnostic = { name: `${job}/executions/ai-pdm-prod-migration-runner-later`, createTime: '2026-10-03T00:00:00Z', completionTime: '2026-10-03T00:01:00Z',
+    reconciling: false, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }],
+    template: { containers: [{ name: 'migration', args: ['--permission-operation-ref', 'gs://example/readback.json', '--source-revision', '8'.repeat(40)] }] } }
+  const request = h.transport.request
+  h.transport.request = async (url, ...args) => {
+    if (url.includes('/builds?filter=') && new URL(url).searchParams.get('filter') === `tags=${f.intent.releaseId.toLowerCase()}`) return { builds: [build] }
+    if (url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')) return { executions: [laterDiagnostic] }
+    return request.call(h.transport, url, ...args)
+  }
+  h.transport.readOwnerRun = async () => h.ownerRun
+  h.helperInput.baselineIntentRef = f.intentRow.ref
+  return { ...h, prior, inheritedBasis, build, sealedBuild, deployment, laterDiagnostic }
+}
+
 for (const inherited of [false, true]) test(`B28 unpublished build abort keeps partial artifact non-authoritative; inherited zero-build anchor=${inherited}`, async () => {
   const h = await unpublishedAbortFixture(inherited), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
   const result = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
@@ -530,6 +580,45 @@ for (const inherited of [false, true]) test(`B28 unpublished build abort keeps p
   assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepare.ref.sha256)
   assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
   assert.ok(!h.objects.has(h.failed.paths.build)); assert.ok(!h.objects.has(h.failed.paths.deployment))
+})
+
+test('sealed postbuild abort admits the production-shaped pre-migration boundary without reusing its image', async () => {
+  const h = await sealedPostbuildAbortFixture(), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
+  const result = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(result.authorityBasis.schemaVersion, 'ai-pdm.principal-postbuild-pre-migration-abort-basis.v1')
+  assert.equal(result.authorityBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(result.authorityBasis.sealedBuild.evidenceScope, 'QUIESCENT_SEALED_BUILD_NOT_REUSED')
+  assert.equal(result.authorityBasis.sealedBuild.releaseAuthority, false)
+  assert.equal(result.authorityBasis.sealedBuild.migrationVerified, false)
+  assert.deepEqual(result.authorityBasis.sealedBuild.buildRef, h.sealedBuild.ref)
+  assert.deepEqual(result.authorityBasis.sealedBuild.deploymentRef, h.deployment.ref)
+  assert.deepEqual(result.authorityBasis.inheritedBasis, h.inheritedBasis)
+  assert.deepEqual(result.authorityBasis.releasedIntentRef, h.anchor.intentRow.ref)
+  assert.ok(!h.objects.has(h.failed.paths.migrate))
+  assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
+  assert.equal(h.calls.puts, 0)
+  const next = await ordinaryNextRelease(h), prepare = await executeOwnerStage(next.input)
+  assert.deepEqual(next.values.authorization.preActivationAbortBasis, result.authorityBasis)
+  assert.deepEqual(next.values.readiness.preActivationAbortBasis, result.authorityBasis)
+  assert.deepEqual(prepare.value.facts.preActivationAbortBasis, result.authorityBasis)
+  assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepare.ref.sha256)
+})
+
+test('sealed postbuild abort rejects incomplete joins, migration evidence, overlap and matching later executions', async () => {
+  const mutations = [
+    h => h.objects.delete(h.failed.paths.build),
+    h => h.objects.delete(h.failed.paths.deployment),
+    h => h.put(h.failed.paths.migrate, { status: 'unexpected' }),
+    h => h.put(h.failed.paths.migrate.replace('.json', '-submission-intent.json'), { status: 'SUBMISSION_INTENT' }),
+    h => { const value = structuredClone(h.objects.get(h.failed.paths.deployment).value); value.buildReceiptRef = h.failed.lock.ref; h.put(h.failed.paths.deployment, value) },
+    h => { h.laterDiagnostic.createTime = '2026-10-02T00:02:00Z'; h.laterDiagnostic.completionTime = '2026-10-02T00:03:00Z' },
+    h => { h.laterDiagnostic.template.containers[0].args.push(h.failed.intent.sourceRevision) },
+  ]
+  for (const mutate of mutations) {
+    const h = await sealedPostbuildAbortFixture(); mutate(h)
+    await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /DEV121_PREACTIVATION_CONTINUATION_INVALID|MISSING/u)
+    assert.equal(h.calls.puts, 0)
+  }
 })
 
 test('B28 partial abort rejects unknown/cardinality/source/image/build and submission evidence before writes', async () => {

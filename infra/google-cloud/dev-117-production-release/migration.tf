@@ -127,6 +127,10 @@ resource "google_cloud_run_v2_job" "migration" {
           name  = "POSTGRES_SOCKET"
           value = "/cloudsql/${var.cloud_sql_connection_name}"
         }
+        env {
+          name  = "PDM_SOURCE_REVISION"
+          value = var.source_revision
+        }
         resources {
           limits = { cpu = "1", memory = "512Mi" }
         }

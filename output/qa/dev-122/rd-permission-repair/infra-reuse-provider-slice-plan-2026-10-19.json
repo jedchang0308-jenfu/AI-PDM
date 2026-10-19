@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "aipdm.production-slice-plan.v2",
+  "baseRevision": "242fc43afd027d4a48e5a7448a2c76c8e615e95f",
+  "headRevision": "c3eb8b065410d30519feddd7323e0a34453c3c36",
+  "classification": "FULL",
+  "files": [
+    ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+    ".ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md",
+    "infra/google-cloud/dev-117-production-release/migration.tf",
+    "scripts/dev012-owner-prerequisite-producer.test.mjs",
+    "scripts/dev012-owner-release-runtime.test.mjs",
+    "scripts/dev012-owner-stage-executor.test.mjs",
+    "scripts/dev117-production-migration-runner.test.mjs",
+    "scripts/lib/dev012-owner-prerequisite-producer.mjs",
+    "scripts/lib/dev012-owner-release-runtime.mjs",
+    "scripts/lib/dev012-owner-stage-executor.mjs"
+  ],
+  "slices": [
+    "documentation",
+    "database",
+    "infrastructure",
+    "release-control"
+  ],
+  "reasons": {
+    "documentation": [
+      ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+      ".ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md"
+    ],
+    "database": [
+      "scripts/dev117-production-migration-runner.test.mjs"
+    ],
+    "infrastructure": [
+      "infra/google-cloud/dev-117-production-release/migration.tf"
+    ],
+    "release-control": [
+      "infra/google-cloud/dev-117-production-release/migration.tf",
+      "scripts/dev012-owner-prerequisite-producer.test.mjs",
+      "scripts/dev012-owner-release-runtime.test.mjs",
+      "scripts/dev012-owner-stage-executor.test.mjs",
+      "scripts/dev117-production-migration-runner.test.mjs",
+      "scripts/lib/dev012-owner-prerequisite-producer.mjs",
+      "scripts/lib/dev012-owner-release-runtime.mjs",
+      "scripts/lib/dev012-owner-stage-executor.mjs"
+    ]
+  },
+  "gates": {
+    "planner": true,
+    "full": true,
+    "documentation": false,
+    "application": true,
+    "authorization": true,
+    "database": true,
+    "preview": true,
+    "recognition": true,
+    "worker": true,
+    "infrastructure": true,
+    "releaseCore": true,
+    "dbBoundary": true,
+    "nativePostgres": true,
+    "migration": true,
+    "isolatedBuild": true,
+    "desktopUi": true
+  },
+  "releasePhases": [
+    "preflight",
+    "build",
+    "migrate-if-needed",
+    "candidate-smoke",
+    "activate-readback"
+  ],
+  "evidenceRequirements": [
+    "actor-grant-allow-deny",
+    "transaction-readback-rollback",
+    "version-bytes-desktop",
+    "job-terminal-cleanup",
+    "source-image-revision-traffic-rollback"
+  ],
+  "planSha256": "b8bfefbd4b9aeaeaf211219286139145290c50971b3b021803ce511d747166c9"
+}

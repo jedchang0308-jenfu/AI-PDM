@@ -263,7 +263,12 @@ function migrationArguments(profile, deployment, outputUri) {
 export function assertMigrationSubmissionIntent(value, { profile, deployment, outputUri, deadlineAt, principalOnlyFenceRef = null }) {
   if (principalOnlyFenceRef !== null) assertImmutableRef(principalOnlyFenceRef, profile.artifact.releaseBucket, ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'])
   const core = { ...value }; delete core.receiptSha256
-  const expected = { schemaVersion: 'jenfu.dev012.migration-submission-intent.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
+  const version = value?.schemaVersion
+  if (!['jenfu.dev012.migration-submission-intent.v1', 'jenfu.dev012.migration-submission-intent.v2'].includes(version)) fail('MIGRATION_SUBMISSION_INTENT_INVALID')
+  const migrationRunnerSourceRevision = deployment.migrationRunnerSourceRevision ?? deployment.sourceRevision
+  if (!H40.test(migrationRunnerSourceRevision ?? '') || (version === 'jenfu.dev012.migration-submission-intent.v1' && !deployment.programOnlyBaseline && migrationRunnerSourceRevision !== deployment.sourceRevision)) fail('MIGRATION_SUBMISSION_INTENT_INVALID')
+  const expected = { schemaVersion: version, ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
+    ...(version === 'jenfu.dev012.migration-submission-intent.v2' ? { migrationRunnerSourceRevision } : {}),
     jobName: `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`, migrationRunnerDigest: deployment.migrationRunnerDigest,
     migrationBundleRef: deployment.migrationBundleRef, outputUri, args: migrationArguments(profile, deployment, outputUri), principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT', ...programOnlySubmissionFields(profile, deployment) }
   if (canonicalize(Object.keys(value ?? {}).sort()) !== canonicalize([...Object.keys(expected), 'observedAt', 'receiptSha256'].sort()) ||
@@ -769,7 +774,9 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
       POSTGRES_IAM_LOGIN: profile.migrations.serviceAccount.replace('.gserviceaccount.com', ''),
       POSTGRES_SOCKET: `/cloudsql/${connectionName}`,
     }
-    if (!programPolicy) expectedEnvironment.PDM_SOURCE_REVISION = deployment.sourceRevision
+    const migrationRunnerSourceRevision = deployment.migrationRunnerSourceRevision ?? deployment.sourceRevision
+    if (!H40.test(migrationRunnerSourceRevision ?? '')) fail('MIGRATION_JOB_READBACK_MISMATCH')
+    if (!programPolicy) expectedEnvironment.PDM_SOURCE_REVISION = migrationRunnerSourceRevision
     const volume = job.template?.template?.volumes?.find((item) => item.name === 'cloudsql')
     const mount = container?.volumeMounts?.find((item) => item.name === 'cloudsql')
     if (job.name !== jobName || job.template?.template?.serviceAccount !== profile.migrations.serviceAccount || container?.image !== deployment.migrationRunnerDigest || canonicalize(environment) !== canonicalize(expectedEnvironment) || canonicalize(volume?.cloudSqlInstance?.instances) !== canonicalize([connectionName]) || mount?.mountPath !== '/cloudsql' || job.template?.taskCount !== 1 || job.template?.parallelism !== 1 || job.template?.template?.maxRetries !== 0 || job.template?.template?.timeout !== '1800s') fail('MIGRATION_JOB_READBACK_MISMATCH')
@@ -836,7 +843,8 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     }
     const ensureSubmissionIntent = async () => {
       if (submission) return
-      const value = { schemaVersion: 'jenfu.dev012.migration-submission-intent.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
+      const value = { schemaVersion: programPolicy ? 'jenfu.dev012.migration-submission-intent.v1' : 'jenfu.dev012.migration-submission-intent.v2', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision,
+        ...(!programPolicy ? { migrationRunnerSourceRevision } : {}),
         jobName, migrationRunnerDigest: deployment.migrationRunnerDigest, migrationBundleRef: deployment.migrationBundleRef, outputUri, args,
         principalOnlyFenceRef, deadlineAt, status: 'SUBMISSION_INTENT', observedAt: now(), ...programOnlySubmissionFields(profile, deployment) }
       value.receiptSha256 = sha256(canonicalize(value))

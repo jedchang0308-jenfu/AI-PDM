@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "aipdm.dev122.self-use-acceptance.v1",
+  "productModel": {
+    "audience": "single-company-internal",
+    "primaryViewport": "desktop",
+    "saasMultiTenant": false,
+    "externalCustomerSla": false
+  },
+  "originalAcceptance": {
+    "issues": 7,
+    "groups": 29,
+    "status": "ACTIVE_NOT_ACCEPTED",
+    "isActiveAcceptanceDenominator": true
+  },
+  "capabilitiesDoNotReplaceOriginalDenominator": true,
+  "activeCapabilities": [
+    { "id": "identity_roles", "caseIds": ["AUTH-01", "AUTH-02", "AUTH-03", "AUTH-04"] },
+    { "id": "pdm_lifecycle", "caseIds": ["LIFE-01", "LIFE-02", "LIFE-03", "LIFE-04"] },
+    { "id": "drawing_preview", "caseIds": ["PREVIEW-01", "PREVIEW-02"] },
+    { "id": "operations", "caseIds": ["OPS-01"] }
+  ],
+  "retainedStatusItems": [
+    { "id": "supplier_reply", "status": "DISABLED_DEFERRED_NOT_PASS", "countsInOriginalDenominator": true, "resumeWork": false },
+    { "id": "procurement_list", "status": "REDUCED_INTERNAL_SCOPE", "countsInOriginalDenominator": true, "resumeWork": true },
+    { "id": "native_cad_full_custom_properties", "status": "USER_OWNED_PENDING_NOT_PASS", "countsInOriginalDenominator": true, "resumeWork": false },
+    { "id": "narrow_viewport_full_flow", "status": "NOT_REQUIRED_BY_DEFAULT", "countsInOriginalDenominator": false, "resumeWork": false }
+  ],
+  "gatePolicy": {
+    "selector": "scripts/plan-production-slice.mjs",
+    "authorizationImpliesDatabase": false,
+    "migrationOnlyWhenDatabaseOrFull": true,
+    "independentQcFor": ["authorization", "database", "worker", "infrastructure", "release-control"],
+    "defaultUiViewports": ["1440x900"]
+  },
+  "releasePhases": ["preflight", "build", "migrate-if-needed", "candidate-smoke", "activate-readback"]
+}

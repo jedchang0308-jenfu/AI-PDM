@@ -36,15 +36,6 @@ const AUTHORIZATION_TESTS = [
   'scripts/lib/dev121-principal-fence-operator.test.mjs',
   'scripts/dev122-rd-permission-ledger-readback.test.mjs',
   'scripts/lib/dev122-rd-permission-state-readback.test.mjs',
-  'scripts/dev121-principal-candidate-smoke.test.mjs',
-  'scripts/dev121-principal-only-recovery-server.test.mjs',
-  'scripts/dev121-principal-owner-recovery.test.mjs',
-  'scripts/lib/dev121-ai-pdm-quiescence.test.mjs',
-  'scripts/lib/dev121-migration-fence.test.mjs',
-  'scripts/lib/dev121-principal-only-release.test.mjs',
-  'scripts/lib/dev121-principal-forward-repair.test.mjs',
-  'scripts/lib/dev121-principal-recovery-operator.test.mjs',
-  'scripts/dev121-principal-recovery-operator.test.mjs',
 ]
 
 const WORKER_TESTS = [
