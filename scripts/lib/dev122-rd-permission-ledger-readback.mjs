@@ -18,6 +18,9 @@ const RUNNER_DIGEST = new RegExp(`^${RD_LEDGER_READBACK_RUNNER_PREFIX}[a-f0-9]{6
 const RELEASE_ID = /^[A-Z0-9][A-Z0-9-]{5,63}$/u
 const TARGET = Object.freeze({ ownerApplicationId: 'ai-pdm', ledger: 'ai_pdm_core.schema_migrations', baselineCount: 15 })
 const INTENT_KEYS = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'workflowSourceRevision', 'workflowSourceTree', 'workflowSourceIdentitySha256', 'runnerSourceRevision', 'profileSha256', 'migrationRunnerDigest', 'jobEtag', 'jobTemplateSha256', 'probes', 'observedAt', 'deadlineAt', 'status', 'receiptSha256']
+const RESULT_KEYS = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'workflowSourceRevision', 'runnerSourceRevision', 'readbackIntentRef', 'jobReadbackRef', 'migrationRunnerDigest', 'pgOptions', 'ledgerCount', 'migration084State', 'migration085State', 'nativeReceiptRef', 'attempts', 'databaseMutationExpected', 'decision', 'observedAt', 'status', 'receiptSha256']
+const JOB_RECEIPT_KEYS = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'workflowSourceRevision', 'runnerSourceRevision', 'readbackIntentRef', 'projection', 'observedAt', 'status', 'receiptSha256']
+const EXECUTION_RECEIPT_KEYS = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'workflowSourceRevision', 'runnerSourceRevision', 'readbackIntentRef', 'ledgerCount', 'executionName', 'createTime', 'startTime', 'completionTime', 'succeededCount', 'failedCount', 'completedState', 'templateSha256', 'observedAt', 'status', 'receiptSha256']
 const REF_KEYS = ['uri', 'sha256']
 
 function fail(code, detail = '') {
@@ -222,6 +225,50 @@ export function assertRdReadbackNativeReceipt(value, { intent, probe, executionN
   return value
 }
 
+export function assertRdReadbackJobReceipt(value, { intent, intentRef, profile }) {
+  exact(value, JOB_RECEIPT_KEYS, 'RD_READBACK_JOB_RECEIPT_INVALID')
+  const core = { ...value }; delete core.receiptSha256
+  assertRdLedgerReadbackIntent(intent)
+  exactRef(intentRef, 'receipts')
+  if (value.schemaVersion !== 'aipdm.dev122.rd-permission-ledger-job-readback.v2'
+    || value.ownerApplicationId !== 'ai-pdm' || value.releaseId !== intent.releaseId
+    || value.workflowSourceRevision !== intent.workflowSourceRevision
+    || value.runnerSourceRevision !== intent.runnerSourceRevision
+    || canonicalize(value.readbackIntentRef) !== canonicalize(intentRef)
+    || !Number.isFinite(Date.parse(value.observedAt)) || value.status !== 'PASS'
+    || value.receiptSha256 !== rdReadbackSha256(core)) fail('RD_READBACK_JOB_RECEIPT_INVALID')
+  try { assertRdReadbackJob(value.projection, profile, intent) } catch { fail('RD_READBACK_JOB_RECEIPT_INVALID') }
+  return value
+}
+
+export function assertRdReadbackExecutionReceipt(value, { intent, intentRef, probe }) {
+  exact(value, EXECUTION_RECEIPT_KEYS, 'RD_READBACK_EXECUTION_RECEIPT_INVALID')
+  const core = { ...value }; delete core.receiptSha256
+  assertRdLedgerReadbackIntent(intent)
+  exactRef(intentRef, 'receipts')
+  const prefix = `${JOB_NAME}/executions/`
+  const created = Date.parse(value.createTime), started = value.startTime === null ? null : Date.parse(value.startTime)
+  const completed = value.completionTime === null ? null : Date.parse(value.completionTime)
+  const pass = value.status === 'PASS'
+  if (value.schemaVersion !== 'aipdm.dev122.rd-permission-ledger-probe-execution.v2'
+    || value.ownerApplicationId !== 'ai-pdm' || value.releaseId !== intent.releaseId
+    || value.workflowSourceRevision !== intent.workflowSourceRevision
+    || value.runnerSourceRevision !== intent.runnerSourceRevision
+    || canonicalize(value.readbackIntentRef) !== canonicalize(intentRef)
+    || value.ledgerCount !== probe?.ledgerCount || !value.executionName?.startsWith(prefix)
+    || !Number.isFinite(created) || (started !== null && (!Number.isFinite(started) || started < created))
+    || completed === null || !Number.isFinite(completed) || completed < created || (started !== null && completed < started)
+    || !Number.isInteger(value.succeededCount) || value.succeededCount < 0
+    || !Number.isInteger(value.failedCount) || value.failedCount < 0
+    || !H64.test(value.templateSha256 ?? '') || value.observedAt !== value.completionTime
+    || !['PASS', 'EXPECTED_READ_ONLY_PROBE_FAILURE'].includes(value.status)
+    || (pass
+      ? value.completedState !== 'CONDITION_SUCCEEDED' || value.succeededCount !== 1 || value.failedCount !== 0
+      : value.completedState !== 'CONDITION_FAILED' || value.succeededCount !== 0 || value.failedCount < 1)
+    || value.receiptSha256 !== rdReadbackSha256(core)) fail('RD_READBACK_EXECUTION_RECEIPT_INVALID')
+  return value
+}
+
 export function buildRdReadbackResult({ intent, intentRef, jobReadbackRef, attempts, successfulProbe, nativeReceiptRef, observedAt }) {
   exactRef(intentRef, 'receipts')
   exactRef(jobReadbackRef, 'receipts')
@@ -259,7 +306,49 @@ export function buildRdReadbackResult({ intent, intentRef, jobReadbackRef, attem
     status: 'PASS',
   }
   value.receiptSha256 = rdReadbackSha256(value)
+  return assertRdReadbackResult(value, { intent, intentRef })
+}
+
+export function assertRdReadbackResult(value, { intent = null, intentRef = null } = {}) {
+  exact(value, RESULT_KEYS, 'RD_READBACK_RESULT_INVALID')
+  const core = { ...value }; delete core.receiptSha256
+  exactRef(value.readbackIntentRef, 'receipts')
+  exactRef(value.jobReadbackRef, 'receipts')
+  exactRef(value.nativeReceiptRef, 'receipts')
+  if (value.schemaVersion !== RD_LEDGER_READBACK_RESULT_SCHEMA || value.ownerApplicationId !== 'ai-pdm'
+    || !RELEASE_ID.test(value.releaseId ?? '') || !H40.test(value.workflowSourceRevision ?? '')
+    || !H40.test(value.runnerSourceRevision ?? '') || !RUNNER_DIGEST.test(value.migrationRunnerDigest ?? '')
+    || value.pgOptions !== RD_LEDGER_READBACK_PGOPTIONS || ![33, 34, 35].includes(value.ledgerCount)
+    || value.migration084State !== (value.ledgerCount >= 34 ? 'APPLIED' : 'NOT_APPLIED')
+    || value.migration085State !== (value.ledgerCount >= 35 ? 'APPLIED' : 'NOT_APPLIED')
+    || value.databaseMutationExpected !== false
+    || value.decision !== (value.ledgerCount >= 35 ? 'STOP_085_APPLIED_VERIFY_CATALOG_CONSISTENCY' : 'AUTHORIZED_CONDITION_085_ABSENT')
+    || !Number.isFinite(Date.parse(value.observedAt)) || value.status !== 'PASS'
+    || value.receiptSha256 !== rdReadbackSha256(core)) fail('RD_READBACK_RESULT_INVALID')
+  if (!Array.isArray(value.attempts) || value.attempts.length < 1 || value.attempts.length > 3
+    || canonicalize(value.attempts.map((row) => row.ledgerCount)) !== canonicalize([35, 34, 33].slice(0, value.attempts.length))) fail('RD_READBACK_RESULT_INVALID')
+  for (const [index, attempt] of value.attempts.entries()) {
+    const last = index === value.attempts.length - 1
+    exact(attempt, ['status', 'ledgerCount', 'executionReadbackRef', ...(last ? ['nativeReceiptRef', 'completedAt'] : [])], 'RD_READBACK_RESULT_INVALID')
+    exactRef(attempt.executionReadbackRef, 'receipts')
+    if ((!last && attempt.status !== 'FAILED') || (last && (attempt.status !== 'PASS'
+      || canonicalize(attempt.nativeReceiptRef) !== canonicalize(value.nativeReceiptRef)
+      || !Number.isFinite(Date.parse(attempt.completedAt)) || attempt.completedAt !== value.observedAt))) fail('RD_READBACK_RESULT_INVALID')
+  }
+  if (value.attempts.at(-1).ledgerCount !== value.ledgerCount) fail('RD_READBACK_RESULT_INVALID')
+  if (intent !== null) {
+    assertRdLedgerReadbackIntent(intent)
+    if (value.releaseId !== intent.releaseId || value.workflowSourceRevision !== intent.workflowSourceRevision
+      || value.runnerSourceRevision !== intent.runnerSourceRevision || value.migrationRunnerDigest !== intent.migrationRunnerDigest) fail('RD_READBACK_RESULT_INVALID')
+  }
+  if (intentRef !== null && canonicalize(value.readbackIntentRef) !== canonicalize(exactRef(intentRef, 'receipts'))) fail('RD_READBACK_RESULT_INVALID')
   return value
+}
+
+export function assertRdReadbackResultRef(ref, result) {
+  exactRef(ref, 'receipts')
+  if (!result || ref.uri !== `gs://${BUCKET}/receipts/releases/${result.releaseId}/${result.readbackIntentRef?.sha256}/ledger-readback-result.json`) fail('RD_READBACK_RESULT_REF_INVALID')
+  return ref
 }
 
 export const RD_LEDGER_READBACK_CONSTANTS = Object.freeze({ bucket: BUCKET, jobName: JOB_NAME, workflowRef: WORKFLOW_REF })

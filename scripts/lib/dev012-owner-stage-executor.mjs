@@ -11,6 +11,7 @@ import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProvid
 import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
 import { buildDev014ConsumerConformance } from './dev014-consumer-conformance.mjs'
 import { assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
+import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease, isPausedAppRepair, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
 import { sourceStatusIsClean } from './dev122-source-authority.mjs'
@@ -87,6 +88,12 @@ function assertIntentBase(intent, profile, intentRef, intentSha256) {
       ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'])
   }
   if (intent?.principalOnlyRecovery) { exact.push('principalOnlyRecovery'); exact.sort() }
+  if (intent?.postAbortLedgerReadbackRef) {
+    exact.push('postAbortLedgerReadbackRef'); exact.sort()
+    assertImmutableRef(intent.postAbortLedgerReadbackRef, profile.artifact.releaseBucket, ['receipts/releases'])
+    if (!/^gs:\/\/jenfu-platform-prod-aipdm-release\/receipts\/releases\/[A-Z0-9][A-Z0-9-]{5,63}\/[a-f0-9]{64}\/ledger-readback-result\.json$/u.test(intent.postAbortLedgerReadbackRef.uri)
+      || !intent.principalOnlyFenceRef || !intent.principalOnlyRecovery || intent.programOnlyBaseline || intent.unlinkedProfileCleanupRef) fail('RELEASE_INTENT_REF_INVALID', 'postAbortLedgerReadbackRef')
+  }
   if (Object.hasOwn(intent ?? {}, 'openswxWorkerRef')) {
     if (profile.application.id !== 'ai-pdm') fail('OPENSWX_OWNER_MISMATCH')
     exact.push('openswxWorkerRef'); exact.sort(); assertOpenSwxWorkerRef(intent.openswxWorkerRef)
@@ -611,7 +618,10 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (transport.effectiveRevision(service) !== intent.previousRevision) fail('PREPARE_BASELINE_MISMATCH')
     // A cached prepare receipt cannot certify a stopped conversion or ordinary abort.
     const continuation = intent.baselineIntentRef
-      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service }) : null
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service,
+        postAbortLedgerReadbackRef: intent.postAbortLedgerReadbackRef ?? null,
+        principalOnlyFenceRef: intent.principalOnlyFenceRef ?? null,
+        principalOnlyRecovery: intent.principalOnlyRecovery ?? null }) : null
     if (continuation && ((!['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation.kind) && !assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket))
       || continuation.currentActiveRevision !== intent.previousRevision)) fail('PREPARE_BASELINE_MISMATCH')
     const existing = await optionalNamedJson(transport, paths.prepare, profile)
@@ -622,8 +632,10 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const names = { sourceLock: 'sourceLockRef', authorization: 'authorizationPolicyRef', readiness: 'readinessReceiptRef', foundation: 'foundationReceiptRef', infra: 'infraReceiptRef', runtimeConfig: 'runtimeConfigRef' }
     const entries = await Promise.all(Object.entries(names).map(async ([name, field]) => [name, (await transport.readJson(intent[field], profile.artifact.releaseBucket, ['receipts'])).value]))
     const values = Object.fromEntries(entries)
-    if (['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation?.kind)) {
-      if (Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')
+    if (['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED'].includes(continuation?.kind)) {
+      const reconciled = continuation.kind === 'PRINCIPAL_FENCED_ABORT_RECONCILED'
+      if ((!reconciled && (Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')))
+        || (reconciled && !assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket))
         || canonicalize(values.authorization.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis)
         || canonicalize(values.readiness.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis)
         || (existing && canonicalize(existing.value.facts.preActivationAbortBasis) !== canonicalize(continuation.authorityBasis))) fail('PREPARE_BASELINE_MISMATCH')
@@ -643,11 +655,22 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     if (repair && dataCutover?.status !== 'NEUTRAL_AUTHORITY_LIVE') fail('REPAIR_DATA_CUTOVER_BASIS_INVALID')
     const recovery = assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
     if (recovery) {
-      const [proof, revision] = await Promise.all([
+      const [proof, revision, fence] = await Promise.all([
         transport.readJson(recovery.receiptRef, profile.artifact.releaseBucket, ['receipts']),
         transport.getRevision(profile, recovery.revision),
+        transport.readBytes(intent.principalOnlyFenceRef.uri, {
+          prefixes: ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'],
+          expectedSha256: intent.principalOnlyFenceRef.sha256,
+        }),
       ])
       assertPrincipalOnlyRecoveryReadback({ intent, profile, proof: proof.value, service, revision })
+      let fenceProof
+      try { fenceProof = JSON.parse(fence.bytes.toString('utf8')) } catch { fail('PREPARE_MIGRATION_FENCE_INVALID') }
+      try {
+        assertPrincipalOnlyMigrationFence({ proof: fenceProof, bytes: fence.bytes,
+          expectedSha256: intent.principalOnlyFenceRef.sha256, sourceRevision: intent.sourceRevision,
+          service, observedAt: transport.now() })
+      } catch { fail('PREPARE_MIGRATION_FENCE_INVALID') }
     }
     if (Object.keys(profile.environment?.controlledValues ?? {}).length > 0) {
       const repair = intent.baselineIntentRef
@@ -669,7 +692,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       if (repair?.migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(existing.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
       return existing
     }
-    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation?.kind) ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, migrationRunnerSourceRevision: derived.migrationRunnerSourceRevision, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
+    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED'].includes(continuation?.kind) ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, migrationRunnerSourceRevision: derived.migrationRunnerSourceRevision, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 
   if (stage === 'build') {
