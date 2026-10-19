@@ -58,10 +58,7 @@ export function assertHistoricalProfileCompatibility(currentProfile, historicalP
 
 export function workerProfileValidationMode({ descriptor, currentProfile, readSource, sourceRevision, historicalProfile = false }) {
   const shapeMismatch = PROFILE_SHAPE_KEYS.some(key => canonicalize(descriptor?.[key]) !== canonicalize(currentProfile?.[key]))
-  const admittedHistoricalSource = readSource?.isHistorical === true
-    || readSource?.readerRevisionMode === 'historical'
-    || (typeof readSource?.sourceRevision === 'string' && readSource.sourceRevision !== sourceRevision)
-    || readSource?.supportsAdmittedHistoricalRevisions === true
+  const admittedHistoricalSource = isHistoricalReaderFor(readSource, sourceRevision)
   // An explicit caller decision is authoritative even when the historical
   // profile happens to have the same provider shape as the current profile.
   return historicalProfile || (shapeMismatch && admittedHistoricalSource) ? 'historical' : 'current'
@@ -74,6 +71,7 @@ function historicalReaderView(readSource, revision, { historical = true, sourceH
   view.sourceRevision = revision
   view.isHistorical = sourceHistorical
   if (historical) view.readerRevisionMode = 'historical'
+  view.sourceByteOrigin = sourceHistorical ? 'historical' : 'current-admitted'
   view.historicalReadRevisions = new Set([...(readSource.historicalReadRevisions ?? []), revision])
   for (const name of ['authorizeOrigin', 'readTree', 'readTreeId']) {
     if (typeof readSource[name] === 'function') view[name] = (...args) => readSource[name](...args)

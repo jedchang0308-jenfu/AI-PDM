@@ -6004,6 +6004,8 @@ PR #378 合併後 C53-R1 已成功發布 PAUSED baseline/security/association，
 
 交付 PR 為 [#381](https://github.com/jedchang0308-jenfu/AI-PDM/pull/381)；可執行來源 commit `87cf3e4941c76ca24b7a1e75ebd698f2955397d8`，本機證據位於 `output/qa/dev-122/rd-permission-repair/release-chain-refactor-local-2026-10-18.json`。required CI 與 protected-main handoff 依 PR provider 狀態決定；這一行不構成 CI 或 merge PASS，也不恢復 production。
 
+2026-10-19 release-contract prune：PR #386 的 immediate reuse-only archive exception 已收斂為共用 source authority。active owner build／candidate 不再比較 app 與 worker 的 tar/gzip SHA；fresh 與 reused worker 均綁 protected intent revision，reuse 再綁 immutable source lock，candidate 另綁 image digest，worker build 自己的 source object SHA／generation／input manifest 仍在原 build transport 邊界驗證。repair baseline、association、request 與 provider observation 不再把 `sourceArchiveSha256` 當跨 stage authority。profile validation 改由 requested revision admission 決定，executable byte origin另行建模，不再由單一 `isHistorical` 旗標兼任。v1～v4 immutable fields只作 legacy transport metadata，未經正式 rollback/recovery readback不得刪除 reader或改寫舊 receipt。本切片不啟動 production；正式 ledger33／catalog v6／085 absent、測試 RD grant v13 與既有 worker狀態仍沿用最後 readback，RD 正式驗收仍未完成。
+
 ## DEV-122#release-decoupling — 2026-10-17 CAPA-002 project rollout（本機 RD 完成／required CI 待 PR）
 
 導入 project-wide changed-responsibility planner、affected test runner與 owner/CI routing；shared/unknown inputs保留 legacy full fail-closed。worker current/historical profile判定集中至單一 context，歷史 evidence仍綁 exact revision/profile bytes，不以 current HEAD隱式覆蓋。單一交付切片在 merge 前於同一 branch/PR 收斂 caller graph及 production-shaped fixtures，避免以反覆 merge/PR作為本機可發現缺陷的除錯迴圈。此項不執行production mutation，不改 DEV-122原分母；正式 RD、approval與未授權角色驗收仍 pending。

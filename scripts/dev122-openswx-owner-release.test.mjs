@@ -3,7 +3,7 @@ import { createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './lib/dev12
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { assertRuntimeConfig, buildRuntimeConfig, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
-import { OWNER_DEADLINE_SECONDS, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, updateWorkerJob, boundOpenSwxTransport, assertOpenSwxApplicationSourceJoin } from './lib/dev122-openswx-owner-release.mjs'
+import { OWNER_DEADLINE_SECONDS, WORKER_SOURCE_PATHS, assertOpenSwxWorkerProfile, assertHistoricalOpenSwxWorkerProfile, assertOpenSwxWorkerRef, assertWorkerDescriptor, assertWorkerBuildSource, assertWorkerJob, normalizeWorkerTemplate, workerReceipt, assertWorkerRuntimeJoin, assertPausedScheduler, assertCurrentReadyScheduler, canonicalWorkerExecution, workerJobName, workerSchedulerName, workerTemplate, workerTemplatePolicy, writeWorkerJson, runWorkerFinite, readFiniteOperation, assertFiniteExecutionRequestBinding, updateWorkerJob, boundOpenSwxTransport, assertOpenSwxApplicationSourceAuthority } from './lib/dev122-openswx-owner-release.mjs'
 import { assertPausedRepairBaseline, assertPausedRepairCurrentCheck, buildPausedRepairDescriptor, repairSnapshotProjection, assertTerminalExecution, listWorkerExecutions, createOpenSwxOwnerRelease } from './lib/dev122-openswx-owner-release.mjs'
 
 const profileBytes = fs.readFileSync(new URL('../config/release/dev122-openswx-worker.json', import.meta.url))
@@ -51,15 +51,26 @@ test('B23 repair descriptor derives full mode and preserved credentials without 
   for (const patch of [{ purpose: 'build_only' }, { releaseVariant: 'DAILY' }, { pausedDrainedRef: ref('forged') }, { bounds: { ...value.bounds, maxExecutionPages: 5 } }, { tokenSecretVersion: token.replace('/7', '/latest') }]) assert.throws(() => assertWorkerDescriptor({ ...value, ...patch }, profile, retained.workerProfileSha256, sourceRevision))
 })
 
-test('reused worker joins the app build by immutable source lock, while fresh worker builds retain byte identity', () => {
+test('application source authority uses revision and source lock, never archive packaging bytes', () => {
   const sourceLockRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-SOURCE/source-lock.json', sha256: 'a'.repeat(64) }
   const intent = { sourceRevision, sourceLockRef }
   const reused = { ...workerDescriptor('full'), schemaVersion: 'aipdm.openswx-worker-descriptor.v2', artifactMode: 'REUSE_VERIFIED' }
   const artifact = { currentAssociation: { sourceRevision, sourceLockRef } }
-  assert.equal(assertOpenSwxApplicationSourceJoin({ descriptor: reused, intent, sourceArchiveSha256: 'f'.repeat(64), artifact }), true)
-  assert.throws(() => assertOpenSwxApplicationSourceJoin({ descriptor: reused, intent: { ...intent, sourceLockRef: ref('different-lock') }, sourceArchiveSha256: 'f'.repeat(64), artifact }), /OPENSWX_REUSE_SOURCE_LOCK_JOIN_INVALID/u)
-  assert.throws(() => assertOpenSwxApplicationSourceJoin({ descriptor: workerDescriptor(), intent, sourceArchiveSha256: 'f'.repeat(64) }), /OPENSWX_ARCHIVE_JOIN_INVALID/u)
-  assert.throws(() => assertOpenSwxApplicationSourceJoin({ descriptor: reused, intent, sourceArchiveSha256: 'not-a-hash', artifact }), /OPENSWX_ARCHIVE_JOIN_INVALID/u)
+  assert.equal(assertOpenSwxApplicationSourceAuthority({ descriptor: { ...reused, sourceArchiveSha256: 'f'.repeat(64) }, intent, artifact }), true)
+  assert.equal(assertOpenSwxApplicationSourceAuthority({ descriptor: workerDescriptor(), intent }), true)
+  assert.throws(() => assertOpenSwxApplicationSourceAuthority({ descriptor: reused, intent: { ...intent, sourceLockRef: ref('different-lock') }, artifact }), /OPENSWX_SOURCE_AUTHORITY_INVALID/u)
+  assert.throws(() => assertOpenSwxApplicationSourceAuthority({ descriptor: { ...workerDescriptor(), sourceRevision: 'f'.repeat(40) }, intent }), /OPENSWX_SOURCE_AUTHORITY_INVALID/u)
+  assert.throws(() => assertOpenSwxApplicationSourceAuthority({ descriptor: reused, intent, artifact: null }), /OPENSWX_SOURCE_AUTHORITY_INVALID/u)
+})
+
+test('worker build transport still binds its own uploaded object and input hashes', () => {
+  const descriptor = workerDescriptor()
+  const sourceHashes = WORKER_SOURCE_PATHS.map(path => ({ path, sha256: 'a'.repeat(64) }))
+  for (let index = 0; index < 19; index += 1) sourceHashes.push({ path: `scripts/lib/openswx-reader/vendor/file-${index}.cc`, sha256: 'b'.repeat(64) })
+  const build = { facts: { sourceObject: { sha256: descriptor.sourceArchiveSha256, generation: '7' }, sourceHashes,
+    scan: { status: 'PASS', blockingVulnerabilityCount: 0 }, provenance: ['provider-provenance'], sbom: ['provider-sbom'] } }
+  assert.equal(assertWorkerBuildSource(build, descriptor).path, 'scripts/run-openswx-metadata-job.mjs')
+  assert.throws(() => assertWorkerBuildSource({ ...build, facts: { ...build.facts, sourceObject: { ...build.facts.sourceObject, sha256: 'f'.repeat(64) } } }, descriptor), /OPENSWX_BUILD_SOURCE_INVALID/u)
 })
 
 test('PAUSED repair validates a retained READY descriptor against its own historical profile', () => {

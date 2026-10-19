@@ -30,6 +30,12 @@ PR #378 合併後的 exact-main C53-R1 已進一步完成 PAUSED baseline、prov
 
 PAUSED repair 的 retained READY chain 在 artifact resolver 完整驗證後只投影其 receipt，不再由 full-evidence caller 重走相同 DAG。finalize 不接受未綁定的 migration mode 字串，必須以同一 branded history、current content 與 mode 再驗一致；合法 Secret IAM continuation 仍只從 sealed serving association 單向傳遞，缺漏、不同資源或擴權繼續拒絕。換 release attempt 可重用相同 authenticated artifact／history，但不得改寫既有 receipt。這項精簡不移除 protected main、required CI、API 授權、資料完整性、unknown-write readback 或 recovery 邊界；也不構成正式 RD 驗收。原 run `39126743555` 的 prepare `DEV121_OWNER_RELEASE_PROOF_REPAIR_JOIN_INVALID` 保留為最後正式失敗，下游 build／085／candidate／traffic／rollback／recovery 仍未執行。
 
+### 2026-10-19 release source authority corrective
+
+後續查證顯示 PR #386 只在 `REUSE_VERIFIED` 分支以 source lock 取代 app／worker archive SHA equality，fresh build、candidate 與 repair/provider observation 仍保留同一錯誤權威，因此相同 transport 差異可在下一入口再次失敗。現行共同模型改為：reviewed application source 由 protected intent revision／canonical tree lock 負責；worker artifact 由逐檔 input manifest、effective recipe、provider build identity與 image digest 負責；release attempt 只引用兩者及當次 migration／candidate／traffic結果。tar/gzip/GCS SHA、generation與CRC只驗單一上傳物件，不跨 build、attempt或 descriptor 作來源 identity。
+
+實作已把 owner build／candidate 與 PAUSED repair 的 cross-stage join 收斂到 `sourceRevision`、reuse `sourceLockRef`、worker profile／resource policy及 image digest；archive 欄位只留作既有 immutable schema 的 legacy transport metadata。reader capability、profile validation mode與 executable byte origin分開，current-capable reader讀取已准入 predecessor時採historical profile政策，但仍對current executable bytes執行checkout guard。既有歷史 receipt不改寫；只有確認正式 rollback／recovery已無引用後才刪除相容 reader。這個 source切片不執行正式發布，也不把 source/local/CI結果宣告成 RD production acceptance；085、catalog及測試RD帳號的正式狀態以最後 provider readback為準。
+
 ### 2026-10-19 RD ledger installed-source corrective
 
 PR #384 已合併為 exact main `3823a2c2ba63df091e8e14be0fb221fe1d3f43ad`，required CI 全綠；R22 service-state workflow `39180159977` PASS，provider receipt 證明 `ai-pdm-prod` generation207 settled、100% traffic仍在 `ai-pdm-prod-1be8986b68ce`，且 database/runtime mutation皆為false。Fresh R23 ledger capsule producer在任何bundle／intent publication前以 `RD_READBACK_JOB_MISMATCH` 停止：provider Job的immutable runner與`PDM_SOURCE_REVISION`正確綁installed source `c4d47bb34551af79d52a58d202cc419ae5da07fc`，producer卻把current workflow source `3823a2c2…`錯當成Job source。

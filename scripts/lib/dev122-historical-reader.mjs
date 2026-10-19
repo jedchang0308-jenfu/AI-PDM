@@ -9,6 +9,18 @@ export function isHistoricalReaderMode(reader) {
 }
 
 /**
+ * Describe where executable bytes come from.  This is intentionally separate
+ * from both revision-read capability and profile validation mode: a current
+ * reader can be admitted for a predecessor revision while its executable
+ * implementation must still match the running checkout.
+ */
+export function isHistoricalSourceByteOrigin(reader) {
+  if (reader?.sourceByteOrigin === 'historical') return true
+  if (reader?.sourceByteOrigin === 'current-admitted') return false
+  return isHistoricalReaderMode(reader) // bounded compatibility for sealed readers
+}
+
+/**
  * Return true only when the reader has an explicit admission for the
  * requested immutable revision.  A current reader may expose this capability
  * while keeping isHistorical=false; callers must bind it before validating
@@ -52,6 +64,7 @@ export function bindHistoricalReader(reader, revision, code = 'HISTORY_SOURCE_RE
   view.sourceRevision = revision
   view.isHistorical = true
   view.readerRevisionMode = 'historical'
+  view.sourceByteOrigin = 'historical'
   view.historicalReadRevisions = new Set([...(reader.historicalReadRevisions ?? []), revision])
   if (typeof reader.readImmutableArchive === 'function') {
     view.readImmutableArchive = sourceRevision => {

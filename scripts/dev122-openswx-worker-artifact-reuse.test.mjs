@@ -1008,7 +1008,7 @@ test('B19-08/11 LOCAL_TEST same-source single release DAILY/full consumes associ
   const built = await worker.build({ intent, profile: appProfile, sourceObject: { ref: h.currentSourceRef } })
   assert.deepEqual(built.workerBuildRef, saved.ref); assert.equal(built.image, image)
   const otherLockRef = h.seed('different-attempt-lock', { ...h.lock, releaseId: 'DEV122-LOCAL-OTHER' })
-  await assert.rejects(worker.build({ intent: { ...intent, sourceLockRef: otherLockRef }, profile: appProfile, sourceObject: { ref: h.currentSourceRef } }), { code: 'OPENSWX_REUSE_SOURCE_LOCK_JOIN_INVALID' })
+  await assert.rejects(worker.build({ intent: { ...intent, sourceLockRef: otherLockRef }, profile: appProfile, sourceObject: { ref: h.currentSourceRef } }), { code: 'OPENSWX_SOURCE_AUTHORITY_INVALID' })
   const crossPlatformArchive = { ...h.currentSourceRef, sha256: '0'.repeat(64) }
   const crossPlatformBuilt = await worker.build({ intent, profile: appProfile, sourceObject: { ref: crossPlatformArchive } })
   assert.deepEqual(crossPlatformBuilt, built, 'same source lock admits a platform-specific archive byte identity')
