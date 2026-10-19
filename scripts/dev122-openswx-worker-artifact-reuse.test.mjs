@@ -1009,7 +1009,9 @@ test('B19-08/11 LOCAL_TEST same-source single release DAILY/full consumes associ
   assert.deepEqual(built.workerBuildRef, saved.ref); assert.equal(built.image, image)
   const otherLockRef = h.seed('different-attempt-lock', { ...h.lock, releaseId: 'DEV122-LOCAL-OTHER' })
   await assert.rejects(worker.build({ intent: { ...intent, sourceLockRef: otherLockRef }, profile: appProfile, sourceObject: { ref: h.currentSourceRef } }), { code: 'OPENSWX_REUSE_SOURCE_LOCK_JOIN_INVALID' })
-  await assert.rejects(worker.build({ intent, profile: appProfile, sourceObject: { ref: { ...h.currentSourceRef, sha256: '0'.repeat(64) } } }), { code: 'OPENSWX_ARCHIVE_JOIN_INVALID' })
+  const crossPlatformArchive = { ...h.currentSourceRef, sha256: '0'.repeat(64) }
+  const crossPlatformBuilt = await worker.build({ intent, profile: appProfile, sourceObject: { ref: crossPlatformArchive } })
+  assert.deepEqual(crossPlatformBuilt, built, 'same source lock admits a platform-specific archive byte identity')
   const continuation = { bootstrapInputRef: h.objects.get(h.uri('LOCAL-B19-DAILY-BOOTSTRAP-input')).ref, bootstrapRef: bootstrap.ref, priorRecoveryRef: h.objects.get(`${profile.receiptRoot}/LOCAL-B19-DAILY-BOOTSTRAP-prior-recovery.json`).ref }
   const nextPause = await invoke('pause', 'LOCAL-B19-CONTINUATION-PAUSE', { drainKind: 'DAILY_DB_VERIFIED', priorActivationRef: h.priorActivationRef, bootstrapContinuation: continuation })
   const restoredContinuation = nextPause.value.facts.bootstrapContinuation
@@ -1085,7 +1087,7 @@ test('P06 program-only keeps current READY worker through prepare, candidate, ac
   const f = await b35ReadyProgramFixture(), evidence = await readProgramOnlyWorkerEvidence(f.args)
   assert.equal(evidence.image, image)
   await f.worker.prepare({ intent: f.intent, profile: b35AppProfile, runtimeConfig: { plainEnvironment: { PDM_OPENSWX_DISPATCH_ENABLED: '1' }, secretVersions: { PDM_WORKLOAD_AUTH_CREDENTIALS: registry.split('/').at(-1) }, openswxWorker: { purpose: 'full', sourceRevision: currentRevision, workerProfileSha256: f.descriptor.workerProfileSha256, descriptorRef: f.intent.openswxWorkerRef } } })
-  await f.worker.candidate({ intent: f.intent, profile: b35AppProfile, deployment: { sourceObject: f.h.currentSourceRef, openswxWorker: { image } } })
+  await f.worker.candidate({ intent: f.intent, profile: b35AppProfile, deployment: { sourceObject: { ...f.h.currentSourceRef, sha256: '0'.repeat(64) }, openswxWorker: { image } } })
   await f.worker.beforeActivate({ intent: f.intent, profile: b35AppProfile })
   const result = await f.worker.finalize({ intent: f.intent, profile: b35AppProfile, canonical: {}, migrationMode: 'READ_ONLY_BASELINE_VERIFIED' })
   assert.equal(result.status, 'READY'); assert.equal(result.retained, true); assert.equal(result.schedulerEnabled, true); assert.equal(result.workerJobMutationPerformed, false)
