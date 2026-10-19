@@ -65,6 +65,14 @@ PR #386 的 exact main 為 `21a1ba0b6a6f7a142e0c03a99d4461316bff711d`。C56 run 
 
 R25 唯讀 run `39196373315` 證明 ledger 為 33，migration 084／085 均 `NOT_APPLIED`，判定為 `AUTHORIZED_CONDITION_085_ABSENT`；prepare／build／migrate 均未執行。當前 corrective 將 reuse receipt 升為 v2，先驗 live Job READY、identity、template、digest 與 runner source，並在 ordinary full35 分離 release source 與 runner source。恢復順序是完成本切片 required CI 與 protected merge，再由正常 app-owned APP_INFRA 路徑建立 provider 一致的新 runner receipt，之後以 fresh exact-main capsule 執行 full35；不得手動 patch Job。085、catalog v7、candidate、traffic及專用測試 RD 帳號的 UI／API 正負驗收仍未完成，原 7 issues／29 groups 與 DEV-122 整體維持 `NOT_ACCEPTED`。
 
+後續 C67 owner run `39254333670` 在 prepare 以 `DATA_CUTOVER_AUTHORITY_REF_INVALID` 停止，build／migration／candidate／traffic 均未執行；C69 只有 exact-source 輸入準備，未派送。PR #394 已修正 live Cloud Run v2 Job readback 的 terminal／generation 契約，但未改變正式 service、ledger、catalog 或 traffic；這些失敗與未執行狀態不得因本次精簡而改判。
+
+### Release source authority 與 artifact transport 分離
+
+Active owner release 的跨元件來源權威只由 protected release intent 的 exact `sourceRevision`／canonical source lock，以及 worker reuse association 的相同 `sourceRevision`／`sourceLockRef` 構成。app 與 worker 可由不同 OS、tar 或 gzip 實作產生來源物件；archive SHA、generation 與 CRC32C 只驗各自上傳物件，不得跨 build、attempt 或 descriptor 決定 source identity。worker artifact 另由逐檔 input manifest、effective recipe、provider build identity 與 image digest 驗證。
+
+Reader 能否讀取已准入 revision、requested revision 應採 current 或 historical profile policy，以及 executable bytes 來自 current checkout 或 historical archive，是三個分離事實。既有 v1～v4 receipt 欄位維持 immutable legacy metadata；只有 provider readback 證明正式 rollback／recovery 不再引用時，才可另行移除相容 reader。本切片不執行正式發布，也不把本機或 CI 結果宣稱成 RD production acceptance。
+
 ## 4. 已刪除或縮減的額外要求
 
 | 項目 | 處置 |

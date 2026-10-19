@@ -579,6 +579,14 @@ Owner 產物沿用既有 immutable build／migration receipts 與 source/profile
 
 變更範圍仍由 §26.3 planner 決定；不取消 required CI、不跳過共享 release-control 的 full gate。既有授權在同任務正常重試中延續，不因 SHA／attempt 改變重問，但不擴張責任面。本修訂不影響正在執行的既有版本，也不宣告正式發布或 DEV-122 驗收。
 
+### 26.5 Source authority and artifact transport separation（2026-10-19）
+
+Active owner release 的跨元件來源權威只由 protected release intent 的 exact `sourceRevision`／canonical tree source lock，以及 worker reuse association 的相同 `sourceRevision`／`sourceLockRef` 構成。app source object 與 worker source object 可由不同 OS、tar 或 gzip 實作產生；兩者的 archive SHA 不得互相比較，也不得用來決定 fresh／reuse、current／historical 或 candidate admission。candidate 另以 immutable worker image digest join；worker input 等價另以逐檔 manifest 與 effective recipe 驗證。
+
+Archive SHA、generation、CRC32C 只屬單次上傳物件與其原始 provider build receipt 的 transport integrity，仍須在該局部邊界 fail closed。既有 v1～v4 descriptor／receipt 中的 `sourceArchiveSha256` 保留為 immutable legacy transport metadata，不重寫，也不再作跨 descriptor、跨 attempt、app↔worker 或 repair source authority。只有 provider readback 證明正式 rollback／recovery 不再引用舊 schema 後，才可另行刪除相容 reader；不得為了欄位減量破壞仍可合法復原的歷史收據。
+
+Reader 能否讀已准入 revision、該次 profile 應採 current 或 historical policy、以及 executable bytes 是 current checkout 或 historical archive，是三個分離事實。validation mode 由 requested revision admission 決定；executable checkout guard 由明示的 byte-origin 決定，不以 `reader.isHistorical` 同時代理三者。歷史 profile／receipt 的 deadline、security 或執行政策不得延伸成本次 attempt 的 authority；新 attempt 仍使用 current profile、fresh deadline、current security readback 與既有 unknown-write readback/recovery。
+
 ## 27. R25 provider-proven IAM correction（current additive authority）
 
 AI-PDM APP_INFRA stage A新增own builder的project metadata-only `roles/storage.bucketViewer`、`roles/containeranalysis.notes.attacher`，以及regional Artifact Analysis bucket上`roles/storage.objectAdmin`；最後一項必以condition鎖定encoded `asia-east1-docker.pkg.dev%2Fjenfu-platform-prod%2Faipdm-release%2F` prefix。Project-wide Storage Admin／Object Admin、OrgMaster／Platform prefix及sibling artifact讀寫均禁止。

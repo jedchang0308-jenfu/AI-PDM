@@ -149,6 +149,8 @@ OrgMaster相容來源PR #128已合併至58f6980；own protected owner38118941429
 - 歷史原文：[DEV-122 contract history](specs/DEV-122-ai-pdm-internal-function-issues.history-through-2026-10-19.md) 與 [DEV task history](dev_task.DEV-122-history-through-2026-10-19.md)。
 - supplier 維持 `DISABLED_DEFERRED / NOT_PASS`，完整原生 CAD 維持 `USER_OWNED_PENDING_NOT_PASS`，本次不恢復施工。刪除無條件全流程窄 viewport、逐案完整證據包與無關 gate。
 - 本次只精簡契約與關卡，不執行正式發布、IAM／Secret 或正式資料修改。
+- release-control 收斂沿用 PR #387：reviewed application source 只由 protected intent revision／canonical source lock 負責；worker artifact 由 input manifest、effective recipe、provider build identity 與 image digest 負責。tar／gzip／GCS object hash 只驗各自傳輸物件，不再跨 app、worker、attempt 或 descriptor 充當 source identity。reader capability、requested revision 的 profile policy 與 executable byte origin 分開判定；舊 receipt 維持 immutable，正式 recovery 仍引用者不刪相容 reader。
+- RD 正式發布恢復點維持可追溯：C67 owner run `39254333670` 在 prepare 以 `DATA_CUTOVER_AUTHORITY_REF_INVALID` 停止，build／migration／candidate／traffic 均未執行；C69 只有 exact-source 輸入準備，未派送。正式 service 仍在既有 revision／traffic，085、catalog v7 與專用測試 RD 帳號正負驗收仍未完成。
 
 ## DEV-121 現行交付
 

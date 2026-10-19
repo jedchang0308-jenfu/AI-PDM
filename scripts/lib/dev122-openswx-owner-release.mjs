@@ -108,22 +108,23 @@ export function assertWorkerDescriptor(value, profile, profileSha256, sourceRevi
 export function isPausedAppRepair(descriptor) {
   return descriptor?.schemaVersion === 'aipdm.openswx-worker-descriptor.v3' && descriptor.purpose === 'full' && descriptor.artifactMode === 'REUSE_VERIFIED' && descriptor.releaseVariant === 'PAUSED_APP_REPAIR'
 }
-export function assertOpenSwxApplicationSourceJoin({ descriptor, intent, sourceArchiveSha256, artifact = null }) {
-  if (!H64.test(sourceArchiveSha256 ?? '')) fail('OPENSWX_ARCHIVE_JOIN_INVALID')
-  if (descriptor?.artifactMode !== 'REUSE_VERIFIED') {
-    if (sourceArchiveSha256 !== descriptor?.sourceArchiveSha256) fail('OPENSWX_ARCHIVE_JOIN_INVALID')
-    return true
-  }
-  // Reuse qualification and the app build may package the same frozen Git tree
-  // on different operating systems/zlib versions. Their gzip bytes are transport
-  // identities, not source identities. The immutable source lock is the shared
-  // authority; the reuse reader separately validates the worker input paths.
+export function assertOpenSwxApplicationSourceAuthority({ descriptor, intent, artifact = null }) {
+  // App and worker builds may package one protected Git tree with different
+  // tar/gzip implementations.  Archive bytes are transport integrity, never a
+  // cross-build source identity.  The release intent owns the source revision;
+  // a reused worker additionally owns an immutable source-lock association.
+  if (!H40.test(intent?.sourceRevision ?? '') || descriptor?.sourceRevision !== intent.sourceRevision) fail('OPENSWX_SOURCE_AUTHORITY_INVALID')
+  if (descriptor?.artifactMode !== 'REUSE_VERIFIED') return true
   const association = artifact?.currentAssociation
-  if (!association || association.sourceRevision !== intent?.sourceRevision
-    || canonicalize(association.sourceLockRef) !== canonicalize(intent?.sourceLockRef)) fail('OPENSWX_REUSE_SOURCE_LOCK_JOIN_INVALID')
+  if (!association || association.sourceRevision !== intent.sourceRevision
+    || canonicalize(association.sourceLockRef) !== canonicalize(intent.sourceLockRef)) fail('OPENSWX_SOURCE_AUTHORITY_INVALID')
   return true
 }
-const SOURCE_BINDING_KEYS = ['sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'workerProfileSha256', 'resourcePlanHash']
+// Cross-stage authority excludes sourceArchiveSha256.  That digest belongs to
+// one uploaded transport object and is checked only while verifying that
+// object's build receipt.
+const SOURCE_AUTHORITY_KEYS = ['sourceRevision', 'sourceLockRef', 'workerProfileSha256', 'resourcePlanHash']
+const LEGACY_REPAIR_SOURCE_KEYS = ['sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'workerProfileSha256', 'resourcePlanHash']
 const SNAPSHOT_KEYS = ['jobName', 'jobEtag', 'jobGeneration', 'normalTemplateSha256', 'image', 'numericCredentials', 'secretMetadata', 'schedulerState', 'schedulerPolicySha256', 'schedulerUserUpdateTime', 'iamSha256', 'executions']
 const SERVING_KEYS = ['capsuleRef', 'canonicalRef', 'finalizeRef', 'terminalRef', 'runtimeConfigRef', 'workerDescriptorRef', 'sourceRevision', 'revision', 'artifactDigest', 'workerStatus', 'serviceEtag', 'generalTrafficPercent', 'tagCount', 'canonicalOrigin']
 const BASELINE_KEYS = ['schemaVersion', 'ownerApplicationId', 'purpose', 'status', 'evidenceScope', 'inputRef', 'source', 'priorActivationRef', 'retainedWorkerDescriptorRef', 'predecessorBaselineRef', 'servingApp', 'actor', 'observationStartedAt', 'observationCompletedAt', 'observedAt', 'pauseFenceSeconds', 'before', 'after', 'providerReadbackRefs', 'resourcesUnchanged', 'mutationPerformed', 'providerQuiescenceProven', 'dbAdmissionProof', 'continuationDepth']
@@ -139,7 +140,7 @@ function assertRepairReleaseRef(ref) {
   return ref
 }
 function assertRepairSource(value) {
-  exact(value, SOURCE_BINDING_KEYS, 'OPENSWX_REPAIR_SOURCE_INVALID')
+  exact(value, LEGACY_REPAIR_SOURCE_KEYS, 'OPENSWX_REPAIR_SOURCE_INVALID')
   if (!H40.test(value.sourceRevision) || ['sourceArchiveSha256', 'workerProfileSha256', 'resourcePlanHash'].some(key => !H64.test(value[key]))) fail('OPENSWX_REPAIR_SOURCE_INVALID')
   assertRepairReleaseRef(value.sourceLockRef)
 }
@@ -223,7 +224,7 @@ export function buildPausedRepairDescriptor({ profile, association, associationR
     { historicalProfile: retainedHistoricalProfile })
   if (isPausedAppRepair(retainedDescriptor) || retainedDescriptor.purpose !== 'full' || canonicalize(retainedDescriptorRef) !== canonicalize(baseline.retainedWorkerDescriptorRef)
     || association.schemaVersion !== 'aipdm.openswx-worker-build-association.v2' || association.resourceBasis !== 'PAUSED_APP_REPAIR' || canonicalize(association.resourceAssociation.readbackRef) !== canonicalize(baselineRef)
-    || SOURCE_BINDING_KEYS.some(key => canonicalize(association[key]) !== canonicalize(baseline.source[key])) || canonicalize(association.priorActivationRef) !== canonicalize(baseline.priorActivationRef)) fail('OPENSWX_REPAIR_DESCRIPTOR_JOIN_INVALID')
+    || SOURCE_AUTHORITY_KEYS.some(key => canonicalize(association[key]) !== canonicalize(baseline.source[key])) || canonicalize(association.priorActivationRef) !== canonicalize(baseline.priorActivationRef)) fail('OPENSWX_REPAIR_DESCRIPTOR_JOIN_INVALID')
   const value = { schemaVersion: 'aipdm.openswx-worker-descriptor.v3', ownerApplicationId: 'ai-pdm', purpose: 'full', artifactMode: 'REUSE_VERIFIED', releaseVariant: 'PAUSED_APP_REPAIR',
     ...Object.fromEntries(['sourceRevision', 'sourceArchiveSha256', 'workerProfileSha256', 'resourcePlanHash'].map(key => [key, baseline.source[key]])),
     ...Object.fromEntries(['projectId', 'location', 'jobId', 'readerServiceAccount', 'schedulerId', 'dispatchServiceAccount', 'dispatchPolicy', 'bounds', 'receiptRoot'].map(key => [key, profile[key]])),
@@ -980,23 +981,23 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     const descriptor = await resolve(intent, profile); if (!descriptor) return null
     if (intent.programOnlyBaseline) {
       const evidence = await readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile, descriptor: descriptor.value, profile: descriptor.profile, readSource, currentReadback: true })
-      assertOpenSwxApplicationSourceJoin({ descriptor: descriptor.value, intent, sourceArchiveSha256: sourceObject?.ref?.sha256, artifact: evidence.artifact })
+      assertOpenSwxApplicationSourceAuthority({ descriptor: descriptor.value, intent, artifact: evidence.artifact })
       await verifyWorkerArtifactReuse({ transport, artifact: evidence.artifact, profile: descriptor.profile, readSource, deadlineAt: intent.deadlineAt })
       return { descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: evidence.image }
     }
     if (descriptor.value.artifactMode === 'REUSE_VERIFIED') {
       const artifact = descriptor.value.purpose === 'full' ? (await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)).artifact
         : await resolveWorkerArtifact({ transport, descriptor: descriptor.value, profile: descriptor.profile, readSource })
-      assertOpenSwxApplicationSourceJoin({ descriptor: descriptor.value, intent, sourceArchiveSha256: sourceObject?.ref?.sha256, artifact })
+      assertOpenSwxApplicationSourceAuthority({ descriptor: descriptor.value, intent, artifact })
       await verifyWorkerArtifactReuse({ transport, artifact, profile: descriptor.profile, readSource, deadlineAt: intent.deadlineAt })
       return { descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: artifact.image }
     }
     if (descriptor.value.purpose === 'full') {
       const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
-      assertOpenSwxApplicationSourceJoin({ descriptor: descriptor.value, intent, sourceArchiveSha256: sourceObject?.ref?.sha256, artifact: evidence.artifact })
+      assertOpenSwxApplicationSourceAuthority({ descriptor: descriptor.value, intent, artifact: evidence.artifact })
       return { descriptorRef: descriptor.ref, workerBuildRef: descriptor.value.workerBuildRef, image: evidence.image }
     }
-    assertOpenSwxApplicationSourceJoin({ descriptor: descriptor.value, intent, sourceArchiveSha256: sourceObject?.ref?.sha256 })
+    assertOpenSwxApplicationSourceAuthority({ descriptor: descriptor.value, intent })
     const uri = `${rootFor(intent)}/build.json`, existing = await optionalReceipt(transport, uri)
     if (existing) { assertWorkerReceipt(existing.value, descriptor.value, 'build'); return { descriptorRef: descriptor.ref, workerBuildRef: existing.ref, image: existing.value.image } }
     const sourceHashes = WORKER_SOURCE_PATHS.map(path => ({ path, sha256: sha256(readSource(path, intent.sourceRevision)) }))
@@ -1023,13 +1024,13 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     const descriptor = await resolve(intent, profile); if (!descriptor) return null
     if (intent.programOnlyBaseline) {
       const evidence = await readProgramOnlyWorkerEvidence({ transport, intent, appProfile: profile, descriptor: descriptor.value, profile: descriptor.profile, readSource, currentReadback: true })
-      assertOpenSwxApplicationSourceJoin({ descriptor: descriptor.value, intent, sourceArchiveSha256: deployment.sourceObject?.sha256, artifact: evidence.artifact })
-      if (deployment.openswxWorker?.image !== evidence.image) fail('OPENSWX_ARCHIVE_JOIN_INVALID')
+      assertOpenSwxApplicationSourceAuthority({ descriptor: descriptor.value, intent, artifact: evidence.artifact })
+      if (deployment.openswxWorker?.image !== evidence.image) fail('OPENSWX_IMAGE_JOIN_INVALID')
       return intent.programOnlyBaseline.retainedWorker.readyResourceReadbackRef
     }
     const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readSource)
-    assertOpenSwxApplicationSourceJoin({ descriptor: descriptor.value, intent, sourceArchiveSha256: deployment.sourceObject?.sha256, artifact: evidence.artifact })
-    if (deployment.openswxWorker?.image !== evidence.image) fail('OPENSWX_ARCHIVE_JOIN_INVALID')
+    assertOpenSwxApplicationSourceAuthority({ descriptor: descriptor.value, intent, artifact: evidence.artifact })
+    if (deployment.openswxWorker?.image !== evidence.image) fail('OPENSWX_IMAGE_JOIN_INVALID')
     await pausedAndDrained(descriptor, { intent, appProfile: profile, phase: 'CANDIDATE' })
     const uri = `${rootFor(intent)}/normal-job.json`, existing = await optionalReceipt(transport, uri)
     const template = workerTemplate(descriptor.profile, evidence.image, descriptor.value.tokenSecretVersion)

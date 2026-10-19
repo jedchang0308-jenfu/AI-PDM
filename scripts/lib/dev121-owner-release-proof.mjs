@@ -1051,7 +1051,7 @@ function assertObservationBaseline(value, descriptor, intent) {
       value.actor !== 'jedchang0308@jenfu.com.tw' || value.pauseFenceSeconds !== 55 || value.resourcesUnchanged !== true || value.mutationPerformed !== false || value.providerQuiescenceProven !== true || value.dbAdmissionProof !== 'NOT_YET_PROVEN' ||
       !Number.isInteger(value.continuationDepth) || value.continuationDepth < 1 || value.continuationDepth > 8 || !Number.isFinite(Date.parse(value.observationStartedAt)) || !Number.isFinite(Date.parse(value.observationCompletedAt)) || !Number.isFinite(Date.parse(value.observedAt)) ||
       Date.parse(value.observationCompletedAt) - Date.parse(value.observationStartedAt) < 55000 || Date.parse(value.observedAt) < Date.parse(value.observationCompletedAt) || Date.parse(value.observedAt) - Date.parse(value.observationStartedAt) > 600000) fail('REPAIR_BASELINE_INVALID')
-  sameProof(value.source, { sourceRevision: intent.sourceRevision, sourceArchiveSha256: descriptor.sourceArchiveSha256, sourceLockRef: intent.sourceLockRef, workerProfileSha256: descriptor.workerProfileSha256, resourcePlanHash: descriptor.resourcePlanHash })
+  for (const [key, expected] of Object.entries({ sourceRevision: intent.sourceRevision, sourceLockRef: intent.sourceLockRef, workerProfileSha256: descriptor.workerProfileSha256, resourcePlanHash: descriptor.resourcePlanHash })) sameProof(value.source[key], expected)
   assertAiWorkerRef(value.inputRef); sameProof(value.priorActivationRef, descriptor.priorActivationRef); sameProof(value.retainedWorkerDescriptorRef, descriptor.retainedWorkerDescriptorRef)
   if (value.predecessorBaselineRef !== null) assertAiWorkerRef(value.predecessorBaselineRef)
   assertObservationSnapshot(value.before, descriptor); assertObservationSnapshot(value.after, descriptor)
@@ -1222,7 +1222,7 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         if (!exactKeys(association, keys) || association.schemaVersion !== 'aipdm.openswx-worker-build-association.v2' || association.resourceBasis !== 'PAUSED_APP_REPAIR' || association.ownerApplicationId !== 'ai-pdm' || association.status !== 'PASS' || association.evidenceScope !== 'PRODUCTION_PROVIDER_REUSE' ||
             association.actor !== 'jedchang0308@jenfu.com.tw' || association.image !== baseline.value.after.image || association.jobName !== baseline.value.after.jobName || !Number.isFinite(Date.parse(association.observedAt)) ||
             !exactKeys(association.resourceAssociation, ['infraManifestRef', 'readbackRef', 'originalApprovedResourcePlanRef', 'originalResourceApplyRef', 'resourcePlanHash', 'resourcesUnchanged']) || association.resourceAssociation.resourcesUnchanged !== true) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
-        for (const key of ['sourceRevision', 'sourceArchiveSha256', 'workerProfileSha256', 'resourcePlanHash']) sameProof(association[key], descriptor[key])
+        for (const key of ['sourceRevision', 'workerProfileSha256', 'resourcePlanHash']) sameProof(association[key], descriptor[key])
         sameProof(association.sourceLockRef, intent.sourceLockRef); sameProof(association.priorActivationRef, descriptor.priorActivationRef); sameProof(association.resourceAssociation.readbackRef, descriptor.pausedBaselineRef)
         const executable = association.executableProof, origin = association.artifactOrigin, security = association.securityEvidence
         const ignored = ['SOURCE_REVISION', 'SOURCE_TREE', 'SOURCE_VERSION', 'SOURCE_CREATED_AT', 'SOURCE_STATE']
@@ -1254,7 +1254,7 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         const request = (await readRef(association.requestRef, AI_BUCKET, token, fetchImpl)).value
         if (!exactKeys(request, ['schemaVersion', 'inputRef', 'sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'priorActivationRef', 'actor', 'requestedAt']) || request.schemaVersion !== 'aipdm.openswx-worker-reuse-request.v2' || request.actor !== association.actor || !Number.isFinite(Date.parse(request.requestedAt))) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
         sameProof(request.inputRef, baseline.value.inputRef)
-        for (const key of ['sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'priorActivationRef']) sameProof(request[key], association[key])
+        for (const key of ['sourceRevision', 'sourceLockRef', 'priorActivationRef']) sameProof(request[key], association[key])
         const input = (await readRef(request.inputRef, AI_BUCKET, token, fetchImpl)).value
         if (!exactKeys(input, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', 'servingCapsuleRef', 'predecessorBaselineRef']) || input.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v2' || !Number.isFinite(Date.parse(input.deadlineAt)) ||
             !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '') || Date.parse(request.requestedAt) >= Date.parse(input.deadlineAt)) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
