@@ -20,7 +20,7 @@ import { canonicalize, sha256, releasePaths, createOwnerTransport, buildRuntimeC
 import { WORKER_PROFILE_PATH, WORKER_SOURCE_PATHS, workerReceipt, workerTemplate, normalizeWorkerTemplate, workerTemplatePolicy, workerJobName, workerSchedulerName, assertWorkerDescriptor, readWorkerFullEvidence, createOpenSwxOwnerRelease, readBootstrapSupplementalIam, programOnlyHistoricalProfileRequired } from './lib/dev122-openswx-owner-release.mjs'
 import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, executeOpenSwxBootstrap, assertFailedDailyFullJoin, readPartialFailedDailyPause, readCompletedFailedDailyCheckpoint } from './lib/dev122-openswx-bootstrap.mjs'
 import { qualifyAiPdmNativeHistoryBasis, deriveAiPdmNativeHistoryBasis, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmQualifiedHistoryProjection, recordAiPdmHistoryObject } from './lib/dev121-owner-release-proof.mjs'
-import { assertHistoricalCheckpointDescriptor, readHistoricalWorkerProfile, buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { assertHistoricalCheckpointDescriptor, readHistoricalWorkerProfile, buildDailyReuseWorkerDescriptor, assertOpenSwxHistoryBasisInput, assertOpenSwxHistoryBasis, executeOpenSwxHistoryBasis, assertReuseSourceLock, assertWorkerArchive, assertWorkerReuseInput, createWorkerGitReader, createWorkerReceiptReadTransport, executeWorkerArtifactReuse, parseWorkerArtifactReuseArgs, publishWorkerReuseJson, resolveWorkerArtifact, verifyWorkerArtifactReuse, workerInputManifest, workerRepairAbortContinuation } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { READBACK_IAM_PATHS, READBACK_IAM_ADDRESSES, READBACK_IAM_SPECS, READBACK_JOB_ROLE, READBACK_SCHEDULER_ROLE, readbackIamPlan, expectedReadbackJobBindings,
   PREBUILD_IAM_ROLE, PREBUILD_IAM_PERMISSIONS, PREBUILD_IAM_SOURCE_PATH, PREBUILD_IAM_HUMAN_APPROVAL_SHA256, PREBUILD_IAM_SPECS, PREBUILD_IAM_ADDRESSES,
   prebuildIamContinuationPlan, assertPrebuildIamTerraformPlan } from './lib/dev122-openswx-readback-iam.mjs'
@@ -274,6 +274,40 @@ test('B23 closed repair input retains the four-argument CLI and pins serving/pre
     const changed = structuredClone(input); mutation(changed); assert.throws(() => assertWorkerReuseInput(changed))
   }
   for (const flag of ['--release-variant', '--mode', '--target', '--purpose']) assert.throws(() => parseWorkerArtifactReuseArgs(['--input-ref', workerRef('input').uri, '--input-sha256', workerRef('input').sha256, flag, 'repair']))
+})
+test('reconciled repair input carries the exact abort ledger, fence and recovery as one fail-closed continuation', () => {
+  const workerRef = name => ({ uri: `${profile.receiptRoot}/${name}.json`, sha256: 'a'.repeat(64) })
+  const releaseRef = { uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RECONCILED-LOCAL/release-intent.json', sha256: 'b'.repeat(64) }
+  const continuation = {
+    postAbortLedgerReadbackRef: { uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-LEDGER-LOCAL/${'c'.repeat(64)}/ledger-readback-result.json`, sha256: 'd'.repeat(64) },
+    principalOnlyFenceRef: { uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${'e'.repeat(40)}/fence-211.json`, sha256: 'f'.repeat(64) },
+    principalOnlyRecovery: {
+      revision: `ai-pdm-prod-recovery-${'e'.repeat(12)}`,
+      imageDigest: `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'1'.repeat(64)}`,
+      serviceUid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5',
+      receiptRef: { uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${'e'.repeat(40)}.json`, sha256: '2'.repeat(64) },
+    },
+  }
+  const input = {
+    schemaVersion: 'aipdm.openswx-worker-reuse-input.v5',
+    sourceLockRef: { ...releaseRef, uri: releaseRef.uri.replace('release-intent', 'source-lock') },
+    currentSourceObjectRef: { uri: 'gs://jenfu-platform-prod-aipdm-release/source/releases/DEV122-RECONCILED-LOCAL/source.tar.gz', sha256: '3'.repeat(64) },
+    priorActivationRef: workerRef('last-ready'), servingCapsuleRef: releaseRef, predecessorBaselineRef: null,
+    deadlineAt: deadline(), receiptId: 'DEV122-RECONCILED-LOCAL', ...continuation,
+  }
+  assert.equal(assertWorkerReuseInput(input), input)
+  assert.deepEqual(workerRepairAbortContinuation(input), continuation)
+  assert.notEqual(workerRepairAbortContinuation(input).principalOnlyRecovery, input.principalOnlyRecovery)
+  for (const mutation of [
+    row => delete row.postAbortLedgerReadbackRef,
+    row => delete row.principalOnlyFenceRef,
+    row => delete row.principalOnlyRecovery,
+    row => { row.postAbortLedgerReadbackRef.uri = row.postAbortLedgerReadbackRef.uri.replace('ledger-readback-result', 'alias') },
+    row => { row.principalOnlyFenceRef.uri = row.principalOnlyFenceRef.uri.replace('DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE', 'OTHER-FENCE') },
+    row => { row.principalOnlyRecovery.imageDigest = row.principalOnlyRecovery.imageDigest.replace('ai-pdm-recovery', 'ai-pdm') },
+  ]) {
+    const changed = structuredClone(input); mutation(changed); assert.throws(() => assertWorkerReuseInput(changed), undefined, JSON.stringify(changed))
+  }
 })
 test('nested checkpoint reader propagates through repeated transport wrappers', async () => {
   const bucket = 'jenfu-platform-prod-aipdm-release'
