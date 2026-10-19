@@ -1,3 +1,9 @@
+## DEV-123#role-permission-editor — current compatibility slice (2026-10-19)
+
+Current slice: OrgMaster DEV-058 existing nine-identity assignment compatibility, revocation without a live-PDM-current prerequisite when trusted owner evidence is sufficient, and decoupling ordinary capability versions from OrgMaster compatibility approval — `Local Slice Verified`. This is not implementation of the complete AI-PDM dynamic seven-role/custom/editor/DB/API product, which remains `NOT_IMPLEMENTED`; DEV-123 whole QA52, L4, and formal enablement remain `NOT_RUN`. Local evidence: OrgMaster 18 files / 133 PASS / 1 conditional PG SKIP; separate native PostgreSQL contract run 9/9 PASS; PDM builder 7/7 PASS. See QA section 7; these scoped results do not complete QA52.
+
+Authority: [DEV-123 contract](specs/DEV-123-role-permission-editor-contract.md), [QA52 plan](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md), [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md). This entry is a direct current pointer only; existing DEV-122 state/history is unchanged.
+
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
 PR #312 required CI PASS並合併為官方 `main` commit `b42458b3cd05924be566ea05e536454f6751c883`。R60 新 source freeze及source-bound metadata readback完成，provider仍為12個 `no-op/read`，IAM／worker resource changes與new images皆0；worker replay已越過historical reader scope，隨後在讀取合法舊600秒profile時仍套用目前1200秒validator及固定SHA，以 `OPENSWX_WORKER_PROFILE_INVALID` 拒絕。失敗發生於association發布前；未owner dispatch、build、migration085、service／traffic或正式資料mutation，R60 immutable input不重送。
