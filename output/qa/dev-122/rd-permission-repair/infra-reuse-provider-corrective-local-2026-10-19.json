@@ -7,7 +7,8 @@
     "branch": "codex/dev122-infra-reuse-provider-readback",
     "preIntegrationHead": "ab8bf9f96b62f188ed0db12246cfabe2f0ddaaed",
     "integratedMain": "242fc43afd027d4a48e5a7448a2c76c8e615e95f",
-    "validatedHead": "c3eb8b065410d30519feddd7323e0a34453c3c36"
+    "validatedHead": "c3eb8b065410d30519feddd7323e0a34453c3c36",
+    "requiredCiCorrectiveProductHead": "cb55d79c29087412cf93441b46ec35e25e8df28f"
   },
   "planner": {
     "schemaVersion": "aipdm.production-slice-plan.v2",
@@ -80,6 +81,27 @@
         "credentials": 0,
         "sibling": 0
       }
+    },
+    "requiredCiCorrective": {
+      "initialRun": "39200453744",
+      "job": "Production Slice QC",
+      "result": "FAIL_PRESERVED",
+      "firstFailure": "APP_INFRA_REUSE_RECEIPT_PROVIDER_READBACK_REQUIRED",
+      "failedTests": 2,
+      "cause": "The shared business-storage plan consumer and its production-shaped fixture still modeled app-infra reuse receipt v1 after the owner path required provider-bound v2.",
+      "correction": "The consumer now recognizes only v2 reuse and joins the derived runner source across the prepare receipt, original provider infra image and deployment capsule.",
+      "focused": {
+        "command": "node --test scripts/lib/dev121-business-storage-readback.test.mjs",
+        "passed": 53,
+        "failed": 0
+      },
+      "originalCiGroup": {
+        "passedInSandbox": 111,
+        "sandboxFailure": "EPERM while creating the task-owned junction fixture",
+        "controlledRerunPassed": 112,
+        "controlledRerunFailed": 0
+      },
+      "providerMutations": 0
     }
   },
   "reusedEvidence": [
