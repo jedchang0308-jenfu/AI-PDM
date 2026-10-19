@@ -64,7 +64,11 @@ function makeHarness(options = {}) {
     name: SERVICE, uid: serviceUid, etag: 'etag-10', generation: '10', observedGeneration: '10',
     reconciling: false, updateTime: new Date(baseTime - 60_000).toISOString(),
     terminalCondition: { state: 'CONDITION_SUCCEEDED' },
-    template: { timeout: options.templateTimeout ?? '60s', containers: [{ name: 'ai-pdm', image: 'app@sha256:old' }] },
+    ...(options.recoveryIsCurrentTemplate
+      ? { latestCreatedRevision: recoveryRevision,
+          template: { revision: recoveryRevision, timeout: options.templateTimeout ?? '60s',
+            containers: [{ name: 'ai-pdm', image: recoveryImage }] } }
+      : { template: { timeout: options.templateTimeout ?? '60s', containers: [{ name: 'ai-pdm', image: 'app@sha256:old' }] } }),
     scaling: structuredClone(options.baselineScaling ??
       { scalingMode: 'AUTOMATIC', minInstanceCount: 1, maxInstanceCount: 4 }),
     traffic: [{ ...oldTraffic }], trafficStatuses: [{ ...oldTraffic }],
@@ -149,6 +153,10 @@ function makeHarness(options = {}) {
     async getService() {
       calls.serviceReads += 1
       calls.events.push('service:' + calls.serviceReads)
+      if (options.adoptionDrift && calls.serviceReads === 2) {
+        service = { ...service, etag: 'etag-drift', generation: String(Number(service.generation) + 1),
+          observedGeneration: String(Number(service.generation) + 1), updateTime: new Date(baseTime).toISOString() }
+      }
       if (options.drainDrift && calls.serviceReads === 4) {
         service = { ...service, traffic: [{ revision: 'ai-pdm-prod-unexpected', percent: 100 }] }
       }
@@ -281,6 +289,48 @@ test('a pre-existing nonzero manual count is rejected without a scaling mutation
     error.code === 'DEV121_FENCE_OPERATOR_BASELINE_NOT_AUTOMATIC')
   assert.equal(h.calls.patches.length, 0)
   assert.equal(h.calls.puts.length, 0)
+})
+
+test('manual-zero --check admits only the exact current recovery template without mutations', async () => {
+  const h = makeHarness({ baselineScaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 },
+    recoveryIsCurrentTemplate: true })
+  const result = await executeFenceOperation(input(h, { acquire: false }))
+  assert.equal(result.status, 'QUIESCENCE_ADOPTION_READY')
+  assert.equal(result.mutationCount, 0)
+  assert.equal(h.calls.patches.length, 0)
+  assert.equal(h.calls.puts.length, 0)
+  assert.equal(h.calls.sleepMs, 0)
+})
+
+test('manual-zero acquire waits a fresh drain and publishes a source-bound fence without PATCH', async () => {
+  const h = makeHarness({ baselineScaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 },
+    recoveryIsCurrentTemplate: true })
+  const result = await executeFenceOperation(input(h))
+  assert.equal(result.status, 'QUIESCENCE_ADOPTED')
+  assert.equal(result.mutationCount, 0)
+  assert.equal(h.calls.patches.length, 0)
+  assert.equal(h.calls.sleepMs, 90_000)
+  assert.equal(h.calls.puts.length, 1)
+  assert.match(h.calls.puts[0].uri, new RegExp('/' + sourceRevision + '/fence-10\\.json$'))
+  assert.equal(h.calls.puts[0].value.sourceRevision, sourceRevision)
+  assert.equal(h.calls.puts[0].value.beforeGeneration, 9)
+  assert.equal(h.calls.puts[0].value.quiescentGeneration, 10)
+  assert.deepEqual(result.principalOnlyRecovery.receiptRef, recoveryRef)
+})
+
+test('manual-zero adoption rejects a stale recovery template and provider drift without mutation', async () => {
+  const stale = makeHarness({ baselineScaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 } })
+  await assert.rejects(executeFenceOperation(input(stale)), error =>
+    error.code === 'DEV121_FENCE_OPERATOR_RECOVERY_TEMPLATE_NOT_CURRENT')
+  assert.equal(stale.calls.patches.length, 0)
+  assert.equal(stale.calls.puts.length, 0)
+
+  const drift = makeHarness({ baselineScaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 },
+    recoveryIsCurrentTemplate: true, adoptionDrift: true })
+  await assert.rejects(executeFenceOperation(input(drift)), error =>
+    error.code === 'DEV121_FENCE_OPERATOR_DRAIN_DRIFT')
+  assert.equal(drift.calls.patches.length, 0)
+  assert.equal(drift.calls.puts.length, 0)
 })
 
 test('quiesce accepts provider manual scaling without automatic bounds and retains the full baseline', async () => {
