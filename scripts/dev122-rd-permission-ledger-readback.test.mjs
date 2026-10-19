@@ -8,10 +8,14 @@ import { canonicalize } from './lib/dev012-production-migration-runner.mjs'
 import {
   RD_LEDGER_READBACK_PGOPTIONS,
   RD_LEDGER_READBACK_RUNNER_PREFIX,
+  assertRdReadbackExecutionReceipt,
   assertRdReadbackGitHubContext,
   assertRdLedgerReadbackIntent,
   assertRdReadbackJob,
+  assertRdReadbackJobReceipt,
   assertRdReadbackNativeReceipt,
+  assertRdReadbackResult,
+  assertRdReadbackResultRef,
   assertRdReadbackSourceCompatibility,
   buildRdLedgerProbeBundles,
   buildRdLedgerReadbackIntent,
@@ -38,6 +42,7 @@ const RUNNER_DIGEST = `${RD_LEDGER_READBACK_RUNNER_PREFIX}${'c'.repeat(64)}`
 const full = buildDev117MigrationBundle(profile, buildDev117MigrationPackage(profile, n1c), runnerSourceRevision)
 const probes = buildRdLedgerProbeBundles(full)
 const ref = (name) => ({ uri: `gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-READBACK-TEST/${name}.json`, sha256: 'b'.repeat(64) })
+const seal = (value) => ({ ...value, receiptSha256: rdReadbackSha256(value) })
 
 function job() {
   return {
@@ -174,6 +179,58 @@ test('RD06 native receipt rejects applied writes, bootstrap, wrong ledger, manif
     const core = { ...changed }; delete core.receiptSha256; changed.receiptSha256 = rdReadbackSha256(core)
     assert.throws(() => assertRdReadbackNativeReceipt(changed, { intent: value, probe, executionName }), { code: 'RD_READBACK_NATIVE_RECEIPT_INVALID' })
   }
+})
+
+test('RD06a immutable Job, execution and result receipts reject drift and retain canonical joins', () => {
+  const value = intent()
+  const intentRef = ref('rd-permission-ledger-readback-intent')
+  const base = `gs://jenfu-platform-prod-aipdm-release/receipts/releases/${value.releaseId}/${intentRef.sha256}`
+  const jobReceipt = seal({
+    schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v2', ownerApplicationId: 'ai-pdm',
+    releaseId: value.releaseId, workflowSourceRevision: value.workflowSourceRevision,
+    runnerSourceRevision: value.runnerSourceRevision, readbackIntentRef: intentRef,
+    projection: job(), observedAt: '2026-10-16T02:01:00.000Z', status: 'PASS',
+  })
+  assert.equal(assertRdReadbackJobReceipt(jobReceipt, { intent: value, intentRef, profile }), jobReceipt)
+
+  const receipt = (probe, pass) => seal({
+    schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm',
+    releaseId: value.releaseId, workflowSourceRevision: value.workflowSourceRevision,
+    runnerSourceRevision: value.runnerSourceRevision, readbackIntentRef: intentRef, ledgerCount: probe.ledgerCount,
+    executionName: `projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner/executions/probe-${probe.ledgerCount}`,
+    createTime: `2026-10-16T02:${pass ? '03' : '02'}:00.000Z`, startTime: `2026-10-16T02:${pass ? '03' : '02'}:01.000Z`,
+    completionTime: `2026-10-16T02:${pass ? '03' : '02'}:30.000Z`, succeededCount: pass ? 1 : 0,
+    failedCount: pass ? 0 : 1, completedState: pass ? 'CONDITION_SUCCEEDED' : 'CONDITION_FAILED',
+    templateSha256: 'a'.repeat(64), observedAt: `2026-10-16T02:${pass ? '03' : '02'}:30.000Z`,
+    status: pass ? 'PASS' : 'EXPECTED_READ_ONLY_PROBE_FAILURE',
+  })
+  const failedReceipt = receipt(value.probes[0], false), passReceipt = receipt(value.probes[1], true)
+  assert.equal(assertRdReadbackExecutionReceipt(failedReceipt, { intent: value, intentRef, probe: value.probes[0] }), failedReceipt)
+  assert.equal(assertRdReadbackExecutionReceipt(passReceipt, { intent: value, intentRef, probe: value.probes[1] }), passReceipt)
+
+  const jobReadbackRef = { uri: `${base}/ledger-job-readback.json`, sha256: 'c'.repeat(64) }
+  const nativeReceiptRef = { uri: `${base}/ledger-probe-34.json`, sha256: 'd'.repeat(64) }
+  const attempts = [
+    { status: 'FAILED', ledgerCount: 35, executionReadbackRef: { uri: `${base}/ledger-probe-35-execution-readback.json`, sha256: 'e'.repeat(64) } },
+    { status: 'PASS', ledgerCount: 34, executionReadbackRef: { uri: `${base}/ledger-probe-34-execution-readback.json`, sha256: 'f'.repeat(64) }, nativeReceiptRef, completedAt: passReceipt.completionTime },
+  ]
+  const result = buildRdReadbackResult({ intent: value, intentRef, jobReadbackRef, attempts,
+    successfulProbe: value.probes[1], nativeReceiptRef, observedAt: passReceipt.completionTime })
+  const resultRef = { uri: `${base}/ledger-readback-result.json`, sha256: rdReadbackSha256(Buffer.from(`${canonicalize(result)}\n`, 'utf8')) }
+  assert.equal(assertRdReadbackResult(result, { intent: value, intentRef }), result)
+  assert.equal(assertRdReadbackResultRef(resultRef, result), resultRef)
+
+  const badJob = structuredClone(jobReceipt)
+  badJob.projection.template.template.containers[0].image = `${RD_LEDGER_READBACK_RUNNER_PREFIX}${'d'.repeat(64)}`
+  delete badJob.receiptSha256; Object.assign(badJob, seal(badJob))
+  assert.throws(() => assertRdReadbackJobReceipt(badJob, { intent: value, intentRef, profile }), { code: 'RD_READBACK_JOB_RECEIPT_INVALID' })
+  const badExecution = structuredClone(passReceipt)
+  badExecution.failedCount = 1; delete badExecution.receiptSha256; Object.assign(badExecution, seal(badExecution))
+  assert.throws(() => assertRdReadbackExecutionReceipt(badExecution, { intent: value, intentRef, probe: value.probes[1] }), { code: 'RD_READBACK_EXECUTION_RECEIPT_INVALID' })
+  const badResult = structuredClone(result)
+  badResult.migration085State = 'APPLIED'; delete badResult.receiptSha256; Object.assign(badResult, seal(badResult))
+  assert.throws(() => assertRdReadbackResult(badResult, { intent: value, intentRef }), { code: 'RD_READBACK_RESULT_INVALID' })
+  assert.throws(() => assertRdReadbackResultRef({ ...resultRef, uri: resultRef.uri.replace('ledger-readback-result', 'alias') }, result), { code: 'RD_READBACK_RESULT_REF_INVALID' })
 })
 
 test('RD07 owner path reads back unknown submissions and cannot reach service, traffic, IAM, Secret, worker or Scheduler mutations', () => {

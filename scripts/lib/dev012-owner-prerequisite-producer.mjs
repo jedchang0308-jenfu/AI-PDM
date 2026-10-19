@@ -281,11 +281,17 @@ export function buildReleaseIntent({ profile, releaseId, input, sourceLock, prer
     intent.principalOnlyRecovery = structuredClone(input.principalOnlyRecovery)
     assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket)
   }
+  if (Object.hasOwn(input, 'postAbortLedgerReadbackRef')) {
+    intent.postAbortLedgerReadbackRef = exactRef(input.postAbortLedgerReadbackRef, profile)
+    if (!/^gs:\/\/jenfu-platform-prod-aipdm-release\/receipts\/releases\/[A-Z0-9][A-Z0-9-]{5,63}\/[a-f0-9]{64}\/ledger-readback-result\.json$/u.test(intent.postAbortLedgerReadbackRef.uri)
+      || !intent.principalOnlyFenceRef || !intent.principalOnlyRecovery) fail('POST_ABORT_LEDGER_READBACK_INVALID')
+  }
   if (Object.hasOwn(input, 'programOnlyBaseline')) {
     if (programOnlyPolicy === null) fail('PROGRAM_ONLY_BASELINE_INVALID')
     intent.programOnlyBaseline = programOnlyPolicy
     assertProgramOnlyPolicy(programOnlyPolicy, { profile, intent, sourceLock })
   } else if (programOnlyPolicy !== null) fail('PROGRAM_ONLY_BASELINE_INVALID')
+  if (intent.postAbortLedgerReadbackRef && (intent.programOnlyBaseline || intent.unlinkedProfileCleanupRef)) fail('POST_ABORT_LEDGER_READBACK_INVALID')
   if (!intent.previousRevision || intent.previousRevision === 'latest' || !Number.isFinite(Date.parse(intent.deadlineAt)) || Date.parse(intent.deadlineAt) <= Date.now()) fail('RELEASE_INTENT_INPUT_INVALID')
   for (const [name, value] of Object.entries(prerequisiteValues)) {
     if (name !== 'foundation' && value?.ownerApplicationId && value.ownerApplicationId !== profile.application.id) fail('PREREQUISITE_OWNER_MISMATCH', name)
@@ -382,7 +388,10 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     let control
     try { control = JSON.parse(controlResult.bytes.toString('utf8')) } catch { fail('ROUTINE_CONTROL_INVALID') }
     const continuation = control?.result === 'PRE_ACTIVATION_ABORTED'
-      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control, verifyProvider: true }) : null
+      ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control, verifyProvider: true,
+        postAbortLedgerReadbackRef: input.postAbortLedgerReadbackRef ?? null,
+        principalOnlyFenceRef: input.principalOnlyFenceRef ?? null,
+        principalOnlyRecovery: input.principalOnlyRecovery ?? null }) : null
     if (control?.result === 'PRE_ACTIVATION_ABORTED' && (!continuation || continuation.currentActiveRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
     const { controlSha256, ...controlCore } = control ?? {}
     if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || !['RELEASED', 'ROLLED_BACK', 'PRE_ACTIVATION_ABORTED'].includes(control.result)
@@ -396,7 +405,7 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
     const expectedBaselineUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${control.releaseId}/release-intent.json`
     if (input.baselineIntentRef.uri !== expectedBaselineUri) fail('ROUTINE_CONTROL_INVALID')
     const values = buildRoutineAuthority({ profile, releaseId, sourceLock: sourceLockResult.value, runtimeConfigReceipt: runtimeConfigResult.value, baselineIntentRef: input.baselineIntentRef, dataCutoverCompletionRef: input.dataCutoverCompletionRef ?? null, previousRevision, observedAt, expiresAt: input.expiresAt })
-    if (['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation?.kind)) {
+    if (['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT', 'PRINCIPAL_FENCED_ABORT_RECONCILED'].includes(continuation?.kind)) {
       values.authorization.preActivationAbortBasis = continuation.authorityBasis
       values.readiness.preActivationAbortBasis = continuation.authorityBasis
     }

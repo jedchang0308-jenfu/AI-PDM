@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildRuntimeConfig, canonicalize, createOwnerTransport, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
+import { buildRuntimeConfig, canonicalize, createOwnerTransport, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 import { executeOwnerStage } from './lib/dev012-owner-stage-executor.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext } from './lib/dev121-owner-release-proof.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
 import { buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
+import { buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProbeArguments, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-aipdm-release'
 const previousRevision = 'ai-pdm-prod-111111111111'
@@ -135,6 +136,8 @@ for (const watchdogRecovered of [false, true]) test(`owner Principal-only releas
   let active = false
   const getService = h.transport.getService
   h.transport.getService = async () => ({ ...await getService(), uid,
+    generation: '2', observedGeneration: '2', updateTime: '2026-09-07T23:58:00Z',
+    terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: { timeout: '60s' },
     scaling: active ? { scalingMode: 'AUTOMATIC', maxInstanceCount: 1 }
       : { scalingMode: 'MANUAL', manualInstanceCount: 0 } })
   const getRevision = h.transport.getRevision
@@ -147,12 +150,18 @@ for (const watchdogRecovered of [false, true]) test(`owner Principal-only releas
     projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
     serviceUid: uid, oldRevision: previousRevision, recoveryRevision, imageDigest: image, status: 'PASS',
   }, { bucket, prefix: 'receipts' })
+  const fence = await h.transport.putJson(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/proof.json`, {
+    schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: H40,
+    projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
+    serviceUid: uid, oldRevision: previousRevision, beforeGeneration: '1', quiescentGeneration: '2',
+    serviceUpdateTime: '2026-09-07T23:58:00Z', requestTimeoutSeconds: 60, status: 'QUIESCED',
+  }, { bucket, prefix: 'receipts' })
   const a = await authorizedRecordedInput(h, 'REL-PRINCIPAL-ONLY-001')
   const original = (await h.transport.readJson(a.intentResult.ref)).value
   const principalOnlyRecovery = { revision: recoveryRevision, imageDigest: image,
     serviceUid: uid, receiptRef: proof.ref }
   const result = await h.transport.putJson(`gs://${bucket}/receipts/intents/REL-PRINCIPAL-BOUND-001.json`,
-    { ...original, principalOnlyRecovery, principalOnlyFenceRef: { uri: `gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/proof.json`, sha256: '2'.repeat(64) } }, { bucket, prefix: 'receipts' })
+    { ...original, principalOnlyRecovery, principalOnlyFenceRef: fence.ref }, { bucket, prefix: 'receipts' })
   const input = { ...a.input, capsuleRef: result.ref.uri, capsuleSha256: result.ref.sha256,
     verifyRoutineRelease: async () => ({ migrationDisposition: 'UNCHANGED_VERIFIED' }) }
   const setTraffic = h.transport.setTraffic
@@ -210,7 +219,7 @@ function ordinaryAbortFixture() {
     const intent = { schemaVersion: profile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId, sourceRevision: source,
       sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef: lock.ref, runtimeConfigRef: runtimeRow.ref,
       authorizationPolicyRef: dummy.ref, readinessReceiptRef: dummy.ref, foundationReceiptRef: dummy.ref, infraReceiptRef: dummy.ref,
-      migrationManifestSha256: h.migrationManifestSha256, previousRevision: previous, deadlineAt: '2026-10-01T04:00:00Z', ...(anchorRef ? { baselineIntentRef: anchorRef } : {}) }
+      migrationManifestSha256: h.migrationManifestSha256, previousRevision: previous, deadlineAt: '2026-10-05T04:00:00Z', ...(anchorRef ? { baselineIntentRef: anchorRef } : {}) }
     const intentRow = put(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`, intent), paths = releasePaths(profile, intent, intentRow.ref.sha256)
     const seal = (stage, facts, prev = null) => put(paths[stage], stageReceipt({ profile, intent, stage, previousReceiptRef: prev, facts, observedAt: '2026-09-30T00:00:00Z' }))
     const prerequisiteRefs = { sourceLock: lock.ref, authorization: dummy.ref, readiness: dummy.ref, foundation: dummy.ref, infra: dummy.ref, runtimeConfig: runtimeRow.ref }
@@ -274,14 +283,14 @@ function ordinaryAbortFixture() {
   return { profile, transport, objects, put, service, revisions, calls, anchor, failed, controlCore, control, ownerRun,
     helperInput: { profile, transport, baselineIntentRef: failed.intentRow.ref }, h, runtime, modes, release }
 }
-async function ordinaryNextRelease(h) {
+async function ordinaryNextRelease(h, continuation = {}) {
   const releaseId='DEV121-FRESH-CONTINUATION', source='d'.repeat(40)
   const lock=h.put(`gs://${bucket}/receipts/releases/${releaseId}/source-lock.json`,buildSourceFreeze({profile:h.profile,releaseId,observedAt:'2026-10-03T12:00:00Z',git:{clean:true,branch:'main',sourceRevision:source,sourceTree:'f'.repeat(40),remoteRevision:source},sourceIdentityBytes:h.h.sourceIdentityBytes,migrationBundle:{bundle:{manifestSha256:h.h.migrationManifestSha256}}}))
   const runtime=h.put(`gs://${bucket}/receipts/releases/${releaseId}/runtime-config.json`,buildRuntimeConfigReceipt({profile:h.profile,releaseId,sourceLock:lock.value,plainEnvironment:h.modes,secretVersions:{SESSION_SECRET:'1'},observedAt:'2026-10-03T12:00:00Z'}))
-  const authority=await executePrerequisiteProducer({stage:'routine-authority',releaseId,input:{schemaVersion:'jenfu.dev012.routine-owner-authority-input.v1',sourceLockRef:lock.ref,runtimeConfigRef:runtime.ref,baselineIntentRef:h.failed.intentRow.ref,expiresAt:'2999-01-01T00:00:00Z'},profile:h.profile,transport:h.transport,validateIntent:()=>true,observedAt:'2026-10-03T12:00:00Z'})
+  const authority=await executePrerequisiteProducer({stage:'routine-authority',releaseId,input:{schemaVersion:'jenfu.dev012.routine-owner-authority-input.v1',sourceLockRef:lock.ref,runtimeConfigRef:runtime.ref,baselineIntentRef:h.failed.intentRow.ref,expiresAt:'2999-01-01T00:00:00Z',...continuation},profile:h.profile,transport:h.transport,validateIntent:()=>true,observedAt:'2026-10-03T12:00:00Z'})
   const foundation=h.put(`gs://${bucket}/receipts/releases/${releaseId}/foundation.json`,{status:'APPLIED',projectId:'jenfu-platform-prod',releaseAuthority:true,evidenceScope:'PRODUCTION_BOUND'})
   const infra=h.put(`gs://${bucket}/receipts/releases/${releaseId}/infra.json`,{status:'APPLIED',projectId:'jenfu-platform-prod',releaseAuthority:true,evidenceScope:'PRODUCTION_BOUND',migrationRunnerDigest})
-  const input={sourceLockRef:lock.ref,runtimeConfigRef:runtime.ref,...authority.refs,foundationReceiptRef:foundation.ref,infraReceiptRef:infra.ref,baselineIntentRef:h.failed.intentRow.ref,previousRevision,deadlineAt:'2999-01-01T00:00:00Z'}
+  const input={sourceLockRef:lock.ref,runtimeConfigRef:runtime.ref,...authority.refs,foundationReceiptRef:foundation.ref,infraReceiptRef:infra.ref,baselineIntentRef:h.failed.intentRow.ref,previousRevision,deadlineAt:'2999-01-01T00:00:00Z',...continuation}
   const values={sourceLock:lock.value,runtimeConfig:runtime.value,authorization:h.objects.get(authority.refs.authorizationPolicyRef.uri).value,readiness:authority.value,foundation:foundation.value,infra:infra.value}
   const intent=buildReleaseIntent({profile:h.profile,releaseId,input,sourceLock:lock.value,prerequisiteValues:values,validateIntent:()=>true})
   const capsule=h.put(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`,intent)
@@ -564,6 +573,136 @@ async function sealedPostbuildAbortFixture() {
   return { ...h, prior, inheritedBasis, build, sealedBuild, deployment, laterDiagnostic }
 }
 
+async function reconciledMigrationAbortFixture() {
+  const h = await sealedPostbuildAbortFixture(), f = h.failed
+  const serviceAccount = 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com'
+  h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', serviceAccount }
+  const jobName = `projects/${h.profile.target.projectId}/locations/${h.profile.target.region}/jobs/${h.profile.migrations.jobName}`
+  const runnerSourceRevision = f.intent.sourceRevision
+  const deployment = h.objects.get(f.paths.deployment)
+  const submissionCore = {
+    schemaVersion: 'jenfu.dev012.migration-submission-intent.v2', ownerApplicationId: 'ai-pdm', sourceRevision: f.intent.sourceRevision,
+    migrationRunnerSourceRevision: runnerSourceRevision, jobName, migrationRunnerDigest: deployment.value.migrationRunnerDigest,
+    migrationBundleRef: deployment.value.migrationBundleRef, outputUri: f.paths.migrate,
+    args: ['--bundle-ref', deployment.value.migrationBundleRef.uri, '--bundle-sha256', deployment.value.migrationBundleRef.sha256,
+      '--source-revision', f.intent.sourceRevision, '--output-ref', f.paths.migrate],
+    principalOnlyFenceRef: null, deadlineAt: f.intent.deadlineAt, status: 'SUBMISSION_INTENT', observedAt: '2026-10-02T00:03:00Z',
+  }
+  const submission = h.put(migrationSubmissionIntentUri(h.profile, f.paths.migrate), { ...submissionCore, receiptSha256: sha256(canonicalize(submissionCore)) })
+  const abortFacts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision, databaseDisposition: 'UNKNOWN', migrationSubmissionIntentRef: submission.ref,
+    entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
+  const rollback = h.put(f.paths.rollback, stageReceipt({ profile: h.profile, intent: f.intent, stage: 'rollback', previousReceiptRef: null,
+    facts: abortFacts, observedAt: '2026-10-02T00:04:30Z' }))
+  const { recoveryOrder: _recoveryOrder, ...terminalFacts } = abortFacts
+  h.put(f.paths.terminal, stageReceipt({ profile: h.profile, intent: f.intent, stage: 'terminal', previousReceiptRef: rollback.ref,
+    facts: terminalFacts, observedAt: '2026-10-02T00:05:00Z' }))
+
+  const baseEnvironment = rdReadbackJobEnvironment(h.profile, runnerSourceRevision)
+  const task = (args, environment = baseEnvironment) => ({
+    serviceAccount, maxRetries: 0, timeout: '1800s',
+    volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }],
+    containers: [{ name: 'migration', image: deployment.value.migrationRunnerDigest, args,
+      env: Object.entries(environment).map(([name, value]) => ({ name, value })),
+      volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }],
+  })
+  const failedExecution = {
+    name: `${jobName}/executions/ai-pdm-prod-migration-runner-failed`, createTime: '2026-10-02T00:03:30Z',
+    startTime: '2026-10-02T00:03:31Z', completionTime: '2026-10-02T00:04:00Z', reconciling: false,
+    taskCount: 1, parallelism: 1, succeededCount: 0, failedCount: 1, runningCount: 0,
+    conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }], template: task(submissionCore.args),
+  }
+
+  const readbackReleaseId = 'DEV122-RD-READBACK-RECONCILE'
+  const readbackWorkflowSourceRevision = '7'.repeat(40)
+  const probes = [35, 34, 33].map((ledgerCount) => {
+    const manifestSha256 = String(ledgerCount).at(-1).repeat(64)
+    const migrationBundleRef = h.put(`gs://${bucket}/source/migration-bundles/${runnerSourceRevision}/${manifestSha256}.json`, { ledgerCount }).ref
+    return { ledgerCount, terminalVersion: `ai-pdm-0${ledgerCount + 50}`, manifestSha256, migrationBundleRef }
+  })
+  const readbackJob = {
+    name: jobName, etag: 'readback-job-etag', template: { taskCount: 1, parallelism: 1, template: task(['--bundle-ref-required']) },
+  }
+  const readbackIntent = buildRdLedgerReadbackIntent({ releaseId: readbackReleaseId,
+    workflowSourceRevision: readbackWorkflowSourceRevision, workflowSourceTree: 'c'.repeat(40), workflowSourceIdentitySha256: 'd'.repeat(64),
+    runnerSourceRevision, profileSha256: 'e'.repeat(64), probes, job: readbackJob,
+    observedAt: '2026-10-03T00:00:00Z', deadlineAt: '2026-10-03T02:00:00Z' })
+  const readbackIntentRef = h.put(`gs://${bucket}/receipts/releases/${readbackReleaseId}/rd-permission-ledger-readback-intent.json`, readbackIntent).ref
+  const readbackBase = `gs://${bucket}/receipts/releases/${readbackReleaseId}/${readbackIntentRef.sha256}`
+  const receiptSeal = value => ({ ...value, receiptSha256: rdReadbackSha256(value) })
+  const jobReceipt = h.put(`${readbackBase}/ledger-job-readback.json`, receiptSeal({
+    schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v2', ownerApplicationId: 'ai-pdm', releaseId: readbackReleaseId,
+    workflowSourceRevision: readbackWorkflowSourceRevision, runnerSourceRevision, readbackIntentRef,
+    projection: rdReadbackJobProjection(readbackJob), observedAt: '2026-10-03T00:00:00Z', status: 'PASS',
+  }))
+  const readbackExecutions = [], attempts = []
+  for (const [index, probe] of probes.entries()) {
+    const pass = probe.ledgerCount === 33
+    const start = `2026-10-03T00:0${index + 1}:00Z`, completion = `2026-10-03T00:0${index + 1}:30Z`
+    const outputUri = `${readbackBase}/ledger-probe-${probe.ledgerCount}.json`
+    const execution = {
+      name: `${jobName}/executions/ai-pdm-prod-migration-runner-probe${probe.ledgerCount}`,
+      createTime: start, startTime: start, completionTime: completion, reconciling: false,
+      taskCount: 1, parallelism: 1, succeededCount: pass ? 1 : 0, failedCount: pass ? 0 : 1, runningCount: 0,
+      conditions: [{ type: 'Completed', state: pass ? 'CONDITION_SUCCEEDED' : 'CONDITION_FAILED' }],
+      template: task(rdReadbackProbeArguments(readbackIntent, probe, outputUri), { ...baseEnvironment, PGOPTIONS: '-c default_transaction_read_only=on' }),
+    }
+    readbackExecutions.push(execution)
+    const executionReceipt = h.put(`${readbackBase}/ledger-probe-${probe.ledgerCount}-execution-readback.json`, receiptSeal({
+      schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm', releaseId: readbackReleaseId,
+      workflowSourceRevision: readbackWorkflowSourceRevision, runnerSourceRevision, readbackIntentRef, ledgerCount: probe.ledgerCount,
+      executionName: execution.name, createTime: execution.createTime, startTime: execution.startTime, completionTime: execution.completionTime,
+      succeededCount: execution.succeededCount, failedCount: execution.failedCount,
+      completedState: execution.conditions[0].state, templateSha256: rdReadbackSha256(execution.template),
+      observedAt: execution.completionTime, status: pass ? 'PASS' : 'EXPECTED_READ_ONLY_PROBE_FAILURE',
+    }))
+    if (!pass) attempts.push({ status: 'FAILED', ledgerCount: probe.ledgerCount, executionReadbackRef: executionReceipt.ref })
+    else {
+      const nativeCore = { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: runnerSourceRevision,
+        database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: probe.manifestSha256,
+        baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 33,
+        applied: 0, replayed: 33, crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
+        boundaryStatus: 'PASS', executionName: execution.name.split('/').at(-1), startedAt: execution.startTime,
+        completedAt: execution.completionTime, status: 'PASS' }
+      const native = h.put(outputUri, { ...nativeCore, receiptSha256: rdReadbackSha256(nativeCore) })
+      attempts.push({ status: 'PASS', ledgerCount: probe.ledgerCount, executionReadbackRef: executionReceipt.ref,
+        nativeReceiptRef: native.ref, completedAt: nativeCore.completedAt })
+    }
+  }
+  const result = buildRdReadbackResult({ intent: readbackIntent, intentRef: readbackIntentRef, jobReadbackRef: jobReceipt.ref,
+    attempts, successfulProbe: probes.at(-1), nativeReceiptRef: attempts.at(-1).nativeReceiptRef, observedAt: attempts.at(-1).completedAt })
+  const resultRef = h.put(`${readbackBase}/ledger-readback-result.json`, result).ref
+  const executions = [failedExecution, ...readbackExecutions]
+  const priorRequest = h.transport.request
+  h.transport.request = async (url, ...args) => {
+    if (url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')) return { executions }
+    const exact = executions.find(row => url === `https://run.googleapis.com/v2/${row.name}`)
+    if (exact) return structuredClone(exact)
+    return priorRequest.call(h.transport, url, ...args)
+  }
+  Object.assign(h.service, { scaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 }, generation: '2', observedGeneration: '2',
+    updateTime: '2026-10-03T11:58:00Z', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: { timeout: '60s' } })
+  const nextSourceRevision = 'd'.repeat(40), recoveryRevision = 'ai-pdm-prod-recovery-999999999999'
+  const recoveryImage = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'e'.repeat(64)}`
+  const recoveryReceipt = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${nextSourceRevision}.json`, {
+    schemaVersion: 'ai-pdm.principal-only-recovery.v1', sourceRevision: nextSourceRevision,
+    projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
+    serviceUid: h.service.uid, oldRevision: previousRevision, recoveryRevision, imageDigest: recoveryImage, status: 'PASS',
+  })
+  h.revisions.set(recoveryRevision, { name: `${h.service.name}/revisions/${recoveryRevision}`,
+    conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: h.profile.runtime.containerName, image: recoveryImage }] })
+  const principalOnlyRecovery = { revision: recoveryRevision, imageDigest: recoveryImage, serviceUid: h.service.uid, receiptRef: recoveryReceipt.ref }
+  const fence = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${nextSourceRevision}/fence.json`, {
+    schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: nextSourceRevision,
+    projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
+    serviceUid: h.service.uid, oldRevision: previousRevision, beforeGeneration: '1', quiescentGeneration: '2',
+    serviceUpdateTime: h.service.updateTime, requestTimeoutSeconds: 60, status: 'QUIESCED',
+  })
+  const principalOnlyFenceRef = fence.ref
+  const continuation = { postAbortLedgerReadbackRef: resultRef, principalOnlyFenceRef, principalOnlyRecovery }
+  Object.assign(h.helperInput, continuation)
+  return { ...h, submission, failedExecution, readbackIntent, readbackIntentRef, result, resultRef, readbackExecutions, providerExecutions: executions, continuation }
+}
+
 for (const inherited of [false, true]) test(`B28 unpublished build abort keeps partial artifact non-authoritative; inherited zero-build anchor=${inherited}`, async () => {
   const h = await unpublishedAbortFixture(inherited), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
   const result = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
@@ -602,6 +741,58 @@ test('sealed postbuild abort admits the production-shaped pre-migration boundary
   assert.deepEqual(next.values.readiness.preActivationAbortBasis, result.authorityBasis)
   assert.deepEqual(prepare.value.facts.preActivationAbortBasis, result.authorityBasis)
   assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepare.ref.sha256)
+})
+
+test('post-abort ledger readback reconciles one failed UNKNOWN migration and carries the sealed basis into the fenced retry', async () => {
+  const h = await reconciledMigrationAbortFixture(), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.originalDatabaseDisposition, 'UNKNOWN')
+  assert.equal(continuation.authorityBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(continuation.authorityBasis.reconciliation.ledgerCount, 33)
+  assert.equal(continuation.authorityBasis.reconciliation.migration085State, 'NOT_APPLIED')
+  assert.equal(continuation.authorityBasis.reconciliation.workflowSourceRevision, h.readbackIntent.workflowSourceRevision)
+  assert.notEqual(continuation.authorityBasis.reconciliation.workflowSourceRevision, h.failed.intent.sourceRevision)
+  assert.equal(continuation.authorityBasis.reconciliation.failedExecution.completedState, 'CONDITION_FAILED')
+  assert.deepEqual(continuation.authorityBasis.reconciliation.readbackResultRef, h.resultRef)
+  assert.equal(Object.hasOwn(h.failed.intent, 'principalOnlyFenceRef'), false)
+  assert.equal(h.submission.value.principalOnlyFenceRef, null)
+  assert.equal(h.calls.puts, 0)
+  assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
+
+  const next = await ordinaryNextRelease(h, h.continuation)
+  assert.deepEqual(next.capsule.value.postAbortLedgerReadbackRef, h.resultRef)
+  assert.deepEqual(next.values.authorization.preActivationAbortBasis, continuation.authorityBasis)
+  assert.deepEqual(next.values.readiness.preActivationAbortBasis, continuation.authorityBasis)
+  const prepare = await executeOwnerStage(next.input)
+  assert.deepEqual(prepare.value.facts.preActivationAbortBasis, continuation.authorityBasis)
+  assert.deepEqual(prepare.value.facts.principalOnlyRecovery, h.continuation.principalOnlyRecovery)
+})
+
+test('post-abort reconciliation rejects missing recovery, noncanonical result, tampering, duplicate execution and non-maintenance service', async () => {
+  const mutations = [
+    h => { h.helperInput.principalOnlyRecovery = null },
+    h => { h.helperInput.postAbortLedgerReadbackRef = { ...h.resultRef, uri: h.resultRef.uri.replace('ledger-readback-result', 'alias') } },
+    h => { const row = h.objects.get(h.resultRef.uri); row.value.receiptSha256 = '0'.repeat(64); row.bytes = Buffer.from(canonicalize(row.value) + '\n') },
+    h => { const duplicate = structuredClone(h.failedExecution); duplicate.name += '-duplicate'; h.providerExecutions.push(duplicate) },
+    h => { const extra = structuredClone(h.failedExecution); extra.name += '-later-unbound'; extra.createTime = '2026-10-03T00:10:00Z'; extra.startTime = '2026-10-03T00:10:01Z'; extra.completionTime = '2026-10-03T00:10:30Z'; extra.template.containers[0].args = ['--bundle-ref', 'unbound']; h.providerExecutions.push(extra) },
+    h => { h.readbackExecutions.at(-1).template.volumes[0].cloudSqlInstance.instances = ['other:region:database'] },
+    h => { h.service.scaling = { scalingMode: 'AUTOMATIC', maxInstanceCount: 1 } },
+  ]
+  for (const mutate of mutations) {
+    const h = await reconciledMigrationAbortFixture(); mutate(h)
+    await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /DEV121_PREACTIVATION_CONTINUATION_INVALID|HASH|RD_READBACK|DEV121_PRINCIPAL_RECOVERY_INVALID|MISSING/u)
+    assert.equal(h.calls.puts, 0)
+  }
+})
+
+test('reconciled retry validates the exact fence before prepare can publish or reach a paid build', async () => {
+  const h = await reconciledMigrationAbortFixture()
+  const next = await ordinaryNextRelease(h, h.continuation)
+  const writesBefore = h.calls.puts
+  h.objects.delete(h.continuation.principalOnlyFenceRef.uri)
+  await assert.rejects(executeOwnerStage(next.input), /MISSING|PREPARE_MIGRATION_FENCE_INVALID/u)
+  assert.equal(h.calls.puts, writesBefore)
 })
 
 test('sealed postbuild abort rejects incomplete joins, migration evidence, overlap and matching later executions', async () => {

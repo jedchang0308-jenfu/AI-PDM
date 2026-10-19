@@ -15,7 +15,9 @@ import {
   RD_LEDGER_READBACK_RESULT_SCHEMA,
   assertRdReadbackGitHubContext,
   assertRdLedgerReadbackIntent,
+  assertRdReadbackExecutionReceipt,
   assertRdReadbackJob,
+  assertRdReadbackJobReceipt,
   assertRdReadbackNativeReceipt,
   assertRdReadbackSourceCompatibility,
   buildRdLedgerProbeBundles,
@@ -245,6 +247,7 @@ async function runProbe({ transport, profile, intent, intentRef, probe, job }) {
   }
   const execution = await waitExecution({ transport, executionName: matches[0].name, match, deadlineAt: intent.deadlineAt })
   const executionReceipt = seal({ schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: intent.runnerSourceRevision, readbackIntentRef: intentRef, ledgerCount: probe.ledgerCount, executionName: execution.name, createTime: execution.createTime, startTime: execution.startTime ?? null, completionTime: execution.completionTime ?? null, succeededCount: Number(execution.succeededCount ?? 0), failedCount: Number(execution.failedCount ?? 0), completedState: execution.conditions.find((condition) => condition?.type === 'Completed')?.state ?? null, templateSha256: rdReadbackSha256(execution.template), observedAt: execution.completionTime ?? execution.updateTime ?? execution.createTime, status: executionSucceeded(execution) ? 'PASS' : 'EXPECTED_READ_ONLY_PROBE_FAILURE' })
+  assertRdReadbackExecutionReceipt(executionReceipt, { intent, intentRef, probe })
   const savedExecution = await transport.putJson(executionUri, executionReceipt, { bucket: RD_LEDGER_READBACK_CONSTANTS.bucket, prefix: 'receipts', ifGenerationMatch: '0' })
   if (!executionSucceeded(execution)) return { status: 'FAILED', ledgerCount: probe.ledgerCount, executionReadbackRef: savedExecution.ref }
   const native = await optionalJson(transport, outputUri)
@@ -271,6 +274,7 @@ async function readback({ args, transport, environment }) {
   const job = assertRdReadbackJob(await transport.request(`https://run.googleapis.com/v2/${RD_LEDGER_READBACK_CONSTANTS.jobName}`), profile, intent)
   const base = `gs://${RD_LEDGER_READBACK_CONSTANTS.bucket}/receipts/releases/${intent.releaseId}/${capsule.ref.sha256}`
   const jobReceipt = seal({ schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v2', ownerApplicationId: 'ai-pdm', releaseId: intent.releaseId, workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: intent.runnerSourceRevision, readbackIntentRef: capsule.ref, projection: rdReadbackJobProjection(job), observedAt: job.updateTime ?? intent.observedAt, status: 'PASS' })
+  assertRdReadbackJobReceipt(jobReceipt, { intent, intentRef: capsule.ref, profile })
   const savedJob = await transport.putJson(`${base}/ledger-job-readback.json`, jobReceipt, { bucket: RD_LEDGER_READBACK_CONSTANTS.bucket, prefix: 'receipts', ifGenerationMatch: '0' })
   const attempts = []
   for (const [index, probe] of probes.entries()) {
