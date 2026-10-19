@@ -1194,10 +1194,11 @@ async function readPostAbortLedgerReconciliation({ profile, transport, baselineI
       const native = await read(attempt.nativeReceiptRef.uri)
       if (!same(native.ref, attempt.nativeReceiptRef)) fail()
       assertRdReadbackNativeReceipt(native.value, { intent: readbackIntent, probe, executionName: execution.name.split('/').at(-1) })
-      if (native.value.completedAt !== result.observedAt || Date.parse(native.value.completedAt) !== facts.finished) fail()
+      const nativeStarted = Date.parse(native.value.startedAt), nativeCompleted = Date.parse(native.value.completedAt)
+      if (native.value.completedAt !== result.observedAt || nativeStarted < facts.created || nativeCompleted > facts.finished) fail()
     }
   }
-  if (Date.parse(result.observedAt) !== lastCompletion || lastCompletion > readbackDeadline) fail()
+  if (lastCompletion > readbackDeadline) fail()
   const finalInventoryRows = await readMigrationExecutionInventory(profile, transport)
   const finalInventory = finalInventoryRows.map(executionProjection).sort((left, right) => left.name.localeCompare(right.name))
   if (!same(finalInventory, failed.inventory)) fail()
