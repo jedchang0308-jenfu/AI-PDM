@@ -612,6 +612,8 @@ async function reconciledMigrationAbortFixture() {
     taskCount: 1, parallelism: 1, succeededCount: 0, failedCount: 1, runningCount: 0,
     conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }], template: task(submissionCore.args),
   }
+  delete failedExecution.template.volumes
+  delete failedExecution.template.containers[0].volumeMounts
 
   const readbackReleaseId = 'DEV122-RD-READBACK-RECONCILE'
   const readbackWorkflowSourceRevision = '7'.repeat(40)
@@ -647,6 +649,8 @@ async function reconciledMigrationAbortFixture() {
       conditions: [{ type: 'Completed', state: pass ? 'CONDITION_SUCCEEDED' : 'CONDITION_FAILED' }],
       template: task(rdReadbackProbeArguments(readbackIntent, probe, outputUri), { ...baseEnvironment, PGOPTIONS: '-c default_transaction_read_only=on' }),
     }
+    delete execution.template.volumes
+    delete execution.template.containers[0].volumeMounts
     readbackExecutions.push(execution)
     const executionReceipt = h.put(`${readbackBase}/ledger-probe-${probe.ledgerCount}-execution-readback.json`, receiptSeal({
       schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm', releaseId: readbackReleaseId,
@@ -675,6 +679,7 @@ async function reconciledMigrationAbortFixture() {
   const executions = [failedExecution, ...readbackExecutions]
   const priorRequest = h.transport.request
   h.transport.request = async (url, ...args) => {
+    if (url === `https://run.googleapis.com/v2/${jobName}`) return structuredClone(readbackJob)
     if (url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')) return { executions }
     const exact = executions.find(row => url === `https://run.googleapis.com/v2/${row.name}`)
     if (exact) return structuredClone(exact)
@@ -701,7 +706,7 @@ async function reconciledMigrationAbortFixture() {
   const principalOnlyFenceRef = fence.ref
   const continuation = { postAbortLedgerReadbackRef: resultRef, principalOnlyFenceRef, principalOnlyRecovery }
   Object.assign(h.helperInput, continuation)
-  return { ...h, submission, failedExecution, readbackIntent, readbackIntentRef, result, resultRef, readbackExecutions, providerExecutions: executions, continuation }
+  return { ...h, submission, failedExecution, staticJob: readbackJob, readbackIntent, readbackIntentRef, result, resultRef, readbackExecutions, providerExecutions: executions, continuation }
 }
 
 for (const inherited of [false, true]) test(`B28 unpublished build abort keeps partial artifact non-authoritative; inherited zero-build anchor=${inherited}`, async () => {
@@ -791,7 +796,10 @@ test('post-abort reconciliation rejects missing recovery, noncanonical result, t
     h => { const row = h.objects.get(h.resultRef.uri); row.value.receiptSha256 = '0'.repeat(64); row.bytes = Buffer.from(canonicalize(row.value) + '\n') },
     h => { const duplicate = structuredClone(h.failedExecution); duplicate.name += '-duplicate'; h.providerExecutions.push(duplicate) },
     h => { const extra = structuredClone(h.failedExecution); extra.name += '-later-unbound'; extra.createTime = '2026-10-03T00:10:00Z'; extra.startTime = '2026-10-03T00:10:01Z'; extra.completionTime = '2026-10-03T00:10:30Z'; extra.template.containers[0].args = ['--bundle-ref', 'unbound']; h.providerExecutions.push(extra) },
-    h => { h.readbackExecutions.at(-1).template.volumes[0].cloudSqlInstance.instances = ['other:region:database'] },
+    h => { h.failedExecution.template.volumes = []; h.failedExecution.template.containers[0].volumeMounts = [] },
+    h => { h.failedExecution.template.volumes = [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }] },
+    h => { h.staticJob.template.template.volumes[0].cloudSqlInstance.instances = ['other:region:database'] },
+    h => { h.readbackExecutions.at(-1).template.volumes = []; h.readbackExecutions.at(-1).template.containers[0].volumeMounts = [] },
     h => { h.service.scaling = { scalingMode: 'AUTOMATIC', maxInstanceCount: 1 } },
   ]
   for (const mutate of mutations) {
