@@ -135,8 +135,10 @@ export function assertInfraReuseProviderJob({ profile, existingInfra, job }) {
   const environment = Array.isArray(environmentRows) && new Set(environmentRows.map((row) => row?.name)).size === environmentRows.length
     ? Object.fromEntries(environmentRows.map((row) => [row.name, row.value])) : null
   if (!profile.migrations?.jobName || !profile.migrations?.serviceAccount
-    || job?.name !== jobName || !job.uid || !job.etag || !job.generation || !Number.isFinite(Date.parse(job.updateTime))
-    || job.conditions?.find((row) => row?.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED'
+    || job?.name !== jobName || !job.uid || !job.etag || job.generation == null || job.observedGeneration == null
+    || !Number.isFinite(Date.parse(job.updateTime)) || job.reconciling === true
+    || job.terminalCondition?.state !== 'CONDITION_SUCCEEDED'
+    || String(job.generation) !== String(job.observedGeneration)
     || job.template?.taskCount !== 1 || job.template?.parallelism !== 1
     || task?.serviceAccount !== profile.migrations.serviceAccount || task?.maxRetries !== 0 || task?.timeout !== '1800s'
     || containers?.length !== 1 || !container || container.image !== existingInfra?.migrationRunnerDigest
