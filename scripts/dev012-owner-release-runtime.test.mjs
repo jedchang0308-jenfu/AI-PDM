@@ -6,6 +6,7 @@ import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAi
 import { assertNumericSecret } from './lib/dev122-openswx-owner-release.mjs'
 
 const H40 = 'a'.repeat(40)
+const RUNNER_H40 = 'e'.repeat(40)
 const H64 = 'b'.repeat(64)
 const bucket = 'jenfu-platform-prod-platform-release'
 const profile = {
@@ -192,7 +193,7 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
   const environment = {
     OWNER_APPLICATION_ID: 'platform', RELEASE_BUCKET: bucket, GOOGLE_CLOUD_PROJECT: 'jenfu-platform-prod', GOOGLE_CLOUD_REGION: 'asia-east1',
     CLOUD_SQL_INSTANCE_CONNECTION_NAME: 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', POSTGRES_DATABASE: 'jenfu_prod',
-    POSTGRES_IAM_LOGIN: 'platform-prod-migrator@jenfu-platform-prod.iam', POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', PDM_SOURCE_REVISION: H40,
+    POSTGRES_IAM_LOGIN: 'platform-prod-migrator@jenfu-platform-prod.iam', POSTGRES_SOCKET: '/cloudsql/jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg', PDM_SOURCE_REVISION: RUNNER_H40,
   }
   const job = { name: jobName, template: { taskCount: 1, parallelism: 1, template: { serviceAccount: profile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', containers: [{ name: 'migration', image: `runner@sha256:${H64}`, env: Object.entries(environment).map(([name, value]) => ({ name, value })), volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }], volumes: [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }] } } }
   let runCalls = 0
@@ -208,10 +209,14 @@ test('migration job readback rejects mutable target fields before jobs.run', asy
     if (String(url).endsWith('/executions/e1')) return json(execution)
     return json(job)
   }) })
-  const deployment = { migrationRunnerDigest: `runner@sha256:${H64}`, migrationBundleRef: { uri: `gs://${bucket}/source/migration-bundles/b.json`, sha256: H64 }, sourceRevision: H40 }
+  const deployment = { migrationRunnerDigest: `runner@sha256:${H64}`, migrationRunnerSourceRevision: RUNNER_H40, migrationBundleRef: { uri: `gs://${bucket}/source/migration-bundles/b.json`, sha256: H64 }, sourceRevision: H40 }
   await transport.runMigrationJob({ profile, deployment, outputUri: `gs://${bucket}/receipts/migrate.json`, deadlineAt: '2999-01-01T00:00:00.000Z' })
   assert.equal(runCalls, 1)
   assert.equal(requestedUrls.some((url) => url.includes('/operations/')), false)
+  const wrongRunnerSource = structuredClone(job)
+  wrongRunnerSource.template.template.containers[0].env.find((row) => row.name === 'PDM_SOURCE_REVISION').value = H40
+  const deniedRunnerSource = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json(wrongRunnerSource) })
+  await assert.rejects(() => deniedRunnerSource.runMigrationJob({ profile, deployment, outputUri: `gs://${bucket}/receipts/migrate.json`, deadlineAt: '2999-01-01T00:00:00.000Z' }), /MIGRATION_JOB_READBACK_MISMATCH/u)
   const drifted = structuredClone(job)
   drifted.template.template.containers[0].env.find((row) => row.name === 'POSTGRES_DATABASE').value = 'jenfu_stg'
   const denied = createOwnerTransport({ token: 'x'.repeat(32), fetchImpl: async () => json(drifted) })
@@ -381,7 +386,8 @@ test('B24 durable migration submission without a matching execution remains UNKN
   assert.equal(h.counts().posts, 1)
   assert.equal(h.objects.size, 1)
   const value = JSON.parse([...h.objects.values()][0].bytes)
-  assert.equal(value.schemaVersion, 'jenfu.dev012.migration-submission-intent.v1')
+  assert.equal(value.schemaVersion, 'jenfu.dev012.migration-submission-intent.v2')
+  assert.equal(value.migrationRunnerSourceRevision, H40)
   assert.equal(value.status, 'SUBMISSION_INTENT')
   assert.equal(value.outputUri, h.input.outputUri)
   await assert.rejects(h.transport.runMigrationJob(h.input), /MIGRATION_SUBMISSION_UNKNOWN/u)
@@ -389,13 +395,14 @@ test('B24 durable migration submission without a matching execution remains UNKN
   assert.equal(h.counts().executionReads, 0)
 })
 
-test('B24 migration submission readback rejects tampered or resealed source, Job, output, arguments and fence', async () => {
-  for (const mutation of ['source', 'job', 'output', 'args', 'bundle', 'fence', 'hash', 'extra']) {
+test('B24 migration submission readback rejects tampered or resealed source, runner source, Job, output, arguments and fence', async () => {
+  for (const mutation of ['source', 'runner-source', 'job', 'output', 'args', 'bundle', 'fence', 'hash', 'extra']) {
     const h = migrationRetryHarness({ prior: 'completed' })
     await h.transport.runMigrationJob(h.input)
     assert.equal(h.counts().posts, 0)
     const row = [...h.objects.values()][0], value = JSON.parse(row.bytes)
     if (mutation === 'source') value.sourceRevision = 'f'.repeat(40)
+    if (mutation === 'runner-source') value.migrationRunnerSourceRevision = 'f'.repeat(40)
     if (mutation === 'job') value.jobName = value.jobName.replace('platform-prod-migration-runner', 'sibling-migration-runner')
     if (mutation === 'output') value.outputUri = `gs://${bucket}/receipts/different-migrate.json`
     if (mutation === 'args') value.args[7] = `gs://${bucket}/receipts/different-migrate.json`

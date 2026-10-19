@@ -105,13 +105,17 @@ function planInputsFixture({intentChange={},prepareRefsChange={},sourceChange={}
   const foundation=JSON.parse(foundationBytes().toString('utf8'));
   const foundationReceiptRef=receipt('foundation',foundation);
   const runnerDigest=fixtureProfile.artifact.migrationRunnerUri+'@sha256:'+'c'.repeat(64);
+  const runnerSourceRevision=reuse?'f'.repeat(40):fixtureRevision;
   const providerInfra={schemaVersion:'jenfu.dev012.app-infra-receipt.v1',ownerApplicationId:'ai-pdm',projectId:target.projectId,region:target.region,
-    sourceRevision:reuse?'f'.repeat(40):fixtureRevision,status:'APPLIED',releaseAuthority:true,evidenceScope:'PRODUCTION_PROVIDER',
+    sourceRevision:runnerSourceRevision,status:'APPLIED',releaseAuthority:true,evidenceScope:'PRODUCTION_PROVIDER',
     foundationManifestSha256:foundation.foundationManifestSha256,migrationRunnerDigest:runnerDigest,...infraChange};
   const providerInfraRef=receipt('provider-infra',seal(providerInfra));
-  const infraReceiptRef=reuse?receipt('reuse',seal({...common,schemaVersion:'jenfu.dev012.app-infra-reuse-receipt.v1',status:'APPLIED',
+  const infraReceiptRef=reuse?receipt('reuse',seal({...common,schemaVersion:'jenfu.dev012.app-infra-reuse-receipt.v2',status:'APPLIED',
     evidenceScope:'PRODUCTION_PROVIDER_REUSE',mutationProfile:'APP_INFRA_REUSE',reuseBasis:'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
-    foundationManifestSha256:foundation.foundationManifestSha256,reusedSourceRevision:'f'.repeat(40),reusedInfraReceiptRef:providerInfraRef,
+    foundationManifestSha256:foundation.foundationManifestSha256,reusedSourceRevision:runnerSourceRevision,reusedInfraReceiptRef:providerInfraRef,
+    providerJobReadback:{name:`projects/${target.projectId}/locations/${target.region}/jobs/${fixtureProfile.migrations.jobName}`,
+      uid:'fixture-job-uid',generation:'7',etag:'fixture-job-etag',updateTime:'2026-10-02T00:00:00Z',
+      migrationRunnerDigest:runnerDigest,sourceRevision:runnerSourceRevision,status:'READY'},
     migrationRunnerDigest:runnerDigest,controllerImageDigest:'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/controller@sha256:'+'a'.repeat(64)})):providerInfraRef;
   const plainEnvironment=Object.fromEntries(fixtureProfile.environment.requiredPlainEnvironmentNames.map(name=>[name,'fixture']));
   Object.assign(plainEnvironment,fixtureProfile.environment.fixedValues);
@@ -124,7 +128,7 @@ function planInputsFixture({intentChange={},prepareRefsChange={},sourceChange={}
   const intentRef=receipt('intent',intent),paths=releasePaths(fixtureProfile,intent,intentRef.sha256);
   const stage=(name,previousReceiptRef,facts)=>put(paths[name],seal({schemaVersion:'jenfu.dev012.stage-receipt.v1',ownerApplicationId:'ai-pdm',
     releaseId,sourceRevision:fixtureRevision,stage:name,previousReceiptRef,facts,observedAt:'2026-10-02T00:00:00Z',status:'PASS'}));
-  const prepare=stage('prepare',null,{migrationRunnerDigest:runnerDigest,prerequisiteRefs:{sourceLock:sourceLockRef,authorization:authorizationPolicyRef,
+  const prepare=stage('prepare',null,{migrationRunnerDigest:runnerDigest,migrationRunnerSourceRevision:runnerSourceRevision,prerequisiteRefs:{sourceLock:sourceLockRef,authorization:authorizationPolicyRef,
     readiness:readinessReceiptRef,foundation:foundationReceiptRef,infra:infraReceiptRef,runtimeConfig:runtimeConfigRef,...prepareRefsChange}});
   const archived=Buffer.from('synthetic source archive'),artifactDigest=fixtureProfile.artifact.uri+'@sha256:'+'1'.repeat(64);
   const sourceObject={uri:`gs://${bucket}/source/releases/${releaseId}/${intentRef.sha256}/source.tar.gz`,sha256:sha256(archived),generation:'7',crc32c:crc32cBase64(archived)};
@@ -138,7 +142,8 @@ function planInputsFixture({intentChange={},prepareRefsChange={},sourceChange={}
     sourceObject,artifactDigest,status:'PASS',cloudBuild,artifactRegistry:{uri:artifactDigest}});
   const build=stage('build',prepare,{artifactDigest,sourceObject,provenanceReceiptRef:provenance});
   put(paths.deployment,{sourceRevision:fixtureRevision,artifactDigest,buildReceiptRef:build,releaseIntentRef:intentRef,
-    releaseIntentSha256:intentRef.sha256,migrationRunnerDigest:runnerDigest,deadlineAt:intent.deadlineAt,...deploymentChange});
+    releaseIntentSha256:intentRef.sha256,migrationRunnerDigest:runnerDigest,migrationRunnerSourceRevision:runnerSourceRevision,
+    deadlineAt:intent.deadlineAt,...deploymentChange});
   const fetchImpl=async url=>{
     if(url.includes('cloudbuild.googleapis.com'))return Response.json(cloudBuild);
     if(url.includes('artifactregistry.googleapis.com')){

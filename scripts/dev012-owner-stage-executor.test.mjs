@@ -16,6 +16,7 @@ import { createMigrationBundle } from './lib/dev012-production-migration-runner.
 import { UNLINKED_PROFILE_CLEANUP_PREFIX, UNLINKED_PROFILE_CLEANUP_PATH } from './lib/dev121-unlinked-profile-cleanup.mjs'
 
 const H40 = 'a'.repeat(40)
+const RUNNER_H40 = 'e'.repeat(40)
 const bucket = 'jenfu-platform-prod-platform-release'
 const previousRevision = 'jenfu-platform-prod-previous'
 const candidateRevision = 'jenfu-platform-prod-candidate'
@@ -181,6 +182,7 @@ function recordedHarness() {
   const readJson = async (ref) => ({ ...(await readBytes(ref.uri, { expectedSha256: ref.sha256 })), value: JSON.parse((await readBytes(ref.uri)).bytes.toString()) })
   const effectiveRevision = (value) => value.trafficStatuses.find((row) => !row.tag && Number(row.percent) === 100).revision
   const entrypointSnapshot = (value) => ({ ingress: value.ingress, defaultUriDisabled: value.defaultUriDisabled, invokerIamDisabled: value.invokerIamDisabled, uri: value.uri, urls: [...value.urls], serviceEtag: value.etag, generation: String(value.generation) })
+  const migrationDeployments = []
   const transport = {
     now: () => '2026-09-08T00:00:00.000Z', readBytes, putBytes, putJson, readJson, effectiveRevision,
     assertServiceSettled(value, code = 'RUN_SERVICE_NOT_SETTLED') { if (value.reconciling !== false || value.terminalCondition?.state !== 'CONDITION_SUCCEEDED' || String(value.generation) !== String(value.observedGeneration)) throw new Error(code); return value },
@@ -194,7 +196,7 @@ function recordedHarness() {
     },
     async readArtifactImage(_profile, artifactDigest) { return { name: 'projects/p/dockerImages/i@sha256:x', uri: artifactDigest } },
     async waitArtifactEvidence({ artifactDigest }) { return { resourceUrl: `https://${artifactDigest}`, buildOccurrenceNames: ['build'], discoveryOccurrenceNames: ['discovery'], sbomOccurrenceNames: ['sbom'], vulnerabilityCount: 0, blockingVulnerabilityCount: 0, sbomExport: { resourceUrl: `https://${artifactDigest}`, discoveryOccurrence: 'discovery' }, observedAt: this.now(), status: 'PASS' } },
-    async runMigrationJob({ profile, deployment, outputUri }) { return putJson(outputUri, { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision, manifestSha256: migrationManifestSha256, boundaryStatus: 'PASS', status: 'PASS' }, { bucket, prefix: 'receipts' }) },
+    async runMigrationJob({ profile, deployment, outputUri }) { migrationDeployments.push(structuredClone(deployment)); return putJson(outputUri, { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: profile.application.id, sourceRevision: deployment.sourceRevision, manifestSha256: migrationManifestSha256, boundaryStatus: 'PASS', status: 'PASS' }, { bucket, prefix: 'receipts' }) },
     async createCandidate({ artifactDigest }) {
       service = { ...service, etag: 'e2', generation: '2', observedGeneration: '2', latestCreatedRevision: candidateRevision, traffic: [...service.traffic, { revision: candidateRevision, tag: candidateTag }], trafficStatuses: [...service.trafficStatuses, { revision: candidateRevision, tag: candidateTag, uri: candidateOrigin }] }
       return { candidateRevision, tag: candidateTag, tagUri: candidateOrigin, artifactDigest, previousRevision, beforeTraffic: service.traffic.slice(0, 1), etag: 'e2', revisionName: `projects/p/revisions/${candidateRevision}` }
@@ -230,23 +232,37 @@ function recordedHarness() {
     runtime: { containerName: 'platform', cloudSqlProxyContainer: 'cloud-sql-proxy', cloudSqlProxyImage: `proxy@sha256:${'f'.repeat(64)}`, cloudSqlProxyPort: 5432, cloudSqlProxyMaximumConnections: 24, cloudSqlConnectionName: 'p:r:i', network: 'runtime-vpc', subnet: 'runtime-subnet', port: 8080, startupProbePath: '/ready', cpu: '1', memory: '512Mi', concurrency: 20, timeoutSeconds: 60, maxInstances: 1, poolMax: 4 },
     schemas: { releaseIntent: 'owner.intent.v2', deploymentCapsule: 'owner.deployment.v2' },
     artifact: { releaseBucket: bucket, repository: 'platform-release', uri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform', migrationRunnerUri: 'asia-east1-docker.pkg.dev/jenfu-platform-prod/platform-release/platform-migration-runner', migrationBundlePrefix: 'source/migration-bundles' },
-    identities: { builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }, build: { maximumAllowedSeverity: 'MEDIUM' }, workflow: { path: '.github/workflows/deploy.yml' }, environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'platform-prod-session-pepper' }, candidateOriginEnvironmentName: 'PORTAL_RELEASE_CANDIDATE_ORIGIN' }, sideEffects: { notification: 'DISABLED' },
+    identities: { builder: 'platform-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com' }, build: { maximumAllowedSeverity: 'MEDIUM' }, migrations: { jobName: 'platform-prod-migration-runner', serviceAccount: 'platform-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com' }, workflow: { path: '.github/workflows/deploy.yml' }, environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'platform-prod-session-pepper' }, candidateOriginEnvironmentName: 'PORTAL_RELEASE_CANDIDATE_ORIGIN' }, sideEffects: { notification: 'DISABLED' },
   }
   const sourceIdentityBytes = Buffer.from('recorded-source-tree-manifest')
   const sourceArchiveBytes = Buffer.from('recorded-source-archive')
   const migrationBytes = Buffer.from('{"recorded":"migration"}\n')
   const migrationManifestSha256 = sha256('migration-manifest')
   const environment = { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: profile.application.repository, GITHUB_REPOSITORY_ID: '1234', GITHUB_REPOSITORY_OWNER_ID: '5678', GITHUB_SHA: H40, GITHUB_WORKFLOW_SHA: H40, GITHUB_WORKFLOW_REF: 'owner/repo/.github/workflows/deploy.yml@refs/heads/main', GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch', ACTIONS_ID_TOKEN_REQUEST_URL: 'https://token.actions.example', GOOGLE_OAUTH_ACCESS_TOKEN: 'x'.repeat(32), GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '1' }
-  return { objects, transport, profile, sourceIdentityBytes, sourceArchiveBytes, migrationBytes, migrationManifestSha256, environment, service: () => service }
+  return { objects, transport, profile, sourceIdentityBytes, sourceArchiveBytes, migrationBytes, migrationManifestSha256, environment, service: () => service, migrationDeployments }
 }
-async function authorizedRecordedInput(h, releaseId) {
+async function authorizedRecordedInput(h, releaseId, { runnerSourceRevision = H40, legacyReuse = false } = {}) {
   const refFor = async (name, value) => (await h.transport.putJson(`gs://${bucket}/receipts/prerequisites/${releaseId}-${name}.json`, value, { bucket, prefix: 'receipts' })).ref
   const common = { releaseAuthority: true, evidenceScope: 'PROVIDER' }
   const sourceLockRef = await refFor('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, clean: true })
   const authorizationPolicyRef = await refFor('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
   const readinessReceiptRef = await refFor('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: 'jenfu-platform-prod' })
-  const foundationReceiptRef = await refFor('foundation', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod' })
-  const infraReceiptRef = await refFor('infra', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod', migrationRunnerDigest })
+  const foundation = { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod', foundationManifestSha256: 'f'.repeat(64) }
+  const foundationReceiptRef = await refFor('foundation', foundation)
+  let infra = { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod', sourceRevision: H40, migrationRunnerDigest }
+  if (runnerSourceRevision !== H40 || legacyReuse) {
+    const providerJobReadback = { name: `projects/${h.profile.target.projectId}/locations/${h.profile.target.region}/jobs/${h.profile.migrations.jobName}`,
+      uid: 'provider-job-uid', generation: '7', etag: 'provider-job-etag', updateTime: '2026-09-08T00:00:00.000Z',
+      migrationRunnerDigest, sourceRevision: runnerSourceRevision, status: 'READY' }
+    infra = { schemaVersion: legacyReuse ? 'jenfu.dev012.app-infra-reuse-receipt.v1' : 'jenfu.dev012.app-infra-reuse-receipt.v2', ownerApplicationId: h.profile.application.id,
+      projectId: h.profile.target.projectId, region: h.profile.target.region, releaseId, sourceRevision: H40,
+      foundationManifestSha256: foundation.foundationManifestSha256, reusedInfraReceiptRef: { uri: `gs://${bucket}/receipts/releases/RUNNER/original-infra.json`, sha256: '1'.repeat(64) },
+      reusedSourceRevision: runnerSourceRevision, migrationRunnerDigest, controllerImageDigest: `${h.profile.artifact.uri}@sha256:${'2'.repeat(64)}`,
+      providerJobReadback, mutationProfile: 'APP_INFRA_REUSE', reuseBasis: 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
+      status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER_REUSE', observedAt: '2026-09-08T00:00:00.000Z' }
+    infra.receiptSha256 = sha256(canonicalize(infra))
+  }
+  const infraReceiptRef = await refFor('infra', infra)
   const runtimeConfigRef = await refFor('runtime', { ...common, status: 'VERIFIED', projectId: 'jenfu-platform-prod', ...buildRuntimeConfig(h.profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } }) })
   const intent = { schemaVersion: 'owner.intent.v2', ownerApplicationId: 'platform', releaseId, sourceRevision: H40, sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef, authorizationPolicyRef, readinessReceiptRef, foundationReceiptRef, infraReceiptRef, runtimeConfigRef, migrationManifestSha256: h.migrationManifestSha256, previousRevision, deadlineAt: '2999-01-01T00:00:00.000Z' }
   const intentResult = await h.transport.putJson(`gs://${bucket}/receipts/intents/${releaseId}.json`, intent, { bucket, prefix: 'receipts' })
@@ -255,6 +271,23 @@ async function authorizedRecordedInput(h, releaseId) {
     input: { capsuleRef: intentResult.ref.uri, capsuleSha256: intentResult.ref.sha256, profile: h.profile, transport: h.transport, environment: h.environment, validateIntent: (value) => value, createSourceIdentity: async () => h.sourceIdentityBytes, createSourceArchive: async () => h.sourceArchiveBytes, buildMigrationBundle: async () => ({ bundle: { manifestSha256: h.migrationManifestSha256 }, bytes: h.migrationBytes, bundleSha256: sha256(h.migrationBytes) }) },
   }
 }
+
+test('production-shaped infra reuse keeps release and migration-runner source identities separate', async () => {
+  const h = recordedHarness()
+  const { input, intentResult } = await authorizedRecordedInput(h, 'REL-RUNNER-SOURCE-SPLIT', { runnerSourceRevision: RUNNER_H40 })
+  for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...input, stage })
+  const intent = (await h.transport.readJson(intentResult.ref)).value
+  const paths = releasePaths(h.profile, intent, intentResult.ref.sha256)
+  const prepare = (await h.transport.readJson({ uri: paths.prepare })).value
+  const deployment = (await h.transport.readJson({ uri: paths.deployment })).value
+  assert.equal(prepare.facts.migrationRunnerSourceRevision, RUNNER_H40)
+  assert.equal(deployment.sourceRevision, H40)
+  assert.equal(deployment.migrationRunnerSourceRevision, RUNNER_H40)
+  assert.equal(h.migrationDeployments[0].migrationRunnerSourceRevision, RUNNER_H40)
+  const legacy = recordedHarness()
+  const old = await authorizedRecordedInput(legacy, 'REL-LEGACY-REUSE-DENIED', { runnerSourceRevision: RUNNER_H40, legacyReuse: true })
+  await assert.rejects(executeOwnerStage({ ...old.input, stage: 'prepare' }), /APP_INFRA_REUSE_RECEIPT_PROVIDER_READBACK_REQUIRED/u)
+})
 
 
 test('recorded provider transport executes the ten immutable owner stages without sibling state', async () => {
@@ -265,7 +298,7 @@ test('recorded provider transport executes the ten immutable owner stages withou
   const authorizationPolicyRef = await refFor('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
   const readinessReceiptRef = await refFor('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: 'jenfu-platform-prod' })
   const foundationReceiptRef = await refFor('foundation', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod' })
-  const infraReceiptRef = await refFor('infra', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod', migrationRunnerDigest })
+  const infraReceiptRef = await refFor('infra', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod', sourceRevision: H40, migrationRunnerDigest })
   const runtimeConfigRef = await refFor('runtime', { ...common, status: 'VERIFIED', projectId: 'jenfu-platform-prod', ...buildRuntimeConfig(h.profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } }) })
   const intent = { schemaVersion: 'owner.intent.v2', ownerApplicationId: 'platform', releaseId: 'REL-RECORDED-001', sourceRevision: H40, sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef, authorizationPolicyRef, readinessReceiptRef, foundationReceiptRef, infraReceiptRef, runtimeConfigRef, migrationManifestSha256: h.migrationManifestSha256, previousRevision, deadlineAt: '2999-01-01T00:00:00.000Z' }
   const intentResult = await h.transport.putJson(`gs://${bucket}/receipts/intents/release.json`, intent, { bucket, prefix: 'receipts' })
@@ -401,7 +434,7 @@ test('rollback reports no database mutation when migrate receipt was never produ
   const authorizationPolicyRef = await refFor('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
   const readinessReceiptRef = await refFor('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: 'jenfu-platform-prod' })
   const foundationReceiptRef = await refFor('foundation', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod' })
-  const infraReceiptRef = await refFor('infra', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod', migrationRunnerDigest })
+  const infraReceiptRef = await refFor('infra', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod', sourceRevision: H40, migrationRunnerDigest })
   const runtimeConfigRef = await refFor('runtime', { ...common, status: 'VERIFIED', projectId: 'jenfu-platform-prod', ...buildRuntimeConfig(h.profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } }) })
   const intent = { schemaVersion: 'owner.intent.v2', ownerApplicationId: 'platform', releaseId: 'REL-RECORDED-ROLLBACK', sourceRevision: H40, sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef, authorizationPolicyRef, readinessReceiptRef, foundationReceiptRef, infraReceiptRef, runtimeConfigRef, migrationManifestSha256: h.migrationManifestSha256, previousRevision, deadlineAt: '2999-01-01T00:00:00.000Z' }
   const intentResult = await h.transport.putJson(`gs://${bucket}/receipts/intents/rollback.json`, intent, { bucket, prefix: 'receipts' })
@@ -609,7 +642,7 @@ async function privateCleanupOwnerFixture() {
   const authorizationPolicyRef = await refFor('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
   const readinessReceiptRef = await refFor('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: h.profile.target.projectId })
   const foundationReceiptRef = await refFor('foundation', { ...common, status: 'APPLIED', projectId: h.profile.target.projectId })
-  const infraReceiptRef = await refFor('infra', { ...common, status: 'APPLIED', projectId: h.profile.target.projectId, migrationRunnerDigest })
+  const infraReceiptRef = await refFor('infra', { ...common, status: 'APPLIED', projectId: h.profile.target.projectId, sourceRevision: H40, migrationRunnerDigest })
   const runtimeConfigRef = await refFor('runtime', { ...common, status: 'VERIFIED', projectId: h.profile.target.projectId, ...buildRuntimeConfig(h.profile, { plainEnvironment: { NODE_ENV: 'production' }, secretVersions: { SESSION_SECRET: '1' } }) })
   const intent = { schemaVersion: 'owner.intent.v2', ownerApplicationId: 'ai-pdm', releaseId: 'REL-PRIVATE-CLEANUP-SYNTHETIC', sourceRevision: H40,
     sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef, authorizationPolicyRef, readinessReceiptRef, foundationReceiptRef, infraReceiptRef, runtimeConfigRef,

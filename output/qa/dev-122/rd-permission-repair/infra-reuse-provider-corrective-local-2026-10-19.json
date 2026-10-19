@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "aipdm.dev122.rd-permission.infra-reuse-provider-corrective.v1",
+  "evidenceScope": "LOCAL_CONTRACT",
+  "releaseAuthority": false,
+  "wholeDev122Accepted": false,
+  "source": {
+    "branch": "codex/dev122-infra-reuse-provider-readback",
+    "preIntegrationHead": "ab8bf9f96b62f188ed0db12246cfabe2f0ddaaed",
+    "integratedMain": "242fc43afd027d4a48e5a7448a2c76c8e615e95f",
+    "validatedHead": "c3eb8b065410d30519feddd7323e0a34453c3c36",
+    "requiredCiCorrectiveProductHead": "cb55d79c29087412cf93441b46ec35e25e8df28f"
+  },
+  "planner": {
+    "schemaVersion": "aipdm.production-slice-plan.v2",
+    "rawLocalPath": "output/qa/dev-122/rd-permission-repair/infra-reuse-provider-slice-plan-2026-10-19.json",
+    "rawFileSha256": "c6871d7906ffc1082000cb12a717e0a07dd5d539fa84f7819617e9e7a6fe0221",
+    "planSha256": "b8bfefbd4b9aeaeaf211219286139145290c50971b3b021803ce511d747166c9",
+    "classification": "FULL",
+    "slices": [
+      "documentation",
+      "database",
+      "infrastructure",
+      "release-control"
+    ],
+    "requiredGates": [
+      "planner",
+      "full",
+      "application",
+      "authorization",
+      "database",
+      "preview",
+      "recognition",
+      "worker",
+      "infrastructure",
+      "releaseCore",
+      "dbBoundary",
+      "nativePostgres",
+      "migration",
+      "isolatedBuild",
+      "desktopUi"
+    ]
+  },
+  "validation": {
+    "plannerContract": {
+      "command": "node --test scripts/production-slice-plan.test.mjs",
+      "passed": 11,
+      "failed": 0
+    },
+    "fullQc": {
+      "command": "npm run qc:dev-117:continuous",
+      "result": "PASS",
+      "ownerRunId": "DEV117-S1B-20261019T043623068Z-F37186BC",
+      "ownerReportLocalPath": "output/dev-117/s1b/DEV117-S1B-20261019T043623068Z-F37186BC/owner-report.json",
+      "ownerReportSha256": "b6a302def8f1ed0d207f791fabad18c0704fae94f79819798cf3dd20d644d780",
+      "continuousTests": {
+        "passed": 473,
+        "failed": 0
+      },
+      "roleCatalogV7": {
+        "passed": 3,
+        "failed": 0
+      },
+      "abortController": {
+        "passed": 6,
+        "failed": 0
+      },
+      "dbBoundary": "PASS",
+      "typecheckApp": "PASS",
+      "isolatedBuild": {
+        "result": "PASS",
+        "staticPages": 122,
+        "primaryDatabaseInvariant": "database-absent",
+        "artifact": true,
+        "primary": true,
+        "cleanup": true
+      },
+      "providerMutations": {
+        "cloud": 0,
+        "database": 0,
+        "traffic": 0,
+        "credentials": 0,
+        "sibling": 0
+      }
+    },
+    "requiredCiCorrective": {
+      "initialRun": "39200453744",
+      "job": "Production Slice QC",
+      "result": "FAIL_PRESERVED",
+      "firstFailure": "APP_INFRA_REUSE_RECEIPT_PROVIDER_READBACK_REQUIRED",
+      "failedTests": 2,
+      "cause": "The shared business-storage plan consumer and its production-shaped fixture still modeled app-infra reuse receipt v1 after the owner path required provider-bound v2.",
+      "correction": "The consumer now recognizes only v2 reuse and joins the derived runner source across the prepare receipt, original provider infra image and deployment capsule.",
+      "focused": {
+        "command": "node --test scripts/lib/dev121-business-storage-readback.test.mjs",
+        "passed": 53,
+        "failed": 0
+      },
+      "originalCiGroup": {
+        "passedInSandbox": 111,
+        "sandboxFailure": "EPERM while creating the task-owned junction fixture",
+        "controlledRerunPassed": 112,
+        "controlledRerunFailed": 0
+      },
+      "providerMutations": 0
+    }
+  },
+  "reusedEvidence": [
+    {
+      "source": "ab8bf9f96b62f188ed0db12246cfabe2f0ddaaed",
+      "scope": "pre-integration release-control QC",
+      "result": "473/473 PASS plus catalog, abort, db-boundary, typecheck and isolated build",
+      "promotedToCurrentSource": false
+    },
+    {
+      "run": "39192302084",
+      "scope": "production C56 first failure",
+      "result": "MIGRATION_JOB_READBACK_MISMATCH before a new Job execution; PRE_ACTIVATION_ABORTED / NOT_APPLIED; revision and traffic unchanged; worker PAUSED_RECOVERED",
+      "promotedToPass": false
+    },
+    {
+      "run": "39196373315",
+      "scope": "production R25 readonly ledger readback",
+      "result": "ledgerCount=33; migration084=NOT_APPLIED; migration085=NOT_APPLIED; decision=AUTHORIZED_CONDITION_085_ABSENT",
+      "providerResultRef": "gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV122-RD-LEDGER-20261019-R25/d896227d2561b4fef1a117b4ac40874aec34fec01ea05a0f113315da5a865531/ledger-readback-result.json",
+      "providerResultSha256": "479bd2c0bc23a550245c5c28eb71903e696723547d9b6ad897bbe54e4fd3cd"
+    }
+  ],
+  "preservedFirstFailure": {
+    "local": "PROGRAM_ONLY_BASELINE_INVALID:submission-keys from the first v2 attempt; fixed by keeping program-only sealed v1 and limiting v2 to ordinary full release",
+    "production": "MIGRATION_JOB_READBACK_MISMATCH from run 39192302084"
+  },
+  "remaining": [
+    "protected PR required CI and merge",
+    "official app-owned APP_INFRA runner alignment and provider-consistent v2 reuse receipt",
+    "fresh exact-main full35 build/migrate/candidate/verify/activate with migration085",
+    "active catalog v7 and grant/session readback",
+    "dedicated RD test-account UI/API allow and deny acceptance",
+    "the original DEV-122 7 issues / 29 groups remain NOT_ACCEPTED"
+  ]
+}

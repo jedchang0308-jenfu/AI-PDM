@@ -59,6 +59,12 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 |---|---|
 | `OPS-01` | 實際發布綁定確切 source SHA、image digest、revision、traffic 讀回與前一 revision rollback 目標。 |
 
+### RD 圖號工作台當前恢復點（2026-10-19）
+
+PR #386 的 exact main 為 `21a1ba0b6a6f7a142e0c03a99d4461316bff711d`。C56 run `39192302084` 的 prepare／build與 Cloud Build `b24a3b7f-614e-451c-b3d2-23f924771d3d` 成功；migration 在任何新 Job execution 前以 `MIGRATION_JOB_READBACK_MISMATCH` 停止，terminal 為 `PRE_ACTIVATION_ABORTED / NOT_APPLIED`，正式 revision／traffic 未變，worker 為 `PAUSED_RECOVERED`。provider readback 證明 reuse receipt 的 runner digest／source 與 live `ai-pdm-prod-migration-runner` 不同，而 producer 重發舊 receipt 時沒有讀取 live Job。
+
+R25 唯讀 run `39196373315` 證明 ledger 為 33，migration 084／085 均 `NOT_APPLIED`，判定為 `AUTHORIZED_CONDITION_085_ABSENT`；prepare／build／migrate 均未執行。當前 corrective 將 reuse receipt 升為 v2，先驗 live Job READY、identity、template、digest 與 runner source，並在 ordinary full35 分離 release source 與 runner source。恢復順序是完成本切片 required CI 與 protected merge，再由正常 app-owned APP_INFRA 路徑建立 provider 一致的新 runner receipt，之後以 fresh exact-main capsule 執行 full35；不得手動 patch Job。085、catalog v7、candidate、traffic及專用測試 RD 帳號的 UI／API 正負驗收仍未完成，原 7 issues／29 groups 與 DEV-122 整體維持 `NOT_ACCEPTED`。
+
 ## 4. 已刪除或縮減的額外要求
 
 | 項目 | 處置 |
