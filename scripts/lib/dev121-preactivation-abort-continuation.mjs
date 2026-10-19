@@ -1032,19 +1032,42 @@ function executionProjection(execution) {
   }
 }
 
-function ordinaryExecutionMatches(profile, execution, submission, deployment) {
+const CLOUD_SQL_VOLUMES = [{ name: 'cloudsql', cloudSqlInstance: { instances: ['jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'] } }]
+const CLOUD_SQL_MOUNTS = [{ name: 'cloudsql', mountPath: '/cloudsql' }]
+
+function executionCloudSqlFieldsMatch(task, container, staticTask = null) {
+  const hasVolumes = Object.hasOwn(task ?? {}, 'volumes')
+  const hasMounts = Object.hasOwn(container ?? {}, 'volumeMounts')
+  if (hasVolumes !== hasMounts) return false
+  if (hasVolumes) return same(task.volumes, CLOUD_SQL_VOLUMES) && same(container.volumeMounts, CLOUD_SQL_MOUNTS)
+  const staticContainer = staticTask?.containers?.find(row => row?.name === 'migration')
+  return same(staticTask?.volumes, CLOUD_SQL_VOLUMES) && same(staticContainer?.volumeMounts, CLOUD_SQL_MOUNTS)
+}
+
+function ordinaryStaticJobMatches(profile, job, submission, deployment) {
+  const task = job?.template?.template, containers = task?.containers
+  const container = Array.isArray(containers) && containers.length === 1 ? containers[0] : null
+  const runnerSourceRevision = deployment.migrationRunnerSourceRevision ?? deployment.sourceRevision
+  const environment = Array.isArray(container?.env) && new Set(container.env.map(row => row?.name)).size === container.env.length
+    ? Object.fromEntries(container.env.map(row => [row.name, row.value])) : null
+  return job?.name === submission.jobName && job.template?.taskCount === 1 && job.template?.parallelism === 1
+    && task?.serviceAccount === profile.migrations.serviceAccount && task.maxRetries === 0 && task.timeout === '1800s'
+    && container?.name === 'migration' && container.image === submission.migrationRunnerDigest
+    && same(environment, ordinaryMigrationEnvironment(profile, runnerSourceRevision))
+    && same(task.volumes, CLOUD_SQL_VOLUMES) && same(container.volumeMounts, CLOUD_SQL_MOUNTS)
+}
+
+function ordinaryExecutionMatches(profile, execution, submission, deployment, staticJob) {
   const task = execution?.template, containers = task?.containers
   const container = Array.isArray(containers) && containers.length === 1 ? containers[0] : null
   const runnerSourceRevision = deployment.migrationRunnerSourceRevision ?? deployment.sourceRevision
   const environment = Array.isArray(container?.env) && new Set(container.env.map(row => row?.name)).size === container.env.length
     ? Object.fromEntries(container.env.map(row => [row.name, row.value])) : null
-  const connection = 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'
   return task?.serviceAccount === profile.migrations.serviceAccount && task.maxRetries === 0 && task.timeout === '1800s'
     && execution.taskCount === 1 && execution.parallelism === 1 && container?.name === 'migration'
     && container.image === submission.migrationRunnerDigest && same(container.args, submission.args)
     && same(environment, ordinaryMigrationEnvironment(profile, runnerSourceRevision))
-    && same(task.volumes, [{ name: 'cloudsql', cloudSqlInstance: { instances: [connection] } }])
-    && same(container.volumeMounts, [{ name: 'cloudsql', mountPath: '/cloudsql' }])
+    && executionCloudSqlFieldsMatch(task, container, staticJob?.template?.template)
 }
 
 async function readMigrationExecutionInventory(profile, transport) {
@@ -1072,11 +1095,13 @@ async function readMigrationExecutionInventory(profile, transport) {
 
 async function readSubmittedMigrationExecution({ profile, transport, paths, deployment, submission, run }) {
   const window = closedOwnerWindow(run)
+  const staticJob = await transport.request(`https://run.googleapis.com/v2/${submission.jobName}`)
+  if (!ordinaryStaticJobMatches(profile, staticJob, submission, deployment)) fail()
   const rows = await readMigrationExecutionInventory(profile, transport)
   const argumentMentions = (execution, value) => execution.template?.containers?.some(container => container.args?.some((argument, index, args) =>
     argument === value || argument === `--source-revision=${value}` || argument === `--output-ref=${value}`
     || (['--source-revision', '--output-ref'].includes(argument) && args[index + 1] === value)))
-  const matches = rows.filter(execution => ordinaryExecutionMatches(profile, execution, submission, deployment))
+  const matches = rows.filter(execution => ordinaryExecutionMatches(profile, execution, submission, deployment, staticJob))
   if (matches.length !== 1 || rows.some(execution => execution !== matches[0]
     && argumentMentions(execution, paths.migrate))) fail()
   const execution = matches[0], facts = executionTerminalFacts(execution)
@@ -1086,18 +1111,17 @@ async function readSubmittedMigrationExecution({ profile, transport, paths, depl
     || Number(execution.succeededCount ?? 0) !== 0 || Number(execution.failedCount ?? 0) < 1
   ) fail()
   const provider = await transport.request(`https://run.googleapis.com/v2/${execution.name}`)
-  if (!ordinaryExecutionMatches(profile, provider, submission, deployment)
+  if (!ordinaryExecutionMatches(profile, provider, submission, deployment, staticJob)
     || !same(executionProjection(provider), executionProjection(execution))) fail()
   return { execution: provider, projection: executionProjection(provider), window, submitted,
     inventory: rows.map(executionProjection).sort((left, right) => left.name.localeCompare(right.name)) }
 }
 
-function assertReadbackExecution({ profile, intent, intentRef, probe, attempt, receipt, execution }) {
+function assertReadbackExecution({ profile, intent, intentRef, probe, attempt, receipt, execution, staticJob }) {
   assertRdReadbackExecutionReceipt(receipt, { intent, intentRef, probe })
   const outputUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${intent.releaseId}/${intentRef.sha256}/ledger-probe-${probe.ledgerCount}.json`
   const task = execution?.template, container = task?.containers?.[0]
   const expectedEnvironment = { ...rdReadbackJobEnvironment(profile, intent.runnerSourceRevision), PGOPTIONS: RD_LEDGER_READBACK_PGOPTIONS }
-  const connection = 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'
   const environment = Array.isArray(container?.env) && new Set(container.env.map(row => row?.name)).size === container.env.length
     ? Object.fromEntries(container.env.map(row => [row.name, row.value])) : null
   const facts = executionTerminalFacts(execution)
@@ -1110,8 +1134,7 @@ function assertReadbackExecution({ profile, intent, intentRef, probe, attempt, r
     || task.maxRetries !== 0 || task.timeout !== '1800s' || task.containers?.length !== 1 || container?.name !== 'migration'
     || container.image !== intent.migrationRunnerDigest || !same(container.args, rdReadbackProbeArguments(intent, probe, outputUri))
     || !same(environment, expectedEnvironment)
-    || !same(task.volumes, [{ name: 'cloudsql', cloudSqlInstance: { instances: [connection] } }])
-    || !same(container.volumeMounts, [{ name: 'cloudsql', mountPath: '/cloudsql' }])
+    || !executionCloudSqlFieldsMatch(task, container, staticJob?.template?.template)
     || (pass ? facts.completedState !== 'CONDITION_SUCCEEDED' : facts.completedState !== 'CONDITION_FAILED')) fail()
   return facts
 }
@@ -1161,7 +1184,7 @@ async function readPostAbortLedgerReconciliation({ profile, transport, baselineI
     const receipt = await read(attempt.executionReadbackRef.uri)
     if (!same(receipt.ref, attempt.executionReadbackRef)) fail()
     const execution = await transport.request(`https://run.googleapis.com/v2/${receipt.value.executionName}`)
-    const facts = assertReadbackExecution({ profile, intent: readbackIntent, intentRef: readbackIntentRef, probe, attempt, receipt: receipt.value, execution })
+    const facts = assertReadbackExecution({ profile, intent: readbackIntent, intentRef: readbackIntentRef, probe, attempt, receipt: receipt.value, execution, staticJob: jobReceipt.value.projection })
     if (facts.created < readbackStarted || facts.finished > readbackDeadline || facts.finished <= lastCompletion) fail()
     authorizedExecutions.add(execution.name)
     lastCompletion = facts.finished
