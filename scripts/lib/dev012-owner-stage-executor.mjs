@@ -111,7 +111,8 @@ function acceptedStatus(value, statuses) {
 }
 
 function assertInfraEvidence(value, profile, sourceRevision, foundation) {
-  if (value?.schemaVersion === 'jenfu.dev012.app-infra-reuse-receipt.v1') {
+  if (value?.schemaVersion === 'jenfu.dev012.app-infra-reuse-receipt.v1') fail('APP_INFRA_REUSE_RECEIPT_PROVIDER_READBACK_REQUIRED')
+  if (value?.schemaVersion === 'jenfu.dev012.app-infra-reuse-receipt.v2') {
     const core = { ...value }
     delete core.receiptSha256
     if (value.ownerApplicationId !== profile.application.id || value.projectId !== profile.target.projectId || value.region !== profile.target.region
@@ -123,6 +124,12 @@ function assertInfraEvidence(value, profile, sourceRevision, foundation) {
       || !value.reusedInfraReceiptRef?.uri?.startsWith(`gs://${profile.artifact.releaseBucket}/receipts/`)
       || !H64.test(value.reusedInfraReceiptRef.sha256 ?? '')
       || !value.migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)
+      || value.providerJobReadback?.migrationRunnerDigest !== value.migrationRunnerDigest
+      || value.providerJobReadback?.sourceRevision !== value.reusedSourceRevision
+      || value.providerJobReadback?.status !== 'READY'
+      || !value.providerJobReadback?.name?.endsWith(`/jobs/${profile.migrations.jobName}`)
+      || !value.providerJobReadback?.uid || !value.providerJobReadback?.etag || !value.providerJobReadback?.generation
+      || !Number.isFinite(Date.parse(value.providerJobReadback?.updateTime))
       || !value.controllerImageDigest?.includes('@sha256:')) fail('APP_INFRA_REUSE_RECEIPT_INVALID')
   } else if (value?.sourceRevision && value.sourceRevision !== sourceRevision) fail('PREREQUISITE_SOURCE_MISMATCH', 'infra')
   return value
@@ -190,7 +197,10 @@ export function assertPreparePrerequisites({ intent, profile, values }) {
   assertRuntimeConfig(profile, runtime)
   assertControlledEnvironmentAuthority({ intent, profile, values, runtime })
   const migrationRunnerDigest = values.infra.migrationRunnerDigest ?? values.infra.artifacts?.migrationRunnerDigest
+  const migrationRunnerSourceRevision = values.infra.schemaVersion === 'jenfu.dev012.app-infra-reuse-receipt.v2'
+    ? values.infra.reusedSourceRevision : (values.infra.sourceRevision ?? intent.sourceRevision)
   if (!migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)) fail('MIGRATION_RUNNER_PROVENANCE_MISSING')
+  if (!H40.test(migrationRunnerSourceRevision ?? '')) fail('MIGRATION_RUNNER_PROVENANCE_MISSING')
   let productionData = null
   if (profile.productionData?.required === true) {
     productionData = {
@@ -198,7 +208,7 @@ export function assertPreparePrerequisites({ intent, profile, values }) {
       firstPrincipalBootstrapRef: assertImmutableRef(values.readiness.firstPrincipalBootstrapRef, profile.artifact.releaseBucket, [profile.productionData.bootstrapObjectPrefix]),
     }
   }
-  return { runtimeConfig: runtime, migrationRunnerDigest, productionData }
+  return { runtimeConfig: runtime, migrationRunnerDigest, migrationRunnerSourceRevision, productionData }
 }
 
 function assertStage(value, profile, intent, stage) {
@@ -302,7 +312,8 @@ export async function readDataCutoverEvidence({ transport, profile, intent, read
 
 function assertDeployment(value, profile, intent, intentRef, intentSha256) {
   if (value?.schemaVersion !== profile.schemas.deploymentCapsule || value.ownerApplicationId !== profile.application.id || value.releaseIntentRef?.uri !== intentRef.uri || value.releaseIntentRef?.sha256 !== intentRef.sha256 || value.releaseIntentSha256 !== intentSha256 || value.sourceRevision !== intent.sourceRevision || value.deadlineAt !== intent.deadlineAt) fail('DEPLOYMENT_CAPSULE_JOIN_INVALID')
-  if (!value.artifactDigest?.startsWith(`${profile.artifact.uri}@sha256:`) || !value.migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)) fail('DEPLOYMENT_ARTIFACT_INVALID')
+  if (!value.artifactDigest?.startsWith(`${profile.artifact.uri}@sha256:`) || !value.migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)
+    || !H40.test(value.migrationRunnerSourceRevision ?? '')) fail('DEPLOYMENT_ARTIFACT_INVALID')
   if (!H64.test(value.sourceObject?.sha256 ?? '') || !/^[1-9][0-9]*$/u.test(String(value.sourceObject?.generation ?? '')) || typeof value.sourceObject?.crc32c !== 'string') fail('DEPLOYMENT_SOURCE_INVALID')
   for (const name of ['migrationBundleRef', 'buildReceiptRef', 'provenanceReceiptRef', 'sbomReceiptRef', 'scanReceiptRef']) if (!value[name]?.uri || !H64.test(value[name]?.sha256 ?? '')) fail('DEPLOYMENT_EVIDENCE_REF_INVALID', name)
   if (intent.programOnlyBaseline) assertProgramOnlyPolicy(intent.programOnlyBaseline, { profile, intent, deployment: value })
@@ -658,7 +669,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       if (repair?.migrationMode === 'FORWARD_APPLIED' && Object.hasOwn(existing.value.facts, 'migrationReusePrerequisiteRef')) fail('REPAIR_PREREQUISITE_MISMATCH')
       return existing
     }
-    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation?.kind) ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
+    return writeStage(transport, paths, profile, intent, 'prepare', null, { prerequisiteRefs: Object.fromEntries(Object.entries(names).map(([name, field]) => [name, intent[field]])), previousRevision: intent.previousRevision, ...(['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation?.kind) ? { preActivationAbortBasis: continuation.authorityBasis } : {}), ...(recovery ? { principalOnlyRecovery: recovery } : {}), ...(prerequisite ? { migrationReusePrerequisiteRef: prerequisite.ref } : {}), runtimeServiceAccount: derived.runtimeConfig.runtimeServiceAccount, migrationRunnerDigest: derived.migrationRunnerDigest, migrationRunnerSourceRevision: derived.migrationRunnerSourceRevision, ...(derived.productionData ?? {}), ...(dataCutover ? { dataCutover } : {}), entrypointBaseline: transport.entrypointSnapshot(service), remainingHumanAction: 0 })
   }
 
   if (stage === 'build') {
@@ -718,7 +729,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     const workerBuild = worker ? await worker.build({ intent, profile, sourceObject: source }) : null
     const buildStage = await writeStage(transport, paths, profile, intent, 'build', prepare.ref, { artifactDigest: build.artifactDigest, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, migrationBundleRef: bundle.ref, ...programDeployment, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref })
     const cutoverDeploymentAuthority = !dataCutoverGateEnabled(profile) ? {} : prepare.value.facts.dataCutover.status === 'DATA_READY_FOR_CANDIDATE' ? { dataCutoverHandoffRef: prepare.value.facts.dataCutover.handoffReceiptRef } : { dataCutoverCompletionRef: prepare.value.facts.dataCutover.completionReceiptRef }
-    const deployment = { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: profile.application.id, releaseIntentRef: intentRef, releaseIntentSha256: capsuleSha256, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, migrationBundleRef: bundle.ref, ...programDeployment, migrationRunnerDigest: prepare.value.facts.migrationRunnerDigest, ...(profile.productionData?.required === true ? { productionDataRef: prepare.value.facts.productionDataRef, firstPrincipalBootstrapRef: prepare.value.facts.firstPrincipalBootstrapRef } : {}), ...cutoverDeploymentAuthority, buildReceiptRef: buildStage.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref, deadlineAt: intent.deadlineAt }
+    const deployment = { schemaVersion: profile.schemas.deploymentCapsule, ownerApplicationId: profile.application.id, releaseIntentRef: intentRef, releaseIntentSha256: capsuleSha256, sourceRevision: intent.sourceRevision, sourceObject: { ...source.ref, generation: String(source.metadata.generation), crc32c: source.metadata.crc32c }, artifactDigest: build.artifactDigest, migrationBundleRef: bundle.ref, ...programDeployment, migrationRunnerDigest: prepare.value.facts.migrationRunnerDigest, migrationRunnerSourceRevision: prepare.value.facts.migrationRunnerSourceRevision, ...(profile.productionData?.required === true ? { productionDataRef: prepare.value.facts.productionDataRef, firstPrincipalBootstrapRef: prepare.value.facts.firstPrincipalBootstrapRef } : {}), ...cutoverDeploymentAuthority, buildReceiptRef: buildStage.ref, provenanceReceiptRef: provenance.ref, sbomReceiptRef: sbom.ref, scanReceiptRef: scan.ref, deadlineAt: intent.deadlineAt }
     if (workerBuild) deployment.openswxWorker = workerBuild
     assertDeployment(deployment, profile, intent, intentRef, capsuleSha256)
     return transport.putJson(paths.deployment, deployment, { bucket: profile.artifact.releaseBucket, prefix: 'receipts' })

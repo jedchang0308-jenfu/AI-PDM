@@ -36,6 +36,12 @@ PR #384 已合併為 exact main `3823a2c2ba63df091e8e14be0fb221fe1d3f43ad`，req
 
 Corrective contract將readback intent升為v2並明確分離exact protected-main workflow source與installed runner source；runner必為workflow祖先，且35-entry profile、設定、SQL、runner與Dockerfile共41項輸入逐檔相同。Probe bundle／execution／native receipt綁runner source，GitHub checkout／tree／identity綁workflow source；不修改正式Job env、不把historical image冒充current source。v1只保留歷史證據，不再執行。此修正完成PR／required CI並合併後，須重新建立fresh ledger capsule；在085 readback成立前仍不得執行full35 migration或traffic。
 
+### 2026-10-19 full35 infra-reuse provider corrective
+
+PR #386 已合併為 exact main `21a1ba0b6a6f7a142e0c03a99d4461316bff711d`。C56 run `39192302084` 的 prepare／build及Cloud Build `b24a3b7f-614e-451c-b3d2-23f924771d3d`成功，migration在任何新Job execution前以 `MIGRATION_JOB_READBACK_MISMATCH`停止；terminal為`PRE_ACTIVATION_ABORTED / NOT_APPLIED`，正式revision／traffic未變且worker為`PAUSED_RECOVERED`。直接provider readback證明reuse receipt聲稱runner digest／source為舊app-infra產物，live `ai-pdm-prod-migration-runner`已是不同digest與source；producer重發舊receipt時沒有讀live Job。exact-main R25唯讀run `39196373315`已成功完成ledger readback，prepare／build／migrate皆未執行。
+
+本 corrective slice 將reuse receipt升為v2：producer先核對live Job READY、exact identity/template/digest/source才可發布，v1不再授予新release。ordinary full35同步分離release source與runner artifact source；prepare、deployment及migration submission都傳遞`migrationRunnerSourceRevision`，Job／execution environment以runner source核對，migration bundle／args仍以release source核對。正式恢復點是本PR required CI及合併後，先由正常app-owned APP_INFRA路徑建立與provider一致的新runner receipt，再以fresh exact-main capsule重跑full35；不得手動patch Job。085、catalog v7、candidate、traffic及專用測試RD帳號正負驗收仍未完成，whole DEV維持`NOT_ACCEPTED`。
+
 ### 2026-10-16 production readback gate corrective slice
 
 PR #315 已合併為 `d9e7f07ba244b47928b4a0e8a77426109919c937`；其後 protected `main` 前進至 `bde28d89ff401491274e5d55e37b548bc3fef8b7`，full35／085 內容未變。正式服務唯讀 API 證明 active catalog 仍為 v6 `bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af`，真實 RD session 的 workspace read/create/update/cancel 為 allow、drawing workbench page 為 deny、approval/publish/admin 仍為 deny。這是同一 application DB snapshot 的 effective active-assignment capability 證據，但 endpoint 未公開 assignment row，不能冒稱 exact grant row readback。最新可追溯 native migration receipt 為 2026-10-11 ledger33，且 provider inventory 無後續 execution；這強烈支持 085 未套用，但不能排除「ledger 已有 085、catalog 發布不一致」的異常，所以 full35 尚未 dispatch。

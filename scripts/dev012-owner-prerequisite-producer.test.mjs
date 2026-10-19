@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 
-import { assertDev013PredecessorReceipt, buildDev013TransitionAuthority, buildInfraReuseReceipt, buildReleaseIntent, buildRoutineAuthority, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath, resolveProtectedReleaseRef, executePrerequisiteProducer, validateHistoricalBaselineIntent } from './lib/dev012-owner-prerequisite-producer.mjs'
+import { assertDev013PredecessorReceipt, assertInfraReuseProviderJob, buildDev013TransitionAuthority, buildInfraReuseReceipt, buildReleaseIntent, buildRoutineAuthority, buildRuntimeConfigReceipt, buildSourceFreeze, parsePrerequisiteProducerArgs, resolveOwnerInputPath, resolveProtectedReleaseRef, executePrerequisiteProducer, validateHistoricalBaselineIntent } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
 import { DEV013_L4_FORWARD_STEPS, dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 
@@ -16,11 +16,18 @@ const profile = {
   application: { id: 'platform', repository: 'owner/platform', branch: 'main' },
   target: { projectId: 'project', runtimeServiceAccount: 'runtime@project.iam.gserviceaccount.com', region: 'region' },
   artifact: { releaseBucket: 'owner-bucket', uri: 'region.pkg.dev/project/repo/app', migrationRunnerUri: 'region.pkg.dev/project/repo/migration' },
+  migrations: { jobName: 'platform-prod-migration-runner', serviceAccount: 'platform-prod-migrator@project.iam.gserviceaccount.com' },
   schemas: { releaseIntent: 'owner.intent.v2' },
   runtime: { containerName: 'app', cloudSqlProxyContainer: 'proxy', cloudSqlProxyImage: 'proxy@sha256:' + 'c'.repeat(64), port: 8080, cloudSqlProxyPort: 5432, concurrency: 20, timeoutSeconds: 60, maxInstances: 1, network: 'vpc', subnet: 'subnet', cpu: '1', memory: '512Mi', startupProbePath: '/ready', cloudSqlProxyMaximumConnections: 24, cloudSqlConnectionName: 'project:region:instance' },
   environment: { requiredPlainEnvironmentNames: ['NODE_ENV'], requiredSecretNames: ['SESSION_SECRET'], allowedSecretIds: { SESSION_SECRET: 'session-secret' } },
 }
 const ref = (name) => ({ uri: `gs://owner-bucket/receipts/releases/REL-001/${name}.json`, sha256: H64 })
+const providerJob = ({ digest = profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64), sourceRevision = 'f'.repeat(40) } = {}) => ({
+  name: `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`,
+  uid: 'provider-job-uid', generation: '7', etag: 'provider-job-etag', updateTime: NOW,
+  conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }],
+  template: { taskCount: 1, parallelism: 1, template: { serviceAccount: profile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', containers: [{ name: 'migration', image: digest, env: [{ name: 'PDM_SOURCE_REVISION', value: sourceRevision }] }] } },
+})
 const sourceLock = buildSourceFreeze({ profile, releaseId: 'REL-001', observedAt: NOW, git: { clean: true, branch: 'main', sourceRevision: H40, sourceTree: 'c'.repeat(40), remoteRevision: H40 }, sourceIdentityBytes: Buffer.from('tree-manifest'), migrationBundle: { bundle: { manifestSha256: H64 } } })
 
 test('source freeze accepts a clean detached checkout only at the exact protected remote ref', () => {
@@ -65,11 +72,12 @@ test('release intent consumes source-bound infra reuse and rejects a tampered re
   const foundation = { projectId: 'project', releaseAuthority: true, status: 'APPLIED', foundationManifestSha256: 'e'.repeat(64) }
   const common = { ownerApplicationId: 'platform', projectId: 'project', releaseAuthority: true, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' }
   const core = {
-    schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v1', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
+    schemaVersion: 'jenfu.dev012.app-infra-reuse-receipt.v2', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
     releaseId: 'REL-001', sourceRevision: H40, foundationManifestSha256: foundation.foundationManifestSha256,
     reusedInfraReceiptRef: ref('infra-original'), reusedSourceRevision: 'f'.repeat(40),
     migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
     controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
+    providerJobReadback: assertInfraReuseProviderJob({ profile, existingInfra: { migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64), sourceRevision: 'f'.repeat(40) }, job: providerJob() }),
     mutationProfile: 'APP_INFRA_REUSE', reuseBasis: 'APPLICATION_SOURCE_ONLY_NO_INFRA_EXECUTABLE_INPUT_CHANGE',
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER_REUSE', observedAt: NOW,
   }
@@ -89,11 +97,42 @@ test('source-bound infra reuse accepts only the exact provider receipt and uncha
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
   }
   const original = { ...core, receiptSha256: sha256(canonicalize(core)) }
-  const receipt = buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), observedAt: NOW })
+  const receipt = buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW })
+  assert.equal(receipt.schemaVersion, 'jenfu.dev012.app-infra-reuse-receipt.v2')
   assert.equal(receipt.sourceRevision, sourceLock.sourceRevision)
   assert.equal(receipt.reusedSourceRevision, core.sourceRevision)
   assert.equal(receipt.receiptSha256, sha256(canonicalize(Object.fromEntries(Object.entries(receipt).filter(([key]) => key !== 'receiptSha256')))))
-  assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: { ...original, controllerImageDigest: 'other@sha256:' + 'c'.repeat(64) }, existingInfraRef: ref('original-infra'), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
+  assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: { ...original, controllerImageDigest: 'other@sha256:' + 'c'.repeat(64) }, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
+  assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ digest: profile.artifact.migrationRunnerUri + '@sha256:' + 'e'.repeat(64) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
+  assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ sourceRevision: 'e'.repeat(40) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
+})
+
+test('infra reuse producer reads the live migration job before publishing provider reuse evidence', async () => {
+  const foundation = { foundationManifestSha256: 'e'.repeat(64) }
+  const core = {
+    schemaVersion: 'jenfu.dev012.app-infra-receipt.v1', ownerApplicationId: 'platform', projectId: 'project', region: 'region',
+    sourceRevision: 'f'.repeat(40), foundationManifestSha256: foundation.foundationManifestSha256,
+    migrationRunnerDigest: profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64),
+    controllerImageDigest: 'region.pkg.dev/project/repo/controller@sha256:' + 'c'.repeat(64),
+    status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
+  }
+  const original = { ...core, receiptSha256: sha256(canonicalize(core)) }
+  const input = { schemaVersion: 'jenfu.dev012.app-infra-reuse-input.v1', sourceLockRef: ref('source-lock'), foundationReceiptRef: ref('foundation'), existingInfraReceiptRef: ref('original-infra') }
+  const values = new Map([[input.sourceLockRef.uri, sourceLock], [input.foundationReceiptRef.uri, foundation], [input.existingInfraReceiptRef.uri, original]])
+  const writes = [], requests = []
+  const run = job => executePrerequisiteProducer({ stage: 'infra-reuse', releaseId: 'REL-001', input, profile, observedAt: NOW,
+    transport: {
+      readJson: async row => ({ value: values.get(row.uri) }),
+      request: async url => { requests.push(url); return job },
+      putJson: async (uri, value) => { writes.push({ uri, value }); return { ref: { uri, sha256: sha256(canonicalize(value)) }, value } },
+    } })
+  const result = await run(providerJob())
+  assert.equal(result.value.providerJobReadback.migrationRunnerDigest, original.migrationRunnerDigest)
+  assert.deepEqual(requests, [`https://run.googleapis.com/v2/projects/project/locations/region/jobs/${profile.migrations.jobName}`])
+  assert.equal(writes.length, 1)
+  writes.length = 0
+  await assert.rejects(run(providerJob({ sourceRevision: 'e'.repeat(40) })), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
+  assert.equal(writes.length, 0)
 })
 
 test('AI-PDM WIF reuse requires the exact migration-only workflow binding', () => {
@@ -110,9 +149,9 @@ test('AI-PDM WIF reuse requires the exact migration-only workflow binding', () =
     status: 'APPLIED', releaseAuthority: true, evidenceScope: 'PRODUCTION_PROVIDER',
   }
   const original = { ...core, receiptSha256: sha256(canonicalize(core)) }
-  assert.equal(buildInfraReuseReceipt({ profile: aiProfile, releaseId: 'REL-001', sourceLock: aiSourceLock, foundation, existingInfra: original, existingInfraRef: ref('wif-infra'), observedAt: NOW }).reusedSourceRevision, core.sourceRevision)
+  assert.equal(buildInfraReuseReceipt({ profile: aiProfile, releaseId: 'REL-001', sourceLock: aiSourceLock, foundation, existingInfra: original, existingInfraRef: ref('wif-infra'), providerJob: providerJob(), observedAt: NOW }).reusedSourceRevision, core.sourceRevision)
   const missing = { ...core, allowedWorkflowRefs: [] }
-  assert.throws(() => buildInfraReuseReceipt({ profile: aiProfile, releaseId: 'REL-001', sourceLock: aiSourceLock, foundation, existingInfra: { ...missing, receiptSha256: sha256(canonicalize(missing)) }, existingInfraRef: ref('wif-infra'), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
+  assert.throws(() => buildInfraReuseReceipt({ profile: aiProfile, releaseId: 'REL-001', sourceLock: aiSourceLock, foundation, existingInfra: { ...missing, receiptSha256: sha256(canonicalize(missing)) }, existingInfraRef: ref('wif-infra'), providerJob: providerJob(), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
 })
 
 test('routine authority binds a fresh source to the exact active baseline without inventing a controlled transition', () => {
