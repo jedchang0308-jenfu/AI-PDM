@@ -27,10 +27,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Local runtime and data isolation
 
-- Every build, test, preview, worker, or browser runtime must declare its project, purpose, port, owning process tree, cleanup condition, `PDM_DATA_DIR`, and `PDM_REPOSITORY_DIR` mutation scope before start.
-- Any process that can run schema initialization or write data must use a task-owned isolated data/repository directory unless the user explicitly authorizes a fingerprint-gated primary-data repair. Never seed or clean the primary database as test setup.
-- An isolated build must prove the primary SQLite schema, canonical root/part/drawing identities, migration-residue inventory, and `PRAGMA foreign_key_check` are unchanged before and after the build.
-- A fixture may be seeded only after an unmodified source snapshot passes the master-count, root-reference, migration-residue, and global foreign-key invariants. Retain a fixture mutation ledger in QA evidence.
+- Only persistent services, workers, previews, or interactive browser sessions need a recorded project/purpose, port or process owner, and cleanup condition. Short-lived build and test commands may use their normal tool output unless a failure requires deeper runtime tracing.
+- Only a process that can initialize schema or write data must use a task-owned isolated `PDM_DATA_DIR`／`PDM_REPOSITORY_DIR`, unless the user explicitly authorizes a fingerprint-gated primary-data repair. Never seed or clean the primary database as test setup.
+- A successful `npm run build:isolated` result is sufficient evidence for its built-in primary SQLite snapshot and integrity checks when the runner, environment, data paths, and relevant inputs are unchanged. Refresh only the checks affected by a changed isolation boundary or new failure.
+- A fixture may be seeded only after its required source invariants pass. Retain a fixture mutation ledger only when the change contract or formal QA requires mutation traceability.
 - Stop and remove only the verified task-owned runtime and temporary paths. Never terminate an unrelated process or clear an unknown port.
 
 ## Task entry and change-scoped checks
