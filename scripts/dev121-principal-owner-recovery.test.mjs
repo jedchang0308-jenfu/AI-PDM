@@ -574,7 +574,7 @@ async function sealedPostbuildAbortFixture() {
   return { ...h, prior, inheritedBasis, build, sealedBuild, deployment, laterDiagnostic }
 }
 
-async function reconciledMigrationAbortFixture() {
+async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag' } = {}) {
   const h = await sealedPostbuildAbortFixture(), f = h.failed
   const serviceAccount = 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com'
   h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', serviceAccount }
@@ -662,12 +662,16 @@ async function reconciledMigrationAbortFixture() {
     }))
     if (!pass) attempts.push({ status: 'FAILED', ledgerCount: probe.ledgerCount, executionReadbackRef: executionReceipt.ref })
     else {
+      const nativeTimes = nativeTiming === 'before-provider'
+        ? { startedAt: '2026-10-03T00:02:59Z', completedAt: '2026-10-03T00:03:20Z' }
+        : nativeTiming === 'after-provider'
+          ? { startedAt: '2026-10-03T00:03:10Z', completedAt: '2026-10-03T00:03:40Z' }
+          : { startedAt: '2026-10-03T00:03:10Z', completedAt: '2026-10-03T00:03:20Z' }
       const nativeCore = { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: runnerSourceRevision,
         database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: probe.manifestSha256,
         baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 33,
         applied: 0, replayed: 33, crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
-        boundaryStatus: 'PASS', executionName: execution.name.split('/').at(-1), startedAt: execution.startTime,
-        completedAt: execution.completionTime, status: 'PASS' }
+        boundaryStatus: 'PASS', executionName: execution.name.split('/').at(-1), ...nativeTimes, status: 'PASS' }
       const native = h.put(outputUri, { ...nativeCore, receiptSha256: rdReadbackSha256(nativeCore) })
       attempts.push({ status: 'PASS', ledgerCount: probe.ledgerCount, executionReadbackRef: executionReceipt.ref,
         nativeReceiptRef: native.ref, completedAt: nativeCore.completedAt })
@@ -805,6 +809,14 @@ test('post-abort reconciliation rejects missing recovery, noncanonical result, t
   for (const mutate of mutations) {
     const h = await reconciledMigrationAbortFixture(); mutate(h)
     await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /DEV121_PREACTIVATION_CONTINUATION_INVALID|HASH|RD_READBACK|DEV121_PRINCIPAL_RECOVERY_INVALID|MISSING/u)
+    assert.equal(h.calls.puts, 0)
+  }
+})
+
+test('post-abort reconciliation rejects a native receipt outside its provider execution window', async () => {
+  for (const nativeTiming of ['before-provider', 'after-provider']) {
+    const h = await reconciledMigrationAbortFixture({ nativeTiming })
+    await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
     assert.equal(h.calls.puts, 0)
   }
 })
