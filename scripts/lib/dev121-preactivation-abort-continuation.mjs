@@ -802,8 +802,11 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
   return consumeAnchor(anchor, intent.baselineIntentRef)
 }
 
-// Only a completed prepare followed by a sealed abort before any completed build
-// can use this basis. It never promotes an aborted capsule into a released one.
+// A NOT_APPLIED abort may stop before Build, after an unsealed provider Build,
+// or after the sealed build/deployment pair but before migration submission.
+// Every shape remains non-authoritative and must prove that no matching
+// migration execution exists.  None promotes the aborted capsule or image into
+// a released artifact.
 async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider }) {
   const bucket = profile.artifact.releaseBucket
   let [prepare, rollback, failedLock, anchor] = await Promise.all([
@@ -843,18 +846,32 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     || failedLock.value.migrationManifestSha256 !== intent.migrationManifestSha256
     || failedLock.value.status !== 'SOURCE_FROZEN' || failedLock.value.releaseAuthority !== true || failedLock.value.clean !== true) fail()
   // Only a positive 404 is absence; partial uploads and unknown reads fail closed.
-  let provenance = null
-  try { provenance = await read(paths.provenance) } catch (error) { if (error.code !== 'MISSING') throw error }
-  const absentStages = ['build', ...(provenance ? [] : ['provenance', 'sbom', 'scan']), 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']
+  const optional = async uri => { try { return await read(uri) } catch (error) { if (error.code !== 'MISSING') throw error; return null } }
+  const [build, provenance, deployment] = await Promise.all([optional(paths.build), optional(paths.provenance), optional(paths.deployment)])
+  if (Boolean(build) !== Boolean(deployment) || ((build || deployment) && !provenance)) fail()
+  const absentStages = build
+    ? ['migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']
+    : ['build', ...(provenance ? [] : ['provenance', 'sbom', 'scan']), 'deployment', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']
   await assertAbsentStages(read, paths, absentStages)
   await assertMissing(read, migrationSubmissionIntentUri(profile, paths.migrate))
   const run = await transport.readOwnerRun(profile, control.ownerRunRef)
   if (run.id !== runId || run.status !== 'completed' || run.conclusion !== 'failure'
     || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
-  const partial = provenance ? await readUnpublishedBuild({ profile, transport, baselineIntentRef, intent, paths, provenance, read, run }) : null
-  if (!partial) await assertZeroBuilds(profile, transport, intent)
+  const completed = build ? await readSealedUnsubmittedBuild({ profile, transport, baselineIntentRef, intent, paths, prepare, prepareFacts,
+    build, provenance, deployment, read, seal, run }) : null
+  const partial = !build && provenance ? await readUnpublishedBuild({ profile, transport, baselineIntentRef, intent, paths, provenance, read, run }) : null
+  if (!completed && !partial) await assertZeroBuilds(profile, transport, intent)
   let releasedIntentRef = intent.baselineIntentRef, inheritedBasis = null
-  if (partial && prepareFacts.preActivationAbortBasis) {
+  if (completed && prepareFacts.preActivationAbortBasis) {
+    inheritedBasis = prepareFacts.preActivationAbortBasis
+    if (!['ai-pdm.principal-prebuild-abort-basis.v1', 'ai-pdm.principal-unpublished-build-abort-basis.v1'].includes(inheritedBasis.schemaVersion)
+      || !same(inheritedBasis.failedIntentRef, intent.baselineIntentRef)
+      || inheritedBasis.previousRevision !== intent.previousRevision
+      || !/^[a-f0-9]{64}$/u.test(inheritedBasis.controlSha256 ?? '')) fail()
+    assertImmutableRef(inheritedBasis.releasedIntentRef, bucket, ['receipts'])
+    releasedIntentRef = inheritedBasis.releasedIntentRef
+    anchor = await transport.readJson(releasedIntentRef, bucket, ['receipts'])
+  } else if (partial && prepareFacts.preActivationAbortBasis) {
     inheritedBasis = prepareFacts.preActivationAbortBasis
     releasedIntentRef = await readInheritedPrebuildAnchor({ profile, transport, intent, inheritedBasis, anchor, read })
     anchor = await transport.readJson(releasedIntentRef, bucket, ['receipts'])
@@ -924,10 +941,14 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     || inheritedBasis.retainedArtifactDigest !== proof.artifactDigest || !same(inheritedBasis.releasedProof, proof)
     || !same(inheritedBasis.entrypoint, entrySnapshot(service)) || !same(inheritedBasis.scaling, service.scaling)
     || inheritedBasis.retainedEnvironmentSha256 !== sha256(canonicalize(retainedEnvironment)))) fail()
+  const schemaVersion = completed ? 'ai-pdm.principal-postbuild-pre-migration-abort-basis.v1'
+    : partial ? 'ai-pdm.principal-unpublished-build-abort-basis.v1' : 'ai-pdm.principal-prebuild-abort-basis.v1'
   return { kind: 'PRINCIPAL_ORDINARY_ABORT', currentActiveRevision: intent.previousRevision, result: 'PRE_ACTIVATION_ABORTED',
-    authorityBasis: { schemaVersion: partial ? 'ai-pdm.principal-unpublished-build-abort-basis.v1' : 'ai-pdm.principal-prebuild-abort-basis.v1', failedIntentRef: baselineIntentRef,
+    authorityBasis: { schemaVersion, failedIntentRef: baselineIntentRef,
       releasedIntentRef, failedSourceLockRef: failedLock.ref, databaseDisposition: 'NOT_APPLIED', releasedProof: proof,
-      absentStages: absentStages.filter(stage => !['sbom', 'scan'].includes(stage)), failedBuildCount: partial ? 1 : 0, ...(partial ? { unpublishedBuild: partial, inheritedBasis } : {}), stageRefs: { prepare: prepare.ref, rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
+      absentStages: absentStages.filter(stage => !['sbom', 'scan'].includes(stage)), failedBuildCount: completed || partial ? 1 : 0,
+      ...(completed ? { sealedBuild: completed, inheritedBasis } : partial ? { unpublishedBuild: partial, inheritedBasis } : {}),
+      stageRefs: { prepare: prepare.ref, ...(completed ? { build: build.ref, deployment: deployment.ref } : {}), rollback: rollback.ref, terminal: terminal.ref, runtimeConfig: anchorRuntime.ref },
       controlSha256, inputFingerprint: fingerprint, ownerRunRef: control.ownerRunRef, serviceUid: service.uid,
       previousRevision: intent.previousRevision, retainedArtifactDigest: proof.artifactDigest,
       entrypoint: entrySnapshot(service), scaling: service.scaling, retainedEnvironmentSha256: sha256(canonicalize(retainedEnvironment)) } }
@@ -950,6 +971,41 @@ async function readFailedBuilds(profile, transport, intent, pageSize) {
 }
 async function assertZeroBuilds(profile, transport, intent) {
   if ((await readFailedBuilds(profile, transport, intent, 1)).length !== 0) fail()
+}
+
+async function readSealedUnsubmittedBuild({ profile, transport, baselineIntentRef, intent, paths, prepare, prepareFacts,
+  build, provenance, deployment, read, seal, run }) {
+  const facts = seal(build, 'build')
+  const evidence = await readUnpublishedBuildEvidence({ profile, transport, baselineIntentRef, intent, paths, provenance, read })
+  const value = deployment.value
+  if (!same(build.value.previousReceiptRef, prepare.ref)
+    || facts.artifactDigest !== evidence.artifactDigest || !same(facts.sourceObject, evidence.sourceObject)
+    || !same(facts.provenanceReceiptRef, evidence.provenanceRef) || !same(facts.sbomReceiptRef, evidence.sbomRef)
+    || !same(facts.scanReceiptRef, evidence.scanRef)
+    || value?.schemaVersion !== profile.schemas.deploymentCapsule || value.ownerApplicationId !== profile.application.id
+    || !same(value.releaseIntentRef, baselineIntentRef) || value.releaseIntentSha256 !== baselineIntentRef.sha256
+    || value.sourceRevision !== intent.sourceRevision || value.deadlineAt !== intent.deadlineAt
+    || value.artifactDigest !== evidence.artifactDigest || !same(value.sourceObject, evidence.sourceObject)
+    || !same(value.buildReceiptRef, build.ref) || !same(value.provenanceReceiptRef, evidence.provenanceRef)
+    || !same(value.sbomReceiptRef, evidence.sbomRef) || !same(value.scanReceiptRef, evidence.scanRef)
+    || !same(value.migrationBundleRef, facts.migrationBundleRef)
+    || value.migrationRunnerDigest !== prepareFacts.migrationRunnerDigest
+    || !value.migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)
+    || !/^[a-f0-9]{64}$/u.test(value.migrationRunnerDigest?.split('@sha256:')[1] ?? '')
+    || Object.hasOwn(value, 'programOnlyBaseline') || Object.hasOwn(value, 'sourceMigrationBundleRef')
+    || (Object.hasOwn(value, 'migrationRunnerSourceRevision') && value.migrationRunnerSourceRevision !== null
+      && !/^[a-f0-9]{40}$/u.test(value.migrationRunnerSourceRevision))) fail()
+  assertImmutableRef(value.migrationBundleRef, profile.artifact.releaseBucket, [profile.artifact.migrationBundlePrefix])
+  if (intent.openswxWorkerRef) {
+    if (!same(value.openswxWorker?.descriptorRef, intent.openswxWorkerRef)
+      || !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-openswx-worker@sha256:[a-f0-9]{64}$/u.test(value.openswxWorker?.image ?? '')) fail()
+    assertImmutableRef(value.openswxWorker.workerBuildRef, profile.artifact.releaseBucket, ['receipts'])
+  } else if (value.openswxWorker) fail()
+  const window = closedOwnerWindow(run), finished = Date.parse(provenance.value.cloudBuild.finishTime)
+  if (!Number.isFinite(finished) || finished < window.start || finished > window.end) fail()
+  await assertNoMigrationExecution(profile, transport, intent, paths, run)
+  return { ...evidence, evidenceScope: 'QUIESCENT_SEALED_BUILD_NOT_REUSED', buildRef: build.ref,
+    deploymentRef: deployment.ref, migrationBundleRef: value.migrationBundleRef }
 }
 
 // This is only quiescence/source association evidence for an unpublished build.
@@ -1325,12 +1381,15 @@ async function assertNoMigrationExecution(profile, transport, intent, paths, run
       || (Object.hasOwn(list, 'executions') && !Array.isArray(list.executions))
       || (Object.hasOwn(list, 'nextPageToken') && typeof list.nextPageToken !== 'string')) fail()
     for (const execution of list.executions ?? []) {
-      const created = Date.parse(execution.createTime)
+      const created = Date.parse(execution.createTime), completed = Date.parse(execution.completionTime)
+      const argumentsMatch = value => execution.template?.containers?.some(container => container.args?.some((argument, index, args) =>
+        argument === value || argument === `--source-revision=${value}` || argument === `--output-ref=${value}`
+        || (['--source-revision', '--output-ref'].includes(argument) && args[index + 1] === value)))
       if (typeof execution.name !== 'string' || !execution.name.startsWith(`${job}/executions/`)
-        || names.has(execution.name) || !Number.isFinite(created) || !execution.completionTime || execution.reconciling === true
+        || names.has(execution.name) || !Number.isFinite(created) || !Number.isFinite(completed) || completed < created
+        || completed > Date.now() || execution.reconciling === true
         || !execution.conditions?.some(condition => condition.type === 'Completed' && ['CONDITION_SUCCEEDED', 'CONDITION_FAILED'].includes(condition.state))
-        || created >= started || execution.template?.containers?.some(container => container.args?.includes(paths.migrate)
-          || container.args?.includes(intent.sourceRevision))) fail()
+        || (created <= ended && completed >= started) || argumentsMatch(paths.migrate) || argumentsMatch(intent.sourceRevision)) fail()
       names.add(execution.name)
     }
     token = list.nextPageToken ?? ''
