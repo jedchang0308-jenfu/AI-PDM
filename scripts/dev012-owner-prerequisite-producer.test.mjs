@@ -24,8 +24,8 @@ const profile = {
 const ref = (name) => ({ uri: `gs://owner-bucket/receipts/releases/REL-001/${name}.json`, sha256: H64 })
 const providerJob = ({ digest = profile.artifact.migrationRunnerUri + '@sha256:' + 'd'.repeat(64), sourceRevision = 'f'.repeat(40) } = {}) => ({
   name: `projects/${profile.target.projectId}/locations/${profile.target.region}/jobs/${profile.migrations.jobName}`,
-  uid: 'provider-job-uid', generation: '7', etag: 'provider-job-etag', updateTime: NOW,
-  conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }],
+  uid: 'provider-job-uid', generation: '7', observedGeneration: '7', etag: 'provider-job-etag', updateTime: NOW,
+  terminalCondition: { type: 'Ready', state: 'CONDITION_SUCCEEDED' },
   template: { taskCount: 1, parallelism: 1, template: { serviceAccount: profile.migrations.serviceAccount, maxRetries: 0, timeout: '1800s', containers: [{ name: 'migration', image: digest, env: [{ name: 'PDM_SOURCE_REVISION', value: sourceRevision }] }] } },
 })
 const sourceLock = buildSourceFreeze({ profile, releaseId: 'REL-001', observedAt: NOW, git: { clean: true, branch: 'main', sourceRevision: H40, sourceTree: 'c'.repeat(40), remoteRevision: H40 }, sourceIdentityBytes: Buffer.from('tree-manifest'), migrationBundle: { bundle: { manifestSha256: H64 } } })
@@ -105,6 +105,12 @@ test('source-bound infra reuse accepts only the exact provider receipt and uncha
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: { ...original, controllerImageDigest: 'other@sha256:' + 'c'.repeat(64) }, existingInfraRef: ref('original-infra'), providerJob: providerJob(), observedAt: NOW }), /INFRA_REUSE_INPUT_INVALID/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ digest: profile.artifact.migrationRunnerUri + '@sha256:' + 'e'.repeat(64) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
   assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: providerJob({ sourceRevision: 'e'.repeat(40) }), observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
+  for (const drift of [
+    { terminalCondition: { type: 'Ready', state: 'CONDITION_FAILED' } },
+    { terminalCondition: undefined, conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }] },
+    { reconciling: true },
+    { observedGeneration: '6' },
+  ]) assert.throws(() => buildInfraReuseReceipt({ profile, releaseId: 'REL-001', sourceLock, foundation, existingInfra: original, existingInfraRef: ref('original-infra'), providerJob: { ...providerJob(), ...drift }, observedAt: NOW }), /INFRA_REUSE_PROVIDER_JOB_MISMATCH/u)
 })
 
 test('infra reuse producer reads the live migration job before publishing provider reuse evidence', async () => {
