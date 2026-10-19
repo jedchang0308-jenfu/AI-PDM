@@ -28,6 +28,7 @@ const PROFILE_SHA = 'b16c25a4f0be5eaf6d1b3e045986ea94b41b23705544f9633934039a8aa
 const BUILDER = 'gcr.io/cloud-builders/docker@sha256:3d00b6c1a9b862621c30fc74d4f2abfc62bcbdee631ed3febd31e7edbdf6252c'
 const IGNORED_ARGS = ['SOURCE_REVISION', 'SOURCE_TREE', 'SOURCE_VERSION', 'SOURCE_CREATED_AT', 'SOURCE_STATE']
 const POLICY = Object.freeze({ schemaVersion: 'aipdm.openswx-reuse-security-policy.v1', discovery: 'FINISHED_SUCCESS', continuousAnalysis: 'ACTIVE', archived: false, rawHighOrCriticalVulnerabilityCount: 0, blockingVulnerabilityCount: 0 })
+const RECONCILED_REPAIR_KEYS = ['postAbortLedgerReadbackRef', 'principalOnlyFenceRef', 'principalOnlyRecovery']
 const ASSOCIATION_KEYS = ['schemaVersion', 'ownerApplicationId', 'status', 'evidenceScope', 'sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'workerProfileSha256', 'resourcePlanHash', 'image', 'jobName', 'actor', 'observedAt', 'requestRef', 'priorActivationRef', 'executableProof', 'artifactOrigin', 'resourceAssociation', 'securityEvidence']
 const ORIGIN_KEYS = ['priorReadyCapsuleRef', 'priorReadyFullDescriptorRef', 'originalBuildReceiptRef', 'originalBuildOnlyDescriptorRef', 'originalApprovedResourcePlanRef', 'sourceRevision', 'sourceArchiveSha256', 'workerProfileSha256', 'sourceObject', 'buildId', 'buildRequestSha256', 'createTime', 'startTime', 'finishTime', 'image', 'provenance', 'sbom']
 const PROOF_KEYS = ['method', 'originalManifestRef', 'currentManifestRef', 'effectiveRecipeSha256', 'equal', 'target', 'builder', 'effectiveArgs', 'ignoredArgNames', 'originalSubmittedArgs']
@@ -472,7 +473,7 @@ async function resolveAssociation({ transport, descriptor, profile, readSource, 
   if (request.schemaVersion !== `aipdm.openswx-worker-reuse-request.v${repair ? 2 : association.historyBasisRef ? 3 : 1}` || request.actor !== profile.normalActor || request.sourceRevision !== descriptor.sourceRevision) fail('OPENSWX_REUSE_REQUEST_INVALID')
   same(request.sourceLockRef, association.sourceLockRef); same(request.priorActivationRef, association.priorActivationRef); ownRef(request.inputRef); time(request.requestedAt)
   const input = assertWorkerReuseInput((await read(transport, request.inputRef)).value, { historical: true })
-  if ((input.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2') !== repair) fail('OPENSWX_REUSE_REQUEST_INVALID')
+  if (['aipdm.openswx-worker-reuse-input.v2', 'aipdm.openswx-worker-reuse-input.v5'].includes(input.schemaVersion) !== repair) fail('OPENSWX_REUSE_REQUEST_INVALID')
   if (association.historyBasisRef) {
     if (input.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v3') fail('OPENSWX_REUSE_REQUEST_INVALID')
     same(input.historyBasisRef, association.historyBasisRef); same(request.historyBasisRef, association.historyBasisRef)
@@ -519,7 +520,7 @@ async function named(transport, uri, prefixes = ['receipts']) {
   return { ...row, value: JSON.parse(row.bytes.toString('utf8')) }
 }
 /** The serving application and last READY worker are distinct sealed histories. */
-async function readServingRepairBasis({ transport, servingCapsuleRef, origin, profile, readSource, ctx, recorded = null }) {
+async function readServingRepairBasis({ transport, servingCapsuleRef, origin, profile, readSource, ctx, recorded = null, abortContinuation = null }) {
   const child = descend(ctx, servingCapsuleRef, true, releaseCapsuleRef)
   const capsule = await read(transport, releaseCapsuleRef(servingCapsuleRef), ['receipts/releases'])
   const lock = await read(transport, capsule.value.sourceLockRef, ['receipts'])
@@ -599,6 +600,7 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
       || !H64.test(control.value.inputFingerprint ?? '') || !Number.isFinite(Date.parse(control.value.leaseExpiresAt)) || !Number.isFinite(Date.parse(control.value.deadlineAt))
       || !/^[1-9][0-9]*$/u.test(control.metadata?.generation ?? '')) fail('OPENSWX_REPAIR_SERVING_INVALID')
     if (control.value.result === 'RELEASED') {
+      if (abortContinuation !== null) fail('OPENSWX_REPAIR_SERVING_INVALID')
       if (control.value.releaseId !== intent.releaseId || control.value.sourceRevision !== intent.sourceRevision
         || control.value.sourceLockSha256 !== intent.sourceLockRef.sha256 || control.value.deadlineAt !== intent.deadlineAt
         || control.value.candidateRevision !== revisionName || control.value.previousRevision !== intent.previousRevision) fail('OPENSWX_REPAIR_SERVING_INVALID')
@@ -607,8 +609,9 @@ async function readServingRepairBasis({ transport, servingCapsuleRef, origin, pr
       const failedIntent = assertDev117ReleaseIntent(failed.value, appProfile)
       if (control.value.sourceRevision !== failedIntent.sourceRevision || control.value.sourceLockSha256 !== failedIntent.sourceLockRef.sha256
         || control.value.deadlineAt !== failedIntent.deadlineAt) fail('OPENSWX_REPAIR_SERVING_INVALID')
-      const continuation = await readPreActivationAbortContinuation({ profile: appProfile, transport, baselineIntentRef: failed.ref, service, control: control.value, verifyProvider: true })
-      if (continuation?.kind !== 'PRINCIPAL_ORDINARY_ABORT' || continuation.currentActiveRevision !== revisionName
+      const continuation = await readPreActivationAbortContinuation({ profile: appProfile, transport, baselineIntentRef: failed.ref, service, control: control.value, verifyProvider: true, ...(abortContinuation ?? {}) })
+      const expectedKind = abortContinuation === null ? 'PRINCIPAL_ORDINARY_ABORT' : 'PRINCIPAL_FENCED_ABORT_RECONCILED'
+      if (continuation?.kind !== expectedKind || continuation.currentActiveRevision !== revisionName
         || continuation.authorityBasis?.previousRevision !== revisionName || continuation.authorityBasis.retainedArtifactDigest !== graph.chain.deployment.value.artifactDigest
         || continuation.authorityBasis.serviceUid !== service.uid) fail('OPENSWX_REPAIR_SERVING_INVALID')
       same(continuation.authorityBasis.failedIntentRef, failed.ref); same(continuation.authorityBasis.releasedIntentRef, servingCapsuleRef)
@@ -641,7 +644,8 @@ async function validateRepairBaseline({ transport, baseline, baselineRef, associ
   const appRecords = api => baseline.providerReadbackRefs.filter(row => row.api === api)
   if (appRecords('APP_SERVICE').length !== 1 || appRecords('APP_REVISION').length !== 1) fail('OPENSWX_REPAIR_READBACK_INVALID')
   const serving = await readServingRepairBasis({ transport, servingCapsuleRef: input.servingCapsuleRef, origin, profile, readSource, ctx,
-    recorded: { service: bodies.get(appRecords('APP_SERVICE')[0].bodyRef.uri), revision: bodies.get(appRecords('APP_REVISION')[0].bodyRef.uri) } })
+    recorded: { service: bodies.get(appRecords('APP_SERVICE')[0].bodyRef.uri), revision: bodies.get(appRecords('APP_REVISION')[0].bodyRef.uri) },
+    abortContinuation: workerRepairAbortContinuation(input) })
   // Immutable serving joins are replayed; live etag may change only in a later current check.
   const { serviceEtag: _old, ...saved } = baseline.servingApp, { serviceEtag: _new, ...actual } = serving.servingApp
   same(saved, actual); same(baseline.predecessorBaselineRef, serving.predecessorBaselineRef)
@@ -827,8 +831,9 @@ async function validateFailedDailyResourceProof({ transport, value, association,
   return { failed: reconstructed.admittedFailed, baseline: value }
 }
 export function assertWorkerReuseInput(value, { historical = false } = {}) {
-  const repair = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2', basis = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v3', frontierRebase = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v4'
-  exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', ...(basis ? ['historyBasisRef'] : []), ...(frontierRebase ? ['frontierRebaseRef'] : []), ...(repair ? ['servingCapsuleRef', 'predecessorBaselineRef'] : [...(Object.hasOwn(value ?? {}, 'secretVersionIamContinuationRef') ? ['secretVersionIamContinuationRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : []), ...(Object.hasOwn(value ?? {}, 'completedFailedDailyCheckpointRef') ? ['completedFailedDailyCheckpointRef'] : []), ...(Object.hasOwn(value ?? {}, 'partialFailedDailyPauseInputRef') ? ['partialFailedDailyPauseInputRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyPauseFailureRef') ? ['failedDailyPauseFailureRef'] : [])])], 'OPENSWX_REUSE_INPUT_INVALID')
+  const reconciledRepair = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v5'
+  const repair = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2' || reconciledRepair, basis = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v3', frontierRebase = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v4'
+  exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', ...(basis ? ['historyBasisRef'] : []), ...(frontierRebase ? ['frontierRebaseRef'] : []), ...(repair ? ['servingCapsuleRef', 'predecessorBaselineRef', ...(reconciledRepair ? RECONCILED_REPAIR_KEYS : [])] : [...(Object.hasOwn(value ?? {}, 'secretVersionIamContinuationRef') ? ['secretVersionIamContinuationRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : []), ...(Object.hasOwn(value ?? {}, 'completedFailedDailyCheckpointRef') ? ['completedFailedDailyCheckpointRef'] : []), ...(Object.hasOwn(value ?? {}, 'partialFailedDailyPauseInputRef') ? ['partialFailedDailyPauseInputRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyPauseFailureRef') ? ['failedDailyPauseFailureRef'] : [])])], 'OPENSWX_REUSE_INPUT_INVALID')
   if (!repair && Object.hasOwn(value, 'secretVersionIamContinuationRef')) ownRef(value.secretVersionIamContinuationRef)
   if (!repair && Object.hasOwn(value, 'failedDailyContinuation')) assertFailedDailyContinuation(value.failedDailyContinuation)
   if (!repair && Object.hasOwn(value, 'completedFailedDailyCheckpointRef')) {
@@ -847,11 +852,26 @@ export function assertWorkerReuseInput(value, { historical = false } = {}) {
   if (frontierRebase) { ownRef(value.frontierRebaseRef); if (!value.failedDailyContinuation || !value.completedFailedDailyCheckpointRef || !value.partialFailedDailyPauseInputRef || !value.failedDailyPauseFailureRef) fail('OPENSWX_REUSE_INPUT_INVALID') }
   if ((!repair && !basis && !frontierRebase && value.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v1') || !/^[A-Za-z0-9-]{6,100}$/u.test(value.receiptId ?? '')) fail('OPENSWX_REUSE_INPUT_INVALID')
   if (repair) { releaseCapsuleRef(value.servingCapsuleRef); if (value.predecessorBaselineRef !== null) ownRef(value.predecessorBaselineRef) }
+  if (reconciledRepair) {
+    assertImmutableRef(value.postAbortLedgerReadbackRef, BUCKET, ['receipts/releases'])
+    assertImmutableRef(value.principalOnlyFenceRef, BUCKET, ['receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE'])
+    exact(value.principalOnlyRecovery, ['revision', 'imageDigest', 'serviceUid', 'receiptRef'], 'OPENSWX_REUSE_INPUT_INVALID')
+    assertImmutableRef(value.principalOnlyRecovery.receiptRef, BUCKET, ['receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY'])
+    if (!/^gs:\/\/jenfu-platform-prod-aipdm-release\/receipts\/releases\/[A-Z0-9][A-Z0-9-]{5,63}\/[a-f0-9]{64}\/ledger-readback-result\.json$/u.test(value.postAbortLedgerReadbackRef.uri)
+      || !/^ai-pdm-prod-[a-z0-9-]+$/u.test(value.principalOnlyRecovery.revision ?? '')
+      || !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-recovery@sha256:[a-f0-9]{64}$/u.test(value.principalOnlyRecovery.imageDigest ?? '')
+      || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(value.principalOnlyRecovery.serviceUid ?? '')) fail('OPENSWX_REUSE_INPUT_INVALID')
+  }
   assertImmutableRef(value.sourceLockRef, BUCKET, ['receipts']); assertImmutableRef(value.currentSourceObjectRef, BUCKET, ['source']); ownRef(value.priorActivationRef)
   if (!safePath(value.sourceLockRef.uri.slice(`gs://${BUCKET}/`.length)) || !value.sourceLockRef.uri.endsWith('.json')
     || !safePath(value.currentSourceObjectRef.uri.slice(`gs://${BUCKET}/`.length)) || !value.currentSourceObjectRef.uri.endsWith('.tar.gz')) fail('OPENSWX_REUSE_INPUT_INVALID')
   assertCurrentOwnerDeadline(value.deadlineAt, { historical })
   return value
+}
+export function workerRepairAbortContinuation(input) {
+  if (input?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2') return null
+  if (input?.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v5') fail('OPENSWX_REUSE_INPUT_INVALID')
+  return Object.fromEntries(RECONCILED_REPAIR_KEYS.map(key => [key, structuredClone(input[key])]))
 }
 async function readSecretVersionIamForReuse({ transport, input, supplemental, sourceRevision, profile, readSource }) {
   if (!input.secretVersionIamContinuationRef) return null
@@ -935,7 +955,7 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   return runAiPdmEvidenceContext(ctx, async () => {
   transport = createWorkerReceiptReadTransport(transport)
   const input = assertWorkerReuseInput((await read(transport, inputRef)).value)
-  const repair = input.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2', failedMode = !repair && !!input.failedDailyContinuation
+  const repair = ['aipdm.openswx-worker-reuse-input.v2', 'aipdm.openswx-worker-reuse-input.v5'].includes(input.schemaVersion), failedMode = !repair && !!input.failedDailyContinuation
   transport = boundOpenSwxTransport(transport, input.deadlineAt)
   const lock = (await read(transport, input.sourceLockRef, ['receipts'])).value, revision = lock.sourceRevision ?? lock.headRevision ?? lock.head
   assertReuseSourceLock(lock, revision)
@@ -1001,9 +1021,9 @@ export async function executeWorkerArtifactReuse({ transport, inputRef, readSour
   same(plan, origin.approved.plan, 'OPENSWX_REUSE_RESOURCE_DRIFT'); same(plan, origin.appliedPlan.plan, 'OPENSWX_REUSE_RESOURCE_DRIFT')
   const security = await providerSecurity(transport, origin, profile)
   const supplementalIam = await readBootstrapSupplementalIam(transport, origin.prior.bootstrap, origin.prior.bootstrapDescriptor, profile, readSource, revision, historicalReadSource)
-  const serving = repair ? await readServingRepairBasis({ transport, servingCapsuleRef: input.servingCapsuleRef, origin, profile, readSource, ctx }) : null
+  const serving = repair ? await readServingRepairBasis({ transport, servingCapsuleRef: input.servingCapsuleRef, origin, profile, readSource, ctx, abortContinuation: workerRepairAbortContinuation(input) }) : null
   if (repair) same(input.predecessorBaselineRef, serving.predecessorBaselineRef)
-  // A v2 repair input must not supply an actor-selected IAM continuation.  Its
+  // A repair input must not supply an actor-selected IAM continuation.  Its
   // only admissible Secret IAM authority comes from the sealed serving capsule
   // and retained worker association validated above.
   const secretVersionIam = repair ? (serving?.secretVersionIam ?? null) : await readSecretVersionIamForReuse({ transport, input, supplemental: supplementalIam, sourceRevision: revision, profile, readSource })

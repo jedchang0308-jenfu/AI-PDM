@@ -1256,8 +1256,20 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         sameProof(request.inputRef, baseline.value.inputRef)
         for (const key of ['sourceRevision', 'sourceLockRef', 'priorActivationRef']) sameProof(request[key], association[key])
         const input = (await readRef(request.inputRef, AI_BUCKET, token, fetchImpl)).value
-        if (!exactKeys(input, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', 'servingCapsuleRef', 'predecessorBaselineRef']) || input.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v2' || !Number.isFinite(Date.parse(input.deadlineAt)) ||
+        const reconciledRepair = input?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v5'
+        const reconciledKeys = ['postAbortLedgerReadbackRef', 'principalOnlyFenceRef', 'principalOnlyRecovery']
+        if (!exactKeys(input, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', 'servingCapsuleRef', 'predecessorBaselineRef', ...(reconciledRepair ? reconciledKeys : [])]) || !['aipdm.openswx-worker-reuse-input.v2', 'aipdm.openswx-worker-reuse-input.v5'].includes(input.schemaVersion) || !Number.isFinite(Date.parse(input.deadlineAt)) ||
             !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '') || Date.parse(request.requestedAt) >= Date.parse(input.deadlineAt)) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
+        if (reconciledRepair) {
+          for (const ref of [input.postAbortLedgerReadbackRef, input.principalOnlyFenceRef, input.principalOnlyRecovery?.receiptRef]) assertAiReleaseRef(ref)
+          if (!input.postAbortLedgerReadbackRef.uri.startsWith(`gs://${AI_BUCKET}/receipts/releases/`) || !input.postAbortLedgerReadbackRef.uri.endsWith('/ledger-readback-result.json')
+            || !input.principalOnlyFenceRef.uri.startsWith(`gs://${AI_BUCKET}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/`)
+            || !exactKeys(input.principalOnlyRecovery, ['revision', 'imageDigest', 'serviceUid', 'receiptRef'])
+            || !input.principalOnlyRecovery.receiptRef.uri.startsWith(`gs://${AI_BUCKET}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/`)
+            || !/^ai-pdm-prod-[a-z0-9-]+$/u.test(input.principalOnlyRecovery.revision ?? '')
+            || !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-recovery@sha256:[a-f0-9]{64}$/u.test(input.principalOnlyRecovery.imageDigest ?? '')
+            || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(input.principalOnlyRecovery.serviceUid ?? '')) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
+        }
         sameProof(input.sourceLockRef, intent.sourceLockRef); sameProof(input.priorActivationRef, descriptor.priorActivationRef); sameProof(input.servingCapsuleRef, baseline.value.servingApp.capsuleRef); sameProof(input.predecessorBaselineRef, baseline.value.predecessorBaselineRef)
         if (input.currentSourceObjectRef?.sha256 !== descriptor.sourceArchiveSha256) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
         const raw = new Map()

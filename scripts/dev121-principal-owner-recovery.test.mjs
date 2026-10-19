@@ -7,6 +7,7 @@ import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-a
 import { buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProbeArguments, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
+import { assertWorkerReuseInput, workerRepairAbortContinuation } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-aipdm-release'
 const previousRevision = 'ai-pdm-prod-111111111111'
@@ -767,6 +768,20 @@ test('post-abort ledger readback reconciles one failed UNKNOWN migration and car
   const prepare = await executeOwnerStage(next.input)
   assert.deepEqual(prepare.value.facts.preActivationAbortBasis, continuation.authorityBasis)
   assert.deepEqual(prepare.value.facts.principalOnlyRecovery, h.continuation.principalOnlyRecovery)
+
+  const workerInput = assertWorkerReuseInput({
+    schemaVersion: 'aipdm.openswx-worker-reuse-input.v5',
+    sourceLockRef: next.capsule.value.sourceLockRef,
+    currentSourceObjectRef: { uri: `gs://${bucket}/source/releases/${next.capsule.value.releaseId}/worker/source.tar.gz`, sha256: '4'.repeat(64) },
+    priorActivationRef: { uri: `gs://${bucket}/receipts/dev-122/openswx-worker/DEV122-RECONCILED-prior-activation.json`, sha256: '5'.repeat(64) },
+    servingCapsuleRef: h.anchor.intentRow.ref,
+    predecessorBaselineRef: null,
+    deadlineAt: new Date(Date.now() + 120_000).toISOString(),
+    receiptId: 'DEV122-RECONCILED-WORKER',
+    ...h.continuation,
+  })
+  const workerContinuation = await readPreActivationAbortContinuation({ ...h.helperInput, ...workerRepairAbortContinuation(workerInput), verifyProvider: true })
+  assert.deepEqual(workerContinuation.authorityBasis, continuation.authorityBasis)
 })
 
 test('post-abort reconciliation rejects missing recovery, noncanonical result, tampering, duplicate execution and non-maintenance service', async () => {
