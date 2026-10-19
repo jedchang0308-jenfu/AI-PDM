@@ -42,6 +42,13 @@ function requestTimeout(value) {
   if (!match || seconds > 60) fail('TIMEOUT_INVALID')
   return seconds
 }
+function recoveryTemplateIsCurrent(service, recovery, profile) {
+  const fullRevision = NAME + '/revisions/' + recovery.revision
+  const container = service?.template?.containers?.find(row => row.name === profile.runtime.containerName)
+  return [recovery.revision, fullRevision].includes(service?.latestCreatedRevision) &&
+    service?.template?.revision === recovery.revision &&
+    container?.image === recovery.imageDigest
+}
 function assertSource(profile, git, sourceProof) {
   if (profile?.application?.id !== 'ai-pdm' ||
     profile.application.repository !== 'jedchang0308-jenfu/AI-PDM' ||
@@ -197,19 +204,57 @@ export async function executeFenceOperation({ profile, git, sourceProof, recover
   if (active.name !== NAME + '/revisions/' + oldRevision ||
     active.conditions?.find(row => row.type === 'Ready')?.state !== 'CONDITION_SUCCEEDED' ||
     requestTimeout(active.timeout) > timeout) fail('ACTIVE_TIMEOUT_INVALID')
-  if (![undefined, 'AUTOMATIC'].includes(baseline.scaling?.scalingMode) ||
-    baseline.scaling?.manualInstanceCount != null) fail('BASELINE_NOT_AUTOMATIC')
+  const automaticBaseline = [undefined, 'AUTOMATIC'].includes(baseline.scaling?.scalingMode) &&
+    baseline.scaling?.manualInstanceCount == null
+  const stoppedBaseline = baseline.scaling?.scalingMode === 'MANUAL' &&
+    [0, '0'].includes(baseline.scaling?.manualInstanceCount)
+  if (!automaticBaseline && !stoppedBaseline) fail('BASELINE_NOT_AUTOMATIC')
+  if (stoppedBaseline && !recoveryTemplateIsCurrent(baseline, binding, profile)) {
+    fail('RECOVERY_TEMPLATE_NOT_CURRENT')
+  }
   const submissionUri = PREFIX + sourceRevision + '/submission-' + baseline.generation + '.json'
-  if (await optional(transport, submissionUri)) fail('PRIOR_SUBMISSION_REQUIRES_READBACK')
-  if (!acquire) return { status: 'READINESS_PASS', sourceRevision,
+  if (!acquire) return { status: stoppedBaseline ? 'QUIESCENCE_ADOPTION_READY' : 'READINESS_PASS', sourceRevision,
     previousRevision: oldRevision, requestTimeoutSeconds: timeout,
     principalOnlyRecovery: binding, mutationCount: 0 }
-  // Manual mode has its own count; Cloud Run omits automatic min/max fields.
-  // Keep the exact automatic baseline in the submission for recovery.
-  const stoppedScaling = { scalingMode: 'MANUAL', manualInstanceCount: 0 }
   const deadline = Date.parse(now()) + 10 * 60_000
   const deadlineTick = monotonic() + 10 * 60_000
   if (!Number.isFinite(deadline) || !Number.isFinite(deadlineTick)) fail('CLOCK_INVALID')
+  if (stoppedBaseline) {
+    const providerUpdatedAt = Date.parse(baseline.updateTime)
+    const readbackTick = monotonic()
+    if (!Number.isFinite(providerUpdatedAt) || !Number.isFinite(readbackTick)) fail('PROVIDER_TIME_INVALID')
+    const drainMilliseconds = (timeout + 30) * 1000
+    // A stopped service can outlive the source that first fenced it.  Rebind
+    // only the already-zero state: wait a fresh full drain interval, require
+    // the exact recovery template, traffic and etag to remain unchanged, and
+    // publish a source-bound fence without another Service mutation.
+    while (monotonic() - readbackTick < drainMilliseconds) {
+      if (!Number.isFinite(Date.parse(now())) || Date.parse(now()) >= deadline ||
+        monotonic() >= deadlineTick || monotonic() < readbackTick) fail('DRAIN_TIMEOUT')
+      await sleep(Math.min(1000, drainMilliseconds - (monotonic() - readbackTick)))
+    }
+    const observedAt = new Date(providerUpdatedAt + Math.floor(monotonic() - readbackTick)).toISOString()
+    const service = await transport.getService(profile)
+    if (stable(service) !== stable(baseline)) fail('DRAIN_DRIFT')
+    const generation = Number(service.generation)
+    if (!Number.isSafeInteger(generation) || generation < 1) fail('SERVICE_INVALID')
+    const fence = { schemaVersion: 'ai-pdm.principal-only-migration-fence.v1',
+      sourceRevision, projectId: 'jenfu-platform-prod', region: 'asia-east1',
+      service: 'ai-pdm-prod', serviceUid: service.uid, oldRevision,
+      beforeGeneration: generation - 1, quiescentGeneration: generation,
+      serviceUpdateTime: service.updateTime, requestTimeoutSeconds: timeout, status: 'QUIESCED' }
+    const bytes = Buffer.from(stable(fence) + '\n')
+    assertPrincipalOnlyMigrationFence({ proof: fence, bytes, expectedSha256: sha256(bytes),
+      sourceRevision, service, observedAt })
+    const receipt = await immutableWrite(transport,
+      PREFIX + sourceRevision + '/fence-' + service.generation + '.json', fence)
+    return { status: 'QUIESCENCE_ADOPTED', sourceRevision, previousRevision: oldRevision,
+      principalOnlyFenceRef: receipt.ref, principalOnlyRecovery: binding, mutationCount: 0 }
+  }
+  if (await optional(transport, submissionUri)) fail('PRIOR_SUBMISSION_REQUIRES_READBACK')
+  // Manual mode has its own count; Cloud Run omits automatic min/max fields.
+  // Keep the exact automatic baseline in the submission for recovery.
+  const stoppedScaling = { scalingMode: 'MANUAL', manualInstanceCount: 0 }
   const submission = { schemaVersion: 'ai-pdm.principal-only-fence-submission.v1',
     sourceRevision, claimId: randomUUID(), serviceUid: baseline.uid, beforeGeneration: baseline.generation,
     previousRevision: oldRevision, recoveryRef, baseline, stoppedScaling }
