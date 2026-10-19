@@ -2,6 +2,8 @@
 
 建立：2026-10-12；修訂：2026-10-19。Owner：`AIPDM/DEV-123`。依[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)及[自用五點精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)設計。OrgMaster既有九身份任用相容／撤權阻擋切片 `Local Slice Verified`；這不是DEV-123完整editor實作。DEV-123產品及52案整體仍 `NOT_IMPLEMENTED / NOT_RUN`，本輪局部結果見§7實際驗證紀錄；文件自查不稱獨立QC。
 
+2026-10-19 H1～H5交接本次只更新文件；[SPEC §9](../specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-handoff)對應`ORGMASTER/DEV-058`，共用案例見§4.1。本次未執行任何測試或刷新§7既有結果。
+
 ## 1. 驗證範圍與方式
 
 保留七角色/五作業/20action、九歷史身份/固定alias、必要後端判權與OrgMaster任用分工。驗證實際未授權、資料完整性及錯誤恢復，不另加租戶開通、計費、公開SLA或SaaS規模條件。
@@ -82,7 +84,7 @@ QA123-01..52及17AC/CG仍保留。使用者2026-10-19已同意五點精簡：舊
 | QA123-49 | AC16／L2+L3 | view-only正常preview後直接原檔/inline/Range/ZIP/CSV/CAD/BOM/package/URL；download有無view組合；export在撤權前後建立、final配送；share到期/撤權 | safe-preview可看、原bytes無download拒絕；沒安全預覽不fallback；download單獨無view仍拒絕。任務與每次配送fresh policy，無長效URL繞過；原session下一GET/Range拒絕。完整bytes manifest、HTTP evidence及UI screenshot，不宣稱追回已下載 |
 | QA123-50 | AC17／L2+L3 | model.view/edit/review/publish分別有/無parent action；BOM快照、shared model、關聯、多模型包、worker最終採用，引用已發布快照及未支援model kind | 只view不下載，不靠part.view取完整model欄位；model與parent需AND，edit不造review/publish流程，引用快照不假裝重發布；撤權fresh拒絕、未知原流程保持拒絕，全部live model bindings有實際正例 |
 | QA123-51 | AC16/17/08／L2+L3 | 正常share建立API從Released project_code綁project_scope_key（不得seed結果），body偽binding拒絕/欄位ACL/舊NULL；external P1只view登入後從分享連結回原入口，P2/改project_code/未交付/到期/撤權及多group包 | 僅P1有效已交付共享資料允許metadata/safe-preview，不取原檔。對workspace或其他action拒絕；mixed package逐檔全部group view/download，不能用transfer.download覆蓋未授CAD或默默漏檔 |
-| QA123-52 | AC14/11/13／L4 | OrgMaster正常選七canonical/custom新任用，兩類legacy採購/生管history／代理/撤銷/到期、A→B停用恢復；system原特權入口、snapshot overlap及ready版本不符 | 日常名稱/順序與PDM一致；新指派procurement，舊planning仍原identity/provenance且可撤銷，scope/期間/priority不合併；inactive不新任用、已撤不復活、protected資格不外洩；zero grant rewrite及兩端真實UI/DB/source/current讀回 |
+| QA123-52 | AC14/11/13／L4 | OrgMaster正常選七canonical/custom新任用，兩類legacy採購/生管history／代理/撤銷/到期、A→B停用恢復；system原特權入口、snapshot overlap及ready版本不符 | 日常名稱/順序與PDM一致；新指派procurement，舊planning仍原identity/provenance且可撤銷，scope/期間/priority不合併；inactive不新任用，legacy-only任用restore／新推薦視為新授權而拒絕；角色恢復不復活已撤／到期任用、protected資格不外洩；zero grant rewrite及兩端真實UI/DB/source/current讀回 |
 
 ## 4. 覆蓋、共用與本輪oracle對照
 
@@ -107,6 +109,23 @@ CG123-02為原66key/全部live route/caller與byte delivery去向：mapped-busin
 | 23：舊write必須先於新版完成 | 已通過判權短請求可完成，apply不等待無關business鎖；commit後新請求採新policy，長任務見24 |
 | 34/35/41：storage寫後讀回失敗必禁止POST | storage輔助且可失效，仍可save/apply；server CAS/唯一套用/紀錄承擔正確性，跨Principal不讀前人資料 |
 | 每case整包metadata／固定專用runner | run層共用來源/環境，case只留相關斷言與證據；重用適用工具，52/17AC/CG不縮減 |
+
+<a id="dev-123-orgmaster-handoff-validation"></a>
+
+### 4.1 H4：與ORGMASTER/DEV-058共用真實往返
+
+來源為OrgMaster `ai-doc/qa/DEV-058-dynamic-role-assignment-validation-plan.md` §3及SPEC §9 H4；雙方沿原native ID記錄，不新增案例或縮減52／24分母。
+
+| AI-PDM案例 | 對應OrgMaster案例 | 同一次真實旅程中的必要主張 |
+|---|---|---|
+| QA123-29 | QA058-05/08/09/22 | legacy→dynamic A→B；正常任用／代理及原特權入口；A原任用在B仍保留history/provenance；合法能力更新不需OrgMaster source／deploy／compatibility row逐版更新 |
+| QA123-30 | QA058-17/18 | PDM先apply則stale expected拒絕；OrgMaster先freeze時可依合法舊snapshot完成，PDM新請求採新policy/status；不承諾跨owner同時commit |
+| QA123-44 | QA058-08/10/11/12/13/15/18 | custom新增→配人→停用→查閱／撤銷→恢復；direct/delegated及其他active角色邊界；已撤／到期／來源失效任用不復活 |
+| QA123-52 | QA058-02/05/08/10/11/13/15/20/22/23 | 七canonical/custom選項、原採購／生管及system特權入口、兩端UI/source/current讀回；legacy-only任用restore／新推薦拒絕；錯readiness不能靠marker過關，scope/期間/priority不合併 |
+
+PDM owner證明producer、apply及真實業務allow/deny，OrgMaster owner證明reader、正常配人／撤銷／發布、原任用不被改寫；各自保留結果並引用同一有效旅程。QA058-20/21及QA123-28相關readiness／ACL證據可沿H3重用，但不能以局部mock或隔離PG替代本表L4。只覆蓋部分主張時保留部分證據，整案仍未完成。
+
+本次完成的是文件對照，表內真實雙端驗證仍NOT_RUN。既有九身份局部證據沿§7保留，不重標為本表PASS；H1／H3／H5缺實際產物或執行範圍只阻止依賴它的dynamic整合，不重開已驗證局部切片。
 
 ## 5. 驗證入口與選測
 

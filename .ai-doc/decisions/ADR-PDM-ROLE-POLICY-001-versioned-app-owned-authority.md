@@ -45,7 +45,7 @@ RD能選內部實作，但不能放寬以上結果、資料責任或外部契約
 
 forward-only、只ai_pdm_core/ai_pdm_contract、runtime無owner/DDL，narrow管理寫入、history immutable。首次migration DISABLED保留原legacy bytes/hash/pointer/grants；後續真正相容及owner條件滿足才可apply。對外versioned views及profile/header語意保留，內部API規劃改workspace/command v3；舊提案未實作，不建立平行舊mutation。
 
-前一文件階段OrgMaster只列依賴；後續使用者已授權本次OrgMaster/AI-PDM本機修復與驗證，結果見QA §7。OrgMaster來源`AIPDM/DEV-123#orgmaster-compatibility`；正式release仍按既有protected CI/DB boundary與使用者環境範圍，本文不改執行器；未操作正式DB或runtime。
+前一文件階段OrgMaster只列依賴；後續使用者已授權本次OrgMaster/AI-PDM本機修復與驗證，結果見QA §7。OrgMaster native任務為`ORGMASTER/DEV-058`，承接來源`AIPDM/DEV-123#orgmaster-compatibility`；H1～H5已對齊原則、待交付資料及雙方責任集中於[SPEC §9](../specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-handoff)，本次只整理文件，未新增實作或驗證。正式release仍按既有protected CI/DB boundary與使用者環境範圍，本文不改執行器；未操作正式DB或runtime。
 
 ## Amended sources
 

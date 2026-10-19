@@ -4,6 +4,8 @@
 
 本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)只登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)記錄長期決策，[QA 計畫](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。本輪授權的局部實作由OrgMaster既有九身份任用相容／撤權阻擋切片承接，不代表已交付DEV-123完整editor產品，也不等於Release Ready；產品與測試結果由實際執行證據更新。
 
+2026-10-19 H1～H5文件交接：使用者已明示可直接跨專案修改DEV-123，本次僅整理文件，未開始新的程式實作、測試／build、migration或發布。此前局部實作及結果保留原範圍；本次交接、待交付資料與雙方責任見[§9](#dev-123-orgmaster-handoff)。
+
 ## 1. 人類決策與第一版邊界
 
 人類來源：2026-10-12確認JF-FMS操作、OrgMaster人員指派分工、七日常角色/五作業及合併動作，並選擇「停用並停止該角色授權；保留指派與歷史，恢復角色後可再次生效」。2026-10-19明示內部自用並同意依五項審查精簡流程/鎖/storage/證據/實作裁量；本輪依後續執行指示先完成OrgMaster既有九身份任用相容／撤權阻擋的本機切片；完整editor與真實L4尚未實作／驗證，正式發布另依既有環境授權。本修訂替換前版技術要求，七角色與必要權限保護不變，詳§14.5。
@@ -357,14 +359,18 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 沿用矩陣自身scroll/sticky header，document無橫overflow，checkbox有角色/作業/動作label、keyboard/focus及busy/error回饋。既有桌面1440×900/窄版390×844驗收保留，可用同一UI旅程覆蓋多項；FMS比對確認操作骨架，無須逐案重拍或追求像素一致。API/build成功不能代替真正UI結果。
 
+<a id="dev-123-orgmaster-handoff"></a>
+
 ## 9. OrgMaster 相容切片與授權界線
 
-下表只是在AI-PDM文件中準備的外部依賴，**未授權OrgMaster開發，沒有native DEV／branch／commit或PASS**。canonical repo=`C:\VIBE CODING\OrgMaster`，來源=`AIPDM/DEV-123#orgmaster-compatibility`。人類後續授權該repo／動作／環境後才完整讀其AGENTS、確認HEAD/dirty/index並選本地native ID。既有DEV-121 RD v7相容授權不涵蓋本次grouped role policy。
+對應native任務為`ORGMASTER/DEV-058`，承接來源`AIPDM/DEV-123#orgmaster-compatibility`；canonical repo=`C:\VIBE CODING\OrgMaster`，權威規格為`ai-doc/specs/DEV-058-federated-role-catalog-central-assignment.md` §3.2／§6／§9 H1～H5。本次核對OrgMaster分支`codex/dev058-docs-submission`、HEAD `101a51b707b9032472f00291e8a358381dc180e8`，AI-PDM使用`codex/dev123-catalog-decoupling`的現行文件；不是主工作區較舊草稿或正式部署讀回。
+
+OrgMaster既有九身份相容／撤權局部切片已有本機結果，見本計畫QA §7及OrgMaster QA §6；它不支援完整grouped/custom editor，也不代表OM-C1..5、QA058全24案或DEV-123全52案已完成。本次只更新AI-PDM文件，不因既有實作或本節交接而開始新程式、測試／runtime、SQL或正式操作。
 
 | slice | 精確必要工作／預期surface | owner範圍及驗收 |
 |---|---|---|
 | OM-C1 current/history reader | `server/aiPdmRoleCatalogRepository.ts`、`applicationRoleCatalogRegistry.ts`讀PDM v2/current及history；legacy exact artifact及grouped-v2 schema/hash/profile validator | 只SELECT PDM contract；9..64完整身份，七canonical＋legacy-only alias＋hidden-protected及custom；驗consumer schema/source、identity、scope與protected邊界並重算完整contentHash，不固定核可整份業務registryHash、不static fallback或union |
-| OM-C2 任用DTO與provenance | `src/governance/aiPdmCatalog.ts`／types／`validation.ts`、`server/orgmasterGovernanceStore.ts`／`employeeRecommendationService.ts`及governance API支援custom/status/disposition/presentation | 新一般任用只active/selectable且scope合法；採購／生管新任用用procurement，不再新建production_planning。既有兩種任用／代理依原identity/version驗歷史，可查可撤銷，不能批量改ID/code/version/scope/期間。特權任用仍原入口 |
+| OM-C2 任用DTO與provenance | `src/governance/aiPdmCatalog.ts`／types／`validation.ts`、`server/orgmasterGovernanceStore.ts`／`employeeRecommendationService.ts`及governance API支援custom/status/disposition/presentation | 新一般任用只active/selectable且scope合法；採購／生管新任用用procurement，不再新建production_planning。既有兩種任用／代理依原identity/version驗歷史，可查可撤銷，不能批量改ID/code/version/scope/期間。任用restore／新推薦屬新授權，禁止legacy-only；角色恢復只讓原仍合法任用可能再生效。特權任用仍原入口 |
 | OM-C3 owner compatibility projection | OrgMaster own forward-only migration／owner readiness輸出§7.2 compatibility_v2，支援grouped-v2及role-profile-schema.v1、接受baseline identity/protected hash | 只OrgMaster自己的contract與readiness資料；runtime不寫PDM policy。PDM SELECT，不能由PDM建立或寫marker；一般能力更新不改OrgMaster source/deploy/compatibility row；v1 READY不能冒充v2 |
 | OM-C4 指派UI與七角色呈現 | `src/components/GovernanceCenter.tsx`正常AI-PDM任用選單用presentationName/Order，active custom appended；歷史生管標「採購／生管（舊生管指派）」並可撤銷，inactive顯示停用 | OrgMaster維持人員指派；不加能力checkbox／角色定義／草稿發布器。system_admin僅原特權任用入口，PDM管理員名稱不取得human_privileged。holder/recommendation/代理在inactive時拒新任用 |
 | OM-C5 真實往返與相容證據 | 正常任用/代理/特權、legacy→grouped A→B、custom增停恢復及兩類採購/生管原指派/race | QA29/30/44/52可共用一次連續L4旅程；原grants不改、scope/期間/priority保留、已撤/到期不復活。有效source/runtime/readback證據可供首次rollout重用，不逐案重建環境 |
@@ -376,6 +382,28 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 新任用由OrgMaster owner snapshot比較expected catalog及status/disposition：PDM先apply再建立任用snapshot則stale expected拒絕；重疊時合法舊snapshot任用可依舊provenance完成，PDM新授權請求依新policy/status。舊生管指派保留原scope、不補canonical grant；沒有跨owner core鎖或任用commit永遠等最新catalog的承諾。QA30/44/52可同旅程驗兩分支。
 
 明確排除：OrgMaster能力矩陣、角色自定義／刪除器、人員role重編或批量grant rewrite、特權自任用、scope擴張、financial治理改造、任意employee移動、OrgMaster core由PDM讀寫、Platform／IAM／Secret／traffic。JF-FMS只讀參考、不需修改。相容view ACL由各owner的migration交付，無跨app DDL。
+
+### 9.1 H1～H5交接：已對齊與待交付
+
+以下是直接交給`AIPDM/DEV-123`接手者的文件指令；沿用兩端native任務，不新增DEV、receipt格式或人工簽核。表內「已對齊」指現行文件契約，不代表producer產物、live consumer或正式相容已交付。
+
+| 項目 | 已對齊內容 | AI-PDM待交付／確認 | OrgMaster責任及缺件影響 |
+|---|---|---|---|
+| H1 producer資料與可重現範例 | §5.2–5.3的current v2／immutable history，完整身份及profile、alias/disposition、status、generation與lifecycle；七日常選項不取代九歷史身份 | 提供可查的producer資料／來源產物、完整canonical preimage及預期hash vectors，涵蓋legacy→dynamic A→B、custom新增／停用／恢復及alias。列出受控consumer schema、baseline/protected綁定來源與兩個view的精確SELECT／schema USAGE ACL；尚無產物即標未交付，不用自報hash或假資料當完成 | OM-C1驗實際欄位／mapping／canonical完整性及history provenance。資料或投影不足以重建hash時停止該dynamic reader整合／READY，不影響已完成九身份局部切片 |
+| H2 驗證責任分界 | OrgMaster驗schema、identity/profile/status、來源完整性、scope及protected約束；PDM驗完整業務registry、editor規則、route/caller接線與最後判權。完整registryHash仍納contentHash，但不是OrgMaster逐版固定核可值 | 責任分界已定；補H1可消費的契約資料與vectors，說明從投影重建roles／roleProfiles及contentHash的方法。不要求OrgMaster複製20action編輯、legacy合併及範本引擎，亦不另建consumer-profile發布流程 | OrgMaster重算完整性且不從未核實payload學習基線；一般合法能力更新不要求其改source、deploy或compatibility row。不可用精簡為由省略hash／identity／scope／protected檢查 |
+| H3 相容宣告與首次rollout證據 | §7.2與DEV-058 §6草案均為13欄，不含accepted_registry_hash；保留schema/baseline/protected、source、revision及readiness。兩端可重用仍有效的CI／release／整合證據 | 說明§5.1 PDM enablement_binding如何引用既有owner紀錄、OrgMaster enablement_ref及首次真實consumer證據，不新增receipt schema，也不刪除PDM既有state binding。實際source/readiness／live consumer尚待交付；是否已有14欄公開物件尚未查證，若有須新版本及相容窗口，不原地縮欄 | OrgMaster owns自身readiness表／versioned view、CAS、manifest及ACL；PDM僅SELECT，不寫marker。規劃初始NOT_READY，未知資料不當READY、常數不填假0hash；現有v1 READY或單一marker不代v2實證 |
+| H4 native任務與共用驗證 | 本節OM-C1..5由ORGMASTER/DEV-058承接；QA123-29/30/44/52與QA058可共用同一次真實往返，對照見QA §4.1 | 保持QA52／17AC／CG與OrgMaster QA24原目的／分母。補真實兩端資料及結果時，各owner記自己實際結果及共用引用；目前只有文件對照，L4仍NOT_RUN。確認已撤舊生管任用restore／新推薦均不得走legacy-only | OM-C2/C4/C5維持原ID/code/version/source/scope/期間/priority；新一般任用只canonical或active custom。角色restore不等於任用restore，不批量改寫舊生管、不補canonical grant或合併scope |
+| H5 首次legacy→grouped相依與退場 | producer可讀且保留legacy → consumer理解current/history/profile → 真實往返與live consumer相容 → owner readiness／PDM首次rollout → 單次dynamic apply；切換後停用legacy新寫入，保留歷史decoder與復原證據 | 待執行範圍確定後，由各owner列實際目標環境、測試資料與執行者，確認consumer升級及legacy新寫入退場條件。本次僅記相依，不選正式target、不產生正式操作指令或執行切換 | OrgMaster負責自己的reader／任用流程升級及舊寫入退場；PDM負責producer／policy apply。失敗只停止依賴項，不static fallback、部署static-only或以legacy開關恢復另一可寫權威 |
+
+### 9.2 雙方責任與風險控制
+
+- **AI-PDM／DEV-123**：角色定義、增停恢復及能力編輯、registry／完整policy驗證、immutable current/history投影、own schema／ACL與業務最後判權；交付H1資料及PDM側H3綁定說明、H5相依安排。不得在PDM自行配人或寫OrgMaster core/readiness。
+- **OrgMaster／DEV-058**：讀可信目錄，管理任用人員／scope／期間／推薦／代理／撤銷／發布，保留provenance；負責OM-C1..5及own compatibility/readiness。不得複製PDM能力編輯器、直接改PDM policy或以名稱推論特權。
+- **合格管理者**：決定配誰、調職後是否保留角色、恢復前是否調整人選；系統顯示就地影響提醒，不新增第二人核准、提醒逾期凍結或組織異動自動授撤。未授權Principal、非法scope、撤銷／到期、未知／錯hash及protected違規仍須拒絕，不能只提醒後放行。
+
+### 9.3 接手回覆與本次完成界線
+
+接手者沿H1～H5回覆「已對齊文件位置／實際可交付產物或未交付原因／下一步owner／受影響工作」即可，直接放在既有任務或本節，不另造交接台帳。H2責任分界及H3草案13欄已對齊；目前未交付的完整dynamic產物、實際owner綁定及首次L4仍保持待辦，不以本次文件更新宣稱READY、PASS或產品完成。這些是技術owner的交付與核實，不要求使用者逐欄批准；只有真正產品／權限／環境責任改變才回人類決策。
 
 ## 10. RD 實作面與相依
 
@@ -426,7 +454,7 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 ## 13. 文件狀態與交接
 
-`RD Implementation Ready / Human Confirmed`、架構定案（產品/安全/相容邊界）；五點精簡已納資料/API/恢復/驗證契約。OrgMaster既有九身份任用相容／撤權阻擋局部切片 `Local Slice Verified`，其結果以實際source/test證據另記；DEV-123完整dynamic七角色/custom/editor/DB/API仍`NOT_IMPLEMENTED`，52案/CG/L4及正式啟用仍`NOT_RUN`。局部結果不能替代未實作產品或真實L4/正式證據。
+`RD Implementation Ready / Human Confirmed`、架構定案（產品/安全/相容邊界）；五點精簡已納資料/API/恢復/驗證契約。OrgMaster既有九身份任用相容／撤權阻擋局部切片 `Local Slice Verified`，其結果以實際source/test證據另記；DEV-123完整dynamic七角色/custom/editor/DB/API仍`NOT_IMPLEMENTED`，52案/CG/L4及正式啟用仍`NOT_RUN`。局部結果不能替代未實作產品或真實L4/正式證據。H1～H5已整理於§9.1–9.3，只有文件／責任對齊完成；完整dynamic資料、實際owner相容綁定及首次整合仍待交付，本次不啟動程式。
 
 <a id="dev-123-architecture-closure"></a>
 
@@ -445,7 +473,7 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 | 七角色/五作業、20action語意、九身份/alias、scope/有效期/priority/no-self、管理資格/恢復途徑、單一policy authority | 必須保持；不能藉技術重構擴權、改OrgMaster任用或刪歷史 |
 | 原子套用、正確衝突/防重/未知結果、每次新請求及長任務最終採用判權 | 固定結果；可決定transaction isolation、row-lock/unique/CAS組合、helper數量及私有confirmation格式，附對應正反/競爭實證，不強制全站policy lock |
 | 資料/API參考結構 | 可合併同owner/生命週期資料、選欄/索引/檔案/module/私有路徑及DTO；同步受影響schema/types/callers/QA/本契約，不另等人類核准。未占migration ordinal在實作時選 |
-| 外部versioned views及immutable已發布資料 | breaking變更仍需新version/相容窗口，不能把技術裁量當owner/授權擴張；本輪OrgMaster只列相容範圍 |
+| 外部versioned views及immutable已發布資料 | breaking變更仍需新version/相容窗口，不能把技術裁量當owner/授權擴張；OrgMaster由DEV-058承接相容，既有局部結果不代表完整dynamic相容 |
 | 測試/證據/效能 | 可重用適用runner/fixture、參數化、同一旅程覆蓋多案、run層共用metadata；保留52驗收目的與層級。沿既有timeout/連線限制，不新增未量測SLA或強迫每case完整紀錄 |
 | 要回送的真實差異 | 改角色/能力/生效語意、資料或人員責任、外部契約、不可逆效果/新環境等才停止受影響部分並收斂；一般私有API、hash/helper/鎖法等效修正可直接做並更新文件 |
 

@@ -4,6 +4,10 @@ Current slice: OrgMaster DEV-058 existing nine-identity assignment compatibility
 
 Authority: [DEV-123 contract](specs/DEV-123-role-permission-editor-contract.md), [QA52 plan](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md), [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md). This entry is a direct current pointer only; existing DEV-122 state/history is unchanged.
 
+H1～H5文件交接（2026-10-19）：[交接與雙方責任](specs/DEV-123-role-permission-editor-contract.md#dev-123-orgmaster-handoff)對應`ORGMASTER/DEV-058`；13欄相容草案及registryHash驗證分工已對齊，完整dynamic producer資料、實際owner相容綁定／live consumer與首次整合仍待交付。[共用QA對照](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#dev-123-orgmaster-handoff-validation)維持52／24分母與真實L4要求；本次只改文件，未開始新程式／測試／SQL／發布。
+
+DEV-123工作樹收尾（2026-10-19）：依使用者決定放棄本次完整編輯器程式；上述H1～H5文件變更另存於本機分支`codex/dev123-docs-preserved`，未推送。完整編輯器如重啟，從新DEV-123 session及當時main重新評估；後續owner／時點未指定。
+
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
 PR #312 required CI PASS並合併為官方 `main` commit `b42458b3cd05924be566ea05e536454f6751c883`。R60 新 source freeze及source-bound metadata readback完成，provider仍為12個 `no-op/read`，IAM／worker resource changes與new images皆0；worker replay已越過historical reader scope，隨後在讀取合法舊600秒profile時仍套用目前1200秒validator及固定SHA，以 `OPENSWX_WORKER_PROFILE_INVALID` 拒絕。失敗發生於association發布前；未owner dispatch、build、migration085、service／traffic或正式資料mutation，R60 immutable input不重送。
