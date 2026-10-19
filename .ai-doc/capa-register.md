@@ -46,11 +46,11 @@
 |---|---|
 | CAPA ID | `CAPA-002` |
 | 顯示名稱 | `[CAPA-002] 發布驗證解耦與單一 PR 收斂` |
-| 狀態 | `Local RD Implemented / Required CI Pending` |
+| 狀態 | `Local Effectiveness Verified / Required CI Pending` |
 | 建立日期 | `2026-10-17` |
-| Owner / route | RD Tech Lead → RD → provider-required CI；production mutation 不在本 CAPA 實作範圍 |
-| Canonical record | `AGENTS.md` 的 `CAPA002_RELEASE_DECOUPLING_V1` 與 release spec §26.3 |
+| Owner / route | RD Tech Lead；provider-required CI 仍是變更交付條件，不再是另一套 CAPA 人工關卡；production mutation 不在本 CAPA 實作範圍 |
+| Canonical record | `scripts/lib/production-slice-plan.mjs`、DEV-122 內部自用契約與 release spec §26.3 |
 | 關聯 DEV | `DEV-122#rd-permission`；規則適用整個 AI-PDM |
 | 根因 | Required CI、owner prepare 與歷史 worker fixture 以單一全量命令耦合；profile/current-historical 判定散落於多個 caller；PR 在完整 caller graph 收斂前過早合併，造成同一切片重複 corrective PR。 |
-| 矯正／預防 | 以 source-controlled planner 將變更分類至 application／authorization／database／preview／recognition／worker／infrastructure；shared/unknown fail closed；owner workflow 與 CI 依 plan 執行；worker profile context 單一化；一個切片維持一個 PR 並於 merge 前完成 source convergence。 |
-| 效果驗證 | Planner/profile contracts、完整 shared worker/release regression、DB boundary、typecheck、isolated build及兩個 provider-required checks；正式 RD 驗收仍依 DEV-122 production acceptance，不能由 local PASS 取代。 |
+| 矯正／預防 | 以 source-controlled planner 將變更分類至 application／authorization／database／preview／recognition／worker／infrastructure；純 authorization 不再隱含 DB／migration；shared/unknown fail closed；authorization focused group 移除已由 full release/recovery 群組承接的重複案例；一個切片維持一個 PR 並於 merge 前完成 source convergence。 |
+| 效果驗證 | `production-slice-plan` 11/11 PASS，含 authorization-only、database、preview、docs-only 與 full fail-closed；合併 `dev117-release-efficiency` 後 29/29 PASS，證明刪除／rename、checkpoint、full manifest 與 shared provider 行為仍受保護。第一次執行因沙箱 TEMP 無法建立 Git repo 而在該案例測試啟動前失敗，改用 task-owned TEMP 後通過；原失敗不改寫。正式 actor／production 驗收仍依受影響能力執行，不能由 local PASS 取代。 |

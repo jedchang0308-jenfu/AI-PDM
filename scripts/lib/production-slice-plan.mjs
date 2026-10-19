@@ -120,24 +120,41 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
   const has = slice => slices.includes(slice)
   const full = has('release-control') || has('unknown')
   const docsOnly = !full && slices.length === 1 && has('documentation')
+  const databaseAffected = full || has('database')
   const gates = {
     planner: true,
     full,
     documentation: docsOnly,
     application: full || has('application') || has('authorization') || has('preview') || has('recognition'),
     authorization: full || has('authorization'),
-    database: full || has('database') || has('authorization'),
+    database: databaseAffected,
     preview: full || has('preview'),
     recognition: full || has('recognition'),
     worker: full || has('worker'),
     infrastructure: full || has('infrastructure'),
-    releaseCore: full || has('database') || has('worker') || has('infrastructure'),
-    dbBoundary: full || has('database') || has('authorization'),
+    releaseCore: databaseAffected || has('worker') || has('infrastructure'),
+    dbBoundary: databaseAffected,
+    nativePostgres: databaseAffected,
+    migration: databaseAffected,
     isolatedBuild: full || has('application') || has('authorization') || has('preview') || has('recognition'),
+    desktopUi: full || has('application') || has('preview') || has('recognition'),
   }
+  const releasePhases = docsOnly
+    ? []
+    : ['preflight', 'build', ...(gates.migration ? ['migrate-if-needed'] : []), 'candidate-smoke', 'activate-readback']
+  const evidenceRequirements = docsOnly
+    ? ['documentation-contract']
+    : [
+        ...(gates.authorization ? ['actor-grant-allow-deny'] : []),
+        ...(gates.database ? ['transaction-readback-rollback'] : []),
+        ...(gates.preview ? ['version-bytes-desktop'] : []),
+        ...(gates.worker ? ['job-terminal-cleanup'] : []),
+        ...(gates.desktopUi && !gates.preview ? ['focused-behavior-desktop'] : []),
+        ...(gates.full || gates.infrastructure ? ['source-image-revision-traffic-rollback'] : []),
+      ]
 
   return {
-    schemaVersion: 'aipdm.production-slice-plan.v1',
+    schemaVersion: 'aipdm.production-slice-plan.v2',
     baseRevision,
     headRevision,
     classification: full ? 'FULL' : docsOnly ? 'DOCUMENTATION_ONLY' : 'AFFECTED_SLICES',
@@ -145,6 +162,8 @@ export function createProductionSlicePlan(paths, { baseRevision = null, headRevi
     slices,
     reasons: Object.fromEntries(Object.entries(reasons).filter(([, entries]) => entries.length > 0)),
     gates,
+    releasePhases,
+    evidenceRequirements: [...new Set(evidenceRequirements)],
   }
 }
 
