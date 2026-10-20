@@ -987,7 +987,7 @@ test('principal-only-bound abort with UNKNOWN migration reconciles before candid
   assert.equal(h.calls.puts, 0)
 
   for (const mutate of [
-    value => { value.service.scaling = { scalingMode: 'MANUAL', manualInstanceCount: 0 } },
+    value => { value.service.scaling = { scalingMode: 'MANUAL', manualInstanceCount: 1 } },
     value => { value.service.traffic = [{ revision: candidateRevision, percent: 100 }] },
     value => { value.service.uid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' },
   ]) {
@@ -996,6 +996,15 @@ test('principal-only-bound abort with UNKNOWN migration reconciles before candid
     await assert.rejects(readPreActivationAbortContinuation({ ...negative.helperInput, verifyProvider: true }))
     assert.equal(negative.calls.puts, 0)
   }
+})
+
+test('principal-only-bound quiesced recovery accepts exact MANUAL/0 before candidate exists', async () => {
+  const h = await reconciledMigrationAbortFixture({ principalOnly: true })
+  h.service.scaling = { scalingMode: 'MANUAL', manualInstanceCount: 0 }
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(h.calls.puts, 0)
 })
 
 test('post-abort reconciliation admits a sealed read-only RD permission diagnostic after the ledger readback', async () => {
