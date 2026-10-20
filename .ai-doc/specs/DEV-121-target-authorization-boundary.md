@@ -1,5 +1,13 @@
 # DEV-121：AI-PDM Principal-only 身分／授權整合（現行契約）
 
+<a id="dev121-dev122-rd-handoff-20261020"></a>
+
+## DEV-121／DEV-122 RD 正式移交（2026-10-20；Documents Only）
+
+[唯一 RD 交接契約](specs/DEV-121-DEV-122-first-login-rd-release-handoff-2026-10-20.md#cross-project-rd-contract)已由 JENFU/DEV-015 正式移入 AI-PDM；`RD Implementation Ready`。DEV-121 主責首次登入／session、RD 圖號與料號查看／編輯／送審及核准拒絕；DEV-122 既有 worker／可靠發布切片承接 source archive／reuse／歷史證據接縫。Platform 保留需求來源與登入／SSO 相依，OrgMaster 沿有效授權及 exact v7 相容契約；不新增主 DEV、不強制三專案一起修改。
+
+接手順序：先讀交接契約 §0／8 與當前 owner 進度、source／版本／provider 狀態，沿 §9–15 的工程接縫、相依、測試及兩 fixture 正常 UI 正反驗收收斂；已完成階段先讀回，未知寫入不得直接重送。下列具日期進度保留其原證據層，不當作本次重新驗證的現況。此次只移交文件及索引／契約引用，無產品實作、測試或正式操作；DEV-122 原 7 issues／29 groups 與各 owner 原判定不變，未取得正式證據不得標已部署／已驗收。
+
 <a id="architecture-final"></a>
 
 2026-10-03 已核准原生「候選安全中止後續發」修正：普通 Principal-only 候選的 PRE_ACTIVATION_ABORTED 不偽裝 RELEASED，也不重用 terminal capsule；已封存 PRE_ACTIVATION_ABORTED 的未過期 capsule 在正常 stage 的 provider mutation 前拒絕，rollback 收束保留。routine producer 由已封存 failed intent 唯一引用的完整 RELEASED Principal anchor，核對原生 source/build/migration/entry/rollback/control 與實際 Build／Registry；兩份 authority 凍結相同 basis。prepare（含 cached replay）以既有 own GCS／Run 權限重讀封存鏈、已過期 failed-run lease、無切流／無 tag、復原入口、100% Principal retained revision 與 fresh service UID，basis 不一致即拒絕。首次轉換的 manual-zero／maintenance recovery 路徑及正式來源、CI、CAS 規則保持有效。此修正只接受 failed intent 直接引用完整 RELEASED anchor；若後續候選再中止而其直接 baseline 也是 aborted intent，仍 fail closed，不遞迴猜選或沿用未核准 carry-forward。此修正的本機/mock PASS 不替代 Production L4。
@@ -12,7 +20,7 @@
 
 2026-10-03 人類已收斂本輪為 Principal-only identity/auth integration。出口是既有用途的 verified actor、唯一 published grants、scope／撤權、reviewer／owner、command／receipt／worker provenance 與安全發布／回復一致；一般 canonical lifecycle、首次發行 UI、Drawing master lifecycle 同步及附件／工作流功能整理由 [DEV-122 集中問題列表](DEV-122-ai-pdm-internal-function-issues.md) 延後。已完成 local 修正與原 FAIL 證據保留，不回退、不算 auth 邊界 PASS；新 077 不隨本輪發布。安全／可靠發布具有直接因果的修正仍在本 DEV，不能移去延期。
 
-[HISTORY_ONLY原文快照](DEV-121-target-authorization-boundary-history-2026-10-03.md)保留Rxx施工、舊bridge／cohort／双軌、AAL2強制與local ACL歷史，不能繼續按它實作。當前續點只維護於 [DEV-121任務](../dev_task.md#dev-121-current-contract)，跨owner流程階段及根因只在 [JENFU既有盤點](../../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)；不把規格頂部快照當新發布狀態。
+[HISTORY_ONLY原文快照](DEV-121-target-authorization-boundary-history-2026-10-03.md)保留Rxx施工、舊bridge／cohort／双軌、AAL2強制與local ACL歷史，不能繼續按它實作。原 Principal-only 續點沿 [DEV-121任務](../dev_task.md#dev-121-current-contract)；此次首次登入／RD／worker 跨 owner 接手改由 [AI-PDM 正式交接](DEV-121-DEV-122-first-login-rd-release-handoff-2026-10-20.md)及[移交登錄](../dev_task.md#dev121-dev122-rd-handoff-20261020)承接。[JENFU既有盤點](../../../Jenfu-Platform/ai-doc/qa/DEV-015-principal-only-authorization-inventory-2026-09-29.md)僅保留來源與歷史相依，不再作此次跨 owner 的唯一施工入口；不把規格頂部快照當新發布狀態。
 
 <a id="rd-capabilities"></a>
 

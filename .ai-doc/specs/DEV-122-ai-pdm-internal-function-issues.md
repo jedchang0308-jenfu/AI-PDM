@@ -1,5 +1,9 @@
 # DEV-122：AI-PDM 內部功能缺陷與本地開發契約
 
+## DEV-121／DEV-122 RD 交接（2026-10-20）
+
+[正式移交契約](DEV-121-DEV-122-first-login-rd-release-handoff-2026-10-20.md#cross-project-rd-contract)與[任務登錄](../dev_task.md#dev121-dev122-rd-handoff-20261020)補齊此次 RD 接手責任、archive／歷史證據接縫及正反驗收。DEV-122 僅承接其中既有 worker／可靠發布實作；首次登入與 RD 權限由 DEV-121 主責，不新增主 DEV。先核對目前 owner 進度及 source／receipt 適用性，再決定續接，不能因觀察逾時重送。下列具日期紀錄保留原判定，原 7 issues／29 groups、supplier 延期、使用者持有的 native CAD 與 NO084／無正式清理限制不變；文件移交不是新部署或驗收證據。
+
 ## DEV-122 CURRENT（B35-R9 已正式發布；業務驗收繼續）
 
 PR [#266](https://github.com/jedchang0308-jenfu/AI-PDM/pull/266) 的官方來源 `2600ba2ada8d2adb106ad616c6020d1339328f0e` 已通過 required PR／main CI 與 provider 來源保護核對。R9 owner [38092446021](https://github.com/jedchang0308-jenfu/AI-PDM/actions/runs/38092446021) 十階段 SUCCESS；正式 `ai-pdm-prod-99f16f79d877` 承接 100% 流量、零 candidate tags，control 為 FINALIZED／RELEASED。候選及正式入口的 authenticated smoke PASS；不代替正常業務或 CAD 驗收。

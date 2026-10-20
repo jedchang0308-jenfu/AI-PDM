@@ -1,5 +1,9 @@
 # AI_PDM 文件地圖
 
+## DEV-121／DEV-122 RD 正式移交入口（2026-10-20）
+
+[任務登錄](dev_task.md#dev121-dev122-rd-handoff-20261020) → [唯一跨專案 RD 交接契約](specs/DEV-121-DEV-122-first-login-rd-release-handoff-2026-10-20.md)（先 §0，再 §8–15）→ [DEV-121 原生契約](specs/DEV-121-target-authorization-boundary.md#rd-capabilities)／[DEV-122 原生契約](specs/DEV-122-ai-pdm-internal-function-issues.md)。AI-PDM 為主責；DEV-121 收斂首次登入／RD 權限與驗收，DEV-122 沿既有 worker／可靠發布切片實作。Platform 保留來源與相依引用，OrgMaster 沿既有 published grant／v7 相容邊界。不新增 DEV、不擴張授權；本次僅文件移交，既有歷史進度不升格為最新 Production 證據。
+
 
 ## DEV-121#rd-capabilities — 2026-10-11 v7 維護 producer 續接
 

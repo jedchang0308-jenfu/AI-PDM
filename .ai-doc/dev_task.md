@@ -1,5 +1,13 @@
 # AI_PDM 開發任務
 
+<a id="dev121-dev122-rd-handoff-20261020"></a>
+
+## DEV-121／DEV-122 RD 正式移交（2026-10-20；Documents Only）
+
+[唯一 RD 交接契約](specs/DEV-121-DEV-122-first-login-rd-release-handoff-2026-10-20.md#cross-project-rd-contract)已由 JENFU/DEV-015 正式移入 AI-PDM；`RD Implementation Ready`。DEV-121 主責首次登入／session、RD 圖號與料號查看／編輯／送審及核准拒絕；DEV-122 既有 worker／可靠發布切片承接 source archive／reuse／歷史證據接縫。Platform 保留需求來源與登入／SSO 相依，OrgMaster 沿有效授權及 exact v7 相容契約；不新增主 DEV、不強制三專案一起修改。
+
+接手順序：先讀交接契約 §0／8 與當前 owner 進度、source／版本／provider 狀態，沿 §9–15 的工程接縫、相依、測試及兩 fixture 正常 UI 正反驗收收斂；已完成階段先讀回，未知寫入不得直接重送。下列具日期進度保留其原證據層，不當作本次重新驗證的現況。此次只移交文件及索引／契約引用，無產品實作、測試或正式操作；DEV-122 原 7 issues／29 groups 與各 owner 原判定不變，未取得正式證據不得標已部署／已驗收。
+
 
 ## DEV-121#rd-capabilities — 2026-10-11 ordinary worker evidence 續接
 
