@@ -59,13 +59,15 @@ DEV-122 保留原始 7 issues／29 groups 作為總驗收分母，不刪除、�
 |---|---|
 | `OPS-01` | 實際發布綁定確切 source SHA、image digest、revision、traffic 讀回與前一 revision rollback 目標。 |
 
-### RD 圖號工作台當前恢復點（2026-10-19）
+### RD 圖號工作台當前恢復點（2026-10-20）
 
 PR #386 的 exact main 為 `21a1ba0b6a6f7a142e0c03a99d4461316bff711d`。C56 run `39192302084` 的 prepare／build與 Cloud Build `b24a3b7f-614e-451c-b3d2-23f924771d3d` 成功；migration 在任何新 Job execution 前以 `MIGRATION_JOB_READBACK_MISMATCH` 停止，terminal 為 `PRE_ACTIVATION_ABORTED / NOT_APPLIED`，正式 revision／traffic 未變，worker 為 `PAUSED_RECOVERED`。provider readback 證明 reuse receipt 的 runner digest／source 與 live `ai-pdm-prod-migration-runner` 不同，而 producer 重發舊 receipt 時沒有讀取 live Job。
 
 R25 唯讀 run `39196373315` 證明 ledger 為 33，migration 084／085 均 `NOT_APPLIED`，判定為 `AUTHORIZED_CONDITION_085_ABSENT`；prepare／build／migrate 均未執行。當前 corrective 將 reuse receipt 升為 v2，先驗 live Job READY、identity、template、digest 與 runner source，並在 ordinary full35 分離 release source 與 runner source。恢復順序是完成本切片 required CI 與 protected merge，再由正常 app-owned APP_INFRA 路徑建立 provider 一致的新 runner receipt，之後以 fresh exact-main capsule 執行 full35；不得手動 patch Job。085、catalog v7、candidate、traffic及專用測試 RD 帳號的 UI／API 正負驗收仍未完成，原 7 issues／29 groups 與 DEV-122 整體維持 `NOT_ACCEPTED`。
 
 後續 C67 owner run `39254333670` 在 prepare 以 `DATA_CUTOVER_AUTHORITY_REF_INVALID` 停止，build／migration／candidate／traffic 均未執行；C69 只有 exact-source 輸入準備，未派送。PR #394 已修正 live Cloud Run v2 Job readback 的 terminal／generation 契約，但未改變正式 service、ledger、catalog 或 traffic；這些失敗與未執行狀態不得因本次精簡而改判。
+
+C70 的 prepare／build 已完成，但 migration outcome 為 `UNKNOWN`；其 immutable `prepare.json` 合法帶入 `ai-pdm.principal-postbuild-pre-migration-abort-basis.v1`。C77／C78 exact-main worker reuse 在任何新 evidence publication 前，由共用 continuation reader 以 `DEV121_PREACTIVATION_CONTINUATION_INVALID` 拒絕。直接證據顯示 reader 的 completed-build allowlist 只接受 prebuild／unpublished basis，卻漏掉同一模組本身產生的 postbuild-pre-migration basis；因此第二次 postbuild attempt 無法承接前一次 postbuild／UNKNOWN migration lineage。最小修正只把該具名 schema 加入 closed allowlist，既有 failed intent、previous revision、control SHA、source、hash、provider 與零重送守門不變；未知 schema 仍拒絕。production-shaped `postbuild → postbuild → UNKNOWN migration` fixture 與負例已加入。本機 planner 判定 `FULL`；focused 33／33、worker 108／108、required continuous QC 479／479、catalog v7 3／3、abort 6／6、DB boundary、typecheck 與 isolated build均通過。required CI、protected merge、新 exact-main immutable evidence、full35、migration 085、catalog v7 active readback、專用測試 RD actor 的 UI／API 正負驗收仍未完成，故 production acceptance 與 DEV-122 整體仍為 `NOT_ACCEPTED`。
 
 ### Release source authority 與 artifact transport 分離
 

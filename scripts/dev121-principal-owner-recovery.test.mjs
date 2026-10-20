@@ -524,11 +524,12 @@ async function unpublishedAbortFixture(inherited = false) {
   return { ...h, partialBuild: build, prior }
 }
 
-async function sealedPostbuildAbortFixture() {
-  const h = await unpublishedAbortFixture(false)
+async function sealedPostbuildAbortFixture({ fixture = null, source = '9'.repeat(40), releaseId = 'DEV122-SEALED-POSTBUILD-ABORT', runId = '44' } = {}) {
+  const h = fixture ?? await unpublishedAbortFixture(false)
+  const priorOwnerRun = structuredClone(h.ownerRun)
   const prior = h.failed, inheritedBasis = (await readPreActivationAbortContinuation(h.helperInput)).authorityBasis
-  const f = h.release({ source: '9'.repeat(40), releaseId: 'DEV122-SEALED-POSTBUILD-ABORT', revision: candidateRevision,
-    previous: previousRevision, imageDigit: '9', anchorRef: prior.intentRow.ref, preActivationAbortBasis: inheritedBasis })
+  const f = h.release({ source, releaseId, revision: candidateRevision,
+    previous: previousRevision, imageDigit: source[0], anchorRef: prior.intentRow.ref, preActivationAbortBasis: inheritedBasis })
   h.failed = f
   for (const stage of ['migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) h.objects.delete(f.paths[stage])
   const build = structuredClone(f.cloudBuild)
@@ -554,28 +555,35 @@ async function sealedPostbuildAbortFixture() {
     entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
   const rollback = f.seal('rollback', facts), { recoveryOrder, ...terminalFacts } = facts; f.seal('terminal', terminalFacts, rollback.ref)
   Object.assign(h.controlCore, { releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, sourceLockSha256: f.lock.ref.sha256,
-    ownerRunRef: 'https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/44', candidateRevision: null,
+    ownerRunRef: `https://api.github.com/repos/jedchang0308-jenfu/AI-PDM/actions/runs/${runId}`, candidateRevision: null,
     inputFingerprint: sha256(canonicalize({ ownerApplicationId: 'ai-pdm', releaseId: f.intent.releaseId, sourceRevision: f.intent.sourceRevision, releaseIntentSha256: f.intentRow.ref.sha256 })) })
   h.control()
-  Object.assign(h.ownerRun, { id: '44', headSha: f.intent.sourceRevision, createdAt: '2026-10-02T00:00:00Z', updatedAt: '2026-10-02T00:05:00Z' })
+  Object.assign(h.ownerRun, { id: runId, headSha: f.intent.sourceRevision, createdAt: '2026-10-02T00:00:00Z', updatedAt: '2026-10-02T00:05:00Z' })
   h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner' }
   const job = 'projects/jenfu-platform-prod/locations/asia-east1/jobs/ai-pdm-prod-migration-runner'
   const laterDiagnostic = { name: `${job}/executions/ai-pdm-prod-migration-runner-later`, createTime: '2026-10-03T00:00:00Z', completionTime: '2026-10-03T00:01:00Z',
     reconciling: false, conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }],
-    template: { containers: [{ name: 'migration', args: ['--permission-operation-ref', 'gs://example/readback.json', '--source-revision', '8'.repeat(40)] }] } }
+    template: { containers: [{ name: 'migration', args: ['--permission-operation-ref', 'gs://example/readback.json', '--source-revision', (source[0] === '8' ? '7' : '8').repeat(40)] }] } }
   const request = h.transport.request
   h.transport.request = async (url, ...args) => {
     if (url.includes('/builds?filter=') && new URL(url).searchParams.get('filter') === `tags=${f.intent.releaseId.toLowerCase()}`) return { builds: [build] }
     if (url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')) return { executions: [laterDiagnostic] }
     return request.call(h.transport, url, ...args)
   }
-  h.transport.readOwnerRun = async () => h.ownerRun
+  h.transport.readOwnerRun = async (_profile, url) => url.endsWith(`/${priorOwnerRun.id}`) ? priorOwnerRun : h.ownerRun
   h.helperInput.baselineIntentRef = f.intentRow.ref
   return { ...h, prior, inheritedBasis, build, sealedBuild, deployment, laterDiagnostic }
 }
 
-async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag' } = {}) {
-  const h = await sealedPostbuildAbortFixture(), f = h.failed
+async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', inheritedPostbuild = false } = {}) {
+  let h = await sealedPostbuildAbortFixture()
+  if (inheritedPostbuild) h = await sealedPostbuildAbortFixture({
+    fixture: h,
+    source: '8'.repeat(40),
+    releaseId: 'DEV122-SEALED-POSTBUILD-ABORT-2',
+    runId: '45',
+  })
+  const f = h.failed
   const serviceAccount = 'aipdm-prod-migrator@jenfu-platform-prod.iam.gserviceaccount.com'
   h.profile.migrations = { jobName: 'ai-pdm-prod-migration-runner', serviceAccount }
   const jobName = `projects/${h.profile.target.projectId}/locations/${h.profile.target.region}/jobs/${h.profile.migrations.jobName}`
@@ -753,8 +761,8 @@ test('sealed postbuild abort admits the production-shaped pre-migration boundary
   assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepare.ref.sha256)
 })
 
-test('post-abort ledger readback reconciles one failed UNKNOWN migration and carries the sealed basis into the fenced retry', async () => {
-  const h = await reconciledMigrationAbortFixture(), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
+for (const inheritedPostbuild of [false, true]) test(`post-abort ledger readback reconciles one failed UNKNOWN migration and carries the sealed basis into the fenced retry; inherited postbuild=${inheritedPostbuild}`, async () => {
+  const h = await reconciledMigrationAbortFixture({ inheritedPostbuild }), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
   const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
   assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
   assert.equal(continuation.authorityBasis.originalDatabaseDisposition, 'UNKNOWN')
@@ -765,6 +773,8 @@ test('post-abort ledger readback reconciles one failed UNKNOWN migration and car
   assert.notEqual(continuation.authorityBasis.reconciliation.workflowSourceRevision, h.failed.intent.sourceRevision)
   assert.equal(continuation.authorityBasis.reconciliation.failedExecution.completedState, 'CONDITION_FAILED')
   assert.deepEqual(continuation.authorityBasis.reconciliation.readbackResultRef, h.resultRef)
+  if (inheritedPostbuild) assert.equal(h.objects.get(h.failed.paths.prepare).value.facts.preActivationAbortBasis.schemaVersion,
+    'ai-pdm.principal-postbuild-pre-migration-abort-basis.v1')
   assert.equal(Object.hasOwn(h.failed.intent, 'principalOnlyFenceRef'), false)
   assert.equal(h.submission.value.principalOnlyFenceRef, null)
   assert.equal(h.calls.puts, 0)
@@ -791,6 +801,15 @@ test('post-abort ledger readback reconciles one failed UNKNOWN migration and car
   })
   const workerContinuation = await readPreActivationAbortContinuation({ ...h.helperInput, ...workerRepairAbortContinuation(workerInput), verifyProvider: true })
   assert.deepEqual(workerContinuation.authorityBasis, continuation.authorityBasis)
+})
+
+test('post-abort reconciliation rejects an unrecognized inherited completed-build basis', async () => {
+  const h = await reconciledMigrationAbortFixture({ inheritedPostbuild: true })
+  const row = h.objects.get(h.failed.paths.prepare), { receiptSha256: _seal, ...core } = structuredClone(row.value)
+  core.facts.preActivationAbortBasis.schemaVersion = 'ai-pdm.principal-unknown-abort-basis.v1'
+  h.put(row.ref.uri, { ...core, receiptSha256: sha256(canonicalize(core)) })
+  await assert.rejects(readPreActivationAbortContinuation(h.helperInput), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  assert.equal(h.calls.puts, 0)
 })
 
 test('post-abort reconciliation rejects missing recovery, noncanonical result, tampering, duplicate execution and non-maintenance service', async () => {
