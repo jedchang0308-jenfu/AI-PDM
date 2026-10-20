@@ -30,7 +30,7 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     environment: production
-    permissions: { contents: read, pull-requests: read, id-token: write }
+    permissions: { contents: read, pull-requests: read, checks: read, id-token: write }
     outputs:
       capsule_uri: ${{ steps.bind.outputs.capsule_uri }}
       capsule_sha256: ${{ steps.bind.outputs.capsule_sha256 }}
@@ -40,9 +40,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - name: Verify affected production slice
-        run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner
-      - name: Verify official merged source
+      - name: Verify exact merged source and required CI results
         env: { GITHUB_TOKEN: "${{ github.token }}" }
         run: node scripts/dev012-verify-official-source.mjs
       - id: bind

@@ -100,14 +100,16 @@ test('DEV-122 self-use acceptance keeps 7/29 while exposing four focused capabil
   assert.equal(acceptance.gatePolicy.authorizationImpliesDatabase, false)
 })
 
-test('protected owner workflows use the affected-slice runner', () => {
+test('required CI owns affected-slice validation and protected workflows reuse exact results', () => {
   for (const file of [
     '.github/workflows/deploy-ai-pdm-independent-production.yml',
     '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml',
   ]) {
     const source = fs.readFileSync(path.join(root, file), 'utf8')
-    assert.match(source, /test:production-slice:affected -- --base HEAD\^1 --head HEAD --profile owner/u, file)
+    assert.doesNotMatch(source, /test:production-slice:affected/u, file)
     assert.doesNotMatch(source, /npm run test:dev-117:continuous/u, file)
+    assert.match(source, /checks: read/u, file)
+    assert.match(source, /dev012-verify-official-source\.mjs/u, file)
     assert.match(source, /fetch-depth: 0/u, file)
   }
 })
