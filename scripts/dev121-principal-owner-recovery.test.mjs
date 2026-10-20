@@ -701,18 +701,19 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
   }
   Object.assign(h.service, { scaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 }, generation: '2', observedGeneration: '2',
     updateTime: '2026-10-03T11:58:00Z', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: { timeout: '60s' } })
-  const nextSourceRevision = 'd'.repeat(40), recoveryRevision = 'ai-pdm-prod-recovery-999999999999'
+  const nextSourceRevision = 'd'.repeat(40), recoverySourceRevision = '9'.repeat(40)
+  const recoveryRevision = 'ai-pdm-prod-recovery-999999999999'
   const recoveryImage = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'e'.repeat(64)}`
-  const recoveryReceipt = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${nextSourceRevision}.json`, {
-    schemaVersion: 'ai-pdm.principal-only-recovery.v1', sourceRevision: nextSourceRevision,
+  const recoveryReceipt = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${recoverySourceRevision}.json`, {
+    schemaVersion: 'ai-pdm.principal-only-recovery.v1', sourceRevision: recoverySourceRevision,
     projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
     serviceUid: h.service.uid, oldRevision: previousRevision, recoveryRevision, imageDigest: recoveryImage, status: 'PASS',
   })
   h.revisions.set(recoveryRevision, { name: `${h.service.name}/revisions/${recoveryRevision}`,
     conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: h.profile.runtime.containerName, image: recoveryImage }] })
   const principalOnlyRecovery = { revision: recoveryRevision, imageDigest: recoveryImage, serviceUid: h.service.uid, receiptRef: recoveryReceipt.ref }
-  const fence = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${nextSourceRevision}/fence.json`, {
-    schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: nextSourceRevision,
+  const fence = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${recoverySourceRevision}/fence.json`, {
+    schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: recoverySourceRevision,
     projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
     serviceUid: h.service.uid, oldRevision: previousRevision, beforeGeneration: '1', quiescentGeneration: '2',
     serviceUpdateTime: h.service.updateTime, requestTimeoutSeconds: 60, status: 'QUIESCED',
@@ -721,7 +722,8 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
   const continuation = { postAbortLedgerReadbackRef: resultRef, principalOnlyFenceRef, principalOnlyRecovery }
   Object.assign(h.helperInput, continuation)
   return { ...h, submission, failedExecution, staticJob: readbackJob, readbackIntent, readbackIntentRef, result, resultRef,
-    readbackExecutions, providerExecutions: executions, continuation, runnerSourceRevision, jobName, task, deployment }
+    readbackExecutions, providerExecutions: executions, continuation, runnerSourceRevision, jobName, task, deployment,
+    nextSourceRevision, recoverySourceRevision }
 }
 
 function addPermissionReadbackExecution(h) {
@@ -884,6 +886,8 @@ for (const inheritedPostbuild of [false, true]) test(`post-abort ledger readback
   assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
 
   const next = await ordinaryNextRelease(h, h.continuation)
+  assert.equal(next.capsule.value.sourceRevision, h.nextSourceRevision)
+  assert.notEqual(h.recoverySourceRevision, next.capsule.value.sourceRevision)
   assert.deepEqual(next.capsule.value.postAbortLedgerReadbackRef, h.resultRef)
   assert.deepEqual(next.values.authorization.preActivationAbortBasis, continuation.authorityBasis)
   assert.deepEqual(next.values.readiness.preActivationAbortBasis, continuation.authorityBasis)

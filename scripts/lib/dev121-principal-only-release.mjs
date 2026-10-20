@@ -95,7 +95,10 @@ export function assertRecoveryProofReadback({ sourceRevision, oldRevision, bindi
     'projectId', 'region', 'service', 'serviceUid', 'oldRevision',
     'recoveryRevision', 'imageDigest', 'status']) ||
     proof.schemaVersion !== 'ai-pdm.principal-only-recovery.v1' ||
-    !H40.test(sourceRevision ?? '') || proof.sourceRevision !== sourceRevision ||
+    // The recovery image is an immutable safety artifact created by an older
+    // reviewed source. A later forward release has its own source lock and
+    // must not relabel the retained recovery proof as current source.
+    !H40.test(sourceRevision ?? '') || !H40.test(proof.sourceRevision ?? '') ||
     proof.projectId !== profile.target.projectId || proof.region !== profile.target.region ||
     proof.service !== profile.target.serviceName || proof.serviceUid !== binding.serviceUid ||
     proof.serviceUid !== service?.uid ||
