@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
-import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAiPdmBuildReadbackTransport, canonicalize, sha256 } from './lib/dev012-owner-release-runtime.mjs'
+import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAiPdmBuildReadbackTransport, canonicalize, sha256, OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS, OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS } from './lib/dev012-owner-release-runtime.mjs'
 import { assertNumericSecret } from './lib/dev122-openswx-owner-release.mjs'
 
 const H40 = 'a'.repeat(40)
@@ -1015,6 +1015,25 @@ test('owner private-object reads pin metadata and media to the exact requested g
   assert.equal(new URL(seen[1]).searchParams.get('generation'), '7')
   await assert.rejects(transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: '8' }), /GCS_GENERATION_MISMATCH/u)
   await assert.rejects(transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: 7 }), /GCS_GENERATION_INVALID/u)
+})
+
+test('C79 large immutable source archives receive a bounded media read window above the observed transfer time', async () => {
+  const observedArchiveBytes = 17_752_595
+  assert.equal(OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS, 120_000)
+  assert.equal(OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS, 60_000)
+  assert.ok(OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS > 34_197)
+  const bytes = Buffer.alloc(observedArchiveBytes, 0x61), seen = []
+  const transport = createOwnerTransport({ token: 'fixture-token-with-enough-length', fetchImpl: async (url, options = {}) => {
+    const target = new URL(String(url)); seen.push({ target, signal: options.signal })
+    return target.searchParams.get('alt') === 'media' ? new Response(bytes)
+      : json({ generation: '79', crc32c: crc32cBase64(bytes), size: String(bytes.length) })
+  } })
+  const uri = `gs://${bucket}/source/releases/DEV122-RD-FULL35-C79/source.tar.gz`
+  const result = await transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: '79', expectedSha256: sha256(bytes) })
+  assert.equal(result.bytes.length, observedArchiveBytes)
+  assert.equal(seen.length, 2)
+  assert.equal(seen[1].target.searchParams.get('alt'), 'media')
+  assert.equal(seen[1].signal.aborted, false)
 })
 
 test('R7 migration read token covers exact fixed Job and Execution GETs without borrowing for other routes', async () => {

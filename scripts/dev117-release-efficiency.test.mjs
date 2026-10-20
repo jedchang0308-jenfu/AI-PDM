@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
-import { fetchProviderRead } from './lib/dev012-read-retry.mjs'
+import { fetchProviderBytes, fetchProviderRead } from './lib/dev012-read-retry.mjs'
 import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { canonicalize, sha256 } from './lib/dev012-production-migration-runner.mjs'
 import { buildPermissionStateOperation } from './lib/dev122-rd-permission-state-readback.mjs'
@@ -49,6 +49,58 @@ test('read deadline covers backoff; long Retry-After is not ignored', async () =
   calls = 0
   await fetchProviderRead('https://example.invalid/read', {}, { sleep: noWait, fetchImpl: async () => { calls++; return new Response('', { status: 429, headers: { 'retry-after': '60' } }) } })
   assert.equal(calls, 1)
+})
+
+async function withControlledReadTimeouts(run) {
+  const original = AbortSignal.timeout, rows = []
+  AbortSignal.timeout = milliseconds => {
+    const controller = new AbortController(); rows.push({ milliseconds, controller }); return controller.signal
+  }
+  try { return await run(rows) } finally { AbortSignal.timeout = original }
+}
+
+function partialBodyResponse(controller, counters, failure = 'timeout') {
+  let reads = 0
+  return { ok: true, status: 200, headers: new Headers(), body: { getReader: () => ({
+    read: async () => {
+      if (++reads === 1) return { done: false, value: Buffer.from('discard-partial-attempt') }
+      if (failure === 'network') throw Object.assign(new TypeError('stream disconnected'), { cause: { code: 'UND_ERR_SOCKET' } })
+      queueMicrotask(() => controller.abort(new DOMException('media attempt timed out', 'TimeoutError')))
+      return new Promise(() => {})
+    },
+    cancel: async () => { counters.cancels++ },
+    releaseLock: () => { counters.releases++ },
+  }) } }
+}
+
+test('complete-body provider GET discards a timed-out partial stream and retries one fresh sealed read', async () => {
+  await withControlledReadTimeouts(async signals => {
+    const complete = Buffer.from('complete sealed provider object'), counters = { calls: 0, cancels: 0, releases: 0 }
+    const result = await fetchProviderBytes('https://example.invalid/media', {}, {
+      sleep: noWait, timeoutMs: 120_000, attemptTimeoutMs: 60_000, maxBytes: 1024,
+      fetchImpl: async () => ++counters.calls === 1 ? partialBodyResponse(signals[0].controller, counters) : new Response(complete),
+    })
+    assert.equal(result.bytes.equals(complete), true)
+    assert.deepEqual(counters, { calls: 2, cancels: 1, releases: 1 })
+    assert.deepEqual(signals.map(row => row.milliseconds), [60_000, 60_000])
+  })
+})
+
+test('complete-body provider GET bounds repeated partial timeouts and never retries caller cancellation', async () => {
+  await withControlledReadTimeouts(async signals => {
+    const counters = { calls: 0, cancels: 0, releases: 0 }
+    await assert.rejects(fetchProviderBytes('https://example.invalid/media', {}, {
+      sleep: noWait, timeoutMs: 120_000, attemptTimeoutMs: 60_000, maxBytes: 1024,
+      fetchImpl: async () => partialBodyResponse(signals[counters.calls++].controller, counters),
+    }), { name: 'TimeoutError' })
+    assert.deepEqual(counters, { calls: 2, cancels: 2, releases: 2 })
+  })
+  const controller = new AbortController(), counters = { calls: 0, cancels: 0, releases: 0 }
+  await assert.rejects(fetchProviderBytes('https://example.invalid/media', { signal: controller.signal }, {
+    sleep: noWait, maxBytes: 1024,
+    fetchImpl: async () => { counters.calls++; controller.abort(); return partialBodyResponse(new AbortController(), counters) },
+  }), /abort/iu)
+  assert.equal(counters.calls, 1)
 })
 
 test('owner shared entry retries GET but never repeats POST/PATCH/DELETE or upload', async () => {
