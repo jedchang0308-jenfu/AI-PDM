@@ -28,8 +28,15 @@ test('required full QC executes and source-binds the official source regression'
   }
 })
 
-function provider({ officialChange = {}, rulesChange = null, commitChange = {}, pullsChange = null, comparison = null,
-  status = 200 } = {}) {
+const requiredCheckNames = ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC']
+const successfulCheckRuns = requiredCheckNames.map((name, index) => ({
+  id: index + 1, name, head_sha: revision, status: 'completed', conclusion: 'success',
+  app: { id: 15368 }, details_url: `https://github.com/${repository}/actions/runs/${index + 1}`,
+  completed_at: '2026-09-27T11:40:00Z',
+}))
+
+function provider({ officialChange = {}, rulesChange = null, commitChange = {}, pullsChange = null,
+  checkRunsChange = null, comparison = null, status = 200 } = {}) {
   let requests = 0
   const fetchImpl = async (url, options) => {
     requests += 1
@@ -59,6 +66,8 @@ function provider({ officialChange = {}, rulesChange = null, commitChange = {}, 
     if (url.endsWith(`/git/commits/${revision}`)) return new Response(JSON.stringify({
       sha: revision, tree: { sha: sourceTree }, ...commitChange,
     }))
+    if (url.includes(`/commits/${revision}/check-runs?`)) return new Response(JSON.stringify(
+      checkRunsChange ?? { total_count: successfulCheckRuns.length, check_runs: successfulCheckRuns }))
     if (url.includes('/compare/')) {
       assert.equal(url, `https://api.github.com/repos/${repository}/compare/${revision}...${officialChange.commit.sha}?per_page=1`)
       return new Response(JSON.stringify(comparison))
@@ -82,8 +91,26 @@ test('accepts an exact merged PR on the protected official branch', async () => 
   assert.equal(result.reviewMode, 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED')
   assert.equal(result.sourceRelation, 'HEAD')
   assert.equal(result.observedBranchRevision, revision)
+  assert.deepEqual(result.requiredCheckRuns.map((row) => row.name), requiredCheckNames)
   assert.equal(result.providerReadRetries, 0)
-  assert.equal(fake.requests(), 4)
+  assert.equal(fake.requests(), 5)
+})
+
+test('exact merged source requires both GitHub Actions check runs to succeed', async () => {
+  const invalid = [
+    { total_count: 1, check_runs: successfulCheckRuns.slice(0, 1) },
+    { total_count: 2, check_runs: successfulCheckRuns.map((row, index) => index === 0 ? { ...row, conclusion: 'failure' } : row) },
+    { total_count: 2, check_runs: successfulCheckRuns.map((row, index) => index === 0 ? { ...row, status: 'in_progress', conclusion: null } : row) },
+    { total_count: 2, check_runs: successfulCheckRuns.map((row, index) => index === 0 ? { ...row, head_sha: 'c'.repeat(40) } : row) },
+    { total_count: 2, check_runs: successfulCheckRuns.map((row, index) => index === 0 ? { ...row, app: { id: 1 } } : row) },
+    { total_count: 3, check_runs: [...successfulCheckRuns, successfulCheckRuns[0]] },
+  ]
+  for (const checkRunsChange of invalid) {
+    await assert.rejects(verifyOfficialMergedSource({ ...input,
+      fetchImpl: provider({ checkRunsChange }).fetchImpl }), /REQUIRED_CHECKS_NOT_SUCCESSFUL/u)
+  }
+  await assert.rejects(verifyOfficialMergedSource({ ...input,
+    fetchImpl: provider({ checkRunsChange: {} }).fetchImpl }), /REQUIRED_CHECKS_INVALID/u)
 })
 
 test('rejects incomplete or wrong ruleset', async () => {
@@ -146,7 +173,7 @@ test('main advancing after dispatch preserves the exact pinned merge and tree', 
   assert.equal(result.observedBranchRevision, advancedHead)
   assert.equal(result.sourceRelation, 'ANCESTOR')
   assert.equal(result.status, 'OFFICIAL_MERGED_PR_VERIFIED')
-  assert.equal(fake.requests(), 5)
+  assert.equal(fake.requests(), 6)
 })
 
 test('advanced main does not admit a divergent, removed, unknown or mismatched source', async () => {
@@ -195,7 +222,7 @@ test('a transient read is retried without restarting successful reads or changin
     assert.equal(result.status, 'OFFICIAL_MERGED_PR_VERIFIED')
     assert.equal(result.sourceRevision, revision)
     assert.equal(result.providerReadRetries, 1)
-    assert.equal(fake.requests(), 4)
+    assert.equal(fake.requests(), 5)
     assert.equal(waits.length, 1)
   }
 })

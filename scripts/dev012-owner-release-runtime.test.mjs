@@ -124,6 +124,8 @@ test('Cloud Build gets the exact regional build resource, pinned builder, source
   assert.equal(seen[0].body.steps[0].name, profile.build.dockerBuilderImage)
   assert.equal(seen[0].body.steps[0].dir, 'source')
   assert.equal(seen[0].body.source.storageSource.generation, '9')
+  assert.ok(seen[0].body.steps[0].args.includes(`SOURCE_VERSION=${H40}`))
+  assert.ok(!seen[0].body.steps[0].args.some((value) => value === 'SOURCE_VERSION=REL-001'))
 })
 
 test('Artifact Registry, provenance, SBOM and vulnerability evidence fail closed', async () => {

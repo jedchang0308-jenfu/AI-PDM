@@ -559,11 +559,15 @@ Probe以第一個 native PASS 為 ledger readback：必須 `applied=0`、`ledger
 
 ### 26.3 Change-scoped validation executor（CAPA-002）
 
-Protected required checks、official-source review、single capsule、recovery及production authorization不變。`scripts/plan-production-slice.mjs`是唯一 gate selector，依 base/head changed paths產生 versioned plan；owner prepare與 CI 只可依該 plan 執行 `scripts/run-production-slice-tests.mjs` 的 applicable groups。純 authorization 不再隱含 database、dbBoundary、nativePostgres 或 migration；只有實際 database path 或 `FULL` 才啟用這些 gate。authorization、database、worker、preview、recognition 也不得因未改其他 responsibility 而載入其歷史 queue。
+Protected required checks、official-source review、single capsule、recovery及production authorization不變。`scripts/plan-production-slice.mjs`是唯一 gate selector，依 base/head changed paths產生 versioned plan；PR／push CI 依該 plan 執行 `scripts/run-production-slice-tests.mjs` 的 applicable groups，並以隔離 PostgreSQL、task-owned data 與無 production environment／WIF／Secret 的方式形成 isolated candidate lane。純 authorization 不再隱含 database、dbBoundary、nativePostgres 或 migration；只有實際 database path 或 `FULL` 才啟用這些 gate。authorization、database、worker、preview、recognition 也不得因未改其他 responsibility 而載入其歷史 queue。
+
+Owner prepare不再重跑相同 source test groups。`dev012-verify-official-source` 必須讀回 exact merged SHA 上由 GitHub Actions app `15368` 產生且 `completed/success` 的 `DEV-012 Isolated PostgreSQL Cutover` 與 `Production Slice QC` check runs；缺件、pending、failure、wrong SHA、wrong app 或重名皆 fail closed。其後 prepare只執行 protection/source binding 與 production-specific live readback。正式 migration、Cloud Run zero-traffic candidate、smoke、traffic與recovery仍在 protected merged-main owner workflow；PR branch isolated candidate不得取得或模擬這些正式權限。
 
 `.github/workflows`、package/build control、planner本身、DEV-012/117共同 release source及任何 unknown path一律 `FULL` fail closed，執行 legacy `test:dev-117:continuous`與既有完整 QC。對產品與審查者只呈現 `preflight → build → migrate-if-needed → candidate-smoke → activate-readback` 五個邏輯階段；既有 executor 的內部 jobs 與收據仍可作為相容實作，不形成 DEV-122 的逐項人工驗收清單。
 
 Planner只能減少 unchanged responsibility 的重跑，不能將 required provider check標為 skipped或把 local evidence升為release authority。每個 plan保存 base/head、changed files、slice reasons、gates、release phases與依失效機制選出的 evidence requirements；空集合也視為 unknown/full。Owner workflow只接受 protected exact main，planner不增加actor輸入、target/stage/SQL/env override，也不改 migration／IAM／Secret／traffic authority。
+
+Reviewed source revision、artifact build inputs與release attempt是三個責任。新的release ID、deadline或重試不得注入OCI image version或其他output-affecting build argument；image version使用exact source revision。相同產物的跨attempt重用仍須由executor讀回immutable digest、原始source/provenance、Docker target／builder／lock與當前scan政策，不得僅憑tree相等或改寫舊receipt宣稱重建。
 
 ### 26.4 Pinned in-flight source and bounded read recovery（2026-10-18）
 
