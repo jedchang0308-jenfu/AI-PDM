@@ -26,7 +26,8 @@ function input() {
     status: 'QUIESCED',
   }
   const bytes = Buffer.from(`${JSON.stringify(proof)}\n`)
-  return { proof, bytes, expectedSha256: sha256(bytes), sourceRevision,
+  return { proof, bytes, expectedSha256: sha256(bytes),
+    expectedFenceSourceRevision: sourceRevision,
     service, observedAt: '2026-09-30T00:01:30.000Z' }
 }
 
@@ -61,6 +62,19 @@ test('accepts source-bound proof only after live service generation and drain ag
     assert.throws(() => assertPrincipalOnlyMigrationFence(changed),
       /DEV121_MIGRATION_073_FENCE_INVALID/u)
   }
+})
+
+test('later release source can consume the retained fence without relabeling its provenance', () => {
+  const value = input()
+  delete value.expectedFenceSourceRevision
+  const state = assertPrincipalOnlyMigrationFence(value)
+  assert.equal(state.fenceSourceRevision, sourceRevision)
+  assert.equal(state.generation, 65)
+
+  const mismatchedRecovery = input()
+  mismatchedRecovery.expectedFenceSourceRevision = 'b'.repeat(40)
+  assert.throws(() => assertPrincipalOnlyMigrationFence(mismatchedRecovery),
+    /DEV121_MIGRATION_073_FENCE_INVALID/u)
 })
 
 test('migration fence reads all AI-PDM owner-role sessions before pending SQL', async () => {
