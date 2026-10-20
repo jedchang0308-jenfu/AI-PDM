@@ -1,3 +1,9 @@
+## DEV-121#rd-capabilities — 2026-10-20 large private-object media window（本地驗證中，C83 不重送）
+
+PR #403 exact main `7ce68d041ecf664931b0ded9447e6ff7e3187fca` 的 C83 source lock、76,625,920-byte worker archive與 current v5 input均完成 immutable provider readback；兩次 artifact-reuse 在任何新 evidence publication前回傳 `OUTCOME_UNKNOWN`，readback證明除 input 外沒有 association／descriptor／request／output，未 dispatch owner workflow，service／traffic未變。直接失效是共用 owner transport 的固定 60秒單次 GCS media期限短於同一物件實測約130～150秒；C83 deadline已過且不得重送。
+
+corrective code commit `bc4d9358a11ec894d0a0b79449327683112281bd` 在共用 `readBytes` 依 provider metadata size產生有上限的read-only window，保留generation／CRC／SHA／maxBytes與未知寫入規則。planner=`FULL`／plan SHA `0098d9413d038b0f2630194387dc2a1f970f57f265865b89f57d60dcbc8f88b3`；production-shaped C79／C83 focused regression、exact-source affected runner 27 groups、continuous QC 483／483、preview 33／33、image converter 8／8、catalog v7 3／3、abort 6／6、DB boundary、typecheck與isolated build均PASS。第一次dirty-source full gate保留一個Windows長路徑fixture FAIL，短 `C:\tmp` 原案例1／1與exact-source同檔25／25均PASS；未改產品或test oracle。protected PR／required CI／merge及fresh exact-main C84仍待完成；085、catalog v7與專用測試RD actor正式UI／API驗收未完成，不宣稱RD production acceptance或DEV-122 PASS。
+
 ## DEV-121#rd-capabilities — 2026-10-20 postbuild lineage reconciliation（本地完整 gate PASS，待受保護交付）
 
 C70 的 prepare／build 已完成而 migration outcome 為 `UNKNOWN`；其 immutable prepare 合法攜帶 `ai-pdm.principal-postbuild-pre-migration-abort-basis.v1`。C77／C78 exact-main worker reuse 在 publication 前以 `DEV121_PREACTIVATION_CONTINUATION_INVALID` 拒絕。共用 continuation reader 的 completed-build allowlist 接受 prebuild／unpublished basis，卻漏掉同一模組產生的 postbuild-pre-migration basis，造成第二次 postbuild attempt 無法承接前一次 postbuild／UNKNOWN migration lineage。最小修正只將該具名 schema 加入 closed allowlist；failed intent、previous revision、control SHA、source／hash、provider readback與零重送守門不變，未知 schema仍拒絕。production-shaped `postbuild → postbuild → UNKNOWN migration` 正向與未知 schema負向 fixture已補。
