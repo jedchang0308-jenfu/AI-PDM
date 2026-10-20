@@ -15,6 +15,13 @@ import {
   rdReadbackSha256,
   RD_LEDGER_READBACK_PGOPTIONS,
 } from './dev122-rd-permission-ledger-readback.mjs'
+import {
+  RD_PERMISSION_STATE_PGOPTIONS,
+  RD_PERMISSION_STATE_RECEIPT_PREFIX,
+  assertPermissionStateOperation,
+  assertPermissionStateReceipt,
+  parsePermissionStateArgs,
+} from './dev122-rd-permission-state-readback.mjs'
 
 const same = (a, b) => canonicalize(a) === canonicalize(b)
 const fail = () => { throw new Error('DEV121_PREACTIVATION_CONTINUATION_INVALID') }
@@ -1114,7 +1121,7 @@ async function readSubmittedMigrationExecution({ profile, transport, paths, depl
   const provider = await transport.request(`https://run.googleapis.com/v2/${execution.name}`)
   if (!ordinaryExecutionMatches(profile, provider, submission, deployment, staticJob)
     || !same(executionProjection(provider), executionProjection(execution))) fail()
-  return { execution: provider, projection: executionProjection(provider), window, submitted,
+  return { execution: provider, projection: executionProjection(provider), staticJob, window, submitted,
     inventory: rows.map(executionProjection).sort((left, right) => left.name.localeCompare(right.name)) }
 }
 
@@ -1138,6 +1145,110 @@ function assertReadbackExecution({ profile, intent, intentRef, probe, attempt, r
     || !executionCloudSqlFieldsMatch(task, container, staticJob?.template?.template)
     || (pass ? facts.completedState !== 'CONDITION_SUCCEEDED' : facts.completedState !== 'CONDITION_FAILED')) fail()
   return facts
+}
+
+function executionEnvironment(execution) {
+  const rows = execution?.template?.containers?.[0]?.env
+  if (!Array.isArray(rows) || new Set(rows.map(row => row?.name)).size !== rows.length) fail()
+  return Object.fromEntries(rows.map(row => [row.name, row.value]))
+}
+
+async function authorizeLedgerDiagnosticExecution({ profile, transport, read, execution, expectedRunnerSourceRevision,
+  expectedMigrationRunnerDigest, cache }) {
+  const args = execution?.template?.containers?.[0]?.args
+  if (!Array.isArray(args)) fail()
+  const outputIndex = args.indexOf('--output-ref')
+  if (outputIndex < 0 || outputIndex + 1 >= args.length) fail()
+  const outputUri = args[outputIndex + 1]
+  const pattern = new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/releases/([A-Z0-9][A-Z0-9-]{5,63})/([a-f0-9]{64})/ledger-probe-(33|34|35)\\.json$`, 'u')
+  const match = pattern.exec(outputUri)
+  if (!match) fail()
+  const [, releaseId, intentSha256, count] = match
+  const intentUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${releaseId}/rd-permission-ledger-readback-intent.json`
+  const base = `gs://${profile.artifact.releaseBucket}/receipts/releases/${releaseId}/${intentSha256}`
+  let graph = cache.get(base)
+  if (!graph) {
+    const intentRow = await read(intentUri)
+    if (intentRow.ref.sha256 !== intentSha256) fail()
+    const intent = assertRdLedgerReadbackIntent(intentRow.value)
+    if (intent.runnerSourceRevision !== expectedRunnerSourceRevision || intent.migrationRunnerDigest !== expectedMigrationRunnerDigest) fail()
+    const jobReceipt = await read(`${base}/ledger-job-readback.json`)
+    assertRdReadbackJobReceipt(jobReceipt.value, { intent, intentRef: intentRow.ref, profile })
+    graph = { intent, intentRef: intentRow.ref, jobReceipt }
+    cache.set(base, graph)
+  }
+  const ledgerCount = Number(count), probe = graph.intent.probes.find(row => row.ledgerCount === ledgerCount)
+  if (!probe || !same(args, rdReadbackProbeArguments(graph.intent, probe, outputUri))) fail()
+  const executionReceipt = await read(`${base}/ledger-probe-${ledgerCount}-execution-readback.json`)
+  const pass = executionReceipt.value?.status === 'PASS'
+  if (!pass && executionReceipt.value?.status !== 'EXPECTED_READ_ONLY_PROBE_FAILURE') fail()
+  const attempt = { status: pass ? 'PASS' : 'FAILED', ledgerCount, executionReadbackRef: executionReceipt.ref }
+  const facts = assertReadbackExecution({ profile, intent: graph.intent, intentRef: graph.intentRef, probe, attempt,
+    receipt: executionReceipt.value, execution, staticJob: graph.jobReceipt.value.projection })
+  const started = Date.parse(graph.intent.observedAt), deadline = Date.parse(graph.intent.deadlineAt)
+  if (!Number.isFinite(started) || !Number.isFinite(deadline) || facts.created < started || facts.finished > deadline) fail()
+  if (pass) {
+    const native = await read(outputUri)
+    assertRdReadbackNativeReceipt(native.value, { intent: graph.intent, probe, executionName: execution.name.split('/').at(-1) })
+    const nativeStarted = Date.parse(native.value.startedAt), nativeCompleted = Date.parse(native.value.completedAt)
+    if (nativeStarted < facts.created || nativeCompleted > facts.finished) fail()
+  } else await assertMissing(read, outputUri)
+  return execution.name
+}
+
+async function authorizePermissionDiagnosticExecution({ profile, transport, read, execution, staticJob,
+  expectedRunnerSourceRevision, expectedMigrationRunnerDigest }) {
+  const args = execution?.template?.containers?.[0]?.args
+  const parsed = parsePermissionStateArgs(args)
+  const operationPattern = new RegExp(`^gs://${profile.artifact.releaseBucket}/source/rd-permission-readback/[A-Za-z0-9._-]+\\.json$`, 'u')
+  const expectedOutput = `gs://${profile.artifact.releaseBucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${parsed.operationSha256}/state.json`
+  if (!operationPattern.test(parsed.operationRef) || parsed.sourceRevision !== expectedRunnerSourceRevision || parsed.outputRef !== expectedOutput) fail()
+  const operationObject = await transport.readBytes(parsed.operationRef, { prefixes: ['source/rd-permission-readback'], expectedSha256: parsed.operationSha256 })
+  let operation
+  try { operation = JSON.parse(operationObject.bytes.toString('utf8')) } catch { fail() }
+  assertPermissionStateOperation(operation, { bytes: operationObject.bytes, operationSha256: parsed.operationSha256, sourceRevision: parsed.sourceRevision })
+  if (operation.migrationRunnerDigest !== expectedMigrationRunnerDigest) fail()
+  const generation = String(operationObject.metadata?.generation ?? '')
+  if (!/^[1-9][0-9]*$/u.test(generation)) fail()
+  const operationRef = { uri: parsed.operationRef, sha256: parsed.operationSha256, generation }
+  const expectedArgs = ['--permission-operation-ref', parsed.operationRef, '--permission-operation-sha256', parsed.operationSha256,
+    '--source-revision', parsed.sourceRevision, '--permission-output-ref', expectedOutput]
+  if (!same(args, expectedArgs)) fail()
+  const submission = await read(`gs://${profile.artifact.releaseBucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${parsed.operationSha256}/submission.json`)
+  const { receiptSha256, ...submissionCore } = submission.value ?? {}
+  const submissionKeys = ['schemaVersion', 'ownerApplicationId', 'workflowSourceRevision', 'sourceRevision', 'operationRef', 'outputRef',
+    'operationId', 'migrationRunnerDigest', 'args', 'executionEnvironment', 'observedAt', 'status']
+  if (!same(Object.keys(submissionCore).sort(), submissionKeys.sort()) || receiptSha256 !== sha256(canonicalize(submissionCore))
+    || submissionCore.schemaVersion !== 'aipdm.dev122.rd-permission-state-readback-submission.v1'
+    || submissionCore.ownerApplicationId !== profile.application.id || !/^[a-f0-9]{40}$/u.test(submissionCore.workflowSourceRevision ?? '')
+    || submissionCore.sourceRevision !== operation.sourceRevision || !same(submissionCore.operationRef, operationRef)
+    || submissionCore.outputRef !== expectedOutput || submissionCore.operationId !== operation.operationId
+    || submissionCore.migrationRunnerDigest !== operation.migrationRunnerDigest || !same(submissionCore.args, expectedArgs)
+    || !same(submissionCore.executionEnvironment, { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS })
+    || submissionCore.status !== 'SUBMISSION_INTENT' || !Number.isFinite(Date.parse(submissionCore.observedAt))) fail()
+  const task = execution?.template, container = task?.containers?.[0], environment = executionEnvironment(execution)
+  const facts = executionTerminalFacts(execution)
+  if (execution.taskCount !== 1 || execution.parallelism !== 1 || task?.serviceAccount !== profile.migrations.serviceAccount
+    || task.maxRetries !== 0 || task.timeout !== '1800s' || task.containers?.length !== 1 || container?.name !== 'migration'
+    || container.image !== operation.migrationRunnerDigest || !same(container.args, expectedArgs)
+    || environment.PDM_SOURCE_REVISION !== operation.sourceRevision || environment.PGOPTIONS !== RD_PERMISSION_STATE_PGOPTIONS
+    || !executionCloudSqlFieldsMatch(task, container, staticJob?.template?.template)
+    || facts.completedState !== 'CONDITION_SUCCEEDED' || Number(execution.succeededCount ?? 0) !== 1 || Number(execution.failedCount ?? 0) !== 0
+    || Date.parse(submissionCore.observedAt) > facts.created) fail()
+  const output = await read(expectedOutput)
+  assertPermissionStateReceipt(output.value, { operation, operationRef, outputRef: expectedOutput })
+  const observed = Date.parse(output.value.observedAt)
+  if (output.value.state?.transactionMode !== 'REPEATABLE READ READ ONLY' || output.value.state?.databaseMutationExpected !== false
+    || !Number.isFinite(observed) || observed < facts.created || observed > facts.finished) fail()
+  return execution.name
+}
+
+async function authorizeReadOnlyDiagnosticExecution(input) {
+  const args = input.execution?.template?.containers?.[0]?.args
+  if (!Array.isArray(args)) fail()
+  if (args.includes('--permission-operation-ref')) return authorizePermissionDiagnosticExecution(input)
+  if (args.includes('--bundle-ref') && args.includes('--output-ref')) return authorizeLedgerDiagnosticExecution(input)
+  fail()
 }
 
 async function readPostAbortLedgerReconciliation({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts,
@@ -1203,9 +1314,15 @@ async function readPostAbortLedgerReconciliation({ profile, transport, baselineI
   const finalInventoryRows = await readMigrationExecutionInventory(profile, transport)
   const finalInventory = finalInventoryRows.map(executionProjection).sort((left, right) => left.name.localeCompare(right.name))
   if (!same(finalInventory, failed.inventory)) fail()
+  const diagnosticCache = new Map()
   for (const execution of finalInventoryRows) {
     const facts = executionTerminalFacts(execution)
-    if (facts.created >= failed.submitted && !authorizedExecutions.has(execution.name)) fail()
+    if (facts.created >= failed.submitted && !authorizedExecutions.has(execution.name)) {
+      const name = await authorizeReadOnlyDiagnosticExecution({ profile, transport, read, execution, staticJob: failed.staticJob,
+        expectedRunnerSourceRevision: runnerSourceRevision, expectedMigrationRunnerDigest: deployment.value.migrationRunnerDigest,
+        cache: diagnosticCache })
+      authorizedExecutions.add(name)
+    }
   }
   return { basis: {
     schemaVersion: 'aipdm.dev122.post-abort-ledger-reconciliation.v1', failedIntentRef: baselineIntentRef,

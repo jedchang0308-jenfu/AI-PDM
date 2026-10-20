@@ -7,6 +7,7 @@ import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-a
 import { buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProbeArguments, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
+import { RD_PERMISSION_STATE_PGOPTIONS, RD_PERMISSION_STATE_RECEIPT_PREFIX, buildPermissionStateOperation, buildPermissionStateReceipt } from './lib/dev122-rd-permission-state-readback.mjs'
 import { assertWorkerReuseInput, workerRepairAbortContinuation } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-aipdm-release'
@@ -718,7 +719,108 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
   const principalOnlyFenceRef = fence.ref
   const continuation = { postAbortLedgerReadbackRef: resultRef, principalOnlyFenceRef, principalOnlyRecovery }
   Object.assign(h.helperInput, continuation)
-  return { ...h, submission, failedExecution, staticJob: readbackJob, readbackIntent, readbackIntentRef, result, resultRef, readbackExecutions, providerExecutions: executions, continuation }
+  return { ...h, submission, failedExecution, staticJob: readbackJob, readbackIntent, readbackIntentRef, result, resultRef,
+    readbackExecutions, providerExecutions: executions, continuation, runnerSourceRevision, jobName, task, deployment }
+}
+
+function addPermissionReadbackExecution(h) {
+  const operationId = 'DEV122-RD-PERMISSION-READBACK-LOCAL'
+  const operation = buildPermissionStateOperation({
+    operationId,
+    sourceRevision: h.runnerSourceRevision,
+    migrationRunnerDigest: h.deployment.value.migrationRunnerDigest,
+    actor: {
+      principalIdSha256: '1'.repeat(64), employeeIdSha256: '2'.repeat(64),
+      identityIssuer: 'https://securetoken.google.com/jenfu-platform-prod', identitySubjectSha256: '3'.repeat(64),
+    },
+    catalogVersion: 'ai-pdm.role-catalog.2026-10-05.v6',
+    catalogSha256: 'bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af',
+  })
+  const operationUri = `gs://${bucket}/source/rd-permission-readback/dev122-rd-permission-readback-local.json`
+  const operationRow = h.put(operationUri, operation.value)
+  assert.equal(operationRow.ref.sha256, operation.sha256)
+  const operationRef = { ...operationRow.ref, generation: operationRow.metadata.generation }
+  const outputRef = `gs://${bucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${operation.sha256}/state.json`
+  const args = ['--permission-operation-ref', operationUri, '--permission-operation-sha256', operation.sha256,
+    '--source-revision', h.runnerSourceRevision, '--permission-output-ref', outputRef]
+  const submissionCore = {
+    schemaVersion: 'aipdm.dev122.rd-permission-state-readback-submission.v1', ownerApplicationId: 'ai-pdm',
+    workflowSourceRevision: '9'.repeat(40), sourceRevision: h.runnerSourceRevision, operationRef, outputRef,
+    operationId, migrationRunnerDigest: h.deployment.value.migrationRunnerDigest, args,
+    executionEnvironment: { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }, observedAt: '2026-10-03T00:04:00Z', status: 'SUBMISSION_INTENT',
+  }
+  const submission = h.put(`gs://${bucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${operation.sha256}/submission.json`,
+    { ...submissionCore, receiptSha256: sha256(canonicalize(submissionCore)) })
+  const execution = {
+    name: `${h.jobName}/executions/ai-pdm-prod-migration-runner-permission`, createTime: '2026-10-03T00:04:10Z',
+    startTime: '2026-10-03T00:04:11Z', completionTime: '2026-10-03T00:04:30Z', reconciling: false,
+    taskCount: 1, parallelism: 1, succeededCount: 1, failedCount: 0, runningCount: 0,
+    conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }],
+    template: h.task(args, { ...rdReadbackJobEnvironment(h.profile, h.runnerSourceRevision), PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }),
+  }
+  delete execution.template.volumes
+  delete execution.template.containers[0].volumeMounts
+  const state = { database: 'jenfu_prod', databaseMutationExpected: false, transactionMode: 'REPEATABLE READ READ ONLY' }
+  const output = h.put(outputRef, buildPermissionStateReceipt({ operation: operation.value, operationRef, outputRef,
+    observedAt: '2026-10-03T00:04:20Z', state }))
+  h.providerExecutions.push(execution)
+  return { operation, operationRow, operationRef, submission, execution, output }
+}
+
+function addPriorLedgerReadbackExecutions(h) {
+  const releaseId = 'DEV122-RD-READBACK-PRIOR'
+  const intent = buildRdLedgerReadbackIntent({
+    releaseId, workflowSourceRevision: '8'.repeat(40), workflowSourceTree: 'b'.repeat(40),
+    workflowSourceIdentitySha256: 'c'.repeat(64), runnerSourceRevision: h.runnerSourceRevision,
+    profileSha256: 'd'.repeat(64), probes: h.readbackIntent.probes, job: h.staticJob,
+    observedAt: '2026-10-02T12:00:00Z', deadlineAt: '2026-10-02T14:00:00Z',
+  })
+  const intentRef = h.put(`gs://${bucket}/receipts/releases/${releaseId}/rd-permission-ledger-readback-intent.json`, intent).ref
+  const base = `gs://${bucket}/receipts/releases/${releaseId}/${intentRef.sha256}`
+  const receiptSeal = value => ({ ...value, receiptSha256: rdReadbackSha256(value) })
+  h.put(`${base}/ledger-job-readback.json`, receiptSeal({
+    schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v2', ownerApplicationId: 'ai-pdm', releaseId,
+    workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: h.runnerSourceRevision, readbackIntentRef: intentRef,
+    projection: rdReadbackJobProjection(h.staticJob), observedAt: intent.observedAt, status: 'PASS',
+  }))
+  const executions = []
+  for (const [index, probe] of intent.probes.entries()) {
+    const pass = probe.ledgerCount === 33
+    const minute = index + 1, createTime = `2026-10-02T12:0${minute}:00Z`, completionTime = `2026-10-02T12:0${minute}:30Z`
+    const outputUri = `${base}/ledger-probe-${probe.ledgerCount}.json`
+    const execution = {
+      name: `${h.jobName}/executions/ai-pdm-prod-migration-runner-prior${probe.ledgerCount}`,
+      createTime, startTime: createTime, completionTime, reconciling: false,
+      taskCount: 1, parallelism: 1, succeededCount: pass ? 1 : 0, failedCount: pass ? 0 : 1, runningCount: 0,
+      conditions: [{ type: 'Completed', state: pass ? 'CONDITION_SUCCEEDED' : 'CONDITION_FAILED' }],
+      template: h.task(rdReadbackProbeArguments(intent, probe, outputUri),
+        { ...rdReadbackJobEnvironment(h.profile, h.runnerSourceRevision), PGOPTIONS: '-c default_transaction_read_only=on' }),
+    }
+    delete execution.template.volumes
+    delete execution.template.containers[0].volumeMounts
+    h.put(`${base}/ledger-probe-${probe.ledgerCount}-execution-readback.json`, receiptSeal({
+      schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm', releaseId,
+      workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: h.runnerSourceRevision, readbackIntentRef: intentRef,
+      ledgerCount: probe.ledgerCount, executionName: execution.name, createTime, startTime: createTime, completionTime,
+      succeededCount: execution.succeededCount, failedCount: execution.failedCount,
+      completedState: execution.conditions[0].state, templateSha256: rdReadbackSha256(execution.template), observedAt: completionTime,
+      status: pass ? 'PASS' : 'EXPECTED_READ_ONLY_PROBE_FAILURE',
+    }))
+    if (pass) {
+      const nativeCore = {
+        schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: h.runnerSourceRevision,
+        database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: probe.manifestSha256,
+        baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 33,
+        applied: 0, replayed: 33, crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
+        boundaryStatus: 'PASS', executionName: execution.name.split('/').at(-1), startedAt: `2026-10-02T12:0${minute}:10Z`,
+        completedAt: `2026-10-02T12:0${minute}:20Z`, status: 'PASS',
+      }
+      h.put(outputUri, { ...nativeCore, receiptSha256: rdReadbackSha256(nativeCore) })
+    }
+    executions.push(execution)
+  }
+  h.providerExecutions.push(...executions)
+  return { intent, intentRef, executions }
 }
 
 for (const inherited of [false, true]) test(`B28 unpublished build abort keeps partial artifact non-authoritative; inherited zero-build anchor=${inherited}`, async () => {
@@ -801,6 +903,51 @@ for (const inheritedPostbuild of [false, true]) test(`post-abort ledger readback
   })
   const workerContinuation = await readPreActivationAbortContinuation({ ...h.helperInput, ...workerRepairAbortContinuation(workerInput), verifyProvider: true })
   assert.deepEqual(workerContinuation.authorityBasis, continuation.authorityBasis)
+})
+
+test('post-abort reconciliation admits a sealed read-only RD permission diagnostic after the ledger readback', async () => {
+  const h = await reconciledMigrationAbortFixture(), diagnostic = addPermissionReadbackExecution(h)
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.reconciliation.migration085State, 'NOT_APPLIED')
+  assert.equal(diagnostic.output.value.state.databaseMutationExpected, false)
+  assert.equal(diagnostic.output.value.state.transactionMode, 'REPEATABLE READ READ ONLY')
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation admits the production-shaped prior-ledger then current-ledger then permission-readback sequence', async () => {
+  const h = await reconciledMigrationAbortFixture()
+  const prior = addPriorLedgerReadbackExecutions(h)
+  const permission = addPermissionReadbackExecution(h)
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(prior.executions.length, 3)
+  assert.equal(permission.execution.succeededCount, 1)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation rejects a prior ledger diagnostic without the read-only database session', async () => {
+  const h = await reconciledMigrationAbortFixture(), prior = addPriorLedgerReadbackExecutions(h)
+  prior.executions[0].template.containers[0].env.find(row => row.name === 'PGOPTIONS').value = '-c statement_timeout=1000'
+  await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }),
+    /DEV121_PREACTIVATION_CONTINUATION_INVALID|RD_READBACK/u)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation rejects permission diagnostics with missing evidence, writable sessions, wrong resources or expanded execution', async () => {
+  const mutations = [
+    (h, diagnostic) => h.objects.delete(diagnostic.output.ref.uri),
+    (_h, diagnostic) => { diagnostic.execution.template.containers[0].env.find(row => row.name === 'PGOPTIONS').value = '-c statement_timeout=1000' },
+    (_h, diagnostic) => { diagnostic.execution.template.containers[0].args[1] = diagnostic.execution.template.containers[0].args[1].replace('rd-permission-readback', 'other') },
+    (_h, diagnostic) => { diagnostic.execution.template.maxRetries = 1 },
+  ]
+  for (const mutate of mutations) {
+    const h = await reconciledMigrationAbortFixture(), diagnostic = addPermissionReadbackExecution(h)
+    mutate(h, diagnostic)
+    await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }),
+      /DEV121_PREACTIVATION_CONTINUATION_INVALID|RD_PERMISSION_STATE|MISSING/u)
+    assert.equal(h.calls.puts, 0)
+  }
 })
 
 test('post-abort reconciliation rejects an unrecognized inherited completed-build basis', async () => {
