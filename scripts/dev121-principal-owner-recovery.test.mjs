@@ -638,11 +638,14 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
       env: Object.entries(environment).map(([name, value]) => ({ name, value })),
       volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }],
   })
+  const failedEnvironment = principalOnly
+    ? { ...baseEnvironment, DEV121_MIGRATION_FENCE_REF: f.intent.principalOnlyFenceRef.uri, DEV121_MIGRATION_FENCE_SHA256: f.intent.principalOnlyFenceRef.sha256 }
+    : baseEnvironment
   const failedExecution = {
     name: `${jobName}/executions/ai-pdm-prod-migration-runner-failed`, createTime: '2026-10-02T00:03:30Z',
     startTime: '2026-10-02T00:03:31Z', completionTime: '2026-10-02T00:04:00Z', reconciling: false,
     taskCount: 1, parallelism: 1, succeededCount: 0, failedCount: 1, runningCount: 0,
-    conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }], template: task(submissionCore.args),
+    conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }], template: task(submissionCore.args, failedEnvironment),
   }
   delete failedExecution.template.volumes
   delete failedExecution.template.containers[0].volumeMounts
