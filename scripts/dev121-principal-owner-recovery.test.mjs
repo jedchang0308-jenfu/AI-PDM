@@ -894,6 +894,26 @@ test('sealed postbuild abort admits the production-shaped pre-migration boundary
   assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepare.ref.sha256)
 })
 
+test('sealed UNKNOWN abort accepts a reconciled predecessor basis and keeps the build non-authoritative', async () => {
+  const h = await reconciledMigrationAbortFixture(), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
+  const prepareRow = h.objects.get(h.failed.paths.prepare), { receiptSha256: _prepareSeal, ...prepareCore } = structuredClone(prepareRow.value)
+  prepareCore.facts.preActivationAbortBasis = { ...prepareCore.facts.preActivationAbortBasis,
+    schemaVersion: 'ai-pdm.principal-reconciled-migration-abort-basis.v1' }
+  const prepare = h.put(prepareRow.ref.uri, { ...prepareCore, receiptSha256: sha256(canonicalize(prepareCore)) })
+  const buildRow = h.objects.get(h.failed.paths.build), { receiptSha256: _buildSeal, ...buildCore } = structuredClone(buildRow.value)
+  buildCore.previousReceiptRef = prepare.ref
+  const build = h.put(buildRow.ref.uri, { ...buildCore, receiptSha256: sha256(canonicalize(buildCore)) })
+  const deploymentRow = h.objects.get(h.failed.paths.deployment), { receiptSha256: _deploymentSeal, ...deploymentCore } = structuredClone(deploymentRow.value)
+  deploymentCore.buildReceiptRef = build.ref
+  h.put(deploymentRow.ref.uri, { ...deploymentCore, receiptSha256: sha256(canonicalize(deploymentCore)) })
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.schemaVersion, 'ai-pdm.principal-reconciled-migration-abort-basis.v1')
+  assert.equal(continuation.authorityBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(h.calls.puts, 0)
+  assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
+})
+
 for (const inheritedPostbuild of [false, true]) test(`post-abort ledger readback reconciles one failed UNKNOWN migration and carries the sealed basis into the fenced retry; inherited postbuild=${inheritedPostbuild}`, async () => {
   const h = await reconciledMigrationAbortFixture({ inheritedPostbuild }), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
   const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
