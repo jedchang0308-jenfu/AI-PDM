@@ -1,3 +1,9 @@
+## DEV-121#rd-capabilities — 2026-10-21 retained migration-fence source model（本地完整 gate PASS，待受保護交付）
+
+C91 full35 run `39477631378` 的 prepare／build 成功，migration runner execution `ai-pdm-prod-migration-runner-85njg` 在 SQL 前以 `DEV121_MIGRATION_073_FENCE_INVALID` 停止；failure／recovery 完成，candidate／traffic 未執行。後續官方唯讀 run `39484845437` 證明 ledger count 33、084／085 `NOT_APPLIED`。根因是 runner 用本次 release source `02239aaeaac82702bbc8c4d58b38d47fca051afe` 比對 retained fence，而該 fence 正確保留 recovery proof source `753d90c9285a0e37966c13f47cfa1c4dfdef06be`。
+
+最小修正將 fence proof 自身來源驗證與 caller-owned recovery join 分開：prepare／operator／principal apply 明確以 recovery source 驗 fence；migration runner 仍受 current capsule／bundle source 約束，但不把 current release source冒充 fence provenance。source format、hash、service、revision、MANUAL0、tag、writer與 provider readback守門不變。planner=`FULL`；focused 76／76、continuous 430／430、required QC 483／483、catalog 3／3、abort 6／6、DB boundary、typecheck、isolated build均PASS。首次 sandbox run 的5個EACCES保留為環境失敗，任務專屬 `C:\tmp` 重跑全綠。required CI／protected merge、新 exact-main runner image與 fresh full35、085、active catalog及專用測試 RD actor UI／API正負驗收仍待完成；不宣稱 RD production acceptance 或 DEV-122 PASS。
+
 ## DEV-121#rd-capabilities — 2026-10-20 large private-object media window（本地驗證中，C83 不重送）
 
 PR #403 exact main `7ce68d041ecf664931b0ded9447e6ff7e3187fca` 的 C83 source lock、76,625,920-byte worker archive與 current v5 input均完成 immutable provider readback；兩次 artifact-reuse 在任何新 evidence publication前回傳 `OUTCOME_UNKNOWN`，readback證明除 input 外沒有 association／descriptor／request／output，未 dispatch owner workflow，service／traffic未變。直接失效是共用 owner transport 的固定 60秒單次 GCS media期限短於同一物件實測約130～150秒；C83 deadline已過且不得重送。

@@ -671,7 +671,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       try { fenceProof = JSON.parse(fence.bytes.toString('utf8')) } catch { fail('PREPARE_MIGRATION_FENCE_INVALID') }
       try {
         assertPrincipalOnlyMigrationFence({ proof: fenceProof, bytes: fence.bytes,
-          expectedSha256: intent.principalOnlyFenceRef.sha256, sourceRevision: proof.value.sourceRevision,
+          expectedSha256: intent.principalOnlyFenceRef.sha256,
+          expectedFenceSourceRevision: proof.value.sourceRevision,
           service, observedAt: transport.now() })
       } catch { fail('PREPARE_MIGRATION_FENCE_INVALID') }
     }

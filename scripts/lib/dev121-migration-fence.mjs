@@ -45,25 +45,29 @@ export async function assertPrincipalOnlyMigrationWritersAbsent(database) {
 }
 
 export function assertPrincipalOnlyMigrationFence({ proof, bytes, expectedSha256,
-  sourceRevision, service, observedAt }) {
+  expectedFenceSourceRevision = null, service, observedAt }) {
   const keys = ['schemaVersion', 'sourceRevision', 'projectId', 'region',
     'service', 'serviceUid', 'oldRevision', 'beforeGeneration',
     'quiescentGeneration', 'serviceUpdateTime', 'requestTimeoutSeconds', 'status']
   if (!Buffer.isBuffer(bytes) || !H64.test(expectedSha256 ?? '') ||
-    sha256(bytes) !== expectedSha256 || !H40.test(sourceRevision ?? '') ||
+    sha256(bytes) !== expectedSha256 ||
     !proof || Array.isArray(proof) || typeof proof !== 'object' ||
     canonicalize(Object.keys(proof).sort()) !== canonicalize(keys.sort()) ||
     proof.schemaVersion !== 'ai-pdm.principal-only-migration-fence.v1' ||
-    proof.sourceRevision !== sourceRevision ||
+    !H40.test(proof.sourceRevision ?? '') ||
+    (expectedFenceSourceRevision !== null &&
+      (!H40.test(expectedFenceSourceRevision) ||
+        proof.sourceRevision !== expectedFenceSourceRevision)) ||
     proof.projectId !== 'jenfu-platform-prod' || proof.region !== 'asia-east1' ||
     proof.service !== 'ai-pdm-prod' || proof.status !== 'QUIESCED' ||
     proof.serviceUpdateTime !== service?.updateTime) fail()
   try {
-    return assertAiPdmQuiescentV2Service({ service,
+    const state = assertAiPdmQuiescentV2Service({ service,
       expectedUid: proof.serviceUid, oldRevision: proof.oldRevision,
       beforeGeneration: proof.beforeGeneration,
       expectedQuiescentGeneration: proof.quiescentGeneration,
       requestTimeoutSeconds: proof.requestTimeoutSeconds, observedAt })
+    return Object.freeze({ ...state, fenceSourceRevision: proof.sourceRevision })
   } catch { fail() }
 }
 
