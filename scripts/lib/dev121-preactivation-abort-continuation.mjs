@@ -1036,9 +1036,9 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
       entrypoint: entrySnapshot(service), scaling: service.scaling, retainedEnvironmentSha256: sha256(canonicalize(retainedEnvironment)) } }
 }
 
-function ordinaryMigrationEnvironment(profile, runnerSourceRevision) {
+function ordinaryMigrationEnvironment(profile, runnerSourceRevision, principalOnlyFenceRef = null) {
   const connection = 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'
-  return {
+  const environment = {
     OWNER_APPLICATION_ID: profile.application.id,
     RELEASE_BUCKET: profile.artifact.releaseBucket,
     GOOGLE_CLOUD_PROJECT: profile.target.projectId,
@@ -1049,6 +1049,11 @@ function ordinaryMigrationEnvironment(profile, runnerSourceRevision) {
     POSTGRES_SOCKET: `/cloudsql/${connection}`,
     PDM_SOURCE_REVISION: runnerSourceRevision,
   }
+  if (principalOnlyFenceRef) {
+    environment.DEV121_MIGRATION_FENCE_REF = principalOnlyFenceRef.uri
+    environment.DEV121_MIGRATION_FENCE_SHA256 = principalOnlyFenceRef.sha256
+  }
+  return environment
 }
 
 function executionTerminalFacts(execution) {
@@ -1111,7 +1116,7 @@ function ordinaryExecutionMatches(profile, execution, submission, deployment, st
   return task?.serviceAccount === profile.migrations.serviceAccount && task.maxRetries === 0 && task.timeout === '1800s'
     && execution.taskCount === 1 && execution.parallelism === 1 && container?.name === 'migration'
     && container.image === submission.migrationRunnerDigest && same(container.args, submission.args)
-    && same(environment, ordinaryMigrationEnvironment(profile, runnerSourceRevision))
+    && same(environment, ordinaryMigrationEnvironment(profile, runnerSourceRevision, submission.principalOnlyFenceRef))
     && executionCloudSqlFieldsMatch(task, container, staticJob?.template?.template)
 }
 
