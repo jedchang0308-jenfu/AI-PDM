@@ -1324,7 +1324,9 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         }
       }
       if (!programOnly && !historicalMigrationReuse && migrate) {
-        assertMigration(migrate.value, 'ai-pdm', config, sourceRevision, intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef)
+        assertMigration(migrate.value, 'ai-pdm', config, sourceRevision,
+          intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef,
+          intent.principalOnlyFenceRef ?? null)
       }
       let terminal = null, chain
       if (refs.terminal) {
@@ -1681,10 +1683,37 @@ function assertSourceLock(value, owner, config, revision, releaseId) {
     value.evidenceScope !== 'PRODUCTION_BOUND' ||
     !Number.isFinite(Date.parse(value.observedAt))) fail('SOURCE_LOCK_INVALID')
 }
-export function assertMigration(value, owner, config, revision, manifestSha256, unlinkedProfileCleanupRef) {
+function assertPrincipalOnlyFenceSummary(value, expectedRef = null) {
+  const keys = ['ref', 'sha256', 'service', 'uid', 'oldRevision',
+    'beforeGeneration', 'generation', 'requestTimeoutSeconds', 'drainSeconds',
+    'fenceSourceRevision', 'ownerWriterSessions']
+  const refMatch = typeof value?.ref === 'string'
+    ? value.ref.match(new RegExp(`^gs://${AI_BUCKET}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/([a-f0-9]{40})/fence-([1-9][0-9]*)\\.json$`, 'u'))
+    : null
+  if (!exactKeys(value, keys) ||
+      !refMatch || refMatch[1] !== value.fenceSourceRevision ||
+      Number(refMatch[2]) !== value.generation ||
+      !H64.test(value.sha256 ?? '') || value.service !== 'ai-pdm-prod' ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(value.uid ?? '') ||
+      !/^ai-pdm-prod-[a-z0-9]+$/u.test(value.oldRevision ?? '') ||
+      !Number.isSafeInteger(value.beforeGeneration) || value.beforeGeneration < 0 ||
+      !Number.isSafeInteger(value.generation) || value.generation <= value.beforeGeneration ||
+      !Number.isSafeInteger(value.requestTimeoutSeconds) || value.requestTimeoutSeconds < 1 || value.requestTimeoutSeconds > 60 ||
+      value.drainSeconds !== value.requestTimeoutSeconds + 30 ||
+      !H40.test(value.fenceSourceRevision ?? '') || value.ownerWriterSessions !== 0) fail('MIGRATION_INVALID')
+  if (expectedRef !== null &&
+      (!exactKeys(expectedRef, ['uri', 'sha256']) || expectedRef.uri !== value.ref || expectedRef.sha256 !== value.sha256)) fail('MIGRATION_INVALID')
+}
+
+export function assertMigration(value, owner, config, revision, manifestSha256, unlinkedProfileCleanupRef, principalOnlyFenceRef = null) {
   if (Object.hasOwn(value ?? {}, 'unlinkedProfileCleanup') || unlinkedProfileCleanupRef !== undefined) {
     if (owner !== 'ai-pdm') fail('MIGRATION_INVALID')
     assertUnlinkedProfileCleanupReceipt(value?.unlinkedProfileCleanup, unlinkedProfileCleanupRef)
+  }
+  const hasPrincipalOnlyFence = Object.hasOwn(value ?? {}, 'principalOnlyFence')
+  if (hasPrincipalOnlyFence || principalOnlyFenceRef !== null) {
+    if (owner !== 'ai-pdm' || !hasPrincipalOnlyFence) fail('MIGRATION_INVALID')
+    assertPrincipalOnlyFenceSummary(value.principalOnlyFence, principalOnlyFenceRef)
   }
   if (typeof config.migrationBootstrap !== 'boolean' ||
       !Number.isInteger(config.principalContractLedgerFloor) ||
@@ -1693,6 +1722,7 @@ export function assertMigration(value, owner, config, revision, manifestSha256, 
     'database', 'ledger', 'manifestSha256', 'baselineCount', 'minimumLedgerCount',
     ...(config.migrationBootstrap ? ['ledgerBootstrap'] : []),
     ...(owner === 'ai-pdm' && Object.hasOwn(value ?? {}, 'unlinkedProfileCleanup') ? ['unlinkedProfileCleanup'] : []),
+    ...(owner === 'ai-pdm' && hasPrincipalOnlyFence ? ['principalOnlyFence'] : []),
     'ledgerCount', 'applied', 'replayed', 'crossDatabaseDenials',
     'boundaryStatus', 'executionName', 'startedAt', 'completedAt', 'status',
     'receiptSha256']) ||

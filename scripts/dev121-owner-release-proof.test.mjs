@@ -2426,6 +2426,68 @@ test('refuses older ledgers even when a source-bound migration receipt is otherw
   /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
 })
 
+test('accepts the exact migration-runner Principal fence summary and joins it to the release intent ref', () => {
+  const input = fixture()
+  const platform = JSON.parse(input.objects.get(input.refs.migrate.uri).toString('utf8'))
+  const { receiptSha256: _receiptSha256, ...core } = platform
+  const aiConfig = { ledger: 'ai_pdm_core.schema_migrations',
+    migrationBootstrap: true, principalContractLedgerFloor: 20 }
+  const principalOnlyFenceRef = {
+    uri: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/753d90c9285a0e37966c13f47cfa1c4dfdef06be/fence-214.json',
+    sha256: 'f'.repeat(64),
+  }
+  const principalOnlyFence = {
+    ref: principalOnlyFenceRef.uri, sha256: principalOnlyFenceRef.sha256,
+    service: 'ai-pdm-prod', uid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5',
+    oldRevision: 'ai-pdm-prod-1be8986b68ce', beforeGeneration: 213,
+    generation: 214, requestTimeoutSeconds: 60, drainSeconds: 90,
+    fenceSourceRevision: '753d90c9285a0e37966c13f47cfa1c4dfdef06be',
+    ownerWriterSessions: 0,
+  }
+  const receipt = sealed({ ...core, ledgerBootstrap: { enabled: true, created: false },
+    ownerApplicationId: 'ai-pdm', ledger: aiConfig.ledger,
+    ledgerCount: 35, applied: 2, replayed: 33, principalOnlyFence })
+  assert.doesNotThrow(() => assertMigration(receipt, 'ai-pdm', aiConfig,
+    revision, manifest, undefined, principalOnlyFenceRef))
+  assert.throws(() => assertMigration(receipt, 'ai-pdm', aiConfig,
+    revision, manifest, undefined, { ...principalOnlyFenceRef, sha256: 'e'.repeat(64) }),
+  /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  assert.throws(() => assertMigration(sealed({ ...core, ledgerBootstrap: { enabled: true, created: false },
+    ownerApplicationId: 'ai-pdm', ledger: aiConfig.ledger,
+    ledgerCount: 35, applied: 2, replayed: 33,
+    principalOnlyFence: { ...principalOnlyFence,
+      ref: principalOnlyFence.ref.replace('/fence-214.json', '/../fence-214.json') } }),
+  'ai-pdm', aiConfig, revision, manifest, undefined, principalOnlyFenceRef),
+  /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+  assert.throws(() => assertMigration(sealed({ ...core, ledgerBootstrap: { enabled: true, created: false },
+    ownerApplicationId: 'ai-pdm', ledger: aiConfig.ledger,
+    ledgerCount: 35, applied: 2, replayed: 33,
+    principalOnlyFence: { ...principalOnlyFence, expandedAuthority: true } }),
+  'ai-pdm', aiConfig, revision, manifest, undefined, principalOnlyFenceRef),
+  /DEV121_OWNER_RELEASE_PROOF_MIGRATION_INVALID/u)
+})
+
+test('owner proof shared entry reads a production-shaped successful fenced migration receipt', async () => {
+  const principalOnlyFence = {
+    ref: 'gs://jenfu-platform-prod-aipdm-release/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/753d90c9285a0e37966c13f47cfa1c4dfdef06be/fence-214.json',
+    sha256: 'f'.repeat(64), service: 'ai-pdm-prod',
+    uid: 'd65f379b-a342-4eb3-ba22-109aa5f368c5',
+    oldRevision: 'ai-pdm-prod-1be8986b68ce', beforeGeneration: 213,
+    generation: 214, requestTimeoutSeconds: 60, drainSeconds: 90,
+    fenceSourceRevision: '753d90c9285a0e37966c13f47cfa1c4dfdef06be',
+    ownerWriterSessions: 0,
+  }
+  const input = fixture({ ai: true, migrationChange: {
+    baselineCount: 33, minimumLedgerCount: 20, ledgerCount: 35,
+    applied: 2, replayed: 33, principalOnlyFence,
+  } })
+  const proof = await readOwnerReleaseProof({ owner: 'ai-pdm',
+    sourceRevision: revision, refs: input.refs, token: 'local-proof-token',
+    fetchImpl: input.fetchImpl })
+  assert.equal(proof.disposition, 'migration_only')
+  assert.equal(proof.sourceRevision, revision)
+})
+
 test('migration-only build proof fails if its build chain is missing or altered', async () => {
   const missing = fixture()
   missing.objects.delete(`${root}/deployment-capsule.json`)
