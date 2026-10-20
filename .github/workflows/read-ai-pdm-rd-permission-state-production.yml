@@ -22,14 +22,14 @@ jobs:
   readback:
     runs-on: ubuntu-latest
     environment: production
-    permissions: { contents: read, id-token: write }
+    permissions: { contents: read, checks: read, id-token: write }
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: "24.11.0", cache: npm }
       - run: npm ci
-      - name: Verify official merged source
+      - name: Verify exact merged source and required CI results
         env: { GITHUB_TOKEN: "${{ github.token }}" }
         run: node scripts/dev012-verify-official-source.mjs
       - id: bind

@@ -17,6 +17,9 @@ concurrency:
   group: ai-pdm-ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   dev012-postgres-cutover:
     name: DEV-012 Isolated PostgreSQL Cutover
@@ -60,7 +63,7 @@ jobs:
       - name: Verify slice routing contract
         run: node --test scripts/production-slice-plan.test.mjs
 
-      - name: Build and verify the patched runtime
+      - name: Build isolated runtime candidate
         if: steps.slice.outputs.full == 'true'
         run: docker build --target runtime-smoke --progress=plain .
       - name: Install dependencies without lifecycle scripts
@@ -190,12 +193,12 @@ jobs:
         if: steps.slice.outputs.full != 'true' && steps.slice.outputs.db_boundary == 'true'
         run: npm run check:db-boundary
 
-      - name: Verify affected app type and isolated build
+      - name: Verify isolated application candidate
         if: steps.slice.outputs.full != 'true' && steps.slice.outputs.isolated_build == 'true'
         run: |
           npm run typecheck:app
           npm run build:isolated
 
-      - name: Verify full owner release adapter and isolated production artifact
+      - name: Verify full isolated release candidate
         if: steps.slice.outputs.full == 'true'
         run: npm run qc:dev-117:continuous
