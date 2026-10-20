@@ -7,6 +7,7 @@ import { gunzipSync } from 'node:zlib'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { canonicalize, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
 import { bindHistoricalReader } from './dev122-historical-reader.mjs'
+import { assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation } from './dev121-principal-only-release.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -965,8 +966,9 @@ function assertRepairEvidenceBase(value, keys, intent, intentRef, actor) {
       !/^https:\/\/api\.github\.com\/repos\/jedchang0308-jenfu\/AI-PDM\/actions\/runs\/[1-9][0-9]*$/u.test(value.ownerRunRef ?? '') ||
       value.receiptSha256 !== receiptHash(value)) fail('REPAIR_EVIDENCE_INVALID')
   assertAiReleaseRef(intentRef); sameProof(value.releaseCapsuleRef, intentRef)
+  const reconciledAbort = assertReconciledPrincipalAbortBinding(intent, AI_BUCKET)
   if (intentRef.uri !== `gs://${AI_BUCKET}/receipts/releases/${intent.releaseId}/release-intent.json` ||
-      Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) fail('REPAIR_CAPSULE_INVALID')
+      ((Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) && !reconciledAbort)) fail('REPAIR_CAPSULE_INVALID')
 }
 export function assertPausedMigrationPrerequisite(value, { intent, intentRef, descriptor, descriptorRef }) {
   assertRepairEvidenceBase(value, PREREQUISITE_KEYS, intent, intentRef, 'aipdm-prod-verifier')
@@ -1149,13 +1151,15 @@ export function assertAiPdmPausedRepairReadbacks({ baseline, records }) {
 }
 function assertObservedCapsule(value, ref, sourceRevision) {
   const keys = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'sourceRevision', 'sourceSha256', 'sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef', 'migrationManifestSha256', 'previousRevision', 'deadlineAt']
-  for (const optional of ['baselineIntentRef', 'openswxWorkerRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', 'unlinkedProfileCleanupRef', 'programOnlyBaseline']) if (Object.hasOwn(value ?? {}, optional)) keys.push(optional)
+  for (const optional of ['baselineIntentRef', 'openswxWorkerRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', 'postAbortLedgerReadbackRef', 'unlinkedProfileCleanupRef', 'programOnlyBaseline']) if (Object.hasOwn(value ?? {}, optional)) keys.push(optional)
   if (!exactKeys(value, keys) || value.schemaVersion !== 'jenfu.dev117.ai-pdm-release-intent.v2' || value.ownerApplicationId !== 'ai-pdm' || !RELEASE_ID.test(value.releaseId ?? '') ||
       value.sourceRevision !== sourceRevision || !H40.test(sourceRevision ?? '') || !H64.test(value.sourceSha256 ?? '') || !H64.test(value.migrationManifestSha256 ?? '') ||
       !/^ai-pdm-prod-[a-f0-9]{12}$/u.test(value.previousRevision ?? '') || !Number.isFinite(Date.parse(value.deadlineAt)) ||
       ref.uri !== `gs://${AI_BUCKET}/receipts/releases/${value.releaseId}/release-intent.json`) fail('OBSERVED_CAPSULE_INVALID')
   for (const key of ['sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef']) assertAiReleaseRef(value[key])
   if (value.openswxWorkerRef) assertAiWorkerRef(value.openswxWorkerRef)
+  const reconciledAbort = assertReconciledPrincipalAbortBinding(value, AI_BUCKET)
+  if (value.openswxWorkerRef && (value.principalOnlyFenceRef || value.principalOnlyRecovery) && !reconciledAbort) fail('OBSERVED_CAPSULE_INVALID')
   if (Object.hasOwn(value, 'unlinkedProfileCleanupRef')) {
     assertUnlinkedProfileCleanupRef(value.unlinkedProfileCleanupRef)
     if (value.principalOnlyFenceRef || value.principalOnlyRecovery) fail('OBSERVED_CAPSULE_INVALID')
@@ -1270,6 +1274,8 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
             || !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-recovery@sha256:[a-f0-9]{64}$/u.test(input.principalOnlyRecovery.imageDigest ?? '')
             || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(input.principalOnlyRecovery.serviceUid ?? '')) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
         }
+        try { assertReconciledRepairContinuation(intent, input, AI_BUCKET) }
+        catch { fail('REPAIR_JOIN_INVALID') }
         sameProof(input.sourceLockRef, intent.sourceLockRef); sameProof(input.priorActivationRef, descriptor.priorActivationRef); sameProof(input.servingCapsuleRef, baseline.value.servingApp.capsuleRef); sameProof(input.predecessorBaselineRef, baseline.value.predecessorBaselineRef)
         if (input.currentSourceObjectRef?.sha256 !== descriptor.sourceArchiveSha256) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
         const raw = new Map()
@@ -1486,7 +1492,8 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
       return { intent, intentRef, prepare, sourceLock, migrate, terminal, chain, descriptor, baseline, prerequisite, bundle, content: archived.content, sourceAuthentication: archived.sourceAuthentication, migrationHistory, repairHistory, repair, migrationMode, programMigration }
     }
     if (!repair) return observe(null)
-    if (!intent.openswxWorkerRef || Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) fail('REPAIR_CAPSULE_INVALID')
+    const reconciledAbort = assertReconciledPrincipalAbortBinding(intent, AI_BUCKET)
+    if (!intent.openswxWorkerRef || ((Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) && !reconciledAbort)) fail('REPAIR_CAPSULE_INVALID')
     descriptor ??= assertObservationDescriptor((await readRef(intent.openswxWorkerRef, AI_BUCKET, token, fetchImpl)).value, intent)
     const workerChild = descendAiPdmEvidenceContext(activeEvidence(), descriptor.workerBuildRef, true)
     return runAiPdmEvidenceContext(workerChild, async () => {

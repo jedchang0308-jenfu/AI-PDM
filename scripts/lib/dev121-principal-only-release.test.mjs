@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   assertPrincipalOnlyRecoveryBinding,
+  assertReconciledPrincipalAbortBinding,
+  assertReconciledRepairContinuation,
   assertPrincipalOnlyRecoveryReadback,
   assertRecoveryProofReadback,
   assertPrincipalOnlyActivationReadback,
@@ -60,6 +62,35 @@ test('Principal-only recovery is source-bound and distinct from the old security
     { ...intent, principalOnlyRecovery: { ...intent.principalOnlyRecovery,
       receiptRef: { ...intent.principalOnlyRecovery.receiptRef, uri: `gs://${bucket}/receipts/other.json` } } },
   ]) assert.throws(() => assertPrincipalOnlyRecoveryBinding(broken, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+})
+
+test('reconciled abort evidence is continuation data and joins an exact paused-repair worker input', () => {
+  const postAbortLedgerReadbackRef = {
+    uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER-LOCAL/${'e'.repeat(64)}/ledger-readback-result.json`,
+    sha256: 'f'.repeat(64),
+  }
+  const reconciledIntent = { ...intent, postAbortLedgerReadbackRef }
+  const workerInput = {
+    schemaVersion: 'aipdm.openswx-worker-reuse-input.v5',
+    postAbortLedgerReadbackRef,
+    principalOnlyFenceRef: intent.principalOnlyFenceRef,
+    principalOnlyRecovery: intent.principalOnlyRecovery,
+  }
+  assert.deepEqual(assertReconciledPrincipalAbortBinding(reconciledIntent, bucket), {
+    postAbortLedgerReadbackRef,
+    principalOnlyFenceRef: intent.principalOnlyFenceRef,
+    principalOnlyRecovery: intent.principalOnlyRecovery,
+  })
+  assert.deepEqual(assertReconciledRepairContinuation(reconciledIntent, workerInput, bucket),
+    assertReconciledPrincipalAbortBinding(reconciledIntent, bucket))
+  assert.equal(assertReconciledRepairContinuation({ previousRevision: old }, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }, bucket), null)
+
+  for (const [release, worker] of [
+    [intent, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }],
+    [reconciledIntent, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }],
+    [reconciledIntent, { ...workerInput, postAbortLedgerReadbackRef: { ...postAbortLedgerReadbackRef, sha256: '0'.repeat(64) } }],
+    [{ ...reconciledIntent, postAbortLedgerReadbackRef: undefined }, workerInput],
+  ]) assert.throws(() => assertReconciledRepairContinuation(release, worker, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
 test('recovery proof joins the exact service, source, ready revision and immutable image', () => {
