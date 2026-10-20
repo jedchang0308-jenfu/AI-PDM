@@ -5,12 +5,14 @@ import { GCC_ALIGNED_NEW_CVE, readAlignedNewInspectionProgram, gccAlignedNewOccu
 import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
 import { assertPrincipalOnlyActivationReadback, principalOnlyActivationRequest } from './dev121-principal-only-release.mjs'
 import { readAiPdmReleaseObservation, verifyOwnerProviderReadback, createAiPdmEvidenceContext, runAiPdmEvidenceContext } from './dev121-owner-release-proof.mjs'
-import { fetchProviderRead } from './dev012-read-retry.mjs'
+import { fetchProviderBytes, fetchProviderRead } from './dev012-read-retry.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
 const APPLICATION_IMAGE_PLACEHOLDER = 'APPLICATION_IMAGE_DIGEST'
 const ENTRYPOINT_UPDATE_MASK = 'ingress,defaultUriDisabled,invokerIamDisabled'
+export const OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS = 120_000
+export const OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS = 60_000
 
 // Cloud Run may report either deterministic or provider-hash hostnames for the
 // same exact service. Project only its provider-readback origins, never a wildcard.
@@ -331,14 +333,20 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     const metadata = await request(expectedGeneration === null ? base : `${base}?generation=${encodeURIComponent(expectedGeneration)}`)
     if (!/^[1-9][0-9]*$/u.test(String(metadata?.generation ?? '')) || typeof metadata?.crc32c !== 'string') fail('GCS_METADATA_INVALID')
     if (expectedGeneration !== null && String(metadata.generation) !== expectedGeneration) fail('GCS_GENERATION_MISMATCH')
-    let mediaResponse
+    let media
     try {
-      mediaResponse = await read(`${base}?alt=media&generation=${encodeURIComponent(metadata.generation)}`, { headers: authHeaders, signal: AbortSignal.timeout(30_000) })
+      const metadataSize = Number(metadata?.size)
+      media = await fetchProviderBytes(`${base}?alt=media&generation=${encodeURIComponent(metadata.generation)}`, { headers: authHeaders }, {
+        fetchImpl, sleep, timeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS,
+        attemptTimeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS,
+        maxBytes: Number.isSafeInteger(metadataSize) && metadataSize > 0 ? metadataSize : 256 * 1024 * 1024,
+      })
     } catch (error) {
       fail('OUTCOME_UNKNOWN', error?.name ?? 'gcs-media')
     }
-    if (!mediaResponse.ok) fail(typedProviderCode(mediaResponse.status), `gcs-media-${mediaResponse.status}`)
-    const bytes = Buffer.from(await mediaResponse.arrayBuffer())
+    if (!media.response.ok) fail(typedProviderCode(media.response.status), `gcs-media-${media.response.status}`)
+    const bytes = media.bytes
+    if (!Buffer.isBuffer(bytes)) fail('GCS_READBACK_BYTES_INVALID')
     if (crc32cBase64(bytes) !== metadata.crc32c || (expectedSha256 && sha256(bytes) !== expectedSha256)) fail('GCS_READBACK_HASH_MISMATCH')
     return { bytes, metadata, ref: immutableRef(uri, bytes) }
   }
