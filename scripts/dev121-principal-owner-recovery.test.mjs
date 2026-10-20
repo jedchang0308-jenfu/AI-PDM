@@ -598,7 +598,8 @@ async function sealedPostbuildAbortFixture({ fixture = null, source = '9'.repeat
   return { ...h, prior, inheritedBasis, build, sealedBuild, deployment, laterDiagnostic }
 }
 
-async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', inheritedPostbuild = false, principalOnly = false } = {}) {
+async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', inheritedPostbuild = false, principalOnly = false,
+  currentRunnerRotated = false } = {}) {
   let h = await sealedPostbuildAbortFixture({ principalOnly })
   if (inheritedPostbuild) h = await sealedPostbuildAbortFixture({
     fixture: h,
@@ -658,7 +659,9 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
     return { ledgerCount, terminalVersion: `ai-pdm-0${ledgerCount + 50}`, manifestSha256, migrationBundleRef }
   })
   const readbackJob = {
-    name: jobName, etag: 'readback-job-etag', template: { taskCount: 1, parallelism: 1, template: task(['--bundle-ref-required']) },
+    name: jobName, etag: 'readback-job-etag', generation: '37', observedGeneration: '37', reconciling: false,
+    terminalCondition: { state: 'CONDITION_SUCCEEDED' },
+    template: { taskCount: 1, parallelism: 1, template: task(['--bundle-ref-required']) },
   }
   const readbackIntent = buildRdLedgerReadbackIntent({ releaseId: readbackReleaseId,
     workflowSourceRevision: readbackWorkflowSourceRevision, workflowSourceTree: 'c'.repeat(40), workflowSourceIdentitySha256: 'd'.repeat(64),
@@ -716,9 +719,20 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
     attempts, successfulProbe: probes.at(-1), nativeReceiptRef: attempts.at(-1).nativeReceiptRef, observedAt: attempts.at(-1).completedAt })
   const resultRef = h.put(`${readbackBase}/ledger-readback-result.json`, result).ref
   const executions = [failedExecution, ...readbackExecutions]
+  const currentStaticJob = structuredClone(readbackJob)
+  if (currentRunnerRotated) {
+    const currentRunnerSourceRevision = '6'.repeat(40)
+    currentStaticJob.etag = 'current-job-etag'
+    currentStaticJob.generation = '38'
+    currentStaticJob.observedGeneration = '38'
+    currentStaticJob.template.template.containers[0].image =
+      `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'6'.repeat(64)}`
+    currentStaticJob.template.template.containers[0].env = Object.entries(rdReadbackJobEnvironment(h.profile, currentRunnerSourceRevision))
+      .map(([name, value]) => ({ name, value }))
+  }
   const priorRequest = h.transport.request
   h.transport.request = async (url, ...args) => {
-    if (url === `https://run.googleapis.com/v2/${jobName}`) return structuredClone(readbackJob)
+    if (url === `https://run.googleapis.com/v2/${jobName}`) return structuredClone(currentStaticJob)
     if (url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')) return { executions }
     const exact = executions.find(row => url === `https://run.googleapis.com/v2/${row.name}`)
     if (exact) return structuredClone(exact)
@@ -749,7 +763,7 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
   const principalOnlyFenceRef = fence.ref
   const continuation = { postAbortLedgerReadbackRef: resultRef, principalOnlyFenceRef, principalOnlyRecovery }
   Object.assign(h.helperInput, continuation)
-  return { ...h, submission, failedExecution, staticJob: readbackJob, readbackIntent, readbackIntentRef, result, resultRef,
+  return { ...h, submission, failedExecution, staticJob: currentStaticJob, readbackJob, readbackIntent, readbackIntentRef, result, resultRef,
     readbackExecutions, providerExecutions: executions, continuation, runnerSourceRevision, jobName, task, deployment,
     nextSourceRevision, recoverySourceRevision }
 }
@@ -995,6 +1009,39 @@ test('principal-only-bound abort with UNKNOWN migration reconciles before candid
     mutate(negative)
     await assert.rejects(readPreActivationAbortContinuation({ ...negative.helperInput, verifyProvider: true }))
     assert.equal(negative.calls.puts, 0)
+  }
+})
+
+test('post-abort reconciliation keeps historical execution identity after a valid current runner rotation', async () => {
+  const h = await reconciledMigrationAbortFixture({ currentRunnerRotated: true })
+  const current = h.staticJob.template.template.containers[0]
+  const historical = h.failedExecution.template.containers[0]
+  assert.notEqual(current.image, historical.image)
+  assert.notEqual(current.env.find(row => row.name === 'PDM_SOURCE_REVISION').value,
+    historical.env.find(row => row.name === 'PDM_SOURCE_REVISION').value)
+
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.reconciliation.failedExecution.name, h.failedExecution.name)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation rejects an unsafe or unsettled current runner after rotation', async () => {
+  const mutations = [
+    h => { h.staticJob.template.template.containers[0].image = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner:latest' },
+    h => { h.staticJob.template.template.containers[0].image = `asia-east1-docker.pkg.dev/jenfu-platform-prod/other/ai-pdm-migration-runner@sha256:${'6'.repeat(64)}` },
+    h => { h.staticJob.template.template.containers[0].env.find(row => row.name === 'PDM_SOURCE_REVISION').value = 'invalid' },
+    h => { h.staticJob.template.template.containers[0].env = h.staticJob.template.template.containers[0].env.filter(row => row.name !== 'PDM_SOURCE_REVISION') },
+    h => { h.staticJob.reconciling = true },
+    h => { h.staticJob.observedGeneration = '37' },
+    h => { h.staticJob.terminalCondition = { state: 'CONDITION_FAILED' } },
+  ]
+  for (const mutate of mutations) {
+    const h = await reconciledMigrationAbortFixture({ currentRunnerRotated: true })
+    mutate(h)
+    await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }),
+      /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+    assert.equal(h.calls.puts, 0)
   }
 })
 

@@ -5,6 +5,7 @@ import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEviden
 import {
   assertRdLedgerReadbackIntent,
   assertRdReadbackExecutionReceipt,
+  assertRdReadbackJob,
   assertRdReadbackJobReceipt,
   assertRdReadbackNativeReceipt,
   assertRdReadbackResult,
@@ -1095,17 +1096,17 @@ function executionCloudSqlFieldsMatch(task, container, staticTask = null) {
   return same(staticTask?.volumes, CLOUD_SQL_VOLUMES) && same(staticContainer?.volumeMounts, CLOUD_SQL_MOUNTS)
 }
 
-function ordinaryStaticJobMatches(profile, job, submission, deployment) {
-  const task = job?.template?.template, containers = task?.containers
-  const container = Array.isArray(containers) && containers.length === 1 ? containers[0] : null
-  const runnerSourceRevision = deployment.migrationRunnerSourceRevision ?? deployment.sourceRevision
-  const environment = Array.isArray(container?.env) && new Set(container.env.map(row => row?.name)).size === container.env.length
-    ? Object.fromEntries(container.env.map(row => [row.name, row.value])) : null
-  return job?.name === submission.jobName && job.template?.taskCount === 1 && job.template?.parallelism === 1
-    && task?.serviceAccount === profile.migrations.serviceAccount && task.maxRetries === 0 && task.timeout === '1800s'
-    && container?.name === 'migration' && container.image === submission.migrationRunnerDigest
-    && same(environment, ordinaryMigrationEnvironment(profile, runnerSourceRevision))
-    && same(task.volumes, CLOUD_SQL_VOLUMES) && same(container.volumeMounts, CLOUD_SQL_MOUNTS)
+// The Job may be rotated after the sealed execution. Validate current safety here;
+// ordinaryExecutionMatches below keeps the historical artifact/source identity.
+function currentStaticJobMatches(profile, job, submission) {
+  const generation = String(job?.generation ?? '')
+  if (!/^[1-9][0-9]*$/u.test(generation)
+    || String(job?.observedGeneration ?? '') !== generation
+    || (Object.hasOwn(job ?? {}, 'reconciling') && typeof job.reconciling !== 'boolean')
+    || job?.reconciling === true
+    || job?.terminalCondition?.state !== 'CONDITION_SUCCEEDED') return false
+  try { assertRdReadbackJob(job, profile) } catch { return false }
+  return job.name === submission.jobName
 }
 
 function ordinaryExecutionMatches(profile, execution, submission, deployment, staticJob) {
@@ -1147,7 +1148,7 @@ async function readMigrationExecutionInventory(profile, transport) {
 async function readSubmittedMigrationExecution({ profile, transport, paths, deployment, submission, run }) {
   const window = closedOwnerWindow(run)
   const staticJob = await transport.request(`https://run.googleapis.com/v2/${submission.jobName}`)
-  if (!ordinaryStaticJobMatches(profile, staticJob, submission, deployment)) fail()
+  if (!currentStaticJobMatches(profile, staticJob, submission)) fail()
   const rows = await readMigrationExecutionInventory(profile, transport)
   const argumentMentions = (execution, value) => execution.template?.containers?.some(container => container.args?.some((argument, index, args) =>
     argument === value || argument === `--source-revision=${value}` || argument === `--output-ref=${value}`
