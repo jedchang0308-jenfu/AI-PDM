@@ -22,7 +22,7 @@ C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成
 
 ## DEV-123#role-permission-editor — local implementation in progress / rollout disabled (2026-10-21)
 
-本機核心整合已驗證，整體DEV仍In Progress／正式rollout disabled：OrgMaster固定入口7檔37 PASS／1 SKIP；PDM48檔401＋Node6 PASS，typecheck、route map、兩邊build及DB boundary通過。隔離PG18以actual PDM service、OrgMaster v2-fenced domain命令及PDM evaluator完成新增→任用→停用→撤銷→恢復，並驗證CAS／replay／audit故障rollback；JSONB歷史hash缺陷已修正，raw failures保留。
+本輪本機可整合實作目標完成；DEV整案仍In Progress／正式rollout disabled：OrgMaster固定入口7檔37 PASS／1 SKIP；PDM48檔401＋Node6 PASS，typecheck、route map、兩邊build及DB boundary通過。隔離PG18以actual PDM service、OrgMaster v2-fenced domain命令及PDM evaluator完成新增→任用→停用→撤銷→恢復，並驗證CAS／replay／audit故障rollback；JSONB歷史hash與commandId重用缺陷已修正，raw failures保留。OrgMaster targeted browser 8 checks／9 screenshots通過（actual component＋mock API）；受影響治理回歸另32 PASS。
 
 證據及責任：[DEV-123 §15](specs/DEV-123-role-permission-editor-contract.md#15-2026-10-21-本機實作與驗證)／[QA §7](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#7-2026-10-21-本機執行結果)。目前native使用owner bootstrap／合成session／Platform stub，PDM targeted browser仍用mock API；正常登入HTTP/browser、CG、完整QA24/52及正式首次啟用尚未關閉。正式migration／資料／部署／traffic／IAM／Secret均未操作，source初始NOT_READY/DISABLED保持；不將本機PASS改稱正式或全案驗收。
 
