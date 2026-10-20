@@ -13,6 +13,35 @@ const APPLICATION_IMAGE_PLACEHOLDER = 'APPLICATION_IMAGE_DIGEST'
 const ENTRYPOINT_UPDATE_MASK = 'ingress,defaultUriDisabled,invokerIamDisabled'
 export const OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS = 120_000
 export const OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS = 60_000
+const OWNER_PRIVATE_OBJECT_MEDIA_MIN_BYTES_PER_SECOND = 384 * 1024
+const OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_OVERHEAD_MS = 30_000
+const OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_MAX_MS = 599_000
+const OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MAX_MS = 1_200_000
+const OWNER_PRIVATE_OBJECT_MEDIA_RETRY_ALLOWANCE_MS = 1_000
+
+export function ownerPrivateObjectMediaWindow(size) {
+  if (!Number.isSafeInteger(size) || size <= 0) {
+    return {
+      timeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS,
+      attemptTimeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS,
+    }
+  }
+  // C83 provider readback sustained roughly 500 KiB/s for a 76.6 MB source
+  // object. Budget at 384 KiB/s plus startup margin, while keeping both safe
+  // GET attempts inside the finite owner deadline.
+  const transferMs = Math.ceil((size / OWNER_PRIVATE_OBJECT_MEDIA_MIN_BYTES_PER_SECOND) * 1_000)
+  const attemptTimeoutMs = Math.min(
+    OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_MAX_MS,
+    Math.max(OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS, transferMs + OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_OVERHEAD_MS),
+  )
+  return {
+    timeoutMs: Math.min(
+      OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MAX_MS,
+      Math.max(OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS, attemptTimeoutMs * 2 + OWNER_PRIVATE_OBJECT_MEDIA_RETRY_ALLOWANCE_MS),
+    ),
+    attemptTimeoutMs,
+  }
+}
 
 // Cloud Run may report either deterministic or provider-hash hostnames for the
 // same exact service. Project only its provider-readback origins, never a wildcard.
@@ -336,9 +365,9 @@ export function createOwnerTransport({ token, migrationExecutionReadbackToken = 
     let media
     try {
       const metadataSize = Number(metadata?.size)
+      const mediaWindow = ownerPrivateObjectMediaWindow(metadataSize)
       media = await fetchProviderBytes(`${base}?alt=media&generation=${encodeURIComponent(metadata.generation)}`, { headers: authHeaders }, {
-        fetchImpl, sleep, timeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS,
-        attemptTimeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS,
+        fetchImpl, sleep, ...mediaWindow,
         maxBytes: Number.isSafeInteger(metadataSize) && metadataSize > 0 ? metadataSize : 256 * 1024 * 1024,
       })
     } catch (error) {
