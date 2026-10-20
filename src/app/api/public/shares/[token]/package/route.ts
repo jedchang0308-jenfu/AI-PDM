@@ -6,9 +6,9 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const authorized = await withPrincipalSharePermission(request,
+  const readAuthorized = () => withPrincipalSharePermission(request,
     "src/app/api/public/shares/[token]/package/route.ts", "submission.view", async ({ snapshot, verified }) => {
-      const publicShare = await getAuthorizedPublicShareInSnapshot(snapshot, verified, token);
+      const publicShare = await getAuthorizedPublicShareInSnapshot(snapshot, verified, token, { download: true });
       if (publicShare instanceof Response) return publicShare;
       return {
         submissionId: publicShare.submission.id,
@@ -21,10 +21,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
         externalAccess: true
       };
     }, { readOnly: false });
+  const authorized = await readAuthorized();
   if (authorized instanceof Response) return authorized;
   try {
     return await deliverPrincipalReleasePackage(request, authorized.submissionId ?? "",
-      "/api/public/shares/[token]/package", authorized);
+      "/api/public/shares/[token]/package", authorized, readAuthorized);
   } catch (error) {
     if (error instanceof Error && error.message === "RELEASE_PACKAGE_PATH_OUTSIDE_ROOT") {
       return NextResponse.json({ error: "儲存的發布包路徑超出發布包資料夾" }, { status: 500 });

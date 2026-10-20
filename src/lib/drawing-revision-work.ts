@@ -139,7 +139,7 @@ export class DrawingRevisionWorkService {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
     const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
-      verified, [{ permissionKind: "action", permissionCode }]);
+      verified, [{ permissionKind: "action", permissionCode, resourceGroup: "drawing" }]);
     if (!decision?.allowed) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
@@ -159,7 +159,7 @@ export class DrawingRevisionWorkService {
     const permissions = ["numbering.workspace.view", "numbering.workspace.update",
       "numbering.candidate.review.submit", "numbering.workspace.cancel"] as const;
     const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
-      verified, permissions.map((permissionCode) => ({ permissionKind: "action", permissionCode })));
+      verified, permissions.map((permissionCode) => ({ permissionKind: "action", permissionCode, resourceGroup: "drawing" })));
     if (decisions.length !== permissions.length || !decisions[0]?.allowed) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
@@ -534,7 +534,7 @@ export class DrawingRevisionWorkService {
         : null;
       const reviewerUserId = principalOnly
         ? await selectPrincipalReviewerInSnapshot(tx,
-          { companyId, ownerUserId: locked.owner_user_id,
+          { companyId, ownerUserId: locked.owner_user_id, resourceGroup: 'drawing',
             ...(Number(locked.target_minor) === 0 ? { requirePublish: true } : {}) })
         : await reviews.selectReviewer(tx, { companyId, ownerUserId: locked.owner_user_id });
       const snapshotPayload = sanitizeDrawingRevisionWorkPayload(submittedPayload);
@@ -619,7 +619,7 @@ export class DrawingRevisionWorkService {
       }
       const reviews = new PdmWorkReviewAsyncRepository(tx);
       const reviewerUserId = await selectPrincipalReviewerInSnapshot(tx,
-        { companyId: profile.companyId, ownerUserId: profile.profileId });
+        { companyId: profile.companyId, ownerUserId: profile.profileId, resourceGroup: 'drawing' });
       const snapshot = { drawingId: locked.drawing_id, branchId,
         revisionId: locked.revision_id, revision: locked.revision };
       const basisHash = dev087RequestHash(snapshot);
@@ -757,7 +757,7 @@ export class DrawingRevisionWorkService {
       if (majorRelease) {
         const [publishDecision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(
           tx, verified, [{ permissionKind: "action",
-            permissionCode: "numbering.publish" }]);
+            permissionCode: "numbering.publish", resourceGroup: "drawing" }]);
         if (!publishDecision?.allowed) {
           throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST",
             "無權限執行此操作", 403);

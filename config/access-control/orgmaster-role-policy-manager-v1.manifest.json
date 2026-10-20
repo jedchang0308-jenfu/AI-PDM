@@ -1,0 +1,21 @@
+{
+  "contractVersion": "ai-pdm.role-policy-manager.v1",
+  "producer": "orgmaster",
+  "consumer": "ai-pdm",
+  "lockFunction": "orgmaster_contract.lock_ai_pdm_role_policy_authority_v1()",
+  "eligibilityFunction": "orgmaster_contract.ai_pdm_role_policy_manager_eligible_v1(text,text,text,text)",
+  "parameters": [
+    "principalId",
+    "employeeId",
+    "identityIssuer",
+    "identitySubject"
+  ],
+  "result": "boolean",
+  "transaction": "read committed, read write",
+  "lockOrder": [
+    "managed identity admission authority",
+    "persistence authority"
+  ],
+  "eligibility": "Post-lock statement; exact active human_privileged identity, direct global exact-Principal system_admin; identity-link and grant windows evaluated with one captured clock_timestamp",
+  "scope": "Controlled AI-PDM policy apply only; no core rows, authority writes or general business locks"
+}

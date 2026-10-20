@@ -44,7 +44,8 @@ function legacyCatalog(rows: CatalogRow[]): PublishedPrincipalCatalog {
 export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[]): PublishedPrincipalCatalog {
   if (rows.length < 1 || rows.length > rolePolicyRegistry.limits.maxRoles) invalid();
   const first = rows[0];
-  if (first.publication_format !== ROLE_POLICY_PUBLICATION_FORMAT) return legacyCatalog(rows);
+  if (first.publication_format === "legacy-static-v1") return legacyCatalog(rows);
+  if (first.publication_format !== ROLE_POLICY_PUBLICATION_FORMAT) invalid();
   const metadataFields = ["contract_version", "application_id", "catalog_version", "catalog_sha256",
     "publication_format", "canonicalization_version", "role_schema_id", "activation_generation",
     "baseline_role_identity_hash", "role_identity_hash", "protected_policy_hash", "registry_hash",
@@ -82,7 +83,7 @@ export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[]): Publish
         role.roleDefinitionHash !== rebuilt.roles[index].roleDefinitionHash)) invalid();
   const roleById = new Map(rebuilt.roles.map(role => [role.stableRoleId, role]));
   const expectedBuiltinProfiles = new Map(rolePolicyRegistry.roleProfiles.map(profile => [profile.stableRoleId, profile]));
-  const effectiveRoles: JenfuApplicationRole[] = [];
+  const effectiveRoles: JenfuEntitlementRoleCatalog["roles"] = [];
   const profileIds = new Set<string>();
   for (const profile of rebuilt.roleProfiles) {
     const identityRole = roleById.get(profile.stableRoleId);
@@ -94,8 +95,8 @@ export function decodePublishedPrincipalCatalogRows(rows: CatalogRow[]): Publish
       if (!same(profile, expected)) invalid();
     } else if (!profile.stableRoleId.startsWith("role-custom-") || profile.permissionRoleId !== profile.stableRoleId ||
         profile.presentationName !== identityRole.displayName || profile.assignmentDisposition !== "selectable") invalid();
-    if (identityRole.roleStatus === "inactive" || permissionRole.roleStatus === "inactive") continue;
     effectiveRoles.push({
+      roleStatus: identityRole.roleStatus === "inactive" || permissionRole.roleStatus === "inactive" ? "inactive" : "active",
       stableRoleId: identityRole.stableRoleId, roleCode: identityRole.roleCode, displayName: identityRole.displayName,
       assignable: identityRole.assignable, risk: identityRole.risk, subjectKind: identityRole.subjectKind,
       recommendationAllowed: identityRole.recommendationAllowed, delegationAllowed: identityRole.delegationAllowed,

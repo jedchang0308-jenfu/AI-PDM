@@ -40,6 +40,9 @@ import {
   type RecognitionPartOwnerTarget
 } from "@/lib/drawing-recognition-part-owner";
 import { DrawingRevisionWorkAsyncRepository } from "@/lib/repositories/drawing-revision-work-async-repository";
+import type { VerifiedPrincipalRequest } from '@/lib/jenfu-principal-request-guard';
+import { principalJobInitiatorFromVerifiedRequest } from '@/lib/principal-job-authority';
+import { requireRecognitionImpactCapabilities, requireRecognitionJobAuthority } from '@/lib/principal-recognition-capability';
 
 type SessionRow = {
   id: string;
@@ -69,6 +72,7 @@ type SessionRow = {
   error_summary: string | null;
   created_by: string;
   initiator_principal_id?: string | null;
+  initiator_authority_json?: unknown;
   created_at: string;
   updated_at: string;
   formalized_by: string | null;
@@ -93,6 +97,8 @@ type SourceRow = {
   storage_provider?: string;
   storage_bucket?: string | null;
   storage_key?: string;
+  linked_entity_type?: string;
+  document_category?: string;
 };
 
 type CandidateRow = {
@@ -573,6 +579,7 @@ export class DrawingRecognitionAsyncRepository {
     companyId: string;
     actorId: string;
     initiatorPrincipalId?: string;
+    verifiedInitiator?: VerifiedPrincipalRequest;
     sourceContextType: DrawingRecognitionSourceContextType;
     sourceContextId: string;
     sourceAssetIds?: string[];
@@ -586,6 +593,10 @@ export class DrawingRecognitionAsyncRepository {
         (!input.initiatorPrincipalId || input.initiatorPrincipalId.length > 255)) {
       throw new DrawingRecognitionError("RECOGNITION_PRINCIPAL_REQUIRED",
         "此辨識工作缺少已驗證的發起者身分。", 403);
+    }
+    if (input.verifiedInitiator && (input.verifiedInitiator.session.principalId !== input.initiatorPrincipalId ||
+        input.verifiedInitiator.profile.companyId !== input.companyId || input.verifiedInitiator.profile.pdmUserId !== input.actorId)) {
+      throw new DrawingRecognitionError('RECOGNITION_VERIFIED_ACTOR_MISMATCH', '辨識發起者資料不一致。', 403);
     }
     const requestedPurpose = input.sessionPurpose ?? "recognition";
     return this.client.transaction(async (client) => {
@@ -687,8 +698,8 @@ export class DrawingRecognitionAsyncRepository {
       const drawingRevisionId = input.drawingRevisionId ?? scope.drawing_revision_id;
       const initialStatus = sessionPurpose === "amendment" ? "ready_to_formalize" : "queued";
       const notBefore = sessionPurpose === "amendment" ? timestamp : new Date(Date.now() + 2_000).toISOString();
-      const initiatorColumn = client.kind === "postgres" ? ", initiator_principal_id" : "";
-      const initiatorValue = client.kind === "postgres" ? ", :initiatorPrincipalId" : "";
+      const initiatorColumn = client.kind === "postgres" ? ", initiator_principal_id, initiator_authority_json" : "";
+      const initiatorValue = client.kind === "postgres" ? ", :initiatorPrincipalId, CAST(:initiatorAuthority AS jsonb)" : "";
       await client.execute(
         `INSERT INTO drawing_recognition_sessions (
           id, company_id, source_context_type, source_context_id, source_lineage_key, drawing_id, drawing_revision_id,
@@ -703,7 +714,8 @@ export class DrawingRecognitionAsyncRepository {
           id, companyId: input.companyId, sourceContextType: input.sourceContextType, sourceContextId: input.sourceContextId,
           sourceLineageKey, drawingId, drawingRevisionId, sourceSetFingerprint, deduplicationKey, sessionPurpose, evidenceOriginSessionId, status: initialStatus, notBefore,
           supersedesSessionId: input.supersedesSessionId ?? latest?.id ?? null,
-          actorId: input.actorId, initiatorPrincipalId: input.initiatorPrincipalId ?? null, timestamp
+          actorId: input.actorId, initiatorPrincipalId: input.initiatorPrincipalId ?? null,
+          initiatorAuthority: input.verifiedInitiator ? JSON.stringify(principalJobInitiatorFromVerifiedRequest(input.verifiedInitiator)) : null, timestamp
         }
       );
       if (sessionPurpose !== "amendment") {
@@ -1047,15 +1059,17 @@ export class DrawingRecognitionAsyncRepository {
   }
 
   async getClaimedSourceForWorker(input: { sessionId: string; sourceId: string; workerId: string }) {
-    const session = await this.client.queryOne<Pick<SessionRow, "id" | "company_id" | "status" | "locked_by">>(
-      `SELECT id, company_id, status, locked_by FROM drawing_recognition_sessions WHERE id = :sessionId`,
+    const session = await this.client.queryOne<SessionRow>(
+      `SELECT * FROM drawing_recognition_sessions WHERE id = :sessionId`,
       { sessionId: input.sessionId }
     );
     if (!session || session.status !== "extracting" || session.locked_by !== input.workerId) {
       throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409, true);
     }
+    if (await requireRecognitionJobAuthority(this.client, session)) await this.assertCurrentSourceSet(session);
     const source = await this.client.queryOne<SourceRow>(
-      `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_bucket, asset.storage_key
+      `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_bucket, asset.storage_key,
+              asset.linked_entity_type,asset.document_category
        FROM drawing_recognition_sources source
        JOIN file_assets asset ON asset.id = source.file_asset_id
        WHERE source.id = :sourceId AND source.session_id = :sessionId AND source.company_id = :companyId
@@ -1071,6 +1085,7 @@ export class DrawingRecognitionAsyncRepository {
       mimeType: source.mime_type,
       expectedBytes: Number(source.file_size),
       expectedHash: source.content_hash,
+      canonicalSourceIdentity: JSON.stringify([source.file_asset_id,source.linked_entity_type,source.document_category,source.source_role]),
       storage: {
         storage_provider: source.storage_provider ?? null,
         storage_bucket: source.storage_bucket ?? null,
@@ -1094,7 +1109,8 @@ export class DrawingRecognitionAsyncRepository {
       ? session.evidence_origin_session_id ?? input.sessionId
       : input.sessionId;
     const source = await this.client.queryOne<SourceRow>(
-      `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_bucket, asset.storage_key
+      `SELECT source.*, asset.original_path, asset.storage_provider, asset.storage_bucket, asset.storage_key,
+              asset.linked_entity_type,asset.document_category
        FROM drawing_recognition_sources source
        JOIN file_assets asset ON asset.id = source.file_asset_id
        WHERE source.id = :sourceId AND source.session_id = :sourceSessionId AND source.company_id = :companyId
@@ -1116,6 +1132,8 @@ export class DrawingRecognitionAsyncRepository {
       expectedBytes: Number(source.file_size),
       expectedHash: source.content_hash,
       adapterPlan,
+      fileAssetId: source.file_asset_id,
+      canonicalSourceIdentity: JSON.stringify([source.file_asset_id,source.linked_entity_type,source.document_category,source.source_role]),
       storage: {
         storage_provider: source.storage_provider ?? null,
         storage_bucket: source.storage_bucket ?? null,
@@ -1136,6 +1154,7 @@ export class DrawingRecognitionAsyncRepository {
       if (!session || session.status !== "extracting" || session.locked_by !== input.workerId) {
         throw new DrawingRecognitionError("RECOGNITION_JOB_LOCK_INVALID", "辨識 worker lock 已失效。", 409);
       }
+      if (await requireRecognitionJobAuthority(client, session)) await new DrawingRecognitionAsyncRepository(client).assertCurrentSourceSet(session);
       if (session.source_set_fingerprint !== input.sourceSetFingerprint) {
         throw new DrawingRecognitionError("RECOGNITION_SOURCE_STALE", "來源檔案集合已改變，請重新辨識。", 409);
       }
@@ -1692,6 +1711,7 @@ export class DrawingRecognitionAsyncRepository {
     decisions: DrawingRecognitionDecisionInput[];
     idempotencyKey: string;
     requirePostReleaseReason?: string | null;
+    verified?: VerifiedPrincipalRequest;
   }) {
     return this.client.transaction(async (client) => {
       const repository = new DrawingRecognitionAsyncRepository(client);
@@ -1713,6 +1733,13 @@ export class DrawingRecognitionAsyncRepository {
       if (input.decisions.length === 0 && Number(session.row_version) !== input.expectedRowVersion) {
         throw new DrawingRecognitionError("RECOGNITION_SESSION_STALE", "辨識內容已被更新，請重新載入。", 409);
       }
+      const authorizedImpact = input.verified ? await repository.calculateImpact({
+        sessionId: input.sessionId, companyId: input.companyId,
+        expectedRowVersion: Number(session.row_version), lockTargets: true
+      }) : null;
+      if (input.verified && authorizedImpact) {
+        await requireRecognitionImpactCapabilities(client, input.verified, authorizedImpact.changes);
+      }
       return repository.applyFormalization({
         sessionId: input.sessionId,
         companyId: input.companyId,
@@ -1720,7 +1747,7 @@ export class DrawingRecognitionAsyncRepository {
         actorPrincipalId: input.actorPrincipalId,
         expectedRowVersion: Number(session.row_version),
         idempotencyKey: input.idempotencyKey,
-        expectedImpactFingerprint: undefined,
+        expectedImpactFingerprint: authorizedImpact?.impactFingerprint,
         requirePostReleaseReason: input.requirePostReleaseReason
       });
     });

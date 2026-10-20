@@ -593,7 +593,7 @@ export async function addNumberingCandidateRevisionFile(input: {
       principalRequest: input.metadata.principalRequest,
       principalAuthorization: input.metadata.principalAuthorization,
       idempotencyPayload: command.payload,
-      execute: async (client) => {
+      execute: async (client, _decision, verified) => {
         const repository = new Repository(client);
         const existingLink = await repository.reuseCandidateFileLink({
           workspaceId,
@@ -691,7 +691,7 @@ export async function addNumberingCandidateRevisionFile(input: {
           companyId: input.metadata.actor.organizationId,
           candidateRevisionId,
           actorId: input.metadata.actor.pdmUserId,
-          initiatorPrincipalId: input.metadata.actor.authorizationActor?.principalId,
+          principalInitiator: verified ? principalJobInitiatorFromVerifiedRequest(verified) : undefined,
           expectedRowVersion,
           storage
         });
@@ -1166,6 +1166,7 @@ import { NumberStateFlowError, type NumberStateActor } from "@/lib/number-state-
 import { isNumberLifecycleV2Enabled } from "@/lib/number-state-flow-feature";
 import { createPdmCommand, type PdmCommandMetadata } from "@/lib/platform-command";
 import { executePdmCommandWithOutbox } from "@/lib/platform-command-service";
+import { principalJobInitiatorFromVerifiedRequest } from "@/lib/principal-job-authority";
 import { isLocalDevelopmentPublicationEvidenceEnabled } from "@/lib/publication-evidence";
 import type { CandidateFileStorageInput } from "@/lib/repositories/number-lifecycle-simplification-async-repository";
 import { detectCandidateRevisionFileRole, findOwnerPartRootForCandidate, findReusableCadAsset } from "@/lib/pdm-file-ownership";

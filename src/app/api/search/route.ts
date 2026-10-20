@@ -66,7 +66,8 @@ export async function GET(request: Request) {
           submissions: await new AsyncSubmissionListRepository(snapshot).searchSubmissions({
             query: query.length >= 2 ? query : "", status, filters,
             submittedBy: scope.submittedBy, companyId: companyResult.company.companyId,
-            includeHistory
+            includeHistory,
+            ...(scope.visibleSubmissionIds !== undefined ? { visibleSubmissionIds: scope.visibleSubmissionIds } : {})
           }), historicalReadOnly: true }, { headers: { "cache-control": "private, no-store" } });
       }
       const companyResult = await resolvePrincipalCompanyContextInSnapshot(snapshot, verified,

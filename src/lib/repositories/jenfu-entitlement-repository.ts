@@ -45,6 +45,8 @@ export type JenfuEnforcedPermissionInput = {
   actor: JenfuVerifiedAuthorizationActor;
   permissionKind: "page" | "action";
   permissionCode: string;
+  /** Set only by a server-owned canonical resource adapter. */
+  resourceGroup?: "drawing" | "part" | "model" | "transfer";
   workspaceCode?: string | null;
   projectCode?: string | null;
   rolePriority: readonly string[];
@@ -59,7 +61,10 @@ type ActiveAccountRow = {
   employee_status: string;
 };
 
-export type JenfuEntitlementRoleCatalog = { roles: JenfuApplicationRole[]; catalogVersion?: string };
+export type JenfuEntitlementRoleCatalog = {
+  roles: Array<JenfuApplicationRole & { roleStatus?: "active" | "inactive" }>;
+  catalogVersion?: string;
+};
 
 const catalog = roleCatalog as unknown as JenfuEntitlementRoleCatalog;
 const policyRegistry = rolePolicyRegistryJson as {
@@ -68,13 +73,18 @@ const policyRegistry = rolePolicyRegistryJson as {
     disposition: "protected" | "legacy-reference"; requiredActions: string[] }>;
 };
 
-function permissionRequirements(kind: "page" | "action", code: string) {
+function permissionRequirements(kind: "page" | "action", code: string,
+  resourceGroup?: JenfuEnforcedPermissionInput["resourceGroup"]) {
   const business = policyRegistry.businessActions.find(action => action.kind === kind && action.code === code);
   if (business) return business.requiredActions.map(required => ({ kind: "action" as const, code: required }));
   const legacy = policyRegistry.legacyBindings.find(binding => binding.kind === kind && binding.code === code);
   if (!legacy) return null;
-  return legacy.disposition === "protected" || legacy.requiredActions.length === 0 ? [{ kind, code }]
-    : legacy.requiredActions.map(required => ({ kind: "action" as const, code: required }));
+  if (legacy.disposition === "protected" || legacy.requiredActions.length === 0) return [{ kind, code }];
+  // A generic legacy key can cover several resource types. Narrow only after
+  // the caller resolves the actual target; an unclassified caller keeps AND.
+  const required = resourceGroup ? legacy.requiredActions.filter(action =>
+    action.startsWith("pdm." + resourceGroup + ".") || action.startsWith("pdm.model.")) : legacy.requiredActions;
+  return required.length ? required.map(action => ({ kind: "action" as const, code: action })) : null;
 }
 
 export class JenfuEntitlementRepository {
@@ -233,6 +243,9 @@ export class JenfuEntitlementRepository {
       if (role.roleCode !== assignment.roleCode || role.subjectKind !== assignment.subjectKind || !role.assignable || !role.allowedScopeKinds.includes(assignment.scopeKind) || !privilegedPolicyMatches) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
       const validationIssues = validateEffectiveRoleAssignment(assignment, input.actor, decisionAt);
       if (validationIssues.length) throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
+      // Retain and validate tombstones, then omit only their authorization.
+      // A legitimate inactive grant must not deny another active role.
+      if (role.roleStatus === "inactive") continue;
       preparedAssignments.push({ assignment, role });
     }
     return inputs.map((candidate) => {
@@ -244,7 +257,7 @@ export class JenfuEntitlementRepository {
         if (!evaluatedRoles.includes(assignment.roleCode)) evaluatedRoles.push(assignment.roleCode);
         const dynamicPolicy = this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
         const requirements = dynamicPolicy
-          ? permissionRequirements(candidate.permissionKind, candidate.permissionCode)
+          ? permissionRequirements(candidate.permissionKind, candidate.permissionCode, candidate.resourceGroup)
           : [{ kind: candidate.permissionKind, code: candidate.permissionCode }];
         if (!requirements) continue;
         const permissions = requirements.map(requirement => role.permissions.find(entry =>

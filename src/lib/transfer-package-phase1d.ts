@@ -808,7 +808,7 @@ export async function submitTransferPackageReview(input: {
         throw new TransferPackageError(readiness.firstBlocker?.code ?? "TRANSFER_NOT_READY", readiness.firstBlocker?.message ?? "技轉包尚未準備完成。", 409);
       }
       const reviewer = await selectPrincipalReviewerIdentityInSnapshot(client, {
-        companyId, ownerUserId: row.owner_id
+        companyId, ownerUserId: row.owner_id, resourceGroup: 'transfer'
       });
       if (reviewer.profileId === row.owner_id) {
         throw new TransferPackageError("TRANSFER_REVIEWER_REQUIRED", "技轉包負責人不可審核自己的送審。", 409);

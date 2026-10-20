@@ -11,6 +11,7 @@ type PrincipalRouteInput = {
   path: string;
   method: "GET" | "POST" | "PATCH" | "DELETE";
   permissionCode: string;
+  resourceGroup?: "drawing" | "part" | "model" | "transfer";
   readOnly: boolean;
 };
 
@@ -40,7 +41,8 @@ export async function withPrincipalDev087Route(request: Request, token: string,
     return await withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
       async (tx, verified) => {
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
-          verified, [{ permissionKind: "action", permissionCode: input.permissionCode }]);
+          verified, [{ permissionKind: "action", permissionCode: input.permissionCode,
+            ...(input.resourceGroup ? { resourceGroup: input.resourceGroup } : {}) }]);
         const [decision] = decisions;
         if (decisions.length !== 1 || !decision ||
             decision.principalId !== verified.session.principalId ||

@@ -111,7 +111,7 @@ describe("principal review target and comparison", () => {
     expect(mocks.withVerified).toHaveBeenCalledWith({ token: expect.any(String) },
       expect.any(Function), { readOnly: true, isolationLevel: "repeatable_read" });
     expect(mocks.evaluate).toHaveBeenCalledWith(tx, verified,
-      [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
+      [{ permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: "drawing" }]);
     expect(mocks.readCurrent).toHaveBeenCalledWith(tx, {
       companyId: "company-one", entityType: "drawing", entityId: "drawing-one",
       workId: "work-one"
@@ -119,13 +119,14 @@ describe("principal review target and comparison", () => {
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
 
-  it("denies missing decide permission before loading a review", async () => {
+  it("denies missing target decide permission before disclosing current resource data", async () => {
     mocks.evaluate.mockResolvedValueOnce([{
       principalId: "principal-one", permissionCode: "approval.inbox.view",
       allowed: true, decisionCode: "allowed"
     }]).mockResolvedValueOnce([{ allowed: false, decisionCode: "permission_not_granted" }]);
     expect((await targetGET(request(), params)).status).toBe(403);
-    expect(mocks.getReview).not.toHaveBeenCalled();
+    expect(mocks.getReview).toHaveBeenCalledOnce();
+    expect(mocks.readCurrent).not.toHaveBeenCalled();
     expect(mocks.legacyActor).not.toHaveBeenCalled();
   });
 

@@ -70,11 +70,13 @@ C70 的 prepare／build 已完成而 migration outcome 為 `UNKNOWN`；其 immut
 
 Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、完整下游 130／130、required continuous QC 479／479、catalog v7 3／3、abort 6／6、DB boundary、typecheck及 isolated build均 PASS；首次 runner 失敗保留為 sandbox Temp `.git/config` 拒絕，第二次在建立臨時 worktree時被 sandbox及長路徑拒絕，改用 `C:\tmp\aipdm-c78-tests` 後 25／25 PASS且臨時 worktree清理完成。獨立 GPT-5.6 Luna xhigh 唯讀 QA 判定無 permissive fallback或 commit blocker。required CI、protected merge、新 exact-main immutable evidence、full35、085、active catalog與專用測試 RD actor UI／API正負驗收仍待完成；不宣稱正式 RD acceptance或 DEV-122 PASS。
 
-## DEV-123#role-permission-editor — local implementation verified / rollout disabled (2026-10-21)
+## DEV-123#role-permission-editor — local implementation in progress / rollout disabled (2026-10-21)
 
-Registry、角色/權限矩陣UI、draft/save/preview/apply/result/history API、migration 086、dynamic reader/evaluator、project-bound share及OrgMaster DEV-058真實雙邊contract已在隔離工作樹完成。固定入口PASS：Node 3/3、Vitest 11檔69/69、typecheck、181-entry DEV-121 route map、DB boundary及126-page isolated build。migration未套用，policy仍DISABLED、OrgMaster仍NOT_READY；52案whole、原生PG apply、正常browser、L4、required CI與正式啟用NOT_RUN。多資源legacy route的精確target action需隨DEV-121/122收斂，現況保守AND不過度授權。
+本機核心整合已驗證，整體DEV仍In Progress／正式rollout disabled：OrgMaster固定入口7檔37 PASS／1 SKIP；PDM48檔401＋Node6 PASS，typecheck、route map、兩邊build及DB boundary通過。隔離PG18以actual PDM service、OrgMaster v2-fenced domain命令及PDM evaluator完成新增→任用→停用→撤銷→恢復，並驗證CAS／replay／audit故障rollback；JSONB歷史hash缺陷已修正，raw failures保留。
 
-Authority: [DEV-123 contract §15](specs/DEV-123-role-permission-editor-contract.md#15-2026-10-21-本機實作與驗證), [QA §7](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#7-2026-10-21-本機執行結果), [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md). Existing DEV-121/122 state and history remain authoritative for their own unfinished work.
+證據及責任：[DEV-123 §15](specs/DEV-123-role-permission-editor-contract.md#15-2026-10-21-本機實作與驗證)／[QA §7](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#7-2026-10-21-本機執行結果)。目前native使用owner bootstrap／合成session／Platform stub，PDM targeted browser仍用mock API；正常登入HTTP/browser、CG、完整QA24/52及正式首次啟用尚未關閉。正式migration／資料／部署／traffic／IAM／Secret均未操作，source初始NOT_READY/DISABLED保持；不將本機PASS改稱正式或全案驗收。
+
+
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
 PR #312 required CI PASS並合併為官方 `main` commit `b42458b3cd05924be566ea05e536454f6751c883`。R60 新 source freeze及source-bound metadata readback完成，provider仍為12個 `no-op/read`，IAM／worker resource changes與new images皆0；worker replay已越過historical reader scope，隨後在讀取合法舊600秒profile時仍套用目前1200秒validator及固定SHA，以 `OPENSWX_WORKER_PROFILE_INVALID` 拒絕。失敗發生於association發布前；未owner dispatch、build、migration085、service／traffic或正式資料mutation，R60 immutable input不重送。

@@ -141,7 +141,64 @@ export const protectedPolicyHash = sha256CanonicalJson({
     permissions: normalizedPermissions(role.permissions) }))
 })
 
+function equalCanonical(left: unknown, right: unknown) {
+  return sha256CanonicalJson(left) === sha256CanonicalJson(right)
+}
+
+function assertCandidateRoles(roles: RolePolicyRole[], profiles: RolePolicyProfile[]) {
+  const invalid = (): never => { throw new Error('ROLE_POLICY_CANDIDATE_INVALID') }
+  if (!Array.isArray(roles) || !Array.isArray(profiles) || roles.length < baseCatalog.roles.length ||
+      roles.length > rolePolicyRegistry.limits.maxRoles || profiles.length !== roles.length) invalid()
+  const ids = new Set<string>(); const codes = new Set<string>(); const names = new Set<string>()
+  const reservedNames = new Set([...baseCatalog.roles.map(role => role.displayName),
+    ...rolePolicyRegistry.roleProfiles.map(profile => profile.presentationName)])
+  const actions = new Map(rolePolicyRegistry.businessActions.map(action => ['action:' + action.code, action]))
+  for (let index = 0; index < roles.length; index += 1) {
+    const role = roles[index]; const profile = profiles[index]
+    if (!role || !profile || typeof role.displayName !== 'string' ||
+        normalizeName(role.displayName) !== role.displayName ||
+        ids.has(role.stableRoleId) || codes.has(role.roleCode) || names.has(role.displayName) ||
+        !['active', 'inactive'].includes(role.roleStatus) || !Array.isArray(role.permissions)) invalid()
+    ids.add(role.stableRoleId); codes.add(role.roleCode); names.add(role.displayName)
+    const builtin = baseCatalog.roles[index]
+    if (builtin) {
+      if (!equalCanonical(identity(role), identity(builtin)) ||
+          !equalCanonical(profile, rolePolicyRegistry.roleProfiles[index])) invalid()
+    } else {
+      const match = /^role-custom-([a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})$/u.exec(role.stableRoleId)
+      const { assignmentDisposition: _disposition, ...template } = rolePolicyRegistry.customRoleTemplate
+      if (!match || role.roleCode !== 'custom_' + match[1].replaceAll('-', '') ||
+          reservedNames.has(role.displayName) ||
+          !equalCanonical(identity(role), { stableRoleId: role.stableRoleId, roleCode: role.roleCode,
+            displayName: role.displayName, ...template }) ||
+          !equalCanonical(profile, { stableRoleId: role.stableRoleId, permissionRoleId: role.stableRoleId,
+            presentationName: role.displayName, presentationOrder: index - 2, assignmentDisposition: 'selectable' })) invalid()
+    }
+    const permissionKeys = new Set<string>()
+    for (const permission of role.permissions) {
+      if (!permission || Object.keys(permission).sort().join(',') !== 'allowed,code,kind' ||
+          !['page', 'action'].includes(permission.kind) || typeof permission.code !== 'string' ||
+          typeof permission.allowed !== 'boolean' || permissionKeys.has(permissionKey(permission))) invalid()
+      permissionKeys.add(permissionKey(permission))
+      const action = actions.get(permissionKey(permission))
+      if (!builtin && (!action || permission.allowed !== true)) invalid()
+      if (action && role.stableRoleId === 'role-external-specialist' && action.actionId !== 'view') invalid()
+    }
+    if (role.stableRoleId === 'role-system-admin') {
+      if (role.roleStatus !== 'active' ||
+          !equalCanonical(normalizedPermissions(role.permissions), systemAdminPermissions())) invalid()
+    } else if (builtin) {
+      const frozen = role.permissions.filter(permission => !actions.has(permissionKey(permission)))
+      if (!equalCanonical(normalizedPermissions(frozen), normalizedPermissions(builtin.permissions))) invalid()
+    }
+    if (role.stableRoleId === 'role-production-planning' &&
+        role.permissions.some(permission => actions.has(permissionKey(permission)))) invalid()
+  }
+  if (roles[4].roleStatus !== roles[5].roleStatus) invalid()
+}
+
 function completeCandidate(roles: RolePolicyRole[], profiles: RolePolicyProfile[], candidateCatalogVersion: string): RolePolicyCandidate {
+  assertCandidateRoles(roles, profiles)
   const roleIdentityHash = sha256CanonicalJson(roles.map(identity))
   const identityHashes = Object.fromEntries(roles.map(role => [role.stableRoleId, sha256CanonicalJson(identity(role))]))
   const withoutContent = {
@@ -169,7 +226,8 @@ export function assertRolePolicyCandidate(value: RolePolicyCandidate) {
       value.registryHash !== rolePolicyRegistryHash || value.baselineRoleIdentityHash !== baselineRoleIdentityHash ||
       value.protectedPolicyHash !== protectedPolicyHash || value.contentHash !== rebuilt.contentHash ||
       value.roleIdentityHash !== rebuilt.roleIdentityHash || value.roleProfileHash !== rebuilt.roleProfileHash ||
-      JSON.stringify(value.identityHashes) !== JSON.stringify(rebuilt.identityHashes)) {
+      !equalCanonical(value.identityHashes, rebuilt.identityHashes) ||
+      value.roles.some((role, index) => role.roleDefinitionHash !== rebuilt.roles[index].roleDefinitionHash)) {
     throw new Error('ROLE_POLICY_CANDIDATE_INVALID')
   }
   return value
@@ -220,7 +278,7 @@ export function applyRolePolicyDraftChanges(input: {
   const uuid = input.uuid ?? randomUUID
 
   for (const change of input.roleChanges) {
-    const key = change.type === 'create' ? `create:${change.clientRoleId}` : `${change.type}:${change.stableRoleId}`
+    const key = change.type === 'create' ? `create:${change.clientRoleId}` : `status:${change.stableRoleId}`
     if (seenRoleChanges.has(key)) throw new Error('ROLE_POLICY_DUPLICATE_CHANGE')
     seenRoleChanges.add(key)
     if (change.type === 'create') {
@@ -284,7 +342,33 @@ export function applyRolePolicyDraftChanges(input: {
   return { candidate, roleBindings: [...clientBindings].map(([clientRoleId, binding]) => ({ clientRoleId, ...binding })) }
 }
 
-export function rolePolicyDiff(before: RolePolicyCandidate, after: RolePolicyCandidate) {
+/** Restore editable actions only; current identity, lifecycle and protected entries remain authoritative. */
+export function restoreRolePolicyHistory(current: RolePolicyCandidate, history: RolePolicyCandidate,
+  candidateCatalogVersion: string) {
+  assertRolePolicyCandidate(current); assertRolePolicyCandidate(history)
+  const historyRoles = new Map(history.roles.map(role => [role.stableRoleId, role]))
+  const editable = new Set(rolePolicyRegistry.businessActions.map(action => 'action:' + action.code))
+  const roles = current.roles.map(role => {
+    const prior = historyRoles.get(role.stableRoleId)
+    const profile = current.roleProfiles.find(value => value.stableRoleId === role.stableRoleId)!
+    if (!prior || role.roleStatus === 'inactive' || profile.assignmentDisposition !== 'selectable') return role
+    if (!equalCanonical(identity(role), identity(prior))) throw new Error('ROLE_POLICY_HISTORY_IDENTITY_CONFLICT')
+    return { ...role, permissions: [...role.permissions.filter(permission => !editable.has(permissionKey(permission))),
+      ...prior.permissions.filter(permission => editable.has(permissionKey(permission)))] }
+  })
+  const profiles = [...current.roleProfiles]
+  for (const prior of history.roles) {
+    if (current.roles.some(role => role.stableRoleId === prior.stableRoleId)) continue
+    // A historical identity is retained as inactive until an explicit restore.
+    roles.push({ ...prior, roleStatus: 'inactive' })
+    profiles.push({ stableRoleId: prior.stableRoleId, permissionRoleId: prior.stableRoleId,
+      presentationName: prior.displayName, presentationOrder: profiles.length - 2,
+      assignmentDisposition: 'selectable' })
+  }
+  return rebuildRolePolicyCandidate({ roles, roleProfiles: profiles, candidateCatalogVersion })
+}
+
+export function rolePolicyDiff(before: { roles: RolePolicyRole[]; format: 'legacy-static-v1' | typeof ROLE_POLICY_PUBLICATION_FORMAT }, after: RolePolicyCandidate) {
   const beforeRoles = new Map(before.roles.map(role => [role.stableRoleId, role]))
   const roleChanges: Array<Record<string, unknown>> = []
   const capabilityChanges: Array<Record<string, unknown>> = []

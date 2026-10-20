@@ -17,6 +17,9 @@ import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-pri
 import { PdmWorkReviewAsyncRepository } from "@/lib/repositories/pdm-work-review-async-repository";
 import { AsyncApprovalPlatformRepository } from "@/lib/repositories/approval-platform-async-repository";
 import { dev087RouteError } from "@/lib/pdm-dev087-route";
+import { authorizeDynamicResourceCapabilityInSnapshot, canonicalCapabilityGroups,
+  isDynamicRolePolicyInSnapshot } from "@/lib/principal-resource-capability";
+import { principalJobInitiatorFromVerifiedRequest, type PrincipalJobInitiator } from "@/lib/principal-job-authority";
 
 export const runtime = "nodejs";
 
@@ -33,6 +36,8 @@ type CanonicalFileSource = DrawingPreviewSource & {
   source_submission_id: string | null;
   owner_user_id: string | null;
   work_id: string | null;
+  document_category?: string | null;
+  capability_role?: string | null;
 };
 
 function jsonError(code: string, message: string, status: number) {
@@ -62,8 +67,8 @@ async function resolveSource(input: {
     return input.client.queryOne<CanonicalFileSource>(
       `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
               asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
-              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
-              revision.company_id, 'drawing_revision' AS linked_entity_type,
+              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm, asset.document_category,
+              file.role AS capability_role, revision.company_id, 'drawing_revision' AS linked_entity_type,
               revision.id AS linked_entity_id, NULL AS workspace_id,
               revision.drawing_id AS drawing_number_id, drawing.part_root_id, NULL AS source_submission_id,
               work.owner_user_id, work.id AS work_id
@@ -90,8 +95,8 @@ async function resolveSource(input: {
     return input.client.queryOne<CanonicalFileSource>(
       `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
               asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
-              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
-              revision.company_id, '${input.context}' AS linked_entity_type,
+              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm, asset.document_category,
+              file.role AS capability_role, revision.company_id, '${input.context}' AS linked_entity_type,
               revision.id AS linked_entity_id, NULL AS workspace_id,
               revision.drawing_id AS drawing_number_id, drawing.part_root_id,
               NULL AS source_submission_id, work.owner_user_id, work.id AS work_id
@@ -112,8 +117,8 @@ async function resolveSource(input: {
     const drawingSource = await input.client.queryOne<CanonicalFileSource>(
       `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
               asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
-              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
-              revision.company_id, 'drawing_revision' AS linked_entity_type,
+              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm, asset.document_category,
+              file.role AS capability_role, revision.company_id, 'drawing_revision' AS linked_entity_type,
               :contextId AS linked_entity_id, NULL AS workspace_id,
               revision.drawing_id AS drawing_number_id, drawing.part_root_id,
               NULL AS source_submission_id, NULL AS owner_user_id, NULL AS work_id
@@ -130,7 +135,7 @@ async function resolveSource(input: {
     return input.client.queryOne<CanonicalFileSource>(
       `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
               asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
-              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
+              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm, asset.document_category,
               part.company_id, 'part_number' AS linked_entity_type,
               part.id AS linked_entity_id, NULL AS workspace_id, NULL AS drawing_number_id,
               part.part_root_id, NULL AS source_submission_id, NULL AS owner_user_id, NULL AS work_id
@@ -147,7 +152,7 @@ async function resolveSource(input: {
     return input.client.queryOne<CanonicalFileSource>(
       `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
               asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
-              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
+              asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm, asset.document_category,
               ${entityAlias}.company_id, '${entityType}' AS linked_entity_type,
               ${entityAlias}.id AS linked_entity_id, NULL AS workspace_id,
               ${input.context === "drawing_attachment" ? `${entityAlias}.id` : "NULL"} AS drawing_number_id,
@@ -167,8 +172,8 @@ async function resolveSource(input: {
   return input.client.queryOne<CanonicalFileSource>(
     `SELECT asset.id, asset.storage_provider, asset.storage_bucket, asset.storage_key,
             asset.original_path, asset.storage_generation, asset.file_name, asset.file_ext,
-            asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm,
-            revision_package.company_id, 'drawing_revision_package' AS linked_entity_type,
+            asset.mime_type, asset.file_size, asset.content_hash, asset.hash_algorithm, asset.document_category,
+            file.role AS capability_role, revision_package.company_id, 'drawing_revision_package' AS linked_entity_type,
             revision_package.id AS linked_entity_id, NULL AS workspace_id,
             revision_package.drawing_number_id, drawing_number.part_root_id,
             revision_package.source_submission_id, NULL AS owner_user_id, NULL AS work_id
@@ -327,11 +332,14 @@ function snapshotFileMatches(file: unknown, sourceFileAssetId: string) {
 
 async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFileSource,
   input: { wantsPreview: boolean; derivativeId: string | null; actorId: string; initiatorPrincipalId: string;
-    context: PdmFileReadContext; contextId: string; bindingId: string }) {
+    principalInitiator: PrincipalJobInitiator;
+    context: PdmFileReadContext; contextId: string; bindingId: string; requireSafePreview: boolean;
+    beforeRead: (original: boolean) => Promise<Response | null> }) {
   try {
     const resolved = input.wantsPreview
       ? await resolveDrawingPreviewAsync(client, source, {
-          derivativeId: input.derivativeId
+          derivativeId: input.derivativeId,
+          requireDerivative: input.requireSafePreview
         })
       : {
           record: source,
@@ -353,7 +361,7 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
             linked_entity_id: source.linked_entity_id
           },
           actorUserId: input.actorId,
-          initiatorPrincipalId: input.initiatorPrincipalId,
+          principalInitiator: input.principalInitiator,
           requestedKind: requestedPreviewKindForSource(source.file_ext)
         });
         job = await readLatestPreviewJobForSourceAsync(client, scope);
@@ -365,6 +373,11 @@ async function serveFileSource(client: AsyncDatabaseClient, source: CanonicalFil
         return dev087RouteError(error);
       }
     }
+    if (input.wantsPreview && input.requireSafePreview && resolved.record.id === source.id) {
+      return jsonError("SAFE_PREVIEW_UNAVAILABLE", "無可用預覽。", 404);
+    }
+    const authorizationFailure = await input.beforeRead(!input.wantsPreview || resolved.record.id === source.id);
+    if (authorizationFailure) return authorizationFailure;
     const pointer = storagePointerFromRecord(resolved.record);
     const storage = createFileStorageServiceForPointer(pointer);
     const bytes = await storage.readObject(pointer.key);
@@ -422,11 +435,20 @@ async function principalFileRead(request: Request, token: string, input: {
     return jsonError("READ_ACCESS_REQUIRED", "沒有讀取權限。", 503);
   }
   try {
-    const source = await withVerifiedJenfuPrincipalRequest(
+    const readSource = async (action: 'view' | 'download' = 'view') => withVerifiedJenfuPrincipalRequest(
       principalRequestInput(token), async (tx, verified) => {
+        const finish = async (found: CanonicalFileSource) => {
+          const failure = await authorizeDynamicResourceCapabilityInSnapshot(tx, verified,
+            canonicalCapabilityGroups(found.linked_entity_type, found.capability_role ?? found.document_category), action);
+          if (failure) return failure;
+          return { source: found, actorId: verified.profile.pdmUserId,
+            initiatorPrincipalId: verified.session.principalId,
+            principalInitiator: principalJobInitiatorFromVerifiedRequest(verified),
+            dynamicPolicy: await isDynamicRolePolicyInSnapshot(tx) };
+        };
         if (approvalEvidence) {
           const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
-            verified, [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
+            verified, [{ permissionKind: "action", permissionCode: "approval.request.decide", resourceGroup: 'drawing' }]);
           if (!decision?.allowed) return null;
           const companyId = verified.profile.companyId;
           const detail = await new AsyncApprovalPlatformRepository(tx)
@@ -436,29 +458,24 @@ async function principalFileRead(request: Request, token: string, input: {
           const found = await resolveSource({ client: tx, context: "approval_evidence",
             contextId: input.contextId, bindingId: input.bindingId,
             fileAssetId: input.fileAssetId, companyId });
-          return found ? { source: found, actorId: verified.profile.pdmUserId, initiatorPrincipalId: verified.session.principalId } : null;
+          return found ? finish(found) : null;
         }
         if (!reviewPackage) {
           const permissionCode = input.context === "part_attachment"
             ? "numbering.search"
             : workFile ? "numbering.workspace.view" : "numbering.drawings.view";
           const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
-            verified, [{ permissionKind: workFile ? "action" : "page", permissionCode }]);
+            verified, [{ permissionKind: workFile ? "action" : "page", permissionCode,
+              resourceGroup: input.context === 'part_attachment' ? 'part' : 'drawing' }]);
           if (!decision?.allowed) return null;
           const found = await resolveSource({ client: tx, context: input.context,
             contextId: input.contextId, bindingId: input.bindingId,
             fileAssetId: input.fileAssetId, companyId: verified.profile.companyId });
           if (!found || (workFile && (found.work_id !== input.contextId ||
               found.owner_user_id !== verified.profile.pdmUserId))) return null;
-          return { source: found, actorId: verified.profile.pdmUserId, initiatorPrincipalId: verified.session.principalId };
+          return finish(found);
         }
         if (!input.reviewRequestId) return null;
-        const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx,
-          verified, [
-            { permissionKind: "action", permissionCode: "approval.inbox.view" },
-            { permissionKind: "action", permissionCode: "approval.request.decide" }
-          ]);
-        if (decisions.length !== 2 || decisions.some((decision) => !decision.allowed)) return null;
         const companyId = verified.profile.companyId;
         const actorId = verified.profile.pdmUserId;
         const review = await new PdmWorkReviewAsyncRepository(tx).get(tx,
@@ -466,6 +483,12 @@ async function principalFileRead(request: Request, token: string, input: {
         if (!review || review.reviewerUserId !== actorId || review.requestStatus !== "pending" ||
             !["part_change", "drawing_revision"].includes(review.requestKind) ||
             parseReviewPackageSnapshot(review.snapshotPayload).kind !== "v2") return null;
+        const resourceGroup = review.requestKind === 'part_change' ? 'part' : 'drawing';
+        const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(tx, verified, [
+          { permissionKind: 'action', permissionCode: 'approval.inbox.view', resourceGroup },
+          { permissionKind: 'action', permissionCode: 'approval.request.decide', resourceGroup }
+        ]);
+        if (decisions.length !== 2 || decisions.some(decision => !decision.allowed)) return null;
         const found = await resolveSource({ client: tx, context: "review_package",
           contextId: input.contextId, bindingId: input.bindingId,
           fileAssetId: input.fileAssetId, companyId });
@@ -474,15 +497,30 @@ async function principalFileRead(request: Request, token: string, input: {
           context: "review_package", contextId: input.contextId,
           bindingId: input.bindingId, reviewRequestId: input.reviewRequestId,
           companyId, actorId });
-        return scope ? { source: found, actorId, initiatorPrincipalId: verified.session.principalId } : null;
+        return scope ? finish(found) : null;
       }, { readOnly: true, isolationLevel: "repeatable_read" });
+    const source = await readSource();
+    if (source instanceof Response) return source;
     if (!source) return jsonError("PDM_FILE_NOT_FOUND", "找不到這筆審核檔案。", 404);
     // Storage and preview I/O occur after the short authorization transaction.
     return serveFileSource(getAsyncDatabaseClient(), source.source, {
       actorId: source.actorId, initiatorPrincipalId: source.initiatorPrincipalId,
+      principalInitiator: source.principalInitiator,
       wantsPreview: input.wantsPreview,
       derivativeId: input.derivativeId,
-      context: input.context, contextId: input.contextId, bindingId: input.bindingId
+      context: input.context, contextId: input.contextId, bindingId: input.bindingId,
+      requireSafePreview: source.dynamicPolicy,
+      beforeRead: async original => {
+        const fresh = await readSource(original ? 'download' : 'view');
+        if (fresh instanceof Response) return fresh;
+        if (!fresh || fresh.source.id !== source.source.id ||
+            fresh.source.content_hash !== source.source.content_hash ||
+            fresh.source.linked_entity_type !== source.source.linked_entity_type ||
+            fresh.source.linked_entity_id !== source.source.linked_entity_id) {
+          return jsonError('PDM_FILE_NOT_FOUND', '找不到這筆審核檔案。', 404);
+        }
+        return null;
+      }
     });
   } catch (error) {
     return error instanceof JenfuPrincipalRequestError

@@ -9,9 +9,13 @@ export const runtime = "nodejs";
 export async function GET(request: Request, { params }: { params: Promise<{ requestId: string; entityType: string; entityId: string }> }) {
   const token = principalSessionTokenFromRequest(request);
   if (token) {
+    const target = await params;
+    if (target.entityType !== "drawing" && target.entityType !== "part") {
+      return Response.json({ error: "審核對象不存在" }, { status: 404 });
+    }
     return withPrincipalDev087Route(request, token, {
       path: "src/app/api/pdm/review-requests/[requestId]/targets/[entityType]/[entityId]/comparison/route.ts",
-      method: "GET", permissionCode: "approval.inbox.view", readOnly: true
+      method: "GET", permissionCode: "approval.inbox.view", resourceGroup: target.entityType, readOnly: true
     }, async (tx, verified) => {
       const { requestId, entityType, entityId } = await params;
       const { item, target, current } = await readPrincipalReviewTarget(tx,

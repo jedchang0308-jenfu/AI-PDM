@@ -16583,6 +16583,15 @@ select.dropdown-select:focus-visible,
 
 /* DEV-005 — application-owned role capability governance. */
 .access-governance-page { min-width: 0; }
+.role-policy-settings table[aria-label$="權限矩陣"] th:first-child { width: 84px; }
+.role-policy-settings .primary-button:disabled {
+  background: var(--panel-2);
+  color: var(--muted);
+  border-color: var(--line);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
 .access-governance-layout { display: grid; grid-template-columns: minmax(210px, 24%) minmax(0, 1fr); min-height: 560px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .access-role-nav { min-width: 0; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--panel-2) 58%, var(--panel)); }
 .access-role-nav-header, .access-role-header, .access-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }

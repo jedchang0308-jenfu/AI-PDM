@@ -20,9 +20,13 @@ C91 full35於SQL前因runner錯把current release source當retained fence source
 
 C83 exact-main source lock、76,625,920-byte worker archive與 v5 input已完成immutable provider readback；artifact-reuse因共用GCS media單次60秒deadline短於實測約130～150秒而在publication前兩次 `OUTCOME_UNKNOWN`，provider無新增output、workflow未dispatch、service／traffic未變。corrective code `bc4d9358a11ec894d0a0b79449327683112281bd` 改在共用read-only transport依metadata size產生bounded window；exact-source affected runner 27 groups與continuous QC 483／483等full gates均PASS。C83過期input不重送；protected PR／required CI／merge後才以fresh exact-main C84續接。正式085、catalog v7與專用測試RD actor驗收仍pending。[current契約](specs/DEV-122-ai-pdm-internal-function-issues.md#rd-圖號工作台當前恢復點2026-10-20)／[任務](dev_task.md#dev-121rd-capabilities--2026-10-20-large-private-object-media-window本地驗證中c83-不重送)。
 
-## DEV-123#role-permission-editor — local implementation verified / rollout disabled (2026-10-21)
+## DEV-123#role-permission-editor — local implementation in progress / rollout disabled (2026-10-21)
 
-AI-PDM已完成registry、七日常角色/custom矩陣、API/UI、migration 086、dynamic授權reader及project-bound share；OrgMaster DEV-058真實14欄consumer與vector契約已通過。固定證據為Node 3/3、Vitest 69/69、typecheck、route map、DB boundary及isolated build。migration/PG/browser/L4/required CI/正式啟用仍NOT_RUN，policy DISABLED、consumer NOT_READY；多資源target action仍待DEV-121/122 caller/resource resolver。直接入口：[SPEC §15](specs/DEV-123-role-permission-editor-contract.md#15-2026-10-21-本機實作與驗證)／[QA §7](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#7-2026-10-21-本機執行結果)／[ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)。
+本機核心整合已驗證，整體DEV仍In Progress／正式rollout disabled：OrgMaster固定入口7檔37 PASS／1 SKIP；PDM48檔401＋Node6 PASS，typecheck、route map、兩邊build及DB boundary通過。隔離PG18以actual PDM service、OrgMaster v2-fenced domain命令及PDM evaluator完成新增→任用→停用→撤銷→恢復，並驗證CAS／replay／audit故障rollback；JSONB歷史hash缺陷已修正，raw failures保留。
+
+證據及責任：[DEV-123 §15](specs/DEV-123-role-permission-editor-contract.md#15-2026-10-21-本機實作與驗證)／[QA §7](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#7-2026-10-21-本機執行結果)。目前native使用owner bootstrap／合成session／Platform stub，PDM targeted browser仍用mock API；正常登入HTTP/browser、CG、完整QA24/52及正式首次啟用尚未關閉。正式migration／資料／部署／traffic／IAM／Secret均未操作，source初始NOT_READY/DISABLED保持；不將本機PASS改稱正式或全案驗收。
+
+
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
 PR #312 required CI PASS並合併為官方main `b42458b3cd05924be566ea05e536454f6751c883`；R60 source freeze及12-row metadata no-op/read完成，worker越過reader-scope修正後，於舊600秒profile仍被current-only 1200秒validator／固定SHA拒絕。新最小修正改用既有historical validator，僅允許完整固定的1200或600秒profile；exact bytes仍由下游descriptor SHA及origin相容檢查綁定，其他歷史、來源與provider fence不變。R60 association／owner dispatch／build／migration／service／traffic／正式資料皆未變更，舊input不重送。[QA](qa/DEV-121-finite-operation-continuation-local-2026-10-12.md#r28-historical-replay-profile-binding--2026-10-16)。

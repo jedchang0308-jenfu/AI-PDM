@@ -7,6 +7,7 @@ import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-pri
 import { resolveJenfuRoutePolicy } from "@/lib/jenfu-route-permission-map";
 import { deliverPrincipalReleasePackage } from "@/lib/principal-release-package-delivery";
 import type { ReleasePackage } from "@/lib/types";
+import { authorizeSubmissionOriginalsInSnapshot } from '@/lib/principal-submission-file-capability';
 
 export type PublishedPackageRoute = {
   path: string;
@@ -45,7 +46,7 @@ export async function servePublishedReleasePackage(
   }
   const { id } = await params;
   try {
-    const authorized = await withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
+    const readAuthorized = () => withVerifiedJenfuPrincipalRequest(principalRequestInput(token),
       async (snapshot, verified) => {
         const decisions = await evaluatePrincipalWorkspacePermissionsInSnapshot(snapshot, verified,
           [{ permissionKind: "action", permissionCode: route.permissionCode }]);
@@ -70,11 +71,14 @@ export async function servePublishedReleasePackage(
           return Response.json({ code: "principal_dependency_unavailable" },
             { status: 503, headers: { "cache-control": "no-store" } });
         }
+        const failure = await authorizeSubmissionOriginalsInSnapshot(snapshot, verified, id, undefined, releasePackage.manifest_json);
+        if (failure) return failure;
         return { releasePackage, principalId: verified.session.principalId,
           profileId: verified.profile.pdmUserId, companyId: resource.company_id };
       });
+    const authorized = await readAuthorized();
     if (authorized instanceof Response) return authorized;
-    return await deliverPrincipalReleasePackage(request, id, route.url, authorized);
+    return await deliverPrincipalReleasePackage(request, id, route.url, authorized, readAuthorized);
   } catch (error) {
     return principalRequestFailure(error);
   }

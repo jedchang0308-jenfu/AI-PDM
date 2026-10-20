@@ -8,7 +8,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ draw
   if (!token) return principalRequestFailure(new JenfuPrincipalRequestError("auth_session_invalid"));
   return withPrincipalDev087Route(request, token, {
     path: "src/app/api/pdm/drawings/[drawingId]/revision-targets/route.ts", method: "GET",
-    permissionCode: "numbering.workspace.create", readOnly: true
+    permissionCode: "numbering.workspace.create", resourceGroup: "drawing", readOnly: true
   }, async (tx, verified) => {
     const { drawingId } = await params;
     const sourceRowKey = new URL(request.url).searchParams.get("sourceRowKey") ?? "";

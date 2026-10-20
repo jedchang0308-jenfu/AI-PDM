@@ -13,11 +13,6 @@ export async function readPrincipalReviewTarget(client: AsyncDatabaseClient,
   verified: VerifiedPrincipalRequest, input: {
     requestId: string; entityType: string; entityId: string;
   }) {
-  const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
-    verified, [{ permissionKind: "action", permissionCode: "approval.request.decide" }]);
-  if (!decision?.allowed) {
-    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
-  }
   if (input.entityType !== "drawing" && input.entityType !== "part") {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核對象不存在", 404);
   }
@@ -41,6 +36,12 @@ export async function readPrincipalReviewTarget(client: AsyncDatabaseClient,
     candidate.targetKey === reviewPackageTargetKey(entityType, input.entityId));
   if (!target) {
     throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "審核對象不存在", 404);
+  }
+  const [decision] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
+    verified, [{ permissionKind: "action", permissionCode: "approval.request.decide",
+      resourceGroup: entityType }]);
+  if (!decision?.allowed) {
+    throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
   }
   let basisState: "current" | "stale" | "preproduction" = "current";
   if (item.requestKind === "drawing_revision") {

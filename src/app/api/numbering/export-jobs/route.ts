@@ -4,6 +4,7 @@ import { createNumberingExportJobAsync } from "@/lib/numbering-async";
 import { principalSessionTokenFromRequest } from "@/lib/jenfu-principal-http";
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { withPrincipalNumberingCompanyRead } from "@/lib/principal-numbering-read";
+import { isDynamicRolePolicyInSnapshot } from "@/lib/principal-resource-capability";
 import { AsyncNumberingRepository } from "@/lib/repositories/numbering-async-repository";
 
 export const runtime = "nodejs";
@@ -15,11 +16,16 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get("limit") ?? 20);
   const principalResponse = await withPrincipalNumberingCompanyRead(request, "numbering.reports",
-    async (snapshot, company) => NextResponse.json({
-      jobs: await new AsyncNumberingRepository(snapshot).listNumberingExportJobs({
+    async (snapshot, company) => {
+      const dynamicPolicy = await isDynamicRolePolicyInSnapshot(snapshot);
+      const jobs = await new AsyncNumberingRepository(snapshot).listNumberingExportJobs({
         companyId: company.companyId, limit
-      }), pdmCompany: company
-    }, { headers: { "cache-control": "private, no-store" } }));
+      });
+      return NextResponse.json({
+        jobs: dynamicPolicy ? jobs.map(({ result: _result, ...metadata }) => metadata) : jobs,
+        pdmCompany: company
+      }, { headers: { "cache-control": "private, no-store" } });
+    });
   return principalResponse ?? NextResponse.json({ code: "principal_authorization_unavailable" },
     { status: 503, headers: { "cache-control": "no-store" } });
 }

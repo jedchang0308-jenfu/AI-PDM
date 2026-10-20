@@ -1,8 +1,8 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-21（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Local Implementation Verified / Rollout Disabled`；**架構定案：已定案**（自用精簡見§14.5；本機證據見§15）。應用、DTO、API、UI、forward migration、dynamic reader及真實雙邊契約驗證已完成；migration未套用、policy mode仍`DISABLED`、OrgMaster readiness仍`NOT_READY`，52案whole、browser/L4與正式啟用維持`NOT_RUN`。
+建立：2026-10-12；修訂：2026-10-21（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Local Implementation In Progress / Rollout Disabled`；**架構定案：已定案**（自用精簡見§14.5；本機證據見§15）。首版本機應用、DTO、API、UI、forward migration、dynamic reader與雙邊schema/vector已完成；授權等待與caller修正、實際證據及仍待逐案驗收範圍見§15.5；正式migration未套用、policy mode仍`DISABLED`、OrgMaster readiness仍`NOT_READY`，52案whole、browser/L4與正式啟用維持`NOT_RUN`。
 
-本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)只登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)記錄長期決策，[QA 計畫](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。2026-10-21依使用者`/goal`授權完成AI-PDM與OrgMaster隔離工作樹的本機協同實作；此狀態不是Release Ready，也未授權正式migration、部署或資料寫入。
+本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)只登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)記錄長期決策，[QA 計畫](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。2026-10-21依使用者`/goal`授權進行AI-PDM與OrgMaster隔離工作樹的本機協同實作；此狀態不是Release Ready，也未授權正式migration、部署或資料寫入。
 
 ## 1. 人類決策與第一版邊界
 
@@ -426,7 +426,7 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 ## 13. 文件狀態與交接
 
-`Local Implementation Verified / Rollout Disabled`。registry、DTO/命令/結果查詢、private API、UI、forward migration、dynamic reader與OrgMaster 14欄真實契約檢查已完成；固定入口及build結果見§15。完整52案、CG、原生migration/apply、真實browser、L4、required CI及正式啟用仍未完成，不得以本機PASS取代。首次apply維持由`DISABLED`與`NOT_READY`雙重阻擋。
+`Local Implementation In Progress / Rollout Disabled`。registry、DTO/命令/結果查詢、private API、UI、forward migration、dynamic reader與OrgMaster 14欄真實契約檢查已完成；固定入口及build結果見§15。完整52案、CG、完整原生migration/apply案例、真實browser、L4、required CI及正式啟用仍未完成，不得以本機PASS取代。首次apply維持由`DISABLED`與`NOT_READY`雙重阻擋。
 
 <a id="dev-123-architecture-closure"></a>
 
@@ -479,11 +479,11 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 ## 15. 2026-10-21 本機實作與驗證
 
-### 15.1 已完成
+### 15.1 已完成的實作項目（非整案驗收）
 
 - `role-policy-editor-registry.v2.json`與產生器固定七個日常呈現、九個既有身份、20個業務action、66個legacy binding及九個protected code；自訂角色只可使用固定employee/workspace模板。
 - `role-policy-editor.ts`、service、HTTP/schema、十個`/api/settings/access/role-policies`端點及設定頁面已接線；create/save/preview/apply/read-result與current/history DTO使用exact-key、size/origin、CAS及同ID重播控制。
-- migration 086建立35欄current/history、draft/command/state/identity、原子apply與最小ACL；share的`project_scope_key`由server/trigger取submission，既有非空project資料由同一forward migration只做等值回填，之後不可由runtime任意改寫。
+- migration 086及前向087共同建立35欄current/history、draft/command/state/identity、原子apply與最小ACL；share的`project_scope_key`由server/trigger取submission，舊share保留NULL且不回填，只有新INSERT由server取合法submission的project binding，之後不可由runtime任意改寫。
 - dynamic catalog reader驗完整canonical hashes/profile/alias/lifecycle；inactive角色不授權，production_planning保留原identity並取procurement permission profile。OrgMaster的真實v7 vector由AI-PDM domain builder產生，再由兩邊各自decoder驗證。
 - submission detail與public share使用resource project scope；分享記錄的project binding缺失或不符即拒絕。管理API仍需verified human privileged Principal、AAL2及direct global `system_admin`。
 
@@ -491,14 +491,56 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 | 入口 | 2026-10-21結果 | 支持範圍 |
 |---|---|---|
-| `npm run test:dev-123:contracts`（設定`ORGMASTER_DEV058_ROOT`為DEV-058隔離工作樹） | PASS：Node 3/3；Vitest 11檔69/69 | registry、DTO/service、雙邊35/14欄與真實vector、dynamic reader/evaluator、project scope/share |
-| `npm run typecheck:app` | PASS | 應用型別 |
-| `node scripts/dev121-build-principal-route-map-v2.mjs --check` | PASS：149 files／171 methods／181 entries | DEV-121路由地圖未漂移 |
-| `npm run check:db-boundary` | PASS：`DEV010_DB_RULESET_V1` | migration只在owner schema並以versioned contract跨app讀取 |
-| `npm run build:isolated` | PASS：126 pages；artifact/primary/cleanup=true | Next production build與任務資源清理；既有middleware警告不影響結果 |
+| npm run test:dev-123:contracts（ORGMASTER_DEV058_ROOT指向DEV-058隔離工作樹） | PASS：Node 6/6；Vitest 48檔401/401 | registry、DTO/service、真實35/14欄與vector、dynamic reader/evaluator、圖號/料號route與指定reviewer、file/share正反 |
+| npm run typecheck:app | PASS | 本輪應用型別 |
+| node scripts/dev121-build-principal-route-map-v2.mjs --check | PASS：149 files／171 methods／181 entries | DEV-121路由地圖未漂移 |
+| npm run check:db-boundary | PASS：DEV010_DB_RULESET_V1 | owner schema與versioned contract來源邊界；不是SQL執行/ACL證明 |
+| npm run build:isolated | PASS：本輪0227，126 pages，artifact/primary/cleanup=true；主SQLite保持不存在 | 隔離Next build；既有middleware/Edge警告保留 |
+| actual React component + mock API browser harness | PASS：10 checks、27 screenshots，1440/1024/390 | 已保存/已套用草稿、歷史建草稿、差異、busy、原ID查詢/重試、dirty切換、DISABLED readonly與disabled樣式；非正常登入及雙端E2E |
+
+UI證據：output/qa/dev-123/ui-targeted-20261021/report.json、runtime.json及screenshots/。component SHA=ba47eef9c2fbd6b12c5f9da72f43e69d3a03bf66db82cfdecab97fa7725664e3，CSS SHA=4961951e53ba9c85948547189060a1aa3378291be8683fa7d330a2aac49dc67b；首欄84px、標籤與checkbox間距18.02px，三viewport/全部27畫面document均無水平overflow；browser/server已關且port已釋放。最初alias/fixture/transport/assertion harness失敗與修正前按鈕畫面均保留，不當產品失敗或正常登入驗收。
+
+本輪追加：候選重算canonical/role/profile身份hash及受保護語意，apply DB邊界再次驗證；相同actor/原requestId/payload成功結果可在後續版本或readiness改變後重播；歷史只恢復可編輯能力，保留current身份/status/frozen；inactive合法指派不干擾其他active role；自訂審核者依target capability且保留指定者/no-self；圖號/料號固定route與實際review kind傳server resourceGroup，未適配caller仍保守AND，原有model追加限制保留。舊share回填已移除，external direct/unreleased/無share或project binding拒絕，package另驗download。
 
 ### 15.3 尚未關閉的條件
 
-- migration 086未套用，`role_policy_state.mode`仍設計為`DISABLED`；OrgMaster migration 034初始`NOT_READY`。因此本輪不可能啟用dynamic apply，也沒有正式資料改動。
-- 多資源共用的legacy permission目前採全部列示action均成立才Allow，避免過度授權。若要讓單一角色只擁有drawing或part其中一類仍能走共用route，DEV-121／122須在caller或resource resolver提供精確target action，再做受影響回歸；此項是首次`ENABLED`前的功能收斂條件。
-- 52案whole、CG01/02、原生PostgreSQL migration/apply、正常browser操作、真實兩端連續往返、required CI、L4及production仍`NOT_RUN`；本機PASS只支持上述實際層級。
+- 正向ENABLED atomic apply、CAS／replay／rollback及正常domain兩端生命週期已有PG18實證；正常登入HTTP/browser仍待驗證；manager等待撤權／grant到期／identity-link到期已有原生正反證據，但非normal OrgMaster v2 command或全案PASS。
+- submission、原檔／ZIP、export讀取、Preview／recognition與transfer metadata已補caller；固定入口通過部分正反，完整20action/CG及正常登入UI尚未關閉。Owner／指定審核者限制保持；numbering export POST原Principal退休路徑未復活。
+- 外部project share只傳server typed read context，package download拒絕並隱藏原包按鈕；新增share conditional已有獨立actual page/mock API browser證據；正常登入未驗證。
+- 正式migration、required CI、正式L4／production未執行；QA52/24及CG分母保持。DEV121/122已納觀察main基線，不是上述本機工作的外部阻塞。
+
+### 15.4 較早本機快照（HISTORY_ONLY）
+
+以下保留各輪原始失敗、source及當時待驗狀態；目前續接以§15.5為準。
+
+2026-10-21 forward-only修正：staged DB boundary首次拒絕修改已提交034/086（即使未正式套用），原始失敗保留；未放寬checker。034/086已恢復HEAD原文，新增OrgMaster 035_dev058_ai_pdm_compatibility_definer_read.sql與PDM 087_dev123_role_policy_candidate_validation.sql。035只授PDM受控apply owner唯讀contract權；087補候選DB驗證及source profiles，僅在DISABLED/generation0且無dynamic publication時，以table lock復原086導入的衍生project_scope_key，pre-087分享保持NULL，tokens/packages/其他業務欄位不變，新分享仍由DB綁定且不可修改。正式執行仍在本任務排除範圍。新序列staged boundary已PASS（OrgMaster25／PDM24 governed files），原生PG18重驗已PASS（下段）。先前只改034/086的native PASS是舊source實驗證據，不移用成新序列PASS。
+
+
+2026-10-21新035/087原生PG18 fresh replay PASS：schema/ACL、雙邊contract read、候選內容正反、DISABLED拒絕及share binding/immutable均通過，維持NOT_READY/DISABLED。原始logs、fixtures、source hashes與cleanup統一引用OrgMaster QA§7及實作工作樹 output/qa/dev-058/native-pg-forward-only-20261021-010919/report.json，不重建多份證據台帳；非PG17 release、enabled atomic apply、正常登入UI、L4或production驗收。原始失敗及舊source結果保留。
+
+本輪續接基線：最新main只增加兩個owner-release recovery script的修正，沒有app/SQL/worker變更；58個任務修改經保存/還原後逐檔SHA一致，證據在output/qa/dev-123/upstream-integration-20261021-0130-before.json及-after.json。新fresh-fence程式已完成隔離build：126頁、artifact/primary/cleanup=true，相關app/build輸入未因這次main合併改變，可重用；非正式source/release證據。
+
+最新035/087 source的原生schema/ACL/validator smoke已PASS；首次loader啟動失敗、重跑結果及cleanup見OrgMaster QA§7與 output/qa/dev-058/native-pg-manager-schema-20261021-0133/report.json。新manager資格正例及鎖等待後的撤權/到期競爭仍未驗，不以schema成功冒充fresh授權行為已通過。
+
+
+### 15.5 本輪續接（2026-10-21，0254）
+
+本機核心整合已驗證，整體 DEV 仍 In Progress／正式 rollout disabled。
+
+| 現行入口 | 實際結果與證據範圍 |
+|---|---|
+| OrgMaster test:dev-058:contracts | 7檔37 PASS／1 SKIP；包含三類發布入口、JSONB roundtrip、legacy／未知hash格式及減權／舊draft回歸。SKIP是未帶獨立PG環境的原案例；另有下列native實證，不改其原SKIP旗標 |
+| AI-PDM test:dev-123:contracts | 48檔401 PASS＋Node6 PASS；typecheck／route map亦PASS，真實v7 vector及35／14欄契約一致 |
+| Build／DB boundary | PDM0227 isolated build PASS（126頁、artifact/primary/cleanup=true，主SQLite原本不存在且仍不存在、容量lease已釋放）；OrgMaster final audit-id build PASS；另有受影響governance store/API/command三檔32 PASS；最終staged DB boundary PASS（OrgMaster25／AI-PDM26 governed files），diff/cached diff check均PASS |
+| 隔離PG18 | actual PDM service create/save/preview/apply、同ID併發／重播、draft CAS、stale base與末端audit故障rollback PASS；actual OrgMaster decoder／v2-fenced指派與發布／PDM evaluator完整角色生命週期PASS |
+| Targeted browser | PDM role editor actual component/mock API：10 checks、27 screenshots；share actual page/mock API：4 cases、4 screenshots，1440/390無console error／水平overflow。正常登入／HTTP全旅程不在此主張內 |
+
+Native直接證據：OrgMaster實作工作樹 output/qa/dev-058/native-pg-bilateral-20261021-final/report.json。正常domain命令完成PDM新增角色→OrgMaster任用→PDM停用且立即不授權（Org任用歷史保留）→Org撤銷→PDM恢復且不復活任用→Org明確恢復，PDM才重新允許；最後generation=3。任用寫入走actual applyDraftCommand／publishGovernance與identity-fenced v2 writer，沒有用owner DML直接改測試中的任用。初始化workspace／governance／READY／ENABLED是明示owner fixture，Platform auth-state是stub、session為合成；不是正常HTTP／登入browser／Platform／PG17 release／production proof。八次原生執行的原始失敗log、後兩次PASS、來源hash及PID/start token／port／task root清理readback均已保存。
+
+這輪實證找到並修正JSONB key重排造成的歷史來源誤拒。新V3 publication與audit使用optional hashFormat=orgmaster.sorted-json.v1，先JSON value roundtrip再排序object keys，array順序保留；三類TS publisher均在同交易補綁版本ID／snapshotHash的audit；版本綁定使用獨立UUID commandId，原business commandId／auditReference／receipt不改。共用append在同一write lock／transaction拒絕任何已存在commandId；實際FMS重用內部publication ID回COMMAND_ID_REUSED且零寫入，原命令重送仍回原receipt。無marker的舊版本及audit沿原exact hash，unknown marker拒絕；commandHash／舊commands.canonicalJson、已套migration與舊receipt未改。部署前須唯讀確認既有未標記V3 audit是否含巢狀detail.scope等資料且仍能通過原exact chain驗證；若JSONB排序已失去原preimage，需先另行處理相容性，不以新marker補算或放寬舊驗證；本輪未讀正式資料，不能假稱已確認無此舊資料；既有bootstrap／rekey producer保持legacy且未執行。Legacy catalog metadata只忽略object key順序，欄位集合／值及array順序仍須完全相同。
+
+純減權發布依actual isGovernanceReduction與owner-bound歷史驗證，不把舊stored generation當live catalog CAS；新增／恢復仍驗current tuple、fresh actor及revision。切換active version時，舊draft只能用可信owner歷史證明可讀；authority仍取已發布版本，draft不能自行授權。
+
+PDM已補submission list/detail/search的canonical group與分頁前過濾、原檔／ZIP逐成員view+download及storage前後重驗、numbering export讀取的實際內容群組、Preview／recognition完整verified initiator及worker當前Principal/session/grant／實際來源重驗。088保留舊job NULL且提醒重試；089將transfer metadata綁定新registry hash。Org035與PDM086～089只套於task-owned PG18，正式migration／資料／部署／traffic／IAM／Secret均未操作；source初始仍NOT_READY/revision0及DISABLED/generation0。
+
+尚未關閉：正常登入HTTP/browser旅程、20action全部caller與CG01/02逐案驗收、QA24/52完整case closure、required CI及另行授權的正式首次切換。上述局部PASS只支持實際層級；不以mock browser或native synthetic session冒充正式L4。DEV121/122最新觀察main=8632026ebe1890672778d8d231ba8a0af3a7e3dd已合入PDM分支728b58e80c8655a6ec9b99fdfb2bfb2c8f8d0aa4，77個任務檔raw SHA保留；同範圍待驗不推成外部任務阻塞。

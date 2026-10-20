@@ -5628,10 +5628,6 @@
       "legacyOperationBindings": [
         {
           "kind": "action",
-          "code": "transfer.package.view"
-        },
-        {
-          "kind": "action",
           "code": "handoff.published.view"
         },
         {
@@ -5644,28 +5640,6 @@
         }
       ],
       "routeBindings": [
-        {
-          "legacyCode": "transfer.package.view",
-          "path": "src/app/api/transfer-packages/[id]/route.ts",
-          "method": "GET",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "transfer.package.view",
-          "authorizationTarget": "transfer.package.view",
-          "scopeResolver": "workspace",
-          "preservedGuards": "workspace＋package company／read-only snapshot"
-        },
-        {
-          "legacyCode": "transfer.package.view",
-          "path": "src/app/api/transfer-packages/[id]/readiness-summary/route.ts",
-          "method": "GET",
-          "discriminator": null,
-          "authorizationMode": "permission",
-          "permissionCode": "transfer.package.view",
-          "authorizationTarget": "transfer.package.view",
-          "scopeResolver": "workspace",
-          "preservedGuards": "workspace＋read-only readiness snapshot／package company"
-        },
         {
           "legacyCode": "handoff.published.view",
           "path": "src/app/api/handoff/[id]/release-package/route.ts",
@@ -5734,18 +5708,6 @@
         }
       ],
       "callerBindings": [
-        {
-          "legacyCode": "transfer.package.view",
-          "caller": "src/app/api/technical-transfer/route.ts"
-        },
-        {
-          "legacyCode": "transfer.package.view",
-          "caller": "src/app/api/transfer-packages/[id]/readiness-summary/route.ts"
-        },
-        {
-          "legacyCode": "transfer.package.view",
-          "caller": "src/app/api/transfer-packages/[id]/route.ts"
-        },
         {
           "legacyCode": "handoff.published.view",
           "caller": "src/app/api/handoff/export/route.ts"
@@ -7234,7 +7196,6 @@
       "resourceKind": "server-resolved",
       "operation": "mapped-by-resource-and-operation",
       "requiredActions": [
-        "pdm.transfer.download",
         "pdm.transfer.view"
       ]
     },

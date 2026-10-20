@@ -37,5 +37,6 @@ export async function rolePolicyWriteRoute(request: Request, routePath: string,
   return withPrincipalCompanyWrite(request, routePath, permission, async (client, company, verified) => {
     try { return dataResponse(await handler(client, company, verified, body), status) }
     catch (error) { return rolePolicyErrorResponse(error) }
-  })
+  }, { isolationLevel: routePath === 'src/app/api/settings/access/role-policies/applications/route.ts'
+    ? 'read_committed' : 'serializable' })
 }

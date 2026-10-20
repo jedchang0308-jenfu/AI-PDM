@@ -1,6 +1,6 @@
 # ADR PDM ROLE POLICY 001 應用自有角色權限與單一原子套用
 
-建立：2026-10-12；修訂：2026-10-21。Owner：`AIPDM/DEV-123`。架構定案：**產品、安全與相容邊界已定；RD可採等效實作**。Local Implementation Verified / Rollout Disabled；本機source、API、UI、forward migration及雙邊契約已交付，正式migration、L4與啟用NOT_RUN。[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)定義資料/API與當前證據，[本輪五點](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)記替換關係。
+建立：2026-10-12；修訂：2026-10-21。Owner：`AIPDM/DEV-123`。架構定案：**產品、安全與相容邊界已定；RD可採等效實作**。Local Implementation In Progress / Rollout Disabled；本機source、API、UI、forward migration及雙邊契約已交付，正式migration、L4與啟用NOT_RUN。[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)定義資料/API與當前證據，[本輪五點](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)記替換關係。
 
 ## Context
 
@@ -39,7 +39,7 @@
 
 合併紀錄的讀取資格靠server投影/裁剪，append-only與同交易保留；不將一般公司read擴為跨公司人員資訊。角色停用保留任用/history，恢復只採仍合法指派，system保護/原scope/priority/no-self不變。
 
-RD能選內部實作，但不能放寬以上結果、資料責任或外部契約。沒有量測前不宣稱效能/工時改善；目前僅文件自查，無DB/UI/L4或獨立QC PASS。
+RD能選內部實作，但不能放寬以上結果、資料責任或外部契約。沒有量測前不宣稱效能/工時改善；目前有契約/單元、build及mock-API component browser部分證據，無完整DB apply、正常登入L4或獨立QC PASS。
 
 ## Migration and compatibility
 
@@ -53,6 +53,11 @@ OrgMaster以`ORGMASTER/DEV-058`實作14欄compatibility_v2、dynamic current/his
 
 ## Implementation status 2026-10-21
 
-決策已落成registry、draft/save/preview/apply/command/history API、設定UI、migration 086、dynamic authorization reader及project-bound share。AI-PDM固定入口、型別、route map、DB boundary與隔離build通過；OrgMaster真實14欄consumer與vector亦由固定入口核對。
+首版registry、draft/save/preview/apply/command/history API、設定UI、migration 086、dynamic reader/evaluator及project-bound新share已交付；25檔227項＋Node4項契約/單元、型別、route map、DB boundary及部分隔離build通過。actual component/mock API browser 10 checks、27 screenshots通過，非正常登入或雙端E2E。
 
-首次啟用仍受兩項系統阻擋：AI-PDM policy mode初始`DISABLED`，OrgMaster compatibility初始`NOT_READY`。多資源共用legacy route的精確target action仍須隨DEV-121／122 caller/resource resolver收斂；目前採保守AND而不過度授權。未執行migration、browser/L4、required CI或production。
+整體In Progress：apply鎖等待後fresh管理授權已接OrgMaster versioned fence與READ COMMITTED重驗，原生競爭仍待驗；剩餘generic/混合資源caller、worker/配送待收斂。這些屬DEV-058/123的開發，非只等DEV-121/122完成。正式migration/rollout未執行，初始DISABLED/NOT_READY不變。完整52/24、CG、native atomic apply、正常UI/L4、required CI及production未驗收；最新證據沿SPEC§15、QA§7，不新增治理台帳。
+
+2026-10-21 forward-only修正：staged DB boundary首次拒絕修改已提交034/086（即使未正式套用），原始失敗保留；未放寬checker。034/086已恢復HEAD原文，新增OrgMaster 035_dev058_ai_pdm_compatibility_definer_read.sql與PDM 087_dev123_role_policy_candidate_validation.sql。035只授PDM受控apply owner唯讀contract權；087補候選DB驗證及source profiles，僅在DISABLED/generation0且無dynamic publication時，以table lock復原086導入的衍生project_scope_key，pre-087分享保持NULL，tokens/packages/其他業務欄位不變，新分享仍由DB綁定且不可修改。正式執行仍在本任務排除範圍。新序列staged boundary已PASS（OrgMaster25／PDM24 governed files），原生PG18重驗已PASS（下段）。先前只改034/086的native PASS是舊source實驗證據，不移用成新序列PASS。
+
+
+2026-10-21新035/087原生PG18 fresh replay PASS：schema/ACL、雙邊contract read、候選內容正反、DISABLED拒絕及share binding/immutable均通過，維持NOT_READY/DISABLED。原始logs、fixtures、source hashes與cleanup統一引用OrgMaster QA§7及實作工作樹 output/qa/dev-058/native-pg-forward-only-20261021-010919/report.json，不重建多份證據台帳；非PG17 release、enabled atomic apply、正常登入UI、L4或production驗收。原始失敗及舊source結果保留。

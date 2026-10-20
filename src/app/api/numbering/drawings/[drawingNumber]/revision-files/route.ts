@@ -9,6 +9,7 @@ import { requestedNumberingCompanyCodeFromRequest, resolveNumberingCompanyContex
 import { requireNumberingActionAsync } from "@/lib/numbering-permission-guard";
 import { masterAttachmentStatusFromError } from "@/lib/master-attachment-response";
 import { findExactRevisionFileReuse } from "@/lib/revision-file-idempotency";
+import { isNativeSolidWorksPreviewSource } from "@/lib/preview-derivatives";
 
 export const runtime = "nodejs";
 
@@ -75,7 +76,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ dra
           attachmentId: attachment.id
         })
       : attachment;
-    return NextResponse.json({ attachment: responseAttachment, role, reuse: role === "cad_3d" && reuse ? { ...reuse, reconciled } : null }, { status: 201 });
+    return NextResponse.json({ attachment: responseAttachment, role,
+      reuse: role === "cad_3d" && reuse ? { ...reuse, reconciled } : null,
+      ...(isNativeSolidWorksPreviewSource(attachment.fileExt) ? { previewQueueNotice: {
+        code: "PREVIEW_NOT_QUEUED_PRINCIPAL_CONTEXT_REQUIRED",
+        message: "原檔已上傳，但此舊版上傳入口不會自動排程預覽；請在附件預覽指令中重新產生。"
+      } } : {})
+    }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "DRAWING_REVISION_FILE_CREATE_FAILED";
     if (message === "MASTER_ATTACHMENT_DUPLICATE_ACTIVE_FILE") {

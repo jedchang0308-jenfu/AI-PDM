@@ -302,6 +302,56 @@ describe("DEV-005 EntitlementRepository", () => {
     })).rejects.toMatchObject({ code: "permission_not_granted" });
   });
 
+  it("narrows a generic legacy action only to the server-resolved target, retaining model guards", async () => {
+    const custom = {
+      stableRoleId: "role-custom-10000000-0000-4000-8000-000000000099",
+      roleCode: "custom_10000000000040008000000000000099", displayName: "Drawing reviewer",
+      assignable: true, risk: "normal" as const, subjectKind: "employee" as const,
+      recommendationAllowed: true, delegationAllowed: true, allowedScopeKinds: ["workspace" as const],
+      assignmentTier: "app_admin" as const, roleDefinitionHash: "custom-test",
+      permissions: [{ kind: "action" as const, code: "pdm.drawing.review", allowed: true },
+        { kind: "action" as const, code: "pdm.drawing.publish", allowed: true }]
+    };
+    const source = repository({ assignmentRows: [{ ...assignment, stable_role_id: custom.stableRoleId,
+      role_code: custom.roleCode }] }, {
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000099", roles: [custom]
+    });
+    const input = { actor, rolePriority: [], permissionKind: "action" as const,
+      permissionCode: "approval.request.decide", workspaceCode: "company-jenfu" };
+    await expect(source.evaluatePermission({ ...input, resourceGroup: "drawing" }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: custom.roleCode } });
+    await expect(source.evaluatePermission({ ...input, resourceGroup: "part" }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    await expect(source.evaluatePermission(input)).rejects.toMatchObject({ code: "permission_not_granted" });
+    await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroup: "drawing" }))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    custom.permissions.push({ kind: "action", code: "pdm.model.publish", allowed: true });
+    await expect(source.evaluatePermission({ ...input, permissionCode: "numbering.publish", resourceGroup: "drawing" }))
+      .resolves.toMatchObject({ decisionCode: "allowed" });
+  });
+
+  it("skips an inactive high-priority grant without poisoning an active role", async () => {
+    const role = {
+      stableRoleId: "role-rd", roleCode: "rd", displayName: "RD", assignable: true,
+      risk: "normal" as const, subjectKind: "employee" as const, recommendationAllowed: true,
+      delegationAllowed: true, allowedScopeKinds: ["workspace" as const], assignmentTier: "app_admin" as const,
+      roleDefinitionHash: "rd", permissions: [{ kind: "action" as const, code: "pdm.drawing.view", allowed: true }]
+    };
+    const inactive = { ...role, stableRoleId: "role-qa", roleCode: "qa", roleStatus: "inactive" as const,
+      permissions: [{ kind: "action" as const, code: "pdm.drawing.view", allowed: false }] };
+    const activeCatalog = { catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000012",
+      roles: [role, inactive] };
+    const input = { actor, rolePriority: ["qa", "rd"], permissionKind: "action" as const,
+      permissionCode: "pdm.drawing.view", workspaceCode: "company-jenfu" };
+    const qaGrant = { ...assignment, assignment_id: "qa-assignment", stable_role_id: "role-qa", role_code: "qa" };
+    await expect(repository({ assignmentRows: [qaGrant, assignment] }, activeCatalog).evaluatePermission(input))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
+    await expect(repository({ assignmentRows: [qaGrant] }, activeCatalog).evaluatePermission(input))
+      .rejects.toMatchObject({ code: "permission_not_granted" });
+    await expect(repository({ assignmentRows: [{ ...qaGrant, subject_kind: "principal" }] }, activeCatalog)
+      .evaluatePermission(input)).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+
   it("rejects duplicate rows and the 32-row safety bound", async () => {
     await expect(repository({ assignmentRows: [assignment, { ...assignment, assignment_id: "assignment-duplicate" }] }).listEffectiveAssignments(actor))
       .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
@@ -351,5 +401,23 @@ describe("DEV-005 EntitlementRepository", () => {
     await expect(repository().listEffectiveAssignments({
       ...actor, identitySubject: "not-published"
     })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
+  });
+  it("allows transfer metadata with view-only dynamic permission while byte download still requires download", async () => {
+    const viewOnlyCatalog: JenfuEntitlementRoleCatalog = {
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000013",
+      roles: [{
+        stableRoleId: "role-rd", roleCode: "rd", displayName: "RD", assignable: true,
+        risk: "normal", subjectKind: "employee", recommendationAllowed: true,
+        delegationAllowed: true, allowedScopeKinds: ["workspace"], assignmentTier: "app_admin",
+        permissions: [{ kind: "action", code: "pdm.transfer.view", allowed: true }],
+        roleDefinitionHash: "dynamic-transfer-view-only"
+      }]
+    }
+    const source = repository({}, viewOnlyCatalog)
+    const input = { actor, rolePriority: [], permissionKind: "action" as const, workspaceCode: "company-jenfu" }
+    await expect(source.evaluatePermission({ ...input, permissionCode: "transfer.package.view" }))
+      .resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } })
+    await expect(source.evaluatePermission({ ...input, permissionCode: "pdm.transfer.download" }))
+      .rejects.toMatchObject({ code: "permission_not_granted" })
   });
 });

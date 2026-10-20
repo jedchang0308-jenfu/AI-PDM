@@ -1,10 +1,23 @@
 import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
-const mocks = vi.hoisted(()=>({read:vi.fn()}));
-vi.mock("@/lib/file-storage", async original=>({...await original<typeof import("@/lib/file-storage")>(),
-  createFileStorageServiceForPointer:()=>({readObject:mocks.read})}));
-import { readClaimedPreviewSourceAsync } from "@/lib/preview-derivatives";
+import { PrincipalJobAuthorityError, type PrincipalJobInitiator } from "@/lib/principal-job-authority";
+
+const mocks = vi.hoisted(() => ({
+  read: vi.fn(), putObject: vi.fn(), authority: vi.fn()
+}));
+vi.mock("@/lib/file-storage", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/file-storage")>(),
+  createFileStorageServiceForPointer: () => ({ readObject: mocks.read }),
+  createFileStorageService: () => ({ putObject: mocks.putObject })
+}));
+vi.mock("@/lib/principal-job-authority", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/principal-job-authority")>(),
+  requireCurrentPrincipalJobAuthority: mocks.authority
+}));
+
+import { completePreviewJobAsync, readClaimedPreviewSourceAsync } from "@/lib/preview-derivatives";
+
 const bytes = Buffer.from("preview-source");
 const digest = createHash("sha256").update(bytes).digest("hex");
 let job: Record<string,unknown>; let source: Record<string,unknown>; let companyValid:boolean; let holderValid:boolean;

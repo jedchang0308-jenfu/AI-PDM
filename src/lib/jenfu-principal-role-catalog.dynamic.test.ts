@@ -45,13 +45,14 @@ describe("DEV-123 dynamic principal catalog reader", () => {
       .toContainEqual({ kind: "action", code: "pdm.drawing.view", allowed: true });
   });
 
-  it("removes inactive canonical and alias identities from authorization and rejects hash drift", () => {
+  it("retains validated inactive canonical and alias tombstones and rejects hash drift", () => {
     const version = "ai-pdm.role-policy.10000000-0000-4000-8000-000000000010";
     const { candidate } = applyRolePolicyDraftChanges({ candidate: buildDefaultRolePolicyCandidate(version),
       roleChanges: [{ type: "deactivate", stableRoleId: "role-procurement" }], changes: [] });
     const projection = rows(candidate);
     const catalog = decodePublishedPrincipalCatalogRows(projection);
-    expect(catalog.roles.some(role => ["role-production-planning", "role-procurement"].includes(role.stableRoleId))).toBe(false);
+    expect(catalog.roles.filter(role => ["role-production-planning", "role-procurement"].includes(role.stableRoleId))
+      .map(role => role.roleStatus)).toEqual(["inactive", "inactive"]);
     expect(() => decodePublishedPrincipalCatalogRows(projection.map((row, index) =>
       index === 0 ? { ...row, role_profile_hash: "0".repeat(64) } : row))).toThrow("principal_dependency_unavailable");
   });

@@ -56,7 +56,7 @@ export type VerifiedPrincipalRequest = {
 export async function withVerifiedJenfuPrincipalRequest<TResult>(
   input: PrincipalRequestInput,
   evaluate: (client: AsyncDatabaseClient, verified: VerifiedPrincipalRequest) => Promise<TResult>,
-  options: { readOnly?: boolean; isolationLevel?: "repeatable_read" | "serializable" } = {}
+  options: { readOnly?: boolean; isolationLevel?: "read_committed" | "repeatable_read" | "serializable" } = {}
 ): Promise<TResult> {
   const nowSeconds = input.nowSeconds ?? Math.floor(Date.now() / 1000);
   let claims;

@@ -16,3 +16,6 @@ supabase/migrations/manifest.json text eol=lf
 /.ai-doc/qa/DEV-122-B35-secret-version-iam-human-approval-2026-10-10.json text eol=lf
 /scripts/lib/dev122-openswx-secret-version-iam.mjs text eol=lf
 /scripts/dev122-openswx-secret-version-iam.mjs text eol=lf
+
+# Byte-identical copy of the OrgMaster DEV-058 manager contract.
+config/access-control/orgmaster-role-policy-manager-v1.manifest.json text eol=lf

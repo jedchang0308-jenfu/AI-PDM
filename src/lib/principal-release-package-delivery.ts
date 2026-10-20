@@ -22,8 +22,21 @@ export type AuthorizedReleasePackage = {
 
 /** One audited delivery path for submission, handoff and procurement reads. */
 export async function deliverPrincipalReleasePackage(
-  request: Request, submissionId: string, route: string, authorized: AuthorizedReleasePackage
+  request: Request, submissionId: string, route: string, authorized: AuthorizedReleasePackage,
+  reauthorize: () => Promise<Response | AuthorizedReleasePackage>
 ): Promise<Response> {
+  const fresh = await reauthorize();
+  if (fresh instanceof Response) return fresh;
+  if (fresh.principalId !== authorized.principalId || fresh.profileId !== authorized.profileId ||
+      fresh.companyId !== authorized.companyId || fresh.shareId !== authorized.shareId ||
+      fresh.releasePackage.id !== authorized.releasePackage.id ||
+      fresh.releasePackage.submission_id !== authorized.releasePackage.submission_id ||
+      fresh.releasePackage.sha256 !== authorized.releasePackage.sha256 ||
+      Number(fresh.releasePackage.file_size) !== Number(authorized.releasePackage.file_size) ||
+      getReleasePackageStorageKey(fresh.releasePackage) !== getReleasePackageStorageKey(authorized.releasePackage)) {
+    return Response.json({ code: 'principal_resource_changed' },
+      { status: 409, headers: { 'cache-control': 'private, no-store' } });
+  }
   submissionId = authorized.submissionId ?? submissionId;
   const storageKey = getReleasePackageStorageKey(authorized.releasePackage);
   const bytes = await readReleasePackage(authorized.releasePackage);

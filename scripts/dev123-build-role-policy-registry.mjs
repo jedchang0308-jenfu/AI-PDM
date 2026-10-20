@@ -38,7 +38,7 @@ const legacyByAction = {
   'model:review': [],
   'model:publish': ['numbering.publish', 'transfer.package.publish', 'manufacturing.baseline.release', 'submission.retry'],
   'transfer:view': ['transfer.package.view', 'handoff.published.view', 'manufacturing.baseline.view', 'integration.procurement.view', 'submission.view'],
-  'transfer:download': ['transfer.package.view', 'handoff.published.view', 'manufacturing.baseline.view', 'integration.procurement.view'],
+  'transfer:download': ['handoff.published.view', 'manufacturing.baseline.view', 'integration.procurement.view'],
   'transfer:edit': ['transfer.package.create', 'transfer.package.update', 'transfer.package.review.submit', 'transfer.package.review.withdraw', 'manufacturing.baseline.manage', 'submission.create', 'submission.update', 'submission.share'],
   'transfer:review': ['submission.review', 'submission.decide', 'submission.lifecycle.decide', 'approval.request.decide', 'approval.request.apply'],
   'transfer:publish': ['transfer.package.publish', 'manufacturing.baseline.release', 'submission.retry']

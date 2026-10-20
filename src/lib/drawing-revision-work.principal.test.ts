@@ -176,10 +176,10 @@ describe("principal drawing revision work read", () => {
   it("projects only granted interactions for the verified principal and owner", async () => {
     const result = await new DrawingRevisionWorkService(client).readPrincipal("work-one", verified);
     expect(mocks.evaluate).toHaveBeenCalledWith(client, verified, [
-      { permissionKind: "action", permissionCode: "numbering.workspace.view" },
-      { permissionKind: "action", permissionCode: "numbering.workspace.update" },
-      { permissionKind: "action", permissionCode: "numbering.candidate.review.submit" },
-      { permissionKind: "action", permissionCode: "numbering.workspace.cancel" }
+      { permissionKind: "action", permissionCode: "numbering.workspace.view", resourceGroup: "drawing" },
+      { permissionKind: "action", permissionCode: "numbering.workspace.update", resourceGroup: "drawing" },
+      { permissionKind: "action", permissionCode: "numbering.candidate.review.submit", resourceGroup: "drawing" },
+      { permissionKind: "action", permissionCode: "numbering.workspace.cancel", resourceGroup: "drawing" }
     ]);
     expect(result.data.readonly).toBe(true);
     expect(result.data.interaction).toMatchObject({
@@ -271,10 +271,10 @@ describe("principal drawing revision work read", () => {
         expectedRowVersion: 2, idempotencyKey: "submit-one" });
     expect(result.requestId).toBe("request-one");
     expect(mocks.evaluate).toHaveBeenCalledWith(client, verified, [
-      { permissionKind: "action", permissionCode: "numbering.candidate.review.submit" }
+      { permissionKind: "action", permissionCode: "numbering.candidate.review.submit", resourceGroup: "drawing" }
     ]);
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client,
-      { companyId: "company-one", ownerUserId: "profile-one" });
+      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing" });
   });
 
   it("submits through the principal reviewer and v2 package without legacy role selection", async () => {
@@ -286,7 +286,7 @@ describe("principal drawing revision work read", () => {
       rowVersion: 1 });
     expect(mocks.readWork).toHaveBeenCalledWith(client, "company-one", "work-one", true);
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client,
-      { companyId: "company-one", ownerUserId: "profile-one" });
+      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing" });
     expect(mocks.selectLegacyReviewer).not.toHaveBeenCalled();
     expect(mocks.buildReviewPackage).toHaveBeenCalledWith(client,
       expect.objectContaining({ companyId: "company-one",
@@ -315,7 +315,7 @@ describe("principal drawing revision work read", () => {
       required: true
     });
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client, {
-      companyId: "company-one", ownerUserId: "profile-one", requirePublish: true
+      companyId: "company-one", ownerUserId: "profile-one", requirePublish: true, resourceGroup: "drawing"
     });
     const packageInput = mocks.buildReviewPackage.mock.calls[0]?.[1] as {
       decisionBasis: { payload: Record<string, unknown>; hash: string;
@@ -346,7 +346,7 @@ describe("principal drawing revision work read", () => {
     expect(mocks.readSourceState).toHaveBeenCalledWith(client, "company-one",
       "11111111-1111-4111-8111-111111111111", true);
     expect(mocks.selectPrincipalReviewer).toHaveBeenCalledWith(client,
-      { companyId: "company-one", ownerUserId: "profile-one" });
+      { companyId: "company-one", ownerUserId: "profile-one", resourceGroup: "drawing" });
     expect(mocks.selectLegacyReviewer).not.toHaveBeenCalled();
     expect(mocks.buildReviewPackage).toHaveBeenCalledWith(client,
       expect.objectContaining({ companyId: "company-one",
@@ -389,7 +389,7 @@ describe("principal drawing revision work read", () => {
       { contractToken: "contract-one", expectedRowVersion: 2,
         idempotencyKey: "void-one" })).resolves.toMatchObject({ requestId: "request-one" });
     expect(mocks.evaluate).toHaveBeenCalledWith(client, verified, [
-      { permissionKind: "action", permissionCode: "numbering.draft.obsolete" }
+      { permissionKind: "action", permissionCode: "numbering.draft.obsolete", resourceGroup: "drawing" }
     ]);
   });
 
@@ -493,7 +493,7 @@ describe("principal drawing revision work read", () => {
       "request-one", "approve", verified, { contractToken: "contract-one",
         expectedRowVersion: 1, idempotencyKey: "approve-major" });
     expect(mocks.evaluate).toHaveBeenNthCalledWith(2, client, verified, [
-      { permissionKind: "action", permissionCode: "numbering.publish" }
+      { permissionKind: "action", permissionCode: "numbering.publish", resourceGroup: "drawing" }
     ]);
     expect(mocks.formalize).toHaveBeenCalledWith(client,
       expect.objectContaining({ companyId: "company-one",
@@ -594,7 +594,7 @@ describe("principal drawing revision work read", () => {
         expectedRowVersion: 1, idempotencyKey: "approve-major-v1" }))
       .rejects.toMatchObject({ code: "WORKBENCH_REVIEW_PACKAGE_INVALID", status: 409 });
     expect(mocks.evaluate).toHaveBeenNthCalledWith(2, client, verified, [
-      { permissionKind: "action", permissionCode: "numbering.publish" }
+      { permissionKind: "action", permissionCode: "numbering.publish", resourceGroup: "drawing" }
     ]);
     expect(mocks.readMasterLifecycleBasis).not.toHaveBeenCalled();
     expect(mocks.beginApproval).not.toHaveBeenCalled();

@@ -100,6 +100,17 @@ describe("Principal historical submission list", () => {
     }));
   });
 
+  it("passes server-computed dynamic visible IDs into both row and metric SQL callers", async () => {
+    mocks.scope.mockResolvedValue({ visibleSubmissionIds: ["drawing-one", "mixed-two"] });
+    expect((await GET(request())).status).toBe(200);
+    expect(mocks.list).toHaveBeenCalledWith(expect.objectContaining({
+      visibleSubmissionIds: ["drawing-one", "mixed-two"]
+    }));
+    expect(mocks.metrics).toHaveBeenCalledWith(expect.objectContaining({
+      visibleSubmissionIds: ["drawing-one", "mixed-two"]
+    }));
+  });
+
   it("returns grant and company denial before reading any submission data", async () => {
     mocks.scope.mockResolvedValueOnce(Response.json({ error: "permission_not_granted" }, { status: 403 }));
     expect((await GET(request())).status).toBe(403);

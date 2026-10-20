@@ -13,6 +13,8 @@ import { requirePublishedPrincipalCatalog } from "@/lib/jenfu-principal-role-cat
 export type PrincipalWorkspacePermission = {
   permissionKind: "page" | "action";
   permissionCode: string;
+  /** Canonical resource group selected by the server, never request payload. */
+  resourceGroup?: "drawing" | "part" | "model" | "transfer";
 };
 export type PrincipalResourceScope = { workspaceCode?: string | null; projectCode?: string | null };
 
@@ -83,8 +85,9 @@ export async function evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(
     const rolePriority = await new AsyncAccessControlRepository(snapshot).getEnforcedRolePriority([]);
     const publishedCatalog = await requirePublishedPrincipalCatalog(snapshot);
     const evaluated = await new JenfuEntitlementRepository(snapshot, publishedCatalog).evaluatePermissions(
-      permissions.map(({ permissionKind, permissionCode }) => ({
+      permissions.map(({ permissionKind, permissionCode, resourceGroup }) => ({
         actor, permissionKind, permissionCode,
+        ...(resourceGroup ? { resourceGroup } : {}),
         workspaceCode: resource.workspaceCode ?? actor.companyId,
         projectCode: resource.projectCode ?? null,
         rolePriority

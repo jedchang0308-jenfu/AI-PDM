@@ -76,7 +76,8 @@ class PrincipalWriteRejected extends Error {
 export async function withPrincipalCompanyWrite(
   request: Request, routePath: string, permissionCode: string,
   write: (snapshot: AsyncDatabaseClient, company: PdmCompanyContext,
-    verified: VerifiedPrincipalRequest) => Promise<Response>
+    verified: VerifiedPrincipalRequest) => Promise<Response>,
+  options: { isolationLevel?: "read_committed" | "serializable" } = {}
 ): Promise<Response> {
   const policy = resolveJenfuRoutePolicyFromRequest(request, permissionCode);
   if (request.method !== "POST" || policy?.path !== routePath ||
@@ -103,7 +104,7 @@ export async function withPrincipalCompanyWrite(
       // not accidentally commit that partial write.
       if (!response.ok) throw new PrincipalWriteRejected(response);
       return response;
-    }, { readOnly: false, isolationLevel: "serializable" });
+    }, { readOnly: false, isolationLevel: options.isolationLevel ?? "serializable" });
   } catch (error) {
     if (error instanceof PrincipalWriteRejected) return error.response;
     return principalRequestFailure(error);

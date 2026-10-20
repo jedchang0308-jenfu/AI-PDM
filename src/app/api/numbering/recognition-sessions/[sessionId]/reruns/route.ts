@@ -18,6 +18,7 @@ export async function POST(request: Request, context: { params: Promise<{ sessio
         sessionId: requireSafeRecognitionId(sessionId, "RECOGNITION_SESSION_ID_INVALID"),
         companyId: access.company.companyId, actorId: access.actor.pdmUserId,
         initiatorPrincipalId: verified.session.principalId,
+        verifiedInitiator: verified,
         roles: decision.roleCode ? [decision.roleCode] : [], client: snapshot
       })
     });

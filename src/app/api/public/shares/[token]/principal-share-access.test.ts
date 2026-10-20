@@ -50,6 +50,12 @@ describe("Principal-only public share routes", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 
+  it('does not offer a download link for the external project view-only delivery', async () => {
+    mocks.getAuthorizedShare.mockResolvedValue({ share, submission, externalProjectContext: { originalAssignmentId: 'assignment-one' } });
+    expect((await getShare(request(), { params: Promise.resolve({ token: 'opaque-token' }) })).status).toBe(200);
+    expect(mocks.serialize).toHaveBeenCalledWith(submission, 'opaque-token', share.id, snapshot, false);
+  });
+
   it("uses Principal checksum-audited delivery for a share package", async () => {
     const response = await getPackage(request(), { params: Promise.resolve({ token: "opaque-token" }) });
     expect(response.status).toBe(200);
@@ -59,7 +65,7 @@ describe("Principal-only public share routes", () => {
       "/api/public/shares/[token]/package", expect.objectContaining({
         principalId: "principal-one", profileId: "profile-one", companyId: "company-one",
         shareId: "share-one", accessKind: "public_share_package", externalAccess: true
-      }));
+      }), expect.any(Function));
   });
 
   it("SHARE-PRINCIPAL-001 propagates unauthenticated denial before any public share selector lookup", async () => {

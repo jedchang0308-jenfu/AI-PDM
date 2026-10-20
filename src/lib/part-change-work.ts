@@ -35,7 +35,7 @@ export class PartChangeWorkService {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
     const [capability] = await evaluatePrincipalWorkspacePermissionsInSnapshot(client,
-      verified, [{ permissionKind: "action", permissionCode }]);
+      verified, [{ permissionKind: "action", permissionCode, resourceGroup: "part" }]);
     if (!capability?.allowed) {
       throw new CanonicalWorkbenchError("WORKBENCH_BAD_REQUEST", "無權限執行此操作", 403);
     }
@@ -75,7 +75,7 @@ export class PartChangeWorkService {
     const { companyId, actorId } = await this.requirePrincipalCapability(verified,
       "numbering.workspace.view");
     const [update] = await evaluatePrincipalWorkspacePermissionsInSnapshot(this.client,
-      verified, [{ permissionKind: "action", permissionCode: "numbering.workspace.update" }]);
+      verified, [{ permissionKind: "action", permissionCode: "numbering.workspace.update", resourceGroup: "part" }]);
     const result = await this.read(workId, {
       id: actorId, companyId, canEditNonOwned: false,
       permissions: { create: false, update: false, submit: false,
@@ -205,7 +205,7 @@ export class PartChangeWorkService {
     const reviewRepository = new PdmWorkReviewAsyncRepository(tx);
     const reviewerUserId = principalOnly
       ? await selectPrincipalReviewerInSnapshot(tx,
-        { companyId, ownerUserId: locked.owner_user_id, ...(lifecycle?.intent === "first_release" ? { requirePublish: true } : {}) })
+        { companyId, ownerUserId: locked.owner_user_id, resourceGroup: 'part', ...(lifecycle?.intent === "first_release" ? { requirePublish: true } : {}) })
       : await reviewRepository.selectReviewer(tx,
         { companyId, ownerUserId: locked.owner_user_id });
     const snapshotPayload = typeof locked.proposed_payload === "string"

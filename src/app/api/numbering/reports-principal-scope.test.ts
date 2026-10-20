@@ -2,11 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   token: vi.fn(), principalRead: vi.fn(),
-  listJobs: vi.fn(), getJob: vi.fn(), listReports: vi.fn(), getReport: vi.fn()
+  listJobs: vi.fn(), getJob: vi.fn(), listReports: vi.fn(), getReport: vi.fn(),
+  dynamicPolicy: vi.fn(), authorizeExportResult: vi.fn()
 }));
 vi.mock("@/lib/jenfu-principal-http", () => ({ principalSessionTokenFromRequest: mocks.token }));
 vi.mock("@/lib/principal-numbering-read", () => ({
   withPrincipalNumberingCompanyRead: mocks.principalRead
+}));
+vi.mock("@/lib/principal-resource-capability", () => ({
+  isDynamicRolePolicyInSnapshot: mocks.dynamicPolicy
+}));
+vi.mock("@/lib/numbering-export-job-capability", () => ({
+  authorizeNumberingExportJobResultInSnapshot: mocks.authorizeExportResult
 }));
 vi.mock("@/lib/repositories/numbering-async-repository", () => ({
   AsyncNumberingRepository: class {
@@ -48,6 +55,8 @@ describe("DEV-121 Principal-only report reads", () => {
     mocks.token.mockReturnValue("principal-session");
     mocks.principalRead.mockImplementation(async (_request, _permission, read) =>
       read(snapshot, company));
+    mocks.dynamicPolicy.mockResolvedValue(false);
+    mocks.authorizeExportResult.mockResolvedValue(null);
     mocks.listJobs.mockResolvedValue([{ id: "job-1" }]);
     mocks.getJob.mockResolvedValue({ id: "job-1" });
     mocks.listReports.mockResolvedValue([{ id: "report-1" }]);
