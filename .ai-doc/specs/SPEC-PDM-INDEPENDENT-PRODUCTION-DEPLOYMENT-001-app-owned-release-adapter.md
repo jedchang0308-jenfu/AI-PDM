@@ -559,7 +559,7 @@ Probe以第一個 native PASS 為 ledger readback：必須 `applied=0`、`ledger
 
 ### 26.3 Change-scoped validation executor（CAPA-002）
 
-Protected required checks、official-source review、single capsule、recovery及production authorization不變。`scripts/plan-production-slice.mjs`是唯一 gate selector，依 base/head changed paths產生 versioned plan；owner prepare與 CI 只可依該 plan 執行 `scripts/run-production-slice-tests.mjs` 的 applicable groups。純 authorization 不再隱含 database、dbBoundary、nativePostgres 或 migration；只有實際 database path 或 `FULL` 才啟用這些 gate。authorization、database、worker、preview、recognition 也不得因未改其他 responsibility 而載入其歷史 queue。
+Protected required checks、official-source review、single capsule、recovery及production authorization不變。AI-PDM目前的 PostgreSQL required check 顯示名稱為 `AI-PDM Isolated PostgreSQL Cutover`；它承接歷史來源 `Platform DEV-012`，不再以 AI-PDM 已完成的本地 `DEV-012` 任務名稱作為 current gate。sealed historical source proof 可讀取舊名稱，但 current protected branch 必須使用新名稱。`scripts/plan-production-slice.mjs`是唯一 gate selector，依 base/head changed paths產生 versioned plan；owner prepare與 CI 只可依該 plan 執行 `scripts/run-production-slice-tests.mjs` 的 applicable groups。純 authorization 不再隱含 database、dbBoundary、nativePostgres 或 migration；只有實際 database path 或 `FULL` 才啟用這些 gate。authorization、database、worker、preview、recognition 也不得因未改其他 responsibility 而載入其歷史 queue。
 
 `.github/workflows`、package/build control、planner本身、DEV-012/117共同 release source及任何 unknown path一律 `FULL` fail closed，執行 legacy `test:dev-117:continuous`與既有完整 QC。對產品與審查者只呈現 `preflight → build → migrate-if-needed → candidate-smoke → activate-readback` 五個邏輯階段；既有 executor 的內部 jobs 與收據仍可作為相容實作，不形成 DEV-122 的逐項人工驗收清單。
 

@@ -9,6 +9,7 @@ import { createOwnerTransport } from './lib/dev012-owner-release-runtime.mjs'
 import { createGitArchive } from './lib/dev012-owner-stage-executor.mjs'
 import { readGitAuthority } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { verifyOfficialMergedSource } from './lib/dev012-official-source-review.mjs'
+import { hasCompatibleRequiredStatusChecks } from './lib/required-ci-checks.mjs'
 import { assertRecoveryProofReadback } from './lib/dev121-principal-only-release.mjs'
 import { assertRecoveryBaseline, recoveryBuildRequest, assertRecoveryBuildReadback,
   recoveryRevisionRequest, assertRecoveryRevisionReadback, recoveryProof } from './lib/dev121-principal-recovery-operator.mjs'
@@ -49,8 +50,7 @@ export async function executeRecoveryOperation({ profile, sourceRevision, archiv
     !/^[a-f0-9]{40}$/u.test(sourceProof.sourceTree ?? '') ||
     sourceProof.reviewMode !== 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED' ||
     !Number.isInteger(sourceProof.pullRequestNumber) || sourceProof.pullRequestNumber < 1 ||
-    !['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC'].every((name) =>
-      sourceProof.requiredChecks?.includes(name)) ||
+    !hasCompatibleRequiredStatusChecks(sourceProof.requiredChecks) ||
     sourceProof.rulesetId !== 24077878 ||
     sourceProof.status !== 'OFFICIAL_MERGED_PR_VERIFIED') {
     throw new Error('DEV121_RECOVERY_OPERATOR_SOURCE_INVALID')

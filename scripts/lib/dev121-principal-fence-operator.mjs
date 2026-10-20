@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { canonicalize, sha256 } from './dev012-production-migration-runner.mjs'
 import { assertRecoveryProofReadback } from './dev121-principal-only-release.mjs'
 import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
+import { hasCompatibleRequiredStatusChecks } from './required-ci-checks.mjs'
 
 const NAME = 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
 const URL = 'https://run.googleapis.com/v2/' + NAME
@@ -67,8 +68,7 @@ function assertSource(profile, git, sourceProof) {
     sourceProof.reviewMode !== 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED' ||
     sourceProof.status !== 'OFFICIAL_MERGED_PR_VERIFIED' ||
     !Number.isInteger(sourceProof.pullRequestNumber) || sourceProof.pullRequestNumber < 1 ||
-    !['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC'].every(name =>
-      sourceProof.requiredChecks?.includes(name))) fail('SOURCE_INVALID')
+    !hasCompatibleRequiredStatusChecks(sourceProof.requiredChecks)) fail('SOURCE_INVALID')
 }
 async function optional(transport, uri) {
   try { return await transport.readBytes(uri, { prefixes: ['receipts'] }) }

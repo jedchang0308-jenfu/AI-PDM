@@ -8,6 +8,7 @@ import {verifyOfficialMergedSource} from './dev012-official-source-review.mjs';
 import {collectDev121StoragePlanInputs,collectDev121BusinessStorageReadback} from './dev121-business-storage-readback.mjs';
 import {canonicalize,readGcsObject,publishGcsJson} from './dev012-production-migration-runner.mjs';
 import {assertDev121BusinessStoragePlan,assertDev121BusinessStorageState} from './dev121-business-storage-plan.mjs';
+import {hasCurrentRequiredStatusChecks} from './required-ci-checks.mjs';
 
 const ROOT='infra/google-cloud/dev-121-business-storage';
 const FILES=['main.tf','versions.tf','.terraform.lock.hcl'];
@@ -47,7 +48,7 @@ export async function verifyStorageSourceProtection({token,fetchImpl=fetch}){
   };
   const [protection,ruleset]=await Promise.all([read('branches/main/protection'),read('rulesets/24077878')]);
   const contexts=protection.required_status_checks?.contexts;
-  if(protection.enforce_admins?.enabled!==true||protection.allow_force_pushes?.enabled!==false||protection.allow_deletions?.enabled!==false||protection.required_pull_request_reviews?.required_approving_review_count!==0||!Array.isArray(contexts)||!['DEV-012 Isolated PostgreSQL Cutover','Production Slice QC'].every(value=>contexts.includes(value))||ruleset.id!==24077878||ruleset.enforcement!=='active'||!Array.isArray(ruleset.bypass_actors)||ruleset.bypass_actors.length!==0)fail('ADMIN_SOURCE_PROTECTION_INVALID');
+  if(protection.enforce_admins?.enabled!==true||protection.allow_force_pushes?.enabled!==false||protection.allow_deletions?.enabled!==false||protection.required_pull_request_reviews?.required_approving_review_count!==0||!hasCurrentRequiredStatusChecks(contexts)||ruleset.id!==24077878||ruleset.enforcement!=='active'||!Array.isArray(ruleset.bypass_actors)||ruleset.bypass_actors.length!==0)fail('ADMIN_SOURCE_PROTECTION_INVALID');
   return {rulesetId:24077878,adminEnforced:true,bypassActors:0,status:'SOURCE_ADMIN_PROTECTION_VERIFIED'};
 }
 

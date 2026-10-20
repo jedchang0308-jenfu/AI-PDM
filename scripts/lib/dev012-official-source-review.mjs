@@ -1,5 +1,6 @@
 import { setTimeout as sleepDefault } from 'node:timers/promises'
 import { fetchProviderRead } from './dev012-read-retry.mjs'
+import { CURRENT_REQUIRED_STATUS_CHECKS } from './required-ci-checks.mjs'
 
 const REVISION = /^[a-f0-9]{40}$/u
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u
@@ -36,7 +37,7 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
     fail('OFFICIAL_REF_MISMATCH')
   }
   if (official.protected !== true) fail('BRANCH_UNPROTECTED')
-  const requiredChecks = ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC']
+  const requiredChecks = CURRENT_REQUIRED_STATUS_CHECKS
   const expectedRulesetId = rulesetId
   const rules = await read(`rules/branches/${encodedBranch}?per_page=100`)
   if (!Array.isArray(rules)) fail('SMALL_TEAM_PROTECTION_INVALID')

@@ -50,7 +50,7 @@ const runId = `DEV117-S1B-${new Date().toISOString().replace(/[-:.]/g, '')}-${ra
 const files = [
   'scripts/lib/dev012-read-retry.mjs', 'scripts/lib/production-slice-checkpoints.mjs', 'scripts/dev117-production-diagnostics.mjs', 'scripts/dev117-release-efficiency.test.mjs',
   '.github/workflows/read-ai-pdm-rd-permission-state-production.yml', 'scripts/dev122-rd-permission-state-readback.mjs',
-  'scripts/lib/dev012-official-source-review.mjs', 'scripts/dev012-verify-official-source.mjs', 'scripts/dev012-official-source-review.test.mjs',
+  'scripts/lib/dev012-official-source-review.mjs', 'scripts/lib/required-ci-checks.mjs', 'scripts/dev012-verify-official-source.mjs', 'scripts/dev012-official-source-review.test.mjs',
   'scripts/dev122-openswx-history-basis.mjs', 'scripts/lib/dev121-owner-release-proof.mjs', 'scripts/dev121-owner-release-proof.test.mjs', 'qa/dev-122/fixtures/secret-version-iam-fixture.mjs', '.ai-doc/specs/DEV-121-target-authorization-boundary.md',
   'qa/dev-122/fixtures/secret-version-iam-fixture.mjs',
   'qa/dev-122/fixtures/secret-version-iam-native-etag-plan.json',

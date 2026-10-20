@@ -32,6 +32,7 @@ const sourceProof = {
   branchProtected: true, rulesetId: 24077878,
   reviewMode: 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED',
   status: 'OFFICIAL_MERGED_PR_VERIFIED', pullRequestNumber: 301,
+  // Sealed historical proofs retain the pre-rename Platform gate label.
   requiredChecks: ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC'],
 }
 const oldTraffic = { revision: oldRevision, percent: 100 }

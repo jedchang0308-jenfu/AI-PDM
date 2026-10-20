@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {canonicalize,sha256} from './dev012-production-migration-runner.mjs';
+import {CURRENT_REQUIRED_STATUS_CHECKS} from './required-ci-checks.mjs';
 import {prepareDev121BusinessStoragePlan,applyDev121BusinessStoragePlan,reconcileDev121BusinessStoragePlan,storageTerraformEnvironment,verifyStorageSourceProtection} from './dev121-business-storage-saved-plan.mjs';
 import {profile,expectedInputs,businessStoragePlanFixture as plan,businessStorageStateFixture} from './dev121-business-storage-fixtures.mjs';
 function fixture(t){
@@ -58,7 +59,7 @@ test('binary changed while show/verification ran is rejected',async t=>{
 });
 
 test('operator reads actual admin enforcement and zero ruleset bypass actors',async()=>{
- const protection={enforce_admins:{enabled:true},allow_force_pushes:{enabled:false},allow_deletions:{enabled:false},required_pull_request_reviews:{required_approving_review_count:0},required_status_checks:{contexts:['DEV-012 Isolated PostgreSQL Cutover','Production Slice QC']}};
+ const protection={enforce_admins:{enabled:true},allow_force_pushes:{enabled:false},allow_deletions:{enabled:false},required_pull_request_reviews:{required_approving_review_count:0},required_status_checks:{contexts:[...CURRENT_REQUIRED_STATUS_CHECKS]}};
  const ruleset={id:24077878,enforcement:'active',bypass_actors:[]};
  const fetchImpl=async url=>({status:200,json:async()=>url.endsWith('/protection')?structuredClone(protection):structuredClone(ruleset)});
  assert.equal((await verifyStorageSourceProtection({token:'test-only-github-token',fetchImpl})).adminEnforced,true);

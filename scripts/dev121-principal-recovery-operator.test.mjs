@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
+import { CURRENT_REQUIRED_STATUS_CHECKS } from './lib/required-ci-checks.mjs'
 import { executeRecoveryOperation } from './dev121-principal-recovery-operator.mjs'
 
 const sourceRevision = 'a'.repeat(40)
@@ -16,7 +17,7 @@ runtime: { containerName: 'ai-pdm' }, build: { maximumAllowedSeverity: 'MEDIUM' 
 const sourceProof = { schemaVersion: 'jenfu.dev012.official-merged-source.v1',
   repository: 'jedchang0308-jenfu/AI-PDM', branch: 'main', sourceRevision,
   sourceTree: 'c'.repeat(40), reviewMode: 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED',
-  pullRequestNumber: 158, requiredChecks: ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC'],
+  pullRequestNumber: 158, requiredChecks: [...CURRENT_REQUIRED_STATUS_CHECKS],
   branchProtected: true, rulesetId: 24077878,
   status: 'OFFICIAL_MERGED_PR_VERIFIED' }
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex')

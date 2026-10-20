@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   dev012-postgres-cutover:
-    name: DEV-012 Isolated PostgreSQL Cutover
+    name: AI-PDM Isolated PostgreSQL Cutover
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -67,7 +67,7 @@ jobs:
         if: steps.slice.outputs.database == 'true'
         run: npm ci --ignore-scripts
 
-      - name: Verify provider and DEV-012 cutover against disposable PostgreSQL
+      - name: Verify AI-PDM isolated PostgreSQL cutover against disposable PostgreSQL
         if: steps.slice.outputs.database == 'true'
         env:
           DEV012_ISOLATED_POSTGRES: "1"

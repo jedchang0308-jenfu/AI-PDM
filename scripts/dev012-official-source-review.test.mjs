@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import fs from 'node:fs'
 import { verifyOfficialMergedSource } from './lib/dev012-official-source-review.mjs'
+import { CURRENT_REQUIRED_STATUS_CHECKS } from './lib/required-ci-checks.mjs'
 import { assertOfficialSourceWorkflow, OFFICIAL_SOURCE_WORKFLOW_REFS, verifyOfficialWorkflowSource } from './dev012-verify-official-source.mjs'
 
 const repository = 'jedchang0308-jenfu/AI-PDM'
@@ -22,7 +23,7 @@ test('required full QC executes and source-binds the official source regression'
   const invocation = source.slice(source.indexOf('const run ='), source.indexOf('const imageTempPrefix'))
   assert.match(invocation, /'scripts\/dev012-official-source-review\.test\.mjs'/u)
   const snapshot = source.slice(source.indexOf('const files ='))
-  for (const file of ['scripts/lib/dev012-official-source-review.mjs',
+  for (const file of ['scripts/lib/dev012-official-source-review.mjs', 'scripts/lib/required-ci-checks.mjs',
     'scripts/dev012-verify-official-source.mjs', 'scripts/dev012-official-source-review.test.mjs']) {
     assert.ok(snapshot.includes(`'${file}'`), file)
   }
@@ -51,7 +52,7 @@ function provider({ officialChange = {}, rulesChange = null, commitChange = {}, 
           allowed_merge_methods: ['merge'],
         } },
         { ruleset_id: 24077878, type: 'required_status_checks', parameters: {
-          required_status_checks: ['DEV-012 Isolated PostgreSQL Cutover', 'Production Slice QC'].map((context) => ({
+          required_status_checks: CURRENT_REQUIRED_STATUS_CHECKS.map((context) => ({
             context, integration_id: 15368,
           })),
         } },
