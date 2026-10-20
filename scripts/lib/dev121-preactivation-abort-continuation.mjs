@@ -921,7 +921,7 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
   if (completed && prepareFacts.preActivationAbortBasis) {
     inheritedBasis = prepareFacts.preActivationAbortBasis
     if (!['ai-pdm.principal-prebuild-abort-basis.v1', 'ai-pdm.principal-unpublished-build-abort-basis.v1',
-      'ai-pdm.principal-postbuild-pre-migration-abort-basis.v1'].includes(inheritedBasis.schemaVersion)
+      'ai-pdm.principal-postbuild-pre-migration-abort-basis.v1', 'ai-pdm.principal-reconciled-migration-abort-basis.v1'].includes(inheritedBasis.schemaVersion)
       || !same(inheritedBasis.failedIntentRef, intent.baselineIntentRef)
       || inheritedBasis.previousRevision !== intent.previousRevision
       || !/^[a-f0-9]{64}$/u.test(inheritedBasis.controlSha256 ?? '')) fail()
