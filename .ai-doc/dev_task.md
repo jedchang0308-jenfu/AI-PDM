@@ -70,12 +70,11 @@ C70 的 prepare／build 已完成而 migration outcome 為 `UNKNOWN`；其 immut
 
 Planner 對本切片判定 `FULL`。本機 focused 33／33、worker 108／108、完整下游 130／130、required continuous QC 479／479、catalog v7 3／3、abort 6／6、DB boundary、typecheck及 isolated build均 PASS；首次 runner 失敗保留為 sandbox Temp `.git/config` 拒絕，第二次在建立臨時 worktree時被 sandbox及長路徑拒絕，改用 `C:\tmp\aipdm-c78-tests` 後 25／25 PASS且臨時 worktree清理完成。獨立 GPT-5.6 Luna xhigh 唯讀 QA 判定無 permissive fallback或 commit blocker。required CI、protected merge、新 exact-main immutable evidence、full35、085、active catalog與專用測試 RD actor UI／API正負驗收仍待完成；不宣稱正式 RD acceptance或 DEV-122 PASS。
 
-## DEV-123#role-permission-editor — current compatibility slice (2026-10-19)
+## DEV-123#role-permission-editor — local implementation verified / rollout disabled (2026-10-21)
 
-Current slice: OrgMaster DEV-058 existing nine-identity assignment compatibility, revocation without a live-PDM-current prerequisite when trusted owner evidence is sufficient, and decoupling ordinary capability versions from OrgMaster compatibility approval — `Local Slice Verified`. This is not implementation of the complete AI-PDM dynamic seven-role/custom/editor/DB/API product, which remains `NOT_IMPLEMENTED`; DEV-123 whole QA52, L4, and formal enablement remain `NOT_RUN`. Local evidence: OrgMaster 18 files / 133 PASS / 1 conditional PG SKIP; separate native PostgreSQL contract run 9/9 PASS; PDM builder 7/7 PASS. See QA section 7; these scoped results do not complete QA52.
+Registry、角色/權限矩陣UI、draft/save/preview/apply/result/history API、migration 086、dynamic reader/evaluator、project-bound share及OrgMaster DEV-058真實雙邊contract已在隔離工作樹完成。固定入口PASS：Node 3/3、Vitest 11檔69/69、typecheck、181-entry DEV-121 route map、DB boundary及126-page isolated build。migration未套用，policy仍DISABLED、OrgMaster仍NOT_READY；52案whole、原生PG apply、正常browser、L4、required CI與正式啟用NOT_RUN。多資源legacy route的精確target action需隨DEV-121/122收斂，現況保守AND不過度授權。
 
-Authority: [DEV-123 contract](specs/DEV-123-role-permission-editor-contract.md), [QA52 plan](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md), [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md). This entry is a direct current pointer only; existing DEV-122 state/history is unchanged.
-
+Authority: [DEV-123 contract §15](specs/DEV-123-role-permission-editor-contract.md#15-2026-10-21-本機實作與驗證), [QA §7](qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md#7-2026-10-21-本機執行結果), [ADR](decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md). Existing DEV-121/122 state and history remain authoritative for their own unfinished work.
 ## DEV-121#rd-capabilities — 2026-10-16 historical replay profile binding（待聚焦回歸）
 
 PR #312 required CI PASS並合併為官方 `main` commit `b42458b3cd05924be566ea05e536454f6751c883`。R60 新 source freeze及source-bound metadata readback完成，provider仍為12個 `no-op/read`，IAM／worker resource changes與new images皆0；worker replay已越過historical reader scope，隨後在讀取合法舊600秒profile時仍套用目前1200秒validator及固定SHA，以 `OPENSWX_WORKER_PROFILE_INVALID` 拒絕。失敗發生於association發布前；未owner dispatch、build、migration085、service／traffic或正式資料mutation，R60 immutable input不重送。

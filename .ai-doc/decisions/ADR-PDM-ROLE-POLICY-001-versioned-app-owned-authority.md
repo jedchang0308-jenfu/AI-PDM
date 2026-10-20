@@ -1,10 +1,10 @@
 # ADR PDM ROLE POLICY 001 應用自有角色權限與單一原子套用
 
-建立：2026-10-12；修訂：2026-10-19。Owner：`AIPDM/DEV-123`。架構定案：**產品、安全與相容邊界已定；RD可採等效實作**。Human Confirmed；OrgMaster既有九身份任用相容／撤權阻擋局部切片 `Local Slice Verified`，DEV-123完整editor產品 `NOT_IMPLEMENTED`、52案/L4/正式啟用 `NOT_RUN`。[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)定義資料/API，[五點精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)記替換關係。
+建立：2026-10-12；修訂：2026-10-21。Owner：`AIPDM/DEV-123`。架構定案：**產品、安全與相容邊界已定；RD可採等效實作**。Local Implementation Verified / Rollout Disabled；本機source、API、UI、forward migration及雙邊契約已交付，正式migration、L4與啟用NOT_RUN。[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)定義資料/API與當前證據，[本輪五點](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)記替換關係。
 
 ## Context
 
-目標是內部自用的角色設定：七日常角色、五作業分組，同格勾查看/下載/編輯/審核/發布；角色可增停恢復，OrgMaster只任用人員。使用者已於2026-10-19同意精簡發布流程、business全域鎖、browser storage硬門檻、驗證紀錄及過細架構凍結；其後另授權OrgMaster既有九身份任用相容／撤權阻擋局部切片，不代表DEV-123 editor已開始或完成。
+目標是內部自用的角色設定：七日常角色、五作業分組，同格勾查看/下載/編輯/審核/發布；角色可增停恢復，OrgMaster只任用人員。使用者於2026-10-19同意精簡發布流程、business全域鎖、browser storage硬門檻、驗證紀錄及過細架構凍結，並於2026-10-21授權AI-PDM與OrgMaster隔離工作樹完成本機協同實作。
 
 既有唯一active publication、九角色身份/history、OrgMaster provenance及shared PG boundary仍是實際相依。圖號/料號共用舊key及view配送原bytes的風險需要後端改造；不能只改UI label。沒有先發布、再由別人/排程延後啟用的實際使用情境，不需另建一套設定發布平台或SaaS機制。
 
@@ -29,9 +29,9 @@
 8. 生效時間點採**apply commit後開始的新請求使用新policy；已通過判權的短請求可完成**。不讓一般business write取得policy全域鎖；長任務最終採用、新配送及下一Range在fresh snapshot重驗。這明確取代「所有舊write必須先commit」屏障，不承諾取消既有請求或追回bytes。
 9. server仍有requestId防重、draft/base CAS、confirmation重算、command/readback及同draft唯一套用；當前session/grant在管理鎖等待後重驗，callback無不可回復外部副作用。採既有provider或等效row-lock/unique/CAS，不強迫新增SERIALIZABLE/advisory框架或固定helper數量。
 10. sessionStorage只是可選requestId/draft提示，無需保存完整body；故障不擋POST。saved資料/已套用引用/ledger是恢復真值，unknown不自動重送或假報成功，跨Principal不載前人資料。未保存dirty因reload遺失可以提示，不把browser持久化當資料/安全邊界。
-11. catalog/role/schema對外hash、immutable history與v2/profile契約仍驗。完整registryHash描述權限語意、留在contentHash並由PDM source validation/confirmation驗證；它不固定在OrgMaster consumer compatibility row逐版核可。實際接線由source coverage驗；只有consumer schema/source/identity/scope/protected邊界變動才需雙端協作及相容宣告更新。純內部命名/私有API/confirmation hash/鎖法調整由RD同步程式與文件，不重問；外部breaking契約仍需版本及相容窗口。
+11. catalog/role/schema對外hash、immutable history與v2/profile契約仍驗。registryHash綁權限語意，不把私有route/caller檔案路徑或測試名稱納入跨app兼容身份；實際接線由source coverage驗。純內部命名/私有API/confirmation hash/鎖法調整由RD同步程式與文件，不重問；外部breaking契約仍需版本及相容窗口。
 12. 52驗收目的/17AC/CG01/02保留，依層級/風險取證。共用run metadata、參數化測試及一次整合/UI旅程可覆蓋多案，重用有效evidence及既有runner，只重驗受影響部分；不強制每case整包欄位或新增五套工具。缺必要層的證據仍不能宣告whole/正式通過。
-13. OrgMaster相容只在SPEC§9 OM-C1..5列範圍：current/history/profile reader、七canonical/custom新任用、legacy alias/inactive歷史、原特權入口、compatibility_v2及真實往返。首次dynamic切換要實際consumer可用，可引用有效release/CI/整合證據，不為每次勾選重辦發布；普通能力改動不需OrgMaster source/deploy/compat row更新；marker/simulator不代真實驗收。
+13. OrgMaster相容只在SPEC§9 OM-C1..5列範圍：current/history/profile reader、七canonical/custom新任用、legacy alias/inactive歷史、原特權入口、compatibility_v2及真實往返。首次dynamic切換要實際consumer可用，可引用有效release/CI/整合證據，不為每次勾選重辦發布；marker/simulator不代真實驗收。
 
 ## Consequences
 
@@ -39,14 +39,20 @@
 
 合併紀錄的讀取資格靠server投影/裁剪，append-only與同交易保留；不將一般公司read擴為跨公司人員資訊。角色停用保留任用/history，恢復只採仍合法指派，system保護/原scope/priority/no-self不變。
 
-RD能選內部實作，但不能放寬以上結果、資料責任或外部契約。沒有量測前不宣稱效能/工時改善；已驗證局部切片不代表DEV-123完整editor、DB/UI/L4或正式啟用已完成，也不宣稱獨立QC PASS。
+RD能選內部實作，但不能放寬以上結果、資料責任或外部契約。沒有量測前不宣稱效能/工時改善；目前僅文件自查，無DB/UI/L4或獨立QC PASS。
 
 ## Migration and compatibility
 
 forward-only、只ai_pdm_core/ai_pdm_contract、runtime無owner/DDL，narrow管理寫入、history immutable。首次migration DISABLED保留原legacy bytes/hash/pointer/grants；後續真正相容及owner條件滿足才可apply。對外versioned views及profile/header語意保留，內部API規劃改workspace/command v3；舊提案未實作，不建立平行舊mutation。
 
-前一文件階段OrgMaster只列依賴；後續使用者已授權本次OrgMaster/AI-PDM本機修復與驗證，結果見QA §7。OrgMaster來源`AIPDM/DEV-123#orgmaster-compatibility`；正式release仍按既有protected CI/DB boundary與使用者環境範圍，本文不改執行器；未操作正式DB或runtime。
+OrgMaster以`ORGMASTER/DEV-058`實作14欄compatibility_v2、dynamic current/history reader、tuple CAS及指派呈現；AI-PDM以`AIPDM/DEV-123#orgmaster-compatibility`提供35欄producer與真實vector，雙邊本機契約已通過。兩邊初始仍為`NOT_READY`／`DISABLED`；正式release仍按既有protected CI/DB boundary與使用者環境範圍，本文不改執行器或授權。
 
 ## Amended sources
 
 本版替代2026-10-12方案中的兩階段、全站write fence、hard checkpoint、固定實作/證據要求；七角色決策仍有效。唯一SPEC/QA/dev_task/documentation_map與[DEV-121 prospective入口](../specs/DEV-121-target-authorization-boundary.md)同步，不改DEV-121/122歷史驗證或其他release/gate文件。不為此再開DEV/ADR/CAPA。
+
+## Implementation status 2026-10-21
+
+決策已落成registry、draft/save/preview/apply/command/history API、設定UI、migration 086、dynamic authorization reader及project-bound share。AI-PDM固定入口、型別、route map、DB boundary與隔離build通過；OrgMaster真實14欄consumer與vector亦由固定入口核對。
+
+首次啟用仍受兩項系統阻擋：AI-PDM policy mode初始`DISABLED`，OrgMaster compatibility初始`NOT_READY`。多資源共用legacy route的精確target action仍須隨DEV-121／122 caller/resource resolver收斂；目前採保守AND而不過度授權。未執行migration、browser/L4、required CI或production。

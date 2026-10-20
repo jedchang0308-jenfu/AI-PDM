@@ -112,7 +112,8 @@ export async function getAuthorizedPublicShareInSnapshot(
   if (resource instanceof Response) return resource;
   const submission = await new AsyncSubmissionListRepository(snapshot).getSubmission(share.submission_id);
   if (!submission || submission.company_id !== resource.company_id ||
-      submission.status !== "Released" || !submission.release_package) {
+      submission.status !== "Released" || !submission.release_package ||
+      !share.project_scope_key || share.project_scope_key !== resource.project_code.trim()) {
     return Response.json({ error: "找不到分享連結" }, { status: 404 });
   }
   await new AsyncReleaseRepository(snapshot).recordReadonlyShareAccess({

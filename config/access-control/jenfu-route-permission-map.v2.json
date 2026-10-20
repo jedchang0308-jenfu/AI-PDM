@@ -2,11 +2,11 @@
   "contractVersion": "jenfu.platform-entitlement.v1",
   "applicationId": "ai-pdm",
   "source": "AIPDM/DEV-121#principal-only-route-policy; DEV-005 v1 preserved",
-  "sourceSha256": "2e43d568be3a25a6cfb097dfd723b4356ec109a76ae94e5b6930aa81bf639f61",
+  "sourceSha256": "e3f31202a008b66899ee75820238c4e74496a66adb14e3c6da09cff89ec8b717",
   "denominator": {
-    "uniqueFiles": 140,
-    "uniqueMethods": 161,
-    "policyEntries": 171
+    "uniqueFiles": 149,
+    "uniqueMethods": 171,
+    "policyEntries": 181
   },
   "entries": [
     {
@@ -848,6 +848,106 @@
       "authorizationTarget": "settings.admin_matrix",
       "scopeResolver": "workspace",
       "preservedGuards": "workspace＋role catalog projection"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/applications/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋direct global system_admin＋Origin＋saved draft/CAS＋OrgMaster compatibility"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/commands/[requestId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋original actor or direct global system_admin＋bounded result"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/[draftId]/preview/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋saved draft revision/hash＋active/compatibility readback"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/[draftId]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋exact saved draft projection"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/[draftId]/save/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋direct global system_admin＋Origin＋draft revision/hash CAS"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋bounded draft summaries"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/drafts/route.ts",
+      "method": "POST",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋direct global system_admin＋Origin＋active tuple CAS"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/publications/[catalogVersion]/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋immutable publication projection"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/publications/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋bounded publication summaries"
+    },
+    {
+      "path": "src/app/api/settings/access/role-policies/workspace/route.ts",
+      "method": "GET",
+      "discriminator": null,
+      "authorizationMode": "permission",
+      "permissionCode": "settings.admin_matrix",
+      "authorizationTarget": "settings.admin_matrix",
+      "scopeResolver": "workspace",
+      "preservedGuards": "verified Principal＋current producer/OrgMaster compatibility＋server-owned admission"
     },
     {
       "path": "src/app/api/settings/gdrive/folders/route.ts",

@@ -28,10 +28,11 @@ function snapshot(rows: unknown[] = [grant], accounts: unknown[] = [account], ca
   return { kind: "postgres", async query<T>(sql: string): Promise<T[]> {
     if (sql.includes("v_active_principal_accounts_v1")) return accounts as T[];
     if (sql.includes("v_ai_pdm_principal_effective_grants_v4")) return rows as T[];
-    if (sql.includes("v_application_role_catalog_v1")) return catalog.roles.map((role, index) => ({
+    if (sql.includes("v_application_role_catalog_v2")) return catalog.roles.map((role, index) => ({
       contract_version: catalog.contractVersion, application_id: catalog.applicationId,
       catalog_version: catalog.catalogVersion, catalog_sha256: catalog.catalogSha256, display_order: index,
-      stable_role_id: role.stableRoleId, role_definition_hash: role.roleDefinitionHash })) as T[];
+      stable_role_id: role.stableRoleId, role_definition_hash: role.roleDefinitionHash,
+      publication_format: "legacy-static-v1", role_status: "active" })) as T[];
     throw new Error("unexpected dependency");
   } } as AsyncDatabaseClient;
 }

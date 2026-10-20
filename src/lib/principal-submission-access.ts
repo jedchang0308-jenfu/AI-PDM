@@ -1,9 +1,10 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import { jenfuEntitlementFailureResponse } from "@/lib/jenfu-entitlement-http";
-import { evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
+import { evaluatePrincipalResourcePermissionsInSnapshot,
+  evaluatePrincipalWorkspacePermissionsInSnapshot } from "@/lib/jenfu-principal-permission-service";
 import type { VerifiedPrincipalRequest } from "@/lib/jenfu-principal-request-guard";
 
-export type PrincipalSubmissionResource = { company_id: string; submitted_by: string };
+export type PrincipalSubmissionResource = { company_id: string; submitted_by: string; project_code: string };
 export type PrincipalSubmissionListScope = { submittedBy?: string };
 
 function denied(code: string): Response {
@@ -37,14 +38,26 @@ export async function authorizePrincipalSubmissionListInSnapshot(
 export async function authorizePrincipalSubmissionReadInSnapshot(
   snapshot: AsyncDatabaseClient, verified: VerifiedPrincipalRequest, id: string
 ): Promise<Response | PrincipalSubmissionResource> {
-  const scope = await authorizePrincipalSubmissionListInSnapshot(snapshot, verified);
-  if (scope instanceof Response) return scope;
   const resource = await snapshot.queryOne<PrincipalSubmissionResource>(
-    "SELECT company_id, submitted_by FROM ai_pdm_core.submissions WHERE id=:id", { id });
+    "SELECT company_id, submitted_by, project_code FROM ai_pdm_core.submissions WHERE id=:id", { id });
   if (!resource || !resource.company_id || resource.company_id !== verified.profile.companyId) {
     return Response.json({ error: "submission_not_found" }, { status: 404 });
   }
-  if (scope.submittedBy && resource.submitted_by !== scope.submittedBy) {
+  const decisions = await evaluatePrincipalResourcePermissionsInSnapshot(snapshot, verified,
+    [{ permissionKind: "action", permissionCode: "submission.view" }],
+    { workspaceCode: verified.profile.companyId, projectCode: resource.project_code.trim() || null });
+  const decision = decisions[0];
+  if (decisions.length !== 1 || !decision || decision.permissionCode !== "submission.view" ||
+      decision.principalId !== verified.session.principalId) {
+    return Response.json({ code: "principal_dependency_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
+  }
+  if (!decision.allowed) return denied(decision.decisionCode);
+  if (!["rd", "rd_manager", "pdm_admin", "system_admin", "external_specialist"].includes(decision.roleCode ?? "")) {
+    return Response.json({ code: "principal_route_policy_unavailable" },
+      { status: 503, headers: { "cache-control": "no-store" } });
+  }
+  if (decision.roleCode === "rd" && resource.submitted_by !== verified.profile.pdmUserId) {
     return denied("permission_not_granted");
   }
   return resource;

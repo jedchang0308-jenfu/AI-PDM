@@ -1,5 +1,6 @@
 import type { AsyncDatabaseClient } from "@/lib/db-async-provider";
 import roleCatalog from "../../../config/access-control/jenfu-role-catalog.v1.json" with { type: "json" };
+import rolePolicyRegistryJson from "../../../config/access-control/role-policy-editor-registry.v2.json" with { type: "json" };
 import {
   JENFU_AI_PDM_APPLICATION_ID,
   JENFU_PRINCIPAL_GRANTS_CONTRACT_VERSION,
@@ -7,7 +8,6 @@ import {
   type JenfuEffectiveRoleAssignment,
   type JenfuVerifiedAuthorizationActor,
   resolveJenfuWorkspaceScopeKey,
-  roleAllowsPermission,
   scopeMatches,
   validateEffectiveRoleAssignment
 } from "@/lib/jenfu-entitlement-contract";
@@ -59,9 +59,23 @@ type ActiveAccountRow = {
   employee_status: string;
 };
 
-export type JenfuEntitlementRoleCatalog = { roles: JenfuApplicationRole[] };
+export type JenfuEntitlementRoleCatalog = { roles: JenfuApplicationRole[]; catalogVersion?: string };
 
 const catalog = roleCatalog as unknown as JenfuEntitlementRoleCatalog;
+const policyRegistry = rolePolicyRegistryJson as {
+  businessActions: Array<{ kind: "action"; code: string; requiredActions: string[] }>;
+  legacyBindings: Array<{ kind: "page" | "action"; code: string;
+    disposition: "protected" | "legacy-reference"; requiredActions: string[] }>;
+};
+
+function permissionRequirements(kind: "page" | "action", code: string) {
+  const business = policyRegistry.businessActions.find(action => action.kind === kind && action.code === code);
+  if (business) return business.requiredActions.map(required => ({ kind: "action" as const, code: required }));
+  const legacy = policyRegistry.legacyBindings.find(binding => binding.kind === kind && binding.code === code);
+  if (!legacy) return null;
+  return legacy.disposition === "protected" || legacy.requiredActions.length === 0 ? [{ kind, code }]
+    : legacy.requiredActions.map(required => ({ kind: "action" as const, code: required }));
+}
 
 export class JenfuEntitlementRepository {
   constructor(
@@ -187,8 +201,13 @@ export class JenfuEntitlementRepository {
       assignment.publishedAt !== publication.publishedAt)) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
-    const priorityRank = new Map(input.rolePriority.map((roleCode, index) => [roleCode, index]));
-    if (priorityRank.size !== input.rolePriority.length || inputs.some((candidate) => candidate.rolePriority.join("\0") !== input.rolePriority.join("\0"))) {
+    const effectivePriority = [...input.rolePriority];
+    if (this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true) {
+      for (const role of this.activeCatalog.roles) if (!effectivePriority.includes(role.roleCode)) effectivePriority.push(role.roleCode);
+    }
+    const priorityRank = new Map(effectivePriority.map((roleCode, index) => [roleCode, index]));
+    if (new Set(input.rolePriority).size !== input.rolePriority.length ||
+        inputs.some((candidate) => candidate.rolePriority.join("\0") !== input.rolePriority.join("\0"))) {
       throw new JenfuEntitlementRepositoryError("entitlement_contract_mismatch");
     }
     const preparedAssignments: Array<{ assignment: JenfuEffectiveRoleAssignment; role: JenfuApplicationRole }> = [];
@@ -223,8 +242,14 @@ export class JenfuEntitlementRepository {
       const decisionCandidates: Array<{ assignment: JenfuEffectiveRoleAssignment; role: JenfuApplicationRole; allowed: boolean }> = [];
       for (const { assignment, role } of preparedAssignments) {
         if (!evaluatedRoles.includes(assignment.roleCode)) evaluatedRoles.push(assignment.roleCode);
-        const permission = role.permissions.find((entry) => entry.kind === candidate.permissionKind && entry.code === candidate.permissionCode);
-        if (!permission) continue;
+        const dynamicPolicy = this.activeCatalog.catalogVersion?.startsWith("ai-pdm.role-policy.") === true;
+        const requirements = dynamicPolicy
+          ? permissionRequirements(candidate.permissionKind, candidate.permissionCode)
+          : [{ kind: candidate.permissionKind, code: candidate.permissionCode }];
+        if (!requirements) continue;
+        const permissions = requirements.map(requirement => role.permissions.find(entry =>
+          entry.kind === requirement.kind && entry.code === requirement.code));
+        if (permissions.some(permission => !permission)) continue;
         permissionCandidate = true;
         const workspaceKey = assignment.scopeKind === "workspace" && assignment.scopeKey
           ? resolveJenfuWorkspaceScopeKey(candidate.actor.companyId, assignment.scopeKey, candidate.workspaceCode ?? "")
@@ -236,7 +261,7 @@ export class JenfuEntitlementRepository {
           scopeCandidate = true;
           continue;
         }
-        decisionCandidates.push({ assignment, role, allowed: permission.allowed && roleAllowsPermission(role, candidate.permissionKind, candidate.permissionCode) });
+        decisionCandidates.push({ assignment, role, allowed: permissions.every(permission => permission?.allowed === true) });
       }
       decisionCandidates.sort((left, right) => (priorityRank.get(left.assignment.roleCode) ?? Number.MAX_SAFE_INTEGER) - (priorityRank.get(right.assignment.roleCode) ?? Number.MAX_SAFE_INTEGER));
       const selected = decisionCandidates[0];

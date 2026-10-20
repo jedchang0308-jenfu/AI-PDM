@@ -1,12 +1,12 @@
 # DEV-123 可增減角色的權限矩陣與角色工作台實作契約
 
-建立：2026-10-12；修訂：2026-10-19（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。文件成熟度：`RD Implementation Ready / Human Confirmed`；**架構定案：已定案**（自用精簡見§14.5；七角色決策見§14.4）。目前只有OrgMaster既有九身份任用相容／撤權阻擋切片 `Local Slice Verified`；完整dynamic七角色、custom、editor、DB/API產品仍 `NOT_IMPLEMENTED`，DEV-123全體52案、L4雙端及正式啟用仍 `NOT_RUN`。
+建立：2026-10-12；修訂：2026-10-21（Asia/Taipei）。Owner：`AIPDM/DEV-123#role-permission-editor`。狀態：`Local Implementation Verified / Rollout Disabled`；**架構定案：已定案**（自用精簡見§14.5；本機證據見§15）。應用、DTO、API、UI、forward migration、dynamic reader及真實雙邊契約驗證已完成；migration未套用、policy mode仍`DISABLED`、OrgMaster readiness仍`NOT_READY`，52案whole、browser/L4與正式啟用維持`NOT_RUN`。
 
-本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)只登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)記錄長期決策，[QA 計畫](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。本輪授權的局部實作由OrgMaster既有九身份任用相容／撤權阻擋切片承接，不代表已交付DEV-123完整editor產品，也不等於Release Ready；產品與測試結果由實際執行證據更新。
+本文件是第一版唯一產品及工程契約；[任務板](../dev_task.md#dev-123-role-permission-editor)只登錄狀態，[ADR](../decisions/ADR-PDM-ROLE-POLICY-001-versioned-app-owned-authority.md)記錄長期決策，[QA 計畫](../qa/qa-dev-123-role-permission-editor-validation-plan-2026-10-12.md)定義案例與證據。2026-10-21依使用者`/goal`授權完成AI-PDM與OrgMaster隔離工作樹的本機協同實作；此狀態不是Release Ready，也未授權正式migration、部署或資料寫入。
 
 ## 1. 人類決策與第一版邊界
 
-人類來源：2026-10-12確認JF-FMS操作、OrgMaster人員指派分工、七日常角色/五作業及合併動作，並選擇「停用並停止該角色授權；保留指派與歷史，恢復角色後可再次生效」。2026-10-19明示內部自用並同意依五項審查精簡流程/鎖/storage/證據/實作裁量；本輪依後續執行指示先完成OrgMaster既有九身份任用相容／撤權阻擋的本機切片；完整editor與真實L4尚未實作／驗證，正式發布另依既有環境授權。本修訂替換前版技術要求，七角色與必要權限保護不變，詳§14.5。
+人類來源：2026-10-12確認JF-FMS操作、OrgMaster人員指派分工、七日常角色/五作業及合併動作，並選擇「停用並停止該角色授權；保留指派與歷史，恢復角色後可再次生效」。2026-10-19明示內部自用並同意依五項審查精簡流程/鎖/storage/證據/實作裁量；2026-10-21再授權以ORGMASTER/DEV-058為主、AIPDM/DEV-123協同完成本機實作。七角色與必要權限保護不變，詳§14.5及§15。
 
 AI-PDM 定義角色業務能力，OrgMaster 唯一管理人員指派、scope、有效期、代理、撤銷及特權任用。權限目錄是 application-global：一次啟用影響所有公司的相同角色，實際存取仍受各指派的公司／專案範圍限制；第一版沒有 company overlay。只有符合 §4 的直接 global 系統管理員能改動這份全系統設定。
 
@@ -84,7 +84,7 @@ flowchart LR
 
 ### 3.1 固定作業與動作 registry
 
-規劃source檔 `config/access-control/role-policy-editor-registry.v2.json`，contract=`ai-pdm.role-policy-editor-registry.v2`，roleSchemaId=`ai-pdm.role-schema.flexible.v2`。前版v1只存在文件，未建立／部署，本輪直接修訂規劃版本；不得把此文當已發布schema。registry固定含roleProfiles、defaultTemplate、businessActions、legacyBindings、protectedBindings。profile列含stableRoleId、permissionRoleId、presentationName/Order、assignmentDisposition=`selectable/legacy-only/hidden-protected`；custom按固定模板推導，不接受body配置alias。
+已交付source檔 `config/access-control/role-policy-editor-registry.v2.json`，contract=`ai-pdm.role-policy-editor-registry.v2`，roleSchemaId=`ai-pdm.role-schema.flexible.v2`；產生器與固定驗證入口會拒絕registry漂移。registry含roleProfiles、defaultTemplate、businessActions、legacyBindings、protectedBindings。profile列含stableRoleId、permissionRoleId、presentationName/Order、assignmentDisposition=`selectable/legacy-only/hidden-protected`；custom按固定模板推導，不接受body配置alias。此為本機source artifact，尚未migration或正式發布。
 
 | groupId／作業列 | 範圍 | 同一role格內的獨立控制 |
 |---|---|---|
@@ -212,7 +212,7 @@ source现況：`submissions.project_code`已有專案字串，`readonly_shares`�
 
 上述FK可採同交易延後檢查以容納publication/command互相引用，不能以暫缺receipt完成commit。commands至少可按draft_id、catalog_version及completed_at查詢；draft/history列表用bounded keyset（預設20、上限50），詳細payload按需載入。不建自動清理worker，不刪publication/identity/命令紀錄。
 
-rollout沿用`ai-pdm.role-policy-enablement.v2`：綁policyReaderCompatibilityId=ai-pdm.role-policy-reader.grouped.v2、roleSchemaId、roleProfileSchemaId、baselineRoleIdentityHash、protectedPolicyHash，以及OrgMaster source/compatibilityRevision/enablementRef與首次有效整合／live consumer／owner證據引用。完整`registryHash`仍納入每份`contentHash`，由PDM source validation及該次管理者confirmation驗證；它不是OrgMaster compatibility row的固定核可欄位。此為首次切換及消費契約／保護邊界變更的技術條件，可引用既有有效release/CI證據；一般能力變更不要求OrgMaster source、deploy或compatibility row逐版更新。
+rollout沿用`ai-pdm.role-policy-enablement.v2`：綁policyReaderCompatibilityId=ai-pdm.role-policy-reader.grouped.v2、roleSchemaId、roleProfileSchemaId、registryHash、baselineRoleIdentityHash、protectedPolicyHash，以及OrgMaster source/compatibilityRevision/enablementRef與有效整合／live consumer／owner證據引用。DISABLED可無binding；ENABLED/PAUSED須完整。此為首次切換及相容契約變更的技術條件，可引用既有有效release/CI證據；一般權限勾選不新增人工核准或逐次重做部署證明，不鎖隨custom增長的整份identity/profile hash。
 
 沿用輸入保護：拒絕未知欄位／role／group/action、重複change、duplicate JSON keys、不合法Unicode/U+0000、unsafe integer及false新增。UUID lowercase、hash64hex、generation/compatibilityRevision為非負十進位字串；request預設512KiB、candidate1MiB、64完整身份、changes1240及roleChanges62的bound保留。reason為trim後1–240 Unicode scalar。actor由server Principal context取得，不能假定是UUID或由body指定。
 
@@ -238,11 +238,11 @@ legacy v5/v6/v7保留原byte/hash及獨立artifact deep equality，不重算舊h
 
 v2身份列另投影`role_profile_schema_id,role_profile_hash,permission_role_id,presentation_name,presentation_order,assignment_disposition`。header hash一致、仍9..64完整身份，七可選profile不等於七歷史身份。legacy的profile schema/hash為NULL、permission_role_id=stable_role_id，任用可選性按原identity／特權入口，不提前採alias或禁止新生管任用；legacy presentation_name=原display_name、presentation_order=原display_order，僅供解釋；OrgMaster未啟用前用原角色選項。dynamic啟用後才依source七profile/disposition及alias lookup；原display_name/display_order不換語意。
 
-新增`ai_pdm_contract.v_role_policy_publications_v1`從既有publication/entries及新增格式欄查已提交history，保留原legacy歷史事實，DEV-123新dynamic只會是active或retired，無待啟用產品版本。shape同v2 role/profile另含lifecycle/base，不揭露draft、人員、command result或reason PII。不改`orgmaster_contract.v_ai_pdm_principal_effective_grants_v4`；任用原catalogVersion仍是provenance，不必等current policy。這些均為未實作契約，既有v1欄位不變。
+新增`ai_pdm_contract.v_role_policy_publications_v1`從既有publication/entries及新增格式欄查已提交history，保留原legacy歷史事實，DEV-123新dynamic只會是active或retired，無待啟用產品版本。shape同v2 role/profile另含lifecycle/base，不揭露draft、人員、command result或reason PII。不改`orgmaster_contract.v_ai_pdm_principal_effective_grants_v4`；任用原catalogVersion仍是provenance，不必等current policy。此契約已由migration 086及雙邊manifest實作，尚未套用；既有v1欄位不變。
 
 ### 5.4 migration 與最小 DB 權限
 
-未來在`db/postgres`選當時未用ordinal，logical name沿`dev123_role_policy_editor_v1`；forward-only、單交易、既有migrator/邊界規則，不改已套用migration，本輪不建立SQL。
+已新增`db/postgres/086_dev123_role_policy_editor_v1.sql`；forward-only、單交易、只涉及`ai_pdm_core`／`ai_pdm_contract`及版本化讀取`orgmaster_contract`，不改已套用migration。它建立draft/command/state/identity、35欄current/history projection、最小ACL、原子apply routine與server-owned share project scope；初始mode為`DISABLED`，未在本輪執行。
 
 先核對實際installed legacy/dynamic基線、九身份及保護內容；未知則停止該遷移。新增欄位/四資料集與contract投影，state初始DISABLED/generation0；legacy role_status預設active，原byte/hash/permissions/pointer/priority/grants不改。已驗v5/v6/v7 history可補nullable格式metadata；更舊資料保留原狀並標unsupported-format，只讀、不從它恢復可套用草稿。不得順帶執行084/085、Principal fence、cleanup或其他資料切換。
 
@@ -317,7 +317,7 @@ reload後先驗當前Principal/資格，再GET原command（有ID時）或server 
 
 ### 7.2 相容與生效時間點
 
-沿用OrgMaster提案`orgmaster_contract.v_ai_pdm_role_policy_compatibility_v2`單列：application_id='ai-pdm'、consumer_id='orgmaster'、contract_version='ai-pdm.role-policy-consumer-compatibility.v2'、compatibility_revision bigint、supported_publication_format='dynamic-policy-v1'、supported_canonicalization_version='jenfu.canonical-json.v1'、supported_role_schema_id='ai-pdm.role-schema.flexible.v2'、supported_role_profile_schema_id='ai-pdm.role-profile-schema.v1'、accepted_baseline_role_identity_hash/accepted_protected_policy_hash（64hex）、consumer_source_revision（40hex）、enablement_ref text、readiness=READY/NOT_READY；提案由14欄精簡為13欄，僅在未發布草案可直接修訂。若14欄schema已實際部署／發布，不得原地縮欄，須新增版本並保留相容窗口。`registryHash`完整留在§5.2 `contentHash`及PDM source validation／confirmation，不作OrgMaster逐版核可欄位。consumer拒絕缺失／多列／NOT_READY、schema/source/identity/scope/protected契約不符及真正的compatibilityRevision競爭；合法能力更新若重算完整hash，不單獨構成consumer不相容。不是每business request的OrgMaster HTTP依賴。
+沿用OrgMaster提案`orgmaster_contract.v_ai_pdm_role_policy_compatibility_v2`單列：application_id='ai-pdm'、consumer_id='orgmaster'、contract_version='ai-pdm.role-policy-consumer-compatibility.v2'、compatibility_revision bigint、supported_publication_format='dynamic-policy-v1'、supported_canonicalization_version='jenfu.canonical-json.v1'、supported_role_schema_id='ai-pdm.role-schema.flexible.v2'、supported_role_profile_schema_id='ai-pdm.role-profile-schema.v1'、accepted_registry_hash/accepted_baseline_role_identity_hash/accepted_protected_policy_hash（64hex）、consumer_source_revision（40hex）、enablement_ref text、readiness=READY/NOT_READY。accepted_registry_hash為§5.2語意hash；不比變動全identity/profile hash。缺失、多列、NOT_READY、未知schema/hash或revision漂移拒絕apply。不是每business request的OrgMaster HTTP依賴。
 
 第一次切到dynamic前，仍需兩端真實current/history/任用往返、確認實際consumer版本及owner rollout條件；可共用有效CI/release/整合證據，不為每次勾選再做正式發布。marker不是live consumer已升級的獨立證明。state DISABLED只讀；ENABLED允許管理操作；PAUSED可save/preview但不可apply，當前業務policy保持有效。mode無產品API，權限設定頁不能自行開啟首次rollout。
 
@@ -363,15 +363,15 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 | slice | 精確必要工作／預期surface | owner範圍及驗收 |
 |---|---|---|
-| OM-C1 current/history reader | `server/aiPdmRoleCatalogRepository.ts`、`applicationRoleCatalogRegistry.ts`讀PDM v2/current及history；legacy exact artifact及grouped-v2 schema/hash/profile validator | 只SELECT PDM contract；9..64完整身份，七canonical＋legacy-only alias＋hidden-protected及custom；驗consumer schema/source、identity、scope與protected邊界並重算完整contentHash，不固定核可整份業務registryHash、不static fallback或union |
+| OM-C1 current/history reader | `server/aiPdmRoleCatalogRepository.ts`、`applicationRoleCatalogRegistry.ts`讀PDM v2/current及history；legacy exact artifact及grouped-v2 schema/hash/profile validator | 只SELECT PDM contract；9..64完整身份，七canonical＋legacy-only alias＋hidden-protected及custom，驗固定registry/profile schema、canonical hash/status，不static fallback或union |
 | OM-C2 任用DTO與provenance | `src/governance/aiPdmCatalog.ts`／types／`validation.ts`、`server/orgmasterGovernanceStore.ts`／`employeeRecommendationService.ts`及governance API支援custom/status/disposition/presentation | 新一般任用只active/selectable且scope合法；採購／生管新任用用procurement，不再新建production_planning。既有兩種任用／代理依原identity/version驗歷史，可查可撤銷，不能批量改ID/code/version/scope/期間。特權任用仍原入口 |
-| OM-C3 owner compatibility projection | OrgMaster own forward-only migration／owner readiness輸出§7.2 compatibility_v2，支援grouped-v2及role-profile-schema.v1、接受baseline identity/protected hash | 只OrgMaster自己的contract與readiness資料；runtime不寫PDM policy。PDM SELECT，不能由PDM建立或寫marker；一般能力更新不改OrgMaster source/deploy/compatibility row；v1 READY不能冒充v2 |
+| OM-C3 owner compatibility projection | OrgMaster own forward-only migration／owner readiness輸出§7.2 compatibility_v2，支援grouped-v2及role-profile-schema.v1、接受exact registry/baseline/protected hash | 只OrgMaster自己的contract與readiness資料；runtime不寫PDM policy。PDM SELECT，不能由PDM建立或寫marker；v1 READY不能冒充v2 |
 | OM-C4 指派UI與七角色呈現 | `src/components/GovernanceCenter.tsx`正常AI-PDM任用選單用presentationName/Order，active custom appended；歷史生管標「採購／生管（舊生管指派）」並可撤銷，inactive顯示停用 | OrgMaster維持人員指派；不加能力checkbox／角色定義／草稿發布器。system_admin僅原特權任用入口，PDM管理員名稱不取得human_privileged。holder/recommendation/代理在inactive時拒新任用 |
 | OM-C5 真實往返與相容證據 | 正常任用/代理/特權、legacy→grouped A→B、custom增停恢復及兩類採購/生管原指派/race | QA29/30/44/52可共用一次連續L4旅程；原grants不改、scope/期間/priority保留、已撤/到期不復活。有效source/runtime/readback證據可供首次rollout重用，不逐案重建環境 |
 
 `server/applicationRoleAssignmentStore.ts`現行是financial assignment，不屬AI-PDM切片。`historicalAiPdmRoleSnapshotMatches`保留legacy v5/v6/v7 allowlist，dynamic改讀原version的immutable history及重算hash/profile；不因不同active版本或展示名改為RD／採購生管就拒絕合法舊任用，也不能只憑同ID/name放行。未存hash的舊任用以owner immutable version→hash binding驗provenance，不批量回填；新command仍綁expected version/hash。sourceGrant及delegation仍驗原role及period/scope/subject，PDM policy lookup才解析permissionRoleId；原role priority coverage仍以原code。
 
-必要依賴：PDM先提供v2/history/profile與ACL、DISABLED保留legacy → 首次dynamic啟用前兩端reader及真實任用往返可用 → 確認有效consumer/owner rollout → 允許單一apply。缺view/錯schema不能fallback；simulator只支持PDM本地層。普通能力更新不要求OrgMaster改source/deploy/compatibility row；只有任用consumer的schema/source/identity/scope/protected邊界改變才需雙端協作並更新相容宣告。首次切換的既有有效CI/整合/source證據可共用，不為每次權限變更重辦發布；這是相容依賴，非正式環境施工授權。
+必要依賴：PDM先提供v2/history/profile與ACL、DISABLED保留legacy → 兩端reader及真實任用往返可用 → 確認有效consumer/owner rollout → 允許單一apply。缺view/錯schema不能fallback；simulator只支持PDM本地層。首次切換的既有有效CI/整合/source證據可共用，不為每次權限變更重辦發布；這是相容依賴，非OrgMaster/正式環境施工授權。
 
 新任用由OrgMaster owner snapshot比較expected catalog及status/disposition：PDM先apply再建立任用snapshot則stale expected拒絕；重疊時合法舊snapshot任用可依舊provenance完成，PDM新授權請求依新policy/status。舊生管指派保留原scope、不補canonical grant；沒有跨owner core鎖或任用commit永遠等最新catalog的承諾。QA30/44/52可同旅程驗兩分支。
 
@@ -379,7 +379,7 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 ## 10. RD 實作面與相依
 
-以下列出DEV-123完整editor後續工作；本輪進行中的是OrgMaster既有九身份任用相容／撤權阻擋切片，沒有因此宣稱完整DEV-123 editor、registry JSON、SQL或測試工具已實作。名稱/拆檔是參考，技術等效調整依§14.2。
+下列切片已在隔離工作樹實作；實際檔案、固定驗證結果及仍待DEV-121／122收斂處見§15。名稱/拆檔仍可依§14.2等效調整，但外部資料、安全與相容不變條件不得放寬。
 
 | 切片 | 受影響surface | 驗證出口 |
 |---|---|---|
@@ -426,7 +426,7 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 ## 13. 文件狀態與交接
 
-`RD Implementation Ready / Human Confirmed`、架構定案（產品/安全/相容邊界）；五點精簡已納資料/API/恢復/驗證契約。OrgMaster既有九身份任用相容／撤權阻擋局部切片 `Local Slice Verified`，其結果以實際source/test證據另記；DEV-123完整dynamic七角色/custom/editor/DB/API仍`NOT_IMPLEMENTED`，52案/CG/L4及正式啟用仍`NOT_RUN`。局部結果不能替代未實作產品或真實L4/正式證據。
+`Local Implementation Verified / Rollout Disabled`。registry、DTO/命令/結果查詢、private API、UI、forward migration、dynamic reader與OrgMaster 14欄真實契約檢查已完成；固定入口及build結果見§15。完整52案、CG、原生migration/apply、真實browser、L4、required CI及正式啟用仍未完成，不得以本機PASS取代。首次apply維持由`DISABLED`與`NOT_READY`雙重阻擋。
 
 <a id="dev-123-architecture-closure"></a>
 
@@ -434,9 +434,9 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 
 ### 14.1 本輪結論
 
-使用者2026-10-19原始訊息已同意五點瘦身，保留七角色/五作業/必要保護；該次先限文件。其後授權的本機切片僅處理OrgMaster既有九身份契約的任用相容與撤權阻擋，並未把DEV-123完整產品或L4範圍提前完成。
+使用者原始訊息已同意五點瘦身，明定保留七角色/五作業/必要保護、只AI-PDM文件。這是對前版內部流程的有意替換，產品資料/任用邊界不擴張。
 
-只讀對照目前main及既有055→062 schema、catalog/guard/source與相關DEV文件：既有publication本來持有版本metadata，可擴欄而不必再建一對一表；同交易/讀取資格的command與異動用一份append-only資料投影；無延後啟用需求，preview可即時計算、apply一次提交。source code尚未實作此方案，這是RD契約檢查，不是獨立QC。
+2026-10-19架構收斂時只讀對照main及既有055→062 schema、catalog/guard/source與相關DEV文件：既有publication本來持有版本metadata，可擴欄而不必再建一對一表；同交易/讀取資格的command與異動用一份append-only資料投影；無延後啟用需求，preview可即時計算、apply一次提交。該段當時僅為RD契約檢查；2026-10-21的本機實作與驗證另記§15，仍不稱獨立QC。
 
 ### 14.2 RD可自行決定與必要回送
 
@@ -475,4 +475,30 @@ legacy唯讀若細能力不一致，顯示「既有權限不同」/indeterminate
 | 每案整包證據與固定工具 | 保留52/17AC/CG，按層級取證、共用metadata/旅程、重用runner，只重驗受影響面；QA§4–6 |
 | 架構凍結過細 | 固定結果/權限/資料/外部相容；RD可調私有API/資料/鎖/hash等效實作並同步文件；不新增人工關卡 |
 
-此前文件整理只更新本DEV的SPEC/ADR/QA、任務/索引與DEV-121 prospective入口；既有release/CI/DB boundary gate未修改。該輪靜態核對不證明產品或正式驗證。後續僅OrgMaster九身份任用相容／撤權阻擋切片為`Local Slice Verified`；完整DEV-123與本計畫52案仍未宣稱完成，正式migration／發布不在本輪授權內。
+本節記錄2026-10-19文件精簡階段；2026-10-21已依後續授權交付source/SQL/UI/API/tests與OrgMaster本機契約，不改既有release/CI gate。provider、正式資料、migration及traffic均未操作；目前狀態與證據以§15為準。
+
+## 15. 2026-10-21 本機實作與驗證
+
+### 15.1 已完成
+
+- `role-policy-editor-registry.v2.json`與產生器固定七個日常呈現、九個既有身份、20個業務action、66個legacy binding及九個protected code；自訂角色只可使用固定employee/workspace模板。
+- `role-policy-editor.ts`、service、HTTP/schema、十個`/api/settings/access/role-policies`端點及設定頁面已接線；create/save/preview/apply/read-result與current/history DTO使用exact-key、size/origin、CAS及同ID重播控制。
+- migration 086建立35欄current/history、draft/command/state/identity、原子apply與最小ACL；share的`project_scope_key`由server/trigger取submission，既有非空project資料由同一forward migration只做等值回填，之後不可由runtime任意改寫。
+- dynamic catalog reader驗完整canonical hashes/profile/alias/lifecycle；inactive角色不授權，production_planning保留原identity並取procurement permission profile。OrgMaster的真實v7 vector由AI-PDM domain builder產生，再由兩邊各自decoder驗證。
+- submission detail與public share使用resource project scope；分享記錄的project binding缺失或不符即拒絕。管理API仍需verified human privileged Principal、AAL2及direct global `system_admin`。
+
+### 15.2 固定驗證結果
+
+| 入口 | 2026-10-21結果 | 支持範圍 |
+|---|---|---|
+| `npm run test:dev-123:contracts`（設定`ORGMASTER_DEV058_ROOT`為DEV-058隔離工作樹） | PASS：Node 3/3；Vitest 11檔69/69 | registry、DTO/service、雙邊35/14欄與真實vector、dynamic reader/evaluator、project scope/share |
+| `npm run typecheck:app` | PASS | 應用型別 |
+| `node scripts/dev121-build-principal-route-map-v2.mjs --check` | PASS：149 files／171 methods／181 entries | DEV-121路由地圖未漂移 |
+| `npm run check:db-boundary` | PASS：`DEV010_DB_RULESET_V1` | migration只在owner schema並以versioned contract跨app讀取 |
+| `npm run build:isolated` | PASS：126 pages；artifact/primary/cleanup=true | Next production build與任務資源清理；既有middleware警告不影響結果 |
+
+### 15.3 尚未關閉的條件
+
+- migration 086未套用，`role_policy_state.mode`仍設計為`DISABLED`；OrgMaster migration 034初始`NOT_READY`。因此本輪不可能啟用dynamic apply，也沒有正式資料改動。
+- 多資源共用的legacy permission目前採全部列示action均成立才Allow，避免過度授權。若要讓單一角色只擁有drawing或part其中一類仍能走共用route，DEV-121／122須在caller或resource resolver提供精確target action，再做受影響回歸；此項是首次`ENABLED`前的功能收斂條件。
+- 52案whole、CG01/02、原生PostgreSQL migration/apply、正常browser操作、真實兩端連續往返、required CI、L4及production仍`NOT_RUN`；本機PASS只支持上述實際層級。

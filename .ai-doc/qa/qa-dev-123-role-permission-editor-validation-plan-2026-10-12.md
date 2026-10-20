@@ -1,6 +1,6 @@
 # DEV-123 角色權限設定驗證計畫
 
-建立：2026-10-12；修訂：2026-10-19。Owner：`AIPDM/DEV-123`。依[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)及[自用五點精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)設計。OrgMaster既有九身份任用相容／撤權阻擋切片 `Local Slice Verified`；這不是DEV-123完整editor實作。DEV-123產品及52案整體仍 `NOT_IMPLEMENTED / NOT_RUN`，本輪局部結果見§7實際驗證紀錄；文件自查不稱獨立QC。
+建立：2026-10-12；修訂：2026-10-21。Owner：`AIPDM/DEV-123`。依[唯一契約](../specs/DEV-123-role-permission-editor-contract.md)及[自用五點精簡](../specs/DEV-123-role-permission-editor-contract.md#dev-123-self-use-simplification)設計。2026-10-21已完成本機L1／應用建置及真實雙邊schema/vector契約檢查；原生PG migration/apply、正常browser、完整L4、52案whole、required CI及正式啟用仍`NOT_RUN`。RD自查不稱獨立QC。
 
 ## 1. 驗證範圍與方式
 
@@ -13,7 +13,7 @@
 | L3 正常UI | 正常導航/真實控制完成設定、matrix/workbench同值、狀態與viewport；同一旅程留代表畫面/操作及必要API/DB對照，不逐case重拍 |
 | L4 真實兩端 | 實際PDM producer與OrgMaster reader/正常任用往返；可用一個連續旅程覆蓋29/30/44/52，simulator不能代替 |
 
-可先完成獨立PDM本地slice；缺L4只阻止相關整合/首次切換或whole宣告。本輪明確進行的是OrgMaster既有九身份相容／撤權阻擋局部切片，可在其授權本機範圍取證；不代表DEV-123 editor、雙端L4或正式環境已完成。未來如需角色化QC，同一人可依序工作，證據不可稱獨立。只在相關source/角色/fixture/路徑/假設改變時補驗受影響案例；SHA或無關文件更新不自動全量重跑，provider-required CI保持。
+可先完成獨立PDM本地slice；缺L4只阻止相關整合/首次切換或whole宣告。2026-10-21使用者已授權AI-PDM及OrgMaster隔離工作樹的本機協同實作與測試，但未授權正式環境、migration或部署。未來如需角色化QC，同一人可依序工作，證據不可稱獨立。只在相關source/角色/fixture/路徑/假設改變時補驗受影響案例；SHA或無關文件更新不自動全量重跑，provider-required CI保持。
 
 ## 2. Fixture 與正常旅程
 
@@ -56,9 +56,9 @@ QA123-01..52及17AC/CG仍保留。使用者2026-10-19已同意五點精簡：舊
 | QA123-23 | AC06/07／L2 | 原生雙連接：RD短請求先通過舊判權並暫停其業務write；管理者apply撤權後放行舊請求，再發新請求 | apply不等無關business全域鎖；已授權短請求可完成（原業務衝突仍按原規則），新請求必拒絕。oracle取代舊write先commit屏障，不宣稱撤銷已開始操作 |
 | QA123-24 | AC06／L2 | recognition/worker/export啟動後apply撤權，在最終採用或新delivery時檢查 | 新snapshot/current human/grant/policy拒絕採用，不因啟動時allow入庫/配送；任務失敗可追查，不能只驗一般短請求 |
 | QA123-25 | AC09／L1+L2 | 依最終schema，以runtime直接DML publication格式/entries/status/pointer/state/identity/command結果與diff；helper越界 | 有效table/column/inherited ACL及immutable拒絕；無state UPDATE/owner/DDL補授。narrow管理寫入正例，command兼異動，不能按固定helper/表數冒充安全證據 |
-| QA123-26 | AC09／L1+L2 | JSON重排/Unicode/unsafe integer、identity/status/alias/semantic registry漂移、合法能力更新及純私有檔名重排 | canonical確定、legacy byte/hash不變；未授權語意改動或錯hash拒絕，合法能力更新由PDM重算registryHash/contentHash並經自身source validation/confirmation；完整contentHash仍可變，但不要求OrgMaster逐版核可／更新compat row。純route/caller/helper路徑不改外部語意hash但coverage接線須更新；system/frozen false不被解除 |
+| QA123-26 | AC09／L1+L2 | JSON重排/Unicode/unsafe integer、identity/status/alias/semantic registry漂移及純私有檔名重排 | canonical確定、legacy byte/hash不變；語意改變破壞正確hash，純route/caller/helper路徑不改外部語意hash但coverage接線須更新；system/frozen false不被解除 |
 | QA123-27 | AC09／L2+L3 | verified grouped history建current-base新草稿，確認/單一apply；legacy非法clone | 新版本/命令-diff、舊payload/原任用不改；current status/frozen保留，legacy不OR推核准；不直接回切歷史指標 |
-| QA123-28 | AC11／L2 | compatibility_v2缺失/多列/NOT_READY、僅v1 READY、消費schema/source/identity/scope/protected邊界不符或compatibilityRevision競爭 | simulator明示；不相容契約或真正revision衝突時apply拒絕且原active/grants不變，不存取sibling core。正確重算的registryHash/contentHash或一般能力變更本身不是compatibility drift，不能要求OrgMaster逐版核可；READY或本地mock不能代真實consumer |
+| QA123-28 | AC11／L2 | compatibility_v2缺失/多列/NOT_READY、僅v1 READY、schema/語意registry/hash/revision漂移 | simulator明示；apply拒絕且原active/grants不變，不存取sibling core；READY或本地mock不能代真實consumer，無需每次勾選新人工核准 |
 | QA123-29 | AC11/13／L4 | 真實legacy→dynamic A→dynamic B及OrgMaster正常任用/代理/特權歷史 | A下指派在B仍按原history驗provenance，不重寫；正常nativeDB/UI，不能只測第一次版本 |
 | QA123-30 | AC11/13／L4 | PDM先apply再開OrgMaster任用snapshot，及兩owner交易重疊 | 前者stale expected拒絕；重疊合法舊provenance可完成，但PDM新請求採新policy/status。scope/期限/特權拒絕保留，不宣稱跨owner鎖；可與29/44/52共用旅程 |
 | QA123-31 | AC10／L3 | 桌面1440×900及窄版390×844，matrix/workbench/preview/history | 無document橫overflow、遮擋／文字截斷；FMS同模式近viewport核心骨架比較 |
@@ -110,7 +110,7 @@ CG123-02為原66key/全部live route/caller與byte delivery去向：mapped-busin
 
 ## 5. 驗證入口與選測
 
-未來優先沿用既有適用test/PG/browser/integration runner，必要時才加targeted入口；`test:dev-123:contracts`、`qc:dev-123:postgres/browser/integration`可作方便別名，**不是必須新增五套框架或固定名稱才能驗收**。須有可重現的case→實際命令/步驟/結果映射；aggregate可在同一次結果中列出52案/CG，各層missing/Blocked不冒充whole PASS。
+固定本機入口為`npm run test:dev-123:contracts`，它先檢查registry產物，再執行schema/雙邊契約及受影響Vitest；執行雙邊檢查時需將`ORGMASTER_DEV058_ROOT`指向實際DEV-058工作樹。原生PG/browser/integration仍沿用既有適用runner，必要時才補targeted入口；不新增五套框架。須有可重現的case→實際命令/步驟/結果映射；aggregate可支援多案，各層missing/Blocked不冒充whole PASS。
 
 | 改變的責任面 | 必要驗證／可重用範圍 |
 |---|---|
@@ -129,16 +129,16 @@ CG123-02為原66key/全部live route/caller與byte delivery去向：mapped-busin
 
 同一有效實證可支援多case/AC，保留對應即可。必要案例失敗＝未通過、必要層缺證據＝未充分驗證、外部條件缺少＝相關部分阻塞。local slice可完成，whole仍須52項必要目的與CG及真實L4支持；不改DEV121/122原分母。預期拒絕/空值依案例判斷，unexpected error或應有資料被誤顯全空不能用build綠燈蓋掉。
 
-完成或交接前只清本任務已驗明的runtime/UI/process/port/temporary資料，保留證據且不碰他人資源。**DEV-123完整52案、CG、editor DB/API/UI、L4與正式啟用仍NOT_RUN；OrgMaster局部切片結果見§7，不把局部結果升格為DEV-123或L4 PASS。**
+完成或交接前只清本任務已驗明的runtime/UI/process/port/temporary資料，保留證據且不碰他人資源。**本輪固定契約／單元、型別、路由地圖、DB boundary及隔離build已執行；52案whole、CG、原生PG apply、正常browser、完整L4、required CI及正式啟用仍NOT_RUN。**本機結果不是獨立QC或Production證據。
 
-## 7. 2026-10-19既有九身份相容／撤權局部結果
+## 7. 2026-10-21 本機執行結果
 
-本輪以可獨立交付切片先解除OrgMaster的撤權及能力目錄版本耦合，不冒充完整DEV-123動態editor產品。
+| 命令 | 結果 | 可對應目的 | 不涵蓋 |
+|---|---|---|---|
+| `npm run test:dev-123:contracts`＋真實`ORGMASTER_DEV058_ROOT` | PASS；registry 9 roles／20 actions／66 bindings，Node 3/3，Vitest 11檔69/69 | QA01–16、25–28、31–33、36、38、43、45–48、50–51的部分L1/API斷言；QA29/30/44/52的schema/vector前置 | 原生DB交易、正常UI與完整兩端旅程 |
+| `npm run typecheck:app` | PASS | app DTO/API/UI型別 | runtime行為 |
+| `node scripts/dev121-build-principal-route-map-v2.mjs --check` | PASS；149 files／171 methods／181 entries | DEV-121 route policy來源未漂移 | dynamic多資源target resolver完整語意 |
+| `npm run check:db-boundary` | PASS | migration owner schema與跨app versioned read邊界 | migration實際套用、ACL readback |
+| `npm run build:isolated` | PASS；126 pages，artifact/primary/cleanup=true | production build可成立、任務runtime清理 | 真實browser、provider、L4 |
 
-- AI-PDM新增`assignment-compatible-role-catalog.mjs` owner artifact builder與7／7通過的單元測試。它只產生既有九身份的新能力內容版本；任用metadata、scope、受保護deny與system_admin不變，並重算role/catalog hash。它不是runtime writer、API、migration或動態editor。
-- 既有v7產物檢查通過；fixture、085與正式SQL未改。OrgMaster reader接受符合身份相容及來源/hash保護的新版本；日常能力內容不再要求OrgMaster逐版修改source或重新部署。schema、身份／scope或protected變更仍需真正相容處理。
-- OrgMaster最終聚合18檔：133 PASS／1 SKIP；SKIP是未設定連線時的原生PG案例。同一原生案例另以此builder產生兩版、真正PostgreSQL JSONB view及SELECT-only consumer執行9／9 PASS；不與聚合重複加總。直接core及DELETE均拒絕，這是隔離契約／ACL驗證，不是正式或雙端UI L4。
-- Owner snapshot/audit可信來源下，PDM current失敗仍可HTTP撤權、移除及純減權發布，合法重送回原結果；新增／恢復／混合擴權仍拒絕。相關DOM元件、既有catalog／actor／continuity回歸、TypeScript、OrgMaster前後端隔離build及兩repo DB boundary通過。
-- Luna唯讀源碼審查未發現P1/P2；未自行執行測試，不稱獨立QC。首輪JSONB順序、HTTP重送CAS與PG拒絕碼oracle問題已修正並保留回歸；未放寬身份、資料權限或required gate。
-
-臨時PG及port已清理，舊工作樹／既有資料保留。未執行正式migration、deploy、traffic、provider驗證、真實browser或required CI；完整七角色/custom/editor DB/API、QA52／CG與真正L4仍未完成。DEV-121／122歷史與分母未變。
+已保留的未完成條件：migration 086尚未執行、mode初始`DISABLED`，OrgMaster readiness初始`NOT_READY`；多資源legacy route目前以列示action全部成立才Allow，首次`ENABLED`前仍需DEV-121／122提供精確caller/resource action解析並補受影響案例。沒有把此保守Deny或build綠燈記為52案whole PASS。

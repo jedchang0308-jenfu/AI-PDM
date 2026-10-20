@@ -279,6 +279,29 @@ describe("DEV-005 EntitlementRepository", () => {
     })).rejects.toMatchObject({ code: "entitlement_contract_mismatch" });
   });
 
+  it("maps a dynamic legacy route decision to the required business actions", async () => {
+    const dynamicCatalog: JenfuEntitlementRoleCatalog = {
+      catalogVersion: "ai-pdm.role-policy.10000000-0000-4000-8000-000000000011",
+      roles: [{
+        stableRoleId: "role-rd", roleCode: "rd", displayName: "RD", assignable: true,
+        risk: "normal", subjectKind: "employee", recommendationAllowed: true,
+        delegationAllowed: true, allowedScopeKinds: ["workspace"], assignmentTier: "app_admin",
+        permissions: ["pdm.drawing.view", "pdm.part.view", "pdm.transfer.view"].map(code =>
+          ({ kind: "action" as const, code, allowed: true })), roleDefinitionHash: "dynamic-rd"
+      }]
+    };
+    await expect(repository({}, dynamicCatalog).evaluatePermission({
+      actor, rolePriority: [], permissionKind: "action", permissionCode: "submission.view",
+      workspaceCode: "company-jenfu"
+    })).resolves.toMatchObject({ decisionCode: "allowed", assignment: { roleCode: "rd" } });
+    const missingTransfer = { ...dynamicCatalog, roles: [{ ...dynamicCatalog.roles[0],
+      permissions: dynamicCatalog.roles[0].permissions.slice(0, 2) }] };
+    await expect(repository({}, missingTransfer).evaluatePermission({
+      actor, rolePriority: [], permissionKind: "action", permissionCode: "submission.view",
+      workspaceCode: "company-jenfu"
+    })).rejects.toMatchObject({ code: "permission_not_granted" });
+  });
+
   it("rejects duplicate rows and the 32-row safety bound", async () => {
     await expect(repository({ assignmentRows: [assignment, { ...assignment, assignment_id: "assignment-duplicate" }] }).listEffectiveAssignments(actor))
       .rejects.toMatchObject({ code: "entitlement_contract_mismatch" });

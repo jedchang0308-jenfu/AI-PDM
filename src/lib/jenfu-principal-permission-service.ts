@@ -14,6 +14,7 @@ export type PrincipalWorkspacePermission = {
   permissionKind: "page" | "action";
   permissionCode: string;
 };
+export type PrincipalResourceScope = { workspaceCode?: string | null; projectCode?: string | null };
 
 export type PrincipalWorkspaceDecision = {
   allowed: boolean;
@@ -47,11 +48,26 @@ export async function evaluatePrincipalWorkspacePermissionsInSnapshot(
   }, permissions);
 }
 
+export async function evaluatePrincipalResourcePermissionsInSnapshot(
+  snapshot: AsyncDatabaseClient,
+  verified: VerifiedPrincipalRequest,
+  permissions: readonly PrincipalWorkspacePermission[],
+  resource: PrincipalResourceScope
+): Promise<PrincipalWorkspaceDecision[]> {
+  return evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(snapshot, {
+    identityIssuer: verified.session.identityIssuer, identitySubject: verified.session.identitySubject,
+    principalId: verified.session.principalId, employeeId: verified.session.employeeId,
+    localPrincipalId: verified.profile.pdmUserId, companyId: verified.profile.companyId,
+    sessionSchemaVersion: 2
+  }, permissions, resource);
+}
+
 /** Server-only core. The caller must freshly admit the actor in this same snapshot. */
 export async function evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(
   snapshot: AsyncDatabaseClient,
   admitted: Parameters<typeof createJenfuVerifiedAuthorizationActor>[0],
-  permissions: readonly PrincipalWorkspacePermission[]
+  permissions: readonly PrincipalWorkspacePermission[],
+  resource: PrincipalResourceScope = {}
 ): Promise<PrincipalWorkspaceDecision[]> {
   if (permissions.length === 0 || permissions.some(({ permissionCode }) =>
     !permissionCode || permissionCode !== permissionCode.trim())) {
@@ -69,8 +85,8 @@ export async function evaluateAdmittedPrincipalWorkspacePermissionsInSnapshot(
     const evaluated = await new JenfuEntitlementRepository(snapshot, publishedCatalog).evaluatePermissions(
       permissions.map(({ permissionKind, permissionCode }) => ({
         actor, permissionKind, permissionCode,
-        workspaceCode: actor.companyId,
-        projectCode: null,
+        workspaceCode: resource.workspaceCode ?? actor.companyId,
+        projectCode: resource.projectCode ?? null,
         rolePriority
       })), decisionAt
     );

@@ -235,6 +235,7 @@ export type ReadonlyShare = {
   id: string;
   submission_id: string;
   label: string;
+  project_scope_key: string | null;
   expires_at: string;
   created_by: string;
   created_by_name: string;
