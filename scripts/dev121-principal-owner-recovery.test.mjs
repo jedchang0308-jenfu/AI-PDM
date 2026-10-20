@@ -9,6 +9,7 @@ import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProbeArguments, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
 import { RD_PERMISSION_STATE_PGOPTIONS, RD_PERMISSION_STATE_RECEIPT_PREFIX, buildPermissionStateOperation, buildPermissionStateReceipt } from './lib/dev122-rd-permission-state-readback.mjs'
 import { assertWorkerReuseInput, workerRepairAbortContinuation } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { assertReconciledRepairContinuation } from './lib/dev121-principal-only-release.mjs'
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-aipdm-release'
 const previousRevision = 'ai-pdm-prod-111111111111'
@@ -901,6 +902,10 @@ for (const inheritedPostbuild of [false, true]) test(`post-abort ledger readback
     receiptId: 'DEV122-RECONCILED-WORKER',
     ...h.continuation,
   })
+  assert.deepEqual(assertReconciledRepairContinuation(next.capsule.value, workerInput, bucket), h.continuation)
+  assert.throws(() => assertReconciledRepairContinuation(next.capsule.value,
+    { ...workerInput, postAbortLedgerReadbackRef: { ...workerInput.postAbortLedgerReadbackRef, sha256: '0'.repeat(64) } }, bucket),
+  /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
   const workerContinuation = await readPreActivationAbortContinuation({ ...h.helperInput, ...workerRepairAbortContinuation(workerInput), verifyProvider: true })
   assert.deepEqual(workerContinuation.authorityBasis, continuation.authorityBasis)
 })

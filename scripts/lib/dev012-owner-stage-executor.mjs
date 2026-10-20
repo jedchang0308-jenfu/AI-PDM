@@ -10,7 +10,7 @@ import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDa
 import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProviderStage } from './dev012-production-data-cutover-provider.mjs'
 import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
 import { buildDev014ConsumerConformance } from './dev014-consumer-conformance.mjs'
-import { assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
+import { assertPrincipalOnlyRecoveryBinding, assertPrincipalOnlyRecoveryReadback, assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation, principalOnlyRollbackRevision } from './dev121-principal-only-release.mjs'
 import { assertPrincipalOnlyMigrationFence } from './dev121-migration-fence.mjs'
 import { assertOpenSwxWorkerRef, assertWorkerRuntimeJoin, createOpenSwxOwnerRelease, isPausedAppRepair, readWorkerFullEvidence } from './dev122-openswx-owner-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, assertAiPdmMigrationHistory, assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmInstalledMigrationEquivalent, assertAiPdmRepairMigrationMode, assertAiPdmMigrationBundleBytes, assertMigration, parseAiPdmMigrationArchive, assertPausedMigrationPrerequisite, assertPausedMigrationAssociation, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
@@ -457,8 +457,11 @@ export async function readRepairStageBasis({ worker, intent, intentRef, profile,
   const result = await runAiPdmEvidenceContext(createAiPdmEvidenceContext(), async () => {
     const descriptor = await resolveRepairStageDescriptor({ worker, intent, profile })
     if (!descriptor) return null
-    if (profile.application.id !== 'ai-pdm' || intent.principalOnlyRecovery || intent.principalOnlyFenceRef || typeof buildMigrationBundle !== 'function') fail('REPAIR_CAPSULE_INVALID')
+    const releaseContinuation = assertReconciledPrincipalAbortBinding(intent, profile.artifact.releaseBucket)
+    if (profile.application.id !== 'ai-pdm' || ((intent.principalOnlyRecovery || intent.principalOnlyFenceRef) && !releaseContinuation) || typeof buildMigrationBundle !== 'function') fail('REPAIR_CAPSULE_INVALID')
     const evidence = await readWorkerFullEvidence(transport, descriptor.value, descriptor.profile, readWorkerSource)
+    try { assertReconciledRepairContinuation(intent, evidence.artifact.input, profile.artifact.releaseBucket) }
+    catch { fail('REPAIR_CONTINUATION_MISMATCH') }
     const history = assertAiPdmMigrationHistory(evidence.artifact.servingGraph.migrationHistory)
     if (intent.unlinkedProfileCleanupRef) fail('UNLINKED_PROFILE_CLEANUP_REPAIR_MIX_DENIED')
     const current = await buildMigrationBundle(intent.sourceRevision)
