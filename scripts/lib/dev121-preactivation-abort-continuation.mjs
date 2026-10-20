@@ -985,8 +985,9 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     || (reconciled && !principalRecovery
       ? service.scaling?.scalingMode !== 'MANUAL' || ![0, '0'].includes(service.scaling?.manualInstanceCount) || recovery.serviceUid !== service.uid
       : principalRecovery
-        ? service.scaling?.scalingMode !== 'AUTOMATIC' || !Number.isFinite(Number(service.scaling?.maxInstanceCount))
-          || Number(service.scaling?.maxInstanceCount) < 1 || recovery.serviceUid !== service.uid
+        ? !((service.scaling?.scalingMode === 'MANUAL' && [0, '0'].includes(service.scaling?.manualInstanceCount))
+          || (service.scaling?.scalingMode === 'AUTOMATIC' && Number.isFinite(Number(service.scaling?.maxInstanceCount))
+            && Number(service.scaling?.maxInstanceCount) >= 1)) || recovery.serviceUid !== service.uid
       : service.scaling?.scalingMode !== 'AUTOMATIC' || Number(service.scaling.maxInstanceCount) !== 1)
     || !traffic(service.traffic, intent.previousRevision) || !traffic(service.trafficStatuses, intent.previousRevision)
     || !same(entrySnapshot(service), entrySnapshot(prepareFacts.entrypointBaseline))) fail()
