@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "aipdm.production-slice-plan.v2",
+  "baseRevision": "432b63f8a37b4278dd95c0aa0c503871a438ebc0",
+  "headRevision": "432b63f8a37b4278dd95c0aa0c503871a438ebc0",
+  "classification": "FULL",
+  "files": [
+    ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+    ".ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md",
+    ".github/workflows/deploy-ai-pdm-principal-migrations-production.yml",
+    "scripts/dev012-owner-stage-executor.test.mjs",
+    "scripts/dev117-ai-pdm-continuous-release.mjs",
+    "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+    "scripts/dev117-release-control-policy.test.mjs",
+    "scripts/dev122-rd-permission-ledger-readback.test.mjs",
+    "scripts/lib/dev012-owner-release-runtime.mjs",
+    "scripts/lib/dev012-owner-stage-executor.mjs",
+    "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+    "scripts/lib/dev117-release-control-policy.mjs",
+    "scripts/lib/dev122-rd-permission-ledger-readback.mjs",
+    "scripts/plan-production-slice.mjs",
+    "scripts/production-slice-plan.test.mjs"
+  ],
+  "slices": [
+    "documentation",
+    "authorization",
+    "release-control"
+  ],
+  "reasons": {
+    "documentation": [
+      ".ai-doc/specs/DEV-122-ai-pdm-internal-function-issues.md",
+      ".ai-doc/specs/SPEC-PDM-INDEPENDENT-PRODUCTION-DEPLOYMENT-001-app-owned-release-adapter.md"
+    ],
+    "authorization": [
+      "scripts/dev122-rd-permission-ledger-readback.test.mjs",
+      "scripts/lib/dev122-rd-permission-ledger-readback.mjs"
+    ],
+    "release-control": [
+      ".github/workflows/deploy-ai-pdm-principal-migrations-production.yml",
+      "scripts/dev012-owner-stage-executor.test.mjs",
+      "scripts/dev117-ai-pdm-continuous-release.mjs",
+      "scripts/dev117-ai-pdm-continuous-release.test.mjs",
+      "scripts/dev117-release-control-policy.test.mjs",
+      "scripts/lib/dev012-owner-release-runtime.mjs",
+      "scripts/lib/dev012-owner-stage-executor.mjs",
+      "scripts/lib/dev117-ai-pdm-continuous-release.mjs",
+      "scripts/lib/dev117-release-control-policy.mjs",
+      "scripts/plan-production-slice.mjs",
+      "scripts/production-slice-plan.test.mjs"
+    ]
+  },
+  "gates": {
+    "planner": true,
+    "full": true,
+    "documentation": false,
+    "application": true,
+    "authorization": true,
+    "database": true,
+    "preview": true,
+    "recognition": true,
+    "worker": true,
+    "infrastructure": true,
+    "releaseCore": true,
+    "dbBoundary": true,
+    "nativePostgres": true,
+    "migration": true,
+    "isolatedBuild": true,
+    "desktopUi": true
+  },
+  "releasePhases": [
+    "preflight",
+    "build",
+    "migrate-if-needed",
+    "candidate-smoke",
+    "activate-readback"
+  ],
+  "evidenceRequirements": [
+    "actor-grant-allow-deny",
+    "transaction-readback-rollback",
+    "version-bytes-desktop",
+    "job-terminal-cleanup",
+    "source-image-revision-traffic-rollback"
+  ],
+  "failurePolicy": {
+    "family": null,
+    "occurrences": 0,
+    "limit": 2,
+    "action": "CONTINUE"
+  },
+  "planSha256": "dd451a85d95579d9933ac1fac7c1728bc4173b5b3f85d1f7fe89166d7d309edc"
+}

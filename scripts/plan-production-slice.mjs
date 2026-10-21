@@ -25,7 +25,7 @@ if (githubOutput) {
   const rows = {
     classification: result.classification,
     plan_sha256: result.planSha256,
-    stop_for_common_mechanism: result.failurePolicy.action === 'STOP_FOR_COMMON_MECHANISM',
+    ai_coo_review_requested: result.failurePolicy.action === 'TRIGGER_AI_COO_REVIEW',
     docs_only: result.classification === 'DOCUMENTATION_ONLY',
     ...Object.fromEntries(Object.entries(result.gates).map(([key, value]) => [key.replace(/[A-Z]/gu, match => `_${match.toLowerCase()}`), value])),
   }
