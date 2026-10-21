@@ -1,4 +1,5 @@
 import { assertProgramOnlyPolicy, assertProgramOnlyExecution, assertProgramOnlyStaticJob, assertProgramOnlyNative, assertProgramOnlySubmission, readProgramOnlyBundles, programOnlyNativeUri, readProgramOnlyReleaseWindow, PROGRAM_ONLY_DISPOSITION } from './dev117-ai-pdm-program-only-baseline.mjs'
+import { assertDev117ReleaseIntent } from './dev117-ai-pdm-continuous-release.mjs'
 import { assertImmutableRef, assertMigrationSubmissionIntent, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './dev012-owner-release-runtime.mjs'
 import { assertPrincipalOnlyRecoveryBinding, assertRecoveryProofReadback } from './dev121-principal-only-release.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmObservationInputs } from './dev121-owner-release-proof.mjs'
@@ -23,15 +24,17 @@ import {
   assertPermissionStateReceipt,
   parsePermissionStateArgs,
 } from './dev122-rd-permission-state-readback.mjs'
+import { assertAppliedMigrationContinuation, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
 
 const same = (a, b) => canonicalize(a) === canonicalize(b)
+const H40 = /^[a-f0-9]{40}$/u
 const fail = () => { throw new Error('DEV121_PREACTIVATION_CONTINUATION_INVALID') }
 const traffic = (rows, revision) => Array.isArray(rows) && rows.length === 1
   && rows[0].revision === revision && Number(rows[0].percent) === 100 && !rows[0].tag
 
 // A finalized abort is not a successful release or a maintenance rollback.
 // Certify the cleaned, still-stopped original traffic before preparing a retry.
-export async function readPreActivationAbortContinuation({ profile, transport, baselineIntentRef, service = null, control = null, verifyProvider = false, postAbortLedgerReadbackRef = null, principalOnlyFenceRef = null, principalOnlyRecovery = null }) {
+export async function readPreActivationAbortContinuation({ profile, transport, baselineIntentRef, service = null, control = null, verifyProvider = false, postAbortLedgerReadbackRef = null, principalOnlyFenceRef = null, principalOnlyRecovery = null, appliedMigrationContinuation = null }) {
   const bucket = profile.artifact.releaseBucket
   const readContinuation = async () => {
   const baseline = await transport.readJson(baselineIntentRef, bucket, ['receipts'])
@@ -57,12 +60,15 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
   if (!control) control = JSON.parse((await transport.readBytes(`gs://${bucket}/control/active.json`, { prefixes: ['control'] })).bytes)
   if (control.result !== 'PRE_ACTIVATION_ABORTED') fail()
   if (intent.programOnlyBaseline) {
-    if (postAbortLedgerReadbackRef || principalOnlyFenceRef || principalOnlyRecovery) fail()
+    if (postAbortLedgerReadbackRef || principalOnlyFenceRef || principalOnlyRecovery || appliedMigrationContinuation) fail()
     return readProgramOnlyAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider })
   }
   const binding = assertPrincipalOnlyRecoveryBinding(intent, bucket)
-  if (!binding) return readOrdinaryAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider,
+  if (!binding) {
+    if (appliedMigrationContinuation) fail()
+    return readOrdinaryAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider,
     postAbortLedgerReadbackRef, principalOnlyFenceRef, principalOnlyRecovery })
+  }
   // A submitted migration can fail before candidate creation while its database
   // outcome remains unknown. Reconcile that pre-candidate shape through the
   // existing read-only ledger path; the principal recovery binding alone does
@@ -71,7 +77,7 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
     if (!same(intent.principalOnlyFenceRef, principalOnlyFenceRef)
       || !same(intent.principalOnlyRecovery, principalOnlyRecovery)) fail()
     return readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider,
-      postAbortLedgerReadbackRef, principalOnlyFenceRef, principalOnlyRecovery, principalOnlyReconciled: true })
+      postAbortLedgerReadbackRef, principalOnlyFenceRef, principalOnlyRecovery, appliedMigrationContinuation, principalOnlyReconciled: true })
   }
   const [rollback, candidate, deployment, migration, source, proof, revision] = await Promise.all([
     read(paths.rollback), read(paths.candidate), read(paths.deployment), read(paths.migrate),
@@ -847,10 +853,14 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
 // migration execution exists.  None promotes the aborted capsule or image into
 // a released artifact.
 async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider,
-  postAbortLedgerReadbackRef = null, principalOnlyFenceRef = null, principalOnlyRecovery = null, principalOnlyReconciled = false }) {
+  postAbortLedgerReadbackRef = null, principalOnlyFenceRef = null, principalOnlyRecovery = null, appliedMigrationContinuation = null, principalOnlyReconciled = false }) {
   const bucket = profile.artifact.releaseBucket
   const reconciled = postAbortLedgerReadbackRef !== null
   const principalRecovery = reconciled && principalOnlyReconciled
+  if (appliedMigrationContinuation !== null) {
+    try { assertAppliedMigrationContinuation(appliedMigrationContinuation, bucket) } catch { fail() }
+    if (!reconciled || !principalRecovery) fail()
+  }
   const recovery = reconciled
     ? assertPrincipalOnlyRecoveryBinding({ previousRevision: intent.previousRevision, principalOnlyFenceRef, principalOnlyRecovery }, bucket)
     : null
@@ -912,7 +922,8 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
   const reconciliation = reconciled
     ? await readPostAbortLedgerReconciliation({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts,
       rollbackFacts, prepareFacts, build, deployment, control, read, run, ref: postAbortLedgerReadbackRef,
-      principalOnlyFenceRef: principalRecovery ? principalOnlyFenceRef : null })
+      principalOnlyFenceRef: principalRecovery ? principalOnlyFenceRef : null, principalOnlyRecovery: principalRecovery ? principalOnlyRecovery : null,
+      appliedMigrationContinuation })
     : (await assertMissing(read, migrationSubmissionIntentUri(profile, paths.migrate)), null)
   const completed = build ? await readSealedUnsubmittedBuild({ profile, transport, baselineIntentRef, intent, paths, prepare, prepareFacts,
     build, provenance, deployment, read, seal, run, verifyMigrationAbsence: !reconciled }) : null
@@ -1292,16 +1303,115 @@ async function authorizePermissionDiagnosticExecution({ profile, transport, read
   return execution.name
 }
 
+async function authorizeAppliedMigrationExecution({ profile, transport, read, execution, staticJob, binding,
+  principalOnlyFenceRef, principalOnlyRecovery, postAbortLedgerReadbackRef }) {
+  const bucket = profile.artifact.releaseBucket
+  try { assertAppliedMigrationContinuation(binding, bucket) } catch { fail() }
+  const args = execution?.template?.containers?.[0]?.args
+  if (!Array.isArray(args)) fail()
+  const outputIndex = args.indexOf('--output-ref')
+  if (outputIndex < 0 || outputIndex + 1 >= args.length) fail()
+  const outputUri = args[outputIndex + 1]
+  const rootPattern = new RegExp(`^gs://${bucket}/receipts/releases/([A-Z0-9][A-Z0-9-]{5,63})/([a-f0-9]{64})/migrate\\.json$`, 'u')
+  const rootMatch = rootPattern.exec(outputUri)
+  if (!rootMatch || outputUri !== binding.migrateRef.uri) fail()
+  const [, releaseId, rootSha256] = rootMatch
+  const intentUri = `gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`
+  const intentRow = await read(intentUri)
+  if (intentRow.ref.sha256 !== rootSha256) fail()
+  let appliedIntent
+  try { appliedIntent = assertDev117ReleaseIntent(intentRow.value, profile) } catch { fail() }
+  if (appliedIntent.releaseId !== releaseId || appliedIntent.sourceRevision !== binding.sourceRevision
+    || !same(appliedIntent.postAbortLedgerReadbackRef, postAbortLedgerReadbackRef)
+    || !same(appliedIntent.principalOnlyFenceRef, principalOnlyFenceRef)
+    || !same(appliedIntent.principalOnlyRecovery, principalOnlyRecovery)) fail()
+  const paths = releasePaths(profile, appliedIntent, rootSha256)
+  if (paths.prepare !== binding.prepareRef.uri || paths.migrate !== binding.migrateRef.uri) fail()
+  const [prepare, migrate, deployment, submission] = await Promise.all([
+    read(paths.prepare), read(paths.migrate), read(paths.deployment), read(migrationSubmissionIntentUri(profile, paths.migrate)),
+  ])
+  if (!same(prepare.ref, binding.prepareRef) || !same(migrate.ref, binding.migrateRef)) fail()
+  const sealStage = (row, stage) => {
+    const { receiptSha256, ...core } = row.value ?? {}
+    if (receiptSha256 !== sha256(canonicalize(core)) || core.schemaVersion !== 'jenfu.dev012.stage-receipt.v1'
+      || core.ownerApplicationId !== profile.application.id || core.releaseId !== appliedIntent.releaseId
+      || core.sourceRevision !== appliedIntent.sourceRevision || core.stage !== stage || core.status !== 'PASS') fail()
+    return core.facts
+  }
+  const prepareFacts = sealStage(prepare, 'prepare')
+  const deploymentValue = deployment.value
+  if (deploymentValue?.schemaVersion !== 'jenfu.dev117.ai-pdm-deployment-capsule.v2'
+    || deploymentValue.ownerApplicationId !== profile.application.id
+    || deploymentValue.sourceRevision !== binding.sourceRevision
+    || deploymentValue.releaseIntentSha256 !== rootSha256
+    || !same(deploymentValue.releaseIntentRef, intentRow.ref)
+    || deploymentValue.migrationRunnerSourceRevision === undefined
+    || !H40.test(deploymentValue.migrationRunnerSourceRevision ?? '')
+    || !deploymentValue.migrationRunnerDigest?.startsWith(`${profile.artifact.migrationRunnerUri}@sha256:`)
+    || !same(prepareFacts.migrationRunnerDigest, deploymentValue.migrationRunnerDigest)
+    || !same(prepareFacts.migrationRunnerSourceRevision, deploymentValue.migrationRunnerSourceRevision)) fail()
+  try {
+    assertMigrationSubmissionIntent(submission.value, { profile, deployment: deploymentValue, outputUri: binding.migrateRef.uri,
+      deadlineAt: appliedIntent.deadlineAt, principalOnlyFenceRef })
+  } catch { fail() }
+  const migration = migrate.value
+  const migrationKeys = ['schemaVersion', 'ownerApplicationId', 'sourceRevision', 'database', 'ledger', 'manifestSha256', 'baselineCount',
+    'minimumLedgerCount', 'ledgerBootstrap', 'ledgerCount', 'applied', 'replayed', 'crossDatabaseDenials', 'boundaryStatus',
+    'executionName', 'startedAt', 'completedAt', 'status', 'principalOnlyFence', 'receiptSha256']
+  if (!same(Object.keys(migration).sort(), migrationKeys.sort())
+    || migration.schemaVersion !== 'jenfu.dev012.migration-receipt.v1'
+    || migration.ownerApplicationId !== profile.application.id || migration.sourceRevision !== binding.sourceRevision
+    || migration.database !== 'jenfu_prod' || migration.ledger !== 'ai_pdm_core.schema_migrations'
+    || migration.manifestSha256 !== appliedIntent.migrationManifestSha256 || migration.baselineCount !== 15 || migration.minimumLedgerCount !== 0
+    || !same(migration.ledgerBootstrap, { enabled: true, created: false }) || migration.ledgerCount !== 35 || migration.applied !== 2
+    || migration.replayed !== 33 || !same(migration.crossDatabaseDenials, [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }])
+    || migration.boundaryStatus !== 'PASS' || migration.status !== 'PASS'
+    || migration.principalOnlyFence?.ref !== principalOnlyFenceRef?.uri || migration.principalOnlyFence?.sha256 !== principalOnlyFenceRef?.sha256
+    || migration.principalOnlyFence?.fenceSourceRevision !== principalOnlyFenceRef?.uri.split('/').at(-2)
+    || migration.receiptSha256 !== sha256(canonicalize(Object.fromEntries(Object.entries(migration).filter(([key]) => key !== 'receiptSha256'))))) fail()
+  const facts = executionTerminalFacts(execution)
+  const environment = executionEnvironment(execution)
+  const sourceIndex = args.indexOf('--source-revision')
+  const executionSourceRevision = sourceIndex >= 0 ? args[sourceIndex + 1] : null
+  if (!ordinaryExecutionMatches(profile, execution, submission.value, deploymentValue, staticJob)
+    || facts.completedState !== 'CONDITION_SUCCEEDED' || Number(execution.succeededCount ?? 0) !== 1
+    || Number(execution.failedCount ?? 0) !== 0 || migration.executionName !== execution.name.split('/').at(-1)
+    || executionSourceRevision !== deploymentValue.sourceRevision
+    || environment.PDM_SOURCE_REVISION !== deploymentValue.migrationRunnerSourceRevision
+    || Date.parse(submission.value.observedAt) > facts.created || facts.finished > Date.parse(submission.value.deadlineAt)) fail()
+  await readAppliedMigrationReadbackEvidence({
+    binding, profile,
+    readJson: async ref => { const row = await read(ref.uri); if (!same(row.ref, ref)) fail(); return row },
+    history: { installed: { receipt: migration } },
+    deployment: deploymentValue,
+    sourceVerification: async readbackIntent => {
+      if (readbackIntent.workflowSourceRevision !== binding.sourceRevision
+        || readbackIntent.runnerSourceRevision !== deploymentValue.migrationRunnerSourceRevision
+        || readbackIntent.migrationRunnerDigest !== deploymentValue.migrationRunnerDigest) fail()
+    },
+  })
+  return execution.name
+}
+
 async function authorizeReadOnlyDiagnosticExecution(input) {
   const args = input.execution?.template?.containers?.[0]?.args
   if (!Array.isArray(args)) fail()
   if (args.includes('--permission-operation-ref')) return authorizePermissionDiagnosticExecution(input)
-  if (args.includes('--bundle-ref') && args.includes('--output-ref')) return authorizeLedgerDiagnosticExecution(input)
+  if (args.includes('--bundle-ref') && args.includes('--output-ref')) {
+    const outputIndex = args.indexOf('--output-ref')
+    const outputUri = outputIndex >= 0 ? args[outputIndex + 1] : null
+    if (/\/ledger-probe-(?:33|34|35)\.json$/u.test(outputUri ?? '')) return authorizeLedgerDiagnosticExecution(input)
+    if (/\/migrate\.json$/u.test(outputUri ?? '')) {
+      if (!input.appliedMigrationContinuation) fail()
+      return authorizeAppliedMigrationExecution(input)
+    }
+  }
   fail()
 }
 
 async function readPostAbortLedgerReconciliation({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts,
-  rollbackFacts, prepareFacts, build, deployment, control, read, run, ref, principalOnlyFenceRef = null }) {
+  rollbackFacts, prepareFacts, build, deployment, control, read, run, ref, principalOnlyFenceRef = null, principalOnlyRecovery = null,
+  appliedMigrationContinuation = null }) {
   const bucket = profile.artifact.releaseBucket
   if (!build || !deployment || prepareFacts.migrationRunnerDigest !== deployment.value.migrationRunnerDigest) fail()
   assertImmutableRef(ref, bucket, ['receipts/releases'])
@@ -1369,7 +1479,8 @@ async function readPostAbortLedgerReconciliation({ profile, transport, baselineI
     if (facts.created >= failed.submitted && !authorizedExecutions.has(execution.name)) {
       const name = await authorizeReadOnlyDiagnosticExecution({ profile, transport, read, execution, staticJob: failed.staticJob,
         expectedRunnerSourceRevision: runnerSourceRevision, expectedMigrationRunnerDigest: deployment.value.migrationRunnerDigest,
-        cache: diagnosticCache })
+        cache: diagnosticCache, appliedMigrationContinuation, binding: appliedMigrationContinuation, principalOnlyFenceRef, principalOnlyRecovery,
+        postAbortLedgerReadbackRef: ref })
       authorizedExecutions.add(name)
     }
   }

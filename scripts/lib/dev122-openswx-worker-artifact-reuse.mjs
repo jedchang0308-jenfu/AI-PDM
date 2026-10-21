@@ -12,6 +12,7 @@ import { OPENSWX_TERRAFORM_PATHS, OPENSWX_TERRAFORM_ADDRESSES, readCurrentReadyW
 import { READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH } from './dev122-openswx-readback-iam.mjs'
 import { SECRET_VERSION_IAM_SOURCE_PATH, SECRET_VERSION_IAM_HUMAN_APPROVAL_PATH, SECRET_VERSION_IAM_EXECUTION_PATHS, readSecretVersionIamContinuation } from './dev122-openswx-secret-version-iam.mjs'
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
+import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEvidenceContext, readAiPdmEvidenceLeaf, admitAiPdmEvidenceSource, readAiPdmObservationInputs, assertAiPdmPausedRepairReadbacks, recordAiPdmHistoryObject, recordAiPdmHistorySourceBlob, deriveAiPdmNativeHistoryBasis, qualifyAiPdmNativeHistoryBasis, assertAiPdmNativeHistoryIngress, ensureAiPdmNativeHistoryBasis, ensureAiPdmNestedCheckpointHistoryBasis, readAiPdmActiveHistoryIssuerRevision } from './dev121-owner-release-proof.mjs'
 import { isHistoricalReaderFor, isHistoricalReaderMode, isHistoricalSourceByteOrigin } from './dev122-historical-reader.mjs'
 import { assertHistoricalProfileCompatibility, historicalProfileOptions, readHistoricalWorkerProfile, resolveWorkerProfileContext, sourceReaderForRevision } from './dev122-openswx-profile-context.mjs'
@@ -833,7 +834,10 @@ async function validateFailedDailyResourceProof({ transport, value, association,
 export function assertWorkerReuseInput(value, { historical = false } = {}) {
   const reconciledRepair = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v5'
   const repair = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2' || reconciledRepair, basis = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v3', frontierRebase = value?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v4'
-  exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', ...(basis ? ['historyBasisRef'] : []), ...(frontierRebase ? ['frontierRebaseRef'] : []), ...(repair ? ['servingCapsuleRef', 'predecessorBaselineRef', ...(reconciledRepair ? RECONCILED_REPAIR_KEYS : [])] : [...(Object.hasOwn(value ?? {}, 'secretVersionIamContinuationRef') ? ['secretVersionIamContinuationRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : []), ...(Object.hasOwn(value ?? {}, 'completedFailedDailyCheckpointRef') ? ['completedFailedDailyCheckpointRef'] : []), ...(Object.hasOwn(value ?? {}, 'partialFailedDailyPauseInputRef') ? ['partialFailedDailyPauseInputRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyPauseFailureRef') ? ['failedDailyPauseFailureRef'] : [])])], 'OPENSWX_REUSE_INPUT_INVALID')
+  const reconciledKeys = reconciledRepair
+    ? [...RECONCILED_REPAIR_KEYS, ...(Object.hasOwn(value ?? {}, 'appliedMigrationContinuation') ? ['appliedMigrationContinuation'] : [])]
+    : []
+  exact(value, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', ...(basis ? ['historyBasisRef'] : []), ...(frontierRebase ? ['frontierRebaseRef'] : []), ...(repair ? ['servingCapsuleRef', 'predecessorBaselineRef', ...reconciledKeys] : [...(Object.hasOwn(value ?? {}, 'secretVersionIamContinuationRef') ? ['secretVersionIamContinuationRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyContinuation') ? ['failedDailyContinuation'] : []), ...(Object.hasOwn(value ?? {}, 'completedFailedDailyCheckpointRef') ? ['completedFailedDailyCheckpointRef'] : []), ...(Object.hasOwn(value ?? {}, 'partialFailedDailyPauseInputRef') ? ['partialFailedDailyPauseInputRef'] : []), ...(Object.hasOwn(value ?? {}, 'failedDailyPauseFailureRef') ? ['failedDailyPauseFailureRef'] : [])])], 'OPENSWX_REUSE_INPUT_INVALID')
   if (!repair && Object.hasOwn(value, 'secretVersionIamContinuationRef')) ownRef(value.secretVersionIamContinuationRef)
   if (!repair && Object.hasOwn(value, 'failedDailyContinuation')) assertFailedDailyContinuation(value.failedDailyContinuation)
   if (!repair && Object.hasOwn(value, 'completedFailedDailyCheckpointRef')) {
@@ -861,6 +865,10 @@ export function assertWorkerReuseInput(value, { historical = false } = {}) {
       || !/^ai-pdm-prod-[a-z0-9-]+$/u.test(value.principalOnlyRecovery.revision ?? '')
       || !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-recovery@sha256:[a-f0-9]{64}$/u.test(value.principalOnlyRecovery.imageDigest ?? '')
       || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(value.principalOnlyRecovery.serviceUid ?? '')) fail('OPENSWX_REUSE_INPUT_INVALID')
+    if (Object.hasOwn(value, 'appliedMigrationContinuation')) {
+      try { assertAppliedMigrationContinuation(value.appliedMigrationContinuation, BUCKET) }
+      catch { fail('OPENSWX_REUSE_INPUT_INVALID') }
+    }
   }
   assertImmutableRef(value.sourceLockRef, BUCKET, ['receipts']); assertImmutableRef(value.currentSourceObjectRef, BUCKET, ['source']); ownRef(value.priorActivationRef)
   if (!safePath(value.sourceLockRef.uri.slice(`gs://${BUCKET}/`.length)) || !value.sourceLockRef.uri.endsWith('.json')
@@ -871,7 +879,8 @@ export function assertWorkerReuseInput(value, { historical = false } = {}) {
 export function workerRepairAbortContinuation(input) {
   if (input?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v2') return null
   if (input?.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v5') fail('OPENSWX_REUSE_INPUT_INVALID')
-  return Object.fromEntries(RECONCILED_REPAIR_KEYS.map(key => [key, structuredClone(input[key])]))
+  const keys = [...RECONCILED_REPAIR_KEYS, ...(Object.hasOwn(input, 'appliedMigrationContinuation') ? ['appliedMigrationContinuation'] : [])]
+  return Object.fromEntries(keys.map(key => [key, structuredClone(input[key])]))
 }
 async function readSecretVersionIamForReuse({ transport, input, supplemental, sourceRevision, profile, readSource }) {
   if (!input.secretVersionIamContinuationRef) return null

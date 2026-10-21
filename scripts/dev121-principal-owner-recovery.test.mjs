@@ -876,6 +876,93 @@ function addPriorLedgerReadbackExecutions(h, { sourceRevision = h.runnerSourceRe
   return { intent, intentRef, executions }
 }
 
+function addAppliedMigrationExecution(h) {
+  const sourceRevision = 'd'.repeat(40), runnerSourceRevision = h.runnerSourceRevision
+  const migrationRunnerDigest = h.deployment.value.migrationRunnerDigest
+  const releaseId = 'DEV122-RD-APPLIED-MIGRATION'
+  const intent = { ...h.failed.intent, releaseId, sourceRevision,
+    postAbortLedgerReadbackRef: h.continuation.postAbortLedgerReadbackRef,
+    principalOnlyFenceRef: h.continuation.principalOnlyFenceRef,
+    principalOnlyRecovery: h.continuation.principalOnlyRecovery }
+  const intentRow = h.put(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`, intent)
+  const paths = releasePaths(h.profile, intent, intentRow.ref.sha256)
+  const prepare = h.put(paths.prepare, stageReceipt({ profile: h.profile, intent, stage: 'prepare', previousReceiptRef: null,
+    facts: { migrationRunnerDigest, migrationRunnerSourceRevision: runnerSourceRevision }, observedAt: '2026-10-03T00:08:00Z' }))
+  const manifestSha256 = intent.migrationManifestSha256
+  const migrationBundle = h.put(`gs://${bucket}/source/migration-bundles/${sourceRevision}/${manifestSha256}.json`, { manifestSha256 })
+  const deploymentValue = { schemaVersion: h.profile.schemas.deploymentCapsule, ownerApplicationId: 'ai-pdm', sourceRevision,
+    artifactDigest: h.failed.image, releaseIntentRef: intentRow.ref, releaseIntentSha256: intentRow.ref.sha256,
+    buildReceiptRef: prepare.ref, deadlineAt: intent.deadlineAt, migrationBundleRef: migrationBundle.ref,
+    migrationRunnerDigest, migrationRunnerSourceRevision: runnerSourceRevision }
+  const deployment = h.put(paths.deployment, deploymentValue)
+  const args = ['--bundle-ref', migrationBundle.ref.uri, '--bundle-sha256', migrationBundle.ref.sha256,
+    '--source-revision', sourceRevision, '--output-ref', paths.migrate]
+  const submissionCore = { schemaVersion: 'jenfu.dev012.migration-submission-intent.v2', ownerApplicationId: 'ai-pdm', sourceRevision,
+    migrationRunnerSourceRevision: runnerSourceRevision, jobName: h.jobName, migrationRunnerDigest, migrationBundleRef: migrationBundle.ref,
+    outputUri: paths.migrate, args, principalOnlyFenceRef: intent.principalOnlyFenceRef, deadlineAt: intent.deadlineAt,
+    status: 'SUBMISSION_INTENT', observedAt: '2026-10-03T00:09:00Z' }
+  const submission = h.put(migrationSubmissionIntentUri(h.profile, paths.migrate), { ...submissionCore, receiptSha256: sha256(canonicalize(submissionCore)) })
+  const fence = { ref: intent.principalOnlyFenceRef.uri, sha256: intent.principalOnlyFenceRef.sha256,
+    service: 'ai-pdm-prod', uid: h.service.uid, oldRevision: previousRevision, beforeGeneration: 213, generation: 214,
+    requestTimeoutSeconds: 60, drainSeconds: 90, fenceSourceRevision: intent.principalOnlyFenceRef.uri.split('/').at(-2), ownerWriterSessions: 0 }
+  const migrationCore = { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision,
+    database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256, baselineCount: 15, minimumLedgerCount: 0,
+    ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 35, applied: 2, replayed: 33,
+    crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }], boundaryStatus: 'PASS',
+    executionName: 'ai-pdm-prod-migration-runner-applied', startedAt: '2026-10-03T00:10:01Z', completedAt: '2026-10-03T00:10:20Z',
+    status: 'PASS', principalOnlyFence: fence }
+  const migration = h.put(paths.migrate, { ...migrationCore, receiptSha256: sha256(canonicalize(migrationCore)) })
+
+  const readbackReleaseId = 'DEV122-RD-APPLIED-LEDGER', readbackWorkflowSourceRevision = sourceRevision
+  const readbackJob = structuredClone(h.readbackJob)
+  readbackJob.template.template.containers[0].image = migrationRunnerDigest
+  readbackJob.template.template.containers[0].env = Object.entries(rdReadbackJobEnvironment(h.profile, runnerSourceRevision)).map(([name, value]) => ({ name, value }))
+  const probes = h.readbackIntent.probes.map(row => structuredClone(row))
+  const readbackIntent = buildRdLedgerReadbackIntent({ releaseId: readbackReleaseId, workflowSourceRevision: readbackWorkflowSourceRevision,
+    workflowSourceTree: 'c'.repeat(40), workflowSourceIdentitySha256: 'e'.repeat(64), runnerSourceRevision,
+    profileSha256: h.readbackIntent.profileSha256, probes, job: readbackJob, observedAt: '2026-10-03T00:11:00Z', deadlineAt: '2026-10-03T02:00:00Z' })
+  const readbackIntentRef = h.put(`gs://${bucket}/receipts/releases/${readbackReleaseId}/rd-permission-ledger-readback-intent.json`, readbackIntent).ref
+  const readbackBase = `gs://${bucket}/receipts/releases/${readbackReleaseId}/${readbackIntentRef.sha256}`
+  const receiptSeal = value => ({ ...value, receiptSha256: rdReadbackSha256(value) })
+  const jobReceipt = h.put(`${readbackBase}/ledger-job-readback.json`, receiptSeal({
+    schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v2', ownerApplicationId: 'ai-pdm', releaseId: readbackReleaseId,
+    workflowSourceRevision: sourceRevision, runnerSourceRevision, readbackIntentRef, projection: rdReadbackJobProjection(readbackJob),
+    observedAt: '2026-10-03T00:11:10Z', status: 'PASS' }))
+  const probe = probes[0], readbackOutputUri = `${readbackBase}/ledger-probe-35.json`, readbackExecutionName = `${h.jobName}/executions/ai-pdm-prod-migration-runner-applied-readback`
+  const readbackExecution = { name: readbackExecutionName, createTime: '2026-10-03T00:12:00Z', startTime: '2026-10-03T00:12:01Z', completionTime: '2026-10-03T00:12:20Z',
+    reconciling: false, taskCount: 1, parallelism: 1, succeededCount: 1, failedCount: 0, runningCount: 0,
+    conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }],
+    template: h.task(rdReadbackProbeArguments(readbackIntent, probe, readbackOutputUri), { ...rdReadbackJobEnvironment(h.profile, runnerSourceRevision), PGOPTIONS: '-c default_transaction_read_only=on' }) }
+  readbackExecution.template.containers[0].image = migrationRunnerDigest
+  delete readbackExecution.template.volumes; delete readbackExecution.template.containers[0].volumeMounts
+  const executionReceipt = h.put(`${readbackBase}/ledger-probe-35-execution-readback.json`, receiptSeal({
+    schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm', releaseId: readbackReleaseId,
+    workflowSourceRevision: sourceRevision, runnerSourceRevision, readbackIntentRef, ledgerCount: 35, executionName: readbackExecutionName,
+    createTime: readbackExecution.createTime, startTime: readbackExecution.startTime, completionTime: readbackExecution.completionTime,
+    succeededCount: 1, failedCount: 0, completedState: 'CONDITION_SUCCEEDED', templateSha256: rdReadbackSha256(readbackExecution.template),
+    observedAt: readbackExecution.completionTime, status: 'PASS' }))
+  const nativeCore = { schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: runnerSourceRevision,
+    database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: probe.manifestSha256, baselineCount: 15, minimumLedgerCount: 0,
+    ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 35, applied: 0, replayed: 35,
+    crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }], boundaryStatus: 'PASS',
+    executionName: readbackExecutionName.split('/').at(-1), startedAt: '2026-10-03T00:12:02Z', completedAt: '2026-10-03T00:12:19Z', status: 'PASS' }
+  const native = h.put(readbackOutputUri, { ...nativeCore, receiptSha256: rdReadbackSha256(nativeCore) })
+  const readbackResult = buildRdReadbackResult({ intent: readbackIntent, intentRef: readbackIntentRef, jobReadbackRef: jobReceipt.ref,
+    attempts: [{ status: 'PASS', ledgerCount: 35, executionReadbackRef: executionReceipt.ref, nativeReceiptRef: native.ref, completedAt: readbackExecution.completionTime }],
+    successfulProbe: probe, nativeReceiptRef: native.ref, observedAt: readbackExecution.completionTime })
+  const readbackResultRef = h.put(`${readbackBase}/ledger-readback-result.json`, readbackResult).ref
+  const binding = { schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision, prepareRef: prepare.ref, migrateRef: migration.ref, ledgerReadbackResultRef: readbackResultRef }
+  const fenceEnvironment = { ...rdReadbackJobEnvironment(h.profile, runnerSourceRevision), DEV121_MIGRATION_FENCE_REF: intent.principalOnlyFenceRef.uri, DEV121_MIGRATION_FENCE_SHA256: intent.principalOnlyFenceRef.sha256 }
+  const migrationExecution = { name: `${h.jobName}/executions/${migrationCore.executionName}`, createTime: '2026-10-03T00:10:00Z', startTime: '2026-10-03T00:10:01Z', completionTime: '2026-10-03T00:10:20Z',
+    reconciling: false, taskCount: 1, parallelism: 1, succeededCount: 1, failedCount: 0, runningCount: 0,
+    conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }], template: h.task(args, fenceEnvironment) }
+  migrationExecution.template.containers[0].image = migrationRunnerDigest
+  delete migrationExecution.template.volumes; delete migrationExecution.template.containers[0].volumeMounts
+  h.providerExecutions.push(migrationExecution, readbackExecution)
+  h.helperInput.appliedMigrationContinuation = binding
+  return { binding, intentRow, prepare, migration, deployment, submission, readbackResultRef, migrationExecution, readbackExecution }
+}
+
 for (const inherited of [false, true]) test(`B28 unpublished build abort keeps partial artifact non-authoritative; inherited zero-build anchor=${inherited}`, async () => {
   const h = await unpublishedAbortFixture(inherited), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
   const result = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
@@ -1106,6 +1193,24 @@ test('post-abort reconciliation admits the production-shaped prior-ledger then c
   assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
   assert.equal(prior.executions.length, 3)
   assert.equal(permission.execution.succeededCount, 1)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation admits a sealed later applied migration execution only with its continuation binding', async () => {
+  const h = await reconciledMigrationAbortFixture({ principalOnly: true })
+  const applied = addAppliedMigrationExecution(h)
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(applied.migrationExecution.template.containers[0].args.at(-1), applied.binding.migrateRef.uri)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation rejects a later migrate execution without the sealed continuation binding', async () => {
+  const h = await reconciledMigrationAbortFixture()
+  const applied = addAppliedMigrationExecution(h)
+  delete h.helperInput.appliedMigrationContinuation
+  await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  assert.equal(applied.migrationExecution.succeededCount, 1)
   assert.equal(h.calls.puts, 0)
 })
 

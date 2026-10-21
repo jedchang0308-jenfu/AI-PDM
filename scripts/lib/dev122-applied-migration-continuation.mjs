@@ -99,7 +99,9 @@ export async function readAppliedMigrationReadbackEvidence({ binding, profile, r
   if (!successfulExecution) fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
   const nativeRow = await readJson(result.nativeReceiptRef)
   const successfulProbe = readbackIntent.probes.find(row => row.ledgerCount === result.ledgerCount)
-  const native = assertRdReadbackNativeReceipt(nativeRow.value, { intent: readbackIntent, probe: successfulProbe, executionName: successfulExecution.executionName })
+  const native = assertRdReadbackNativeReceipt(nativeRow.value, {
+    intent: readbackIntent, probe: successfulProbe, executionName: successfulExecution.executionName.split('/').at(-1),
+  })
   if (result.ledgerCount !== 35 || result.migration085State !== 'APPLIED' || result.databaseMutationExpected !== false ||
       result.workflowSourceRevision !== binding.sourceRevision || result.runnerSourceRevision !== deployment.migrationRunnerSourceRevision ||
       result.migrationRunnerDigest !== deployment.migrationRunnerDigest || history.installed.receipt.ledgerCount !== result.ledgerCount ||
