@@ -16,6 +16,7 @@ import { executeOpenSwxBootstrap } from './lib/dev122-openswx-bootstrap.mjs'
 import { expectedReadbackJobBindings, READBACK_IAM_PATHS, PREBUILD_IAM_SOURCE_PATH, prebuildIamContinuationPlan } from './lib/dev122-openswx-readback-iam.mjs'
 import { assertDev117ReleaseIntent, buildDev117MigrationPackage, buildDev117MigrationBundle } from './lib/dev117-ai-pdm-continuous-release.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
+import { ownerPrivateObjectMediaWindow } from './lib/dev012-private-object-media-window.mjs'
 import { assertMigration, readOwnerReleaseProof,
   verifyOwnerProviderReadback, readAiPdmSourceArchive, parseAiPdmMigrationArchive,
   assertAiPdmMigrationContent, assertAiPdmMigrationEquivalent, assertAiPdmRepairMigrationMode, createAiPdmMigrationHistory, assertAiPdmMigrationHistory, createAiPdmEvidenceContext,
@@ -421,6 +422,18 @@ test('B23 archive wire adapter uses only exact metadata/sealed GET with raw arra
   assert.ok(readback.bytes.equals(bytes)); assert.equal(wire.unboundedCalls(), 0)
   assert.equal(wire.calls.length, 2); assert.ok(wire.calls.every(row => row.method === 'GET'))
   assert.ok(wire.calls[1].url.endsWith('?alt=media&generation=7'))
+})
+test('C97 provider source archive derives a larger finite media window from sealed metadata size', async () => {
+  const bytes = Buffer.alloc(18 * 1024 * 1024, 0x5a), wire = b23Wire(bytes)
+  const originalTimeout = AbortSignal.timeout, delays = []
+  AbortSignal.timeout = milliseconds => { delays.push(milliseconds); return originalTimeout(milliseconds) }
+  try {
+    const readback = await readAiPdmSourceArchive({ ...wire, token: 'recorded-local-token-long-enough', sourceRevision: b23Revision, deadlineAt: b23Deadline() })
+    assert.ok(readback.bytes.equals(bytes))
+    assert.equal(delays[0], 20000)
+    assert.equal(delays[1], ownerPrivateObjectMediaWindow(bytes.length).attemptTimeoutMs)
+    assert.ok(delays[1] > 60000)
+  } finally { AbortSignal.timeout = originalTimeout }
 })
 async function b39ArchiveSignals(run) {
   const originalTimeout = AbortSignal.timeout, signals = []

@@ -9,6 +9,7 @@ import { canonicalize, createMigrationBundle, readGcsObject, sha256, parseGsUri,
 import { bindHistoricalReader } from './dev122-historical-reader.mjs'
 import { assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation } from './dev121-principal-only-release.mjs'
 import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
+import { ownerPrivateObjectMediaWindow } from './dev012-private-object-media-window.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -701,7 +702,8 @@ export async function readAiPdmSourceArchive({ source, sourceRevision, deadlineA
       String(metadata.generation) !== source.generation || metadata.crc32c !== source.crc32c ||
       !/^[1-9][0-9]*$/u.test(String(metadata.size ?? '')) ||
       !Number.isSafeInteger(Number(metadata.size)) || Number(metadata.size) > ARCHIVE_LIMIT) fail('ARCHIVE_METADATA_INVALID')
-  const bytes = await request(`${base}?alt=media&generation=${encodeURIComponent(source.generation)}`, Number(metadata.size), 60000, 2)
+  const mediaWindow = ownerPrivateObjectMediaWindow(Number(metadata.size))
+  const bytes = await request(`${base}?alt=media&generation=${encodeURIComponent(source.generation)}`, Number(metadata.size), mediaWindow.attemptTimeoutMs, 2)
   if (bytes.length !== Number(metadata.size) || crc32cBase64(bytes) !== source.crc32c || sha256(bytes) !== source.sha256) fail('ARCHIVE_SOURCE_MISMATCH')
   const result = { bytes, sourceRevision, source: { ...source }, generation: source.generation, crc32c: source.crc32c }
   authenticatedSources.set(result, { identity, sourceRevision })
