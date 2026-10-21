@@ -22,15 +22,20 @@ async function main() {
   assertDev117V3Profile(profile, v1, n1c)
   const args = parseOwnerStageArgs(process.argv.slice(2), profile.artifact.releaseBucket)
   const token = process.env.GOOGLE_OAUTH_ACCESS_TOKEN ?? ''
-  const fullBuild = args.stage === 'build' && process.env.GITHUB_WORKFLOW_REF === `${profile.application.repository}/${profile.workflow.path}@refs/heads/main`
+  const dailyWorkflowRef = `${profile.application.repository}/${profile.workflow.path}@refs/heads/main`
+  const principalWorkflowPath = '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml'
+  const principalWorkflowRef = `${profile.application.repository}/${principalWorkflowPath}@refs/heads/main`
+  const appliedContinuationOwner = process.env.PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE === 'true' &&
+    process.env.GITHUB_WORKFLOW_REF === principalWorkflowRef
+  const fullBuild = args.stage === 'build' && (process.env.GITHUB_WORKFLOW_REF === dailyWorkflowRef || appliedContinuationOwner)
   const migrationExecutionReadbackToken = args.stage === 'prepare' ? process.env.AIPDM_MIGRATION_EXECUTION_READ_TOKEN ?? null : null
-  const fullOwner = process.env.GITHUB_WORKFLOW_REF === `${profile.application.repository}/${profile.workflow.path}@refs/heads/main`
+  const fullOwner = process.env.GITHUB_WORKFLOW_REF === dailyWorkflowRef || appliedContinuationOwner
   if (fullOwner && args.stage === 'prepare' && (typeof migrationExecutionReadbackToken !== 'string' || migrationExecutionReadbackToken.length < 20)) throw Error('MIGRATION_READBACK_TOKEN_INVALID')
   const transport = fullBuild
     ? createAiPdmBuildReadbackTransport({ token, verifierReadbackToken: process.env.AIPDM_BUILD_VERIFIER_READ_TOKEN ?? '' })
     : createOwnerTransport({ token, migrationExecutionReadbackToken })
   const result = await executeOwnerStage({
-    ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig, migrationOnlyWorkflowPath: '.github/workflows/deploy-ai-pdm-principal-migrations-production.yml',
+    ...args, profile, profileSha256: createHash('sha256').update(readGitBlob(root, profilePath)).digest('hex'), transport, validateIntent: assertDev117ReleaseIntent, dataCutoverConfig, migrationOnlyWorkflowPath: principalWorkflowPath,
     createSourceIdentity: async (sourceRevision) => createGitSourceIdentity(root, sourceRevision),
     createSourceArchive: async (sourceRevision) => createGitArchive(root, sourceRevision),
     readWorkerSource: createContinuousReleaseSourceReader(root),

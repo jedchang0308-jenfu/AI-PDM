@@ -3,7 +3,6 @@ import test from 'node:test'
 
 import {
   assertDailyReleaseMode,
-  assertFailureRetryAllowed,
   classifyFailureFamily,
   classifyReleaseMode,
   evaluateRepeatedFailure,
@@ -50,8 +49,10 @@ test('one normalized model owns source, scope, deadline and migration dispositio
   assert.throws(() => normalizeReleaseEvidence({ intent: { ...intent, sourceSha256: 'e'.repeat(64) }, source, receipts, now: '2026-10-21T00:00:00.000Z' }), /RELEASE_EVIDENCE_SOURCE_JOIN_INVALID/u)
 })
 
-test('the second failure in the same family stops further point patches', () => {
+test('the second failure in the same family requests AI COO review without becoming a release gate', () => {
   assert.equal(classifyFailureFamily('CHAIN_SOURCE_HASH_MISMATCH'), 'SOURCE_LINEAGE')
   assert.deepEqual(evaluateRepeatedFailure([], 'CHAIN_SOURCE_HASH_MISMATCH'), { family: 'SOURCE_LINEAGE', occurrences: 1, limit: 2, action: 'CONTINUE' })
-  assert.throws(() => assertFailureRetryAllowed({ history: [{ code: 'OPENSWX_SOURCE_JOIN_INVALID' }], currentCode: 'CHAIN_SOURCE_HASH_MISMATCH' }), /RELEASE_COMMON_MECHANISM_STOP/u)
+  assert.deepEqual(evaluateRepeatedFailure([{ code: 'OPENSWX_SOURCE_JOIN_INVALID' }], 'CHAIN_SOURCE_HASH_MISMATCH'), {
+    family: 'SOURCE_LINEAGE', occurrences: 2, limit: 2, action: 'TRIGGER_AI_COO_REVIEW',
+  })
 })

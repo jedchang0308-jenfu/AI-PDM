@@ -114,7 +114,7 @@ test('required CI owns affected-slice validation and protected workflows reuse e
   }
 })
 
-test('planner stops the second failure in one family before another point patch', () => {
+test('planner requests AI COO review for the second failure without adding a release gate', () => {
   const plan = createProductionSlicePlan(['scripts/lib/dev117-ai-pdm-continuous-release.mjs'], {
     failureHistory: [{ code: 'OPENSWX_SOURCE_JOIN_INVALID' }],
     currentFailureCode: 'CHAIN_SOURCE_HASH_MISMATCH',
@@ -123,6 +123,6 @@ test('planner stops the second failure in one family before another point patch'
     family: 'SOURCE_LINEAGE',
     occurrences: 2,
     limit: 2,
-    action: 'STOP_FOR_COMMON_MECHANISM',
+    action: 'TRIGGER_AI_COO_REVIEW',
   })
 })

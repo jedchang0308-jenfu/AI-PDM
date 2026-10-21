@@ -302,13 +302,13 @@ function nextFailurePolicy(prior, code) {
   const family = classifyFailureFamily(normalizedCode)
   const occurrences = prior?.family === family ? prior.occurrences + 1 : 1
   return { code: normalizedCode, family, occurrences, limit: 2,
-    action: occurrences >= 2 ? 'STOP_FOR_COMMON_MECHANISM' : 'CONTINUE' }
+    action: occurrences >= 2 ? 'TRIGGER_AI_COO_REVIEW' : 'CONTINUE' }
 }
 
 function assertFailurePolicy(value) {
   if (!value || !/^[A-Z][A-Z0-9_]{2,127}$/u.test(value.code ?? '') || typeof value.family !== 'string'
     || !Number.isInteger(value.occurrences) || value.occurrences < 1 || value.limit !== 2
-    || value.action !== (value.occurrences >= 2 ? 'STOP_FOR_COMMON_MECHANISM' : 'CONTINUE')) fail('RELEASE_FAILURE_POLICY_INVALID')
+    || value.action !== (value.occurrences >= 2 ? 'TRIGGER_AI_COO_REVIEW' : 'CONTINUE')) fail('RELEASE_FAILURE_POLICY_INVALID')
   return value
 }
 
@@ -742,10 +742,6 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
     ? await readOwnerCleanupBinding({ intent, profile, transport, readWorkerSource, buildMigrationBundle }) : null
 
   if (stage === 'prepare') {
-    const priorFailurePolicy = await readPriorFailurePolicy({ transport, profile, intent })
-    if (priorFailurePolicy?.sourceRevision === intent.sourceRevision && priorFailurePolicy.action === 'STOP_FOR_COMMON_MECHANISM') {
-      fail('RELEASE_COMMON_MECHANISM_STOP', `${priorFailurePolicy.family}:${priorFailurePolicy.occurrences}`)
-    }
     const service = await transport.getService(profile)
     transport.assertServiceSettled(service, 'PREPARE_BASELINE_MISMATCH')
     if (transport.effectiveRevision(service) !== intent.previousRevision) fail('PREPARE_BASELINE_MISMATCH')

@@ -467,23 +467,26 @@ test('rollback reports no database mutation when migrate receipt was never produ
   assert.deepEqual(value.facts.failurePolicy, { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 1, limit: 2, action: 'CONTINUE' })
 })
 
-test('prepare stops a third same-source attempt after two machine-recorded failures in one family', async () => {
+test('prepare does not turn an AI COO review signal into a provider-read gate', async () => {
   const h = recordedHarness()
   const prior = await authorizedRecordedInput(h, 'REL-FAILURE-HISTORY-1')
   const priorIntent = (await h.transport.readJson(prior.intentResult.ref)).value
   const priorPaths = releasePaths(h.profile, priorIntent, prior.intentResult.ref.sha256)
   await h.transport.putJson(priorPaths.terminal, stageReceipt({ profile: h.profile, intent: priorIntent, stage: 'terminal', previousReceiptRef: null,
-    facts: { result: 'PRE_ACTIVATION_ABORTED', databaseDisposition: 'NOT_APPLIED', failurePolicy: { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 2, limit: 2, action: 'STOP_FOR_COMMON_MECHANISM' } }, observedAt: h.transport.now() }), { bucket, prefix: 'receipts' })
+    facts: { result: 'PRE_ACTIVATION_ABORTED', databaseDisposition: 'NOT_APPLIED', failurePolicy: { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 2, limit: 2, action: 'TRIGGER_AI_COO_REVIEW' } }, observedAt: h.transport.now() }), { bucket, prefix: 'receipts' })
   const intent = { ...priorIntent, releaseId: 'REL-FAILURE-HISTORY-2', baselineIntentRef: prior.intentResult.ref }
   const capsule = await h.transport.putJson(`gs://${bucket}/receipts/intents/failure-history-2.json`, intent, { bucket, prefix: 'receipts' })
   let serviceReads = 0
   const getService = h.transport.getService
   h.transport.getService = async (...args) => { serviceReads++; return getService(...args) }
-  await assert.rejects(executeOwnerStage({ ...prior.input, stage: 'prepare', capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256 }), /RELEASE_COMMON_MECHANISM_STOP:SOURCE_LINEAGE:2/u)
-  assert.equal(serviceReads, 0)
+  await assert.rejects(
+    executeOwnerStage({ ...prior.input, stage: 'prepare', capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256 }),
+    /DEV121_PREACTIVATION_CONTINUATION_INVALID|MISSING/u,
+  )
+  assert.equal(serviceReads, 1)
 })
 
-test('prepare fails closed on a tampered prior failure terminal before provider reads', async () => {
+test('prepare leaves tampered baseline rejection to the continuation safety contract', async () => {
   const h = recordedHarness()
   const prior = await authorizedRecordedInput(h, 'REL-FAILURE-HISTORY-TAMPERED-1')
   const priorIntent = (await h.transport.readJson(prior.intentResult.ref)).value
@@ -497,8 +500,8 @@ test('prepare fails closed on a tampered prior failure terminal before provider 
   let serviceReads = 0
   const getService = h.transport.getService
   h.transport.getService = async (...args) => { serviceReads++; return getService(...args) }
-  await assert.rejects(executeOwnerStage({ ...prior.input, stage: 'prepare', capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256 }), /STAGE_RECEIPT_INVALID/u)
-  assert.equal(serviceReads, 0)
+  await assert.rejects(executeOwnerStage({ ...prior.input, stage: 'prepare', capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256 }), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+  assert.equal(serviceReads, 1)
 })
 
 test('B24 rollback reports UNKNOWN after a durable migration submission and rejects a tampered intent', async () => {
