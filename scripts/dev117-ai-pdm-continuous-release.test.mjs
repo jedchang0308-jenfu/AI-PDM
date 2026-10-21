@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { LEGACY_STRICT_VALIDATORS, assertDev117NativeJoin, assertDev117ReleaseIntent, assertDev117V3Profile, assertDev117WorkflowSource, assertDev121MigrationOnlyWorkflowSource, buildDev117CandidateTag, buildDev117MigrationBundle, buildDev117MigrationPackage, buildDev117Mutation, verifyDev117MigrationBytes } from './lib/dev117-ai-pdm-continuous-release.mjs'
-import { assertProtectedGitHubContext, assertRuntimeConfig, buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
+import { assertProtectedGitHubContext, ownerWorkflowAuthority, assertRuntimeConfig, buildRuntimeConfig, resolvePlainEnvironment } from './lib/dev012-owner-release-runtime.mjs'
 import { assertControlledEnvironmentAuthority, assertPreparePrerequisites, readGitBlob } from './lib/dev012-owner-stage-executor.mjs'
 import { dev013L4SequenceStep } from './lib/dev013-l4-transition-sequence.mjs'
 import { canonicalize } from './lib/dev012-production-migration-runner.mjs'
@@ -395,10 +395,14 @@ test('S1B-20 principal workflow completes only an explicit applied-migration con
   }
   const continuationIntent = { ...intent, appliedMigrationContinuation: {} }
   const continuationEnvironment = { ...environment, PDM_APPLIED_MIGRATION_CONTINUATION_RELEASE: 'true' }
+  const continuationAuthority = ownerWorkflowAuthority(profile, continuationIntent, continuationEnvironment, { stage: 'candidate', migrationOnlyWorkflowPath })
+  assert.equal(continuationAuthority.executionMode, 'full_release')
+  assert.equal(continuationAuthority.workerPurpose, 'full')
   for (const stage of ['prepare', 'build', 'migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize', 'rollback']) {
     assert.equal(assertProtectedGitHubContext(profile, continuationIntent, continuationEnvironment, { stage, migrationOnlyWorkflowPath }), true)
   }
   assert.throws(() => assertProtectedGitHubContext(profile, continuationIntent, environment, { stage: 'candidate', migrationOnlyWorkflowPath }), { code: 'GITHUB_SOURCE_AUTHORITY_MISMATCH' })
+  assert.throws(() => assertProtectedGitHubContext(profile, continuationIntent, { ...continuationEnvironment, OWNER_EXECUTION_MODE: 'unknown' }, { stage: 'candidate', migrationOnlyWorkflowPath }), { code: 'GITHUB_SOURCE_AUTHORITY_MISMATCH' })
   assert.throws(() => assertProtectedGitHubContext(profile, intent, { ...environment, GITHUB_SHA: 'b'.repeat(40) }, { stage: 'prepare', migrationOnlyWorkflowPath }), { code: 'GITHUB_SOURCE_AUTHORITY_MISMATCH' })
   const mainWorkflow = { ...environment, GITHUB_WORKFLOW_REF: `${profile.application.repository}/${profile.workflow.path}@refs/heads/main` }
   assert.equal(assertProtectedGitHubContext(profile, intent, mainWorkflow, { stage: 'candidate', migrationOnlyWorkflowPath }), true)

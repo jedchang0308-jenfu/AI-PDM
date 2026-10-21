@@ -5,7 +5,7 @@ import { readPrincipalOnlyRepairBaseline } from './dev121-principal-forward-repa
 import { readPreActivationAbortContinuation } from './dev121-preactivation-abort-continuation.mjs'
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
-import { assertImmutableRef, assertProtectedGitHubContext, assertRuntimeConfig, assertMigrationSubmissionIntent, migrationSubmissionIntentUri, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt, assertStageReceipt } from './dev012-owner-release-runtime.mjs'
+import { assertImmutableRef, assertProtectedGitHubContext, ownerWorkflowAuthority, assertRuntimeConfig, assertMigrationSubmissionIntent, migrationSubmissionIntentUri, candidateTagUriMatches, canonicalize, releasePaths, sha256, stageReceipt, assertStageReceipt } from './dev012-owner-release-runtime.mjs'
 import { assertDataCutoverExportReceipt, assertDataCutoverFenceReceipt, assertDataCutoverHandoff, assertDataCutoverImportReceipt, assertDataCutoverTeardownReceipt } from './dev012-production-data-cutover.mjs'
 import { assertOwnerTerminalReceipt, assertPostLiveCleanupReceipt, executeProviderStage } from './dev012-production-data-cutover-provider.mjs'
 import { dev013L4SequenceStep, dev013TerminalTransitionFact } from './dev013-l4-transition-sequence.mjs'
@@ -400,17 +400,18 @@ async function readDeployment(transport, paths, profile, intent, intentRef, inte
   return result
 }
 
-async function readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment }) {
+async function readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment, stage, migrationOnlyWorkflowPath }) {
   const intentRef = { uri: capsuleRef, sha256: capsuleSha256 }
   const result = await transport.readJson(intentRef, profile.artifact.releaseBucket, ['receipts'])
-  const releaseMode = classifyReleaseMode({ intent: result.value, executionMode: environment.OWNER_EXECUTION_MODE ?? 'full_release', cutover: environment.PDM_RELEASE_MODE === 'one_time_cutover' })
+  const workflowAuthority = ownerWorkflowAuthority(profile, result.value, environment, { stage, migrationOnlyWorkflowPath })
+  const releaseMode = classifyReleaseMode({ intent: result.value, executionMode: workflowAuthority.executionMode, cutover: environment.PDM_RELEASE_MODE === 'one_time_cutover' })
   if (environment.PDM_ENFORCE_DAILY_MODE_BOUNDARY === 'true') {
     const requiredWorkflowRef = `${profile.application.repository}/${profile.workflow.path}@refs/heads/${profile.application.branch}`
     assertDailyReleaseMode({ mode: releaseMode, workflowRef: environment.GITHUB_WORKFLOW_REF, requiredWorkflowRef })
   }
   if (validateIntent) validateIntent(result.value, profile)
   const intent = assertIntentBase(result.value, profile, intentRef, capsuleSha256)
-  return { intent, intentRef, intentReadback: result, paths: releasePaths(profile, intent, capsuleSha256), releaseMode }
+  return { intent, intentRef, intentReadback: result, paths: releasePaths(profile, intent, capsuleSha256), releaseMode, workflowAuthority }
 }
 
 export function assertStaleControlSafeToSupersede({ current, profile, intent, ownerRun, service, activeRevision, now, candidate = null, nextState = null }) {
@@ -677,7 +678,7 @@ async function readCleanupMigrationBundle({ transport, deployment, intent, profi
 
 export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, profile, profileSha256 = profile?.contractSha256, transport, environment = process.env, validateIntent, createSourceIdentity, createSourceArchive, buildMigrationBundle, readWorkerSource, dataCutoverConfig = null, migrationOnlyWorkflowPath = null }) {
   if (!STAGES.has(stage)) fail('STAGE_DENIED')
-  const { intent, intentRef, paths, releaseMode } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment })
+  const { intent, intentRef, paths, releaseMode, workflowAuthority } = await readIntentAndPaths({ transport, profile, capsuleRef, capsuleSha256, validateIntent, environment, stage, migrationOnlyWorkflowPath })
   // One-time cutover is an explicit workflow responsibility. Ordinary full,
   // build-only, program-only and recovery paths retain the historical fact but
   // do not re-parse its raw handoff receipts on every release stage.
@@ -759,7 +760,7 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
         dataCutoverCompletionRef: values.readiness.dataCutoverCompletionRef ?? null,
         dev013Transition: dev013TerminalTransitionFact(values.readiness, intent),
       },
-      executionMode: environment.OWNER_EXECUTION_MODE ?? 'full_release',
+      executionMode: workflowAuthority.executionMode,
       workflowRef: environment.GITHUB_WORKFLOW_REF,
       requiredWorkflowRef,
       cutover: environment.PDM_RELEASE_MODE === 'one_time_cutover',

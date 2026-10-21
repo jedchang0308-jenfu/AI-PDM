@@ -821,7 +821,7 @@ export function createOpenSwxOwnerRelease({ transport, readSource, environment }
     })
     if (appProfile.application.id !== 'ai-pdm' || !authority.fullWorkflowAllowed) fail('OPENSWX_FULL_WORKFLOW_REQUIRED')
     const descriptor = await readWorkerDescriptor({ transport, ref: intent.openswxWorkerRef, profileBytes: readSource(WORKER_PROFILE_PATH, intent.sourceRevision), sourceRevision: intent.sourceRevision })
-    if ((environment.OWNER_EXECUTION_MODE === 'build_only' ? 'build_only' : environment.OWNER_EXECUTION_MODE === 'full_release' ? 'full' : '') !== descriptor.value.purpose) fail('OPENSWX_EXECUTION_MODE_MISMATCH')
+    if (authority.workerPurpose !== descriptor.value.purpose) fail('OPENSWX_EXECUTION_MODE_MISMATCH')
     return descriptor
   }
   async function classifyRepair(intent, appProfile) {
