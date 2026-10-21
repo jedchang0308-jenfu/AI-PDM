@@ -1215,7 +1215,6 @@ async function authorizeLedgerDiagnosticExecution({ profile, transport, read, ex
     const intentRow = await read(intentUri)
     if (intentRow.ref.sha256 !== intentSha256) fail()
     const intent = assertRdLedgerReadbackIntent(intentRow.value)
-    if (intent.runnerSourceRevision !== expectedRunnerSourceRevision || intent.migrationRunnerDigest !== expectedMigrationRunnerDigest) fail()
     const jobReceipt = await read(`${base}/ledger-job-readback.json`)
     assertRdReadbackJobReceipt(jobReceipt.value, { intent, intentRef: intentRow.ref, profile })
     graph = { intent, intentRef: intentRow.ref, jobReceipt }
@@ -1229,6 +1228,13 @@ async function authorizeLedgerDiagnosticExecution({ profile, transport, read, ex
   const attempt = { status: pass ? 'PASS' : 'FAILED', ledgerCount, executionReadbackRef: executionReceipt.ref }
   const facts = assertReadbackExecution({ profile, intent: graph.intent, intentRef: graph.intentRef, probe, attempt,
     receipt: executionReceipt.value, execution, staticJob: graph.jobReceipt.value.projection })
+  // Later sealed diagnostics may use a rotated runner. Their own immutable
+  // intent, execution args/image and read-only receipt are the authority;
+  // binding them to the original abort runner rejects valid rotation.
+  const sourceIndex = args.indexOf('--source-revision')
+  const executionSourceRevision = sourceIndex >= 0 ? args[sourceIndex + 1] : null
+  const executionDigest = execution?.template?.containers?.[0]?.image
+  if (graph.intent.runnerSourceRevision !== executionSourceRevision || graph.intent.migrationRunnerDigest !== executionDigest) fail()
   const started = Date.parse(graph.intent.observedAt), deadline = Date.parse(graph.intent.deadlineAt)
   if (!Number.isFinite(started) || !Number.isFinite(deadline) || facts.created < started || facts.finished > deadline) fail()
   if (pass) {
@@ -1246,12 +1252,11 @@ async function authorizePermissionDiagnosticExecution({ profile, transport, read
   const parsed = parsePermissionStateArgs(args)
   const operationPattern = new RegExp(`^gs://${profile.artifact.releaseBucket}/source/rd-permission-readback/[A-Za-z0-9._-]+\\.json$`, 'u')
   const expectedOutput = `gs://${profile.artifact.releaseBucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${parsed.operationSha256}/state.json`
-  if (!operationPattern.test(parsed.operationRef) || parsed.sourceRevision !== expectedRunnerSourceRevision || parsed.outputRef !== expectedOutput) fail()
+  if (!operationPattern.test(parsed.operationRef) || parsed.outputRef !== expectedOutput) fail()
   const operationObject = await transport.readBytes(parsed.operationRef, { prefixes: ['source/rd-permission-readback'], expectedSha256: parsed.operationSha256 })
   let operation
   try { operation = JSON.parse(operationObject.bytes.toString('utf8')) } catch { fail() }
   assertPermissionStateOperation(operation, { bytes: operationObject.bytes, operationSha256: parsed.operationSha256, sourceRevision: parsed.sourceRevision })
-  if (operation.migrationRunnerDigest !== expectedMigrationRunnerDigest) fail()
   const generation = String(operationObject.metadata?.generation ?? '')
   if (!/^[1-9][0-9]*$/u.test(generation)) fail()
   const operationRef = { uri: parsed.operationRef, sha256: parsed.operationSha256, generation }
