@@ -22,6 +22,7 @@ const RELEASE_CONTROL = [
   /^infra\/google-cloud\/dev-117-production-release\//u,
   /^scripts\/(?:lib\/)?dev0?12-/u,
   /^scripts\/(?:lib\/)?dev117-/u,
+  /^scripts\/lib\/dev121-owner-release-proof\.mjs$/u,
   /^scripts\/qc-dev-117-/u,
   /^scripts\/(?:lib\/)?production-slice-/u,
   /^scripts\/(?:plan|run)-production-slice(?:-|\.)/u,
@@ -196,18 +197,7 @@ export function createProductionSlicePlanFromGit({ root = process.cwd(), base = 
   if (includeWorkingTree) {
     changed.push(...git(root, ['ls-files', '--others', '--exclude-standard']).split(/\r?\n/u).filter(Boolean))
   }
-  let failureHistory = []
-  let currentFailureCode = null
-  if (process.env.PDM_RELEASE_FAILURE_HISTORY_JSON) {
-    try {
-      const parsed = JSON.parse(process.env.PDM_RELEASE_FAILURE_HISTORY_JSON)
-      failureHistory = Array.isArray(parsed.history) ? parsed.history : []
-      currentFailureCode = parsed.currentCode ?? null
-    } catch {
-      currentFailureCode = 'FAILURE_HISTORY_INVALID'
-    }
-  }
-  return createProductionSlicePlan(changed, { baseRevision: resolvedBase, headRevision: resolvedHead, failureHistory, currentFailureCode })
+  return createProductionSlicePlan(changed, { baseRevision: resolvedBase, headRevision: resolvedHead })
 }
 
 export const productionSliceOrder = SLICE_ORDER

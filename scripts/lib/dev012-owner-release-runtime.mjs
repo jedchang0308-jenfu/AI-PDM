@@ -1,5 +1,5 @@
 import { assertProgramOnlyPolicy, assertProgramOnlyExecution, assertProgramOnlyExecutionTemplate, assertProgramOnlyStaticJob, readProgramOnlyReleaseWindow, programOnlyExecutionEnvironment, programOnlySubmissionFields } from './dev117-ai-pdm-program-only-baseline.mjs'
-import { canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-production-migration-runner.mjs'
+import { assertStageReceipt, canonicalize, crc32cBase64, parseGsUri, sha256 } from './dev012-production-migration-runner.mjs'
 import { GCC_PBDS_CVE, readNativeInventoryProgram, gccPbdsOccurrenceMatches, readGccApplicabilityPolicy, assertGccApplicabilityAssessment } from './dev015-gcc-applicability.mjs'
 import { GCC_ALIGNED_NEW_CVE, readAlignedNewInspectionProgram, gccAlignedNewOccurrenceMatches, readAlignedNewApplicabilityPolicy, assertAlignedNewApplicabilityAssessment } from './dev015-gcc-aligned-new-applicability.mjs'
 import { runPrincipalEntrySmoke } from './dev121-principal-candidate-smoke.mjs'
@@ -240,6 +240,7 @@ export function releasePaths(profile, intent, intentSha256) {
     scan: uri('scan'),
     deployment: uri('deployment-capsule'),
     migrate: uri('migrate'),
+    migrationAdmission: uri('migration-admission'),
     candidate: uri('candidate'),
     entrypoint: uri('entrypoint'),
     verify: uri('verify'),
@@ -1374,8 +1375,12 @@ export function stageReceipt({ profile, intent, stage, previousReceiptRef = null
 }
 
 export function assertPassReceipt(value, ownerApplicationId, sourceRevision) {
+  if (value?.schemaVersion === 'jenfu.dev012.stage-receipt.v1') {
+    return assertStageReceipt(value, { ownerApplicationId, releaseId: value.releaseId, sourceRevision, stage: value.stage })
+  }
   if (value?.status !== 'PASS' || value.ownerApplicationId !== ownerApplicationId || value.sourceRevision !== sourceRevision) fail('RECEIPT_JOIN_INVALID')
   return value
 }
 
 export { canonicalize, sha256 }
+export { assertStageReceipt }

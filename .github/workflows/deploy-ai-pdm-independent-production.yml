@@ -36,6 +36,7 @@ jobs:
     outputs:
       capsule_uri: ${{ steps.bind.outputs.capsule_uri }}
       capsule_sha256: ${{ steps.bind.outputs.capsule_sha256 }}
+      failure_code: ${{ steps.prepare.outputs.failure_code }}
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
@@ -82,7 +83,8 @@ jobs:
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
-      - name: Execute prepare
+      - id: prepare
+        name: Execute prepare
         env:
           AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.migration_execution_read_auth.outputs.access_token }}"
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
@@ -95,6 +97,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
+    outputs:
+      failure_code: ${{ steps.build.outputs.failure_code }}
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
@@ -117,7 +121,8 @@ jobs:
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
-      - name: Execute build
+      - id: build
+        name: Execute build
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.builder_auth.outputs.access_token }}"
           AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.build_verifier_read_auth.outputs.access_token }}"
@@ -130,6 +135,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
+    outputs:
+      failure_code: ${{ steps.migrate.outputs.failure_code }}
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
@@ -152,7 +159,8 @@ jobs:
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
-      - name: Execute migrate
+      - id: migrate
+        name: Execute migrate
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
@@ -164,6 +172,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
+    outputs:
+      failure_code: ${{ steps.candidate.outputs.failure_code || steps.entrypoint.outputs.failure_code || steps.verify.outputs.failure_code || steps.decision.outputs.failure_code }}
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
@@ -186,12 +196,14 @@ jobs:
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
-      - name: Execute candidate
+      - id: candidate
+        name: Execute candidate
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage candidate --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
-      - name: Configure direct Cloud Run entrypoint
+      - id: entrypoint
+        name: Configure direct Cloud Run entrypoint
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage entrypoint --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
@@ -203,14 +215,16 @@ jobs:
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
-      - name: Execute verify
+      - id: verify
+        name: Execute verify
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
           DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
           DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage verify --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
-      - name: Execute decision
+      - id: decision
+        name: Execute decision
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage decision --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
@@ -221,6 +235,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     permissions: { contents: read, id-token: write }
+    outputs:
+      failure_code: ${{ steps.activate.outputs.failure_code || steps.canonical.outputs.failure_code || steps.finalize.outputs.failure_code }}
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false, fetch-depth: 0 }
@@ -243,7 +259,8 @@ jobs:
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
-      - name: Execute activate
+      - id: activate
+        name: Execute activate
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
@@ -256,13 +273,15 @@ jobs:
           token_format: access_token
           create_credentials_file: false
           export_environment_variables: false
-      - name: Execute canonical
+      - id: canonical
+        name: Execute canonical
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.verifier_auth.outputs.access_token }}"
           DEV012_AIPDM_FIREBASE_REFRESH_TOKEN: "${{ secrets.DEV012_AIPDM_FIREBASE_REFRESH_TOKEN }}"
           DEV012_AIPDM_FIREBASE_API_KEY: "${{ secrets.DEV012_AIPDM_FIREBASE_API_KEY }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage canonical --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"
-      - name: Execute finalize
+      - id: finalize
+        name: Execute finalize
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
@@ -300,4 +319,5 @@ jobs:
         env:
           GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.deployer_auth.outputs.access_token }}"
           AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"
+          PDM_RELEASE_FAILURE_CODE: "${{ needs.preflight.outputs.failure_code || needs.build.outputs.failure_code || needs.migrate.outputs.failure_code || needs.candidate-smoke.outputs.failure_code || needs.activate-readback.outputs.failure_code || 'WORKFLOW_JOB_FAILURE' }}"
         run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage rollback --capsule-ref "${{ needs.preflight.outputs.capsule_uri }}" --capsule-sha256 "${{ needs.preflight.outputs.capsule_sha256 }}"

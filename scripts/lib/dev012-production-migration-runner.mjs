@@ -27,6 +27,18 @@ export function canonicalize(value) {
   return JSON.stringify(value)
 }
 
+export function assertStageReceipt(value, { ownerApplicationId, releaseId, sourceRevision, stage }) {
+  const expected = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'sourceRevision', 'stage', 'previousReceiptRef', 'facts', 'observedAt', 'status', 'receiptSha256'].sort()
+  const { receiptSha256, ...core } = value ?? {}
+  if (!value || canonicalize(Object.keys(value).sort()) !== canonicalize(expected)
+    || value.schemaVersion !== 'jenfu.dev012.stage-receipt.v1'
+    || value.ownerApplicationId !== ownerApplicationId || value.releaseId !== releaseId
+    || value.sourceRevision !== sourceRevision || value.stage !== stage
+    || value.status !== 'PASS' || !Number.isFinite(Date.parse(value.observedAt ?? ''))
+    || receiptSha256 !== sha256(canonicalize(core))) fail('STAGE_RECEIPT_INVALID', stage)
+  return value
+}
+
 export function parseRunnerArgs(argv, { productionDataRequired = false } = {}) {
   const required = ['--bundle-ref', '--bundle-sha256', '--source-revision', '--output-ref']
   const productionData = ['--data-ref', '--data-sha256', '--bootstrap-ref', '--bootstrap-sha256']

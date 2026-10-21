@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256 } from './lib/dev012-owner-release-runtime.mjs'
+import { buildRuntimeConfig, canonicalize, migrationSubmissionIntentUri, releasePaths, sha256, stageReceipt } from './lib/dev012-owner-release-runtime.mjs'
 import { assertStaleControlSafeToSupersede, candidateTagUriMatches, createGitArchive, executeOwnerStage, resolveRepairStageDescriptor } from './lib/dev012-owner-stage-executor.mjs'
 import { createWorkerGitReader } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
 import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-abort-continuation.mjs'
@@ -244,7 +244,7 @@ function recordedHarness() {
 async function authorizedRecordedInput(h, releaseId, { runnerSourceRevision = H40, legacyReuse = false } = {}) {
   const refFor = async (name, value) => (await h.transport.putJson(`gs://${bucket}/receipts/prerequisites/${releaseId}-${name}.json`, value, { bucket, prefix: 'receipts' })).ref
   const common = { releaseAuthority: true, evidenceScope: 'PROVIDER' }
-  const sourceLockRef = await refFor('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, clean: true })
+  const sourceLockRef = await refFor('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, sourceSha256: sha256(h.sourceIdentityBytes), migrationManifestSha256: h.migrationManifestSha256, clean: true })
   const authorizationPolicyRef = await refFor('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
   const readinessReceiptRef = await refFor('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: 'jenfu-platform-prod' })
   const foundation = { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod', foundationManifestSha256: 'f'.repeat(64) }
@@ -294,7 +294,7 @@ test('recorded provider transport executes the ten immutable owner stages withou
   const h = recordedHarness()
   const refFor = async (name, value) => (await h.transport.putJson(`gs://${bucket}/receipts/prerequisites/${name}.json`, value, { bucket, prefix: 'receipts' })).ref
   const common = { releaseAuthority: true, evidenceScope: 'PROVIDER' }
-  const sourceLockRef = await refFor('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, clean: true })
+  const sourceLockRef = await refFor('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, sourceSha256: sha256(h.sourceIdentityBytes), migrationManifestSha256: h.migrationManifestSha256, clean: true })
   const authorizationPolicyRef = await refFor('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
   const readinessReceiptRef = await refFor('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: 'jenfu-platform-prod' })
   const foundationReceiptRef = await refFor('foundation', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod' })
@@ -304,6 +304,13 @@ test('recorded provider transport executes the ten immutable owner stages withou
   const intentResult = await h.transport.putJson(`gs://${bucket}/receipts/intents/release.json`, intent, { bucket, prefix: 'receipts' })
   const input = { capsuleRef: intentResult.ref.uri, capsuleSha256: intentResult.ref.sha256, profile: h.profile, transport: h.transport, environment: h.environment, validateIntent: (value) => value, createSourceIdentity: async () => h.sourceIdentityBytes, createSourceArchive: async () => h.sourceArchiveBytes, buildMigrationBundle: async () => ({ bundle: { manifestSha256: h.migrationManifestSha256 }, bytes: h.migrationBytes, bundleSha256: sha256(h.migrationBytes) }) }
   for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...input, stage })
+  const preparedPaths = releasePaths(h.profile, intent, intentResult.ref.sha256)
+  const prepared = JSON.parse(h.objects.get(preparedPaths.prepare).bytes.toString())
+  const migrationAdmission = JSON.parse(h.objects.get(preparedPaths.migrationAdmission).bytes.toString())
+  assert.equal(prepared.facts.releaseEvidence.schemaVersion, 'jenfu.dev117.release-evidence.v1')
+  assert.equal(prepared.facts.releaseEvidence.source.applicationRevision, intent.sourceRevision)
+  assert.equal(migrationAdmission.stage, 'migrate')
+  assert.equal(migrationAdmission.facts.disposition, 'FORWARD_APPLIED')
   const migrationOnlyService = structuredClone(h.service())
   const migrationOnlyObjectCount = h.objects.size
   assert.equal(h.transport.effectiveRevision(h.service()), previousRevision)
@@ -393,6 +400,17 @@ test('principal-only migration intent refuses a fence without a safe recovery re
     /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
+test('daily workflow rejects missing context and special intent before deep continuation parsing', async () => {
+  const h = recordedHarness()
+  const ordinary = await authorizedRecordedInput(h, 'REL-DAILY-BOUNDARY')
+  const enforced = { ...h.environment, PDM_ENFORCE_DAILY_MODE_BOUNDARY: 'true' }
+  await assert.rejects(executeOwnerStage({ ...ordinary.input, stage: 'prepare', environment: { ...enforced, GITHUB_WORKFLOW_REF: '' } }), /DAILY_RELEASE_WORKFLOW_CONTEXT_INVALID/u)
+  const specialIntent = { ...(await h.transport.readJson(ordinary.intentResult.ref)).value, unlinkedProfileCleanupRef: {} }
+  const special = await h.transport.putJson(`gs://${bucket}/receipts/intents/daily-special.json`, specialIntent, { bucket, prefix: 'receipts' })
+  await assert.rejects(executeOwnerStage({ ...ordinary.input, stage: 'prepare', capsuleRef: special.ref.uri, capsuleSha256: special.ref.sha256,
+    environment: enforced, validateIntent: () => { throw new Error('DEEP_VALIDATOR_MUST_NOT_RUN') } }), /SPECIAL_RELEASE_MODE_OUTSIDE_DAILY_PATH/u)
+})
+
 test('candidate tag readback accepts deterministic and provider-derived run.app URLs only', () => {
   const candidate = { tag: candidateTag, tagUri: candidateOrigin }
   const service = { uri: 'https://jenfu-platform-prod-56gnizku7q-de.a.run.app', urls: [canonicalOrigin, 'https://jenfu-platform-prod-56gnizku7q-de.a.run.app'] }
@@ -430,7 +448,7 @@ test('rollback reports no database mutation when migrate receipt was never produ
   const h = recordedHarness()
   const refFor = async (name, value) => (await h.transport.putJson(`gs://${bucket}/receipts/prerequisites/rollback-${name}.json`, value, { bucket, prefix: 'receipts' })).ref
   const common = { releaseAuthority: true, evidenceScope: 'PROVIDER' }
-  const sourceLockRef = await refFor('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, clean: true })
+  const sourceLockRef = await refFor('source-lock', { ...common, status: 'SOURCE_FROZEN', sourceRevision: H40, sourceSha256: sha256(h.sourceIdentityBytes), migrationManifestSha256: h.migrationManifestSha256, clean: true })
   const authorizationPolicyRef = await refFor('authorization', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z' })
   const readinessReceiptRef = await refFor('readiness', { ...common, status: 'PASS', environment: 'production', remainingHumanAction: 0, expiresAt: '2999-01-01T00:00:00.000Z', projectId: 'jenfu-platform-prod' })
   const foundationReceiptRef = await refFor('foundation', { ...common, status: 'APPLIED', projectId: 'jenfu-platform-prod' })
@@ -440,13 +458,49 @@ test('rollback reports no database mutation when migrate receipt was never produ
   const intentResult = await h.transport.putJson(`gs://${bucket}/receipts/intents/rollback.json`, intent, { bucket, prefix: 'receipts' })
   const input = { capsuleRef: intentResult.ref.uri, capsuleSha256: intentResult.ref.sha256, profile: h.profile, transport: h.transport, environment: h.environment, validateIntent: (value) => value, createSourceIdentity: async () => h.sourceIdentityBytes, createSourceArchive: async () => h.sourceArchiveBytes, buildMigrationBundle: async () => ({ bundle: { manifestSha256: h.migrationManifestSha256 }, bytes: h.migrationBytes, bundleSha256: sha256(h.migrationBytes) }) }
   await executeOwnerStage({ ...input, stage: 'prepare' })
-  await executeOwnerStage({ ...input, stage: 'rollback' })
+  await executeOwnerStage({ ...input, stage: 'rollback', environment: { ...h.environment, PDM_RELEASE_FAILURE_CODE: 'CHAIN_SOURCE_HASH_MISMATCH' } })
   const terminal = [...h.objects.entries()].find(([uri]) => uri.includes(intentResult.ref.sha256) && uri.endsWith('/terminal.json'))
   assert.ok(terminal)
   const value = JSON.parse(terminal[1].bytes.toString())
   assert.equal(value.facts.result, 'PRE_ACTIVATION_ABORTED')
   assert.equal(value.facts.databaseDisposition, 'NOT_APPLIED')
+  assert.deepEqual(value.facts.failurePolicy, { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 1, limit: 2, action: 'CONTINUE' })
 })
+
+test('prepare stops a third same-source attempt after two machine-recorded failures in one family', async () => {
+  const h = recordedHarness()
+  const prior = await authorizedRecordedInput(h, 'REL-FAILURE-HISTORY-1')
+  const priorIntent = (await h.transport.readJson(prior.intentResult.ref)).value
+  const priorPaths = releasePaths(h.profile, priorIntent, prior.intentResult.ref.sha256)
+  await h.transport.putJson(priorPaths.terminal, stageReceipt({ profile: h.profile, intent: priorIntent, stage: 'terminal', previousReceiptRef: null,
+    facts: { result: 'PRE_ACTIVATION_ABORTED', databaseDisposition: 'NOT_APPLIED', failurePolicy: { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 2, limit: 2, action: 'STOP_FOR_COMMON_MECHANISM' } }, observedAt: h.transport.now() }), { bucket, prefix: 'receipts' })
+  const intent = { ...priorIntent, releaseId: 'REL-FAILURE-HISTORY-2', baselineIntentRef: prior.intentResult.ref }
+  const capsule = await h.transport.putJson(`gs://${bucket}/receipts/intents/failure-history-2.json`, intent, { bucket, prefix: 'receipts' })
+  let serviceReads = 0
+  const getService = h.transport.getService
+  h.transport.getService = async (...args) => { serviceReads++; return getService(...args) }
+  await assert.rejects(executeOwnerStage({ ...prior.input, stage: 'prepare', capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256 }), /RELEASE_COMMON_MECHANISM_STOP:SOURCE_LINEAGE:2/u)
+  assert.equal(serviceReads, 0)
+})
+
+test('prepare fails closed on a tampered prior failure terminal before provider reads', async () => {
+  const h = recordedHarness()
+  const prior = await authorizedRecordedInput(h, 'REL-FAILURE-HISTORY-TAMPERED-1')
+  const priorIntent = (await h.transport.readJson(prior.intentResult.ref)).value
+  const priorPaths = releasePaths(h.profile, priorIntent, prior.intentResult.ref.sha256)
+  const terminal = stageReceipt({ profile: h.profile, intent: priorIntent, stage: 'terminal', previousReceiptRef: null,
+    facts: { result: 'PRE_ACTIVATION_ABORTED', databaseDisposition: 'NOT_APPLIED', failurePolicy: { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 1, limit: 2, action: 'CONTINUE' } }, observedAt: h.transport.now() })
+  terminal.facts.failurePolicy.occurrences = 2
+  await h.transport.putJson(priorPaths.terminal, terminal, { bucket, prefix: 'receipts' })
+  const intent = { ...priorIntent, releaseId: 'REL-FAILURE-HISTORY-TAMPERED-2', baselineIntentRef: prior.intentResult.ref }
+  const capsule = await h.transport.putJson(`gs://${bucket}/receipts/intents/failure-history-tampered-2.json`, intent, { bucket, prefix: 'receipts' })
+  let serviceReads = 0
+  const getService = h.transport.getService
+  h.transport.getService = async (...args) => { serviceReads++; return getService(...args) }
+  await assert.rejects(executeOwnerStage({ ...prior.input, stage: 'prepare', capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256 }), /STAGE_RECEIPT_INVALID/u)
+  assert.equal(serviceReads, 0)
+})
+
 test('B24 rollback reports UNKNOWN after a durable migration submission and rejects a tampered intent', async () => {
   const createSubmitted = async (releaseId) => {
     const h = recordedHarness()
@@ -571,11 +625,13 @@ test('B24 normal migration executor submits once and replays the same immutable 
   const first = await executeOwnerStage({ ...input, stage: 'migrate' })
   const count = h.objects.size, baseline = structuredClone(h.service())
   const second = await executeOwnerStage({ ...input, stage: 'migrate' })
-  assert.equal(first.value.schemaVersion, 'jenfu.dev012.migration-receipt.v1')
+  assert.equal(first.value.schemaVersion, 'jenfu.dev012.stage-receipt.v1')
+  assert.equal(first.value.facts.disposition, 'FORWARD_APPLIED')
   assert.equal(first.value.status, 'PASS')
   assert.deepEqual(second.ref, first.ref)
   assert.equal(submissions, 1)
   assert.equal(h.objects.size, count)
+  assert.equal([...h.objects.keys()].some(uri => uri.endsWith('/migration-admission.json')), true)
   assert.deepEqual(h.service(), baseline)
   const terminal = await executeOwnerStage({ ...input, stage: 'rollback' })
   assert.equal(JSON.parse(terminal.bytes).facts.databaseDisposition, 'FORWARD_APPLIED')
@@ -586,16 +642,21 @@ test('B24 malformed standard migration readback is denied without resubmitting a
   const h = recordedHarness(), { input } = await authorizedRecordedInput(h, 'REL-B24-MIGRATION-DENIED')
   let submissions = 0
   const run = h.transport.runMigrationJob
-  h.transport.runMigrationJob = async args => { submissions++; return run(args) }
+  h.transport.runMigrationJob = async args => {
+    submissions++
+    const result = await run(args)
+    const row = h.objects.get(args.outputUri)
+    const receipt = JSON.parse(row.bytes.toString())
+    row.bytes = Buffer.from(`${canonicalize({ ...receipt, manifestSha256: 'f'.repeat(64) })}\n`)
+    return result
+  }
   await executeOwnerStage({ ...input, stage: 'prepare' })
   await executeOwnerStage({ ...input, stage: 'build' })
-  const first = await executeOwnerStage({ ...input, stage: 'migrate' })
-  const original = h.objects.get(first.ref.uri)
-  original.bytes = Buffer.from(`${canonicalize({ ...first.value, manifestSha256: 'f'.repeat(64) })}\n`)
   const count = h.objects.size
   await assert.rejects(executeOwnerStage({ ...input, stage: 'migrate' }), /MIGRATION_RECEIPT_INVALID/u)
   assert.equal(submissions, 1)
-  assert.equal(h.objects.size, count)
+  assert.equal(h.objects.size, count + 1)
+  assert.equal([...h.objects.keys()].some(uri => uri.endsWith('/migration-admission.json')), false)
   assert.equal([...h.objects.keys()].some(uri => uri.endsWith('/candidate.json')), false)
 })
 
@@ -675,7 +736,9 @@ test('private cleanup owner keeps protected context, immutable binding and exact
   assert.equal(f.h.objects.size, writes)
   for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...f.input, stage })
   const first = await executeOwnerStage({ ...f.input, stage: 'migrate' })
-  assert.equal(first.value.unlinkedProfileCleanup.result.status, 'DELETED')
+  assert.equal(first.value.facts.disposition, 'FORWARD_APPLIED')
+  const migratePath = releasePaths(f.h.profile, f.intent, f.capsule.ref.sha256).migrate
+  assert.equal(JSON.parse(f.h.objects.get(migratePath).bytes.toString()).unlinkedProfileCleanup.result.status, 'DELETED')
   assert.equal(f.submissions(), 1)
   const privateReads = []
   const read = f.h.transport.readBytes
@@ -704,7 +767,7 @@ test('private cleanup owner rejects a mismatched migration bundle before Job sub
   assert.equal(f.submissions(), 0)
 })
 
-test('private cleanup owner rejects an absent or wrong private result without a duplicate Job', async () => {
+test('private cleanup owner consumes the sealed migration admission instead of reinterpreting changed raw receipts', async () => {
   for (const scenario of ['absent', 'wrong-ref']) {
     const f = await privateCleanupOwnerFixture()
     for (const stage of ['prepare', 'build', 'migrate']) await executeOwnerStage({ ...f.input, stage })
@@ -714,8 +777,9 @@ test('private cleanup owner rejects an absent or wrong private result without a 
     if (scenario === 'absent') delete receipt.unlinkedProfileCleanup
     else receipt.unlinkedProfileCleanup.operationRef.generation = '999999'
     row.bytes = Buffer.from(canonicalize(receipt) + '\n')
-    await assert.rejects(executeOwnerStage({ ...f.input, stage: 'migrate' }), /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u)
-    await assert.rejects(executeOwnerStage({ ...f.input, stage: 'candidate' }), /UNLINKED_PROFILE_CLEANUP_RECEIPT_INVALID/u)
+    const replay = await executeOwnerStage({ ...f.input, stage: 'migrate' })
+    assert.equal(replay.value.facts.disposition, 'FORWARD_APPLIED')
+    await executeOwnerStage({ ...f.input, stage: 'candidate' })
     assert.equal(f.submissions(), 1)
   }
 })
