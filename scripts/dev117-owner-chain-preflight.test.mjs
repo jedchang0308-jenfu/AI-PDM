@@ -140,4 +140,3 @@ test('preflight rejects an unadmitted historical source even when the reader is 
   input.worker.readerMode = 'current'
   assert.throws(() => normalizeOwnerChain({ ...input, now: OBSERVED_AT }), /CHAIN_WORKER_SOURCE_JOIN_INVALID/u)
 })
-
