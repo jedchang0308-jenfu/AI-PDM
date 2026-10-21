@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "aipdm.dev122.rd-permission-repair-local.v1",
+  "observedAt": "2026-10-21T14:22:25.1908272Z",
+  "result": "LOCAL_CORRECTIVE_PASS_PRODUCTION_PAUSED",
+  "releaseAuthority": false,
+  "source": {
+    "baseMainRevision": "432b63f8a37b4278dd95c0aa0c503871a438ebc0",
+    "validatedRevision": "39995dbe3e8c2975f7aa3e5db10405e06fb05457",
+    "validatedTree": "9be7c56685cfa2a9dff27553e01221e4f6669b07",
+    "branch": "codex/dev122-applied-continuation-release-route"
+  },
+  "causalModel": [
+    {
+      "classification": "CONFIRMED_FACT",
+      "statement": "Migration 085, catalog v7/hash and the dedicated test actor active RD grant already have sealed production readback; migration 085 must not be submitted again."
+    },
+    {
+      "classification": "CONFIRMED_FACT",
+      "statement": "The daily owner workflow rejects special intents and the protected principal workflow previously exposed only prepare, build and migrate, leaving an applied-migration continuation with no protected candidate/activate route."
+    },
+    {
+      "classification": "CONFIRMED_FACT",
+      "statement": "The owner executor already validates the applied migration continuation and emits HISTORICAL_EVIDENCE_REUSED with migrationJobSubmitted=false; the missing boundary was protected workflow routing, not catalog, grant or migration logic."
+    },
+    {
+      "classification": "CONFIRMED_FACT",
+      "statement": "The prior repeated-failure policy converted the second same-family failure into STOP_FOR_COMMON_MECHANISM and blocked the next prepare before service readback; this was governance coupling rather than a data, permission or recovery safety boundary."
+    },
+    {
+      "classification": "UNKNOWN_PENDING_FORMAL_ACCEPTANCE",
+      "statement": "The serving revision has not yet been changed by this slice and the dedicated RD test account UI/API allow-deny acceptance has not yet been executed against the repaired serving source."
+    }
+  ],
+  "changes": {
+    "workflowRoute": "Reuses the existing protected principal workflow, WIF condition, concurrency and single capsule. Ordinary principal release still stops after migrate; RD ledger readback stays read-only; only a validated appliedMigrationContinuation can continue through candidate, entrypoint, verify, decision, activate, canonical and finalize, with existing rollback on failure.",
+    "identityBoundary": "Every stage is bound to the existing verifier, builder or deployer identity and explicit readback token. No IAM, Secret, credential or sibling-repository change is included.",
+    "dailyBoundary": "The daily workflow remains fail-closed for special intent and was not widened.",
+    "governanceSignal": "The second same-family failure now emits TRIGGER_AI_COO_REVIEW and planner output ai_coo_review_requested; it does not block prepare or replace existing source, permission, data-integrity or recovery checks.",
+    "removedControls": [
+      "RELEASE_COMMON_MECHANISM_STOP prepare blockade",
+      "stop_for_common_mechanism planner output",
+      "assertFailureRetryAllowed throwing helper"
+    ]
+  },
+  "planner": {
+    "classification": "FULL",
+    "selectedSlices": [
+      "documentation",
+      "authorization",
+      "release-control"
+    ],
+    "path": "output/qa/dev-122/rd-permission-repair/applied-continuation-release-route-plan-2026-10-21.json",
+    "sha256": "8d1bc68592167ea3fab4a24bf7250163532e5fc6da1735b22c09bc33cc837ab8"
+  },
+  "validation": [
+    {
+      "command": "node --test focused release-control, workflow, RD readback and planner tests",
+      "result": "PASS",
+      "cases": 52
+    },
+    {
+      "command": "node --test scripts/dev012-owner-stage-executor.test.mjs",
+      "result": "PASS",
+      "cases": 28
+    },
+    {
+      "command": "npm run test:dev-117:continuous",
+      "result": "PASS",
+      "cases": 457,
+      "durationMs": 293397.2449
+    },
+    {
+      "command": "npm run qc:dev-117:continuous",
+      "result": "PASS",
+      "cases": 504,
+      "durationMs": 340286.0364,
+      "reportPath": "output/dev-117/s1b/DEV117-S1B-20261021T142108553Z-FED86FA9/owner-report.json",
+      "reportSha256": "e0dea49d8191ecb559a41a95cb29d0045d5c6db0dcfbe3b3dadc49d7e2cfee74",
+      "included": {
+        "catalogV7": "3/3 PASS",
+        "abort": "6/6 PASS",
+        "dbBoundary": "PASS",
+        "typecheckApp": "PASS",
+        "isolatedBuild": "PASS"
+      }
+    }
+  ],
+  "reusedEvidence": [
+    {
+      "source": "PR #427 merge-main required CI run 39610543494",
+      "reason": "Exact base main baseline; both DEV-012 Isolated PostgreSQL Cutover and Production Slice QC succeeded before this corrective source."
+    },
+    {
+      "source": "Official ledger and permission-state readbacks 39508556967, 39524495656 and 39552017653",
+      "reason": "They establish ledger 35, migration 085 APPLIED, active catalog v7/hash and the dedicated test actor active RD grant; this slice does not change those inputs."
+    }
+  ],
+  "sideEffects": {
+    "productionWorkflowDispatched": false,
+    "cloudMutation": 0,
+    "databaseMutation": 0,
+    "trafficMutation": 0,
+    "iamMutation": 0,
+    "secretMutation": 0,
+    "grantMutation": 0,
+    "otherRepositoryMutation": 0
+  },
+  "remaining": [
+    "Protected PR required CI and merge for this corrective source.",
+    "Formal release remains paused after merge until the user requests resume.",
+    "After resume, create a fresh exact-main applied-continuation capsule, perform provider readback, and use the protected route without resubmitting migration 085.",
+    "Verify candidate and active revision/traffic provider receipts.",
+    "Run dedicated RD test account API/UI positive drawing-workbench access and negative approval/unauthorized-role checks.",
+    "DEV-122 remains NOT_ACCEPTED for the original 7 issues and 29 groups."
+  ]
+}
