@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createProductionSlicePlanFromGit } from './lib/production-slice-plan.mjs'
 import { fullContinuousGroups, localCheckContext, runCheckpointedGroups } from './lib/production-slice-checkpoints.mjs'
+import { reportTestEnvironment } from './dev117-test-environment.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
@@ -58,6 +59,7 @@ if (plan.gates.full) {
 
 const commandFor = group => ({ command: process.execPath, args: ['--test', '--test-concurrency=1', ...group.tests] })
 const evidenceRoot = option('--evidence-dir') ?? 'output/qa/release-efficiency'
+if (!dryRun && !await reportTestEnvironment({ root, tests: groups.flatMap(group => group.tests) })) process.exit(2)
 const results = dryRun ? groups.map(group => ({ name: group.name, status: 'PLANNED' })) : runCheckpointedGroups({
   groups, directory: path.resolve(root, evidenceRoot, 'checkpoints'),
   context: () => localCheckContext(root), reuse: !args.includes('--fresh') && profile !== 'owner',

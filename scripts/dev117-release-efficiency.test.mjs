@@ -308,8 +308,12 @@ test('a later failed check prevents fallback to an older PASS', t => {
 
 test('full gate expands every existing test without npm shell injection or omission', () => {
   const script = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts['test:dev-117:continuous']
-  assert.deepEqual(fullContinuousGroups(script).flatMap(group => group.tests), script.slice('node --test '.length).split(' '))
+  assert.ok(script.startsWith('node scripts/dev117-test-environment.mjs && node --test '))
+  const manifest = script.split(' && ')[1].slice('node --test '.length).split(' ')
+  assert.deepEqual(fullContinuousGroups(script).flatMap(group => group.tests), manifest)
   assert.throws(() => fullContinuousGroups('node --test scripts/x.test.mjs; echo unsafe'), /COMMAND_INVALID/u)
+  assert.throws(() => fullContinuousGroups('node scripts/dev117-test-environment.mjs || node --test scripts/x.test.mjs'), /COMMAND_INVALID/u)
+  assert.throws(() => fullContinuousGroups(script + ' && echo unsafe'), /COMMAND_INVALID/u)
 })
 
 test('deleted/renamed release inputs cannot disappear into a documentation-only plan', t => {
