@@ -91,7 +91,7 @@ export async function readAppliedMigrationReadbackEvidence({ binding, profile, r
     const execution = assertRdReadbackExecutionReceipt(executionRow.value, { intent: readbackIntent, intentRef: result.readbackIntentRef, probe })
     const expectedStatus = attempt.status === 'PASS' ? 'PASS' : 'EXPECTED_READ_ONLY_PROBE_FAILURE'
     if (execution.status !== expectedStatus || (attempt.status === 'PASS' &&
-        (execution.completionTime !== attempt.completedAt || canonicalize(attempt.nativeReceiptRef) !== canonicalize(result.nativeReceiptRef)))) {
+        canonicalize(attempt.nativeReceiptRef) !== canonicalize(result.nativeReceiptRef))) {
       fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
     }
     if (attempt.status === 'PASS') successfulExecution = execution
@@ -102,10 +102,13 @@ export async function readAppliedMigrationReadbackEvidence({ binding, profile, r
   const native = assertRdReadbackNativeReceipt(nativeRow.value, {
     intent: readbackIntent, probe: successfulProbe, executionName: successfulExecution.executionName.split('/').at(-1),
   })
+  const successfulAttempt = result.attempts.at(-1)
   if (result.ledgerCount !== 35 || result.migration085State !== 'APPLIED' || result.databaseMutationExpected !== false ||
       result.workflowSourceRevision !== binding.sourceRevision || result.runnerSourceRevision !== deployment.migrationRunnerSourceRevision ||
       result.migrationRunnerDigest !== deployment.migrationRunnerDigest || history.installed.receipt.ledgerCount !== result.ledgerCount ||
+      successfulAttempt.completedAt !== native.completedAt || Date.parse(native.startedAt) < Date.parse(successfulExecution.createTime) ||
+      Date.parse(native.completedAt) > Date.parse(successfulExecution.completionTime) ||
       Date.parse(result.observedAt) < Date.parse(history.installed.receipt.completedAt) || Date.parse(native.completedAt) < Date.parse(history.installed.receipt.completedAt) ||
-      canonicalize(result.nativeReceiptRef) !== canonicalize(result.attempts.at(-1)?.nativeReceiptRef)) fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
+      canonicalize(result.nativeReceiptRef) !== canonicalize(successfulAttempt.nativeReceiptRef)) fail('APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID')
   return { result, readbackIntent, native, successfulExecution }
 }

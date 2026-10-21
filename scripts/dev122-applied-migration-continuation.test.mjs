@@ -97,8 +97,8 @@ function fixture() {
   const native = { ...nativeCore, receiptSha256: rdReadbackSha256(nativeCore) }
   const nativeRef = ref(`${rdRoot}/ledger-probe-35.json`, native)
   const result = buildRdReadbackResult({ intent: rdIntent, intentRef: rdIntentRef, jobReadbackRef: jobRef,
-    attempts: [{ status: 'PASS', ledgerCount: 35, executionReadbackRef: executionRef, nativeReceiptRef: nativeRef, completedAt: execution.completionTime }],
-    successfulProbe: rdIntent.probes[0], nativeReceiptRef: nativeRef, observedAt: execution.completionTime })
+    attempts: [{ status: 'PASS', ledgerCount: 35, executionReadbackRef: executionRef, nativeReceiptRef: nativeRef, completedAt: native.completedAt }],
+    successfulProbe: rdIntent.probes[0], nativeReceiptRef: nativeRef, observedAt: native.completedAt })
   const resultRef = ref(`${rdRoot}/ledger-readback-result.json`, result)
   const binding = { schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision: appliedSource,
     prepareRef, migrateRef, ledgerReadbackResultRef: resultRef }
@@ -130,6 +130,18 @@ test('C96 production-shaped applied migration continuation selects ledger35 and 
     ancestorRunner: () => true, compatibilityRunner: () => true })
   assert.equal(selected, f.history)
   assert.equal(assertAiPdmRepairMigrationMode(selected, f.content), 'HISTORICAL_EVIDENCE_REUSED')
+})
+
+test('applied migration continuation rejects a native receipt completed after its provider execution', async () => {
+  const f = fixture()
+  const execution = f.objects.get(f.executionRef.uri)
+  const { receiptSha256: _receiptSha256, ...executionCore } = execution
+  f.objects.set(f.executionRef.uri, sealed({ ...executionCore,
+    completionTime: '2026-10-20T22:36:18.400Z', observedAt: '2026-10-20T22:36:18.400Z' }))
+  await assert.rejects(readAppliedMigrationContinuationHistory({ intent: f.currentIntent, profile, transport: f.transport,
+    readObservationInputs: async () => f.graph, buildMigrationBundle: async () => f.runnerFull,
+    ancestorRunner: () => true, compatibilityRunner: () => true }),
+  /APPLIED_MIGRATION_CONTINUATION_READBACK_INVALID/u)
 })
 
 test('C96 continuation rejects aliases, source divergence, recovery drift and ledger evidence drift before any mutation', async () => {
