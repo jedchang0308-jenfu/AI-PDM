@@ -11,7 +11,6 @@ export const RELEASE_MODES = Object.freeze([
 ])
 
 const SPECIAL_INTENT_FIELDS = Object.freeze([
-  'baselineIntentRef',
   'principalOnlyFenceRef',
   'principalOnlyRecovery',
   'postAbortLedgerReadbackRef',
