@@ -27,17 +27,18 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
     try { return await response.json() } catch { fail('PROVIDER_JSON_INVALID') }
   }
   const encodedBranch = branch.split('/').map(encodeURIComponent).join('/')
-  const [official, commit, pulls] = await Promise.all([
+  const requiredChecks = CURRENT_REQUIRED_STATUS_CHECKS
+  const [official, commit, pulls, checkRuns] = await Promise.all([
     read(`branches/${encodedBranch}`),
     read(`git/commits/${revision}`),
     read(`commits/${revision}/pulls?per_page=100`),
+    read(`commits/${revision}/check-runs?per_page=100&filter=latest`),
   ])
   if (official?.name !== branch || !REVISION.test(official?.commit?.sha ?? '') ||
       commit?.sha !== revision || commit?.tree?.sha !== sourceTree) {
     fail('OFFICIAL_REF_MISMATCH')
   }
   if (official.protected !== true) fail('BRANCH_UNPROTECTED')
-  const requiredChecks = CURRENT_REQUIRED_STATUS_CHECKS
   const expectedRulesetId = rulesetId
   const rules = await read(`rules/branches/${encodedBranch}?per_page=100`)
   if (!Array.isArray(rules)) fail('SMALL_TEAM_PROTECTION_INVALID')
@@ -65,6 +66,19 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
     Number.isFinite(Date.parse(pull?.merged_at)))
   if (matches.length !== 1) fail('MERGED_PR_NOT_UNIQUE')
 
+  if (!Array.isArray(checkRuns?.check_runs)) fail('REQUIRED_CHECKS_INVALID')
+  const verifiedCheckRuns = requiredChecks.map((name) => {
+    const rows = checkRuns.check_runs.filter((row) => row?.name === name &&
+      row?.head_sha === revision && row?.app?.id === 15368)
+    if (rows.length !== 1 || rows[0].status !== 'completed' ||
+        rows[0].conclusion !== 'success' || !Number.isInteger(rows[0].id)) {
+      fail('REQUIRED_CHECKS_NOT_SUCCESSFUL')
+    }
+    return { name, id: rows[0].id, status: rows[0].status,
+      conclusion: rows[0].conclusion, detailsUrl: rows[0].details_url ?? null,
+      completedAt: rows[0].completed_at ?? null }
+  })
+
   // The workflow, checkout and capsule remain pinned to revision. Advancing main
   // after dispatch must not invalidate that source; never substitute the new tip.
   const observedBranchRevision = official.commit.sha
@@ -85,6 +99,7 @@ export async function verifyOfficialMergedSource({ repository, branch, revision,
     reviewMode: 'SOLO_MAINTAINER_NO_HUMAN_APPROVAL_REQUIRED',
     rulesetId: expectedRulesetId,
     requiredChecks,
+    requiredCheckRuns: verifiedCheckRuns,
     pullRequestNumber: matches[0].number,
     pullRequestUrl: matches[0].html_url,
     mergedAt: matches[0].merged_at,

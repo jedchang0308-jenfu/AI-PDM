@@ -5,8 +5,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { canonicalize, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
+import { canonicalize, createMigrationBundle, readGcsObject, sha256, parseGsUri, crc32cBase64 } from './dev012-production-migration-runner.mjs'
 import { bindHistoricalReader } from './dev122-historical-reader.mjs'
+import { assertReconciledPrincipalAbortBinding, assertReconciledRepairContinuation } from './dev121-principal-only-release.mjs'
+import { assertAppliedMigrationContinuation, assertAppliedMigrationReadbackSource, assertAppliedMigrationSource, readAppliedMigrationReadbackEvidence } from './dev122-applied-migration-continuation.mjs'
 
 const H40 = /^[a-f0-9]{40}$/u
 const H64 = /^[a-f0-9]{64}$/u
@@ -965,8 +967,9 @@ function assertRepairEvidenceBase(value, keys, intent, intentRef, actor) {
       !/^https:\/\/api\.github\.com\/repos\/jedchang0308-jenfu\/AI-PDM\/actions\/runs\/[1-9][0-9]*$/u.test(value.ownerRunRef ?? '') ||
       value.receiptSha256 !== receiptHash(value)) fail('REPAIR_EVIDENCE_INVALID')
   assertAiReleaseRef(intentRef); sameProof(value.releaseCapsuleRef, intentRef)
+  const reconciledAbort = assertReconciledPrincipalAbortBinding(intent, AI_BUCKET)
   if (intentRef.uri !== `gs://${AI_BUCKET}/receipts/releases/${intent.releaseId}/release-intent.json` ||
-      Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) fail('REPAIR_CAPSULE_INVALID')
+      ((Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) && !reconciledAbort)) fail('REPAIR_CAPSULE_INVALID')
 }
 export function assertPausedMigrationPrerequisite(value, { intent, intentRef, descriptor, descriptorRef }) {
   assertRepairEvidenceBase(value, PREREQUISITE_KEYS, intent, intentRef, 'aipdm-prod-verifier')
@@ -1149,13 +1152,20 @@ export function assertAiPdmPausedRepairReadbacks({ baseline, records }) {
 }
 function assertObservedCapsule(value, ref, sourceRevision) {
   const keys = ['schemaVersion', 'ownerApplicationId', 'releaseId', 'sourceRevision', 'sourceSha256', 'sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef', 'migrationManifestSha256', 'previousRevision', 'deadlineAt']
-  for (const optional of ['baselineIntentRef', 'openswxWorkerRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', 'unlinkedProfileCleanupRef', 'programOnlyBaseline']) if (Object.hasOwn(value ?? {}, optional)) keys.push(optional)
+  for (const optional of ['baselineIntentRef', 'openswxWorkerRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', 'postAbortLedgerReadbackRef', 'unlinkedProfileCleanupRef', 'programOnlyBaseline', 'appliedMigrationContinuation']) if (Object.hasOwn(value ?? {}, optional)) keys.push(optional)
   if (!exactKeys(value, keys) || value.schemaVersion !== 'jenfu.dev117.ai-pdm-release-intent.v2' || value.ownerApplicationId !== 'ai-pdm' || !RELEASE_ID.test(value.releaseId ?? '') ||
       value.sourceRevision !== sourceRevision || !H40.test(sourceRevision ?? '') || !H64.test(value.sourceSha256 ?? '') || !H64.test(value.migrationManifestSha256 ?? '') ||
       !/^ai-pdm-prod-[a-f0-9]{12}$/u.test(value.previousRevision ?? '') || !Number.isFinite(Date.parse(value.deadlineAt)) ||
       ref.uri !== `gs://${AI_BUCKET}/receipts/releases/${value.releaseId}/release-intent.json`) fail('OBSERVED_CAPSULE_INVALID')
   for (const key of ['sourceLockRef', 'authorizationPolicyRef', 'readinessReceiptRef', 'foundationReceiptRef', 'infraReceiptRef', 'runtimeConfigRef']) assertAiReleaseRef(value[key])
   if (value.openswxWorkerRef) assertAiWorkerRef(value.openswxWorkerRef)
+  if (Object.hasOwn(value, 'appliedMigrationContinuation')) {
+    assertAppliedMigrationContinuation(value.appliedMigrationContinuation, AI_BUCKET)
+    if (!value.openswxWorkerRef || !value.postAbortLedgerReadbackRef || !value.principalOnlyFenceRef || !value.principalOnlyRecovery ||
+        value.programOnlyBaseline || value.unlinkedProfileCleanupRef) fail('OBSERVED_CAPSULE_INVALID')
+  }
+  const reconciledAbort = assertReconciledPrincipalAbortBinding(value, AI_BUCKET)
+  if (value.openswxWorkerRef && (value.principalOnlyFenceRef || value.principalOnlyRecovery) && !reconciledAbort) fail('OBSERVED_CAPSULE_INVALID')
   if (Object.hasOwn(value, 'unlinkedProfileCleanupRef')) {
     assertUnlinkedProfileCleanupRef(value.unlinkedProfileCleanupRef)
     if (value.principalOnlyFenceRef || value.principalOnlyRecovery) fail('OBSERVED_CAPSULE_INVALID')
@@ -1216,6 +1226,7 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         repair = true
       }
     }
+    if (!preMigration && Object.hasOwn(intent, 'appliedMigrationContinuation') && !repair) fail('APPLIED_MIGRATION_CONTINUATION_REPAIR_REQUIRED')
     const observe = async association => {
       if (repair) {
         const keys = ['schemaVersion', 'ownerApplicationId', 'status', 'evidenceScope', 'sourceRevision', 'sourceArchiveSha256', 'sourceLockRef', 'workerProfileSha256', 'resourcePlanHash', 'image', 'jobName', 'actor', 'observedAt', 'requestRef', 'priorActivationRef', 'executableProof', 'artifactOrigin', 'resourceAssociation', 'securityEvidence', 'resourceBasis']
@@ -1270,6 +1281,8 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
             || !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-recovery@sha256:[a-f0-9]{64}$/u.test(input.principalOnlyRecovery.imageDigest ?? '')
             || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(input.principalOnlyRecovery.serviceUid ?? '')) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
         }
+        try { assertReconciledRepairContinuation(intent, input, AI_BUCKET) }
+        catch { fail('REPAIR_JOIN_INVALID') }
         sameProof(input.sourceLockRef, intent.sourceLockRef); sameProof(input.priorActivationRef, descriptor.priorActivationRef); sameProof(input.servingCapsuleRef, baseline.value.servingApp.capsuleRef); sameProof(input.predecessorBaselineRef, baseline.value.predecessorBaselineRef)
         if (input.currentSourceObjectRef?.sha256 !== descriptor.sourceArchiveSha256) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
         const raw = new Map()
@@ -1318,7 +1331,9 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         }
       }
       if (!programOnly && !historicalMigrationReuse && migrate) {
-        assertMigration(migrate.value, 'ai-pdm', config, sourceRevision, intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef)
+        assertMigration(migrate.value, 'ai-pdm', config, sourceRevision,
+          intent.migrationManifestSha256, intent.unlinkedProfileCleanupRef,
+          intent.principalOnlyFenceRef ?? null)
       }
       let terminal = null, chain
       if (refs.terminal) {
@@ -1355,7 +1370,42 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         if (migrate) assertUnlinkedProfileCleanupReceipt(migrate.value.unlinkedProfileCleanup, intent.unlinkedProfileCleanupRef)
       } else if (migrate?.value?.unlinkedProfileCleanup !== undefined) fail('MIGRATION_INVALID')
       const archived = await observeArchiveContent({ source: deployment.value.sourceObject, revision: sourceRevision, bundle: sourceBundle.bundle, token, fetchImpl })
-      const repairHistory = repair ? assertAiPdmMigrationHistory(historical.migrationHistory) : null
+      let repairHistory = repair ? assertAiPdmMigrationHistory(historical.migrationHistory) : null
+      if (repair && Object.hasOwn(intent, 'appliedMigrationContinuation')) {
+        const binding = assertAppliedMigrationContinuation(intent.appliedMigrationContinuation, AI_BUCKET)
+        const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+        assertAppliedMigrationSource(binding, sourceRevision, (ancestor, descendant) => {
+          const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant],
+            { cwd: repositoryRoot, encoding: 'utf8', shell: false, windowsHide: true })
+          return !result.error && result.status === 0
+        })
+        const currentProfile = JSON.parse(strictUtf8(archived.content.files.get(PROFILE_PATH)))
+        const refs = { prepare: binding.prepareRef, migrate: binding.migrateRef, terminal: null }
+        const providerObservation = observeOwnerSource !== null
+          ? await observeOwnerSource({ profile: currentProfile, sourceRevision: binding.sourceRevision, refs, verifyProvider: true, readSource: null })
+          : await (async () => {
+            const proof = await readAiPdmReleaseObservation({ sourceRevision: binding.sourceRevision, refs, token, fetchImpl, readSource: null })
+            const provider = await verifyOwnerProviderReadback({ proof, token, fetchImpl, builderReadback: null })
+            return { proof, provider }
+          })()
+        if (providerObservation?.proof?.disposition !== 'migration_only' || providerObservation.proof.sourceRevision !== binding.sourceRevision ||
+            Object.hasOwn(providerObservation.proof, 'terminal') || providerObservation.provider?.status !== 'BUILD_IMAGE_VERIFIED') fail('APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID')
+        const applied = await readObservedCapsuleGraph({ sourceRevision: binding.sourceRevision, refs, token, fetchImpl,
+          readSource: null, readOwnerSourceProof: observeOwnerSource })
+        const appliedHistory = assertAiPdmMigrationHistory(applied.migrationHistory)
+        if (applied.terminal !== null || applied.migrationMode !== 'FORWARD_APPLIED' ||
+            canonicalize(applied.prepare.ref) !== canonicalize(binding.prepareRef) || canonicalize(applied.migrate?.ref) !== canonicalize(binding.migrateRef) ||
+            canonicalize(assertReconciledPrincipalAbortBinding(intent, AI_BUCKET)) !== canonicalize(assertReconciledPrincipalAbortBinding(applied.intent, AI_BUCKET))) fail('APPLIED_MIGRATION_CONTINUATION_PROOF_INVALID')
+        assertAiPdmRepairMigrationMode(repairHistory, appliedHistory.source.content)
+        await readAppliedMigrationReadbackEvidence({ binding, profile: currentProfile, history: appliedHistory,
+          deployment: applied.chain.deployment.value, readJson: ref => readRef(ref, AI_BUCKET, token, fetchImpl),
+          sourceVerification: readbackIntent => assertAppliedMigrationReadbackSource({ readbackIntent, profile: currentProfile,
+            fullMigration: createMigrationBundle({ target: { ownerApplicationId: 'ai-pdm', ledger: currentProfile.migrations.ledger,
+              baselineCount: currentProfile.migrations.baselineCount }, sourceRevision: readbackIntent.runnerSourceRevision,
+            entries: structuredClone(sourceBundle.bundle.entries) }),
+            root: repositoryRoot }) })
+        repairHistory = appliedHistory
+      }
       let programMigration = null
       if (programOnly) {
         if (repair || intent.unlinkedProfileCleanupRef) fail('PROGRAM_ONLY_CAPSULE_INVALID')
@@ -1486,7 +1536,8 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
       return { intent, intentRef, prepare, sourceLock, migrate, terminal, chain, descriptor, baseline, prerequisite, bundle, content: archived.content, sourceAuthentication: archived.sourceAuthentication, migrationHistory, repairHistory, repair, migrationMode, programMigration }
     }
     if (!repair) return observe(null)
-    if (!intent.openswxWorkerRef || Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) fail('REPAIR_CAPSULE_INVALID')
+    const reconciledAbort = assertReconciledPrincipalAbortBinding(intent, AI_BUCKET)
+    if (!intent.openswxWorkerRef || ((Object.hasOwn(intent, 'principalOnlyRecovery') || Object.hasOwn(intent, 'principalOnlyFenceRef')) && !reconciledAbort)) fail('REPAIR_CAPSULE_INVALID')
     descriptor ??= assertObservationDescriptor((await readRef(intent.openswxWorkerRef, AI_BUCKET, token, fetchImpl)).value, intent)
     const workerChild = descendAiPdmEvidenceContext(activeEvidence(), descriptor.workerBuildRef, true)
     return runAiPdmEvidenceContext(workerChild, async () => {
@@ -1674,10 +1725,37 @@ function assertSourceLock(value, owner, config, revision, releaseId) {
     value.evidenceScope !== 'PRODUCTION_BOUND' ||
     !Number.isFinite(Date.parse(value.observedAt))) fail('SOURCE_LOCK_INVALID')
 }
-export function assertMigration(value, owner, config, revision, manifestSha256, unlinkedProfileCleanupRef) {
+function assertPrincipalOnlyFenceSummary(value, expectedRef = null) {
+  const keys = ['ref', 'sha256', 'service', 'uid', 'oldRevision',
+    'beforeGeneration', 'generation', 'requestTimeoutSeconds', 'drainSeconds',
+    'fenceSourceRevision', 'ownerWriterSessions']
+  const refMatch = typeof value?.ref === 'string'
+    ? value.ref.match(new RegExp(`^gs://${AI_BUCKET}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/([a-f0-9]{40})/fence-([1-9][0-9]*)\\.json$`, 'u'))
+    : null
+  if (!exactKeys(value, keys) ||
+      !refMatch || refMatch[1] !== value.fenceSourceRevision ||
+      Number(refMatch[2]) !== value.generation ||
+      !H64.test(value.sha256 ?? '') || value.service !== 'ai-pdm-prod' ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(value.uid ?? '') ||
+      !/^ai-pdm-prod-[a-z0-9]+$/u.test(value.oldRevision ?? '') ||
+      !Number.isSafeInteger(value.beforeGeneration) || value.beforeGeneration < 0 ||
+      !Number.isSafeInteger(value.generation) || value.generation <= value.beforeGeneration ||
+      !Number.isSafeInteger(value.requestTimeoutSeconds) || value.requestTimeoutSeconds < 1 || value.requestTimeoutSeconds > 60 ||
+      value.drainSeconds !== value.requestTimeoutSeconds + 30 ||
+      !H40.test(value.fenceSourceRevision ?? '') || value.ownerWriterSessions !== 0) fail('MIGRATION_INVALID')
+  if (expectedRef !== null &&
+      (!exactKeys(expectedRef, ['uri', 'sha256']) || expectedRef.uri !== value.ref || expectedRef.sha256 !== value.sha256)) fail('MIGRATION_INVALID')
+}
+
+export function assertMigration(value, owner, config, revision, manifestSha256, unlinkedProfileCleanupRef, principalOnlyFenceRef = null) {
   if (Object.hasOwn(value ?? {}, 'unlinkedProfileCleanup') || unlinkedProfileCleanupRef !== undefined) {
     if (owner !== 'ai-pdm') fail('MIGRATION_INVALID')
     assertUnlinkedProfileCleanupReceipt(value?.unlinkedProfileCleanup, unlinkedProfileCleanupRef)
+  }
+  const hasPrincipalOnlyFence = Object.hasOwn(value ?? {}, 'principalOnlyFence')
+  if (hasPrincipalOnlyFence || principalOnlyFenceRef !== null) {
+    if (owner !== 'ai-pdm' || !hasPrincipalOnlyFence) fail('MIGRATION_INVALID')
+    assertPrincipalOnlyFenceSummary(value.principalOnlyFence, principalOnlyFenceRef)
   }
   if (typeof config.migrationBootstrap !== 'boolean' ||
       !Number.isInteger(config.principalContractLedgerFloor) ||
@@ -1686,6 +1764,7 @@ export function assertMigration(value, owner, config, revision, manifestSha256, 
     'database', 'ledger', 'manifestSha256', 'baselineCount', 'minimumLedgerCount',
     ...(config.migrationBootstrap ? ['ledgerBootstrap'] : []),
     ...(owner === 'ai-pdm' && Object.hasOwn(value ?? {}, 'unlinkedProfileCleanup') ? ['unlinkedProfileCleanup'] : []),
+    ...(owner === 'ai-pdm' && hasPrincipalOnlyFence ? ['principalOnlyFence'] : []),
     'ledgerCount', 'applied', 'replayed', 'crossDatabaseDenials',
     'boundaryStatus', 'executionName', 'startedAt', 'completedAt', 'status',
     'receiptSha256']) ||

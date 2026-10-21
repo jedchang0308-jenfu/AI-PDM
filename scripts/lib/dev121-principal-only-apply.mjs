@@ -77,7 +77,8 @@ export async function applyPrincipalOnlyInventoryOperation({ operation, inputHas
       const service = await readPrincipalOnlyServiceV2(token, fetchImpl)
       assertPrincipalOnlyMigrationFence({ proof: fence.value, bytes: fence.bytes,
         expectedSha256: operation.principalOnlyFenceRef.sha256,
-        sourceRevision: operation.sourceRevision, service, observedAt: new Date().toISOString() })
+        expectedFenceSourceRevision: recovery.value.sourceRevision,
+        service, observedAt: new Date().toISOString() })
       const revisionResponse = await fetchImpl(`https://run.googleapis.com/v2/${service.name}/revisions/${operation.principalOnlyRecovery.revision}`, {
         headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000),
       })

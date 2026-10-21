@@ -371,7 +371,8 @@ test('S1B-20 principal migration workflow stops before candidate and uses exact 
   const wif = fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/workload-identity.tf', import.meta.url), 'utf8')
   assert.equal(assertDev121MigrationOnlyWorkflowSource(source, wif), true)
   assert.match(fs.readFileSync(new URL('../infra/google-cloud/dev-117-production-release/locals.tf', import.meta.url), 'utf8'), /github_rd_permission_readback_ref/u)
-  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('test:production-slice:affected', 'test:dev-117:continuous'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
+  const duplicateSourceTest = source.replace('      - run: npm ci', '      - run: npm ci\n      - run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner')
+  assert.throws(() => assertDev121MigrationOnlyWorkflowSource(duplicateSourceTest, wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source.replace('--stage migrate', '--stage candidate'), wif), { code: 'MIGRATION_ONLY_WORKFLOW_DRIFT' })
   assert.throws(() => assertDev121MigrationOnlyWorkflowSource(source, wif.replace("assertion.ref == 'refs/heads/main'", "assertion.ref == 'refs/heads/feature'")), { code: 'MIGRATION_ONLY_WIF_DRIFT' })
 })
@@ -543,6 +544,14 @@ test('S1B-20 build-only mode retains protected owner path and cannot reach mutat
     source.replace('options: [full_release, build_only]', 'options: [full_release, arbitrary_stage]'),
     source.replace('case "$EXECUTION_MODE" in full_release|build_only) ;; *) exit 1 ;; esac', 'true'),
   ]) assert.throws(() => assertDev117WorkflowSource(changed), {code:'WORKFLOW_BUILD_ONLY_BOUNDARY_DRIFT'})
+})
+
+test('owner prepare consumes exact required CI evidence without replaying source tests', () => {
+  const source = fs.readFileSync(new URL('../.github/workflows/deploy-ai-pdm-independent-production.yml', import.meta.url), 'utf8').replaceAll('\r\n', '\n')
+  assert.equal(assertDev117WorkflowSource(source), true)
+  const duplicate = source.replace('      - run: npm ci', '      - run: npm ci\n      - run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner')
+  assert.throws(() => assertDev117WorkflowSource(duplicate), { code: 'WORKFLOW_SOURCE_CHECK_DRIFT' })
+  assert.throws(() => assertDev117WorkflowSource(source.replace('checks: read, ', '')), { code: 'WORKFLOW_SOURCE_CHECK_DRIFT' })
 })
 
 test('S1B-20 repair stages keep builder proof reads separate from primary release authority', () => {

@@ -248,6 +248,8 @@ test('stable workflow keeps existing WIF filename and separates verifier from RD
   assert.match(workflow, /dev117-production-diagnostics.mjs --service-state/u)
   assert.match(workflow, /dev122-openswx-dispatch-recovery.mjs --stage recovery/u)
   assert.match(workflow, /environment: production/u)
+  assert.match(workflow, /permissions: \{ contents: read, checks: read, id-token: write \}/u)
+  assert.match(workflow, /Verify exact merged source and required CI results/u)
 })
 
 function checkpointFixture(t) {

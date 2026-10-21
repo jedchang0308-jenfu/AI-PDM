@@ -5,6 +5,7 @@ import { createAiPdmEvidenceContext, runAiPdmEvidenceContext, descendAiPdmEviden
 import {
   assertRdLedgerReadbackIntent,
   assertRdReadbackExecutionReceipt,
+  assertRdReadbackJob,
   assertRdReadbackJobReceipt,
   assertRdReadbackNativeReceipt,
   assertRdReadbackResult,
@@ -15,6 +16,13 @@ import {
   rdReadbackSha256,
   RD_LEDGER_READBACK_PGOPTIONS,
 } from './dev122-rd-permission-ledger-readback.mjs'
+import {
+  RD_PERMISSION_STATE_PGOPTIONS,
+  RD_PERMISSION_STATE_RECEIPT_PREFIX,
+  assertPermissionStateOperation,
+  assertPermissionStateReceipt,
+  parsePermissionStateArgs,
+} from './dev122-rd-permission-state-readback.mjs'
 
 const same = (a, b) => canonicalize(a) === canonicalize(b)
 const fail = () => { throw new Error('DEV121_PREACTIVATION_CONTINUATION_INVALID') }
@@ -55,6 +63,16 @@ export async function readPreActivationAbortContinuation({ profile, transport, b
   const binding = assertPrincipalOnlyRecoveryBinding(intent, bucket)
   if (!binding) return readOrdinaryAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider,
     postAbortLedgerReadbackRef, principalOnlyFenceRef, principalOnlyRecovery })
+  // A submitted migration can fail before candidate creation while its database
+  // outcome remains unknown. Reconcile that pre-candidate shape through the
+  // existing read-only ledger path; the principal recovery binding alone does
+  // not prove that migration 085 was applied.
+  if (terminalFacts.databaseDisposition === 'UNKNOWN') {
+    if (!same(intent.principalOnlyFenceRef, principalOnlyFenceRef)
+      || !same(intent.principalOnlyRecovery, principalOnlyRecovery)) fail()
+    return readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider,
+      postAbortLedgerReadbackRef, principalOnlyFenceRef, principalOnlyRecovery, principalOnlyReconciled: true })
+  }
   const [rollback, candidate, deployment, migration, source, proof, revision] = await Promise.all([
     read(paths.rollback), read(paths.candidate), read(paths.deployment), read(paths.migrate),
     transport.readJson(intent.sourceLockRef, bucket, ['receipts']), transport.readJson(binding.receiptRef, bucket, ['receipts']),
@@ -829,13 +847,16 @@ async function readOrdinaryAbort({ profile, transport, baselineIntentRef, intent
 // migration execution exists.  None promotes the aborted capsule or image into
 // a released artifact.
 async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts, control, service, read, seal, verifyProvider,
-  postAbortLedgerReadbackRef = null, principalOnlyFenceRef = null, principalOnlyRecovery = null }) {
+  postAbortLedgerReadbackRef = null, principalOnlyFenceRef = null, principalOnlyRecovery = null, principalOnlyReconciled = false }) {
   const bucket = profile.artifact.releaseBucket
   const reconciled = postAbortLedgerReadbackRef !== null
+  const principalRecovery = reconciled && principalOnlyReconciled
   const recovery = reconciled
     ? assertPrincipalOnlyRecoveryBinding({ previousRevision: intent.previousRevision, principalOnlyFenceRef, principalOnlyRecovery }, bucket)
     : null
-  if ((terminalFacts.databaseDisposition === 'UNKNOWN') !== reconciled || (!reconciled && (principalOnlyFenceRef || principalOnlyRecovery))) fail()
+  if ((terminalFacts.databaseDisposition === 'UNKNOWN') !== reconciled || (principalRecovery && !recovery)
+    || (!reconciled && (principalOnlyFenceRef || principalOnlyRecovery))) fail()
+  const abortRevision = principalRecovery ? recovery.revision : intent.previousRevision
   let [prepare, rollback, failedLock, anchor] = await Promise.all([
     read(paths.prepare), read(paths.rollback), transport.readJson(intent.sourceLockRef, bucket, ['receipts']),
     transport.readJson(intent.baselineIntentRef, bucket, ['receipts']),
@@ -855,13 +876,13 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     || control.result !== 'PRE_ACTIVATION_ABORTED' || control.inputFingerprint !== fingerprint
     || control.ownerApplicationId !== profile.application.id || control.service !== profile.target.serviceName || control.controlBucket !== bucket
     || control.releaseId !== intent.releaseId || control.sourceRevision !== intent.sourceRevision || control.sourceLockSha256 !== intent.sourceLockRef.sha256
-    || control.previousRevision !== intent.previousRevision || control.candidateRevision !== null || !/^[1-9][0-9]*$/u.test(runId)
+    || control.previousRevision !== abortRevision || control.candidateRevision !== null || !/^[1-9][0-9]*$/u.test(runId)
     || control.deadlineAt !== intent.deadlineAt || !Number.isFinite(Date.parse(control.deadlineAt))
     || !Number.isFinite(Date.parse(control.leaseExpiresAt)) || Date.parse(control.leaseExpiresAt) >= Date.now()
     || prepare.value.previousReceiptRef !== null || prepareFacts.previousRevision !== intent.previousRevision
     || !same(prepareFacts.prerequisiteRefs, Object.fromEntries(Object.entries(refNames).map(([name, field]) => [name, intent[field]])))
     || rollback.value.previousReceiptRef !== null || !same(terminal.value.previousReceiptRef, rollback.ref)
-    || terminalFacts.previousRevision !== intent.previousRevision || rollbackFacts.previousRevision !== intent.previousRevision
+    || terminalFacts.previousRevision !== abortRevision || rollbackFacts.previousRevision !== abortRevision
     || terminalFacts.databaseDisposition !== (reconciled ? 'UNKNOWN' : 'NOT_APPLIED')
     || rollbackFacts.databaseDisposition !== (reconciled ? 'UNKNOWN' : 'NOT_APPLIED')
     || (reconciled ? !same(terminalFacts.migrationSubmissionIntentRef, rollbackFacts.migrationSubmissionIntentRef)
@@ -874,7 +895,9 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     || failedLock.value.ownerApplicationId !== profile.application.id || failedLock.value.releaseId !== intent.releaseId
     || failedLock.value.sourceRevision !== intent.sourceRevision || failedLock.value.sourceSha256 !== intent.sourceSha256
     || failedLock.value.migrationManifestSha256 !== intent.migrationManifestSha256
-    || failedLock.value.status !== 'SOURCE_FROZEN' || failedLock.value.releaseAuthority !== true || failedLock.value.clean !== true) fail()
+    || failedLock.value.status !== 'SOURCE_FROZEN' || failedLock.value.releaseAuthority !== true || failedLock.value.clean !== true) {
+    fail()
+  }
   // Only a positive 404 is absence; partial uploads and unknown reads fail closed.
   const optional = async uri => { try { return await read(uri) } catch (error) { if (error.code !== 'MISSING') throw error; return null } }
   const [build, provenance, deployment] = await Promise.all([optional(paths.build), optional(paths.provenance), optional(paths.deployment)])
@@ -888,7 +911,8 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
     || run.event !== 'workflow_dispatch' || run.headSha !== intent.sourceRevision) fail()
   const reconciliation = reconciled
     ? await readPostAbortLedgerReconciliation({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts,
-      rollbackFacts, prepareFacts, build, deployment, control, read, run, ref: postAbortLedgerReadbackRef })
+      rollbackFacts, prepareFacts, build, deployment, control, read, run, ref: postAbortLedgerReadbackRef,
+      principalOnlyFenceRef: principalRecovery ? principalOnlyFenceRef : null })
     : (await assertMissing(read, migrationSubmissionIntentUri(profile, paths.migrate)), null)
   const completed = build ? await readSealedUnsubmittedBuild({ profile, transport, baselineIntentRef, intent, paths, prepare, prepareFacts,
     build, provenance, deployment, read, seal, run, verifyMigrationAbsence: !reconciled }) : null
@@ -898,7 +922,7 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
   if (completed && prepareFacts.preActivationAbortBasis) {
     inheritedBasis = prepareFacts.preActivationAbortBasis
     if (!['ai-pdm.principal-prebuild-abort-basis.v1', 'ai-pdm.principal-unpublished-build-abort-basis.v1',
-      'ai-pdm.principal-postbuild-pre-migration-abort-basis.v1'].includes(inheritedBasis.schemaVersion)
+      'ai-pdm.principal-postbuild-pre-migration-abort-basis.v1', 'ai-pdm.principal-reconciled-migration-abort-basis.v1'].includes(inheritedBasis.schemaVersion)
       || !same(inheritedBasis.failedIntentRef, intent.baselineIntentRef)
       || inheritedBasis.previousRevision !== intent.previousRevision
       || !/^[a-f0-9]{64}$/u.test(inheritedBasis.controlSha256 ?? '')) fail()
@@ -959,12 +983,34 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
   const entrySnapshot = value => ({ ingress: value.ingress, defaultUriDisabled: value.defaultUriDisabled === true,
     invokerIamDisabled: value.invokerIamDisabled === true, uri: value.uri, urls: [...(value.urls ?? [])].sort() })
   if (service.name !== serviceName || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(service.uid ?? '')
-    || (reconciled
+    || (reconciled && !principalRecovery
       ? service.scaling?.scalingMode !== 'MANUAL' || ![0, '0'].includes(service.scaling?.manualInstanceCount) || recovery.serviceUid !== service.uid
+      : principalRecovery
+        ? !((service.scaling?.scalingMode === 'MANUAL' && [0, '0'].includes(service.scaling?.manualInstanceCount))
+          || (service.scaling?.scalingMode === 'AUTOMATIC' && Number.isFinite(Number(service.scaling?.maxInstanceCount))
+            && Number(service.scaling?.maxInstanceCount) >= 1)) || recovery.serviceUid !== service.uid
       : service.scaling?.scalingMode !== 'AUTOMATIC' || Number(service.scaling.maxInstanceCount) !== 1)
     || !traffic(service.traffic, intent.previousRevision) || !traffic(service.trafficStatuses, intent.previousRevision)
     || !same(entrySnapshot(service), entrySnapshot(prepareFacts.entrypointBaseline))) fail()
   transport.assertCanonicalEntrypoint(profile, service)
+  if (principalRecovery) {
+    const [fenceRow, proofRow, recoveryRevision] = await Promise.all([
+      read(principalOnlyFenceRef.uri), transport.readJson(recovery.receiptRef, bucket, ['receipts']), transport.getRevision(profile, recovery.revision),
+    ])
+    const fence = fenceRow.value
+    if (!same(fenceRow.ref, principalOnlyFenceRef) || !same(proofRow.ref, recovery.receiptRef)
+      || !same(Object.keys(fence).sort(), ['schemaVersion', 'sourceRevision', 'projectId', 'region', 'service', 'serviceUid',
+        'oldRevision', 'beforeGeneration', 'quiescentGeneration', 'serviceUpdateTime', 'requestTimeoutSeconds', 'status'].sort())
+      || fence.schemaVersion !== 'ai-pdm.principal-only-migration-fence.v1'
+      || !/^[a-f0-9]{40}$/u.test(fence.sourceRevision ?? '') || fence.projectId !== profile.target.projectId
+      || fence.region !== profile.target.region || fence.service !== profile.target.serviceName
+      || fence.serviceUid !== service.uid || fence.oldRevision !== intent.previousRevision
+      || !/^[1-9][0-9]*$/u.test(fence.beforeGeneration ?? '') || !/^[1-9][0-9]*$/u.test(fence.quiescentGeneration ?? '')
+      || Number(fence.quiescentGeneration) <= Number(fence.beforeGeneration)
+      || !Number.isFinite(Date.parse(fence.serviceUpdateTime)) || fence.requestTimeoutSeconds !== 60 || fence.status !== 'QUIESCED') fail()
+    assertRecoveryProofReadback({ sourceRevision: intent.sourceRevision, oldRevision: intent.previousRevision,
+      binding: recovery, profile, proof: proofRow.value, service, revision: recoveryRevision, activeRevision: intent.previousRevision })
+  }
   const retainedRevision = await transport.getRevision(profile, intent.previousRevision)
   const retainedApp = retainedRevision?.containers?.filter(row => row.name === profile.runtime.containerName)
   if (retainedRevision?.name !== `${service.name}/revisions/${intent.previousRevision}`
@@ -992,9 +1038,9 @@ async function readPrebuildAbort({ profile, transport, baselineIntentRef, intent
       entrypoint: entrySnapshot(service), scaling: service.scaling, retainedEnvironmentSha256: sha256(canonicalize(retainedEnvironment)) } }
 }
 
-function ordinaryMigrationEnvironment(profile, runnerSourceRevision) {
+function ordinaryMigrationEnvironment(profile, runnerSourceRevision, principalOnlyFenceRef = null) {
   const connection = 'jenfu-platform-prod:asia-east1:jenfu-platform-prod-pg'
-  return {
+  const environment = {
     OWNER_APPLICATION_ID: profile.application.id,
     RELEASE_BUCKET: profile.artifact.releaseBucket,
     GOOGLE_CLOUD_PROJECT: profile.target.projectId,
@@ -1005,6 +1051,11 @@ function ordinaryMigrationEnvironment(profile, runnerSourceRevision) {
     POSTGRES_SOCKET: `/cloudsql/${connection}`,
     PDM_SOURCE_REVISION: runnerSourceRevision,
   }
+  if (principalOnlyFenceRef) {
+    environment.DEV121_MIGRATION_FENCE_REF = principalOnlyFenceRef.uri
+    environment.DEV121_MIGRATION_FENCE_SHA256 = principalOnlyFenceRef.sha256
+  }
+  return environment
 }
 
 function executionTerminalFacts(execution) {
@@ -1045,17 +1096,17 @@ function executionCloudSqlFieldsMatch(task, container, staticTask = null) {
   return same(staticTask?.volumes, CLOUD_SQL_VOLUMES) && same(staticContainer?.volumeMounts, CLOUD_SQL_MOUNTS)
 }
 
-function ordinaryStaticJobMatches(profile, job, submission, deployment) {
-  const task = job?.template?.template, containers = task?.containers
-  const container = Array.isArray(containers) && containers.length === 1 ? containers[0] : null
-  const runnerSourceRevision = deployment.migrationRunnerSourceRevision ?? deployment.sourceRevision
-  const environment = Array.isArray(container?.env) && new Set(container.env.map(row => row?.name)).size === container.env.length
-    ? Object.fromEntries(container.env.map(row => [row.name, row.value])) : null
-  return job?.name === submission.jobName && job.template?.taskCount === 1 && job.template?.parallelism === 1
-    && task?.serviceAccount === profile.migrations.serviceAccount && task.maxRetries === 0 && task.timeout === '1800s'
-    && container?.name === 'migration' && container.image === submission.migrationRunnerDigest
-    && same(environment, ordinaryMigrationEnvironment(profile, runnerSourceRevision))
-    && same(task.volumes, CLOUD_SQL_VOLUMES) && same(container.volumeMounts, CLOUD_SQL_MOUNTS)
+// The Job may be rotated after the sealed execution. Validate current safety here;
+// ordinaryExecutionMatches below keeps the historical artifact/source identity.
+function currentStaticJobMatches(profile, job, submission) {
+  const generation = String(job?.generation ?? '')
+  if (!/^[1-9][0-9]*$/u.test(generation)
+    || String(job?.observedGeneration ?? '') !== generation
+    || (Object.hasOwn(job ?? {}, 'reconciling') && typeof job.reconciling !== 'boolean')
+    || job?.reconciling === true
+    || job?.terminalCondition?.state !== 'CONDITION_SUCCEEDED') return false
+  try { assertRdReadbackJob(job, profile) } catch { return false }
+  return job.name === submission.jobName
 }
 
 function ordinaryExecutionMatches(profile, execution, submission, deployment, staticJob) {
@@ -1067,7 +1118,7 @@ function ordinaryExecutionMatches(profile, execution, submission, deployment, st
   return task?.serviceAccount === profile.migrations.serviceAccount && task.maxRetries === 0 && task.timeout === '1800s'
     && execution.taskCount === 1 && execution.parallelism === 1 && container?.name === 'migration'
     && container.image === submission.migrationRunnerDigest && same(container.args, submission.args)
-    && same(environment, ordinaryMigrationEnvironment(profile, runnerSourceRevision))
+    && same(environment, ordinaryMigrationEnvironment(profile, runnerSourceRevision, submission.principalOnlyFenceRef))
     && executionCloudSqlFieldsMatch(task, container, staticJob?.template?.template)
 }
 
@@ -1097,7 +1148,7 @@ async function readMigrationExecutionInventory(profile, transport) {
 async function readSubmittedMigrationExecution({ profile, transport, paths, deployment, submission, run }) {
   const window = closedOwnerWindow(run)
   const staticJob = await transport.request(`https://run.googleapis.com/v2/${submission.jobName}`)
-  if (!ordinaryStaticJobMatches(profile, staticJob, submission, deployment)) fail()
+  if (!currentStaticJobMatches(profile, staticJob, submission)) fail()
   const rows = await readMigrationExecutionInventory(profile, transport)
   const argumentMentions = (execution, value) => execution.template?.containers?.some(container => container.args?.some((argument, index, args) =>
     argument === value || argument === `--source-revision=${value}` || argument === `--output-ref=${value}`
@@ -1114,7 +1165,7 @@ async function readSubmittedMigrationExecution({ profile, transport, paths, depl
   const provider = await transport.request(`https://run.googleapis.com/v2/${execution.name}`)
   if (!ordinaryExecutionMatches(profile, provider, submission, deployment, staticJob)
     || !same(executionProjection(provider), executionProjection(execution))) fail()
-  return { execution: provider, projection: executionProjection(provider), window, submitted,
+  return { execution: provider, projection: executionProjection(provider), staticJob, window, submitted,
     inventory: rows.map(executionProjection).sort((left, right) => left.name.localeCompare(right.name)) }
 }
 
@@ -1140,8 +1191,112 @@ function assertReadbackExecution({ profile, intent, intentRef, probe, attempt, r
   return facts
 }
 
+function executionEnvironment(execution) {
+  const rows = execution?.template?.containers?.[0]?.env
+  if (!Array.isArray(rows) || new Set(rows.map(row => row?.name)).size !== rows.length) fail()
+  return Object.fromEntries(rows.map(row => [row.name, row.value]))
+}
+
+async function authorizeLedgerDiagnosticExecution({ profile, transport, read, execution, expectedRunnerSourceRevision,
+  expectedMigrationRunnerDigest, cache }) {
+  const args = execution?.template?.containers?.[0]?.args
+  if (!Array.isArray(args)) fail()
+  const outputIndex = args.indexOf('--output-ref')
+  if (outputIndex < 0 || outputIndex + 1 >= args.length) fail()
+  const outputUri = args[outputIndex + 1]
+  const pattern = new RegExp(`^gs://${profile.artifact.releaseBucket}/receipts/releases/([A-Z0-9][A-Z0-9-]{5,63})/([a-f0-9]{64})/ledger-probe-(33|34|35)\\.json$`, 'u')
+  const match = pattern.exec(outputUri)
+  if (!match) fail()
+  const [, releaseId, intentSha256, count] = match
+  const intentUri = `gs://${profile.artifact.releaseBucket}/receipts/releases/${releaseId}/rd-permission-ledger-readback-intent.json`
+  const base = `gs://${profile.artifact.releaseBucket}/receipts/releases/${releaseId}/${intentSha256}`
+  let graph = cache.get(base)
+  if (!graph) {
+    const intentRow = await read(intentUri)
+    if (intentRow.ref.sha256 !== intentSha256) fail()
+    const intent = assertRdLedgerReadbackIntent(intentRow.value)
+    if (intent.runnerSourceRevision !== expectedRunnerSourceRevision || intent.migrationRunnerDigest !== expectedMigrationRunnerDigest) fail()
+    const jobReceipt = await read(`${base}/ledger-job-readback.json`)
+    assertRdReadbackJobReceipt(jobReceipt.value, { intent, intentRef: intentRow.ref, profile })
+    graph = { intent, intentRef: intentRow.ref, jobReceipt }
+    cache.set(base, graph)
+  }
+  const ledgerCount = Number(count), probe = graph.intent.probes.find(row => row.ledgerCount === ledgerCount)
+  if (!probe || !same(args, rdReadbackProbeArguments(graph.intent, probe, outputUri))) fail()
+  const executionReceipt = await read(`${base}/ledger-probe-${ledgerCount}-execution-readback.json`)
+  const pass = executionReceipt.value?.status === 'PASS'
+  if (!pass && executionReceipt.value?.status !== 'EXPECTED_READ_ONLY_PROBE_FAILURE') fail()
+  const attempt = { status: pass ? 'PASS' : 'FAILED', ledgerCount, executionReadbackRef: executionReceipt.ref }
+  const facts = assertReadbackExecution({ profile, intent: graph.intent, intentRef: graph.intentRef, probe, attempt,
+    receipt: executionReceipt.value, execution, staticJob: graph.jobReceipt.value.projection })
+  const started = Date.parse(graph.intent.observedAt), deadline = Date.parse(graph.intent.deadlineAt)
+  if (!Number.isFinite(started) || !Number.isFinite(deadline) || facts.created < started || facts.finished > deadline) fail()
+  if (pass) {
+    const native = await read(outputUri)
+    assertRdReadbackNativeReceipt(native.value, { intent: graph.intent, probe, executionName: execution.name.split('/').at(-1) })
+    const nativeStarted = Date.parse(native.value.startedAt), nativeCompleted = Date.parse(native.value.completedAt)
+    if (nativeStarted < facts.created || nativeCompleted > facts.finished) fail()
+  } else await assertMissing(read, outputUri)
+  return execution.name
+}
+
+async function authorizePermissionDiagnosticExecution({ profile, transport, read, execution, staticJob,
+  expectedRunnerSourceRevision, expectedMigrationRunnerDigest }) {
+  const args = execution?.template?.containers?.[0]?.args
+  const parsed = parsePermissionStateArgs(args)
+  const operationPattern = new RegExp(`^gs://${profile.artifact.releaseBucket}/source/rd-permission-readback/[A-Za-z0-9._-]+\\.json$`, 'u')
+  const expectedOutput = `gs://${profile.artifact.releaseBucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${parsed.operationSha256}/state.json`
+  if (!operationPattern.test(parsed.operationRef) || parsed.sourceRevision !== expectedRunnerSourceRevision || parsed.outputRef !== expectedOutput) fail()
+  const operationObject = await transport.readBytes(parsed.operationRef, { prefixes: ['source/rd-permission-readback'], expectedSha256: parsed.operationSha256 })
+  let operation
+  try { operation = JSON.parse(operationObject.bytes.toString('utf8')) } catch { fail() }
+  assertPermissionStateOperation(operation, { bytes: operationObject.bytes, operationSha256: parsed.operationSha256, sourceRevision: parsed.sourceRevision })
+  if (operation.migrationRunnerDigest !== expectedMigrationRunnerDigest) fail()
+  const generation = String(operationObject.metadata?.generation ?? '')
+  if (!/^[1-9][0-9]*$/u.test(generation)) fail()
+  const operationRef = { uri: parsed.operationRef, sha256: parsed.operationSha256, generation }
+  const expectedArgs = ['--permission-operation-ref', parsed.operationRef, '--permission-operation-sha256', parsed.operationSha256,
+    '--source-revision', parsed.sourceRevision, '--permission-output-ref', expectedOutput]
+  if (!same(args, expectedArgs)) fail()
+  const submission = await read(`gs://${profile.artifact.releaseBucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${parsed.operationSha256}/submission.json`)
+  const { receiptSha256, ...submissionCore } = submission.value ?? {}
+  const submissionKeys = ['schemaVersion', 'ownerApplicationId', 'workflowSourceRevision', 'sourceRevision', 'operationRef', 'outputRef',
+    'operationId', 'migrationRunnerDigest', 'args', 'executionEnvironment', 'observedAt', 'status']
+  if (!same(Object.keys(submissionCore).sort(), submissionKeys.sort()) || receiptSha256 !== sha256(canonicalize(submissionCore))
+    || submissionCore.schemaVersion !== 'aipdm.dev122.rd-permission-state-readback-submission.v1'
+    || submissionCore.ownerApplicationId !== profile.application.id || !/^[a-f0-9]{40}$/u.test(submissionCore.workflowSourceRevision ?? '')
+    || submissionCore.sourceRevision !== operation.sourceRevision || !same(submissionCore.operationRef, operationRef)
+    || submissionCore.outputRef !== expectedOutput || submissionCore.operationId !== operation.operationId
+    || submissionCore.migrationRunnerDigest !== operation.migrationRunnerDigest || !same(submissionCore.args, expectedArgs)
+    || !same(submissionCore.executionEnvironment, { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS })
+    || submissionCore.status !== 'SUBMISSION_INTENT' || !Number.isFinite(Date.parse(submissionCore.observedAt))) fail()
+  const task = execution?.template, container = task?.containers?.[0], environment = executionEnvironment(execution)
+  const facts = executionTerminalFacts(execution)
+  if (execution.taskCount !== 1 || execution.parallelism !== 1 || task?.serviceAccount !== profile.migrations.serviceAccount
+    || task.maxRetries !== 0 || task.timeout !== '1800s' || task.containers?.length !== 1 || container?.name !== 'migration'
+    || container.image !== operation.migrationRunnerDigest || !same(container.args, expectedArgs)
+    || environment.PDM_SOURCE_REVISION !== operation.sourceRevision || environment.PGOPTIONS !== RD_PERMISSION_STATE_PGOPTIONS
+    || !executionCloudSqlFieldsMatch(task, container, staticJob?.template?.template)
+    || facts.completedState !== 'CONDITION_SUCCEEDED' || Number(execution.succeededCount ?? 0) !== 1 || Number(execution.failedCount ?? 0) !== 0
+    || Date.parse(submissionCore.observedAt) > facts.created) fail()
+  const output = await read(expectedOutput)
+  assertPermissionStateReceipt(output.value, { operation, operationRef, outputRef: expectedOutput })
+  const observed = Date.parse(output.value.observedAt)
+  if (output.value.state?.transactionMode !== 'REPEATABLE READ READ ONLY' || output.value.state?.databaseMutationExpected !== false
+    || !Number.isFinite(observed) || observed < facts.created || observed > facts.finished) fail()
+  return execution.name
+}
+
+async function authorizeReadOnlyDiagnosticExecution(input) {
+  const args = input.execution?.template?.containers?.[0]?.args
+  if (!Array.isArray(args)) fail()
+  if (args.includes('--permission-operation-ref')) return authorizePermissionDiagnosticExecution(input)
+  if (args.includes('--bundle-ref') && args.includes('--output-ref')) return authorizeLedgerDiagnosticExecution(input)
+  fail()
+}
+
 async function readPostAbortLedgerReconciliation({ profile, transport, baselineIntentRef, intent, paths, terminal, terminalFacts,
-  rollbackFacts, prepareFacts, build, deployment, control, read, run, ref }) {
+  rollbackFacts, prepareFacts, build, deployment, control, read, run, ref, principalOnlyFenceRef = null }) {
   const bucket = profile.artifact.releaseBucket
   if (!build || !deployment || prepareFacts.migrationRunnerDigest !== deployment.value.migrationRunnerDigest) fail()
   assertImmutableRef(ref, bucket, ['receipts/releases'])
@@ -1149,7 +1304,7 @@ async function readPostAbortLedgerReconciliation({ profile, transport, baselineI
   if (!same(terminalFacts.migrationSubmissionIntentRef, submission.ref)
     || !same(rollbackFacts.migrationSubmissionIntentRef, submission.ref)) fail()
   assertMigrationSubmissionIntent(submission.value, { profile, deployment: deployment.value, outputUri: paths.migrate,
-    deadlineAt: intent.deadlineAt, principalOnlyFenceRef: null })
+    deadlineAt: intent.deadlineAt, principalOnlyFenceRef })
   const failed = await readSubmittedMigrationExecution({ profile, transport, paths, deployment: deployment.value,
     submission: submission.value, run })
   const resultRow = await read(ref.uri)
@@ -1203,9 +1358,15 @@ async function readPostAbortLedgerReconciliation({ profile, transport, baselineI
   const finalInventoryRows = await readMigrationExecutionInventory(profile, transport)
   const finalInventory = finalInventoryRows.map(executionProjection).sort((left, right) => left.name.localeCompare(right.name))
   if (!same(finalInventory, failed.inventory)) fail()
+  const diagnosticCache = new Map()
   for (const execution of finalInventoryRows) {
     const facts = executionTerminalFacts(execution)
-    if (facts.created >= failed.submitted && !authorizedExecutions.has(execution.name)) fail()
+    if (facts.created >= failed.submitted && !authorizedExecutions.has(execution.name)) {
+      const name = await authorizeReadOnlyDiagnosticExecution({ profile, transport, read, execution, staticJob: failed.staticJob,
+        expectedRunnerSourceRevision: runnerSourceRevision, expectedMigrationRunnerDigest: deployment.value.migrationRunnerDigest,
+        cache: diagnosticCache })
+      authorizedExecutions.add(name)
+    }
   }
   return { basis: {
     schemaVersion: 'aipdm.dev122.post-abort-ledger-reconciliation.v1', failedIntentRef: baselineIntentRef,

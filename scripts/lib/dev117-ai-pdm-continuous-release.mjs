@@ -14,6 +14,7 @@ import { createMigrationBundle } from './dev012-production-migration-runner.mjs'
 import { assertPrincipalOnlyRecoveryBinding } from './dev121-principal-only-release.mjs'
 import { assertUnlinkedProfileCleanupRef } from './dev121-unlinked-profile-cleanup.mjs'
 import { assertOpenSwxWorkerRef } from './dev122-openswx-owner-release.mjs'
+import { assertAppliedMigrationContinuation } from './dev122-applied-migration-continuation.mjs'
 import { buildAiPdmPackage, deriveAiPdmMigration } from '../dev010-n1c-ai-pdm-package.mjs'
 
 const H40 = /^[a-f0-9]{40}$/
@@ -30,6 +31,12 @@ export function assertDev117ReleaseIntent(value, profile) {
   if (value?.principalOnlyFenceRef) expected.push('principalOnlyFenceRef')
   if (value?.principalOnlyRecovery) expected.push('principalOnlyRecovery')
   if (value?.postAbortLedgerReadbackRef) expected.push('postAbortLedgerReadbackRef')
+  if (Object.hasOwn(value ?? {}, 'appliedMigrationContinuation')) {
+    expected.push('appliedMigrationContinuation')
+    assertAppliedMigrationContinuation(value.appliedMigrationContinuation, profile.artifact.releaseBucket)
+    if (!value.openswxWorkerRef || !value.postAbortLedgerReadbackRef || !value.principalOnlyFenceRef || !value.principalOnlyRecovery ||
+        value.programOnlyBaseline || value.unlinkedProfileCleanupRef) fail('RELEASE_INTENT_INVALID', 'Applied migration continuation requires reconciled paused repair')
+  }
   if (Object.hasOwn(value ?? {}, 'openswxWorkerRef')) { expected.push('openswxWorkerRef'); assertOpenSwxWorkerRef(value.openswxWorkerRef) }
   if (Object.hasOwn(value ?? {}, 'programOnlyBaseline')) expected.push('programOnlyBaseline')
   if (Object.hasOwn(value ?? {}, 'unlinkedProfileCleanupRef')) {
@@ -173,6 +180,11 @@ export function assertDev117WorkflowSource(source) {
   if ((source.match(/^    environment: production$/gmu) ?? []).length !== 11 || (source.match(/DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:/gu) ?? []).length !== 2 || (source.match(/DEV012_AIPDM_FIREBASE_API_KEY:/gu) ?? []).length !== 2 || source.includes('DEV012_AIPDM_FIREBASE_ID_TOKEN')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', 'Protected environment or refresh-token smoke binding drifted')
   const migrationBinding = 'AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.migration_execution_read_auth.outputs.access_token }}"'
   const prepareBlock = jobBlocks.prepare ?? ''
+  if (!prepareBlock.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
+      !prepareBlock.includes('run: node scripts/dev012-verify-official-source.mjs') ||
+      source.includes('test:production-slice:affected')) {
+    fail('WORKFLOW_SOURCE_CHECK_DRIFT', 'Owner workflow must read exact required CI results instead of rerunning source tests')
+  }
   const migrationAuth = prepareBlock.match(/\n      - id: migration_execution_read_auth\n([\s\S]*?)(?=\n      - )/u)?.[1] ?? ''
   const prepareExecute = prepareBlock.split(/\n      - /u).filter(value => value.includes('run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare '))
   if (!migrationAuth.includes('workload_identity_provider: ${{ env.WIF_PROVIDER }}')
@@ -242,8 +254,8 @@ export function assertDev121MigrationOnlyWorkflowSource(source, workloadIdentity
       JSON.stringify(stages) !== JSON.stringify(['prepare', 'build', 'migrate']) ||
       JSON.stringify(readbackStages) !== JSON.stringify(['classify', 'readback']) ||
       (source.match(/^      - run:/gm) ?? []).length !== 1 ||
-      !source.includes('run: npm run test:production-slice:affected -- --base HEAD^1 --head HEAD --profile owner') ||
-      !source.includes('permissions: { contents: read, pull-requests: read, id-token: write }') ||
+      source.includes('test:production-slice:affected') ||
+      !source.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
       !source.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       (source.match(/^    environment: production$/gm) ?? []).length !== 1 ||
       !source.includes('group: production-release-ai-pdm-prod') ||

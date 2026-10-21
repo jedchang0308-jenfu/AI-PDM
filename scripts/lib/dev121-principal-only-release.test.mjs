@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   assertPrincipalOnlyRecoveryBinding,
+  assertReconciledPrincipalAbortBinding,
+  assertReconciledRepairContinuation,
   assertPrincipalOnlyRecoveryReadback,
   assertRecoveryProofReadback,
   assertPrincipalOnlyActivationReadback,
@@ -15,6 +17,7 @@ const recovery = 'ai-pdm-prod-recovery'
 const candidate = 'ai-pdm-prod-abcdef123456'
 const tag = 'candidate-abcdef123456'
 const image = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'a'.repeat(64)}`
+const recoverySource = 'e'.repeat(40)
 const bucket = 'jenfu-platform-prod-aipdm-release'
 const intent = {
   sourceRevision: 'b'.repeat(40), previousRevision: old,
@@ -38,7 +41,7 @@ const base = {
 }
 const proof = {
   schemaVersion: 'ai-pdm.principal-only-recovery.v1',
-  sourceRevision: intent.sourceRevision, projectId: 'jenfu-platform-prod',
+  sourceRevision: recoverySource, projectId: 'jenfu-platform-prod',
   region: 'asia-east1', service: 'ai-pdm-prod', serviceUid: base.uid,
   oldRevision: old, recoveryRevision: recovery, imageDigest: image, status: 'PASS',
 }
@@ -62,19 +65,52 @@ test('Principal-only recovery is source-bound and distinct from the old security
   ]) assert.throws(() => assertPrincipalOnlyRecoveryBinding(broken, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
-test('recovery proof joins the exact service, source, ready revision and immutable image', () => {
+test('reconciled abort evidence is continuation data and joins an exact paused-repair worker input', () => {
+  const postAbortLedgerReadbackRef = {
+    uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER-LOCAL/${'e'.repeat(64)}/ledger-readback-result.json`,
+    sha256: 'f'.repeat(64),
+  }
+  const reconciledIntent = { ...intent, postAbortLedgerReadbackRef }
+  const workerInput = {
+    schemaVersion: 'aipdm.openswx-worker-reuse-input.v5',
+    postAbortLedgerReadbackRef,
+    principalOnlyFenceRef: intent.principalOnlyFenceRef,
+    principalOnlyRecovery: intent.principalOnlyRecovery,
+  }
+  assert.deepEqual(assertReconciledPrincipalAbortBinding(reconciledIntent, bucket), {
+    postAbortLedgerReadbackRef,
+    principalOnlyFenceRef: intent.principalOnlyFenceRef,
+    principalOnlyRecovery: intent.principalOnlyRecovery,
+  })
+  assert.deepEqual(assertReconciledRepairContinuation(reconciledIntent, workerInput, bucket),
+    assertReconciledPrincipalAbortBinding(reconciledIntent, bucket))
+  assert.equal(assertReconciledRepairContinuation({ previousRevision: old }, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }, bucket), null)
+
+  for (const [release, worker] of [
+    [intent, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }],
+    [reconciledIntent, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }],
+    [reconciledIntent, { ...workerInput, postAbortLedgerReadbackRef: { ...postAbortLedgerReadbackRef, sha256: '0'.repeat(64) } }],
+    [{ ...reconciledIntent, postAbortLedgerReadbackRef: undefined }, workerInput],
+  ]) assert.throws(() => assertReconciledRepairContinuation(release, worker, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+})
+
+test('recovery proof keeps its artifact source while joining a later release source, service and immutable image', () => {
   const service = { ...base, traffic: [oldTraffic], trafficStatuses: [oldTraffic] }
+  assert.notEqual(proof.sourceRevision, intent.sourceRevision)
   assert.equal(assertPrincipalOnlyRecoveryReadback({ intent, profile, proof, service, revision }).revision, recovery)
   assert.equal(assertRecoveryProofReadback({ sourceRevision: intent.sourceRevision,
     oldRevision: old, binding: intent.principalOnlyRecovery, profile, proof,
     service, revision }).revision, recovery)
   for (const changed of [
-    { proof: { ...proof, sourceRevision: 'f'.repeat(40) } },
+    { proof: { ...proof, sourceRevision: 'not-a-revision' } },
     { proof: { ...proof, imageDigest: image.replace('ai-pdm-recovery', 'ai-pdm') } },
     { service: { ...service, traffic: [oldTraffic, candidateTraffic] } },
     { service: { ...service, uid: 'replacement-service' } },
     { revision: { ...revision, containers: [{ name: 'ai-pdm', image: image.replace(/a{64}$/u, 'e'.repeat(64)) }] } },
   ]) assert.throws(() => assertPrincipalOnlyRecoveryReadback({ intent, profile, proof, service, revision, ...changed }), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+  assert.throws(() => assertRecoveryProofReadback({ sourceRevision: 'not-a-revision',
+    oldRevision: old, binding: intent.principalOnlyRecovery, profile, proof,
+    service, revision }), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
 })
 
 test('activation request atomically replaces old default traffic while leaving the candidate tag', () => {

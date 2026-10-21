@@ -7,7 +7,9 @@ import { readPreActivationAbortContinuation } from './lib/dev121-preactivation-a
 import { buildReleaseIntent, buildRuntimeConfigReceipt, buildSourceFreeze, executePrerequisiteProducer } from './lib/dev012-owner-prerequisite-producer.mjs'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
 import { buildRdLedgerReadbackIntent, buildRdReadbackResult, rdReadbackJobEnvironment, rdReadbackJobProjection, rdReadbackProbeArguments, rdReadbackSha256 } from './lib/dev122-rd-permission-ledger-readback.mjs'
+import { RD_PERMISSION_STATE_PGOPTIONS, RD_PERMISSION_STATE_RECEIPT_PREFIX, buildPermissionStateOperation, buildPermissionStateReceipt } from './lib/dev122-rd-permission-state-readback.mjs'
 import { assertWorkerReuseInput, workerRepairAbortContinuation } from './lib/dev122-openswx-worker-artifact-reuse.mjs'
+import { assertReconciledRepairContinuation } from './lib/dev121-principal-only-release.mjs'
 const H40 = 'a'.repeat(40)
 const bucket = 'jenfu-platform-prod-aipdm-release'
 const previousRevision = 'ai-pdm-prod-111111111111'
@@ -212,7 +214,8 @@ function ordinaryAbortFixture() {
     id, projectId: 'jenfu-platform-prod', status: 'SUCCESS', serviceAccount: 'projects/jenfu-platform-prod/serviceAccounts/aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com',
     options: { requestedVerifyOption: 'VERIFIED' }, sourceProvenance: { resolvedStorageSource: { bucket, object: sourceObject.uri.slice(`gs://${bucket}/`.length), generation: '7' } },
     results: { images: [{ name: `${profile.artifact.uri}:release-${source}`, digest: image.split('@')[1] }] } })
-  function release({ source, releaseId, revision, previous, imageDigit, anchorRef = null, released = false, preActivationAbortBasis = null }) {
+  function release({ source, releaseId, revision, previous, imageDigit, anchorRef = null, released = false, preActivationAbortBasis = null,
+    principalOnlyFenceRef = null, principalOnlyRecovery = null }) {
     const lock = put(`gs://${bucket}/receipts/releases/${releaseId}/source-lock.json`, buildSourceFreeze({ profile, releaseId, observedAt: '2026-09-30T00:00:00Z',
       git: { sourceRevision: source, sourceTree: 'f'.repeat(40), branch: 'main', remoteRevision: source, clean: true }, sourceIdentityBytes: h.sourceIdentityBytes, migrationBundle: { bundle: { manifestSha256: h.migrationManifestSha256 } } }))
     const runtimeRow = put(`gs://${bucket}/receipts/releases/${releaseId}/runtime-config.json`, buildRuntimeConfigReceipt({ profile, releaseId, sourceLock: lock.value, plainEnvironment: modes, secretVersions: { SESSION_SECRET: '1' }, observedAt: '2026-09-30T00:00:00Z' }))
@@ -220,7 +223,9 @@ function ordinaryAbortFixture() {
     const intent = { schemaVersion: profile.schemas.releaseIntent, ownerApplicationId: 'ai-pdm', releaseId, sourceRevision: source,
       sourceSha256: sha256(h.sourceIdentityBytes), sourceLockRef: lock.ref, runtimeConfigRef: runtimeRow.ref,
       authorizationPolicyRef: dummy.ref, readinessReceiptRef: dummy.ref, foundationReceiptRef: dummy.ref, infraReceiptRef: dummy.ref,
-      migrationManifestSha256: h.migrationManifestSha256, previousRevision: previous, deadlineAt: '2026-10-05T04:00:00Z', ...(anchorRef ? { baselineIntentRef: anchorRef } : {}) }
+      migrationManifestSha256: h.migrationManifestSha256, previousRevision: previous, deadlineAt: '2026-10-05T04:00:00Z',
+      ...(anchorRef ? { baselineIntentRef: anchorRef } : {}),
+      ...(principalOnlyFenceRef ? { principalOnlyFenceRef, principalOnlyRecovery } : {}) }
     const intentRow = put(`gs://${bucket}/receipts/releases/${releaseId}/release-intent.json`, intent), paths = releasePaths(profile, intent, intentRow.ref.sha256)
     const seal = (stage, facts, prev = null) => put(paths[stage], stageReceipt({ profile, intent, stage, previousReceiptRef: prev, facts, observedAt: '2026-09-30T00:00:00Z' }))
     const prerequisiteRefs = { sourceLock: lock.ref, authorization: dummy.ref, readiness: dummy.ref, foundation: dummy.ref, infra: dummy.ref, runtimeConfig: runtimeRow.ref }
@@ -524,12 +529,30 @@ async function unpublishedAbortFixture(inherited = false) {
   return { ...h, partialBuild: build, prior }
 }
 
-async function sealedPostbuildAbortFixture({ fixture = null, source = '9'.repeat(40), releaseId = 'DEV122-SEALED-POSTBUILD-ABORT', runId = '44' } = {}) {
+async function sealedPostbuildAbortFixture({ fixture = null, source = '9'.repeat(40), releaseId = 'DEV122-SEALED-POSTBUILD-ABORT', runId = '44', principalOnly = false } = {}) {
   const h = fixture ?? await unpublishedAbortFixture(false)
   const priorOwnerRun = structuredClone(h.ownerRun)
   const prior = h.failed, inheritedBasis = (await readPreActivationAbortContinuation(h.helperInput)).authorityBasis
+  const principalOnlyBinding = principalOnly ? {
+    principalOnlyFenceRef: h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${source}/fence.json`, {
+      schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: source, projectId: 'jenfu-platform-prod',
+      region: 'asia-east1', service: 'ai-pdm-prod', serviceUid: h.service.uid, oldRevision: previousRevision,
+      beforeGeneration: '1', quiescentGeneration: '2', serviceUpdateTime: '2026-10-03T11:58:00Z',
+      requestTimeoutSeconds: 60, status: 'QUIESCED',
+    }).ref,
+    principalOnlyRecovery: (() => {
+      const imageDigest = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'e'.repeat(64)}`
+      const revision = 'ai-pdm-prod-recovery-999999999999'
+      const proof = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${source}.json`, {
+        schemaVersion: 'ai-pdm.principal-only-recovery.v1', sourceRevision: source,
+        projectId: 'jenfu-platform-prod', region: 'asia-east1', service: 'ai-pdm-prod', serviceUid: h.service.uid,
+        oldRevision: previousRevision, recoveryRevision: revision, imageDigest, status: 'PASS',
+      })
+      return { revision, imageDigest, serviceUid: h.service.uid, receiptRef: proof.ref }
+    })(),
+  } : {}
   const f = h.release({ source, releaseId, revision: candidateRevision,
-    previous: previousRevision, imageDigit: source[0], anchorRef: prior.intentRow.ref, preActivationAbortBasis: inheritedBasis })
+    previous: previousRevision, imageDigit: source[0], anchorRef: prior.intentRow.ref, preActivationAbortBasis: inheritedBasis, ...principalOnlyBinding })
   h.failed = f
   for (const stage of ['migrate', 'candidate', 'entrypoint', 'verify', 'decision', 'activate', 'canonical', 'finalize']) h.objects.delete(f.paths[stage])
   const build = structuredClone(f.cloudBuild)
@@ -575,8 +598,9 @@ async function sealedPostbuildAbortFixture({ fixture = null, source = '9'.repeat
   return { ...h, prior, inheritedBasis, build, sealedBuild, deployment, laterDiagnostic }
 }
 
-async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', inheritedPostbuild = false } = {}) {
-  let h = await sealedPostbuildAbortFixture()
+async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', inheritedPostbuild = false, principalOnly = false,
+  currentRunnerRotated = false } = {}) {
+  let h = await sealedPostbuildAbortFixture({ principalOnly })
   if (inheritedPostbuild) h = await sealedPostbuildAbortFixture({
     fixture: h,
     source: '8'.repeat(40),
@@ -595,10 +619,11 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
     migrationBundleRef: deployment.value.migrationBundleRef, outputUri: f.paths.migrate,
     args: ['--bundle-ref', deployment.value.migrationBundleRef.uri, '--bundle-sha256', deployment.value.migrationBundleRef.sha256,
       '--source-revision', f.intent.sourceRevision, '--output-ref', f.paths.migrate],
-    principalOnlyFenceRef: null, deadlineAt: f.intent.deadlineAt, status: 'SUBMISSION_INTENT', observedAt: '2026-10-02T00:03:00Z',
+    principalOnlyFenceRef: f.intent.principalOnlyFenceRef ?? null, deadlineAt: f.intent.deadlineAt, status: 'SUBMISSION_INTENT', observedAt: '2026-10-02T00:03:00Z',
   }
   const submission = h.put(migrationSubmissionIntentUri(h.profile, f.paths.migrate), { ...submissionCore, receiptSha256: sha256(canonicalize(submissionCore)) })
-  const abortFacts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision, databaseDisposition: 'UNKNOWN', migrationSubmissionIntentRef: submission.ref,
+  const abortRevision = principalOnly ? 'ai-pdm-prod-recovery-999999999999' : previousRevision
+  const abortFacts = { result: 'PRE_ACTIVATION_ABORTED', previousRevision: abortRevision, databaseDisposition: 'UNKNOWN', migrationSubmissionIntentRef: submission.ref,
     entrypointRecovery: { changed: false, result: 'NOT_REQUIRED' }, recoveryOrder: ['TRAFFIC_ROLLBACK', 'TAG_CLEANUP', 'ENTRYPOINT_BASELINE_RESTORE'] }
   const rollback = h.put(f.paths.rollback, stageReceipt({ profile: h.profile, intent: f.intent, stage: 'rollback', previousReceiptRef: null,
     facts: abortFacts, observedAt: '2026-10-02T00:04:30Z' }))
@@ -614,11 +639,14 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
       env: Object.entries(environment).map(([name, value]) => ({ name, value })),
       volumeMounts: [{ name: 'cloudsql', mountPath: '/cloudsql' }] }],
   })
+  const failedEnvironment = principalOnly
+    ? { ...baseEnvironment, DEV121_MIGRATION_FENCE_REF: f.intent.principalOnlyFenceRef.uri, DEV121_MIGRATION_FENCE_SHA256: f.intent.principalOnlyFenceRef.sha256 }
+    : baseEnvironment
   const failedExecution = {
     name: `${jobName}/executions/ai-pdm-prod-migration-runner-failed`, createTime: '2026-10-02T00:03:30Z',
     startTime: '2026-10-02T00:03:31Z', completionTime: '2026-10-02T00:04:00Z', reconciling: false,
     taskCount: 1, parallelism: 1, succeededCount: 0, failedCount: 1, runningCount: 0,
-    conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }], template: task(submissionCore.args),
+    conditions: [{ type: 'Completed', state: 'CONDITION_FAILED' }], template: task(submissionCore.args, failedEnvironment),
   }
   delete failedExecution.template.volumes
   delete failedExecution.template.containers[0].volumeMounts
@@ -631,7 +659,9 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
     return { ledgerCount, terminalVersion: `ai-pdm-0${ledgerCount + 50}`, manifestSha256, migrationBundleRef }
   })
   const readbackJob = {
-    name: jobName, etag: 'readback-job-etag', template: { taskCount: 1, parallelism: 1, template: task(['--bundle-ref-required']) },
+    name: jobName, etag: 'readback-job-etag', generation: '37', observedGeneration: '37', reconciling: false,
+    terminalCondition: { state: 'CONDITION_SUCCEEDED' },
+    template: { taskCount: 1, parallelism: 1, template: task(['--bundle-ref-required']) },
   }
   const readbackIntent = buildRdLedgerReadbackIntent({ releaseId: readbackReleaseId,
     workflowSourceRevision: readbackWorkflowSourceRevision, workflowSourceTree: 'c'.repeat(40), workflowSourceIdentitySha256: 'd'.repeat(64),
@@ -689,28 +719,43 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
     attempts, successfulProbe: probes.at(-1), nativeReceiptRef: attempts.at(-1).nativeReceiptRef, observedAt: attempts.at(-1).completedAt })
   const resultRef = h.put(`${readbackBase}/ledger-readback-result.json`, result).ref
   const executions = [failedExecution, ...readbackExecutions]
+  const currentStaticJob = structuredClone(readbackJob)
+  if (currentRunnerRotated) {
+    const currentRunnerSourceRevision = '6'.repeat(40)
+    currentStaticJob.etag = 'current-job-etag'
+    currentStaticJob.generation = '38'
+    currentStaticJob.observedGeneration = '38'
+    currentStaticJob.template.template.containers[0].image =
+      `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner@sha256:${'6'.repeat(64)}`
+    currentStaticJob.template.template.containers[0].env = Object.entries(rdReadbackJobEnvironment(h.profile, currentRunnerSourceRevision))
+      .map(([name, value]) => ({ name, value }))
+  }
   const priorRequest = h.transport.request
   h.transport.request = async (url, ...args) => {
-    if (url === `https://run.googleapis.com/v2/${jobName}`) return structuredClone(readbackJob)
+    if (url === `https://run.googleapis.com/v2/${jobName}`) return structuredClone(currentStaticJob)
     if (url.includes('/jobs/ai-pdm-prod-migration-runner/executions?')) return { executions }
     const exact = executions.find(row => url === `https://run.googleapis.com/v2/${row.name}`)
     if (exact) return structuredClone(exact)
     return priorRequest.call(h.transport, url, ...args)
   }
-  Object.assign(h.service, { scaling: { scalingMode: 'MANUAL', manualInstanceCount: 0 }, generation: '2', observedGeneration: '2',
+  Object.assign(h.service, { scaling: principalOnly
+    ? { scalingMode: 'AUTOMATIC', maxInstanceCount: 20 }
+    : { scalingMode: 'MANUAL', manualInstanceCount: 0 }, generation: '2', observedGeneration: '2',
     updateTime: '2026-10-03T11:58:00Z', terminalCondition: { state: 'CONDITION_SUCCEEDED' }, template: { timeout: '60s' } })
-  const nextSourceRevision = 'd'.repeat(40), recoveryRevision = 'ai-pdm-prod-recovery-999999999999'
+  const nextSourceRevision = 'd'.repeat(40), recoverySourceRevision = '9'.repeat(40)
+  const recoveryRevision = 'ai-pdm-prod-recovery-999999999999'
   const recoveryImage = `asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-recovery@sha256:${'e'.repeat(64)}`
-  const recoveryReceipt = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${nextSourceRevision}.json`, {
-    schemaVersion: 'ai-pdm.principal-only-recovery.v1', sourceRevision: nextSourceRevision,
+  const recoveryReceipt = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-RECOVERY/${recoverySourceRevision}.json`, {
+    schemaVersion: 'ai-pdm.principal-only-recovery.v1', sourceRevision: recoverySourceRevision,
     projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
     serviceUid: h.service.uid, oldRevision: previousRevision, recoveryRevision, imageDigest: recoveryImage, status: 'PASS',
   })
   h.revisions.set(recoveryRevision, { name: `${h.service.name}/revisions/${recoveryRevision}`,
     conditions: [{ type: 'Ready', state: 'CONDITION_SUCCEEDED' }], containers: [{ name: h.profile.runtime.containerName, image: recoveryImage }] })
+  if (principalOnly) { h.controlCore.previousRevision = recoveryRevision; h.control() }
   const principalOnlyRecovery = { revision: recoveryRevision, imageDigest: recoveryImage, serviceUid: h.service.uid, receiptRef: recoveryReceipt.ref }
-  const fence = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${nextSourceRevision}/fence.json`, {
-    schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: nextSourceRevision,
+  const fence = h.put(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/${recoverySourceRevision}/fence.json`, {
+    schemaVersion: 'ai-pdm.principal-only-migration-fence.v1', sourceRevision: recoverySourceRevision,
     projectId: h.profile.target.projectId, region: h.profile.target.region, service: h.profile.target.serviceName,
     serviceUid: h.service.uid, oldRevision: previousRevision, beforeGeneration: '1', quiescentGeneration: '2',
     serviceUpdateTime: h.service.updateTime, requestTimeoutSeconds: 60, status: 'QUIESCED',
@@ -718,7 +763,109 @@ async function reconciledMigrationAbortFixture({ nativeTiming = 'provider-lag', 
   const principalOnlyFenceRef = fence.ref
   const continuation = { postAbortLedgerReadbackRef: resultRef, principalOnlyFenceRef, principalOnlyRecovery }
   Object.assign(h.helperInput, continuation)
-  return { ...h, submission, failedExecution, staticJob: readbackJob, readbackIntent, readbackIntentRef, result, resultRef, readbackExecutions, providerExecutions: executions, continuation }
+  return { ...h, submission, failedExecution, staticJob: currentStaticJob, readbackJob, readbackIntent, readbackIntentRef, result, resultRef,
+    readbackExecutions, providerExecutions: executions, continuation, runnerSourceRevision, jobName, task, deployment,
+    nextSourceRevision, recoverySourceRevision }
+}
+
+function addPermissionReadbackExecution(h) {
+  const operationId = 'DEV122-RD-PERMISSION-READBACK-LOCAL'
+  const operation = buildPermissionStateOperation({
+    operationId,
+    sourceRevision: h.runnerSourceRevision,
+    migrationRunnerDigest: h.deployment.value.migrationRunnerDigest,
+    actor: {
+      principalIdSha256: '1'.repeat(64), employeeIdSha256: '2'.repeat(64),
+      identityIssuer: 'https://securetoken.google.com/jenfu-platform-prod', identitySubjectSha256: '3'.repeat(64),
+    },
+    catalogVersion: 'ai-pdm.role-catalog.2026-10-05.v6',
+    catalogSha256: 'bdc8d2b8f717e4af9d48cf882d1a564a5caaabaaaacdcf20bc5db36a5b6960af',
+  })
+  const operationUri = `gs://${bucket}/source/rd-permission-readback/dev122-rd-permission-readback-local.json`
+  const operationRow = h.put(operationUri, operation.value)
+  assert.equal(operationRow.ref.sha256, operation.sha256)
+  const operationRef = { ...operationRow.ref, generation: operationRow.metadata.generation }
+  const outputRef = `gs://${bucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${operation.sha256}/state.json`
+  const args = ['--permission-operation-ref', operationUri, '--permission-operation-sha256', operation.sha256,
+    '--source-revision', h.runnerSourceRevision, '--permission-output-ref', outputRef]
+  const submissionCore = {
+    schemaVersion: 'aipdm.dev122.rd-permission-state-readback-submission.v1', ownerApplicationId: 'ai-pdm',
+    workflowSourceRevision: '9'.repeat(40), sourceRevision: h.runnerSourceRevision, operationRef, outputRef,
+    operationId, migrationRunnerDigest: h.deployment.value.migrationRunnerDigest, args,
+    executionEnvironment: { PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }, observedAt: '2026-10-03T00:04:00Z', status: 'SUBMISSION_INTENT',
+  }
+  const submission = h.put(`gs://${bucket}/${RD_PERMISSION_STATE_RECEIPT_PREFIX}/${operation.sha256}/submission.json`,
+    { ...submissionCore, receiptSha256: sha256(canonicalize(submissionCore)) })
+  const execution = {
+    name: `${h.jobName}/executions/ai-pdm-prod-migration-runner-permission`, createTime: '2026-10-03T00:04:10Z',
+    startTime: '2026-10-03T00:04:11Z', completionTime: '2026-10-03T00:04:30Z', reconciling: false,
+    taskCount: 1, parallelism: 1, succeededCount: 1, failedCount: 0, runningCount: 0,
+    conditions: [{ type: 'Completed', state: 'CONDITION_SUCCEEDED' }],
+    template: h.task(args, { ...rdReadbackJobEnvironment(h.profile, h.runnerSourceRevision), PGOPTIONS: RD_PERMISSION_STATE_PGOPTIONS }),
+  }
+  delete execution.template.volumes
+  delete execution.template.containers[0].volumeMounts
+  const state = { database: 'jenfu_prod', databaseMutationExpected: false, transactionMode: 'REPEATABLE READ READ ONLY' }
+  const output = h.put(outputRef, buildPermissionStateReceipt({ operation: operation.value, operationRef, outputRef,
+    observedAt: '2026-10-03T00:04:20Z', state }))
+  h.providerExecutions.push(execution)
+  return { operation, operationRow, operationRef, submission, execution, output }
+}
+
+function addPriorLedgerReadbackExecutions(h) {
+  const releaseId = 'DEV122-RD-READBACK-PRIOR'
+  const intent = buildRdLedgerReadbackIntent({
+    releaseId, workflowSourceRevision: '8'.repeat(40), workflowSourceTree: 'b'.repeat(40),
+    workflowSourceIdentitySha256: 'c'.repeat(64), runnerSourceRevision: h.runnerSourceRevision,
+    profileSha256: 'd'.repeat(64), probes: h.readbackIntent.probes, job: h.staticJob,
+    observedAt: '2026-10-02T12:00:00Z', deadlineAt: '2026-10-02T14:00:00Z',
+  })
+  const intentRef = h.put(`gs://${bucket}/receipts/releases/${releaseId}/rd-permission-ledger-readback-intent.json`, intent).ref
+  const base = `gs://${bucket}/receipts/releases/${releaseId}/${intentRef.sha256}`
+  const receiptSeal = value => ({ ...value, receiptSha256: rdReadbackSha256(value) })
+  h.put(`${base}/ledger-job-readback.json`, receiptSeal({
+    schemaVersion: 'aipdm.dev122.rd-permission-ledger-job-readback.v2', ownerApplicationId: 'ai-pdm', releaseId,
+    workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: h.runnerSourceRevision, readbackIntentRef: intentRef,
+    projection: rdReadbackJobProjection(h.staticJob), observedAt: intent.observedAt, status: 'PASS',
+  }))
+  const executions = []
+  for (const [index, probe] of intent.probes.entries()) {
+    const pass = probe.ledgerCount === 33
+    const minute = index + 1, createTime = `2026-10-02T12:0${minute}:00Z`, completionTime = `2026-10-02T12:0${minute}:30Z`
+    const outputUri = `${base}/ledger-probe-${probe.ledgerCount}.json`
+    const execution = {
+      name: `${h.jobName}/executions/ai-pdm-prod-migration-runner-prior${probe.ledgerCount}`,
+      createTime, startTime: createTime, completionTime, reconciling: false,
+      taskCount: 1, parallelism: 1, succeededCount: pass ? 1 : 0, failedCount: pass ? 0 : 1, runningCount: 0,
+      conditions: [{ type: 'Completed', state: pass ? 'CONDITION_SUCCEEDED' : 'CONDITION_FAILED' }],
+      template: h.task(rdReadbackProbeArguments(intent, probe, outputUri),
+        { ...rdReadbackJobEnvironment(h.profile, h.runnerSourceRevision), PGOPTIONS: '-c default_transaction_read_only=on' }),
+    }
+    delete execution.template.volumes
+    delete execution.template.containers[0].volumeMounts
+    h.put(`${base}/ledger-probe-${probe.ledgerCount}-execution-readback.json`, receiptSeal({
+      schemaVersion: 'aipdm.dev122.rd-permission-ledger-probe-execution.v2', ownerApplicationId: 'ai-pdm', releaseId,
+      workflowSourceRevision: intent.workflowSourceRevision, runnerSourceRevision: h.runnerSourceRevision, readbackIntentRef: intentRef,
+      ledgerCount: probe.ledgerCount, executionName: execution.name, createTime, startTime: createTime, completionTime,
+      succeededCount: execution.succeededCount, failedCount: execution.failedCount,
+      completedState: execution.conditions[0].state, templateSha256: rdReadbackSha256(execution.template), observedAt: completionTime,
+      status: pass ? 'PASS' : 'EXPECTED_READ_ONLY_PROBE_FAILURE',
+    }))
+    if (pass) {
+      const nativeCore = {
+        schemaVersion: 'jenfu.dev012.migration-receipt.v1', ownerApplicationId: 'ai-pdm', sourceRevision: h.runnerSourceRevision,
+        database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: probe.manifestSha256,
+        baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 33,
+        applied: 0, replayed: 33, crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
+        boundaryStatus: 'PASS', executionName: execution.name.split('/').at(-1), startedAt: `2026-10-02T12:0${minute}:10Z`,
+        completedAt: `2026-10-02T12:0${minute}:20Z`, status: 'PASS',
+      }
+      h.put(outputUri, { ...nativeCore, receiptSha256: rdReadbackSha256(nativeCore) })
+    }
+    executions.push(execution)
+  }
+  h.providerExecutions.push(...executions)
+  return { intent, intentRef, executions }
 }
 
 for (const inherited of [false, true]) test(`B28 unpublished build abort keeps partial artifact non-authoritative; inherited zero-build anchor=${inherited}`, async () => {
@@ -761,6 +908,26 @@ test('sealed postbuild abort admits the production-shaped pre-migration boundary
   assert.equal((await executeOwnerStage(next.input)).ref.sha256, prepare.ref.sha256)
 })
 
+test('sealed UNKNOWN abort accepts a reconciled predecessor basis and keeps the build non-authoritative', async () => {
+  const h = await reconciledMigrationAbortFixture(), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
+  const prepareRow = h.objects.get(h.failed.paths.prepare), { receiptSha256: _prepareSeal, ...prepareCore } = structuredClone(prepareRow.value)
+  prepareCore.facts.preActivationAbortBasis = { ...prepareCore.facts.preActivationAbortBasis,
+    schemaVersion: 'ai-pdm.principal-reconciled-migration-abort-basis.v1' }
+  const prepare = h.put(prepareRow.ref.uri, { ...prepareCore, receiptSha256: sha256(canonicalize(prepareCore)) })
+  const buildRow = h.objects.get(h.failed.paths.build), { receiptSha256: _buildSeal, ...buildCore } = structuredClone(buildRow.value)
+  buildCore.previousReceiptRef = prepare.ref
+  const build = h.put(buildRow.ref.uri, { ...buildCore, receiptSha256: sha256(canonicalize(buildCore)) })
+  const deploymentRow = h.objects.get(h.failed.paths.deployment), { receiptSha256: _deploymentSeal, ...deploymentCore } = structuredClone(deploymentRow.value)
+  deploymentCore.buildReceiptRef = build.ref
+  h.put(deploymentRow.ref.uri, { ...deploymentCore, receiptSha256: sha256(canonicalize(deploymentCore)) })
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.schemaVersion, 'ai-pdm.principal-reconciled-migration-abort-basis.v1')
+  assert.equal(continuation.authorityBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(h.calls.puts, 0)
+  assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
+})
+
 for (const inheritedPostbuild of [false, true]) test(`post-abort ledger readback reconciles one failed UNKNOWN migration and carries the sealed basis into the fenced retry; inherited postbuild=${inheritedPostbuild}`, async () => {
   const h = await reconciledMigrationAbortFixture({ inheritedPostbuild }), before = h.objects.get(`gs://${bucket}/control/active.json`).bytes
   const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
@@ -781,6 +948,8 @@ for (const inheritedPostbuild of [false, true]) test(`post-abort ledger readback
   assert.deepEqual(h.objects.get(`gs://${bucket}/control/active.json`).bytes, before)
 
   const next = await ordinaryNextRelease(h, h.continuation)
+  assert.equal(next.capsule.value.sourceRevision, h.nextSourceRevision)
+  assert.notEqual(h.recoverySourceRevision, next.capsule.value.sourceRevision)
   assert.deepEqual(next.capsule.value.postAbortLedgerReadbackRef, h.resultRef)
   assert.deepEqual(next.values.authorization.preActivationAbortBasis, continuation.authorityBasis)
   assert.deepEqual(next.values.readiness.preActivationAbortBasis, continuation.authorityBasis)
@@ -799,8 +968,135 @@ for (const inheritedPostbuild of [false, true]) test(`post-abort ledger readback
     receiptId: 'DEV122-RECONCILED-WORKER',
     ...h.continuation,
   })
+  assert.deepEqual(assertReconciledRepairContinuation(next.capsule.value, workerInput, bucket), h.continuation)
+  assert.throws(() => assertReconciledRepairContinuation(next.capsule.value,
+    { ...workerInput, postAbortLedgerReadbackRef: { ...workerInput.postAbortLedgerReadbackRef, sha256: '0'.repeat(64) } }, bucket),
+  /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
   const workerContinuation = await readPreActivationAbortContinuation({ ...h.helperInput, ...workerRepairAbortContinuation(workerInput), verifyProvider: true })
   assert.deepEqual(workerContinuation.authorityBasis, continuation.authorityBasis)
+})
+
+test('principal-only-bound abort with UNKNOWN migration reconciles before candidate exists', async () => {
+  const h = await reconciledMigrationAbortFixture({ principalOnly: true })
+  assert.equal(h.failed.intent.principalOnlyRecovery.revision, 'ai-pdm-prod-recovery-999999999999')
+  assert.equal(h.objects.has(h.failed.paths.candidate), false)
+  assert.equal(h.objects.has(h.failed.paths.migrate), false)
+
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.reconciliation.migration085State, 'NOT_APPLIED')
+  assert.equal(continuation.authorityBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(continuation.authorityBasis.absentStages.includes('candidate'), true)
+  assert.equal(h.calls.puts, 0)
+
+  await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput,
+    postAbortLedgerReadbackRef: { ...h.continuation.postAbortLedgerReadbackRef, sha256: '0'.repeat(64) }, verifyProvider: true }))
+  await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput,
+    principalOnlyRecovery: { ...h.continuation.principalOnlyRecovery, revision: 'ai-pdm-prod-recovery-substituted' }, verifyProvider: true }))
+  await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, postAbortLedgerReadbackRef: undefined,
+    principalOnlyFenceRef: undefined, principalOnlyRecovery: undefined, verifyProvider: true }))
+
+  h.put(h.failed.paths.candidate, { unexpected: true })
+  await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }))
+  assert.equal(h.calls.puts, 0)
+
+  for (const mutate of [
+    value => { value.service.scaling = { scalingMode: 'MANUAL', manualInstanceCount: 1 } },
+    value => { value.service.traffic = [{ revision: candidateRevision, percent: 100 }] },
+    value => { value.service.uid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' },
+  ]) {
+    const negative = await reconciledMigrationAbortFixture({ principalOnly: true })
+    mutate(negative)
+    await assert.rejects(readPreActivationAbortContinuation({ ...negative.helperInput, verifyProvider: true }))
+    assert.equal(negative.calls.puts, 0)
+  }
+})
+
+test('post-abort reconciliation keeps historical execution identity after a valid current runner rotation', async () => {
+  const h = await reconciledMigrationAbortFixture({ currentRunnerRotated: true })
+  const current = h.staticJob.template.template.containers[0]
+  const historical = h.failedExecution.template.containers[0]
+  assert.notEqual(current.image, historical.image)
+  assert.notEqual(current.env.find(row => row.name === 'PDM_SOURCE_REVISION').value,
+    historical.env.find(row => row.name === 'PDM_SOURCE_REVISION').value)
+
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.reconciliation.failedExecution.name, h.failedExecution.name)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation rejects an unsafe or unsettled current runner after rotation', async () => {
+  const mutations = [
+    h => { h.staticJob.template.template.containers[0].image = 'asia-east1-docker.pkg.dev/jenfu-platform-prod/aipdm-release/ai-pdm-migration-runner:latest' },
+    h => { h.staticJob.template.template.containers[0].image = `asia-east1-docker.pkg.dev/jenfu-platform-prod/other/ai-pdm-migration-runner@sha256:${'6'.repeat(64)}` },
+    h => { h.staticJob.template.template.containers[0].env.find(row => row.name === 'PDM_SOURCE_REVISION').value = 'invalid' },
+    h => { h.staticJob.template.template.containers[0].env = h.staticJob.template.template.containers[0].env.filter(row => row.name !== 'PDM_SOURCE_REVISION') },
+    h => { h.staticJob.reconciling = true },
+    h => { h.staticJob.observedGeneration = '37' },
+    h => { h.staticJob.terminalCondition = { state: 'CONDITION_FAILED' } },
+  ]
+  for (const mutate of mutations) {
+    const h = await reconciledMigrationAbortFixture({ currentRunnerRotated: true })
+    mutate(h)
+    await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }),
+      /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
+    assert.equal(h.calls.puts, 0)
+  }
+})
+
+test('principal-only-bound quiesced recovery accepts exact MANUAL/0 before candidate exists', async () => {
+  const h = await reconciledMigrationAbortFixture({ principalOnly: true })
+  h.service.scaling = { scalingMode: 'MANUAL', manualInstanceCount: 0 }
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.databaseDisposition, 'NOT_APPLIED')
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation admits a sealed read-only RD permission diagnostic after the ledger readback', async () => {
+  const h = await reconciledMigrationAbortFixture(), diagnostic = addPermissionReadbackExecution(h)
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(continuation.authorityBasis.reconciliation.migration085State, 'NOT_APPLIED')
+  assert.equal(diagnostic.output.value.state.databaseMutationExpected, false)
+  assert.equal(diagnostic.output.value.state.transactionMode, 'REPEATABLE READ READ ONLY')
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation admits the production-shaped prior-ledger then current-ledger then permission-readback sequence', async () => {
+  const h = await reconciledMigrationAbortFixture()
+  const prior = addPriorLedgerReadbackExecutions(h)
+  const permission = addPermissionReadbackExecution(h)
+  const continuation = await readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true })
+  assert.equal(continuation.kind, 'PRINCIPAL_FENCED_ABORT_RECONCILED')
+  assert.equal(prior.executions.length, 3)
+  assert.equal(permission.execution.succeededCount, 1)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation rejects a prior ledger diagnostic without the read-only database session', async () => {
+  const h = await reconciledMigrationAbortFixture(), prior = addPriorLedgerReadbackExecutions(h)
+  prior.executions[0].template.containers[0].env.find(row => row.name === 'PGOPTIONS').value = '-c statement_timeout=1000'
+  await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }),
+    /DEV121_PREACTIVATION_CONTINUATION_INVALID|RD_READBACK/u)
+  assert.equal(h.calls.puts, 0)
+})
+
+test('post-abort reconciliation rejects permission diagnostics with missing evidence, writable sessions, wrong resources or expanded execution', async () => {
+  const mutations = [
+    (h, diagnostic) => h.objects.delete(diagnostic.output.ref.uri),
+    (_h, diagnostic) => { diagnostic.execution.template.containers[0].env.find(row => row.name === 'PGOPTIONS').value = '-c statement_timeout=1000' },
+    (_h, diagnostic) => { diagnostic.execution.template.containers[0].args[1] = diagnostic.execution.template.containers[0].args[1].replace('rd-permission-readback', 'other') },
+    (_h, diagnostic) => { diagnostic.execution.template.maxRetries = 1 },
+  ]
+  for (const mutate of mutations) {
+    const h = await reconciledMigrationAbortFixture(), diagnostic = addPermissionReadbackExecution(h)
+    mutate(h, diagnostic)
+    await assert.rejects(readPreActivationAbortContinuation({ ...h.helperInput, verifyProvider: true }),
+      /DEV121_PREACTIVATION_CONTINUATION_INVALID|RD_PERMISSION_STATE|MISSING/u)
+    assert.equal(h.calls.puts, 0)
+  }
 })
 
 test('post-abort reconciliation rejects an unrecognized inherited completed-build basis', async () => {

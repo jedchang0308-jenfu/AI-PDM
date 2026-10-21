@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util'
+
 const SERVICE = 'projects/jenfu-platform-prod/locations/asia-east1/services/ai-pdm-prod'
 const PRODUCTION_MAX_INSTANCES = 1
 const IMAGE = /^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-recovery@sha256:[a-f0-9]{64}$/u
@@ -30,6 +32,33 @@ export function assertPrincipalOnlyRecoveryBinding(intent, bucket) {
   if (!intent?.principalOnlyFenceRef && !intent?.principalOnlyRecovery) return null
   if (!intent.principalOnlyFenceRef) fail()
   return assertRecoveryBindingShape(intent.principalOnlyRecovery, bucket, intent.previousRevision)
+}
+
+export function assertReconciledPrincipalAbortBinding(intent, bucket) {
+  if (!Object.hasOwn(intent ?? {}, 'postAbortLedgerReadbackRef')) return null
+  const result = intent.postAbortLedgerReadbackRef
+  if (!exactKeys(result, ['uri', 'sha256']) || !H64.test(result.sha256 ?? '') ||
+    !new RegExp(`^gs://${bucket}/receipts/releases/[A-Z0-9][A-Z0-9-]{5,63}/[a-f0-9]{64}/ledger-readback-result\\.json$`, 'u').test(result.uri ?? '') ||
+    !exactKeys(intent.principalOnlyFenceRef, ['uri', 'sha256']) || !H64.test(intent.principalOnlyFenceRef.sha256 ?? '') ||
+    !intent.principalOnlyFenceRef.uri.startsWith(`gs://${bucket}/receipts/releases/DEV121-PRINCIPAL-ONLY-MIGRATION-FENCE/`) ||
+    !/\.json$/u.test(intent.principalOnlyFenceRef.uri)) fail()
+  assertPrincipalOnlyRecoveryBinding(intent, bucket)
+  return {
+    postAbortLedgerReadbackRef: structuredClone(result),
+    principalOnlyFenceRef: structuredClone(intent.principalOnlyFenceRef),
+    principalOnlyRecovery: structuredClone(intent.principalOnlyRecovery),
+  }
+}
+
+export function assertReconciledRepairContinuation(intent, workerInput, bucket) {
+  const release = assertReconciledPrincipalAbortBinding(intent, bucket)
+  if ((intent?.principalOnlyFenceRef || intent?.principalOnlyRecovery) && !release) fail()
+  let worker = null
+  if (workerInput?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v5') {
+    worker = assertReconciledPrincipalAbortBinding({ ...workerInput, previousRevision: intent.previousRevision }, bucket)
+  } else if (workerInput?.schemaVersion !== 'aipdm.openswx-worker-reuse-input.v2') fail()
+  if (!isDeepStrictEqual(worker, release)) fail()
+  return release
 }
 
 function assertRecoveryBindingShape(binding, bucket, oldRevision) {
@@ -66,7 +95,10 @@ export function assertRecoveryProofReadback({ sourceRevision, oldRevision, bindi
     'projectId', 'region', 'service', 'serviceUid', 'oldRevision',
     'recoveryRevision', 'imageDigest', 'status']) ||
     proof.schemaVersion !== 'ai-pdm.principal-only-recovery.v1' ||
-    !H40.test(sourceRevision ?? '') || proof.sourceRevision !== sourceRevision ||
+    // The recovery image is an immutable safety artifact created by an older
+    // reviewed source. A later forward release has its own source lock and
+    // must not relabel the retained recovery proof as current source.
+    !H40.test(sourceRevision ?? '') || !H40.test(proof.sourceRevision ?? '') ||
     proof.projectId !== profile.target.projectId || proof.region !== profile.target.region ||
     proof.service !== profile.target.serviceName || proof.serviceUid !== binding.serviceUid ||
     proof.serviceUid !== service?.uid ||

@@ -186,8 +186,7 @@ export async function runMain({ argv = process.argv.slice(2), environment = proc
         const state = assertPrincipalOnlyMigrationFence({ proof,
           bytes: fenceObject.bytes,
           expectedSha256: environment.DEV121_MIGRATION_FENCE_SHA256,
-          sourceRevision: args.sourceRevision, service,
-          observedAt: new Date().toISOString() })
+          service, observedAt: new Date().toISOString() })
         const writers = await assertPrincipalOnlyMigrationWritersAbsent(database)
         principalOnlyFence = { ref: fenceRef, sha256: sha256(fenceObject.bytes),
           generation: fenceObject.generation, ...state, ...writers }

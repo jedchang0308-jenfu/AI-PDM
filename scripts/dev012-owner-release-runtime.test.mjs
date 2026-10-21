@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import { crc32cBase64 } from './lib/dev012-production-migration-runner.mjs'
-import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAiPdmBuildReadbackTransport, canonicalize, sha256, OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS, OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS } from './lib/dev012-owner-release-runtime.mjs'
+import { assertRuntimeConfig, buildRuntimeConfig, createOwnerTransport, createAiPdmBuildReadbackTransport, canonicalize, sha256, ownerPrivateObjectMediaWindow, OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS, OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS } from './lib/dev012-owner-release-runtime.mjs'
 import { assertNumericSecret } from './lib/dev122-openswx-owner-release.mjs'
 
 const H40 = 'a'.repeat(40)
@@ -124,6 +124,8 @@ test('Cloud Build gets the exact regional build resource, pinned builder, source
   assert.equal(seen[0].body.steps[0].name, profile.build.dockerBuilderImage)
   assert.equal(seen[0].body.steps[0].dir, 'source')
   assert.equal(seen[0].body.source.storageSource.generation, '9')
+  assert.ok(seen[0].body.steps[0].args.includes(`SOURCE_VERSION=${H40}`))
+  assert.ok(!seen[0].body.steps[0].args.some((value) => value === 'SOURCE_VERSION=REL-001'))
 })
 
 test('Artifact Registry, provenance, SBOM and vulnerability evidence fail closed', async () => {
@@ -1017,23 +1019,56 @@ test('owner private-object reads pin metadata and media to the exact requested g
   await assert.rejects(transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: 7 }), /GCS_GENERATION_INVALID/u)
 })
 
-test('C79 large immutable source archives receive a bounded media read window above the observed transfer time', async () => {
-  const observedArchiveBytes = 17_752_595
-  assert.equal(OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS, 120_000)
-  assert.equal(OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS, 60_000)
-  assert.ok(OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS > 34_197)
+test('C79 and C83 immutable source archives receive size-aware bounded media read windows', async () => {
+  assert.deepEqual(ownerPrivateObjectMediaWindow(null), {
+    timeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS,
+    attemptTimeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS,
+  })
+  assert.deepEqual(ownerPrivateObjectMediaWindow(Number.MAX_SAFE_INTEGER + 1), {
+    timeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_TIMEOUT_MS,
+    attemptTimeoutMs: OWNER_PRIVATE_OBJECT_MEDIA_ATTEMPT_TIMEOUT_MS,
+  })
+
+  const c79 = ownerPrivateObjectMediaWindow(17_752_595)
+  assert.ok(c79.attemptTimeoutMs > 34_197)
+  assert.ok(c79.timeoutMs > c79.attemptTimeoutMs)
+
+  const observedArchiveBytes = 76_625_920
+  const c83 = ownerPrivateObjectMediaWindow(observedArchiveBytes)
+  assert.ok(c83.attemptTimeoutMs > 150_000)
+  assert.ok(c83.timeoutMs >= c83.attemptTimeoutMs * 2)
+  assert.ok(c83.timeoutMs <= 1_200_000)
+  assert.ok(c83.attemptTimeoutMs <= 600_000)
+
+  const capped = ownerPrivateObjectMediaWindow(Number.MAX_SAFE_INTEGER)
+  assert.ok(capped.timeoutMs <= 1_200_000)
+  assert.ok(capped.attemptTimeoutMs <= 600_000)
+
   const bytes = Buffer.alloc(observedArchiveBytes, 0x61), seen = []
-  const transport = createOwnerTransport({ token: 'fixture-token-with-enough-length', fetchImpl: async (url, options = {}) => {
-    const target = new URL(String(url)); seen.push({ target, signal: options.signal })
-    return target.searchParams.get('alt') === 'media' ? new Response(bytes)
-      : json({ generation: '79', crc32c: crc32cBase64(bytes), size: String(bytes.length) })
-  } })
-  const uri = `gs://${bucket}/source/releases/DEV122-RD-FULL35-C79/source.tar.gz`
-  const result = await transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: '79', expectedSha256: sha256(bytes) })
+  const originalTimeout = AbortSignal.timeout
+  const timeoutWindows = []
+  AbortSignal.timeout = milliseconds => {
+    timeoutWindows.push(milliseconds)
+    return originalTimeout(milliseconds)
+  }
+  const uri = `gs://${bucket}/source/releases/DEV122-RD-FULL35-C83/worker/source.tar.gz`
+  let result
+  try {
+    const transport = createOwnerTransport({ token: 'fixture-token-with-enough-length', fetchImpl: async (url, options = {}) => {
+      const target = new URL(String(url)); seen.push({ target, signal: options.signal })
+      return target.searchParams.get('alt') === 'media' ? new Response(bytes)
+        : json({ generation: '79', crc32c: crc32cBase64(bytes), size: String(bytes.length) })
+    } })
+    result = await transport.readBytes(uri, { prefixes: ['source'], expectedGeneration: '79', expectedSha256: sha256(bytes) })
+  } finally {
+    AbortSignal.timeout = originalTimeout
+  }
   assert.equal(result.bytes.length, observedArchiveBytes)
   assert.equal(seen.length, 2)
   assert.equal(seen[1].target.searchParams.get('alt'), 'media')
   assert.equal(seen[1].signal.aborted, false)
+  assert.equal(timeoutWindows.at(-1), c83.attemptTimeoutMs)
+  assert.ok(timeoutWindows.slice(0, -1).every(milliseconds => milliseconds > 0 && milliseconds <= 30_000))
 })
 
 test('R7 migration read token covers exact fixed Job and Execution GETs without borrowing for other routes', async () => {

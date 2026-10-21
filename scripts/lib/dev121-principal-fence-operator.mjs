@@ -245,7 +245,7 @@ export async function executeFenceOperation({ profile, git, sourceProof, recover
       serviceUpdateTime: service.updateTime, requestTimeoutSeconds: timeout, status: 'QUIESCED' }
     const bytes = Buffer.from(stable(fence) + '\n')
     assertPrincipalOnlyMigrationFence({ proof: fence, bytes, expectedSha256: sha256(bytes),
-      sourceRevision, service, observedAt })
+      expectedFenceSourceRevision: sourceRevision, service, observedAt })
     const receipt = await immutableWrite(transport,
       PREFIX + sourceRevision + '/fence-' + service.generation + '.json', fence)
     return { status: 'QUIESCENCE_ADOPTED', sourceRevision, previousRevision: oldRevision,
@@ -293,7 +293,7 @@ export async function executeFenceOperation({ profile, git, sourceProof, recover
       serviceUpdateTime: service.updateTime, requestTimeoutSeconds: timeout, status: 'QUIESCED' }
     const bytes = Buffer.from(stable(fence) + '\n')
     assertPrincipalOnlyMigrationFence({ proof: fence, bytes, expectedSha256: sha256(bytes),
-      sourceRevision, service, observedAt })
+      expectedFenceSourceRevision: sourceRevision, service, observedAt })
     const receipt = await immutableWrite(transport,
       PREFIX + sourceRevision + '/fence-' + service.generation + '.json', fence)
     return { status: 'QUIESCED', sourceRevision, previousRevision: oldRevision,
