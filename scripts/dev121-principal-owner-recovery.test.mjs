@@ -950,8 +950,8 @@ function addAppliedMigrationExecution(h) {
     executionName: readbackExecutionName.split('/').at(-1), startedAt: '2026-10-03T00:12:02Z', completedAt: '2026-10-03T00:12:19Z', status: 'PASS' }
   const native = h.put(readbackOutputUri, { ...nativeCore, receiptSha256: rdReadbackSha256(nativeCore) })
   const readbackResult = buildRdReadbackResult({ intent: readbackIntent, intentRef: readbackIntentRef, jobReadbackRef: jobReceipt.ref,
-    attempts: [{ status: 'PASS', ledgerCount: 35, executionReadbackRef: executionReceipt.ref, nativeReceiptRef: native.ref, completedAt: readbackExecution.completionTime }],
-    successfulProbe: probe, nativeReceiptRef: native.ref, observedAt: readbackExecution.completionTime })
+    attempts: [{ status: 'PASS', ledgerCount: 35, executionReadbackRef: executionReceipt.ref, nativeReceiptRef: native.ref, completedAt: nativeCore.completedAt }],
+    successfulProbe: probe, nativeReceiptRef: native.ref, observedAt: nativeCore.completedAt })
   const readbackResultRef = h.put(`${readbackBase}/ledger-readback-result.json`, readbackResult).ref
   const binding = { schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision, prepareRef: prepare.ref, migrateRef: migration.ref, ledgerReadbackResultRef: readbackResultRef }
   const fenceEnvironment = { ...rdReadbackJobEnvironment(h.profile, runnerSourceRevision), DEV121_MIGRATION_FENCE_REF: intent.principalOnlyFenceRef.uri, DEV121_MIGRATION_FENCE_SHA256: intent.principalOnlyFenceRef.sha256 }
