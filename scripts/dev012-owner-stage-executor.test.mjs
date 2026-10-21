@@ -464,44 +464,24 @@ test('rollback reports no database mutation when migrate receipt was never produ
   const value = JSON.parse(terminal[1].bytes.toString())
   assert.equal(value.facts.result, 'PRE_ACTIVATION_ABORTED')
   assert.equal(value.facts.databaseDisposition, 'NOT_APPLIED')
-  assert.deepEqual(value.facts.failurePolicy, { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 1, limit: 2, action: 'CONTINUE' })
+  assert.deepEqual(value.facts.failureSignal, { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE' })
 })
 
-test('prepare does not turn an AI COO review signal into a provider-read gate', async () => {
+test('ambient failure diagnostics do not become a new production prepare gate', async () => {
   const h = recordedHarness()
-  const prior = await authorizedRecordedInput(h, 'REL-FAILURE-HISTORY-1')
-  const priorIntent = (await h.transport.readJson(prior.intentResult.ref)).value
-  const priorPaths = releasePaths(h.profile, priorIntent, prior.intentResult.ref.sha256)
-  await h.transport.putJson(priorPaths.terminal, stageReceipt({ profile: h.profile, intent: priorIntent, stage: 'terminal', previousReceiptRef: null,
-    facts: { result: 'PRE_ACTIVATION_ABORTED', databaseDisposition: 'NOT_APPLIED', failurePolicy: { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 2, limit: 2, action: 'TRIGGER_AI_COO_REVIEW' } }, observedAt: h.transport.now() }), { bucket, prefix: 'receipts' })
-  const intent = { ...priorIntent, releaseId: 'REL-FAILURE-HISTORY-2', baselineIntentRef: prior.intentResult.ref }
-  const capsule = await h.transport.putJson(`gs://${bucket}/receipts/intents/failure-history-2.json`, intent, { bucket, prefix: 'receipts' })
+  const current = await authorizedRecordedInput(h, 'REL-FAILURE-DIAGNOSTIC')
   let serviceReads = 0
   const getService = h.transport.getService
   h.transport.getService = async (...args) => { serviceReads++; return getService(...args) }
-  await assert.rejects(
-    executeOwnerStage({ ...prior.input, stage: 'prepare', capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256 }),
-    /DEV121_PREACTIVATION_CONTINUATION_INVALID|MISSING/u,
-  )
+  const prepared = await executeOwnerStage({ ...current.input, stage: 'prepare', environment: {
+    ...h.environment,
+    PDM_RELEASE_FAILURE_CODE: 'CHAIN_SOURCE_HASH_MISMATCH',
+    PDM_RELEASE_FAILURE_HISTORY: JSON.stringify([{ code: 'OPENSWX_SOURCE_JOIN_INVALID' }]),
+  } })
+  assert.equal(prepared.value.status, 'PASS')
   assert.equal(serviceReads, 1)
-})
-
-test('prepare leaves tampered baseline rejection to the continuation safety contract', async () => {
-  const h = recordedHarness()
-  const prior = await authorizedRecordedInput(h, 'REL-FAILURE-HISTORY-TAMPERED-1')
-  const priorIntent = (await h.transport.readJson(prior.intentResult.ref)).value
-  const priorPaths = releasePaths(h.profile, priorIntent, prior.intentResult.ref.sha256)
-  const terminal = stageReceipt({ profile: h.profile, intent: priorIntent, stage: 'terminal', previousReceiptRef: null,
-    facts: { result: 'PRE_ACTIVATION_ABORTED', databaseDisposition: 'NOT_APPLIED', failurePolicy: { code: 'CHAIN_SOURCE_HASH_MISMATCH', family: 'SOURCE_LINEAGE', occurrences: 1, limit: 2, action: 'CONTINUE' } }, observedAt: h.transport.now() })
-  terminal.facts.failurePolicy.occurrences = 2
-  await h.transport.putJson(priorPaths.terminal, terminal, { bucket, prefix: 'receipts' })
-  const intent = { ...priorIntent, releaseId: 'REL-FAILURE-HISTORY-TAMPERED-2', baselineIntentRef: prior.intentResult.ref }
-  const capsule = await h.transport.putJson(`gs://${bucket}/receipts/intents/failure-history-tampered-2.json`, intent, { bucket, prefix: 'receipts' })
-  let serviceReads = 0
-  const getService = h.transport.getService
-  h.transport.getService = async (...args) => { serviceReads++; return getService(...args) }
-  await assert.rejects(executeOwnerStage({ ...prior.input, stage: 'prepare', capsuleRef: capsule.ref.uri, capsuleSha256: capsule.ref.sha256 }), /DEV121_PREACTIVATION_CONTINUATION_INVALID/u)
-  assert.equal(serviceReads, 1)
+  assert.equal(prepared.value.facts.releaseEvidence.readiness.schemaVersion, 'jenfu.dev117.release-readiness.v1')
+  assert.equal(Object.hasOwn(prepared.value.facts.releaseEvidence.readiness, 'ownerApplicationId'), false)
 })
 
 test('B24 rollback reports UNKNOWN after a durable migration submission and rejects a tampered intent', async () => {
