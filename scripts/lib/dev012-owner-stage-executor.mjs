@@ -671,7 +671,8 @@ export async function executeOwnerStage({ stage, capsuleRef, capsuleSha256, prof
       ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: intent.baselineIntentRef, service,
         postAbortLedgerReadbackRef: intent.postAbortLedgerReadbackRef ?? null,
         principalOnlyFenceRef: intent.principalOnlyFenceRef ?? null,
-        principalOnlyRecovery: intent.principalOnlyRecovery ?? null }) : null
+        principalOnlyRecovery: intent.principalOnlyRecovery ?? null,
+        appliedMigrationContinuation: intent.appliedMigrationContinuation ?? null }) : null
     if (continuation && ((!['PRINCIPAL_ORDINARY_ABORT', 'PROGRAM_ONLY_ABORT'].includes(continuation.kind) && !assertPrincipalOnlyRecoveryBinding(intent, profile.artifact.releaseBucket))
       || continuation.currentActiveRevision !== intent.previousRevision)) fail('PREPARE_BASELINE_MISMATCH')
     const existing = await optionalNamedJson(transport, paths.prepare, profile)

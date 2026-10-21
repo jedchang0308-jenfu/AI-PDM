@@ -132,10 +132,14 @@ Reader 能否讀取已准入 revision、requested revision 應採 current 或 hi
 
 對產品與審查者只暴露五個邏輯階段：`preflight → build → migrate-if-needed → candidate-smoke → activate-readback`。既有 executor 的內部 jobs 與收據可維持相容實作，但不再是 DEV-122 的逐項人工驗收清單。
 
+- GitHub owner workflow 亦以這五個 phase 執行；各 phase 只做一次 checkout／依賴安裝，身分與 proof token 維持 step-scope。原十個 immutable stage receipt 只作為 phase 內的續跑／復原邊界，不再各自複製工作樹、環境準備或人工關卡。
+- operator image 的 `scripts/lib` 使用受測試約束的完整 runtime closure，不再逐檔維護容易遺漏 transitive import 的 COPY 清單；入口腳本與跨目錄程式仍明確列入映像。
+- receipt schema 由共用權威 validator 驗證，續跑層只補當次 continuation 的額外 join；不得為每一條 recovery path 複製同一組 receipt 欄位檢查。
 - `migration=true` 只由 database 或 full gate 產生。
 - application／preview／recognition 變更不得因無 DB 變更而新增資料庫驗收要求。
 - 正式發布仍使用不可變來源、required CI、provider readback 與既有 rollback。
 - 本契約不授權正式發布、IAM／Secret、資料寫入或資源新增。
+- 本輪流程收斂期間正式發布維持暫停；本機與 CI 結果不構成 RD 正式驗收。
 
 ## 8. 共同安全底線
 

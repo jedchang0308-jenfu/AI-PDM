@@ -84,6 +84,18 @@ test('reconciled abort evidence is continuation data and joins an exact paused-r
   })
   assert.deepEqual(assertReconciledRepairContinuation(reconciledIntent, workerInput, bucket),
     assertReconciledPrincipalAbortBinding(reconciledIntent, bucket))
+  const appliedRoot = `gs://${bucket}/receipts/releases/DEV122-RD-APPLIED/${'1'.repeat(64)}`
+  const appliedMigrationContinuation = {
+    schemaVersion: 'aipdm.applied-migration-continuation.v1', sourceRevision: 'a'.repeat(40),
+    prepareRef: { uri: `${appliedRoot}/prepare.json`, sha256: '2'.repeat(64) },
+    migrateRef: { uri: `${appliedRoot}/migrate.json`, sha256: '3'.repeat(64) },
+    ledgerReadbackResultRef: { uri: `gs://${bucket}/receipts/releases/DEV122-RD-LEDGER35/${'4'.repeat(64)}/ledger-readback-result.json`, sha256: '5'.repeat(64) },
+  }
+  const appliedIntent = { ...reconciledIntent, appliedMigrationContinuation }
+  const appliedWorker = { ...workerInput, appliedMigrationContinuation }
+  assert.doesNotThrow(() => assertReconciledRepairContinuation(appliedIntent, appliedWorker, bucket))
+  assert.throws(() => assertReconciledRepairContinuation(appliedIntent, workerInput, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
+  assert.throws(() => assertReconciledRepairContinuation(reconciledIntent, appliedWorker, bucket), /DEV121_PRINCIPAL_RECOVERY_INVALID/u)
   assert.equal(assertReconciledRepairContinuation({ previousRevision: old }, { schemaVersion: 'aipdm.openswx-worker-reuse-input.v2' }, bucket), null)
 
   for (const [release, worker] of [

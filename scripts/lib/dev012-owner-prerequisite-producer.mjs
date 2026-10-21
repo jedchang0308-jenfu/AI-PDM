@@ -404,7 +404,8 @@ export async function executePrerequisiteProducer({ stage, releaseId, input, pro
       ? await readPreActivationAbortContinuation({ profile, transport, baselineIntentRef: input.baselineIntentRef, service, control, verifyProvider: true,
         postAbortLedgerReadbackRef: input.postAbortLedgerReadbackRef ?? null,
         principalOnlyFenceRef: input.principalOnlyFenceRef ?? null,
-        principalOnlyRecovery: input.principalOnlyRecovery ?? null }) : null
+        principalOnlyRecovery: input.principalOnlyRecovery ?? null,
+        appliedMigrationContinuation: input.appliedMigrationContinuation ?? null }) : null
     if (control?.result === 'PRE_ACTIVATION_ABORTED' && (!continuation || continuation.currentActiveRevision !== previousRevision)) fail('ROUTINE_CONTROL_INVALID')
     const { controlSha256, ...controlCore } = control ?? {}
     if (controlSha256 !== sha256(canonicalize(controlCore)) || control.state !== 'FINALIZED' || !['RELEASED', 'ROLLED_BACK', 'PRE_ACTIVATION_ABORTED'].includes(control.result)

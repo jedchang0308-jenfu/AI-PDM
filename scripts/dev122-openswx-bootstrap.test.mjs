@@ -1808,8 +1808,8 @@ test('both full-worker producer stages reject mismatched supplemental IAM source
 test('full owner checkout retains real historical Git bytes for daily IAM receipt joins', async () => {
   const workflow = readSource('.github/workflows/deploy-ai-pdm-independent-production.yml').toString()
   const checkouts = [...workflow.matchAll(/uses: actions\/checkout@v4\r?\n\s+with: \{ persist-credentials: false, fetch-depth: (\d+) \}/gu)]
-  assert.equal(checkouts.length, 11)
-  assert.ok(checkouts.every(row => row[1] === '0'), 'Every protected owner stage must retain its own historical source')
+  assert.equal(checkouts.length, 6)
+  assert.ok(checkouts.every(row => row[1] === '0'), 'Every protected owner phase must retain its own historical source')
   const tempPrefix = path.join(os.tmpdir(), 'aipdm-h-')
   const temp = fs.mkdtempSync(tempPrefix), origin = path.join(temp, 'origin'), checkout = path.join(temp, 'checkout')
   console.log('DEV122_SOURCE_HISTORY_RUNTIME_DECLARED=' + JSON.stringify({ project: 'AI-PDM', purpose: 'Real local shallow Git regression; recorded receipts only', port: null, parentPid: process.pid, PDM_DATA_DIR: path.join(temp, 'unused-data'), PDM_REPOSITORY_DIR: origin, mutationScope: 'OWN_FIXTURE_GIT_ONLY_NO_CLOUD_OR_APP_DB', cleanupCondition: 'Finite local Git children exit and own temp removed' }))

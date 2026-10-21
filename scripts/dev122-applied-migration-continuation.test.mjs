@@ -93,7 +93,7 @@ function fixture() {
     database: 'jenfu_prod', ledger: 'ai_pdm_core.schema_migrations', manifestSha256: probes[0].manifestSha256,
     baselineCount: 15, minimumLedgerCount: 0, ledgerBootstrap: { enabled: true, created: false }, ledgerCount: 35,
     applied: 0, replayed: 35, crossDatabaseDenials: [{ database: 'jenfu_dev', denied: true }, { database: 'jenfu_stg', denied: true }],
-    boundaryStatus: 'PASS', executionName, startedAt: '2026-10-20T22:36:18.000Z', completedAt: '2026-10-20T22:36:18.500Z', status: 'PASS' }
+    boundaryStatus: 'PASS', executionName: executionName.split('/').at(-1), startedAt: '2026-10-20T22:36:18.000Z', completedAt: '2026-10-20T22:36:18.500Z', status: 'PASS' }
   const native = { ...nativeCore, receiptSha256: rdReadbackSha256(nativeCore) }
   const nativeRef = ref(`${rdRoot}/ledger-probe-35.json`, native)
   const result = buildRdReadbackResult({ intent: rdIntent, intentRef: rdIntentRef, jobReadbackRef: jobRef,

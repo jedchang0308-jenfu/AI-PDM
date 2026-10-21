@@ -1270,7 +1270,7 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
         for (const key of ['sourceRevision', 'sourceLockRef', 'priorActivationRef']) sameProof(request[key], association[key])
         const input = (await readRef(request.inputRef, AI_BUCKET, token, fetchImpl)).value
         const reconciledRepair = input?.schemaVersion === 'aipdm.openswx-worker-reuse-input.v5'
-        const reconciledKeys = ['postAbortLedgerReadbackRef', 'principalOnlyFenceRef', 'principalOnlyRecovery']
+        const reconciledKeys = ['postAbortLedgerReadbackRef', 'principalOnlyFenceRef', 'principalOnlyRecovery', ...(Object.hasOwn(input ?? {}, 'appliedMigrationContinuation') ? ['appliedMigrationContinuation'] : [])]
         if (!exactKeys(input, ['schemaVersion', 'sourceLockRef', 'currentSourceObjectRef', 'priorActivationRef', 'deadlineAt', 'receiptId', 'servingCapsuleRef', 'predecessorBaselineRef', ...(reconciledRepair ? reconciledKeys : [])]) || !['aipdm.openswx-worker-reuse-input.v2', 'aipdm.openswx-worker-reuse-input.v5'].includes(input.schemaVersion) || !Number.isFinite(Date.parse(input.deadlineAt)) ||
             !/^[A-Za-z0-9-]{6,100}$/u.test(input.receiptId ?? '') || Date.parse(request.requestedAt) >= Date.parse(input.deadlineAt)) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
         if (reconciledRepair) {
@@ -1282,6 +1282,10 @@ async function readObservedCapsuleGraph({ sourceRevision, refs, token, fetchImpl
             || !/^ai-pdm-prod-[a-z0-9-]+$/u.test(input.principalOnlyRecovery.revision ?? '')
             || !/^asia-east1-docker\.pkg\.dev\/jenfu-platform-prod\/aipdm-release\/ai-pdm-recovery@sha256:[a-f0-9]{64}$/u.test(input.principalOnlyRecovery.imageDigest ?? '')
             || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(input.principalOnlyRecovery.serviceUid ?? '')) fail('REPAIR_WORKER_ASSOCIATION_INVALID')
+          if (Object.hasOwn(input, 'appliedMigrationContinuation')) {
+            try { assertAppliedMigrationContinuation(input.appliedMigrationContinuation, AI_BUCKET) }
+            catch { fail('REPAIR_WORKER_ASSOCIATION_INVALID') }
+          }
         }
         try { assertReconciledRepairContinuation(intent, input, AI_BUCKET) }
         catch { fail('REPAIR_JOIN_INVALID') }
@@ -1702,7 +1706,7 @@ async function readFixedJson(uri, bucket, token, fetchImpl) {
   return { value, bytes: object.bytes, ref,
     generation: object.generation, crc32c: object.crc32c }
 }
-function assertStage(value, owner, revision, releaseId, stage) {
+export function assertStage(value, owner, revision, releaseId, stage) {
   if (!exactKeys(value, ['schemaVersion', 'ownerApplicationId', 'releaseId',
     'sourceRevision', 'stage', 'previousReceiptRef', 'facts', 'observedAt',
     'status', 'receiptSha256']) ||

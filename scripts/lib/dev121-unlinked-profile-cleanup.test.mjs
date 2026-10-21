@@ -109,10 +109,12 @@ test('native cleanup refuses extra or malformed result data and masks dependency
 test('migration image closure contains the new helper and its imports use only bundled node modules', () => {
   for (const name of ['migration-runner.Dockerfile', 'principal-inventory.Dockerfile', 'principal-cutover-preview.Dockerfile', 'role-catalog-publisher.Dockerfile']) {
     const docker = readFileSync(new URL(`../../infra/google-cloud/dev-117-production-release/${name}`, import.meta.url), 'utf8')
-    assert.match(docker, /^COPY scripts\/lib\/dev121-unlinked-profile-cleanup\.mjs scripts\/lib\/dev121-unlinked-profile-cleanup\.mjs$/mu, name)
+    const bundlesScriptsLib = /^COPY scripts\/lib\/ scripts\/lib\/$/mu.test(docker)
+    const assertBundled = path => assert.ok(bundlesScriptsLib || docker.includes(`COPY ${path} ${path}`), `${name}: ${path}`)
+    assertBundled('scripts/lib/dev121-unlinked-profile-cleanup.mjs')
     if (docker.includes('COPY scripts/dev117-production-migration-runner.mjs')) {
-      assert.match(docker, /^COPY scripts\/lib\/dev122-rd-permission-state-readback\.mjs scripts\/lib\/dev122-rd-permission-state-readback\.mjs$/mu, name)
-      assert.match(docker, /^COPY scripts\/lib\/dev122-openswx-dispatch-recovery\.mjs scripts\/lib\/dev122-openswx-dispatch-recovery\.mjs$/mu, name)
+      assertBundled('scripts/lib/dev122-rd-permission-state-readback.mjs')
+      assertBundled('scripts/lib/dev122-openswx-dispatch-recovery.mjs')
     }
   }
   const helper = readFileSync(new URL('./dev121-unlinked-profile-cleanup.mjs', import.meta.url), 'utf8')

@@ -163,82 +163,96 @@ export function buildDev117MigrationBundle(profile, packageValue, sourceRevision
 export function assertDev117WorkflowSource(source) {
   source = source.replaceAll('\r\n', '\n')
   const jobBlocks = Object.fromEntries([...source.matchAll(/\n  ([a-z][a-z-]+):\n([\s\S]*?)(?=\n  [a-z][a-z-]+:\n|$)/gu)].map((match) => [match[1], match[2]]))
-  const proofReaderStages = { prepare: { actor: 'verifier', stage: 'prepare' }, migrate: { actor: 'deployer', stage: 'migrate' }, candidate: { actor: 'deployer', stage: 'candidate' }, verify: { actor: 'verifier', stage: 'verify' }, activate: { actor: 'deployer', stage: 'activate' }, finalize: { actor: 'deployer', stage: 'finalize' }, failure: { actor: 'deployer', stage: 'rollback' } }
-  const builderReadTokenBinding = 'AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"'
   const inputBlock = source.match(/workflow_dispatch:[^\S\r\n]*\r?\n\s*inputs:[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\s*concurrency:/)?.[1] || ''
   const keys = [...inputBlock.matchAll(/^\s{6}([A-Za-z0-9_-]+):/gm)].map((match) => match[1])
   if (JSON.stringify(keys) !== JSON.stringify(['releaseCapsuleRef', 'executionMode'])) fail('WORKFLOW_INPUT_DRIFT', 'Workflow accepts one capsule and a bounded execution mode')
   if (!source.includes('default: full_release') || !source.includes('options: [full_release, build_only]')
     || !source.includes('case "$EXECUTION_MODE" in full_release|build_only) ;; *) exit 1 ;; esac')
-    || !source.includes("  migrate:\n    if: ${{ inputs.executionMode == 'full_release' }}\n    needs: [prepare, build]")
-    || !source.includes("if: ${{ always() && inputs.executionMode == 'full_release' && needs.prepare.result == 'success' && contains(needs.*.result, 'failure') }}")) fail('WORKFLOW_BUILD_ONLY_BOUNDARY_DRIFT', 'Artifact preparation must not migrate, create candidates or roll back')
+    || !source.includes("  migrate:\n    name: migrate-if-needed\n    if: ${{ inputs.executionMode == 'full_release' }}\n    needs: [preflight, build]")
+    || !source.includes('  candidate-smoke:\n    name: candidate-smoke\n    needs: [preflight, migrate]')
+    || !source.includes('  activate-readback:\n    name: activate-readback\n    needs: [preflight, candidate-smoke]')
+    || !source.includes("if: ${{ always() && inputs.executionMode == 'full_release' && needs.preflight.result == 'success' && contains(needs.*.result, 'failure') }}")) fail('WORKFLOW_BUILD_ONLY_BOUNDARY_DRIFT', 'Artifact preparation must not migrate, create candidates or roll back')
   for (const forbidden of ['product_owner_decision:', 'artifact_receipt_ref:', 'candidate_receipt_ref:', 'level4_receipt_ref:', 'stage:']) if (source.includes(forbidden)) fail('HISTORICAL_INPUT_ACTIVE', `Forbidden v1 workflow input ${forbidden}`)
   if (!source.includes('group: production-release-ai-pdm-prod')) fail('WORKFLOW_CONCURRENCY_DRIFT', 'Concurrency must be service-wide')
-  for (const job of ['prepare:', 'build:', 'migrate:', 'candidate:', 'entrypoint:', 'verify:', 'decision:', 'activate:', 'canonical:', 'finalize:', 'failure:']) if (!source.includes(`\n  ${job}`)) fail('WORKFLOW_JOB_MISSING', job)
-  if (!/\n  failure:[\s\S]*?needs:\s*\[prepare, build, migrate, candidate, entrypoint, verify, decision, activate, canonical, finalize\]/u.test(source)) fail('OPENSWX_FINALIZE_FAILURE_WIRING_MISSING')
+  const expectedJobs = ['preflight', 'build', 'migrate', 'candidate-smoke', 'activate-readback', 'failure']
+  const observedJobs = [...source.matchAll(/^  ([a-z][a-z-]+):$/gmu)].map((match) => match[1])
+  if (JSON.stringify(observedJobs) !== JSON.stringify(expectedJobs)) fail('WORKFLOW_JOB_MISSING', 'Owner workflow must expose five logical stages plus failure recovery')
+  if (!/\n  failure:[\s\S]*?needs:\s*\[preflight, build, migrate, candidate-smoke, activate-readback\]/u.test(source)) fail('OPENSWX_FINALIZE_FAILURE_WIRING_MISSING')
   if (/CAPSULE_PROVIDER_FETCH_REQUIRED|run:\s*echo\s/iu.test(source)) fail('PROVIDER_PLACEHOLDER_ACTIVE', 'Workflow contains a provider placeholder')
-  if ((source.match(/^    environment: production$/gmu) ?? []).length !== 11 || (source.match(/DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:/gu) ?? []).length !== 2 || (source.match(/DEV012_AIPDM_FIREBASE_API_KEY:/gu) ?? []).length !== 2 || source.includes('DEV012_AIPDM_FIREBASE_ID_TOKEN')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', 'Protected environment or refresh-token smoke binding drifted')
+  if ((source.match(/^    environment: production$/gmu) ?? []).length !== 6 || (source.match(/DEV012_AIPDM_FIREBASE_REFRESH_TOKEN:/gu) ?? []).length !== 2 || (source.match(/DEV012_AIPDM_FIREBASE_API_KEY:/gu) ?? []).length !== 2 || source.includes('DEV012_AIPDM_FIREBASE_ID_TOKEN')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', 'Protected environment or refresh-token smoke binding drifted')
   const migrationBinding = 'AIPDM_MIGRATION_EXECUTION_READ_TOKEN: "${{ steps.migration_execution_read_auth.outputs.access_token }}"'
-  const prepareBlock = jobBlocks.prepare ?? ''
-  if (!prepareBlock.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
-      !prepareBlock.includes('run: node scripts/dev012-verify-official-source.mjs') ||
+  const preflightBlock = jobBlocks.preflight ?? ''
+  if (!preflightBlock.includes('permissions: { contents: read, pull-requests: read, checks: read, id-token: write }') ||
+      !preflightBlock.includes('run: node scripts/dev012-verify-official-source.mjs') ||
       source.includes('test:production-slice:affected')) {
     fail('WORKFLOW_SOURCE_CHECK_DRIFT', 'Owner workflow must read exact required CI results instead of rerunning source tests')
   }
-  const migrationAuth = prepareBlock.match(/\n      - id: migration_execution_read_auth\n([\s\S]*?)(?=\n      - )/u)?.[1] ?? ''
-  const prepareExecute = prepareBlock.split(/\n      - /u).filter(value => value.includes('run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare '))
-  if (!migrationAuth.includes('workload_identity_provider: ${{ env.WIF_PROVIDER }}')
-    || !migrationAuth.includes('service_account: aipdm-prod-deployer@jenfu-platform-prod.iam.gserviceaccount.com')
-    || !migrationAuth.includes('token_format: access_token') || !migrationAuth.includes('create_credentials_file: false')
-    || !migrationAuth.includes('export_environment_variables: false')
-    || prepareBlock.indexOf('- id: migration_execution_read_auth\n') > prepareBlock.indexOf('- name: Execute prepare\n')
-    || prepareExecute.length !== 1 || !prepareExecute[0].includes(migrationBinding)
-    || (source.match(/AIPDM_MIGRATION_EXECUTION_READ_TOKEN:/gu) ?? []).length !== 1
-    || (source.match(/migration_execution_read_auth/gu) ?? []).length !== 2)
-    fail('WORKFLOW_MIGRATION_READBACK_AUTH_DRIFT', 'Only prepare may borrow the existing deployer token for exact migration execution GET pages')
-  for (const [job, { actor, stage }] of Object.entries(proofReaderStages)) {
+  const stagePlan = {
+    preflight: [{ stage: 'prepare', auth: 'verifier_auth', proof: true }],
+    build: [{ stage: 'build', auth: 'builder_auth', buildRead: true }],
+    migrate: [{ stage: 'migrate', auth: 'deployer_auth', proof: true }],
+    'candidate-smoke': [
+      { stage: 'candidate', auth: 'deployer_auth', proof: true },
+      { stage: 'entrypoint', auth: 'deployer_auth' },
+      { stage: 'verify', auth: 'verifier_auth', proof: true },
+      { stage: 'decision', auth: 'verifier_auth' },
+    ],
+    'activate-readback': [
+      { stage: 'activate', auth: 'deployer_auth', proof: true },
+      { stage: 'canonical', auth: 'verifier_auth' },
+      { stage: 'finalize', auth: 'deployer_auth', proof: true },
+    ],
+    failure: [{ stage: 'rollback', auth: 'deployer_auth', proof: true }],
+  }
+  const authActors = {
+    verifier_auth: 'verifier', builder_auth: 'builder', deployer_auth: 'deployer',
+    proof_builder_read_auth: 'builder', build_verifier_read_auth: 'verifier', migration_execution_read_auth: 'deployer',
+  }
+  const expectedAuth = {
+    preflight: ['verifier_auth', 'proof_builder_read_auth', 'migration_execution_read_auth'],
+    build: ['builder_auth', 'build_verifier_read_auth'],
+    migrate: ['deployer_auth', 'proof_builder_read_auth'],
+    'candidate-smoke': ['deployer_auth', 'proof_builder_read_auth', 'verifier_auth'],
+    'activate-readback': ['deployer_auth', 'proof_builder_read_auth', 'verifier_auth'],
+    failure: ['deployer_auth', 'proof_builder_read_auth'],
+  }
+  const proofBinding = 'AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN: "${{ steps.proof_builder_read_auth.outputs.access_token }}"'
+  const buildReadBinding = 'AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.build_verifier_read_auth.outputs.access_token }}"'
+  for (const [job, plan] of Object.entries(stagePlan)) {
     const block = jobBlocks[job] ?? ''
     const steps = block.split(/\n      - /u).slice(1).map((value) => `\n      - ${value}`)
-    const executeSteps = steps.filter((value) => value.includes(`run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage ${stage} `))
-    const primaryAuthBlock = block.match(/\n      - id: auth\n([\s\S]*?)(?=\n      - )/u)?.[1] ?? ''
-    const builderReadAuthBlock = block.match(/\n      - id: proof_builder_read_auth\n([\s\S]*?)(?=\n      - )/u)?.[1] ?? ''
-    if ((block.match(/google-github-actions\/auth@v3/gu) ?? []).length !== (job === 'prepare' ? 3 : 2)
-      || executeSteps.length !== 1
-      || !primaryAuthBlock.includes(`service_account: aipdm-prod-${actor}@jenfu-platform-prod.iam.gserviceaccount.com`)
-      || !builderReadAuthBlock.includes('service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com')
-      || !builderReadAuthBlock.includes('workload_identity_provider: ${{ env.WIF_PROVIDER }}')
-      || !builderReadAuthBlock.includes('token_format: access_token')
-      || !builderReadAuthBlock.includes('create_credentials_file: false')
-      || block.indexOf('- id: proof_builder_read_auth\n') > block.indexOf(executeSteps[0])
-      || !builderReadAuthBlock.includes('export_environment_variables: false')
-      || !executeSteps[0]?.includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"')
-      || !executeSteps[0]?.includes(builderReadTokenBinding)
-      || steps.filter((value) => value.includes(builderReadTokenBinding)).length !== 1) fail('WORKFLOW_PROOF_READBACK_AUTH_DRIFT', `Protected ${job} proof reader must keep primary authority separate and pass its exact builder GET token only to stage ${stage}`)
+    const observedStages = [...block.matchAll(/scripts\/dev117-ai-pdm-continuous-release\.mjs --stage ([a-z]+) /gu)].map((match) => match[1])
+    if (JSON.stringify(observedStages) !== JSON.stringify(plan.map((item) => item.stage)) ||
+        (block.match(/actions\/checkout@v4/gu) ?? []).length !== 1 ||
+        (block.match(/^      - run: npm ci$/gmu) ?? []).length !== 1 ||
+        block.indexOf('actions/checkout@v4') > block.indexOf('google-github-actions/auth@v3')) fail('WORKFLOW_STAGE_GROUP_DRIFT', job)
+    const observedAuth = [...block.matchAll(/\n      - id: ([a-z_]+_auth)\n/gu)].map((match) => match[1])
+    if (JSON.stringify(observedAuth) !== JSON.stringify(expectedAuth[job])) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', job)
+    for (const auth of observedAuth) {
+      const authBlock = block.match(new RegExp(`\\n      - id: ${auth}\\n([\\s\\S]*?)(?=\\n      - )`, 'u'))?.[1] ?? ''
+      if (!authBlock.includes('workload_identity_provider: ${{ env.WIF_PROVIDER }}') ||
+          !authBlock.includes(`service_account: aipdm-prod-${authActors[auth]}@jenfu-platform-prod.iam.gserviceaccount.com`) ||
+          !authBlock.includes('token_format: access_token') || !authBlock.includes('create_credentials_file: false') ||
+          !authBlock.includes('export_environment_variables: false')) fail('WORKFLOW_AUTH_PREFLIGHT_DRIFT', `${job}:${auth}`)
+    }
+    for (const item of plan) {
+      const execute = steps.filter((value) => value.includes(`run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage ${item.stage} `))
+      const capsuleSource = item.stage === 'prepare' ? 'steps.bind.outputs' : 'needs.preflight.outputs'
+      const primaryToken = `GOOGLE_OAUTH_ACCESS_TOKEN: "\${{ steps.${item.auth}.outputs.access_token }}"`
+      const capsuleBinding = `--capsule-ref "\${{ ${capsuleSource}.capsule_uri }}" --capsule-sha256 "\${{ ${capsuleSource}.capsule_sha256 }}"`
+      if (execute.length !== 1 || !execute[0].includes(primaryToken) || !execute[0].includes(capsuleBinding) ||
+          execute[0].includes(proofBinding) !== Boolean(item.proof) || execute[0].includes(buildReadBinding) !== Boolean(item.buildRead)) {
+        fail(item.buildRead ? 'WORKFLOW_BUILD_READBACK_AUTH_DRIFT' : 'WORKFLOW_PROOF_READBACK_AUTH_DRIFT', `${job}:${item.stage}`)
+      }
+    }
   }
-  const buildBlock = jobBlocks.build ?? ''
-  const buildSteps = buildBlock.split(/\n      - /u).slice(1)
-  const buildAuth = buildBlock.match(/\n      - id: auth\n([\s\S]*?)(?=\n      - )/u)?.[1] ?? ''
-  const verifierAuth = buildBlock.match(/\n      - id: build_verifier_read_auth\n([\s\S]*?)(?=\n      - )/u)?.[1] ?? ''
-  const readBinding = 'AIPDM_BUILD_VERIFIER_READ_TOKEN: "${{ steps.build_verifier_read_auth.outputs.access_token }}"'
-  const buildExecute = buildSteps.filter(value => value.includes('run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage build '))
-  if ((buildBlock.match(/google-github-actions\/auth@v3/gu) ?? []).length !== 2
-    || !buildAuth.includes('service_account: aipdm-prod-builder@jenfu-platform-prod.iam.gserviceaccount.com')
-    || !verifierAuth.includes('service_account: aipdm-prod-verifier@jenfu-platform-prod.iam.gserviceaccount.com')
-    || !verifierAuth.includes('create_credentials_file: false') || !verifierAuth.includes('export_environment_variables: false')
-    || buildBlock.indexOf('- id: auth\n') > buildBlock.indexOf('- name: Execute build\n')
-    || buildBlock.indexOf('- id: build_verifier_read_auth\n') > buildBlock.indexOf('- name: Execute build\n')
-    || buildExecute.length !== 1 || !buildExecute[0].includes('GOOGLE_OAUTH_ACCESS_TOKEN: "${{ steps.auth.outputs.access_token }}"')
-    || !buildExecute[0].includes(readBinding) || buildSteps.filter(value => value.includes(readBinding)).length !== 1
-    || (source.match(/AIPDM_BUILD_VERIFIER_READ_TOKEN:/gu) ?? []).length !== 1
-    || (source.match(/build_verifier_read_auth/gu) ?? []).length !== 2) fail('WORKFLOW_BUILD_READBACK_AUTH_DRIFT', 'Build must retain builder writes and limit the verifier token to its fixed stage')
-  for (const job of ['build', 'entrypoint', 'decision', 'canonical']) {
-    const block = jobBlocks[job] ?? ''
-    if (block.includes('proof_builder_read_auth') || block.includes('AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN:')) fail('WORKFLOW_PROOF_READBACK_AUTH_DRIFT', `Protected ${job} must not receive a secondary builder token`)
+  const prepareExecute = preflightBlock.split(/\n      - /u).filter(value => value.includes('run: node scripts/dev117-ai-pdm-continuous-release.mjs --stage prepare '))
+  if (prepareExecute.length !== 1 || !prepareExecute[0].includes(migrationBinding) ||
+      (source.match(/AIPDM_MIGRATION_EXECUTION_READ_TOKEN:/gu) ?? []).length !== 1 ||
+      (source.match(/AIPDM_BUILD_VERIFIER_READ_TOKEN:/gu) ?? []).length !== 1 ||
+      (source.match(/AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN:/gu) ?? []).length !== 7) {
+    fail('WORKFLOW_MIGRATION_READBACK_AUTH_DRIFT', 'Read tokens must stay on their exact consumer stages')
   }
-  if ((source.match(/AIPDM_OWNER_PROOF_BUILDER_READ_TOKEN:/gu) ?? []).length !== 7
-    || (source.match(/proof_builder_read_auth/gu) ?? []).length !== 14
-    || (source.match(/export_environment_variables: false/gu) ?? []).length !== 9) fail('WORKFLOW_PROOF_READBACK_AUTH_DRIFT', 'Secondary builder proof authority must be limited to the seven stages that revalidate Build/Image evidence')
-  for (const block of source.split(/^  (?=[a-z][a-z-]+:)/gmu).filter((value) => value.includes('google-github-actions/auth@v3'))) if (block.indexOf('actions/checkout@v4') < 0 || block.indexOf('actions/checkout@v4') > block.indexOf('google-github-actions/auth@v3')) fail('WORKFLOW_AUTH_ORDER_DRIFT', 'Checkout must precede WIF authentication')
   if (/\.\.\/Jenfu-Platform|\.\.\/OrgMaster|checkout[^\n]+repository:/i.test(source)) fail('SIBLING_CHECKOUT_DENIED', 'Workflow references sibling source')
   return true
 }

@@ -8,8 +8,15 @@ import ts from 'typescript'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dockerfile = fs.readFileSync(path.join(root,
   'infra/google-cloud/dev-117-production-release/principal-inventory.Dockerfile'), 'utf8')
-const copied = new Set([...dockerfile.matchAll(/^COPY\s+(\S+)\s+\S+\s*$/gmu)]
-  .map((match) => match[1]))
+const copyRules = [...dockerfile.matchAll(/^COPY\s+(\S+)\s+(\S+)\s*$/gmu)]
+  .map(([, source, destination]) => ({ source, destination }))
+const copied = new Set(copyRules.map((rule) => rule.source))
+const copiedDirectories = copyRules.filter((rule) => rule.source.endsWith('/'))
+  .map((rule) => rule.source)
+
+function includedInImage(relative) {
+  return copied.has(relative) || copiedDirectories.some((directory) => relative.startsWith(directory))
+}
 
 function localImport(from, specifier) {
   const base = specifier.startsWith('@/')
@@ -68,7 +75,7 @@ test('principal inventory image binds source and includes every runtime import',
     const relative = queue.shift()
     if (seen.has(relative)) continue
     seen.add(relative)
-    assert.ok(copied.has(relative), `operator image omits ${relative}`)
+    assert.ok(includedInImage(relative), `operator image omits ${relative}`)
     for (const specifier of runtimeImports(path.join(root, relative))) {
       if (specifier.startsWith('node:') || specifier === 'pg') continue
       const imported = localImport(path.join(root, relative), specifier)
@@ -81,4 +88,5 @@ test('principal inventory image binds source and includes every runtime import',
   assert.ok(seen.has('src/lib/jenfu-principal-only-cohort-source.ts'))
   assert.ok(seen.has('src/lib/jenfu-principal-only-writer-readback.ts'))
   assert.ok(seen.has('src/lib/jenfu-principal-inventory-registration.ts'))
+  assert.deepEqual(copiedDirectories, ['scripts/lib/'])
 })
